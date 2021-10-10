@@ -14,7 +14,6 @@ module.exports = {
 
         docs: {
             description: "disallow negated conditions",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-negated-condition"
         },

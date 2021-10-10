@@ -154,7 +154,6 @@ module.exports = {
 
         docs: {
             description: "disallow function declarations that contain unsafe references inside loop statements",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-loop-func"
         },
@@ -174,7 +173,7 @@ module.exports = {
          * - has a loop node in ancestors.
          * - has any references which refers to an unsafe variable.
          * @param {ASTNode} node The AST node to check.
-         * @returns {boolean} Whether or not the node is within a loop.
+         * @returns {void}
          */
         function checkForLoops(node) {
             const loopNode = getContainingLoopNode(node);

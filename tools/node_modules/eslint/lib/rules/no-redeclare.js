@@ -21,7 +21,6 @@ module.exports = {
 
         docs: {
             description: "disallow variable redeclaration",
-            category: "Best Practices",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-redeclare"
         },

@@ -10,7 +10,7 @@
 
 const RegExpValidator = require("regexpp").RegExpValidator;
 const validator = new RegExpValidator();
-const validFlags = /[gimuys]/gu;
+const validFlags = /[dgimsuy]/gu;
 const undefined1 = void 0;
 
 //------------------------------------------------------------------------------
@@ -23,7 +23,6 @@ module.exports = {
 
         docs: {
             description: "disallow invalid regular expression strings in `RegExp` constructors",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-invalid-regexp"
         },

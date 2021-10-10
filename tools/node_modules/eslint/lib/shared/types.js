@@ -83,12 +83,12 @@ module.exports = {};
 
 /**
  * @typedef {Object} LintMessage
- * @property {number} column The 1-based column number.
+ * @property {number|undefined} column The 1-based column number.
  * @property {number} [endColumn] The 1-based column number of the end location.
  * @property {number} [endLine] The 1-based line number of the end location.
  * @property {boolean} fatal If `true` then this is a fatal error.
  * @property {{range:[number,number], text:string}} [fix] Information for autofix.
- * @property {number} line The 1-based line number.
+ * @property {number|undefined} line The 1-based line number.
  * @property {string} message The error message.
  * @property {string|null} ruleId The ID of the rule which makes this message.
  * @property {0|1|2} severity The severity of this message.

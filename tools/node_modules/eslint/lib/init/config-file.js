@@ -23,9 +23,9 @@ const debug = require("debug")("eslint:config-file");
  * Determines sort order for object keys for json-stable-stringify
  *
  * see: https://github.com/samn/json-stable-stringify#cmp
- * @param   {Object} a The first comparison object ({key: akey, value: avalue})
- * @param   {Object} b The second comparison object ({key: bkey, value: bvalue})
- * @returns {number}   1 or -1, used in stringify cmp method
+ * @param {Object} a The first comparison object ({key: akey, value: avalue})
+ * @param {Object} b The second comparison object ({key: bkey, value: bvalue})
+ * @returns {number} 1 or -1, used in stringify cmp method
  */
 function sortByKey(a, b) {
     return a.key > b.key ? 1 : -1;
@@ -63,7 +63,7 @@ function writeYAMLConfigFile(config, filePath) {
     // lazy load YAML to improve performance when not used
     const yaml = require("js-yaml");
 
-    const content = yaml.safeDump(config, { sortKeys: true });
+    const content = yaml.dump(config, { sortKeys: true });
 
     fs.writeFileSync(filePath, content, "utf8");
 }

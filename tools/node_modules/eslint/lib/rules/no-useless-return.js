@@ -67,7 +67,6 @@ module.exports = {
 
         docs: {
             description: "disallow redundant return statements",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-useless-return"
         },

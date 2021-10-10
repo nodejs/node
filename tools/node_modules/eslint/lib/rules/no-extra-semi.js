@@ -22,7 +22,6 @@ module.exports = {
 
         docs: {
             description: "disallow unnecessary semicolons",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-extra-semi"
         },
@@ -117,7 +116,7 @@ module.exports = {
              * @param {Node} node A MethodDefinition node of the start point.
              * @returns {void}
              */
-            MethodDefinition(node) {
+            "MethodDefinition, PropertyDefinition"(node) {
                 checkForPartOfClassBody(sourceCode.getTokenAfter(node));
             }
         };

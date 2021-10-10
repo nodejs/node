@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "require `for-in` loops to include an `if` statement",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/guard-for-in"
         },

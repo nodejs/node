@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "require identifiers to match a specified regular expression",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/id-match"
         },
@@ -28,6 +27,10 @@ module.exports = {
                 type: "object",
                 properties: {
                     properties: {
+                        type: "boolean",
+                        default: false
+                    },
+                    classFields: {
                         type: "boolean",
                         default: false
                     },
@@ -44,7 +47,8 @@ module.exports = {
             }
         ],
         messages: {
-            notMatch: "Identifier '{{name}}' does not match the pattern '{{pattern}}'."
+            notMatch: "Identifier '{{name}}' does not match the pattern '{{pattern}}'.",
+            notMatchPrivate: "Identifier '#{{name}}' does not match the pattern '{{pattern}}'."
         }
     },
 
@@ -57,7 +61,8 @@ module.exports = {
             regexp = new RegExp(pattern, "u");
 
         const options = context.options[1] || {},
-            properties = !!options.properties,
+            checkProperties = !!options.properties,
+            checkClassFields = !!options.classFields,
             onlyDeclarations = !!options.onlyDeclarations,
             ignoreDestructuring = !!options.ignoreDestructuring;
 
@@ -66,7 +71,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         // contains reported nodes to avoid reporting twice on destructuring with shorthand notation
-        const reported = new Map();
+        const reportedNodes = new Set();
         const ALLOWED_PARENT_TYPES = new Set(["CallExpression", "NewExpression"]);
         const DECLARATION_TYPES = new Set(["FunctionDeclaration", "VariableDeclarator"]);
         const IMPORT_TYPES = new Set(["ImportSpecifier", "ImportNamespaceSpecifier", "ImportDefaultSpecifier"]);
@@ -120,16 +125,30 @@ module.exports = {
          * @private
          */
         function report(node) {
-            if (!reported.has(node)) {
+
+            /*
+             * We used the range instead of the node because it's possible
+             * for the same identifier to be represented by two different
+             * nodes, with the most clear example being shorthand properties:
+             * { foo }
+             * In this case, "foo" is represented by one node for the name
+             * and one for the value. The only way to know they are the same
+             * is to look at the range.
+             */
+            if (!reportedNodes.has(node.range.toString())) {
+
+                const messageId = (node.type === "PrivateIdentifier")
+                    ? "notMatchPrivate" : "notMatch";
+
                 context.report({
                     node,
-                    messageId: "notMatch",
+                    messageId,
                     data: {
                         name: node.name,
                         pattern
                     }
                 });
-                reported.set(node, true);
+                reportedNodes.add(node.range.toString());
             }
         }
 
@@ -142,7 +161,7 @@ module.exports = {
 
                 if (parent.type === "MemberExpression") {
 
-                    if (!properties) {
+                    if (!checkProperties) {
                         return;
                     }
 
@@ -176,8 +195,7 @@ module.exports = {
                 } else if (parent.type === "Property" || parent.type === "AssignmentPattern") {
 
                     if (parent.parent && parent.parent.type === "ObjectPattern") {
-                        if (parent.shorthand && parent.value.left && isInvalid(name)) {
-
+                        if (!ignoreDestructuring && parent.shorthand && parent.value.left && isInvalid(name)) {
                             report(node);
                         }
 
@@ -197,7 +215,7 @@ module.exports = {
                     }
 
                     // never check properties or always ignore destructuring
-                    if (!properties || (ignoreDestructuring && isInsideObjectPattern(node))) {
+                    if (!checkProperties || (ignoreDestructuring && isInsideObjectPattern(node))) {
                         return;
                     }
 
@@ -214,8 +232,27 @@ module.exports = {
                         report(node);
                     }
 
+                } else if (parent.type === "PropertyDefinition") {
+
+                    if (checkClassFields && isInvalid(name)) {
+                        report(node);
+                    }
+
                 // Report anything that is invalid that isn't a CallExpression
                 } else if (shouldReport(effectiveParent, name)) {
+                    report(node);
+                }
+            },
+
+            "PrivateIdentifier"(node) {
+
+                const isClassField = node.parent.type === "PropertyDefinition";
+
+                if (isClassField && !checkClassFields) {
+                    return;
+                }
+
+                if (isInvalid(node.name)) {
                     report(node);
                 }
             }

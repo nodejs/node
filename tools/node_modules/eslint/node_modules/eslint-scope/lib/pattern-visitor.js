@@ -21,16 +21,17 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
   THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-"use strict";
 
 /* eslint-disable no-undefined */
 
-const Syntax = require("estraverse").Syntax;
-const esrecurse = require("esrecurse");
+import estraverse from "estraverse";
+import esrecurse from "esrecurse";
+
+const { Syntax } = estraverse;
 
 /**
  * Get last array element
- * @param {array} xs - array
+ * @param {Array} xs array
  * @returns {any} Last elment
  */
 function getLast(xs) {
@@ -147,6 +148,6 @@ class PatternVisitor extends esrecurse.Visitor {
     }
 }
 
-module.exports = PatternVisitor;
+export default PatternVisitor;
 
 /* vim: set sw=4 ts=4 et tw=80 : */

@@ -21,7 +21,6 @@ module.exports = {
 
         docs: {
             description: "require or disallow padding within blocks",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/padded-blocks"
         },
@@ -167,6 +166,7 @@ module.exports = {
         /**
          * Checks if a node should be padded, according to the rule config.
          * @param {ASTNode} node The AST node to check.
+         * @throws {Error} (Unreachable)
          * @returns {boolean} True if the node should be padded, false otherwise.
          */
         function requirePaddingFor(node) {

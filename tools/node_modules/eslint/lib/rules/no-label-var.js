@@ -21,7 +21,6 @@ module.exports = {
 
         docs: {
             description: "disallow labels that share a name with a variable",
-            category: "Variables",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-label-var"
         },

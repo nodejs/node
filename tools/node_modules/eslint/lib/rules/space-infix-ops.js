@@ -4,6 +4,8 @@
  */
 "use strict";
 
+const { isEqToken } = require("./utils/ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -14,7 +16,6 @@ module.exports = {
 
         docs: {
             description: "require spacing around infix operators",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/space-infix-ops"
         },
@@ -164,7 +165,29 @@ module.exports = {
             BinaryExpression: checkBinary,
             LogicalExpression: checkBinary,
             ConditionalExpression: checkConditional,
-            VariableDeclarator: checkVar
+            VariableDeclarator: checkVar,
+
+            PropertyDefinition(node) {
+                if (!node.value) {
+                    return;
+                }
+
+                /*
+                 * Because of computed properties and type annotations, some
+                 * tokens may exist between `node.key` and `=`.
+                 * Therefore, find the `=` from the right.
+                 */
+                const operatorToken = sourceCode.getTokenBefore(node.value, isEqToken);
+                const leftToken = sourceCode.getTokenBefore(operatorToken);
+                const rightToken = sourceCode.getTokenAfter(operatorToken);
+
+                if (
+                    !sourceCode.isSpaceBetweenTokens(leftToken, operatorToken) ||
+                    !sourceCode.isSpaceBetweenTokens(operatorToken, rightToken)
+                ) {
+                    report(node, operatorToken);
+                }
+            }
         };
 
     }

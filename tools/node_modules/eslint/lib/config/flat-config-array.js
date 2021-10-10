@@ -61,7 +61,7 @@ class FlatConfigArray extends ConfigArray {
         this.unshift(baseConfig);
     }
 
-    /* eslint-disable class-methods-use-this */
+    /* eslint-disable class-methods-use-this -- Desired as instance method */
     /**
      * Replaces a config with another config to allow us to put strings
      * in the config array that will be replaced by objects before
@@ -118,7 +118,7 @@ class FlatConfigArray extends ConfigArray {
 
         return config;
     }
-    /* eslint-enable class-methods-use-this */
+    /* eslint-enable class-methods-use-this -- Desired as instance method */
 
 }
 

@@ -22,7 +22,7 @@ const PREV_TOKEN_M = /^[)\]}>*]$/u;
 const NEXT_TOKEN_M = /^[{*]$/u;
 const TEMPLATE_OPEN_PAREN = /\$\{$/u;
 const TEMPLATE_CLOSE_PAREN = /^\}/u;
-const CHECK_TYPE = /^(?:JSXElement|RegularExpression|String|Template)$/u;
+const CHECK_TYPE = /^(?:JSXElement|RegularExpression|String|Template|PrivateIdentifier)$/u;
 const KEYS = keywords.concat(["as", "async", "await", "from", "get", "let", "of", "set", "yield"]);
 
 // check duplications.
@@ -67,7 +67,6 @@ module.exports = {
 
         docs: {
             description: "enforce consistent spacing before and after keywords",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/keyword-spacing"
         },
@@ -403,7 +402,15 @@ module.exports = {
          */
         function checkSpacingForForInStatement(node) {
             checkSpacingAroundFirstToken(node);
-            checkSpacingAroundTokenBefore(node.right);
+
+            const inToken = sourceCode.getTokenBefore(node.right, astUtils.isNotOpeningParenToken);
+            const previousToken = sourceCode.getTokenBefore(inToken);
+
+            if (previousToken.type !== "PrivateIdentifier") {
+                checkSpacingBefore(inToken);
+            }
+
+            checkSpacingAfter(inToken);
         }
 
         /**
@@ -419,7 +426,15 @@ module.exports = {
             } else {
                 checkSpacingAroundFirstToken(node);
             }
-            checkSpacingAround(sourceCode.getTokenBefore(node.right, astUtils.isNotOpeningParenToken));
+
+            const ofToken = sourceCode.getTokenBefore(node.right, astUtils.isNotOpeningParenToken);
+            const previousToken = sourceCode.getTokenBefore(ofToken);
+
+            if (previousToken.type !== "PrivateIdentifier") {
+                checkSpacingBefore(ofToken);
+            }
+
+            checkSpacingAfter(ofToken);
         }
 
         /**
@@ -473,6 +488,7 @@ module.exports = {
          * Reports `static`, `get`, and `set` keywords of a given node if usage of
          * spacing around those keywords is invalid.
          * @param {ASTNode} node A node to report.
+         * @throws {Error} If unable to find token get, set, or async beside method name.
          * @returns {void}
          */
         function checkSpacingForProperty(node) {
@@ -567,6 +583,7 @@ module.exports = {
             // Others
             ImportNamespaceSpecifier: checkSpacingForImportNamespaceSpecifier,
             MethodDefinition: checkSpacingForProperty,
+            PropertyDefinition: checkSpacingForProperty,
             Property: checkSpacingForProperty
         };
     }

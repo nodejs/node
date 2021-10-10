@@ -30,11 +30,11 @@ module.exports = {
 
         docs: {
             description: "disallow `\\8` and `\\9` escape sequences in string literals",
-            category: "Best Practices",
-            recommended: false,
-            url: "https://eslint.org/docs/rules/no-nonoctal-decimal-escape",
-            suggestion: true
+            recommended: true,
+            url: "https://eslint.org/docs/rules/no-nonoctal-decimal-escape"
         },
+
+        hasSuggestions: true,
 
         schema: [],
 

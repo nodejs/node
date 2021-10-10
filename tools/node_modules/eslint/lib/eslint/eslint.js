@@ -125,7 +125,7 @@ function isArrayOfNonEmptyString(x) {
  * @returns {boolean} `true` if `x` is valid fix type.
  */
 function isFixType(x) {
-    return x === "problem" || x === "suggestion" || x === "layout";
+    return x === "directive" || x === "problem" || x === "suggestion" || x === "layout";
 }
 
 /**
@@ -151,6 +151,7 @@ class ESLintInvalidOptionsError extends Error {
 /**
  * Validates and normalizes options for the wrapped CLIEngine instance.
  * @param {ESLintOptions} options The options to process.
+ * @throws {ESLintInvalidOptionsError} If of any of a variety of type errors.
  * @returns {ESLintOptions} The normalized options.
  */
 function processOptions({
@@ -237,7 +238,7 @@ function processOptions({
         errors.push("'fix' must be a boolean or a function.");
     }
     if (fixTypes !== null && !isFixTypeArray(fixTypes)) {
-        errors.push("'fixTypes' must be an array of any of \"problem\", \"suggestion\", and \"layout\".");
+        errors.push("'fixTypes' must be an array of any of \"directive\", \"problem\", \"suggestion\", and \"layout\".");
     }
     if (typeof globInputPaths !== "boolean") {
         errors.push("'globInputPaths' must be a boolean.");
@@ -421,6 +422,9 @@ function compareResultsByFilePath(a, b) {
     return 0;
 }
 
+/**
+ * Main API.
+ */
 class ESLint {
 
     /**

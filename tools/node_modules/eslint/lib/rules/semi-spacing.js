@@ -17,7 +17,6 @@ module.exports = {
 
         docs: {
             description: "enforce consistent spacing before and after semicolons",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/semi-spacing"
         },
@@ -238,7 +237,8 @@ module.exports = {
                 if (node.test) {
                     checkSemicolonSpacing(sourceCode.getTokenAfter(node.test), node);
                 }
-            }
+            },
+            PropertyDefinition: checkNode
         };
     }
 };

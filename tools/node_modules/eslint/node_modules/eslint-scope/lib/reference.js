@@ -21,7 +21,6 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
   THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-"use strict";
 
 const READ = 0x1;
 const WRITE = 0x2;
@@ -29,7 +28,7 @@ const RW = READ | WRITE;
 
 /**
  * A Reference represents a single occurrence of an identifier in code.
- * @class Reference
+ * @constructor Reference
  */
 class Reference {
     constructor(ident, scope, flag, writeExpr, maybeImplicitGlobal, partial, init) {
@@ -91,7 +90,7 @@ class Reference {
 
     /**
      * Whether the reference is static.
-     * @method Reference#isStatic
+     * @function Reference#isStatic
      * @returns {boolean} static
      */
     isStatic() {
@@ -100,7 +99,7 @@ class Reference {
 
     /**
      * Whether the reference is writeable.
-     * @method Reference#isWrite
+     * @function Reference#isWrite
      * @returns {boolean} write
      */
     isWrite() {
@@ -109,7 +108,7 @@ class Reference {
 
     /**
      * Whether the reference is readable.
-     * @method Reference#isRead
+     * @function Reference#isRead
      * @returns {boolean} read
      */
     isRead() {
@@ -118,7 +117,7 @@ class Reference {
 
     /**
      * Whether the reference is read-only.
-     * @method Reference#isReadOnly
+     * @function Reference#isReadOnly
      * @returns {boolean} read only
      */
     isReadOnly() {
@@ -127,7 +126,7 @@ class Reference {
 
     /**
      * Whether the reference is write-only.
-     * @method Reference#isWriteOnly
+     * @function Reference#isWriteOnly
      * @returns {boolean} write only
      */
     isWriteOnly() {
@@ -136,7 +135,7 @@ class Reference {
 
     /**
      * Whether the reference is read-write.
-     * @method Reference#isReadWrite
+     * @function Reference#isReadWrite
      * @returns {boolean} read write
      */
     isReadWrite() {
@@ -162,6 +161,6 @@ Reference.WRITE = WRITE;
  */
 Reference.RW = RW;
 
-module.exports = Reference;
+export default Reference;
 
 /* vim: set sw=4 ts=4 et tw=80 : */

@@ -22,7 +22,6 @@ module.exports = {
 
         docs: {
             description: "require quotes around object literal property names",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/quote-props"
         },
@@ -91,7 +90,7 @@ module.exports = {
 
         /**
          * Checks whether a certain string constitutes an ES3 token
-         * @param   {string} tokenStr The string to be checked.
+         * @param {string} tokenStr The string to be checked.
          * @returns {boolean} `true` if it is an ES3 token.
          */
         function isKeyword(tokenStr) {
@@ -100,9 +99,9 @@ module.exports = {
 
         /**
          * Checks if an espree-tokenized key has redundant quotes (i.e. whether quotes are unnecessary)
-         * @param   {string} rawKey The raw key value from the source
-         * @param   {espreeTokens} tokens The espree-tokenized node key
-         * @param   {boolean} [skipNumberLiterals=false] Indicates whether number literals should be checked
+         * @param {string} rawKey The raw key value from the source
+         * @param {espreeTokens} tokens The espree-tokenized node key
+         * @param {boolean} [skipNumberLiterals=false] Indicates whether number literals should be checked
          * @returns {boolean} Whether or not a key has redundant quotes.
          * @private
          */
@@ -139,7 +138,7 @@ module.exports = {
 
         /**
          * Ensures that a property's key is quoted only when necessary
-         * @param   {ASTNode} node Property AST node
+         * @param {ASTNode} node Property AST node
          * @returns {void}
          */
         function checkUnnecessaryQuotes(node) {
@@ -195,7 +194,7 @@ module.exports = {
 
         /**
          * Ensures that a property's key is quoted
-         * @param   {ASTNode} node Property AST node
+         * @param {ASTNode} node Property AST node
          * @returns {void}
          */
         function checkOmittedQuotes(node) {
@@ -213,8 +212,8 @@ module.exports = {
 
         /**
          * Ensures that an object's keys are consistently quoted, optionally checks for redundancy of quotes
-         * @param   {ASTNode} node Property AST node
-         * @param   {boolean} checkQuotesRedundancy Whether to check quotes' redundancy
+         * @param {ASTNode} node Property AST node
+         * @param {boolean} checkQuotesRedundancy Whether to check quotes' redundancy
          * @returns {void}
          */
         function checkConsistency(node, checkQuotesRedundancy) {

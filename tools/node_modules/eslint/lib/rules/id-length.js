@@ -16,7 +16,6 @@ module.exports = {
 
         docs: {
             description: "enforce minimum and maximum identifier lengths",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/id-length"
         },
@@ -55,7 +54,9 @@ module.exports = {
         ],
         messages: {
             tooShort: "Identifier name '{{name}}' is too short (< {{min}}).",
-            tooLong: "Identifier name '{{name}}' is too long (> {{max}})."
+            tooShortPrivate: "Identifier name '#{{name}}' is too short (< {{min}}).",
+            tooLong: "Identifier name '{{name}}' is too long (> {{max}}).",
+            tooLongPrivate: "Identifier name #'{{name}}' is too long (> {{max}})."
         }
     },
 
@@ -66,7 +67,7 @@ module.exports = {
         const properties = options.properties !== "never";
         const exceptions = new Set(options.exceptions);
         const exceptionPatterns = (options.exceptionPatterns || []).map(pattern => new RegExp(pattern, "u"));
-        const reportedNode = new Set();
+        const reportedNodes = new Set();
 
         /**
          * Checks if a string matches the provided exception patterns
@@ -99,12 +100,14 @@ module.exports = {
             Property(parent, node) {
 
                 if (parent.parent.type === "ObjectPattern") {
+                    const isKeyAndValueSame = parent.value.name === parent.key.name;
+
                     return (
-                        parent.value !== parent.key && parent.value === node ||
-                        parent.value === parent.key && parent.key === node && properties
+                        !isKeyAndValueSame && parent.value === node ||
+                        isKeyAndValueSame && parent.key === node && properties
                     );
                 }
-                return properties && !parent.computed && parent.key === node;
+                return properties && !parent.computed && parent.key.name === node.name;
             },
             ImportDefaultSpecifier: true,
             RestElement: true,
@@ -113,12 +116,16 @@ module.exports = {
             ClassDeclaration: true,
             FunctionDeclaration: true,
             MethodDefinition: true,
+            PropertyDefinition: true,
             CatchClause: true,
             ArrayPattern: true
         };
 
         return {
-            Identifier(node) {
+            [[
+                "Identifier",
+                "PrivateIdentifier"
+            ]](node) {
                 const name = node.name;
                 const parent = node.parent;
 
@@ -131,11 +138,27 @@ module.exports = {
 
                 const isValidExpression = SUPPORTED_EXPRESSIONS[parent.type];
 
-                if (isValidExpression && !reportedNode.has(node) && (isValidExpression === true || isValidExpression(parent, node))) {
-                    reportedNode.add(node);
+                /*
+                 * We used the range instead of the node because it's possible
+                 * for the same identifier to be represented by two different
+                 * nodes, with the most clear example being shorthand properties:
+                 * { foo }
+                 * In this case, "foo" is represented by one node for the name
+                 * and one for the value. The only way to know they are the same
+                 * is to look at the range.
+                 */
+                if (isValidExpression && !reportedNodes.has(node.range.toString()) && (isValidExpression === true || isValidExpression(parent, node))) {
+                    reportedNodes.add(node.range.toString());
+
+                    let messageId = isShort ? "tooShort" : "tooLong";
+
+                    if (node.type === "PrivateIdentifier") {
+                        messageId += "Private";
+                    }
+
                     context.report({
                         node,
-                        messageId: isShort ? "tooShort" : "tooLong",
+                        messageId,
                         data: { name, min: minLength, max: maxLength }
                     });
                 }

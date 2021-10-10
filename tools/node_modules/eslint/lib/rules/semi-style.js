@@ -15,15 +15,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const SELECTOR = `:matches(${
-    [
-        "BreakStatement", "ContinueStatement", "DebuggerStatement",
-        "DoWhileStatement", "ExportAllDeclaration",
-        "ExportDefaultDeclaration", "ExportNamedDeclaration",
-        "ExpressionStatement", "ImportDeclaration", "ReturnStatement",
-        "ThrowStatement", "VariableDeclaration"
-    ].join(",")
-})`;
+const SELECTOR = [
+    "BreakStatement", "ContinueStatement", "DebuggerStatement",
+    "DoWhileStatement", "ExportAllDeclaration",
+    "ExportDefaultDeclaration", "ExportNamedDeclaration",
+    "ExpressionStatement", "ImportDeclaration", "ReturnStatement",
+    "ThrowStatement", "VariableDeclaration", "PropertyDefinition"
+].join(",");
 
 /**
  * Get the child node list of a given node.
@@ -35,7 +33,7 @@ const SELECTOR = `:matches(${
 function getChildren(node) {
     const t = node.type;
 
-    if (t === "BlockStatement" || t === "Program") {
+    if (t === "BlockStatement" || t === "Program" || t === "ClassBody") {
         return node.body;
     }
     if (t === "SwitchCase") {
@@ -69,7 +67,6 @@ module.exports = {
 
         docs: {
             description: "enforce location of semicolons",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/semi-style"
         },

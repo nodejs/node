@@ -96,7 +96,6 @@ module.exports = {
 
         docs: {
             description: "require grouped accessor pairs in object literals and classes",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/grouped-accessor-pairs"
         },

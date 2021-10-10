@@ -18,7 +18,6 @@
  */
 class IdGenerator {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {string} prefix Optional. A prefix of generated ids.
      */

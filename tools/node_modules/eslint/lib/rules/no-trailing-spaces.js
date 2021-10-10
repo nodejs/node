@@ -20,7 +20,6 @@ module.exports = {
 
         docs: {
             description: "disallow trailing whitespace at the end of lines",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-trailing-spaces"
         },

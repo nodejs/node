@@ -121,7 +121,6 @@ module.exports = {
 
         docs: {
             description: 'require or disallow "Yoda" conditions',
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/yoda"
         },

@@ -34,7 +34,6 @@ module.exports = {
 
         docs: {
             description: "enforce a maximum number of lines per file",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/max-lines"
         },
@@ -137,20 +136,6 @@ module.exports = {
             return [];
         }
 
-        /**
-         * Returns a new array formed by applying a given callback function to each element of the array, and then flattening the result by one level.
-         * TODO(stephenwade): Replace this with array.flatMap when we drop support for Node v10
-         * @param {any[]} array The array to process
-         * @param {Function} fn The function to use
-         * @returns {any[]} The result array
-         */
-        function flatMap(array, fn) {
-            const mapped = array.map(fn);
-            const flattened = [].concat(...mapped);
-
-            return flattened;
-        }
-
         return {
             "Program:exit"() {
                 let lines = sourceCode.lines.map((text, i) => ({
@@ -173,7 +158,7 @@ module.exports = {
                 if (skipComments) {
                     const comments = sourceCode.getAllComments();
 
-                    const commentLines = flatMap(comments, comment => getLinesWithoutCode(comment));
+                    const commentLines = comments.flatMap(getLinesWithoutCode);
 
                     lines = lines.filter(
                         l => !commentLines.includes(l.lineNumber)

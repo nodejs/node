@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "disallow duplicate arguments in `function` definitions",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-dupe-args"
         },

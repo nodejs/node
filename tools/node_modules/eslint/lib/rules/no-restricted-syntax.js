@@ -14,7 +14,6 @@ module.exports = {
 
         docs: {
             description: "disallow specified syntax",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-syntax"
         },
@@ -42,7 +41,7 @@ module.exports = {
         },
 
         messages: {
-            // eslint-disable-next-line eslint-plugin/report-message-format
+            // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
             restrictedSyntax: "{{message}}"
         }
     },

@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "disallow `Array` constructors",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-array-constructor"
         },

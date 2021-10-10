@@ -1,7 +1,7 @@
 /**
  * @fileoverview Rule to require newlines before `return` statement
  * @author Kai Cataldo
- * @deprecated
+ * @deprecated in ESLint v4.0.0
  */
 "use strict";
 
@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "require an empty line before `return` statements",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/newline-before-return"
         },

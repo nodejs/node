@@ -14,9 +14,8 @@
  *
  * @author Toru Nagashima <https://github.com/mysticatea>
  */
-"use strict";
 
-const { IgnorePattern } = require("./ignore-pattern");
+import { IgnorePattern } from "./ignore-pattern.js";
 
 // For VSCode intellisense
 /** @typedef {import("../../shared/types").ConfigData} ConfigData */
@@ -143,4 +142,4 @@ class ExtractedConfig {
     }
 }
 
-module.exports = { ExtractedConfig };
+export { ExtractedConfig };

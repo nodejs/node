@@ -24,7 +24,6 @@ module.exports = {
 
         docs: {
             description: "disallow variable or `function` declarations in nested blocks",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-inner-declarations"
         },

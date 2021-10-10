@@ -14,7 +14,6 @@ module.exports = {
 
         docs: {
             description: "require or disallow newlines around variable declarations",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/one-var-declaration-per-line"
         },

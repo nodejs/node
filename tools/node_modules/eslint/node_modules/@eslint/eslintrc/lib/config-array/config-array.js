@@ -24,14 +24,13 @@
  *
  * @author Toru Nagashima <https://github.com/mysticatea>
  */
-"use strict";
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-const { ExtractedConfig } = require("./extracted-config");
-const { IgnorePattern } = require("./ignore-pattern");
+import { ExtractedConfig } from "./extracted-config.js";
+import { IgnorePattern } from "./ignore-pattern.js";
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -504,21 +503,21 @@ class ConfigArray extends Array {
     }
 }
 
-const exportObject = {
+/**
+ * Get the used extracted configs.
+ * CLIEngine will use this method to collect used deprecated rules.
+ * @param {ConfigArray} instance The config array object to get.
+ * @returns {ExtractedConfig[]} The used extracted configs.
+ * @private
+ */
+function getUsedExtractedConfigs(instance) {
+    const { cache } = internalSlotsMap.get(instance);
+
+    return Array.from(cache.values());
+}
+
+
+export {
     ConfigArray,
-
-    /**
-     * Get the used extracted configs.
-     * CLIEngine will use this method to collect used deprecated rules.
-     * @param {ConfigArray} instance The config array object to get.
-     * @returns {ExtractedConfig[]} The used extracted configs.
-     * @private
-     */
-    getUsedExtractedConfigs(instance) {
-        const { cache } = internalSlotsMap.get(instance);
-
-        return Array.from(cache.values());
-    }
+    getUsedExtractedConfigs
 };
-
-module.exports = exportObject;

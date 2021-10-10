@@ -16,7 +16,6 @@ module.exports = {
 
         docs: {
             description: "enforce the location of single-line statements",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/nonblock-statement-body-position"
         },

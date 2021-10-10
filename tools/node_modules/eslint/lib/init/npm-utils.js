@@ -21,8 +21,8 @@ const fs = require("fs"),
 /**
  * Find the closest package.json file, starting at process.cwd (by default),
  * and working up to root.
- * @param   {string} [startDir=process.cwd()] Starting directory
- * @returns {string}                          Absolute path to closest package.json file
+ * @param {string} [startDir=process.cwd()] Starting directory
+ * @returns {string} Absolute path to closest package.json file
  */
 function findPackageJson(startDir) {
     let dir = path.resolve(startDir || process.cwd());
@@ -45,7 +45,7 @@ function findPackageJson(startDir) {
 
 /**
  * Install node modules synchronously and save to devDependencies in package.json
- * @param   {string|string[]} packages Node module or modules to install
+ * @param {string|string[]} packages Node module or modules to install
  * @returns {void}
  */
 function installSyncSaveDev(packages) {
@@ -86,12 +86,13 @@ function fetchPeerDependencies(packageName) {
 
 /**
  * Check whether node modules are include in a project's package.json.
- * @param   {string[]} packages           Array of node module names
- * @param   {Object}  opt                 Options Object
- * @param   {boolean} opt.dependencies    Set to true to check for direct dependencies
- * @param   {boolean} opt.devDependencies Set to true to check for development dependencies
- * @param   {boolean} opt.startdir        Directory to begin searching from
- * @returns {Object}                      An object whose keys are the module names
+ * @param {string[]} packages Array of node module names
+ * @param {Object} opt Options Object
+ * @param {boolean} opt.dependencies Set to true to check for direct dependencies
+ * @param {boolean} opt.devDependencies Set to true to check for development dependencies
+ * @param {boolean} opt.startdir Directory to begin searching from
+ * @throws {Error} If cannot find valid `package.json` file.
+ * @returns {Object} An object whose keys are the module names
  *                                        and values are booleans indicating installation.
  */
 function check(packages, opt) {
@@ -133,9 +134,9 @@ function check(packages, opt) {
  * package.json.
  *
  * Convenience wrapper around check().
- * @param   {string[]} packages  Array of node modules to check.
- * @param   {string}   rootDir   The directory containing a package.json
- * @returns {Object}             An object whose keys are the module names
+ * @param {string[]} packages Array of node modules to check.
+ * @param {string} rootDir The directory containing a package.json
+ * @returns {Object} An object whose keys are the module names
  *                               and values are booleans indicating installation.
  */
 function checkDeps(packages, rootDir) {
@@ -147,8 +148,8 @@ function checkDeps(packages, rootDir) {
  * package.json.
  *
  * Convenience wrapper around check().
- * @param   {string[]} packages  Array of node modules to check.
- * @returns {Object}             An object whose keys are the module names
+ * @param {string[]} packages Array of node modules to check.
+ * @returns {Object} An object whose keys are the module names
  *                               and values are booleans indicating installation.
  */
 function checkDevDeps(packages) {
@@ -157,7 +158,7 @@ function checkDevDeps(packages) {
 
 /**
  * Check whether package.json is found in current path.
- * @param   {string} [startDir] Starting directory
+ * @param {string} [startDir] Starting directory
  * @returns {boolean} Whether a package.json is found in current path.
  */
 function checkPackageJson(startDir) {

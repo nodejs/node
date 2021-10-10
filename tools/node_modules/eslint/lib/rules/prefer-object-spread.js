@@ -247,7 +247,6 @@ module.exports = {
         docs: {
             description:
                 "disallow using Object.assign with an object literal as the first argument and prefer the use of object spread instead.",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-object-spread"
         },

@@ -24,7 +24,6 @@ module.exports = {
 
         docs: {
             description: "disallow unnecessary boolean casts",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-extra-boolean-cast"
         },
@@ -150,6 +149,7 @@ module.exports = {
          * For example, if the parent is `ConditionalExpression`, `previousNode` must be its `test` child.
          * @param {ASTNode} previousNode Previous node.
          * @param {ASTNode} node The node to check.
+         * @throws {Error} (Unreachable.)
          * @returns {boolean} `true` if the node needs to be parenthesized.
          */
         function needsParens(previousNode, node) {

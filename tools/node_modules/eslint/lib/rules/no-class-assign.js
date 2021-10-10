@@ -17,7 +17,6 @@ module.exports = {
 
         docs: {
             description: "disallow reassigning class members",
-            category: "ECMAScript 6",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-class-assign"
         },

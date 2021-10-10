@@ -431,7 +431,6 @@ module.exports = {
 
         docs: {
             description: "require or disallow padding lines between statements",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/padding-line-between-statements"
         },

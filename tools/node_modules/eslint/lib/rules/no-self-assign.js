@@ -130,7 +130,6 @@ module.exports = {
 
         docs: {
             description: "disallow assignments where both sides are exactly the same",
-            category: "Best Practices",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-self-assign"
         },

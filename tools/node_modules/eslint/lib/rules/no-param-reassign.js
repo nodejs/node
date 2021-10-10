@@ -16,7 +16,6 @@ module.exports = {
 
         docs: {
             description: "disallow reassigning `function` parameters",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-param-reassign"
         },

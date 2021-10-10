@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "require `Reflect` methods where applicable",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-reflect"
         },

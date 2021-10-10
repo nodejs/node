@@ -55,7 +55,6 @@ module.exports = {
 
         docs: {
             description: "disallow unnecessary calls to `.call()` and `.apply()`",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-useless-call"
         },

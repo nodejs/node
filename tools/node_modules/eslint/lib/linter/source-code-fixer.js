@@ -80,8 +80,8 @@ SourceCodeFixer.applyFixes = function(sourceText, messages, shouldFix) {
 
     /**
      * Try to use the 'fix' from a problem.
-     * @param   {Message} problem The message object to apply fixes from
-     * @returns {boolean}         Whether fix was successfully applied
+     * @param {Message} problem The message object to apply fixes from
+     * @returns {boolean} Whether fix was successfully applied
      */
     function attemptFix(problem) {
         const fix = problem.fix;

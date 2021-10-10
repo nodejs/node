@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "require `var` declarations be placed at the top of their containing scope",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/vars-on-top"
         },
@@ -32,8 +31,8 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        // eslint-disable-next-line jsdoc/require-description
         /**
+         * Has AST suggesting a directive.
          * @param {ASTNode} node any node
          * @returns {boolean} whether the given node structurally represents a directive
          */

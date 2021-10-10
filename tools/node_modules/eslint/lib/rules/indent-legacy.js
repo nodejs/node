@@ -4,6 +4,7 @@
  * This rule has been ported and modified from nodeca.
  * @author Vitaly Puzrin
  * @author Gyandeep Singh
+ * @deprecated in ESLint v4.0.0
  */
 
 "use strict";
@@ -25,7 +26,6 @@ module.exports = {
 
         docs: {
             description: "enforce consistent indentation",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/indent-legacy"
         },

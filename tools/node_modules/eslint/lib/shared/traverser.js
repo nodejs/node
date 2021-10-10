@@ -65,16 +65,16 @@ class Traverser {
         this._leave = null;
     }
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
+     * Gives current node.
      * @returns {ASTNode} The current node.
      */
     current() {
         return this._current;
     }
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
+     * Gives a a copy of the ancestor nodes.
      * @returns {ASTNode[]} The ancestor nodes.
      */
     parents() {

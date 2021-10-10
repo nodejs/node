@@ -26,7 +26,6 @@ module.exports = {
 
         docs: {
             description: "disallow assignment operators in `return` statements",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-return-assign"
         },

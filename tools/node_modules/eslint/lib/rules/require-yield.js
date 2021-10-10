@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "require generator functions to contain `yield`",
-            category: "ECMAScript 6",
             recommended: true,
             url: "https://eslint.org/docs/rules/require-yield"
         },

@@ -3,8 +3,6 @@
  * @author Sylvan Mably
  */
 
-"use strict";
-
 const baseConfigProperties = {
     $schema: { type: "string" },
     env: { type: "object" },
@@ -78,4 +76,4 @@ const configSchema = {
     $ref: "#/definitions/objectConfig"
 };
 
-module.exports = configSchema;
+export default configSchema;

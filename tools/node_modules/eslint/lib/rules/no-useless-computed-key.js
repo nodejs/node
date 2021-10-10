@@ -11,6 +11,77 @@
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Determines whether the computed key syntax is unnecessarily used for the given node.
+ * In particular, it determines whether removing the square brackets and using the content between them
+ * directly as the key (e.g. ['foo'] -> 'foo') would produce valid syntax and preserve the same behavior.
+ * Valid non-computed keys are only: identifiers, number literals and string literals.
+ * Only literals can preserve the same behavior, with a few exceptions for specific node types:
+ * Property
+ *   - { ["__proto__"]: foo } defines a property named "__proto__"
+ *     { "__proto__": foo } defines object's prototype
+ * PropertyDefinition
+ *   - class C { ["constructor"]; } defines an instance field named "constructor"
+ *     class C { "constructor"; } produces a parsing error
+ *   - class C { static ["constructor"]; } defines a static field named "constructor"
+ *     class C { static "constructor"; } produces a parsing error
+ *   - class C { static ["prototype"]; } produces a runtime error (doesn't break the whole script)
+ *     class C { static "prototype"; } produces a parsing error (breaks the whole script)
+ * MethodDefinition
+ *   - class C { ["constructor"]() {} } defines a prototype method named "constructor"
+ *     class C { "constructor"() {} } defines the constructor
+ *   - class C { static ["prototype"]() {} } produces a runtime error (doesn't break the whole script)
+ *     class C { static "prototype"() {} } produces a parsing error (breaks the whole script)
+ * @param {ASTNode} node The node to check. It can be `Property`, `PropertyDefinition` or `MethodDefinition`.
+ * @throws {Error} (Unreachable.)
+ * @returns {void} `true` if the node has useless computed key.
+ */
+function hasUselessComputedKey(node) {
+    if (!node.computed) {
+        return false;
+    }
+
+    const { key } = node;
+
+    if (key.type !== "Literal") {
+        return false;
+    }
+
+    const { value } = key;
+
+    if (typeof value !== "number" && typeof value !== "string") {
+        return false;
+    }
+
+    switch (node.type) {
+        case "Property":
+            return value !== "__proto__";
+
+        case "PropertyDefinition":
+            if (node.static) {
+                return value !== "constructor" && value !== "prototype";
+            }
+
+            return value !== "constructor";
+
+        case "MethodDefinition":
+            if (node.static) {
+                return value !== "prototype";
+            }
+
+            return value !== "constructor";
+
+        /* istanbul ignore next */
+        default:
+            throw new Error(`Unexpected node type: ${node.type}`);
+    }
+
+}
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -20,7 +91,6 @@ module.exports = {
 
         docs: {
             description: "disallow unnecessary computed property keys in objects and classes",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-useless-computed-key"
         },
@@ -51,22 +121,9 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            if (!node.computed) {
-                return;
-            }
+            if (hasUselessComputedKey(node)) {
+                const { key } = node;
 
-            const key = node.key,
-                nodeType = typeof key.value;
-
-            let allowedKey;
-
-            if (node.type === "MethodDefinition") {
-                allowedKey = node.static ? "prototype" : "constructor";
-            } else {
-                allowedKey = "__proto__";
-            }
-
-            if (key.type === "Literal" && (nodeType === "string" || nodeType === "number") && key.value !== allowedKey) {
                 context.report({
                     node,
                     messageId: "unnecessarilyComputedProperty",
@@ -103,7 +160,8 @@ module.exports = {
 
         return {
             Property: check,
-            MethodDefinition: enforceForClassMembers ? check : noop
+            MethodDefinition: enforceForClassMembers ? check : noop,
+            PropertyDefinition: enforceForClassMembers ? check : noop
         };
     }
 };

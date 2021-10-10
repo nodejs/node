@@ -1,7 +1,7 @@
 /**
  * @fileoverview Rule to check empty newline after "var" statement
  * @author Gopal Venkatesan
- * @deprecated
+ * @deprecated in ESLint v4.0.0
  */
 
 "use strict";
@@ -22,7 +22,6 @@ module.exports = {
 
         docs: {
             description: "require or disallow an empty line after variable declarations",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/newline-after-var"
         },
@@ -145,9 +144,9 @@ module.exports = {
 
         /**
          * Determine if a token starts more than one line after a comment ends
-         * @param  {token}   token            The token being checked
-         * @param {integer}  commentStartLine The line number on which the comment starts
-         * @returns {boolean}                 True if `token` does not start immediately after a comment
+         * @param {token} token The token being checked
+         * @param {integer} commentStartLine The line number on which the comment starts
+         * @returns {boolean} True if `token` does not start immediately after a comment
          */
         function hasBlankLineAfterComment(token, commentStartLine) {
             return token.loc.start.line > getLastCommentLineOfBlock(commentStartLine) + 1;

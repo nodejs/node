@@ -16,7 +16,6 @@ module.exports = {
 
         docs: {
             description: "disallow assignments to native objects or read-only global variables",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-native-reassign"
         },

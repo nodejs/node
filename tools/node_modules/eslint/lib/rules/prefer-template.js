@@ -128,7 +128,6 @@ module.exports = {
 
         docs: {
             description: "require template literals instead of string concatenation",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-template"
         },

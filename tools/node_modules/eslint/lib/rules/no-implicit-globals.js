@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "disallow declarations in the global scope",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-implicit-globals"
         },

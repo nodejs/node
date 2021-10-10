@@ -1,6 +1,7 @@
 /**
  * @fileoverview disallow use of the Buffer() constructor
  * @author Teddy Katz
+ * @deprecated in ESLint v7.0.0
  */
 "use strict";
 
@@ -18,7 +19,6 @@ module.exports = {
 
         docs: {
             description: "disallow use of the `Buffer()` constructor",
-            category: "Node.js and CommonJS",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-buffer-constructor"
         },

@@ -30,7 +30,6 @@ module.exports = {
 
         docs: {
             description: "disallow unused expressions",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-unused-expressions"
         },
@@ -72,8 +71,8 @@ module.exports = {
             allowTaggedTemplates = config.allowTaggedTemplates || false,
             enforceForJSX = config.enforceForJSX || false;
 
-        // eslint-disable-next-line jsdoc/require-description
         /**
+         * Has AST suggesting a directive.
          * @param {ASTNode} node any node
          * @returns {boolean} whether the given node structurally represents a directive
          */
@@ -82,8 +81,8 @@ module.exports = {
                 node.expression.type === "Literal" && typeof node.expression.value === "string";
         }
 
-        // eslint-disable-next-line jsdoc/require-description
         /**
+         * Gets the leading sequence of members in a list that pass the predicate.
          * @param {Function} predicate ([a] -> Boolean) the function used to make the determination
          * @param {a[]} list the input list
          * @returns {a[]} the leading sequence of members in the given list that pass the given predicate
@@ -97,8 +96,8 @@ module.exports = {
             return list.slice();
         }
 
-        // eslint-disable-next-line jsdoc/require-description
         /**
+         * Gets leading directives nodes in a Node body.
          * @param {ASTNode} node a Program or BlockStatement node
          * @returns {ASTNode[]} the leading sequence of directive nodes in the given node's body
          */
@@ -106,8 +105,8 @@ module.exports = {
             return takeWhile(looksLikeDirective, node.body);
         }
 
-        // eslint-disable-next-line jsdoc/require-description
         /**
+         * Detect if a Node is a directive.
          * @param {ASTNode} node any node
          * @param {ASTNode[]} ancestors the given node's ancestors
          * @returns {boolean} whether the given node is considered a directive in its current position

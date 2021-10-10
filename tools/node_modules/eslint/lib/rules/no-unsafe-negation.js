@@ -52,11 +52,11 @@ module.exports = {
 
         docs: {
             description: "disallow negating the left operand of relational operators",
-            category: "Possible Errors",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-unsafe-negation",
-            suggestion: true
+            url: "https://eslint.org/docs/rules/no-unsafe-negation"
         },
+
+        hasSuggestions: true,
 
         schema: [
             {

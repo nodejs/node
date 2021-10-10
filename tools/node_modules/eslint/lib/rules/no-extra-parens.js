@@ -17,7 +17,6 @@ module.exports = {
 
         docs: {
             description: "disallow unnecessary parentheses",
-            category: "Possible Errors",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-extra-parens"
         },
@@ -808,13 +807,6 @@ module.exports = {
 
             CallExpression: checkCallNew,
 
-            ClassBody(node) {
-                node.body
-                    .filter(member => member.type === "MethodDefinition" && member.computed && member.key)
-                    .filter(member => hasExcessParensWithPrecedence(member.key, PRECEDENCE_OF_ASSIGNMENT_EXPR))
-                    .forEach(member => report(member.key));
-            },
-
             ConditionalExpression(node) {
                 if (isReturnAssignException(node)) {
                     return;
@@ -1063,6 +1055,12 @@ module.exports = {
                 }
             },
 
+            "MethodDefinition[computed=true]"(node) {
+                if (hasExcessParensWithPrecedence(node.key, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
+                    report(node.key);
+                }
+            },
+
             NewExpression: checkCallNew,
 
             ObjectExpression(node) {
@@ -1087,6 +1085,16 @@ module.exports = {
                     if (key && hasExcessParensWithPrecedence(key, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
                         report(key);
                     }
+                }
+            },
+
+            PropertyDefinition(node) {
+                if (node.computed && hasExcessParensWithPrecedence(node.key, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
+                    report(node.key);
+                }
+
+                if (node.value && hasExcessParensWithPrecedence(node.value, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
+                    report(node.value);
                 }
             },
 

@@ -79,26 +79,25 @@ module.exports = {
 
         docs: {
             description: "disallow specified modules when loaded by `import`",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-imports"
         },
 
         messages: {
             path: "'{{importSource}}' import is restricted from being used.",
-            // eslint-disable-next-line eslint-plugin/report-message-format
+            // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
             pathWithCustomMessage: "'{{importSource}}' import is restricted from being used. {{customMessage}}",
 
             patterns: "'{{importSource}}' import is restricted from being used by a pattern.",
-            // eslint-disable-next-line eslint-plugin/report-message-format
+            // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
             patternWithCustomMessage: "'{{importSource}}' import is restricted from being used by a pattern. {{customMessage}}",
 
             everything: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted.",
-            // eslint-disable-next-line eslint-plugin/report-message-format
+            // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
             everythingWithCustomMessage: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted. {{customMessage}}",
 
             importName: "'{{importName}}' import from '{{importSource}}' is restricted.",
-            // eslint-disable-next-line eslint-plugin/report-message-format
+            // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
             importNameWithCustomMessage: "'{{importName}}' import from '{{importSource}}' is restricted. {{customMessage}}"
         },
 
@@ -147,7 +146,7 @@ module.exports = {
             ? [{ matcher: ignore().add(restrictedPatterns) }]
             : restrictedPatterns.map(({ group, message }) => ({ matcher: ignore().add(group), customMessage: message }));
 
-        // if no imports are restricted we don"t need to check
+        // if no imports are restricted we don't need to check
         if (Object.keys(restrictedPaths).length === 0 && restrictedPatternGroups.length === 0) {
             return {};
         }

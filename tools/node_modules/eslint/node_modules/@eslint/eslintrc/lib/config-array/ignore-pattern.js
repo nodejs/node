@@ -27,16 +27,17 @@
  *
  * @author Toru Nagashima <https://github.com/mysticatea>
  */
-"use strict";
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-const assert = require("assert");
-const path = require("path");
-const ignore = require("ignore");
-const debug = require("debug")("eslintrc:ignore-pattern");
+import assert from "assert";
+import path from "path";
+import ignore from "ignore";
+import debugOrig from "debug";
+
+const debug = debugOrig("eslintrc:ignore-pattern");
 
 /** @typedef {ReturnType<import("ignore").default>} Ignore */
 
@@ -234,4 +235,4 @@ class IgnorePattern {
     }
 }
 
-module.exports = { IgnorePattern };
+export { IgnorePattern };

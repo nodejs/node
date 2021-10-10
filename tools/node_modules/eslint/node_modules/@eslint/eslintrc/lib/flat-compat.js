@@ -3,16 +3,18 @@
  * @author Nicholas C. Zakas
  */
 
-"use strict";
-
 //-----------------------------------------------------------------------------
 // Requirements
 //-----------------------------------------------------------------------------
 
-const path = require("path");
-const environments = require("../conf/environments");
-const createDebug = require("debug");
-const { ConfigArrayFactory } = require("./config-array-factory");
+import path from "path";
+import { fileURLToPath } from "url";
+import createDebug from "debug";
+
+import { ConfigArrayFactory } from "./config-array-factory.js";
+import environments from "../conf/environments.js";
+
+const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 //-----------------------------------------------------------------------------
 // Helpers
@@ -223,8 +225,8 @@ class FlatCompat {
         this[cafactory] = new ConfigArrayFactory({
             cwd: baseDirectory,
             resolvePluginsRelativeTo,
-            eslintAllPath: path.resolve(__dirname, "../conf/eslint-all.js"),
-            eslintRecommendedPath: path.resolve(__dirname, "../conf/eslint-recommended.js")
+            eslintAllPath: path.resolve(dirname, "../conf/eslint-all.cjs"),
+            eslintRecommendedPath: path.resolve(dirname, "../conf/eslint-recommended.cjs")
         });
     }
 
@@ -305,4 +307,4 @@ class FlatCompat {
     }
 }
 
-exports.FlatCompat = FlatCompat;
+export { FlatCompat };

@@ -4,8 +4,6 @@
  */
 /* eslint no-underscore-dangle: 0 */
 
-"use strict";
-
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
@@ -22,6 +20,7 @@ const Token = {
     Boolean: "Boolean",
     EOF: "<end>",
     Identifier: "Identifier",
+    PrivateIdentifier: "PrivateIdentifier",
     Keyword: "Keyword",
     Null: "Null",
     Numeric: "Numeric",
@@ -115,6 +114,9 @@ TokenTranslator.prototype = {
             if (extra.ecmaVersion > 5 && (token.value === "yield" || token.value === "let")) {
                 token.type = Token.Keyword;
             }
+
+        } else if (type === tt.privateId) {
+            token.type = Token.PrivateIdentifier;
 
         } else if (type === tt.semi || type === tt.comma ||
                  type === tt.parenL || type === tt.parenR ||
@@ -260,4 +262,4 @@ TokenTranslator.prototype = {
 // Public
 //------------------------------------------------------------------------------
 
-module.exports = TokenTranslator;
+export default TokenTranslator;

@@ -11,7 +11,6 @@ module.exports = {
 
         docs: {
             description: "enforce default parameters to be last",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/default-param-last"
         },
@@ -25,8 +24,8 @@ module.exports = {
 
     create(context) {
 
-        // eslint-disable-next-line jsdoc/require-description
         /**
+         * Handler for function contexts.
          * @param {ASTNode} node function node
          * @returns {void}
          */

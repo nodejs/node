@@ -88,7 +88,6 @@ module.exports = {
 
         docs: {
             description: "disallow the use of `alert`, `confirm`, and `prompt`",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-alert"
         },

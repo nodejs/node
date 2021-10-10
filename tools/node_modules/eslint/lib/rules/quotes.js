@@ -80,7 +80,6 @@ module.exports = {
 
         docs: {
             description: "enforce the consistent use of either backticks, double, or single quotes",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/quotes"
         },
@@ -216,6 +215,7 @@ module.exports = {
 
                 // LiteralPropertyName.
                 case "Property":
+                case "PropertyDefinition":
                 case "MethodDefinition":
                     return parent.key === node && !parent.computed;
 

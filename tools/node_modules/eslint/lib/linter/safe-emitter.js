@@ -12,8 +12,8 @@
 /**
  * An event emitter
  * @typedef {Object} SafeEmitter
- * @property {function(eventName: string, listenerFunc: Function): void} on Adds a listener for a given event name
- * @property {function(eventName: string, arg1?: any, arg2?: any, arg3?: any)} emit Emits an event with a given name.
+ * @property {(eventName: string, listenerFunc: Function) => void} on Adds a listener for a given event name
+ * @property {(eventName: string, arg1?: any, arg2?: any, arg3?: any) => void} emit Emits an event with a given name.
  * This calls all the listeners that were listening for that name, with `arg1`, `arg2`, and `arg3` as arguments.
  * @property {function(): string[]} eventNames Gets the list of event names that have registered listeners.
  */

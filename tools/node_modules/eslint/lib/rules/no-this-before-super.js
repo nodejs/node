@@ -40,7 +40,6 @@ module.exports = {
 
         docs: {
             description: "disallow `this`/`super` before calling `super()` in constructors",
-            category: "ECMAScript 6",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-this-before-super"
         },

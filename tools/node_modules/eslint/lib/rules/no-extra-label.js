@@ -21,7 +21,6 @@ module.exports = {
 
         docs: {
             description: "disallow unnecessary labels",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-extra-label"
         },

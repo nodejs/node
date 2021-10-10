@@ -21,7 +21,6 @@ module.exports = {
 
         docs: {
             description: "disallow leading or trailing decimal points in numeric literals",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-floating-decimal"
         },

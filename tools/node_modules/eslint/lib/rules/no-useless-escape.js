@@ -34,16 +34,17 @@ const REGEX_NON_CHARCLASS_ESCAPES = union(REGEX_GENERAL_ESCAPES, new Set("^/.$*+
  * @returns {Object[]} A list of characters, each with info on escaping and whether they're in a character class.
  * @example
  *
- * parseRegExp('a\\b[cd-]')
+ * parseRegExp("a\\b[cd-]");
  *
- * returns:
+ * // returns:
  * [
- *   {text: 'a', index: 0, escaped: false, inCharClass: false, startsCharClass: false, endsCharClass: false},
- *   {text: 'b', index: 2, escaped: true, inCharClass: false, startsCharClass: false, endsCharClass: false},
- *   {text: 'c', index: 4, escaped: false, inCharClass: true, startsCharClass: true, endsCharClass: false},
- *   {text: 'd', index: 5, escaped: false, inCharClass: true, startsCharClass: false, endsCharClass: false},
- *   {text: '-', index: 6, escaped: false, inCharClass: true, startsCharClass: false, endsCharClass: false}
- * ]
+ *     { text: "a", index: 0, escaped: false, inCharClass: false, startsCharClass: false, endsCharClass: false },
+ *     { text: "b", index: 2, escaped: true, inCharClass: false, startsCharClass: false, endsCharClass: false },
+ *     { text: "c", index: 4, escaped: false, inCharClass: true, startsCharClass: true, endsCharClass: false },
+ *     { text: "d", index: 5, escaped: false, inCharClass: true, startsCharClass: false, endsCharClass: false },
+ *     { text: "-", index: 6, escaped: false, inCharClass: true, startsCharClass: false, endsCharClass: false }
+ * ];
+ *
  */
 function parseRegExp(regExpText) {
     const charList = [];
@@ -83,11 +84,11 @@ module.exports = {
 
         docs: {
             description: "disallow unnecessary escape characters",
-            category: "Best Practices",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-useless-escape",
-            suggestion: true
+            url: "https://eslint.org/docs/rules/no-useless-escape"
         },
+
+        hasSuggestions: true,
 
         messages: {
             unnecessaryEscape: "Unnecessary escape character: \\{{character}}.",

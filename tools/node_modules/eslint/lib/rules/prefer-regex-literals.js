@@ -54,7 +54,6 @@ module.exports = {
 
         docs: {
             description: "disallow use of the `RegExp` constructor in favor of regular expression literals",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-regex-literals"
         },

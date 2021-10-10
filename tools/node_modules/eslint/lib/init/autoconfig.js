@@ -11,7 +11,11 @@
 
 const equal = require("fast-deep-equal"),
     recConfig = require("../../conf/eslint-recommended"),
-    ConfigOps = require("@eslint/eslintrc/lib/shared/config-ops"),
+    {
+        Legacy: {
+            ConfigOps
+        }
+    } = require("@eslint/eslintrc"),
     { Linter } = require("../linter"),
     configRule = require("./config-rule");
 
@@ -32,9 +36,9 @@ const MAX_CONFIG_COMBINATIONS = 17, // 16 combinations + 1 for severity only
 /**
  * Information about a rule configuration, in the context of a Registry.
  * @typedef {Object}     registryItem
- * @param   {ruleConfig} config        A valid configuration for the rule
- * @param   {number}     specificity   The number of elements in the ruleConfig array
- * @param   {number}     errorCount    The number of errors encountered when linting with the config
+ * @property {ruleConfig} config A valid configuration for the rule
+ * @property {number} specificity The number of elements in the ruleConfig array
+ * @property {number} errorCount The number of errors encountered when linting with the config
  */
 
 /**
@@ -45,8 +49,8 @@ const MAX_CONFIG_COMBINATIONS = 17, // 16 combinations + 1 for severity only
 
 /**
  * Create registryItems for rules
- * @param   {rulesConfig} rulesConfig Hash of rule names and arrays of ruleConfig items
- * @returns {Object}                  registryItems for each rule in provided rulesConfig
+ * @param {rulesConfig} rulesConfig Hash of rule names and arrays of ruleConfig items
+ * @returns {Object} registryItems for each rule in provided rulesConfig
  */
 function makeRegistryItems(rulesConfig) {
     return Object.keys(rulesConfig).reduce((accumulator, ruleId) => {
@@ -69,7 +73,6 @@ function makeRegistryItems(rulesConfig) {
  */
 class Registry {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {rulesConfig} [rulesConfig] Hash of rule names and arrays of possible configurations
      */
@@ -100,7 +103,7 @@ class Registry {
      * configurations.
      *
      * The length of the returned array will be <= MAX_CONFIG_COMBINATIONS.
-     * @returns {Object[]}          "rules" configurations to use for linting
+     * @returns {Object[]} "rules" configurations to use for linting
      */
     buildRuleSets() {
         let idx = 0;
@@ -112,7 +115,7 @@ class Registry {
          *
          * This is broken out into its own function so that it doesn't need to be
          * created inside of the while loop.
-         * @param   {string} rule The ruleId to add.
+         * @param {string} rule The ruleId to add.
          * @returns {void}
          */
         const addRuleToRuleSet = function(rule) {
@@ -199,7 +202,7 @@ class Registry {
      * Creates a registry of rules which had no error-free configs.
      * The new registry is intended to be analyzed to determine whether its rules
      * should be disabled or set to warning.
-     * @returns {Registry}  A registry of failing rules.
+     * @returns {Registry} A registry of failing rules.
      */
     getFailingRulesRegistry() {
         const ruleIds = Object.keys(this.rules),
@@ -236,8 +239,8 @@ class Registry {
 
     /**
      * Return a cloned registry containing only configs with a desired specificity
-     * @param   {number} specificity Only keep configs with this specificity
-     * @returns {Registry}           A registry of rules
+     * @param {number} specificity Only keep configs with this specificity
+     * @returns {Registry} A registry of rules
      */
     filterBySpecificity(specificity) {
         const ruleIds = Object.keys(this.rules),
@@ -253,10 +256,10 @@ class Registry {
 
     /**
      * Lint SourceCodes against all configurations in the registry, and record results
-     * @param   {Object[]} sourceCodes  SourceCode objects for each filename
-     * @param   {Object}   config       ESLint config object
-     * @param   {progressCallback} [cb] Optional callback for reporting execution status
-     * @returns {Registry}              New registry with errorCount populated
+     * @param {Object[]} sourceCodes SourceCode objects for each filename
+     * @param {Object} config ESLint config object
+     * @param {progressCallback} [cb] Optional callback for reporting execution status
+     * @returns {Registry} New registry with errorCount populated
      */
     lintSourceCode(sourceCodes, config, cb) {
         let lintedRegistry = new Registry();
@@ -301,7 +304,7 @@ class Registry {
                 ruleSetIdx += 1;
 
                 if (cb) {
-                    cb(totalFilesLinting); // eslint-disable-line node/callback-return
+                    cb(totalFilesLinting); // eslint-disable-line node/callback-return -- End of function
                 }
             });
 
@@ -318,8 +321,8 @@ class Registry {
  *
  * This will return a new config with `["extends": [ ..., "eslint:recommended"]` and
  * only the rules which have configurations different from the recommended config.
- * @param   {Object} config config object
- * @returns {Object}        config object using `"extends": ["eslint:recommended"]`
+ * @param {Object} config config object
+ * @returns {Object} config object using `"extends": ["eslint:recommended"]`
  */
 function extendFromRecommended(config) {
     const newConfig = Object.assign({}, config);
