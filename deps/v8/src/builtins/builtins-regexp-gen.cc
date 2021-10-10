@@ -18,6 +18,7 @@
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/regexp-match-info.h"
+#include "src/regexp/regexp-flags.h"
 
 namespace v8 {
 namespace internal {
@@ -1041,23 +1042,16 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
         CAST(LoadObjectField(CAST(regexp), JSRegExp::kFlagsOffset));
     var_flags = SmiUntag(flags_smi);
 
-#define CASE_FOR_FLAG(FLAG)                                        \
-  do {                                                             \
-    Label next(this);                                              \
-    GotoIfNot(IsSetWord(var_flags.value(), FLAG), &next);          \
-    var_length = Uint32Add(var_length.value(), Uint32Constant(1)); \
-    Goto(&next);                                                   \
-    BIND(&next);                                                   \
-  } while (false)
+#define CASE_FOR_FLAG(Lower, Camel, ...)                                \
+  do {                                                                  \
+    Label next(this);                                                   \
+    GotoIfNot(IsSetWord(var_flags.value(), JSRegExp::k##Camel), &next); \
+    var_length = Uint32Add(var_length.value(), Uint32Constant(1));      \
+    Goto(&next);                                                        \
+    BIND(&next);                                                        \
+  } while (false);
 
-    CASE_FOR_FLAG(JSRegExp::kHasIndices);
-    CASE_FOR_FLAG(JSRegExp::kGlobal);
-    CASE_FOR_FLAG(JSRegExp::kIgnoreCase);
-    CASE_FOR_FLAG(JSRegExp::kLinear);
-    CASE_FOR_FLAG(JSRegExp::kMultiline);
-    CASE_FOR_FLAG(JSRegExp::kDotAll);
-    CASE_FOR_FLAG(JSRegExp::kUnicode);
-    CASE_FOR_FLAG(JSRegExp::kSticky);
+    REGEXP_FLAG_LIST(CASE_FOR_FLAG)
 #undef CASE_FOR_FLAG
   } else {
     DCHECK(!is_fastpath);
@@ -1123,26 +1117,19 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
     TVARIABLE(IntPtrT, var_offset,
               IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
 
-#define CASE_FOR_FLAG(FLAG, CHAR)                              \
-  do {                                                         \
-    Label next(this);                                          \
-    GotoIfNot(IsSetWord(var_flags.value(), FLAG), &next);      \
-    const TNode<Int32T> value = Int32Constant(CHAR);           \
-    StoreNoWriteBarrier(MachineRepresentation::kWord8, string, \
-                        var_offset.value(), value);            \
-    var_offset = IntPtrAdd(var_offset.value(), int_one);       \
-    Goto(&next);                                               \
-    BIND(&next);                                               \
-  } while (false)
+#define CASE_FOR_FLAG(Lower, Camel, LowerCamel, Char, ...)              \
+  do {                                                                  \
+    Label next(this);                                                   \
+    GotoIfNot(IsSetWord(var_flags.value(), JSRegExp::k##Camel), &next); \
+    const TNode<Int32T> value = Int32Constant(Char);                    \
+    StoreNoWriteBarrier(MachineRepresentation::kWord8, string,          \
+                        var_offset.value(), value);                     \
+    var_offset = IntPtrAdd(var_offset.value(), int_one);                \
+    Goto(&next);                                                        \
+    BIND(&next);                                                        \
+  } while (false);
 
-    CASE_FOR_FLAG(JSRegExp::kHasIndices, 'd');
-    CASE_FOR_FLAG(JSRegExp::kGlobal, 'g');
-    CASE_FOR_FLAG(JSRegExp::kIgnoreCase, 'i');
-    CASE_FOR_FLAG(JSRegExp::kLinear, 'l');
-    CASE_FOR_FLAG(JSRegExp::kMultiline, 'm');
-    CASE_FOR_FLAG(JSRegExp::kDotAll, 's');
-    CASE_FOR_FLAG(JSRegExp::kUnicode, 'u');
-    CASE_FOR_FLAG(JSRegExp::kSticky, 'y');
+    REGEXP_FLAG_LIST(CASE_FOR_FLAG)
 #undef CASE_FOR_FLAG
 
     if (is_fastpath) {
@@ -1391,29 +1378,12 @@ TNode<BoolT> RegExpBuiltinsAssembler::SlowFlagGetter(TNode<Context> context,
   switch (flag) {
     case JSRegExp::kNone:
       UNREACHABLE();
-    case JSRegExp::kGlobal:
-      name = isolate()->factory()->global_string();
-      break;
-    case JSRegExp::kIgnoreCase:
-      name = isolate()->factory()->ignoreCase_string();
-      break;
-    case JSRegExp::kMultiline:
-      name = isolate()->factory()->multiline_string();
-      break;
-    case JSRegExp::kDotAll:
-      UNREACHABLE();  // Never called for dotAll.
-    case JSRegExp::kSticky:
-      name = isolate()->factory()->sticky_string();
-      break;
-    case JSRegExp::kUnicode:
-      name = isolate()->factory()->unicode_string();
-      break;
-    case JSRegExp::kHasIndices:
-      name = isolate()->factory()->has_indices_string();
-      break;
-    case JSRegExp::kLinear:
-      name = isolate()->factory()->linear_string();
-      break;
+#define V(Lower, Camel, LowerCamel, Char, Bit)          \
+  case JSRegExp::k##Camel:                              \
+    name = isolate()->factory()->LowerCamel##_string(); \
+    break;
+      REGEXP_FLAG_LIST(V)
+#undef V
   }
 
   TNode<Object> value = GetProperty(context, regexp, name);

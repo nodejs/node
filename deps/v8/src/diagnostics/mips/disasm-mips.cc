@@ -555,7 +555,6 @@ void Decoder::PrintMsaDataFormat(Instruction* instr) {
         break;
       default:
         UNREACHABLE();
-        break;
     }
   } else {
     char DF[] = {'b', 'h', 'w', 'd'};
@@ -600,7 +599,6 @@ void Decoder::PrintMsaDataFormat(Instruction* instr) {
         break;
       default:
         UNREACHABLE();
-        break;
     }
   }
 
@@ -904,7 +902,6 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
             PrintSa(instr);
             return 2;
           }
-          break;
         case 'd': {
           DCHECK(STRING_STARTS_WITH(format, "sd"));
           PrintSd(instr);
@@ -1521,7 +1518,6 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
             }
             default:
               UNREACHABLE();
-              break;
           }
         }
       }
@@ -1538,7 +1534,6 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
       switch (instr->RsFieldRaw()) {
         case BC1:  // bc1 handled in DecodeTypeImmediate.
           UNREACHABLE();
-          break;
         case MFC1:
           Format(instr, "mfc1    'rt, 'fs");
           break;
@@ -1966,7 +1961,6 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
               break;
             default:
               UNREACHABLE();
-              break;
           }
         }
       }
@@ -1997,7 +1991,6 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
           break;
         default:
           UNREACHABLE();
-          break;
       }
       break;
     default:
@@ -2703,7 +2696,6 @@ const char* NameConverter::NameOfXMMRegister(int reg) const {
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
   UNREACHABLE();  // MIPS does not have the concept of a byte register.
-  return "nobytereg";
 }
 
 const char* NameConverter::NameInCode(byte* addr) const {

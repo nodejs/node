@@ -6,10 +6,7 @@
 #define V8_REGEXP_REGEXP_AST_H_
 
 #include "src/base/strings.h"
-#include "src/objects/js-regexp.h"
-#include "src/objects/objects.h"
-#include "src/objects/string.h"
-#include "src/utils/utils.h"
+#include "src/regexp/regexp-flags.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-list.h"
 #include "src/zone/zone.h"
@@ -96,13 +93,14 @@ class CharacterRange {
   static inline CharacterRange Singleton(base::uc32 value) {
     return CharacterRange(value, value);
   }
+  static constexpr int kMaxCodePoint = 0x10ffff;
   static inline CharacterRange Range(base::uc32 from, base::uc32 to) {
-    DCHECK(0 <= from && to <= String::kMaxCodePoint);
+    DCHECK(0 <= from && to <= kMaxCodePoint);
     DCHECK(static_cast<uint32_t>(from) <= static_cast<uint32_t>(to));
     return CharacterRange(from, to);
   }
   static inline CharacterRange Everything() {
-    return CharacterRange(0, String::kMaxCodePoint);
+    return CharacterRange(0, kMaxCodePoint);
   }
   static inline ZoneList<CharacterRange>* List(Zone* zone,
                                                CharacterRange range) {
@@ -566,9 +564,9 @@ class RegExpLookaround final : public RegExpTree {
 
 class RegExpBackReference final : public RegExpTree {
  public:
-  explicit RegExpBackReference(JSRegExp::Flags flags)
+  explicit RegExpBackReference(RegExpFlags flags)
       : capture_(nullptr), name_(nullptr), flags_(flags) {}
-  RegExpBackReference(RegExpCapture* capture, JSRegExp::Flags flags)
+  RegExpBackReference(RegExpCapture* capture, RegExpFlags flags)
       : capture_(capture), name_(nullptr), flags_(flags) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
@@ -587,7 +585,7 @@ class RegExpBackReference final : public RegExpTree {
  private:
   RegExpCapture* capture_;
   const ZoneVector<base::uc16>* name_;
-  const JSRegExp::Flags flags_;
+  const RegExpFlags flags_;
 };
 
 

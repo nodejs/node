@@ -7,10 +7,17 @@
 
 #include <stack>
 
-#include "include/v8.h"
+#include "include/v8-function-callback.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-promise.h"
 #include "src/objects/objects.h"
 
 namespace v8 {
+
+class Function;
+class Isolate;
+class ObjectTemplate;
+class Value;
 
 using async_id_t = double;
 

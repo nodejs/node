@@ -13,6 +13,14 @@
 namespace cppgc {
 namespace internal {
 
+CagedHeapLocalData::CagedHeapLocalData(HeapBase& heap_base,
+                                       PageAllocator& allocator)
+    : heap_base(heap_base) {
+#if defined(CPPGC_YOUNG_GENERATION)
+  age_table.Reset(&allocator);
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+}
+
 #if defined(CPPGC_YOUNG_GENERATION)
 
 static_assert(
@@ -30,7 +38,7 @@ void AgeTable::Reset(PageAllocator* allocator) {
   allocator->DiscardSystemPages(reinterpret_cast<void*>(begin), end - begin);
 }
 
-#endif
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
 }  // namespace internal
 }  // namespace cppgc

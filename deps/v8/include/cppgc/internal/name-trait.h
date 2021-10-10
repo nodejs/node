@@ -6,6 +6,7 @@
 #define INCLUDE_CPPGC_INTERNAL_NAME_TRAIT_H_
 
 #include <cstddef>
+#include <type_traits>
 
 #include "cppgc/name-provider.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -67,6 +68,16 @@ class V8_EXPORT NameTraitBase {
 template <typename T>
 class NameTrait final : public NameTraitBase {
  public:
+  static constexpr bool HasNonHiddenName() {
+#if CPPGC_SUPPORTS_COMPILE_TIME_TYPENAME
+    return true;
+#elif CPPGC_SUPPORTS_OBJECT_NAMES
+    return true;
+#else   // !CPPGC_SUPPORTS_OBJECT_NAMES
+    return std::is_base_of<NameProvider, T>::value;
+#endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
+  }
+
   static HeapObjectName GetName(const void* obj) {
     return GetNameFor(static_cast<const T*>(obj));
   }

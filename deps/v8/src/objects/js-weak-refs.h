@@ -21,22 +21,12 @@ class WeakCell;
 
 // FinalizationRegistry object from the JS Weak Refs spec proposal:
 // https://github.com/tc39/proposal-weakrefs
-class JSFinalizationRegistry : public JSObject {
+class JSFinalizationRegistry
+    : public TorqueGeneratedJSFinalizationRegistry<JSFinalizationRegistry,
+                                                   JSObject> {
  public:
   DECL_PRINTER(JSFinalizationRegistry)
   EXPORT_DECL_VERIFIER(JSFinalizationRegistry)
-  DECL_CAST(JSFinalizationRegistry)
-
-  DECL_ACCESSORS(native_context, NativeContext)
-  DECL_ACCESSORS(cleanup, Object)
-
-  DECL_ACCESSORS(active_cells, HeapObject)
-  DECL_ACCESSORS(cleared_cells, HeapObject)
-  DECL_ACCESSORS(key_map, Object)
-
-  DECL_ACCESSORS(next_dirty, Object)
-
-  DECL_INT_ACCESSORS(flags)
 
   DECL_BOOLEAN_ACCESSORS(scheduled_for_cleanup)
 
@@ -72,14 +62,10 @@ class JSFinalizationRegistry : public JSObject {
       Isolate* isolate, Address raw_finalization_registry,
       Address raw_weak_cell);
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSObject::kHeaderSize, TORQUE_GENERATED_JS_FINALIZATION_REGISTRY_FIELDS)
-
   // Bitfields in flags.
   DEFINE_TORQUE_GENERATED_FINALIZATION_REGISTRY_FLAGS()
 
-  OBJECT_CONSTRUCTORS(JSFinalizationRegistry, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSFinalizationRegistry)
 };
 
 // Internal object for storing weak references in JSFinalizationRegistry.

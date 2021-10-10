@@ -136,6 +136,9 @@
   'test-strings/Traverse': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
+
+  # TODO(v8:11382): Reenable once irregexp is reentrant.
+  'test-regexp/RegExpInterruptReentrantExecution': [FAIL],
 }],  # ALWAYS
 
 ##############################################################################
@@ -175,9 +178,6 @@
 
   # BUG(v8:3434).
   'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
-
-  # TODO(11856): Port nondeterminism detection.
-  'test-liftoff-for-fuzzing/*': [SKIP],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run', {
@@ -336,9 +336,6 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
-
-  # TODO(11856): Port nondeterminism detection.
-  'test-liftoff-for-fuzzing/*': [SKIP],
 }],  # 'arch == arm'
 
 ##############################################################################
@@ -457,6 +454,15 @@
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
 
 }],  # 'arch == riscv64 and simulator_run'
+
+##############################################################################
+['arch == loong64', {
+  # The instruction scheduler is disabled on loong64.
+  'test-instruction-scheduler/DeoptInMiddleOfBasicBlock': [SKIP],
+  # The uint32 values are sign-extended on loong64.
+  'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
+  'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
+}],  # 'arch == loong64'
 
 ##############################################################################
 ['system == android', {
@@ -580,6 +586,7 @@
   'test-api/TurboAsmDisablesDetach': [SKIP],
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
+  'test-api/WasmSetJitCodeEventHandler': [SKIP],
   'test-api-wasm/WasmStreaming*': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
   'test-c-wasm-entry/*': [SKIP],
@@ -613,6 +620,7 @@
   'codegen-tester/*': [SKIP],
   'test-accessor-assembler/*': [SKIP],
   'test-assembler-*': [SKIP],
+  'test-atomic-load-store-codegen/*': [SKIP],
   'test-basic-block-profiler/*': [SKIP],
   'test-branch-combine/*': [SKIP],
   'test-calls-with-arraylike-or-spread/*': [SKIP],
@@ -649,7 +657,6 @@
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-run-native-calls/*': [SKIP],
-  'test-run-retpoline/*': [SKIP],
   'test-run-stackcheck/*': [SKIP],
   'test-run-tail-calls/*': [SKIP],
   'test-run-unwinding-info/*': [SKIP],
@@ -666,6 +673,9 @@
 
   # Instruction cache flushing is disabled in jitless mode.
   'test-icache/*': [SKIP],
+
+  # Tests generated irregexp code.
+  'test-regexp/RegExpInterruptReentrantExecution': [SKIP],
 }], # lite_mode or variant == jitless
 
 ##############################################################################

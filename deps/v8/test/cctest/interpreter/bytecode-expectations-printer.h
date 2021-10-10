@@ -9,12 +9,15 @@
 #include <string>
 #include <vector>
 
+#include "include/v8-local-handle.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/objects.h"
 
 namespace v8 {
 
 class Isolate;
+class Script;
+class Module;
 
 namespace internal {
 

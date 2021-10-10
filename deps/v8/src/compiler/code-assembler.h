@@ -17,6 +17,7 @@
 #include "src/base/optional.h"
 #include "src/base/type-traits.h"
 #include "src/builtins/builtins.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/source-position.h"
@@ -725,47 +726,36 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<RawPtrT> LoadFramePointer();
   TNode<RawPtrT> LoadParentFramePointer();
 
-  // Poison |value| on speculative paths.
-  TNode<Object> TaggedPoisonOnSpeculation(TNode<Object> value);
-  TNode<WordT> WordPoisonOnSpeculation(TNode<WordT> value);
-
   // Load raw memory location.
-  Node* Load(MachineType type, Node* base,
-             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
+  Node* Load(MachineType type, Node* base);
   template <class Type>
   TNode<Type> Load(MachineType type, TNode<RawPtr<Type>> base) {
     DCHECK(
         IsSubtype(type.representation(), MachineRepresentationOf<Type>::value));
     return UncheckedCast<Type>(Load(type, static_cast<Node*>(base)));
   }
-  Node* Load(MachineType type, Node* base, Node* offset,
-             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
+  Node* Load(MachineType type, Node* base, Node* offset);
   template <class Type>
-  TNode<Type> Load(Node* base,
-                   LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
-    return UncheckedCast<Type>(
-        Load(MachineTypeOf<Type>::value, base, needs_poisoning));
+  TNode<Type> Load(Node* base) {
+    return UncheckedCast<Type>(Load(MachineTypeOf<Type>::value, base));
   }
   template <class Type>
-  TNode<Type> Load(Node* base, TNode<WordT> offset,
-                   LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
-    return UncheckedCast<Type>(
-        Load(MachineTypeOf<Type>::value, base, offset, needs_poisoning));
+  TNode<Type> Load(Node* base, TNode<WordT> offset) {
+    return UncheckedCast<Type>(Load(MachineTypeOf<Type>::value, base, offset));
   }
   template <class Type>
-  TNode<Type> AtomicLoad(TNode<RawPtrT> base, TNode<WordT> offset) {
+  TNode<Type> AtomicLoad(AtomicMemoryOrder order, TNode<RawPtrT> base,
+                         TNode<WordT> offset) {
     return UncheckedCast<Type>(
-        AtomicLoad(MachineTypeOf<Type>::value, base, offset));
+        AtomicLoad(MachineTypeOf<Type>::value, order, base, offset));
   }
   template <class Type>
-  TNode<Type> AtomicLoad64(TNode<RawPtrT> base, TNode<WordT> offset);
+  TNode<Type> AtomicLoad64(AtomicMemoryOrder order, TNode<RawPtrT> base,
+                           TNode<WordT> offset);
   // Load uncompressed tagged value from (most likely off JS heap) memory
   // location.
-  TNode<Object> LoadFullTagged(
-      Node* base, LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
-  TNode<Object> LoadFullTagged(
-      Node* base, TNode<IntPtrT> offset,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
+  TNode<Object> LoadFullTagged(Node* base);
+  TNode<Object> LoadFullTagged(Node* base, TNode<IntPtrT> offset);
 
   Node* LoadFromObject(MachineType type, TNode<Object> object,
                        TNode<IntPtrT> offset);
@@ -822,12 +812,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                                TNode<HeapObject> object,
                                                int offset, Node* value);
   void OptimizedStoreMap(TNode<HeapObject> object, TNode<Map>);
-  void AtomicStore(MachineRepresentation rep, TNode<RawPtrT> base,
-                   TNode<WordT> offset, TNode<Word32T> value);
+  void AtomicStore(MachineRepresentation rep, AtomicMemoryOrder order,
+                   TNode<RawPtrT> base, TNode<WordT> offset,
+                   TNode<Word32T> value);
   // {value_high} is used for 64-bit stores on 32-bit platforms, must be
   // nullptr in other cases.
-  void AtomicStore64(TNode<RawPtrT> base, TNode<WordT> offset,
-                     TNode<UintPtrT> value, TNode<UintPtrT> value_high);
+  void AtomicStore64(AtomicMemoryOrder order, TNode<RawPtrT> base,
+                     TNode<WordT> offset, TNode<UintPtrT> value,
+                     TNode<UintPtrT> value_high);
 
   TNode<Word32T> AtomicAdd(MachineType type, TNode<RawPtrT> base,
                            TNode<UintPtrT> offset, TNode<Word32T> value);
@@ -1225,7 +1217,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class... TArgs>
   TNode<Object> CallJS(Callable const& callable, Node* context, Node* function,
                        Node* receiver, TArgs... args) {
-    int argc = static_cast<int>(sizeof...(args));
+    int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
     TNode<Code> target = HeapConstant(callable.code());
     return CAST(CallJSStubImpl(callable.descriptor(), target, CAST(context),
@@ -1235,7 +1227,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class... TArgs>
   Node* ConstructJSWithTarget(Callable const& callable, Node* context,
                               Node* function, Node* new_target, TArgs... args) {
-    int argc = static_cast<int>(sizeof...(args));
+    int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
     TNode<Object> receiver = LoadRoot(RootIndex::kUndefinedValue);
     TNode<Code> target = HeapConstant(callable.code());
@@ -1312,7 +1304,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void UnregisterCallGenerationCallbacks();
 
   bool Word32ShiftIsSafe() const;
-  PoisoningMitigationLevel poisoning_level() const;
 
   bool IsJSFunctionCall() const;
 
@@ -1367,7 +1358,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                   const CallInterfaceDescriptor& descriptor, int input_count,
                   Node* const* inputs);
 
-  Node* AtomicLoad(MachineType type, TNode<RawPtrT> base, TNode<WordT> offset);
+  Node* AtomicLoad(MachineType type, AtomicMemoryOrder order,
+                   TNode<RawPtrT> base, TNode<WordT> offset);
 
   Node* UnalignedLoad(MachineType type, TNode<RawPtrT> base,
                       TNode<WordT> offset);
@@ -1595,13 +1587,11 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      const CallInterfaceDescriptor& descriptor, CodeKind kind,
-                     const char* name, PoisoningMitigationLevel poisoning_level,
-                     Builtin builtin = Builtin::kNoBuiltinId);
+                     const char* name, Builtin builtin = Builtin::kNoBuiltinId);
 
   // Create with JSCall linkage.
   CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
                      CodeKind kind, const char* name,
-                     PoisoningMitigationLevel poisoning_level,
                      Builtin builtin = Builtin::kNoBuiltinId);
 
   ~CodeAssemblerState();
@@ -1628,8 +1618,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, CodeKind kind,
-                     const char* name, PoisoningMitigationLevel poisoning_level,
-                     Builtin builtin);
+                     const char* name, Builtin builtin);
 
   void PushExceptionHandler(CodeAssemblerExceptionHandlerLabel* label);
   void PopExceptionHandler();

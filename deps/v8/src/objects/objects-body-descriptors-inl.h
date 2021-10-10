@@ -727,7 +727,7 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return WasmArray::GcSafeSizeFor(map, WasmArray::cast(object).length());
+    return WasmArray::SizeFor(map, WasmArray::cast(object).length());
   }
 };
 
@@ -800,8 +800,8 @@ class CoverageInfo::BodyDescriptor final : public BodyDescriptorBase {
 class Code::BodyDescriptor final : public BodyDescriptorBase {
  public:
   STATIC_ASSERT(kRelocationInfoOffset + kTaggedSize ==
-                kDeoptimizationDataOffset);
-  STATIC_ASSERT(kDeoptimizationDataOffset + kTaggedSize ==
+                kDeoptimizationDataOrInterpreterDataOffset);
+  STATIC_ASSERT(kDeoptimizationDataOrInterpreterDataOffset + kTaggedSize ==
                 kPositionTableOffset);
   STATIC_ASSERT(kPositionTableOffset + kTaggedSize == kCodeDataContainerOffset);
   STATIC_ASSERT(kCodeDataContainerOffset + kTaggedSize == kDataStart);

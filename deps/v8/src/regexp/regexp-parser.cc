@@ -4,12 +4,9 @@
 
 #include "src/regexp/regexp-parser.h"
 
-#include <vector>
-
 #include "src/execution/isolate.h"
-#include "src/heap/factory.h"
-#include "src/objects/objects-inl.h"
 #include "src/regexp/property-sequences.h"
+#include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp.h"
 #include "src/strings/char-predicates-inl.h"
@@ -24,14 +21,386 @@
 namespace v8 {
 namespace internal {
 
-RegExpParser::RegExpParser(FlatStringReader* in, JSRegExp::Flags flags,
-                           Isolate* isolate, Zone* zone)
-    : isolate_(isolate),
-      zone_(zone),
+namespace {
+
+// A BufferedZoneList is an automatically growing list, just like (and backed
+// by) a ZoneList, that is optimized for the case of adding and removing
+// a single element. The last element added is stored outside the backing list,
+// and if no more than one element is ever added, the ZoneList isn't even
+// allocated.
+// Elements must not be nullptr pointers.
+template <typename T, int initial_size>
+class BufferedZoneList {
+ public:
+  BufferedZoneList() : list_(nullptr), last_(nullptr) {}
+
+  // Adds element at end of list. This element is buffered and can
+  // be read using last() or removed using RemoveLast until a new Add or until
+  // RemoveLast or GetList has been called.
+  void Add(T* value, Zone* zone) {
+    if (last_ != nullptr) {
+      if (list_ == nullptr) {
+        list_ = zone->New<ZoneList<T*>>(initial_size, zone);
+      }
+      list_->Add(last_, zone);
+    }
+    last_ = value;
+  }
+
+  T* last() {
+    DCHECK(last_ != nullptr);
+    return last_;
+  }
+
+  T* RemoveLast() {
+    DCHECK(last_ != nullptr);
+    T* result = last_;
+    if ((list_ != nullptr) && (list_->length() > 0))
+      last_ = list_->RemoveLast();
+    else
+      last_ = nullptr;
+    return result;
+  }
+
+  T* Get(int i) {
+    DCHECK((0 <= i) && (i < length()));
+    if (list_ == nullptr) {
+      DCHECK_EQ(0, i);
+      return last_;
+    } else {
+      if (i == list_->length()) {
+        DCHECK(last_ != nullptr);
+        return last_;
+      } else {
+        return list_->at(i);
+      }
+    }
+  }
+
+  void Clear() {
+    list_ = nullptr;
+    last_ = nullptr;
+  }
+
+  int length() {
+    int length = (list_ == nullptr) ? 0 : list_->length();
+    return length + ((last_ == nullptr) ? 0 : 1);
+  }
+
+  ZoneList<T*>* GetList(Zone* zone) {
+    if (list_ == nullptr) {
+      list_ = zone->New<ZoneList<T*>>(initial_size, zone);
+    }
+    if (last_ != nullptr) {
+      list_->Add(last_, zone);
+      last_ = nullptr;
+    }
+    return list_;
+  }
+
+ private:
+  ZoneList<T*>* list_;
+  T* last_;
+};
+
+// Accumulates RegExp atoms and assertions into lists of terms and alternatives.
+class RegExpBuilder : public ZoneObject {
+ public:
+  RegExpBuilder(Zone* zone, RegExpFlags flags);
+  void AddCharacter(base::uc16 character);
+  void AddUnicodeCharacter(base::uc32 character);
+  void AddEscapedUnicodeCharacter(base::uc32 character);
+  // "Adds" an empty expression. Does nothing except consume a
+  // following quantifier
+  void AddEmpty();
+  void AddCharacterClass(RegExpCharacterClass* cc);
+  void AddCharacterClassForDesugaring(base::uc32 c);
+  void AddAtom(RegExpTree* tree);
+  void AddTerm(RegExpTree* tree);
+  void AddAssertion(RegExpTree* tree);
+  void NewAlternative();  // '|'
+  bool AddQuantifierToAtom(int min, int max,
+                           RegExpQuantifier::QuantifierType type);
+  void FlushText();
+  RegExpTree* ToRegExp();
+  RegExpFlags flags() const { return flags_; }
+
+  bool ignore_case() const { return IsIgnoreCase(flags_); }
+  bool multiline() const { return IsMultiline(flags_); }
+  bool dotall() const { return IsDotAll(flags_); }
+
+ private:
+  static const base::uc16 kNoPendingSurrogate = 0;
+  void AddLeadSurrogate(base::uc16 lead_surrogate);
+  void AddTrailSurrogate(base::uc16 trail_surrogate);
+  void FlushPendingSurrogate();
+  void FlushCharacters();
+  void FlushTerms();
+  bool NeedsDesugaringForUnicode(RegExpCharacterClass* cc);
+  bool NeedsDesugaringForIgnoreCase(base::uc32 c);
+  Zone* zone() const { return zone_; }
+  bool unicode() const { return IsUnicode(flags_); }
+
+  Zone* const zone_;
+  bool pending_empty_;
+  const RegExpFlags flags_;
+  ZoneList<base::uc16>* characters_;
+  base::uc16 pending_surrogate_;
+  BufferedZoneList<RegExpTree, 2> terms_;
+  BufferedZoneList<RegExpTree, 2> text_;
+  BufferedZoneList<RegExpTree, 2> alternatives_;
+#ifdef DEBUG
+  enum {ADD_NONE, ADD_CHAR, ADD_TERM, ADD_ASSERT, ADD_ATOM} last_added_;
+#define LAST(x) last_added_ = x;
+#else
+#define LAST(x)
+#endif
+};
+
+enum SubexpressionType {
+  INITIAL,
+  CAPTURE,  // All positive values represent captures.
+  POSITIVE_LOOKAROUND,
+  NEGATIVE_LOOKAROUND,
+  GROUPING
+};
+
+class RegExpParserState : public ZoneObject {
+ public:
+  // Push a state on the stack.
+  RegExpParserState(RegExpParserState* previous_state,
+                    SubexpressionType group_type,
+                    RegExpLookaround::Type lookaround_type,
+                    int disjunction_capture_index,
+                    const ZoneVector<base::uc16>* capture_name,
+                    RegExpFlags flags, Zone* zone)
+      : previous_state_(previous_state),
+        builder_(zone->New<RegExpBuilder>(zone, flags)),
+        group_type_(group_type),
+        lookaround_type_(lookaround_type),
+        disjunction_capture_index_(disjunction_capture_index),
+        capture_name_(capture_name) {}
+  // Parser state of containing expression, if any.
+  RegExpParserState* previous_state() const { return previous_state_; }
+  bool IsSubexpression() { return previous_state_ != nullptr; }
+  // RegExpBuilder building this regexp's AST.
+  RegExpBuilder* builder() const { return builder_; }
+  // Type of regexp being parsed (parenthesized group or entire regexp).
+  SubexpressionType group_type() const { return group_type_; }
+  // Lookahead or Lookbehind.
+  RegExpLookaround::Type lookaround_type() const { return lookaround_type_; }
+  // Index in captures array of first capture in this sub-expression, if any.
+  // Also the capture index of this sub-expression itself, if group_type
+  // is CAPTURE.
+  int capture_index() const { return disjunction_capture_index_; }
+  // The name of the current sub-expression, if group_type is CAPTURE. Only
+  // used for named captures.
+  const ZoneVector<base::uc16>* capture_name() const { return capture_name_; }
+
+  bool IsNamedCapture() const { return capture_name_ != nullptr; }
+
+  // Check whether the parser is inside a capture group with the given index.
+  bool IsInsideCaptureGroup(int index) const {
+    for (const RegExpParserState* s = this; s != nullptr;
+         s = s->previous_state()) {
+      if (s->group_type() != CAPTURE) continue;
+      // Return true if we found the matching capture index.
+      if (index == s->capture_index()) return true;
+      // Abort if index is larger than what has been parsed up till this state.
+      if (index > s->capture_index()) return false;
+    }
+    return false;
+  }
+
+  // Check whether the parser is inside a capture group with the given name.
+  bool IsInsideCaptureGroup(const ZoneVector<base::uc16>* name) const {
+    DCHECK_NOT_NULL(name);
+    for (const RegExpParserState* s = this; s != nullptr;
+         s = s->previous_state()) {
+      if (s->capture_name() == nullptr) continue;
+      if (*s->capture_name() == *name) return true;
+    }
+    return false;
+  }
+
+ private:
+  // Linked list implementation of stack of states.
+  RegExpParserState* const previous_state_;
+  // Builder for the stored disjunction.
+  RegExpBuilder* const builder_;
+  // Stored disjunction type (capture, look-ahead or grouping), if any.
+  const SubexpressionType group_type_;
+  // Stored read direction.
+  const RegExpLookaround::Type lookaround_type_;
+  // Stored disjunction's capture index (if any).
+  const int disjunction_capture_index_;
+  // Stored capture name (if any).
+  const ZoneVector<base::uc16>* const capture_name_;
+};
+
+template <class CharT>
+class RegExpParserImpl final {
+ private:
+  RegExpParserImpl(const CharT* input, int input_length, RegExpFlags flags,
+                   uintptr_t stack_limit, Zone* zone,
+                   const DisallowGarbageCollection& no_gc);
+
+  bool Parse(RegExpCompileData* result);
+
+  RegExpTree* ParsePattern();
+  RegExpTree* ParseDisjunction();
+  RegExpTree* ParseGroup();
+
+  // Parses a {...,...} quantifier and stores the range in the given
+  // out parameters.
+  bool ParseIntervalQuantifier(int* min_out, int* max_out);
+
+  // Parses and returns a single escaped character.  The character
+  // must not be 'b' or 'B' since they are usually handle specially.
+  base::uc32 ParseClassCharacterEscape();
+
+  // Checks whether the following is a length-digit hexadecimal number,
+  // and sets the value if it is.
+  bool ParseHexEscape(int length, base::uc32* value);
+  bool ParseUnicodeEscape(base::uc32* value);
+  bool ParseUnlimitedLengthHexNumber(int max_value, base::uc32* value);
+
+  bool ParsePropertyClassName(ZoneVector<char>* name_1,
+                              ZoneVector<char>* name_2);
+  bool AddPropertyClassRange(ZoneList<CharacterRange>* add_to, bool negate,
+                             const ZoneVector<char>& name_1,
+                             const ZoneVector<char>& name_2);
+
+  RegExpTree* GetPropertySequence(const ZoneVector<char>& name_1);
+  RegExpTree* ParseCharacterClass(const RegExpBuilder* state);
+
+  base::uc32 ParseOctalLiteral();
+
+  // Tries to parse the input as a back reference.  If successful it
+  // stores the result in the output parameter and returns true.  If
+  // it fails it will push back the characters read so the same characters
+  // can be reparsed.
+  bool ParseBackReferenceIndex(int* index_out);
+
+  // Parse inside a class. Either add escaped class to the range, or return
+  // false and pass parsed single character through |char_out|.
+  void ParseClassEscape(ZoneList<CharacterRange>* ranges, Zone* zone,
+                        bool add_unicode_case_equivalents, base::uc32* char_out,
+                        bool* is_class_escape);
+
+  char ParseClassEscape();
+
+  RegExpTree* ReportError(RegExpError error);
+  void Advance();
+  void Advance(int dist);
+  void Reset(int pos);
+
+  // Reports whether the pattern might be used as a literal search string.
+  // Only use if the result of the parse is a single atom node.
+  bool simple();
+  bool contains_anchor() { return contains_anchor_; }
+  void set_contains_anchor() { contains_anchor_ = true; }
+  int captures_started() { return captures_started_; }
+  int position() { return next_pos_ - 1; }
+  bool failed() { return failed_; }
+  bool unicode() const { return IsUnicode(top_level_flags_); }
+
+  static bool IsSyntaxCharacterOrSlash(base::uc32 c);
+
+  static const base::uc32 kEndMarker = (1 << 21);
+
+ private:
+  // Return the 1-indexed RegExpCapture object, allocate if necessary.
+  RegExpCapture* GetCapture(int index);
+
+  // Creates a new named capture at the specified index. Must be called exactly
+  // once for each named capture. Fails if a capture with the same name is
+  // encountered.
+  bool CreateNamedCaptureAtIndex(const ZoneVector<base::uc16>* name, int index);
+
+  // Parses the name of a capture group (?<name>pattern). The name must adhere
+  // to IdentifierName in the ECMAScript standard.
+  const ZoneVector<base::uc16>* ParseCaptureGroupName();
+
+  bool ParseNamedBackReference(RegExpBuilder* builder,
+                               RegExpParserState* state);
+  RegExpParserState* ParseOpenParenthesis(RegExpParserState* state);
+
+  // After the initial parsing pass, patch corresponding RegExpCapture objects
+  // into all RegExpBackReferences. This is done after initial parsing in order
+  // to avoid complicating cases in which references comes before the capture.
+  void PatchNamedBackReferences();
+
+  ZoneVector<RegExpCapture*>* GetNamedCaptures() const;
+
+  // Returns true iff the pattern contains named captures. May call
+  // ScanForCaptures to look ahead at the remaining pattern.
+  bool HasNamedCaptures();
+
+  Zone* zone() const { return zone_; }
+
+  base::uc32 current() { return current_; }
+  bool has_more() { return has_more_; }
+  bool has_next() { return next_pos_ < input_length(); }
+  base::uc32 Next();
+  template <bool update_position>
+  base::uc32 ReadNext();
+  CharT InputAt(int index) const {
+    DCHECK(0 <= index && index < input_length());
+    return input_[index];
+  }
+  int input_length() const { return input_length_; }
+  void ScanForCaptures();
+
+  struct RegExpCaptureNameLess {
+    bool operator()(const RegExpCapture* lhs, const RegExpCapture* rhs) const {
+      DCHECK_NOT_NULL(lhs);
+      DCHECK_NOT_NULL(rhs);
+      return *lhs->name() < *rhs->name();
+    }
+  };
+
+  const DisallowGarbageCollection no_gc_;
+  Zone* const zone_;
+  RegExpError error_ = RegExpError::kNone;
+  int error_pos_ = 0;
+  ZoneList<RegExpCapture*>* captures_;
+  ZoneSet<RegExpCapture*, RegExpCaptureNameLess>* named_captures_;
+  ZoneList<RegExpBackReference*>* named_back_references_;
+  const CharT* const input_;
+  const int input_length_;
+  base::uc32 current_;
+  const RegExpFlags top_level_flags_;
+  int next_pos_;
+  int captures_started_;
+  int capture_count_;  // Only valid after we have scanned for captures.
+  bool has_more_;
+  bool simple_;
+  bool contains_anchor_;
+  bool is_scanned_for_captures_;
+  bool has_named_captures_;  // Only valid after we have scanned for captures.
+  bool failed_;
+  const uintptr_t stack_limit_;
+
+  friend bool RegExpParser::ParseRegExpFromHeapString(Isolate*, Zone*,
+                                                      Handle<String>,
+                                                      RegExpFlags,
+                                                      RegExpCompileData*);
+  friend bool RegExpParser::VerifyRegExpSyntax<CharT>(
+      Zone*, uintptr_t, const CharT*, int, RegExpFlags, RegExpCompileData*,
+      const DisallowGarbageCollection&);
+};
+
+template <class CharT>
+RegExpParserImpl<CharT>::RegExpParserImpl(
+    const CharT* input, int input_length, RegExpFlags flags,
+    uintptr_t stack_limit, Zone* zone, const DisallowGarbageCollection& no_gc)
+    : zone_(zone),
       captures_(nullptr),
       named_captures_(nullptr),
       named_back_references_(nullptr),
-      in_(in),
+      input_(input),
+      input_length_(input_length),
       current_(kEndMarker),
       top_level_flags_(flags),
       next_pos_(0),
@@ -42,30 +411,44 @@ RegExpParser::RegExpParser(FlatStringReader* in, JSRegExp::Flags flags,
       contains_anchor_(false),
       is_scanned_for_captures_(false),
       has_named_captures_(false),
-      failed_(false) {
+      failed_(false),
+      stack_limit_(stack_limit) {
   Advance();
 }
 
+template <>
 template <bool update_position>
-inline base::uc32 RegExpParser::ReadNext() {
+inline base::uc32 RegExpParserImpl<uint8_t>::ReadNext() {
   int position = next_pos_;
-  base::uc32 c0 = in()->Get(position);
+  base::uc16 c0 = InputAt(position);
   position++;
-  // Read the whole surrogate pair in case of unicode flag, if possible.
-  if (unicode() && position < in()->length() &&
-      unibrow::Utf16::IsLeadSurrogate(static_cast<base::uc16>(c0))) {
-    base::uc16 c1 = in()->Get(position);
-    if (unibrow::Utf16::IsTrailSurrogate(c1)) {
-      c0 =
-          unibrow::Utf16::CombineSurrogatePair(static_cast<base::uc16>(c0), c1);
-      position++;
-    }
-  }
+  DCHECK(!unibrow::Utf16::IsLeadSurrogate(c0));
   if (update_position) next_pos_ = position;
   return c0;
 }
 
-base::uc32 RegExpParser::Next() {
+template <>
+template <bool update_position>
+inline base::uc32 RegExpParserImpl<base::uc16>::ReadNext() {
+  int position = next_pos_;
+  base::uc16 c0 = InputAt(position);
+  base::uc32 result = c0;
+  position++;
+  // Read the whole surrogate pair in case of unicode flag, if possible.
+  if (unicode() && position < input_length() &&
+      unibrow::Utf16::IsLeadSurrogate(c0)) {
+    base::uc16 c1 = InputAt(position);
+    if (unibrow::Utf16::IsTrailSurrogate(c1)) {
+      result = unibrow::Utf16::CombineSurrogatePair(c0, c1);
+      position++;
+    }
+  }
+  if (update_position) next_pos_ = position;
+  return result;
+}
+
+template <class CharT>
+base::uc32 RegExpParserImpl<CharT>::Next() {
   if (has_next()) {
     return ReadNext<false>();
   } else {
@@ -73,10 +456,10 @@ base::uc32 RegExpParser::Next() {
   }
 }
 
-void RegExpParser::Advance() {
+template <class CharT>
+void RegExpParserImpl<CharT>::Advance() {
   if (has_next()) {
-    StackLimitCheck check(isolate());
-    if (check.HasOverflowed()) {
+    if (GetCurrentStackPosition() < stack_limit_) {
       if (FLAG_correctness_fuzzer_suppressions) {
         FATAL("Aborting on stack overflow");
       }
@@ -93,27 +476,31 @@ void RegExpParser::Advance() {
     current_ = kEndMarker;
     // Advance so that position() points to 1-after-the-last-character. This is
     // important so that Reset() to this position works correctly.
-    next_pos_ = in()->length() + 1;
+    next_pos_ = input_length() + 1;
     has_more_ = false;
   }
 }
 
-
-void RegExpParser::Reset(int pos) {
+template <class CharT>
+void RegExpParserImpl<CharT>::Reset(int pos) {
   next_pos_ = pos;
-  has_more_ = (pos < in()->length());
+  has_more_ = (pos < input_length());
   Advance();
 }
 
-void RegExpParser::Advance(int dist) {
+template <class CharT>
+void RegExpParserImpl<CharT>::Advance(int dist) {
   next_pos_ += dist - 1;
   Advance();
 }
 
+template <class CharT>
+bool RegExpParserImpl<CharT>::simple() {
+  return simple_;
+}
 
-bool RegExpParser::simple() { return simple_; }
-
-bool RegExpParser::IsSyntaxCharacterOrSlash(base::uc32 c) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::IsSyntaxCharacterOrSlash(base::uc32 c) {
   switch (c) {
     case '^':
     case '$':
@@ -137,14 +524,15 @@ bool RegExpParser::IsSyntaxCharacterOrSlash(base::uc32 c) {
   return false;
 }
 
-RegExpTree* RegExpParser::ReportError(RegExpError error) {
+template <class CharT>
+RegExpTree* RegExpParserImpl<CharT>::ReportError(RegExpError error) {
   if (failed_) return nullptr;  // Do not overwrite any existing error.
   failed_ = true;
   error_ = error;
   error_pos_ = position();
   // Zip to the end to make sure no more input is read.
   current_ = kEndMarker;
-  next_pos_ = in()->length();
+  next_pos_ = input_length();
   return nullptr;
 }
 
@@ -154,18 +542,18 @@ RegExpTree* RegExpParser::ReportError(RegExpError error) {
 
 // Pattern ::
 //   Disjunction
-RegExpTree* RegExpParser::ParsePattern() {
+template <class CharT>
+RegExpTree* RegExpParserImpl<CharT>::ParsePattern() {
   RegExpTree* result = ParseDisjunction(CHECK_FAILED);
   PatchNamedBackReferences(CHECK_FAILED);
   DCHECK(!has_more());
   // If the result of parsing is a literal string atom, and it has the
   // same length as the input, then the atom is identical to the input.
-  if (result->IsAtom() && result->AsAtom()->length() == in()->length()) {
+  if (result->IsAtom() && result->AsAtom()->length() == input_length()) {
     simple_ = true;
   }
   return result;
 }
-
 
 // Disjunction ::
 //   Alternative
@@ -177,7 +565,8 @@ RegExpTree* RegExpParser::ParsePattern() {
 //   Assertion
 //   Atom
 //   Atom Quantifier
-RegExpTree* RegExpParser::ParseDisjunction() {
+template <class CharT>
+RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
   // Used to store current state while parsing subexpressions.
   RegExpParserState initial_state(nullptr, INITIAL, RegExpLookaround::LOOKAHEAD,
                                   0, nullptr, top_level_flags_, zone());
@@ -220,12 +609,12 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           capture->set_body(body);
           body = capture;
         } else if (group_type == GROUPING) {
-          body = zone()->New<RegExpGroup>(body);
+          body = zone()->template New<RegExpGroup>(body);
         } else {
           DCHECK(group_type == POSITIVE_LOOKAROUND ||
                  group_type == NEGATIVE_LOOKAROUND);
           bool is_positive = (group_type == POSITIVE_LOOKAROUND);
-          body = zone()->New<RegExpLookaround>(
+          body = zone()->template New<RegExpLookaround>(
               body, is_positive, end_capture_index - capture_index,
               capture_index, state->lookaround_type());
         }
@@ -250,7 +639,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         return ReportError(RegExpError::kNothingToRepeat);
       case '^': {
         Advance();
-        builder->AddAssertion(zone()->New<RegExpAssertion>(
+        builder->AddAssertion(zone()->template New<RegExpAssertion>(
             builder->multiline() ? RegExpAssertion::START_OF_LINE
                                  : RegExpAssertion::START_OF_INPUT));
         set_contains_anchor();
@@ -261,13 +650,14 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         RegExpAssertion::AssertionType assertion_type =
             builder->multiline() ? RegExpAssertion::END_OF_LINE
                                  : RegExpAssertion::END_OF_INPUT;
-        builder->AddAssertion(zone()->New<RegExpAssertion>(assertion_type));
+        builder->AddAssertion(
+            zone()->template New<RegExpAssertion>(assertion_type));
         continue;
       }
       case '.': {
         Advance();
         ZoneList<CharacterRange>* ranges =
-            zone()->New<ZoneList<CharacterRange>>(2, zone());
+            zone()->template New<ZoneList<CharacterRange>>(2, zone());
 
         if (builder->dotall()) {
           // Everything.
@@ -278,7 +668,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         }
 
         RegExpCharacterClass* cc =
-            zone()->New<RegExpCharacterClass>(zone(), ranges);
+            zone()->template New<RegExpCharacterClass>(zone(), ranges);
         builder->AddCharacterClass(cc);
         break;
       }
@@ -300,13 +690,13 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             return ReportError(RegExpError::kEscapeAtEndOfPattern);
           case 'b':
             Advance(2);
-            builder->AddAssertion(
-                zone()->New<RegExpAssertion>(RegExpAssertion::BOUNDARY));
+            builder->AddAssertion(zone()->template New<RegExpAssertion>(
+                RegExpAssertion::BOUNDARY));
             continue;
           case 'B':
             Advance(2);
-            builder->AddAssertion(
-                zone()->New<RegExpAssertion>(RegExpAssertion::NON_BOUNDARY));
+            builder->AddAssertion(zone()->template New<RegExpAssertion>(
+                RegExpAssertion::NON_BOUNDARY));
             continue;
           // AtomEscape ::
           //   CharacterClassEscape
@@ -322,11 +712,11 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             base::uc32 c = Next();
             Advance(2);
             ZoneList<CharacterRange>* ranges =
-                zone()->New<ZoneList<CharacterRange>>(2, zone());
+                zone()->template New<ZoneList<CharacterRange>>(2, zone());
             CharacterRange::AddClassEscape(
                 c, ranges, unicode() && builder->ignore_case(), zone());
             RegExpCharacterClass* cc =
-                zone()->New<RegExpCharacterClass>(zone(), ranges);
+                zone()->template New<RegExpCharacterClass>(zone(), ranges);
             builder->AddCharacterClass(cc);
             break;
           }
@@ -336,13 +726,14 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             Advance(2);
             if (unicode()) {
               ZoneList<CharacterRange>* ranges =
-                  zone()->New<ZoneList<CharacterRange>>(2, zone());
+                  zone()->template New<ZoneList<CharacterRange>>(2, zone());
               ZoneVector<char> name_1(zone());
               ZoneVector<char> name_2(zone());
               if (ParsePropertyClassName(&name_1, &name_2)) {
                 if (AddPropertyClassRange(ranges, p == 'P', name_1, name_2)) {
                   RegExpCharacterClass* cc =
-                      zone()->New<RegExpCharacterClass>(zone(), ranges);
+                      zone()->template New<RegExpCharacterClass>(zone(),
+                                                                 ranges);
                   builder->AddCharacterClass(cc);
                   break;
                 }
@@ -381,8 +772,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
                 builder->AddEmpty();
               } else {
                 RegExpCapture* capture = GetCapture(index);
-                RegExpTree* atom =
-                    zone()->New<RegExpBackReference>(capture, builder->flags());
+                RegExpTree* atom = zone()->template New<RegExpBackReference>(
+                    capture, builder->flags());
                 builder->AddAtom(atom);
               }
               break;
@@ -575,12 +966,11 @@ RegExpTree* RegExpParser::ParseDisjunction() {
   }
 }
 
-RegExpParser::RegExpParserState* RegExpParser::ParseOpenParenthesis(
+template <class CharT>
+RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
     RegExpParserState* state) {
   RegExpLookaround::Type lookaround_type = state->lookaround_type();
   bool is_named_capture = false;
-  JSRegExp::Flags switch_on = JSRegExp::kNone;
-  JSRegExp::Flags switch_off = JSRegExp::kNone;
   const ZoneVector<base::uc16>* capture_name = nullptr;
   SubexpressionType subexpr_type = CAPTURE;
   Advance();
@@ -623,7 +1013,7 @@ RegExpParser::RegExpParserState* RegExpParser::ParseOpenParenthesis(
     }
   }
   if (subexpr_type == CAPTURE) {
-    if (captures_started_ >= JSRegExp::kMaxCaptures) {
+    if (captures_started_ >= RegExpMacroAssembler::kMaxRegisterCount) {
       ReportError(RegExpError::kTooManyCaptures);
       return nullptr;
     }
@@ -633,11 +1023,10 @@ RegExpParser::RegExpParserState* RegExpParser::ParseOpenParenthesis(
       capture_name = ParseCaptureGroupName(CHECK_FAILED);
     }
   }
-  JSRegExp::Flags flags = (state->builder()->flags() | switch_on) & ~switch_off;
   // Store current state and begin new disjunction parsing.
-  return zone()->New<RegExpParserState>(state, subexpr_type, lookaround_type,
-                                        captures_started_, capture_name, flags,
-                                        zone());
+  return zone()->template New<RegExpParserState>(
+      state, subexpr_type, lookaround_type, captures_started_, capture_name,
+      state->builder()->flags(), zone());
 }
 
 #ifdef DEBUG
@@ -657,14 +1046,14 @@ static bool IsSpecialClassEscape(base::uc32 c) {
 }
 #endif
 
-
 // In order to know whether an escape is a backreference or not we have to scan
 // the entire regexp and find the number of capturing parentheses.  However we
 // don't want to scan the regexp twice unless it is necessary.  This mini-parser
 // is called when needed.  It can see the difference between capturing and
 // noncapturing parentheses and can skip character classes and backslash-escaped
 // characters.
-void RegExpParser::ScanForCaptures() {
+template <class CharT>
+void RegExpParserImpl<CharT>::ScanForCaptures() {
   DCHECK(!is_scanned_for_captures_);
   const int saved_position = position();
   // Start with captures started previous to current position
@@ -718,8 +1107,8 @@ void RegExpParser::ScanForCaptures() {
   Reset(saved_position);
 }
 
-
-bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::ParseBackReferenceIndex(int* index_out) {
   DCHECK_EQ('\\', current());
   DCHECK('1' <= Next() && Next() <= '9');
   // Try to parse a decimal literal that is no greater than the total number
@@ -731,7 +1120,7 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
     base::uc32 c = current();
     if (IsDecimalDigit(c)) {
       value = 10 * value + (c - '0');
-      if (value > JSRegExp::kMaxCaptures) {
+      if (value > RegExpMacroAssembler::kMaxRegisterCount) {
         Reset(start);
         return false;
       }
@@ -751,7 +1140,9 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
   return true;
 }
 
-static void push_code_unit(ZoneVector<base::uc16>* v, uint32_t code_unit) {
+namespace {
+
+void push_code_unit(ZoneVector<base::uc16>* v, uint32_t code_unit) {
   if (code_unit <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
     v->push_back(code_unit);
   } else {
@@ -760,8 +1151,12 @@ static void push_code_unit(ZoneVector<base::uc16>* v, uint32_t code_unit) {
   }
 }
 
-const ZoneVector<base::uc16>* RegExpParser::ParseCaptureGroupName() {
-  ZoneVector<base::uc16>* name = zone()->New<ZoneVector<base::uc16>>(zone());
+}  // namespace
+
+template <class CharT>
+const ZoneVector<base::uc16>* RegExpParserImpl<CharT>::ParseCaptureGroupName() {
+  ZoneVector<base::uc16>* name =
+      zone()->template New<ZoneVector<base::uc16>>(zone());
 
   bool at_start = true;
   while (true) {
@@ -805,8 +1200,9 @@ const ZoneVector<base::uc16>* RegExpParser::ParseCaptureGroupName() {
   return name;
 }
 
-bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<base::uc16>* name,
-                                             int index) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::CreateNamedCaptureAtIndex(
+    const ZoneVector<base::uc16>* name, int index) {
   DCHECK(0 < index && index <= captures_started_);
   DCHECK_NOT_NULL(name);
 
@@ -817,7 +1213,8 @@ bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<base::uc16>* name,
 
   if (named_captures_ == nullptr) {
     named_captures_ =
-        zone_->New<ZoneSet<RegExpCapture*, RegExpCaptureNameLess>>(zone());
+        zone_->template New<ZoneSet<RegExpCapture*, RegExpCaptureNameLess>>(
+            zone());
   } else {
     // Check for duplicates and bail if we find any.
 
@@ -833,8 +1230,9 @@ bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<base::uc16>* name,
   return true;
 }
 
-bool RegExpParser::ParseNamedBackReference(RegExpBuilder* builder,
-                                           RegExpParserState* state) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::ParseNamedBackReference(
+    RegExpBuilder* builder, RegExpParserState* state) {
   // The parser is assumed to be on the '<' in \k<name>.
   if (current() != '<') {
     ReportError(RegExpError::kInvalidNamedReference);
@@ -851,14 +1249,14 @@ bool RegExpParser::ParseNamedBackReference(RegExpBuilder* builder,
     builder->AddEmpty();
   } else {
     RegExpBackReference* atom =
-        zone()->New<RegExpBackReference>(builder->flags());
+        zone()->template New<RegExpBackReference>(builder->flags());
     atom->set_name(name);
 
     builder->AddAtom(atom);
 
     if (named_back_references_ == nullptr) {
       named_back_references_ =
-          zone()->New<ZoneList<RegExpBackReference*>>(1, zone());
+          zone()->template New<ZoneList<RegExpBackReference*>>(1, zone());
     }
     named_back_references_->Add(atom, zone());
   }
@@ -866,7 +1264,8 @@ bool RegExpParser::ParseNamedBackReference(RegExpBuilder* builder,
   return true;
 }
 
-void RegExpParser::PatchNamedBackReferences() {
+template <class CharT>
+void RegExpParserImpl<CharT>::PatchNamedBackReferences() {
   if (named_back_references_ == nullptr) return;
 
   if (named_captures_ == nullptr) {
@@ -882,7 +1281,8 @@ void RegExpParser::PatchNamedBackReferences() {
     // Capture used to search the named_captures_ by name, index of the
     // capture is never used.
     static const int kInvalidIndex = 0;
-    RegExpCapture* search_capture = zone()->New<RegExpCapture>(kInvalidIndex);
+    RegExpCapture* search_capture =
+        zone()->template New<RegExpCapture>(kInvalidIndex);
     DCHECK_NULL(search_capture->name());
     search_capture->set_name(ref->name());
 
@@ -899,70 +1299,36 @@ void RegExpParser::PatchNamedBackReferences() {
   }
 }
 
-RegExpCapture* RegExpParser::GetCapture(int index) {
+template <class CharT>
+RegExpCapture* RegExpParserImpl<CharT>::GetCapture(int index) {
   // The index for the capture groups are one-based. Its index in the list is
   // zero-based.
   int know_captures =
       is_scanned_for_captures_ ? capture_count_ : captures_started_;
   DCHECK(index <= know_captures);
   if (captures_ == nullptr) {
-    captures_ = zone()->New<ZoneList<RegExpCapture*>>(know_captures, zone());
+    captures_ =
+        zone()->template New<ZoneList<RegExpCapture*>>(know_captures, zone());
   }
   while (captures_->length() < know_captures) {
-    captures_->Add(zone()->New<RegExpCapture>(captures_->length() + 1), zone());
+    captures_->Add(zone()->template New<RegExpCapture>(captures_->length() + 1),
+                   zone());
   }
   return captures_->at(index - 1);
 }
 
-namespace {
-
-struct RegExpCaptureIndexLess {
-  bool operator()(const RegExpCapture* lhs, const RegExpCapture* rhs) const {
-    DCHECK_NOT_NULL(lhs);
-    DCHECK_NOT_NULL(rhs);
-    return lhs->index() < rhs->index();
-  }
-};
-
-}  // namespace
-
-Handle<FixedArray> RegExpParser::CreateCaptureNameMap() {
+template <class CharT>
+ZoneVector<RegExpCapture*>* RegExpParserImpl<CharT>::GetNamedCaptures() const {
   if (named_captures_ == nullptr || named_captures_->empty()) {
-    return Handle<FixedArray>();
+    return nullptr;
   }
 
-  // Named captures are sorted by name (because the set is used to ensure
-  // name uniqueness). But the capture name map must to be sorted by index.
-
-  ZoneVector<RegExpCapture*> sorted_named_captures(
+  return zone()->template New<ZoneVector<RegExpCapture*>>(
       named_captures_->begin(), named_captures_->end(), zone());
-  std::sort(sorted_named_captures.begin(), sorted_named_captures.end(),
-            RegExpCaptureIndexLess{});
-  DCHECK_EQ(sorted_named_captures.size(), named_captures_->size());
-
-  Factory* factory = isolate()->factory();
-
-  int len = static_cast<int>(sorted_named_captures.size()) * 2;
-  Handle<FixedArray> array = factory->NewFixedArray(len);
-
-  int i = 0;
-  for (const auto& capture : sorted_named_captures) {
-    base::Vector<const base::uc16> capture_name(capture->name()->data(),
-                                                capture->name()->size());
-    // CSA code in ConstructNewResultFromMatchInfo requires these strings to be
-    // internalized so they can be used as property names in the 'exec' results.
-    Handle<String> name = factory->InternalizeString(capture_name);
-    array->set(i * 2, *name);
-    array->set(i * 2 + 1, Smi::FromInt(capture->index()));
-
-    i++;
-  }
-  DCHECK_EQ(i * 2, len);
-
-  return array;
 }
 
-bool RegExpParser::HasNamedCaptures() {
+template <class CharT>
+bool RegExpParserImpl<CharT>::HasNamedCaptures() {
   if (has_named_captures_ || is_scanned_for_captures_) {
     return has_named_captures_;
   }
@@ -972,27 +1338,6 @@ bool RegExpParser::HasNamedCaptures() {
   return has_named_captures_;
 }
 
-bool RegExpParser::RegExpParserState::IsInsideCaptureGroup(int index) {
-  for (RegExpParserState* s = this; s != nullptr; s = s->previous_state()) {
-    if (s->group_type() != CAPTURE) continue;
-    // Return true if we found the matching capture index.
-    if (index == s->capture_index()) return true;
-    // Abort if index is larger than what has been parsed up till this state.
-    if (index > s->capture_index()) return false;
-  }
-  return false;
-}
-
-bool RegExpParser::RegExpParserState::IsInsideCaptureGroup(
-    const ZoneVector<base::uc16>* name) {
-  DCHECK_NOT_NULL(name);
-  for (RegExpParserState* s = this; s != nullptr; s = s->previous_state()) {
-    if (s->capture_name() == nullptr) continue;
-    if (*s->capture_name() == *name) return true;
-  }
-  return false;
-}
-
 // QuantifierPrefix ::
 //   { DecimalDigits }
 //   { DecimalDigits , }
@@ -1000,7 +1345,9 @@ bool RegExpParser::RegExpParserState::IsInsideCaptureGroup(
 //
 // Returns true if parsing succeeds, and set the min_out and max_out
 // values. Values are truncated to RegExpTree::kInfinity if they overflow.
-bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::ParseIntervalQuantifier(int* min_out,
+                                                      int* max_out) {
   DCHECK_EQ(current(), '{');
   int start = position();
   Advance();
@@ -1059,7 +1406,8 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
   return true;
 }
 
-base::uc32 RegExpParser::ParseOctalLiteral() {
+template <class CharT>
+base::uc32 RegExpParserImpl<CharT>::ParseOctalLiteral() {
   DCHECK(('0' <= current() && current() <= '7') || current() == kEndMarker);
   // For compatibility with some other browsers (not all), we parse
   // up to three octal digits with a value below 256.
@@ -1077,7 +1425,8 @@ base::uc32 RegExpParser::ParseOctalLiteral() {
   return value;
 }
 
-bool RegExpParser::ParseHexEscape(int length, base::uc32* value) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::ParseHexEscape(int length, base::uc32* value) {
   int start = position();
   base::uc32 val = 0;
   for (int i = 0; i < length; ++i) {
@@ -1095,7 +1444,8 @@ bool RegExpParser::ParseHexEscape(int length, base::uc32* value) {
 }
 
 // This parses RegExpUnicodeEscapeSequence as described in ECMA262.
-bool RegExpParser::ParseUnicodeEscape(base::uc32* value) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::ParseUnicodeEscape(base::uc32* value) {
   // Accept both \uxxxx and \u{xxxxxx} (if harmony unicode escapes are
   // allowed). In the latter case, the number of hex digits between { } is
   // arbitrary. \ and u have already been read.
@@ -1308,10 +1658,11 @@ bool IsUnicodePropertyValueCharacter(char c) {
   return (c == '_');
 }
 
-}  // anonymous namespace
+}  // namespace
 
-bool RegExpParser::ParsePropertyClassName(ZoneVector<char>* name_1,
-                                          ZoneVector<char>* name_2) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::ParsePropertyClassName(ZoneVector<char>* name_1,
+                                                     ZoneVector<char>* name_2) {
   DCHECK(name_1->empty());
   DCHECK(name_2->empty());
   // Parse the property class as follows:
@@ -1348,10 +1699,10 @@ bool RegExpParser::ParsePropertyClassName(ZoneVector<char>* name_1,
   return true;
 }
 
-bool RegExpParser::AddPropertyClassRange(ZoneList<CharacterRange>* add_to,
-                                         bool negate,
-                                         const ZoneVector<char>& name_1,
-                                         const ZoneVector<char>& name_2) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::AddPropertyClassRange(
+    ZoneList<CharacterRange>* add_to, bool negate,
+    const ZoneVector<char>& name_1, const ZoneVector<char>& name_2) {
   if (name_2.empty()) {
     // First attempt to interpret as general category property value name.
     const char* name = name_1.data();
@@ -1388,11 +1739,13 @@ bool RegExpParser::AddPropertyClassRange(ZoneList<CharacterRange>* add_to,
   }
 }
 
-RegExpTree* RegExpParser::GetPropertySequence(const ZoneVector<char>& name_1) {
+template <class CharT>
+RegExpTree* RegExpParserImpl<CharT>::GetPropertySequence(
+    const ZoneVector<char>& name_1) {
   if (!FLAG_harmony_regexp_sequence) return nullptr;
   const char* name = name_1.data();
   const base::uc32* sequence_list = nullptr;
-  JSRegExp::Flags flags = JSRegExp::kUnicode;
+  RegExpFlags flags = RegExpFlag::kUnicode;
   if (NameEquals(name, "Emoji_Flag_Sequence")) {
     sequence_list = UnicodePropertySequences::kEmojiFlagSequences;
   } else if (NameEquals(name, "Emoji_Tag_Sequence")) {
@@ -1421,12 +1774,12 @@ RegExpTree* RegExpParser::GetPropertySequence(const ZoneVector<char>& name_1) {
     // emoji_keycap_sequence := [0-9#*] \x{FE0F 20E3}
     RegExpBuilder builder(zone(), flags);
     ZoneList<CharacterRange>* prefix_ranges =
-        zone()->New<ZoneList<CharacterRange>>(2, zone());
+        zone()->template New<ZoneList<CharacterRange>>(2, zone());
     prefix_ranges->Add(CharacterRange::Range('0', '9'), zone());
     prefix_ranges->Add(CharacterRange::Singleton('#'), zone());
     prefix_ranges->Add(CharacterRange::Singleton('*'), zone());
     builder.AddCharacterClass(
-        zone()->New<RegExpCharacterClass>(zone(), prefix_ranges));
+        zone()->template New<RegExpCharacterClass>(zone(), prefix_ranges));
     builder.AddCharacter(0xFE0F);
     builder.AddCharacter(0x20E3);
     return builder.ToRegExp();
@@ -1435,17 +1788,17 @@ RegExpTree* RegExpParser::GetPropertySequence(const ZoneVector<char>& name_1) {
     // emoji_modifier_sequence := emoji_modifier_base emoji_modifier
     RegExpBuilder builder(zone(), flags);
     ZoneList<CharacterRange>* modifier_base_ranges =
-        zone()->New<ZoneList<CharacterRange>>(2, zone());
+        zone()->template New<ZoneList<CharacterRange>>(2, zone());
     LookupPropertyValueName(UCHAR_EMOJI_MODIFIER_BASE, "Y", false,
                             modifier_base_ranges, zone());
-    builder.AddCharacterClass(
-        zone()->New<RegExpCharacterClass>(zone(), modifier_base_ranges));
+    builder.AddCharacterClass(zone()->template New<RegExpCharacterClass>(
+        zone(), modifier_base_ranges));
     ZoneList<CharacterRange>* modifier_ranges =
-        zone()->New<ZoneList<CharacterRange>>(2, zone());
+        zone()->template New<ZoneList<CharacterRange>>(2, zone());
     LookupPropertyValueName(UCHAR_EMOJI_MODIFIER, "Y", false, modifier_ranges,
                             zone());
     builder.AddCharacterClass(
-        zone()->New<RegExpCharacterClass>(zone(), modifier_ranges));
+        zone()->template New<RegExpCharacterClass>(zone(), modifier_ranges));
     return builder.ToRegExp();
   }
 
@@ -1454,26 +1807,30 @@ RegExpTree* RegExpParser::GetPropertySequence(const ZoneVector<char>& name_1) {
 
 #else  // V8_INTL_SUPPORT
 
-bool RegExpParser::ParsePropertyClassName(ZoneVector<char>* name_1,
-                                          ZoneVector<char>* name_2) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::ParsePropertyClassName(ZoneVector<char>* name_1,
+                                                     ZoneVector<char>* name_2) {
   return false;
 }
 
-bool RegExpParser::AddPropertyClassRange(ZoneList<CharacterRange>* add_to,
-                                         bool negate,
-                                         const ZoneVector<char>& name_1,
-                                         const ZoneVector<char>& name_2) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::AddPropertyClassRange(
+    ZoneList<CharacterRange>* add_to, bool negate,
+    const ZoneVector<char>& name_1, const ZoneVector<char>& name_2) {
   return false;
 }
 
-RegExpTree* RegExpParser::GetPropertySequence(const ZoneVector<char>& name) {
+template <class CharT>
+RegExpTree* RegExpParserImpl<CharT>::GetPropertySequence(
+    const ZoneVector<char>& name) {
   return nullptr;
 }
 
 #endif  // V8_INTL_SUPPORT
 
-bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value,
-                                                 base::uc32* value) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::ParseUnlimitedLengthHexNumber(int max_value,
+                                                            base::uc32* value) {
   base::uc32 x = 0;
   int d = base::HexValue(current());
   if (d < 0) {
@@ -1491,7 +1848,8 @@ bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value,
   return true;
 }
 
-base::uc32 RegExpParser::ParseClassCharacterEscape() {
+template <class CharT>
+base::uc32 RegExpParserImpl<CharT>::ParseClassCharacterEscape() {
   DCHECK_EQ('\\', current());
   DCHECK(has_next() && !IsSpecialClassEscape(Next()));
   Advance();
@@ -1608,11 +1966,11 @@ base::uc32 RegExpParser::ParseClassCharacterEscape() {
   UNREACHABLE();
 }
 
-void RegExpParser::ParseClassEscape(ZoneList<CharacterRange>* ranges,
-                                    Zone* zone,
-                                    bool add_unicode_case_equivalents,
-                                    base::uc32* char_out,
-                                    bool* is_class_escape) {
+template <class CharT>
+void RegExpParserImpl<CharT>::ParseClassEscape(
+    ZoneList<CharacterRange>* ranges, Zone* zone,
+    bool add_unicode_case_equivalents, base::uc32* char_out,
+    bool* is_class_escape) {
   base::uc32 current_char = current();
   if (current_char == '\\') {
     switch (Next()) {
@@ -1658,7 +2016,9 @@ void RegExpParser::ParseClassEscape(ZoneList<CharacterRange>* ranges,
   }
 }
 
-RegExpTree* RegExpParser::ParseCharacterClass(const RegExpBuilder* builder) {
+template <class CharT>
+RegExpTree* RegExpParserImpl<CharT>::ParseCharacterClass(
+    const RegExpBuilder* builder) {
   DCHECK_EQ(current(), '[');
   Advance();
   bool is_negated = false;
@@ -1667,7 +2027,7 @@ RegExpTree* RegExpParser::ParseCharacterClass(const RegExpBuilder* builder) {
     Advance();
   }
   ZoneList<CharacterRange>* ranges =
-      zone()->New<ZoneList<CharacterRange>>(2, zone());
+      zone()->template New<ZoneList<CharacterRange>>(2, zone());
   bool add_unicode_case_equivalents = unicode() && builder->ignore_case();
   while (has_more() && current() != ']') {
     base::uc32 char_1, char_2;
@@ -1713,15 +2073,14 @@ RegExpTree* RegExpParser::ParseCharacterClass(const RegExpBuilder* builder) {
   Advance();
   RegExpCharacterClass::CharacterClassFlags character_class_flags;
   if (is_negated) character_class_flags = RegExpCharacterClass::NEGATED;
-  return zone()->New<RegExpCharacterClass>(zone(), ranges,
-                                           character_class_flags);
+  return zone()->template New<RegExpCharacterClass>(zone(), ranges,
+                                                    character_class_flags);
 }
-
 
 #undef CHECK_FAILED
 
-bool RegExpParser::Parse(RegExpCompileData* result,
-                         const DisallowGarbageCollection&) {
+template <class CharT>
+bool RegExpParserImpl<CharT>::Parse(RegExpCompileData* result) {
   DCHECK(result != nullptr);
   RegExpTree* tree = ParsePattern();
   if (failed()) {
@@ -1742,35 +2101,12 @@ bool RegExpParser::Parse(RegExpCompileData* result,
     result->simple = tree->IsAtom() && simple() && capture_count == 0;
     result->contains_anchor = contains_anchor();
     result->capture_count = capture_count;
+    result->named_captures = GetNamedCaptures();
   }
   return !failed();
 }
 
-bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
-                               FlatStringReader* input, JSRegExp::Flags flags,
-                               RegExpCompileData* result) {
-  RegExpParser parser(input, flags, isolate, zone);
-  bool success;
-  {
-    DisallowGarbageCollection no_gc;
-    success = parser.Parse(result, no_gc);
-  }
-  if (success) {
-    result->capture_name_map = parser.CreateCaptureNameMap();
-  }
-  return success;
-}
-
-bool RegExpParser::VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
-                                      FlatStringReader* input,
-                                      JSRegExp::Flags flags,
-                                      RegExpCompileData* result,
-                                      const DisallowGarbageCollection& no_gc) {
-  RegExpParser parser(input, flags, isolate, zone);
-  return parser.Parse(result, no_gc);
-}
-
-RegExpBuilder::RegExpBuilder(Zone* zone, JSRegExp::Flags flags)
+RegExpBuilder::RegExpBuilder(Zone* zone, RegExpFlags flags)
     : zone_(zone),
       pending_empty_(false),
       flags_(flags),
@@ -2052,6 +2388,59 @@ bool RegExpBuilder::AddQuantifierToAtom(
              zone());
   LAST(ADD_TERM);
   return true;
+}
+
+template class RegExpParserImpl<uint8_t>;
+template class RegExpParserImpl<base::uc16>;
+
+}  // namespace
+
+// static
+bool RegExpParser::ParseRegExpFromHeapString(Isolate* isolate, Zone* zone,
+                                             Handle<String> input,
+                                             RegExpFlags flags,
+                                             RegExpCompileData* result) {
+  DisallowGarbageCollection no_gc;
+  uintptr_t stack_limit = isolate->stack_guard()->real_climit();
+  String::FlatContent content = input->GetFlatContent(no_gc);
+  if (content.IsOneByte()) {
+    base::Vector<const uint8_t> v = content.ToOneByteVector();
+    return RegExpParserImpl<uint8_t>{v.begin(),   v.length(), flags,
+                                     stack_limit, zone,       no_gc}
+        .Parse(result);
+  } else {
+    base::Vector<const base::uc16> v = content.ToUC16Vector();
+    return RegExpParserImpl<base::uc16>{v.begin(),   v.length(), flags,
+                                        stack_limit, zone,       no_gc}
+        .Parse(result);
+  }
+}
+
+// static
+template <class CharT>
+bool RegExpParser::VerifyRegExpSyntax(Zone* zone, uintptr_t stack_limit,
+                                      const CharT* input, int input_length,
+                                      RegExpFlags flags,
+                                      RegExpCompileData* result,
+                                      const DisallowGarbageCollection& no_gc) {
+  return RegExpParserImpl<CharT>{input,       input_length, flags,
+                                 stack_limit, zone,         no_gc}
+      .Parse(result);
+}
+
+template bool RegExpParser::VerifyRegExpSyntax<uint8_t>(
+    Zone*, uintptr_t, const uint8_t*, int, RegExpFlags, RegExpCompileData*,
+    const DisallowGarbageCollection&);
+template bool RegExpParser::VerifyRegExpSyntax<base::uc16>(
+    Zone*, uintptr_t, const base::uc16*, int, RegExpFlags, RegExpCompileData*,
+    const DisallowGarbageCollection&);
+
+// static
+bool RegExpParser::VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
+                                      Handle<String> input, RegExpFlags flags,
+                                      RegExpCompileData* result,
+                                      const DisallowGarbageCollection&) {
+  return ParseRegExpFromHeapString(isolate, zone, input, flags, result);
 }
 
 }  // namespace internal

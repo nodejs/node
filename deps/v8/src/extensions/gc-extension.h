@@ -5,10 +5,15 @@
 #ifndef V8_EXTENSIONS_GC_EXTENSION_H_
 #define V8_EXTENSIONS_GC_EXTENSION_H_
 
-#include "include/v8.h"
+#include "include/v8-extension.h"
+#include "include/v8-local-handle.h"
 #include "src/base/strings.h"
 
 namespace v8 {
+
+template <typename T>
+class FunctionCallbackInfo;
+
 namespace internal {
 
 // Provides garbage collection on invoking |fun_name|(options), where

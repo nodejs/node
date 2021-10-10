@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 
+#include "include/v8-function.h"
 #include "src/base/build_config.h"
 #include "src/base/platform/platform.h"
 #include "test/cctest/cctest-utils.h"

@@ -248,6 +248,12 @@ AssemblerBase::AssemblerBase(const AssemblerOptions& options,
   if (!buffer_) buffer_ = NewAssemblerBuffer(kDefaultBufferSize);
   buffer_start_ = buffer_->start();
   pc_ = buffer_start_;
+  if (IsOnHeap()) {
+    saved_handles_for_raw_object_ptr_.reserve(
+        kSavedHandleForRawObjectsInitialSize);
+    saved_offsets_for_runtime_entries_.reserve(
+        kSavedOffsetForRuntimeEntriesInitialSize);
+  }
 }
 
 AssemblerBase::~AssemblerBase() = default;

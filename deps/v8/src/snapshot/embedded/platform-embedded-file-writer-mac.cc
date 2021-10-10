@@ -56,12 +56,18 @@ void PlatformEmbeddedFileWriterMac::DeclareSymbolGlobal(const char* name) {
   // prevents something along the compilation chain from messing with the
   // embedded blob. Using .global here causes embedded blob hash verification
   // failures at runtime.
-  STATIC_ASSERT(32 >= kCodeAlignment);
   fprintf(fp_, ".private_extern _%s\n", name);
 }
 
 void PlatformEmbeddedFileWriterMac::AlignToCodeAlignment() {
+#if V8_TARGET_ARCH_X64
+  // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
+  STATIC_ASSERT(64 >= kCodeAlignment);
+  fprintf(fp_, ".balign 64\n");
+#else
+  STATIC_ASSERT(32 >= kCodeAlignment);
   fprintf(fp_, ".balign 32\n");
+#endif
 }
 
 void PlatformEmbeddedFileWriterMac::AlignToDataAlignment() {

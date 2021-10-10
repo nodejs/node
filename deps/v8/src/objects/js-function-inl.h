@@ -27,9 +27,7 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSFunctionOrBoundFunction)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSBoundFunction)
-OBJECT_CONSTRUCTORS_IMPL(JSFunction, JSFunctionOrBoundFunction)
-
-CAST_ACCESSOR(JSFunction)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSFunction)
 
 ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell,
@@ -55,7 +53,7 @@ void JSFunction::ClearOptimizationMarker() {
 }
 
 bool JSFunction::ChecksOptimizationMarker() {
-  return code(kAcquireLoad).checks_optimization_marker();
+  return code().checks_optimization_marker();
 }
 
 bool JSFunction::IsMarkedForOptimization() {
@@ -218,12 +216,6 @@ NativeContext JSFunction::native_context() {
   return context().native_context();
 }
 
-void JSFunction::set_context(HeapObject value, WriteBarrierMode mode) {
-  DCHECK(value.IsUndefined() || value.IsContext());
-  WRITE_FIELD(*this, kContextOffset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kContextOffset, value, mode);
-}
-
 RELEASE_ACQUIRE_ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map,
                                   HeapObject, kPrototypeOrInitialMapOffset,
                                   map().has_prototype_slot())
@@ -332,7 +324,7 @@ bool JSFunction::NeedsResetDueToFlushedBytecode() {
 }
 
 bool JSFunction::NeedsResetDueToFlushedBaselineCode() {
-  return code().kind() == CodeKind::BASELINE && !shared().HasBaselineData();
+  return code().kind() == CodeKind::BASELINE && !shared().HasBaselineCode();
 }
 
 void JSFunction::ResetIfCodeFlushed(

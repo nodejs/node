@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "include/v8-locker.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/template-utils.h"
 #include "src/debug/debug.h"
@@ -359,6 +360,16 @@ void ProfilerCodeObserver::CodeEventHandler(
     return;
   }
   CodeEventHandlerInternal(evt_rec);
+}
+
+size_t ProfilerCodeObserver::GetEstimatedMemoryUsage() const {
+  // To avoid race condition in codemap,
+  // for now limit computation in kEagerLogging mode
+  if (!processor_) {
+    return sizeof(*this) + code_map_.GetEstimatedMemoryUsage() +
+           code_entries_.strings().GetStringSize();
+  }
+  return 0;
 }
 
 void ProfilerCodeObserver::CodeEventHandlerInternal(

@@ -5,7 +5,6 @@
 #include "src/compiler/compilation-dependencies.h"
 
 #include "src/base/optional.h"
-#include "src/compiler/compilation-dependency.h"
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/allocation-site-inl.h"
@@ -19,18 +18,84 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#define DEPENDENCY_LIST(V)              \
+  V(ConsistentJSFunctionView)           \
+  V(ConstantInDictionaryPrototypeChain) \
+  V(ElementsKind)                       \
+  V(FieldConstness)                     \
+  V(FieldRepresentation)                \
+  V(FieldType)                          \
+  V(GlobalProperty)                     \
+  V(InitialMap)                         \
+  V(InitialMapInstanceSizePrediction)   \
+  V(OwnConstantDataProperty)            \
+  V(OwnConstantDictionaryProperty)      \
+  V(OwnConstantElement)                 \
+  V(PretenureMode)                      \
+  V(Protector)                          \
+  V(PrototypeProperty)                  \
+  V(StableMap)                          \
+  V(Transition)
+
 CompilationDependencies::CompilationDependencies(JSHeapBroker* broker,
                                                  Zone* zone)
     : zone_(zone), broker_(broker), dependencies_(zone) {
   broker->set_dependencies(this);
 }
 
+namespace {
+
+enum CompilationDependencyKind {
+#define V(Name) k##Name,
+  DEPENDENCY_LIST(V)
+#undef V
+};
+
+#define V(Name) class Name##Dependency;
+DEPENDENCY_LIST(V)
+#undef V
+
+const char* CompilationDependencyKindToString(CompilationDependencyKind kind) {
+#define V(Name) #Name "Dependency",
+  static const char* const names[] = {DEPENDENCY_LIST(V)};
+#undef V
+  return names[kind];
+}
+
+}  // namespace
+
+class CompilationDependency : public ZoneObject {
+ public:
+  explicit CompilationDependency(CompilationDependencyKind kind) : kind(kind) {}
+
+  virtual bool IsValid() const = 0;
+  virtual void PrepareInstall() const {}
+  virtual void Install(Handle<Code> code) const = 0;
+
+#ifdef DEBUG
+#define V(Name)                                     \
+  bool Is##Name() const { return kind == k##Name; } \
+  V8_ALLOW_UNUSED const Name##Dependency* As##Name() const;
+  DEPENDENCY_LIST(V)
+#undef V
+#endif
+
+  const char* ToString() const {
+    return CompilationDependencyKindToString(kind);
+  }
+
+  const CompilationDependencyKind kind;
+};
+
+namespace {
+
 class InitialMapDependency final : public CompilationDependency {
  public:
   InitialMapDependency(JSHeapBroker* broker, const JSFunctionRef& function,
                        const MapRef& initial_map)
-      : function_(function), initial_map_(initial_map) {
-  }
+      : CompilationDependency(kInitialMap),
+        function_(function),
+        initial_map_(initial_map) {}
 
   bool IsValid() const override {
     Handle<JSFunction> function = function_.object();
@@ -55,7 +120,9 @@ class PrototypePropertyDependency final : public CompilationDependency {
   PrototypePropertyDependency(JSHeapBroker* broker,
                               const JSFunctionRef& function,
                               const ObjectRef& prototype)
-      : function_(function), prototype_(prototype) {
+      : CompilationDependency(kPrototypeProperty),
+        function_(function),
+        prototype_(prototype) {
     DCHECK(function_.has_instance_prototype(broker->dependencies()));
     DCHECK(!function_.PrototypeRequiresRuntimeLookup(broker->dependencies()));
     DCHECK(function_.instance_prototype(broker->dependencies())
@@ -92,7 +159,8 @@ class PrototypePropertyDependency final : public CompilationDependency {
 
 class StableMapDependency final : public CompilationDependency {
  public:
-  explicit StableMapDependency(const MapRef& map) : map_(map) {}
+  explicit StableMapDependency(const MapRef& map)
+      : CompilationDependency(kStableMap), map_(map) {}
 
   bool IsValid() const override {
     // TODO(v8:11670): Consider turn this back into a CHECK inside the
@@ -117,7 +185,8 @@ class ConstantInDictionaryPrototypeChainDependency final
   explicit ConstantInDictionaryPrototypeChainDependency(
       const MapRef receiver_map, const NameRef property_name,
       const ObjectRef constant, PropertyKind kind)
-      : receiver_map_(receiver_map),
+      : CompilationDependency(kConstantInDictionaryPrototypeChain),
+        receiver_map_(receiver_map),
         property_name_{property_name},
         constant_{constant},
         kind_{kind} {
@@ -240,7 +309,8 @@ class OwnConstantDataPropertyDependency final : public CompilationDependency {
                                     const MapRef& map,
                                     Representation representation,
                                     FieldIndex index, const ObjectRef& value)
-      : broker_(broker),
+      : CompilationDependency(kOwnConstantDataProperty),
+        broker_(broker),
         holder_(holder),
         map_(map),
         representation_(representation),
@@ -294,7 +364,8 @@ class OwnConstantDictionaryPropertyDependency final
                                           const JSObjectRef& holder,
                                           InternalIndex index,
                                           const ObjectRef& value)
-      : broker_(broker),
+      : CompilationDependency(kOwnConstantDictionaryProperty),
+        broker_(broker),
         holder_(holder),
         map_(holder.map()),
         index_(index),
@@ -345,7 +416,7 @@ class OwnConstantDictionaryPropertyDependency final
 class ConsistentJSFunctionViewDependency final : public CompilationDependency {
  public:
   explicit ConsistentJSFunctionViewDependency(const JSFunctionRef& function)
-      : function_(function) {}
+      : CompilationDependency(kConsistentJSFunctionView), function_(function) {}
 
   bool IsValid() const override {
     return function_.IsConsistentWithHeapState();
@@ -353,17 +424,14 @@ class ConsistentJSFunctionViewDependency final : public CompilationDependency {
 
   void Install(Handle<Code> code) const override {}
 
-#ifdef DEBUG
-  bool IsConsistentJSFunctionViewDependency() const override { return true; }
-#endif
-
  private:
   const JSFunctionRef function_;
 };
 
 class TransitionDependency final : public CompilationDependency {
  public:
-  explicit TransitionDependency(const MapRef& map) : map_(map) {
+  explicit TransitionDependency(const MapRef& map)
+      : CompilationDependency(kTransition), map_(map) {
     DCHECK(map_.CanBeDeprecated());
   }
 
@@ -383,7 +451,9 @@ class PretenureModeDependency final : public CompilationDependency {
  public:
   PretenureModeDependency(const AllocationSiteRef& site,
                           AllocationType allocation)
-      : site_(site), allocation_(allocation) {}
+      : CompilationDependency(kPretenureMode),
+        site_(site),
+        allocation_(allocation) {}
 
   bool IsValid() const override {
     return allocation_ == site_.object()->GetAllocationType();
@@ -396,10 +466,6 @@ class PretenureModeDependency final : public CompilationDependency {
         DependentCode::kAllocationSiteTenuringChangedGroup);
   }
 
-#ifdef DEBUG
-  bool IsPretenureModeDependency() const override { return true; }
-#endif
-
  private:
   AllocationSiteRef site_;
   AllocationType allocation_;
@@ -409,7 +475,10 @@ class FieldRepresentationDependency final : public CompilationDependency {
  public:
   FieldRepresentationDependency(const MapRef& map, InternalIndex descriptor,
                                 Representation representation)
-      : map_(map), descriptor_(descriptor), representation_(representation) {}
+      : CompilationDependency(kFieldRepresentation),
+        map_(map),
+        descriptor_(descriptor),
+        representation_(representation) {}
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
@@ -433,12 +502,9 @@ class FieldRepresentationDependency final : public CompilationDependency {
                                      DependentCode::kFieldRepresentationGroup);
   }
 
-#ifdef DEBUG
-  bool IsFieldRepresentationDependencyOnMap(
-      Handle<Map> const& receiver_map) const override {
+  bool DependsOn(const Handle<Map>& receiver_map) const {
     return map_.object().equals(receiver_map);
   }
-#endif
 
  private:
   MapRef map_;
@@ -450,7 +516,10 @@ class FieldTypeDependency final : public CompilationDependency {
  public:
   FieldTypeDependency(const MapRef& map, InternalIndex descriptor,
                       const ObjectRef& type)
-      : map_(map), descriptor_(descriptor), type_(type) {}
+      : CompilationDependency(kFieldType),
+        map_(map),
+        descriptor_(descriptor),
+        type_(type) {}
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
@@ -481,7 +550,9 @@ class FieldTypeDependency final : public CompilationDependency {
 class FieldConstnessDependency final : public CompilationDependency {
  public:
   FieldConstnessDependency(const MapRef& map, InternalIndex descriptor)
-      : map_(map), descriptor_(descriptor) {}
+      : CompilationDependency(kFieldConstness),
+        map_(map),
+        descriptor_(descriptor) {}
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
@@ -515,7 +586,10 @@ class GlobalPropertyDependency final : public CompilationDependency {
  public:
   GlobalPropertyDependency(const PropertyCellRef& cell, PropertyCellType type,
                            bool read_only)
-      : cell_(cell), type_(type), read_only_(read_only) {
+      : CompilationDependency(kGlobalProperty),
+        cell_(cell),
+        type_(type),
+        read_only_(read_only) {
     DCHECK_EQ(type_, cell_.property_details().cell_type());
     DCHECK_EQ(read_only_, cell_.property_details().IsReadOnly());
   }
@@ -545,7 +619,8 @@ class GlobalPropertyDependency final : public CompilationDependency {
 
 class ProtectorDependency final : public CompilationDependency {
  public:
-  explicit ProtectorDependency(const PropertyCellRef& cell) : cell_(cell) {}
+  explicit ProtectorDependency(const PropertyCellRef& cell)
+      : CompilationDependency(kProtector), cell_(cell) {}
 
   bool IsValid() const override {
     Handle<PropertyCell> cell = cell_.object();
@@ -565,7 +640,7 @@ class ProtectorDependency final : public CompilationDependency {
 class ElementsKindDependency final : public CompilationDependency {
  public:
   ElementsKindDependency(const AllocationSiteRef& site, ElementsKind kind)
-      : site_(site), kind_(kind) {
+      : CompilationDependency(kElementsKind), site_(site), kind_(kind) {
     DCHECK(AllocationSite::ShouldTrack(kind_));
   }
 
@@ -596,7 +671,10 @@ class OwnConstantElementDependency final : public CompilationDependency {
  public:
   OwnConstantElementDependency(const JSObjectRef& holder, uint32_t index,
                                const ObjectRef& element)
-      : holder_(holder), index_(index), element_(element) {}
+      : CompilationDependency(kOwnConstantElement),
+        holder_(holder),
+        index_(index),
+        element_(element) {}
 
   bool IsValid() const override {
     DisallowGarbageCollection no_gc;
@@ -624,7 +702,9 @@ class InitialMapInstanceSizePredictionDependency final
  public:
   InitialMapInstanceSizePredictionDependency(const JSFunctionRef& function,
                                              int instance_size)
-      : function_(function), instance_size_(instance_size) {}
+      : CompilationDependency(kInitialMapInstanceSizePrediction),
+        function_(function),
+        instance_size_(instance_size) {}
 
   bool IsValid() const override {
     // The dependency is valid if the prediction is the same as the current
@@ -650,6 +730,8 @@ class InitialMapInstanceSizePredictionDependency final
   JSFunctionRef function_;
   int instance_size_;
 };
+
+}  // namespace
 
 void CompilationDependencies::RecordDependency(
     CompilationDependency const* dependency) {
@@ -795,9 +877,19 @@ void CompilationDependencies::DependOnOwnConstantDictionaryProperty(
       broker_, holder, index, value));
 }
 
+V8_INLINE void TraceInvalidCompilationDependency(
+    const CompilationDependency* d) {
+  DCHECK(FLAG_trace_compilation_dependencies);
+  DCHECK(!d->IsValid());
+  PrintF("Compilation aborted due to invalid dependency: %s\n", d->ToString());
+}
+
 bool CompilationDependencies::Commit(Handle<Code> code) {
   for (auto dep : dependencies_) {
     if (!dep->IsValid()) {
+      if (FLAG_trace_compilation_dependencies) {
+        TraceInvalidCompilationDependency(dep);
+      }
       dependencies_.clear();
       return false;
     }
@@ -812,6 +904,9 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
     // can call EnsureHasInitialMap, which can invalidate a StableMapDependency
     // on the prototype object's map.
     if (!dep->IsValid()) {
+      if (FLAG_trace_compilation_dependencies) {
+        TraceInvalidCompilationDependency(dep);
+      }
       dependencies_.clear();
       return false;
     }
@@ -838,8 +933,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
 #ifdef DEBUG
   for (auto dep : dependencies_) {
     CHECK_IMPLIES(!dep->IsValid(),
-                  dep->IsPretenureModeDependency() ||
-                      dep->IsConsistentJSFunctionViewDependency());
+                  dep->IsPretenureMode() || dep->IsConsistentJSFunctionView());
   }
 #endif
 
@@ -848,6 +942,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
 }
 
 namespace {
+
 // This function expects to never see a JSProxy.
 void DependOnStablePrototypeChain(CompilationDependencies* deps, MapRef map,
                                   base::Optional<JSObjectRef> last_prototype) {
@@ -862,7 +957,18 @@ void DependOnStablePrototypeChain(CompilationDependencies* deps, MapRef map,
     if (last_prototype.has_value() && proto.equals(*last_prototype)) break;
   }
 }
+
 }  // namespace
+
+#ifdef DEBUG
+#define V(Name)                                                     \
+  const Name##Dependency* CompilationDependency::As##Name() const { \
+    DCHECK(Is##Name());                                             \
+    return static_cast<const Name##Dependency*>(this);              \
+  }
+DEPENDENCY_LIST(V)
+#undef V
+#endif  // DEBUG
 
 void CompilationDependencies::DependOnStablePrototypeChains(
     ZoneVector<MapRef> const& receiver_maps, WhereToStart start,
@@ -943,6 +1049,17 @@ CompilationDependencies::FieldTypeDependencyOffTheRecord(
     const MapRef& map, InternalIndex descriptor, const ObjectRef& type) const {
   return zone_->New<FieldTypeDependency>(map, descriptor, type);
 }
+
+#ifdef DEBUG
+// static
+bool CompilationDependencies::IsFieldRepresentationDependencyOnMap(
+    const CompilationDependency* dep, const Handle<Map>& receiver_map) {
+  return dep->IsFieldRepresentation() &&
+         dep->AsFieldRepresentation()->DependsOn(receiver_map);
+}
+#endif  // DEBUG
+
+#undef DEPENDENCY_LIST
 
 }  // namespace compiler
 }  // namespace internal

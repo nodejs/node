@@ -15,6 +15,8 @@
 #include "src/codegen/mips/constants-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/codegen/mips64/constants-mips64.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/codegen/loong64/constants-loong64.h"
 #elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #include "src/codegen/ppc/constants-ppc.h"
 #elif V8_TARGET_ARCH_S390

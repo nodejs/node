@@ -38,7 +38,6 @@ RegExpBuiltinsAssembler::FastStoreLastIndex(FastJSRegExp, Smi): void;
 extern class JSRegExpConstructor extends JSFunction
     generates 'TNode<JSFunction>';
 
-@doNotGenerateCppClass
 extern shape JSRegExpResult extends JSArray {
   // In-object properties:
   // The below fields are externally exposed.
@@ -52,12 +51,10 @@ extern shape JSRegExpResult extends JSArray {
   regexp_last_index: Smi;
 }
 
-@doNotGenerateCppClass
 extern shape JSRegExpResultWithIndices extends JSRegExpResult {
   indices: JSAny;
 }
 
-@doNotGenerateCppClass
 extern shape JSRegExpResultIndices extends JSArray {
   // In-object properties:
   // The groups field is externally exposed.

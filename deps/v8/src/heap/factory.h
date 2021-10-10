@@ -116,9 +116,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return handle(obj, isolate());
   }
 
-  Handle<BaselineData> NewBaselineData(Handle<Code> code,
-                                       Handle<HeapObject> function_data);
-
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,
                              byte kind);
@@ -884,10 +881,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
     CodeBuilder& set_deoptimization_data(
         Handle<DeoptimizationData> deopt_data) {
+      DCHECK_NE(kind_, CodeKind::BASELINE);
       DCHECK(!deopt_data.is_null());
       deoptimization_data_ = deopt_data;
       return *this;
     }
+
+    inline CodeBuilder& set_interpreter_data(
+        Handle<HeapObject> interpreter_data);
 
     CodeBuilder& set_is_turbofanned() {
       DCHECK(!CodeKindIsUnoptimizedJSFunction(kind_));
@@ -943,6 +944,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     Handle<ByteArray> position_table_;
     Handle<DeoptimizationData> deoptimization_data_ =
         DeoptimizationData::Empty(isolate_);
+    Handle<HeapObject> interpreter_data_;
     BasicBlockProfilerData* profiler_data_ = nullptr;
     bool is_executable_ = true;
     bool read_only_data_container_ = false;

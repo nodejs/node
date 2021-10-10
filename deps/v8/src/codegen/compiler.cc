@@ -1064,8 +1064,8 @@ Handle<Code> ContinuationForConcurrentOptimization(
       function->set_code(function->feedback_vector().optimized_code());
     }
     return handle(function->code(), isolate);
-  } else if (function->shared().HasBaselineData()) {
-    Code baseline_code = function->shared().baseline_data().baseline_code();
+  } else if (function->shared().HasBaselineCode()) {
+    Code baseline_code = function->shared().baseline_code(kAcquireLoad);
     function->set_code(baseline_code);
     return handle(baseline_code, isolate);
   }
@@ -1179,9 +1179,13 @@ void SpawnDuplicateConcurrentJobForStressTesting(Isolate* isolate,
          isolate->concurrent_recompilation_enabled() &&
          mode == ConcurrencyMode::kNotConcurrent &&
          isolate->node_observer() == nullptr);
+  GetOptimizedCodeResultHandling result_handling =
+      FLAG_stress_concurrent_inlining_attach_code
+          ? GetOptimizedCodeResultHandling::kDefault
+          : GetOptimizedCodeResultHandling::kDiscardForTesting;
   USE(GetOptimizedCode(isolate, function, ConcurrencyMode::kConcurrent,
                        code_kind, BytecodeOffset::None(), nullptr,
-                       GetOptimizedCodeResultHandling::kDiscardForTesting));
+                       result_handling));
 }
 
 bool FailAndClearPendingException(Isolate* isolate) {
@@ -1308,6 +1312,7 @@ void FinalizeUnoptimizedScriptCompilation(
 void CompileAllWithBaseline(Isolate* isolate,
                             const FinalizeUnoptimizedCompilationDataList&
                                 finalize_unoptimized_compilation_data_list) {
+  CodePageCollectionMemoryModificationScope code_allocation(isolate->heap());
   for (const auto& finalize_data : finalize_unoptimized_compilation_data_list) {
     Handle<SharedFunctionInfo> shared_info = finalize_data.function_handle();
     IsCompiledScope is_compiled_scope(*shared_info, isolate);
@@ -1975,7 +1980,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
   DCHECK(is_compiled_scope->is_compiled());
 
   // Early return for already baseline-compiled functions.
-  if (shared->HasBaselineData()) return true;
+  if (shared->HasBaselineCode()) return true;
 
   // Check if we actually can compile with baseline.
   if (!CanCompileWithBaseline(isolate, *shared)) return false;
@@ -1998,12 +2003,8 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
       // report these somehow, or silently ignore them?
       return false;
     }
+    shared->set_baseline_code(*code, kReleaseStore);
 
-    Handle<HeapObject> function_data =
-        handle(HeapObject::cast(shared->function_data(kAcquireLoad)), isolate);
-    Handle<BaselineData> baseline_data =
-        isolate->factory()->NewBaselineData(code, function_data);
-    shared->set_baseline_data(*baseline_data);
     if (V8_LIKELY(FLAG_use_osr)) {
       // Arm back edges for OSR
       shared->GetBytecodeArray(isolate).set_osr_loop_nesting_level(
@@ -2035,7 +2036,7 @@ bool Compiler::CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
   // Baseline code needs a feedback vector.
   JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
 
-  Code baseline_code = shared->baseline_data().baseline_code(isolate);
+  Code baseline_code = shared->baseline_code(kAcquireLoad);
   DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
   function->set_code(baseline_code);
 
@@ -2210,7 +2211,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       // position, but store it as negative value for lazy translation.
       StackTraceFrameIterator it(isolate);
       if (!it.done() && it.is_javascript()) {
-        FrameSummary summary = FrameSummary::GetTop(it.javascript_frame());
+        FrameSummary summary = it.GetTopValidFrame();
         script->set_eval_from_shared(
             summary.AsJavaScript().function()->shared());
         script->set_origin_options(OriginOptionsForEval(*summary.script()));
@@ -2830,13 +2831,10 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
   return maybe_result;
 }
 
-}  // namespace
-
-// static
-MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
+MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, v8::Extension* extension,
-    AlignedCachedData* cached_data,
+    AlignedCachedData* cached_data, BackgroundDeserializeTask* deserialize_task,
     ScriptCompiler::CompileOptions compile_options,
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
@@ -2844,9 +2842,12 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   if (compile_options == ScriptCompiler::kNoCompileOptions ||
       compile_options == ScriptCompiler::kEagerCompile) {
     DCHECK_NULL(cached_data);
+    DCHECK_NULL(deserialize_task);
   } else {
-    DCHECK(compile_options == ScriptCompiler::kConsumeCodeCache);
-    DCHECK(cached_data);
+    DCHECK_EQ(compile_options, ScriptCompiler::kConsumeCodeCache);
+    // Have to have exactly one of cached_data or deserialize_task.
+    DCHECK(cached_data || deserialize_task);
+    DCHECK(!(cached_data && deserialize_task));
     DCHECK_NULL(extension);
   }
   int source_length = source->length();
@@ -2882,17 +2883,26 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileDeserialize);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.CompileDeserialize");
-      Handle<SharedFunctionInfo> inner_result;
-      if (CodeSerializer::Deserialize(isolate, cached_data, source,
-                                      script_details.origin_options)
-              .ToHandle(&inner_result) &&
-          inner_result->is_compiled()) {
-        // Promote to per-isolate compilation cache.
-        is_compiled_scope = inner_result->is_compiled_scope(isolate);
-        DCHECK(is_compiled_scope.is_compiled());
-        compilation_cache->PutScript(source, language_mode, inner_result);
-        maybe_result = inner_result;
+      if (deserialize_task) {
+        // If there's a cache consume task, finish it.
+        maybe_result = deserialize_task->Finish(isolate, source,
+                                                script_details.origin_options);
       } else {
+        maybe_result = CodeSerializer::Deserialize(
+            isolate, cached_data, source, script_details.origin_options);
+      }
+
+      bool consuming_code_cache_succeeded = false;
+      Handle<SharedFunctionInfo> result;
+      if (maybe_result.ToHandle(&result)) {
+        is_compiled_scope = result->is_compiled_scope(isolate);
+        if (is_compiled_scope.is_compiled()) {
+          consuming_code_cache_succeeded = true;
+          // Promote to per-isolate compilation cache.
+          compilation_cache->PutScript(source, language_mode, result);
+        }
+      }
+      if (!consuming_code_cache_succeeded) {
         // Deserializer failed. Fall through to compile.
         compile_timer.set_consuming_code_cache_failed();
       }
@@ -2935,6 +2945,51 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   }
 
   return maybe_result;
+}
+
+}  // namespace
+
+MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
+    Isolate* isolate, Handle<String> source,
+    const ScriptDetails& script_details,
+    ScriptCompiler::CompileOptions compile_options,
+    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
+  return GetSharedFunctionInfoForScriptImpl(
+      isolate, source, script_details, nullptr, nullptr, nullptr,
+      compile_options, no_cache_reason, natives);
+}
+
+MaybeHandle<SharedFunctionInfo>
+Compiler::GetSharedFunctionInfoForScriptWithExtension(
+    Isolate* isolate, Handle<String> source,
+    const ScriptDetails& script_details, v8::Extension* extension,
+    ScriptCompiler::CompileOptions compile_options, NativesFlag natives) {
+  return GetSharedFunctionInfoForScriptImpl(
+      isolate, source, script_details, extension, nullptr, nullptr,
+      compile_options, ScriptCompiler::kNoCacheBecauseV8Extension, natives);
+}
+
+MaybeHandle<SharedFunctionInfo>
+Compiler::GetSharedFunctionInfoForScriptWithCachedData(
+    Isolate* isolate, Handle<String> source,
+    const ScriptDetails& script_details, AlignedCachedData* cached_data,
+    ScriptCompiler::CompileOptions compile_options,
+    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
+  return GetSharedFunctionInfoForScriptImpl(
+      isolate, source, script_details, nullptr, cached_data, nullptr,
+      compile_options, no_cache_reason, natives);
+}
+
+MaybeHandle<SharedFunctionInfo>
+Compiler::GetSharedFunctionInfoForScriptWithDeserializeTask(
+    Isolate* isolate, Handle<String> source,
+    const ScriptDetails& script_details,
+    BackgroundDeserializeTask* deserialize_task,
+    ScriptCompiler::CompileOptions compile_options,
+    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
+  return GetSharedFunctionInfoForScriptImpl(
+      isolate, source, script_details, nullptr, nullptr, deserialize_task,
+      compile_options, no_cache_reason, natives);
 }
 
 // static

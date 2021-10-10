@@ -52,6 +52,7 @@ include_rules = [
   "+src/interpreter/setup-interpreter.h",
   "-src/regexp",
   "+src/regexp/regexp.h",
+  "+src/regexp/regexp-flags.h",
   "+src/regexp/regexp-stack.h",
   "+src/regexp/regexp-utils.h",
   "-src/trap-handler",
@@ -65,6 +66,10 @@ include_rules = [
   "+builtins-generated",
   "+torque-generated",
   "+starboard",
+  # Using cppgc inside v8 is not (yet) allowed.
+  "-include/cppgc",
+  "+include/cppgc/platform.h",
+  "+include/cppgc/source-location.h",
 ]
 
 specific_include_rules = {

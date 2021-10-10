@@ -20,23 +20,10 @@
 namespace v8 {
 namespace internal {
 
-// Number of times a function has to be seen on the stack before it is
-// optimized.
-static const int kProfilerTicksBeforeOptimization = 3;
-
-// The number of ticks required for optimizing a function increases with
-// the size of the bytecode. This is in addition to the
-// kProfilerTicksBeforeOptimization required for any function.
-static const int kBytecodeSizeAllowancePerTick = 1100;
-
 // Maximum size in bytes of generate code for a function to allow OSR.
 static const int kOSRBytecodeSizeAllowanceBase = 119;
 
 static const int kOSRBytecodeSizeAllowancePerTick = 44;
-
-// Maximum size in bytes of generated code for a function to be optimized
-// the very first time it is seen on the stack.
-static const int kMaxBytecodeSizeForEarlyOpt = 81;
 
 #define OPTIMIZATION_REASON_LIST(V)   \
   V(DoNotOptimize, "do not optimize") \
@@ -191,7 +178,7 @@ namespace {
 bool ShouldOptimizeAsSmallFunction(int bytecode_size, int ticks,
                                    bool any_ic_changed,
                                    bool active_tier_is_turboprop) {
-  if (any_ic_changed || bytecode_size >= kMaxBytecodeSizeForEarlyOpt)
+  if (any_ic_changed || bytecode_size >= FLAG_max_bytecode_size_for_early_opt)
     return false;
   return true;
 }
@@ -209,8 +196,8 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
   int ticks = function.feedback_vector().profiler_ticks();
   bool active_tier_is_turboprop = function.ActiveTierIsMidtierTurboprop();
   int ticks_for_optimization =
-      kProfilerTicksBeforeOptimization +
-      (bytecode.length() / kBytecodeSizeAllowancePerTick);
+      FLAG_ticks_before_optimization +
+      (bytecode.length() / FLAG_bytecode_size_allowance_per_tick);
   if (ticks >= ticks_for_optimization) {
     return OptimizationReason::kHotAndStable;
   } else if (ShouldOptimizeAsSmallFunction(bytecode.length(), ticks,
@@ -227,7 +214,7 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
       PrintF("ICs changed]\n");
     } else {
       PrintF(" too large for small function optimization: %d/%d]\n",
-             bytecode.length(), kMaxBytecodeSizeForEarlyOpt);
+             bytecode.length(), FLAG_max_bytecode_size_for_early_opt);
     }
   }
   return OptimizationReason::kDoNotOptimize;
@@ -250,7 +237,7 @@ void RuntimeProfiler::MarkCandidatesForOptimization(JavaScriptFrame* frame) {
   MarkCandidatesForOptimizationScope scope(this);
 
   JSFunction function = frame->function();
-  CodeKind code_kind = function.GetActiveTier();
+  CodeKind code_kind = function.GetActiveTier().value();
 
   DCHECK(function.shared().is_compiled());
   DCHECK(function.shared().IsInterpreted());

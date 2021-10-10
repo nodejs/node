@@ -119,6 +119,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/object-start-bitmap-unittest.cc",
     "heap/cppgc/page-memory-unittest.cc",
     "heap/cppgc/persistent-family-unittest.cc",
+    "heap/cppgc/platform-unittest.cc",
     "heap/cppgc/prefinalizer-unittest.cc",
     "heap/cppgc/sanitizer-unittest.cc",
     "heap/cppgc/source-location-unittest.cc",
@@ -305,6 +306,7 @@ v8_source_set("unittests_sources") {
     "debug/debug-property-iterator-unittest.cc",
     "diagnostics/eh-frame-iterator-unittest.cc",
     "diagnostics/eh-frame-writer-unittest.cc",
+    "diagnostics/gdb-jit-unittest.cc",
     "execution/microtask-queue-unittest.cc",
     "heap/allocation-observer-unittest.cc",
     "heap/barrier-unittest.cc",
@@ -327,6 +329,7 @@ v8_source_set("unittests_sources") {
     "heap/memory-reducer-unittest.cc",
     "heap/object-stats-unittest.cc",
     "heap/persistent-handles-unittest.cc",
+    "heap/progressbar-unittest.cc",
     "heap/safepoint-unittest.cc",
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",
@@ -413,6 +416,7 @@ v8_source_set("unittests_sources") {
       "wasm/leb-helper-unittest.cc",
       "wasm/liftoff-register-unittests.cc",
       "wasm/loop-assignment-analysis-unittest.cc",
+      "wasm/memory-protection-unittest.cc",
       "wasm/module-decoder-memory64-unittest.cc",
       "wasm/module-decoder-unittest.cc",
       "wasm/simd-shuffle-unittest.cc",
@@ -481,6 +485,11 @@ v8_source_set("unittests_sources") {
     sources += [
       "assembler/turbo-assembler-s390-unittest.cc",
       "compiler/s390/instruction-selector-s390-unittest.cc",
+    ]
+  } else if (v8_current_cpu == "loong64") {
+    sources += [
+      "assembler/turbo-assembler-loong64-unittest.cc",
+      "compiler/loong64/instruction-selector-loong64-unittest.cc",
     ]
   }
 

@@ -91,6 +91,8 @@ class HeapObjectHeader {
   void Unmark();
   inline bool TryMarkAtomic();
 
+  inline void MarkNonAtomic();
+
   template <AccessMode = AccessMode::kNonAtomic>
   bool IsYoung() const;
 
@@ -264,6 +266,11 @@ bool HeapObjectHeader::TryMarkAtomic() {
   }
   return atomic_encoded->compare_exchange_strong(old_value, new_value,
                                                  std::memory_order_relaxed);
+}
+
+void HeapObjectHeader::MarkNonAtomic() {
+  DCHECK(!IsMarked<AccessMode::kNonAtomic>());
+  encoded_low_ |= MarkBitField::encode(true);
 }
 
 template <AccessMode mode>

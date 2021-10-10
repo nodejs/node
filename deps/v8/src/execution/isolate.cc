@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
@@ -151,26 +152,6 @@ uint32_t DefaultEmbeddedBlobDataSize() {
   return v8_Default_embedded_blob_data_size_;
 }
 
-#ifdef V8_MULTI_SNAPSHOTS
-extern "C" const uint8_t* v8_Trusted_embedded_blob_code_;
-extern "C" uint32_t v8_Trusted_embedded_blob_code_size_;
-extern "C" const uint8_t* v8_Trusted_embedded_blob_data_;
-extern "C" uint32_t v8_Trusted_embedded_blob_data_size_;
-
-const uint8_t* TrustedEmbeddedBlobCode() {
-  return v8_Trusted_embedded_blob_code_;
-}
-uint32_t TrustedEmbeddedBlobCodeSize() {
-  return v8_Trusted_embedded_blob_code_size_;
-}
-const uint8_t* TrustedEmbeddedBlobData() {
-  return v8_Trusted_embedded_blob_data_;
-}
-uint32_t TrustedEmbeddedBlobDataSize() {
-  return v8_Trusted_embedded_blob_data_size_;
-}
-#endif
-
 namespace {
 // These variables provide access to the current embedded blob without requiring
 // an isolate instance. This is needed e.g. by Code::InstructionStart, which may
@@ -282,9 +263,6 @@ bool Isolate::CurrentEmbeddedBlobIsBinaryEmbedded() {
   const uint8_t* code =
       current_embedded_blob_code_.load(std::memory_order::memory_order_relaxed);
   if (code == nullptr) return false;
-#ifdef V8_MULTI_SNAPSHOTS
-  if (code == TrustedEmbeddedBlobCode()) return true;
-#endif
   return code == DefaultEmbeddedBlobCode();
 }
 
@@ -660,7 +638,8 @@ class StackTraceBuilder {
     if (V8_UNLIKELY(FLAG_detailed_error_stack_trace)) {
       parameters = isolate_->factory()->CopyFixedArrayUpTo(
           handle(generator_object->parameters_and_registers(), isolate_),
-          function->shared().internal_formal_parameter_count());
+          function->shared()
+              .internal_formal_parameter_count_without_receiver());
     }
 
     AppendFrame(receiver, function, code, offset, flags, parameters);
@@ -2171,20 +2150,16 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
 bool Isolate::ComputeLocation(MessageLocation* target) {
   StackTraceFrameIterator it(this);
   if (it.done()) return false;
-  CommonFrame* frame = it.frame();
   // Compute the location from the function and the relocation info of the
   // baseline code. For optimized code this will use the deoptimization
   // information to get canonical location information.
-  std::vector<FrameSummary> frames;
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope code_ref_scope;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  frame->Summarize(&frames);
-  FrameSummary& summary = frames.back();
+  FrameSummary summary = it.GetTopValidFrame();
   Handle<SharedFunctionInfo> shared;
   Handle<Object> script = summary.script();
-  if (!script->IsScript() ||
-      (Script::cast(*script).source().IsUndefined(this))) {
+  if (!script->IsScript() || Script::cast(*script).source().IsUndefined(this)) {
     return false;
   }
 
@@ -2648,7 +2623,7 @@ Handle<Context> Isolate::GetIncumbentContext() {
   // NOTE: This code assumes that the stack grows downward.
   Address top_backup_incumbent =
       top_backup_incumbent_scope()
-          ? top_backup_incumbent_scope()->JSStackComparableAddress()
+          ? top_backup_incumbent_scope()->JSStackComparableAddressPrivate()
           : 0;
   if (!it.done() &&
       (!top_backup_incumbent || it.frame()->sp() < top_backup_incumbent)) {
@@ -3411,15 +3386,6 @@ void Isolate::InitializeDefaultEmbeddedBlob() {
   uint32_t code_size = DefaultEmbeddedBlobCodeSize();
   const uint8_t* data = DefaultEmbeddedBlobData();
   uint32_t data_size = DefaultEmbeddedBlobDataSize();
-
-#ifdef V8_MULTI_SNAPSHOTS
-  if (!FLAG_untrusted_code_mitigations) {
-    code = TrustedEmbeddedBlobCode();
-    code_size = TrustedEmbeddedBlobCodeSize();
-    data = TrustedEmbeddedBlobData();
-    data_size = TrustedEmbeddedBlobDataSize();
-  }
-#endif
 
   if (StickyEmbeddedBlobCode() != nullptr) {
     base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
@@ -4295,7 +4261,6 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   DCHECK(host_import_module_dynamically_callback_ == nullptr ||
          host_import_module_dynamically_with_import_assertions_callback_ ==
              nullptr);
-
   if (host_import_module_dynamically_callback_ == nullptr &&
       host_import_module_dynamically_with_import_assertions_callback_ ==
           nullptr) {
@@ -4309,7 +4274,6 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   if (!maybe_specifier.ToHandle(&specifier_str)) {
     Handle<Object> exception(pending_exception(), this);
     clear_pending_exception();
-
     return NewRejectedPromise(this, api_context, exception);
   }
   DCHECK(!has_pending_exception());
@@ -4331,7 +4295,6 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     } else {
       Handle<Object> exception(pending_exception(), this);
       clear_pending_exception();
-
       return NewRejectedPromise(this, api_context, exception);
     }
 

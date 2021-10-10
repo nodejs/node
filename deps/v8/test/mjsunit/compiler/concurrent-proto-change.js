@@ -27,11 +27,6 @@
 
 // Flags: --allow-natives-syntax --no-always-opt --concurrent-recompilation
 
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
-
 function f(foo) { return foo.bar(); }
 
 %PrepareFunctionForOptimization(f);
@@ -49,7 +44,7 @@ assertEquals(1, f(o));
 // Change the prototype chain after compile graph has been created.
 %WaitForBackgroundOptimization();
 o.__proto__.__proto__ = { bar: function() { return 2; } };
-assertUnoptimized(f, "no sync");
+assertUnoptimized(f);
 %FinalizeOptimization();
 // Optimization failed due to map dependency.
 assertUnoptimized(f);

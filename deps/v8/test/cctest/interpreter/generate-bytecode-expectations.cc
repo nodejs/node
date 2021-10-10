@@ -9,13 +9,15 @@
 #include <sstream>
 #include <vector>
 
-#include "test/cctest/interpreter/bytecode-expectations-printer.h"
-
 #include "include/libplatform/libplatform.h"
-#include "include/v8.h"
-
+#include "include/v8-array-buffer.h"
+#include "include/v8-context.h"
+#include "include/v8-initialization.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-message.h"
 #include "src/base/logging.h"
 #include "src/interpreter/interpreter.h"
+#include "test/cctest/interpreter/bytecode-expectations-printer.h"
 
 #ifdef V8_OS_POSIX
 #include <dirent.h>

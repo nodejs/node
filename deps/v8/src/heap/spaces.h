@@ -211,13 +211,11 @@ STATIC_ASSERT(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);
 //   Page* p = Page::FromAllocationAreaAddress(address);
 class Page : public MemoryChunk {
  public:
-  static const intptr_t kCopyAllFlags = ~0;
-
   // Page flags copied from from-space to to-space when flipping semispaces.
-  static const intptr_t kCopyOnFlipFlagsMask =
-      static_cast<intptr_t>(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
-      static_cast<intptr_t>(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
-      static_cast<intptr_t>(MemoryChunk::INCREMENTAL_MARKING);
+  static constexpr MainThreadFlags kCopyOnFlipFlagsMask =
+      MainThreadFlags(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
+      MainThreadFlags(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
+      MainThreadFlags(MemoryChunk::INCREMENTAL_MARKING);
 
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize[. This only works if the object

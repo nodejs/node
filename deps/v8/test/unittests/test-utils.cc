@@ -5,7 +5,7 @@
 #include "test/unittests/test-utils.h"
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "include/v8-isolate.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"

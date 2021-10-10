@@ -3,12 +3,12 @@
 // found in the LICENSE file.
 // Tests of sampler functionalities.
 
-#include "src/libsampler/sampler.h"
-
+#include "include/v8-external.h"
+#include "include/v8-function.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
+#include "src/libsampler/sampler.h"
 #include "test/cctest/cctest.h"
-
 
 namespace v8 {
 namespace sampler {

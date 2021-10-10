@@ -728,8 +728,7 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
     TNode<HeapObject> elements =
         LoadField<HeapObject>(AccessBuilder::ForJSObjectElements(), o);
     TNode<Object> value = LoadElement<Object>(
-        AccessBuilder::ForFixedArrayElement(kind, LoadSensitivity::kCritical),
-        elements, index);
+        AccessBuilder::ForFixedArrayElement(kind), elements, index);
     return std::make_pair(index, value);
   }
 
@@ -2099,7 +2098,8 @@ FrameState CreateArtificialFrameState(
 FrameState PromiseConstructorFrameState(
     const PromiseCtorFrameStateParams& params, CommonOperatorBuilder* common,
     Graph* graph) {
-  DCHECK_EQ(1, params.shared.internal_formal_parameter_count());
+  DCHECK_EQ(1,
+            params.shared.internal_formal_parameter_count_without_receiver());
   return CreateArtificialFrameState(
       params.node_ptr, params.outer_frame_state, 1,
       BytecodeOffset::ConstructStubInvoke(), FrameStateType::kConstructStub,
@@ -3639,8 +3639,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   FunctionTemplateInfoRef function_template_info(
       shared.function_template_info().value());
 
-  if (!function_template_info.has_call_code()) return NoChange();
-
   if (function_template_info.accept_any_receiver() &&
       function_template_info.is_signature_undefined()) {
     // We might be able to
@@ -3764,7 +3762,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
       node->InsertInput(graph()->zone(), 0,
                         jsgraph()->HeapConstant(callable.code()));
       node->ReplaceInput(1, jsgraph()->Constant(function_template_info));
-      node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(argc));
+      node->InsertInput(graph()->zone(), 2,
+                        jsgraph()->Constant(JSParameterCount(argc)));
       node->ReplaceInput(3, receiver);       // Update receiver input.
       node->ReplaceInput(6 + argc, effect);  // Update effect input.
       NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
@@ -4039,7 +4038,8 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
       return NoChange();
     }
     formal_parameter_count =
-        MakeRef(broker(), shared).internal_formal_parameter_count();
+        MakeRef(broker(), shared)
+            .internal_formal_parameter_count_without_receiver();
   }
 
   if (type == CreateArgumentsType::kMappedArguments) {
@@ -4309,13 +4309,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       return ReduceJSCall(node, function.shared());
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      base::Optional<JSReceiverRef> bound_target_function =
-          function.bound_target_function();
-      if (!bound_target_function.has_value()) return NoChange();
-      base::Optional<ObjectRef> bound_this = function.bound_this();
-      if (!bound_this.has_value()) return NoChange();
+      ObjectRef bound_this = function.bound_this();
       ConvertReceiverMode const convert_mode =
-          bound_this->IsNullOrUndefined()
+          bound_this.IsNullOrUndefined()
               ? ConvertReceiverMode::kNullOrUndefined
               : ConvertReceiverMode::kNotNullOrUndefined;
 
@@ -4336,9 +4332,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
       // Patch {node} to use [[BoundTargetFunction]] and [[BoundThis]].
       NodeProperties::ReplaceValueInput(
-          node, jsgraph()->Constant(*bound_target_function),
+          node, jsgraph()->Constant(function.bound_target_function()),
           JSCallNode::TargetIndex());
-      NodeProperties::ReplaceValueInput(node, jsgraph()->Constant(*bound_this),
+      NodeProperties::ReplaceValueInput(node, jsgraph()->Constant(bound_this),
                                         JSCallNode::ReceiverIndex());
 
       // Insert the [[BoundArguments]] for {node}.
@@ -4372,13 +4368,13 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     return ReduceJSCall(node, p.shared_info(broker()));
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
-    if (cell.shared_function_info().has_value()) {
-      return ReduceJSCall(node, *cell.shared_function_info());
-    } else {
+    base::Optional<SharedFunctionInfoRef> shared = cell.shared_function_info();
+    if (!shared.has_value()) {
       TRACE_BROKER_MISSING(broker(), "Unable to reduce JSCall. FeedbackCell "
                                          << cell << " has no FeedbackVector");
       return NoChange();
     }
+    return ReduceJSCall(node, *shared);
   }
 
   // If {target} is the result of a JSCreateBoundFunction operation,
@@ -4457,7 +4453,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   } else if (feedback_target.has_value() && feedback_target->IsFeedbackCell()) {
     FeedbackCellRef feedback_cell =
         MakeRef(broker(), feedback_target.value().AsFeedbackCell().object());
-    if (feedback_cell.value().has_value()) {
+    // TODO(neis): This check seems unnecessary.
+    if (feedback_cell.feedback_vector().has_value()) {
       // Check that {target} is a closure with given {feedback_cell},
       // which uniquely identifies a given function inside a native context.
       Node* target_closure = effect =
@@ -5055,9 +5052,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      base::Optional<JSReceiverRef> bound_target_function =
-          function.bound_target_function();
-      if (!bound_target_function.has_value()) return NoChange();
+      JSReceiverRef bound_target_function = function.bound_target_function();
       FixedArrayRef bound_arguments = function.bound_arguments();
       const int bound_arguments_length = bound_arguments.length();
 
@@ -5076,20 +5071,20 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
       // Patch {node} to use [[BoundTargetFunction]].
       node->ReplaceInput(n.TargetIndex(),
-                         jsgraph()->Constant(*bound_target_function));
+                         jsgraph()->Constant(bound_target_function));
 
       // Patch {node} to use [[BoundTargetFunction]]
       // as new.target if {new_target} equals {target}.
       if (target == new_target) {
         node->ReplaceInput(n.NewTargetIndex(),
-                           jsgraph()->Constant(*bound_target_function));
+                           jsgraph()->Constant(bound_target_function));
       } else {
         node->ReplaceInput(
             n.NewTargetIndex(),
             graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
                              graph()->NewNode(simplified()->ReferenceEqual(),
                                               target, new_target),
-                             jsgraph()->Constant(*bound_target_function),
+                             jsgraph()->Constant(bound_target_function),
                              new_target));
       }
 
@@ -6373,9 +6368,8 @@ Reduction JSCallReducer::ReduceStringPrototypeStringAt(
                                     index, receiver_length, effect, control);
 
   // Return the character from the {receiver} as single character string.
-  Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
   Node* value = effect = graph()->NewNode(string_access_operator, receiver,
-                                          masked_index, effect, control);
+                                          index, effect, control);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
@@ -6433,11 +6427,9 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
           Node* etrue = effect;
           Node* vtrue;
           {
-            Node* masked_position = graph()->NewNode(
-                simplified()->PoisonIndex(), unsigned_position);
             Node* string_first = etrue =
                 graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                                 masked_position, etrue, if_true);
+                                 unsigned_position, etrue, if_true);
 
             Node* search_first =
                 jsgraph()->Constant(str.GetFirstChar().value());
@@ -6488,10 +6480,8 @@ Reduction JSCallReducer::ReduceStringPrototypeCharAt(Node* node) {
                                     index, receiver_length, effect, control);
 
   // Return the character from the {receiver} as single character string.
-  Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
-  Node* value = effect =
-      graph()->NewNode(simplified()->StringCharCodeAt(), receiver, masked_index,
-                       effect, control);
+  Node* value = effect = graph()->NewNode(simplified()->StringCharCodeAt(),
+                                          receiver, index, effect, control);
   value = graph()->NewNode(simplified()->StringFromSingleCharCode(), value);
 
   ReplaceWithValue(node, value, effect, control);

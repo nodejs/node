@@ -220,7 +220,8 @@ Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
 template <typename T>
 MaybeHandle<T> FormatListCommon(
     Isolate* isolate, Handle<JSListFormat> format, Handle<JSArray> list,
-    MaybeHandle<T> (*formatToResult)(Isolate*, const icu::FormattedValue&)) {
+    const std::function<MaybeHandle<T>(Isolate*, const icu::FormattedValue&)>&
+        formatToResult) {
   DCHECK(!list->IsUndefined());
   Maybe<std::vector<icu::UnicodeString>> maybe_array =
       ToUnicodeStringArray(isolate, list);

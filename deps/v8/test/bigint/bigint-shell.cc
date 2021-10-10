@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cmath>
 #include <memory>
 #include <string>
 
@@ -28,12 +29,14 @@ int PrintHelp(char** argv) {
   return 1;
 }
 
-#define TESTS(V)             \
-  V(kBarrett, "barrett")     \
-  V(kBurnikel, "burnikel")   \
-  V(kFFT, "fft")             \
-  V(kKaratsuba, "karatsuba") \
-  V(kToom, "toom")           \
+#define TESTS(V)                     \
+  V(kBarrett, "barrett")             \
+  V(kBurnikel, "burnikel")           \
+  V(kFFT, "fft")                     \
+  V(kFromString, "fromstring")       \
+  V(kFromStringBase2, "fromstring2") \
+  V(kKaratsuba, "karatsuba")         \
+  V(kToom, "toom")                   \
   V(kToString, "tostring")
 
 enum Operation { kNoOp, kList, kTest };
@@ -86,7 +89,7 @@ class RNG {
 
 static constexpr int kCharsPerDigit = kDigitBits / 4;
 
-static const char kConversionChars[] = "0123456789abcdef";
+static const char kConversionChars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 std::string FormatHex(Digits X) {
   X.Normalize();
@@ -173,6 +176,16 @@ class Runner {
     error_ = true;
   }
 
+  void AssertEquals(const char* input, int input_length, int radix,
+                    Digits expected, Digits actual) {
+    if (Compare(expected, actual) == 0) return;
+    std::cerr << "Input:    " << std::string(input, input_length) << "\n";
+    std::cerr << "Radix:    " << radix << "\n";
+    std::cerr << "Expected: " << FormatHex(expected) << "\n";
+    std::cerr << "Actual:   " << FormatHex(actual) << "\n";
+    error_ = true;
+  }
+
   int RunTest() {
     int count = 0;
     if (test_ == kBarrett) {
@@ -198,6 +211,14 @@ class Runner {
     } else if (test_ == kToString) {
       for (int i = 0; i < runs_; i++) {
         TestToString(&count);
+      }
+    } else if (test_ == kFromString) {
+      for (int i = 0; i < runs_; i++) {
+        TestFromString(&count);
+      }
+    } else if (test_ == kFromStringBase2) {
+      for (int i = 0; i < runs_; i++) {
+        TestFromStringBaseTwo(&count);
       }
     } else {
       DCHECK(false);  // Unreachable.
@@ -391,6 +412,75 @@ class Runner {
     }
   }
 
+  void TestFromString(int* count) {
+    constexpr int kMaxDigits = 1 << 20;  // Any large-enough value will do.
+    constexpr int kMin = kFromStringLargeThreshold / 2;
+    constexpr int kMax = kFromStringLargeThreshold * 2;
+    for (int size = kMin; size < kMax; size++) {
+      // To keep test execution times low, test one random radix every time.
+      // Generally, radixes 2 through 36 (inclusive) are supported; however
+      // the functions {FromStringLarge} and {FromStringClassic} can't deal
+      // with the data format that {Parse} creates for power-of-two radixes,
+      // so we skip power-of-two radixes here (and test them separately below).
+      // We round up the number of radixes in the list to 32 by padding with
+      // 10, giving decimal numbers extra test coverage, and making it easy
+      // to evenly map a random number into the index space.
+      constexpr uint8_t radixes[] = {3,  5,  6,  7,  9,  10, 11, 12, 13, 14, 15,
+                                     17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+                                     28, 29, 30, 31, 33, 34, 35, 36, 10, 10};
+      int radix_index = (rng_.NextUint64() & 31);
+      int radix = radixes[radix_index];
+      int num_chars = std::round(size * kDigitBits / std::log2(radix));
+      std::unique_ptr<char[]> chars(new char[num_chars]);
+      GenerateRandomString(chars.get(), num_chars, radix);
+      FromStringAccumulator accumulator(kMaxDigits);
+      FromStringAccumulator ref_accumulator(kMaxDigits);
+      const char* start = chars.get();
+      const char* end = chars.get() + num_chars;
+      accumulator.Parse(start, end, radix);
+      ref_accumulator.Parse(start, end, radix);
+      ScratchDigits result(accumulator.ResultLength());
+      ScratchDigits reference(ref_accumulator.ResultLength());
+      processor()->FromStringLarge(result, &accumulator);
+      processor()->FromStringClassic(reference, &ref_accumulator);
+      AssertEquals(start, num_chars, radix, result, reference);
+      if (error_) return;
+      (*count)++;
+    }
+  }
+
+  void TestFromStringBaseTwo(int* count) {
+    constexpr int kMaxDigits = 1 << 20;  // Any large-enough value will do.
+    constexpr int kMin = 1;
+    constexpr int kMax = 100;
+    for (int size = kMin; size < kMax; size++) {
+      ScratchDigits X(size);
+      GenerateRandom(X);
+      for (int bits = 1; bits <= 5; bits++) {
+        int radix = 1 << bits;
+        int chars_required = ToStringResultLength(X, radix, false);
+        int string_len = chars_required;
+        std::unique_ptr<char[]> chars(new char[string_len]);
+        processor()->ToStringImpl(chars.get(), &string_len, X, radix, false,
+                                  true);
+        // Fill any remaining allocated characters with garbage to test that
+        // too.
+        for (int i = string_len; i < chars_required; i++) {
+          chars[i] = '?';
+        }
+        const char* start = chars.get();
+        const char* end = start + chars_required;
+        FromStringAccumulator accumulator(kMaxDigits);
+        accumulator.Parse(start, end, radix);
+        ScratchDigits result(accumulator.ResultLength());
+        processor()->FromString(result, &accumulator);
+        AssertEquals(start, chars_required, radix, X, result);
+        if (error_) return;
+        (*count)++;
+      }
+    }
+  }
+
   int ParseOptions(int argc, char** argv) {
     for (int i = 1; i < argc; i++) {
       if (strcmp(argv[i], "--list") == 0) {
@@ -425,25 +515,82 @@ class Runner {
   }
 
  private:
-  // TODO(jkummerow): Also generate "non-random-looking" inputs, i.e. long
-  // strings of zeros and ones in the binary representation, such as
-  // ((1 << random) ± 1).
   void GenerateRandom(RWDigits Z) {
     if (Z.len() == 0) return;
-    if (sizeof(digit_t) == 8) {
-      for (int i = 0; i < Z.len(); i++) {
-        Z[i] = static_cast<digit_t>(rng_.NextUint64());
+    int mode = static_cast<int>(rng_.NextUint64() & 3);
+    if (mode == 0) {
+      // Generate random bits.
+      if (sizeof(digit_t) == 8) {
+        for (int i = 0; i < Z.len(); i++) {
+          Z[i] = static_cast<digit_t>(rng_.NextUint64());
+        }
+      } else {
+        for (int i = 0; i < Z.len(); i += 2) {
+          uint64_t random = rng_.NextUint64();
+          Z[i] = static_cast<digit_t>(random);
+          if (i + 1 < Z.len()) Z[i + 1] = static_cast<digit_t>(random >> 32);
+        }
       }
+      // Special case: we don't want the MSD to be zero.
+      while (Z.msd() == 0) {
+        Z[Z.len() - 1] = static_cast<digit_t>(rng_.NextUint64());
+      }
+      return;
+    }
+    if (mode == 1) {
+      // Generate a power of 2, with the lone 1-bit somewhere in the MSD.
+      int bit_in_msd = static_cast<int>(rng_.NextUint64() % kDigitBits);
+      Z[Z.len() - 1] = digit_t{1} << bit_in_msd;
+      for (int i = 0; i < Z.len() - 1; i++) Z[i] = 0;
+      return;
+    }
+    // For mode == 2 and mode == 3, generate a random number of 1-bits in the
+    // MSD, aligned to the least-significant end.
+    int bits_in_msd = static_cast<int>(rng_.NextUint64() % kDigitBits);
+    digit_t msd = (digit_t{1} << bits_in_msd) - 1;
+    if (msd == 0) msd = ~digit_t{0};
+    Z[Z.len() - 1] = msd;
+    if (mode == 2) {
+      // The non-MSD digits are all 1-bits.
+      for (int i = 0; i < Z.len() - 1; i++) Z[i] = ~digit_t{0};
     } else {
-      for (int i = 0; i < Z.len(); i += 2) {
-        uint64_t random = rng_.NextUint64();
-        Z[i] = static_cast<digit_t>(random);
-        if (i + 1 < Z.len()) Z[i + 1] = static_cast<digit_t>(random >> 32);
+      // mode == 3
+      // Each non-MSD digit is either all ones or all zeros.
+      uint64_t random;
+      int random_bits = 0;
+      for (int i = 0; i < Z.len() - 1; i++) {
+        if (random_bits == 0) {
+          random = rng_.NextUint64();
+          random_bits = 64;
+        }
+        Z[i] = random & 1 ? ~digit_t{0} : digit_t{0};
+        random >>= 1;
+        random_bits--;
       }
     }
-    // Special case: we don't want the MSD to be zero.
-    while (Z.msd() == 0) {
-      Z[Z.len() - 1] = static_cast<digit_t>(rng_.NextUint64());
+  }
+
+  void GenerateRandomString(char* str, int len, int radix) {
+    DCHECK(2 <= radix && radix <= 36);
+    if (len == 0) return;
+    uint64_t random;
+    int available_bits = 0;
+    const int char_bits = BitLength(radix - 1);
+    const uint64_t char_mask = (1u << char_bits) - 1u;
+    for (int i = 0; i < len; i++) {
+      while (true) {
+        if (available_bits < char_bits) {
+          random = rng_.NextUint64();
+          available_bits = 64;
+        }
+        int next_char = static_cast<int>(random & char_mask);
+        random = random >> char_bits;
+        available_bits -= char_bits;
+        if (next_char >= radix) continue;
+        *str = kConversionChars[next_char];
+        str++;
+        break;
+      };
     }
   }
 

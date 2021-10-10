@@ -3,6 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/d8/async-hooks-wrapper.h"
+
+#include "include/v8-function.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
+#include "include/v8-template.h"
 #include "src/d8/d8.h"
 #include "src/execution/isolate-inl.h"
 
@@ -120,66 +125,74 @@ Local<Object> AsyncHooks::CreateHook(
 
 void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
                                   Local<Value> parent) {
-  AsyncHooks* hooks =
-      PerIsolateData::Get(promise->GetIsolate())->GetAsyncHooks();
+  v8::Isolate* isolate = promise->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  HandleScope handle_scope(hooks->isolate_);
-
-  Local<Context> currentContext = hooks->isolate_->GetCurrentContext();
-  DCHECK(!currentContext.IsEmpty());
-
-  if (type == PromiseHookType::kInit) {
-    ++hooks->current_async_id;
-    Local<Integer> async_id =
-        Integer::New(hooks->isolate_, hooks->current_async_id);
-
-    CHECK(!promise
-               ->HasPrivate(currentContext,
-                            hooks->async_id_smb.Get(hooks->isolate_))
-               .ToChecked());
-    promise->SetPrivate(currentContext,
-                        hooks->async_id_smb.Get(hooks->isolate_), async_id);
-
-    if (parent->IsPromise()) {
-      Local<Promise> parent_promise = parent.As<Promise>();
-      Local<Value> parent_async_id =
-          parent_promise
-              ->GetPrivate(hooks->isolate_->GetCurrentContext(),
-                           hooks->async_id_smb.Get(hooks->isolate_))
-              .ToLocalChecked();
-      promise->SetPrivate(currentContext,
-                          hooks->trigger_id_smb.Get(hooks->isolate_),
-                          parent_async_id);
-    } else {
-      CHECK(parent->IsUndefined());
-      Local<Integer> trigger_id = Integer::New(hooks->isolate_, 0);
-      promise->SetPrivate(currentContext,
-                          hooks->trigger_id_smb.Get(hooks->isolate_),
-                          trigger_id);
-    }
-  } else if (type == PromiseHookType::kBefore) {
-    AsyncContext ctx;
-    ctx.execution_async_id =
-        promise
-            ->GetPrivate(hooks->isolate_->GetCurrentContext(),
-                         hooks->async_id_smb.Get(hooks->isolate_))
-            .ToLocalChecked()
-            .As<Integer>()
-            ->Value();
-    ctx.trigger_async_id =
-        promise
-            ->GetPrivate(hooks->isolate_->GetCurrentContext(),
-                         hooks->trigger_id_smb.Get(hooks->isolate_))
-            .ToLocalChecked()
-            .As<Integer>()
-            ->Value();
-    hooks->asyncContexts.push(ctx);
-  } else if (type == PromiseHookType::kAfter) {
-    hooks->asyncContexts.pop();
+  AsyncHooks* hooks = PerIsolateData::Get(isolate)->GetAsyncHooks();
+  HandleScope handle_scope(isolate);
+  // Temporarily clear any scheduled_exception to allow evaluating JS that can
+  // throw.
+  i::Handle<i::Object> scheduled_exception;
+  if (i_isolate->has_scheduled_exception()) {
+    scheduled_exception = handle(i_isolate->scheduled_exception(), i_isolate);
+    i_isolate->clear_scheduled_exception();
   }
+  {
+    TryCatch try_catch(isolate);
+    try_catch.SetVerbose(true);
 
-  for (AsyncHooksWrap* wrap : hooks->async_wraps_) {
-    PromiseHookDispatch(type, promise, parent, wrap, hooks);
+    Local<Context> currentContext = isolate->GetCurrentContext();
+    DCHECK(!currentContext.IsEmpty());
+
+    if (type == PromiseHookType::kInit) {
+      ++hooks->current_async_id;
+      Local<Integer> async_id = Integer::New(isolate, hooks->current_async_id);
+      CHECK(
+          !promise->HasPrivate(currentContext, hooks->async_id_smb.Get(isolate))
+               .ToChecked());
+      promise->SetPrivate(currentContext, hooks->async_id_smb.Get(isolate),
+                          async_id);
+
+      if (parent->IsPromise()) {
+        Local<Promise> parent_promise = parent.As<Promise>();
+        Local<Value> parent_async_id =
+            parent_promise
+                ->GetPrivate(currentContext, hooks->async_id_smb.Get(isolate))
+                .ToLocalChecked();
+        promise->SetPrivate(currentContext, hooks->trigger_id_smb.Get(isolate),
+                            parent_async_id);
+      } else {
+        CHECK(parent->IsUndefined());
+        promise->SetPrivate(currentContext, hooks->trigger_id_smb.Get(isolate),
+                            Integer::New(isolate, 0));
+      }
+    } else if (type == PromiseHookType::kBefore) {
+      AsyncContext ctx;
+      ctx.execution_async_id =
+          promise->GetPrivate(currentContext, hooks->async_id_smb.Get(isolate))
+              .ToLocalChecked()
+              .As<Integer>()
+              ->Value();
+      ctx.trigger_async_id =
+          promise
+              ->GetPrivate(currentContext, hooks->trigger_id_smb.Get(isolate))
+              .ToLocalChecked()
+              .As<Integer>()
+              ->Value();
+      hooks->asyncContexts.push(ctx);
+    } else if (type == PromiseHookType::kAfter) {
+      hooks->asyncContexts.pop();
+    }
+    if (!i::StackLimitCheck{i_isolate}.HasOverflowed()) {
+      for (AsyncHooksWrap* wrap : hooks->async_wraps_) {
+        PromiseHookDispatch(type, promise, parent, wrap, hooks);
+        if (try_catch.HasCaught()) break;
+      }
+      if (try_catch.HasCaught()) Shell::ReportException(isolate, &try_catch);
+    }
+  }
+  if (!scheduled_exception.is_null()) {
+    i_isolate->set_scheduled_exception(*scheduled_exception);
   }
 }
 
@@ -215,28 +228,14 @@ void AsyncHooks::PromiseHookDispatch(PromiseHookType type,
                                      Local<Promise> promise,
                                      Local<Value> parent, AsyncHooksWrap* wrap,
                                      AsyncHooks* hooks) {
-  if (!wrap->IsEnabled()) {
-    return;
-  }
+  if (!wrap->IsEnabled()) return;
+  v8::Isolate* v8_isolate = hooks->isolate_;
+  HandleScope handle_scope(v8_isolate);
 
-  HandleScope handle_scope(hooks->isolate_);
-
-  TryCatch try_catch(hooks->isolate_);
-  try_catch.SetVerbose(true);
-
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(hooks->isolate_);
-  if (isolate->has_scheduled_exception()) {
-    isolate->ScheduleThrow(isolate->scheduled_exception());
-
-    DCHECK(try_catch.HasCaught());
-    Shell::ReportException(hooks->isolate_, &try_catch);
-    return;
-  }
-
-  Local<Value> rcv = Undefined(hooks->isolate_);
-  Local<Context> context = hooks->isolate_->GetCurrentContext();
+  Local<Value> rcv = Undefined(v8_isolate);
+  Local<Context> context = v8_isolate->GetCurrentContext();
   Local<Value> async_id =
-      promise->GetPrivate(context, hooks->async_id_smb.Get(hooks->isolate_))
+      promise->GetPrivate(context, hooks->async_id_smb.Get(v8_isolate))
           .ToLocalChecked();
   Local<Value> args[1] = {async_id};
 
@@ -245,28 +244,31 @@ void AsyncHooks::PromiseHookDispatch(PromiseHookType type,
   MaybeLocal<Value> result;
 
   // Sacrifice the brevity for readability and debugfulness
-  if (type == PromiseHookType::kInit) {
-    if (!wrap->init_function().IsEmpty()) {
-      Local<Value> initArgs[4] = {
-          async_id, String::NewFromUtf8Literal(hooks->isolate_, "PROMISE"),
-          promise
-              ->GetPrivate(context, hooks->trigger_id_smb.Get(hooks->isolate_))
-              .ToLocalChecked(),
-          promise};
-      result = wrap->init_function()->Call(context, rcv, 4, initArgs);
-    }
-  } else if (type == PromiseHookType::kBefore) {
-    if (!wrap->before_function().IsEmpty()) {
-      result = wrap->before_function()->Call(context, rcv, 1, args);
-    }
-  } else if (type == PromiseHookType::kAfter) {
-    if (!wrap->after_function().IsEmpty()) {
-      result = wrap->after_function()->Call(context, rcv, 1, args);
-    }
-  } else if (type == PromiseHookType::kResolve) {
-    if (!wrap->promiseResolve_function().IsEmpty()) {
-      result = wrap->promiseResolve_function()->Call(context, rcv, 1, args);
-    }
+  switch (type) {
+    case PromiseHookType::kInit:
+      if (!wrap->init_function().IsEmpty()) {
+        Local<Value> initArgs[4] = {
+            async_id, String::NewFromUtf8Literal(v8_isolate, "PROMISE"),
+            promise->GetPrivate(context, hooks->trigger_id_smb.Get(v8_isolate))
+                .ToLocalChecked(),
+            promise};
+        result = wrap->init_function()->Call(context, rcv, 4, initArgs);
+      }
+      break;
+    case PromiseHookType::kBefore:
+      if (!wrap->before_function().IsEmpty()) {
+        result = wrap->before_function()->Call(context, rcv, 1, args);
+      }
+      break;
+    case PromiseHookType::kAfter:
+      if (!wrap->after_function().IsEmpty()) {
+        result = wrap->after_function()->Call(context, rcv, 1, args);
+      }
+      break;
+    case PromiseHookType::kResolve:
+      if (!wrap->promiseResolve_function().IsEmpty()) {
+        result = wrap->promiseResolve_function()->Call(context, rcv, 1, args);
+      }
   }
 }
 

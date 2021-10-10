@@ -62,7 +62,6 @@ transitioning macro AllocateTypedArray(implicit context: Context)(
   typedArray.bit_field.is_length_tracking = isLengthTracking;
   typedArray.bit_field.is_backed_by_rab =
       IsResizableArrayBuffer(buffer) && !IsSharedArrayBuffer(buffer);
-  typed_array::AllocateJSTypedArrayExternalPointerEntry(typedArray);
   if constexpr (isOnHeap) {
     typed_array::SetJSTypedArrayOnHeapDataPtr(typedArray, elements, byteOffset);
   } else {

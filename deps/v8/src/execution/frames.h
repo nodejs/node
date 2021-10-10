@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_FRAMES_H_
 #define V8_EXECUTION_FRAMES_H_
 
+#include "include/v8-initialization.h"
 #include "src/base/bounds.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/globals.h"
@@ -175,7 +176,9 @@ class StackFrame {
     intptr_t type = marker >> kSmiTagSize;
     // TODO(petermarshall): There is a bug in the arm simulators that causes
     // invalid frame markers.
-#if defined(USE_SIMULATOR) && (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM)
+#if (defined(USE_SIMULATOR) &&                        \
+     (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM)) || \
+    V8_TARGET_ARCH_RISCV64
     if (static_cast<uintptr_t>(type) >= Type::NUMBER_OF_TYPES) {
       // Appease UBSan.
       return Type::NUMBER_OF_TYPES;
@@ -1273,9 +1276,14 @@ class V8_EXPORT_PRIVATE StackTraceFrameIterator {
 #endif  // V8_ENABLE_WEBASSEMBLY
   inline JavaScriptFrame* javascript_frame() const;
 
+  // Use this instead of FrameSummary::GetTop(javascript_frame) to keep
+  // filtering behavior consistent with the rest of StackTraceFrameIterator.
+  FrameSummary GetTopValidFrame() const;
+
  private:
   StackFrameIterator iterator_;
-  bool IsValidFrame(StackFrame* frame) const;
+  static bool IsValidFrame(StackFrame* frame);
+  static bool IsValidJSFunction(JSFunction f);
 };
 
 class SafeStackFrameIterator : public StackFrameIteratorBase {

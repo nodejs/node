@@ -343,8 +343,6 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(JSReceiver)
-
 bool JSObject::ElementsAreSafeToExamine(PtrComprCageBase cage_base) const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
@@ -785,8 +783,6 @@ void JSDate::JSDateVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(JSMessageObject)
-
 void String::StringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::StringVerify(*this, isolate);
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
@@ -1005,8 +1001,11 @@ void Code::CodeVerify(Isolate* isolate) {
   CHECK_LE(constant_pool_offset(), code_comments_offset());
   CHECK_LE(code_comments_offset(), unwinding_info_offset());
   CHECK_LE(unwinding_info_offset(), MetadataSize());
+#if !defined(_MSC_VER) || defined(__clang__)
+  // See also: PlatformEmbeddedFileWriterWin::AlignToCodeAlignment.
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(InstructionStart(), kCodeAlignment));
+#endif  // !defined(_MSC_VER) || defined(__clang__)
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(raw_instruction_start(), kCodeAlignment));
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
@@ -1139,19 +1138,13 @@ void JSWeakRef::JSWeakRefVerify(Isolate* isolate) {
 }
 
 void JSFinalizationRegistry::JSFinalizationRegistryVerify(Isolate* isolate) {
-  CHECK(IsJSFinalizationRegistry());
-  JSObjectVerify(isolate);
-  VerifyHeapPointer(isolate, cleanup());
-  CHECK(active_cells().IsUndefined(isolate) || active_cells().IsWeakCell());
+  TorqueGeneratedClassVerifiers::JSFinalizationRegistryVerify(*this, isolate);
   if (active_cells().IsWeakCell()) {
     CHECK(WeakCell::cast(active_cells()).prev().IsUndefined(isolate));
   }
-  CHECK(cleared_cells().IsUndefined(isolate) || cleared_cells().IsWeakCell());
   if (cleared_cells().IsWeakCell()) {
     CHECK(WeakCell::cast(cleared_cells()).prev().IsUndefined(isolate));
   }
-  CHECK(next_dirty().IsUndefined(isolate) ||
-        next_dirty().IsJSFinalizationRegistry());
 }
 
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {

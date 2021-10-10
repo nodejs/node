@@ -25,15 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <include/v8.h>
-
-#include <include/libplatform/libplatform.h>
-
 #include <assert.h>
 #include <fcntl.h>
+#include <include/libplatform/libplatform.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-initialization.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-script.h"
+#include "include/v8-template.h"
 
 /**
  * This sample program shows how to implement a simple javascript shell

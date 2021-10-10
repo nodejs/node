@@ -4,6 +4,7 @@
 
 #include "src/extensions/externalize-string-extension.h"
 
+#include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
 #include "src/execution/isolate.h"

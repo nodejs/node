@@ -917,6 +917,18 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "cnttzd'. 'ra, 'rs");
       return;
     }
+    case BRH: {
+      Format(instr, "brh     'ra, 'rs");
+      return;
+    }
+    case BRW: {
+      Format(instr, "brw     'ra, 'rs");
+      return;
+    }
+    case BRD: {
+      Format(instr, "brd     'ra, 'rs");
+      return;
+    }
     case ANDX: {
       Format(instr, "and'.    'ra, 'rs, 'rb");
       return;
@@ -1393,13 +1405,20 @@ void Decoder::DecodeExt6(Instruction* instr) {
 #undef DECODE_XX2_B_INSTRUCTIONS
   }
   switch (EXT6 | (instr->BitField(10, 2))) {
-#define DECODE_XX2_A_INSTRUCTIONS(name, opcode_name, opcode_value) \
-  case opcode_name: {                                              \
-    Format(instr, #name " 'Xt, 'Xb");                              \
-    return;                                                        \
+#define DECODE_XX2_VECTOR_A_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                     \
+    Format(instr, #name " 'Xt, 'Xb");                                     \
+    return;                                                               \
   }
-    PPC_XX2_OPCODE_A_FORM_LIST(DECODE_XX2_A_INSTRUCTIONS)
-#undef DECODE_XX2_A_INSTRUCTIONS
+    PPC_XX2_OPCODE_VECTOR_A_FORM_LIST(DECODE_XX2_VECTOR_A_INSTRUCTIONS)
+#undef DECODE_XX2_VECTOR_A_INSTRUCTIONS
+#define DECODE_XX2_SCALAR_A_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                     \
+    Format(instr, #name " 'Dt, 'Db");                                     \
+    return;                                                               \
+  }
+    PPC_XX2_OPCODE_SCALAR_A_FORM_LIST(DECODE_XX2_SCALAR_A_INSTRUCTIONS)
+#undef DECODE_XX2_SCALAR_A_INSTRUCTIONS
   }
   Unknown(instr);  // not used by V8
 }

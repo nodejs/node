@@ -193,7 +193,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   template <typename T>
   int VisitEmbedderTracingSubclass(Map map, T object);
   V8_INLINE int VisitFixedArrayWithProgressBar(Map map, FixedArray object,
-                                               MemoryChunk* chunk);
+                                               ProgressBar& progress_bar);
   // Marks the descriptor array black without pushing it on the marking work
   // list and visits its header. Returns the size of the descriptor array
   // if it was successully marked as black.

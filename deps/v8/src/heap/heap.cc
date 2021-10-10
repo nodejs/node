@@ -653,8 +653,8 @@ void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {
 // clang-format off
 #define DICT(s) "{" << s << "}"
 #define LIST(s) "[" << s << "]"
-#define ESCAPE(s) "\"" << s << "\""
-#define MEMBER(s) ESCAPE(s) << ":"
+#define QUOTE(s) "\"" << s << "\""
+#define MEMBER(s) QUOTE(s) << ":"
 
   auto SpaceStatistics = [this](int space_index) {
     HeapSpaceStatistics space_stats;
@@ -663,7 +663,7 @@ void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {
     std::stringstream stream;
     stream << DICT(
       MEMBER("name")
-        << ESCAPE(BaseSpace::GetSpaceName(
+        << QUOTE(BaseSpace::GetSpaceName(
               static_cast<AllocationSpace>(space_index)))
         << ","
       MEMBER("size") << space_stats.space_size() << ","
@@ -674,7 +674,7 @@ void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {
   };
 
   stream << DICT(
-    MEMBER("isolate") << ESCAPE(reinterpret_cast<void*>(isolate())) << ","
+    MEMBER("isolate") << QUOTE(reinterpret_cast<void*>(isolate())) << ","
     MEMBER("id") << gc_count() << ","
     MEMBER("time_ms") << isolate()->time_millis_since_init() << ","
     MEMBER("total_heap_size") << stats.total_heap_size() << ","
@@ -699,7 +699,7 @@ void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {
 
 #undef DICT
 #undef LIST
-#undef ESCAPE
+#undef QUOTE
 #undef MEMBER
   // clang-format on
 }
@@ -1929,14 +1929,7 @@ void Heap::StartIncrementalMarking(int gc_flags,
 }
 
 void Heap::CompleteSweepingFull() {
-  TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
-                 ThreadKind::kMain);
-
-  {
-    TRACE_GC(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS);
-    array_buffer_sweeper()->EnsureFinished();
-  }
-
+  array_buffer_sweeper()->EnsureFinished();
   mark_compact_collector()->EnsureSweepingCompleted();
   DCHECK(!mark_compact_collector()->sweeping_in_progress());
 }
@@ -3474,15 +3467,6 @@ void Heap::RightTrimWeakFixedArray(WeakFixedArray object,
   DCHECK_EQ(gc_state(), MARK_COMPACT);
   CreateFillerForArray<WeakFixedArray>(object, elements_to_trim,
                                        elements_to_trim * kTaggedSize);
-}
-
-void Heap::UndoLastAllocationAt(Address addr, int size) {
-  DCHECK_LE(0, size);
-  if (size == 0) return;
-  if (code_space_->TryFreeLast(addr, size)) {
-    return;
-  }
-  CreateFillerObjectAt(addr, size, ClearRecordedSlots::kNo);
 }
 
 template <typename T>
@@ -7171,7 +7155,7 @@ void Heap::WriteBarrierForRange(HeapObject object, TSlot start_slot,
 
   if (incremental_marking()->IsMarking()) {
     mode |= kDoMarking;
-    if (!source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
+    if (!source_page->ShouldSkipEvacuationSlotRecording()) {
       mode |= kDoEvacuationSlotRecording;
     }
   }

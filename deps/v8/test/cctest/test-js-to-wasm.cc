@@ -4,7 +4,10 @@
 
 #include <iomanip>
 
-#include "include/v8.h"
+#include "include/v8-exception.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
+#include "include/v8-value.h"
 #include "src/api/api.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/cctest/cctest.h"

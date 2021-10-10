@@ -10,6 +10,7 @@ const num_functions = 2;
 
 function create_builder() {
   const builder = new WasmModuleBuilder();
+  builder.addImport("foo", "bar", kSig_i_v);
   for (let i = 0; i < num_functions; ++i) {
     builder.addFunction('f' + i, kSig_i_v)
         .addBody(wasmI32Const(i))
@@ -37,7 +38,7 @@ gc();
   print(arguments.callee.name);
   const module = %DeserializeWasmModule(serialized_module, wire_bytes);
 
-  const instance = new WebAssembly.Instance(module);
+  const instance = new WebAssembly.Instance(module, {foo: {bar: () => 1}});
   assertEquals(0, instance.exports.f0());
   assertEquals(1, instance.exports.f1());
 })();

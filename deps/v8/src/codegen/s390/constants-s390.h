@@ -1553,14 +1553,28 @@ using SixByteInstr = uint64_t;
   V(vlrep, VLREP, 0xE705) /* type = VRX   VECTOR LOAD AND REPLICATE  */       \
   V(vl, VL, 0xE706)       /* type = VRX   VECTOR LOAD  */                     \
   V(vlbb, VLBB, 0xE707)   /* type = VRX   VECTOR LOAD TO BLOCK BOUNDARY  */   \
+  V(vlbr, VLBR, 0xE606) /* type = VRX   VECTOR LOAD BYTE REVERSED ELEMENTS */ \
+  V(vlbrrep, VLBRREP,                                                         \
+    0xE605) /* type = VRX VECTOR LOAD BYTE REVERSED ELEMENT AND REPLICATE */  \
+  V(vlebrh, VLEBRH,                                                           \
+    0xE601) /* type = VRX VECTOR LOAD BYTE REVERSED ELEMENT (16) */           \
+  V(vlebrf, VLEBRF,                                                           \
+    0xE603) /* type = VRX VECTOR LOAD BYTE REVERSED ELEMENT (32) */           \
+  V(vlebrg, VLEBRG,                                                           \
+    0xE602) /* type = VRX VECTOR LOAD BYTE REVERSED ELEMENT (64) */           \
   V(vsteb, VSTEB, 0xE708) /* type = VRX   VECTOR STORE ELEMENT (8)  */        \
   V(vsteh, VSTEH, 0xE709) /* type = VRX   VECTOR STORE ELEMENT (16)  */       \
   V(vsteg, VSTEG, 0xE70A) /* type = VRX   VECTOR STORE ELEMENT (64)  */       \
   V(vstef, VSTEF, 0xE70B) /* type = VRX   VECTOR STORE ELEMENT (32)  */       \
   V(vst, VST, 0xE70E)     /* type = VRX   VECTOR STORE  */                    \
-  V(vlbr, VLBR, 0xE606) /* type = VRX   VECTOR LOAD BYTE REVERSED ELEMENTS */ \
-  V(vstbr, VSTBR, 0xE60E) /* type = VRX   VECTOR STORE BYTE REVERSED ELEMENTS \
-                           */
+  V(vstbr, VSTBR,                                                             \
+    0xE60E) /* type = VRX   VECTOR STORE BYTE REVERSED ELEMENTS */            \
+  V(vstebrh, VSTEBRH,                                                         \
+    0xE609) /* type = VRX VECTOR STORE BYTE REVERSED ELEMENT (16) */          \
+  V(vstebrf, VSTEBRF,                                                         \
+    0xE60B) /* type = VRX VECTOR STORE BYTE REVERSED ELEMENT (32) */          \
+  V(vstebrg, VSTEBRG,                                                         \
+    0xE60A) /* type = VRX VECTOR STORE BYTE REVERSED ELEMENT (64) */
 
 #define S390_RIE_G_OPCODE_LIST(V)                                             \
   V(lochi, LOCHI,                                                             \

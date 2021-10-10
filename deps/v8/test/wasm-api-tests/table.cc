@@ -37,9 +37,8 @@ void ExpectResult(int expected, const Func* func, int arg1, int arg2) {
 }  // namespace
 
 TEST_F(WasmCapiTest, Table) {
-  builder()->AllocateIndirectFunctions(2);
-  builder()->SetMaxTableSize(10);
-  builder()->AddExport(base::CStrVector("table"), kExternalTable, 0);
+  const uint32_t table_index = builder()->AddTable(kWasmFuncRef, 2, 10);
+  builder()->AddExport(base::CStrVector("table"), kExternalTable, table_index);
   const uint32_t sig_i_i_index = builder()->AddSignature(wasm_i_i_sig());
   ValueType reps[] = {kWasmI32, kWasmI32, kWasmI32};
   FunctionSig call_sig(1, 2, reps);
@@ -54,7 +53,9 @@ TEST_F(WasmCapiTest, Table) {
   AddExportedFunction(base::CStrVector("g"), g_code, sizeof(g_code),
                       wasm_i_i_sig());
   // Set table[1] to {f}, which has function index 1.
-  builder()->SetIndirectFunction(1, 1);
+  builder()->SetIndirectFunction(
+      table_index, 1, 1,
+      WasmModuleBuilder::WasmElemSegment::kRelativeToImports);
 
   Instantiate(nullptr);
 

@@ -9,6 +9,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
+#include "src/init/vm-cage.h"
 #include "src/logging/counters.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -38,8 +39,8 @@ constexpr uint64_t kFullGuardSize = uint64_t{10} * GB;
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if V8_TARGET_ARCH_MIPS64
-// MIPS64 has a user space of 2^40 bytes on most processors,
+#if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64
+// MIPS64 and LOONG64 has a user space of 2^40 bytes on most processors,
 // address space limits needs to be smaller.
 constexpr size_t kAddressSpaceLimit = 0x8000000000L;  // 512 GiB
 #elif V8_TARGET_ARCH_RISCV64
@@ -152,6 +153,15 @@ BackingStore::~BackingStore() {
     return;
   }
 
+  PageAllocator* page_allocator = GetPlatformPageAllocator();
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  if (GetProcessWideVirtualMemoryCage()->Contains(buffer_start_)) {
+    page_allocator = GetPlatformDataCagePageAllocator();
+  } else {
+    DCHECK(kAllowBackingStoresOutsideDataCage);
+  }
+#endif
+
 #if V8_ENABLE_WEBASSEMBLY
   if (is_wasm_memory_) {
     // TODO(v8:11111): RAB / GSAB - Wasm integration.
@@ -176,8 +186,8 @@ BackingStore::~BackingStore() {
 
     bool pages_were_freed =
         region.size() == 0 /* no need to free any pages */ ||
-        FreePages(GetPlatformPageAllocator(),
-                  reinterpret_cast<void*>(region.begin()), region.size());
+        FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+                  region.size());
     CHECK(pages_were_freed);
     BackingStore::ReleaseReservation(reservation_size);
     Clear();
@@ -195,8 +205,8 @@ BackingStore::~BackingStore() {
 
     bool pages_were_freed =
         region.size() == 0 /* no need to free any pages */ ||
-        FreePages(GetPlatformPageAllocator(),
-                  reinterpret_cast<void*>(region.begin()), region.size());
+        FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+                  region.size());
     CHECK(pages_were_freed);
     BackingStore::ReleaseReservation(reservation_size);
     Clear();
@@ -263,6 +273,8 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
       counters->array_buffer_new_size_failures()->AddSample(mb_length);
       return {};
     }
+
+    DCHECK(IsValidBackingStorePointer(buffer_start));
   }
 
   auto result = new BackingStore(buffer_start,                  // start
@@ -400,10 +412,24 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   // 2. Allocate pages (inaccessible by default).
   //--------------------------------------------------------------------------
   void* allocation_base = nullptr;
+  PageAllocator* page_allocator = GetPlatformPageAllocator();
   auto allocate_pages = [&] {
-    allocation_base =
-        AllocatePages(GetPlatformPageAllocator(), nullptr, reservation_size,
-                      page_size, PageAllocator::kNoAccess);
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+    page_allocator = GetPlatformDataCagePageAllocator();
+    allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
+                                    page_size, PageAllocator::kNoAccess);
+    if (allocation_base) return true;
+    // We currently still allow falling back to the platform page allocator if
+    // the data cage page allocator fails. This will eventually be removed.
+    // TODO(chromium:1218005) once we forbid the fallback, we should have a
+    // single API, e.g. GetPlatformDataPageAllocator(), that returns the correct
+    // page allocator to use here depending on whether the virtual memory cage
+    // is enabled or not.
+    if (!kAllowBackingStoresOutsideDataCage) return false;
+    page_allocator = GetPlatformPageAllocator();
+#endif
+    allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
+                                    page_size, PageAllocator::kNoAccess);
     return allocation_base != nullptr;
   };
   if (!gc_retry(allocate_pages)) {
@@ -413,6 +439,8 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
     TRACE_BS("BSw:try   failed to allocate pages\n");
     return {};
   }
+
+  DCHECK(IsValidBackingStorePointer(allocation_base));
 
   // Get a pointer to the start of the buffer, skipping negative guard region
   // if necessary.
@@ -429,8 +457,8 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   size_t committed_byte_length = initial_pages * page_size;
   auto commit_memory = [&] {
     return committed_byte_length == 0 ||
-           SetPermissions(GetPlatformPageAllocator(), buffer_start,
-                          committed_byte_length, PageAllocator::kReadWrite);
+           SetPermissions(page_allocator, buffer_start, committed_byte_length,
+                          PageAllocator::kReadWrite);
   };
   if (!gc_retry(commit_memory)) {
     TRACE_BS("BSw:try   failed to set permissions (%p, %zu)\n", buffer_start,
@@ -708,6 +736,7 @@ BackingStore::ResizeOrGrowResult BackingStore::GrowInPlace(
 std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
     Isolate* isolate, void* allocation_base, size_t allocation_length,
     SharedFlag shared, bool free_on_destruct) {
+  DCHECK(IsValidBackingStorePointer(allocation_base));
   auto result = new BackingStore(allocation_base,               // start
                                  allocation_length,             // length
                                  allocation_length,             // max length
@@ -729,6 +758,7 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
     void* allocation_base, size_t allocation_length,
     v8::BackingStore::DeleterCallback deleter, void* deleter_data,
     SharedFlag shared) {
+  DCHECK(IsValidBackingStorePointer(allocation_base));
   bool is_empty_deleter = (deleter == v8::BackingStore::EmptyDeleter);
   auto result = new BackingStore(allocation_base,               // start
                                  allocation_length,             // length

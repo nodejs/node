@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 
+#include "include/v8-function.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"

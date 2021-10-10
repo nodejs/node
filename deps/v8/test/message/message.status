@@ -70,15 +70,10 @@
 }],
 
 ################################################################################
-['arch == mips64el or arch == mipsel', {
+['arch == mips64el or arch == mipsel or arch == riscv64 or arch == loong64', {
   # Tests that require Simd enabled.
   'wasm-trace-memory': [SKIP],
-}], # arch == mips64el or arch == mipsel
-
-['arch == riscv64', {
-  # Tests that require Simd enabled.
-  'wasm-trace-memory': [SKIP],
-}],
+}], # arch == mips64el or arch == mipsel or arch == riscv64 or arch == loong64
 
 ##############################################################################
 ['no_simd_hardware == True', {
@@ -91,5 +86,26 @@
   # Performs GC
   'weakref-finalizationregistry-error': [SKIP],
 }], # third_party_heap
+
+##############################################################################
+['msan == True', {
+  # Large allocations
+  'fail/map-grow-failed': [SKIP],
+  'fail/set-grow-failed': [SKIP],
+}],  # 'msan == True'
+
+##############################################################################
+['simulator_run', {
+  # Too slow on simulators
+  'fail/map-grow-failed': [SKIP],
+  'fail/set-grow-failed': [SKIP],
+}],  # simulator_run
+
+##############################################################################
+['is_full_debug', {
+  # Too slow in non-optimized debug mode
+  'fail/map-grow-failed': [SKIP],
+  'fail/set-grow-failed': [SKIP],
+}],  # is_full_debug
 
 ]

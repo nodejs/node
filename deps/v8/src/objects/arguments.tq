@@ -14,14 +14,12 @@ macro IsJSArgumentsObjectWithLength(implicit context: Context)(o: Object):
 }
 
 // Just a starting shape for JSObject; properties can move after initialization.
-@doNotGenerateCppClass
 extern shape JSSloppyArgumentsObject extends JSArgumentsObject {
   length: JSAny;
   callee: JSAny;
 }
 
 // Just a starting shape for JSObject; properties can move after initialization.
-@doNotGenerateCppClass
 extern shape JSStrictArgumentsObject extends JSArgumentsObject {
   length: JSAny;
 }
@@ -50,7 +48,7 @@ extern shape JSStrictArgumentsObject extends JSArgumentsObject {
 // arguments array is not a fixed array or if key >= elements.arguments.length.
 //
 // Otherwise, t = elements.mapped_entries[key]. If t is the hole, then the
-// entry has been deleted fron the arguments object, and value is looked up in
+// entry has been deleted from the arguments object, and value is looked up in
 // the unmapped arguments array, as described above. Otherwise, t is a Smi
 // index into the context array specified at elements.context, and the return
 // value is elements.context[t].

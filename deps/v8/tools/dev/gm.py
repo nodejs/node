@@ -28,6 +28,7 @@ not contain spaces.
 from __future__ import print_function
 import errno
 import os
+import platform
 import re
 import subprocess
 import sys
@@ -42,7 +43,7 @@ BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.
 ARCHES = ["ia32", "x64", "arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
-          "riscv64", "s390", "s390x", "android_arm", "android_arm64"]
+          "riscv64", "s390", "s390x", "android_arm", "android_arm64", "loong64"]
 # Arches that get built/run when you don't specify any.
 DEFAULT_ARCHES = ["ia32", "x64", "arm", "arm64"]
 # Modes that this script understands.
@@ -250,9 +251,7 @@ def _Notify(summary, body):
     print("{} - {}".format(summary, body))
 
 def _GetMachine():
-  # Once we migrate to Python3, this can use os.uname().machine.
-  # The index-based access is compatible with all Python versions.
-  return os.uname()[4]
+  return platform.machine()
 
 def GetPath(arch, mode):
   subdir = "%s.%s" % (arch, mode)
@@ -299,6 +298,10 @@ class Config(object):
       cpu = "arm64"
     elif self.arch == "arm" and _GetMachine() in ("aarch64", "arm64"):
       cpu = "arm"
+    elif self.arch == "loong64" and _GetMachine() == "loongarch64":
+      cpu = "loong64"
+    elif self.arch == "mips64el" and _GetMachine() == "mips64":
+      cpu = "mips64el"
     elif "64" in self.arch or self.arch == "s390x":
       # Native x64 or simulator build.
       cpu = "x64"
@@ -310,7 +313,7 @@ class Config(object):
     elif self.arch == "android_arm64":
       v8_cpu = "arm64"
     elif self.arch in ("arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
-                       "riscv64", "s390", "s390x"):
+                       "riscv64", "s390", "s390x", "loong64"):
       v8_cpu = self.arch
     else:
       return []
@@ -322,9 +325,9 @@ class Config(object):
     return []
 
   def GetSpecialCompiler(self):
-    if _GetMachine() == "aarch64":
-      # We have no prebuilt Clang for arm64 on Linux, so use the system Clang
-      # instead.
+    if _GetMachine() in ("aarch64", "mips64", "loongarch64"):
+      # We have no prebuilt Clang for arm64, mips64 or loongarch64 on Linux,
+      # so use the system Clang instead.
       return ["clang_base_path = \"/usr\"", "clang_use_chrome_plugins = false"]
     return []
 
@@ -363,7 +366,7 @@ class Config(object):
       csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
       match = csa_trap.search(output)
       extra_opt = match.group(1) if match else ""
-      cmdline = re.compile("python ../../tools/run.py ./mksnapshot (.*)")
+      cmdline = re.compile("python3 ../../tools/run.py ./mksnapshot (.*)")
       orig_cmdline = cmdline.search(output).group(1).strip()
       cmdline = PrepareMksnapshotCmdline(orig_cmdline, path) + extra_opt
       _Notify("V8 build requires your attention",
@@ -503,7 +506,7 @@ def Main(argv):
   return_code = 0
   # If we have Goma but it is not running, start it.
   if (IS_GOMA_MACHINE and
-      _Call("ps -e | grep compiler_proxy > /dev/null", silent=True) != 0):
+      _Call("pgrep -x compiler_proxy > /dev/null", silent=True) != 0):
     _Call("%s/goma_ctl.py ensure_start" % GOMADIR)
   for c in configs:
     return_code += configs[c].Build()

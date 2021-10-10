@@ -356,8 +356,7 @@ void ConstantPool::Emit(const ConstantPoolKey& key) {
     if (assm_->IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(key.rmode())) {
       int offset = assm_->pc_offset();
       Assembler::EmbeddedObjectIndex index = key.value64();
-      assm_->saved_handles_for_raw_object_ptr_.push_back(
-          std::make_pair(offset, index));
+      assm_->saved_handles_for_raw_object_ptr_.emplace_back(offset, index);
       Handle<Object> object = assm_->GetEmbeddedObject(index);
       assm_->dq(object->ptr());
       DCHECK(assm_->EmbeddedObjectMatches(offset, object, index));

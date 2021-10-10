@@ -1398,8 +1398,7 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
     BlockGrowBufferScope block_growbuffer(this);
     int offset = pc_offset();
     Address address = j.immediate();
-    saved_handles_for_raw_object_ptr_.push_back(
-        std::make_pair(offset, address));
+    saved_handles_for_raw_object_ptr_.emplace_back(offset, address);
     Handle<HeapObject> object(reinterpret_cast<Address*>(address));
     int32_t immediate = object->ptr();
     RecordRelocInfo(j.rmode(), immediate);
@@ -3279,7 +3278,6 @@ bool TurboAssembler::BranchShortCheck(int32_t offset, Label* L, Condition cond,
       return BranchShortHelper(0, L, cond, rs, rt, bdslot);
     }
   }
-  return false;
 }
 
 void TurboAssembler::BranchShort(int32_t offset, Condition cond, Register rs,
@@ -3631,7 +3629,6 @@ bool TurboAssembler::BranchAndLinkShortCheck(int32_t offset, Label* L,
       return BranchAndLinkShortHelper(0, L, cond, rs, rt, bdslot);
     }
   }
-  return false;
 }
 
 void TurboAssembler::LoadFromConstantsTable(Register destination,
@@ -4987,15 +4984,19 @@ void MacroAssembler::AssertStackIsAligned() {
 }
 
 void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
-                               Register scratch, BranchDelaySlot bd) {
+                               BranchDelaySlot bd) {
   DCHECK_EQ(0, kSmiTag);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   andi(scratch, value, kSmiTagMask);
   Branch(bd, smi_label, eq, scratch, Operand(zero_reg));
 }
 
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label,
-                                  Register scratch, BranchDelaySlot bd) {
+                                  BranchDelaySlot bd) {
   DCHECK_EQ(0, kSmiTag);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   andi(scratch, value, kSmiTagMask);
   Branch(bd, not_smi_label, ne, scratch, Operand(zero_reg));
 }
@@ -5517,10 +5518,6 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   subu(dst, ra, dst);
 
   pop(ra);  // Restore ra
-}
-
-void TurboAssembler::ResetSpeculationPoisonRegister() {
-  li(kSpeculationPoisonRegister, -1);
 }
 
 void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,

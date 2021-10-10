@@ -1646,12 +1646,8 @@ void CompileNativeModule(Isolate* isolate,
     return;
   }
 
-  if (!FLAG_predictable) {
-    // For predictable mode, do not finalize wrappers yet to make sure we catch
-    // validation errors first.
-    compilation_state->FinalizeJSToWasmWrappers(
-        isolate, native_module->module(), export_wrappers_out);
-  }
+  compilation_state->FinalizeJSToWasmWrappers(isolate, native_module->module(),
+                                              export_wrappers_out);
 
   compilation_state->WaitForCompilationEvent(
       CompilationEvent::kFinishedBaselineCompilation);
@@ -1663,9 +1659,6 @@ void CompileNativeModule(Isolate* isolate,
     ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
                          isolate->allocator(), thrower, lazy_module);
     CHECK(thrower->error());
-  } else if (FLAG_predictable) {
-    compilation_state->FinalizeJSToWasmWrappers(
-        isolate, native_module->module(), export_wrappers_out);
   }
 }
 
@@ -3052,13 +3045,13 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
     }
     compilation_progress_.assign(module->num_declared_functions,
                                  kProgressAfterDeserialization);
-    uint32_t num_imported_functions = module->num_imported_functions;
     for (auto func_index : missing_functions) {
       if (FLAG_wasm_lazy_compilation) {
-        native_module_->UseLazyStub(num_imported_functions + func_index);
+        native_module_->UseLazyStub(func_index);
       }
-      compilation_progress_[func_index] = SetupCompilationProgressForFunction(
-          lazy_module, module, enabled_features, func_index);
+      compilation_progress_[declared_function_index(module, func_index)] =
+          SetupCompilationProgressForFunction(lazy_module, module,
+                                              enabled_features, func_index);
     }
   }
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module_);
@@ -3665,13 +3658,17 @@ WasmCode* CompileImportWrapper(
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
       &env, kind, sig, source_positions, expected_arity);
-  std::unique_ptr<WasmCode> wasm_code = native_module->AddCode(
-      result.func_index, result.code_desc, result.frame_slot_count,
-      result.tagged_parameter_slots,
-      result.protected_instructions_data.as_vector(),
-      result.source_positions.as_vector(), GetCodeKind(result),
-      ExecutionTier::kNone, kNoDebugging);
-  WasmCode* published_code = native_module->PublishCode(std::move(wasm_code));
+  WasmCode* published_code;
+  {
+    CodeSpaceWriteScope code_space_write_scope(native_module);
+    std::unique_ptr<WasmCode> wasm_code = native_module->AddCode(
+        result.func_index, result.code_desc, result.frame_slot_count,
+        result.tagged_parameter_slots,
+        result.protected_instructions_data.as_vector(),
+        result.source_positions.as_vector(), GetCodeKind(result),
+        ExecutionTier::kNone, kNoDebugging);
+    published_code = native_module->PublishCode(std::move(wasm_code));
+  }
   (*cache_scope)[key] = published_code;
   published_code->IncRef();
   counters->wasm_generated_code_size()->Increment(

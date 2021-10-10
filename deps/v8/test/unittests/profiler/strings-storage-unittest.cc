@@ -113,17 +113,23 @@ TEST_F(StringsStorageWithIsolate, Refcounting) {
 
   const char* a = storage.GetCopy("12");
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
 
   const char* b = storage.GetCopy("12");
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
 
   // Ensure that we deduplicate the string.
   CHECK_EQ(a, b);
 
   CHECK(storage.Release(a));
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
+
   CHECK(storage.Release(b));
   CHECK_EQ(storage.GetStringCountForTesting(), 0);
+  CHECK_EQ(0, storage.GetStringSize());
+
 #if !DEBUG
   CHECK(!storage.Release("12"));
 #endif  // !DEBUG
@@ -131,16 +137,21 @@ TEST_F(StringsStorageWithIsolate, Refcounting) {
   // Verify that other constructors refcount as intended.
   const char* c = storage.GetFormatted("%d", 12);
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
 
   const char* d = storage.GetName(12);
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
 
   CHECK_EQ(c, d);
 
   CHECK(storage.Release(c));
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
   CHECK(storage.Release(d));
   CHECK_EQ(storage.GetStringCountForTesting(), 0);
+  CHECK_EQ(0, storage.GetStringSize());
+
   CHECK(!storage.Release("12"));
 }
 

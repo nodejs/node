@@ -318,7 +318,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvS8x2Reverse:
     case kRiscvS8x4Reverse:
     case kRiscvS8x8Reverse:
-    case kRiscvS8x16Shuffle:
+    case kRiscvI8x16Shuffle:
     case kRiscvI8x16Swizzle:
     case kRiscvSar32:
     case kRiscvSignExtendByte:
@@ -352,7 +352,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvLw:
     case kRiscvLoadFloat:
     case kRiscvLwu:
-    case kRiscvMsaLd:
+    case kRiscvRvvLd:
     case kRiscvPeek:
     case kRiscvUld:
     case kRiscvULoadDouble:
@@ -372,9 +372,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvS128Load32x2S:
     case kRiscvS128Load32x2U:
     case kRiscvS128LoadLane:
-    case kRiscvWord64AtomicLoadUint8:
-    case kRiscvWord64AtomicLoadUint16:
-    case kRiscvWord64AtomicLoadUint32:
     case kRiscvWord64AtomicLoadUint64:
     case kRiscvLoadDecompressTaggedSigned:
     case kRiscvLoadDecompressTaggedPointer:
@@ -383,7 +380,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
 
     case kRiscvModD:
     case kRiscvModS:
-    case kRiscvMsaSt:
+    case kRiscvRvvSt:
     case kRiscvPush:
     case kRiscvSb:
     case kRiscvSd:
@@ -399,37 +396,13 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvUsw:
     case kRiscvUStoreFloat:
     case kRiscvSync:
-    case kRiscvWord64AtomicStoreWord8:
-    case kRiscvWord64AtomicStoreWord16:
-    case kRiscvWord64AtomicStoreWord32:
     case kRiscvWord64AtomicStoreWord64:
-    case kRiscvWord64AtomicAddUint8:
-    case kRiscvWord64AtomicAddUint16:
-    case kRiscvWord64AtomicAddUint32:
     case kRiscvWord64AtomicAddUint64:
-    case kRiscvWord64AtomicSubUint8:
-    case kRiscvWord64AtomicSubUint16:
-    case kRiscvWord64AtomicSubUint32:
     case kRiscvWord64AtomicSubUint64:
-    case kRiscvWord64AtomicAndUint8:
-    case kRiscvWord64AtomicAndUint16:
-    case kRiscvWord64AtomicAndUint32:
     case kRiscvWord64AtomicAndUint64:
-    case kRiscvWord64AtomicOrUint8:
-    case kRiscvWord64AtomicOrUint16:
-    case kRiscvWord64AtomicOrUint32:
     case kRiscvWord64AtomicOrUint64:
-    case kRiscvWord64AtomicXorUint8:
-    case kRiscvWord64AtomicXorUint16:
-    case kRiscvWord64AtomicXorUint32:
     case kRiscvWord64AtomicXorUint64:
-    case kRiscvWord64AtomicExchangeUint8:
-    case kRiscvWord64AtomicExchangeUint16:
-    case kRiscvWord64AtomicExchangeUint32:
     case kRiscvWord64AtomicExchangeUint64:
-    case kRiscvWord64AtomicCompareExchangeUint8:
-    case kRiscvWord64AtomicCompareExchangeUint16:
-    case kRiscvWord64AtomicCompareExchangeUint32:
     case kRiscvWord64AtomicCompareExchangeUint64:
     case kRiscvStoreCompressTagged:
     case kRiscvS128StoreLane:
@@ -1169,8 +1142,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return Add64Latency(false) + AndLatency(false) + AssertLatency() +
              Add64Latency(false) + AndLatency(false) + BranchShortLatency() +
              1 + Sub64Latency() + Add64Latency();
-    case kArchWordPoisonOnSpeculation:
-      return AndLatency();
     case kIeee754Float64Acos:
     case kIeee754Float64Acosh:
     case kIeee754Float64Asin:
@@ -1541,35 +1512,35 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return ByteSwapSignedLatency();
     case kRiscvByteSwap32:
       return ByteSwapSignedLatency();
-    case kWord32AtomicLoadInt8:
-    case kWord32AtomicLoadUint8:
-    case kWord32AtomicLoadInt16:
-    case kWord32AtomicLoadUint16:
-    case kWord32AtomicLoadWord32:
+    case kAtomicLoadInt8:
+    case kAtomicLoadUint8:
+    case kAtomicLoadInt16:
+    case kAtomicLoadUint16:
+    case kAtomicLoadWord32:
       return 2;
-    case kWord32AtomicStoreWord8:
-    case kWord32AtomicStoreWord16:
-    case kWord32AtomicStoreWord32:
+    case kAtomicStoreWord8:
+    case kAtomicStoreWord16:
+    case kAtomicStoreWord32:
       return 3;
-    case kWord32AtomicExchangeInt8:
+    case kAtomicExchangeInt8:
       return Word32AtomicExchangeLatency(true, 8);
-    case kWord32AtomicExchangeUint8:
+    case kAtomicExchangeUint8:
       return Word32AtomicExchangeLatency(false, 8);
-    case kWord32AtomicExchangeInt16:
+    case kAtomicExchangeInt16:
       return Word32AtomicExchangeLatency(true, 16);
-    case kWord32AtomicExchangeUint16:
+    case kAtomicExchangeUint16:
       return Word32AtomicExchangeLatency(false, 16);
-    case kWord32AtomicExchangeWord32:
+    case kAtomicExchangeWord32:
       return 2 + LlLatency(0) + 1 + ScLatency(0) + BranchShortLatency() + 1;
-    case kWord32AtomicCompareExchangeInt8:
+    case kAtomicCompareExchangeInt8:
       return Word32AtomicCompareExchangeLatency(true, 8);
-    case kWord32AtomicCompareExchangeUint8:
+    case kAtomicCompareExchangeUint8:
       return Word32AtomicCompareExchangeLatency(false, 8);
-    case kWord32AtomicCompareExchangeInt16:
+    case kAtomicCompareExchangeInt16:
       return Word32AtomicCompareExchangeLatency(true, 16);
-    case kWord32AtomicCompareExchangeUint16:
+    case kAtomicCompareExchangeUint16:
       return Word32AtomicCompareExchangeLatency(false, 16);
-    case kWord32AtomicCompareExchangeWord32:
+    case kAtomicCompareExchangeWord32:
       return 3 + LlLatency(0) + BranchShortLatency() + 1 + ScLatency(0) +
              BranchShortLatency() + 1;
     case kRiscvAssertEqual:

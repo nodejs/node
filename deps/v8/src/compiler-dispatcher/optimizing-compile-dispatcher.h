@@ -30,7 +30,6 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
         input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
         input_queue_length_(0),
         input_queue_shift_(0),
-        blocked_jobs_(0),
         ref_count_(0),
         recompilation_delay_(FLAG_concurrent_recompilation_delay) {
     input_queue_ = NewArray<OptimizedCompilationJob*>(input_queue_capacity_);
@@ -42,7 +41,6 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   void Flush(BlockingBehavior blocking_behavior);
   // Takes ownership of |job|.
   void QueueForOptimization(OptimizedCompilationJob* job);
-  void Unblock();
   void AwaitCompileTasks();
   void InstallOptimizedFunctions();
 
@@ -98,8 +96,6 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   // Used for job based recompilation which has multiple producers on
   // different threads.
   base::Mutex output_queue_mutex_;
-
-  int blocked_jobs_;
 
   std::atomic<int> ref_count_;
   base::Mutex ref_count_mutex_;

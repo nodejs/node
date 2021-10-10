@@ -15,6 +15,10 @@ InspectorTest.runAsyncTestSuite([
     return logExpressionProperties('({ a: 2, set b(_) {}, get b() {return 5;}, __proto__: { a: 3, c: 4, get d() {return 6;} }})', { ownProperties: false });
   },
 
+  function testNotOwnSet() {
+    return logExpressionProperties('new Set([1, 2, 3])', { ownProperties: false });
+  },
+
   function testAccessorsOnly() {
     return logExpressionProperties('({ a: 2, set b(_) {}, get b() {return 5;}, c: \'c\', set d(_){} })', { ownProperties: true, accessorPropertiesOnly: true});
   },
@@ -102,6 +106,14 @@ InspectorTest.runAsyncTestSuite([
 
   async function testObjectWithProtoProperty() {
     await logExpressionProperties('Object.defineProperty({}, "__proto__", {enumerable: true, value: {b:"aaa"}})');
+  },
+
+  function testArrayNonIndexedPropertiesOnly() {
+    return logExpressionProperties('[1, 2]', {nonIndexedPropertiesOnly: true, ownProperties: true});
+  },
+
+  function testTypedArrayNonIndexedPropertiesOnly() {
+    return logExpressionProperties('new Int8Array(1)', {nonIndexedPropertiesOnly: true, ownProperties: true});
   }
 ]);
 

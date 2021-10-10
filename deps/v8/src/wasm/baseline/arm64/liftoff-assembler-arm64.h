@@ -1173,12 +1173,7 @@ void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
 }
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
-  UseScratchRegisterScope temps(this);
-  VRegister scratch = temps.AcquireV(kFormat8B);
-  Fmov(scratch.S(), src.W());
-  Cnt(scratch, scratch);
-  Addv(scratch.B(), scratch);
-  Fmov(dst.W(), scratch.S());
+  PopcntHelper(dst.W(), src.W());
   return true;
 }
 
@@ -1193,12 +1188,7 @@ void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
 
 bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  UseScratchRegisterScope temps(this);
-  VRegister scratch = temps.AcquireV(kFormat8B);
-  Fmov(scratch.D(), src.gp().X());
-  Cnt(scratch, scratch);
-  Addv(scratch.B(), scratch);
-  Fmov(dst.gp().X(), scratch.D());
+  PopcntHelper(dst.gp().X(), src.gp().X());
   return true;
 }
 
@@ -1717,13 +1707,13 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
   UseScratchRegisterScope temps(this);
   MemOperand src_op{
       liftoff::GetEffectiveAddress(this, &temps, addr, offset_reg, offset_imm)};
-  *protected_load_pc = pc_offset();
 
   MachineType mem_type = type.mem_type();
   if (dst != src) {
     Mov(dst.fp().Q(), src.fp().Q());
   }
 
+  *protected_load_pc = pc_offset();
   if (mem_type == MachineType::Int8()) {
     ld1(dst.fp().B(), laneidx, src_op);
   } else if (mem_type == MachineType::Int16()) {
@@ -3259,14 +3249,35 @@ void LiftoffAssembler::MaybeOSR() {}
 
 void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
                                        ValueKind kind) {
-  UNIMPLEMENTED();
+  Label not_nan;
+  if (kind == kF32) {
+    Fcmp(src.S(), src.S());
+    B(eq, &not_nan);  // x != x iff isnan(x)
+    // If it's a NaN, it must be non-zero, so store that as the set value.
+    Str(src.S(), MemOperand(dst));
+  } else {
+    DCHECK_EQ(kind, kF64);
+    Fcmp(src.D(), src.D());
+    B(eq, &not_nan);  // x != x iff isnan(x)
+    // Double-precision NaNs must be non-zero in the most-significant 32
+    // bits, so store that.
+    St1(src.V4S(), 1, MemOperand(dst));
+  }
+  Bind(&not_nan);
 }
 
-void LiftoffAssembler::emit_s128_set_if_nan(Register dst, DoubleRegister src,
+void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
                                             Register tmp_gp,
-                                            DoubleRegister tmp_fp,
+                                            LiftoffRegister tmp_s128,
                                             ValueKind lane_kind) {
-  UNIMPLEMENTED();
+  DoubleRegister tmp_fp = tmp_s128.fp();
+  if (lane_kind == kF32) {
+    Fmaxv(tmp_fp.S(), src.fp().V4S());
+  } else {
+    DCHECK_EQ(lane_kind, kF64);
+    Fmaxp(tmp_fp.D(), src.fp().V2D());
+  }
+  emit_set_if_nan(dst, tmp_fp, lane_kind);
 }
 
 void LiftoffStackSlots::Construct(int param_slots) {

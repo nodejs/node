@@ -14,7 +14,7 @@ for (var i = 0; i < a_to_z.length; i++) {
     locale.calendars.forEach(function(tokens) {
       assertTrue(regex.test(tokens),
           locale + ".calendars [" + locale.calendars +
-          "] does not meet 'type: alphanum{3,8}(sep alphanum{3,8})*'");
+          "]  but '" + tokens + "' does not meet 'type: alphanum{3,8}(sep alphanum{3,8})*'");
     });
   }
 }

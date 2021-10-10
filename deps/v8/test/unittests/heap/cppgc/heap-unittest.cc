@@ -9,6 +9,7 @@
 #include <numeric>
 
 #include "include/cppgc/allocation.h"
+#include "include/cppgc/cross-thread-persistent.h"
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/prefinalizer.h"
@@ -311,7 +312,8 @@ TEST_F(GCHeapTest, TerminateInvokesDestructor) {
 
 namespace {
 
-class Cloner final : public GarbageCollected<Cloner> {
+template <template <typename> class PersistentType>
+class Cloner final : public GarbageCollected<Cloner<PersistentType>> {
  public:
   static size_t destructor_count;
 
@@ -330,25 +332,41 @@ class Cloner final : public GarbageCollected<Cloner> {
   void Trace(Visitor*) const {}
 
  private:
-  static Persistent<Cloner> new_instance_;
+  static PersistentType<Cloner> new_instance_;
 
   cppgc::AllocationHandle& handle_;
   size_t count_;
 };
 
-Persistent<Cloner> Cloner::new_instance_;
-size_t Cloner::destructor_count;
+// static
+template <template <typename> class PersistentType>
+PersistentType<Cloner<PersistentType>> Cloner<PersistentType>::new_instance_;
+// static
+template <template <typename> class PersistentType>
+size_t Cloner<PersistentType>::destructor_count;
 
 }  // namespace
 
-TEST_F(GCHeapTest, TerminateReclaimsNewState) {
-  Persistent<Cloner> cloner = MakeGarbageCollected<Cloner>(
-      GetAllocationHandle(), GetAllocationHandle(), 1);
-  Cloner::destructor_count = 0;
+template <template <typename> class PersistentType>
+void TerminateReclaimsNewState(std::shared_ptr<Platform> platform) {
+  auto heap = cppgc::Heap::Create(platform);
+  using ClonerImpl = Cloner<PersistentType>;
+  Persistent<ClonerImpl> cloner = MakeGarbageCollected<ClonerImpl>(
+      heap->GetAllocationHandle(), heap->GetAllocationHandle(), 1);
+  ClonerImpl::destructor_count = 0;
   EXPECT_TRUE(cloner.Get());
-  Heap::From(GetHeap())->Terminate();
+  Heap::From(heap.get())->Terminate();
   EXPECT_FALSE(cloner.Get());
-  EXPECT_EQ(2u, Cloner::destructor_count);
+  EXPECT_EQ(2u, ClonerImpl::destructor_count);
+}
+
+TEST_F(GCHeapTest, TerminateReclaimsNewState) {
+  TerminateReclaimsNewState<Persistent>(GetPlatformHandle());
+  TerminateReclaimsNewState<WeakPersistent>(GetPlatformHandle());
+  TerminateReclaimsNewState<cppgc::subtle::CrossThreadPersistent>(
+      GetPlatformHandle());
+  TerminateReclaimsNewState<cppgc::subtle::WeakCrossThreadPersistent>(
+      GetPlatformHandle());
 }
 
 TEST_F(GCHeapDeathTest, TerminateProhibitsAllocation) {
@@ -357,14 +375,24 @@ TEST_F(GCHeapDeathTest, TerminateProhibitsAllocation) {
                             "");
 }
 
-TEST_F(GCHeapDeathTest, LargeChainOfNewStates) {
-  Persistent<Cloner> cloner = MakeGarbageCollected<Cloner>(
-      GetAllocationHandle(), GetAllocationHandle(), 1000);
-  Cloner::destructor_count = 0;
+template <template <typename> class PersistentType>
+void LargeChainOfNewStates(cppgc::Heap& heap) {
+  using ClonerImpl = Cloner<PersistentType>;
+  Persistent<ClonerImpl> cloner = MakeGarbageCollected<ClonerImpl>(
+      heap.GetAllocationHandle(), heap.GetAllocationHandle(), 1000);
+  ClonerImpl::destructor_count = 0;
   EXPECT_TRUE(cloner.Get());
   // Terminate() requires destructors to stop creating new state within a few
   // garbage collections.
-  EXPECT_DEATH_IF_SUPPORTED(Heap::From(GetHeap())->Terminate(), "");
+  EXPECT_DEATH_IF_SUPPORTED(Heap::From(&heap)->Terminate(), "");
+}
+
+TEST_F(GCHeapDeathTest, LargeChainOfNewStatesPersistent) {
+  LargeChainOfNewStates<Persistent>(*GetHeap());
+}
+
+TEST_F(GCHeapDeathTest, LargeChainOfNewStatesCrossThreadPersistent) {
+  LargeChainOfNewStates<subtle::CrossThreadPersistent>(*GetHeap());
 }
 
 }  // namespace internal

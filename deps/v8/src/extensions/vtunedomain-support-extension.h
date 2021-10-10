@@ -5,7 +5,7 @@
 #ifndef V8_EXTENSIONS_VTUNEDOMAIN_SUPPORT_EXTENSION_H_
 #define V8_EXTENSIONS_VTUNEDOMAIN_SUPPORT_EXTENSION_H_
 
-#include "include/v8.h"
+#include "include/v8-extension.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/third_party/vtune/vtuneapi.h"
@@ -19,6 +19,10 @@
 #define TASK_END_FAILED 1 << 6
 
 namespace v8 {
+
+template <typename T>
+class FunctionCallbackInfo;
+
 namespace internal {
 
 class VTuneDomainSupportExtension : public v8::Extension {

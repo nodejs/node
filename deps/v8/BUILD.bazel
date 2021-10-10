@@ -150,7 +150,6 @@ config_setting(
 # v8_can_use_fpu_instructions
 # v8_use_mips_abi_hardfloat
 # v8_enable_gdbjit
-# v8_untrusted_code_mitigations
 # v8_enable_minor_mc
 # v8_check_header_includes
 # v8_enable_shared_ro_heap
@@ -164,10 +163,11 @@ config_setting(
 # v8_verify_torque_generation_invariance
 # v8_enable_snapshot_compression
 # v8_control_flow_integrity
-# cppgc_enable_object_names
+# v8_enable_virtual_memory_cage
 # cppgc_enable_caged_heap
-# cppgc_enable_verify_live_bytes
 # cppgc_enable_check_assignments_in_prefinalizers
+# cppgc_enable_object_names
+# cppgc_enable_verify_heap
 # cppgc_enable_young_generation
 # v8_enable_zone_compression
 # v8_enable_heap_sandbox
@@ -306,9 +306,6 @@ v8_config(
             "V8_TARGET_OS_MACOSX",
         ],
     }) + select({
-        ":is_android_x86": [ "DISABLE_UNTRUSTED_CODE_MITIGATIONS" ],
-        "//conditions:default": [],
-    }) + select({
         ":is_v8_enable_pointer_compression": [
             "V8_COMPRESS_POINTERS",
             "V8_31BIT_SMIS_ON_64BIT_ARCH",
@@ -403,11 +400,53 @@ filegroup(
     srcs = [
         ":cppgc_headers_files",
         ":v8_version_files",
+        "include/v8-array-buffer.h",
+        "include/v8-callbacks.h",
+        "include/v8-container.h",
+        "include/v8-context.h",
         "include/v8-cppgc.h",
+        "include/v8-data.h",
+        "include/v8-date.h",
+        "include/v8-debug.h",
+        "include/v8-embedder-heap.h",
+        "include/v8-exception.h",
+        "include/v8-extension.h",
+        "include/v8-external.h",
         "include/v8-fast-api-calls.h",
+        "include/v8-forward.h",
+        "include/v8-function.h",
+        "include/v8-function-callback.h",
+        "include/v8-initialization.h",
         "include/v8-internal.h",
+        "include/v8-isolate.h",
+        "include/v8-json.h",
+        "include/v8-local-handle.h",
+        "include/v8-locker.h",
+        "include/v8-maybe.h",
+        "include/v8-memory-span.h",
+        "include/v8-message.h",
+        "include/v8-microtask-queue.h",
+        "include/v8-microtask.h",
+        "include/v8-object.h",
+        "include/v8-persistent-handle.h",
+        "include/v8-primitive-object.h",
+        "include/v8-primitive.h",
         "include/v8-profiler.h",
+        "include/v8-promise.h",
+        "include/v8-proxy.h",
+        "include/v8-regexp.h",
+        "include/v8-script.h",
+        "include/v8-snapshot.h",
+        "include/v8-statistics.h",
+        "include/v8-template.h",
+        "include/v8-traced-handle.h",
+        "include/v8-typed-array.h",
+        "include/v8-unwinder.h",
         "include/v8-util.h",
+        "include/v8-value-serializer.h",
+        "include/v8-value.h",
+        "include/v8-wasm.h",
+        "include/v8-weak-callback-info.h",
         "include/v8.h",
     ],
 )
@@ -975,6 +1014,7 @@ filegroup(
         "src/codegen/assembler-inl.h",
         "src/codegen/assembler.cc",
         "src/codegen/assembler.h",
+        "src/codegen/atomic-memory-order.h",
         "src/codegen/bailout-reason.cc",
         "src/codegen/bailout-reason.h",
         "src/codegen/callable.h",
@@ -1309,6 +1349,7 @@ filegroup(
         "src/heap/paged-spaces.h",
         "src/heap/parallel-work-item.h",
         "src/heap/parked-scope.h",
+        "src/heap/progress-bar.h",
         "src/heap/read-only-heap-inl.h",
         "src/heap/read-only-heap.cc",
         "src/heap/read-only-heap.h",
@@ -1361,6 +1402,8 @@ filegroup(
         "src/init/startup-data-util.h",
         "src/init/v8.cc",
         "src/init/v8.h",
+        "src/init/vm-cage.cc",
+        "src/init/vm-cage.h",
         "src/interpreter/block-coverage-builder.h",
         "src/interpreter/bytecode-array-builder.cc",
         "src/interpreter/bytecode-array-builder.h",
@@ -1755,6 +1798,7 @@ filegroup(
         "src/regexp/regexp-dotprinter.h",
         "src/regexp/regexp-error.cc",
         "src/regexp/regexp-error.h",
+        "src/regexp/regexp-flags.h",
         "src/regexp/regexp-interpreter.cc",
         "src/regexp/regexp-interpreter.h",
         "src/regexp/regexp-macro-assembler-arch.h",
@@ -1810,6 +1854,7 @@ filegroup(
         "src/base/sanitizer/lsan-page-allocator.cc",
         "src/base/sanitizer/lsan-page-allocator.h",
         "src/base/sanitizer/msan.h",
+        "src/base/sanitizer/tsan.h",
         "src/snapshot/code-serializer.cc",
         "src/snapshot/code-serializer.h",
         "src/snapshot/context-deserializer.cc",
@@ -2092,6 +2137,7 @@ filegroup(
             "src/asmjs/asm-types.h",
             "src/compiler/int64-lowering.h",
             "src/compiler/wasm-compiler.h",
+            "src/compiler/wasm-inlining.h",
             "src/debug/debug-wasm-objects.cc",
             "src/debug/debug-wasm-objects.h",
             "src/debug/debug-wasm-objects-inl.h",
@@ -2298,7 +2344,6 @@ filegroup(
         "src/compiler/common-operator-reducer.h",
         "src/compiler/compilation-dependencies.cc",
         "src/compiler/compilation-dependencies.h",
-        "src/compiler/compilation-dependency.h",
         "src/compiler/compiler-source-position-table.cc",
         "src/compiler/compiler-source-position-table.h",
         "src/compiler/constant-folding-reducer.cc",
@@ -2475,6 +2520,7 @@ filegroup(
         ":is_v8_enable_webassembly": [
             "src/compiler/int64-lowering.cc",
             "src/compiler/wasm-compiler.cc",
+            "src/compiler/wasm-inlining.cc",
         ],
         "//conditions:default": [],
     }),
@@ -2570,6 +2616,7 @@ filegroup(
     name = "cppgc_base_files",
     srcs = [
         "src/heap/cppgc/allocation.cc",
+        "src/heap/cppgc/caged-heap.h",
         "src/heap/cppgc/compaction-worklists.cc",
         "src/heap/cppgc/compaction-worklists.h",
         "src/heap/cppgc/compactor.cc",
@@ -2631,6 +2678,7 @@ filegroup(
         "src/heap/cppgc/page-memory.h",
         "src/heap/cppgc/persistent-node.cc",
         "src/heap/cppgc/platform.cc",
+        "src/heap/cppgc/platform.h",
         "src/heap/cppgc/pointer-policies.cc",
         "src/heap/cppgc/prefinalizer-handler.cc",
         "src/heap/cppgc/prefinalizer-handler.h",

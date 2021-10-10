@@ -75,7 +75,6 @@ class MemoryLowering final : public Reducer {
 
   MemoryLowering(
       JSGraph* jsgraph, Zone* zone, JSGraphAssembler* graph_assembler,
-      PoisoningMitigationLevel poisoning_level,
       AllocationFolding allocation_folding =
           AllocationFolding::kDontAllocationFolding,
       WriteBarrierAssertFailedCallback callback = [](Node*, Node*, const char*,
@@ -112,7 +111,6 @@ class MemoryLowering final : public Reducer {
   Node* DecodeExternalPointer(Node* encoded_pointer, ExternalPointerTag tag);
   Reduction ReduceLoadMap(Node* encoded_pointer);
   Node* ComputeIndex(ElementAccess const& access, Node* node);
-  bool NeedsPoisoning(LoadSensitivity load_sensitivity) const;
   void EnsureAllocateOperator();
   Node* GetWasmInstanceNode();
 
@@ -133,7 +131,6 @@ class MemoryLowering final : public Reducer {
   MachineOperatorBuilder* machine_;
   JSGraphAssembler* graph_assembler_;
   AllocationFolding allocation_folding_;
-  PoisoningMitigationLevel poisoning_level_;
   WriteBarrierAssertFailedCallback write_barrier_assert_failed_;
   const char* function_debug_name_;
 

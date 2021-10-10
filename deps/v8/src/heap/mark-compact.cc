@@ -646,6 +646,9 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
 void MarkCompactCollector::EnsureSweepingCompleted() {
   if (!sweeper()->sweeping_in_progress()) return;
 
+  TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
+                 ThreadKind::kMain);
+
   sweeper()->EnsureCompleted();
   heap()->old_space()->RefillFreeList();
   heap()->code_space()->RefillFreeList();
@@ -1707,9 +1710,8 @@ void MarkCompactCollector::VisitObject(HeapObject obj) {
 
 void MarkCompactCollector::RevisitObject(HeapObject obj) {
   DCHECK(marking_state()->IsBlack(obj));
-  DCHECK_IMPLIES(MemoryChunk::FromHeapObject(obj)->IsFlagSet(
-                     MemoryChunk::HAS_PROGRESS_BAR),
-                 0u == MemoryChunk::FromHeapObject(obj)->ProgressBar());
+  DCHECK_IMPLIES(MemoryChunk::FromHeapObject(obj)->ProgressBar().IsEnabled(),
+                 0u == MemoryChunk::FromHeapObject(obj)->ProgressBar().Value());
   MarkingVisitor::RevisitScope revisit(marking_visitor_.get());
   marking_visitor_->Visit(obj.map(), obj);
 }
@@ -2368,23 +2370,6 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   DCHECK(!shared_info.is_compiled());
 }
 
-void MarkCompactCollector::MarkBaselineDataAsLive(BaselineData baseline_data) {
-  if (non_atomic_marking_state()->IsBlackOrGrey(baseline_data)) return;
-
-  // Mark baseline data as live.
-  non_atomic_marking_state()->WhiteToBlack(baseline_data);
-
-  // Record object slots.
-  DCHECK(
-      non_atomic_marking_state()->IsBlackOrGrey(baseline_data.baseline_code()));
-  ObjectSlot code = baseline_data.RawField(BaselineData::kBaselineCodeOffset);
-  RecordSlot(baseline_data, code, HeapObject::cast(*code));
-
-  DCHECK(non_atomic_marking_state()->IsBlackOrGrey(baseline_data.data()));
-  ObjectSlot data = baseline_data.RawField(BaselineData::kDataOffset);
-  RecordSlot(baseline_data, data, HeapObject::cast(*data));
-}
-
 void MarkCompactCollector::ProcessOldCodeCandidates() {
   DCHECK(FLAG_flush_bytecode || FLAG_flush_baseline_code ||
          weak_objects_.code_flushing_candidates.IsEmpty());
@@ -2393,10 +2378,12 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
                                                     &flushing_candidate)) {
     bool is_bytecode_live = non_atomic_marking_state()->IsBlackOrGrey(
         flushing_candidate.GetBytecodeArray(isolate()));
-    if (FLAG_flush_baseline_code && flushing_candidate.HasBaselineData()) {
-      BaselineData baseline_data = flushing_candidate.baseline_data();
-      if (non_atomic_marking_state()->IsBlackOrGrey(
-              baseline_data.baseline_code())) {
+    if (FLAG_flush_baseline_code && flushing_candidate.HasBaselineCode()) {
+      CodeT baseline_codet =
+          CodeT::cast(flushing_candidate.function_data(kAcquireLoad));
+      // Safe to do a relaxed load here since the CodeT was acquire-loaded.
+      Code baseline_code = FromCodeT(baseline_codet, kRelaxedLoad);
+      if (non_atomic_marking_state()->IsBlackOrGrey(baseline_code)) {
         // Currently baseline code holds bytecode array strongly and it is
         // always ensured that bytecode is live if baseline code is live. Hence
         // baseline code can safely load bytecode array without any additional
@@ -2404,19 +2391,23 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
         // flush code if the bytecode is not live and also update baseline code
         // to bailout if there is no bytecode.
         DCHECK(is_bytecode_live);
-        MarkBaselineDataAsLive(baseline_data);
+
+        // Regardless of whether the CodeT is a CodeDataContainer or the Code
+        // itself, if the Code is live then the CodeT has to be live and will
+        // have been marked via the owning JSFunction.
+        DCHECK(non_atomic_marking_state()->IsBlackOrGrey(baseline_codet));
       } else if (is_bytecode_live) {
         // If baseline code is flushed but we have a valid bytecode array reset
-        // the function_data field to BytecodeArray.
-        flushing_candidate.set_function_data(baseline_data.data(),
-                                             kReleaseStore);
+        // the function_data field to the BytecodeArray/InterpreterData.
+        flushing_candidate.set_function_data(
+            baseline_code.bytecode_or_interpreter_data(), kReleaseStore);
       }
     }
 
     if (!is_bytecode_live) {
       // If baseline code flushing is disabled we should only flush bytecode
       // from functions that don't have baseline data.
-      DCHECK(FLAG_flush_baseline_code || !flushing_candidate.HasBaselineData());
+      DCHECK(FLAG_flush_baseline_code || !flushing_candidate.HasBaselineCode());
 
       // If the BytecodeArray is dead, flush it, which will replace the field
       // with an uncompiled data object.

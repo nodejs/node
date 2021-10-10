@@ -6,7 +6,8 @@
 #define V8_HEAP_EMBEDDER_TRACING_H_
 
 #include "include/v8-cppgc.h"
-#include "include/v8.h"
+#include "include/v8-embedder-heap.h"
+#include "include/v8-traced-handle.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 

@@ -173,7 +173,7 @@ class SemiSpace : public Space {
   void RewindPages(int num_pages);
 
   // Copies the flags into the masked positions on all pages in the space.
-  void FixPagesFlags(intptr_t flags, intptr_t flag_mask);
+  void FixPagesFlags(Page::MainThreadFlags flags, Page::MainThreadFlags mask);
 
   // The currently committed space capacity.
   size_t current_capacity_;

@@ -274,7 +274,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   BIND(&if_done);
   {
     Label if_not_double(this), if_double(this);
-    TNode<Int32T> args_count = Int32Constant(0);  // args already on the stack
+    TNode<Int32T> args_count =
+        Int32Constant(i::JSParameterCount(0));  // args already on the stack
 
     TNode<Int32T> length = var_length.value();
     {
@@ -737,8 +738,8 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
   TNode<RawPtrT> callback = LoadForeignForeignAddressPtr(foreign);
   TNode<Object> call_data =
       LoadObjectField<Object>(call_handler_info, CallHandlerInfo::kDataOffset);
-  TailCallStub(CodeFactory::CallApiCallback(isolate()), context, callback, argc,
-               call_data, holder);
+  TailCallStub(CodeFactory::CallApiCallback(isolate()), context, callback,
+               args.GetLengthWithoutReceiver(), call_data, holder);
 }
 
 TF_BUILTIN(CallFunctionTemplate_CheckAccess, CallOrConstructBuiltinsAssembler) {

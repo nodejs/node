@@ -792,12 +792,12 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
 
   CodeStubArguments arguments(this, argc);
   TNode<Uint32T> unsigned_argc =
-      Unsigned(TruncateIntPtrToInt32(arguments.GetLength()));
+      Unsigned(TruncateIntPtrToInt32(arguments.GetLengthWithoutReceiver()));
   // Check if we have exactly one argument (plus the implicit receiver), i.e.
   // if the parent frame is not an arguments adaptor frame.
   Label if_oneargument(this), if_notoneargument(this);
-  Branch(IntPtrEqual(arguments.GetLength(), IntPtrConstant(1)), &if_oneargument,
-         &if_notoneargument);
+  Branch(IntPtrEqual(arguments.GetLengthWithoutReceiver(), IntPtrConstant(1)),
+         &if_oneargument, &if_notoneargument);
 
   BIND(&if_oneargument);
   {

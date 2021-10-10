@@ -10,6 +10,7 @@
 #include <set>
 #include <string>
 
+#include "include/v8-callbacks.h"
 #include "include/v8-profiler.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/execution/isolate.h"
@@ -241,8 +242,10 @@ class Logger : public CodeEventListener {
   void CodeLinePosInfoRecordEvent(Address code_start,
                                   ByteArray source_position_table,
                                   JitCodeEvent::CodeType code_type);
-  void CodeLinePosInfoRecordEvent(
+#if V8_ENABLE_WEBASSEMBLY
+  void WasmCodeLinePosInfoRecordEvent(
       Address code_start, base::Vector<const byte> source_position_table);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 

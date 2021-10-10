@@ -33,6 +33,11 @@
 #include <inttypes.h>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "include/v8-container.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
+#include "include/v8-inspector.h"
+#include "include/v8-microtask-queue.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
@@ -46,8 +51,6 @@
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
 #include "src/tracing/trace-event.h"
-
-#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -418,6 +421,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
 Response V8RuntimeAgentImpl::getProperties(
     const String16& objectId, Maybe<bool> ownProperties,
     Maybe<bool> accessorPropertiesOnly, Maybe<bool> generatePreview,
+    Maybe<bool> nonIndexedPropertiesOnly,
     std::unique_ptr<protocol::Array<protocol::Runtime::PropertyDescriptor>>*
         result,
     Maybe<protocol::Array<protocol::Runtime::InternalPropertyDescriptor>>*
@@ -442,6 +446,7 @@ Response V8RuntimeAgentImpl::getProperties(
   response = scope.injectedScript()->getProperties(
       object, scope.objectGroupName(), ownProperties.fromMaybe(false),
       accessorPropertiesOnly.fromMaybe(false),
+      nonIndexedPropertiesOnly.fromMaybe(false),
       generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
                                        : WrapMode::kNoPreview,
       result, exceptionDetails);

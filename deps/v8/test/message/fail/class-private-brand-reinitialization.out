@@ -1,0 +1,6 @@
+*%(basename)s:7: TypeError: Cannot initialize private methods of class B twice on the same object
+class B extends A { #x() {} }
+^
+TypeError: Cannot initialize private methods of class B twice on the same object
+    at new B (*%(basename)s:7:1)
+    at *%(basename)s:10:1

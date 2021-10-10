@@ -893,7 +893,7 @@ void TestFloat32x4Abs(MacroAssembler* masm, Label* exit, float x, float y,
   __ Movss(Operand(rsp, 3 * kFloatSize), xmm4);
   __ Movups(xmm0, Operand(rsp, 0));
 
-  __ Absps(xmm0);
+  __ Absps(xmm0, xmm0);
   __ Movups(Operand(rsp, 0), xmm0);
 
   __ incq(rax);
@@ -930,7 +930,7 @@ void TestFloat32x4Neg(MacroAssembler* masm, Label* exit, float x, float y,
   __ Movss(Operand(rsp, 3 * kFloatSize), xmm4);
   __ Movups(xmm0, Operand(rsp, 0));
 
-  __ Negps(xmm0);
+  __ Negps(xmm0, xmm0);
   __ Movups(Operand(rsp, 0), xmm0);
 
   __ incq(rax);
@@ -962,7 +962,7 @@ void TestFloat64x2Abs(MacroAssembler* masm, Label* exit, double x, double y) {
   __ Movsd(Operand(rsp, 1 * kDoubleSize), xmm2);
   __ movupd(xmm0, Operand(rsp, 0));
 
-  __ Abspd(xmm0);
+  __ Abspd(xmm0, xmm0);
   __ movupd(Operand(rsp, 0), xmm0);
 
   __ incq(rax);
@@ -986,7 +986,7 @@ void TestFloat64x2Neg(MacroAssembler* masm, Label* exit, double x, double y) {
   __ Movsd(Operand(rsp, 1 * kDoubleSize), xmm2);
   __ movupd(xmm0, Operand(rsp, 0));
 
-  __ Negpd(xmm0);
+  __ Negpd(xmm0, xmm0);
   __ movupd(Operand(rsp, 0), xmm0);
 
   __ incq(rax);

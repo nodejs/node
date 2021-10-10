@@ -34,7 +34,7 @@ class IsCompiledScope;
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
-class JSReceiver : public HeapObject {
+class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
  public:
   NEVER_READ_ONLY_SPACE
   // Returns true if there is no slow (ie, dictionary) backing store.
@@ -84,9 +84,6 @@ class JSReceiver : public HeapObject {
   // Deletes an existing named property in a normalized object.
   static void DeleteNormalizedProperty(Handle<JSReceiver> object,
                                        InternalIndex entry);
-
-  DECL_CAST(JSReceiver)
-  DECL_VERIFIER(JSReceiver)
 
   // ES6 section 7.1.1 ToPrimitive
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ToPrimitive(
@@ -288,14 +285,17 @@ class JSReceiver : public HeapObject {
 
   static const int kHashMask = PropertyArray::HashField::kMask;
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_JS_RECEIVER_FIELDS)
   bool HasProxyInPrototype(Isolate* isolate);
 
   // TC39 "Dynamic Code Brand Checks"
   bool IsCodeLike(Isolate* isolate) const;
 
-  OBJECT_CONSTRUCTORS(JSReceiver, HeapObject);
+ private:
+  // Hide generated accessors; custom accessors are called
+  // "raw_properties_or_hash".
+  DECL_ACCESSORS(properties_or_hash, Object)
+
+  TQ_OBJECT_CONSTRUCTORS(JSReceiver)
 };
 
 // The JSObject describes real heap allocated JavaScript objects with
@@ -996,20 +996,13 @@ class JSGlobalProxy
 };
 
 // JavaScript global object.
-class JSGlobalObject : public JSSpecialObject {
+class JSGlobalObject
+    : public TorqueGeneratedJSGlobalObject<JSGlobalObject, JSSpecialObject> {
  public:
-  // [native context]: the natives corresponding to this global object.
-  DECL_ACCESSORS(native_context, NativeContext)
-
-  // [global proxy]: the global proxy object of the context
-  DECL_ACCESSORS(global_proxy, JSGlobalProxy)
-
   DECL_RELEASE_ACQUIRE_ACCESSORS(global_dictionary, GlobalDictionary)
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);
-
-  DECL_CAST(JSGlobalObject)
 
   inline bool IsDetached();
 
@@ -1021,11 +1014,7 @@ class JSGlobalObject : public JSSpecialObject {
   DECL_PRINTER(JSGlobalObject)
   DECL_VERIFIER(JSGlobalObject)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSSpecialObject::kHeaderSize,
-                                TORQUE_GENERATED_JS_GLOBAL_OBJECT_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSGlobalObject, JSSpecialObject);
+  TQ_OBJECT_CONSTRUCTORS(JSGlobalObject)
 };
 
 // Representation for JS Wrapper objects, String, Number, Boolean, etc.
@@ -1113,20 +1102,12 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
 // error messages are not directly accessible from JavaScript to
 // prevent leaking information to user code called during error
 // formatting.
-class JSMessageObject : public JSObject {
+class JSMessageObject
+    : public TorqueGeneratedJSMessageObject<JSMessageObject, JSObject> {
  public:
   // [type]: the type of error message.
   inline MessageTemplate type() const;
   inline void set_type(MessageTemplate value);
-
-  // [arguments]: the arguments for formatting the error message.
-  DECL_ACCESSORS(argument, Object)
-
-  // [script]: the script from which the error message originated.
-  DECL_ACCESSORS(script, Script)
-
-  // [stack_frames]: an array of stack frames for this error object.
-  DECL_ACCESSORS(stack_frames, Object)
 
   // Initializes the source positions in the object if possible. Does nothing if
   // called more than once. If called when stack space is exhausted, then the
@@ -1159,14 +1140,9 @@ class JSMessageObject : public JSObject {
 
   DECL_INT_ACCESSORS(error_level)
 
-  DECL_CAST(JSMessageObject)
-
   // Dispatched behavior.
   DECL_PRINTER(JSMessageObject)
-  DECL_VERIFIER(JSMessageObject)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JS_MESSAGE_OBJECT_FIELDS)
   // TODO(v8:8989): [torque] Support marker constants.
   static const int kPointerFieldsEndOffset = kStartPositionOffset;
 
@@ -1195,7 +1171,10 @@ class JSMessageObject : public JSObject {
 
   DECL_INT_ACCESSORS(raw_type)
 
-  OBJECT_CONSTRUCTORS(JSMessageObject, JSObject);
+  // Hide generated accessors; custom accessors are named "raw_type".
+  DECL_INT_ACCESSORS(message_type)
+
+  TQ_OBJECT_CONSTRUCTORS(JSMessageObject)
 };
 
 // The [Async-from-Sync Iterator] object

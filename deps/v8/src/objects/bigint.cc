@@ -1107,8 +1107,19 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
       if (isolate->has_pending_exception()) {
         return MaybeHandle<BigInt>();
       } else {
+        Handle<String> str = Handle<String>::cast(obj);
+        constexpr int kMaxRenderedLength = 1000;
+        if (str->length() > kMaxRenderedLength) {
+          Factory* factory = isolate->factory();
+          Handle<String> prefix =
+              factory->NewProperSubString(str, 0, kMaxRenderedLength);
+          Handle<SeqTwoByteString> ellipsis =
+              factory->NewRawTwoByteString(1).ToHandleChecked();
+          ellipsis->SeqTwoByteStringSet(0, 0x2026);
+          str = factory->NewConsString(prefix, ellipsis).ToHandleChecked();
+        }
         THROW_NEW_ERROR(isolate,
-                        NewSyntaxError(MessageTemplate::kBigIntFromObject, obj),
+                        NewSyntaxError(MessageTemplate::kBigIntFromObject, str),
                         BigInt);
       }
     }

@@ -198,7 +198,7 @@ TEST_F(MarkingVerifierDeathTest, DieOnUnmarkedWeakMember) {
       "");
 }
 
-#ifdef CPPGC_VERIFY_LIVE_BYTES
+#ifdef CPPGC_VERIFY_HEAP
 
 TEST_F(MarkingVerifierDeathTest, DieOnUnexpectedLiveByteCount) {
   GCed* object = MakeGarbageCollected<GCed>(GetAllocationHandle());
@@ -210,7 +210,7 @@ TEST_F(MarkingVerifierDeathTest, DieOnUnexpectedLiveByteCount) {
                             "");
 }
 
-#endif  // CPPGC_VERIFY_LIVE_BYTES
+#endif  // CPPGC_VERIFY_HEAP
 
 namespace {
 
@@ -256,7 +256,7 @@ void MarkingVerifierDeathTest::TestResurrectingPreFinalizer() {
   EXPECT_DEATH_IF_SUPPORTED(PreciseGC(), "");
 }
 
-#if DEBUG
+#if CPPGC_VERIFY_HEAP
 
 TEST_F(MarkingVerifierDeathTest, DiesOnResurrectedMember) {
   TestResurrectingPreFinalizer<Member>();
@@ -266,7 +266,7 @@ TEST_F(MarkingVerifierDeathTest, DiesOnResurrectedWeakMember) {
   TestResurrectingPreFinalizer<WeakMember>();
 }
 
-#endif  // DEBUG
+#endif  // CPPGC_VERIFY_HEAP
 
 }  // namespace internal
 }  // namespace cppgc

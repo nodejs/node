@@ -161,8 +161,39 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Create a shared function info object for a String source.
   static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
       Isolate* isolate, Handle<String> source,
+      const ScriptDetails& script_details,
+      ScriptCompiler::CompileOptions compile_options,
+      ScriptCompiler::NoCacheReason no_cache_reason,
+      NativesFlag is_natives_code);
+
+  // Create a shared function info object for a String source.
+  static MaybeHandle<SharedFunctionInfo>
+  GetSharedFunctionInfoForScriptWithExtension(
+      Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details, v8::Extension* extension,
-      AlignedCachedData* cached_data,
+      ScriptCompiler::CompileOptions compile_options,
+      NativesFlag is_natives_code);
+
+  // Create a shared function info object for a String source and serialized
+  // cached data. The cached data may be rejected, in which case this function
+  // will set cached_data->rejected() to true.
+  static MaybeHandle<SharedFunctionInfo>
+  GetSharedFunctionInfoForScriptWithCachedData(
+      Isolate* isolate, Handle<String> source,
+      const ScriptDetails& script_details, AlignedCachedData* cached_data,
+      ScriptCompiler::CompileOptions compile_options,
+      ScriptCompiler::NoCacheReason no_cache_reason,
+      NativesFlag is_natives_code);
+
+  // Create a shared function info object for a String source and a task that
+  // has deserialized cached data on a background thread. The cached data from
+  // the task may be rejected, in which case this function will set
+  // deserialize_task->rejected() to true.
+  static MaybeHandle<SharedFunctionInfo>
+  GetSharedFunctionInfoForScriptWithDeserializeTask(
+      Isolate* isolate, Handle<String> source,
+      const ScriptDetails& script_details,
+      BackgroundDeserializeTask* deserialize_task,
       ScriptCompiler::CompileOptions compile_options,
       ScriptCompiler::NoCacheReason no_cache_reason,
       NativesFlag is_natives_code);
@@ -570,6 +601,8 @@ class V8_EXPORT_PRIVATE BackgroundDeserializeTask {
   MaybeHandle<SharedFunctionInfo> Finish(Isolate* isolate,
                                          Handle<String> source,
                                          ScriptOriginOptions origin_options);
+
+  bool rejected() const { return cached_data_.rejected(); }
 
  private:
   Isolate* isolate_for_local_isolate_;

@@ -27,10 +27,10 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/debug/liveedit.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 

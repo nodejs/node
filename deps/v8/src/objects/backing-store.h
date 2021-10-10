@@ -7,8 +7,8 @@
 
 #include <memory>
 
+#include "include/v8-array-buffer.h"
 #include "include/v8-internal.h"
-#include "include/v8.h"
 #include "src/base/optional.h"
 #include "src/handles/handles.h"
 

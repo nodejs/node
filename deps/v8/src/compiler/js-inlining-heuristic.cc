@@ -27,8 +27,40 @@ bool IsSmall(int const size) {
 }
 
 bool CanConsiderForInlining(JSHeapBroker* broker,
-                            SharedFunctionInfoRef const& shared,
-                            FeedbackVectorRef const& feedback_vector) {
+                            FeedbackCellRef const& feedback_cell) {
+  base::Optional<FeedbackVectorRef> feedback_vector =
+      feedback_cell.feedback_vector();
+  if (!feedback_vector.has_value()) {
+    TRACE("Cannot consider " << feedback_cell
+                             << " for inlining (no feedback vector)");
+    return false;
+  }
+  SharedFunctionInfoRef shared = feedback_vector->shared_function_info();
+
+  if (!shared.HasBytecodeArray()) {
+    TRACE("Cannot consider " << shared << " for inlining (no bytecode)");
+    return false;
+  }
+  // Ensure we have a persistent handle to the bytecode in order to avoid
+  // flushing it during the remaining compilation.
+  shared.GetBytecodeArray();
+
+  // Read feedback vector again in case it got flushed before we were able to
+  // prevent flushing above.
+  base::Optional<FeedbackVectorRef> feedback_vector_again =
+      feedback_cell.feedback_vector();
+  if (!feedback_vector_again.has_value()) {
+    TRACE("Cannot consider " << shared << " for inlining (no feedback vector)");
+    return false;
+  }
+  if (!feedback_vector_again->equals(*feedback_vector)) {
+    // The new feedback vector likely contains lots of uninitialized slots, so
+    // it doesn't make much sense to inline this function now.
+    TRACE("Not considering " << shared
+                             << " for inlining (feedback vector changed)");
+    return false;
+  }
+
   SharedFunctionInfo::Inlineability inlineability = shared.GetInlineability();
   if (inlineability != SharedFunctionInfo::kIsInlineable) {
     TRACE("Cannot consider "
@@ -36,22 +68,20 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
     return false;
   }
 
-  DCHECK(shared.HasBytecodeArray());
-  TRACE("Considering " << shared << " for inlining with " << feedback_vector);
+  TRACE("Considering " << shared << " for inlining with " << *feedback_vector);
   return true;
 }
 
 bool CanConsiderForInlining(JSHeapBroker* broker,
                             JSFunctionRef const& function) {
-  if (!function.has_feedback_vector(broker->dependencies())) {
-    TRACE("Cannot consider " << function
-                             << " for inlining (no feedback vector)");
-    return false;
+  FeedbackCellRef feedback_cell =
+      function.raw_feedback_cell(broker->dependencies());
+  bool const result = CanConsiderForInlining(broker, feedback_cell);
+  if (result) {
+    CHECK(
+        function.shared().equals(feedback_cell.shared_function_info().value()));
   }
-
-  return CanConsiderForInlining(
-      broker, function.shared(),
-      function.feedback_vector(broker->dependencies()));
+  return result;
 }
 
 }  // namespace
@@ -65,8 +95,8 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
 
   HeapObjectMatcher m(callee);
   if (m.HasResolvedValue() && m.Ref(broker()).IsJSFunction()) {
-    out.functions[0] = m.Ref(broker()).AsJSFunction();
-    JSFunctionRef function = out.functions[0].value();
+    JSFunctionRef function = m.Ref(broker()).AsJSFunction();
+    out.functions[0] = function;
     if (CanConsiderForInlining(broker(), function)) {
       out.bytecode[0] = function.shared().GetBytecodeArray();
       out.num_functions = 1;
@@ -98,10 +128,9 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
   if (m.IsCheckClosure()) {
     DCHECK(!out.functions[0].has_value());
     FeedbackCellRef feedback_cell = MakeRef(broker(), FeedbackCellOf(m.op()));
-    SharedFunctionInfoRef shared_info = *feedback_cell.shared_function_info();
-    out.shared_info = shared_info;
-    if (CanConsiderForInlining(broker(), shared_info, *feedback_cell.value())) {
-      out.bytecode[0] = shared_info.GetBytecodeArray();
+    if (CanConsiderForInlining(broker(), feedback_cell)) {
+      out.shared_info = feedback_cell.shared_function_info().value();
+      out.bytecode[0] = out.shared_info->GetBytecodeArray();
     }
     out.num_functions = 1;
     return out;
@@ -109,13 +138,11 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
   if (m.IsJSCreateClosure()) {
     DCHECK(!out.functions[0].has_value());
     JSCreateClosureNode n(callee);
-    CreateClosureParameters const& p = n.Parameters();
     FeedbackCellRef feedback_cell = n.GetFeedbackCellRefChecked(broker());
-    SharedFunctionInfoRef shared_info = p.shared_info(broker());
-    out.shared_info = shared_info;
-    if (feedback_cell.value().has_value() &&
-        CanConsiderForInlining(broker(), shared_info, *feedback_cell.value())) {
-      out.bytecode[0] = shared_info.GetBytecodeArray();
+    if (CanConsiderForInlining(broker(), feedback_cell)) {
+      out.shared_info = feedback_cell.shared_function_info().value();
+      out.bytecode[0] = out.shared_info->GetBytecodeArray();
+      CHECK(out.shared_info->equals(n.Parameters().shared_info(broker())));
     }
     out.num_functions = 1;
     return out;

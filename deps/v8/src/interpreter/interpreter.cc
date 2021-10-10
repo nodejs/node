@@ -12,6 +12,7 @@
 #include "src/ast/scopes.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/unoptimized-compilation-info.h"
+#include "src/common/globals.h"
 #include "src/execution/local-isolate.h"
 #include "src/heap/parked-scope.h"
 #include "src/init/bootstrapper.h"
@@ -389,11 +390,9 @@ uintptr_t Interpreter::GetDispatchCounter(Bytecode from, Bytecode to) const {
                                            to_index];
 }
 
-Local<v8::Object> Interpreter::GetDispatchCountersObject() {
-  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-  Local<v8::Context> context = isolate->GetCurrentContext();
-
-  Local<v8::Object> counters_map = v8::Object::New(isolate);
+Handle<JSObject> Interpreter::GetDispatchCountersObject() {
+  Handle<JSObject> counters_map =
+      isolate_->factory()->NewJSObjectWithNullProto();
 
   // Output is a JSON-encoded object of objects.
   //
@@ -408,30 +407,23 @@ Local<v8::Object> Interpreter::GetDispatchCountersObject() {
 
   for (int from_index = 0; from_index < kNumberOfBytecodes; ++from_index) {
     Bytecode from_bytecode = Bytecodes::FromByte(from_index);
-    Local<v8::Object> counters_row = v8::Object::New(isolate);
+    Handle<JSObject> counters_row =
+        isolate_->factory()->NewJSObjectWithNullProto();
 
     for (int to_index = 0; to_index < kNumberOfBytecodes; ++to_index) {
       Bytecode to_bytecode = Bytecodes::FromByte(to_index);
       uintptr_t counter = GetDispatchCounter(from_bytecode, to_bytecode);
 
       if (counter > 0) {
-        std::string to_name = Bytecodes::ToString(to_bytecode);
-        Local<v8::String> to_name_object =
-            v8::String::NewFromUtf8(isolate, to_name.c_str()).ToLocalChecked();
-        Local<v8::Number> counter_object = v8::Number::New(isolate, counter);
-        CHECK(counters_row
-                  ->DefineOwnProperty(context, to_name_object, counter_object)
-                  .IsJust());
+        Handle<Object> value = isolate_->factory()->NewNumberFromSize(counter);
+        JSObject::AddProperty(isolate_, counters_row,
+                              Bytecodes::ToString(to_bytecode), value, NONE);
       }
     }
 
-    std::string from_name = Bytecodes::ToString(from_bytecode);
-    Local<v8::String> from_name_object =
-        v8::String::NewFromUtf8(isolate, from_name.c_str()).ToLocalChecked();
-
-    CHECK(
-        counters_map->DefineOwnProperty(context, from_name_object, counters_row)
-            .IsJust());
+    JSObject::AddProperty(isolate_, counters_map,
+                          Bytecodes::ToString(from_bytecode), counters_row,
+                          NONE);
   }
 
   return counters_map;

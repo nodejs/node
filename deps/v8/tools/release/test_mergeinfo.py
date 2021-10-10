@@ -31,7 +31,7 @@ class TestMergeInfo(unittest.TestCase):
     return output
 
   def _update_origin(self):
-    # Fetch from origin to get/update the origin/master branch
+    # Fetch from origin to get/update the origin/main branch
     self._execute_git(['fetch', 'origin'])
 
   def setUp(self):
@@ -54,10 +54,10 @@ class TestMergeInfo(unittest.TestCase):
 
   def _assert_correct_standard_result(
       self, result, all_commits, hash_of_first_commit):
-    self.assertEqual(len(result), 1, "Master commit not found")
+    self.assertEqual(len(result), 1, "Main commit not found")
     self.assertTrue(
         result.get(hash_of_first_commit),
-        "Master commit is wrong")
+        "Main commit is wrong")
 
     self.assertEqual(
         len(result[hash_of_first_commit]),
@@ -124,7 +124,7 @@ class TestMergeInfo(unittest.TestCase):
 
   def testSearchMerges(self):
     self._execute_git(['branch', 'test'])
-    self._execute_git(['checkout', 'master'])
+    self._execute_git(['checkout', 'main'])
     message = 'real initial commit'
     self._make_empty_commit(message)
     commits = self._get_commits()
@@ -142,7 +142,7 @@ class TestMergeInfo(unittest.TestCase):
     message = 'Cr-Branched-From: '  + hash_of_first_commit
     hash_of_ignored = self._make_empty_commit(message)
 
-    self._execute_git(['checkout', 'master'])
+    self._execute_git(['checkout', 'main'])
 
     followups = mergeinfo.get_followup_commits(
         self.base_dir,

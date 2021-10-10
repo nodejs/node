@@ -154,6 +154,11 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
       const MapRef& map, InternalIndex descriptor,
       const ObjectRef& /* Contains a FieldType underneath. */ type) const;
 
+#ifdef DEBUG
+  static bool IsFieldRepresentationDependencyOnMap(
+      const CompilationDependency* dep, const Handle<Map>& receiver_map);
+#endif  // DEBUG
+
  private:
   Zone* const zone_;
   JSHeapBroker* const broker_;

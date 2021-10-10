@@ -7,7 +7,8 @@
 #include <memory>
 #include <vector>
 
-#include "include/v8.h"
+#include "include/v8-callbacks.h"
+#include "include/v8-primitive.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"

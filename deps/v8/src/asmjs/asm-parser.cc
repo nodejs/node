@@ -698,7 +698,8 @@ void AsmJsParser::ValidateFunctionTable() {
         FAIL("Function table definition doesn't match use");
       }
       module_builder_->SetIndirectFunction(
-          static_cast<uint32_t>(table_info->index + count), info->index);
+          0, static_cast<uint32_t>(table_info->index + count), info->index,
+          WasmModuleBuilder::WasmElemSegment::kRelativeToDeclaredFunctions);
     }
     ++count;
     if (Check(',')) {
@@ -2134,7 +2135,10 @@ AsmType* AsmJsParser::ValidateCall() {
     EXPECT_TOKENn(']');
     VarInfo* function_info = GetVarInfo(function_name);
     if (function_info->kind == VarKind::kUnused) {
-      uint32_t index = module_builder_->AllocateIndirectFunctions(mask + 1);
+      if (module_builder_->NumTables() == 0) {
+        module_builder_->AddTable(kWasmFuncRef, 0);
+      }
+      uint32_t index = module_builder_->IncreaseTableMinSize(0, mask + 1);
       if (index == std::numeric_limits<uint32_t>::max()) {
         FAILn("Exceeded maximum function table size");
       }

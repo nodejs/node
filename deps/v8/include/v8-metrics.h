@@ -5,10 +5,19 @@
 #ifndef V8_METRICS_H_
 #define V8_METRICS_H_
 
-#include "v8-internal.h"  // NOLINT(build/include_directory)
-#include "v8.h"           // NOLINT(build/include_directory)
+#include <stddef.h>
+#include <stdint.h>
+
+#include <vector>
+
+#include "v8-internal.h"      // NOLINT(build/include_directory)
+#include "v8-local-handle.h"  // NOLINT(build/include_directory)
 
 namespace v8 {
+
+class Context;
+class Isolate;
+
 namespace metrics {
 
 struct GarbageCollectionPhases {

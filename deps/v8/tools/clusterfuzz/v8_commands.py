@@ -110,8 +110,7 @@ class Output(object):
     self.pid = pid
 
   def HasCrashed(self):
-    return (self.exit_code < 0 and
-            self.exit_code != -signal.SIGABRT)
+    return self.exit_code < 0
 
 
 def Execute(args, cwd, timeout=None):

@@ -26,7 +26,7 @@ struct WeakListVisitor;
 
 template <class T>
 Object VisitWeakList(Heap* heap, Object list, WeakObjectRetainer* retainer) {
-  Object undefined = ReadOnlyRoots(heap).undefined_value();
+  HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
   Object head = undefined;
   T tail;
   bool record_slots = MustRecordSlots(heap);
@@ -47,7 +47,7 @@ Object VisitWeakList(Heap* heap, Object list, WeakObjectRetainer* retainer) {
       } else {
         // Subsequent elements in the list.
         DCHECK(!tail.is_null());
-        WeakListVisitor<T>::SetWeakNext(tail, retained);
+        WeakListVisitor<T>::SetWeakNext(tail, HeapObject::cast(retained));
         if (record_slots) {
           HeapObject slot_holder = WeakListVisitor<T>::WeakNextHolder(tail);
           int slot_offset = WeakListVisitor<T>::WeakNextOffset();
@@ -187,7 +187,7 @@ struct WeakListVisitor<AllocationSite> {
 
 template <>
 struct WeakListVisitor<JSFinalizationRegistry> {
-  static void SetWeakNext(JSFinalizationRegistry obj, Object next) {
+  static void SetWeakNext(JSFinalizationRegistry obj, HeapObject next) {
     obj.set_next_dirty(next, UPDATE_WEAK_WRITE_BARRIER);
   }
 

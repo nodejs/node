@@ -311,6 +311,8 @@ class V8_BASE_EXPORT OS {
   V8_WARN_UNUSED_RESULT static bool DiscardSystemPages(void* address,
                                                        size_t size);
 
+  V8_WARN_UNUSED_RESULT static bool DecommitPages(void* address, size_t size);
+
   static const int msPerSecond = 1000;
 
 #if V8_OS_POSIX

@@ -41,7 +41,7 @@ declare_args() {
   v8_enable_future = false
 
   # Sets -DSYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
-  v8_enable_system_instrumentation = is_win || is_mac
+  v8_enable_system_instrumentation = (is_win || is_mac) && !v8_use_perfetto
 
   # Sets the GUID for the ETW provider
   v8_etw_guid = ""
@@ -228,11 +228,6 @@ declare_args() {
                       (is_linux || is_chromeos || is_mac)) ||
                      (v8_current_cpu == "ppc64" && (is_linux || is_chromeos))
 
-  # Enable mitigations for executing untrusted code.
-  # Disabled by default on ia32 due to conflicting requirements with embedded
-  # builtins.
-  v8_untrusted_code_mitigations = false
-
   # Enable minor mark compact.
   v8_enable_minor_mc = true
 
@@ -291,15 +286,19 @@ declare_args() {
   cppgc_enable_object_names = false
 
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
-  cppgc_enable_caged_heap = v8_current_cpu == "x64" || v8_current_cpu == "arm64"
+  cppgc_enable_caged_heap =
+      v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
+      v8_current_cpu == "loong64"
 
-  # Enable verification of live bytes in the marking verifier.
-  # TODO(v8:11785): Enable by default when running with the verifier.
-  cppgc_enable_verify_live_bytes = false
+  # Enables additional heap verification phases and checks.
+  cppgc_enable_verify_heap = ""
 
   # Enable assignment checks for Members/Persistents during prefinalizer invocations.
   # TODO(v8:11749): Enable by default after fixing any existing issues in Blink.
   cppgc_enable_check_assignments_in_prefinalizers = false
+
+  # Enable allocations during prefinalizer invocations.
+  cppgc_allow_allocations_in_prefinalizers = false
 
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
@@ -311,6 +310,11 @@ declare_args() {
   # Enable V8 heap sandbox experimental feature.
   # Sets -DV8_HEAP_SANDBOX.
   v8_enable_heap_sandbox = ""
+
+  # Enable the Virtual Memory Cage, which contains the pointer compression cage
+  # as well as ArrayBuffer BackingStores and WASM memory cages.
+  # Sets -DV8_VIRTUAL_MEMORY_CAGE.
+  v8_enable_virtual_memory_cage = ""
 
   # Experimental feature for collecting per-class zone memory stats.
   # Requires use_rtti = true
@@ -342,9 +346,18 @@ declare_args() {
 
   # Enable global allocation site tracking.
   v8_allocation_site_tracking = true
+
+  # If enabled, the receiver is always included in the actual and formal
+  # parameter count of function with JS linkage.
+  # TODO(v8:11112): Remove once all architectures support the flag and it is
+  # enabled unconditionally.
+  v8_include_receiver_in_argc = false
 }
 
 # Derived defaults.
+if (cppgc_enable_verify_heap == "") {
+  cppgc_enable_verify_heap = v8_enable_debugging_features || dcheck_always_on
+}
 if (v8_enable_verify_heap == "") {
   v8_enable_verify_heap = v8_enable_debugging_features
 }
@@ -391,6 +404,9 @@ if (v8_enable_zone_compression == "") {
 }
 if (v8_enable_heap_sandbox == "") {
   v8_enable_heap_sandbox = false
+}
+if (v8_enable_virtual_memory_cage == "") {
+  v8_enable_virtual_memory_cage = v8_enable_heap_sandbox
 }
 if (v8_enable_short_builtin_calls == "") {
   v8_enable_short_builtin_calls =
@@ -461,9 +477,6 @@ if (build_with_chromium && v8_current_cpu == "arm64" &&
 assert(!v8_disable_write_barriers || v8_enable_single_generation,
        "Disabling write barriers works only with single generation")
 
-assert(v8_current_cpu != "x86" || !v8_untrusted_code_mitigations,
-       "Untrusted code mitigations are unsupported on ia32")
-
 assert(v8_current_cpu == "arm64" || !v8_control_flow_integrity,
        "Control-flow integrity is only supported on arm64")
 
@@ -480,14 +493,21 @@ assert(!v8_enable_map_packing || !v8_enable_pointer_compression,
 assert(!v8_enable_map_packing || v8_current_cpu == "x64",
        "Map packing is only supported on x64")
 
-assert(!v8_use_multi_snapshots || !v8_control_flow_integrity,
-       "Control-flow integrity does not support multisnapshots")
-
 assert(!v8_enable_heap_sandbox || v8_enable_pointer_compression,
        "V8 Heap Sandbox requires pointer compression")
 
 assert(!v8_enable_heap_sandbox || !v8_enable_external_code_space,
        "V8 Heap Sandbox is not compatible with external code space YET")
+
+assert(!v8_enable_heap_sandbox || v8_enable_virtual_memory_cage,
+       "The Heap Sandbox requires the virtual memory cage")
+
+assert(
+    !v8_enable_virtual_memory_cage || v8_enable_pointer_compression_shared_cage,
+    "V8 VirtualMemoryCage requires the shared pointer compression cage")
+
+assert(!v8_enable_virtual_memory_cage || !is_lsan,
+       "V8 VirtualMemoryCage is currently incompatible with Leak Sanitizer")
 
 assert(
     !v8_enable_pointer_compression_shared_cage || v8_enable_pointer_compression,
@@ -502,7 +522,7 @@ assert(!v8_enable_unconditional_write_barriers || !v8_disable_write_barriers,
        "Write barriers can't be both enabled and disabled")
 
 assert(!cppgc_enable_caged_heap || v8_current_cpu == "x64" ||
-           v8_current_cpu == "arm64",
+           v8_current_cpu == "arm64" || v8_current_cpu == "loong64",
        "CppGC caged heap requires 64bit platforms")
 
 assert(!cppgc_enable_young_generation || cppgc_enable_caged_heap,
@@ -650,6 +670,7 @@ external_v8_defines = [
   "V8_31BIT_SMIS_ON_64BIT_ARCH",
   "V8_COMPRESS_ZONES",
   "V8_HEAP_SANDBOX",
+  "V8_VIRTUAL_MEMORY_CAGE",
   "V8_DEPRECATION_WARNINGS",
   "V8_IMMINENT_DEPRECATION_WARNINGS",
   "V8_NO_ARGUMENTS_ADAPTOR",
@@ -679,6 +700,9 @@ if (v8_enable_zone_compression) {
 }
 if (v8_enable_heap_sandbox) {
   enabled_external_v8_defines += [ "V8_HEAP_SANDBOX" ]
+}
+if (v8_enable_virtual_memory_cage) {
+  enabled_external_v8_defines += [ "V8_VIRTUAL_MEMORY_CAGE" ]
 }
 if (v8_deprecation_warnings) {
   enabled_external_v8_defines += [ "V8_DEPRECATION_WARNINGS" ]
@@ -761,12 +785,16 @@ config("features") {
     ":cppgc_header_features",
   ]
 
-  if (cppgc_enable_verify_live_bytes) {
-    defines += [ "CPPGC_VERIFY_LIVE_BYTES" ]
+  if (cppgc_enable_verify_heap) {
+    defines += [ "CPPGC_VERIFY_HEAP" ]
   }
 
   if (cppgc_enable_check_assignments_in_prefinalizers) {
     defines += [ "CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS" ]
+  }
+
+  if (cppgc_allow_allocations_in_prefinalizers) {
+    defines += [ "CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS" ]
   }
 
   if (v8_embedder_string != "") {
@@ -872,9 +900,6 @@ config("features") {
   if (v8_enable_lazy_source_positions) {
     defines += [ "V8_ENABLE_LAZY_SOURCE_POSITIONS" ]
   }
-  if (v8_use_multi_snapshots) {
-    defines += [ "V8_MULTI_SNAPSHOTS" ]
-  }
   if (v8_use_siphash) {
     defines += [ "V8_USE_SIPHASH" ]
   }
@@ -934,6 +959,9 @@ config("features") {
   }
   if (v8_advanced_bigint_algorithms) {
     defines += [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]
+  }
+  if (v8_include_receiver_in_argc) {
+    defines += [ "V8_INCLUDE_RECEIVER_IN_ARGC" ]
   }
 }
 
@@ -1057,6 +1085,15 @@ config("toolchain") {
       defines += [ "_MIPS_ARCH_MIPS64R2" ]
     }
   }
+
+  # loong64 simulators.
+  if (target_is_simulator && v8_current_cpu == "loong64") {
+    defines += [ "_LOONG64_TARGET_SIMULATOR" ]
+  }
+  if (v8_current_cpu == "loong64") {
+    defines += [ "V8_TARGET_ARCH_LOONG64" ]
+  }
+
   if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     defines += [ "V8_TARGET_ARCH_S390" ]
     cflags += [ "-ffp-contract=off" ]
@@ -1168,10 +1205,6 @@ config("toolchain") {
 
   if (v8_enable_runtime_call_stats) {
     defines += [ "V8_RUNTIME_CALL_STATS" ]
-  }
-
-  if (!v8_untrusted_code_mitigations) {
-    defines += [ "DISABLE_UNTRUSTED_CODE_MITIGATIONS" ]
   }
 
   if (v8_no_inline) {
@@ -1309,8 +1342,6 @@ template("asm_to_inline_asm") {
 if (is_android && enable_java_templates) {
   android_assets("v8_external_startup_data_assets") {
     if (v8_use_external_startup_data) {
-      # We don't support side-by-side snapshots on Android within Chromium.
-      assert(!v8_use_multi_snapshots)
       deps = [ "//v8" ]
       renaming_sources = [ "$root_out_dir/snapshot_blob.bin" ]
       if (current_cpu == "arm" || current_cpu == "x86" ||
@@ -1987,17 +2018,6 @@ if (emit_builtins_as_inline_asm) {
     args = []
   }
 }
-if (v8_use_multi_snapshots) {
-  run_mksnapshot("trusted") {
-    args = [ "--no-untrusted-code-mitigations" ]
-    embedded_variant = "Trusted"
-  }
-  if (emit_builtins_as_inline_asm) {
-    asm_to_inline_asm("trusted") {
-      args = []
-    }
-  }
-}
 
 action("v8_dump_build_config") {
   script = "tools/testrunner/utils/dump_build_config.py"
@@ -2034,6 +2054,7 @@ action("v8_dump_build_config") {
     "v8_enable_pointer_compression=$v8_enable_pointer_compression",
     "v8_enable_pointer_compression_shared_cage=" +
         "$v8_enable_pointer_compression_shared_cage",
+    "v8_enable_virtual_memory_cage=$v8_enable_virtual_memory_cage",
     "v8_enable_third_party_heap=$v8_enable_third_party_heap",
     "v8_enable_webassembly=$v8_enable_webassembly",
     "v8_control_flow_integrity=$v8_control_flow_integrity",
@@ -2086,16 +2107,6 @@ v8_source_set("v8_snapshot") {
     deps += [ ":v8_base" ]
 
     sources += [ "src/snapshot/snapshot-external.cc" ]
-
-    if (v8_use_multi_snapshots) {
-      public_deps += [ ":run_mksnapshot_trusted" ]
-      if (emit_builtins_as_inline_asm) {
-        deps += [ ":asm_to_inline_asm_trusted" ]
-        sources += [ "$target_gen_dir/embedded_trusted.cc" ]
-      } else {
-        sources += [ "$target_gen_dir/embedded_trusted.S" ]
-      }
-    }
   } else {
     # Also top-level visibility targets can depend on this.
     visibility += [ "//:gn_visibility" ]
@@ -2230,6 +2241,11 @@ v8_source_set("v8_initializers") {
       ### gcmole(arch:mips64el) ###
       "src/builtins/mips64/builtins-mips64.cc",
     ]
+  } else if (v8_current_cpu == "loong64") {
+    sources += [
+      ### gcmole(arch:loong64) ###
+      "src/builtins/loong64/builtins-loong64.cc",
+    ]
   } else if (v8_current_cpu == "ppc") {
     sources += [
       ### gcmole(arch:ppc) ###
@@ -2313,11 +2329,53 @@ v8_header_set("v8_headers") {
   public_configs = [ ":headers_config" ]
 
   sources = [
+    "include/v8-array-buffer.h",
+    "include/v8-callbacks.h",
+    "include/v8-container.h",
+    "include/v8-context.h",
     "include/v8-cppgc.h",
+    "include/v8-data.h",
+    "include/v8-date.h",
+    "include/v8-debug.h",
+    "include/v8-embedder-heap.h",
+    "include/v8-exception.h",
+    "include/v8-extension.h",
+    "include/v8-external.h",
     "include/v8-fast-api-calls.h",
+    "include/v8-forward.h",
+    "include/v8-function-callback.h",
+    "include/v8-function.h",
+    "include/v8-initialization.h",
     "include/v8-internal.h",
+    "include/v8-isolate.h",
+    "include/v8-json.h",
+    "include/v8-local-handle.h",
+    "include/v8-locker.h",
+    "include/v8-maybe.h",
+    "include/v8-memory-span.h",
+    "include/v8-message.h",
+    "include/v8-microtask-queue.h",
+    "include/v8-microtask.h",
+    "include/v8-object.h",
+    "include/v8-persistent-handle.h",
+    "include/v8-primitive-object.h",
+    "include/v8-primitive.h",
     "include/v8-profiler.h",
+    "include/v8-promise.h",
+    "include/v8-proxy.h",
+    "include/v8-regexp.h",
+    "include/v8-script.h",
+    "include/v8-snapshot.h",
+    "include/v8-statistics.h",
+    "include/v8-template.h",
+    "include/v8-traced-handle.h",
+    "include/v8-typed-array.h",
+    "include/v8-unwinder.h",
     "include/v8-util.h",
+    "include/v8-value-serializer.h",
+    "include/v8-value.h",
+    "include/v8-wasm.h",
+    "include/v8-weak-callback-info.h",
     "include/v8.h",
   ]
 
@@ -2450,6 +2508,7 @@ v8_header_set("v8_internal_headers") {
     "src/codegen/assembler-arch.h",
     "src/codegen/assembler-inl.h",
     "src/codegen/assembler.h",
+    "src/codegen/atomic-memory-order.h",
     "src/codegen/bailout-reason.h",
     "src/codegen/callable.h",
     "src/codegen/code-comments.h",
@@ -2532,7 +2591,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/common-operator-reducer.h",
     "src/compiler/common-operator.h",
     "src/compiler/compilation-dependencies.h",
-    "src/compiler/compilation-dependency.h",
     "src/compiler/compiler-source-position-table.h",
     "src/compiler/constant-folding-reducer.h",
     "src/compiler/control-equivalence.h",
@@ -2775,6 +2833,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/paged-spaces.h",
     "src/heap/parallel-work-item.h",
     "src/heap/parked-scope.h",
+    "src/heap/progress-bar.h",
     "src/heap/read-only-heap-inl.h",
     "src/heap/read-only-heap.h",
     "src/heap/read-only-spaces.h",
@@ -2806,6 +2865,7 @@ v8_header_set("v8_internal_headers") {
     "src/init/setup-isolate.h",
     "src/init/startup-data-util.h",
     "src/init/v8.h",
+    "src/init/vm-cage.h",
     "src/interpreter/block-coverage-builder.h",
     "src/interpreter/bytecode-array-builder.h",
     "src/interpreter/bytecode-array-iterator.h",
@@ -3088,6 +3148,7 @@ v8_header_set("v8_internal_headers") {
     "src/regexp/regexp-compiler.h",
     "src/regexp/regexp-dotprinter.h",
     "src/regexp/regexp-error.h",
+    "src/regexp/regexp-flags.h",
     "src/regexp/regexp-interpreter.h",
     "src/regexp/regexp-macro-assembler-arch.h",
     "src/regexp/regexp-macro-assembler-tracer.h",
@@ -3188,6 +3249,7 @@ v8_header_set("v8_internal_headers") {
       "src/asmjs/asm-types.h",
       "src/compiler/int64-lowering.h",
       "src/compiler/wasm-compiler.h",
+      "src/compiler/wasm-inlining.h",
       "src/debug/debug-wasm-objects-inl.h",
       "src/debug/debug-wasm-objects.h",
       "src/trap-handler/trap-handler-internal.h",
@@ -3442,6 +3504,21 @@ v8_header_set("v8_internal_headers") {
       "src/regexp/mips64/regexp-macro-assembler-mips64.h",
       "src/wasm/baseline/mips64/liftoff-assembler-mips64.h",
     ]
+  } else if (v8_current_cpu == "loong64") {
+    sources += [  ### gcmole(arch:loong64) ###
+      "src/baseline/loong64/baseline-assembler-loong64-inl.h",
+      "src/baseline/loong64/baseline-compiler-loong64-inl.h",
+      "src/codegen/loong64/assembler-loong64-inl.h",
+      "src/codegen/loong64/assembler-loong64.h",
+      "src/codegen/loong64/constants-loong64.h",
+      "src/codegen/loong64/macro-assembler-loong64.h",
+      "src/codegen/loong64/register-loong64.h",
+      "src/compiler/backend/loong64/instruction-codes-loong64.h",
+      "src/execution/loong64/frame-constants-loong64.h",
+      "src/execution/loong64/simulator-loong64.h",
+      "src/regexp/loong64/regexp-macro-assembler-loong64.h",
+      "src/wasm/baseline/loong64/liftoff-assembler-loong64.h",
+    ]
   } else if (v8_current_cpu == "ppc") {
     sources += [  ### gcmole(arch:ppc) ###
       "src/codegen/ppc/assembler-ppc-inl.h",
@@ -3639,6 +3716,7 @@ if (v8_enable_webassembly) {
   v8_compiler_sources += [
     "src/compiler/int64-lowering.cc",
     "src/compiler/wasm-compiler.cc",
+    "src/compiler/wasm-inlining.cc",
   ]
 }
 
@@ -3923,6 +4001,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/init/isolate-allocator.cc",
     "src/init/startup-data-util.cc",
     "src/init/v8.cc",
+    "src/init/vm-cage.cc",
     "src/interpreter/bytecode-array-builder.cc",
     "src/interpreter/bytecode-array-iterator.cc",
     "src/interpreter/bytecode-array-random-iterator.cc",
@@ -4359,6 +4438,23 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/mips64/simulator-mips64.cc",
       "src/regexp/mips64/regexp-macro-assembler-mips64.cc",
     ]
+  } else if (v8_current_cpu == "loong64") {
+    sources += [  ### gcmole(arch:loong64) ###
+      "src/codegen/loong64/assembler-loong64.cc",
+      "src/codegen/loong64/constants-loong64.cc",
+      "src/codegen/loong64/cpu-loong64.cc",
+      "src/codegen/loong64/interface-descriptors-loong64-inl.h",
+      "src/codegen/loong64/macro-assembler-loong64.cc",
+      "src/compiler/backend/loong64/code-generator-loong64.cc",
+      "src/compiler/backend/loong64/instruction-scheduler-loong64.cc",
+      "src/compiler/backend/loong64/instruction-selector-loong64.cc",
+      "src/deoptimizer/loong64/deoptimizer-loong64.cc",
+      "src/diagnostics/loong64/disasm-loong64.cc",
+      "src/diagnostics/loong64/unwinder-loong64.cc",
+      "src/execution/loong64/frame-constants-loong64.cc",
+      "src/execution/loong64/simulator-loong64.cc",
+      "src/regexp/loong64/regexp-macro-assembler-loong64.cc",
+    ]
   } else if (v8_current_cpu == "ppc") {
     sources += [  ### gcmole(arch:ppc) ###
       "src/codegen/ppc/assembler-ppc.cc",
@@ -4757,6 +4853,7 @@ v8_component("v8_libbase") {
     "src/base/sanitizer/lsan-page-allocator.h",
     "src/base/sanitizer/lsan.h",
     "src/base/sanitizer/msan.h",
+    "src/base/sanitizer/tsan.h",
     "src/base/small-vector.h",
     "src/base/strings.cc",
     "src/base/strings.h",
@@ -5060,6 +5157,8 @@ v8_source_set("v8_cppgc_shared") {
       sources += [ "src/heap/base/asm/mips/push_registers_asm.cc" ]
     } else if (current_cpu == "mips64el") {
       sources += [ "src/heap/base/asm/mips64/push_registers_asm.cc" ]
+    } else if (current_cpu == "loong64") {
+      sources += [ "src/heap/base/asm/loong64/push_registers_asm.cc" ]
     } else if (current_cpu == "riscv64") {
       sources += [ "src/heap/base/asm/riscv64/push_registers_asm.cc" ]
     }
@@ -5093,6 +5192,7 @@ v8_header_set("cppgc_headers") {
   sources = [
     "include/cppgc/allocation.h",
     "include/cppgc/common.h",
+    "include/cppgc/cross-thread-persistent.h",
     "include/cppgc/custom-space.h",
     "include/cppgc/default-platform.h",
     "include/cppgc/ephemeron-pair.h",
@@ -5211,6 +5311,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/page-memory.h",
     "src/heap/cppgc/persistent-node.cc",
     "src/heap/cppgc/platform.cc",
+    "src/heap/cppgc/platform.h",
     "src/heap/cppgc/pointer-policies.cc",
     "src/heap/cppgc/prefinalizer-handler.cc",
     "src/heap/cppgc/prefinalizer-handler.h",
@@ -5285,10 +5386,12 @@ if (v8_check_header_includes) {
       ":torque_ls_base",
       ":v8_base_without_compiler",
       ":v8_bigint",
+      ":v8_headers",
       ":v8_initializers",
       ":v8_internal_headers",
       ":v8_libbase",
       ":v8_maybe_icu",
+      ":v8_version",
       ":wee8",
       "src/inspector:inspector",
       "src/inspector:inspector_string_conversions",
@@ -5854,8 +5957,8 @@ if (want_v8_shell) {
   }
 }
 
-v8_executable("cppgc_sample") {
-  sources = [ "samples/cppgc/cppgc-sample.cc" ]
+v8_executable("cppgc_hello_world") {
+  sources = [ "samples/cppgc/hello-world.cc" ]
 
   if (v8_current_cpu == "riscv64") {
     libs = [ "atomic" ]

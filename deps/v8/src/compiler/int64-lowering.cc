@@ -944,29 +944,31 @@ void Int64Lowering::LowerNode(Node* node) {
     }
     case IrOpcode::kWord64AtomicLoad: {
       DCHECK_EQ(4, node->InputCount());
-      MachineType type = AtomicOpType(node->op());
+      AtomicLoadParameters params = AtomicLoadParametersOf(node->op());
       DefaultLowering(node, true);
-      if (type == MachineType::Uint64()) {
-        NodeProperties::ChangeOp(node, machine()->Word32AtomicPairLoad());
+      if (params.representation() == MachineType::Uint64()) {
+        NodeProperties::ChangeOp(
+            node, machine()->Word32AtomicPairLoad(params.order()));
         ReplaceNodeWithProjections(node);
       } else {
-        NodeProperties::ChangeOp(node, machine()->Word32AtomicLoad(type));
+        NodeProperties::ChangeOp(node, machine()->Word32AtomicLoad(params));
         ReplaceNode(node, node, graph()->NewNode(common()->Int32Constant(0)));
       }
       break;
     }
     case IrOpcode::kWord64AtomicStore: {
       DCHECK_EQ(5, node->InputCount());
-      MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
-      if (rep == MachineRepresentation::kWord64) {
+      AtomicStoreParameters params = AtomicStoreParametersOf(node->op());
+      if (params.representation() == MachineRepresentation::kWord64) {
         LowerMemoryBaseAndIndex(node);
         Node* value = node->InputAt(2);
         node->ReplaceInput(2, GetReplacementLow(value));
         node->InsertInput(zone(), 3, GetReplacementHigh(value));
-        NodeProperties::ChangeOp(node, machine()->Word32AtomicPairStore());
+        NodeProperties::ChangeOp(
+            node, machine()->Word32AtomicPairStore(params.order()));
       } else {
         DefaultLowering(node, true);
-        NodeProperties::ChangeOp(node, machine()->Word32AtomicStore(rep));
+        NodeProperties::ChangeOp(node, machine()->Word32AtomicStore(params));
       }
       break;
     }

@@ -84,7 +84,7 @@ void* ZipOpenFunc(void* opaque, const void* filename, int mode) {
 }
 #endif
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 // Callback function for zlib that opens a file stream from a file descriptor.
 // Since we do not own the file descriptor, dup it so that we can fdopen/fclose
 // a file stream.
@@ -286,7 +286,7 @@ unzFile OpenForUnzipping(const std::string& file_name_utf8) {
   return unzOpen2_64(file_name_utf8.c_str(), zip_func_ptrs);
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 unzFile OpenFdForUnzipping(int zip_fd) {
   zlib_filefunc64_def zip_funcs;
   FillFdOpenFileFunc(&zip_funcs, zip_fd);

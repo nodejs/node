@@ -30,25 +30,25 @@ def describe_commit(git_working_dir, hash_to_search, one_line=False):
 
 def get_followup_commits(git_working_dir, hash_to_search):
   cmd = ['log', '--grep=' + hash_to_search, GIT_OPTION_HASH_ONLY,
-         'remotes/origin/master'];
+         'remotes/origin/main'];
   return git_execute(git_working_dir, cmd).strip().splitlines()
 
 def get_merge_commits(git_working_dir, hash_to_search):
-  merges = get_related_commits_not_on_master(git_working_dir, hash_to_search)
-  false_merges = get_related_commits_not_on_master(
+  merges = get_related_commits_not_on_main(git_working_dir, hash_to_search)
+  false_merges = get_related_commits_not_on_main(
     git_working_dir, 'Cr-Branched-From: ' + hash_to_search)
   false_merges = set(false_merges)
   return ([merge_commit for merge_commit in merges
       if merge_commit not in false_merges])
 
-def get_related_commits_not_on_master(git_working_dir, grep_command):
+def get_related_commits_not_on_main(git_working_dir, grep_command):
   commits = git_execute(git_working_dir, ['log',
                                           '--all',
                                           '--grep=' + grep_command,
                                           GIT_OPTION_ONELINE,
                                           '--decorate',
                                           '--not',
-                                          'remotes/origin/master',
+                                          'remotes/origin/main',
                                           GIT_OPTION_HASH_ONLY])
   return commits.splitlines()
 

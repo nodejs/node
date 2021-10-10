@@ -12,6 +12,7 @@
 
 #include <memory>
 
+#include "include/v8-local-handle.h"
 #include "src/base/optional.h"
 #include "src/common/message-template.h"
 #include "src/handles/handles.h"

@@ -32,12 +32,16 @@
 
 #include <memory>
 
+#include "include/v8-local-handle.h"
+#include "include/v8-maybe.h"
 #include "src/base/macros.h"
+#include "src/debug/debug-interface.h"
 #include "src/inspector/string-16.h"
 #include "src/inspector/string-util.h"
 
-#include "include/v8.h"
-#include "src/debug/debug-interface.h"
+namespace v8 {
+class Isolate;
+}
 
 namespace v8_inspector {
 

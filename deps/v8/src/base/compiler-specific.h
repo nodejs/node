@@ -7,13 +7,15 @@
 
 #include "include/v8config.h"
 
-// Annotate a  using ALLOW_UNUSED_TYPE = or function indicating it's ok if it's
-// not used. Use like:
-//    using Bar = Foo;
+// Annotation to silence compiler warnings about unused
+// types/functions/variables. Use like:
+//
+//   using V8_ALLOW_UNUSED Bar = Foo;
+//   V8_ALLOW_UNUSED void foo() {}
 #if V8_HAS_ATTRIBUTE_UNUSED
-#define ALLOW_UNUSED_TYPE __attribute__((unused))
+#define V8_ALLOW_UNUSED __attribute__((unused))
 #else
-#define ALLOW_UNUSED_TYPE
+#define V8_ALLOW_UNUSED
 #endif
 
 // Tell the compiler a function is using a printf-style format string.

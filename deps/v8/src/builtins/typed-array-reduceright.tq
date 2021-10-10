@@ -8,6 +8,7 @@ namespace typed_array {
 const kBuiltinNameReduceRight: constexpr string =
     '%TypedArray%.prototype.reduceRight';
 
+// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduceright
 transitioning macro ReduceRightAllElements(implicit context: Context)(
     array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
     initialValue: JSAny|TheHole): JSAny {
@@ -15,9 +16,14 @@ transitioning macro ReduceRightAllElements(implicit context: Context)(
   const length: uintptr = witness.Get().length;
   let accumulator = initialValue;
   for (let k: uintptr = length; k-- > 0;) {
-    // BUG(4895): We should throw on detached buffers rather than simply exit.
-    witness.Recheck() otherwise break;
-    const value: JSAny = witness.Load(k);
+    let value: JSAny;
+    try {
+      witness.Recheck()
+          otherwise goto IsDetached;
+      value = witness.Load(k);
+    } label IsDetached deferred {
+      value = Undefined;
+    }
     typeswitch (accumulator) {
       case (TheHole): {
         accumulator = value;

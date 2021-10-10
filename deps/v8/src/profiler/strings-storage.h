@@ -47,6 +47,9 @@ class V8_EXPORT_PRIVATE StringsStorage {
   // Returns the number of strings in the store.
   size_t GetStringCountForTesting() const;
 
+  // Returns the size of strings in the store
+  size_t GetStringSize();
+
   // Returns true if the strings table is empty.
   bool empty() const { return names_.occupancy() == 0; }
 
@@ -62,6 +65,7 @@ class V8_EXPORT_PRIVATE StringsStorage {
 
   base::CustomMatcherHashMap names_;
   base::Mutex mutex_;
+  size_t string_size_ = 0;
 };
 
 }  // namespace internal

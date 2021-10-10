@@ -4,6 +4,7 @@
 
 #include "src/extensions/trigger-failure-extension.h"
 
+#include "include/v8-template.h"
 #include "src/base/logging.h"
 #include "src/common/checks.h"
 

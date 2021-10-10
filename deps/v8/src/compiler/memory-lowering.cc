@@ -60,7 +60,6 @@ class MemoryLowering::AllocationGroup final : public ZoneObject {
 
 MemoryLowering::MemoryLowering(JSGraph* jsgraph, Zone* zone,
                                JSGraphAssembler* graph_assembler,
-                               PoisoningMitigationLevel poisoning_level,
                                AllocationFolding allocation_folding,
                                WriteBarrierAssertFailedCallback callback,
                                const char* function_debug_name)
@@ -71,7 +70,6 @@ MemoryLowering::MemoryLowering(JSGraph* jsgraph, Zone* zone,
       machine_(jsgraph->machine()),
       graph_assembler_(graph_assembler),
       allocation_folding_(allocation_folding),
-      poisoning_level_(poisoning_level),
       write_barrier_assert_failed_(callback),
       function_debug_name_(function_debug_name) {}
 
@@ -401,11 +399,7 @@ Reduction MemoryLowering::ReduceLoadElement(Node* node) {
   node->ReplaceInput(1, ComputeIndex(access, index));
   MachineType type = access.machine_type;
   DCHECK(!type.IsMapWord());
-  if (NeedsPoisoning(access.load_sensitivity)) {
-    NodeProperties::ChangeOp(node, machine()->PoisonedLoad(type));
-  } else {
-    NodeProperties::ChangeOp(node, machine()->Load(type));
-  }
+  NodeProperties::ChangeOp(node, machine()->Load(type));
   return Changed(node);
 }
 
@@ -413,8 +407,7 @@ Node* MemoryLowering::DecodeExternalPointer(
     Node* node, ExternalPointerTag external_pointer_tag) {
 #ifdef V8_HEAP_SANDBOX
   DCHECK(V8_HEAP_SANDBOX_BOOL);
-  DCHECK(node->opcode() == IrOpcode::kLoad ||
-         node->opcode() == IrOpcode::kPoisonedLoad);
+  DCHECK(node->opcode() == IrOpcode::kLoad);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   __ InitializeEffectControl(effect, control);
@@ -476,16 +469,11 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
   }
 
   if (type.IsMapWord()) {
-    DCHECK(!NeedsPoisoning(access.load_sensitivity));
     DCHECK(!access.type.Is(Type::SandboxedExternalPointer()));
     return ReduceLoadMap(node);
   }
 
-  if (NeedsPoisoning(access.load_sensitivity)) {
-    NodeProperties::ChangeOp(node, machine()->PoisonedLoad(type));
-  } else {
-    NodeProperties::ChangeOp(node, machine()->Load(type));
-  }
+  NodeProperties::ChangeOp(node, machine()->Load(type));
 
   if (V8_HEAP_SANDBOX_BOOL &&
       access.type.Is(Type::SandboxedExternalPointer())) {
@@ -653,21 +641,6 @@ WriteBarrierKind MemoryLowering::ComputeWriteBarrierKind(
     write_barrier_assert_failed_(node, object, function_debug_name_, zone());
   }
   return write_barrier_kind;
-}
-
-bool MemoryLowering::NeedsPoisoning(LoadSensitivity load_sensitivity) const {
-  // Safe loads do not need poisoning.
-  if (load_sensitivity == LoadSensitivity::kSafe) return false;
-
-  switch (poisoning_level_) {
-    case PoisoningMitigationLevel::kDontPoison:
-      return false;
-    case PoisoningMitigationLevel::kPoisonAll:
-      return true;
-    case PoisoningMitigationLevel::kPoisonCriticalOnly:
-      return load_sensitivity == LoadSensitivity::kCritical;
-  }
-  UNREACHABLE();
 }
 
 MemoryLowering::AllocationGroup::AllocationGroup(Node* node,

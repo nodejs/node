@@ -30,11 +30,6 @@
 
 #define OBJECT_CONSTRUCTORS_IMPL(Type, Super) \
   inline Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Type()); }
-// In these cases, we don't have our own instance type to check, so check the
-// supertype instead. This happens for types denoting a NativeContext-dependent
-// set of maps.
-#define OBJECT_CONSTRUCTORS_IMPL_CHECK_SUPER(Type, Super) \
-  inline Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Super()); }
 
 #define NEVER_READ_ONLY_SPACE   \
   inline Heap* GetHeap() const; \
@@ -162,15 +157,6 @@
 #define INT32_ACCESSORS(holder, name, offset)                         \
   int32_t holder::name() const { return ReadField<int32_t>(offset); } \
   void holder::set_##name(int32_t value) { WriteField<int32_t>(offset, value); }
-
-// TODO(solanes): Use the non-implicit one, and change the uses to use the tag.
-#define IMPLICIT_TAG_RELAXED_INT32_ACCESSORS(holder, name, offset) \
-  int32_t holder::name() const {                                   \
-    return RELAXED_READ_INT32_FIELD(*this, offset);                \
-  }                                                                \
-  void holder::set_##name(int32_t value) {                         \
-    RELAXED_WRITE_INT32_FIELD(*this, offset, value);               \
-  }
 
 #define RELAXED_INT32_ACCESSORS(holder, name, offset)       \
   int32_t holder::name(RelaxedLoadTag) const {              \

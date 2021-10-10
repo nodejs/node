@@ -527,5 +527,61 @@ TEST(Previleged) {
   VERIFY_RUN();
 }
 */
+#ifdef CAN_USE_RVV_INSTRUCTIONS
+TEST(RVV) {
+  SET_UP();
+  COMPARE(vsetvlmax(kScratchReg, E64, m1),
+          "018079d7       vsetvli   s3, zero_reg, E64, m1");
+  COMPARE(vl(v2, a0, 0, VSew::E8), "02050107       vle8.v       v2, (a0)");
+  COMPARE(vl(v2, a0, 0, VSew::E8), "02050107       vle8.v       v2, (a0)");
+  COMPARE(vl(v2, a0, 0, VSew::E16), "02055107       vle16.v       v2, (a0)");
+  COMPARE(vl(v2, a0, 0, VSew::E32), "02056107       vle32.v       v2, (a0)");
+
+  COMPARE(vadd_vv(v0, v0, v1),    "02008057       vadd.vv   v0, v0, v1");
+  COMPARE(vadd_vx(v0, v1, t0),    "0212c057       vadd.vx   v0, v1, t0");
+  COMPARE(vadd_vi(v0, v1, 3),     "0211b057       vadd.vi   v0, v1, 3");
+  COMPARE(vsub_vv(v2, v3, v4),    "0a320157       vsub.vv   v2, v3, v4");
+  COMPARE(vsub_vx(v2, v3, a4),    "0a374157       vsub.vx   v2, v3, a4");
+  COMPARE(vsadd_vv(v0, v0, v1),   "86008057       vsadd.vv  v0, v0, v1");
+  COMPARE(vsadd_vx(v4, v5, t1),   "86534257       vsadd.vx  v4, v5, t1");
+  COMPARE(vsadd_vi(v6, v7, 5),    "8672b357       vsadd.vi  v6, v7, 5");
+  COMPARE(vssub_vv(v2, v3, v4),   "8e320157       vssub.vv  v2, v3, v4");
+  COMPARE(vssub_vx(v2, v3, t4),   "8e3ec157       vssub.vx  v2, v3, t4");
+  COMPARE(vor_vv(v21, v31, v9),   "2bf48ad7       vor.vv    v21, v31, v9");
+  COMPARE(vor_vx(v19, v29, s7),   "2bdbc9d7       vor.vx    v19, v29, s7");
+  COMPARE(vor_vi(v17, v28, 7),    "2bc3b8d7       vor.vi    v17, v28, 7");
+  COMPARE(vxor_vv(v21, v31, v9),  "2ff48ad7       vxor.vv   v21, v31, v9");
+  COMPARE(vxor_vx(v19, v29, s7),  "2fdbc9d7       vxor.vx   v19, v29, s7");
+  COMPARE(vxor_vi(v17, v28, 7),   "2fc3b8d7       vxor.vi   v17, v28, 7");
+  COMPARE(vand_vv(v21, v31, v9),  "27f48ad7       vand.vv   v21, v31, v9");
+  COMPARE(vand_vx(v19, v29, s7),  "27dbc9d7       vand.vx   v19, v29, s7");
+  COMPARE(vand_vi(v17, v28, 7),   "27c3b8d7       vand.vi   v17, v28, 7");
+  COMPARE(vmseq_vv(v17, v28, v29),
+                                   "63ce88d7       vmseq.vv  v17, v28, v29");
+  COMPARE(vmsne_vv(v17, v28, v29), "67ce88d7       vmsne.vv  v17, v28, v29");
+  COMPARE(vmseq_vx(v17, v28, t2),  "63c3c8d7       vmseq.vx  v17, v28, t2");
+  COMPARE(vmsne_vx(v17, v28, t6),  "67cfc8d7       vmsne.vx  v17, v28, t6");
+  COMPARE(vmseq_vi(v17, v28, 7),   "63c3b8d7       vmseq.vi  v17, v28, 7");
+  COMPARE(vmsne_vi(v17, v28, 7),   "67c3b8d7       vmsne.vi  v17, v28, 7");
+  COMPARE(vmsltu_vv(v17, v28, v14), "6bc708d7       vmsltu.vv v17, v28, v14");
+  COMPARE(vmsltu_vx(v17, v28, a5), "6bc7c8d7       vmsltu.vx v17, v28, a5");
+  COMPARE(vmslt_vv(v17, v28, v14), "6fc708d7       vmslt.vv  v17, v28, v14");
+  COMPARE(vmslt_vx(v17, v28, a5),  "6fc7c8d7       vmslt.vx  v17, v28, a5");
+  COMPARE(vmsleu_vv(v17, v28, v14), "73c708d7       vmsleu.vv v17, v28, v14");
+  COMPARE(vmsleu_vx(v17, v28, a5), "73c7c8d7       vmsleu.vx v17, v28, a5");
+  COMPARE(vmsleu_vi(v17, v28, 5),  "73c2b8d7       vmsleu.vi v17, v28, 5");
+  COMPARE(vmsle_vv(v17, v28, v14), "77c708d7       vmsle.vv  v17, v28, v14");
+  COMPARE(vmsle_vx(v17, v28, a5),  "77c7c8d7       vmsle.vx  v17, v28, a5");
+  COMPARE(vmsle_vi(v17, v28, 5),   "77c2b8d7       vmsle.vi  v17, v28, 5");
+  COMPARE(vmsgt_vx(v17, v28, a5),  "7fc7c8d7       vmsgt.vx  v17, v28, a5");
+  COMPARE(vmsgt_vi(v17, v28, 5),   "7fc2b8d7       vmsgt.vi  v17, v28, 5");
+  COMPARE(vmsgtu_vx(v17, v28, a5), "7bc7c8d7       vmsgtu.vx v17, v28, a5");
+  COMPARE(vmsgtu_vi(v17, v28, 5),  "7bc2b8d7       vmsgtu.vi v17, v28, 5");
+  COMPARE(vadc_vv(v7, v9, v6),     "406483d7       vadc.vvm  v7, v6, v9");
+  COMPARE(vadc_vx(v7, t6, v9),     "409fc3d7       vadc.vxm  v7, v9, t6");
+  COMPARE(vadc_vi(v7, 5, v9),      "4092b3d7       vadc.vim  v7, v9, 5");
+  VERIFY_RUN();
+}
+#endif
 }  // namespace internal
 }  // namespace v8

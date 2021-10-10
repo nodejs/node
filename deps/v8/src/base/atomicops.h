@@ -191,9 +191,29 @@ inline void Release_Store(volatile Atomic8* ptr, Atomic8 value) {
                              std::memory_order_release);
 }
 
+inline void Release_Store(volatile Atomic16* ptr, Atomic16 value) {
+  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
+                             std::memory_order_release);
+}
+
 inline void Release_Store(volatile Atomic32* ptr, Atomic32 value) {
   std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
                              std::memory_order_release);
+}
+
+inline void SeqCst_Store(volatile Atomic8* ptr, Atomic8 value) {
+  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
+                             std::memory_order_seq_cst);
+}
+
+inline void SeqCst_Store(volatile Atomic16* ptr, Atomic16 value) {
+  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
+                             std::memory_order_seq_cst);
+}
+
+inline void SeqCst_Store(volatile Atomic32* ptr, Atomic32 value) {
+  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
+                             std::memory_order_seq_cst);
 }
 
 inline Atomic8 Relaxed_Load(volatile const Atomic8* ptr) {
@@ -277,6 +297,11 @@ inline void Relaxed_Store(volatile Atomic64* ptr, Atomic64 value) {
 inline void Release_Store(volatile Atomic64* ptr, Atomic64 value) {
   std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
                              std::memory_order_release);
+}
+
+inline void SeqCst_Store(volatile Atomic64* ptr, Atomic64 value) {
+  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
+                             std::memory_order_seq_cst);
 }
 
 inline Atomic64 Relaxed_Load(volatile const Atomic64* ptr) {

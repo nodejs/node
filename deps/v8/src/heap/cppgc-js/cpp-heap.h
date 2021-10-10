@@ -10,8 +10,10 @@ static_assert(
     false, "V8 targets can not be built with cppgc_is_standalone set to true.");
 #endif
 
+#include "include/v8-callbacks.h"
 #include "include/v8-cppgc.h"
-#include "include/v8.h"
+#include "include/v8-embedder-heap.h"
+#include "include/v8-metrics.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/stats-collector.h"

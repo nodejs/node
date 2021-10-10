@@ -2121,15 +2121,18 @@ TEST(PopAndReturnConstant) {
   using Descriptor = JSTrampolineDescriptor;
   CodeAssemblerTester asm_tester(isolate, Descriptor());
 
-  const int kNumParams = 4;  // Not including receiver
+  const int kNumParams = 4 + kJSArgcReceiverSlots;
   {
     CodeStubAssembler m(asm_tester.state());
     TNode<Int32T> argc =
         m.UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
     CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kNumParams)));
 
-    m.PopAndReturn(m.IntPtrConstant(kNumParams + 1),  // Include receiver.
-                   m.SmiConstant(1234));
+    int pop_count = kNumParams;
+    if (!kJSArgcIncludesReceiver) {
+      pop_count += 1;  // Include receiver.
+    }
+    m.PopAndReturn(m.IntPtrConstant(pop_count), m.SmiConstant(1234));
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -2155,16 +2158,18 @@ TEST(PopAndReturnVariable) {
   using Descriptor = JSTrampolineDescriptor;
   CodeAssemblerTester asm_tester(isolate, Descriptor());
 
-  const int kNumParams = 4;  // Not including receiver
+  const int kNumParams = 4 + kJSArgcReceiverSlots;
   {
     CodeStubAssembler m(asm_tester.state());
     TNode<Int32T> argc =
         m.UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
     CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kNumParams)));
 
-    TNode<Int32T> argc_with_receiver = m.Int32Add(argc, m.Int32Constant(1));
-    m.PopAndReturn(m.ChangeInt32ToIntPtr(argc_with_receiver),
-                   m.SmiConstant(1234));
+    int pop_count = kNumParams;
+    if (!kJSArgcIncludesReceiver) {
+      pop_count += 1;  // Include receiver.
+    }
+    m.PopAndReturn(m.IntPtrConstant(pop_count), m.SmiConstant(1234));
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -2557,7 +2562,8 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     Object::SetElement(isolate, array, 1, Handle<Smi>(Smi::FromInt(2), isolate),
                        kDontThrow)
         .Check();
-    CodeStubArguments args(this, IntPtrConstant(kNumParams));
+    CodeStubArguments args(this,
+                           IntPtrConstant(kNumParams + kJSArgcReceiverSlots));
     TVariable<IntPtrT> arg_index(this);
     Label bailout(this);
     arg_index = IntPtrConstant(0);

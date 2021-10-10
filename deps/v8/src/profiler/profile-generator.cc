@@ -64,6 +64,11 @@ int SourcePositionTable::GetInliningId(int pc_offset) const {
   return it->inlining_id;
 }
 
+size_t SourcePositionTable::Size() const {
+  return sizeof(*this) + pc_offsets_to_lines_.capacity() *
+                             sizeof(decltype(pc_offsets_to_lines_)::value_type);
+}
+
 void SourcePositionTable::print() const {
   base::OS::Print(" - source position table at %p\n", this);
   for (const SourcePositionTuple& pos_info : pc_offsets_to_lines_) {
@@ -205,6 +210,37 @@ void CodeEntry::FillFunctionInfo(SharedFunctionInfo shared) {
   if (shared.optimization_disabled()) {
     set_bailout_reason(GetBailoutReason(shared.disable_optimization_reason()));
   }
+}
+
+size_t CodeEntry::EstimatedSize() const {
+  size_t estimated_size = 0;
+  if (rare_data_) {
+    estimated_size += sizeof(rare_data_.get());
+
+    for (const auto& inline_entry : rare_data_->inline_entries_) {
+      estimated_size += inline_entry->EstimatedSize();
+    }
+    estimated_size += rare_data_->inline_entries_.size() *
+                      sizeof(decltype(rare_data_->inline_entries_)::value_type);
+
+    for (const auto& inline_stack_pair : rare_data_->inline_stacks_) {
+      estimated_size += inline_stack_pair.second.size() *
+                        sizeof(decltype(inline_stack_pair.second)::value_type);
+    }
+    estimated_size +=
+        rare_data_->inline_stacks_.size() *
+        (sizeof(decltype(rare_data_->inline_stacks_)::key_type) +
+         sizeof(decltype(rare_data_->inline_stacks_)::value_type));
+
+    estimated_size +=
+        rare_data_->deopt_inlined_frames_.capacity() *
+        sizeof(decltype(rare_data_->deopt_inlined_frames_)::value_type);
+  }
+
+  if (line_info_) {
+    estimated_size += line_info_.get()->Size();
+  }
+  return sizeof(*this) + estimated_size;
 }
 
 CpuProfileDeoptInfo CodeEntry::GetDeoptInfo() {
@@ -423,9 +459,7 @@ class DeleteNodesCallback {
  public:
   void BeforeTraversingChild(ProfileNode*, ProfileNode*) { }
 
-  void AfterAllChildrenTraversed(ProfileNode* node) {
-    delete node;
-  }
+  void AfterAllChildrenTraversed(ProfileNode* node) { delete node; }
 
   void AfterChildTraversed(ProfileNode*, ProfileNode*) { }
 };
@@ -843,6 +877,15 @@ void CodeMap::Print() {
     base::OS::Print("%p %5d %s\n", reinterpret_cast<void*>(pair.first),
                     pair.second.size, pair.second.entry->name());
   }
+}
+
+size_t CodeMap::GetEstimatedMemoryUsage() const {
+  size_t map_size = 0;
+  for (const auto& pair : code_map_) {
+    map_size += sizeof(pair.first) + sizeof(pair.second) +
+                pair.second.entry->EstimatedSize();
+  }
+  return sizeof(*this) + map_size;
 }
 
 CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)

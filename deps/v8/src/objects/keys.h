@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_KEYS_H_
 #define V8_OBJECTS_KEYS_H_
 
+#include "include/v8-object.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
@@ -16,6 +17,18 @@ class JSProxy;
 class FastKeyAccumulator;
 
 enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX };
+
+enum class GetKeysConversion {
+  kKeepNumbers = static_cast<int>(v8::KeyConversionMode::kKeepNumbers),
+  kConvertToString = static_cast<int>(v8::KeyConversionMode::kConvertToString),
+  kNoNumbers = static_cast<int>(v8::KeyConversionMode::kNoNumbers)
+};
+
+enum class KeyCollectionMode {
+  kOwnOnly = static_cast<int>(v8::KeyCollectionMode::kOwnOnly),
+  kIncludePrototypes =
+      static_cast<int>(v8::KeyCollectionMode::kIncludePrototypes)
+};
 
 // This is a helper class for JSReceiver::GetKeys which collects and sorts keys.
 // GetKeys needs to sort keys per prototype level, first showing the integer

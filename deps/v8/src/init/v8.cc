@@ -20,6 +20,7 @@
 #include "src/execution/runtime-profiler.h"
 #include "src/execution/simulator.h"
 #include "src/init/bootstrapper.h"
+#include "src/init/vm-cage.h"
 #include "src/libsampler/sampler.h"
 #include "src/objects/elements.h"
 #include "src/objects/objects-inl.h"
@@ -73,6 +74,17 @@ void V8::TearDown() {
   }
 
 void V8::InitializeOncePerProcessImpl() {
+  CHECK(platform_);
+
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  if (!GetProcessWideVirtualMemoryCage()->is_initialized()) {
+    // For now, we still allow the cage to be disabled even if V8 was compiled
+    // with V8_VIRTUAL_MEMORY_CAGE. This will eventually be forbidden.
+    CHECK(kAllowBackingStoresOutsideDataCage);
+    GetProcessWideVirtualMemoryCage()->Disable();
+  }
+#endif
+
   // Update logging information before enforcing flag implications.
   bool* log_all_flags[] = {&FLAG_turbo_profiling_log_builtins,
                            &FLAG_log_all,
@@ -207,6 +219,15 @@ void V8::InitializePlatform(v8::Platform* platform) {
 #endif
 }
 
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+bool V8::InitializeVirtualMemoryCage() {
+  // Platform must have been initialized already.
+  CHECK(platform_);
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+  return GetProcessWideVirtualMemoryCage()->Initialize(page_allocator);
+}
+#endif
+
 void V8::ShutdownPlatform() {
   CHECK(platform_);
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
@@ -216,6 +237,13 @@ void V8::ShutdownPlatform() {
 #endif
   v8::tracing::TracingCategoryObserver::TearDown();
   v8::base::SetPrintStackTrace(nullptr);
+
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  // TODO(chromium:1218005) alternatively, this could move to its own
+  // public TearDownVirtualMemoryCage function.
+  GetProcessWideVirtualMemoryCage()->TearDown();
+#endif
+
   platform_ = nullptr;
 }
 

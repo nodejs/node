@@ -589,10 +589,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     BIND(&if_copy_elements);
     CSA_ASSERT(this, Word32BinaryNot(
                          IsFixedCOWArrayMap(LoadMap(boilerplate_elements))));
-    ExtractFixedArrayFlags flags;
-    flags |= ExtractFixedArrayFlag::kAllFixedArrays;
-    flags |= ExtractFixedArrayFlag::kNewSpaceAllocationOnly;
-    flags |= ExtractFixedArrayFlag::kDontCopyCOW;
+    auto flags = ExtractFixedArrayFlag::kAllFixedArrays;
     var_elements = CloneFixedArray(boilerplate_elements, flags);
     Goto(&done);
     BIND(&done);

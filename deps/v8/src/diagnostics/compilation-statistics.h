@@ -37,6 +37,8 @@ class CompilationStatistics final : public Malloced {
 
     void Accumulate(const BasicStats& stats);
 
+    std::string AsJSON();
+
     base::TimeDelta delta_;
     size_t total_allocated_bytes_;
     size_t max_allocated_bytes_;

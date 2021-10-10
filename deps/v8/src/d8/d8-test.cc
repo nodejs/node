@@ -5,6 +5,7 @@
 #include "src/d8/d8.h"
 
 #include "include/v8-fast-api-calls.h"
+#include "include/v8-template.h"
 #include "src/api/api-inl.h"
 
 // This file exposes a d8.test.fast_c_api object, which adds testing facility
@@ -94,10 +95,10 @@ class FastCApiObject {
 
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   typedef double Type;
-  static constexpr CTypeInfo type_info = CTypeInfo(CTypeInfo::Type::kFloat64);
+#define type_info kTypeInfoFloat64
 #else
   typedef int32_t Type;
-  static constexpr CTypeInfo type_info = CTypeInfo(CTypeInfo::Type::kInt32);
+#define type_info kTypeInfoInt32
 #endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   static Type AddAllSequenceFastCallback(Local<Object> receiver,
                                          bool should_fallback,
@@ -630,16 +631,19 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             SideEffectType::kHasSideEffect, &is_valid_api_object_c_func));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "fast_call_count",
-        FunctionTemplate::New(isolate, FastCApiObject::FastCallCount,
-                              Local<Value>(), signature));
+        FunctionTemplate::New(
+            isolate, FastCApiObject::FastCallCount, Local<Value>(), signature,
+            1, ConstructorBehavior::kThrow, SideEffectType::kHasNoSideEffect));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "slow_call_count",
-        FunctionTemplate::New(isolate, FastCApiObject::SlowCallCount,
-                              Local<Value>(), signature));
+        FunctionTemplate::New(
+            isolate, FastCApiObject::SlowCallCount, Local<Value>(), signature,
+            1, ConstructorBehavior::kThrow, SideEffectType::kHasNoSideEffect));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "reset_counts",
         FunctionTemplate::New(isolate, FastCApiObject::ResetCounts,
-                              Local<Value>(), signature));
+                              Local<Value>(), signature, 1,
+                              ConstructorBehavior::kThrow));
   }
   api_obj_ctor->InstanceTemplate()->SetInternalFieldCount(
       FastCApiObject::kV8WrapperObjectIndex + 1);

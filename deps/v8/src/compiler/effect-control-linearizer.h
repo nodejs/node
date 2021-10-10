@@ -26,7 +26,7 @@ class JSHeapBroker;
 V8_EXPORT_PRIVATE void LinearizeEffectControl(
     JSGraph* graph, Schedule* schedule, Zone* temp_zone,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-    PoisoningMitigationLevel poison_level, JSHeapBroker* broker);
+    JSHeapBroker* broker);
 
 // Performs effect control linearization lowering in addition to machine
 // lowering, producing a scheduled graph that is ready for instruction
@@ -34,7 +34,7 @@ V8_EXPORT_PRIVATE void LinearizeEffectControl(
 V8_EXPORT_PRIVATE void LowerToMachineSchedule(
     JSGraph* graph, Schedule* schedule, Zone* temp_zone,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-    PoisoningMitigationLevel poison_level, JSHeapBroker* broker);
+    JSHeapBroker* broker);
 
 }  // namespace compiler
 }  // namespace internal

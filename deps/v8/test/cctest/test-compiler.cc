@@ -30,8 +30,10 @@
 
 #include <memory>
 
+#include "include/v8-function.h"
+#include "include/v8-local-handle.h"
 #include "include/v8-profiler.h"
-#include "include/v8.h"
+#include "include/v8-script.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -73,7 +75,7 @@ static Handle<JSFunction> Compile(const char* source) {
                                    .ToHandleChecked();
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
-          isolate, source_code, ScriptDetails(), nullptr, nullptr,
+          isolate, source_code, ScriptDetails(),
           v8::ScriptCompiler::kNoCompileOptions,
           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();

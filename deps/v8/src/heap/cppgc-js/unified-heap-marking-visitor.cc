@@ -4,7 +4,6 @@
 
 #include "src/heap/cppgc-js/unified-heap-marking-visitor.h"
 
-#include "include/v8.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marking-state.h"

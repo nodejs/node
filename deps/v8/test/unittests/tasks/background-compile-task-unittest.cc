@@ -4,7 +4,7 @@
 
 #include <memory>
 
-#include "include/v8.h"
+#include "include/v8-platform.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"

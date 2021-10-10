@@ -55,8 +55,6 @@ inline bool IsAnyStore(AccessMode mode) {
   return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral;
 }
 
-enum class SerializationPolicy { kAssumeSerialized, kSerializeIfNeeded };
-
 // Clarifies in function signatures that a method may only be called when
 // concurrent inlining is disabled.
 class NotConcurrentInliningTag final {
@@ -272,6 +270,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
  private:
   friend class FunctionTemplateInfoRef;
   friend class JSArrayData;
+  friend class JSFunctionData;
   friend class JSGlobalObjectData;
   friend class JSGlobalObjectRef;
   friend class JSHeapBroker;
@@ -395,9 +394,7 @@ class JSObjectRef : public JSReceiverRef {
   // against inconsistency due to weak memory concurrency.
   base::Optional<ObjectRef> GetOwnConstantElement(
       const FixedArrayBaseRef& elements_ref, uint32_t index,
-      CompilationDependencies* dependencies,
-      SerializationPolicy policy =
-          SerializationPolicy::kAssumeSerialized) const;
+      CompilationDependencies* dependencies) const;
   // The direct-read implementation of the above, extracted into a helper since
   // it's also called from compilation-dependency validation. This helper is
   // guaranteed to not create new Ref instances.
@@ -412,16 +409,12 @@ class JSObjectRef : public JSReceiverRef {
   // property at code finalization time.
   base::Optional<ObjectRef> GetOwnFastDataProperty(
       Representation field_representation, FieldIndex index,
-      CompilationDependencies* dependencies,
-      SerializationPolicy policy =
-          SerializationPolicy::kAssumeSerialized) const;
+      CompilationDependencies* dependencies) const;
 
   // Return the value of the dictionary property at {index} in the dictionary
   // if {index} is known to be an own data property of the object.
   base::Optional<ObjectRef> GetOwnDictionaryProperty(
-      InternalIndex index, CompilationDependencies* dependencies,
-      SerializationPolicy policy =
-          SerializationPolicy::kAssumeSerialized) const;
+      InternalIndex index, CompilationDependencies* dependencies) const;
 
   // When concurrent inlining is enabled, reads the elements through a direct
   // relaxed read. This is to ease the transition to unserialized (or
@@ -451,12 +444,8 @@ class JSBoundFunctionRef : public JSObjectRef {
 
   Handle<JSBoundFunction> object() const;
 
-  bool Serialize(NotConcurrentInliningTag tag);
-
-  // TODO(neis): Make return types non-optional once JSFunction is no longer
-  // fg-serialized.
-  base::Optional<JSReceiverRef> bound_target_function() const;
-  base::Optional<ObjectRef> bound_this() const;
+  JSReceiverRef bound_target_function() const;
+  ObjectRef bound_this() const;
   FixedArrayRef bound_arguments() const;
 };
 
@@ -474,8 +463,8 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   ContextRef context() const;
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
+  CodeRef code() const;
 
-  bool has_feedback_vector(CompilationDependencies* dependencies) const;
   bool has_initial_map(CompilationDependencies* dependencies) const;
   bool PrototypeRequiresRuntimeLookup(
       CompilationDependencies* dependencies) const;
@@ -484,12 +473,10 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   MapRef initial_map(CompilationDependencies* dependencies) const;
   int InitialMapInstanceSizeWithMinSlack(
       CompilationDependencies* dependencies) const;
-  FeedbackVectorRef feedback_vector(
-      CompilationDependencies* dependencies) const;
   FeedbackCellRef raw_feedback_cell(
       CompilationDependencies* dependencies) const;
-
-  CodeRef code() const;
+  base::Optional<FeedbackVectorRef> feedback_vector(
+      CompilationDependencies* dependencies) const;
 };
 
 class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
@@ -534,9 +521,6 @@ class ContextRef : public HeapObjectRef {
   // Only returns a value if the index is valid for this ContextRef.
   base::Optional<ObjectRef> get(int index) const;
 };
-
-// TODO(jgruber): Don't serialize NativeContext fields once all refs can be
-// created concurrently.
 
 #define BROKER_NATIVE_CONTEXT_FIELDS(V)          \
   V(JSFunction, array_function)                  \
@@ -629,13 +613,12 @@ class FeedbackCellRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(FeedbackCell, HeapObjectRef)
 
   Handle<FeedbackCell> object() const;
-  base::Optional<SharedFunctionInfoRef> shared_function_info() const;
 
-  // TODO(mvstanton): Once we allow inlining of functions we didn't see
-  // during serialization, we do need to ensure that any feedback vector
-  // we read here has been fully initialized (ie, store-ordered into the
-  // cell).
-  base::Optional<FeedbackVectorRef> value() const;
+  ObjectRef value() const;
+
+  // Convenience wrappers around {value()}:
+  base::Optional<FeedbackVectorRef> feedback_vector() const;
+  base::Optional<SharedFunctionInfoRef> shared_function_info() const;
 };
 
 class FeedbackVectorRef : public HeapObjectRef {
@@ -729,6 +712,8 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 
   OddballType oddball_type() const;
 
+  bool CanInlineElementAccess() const;
+
   // Note: Only returns a value if the requested elements kind matches the
   // current kind, or if the current map is an unmodified JSArray initial map.
   base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
@@ -752,6 +737,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
       ZoneVector<MapRef>* prototype_maps);
 
   // Concerning the underlying instance_descriptors:
+  DescriptorArrayRef instance_descriptors() const;
   MapRef FindFieldOwner(InternalIndex descriptor_index) const;
   PropertyDetails GetPropertyDetails(InternalIndex descriptor_index) const;
   NameRef GetPropertyKey(InternalIndex descriptor_index) const;
@@ -760,11 +746,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   base::Optional<ObjectRef> GetStrongValue(
       InternalIndex descriptor_number) const;
 
-  DescriptorArrayRef instance_descriptors() const;
-
-  void SerializeRootMap(NotConcurrentInliningTag tag);
-  base::Optional<MapRef> FindRootMap() const;
-
+  MapRef FindRootMap() const;
   ObjectRef GetConstructor() const;
 };
 
@@ -785,17 +767,10 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
 
   bool is_signature_undefined() const;
   bool accept_any_receiver() const;
-  // The following returns true if the CallHandlerInfo is present.
-  bool has_call_code() const;
-
-  void SerializeCallCode(NotConcurrentInliningTag tag);
   base::Optional<CallHandlerInfoRef> call_code() const;
   ZoneVector<Address> c_functions() const;
   ZoneVector<const CFunctionInfo*> c_signatures() const;
-
-  HolderLookupResult LookupHolderOfExpectedType(
-      MapRef receiver_map,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+  HolderLookupResult LookupHolderOfExpectedType(MapRef receiver_map);
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {
@@ -821,12 +796,6 @@ class FixedArrayRef : public FixedArrayBaseRef {
 
   Handle<FixedArray> object() const;
 
-  ObjectRef get(int i) const;
-
-  // As above but may fail if Ref construction is not possible (e.g. for
-  // serialized types on the background thread).
-  // TODO(jgruber): Remove once all Ref types are never-serialized or
-  // background-serialized and can thus be created on background threads.
   base::Optional<ObjectRef> TryGet(int i) const;
 };
 
@@ -894,15 +863,14 @@ class JSArrayRef : public JSObjectRef {
   // storage and {index} is known to be an own data property.
   // Note the value returned by this function is only valid if we ensure at
   // runtime that the backing store has not changed.
-  base::Optional<ObjectRef> GetOwnCowElement(
-      FixedArrayBaseRef elements_ref, uint32_t index,
-      SerializationPolicy policy =
-          SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<ObjectRef> GetOwnCowElement(FixedArrayBaseRef elements_ref,
+                                             uint32_t index) const;
 
   // The `JSArray::length` property; not safe to use in general, but can be
   // used in some special cases that guarantee a valid `length` value despite
-  // concurrent reads.
-  ObjectRef length_unsafe() const;
+  // concurrent reads. The result needs to be optional in case the
+  // return value was created too recently to pass the gc predicate.
+  base::Optional<ObjectRef> length_unsafe() const;
 };
 
 class ScopeInfoRef : public HeapObjectRef {
@@ -918,22 +886,23 @@ class ScopeInfoRef : public HeapObjectRef {
   ScopeInfoRef OuterScopeInfo() const;
 };
 
-#define BROKER_SFI_FIELDS(V)                       \
-  V(int, internal_formal_parameter_count)          \
-  V(bool, has_simple_parameters)                   \
-  V(bool, has_duplicate_parameters)                \
-  V(int, function_map_index)                       \
-  V(FunctionKind, kind)                            \
-  V(LanguageMode, language_mode)                   \
-  V(bool, native)                                  \
-  V(bool, HasBreakInfo)                            \
-  V(bool, HasBuiltinId)                            \
-  V(bool, construct_as_builtin)                    \
-  V(bool, HasBytecodeArray)                        \
-  V(int, StartPosition)                            \
-  V(bool, is_compiled)                             \
-  V(bool, IsUserJavaScript)                        \
-  IF_WASM(V, const wasm::WasmModule*, wasm_module) \
+#define BROKER_SFI_FIELDS(V)                               \
+  V(int, internal_formal_parameter_count_without_receiver) \
+  V(bool, IsDontAdaptArguments)                            \
+  V(bool, has_simple_parameters)                           \
+  V(bool, has_duplicate_parameters)                        \
+  V(int, function_map_index)                               \
+  V(FunctionKind, kind)                                    \
+  V(LanguageMode, language_mode)                           \
+  V(bool, native)                                          \
+  V(bool, HasBreakInfo)                                    \
+  V(bool, HasBuiltinId)                                    \
+  V(bool, construct_as_builtin)                            \
+  V(bool, HasBytecodeArray)                                \
+  V(int, StartPosition)                                    \
+  V(bool, is_compiled)                                     \
+  V(bool, IsUserJavaScript)                                \
+  IF_WASM(V, const wasm::WasmModule*, wasm_module)         \
   IF_WASM(V, const wasm::FunctionSig*, wasm_function_signature)
 
 class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
@@ -966,9 +935,7 @@ class StringRef : public NameRef {
 
   // With concurrent inlining on, we return base::nullopt due to not being able
   // to use LookupIterator in a thread-safe way.
-  base::Optional<ObjectRef> GetCharAsStringOrUndefined(
-      uint32_t index, SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<ObjectRef> GetCharAsStringOrUndefined(uint32_t index) const;
 
   // When concurrently accessing non-read-only non-supported strings, we return
   // base::nullopt for these methods.
@@ -1002,10 +969,6 @@ class JSTypedArrayRef : public JSObjectRef {
   bool is_on_heap() const;
   size_t length() const;
   void* data_ptr() const;
-
-  void Serialize(NotConcurrentInliningTag tag);
-  bool serialized() const;
-
   HeapObjectRef buffer() const;
 };
 
@@ -1042,9 +1005,7 @@ class JSGlobalObjectRef : public JSObjectRef {
   bool IsDetachedFrom(JSGlobalProxyRef const& proxy) const;
 
   // Can be called even when there is no property cell for the given name.
-  base::Optional<PropertyCellRef> GetPropertyCell(
-      NameRef const& name, SerializationPolicy policy =
-                               SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<PropertyCellRef> GetPropertyCell(NameRef const& name) const;
 };
 
 class JSGlobalProxyRef : public JSObjectRef {

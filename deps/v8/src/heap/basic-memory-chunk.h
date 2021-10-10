@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "src/base/atomic-utils.h"
+#include "src/base/flags.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/marking.h"
@@ -30,7 +31,7 @@ class BasicMemoryChunk {
     }
   };
 
-  enum Flag {
+  enum Flag : uintptr_t {
     NO_FLAGS = 0u,
     IS_EXECUTABLE = 1u << 0,
     POINTERS_TO_HERE_ARE_INTERESTING = 1u << 1,
@@ -43,12 +44,6 @@ class BasicMemoryChunk {
     LARGE_PAGE = 1u << 5,
     EVACUATION_CANDIDATE = 1u << 6,
     NEVER_EVACUATE = 1u << 7,
-
-    // Large objects can have a progress bar in their page header. These object
-    // are scanned in increments and will be kept black while being scanned.
-    // Even if the mutator writes to them they will be kept black and a white
-    // to grey transition is performed in the value.
-    HAS_PROGRESS_BAR = 1u << 8,
 
     // |PAGE_NEW_OLD_PROMOTION|: A page tagged with this flag has been promoted
     // from new to old space during evacuation.
@@ -111,6 +106,28 @@ class BasicMemoryChunk {
     IN_SHARED_HEAP = 1u << 23,
   };
 
+  using MainThreadFlags = base::Flags<Flag, uintptr_t>;
+
+  static constexpr MainThreadFlags kAllFlagsMask = ~MainThreadFlags(NO_FLAGS);
+
+  static constexpr MainThreadFlags kPointersToHereAreInterestingMask =
+      POINTERS_TO_HERE_ARE_INTERESTING;
+
+  static constexpr MainThreadFlags kPointersFromHereAreInterestingMask =
+      POINTERS_FROM_HERE_ARE_INTERESTING;
+
+  static constexpr MainThreadFlags kEvacuationCandidateMask =
+      EVACUATION_CANDIDATE;
+
+  static constexpr MainThreadFlags kIsInYoungGenerationMask =
+      MainThreadFlags(FROM_PAGE) | MainThreadFlags(TO_PAGE);
+
+  static constexpr MainThreadFlags kIsLargePageMask = LARGE_PAGE;
+
+  static constexpr MainThreadFlags kSkipEvacuationSlotsRecordingMask =
+      MainThreadFlags(kEvacuationCandidateMask) |
+      MainThreadFlags(kIsInYoungGenerationMask);
+
   static const intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);
 
@@ -157,54 +174,20 @@ class BasicMemoryChunk {
 
   void set_owner(BaseSpace* space) { owner_ = space; }
 
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  void SetFlag(Flag flag) {
-    if (access_mode == AccessMode::NON_ATOMIC) {
-      flags_ |= flag;
-    } else {
-      base::AsAtomicWord::SetBits<uintptr_t>(&flags_, flag, flag);
-    }
+  void SetFlag(Flag flag) { main_thread_flags_ |= flag; }
+  bool IsFlagSet(Flag flag) const { return main_thread_flags_ & flag; }
+  void ClearFlag(Flag flag) {
+    main_thread_flags_ = main_thread_flags_.without(flag);
   }
-
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  bool IsFlagSet(Flag flag) const {
-    return (GetFlags<access_mode>() & flag) != 0;
-  }
-
-  void ClearFlag(Flag flag) { flags_ &= ~flag; }
-
-  // Set or clear multiple flags at a time. The flags in the mask are set to
-  // the value in "flags", the rest retain the current value in |flags_|.
-  void SetFlags(uintptr_t flags, uintptr_t mask) {
-    flags_ = (flags_ & ~mask) | (flags & mask);
+  void ClearFlags(MainThreadFlags flags) { main_thread_flags_ &= ~flags; }
+  // Set or clear multiple flags at a time. `mask` indicates which flags are
+  // should be replaced with new `flags`.
+  void SetFlags(MainThreadFlags flags, MainThreadFlags mask) {
+    main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
   }
 
   // Return all current flags.
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  uintptr_t GetFlags() const {
-    if (access_mode == AccessMode::NON_ATOMIC) {
-      return flags_;
-    } else {
-      return base::AsAtomicWord::Relaxed_Load(&flags_);
-    }
-  }
-
-  using Flags = uintptr_t;
-
-  static const Flags kPointersToHereAreInterestingMask =
-      POINTERS_TO_HERE_ARE_INTERESTING;
-
-  static const Flags kPointersFromHereAreInterestingMask =
-      POINTERS_FROM_HERE_ARE_INTERESTING;
-
-  static const Flags kEvacuationCandidateMask = EVACUATION_CANDIDATE;
-
-  static const Flags kIsInYoungGenerationMask = FROM_PAGE | TO_PAGE;
-
-  static const Flags kIsLargePageMask = LARGE_PAGE;
-
-  static const Flags kSkipEvacuationSlotsRecordingMask =
-      kEvacuationCandidateMask | kIsInYoungGenerationMask;
+  MainThreadFlags GetFlags() const { return main_thread_flags_; }
 
  private:
   bool InReadOnlySpaceRaw() const { return IsFlagSet(READ_ONLY_HEAP); }
@@ -227,16 +210,13 @@ class BasicMemoryChunk {
     return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
   }
 
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  bool IsEvacuationCandidate() {
-    DCHECK(!(IsFlagSet<access_mode>(NEVER_EVACUATE) &&
-             IsFlagSet<access_mode>(EVACUATION_CANDIDATE)));
-    return IsFlagSet<access_mode>(EVACUATION_CANDIDATE);
+  bool IsEvacuationCandidate() const {
+    DCHECK(!(IsFlagSet(NEVER_EVACUATE) && IsFlagSet(EVACUATION_CANDIDATE)));
+    return IsFlagSet(EVACUATION_CANDIDATE);
   }
 
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  bool ShouldSkipEvacuationSlotRecording() {
-    uintptr_t flags = GetFlags<access_mode>();
+  bool ShouldSkipEvacuationSlotRecording() const {
+    MainThreadFlags flags = GetFlags();
     return ((flags & kSkipEvacuationSlotsRecordingMask) != 0) &&
            ((flags & COMPACTION_WAS_ABORTED) == 0);
   }
@@ -360,7 +340,9 @@ class BasicMemoryChunk {
   // Overall size of the chunk, including the header and guards.
   size_t size_;
 
-  uintptr_t flags_ = NO_FLAGS;
+  // Flags that are only mutable from the main thread when no concurrent
+  // component (e.g. marker, sweeper) is running.
+  MainThreadFlags main_thread_flags_{NO_FLAGS};
 
   // TODO(v8:7464): Find a way to remove this.
   // This goes against the spirit for the BasicMemoryChunk, but until C++14/17
@@ -398,6 +380,8 @@ class BasicMemoryChunk {
   friend class MinorNonAtomicMarkingState;
   friend class PagedSpace;
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(BasicMemoryChunk::MainThreadFlags)
 
 STATIC_ASSERT(std::is_standard_layout<BasicMemoryChunk>::value);
 

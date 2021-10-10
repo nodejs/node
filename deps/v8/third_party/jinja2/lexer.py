@@ -45,12 +45,6 @@ else:
     from jinja2 import _identifier
     name_re = re.compile(r'[\w{0}]+'.format(_identifier.pattern))
     check_ident = True
-    # remove the pattern from memory after building the regex
-    import sys
-    del sys.modules['jinja2._identifier']
-    import jinja2
-    del jinja2._identifier
-    del _identifier
 
 float_re = re.compile(r'(?<!\.)\d+\.\d+')
 newline_re = re.compile(r'(\r\n|\r|\n)')

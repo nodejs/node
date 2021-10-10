@@ -61,7 +61,6 @@ void ContextDeserializer::SetupOffHeapArrayBufferBackingStores() {
   for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {
     uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
     auto bs = backing_store(store_index);
-    buffer->AllocateExternalPointerEntries(isolate());
     // TODO(v8:11111): Support RAB / GSAB.
     CHECK(!buffer->is_resizable());
     SharedFlag shared =

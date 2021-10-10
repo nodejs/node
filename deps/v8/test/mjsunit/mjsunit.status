@@ -43,7 +43,11 @@
   ##############################################################################
   # Temporal tests to be implemented
   # https://crbug.com/v8/11544
-  'temporal/*': [FAIL],
+  'temporal/plain*': [FAIL],
+  'temporal/duration*': [FAIL],
+  'temporal/calendar*': [FAIL],
+  'temporal/zoned*': [FAIL],
+  'temporal/instant*': [FAIL],
 
   ##############################################################################
   # Open bugs.
@@ -160,12 +164,12 @@
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
 
-  # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv64)', SKIP]],
-  'unicode-case-overoptimization1': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv64)', SKIP]],
-  'regress/regress-3976': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv64)', SKIP]],
-  'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips, riscv64)', SKIP]],
-  'regress/regress-740784': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips, riscv64)', SKIP]],
+  # Very slow on ARM, MIPS, RISCV and LOONG, contains no architecture dependent code.
+  'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv64, loong64)', SKIP]],
+  'unicode-case-overoptimization1': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv64, loong64)', SKIP]],
+  'regress/regress-3976': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv64, loong64)', SKIP]],
+  'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips, riscv64, loong64)', SKIP]],
+  'regress/regress-740784': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips, riscv64, loong64)', SKIP]],
 
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
@@ -207,6 +211,11 @@
   'regress/regress-crbug-941743': [PASS, HEAVY],
   'regress/regress-crbug-1191886': [PASS, HEAVY],
   'wasm/externref-globals': [PASS, HEAVY],
+
+  # BUG(v8:12173).
+  'compiler/call-with-arraylike-or-spread-7': [PASS, FAIL],
+  'ic-migrated-map-add-when-monomorphic': [PASS, FAIL],
+  'es6/map-constructor-entry-side-effect2': [PASS, FAIL]
 }],  # ALWAYS
 
 ##############################################################################
@@ -811,6 +820,15 @@
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
+['arch == loong64', {
+
+  # This test fail because when convert sNaN to qNaN, loong64 use a different
+  # qNaN encoding with x86 architectures
+  'wasm/float-constant-folding': [SKIP],
+
+}],  # 'arch == loong64'
+
+##############################################################################
 ['arch == riscv64', {
 
   # Slow tests which times out in debug mode.
@@ -878,6 +896,7 @@
   'regress/wasm/regress-1161954': [SKIP],
   'regress/wasm/regress-1187831': [SKIP],
   'regress/wasm/regress-1199662': [SKIP],
+  'regress/wasm/regress-1231950': [SKIP],
   'regress/regress-1172797': [SKIP],
   'regress/wasm/regress-1179025': [SKIP],
   'wasm/multi-value-simd': [SKIP],
@@ -1013,6 +1032,10 @@
 
   # BUG(v8:11656) Skipped until we make progress on NumFuzz.
   'baseline/test-osr': [SKIP],
+
+  # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
+  'compiler/concurrent-inlining-1': [SKIP],
+  'compiler/inlined-call-polymorphic': [SKIP],
 }],  # 'deopt_fuzzer'
 
 ##############################################################################
@@ -1051,6 +1074,15 @@
 
   # BUG(v8:11656) Skipped until we make progress on NumFuzz.
   'baseline/test-osr': [SKIP],
+
+  # BUG(v8:11826) Skipped until we remove flakes on NumFuzz.
+  'baseline/flush-only-baseline-code': [SKIP],
+  'baseline/flush-baseline-code': [SKIP],
+  'regress/wasm/regress-1231950': [SKIP],
+
+  # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
+  'compiler/concurrent-inlining-1': [SKIP],
+  'compiler/inlined-call-polymorphic': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
@@ -1084,18 +1116,6 @@
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],
 
-  # Rely on (blocking) concurrent compilation.
-  'compiler/concurrent-invalidate-transition-map': [SKIP],
-  'compiler/concurrent-proto-change': [SKIP],
-  'compiler/manual-concurrent-recompile': [SKIP],
-  'compiler/regress-905555-2': [SKIP],
-  'compiler/regress-905555': [SKIP],
-  'compiler/regress-9945-1': [SKIP],
-  'concurrent-initial-prototype-change-1': [SKIP],
-  'concurrent-initial-prototype-change-2': [SKIP],
-  'regress/regress-356053': [SKIP],
-  'regress/regress-embedded-cons-string': [SKIP],
-
   # Intentionally non-deterministic using shared arraybuffers between workers.
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
@@ -1103,6 +1123,8 @@
   'regress/regress-1205290': [SKIP],
   'regress/regress-1212404': [SKIP],
   'regress/regress-1221035': [SKIP],
+  'regress/regress-1232620': [SKIP],
+  'regress/regress-crbug-1237153': [SKIP],
   'regress/wasm/regress-1067621': [SKIP],
 
   # BUG(v8:9975).
@@ -1275,8 +1297,9 @@
 }], # arch not in (x64, ia32, arm64, arm)
 
 ##############################################################################
-['system != linux', {
-  # Multi-mapped mock allocator is only available on Linux.
+['system != linux or virtual_memory_cage == True', {
+  # Multi-mapped mock allocator is only available on Linux, and only if the
+  # virtual memory cage is not enabled.
   'regress/regress-crbug-1041232': [SKIP],
   'regress/regress-crbug-1104608': [SKIP],
 }],
@@ -1432,13 +1455,15 @@
   'regress/wasm/regress-1187831': [SKIP],
   'regress/wasm/regress-1199662': [SKIP],
   'regress/wasm/regress-1231950': [SKIP],
+  'regress/wasm/regress-1242300': [SKIP],
   'regress/wasm/regress-1242689': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################
 # TODO(v8:11421): Port baseline compiler to other architectures.
-['arch not in (x64, arm64, ia32, arm, mips64el, mipsel)', {
+['arch not in (x64, arm64, ia32, arm, mips64el, mipsel, riscv64, loong64)', {
   'baseline/*': [SKIP],
+  'regress/regress-1242306': [SKIP],
 }],
 
 ##############################################################################
@@ -1453,14 +1478,10 @@
 }],  # variant == experimental_regexp
 
 ##############################################################################
-['variant == concurrent_inlining', {
-  'concurrent-initial-prototype-change-1': [SKIP],
-}],  # variant == concurrent_inlining
-
-##############################################################################
 ['variant == instruction_scheduling or variant == stress_instruction_scheduling', {
-  # BUG(12018): This test currently fails with --turbo-instruction-scheduling.
+  # BUG(12018): These tests currently fail with --turbo-instruction-scheduling.
   'regress/wasm/regress-1231950': [SKIP],
+  'regress/wasm/regress-1242300': [SKIP],
 }],  # variant == instruction_scheduling or variant == stress_instruction_scheduling
 
 ################################################################################
@@ -1510,7 +1531,6 @@
   'compiler/regress-9945-1': [SKIP],
   'concurrent-initial-prototype-change-1': [SKIP],
   'concurrent-initial-prototype-change-2': [SKIP],
-  'regress/regress-356053': [SKIP],
   'regress/regress-embedded-cons-string': [SKIP],
   # Requires a second isolate
   'regress/regress-1212404': [SKIP],

@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "include/v8-script.h"
 #include "src/base/export-template.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
@@ -21,6 +22,10 @@ namespace v8 {
 namespace internal {
 
 class FunctionLiteral;
+
+namespace wasm {
+class NativeModule;
+}  // namespace wasm
 
 #include "torque-generated/src/objects/script-tq.inc"
 

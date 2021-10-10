@@ -7,7 +7,6 @@ extern class JSProxy extends JSReceiver {
   handler: JSReceiver|Null;
 }
 
-@doNotGenerateCppClass
 extern shape JSProxyRevocableResult extends JSObject {
   proxy: JSAny;
   revoke: JSAny;

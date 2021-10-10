@@ -74,8 +74,14 @@ void PlatformEmbeddedFileWriterGeneric::DeclareSymbolGlobal(const char* name) {
 }
 
 void PlatformEmbeddedFileWriterGeneric::AlignToCodeAlignment() {
+#if V8_TARGET_ARCH_X64
+  // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
+  STATIC_ASSERT(64 >= kCodeAlignment);
+  fprintf(fp_, ".balign 64\n");
+#else
   STATIC_ASSERT(32 >= kCodeAlignment);
   fprintf(fp_, ".balign 32\n");
+#endif
 }
 
 void PlatformEmbeddedFileWriterGeneric::AlignToDataAlignment() {
@@ -152,8 +158,9 @@ int PlatformEmbeddedFileWriterGeneric::IndentedDataDirective(
 
 DataDirective PlatformEmbeddedFileWriterGeneric::ByteChunkDataDirective()
     const {
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
-  // MIPS uses a fixed 4 byte instruction set, using .long
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
+    defined(V8_TARGET_ARCH_LOONG64)
+  // MIPS and LOONG64 uses a fixed 4 byte instruction set, using .long
   // to prevent any unnecessary padding.
   return kLong;
 #else

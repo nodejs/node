@@ -21,9 +21,9 @@ MarkingVerifierBase::MarkingVerifierBase(
       verification_state_(verification_state),
       visitor_(std::move(visitor)) {}
 
-void MarkingVerifierBase::Run(Heap::Config::StackState stack_state,
-                              uintptr_t stack_end,
-                              size_t expected_marked_bytes) {
+void MarkingVerifierBase::Run(
+    Heap::Config::StackState stack_state, uintptr_t stack_end,
+    v8::base::Optional<size_t> expected_marked_bytes) {
   Traverse(heap_.raw_heap());
   if (stack_state == Heap::Config::StackState::kMayContainHeapPointers) {
     in_construction_objects_ = &in_construction_objects_stack_;
@@ -38,9 +38,9 @@ void MarkingVerifierBase::Run(Heap::Config::StackState stack_state,
                in_construction_objects_heap_.find(header));
     }
   }
-#ifdef CPPGC_VERIFY_LIVE_BYTES
-  CHECK_EQ(expected_marked_bytes, found_marked_bytes_);
-#endif  // CPPGC_VERIFY_LIVE_BYTES
+  if (expected_marked_bytes) {
+    CHECK_EQ(expected_marked_bytes.value(), found_marked_bytes_);
+  }
 }
 
 void VerificationState::VerifyMarked(const void* base_object_payload) const {

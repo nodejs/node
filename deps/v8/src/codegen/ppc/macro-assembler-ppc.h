@@ -201,6 +201,18 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
               Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
   void MulS32(Register dst, Register src, Register value, OEBit s = LeaveOE,
               RCBit r = LeaveRC);
+  void DivS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
+              RCBit r = LeaveRC);
+  void DivU64(Register dst, Register src, Register value, OEBit s = LeaveOE,
+              RCBit r = LeaveRC);
+  void DivS32(Register dst, Register src, Register value, OEBit s = LeaveOE,
+              RCBit r = LeaveRC);
+  void DivU32(Register dst, Register src, Register value, OEBit s = LeaveOE,
+              RCBit r = LeaveRC);
+  void ModS64(Register dst, Register src, Register value);
+  void ModU64(Register dst, Register src, Register value);
+  void ModS32(Register dst, Register src, Register value);
+  void ModU32(Register dst, Register src, Register value);
 
   void AndU64(Register dst, Register src, const Operand& value,
               Register scratch = r0, RCBit r = SetRC);
@@ -561,8 +573,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       Register dst_hi,
 #endif
       Register dst, DoubleRegister src);
-  void MovIntToFloat(DoubleRegister dst, Register src);
-  void MovFloatToInt(Register dst, DoubleRegister src);
+  void MovIntToFloat(DoubleRegister dst, Register src, Register scratch);
+  void MovFloatToInt(Register dst, DoubleRegister src, DoubleRegister scratch);
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<HeapObject> value,
@@ -734,8 +746,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // instruction following the call.
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
-
-  void ResetSpeculationPoisonRegister();
 
   // Control-flow integrity:
 

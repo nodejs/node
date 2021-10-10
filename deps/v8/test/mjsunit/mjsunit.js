@@ -132,9 +132,7 @@ var assertInstanceof;
 // Assert that this code is never executed (i.e., always fails if executed).
 var assertUnreachable;
 
-// Assert that the function code is (not) optimized.  If "no sync" is passed
-// as second argument, we do not wait for the concurrent optimization thread to
-// finish when polling for optimization status.
+// Assert that the function code is (not) optimized.
 // Only works with --allow-natives-syntax.
 var assertOptimized;
 var assertUnoptimized;
@@ -657,22 +655,21 @@ var prettyPrinted;
 
   var OptimizationStatusImpl = undefined;
 
-  var OptimizationStatus = function(fun, sync_opt) {
+  var OptimizationStatus = function(fun) {
     if (OptimizationStatusImpl === undefined) {
       try {
         OptimizationStatusImpl = new Function(
-            "fun", "sync", "return %GetOptimizationStatus(fun, sync);");
+            "fun", "return %GetOptimizationStatus(fun);");
       } catch (e) {
         throw new Error("natives syntax not allowed");
       }
     }
-    return OptimizationStatusImpl(fun, sync_opt);
+    return OptimizationStatusImpl(fun);
   }
 
   assertUnoptimized = function assertUnoptimized(
-      fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
-    if (sync_opt === undefined) sync_opt = "";
-    var opt_status = OptimizationStatus(fun, sync_opt);
+      fun, name_opt, skip_if_maybe_deopted = true) {
+    var opt_status = OptimizationStatus(fun);
     // Tests that use assertUnoptimized() do not make sense if --always-opt
     // option is provided. Such tests must add --no-always-opt to flags comment.
     assertFalse((opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0,
@@ -690,9 +687,8 @@ var prettyPrinted;
   }
 
   assertOptimized = function assertOptimized(
-      fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
-    if (sync_opt === undefined) sync_opt = "";
-    var opt_status = OptimizationStatus(fun, sync_opt);
+      fun, name_opt, skip_if_maybe_deopted = true) {
+    var opt_status = OptimizationStatus(fun);
     // Tests that use assertOptimized() do not make sense for Lite mode where
     // optimization is always disabled, explicitly exit the test with a warning.
     if (opt_status & V8OptimizationStatus.kLiteMode) {

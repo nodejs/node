@@ -79,3 +79,36 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertTraps(kTrapTableOutOfBounds, () => instance.exports.init());
 })();
+
+
+(function TestExternRefTableConstructorWithDefaultValue() {
+  print(arguments.callee.name);
+  const testObject = {};
+  const argument = { "element": "externref", "initial": 3 };
+  const table = new WebAssembly.Table(argument, testObject);
+  assertEquals(table.length, 3);
+  assertEquals(table.get(0), testObject);
+  assertEquals(table.get(1), testObject);
+  assertEquals(table.get(2), testObject);
+})();
+
+(function TestFuncRefTableConstructorWithDefaultValue() {
+  print(arguments.callee.name);
+
+  const expected = 6;
+  let dummy =
+      (() => {
+        let builder = new WasmModuleBuilder();
+        builder.addFunction('dummy', kSig_i_v)
+            .addBody([kExprI32Const, expected])
+            .exportAs('dummy');
+        return builder.instantiate().exports.dummy;
+      })();
+
+  const argument = { "element": "anyfunc", "initial": 3 };
+  const table = new WebAssembly.Table(argument, dummy);
+  assertEquals(table.length, 3);
+  assertEquals(table.get(0)(), expected);
+  assertEquals(table.get(1)(), expected);
+  assertEquals(table.get(2)(), expected);
+})();

@@ -321,8 +321,8 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
 
 class AddressingModeUnitTest : public InstructionSelectorTest {
  public:
-  AddressingModeUnitTest() : m(NULL) { Reset(); }
-  ~AddressingModeUnitTest() { delete m; }
+  AddressingModeUnitTest() : m(nullptr) { Reset(); }
+  ~AddressingModeUnitTest() override { delete m; }
 
   void Run(Node* base, Node* load_index, Node* store_index,
            AddressingMode mode) {
@@ -743,7 +743,7 @@ TEST_F(InstructionSelectorTest, Float32Abs) {
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kSSEFloat32Abs, s[0]->arch_opcode());
+    EXPECT_EQ(kFloat32Abs, s[0]->arch_opcode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
@@ -758,7 +758,7 @@ TEST_F(InstructionSelectorTest, Float32Abs) {
     m.Return(n);
     Stream s = m.Build(AVX);
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kAVXFloat32Abs, s[0]->arch_opcode());
+    EXPECT_EQ(kFloat32Abs, s[0]->arch_opcode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
@@ -776,7 +776,7 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kSSEFloat64Abs, s[0]->arch_opcode());
+    EXPECT_EQ(kFloat64Abs, s[0]->arch_opcode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
@@ -791,7 +791,7 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
     m.Return(n);
     Stream s = m.Build(AVX);
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kAVXFloat64Abs, s[0]->arch_opcode());
+    EXPECT_EQ(kFloat64Abs, s[0]->arch_opcode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
@@ -812,10 +812,10 @@ TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
     m.Return(ret);
     Stream s = m.Build(AVX);
     ASSERT_EQ(4U, s.size());
-    EXPECT_EQ(kAVXFloat64Add, s[0]->arch_opcode());
-    EXPECT_EQ(kAVXFloat64Mul, s[1]->arch_opcode());
-    EXPECT_EQ(kAVXFloat64Sub, s[2]->arch_opcode());
-    EXPECT_EQ(kAVXFloat64Div, s[3]->arch_opcode());
+    EXPECT_EQ(kFloat64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kFloat64Mul, s[1]->arch_opcode());
+    EXPECT_EQ(kFloat64Sub, s[2]->arch_opcode());
+    EXPECT_EQ(kFloat64Div, s[3]->arch_opcode());
   }
   {
     StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
@@ -827,10 +827,10 @@ TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
     m.Return(ret);
     Stream s = m.Build();
     ASSERT_EQ(4U, s.size());
-    EXPECT_EQ(kSSEFloat64Add, s[0]->arch_opcode());
-    EXPECT_EQ(kSSEFloat64Mul, s[1]->arch_opcode());
-    EXPECT_EQ(kSSEFloat64Sub, s[2]->arch_opcode());
-    EXPECT_EQ(kSSEFloat64Div, s[3]->arch_opcode());
+    EXPECT_EQ(kFloat64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kFloat64Mul, s[1]->arch_opcode());
+    EXPECT_EQ(kFloat64Sub, s[2]->arch_opcode());
+    EXPECT_EQ(kFloat64Div, s[3]->arch_opcode());
   }
 }
 

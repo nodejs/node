@@ -563,9 +563,10 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kWasmFunctionExtendingTypeCode: {
-          if (!enabled_features_.has_gc_experiments()) {
+          if (!enabled_features_.has_gc()) {
             errorf(pc(),
-                   "nominal types need --experimental-wasm-gc-experiments");
+                   "invalid function type definition, enable with "
+                   "--experimental-wasm-gc");
             break;
           }
           const FunctionSig* s = consume_sig(module_->signature_zone.get());
@@ -591,9 +592,10 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kWasmStructExtendingTypeCode: {
-          if (!enabled_features_.has_gc_experiments()) {
+          if (!enabled_features_.has_gc()) {
             errorf(pc(),
-                   "nominal types need --experimental-wasm-gc-experiments");
+                   "invalid struct type definition, enable with "
+                   "--experimental-wasm-gc");
             break;
           }
           const StructType* s = consume_struct(module_->signature_zone.get());
@@ -617,9 +619,10 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kWasmArrayExtendingTypeCode: {
-          if (!enabled_features_.has_gc_experiments()) {
+          if (!enabled_features_.has_gc()) {
             errorf(pc(),
-                   "nominal types need --experimental-wasm-gc-experiments");
+                   "invalid array type definition, enable with "
+                   "--experimental-wasm-gc");
             break;
           }
           const ArrayType* type = consume_array(module_->signature_zone.get());

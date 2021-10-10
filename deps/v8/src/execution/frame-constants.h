@@ -283,7 +283,9 @@ class BuiltinExitFrameConstants : public ExitFrameConstants {
   static constexpr int kPaddingOffset = kArgcOffset + 1 * kSystemPointerSize;
   static constexpr int kFirstArgumentOffset =
       kPaddingOffset + 1 * kSystemPointerSize;
-  static constexpr int kNumExtraArgsWithReceiver = 5;
+  static constexpr int kNumExtraArgsWithoutReceiver = 4;
+  static constexpr int kNumExtraArgsWithReceiver =
+      kNumExtraArgsWithoutReceiver + 1;
 };
 
 // Unoptimized frames are used for interpreted and baseline-compiled JavaScript
@@ -403,6 +405,8 @@ inline static int FrameSlotToFPOffset(int slot) {
 #include "src/execution/mips/frame-constants-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/execution/mips64/frame-constants-mips64.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/execution/loong64/frame-constants-loong64.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/execution/s390/frame-constants-s390.h"
 #elif V8_TARGET_ARCH_RISCV64

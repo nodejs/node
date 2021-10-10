@@ -8,6 +8,7 @@
 #include "src/heap/marking-visitor.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
+#include "src/heap/progress-bar.h"
 #include "src/heap/spaces.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
@@ -185,11 +186,13 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     // If bytecode flushing is disabled but baseline code flushing is enabled
     // then we have to visit the bytecode but not the baseline code.
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
-    BaselineData baseline_data =
-        BaselineData::cast(shared_info.function_data(kAcquireLoad));
-    // Visit the bytecode hanging off baseline data.
-    VisitPointer(baseline_data,
-                 baseline_data.RawField(BaselineData::kDataOffset));
+    CodeT baseline_codet = CodeT::cast(shared_info.function_data(kAcquireLoad));
+    // Safe to do a relaxed load here since the CodeT was acquire-loaded.
+    Code baseline_code = FromCodeT(baseline_codet, kRelaxedLoad);
+    // Visit the bytecode hanging off baseline code.
+    VisitPointer(baseline_code,
+                 baseline_code.RawField(
+                     Code::kDeoptimizationDataOrInterpreterDataOffset));
     weak_objects_->code_flushing_candidates.Push(task_id_, shared_info);
   } else {
     // In other cases, record as a flushing candidate since we have old
@@ -206,13 +209,13 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
     VisitFixedArrayWithProgressBar(Map map, FixedArray object,
-                                   MemoryChunk* chunk) {
+                                   ProgressBar& progress_bar) {
   const int kProgressBarScanningChunk = kMaxRegularHeapObjectSize;
   STATIC_ASSERT(kMaxRegularHeapObjectSize % kTaggedSize == 0);
   DCHECK(concrete_visitor()->marking_state()->IsBlackOrGrey(object));
   concrete_visitor()->marking_state()->GreyToBlack(object);
   int size = FixedArray::BodyDescriptor::SizeOf(map, object);
-  size_t current_progress_bar = chunk->ProgressBar();
+  size_t current_progress_bar = progress_bar.Value();
   int start = static_cast<int>(current_progress_bar);
   if (start == 0) {
     this->VisitMapPointer(object);
@@ -221,7 +224,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
   int end = std::min(size, start + kProgressBarScanningChunk);
   if (start < end) {
     VisitPointers(object, object.RawField(start), object.RawField(end));
-    bool success = chunk->TrySetProgressBar(current_progress_bar, end);
+    bool success = progress_bar.TrySetNewValue(current_progress_bar, end);
     CHECK(success);
     if (end < size) {
       // The object can be pushed back onto the marking worklist only after
@@ -237,9 +240,10 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitFixedArray(
     Map map, FixedArray object) {
   // Arrays with the progress bar are not left-trimmable because they reside
   // in the large object space.
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  return chunk->IsFlagSet<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR)
-             ? VisitFixedArrayWithProgressBar(map, object, chunk)
+  ProgressBar& progress_bar =
+      MemoryChunk::FromHeapObject(object)->ProgressBar();
+  return progress_bar.IsEnabled()
+             ? VisitFixedArrayWithProgressBar(map, object, progress_bar)
              : concrete_visitor()->VisitLeftTrimmableArray(map, object);
 }
 

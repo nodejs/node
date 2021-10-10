@@ -89,7 +89,7 @@
   'conversions': [SKIP],
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run'
 
-['(arch == mipsel or arch == mips64el) and simulator_run', {
+['(arch == mipsel or arch == mips64el or arch == loong64) and simulator_run', {
   # These tests need larger stack size on simulator.
   'skip-stack-guard-page': '--sim-stack-size=8192',
   'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',

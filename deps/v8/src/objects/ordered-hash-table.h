@@ -10,6 +10,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/keys.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
 

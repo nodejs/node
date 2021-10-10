@@ -28,7 +28,7 @@ import urllib2
 
 # Constants to git repos.
 BASE_URL = "https://chromium.googlesource.com"
-DEPS_LOG = BASE_URL + "/chromium/src/+log/master/DEPS?format=JSON"
+DEPS_LOG = BASE_URL + "/chromium/src/+log/main/DEPS?format=JSON"
 
 # Constants for retrieving v8 rolls.
 CRREV = "https://cr-rev.appspot.com/_ah/api/crrev/v1/commit/%s"

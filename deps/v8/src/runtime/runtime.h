@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "include/v8.h"
+#include "include/v8-maybe.h"
 #include "src/base/bit-field.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
@@ -488,7 +488,7 @@ namespace internal {
   F(FinalizeOptimization, 0, 1)               \
   F(GetCallable, 0, 1)                        \
   F(GetInitializerFunction, 1, 1)             \
-  F(GetOptimizationStatus, -1, 1)             \
+  F(GetOptimizationStatus, 1, 1)              \
   F(GetUndetectable, 0, 1)                    \
   F(GlobalPrint, 1, 1)                        \
   F(HasDictionaryElements, 1, 1)              \
@@ -558,7 +558,6 @@ namespace internal {
   F(TraceExit, 1, 1)                          \
   F(TurbofanStaticAssert, 1, 1)               \
   F(TypedArraySpeciesProtector, 0, 1)         \
-  F(UnblockConcurrentRecompilation, 0, 1)     \
   F(WaitForBackgroundOptimization, 0, 1)      \
   I(DeoptimizeNow, 0, 1)
 

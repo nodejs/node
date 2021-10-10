@@ -167,9 +167,9 @@ void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), r4));
 }
 
-void InstructionSelector::VisitLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  PPCOperandGenerator g(this);
+static void VisitLoadCommon(InstructionSelector* selector, Node* node,
+                            LoadRepresentation load_rep) {
+  PPCOperandGenerator g(selector);
   Node* base = node->InputAt(0);
   Node* offset = node->InputAt(1);
   InstructionCode opcode = kArchNop;
@@ -229,54 +229,51 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
   }
 
-  if (node->opcode() == IrOpcode::kPoisonedLoad &&
-      poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
-    opcode |= AccessModeField::encode(kMemoryAccessPoisoned);
-  }
-
   bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||
                     node->opcode() == IrOpcode::kWord64AtomicLoad);
 
   if (g.CanBeImmediate(offset, mode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(offset),
-         g.UseImmediate(is_atomic));
+    selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                   g.DefineAsRegister(node), g.UseRegister(base),
+                   g.UseImmediate(offset), g.UseImmediate(is_atomic));
   } else if (g.CanBeImmediate(base, mode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(offset), g.UseImmediate(base),
-         g.UseImmediate(is_atomic));
+    selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                   g.DefineAsRegister(node), g.UseRegister(offset),
+                   g.UseImmediate(base), g.UseImmediate(is_atomic));
   } else {
-    Emit(opcode | AddressingModeField::encode(kMode_MRR),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(offset),
-         g.UseImmediate(is_atomic));
+    selector->Emit(opcode | AddressingModeField::encode(kMode_MRR),
+                   g.DefineAsRegister(node), g.UseRegister(base),
+                   g.UseRegister(offset), g.UseImmediate(is_atomic));
   }
 }
 
-void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
+void InstructionSelector::VisitLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  VisitLoadCommon(this, node, load_rep);
+}
 
 void InstructionSelector::VisitProtectedLoad(Node* node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitStore(Node* node) {
-  PPCOperandGenerator g(this);
+void VisitStoreCommon(InstructionSelector* selector, Node* node,
+                      StoreRepresentation store_rep,
+                      base::Optional<AtomicMemoryOrder> atomic_order) {
+  PPCOperandGenerator g(selector);
   Node* base = node->InputAt(0);
   Node* offset = node->InputAt(1);
   Node* value = node->InputAt(2);
 
+  // TODO(miladfarca): maybe use atomic_order?
   bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicStore ||
                     node->opcode() == IrOpcode::kWord64AtomicStore);
 
-  MachineRepresentation rep;
+  MachineRepresentation rep = store_rep.representation();
   WriteBarrierKind write_barrier_kind = kNoWriteBarrier;
 
-  if (is_atomic) {
-    rep = AtomicStoreRepresentationOf(node->op());
-  } else {
-    StoreRepresentation store_rep = StoreRepresentationOf(node->op());
+  if (!is_atomic) {
     write_barrier_kind = store_rep.write_barrier_kind();
-    rep = store_rep.representation();
   }
 
   if (FLAG_enable_unconditional_write_barriers &&
@@ -312,7 +309,7 @@ void InstructionSelector::VisitStore(Node* node) {
     code |= AddressingModeField::encode(addressing_mode);
     code |= MiscField::encode(static_cast<int>(record_write_mode));
     CHECK_EQ(is_atomic, false);
-    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
+    selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     ArchOpcode opcode;
     ImmediateMode mode = kInt16Imm;
@@ -346,7 +343,6 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
 #else
         UNREACHABLE();
-        break;
 #endif
       case MachineRepresentation::kTaggedSigned:   // Fall through.
       case MachineRepresentation::kTaggedPointer:  // Fall through.
@@ -374,19 +370,24 @@ void InstructionSelector::VisitStore(Node* node) {
     }
 
     if (g.CanBeImmediate(offset, mode)) {
-      Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
-           g.UseRegister(base), g.UseImmediate(offset), g.UseRegister(value),
-           g.UseImmediate(is_atomic));
+      selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                     g.NoOutput(), g.UseRegister(base), g.UseImmediate(offset),
+                     g.UseRegister(value), g.UseImmediate(is_atomic));
     } else if (g.CanBeImmediate(base, mode)) {
-      Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
-           g.UseRegister(offset), g.UseImmediate(base), g.UseRegister(value),
-           g.UseImmediate(is_atomic));
+      selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                     g.NoOutput(), g.UseRegister(offset), g.UseImmediate(base),
+                     g.UseRegister(value), g.UseImmediate(is_atomic));
     } else {
-      Emit(opcode | AddressingModeField::encode(kMode_MRR), g.NoOutput(),
-           g.UseRegister(base), g.UseRegister(offset), g.UseRegister(value),
-           g.UseImmediate(is_atomic));
+      selector->Emit(opcode | AddressingModeField::encode(kMode_MRR),
+                     g.NoOutput(), g.UseRegister(base), g.UseRegister(offset),
+                     g.UseRegister(value), g.UseImmediate(is_atomic));
     }
   }
+}
+
+void InstructionSelector::VisitStore(Node* node) {
+  VisitStoreCommon(this, node, StoreRepresentationOf(node->op()),
+                   base::nullopt);
 }
 
 void InstructionSelector::VisitProtectedStore(Node* node) {
@@ -1956,16 +1957,28 @@ void InstructionSelector::VisitMemoryBarrier(Node* node) {
   Emit(kPPC_Sync, g.NoOutput());
 }
 
-void InstructionSelector::VisitWord32AtomicLoad(Node* node) { VisitLoad(node); }
+void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
+  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
+  LoadRepresentation load_rep = atomic_load_params.representation();
+  VisitLoadCommon(this, node, load_rep);
+}
 
-void InstructionSelector::VisitWord64AtomicLoad(Node* node) { VisitLoad(node); }
+void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
+  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
+  LoadRepresentation load_rep = atomic_load_params.representation();
+  VisitLoadCommon(this, node, load_rep);
+}
 
 void InstructionSelector::VisitWord32AtomicStore(Node* node) {
-  VisitStore(node);
+  AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
+  VisitStoreCommon(this, node, store_params.store_representation(),
+                   store_params.order());
 }
 
 void InstructionSelector::VisitWord64AtomicStore(Node* node) {
-  VisitStore(node);
+  AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
+  VisitStoreCommon(this, node, store_params.store_representation(),
+                   store_params.order());
 }
 
 void VisitAtomicExchange(InstructionSelector* selector, Node* node,
@@ -1991,11 +2004,11 @@ void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
   ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Int8()) {
-    opcode = kWord32AtomicExchangeInt8;
+    opcode = kAtomicExchangeInt8;
   } else if (type == MachineType::Uint8()) {
     opcode = kPPC_AtomicExchangeUint8;
   } else if (type == MachineType::Int16()) {
-    opcode = kWord32AtomicExchangeInt16;
+    opcode = kAtomicExchangeInt16;
   } else if (type == MachineType::Uint16()) {
     opcode = kPPC_AtomicExchangeUint16;
   } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
@@ -2052,11 +2065,11 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
   MachineType type = AtomicOpType(node->op());
   ArchOpcode opcode;
   if (type == MachineType::Int8()) {
-    opcode = kWord32AtomicCompareExchangeInt8;
+    opcode = kAtomicCompareExchangeInt8;
   } else if (type == MachineType::Uint8()) {
     opcode = kPPC_AtomicCompareExchangeUint8;
   } else if (type == MachineType::Int16()) {
-    opcode = kWord32AtomicCompareExchangeInt16;
+    opcode = kAtomicCompareExchangeInt16;
   } else if (type == MachineType::Uint16()) {
     opcode = kPPC_AtomicCompareExchangeUint16;
   } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {

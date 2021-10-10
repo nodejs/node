@@ -7,6 +7,7 @@
 
 #include <unordered_set>
 
+#include "src/base/optional.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-visitor.h"
@@ -40,7 +41,7 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
   MarkingVerifierBase(const MarkingVerifierBase&) = delete;
   MarkingVerifierBase& operator=(const MarkingVerifierBase&) = delete;
 
-  void Run(Heap::Config::StackState, uintptr_t, size_t);
+  void Run(Heap::Config::StackState, uintptr_t, v8::base::Optional<size_t>);
 
  protected:
   MarkingVerifierBase(HeapBase&, VerificationState&,

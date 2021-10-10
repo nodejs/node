@@ -14,19 +14,20 @@ namespace v8 {
 namespace internal {
 
 // Define interface descriptors for builtins with JS linkage.
-#define DEFINE_TFJ_INTERFACE_DESCRIPTOR(Name, Argc, ...)                \
-  struct Builtin_##Name##_InterfaceDescriptor {                         \
-    enum ParameterIndices {                                             \
-      kJSTarget = compiler::CodeAssembler::kTargetParameterIndex,       \
-      ##__VA_ARGS__,                                                    \
-      kJSNewTarget,                                                     \
-      kJSActualArgumentsCount,                                          \
-      kContext,                                                         \
-      kParameterCount,                                                  \
-    };                                                                  \
-    static_assert((Argc) == static_cast<uint16_t>(kParameterCount - 4), \
-                  "Inconsistent set of arguments");                     \
-    static_assert(kJSTarget == -1, "Unexpected kJSTarget index value"); \
+#define DEFINE_TFJ_INTERFACE_DESCRIPTOR(Name, Argc, ...)                 \
+  struct Builtin_##Name##_InterfaceDescriptor {                          \
+    enum ParameterIndices {                                              \
+      kJSTarget = compiler::CodeAssembler::kTargetParameterIndex,        \
+      ##__VA_ARGS__,                                                     \
+      kJSNewTarget,                                                      \
+      kJSActualArgumentsCount,                                           \
+      kContext,                                                          \
+      kParameterCount,                                                   \
+    };                                                                   \
+    static_assert((Argc) == static_cast<uint16_t>(kParameterCount - 4 +  \
+                                                  kJSArgcReceiverSlots), \
+                  "Inconsistent set of arguments");                      \
+    static_assert(kJSTarget == -1, "Unexpected kJSTarget index value");  \
   };
 
 // Define interface descriptors for builtins with StubCall linkage.

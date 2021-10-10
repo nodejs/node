@@ -31,6 +31,14 @@ Handle<JSFinalizationRegistry> ConstructJSFinalizationRegistry(
       JSObject::New(finalization_registry_fun, finalization_registry_fun,
                     Handle<AllocationSite>::null())
           .ToHandleChecked());
+
+  // JSObject::New filled all of the internal fields with undefined. Some of
+  // them have more restrictive types, so set those now.
+  finalization_registry->set_native_context(*isolate->native_context());
+  finalization_registry->set_cleanup(
+      isolate->native_context()->empty_function());
+  finalization_registry->set_flags(0);
+
 #ifdef VERIFY_HEAP
   finalization_registry->JSFinalizationRegistryVerify(isolate);
 #endif  // VERIFY_HEAP

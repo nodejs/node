@@ -57,6 +57,9 @@ void PropertyCell::Transition(PropertyDetails new_details,
   DCHECK(CanTransitionTo(new_details, *new_value));
   // This code must be in sync with its counterpart in
   // PropertyCellData::Serialize.
+  PropertyDetails transition_marker = new_details;
+  transition_marker.set_cell_type(PropertyCellType::kInTransition);
+  set_property_details_raw(transition_marker.AsSmi(), kReleaseStore);
   set_value(*new_value, kReleaseStore);
   set_property_details_raw(new_details.AsSmi(), kReleaseStore);
 }

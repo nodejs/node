@@ -978,9 +978,6 @@ bool Scanner::ScanRegExpPattern() {
       // worrying whether the following characters are part of the escape
       // or not, since any '/', '\\' or '[' is guaranteed to not be part
       // of the escape sequence.
-
-      // TODO(896): At some point, parse RegExps more thoroughly to capture
-      // octal esacpes in strict mode.
     } else {  // Unescaped character.
       if (c0_ == '[') in_character_class = true;
       if (c0_ == ']') in_character_class = false;
@@ -993,22 +990,21 @@ bool Scanner::ScanRegExpPattern() {
   return true;
 }
 
-Maybe<int> Scanner::ScanRegExpFlags() {
+base::Optional<RegExpFlags> Scanner::ScanRegExpFlags() {
   DCHECK_EQ(Token::REGEXP_LITERAL, next().token);
 
-  // Scan regular expression flags.
-  JSRegExp::Flags flags;
+  RegExpFlags flags;
   while (IsIdentifierPart(c0_)) {
-    base::Optional<JSRegExp::Flags> maybe_flag = JSRegExp::FlagFromChar(c0_);
-    if (!maybe_flag.has_value()) return Nothing<int>();
-    JSRegExp::Flags flag = *maybe_flag;
-    if (flags & flag) return Nothing<int>();
+    base::Optional<RegExpFlag> maybe_flag = JSRegExp::FlagFromChar(c0_);
+    if (!maybe_flag.has_value()) return {};
+    RegExpFlag flag = maybe_flag.value();
+    if (flags & flag) return {};
     Advance();
     flags |= flag;
   }
 
   next().location.end_pos = source_pos();
-  return Just<int>(flags);
+  return flags;
 }
 
 const AstRawString* Scanner::CurrentSymbol(

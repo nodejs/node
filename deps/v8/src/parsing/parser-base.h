@@ -27,11 +27,14 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/scanner.h"
 #include "src/parsing/token.h"
+#include "src/regexp/regexp.h"
 #include "src/utils/pointer-with-payload.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 namespace internal {
+
+class PreParserIdentifier;
 
 enum FunctionNameValidity {
   kFunctionNameIsStrictReserved,
@@ -1074,22 +1077,24 @@ class ParserBase {
   }
 
   // Report syntax errors.
-  V8_NOINLINE void ReportMessage(MessageTemplate message) {
-    Scanner::Location source_location = scanner()->location();
-    impl()->ReportMessageAt(source_location, message,
-                            static_cast<const char*>(nullptr));
+  template <typename... Ts>
+  V8_NOINLINE void ReportMessage(MessageTemplate message, const Ts&... args) {
+    ReportMessageAt(scanner()->location(), message, args...);
   }
 
-  template <typename T>
-  V8_NOINLINE void ReportMessage(MessageTemplate message, T arg) {
-    Scanner::Location source_location = scanner()->location();
-    impl()->ReportMessageAt(source_location, message, arg);
+  template <typename... Ts>
+  V8_NOINLINE void ReportMessageAt(Scanner::Location source_location,
+                                   MessageTemplate message, const Ts&... args) {
+    impl()->pending_error_handler()->ReportMessageAt(
+        source_location.beg_pos, source_location.end_pos, message, args...);
+    scanner()->set_parser_error();
   }
 
-  V8_NOINLINE void ReportMessageAt(Scanner::Location location,
-                                   MessageTemplate message) {
-    impl()->ReportMessageAt(location, message,
-                            static_cast<const char*>(nullptr));
+  V8_NOINLINE void ReportMessageAt(Scanner::Location source_location,
+                                   MessageTemplate message,
+                                   const PreParserIdentifier& arg0) {
+    ReportMessageAt(source_location, message,
+                    impl()->PreParserIdentifierToAstRawString(arg0));
   }
 
   V8_NOINLINE void ReportUnexpectedToken(Token::Value token);
@@ -1122,6 +1127,12 @@ class ParserBase {
   }
 
   V8_INLINE IdentifierT ParseAndClassifyIdentifier(Token::Value token);
+
+  // Similar logic to ParseAndClassifyIdentifier but the identifier is
+  // already parsed in prop_info. Returns false if this is an invalid
+  // identifier or an invalid use of the "arguments" keyword.
+  V8_INLINE bool ClassifyPropertyIdentifier(Token::Value token,
+                                            ParsePropertyInfo* prop_info);
   // Parses an identifier or a strict mode future reserved word. Allows passing
   // in function_kind for the case of parsing the identifier in a function
   // expression, where the relevant "function_kind" bit is of the function being
@@ -1140,6 +1151,11 @@ class ParserBase {
 
   ExpressionT ParsePropertyOrPrivatePropertyName();
 
+  const AstRawString* GetNextSymbolForRegExpLiteral() const {
+    return scanner()->NextSymbol(ast_value_factory());
+  }
+  bool ValidateRegExpLiteral(const AstRawString* pattern, RegExpFlags flags,
+                             RegExpError* regexp_error);
   ExpressionT ParseRegExpLiteral();
 
   ExpressionT ParseBindingPattern();
@@ -1634,8 +1650,39 @@ void ParserBase<Impl>::ReportUnexpectedToken(Token::Value token) {
 }
 
 template <typename Impl>
+bool ParserBase<Impl>::ClassifyPropertyIdentifier(
+    Token::Value next, ParsePropertyInfo* prop_info) {
+  // Updates made here must be reflected on ParseAndClassifyIdentifier.
+  if (V8_LIKELY(base::IsInRange(next, Token::IDENTIFIER, Token::ASYNC))) {
+    if (V8_UNLIKELY(impl()->IsArguments(prop_info->name) &&
+                    scope()->ShouldBanArguments())) {
+      ReportMessage(
+          MessageTemplate::kArgumentsDisallowedInInitializerAndStaticBlock);
+      return false;
+    }
+    return true;
+  }
+
+  if (!Token::IsValidIdentifier(next, language_mode(), is_generator(),
+                                is_await_as_identifier_disallowed())) {
+    ReportUnexpectedToken(next);
+    return false;
+  }
+
+  DCHECK(!prop_info->is_computed_name);
+
+  if (next == Token::AWAIT) {
+    DCHECK(!is_async_function());
+    expression_scope()->RecordAsyncArrowParametersError(
+        scanner()->peek_location(), MessageTemplate::kAwaitBindingIdentifier);
+  }
+  return true;
+}
+
+template <typename Impl>
 typename ParserBase<Impl>::IdentifierT
 ParserBase<Impl>::ParseAndClassifyIdentifier(Token::Value next) {
+  // Updates made here must be reflected on ClassifyPropertyIdentifier.
   DCHECK_EQ(scanner()->current_token(), next);
   if (V8_LIKELY(base::IsInRange(next, Token::IDENTIFIER, Token::ASYNC))) {
     IdentifierT name = impl()->GetIdentifier();
@@ -1746,6 +1793,25 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
 }
 
 template <typename Impl>
+bool ParserBase<Impl>::ValidateRegExpLiteral(const AstRawString* pattern,
+                                             RegExpFlags flags,
+                                             RegExpError* regexp_error) {
+  // TODO(jgruber): If already validated in the preparser, skip validation in
+  // the parser.
+  DisallowGarbageCollection no_gc;
+  const unsigned char* d = pattern->raw_data();
+  if (pattern->is_one_byte()) {
+    return RegExp::VerifySyntax(zone(), stack_limit(),
+                                static_cast<const uint8_t*>(d),
+                                pattern->length(), flags, regexp_error, no_gc);
+  } else {
+    return RegExp::VerifySyntax(zone(), stack_limit(),
+                                reinterpret_cast<const uint16_t*>(d),
+                                pattern->length(), flags, regexp_error, no_gc);
+  }
+}
+
+template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
   int pos = peek_position();
   if (!scanner()->ScanRegExpPattern()) {
@@ -1754,15 +1820,22 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
     return impl()->FailureExpression();
   }
 
-  IdentifierT js_pattern = impl()->GetNextSymbol();
-  Maybe<int> flags = scanner()->ScanRegExpFlags();
-  if (flags.IsNothing()) {
+  const AstRawString* js_pattern = GetNextSymbolForRegExpLiteral();
+  base::Optional<RegExpFlags> flags = scanner()->ScanRegExpFlags();
+  if (!flags.has_value()) {
     Next();
     ReportMessage(MessageTemplate::kMalformedRegExpFlags);
     return impl()->FailureExpression();
   }
   Next();
-  return factory()->NewRegExpLiteral(js_pattern, flags.FromJust(), pos);
+  RegExpError regexp_error;
+  if (!ValidateRegExpLiteral(js_pattern, flags.value(), &regexp_error)) {
+    if (RegExpErrorIsStackOverflow(regexp_error)) set_stack_overflow();
+    ReportMessage(MessageTemplate::kMalformedRegExp, js_pattern,
+                  RegExpErrorString(regexp_error));
+    return impl()->FailureExpression();
+  }
+  return factory()->NewRegExpLiteral(js_pattern, flags.value(), pos);
 }
 
 template <typename Impl>
@@ -2514,7 +2587,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
 
   IdentifierT name = prop_info->name;
   ParseFunctionFlags function_flags = prop_info->function_flags;
-  ParsePropertyKind kind = prop_info->kind;
 
   switch (prop_info->kind) {
     case ParsePropertyKind::kSpread:
@@ -2562,19 +2634,10 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
       //    IdentifierReference Initializer?
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
 
-      if (!Token::IsValidIdentifier(name_token, language_mode(), is_generator(),
-                                    is_await_as_identifier_disallowed())) {
-        ReportUnexpectedToken(Next());
+      if (!ClassifyPropertyIdentifier(name_token, prop_info)) {
         return impl()->NullLiteralProperty();
       }
 
-      DCHECK(!prop_info->is_computed_name);
-
-      if (name_token == Token::AWAIT) {
-        DCHECK(!is_async_function());
-        expression_scope()->RecordAsyncArrowParametersError(
-            next_loc, MessageTemplate::kAwaitBindingIdentifier);
-      }
       ExpressionT lhs =
           impl()->ExpressionFromIdentifier(name, next_loc.beg_pos);
       if (!IsAssignableIdentifier(lhs)) {
@@ -2637,7 +2700,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
     case ParsePropertyKind::kAccessorGetter:
     case ParsePropertyKind::kAccessorSetter: {
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
-      bool is_get = kind == ParsePropertyKind::kAccessorGetter;
+      bool is_get = prop_info->kind == ParsePropertyKind::kAccessorGetter;
 
       expression_scope()->RecordPatternError(
           Scanner::Location(next_loc.beg_pos, end_position()),

@@ -4,7 +4,13 @@
 
 #include <memory>
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-function-callback.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-object.h"
+#include "include/v8-persistent-handle.h"
+#include "include/v8-promise.h"
+#include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/handles/global-handles.h"
 #include "test/cctest/cctest.h"

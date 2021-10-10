@@ -27,6 +27,10 @@
 
 #include <stdlib.h>
 
+#include "include/v8-extension.h"
+#include "include/v8-function.h"
+#include "include/v8-json.h"
+#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
@@ -938,7 +942,6 @@ TEST(BreakPointInlinedConstructorBuiltin) {
 
 TEST(BreakPointBuiltinConcurrentOpt) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_block_concurrent_recompilation = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -952,19 +955,20 @@ TEST(BreakPointBuiltinConcurrentOpt) {
   break_point_hit_count = 0;
   builtin = CompileRun("Math.sin").As<v8::Function>();
   CompileRun("function test(x) { return 1 + Math.sin(x) }");
-  // Trigger concurrent compile job. It is suspended until unblock.
   CompileRun(
       "%PrepareFunctionForOptimization(test);"
       "test(0.5); test(0.6);"
-      "%OptimizeFunctionOnNextCall(test, 'concurrent'); test(0.7);");
+      "%DisableOptimizationFinalization();"
+      "%OptimizeFunctionOnNextCall(test, 'concurrent');"
+      "test(0.7);");
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
   bp = SetBreakPoint(builtin, 0);
   // Have the concurrent compile job finish now.
   CompileRun(
-      "%UnblockConcurrentRecompilation();"
-      "%GetOptimizationStatus(test, 'sync');");
+      "%FinalizeOptimization();"
+      "%GetOptimizationStatus(test);");
   CompileRun("test(0.2);");
   CHECK_EQ(1, break_point_hit_count);
 
@@ -1446,7 +1450,6 @@ TEST(BreakPointInlineApiFunction) {
 // Test that a break point can be set at a return store location.
 TEST(BreakPointConditionBuiltin) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_block_concurrent_recompilation = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 

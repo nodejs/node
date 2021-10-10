@@ -5,7 +5,8 @@
 #include <stdio.h>
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "include/v8-array-buffer.h"
+#include "include/v8-initialization.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
@@ -113,6 +114,11 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
   // Start up V8.
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  if (!v8::V8::InitializeVirtualMemoryCage()) {
+    FATAL("Could not initialize the virtual memory cage");
+  }
+#endif
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(argv0);
   Isolate::CreateParams create_params;

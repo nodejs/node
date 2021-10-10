@@ -104,7 +104,7 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
  private:
   void VisitAllTypedArrayElements(TNode<JSArrayBuffer> array_buffer,
                                   const CallResultProcessor& processor,
-                                  Label* detached, ForEachDirection direction,
+                                  ForEachDirection direction,
                                   TNode<JSTypedArray> typed_array);
 
   TNode<Object> callbackfn_;

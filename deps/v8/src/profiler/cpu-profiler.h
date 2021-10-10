@@ -268,6 +268,7 @@ class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
   CodeEntryStorage* code_entries() { return &code_entries_; }
   CodeMap* code_map() { return &code_map_; }
   WeakCodeRegistry* weak_code_registry() { return &weak_code_registry_; }
+  size_t GetEstimatedMemoryUsage() const;
 
   void ClearCodeMap();
 

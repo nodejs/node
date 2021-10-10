@@ -78,13 +78,6 @@ CONFIGS = dict(
     '--always-opt',
     '--force-slow-path',
   ],
-  trusted=[
-    '--no-untrusted-code-mitigations',
-  ],
-  trusted_opt=[
-    '--always-opt',
-    '--no-untrusted-code-mitigations',
-  ],
 )
 
 BASELINE_CONFIG = 'ignition'
@@ -173,6 +166,15 @@ KNOWN_FAILURES = {
   'CrashTests/5694376231632896/1033966.js': 'flaky',
 }
 
+# Flags that are already crashy during smoke tests should not be used.
+DISALLOWED_FLAGS = [
+  '--gdbjit',
+]
+
+
+def filter_flags(flags):
+  return [flag for flag in flags if flag not in DISALLOWED_FLAGS]
+
 
 def infer_arch(d8):
   """Infer the V8 architecture from the build configuration next to the
@@ -223,7 +225,7 @@ class ExecutionArgumentsConfig(object):
       d8 = os.path.join(BASE_PATH, d8)
     assert os.path.exists(d8)
 
-    flags = CONFIGS[config] + get('config_extra_flags')
+    flags = CONFIGS[config] + filter_flags(get('config_extra_flags'))
 
     RunOptions = namedtuple('RunOptions', ['arch', 'config', 'd8', 'flags'])
     return RunOptions(infer_arch(d8), config, d8, flags)

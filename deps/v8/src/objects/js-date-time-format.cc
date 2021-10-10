@@ -2209,8 +2209,8 @@ template <typename T>
 MaybeHandle<T> FormatRangeCommon(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
     double y,
-    MaybeHandle<T> (*formatToResult)(Isolate*, const icu::FormattedValue&,
-                                     bool*),
+    const std::function<MaybeHandle<T>(Isolate*, const icu::FormattedValue&,
+                                       bool*)>& formatToResult,
     bool* outputRange) {
   // Track newer feature formateRange and formatRangeToParts
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateTimeFormatRange);

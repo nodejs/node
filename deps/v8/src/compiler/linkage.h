@@ -214,15 +214,13 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kInitializeRootRegister = 1u << 3,
     // Does not ever try to allocate space on our heap.
     kNoAllocate = 1u << 4,
-    // Use retpoline for this call if indirect.
-    kRetpoline = 1u << 5,
     // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
     // indirect target address when calling.
-    kFixedTargetRegister = 1u << 6,
-    kCallerSavedRegisters = 1u << 7,
+    kFixedTargetRegister = 1u << 5,
+    kCallerSavedRegisters = 1u << 6,
     // The kCallerSavedFPRegisters only matters (and set) when the more general
     // flag for kCallerSavedRegisters above is also set.
-    kCallerSavedFPRegisters = 1u << 8,
+    kCallerSavedFPRegisters = 1u << 7,
     // Tail calls for tier up are special (in fact they are different enough
     // from normal tail calls to warrant a dedicated opcode; but they also have
     // enough similar aspects that reusing the TailCall opcode is pragmatic).
@@ -238,15 +236,15 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     //
     // In other words, behavior is identical to a jmp instruction prior caller
     // frame construction.
-    kIsTailCallForTierUp = 1u << 9,
+    kIsTailCallForTierUp = 1u << 8,
+
+    // AIX has a function descriptor by default but it can be disabled for a
+    // certain CFunction call (only used for Kind::kCallAddress).
+    kNoFunctionDescriptor = 1u << 9,
 
     // Flags past here are *not* encoded in InstructionCode and are thus not
     // accessible from the code generator. See also
     // kFlagsBitsEncodedInInstructionCode.
-
-    // AIX has a function descriptor by default but it can be disabled for a
-    // certain CFunction call (only used for Kind::kCallAddress).
-    kNoFunctionDescriptor = 1u << 10,
   };
   using Flags = base::Flags<Flag>;
 

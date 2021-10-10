@@ -12,8 +12,10 @@ from ..testproc.result import Result
 
 OUTCOMES_PASS = [statusfile.PASS]
 OUTCOMES_FAIL = [statusfile.FAIL]
+OUTCOMES_TIMEOUT = [statusfile.TIMEOUT]
 OUTCOMES_PASS_OR_TIMEOUT = [statusfile.PASS, statusfile.TIMEOUT]
 OUTCOMES_FAIL_OR_TIMEOUT = [statusfile.FAIL, statusfile.TIMEOUT]
+OUTCOMES_FAIL_OR_PASS = [statusfile.FAIL, statusfile.PASS]
 
 
 class BaseOutProc(object):

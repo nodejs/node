@@ -2224,6 +2224,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     int non_defaultable = 0;
     for (uint32_t index = params_count; index < this->num_locals(); index++) {
       if (!VALIDATE(this->enabled_.has_nn_locals() ||
+                    this->enabled_.has_unsafe_nn_locals() ||
                     this->local_type(index).is_defaultable())) {
         this->DecodeError(
             "Cannot define function-level local of non-defaultable type %s",
@@ -2634,19 +2635,15 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       return 0;
     }
     // +1 because the current try block is not included in the count.
-    Control* target = control_at(imm.depth + 1);
-    if (imm.depth + 1 < control_depth() - 1 && !target->is_try()) {
-      this->DecodeError(
-          "delegate target must be a try block or the function block");
-      return 0;
-    }
-    if (target->is_try_catch() || target->is_try_catchall()) {
-      this->DecodeError(
-          "cannot delegate inside the catch handler of the target");
-      return 0;
+    uint32_t target_depth = imm.depth + 1;
+    while (target_depth < control_depth() - 1 &&
+           (!control_at(target_depth)->is_try() ||
+            control_at(target_depth)->is_try_catch() ||
+            control_at(target_depth)->is_try_catchall())) {
+      target_depth++;
     }
     FallThrough();
-    CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(Delegate, imm.depth + 1, c);
+    CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(Delegate, target_depth, c);
     current_catch_ = c->previous_catch;
     EndControl();
     PopControl();
@@ -4264,7 +4261,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       }
       case kExprArrayCopy: {
         NON_CONST_ONLY
-        CHECK_PROTOTYPE_OPCODE(gc_experiments);
         ArrayIndexImmediate<validate> dst_imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, dst_imm)) return 0;
         if (!VALIDATE(dst_imm.array_type->mutability())) {
@@ -4299,7 +4295,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         return opcode_length + dst_imm.length + src_imm.length;
       }
       case kExprArrayInit: {
-        CHECK_PROTOTYPE_OPCODE(gc_experiments);
         if (decoding_mode != kInitExpression) {
           this->DecodeError("array.init is only allowed in init. expressions");
           return 0;
@@ -4368,8 +4363,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         return opcode_length + imm.length;
       }
       case kExprRttFreshSub:
-        CHECK_PROTOTYPE_OPCODE(gc_experiments);
-        V8_FALLTHROUGH;
       case kExprRttSub: {
         IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
                                      "type index");
@@ -4426,6 +4419,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
             CALL_INTERFACE(RefTest, obj, rtt, &value);
           } else {
+            CALL_INTERFACE(Drop);
+            CALL_INTERFACE(Drop);
             // Unrelated types. Will always fail.
             CALL_INTERFACE(I32Const, &value, 0);
           }

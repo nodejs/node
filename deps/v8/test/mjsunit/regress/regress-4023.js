@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --expose-gc --block-concurrent-recompilation
+// Flags: --allow-natives-syntax --expose-gc
 
 function Inner() {
   this.property = "OK";
@@ -36,8 +36,10 @@ SetInner(outer, inner);
 // on the compiler thread :-)
 KeepMapAlive(outer);
 KeepMapAlive(outer);
+%DisableOptimizationFinalization();
 %OptimizeFunctionOnNextCall(KeepMapAlive, "concurrent");
 KeepMapAlive(outer);
+%WaitForBackgroundOptimization();
 
 // So far, all is well. Collect type feedback and optimize.
 print(Crash(outer));

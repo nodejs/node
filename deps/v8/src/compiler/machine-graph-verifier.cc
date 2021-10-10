@@ -121,10 +121,14 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kWord32AtomicLoad:
           case IrOpcode::kWord64AtomicLoad:
+            representation_vector_[node->id()] =
+                PromoteRepresentation(AtomicLoadParametersOf(node->op())
+                                          .representation()
+                                          .representation());
+            break;
           case IrOpcode::kLoad:
           case IrOpcode::kLoadImmutable:
           case IrOpcode::kProtectedLoad:
-          case IrOpcode::kPoisonedLoad:
             representation_vector_[node->id()] = PromoteRepresentation(
                 LoadRepresentationOf(node->op()).representation());
             break;
@@ -154,8 +158,8 @@ class MachineRepresentationInferrer {
           }
           case IrOpcode::kWord32AtomicStore:
           case IrOpcode::kWord64AtomicStore:
-            representation_vector_[node->id()] =
-                PromoteRepresentation(AtomicStoreRepresentationOf(node->op()));
+            representation_vector_[node->id()] = PromoteRepresentation(
+                AtomicStoreParametersOf(node->op()).representation());
             break;
           case IrOpcode::kWord32AtomicPairLoad:
           case IrOpcode::kWord32AtomicPairStore:
@@ -206,14 +210,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kChangeInt32ToTagged:
           case IrOpcode::kChangeUint32ToTagged:
           case IrOpcode::kBitcastWordToTagged:
-          case IrOpcode::kTaggedPoisonOnSpeculation:
             representation_vector_[node->id()] = MachineRepresentation::kTagged;
-            break;
-          case IrOpcode::kWord32PoisonOnSpeculation:
-            representation_vector_[node->id()] = MachineRepresentation::kWord32;
-            break;
-          case IrOpcode::kWord64PoisonOnSpeculation:
-            representation_vector_[node->id()] = MachineRepresentation::kWord64;
             break;
           case IrOpcode::kCompressedHeapConstant:
             representation_vector_[node->id()] =
@@ -394,14 +391,6 @@ class MachineRepresentationChecker {
             CheckValueInputRepresentationIs(
                 node, 0, MachineType::PointerRepresentation());
             break;
-          case IrOpcode::kWord32PoisonOnSpeculation:
-            CheckValueInputRepresentationIs(node, 0,
-                                            MachineRepresentation::kWord32);
-            break;
-          case IrOpcode::kWord64PoisonOnSpeculation:
-            CheckValueInputRepresentationIs(node, 0,
-                                            MachineRepresentation::kWord64);
-            break;
           case IrOpcode::kBitcastTaggedToWord:
           case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
             if (COMPRESS_POINTERS_BOOL) {
@@ -409,9 +398,6 @@ class MachineRepresentationChecker {
             } else {
               CheckValueInputIsTagged(node, 0);
             }
-            break;
-          case IrOpcode::kTaggedPoisonOnSpeculation:
-            CheckValueInputIsTagged(node, 0);
             break;
           case IrOpcode::kTruncateFloat64ToWord32:
           case IrOpcode::kTruncateFloat64ToUint32:
@@ -566,7 +552,6 @@ class MachineRepresentationChecker {
           case IrOpcode::kWord32AtomicLoad:
           case IrOpcode::kWord32AtomicPairLoad:
           case IrOpcode::kWord64AtomicLoad:
-          case IrOpcode::kPoisonedLoad:
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());
@@ -605,9 +590,12 @@ class MachineRepresentationChecker {
               case MachineRepresentation::kTaggedPointer:
               case MachineRepresentation::kTaggedSigned:
                 if (COMPRESS_POINTERS_BOOL &&
-                    node->opcode() == IrOpcode::kStore &&
-                    IsAnyTagged(
-                        StoreRepresentationOf(node->op()).representation())) {
+                    ((node->opcode() == IrOpcode::kStore &&
+                      IsAnyTagged(StoreRepresentationOf(node->op())
+                                      .representation())) ||
+                     (node->opcode() == IrOpcode::kWord32AtomicStore &&
+                      IsAnyTagged(AtomicStoreParametersOf(node->op())
+                                      .representation())))) {
                   CheckValueInputIsCompressedOrTagged(node, 2);
                 } else {
                   CheckValueInputIsTagged(node, 2);

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --logfile='+' --log --log-code --log-function-events --no-stress-opt
+// Flags: --no-stress-background-compile
 
 let twoByteName = "twoByteName_🍕"
 let o = {

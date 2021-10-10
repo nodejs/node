@@ -1325,7 +1325,7 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
 
 void Debug::DiscardBaselineCode(SharedFunctionInfo shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  DCHECK(shared.HasBaselineData());
+  DCHECK(shared.HasBaselineCode());
   Isolate* isolate = shared.GetIsolate();
   DiscardBaselineCodeVisitor visitor(shared);
   visitor.VisitThread(isolate, isolate->thread_local_top());
@@ -1333,7 +1333,7 @@ void Debug::DiscardBaselineCode(SharedFunctionInfo shared) {
   // TODO(v8:11429): Avoid this heap walk somehow.
   HeapObjectIterator iterator(isolate->heap());
   auto trampoline = BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
-  shared.flush_baseline_data();
+  shared.FlushBaselineCode();
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (obj.IsJSFunction()) {
@@ -1356,8 +1356,13 @@ void Debug::DiscardAllBaselineCode() {
        obj = iterator.Next()) {
     if (obj.IsJSFunction()) {
       JSFunction fun = JSFunction::cast(obj);
-      if (fun.shared().HasBaselineData()) {
+      if (fun.ActiveTierIsBaseline()) {
         fun.set_code(*trampoline);
+      }
+    } else if (obj.IsSharedFunctionInfo()) {
+      SharedFunctionInfo shared = SharedFunctionInfo::cast(obj);
+      if (shared.HasBaselineCode()) {
+        shared.FlushBaselineCode();
       }
     }
   }
@@ -1369,7 +1374,7 @@ void Debug::DeoptimizeFunction(Handle<SharedFunctionInfo> shared) {
   // inlining.
   isolate_->AbortConcurrentOptimization(BlockingBehavior::kBlock);
 
-  if (shared->HasBaselineData()) {
+  if (shared->HasBaselineCode()) {
     DiscardBaselineCode(*shared);
   }
 
@@ -1399,26 +1404,35 @@ void Debug::PrepareFunctionForDebugExecution(
   DCHECK(shared->is_compiled());
   DCHECK(shared->HasDebugInfo());
   Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
-  if (debug_info->flags(kRelaxedLoad) & DebugInfo::kPreparedForDebugExecution)
+  if (debug_info->flags(kRelaxedLoad) & DebugInfo::kPreparedForDebugExecution) {
     return;
-
-  if (shared->HasBytecodeArray()) {
-    SharedFunctionInfo::InstallDebugBytecode(shared, isolate_);
   }
 
+  // Have to discard baseline code before installing debug bytecode, since the
+  // bytecode array field on the baseline code object is immutable.
   if (debug_info->CanBreakAtEntry()) {
     // Deopt everything in case the function is inlined anywhere.
     Deoptimizer::DeoptimizeAll(isolate_);
     DiscardAllBaselineCode();
-    InstallDebugBreakTrampoline();
   } else {
     DeoptimizeFunction(shared);
+  }
+
+  if (shared->HasBytecodeArray()) {
+    DCHECK(!shared->HasBaselineCode());
+    SharedFunctionInfo::InstallDebugBytecode(shared, isolate_);
+  }
+
+  if (debug_info->CanBreakAtEntry()) {
+    InstallDebugBreakTrampoline();
+  } else {
     // Update PCs on the stack to point to recompiled code.
     RedirectActiveFunctions redirect_visitor(
         *shared, RedirectActiveFunctions::Mode::kUseDebugBytecode);
     redirect_visitor.VisitThread(isolate_, isolate_->thread_local_top());
     isolate_->thread_manager()->IterateArchivedThreads(&redirect_visitor);
   }
+
   debug_info->set_flags(
       debug_info->flags(kRelaxedLoad) | DebugInfo::kPreparedForDebugExecution,
       kRelaxedStore);
@@ -2183,8 +2197,7 @@ bool Debug::ShouldBeSkipped() {
   DisableBreak no_recursive_break(this);
 
   StackTraceFrameIterator iterator(isolate_);
-  CommonFrame* frame = iterator.frame();
-  FrameSummary summary = FrameSummary::GetTop(frame);
+  FrameSummary summary = iterator.GetTopValidFrame();
   Handle<Object> script_obj = summary.script();
   if (!script_obj->IsScript()) return false;
 

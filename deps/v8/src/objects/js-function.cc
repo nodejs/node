@@ -19,19 +19,10 @@ namespace v8 {
 namespace internal {
 
 CodeKinds JSFunction::GetAttachedCodeKinds() const {
-  // Note: There's a special case when bytecode has been aged away. After
-  // flushing the bytecode, the JSFunction will still have the interpreter
-  // entry trampoline attached, but the bytecode is no longer available.
-  Code code = this->code(kAcquireLoad);
-  if (code.is_interpreter_trampoline_builtin()) {
-    return CodeKindFlag::INTERPRETED_FUNCTION;
-  }
-
-  const CodeKind kind = code.kind();
+  const CodeKind kind = code().kind();
   if (!CodeKindIsJSFunction(kind)) return {};
-
-  if (CodeKindIsOptimizedJSFunction(kind) && code.marked_for_deoptimization()) {
-    // Nothing is attached.
+  if (CodeKindIsOptimizedJSFunction(kind) &&
+      code().marked_for_deoptimization()) {
     return {};
   }
   return CodeKindToCodeKindFlag(kind);
@@ -49,7 +40,7 @@ CodeKinds JSFunction::GetAvailableCodeKinds() const {
 
   if ((result & CodeKindFlag::BASELINE) == 0) {
     // The SharedFunctionInfo could have attached baseline code.
-    if (shared().HasBaselineData()) {
+    if (shared().HasBaselineCode()) {
       result |= CodeKindFlag::BASELINE;
     }
   }
@@ -90,7 +81,8 @@ namespace {
 
 // Returns false if no highest tier exists (i.e. the function is not compiled),
 // otherwise returns true and sets highest_tier.
-bool HighestTierOf(CodeKinds kinds, CodeKind* highest_tier) {
+V8_WARN_UNUSED_RESULT bool HighestTierOf(CodeKinds kinds,
+                                         CodeKind* highest_tier) {
   DCHECK_EQ((kinds & ~kJSFunctionCodeKindsMask), 0);
   if ((kinds & CodeKindFlag::TURBOFAN) != 0) {
     *highest_tier = CodeKind::TURBOFAN;
@@ -111,33 +103,43 @@ bool HighestTierOf(CodeKinds kinds, CodeKind* highest_tier) {
 
 }  // namespace
 
-bool JSFunction::ActiveTierIsIgnition() const {
-  if (!shared().HasBytecodeArray()) return false;
-  bool result = (GetActiveTier() == CodeKind::INTERPRETED_FUNCTION);
-#ifdef DEBUG
-  Code code = this->code(kAcquireLoad);
-  DCHECK_IMPLIES(result, code.is_interpreter_trampoline_builtin() ||
-                             (CodeKindIsOptimizedJSFunction(code.kind()) &&
-                              code.marked_for_deoptimization()) ||
-                             (code.builtin_id() == Builtin::kCompileLazy &&
-                              shared().IsInterpreted()));
-#endif  // DEBUG
-  return result;
-}
+base::Optional<CodeKind> JSFunction::GetActiveTier() const {
+#if V8_ENABLE_WEBASSEMBLY
+  // Asm/Wasm functions are currently not supported. For simplicity, this
+  // includes invalid asm.js functions whose code hasn't yet been updated to
+  // CompileLazy but is still the InstantiateAsmJs builtin.
+  if (shared().HasAsmWasmData() ||
+      code().builtin_id() == Builtin::kInstantiateAsmJs) {
+    return {};
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
-CodeKind JSFunction::GetActiveTier() const {
   CodeKind highest_tier;
-  DCHECK(shared().is_compiled());
-  HighestTierOf(GetAvailableCodeKinds(), &highest_tier);
-  DCHECK(highest_tier == CodeKind::TURBOFAN ||
-         highest_tier == CodeKind::BASELINE ||
-         highest_tier == CodeKind::TURBOPROP ||
-         highest_tier == CodeKind::INTERPRETED_FUNCTION);
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return {};
+
+#ifdef DEBUG
+  CHECK(highest_tier == CodeKind::TURBOFAN ||
+        highest_tier == CodeKind::BASELINE ||
+        highest_tier == CodeKind::TURBOPROP ||
+        highest_tier == CodeKind::INTERPRETED_FUNCTION);
+
+  if (highest_tier == CodeKind::INTERPRETED_FUNCTION) {
+    CHECK(code().is_interpreter_trampoline_builtin() ||
+          (CodeKindIsOptimizedJSFunction(code().kind()) &&
+           code().marked_for_deoptimization()) ||
+          (code().builtin_id() == Builtin::kCompileLazy &&
+           shared().IsInterpreted()));
+  }
+#endif  // DEBUG
+
   return highest_tier;
 }
 
+bool JSFunction::ActiveTierIsIgnition() const {
+  return GetActiveTier() == CodeKind::INTERPRETED_FUNCTION;
+}
+
 bool JSFunction::ActiveTierIsTurbofan() const {
-  if (!shared().HasBytecodeArray()) return false;
   return GetActiveTier() == CodeKind::TURBOFAN;
 }
 
@@ -145,27 +147,20 @@ bool JSFunction::ActiveTierIsBaseline() const {
   return GetActiveTier() == CodeKind::BASELINE;
 }
 
-bool JSFunction::ActiveTierIsIgnitionOrBaseline() const {
-  return ActiveTierIsIgnition() || ActiveTierIsBaseline();
-}
-
 bool JSFunction::ActiveTierIsToptierTurboprop() const {
-  if (!FLAG_turboprop_as_toptier) return false;
-  if (!shared().HasBytecodeArray()) return false;
-  return GetActiveTier() == CodeKind::TURBOPROP && FLAG_turboprop_as_toptier;
+  return FLAG_turboprop_as_toptier && GetActiveTier() == CodeKind::TURBOPROP;
 }
 
 bool JSFunction::ActiveTierIsMidtierTurboprop() const {
-  if (!FLAG_turboprop) return false;
-  if (!shared().HasBytecodeArray()) return false;
-  return GetActiveTier() == CodeKind::TURBOPROP && !FLAG_turboprop_as_toptier;
+  return FLAG_turboprop && !FLAG_turboprop_as_toptier &&
+         GetActiveTier() == CodeKind::TURBOPROP;
 }
 
 CodeKind JSFunction::NextTier() const {
   if (V8_UNLIKELY(FLAG_turboprop) && ActiveTierIsMidtierTurboprop()) {
     return CodeKind::TURBOFAN;
   } else if (V8_UNLIKELY(FLAG_turboprop)) {
-    DCHECK(ActiveTierIsIgnitionOrBaseline());
+    DCHECK(ActiveTierIsIgnition() || ActiveTierIsBaseline());
     return CodeKind::TURBOPROP;
   }
   return CodeKind::TURBOFAN;

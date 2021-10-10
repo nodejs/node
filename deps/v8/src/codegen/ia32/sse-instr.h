@@ -102,4 +102,10 @@
   V(pmovzxdq, 66, 0F, 38, 35)       \
   V(ptest, 66, 0F, 38, 17)
 
+// These require AVX2, and we only define the VEX-128 versions.
+#define AVX2_BROADCAST_LIST(V)    \
+  V(vpbroadcastd, 66, 0F, 38, 58) \
+  V(vpbroadcastb, 66, 0F, 38, 78) \
+  V(vpbroadcastw, 66, 0F, 38, 79)
+
 #endif  // V8_CODEGEN_IA32_SSE_INSTR_H_

@@ -5,7 +5,7 @@
 // This file excercises basic fast API calls and enables fuzzing of this
 // functionality.
 
-// Flags: --turbo-fast-api-calls --allow-natives-syntax --opt
+// Flags: --turbo-fast-api-calls --expose-fast-api --allow-natives-syntax --opt
 // --always-opt is disabled because we rely on particular feedback for
 // optimizing to the fastest path.
 // Flags: --no-always-opt

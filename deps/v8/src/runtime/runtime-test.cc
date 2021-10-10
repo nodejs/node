@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/numbers/double.h"
 #include "src/base/platform/mutex.h"
@@ -69,6 +70,18 @@ V8_WARN_UNUSED_RESULT Object ReturnFuzzSafe(Object value, Isolate* isolate) {
 #define CONVERT_BOOLEAN_ARG_FUZZ_SAFE(name, index)                  \
   if (!args[index].IsBoolean()) return CrashUnlessFuzzing(isolate); \
   bool name = args[index].IsTrue(isolate);
+
+bool IsAsmWasmFunction(Isolate* isolate, JSFunction function) {
+  DisallowGarbageCollection no_gc;
+#if V8_ENABLE_WEBASSEMBLY
+  // For simplicity we include invalid asm.js functions whose code hasn't yet
+  // been updated to CompileLazy but is still the InstantiateAsmJs builtin.
+  return function.shared().HasAsmWasmData() ||
+         function.code().builtin_id() == Builtin::kInstantiateAsmJs;
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
 
 }  // namespace
 
@@ -242,11 +255,9 @@ bool CanOptimizeFunction(Handle<JSFunction> function, Isolate* isolate,
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (function->shared().HasAsmWasmData()) {
+  if (IsAsmWasmFunction(isolate, *function)) {
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (FLAG_testing_d8_test_runner) {
     PendingOptimizationTable::MarkedForOptimization(isolate, function);
@@ -362,12 +373,12 @@ RUNTIME_FUNCTION(Runtime_CompileBaseline) {
 
   // First compile the bytecode, if we have to.
   if (!is_compiled_scope.is_compiled() &&
-      !Compiler::Compile(isolate, function, Compiler::KEEP_EXCEPTION,
+      !Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
                          &is_compiled_scope)) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  if (!Compiler::CompileBaseline(isolate, function, Compiler::KEEP_EXCEPTION,
+  if (!Compiler::CompileBaseline(isolate, function, Compiler::CLEAR_EXCEPTION,
                                  &is_compiled_scope)) {
     return CrashUnlessFuzzing(isolate);
   }
@@ -424,9 +435,7 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
     return CrashUnlessFuzzing(isolate);
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (function->shared().HasAsmWasmData()) return CrashUnlessFuzzing(isolate);
-#endif  // V8_ENABLE_WEBASSEMBLY
+  if (IsAsmWasmFunction(isolate, *function)) return CrashUnlessFuzzing(isolate);
 
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
@@ -569,7 +578,7 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
 
 RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1 || args.length() == 2);
+  DCHECK_EQ(args.length(), 1);
   int status = 0;
   if (FLAG_lite_mode || FLAG_jitless) {
     // Both jitless and lite modes cannot optimize. Unit tests should handle
@@ -590,31 +599,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (function_object->IsUndefined()) return Smi::FromInt(status);
   if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-
   status |= static_cast<int>(OptimizationStatus::kIsFunction);
-
-  bool sync_with_compiler_thread = true;
-  if (args.length() == 2) {
-    CONVERT_ARG_HANDLE_CHECKED(Object, sync_object, 1);
-    if (!sync_object->IsString()) return CrashUnlessFuzzing(isolate);
-    Handle<String> sync = Handle<String>::cast(sync_object);
-    if (sync->IsOneByteEqualTo(base::StaticCharVector("no sync"))) {
-      sync_with_compiler_thread = false;
-    } else if (sync->IsOneByteEqualTo(base::StaticCharVector("sync")) ||
-               sync->length() == 0) {
-      DCHECK(sync_with_compiler_thread);
-    } else {
-      return CrashUnlessFuzzing(isolate);
-    }
-  }
-
-  if (isolate->concurrent_recompilation_enabled() &&
-      sync_with_compiler_thread) {
-    while (function->IsInOptimizationQueue()) {
-      isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
-      base::OS::Sleep(base::TimeDelta::FromMilliseconds(50));
-    }
-  }
 
   if (function->IsMarkedForOptimization()) {
     status |= static_cast<int>(OptimizationStatus::kMarkedForOptimization);
@@ -670,39 +655,32 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   return Smi::FromInt(status);
 }
 
-RUNTIME_FUNCTION(Runtime_UnblockConcurrentRecompilation) {
-  DCHECK_EQ(0, args.length());
-  CHECK(FLAG_block_concurrent_recompilation);
-  CHECK(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compile_dispatcher()->Unblock();
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_DisableOptimizationFinalization) {
   DCHECK_EQ(0, args.length());
-  DCHECK(!FLAG_block_concurrent_recompilation);
-  CHECK(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
-  isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
-  isolate->optimizing_compile_dispatcher()->set_finalize(false);
+  if (isolate->concurrent_recompilation_enabled()) {
+    isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+    isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+    isolate->stack_guard()->ClearInstallCode();
+    isolate->optimizing_compile_dispatcher()->set_finalize(false);
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WaitForBackgroundOptimization) {
   DCHECK_EQ(0, args.length());
-  DCHECK(!FLAG_block_concurrent_recompilation);
-  CHECK(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+  if (isolate->concurrent_recompilation_enabled()) {
+    isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_FinalizeOptimization) {
   DCHECK_EQ(0, args.length());
-  DCHECK(!FLAG_block_concurrent_recompilation);
-  CHECK(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
-  isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
-  isolate->optimizing_compile_dispatcher()->set_finalize(true);
+  if (isolate->concurrent_recompilation_enabled()) {
+    isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+    isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+    isolate->optimizing_compile_dispatcher()->set_finalize(true);
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1117,6 +1095,11 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
   JSObject object = JSObject::cast(arg);
 
   Heap* heap = object.GetHeap();
+  if (!heap->InYoungGeneration(object)) {
+    // Object is not in new space, thus there is no memento and nothing to do.
+    return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
+  }
+
   AllocationMemento memento =
       heap->FindAllocationMemento<Heap::kForRuntime>(object.map(), object);
   if (memento.is_null())
@@ -1422,10 +1405,8 @@ RUNTIME_FUNCTION(Runtime_NewRegExpWithBacktrackLimit) {
   CONVERT_ARG_HANDLE_CHECKED(String, flags_string, 1);
   CONVERT_UINT32_ARG_CHECKED(backtrack_limit, 2);
 
-  bool success = false;
   JSRegExp::Flags flags =
-      JSRegExp::FlagsFromString(isolate, flags_string, &success);
-  CHECK(success);
+      JSRegExp::FlagsFromString(isolate, flags_string).value();
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSRegExp::New(isolate, pattern, flags, backtrack_limit));

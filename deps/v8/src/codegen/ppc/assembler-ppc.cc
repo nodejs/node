@@ -187,13 +187,13 @@ Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
   return result;
 }
 
-MemOperand::MemOperand(Register rn, int32_t offset)
+MemOperand::MemOperand(Register rn, int64_t offset)
     : ra_(rn), offset_(offset), rb_(no_reg) {}
 
 MemOperand::MemOperand(Register ra, Register rb)
     : ra_(ra), offset_(0), rb_(rb) {}
 
-MemOperand::MemOperand(Register ra, Register rb, int32_t offset)
+MemOperand::MemOperand(Register ra, Register rb, int64_t offset)
     : ra_(ra), offset_(offset), rb_(rb) {}
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
@@ -303,7 +303,6 @@ Condition Assembler::GetCondition(Instr instr) {
     default:
       UNIMPLEMENTED();
   }
-  return al;
 }
 
 bool Assembler::IsLis(Instr instr) {
@@ -1621,8 +1620,8 @@ void Assembler::fmul(const DoubleRegister frt, const DoubleRegister fra,
 }
 
 void Assembler::fcpsgn(const DoubleRegister frt, const DoubleRegister fra,
-                       const DoubleRegister frc, RCBit rc) {
-  emit(EXT4 | FCPSGN | frt.code() * B21 | fra.code() * B16 | frc.code() * B6 |
+                       const DoubleRegister frb, RCBit rc) {
+  emit(EXT4 | FCPSGN | frt.code() * B21 | fra.code() * B16 | frb.code() * B11 |
        rc);
 }
 

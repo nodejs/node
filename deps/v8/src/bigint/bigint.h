@@ -262,6 +262,8 @@ class Processor {
   // upon return will be set to the actual length of the result string.
   Status ToString(char* out, int* out_length, Digits X, int radix, bool sign);
 
+  // Z := the contents of {accumulator}.
+  // Assume that this leaves {accumulator} in unusable state.
   Status FromString(RWDigits Z, FromStringAccumulator* accumulator);
 };
 
@@ -336,7 +338,7 @@ class FromStringAccumulator {
   // So for sufficiently large N, setting max_digits=N here will not actually
   // allow parsing BigInts with N digits. We can fix that if/when anyone cares.
   explicit FromStringAccumulator(int max_digits)
-      : max_digits_(std::max(max_digits - kStackParts, kStackParts)) {}
+      : max_digits_(std::max(max_digits, kStackParts)) {}
 
   // Step 2: Call this method to read all characters.
   // {Char} should be a character type, such as uint8_t or uint16_t.
@@ -348,7 +350,7 @@ class FromStringAccumulator {
                                   digit_t radix);
 
   // Step 3: Check if a result is available, and determine its required
-  // allocation size.
+  // allocation size (guaranteed to be <= max_digits passed to the constructor).
   Result result() { return result_; }
   int ResultLength() {
     return std::max(stack_parts_used_, static_cast<int>(heap_parts_.size()));
@@ -360,8 +362,12 @@ class FromStringAccumulator {
  private:
   friend class ProcessorImpl;
 
-  ALWAYS_INLINE bool AddPart(digit_t multiplier, digit_t part,
-                             bool is_last = false);
+  template <class Char>
+  ALWAYS_INLINE const Char* ParsePowerTwo(const Char* start, const Char* end,
+                                          digit_t radix);
+
+  ALWAYS_INLINE bool AddPart(digit_t multiplier, digit_t part, bool is_last);
+  ALWAYS_INLINE bool AddPart(digit_t part);
 
   digit_t stack_parts_[kStackParts];
   std::vector<digit_t> heap_parts_;
@@ -371,6 +377,7 @@ class FromStringAccumulator {
   Result result_{Result::kOk};
   int stack_parts_used_{0};
   bool inline_everything_{false};
+  uint8_t radix_{0};
 };
 
 // The rest of this file is the inlineable implementation of
@@ -403,6 +410,47 @@ static constexpr uint8_t kCharValue[] = {
     25,  26,  27,  28,  29,  30,  31,  32,   // 112..119
     33,  34,  35,  255, 255, 255, 255, 255,  // 120..127  'z' == 122
 };
+
+// A space- and time-efficient way to map {2,4,8,16,32} to {1,2,3,4,5}.
+static constexpr uint8_t kCharBits[] = {1, 2, 3, 0, 4, 0, 0, 0, 5};
+
+template <class Char>
+const Char* FromStringAccumulator::ParsePowerTwo(const Char* current,
+                                                 const Char* end,
+                                                 digit_t radix) {
+  radix_ = static_cast<uint8_t>(radix);
+  const int char_bits = kCharBits[radix >> 2];
+  int bits_left;
+  bool done = false;
+  do {
+    digit_t part = 0;
+    bits_left = kDigitBits;
+    while (true) {
+      digit_t d;  // Numeric value of the current character {c}.
+      uint32_t c = *current;
+      if (c > 127 || (d = bigint::kCharValue[c]) >= radix) {
+        done = true;
+        break;
+      }
+
+      if (bits_left < char_bits) break;
+      bits_left -= char_bits;
+      part = (part << char_bits) | d;
+
+      ++current;
+      if (current == end) {
+        done = true;
+        break;
+      }
+    }
+    if (!AddPart(part)) return current;
+  } while (!done);
+  // We use the unused {last_multiplier_} field to
+  // communicate how many bits are unused in the last part.
+  last_multiplier_ = bits_left;
+  return current;
+}
+
 template <class Char>
 const Char* FromStringAccumulator::Parse(const Char* start, const Char* end,
                                          digit_t radix) {
@@ -417,12 +465,15 @@ const Char* FromStringAccumulator::Parse(const Char* start, const Char* end,
   static constexpr int kInlineThreshold = kStackParts * kDigitBits * 100 / 517;
   inline_everything_ = (end - start) <= kInlineThreshold;
 #endif
+  if (!inline_everything_ && (radix & (radix - 1)) == 0) {
+    return ParsePowerTwo(start, end, radix);
+  }
   bool done = false;
   do {
     digit_t multiplier = 1;
     digit_t part = 0;
     while (true) {
-      digit_t d;
+      digit_t d;  // Numeric value of the current character {c}.
       uint32_t c = *current;
       if (c > 127 || (d = bigint::kCharValue[c]) >= radix) {
         done = true;
@@ -478,6 +529,10 @@ bool FromStringAccumulator::AddPart(digit_t multiplier, digit_t part,
     BIGINT_H_DCHECK(max_multiplier_ == 0 || max_multiplier_ == multiplier);
     max_multiplier_ = multiplier;
   }
+  return AddPart(part);
+}
+
+bool FromStringAccumulator::AddPart(digit_t part) {
   if (stack_parts_used_ < kStackParts) {
     stack_parts_[stack_parts_used_++] = part;
     return true;
@@ -489,7 +544,7 @@ bool FromStringAccumulator::AddPart(digit_t multiplier, digit_t part,
       heap_parts_.push_back(stack_parts_[i]);
     }
   }
-  if (static_cast<int>(heap_parts_.size()) >= max_digits_ && !is_last) {
+  if (static_cast<int>(heap_parts_.size()) >= max_digits_) {
     result_ = Result::kMaxSizeExceeded;
     return false;
   }

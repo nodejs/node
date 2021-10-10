@@ -22,7 +22,17 @@ class CagedHeap final {
  public:
   using AllocatorType = v8::base::BoundedPageAllocator;
 
-  CagedHeap(HeapBase* heap, PageAllocator* platform_allocator);
+  static uintptr_t OffsetFromAddress(const void* address) {
+    return reinterpret_cast<uintptr_t>(address) &
+           (kCagedHeapReservationAlignment - 1);
+  }
+
+  static uintptr_t BaseFromAddress(const void* address) {
+    return reinterpret_cast<uintptr_t>(address) &
+           ~(kCagedHeapReservationAlignment - 1);
+  }
+
+  CagedHeap(HeapBase& heap, PageAllocator& platform_allocator);
 
   CagedHeap(const CagedHeap&) = delete;
   CagedHeap& operator=(const CagedHeap&) = delete;
@@ -37,13 +47,13 @@ class CagedHeap final {
     return *static_cast<CagedHeapLocalData*>(reserved_area_.address());
   }
 
-  static uintptr_t OffsetFromAddress(void* address) {
-    return reinterpret_cast<uintptr_t>(address) &
-           (kCagedHeapReservationAlignment - 1);
+  bool IsOnHeap(const void* address) const {
+    return reinterpret_cast<void*>(BaseFromAddress(address)) ==
+           reserved_area_.address();
   }
 
  private:
-  VirtualMemory reserved_area_;
+  const VirtualMemory reserved_area_;
   std::unique_ptr<AllocatorType> bounded_allocator_;
 };
 

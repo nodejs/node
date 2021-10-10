@@ -4,7 +4,11 @@
 
 #include "src/inspector/v8-console-message.h"
 
+#include "include/v8-container.h"
+#include "include/v8-context.h"
 #include "include/v8-inspector.h"
+#include "include/v8-microtask-queue.h"
+#include "include/v8-primitive-object.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"

@@ -38,7 +38,7 @@ transitioning javascript builtin
 FastFunctionPrototypeBind(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
     target: JSFunction)(...arguments): JSAny {
-  const argc: intptr = arguments.length;
+  const argc: intptr = arguments.actual_count;
   try {
     typeswitch (receiver) {
       case (fn: JSFunction|JSBoundFunction): {

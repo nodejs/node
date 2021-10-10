@@ -56,6 +56,29 @@ void CompilationStatistics::BasicStats::Accumulate(const BasicStats& stats) {
   }
 }
 
+std::string CompilationStatistics::BasicStats::AsJSON() {
+// clang-format off
+#define DICT(s) "{" << s << "}"
+#define QUOTE(s) "\"" << s << "\""
+#define MEMBER(s) QUOTE(s) << ":"
+
+  DCHECK_EQ(function_name_.find("\""), std::string::npos);
+
+  std::stringstream stream;
+  stream << DICT(
+    MEMBER("function_name") << QUOTE(function_name_) << ","
+    MEMBER("total_allocated_bytes") << total_allocated_bytes_ << ","
+    MEMBER("max_allocated_bytes") << max_allocated_bytes_ << ","
+    MEMBER("absolute_max_allocated_bytes") << absolute_max_allocated_bytes_);
+
+  return stream.str();
+
+#undef DICT
+#undef QUOTE
+#undef MEMBER
+  // clang-format on
+}
+
 static void WriteLine(std::ostream& os, bool machine_format, const char* name,
                       const CompilationStatistics::BasicStats& stats,
                       const CompilationStatistics::BasicStats& total_stats) {

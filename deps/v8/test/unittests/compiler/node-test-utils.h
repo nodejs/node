@@ -328,11 +328,6 @@ Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                       const Matcher<Node*>& index_matcher,
                       const Matcher<Node*>& effect_matcher,
                       const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsPoisonedLoad(const Matcher<LoadRepresentation>& rep_matcher,
-                              const Matcher<Node*>& base_matcher,
-                              const Matcher<Node*>& index_matcher,
-                              const Matcher<Node*>& effect_matcher,
-                              const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsUnalignedLoad(const Matcher<LoadRepresentation>& rep_matcher,
                                const Matcher<Node*>& base_matcher,
                                const Matcher<Node*>& index_matcher,
@@ -486,7 +481,6 @@ Matcher<Node*> IsNumberToBoolean(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher);
-Matcher<Node*> IsSpeculationPoison();
 Matcher<Node*> IsLoadFramePointer();
 Matcher<Node*> IsLoadParentFramePointer();
 Matcher<Node*> IsPlainPrimitiveToNumber(const Matcher<Node*>& input_matcher);

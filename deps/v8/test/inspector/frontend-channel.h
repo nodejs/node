@@ -7,8 +7,12 @@
 
 #include <vector>
 
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-function.h"
 #include "include/v8-inspector.h"
-#include "include/v8.h"
+#include "include/v8-microtask-queue.h"
+#include "include/v8-persistent-handle.h"
 #include "test/inspector/task-runner.h"
 #include "test/inspector/utils.h"
 
@@ -51,7 +55,7 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
     bool is_priority_task() final { return false; }
 
    private:
-    void Run(IsolateData* data) override {
+    void Run(InspectorIsolateData* data) override {
       v8::MicrotasksScope microtasks_scope(data->isolate(),
                                            v8::MicrotasksScope::kRunMicrotasks);
       v8::HandleScope handle_scope(data->isolate());

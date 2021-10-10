@@ -4,7 +4,7 @@
 
 // This file interface types used with fast API calls.
 
-// Flags: --turbo-fast-api-calls --allow-natives-syntax --opt
+// Flags: --turbo-fast-api-calls --expose-fast-api --allow-natives-syntax --opt
 // Flags: --no-always-opt
 // Flags: --deopt-every-n-times=0
 

@@ -58,7 +58,7 @@ add_field(o);
 // Invalidate transition map after compile graph has been created.
 %WaitForBackgroundOptimization();
 o.c = 2.2;
-assertUnoptimized(add_field, "no sync");
+assertUnoptimized(add_field);
 // Sync with background thread to conclude optimization that bailed out.
 %FinalizeOptimization();
 if (!%IsDictPropertyConstTrackingEnabled()) {

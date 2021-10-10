@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/code-desc.h"
 #include "src/common/globals.h"
@@ -203,7 +204,7 @@ TEST(OptimizedCodeWithCodePages) {
       // If there is baseline code, check that it's only due to
       // --always-sparkplug (if this check fails, we'll have to re-think this
       // test).
-      if (foo->shared().HasBaselineData()) {
+      if (foo->shared().HasBaselineCode()) {
         CHECK(FLAG_always_sparkplug);
         return;
       }

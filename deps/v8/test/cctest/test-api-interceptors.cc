@@ -4,8 +4,7 @@
 
 #include <stdlib.h>
 
-#include "test/cctest/test-api.h"
-
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/compilation-cache.h"
@@ -16,6 +15,7 @@
 #include "src/runtime/runtime.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/utils.h"
+#include "test/cctest/test-api.h"
 
 using ::v8::Context;
 using ::v8::Function;

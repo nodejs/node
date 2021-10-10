@@ -8,6 +8,7 @@
 #include <queue>
 
 #include "include/libplatform/libplatform.h"
+#include "src/base/bounded-page-allocator.h"
 #include "src/base/debug/stack_trace.h"
 #include "src/base/logging.h"
 #include "src/base/page-allocator.h"

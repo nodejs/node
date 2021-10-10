@@ -22,6 +22,11 @@ static_library("v8_vtune") {
     "vtune-jit.h",
   ]
   configs += [ ":vtune_ittapi" ]
+
+  # TODO(delphick): Consider changing these to be v8_source_sets
+  if (!build_with_chromium && is_clang) {
+    configs -= [ "//build/config/clang:find_bad_constructs" ]
+  }
   deps = [ "../../..:v8" ]
 }
 

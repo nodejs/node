@@ -21,17 +21,9 @@ namespace internal {
 #include "torque-generated/src/objects/js-regexp-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExp)
-OBJECT_CONSTRUCTORS_IMPL_CHECK_SUPER(JSRegExpResult, JSArray)
-OBJECT_CONSTRUCTORS_IMPL_CHECK_SUPER(JSRegExpResultIndices, JSArray)
-
-inline JSRegExpResultWithIndices::JSRegExpResultWithIndices(Address ptr)
-    : JSRegExpResult(ptr) {
-  SLOW_DCHECK(IsJSArray());
-}
-
-CAST_ACCESSOR(JSRegExpResult)
-CAST_ACCESSOR(JSRegExpResultWithIndices)
-CAST_ACCESSOR(JSRegExpResultIndices)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResult)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultIndices)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultWithIndices)
 
 ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
 
@@ -59,7 +51,7 @@ int JSRegExp::MaxRegisterCount() const {
   return Smi::ToInt(DataAt(kIrregexpMaxRegisterCountIndex));
 }
 
-JSRegExp::Flags JSRegExp::GetFlags() {
+JSRegExp::Flags JSRegExp::GetFlags() const {
   DCHECK(this->data().IsFixedArray());
   Object data = this->data();
   Smi smi = Smi::cast(FixedArray::cast(data).get(kFlagsIndex));

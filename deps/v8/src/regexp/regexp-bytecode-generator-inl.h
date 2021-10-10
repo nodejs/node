@@ -7,7 +7,6 @@
 
 #include "src/regexp/regexp-bytecode-generator.h"
 
-#include "src/ast/ast.h"
 #include "src/regexp/regexp-bytecodes.h"
 
 namespace v8 {

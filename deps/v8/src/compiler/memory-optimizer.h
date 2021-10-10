@@ -30,7 +30,6 @@ using NodeId = uint32_t;
 class MemoryOptimizer final {
  public:
   MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
-                  PoisoningMitigationLevel poisoning_level,
                   MemoryLowering::AllocationFolding allocation_folding,
                   const char* function_debug_name, TickCounter* tick_counter);
   ~MemoryOptimizer() = default;

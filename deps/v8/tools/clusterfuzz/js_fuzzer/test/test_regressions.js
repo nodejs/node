@@ -38,31 +38,6 @@ function execFile(jsFile) {
   execSync("node " + jsFile, {stdio: ['pipe']});
 }
 
-function buildDb(inputDir, corpusName, outputDir) {
-  execSync(
-      `node build_db.js -i ${inputDir} -o ${outputDir} ${corpusName}`,
-      {stdio: ['pipe']});
-}
-
-function assertFuzzWithDbThrows(dbInputDir, corpusName, settings, regexp) {
-  const outPath = tempy.directory();
-  buildDb(dbInputDir, corpusName, outPath);
-
-  settings['MUTATE_CROSSOVER_INSERT'] = 1.0;
-  assert.throws(
-    () => {
-      createFuzzTest(
-          outPath, settings,
-          ['regress/build_db/cross_over_mutator_input.js']);
-    },
-    err => {
-      assert(regexp.test(err));
-      return true;
-    },
-    'unexpected error',
-  );
-}
-
 describe('Regression tests', () => {
   beforeEach(() => {
     helpers.deterministicRandom(sandbox);
@@ -134,26 +109,5 @@ describe('Regression tests', () => {
         this.settings,
         ['regress/numbers/input_indices.js']);
     execFile(file);
-  });
-
-  it('create call expression', () => {
-    // TODO(machenbach): Build_db extracts a function expression without
-    // parentheses, re-parsing this later fails in cross-over mutator.
-    assertFuzzWithDbThrows(
-        'test_data/regress/build_db',
-        'destructuring',
-        this.settings,
-        SYNTAX_ERROR_RE);
-  });
-
-  it('create assignment expression', () => {
-    // TODO(machenbach): Build_db extracts some assignment expressions with a
-    // spurious dependency. This leads to an "unknown substitution" error
-    // when applying the template.
-    assertFuzzWithDbThrows(
-        'test_data/regress/build_db',
-        'this',
-        this.settings,
-        /.*Unknown substitution.*/);
   });
 });

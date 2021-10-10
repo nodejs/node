@@ -985,15 +985,6 @@ void AdjustStackPointerForTailCall(
   }
 }
 
-void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
-                                   S390OperandConverter const& i) {
-  const MemoryAccessMode access_mode = AccessModeField::decode(instr->opcode());
-  if (access_mode == kMemoryAccessPoisoned) {
-    Register value = i.OutputRegister();
-    codegen->tasm()->AndP(value, kSpeculationPoisonRegister);
-  }
-}
-
 }  // namespace
 
 void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
@@ -1069,25 +1060,6 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne);
-}
-
-void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
-  Register scratch = r1;
-
-  __ ComputeCodeStartAddress(scratch);
-
-  // Calculate a mask which has all bits set in the normal case, but has all
-  // bits cleared if we are speculatively executing the wrong PC.
-  __ mov(kSpeculationPoisonRegister, Operand::Zero());
-  __ mov(r0, Operand(-1));
-  __ CmpS64(kJavaScriptCallCodeStartRegister, scratch);
-  __ LoadOnConditionP(eq, kSpeculationPoisonRegister, r0);
-}
-
-void CodeGenerator::AssembleRegisterArgumentPoisoning() {
-  __ AndP(kJSFunctionRegister, kJSFunctionRegister, kSpeculationPoisonRegister);
-  __ AndP(kContextRegister, kContextRegister, kSpeculationPoisonRegister);
-  __ AndP(sp, sp, kSpeculationPoisonRegister);
 }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -1395,10 +1367,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 Operand(offset.offset()));
       break;
     }
-    case kArchWordPoisonOnSpeculation:
-      DCHECK_EQ(i.OutputRegister(), i.InputRegister(0));
-      __ AndP(i.InputRegister(0), kSpeculationPoisonRegister);
-      break;
     case kS390_Peek: {
       int reverse_slot = i.InputInt32(0);
       int offset =
@@ -2155,7 +2123,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_LoadWordS8:
       ASSEMBLE_LOAD_INTEGER(LoadS8);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_BitcastFloat32ToInt32:
       ASSEMBLE_UNARY_OP(R_DInstr(MovFloatToInt), R_MInstr(LoadU32), nullInstr);
@@ -2173,35 +2140,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
     case kS390_LoadWordU8:
       ASSEMBLE_LOAD_INTEGER(LoadU8);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordU16:
       ASSEMBLE_LOAD_INTEGER(LoadU16);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordS16:
       ASSEMBLE_LOAD_INTEGER(LoadS16);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordU32:
       ASSEMBLE_LOAD_INTEGER(LoadU32);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordS32:
       ASSEMBLE_LOAD_INTEGER(LoadS32);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse16:
       ASSEMBLE_LOAD_INTEGER(lrvh);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse32:
       ASSEMBLE_LOAD_INTEGER(lrv);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse64:
       ASSEMBLE_LOAD_INTEGER(lrvg);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse16RR:
       __ lrvr(i.OutputRegister(), i.InputRegister(0));
@@ -2238,7 +2197,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kS390_LoadWord64:
       ASSEMBLE_LOAD_INTEGER(lg);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadAndTestWord32: {
       ASSEMBLE_LOADANDTEST32(ltr, lt_z);
@@ -2258,7 +2216,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AddressingMode mode = kMode_None;
       MemOperand operand = i.MemoryOperand(&mode);
       __ vl(i.OutputSimd128Register(), operand, Condition(0));
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     }
     case kS390_StoreWord8:
@@ -2327,40 +2284,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lay(i.OutputRegister(), mem);
       break;
     }
-    case kS390_Word64AtomicExchangeUint8:
-    case kWord32AtomicExchangeInt8:
-    case kWord32AtomicExchangeUint8: {
+    case kAtomicExchangeInt8:
+    case kAtomicExchangeUint8: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
       __ la(r1, MemOperand(base, index));
       __ AtomicExchangeU8(r1, value, output, r0);
-      if (opcode == kWord32AtomicExchangeInt8) {
+      if (opcode == kAtomicExchangeInt8) {
         __ LoadS8(output, output);
       } else {
         __ LoadU8(output, output);
       }
       break;
     }
-    case kS390_Word64AtomicExchangeUint16:
-    case kWord32AtomicExchangeInt16:
-    case kWord32AtomicExchangeUint16: {
+    case kAtomicExchangeInt16:
+    case kAtomicExchangeUint16: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
       __ la(r1, MemOperand(base, index));
       __ AtomicExchangeU16(r1, value, output, r0);
-      if (opcode == kWord32AtomicExchangeInt16) {
+      if (opcode == kAtomicExchangeInt16) {
         __ lghr(output, output);
       } else {
         __ llghr(output, output);
       }
       break;
     }
-    case kS390_Word64AtomicExchangeUint32:
-    case kWord32AtomicExchangeWord32: {
+    case kAtomicExchangeWord32: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
@@ -2373,34 +2327,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bne(&do_cs, Label::kNear);
       break;
     }
-    case kWord32AtomicCompareExchangeInt8:
+    case kAtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadS8);
       break;
-    case kS390_Word64AtomicCompareExchangeUint8:
-    case kWord32AtomicCompareExchangeUint8:
+    case kAtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadU8);
       break;
-    case kWord32AtomicCompareExchangeInt16:
+    case kAtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadS16);
       break;
-    case kS390_Word64AtomicCompareExchangeUint16:
-    case kWord32AtomicCompareExchangeUint16:
+    case kAtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadU16);
       break;
-    case kS390_Word64AtomicCompareExchangeUint32:
-    case kWord32AtomicCompareExchangeWord32:
+    case kAtomicCompareExchangeWord32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD();
       break;
 #define ATOMIC_BINOP_CASE(op, inst)                                          \
-  case kWord32Atomic##op##Int8:                                              \
+  case kAtomic##op##Int8:                                                    \
     ASSEMBLE_ATOMIC_BINOP_BYTE(inst, [&]() {                                 \
       intptr_t shift_right = static_cast<intptr_t>(shift_amount);            \
       __ srlk(result, prev, Operand(shift_right));                           \
-      __ LoadS8(result, result);                                              \
+      __ LoadS8(result, result);                                             \
     });                                                                      \
     break;                                                                   \
-  case kS390_Word64Atomic##op##Uint8:                                        \
-  case kWord32Atomic##op##Uint8:                                             \
+  case kAtomic##op##Uint8:                                                   \
     ASSEMBLE_ATOMIC_BINOP_BYTE(inst, [&]() {                                 \
       int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;           \
       __ RotateInsertSelectBits(result, prev, Operand(56), Operand(63),      \
@@ -2408,15 +2358,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                 true);                                       \
     });                                                                      \
     break;                                                                   \
-  case kWord32Atomic##op##Int16:                                             \
+  case kAtomic##op##Int16:                                                   \
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                             \
       intptr_t shift_right = static_cast<intptr_t>(shift_amount);            \
       __ srlk(result, prev, Operand(shift_right));                           \
-      __ LoadS16(result, result);                                      \
+      __ LoadS16(result, result);                                            \
     });                                                                      \
     break;                                                                   \
-  case kS390_Word64Atomic##op##Uint16:                                       \
-  case kWord32Atomic##op##Uint16:                                            \
+  case kAtomic##op##Uint16:                                                  \
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                             \
       int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;           \
       __ RotateInsertSelectBits(result, prev, Operand(48), Operand(63),      \
@@ -2430,24 +2379,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Or)
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
-    case kS390_Word64AtomicAddUint32:
-    case kWord32AtomicAddWord32:
+    case kAtomicAddWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(laa);
       break;
-    case kS390_Word64AtomicSubUint32:
-    case kWord32AtomicSubWord32:
+    case kAtomicSubWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(LoadAndSub32);
       break;
-    case kS390_Word64AtomicAndUint32:
-    case kWord32AtomicAndWord32:
+    case kAtomicAndWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(lan);
       break;
-    case kS390_Word64AtomicOrUint32:
-    case kWord32AtomicOrWord32:
+    case kAtomicOrWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(lao);
       break;
-    case kS390_Word64AtomicXorUint32:
-    case kWord32AtomicXorWord32:
+    case kAtomicXorWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(lax);
       break;
     case kS390_Word64AtomicAddUint64:
@@ -2482,77 +2426,89 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD64();
       break;
       // Simd Support.
-#define SIMD_BINOP_LIST(V) \
-  V(F64x2Add)              \
-  V(F64x2Sub)              \
-  V(F64x2Mul)              \
-  V(F64x2Div)              \
-  V(F64x2Min)              \
-  V(F64x2Max)              \
-  V(F64x2Eq)               \
-  V(F64x2Ne)               \
-  V(F64x2Lt)               \
-  V(F64x2Le)               \
-  V(F32x4Add)              \
-  V(F32x4Sub)              \
-  V(F32x4Mul)              \
-  V(F32x4Div)              \
-  V(F32x4Min)              \
-  V(F32x4Max)              \
-  V(F32x4Eq)               \
-  V(F32x4Ne)               \
-  V(F32x4Lt)               \
-  V(F32x4Le)               \
-  V(I64x2Add)              \
-  V(I64x2Sub)              \
-  V(I64x2Mul)              \
-  V(I64x2Eq)               \
-  V(I64x2Ne)               \
-  V(I64x2GtS)              \
-  V(I64x2GeS)              \
-  V(I32x4Add)              \
-  V(I32x4Sub)              \
-  V(I32x4Mul)              \
-  V(I32x4Eq)               \
-  V(I32x4Ne)               \
-  V(I32x4GtS)              \
-  V(I32x4GeS)              \
-  V(I32x4GtU)              \
-  V(I32x4GeU)              \
-  V(I32x4MinS)             \
-  V(I32x4MinU)             \
-  V(I32x4MaxS)             \
-  V(I32x4MaxU)             \
-  V(I16x8Add)              \
-  V(I16x8Sub)              \
-  V(I16x8Mul)              \
-  V(I16x8Eq)               \
-  V(I16x8Ne)               \
-  V(I16x8GtS)              \
-  V(I16x8GeS)              \
-  V(I16x8GtU)              \
-  V(I16x8GeU)              \
-  V(I16x8MinS)             \
-  V(I16x8MinU)             \
-  V(I16x8MaxS)             \
-  V(I16x8MaxU)             \
-  V(I8x16Add)              \
-  V(I8x16Sub)              \
-  V(I8x16Eq)               \
-  V(I8x16Ne)               \
-  V(I8x16GtS)              \
-  V(I8x16GeS)              \
-  V(I8x16GtU)              \
-  V(I8x16GeU)              \
-  V(I8x16MinS)             \
-  V(I8x16MinU)             \
-  V(I8x16MaxS)             \
-  V(I8x16MaxU)
+#define SIMD_BINOP_LIST(V)      \
+  V(F64x2Add, Simd128Register)  \
+  V(F64x2Sub, Simd128Register)  \
+  V(F64x2Mul, Simd128Register)  \
+  V(F64x2Div, Simd128Register)  \
+  V(F64x2Min, Simd128Register)  \
+  V(F64x2Max, Simd128Register)  \
+  V(F64x2Eq, Simd128Register)   \
+  V(F64x2Ne, Simd128Register)   \
+  V(F64x2Lt, Simd128Register)   \
+  V(F64x2Le, Simd128Register)   \
+  V(F32x4Add, Simd128Register)  \
+  V(F32x4Sub, Simd128Register)  \
+  V(F32x4Mul, Simd128Register)  \
+  V(F32x4Div, Simd128Register)  \
+  V(F32x4Min, Simd128Register)  \
+  V(F32x4Max, Simd128Register)  \
+  V(F32x4Eq, Simd128Register)   \
+  V(F32x4Ne, Simd128Register)   \
+  V(F32x4Lt, Simd128Register)   \
+  V(F32x4Le, Simd128Register)   \
+  V(I64x2Add, Simd128Register)  \
+  V(I64x2Sub, Simd128Register)  \
+  V(I64x2Mul, Simd128Register)  \
+  V(I64x2Eq, Simd128Register)   \
+  V(I64x2Ne, Simd128Register)   \
+  V(I64x2GtS, Simd128Register)  \
+  V(I64x2GeS, Simd128Register)  \
+  V(I64x2Shl, Register)         \
+  V(I64x2ShrS, Register)        \
+  V(I64x2ShrU, Register)        \
+  V(I32x4Add, Simd128Register)  \
+  V(I32x4Sub, Simd128Register)  \
+  V(I32x4Mul, Simd128Register)  \
+  V(I32x4Eq, Simd128Register)   \
+  V(I32x4Ne, Simd128Register)   \
+  V(I32x4GtS, Simd128Register)  \
+  V(I32x4GeS, Simd128Register)  \
+  V(I32x4GtU, Simd128Register)  \
+  V(I32x4GeU, Simd128Register)  \
+  V(I32x4MinS, Simd128Register) \
+  V(I32x4MinU, Simd128Register) \
+  V(I32x4MaxS, Simd128Register) \
+  V(I32x4MaxU, Simd128Register) \
+  V(I32x4Shl, Register)         \
+  V(I32x4ShrS, Register)        \
+  V(I32x4ShrU, Register)        \
+  V(I16x8Add, Simd128Register)  \
+  V(I16x8Sub, Simd128Register)  \
+  V(I16x8Mul, Simd128Register)  \
+  V(I16x8Eq, Simd128Register)   \
+  V(I16x8Ne, Simd128Register)   \
+  V(I16x8GtS, Simd128Register)  \
+  V(I16x8GeS, Simd128Register)  \
+  V(I16x8GtU, Simd128Register)  \
+  V(I16x8GeU, Simd128Register)  \
+  V(I16x8MinS, Simd128Register) \
+  V(I16x8MinU, Simd128Register) \
+  V(I16x8MaxS, Simd128Register) \
+  V(I16x8MaxU, Simd128Register) \
+  V(I16x8Shl, Register)         \
+  V(I16x8ShrS, Register)        \
+  V(I16x8ShrU, Register)        \
+  V(I8x16Add, Simd128Register)  \
+  V(I8x16Sub, Simd128Register)  \
+  V(I8x16Eq, Simd128Register)   \
+  V(I8x16Ne, Simd128Register)   \
+  V(I8x16GtS, Simd128Register)  \
+  V(I8x16GeS, Simd128Register)  \
+  V(I8x16GtU, Simd128Register)  \
+  V(I8x16GeU, Simd128Register)  \
+  V(I8x16MinS, Simd128Register) \
+  V(I8x16MinU, Simd128Register) \
+  V(I8x16MaxS, Simd128Register) \
+  V(I8x16MaxU, Simd128Register) \
+  V(I8x16Shl, Register)         \
+  V(I8x16ShrS, Register)        \
+  V(I8x16ShrU, Register)
 
-#define EMIT_SIMD_BINOP(name)                                     \
+#define EMIT_SIMD_BINOP(name, stype)                              \
   case kS390_##name: {                                            \
     __ name(i.OutputSimd128Register(), i.InputSimd128Register(0), \
-            i.InputSimd128Register(1));                           \
+            i.Input##stype(1));                                   \
     break;                                                        \
   }
       SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
@@ -2655,64 +2611,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vavgl(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1), Condition(0), Condition(0),
                Condition(0));
-      break;
-    }
-    // vector shifts
-#define VECTOR_SHIFT(op, mode)                                             \
-  {                                                                        \
-    __ vlvg(kScratchDoubleReg, i.InputRegister(1), MemOperand(r0, 0),      \
-            Condition(mode));                                              \
-    __ vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0),              \
-            Condition(mode));                                              \
-    __ op(i.OutputSimd128Register(), i.InputSimd128Register(0),            \
-          kScratchDoubleReg, Condition(0), Condition(0), Condition(mode)); \
-  }
-    case kS390_I64x2Shl: {
-      VECTOR_SHIFT(veslv, 3);
-      break;
-    }
-    case kS390_I64x2ShrS: {
-      VECTOR_SHIFT(vesrav, 3);
-      break;
-    }
-    case kS390_I64x2ShrU: {
-      VECTOR_SHIFT(vesrlv, 3);
-      break;
-    }
-    case kS390_I32x4Shl: {
-      VECTOR_SHIFT(veslv, 2);
-      break;
-    }
-    case kS390_I32x4ShrS: {
-      VECTOR_SHIFT(vesrav, 2);
-      break;
-    }
-    case kS390_I32x4ShrU: {
-      VECTOR_SHIFT(vesrlv, 2);
-      break;
-    }
-    case kS390_I16x8Shl: {
-      VECTOR_SHIFT(veslv, 1);
-      break;
-    }
-    case kS390_I16x8ShrS: {
-      VECTOR_SHIFT(vesrav, 1);
-      break;
-    }
-    case kS390_I16x8ShrU: {
-      VECTOR_SHIFT(vesrlv, 1);
-      break;
-    }
-    case kS390_I8x16Shl: {
-      VECTOR_SHIFT(veslv, 0);
-      break;
-    }
-    case kS390_I8x16ShrS: {
-      VECTOR_SHIFT(vesrav, 0);
-      break;
-    }
-    case kS390_I8x16ShrU: {
-      VECTOR_SHIFT(vesrlv, 0);
       break;
     }
     // vector unary ops
@@ -3489,6 +3387,120 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpkls(dst, dst, kScratchDoubleReg, Condition(0), Condition(3));
       break;
     }
+#define LOAD_SPLAT(type)                           \
+  AddressingMode mode = kMode_None;                \
+  MemOperand operand = i.MemoryOperand(&mode);     \
+  Simd128Register dst = i.OutputSimd128Register(); \
+  __ LoadAndSplat##type##LE(dst, operand);
+    case kS390_S128Load64Splat: {
+      LOAD_SPLAT(64x2);
+      break;
+    }
+    case kS390_S128Load32Splat: {
+      LOAD_SPLAT(32x4);
+      break;
+    }
+    case kS390_S128Load16Splat: {
+      LOAD_SPLAT(16x8);
+      break;
+    }
+    case kS390_S128Load8Splat: {
+      LOAD_SPLAT(8x16);
+      break;
+    }
+#undef LOAD_SPLAT
+#define LOAD_EXTEND(type)                          \
+  AddressingMode mode = kMode_None;                \
+  MemOperand operand = i.MemoryOperand(&mode);     \
+  Simd128Register dst = i.OutputSimd128Register(); \
+  __ LoadAndExtend##type##LE(dst, operand);
+    case kS390_S128Load32x2U: {
+      LOAD_EXTEND(32x2U);
+      break;
+    }
+    case kS390_S128Load32x2S: {
+      LOAD_EXTEND(32x2S);
+      break;
+    }
+    case kS390_S128Load16x4U: {
+      LOAD_EXTEND(16x4U);
+      break;
+    }
+    case kS390_S128Load16x4S: {
+      LOAD_EXTEND(16x4S);
+      break;
+    }
+    case kS390_S128Load8x8U: {
+      LOAD_EXTEND(8x8U);
+      break;
+    }
+    case kS390_S128Load8x8S: {
+      LOAD_EXTEND(8x8S);
+      break;
+    }
+#undef LOAD_EXTEND
+#define LOAD_AND_ZERO(type)                        \
+  AddressingMode mode = kMode_None;                \
+  MemOperand operand = i.MemoryOperand(&mode);     \
+  Simd128Register dst = i.OutputSimd128Register(); \
+  __ LoadV##type##ZeroLE(dst, operand);
+    case kS390_S128Load32Zero: {
+      LOAD_AND_ZERO(32);
+      break;
+    }
+    case kS390_S128Load64Zero: {
+      LOAD_AND_ZERO(64);
+      break;
+    }
+#undef LOAD_AND_ZERO
+#undef LOAD_EXTEND
+#define LOAD_LANE(type, lane)                          \
+  AddressingMode mode = kMode_None;                    \
+  size_t index = 2;                                    \
+  MemOperand operand = i.MemoryOperand(&mode, &index); \
+  Simd128Register dst = i.OutputSimd128Register();     \
+  DCHECK_EQ(dst, i.InputSimd128Register(0));           \
+  __ LoadLane##type##LE(dst, operand, lane);
+    case kS390_S128Load8Lane: {
+      LOAD_LANE(8, 15 - i.InputUint8(1));
+      break;
+    }
+    case kS390_S128Load16Lane: {
+      LOAD_LANE(16, 7 - i.InputUint8(1));
+      break;
+    }
+    case kS390_S128Load32Lane: {
+      LOAD_LANE(32, 3 - i.InputUint8(1));
+      break;
+    }
+    case kS390_S128Load64Lane: {
+      LOAD_LANE(64, 1 - i.InputUint8(1));
+      break;
+    }
+#undef LOAD_LANE
+#define STORE_LANE(type, lane)                         \
+  AddressingMode mode = kMode_None;                    \
+  size_t index = 2;                                    \
+  MemOperand operand = i.MemoryOperand(&mode, &index); \
+  Simd128Register src = i.InputSimd128Register(0);     \
+  __ StoreLane##type##LE(src, operand, lane);
+    case kS390_S128Store8Lane: {
+      STORE_LANE(8, 15 - i.InputUint8(1));
+      break;
+    }
+    case kS390_S128Store16Lane: {
+      STORE_LANE(16, 7 - i.InputUint8(1));
+      break;
+    }
+    case kS390_S128Store32Lane: {
+      STORE_LANE(32, 3 - i.InputUint8(1));
+      break;
+    }
+    case kS390_S128Store64Lane: {
+      STORE_LANE(64, 1 - i.InputUint8(1));
+      break;
+    }
+#undef STORE_LANE
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
@@ -3539,20 +3551,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   }
   __ b(cond, tlabel);
   if (!branch->fallthru) __ b(flabel);  // no fallthru to flabel.
-}
-
-void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
-                                            Instruction* instr) {
-  // TODO(John) Handle float comparisons (kUnordered[Not]Equal).
-  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual ||
-      condition == kOverflow || condition == kNotOverflow) {
-    return;
-  }
-
-  condition = NegateFlagsCondition(condition);
-  __ mov(r0, Operand::Zero());
-  __ LoadOnConditionP(FlagsConditionToCondition(condition, kArchNop),
-                      kSpeculationPoisonRegister, r0);
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
@@ -3781,7 +3779,6 @@ void CodeGenerator::AssembleConstructFrame() {
     __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     required_slots -= osr_helper()->UnoptimizedFrameSlots();
-    ResetSpeculationPoison();
   }
 
   const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
@@ -4028,7 +4025,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         }
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(dcarney): loading RPO constants on S390.
-          break;
       }
       if (destination->IsStackSlot()) {
         __ StoreU64(dst, g.ToMemOperand(destination), r0);

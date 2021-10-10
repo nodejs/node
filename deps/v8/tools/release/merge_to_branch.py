@@ -77,7 +77,7 @@ class SearchArchitecturePorts(Step):
       # Search for commits which matches the "Port XXX" pattern.
       git_hashes = self.GitLog(reverse=True, format="%H",
                                grep="^[Pp]ort %s" % revision,
-                               branch=self.vc.RemoteMasterBranch())
+                               branch=self.vc.RemoteMainBranch())
       for git_hash in git_hashes.splitlines():
         revision_title = self.GitLog(n=1, format="%s", git_hash=git_hash)
 
@@ -198,7 +198,7 @@ class CleanUp(Step):
 class MergeToBranch(ScriptsBase):
   def _Description(self):
     return ("Performs the necessary steps to merge revisions from "
-            "master to release branches like 4.5. This script does not "
+            "main to release branches like 4.5. This script does not "
             "version the commit. See http://goo.gl/9ke2Vw for more "
             "information.")
 

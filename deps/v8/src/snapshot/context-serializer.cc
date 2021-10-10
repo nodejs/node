@@ -177,8 +177,8 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     Handle<JSFunction> closure = Handle<JSFunction>::cast(obj);
     closure->ResetIfCodeFlushed();
     if (closure->is_compiled()) {
-      if (closure->shared().HasBaselineData()) {
-        closure->shared().flush_baseline_data();
+      if (closure->shared().HasBaselineCode()) {
+        closure->shared().FlushBaselineCode();
       }
       closure->set_code(closure->shared().GetCode(), kReleaseStore);
     }

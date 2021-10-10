@@ -267,14 +267,17 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
                  "wasm-function[%d]", index()));
     name = base::VectorOf(name_buffer);
   }
+
+  // Record source positions before adding code, otherwise when code is added,
+  // there are no source positions to associate with the added code.
+  if (!source_positions().empty()) {
+    LOG_CODE_EVENT(isolate, WasmCodeLinePosInfoRecordEvent(instruction_start(),
+                                                           source_positions()));
+  }
+
   int code_offset = module->functions[index_].code.offset();
   PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this, name,
                                    source_url, code_offset, script_id));
-
-  if (!source_positions().empty()) {
-    LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(instruction_start(),
-                                                       source_positions()));
-  }
 }
 
 void WasmCode::Validate() const {
@@ -664,12 +667,13 @@ class CheckWritableMemoryRegions {
     DCHECK(std::none_of(writable_memory_.begin(), writable_memory_.end(),
                         [](auto region) { return region.is_empty(); }));
 
-    // Regions are sorted and disjoint.
-    std::accumulate(writable_memory_.begin(), writable_memory_.end(),
-                    Address{0}, [](Address previous_end, auto region) {
-                      DCHECK_LT(previous_end, region.begin());
-                      return region.end();
-                    });
+    // Regions are sorted and disjoint. (std::accumulate has nodiscard on msvc
+    // so USE is required to prevent build failures in debug builds).
+    USE(std::accumulate(writable_memory_.begin(), writable_memory_.end(),
+                        Address{0}, [](Address previous_end, auto region) {
+                          DCHECK_LT(previous_end, region.begin());
+                          return region.end();
+                        }));
   }
 
  private:
@@ -1032,12 +1036,9 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
 
   // Log all owned code, not just the current entries in the code table. This
   // will also include import wrappers.
-  base::RecursiveMutexGuard lock(&allocation_mutex_);
-  for (auto& owned_entry : owned_code_) {
-    owned_entry.second->LogCode(isolate, source_url.get(), script.id());
-  }
-  for (auto& owned_entry : new_owned_code_) {
-    owned_entry->LogCode(isolate, source_url.get(), script.id());
+  WasmCodeRefScope code_ref_scope;
+  for (auto& code : SnapshotAllOwnedCode()) {
+    code->LogCode(isolate, source_url.get(), script.id());
   }
 }
 
@@ -1179,7 +1180,6 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     ExecutionTier tier, ForDebugging for_debugging) {
   base::Vector<byte> code_space;
   NativeModule::JumpTablesRef jump_table_ref;
-  CodeSpaceWriteScope code_space_write_scope(this);
   {
     base::RecursiveMutexGuard guard{&allocation_mutex_};
     code_space = code_allocator_.AllocateForCode(this, desc.instr_size);
@@ -1427,6 +1427,17 @@ std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
     if (code) WasmCodeRefScope::AddRef(code);
   }
   return std::vector<WasmCode*>{start, end};
+}
+
+std::vector<WasmCode*> NativeModule::SnapshotAllOwnedCode() const {
+  base::RecursiveMutexGuard lock(&allocation_mutex_);
+  if (!new_owned_code_.empty()) TransferNewOwnedCodeLocked();
+
+  std::vector<WasmCode*> all_code(owned_code_.size());
+  std::transform(owned_code_.begin(), owned_code_.end(), all_code.begin(),
+                 [](auto& entry) { return entry.second.get(); });
+  std::for_each(all_code.begin(), all_code.end(), WasmCodeRefScope::AddRef);
+  return all_code;
 }
 
 WasmCode* NativeModule::GetCode(uint32_t index) const {
@@ -2111,6 +2122,12 @@ void WasmCodeManager::SetThreadWritable(bool writable) {
 
 bool WasmCodeManager::HasMemoryProtectionKeySupport() const {
   return memory_protection_key_ != kNoMemoryProtectionKey;
+}
+
+void WasmCodeManager::InitializeMemoryProtectionKeyForTesting() {
+  if (memory_protection_key_ == kNoMemoryProtectionKey) {
+    memory_protection_key_ = AllocateMemoryProtectionKey();
+  }
 }
 
 std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(

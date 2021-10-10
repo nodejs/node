@@ -25,15 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <include/v8.h>
-
-#include <include/libplatform/libplatform.h>
-
 #include <stdlib.h>
 #include <string.h>
 
 #include <map>
 #include <string>
+
+#include "include/libplatform/libplatform.h"
+#include "include/v8-array-buffer.h"
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-external.h"
+#include "include/v8-function.h"
+#include "include/v8-initialization.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-object.h"
+#include "include/v8-persistent-handle.h"
+#include "include/v8-primitive.h"
+#include "include/v8-script.h"
+#include "include/v8-snapshot.h"
+#include "include/v8-template.h"
+#include "include/v8-value.h"
 
 using std::map;
 using std::pair;

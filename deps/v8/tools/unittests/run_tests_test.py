@@ -350,7 +350,8 @@ class SystemTest(unittest.TestCase):
           v8_enable_i18n_support=False, v8_target_cpu='x86',
           v8_enable_verify_csa=False, v8_enable_lite_mode=False,
           v8_enable_pointer_compression=False,
-          v8_enable_pointer_compression_shared_cage=False)
+          v8_enable_pointer_compression_shared_cage=False,
+          v8_enable_virtual_memory_cage=False)
       result = run_tests(
           basedir,
           '--progress=verbose',

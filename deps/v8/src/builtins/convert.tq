@@ -180,6 +180,9 @@ Convert<uint8, intptr>(i: intptr): uint8 {
 Convert<int8, intptr>(i: intptr): int8 {
   return %RawDownCast<int8>(TruncateIntPtrToInt32(i) << 24 >> 24);
 }
+Convert<uint16, uint32>(i: uint32): uint16 {
+  return %RawDownCast<uint16>(i & 0xFFFF);
+}
 Convert<int32, uint8>(i: uint8): int32 {
   return Signed(Convert<uint32>(i));
 }

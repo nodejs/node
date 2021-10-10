@@ -5,8 +5,6 @@
 #ifndef V8_INIT_STARTUP_DATA_UTIL_H_
 #define V8_INIT_STARTUP_DATA_UTIL_H_
 
-#include "include/v8.h"
-
 namespace v8 {
 namespace internal {
 

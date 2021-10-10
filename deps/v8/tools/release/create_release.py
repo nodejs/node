@@ -19,7 +19,7 @@ class Preparation(Step):
 
   def RunStep(self):
     self.Git("fetch origin +refs/heads/*:refs/heads/*")
-    self.GitCheckout("origin/master")
+    self.GitCheckout("origin/main")
     self.DeleteBranch("work-branch")
 
 
@@ -28,7 +28,7 @@ class PrepareBranchRevision(Step):
 
   def RunStep(self):
     self["push_hash"] = (self._options.revision or
-                         self.GitLog(n=1, format="%H", branch="origin/master"))
+                         self.GitLog(n=1, format="%H", branch="origin/main"))
     assert self["push_hash"]
     print("Release revision %s" % self["push_hash"])
 
@@ -39,16 +39,16 @@ class IncrementVersion(Step):
   def RunStep(self):
     latest_version = self.GetLatestVersion()
 
-    # The version file on master can be used to bump up major/minor at
+    # The version file on main can be used to bump up major/minor at
     # branch time.
-    self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteMasterBranch())
-    self.ReadAndPersistVersion("master_")
-    master_version = self.ArrayToVersion("master_")
+    self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteMainBranch())
+    self.ReadAndPersistVersion("main_")
+    main_version = self.ArrayToVersion("main_")
 
-    # Use the highest version from master or from tags to determine the new
+    # Use the highest version from main or from tags to determine the new
     # version.
     authoritative_version = sorted(
-        [master_version, latest_version], key=SortingKey)[1]
+        [main_version, latest_version], key=SortingKey)[1]
     self.StoreVersion(authoritative_version, "authoritative_")
 
     # Variables prefixed with 'new_' contain the new version numbers for the
@@ -74,7 +74,7 @@ class DetectLastRelease(Step):
   MESSAGE = "Detect commit ID of last release base."
 
   def RunStep(self):
-    self["last_push_master"] = self.GetLatestReleaseBase()
+    self["last_push_main"] = self.GetLatestReleaseBase()
 
 
 class DeleteBranchRef(Step):
@@ -107,7 +107,7 @@ class MakeBranch(Step):
   MESSAGE = "Create the branch."
 
   def RunStep(self):
-    self.Git("reset --hard origin/master")
+    self.Git("reset --hard origin/main")
     self.Git("new-branch work-branch --upstream origin/%s" % self["version"])
     self.GitCheckoutFile(VERSION_FILE, self["latest_version"])
 
@@ -186,7 +186,7 @@ class CleanUp(Step):
     print("Congratulations, you have successfully created version %s."
           % self["version"])
 
-    self.GitCheckout("origin/master")
+    self.GitCheckout("origin/main")
     self.DeleteBranch("work-branch")
     self.Git("gc")
 

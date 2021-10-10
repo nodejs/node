@@ -3,8 +3,12 @@
 // found in the LICENSE file.
 
 #include "src/extensions/vtunedomain-support-extension.h"
+
 #include <string>
 #include <vector>
+
+#include "include/v8-isolate.h"
+#include "include/v8-template.h"
 
 namespace v8 {
 namespace internal {

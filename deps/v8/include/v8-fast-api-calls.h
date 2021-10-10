@@ -225,9 +225,11 @@
 #include <tuple>
 #include <type_traits>
 
-#include "v8-internal.h"  // NOLINT(build/include_directory)
-#include "v8.h"           // NOLINT(build/include_directory)
-#include "v8config.h"     // NOLINT(build/include_directory)
+#include "v8-internal.h"      // NOLINT(build/include_directory)
+#include "v8-local-handle.h"  // NOLINT(build/include_directory)
+#include "v8-typed-array.h"   // NOLINT(build/include_directory)
+#include "v8-value.h"         // NOLINT(build/include_directory)
+#include "v8config.h"         // NOLINT(build/include_directory)
 
 namespace v8 {
 
@@ -464,7 +466,7 @@ class V8_EXPORT CFunction {
   };
 };
 
-struct ApiObject {
+struct V8_DEPRECATE_SOON("Use v8::Local<v8::Value> instead.") ApiObject {
   uintptr_t address;
 };
 

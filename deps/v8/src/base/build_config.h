@@ -33,6 +33,9 @@
 #elif defined(__MIPSEB__) || defined(__MIPSEL__)
 #define V8_HOST_ARCH_MIPS 1
 #define V8_HOST_ARCH_32_BIT 1
+#elif defined(__loongarch64)
+#define V8_HOST_ARCH_LOONG64 1
+#define V8_HOST_ARCH_64_BIT 1
 #elif defined(__PPC64__) || defined(_ARCH_PPC64)
 #define V8_HOST_ARCH_PPC64 1
 #define V8_HOST_ARCH_64_BIT 1
@@ -83,7 +86,7 @@
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM &&      \
     !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64 && \
     !V8_TARGET_ARCH_PPC && !V8_TARGET_ARCH_PPC64 && !V8_TARGET_ARCH_S390 &&    \
-    !V8_TARGET_ARCH_RISCV64
+    !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64
 #if defined(_M_X64) || defined(__x86_64__)
 #define V8_TARGET_ARCH_X64 1
 #elif defined(_M_IX86) || defined(__i386__)
@@ -128,6 +131,8 @@
 #define V8_TARGET_ARCH_32_BIT 1
 #elif V8_TARGET_ARCH_MIPS64
 #define V8_TARGET_ARCH_64_BIT 1
+#elif V8_TARGET_ARCH_LOONG64
+#define V8_TARGET_ARCH_64_BIT 1
 #elif V8_TARGET_ARCH_PPC
 #define V8_TARGET_ARCH_32_BIT 1
 #elif V8_TARGET_ARCH_PPC64
@@ -171,6 +176,9 @@
 #if (V8_TARGET_ARCH_RISCV64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_RISCV64))
 #error Target architecture riscv64 is only supported on riscv64 and x64 host
 #endif
+#if (V8_TARGET_ARCH_LOONG64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_LOONG64))
+#error Target architecture loong64 is only supported on loong64 and x64 host
+#endif
 
 // Determine architecture endianness.
 #if V8_TARGET_ARCH_IA32
@@ -180,6 +188,8 @@
 #elif V8_TARGET_ARCH_ARM
 #define V8_TARGET_LITTLE_ENDIAN 1
 #elif V8_TARGET_ARCH_ARM64
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif V8_TARGET_ARCH_LOONG64
 #define V8_TARGET_LITTLE_ENDIAN 1
 #elif V8_TARGET_ARCH_MIPS
 #if defined(__MIPSEB__)

@@ -133,6 +133,11 @@ bool OS::DiscardSystemPages(void* address, size_t size) {
   return status == ZX_OK;
 }
 
+bool OS::DecommitPages(void* address, size_t size) {
+  // TODO(chromium:1218005): support this.
+  return false;
+}
+
 // static
 bool OS::HasLazyCommits() {
   // TODO(scottmg): Port, https://crbug.com/731217.

@@ -59,7 +59,7 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
           isolate->factory()->empty_string(), builtin, kind);
-  shared->set_internal_formal_parameter_count(len);
+  shared->set_internal_formal_parameter_count(JSParameterCount(len));
   shared->set_length(len);
   return shared;
 }

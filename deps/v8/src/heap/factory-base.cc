@@ -809,8 +809,7 @@ HeapObject FactoryBase<Impl>::AllocateRawArray(int size,
       (size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
       FLAG_use_marking_progress_bar) {
-    BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(result);
-    chunk->SetFlag<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR);
+    LargePage::FromHeapObject(result)->ProgressBar().Enable();
   }
   return result;
 }

@@ -5,9 +5,9 @@
 #ifndef V8_OBJECTS_ALLOCATION_SITE_INL_H_
 #define V8_OBJECTS_ALLOCATION_SITE_INL_H_
 
-#include "src/objects/allocation-site.h"
-
+#include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/js-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -30,8 +30,7 @@ ACCESSORS(AllocationSite, transition_info_or_boilerplate, Object,
 RELEASE_ACQUIRE_ACCESSORS(AllocationSite, transition_info_or_boilerplate,
                           Object, kTransitionInfoOrBoilerplateOffset)
 ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
-IMPLICIT_TAG_RELAXED_INT32_ACCESSORS(AllocationSite, pretenure_data,
-                                     kPretenureDataOffset)
+RELAXED_INT32_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_create_count,
                 kPretenureCreateCountOffset)
 ACCESSORS(AllocationSite, dependent_code, DependentCode, kDependentCodeOffset)
@@ -73,7 +72,7 @@ void AllocationSite::Initialize() {
   set_transition_info_or_boilerplate(Smi::zero());
   SetElementsKind(GetInitialFastElementsKind());
   set_nested_site(Smi::zero());
-  set_pretenure_data(0);
+  set_pretenure_data(0, kRelaxedStore);
   set_pretenure_create_count(0);
   set_dependent_code(
       DependentCode::cast(GetReadOnlyRoots().empty_weak_fixed_array()),
@@ -139,36 +138,39 @@ inline bool AllocationSite::CanTrack(InstanceType type) {
 }
 
 AllocationSite::PretenureDecision AllocationSite::pretenure_decision() const {
-  return PretenureDecisionBits::decode(pretenure_data());
+  return PretenureDecisionBits::decode(pretenure_data(kRelaxedLoad));
 }
 
 void AllocationSite::set_pretenure_decision(PretenureDecision decision) {
-  int32_t value = pretenure_data();
-  set_pretenure_data(PretenureDecisionBits::update(value, decision));
+  int32_t value = pretenure_data(kRelaxedLoad);
+  set_pretenure_data(PretenureDecisionBits::update(value, decision),
+                     kRelaxedStore);
 }
 
 bool AllocationSite::deopt_dependent_code() const {
-  return DeoptDependentCodeBit::decode(pretenure_data());
+  return DeoptDependentCodeBit::decode(pretenure_data(kRelaxedLoad));
 }
 
 void AllocationSite::set_deopt_dependent_code(bool deopt) {
-  int32_t value = pretenure_data();
-  set_pretenure_data(DeoptDependentCodeBit::update(value, deopt));
+  int32_t value = pretenure_data(kRelaxedLoad);
+  set_pretenure_data(DeoptDependentCodeBit::update(value, deopt),
+                     kRelaxedStore);
 }
 
 int AllocationSite::memento_found_count() const {
-  return MementoFoundCountBits::decode(pretenure_data());
+  return MementoFoundCountBits::decode(pretenure_data(kRelaxedLoad));
 }
 
 inline void AllocationSite::set_memento_found_count(int count) {
-  int32_t value = pretenure_data();
+  int32_t value = pretenure_data(kRelaxedLoad);
   // Verify that we can count more mementos than we can possibly find in one
   // new space collection.
   DCHECK((GetHeap()->MaxSemiSpaceSize() /
           (Heap::kMinObjectSizeInTaggedWords * kTaggedSize +
            AllocationMemento::kSize)) < MementoFoundCountBits::kMax);
   DCHECK_LT(count, MementoFoundCountBits::kMax);
-  set_pretenure_data(MementoFoundCountBits::update(value, count));
+  set_pretenure_data(MementoFoundCountBits::update(value, count),
+                     kRelaxedStore);
 }
 
 int AllocationSite::memento_create_count() const {

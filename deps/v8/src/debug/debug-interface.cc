@@ -4,6 +4,7 @@
 
 #include "src/debug/debug-interface.h"
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/script-details.h"
@@ -760,8 +761,8 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
   {
     i::AlignedCachedData* cached_data = nullptr;
     i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
-        i::Compiler::GetSharedFunctionInfoForScript(
-            isolate, str, i::ScriptDetails(), nullptr, cached_data,
+        i::Compiler::GetSharedFunctionInfoForScriptWithCachedData(
+            isolate, str, i::ScriptDetails(), cached_data,
             ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheBecauseInspector,
             i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE
@@ -862,7 +863,7 @@ Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin requested_builtin) {
           .set_map(isolate->strict_function_without_prototype_map())
           .Build();
 
-  fun->shared().set_internal_formal_parameter_count(0);
+  fun->shared().set_internal_formal_parameter_count(i::JSParameterCount(0));
   fun->shared().set_length(0);
   return Utils::ToLocal(handle_scope.CloseAndEscape(fun));
 }
@@ -1032,16 +1033,6 @@ int64_t GetNextRandomInt64(v8::Isolate* v8_isolate) {
   return reinterpret_cast<i::Isolate*>(v8_isolate)
       ->random_number_generator()
       ->NextInt64();
-}
-
-void EnumerateRuntimeCallCounters(v8::Isolate* v8_isolate,
-                                  RuntimeCallCounterCallback callback) {
-#ifdef V8_RUNTIME_CALL_STATS
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  if (isolate->counters()) {
-    isolate->counters()->runtime_call_stats()->EnumerateCounters(callback);
-  }
-#endif  // V8_RUNTIME_CALL_STATS
 }
 
 int GetDebuggingId(v8::Local<v8::Function> function) {

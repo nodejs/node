@@ -8,6 +8,7 @@
 #include "src/common/ptr-compr.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-range.h"
+#include "src/init/vm-cage.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
 
@@ -74,7 +75,28 @@ void IsolateAllocator::FreeProcessWidePtrComprCageForTesting() {
 void IsolateAllocator::InitializeOncePerProcess() {
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   PtrComprCageReservationParams params;
-  if (!GetProcessWidePtrComprCage()->InitReservation(params)) {
+  base::AddressRegion existing_reservation;
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  // TODO(chromium:1218005) avoid the name collision with
+  // v8::internal::VirtualMemoryCage and ideally figure out a clear naming
+  // scheme for the different types of virtual memory cages.
+
+  // For now, we allow the virtual memory cage to be disabled even when
+  // compiling with v8_enable_virtual_memory_cage. This fallback will be
+  // disallowed in the future, at the latest once ArrayBuffers are referenced
+  // through an offset rather than a raw pointer.
+  if (GetProcessWideVirtualMemoryCage()->is_disabled()) {
+    CHECK(kAllowBackingStoresOutsideDataCage);
+  } else {
+    auto cage = GetProcessWideVirtualMemoryCage();
+    CHECK(cage->is_initialized());
+    DCHECK_EQ(params.reservation_size, cage->pointer_cage_size());
+    existing_reservation = base::AddressRegion(cage->pointer_cage_base(),
+                                               cage->pointer_cage_size());
+  }
+#endif
+  if (!GetProcessWidePtrComprCage()->InitReservation(params,
+                                                     existing_reservation)) {
     V8::FatalProcessOutOfMemory(
         nullptr,
         "Failed to reserve virtual memory for process-wide V8 "

@@ -38,6 +38,7 @@ class V8_EXPORT_PRIVATE SourcePositionTable : public Malloced {
   int GetSourceLineNumber(int pc_offset) const;
   int GetInliningId(int pc_offset) const;
 
+  size_t Size() const;
   void print() const;
 
  private:
@@ -98,6 +99,7 @@ class CodeEntry {
   void set_deopt_info(const char* deopt_reason, int deopt_id,
                       std::vector<CpuProfileDeoptFrame> inlined_frames);
 
+  size_t EstimatedSize() const;
   CpuProfileDeoptInfo GetDeoptInfo();
   bool has_deopt_info() const {
     return rare_data_ && rare_data_->deopt_id_ != kNoDeoptimizationId;
@@ -490,6 +492,8 @@ class V8_EXPORT_PRIVATE CodeMap {
   CodeEntry* FindEntry(Address addr, Address* out_instruction_start = nullptr);
   void Print();
   size_t size() const { return code_map_.size(); }
+
+  size_t GetEstimatedMemoryUsage() const;
 
   CodeEntryStorage& code_entries() { return code_entries_; }
 

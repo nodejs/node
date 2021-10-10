@@ -40,6 +40,6 @@ print("Sensitive runtime functions are neutered");
   %OptimizeFunctionOnNextCall(foo);
   foo();
   print(%GetOptimizationStatus(foo));
-  const fun = new Function("f", "sync", "return %GetOptimizationStatus(f);");
+  const fun = new Function("f", "return %GetOptimizationStatus(f);");
   print(fun(foo));
 })();

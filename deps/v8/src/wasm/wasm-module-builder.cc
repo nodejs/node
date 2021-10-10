@@ -264,7 +264,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       functions_(zone),
       tables_(zone),
       data_segments_(zone),
-      indirect_functions_(zone),
+      element_segments_(zone),
       globals_(zone),
       exceptions_(zone),
       signature_map_(zone),
@@ -323,73 +323,50 @@ uint32_t WasmModuleBuilder::AddArrayType(ArrayType* type) {
 const uint32_t WasmModuleBuilder::kNullIndex =
     std::numeric_limits<uint32_t>::max();
 
-// TODO(9495): Add support for typed function tables and more init. expressions.
-uint32_t WasmModuleBuilder::AllocateIndirectFunctions(uint32_t count) {
-  DCHECK(allocating_indirect_functions_allowed_);
-  uint32_t index = static_cast<uint32_t>(indirect_functions_.size());
-  DCHECK_GE(FLAG_wasm_max_table_size, index);
-  if (count > FLAG_wasm_max_table_size - index) {
+uint32_t WasmModuleBuilder::IncreaseTableMinSize(uint32_t table_index,
+                                                 uint32_t count) {
+  DCHECK_LT(table_index, tables_.size());
+  uint32_t old_min_size = tables_[table_index].min_size;
+  if (count > FLAG_wasm_max_table_size - old_min_size) {
     return std::numeric_limits<uint32_t>::max();
   }
-  uint32_t new_size = static_cast<uint32_t>(indirect_functions_.size()) + count;
-  DCHECK(max_table_size_ == 0 || new_size <= max_table_size_);
-  indirect_functions_.resize(new_size, kNullIndex);
-  uint32_t max = max_table_size_ > 0 ? max_table_size_ : new_size;
-  if (tables_.empty()) {
-    // This cannot use {AddTable} because that would flip the
-    // {allocating_indirect_functions_allowed_} flag.
-    tables_.push_back({kWasmFuncRef, new_size, max, true, {}});
-  } else {
-    // There can only be the indirect function table so far, otherwise the
-    // {allocating_indirect_functions_allowed_} flag would have been false.
-    DCHECK_EQ(1u, tables_.size());
-    DCHECK_EQ(kWasmFuncRef, tables_[0].type);
-    DCHECK(tables_[0].has_maximum);
-    tables_[0].min_size = new_size;
-    tables_[0].max_size = max;
-  }
-  return index;
-}
-
-void WasmModuleBuilder::SetIndirectFunction(uint32_t indirect,
-                                            uint32_t direct) {
-  indirect_functions_[indirect] = direct;
-}
-
-void WasmModuleBuilder::SetMaxTableSize(uint32_t max) {
-  DCHECK_GE(FLAG_wasm_max_table_size, max);
-  DCHECK_GE(max, indirect_functions_.size());
-  max_table_size_ = max;
-  DCHECK(allocating_indirect_functions_allowed_);
-  if (!tables_.empty()) {
-    tables_[0].max_size = max;
-  }
+  tables_[table_index].min_size = old_min_size + count;
+  tables_[table_index].max_size =
+      std::max(old_min_size + count, tables_[table_index].max_size);
+  return old_min_size;
 }
 
 uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size) {
-#if DEBUG
-  allocating_indirect_functions_allowed_ = false;
-#endif
   tables_.push_back({type, min_size, 0, false, {}});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
 uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
                                      uint32_t max_size) {
-#if DEBUG
-  allocating_indirect_functions_allowed_ = false;
-#endif
   tables_.push_back({type, min_size, max_size, true, {}});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
 uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
                                      uint32_t max_size, WasmInitExpr init) {
-#if DEBUG
-  allocating_indirect_functions_allowed_ = false;
-#endif
   tables_.push_back({type, min_size, max_size, true, std::move(init)});
   return static_cast<uint32_t>(tables_.size() - 1);
+}
+
+void WasmModuleBuilder::AddElementSegment(WasmElemSegment segment) {
+  element_segments_.push_back(std::move(segment));
+}
+
+void WasmModuleBuilder::SetIndirectFunction(
+    uint32_t table_index, uint32_t index_in_table,
+    uint32_t direct_function_index,
+    WasmElemSegment::FunctionIndexingMode indexing_mode) {
+  WasmElemSegment segment(zone_, kWasmFuncRef, table_index,
+                          WasmInitExpr(static_cast<int>(index_in_table)));
+  segment.indexing_mode = indexing_mode;
+  segment.entries.emplace_back(WasmElemSegment::Entry::kRefFuncEntry,
+                               direct_function_index);
+  AddElementSegment(std::move(segment));
 }
 
 uint32_t WasmModuleBuilder::AddImport(base::Vector<const char> name,
@@ -454,8 +431,9 @@ void WasmModuleBuilder::SetMaxMemorySize(uint32_t value) {
 void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 
 namespace {
-void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
-                                ValueType type) {
+void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
+                                       const WasmInitExpr& init,
+                                       ValueType type) {
   switch (init.kind()) {
     case WasmInitExpr::kI32Const:
       buffer->write_u8(kExprI32Const);
@@ -534,7 +512,7 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
     case WasmInitExpr::kStructNewWithRtt:
       STATIC_ASSERT((kExprStructNewWithRtt >> 8) == kGCPrefix);
       for (const WasmInitExpr& operand : init.operands()) {
-        WriteInitializerExpression(buffer, operand, kWasmBottom);
+        WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprStructNewWithRtt));
@@ -543,7 +521,7 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
     case WasmInitExpr::kArrayInit:
       STATIC_ASSERT((kExprArrayInit >> 8) == kGCPrefix);
       for (const WasmInitExpr& operand : init.operands()) {
-        WriteInitializerExpression(buffer, operand, kWasmBottom);
+        WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprArrayInit));
@@ -559,7 +537,8 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
     case WasmInitExpr::kRttSub:
     case WasmInitExpr::kRttFreshSub:
       // The operand to rtt.sub must be emitted first.
-      WriteInitializerExpression(buffer, init.operands()[0], kWasmBottom);
+      WriteInitializerExpressionWithEnd(buffer, init.operands()[0],
+                                        kWasmBottom);
       STATIC_ASSERT((kExprRttSub >> 8) == kGCPrefix);
       STATIC_ASSERT((kExprRttFreshSub >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);
@@ -571,6 +550,11 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
   }
 }
 
+void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
+                                ValueType type) {
+  WriteInitializerExpressionWithEnd(buffer, init, type);
+  buffer->write_u8(kExprEnd);
+}
 }  // namespace
 
 void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
@@ -705,7 +689,6 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
       WriteValueType(buffer, global.type);
       buffer->write_u8(global.mutability ? 1 : 0);
       WriteInitializerExpression(buffer, global.init, global.type);
-      buffer->write_u8(kExprEnd);
     }
     FixupSection(buffer, start);
   }
@@ -744,31 +727,67 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     FixupSection(buffer, start);
   }
 
-  // == emit function table elements ===========================================
-  if (indirect_functions_.size() > 0) {
+  // == emit element segments ==================================================
+  if (element_segments_.size() > 0) {
     size_t start = EmitSection(kElementSectionCode, buffer);
-    buffer->write_u8(1);              // count of entries
-    buffer->write_u8(0);              // table index
-    uint32_t first_element = 0;
-    while (first_element < indirect_functions_.size() &&
-           indirect_functions_[first_element] == kNullIndex) {
-      first_element++;
+    buffer->write_size(element_segments_.size());
+    for (const WasmElemSegment& segment : element_segments_) {
+      bool is_active = segment.status == WasmElemSegment::kStatusActive;
+      // If this segment is expressible in the backwards-compatible syntax
+      // (before reftypes proposal), we should emit it in that syntax.
+      // This is the case if the segment is active and all entries are function
+      // references. Note that this is currently the only path that allows
+      // kRelativeToImports function indexing mode.
+      // TODO(manoskouk): Remove this logic once reftypes has shipped.
+      bool backwards_compatible =
+          is_active && segment.table_index == 0 &&
+          std::all_of(
+              segment.entries.begin(), segment.entries.end(), [](auto& entry) {
+                return entry.kind ==
+                       WasmModuleBuilder::WasmElemSegment::Entry::kRefFuncEntry;
+              });
+      if (backwards_compatible) {
+        buffer->write_u8(0);
+        WriteInitializerExpression(buffer, segment.offset, segment.type);
+        buffer->write_size(segment.entries.size());
+        for (const WasmElemSegment::Entry entry : segment.entries) {
+          buffer->write_u32v(
+              segment.indexing_mode == WasmElemSegment::kRelativeToImports
+                  ? entry.index
+                  : entry.index +
+                        static_cast<uint32_t>(function_imports_.size()));
+        }
+      } else {
+        DCHECK_EQ(segment.indexing_mode, WasmElemSegment::kRelativeToImports);
+        // If we pick the general syntax, we always explicitly emit the table
+        // index and the type, and use the expressions-as-elements syntax. I.e.
+        // the initial byte is one of 0x05, 0x06, and 0x07.
+        uint8_t kind_mask =
+            segment.status == WasmElemSegment::kStatusActive
+                ? 0b10
+                : segment.status == WasmElemSegment::kStatusDeclarative ? 0b11
+                                                                        : 0b01;
+        uint8_t expressions_as_elements_mask = 0b100;
+        buffer->write_u8(kind_mask | expressions_as_elements_mask);
+        if (is_active) {
+          buffer->write_u32v(segment.table_index);
+          WriteInitializerExpression(buffer, segment.offset, segment.type);
+        }
+        WriteValueType(buffer, segment.type);
+        buffer->write_size(segment.entries.size());
+        for (const WasmElemSegment::Entry entry : segment.entries) {
+          uint8_t opcode =
+              entry.kind == WasmElemSegment::Entry::kGlobalGetEntry
+                  ? kExprGlobalGet
+                  : entry.kind == WasmElemSegment::Entry::kRefFuncEntry
+                        ? kExprRefFunc
+                        : kExprRefNull;
+          buffer->write_u8(opcode);
+          buffer->write_u32v(entry.index);
+          buffer->write_u8(kExprEnd);
+        }
+      }
     }
-    uint32_t last_element =
-        static_cast<uint32_t>(indirect_functions_.size() - 1);
-    while (last_element >= first_element &&
-           indirect_functions_[last_element] == kNullIndex) {
-      last_element--;
-    }
-    buffer->write_u8(kExprI32Const);  // offset
-    buffer->write_u32v(first_element);
-    buffer->write_u8(kExprEnd);
-    uint32_t element_count = last_element - first_element + 1;
-    buffer->write_size(element_count);
-    for (uint32_t i = first_element; i <= last_element; i++) {
-      buffer->write_size(indirect_functions_[i] + function_imports_.size());
-    }
-
     FixupSection(buffer, start);
   }
 

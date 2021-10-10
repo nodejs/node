@@ -6,11 +6,12 @@
 #define V8_EXECUTION_MICROTASK_QUEUE_H_
 
 #include <stdint.h>
+
 #include <memory>
 #include <vector>
 
 #include "include/v8-internal.h"  // For Address.
-#include "include/v8.h"
+#include "include/v8-microtask-queue.h"
 #include "src/base/macros.h"
 
 namespace v8 {

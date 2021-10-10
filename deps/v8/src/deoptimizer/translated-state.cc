@@ -678,15 +678,6 @@ TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(
   return frame;
 }
 
-namespace {
-
-uint16_t InternalFormalParameterCountWithReceiver(SharedFunctionInfo sfi) {
-  static constexpr int kTheReceiver = 1;
-  return sfi.internal_formal_parameter_count() + kTheReceiver;
-}
-
-}  // namespace
-
 int TranslatedFrame::GetValueCount() {
   // The function is added to all frame state descriptors in
   // InstructionSelector::AddInputsToFrameStateDescriptor.
@@ -695,7 +686,7 @@ int TranslatedFrame::GetValueCount() {
   switch (kind()) {
     case kUnoptimizedFunction: {
       int parameter_count =
-          InternalFormalParameterCountWithReceiver(raw_shared_info_);
+          raw_shared_info_.internal_formal_parameter_count_with_receiver();
       static constexpr int kTheContext = 1;
       static constexpr int kTheAccumulator = 1;
       return height() + parameter_count + kTheContext + kTheFunction +
@@ -748,7 +739,8 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file, "  reading input frame %s", name.get());
-        int arg_count = InternalFormalParameterCountWithReceiver(shared_info);
+        int arg_count =
+            shared_info.internal_formal_parameter_count_with_receiver();
         PrintF(trace_file,
                " => bytecode_offset=%d, args=%d, height=%d, retval=%i(#%i); "
                "inputs:\n",
@@ -1298,7 +1290,9 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame)
   int actual_argc = frame->GetActualArgumentCount();
   Init(frame->isolate(), frame->fp(), frame->fp(), &it, data.LiteralArray(),
        nullptr /* registers */, nullptr /* trace file */,
-       frame->function().shared().internal_formal_parameter_count(),
+       frame->function()
+           .shared()
+           .internal_formal_parameter_count_without_receiver(),
        actual_argc);
 }
 
@@ -1977,21 +1971,21 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
         // be shown in a stack trace.
         if (frames_[i].kind() ==
                 TranslatedFrame::kJavaScriptBuiltinContinuation &&
-            frames_[i].shared_info()->internal_formal_parameter_count() ==
-                kDontAdaptArgumentsSentinel) {
+            frames_[i].shared_info()->IsDontAdaptArguments()) {
           DCHECK(frames_[i].shared_info()->IsApiFunction());
 
           // The argument count for this special case is always the second
           // to last value in the TranslatedFrame. It should also always be
-          // {1}, as the GenericLazyDeoptContinuation builtin only has one
-          // argument (the receiver).
+          // {1}, as the GenericLazyDeoptContinuation builtin has one explicit
+          // argument (the result).
           static constexpr int kTheContext = 1;
           const int height = frames_[i].height() + kTheContext;
           *args_count = frames_[i].ValueAt(height - 1)->GetSmiValue();
-          DCHECK_EQ(*args_count, 1);
+          DCHECK_EQ(*args_count, JSParameterCount(1));
         } else {
-          *args_count = InternalFormalParameterCountWithReceiver(
-              *frames_[i].shared_info());
+          *args_count = frames_[i]
+                            .shared_info()
+                            ->internal_formal_parameter_count_with_receiver();
         }
         return &(frames_[i]);
       }

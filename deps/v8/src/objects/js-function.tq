@@ -18,7 +18,6 @@ extern class JSBoundFunction extends JSFunctionOrBoundFunction {
 }
 
 @highestInstanceTypeWithinParentClassRange
-@doNotGenerateCppClass
 extern class JSFunction extends JSFunctionOrBoundFunction {
   shared_function_info: SharedFunctionInfo;
   context: Context;

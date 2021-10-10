@@ -52,6 +52,7 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
 #undef DECLARE_VISIT
 
  private:
+  void Print(char c);
   void Print(const char* str);
   void Print(Handle<String> str);
 

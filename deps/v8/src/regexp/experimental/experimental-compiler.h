@@ -7,6 +7,7 @@
 
 #include "src/regexp/experimental/experimental-bytecode.h"
 #include "src/regexp/regexp-ast.h"
+#include "src/regexp/regexp-flags.h"
 #include "src/zone/zone-list.h"
 
 namespace v8 {
@@ -19,13 +20,13 @@ class ExperimentalRegExpCompiler final : public AllStatic {
   // but see the definition.
   // TODO(mbid,v8:10765): Currently more things are not handled, e.g. some
   // quantifiers and unicode.
-  static bool CanBeHandled(RegExpTree* tree, JSRegExp::Flags flags,
+  static bool CanBeHandled(RegExpTree* tree, RegExpFlags flags,
                            int capture_count);
   // Compile regexp into a bytecode program.  The regexp must be handlable by
   // the experimental engine; see`CanBeHandled`.  The program is returned as a
   // ZoneList backed by the same Zone that is used in the RegExpTree argument.
   static ZoneList<RegExpInstruction> Compile(RegExpTree* tree,
-                                             JSRegExp::Flags flags, Zone* zone);
+                                             RegExpFlags flags, Zone* zone);
 };
 
 }  // namespace internal

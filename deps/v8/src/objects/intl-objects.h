@@ -27,6 +27,7 @@ namespace U_ICU_NAMESPACE {
 class BreakIterator;
 class Collator;
 class FormattedValue;
+class StringEnumeration;
 class UnicodeString;
 }  // namespace U_ICU_NAMESPACE
 
@@ -141,6 +142,10 @@ class Intl {
   // ecma-402 #sec-intl.getcanonicallocales
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetCanonicalLocales(
       Isolate* isolate, Handle<Object> locales);
+
+  // ecma-402 #sec-intl.supportedvaluesof
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> SupportedValuesOf(
+      Isolate* isolate, Handle<Object> key);
 
   // For locale sensitive functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> StringLocaleConvertCase(
@@ -338,6 +343,18 @@ class Intl {
   // ecma402/#sec-coerceoptionstoobject
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> CoerceOptionsToObject(
       Isolate* isolate, Handle<Object> options, const char* service);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> ToJSArray(
+      Isolate* isolate, const char* unicode_key,
+      icu::StringEnumeration* enumeration,
+      const std::function<bool(const char*)>& removes, bool sort);
+
+  static bool RemoveCollation(const char* collation);
+
+  static std::set<std::string> SanctionedSimpleUnits();
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> AvailableCalendars(
+      Isolate* isolate);
 };
 
 }  // namespace internal

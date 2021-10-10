@@ -436,7 +436,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void SetWeakReference(HeapEntry* parent_entry, const char* reference_name,
                         Object child_obj, int field_offset);
   void SetWeakReference(HeapEntry* parent_entry, int index, Object child_obj,
-                        int field_offset);
+                        base::Optional<int> field_offset);
   void SetPropertyReference(HeapEntry* parent_entry, Name reference_name,
                             Object child,
                             const char* name_format_string = nullptr,

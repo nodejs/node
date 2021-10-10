@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class ByteArray;
+
 class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
  public:
   enum Result {

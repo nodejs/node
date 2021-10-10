@@ -375,9 +375,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64S128Load32Zero:
     case kMips64S128Load64Zero:
     case kMips64S128LoadLane:
-    case kMips64Word64AtomicLoadUint8:
-    case kMips64Word64AtomicLoadUint16:
-    case kMips64Word64AtomicLoadUint32:
     case kMips64Word64AtomicLoadUint64:
 
       return kIsLoadOperation;
@@ -400,37 +397,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64Uswc1:
     case kMips64Sync:
     case kMips64S128StoreLane:
-    case kMips64Word64AtomicStoreWord8:
-    case kMips64Word64AtomicStoreWord16:
-    case kMips64Word64AtomicStoreWord32:
+    case kMips64StoreCompressTagged:
     case kMips64Word64AtomicStoreWord64:
-    case kMips64Word64AtomicAddUint8:
-    case kMips64Word64AtomicAddUint16:
-    case kMips64Word64AtomicAddUint32:
     case kMips64Word64AtomicAddUint64:
-    case kMips64Word64AtomicSubUint8:
-    case kMips64Word64AtomicSubUint16:
-    case kMips64Word64AtomicSubUint32:
     case kMips64Word64AtomicSubUint64:
-    case kMips64Word64AtomicAndUint8:
-    case kMips64Word64AtomicAndUint16:
-    case kMips64Word64AtomicAndUint32:
     case kMips64Word64AtomicAndUint64:
-    case kMips64Word64AtomicOrUint8:
-    case kMips64Word64AtomicOrUint16:
-    case kMips64Word64AtomicOrUint32:
     case kMips64Word64AtomicOrUint64:
-    case kMips64Word64AtomicXorUint8:
-    case kMips64Word64AtomicXorUint16:
-    case kMips64Word64AtomicXorUint32:
     case kMips64Word64AtomicXorUint64:
-    case kMips64Word64AtomicExchangeUint8:
-    case kMips64Word64AtomicExchangeUint16:
-    case kMips64Word64AtomicExchangeUint32:
     case kMips64Word64AtomicExchangeUint64:
-    case kMips64Word64AtomicCompareExchangeUint8:
-    case kMips64Word64AtomicCompareExchangeUint16:
-    case kMips64Word64AtomicCompareExchangeUint32:
     case kMips64Word64AtomicCompareExchangeUint64:
       return kHasSideEffect;
 
@@ -1352,8 +1326,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return DadduLatency(false) + AndLatency(false) + AssertLatency() +
              DadduLatency(false) + AndLatency(false) + BranchShortLatency() +
              1 + DsubuLatency() + DadduLatency();
-    case kArchWordPoisonOnSpeculation:
-      return AndLatency();
     case kIeee754Float64Acos:
     case kIeee754Float64Acosh:
     case kIeee754Float64Asin:
@@ -1740,35 +1712,35 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return ByteSwapSignedLatency();
     case kMips64ByteSwap32:
       return ByteSwapSignedLatency();
-    case kWord32AtomicLoadInt8:
-    case kWord32AtomicLoadUint8:
-    case kWord32AtomicLoadInt16:
-    case kWord32AtomicLoadUint16:
-    case kWord32AtomicLoadWord32:
+    case kAtomicLoadInt8:
+    case kAtomicLoadUint8:
+    case kAtomicLoadInt16:
+    case kAtomicLoadUint16:
+    case kAtomicLoadWord32:
       return 2;
-    case kWord32AtomicStoreWord8:
-    case kWord32AtomicStoreWord16:
-    case kWord32AtomicStoreWord32:
+    case kAtomicStoreWord8:
+    case kAtomicStoreWord16:
+    case kAtomicStoreWord32:
       return 3;
-    case kWord32AtomicExchangeInt8:
+    case kAtomicExchangeInt8:
       return Word32AtomicExchangeLatency(true, 8);
-    case kWord32AtomicExchangeUint8:
+    case kAtomicExchangeUint8:
       return Word32AtomicExchangeLatency(false, 8);
-    case kWord32AtomicExchangeInt16:
+    case kAtomicExchangeInt16:
       return Word32AtomicExchangeLatency(true, 16);
-    case kWord32AtomicExchangeUint16:
+    case kAtomicExchangeUint16:
       return Word32AtomicExchangeLatency(false, 16);
-    case kWord32AtomicExchangeWord32:
+    case kAtomicExchangeWord32:
       return 2 + LlLatency(0) + 1 + ScLatency(0) + BranchShortLatency() + 1;
-    case kWord32AtomicCompareExchangeInt8:
+    case kAtomicCompareExchangeInt8:
       return Word32AtomicCompareExchangeLatency(true, 8);
-    case kWord32AtomicCompareExchangeUint8:
+    case kAtomicCompareExchangeUint8:
       return Word32AtomicCompareExchangeLatency(false, 8);
-    case kWord32AtomicCompareExchangeInt16:
+    case kAtomicCompareExchangeInt16:
       return Word32AtomicCompareExchangeLatency(true, 16);
-    case kWord32AtomicCompareExchangeUint16:
+    case kAtomicCompareExchangeUint16:
       return Word32AtomicCompareExchangeLatency(false, 16);
-    case kWord32AtomicCompareExchangeWord32:
+    case kAtomicCompareExchangeWord32:
       return 3 + LlLatency(0) + BranchShortLatency() + 1 + ScLatency(0) +
              BranchShortLatency() + 1;
     case kMips64AssertEqual:

@@ -299,9 +299,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
-  static ElementAccess ForFixedArrayElement(
-      ElementsKind kind,
-      LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe);
+  static ElementAccess ForFixedArrayElement(ElementsKind kind);
 
   // Provides access to SloppyArgumentsElements elements.
   static ElementAccess ForSloppyArgumentsElementsMappedEntry();
@@ -319,9 +317,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForEnumCacheIndices();
 
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
-  static ElementAccess ForTypedArrayElement(
-      ExternalArrayType type, bool is_external,
-      LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe);
+  static ElementAccess ForTypedArrayElement(ExternalArrayType type,
+                                            bool is_external);
 
   // Provides access to HashTable fields.
   static FieldAccess ForHashTableBaseNumberOfElements();
@@ -342,7 +339,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForDictionaryObjectHashIndex();
 
   // Provides access to FeedbackCell fields.
-  static FieldAccess ForFeedbackCellValue();
   static FieldAccess ForFeedbackCellInterruptBudget();
 
   // Provides access to a FeedbackVector fields.

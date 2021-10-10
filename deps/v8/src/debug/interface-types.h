@@ -9,10 +9,13 @@
 #include <string>
 #include <vector>
 
-#include "include/v8.h"
+#include "include/v8-function-callback.h"
+#include "include/v8-local-handle.h"
 #include "src/common/globals.h"
 
 namespace v8 {
+
+class String;
 
 namespace internal {
 class BuiltinArguments;

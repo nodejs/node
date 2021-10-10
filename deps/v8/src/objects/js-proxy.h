@@ -124,12 +124,10 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
 // JSProxyRevocableResult is just a JSObject with a specific initial map.
 // This initial map adds in-object properties for "proxy" and "revoke".
 // See https://tc39.github.io/ecma262/#sec-proxy.revocable
-class JSProxyRevocableResult : public JSObject {
+class JSProxyRevocableResult
+    : public TorqueGeneratedJSProxyRevocableResult<JSProxyRevocableResult,
+                                                   JSObject> {
  public:
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSObject::kHeaderSize, TORQUE_GENERATED_JS_PROXY_REVOCABLE_RESULT_FIELDS)
-
   // Indices of in-object properties.
   static const int kProxyIndex = 0;
   static const int kRevokeIndex = 1;

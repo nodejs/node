@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <map>
 
-#include "include/v8.h"
+#include "include/v8-traced-handle.h"
 #include "src/api/api-inl.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/sanitizer/asan.h"

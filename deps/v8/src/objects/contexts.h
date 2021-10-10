@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_CONTEXTS_H_
 #define V8_OBJECTS_CONTEXTS_H_
 
+#include "include/v8-promise.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/ordered-hash-table.h"
@@ -43,13 +44,8 @@ enum ContextLookupFlags {
   V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal) \
   V(ASYNC_MODULE_EVALUATE_INTERNAL, JSFunction,                   \
     async_module_evaluate_internal)                               \
-  V(OBJECT_CREATE, JSFunction, object_create)                     \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)               \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)       \
-  V(MATH_FLOOR_INDEX, JSFunction, math_floor)                     \
-  V(MATH_POW_INDEX, JSFunction, math_pow)                         \
-  V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,               \
-    promise_internal_constructor)                                 \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                 \
   V(FUNCTION_PROTOTYPE_APPLY_INDEX, JSFunction, function_prototype_apply)
 

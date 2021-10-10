@@ -9,7 +9,6 @@
 #include <memory>
 #include <vector>
 
-#include "include/v8.h"
 #include "src/base/bit-field.h"
 #include "src/base/export-template.h"
 #include "src/base/logging.h"

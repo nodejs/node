@@ -12,6 +12,8 @@ let this_arg;
 let result;
 const array_size = 100;
 const max_index = array_size - 1;
+// Matches what {FastSetup} below produces.
+const max_index_value = `value ${max_index}`;
 
 // newClosure is a handy function to get a fresh
 // closure unpolluted by IC feedback for a 2nd-order array builtin

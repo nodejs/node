@@ -62,6 +62,9 @@ constexpr int GB = MB * 1024;
 #if (V8_TARGET_ARCH_RISCV64 && !V8_HOST_ARCH_RISCV64)
 #define USE_SIMULATOR 1
 #endif
+#if (V8_TARGET_ARCH_LOONG64 && !V8_HOST_ARCH_LOONG64)
+#define USE_SIMULATOR 1
+#endif
 #endif
 
 // Determine whether the architecture uses an embedded constant pool
@@ -587,9 +590,14 @@ constexpr intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 constexpr intptr_t kDoubleAlignment = 8;
 constexpr intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
 
-// Desired alignment for generated code is 32 bytes (to improve cache line
-// utilization).
+// Desired alignment for generated code is 64 bytes on x64 (to allow 64-bytes
+// loop header alignment) and 32 bytes (to improve cache line utilization) on
+// other architectures.
+#if V8_TARGET_ARCH_X64
+constexpr int kCodeAlignmentBits = 6;
+#else
 constexpr int kCodeAlignmentBits = 5;
+#endif
 constexpr intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
 constexpr intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
 
@@ -1701,20 +1709,6 @@ enum IsolateAddressId {
       kIsolateAddressCount
 };
 
-enum class PoisoningMitigationLevel {
-  kPoisonAll,
-  kDontPoison,
-  kPoisonCriticalOnly
-};
-
-enum class LoadSensitivity {
-  kCritical,  // Critical loads are poisoned whenever we can run untrusted
-              // code (i.e., when --untrusted-code-mitigations is on).
-  kUnsafe,    // Unsafe loads are poisoned when full poisoning is on
-              // (--branch-load-poisoning).
-  kSafe       // Safe loads are never poisoned.
-};
-
 // The reason for a WebAssembly trap.
 #define FOREACH_WASM_TRAPREASON(V) \
   V(TrapUnreachable)               \
@@ -1785,7 +1779,20 @@ constexpr int kSwissNameDictionaryInitialCapacity = 4;
 constexpr int kSmallOrderedHashSetMinCapacity = 4;
 constexpr int kSmallOrderedHashMapMinCapacity = 4;
 
-static const uint16_t kDontAdaptArgumentsSentinel = static_cast<uint16_t>(-1);
+#ifdef V8_INCLUDE_RECEIVER_IN_ARGC
+constexpr bool kJSArgcIncludesReceiver = true;
+constexpr int kJSArgcReceiverSlots = 1;
+constexpr uint16_t kDontAdaptArgumentsSentinel = 0;
+#else
+constexpr bool kJSArgcIncludesReceiver = false;
+constexpr int kJSArgcReceiverSlots = 0;
+constexpr uint16_t kDontAdaptArgumentsSentinel = static_cast<uint16_t>(-1);
+#endif
+
+// Helper to get the parameter count for functions with JS linkage.
+inline constexpr int JSParameterCount(int param_count_without_receiver) {
+  return param_count_without_receiver + kJSArgcReceiverSlots;
+}
 
 // Opaque data type for identifying stack frames. Used extensively
 // by the debugger.

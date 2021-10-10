@@ -19,11 +19,94 @@ namespace internal {
 
 using GCInfoIndex = uint16_t;
 
-// Acquires a new GC info object and returns the index. In addition, also
-// updates `registered_index` atomically.
-V8_EXPORT GCInfoIndex
-EnsureGCInfoIndex(std::atomic<GCInfoIndex>& registered_index,
-                  FinalizationCallback, TraceCallback, NameCallback, bool);
+struct V8_EXPORT EnsureGCInfoIndexTrait final {
+  // Acquires a new GC info object and returns the index. In addition, also
+  // updates `registered_index` atomically.
+  template <typename T>
+  V8_INLINE static GCInfoIndex EnsureIndex(
+      std::atomic<GCInfoIndex>& registered_index) {
+    return EnsureGCInfoIndexTraitDispatch<T>{}(registered_index);
+  }
+
+ private:
+  template <typename T, bool = std::is_polymorphic<T>::value,
+            bool = FinalizerTrait<T>::HasFinalizer(),
+            bool = NameTrait<T>::HasNonHiddenName()>
+  struct EnsureGCInfoIndexTraitDispatch;
+
+  static GCInfoIndex EnsureGCInfoIndexPolymorphic(std::atomic<GCInfoIndex>&,
+                                                  TraceCallback,
+                                                  FinalizationCallback,
+                                                  NameCallback);
+  static GCInfoIndex EnsureGCInfoIndexPolymorphic(std::atomic<GCInfoIndex>&,
+                                                  TraceCallback,
+                                                  FinalizationCallback);
+  static GCInfoIndex EnsureGCInfoIndexPolymorphic(std::atomic<GCInfoIndex>&,
+                                                  TraceCallback, NameCallback);
+  static GCInfoIndex EnsureGCInfoIndexPolymorphic(std::atomic<GCInfoIndex>&,
+                                                  TraceCallback);
+  static GCInfoIndex EnsureGCInfoIndexNonPolymorphic(std::atomic<GCInfoIndex>&,
+                                                     TraceCallback,
+                                                     FinalizationCallback,
+
+                                                     NameCallback);
+  static GCInfoIndex EnsureGCInfoIndexNonPolymorphic(std::atomic<GCInfoIndex>&,
+                                                     TraceCallback,
+                                                     FinalizationCallback);
+  static GCInfoIndex EnsureGCInfoIndexNonPolymorphic(std::atomic<GCInfoIndex>&,
+                                                     TraceCallback,
+                                                     NameCallback);
+  static GCInfoIndex EnsureGCInfoIndexNonPolymorphic(std::atomic<GCInfoIndex>&,
+                                                     TraceCallback);
+};
+
+#define DISPATCH(is_polymorphic, has_finalizer, has_non_hidden_name, function) \
+  template <typename T>                                                        \
+  struct EnsureGCInfoIndexTrait::EnsureGCInfoIndexTraitDispatch<               \
+      T, is_polymorphic, has_finalizer, has_non_hidden_name> {                 \
+    V8_INLINE GCInfoIndex                                                      \
+    operator()(std::atomic<GCInfoIndex>& registered_index) {                   \
+      return function;                                                         \
+    }                                                                          \
+  };
+
+// --------------------------------------------------------------------- //
+// DISPATCH(is_polymorphic, has_finalizer, has_non_hidden_name, function)
+// --------------------------------------------------------------------- //
+DISPATCH(true, true, true,                                               //
+         EnsureGCInfoIndexPolymorphic(registered_index,                  //
+                                      TraceTrait<T>::Trace,              //
+                                      FinalizerTrait<T>::kCallback,      //
+                                      NameTrait<T>::GetName))            //
+DISPATCH(true, true, false,                                              //
+         EnsureGCInfoIndexPolymorphic(registered_index,                  //
+                                      TraceTrait<T>::Trace,              //
+                                      FinalizerTrait<T>::kCallback))     //
+DISPATCH(true, false, true,                                              //
+         EnsureGCInfoIndexPolymorphic(registered_index,                  //
+                                      TraceTrait<T>::Trace,              //
+                                      NameTrait<T>::GetName))            //
+DISPATCH(true, false, false,                                             //
+         EnsureGCInfoIndexPolymorphic(registered_index,                  //
+                                      TraceTrait<T>::Trace))             //
+DISPATCH(false, true, true,                                              //
+         EnsureGCInfoIndexNonPolymorphic(registered_index,               //
+                                         TraceTrait<T>::Trace,           //
+                                         FinalizerTrait<T>::kCallback,   //
+                                         NameTrait<T>::GetName))         //
+DISPATCH(false, true, false,                                             //
+         EnsureGCInfoIndexNonPolymorphic(registered_index,               //
+                                         TraceTrait<T>::Trace,           //
+                                         FinalizerTrait<T>::kCallback))  //
+DISPATCH(false, false, true,                                             //
+         EnsureGCInfoIndexNonPolymorphic(registered_index,               //
+                                         TraceTrait<T>::Trace,           //
+                                         NameTrait<T>::GetName))         //
+DISPATCH(false, false, false,                                            //
+         EnsureGCInfoIndexNonPolymorphic(registered_index,               //
+                                         TraceTrait<T>::Trace))          //
+
+#undef DISPATCH
 
 // Fold types based on finalizer behavior. Note that finalizer characteristics
 // align with trace behavior, i.e., destructors are virtual when trace methods
@@ -57,16 +140,13 @@ struct GCInfoFolding {
 // finalization, and naming.
 template <typename T>
 struct GCInfoTrait final {
-  static GCInfoIndex Index() {
+  V8_INLINE static GCInfoIndex Index() {
     static_assert(sizeof(T), "T must be fully defined");
     static std::atomic<GCInfoIndex>
         registered_index;  // Uses zero initialization.
     const GCInfoIndex index = registered_index.load(std::memory_order_acquire);
     return index ? index
-                 : EnsureGCInfoIndex(
-                       registered_index, FinalizerTrait<T>::kCallback,
-                       TraceTrait<T>::Trace, NameTrait<T>::GetName,
-                       std::is_polymorphic<T>::value);
+                 : EnsureGCInfoIndexTrait::EnsureIndex<T>(registered_index);
   }
 };
 

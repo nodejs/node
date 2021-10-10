@@ -482,7 +482,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
       // a numbered reference to an already deserialized backing store.
       backing_store = backing_stores_[store_index]->buffer_start();
     }
-    data_view->AllocateExternalPointerEntries(main_thread_isolate());
     data_view->set_data_pointer(
         main_thread_isolate(),
         reinterpret_cast<uint8_t*>(backing_store) + data_view->byte_offset());
@@ -491,7 +490,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     // Fixup typed array pointers.
     if (typed_array->is_on_heap()) {
       Address raw_external_pointer = typed_array->external_pointer_raw();
-      typed_array->AllocateExternalPointerEntries(main_thread_isolate());
       typed_array->SetOnHeapDataPtr(
           main_thread_isolate(), HeapObject::cast(typed_array->base_pointer()),
           raw_external_pointer);
@@ -503,7 +501,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
       auto start = backing_store
                        ? reinterpret_cast<byte*>(backing_store->buffer_start())
                        : nullptr;
-      typed_array->AllocateExternalPointerEntries(main_thread_isolate());
       typed_array->SetOffHeapDataPtr(main_thread_isolate(), start,
                                      typed_array->byte_offset());
     }
@@ -513,7 +510,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     if (buffer->GetBackingStoreRefForDeserialization() != kNullRefSentinel) {
       new_off_heap_array_buffers_.push_back(buffer);
     } else {
-      buffer->AllocateExternalPointerEntries(main_thread_isolate());
       buffer->set_backing_store(main_thread_isolate(), nullptr);
     }
   } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {

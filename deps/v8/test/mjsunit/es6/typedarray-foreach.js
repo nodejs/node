@@ -85,20 +85,18 @@ function TestTypedArrayForEach(constructor) {
   assertEquals(42, a[1]);
 
   // Detaching the buffer backing the typed array mid-way should
-  // still make .forEach() finish, but exiting early due to the missing
-  // elements, and the array should keep being empty after detaching it.
-  // TODO(dehrenberg): According to the ES6 spec, accessing or testing
-  // for members on a detached TypedArray should throw, so really this
-  // should throw in the third iteration. However, this behavior matches
-  // the Khronos spec.
+  // still make .forEach() finish, but the first argument of the callback
+  // should be undefined value, and the array should keep being empty after
+  // detaching it.
   a = new constructor(3);
   count = 0;
   a.forEach(function (n, index, array) {
     if (count > 0) %ArrayBufferDetach(array.buffer);
+    if (count > 1) assertTrue(n === undefined);
     array[index] = n + 1;
     count++;
   });
-  assertEquals(2, count);
+  assertEquals(3, count);
   CheckTypedArrayIsDetached(a);
   assertEquals(undefined, a[0]);
 

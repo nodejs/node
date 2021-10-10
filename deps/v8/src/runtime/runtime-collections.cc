@@ -29,7 +29,9 @@ RUNTIME_FUNCTION(Runtime_SetGrow) {
       OrderedHashSet::EnsureGrowable(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kValueOutOfRange));
+        isolate,
+        NewRangeError(MessageTemplate::kCollectionGrowFailed,
+                      isolate->factory()->NewStringFromAsciiChecked("Set")));
   }
   holder->set_table(*table);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -64,7 +66,9 @@ RUNTIME_FUNCTION(Runtime_MapGrow) {
       OrderedHashMap::EnsureGrowable(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kValueOutOfRange));
+        isolate,
+        NewRangeError(MessageTemplate::kCollectionGrowFailed,
+                      isolate->factory()->NewStringFromAsciiChecked("Map")));
   }
   holder->set_table(*table);
   return ReadOnlyRoots(isolate).undefined_value();

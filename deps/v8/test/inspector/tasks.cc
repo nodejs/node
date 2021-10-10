@@ -6,15 +6,15 @@
 
 #include <vector>
 
-#include "include/v8-inspector.h"
-#include "include/v8.h"
+#include "include/v8-isolate.h"
+#include "include/v8-script.h"
 #include "test/inspector/isolate-data.h"
 #include "test/inspector/utils.h"
 
 namespace v8 {
 namespace internal {
 
-void ExecuteStringTask::Run(IsolateData* data) {
+void ExecuteStringTask::Run(InspectorIsolateData* data) {
   v8::MicrotasksScope microtasks_scope(data->isolate(),
                                        v8::MicrotasksScope::kRunMicrotasks);
   v8::HandleScope handle_scope(data->isolate());

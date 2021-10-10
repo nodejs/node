@@ -157,7 +157,7 @@ bool ZipReader::Open(const base::FilePath& zip_file_path) {
 bool ZipReader::OpenFromPlatformFile(base::PlatformFile zip_fd) {
   DCHECK(!zip_file_);
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
   zip_file_ = internal::OpenFdForUnzipping(zip_fd);
 #elif defined(OS_WIN)
   zip_file_ = internal::OpenHandleForUnzipping(zip_fd);

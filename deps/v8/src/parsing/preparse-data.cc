@@ -666,12 +666,13 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
     scope->AsDeclarationScope()->RecordNeedsPrivateNameContextChainRecalc();
   }
   if (ShouldSaveClassVariableIndexField::decode(scope_data_flags)) {
-    Variable* var;
-    // An anonymous class whose class variable needs to be saved do not
+    Variable* var = scope->AsClassScope()->class_variable();
+    // An anonymous class whose class variable needs to be saved might not
     // have the class variable created during reparse since we skip parsing
     // the inner scopes that contain potential access to static private
     // methods. So create it now.
-    if (scope->AsClassScope()->is_anonymous_class()) {
+    if (var == nullptr) {
+      DCHECK(scope->AsClassScope()->is_anonymous_class());
       var = scope->AsClassScope()->DeclareClassVariable(
           ast_value_factory, nullptr, kNoSourcePosition);
       AstNodeFactory factory(ast_value_factory, zone);
@@ -679,9 +680,6 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
           factory.NewVariableDeclaration(kNoSourcePosition);
       scope->declarations()->Add(declaration);
       declaration->set_var(var);
-    } else {
-      var = scope->AsClassScope()->class_variable();
-      DCHECK_NOT_NULL(var);
     }
     var->set_is_used();
     var->ForceContextAllocation();

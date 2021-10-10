@@ -378,24 +378,47 @@ Callable CodeFactory::ArraySingleArgumentConstructor(
 
 #ifdef V8_IS_TSAN
 // static
-Builtin CodeFactory::GetTSANRelaxedStoreStub(SaveFPRegsMode fp_mode, int size) {
-  if (size == kInt8Size) {
-    return fp_mode == SaveFPRegsMode::kIgnore
-               ? Builtin::kTSANRelaxedStore8IgnoreFP
-               : Builtin::kTSANRelaxedStore8SaveFP;
-  } else if (size == kInt16Size) {
-    return fp_mode == SaveFPRegsMode::kIgnore
-               ? Builtin::kTSANRelaxedStore16IgnoreFP
-               : Builtin::kTSANRelaxedStore16SaveFP;
-  } else if (size == kInt32Size) {
-    return fp_mode == SaveFPRegsMode::kIgnore
-               ? Builtin::kTSANRelaxedStore32IgnoreFP
-               : Builtin::kTSANRelaxedStore32SaveFP;
+Builtin CodeFactory::GetTSANStoreStub(SaveFPRegsMode fp_mode, int size,
+                                      std::memory_order order) {
+  if (order == std::memory_order_relaxed) {
+    if (size == kInt8Size) {
+      return fp_mode == SaveFPRegsMode::kIgnore
+                 ? Builtin::kTSANRelaxedStore8IgnoreFP
+                 : Builtin::kTSANRelaxedStore8SaveFP;
+    } else if (size == kInt16Size) {
+      return fp_mode == SaveFPRegsMode::kIgnore
+                 ? Builtin::kTSANRelaxedStore16IgnoreFP
+                 : Builtin::kTSANRelaxedStore16SaveFP;
+    } else if (size == kInt32Size) {
+      return fp_mode == SaveFPRegsMode::kIgnore
+                 ? Builtin::kTSANRelaxedStore32IgnoreFP
+                 : Builtin::kTSANRelaxedStore32SaveFP;
+    } else {
+      CHECK_EQ(size, kInt64Size);
+      return fp_mode == SaveFPRegsMode::kIgnore
+                 ? Builtin::kTSANRelaxedStore64IgnoreFP
+                 : Builtin::kTSANRelaxedStore64SaveFP;
+    }
   } else {
-    CHECK_EQ(size, kInt64Size);
-    return fp_mode == SaveFPRegsMode::kIgnore
-               ? Builtin::kTSANRelaxedStore64IgnoreFP
-               : Builtin::kTSANRelaxedStore64SaveFP;
+    DCHECK_EQ(order, std::memory_order_seq_cst);
+    if (size == kInt8Size) {
+      return fp_mode == SaveFPRegsMode::kIgnore
+                 ? Builtin::kTSANSeqCstStore8IgnoreFP
+                 : Builtin::kTSANSeqCstStore8SaveFP;
+    } else if (size == kInt16Size) {
+      return fp_mode == SaveFPRegsMode::kIgnore
+                 ? Builtin::kTSANSeqCstStore16IgnoreFP
+                 : Builtin::kTSANSeqCstStore16SaveFP;
+    } else if (size == kInt32Size) {
+      return fp_mode == SaveFPRegsMode::kIgnore
+                 ? Builtin::kTSANSeqCstStore32IgnoreFP
+                 : Builtin::kTSANSeqCstStore32SaveFP;
+    } else {
+      CHECK_EQ(size, kInt64Size);
+      return fp_mode == SaveFPRegsMode::kIgnore
+                 ? Builtin::kTSANSeqCstStore64IgnoreFP
+                 : Builtin::kTSANSeqCstStore64SaveFP;
+    }
   }
 }
 

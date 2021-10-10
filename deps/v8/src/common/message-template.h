@@ -380,6 +380,7 @@ namespace internal {
   T(TypedArrayTooLargeToSort,                                                  \
     "Custom comparefn not supported for huge TypedArrays")                     \
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
+  T(CollectionGrowFailed, "% maximum size exceeded")                           \
   /* SyntaxError */                                                            \
   T(AmbiguousExport,                                                           \
     "The requested module '%' contains conflicting star exports for name '%'") \
@@ -439,6 +440,10 @@ namespace internal {
   T(InvalidRegExpFlags, "Invalid flags supplied to RegExp constructor '%'")    \
   T(InvalidOrUnexpectedToken, "Invalid or unexpected token")                   \
   T(InvalidPrivateBrand, "Object must be an instance of class %")              \
+  T(InvalidPrivateBrandReinitialization,                                       \
+    "Cannot initialize private methods of class % twice on the same object")   \
+  T(InvalidPrivateFieldReitialization,                                         \
+    "Cannot initialize % twice on the same object")                            \
   T(InvalidPrivateFieldResolution,                                             \
     "Private field '%' must be declared in an enclosing class")                \
   T(InvalidPrivateMemberRead,                                                  \

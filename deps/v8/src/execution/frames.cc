@@ -206,17 +206,40 @@ int StackTraceFrameIterator::FrameFunctionCount() const {
   return static_cast<int>(infos.size());
 }
 
-bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) const {
-  if (frame->is_java_script()) {
-    JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
-    if (!js_frame->function().IsJSFunction()) return false;
-    return js_frame->function().shared().IsSubjectToDebugging();
+FrameSummary StackTraceFrameIterator::GetTopValidFrame() const {
+  DCHECK(!done());
+  // Like FrameSummary::GetTop, but additionally observes
+  // StackTraceFrameIterator filtering semantics.
+  std::vector<FrameSummary> frames;
+  frame()->Summarize(&frames);
+  if (is_javascript()) {
+    for (int i = static_cast<int>(frames.size()) - 1; i >= 0; i--) {
+      if (!IsValidJSFunction(*frames[i].AsJavaScript().function())) continue;
+      return frames[i];
+    }
+    UNREACHABLE();
   }
-  // Apart from JavaScript frames, only Wasm frames are valid.
+#if V8_ENABLE_WEBASSEMBLY
+  if (is_wasm()) return frames.back();
+#endif  // V8_ENABLE_WEBASSEMBLY
+  UNREACHABLE();
+}
+
+// static
+bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) {
+  if (frame->is_java_script()) {
+    return IsValidJSFunction(static_cast<JavaScriptFrame*>(frame)->function());
+  }
 #if V8_ENABLE_WEBASSEMBLY
   if (frame->is_wasm()) return true;
 #endif  // V8_ENABLE_WEBASSEMBLY
   return false;
+}
+
+// static
+bool StackTraceFrameIterator::IsValidJSFunction(JSFunction f) {
+  if (!f.IsJSFunction()) return false;
+  return f.shared().IsSubjectToDebugging();
 }
 
 // -------------------------------------------------------------------------
@@ -1154,7 +1177,8 @@ int OptimizedFrame::ComputeParametersCount() const {
   Code code = LookupCode();
   if (code.kind() == CodeKind::BUILTIN) {
     return static_cast<int>(
-        Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
+               Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset)) -
+           kJSArgcReceiverSlots;
   } else {
     return JavaScriptFrame::ComputeParametersCount();
   }
@@ -1327,12 +1351,13 @@ Object CommonFrameWithJSLinkage::GetParameter(int index) const {
 int CommonFrameWithJSLinkage::ComputeParametersCount() const {
   DCHECK(can_access_heap_objects() &&
          isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
-  return function().shared().internal_formal_parameter_count();
+  return function().shared().internal_formal_parameter_count_without_receiver();
 }
 
 int JavaScriptFrame::GetActualArgumentCount() const {
   return static_cast<int>(
-      Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
+             Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset)) -
+         kJSArgcReceiverSlots;
 }
 
 Handle<FixedArray> CommonFrameWithJSLinkage::GetParameters() const {

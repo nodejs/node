@@ -439,10 +439,9 @@ class TSANRelaxedStoreCodeStubAssembler : public CodeStubAssembler {
 
   void GenerateTSANRelaxedStore(SaveFPRegsMode fp_mode, int size) {
     TNode<ExternalReference> function = GetExternalReference(size);
-    auto address =
-        UncheckedParameter<IntPtrT>(TSANRelaxedStoreDescriptor::kAddress);
+    auto address = UncheckedParameter<IntPtrT>(TSANStoreDescriptor::kAddress);
     TNode<IntPtrT> value = BitcastTaggedToWord(
-        UncheckedParameter<Object>(TSANRelaxedStoreDescriptor::kValue));
+        UncheckedParameter<Object>(TSANStoreDescriptor::kValue));
     CallCFunctionWithCallerSavedRegisters(
         function, MachineType::Int32(), fp_mode,
         std::make_pair(MachineType::IntPtr(), address),
@@ -483,6 +482,73 @@ TF_BUILTIN(TSANRelaxedStore64SaveFP, TSANRelaxedStoreCodeStubAssembler) {
   GenerateTSANRelaxedStore(SaveFPRegsMode::kSave, kInt64Size);
 }
 
+class TSANSeqCstStoreCodeStubAssembler : public CodeStubAssembler {
+ public:
+  explicit TSANSeqCstStoreCodeStubAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  TNode<ExternalReference> GetExternalReference(int size) {
+    if (size == kInt8Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_seq_cst_store_function_8_bits());
+    } else if (size == kInt16Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_seq_cst_store_function_16_bits());
+    } else if (size == kInt32Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_seq_cst_store_function_32_bits());
+    } else {
+      CHECK_EQ(size, kInt64Size);
+      return ExternalConstant(
+          ExternalReference::tsan_seq_cst_store_function_64_bits());
+    }
+  }
+
+  void GenerateTSANSeqCstStore(SaveFPRegsMode fp_mode, int size) {
+    TNode<ExternalReference> function = GetExternalReference(size);
+    auto address = UncheckedParameter<IntPtrT>(TSANStoreDescriptor::kAddress);
+    TNode<IntPtrT> value = BitcastTaggedToWord(
+        UncheckedParameter<Object>(TSANStoreDescriptor::kValue));
+    CallCFunctionWithCallerSavedRegisters(
+        function, MachineType::Int32(), fp_mode,
+        std::make_pair(MachineType::IntPtr(), address),
+        std::make_pair(MachineType::IntPtr(), value));
+    Return(UndefinedConstant());
+  }
+};
+
+TF_BUILTIN(TSANSeqCstStore8IgnoreFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kIgnore, kInt8Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore8SaveFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kSave, kInt8Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore16IgnoreFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kIgnore, kInt16Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore16SaveFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kSave, kInt16Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore32IgnoreFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kIgnore, kInt32Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore32SaveFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kSave, kInt32Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore64IgnoreFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kIgnore, kInt64Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore64SaveFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kSave, kInt64Size);
+}
+
 class TSANRelaxedLoadCodeStubAssembler : public CodeStubAssembler {
  public:
   explicit TSANRelaxedLoadCodeStubAssembler(compiler::CodeAssemblerState* state)
@@ -501,8 +567,7 @@ class TSANRelaxedLoadCodeStubAssembler : public CodeStubAssembler {
 
   void GenerateTSANRelaxedLoad(SaveFPRegsMode fp_mode, int size) {
     TNode<ExternalReference> function = GetExternalReference(size);
-    auto address =
-        UncheckedParameter<IntPtrT>(TSANRelaxedLoadDescriptor::kAddress);
+    auto address = UncheckedParameter<IntPtrT>(TSANLoadDescriptor::kAddress);
     CallCFunctionWithCallerSavedRegisters(
         function, MachineType::Int32(), fp_mode,
         std::make_pair(MachineType::IntPtr(), address));
@@ -888,21 +953,23 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
 
   auto actual_argc =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  CodeStubArguments args(this, actual_argc);
 
-  TVARIABLE(Int32T, pushed_argc, actual_argc);
+  TVARIABLE(Int32T, pushed_argc,
+            TruncateIntPtrToInt32(args.GetLengthWithReceiver()));
 
   TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(target);
 
-  TNode<Int32T> formal_count =
-      UncheckedCast<Int32T>(LoadSharedFunctionInfoFormalParameterCount(shared));
+  TNode<Int32T> formal_count = UncheckedCast<Int32T>(
+      LoadSharedFunctionInfoFormalParameterCountWithReceiver(shared));
 
   // The number of arguments pushed is the maximum of actual arguments count
   // and formal parameters count. Except when the formal parameters count is
   // the sentinel.
   Label check_argc(this), update_argc(this), done_argc(this);
 
-  Branch(Word32Equal(formal_count, Int32Constant(kDontAdaptArgumentsSentinel)),
-         &done_argc, &check_argc);
+  Branch(IsSharedFunctionInfoDontAdaptArguments(shared), &done_argc,
+         &check_argc);
   BIND(&check_argc);
   Branch(Int32GreaterThan(formal_count, pushed_argc.value()), &update_argc,
          &done_argc);
@@ -915,7 +982,7 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
   // including the receiver and the extra arguments.
   TNode<Int32T> argc = Int32Add(
       pushed_argc.value(),
-      Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
+      Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver));
 
   const bool builtin_exit_frame = true;
   TNode<Code> code =
@@ -1053,9 +1120,7 @@ void Builtins::Generate_MemMove(MacroAssembler* masm) {
 
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 ||     \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_MIPS64 || \
-    V8_TARGET_ARCH_MIPS
+#if ENABLE_SPARKPLUG
 void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
   EmitReturnBaseline(masm);
 }
@@ -1241,17 +1306,17 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(maybe_result_or_smi_zero), &tailcall_to_function);
 
   TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(function);
-  TNode<Int32T> parameter_count =
-      UncheckedCast<Int32T>(LoadSharedFunctionInfoFormalParameterCount(shared));
+  TNode<Int32T> parameter_count = UncheckedCast<Int32T>(
+      LoadSharedFunctionInfoFormalParameterCountWithReceiver(shared));
   // This builtin intercepts a call to {function}, where the number of arguments
   // pushed is the maximum of actual arguments count and formal parameters
   // count.
   Label argc_lt_param_count(this), argc_ge_param_count(this);
-  Branch(IntPtrLessThan(args.GetLength(), ChangeInt32ToIntPtr(parameter_count)),
+  Branch(IntPtrLessThan(args.GetLengthWithReceiver(),
+                        ChangeInt32ToIntPtr(parameter_count)),
          &argc_lt_param_count, &argc_ge_param_count);
   BIND(&argc_lt_param_count);
-  PopAndReturn(Int32Add(parameter_count, Int32Constant(1)),
-               maybe_result_or_smi_zero);
+  PopAndReturn(parameter_count, maybe_result_or_smi_zero);
   BIND(&argc_ge_param_count);
   args.PopAndReturn(maybe_result_or_smi_zero);
 

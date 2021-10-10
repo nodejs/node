@@ -27,15 +27,17 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
                                            TranslatedState::iterator frame_it,
                                            Isolate* isolate) {
   int parameter_count =
-      frame_it->shared_info()->internal_formal_parameter_count();
+      frame_it->shared_info()
+          ->internal_formal_parameter_count_without_receiver();
   TranslatedFrame::iterator stack_it = frame_it->begin();
 
   // Get the function. Note that this might materialize the function.
   // In case the debugger mutates this value, we should deoptimize
   // the function and remember the value in the materialized value store.
-  DCHECK_EQ(parameter_count, Handle<JSFunction>::cast(stack_it->GetValue())
-                                 ->shared()
-                                 .internal_formal_parameter_count());
+  DCHECK_EQ(parameter_count,
+            Handle<JSFunction>::cast(stack_it->GetValue())
+                ->shared()
+                .internal_formal_parameter_count_without_receiver());
 
   stack_it++;  // Skip the function.
   stack_it++;  // Skip the receiver.

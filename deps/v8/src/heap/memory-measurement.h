@@ -8,6 +8,7 @@
 #include <list>
 #include <unordered_map>
 
+#include "include/v8-statistics.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/globals.h"

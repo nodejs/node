@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "include/v8.h"
+#include "include/v8-value-serializer.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
 #include "src/base/strings.h"

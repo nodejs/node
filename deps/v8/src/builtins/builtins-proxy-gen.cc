@@ -121,10 +121,10 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   TNode<Object> receiver = args.GetReceiver();
 
   // 7. Let argArray be CreateArrayFromList(argumentsList).
-  TNode<JSArray> array =
-      EmitFastNewAllArguments(UncheckedCast<Context>(context),
-                              UncheckedCast<RawPtrT>(LoadFramePointer()),
-                              UncheckedCast<IntPtrT>(argc_ptr));
+  TNode<JSArray> array = EmitFastNewAllArguments(
+      UncheckedCast<Context>(context),
+      UncheckedCast<RawPtrT>(LoadFramePointer()),
+      UncheckedCast<IntPtrT>(args.GetLengthWithoutReceiver()));
 
   // 8. Return Call(trap, handler, «target, thisArgument, argArray»).
   TNode<Object> result = Call(context, trap, handler, target, receiver, array);
@@ -174,10 +174,10 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
   CodeStubArguments args(this, argc_ptr);
 
   // 7. Let argArray be CreateArrayFromList(argumentsList).
-  TNode<JSArray> array =
-      EmitFastNewAllArguments(UncheckedCast<Context>(context),
-                              UncheckedCast<RawPtrT>(LoadFramePointer()),
-                              UncheckedCast<IntPtrT>(argc_ptr));
+  TNode<JSArray> array = EmitFastNewAllArguments(
+      UncheckedCast<Context>(context),
+      UncheckedCast<RawPtrT>(LoadFramePointer()),
+      UncheckedCast<IntPtrT>(args.GetLengthWithoutReceiver()));
 
   // 8. Let newObj be ? Call(trap, handler, « target, argArray, newTarget »).
   TNode<Object> new_obj =

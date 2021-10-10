@@ -27,6 +27,8 @@
 
 #include "test/cctest/print-extension.h"
 
+#include "include/v8-template.h"
+
 namespace v8 {
 namespace internal {
 

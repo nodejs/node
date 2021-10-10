@@ -6,7 +6,11 @@
 
 #include <map>
 #include <string>
-#include "include/v8.h"
+
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-template.h"
+#include "include/v8-unwinder.h"
 #include "src/flags/flags.h"
 #include "test/cctest/cctest.h"
 

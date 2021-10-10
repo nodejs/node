@@ -5,12 +5,18 @@
 #ifndef V8_REGEXP_REGEXP_H_
 #define V8_REGEXP_REGEXP_H_
 
-#include "src/objects/js-regexp.h"
+#include "src/common/assert-scope.h"
+#include "src/handles/handles.h"
 #include "src/regexp/regexp-error.h"
+#include "src/regexp/regexp-flags.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
+class JSRegExp;
+class RegExpCapture;
+class RegExpMatchInfo;
 class RegExpNode;
 class RegExpTree;
 
@@ -37,9 +43,9 @@ struct RegExpCompileData {
   // True, iff the pattern is anchored at the start of the string with '^'.
   bool contains_anchor = false;
 
-  // Only use if the pattern contains named captures. If so, this contains a
-  // mapping of capture names to capture indices.
-  Handle<FixedArray> capture_name_map;
+  // Only set if the pattern contains named captures.
+  // Note: the lifetime equals that of the parse/compile zone.
+  ZoneVector<RegExpCapture*>* named_captures = nullptr;
 
   // The error message. Only used if an error occurred during parsing or
   // compilation.
@@ -62,9 +68,15 @@ struct RegExpCompileData {
 class RegExp final : public AllStatic {
  public:
   // Whether the irregexp engine generates interpreter bytecode.
-  static bool CanGenerateBytecode() {
-    return FLAG_regexp_interpret_all || FLAG_regexp_tier_up;
-  }
+  static bool CanGenerateBytecode();
+
+  // Verify the given pattern, i.e. check that parsing succeeds. If
+  // verification fails, `regexp_error_out` is set.
+  template <class CharT>
+  static bool VerifySyntax(Zone* zone, uintptr_t stack_limit,
+                           const CharT* input, int input_length,
+                           RegExpFlags flags, RegExpError* regexp_error_out,
+                           const DisallowGarbageCollection& no_gc);
 
   // Parses the RegExp pattern and prepares the JSRegExp object with
   // generic data and choice of implementation - as well as what
@@ -72,7 +84,7 @@ class RegExp final : public AllStatic {
   // Returns false if compilation fails.
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Compile(
       Isolate* isolate, Handle<JSRegExp> re, Handle<String> pattern,
-      JSRegExp::Flags flags, uint32_t backtrack_limit);
+      RegExpFlags flags, uint32_t backtrack_limit);
 
   // Ensures that a regexp is fully compiled and ready to be executed on a
   // subject string.  Returns true on success. Return false on failure, and
@@ -131,12 +143,9 @@ class RegExp final : public AllStatic {
       Isolate* isolate, Handle<RegExpMatchInfo> last_match_info,
       Handle<String> subject, int capture_count, int32_t* match);
 
-  V8_EXPORT_PRIVATE static bool CompileForTesting(Isolate* isolate, Zone* zone,
-                                                  RegExpCompileData* input,
-                                                  JSRegExp::Flags flags,
-                                                  Handle<String> pattern,
-                                                  Handle<String> sample_subject,
-                                                  bool is_one_byte);
+  V8_EXPORT_PRIVATE static bool CompileForTesting(
+      Isolate* isolate, Zone* zone, RegExpCompileData* input, RegExpFlags flags,
+      Handle<String> pattern, Handle<String> sample_subject, bool is_one_byte);
 
   V8_EXPORT_PRIVATE static void DotPrintForTesting(const char* label,
                                                    RegExpNode* node);
@@ -152,6 +161,9 @@ class RegExp final : public AllStatic {
                                    RegExpError error_text);
 
   static bool IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp);
+
+  static Handle<FixedArray> CreateCaptureNameMap(
+      Isolate* isolate, ZoneVector<RegExpCapture*>* named_captures);
 };
 
 // Uses a special global mode of irregexp-generated code to perform a global

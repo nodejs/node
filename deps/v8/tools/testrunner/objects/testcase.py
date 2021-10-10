@@ -166,6 +166,15 @@ class TestCase(object):
       self._expected_outcomes = (
           self.expected_outcomes + [statusfile.TIMEOUT])
 
+  def allow_pass(self):
+    if self.expected_outcomes == outproc.OUTCOMES_TIMEOUT:
+      self._expected_outcomes = outproc.OUTCOMES_PASS_OR_TIMEOUT
+    elif self.expected_outcomes == outproc.OUTCOMES_FAIL:
+      self._expected_outcomes = outproc.OUTCOMES_FAIL_OR_PASS
+    elif statusfile.PASS not in self.expected_outcomes:
+      self._expected_outcomes = (
+          self.expected_outcomes + [statusfile.PASS])
+
   @property
   def expected_outcomes(self):
     def is_flag(maybe_flag):

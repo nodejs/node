@@ -200,6 +200,35 @@ bool RegionAllocator::AllocateRegionAt(Address requested_address, size_t size,
   return true;
 }
 
+RegionAllocator::Address RegionAllocator::AllocateAlignedRegion(
+    size_t size, size_t alignment) {
+  DCHECK(IsAligned(size, page_size_));
+  DCHECK(IsAligned(alignment, page_size_));
+  DCHECK_GE(alignment, page_size_);
+
+  const size_t padded_size = size + alignment - page_size_;
+  Region* region = FreeListFindRegion(padded_size);
+  if (region == nullptr) return kAllocationFailure;
+
+  if (!IsAligned(region->begin(), alignment)) {
+    size_t start = RoundUp(region->begin(), alignment);
+    region = Split(region, start - region->begin());
+    DCHECK_EQ(region->begin(), start);
+    DCHECK(IsAligned(region->begin(), alignment));
+  }
+
+  if (region->size() != size) {
+    Split(region, size);
+  }
+  DCHECK(IsAligned(region->begin(), alignment));
+  DCHECK_EQ(region->size(), size);
+
+  // Mark region as used.
+  FreeListRemoveRegion(region);
+  region->set_state(RegionState::kAllocated);
+  return region->begin();
+}
+
 size_t RegionAllocator::TrimRegion(Address address, size_t new_size) {
   DCHECK(IsAligned(new_size, page_size_));
 

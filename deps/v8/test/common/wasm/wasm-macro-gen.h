@@ -894,6 +894,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define TO_BYTE(val) static_cast<byte>(val)
 // Encode all simd ops as a 2-byte LEB.
 #define WASM_SIMD_OP(op) kSimdPrefix, U32V_2(op & 0xff)
+#define WASM_SIMD_OPN(op, ...) __VA_ARGS__, WASM_SIMD_OP(op)
 #define WASM_SIMD_SPLAT(Type, ...) __VA_ARGS__, WASM_SIMD_OP(kExpr##Type##Splat)
 #define WASM_SIMD_UNOP(op, x) x, WASM_SIMD_OP(op)
 #define WASM_SIMD_BINOP(op, x, y) x, y, WASM_SIMD_OP(op)

@@ -31,6 +31,8 @@
 
 #include <memory>
 
+#include "include/v8-initialization.h"
+#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"

@@ -45,6 +45,9 @@ namespace internal {
 STATIC_ASSERT(kClearedWeakHeapObjectLower32 > 0);
 STATIC_ASSERT(kClearedWeakHeapObjectLower32 < Page::kHeaderSize);
 
+// static
+constexpr Page::MainThreadFlags Page::kCopyOnFlipFlagsMask;
+
 void Page::AllocateFreeListCategories() {
   DCHECK_NULL(categories_);
   categories_ =
@@ -82,7 +85,7 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   DCHECK(old_page->InNewSpace());
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
-  old_page->SetFlags(0, static_cast<uintptr_t>(~0));
+  old_page->ClearFlags(Page::kAllFlagsMask);
   Page* new_page = old_space->InitializePage(old_page);
   old_space->AddPage(new_page);
   return new_page;

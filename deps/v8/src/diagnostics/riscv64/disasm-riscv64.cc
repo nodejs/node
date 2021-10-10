@@ -68,11 +68,15 @@ class Decoder {
   // Printing of common values.
   void PrintRegister(int reg);
   void PrintFPURegister(int freg);
+  void PrintVRegister(int reg);
   void PrintFPUStatusRegister(int freg);
   void PrintRs1(Instruction* instr);
   void PrintRs2(Instruction* instr);
   void PrintRd(Instruction* instr);
+  void PrintUimm(Instruction* instr);
   void PrintVs1(Instruction* instr);
+  void PrintVs2(Instruction* instr);
+  void PrintVd(Instruction* instr);
   void PrintFRs1(Instruction* instr);
   void PrintFRs2(Instruction* instr);
   void PrintFRs3(Instruction* instr);
@@ -96,10 +100,15 @@ class Decoder {
   void PrintRvcImm8Addi4spn(Instruction* instr);
   void PrintRvcImm11CJ(Instruction* instr);
   void PrintRvcImm8B(Instruction* instr);
+  void PrintRvvVm(Instruction* instr);
   void PrintAcquireRelease(Instruction* instr);
   void PrintBranchOffset(Instruction* instr);
   void PrintStoreOffset(Instruction* instr);
   void PrintCSRReg(Instruction* instr);
+  void PrintRvvSEW(Instruction* instr);
+  void PrintRvvLMUL(Instruction* instr);
+  void PrintRvvSimm5(Instruction* instr);
+  void PrintRvvUimm5(Instruction* instr);
   void PrintRoundingMode(Instruction* instr);
   void PrintMemoryOrder(Instruction* instr, bool is_pred);
 
@@ -123,6 +132,14 @@ class Decoder {
   void DecodeCJType(Instruction* instr);
   void DecodeCBType(Instruction* instr);
 
+  void DecodeVType(Instruction* instr);
+  void DecodeRvvIVV(Instruction* instr);
+  void DecodeRvvIVI(Instruction* instr);
+  void DecodeRvvIVX(Instruction* instr);
+  void DecodeRvvVL(Instruction* instr);
+  void DecodeRvvVS(Instruction* instr);
+  void DecodeRvvMVV(Instruction* instr);
+  void DecodeRvvMVX(Instruction* instr);
   // Printing of instruction name.
   void PrintInstructionName(Instruction* instr);
 
@@ -137,6 +154,8 @@ class Decoder {
   void Format(Instruction* instr, const char* format);
   void Unknown(Instruction* instr);
 
+  int switch_sew(Instruction* instr);
+  int switch_nf(Instruction* instr);
   const disasm::NameConverter& converter_;
   v8::base::Vector<char> out_buffer_;
   int out_buffer_pos_;
@@ -164,6 +183,10 @@ void Decoder::PrintRegister(int reg) {
   Print(converter_.NameOfCPURegister(reg));
 }
 
+void Decoder::PrintVRegister(int reg) {
+  Print(v8::internal::VRegisters::Name(reg));
+}
+
 void Decoder::PrintRs1(Instruction* instr) {
   int reg = instr->Rs1Value();
   PrintRegister(reg);
@@ -179,9 +202,24 @@ void Decoder::PrintRd(Instruction* instr) {
   PrintRegister(reg);
 }
 
-void Decoder::PrintVs1(Instruction* instr) {
+void Decoder::PrintUimm(Instruction* instr) {
   int val = instr->Rs1Value();
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", val);
+}
+
+void Decoder::PrintVs1(Instruction* instr) {
+  int reg = instr->Vs1Value();
+  PrintVRegister(reg);
+}
+
+void Decoder::PrintVs2(Instruction* instr) {
+  int reg = instr->Vs2Value();
+  PrintVRegister(reg);
+}
+
+void Decoder::PrintVd(Instruction* instr) {
+  int reg = instr->VdValue();
+  PrintVRegister(reg);
 }
 
 // Print the FPUregister name according to the active name converter.
@@ -245,6 +283,26 @@ void Decoder::PrintBranchOffset(Instruction* instr) {
 void Decoder::PrintStoreOffset(Instruction* instr) {
   int32_t imm = instr->StoreOffset();
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+}
+
+void Decoder::PrintRvvSEW(Instruction* instr) {
+  const char* sew = instr->RvvSEW();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%s", sew);
+}
+
+void Decoder::PrintRvvLMUL(Instruction* instr) {
+  const char* lmul = instr->RvvLMUL();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%s", lmul);
+}
+
+void Decoder::PrintRvvSimm5(Instruction* instr) {
+  const int simm5 = instr->RvvSimm5();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", simm5);
+}
+
+void Decoder::PrintRvvUimm5(Instruction* instr) {
+  const uint32_t uimm5 = instr->RvvUimm5();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", uimm5);
 }
 
 void Decoder::PrintImm20U(Instruction* instr) {
@@ -333,6 +391,13 @@ void Decoder::PrintRvcImm11CJ(Instruction* instr) {
 void Decoder::PrintRvcImm8B(Instruction* instr) {
   int32_t imm = instr->RvcImm8BValue();
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+}
+
+void Decoder::PrintRvvVm(Instruction* instr) {
+  uint8_t imm = instr->RvvVM();
+  if (imm == 0) {
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "  vm");
+  }
 }
 
 void Decoder::PrintAcquireRelease(Instruction* instr) {
@@ -724,13 +789,50 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         DCHECK(STRING_STARTS_WITH(format, "suc"));
         PrintMemoryOrder(instr, false);
         return 3;
+      } else if (format[1] == 'e') {
+        DCHECK(STRING_STARTS_WITH(format, "sew"));
+        PrintRvvSEW(instr);
+        return 3;
+      } else if (format[1] == 'i') {
+        DCHECK(STRING_STARTS_WITH(format, "simm5"));
+        PrintRvvSimm5(instr);
+        return 5;
       }
       UNREACHABLE();
     }
     case 'v': {  // 'vs1: Raw values from register fields
-      DCHECK(STRING_STARTS_WITH(format, "vs1"));
-      PrintVs1(instr);
-      return 3;
+      if (format[1] == 'd') {
+        DCHECK(STRING_STARTS_WITH(format, "vd"));
+        PrintVd(instr);
+        return 2;
+      } else if (format[2] == '1') {
+        DCHECK(STRING_STARTS_WITH(format, "vs1"));
+        PrintVs1(instr);
+        return 3;
+      } else if (format[2] == '2') {
+        DCHECK(STRING_STARTS_WITH(format, "vs2"));
+        PrintVs2(instr);
+        return 3;
+      } else {
+        DCHECK(STRING_STARTS_WITH(format, "vm"));
+        PrintRvvVm(instr);
+        return 2;
+      }
+    }
+    case 'l': {
+      DCHECK(STRING_STARTS_WITH(format, "lmul"));
+      PrintRvvLMUL(instr);
+      return 4;
+    }
+    case 'u': {
+      if (STRING_STARTS_WITH(format, "uimm5")) {
+        PrintRvvUimm5(instr);
+        return 5;
+      } else {
+        DCHECK(STRING_STARTS_WITH(format, "uimm"));
+        PrintUimm(instr);
+        return 4;
+      }
     }
     case 't': {  // 'target: target of branch instructions'
       DCHECK(STRING_STARTS_WITH(format, "target"));
@@ -1308,256 +1410,265 @@ void Decoder::DecodeR4Type(Instruction* instr) {
 }
 
 void Decoder::DecodeIType(Instruction* instr) {
-  switch (instr->InstructionBits() & kITypeMask) {
-    case RO_JALR:
-      if (instr->RdValue() == zero_reg.code() &&
-          instr->Rs1Value() == ra.code() && instr->Imm12Value() == 0)
-        Format(instr, "ret");
-      else if (instr->RdValue() == zero_reg.code() && instr->Imm12Value() == 0)
-        Format(instr, "jr        'rs1");
-      else if (instr->RdValue() == ra.code() && instr->Imm12Value() == 0)
-        Format(instr, "jalr      'rs1");
-      else
-        Format(instr, "jalr      'rd, 'imm12('rs1)'target");
-      break;
-    case RO_LB:
-      Format(instr, "lb        'rd, 'imm12('rs1)");
-      break;
-    case RO_LH:
-      Format(instr, "lh        'rd, 'imm12('rs1)");
-      break;
-    case RO_LW:
-      Format(instr, "lw        'rd, 'imm12('rs1)");
-      break;
-    case RO_LBU:
-      Format(instr, "lbu       'rd, 'imm12('rs1)");
-      break;
-    case RO_LHU:
-      Format(instr, "lhu       'rd, 'imm12('rs1)");
-      break;
-#ifdef V8_TARGET_ARCH_64_BIT
-    case RO_LWU:
-      Format(instr, "lwu       'rd, 'imm12('rs1)");
-      break;
-    case RO_LD:
-      Format(instr, "ld        'rd, 'imm12('rs1)");
-      break;
-#endif /*V8_TARGET_ARCH_64_BIT*/
-    case RO_ADDI:
-      if (instr->Imm12Value() == 0) {
+  if (instr->vl_vs_width() != -1) {
+    DecodeRvvVL(instr);
+  } else {
+    switch (instr->InstructionBits() & kITypeMask) {
+      case RO_JALR:
         if (instr->RdValue() == zero_reg.code() &&
-            instr->Rs1Value() == zero_reg.code())
-          Format(instr, "nop");
+            instr->Rs1Value() == ra.code() && instr->Imm12Value() == 0)
+          Format(instr, "ret");
+        else if (instr->RdValue() == zero_reg.code() &&
+                 instr->Imm12Value() == 0)
+          Format(instr, "jr        'rs1");
+        else if (instr->RdValue() == ra.code() && instr->Imm12Value() == 0)
+          Format(instr, "jalr      'rs1");
         else
-          Format(instr, "mv        'rd, 'rs1");
-      } else if (instr->Rs1Value() == zero_reg.code()) {
-        Format(instr, "li        'rd, 'imm12");
-      } else {
-        Format(instr, "addi      'rd, 'rs1, 'imm12");
-      }
-      break;
-    case RO_SLTI:
-      Format(instr, "slti      'rd, 'rs1, 'imm12");
-      break;
-    case RO_SLTIU:
-      if (instr->Imm12Value() == 1)
-        Format(instr, "seqz      'rd, 'rs1");
-      else
-        Format(instr, "sltiu     'rd, 'rs1, 'imm12");
-      break;
-    case RO_XORI:
-      if (instr->Imm12Value() == -1)
-        Format(instr, "not       'rd, 'rs1");
-      else
-        Format(instr, "xori      'rd, 'rs1, 'imm12x");
-      break;
-    case RO_ORI:
-      Format(instr, "ori       'rd, 'rs1, 'imm12x");
-      break;
-    case RO_ANDI:
-      Format(instr, "andi      'rd, 'rs1, 'imm12x");
-      break;
-    case RO_SLLI:
-      Format(instr, "slli      'rd, 'rs1, 's64");
-      break;
-    case RO_SRLI: {  //  RO_SRAI
-      if (!instr->IsArithShift()) {
-        Format(instr, "srli      'rd, 'rs1, 's64");
-      } else {
-        Format(instr, "srai      'rd, 'rs1, 's64");
-      }
-      break;
-    }
+          Format(instr, "jalr      'rd, 'imm12('rs1)");
+        break;
+      case RO_LB:
+        Format(instr, "lb        'rd, 'imm12('rs1)");
+        break;
+      case RO_LH:
+        Format(instr, "lh        'rd, 'imm12('rs1)");
+        break;
+      case RO_LW:
+        Format(instr, "lw        'rd, 'imm12('rs1)");
+        break;
+      case RO_LBU:
+        Format(instr, "lbu       'rd, 'imm12('rs1)");
+        break;
+      case RO_LHU:
+        Format(instr, "lhu       'rd, 'imm12('rs1)");
+        break;
 #ifdef V8_TARGET_ARCH_64_BIT
-    case RO_ADDIW:
-      if (instr->Imm12Value() == 0)
-        Format(instr, "sext.w    'rd, 'rs1");
-      else
-        Format(instr, "addiw     'rd, 'rs1, 'imm12");
-      break;
-    case RO_SLLIW:
-      Format(instr, "slliw     'rd, 'rs1, 's32");
-      break;
-    case RO_SRLIW: {  //  RO_SRAIW
-      if (!instr->IsArithShift()) {
-        Format(instr, "srliw     'rd, 'rs1, 's32");
-      } else {
-        Format(instr, "sraiw     'rd, 'rs1, 's32");
-      }
-      break;
-    }
+      case RO_LWU:
+        Format(instr, "lwu       'rd, 'imm12('rs1)");
+        break;
+      case RO_LD:
+        Format(instr, "ld        'rd, 'imm12('rs1)");
+        break;
 #endif /*V8_TARGET_ARCH_64_BIT*/
-    case RO_FENCE:
-      if (instr->MemoryOrder(true) == PSIORW &&
-          instr->MemoryOrder(false) == PSIORW)
-        Format(instr, "fence");
-      else
-        Format(instr, "fence 'pre, 'suc");
-      break;
-    case RO_ECALL: {                   // RO_EBREAK
-      if (instr->Imm12Value() == 0) {  // ECALL
-        Format(instr, "ecall");
-      } else if (instr->Imm12Value() == 1) {  // EBREAK
-        Format(instr, "ebreak");
-      } else {
-        UNSUPPORTED_RISCV();
-      }
-      break;
-    }
-    // TODO(riscv): use Zifencei Standard Extension macro block
-    case RO_FENCE_I:
-      Format(instr, "fence.i");
-      break;
-    // TODO(riscv): use Zicsr Standard Extension macro block
-    case RO_CSRRW:
-      if (instr->CsrValue() == csr_fcsr) {
-        if (instr->RdValue() == zero_reg.code())
-          Format(instr, "fscsr     'rs1");
-        else
-          Format(instr, "fscsr     'rd, 'rs1");
-      } else if (instr->CsrValue() == csr_frm) {
-        if (instr->RdValue() == zero_reg.code())
-          Format(instr, "fsrm      'rs1");
-        else
-          Format(instr, "fsrm      'rd, 'rs1");
-      } else if (instr->CsrValue() == csr_fflags) {
-        if (instr->RdValue() == zero_reg.code())
-          Format(instr, "fsflags   'rs1");
-        else
-          Format(instr, "fsflags   'rd, 'rs1");
-      } else if (instr->RdValue() == zero_reg.code()) {
-        Format(instr, "csrw      'csr, 'rs1");
-      } else {
-        Format(instr, "csrrw     'rd, 'csr, 'rs1");
-      }
-      break;
-    case RO_CSRRS:
-      if (instr->Rs1Value() == zero_reg.code()) {
-        switch (instr->CsrValue()) {
-          case csr_instret:
-            Format(instr, "rdinstret 'rd");
-            break;
-          case csr_instreth:
-            Format(instr, "rdinstreth 'rd");
-            break;
-          case csr_time:
-            Format(instr, "rdtime    'rd");
-            break;
-          case csr_timeh:
-            Format(instr, "rdtimeh   'rd");
-            break;
-          case csr_cycle:
-            Format(instr, "rdcycle   'rd");
-            break;
-          case csr_cycleh:
-            Format(instr, "rdcycleh  'rd");
-            break;
-          case csr_fflags:
-            Format(instr, "frflags   'rd");
-            break;
-          case csr_frm:
-            Format(instr, "frrm      'rd");
-            break;
-          case csr_fcsr:
-            Format(instr, "frcsr     'rd");
-            break;
-          default:
-            UNREACHABLE();
+      case RO_ADDI:
+        if (instr->Imm12Value() == 0) {
+          if (instr->RdValue() == zero_reg.code() &&
+              instr->Rs1Value() == zero_reg.code())
+            Format(instr, "nop");
+          else
+            Format(instr, "mv        'rd, 'rs1");
+        } else if (instr->Rs1Value() == zero_reg.code()) {
+          Format(instr, "li        'rd, 'imm12");
+        } else {
+          Format(instr, "addi      'rd, 'rs1, 'imm12");
         }
-      } else if (instr->Rs1Value() == zero_reg.code()) {
-        Format(instr, "csrr      'rd, 'csr");
-      } else if (instr->RdValue() == zero_reg.code()) {
-        Format(instr, "csrs      'csr, 'rs1");
-      } else {
-        Format(instr, "csrrs     'rd, 'csr, 'rs1");
+        break;
+      case RO_SLTI:
+        Format(instr, "slti      'rd, 'rs1, 'imm12");
+        break;
+      case RO_SLTIU:
+        if (instr->Imm12Value() == 1)
+          Format(instr, "seqz      'rd, 'rs1");
+        else
+          Format(instr, "sltiu     'rd, 'rs1, 'imm12");
+        break;
+      case RO_XORI:
+        if (instr->Imm12Value() == -1)
+          Format(instr, "not       'rd, 'rs1");
+        else
+          Format(instr, "xori      'rd, 'rs1, 'imm12x");
+        break;
+      case RO_ORI:
+        Format(instr, "ori       'rd, 'rs1, 'imm12x");
+        break;
+      case RO_ANDI:
+        Format(instr, "andi      'rd, 'rs1, 'imm12x");
+        break;
+      case RO_SLLI:
+        Format(instr, "slli      'rd, 'rs1, 's64");
+        break;
+      case RO_SRLI: {  //  RO_SRAI
+        if (!instr->IsArithShift()) {
+          Format(instr, "srli      'rd, 'rs1, 's64");
+        } else {
+          Format(instr, "srai      'rd, 'rs1, 's64");
+        }
+        break;
       }
-      break;
-    case RO_CSRRC:
-      if (instr->RdValue() == zero_reg.code())
-        Format(instr, "csrc      'csr, 'rs1");
-      else
-        Format(instr, "csrrc     'rd, 'csr, 'rs1");
-      break;
-    case RO_CSRRWI:
-      if (instr->RdValue() == zero_reg.code())
-        Format(instr, "csrwi     'csr, 'vs1");
-      else
-        Format(instr, "csrrwi    'rd, 'csr, 'vs1");
-      break;
-    case RO_CSRRSI:
-      if (instr->RdValue() == zero_reg.code())
-        Format(instr, "csrsi     'csr, 'vs1");
-      else
-        Format(instr, "csrrsi    'rd, 'csr, 'vs1");
-      break;
-    case RO_CSRRCI:
-      if (instr->RdValue() == zero_reg.code())
-        Format(instr, "csrci     'csr, 'vs1");
-      else
-        Format(instr, "csrrci    'rd, 'csr, 'vs1");
-      break;
-    // TODO(riscv): use F Extension macro block
-    case RO_FLW:
-      Format(instr, "flw       'fd, 'imm12('rs1)");
-      break;
-    // TODO(riscv): use D Extension macro block
-    case RO_FLD:
-      Format(instr, "fld       'fd, 'imm12('rs1)");
-      break;
-    default:
-      UNSUPPORTED_RISCV();
+#ifdef V8_TARGET_ARCH_64_BIT
+      case RO_ADDIW:
+        if (instr->Imm12Value() == 0)
+          Format(instr, "sext.w    'rd, 'rs1");
+        else
+          Format(instr, "addiw     'rd, 'rs1, 'imm12");
+        break;
+      case RO_SLLIW:
+        Format(instr, "slliw     'rd, 'rs1, 's32");
+        break;
+      case RO_SRLIW: {  //  RO_SRAIW
+        if (!instr->IsArithShift()) {
+          Format(instr, "srliw     'rd, 'rs1, 's32");
+        } else {
+          Format(instr, "sraiw     'rd, 'rs1, 's32");
+        }
+        break;
+      }
+#endif /*V8_TARGET_ARCH_64_BIT*/
+      case RO_FENCE:
+        if (instr->MemoryOrder(true) == PSIORW &&
+            instr->MemoryOrder(false) == PSIORW)
+          Format(instr, "fence");
+        else
+          Format(instr, "fence 'pre, 'suc");
+        break;
+      case RO_ECALL: {                   // RO_EBREAK
+        if (instr->Imm12Value() == 0) {  // ECALL
+          Format(instr, "ecall");
+        } else if (instr->Imm12Value() == 1) {  // EBREAK
+          Format(instr, "ebreak");
+        } else {
+          UNSUPPORTED_RISCV();
+        }
+        break;
+      }
+      // TODO(riscv): use Zifencei Standard Extension macro block
+      case RO_FENCE_I:
+        Format(instr, "fence.i");
+        break;
+      // TODO(riscv): use Zicsr Standard Extension macro block
+      // FIXME(RISC-V): Add special formatting for CSR registers
+      case RO_CSRRW:
+        if (instr->CsrValue() == csr_fcsr) {
+          if (instr->RdValue() == zero_reg.code())
+            Format(instr, "fscsr     'rs1");
+          else
+            Format(instr, "fscsr     'rd, 'rs1");
+        } else if (instr->CsrValue() == csr_frm) {
+          if (instr->RdValue() == zero_reg.code())
+            Format(instr, "fsrm      'rs1");
+          else
+            Format(instr, "fsrm      'rd, 'rs1");
+        } else if (instr->CsrValue() == csr_fflags) {
+          if (instr->RdValue() == zero_reg.code())
+            Format(instr, "fsflags   'rs1");
+          else
+            Format(instr, "fsflags   'rd, 'rs1");
+        } else if (instr->RdValue() == zero_reg.code()) {
+          Format(instr, "csrw      'csr, 'rs1");
+        } else {
+          Format(instr, "csrrw     'rd, 'csr, 'rs1");
+        }
+        break;
+      case RO_CSRRS:
+        if (instr->Rs1Value() == zero_reg.code()) {
+          switch (instr->CsrValue()) {
+            case csr_instret:
+              Format(instr, "rdinstret 'rd");
+              break;
+            case csr_instreth:
+              Format(instr, "rdinstreth 'rd");
+              break;
+            case csr_time:
+              Format(instr, "rdtime    'rd");
+              break;
+            case csr_timeh:
+              Format(instr, "rdtimeh   'rd");
+              break;
+            case csr_cycle:
+              Format(instr, "rdcycle   'rd");
+              break;
+            case csr_cycleh:
+              Format(instr, "rdcycleh  'rd");
+              break;
+            case csr_fflags:
+              Format(instr, "frflags   'rd");
+              break;
+            case csr_frm:
+              Format(instr, "frrm      'rd");
+              break;
+            case csr_fcsr:
+              Format(instr, "frcsr     'rd");
+              break;
+            default:
+              UNREACHABLE();
+          }
+        } else if (instr->Rs1Value() == zero_reg.code()) {
+          Format(instr, "csrr      'rd, 'csr");
+        } else if (instr->RdValue() == zero_reg.code()) {
+          Format(instr, "csrs      'csr, 'rs1");
+        } else {
+          Format(instr, "csrrs     'rd, 'csr, 'rs1");
+        }
+        break;
+      case RO_CSRRC:
+        if (instr->RdValue() == zero_reg.code())
+          Format(instr, "csrc      'csr, 'rs1");
+        else
+          Format(instr, "csrrc     'rd, 'csr, 'rs1");
+        break;
+      case RO_CSRRWI:
+        if (instr->RdValue() == zero_reg.code())
+          Format(instr, "csrwi     'csr, 'uimm");
+        else
+          Format(instr, "csrrwi    'rd, 'csr, 'uimm");
+        break;
+      case RO_CSRRSI:
+        if (instr->RdValue() == zero_reg.code())
+          Format(instr, "csrsi     'csr, 'uimm");
+        else
+          Format(instr, "csrrsi    'rd, 'csr, 'uimm");
+        break;
+      case RO_CSRRCI:
+        if (instr->RdValue() == zero_reg.code())
+          Format(instr, "csrci     'csr, 'uimm");
+        else
+          Format(instr, "csrrci    'rd, 'csr, 'uimm");
+        break;
+      // TODO(riscv): use F Extension macro block
+      case RO_FLW:
+        Format(instr, "flw       'fd, 'imm12('rs1)");
+        break;
+      // TODO(riscv): use D Extension macro block
+      case RO_FLD:
+        Format(instr, "fld       'fd, 'imm12('rs1)");
+        break;
+      default:
+        UNSUPPORTED_RISCV();
+    }
   }
 }
 
 void Decoder::DecodeSType(Instruction* instr) {
-  switch (instr->InstructionBits() & kSTypeMask) {
-    case RO_SB:
-      Format(instr, "sb        'rs2, 'offS('rs1)");
-      break;
-    case RO_SH:
-      Format(instr, "sh        'rs2, 'offS('rs1)");
-      break;
-    case RO_SW:
-      Format(instr, "sw        'rs2, 'offS('rs1)");
-      break;
+  if (instr->vl_vs_width() != -1) {
+    DecodeRvvVS(instr);
+  } else {
+    switch (instr->InstructionBits() & kSTypeMask) {
+      case RO_SB:
+        Format(instr, "sb        'rs2, 'offS('rs1)");
+        break;
+      case RO_SH:
+        Format(instr, "sh        'rs2, 'offS('rs1)");
+        break;
+      case RO_SW:
+        Format(instr, "sw        'rs2, 'offS('rs1)");
+        break;
 #ifdef V8_TARGET_ARCH_64_BIT
-    case RO_SD:
-      Format(instr, "sd        'rs2, 'offS('rs1)");
-      break;
+      case RO_SD:
+        Format(instr, "sd        'rs2, 'offS('rs1)");
+        break;
 #endif /*V8_TARGET_ARCH_64_BIT*/
-    // TODO(riscv): use F Extension macro block
-    case RO_FSW:
-      Format(instr, "fsw       'fs2, 'offS('rs1)");
-      break;
-    // TODO(riscv): use D Extension macro block
-    case RO_FSD:
-      Format(instr, "fsd       'fs2, 'offS('rs1)");
-      break;
-    default:
-      UNSUPPORTED_RISCV();
+      // TODO(riscv): use F Extension macro block
+      case RO_FSW:
+        Format(instr, "fsw       'fs2, 'offS('rs1)");
+        break;
+      // TODO(riscv): use D Extension macro block
+      case RO_FSD:
+        Format(instr, "fsd       'fs2, 'offS('rs1)");
+        break;
+      default:
+        UNSUPPORTED_RISCV();
+    }
   }
 }
-
 void Decoder::DecodeBType(Instruction* instr) {
   switch (instr->InstructionBits() & kBTypeMask) {
     case RO_BEQ:
@@ -1595,6 +1706,7 @@ void Decoder::DecodeUType(Instruction* instr) {
       UNSUPPORTED_RISCV();
   }
 }
+// namespace internal
 void Decoder::DecodeJType(Instruction* instr) {
   // J Type doesn't have additional mask
   switch (instr->BaseOpcodeValue()) {
@@ -1791,6 +1903,511 @@ void Decoder::DecodeCBType(Instruction* instr) {
   }
 }
 
+void Decoder::DecodeRvvIVV(Instruction* instr) {
+  DCHECK_EQ(instr->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVV);
+  switch (instr->InstructionBits() & kVTypeMask) {
+    case RO_V_VADD_VV:
+      Format(instr, "vadd.vv   'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VSADD_VV:
+      Format(instr, "vsadd.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VSUB_VV:
+      Format(instr, "vsub.vv   'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VSSUB_VV:
+      Format(instr, "vssub.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMIN_VV:
+      Format(instr, "vmin.vv   'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMINU_VV:
+      Format(instr, "vminu.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMAX_VV:
+      Format(instr, "vmax.vv   'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMAXU_VV:
+      Format(instr, "vmaxu.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VAND_VV:
+      Format(instr, "vand.vv   'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VOR_VV:
+      Format(instr, "vor.vv    'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VXOR_VV:
+      Format(instr, "vxor.vv   'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VRGATHER_VV:
+      Format(instr, "vrgather.vv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMSEQ_VV:
+      Format(instr, "vmseq.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMSNE_VV:
+      Format(instr, "vmsne.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMSLT_VV:
+      Format(instr, "vmslt.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMSLTU_VV:
+      Format(instr, "vmsltu.vv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMSLE_VV:
+      Format(instr, "vmsle.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMSLEU_VV:
+      Format(instr, "vmsleu.vv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMV_VV:
+      if (instr->RvvVM()) {
+        Format(instr, "vmv.vv    'vd, 'vs1");
+      } else {
+        Format(instr, "vmerge.vvm 'vd, 'vs2, 'vs1, v0");
+      }
+      break;
+    case RO_V_VADC_VV:
+      if (!instr->RvvVM()) {
+        Format(instr, "vadc.vvm  'vd, 'vs2, 'vs1");
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    case RO_V_VMADC_VV:
+      if (!instr->RvvVM()) {
+        Format(instr, "vmadc.vvm 'vd, 'vs2, 'vs1");
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    default:
+      UNSUPPORTED_RISCV();
+      break;
+  }
+}
+
+void Decoder::DecodeRvvIVI(Instruction* instr) {
+  DCHECK_EQ(instr->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVI);
+  switch (instr->InstructionBits() & kVTypeMask) {
+    case RO_V_VADD_VI:
+      Format(instr, "vadd.vi   'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VSADD_VI:
+      Format(instr, "vsadd.vi  'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VRSUB_VI:
+      Format(instr, "vrsub.vi  'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VAND_VI:
+      Format(instr, "vand.vi   'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VOR_VI:
+      Format(instr, "vor.vi    'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VXOR_VI:
+      Format(instr, "vxor.vi   'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VRGATHER_VI:
+      Format(instr, "vrgather.vi  'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VMV_VI:
+      if (instr->RvvVM()) {
+        Format(instr, "vmv.vi    'vd, 'simm5");
+      } else {
+        Format(instr, "vmerge.vim 'vd, 'vs2, 'simm5, v0");
+      }
+      break;
+    case RO_V_VMSEQ_VI:
+      Format(instr, "vmseq.vi  'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VMSNE_VI:
+      Format(instr, "vmsne.vi  'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VMSLEU_VI:
+      Format(instr, "vmsleu.vi 'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VMSLE_VI:
+      Format(instr, "vmsle.vi  'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VMSGTU_VI:
+      Format(instr, "vmsgtu.vi 'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VMSGT_VI:
+      Format(instr, "vmsgt.vi  'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VSLIDEDOWN_VI:
+      Format(instr, "vslidedown.vi 'vd, 'vs2, 'uimm5'vm");
+      break;
+    case RO_V_VSRL_VI:
+      Format(instr, "vsrl.vi   'vd, 'vs2, 'uimm5'vm");
+      break;
+    case RO_V_VSLL_VI:
+      Format(instr, "vsll.vi   'vd, 'vs2, 'uimm5'vm");
+      break;
+    case RO_V_VADC_VI:
+      if (!instr->RvvVM()) {
+        Format(instr, "vadc.vim  'vd, 'vs2, 'uimm5");
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    case RO_V_VMADC_VI:
+      if (!instr->RvvVM()) {
+        Format(instr, "vmadc.vim 'vd, 'vs2, 'uimm5");
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    default:
+      UNSUPPORTED_RISCV();
+      break;
+  }
+}
+
+void Decoder::DecodeRvvIVX(Instruction* instr) {
+  DCHECK_EQ(instr->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVX);
+  switch (instr->InstructionBits() & kVTypeMask) {
+    case RO_V_VADD_VX:
+      Format(instr, "vadd.vx   'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VSADD_VX:
+      Format(instr, "vsadd.vx  'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VSUB_VX:
+      Format(instr, "vsub.vx   'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VSSUB_VX:
+      Format(instr, "vssub.vx  'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VRSUB_VX:
+      Format(instr, "vrsub.vx  'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMIN_VX:
+      Format(instr, "vmin.vx   'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMINU_VX:
+      Format(instr, "vminu.vx  'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMAX_VX:
+      Format(instr, "vmax.vx   'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMAXU_VX:
+      Format(instr, "vmaxu.vx  'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VAND_VX:
+      Format(instr, "vand.vx   'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VOR_VX:
+      Format(instr, "vor.vx    'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VXOR_VX:
+      Format(instr, "vxor.vx   'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VRGATHER_VX:
+      Format(instr, "vrgather.vx   'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMV_VX:
+      if (instr->RvvVM()) {
+        Format(instr, "vmv.vx    'vd, 'rs1");
+      } else {
+        Format(instr, "vmerge.vxm 'vd, 'vs2, 'rs1, v0");
+      }
+      break;
+    case RO_V_VMSEQ_VX:
+      Format(instr, "vmseq.vx  'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSNE_VX:
+      Format(instr, "vmsne.vx  'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSLT_VX:
+      Format(instr, "vmslt.vx  'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSLTU_VX:
+      Format(instr, "vmsltu.vx 'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSLE_VX:
+      Format(instr, "vmsle.vx  'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSLEU_VX:
+      Format(instr, "vmsleu.vx 'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSGT_VX:
+      Format(instr, "vmsgt.vx  'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSGTU_VX:
+      Format(instr, "vmsgtu.vx 'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VSLIDEDOWN_VX:
+      Format(instr, "vslidedown.vx 'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VADC_VX:
+      if (!instr->RvvVM()) {
+        Format(instr, "vadc.vxm  'vd, 'vs2, 'rs1");
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    case RO_V_VMADC_VX:
+      if (!instr->RvvVM()) {
+        Format(instr, "vmadc.vxm 'vd, 'vs2, 'rs1");
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    default:
+      UNSUPPORTED_RISCV();
+      break;
+  }
+}
+
+void Decoder::DecodeRvvMVV(Instruction* instr) {
+  DCHECK_EQ(instr->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVV);
+  switch (instr->InstructionBits() & kVTypeMask) {
+    case RO_V_VWXUNARY0:
+      if (instr->Vs1Value() == 0x0) {
+        Format(instr, "vmv.x.s   'rd, 'vs2");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    case RO_V_VREDMAXU:
+      Format(instr, "vredmaxu.vs  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VREDMAX:
+      Format(instr, "vredmax.vs  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VREDMIN:
+      Format(instr, "vredmin.vs  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VREDMINU:
+      Format(instr, "vredminu.vs  'vd, 'vs2, 'vs1'vm");
+      break;
+    default:
+      UNSUPPORTED_RISCV();
+      break;
+  }
+}
+
+void Decoder::DecodeRvvMVX(Instruction* instr) {
+  DCHECK_EQ(instr->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVX);
+  switch (instr->InstructionBits() & kVTypeMask) {
+    case RO_V_VRXUNARY0:
+      if (instr->Vs2Value() == 0x0) {
+        Format(instr, "vmv.s.x   'vd, 'rs1");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    default:
+      UNSUPPORTED_RISCV();
+      break;
+  }
+}
+
+void Decoder::DecodeVType(Instruction* instr) {
+  switch (instr->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) {
+    case OP_IVV:
+      DecodeRvvIVV(instr);
+      return;
+    case OP_FVV:
+      UNSUPPORTED_RISCV();
+      return;
+    case OP_MVV:
+      DecodeRvvMVV(instr);
+      return;
+    case OP_IVI:
+      DecodeRvvIVI(instr);
+      return;
+    case OP_IVX:
+      DecodeRvvIVX(instr);
+      return;
+    case OP_FVF:
+      UNSUPPORTED_RISCV();
+      return;
+    case OP_MVX:
+      DecodeRvvMVX(instr);
+      return;
+  }
+  switch (instr->InstructionBits() &
+          (kBaseOpcodeMask | kFunct3Mask | 0x80000000)) {
+    case RO_V_VSETVLI:
+      Format(instr, "vsetvli   'rd, 'rs1, 'sew, 'lmul");
+      break;
+    case RO_V_VSETVL:
+      if (!(instr->InstructionBits() & 0x40000000)) {
+        Format(instr, "vsetvl    'rd, 'rs1,  'rs2");
+      } else {
+        Format(instr, "vsetivli  'rd, 'uimm, 'sew, 'lmul");
+      }
+      break;
+    default:
+      UNSUPPORTED_RISCV();
+      break;
+  }
+}
+int Decoder::switch_nf(Instruction* instr) {
+  int nf = 0;
+  switch (instr->InstructionBits() & kRvvNfMask) {
+    case 0x20000000:
+      nf = 2;
+      break;
+    case 0x40000000:
+      nf = 3;
+      break;
+    case 0x60000000:
+      nf = 4;
+      break;
+    case 0x80000000:
+      nf = 5;
+      break;
+    case 0xa0000000:
+      nf = 6;
+      break;
+    case 0xc0000000:
+      nf = 7;
+      break;
+    case 0xe0000000:
+      nf = 8;
+      break;
+  }
+  return nf;
+}
+void Decoder::DecodeRvvVL(Instruction* instr) {
+  char str[50];
+  uint32_t instr_temp =
+      instr->InstructionBits() & (kRvvMopMask | kRvvNfMask | kBaseOpcodeMask);
+  // switch (instr->InstructionBits() &
+  //      (kRvvMopMask | kRvvNfMask | kBaseOpcodeMask)) {
+  if (RO_V_VL == instr_temp) {
+    if (!(instr->InstructionBits() & (kRvvRs2Mask))) {
+      snprintf(str, sizeof(str), "vle%d.v       'vd, ('rs1)'vm",
+               instr->vl_vs_width());
+      Format(instr, str);
+    } else {
+      snprintf(str, sizeof(str), "vle%dff.v       'vd, ('rs1)'vm",
+               instr->vl_vs_width());
+      Format(instr, str);
+    }
+  } else if (RO_V_VLS == instr_temp) {
+    snprintf(str, sizeof(str), "vlse%d.v       'vd, ('rs1), 'rs2'vm",
+             instr->vl_vs_width());
+    Format(instr, str);
+
+  } else if (RO_V_VLX == instr_temp) {
+    snprintf(str, sizeof(str), "vlxei%d.v       'vd, ('rs1), 'vs2'vm",
+             instr->vl_vs_width());
+    Format(instr, str);
+  } else if (RO_V_VLSEG2 == instr_temp || RO_V_VLSEG3 == instr_temp ||
+             RO_V_VLSEG4 == instr_temp || RO_V_VLSEG5 == instr_temp ||
+             RO_V_VLSEG6 == instr_temp || RO_V_VLSEG7 == instr_temp ||
+             RO_V_VLSEG8 == instr_temp) {
+    if (!(instr->InstructionBits() & (kRvvRs2Mask))) {
+      snprintf(str, sizeof(str), "vlseg%de%d.v       'vd, ('rs1)'vm",
+               switch_nf(instr), instr->vl_vs_width());
+    } else {
+      snprintf(str, sizeof(str), "vlseg%de%dff.v       'vd, ('rs1)'vm",
+               switch_nf(instr), instr->vl_vs_width());
+    }
+    Format(instr, str);
+  } else if (RO_V_VLSSEG2 == instr_temp || RO_V_VLSSEG3 == instr_temp ||
+             RO_V_VLSSEG4 == instr_temp || RO_V_VLSSEG5 == instr_temp ||
+             RO_V_VLSSEG6 == instr_temp || RO_V_VLSSEG7 == instr_temp ||
+             RO_V_VLSSEG8 == instr_temp) {
+    snprintf(str, sizeof(str), "vlsseg%de%d.v       'vd, ('rs1), 'rs2'vm",
+             switch_nf(instr), instr->vl_vs_width());
+    Format(instr, str);
+  } else if (RO_V_VLXSEG2 == instr_temp || RO_V_VLXSEG3 == instr_temp ||
+             RO_V_VLXSEG4 == instr_temp || RO_V_VLXSEG5 == instr_temp ||
+             RO_V_VLXSEG6 == instr_temp || RO_V_VLXSEG7 == instr_temp ||
+             RO_V_VLXSEG8 == instr_temp) {
+    snprintf(str, sizeof(str), "vlxseg%dei%d.v       'vd, ('rs1), 'vs2'vm",
+             switch_nf(instr), instr->vl_vs_width());
+    Format(instr, str);
+  }
+}
+
+int Decoder::switch_sew(Instruction* instr) {
+  int width = 0;
+  if ((instr->InstructionBits() & kBaseOpcodeMask) != LOAD_FP &&
+      (instr->InstructionBits() & kBaseOpcodeMask) != STORE_FP)
+    return -1;
+  switch (instr->InstructionBits() & (kRvvWidthMask | kRvvMewMask)) {
+    case 0x0:
+      width = 8;
+      break;
+    case 0x00005000:
+      width = 16;
+      break;
+    case 0x00006000:
+      width = 32;
+      break;
+    case 0x00007000:
+      width = 64;
+      break;
+    case 0x10000000:
+      width = 128;
+      break;
+    case 0x10005000:
+      width = 256;
+      break;
+    case 0x10006000:
+      width = 512;
+      break;
+    case 0x10007000:
+      width = 1024;
+      break;
+    default:
+      width = -1;
+      break;
+  }
+  return width;
+}
+
+void Decoder::DecodeRvvVS(Instruction* instr) {
+  char str[50];
+  uint32_t instr_temp =
+      instr->InstructionBits() & (kRvvMopMask | kRvvNfMask | kBaseOpcodeMask);
+  if (RO_V_VS == instr_temp) {
+    snprintf(str, sizeof(str), "vse%d.v    'vd, ('rs1)'vm",
+             instr->vl_vs_width());
+    Format(instr, str);
+  } else if (RO_V_VSS == instr_temp) {
+    snprintf(str, sizeof(str), "vsse%d.v      'vd, ('rs1), 'rs2'vm",
+             instr->vl_vs_width());
+    Format(instr, str);
+  } else if (RO_V_VSX == instr_temp) {
+    snprintf(str, sizeof(str), "vsxei%d.v      'vd, ('rs1), 'vs2'vm",
+             instr->vl_vs_width());
+    Format(instr, str);
+  } else if (RO_V_VSU == instr_temp) {
+    snprintf(str, sizeof(str), "vsuxei%d.v      'vd, ('rs1), 'vs2'vm",
+             instr->vl_vs_width());
+    Format(instr, str);
+  } else if (RO_V_VSSEG2 == instr_temp || RO_V_VSSEG3 == instr_temp ||
+             RO_V_VSSEG4 == instr_temp || RO_V_VSSEG5 == instr_temp ||
+             RO_V_VSSEG6 == instr_temp || RO_V_VSSEG7 == instr_temp ||
+             RO_V_VSSEG8 == instr_temp) {
+    snprintf(str, sizeof(str), "vsseg%de%d.v      'vd, ('rs1)'vm",
+             switch_nf(instr), instr->vl_vs_width());
+    Format(instr, str);
+  } else if (RO_V_VSSSEG2 == instr_temp || RO_V_VSSSEG3 == instr_temp ||
+             RO_V_VSSSEG4 == instr_temp || RO_V_VSSSEG5 == instr_temp ||
+             RO_V_VSSSEG6 == instr_temp || RO_V_VSSSEG7 == instr_temp ||
+             RO_V_VSSSEG8 == instr_temp) {
+    snprintf(str, sizeof(str), "vssseg%de%d.v      'vd, ('rs1), 'rs2'vm",
+             switch_nf(instr), instr->vl_vs_width());
+    Format(instr, str);
+  } else if (RO_V_VSXSEG2 == instr_temp || RO_V_VSXSEG3 == instr_temp ||
+             RO_V_VSXSEG4 == instr_temp || RO_V_VSXSEG5 == instr_temp ||
+             RO_V_VSXSEG6 == instr_temp || RO_V_VSXSEG7 == instr_temp ||
+             RO_V_VSXSEG8 == instr_temp) {
+    snprintf(str, sizeof(str), "vsxseg%dei%d.v      'vd, ('rs1), 'vs2'vm",
+             switch_nf(instr), instr->vl_vs_width());
+    Format(instr, str);
+  }
+}
+
 // Disassemble the instruction at *instr_ptr into the output buffer.
 // All instructions are one word long, except for the simulator
 // pseudo-instruction stop(msg). For that one special case, we return
@@ -1849,6 +2466,9 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
     case Instruction::kCBType:
       DecodeCBType(instr);
       break;
+    case Instruction::kVType:
+      DecodeVType(instr);
+      break;
     default:
       Format(instr, "UNSUPPORTED");
       UNSUPPORTED_RISCV();
@@ -1882,7 +2502,7 @@ const char* NameConverter::NameOfXMMRegister(int reg) const {
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
   UNREACHABLE();  // RISC-V does not have the concept of a byte register.
-  return "nobytereg";
+  //return "nobytereg";
 }
 
 const char* NameConverter::NameInCode(byte* addr) const {

@@ -230,7 +230,7 @@ void OldLargeObjectSpace::ClearMarkingStateOfLiveObjects() {
       Marking::MarkWhite(marking_state->MarkBitFrom(obj));
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
       RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
-      chunk->ResetProgressBar();
+      chunk->ProgressBar().ResetIfEnabled();
       marking_state->SetLiveBytes(chunk, 0);
     }
     DCHECK(marking_state->IsWhite(obj));

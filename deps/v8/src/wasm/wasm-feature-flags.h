@@ -26,8 +26,12 @@
                                                                                \
   /* Non-specified, V8-only experimental additions to the GC proposal */       \
   /* V8 side owner: jkummerow */                                               \
-  V(gc_experiments, "garbage collection V8-only experimental features", false) \
-  V(nn_locals, "allow non-defaultable/non-nullable locals", false)             \
+  V(nn_locals,                                                                 \
+    "allow non-defaultable/non-nullable locals, validated with 'until end of " \
+    "block' semantics",                                                        \
+    false)                                                                     \
+  V(unsafe_nn_locals,                                                          \
+    "allow non-defaultable/non-nullable locals, no validation", false)         \
                                                                                \
   /* Typed function references proposal. */                                    \
   /* Official proposal: https://github.com/WebAssembly/function-references */  \
@@ -47,7 +51,12 @@
   /* Branch Hinting proposal. */                                               \
   /* https://github.com/WebAssembly/branch-hinting */                          \
   /* V8 side owner: jkummerow */                                               \
-  V(branch_hinting, "branch hinting", false)
+  V(branch_hinting, "branch hinting", false)                                   \
+                                                                               \
+  /* Stack Switching proposal. */                                              \
+  /* https://github.com/WebAssembly/stack-switching */                         \
+  /* V8 side owner: thibaudm & fgm */                                          \
+  V(stack_switching, "stack switching", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -58,12 +67,6 @@
 // be shipped with enough lead time to the next branch to allow for
 // stabilization.
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Exception handling proposal. */                                           \
-  /* https://github.com/WebAssembly/exception-handling */                      \
-  /* V8 side owner: thibaudm */                                                \
-  /* Staged in v8.9 */                                                         \
-  V(eh, "exception handling opcodes", false)                                   \
-                                                                               \
   /* Reference Types, a.k.a. reftypes proposal. */                             \
   /* https://github.com/WebAssembly/reference-types */                         \
   /* V8 side owner: ahaas */                                                   \
@@ -103,6 +106,13 @@
   /* tD6np-OG2PU/rcNGROOMFQAJ */                                               \
   /* V8 side owner: gdeepti */                                                 \
   V(threads, "thread opcodes", true)                                           \
+                                                                               \
+  /* Exception handling proposal. */                                           \
+  /* https://github.com/WebAssembly/exception-handling */                      \
+  /* V8 side owner: thibaudm */                                                \
+  /* Staged in v8.9 */                                                         \
+  /* Shipped in v9.5 */                                                        \
+  V(eh, "exception handling opcodes", true)                                    \
                                                                                \
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \

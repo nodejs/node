@@ -13,6 +13,7 @@
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/objects/objects-inl.h"
+#include "src/regexp/regexp-flags.h"
 #include "src/strings/string-builder-inl.h"
 
 namespace v8 {
@@ -70,6 +71,12 @@ void CallPrinter::Find(AstNode* node, bool print) {
   } else {
     Visit(node);
   }
+}
+
+void CallPrinter::Print(char c) {
+  if (!found_ || done_) return;
+  num_prints_++;
+  builder_->AppendCharacter(c);
 }
 
 void CallPrinter::Print(const char* str) {
@@ -269,13 +276,10 @@ void CallPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   Print("/");
   PrintLiteral(node->pattern(), false);
   Print("/");
-  if (node->flags() & RegExp::kHasIndices) Print("d");
-  if (node->flags() & RegExp::kGlobal) Print("g");
-  if (node->flags() & RegExp::kIgnoreCase) Print("i");
-  if (node->flags() & RegExp::kLinear) Print("l");
-  if (node->flags() & RegExp::kMultiline) Print("m");
-  if (node->flags() & RegExp::kUnicode) Print("u");
-  if (node->flags() & RegExp::kSticky) Print("y");
+#define V(Lower, Camel, LowerCamel, Char, Bit) \
+  if (node->flags() & RegExp::k##Camel) Print(Char);
+  REGEXP_FLAG_LIST(V)
+#undef V
 }
 
 
@@ -1189,13 +1193,10 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   PrintLiteralIndented("PATTERN", node->raw_pattern(), false);
   int i = 0;
   base::EmbeddedVector<char, 128> buf;
-  if (node->flags() & RegExp::kHasIndices) buf[i++] = 'd';
-  if (node->flags() & RegExp::kGlobal) buf[i++] = 'g';
-  if (node->flags() & RegExp::kIgnoreCase) buf[i++] = 'i';
-  if (node->flags() & RegExp::kLinear) buf[i++] = 'l';
-  if (node->flags() & RegExp::kMultiline) buf[i++] = 'm';
-  if (node->flags() & RegExp::kUnicode) buf[i++] = 'u';
-  if (node->flags() & RegExp::kSticky) buf[i++] = 'y';
+#define V(Lower, Camel, LowerCamel, Char, Bit) \
+  if (node->flags() & RegExp::k##Camel) buf[i++] = Char;
+  REGEXP_FLAG_LIST(V)
+#undef V
   buf[i] = '\0';
   PrintIndented("FLAGS ");
   Print("%s", buf.begin());

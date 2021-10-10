@@ -8,56 +8,28 @@ namespace typed_array {
 const kBuiltinNameFindLast: constexpr string =
     '%TypedArray%.prototype.findLast';
 
-// Continuation part of
-// https://tc39.es/proposal-array-find-from-last/index.html#sec-%typedarray%.prototype.findlast
-// when array buffer was detached.
-transitioning builtin FindLastAllElementsDetachedContinuation(
-    implicit context: Context)(
-    array: JSTypedArray, predicate: Callable, thisArg: JSAny,
-    initialK: Number): JSAny {
-  // 6. Repeat, while k ≥ 0
-  for (let k: Number = initialK; k >= 0; k--) {
-    // 6a. Let Pk be ! ToString(𝔽(k)).
-    // there is no need to cast ToString to load elements.
-
-    // 6b. Let kValue be ! Get(O, Pk).
-    // kValue must be undefined when the buffer was detached.
-
-    // 6c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue,
-    // 𝔽(k), O »)).
-    // TODO(v8:4153): Consider versioning this loop for Smi and non-Smi
-    // indices to optimize Convert<Number>(k) for the most common case.
-    const result =
-        Call(context, predicate, thisArg, Undefined, Convert<Number>(k), array);
-    // 6d. If testResult is true, return kValue.
-    if (ToBoolean(result)) {
-      return Undefined;
-    }
-
-    // 6e. Set k to k - 1. (done by the loop).
-  }
-
-  // 7. Return undefined.
-  return Undefined;
-}
-
 // https://tc39.es/proposal-array-find-from-last/index.html#sec-%typedarray%.prototype.findlast
 transitioning macro FindLastAllElements(implicit context: Context)(
     array: typed_array::AttachedJSTypedArray, predicate: Callable,
-    thisArg: JSAny): JSAny labels
-Bailout(Number) {
+    thisArg: JSAny): JSAny {
   let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
   // 3. Let len be O.[[ArrayLength]].
   const length: uintptr = witness.Get().length;
   // 5. Let k be len - 1.
   // 6. Repeat, while k ≥ 0
   for (let k: uintptr = length; k-- > 0;) {
-    witness.Recheck() otherwise goto Bailout(Convert<Number>(k));
     // 6a. Let Pk be ! ToString(𝔽(k)).
-    // there is no need to cast ToString to load elements.
+    // There is no need to cast ToString to load elements.
 
     // 6b. Let kValue be ! Get(O, Pk).
-    const value: JSAny = witness.Load(k);
+    // kValue must be undefined when the buffer was detached.
+    let value: JSAny;
+    try {
+      witness.Recheck() otherwise goto IsDetached;
+      value = witness.Load(k);
+    } label IsDetached deferred {
+      value = Undefined;
+    }
 
     // 6c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue,
     // 𝔽(k), O »)).
@@ -94,13 +66,7 @@ TypedArrayPrototypeFindLast(
     // 4. If IsCallable(predicate) is false, throw a TypeError exception.
     const predicate = Cast<Callable>(arguments[0]) otherwise NotCallable;
     const thisArg = arguments[1];
-    try {
-      return FindLastAllElements(uarray, predicate, thisArg)
-          otherwise Bailout;
-    } label Bailout(k: Number) deferred {
-      return FindLastAllElementsDetachedContinuation(
-          uarray, predicate, thisArg, k);
-    }
+    return FindLastAllElements(uarray, predicate, thisArg);
   } label NotCallable deferred {
     ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
   } label NotTypedArray deferred {

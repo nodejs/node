@@ -241,6 +241,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                               const AstRawString* name);
   void BuildStoreNamedProperty(const Expression* object_expr, Register object,
                                const AstRawString* name);
+  void BuildStoreGlobal(Variable* variable);
 
   void BuildVariableLoad(Variable* variable, HoleCheckMode hole_check_mode,
                          TypeofMode typeof_mode = TypeofMode::kNotInside);

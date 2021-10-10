@@ -715,7 +715,7 @@ function testbench(o, proto, update_proto, check_constness) {
   %DisableOptimizationFinalization();
   %OptimizeFunctionOnNextCall(read_length, "concurrent");
   assertEquals(1, read_length(o));
-  assertUnoptimized(read_length, "no sync");
+  assertUnoptimized(read_length);
 
   %WaitForBackgroundOptimization();
   var other_proto1 = [];

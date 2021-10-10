@@ -3954,7 +3954,6 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
         }
         default: {
           UNIMPLEMENTED();
-          return 0;
         }
       }
     }
@@ -3997,7 +3996,6 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             return 0;
           }
           UNIMPLEMENTED();
-          return 0;
         }
         case 'L': {  // IVLSLane[0123] - suffix indicates access size shift.
           AppendToOutput("%d", instr->NEONLSIndex(format[8] - '0'));
@@ -4042,12 +4040,10 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             return static_cast<int>(strlen("IVMIShiftAmt2"));
           } else {
             UNIMPLEMENTED();
-            return 0;
           }
         }
         default: {
           UNIMPLEMENTED();
-          return 0;
         }
       }
     }
@@ -4342,12 +4338,10 @@ const char* NameConverter::NameOfCPURegister(int reg) const {
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
   UNREACHABLE();  // ARM64 does not have the concept of a byte register
-  return "nobytereg";
 }
 
 const char* NameConverter::NameOfXMMRegister(int reg) const {
   UNREACHABLE();  // ARM64 does not have any XMM registers
-  return "noxmmreg";
 }
 
 const char* NameConverter::NameInCode(byte* addr) const {

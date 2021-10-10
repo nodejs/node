@@ -8,7 +8,6 @@
 
 #include "src/builtins/accessors.h"
 #include "src/compiler/compilation-dependencies.h"
-#include "src/compiler/compilation-dependency.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
@@ -57,7 +56,8 @@ bool HasFieldRepresentationDependenciesOnMap(
     ZoneVector<CompilationDependency const*>& dependencies,
     Handle<Map> const& field_owner_map) {
   for (auto dep : dependencies) {
-    if (dep->IsFieldRepresentationDependencyOnMap(field_owner_map)) {
+    if (CompilationDependencies::IsFieldRepresentationDependencyOnMap(
+            dep, field_owner_map)) {
       return true;
     }
   }
@@ -109,6 +109,7 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
     FieldIndex field_index, Representation field_representation,
     Type field_type, MapRef field_owner_map, base::Optional<MapRef> field_map,
     base::Optional<JSObjectRef> holder, base::Optional<MapRef> transition_map) {
+  DCHECK(!field_representation.IsNone());
   DCHECK_IMPLIES(
       field_representation.IsDouble(),
       HasFieldRepresentationDependenciesOnMap(
@@ -129,6 +130,7 @@ PropertyAccessInfo PropertyAccessInfo::FastDataConstant(
     FieldIndex field_index, Representation field_representation,
     Type field_type, MapRef field_owner_map, base::Optional<MapRef> field_map,
     base::Optional<JSObjectRef> holder, base::Optional<MapRef> transition_map) {
+  DCHECK(!field_representation.IsNone());
   return PropertyAccessInfo(kFastDataConstant, holder, transition_map,
                             field_index, field_representation, field_type,
                             field_owner_map, field_map, {{receiver_map}, zone},
@@ -384,7 +386,7 @@ AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
 
 base::Optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
     MapRef map, AccessMode access_mode) const {
-  if (!CanInlineElementAccess(map)) return {};
+  if (!map.CanInlineElementAccess()) return {};
   return ElementAccessInfo({{map}, zone()}, map.elements_kind(), zone());
 }
 
@@ -542,7 +544,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     Handle<Cell> cell = broker->CanonicalPersistentHandle(
         Cell::cast(module_namespace->module().exports().Lookup(
             isolate, name.object(), Smi::ToInt(name.object()->GetHash()))));
-    if (cell->value().IsTheHole(isolate)) {
+    if (cell->value(kRelaxedLoad).IsTheHole(isolate)) {
       // This module has not been fully initialized yet.
       return PropertyAccessInfo::Invalid(zone);
     }
@@ -1050,7 +1052,7 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
       base::Optional<MapRef> map = TryMakeRef(broker(), map_handle);
       if (!map.has_value()) return {};
       if (map->instance_type() != instance_type ||
-          !CanInlineElementAccess(*map)) {
+          !map->CanInlineElementAccess()) {
         return {};
       }
       if (!GeneralizeElementsKind(elements_kind, map->elements_kind())
@@ -1132,6 +1134,8 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
 
   int const index = details.field_index();
   Representation details_representation = details.representation();
+  if (details_representation.IsNone()) return Invalid();
+
   FieldIndex field_index = FieldIndex::ForPropertyIndex(
       *transition_map.object(), index, details_representation);
   Type field_type = Type::NonInternal();

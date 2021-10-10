@@ -1444,8 +1444,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
              AdduLatency(false) + AndLatency(false) + BranchShortLatency() + 1 +
              SubuLatency() + AdduLatency();
     }
-    case kArchWordPoisonOnSpeculation:
-      return AndLatency();
     case kIeee754Float64Acos:
     case kIeee754Float64Acosh:
     case kIeee754Float64Asin:
@@ -1657,19 +1655,15 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
         switch (op->representation()) {
           case MachineRepresentation::kFloat32:
             return Latency::SWC1 + SubuLatency(false);
-            break;
           case MachineRepresentation::kFloat64:
             return Sdc1Latency() + SubuLatency(false);
-            break;
           default: {
             UNREACHABLE();
-            break;
           }
         }
       } else {
         return PushRegisterLatency();
       }
-      break;
     }
     case kMipsPeek: {
       if (instr->OutputAt(0)->IsFPRegister()) {
@@ -1682,7 +1676,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       } else {
         return 1;
       }
-      break;
     }
     case kMipsStackClaim:
       return SubuLatency(false);
@@ -1699,41 +1692,40 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       } else {
         return 1;
       }
-      break;
     }
     case kMipsByteSwap32:
       return ByteSwapSignedLatency();
-    case kWord32AtomicLoadInt8:
-    case kWord32AtomicLoadUint8:
-    case kWord32AtomicLoadInt16:
-    case kWord32AtomicLoadUint16:
-    case kWord32AtomicLoadWord32:
+    case kAtomicLoadInt8:
+    case kAtomicLoadUint8:
+    case kAtomicLoadInt16:
+    case kAtomicLoadUint16:
+    case kAtomicLoadWord32:
       return 2;
-    case kWord32AtomicStoreWord8:
-    case kWord32AtomicStoreWord16:
-    case kWord32AtomicStoreWord32:
+    case kAtomicStoreWord8:
+    case kAtomicStoreWord16:
+    case kAtomicStoreWord32:
       return 3;
-    case kWord32AtomicExchangeInt8:
+    case kAtomicExchangeInt8:
       return Word32AtomicExchangeLatency(true, 8);
-    case kWord32AtomicExchangeUint8:
+    case kAtomicExchangeUint8:
       return Word32AtomicExchangeLatency(false, 8);
-    case kWord32AtomicExchangeInt16:
+    case kAtomicExchangeInt16:
       return Word32AtomicExchangeLatency(true, 16);
-    case kWord32AtomicExchangeUint16:
+    case kAtomicExchangeUint16:
       return Word32AtomicExchangeLatency(false, 16);
-    case kWord32AtomicExchangeWord32: {
+    case kAtomicExchangeWord32: {
       return 1 + AdduLatency() + Ldc1Latency() + 1 + ScLatency(0) +
              BranchShortLatency() + 1;
     }
-    case kWord32AtomicCompareExchangeInt8:
+    case kAtomicCompareExchangeInt8:
       return Word32AtomicCompareExchangeLatency(true, 8);
-    case kWord32AtomicCompareExchangeUint8:
+    case kAtomicCompareExchangeUint8:
       return Word32AtomicCompareExchangeLatency(false, 8);
-    case kWord32AtomicCompareExchangeInt16:
+    case kAtomicCompareExchangeInt16:
       return Word32AtomicCompareExchangeLatency(true, 16);
-    case kWord32AtomicCompareExchangeUint16:
+    case kAtomicCompareExchangeUint16:
       return Word32AtomicCompareExchangeLatency(false, 16);
-    case kWord32AtomicCompareExchangeWord32:
+    case kAtomicCompareExchangeWord32:
       return AdduLatency() + 1 + LlLatency(0) + BranchShortLatency() + 1;
     case kMipsTst:
       return AndLatency(instr->InputAt(1)->IsRegister());

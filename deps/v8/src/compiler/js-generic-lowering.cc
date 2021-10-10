@@ -586,7 +586,7 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
   // between top of stack and JS arguments.
   DCHECK_EQ(interface_descriptor.GetStackParameterCount(), 0);
   Node* stub_code = jsgraph()->ArrayConstructorStubConstant();
-  Node* stub_arity = jsgraph()->Int32Constant(arity);
+  Node* stub_arity = jsgraph()->Int32Constant(JSParameterCount(arity));
   base::Optional<AllocationSiteRef> const site = p.site(broker());
   Node* type_info = site.has_value() ? jsgraph()->Constant(site.value())
                                      : jsgraph()->UndefinedConstant();
@@ -820,7 +820,7 @@ void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), callable.descriptor(), arg_count + 1, flags);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
-  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+  Node* stub_arity = jsgraph()->Int32Constant(JSParameterCount(arg_count));
   Node* start_index = jsgraph()->Uint32Constant(p.start_index());
   Node* receiver = jsgraph()->UndefinedConstant();
   node->InsertInput(zone(), 0, stub_code);
@@ -843,7 +843,7 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), callable.descriptor(), stack_argument_count, flags);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
-  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+  Node* stub_arity = jsgraph()->Int32Constant(JSParameterCount(arg_count));
   Node* receiver = jsgraph()->UndefinedConstant();
   node->RemoveInput(n.FeedbackVectorIndex());
   node->InsertInput(zone(), 0, stub_code);
@@ -906,7 +906,8 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
 
   // We pass the spread in a register, not on the stack.
-  Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
+  Node* stub_arity =
+      jsgraph()->Int32Constant(JSParameterCount(arg_count - kTheSpread));
   Node* receiver = jsgraph()->UndefinedConstant();
   DCHECK(n.FeedbackVectorIndex() > n.LastArgumentIndex());
   node->RemoveInput(n.FeedbackVectorIndex());
@@ -930,7 +931,7 @@ void JSGenericLowering::LowerJSCallForwardVarargs(Node* node) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), callable.descriptor(), arg_count + 1, flags);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
-  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+  Node* stub_arity = jsgraph()->Int32Constant(JSParameterCount(arg_count));
   Node* start_index = jsgraph()->Uint32Constant(p.start_index());
   node->InsertInput(zone(), 0, stub_code);
   node->InsertInput(zone(), 2, stub_arity);
@@ -951,7 +952,7 @@ void JSGenericLowering::LowerJSCall(Node* node) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), callable.descriptor(), arg_count + 1, flags);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
-  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+  Node* stub_arity = jsgraph()->Int32Constant(JSParameterCount(arg_count));
   node->InsertInput(zone(), 0, stub_code);
   node->InsertInput(zone(), 2, stub_arity);
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
@@ -1009,7 +1010,8 @@ void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
 
   // We pass the spread in a register, not on the stack.
-  Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
+  Node* stub_arity =
+      jsgraph()->Int32Constant(JSParameterCount(arg_count - kTheSpread));
 
   // Shuffling inputs.
   // Before: {target, receiver, ...args, spread, vector}.

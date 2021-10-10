@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 
+#include "include/v8-initialization.h"
 #include "include/v8-platform.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/macros.h"
@@ -788,6 +789,7 @@ class FailingPageAllocator : public v8::PageAllocator {
                       Permission permissions) override {
     return false;
   }
+  bool DecommitPages(void* address, size_t length) override { return false; }
 };
 }  // namespace
 

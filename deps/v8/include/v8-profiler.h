@@ -11,7 +11,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "v8.h"  // NOLINT(build/include_directory)
+#include "v8-local-handle.h"       // NOLINT(build/include_directory)
+#include "v8-message.h"            // NOLINT(build/include_directory)
+#include "v8-persistent-handle.h"  // NOLINT(build/include_directory)
 
 /**
  * Profiler support for the V8 JavaScript engine.
@@ -20,6 +22,7 @@ namespace v8 {
 
 class HeapGraphNode;
 struct HeapStatsUpdate;
+class Object;
 
 using NativeObject = void*;
 using SnapshotObjectId = uint32_t;

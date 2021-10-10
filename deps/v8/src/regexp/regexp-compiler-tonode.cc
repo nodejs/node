@@ -6,14 +6,12 @@
 
 #include "src/execution/isolate.h"
 #include "src/regexp/regexp.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/regexp/special-case.h"
-#endif  // V8_INTL_SUPPORT
 #include "src/strings/unicode-inl.h"
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "src/base/strings.h"
+#include "src/regexp/special-case.h"
 #include "unicode/locid.h"
 #include "unicode/uniset.h"
 #include "unicode/utypes.h"
@@ -23,6 +21,11 @@ namespace v8 {
 namespace internal {
 
 using namespace regexp_compiler_constants;  // NOLINT(build/namespaces)
+
+constexpr base::uc32 kMaxCodePoint = 0x10ffff;
+constexpr int kMaxUtf16CodeUnit = 0xffff;
+constexpr uint32_t kMaxUtf16CodeUnitU = 0xffff;
+constexpr int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
 
 // -------------------------------------------------------------------
 // Tree to graph conversion
@@ -65,7 +68,7 @@ static bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
       return false;
     }
   }
-  if (range.to() != String::kMaxCodePoint) {
+  if (range.to() != kMaxCodePoint) {
     return false;
   }
   return true;
@@ -359,8 +362,8 @@ RegExpNode* UnanchoredAdvance(RegExpCompiler* compiler,
   // we advanced into the middle of a surrogate pair, it will work out, as
   // nothing will match from there. We will have to advance again, consuming
   // the associated trail surrogate.
-  ZoneList<CharacterRange>* range = CharacterRange::List(
-      zone, CharacterRange::Range(0, String::kMaxUtf16CodeUnit));
+  ZoneList<CharacterRange>* range =
+      CharacterRange::List(zone, CharacterRange::Range(0, kMaxUtf16CodeUnit));
   return TextNode::CreateForCharacterRanges(zone, range, false, on_success);
 }
 
@@ -518,7 +521,7 @@ bool RegExpDisjunction::SortConsecutiveAtoms(RegExpCompiler* compiler) {
     DCHECK_LT(first_atom, alternatives->length());
     DCHECK_LE(i, alternatives->length());
     DCHECK_LE(first_atom, i);
-    if (IgnoreCase(compiler->flags())) {
+    if (IsIgnoreCase(compiler->flags())) {
 #ifdef V8_INTL_SUPPORT
       alternatives->StableSort(CompareFirstCharCaseInsensitve, first_atom,
                                i - first_atom);
@@ -570,14 +573,14 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
 #ifdef V8_INTL_SUPPORT
       icu::UnicodeString new_prefix(atom->data().at(0));
       if (new_prefix != common_prefix) {
-        if (!IgnoreCase(compiler->flags())) break;
+        if (!IsIgnoreCase(compiler->flags())) break;
         if (common_prefix.caseCompare(new_prefix, U_FOLD_CASE_DEFAULT) != 0)
           break;
       }
 #else
       unibrow::uchar new_prefix = atom->data().at(0);
       if (new_prefix != common_prefix) {
-        if (!IgnoreCase(compiler->flags())) break;
+        if (!IsIgnoreCase(compiler->flags())) break;
         unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
             compiler->isolate()->regexp_macro_assembler_canonicalize();
         new_prefix = Canonical(canonicalize, new_prefix);
@@ -658,7 +661,7 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
       i++;
       continue;
     }
-    const JSRegExp::Flags flags = compiler->flags();
+    const RegExpFlags flags = compiler->flags();
     DCHECK_IMPLIES(IsUnicode(flags),
                    !unibrow::Utf16::IsLeadSurrogate(atom->data().at(0)));
     bool contains_trail_surrogate =
@@ -740,7 +743,7 @@ namespace {
 RegExpNode* BoundaryAssertionAsLookaround(RegExpCompiler* compiler,
                                           RegExpNode* on_success,
                                           RegExpAssertion::AssertionType type,
-                                          JSRegExp::Flags flags) {
+                                          RegExpFlags flags) {
   CHECK(NeedsUnicodeCaseEquivalents(flags));
   Zone* zone = compiler->zone();
   ZoneList<CharacterRange>* word_range =
@@ -1038,7 +1041,7 @@ static void AddClassNegated(const int* elmv, int elmc,
   elmc--;
   DCHECK_EQ(kRangeEndMarker, elmv[elmc]);
   DCHECK_NE(0x0000, elmv[0]);
-  DCHECK_NE(String::kMaxCodePoint, elmv[elmc - 1]);
+  DCHECK_NE(kMaxCodePoint, elmv[elmc - 1]);
   base::uc16 last = 0x0000;
   for (int i = 0; i < elmc; i += 2) {
     DCHECK(last <= elmv[i] - 1);
@@ -1046,7 +1049,7 @@ static void AddClassNegated(const int* elmv, int elmc,
     ranges->Add(CharacterRange::Range(last, elmv[i] - 1), zone);
     last = elmv[i + 1];
   }
-  ranges->Add(CharacterRange::Range(last, String::kMaxCodePoint), zone);
+  ranges->Add(CharacterRange::Range(last, kMaxCodePoint), zone);
 }
 
 void CharacterRange::AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
@@ -1128,13 +1131,13 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
   for (int i = 0; i < range_count; i++) {
     CharacterRange range = ranges->at(i);
     base::uc32 from = range.from();
-    if (from > String::kMaxUtf16CodeUnit) continue;
-    base::uc32 to = std::min({range.to(), String::kMaxUtf16CodeUnitU});
+    if (from > kMaxUtf16CodeUnit) continue;
+    base::uc32 to = std::min({range.to(), kMaxUtf16CodeUnitU});
     // Nothing to be done for surrogates.
     if (from >= kLeadSurrogateStart && to <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
-      if (from > String::kMaxOneByteCharCode) continue;
-      if (to > String::kMaxOneByteCharCode) to = String::kMaxOneByteCharCode;
+      if (from > kMaxOneByteCharCode) continue;
+      if (to > kMaxOneByteCharCode) to = kMaxOneByteCharCode;
     }
     others.add(from, to);
   }
@@ -1171,13 +1174,13 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
   for (int i = 0; i < range_count; i++) {
     CharacterRange range = ranges->at(i);
     base::uc32 bottom = range.from();
-    if (bottom > String::kMaxUtf16CodeUnit) continue;
-    base::uc32 top = std::min({range.to(), String::kMaxUtf16CodeUnitU});
+    if (bottom > kMaxUtf16CodeUnit) continue;
+    base::uc32 top = std::min({range.to(), kMaxUtf16CodeUnitU});
     // Nothing to be done for surrogates.
     if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
-      if (bottom > String::kMaxOneByteCharCode) continue;
-      if (top > String::kMaxOneByteCharCode) top = String::kMaxOneByteCharCode;
+      if (bottom > kMaxOneByteCharCode) continue;
+      if (top > kMaxOneByteCharCode) top = kMaxOneByteCharCode;
     }
     unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
     if (top == bottom) {
@@ -1389,9 +1392,8 @@ void CharacterRange::Negate(ZoneList<CharacterRange>* ranges,
     from = range.to() + 1;
     i++;
   }
-  if (from < String::kMaxCodePoint) {
-    negated_ranges->Add(CharacterRange::Range(from, String::kMaxCodePoint),
-                        zone);
+  if (from < kMaxCodePoint) {
+    negated_ranges->Add(CharacterRange::Range(from, kMaxCodePoint), zone);
   }
 }
 

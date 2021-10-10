@@ -43,7 +43,7 @@ class TestSearchRelatedCommits(unittest.TestCase):
 
     Review URL: https://codereview.chromium.org/1084243005
 
-    Cr-Commit-Position: refs/heads/master@{#28059}"""
+    Cr-Commit-Position: refs/heads/main@{#28059}"""
     self._make_empty_commit(message)
 
     message = """[crankshaft] Do some stuff
@@ -52,7 +52,7 @@ class TestSearchRelatedCommits(unittest.TestCase):
 
     Review URL: https://codereview.chromium.org/1084243007
 
-    Cr-Commit-Position: refs/heads/master@{#28030}"""
+    Cr-Commit-Position: refs/heads/main@{#28030}"""
 
     self._make_empty_commit(message)
 
@@ -62,10 +62,10 @@ class TestSearchRelatedCommits(unittest.TestCase):
 
   def _assert_correct_standard_result(
       self, result, all_commits, hash_of_first_commit):
-    self.assertEqual(len(result), 1, "Master commit not found")
+    self.assertEqual(len(result), 1, "Main commit not found")
     self.assertTrue(
         result.get(hash_of_first_commit),
-        "Master commit is wrong")
+        "Main commit is wrong")
 
     self.assertEqual(
         len(result[hash_of_first_commit]),
@@ -86,12 +86,12 @@ class TestSearchRelatedCommits(unittest.TestCase):
 
   def testSearchByCommitPosition(self):
     message = """Revert of some stuff.
-    > Cr-Commit-Position: refs/heads/master@{#28059}
+    > Cr-Commit-Position: refs/heads/main@{#28059}
     R=mstarzinger@chromium.org
 
     Review URL: https://codereview.chromium.org/1084243005
 
-    Cr-Commit-Position: refs/heads/master@{#28088}"""
+    Cr-Commit-Position: refs/heads/main@{#28088}"""
 
     self._make_empty_commit(message)
 
@@ -106,12 +106,12 @@ class TestSearchRelatedCommits(unittest.TestCase):
   def testSearchByTitle(self):
     message = """Revert of some stuff.
     > [turbofan] Sanitize language mode for javascript operators.
-    > Cr-Commit-Position: refs/heads/master@{#289}
+    > Cr-Commit-Position: refs/heads/main@{#289}
     R=mstarzinger@chromium.org
 
     Review URL: https://codereview.chromium.org/1084243005
 
-    Cr-Commit-Position: refs/heads/master@{#28088}"""
+    Cr-Commit-Position: refs/heads/main@{#28088}"""
 
     self._make_empty_commit(message)
 
@@ -134,7 +134,7 @@ class TestSearchRelatedCommits(unittest.TestCase):
 
     Review URL: https://codereview.chromium.org/1084243005
 
-    Cr-Commit-Position: refs/heads/master@{#28088}"""
+    Cr-Commit-Position: refs/heads/main@{#28088}"""
 
     self._make_empty_commit(message)
 
@@ -162,16 +162,16 @@ class TestSearchRelatedCommits(unittest.TestCase):
 
     Review URL: https://codereview.chromium.org/1084243005
 
-    Cr-Commit-Position: refs/heads/master@{#28088}"""
+    Cr-Commit-Position: refs/heads/main@{#28088}"""
     self._make_empty_commit(message)
 
     # Related commits happen before and after separator so it is a hit
-    commit_pos_of_master = "27088"
-    message = """Implement awesome feature: Master commit
+    commit_pos_of_main = "27088"
+    message = """Implement awesome feature: Main commit
 
     Review URL: https://codereview.chromium.org/1084243235
 
-    Cr-Commit-Position: refs/heads/master@{#""" + commit_pos_of_master + "}"
+    Cr-Commit-Position: refs/heads/main@{#""" + commit_pos_of_main + "}"
     self._make_empty_commit(message)
 
     # Separator commit
@@ -179,7 +179,7 @@ class TestSearchRelatedCommits(unittest.TestCase):
 
     Review URL: https://codereview.chromium.org/1084243456
 
-    Cr-Commit-Position: refs/heads/master@{#28173}"""
+    Cr-Commit-Position: refs/heads/main@{#28173}"""
     self._make_empty_commit(message)
 
     # Filler commit
@@ -187,11 +187,11 @@ class TestSearchRelatedCommits(unittest.TestCase):
     self._make_empty_commit(message)
 
     # Related commit after separator: a hit
-    message = "Patch r" + commit_pos_of_master +""" done
+    message = "Patch r" + commit_pos_of_main +""" done
 
     Review URL: https://codereview.chromium.org/1084243235
 
-    Cr-Commit-Position: refs/heads/master@{#29567}"""
+    Cr-Commit-Position: refs/heads/main@{#29567}"""
     self._make_empty_commit(message)
 
     #Fetch again for an update
@@ -221,12 +221,12 @@ class TestSearchRelatedCommits(unittest.TestCase):
   def testPrettyPrint(self):
     message = """Revert of some stuff.
     > [turbofan] Sanitize language mode for javascript operators.
-    > Cr-Commit-Position: refs/heads/master@{#289}
+    > Cr-Commit-Position: refs/heads/main@{#289}
     R=mstarzinger@chromium.org
 
     Review URL: https://codereview.chromium.org/1084243005
 
-    Cr-Commit-Position: refs/heads/master@{#28088}"""
+    Cr-Commit-Position: refs/heads/main@{#28088}"""
 
     self._make_empty_commit(message)
 
@@ -248,7 +248,7 @@ class TestSearchRelatedCommits(unittest.TestCase):
       output.append(current_line)
 
     self.assertIs(len(output), 2, "Not exactly two entries written")
-    self.assertTrue(output[0].startswith("+"), "Master entry not marked with +")
+    self.assertTrue(output[0].startswith("+"), "Main entry not marked with +")
     self.assertTrue(output[1].startswith("| "), "Child entry not marked with |")
 
   def testNothingFound(self):

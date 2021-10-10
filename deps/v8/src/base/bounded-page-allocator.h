@@ -71,6 +71,8 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
 
   bool DiscardSystemPages(void* address, size_t size) override;
 
+  bool DecommitPages(void* address, size_t size) override;
+
  private:
   v8::base::Mutex mutex_;
   const size_t allocate_page_size_;

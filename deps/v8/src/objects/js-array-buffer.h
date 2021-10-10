@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_H_
 
+#include "include/v8-typed-array.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-objects.h"
 #include "torque-generated/bit-fields.h"
@@ -31,12 +32,6 @@ class JSArrayBuffer
 #else
   static constexpr size_t kMaxByteLength = kMaxSafeInteger;
 #endif
-
-  // When soft sandbox is enabled, creates entries in external pointer table for
-  // all JSArrayBuffer's fields that require soft sandbox protection (backing
-  // store pointer, backing store length, etc.).
-  // When sandbox is not enabled, it's a no-op.
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
 
   // [byte_length]: length in bytes
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
@@ -283,12 +278,6 @@ class JSTypedArray
 
   V8_EXPORT_PRIVATE Handle<JSArrayBuffer> GetBuffer();
 
-  // When soft sandbox is enabled, creates entries in external pointer table for
-  // all JSTypedArray's fields that require soft sandbox protection (external
-  // pointer, offset, length, etc.).
-  // When sandbox is not enabled, it's a no-op.
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
-
   // The `DataPtr` is `base_ptr + external_pointer`, and `base_ptr` is nullptr
   // for off-heap typed arrays.
   static constexpr bool kOffHeapDataPtrEqualsExternalPointer = true;
@@ -391,12 +380,6 @@ class JSDataView
   // [data_pointer]: pointer to the actual data.
   DECL_GETTER(data_pointer, void*)
   inline void set_data_pointer(Isolate* isolate, void* value);
-
-  // When soft sandbox is enabled, creates entries in external pointer table for
-  // all JSDataView's fields that require soft sandbox protection (data pointer,
-  // offset, length, etc.).
-  // When sandbox is not enabled, it's a no-op.
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
 
   // Dispatched behavior.
   DECL_PRINTER(JSDataView)

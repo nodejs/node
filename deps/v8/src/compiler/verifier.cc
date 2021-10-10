@@ -1422,10 +1422,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, TypeCache::Get()->kPositiveSafeInteger);
       CheckTypeIs(node, TypeCache::Get()->kPositiveSafeInteger);
       break;
-    case IrOpcode::kPoisonIndex:
-      CheckValueInputIs(node, 0, Type::Unsigned32());
-      CheckTypeIs(node, Type::Unsigned32());
-      break;
     case IrOpcode::kCheckClosure:
       // Any -> Function
       CheckValueInputIs(node, 0, Type::Any());
@@ -1641,7 +1637,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     // -----------------------
     case IrOpcode::kLoad:
     case IrOpcode::kLoadImmutable:
-    case IrOpcode::kPoisonedLoad:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
     case IrOpcode::kStore:
@@ -1817,9 +1812,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord32PairShl:
     case IrOpcode::kWord32PairShr:
     case IrOpcode::kWord32PairSar:
-    case IrOpcode::kTaggedPoisonOnSpeculation:
-    case IrOpcode::kWord32PoisonOnSpeculation:
-    case IrOpcode::kWord64PoisonOnSpeculation:
     case IrOpcode::kLoadStackCheckOffset:
     case IrOpcode::kLoadFramePointer:
     case IrOpcode::kLoadParentFramePointer:

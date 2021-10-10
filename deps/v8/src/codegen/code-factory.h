@@ -90,7 +90,8 @@ class V8_EXPORT_PRIVATE CodeFactory final {
       AllocationSiteOverrideMode override_mode);
 
 #ifdef V8_IS_TSAN
-  static Builtin GetTSANRelaxedStoreStub(SaveFPRegsMode fp_mode, int size);
+  static Builtin GetTSANStoreStub(SaveFPRegsMode fp_mode, int size,
+                                  std::memory_order order);
   static Builtin GetTSANRelaxedLoadStub(SaveFPRegsMode fp_mode, int size);
 #endif  // V8_IS_TSAN
 };

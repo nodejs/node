@@ -133,13 +133,13 @@ class V8_EXPORT_PRIVATE Operand {
 // Alternatively we can have a 16bit signed value immediate
 class V8_EXPORT_PRIVATE MemOperand {
  public:
-  explicit MemOperand(Register rn, int32_t offset = 0);
+  explicit MemOperand(Register rn, int64_t offset = 0);
 
   explicit MemOperand(Register ra, Register rb);
 
-  explicit MemOperand(Register ra, Register rb, int32_t offset);
+  explicit MemOperand(Register ra, Register rb, int64_t offset);
 
-  int32_t offset() const { return offset_; }
+  int64_t offset() const { return offset_; }
 
   // PowerPC - base register
   Register ra() const { return ra_; }
@@ -148,7 +148,7 @@ class V8_EXPORT_PRIVATE MemOperand {
 
  private:
   Register ra_;     // base
-  int32_t offset_;  // offset
+  int64_t offset_;  // offset
   Register rb_;     // index
 
   friend class Assembler;
@@ -373,6 +373,11 @@ class Assembler : public AssemblerBase {
     x_form(instr_name, cr.code() * B2, src1.code(), src2.code(), LeaveRC);  \
   }
 
+#define DECLARE_PPC_X_INSTRUCTIONS_G_FORM(name, instr_name, instr_value) \
+  inline void name(const Register dst, const Register src) {             \
+    x_form(instr_name, src, dst, r0, LeaveRC);                           \
+  }
+
 #define DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM(name, instr_name, instr_value) \
   inline void name(const Register dst, const MemOperand& src) {             \
     x_form(instr_name, src.ra(), dst, src.rb(), SetEH);                     \
@@ -411,6 +416,7 @@ class Assembler : public AssemblerBase {
   PPC_X_OPCODE_D_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_D_FORM)
   PPC_X_OPCODE_E_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_E_FORM)
   PPC_X_OPCODE_F_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_F_FORM)
+  PPC_X_OPCODE_G_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_G_FORM)
   PPC_X_OPCODE_EH_S_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM)
   PPC_X_OPCODE_EH_L_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM)
 
@@ -442,26 +448,40 @@ class Assembler : public AssemblerBase {
 #undef DECLARE_PPC_X_INSTRUCTIONS_D_FORM
 #undef DECLARE_PPC_X_INSTRUCTIONS_E_FORM
 #undef DECLARE_PPC_X_INSTRUCTIONS_F_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_G_FORM
 #undef DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM
 #undef DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM
 
-#define DECLARE_PPC_XX2_INSTRUCTIONS(name, instr_name, instr_value)      \
-  inline void name(const Simd128Register rt, const Simd128Register rb) { \
-    xx2_form(instr_name, rt, rb);                                        \
+#define DECLARE_PPC_XX2_VECTOR_INSTRUCTIONS(name, instr_name, instr_value) \
+  inline void name(const Simd128Register rt, const Simd128Register rb) {   \
+    xx2_form(instr_name, rt, rb);                                          \
+  }
+#define DECLARE_PPC_XX2_SCALAR_INSTRUCTIONS(name, instr_name, instr_value) \
+  inline void name(const DoubleRegister rt, const DoubleRegister rb) {     \
+    xx2_form(instr_name, rt, rb);                                          \
   }
 
-  inline void xx2_form(Instr instr, Simd128Register t, Simd128Register b) {
-    // Using VR (high VSR) registers.
-    int BX = 1;
-    int TX = 1;
+  template <typename T>
+  inline void xx2_form(Instr instr, T t, T b) {
+    static_assert(std::is_same<T, Simd128Register>::value ||
+                      std::is_same<T, DoubleRegister>::value,
+                  "VSX only uses FP or Vector registers.");
+    // Using FP (low VSR) registers.
+    int BX = 0, TX = 0;
+    // Using VR (high VSR) registers when Simd registers are used.
+    if (std::is_same<T, Simd128Register>::value) {
+      BX = TX = 1;
+    }
 
     emit(instr | (t.code() & 0x1F) * B21 | (b.code() & 0x1F) * B11 | BX * B1 |
          TX);
   }
 
-  PPC_XX2_OPCODE_A_FORM_LIST(DECLARE_PPC_XX2_INSTRUCTIONS)
-  PPC_XX2_OPCODE_B_FORM_LIST(DECLARE_PPC_XX2_INSTRUCTIONS)
-#undef DECLARE_PPC_XX2_INSTRUCTIONS
+  PPC_XX2_OPCODE_VECTOR_A_FORM_LIST(DECLARE_PPC_XX2_VECTOR_INSTRUCTIONS)
+  PPC_XX2_OPCODE_SCALAR_A_FORM_LIST(DECLARE_PPC_XX2_SCALAR_INSTRUCTIONS)
+  PPC_XX2_OPCODE_B_FORM_LIST(DECLARE_PPC_XX2_VECTOR_INSTRUCTIONS)
+#undef DECLARE_PPC_XX2_VECTOR_INSTRUCTIONS
+#undef DECLARE_PPC_XX2_SCALAR_INSTRUCTIONS
 
 #define DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS(name, instr_name, instr_value) \
   inline void name(const Simd128Register rt, const Simd128Register ra,     \

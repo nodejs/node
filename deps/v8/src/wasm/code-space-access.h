@@ -55,6 +55,9 @@ class V8_NODISCARD CodeSpaceWriteScope final {
 
  private:
   static thread_local int code_space_write_nesting_level_;
+#if defined(DEBUG) && !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
+  static thread_local NativeModule* current_native_module_;
+#endif
 
   void SetWritable() const;
   void SetExecutable() const;

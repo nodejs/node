@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-function.h"
 #include "src/flags/flags.h"
-
 #include "test/cctest/cctest.h"
 
 namespace {
