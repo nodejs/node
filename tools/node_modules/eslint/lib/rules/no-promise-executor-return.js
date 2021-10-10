@@ -69,7 +69,6 @@ module.exports = {
 
         docs: {
             description: "disallow returning values from Promise executor functions",
-            category: "Possible Errors",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-promise-executor-return"
         },

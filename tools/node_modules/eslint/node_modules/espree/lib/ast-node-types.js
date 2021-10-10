@@ -3,8 +3,6 @@
  * @author Nicholas C. Zakas
  */
 
-"use strict";
-
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
@@ -15,7 +13,7 @@
 // Public
 //------------------------------------------------------------------------------
 
-module.exports = {
+export default {
     AssignmentExpression: "AssignmentExpression",
     AssignmentPattern: "AssignmentPattern",
     ArrayExpression: "ArrayExpression",

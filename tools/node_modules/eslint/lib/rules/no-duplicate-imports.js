@@ -233,7 +233,6 @@ module.exports = {
 
         docs: {
             description: "disallow duplicate module imports",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-duplicate-imports"
         },

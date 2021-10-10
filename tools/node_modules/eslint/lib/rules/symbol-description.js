@@ -22,7 +22,6 @@ module.exports = {
 
         docs: {
             description: "require symbol descriptions",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/symbol-description"
         },

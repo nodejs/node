@@ -19,6 +19,7 @@ const ajv = require("../shared/ajv")();
  * Finds a rule with the given ID in the given config.
  * @param {string} ruleId The ID of the rule to find.
  * @param {Object} config The config to search in.
+ * @throws {TypeError} For missing plugin or rule.
  * @returns {{create: Function, schema: (Array|null)}} THe rule object.
  */
 function findRuleDefinition(ruleId, config) {
@@ -34,16 +35,33 @@ function findRuleDefinition(ruleId, config) {
         pluginName = ruleIdParts.join("/");
     }
 
-    if (!config.plugins || !config.plugins[pluginName]) {
-        throw new TypeError(`Key "rules": Key "${ruleId}": Could not find plugin "${pluginName}".`);
+    const errorMessageHeader = `Key "rules": Key "${ruleId}"`;
+    let errorMessage = `${errorMessageHeader}: Could not find plugin "${pluginName}".`;
+
+    // if the plugin exists then we need to check if the rule exists
+    if (config.plugins && config.plugins[pluginName]) {
+
+        const plugin = config.plugins[pluginName];
+
+        // first check for exact rule match
+        if (plugin.rules && plugin.rules[ruleName]) {
+            return config.plugins[pluginName].rules[ruleName];
+        }
+
+        errorMessage = `${errorMessageHeader}: Could not find "${ruleName}" in plugin "${pluginName}".`;
+
+        // otherwise, let's see if we can find the rule name elsewhere
+        for (const [otherPluginName, otherPlugin] of Object.entries(config.plugins)) {
+            if (otherPlugin.rules && otherPlugin.rules[ruleName]) {
+                errorMessage += ` Did you mean "${otherPluginName}/${ruleName}"?`;
+                break;
+            }
+        }
+
+        // falls through to throw error
     }
 
-    if (!config.plugins[pluginName].rules || !config.plugins[pluginName].rules[ruleName]) {
-        throw new TypeError(`Key "rules": Key "${ruleId}": Could not find "${ruleName}" in plugin "${pluginName}".`);
-    }
-
-    return config.plugins[pluginName].rules[ruleName];
-
+    throw new TypeError(errorMessage);
 }
 
 /**
@@ -98,7 +116,6 @@ class RuleValidator {
          * A collection of compiled validators for rules that have already
          * been validated.
          * @type {WeakMap}
-         * @property validators
          */
         this.validators = new WeakMap();
     }

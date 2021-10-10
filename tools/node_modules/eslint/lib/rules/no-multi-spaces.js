@@ -17,7 +17,6 @@ module.exports = {
 
         docs: {
             description: "disallow multiple spaces",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-multi-spaces"
         },

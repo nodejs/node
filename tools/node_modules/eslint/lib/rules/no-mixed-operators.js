@@ -58,7 +58,7 @@ function normalizeOptions(options = {}) {
 
 /**
  * Checks whether any group which includes both given operator exists or not.
- * @param {Array.<string[]>} groups A list of groups to check.
+ * @param {Array<string[]>} groups A list of groups to check.
  * @param {string} left An operator.
  * @param {string} right Another operator.
  * @returns {boolean} `true` if such group existed.
@@ -88,7 +88,6 @@ module.exports = {
 
         docs: {
             description: "disallow mixed binary operators",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-mixed-operators"
         },

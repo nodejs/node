@@ -93,6 +93,7 @@ function isSetter(node, scope) {
     const parent = node.parent;
 
     if (
+        (parent.type === "Property" || parent.type === "MethodDefinition") &&
         parent.kind === "set" &&
         parent.value === node
     ) {
@@ -141,7 +142,6 @@ module.exports = {
 
         docs: {
             description: "disallow returning values from setters",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-setter-return"
         },

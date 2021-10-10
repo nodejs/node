@@ -1,9 +1,8 @@
 /**
  * @fileoverview Rule to check for properties whose identifier ends with the string Sync
  * @author Matt DuVall<http://mattduvall.com/>
+ * @deprecated in ESLint v7.0.0
  */
-
-/* jshint node:true */
 
 "use strict";
 
@@ -21,7 +20,6 @@ module.exports = {
 
         docs: {
             description: "disallow synchronous methods",
-            category: "Node.js and CommonJS",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-sync"
         },

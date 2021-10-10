@@ -336,7 +336,7 @@ const rulesSchema = {
             // avoid hairy edge case
             if (ruleId === "__proto__") {
 
-                /* eslint-disable-next-line no-proto */
+                /* eslint-disable-next-line no-proto -- Though deprecated, may still be present */
                 delete result.__proto__;
                 continue;
             }

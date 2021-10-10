@@ -2,13 +2,12 @@
  * @fileoverview Defines environment settings and globals.
  * @author Elan Shanker
  */
-"use strict";
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-const globals = require("globals");
+import globals from "globals";
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -55,7 +54,7 @@ const newGlobals2021 = {
 //------------------------------------------------------------------------------
 
 /** @type {Map<string, import("../lib/shared/types").Environment>} */
-module.exports = new Map(Object.entries({
+export default new Map(Object.entries({
 
     // Language
     builtin: {

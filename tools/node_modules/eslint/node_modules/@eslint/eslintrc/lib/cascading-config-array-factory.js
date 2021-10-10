@@ -17,19 +17,20 @@
  *
  * @author Toru Nagashima <https://github.com/mysticatea>
  */
-"use strict";
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-const os = require("os");
-const path = require("path");
-const ConfigValidator = require("./shared/config-validator");
-const { emitDeprecationWarning } = require("./shared/deprecation-warnings");
-const { ConfigArrayFactory } = require("./config-array-factory");
-const { ConfigArray, ConfigDependency, IgnorePattern } = require("./config-array");
-const debug = require("debug")("eslintrc:cascading-config-array-factory");
+import os from "os";
+import path from "path";
+import ConfigValidator from "./shared/config-validator.js";
+import { emitDeprecationWarning } from "./shared/deprecation-warnings.js";
+import { ConfigArrayFactory } from "./config-array-factory.js";
+import { ConfigArray, ConfigDependency, IgnorePattern } from "./config-array/index.js";
+import debugOrig from "debug";
+
+const debug = debugOrig("eslintrc:cascading-config-array-factory");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -516,4 +517,4 @@ class CascadingConfigArrayFactory {
 // Public Interface
 //------------------------------------------------------------------------------
 
-module.exports = { CascadingConfigArrayFactory };
+export { CascadingConfigArrayFactory };

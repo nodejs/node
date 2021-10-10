@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "disallow specified names in exports",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-exports"
         },

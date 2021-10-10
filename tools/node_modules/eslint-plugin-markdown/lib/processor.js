@@ -321,6 +321,13 @@ function adjustBlock(block) {
      * @returns {Message} The same message, but adjusted to the correct location.
      */
     return function adjustMessage(message) {
+        if (!Number.isInteger(message.line)) {
+            return {
+                ...message,
+                line: blockStart,
+                column: block.position.start.column
+            };
+        }
 
         const lineInCode = message.line - leadingCommentLines;
 

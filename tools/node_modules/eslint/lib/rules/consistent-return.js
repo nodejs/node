@@ -46,7 +46,6 @@ module.exports = {
 
         docs: {
             description: "require `return` statements to either always or never specify values",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/consistent-return"
         },

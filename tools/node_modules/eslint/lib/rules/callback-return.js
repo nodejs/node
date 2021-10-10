@@ -1,6 +1,7 @@
 /**
  * @fileoverview Enforce return after a callback.
  * @author Jamund Ferguson
+ * @deprecated in ESLint v7.0.0
  */
 "use strict";
 
@@ -18,7 +19,6 @@ module.exports = {
 
         docs: {
             description: "require `return` statements after callbacks",
-            category: "Node.js and CommonJS",
             recommended: false,
             url: "https://eslint.org/docs/rules/callback-return"
         },

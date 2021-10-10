@@ -32,7 +32,7 @@ const optionator = require("optionator");
  * @property {string[]} [ext] Specify JavaScript file extensions
  * @property {boolean} fix Automatically fix problems
  * @property {boolean} fixDryRun Automatically fix problems without saving the changes to the file system
- * @property {("problem" | "suggestion" | "layout")[]} [fixType] Specify the types of fixes to apply (problem, suggestion, layout)
+ * @property {("directive" | "problem" | "suggestion" | "layout")[]} [fixType] Specify the types of fixes to apply (directive, problem, suggestion, layout)
  * @property {string} format Use a specific output format
  * @property {string[]} [global] Define global variables
  * @property {boolean} [help] Show help
@@ -151,7 +151,7 @@ module.exports = optionator({
         {
             option: "fix-type",
             type: "Array",
-            description: "Specify the types of fixes to apply (problem, suggestion, layout)"
+            description: "Specify the types of fixes to apply (directive, problem, suggestion, layout)"
         },
         {
             heading: "Ignoring files"

@@ -116,7 +116,7 @@ function display(data) {
         return ALIGN[index](":", width + extraAlignment, "-");
     }).join("|"));
 
-    console.log(table.join("\n")); // eslint-disable-line no-console
+    console.log(table.join("\n")); // eslint-disable-line no-console -- Debugging function
 }
 
 /* istanbul ignore next */
@@ -126,7 +126,7 @@ module.exports = (function() {
 
     /**
      * Time the run
-     * @param {*} key key from the data object
+     * @param {any} key key from the data object
      * @param {Function} fn function to be called
      * @returns {Function} function to be executed
      * @private

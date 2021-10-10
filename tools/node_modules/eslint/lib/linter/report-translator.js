@@ -32,18 +32,18 @@ const interpolate = require("./interpolate");
 /**
  * Information about the report
  * @typedef {Object} ReportInfo
- * @property {string} ruleId
- * @property {(0|1|2)} severity
- * @property {(string|undefined)} message
- * @property {(string|undefined)} [messageId]
- * @property {number} line
- * @property {number} column
- * @property {(number|undefined)} [endLine]
- * @property {(number|undefined)} [endColumn]
- * @property {(string|null)} nodeType
- * @property {string} source
- * @property {({text: string, range: (number[]|null)}|null)} [fix]
- * @property {Array<{text: string, range: (number[]|null)}|null>} [suggestions]
+ * @property {string} ruleId The rule ID
+ * @property {(0|1|2)} severity Severity of the error
+ * @property {(string|undefined)} message The message
+ * @property {(string|undefined)} [messageId] The message ID
+ * @property {number} line The line number
+ * @property {number} column The column number
+ * @property {(number|undefined)} [endLine] The ending line number
+ * @property {(number|undefined)} [endColumn] The ending column number
+ * @property {(string|null)} nodeType Type of node
+ * @property {string} source Source text
+ * @property {({text: string, range: (number[]|null)}|null)} [fix] The fix object
+ * @property {Array<{text: string, range: (number[]|null)}|null>} [suggestions] Suggestion info
  */
 
 //------------------------------------------------------------------------------

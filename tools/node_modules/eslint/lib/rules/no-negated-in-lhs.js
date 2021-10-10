@@ -16,7 +16,6 @@ module.exports = {
 
         docs: {
             description: "disallow negating the left operand in `in` expressions",
-            category: "Possible Errors",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-negated-in-lhs"
         },

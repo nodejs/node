@@ -16,7 +16,6 @@ module.exports = {
 
         docs: {
             description: "disallow comparisons where both sides are exactly the same",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-self-compare"
         },

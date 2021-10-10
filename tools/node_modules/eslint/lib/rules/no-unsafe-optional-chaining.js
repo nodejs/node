@@ -24,8 +24,7 @@ module.exports = {
 
         docs: {
             description: "disallow use of optional chaining in contexts where the `undefined` value is not allowed",
-            category: "Possible Errors",
-            recommended: false,
+            recommended: true,
             url: "https://eslint.org/docs/rules/no-unsafe-optional-chaining"
         },
         schema: [{

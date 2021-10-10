@@ -14,7 +14,6 @@ module.exports = {
 
         docs: {
             description: "disallow specified global variables",
-            category: "Variables",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-globals"
         },
@@ -43,7 +42,7 @@ module.exports = {
 
         messages: {
             defaultMessage: "Unexpected use of '{{name}}'.",
-            // eslint-disable-next-line eslint-plugin/report-message-format
+            // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
             customMessage: "Unexpected use of '{{name}}'. {{customMessage}}"
         }
     },

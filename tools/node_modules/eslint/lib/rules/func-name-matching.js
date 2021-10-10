@@ -74,7 +74,6 @@ module.exports = {
 
         docs: {
             description: "require function names to match the name of the variable or property to which they are assigned",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/func-name-matching"
         },
@@ -196,21 +195,25 @@ module.exports = {
                 const isProp = node.left.type === "MemberExpression";
                 const name = isProp ? astUtils.getStaticPropertyName(node.left) : node.left.name;
 
-                if (node.right.id && isIdentifier(name) && shouldWarn(name, node.right.id.name)) {
+                if (node.right.id && name && isIdentifier(name) && shouldWarn(name, node.right.id.name)) {
                     report(node, name, node.right.id.name, isProp);
                 }
             },
 
-            Property(node) {
-                if (node.value.type !== "FunctionExpression" || !node.value.id || node.computed && !isStringLiteral(node.key)) {
+            "Property, PropertyDefinition[value]"(node) {
+                if (!(node.value.type === "FunctionExpression" && node.value.id)) {
                     return;
                 }
 
-                if (node.key.type === "Identifier") {
+                if (node.key.type === "Identifier" && !node.computed) {
                     const functionName = node.value.id.name;
                     let propertyName = node.key.name;
 
-                    if (considerPropertyDescriptor && propertyName === "value") {
+                    if (
+                        considerPropertyDescriptor &&
+                        propertyName === "value" &&
+                        node.parent.type === "ObjectExpression"
+                    ) {
                         if (isPropertyCall("Object", "defineProperty", node.parent.parent) || isPropertyCall("Reflect", "defineProperty", node.parent.parent)) {
                             const property = node.parent.parent.arguments[1];
 

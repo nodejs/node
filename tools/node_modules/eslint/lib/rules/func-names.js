@@ -30,7 +30,6 @@ module.exports = {
 
         docs: {
             description: "require or disallow named `function` expressions",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/func-names"
         },
@@ -118,6 +117,7 @@ module.exports = {
             return isObjectOrClassMethod(node) ||
                 (parent.type === "VariableDeclarator" && parent.id.type === "Identifier" && parent.init === node) ||
                 (parent.type === "Property" && parent.value === node) ||
+                (parent.type === "PropertyDefinition" && parent.value === node) ||
                 (parent.type === "AssignmentExpression" && parent.left.type === "Identifier" && parent.right === node) ||
                 (parent.type === "AssignmentPattern" && parent.left.type === "Identifier" && parent.right === node);
         }

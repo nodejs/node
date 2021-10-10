@@ -34,7 +34,6 @@ module.exports = {
 
         docs: {
             description: "enforce variables to be declared either together or separately in functions",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/one-var"
         },
@@ -209,7 +208,7 @@ module.exports = {
 
         /**
          * Determines the current scope (function or block)
-         * @param  {string} statementType node.kind, one of: "var", "let", or "const"
+         * @param {string} statementType node.kind, one of: "var", "let", or "const"
          * @returns {Object} The scope associated with statementType
          */
         function getCurrentScope(statementType) {

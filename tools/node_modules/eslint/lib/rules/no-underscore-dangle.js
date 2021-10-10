@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "disallow dangling underscores in identifiers",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-underscore-dangle"
         },
@@ -253,7 +252,9 @@ module.exports = {
                     node,
                     messageId: "unexpectedUnderscore",
                     data: {
-                        identifier
+                        identifier: node.key.type === "PrivateIdentifier"
+                            ? `#${identifier}`
+                            : identifier
                     }
                 });
             }
@@ -268,6 +269,7 @@ module.exports = {
             VariableDeclarator: checkForDanglingUnderscoreInVariableExpression,
             MemberExpression: checkForDanglingUnderscoreInMemberExpression,
             MethodDefinition: checkForDanglingUnderscoreInMethod,
+            PropertyDefinition: checkForDanglingUnderscoreInMethod,
             Property: checkForDanglingUnderscoreInMethod,
             FunctionExpression: checkForDanglingUnderscoreInFunction,
             ArrowFunctionExpression: checkForDanglingUnderscoreInFunction

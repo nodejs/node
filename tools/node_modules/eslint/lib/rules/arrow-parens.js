@@ -33,7 +33,6 @@ module.exports = {
 
         docs: {
             description: "require parentheses around arrow function arguments",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/arrow-parens"
         },

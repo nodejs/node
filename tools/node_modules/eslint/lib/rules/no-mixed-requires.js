@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to enforce grouped require statements for Node.JS
  * @author Raphael Pigulla
+ * @deprecated in ESLint v7.0.0
  */
 
 "use strict";
@@ -19,7 +20,6 @@ module.exports = {
 
         docs: {
             description: "disallow `require` calls to be mixed with regular variable declarations",
-            category: "Node.js and CommonJS",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-mixed-requires"
         },

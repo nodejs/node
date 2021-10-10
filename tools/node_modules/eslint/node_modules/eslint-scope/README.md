@@ -2,35 +2,47 @@
 
 ESLint Scope is the [ECMAScript](http://www.ecma-international.org/publications/standards/Ecma-262.htm) scope analyzer used in ESLint. It is a fork of [escope](http://github.com/estools/escope).
 
-## Usage
-
-Install:
+## Install
 
 ```
 npm i eslint-scope --save
 ```
 
+## 📖 Usage
+
+To use in an ESM file:
+
+```js
+import * as eslintScope from 'eslint-scope';
+```
+
+To use in a CommonJS file:
+
+```js
+const eslintScope = require('eslint-scope');
+```
+
 Example:
 
 ```js
-var eslintScope = require('eslint-scope');
-var espree = require('espree');
-var estraverse = require('estraverse');
+import * as eslintScope from 'eslint-scope';
+import * as espree from 'espree';
+import estraverse from 'estraverse';
 
-var ast = espree.parse(code);
-var scopeManager = eslintScope.analyze(ast);
+const ast = espree.parse(code, { range: true });
+const scopeManager = eslintScope.analyze(ast);
 
-var currentScope = scopeManager.acquire(ast);   // global scope
+const currentScope = scopeManager.acquire(ast);   // global scope
 
 estraverse.traverse(ast, {
-    enter: function(node, parent) {
+    enter (node, parent) {
         // do stuff
 
         if (/Function/.test(node.type)) {
             currentScope = scopeManager.acquire(node);  // get current function scope
         }
     },
-    leave: function(node, parent) {
+    leave(node, parent) {
         if (/Function/.test(node.type)) {
             currentScope = currentScope.upper;  // set to parent scope
         }

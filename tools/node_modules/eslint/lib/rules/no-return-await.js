@@ -16,7 +16,6 @@ module.exports = {
 
         docs: {
             description: "disallow unnecessary `return await`",
-            category: "Best Practices",
 
             recommended: false,
 

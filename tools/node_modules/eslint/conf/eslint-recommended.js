@@ -6,7 +6,7 @@
 
 "use strict";
 
-/* eslint sort-keys: ["error", "asc"] */
+/* eslint sort-keys: ["error", "asc"] -- Long, so make more readable */
 
 /** @type {import("../lib/shared/types").ConfigData} */
 module.exports = {
@@ -42,9 +42,11 @@ module.exports = {
         "no-inner-declarations": "error",
         "no-invalid-regexp": "error",
         "no-irregular-whitespace": "error",
+        "no-loss-of-precision": "error",
         "no-misleading-character-class": "error",
         "no-mixed-spaces-and-tabs": "error",
         "no-new-symbol": "error",
+        "no-nonoctal-decimal-escape": "error",
         "no-obj-calls": "error",
         "no-octal": "error",
         "no-prototype-builtins": "error",
@@ -60,8 +62,10 @@ module.exports = {
         "no-unreachable": "error",
         "no-unsafe-finally": "error",
         "no-unsafe-negation": "error",
+        "no-unsafe-optional-chaining": "error",
         "no-unused-labels": "error",
         "no-unused-vars": "error",
+        "no-useless-backreference": "error",
         "no-useless-catch": "error",
         "no-useless-escape": "error",
         "no-with": "error",

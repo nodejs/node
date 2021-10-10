@@ -139,7 +139,6 @@ module.exports = {
 
         docs: {
             description: "enforce consistent spacing between keys and values in object literal properties",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/key-spacing"
         },
@@ -531,8 +530,8 @@ module.exports = {
 
         /**
          * Creates groups of properties.
-         * @param  {ASTNode} node ObjectExpression node being evaluated.
-         * @returns {Array.<ASTNode[]>} Groups of property AST node lists.
+         * @param {ASTNode} node ObjectExpression node being evaluated.
+         * @returns {Array<ASTNode[]>} Groups of property AST node lists.
          */
         function createGroups(node) {
             if (node.properties.length === 1) {
@@ -600,7 +599,7 @@ module.exports = {
 
         /**
          * Verifies spacing of property conforms to specified options.
-         * @param  {ASTNode} node Property node being evaluated.
+         * @param {ASTNode} node Property node being evaluated.
          * @param {Object} lineOptions Configured singleLine or multiLine options
          * @returns {void}
          */
@@ -629,7 +628,7 @@ module.exports = {
 
         /**
          * Verifies vertical alignment, taking into account groups of properties.
-         * @param  {ASTNode} node ObjectExpression node being evaluated.
+         * @param {ASTNode} node ObjectExpression node being evaluated.
          * @returns {void}
          */
         function verifyAlignment(node) {

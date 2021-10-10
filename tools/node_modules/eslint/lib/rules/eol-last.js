@@ -14,7 +14,6 @@ module.exports = {
 
         docs: {
             description: "require or disallow newline at the end of files",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/eol-last"
         },
@@ -86,10 +85,15 @@ module.exports = {
                     });
                 } else if (mode === "never" && endsWithNewline) {
 
+                    const secondLastLine = sourceCode.lines[sourceCode.lines.length - 2];
+
                     // File is newline-terminated, but shouldn't be
                     context.report({
                         node,
-                        loc: location,
+                        loc: {
+                            start: { line: sourceCode.lines.length - 1, column: secondLastLine.length },
+                            end: { line: sourceCode.lines.length, column: 0 }
+                        },
                         messageId: "unexpected",
                         fix(fixer) {
                             const finalEOLs = /(?:\r?\n)+$/u,

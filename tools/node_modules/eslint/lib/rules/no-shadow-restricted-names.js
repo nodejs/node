@@ -27,7 +27,6 @@ module.exports = {
 
         docs: {
             description: "disallow identifiers from shadowing restricted names",
-            category: "Variables",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-shadow-restricted-names"
         },

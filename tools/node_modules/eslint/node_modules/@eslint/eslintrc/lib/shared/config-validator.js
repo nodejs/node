@@ -3,22 +3,21 @@
  * @author Brandon Mills
  */
 
-"use strict";
-
 /* eslint class-methods-use-this: "off" */
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-const
-    util = require("util"),
-    configSchema = require("../../conf/config-schema"),
-    BuiltInEnvironments = require("../../conf/environments"),
-    ConfigOps = require("./config-ops"),
-    { emitDeprecationWarning } = require("./deprecation-warnings");
+import util from "util";
+import * as ConfigOps from "./config-ops.js";
+import { emitDeprecationWarning } from "./deprecation-warnings.js";
+import ajvOrig from "./ajv.js";
+import configSchema from "../../conf/config-schema.js";
+import BuiltInEnvironments from "../../conf/environments.js";
 
-const ajv = require("./ajv")();
+const ajv = ajvOrig();
+
 const ruleValidators = new WeakMap();
 const noop = Function.prototype;
 
@@ -38,7 +37,7 @@ const validated = new WeakSet();
 // Exports
 //-----------------------------------------------------------------------------
 
-module.exports = class ConfigValidator {
+export default class ConfigValidator {
     constructor({ builtInRules = new Map() } = {}) {
         this.builtInRules = builtInRules;
     }
@@ -323,4 +322,4 @@ module.exports = class ConfigValidator {
         }
     }
 
-};
+}

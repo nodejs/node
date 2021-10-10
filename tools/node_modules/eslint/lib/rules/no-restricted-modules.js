@@ -1,6 +1,7 @@
 /**
  * @fileoverview Restrict usage of specified node modules.
  * @author Christian Schulz
+ * @deprecated in ESLint v7.0.0
  */
 "use strict";
 
@@ -48,7 +49,6 @@ module.exports = {
 
         docs: {
             description: "disallow specified modules when loaded by `require`",
-            category: "Node.js and CommonJS",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-modules"
         },
@@ -73,7 +73,7 @@ module.exports = {
 
         messages: {
             defaultMessage: "'{{name}}' module is restricted from being used.",
-            // eslint-disable-next-line eslint-plugin/report-message-format
+            // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
             customMessage: "'{{name}}' module is restricted from being used. {{customMessage}}",
             patternMessage: "'{{name}}' module is restricted from being used by a pattern."
         }
@@ -97,7 +97,7 @@ module.exports = {
             return memo;
         }, {});
 
-        // if no imports are restricted we don"t need to check
+        // if no imports are restricted we don't need to check
         if (Object.keys(restrictedPaths).length === 0 && restrictedPatterns.length === 0) {
             return {};
         }
