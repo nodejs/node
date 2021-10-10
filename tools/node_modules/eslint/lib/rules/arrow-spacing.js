@@ -20,7 +20,6 @@ module.exports = {
 
         docs: {
             description: "enforce consistent spacing before and after the arrow in arrow functions",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/arrow-spacing"
         },

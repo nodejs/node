@@ -17,8 +17,8 @@ const builtInRules = require("../rules");
 
 /**
  * Wrap all of the elements of an array into arrays.
- * @param   {*[]}     xs Any array.
- * @returns {Array[]}    An array of arrays.
+ * @param {*[]} xs Any array.
+ * @returns {Array[]} An array of arrays.
  */
 function explodeArray(xs) {
     return xs.reduce((accumulator, x) => {
@@ -33,9 +33,9 @@ function explodeArray(xs) {
  *
  * For example:
  * combineArrays([a, [b, c]], [x, y]); // -> [[a, x], [a, y], [b, c, x], [b, c, y]]
- * @param   {Array} arr1 The first array to combine.
- * @param   {Array} arr2 The second array to combine.
- * @returns {Array}      A mixture of the elements of the first and second arrays.
+ * @param {Array} arr1 The first array to combine.
+ * @param {Array} arr2 The second array to combine.
+ * @returns {Array} A mixture of the elements of the first and second arrays.
  */
 function combineArrays(arr1, arr2) {
     const res = [];
@@ -70,8 +70,8 @@ function combineArrays(arr1, arr2) {
  *     [{before: true}, {before: false}],
  *     [{after: true}, {after: false}]
  * ]
- * @param   {Object[]} objects Array of objects, each with one property/value pair
- * @returns {Array[]}          Array of arrays of objects grouped by property
+ * @param {Object[]} objects Array of objects, each with one property/value pair
+ * @returns {Array[]} Array of arrays of objects grouped by property
  */
 function groupByProperty(objects) {
     const groupedObj = objects.reduce((accumulator, obj) => {
@@ -97,7 +97,7 @@ function groupByProperty(objects) {
  * Configs may also have one or more additional elements to specify rule
  * configuration or options.
  * @typedef {Array|number} ruleConfig
- * @param {number}  0  The rule's severity (0, 1, 2).
+ * @param {number} 0 The rule's severity (0, 1, 2).
  */
 
 /**
@@ -131,9 +131,9 @@ function groupByProperty(objects) {
  *     {before: false, after: true},
  *     {before: false, after: false}
  * ]
- * @param   {Object[]} objArr1 Single key/value objects, all with the same key
- * @param   {Object[]} objArr2 Single key/value objects, all with another key
- * @returns {Object[]}         Combined objects for each combination of input properties and values
+ * @param {Object[]} objArr1 Single key/value objects, all with the same key
+ * @param {Object[]} objArr2 Single key/value objects, all with another key
+ * @returns {Object[]} Combined objects for each combination of input properties and values
  */
 function combinePropertyObjects(objArr1, objArr2) {
     const res = [];
@@ -174,7 +174,6 @@ function combinePropertyObjects(objArr1, objArr2) {
  */
 class RuleConfigSet {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {ruleConfig[]} configs Valid rule configurations
      */
@@ -206,7 +205,7 @@ class RuleConfigSet {
 
     /**
      * Add rule configs from an array of strings (schema enums)
-     * @param  {string[]} enums Array of valid rule options (e.g. ["always", "never"])
+     * @param {string[]} enums Array of valid rule options (e.g. ["always", "never"])
      * @returns {void}
      */
     addEnums(enums) {
@@ -215,7 +214,7 @@ class RuleConfigSet {
 
     /**
      * Add rule configurations from a schema object
-     * @param  {Object} obj Schema item with type === "object"
+     * @param {Object} obj Schema item with type === "object"
      * @returns {boolean} true if at least one schema for the object could be generated, false otherwise
      */
     addObject(obj) {
@@ -260,8 +259,8 @@ class RuleConfigSet {
 
 /**
  * Generate valid rule configurations based on a schema object
- * @param   {Object} schema  A rule's schema object
- * @returns {Array[]}        Valid rule configurations
+ * @param {Object} schema A rule's schema object
+ * @returns {Array[]} Valid rule configurations
  */
 function generateConfigsFromSchema(schema) {
     const configSet = new RuleConfigSet();

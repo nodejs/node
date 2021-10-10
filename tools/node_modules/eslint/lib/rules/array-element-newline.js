@@ -17,7 +17,6 @@ module.exports = {
 
         docs: {
             description: "enforce line breaks after each array element",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/array-element-newline"
         },

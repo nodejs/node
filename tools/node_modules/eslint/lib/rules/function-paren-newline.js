@@ -20,7 +20,6 @@ module.exports = {
 
         docs: {
             description: "enforce consistent line breaks inside function parentheses",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/function-paren-newline"
         },
@@ -183,6 +182,7 @@ module.exports = {
         /**
          * Gets the left paren and right paren tokens of a node.
          * @param {ASTNode} node The node with parens
+         * @throws {TypeError} Unexecpted node type.
          * @returns {Object} An object with keys `leftParen` for the left paren token, and `rightParen` for the right paren token.
          * Can also return `null` if an expression has no parens (e.g. a NewExpression with no arguments, or an ArrowFunctionExpression
          * with a single parameter)

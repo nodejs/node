@@ -1,6 +1,7 @@
 /**
  * @fileoverview Disallow the use of process.exit()
  * @author Nicholas C. Zakas
+ * @deprecated in ESLint v7.0.0
  */
 "use strict";
 
@@ -18,7 +19,6 @@ module.exports = {
 
         docs: {
             description: "disallow the use of `process.exit()`",
-            category: "Node.js and CommonJS",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-process-exit"
         },

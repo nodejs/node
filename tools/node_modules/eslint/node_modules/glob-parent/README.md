@@ -6,7 +6,7 @@
 
 # glob-parent
 
-[![NPM version][npm-image]][npm-url] [![Downloads][downloads-image]][npm-url] [![Azure Pipelines Build Status][azure-pipelines-image]][azure-pipelines-url] [![Travis Build Status][travis-image]][travis-url] [![AppVeyor Build Status][appveyor-image]][appveyor-url] [![Coveralls Status][coveralls-image]][coveralls-url] [![Gitter chat][gitter-image]][gitter-url]
+[![NPM version][npm-image]][npm-url] [![Downloads][downloads-image]][npm-url] [![Build Status][ci-image]][ci-url] [![Coveralls Status][coveralls-image]][coveralls-url]
 
 Extract the non-magic parent path from a glob string.
 
@@ -45,7 +45,7 @@ Takes a string and returns the part of the path before the glob begins. Be aware
 ```js
 {
   // Disables the automatic conversion of slashes for Windows
-  flipBackslashes: true
+  flipBackslashes: true;
 }
 ```
 
@@ -66,13 +66,14 @@ The following characters have special significance in glob patterns and must be 
 **Example**
 
 ```js
-globParent('foo/[bar]/') // 'foo'
-globParent('foo/\\[bar]/') // 'foo/[bar]'
+globParent('foo/[bar]/'); // 'foo'
+globParent('foo/\\[bar]/'); // 'foo/[bar]'
 ```
 
 ## Limitations
 
 ### Braces & Brackets
+
 This library attempts a quick and imperfect method of determining which path
 parts have glob magic without fully parsing/lexing the pattern. There are some
 advanced use cases that can trip it up, such as nested braces where the outer
@@ -82,6 +83,7 @@ ensure higher-fidelity glob handling in your library, it is recommended that you
 pre-process your input with [expand-braces] and/or [expand-brackets].
 
 ### Windows
+
 Backslashes are not valid path separators for globs. If a path with backslashes
 is provided anyway, for simple cases, glob-parent will replace the path
 separator for you and return the non-glob parent path (now with
@@ -91,10 +93,10 @@ This cannot be used in conjunction with escape characters.
 
 ```js
 // BAD
-globParent('C:\\Program Files \\(x86\\)\\*.ext') // 'C:/Program Files /(x86/)'
+globParent('C:\\Program Files \\(x86\\)\\*.ext'); // 'C:/Program Files /(x86/)'
 
 // GOOD
-globParent('C:/Program Files\\(x86\\)/*.ext') // 'C:/Program Files (x86)'
+globParent('C:/Program Files\\(x86\\)/*.ext'); // 'C:/Program Files (x86)'
 ```
 
 If you are using escape characters for a pattern without path parts (i.e.
@@ -102,36 +104,31 @@ relative to `cwd`), prefix with `./` to avoid confusing glob-parent.
 
 ```js
 // BAD
-globParent('foo \\[bar]') // 'foo '
-globParent('foo \\[bar]*') // 'foo '
+globParent('foo \\[bar]'); // 'foo '
+globParent('foo \\[bar]*'); // 'foo '
 
 // GOOD
-globParent('./foo \\[bar]') // 'foo [bar]'
-globParent('./foo \\[bar]*') // '.'
+globParent('./foo \\[bar]'); // 'foo [bar]'
+globParent('./foo \\[bar]*'); // '.'
 ```
 
 ## License
 
 ISC
 
-[expand-braces]: https://github.com/jonschlinkert/expand-braces
-[expand-brackets]: https://github.com/jonschlinkert/expand-brackets
-
-[downloads-image]: https://img.shields.io/npm/dm/glob-parent.svg
+<!-- prettier-ignore-start -->
+[downloads-image]: https://img.shields.io/npm/dm/glob-parent.svg?style=flat-square
 [npm-url]: https://www.npmjs.com/package/glob-parent
-[npm-image]: https://img.shields.io/npm/v/glob-parent.svg
+[npm-image]: https://img.shields.io/npm/v/glob-parent.svg?style=flat-square
 
-[azure-pipelines-url]: https://dev.azure.com/gulpjs/gulp/_build/latest?definitionId=2&branchName=master
-[azure-pipelines-image]: https://dev.azure.com/gulpjs/gulp/_apis/build/status/glob-parent?branchName=master
-
-[travis-url]: https://travis-ci.org/gulpjs/glob-parent
-[travis-image]: https://img.shields.io/travis/gulpjs/glob-parent.svg?label=travis-ci
-
-[appveyor-url]: https://ci.appveyor.com/project/gulpjs/glob-parent
-[appveyor-image]: https://img.shields.io/appveyor/ci/gulpjs/glob-parent.svg?label=appveyor
+[ci-url]: https://github.com/gulpjs/glob-parent/actions?query=workflow:dev
+[ci-image]: https://img.shields.io/github/workflow/status/gulpjs/glob-parent/dev?style=flat-square
 
 [coveralls-url]: https://coveralls.io/r/gulpjs/glob-parent
-[coveralls-image]: https://img.shields.io/coveralls/gulpjs/glob-parent/master.svg
+[coveralls-image]: https://img.shields.io/coveralls/gulpjs/glob-parent/master.svg?style=flat-square
+<!-- prettier-ignore-end -->
 
-[gitter-url]: https://gitter.im/gulpjs/gulp
-[gitter-image]: https://badges.gitter.im/gulpjs/gulp.svg
+<!-- prettier-ignore-start -->
+[expand-braces]: https://github.com/jonschlinkert/expand-braces
+[expand-brackets]: https://github.com/jonschlinkert/expand-brackets
+<!-- prettier-ignore-end -->

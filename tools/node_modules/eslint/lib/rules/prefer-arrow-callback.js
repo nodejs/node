@@ -60,6 +60,7 @@ function getVariableOfArguments(scope) {
 /**
  * Checks whether or not a given node is a callback.
  * @param {ASTNode} node A node to check.
+ * @throws {Error} (Unreachable.)
  * @returns {Object}
  *   {boolean} retv.isCallback - `true` if the node is a callback.
  *   {boolean} retv.isLexicalThis - `true` if the node is with `.bind(this)`.
@@ -150,7 +151,6 @@ module.exports = {
 
         docs: {
             description: "require using arrow functions for callbacks",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-arrow-callback"
         },

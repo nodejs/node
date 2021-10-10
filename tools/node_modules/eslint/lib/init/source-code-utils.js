@@ -23,7 +23,7 @@ const { CLIEngine } = require("../cli-engine");
  * TODO1: Expose the API that enumerates target files.
  * TODO2: Extract the creation logic of `SourceCode` from `Linter` class.
  */
-const { getCLIEngineInternalSlots } = require("../cli-engine/cli-engine"); // eslint-disable-line node/no-restricted-require
+const { getCLIEngineInternalSlots } = require("../cli-engine/cli-engine"); // eslint-disable-line node/no-restricted-require -- Todo
 
 const debug = require("debug")("eslint:source-code-utils");
 
@@ -33,9 +33,10 @@ const debug = require("debug")("eslint:source-code-utils");
 
 /**
  * Get the SourceCode object for a single file
- * @param   {string}     filename The fully resolved filename to get SourceCode from.
- * @param   {Object}     engine  A CLIEngine.
- * @returns {Array}               Array of the SourceCode object representing the file
+ * @param {string} filename The fully resolved filename to get SourceCode from.
+ * @param {Object} engine A CLIEngine.
+ * @throws {Error} Upon fatal errors from execution.
+ * @returns {Array} Array of the SourceCode object representing the file
  *                                and fatal error message.
  */
 function getSourceCodeOfFile(filename, engine) {
@@ -97,7 +98,7 @@ function getSourceCodeOfFiles(patterns, options, callback) {
             sourceCodes[filename] = sourceCode;
         }
         if (callback) {
-            callback(filenames.length); // eslint-disable-line node/callback-return
+            callback(filenames.length); // eslint-disable-line node/callback-return -- End of function
         }
     });
 

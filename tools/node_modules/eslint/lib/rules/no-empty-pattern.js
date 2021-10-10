@@ -14,7 +14,6 @@ module.exports = {
 
         docs: {
             description: "disallow empty destructuring patterns",
-            category: "Best Practices",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-empty-pattern"
         },

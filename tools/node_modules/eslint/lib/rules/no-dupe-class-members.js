@@ -17,7 +17,6 @@ module.exports = {
 
         docs: {
             description: "disallow duplicate class members",
-            category: "ECMAScript 6",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-dupe-class-members"
         },
@@ -73,20 +72,21 @@ module.exports = {
             },
 
             // Reports the node if its name has been declared already.
-            MethodDefinition(node) {
+            "MethodDefinition, PropertyDefinition"(node) {
                 const name = astUtils.getStaticPropertyName(node);
+                const kind = node.type === "MethodDefinition" ? node.kind : "field";
 
-                if (name === null || node.kind === "constructor") {
+                if (name === null || kind === "constructor") {
                     return;
                 }
 
                 const state = getState(name, node.static);
                 let isDuplicate = false;
 
-                if (node.kind === "get") {
+                if (kind === "get") {
                     isDuplicate = (state.init || state.get);
                     state.get = true;
-                } else if (node.kind === "set") {
+                } else if (kind === "set") {
                     isDuplicate = (state.init || state.set);
                     state.set = true;
                 } else {

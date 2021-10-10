@@ -17,7 +17,6 @@ module.exports = {
 
         docs: {
             description: "disallow certain properties on certain objects",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-properties"
         },
@@ -64,9 +63,9 @@ module.exports = {
         },
 
         messages: {
-            // eslint-disable-next-line eslint-plugin/report-message-format
+            // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
             restrictedObjectProperty: "'{{objectName}}.{{propertyName}}' is restricted from being used.{{message}}",
-            // eslint-disable-next-line eslint-plugin/report-message-format
+            // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
             restrictedProperty: "'{{propertyName}}' is restricted from being used.{{message}}"
         }
     },

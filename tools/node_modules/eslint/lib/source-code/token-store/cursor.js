@@ -70,7 +70,7 @@ module.exports = class Cursor {
      * @abstract
      */
     /* istanbul ignore next */
-    moveNext() { // eslint-disable-line class-methods-use-this
+    moveNext() { // eslint-disable-line class-methods-use-this -- Unused
         throw new Error("Not implemented.");
     }
 };

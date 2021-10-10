@@ -21,7 +21,6 @@ module.exports = {
 
         docs: {
             description: "disallow `Object` constructors",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-new-object"
         },

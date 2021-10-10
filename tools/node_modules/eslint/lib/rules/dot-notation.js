@@ -26,7 +26,6 @@ module.exports = {
 
         docs: {
             description: "enforce dot notation whenever possible",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/dot-notation"
         },
@@ -141,6 +140,7 @@ module.exports = {
                 if (
                     !allowKeywords &&
                     !node.computed &&
+                    node.property.type === "Identifier" &&
                     keywords.indexOf(String(node.property.name)) !== -1
                 ) {
                     context.report({

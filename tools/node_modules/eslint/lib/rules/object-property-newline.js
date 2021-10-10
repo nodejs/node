@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "enforce placing object properties on separate lines",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/object-property-newline"
         },

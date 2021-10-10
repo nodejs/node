@@ -15,7 +15,6 @@ module.exports = {
 
         docs: {
             description: "enforce sorted import declarations within modules",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/sort-imports"
         },

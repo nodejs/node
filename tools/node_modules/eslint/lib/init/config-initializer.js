@@ -18,9 +18,13 @@ const util = require("util"),
     semver = require("semver"),
     espree = require("espree"),
     recConfig = require("../../conf/eslint-recommended"),
-    ConfigOps = require("@eslint/eslintrc/lib/shared/config-ops"),
+    {
+        Legacy: {
+            ConfigOps,
+            naming
+        }
+    } = require("@eslint/eslintrc"),
     log = require("../shared/logging"),
-    naming = require("@eslint/eslintrc/lib/shared/naming"),
     ModuleResolver = require("../shared/relative-module-resolver"),
     autoconfig = require("./autoconfig.js"),
     ConfigFile = require("./config-file"),
@@ -98,8 +102,8 @@ getPeerDependencies.cache = new Map();
 
 /**
  * Return necessary plugins, configs, parsers, etc. based on the config
- * @param   {Object} config  config object
- * @param   {boolean} [installESLint=true]  If `false` is given, it does not install eslint.
+ * @param {Object} config config object
+ * @param {boolean} [installESLint=true] If `false` is given, it does not install eslint.
  * @returns {string[]} An array of modules to be installed.
  */
 function getModulesList(config, installESLint) {
@@ -157,9 +161,10 @@ function getModulesList(config, installESLint) {
  *
  * Note: This clones the config object and returns a new config to avoid mutating
  * the original config parameter.
- * @param   {Object} answers  answers received from enquirer
- * @param   {Object} config   config object
- * @returns {Object}          config object with configured rules
+ * @param {Object} answers answers received from enquirer
+ * @param {Object} config config object
+ * @throws {Error} If source code retrieval fails or source code file count is 0.
+ * @returns {Object} config object with configured rules
  */
 function configureRules(answers, config) {
     const BAR_TOTAL = 20,
@@ -411,7 +416,7 @@ function hasESLintVersionConflict(answers) {
 
 /**
  * Install modules.
- * @param   {string[]} modules Modules to be installed.
+ * @param {string[]} modules Modules to be installed.
  * @returns {void}
  */
 function installModules(modules) {
@@ -422,9 +427,9 @@ function installModules(modules) {
 /* istanbul ignore next: no need to test enquirer */
 /**
  * Ask user to install modules.
- * @param   {string[]} modules Array of modules to be installed.
- * @param   {boolean} packageJsonExists Indicates if package.json is existed.
- * @returns {Promise} Answer that indicates if user wants to install.
+ * @param {string[]} modules Array of modules to be installed.
+ * @param {boolean} packageJsonExists Indicates if package.json is existed.
+ * @returns {Promise<void>} Answer that indicates if user wants to install.
  */
 function askInstallModules(modules, packageJsonExists) {
 
@@ -460,7 +465,7 @@ function askInstallModules(modules, packageJsonExists) {
 /* istanbul ignore next: no need to test enquirer */
 /**
  * Ask use a few questions on command prompt
- * @returns {Promise} The promise with the result of the prompt
+ * @returns {Promise<void>} The promise with the result of the prompt
  */
 function promptUser() {
 

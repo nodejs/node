@@ -21,7 +21,6 @@ module.exports = {
 
         docs: {
             description: "disallow the use of `console`",
-            category: "Possible Errors",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-console"
         },

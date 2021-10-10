@@ -21,7 +21,6 @@ module.exports = {
 
         docs: {
             description: "disallow variable declarations from shadowing variables declared in the outer scope",
-            category: "Variables",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-shadow"
         },
@@ -59,7 +58,7 @@ module.exports = {
 
         /**
          * Check if variable name is allowed.
-         * @param  {ASTNode} variable The variable to check.
+         * @param {ASTNode} variable The variable to check.
          * @returns {boolean} Whether or not the variable name is allowed.
          */
         function isAllowed(variable) {

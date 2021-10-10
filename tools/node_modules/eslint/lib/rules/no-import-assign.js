@@ -180,7 +180,6 @@ module.exports = {
 
         docs: {
             description: "disallow assigning to imported bindings",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-import-assign"
         },

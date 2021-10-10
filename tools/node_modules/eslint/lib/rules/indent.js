@@ -60,8 +60,10 @@ const KNOWN_NODES = new Set([
     "NewExpression",
     "ObjectExpression",
     "ObjectPattern",
+    "PrivateIdentifier",
     "Program",
     "Property",
+    "PropertyDefinition",
     "RestElement",
     "ReturnStatement",
     "SequenceExpression",
@@ -138,7 +140,7 @@ class BinarySearchTree {
     /**
      * Inserts an entry into the tree.
      * @param {number} key The entry's key
-     * @param {*} value The entry's value
+     * @param {any} value The entry's value
      * @returns {void}
      */
     insert(key, value) {
@@ -188,7 +190,6 @@ class BinarySearchTree {
  */
 class TokenInfo {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {SourceCode} sourceCode A SourceCode object
      */
@@ -238,7 +239,6 @@ class TokenInfo {
  */
 class OffsetStorage {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {TokenInfo} tokenInfo a TokenInfo instance
      * @param {number} indentSize The desired size of each indentation level
@@ -263,7 +263,7 @@ class OffsetStorage {
 
     /**
      * Sets the offset column of token B to match the offset column of token A.
-     * **WARNING**: This matches a *column*, even if baseToken is not the first token on its line. In
+     * - **WARNING**: This matches a *column*, even if baseToken is not the first token on its line. In
      * most cases, `setDesiredOffset` should be used instead.
      * @param {Token} baseToken The first token
      * @param {Token} offsetToken The second token, whose offset should be matched to the first token
@@ -352,11 +352,11 @@ class OffsetStorage {
      * Instead, the offset tree is represented as a collection of contiguous offset ranges in a file. For example, the following
      * list could represent the state of the offset tree at a given point:
      *
-     * * Tokens starting in the interval [0, 15) are aligned with the beginning of the file
-     * * Tokens starting in the interval [15, 30) are offset by 1 indent level from the `bar` token
-     * * Tokens starting in the interval [30, 43) are offset by 1 indent level from the `foo` token
-     * * Tokens starting in the interval [43, 820) are offset by 2 indent levels from the `bar` token
-     * * Tokens starting in the interval [820, ∞) are offset by 1 indent level from the `baz` token
+     * - Tokens starting in the interval [0, 15) are aligned with the beginning of the file
+     * - Tokens starting in the interval [15, 30) are offset by 1 indent level from the `bar` token
+     * - Tokens starting in the interval [30, 43) are offset by 1 indent level from the `foo` token
+     * - Tokens starting in the interval [43, 820) are offset by 2 indent levels from the `bar` token
+     * - Tokens starting in the interval [820, ∞) are offset by 1 indent level from the `baz` token
      *
      * The `setDesiredOffsets` methods inserts ranges like the ones above. The third line above would be inserted by using:
      * `setDesiredOffsets([30, 43], fooToken, 1);`
@@ -499,7 +499,6 @@ module.exports = {
 
         docs: {
             description: "enforce consistent indentation",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/indent"
         },
@@ -1356,6 +1355,45 @@ module.exports = {
                     const colon = sourceCode.getFirstTokenBetween(node.key, node.value, astUtils.isColonToken);
 
                     offsets.ignoreToken(sourceCode.getTokenAfter(colon));
+                }
+            },
+
+            PropertyDefinition(node) {
+                const firstToken = sourceCode.getFirstToken(node);
+                const maybeSemicolonToken = sourceCode.getLastToken(node);
+                let keyLastToken = null;
+
+                // Indent key.
+                if (node.computed) {
+                    const bracketTokenL = sourceCode.getTokenBefore(node.key, astUtils.isOpeningBracketToken);
+                    const bracketTokenR = keyLastToken = sourceCode.getTokenAfter(node.key, astUtils.isClosingBracketToken);
+                    const keyRange = [bracketTokenL.range[1], bracketTokenR.range[0]];
+
+                    if (bracketTokenL !== firstToken) {
+                        offsets.setDesiredOffset(bracketTokenL, firstToken, 0);
+                    }
+                    offsets.setDesiredOffsets(keyRange, bracketTokenL, 1);
+                    offsets.setDesiredOffset(bracketTokenR, bracketTokenL, 0);
+                } else {
+                    const idToken = keyLastToken = sourceCode.getFirstToken(node.key);
+
+                    if (idToken !== firstToken) {
+                        offsets.setDesiredOffset(idToken, firstToken, 1);
+                    }
+                }
+
+                // Indent initializer.
+                if (node.value) {
+                    const eqToken = sourceCode.getTokenBefore(node.value, astUtils.isEqToken);
+                    const valueToken = sourceCode.getTokenAfter(eqToken);
+
+                    offsets.setDesiredOffset(eqToken, keyLastToken, 1);
+                    offsets.setDesiredOffset(valueToken, eqToken, 1);
+                    if (astUtils.isSemicolonToken(maybeSemicolonToken)) {
+                        offsets.setDesiredOffset(maybeSemicolonToken, eqToken, 1);
+                    }
+                } else if (astUtils.isSemicolonToken(maybeSemicolonToken)) {
+                    offsets.setDesiredOffset(maybeSemicolonToken, keyLastToken, 1);
                 }
             },
 

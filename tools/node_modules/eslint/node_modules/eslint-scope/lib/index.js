@@ -45,18 +45,16 @@
  * The main interface is the {@link analyze} function.
  * @module escope
  */
-"use strict";
-
 /* eslint no-underscore-dangle: ["error", { "allow": ["__currentScope"] }] */
 
-const assert = require("assert");
+import assert from "assert";
 
-const ScopeManager = require("./scope-manager");
-const Referencer = require("./referencer");
-const Reference = require("./reference");
-const Variable = require("./variable");
-const Scope = require("./scope").Scope;
-const version = require("../package.json").version;
+import ScopeManager from "./scope-manager.js";
+import Referencer from "./referencer.js";
+import Reference from "./reference.js";
+import Variable from "./variable.js";
+
+import eslintScopeVersion from "./version.js";
 
 /**
  * Set the default options
@@ -77,15 +75,15 @@ function defaultOptions() {
 
 /**
  * Preform deep update on option object
- * @param {Object} target - Options
- * @param {Object} override - Updates
+ * @param {Object} target Options
+ * @param {Object} override Updates
  * @returns {Object} Updated options
  */
 function updateDeeply(target, override) {
 
     /**
      * Is hash object
-     * @param {Object} value - Test value
+     * @param {Object} value Test value
      * @returns {boolean} Result
      */
     function isHashObject(value) {
@@ -114,20 +112,20 @@ function updateDeeply(target, override) {
  * Main interface function. Takes an Espree syntax tree and returns the
  * analyzed scopes.
  * @function analyze
- * @param {espree.Tree} tree - Abstract Syntax Tree
- * @param {Object} providedOptions - Options that tailor the scope analysis
- * @param {boolean} [providedOptions.optimistic=false] - the optimistic flag
- * @param {boolean} [providedOptions.directive=false]- the directive flag
- * @param {boolean} [providedOptions.ignoreEval=false]- whether to check 'eval()' calls
- * @param {boolean} [providedOptions.nodejsScope=false]- whether the whole
+ * @param {espree.Tree} tree Abstract Syntax Tree
+ * @param {Object} providedOptions Options that tailor the scope analysis
+ * @param {boolean} [providedOptions.optimistic=false] the optimistic flag
+ * @param {boolean} [providedOptions.directive=false] the directive flag
+ * @param {boolean} [providedOptions.ignoreEval=false] whether to check 'eval()' calls
+ * @param {boolean} [providedOptions.nodejsScope=false] whether the whole
  * script is executed under node.js environment. When enabled, escope adds
  * a function scope immediately following the global scope.
- * @param {boolean} [providedOptions.impliedStrict=false]- implied strict mode
+ * @param {boolean} [providedOptions.impliedStrict=false] implied strict mode
  * (if ecmaVersion >= 5).
- * @param {string} [providedOptions.sourceType='script']- the source type of the script. one of 'script' and 'module'
- * @param {number} [providedOptions.ecmaVersion=5]- which ECMAScript version is considered
- * @param {Object} [providedOptions.childVisitorKeys=null] - Additional known visitor keys. See [esrecurse](https://github.com/estools/esrecurse)'s the `childVisitorKeys` option.
- * @param {string} [providedOptions.fallback='iteration'] - A kind of the fallback in order to encounter with unknown node. See [esrecurse](https://github.com/estools/esrecurse)'s the `fallback` option.
+ * @param {string} [providedOptions.sourceType='script'] the source type of the script. one of 'script' and 'module'
+ * @param {number} [providedOptions.ecmaVersion=5] which ECMAScript version is considered
+ * @param {Object} [providedOptions.childVisitorKeys=null] Additional known visitor keys. See [esrecurse](https://github.com/estools/esrecurse)'s the `childVisitorKeys` option.
+ * @param {string} [providedOptions.fallback='iteration'] A kind of the fallback in order to encounter with unknown node. See [esrecurse](https://github.com/estools/esrecurse)'s the `fallback` option.
  * @returns {ScopeManager} ScopeManager
  */
 function analyze(tree, providedOptions) {
@@ -142,10 +140,10 @@ function analyze(tree, providedOptions) {
     return scopeManager;
 }
 
-module.exports = {
+export {
 
     /** @name module:escope.version */
-    version,
+    eslintScopeVersion as version,
 
     /** @name module:escope.Reference */
     Reference,
@@ -153,13 +151,22 @@ module.exports = {
     /** @name module:escope.Variable */
     Variable,
 
-    /** @name module:escope.Scope */
-    Scope,
-
     /** @name module:escope.ScopeManager */
     ScopeManager,
+
+    /** @name module:escope.Referencer */
+    Referencer,
+
     analyze
 };
 
+/** @name module:escope.Definition */
+export { Definition } from "./definition.js";
+
+/** @name module:escope.PatternVisitor */
+export { default as PatternVisitor } from "./pattern-visitor.js";
+
+/** @name module:escope.Scope */
+export { Scope } from "./scope.js";
 
 /* vim: set sw=4 ts=4 et tw=80 : */

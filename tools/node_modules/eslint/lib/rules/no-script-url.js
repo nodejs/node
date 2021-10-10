@@ -2,8 +2,7 @@
  * @fileoverview Rule to flag when using javascript: urls
  * @author Ilya Volodin
  */
-/* jshint scripturl: true */
-/* eslint no-script-url: 0 */
+/* eslint no-script-url: 0 -- Code is checking to report such URLs */
 
 "use strict";
 
@@ -19,7 +18,6 @@ module.exports = {
 
         docs: {
             description: "disallow `javascript:` urls",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-script-url"
         },

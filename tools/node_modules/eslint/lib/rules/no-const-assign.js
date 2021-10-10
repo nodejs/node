@@ -17,7 +17,6 @@ module.exports = {
 
         docs: {
             description: "disallow reassigning `const` variables",
-            category: "ECMAScript 6",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-const-assign"
         },

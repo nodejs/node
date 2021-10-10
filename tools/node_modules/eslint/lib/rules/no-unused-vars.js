@@ -33,7 +33,6 @@ module.exports = {
 
         docs: {
             description: "disallow unused variables",
-            category: "Variables",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-unused-vars"
         },
@@ -296,6 +295,31 @@ module.exports = {
         }
 
         /**
+         * Checks whether a given node is unused expression or not.
+         * @param {ASTNode} node The node itself
+         * @returns {boolean} The node is an unused expression.
+         * @private
+         */
+        function isUnusedExpression(node) {
+            const parent = node.parent;
+
+            if (parent.type === "ExpressionStatement") {
+                return true;
+            }
+
+            if (parent.type === "SequenceExpression") {
+                const isLastExpression = parent.expressions[parent.expressions.length - 1] === node;
+
+                if (!isLastExpression) {
+                    return true;
+                }
+                return isUnusedExpression(parent);
+            }
+
+            return false;
+        }
+
+        /**
          * If a given reference is left-hand side of an assignment, this gets
          * the right-hand side node of the assignment.
          *
@@ -313,7 +337,6 @@ module.exports = {
         function getRhsNode(ref, prevRhsNode) {
             const id = ref.identifier;
             const parent = id.parent;
-            const grandparent = parent.parent;
             const refScope = ref.from.variableScope;
             const varScope = ref.resolved.scope.variableScope;
             const canBeUsedLater = refScope !== varScope || astUtils.isInLoop(id);
@@ -327,7 +350,7 @@ module.exports = {
             }
 
             if (parent.type === "AssignmentExpression" &&
-                grandparent.type === "ExpressionStatement" &&
+                isUnusedExpression(parent) &&
                 id === parent.left &&
                 !canBeUsedLater
             ) {
@@ -408,31 +431,6 @@ module.exports = {
                 isInside(funcNode, rhsNode) &&
                 isStorableFunction(funcNode, rhsNode)
             );
-        }
-
-        /**
-         * Checks whether a given node is unused expression or not.
-         * @param {ASTNode} node The node itself
-         * @returns {boolean} The node is an unused expression.
-         * @private
-         */
-        function isUnusedExpression(node) {
-            const parent = node.parent;
-
-            if (parent.type === "ExpressionStatement") {
-                return true;
-            }
-
-            if (parent.type === "SequenceExpression") {
-                const isLastExpression = parent.expressions[parent.expressions.length - 1] === node;
-
-                if (!isLastExpression) {
-                    return true;
-                }
-                return isUnusedExpression(parent);
-            }
-
-            return false;
         }
 
         /**

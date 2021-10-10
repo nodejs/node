@@ -22,7 +22,6 @@ module.exports = {
 
         docs: {
             description: "enforce a maximum number of parameters in function definitions",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/max-params"
         },

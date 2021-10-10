@@ -1,7 +1,7 @@
 /**
  * @fileoverview Require or disallow newlines around directives.
  * @author Kai Cataldo
- * @deprecated
+ * @deprecated in ESLint v4.0.0
  */
 
 "use strict";
@@ -18,7 +18,6 @@ module.exports = {
 
         docs: {
             description: "require or disallow newlines around directives",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/lines-around-directive"
         },

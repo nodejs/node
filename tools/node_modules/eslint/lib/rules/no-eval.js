@@ -43,7 +43,6 @@ module.exports = {
 
         docs: {
             description: "disallow the use of `eval()`",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-eval"
         },
@@ -247,6 +246,8 @@ module.exports = {
             "FunctionExpression:exit": exitVarScope,
             ArrowFunctionExpression: enterVarScope,
             "ArrowFunctionExpression:exit": exitVarScope,
+            "PropertyDefinition > *.value": enterVarScope,
+            "PropertyDefinition > *.value:exit": exitVarScope,
 
             ThisExpression(node) {
                 if (!isMember(node.parent, "eval")) {

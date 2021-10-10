@@ -45,7 +45,6 @@ module.exports = {
 
         docs: {
             description: "disallow `parseInt()` and `Number.parseInt()` in favor of binary, octal, and hexadecimal literals",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-numeric-literals"
         },

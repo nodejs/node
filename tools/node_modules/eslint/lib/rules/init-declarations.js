@@ -48,7 +48,6 @@ module.exports = {
 
         docs: {
             description: "require or disallow initialization in variable declarations",
-            category: "Variables",
             recommended: false,
             url: "https://eslint.org/docs/rules/init-declarations"
         },

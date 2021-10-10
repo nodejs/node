@@ -1687,6 +1687,7 @@
 		"createObjectIn": false,
 		"exportFunction": false,
 		"GM": false,
+		"GM_addElement": false,
 		"GM_addStyle": false,
 		"GM_addValueChangeListener": false,
 		"GM_deleteValue": false,

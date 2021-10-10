@@ -21,13 +21,15 @@ const IdGenerator = require("./id-generator");
  */
 class CodePath {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
-     * @param {string} id An identifier.
-     * @param {CodePath|null} upper The code path of the upper function scope.
-     * @param {Function} onLooped A callback function to notify looping.
+     * Creates a new instance.
+     * @param {Object} options Options for the function (see below).
+     * @param {string} options.id An identifier.
+     * @param {string} options.origin The type of code path origin.
+     * @param {CodePath|null} options.upper The code path of the upper function scope.
+     * @param {Function} options.onLooped A callback function to notify looping.
      */
-    constructor(id, upper, onLooped) {
+    constructor({ id, origin, upper, onLooped }) {
 
         /**
          * The identifier of this code path.
@@ -35,6 +37,13 @@ class CodePath {
          * @type {string}
          */
         this.id = id;
+
+        /**
+         * The reason that this code path was started. May be "program",
+         * "function", or "class-field-initializer".
+         * @type {string}
+         */
+        this.origin = origin;
 
         /**
          * The code path of the upper function scope.

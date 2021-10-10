@@ -281,8 +281,8 @@ function resultTemplate(it) {
 `.trimLeft();
 }
 
-// eslint-disable-next-line jsdoc/require-description
 /**
+ * Render the results.
  * @param {Array} results Test results.
  * @param {Object} rulesMeta Dictionary containing metadata for each rule executed by the analysis.
  * @returns {string} HTML string describing the results.
