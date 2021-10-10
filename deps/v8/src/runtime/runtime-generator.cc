@@ -54,8 +54,9 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
 
   // Underlying function needs to have bytecode available.
   DCHECK(function->shared().HasBytecodeArray());
-  int size = function->shared().internal_formal_parameter_count() +
-             function->shared().GetBytecodeArray(isolate).register_count();
+  int size =
+      function->shared().internal_formal_parameter_count_without_receiver() +
+      function->shared().GetBytecodeArray(isolate).register_count();
   Handle<FixedArray> parameters_and_registers =
       isolate->factory()->NewFixedArray(size);
 

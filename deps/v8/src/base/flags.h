@@ -89,39 +89,39 @@ class Flags final {
   mask_type mask_;
 };
 
-#define DEFINE_OPERATORS_FOR_FLAGS(Type)                                   \
-  ALLOW_UNUSED_TYPE V8_WARN_UNUSED_RESULT inline constexpr Type operator&( \
-      Type::flag_type lhs, Type::flag_type rhs) {                          \
-    return Type(lhs) & rhs;                                                \
-  }                                                                        \
-  ALLOW_UNUSED_TYPE V8_WARN_UNUSED_RESULT inline constexpr Type operator&( \
-      Type::flag_type lhs, const Type& rhs) {                              \
-    return rhs & lhs;                                                      \
-  }                                                                        \
-  ALLOW_UNUSED_TYPE inline void operator&(Type::flag_type lhs,             \
-                                          Type::mask_type rhs) {}          \
-  ALLOW_UNUSED_TYPE V8_WARN_UNUSED_RESULT inline constexpr Type operator|( \
-      Type::flag_type lhs, Type::flag_type rhs) {                          \
-    return Type(lhs) | rhs;                                                \
-  }                                                                        \
-  ALLOW_UNUSED_TYPE V8_WARN_UNUSED_RESULT inline constexpr Type operator|( \
-      Type::flag_type lhs, const Type& rhs) {                              \
-    return rhs | lhs;                                                      \
-  }                                                                        \
-  ALLOW_UNUSED_TYPE inline void operator|(Type::flag_type lhs,             \
-                                          Type::mask_type rhs) {}          \
-  ALLOW_UNUSED_TYPE V8_WARN_UNUSED_RESULT inline constexpr Type operator^( \
-      Type::flag_type lhs, Type::flag_type rhs) {                          \
-    return Type(lhs) ^ rhs;                                                \
-  }                                                                        \
-  ALLOW_UNUSED_TYPE V8_WARN_UNUSED_RESULT inline constexpr Type operator^( \
-      Type::flag_type lhs, const Type& rhs) {                              \
-    return rhs ^ lhs;                                                      \
-  }                                                                        \
-  ALLOW_UNUSED_TYPE inline void operator^(Type::flag_type lhs,             \
-                                          Type::mask_type rhs) {}          \
-  ALLOW_UNUSED_TYPE inline constexpr Type operator~(Type::flag_type val) { \
-    return ~Type(val);                                                     \
+#define DEFINE_OPERATORS_FOR_FLAGS(Type)                                 \
+  V8_ALLOW_UNUSED V8_WARN_UNUSED_RESULT inline constexpr Type operator&( \
+      Type::flag_type lhs, Type::flag_type rhs) {                        \
+    return Type(lhs) & rhs;                                              \
+  }                                                                      \
+  V8_ALLOW_UNUSED V8_WARN_UNUSED_RESULT inline constexpr Type operator&( \
+      Type::flag_type lhs, const Type& rhs) {                            \
+    return rhs & lhs;                                                    \
+  }                                                                      \
+  V8_ALLOW_UNUSED inline void operator&(Type::flag_type lhs,             \
+                                        Type::mask_type rhs) {}          \
+  V8_ALLOW_UNUSED V8_WARN_UNUSED_RESULT inline constexpr Type operator|( \
+      Type::flag_type lhs, Type::flag_type rhs) {                        \
+    return Type(lhs) | rhs;                                              \
+  }                                                                      \
+  V8_ALLOW_UNUSED V8_WARN_UNUSED_RESULT inline constexpr Type operator|( \
+      Type::flag_type lhs, const Type& rhs) {                            \
+    return rhs | lhs;                                                    \
+  }                                                                      \
+  V8_ALLOW_UNUSED inline void operator|(Type::flag_type lhs,             \
+                                        Type::mask_type rhs) {}          \
+  V8_ALLOW_UNUSED V8_WARN_UNUSED_RESULT inline constexpr Type operator^( \
+      Type::flag_type lhs, Type::flag_type rhs) {                        \
+    return Type(lhs) ^ rhs;                                              \
+  }                                                                      \
+  V8_ALLOW_UNUSED V8_WARN_UNUSED_RESULT inline constexpr Type operator^( \
+      Type::flag_type lhs, const Type& rhs) {                            \
+    return rhs ^ lhs;                                                    \
+  }                                                                      \
+  V8_ALLOW_UNUSED inline void operator^(Type::flag_type lhs,             \
+                                        Type::mask_type rhs) {}          \
+  V8_ALLOW_UNUSED inline constexpr Type operator~(Type::flag_type val) { \
+    return ~Type(val);                                                   \
   }
 
 }  // namespace base

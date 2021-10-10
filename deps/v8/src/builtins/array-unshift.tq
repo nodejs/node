@@ -89,7 +89,7 @@ transitioning javascript builtin ArrayPrototypeUnshift(
 
     tail ArrayUnshift(
         context, LoadTargetFromFrame(), Undefined,
-        Convert<int32>(arguments.length));
+        Convert<int32>(arguments.actual_count));
   } label Slow {
     return GenericArrayUnshift(context, receiver, arguments);
   }

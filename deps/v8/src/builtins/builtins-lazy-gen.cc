@@ -156,8 +156,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   TVARIABLE(Code, code);
 
   // Check if we have baseline code.
-  GotoIf(InstanceTypeEqual(sfi_data_type.value(), BASELINE_DATA_TYPE),
-         &baseline);
+  GotoIf(InstanceTypeEqual(sfi_data_type.value(), CODET_TYPE), &baseline);
 
   code = sfi_code;
   Goto(&tailcall_code);

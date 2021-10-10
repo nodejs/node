@@ -120,33 +120,6 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
   }
 }
 
-Maybe<bool> RegExpUtils::IsRegExp(Isolate* isolate, Handle<Object> object) {
-  if (!object->IsJSReceiver()) return Just(false);
-
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
-
-  Handle<Object> match;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, match,
-      JSObject::GetProperty(isolate, receiver,
-                            isolate->factory()->match_symbol()),
-      Nothing<bool>());
-
-  if (!match->IsUndefined(isolate)) {
-    const bool match_as_boolean = match->BooleanValue(isolate);
-
-    if (match_as_boolean && !object->IsJSRegExp()) {
-      isolate->CountUsage(v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp);
-    } else if (!match_as_boolean && object->IsJSRegExp()) {
-      isolate->CountUsage(v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp);
-    }
-
-    return Just(match_as_boolean);
-  }
-
-  return Just(object->IsJSRegExp());
-}
-
 bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
 #ifdef V8_ENABLE_FORCE_SLOW_PATH
   if (isolate->force_slow_path()) return false;

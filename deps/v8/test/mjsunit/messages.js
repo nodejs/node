@@ -496,7 +496,7 @@ test(function() {
 
 // kMalformedRegExp
 test(function() {
-  /(/.test("a");
+  new Function('/(/.test("a");');
 }, "Invalid regular expression: /(/: Unterminated group", SyntaxError);
 
 // kParenthesisInArgString

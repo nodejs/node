@@ -676,7 +676,6 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         }
         default: {
           UNREACHABLE();
-          return -1;
         }
       }
       out_buffer_pos_ +=
@@ -787,7 +786,6 @@ void Decoder::DecodeType01(Instruction* instr) {
                 break;
               default:
                 UNREACHABLE();
-                break;
             }
           } else {
             // strex
@@ -808,7 +806,6 @@ void Decoder::DecodeType01(Instruction* instr) {
                 break;
               default:
                 UNREACHABLE();
-                break;
             }
           }
         } else {
@@ -853,7 +850,6 @@ void Decoder::DecodeType01(Instruction* instr) {
         default: {
           // The PU field is a 2-bit field.
           UNREACHABLE();
-          break;
         }
       }
     } else {
@@ -894,7 +890,6 @@ void Decoder::DecodeType01(Instruction* instr) {
         default: {
           // The PU field is a 2-bit field.
           UNREACHABLE();
-          break;
         }
       }
       return;
@@ -1030,7 +1025,6 @@ void Decoder::DecodeType01(Instruction* instr) {
       default: {
         // The Opcode field is a 4-bit field.
         UNREACHABLE();
-        break;
       }
     }
   }
@@ -1107,10 +1101,8 @@ void Decoder::DecodeType3(Instruction* instr) {
               break;
             case 1:
               UNREACHABLE();
-              break;
             case 2:
               UNREACHABLE();
-              break;
             case 3:
               Format(instr, "usat 'rd, #'imm05@16, 'rm'shift_sat");
               break;
@@ -1119,7 +1111,6 @@ void Decoder::DecodeType3(Instruction* instr) {
           switch (instr->Bits(22, 21)) {
             case 0:
               UNREACHABLE();
-              break;
             case 1:
               if (instr->Bits(9, 6) == 1) {
                 if (instr->Bit(20) == 0) {
@@ -1948,7 +1939,6 @@ void Decoder::DecodeFloatingPointDataProcessing(Instruction* instr) {
         break;
       default:
         UNREACHABLE();  // Case analysis is exhaustive.
-        break;
     }
   } else if (instr->Opc1Value() == 0x4 && op2) {
     // Floating-point minNum/maxNum.
@@ -2002,7 +1992,6 @@ void Decoder::DecodeFloatingPointDataProcessing(Instruction* instr) {
         break;
       default:
         UNREACHABLE();  // Case analysis is exhaustive.
-        break;
     }
   } else {
     Unknown(instr);
@@ -2617,12 +2606,10 @@ const char* NameConverter::NameOfCPURegister(int reg) const {
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
   UNREACHABLE();  // ARM does not have the concept of a byte register
-  return "nobytereg";
 }
 
 const char* NameConverter::NameOfXMMRegister(int reg) const {
   UNREACHABLE();  // ARM does not have any XMM registers
-  return "noxmmreg";
 }
 
 const char* NameConverter::NameInCode(byte* addr) const {

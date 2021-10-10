@@ -22,6 +22,7 @@ constexpr int kNewtonInversionThreshold = 50;
 // kBarrettThreshold is defined in bigint.h.
 
 constexpr int kToStringFastThreshold = 43;
+constexpr int kFromStringLargeThreshold = 300;
 
 class ProcessorImpl : public Processor {
  public:
@@ -69,6 +70,8 @@ class ProcessorImpl : public Processor {
 
   void FromString(RWDigits Z, FromStringAccumulator* accumulator);
   void FromStringClassic(RWDigits Z, FromStringAccumulator* accumulator);
+  void FromStringLarge(RWDigits Z, FromStringAccumulator* accumulator);
+  void FromStringBasePowerOfTwo(RWDigits Z, FromStringAccumulator* accumulator);
 
   bool should_terminate() { return status_ == Status::kInterrupted; }
 

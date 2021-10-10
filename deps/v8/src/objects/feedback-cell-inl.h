@@ -40,7 +40,7 @@ void FeedbackCell::reset_feedback_vector(
   CHECK(value().IsFeedbackVector());
   ClosureFeedbackCellArray closure_feedback_cell_array =
       FeedbackVector::cast(value()).closure_feedback_cell_array();
-  set_value(closure_feedback_cell_array);
+  set_value(closure_feedback_cell_array, kReleaseStore);
   if (gc_notify_updated_slot) {
     (*gc_notify_updated_slot)(*this, RawField(FeedbackCell::kValueOffset),
                               closure_feedback_cell_array);

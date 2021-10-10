@@ -58,7 +58,7 @@
 #ifndef V8_VTUNE_H_
 #define V8_VTUNE_H_
 
-#include "../../../include/v8.h"
+#include "../../../include/v8-callbacks.h"
 
 namespace vTune {
 

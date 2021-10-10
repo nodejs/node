@@ -6,7 +6,11 @@
 
 #include <ctime>
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-metrics.h"
 #include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
@@ -75,7 +79,7 @@ Handle<WasmModuleObject> CompileReferenceModule(Zone* zone, Isolate* isolate,
   Handle<Script> script =
       GetWasmEngine()->GetOrCreateScript(isolate, native_module, kNoSourceUrl);
   Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(
-      static_cast<int>(module->num_exported_functions));
+      static_cast<int>(module->functions.size()));
   return WasmModuleObject::New(isolate, std::move(native_module), script,
                                export_wrappers);
 }
@@ -358,7 +362,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       ModuleOrigin::kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
       DecodingMethod::kSync, GetWasmEngine()->allocator());
-  CHECK(module_res.ok());
+  CHECK_WITH_MSG(module_res.ok(), module_res.error().message().c_str());
   WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);
 
@@ -382,7 +386,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "\n"
         "// Flags: --wasm-staging --experimental-wasm-gc\n"
         "\n"
-        "load('test/mjsunit/wasm/wasm-module-builder.js');\n"
+        "d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');\n"
         "\n"
         "const builder = new WasmModuleBuilder();\n";
 
@@ -443,17 +447,13 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   Zone tmp_zone(isolate->allocator(), ZONE_NAME);
 
-  // There currently cannot be more than one table.
-  // TODO(manoskouk): Add support for more tables.
-  // TODO(9495): Add support for talbes with explicit initializers.
-  DCHECK_GE(1, module->tables.size());
+  // TODO(9495): Add support for tables with explicit initializers.
   for (const WasmTable& table : module->tables) {
-    os << "builder.setTableBounds(" << table.initial_size << ", ";
-    if (table.has_maximum_size) {
-      os << table.maximum_size << ");\n";
-    } else {
-      os << "undefined);\n";
-    }
+    os << "builder.addTable(" << ValueTypeToConstantName(table.type) << ", "
+       << table.initial_size << ", "
+       << (table.has_maximum_size ? std::to_string(table.maximum_size)
+                                  : "undefined")
+       << ", undefined)\n";
   }
   for (const WasmElemSegment& elem_segment : module->elem_segments) {
     const char* status_str =
@@ -474,6 +474,11 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       if (i < elem_segment.entries.size() - 1) os << ", ";
     }
     os << "], " << ValueTypeToConstantName(elem_segment.type) << ");\n";
+  }
+
+  for (const WasmTag& tag : module->tags) {
+    os << "builder.addTag(makeSig(" << PrintParameters(tag.ToFunctionSig())
+       << ", []));\n";
   }
 
   for (const WasmFunction& func : module->functions) {

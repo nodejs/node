@@ -763,7 +763,12 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    VisitHeapObjectImpl(rinfo->target_object(), -1);
+    HeapObject object = rinfo->target_object();
+    if (host.IsWeakObject(object)) {
+      generator_->SetWeakReference(parent_, next_index_++, object, {});
+    } else {
+      VisitHeapObjectImpl(rinfo->target_object(), -1);
+    }
   }
 
  private:
@@ -774,8 +779,11 @@ class IndexedReferencesExtractor : public ObjectVisitor {
       generator_->visited_fields_[field_index] = false;
     } else {
       HeapObject heap_object;
-      if (slot.load(cage_base).GetHeapObject(&heap_object)) {
+      auto loaded_value = slot.load(cage_base);
+      if (loaded_value.GetHeapObjectIfStrong(&heap_object)) {
         VisitHeapObjectImpl(heap_object, field_index);
+      } else if (loaded_value.GetHeapObjectIfWeak(&heap_object)) {
+        generator_->SetWeakReference(parent_, next_index_++, heap_object, {});
       }
     }
   }
@@ -1223,15 +1231,20 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
     return;
   }
 
-  TagObject(code.deoptimization_data(), "(code deopt data)");
-  SetInternalReference(entry, "deoptimization_data", code.deoptimization_data(),
-                       Code::kDeoptimizationDataOffset);
   if (code.kind() == CodeKind::BASELINE) {
+    TagObject(code.bytecode_or_interpreter_data(), "(interpreter data)");
+    SetInternalReference(entry, "interpreter_data",
+                         code.bytecode_or_interpreter_data(),
+                         Code::kDeoptimizationDataOrInterpreterDataOffset);
     TagObject(code.bytecode_offset_table(), "(bytecode offset table)");
     SetInternalReference(entry, "bytecode_offset_table",
                          code.bytecode_offset_table(),
                          Code::kPositionTableOffset);
   } else {
+    TagObject(code.deoptimization_data(), "(code deopt data)");
+    SetInternalReference(entry, "deoptimization_data",
+                         code.deoptimization_data(),
+                         Code::kDeoptimizationDataOrInterpreterDataOffset);
     TagObject(code.source_position_table(), "(source position table)");
     SetInternalReference(entry, "source_position_table",
                          code.source_position_table(),
@@ -1781,7 +1794,8 @@ void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry,
 }
 
 void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry, int index,
-                                      Object child_obj, int field_offset) {
+                                      Object child_obj,
+                                      base::Optional<int> field_offset) {
   if (!IsEssentialObject(child_obj)) {
     return;
   }
@@ -1789,7 +1803,9 @@ void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry, int index,
   DCHECK_NOT_NULL(child_entry);
   parent_entry->SetNamedReference(
       HeapGraphEdge::kWeak, names_->GetFormatted("%d", index), child_entry);
-  MarkVisitedField(field_offset);
+  if (field_offset.has_value()) {
+    MarkVisitedField(*field_offset);
+  }
 }
 
 void V8HeapExplorer::SetDataOrAccessorPropertyReference(

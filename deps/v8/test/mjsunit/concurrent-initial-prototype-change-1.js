@@ -25,22 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-// Flags: --concurrent-recompilation
-// Flags: --nostress-opt --no-always-opt
-// Flags: --no-turboprop
-
+// Flags: --allow-natives-syntax --concurrent-recompilation
+// Flags: --no-stress-opt --no-always-opt --no-turboprop
+//
 // --nostress-opt is in place because this particular optimization
 // (guaranteeing that the Array prototype chain has no elements) is
 // maintained isolate-wide. Once it's been "broken" by the change
 // to the Object prototype below, future compiles will not use the
 // optimization anymore, and the code will remain optimized despite
 // additional changes to the prototype chain.
-
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
 
 function f1(a, i) {
   return a[i] + 0.5;
@@ -62,7 +55,7 @@ assertEquals(0.5, f1(arr, 0));
 %WaitForBackgroundOptimization();
 Object.prototype[1] = 1.5;
 assertEquals(2, f1(arr, 1));
-assertUnoptimized(f1, "no sync");
+assertUnoptimized(f1);
 // Sync with background thread to conclude optimization, which bails out
 // due to map dependency.
 %FinalizeOptimization();

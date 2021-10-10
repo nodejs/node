@@ -236,8 +236,14 @@ IGNITION_HANDLER(StaGlobal, InterpreterAssembler) {
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(1);
   TNode<HeapObject> maybe_vector = LoadFeedbackVector();
 
-  CallBuiltin(Builtin::kStoreGlobalIC, context, name, value, slot,
-              maybe_vector);
+  TNode<Object> result = CallBuiltin(Builtin::kStoreGlobalIC, context, name,
+                                     value, slot, maybe_vector);
+  // To avoid special logic in the deoptimizer to re-materialize the value in
+  // the accumulator, we overwrite the accumulator after the IC call. It
+  // doesn't really matter what we write to the accumulator here, since we
+  // restore to the correct value on the outside. Storing the result means we
+  // don't need to keep unnecessary state alive across the callstub.
+  SetAccumulator(result);
 
   Dispatch();
 }
@@ -598,14 +604,14 @@ class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
-    TVARIABLE(Object, var_result);
-    var_result = CallStub(ic, context, object, name, value, slot, maybe_vector);
+    TNode<Object> result =
+        CallStub(ic, context, object, name, value, slot, maybe_vector);
     // To avoid special logic in the deoptimizer to re-materialize the value in
     // the accumulator, we overwrite the accumulator after the IC call. It
     // doesn't really matter what we write to the accumulator here, since we
     // restore to the correct value on the outside. Storing the result means we
     // don't need to keep unnecessary state alive across the callstub.
-    SetAccumulator(var_result.value());
+    SetAccumulator(result);
     Dispatch();
   }
 };
@@ -642,15 +648,14 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   TNode<HeapObject> maybe_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  TVARIABLE(Object, var_result);
-  var_result = CallBuiltin(Builtin::kKeyedStoreIC, context, object, name, value,
-                           slot, maybe_vector);
+  TNode<Object> result = CallBuiltin(Builtin::kKeyedStoreIC, context, object,
+                                     name, value, slot, maybe_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we overwrite the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
   // restore to the correct value on the outside. Storing the result means we
   // don't need to keep unnecessary state alive across the callstub.
-  SetAccumulator(var_result.value());
+  SetAccumulator(result);
   Dispatch();
 }
 
@@ -666,15 +671,15 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  TVARIABLE(Object, var_result);
-  var_result = CallBuiltin(Builtin::kStoreInArrayLiteralIC, context, array,
-                           index, value, slot, feedback_vector);
+  TNode<Object> result =
+      CallBuiltin(Builtin::kStoreInArrayLiteralIC, context, array, index, value,
+                  slot, feedback_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we overwrite the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
   // restore to the correct value on the outside. Storing the result means we
   // don't need to keep unnecessary state alive across the callstub.
-  SetAccumulator(var_result.value());
+  SetAccumulator(result);
   Dispatch();
 }
 
@@ -2834,6 +2839,11 @@ IGNITION_HANDLER(ForInPrepare, InterpreterAssembler) {
   ForInPrepare(enumerator, vector_index, maybe_feedback_vector, &cache_array,
                &cache_length, UpdateFeedbackMode::kOptionalFeedback);
 
+  // The accumulator is clobbered soon after ForInPrepare, so avoid keeping it
+  // alive too long and instead set it to cache_array to match the first return
+  // value of Builtin::kForInPrepare.
+  SetAccumulator(cache_array);
+
   StoreRegisterTripleAtOperandIndex(cache_type, cache_array, cache_length, 0);
   Dispatch();
 }
@@ -2970,8 +2980,8 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
 
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset));
-  TNode<Int32T> formal_parameter_count = LoadObjectField<Uint16T>(
-      shared, SharedFunctionInfo::kFormalParameterCountOffset);
+  TNode<Int32T> formal_parameter_count =
+      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(shared);
 
   ExportParametersAndRegisterFile(array, registers, formal_parameter_count);
   StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
@@ -3046,8 +3056,8 @@ IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
 
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset));
-  TNode<Int32T> formal_parameter_count = LoadObjectField<Uint16T>(
-      shared, SharedFunctionInfo::kFormalParameterCountOffset);
+  TNode<Int32T> formal_parameter_count =
+      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(shared);
 
   ImportRegisterFile(
       CAST(LoadObjectField(generator,
@@ -3074,9 +3084,6 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
   compiler::CodeAssemblerState state(
       isolate, &zone, InterpreterDispatchDescriptor{},
       CodeKind::BYTECODE_HANDLER, debug_name,
-      FLAG_untrusted_code_mitigations
-          ? PoisoningMitigationLevel::kPoisonCriticalOnly
-          : PoisoningMitigationLevel::kDontPoison,
       builtin);
 
   switch (bytecode) {

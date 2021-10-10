@@ -24,8 +24,12 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
+#include "include/v8-function.h"
+#include "include/v8-initialization.h"
 #include "include/v8-inspector.h"
+#include "include/v8-json.h"
 #include "include/v8-profiler.h"
+#include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
@@ -166,7 +170,11 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
   void* AllocateVM(size_t length) {
     DCHECK_LE(kVMThreshold, length);
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+    v8::PageAllocator* page_allocator = i::GetPlatformDataCagePageAllocator();
+#else
     v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
+#endif
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     return i::AllocatePages(page_allocator, nullptr, allocated, page_size,
@@ -174,7 +182,11 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   }
 
   void FreeVM(void* data, size_t length) {
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+    v8::PageAllocator* page_allocator = i::GetPlatformDataCagePageAllocator();
+#else
     v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
+#endif
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     CHECK(i::FreePages(page_allocator, data, allocated));
@@ -236,7 +248,7 @@ class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
   std::atomic<size_t> space_left_;
 };
 
-#ifdef V8_OS_LINUX
+#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
 
 // This is a mock allocator variant that provides a huge virtual allocation
 // backed by a small real allocation that is repeatedly mapped. If you create an
@@ -329,7 +341,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
   base::Mutex regions_mutex_;
 };
 
-#endif  // V8_OS_LINUX
+#endif  // MULTI_MAPPED_ALLOCATOR_AVAILABLE
 
 v8::Platform* g_default_platform;
 std::unique_ptr<v8::Platform> g_platform;
@@ -846,16 +858,21 @@ std::string NormalizePath(const std::string& path,
   std::string segment;
   while (std::getline(segment_stream, segment, '/')) {
     if (segment == "..") {
-      segments.pop_back();
+      if (!segments.empty()) segments.pop_back();
     } else if (segment != ".") {
       segments.push_back(segment);
     }
   }
   // Join path segments.
   std::ostringstream os;
-  std::copy(segments.begin(), segments.end() - 1,
-            std::ostream_iterator<std::string>(os, "/"));
-  os << *segments.rbegin();
+  if (segments.size() > 1) {
+    std::copy(segments.begin(), segments.end() - 1,
+              std::ostream_iterator<std::string>(os, "/"));
+    os << *segments.rbegin();
+  } else {
+    os << "/";
+    if (!segments.empty()) os << segments[0];
+  }
   return os.str();
 }
 
@@ -1995,8 +2012,14 @@ void Shell::TestVerifySourcePositions(
 
   auto callable = i::Handle<i::JSFunctionOrBoundFunction>::cast(arg_handle);
   while (callable->IsJSBoundFunction()) {
+    internal::DisallowGarbageCollection no_gc;
     auto bound_function = i::Handle<i::JSBoundFunction>::cast(callable);
     auto bound_target = bound_function->bound_target_function();
+    if (!bound_target.IsJSFunctionOrBoundFunction()) {
+      internal::AllowGarbageCollection allow_gc;
+      isolate->ThrowError("Expected function as bound target.");
+      return;
+    }
     callable =
         handle(i::JSFunctionOrBoundFunction::cast(bound_target), i_isolate);
   }
@@ -2009,7 +2032,7 @@ void Shell::TestVerifySourcePositions(
   i::Handle<i::BytecodeArray> bytecodes =
       handle(function->shared().GetBytecodeArray(i_isolate), i_isolate);
   i::interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes);
-  bool has_baseline = function->shared().HasBaselineData();
+  bool has_baseline = function->shared().HasBaselineCode();
   i::Handle<i::ByteArray> bytecode_offsets;
   std::unique_ptr<i::baseline::BytecodeOffsetIterator> offset_iterator;
   if (has_baseline) {
@@ -2990,7 +3013,7 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     // Correctness fuzzing will attempt to compare results of tests with and
     // without turbo_fast_api_calls, so we don't expose the fast_c_api
     // constructor when --correctness_fuzzer_suppressions is on.
-    if (i::FLAG_turbo_fast_api_calls &&
+    if (options.expose_fast_api && i::FLAG_turbo_fast_api_calls &&
         !i::FLAG_correctness_fuzzer_suppressions) {
       test_template->Set(isolate, "FastCAPI",
                          Shell::CreateTestFastCApiTemplate(isolate));
@@ -3166,13 +3189,15 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
   Local<Context> context = Context::New(isolate);
   Context::Scope context_scope(context);
 
-  Local<Object> dispatch_counters = reinterpret_cast<i::Isolate*>(isolate)
-                                        ->interpreter()
-                                        ->GetDispatchCountersObject();
+  i::Handle<i::JSObject> dispatch_counters =
+      reinterpret_cast<i::Isolate*>(isolate)
+          ->interpreter()
+          ->GetDispatchCountersObject();
   std::ofstream dispatch_counters_stream(
       i::FLAG_trace_ignition_dispatches_output_file);
   dispatch_counters_stream << *String::Utf8Value(
-      isolate, JSON::Stringify(context, dispatch_counters).ToLocalChecked());
+      isolate, JSON::Stringify(context, Utils::ToLocal(dispatch_counters))
+                   .ToLocalChecked());
 }
 
 namespace {
@@ -3491,15 +3516,9 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
     isolate->ThrowError("Error reading file");
     return;
   }
-  std::unique_ptr<v8::BackingStore> backing_store =
-      ArrayBuffer::NewBackingStore(
-          data, length,
-          [](void* data, size_t length, void*) {
-            delete[] reinterpret_cast<uint8_t*>(data);
-          },
-          nullptr);
-  Local<v8::ArrayBuffer> buffer =
-      ArrayBuffer::New(isolate, std::move(backing_store));
+  Local<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, length);
+  memcpy(buffer->GetBackingStore()->Data(), data, length);
+  delete[] data;
 
   args.GetReturnValue().Set(buffer);
 }
@@ -4252,6 +4271,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--throws") == 0) {
       options.expected_to_throw = true;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--no-fail") == 0) {
+      options.no_fail = true;
+      argv[i] = nullptr;
     } else if (strncmp(argv[i], "--icu-data-file=", 16) == 0) {
       options.icu_data_file = argv[i] + 16;
       argv[i] = nullptr;
@@ -4357,8 +4379,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.fuzzilli_coverage_statistics = true;
       argv[i] = nullptr;
 #endif
-    } else if (strcmp(argv[i], "--fuzzy-module-file-extensions") == 0) {
-      options.fuzzy_module_file_extensions = true;
+    } else if (strcmp(argv[i], "--no-fuzzy-module-file-extensions") == 0) {
+      DCHECK(options.fuzzy_module_file_extensions);
+      options.fuzzy_module_file_extensions = false;
       argv[i] = nullptr;
 #if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
     } else if (strcmp(argv[i], "--enable-system-instrumentation") == 0) {
@@ -4381,6 +4404,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.wasm_trap_handler = false;
       argv[i] = nullptr;
 #endif  // V8_ENABLE_WEBASSEMBLY
+    } else if (strcmp(argv[i], "--expose-fast-api") == 0) {
+      options.expose_fast_api = true;
+      argv[i] = nullptr;
     }
   }
 
@@ -4404,9 +4430,14 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   options.mock_arraybuffer_allocator = i::FLAG_mock_arraybuffer_allocator;
   options.mock_arraybuffer_allocator_limit =
       i::FLAG_mock_arraybuffer_allocator_limit;
-#if V8_OS_LINUX
+#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
   options.multi_mapped_mock_allocator = i::FLAG_multi_mapped_mock_allocator;
 #endif
+
+  if (i::FLAG_stress_snapshot && options.expose_fast_api &&
+      check_d8_flag_contradictions) {
+    FATAL("Flag --expose-fast-api is incompatible with --stress-snapshot.");
+  }
 
   // Set up isolated source groups.
   options.isolate_sources = new SourceGroup[options.num_isolates];
@@ -4501,7 +4532,8 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
     Shell::unhandled_promise_rejections_.store(0);
   }
   // In order to finish successfully, success must be != expected_to_throw.
-  return success == Shell::options.expected_to_throw ? 1 : 0;
+  if (Shell::options.no_fail) return 0;
+  return (success == Shell::options.expected_to_throw ? 1 : 0);
 }
 
 void Shell::CollectGarbage(Isolate* isolate) {
@@ -5019,7 +5051,7 @@ int Shell::Main(int argc, char* argv[]) {
       options.thread_pool_size, v8::platform::IdleTaskSupport::kEnabled,
       in_process_stack_dumping, std::move(tracing));
   g_default_platform = g_platform.get();
-  if (i::FLAG_verify_predictable) {
+  if (i::FLAG_predictable) {
     g_platform = MakePredictablePlatform(std::move(g_platform));
   }
   if (options.stress_delay_tasks) {
@@ -5037,6 +5069,11 @@ int Shell::Main(int argc, char* argv[]) {
     V8::SetFlagsFromString("--redirect-code-traces-to=code.asm");
   }
   v8::V8::InitializePlatform(g_platform.get());
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  if (!v8::V8::InitializeVirtualMemoryCage()) {
+    FATAL("Could not initialize the virtual memory cage");
+  }
+#endif
   v8::V8::Initialize();
   if (options.snapshot_blob) {
     v8::V8::InitializeExternalStartupDataFromFile(options.snapshot_blob);
@@ -5053,19 +5090,19 @@ int Shell::Main(int argc, char* argv[]) {
       memory_limit >= options.mock_arraybuffer_allocator_limit
           ? memory_limit
           : std::numeric_limits<size_t>::max());
-#if V8_OS_LINUX
+#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
   MultiMappedAllocator multi_mapped_mock_allocator;
-#endif  // V8_OS_LINUX
+#endif
   if (options.mock_arraybuffer_allocator) {
     if (memory_limit) {
       Shell::array_buffer_allocator = &mock_arraybuffer_allocator_with_limit;
     } else {
       Shell::array_buffer_allocator = &mock_arraybuffer_allocator;
     }
-#if V8_OS_LINUX
+#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
   } else if (options.multi_mapped_mock_allocator) {
     Shell::array_buffer_allocator = &multi_mapped_mock_allocator;
-#endif  // V8_OS_LINUX
+#endif
   } else {
     Shell::array_buffer_allocator = &shell_array_buffer_allocator;
   }

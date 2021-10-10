@@ -124,7 +124,6 @@ namespace internal {
   IF_WASM(V, _, ASM_WASM_DATA_TYPE, AsmWasmData, asm_wasm_data)                \
   V(_, ASYNC_GENERATOR_REQUEST_TYPE, AsyncGeneratorRequest,                    \
     async_generator_request)                                                   \
-  V(_, BASELINE_DATA_TYPE, BaselineData, baseline_data)                        \
   V(_, BREAK_POINT_TYPE, BreakPoint, break_point)                              \
   V(_, BREAK_POINT_INFO_TYPE, BreakPointInfo, break_point_info)                \
   V(_, CACHED_TEMPLATE_OBJECT_TYPE, CachedTemplateObject,                      \

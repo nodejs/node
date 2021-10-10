@@ -5,8 +5,8 @@
 # Download page:
 # https://pypi.python.org/pypi/Jinja2
 PACKAGE='Jinja2'
-VERSION='2.10'
-SRC_URL='https://files.pythonhosted.org/packages/56/e6/332789f295cf22308386cf5bbd1f4e00ed11484299c5d7383378cf48ba47/Jinja2-2.10.tar.gz'
+VERSION='2.10.1'
+SRC_URL='https://files.pythonhosted.org/packages/93/ea/d884a06f8c7f9b7afbc8138b762e80479fb17aedbbe2b06515a12de9378d/Jinja2-2.10.1.tar.gz'
 PACKAGE_DIR='jinja2'
 
 CHROMIUM_FILES="README.chromium OWNERS get_jinja2.sh DIR_METADATA patches"

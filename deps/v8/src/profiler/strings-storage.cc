@@ -36,6 +36,7 @@ const char* StringsStorage::GetCopy(const char* src) {
     base::StrNCpy(dst, src, len);
     dst[len] = '\0';
     entry->key = dst.begin();
+    string_size_ += len;
   }
   entry->value =
       reinterpret_cast<void*>(reinterpret_cast<size_t>(entry->value) + 1);
@@ -56,6 +57,7 @@ const char* StringsStorage::AddOrDisposeString(char* str, int len) {
   if (entry->value == nullptr) {
     // New entry added.
     entry->key = str;
+    string_size_ += len;
   } else {
     DeleteArray(str);
   }
@@ -156,6 +158,7 @@ bool StringsStorage::Release(const char* str) {
       reinterpret_cast<void*>(reinterpret_cast<size_t>(entry->value) - 1);
 
   if (entry->value == 0) {
+    string_size_ -= len;
     names_.Remove(const_cast<char*>(str), hash);
     DeleteArray(str);
   }
@@ -164,6 +167,11 @@ bool StringsStorage::Release(const char* str) {
 
 size_t StringsStorage::GetStringCountForTesting() const {
   return names_.occupancy();
+}
+
+size_t StringsStorage::GetStringSize() {
+  base::MutexGuard guard(&mutex_);
+  return string_size_;
 }
 
 base::HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {

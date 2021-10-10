@@ -106,55 +106,55 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
                                    Handle<JSMessageObject> message) {
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
 
-  if (api_message_obj->ErrorLevel() == v8::Isolate::kMessageError) {
-    // We are calling into embedder's code which can throw exceptions.
-    // Thus we need to save current exception state, reset it to the clean one
-    // and ignore scheduled exceptions callbacks can throw.
-
-    // We pass the exception object into the message handler callback though.
-    Object exception_object = ReadOnlyRoots(isolate).undefined_value();
-    if (isolate->has_pending_exception()) {
-      exception_object = isolate->pending_exception();
-    }
-    Handle<Object> exception(exception_object, isolate);
-
-    Isolate::ExceptionScope exception_scope(isolate);
-    isolate->clear_pending_exception();
-    isolate->set_external_caught_exception(false);
-
-    // Turn the exception on the message into a string if it is an object.
-    if (message->argument().IsJSObject()) {
-      HandleScope scope(isolate);
-      Handle<Object> argument(message->argument(), isolate);
-
-      MaybeHandle<Object> maybe_stringified;
-      Handle<Object> stringified;
-      // Make sure we don't leak uncaught internally generated Error objects.
-      if (argument->IsJSError()) {
-        maybe_stringified = Object::NoSideEffectsToString(isolate, argument);
-      } else {
-        v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
-        catcher.SetVerbose(false);
-        catcher.SetCaptureMessage(false);
-
-        maybe_stringified = Object::ToString(isolate, argument);
-      }
-
-      if (!maybe_stringified.ToHandle(&stringified)) {
-        DCHECK(isolate->has_pending_exception());
-        isolate->clear_pending_exception();
-        isolate->set_external_caught_exception(false);
-        stringified =
-            isolate->factory()->NewStringFromAsciiChecked("exception");
-      }
-      message->set_argument(*stringified);
-    }
-
-    v8::Local<v8::Value> api_exception_obj = v8::Utils::ToLocal(exception);
-    ReportMessageNoExceptions(isolate, loc, message, api_exception_obj);
-  } else {
+  if (api_message_obj->ErrorLevel() != v8::Isolate::kMessageError) {
     ReportMessageNoExceptions(isolate, loc, message, v8::Local<v8::Value>());
+    return;
   }
+
+  // We are calling into embedder's code which can throw exceptions.
+  // Thus we need to save current exception state, reset it to the clean one
+  // and ignore scheduled exceptions callbacks can throw.
+
+  // We pass the exception object into the message handler callback though.
+  Object exception_object = ReadOnlyRoots(isolate).undefined_value();
+  if (isolate->has_pending_exception()) {
+    exception_object = isolate->pending_exception();
+  }
+  Handle<Object> exception(exception_object, isolate);
+
+  Isolate::ExceptionScope exception_scope(isolate);
+  isolate->clear_pending_exception();
+  isolate->set_external_caught_exception(false);
+
+  // Turn the exception on the message into a string if it is an object.
+  if (message->argument().IsJSObject()) {
+    HandleScope scope(isolate);
+    Handle<Object> argument(message->argument(), isolate);
+
+    MaybeHandle<Object> maybe_stringified;
+    Handle<Object> stringified;
+    // Make sure we don't leak uncaught internally generated Error objects.
+    if (argument->IsJSError()) {
+      maybe_stringified = Object::NoSideEffectsToString(isolate, argument);
+    } else {
+      v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
+      catcher.SetVerbose(false);
+      catcher.SetCaptureMessage(false);
+
+      maybe_stringified = Object::ToString(isolate, argument);
+    }
+
+    if (!maybe_stringified.ToHandle(&stringified)) {
+      DCHECK(isolate->has_pending_exception());
+      isolate->clear_pending_exception();
+      isolate->set_external_caught_exception(false);
+      stringified = isolate->factory()->exception_string();
+    }
+    message->set_argument(*stringified);
+  }
+
+  v8::Local<v8::Value> api_exception_obj = v8::Utils::ToLocal(exception);
+  ReportMessageNoExceptions(isolate, loc, message, api_exception_obj);
 }
 
 void MessageHandler::ReportMessageNoExceptions(
@@ -297,10 +297,14 @@ class V8_NODISCARD PrepareStackTraceScope {
 MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
                                                  Handle<JSObject> error,
                                                  Handle<Object> raw_stack) {
+  if (FLAG_correctness_fuzzer_suppressions) {
+    return isolate->factory()->empty_string();
+  }
   DCHECK(raw_stack->IsFixedArray());
   Handle<FixedArray> elems = Handle<FixedArray>::cast(raw_stack);
 
   const bool in_recursion = isolate->formatting_stack_trace();
+  const bool has_overflowed = i::StackLimitCheck{isolate}.HasOverflowed();
   Handle<Context> error_context;
   if (!in_recursion && error->GetCreationContext().ToHandle(&error_context)) {
     DCHECK(error_context->IsNativeContext());
@@ -318,7 +322,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
           isolate->RunPrepareStackTraceCallback(error_context, error, sites),
           Object);
       return result;
-    } else {
+    } else if (!has_overflowed) {
       Handle<JSFunction> global_error =
           handle(error_context->error_function(), isolate);
 
@@ -359,7 +363,6 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   }
 
   // Otherwise, run our internal formatting logic.
-
   IncrementalStringBuilder builder(isolate);
 
   RETURN_ON_EXCEPTION(isolate, AppendErrorString(isolate, error, &builder),

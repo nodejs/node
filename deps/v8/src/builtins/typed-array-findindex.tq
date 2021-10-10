@@ -9,19 +9,33 @@ const kBuiltinNameFindIndex: constexpr string =
     '%TypedArray%.prototype.findIndex';
 
 transitioning macro FindIndexAllElements(implicit context: Context)(
-    array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
+    array: typed_array::AttachedJSTypedArray, predicate: Callable,
     thisArg: JSAny): Number {
   let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
   const length: uintptr = witness.Get().length;
+
+  // 6. Repeat, while k < len
   for (let k: uintptr = 0; k < length; k++) {
-    // BUG(4895): We should throw on detached buffers rather than simply exit.
-    witness.Recheck() otherwise break;
-    const value: JSAny = witness.Load(k);
+    // 6a. Let Pk be ! ToString(𝔽(k)).
+    // There is no need to cast ToString to load elements.
+
+    // 6b. Let kValue be ! Get(O, Pk).
+    // kValue must be undefined when the buffer is detached.
+    let value: JSAny;
+    try {
+      witness.Recheck() otherwise goto IsDetached;
+      value = witness.Load(k);
+    } label IsDetached deferred {
+      value = Undefined;
+    }
+
+    // 6c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue,
+    // 𝔽(k), O »)).
     // TODO(v8:4153): Consider versioning this loop for Smi and non-Smi
     // indices to optimize Convert<Number>(k) for the most common case.
     const indexNumber: Number = Convert<Number>(k);
     const result = Call(
-        context, callbackfn, thisArg, value, indexNumber, witness.GetStable());
+        context, predicate, thisArg, value, indexNumber, witness.GetStable());
     if (ToBoolean(result)) {
       return indexNumber;
     }
@@ -40,9 +54,9 @@ TypedArrayPrototypeFindIndex(
         otherwise NotTypedArray;
     const uarray = typed_array::EnsureAttached(array) otherwise IsDetached;
 
-    const callbackfn = Cast<Callable>(arguments[0]) otherwise NotCallable;
+    const predicate = Cast<Callable>(arguments[0]) otherwise NotCallable;
     const thisArg = arguments[1];
-    return FindIndexAllElements(uarray, callbackfn, thisArg);
+    return FindIndexAllElements(uarray, predicate, thisArg);
   } label NotCallable deferred {
     ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
   } label NotTypedArray deferred {

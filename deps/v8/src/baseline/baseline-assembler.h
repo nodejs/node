@@ -202,6 +202,21 @@ class SaveAccumulatorScope final {
   BaselineAssembler* assembler_;
 };
 
+class EnsureAccumulatorPreservedScope final {
+ public:
+  inline explicit EnsureAccumulatorPreservedScope(BaselineAssembler* assembler);
+
+  inline ~EnsureAccumulatorPreservedScope();
+
+ private:
+  inline void AssertEqualToAccumulator(Register reg);
+
+  BaselineAssembler* assembler_;
+#ifdef V8_CODE_COMMENTS
+  Assembler::CodeComment comment_;
+#endif
+};
+
 }  // namespace baseline
 }  // namespace internal
 }  // namespace v8

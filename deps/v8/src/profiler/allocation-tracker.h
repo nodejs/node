@@ -8,7 +8,9 @@
 #include <map>
 #include <vector>
 
+#include "include/v8-persistent-handle.h"
 #include "include/v8-profiler.h"
+#include "include/v8-unwinder.h"
 #include "src/base/hashmap.h"
 #include "src/base/vector.h"
 #include "src/handles/handles.h"

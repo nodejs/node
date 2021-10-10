@@ -35,7 +35,7 @@ namespace internal {
 // Windows.
 unzFile OpenForUnzipping(const std::string& file_name_utf8);
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 // Opens the file referred to by |zip_fd| for unzipping.
 unzFile OpenFdForUnzipping(int zip_fd);
 #endif

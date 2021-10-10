@@ -32,6 +32,8 @@
 
 #include <stdlib.h>
 
+#include "include/v8-initialization.h"
+#include "include/v8-json.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/strings.h"

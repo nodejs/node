@@ -4,6 +4,9 @@
 
 #include "src/extensions/cputracemark-extension.h"
 
+#include "include/v8-isolate.h"
+#include "include/v8-template.h"
+
 namespace v8 {
 namespace internal {
 

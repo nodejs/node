@@ -65,9 +65,8 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
 
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
                                  byte_length);
-  InitializeExternalPointerField(buffer, JSArrayBuffer::kBackingStoreOffset,
-                                 PointerConstant(nullptr),
-                                 kArrayBufferBackingStoreTag);
+  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
+                                 PointerConstant(nullptr));
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
                                  IntPtrConstant(0));
   for (int offset = JSArrayBuffer::kHeaderSize;
@@ -402,12 +401,6 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
   Unreachable();
 
   BIND(&next);
-}
-
-void TypedArrayBuiltinsAssembler::AllocateJSTypedArrayExternalPointerEntry(
-    TNode<JSTypedArray> holder) {
-  InitializeExternalPointerField(
-      holder, IntPtrConstant(JSTypedArray::kExternalPointerOffset));
 }
 
 void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(

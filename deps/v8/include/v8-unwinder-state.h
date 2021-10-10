@@ -17,9 +17,10 @@ struct CalleeSavedRegisters {
   void* arm_r9;
   void* arm_r10;
 };
-#elif V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC ||  \
-    V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||   \
+    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC ||    \
+    V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_S390 || \
+    V8_TARGET_ARCH_LOONG64
 struct CalleeSavedRegisters {};
 #else
 #error Target architecture was not detected as supported by v8

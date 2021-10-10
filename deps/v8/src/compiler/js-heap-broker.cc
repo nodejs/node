@@ -50,12 +50,10 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       array_and_object_prototypes_(zone()),
       tracing_enabled_(tracing_enabled),
       is_concurrent_inlining_(is_concurrent_inlining),
-      is_isolate_bootstrapping_(isolate->bootstrapper()->IsActive()),
       code_kind_(code_kind),
       feedback_(zone()),
       property_access_infos_(zone()),
-      minimorphic_property_access_infos_(zone()),
-      typed_array_string_tags_(zone()) {
+      minimorphic_property_access_infos_(zone()) {
   // Note that this initialization of {refs_} with the minimal initial capacity
   // is redundant in the normal use case (concurrent compilation enabled,
   // standard objects to be serialized), as the map is going to be replaced
@@ -218,20 +216,6 @@ bool JSHeapBroker::ObjectMayBeUninitialized(Object object) const {
 
 bool JSHeapBroker::ObjectMayBeUninitialized(HeapObject object) const {
   return !IsMainThread() && isolate()->heap()->IsPendingAllocation(object);
-}
-
-bool CanInlineElementAccess(MapRef const& map) {
-  if (!map.IsJSObjectMap()) return false;
-  if (map.is_access_check_needed()) return false;
-  if (map.has_indexed_interceptor()) return false;
-  ElementsKind const elements_kind = map.elements_kind();
-  if (IsFastElementsKind(elements_kind)) return true;
-  if (IsTypedArrayElementsKind(elements_kind) &&
-      elements_kind != BIGUINT64_ELEMENTS &&
-      elements_kind != BIGINT64_ELEMENTS) {
-    return true;
-  }
-  return false;
 }
 
 ProcessedFeedback::ProcessedFeedback(Kind kind, FeedbackSlotKind slot_kind)
@@ -423,7 +407,10 @@ ElementAccessFeedback::ElementAccessFeedback(Zone* zone,
 bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
   for (auto const& group : transition_groups()) {
     for (Handle<Map> map : group) {
-      if (!MakeRef(broker, map).IsStringMap()) return false;
+      // We assume a memory fence because {map} was read earlier from
+      // the feedback vector and was store ordered on insertion into the
+      // vector.
+      if (!MakeRefAssumeMemoryFence(broker, map).IsStringMap()) return false;
     }
   }
   return true;
@@ -880,11 +867,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   MapHandles possible_transition_targets;
   possible_transition_targets.reserve(maps.size());
   for (MapRef& map : maps) {
-    if (!is_concurrent_inlining()) {
-      map.SerializeRootMap(NotConcurrentInliningTag{this});
-    }
-
-    if (CanInlineElementAccess(map) &&
+    if (map.CanInlineElementAccess() &&
         IsFastElementsKind(map.elements_kind()) &&
         GetInitialFastElementsKind() != map.elements_kind()) {
       possible_transition_targets.push_back(map.object());
@@ -992,9 +975,13 @@ MinimorphicLoadPropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   MinimorphicLoadPropertyAccessInfo access_info =
       factory.ComputePropertyAccessInfo(feedback);
   if (is_concurrent_inlining_) {
+    // We can assume a memory fence on {source.vector} because in production,
+    // the vector has already passed the gc predicate. Unit tests create
+    // FeedbackSource objects directly from handles, but they run on
+    // the main thread.
     TRACE(this, "Storing MinimorphicLoadPropertyAccessInfo for "
                     << source.index() << "  "
-                    << MakeRef<Object>(this, source.vector));
+                    << MakeRefAssumeMemoryFence<Object>(this, source.vector));
     minimorphic_property_access_infos_.insert({source, access_info});
   }
   return access_info;

@@ -9,6 +9,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/msan.h"
+#include "src/base/sanitizer/tsan.h"
 #include "src/heap/cppgc/globals.h"
 
 namespace heap {
@@ -43,6 +44,10 @@ namespace {
 // No ASAN support as accessing fake frames otherwise results in
 // "stack-use-after-scope" warnings.
 DISABLE_ASAN
+// No TSAN support as the stack may not be exclusively owned by the current
+// thread, e.g., for interrupt handling. Atomic reads are not enough as the
+// other thread may use a lock to synchronize the access.
+DISABLE_TSAN
 void IterateAsanFakeFrameIfNecessary(StackVisitor* visitor,
                                      void* asan_fake_stack,
                                      const void* stack_start,
@@ -103,6 +108,10 @@ void IterateSafeStackIfNecessary(StackVisitor* visitor) {
 V8_NOINLINE
 // No ASAN support as method accesses redzones while walking the stack.
 DISABLE_ASAN
+// No TSAN support as the stack may not be exclusively owned by the current
+// thread, e.g., for interrupt handling. Atomic reads are not enough as the
+// other thread may use a lock to synchronize the access.
+DISABLE_TSAN
 void IteratePointersImpl(const Stack* stack, StackVisitor* visitor,
                          intptr_t* stack_end) {
 #ifdef V8_USE_ADDRESS_SANITIZER
@@ -133,6 +142,7 @@ void Stack::IteratePointers(StackVisitor* visitor) const {
   PushAllRegistersAndIterateStack(this, visitor, &IteratePointersImpl);
   // No need to deal with callee-saved registers as they will be kept alive by
   // the regular conservative stack iteration.
+  // TODO(chromium:1056170): Add support for SIMD and/or filtering.
   IterateSafeStackIfNecessary(visitor);
 }
 

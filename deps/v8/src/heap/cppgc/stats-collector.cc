@@ -41,19 +41,19 @@ void StatsCollector::NotifyAllocation(size_t bytes) {
   // The current GC may not have been started. This is ok as recording considers
   // the whole time range between garbage collections.
   allocated_bytes_since_safepoint_ += bytes;
-#ifdef CPPGC_VERIFY_LIVE_BYTES
-  DCHECK_GE(live_bytes_ + bytes, live_bytes_);
-  live_bytes_ += bytes;
-#endif  // CPPGC_VERIFY_LIVE_BYTES
+#ifdef CPPGC_VERIFY_HEAP
+  DCHECK_GE(tracked_live_bytes_ + bytes, tracked_live_bytes_);
+  tracked_live_bytes_ += bytes;
+#endif  // CPPGC_VERIFY_HEAP
 }
 
 void StatsCollector::NotifyExplicitFree(size_t bytes) {
   // See IncreaseAllocatedObjectSize for lifetime of the counter.
   explicitly_freed_bytes_since_safepoint_ += bytes;
-#ifdef CPPGC_VERIFY_LIVE_BYTES
-  DCHECK_GE(live_bytes_, bytes);
-  live_bytes_ -= bytes;
-#endif  // CPPGC_VERIFY_LIVE_BYTES
+#ifdef CPPGC_VERIFY_HEAP
+  DCHECK_GE(tracked_live_bytes_, bytes);
+  tracked_live_bytes_ -= bytes;
+#endif  // CPPGC_VERIFY_HEAP
 }
 
 void StatsCollector::NotifySafePointForConservativeCollection() {
@@ -124,9 +124,9 @@ void StatsCollector::NotifyMarkingCompleted(size_t marked_bytes) {
       explicitly_freed_bytes_since_safepoint_;
   allocated_bytes_since_safepoint_ = 0;
   explicitly_freed_bytes_since_safepoint_ = 0;
-#ifdef CPPGC_VERIFY_LIVE_BYTES
-  live_bytes_ = marked_bytes;
-#endif  // CPPGC_VERIFY_LIVE_BYTES
+#ifdef CPPGC_VERIFY_HEAP
+  tracked_live_bytes_ = marked_bytes;
+#endif  // CPPGC_VERIFY_HEAP
 
   DCHECK_LE(memory_freed_bytes_since_end_of_marking_, memory_allocated_bytes_);
   memory_allocated_bytes_ -= memory_freed_bytes_since_end_of_marking_;

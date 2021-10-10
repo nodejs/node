@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "include/v8-initialization.h"
+#include "include/v8-snapshot.h"
 #include "src/base/file-utils.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
@@ -76,11 +78,6 @@ void LoadFromFile(const char* snapshot_blob) {
 void InitializeExternalStartupData(const char* directory_path) {
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
   const char* snapshot_name = "snapshot_blob.bin";
-#ifdef V8_MULTI_SNAPSHOTS
-  if (!FLAG_untrusted_code_mitigations) {
-    snapshot_name = "snapshot_blob_trusted.bin";
-  }
-#endif
   std::unique_ptr<char[]> snapshot =
       base::RelativePath(directory_path, snapshot_name);
   LoadFromFile(snapshot.get());

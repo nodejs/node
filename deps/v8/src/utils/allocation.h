@@ -100,6 +100,12 @@ V8_EXPORT_PRIVATE void AlignedFree(void* ptr);
 // Returns platfrom page allocator instance. Guaranteed to be a valid pointer.
 V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformPageAllocator();
 
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+// Returns the platform data cage page allocator instance. Guaranteed to be a
+// valid pointer.
+V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformDataCagePageAllocator();
+#endif
+
 // Sets the given page allocator as the platform page allocator and returns
 // the current one. This function *must* be used only for testing purposes.
 // It is not thread-safe and the testing infrastructure should ensure that
@@ -310,6 +316,9 @@ class VirtualMemory final {
 //   and the base bias size must be AllocatePageSize-aligned.
 // - The base alignment may be kAnyBaseAlignment to denote any alignment is
 //   acceptable. In this case the base bias size does not need to be aligned.
+//
+// TODO(chromium:1218005) can we either combine this class and
+// v8::VirtualMemoryCage in v8-platform.h or rename one of the two?
 class VirtualMemoryCage {
  public:
   VirtualMemoryCage();
@@ -351,13 +360,23 @@ class VirtualMemoryCage {
   // A number of attempts is made to try to reserve a region that satisfies the
   // constraints in params, but this may fail. The base address may be different
   // than the one requested.
-  bool InitReservation(const ReservationParams& params);
+  // If an existing reservation is provided, it will be used for this cage
+  // instead. The caller retains ownership of the reservation and is responsible
+  // for keeping the memory reserved during the lifetime of this object.
+  bool InitReservation(
+      const ReservationParams& params,
+      base::AddressRegion existing_reservation = base::AddressRegion());
 
   void Free();
 
  protected:
   Address base_ = kNullAddress;
   std::unique_ptr<base::BoundedPageAllocator> page_allocator_;
+  // Whether this cage owns the virtual memory reservation and thus should
+  // release it upon destruction. TODO(chromium:1218005) this is only needed
+  // when V8_VIRTUAL_MEMORY_CAGE is enabled. Maybe we can remove this again e.g.
+  // by merging this class and v8::VirtualMemoryCage in v8-platform.h.
+  bool reservation_is_owned_ = true;
   VirtualMemory reservation_;
 };
 

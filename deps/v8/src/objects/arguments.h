@@ -29,12 +29,10 @@ class JSArgumentsObject
 
 // JSSloppyArgumentsObject is just a JSArgumentsObject with specific initial
 // map. This initial map adds in-object properties for "length" and "callee".
-class JSSloppyArgumentsObject : public JSArgumentsObject {
+class JSSloppyArgumentsObject
+    : public TorqueGeneratedJSSloppyArgumentsObject<JSSloppyArgumentsObject,
+                                                    JSArgumentsObject> {
  public:
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSArgumentsObject::kHeaderSize,
-      TORQUE_GENERATED_JS_SLOPPY_ARGUMENTS_OBJECT_FIELDS)
-
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
   static const int kCalleeIndex = kLengthIndex + 1;
@@ -45,13 +43,10 @@ class JSSloppyArgumentsObject : public JSArgumentsObject {
 
 // JSStrictArgumentsObject is just a JSArgumentsObject with specific initial
 // map. This initial map adds an in-object property for "length".
-class JSStrictArgumentsObject : public JSArgumentsObject {
+class JSStrictArgumentsObject
+    : public TorqueGeneratedJSStrictArgumentsObject<JSStrictArgumentsObject,
+                                                    JSArgumentsObject> {
  public:
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSArgumentsObject::kHeaderSize,
-      TORQUE_GENERATED_JS_STRICT_ARGUMENTS_OBJECT_FIELDS)
-
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
   STATIC_ASSERT(kLengthIndex == JSSloppyArgumentsObject::kLengthIndex);

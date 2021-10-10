@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "include/v8.h"  // for v8::ScriptCompiler
+#include "include/v8-script.h"  // for v8::ScriptCompiler
 #include "src/common/globals.h"
 
 namespace v8 {

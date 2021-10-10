@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc-experiments --no-liftoff
+// Flags: --experimental-wasm-gc --no-liftoff
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -14,11 +14,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 // - Change the value of {length} to find point at which the builtin becomes
 //   faster.
 // - Change {array_type} if you want to test different types.
-// Right now, the limit is found to be in the 25-30 range.
-// TODO(7748): Measure again if we implement array.copy with a fast C call.
+// Right now, the limit is found to be around 10.
 (function ArrayCopyBenchmark() {
 
-  let array_length = 27;
+  let array_length = 10;
   let iterations = 1;
 
   var builder = new WasmModuleBuilder();

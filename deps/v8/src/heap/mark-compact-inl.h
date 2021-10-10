@@ -68,7 +68,7 @@ void MarkCompactCollector::RecordSlot(HeapObject object, ObjectSlot slot,
 void MarkCompactCollector::RecordSlot(HeapObject object, HeapObjectSlot slot,
                                       HeapObject target) {
   MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
-  if (!source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
+  if (!source_page->ShouldSkipEvacuationSlotRecording()) {
     RecordSlot(source_page, slot, target);
   }
 }
@@ -76,7 +76,7 @@ void MarkCompactCollector::RecordSlot(HeapObject object, HeapObjectSlot slot,
 void MarkCompactCollector::RecordSlot(MemoryChunk* source_page,
                                       HeapObjectSlot slot, HeapObject target) {
   BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(target);
-  if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>()) {
+  if (target_page->IsEvacuationCandidate()) {
     if (V8_EXTERNAL_CODE_SPACE_BOOL &&
         target_page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
       RememberedSet<OLD_TO_CODE>::Insert<AccessMode::ATOMIC>(source_page,

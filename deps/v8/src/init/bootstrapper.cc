@@ -368,7 +368,8 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   // causing a map change.
   JSObject::ForceSetPrototype(isolate_, global_proxy,
                               isolate_->factory()->null_value());
-  global_proxy->map().SetConstructor(roots.null_value());
+  global_proxy->map().set_constructor_or_back_pointer(roots.null_value(),
+                                                      kRelaxedStore);
   if (FLAG_track_detached_contexts) {
     isolate_->AddDetachedContext(env);
   }
@@ -551,7 +552,7 @@ V8_NOINLINE Handle<JSFunction> SimpleCreateFunction(Isolate* isolate,
   fun->shared().set_native(true);
 
   if (adapt) {
-    fun->shared().set_internal_formal_parameter_count(len);
+    fun->shared().set_internal_formal_parameter_count(JSParameterCount(len));
   } else {
     fun->shared().DontAdaptArguments();
   }
@@ -1548,9 +1549,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, object_function, "seal",
                           Builtin::kObjectSeal, 1, false);
 
-    Handle<JSFunction> object_create = SimpleInstallFunction(
-        isolate_, object_function, "create", Builtin::kObjectCreate, 2, false);
-    native_context()->set_object_create(*object_create);
+    SimpleInstallFunction(isolate_, object_function, "create",
+                          Builtin::kObjectCreate, 2, false);
 
     SimpleInstallFunction(isolate_, object_function, "defineProperties",
                           Builtin::kObjectDefineProperties, 2, true);
@@ -2375,7 +2375,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::PROMISE_FUNCTION_INDEX);
 
     Handle<SharedFunctionInfo> shared(promise_fun->shared(), isolate_);
-    shared->set_internal_formal_parameter_count(1);
+    shared->set_internal_formal_parameter_count(JSParameterCount(1));
     shared->set_length(1);
 
     InstallSpeciesGetter(isolate_, promise_fun);
@@ -2438,7 +2438,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallWithIntrinsicDefaultProto(isolate_, regexp_fun,
                                      Context::REGEXP_FUNCTION_INDEX);
     Handle<SharedFunctionInfo> shared(regexp_fun->shared(), isolate_);
-    shared->set_internal_formal_parameter_count(2);
+    shared->set_internal_formal_parameter_count(JSParameterCount(2));
     shared->set_length(2);
 
     {
@@ -2462,7 +2462,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kRegExpPrototypeFlagsGetter, true);
       SimpleInstallGetter(isolate_, prototype, factory->global_string(),
                           Builtin::kRegExpPrototypeGlobalGetter, true);
-      SimpleInstallGetter(isolate(), prototype, factory->has_indices_string(),
+      SimpleInstallGetter(isolate(), prototype, factory->hasIndices_string(),
                           Builtin::kRegExpPrototypeHasIndicesGetter, true);
       SimpleInstallGetter(isolate_, prototype, factory->ignoreCase_string(),
                           Builtin::kRegExpPrototypeIgnoreCaseGetter, true);
@@ -2746,9 +2746,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, math, "cos", Builtin::kMathCos, 1, true);
     SimpleInstallFunction(isolate_, math, "cosh", Builtin::kMathCosh, 1, true);
     SimpleInstallFunction(isolate_, math, "exp", Builtin::kMathExp, 1, true);
-    Handle<JSFunction> math_floor = SimpleInstallFunction(
-        isolate_, math, "floor", Builtin::kMathFloor, 1, true);
-    native_context()->set_math_floor(*math_floor);
+    SimpleInstallFunction(isolate_, math, "floor", Builtin::kMathFloor, 1,
+                          true);
     SimpleInstallFunction(isolate_, math, "fround", Builtin::kMathFround, 1,
                           true);
     SimpleInstallFunction(isolate_, math, "hypot", Builtin::kMathHypot, 2,
@@ -2762,9 +2761,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           true);
     SimpleInstallFunction(isolate_, math, "max", Builtin::kMathMax, 2, false);
     SimpleInstallFunction(isolate_, math, "min", Builtin::kMathMin, 2, false);
-    Handle<JSFunction> math_pow = SimpleInstallFunction(
-        isolate_, math, "pow", Builtin::kMathPow, 2, true);
-    native_context()->set_math_pow(*math_pow);
+    SimpleInstallFunction(isolate_, math, "pow", Builtin::kMathPow, 2, true);
     SimpleInstallFunction(isolate_, math, "random", Builtin::kMathRandom, 0,
                           true);
     SimpleInstallFunction(isolate_, math, "round", Builtin::kMathRound, 1,
@@ -3780,7 +3777,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     isolate_->proxy_map()->SetConstructor(*proxy_function);
 
-    proxy_function->shared().set_internal_formal_parameter_count(2);
+    proxy_function->shared().set_internal_formal_parameter_count(
+        JSParameterCount(2));
     proxy_function->shared().set_length(2);
 
     native_context()->set_proxy_function(*proxy_function);
@@ -4129,10 +4127,9 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
     Handle<String> script_name =
         factory->NewStringFromUtf8(name).ToHandleChecked();
     MaybeHandle<SharedFunctionInfo> maybe_function_info =
-        Compiler::GetSharedFunctionInfoForScript(
-            isolate, source, ScriptDetails(script_name), extension, nullptr,
-            ScriptCompiler::kNoCompileOptions,
-            ScriptCompiler::kNoCacheBecauseV8Extension, EXTENSION_CODE);
+        Compiler::GetSharedFunctionInfoForScriptWithExtension(
+            isolate, source, ScriptDetails(script_name), extension,
+            ScriptCompiler::kNoCompileOptions, EXTENSION_CODE);
     if (!maybe_function_info.ToHandle(&function_info)) return false;
     cache->Add(isolate, name, function_info);
   }
@@ -4592,6 +4589,20 @@ void Genesis::InitializeGlobal_harmony_intl_locale_info() {
                       Builtin::kLocalePrototypeTimeZones, true);
   SimpleInstallGetter(isolate(), prototype, factory()->weekInfo_string(),
                       Builtin::kLocalePrototypeWeekInfo, true);
+}
+
+void Genesis::InitializeGlobal_harmony_intl_enumeration() {
+  if (!FLAG_harmony_intl_enumeration) return;
+
+  Handle<JSObject> intl = Handle<JSObject>::cast(
+      JSReceiver::GetProperty(
+          isolate(),
+          Handle<JSReceiver>(native_context()->global_object(), isolate()),
+          factory()->InternalizeUtf8String("Intl"))
+          .ToHandleChecked());
+
+  SimpleInstallFunction(isolate(), intl, "supportedValuesOf",
+                        Builtin::kIntlSupportedValuesOf, 0, false);
 }
 
 #endif  // V8_INTL_SUPPORT

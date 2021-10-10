@@ -8,21 +8,29 @@
 #include <map>
 #include <memory>
 
+#include "include/v8-array-buffer.h"
 #include "include/v8-inspector.h"
+#include "include/v8-local-handle.h"
 #include "include/v8-platform.h"
-#include "include/v8.h"
+#include "include/v8-script.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/base/vector.h"
 
 namespace v8 {
+
+class Context;
+class Isolate;
+class ObjectTemplate;
+class StartupData;
+
 namespace internal {
 
 class TaskRunner;
 
 enum WithInspector : bool { kWithInspector = true, kNoInspector = false };
 
-class IsolateData : public v8_inspector::V8InspectorClient {
+class InspectorIsolateData : public v8_inspector::V8InspectorClient {
  public:
   class SetupGlobalTask {
    public:
@@ -32,14 +40,16 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   };
   using SetupGlobalTasks = std::vector<std::unique_ptr<SetupGlobalTask>>;
 
-  IsolateData(const IsolateData&) = delete;
-  IsolateData& operator=(const IsolateData&) = delete;
-  IsolateData(TaskRunner* task_runner, SetupGlobalTasks setup_global_tasks,
-              v8::StartupData* startup_data, WithInspector with_inspector);
-  static IsolateData* FromContext(v8::Local<v8::Context> context);
+  InspectorIsolateData(const InspectorIsolateData&) = delete;
+  InspectorIsolateData& operator=(const InspectorIsolateData&) = delete;
+  InspectorIsolateData(TaskRunner* task_runner,
+                       SetupGlobalTasks setup_global_tasks,
+                       v8::StartupData* startup_data,
+                       WithInspector with_inspector);
+  static InspectorIsolateData* FromContext(v8::Local<v8::Context> context);
 
-  ~IsolateData() override {
-    // Enter the isolate before destructing this IsolateData, so that
+  ~InspectorIsolateData() override {
+    // Enter the isolate before destructing this InspectorIsolateData, so that
     // destructors that run before the Isolate's destructor still see it as
     // entered.
     isolate()->Enter();
@@ -141,7 +151,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   // disposed in the right order, relative to other member variables.
   struct IsolateDeleter {
     void operator()(v8::Isolate* isolate) const {
-      // Exit the isolate after it was entered by ~IsolateData.
+      // Exit the isolate after it was entered by ~InspectorIsolateData.
       isolate->Exit();
       isolate->Dispose();
     }

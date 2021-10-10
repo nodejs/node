@@ -17,6 +17,7 @@
 #include "src/base/vector.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
+#include "src/init/vm-cage.h"
 #include "src/utils/memcopy.h"
 
 #if V8_LIBC_BIONIC
@@ -53,6 +54,7 @@ class PageAllocatorInitializer {
       page_allocator_ = default_page_allocator.get();
     }
 #if defined(LEAK_SANITIZER)
+    static_assert(!V8_VIRTUAL_MEMORY_CAGE_BOOL, "Not currently supported");
     static base::LeakyObject<base::LsanPageAllocator> lsan_allocator(
         page_allocator_);
     page_allocator_ = lsan_allocator.get();
@@ -61,16 +63,25 @@ class PageAllocatorInitializer {
 
   PageAllocator* page_allocator() const { return page_allocator_; }
 
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  PageAllocator* data_cage_page_allocator() const {
+    return data_cage_page_allocator_;
+  }
+#endif
+
   void SetPageAllocatorForTesting(PageAllocator* allocator) {
     page_allocator_ = allocator;
   }
 
  private:
   PageAllocator* page_allocator_;
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  PageAllocator* data_cage_page_allocator_;
+#endif
 };
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(PageAllocatorInitializer,
-                                GetPageTableInitializer)
+                                GetPageAllocatorInitializer)
 
 // We will attempt allocation this many times. After each failure, we call
 // OnCriticalMemoryPressure to try to free some memory.
@@ -79,14 +90,29 @@ const int kAllocationTries = 2;
 }  // namespace
 
 v8::PageAllocator* GetPlatformPageAllocator() {
-  DCHECK_NOT_NULL(GetPageTableInitializer()->page_allocator());
-  return GetPageTableInitializer()->page_allocator();
+  DCHECK_NOT_NULL(GetPageAllocatorInitializer()->page_allocator());
+  return GetPageAllocatorInitializer()->page_allocator();
 }
+
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+// TODO(chromium:1218005) once we disallow disabling the cage, name this e.g.
+// "GetPlatformDataPageAllocator", and set it to the PlatformPageAllocator when
+// V8_VIRTUAL_MEMORY_CAGE is not defined. Then use that allocator whenever
+// allocating ArrayBuffer backing stores inside v8.
+v8::PageAllocator* GetPlatformDataCagePageAllocator() {
+  if (GetProcessWideVirtualMemoryCage()->is_disabled()) {
+    return GetPlatformPageAllocator();
+  } else {
+    CHECK(GetProcessWideVirtualMemoryCage()->is_initialized());
+    return GetProcessWideVirtualMemoryCage()->GetDataCagePageAllocator();
+  }
+}
+#endif
 
 v8::PageAllocator* SetPlatformPageAllocatorForTesting(
     v8::PageAllocator* new_page_allocator) {
   v8::PageAllocator* old_page_allocator = GetPlatformPageAllocator();
-  GetPageTableInitializer()->SetPageAllocatorForTesting(new_page_allocator);
+  GetPageAllocatorInitializer()->SetPageAllocatorForTesting(new_page_allocator);
   return old_page_allocator;
 }
 
@@ -323,7 +349,8 @@ inline Address VirtualMemoryCageStart(
 }
 }  // namespace
 
-bool VirtualMemoryCage::InitReservation(const ReservationParams& params) {
+bool VirtualMemoryCage::InitReservation(
+    const ReservationParams& params, base::AddressRegion existing_reservation) {
   DCHECK(!reservation_.IsReserved());
 
   const size_t allocate_page_size = params.page_allocator->AllocatePageSize();
@@ -337,7 +364,16 @@ bool VirtualMemoryCage::InitReservation(const ReservationParams& params) {
                            RoundUp(params.base_alignment, allocate_page_size)) -
                  RoundUp(params.base_bias_size, allocate_page_size);
 
-  if (params.base_alignment == ReservationParams::kAnyBaseAlignment) {
+  if (!existing_reservation.is_empty()) {
+    CHECK_EQ(existing_reservation.size(), params.reservation_size);
+    CHECK(params.base_alignment == ReservationParams::kAnyBaseAlignment ||
+          IsAligned(existing_reservation.begin(), params.base_alignment));
+    reservation_ =
+        VirtualMemory(params.page_allocator, existing_reservation.begin(),
+                      existing_reservation.size());
+    base_ = reservation_.address() + params.base_bias_size;
+    reservation_is_owned_ = false;
+  } else if (params.base_alignment == ReservationParams::kAnyBaseAlignment) {
     // When the base doesn't need to be aligned, the virtual memory reservation
     // fails only due to OOM.
     VirtualMemory reservation(params.page_allocator, params.reservation_size,
@@ -426,7 +462,13 @@ void VirtualMemoryCage::Free() {
   if (IsReserved()) {
     base_ = kNullAddress;
     page_allocator_.reset();
-    reservation_.Free();
+    if (reservation_is_owned_) {
+      reservation_.Free();
+    } else {
+      // Reservation is owned by the Platform.
+      DCHECK(V8_VIRTUAL_MEMORY_CAGE_BOOL);
+      reservation_.Reset();
+    }
   }
 }
 

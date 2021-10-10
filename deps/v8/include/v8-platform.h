@@ -430,9 +430,27 @@ class PageAllocator {
   /**
    * Frees memory in the given [address, address + size) range. address and size
    * should be operating system page-aligned. The next write to this
-   * memory area brings the memory transparently back.
+   * memory area brings the memory transparently back. This should be treated as
+   * a hint to the OS that the pages are no longer needed. It does not guarantee
+   * that the pages will be discarded immediately or at all.
    */
   virtual bool DiscardSystemPages(void* address, size_t size) { return true; }
+
+  /**
+   * Decommits any wired memory pages in the given range, allowing the OS to
+   * reclaim them, and marks the region as inacessible (kNoAccess). The address
+   * range stays reserved and can be accessed again later by changing its
+   * permissions. However, in that case the memory content is guaranteed to be
+   * zero-initialized again. The memory must have been previously allocated by a
+   * call to AllocatePages. Returns true on success, false otherwise.
+   */
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  // Implementing this API is required when the virtual memory cage is enabled.
+  virtual bool DecommitPages(void* address, size_t size) = 0;
+#else
+  // Otherwise, it is optional for now.
+  virtual bool DecommitPages(void* address, size_t size) { return false; }
+#endif
 
   /**
    * INTERNAL ONLY: This interface has not been stabilised and may change

@@ -401,7 +401,8 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
       isolate->factory()->NewArgumentsObject(callee, argument_count);
 
   // Allocate the elements if needed.
-  int parameter_count = callee->shared().internal_formal_parameter_count();
+  int parameter_count =
+      callee->shared().internal_formal_parameter_count_without_receiver();
   if (argument_count > 0) {
     if (parameter_count > 0) {
       int mapped_count = std::min(argument_count, parameter_count);
@@ -526,7 +527,8 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0)
-  int start_index = callee->shared().internal_formal_parameter_count();
+  int start_index =
+      callee->shared().internal_formal_parameter_count_without_receiver();
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;

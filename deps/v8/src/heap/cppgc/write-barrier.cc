@@ -132,12 +132,12 @@ void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
   // A write during atomic pause (e.g. pre-finalizer) may trigger the slow path
   // of the barrier. This is a result of the order of bailouts where not marking
   // results in applying the generational barrier.
-  if (local_data.heap_base->in_atomic_pause()) return;
+  if (local_data.heap_base.in_atomic_pause()) return;
 
   if (value_offset > 0 && age_table[value_offset] == AgeTable::Age::kOld)
     return;
   // Record slot.
-  local_data.heap_base->remembered_slots().insert(const_cast<void*>(slot));
+  local_data.heap_base.remembered_slots().insert(const_cast<void*>(slot));
 }
 #endif  // CPPGC_YOUNG_GENERATION
 

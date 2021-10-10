@@ -882,9 +882,10 @@ bool Typer::Visitor::InductionVariablePhiTypeIsPrefixedPoint(
     InductionVariable* induction_var) {
   Node* node = induction_var->phi();
   DCHECK_EQ(node->opcode(), IrOpcode::kInductionVariablePhi);
+  Node* arith = node->InputAt(1);
   Type type = NodeProperties::GetType(node);
   Type initial_type = Operand(node, 0);
-  Node* arith = node->InputAt(1);
+  Type arith_type = Operand(node, 1);
   Type increment_type = Operand(node, 2);
 
   // Intersect {type} with useful bounds.
@@ -910,26 +911,30 @@ bool Typer::Visitor::InductionVariablePhiTypeIsPrefixedPoint(
     type = Type::Intersect(type, bound_type, typer_->zone());
   }
 
-  // Apply ordinary typing to the "increment" operation.
-  // clang-format off
-  switch (arith->opcode()) {
+  if (arith_type.IsNone()) {
+    type = Type::None();
+  } else {
+    // Apply ordinary typing to the "increment" operation.
+    // clang-format off
+    switch (arith->opcode()) {
 #define CASE(x)                             \
-    case IrOpcode::k##x:                    \
-      type = Type##x(type, increment_type); \
-      break;
-    CASE(JSAdd)
-    CASE(JSSubtract)
-    CASE(NumberAdd)
-    CASE(NumberSubtract)
-    CASE(SpeculativeNumberAdd)
-    CASE(SpeculativeNumberSubtract)
-    CASE(SpeculativeSafeIntegerAdd)
-    CASE(SpeculativeSafeIntegerSubtract)
+      case IrOpcode::k##x:                    \
+        type = Type##x(type, increment_type); \
+        break;
+      CASE(JSAdd)
+      CASE(JSSubtract)
+      CASE(NumberAdd)
+      CASE(NumberSubtract)
+      CASE(SpeculativeNumberAdd)
+      CASE(SpeculativeNumberSubtract)
+      CASE(SpeculativeSafeIntegerAdd)
+      CASE(SpeculativeSafeIntegerSubtract)
 #undef CASE
-    default:
-      UNREACHABLE();
+      default:
+        UNREACHABLE();
+    }
+    // clang-format on
   }
-  // clang-format on
 
   type = Type::Union(initial_type, type, typer_->zone());
 
@@ -2064,10 +2069,6 @@ Type Typer::Visitor::TypeStringLength(Node* node) {
 }
 
 Type Typer::Visitor::TypeStringSubstring(Node* node) { return Type::String(); }
-
-Type Typer::Visitor::TypePoisonIndex(Node* node) {
-  return Type::Union(Operand(node, 0), typer_->cache_->kSingletonZero, zone());
-}
 
 Type Typer::Visitor::TypeCheckBounds(Node* node) {
   return typer_->operation_typer_.CheckBounds(Operand(node, 0),

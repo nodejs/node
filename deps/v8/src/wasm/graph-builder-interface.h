@@ -27,12 +27,18 @@ struct FunctionBody;
 class WasmFeatures;
 struct WasmModule;
 
+enum EndpointInstrumentationMode {
+  kDoNotInstrumentEndpoints,
+  kInstrumentEndpoints
+};
+
 V8_EXPORT_PRIVATE DecodeResult
 BuildTFGraph(AccountingAllocator* allocator, const WasmFeatures& enabled,
              const WasmModule* module, compiler::WasmGraphBuilder* builder,
              WasmFeatures* detected, const FunctionBody& body,
              std::vector<compiler::WasmLoopInfo>* loop_infos,
-             compiler::NodeOriginTable* node_origins, int func_index);
+             compiler::NodeOriginTable* node_origins, int func_index,
+             EndpointInstrumentationMode instrumentation);
 
 }  // namespace wasm
 }  // namespace internal

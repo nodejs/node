@@ -49,22 +49,10 @@ MaybeHandle<Object> Runtime::GetObjectProperty(
 
   if (!it.IsFound() && key->IsSymbol() &&
       Symbol::cast(*key).is_private_name()) {
-    Handle<Symbol> sym = Handle<Symbol>::cast(key);
-    Handle<Object> name(sym->description(), isolate);
-    DCHECK(name->IsString());
-    Handle<String> name_string = Handle<String>::cast(name);
-    if (sym->IsPrivateBrand()) {
-      Handle<String> class_name = (name_string->length() == 0)
-                                      ? isolate->factory()->anonymous_string()
-                                      : name_string;
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kInvalidPrivateBrand,
-                                   class_name, lookup_start_object),
-                      Object);
-    }
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kInvalidPrivateMemberRead,
-                                 name_string, lookup_start_object),
+    MessageTemplate message = Symbol::cast(*key).IsPrivateBrand()
+                                  ? MessageTemplate::kInvalidPrivateBrand
+                                  : MessageTemplate::kInvalidPrivateMemberRead;
+    THROW_NEW_ERROR(isolate, NewTypeError(message, key, lookup_start_object),
                     Object);
   }
   return result;
@@ -1424,7 +1412,9 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
 
   if (it.IsFound()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kVarRedeclaration, brand));
+        isolate,
+        NewTypeError(MessageTemplate::kInvalidPrivateBrandReinitialization,
+                     brand));
   }
 
   PropertyAttributes attributes =
@@ -1447,7 +1437,8 @@ RUNTIME_FUNCTION(Runtime_AddPrivateField) {
 
   if (it.IsFound()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kVarRedeclaration, key));
+        isolate,
+        NewTypeError(MessageTemplate::kInvalidPrivateFieldReitialization, key));
   }
 
   CHECK(Object::AddDataProperty(&it, value, NONE, Just(kDontThrow),

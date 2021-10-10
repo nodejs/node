@@ -43,6 +43,13 @@ bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
   // Functions with breakpoints have to stay interpreted.
   if (shared.HasBreakInfo()) return false;
 
+  // Functions with instrumented bytecode can't be baseline compiled since the
+  // baseline code's bytecode array pointer is immutable.
+  if (shared.HasDebugInfo() &&
+      shared.GetDebugInfo().HasInstrumentedBytecodeArray()) {
+    return false;
+  }
+
   // Do not baseline compile if function doesn't pass sparkplug_filter.
   if (!shared.PassesFilter(FLAG_sparkplug_filter)) return false;
 

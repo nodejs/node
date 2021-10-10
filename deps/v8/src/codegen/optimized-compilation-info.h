@@ -58,21 +58,19 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   V(SourcePositions, source_positions, 4)                            \
   V(BailoutOnUninitialized, bailout_on_uninitialized, 5)             \
   V(LoopPeeling, loop_peeling, 6)                                    \
-  V(UntrustedCodeMitigations, untrusted_code_mitigations, 7)         \
-  V(SwitchJumpTable, switch_jump_table, 8)                           \
-  V(CalledWithCodeStartRegister, called_with_code_start_register, 9) \
-  V(PoisonRegisterArguments, poison_register_arguments, 10)          \
-  V(AllocationFolding, allocation_folding, 11)                       \
-  V(AnalyzeEnvironmentLiveness, analyze_environment_liveness, 12)    \
-  V(TraceTurboJson, trace_turbo_json, 13)                            \
-  V(TraceTurboGraph, trace_turbo_graph, 14)                          \
-  V(TraceTurboScheduled, trace_turbo_scheduled, 15)                  \
-  V(TraceTurboAllocation, trace_turbo_allocation, 16)                \
-  V(TraceHeapBroker, trace_heap_broker, 17)                          \
-  V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 18) \
-  V(ConcurrentInlining, concurrent_inlining, 19)                     \
-  V(DiscardResultForTesting, discard_result_for_testing, 20)         \
-  V(InlineJSWasmCalls, inline_js_wasm_calls, 21)
+  V(SwitchJumpTable, switch_jump_table, 7)                           \
+  V(CalledWithCodeStartRegister, called_with_code_start_register, 8) \
+  V(AllocationFolding, allocation_folding, 9)                        \
+  V(AnalyzeEnvironmentLiveness, analyze_environment_liveness, 10)    \
+  V(TraceTurboJson, trace_turbo_json, 11)                            \
+  V(TraceTurboGraph, trace_turbo_graph, 12)                          \
+  V(TraceTurboScheduled, trace_turbo_scheduled, 13)                  \
+  V(TraceTurboAllocation, trace_turbo_allocation, 14)                \
+  V(TraceHeapBroker, trace_heap_broker, 15)                          \
+  V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 16) \
+  V(ConcurrentInlining, concurrent_inlining, 17)                     \
+  V(DiscardResultForTesting, discard_result_for_testing, 18)         \
+  V(InlineJSWasmCalls, inline_js_wasm_calls, 19)
 
   enum Flag {
 #define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,
@@ -82,7 +80,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
 #define DEF_GETTER(Camel, Lower, Bit) \
   bool Lower() const {                \
-    DCHECK(FlagGetIsValid(k##Camel)); \
     return GetFlag(k##Camel);         \
   }
   FLAGS(DEF_GETTER)
@@ -90,16 +87,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
 #define DEF_SETTER(Camel, Lower, Bit) \
   void set_##Lower() {                \
-    DCHECK(FlagSetIsValid(k##Camel)); \
     SetFlag(k##Camel);                \
   }
   FLAGS(DEF_SETTER)
 #undef DEF_SETTER
-
-#ifdef DEBUG
-  bool FlagGetIsValid(Flag flag) const;
-  bool FlagSetIsValid(Flag flag) const;
-#endif  // DEBUG
 
   // Construct a compilation info for optimized compilation.
   OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
@@ -140,13 +131,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     node_observer_ = observer;
   }
   compiler::NodeObserver* node_observer() const { return node_observer_; }
-
-  void SetPoisoningMitigationLevel(PoisoningMitigationLevel poisoning_level) {
-    poisoning_level_ = poisoning_level;
-  }
-  PoisoningMitigationLevel GetPoisoningMitigationLevel() const {
-    return poisoning_level_;
-  }
 
   // Code getters and setters.
 
@@ -269,8 +253,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // Compilation flags.
   unsigned flags_ = 0;
-  PoisoningMitigationLevel poisoning_level_ =
-      PoisoningMitigationLevel::kDontPoison;
 
   const CodeKind code_kind_;
   Builtin builtin_ = Builtin::kNoBuiltinId;

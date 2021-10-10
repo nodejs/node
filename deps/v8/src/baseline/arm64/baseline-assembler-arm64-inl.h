@@ -583,12 +583,20 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  __ masm()->Add(params_size, params_size, 1);  // Include the receiver.
-  __ masm()->DropArguments(params_size);
+  __ masm()->DropArguments(params_size,
+                           kJSArgcIncludesReceiver
+                               ? TurboAssembler::kCountIncludesReceiver
+                               : TurboAssembler::kCountExcludesReceiver);
   __ masm()->Ret();
 }
 
 #undef __
+
+inline void EnsureAccumulatorPreservedScope::AssertEqualToAccumulator(
+    Register reg) {
+  assembler_->masm()->CmpTagged(reg, kInterpreterAccumulatorRegister);
+  assembler_->masm()->Assert(eq, AbortReason::kUnexpectedValue);
+}
 
 }  // namespace baseline
 }  // namespace internal

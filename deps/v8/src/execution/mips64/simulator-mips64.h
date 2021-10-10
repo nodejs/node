@@ -243,7 +243,7 @@ class Simulator : public SimulatorBase {
   void set_register(int reg, int64_t value);
   void set_register_word(int reg, int32_t value);
   void set_dw_register(int dreg, const int* dbl);
-  int64_t get_register(int reg) const;
+  V8_EXPORT_PRIVATE int64_t get_register(int reg) const;
   double get_double_from_register_pair(int reg);
   // Same for FPURegisters.
   void set_fpu_register(int fpureg, int64_t value);
@@ -291,7 +291,7 @@ class Simulator : public SimulatorBase {
   unsigned int get_msacsr_rounding_mode();
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int64_t value);
-  int64_t get_pc() const;
+  V8_EXPORT_PRIVATE int64_t get_pc() const;
 
   Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 

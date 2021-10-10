@@ -244,7 +244,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(CPPGC_ENABLE_OBJECT_NAMES "Enable object names in cppgc for debug purposes" OFF)
 option(CPPGC_ENABLE_CAGED_HEAP "Enable heap reservation of size 4GB, only possible for 64bit archs" OFF)
-option(CPPGC_ENABLE_VERIFY_LIVE_BYTES " Enable verification of live bytes in the marking verifier" OFF)
+option(CPPGC_ENABLE_VERIFY_HEAP "Enables additional heap verification phases and checks" OFF)
 option(CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS " Enable assignment checks for Members/Persistents during prefinalizer invocations" OFF)
 option(CPPGC_ENABLE_YOUNG_GENERATION "Enable young generation in cppgc" OFF)
 set(CPPGC_TARGET_ARCH "x64" CACHE STRING "Target architecture, possible options: x64, x86, arm, arm64, ppc64, s390x, mipsel, mips64el")
@@ -409,7 +409,7 @@ else{else_cond}
                    deps=['Threads::Threads'],
                    desc='Main library'),
             'sample':
-            Target(name='cppgc_sample',
+            Target(name='cppgc_hello_world',
                    cmake='add_executable',
                    deps=['cppgc'],
                    desc='Example'),
@@ -435,8 +435,8 @@ endif()
 if(CPPGC_ENABLE_CAGED_HEAP)
   target_compile_definitions({target.name} PRIVATE "-DCPPGC_CAGED_HEAP")
 endif()
-if(CPPGC_ENABLE_VERIFY_LIVE_BYTES)
-  target_compile_definitions({target.name} PRIVATE "-DCPPGC_VERIFY_LIVE_BYTES")
+if(CPPGC_ENABLE_VERIFY_HEAP)
+  target_compile_definitions({target.name} PRIVATE "-DCPPGC_ENABLE_VERIFY_HEAP")
 endif()
 if(CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS)
   target_compile_definitions({target.name} PRIVATE "-DCPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS")

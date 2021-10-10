@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "include/v8.h"
+#include "include/v8-primitive.h"
 #include "src/parsing/parse-info.h"
 
 namespace v8 {

@@ -8,10 +8,14 @@
 #include <vector>
 
 #include "include/v8-inspector.h"
-#include "include/v8.h"
+#include "include/v8-local-handle.h"
 #include "src/base/macros.h"
 
 namespace v8 {
+
+class Isolate;
+class String;
+
 namespace internal {
 
 std::vector<uint8_t> ToBytes(v8::Isolate*, v8::Local<v8::String>);

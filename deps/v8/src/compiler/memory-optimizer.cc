@@ -40,7 +40,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kLoadLane:
     case IrOpcode::kLoadTransform:
     case IrOpcode::kMemoryBarrier:
-    case IrOpcode::kPoisonedLoad:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
     case IrOpcode::kRetain:
@@ -54,7 +53,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kStoreField:
     case IrOpcode::kStoreLane:
     case IrOpcode::kStoreToObject:
-    case IrOpcode::kTaggedPoisonOnSpeculation:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
     case IrOpcode::kUnreachable:
@@ -77,7 +75,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kWord32AtomicStore:
     case IrOpcode::kWord32AtomicSub:
     case IrOpcode::kWord32AtomicXor:
-    case IrOpcode::kWord32PoisonOnSpeculation:
     case IrOpcode::kWord64AtomicAdd:
     case IrOpcode::kWord64AtomicAnd:
     case IrOpcode::kWord64AtomicCompareExchange:
@@ -87,7 +84,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kWord64AtomicStore:
     case IrOpcode::kWord64AtomicSub:
     case IrOpcode::kWord64AtomicXor:
-    case IrOpcode::kWord64PoisonOnSpeculation:
       return false;
 
     case IrOpcode::kCall:
@@ -183,13 +179,12 @@ void WriteBarrierAssertFailed(Node* node, Node* object, const char* name,
 }  // namespace
 
 MemoryOptimizer::MemoryOptimizer(
-    JSGraph* jsgraph, Zone* zone, PoisoningMitigationLevel poisoning_level,
+    JSGraph* jsgraph, Zone* zone,
     MemoryLowering::AllocationFolding allocation_folding,
     const char* function_debug_name, TickCounter* tick_counter)
     : graph_assembler_(jsgraph, zone),
-      memory_lowering_(jsgraph, zone, &graph_assembler_, poisoning_level,
-                       allocation_folding, WriteBarrierAssertFailed,
-                       function_debug_name),
+      memory_lowering_(jsgraph, zone, &graph_assembler_, allocation_folding,
+                       WriteBarrierAssertFailed, function_debug_name),
       jsgraph_(jsgraph),
       empty_state_(AllocationState::Empty(zone)),
       pending_(zone),

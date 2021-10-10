@@ -173,27 +173,11 @@ std::map<const std::string, icu::MeasureUnit> CreateUnitMap() {
   int32_t total = icu::MeasureUnit::getAvailable(nullptr, 0, status);
   CHECK(U_FAILURE(status));
   status = U_ZERO_ERROR;
-  // See the list in ecma402 #sec-issanctionedsimpleunitidentifier
-  std::set<std::string> sanctioned(
-      {"acre",       "bit",        "byte",
-       "celsius",    "centimeter", "day",
-       "degree",     "fahrenheit", "fluid-ounce",
-       "foot",       "gallon",     "gigabit",
-       "gigabyte",   "gram",       "hectare",
-       "hour",       "inch",       "kilobit",
-       "kilobyte",   "kilogram",   "kilometer",
-       "liter",      "megabit",    "megabyte",
-       "meter",      "mile",       "mile-scandinavian",
-       "millimeter", "milliliter", "millisecond",
-       "minute",     "month",      "ounce",
-       "percent",    "petabyte",   "pound",
-       "second",     "stone",      "terabit",
-       "terabyte",   "week",       "yard",
-       "year"});
   std::vector<icu::MeasureUnit> units(total);
   total = icu::MeasureUnit::getAvailable(units.data(), total, status);
   CHECK(U_SUCCESS(status));
   std::map<const std::string, icu::MeasureUnit> map;
+  std::set<std::string> sanctioned(Intl::SanctionedSimpleUnits());
   for (auto it = units.begin(); it != units.end(); ++it) {
     // Need to skip none/percent
     if (sanctioned.count(it->getSubtype()) > 0 &&

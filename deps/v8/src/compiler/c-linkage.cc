@@ -100,6 +100,18 @@ namespace {
 #define CALLEE_SAVE_FP_REGISTERS \
   f20.bit() | f22.bit() | f24.bit() | f26.bit() | f28.bit() | f30.bit()
 
+#elif V8_TARGET_ARCH_LOONG64
+// ===========================================================================
+// == loong64 ================================================================
+// ===========================================================================
+#define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
+#define CALLEE_SAVE_REGISTERS                                                  \
+  s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
+      s7.bit() | s8.bit() | fp.bit()
+#define CALLEE_SAVE_FP_REGISTERS                                          \
+  f24.bit() | f25.bit() | f26.bit() | f27.bit() | f28.bit() | f29.bit() | \
+      f30.bit() | f31.bit()
+
 #elif V8_TARGET_ARCH_PPC64
 // ===========================================================================
 // == ppc & ppc64 ============================================================

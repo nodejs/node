@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_TEST_INTERFACE_H_
 #define V8_INSPECTOR_TEST_INTERFACE_H_
 
-#include "include/v8.h"
+#include "include/v8config.h"
 
 namespace v8_inspector {
 

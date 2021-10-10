@@ -198,13 +198,14 @@
   V(_, dot_string, ".")                                              \
   V(_, dot_switch_tag_string, ".switch_tag")                         \
   V(_, dotAll_string, "dotAll")                                      \
-  V(_, enumerable_string, "enumerable")                              \
-  V(_, element_string, "element")                                    \
   V(_, Error_string, "Error")                                        \
-  V(_, errors_string, "errors")                                      \
-  V(_, error_to_string, "[object Error]")                            \
-  V(_, eval_string, "eval")                                          \
   V(_, EvalError_string, "EvalError")                                \
+  V(_, element_string, "element")                                    \
+  V(_, enumerable_string, "enumerable")                              \
+  V(_, error_to_string, "[object Error]")                            \
+  V(_, errors_string, "errors")                                      \
+  V(_, eval_string, "eval")                                          \
+  V(_, exception_string, "exception")                                \
   V(_, exec_string, "exec")                                          \
   V(_, false_string, "false")                                        \
   V(_, FinalizationRegistry_string, "FinalizationRegistry")          \
@@ -226,7 +227,7 @@
   V(_, groups_string, "groups")                                      \
   V(_, growable_string, "growable")                                  \
   V(_, has_string, "has")                                            \
-  V(_, has_indices_string, "hasIndices")                             \
+  V(_, hasIndices_string, "hasIndices")                              \
   V(_, ignoreCase_string, "ignoreCase")                              \
   V(_, illegal_access_string, "illegal access")                      \
   V(_, illegal_argument_string, "illegal argument")                  \

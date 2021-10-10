@@ -12,7 +12,7 @@ namespace cppgc {
 namespace internal {
 
 void NoSanitizeMemset(void* address, char c, size_t bytes) {
-  volatile Address base = reinterpret_cast<Address>(address);
+  volatile uint8_t* const base = static_cast<uint8_t*>(address);
   for (size_t i = 0; i < bytes; ++i) {
     base[i] = c;
   }

@@ -5,7 +5,7 @@
 #include "src/regexp/regexp-bytecode-generator.h"
 
 #include "src/ast/ast.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/fixed-array-inl.h"
 #include "src/regexp/regexp-bytecode-generator-inl.h"
 #include "src/regexp/regexp-bytecode-peephole.h"
 #include "src/regexp/regexp-bytecodes.h"

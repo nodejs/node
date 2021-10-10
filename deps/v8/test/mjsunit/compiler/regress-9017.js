@@ -5,6 +5,8 @@
 // Flags: --allow-natives-syntax --noturbo-inlining --noturbo-verify-allocation
 // This test invokes optimization manually, no need for stress modes:
 // Flags: --nostress-opt --noalways-opt
+// This neuters too low stack size passed by the flag fuzzer.
+// Flags: --stack-size=864
 
 // Ensure that very large stack frames can be used successfully.
 // The flag --noturbo-verify-allocation is to make this run a little faster; it

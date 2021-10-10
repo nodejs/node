@@ -32,6 +32,9 @@
 
 #include <vector>
 
+#include "include/v8-context.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-microtask-queue.h"
 #include "include/v8-platform.h"
 #include "src/base/platform/mutex.h"
 #include "src/debug/debug-interface.h"
@@ -331,39 +334,6 @@ void V8InspectorImpl::asyncTaskFinished(void* task) {
 
 void V8InspectorImpl::allAsyncTasksCanceled() {
   m_debugger->allAsyncTasksCanceled();
-}
-
-V8Inspector::Counters::Counters(v8::Isolate* isolate) : m_isolate(isolate) {
-  CHECK(m_isolate);
-  auto* inspector =
-      static_cast<V8InspectorImpl*>(v8::debug::GetInspector(m_isolate));
-  CHECK(inspector);
-  CHECK(!inspector->m_counters);
-  inspector->m_counters = this;
-  m_isolate->SetCounterFunction(&Counters::getCounterPtr);
-}
-
-V8Inspector::Counters::~Counters() {
-  auto* inspector =
-      static_cast<V8InspectorImpl*>(v8::debug::GetInspector(m_isolate));
-  CHECK(inspector);
-  inspector->m_counters = nullptr;
-  m_isolate->SetCounterFunction(nullptr);
-}
-
-int* V8Inspector::Counters::getCounterPtr(const char* name) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  DCHECK(isolate);
-  V8Inspector* inspector = v8::debug::GetInspector(isolate);
-  DCHECK(inspector);
-  auto* instance = static_cast<V8InspectorImpl*>(inspector)->m_counters;
-  DCHECK(instance);
-  return &(instance->m_countersMap[name]);
-}
-
-std::shared_ptr<V8Inspector::Counters> V8InspectorImpl::enableCounters() {
-  if (m_counters) return m_counters->shared_from_this();
-  return std::make_shared<Counters>(m_isolate);
 }
 
 v8::MaybeLocal<v8::Context> V8InspectorImpl::regexContext() {

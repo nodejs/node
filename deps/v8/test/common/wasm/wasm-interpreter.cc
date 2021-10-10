@@ -968,12 +968,17 @@ class SideTable : public ZoneObject {
           Control* c = &control_stack.back();
           const size_t new_stack_size = control_stack.size() - 1;
           const size_t max_depth = new_stack_size - 1;
-          if (imm.depth < max_depth) {
+          size_t target_depth = imm.depth;
+          while (target_depth < max_depth &&
+                 *control_stack[max_depth - target_depth].pc != kExprTry) {
+            target_depth++;
+          }
+          if (target_depth < max_depth) {
             constexpr int kUnusedControlIndex = -1;
             c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex,
                                 kUnusedControlIndex);
             c->else_label->Finish(&map_, code->start);
-            Control* target = &control_stack[max_depth - imm.depth];
+            Control* target = &control_stack[max_depth - target_depth];
             DCHECK_EQ(*target->pc, kExprTry);
             DCHECK_NOT_NULL(target->else_label);
             if (!control_parent().unreachable) {
@@ -1621,8 +1626,7 @@ class WasmInterpreterInternals {
     DCHECK_GE(instance_object_->memory_size(), index);
     // Compute the effective address of the access, making sure to condition
     // the index even in the in-bounds case.
-    return reinterpret_cast<Address>(instance_object_->memory_start()) +
-           (index & instance_object_->memory_mask());
+    return reinterpret_cast<Address>(instance_object_->memory_start()) + index;
   }
 
   template <typename mtype>

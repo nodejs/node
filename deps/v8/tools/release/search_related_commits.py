@@ -200,7 +200,7 @@ if __name__ == "__main__":  # pragma: no cover
       "This tool analyzes the commit range between <of> and <until>. "
       "It finds commits which belong together e.g. Implement/Revert pairs and "
       "Implement/Port/Revert triples. All supplied hashes need to be "
-      "from the same branch e.g. master.")
+      "from the same branch e.g. main.")
   parser.add_argument("-g", "--git-dir", required=False, default=".",
                         help="The path to your git working directory.")
   parser.add_argument("--verbose", action="store_true",

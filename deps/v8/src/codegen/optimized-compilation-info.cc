@@ -63,34 +63,10 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   ConfigureFlags();
 }
 
-#ifdef DEBUG
-bool OptimizedCompilationInfo::FlagSetIsValid(Flag flag) const {
-  switch (flag) {
-    case kPoisonRegisterArguments:
-      return untrusted_code_mitigations();
-    default:
-      return true;
-  }
-  UNREACHABLE();
-}
-
-bool OptimizedCompilationInfo::FlagGetIsValid(Flag flag) const {
-  switch (flag) {
-    case kPoisonRegisterArguments:
-      if (!GetFlag(kPoisonRegisterArguments)) return true;
-      return untrusted_code_mitigations() && called_with_code_start_register();
-    default:
-      return true;
-  }
-  UNREACHABLE();
-}
-#endif  // DEBUG
-
 void OptimizedCompilationInfo::ConfigureFlags() {
-  if (FLAG_untrusted_code_mitigations) set_untrusted_code_mitigations();
   if (FLAG_turbo_inline_js_wasm_calls) set_inline_js_wasm_calls();
 
-  if (!is_osr() && (IsTurboprop() || FLAG_concurrent_inlining)) {
+  if (IsTurboprop() || FLAG_concurrent_inlining) {
     set_concurrent_inlining();
   }
 
@@ -104,7 +80,6 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     case CodeKind::TURBOPROP:
       set_called_with_code_start_register();
       set_switch_jump_table();
-      if (FLAG_untrusted_code_mitigations) set_poison_register_arguments();
       // TODO(yangguo): Disable this in case of debugging for crbug.com/826613
       if (FLAG_analyze_environment_liveness) set_analyze_environment_liveness();
       break;
@@ -123,8 +98,15 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     case CodeKind::WASM_TO_CAPI_FUNCTION:
       set_switch_jump_table();
       break;
-    default:
+    case CodeKind::C_WASM_ENTRY:
+    case CodeKind::JS_TO_JS_FUNCTION:
+    case CodeKind::JS_TO_WASM_FUNCTION:
+    case CodeKind::WASM_TO_JS_FUNCTION:
       break;
+    case CodeKind::BASELINE:
+    case CodeKind::INTERPRETED_FUNCTION:
+    case CodeKind::REGEXP:
+      UNREACHABLE();
   }
 }
 

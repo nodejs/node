@@ -6,6 +6,7 @@
 #define V8_REGEXP_REGEXP_BYTECODE_GENERATOR_H_
 
 #include "src/base/strings.h"
+#include "src/codegen/label.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {

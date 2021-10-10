@@ -5,10 +5,15 @@
 #ifndef V8_INSPECTOR_V8_CONSOLE_H_
 #define V8_INSPECTOR_V8_CONSOLE_H_
 
+#include "include/v8-array-buffer.h"
+#include "include/v8-external.h"
+#include "include/v8-local-handle.h"
 #include "src/base/macros.h"
-
-#include "include/v8.h"
 #include "src/debug/interface-types.h"
+
+namespace v8 {
+class Set;
+}  // namespace v8
 
 namespace v8_inspector {
 

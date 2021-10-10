@@ -137,9 +137,9 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   {
     Label has_sent_value(this), no_sent_value(this), merge(this);
     ScopedExceptionHandler handler(this, &reject_promise, &var_exception);
-    Branch(
-        IntPtrGreaterThan(args->GetLength(), IntPtrConstant(kValueOrReasonArg)),
-        &has_sent_value, &no_sent_value);
+    Branch(IntPtrGreaterThan(args->GetLengthWithoutReceiver(),
+                             IntPtrConstant(kValueOrReasonArg)),
+           &has_sent_value, &no_sent_value);
     BIND(&has_sent_value);
     {
       iter_result = Call(context, method, sync_iterator, sent_value);

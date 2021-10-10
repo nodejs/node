@@ -466,6 +466,28 @@ void Map::AccountAddedOutOfObjectPropertyField(int unused_in_property_array) {
   DCHECK_EQ(unused_in_property_array, UnusedPropertyFields());
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+uint8_t Map::WasmByte1() const {
+  DCHECK(IsWasmObjectMap());
+  return inobject_properties_start_or_constructor_function_index();
+}
+
+uint8_t Map::WasmByte2() const {
+  DCHECK(IsWasmObjectMap());
+  return used_or_unused_instance_size_in_words();
+}
+
+void Map::SetWasmByte1(uint8_t value) {
+  CHECK(IsWasmObjectMap());
+  set_inobject_properties_start_or_constructor_function_index(value);
+}
+
+void Map::SetWasmByte2(uint8_t value) {
+  CHECK(IsWasmObjectMap());
+  set_used_or_unused_instance_size_in_words(value);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 byte Map::bit_field() const {
   // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
   // map's store synchronization.
@@ -726,7 +748,7 @@ bool Map::ConcurrentIsMap(PtrComprCageBase cage_base,
 }
 
 DEF_GETTER(Map, GetBackPointer, HeapObject) {
-  Object object = constructor_or_back_pointer(cage_base);
+  Object object = constructor_or_back_pointer(cage_base, kRelaxedLoad);
   if (ConcurrentIsMap(cage_base, object)) {
     return Map::cast(object);
   }
@@ -754,6 +776,9 @@ ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
 ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Object,
                    kConstructorOrBackPointerOrNativeContextOffset,
                    !IsContextMap(), value.IsNull() || !IsContextMap())
+RELAXED_ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Object,
+                           kConstructorOrBackPointerOrNativeContextOffset,
+                           !IsContextMap(), value.IsNull() || !IsContextMap())
 ACCESSORS_CHECKED(Map, native_context, NativeContext,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   IsContextMap())

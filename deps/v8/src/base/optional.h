@@ -35,7 +35,7 @@ constexpr in_place_t in_place = {};
 // http://en.cppreference.com/w/cpp/utility/optional/nullopt
 constexpr nullopt_t nullopt(0);
 
-// Forward declaration, which is refered by following helpers.
+// Forward declaration, which is referred by following helpers.
 template <typename T>
 class Optional;
 

@@ -43,7 +43,7 @@ class CodeDataContainer : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_ACCESSORS(next_code_link, Object)
-  DECL_INT_ACCESSORS(kind_specific_flags)
+  DECL_RELAXED_INT32_ACCESSORS(kind_specific_flags)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -279,8 +279,12 @@ class Code : public HeapObject {
   // This function should be called only from GC.
   void ClearEmbeddedObjects(Heap* heap);
 
-  // [deoptimization_data]: Array containing data for deopt.
+  // [deoptimization_data]: Array containing data for deopt for non-baseline
+  // code.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
+  // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
+  // baseline code.
+  DECL_ACCESSORS(bytecode_or_interpreter_data, HeapObject)
 
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
@@ -511,7 +515,7 @@ class Code : public HeapObject {
   // Layout description.
 #define CODE_FIELDS(V)                                                        \
   V(kRelocationInfoOffset, kTaggedSize)                                       \
-  V(kDeoptimizationDataOffset, kTaggedSize)                                   \
+  V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
   V(kPositionTableOffset, kTaggedSize)                                        \
   V(kCodeDataContainerOffset, kTaggedSize)                                    \
   /* Data or code not directly visited by GC directly starts here. */         \
@@ -544,8 +548,10 @@ class Code : public HeapObject {
   static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 24;
 #elif V8_TARGET_ARCH_MIPS64
   static constexpr int kHeaderPaddingSize = 24;
+#elif V8_TARGET_ARCH_LOONG64
+  static constexpr int kHeaderPaddingSize = 24;
 #elif V8_TARGET_ARCH_X64
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 24;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 56;
 #elif V8_TARGET_ARCH_ARM
   static constexpr int kHeaderPaddingSize = 12;
 #elif V8_TARGET_ARCH_IA32
@@ -647,6 +653,10 @@ class Code::OptimizedCodeIterator {
 inline CodeT ToCodeT(Code code);
 inline Code FromCodeT(CodeT code);
 inline Code FromCodeT(CodeT code, RelaxedLoadTag);
+inline Code FromCodeT(CodeT code, AcquireLoadTag);
+inline Code FromCodeT(CodeT code, PtrComprCageBase);
+inline Code FromCodeT(CodeT code, PtrComprCageBase, RelaxedLoadTag);
+inline Code FromCodeT(CodeT code, PtrComprCageBase, AcquireLoadTag);
 inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code);
 
 class AbstractCode : public HeapObject {

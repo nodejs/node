@@ -947,6 +947,20 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       return ReduceWord64Comparisons(node);
     }
+    case IrOpcode::kFloat32Select:
+    case IrOpcode::kFloat64Select:
+    case IrOpcode::kWord32Select:
+    case IrOpcode::kWord64Select: {
+      Int32Matcher match(node->InputAt(0));
+      if (match.HasResolvedValue()) {
+        if (match.Is(0)) {
+          return Replace(node->InputAt(2));
+        } else {
+          return Replace(node->InputAt(1));
+        }
+      }
+      break;
+    }
     default:
       break;
   }
@@ -2060,7 +2074,6 @@ bool IsFloat64RepresentableAsFloat32(const Float64Matcher& m) {
 }
 
 }  // namespace
-
 
 Reduction MachineOperatorReducer::ReduceFloat64Compare(Node* node) {
   DCHECK(IrOpcode::kFloat64Equal == node->opcode() ||

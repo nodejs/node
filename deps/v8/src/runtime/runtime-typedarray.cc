@@ -94,7 +94,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, array, 0);
   DCHECK(!array->WasDetached());
 
-#if V8_OS_LINUX
+#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
   if (FLAG_multi_mapped_mock_allocator) {
     // Sorting is meaningless with the mock allocator, and std::sort
     // might crash (because aliasing elements violate its assumptions).

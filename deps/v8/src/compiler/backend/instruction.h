@@ -935,8 +935,7 @@ class V8_EXPORT_PRIVATE Instruction final {
 
   bool IsDeoptimizeCall() const {
     return arch_opcode() == ArchOpcode::kArchDeoptimize ||
-           FlagsModeField::decode(opcode()) == kFlags_deoptimize ||
-           FlagsModeField::decode(opcode()) == kFlags_deoptimize_and_poison;
+           FlagsModeField::decode(opcode()) == kFlags_deoptimize;
   }
 
   bool IsTrap() const {

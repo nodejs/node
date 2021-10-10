@@ -219,11 +219,10 @@ TF_BUILTIN(SuspendGeneratorBaseline, GeneratorBuiltinsAssembler) {
 
   TNode<JSFunction> closure = LoadJSGeneratorObjectFunction(generator);
   auto sfi = LoadJSFunctionSharedFunctionInfo(closure);
-  TNode<IntPtrT> formal_parameter_count = Signed(
-      ChangeUint32ToWord(LoadSharedFunctionInfoFormalParameterCount(sfi)));
-  CSA_ASSERT(this, Word32BinaryNot(IntPtrEqual(
-                       formal_parameter_count,
-                       IntPtrConstant(kDontAdaptArgumentsSentinel))));
+  CSA_ASSERT(this,
+             Word32BinaryNot(IsSharedFunctionInfoDontAdaptArguments(sfi)));
+  TNode<IntPtrT> formal_parameter_count = Signed(ChangeUint32ToWord(
+      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(sfi)));
 
   TNode<FixedArray> parameters_and_registers =
       LoadJSGeneratorObjectParametersAndRegisters(generator);
@@ -274,11 +273,10 @@ TF_BUILTIN(ResumeGeneratorBaseline, GeneratorBuiltinsAssembler) {
   auto generator = Parameter<JSGeneratorObject>(Descriptor::kGeneratorObject);
   TNode<JSFunction> closure = LoadJSGeneratorObjectFunction(generator);
   auto sfi = LoadJSFunctionSharedFunctionInfo(closure);
-  TNode<IntPtrT> formal_parameter_count = Signed(
-      ChangeUint32ToWord(LoadSharedFunctionInfoFormalParameterCount(sfi)));
-  CSA_ASSERT(this, Word32BinaryNot(IntPtrEqual(
-                       formal_parameter_count,
-                       IntPtrConstant(kDontAdaptArgumentsSentinel))));
+  CSA_ASSERT(this,
+             Word32BinaryNot(IsSharedFunctionInfoDontAdaptArguments(sfi)));
+  TNode<IntPtrT> formal_parameter_count = Signed(ChangeUint32ToWord(
+      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(sfi)));
 
   TNode<FixedArray> parameters_and_registers =
       LoadJSGeneratorObjectParametersAndRegisters(generator);

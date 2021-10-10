@@ -68,9 +68,10 @@ class StackArgumentsAccessor {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
 };
 
-class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
+class V8_EXPORT_PRIVATE TurboAssembler
+    : public SharedTurboAssemblerBase<TurboAssembler> {
  public:
-  using SharedTurboAssembler::SharedTurboAssembler;
+  using SharedTurboAssemblerBase<TurboAssembler>::SharedTurboAssemblerBase;
 
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met,
@@ -158,14 +159,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
                       JumpMode jump_mode = JumpMode::kJump);
   void Jump(const ExternalReference& reference);
 
-  void RetpolineCall(Register reg);
-  void RetpolineCall(Address destination, RelocInfo::Mode rmode);
-
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   void LoadMap(Register destination, Register object);
-
-  void RetpolineJump(Register reg);
 
   void Trap();
   void DebugBreak();
@@ -326,10 +322,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
       name(dst, src2);                                          \
     }                                                           \
   }
-  AVX_OP3_WITH_MOVE(Cmpeqps, cmpeqps, XMMRegister, XMMRegister)
   AVX_OP3_WITH_MOVE(Movlps, movlps, XMMRegister, Operand)
   AVX_OP3_WITH_MOVE(Movhps, movhps, XMMRegister, Operand)
-  AVX_OP3_WITH_MOVE(Pmaddwd, pmaddwd, XMMRegister, Operand)
 #undef AVX_OP3_WITH_MOVE
 
   // TODO(zhin): Remove after moving more definitions into SharedTurboAssembler.
@@ -339,14 +333,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void Movhps(Operand dst, XMMRegister src) {
     SharedTurboAssembler::Movhps(dst, src);
   }
-
-  void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, dst, src); }
-  void Pshufb(XMMRegister dst, Operand src) { Pshufb(dst, dst, src); }
-  // Handles SSE and AVX. On SSE, moves src to dst if they are not equal.
-  void Pshufb(XMMRegister dst, XMMRegister src, XMMRegister mask) {
-    Pshufb(dst, src, Operand(mask));
-  }
-  void Pshufb(XMMRegister dst, XMMRegister src, Operand mask);
 
   void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
   void Pinsrb(XMMRegister dst, Register src, int8_t imm8) {
@@ -367,7 +353,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void Pinsrw(XMMRegister dst, Operand src, int8_t imm8);
   // Moves src1 to dst if AVX is not supported.
   void Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2, int8_t imm8);
-  void Vbroadcastss(XMMRegister dst, Operand src);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
@@ -394,32 +379,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
     Cvttsd2ui(dst, Operand(src), tmp);
   }
   void Cvttsd2ui(Register dst, Operand src, XMMRegister tmp);
-
-  // Handles SSE and AVX. On SSE, moves src to dst if they are not equal.
-  void Pmulhrsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
-
-  // These Wasm SIMD ops do not have direct lowerings on IA32. These
-  // helpers are optimized to produce the fastest and smallest codegen.
-  // Defined here to allow usage on both TurboFan and Liftoff.
-  void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                        XMMRegister scratch);
-  void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp1,
-                   XMMRegister tmp2, Register scratch);
-  void F64x2ConvertLowI32x4U(XMMRegister dst, XMMRegister src, Register tmp);
-  void I32x4TruncSatF64x2SZero(XMMRegister dst, XMMRegister src,
-                               XMMRegister scratch, Register tmp);
-  void I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src,
-                               XMMRegister scratch, Register tmp);
-  void I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src,
-                                 XMMRegister tmp, Register scratch);
-  void I16x8ExtAddPairwiseI8x16U(XMMRegister dst, XMMRegister src,
-                                 Register scratch);
-  void I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
-                                 Register scratch);
-  void I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src,
-                                 XMMRegister tmp);
-  void I8x16Swizzle(XMMRegister dst, XMMRegister src, XMMRegister mask,
-                    XMMRegister scratch, Register tmp, bool omit_add = false);
 
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }
@@ -479,9 +438,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.
   void ComputeCodeStartAddress(Register dst);
-
-  // TODO(860429): Remove remaining poisoning infrastructure on ia32.
-  void ResetSpeculationPoisonRegister() { UNREACHABLE(); }
 
   // Control-flow integrity:
 

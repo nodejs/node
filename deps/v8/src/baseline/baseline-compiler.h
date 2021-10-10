@@ -162,6 +162,7 @@ class BaselineCompiler {
   LocalIsolate* local_isolate_;
   RuntimeCallStats* stats_;
   Handle<SharedFunctionInfo> shared_function_info_;
+  Handle<HeapObject> interpreter_data_;
   Handle<BytecodeArray> bytecode_;
   MacroAssembler masm_;
   BaselineAssembler basm_;

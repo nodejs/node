@@ -9,7 +9,7 @@
 
 #include <map>
 
-#include "include/v8.h"
+#include "include/v8-persistent-handle.h"
 #include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
@@ -28,6 +28,8 @@
 // found here: https://github.com/tc39/ecmascript_sharedmem
 
 namespace v8 {
+
+class Promise;
 
 namespace base {
 class TimeDelta;

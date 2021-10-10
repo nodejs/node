@@ -4,9 +4,12 @@
 //
 // Flags: --allow-natives-syntax
 
-var no_sync_uninternalized = "no " + "sync";
-%InternalizeString(no_sync_uninternalized);
+var s_uninternalized = "concurrent" + "-skip-finalization";
+%InternalizeString(s_uninternalized);
 
-// Make sure %GetOptimizationStatus works with a non-internalized string
-// parameter.
-%GetOptimizationStatus(function() {}, no_sync_uninternalized)
+function foo() {}
+
+// Make sure %OptimizeFunctionOnNextCall works with a non-internalized
+// string parameter.
+%PrepareFunctionForOptimization(foo);
+%OptimizeFunctionOnNextCall(foo, s_uninternalized)

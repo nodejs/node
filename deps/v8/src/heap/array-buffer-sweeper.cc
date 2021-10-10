@@ -71,6 +71,7 @@ size_t ArrayBufferList::BytesSlow() {
 void ArrayBufferSweeper::EnsureFinished() {
   if (!sweeping_in_progress_) return;
 
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS);
   TryAbortResult abort_result =
       heap_->isolate()->cancelable_task_manager()->TryAbort(job_->id_);
 
@@ -112,9 +113,10 @@ void ArrayBufferSweeper::MergeBackExtensionsWhenSwept() {
     if (job_->state_ == SweepingState::kDone) {
       Merge();
       sweeping_in_progress_ = false;
-    } else {
-      UpdateCountersForConcurrentlySweptExtensions();
     }
+    // Update freed counters either way. It is necessary to update the counter
+    // in case sweeping is done to avoid counter overflows.
+    UpdateCountersForConcurrentlySweptExtensions();
   }
 }
 

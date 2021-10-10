@@ -4443,7 +4443,7 @@ TEST(RunTruncateFloat32ToInt32) {
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || \
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
         CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
-#elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
+#elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_LOONG64
         CHECK_EQ(0, m.Call(i));
 #elif V8_TARGET_ARCH_RISCV64
         CHECK_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
@@ -4465,7 +4465,7 @@ TEST(RunTruncateFloat32ToInt32) {
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || \
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
         CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
-#elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
+#elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_LOONG64
         CHECK_EQ(0, m.Call(i));
 #endif
       }
@@ -4580,7 +4580,7 @@ uint64_t ToInt64(uint32_t low, uint32_t high) {
   return (static_cast<uint64_t>(high) << 32) | static_cast<uint64_t>(low);
 }
 
-#if V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_32_BIT
 TEST(RunInt32PairAdd) {
   BufferedRawMachineAssemblerTester<int32_t> m(
       MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32(),

@@ -7,9 +7,14 @@
 
 #include <memory>
 
+#include "include/v8-callbacks.h"
+#include "include/v8-debug.h"
+#include "include/v8-embedder-heap.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-memory-span.h"
+#include "include/v8-promise.h"
+#include "include/v8-script.h"
 #include "include/v8-util.h"
-#include "include/v8.h"
-#include "src/base/platform/time.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
@@ -19,6 +24,8 @@ class V8Inspector;
 }  // namespace v8_inspector
 
 namespace v8 {
+
+class Platform;
 
 namespace internal {
 struct CoverageBlock;
@@ -514,11 +521,6 @@ enum class NativeAccessorType {
 };
 
 int64_t GetNextRandomInt64(v8::Isolate* isolate);
-
-using RuntimeCallCounterCallback =
-    std::function<void(const char* name, int64_t count, base::TimeDelta time)>;
-void EnumerateRuntimeCallCounters(v8::Isolate* isolate,
-                                  RuntimeCallCounterCallback callback);
 
 MaybeLocal<Value> CallFunctionOn(Local<Context> context,
                                  Local<Function> function, Local<Value> recv,

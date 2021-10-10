@@ -27,6 +27,11 @@ class PreFinalizerHandler final {
 
   bool IsInvokingPreFinalizers() const { return is_invoking_; }
 
+  void NotifyAllocationInPrefinalizer(size_t);
+  size_t ExtractBytesAllocatedInPrefinalizers() {
+    return std::exchange(bytes_allocated_in_prefinalizers, 0);
+  }
+
  private:
   // Checks that the current thread is the thread that created the heap.
   bool CurrentThreadIsCreationThread();
@@ -36,12 +41,16 @@ class PreFinalizerHandler final {
   // objects) for an object, by processing the ordered_pre_finalizers_
   // back-to-front.
   std::vector<PreFinalizer> ordered_pre_finalizers_;
+  std::vector<PreFinalizer>* current_ordered_pre_finalizers_;
 
   HeapBase& heap_;
   bool is_invoking_ = false;
 #ifdef DEBUG
   int creation_thread_id_;
 #endif
+
+  // Counter of bytes allocated during prefinalizers.
+  size_t bytes_allocated_in_prefinalizers = 0u;
 };
 
 }  // namespace internal

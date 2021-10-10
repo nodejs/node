@@ -5,6 +5,9 @@
 #ifndef V8_EXECUTION_THREAD_LOCAL_TOP_H_
 #define V8_EXECUTION_THREAD_LOCAL_TOP_H_
 
+#include "include/v8-callbacks.h"
+#include "include/v8-exception.h"
+#include "include/v8-unwinder.h"
 #include "src/common/globals.h"
 #include "src/execution/thread-id.h"
 #include "src/objects/contexts.h"
@@ -63,8 +66,10 @@ class ThreadLocalTop {
   // corresponds to the place on the JS stack where the C++ handler
   // would have been if the stack were not separate.
   Address try_catch_handler_address() {
-    return reinterpret_cast<Address>(
-        v8::TryCatch::JSStackComparableAddress(try_catch_handler_));
+    if (try_catch_handler_) {
+      return try_catch_handler_->JSStackComparableAddressPrivate();
+    }
+    return kNullAddress;
   }
 
   // Call depth represents nested v8 api calls. Instead of storing the nesting

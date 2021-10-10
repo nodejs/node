@@ -26,6 +26,34 @@ Running test: testNotOwn
 Internal properties
   [[Prototype]] object undefined
 
+Running test: testNotOwnSet
+  Symbol(Symbol.iterator) inherited function undefined
+  Symbol(Symbol.toStringTag) inherited string Set
+  __defineGetter__ inherited function undefined
+  __defineSetter__ inherited function undefined
+  __lookupGetter__ inherited function undefined
+  __lookupSetter__ inherited function undefined
+  __proto__ inherited no value, getter, setter
+  add inherited function undefined
+  clear inherited function undefined
+  constructor inherited function undefined
+  delete inherited function undefined
+  entries inherited function undefined
+  forEach inherited function undefined
+  has inherited function undefined
+  hasOwnProperty inherited function undefined
+  isPrototypeOf inherited function undefined
+  keys inherited function undefined
+  propertyIsEnumerable inherited function undefined
+  size inherited number 3
+  toLocaleString inherited function undefined
+  toString inherited function undefined
+  valueOf inherited function undefined
+  values inherited function undefined
+Internal properties
+  [[Entries]] object undefined
+  [[Prototype]] object undefined
+
 Running test: testAccessorsOnly
   b own no value, getter, setter
   d own no value, setter
@@ -155,5 +183,14 @@ Internal properties
 
 Running test: testObjectWithProtoProperty
   __proto__ own object undefined
+Internal properties
+  [[Prototype]] object undefined
+
+Running test: testArrayNonIndexedPropertiesOnly
+  length own number 2
+Internal properties
+  [[Prototype]] object undefined
+
+Running test: testTypedArrayNonIndexedPropertiesOnly
 Internal properties
   [[Prototype]] object undefined

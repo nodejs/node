@@ -30,9 +30,17 @@
   V(vfnmsub132ss, LIG, 66, 0F, 38, W0, 9f)  \
   V(vfnmsub213ss, LIG, 66, 0F, 38, W0, af)  \
   V(vfnmsub231ss, LIG, 66, 0F, 38, W0, bf)  \
+  V(vfmadd132ps, L128, 66, 0F, 38, W0, 98)  \
+  V(vfmadd213ps, L128, 66, 0F, 38, W0, a8)  \
   V(vfmadd231ps, L128, 66, 0F, 38, W0, b8)  \
+  V(vfnmadd132ps, L128, 66, 0F, 38, W0, 9c) \
+  V(vfnmadd213ps, L128, 66, 0F, 38, W0, ac) \
   V(vfnmadd231ps, L128, 66, 0F, 38, W0, bc) \
+  V(vfmadd132pd, L128, 66, 0F, 38, W1, 98)  \
+  V(vfmadd213pd, L128, 66, 0F, 38, W1, a8)  \
   V(vfmadd231pd, L128, 66, 0F, 38, W1, b8)  \
+  V(vfnmadd132pd, L128, 66, 0F, 38, W1, 9c) \
+  V(vfnmadd213pd, L128, 66, 0F, 38, W1, ac) \
   V(vfnmadd231pd, L128, 66, 0F, 38, W1, bc)
 
 #endif  // V8_CODEGEN_X64_FMA_INSTR_H_

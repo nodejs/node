@@ -4,6 +4,7 @@
 
 #include "test/cctest/disasm-regex-helper.h"
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/objects/objects-inl.h"

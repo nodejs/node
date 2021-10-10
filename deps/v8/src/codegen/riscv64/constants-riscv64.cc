@@ -105,6 +105,45 @@ int FPURegisters::Number(const char* name) {
   return kInvalidFPURegister;
 }
 
+const char* VRegisters::names_[kNumVRegisters] = {
+    "v0",  "v1",  "v2",  "v3",  "v4",  "v5",  "v6",  "v7",  "v8",  "v9",  "v10",
+    "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21",
+    "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"};
+
+const VRegisters::RegisterAlias VRegisters::aliases_[] = {
+    {kInvalidRegister, nullptr}};
+
+const char* VRegisters::Name(int creg) {
+  const char* result;
+  if ((0 <= creg) && (creg < kNumVRegisters)) {
+    result = names_[creg];
+  } else {
+    result = "nocreg";
+  }
+  return result;
+}
+
+int VRegisters::Number(const char* name) {
+  // Look through the canonical names.
+  for (int i = 0; i < kNumVRegisters; i++) {
+    if (strcmp(names_[i], name) == 0) {
+      return i;
+    }
+  }
+
+  // Look through the alias names.
+  int i = 0;
+  while (aliases_[i].creg != kInvalidRegister) {
+    if (strcmp(aliases_[i].name, name) == 0) {
+      return aliases_[i].creg;
+    }
+    i++;
+  }
+
+  // No Cregister with the reguested name found.
+  return kInvalidVRegister;
+}
+
 InstructionBase::Type InstructionBase::InstructionType() const {
   if (IsIllegalInstruction()) {
     return kUnsupported;
@@ -193,6 +232,8 @@ InstructionBase::Type InstructionBase::InstructionType() const {
         return kJType;
       case SYSTEM:
         return kIType;
+      case OP_V:
+        return kVType;
     }
   }
   return kUnsupported;

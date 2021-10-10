@@ -111,64 +111,38 @@ uint32_t JSRegExp::BacktrackLimit() const {
 }
 
 // static
-JSRegExp::Flags JSRegExp::FlagsFromString(Isolate* isolate,
-                                          Handle<String> flags, bool* success) {
-  int length = flags->length();
-  if (length == 0) {
-    *success = true;
-    return JSRegExp::kNone;
-  }
+base::Optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
+    Isolate* isolate, Handle<String> flags) {
+  const int length = flags->length();
+
   // A longer flags string cannot be valid.
-  if (length > JSRegExp::kFlagCount) return JSRegExp::Flags(0);
-  JSRegExp::Flags value(0);
-  if (flags->IsSeqOneByteString()) {
-    DisallowGarbageCollection no_gc;
-    SeqOneByteString seq_flags = SeqOneByteString::cast(*flags);
-    for (int i = 0; i < length; i++) {
-      base::Optional<JSRegExp::Flag> maybe_flag =
-          JSRegExp::FlagFromChar(seq_flags.Get(i));
-      if (!maybe_flag.has_value()) return JSRegExp::Flags(0);
-      JSRegExp::Flag flag = *maybe_flag;
-      // Duplicate flag.
-      if (value & flag) return JSRegExp::Flags(0);
-      value |= flag;
-    }
-  } else {
-    flags = String::Flatten(isolate, flags);
-    DisallowGarbageCollection no_gc;
-    String::FlatContent flags_content = flags->GetFlatContent(no_gc);
-    for (int i = 0; i < length; i++) {
-      base::Optional<JSRegExp::Flag> maybe_flag =
-          JSRegExp::FlagFromChar(flags_content.Get(i));
-      if (!maybe_flag.has_value()) return JSRegExp::Flags(0);
-      JSRegExp::Flag flag = *maybe_flag;
-      // Duplicate flag.
-      if (value & flag) return JSRegExp::Flags(0);
-      value |= flag;
-    }
+  if (length > JSRegExp::kFlagCount) return {};
+
+  RegExpFlags value;
+  FlatStringReader reader(isolate, String::Flatten(isolate, flags));
+
+  for (int i = 0; i < length; i++) {
+    base::Optional<RegExpFlag> flag = JSRegExp::FlagFromChar(reader.Get(i));
+    if (!flag.has_value()) return {};
+    if (value & flag.value()) return {};  // Duplicate.
+    value |= flag.value();
   }
-  *success = true;
-  return value;
+
+  return JSRegExp::AsJSRegExpFlags(value);
 }
 
 // static
 Handle<String> JSRegExp::StringFromFlags(Isolate* isolate,
                                          JSRegExp::Flags flags) {
-  // Ensure that this function is up-to-date with the supported flag options.
-  constexpr size_t kFlagCount = JSRegExp::kFlagCount;
-  STATIC_ASSERT(kFlagCount == 8);
-
-  // Translate to the lexicographically smaller string.
+  static constexpr int kStringTerminator = 1;
   int cursor = 0;
-  char buffer[kFlagCount] = {'\0'};
-  if (flags & JSRegExp::kHasIndices) buffer[cursor++] = 'd';
-  if (flags & JSRegExp::kGlobal) buffer[cursor++] = 'g';
-  if (flags & JSRegExp::kIgnoreCase) buffer[cursor++] = 'i';
-  if (flags & JSRegExp::kLinear) buffer[cursor++] = 'l';
-  if (flags & JSRegExp::kMultiline) buffer[cursor++] = 'm';
-  if (flags & JSRegExp::kDotAll) buffer[cursor++] = 's';
-  if (flags & JSRegExp::kUnicode) buffer[cursor++] = 'u';
-  if (flags & JSRegExp::kSticky) buffer[cursor++] = 'y';
+  char buffer[kFlagCount + kStringTerminator];
+#define V(Lower, Camel, LowerCamel, Char, Bit) \
+  if (flags & JSRegExp::k##Camel) buffer[cursor++] = Char;
+  REGEXP_FLAG_LIST(V)
+#undef V
+  buffer[cursor++] = '\0';
+  DCHECK_LE(cursor, kFlagCount + kStringTerminator);
   return isolate->factory()->NewStringFromAsciiChecked(buffer);
 }
 
@@ -247,15 +221,15 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
                                            Handle<String> source,
                                            Handle<String> flags_string) {
   Isolate* isolate = regexp->GetIsolate();
-  bool success = false;
-  Flags flags = JSRegExp::FlagsFromString(isolate, flags_string, &success);
-  if (!success) {
+  base::Optional<Flags> flags =
+      JSRegExp::FlagsFromString(isolate, flags_string);
+  if (!flags.has_value()) {
     THROW_NEW_ERROR(
         isolate,
         NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string),
         JSRegExp);
   }
-  return Initialize(regexp, source, flags);
+  return Initialize(regexp, source, flags.value());
 }
 
 namespace {
@@ -417,7 +391,9 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   source = String::Flatten(isolate, source);
 
   RETURN_ON_EXCEPTION(
-      isolate, RegExp::Compile(isolate, regexp, source, flags, backtrack_limit),
+      isolate,
+      RegExp::Compile(isolate, regexp, source, JSRegExp::AsRegExpFlags(flags),
+                      backtrack_limit),
       JSRegExp);
 
   Handle<String> escaped_source;

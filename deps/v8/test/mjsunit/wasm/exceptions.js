@@ -1073,3 +1073,41 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   assertDoesNotThrow(() => instance.exports.catchless_try(0));
   assertWasmThrows(instance, except, [], () => instance.exports.catchless_try(1));
 })();
+
+// Delegate to a regular block inside a try block.
+(function TestDelegateToBlock() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addTag(kSig_v_v);
+  builder.addFunction('test', kSig_i_v)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprBlock, kWasmI32,
+            kExprTry, kWasmI32,
+              kExprThrow, except,
+            kExprDelegate, 0,
+          kExprEnd,
+        kExprCatch, except,
+          kExprI32Const, 2,
+        kExprEnd,
+      ]).exportFunc();
+  instance = builder.instantiate();
+  assertEquals(2, instance.exports.test());
+})();
+
+// Delegate to a regular block with no outer try (delegate to caller).
+(function TestDelegateToCallerWithBlock() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addTag(kSig_v_v);
+  builder.addFunction('test', kSig_v_v)
+      .addBody([
+        kExprBlock, kWasmVoid,
+          kExprTry, kWasmVoid,
+            kExprThrow, except,
+          kExprDelegate, 0,
+        kExprEnd
+      ]).exportFunc();
+  instance = builder.instantiate();
+  assertThrows(() => instance.exports.test(), WebAssembly.Exception);
+})();

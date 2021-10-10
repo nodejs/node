@@ -48,6 +48,8 @@
 #include "src/baseline/mips64/baseline-compiler-mips64-inl.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "src/baseline/mips/baseline-compiler-mips-inl.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/baseline/loong64/baseline-compiler-loong64-inl.h"
 #else
 #error Unsupported target architecture.
 #endif
@@ -321,9 +323,16 @@ MaybeHandle<Code> BaselineCompiler::Build(Isolate* isolate) {
   // Allocate the bytecode offset table.
   Handle<ByteArray> bytecode_offset_table =
       bytecode_offset_table_builder_.ToBytecodeOffsetTable(isolate);
-  return Factory::CodeBuilder(isolate, desc, CodeKind::BASELINE)
-      .set_bytecode_offset_table(bytecode_offset_table)
-      .TryBuild();
+
+  Factory::CodeBuilder code_builder(isolate, desc, CodeKind::BASELINE);
+  code_builder.set_bytecode_offset_table(bytecode_offset_table);
+  if (shared_function_info_->HasInterpreterData()) {
+    code_builder.set_interpreter_data(
+        handle(shared_function_info_->interpreter_data(), isolate));
+  } else {
+    code_builder.set_interpreter_data(bytecode_);
+  }
+  return code_builder.TryBuild();
 }
 
 int BaselineCompiler::EstimateInstructionSize(BytecodeArray bytecode) {
@@ -488,13 +497,31 @@ void BaselineCompiler::VisitSingleBytecode() {
   TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
 
-  switch (iterator().current_bytecode()) {
+  {
+    interpreter::Bytecode bytecode = iterator().current_bytecode();
+
+#ifdef DEBUG
+    base::Optional<EnsureAccumulatorPreservedScope> accumulator_preserved_scope;
+    // We should make sure to preserve the accumulator whenever the bytecode
+    // isn't registered as writing to it. We can't do this for jumps or switches
+    // though, since the control flow would not match the control flow of this
+    // scope.
+    if (FLAG_debug_code &&
+        !interpreter::Bytecodes::WritesAccumulator(bytecode) &&
+        !interpreter::Bytecodes::IsJump(bytecode) &&
+        !interpreter::Bytecodes::IsSwitch(bytecode)) {
+      accumulator_preserved_scope.emplace(&basm_);
+    }
+#endif  // DEBUG
+
+    switch (bytecode) {
 #define BYTECODE_CASE(name, ...)       \
   case interpreter::Bytecode::k##name: \
     Visit##name();                     \
     break;
-    BYTECODE_LIST(BYTECODE_CASE)
+      BYTECODE_LIST(BYTECODE_CASE)
 #undef BYTECODE_CASE
+    }
   }
 
 #ifdef V8_TRACE_UNOPTIMIZED
@@ -1173,53 +1200,57 @@ void BaselineCompiler::BuildCall(uint32_t slot, uint32_t arg_count,
 
 void BaselineCompiler::VisitCallAnyReceiver() {
   interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
-  uint32_t arg_count = args.register_count() - 1;  // Remove receiver.
+  uint32_t arg_count = args.register_count();
+  if (!kJSArgcIncludesReceiver) arg_count -= 1;  // Remove receiver.
   BuildCall<ConvertReceiverMode::kAny>(Index(3), arg_count, args);
 }
 
 void BaselineCompiler::VisitCallProperty() {
   interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
-  uint32_t arg_count = args.register_count() - 1;  // Remove receiver.
+  uint32_t arg_count = args.register_count();
+  if (!kJSArgcIncludesReceiver) arg_count -= 1;  // Remove receiver.
   BuildCall<ConvertReceiverMode::kNotNullOrUndefined>(Index(3), arg_count,
                                                       args);
 }
 
 void BaselineCompiler::VisitCallProperty0() {
-  BuildCall<ConvertReceiverMode::kNotNullOrUndefined>(Index(2), 0,
-                                                      RegisterOperand(1));
+  BuildCall<ConvertReceiverMode::kNotNullOrUndefined>(
+      Index(2), JSParameterCount(0), RegisterOperand(1));
 }
 
 void BaselineCompiler::VisitCallProperty1() {
   BuildCall<ConvertReceiverMode::kNotNullOrUndefined>(
-      Index(3), 1, RegisterOperand(1), RegisterOperand(2));
+      Index(3), JSParameterCount(1), RegisterOperand(1), RegisterOperand(2));
 }
 
 void BaselineCompiler::VisitCallProperty2() {
   BuildCall<ConvertReceiverMode::kNotNullOrUndefined>(
-      Index(4), 2, RegisterOperand(1), RegisterOperand(2), RegisterOperand(3));
+      Index(4), JSParameterCount(2), RegisterOperand(1), RegisterOperand(2),
+      RegisterOperand(3));
 }
 
 void BaselineCompiler::VisitCallUndefinedReceiver() {
   interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
-  uint32_t arg_count = args.register_count();
+  uint32_t arg_count = JSParameterCount(args.register_count());
   BuildCall<ConvertReceiverMode::kNullOrUndefined>(
       Index(3), arg_count, RootIndex::kUndefinedValue, args);
 }
 
 void BaselineCompiler::VisitCallUndefinedReceiver0() {
-  BuildCall<ConvertReceiverMode::kNullOrUndefined>(Index(1), 0,
-                                                   RootIndex::kUndefinedValue);
+  BuildCall<ConvertReceiverMode::kNullOrUndefined>(
+      Index(1), JSParameterCount(0), RootIndex::kUndefinedValue);
 }
 
 void BaselineCompiler::VisitCallUndefinedReceiver1() {
   BuildCall<ConvertReceiverMode::kNullOrUndefined>(
-      Index(2), 1, RootIndex::kUndefinedValue, RegisterOperand(1));
+      Index(2), JSParameterCount(1), RootIndex::kUndefinedValue,
+      RegisterOperand(1));
 }
 
 void BaselineCompiler::VisitCallUndefinedReceiver2() {
   BuildCall<ConvertReceiverMode::kNullOrUndefined>(
-      Index(3), 2, RootIndex::kUndefinedValue, RegisterOperand(1),
-      RegisterOperand(2));
+      Index(3), JSParameterCount(2), RootIndex::kUndefinedValue,
+      RegisterOperand(1), RegisterOperand(2));
 }
 
 void BaselineCompiler::VisitCallWithSpread() {
@@ -1229,7 +1260,8 @@ void BaselineCompiler::VisitCallWithSpread() {
   interpreter::Register spread_register = args.last_register();
   args = args.Truncate(args.register_count() - 1);
 
-  uint32_t arg_count = args.register_count() - 1;  // Remove receiver.
+  uint32_t arg_count = args.register_count();
+  if (!kJSArgcIncludesReceiver) arg_count -= 1;  // Remove receiver.
 
   CallBuiltin<Builtin::kCallWithSpread_Baseline>(
       RegisterOperand(0),  // kFunction
@@ -1253,7 +1285,7 @@ void BaselineCompiler::VisitCallRuntimeForPair() {
 
 void BaselineCompiler::VisitCallJSRuntime() {
   interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
-  uint32_t arg_count = args.register_count();
+  uint32_t arg_count = JSParameterCount(args.register_count());
 
   // Load context for LoadNativeContextSlot.
   __ LoadContext(kContextRegister);
@@ -1376,7 +1408,7 @@ void BaselineCompiler::VisitIntrinsicAsyncGeneratorYield(
 
 void BaselineCompiler::VisitConstruct() {
   interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
-  uint32_t arg_count = args.register_count();
+  uint32_t arg_count = JSParameterCount(args.register_count());
   CallBuiltin<Builtin::kConstruct_Baseline>(
       RegisterOperand(0),               // kFunction
       kInterpreterAccumulatorRegister,  // kNewTarget
@@ -1393,7 +1425,7 @@ void BaselineCompiler::VisitConstructWithSpread() {
   interpreter::Register spread_register = args.last_register();
   args = args.Truncate(args.register_count() - 1);
 
-  uint32_t arg_count = args.register_count();
+  uint32_t arg_count = JSParameterCount(args.register_count());
 
   using Descriptor =
       CallInterfaceDescriptorFor<Builtin::kConstructWithSpread_Baseline>::type;
@@ -2079,13 +2111,15 @@ void BaselineCompiler::VisitReturn() {
                          iterator().current_bytecode_size_without_prefix();
   int parameter_count = bytecode_->parameter_count();
 
-  // We must pop all arguments from the stack (including the receiver). This
-  // number of arguments is given by max(1 + argc_reg, parameter_count).
-  int parameter_count_without_receiver =
-      parameter_count - 1;  // Exclude the receiver to simplify the
-                            // computation. We'll account for it at the end.
-  TailCallBuiltin<Builtin::kBaselineLeaveFrame>(
-      parameter_count_without_receiver, -profiling_weight);
+  if (kJSArgcIncludesReceiver) {
+    TailCallBuiltin<Builtin::kBaselineLeaveFrame>(parameter_count,
+                                                  -profiling_weight);
+
+  } else {
+    int parameter_count_without_receiver = parameter_count - 1;
+    TailCallBuiltin<Builtin::kBaselineLeaveFrame>(
+        parameter_count_without_receiver, -profiling_weight);
+  }
 }
 
 void BaselineCompiler::VisitThrowReferenceErrorIfHole() {

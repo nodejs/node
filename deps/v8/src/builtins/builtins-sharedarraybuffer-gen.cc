@@ -204,26 +204,28 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
          arraysize(case_labels));
 
   BIND(&i8);
-  Return(SmiFromInt32(AtomicLoad<Int8T>(backing_store, index_word)));
+  Return(SmiFromInt32(AtomicLoad<Int8T>(AtomicMemoryOrder::kSeqCst,
+                                        backing_store, index_word)));
 
   BIND(&u8);
-  Return(SmiFromInt32(AtomicLoad<Uint8T>(backing_store, index_word)));
+  Return(SmiFromInt32(AtomicLoad<Uint8T>(AtomicMemoryOrder::kSeqCst,
+                                         backing_store, index_word)));
 
   BIND(&i16);
-  Return(
-      SmiFromInt32(AtomicLoad<Int16T>(backing_store, WordShl(index_word, 1))));
+  Return(SmiFromInt32(AtomicLoad<Int16T>(
+      AtomicMemoryOrder::kSeqCst, backing_store, WordShl(index_word, 1))));
 
   BIND(&u16);
-  Return(
-      SmiFromInt32(AtomicLoad<Uint16T>(backing_store, WordShl(index_word, 1))));
+  Return(SmiFromInt32(AtomicLoad<Uint16T>(
+      AtomicMemoryOrder::kSeqCst, backing_store, WordShl(index_word, 1))));
 
   BIND(&i32);
-  Return(ChangeInt32ToTagged(
-      AtomicLoad<Int32T>(backing_store, WordShl(index_word, 2))));
+  Return(ChangeInt32ToTagged(AtomicLoad<Int32T>(
+      AtomicMemoryOrder::kSeqCst, backing_store, WordShl(index_word, 2))));
 
   BIND(&u32);
-  Return(ChangeUint32ToTagged(
-      AtomicLoad<Uint32T>(backing_store, WordShl(index_word, 2))));
+  Return(ChangeUint32ToTagged(AtomicLoad<Uint32T>(
+      AtomicMemoryOrder::kSeqCst, backing_store, WordShl(index_word, 2))));
 #if V8_TARGET_ARCH_MIPS && !_MIPS_ARCH_MIPS32R6
   BIND(&i64);
   Goto(&u64);
@@ -235,12 +237,12 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   }
 #else
   BIND(&i64);
-  Return(BigIntFromSigned64(
-      AtomicLoad64<AtomicInt64>(backing_store, WordShl(index_word, 3))));
+  Return(BigIntFromSigned64(AtomicLoad64<AtomicInt64>(
+      AtomicMemoryOrder::kSeqCst, backing_store, WordShl(index_word, 3))));
 
   BIND(&u64);
-  Return(BigIntFromUnsigned64(
-      AtomicLoad64<AtomicUint64>(backing_store, WordShl(index_word, 3))));
+  Return(BigIntFromUnsigned64(AtomicLoad64<AtomicUint64>(
+      AtomicMemoryOrder::kSeqCst, backing_store, WordShl(index_word, 3))));
 #endif
 
   // This shouldn't happen, we've already validated the type.
@@ -307,18 +309,18 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
          arraysize(case_labels));
 
   BIND(&u8);
-  AtomicStore(MachineRepresentation::kWord8, backing_store, index_word,
-              value_word32);
+  AtomicStore(MachineRepresentation::kWord8, AtomicMemoryOrder::kSeqCst,
+              backing_store, index_word, value_word32);
   Return(value_integer);
 
   BIND(&u16);
-  AtomicStore(MachineRepresentation::kWord16, backing_store,
-              WordShl(index_word, 1), value_word32);
+  AtomicStore(MachineRepresentation::kWord16, AtomicMemoryOrder::kSeqCst,
+              backing_store, WordShl(index_word, 1), value_word32);
   Return(value_integer);
 
   BIND(&u32);
-  AtomicStore(MachineRepresentation::kWord32, backing_store,
-              WordShl(index_word, 2), value_word32);
+  AtomicStore(MachineRepresentation::kWord32, AtomicMemoryOrder::kSeqCst,
+              backing_store, WordShl(index_word, 2), value_word32);
   Return(value_integer);
 
   BIND(&u64);
@@ -340,7 +342,8 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   TVARIABLE(UintPtrT, var_high);
   BigIntToRawBytes(value_bigint, &var_low, &var_high);
   TNode<UintPtrT> high = Is64() ? TNode<UintPtrT>() : var_high.value();
-  AtomicStore64(backing_store, WordShl(index_word, 3), var_low.value(), high);
+  AtomicStore64(AtomicMemoryOrder::kSeqCst, backing_store,
+                WordShl(index_word, 3), var_low.value(), high);
   Return(value_bigint);
 #endif
 

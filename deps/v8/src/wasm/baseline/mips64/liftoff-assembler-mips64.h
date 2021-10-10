@@ -3235,22 +3235,35 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
                                        ValueKind kind) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  li(scratch, 1);
+  Label not_nan;
   if (kind == kF32) {
     CompareIsNanF32(src, src);
   } else {
     DCHECK_EQ(kind, kF64);
     CompareIsNanF64(src, src);
   }
-  LoadZeroIfNotFPUCondition(scratch);
-  Sd(scratch, MemOperand(dst));
+  BranchFalseShortF(&not_nan, USE_DELAY_SLOT);
+  li(scratch, 1);
+  Sw(dst, MemOperand(dst));
+  bind(&not_nan);
 }
 
-void LiftoffAssembler::emit_s128_set_if_nan(Register dst, DoubleRegister src,
+void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
                                             Register tmp_gp,
-                                            DoubleRegister tmp_fp,
+                                            LiftoffRegister tmp_s128,
                                             ValueKind lane_kind) {
-  UNIMPLEMENTED();
+  Label not_nan;
+  if (lane_kind == kF32) {
+    fcun_w(tmp_s128.fp().toW(), src.fp().toW(), src.fp().toW());
+  } else {
+    DCHECK_EQ(lane_kind, kF64);
+    fcun_d(tmp_s128.fp().toW(), src.fp().toW(), src.fp().toW());
+  }
+  BranchMSA(&not_nan, MSA_BRANCH_V, all_zero, tmp_s128.fp().toW(),
+            USE_DELAY_SLOT);
+  li(tmp_gp, 1);
+  Sw(tmp_gp, MemOperand(dst));
+  bind(&not_nan);
 }
 
 void LiftoffStackSlots::Construct(int param_slots) {

@@ -5,6 +5,7 @@
 #include "src/regexp/regexp-macro-assembler.h"
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/label.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/pointer-authentication.h"
 #include "src/execution/simulator.h"
@@ -22,11 +23,16 @@ namespace internal {
 
 RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone)
     : slow_safe_compiler_(false),
+      backtrack_limit_(JSRegExp::kNoBacktrackLimit),
       global_mode_(NOT_GLOBAL),
       isolate_(isolate),
       zone_(zone) {}
 
 RegExpMacroAssembler::~RegExpMacroAssembler() = default;
+
+bool RegExpMacroAssembler::has_backtrack_limit() const {
+  return backtrack_limit_ != JSRegExp::kNoBacktrackLimit;
+}
 
 int RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode(Address byte_offset1,
                                                            Address byte_offset2,

@@ -43,7 +43,7 @@ ArrayPrototypeConcat(
   // TODO(victorgomes): Implement slow path ArrayConcat in Torque.
   tail ArrayConcat(
       context, LoadTargetFromFrame(), Undefined,
-      Convert<int32>(arguments.length));
+      Convert<int32>(arguments.actual_count));
 }
 
 }  // namespace array

@@ -7,6 +7,8 @@
 #include <cinttypes>
 #include <cstring>
 
+#include "include/v8-function.h"
+#include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/ast/ast.h"
@@ -1115,12 +1117,25 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   i::Handle<i::FixedArray> fixed_array;
-  i::Handle<i::JSObject> table_obj =
+  i::Handle<i::WasmTableObject> table_obj =
       i::WasmTableObject::New(i_isolate, i::Handle<i::WasmInstanceObject>(),
                               type, static_cast<uint32_t>(initial), has_maximum,
                               static_cast<uint32_t>(maximum), &fixed_array);
+
+  if (initial > 0 && args.Length() >= 2 && !args[1]->IsUndefined()) {
+    i::Handle<i::Object> element = Utils::OpenHandle(*args[1]);
+    if (!i::WasmTableObject::IsValidElement(i_isolate, table_obj, element)) {
+      thrower.TypeError(
+          "Argument 2 must be undefined, null, or a value of type compatible "
+          "with the type of the new table.");
+      return;
+    }
+    for (uint32_t index = 0; index < static_cast<uint32_t>(initial); ++index) {
+      i::WasmTableObject::Set(i_isolate, table_obj, index, element);
+    }
+  }
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(Utils::ToLocal(table_obj));
+  return_value.Set(Utils::ToLocal(i::Handle<i::JSObject>::cast(table_obj)));
 }
 
 void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1578,7 +1593,6 @@ void EncodeExceptionValues(v8::Isolate* isolate,
       case i::wasm::kBottom:
       case i::wasm::kS128:
         UNREACHABLE();
-        break;
     }
   }
 }

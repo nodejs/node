@@ -4,7 +4,7 @@
 
 #include "src/trap-handler/trap-handler-simulator.h"
 
-#include "include/v8.h"
+#include "include/v8-initialization.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/execution/simulator.h"
 #include "src/trap-handler/trap-handler.h"
