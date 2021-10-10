@@ -17,7 +17,6 @@ const hacks = [
   'eslint-plugin-node-core',
   'eslint-plugin-markdown',
   '@babel/eslint-parser',
-  '@babel/plugin-syntax-class-properties',
   '@babel/plugin-syntax-import-assertions',
 ];
 Module._findPath = (request, paths, isMain) => {
@@ -40,7 +39,6 @@ module.exports = {
   parserOptions: {
     babelOptions: {
       plugins: [
-        Module._findPath('@babel/plugin-syntax-class-properties'),
         Module._findPath('@babel/plugin-syntax-import-assertions'),
       ],
     },
