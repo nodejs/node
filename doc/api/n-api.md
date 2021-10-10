@@ -1574,7 +1574,7 @@ NAPI_EXTERN napi_status napi_create_reference(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This API create a new reference with the specified reference count
+This API creates a new reference with the specified reference count
 to the `Object` passed in.
 
 #### napi_delete_reference
@@ -4132,7 +4132,7 @@ napi_status napi_set_element(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This API sets and element on the `Object` passed in.
+This API sets an element on the `Object` passed in.
 
 #### napi_get_element
 <!-- YAML
