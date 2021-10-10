@@ -36,10 +36,6 @@ module.exports = {
   plugins: ['markdown', 'node-core'],
   parser: '@babel/eslint-parser',
   parserOptions: {
-    babelOptions: {
-      plugins: [
-      ],
-    },
     requireConfigFile: false,
     sourceType: 'script',
   },
