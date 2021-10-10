@@ -84,6 +84,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/init/bootstrapper.h"
+#include "src/logging/code-events.h"
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/shared-function-info.h"
@@ -95,6 +96,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
+#include "src/compiler/wasm-inlining.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
@@ -547,8 +549,7 @@ class PipelineData {
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
-        info()->GetPoisoningMitigationLevel(), assembler_options(),
-        info_->builtin(), max_unoptimized_frame_height(),
+        assembler_options(), info_->builtin(), max_unoptimized_frame_height(),
         max_pushed_argument_count(),
         FLAG_trace_turbo_stack_accesses ? debug_name_.get() : nullptr);
   }
@@ -947,13 +948,10 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
 
 void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
                             Schedule* schedule, const char* phase_name) {
-#ifdef V8_RUNTIME_CALL_STATS
-  PipelineRunScope scope(data, "V8.TraceScheduleAndVerify",
-                         RuntimeCallCounterId::kOptimizeTraceScheduleAndVerify,
-                         RuntimeCallStats::kThreadSpecific);
-#else
-  PipelineRunScope scope(data, "V8.TraceScheduleAndVerify");
-#endif
+  RCS_SCOPE(data->runtime_call_stats(),
+            RuntimeCallCounterId::kOptimizeTraceScheduleAndVerify,
+            RuntimeCallStats::kThreadSpecific);
+  TRACE_EVENT0(PipelineStatistics::kTraceCategory, "V8.TraceScheduleAndVerify");
   if (info->trace_turbo_json()) {
     UnparkedScopeIfNeeded scope(data->broker());
     AllowHandleDereference allow_deref;
@@ -1161,18 +1159,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   if (FLAG_turbo_inlining) {
     compilation_info()->set_inlining();
   }
-
-  // This is the bottleneck for computing and setting poisoning level in the
-  // optimizing compiler.
-  PoisoningMitigationLevel load_poisoning =
-      PoisoningMitigationLevel::kDontPoison;
-  if (FLAG_untrusted_code_mitigations) {
-    // For full mitigations, this can be changed to
-    // PoisoningMitigationLevel::kPoisonAll.
-    load_poisoning = PoisoningMitigationLevel::kPoisonCriticalOnly;
-  }
-  compilation_info()->SetPoisoningMitigationLevel(load_poisoning);
-
   if (FLAG_turbo_allocation_folding) {
     compilation_info()->set_allocation_folding();
   }
@@ -1424,8 +1410,8 @@ struct InliningPhase {
 };
 
 #if V8_ENABLE_WEBASSEMBLY
-struct WasmInliningPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(WasmInlining)
+struct JSWasmInliningPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(JSWasmInlining)
   void Run(PipelineData* data, Zone* temp_zone) {
     DCHECK(data->has_js_wasm_calls());
 
@@ -1629,10 +1615,10 @@ struct SimplifiedLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(SimplifiedLowering)
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
-    SimplifiedLowering lowering(
-        data->jsgraph(), data->broker(), temp_zone, data->source_positions(),
-        data->node_origins(), data->info()->GetPoisoningMitigationLevel(),
-        &data->info()->tick_counter(), linkage, data->observe_node_manager());
+    SimplifiedLowering lowering(data->jsgraph(), data->broker(), temp_zone,
+                                data->source_positions(), data->node_origins(),
+                                &data->info()->tick_counter(), linkage,
+                                data->observe_node_manager());
 
     // RepresentationChanger accesses the heap.
     UnparkedScopeIfNeeded scope(data->broker());
@@ -1697,6 +1683,25 @@ struct WasmLoopUnrollingPhase {
         LoopPeeler::EliminateLoopExit(use);
       }
     }
+  }
+};
+
+struct WasmInliningPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(WasmInlining)
+
+  void Run(PipelineData* data, Zone* temp_zone, wasm::CompilationEnv* env,
+           const wasm::WireBytesStorage* wire_bytes) {
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
+    DeadCodeElimination dead(&graph_reducer, data->graph(),
+                             data->mcgraph()->common(), temp_zone);
+    WasmInliner inliner(&graph_reducer, env, data->source_positions(),
+                        data->node_origins(), data->mcgraph(), wire_bytes, 0);
+    AddReducer(data, &graph_reducer, &dead);
+    AddReducer(data, &graph_reducer, &inliner);
+
+    graph_reducer.ReduceGraph();
   }
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1797,7 +1802,6 @@ struct EffectControlLinearizationPhase {
       // - introduce effect phis and rewire effects to get SSA again.
       LinearizeEffectControl(data->jsgraph(), schedule, temp_zone,
                              data->source_positions(), data->node_origins(),
-                             data->info()->GetPoisoningMitigationLevel(),
                              data->broker());
     }
     {
@@ -1899,7 +1903,7 @@ struct MemoryOptimizationPhase {
 
     // Optimize allocations and load/store operations.
     MemoryOptimizer optimizer(
-        data->jsgraph(), temp_zone, data->info()->GetPoisoningMitigationLevel(),
+        data->jsgraph(), temp_zone,
         data->info()->allocation_folding()
             ? MemoryLowering::AllocationFolding::kDoAllocationFolding
             : MemoryLowering::AllocationFolding::kDontAllocationFolding,
@@ -1989,7 +1993,6 @@ struct ScheduledEffectControlLinearizationPhase {
     // - lower simplified memory and select nodes to machine level nodes.
     LowerToMachineSchedule(data->jsgraph(), data->schedule(), temp_zone,
                            data->source_positions(), data->node_origins(),
-                           data->info()->GetPoisoningMitigationLevel(),
                            data->broker());
 
     // TODO(rmcilroy) Avoid having to rebuild rpo_order on schedule each time.
@@ -2205,7 +2208,6 @@ struct InstructionSelectionPhase {
         data->assembler_options().enable_root_relative_access
             ? InstructionSelector::kEnableRootsRelativeAddressing
             : InstructionSelector::kDisableRootsRelativeAddressing,
-        data->info()->GetPoisoningMitigationLevel(),
         data->info()->trace_turbo_json()
             ? InstructionSelector::kEnableTraceTurboJson
             : InstructionSelector::kDisableTraceTurboJson);
@@ -2607,6 +2609,9 @@ CompilationJob::Status WasmHeapStubCompilationJob::FinalizeJobImpl(
                         tracing_scope.stream(), isolate);
     }
 #endif
+    PROFILE(isolate, CodeCreateEvent(CodeEventListener::STUB_TAG,
+                                     Handle<AbstractCode>::cast(code),
+                                     compilation_info()->GetDebugName().get()));
     return SUCCEEDED;
   }
   return FAILED;
@@ -2750,8 +2755,8 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 #if V8_ENABLE_WEBASSEMBLY
   if (data->has_js_wasm_calls()) {
     DCHECK(data->info()->inline_js_wasm_calls());
-    Run<WasmInliningPhase>();
-    RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
+    Run<JSWasmInliningPhase>();
+    RunPrintAndVerify(JSWasmInliningPhase::phase_name(), true);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2853,8 +2858,8 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
 #if V8_ENABLE_WEBASSEMBLY
   if (data->has_js_wasm_calls()) {
     DCHECK(data->info()->inline_js_wasm_calls());
-    Run<WasmInliningPhase>();
-    RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
+    Run<JSWasmInliningPhase>();
+    RunPrintAndVerify(JSWasmInliningPhase::phase_name(), true);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2969,16 +2974,11 @@ int HashGraphForPGO(Graph* graph) {
 MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     JSGraph* jsgraph, SourcePositionTable* source_positions, CodeKind kind,
-    const char* debug_name, Builtin builtin,
-    PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
+    const char* debug_name, Builtin builtin, const AssemblerOptions& options,
     const ProfileDataFromFile* profile_data) {
   OptimizedCompilationInfo info(base::CStrVector(debug_name), graph->zone(),
                                 kind);
   info.set_builtin(builtin);
-
-  if (poisoning_level != PoisoningMitigationLevel::kDontPoison) {
-    info.SetPoisoningMitigationLevel(poisoning_level);
-  }
 
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
@@ -3195,7 +3195,8 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 
 // static
 void Pipeline::GenerateCodeForWasmFunction(
-    OptimizedCompilationInfo* info, MachineGraph* mcgraph,
+    OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
+    const wasm::WireBytesStorage* wire_bytes_storage, MachineGraph* mcgraph,
     CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
     NodeOriginTable* node_origins, wasm::FunctionBody function_body,
     const wasm::WasmModule* module, int function_index,
@@ -3224,6 +3225,10 @@ void Pipeline::GenerateCodeForWasmFunction(
   if (FLAG_wasm_loop_unrolling) {
     pipeline.Run<WasmLoopUnrollingPhase>(loop_info);
     pipeline.RunPrintAndVerify(WasmLoopUnrollingPhase::phase_name(), true);
+  }
+  if (FLAG_wasm_inlining) {
+    pipeline.Run<WasmInliningPhase>(env, wire_bytes_storage);
+    pipeline.RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
   }
   const bool is_asm_js = is_asmjs_module(module);
 
@@ -3546,18 +3551,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     config.reset(RegisterConfiguration::RestrictGeneralRegisters(registers));
     AllocateRegistersForTopTier(config.get(), call_descriptor, run_verifier);
   } else {
-    const RegisterConfiguration* config;
-    if (data->info()->GetPoisoningMitigationLevel() !=
-        PoisoningMitigationLevel::kDontPoison) {
-#ifdef V8_TARGET_ARCH_IA32
-    FATAL("Poisoning is not supported on ia32.");
-#else
-      config = RegisterConfiguration::Poisoning();
-#endif  // V8_TARGET_ARCH_IA32
-    } else {
-      config = RegisterConfiguration::Default();
-    }
-
+    const RegisterConfiguration* config = RegisterConfiguration::Default();
     if (data->info()->IsTurboprop() && FLAG_turboprop_mid_tier_reg_alloc) {
       AllocateRegistersForMidTier(config, call_descriptor, run_verifier);
     } else {
@@ -3643,7 +3637,6 @@ std::ostream& operator<<(std::ostream& out,
   out << "\"codeStartRegisterCheck\": "
       << s.offsets_info->code_start_register_check << ", ";
   out << "\"deoptCheck\": " << s.offsets_info->deopt_check << ", ";
-  out << "\"initPoison\": " << s.offsets_info->init_poison << ", ";
   out << "\"blocksStart\": " << s.offsets_info->blocks_start << ", ";
   out << "\"outOfLineCode\": " << s.offsets_info->out_of_line_code << ", ";
   out << "\"deoptimizationExits\": " << s.offsets_info->deoptimization_exits

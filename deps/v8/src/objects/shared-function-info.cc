@@ -8,6 +8,7 @@
 #include "src/ast/scopes.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/common/globals.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/strings/string-builder-inl.h"
@@ -52,13 +53,13 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
 
   // Set integer fields (smi or int, depending on the architecture).
   set_length(0);
-  set_internal_formal_parameter_count(0);
+  set_internal_formal_parameter_count(JSParameterCount(0));
   set_expected_nof_properties(0);
   set_raw_function_token_offset(0);
 
   // All flags default to false or 0, except ConstructAsBuiltinBit just because
   // we're using the kIllegal builtin.
-  set_flags(ConstructAsBuiltinBit::encode(true));
+  set_flags(ConstructAsBuiltinBit::encode(true), kRelaxedStore);
   set_flags2(0);
 
   UpdateFunctionMapIndex();
@@ -84,10 +85,10 @@ Code SharedFunctionInfo::GetCode() const {
     DCHECK(HasBytecodeArray());
     return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
   }
-  if (data.IsBaselineData()) {
-    // Having BaselineData means we are a compiled, baseline function.
-    DCHECK(HasBaselineData());
-    return baseline_data().baseline_code();
+  if (data.IsCodeT()) {
+    // Having baseline Code means we are a compiled, baseline function.
+    DCHECK(HasBaselineCode());
+    return FromCodeT(CodeT::cast(data));
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (data.IsAsmWasmData()) {
@@ -435,7 +436,8 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
 void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   DCHECK_NE(reason, BailoutReason::kNoReason);
 
-  set_flags(DisabledOptimizationReasonBits::update(flags(), reason));
+  set_flags(DisabledOptimizationReasonBits::update(flags(kRelaxedLoad), reason),
+            kRelaxedStore);
   // Code should be the lazy compilation stub or else interpreted.
   Isolate* isolate = GetIsolate();
   DCHECK(abstract_code(isolate).kind() == CodeKind::INTERPRETED_FUNCTION ||
@@ -459,7 +461,8 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
 
   // When adding fields here, make sure DeclarationScope::AnalyzePartially is
   // updated accordingly.
-  shared_info->set_internal_formal_parameter_count(lit->parameter_count());
+  shared_info->set_internal_formal_parameter_count(
+      JSParameterCount(lit->parameter_count()));
   shared_info->SetFunctionTokenPosition(lit->function_token_position(),
                                         lit->start_position());
   shared_info->set_syntax_kind(lit->syntax_kind());
@@ -704,6 +707,7 @@ void SharedFunctionInfo::UninstallDebugBytecode(SharedFunctionInfo shared,
       isolate->shared_function_info_access());
   DebugInfo debug_info = shared.GetDebugInfo();
   BytecodeArray original_bytecode_array = debug_info.OriginalBytecodeArray();
+  DCHECK(!shared.HasBaselineCode());
   shared.SetActiveBytecodeArray(original_bytecode_array);
   debug_info.set_original_bytecode_array(
       ReadOnlyRoots(isolate).undefined_value(), kReleaseStore);

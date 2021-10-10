@@ -34,7 +34,35 @@ class CrossThreadPersistentBase : public PersistentBase {
   V8_CLANG_NO_SANITIZE("address")
   void ClearFromGC() const {
     raw_ = nullptr;
-    node_ = nullptr;
+    SetNodeSafe(nullptr);
+  }
+
+  // GetNodeSafe() can be used for a thread-safe IsValid() check in a
+  // double-checked locking pattern. See ~BasicCrossThreadPersistent.
+  PersistentNode* GetNodeSafe() const {
+    return reinterpret_cast<std::atomic<PersistentNode*>*>(&node_)->load(
+        std::memory_order_acquire);
+  }
+
+  // The GC writes using SetNodeSafe() while holding the lock.
+  V8_CLANG_NO_SANITIZE("address")
+  void SetNodeSafe(PersistentNode* value) const {
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define V8_IS_ASAN 1
+#endif
+#endif
+
+#ifdef V8_IS_ASAN
+    __atomic_store(&node_, &value, __ATOMIC_RELEASE);
+#else   // !V8_IS_ASAN
+    // Non-ASAN builds can use atomics. This also covers MSVC which does not
+    // have the __atomic_store intrinsic.
+    reinterpret_cast<std::atomic<PersistentNode*>*>(&node_)->store(
+        value, std::memory_order_release);
+#endif  // !V8_IS_ASAN
+
+#undef V8_IS_ASAN
   }
 };
 
@@ -48,7 +76,31 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
   using typename WeaknessPolicy::IsStrongPersistent;
   using PointeeType = T;
 
-  ~BasicCrossThreadPersistent() { Clear(); }
+  ~BasicCrossThreadPersistent() {
+    //  This implements fast path for destroying empty/sentinel.
+    //
+    // Simplified version of `AssignUnsafe()` to allow calling without a
+    // complete type `T`. Uses double-checked locking with a simple thread-safe
+    // check for a valid handle based on a node.
+    if (GetNodeSafe()) {
+      PersistentRegionLock guard;
+      const void* old_value = GetValue();
+      // The fast path check (GetNodeSafe()) does not acquire the lock. Recheck
+      // validity while holding the lock to ensure the reference has not been
+      // cleared.
+      if (IsValid(old_value)) {
+        CrossThreadPersistentRegion& region =
+            this->GetPersistentRegion(old_value);
+        region.FreeNode(GetNode());
+        SetNode(nullptr);
+      } else {
+        CPPGC_DCHECK(!GetNode());
+      }
+    }
+    // No need to call SetValue() as the handle is not used anymore. This can
+    // leave behind stale sentinel values but will always destroy the underlying
+    // node.
+  }
 
   BasicCrossThreadPersistent(
       const SourceLocation& loc = SourceLocation::Current())
@@ -135,7 +187,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
   BasicCrossThreadPersistent& operator=(
       const BasicCrossThreadPersistent& other) {
     PersistentRegionLock guard;
-    AssignUnsafe(other.Get());
+    AssignSafe(guard, other.Get());
     return *this;
   }
 
@@ -147,7 +199,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
                                        OtherLocationPolicy,
                                        OtherCheckingPolicy>& other) {
     PersistentRegionLock guard;
-    AssignUnsafe(other.Get());
+    AssignSafe(guard, other.Get());
     return *this;
   }
 
@@ -165,8 +217,13 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
     return *this;
   }
 
+  /**
+   * Assigns a raw pointer.
+   *
+   * Note: **Not thread-safe.**
+   */
   BasicCrossThreadPersistent& operator=(T* other) {
-    Assign(other);
+    AssignUnsafe(other);
     return *this;
   }
 
@@ -181,13 +238,24 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
     return operator=(member.Get());
   }
 
+  /**
+   * Assigns a nullptr.
+   *
+   * \returns the handle.
+   */
   BasicCrossThreadPersistent& operator=(std::nullptr_t) {
     Clear();
     return *this;
   }
 
+  /**
+   * Assigns the sentinel pointer.
+   *
+   * \returns the handle.
+   */
   BasicCrossThreadPersistent& operator=(SentinelPointer s) {
-    Assign(s);
+    PersistentRegionLock guard;
+    AssignSafe(guard, s);
     return *this;
   }
 
@@ -209,24 +277,8 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
    * Clears the stored object.
    */
   void Clear() {
-    // Simplified version of `Assign()` to allow calling without a complete type
-    // `T`.
-    const void* old_value = GetValue();
-    if (IsValid(old_value)) {
-      PersistentRegionLock guard;
-      old_value = GetValue();
-      // The fast path check (IsValid()) does not acquire the lock. Reload
-      // the value to ensure the reference has not been cleared.
-      if (IsValid(old_value)) {
-        CrossThreadPersistentRegion& region =
-            this->GetPersistentRegion(old_value);
-        region.FreeNode(GetNode());
-        SetNode(nullptr);
-      } else {
-        CPPGC_DCHECK(!GetNode());
-      }
-    }
-    SetValue(nullptr);
+    PersistentRegionLock guard;
+    AssignSafe(guard, nullptr);
   }
 
   /**
@@ -302,7 +354,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
     v->TraceRoot(*handle, handle->Location());
   }
 
-  void Assign(T* ptr) {
+  void AssignUnsafe(T* ptr) {
     const void* old_value = GetValue();
     if (IsValid(old_value)) {
       PersistentRegionLock guard;
@@ -330,7 +382,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
     this->CheckPointer(ptr);
   }
 
-  void AssignUnsafe(T* ptr) {
+  void AssignSafe(PersistentRegionLock&, T* ptr) {
     PersistentRegionLock::AssertLocked();
     const void* old_value = GetValue();
     if (IsValid(old_value)) {

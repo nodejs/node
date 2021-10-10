@@ -308,51 +308,32 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // The |result_type| determines the size and signedness.  of the
   // value read. This method should only be used on architectures that
   // do not support unaligned memory accesses.
-  TNode<Word32T> BytecodeOperandReadUnaligned(
-      int relative_offset, MachineType result_type,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
+  TNode<Word32T> BytecodeOperandReadUnaligned(int relative_offset,
+                                              MachineType result_type);
 
   // Returns zero- or sign-extended to word32 value of the operand.
-  TNode<Uint8T> BytecodeOperandUnsignedByte(
-      int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
-  TNode<Int8T> BytecodeOperandSignedByte(
-      int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
-  TNode<Uint16T> BytecodeOperandUnsignedShort(
-      int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
-  TNode<Int16T> BytecodeOperandSignedShort(
-      int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
-  TNode<Uint32T> BytecodeOperandUnsignedQuad(
-      int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
-  TNode<Int32T> BytecodeOperandSignedQuad(
-      int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
+  TNode<Uint8T> BytecodeOperandUnsignedByte(int operand_index);
+  TNode<Int8T> BytecodeOperandSignedByte(int operand_index);
+  TNode<Uint16T> BytecodeOperandUnsignedShort(int operand_index);
+  TNode<Int16T> BytecodeOperandSignedShort(int operand_index);
+  TNode<Uint32T> BytecodeOperandUnsignedQuad(int operand_index);
+  TNode<Int32T> BytecodeOperandSignedQuad(int operand_index);
 
   // Returns zero- or sign-extended to word32 value of the operand of
   // given size.
-  TNode<Int32T> BytecodeSignedOperand(
-      int operand_index, OperandSize operand_size,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
-  TNode<Uint32T> BytecodeUnsignedOperand(
-      int operand_index, OperandSize operand_size,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
+  TNode<Int32T> BytecodeSignedOperand(int operand_index,
+                                      OperandSize operand_size);
+  TNode<Uint32T> BytecodeUnsignedOperand(int operand_index,
+                                         OperandSize operand_size);
 
   // Returns the word-size sign-extended register index for bytecode operand
-  // |operand_index| in the current bytecode. Value is not poisoned on
-  // speculation since the value loaded from the register is poisoned instead.
-  TNode<IntPtrT> BytecodeOperandReg(
-      int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
+  // |operand_index| in the current bytecode.
+  TNode<IntPtrT> BytecodeOperandReg(int operand_index);
 
   // Returns the word zero-extended index immediate for bytecode operand
-  // |operand_index| in the current bytecode for use when loading a .
-  TNode<UintPtrT> BytecodeOperandConstantPoolIdx(
-      int operand_index,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
+  // |operand_index| in the current bytecode for use when loading a constant
+  // pool element.
+  TNode<UintPtrT> BytecodeOperandConstantPoolIdx(int operand_index);
 
   // Jump relative to the current bytecode by the |jump_offset|. If |backward|,
   // then jump backward (subtract the offset), otherwise jump forward (add the

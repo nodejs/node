@@ -9,7 +9,11 @@
 #include <functional>
 #include <string>
 
-#include "include/v8.h"
+#include "include/v8-exception.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
+#include "include/v8-script.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/regexp.h"

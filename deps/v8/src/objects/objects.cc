@@ -197,6 +197,8 @@ std::ostream& operator<<(std::ostream& os, PropertyCellType type) {
       return os << "ConstantType";
     case PropertyCellType::kMutable:
       return os << "Mutable";
+    case PropertyCellType::kInTransition:
+      return os << "InTransition";
   }
   UNREACHABLE();
 }
@@ -2291,7 +2293,7 @@ int HeapObject::SizeFromMap(Map map) const {
     return WasmStruct::GcSafeSize(map);
   }
   if (instance_type == WASM_ARRAY_TYPE) {
-    return WasmArray::GcSafeSizeFor(map, WasmArray::cast(*this).length());
+    return WasmArray::SizeFor(map, WasmArray::cast(*this).length());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
@@ -6532,6 +6534,8 @@ PropertyCellType PropertyCell::UpdatedType(Isolate* isolate,
       V8_FALLTHROUGH;
     case PropertyCellType::kMutable:
       return PropertyCellType::kMutable;
+    case PropertyCellType::kInTransition:
+      UNREACHABLE();
   }
 }
 
@@ -6587,6 +6591,7 @@ bool PropertyCell::CheckDataIsCompatible(PropertyDetails details,
                                          Object value) {
   DisallowGarbageCollection no_gc;
   PropertyCellType cell_type = details.cell_type();
+  CHECK_NE(cell_type, PropertyCellType::kInTransition);
   if (value.IsTheHole()) {
     CHECK_EQ(cell_type, PropertyCellType::kConstant);
   } else {
@@ -6620,8 +6625,9 @@ bool PropertyCell::CanTransitionTo(PropertyDetails new_details,
       return new_details.cell_type() == PropertyCellType::kMutable ||
              (new_details.cell_type() == PropertyCellType::kConstant &&
               new_value.IsTheHole());
+    case PropertyCellType::kInTransition:
+      UNREACHABLE();
   }
-  UNREACHABLE();
 }
 #endif  // DEBUG
 

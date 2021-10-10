@@ -236,7 +236,7 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
   Handle<SharedFunctionInfo> info =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
           isolate->factory()->empty_string(), builtin, kNormalFunction);
-  info->set_internal_formal_parameter_count(len);
+  info->set_internal_formal_parameter_count(JSParameterCount(len));
   info->set_length(len);
 
   return Factory::JSFunctionBuilder{isolate, info, context}
@@ -574,6 +574,13 @@ BUILTIN(IntlGetCanonicalLocales) {
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            Intl::GetCanonicalLocales(isolate, locales));
+}
+
+BUILTIN(IntlSupportedValuesOf) {
+  HandleScope scope(isolate);
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+
+  RETURN_RESULT_OR_FAILURE(isolate, Intl::SupportedValuesOf(isolate, locales));
 }
 
 BUILTIN(ListFormatConstructor) {

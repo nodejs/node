@@ -5,7 +5,7 @@
 #ifndef V8_PROFILER_TICK_SAMPLE_H_
 #define V8_PROFILER_TICK_SAMPLE_H_
 
-#include "include/v8.h"
+#include "include/v8-unwinder.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
 

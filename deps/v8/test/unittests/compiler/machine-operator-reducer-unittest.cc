@@ -3,12 +3,15 @@
 // found in the LICENSE file.
 
 #include "src/compiler/machine-operator-reducer.h"
+
 #include <limits>
+
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
 #include "src/base/overflowing-math.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/typer.h"
 #include "src/numbers/conversions-inl.h"
 #include "test/unittests/compiler/graph-unittest.h"
@@ -29,7 +32,8 @@ class MachineOperatorReducerTest : public GraphTest {
  public:
   explicit MachineOperatorReducerTest(int num_parameters = 2)
       : GraphTest(num_parameters),
-        machine_(zone()),
+        machine_(zone(), MachineType::PointerRepresentation(),
+                 MachineOperatorBuilder::kAllOptionalOps),
         common_(zone()),
         javascript_(zone()),
         jsgraph_(isolate(), graph(), &common_, &javascript_, nullptr,
@@ -2877,6 +2881,27 @@ TEST_F(MachineOperatorReducerTest, StoreRepWord16WithWord32SarAndWord32Shl) {
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsStore(rep, base, index, value, effect, control));
+  }
+}
+
+TEST_F(MachineOperatorReducerTest, Select) {
+  static const std::vector<const Operator*> ops = {
+      machine()->Float32Select().op(), machine()->Float64Select().op(),
+      machine()->Word32Select().op(), machine()->Word64Select().op()};
+
+  TRACED_FOREACH(const Operator*, op, ops) {
+    Node* arg0 = Parameter(0);
+    Node* arg1 = Parameter(1);
+
+    Node* select_true = graph()->NewNode(op, Int32Constant(1), arg0, arg1);
+    Reduction r_true = Reduce(select_true);
+    ASSERT_TRUE(r_true.Changed());
+    EXPECT_THAT(r_true.replacement(), IsParameter(0));
+
+    Node* select_false = graph()->NewNode(op, Int32Constant(0), arg0, arg1);
+    Reduction r_false = Reduce(select_false);
+    ASSERT_TRUE(r_false.Changed());
+    EXPECT_THAT(r_false.replacement(), IsParameter(1));
   }
 }
 

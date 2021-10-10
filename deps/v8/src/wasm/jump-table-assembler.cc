@@ -268,6 +268,36 @@ void JumpTableAssembler::NopBytes(int bytes) {
   }
 }
 
+#elif V8_TARGET_ARCH_LOONG64
+void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
+                                                 Address lazy_compile_target) {
+  DCHECK(is_int32(func_index));
+  int start = pc_offset();
+  li(kWasmCompileLazyFuncIndexRegister, (int32_t)func_index);  // max. 2 instr
+  // Jump produces max 4 instructions.
+  Jump(lazy_compile_target, RelocInfo::NONE);
+  int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
+  DCHECK_EQ(nop_bytes % kInstrSize, 0);
+  for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
+}
+bool JumpTableAssembler::EmitJumpSlot(Address target) {
+  PatchAndJump(target);
+  return true;
+}
+void JumpTableAssembler::EmitFarJumpSlot(Address target) {
+  JumpToInstructionStream(target);
+}
+void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+  UNREACHABLE();
+}
+void JumpTableAssembler::NopBytes(int bytes) {
+  DCHECK_LE(0, bytes);
+  DCHECK_EQ(0, bytes % kInstrSize);
+  for (; bytes > 0; bytes -= kInstrSize) {
+    nop();
+  }
+}
+
 #elif V8_TARGET_ARCH_PPC64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {

@@ -24,6 +24,8 @@
 #include "src/execution/mips/simulator-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/execution/mips64/simulator-mips64.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/execution/loong64/simulator-loong64.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/execution/s390/simulator-s390.h"
 #elif V8_TARGET_ARCH_RISCV64

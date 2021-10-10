@@ -4,10 +4,8 @@
 
 #include "src/regexp/regexp-bytecode-peephole.h"
 
-#include "src/execution/isolate.h"
 #include "src/flags/flags.h"
-#include "src/objects/fixed-array.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/fixed-array-inl.h"
 #include "src/regexp/regexp-bytecodes.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"

@@ -4,6 +4,9 @@
 
 #include "src/libsampler/sampler.h"
 
+#include "include/v8-isolate.h"
+#include "include/v8-unwinder.h"
+
 #ifdef USE_SIGNALS
 
 #include <errno.h>
@@ -412,6 +415,10 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->pc = reinterpret_cast<void*>(mcontext.pc);
   state->sp = reinterpret_cast<void*>(mcontext.gregs[29]);
   state->fp = reinterpret_cast<void*>(mcontext.gregs[30]);
+#elif V8_HOST_ARCH_LOONG64
+  state->pc = reinterpret_cast<void*>(mcontext.__pc);
+  state->sp = reinterpret_cast<void*>(mcontext.__gregs[3]);
+  state->fp = reinterpret_cast<void*>(mcontext.__gregs[22]);
 #elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
 #if V8_LIBC_GLIBC
   state->pc = reinterpret_cast<void*>(ucontext->uc_mcontext.regs->nip);

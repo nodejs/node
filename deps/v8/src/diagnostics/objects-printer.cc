@@ -1513,7 +1513,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   }
 
   os << "\n - formal_parameter_count: "
-     << shared().internal_formal_parameter_count();
+     << shared().internal_formal_parameter_count_without_receiver();
   os << "\n - kind: " << shared().kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(raw_code());
@@ -1583,7 +1583,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - kind: " << kind();
   os << "\n - syntax kind: " << syntax_kind();
   os << "\n - function_map_index: " << function_map_index();
-  os << "\n - formal_parameter_count: " << internal_formal_parameter_count();
+  os << "\n - formal_parameter_count: "
+     << internal_formal_parameter_count_without_receiver();
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data(kAcquireLoad));
@@ -1658,7 +1659,7 @@ void Code::CodePrint(std::ostream& os) {
 
 void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {
   PrintHeader(os, "CodeDataContainer");
-  os << "\n - kind_specific_flags: " << kind_specific_flags();
+  os << "\n - kind_specific_flags: " << kind_specific_flags(kRelaxedLoad);
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     os << "\n - code: " << Brief(code());
     os << "\n - code_entry_point: "
@@ -1985,7 +1986,6 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   }
   os << "\n - memory_start: " << static_cast<void*>(memory_start());
   os << "\n - memory_size: " << memory_size();
-  os << "\n - memory_mask: " << AsHex(memory_mask());
   os << "\n - imported_function_targets: "
      << static_cast<void*>(imported_function_targets());
   os << "\n - globals_start: " << static_cast<void*>(globals_start());

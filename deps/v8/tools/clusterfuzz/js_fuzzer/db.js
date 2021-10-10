@@ -11,11 +11,13 @@ const fs = require('fs');
 const fsPath = require('path');
 
 const babelGenerator = require('@babel/generator').default;
+const babelTemplate = require('@babel/template').default;
 const babelTraverse = require('@babel/traverse').default;
 const babelTypes = require('@babel/types');
 const globals = require('globals');
 
 const random = require('./random.js');
+const sourceHelpers = require('./source_helpers.js');
 
 const globalIdentifiers = new Set(Object.keys(globals.builtin));
 const propertyNames = new Set([
@@ -238,6 +240,29 @@ function _markSkipped(path) {
   }
 }
 
+/**
+ * Returns true if an expression can be applied or false otherwise.
+ */
+function isValid(expression) {
+  const expressionTemplate = babelTemplate(
+      expression.source,
+      sourceHelpers.BABYLON_REPLACE_VAR_OPTIONS);
+
+  const dependencies = {};
+  if (expression.dependencies) {
+    for (const dependency of expression.dependencies) {
+      dependencies[dependency] = babelTypes.identifier('__v_0');
+    }
+  }
+
+  try {
+    expressionTemplate(dependencies);
+  } catch (e) {
+    return false;
+  }
+  return true;
+}
+
 class MutateDbWriter {
   constructor(outputDir) {
     this.seen = new Set();
@@ -390,6 +415,11 @@ class MutateDbWriter {
         // Try to de-dupe similar expressions.
         let key = dedupKey(expression);
         if (self.seen.has(key)) {
+          return;
+        }
+
+        // Test results.
+        if (!isValid(expression)) {
           return;
         }
 

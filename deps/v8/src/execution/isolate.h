@@ -13,9 +13,11 @@
 #include <unordered_map>
 #include <vector>
 
+#include "include/v8-context.h"
 #include "include/v8-internal.h"
+#include "include/v8-isolate.h"
 #include "include/v8-metrics.h"
-#include "include/v8.h"
+#include "include/v8-snapshot.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/builtins/builtins.h"
@@ -33,6 +35,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
 #include "src/init/isolate-allocator.h"
+#include "src/init/vm-cage.h"
 #include "src/objects/code.h"
 #include "src/objects/contexts.h"
 #include "src/objects/debug-objects.h"
@@ -91,6 +94,7 @@ class EternalHandles;
 class HandleScopeImplementer;
 class HeapObjectToIndexHashMap;
 class HeapProfiler;
+class GlobalHandles;
 class InnerPointerToCodeCache;
 class LazyCompileDispatcher;
 class LocalIsolate;

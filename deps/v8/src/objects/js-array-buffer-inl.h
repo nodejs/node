@@ -30,10 +30,6 @@ ACCESSORS(JSTypedArray, base_pointer, Object, kBasePointerOffset)
 RELEASE_ACQUIRE_ACCESSORS(JSTypedArray, base_pointer, Object,
                           kBasePointerOffset)
 
-void JSArrayBuffer::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField(kBackingStoreOffset, isolate);
-}
-
 size_t JSArrayBuffer::byte_length() const {
   return ReadField<size_t>(kByteLengthOffset);
 }
@@ -43,26 +39,20 @@ void JSArrayBuffer::set_byte_length(size_t value) {
 }
 
 DEF_GETTER(JSArrayBuffer, backing_store, void*) {
-  Isolate* isolate = GetIsolateForHeapSandbox(*this);
-  Address value = ReadExternalPointerField(kBackingStoreOffset, isolate,
-                                           kArrayBufferBackingStoreTag);
-  return reinterpret_cast<void*>(value);
+  return reinterpret_cast<void*>(ReadField<Address>(kBackingStoreOffset));
 }
 
 void JSArrayBuffer::set_backing_store(Isolate* isolate, void* value) {
-  WriteExternalPointerField(kBackingStoreOffset, isolate,
-                            reinterpret_cast<Address>(value),
-                            kArrayBufferBackingStoreTag);
+  DCHECK(IsValidBackingStorePointer(value));
+  WriteField<Address>(kBackingStoreOffset, reinterpret_cast<Address>(value));
 }
 
 uint32_t JSArrayBuffer::GetBackingStoreRefForDeserialization() const {
-  return static_cast<uint32_t>(
-      ReadField<ExternalPointer_t>(kBackingStoreOffset));
+  return static_cast<uint32_t>(ReadField<Address>(kBackingStoreOffset));
 }
 
 void JSArrayBuffer::SetBackingStoreRefForSerialization(uint32_t ref) {
-  WriteField<ExternalPointer_t>(kBackingStoreOffset,
-                                static_cast<ExternalPointer_t>(ref));
+  WriteField<Address>(kBackingStoreOffset, static_cast<Address>(ref));
 }
 
 ArrayBufferExtension* JSArrayBuffer::extension() const {
@@ -238,10 +228,6 @@ size_t JSTypedArray::GetLength() const {
   return GetLengthOrOutOfBounds(out_of_bounds);
 }
 
-void JSTypedArray::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField(kExternalPointerOffset, isolate);
-}
-
 size_t JSTypedArray::length() const {
   DCHECK(!is_length_tracking());
   DCHECK(!is_backed_by_rab());
@@ -257,18 +243,16 @@ void JSTypedArray::set_length(size_t value) {
 }
 
 DEF_GETTER(JSTypedArray, external_pointer, Address) {
-  Isolate* isolate = GetIsolateForHeapSandbox(*this);
-  return ReadExternalPointerField(kExternalPointerOffset, isolate,
-                                  kTypedArrayExternalPointerTag);
+  return ReadField<Address>(kExternalPointerOffset);
 }
 
-DEF_GETTER(JSTypedArray, external_pointer_raw, ExternalPointer_t) {
-  return ReadField<ExternalPointer_t>(kExternalPointerOffset);
+DEF_GETTER(JSTypedArray, external_pointer_raw, Address) {
+  return ReadField<Address>(kExternalPointerOffset);
 }
 
 void JSTypedArray::set_external_pointer(Isolate* isolate, Address value) {
-  WriteExternalPointerField(kExternalPointerOffset, isolate, value,
-                            kTypedArrayExternalPointerTag);
+  DCHECK(IsValidBackingStorePointer(reinterpret_cast<void*>(value)));
+  WriteField<Address>(kExternalPointerOffset, value);
 }
 
 Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
@@ -282,14 +266,12 @@ Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
 
 uint32_t JSTypedArray::GetExternalBackingStoreRefForDeserialization() const {
   DCHECK(!is_on_heap());
-  return static_cast<uint32_t>(
-      ReadField<ExternalPointer_t>(kExternalPointerOffset));
+  return static_cast<uint32_t>(ReadField<Address>(kExternalPointerOffset));
 }
 
 void JSTypedArray::SetExternalBackingStoreRefForSerialization(uint32_t ref) {
   DCHECK(!is_on_heap());
-  WriteField<ExternalPointer_t>(kExternalPointerOffset,
-                                static_cast<ExternalPointer_t>(ref));
+  WriteField<Address>(kExternalPointerOffset, static_cast<Address>(ref));
 }
 
 void JSTypedArray::RemoveExternalPointerCompensationForSerialization(
@@ -390,19 +372,12 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
 }
 
 DEF_GETTER(JSDataView, data_pointer, void*) {
-  Isolate* isolate = GetIsolateForHeapSandbox(*this);
-  return reinterpret_cast<void*>(ReadExternalPointerField(
-      kDataPointerOffset, isolate, kDataViewDataPointerTag));
-}
-
-void JSDataView::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField(kDataPointerOffset, isolate);
+  return reinterpret_cast<void*>(ReadField<Address>(kDataPointerOffset));
 }
 
 void JSDataView::set_data_pointer(Isolate* isolate, void* value) {
-  WriteExternalPointerField(kDataPointerOffset, isolate,
-                            reinterpret_cast<Address>(value),
-                            kDataViewDataPointerTag);
+  DCHECK(IsValidBackingStorePointer(value));
+  WriteField<Address>(kDataPointerOffset, reinterpret_cast<Address>(value));
 }
 
 }  // namespace internal

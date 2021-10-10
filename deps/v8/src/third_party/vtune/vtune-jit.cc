@@ -56,6 +56,8 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "vtune-jit.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -65,8 +67,12 @@
 #include <unordered_map>
 #include <vector>
 
+#include "../../../include/v8-callbacks.h"
+#include "../../../include/v8-initialization.h"
+#include "../../../include/v8-local-handle.h"
+#include "../../../include/v8-primitive.h"
+#include "../../../include/v8-script.h"
 #include "v8-vtune.h"
-#include "vtune-jit.h"
 
 namespace vTune {
 namespace internal {

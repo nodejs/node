@@ -32,7 +32,7 @@ transitioning macro ToStringImpl(context: Context, o: JSAny): String {
         ThrowTypeError(MessageTemplate::kSymbolToString);
       }
       case (JSAny): {
-        return runtime::ToString(context, o);
+        return runtime::ToString(context, result);
       }
     }
   }

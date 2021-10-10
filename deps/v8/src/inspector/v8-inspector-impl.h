@@ -110,8 +110,6 @@ class V8InspectorImpl : public V8Inspector {
   void externalAsyncTaskStarted(const V8StackTraceId& parent) override;
   void externalAsyncTaskFinished(const V8StackTraceId& parent) override;
 
-  std::shared_ptr<Counters> enableCounters() override;
-
   bool associateExceptionData(v8::Local<v8::Context>,
                               v8::Local<v8::Value> exception,
                               v8::Local<v8::Name> key,
@@ -157,8 +155,6 @@ class V8InspectorImpl : public V8Inspector {
   };
 
  private:
-  friend class Counters;
-
   v8::Isolate* m_isolate;
   V8InspectorClient* m_client;
   std::unique_ptr<V8Debugger> m_debugger;
@@ -191,8 +187,6 @@ class V8InspectorImpl : public V8Inspector {
   std::map<std::pair<int64_t, int64_t>, int> m_uniqueIdToContextId;
 
   std::unique_ptr<V8Console> m_console;
-
-  Counters* m_counters = nullptr;
 };
 
 }  // namespace v8_inspector

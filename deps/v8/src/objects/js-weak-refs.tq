@@ -6,7 +6,6 @@ bitfield struct FinalizationRegistryFlags extends uint31 {
   scheduled_for_cleanup: bool: 1 bit;
 }
 
-@doNotGenerateCppClass
 extern class JSFinalizationRegistry extends JSObject {
   native_context: NativeContext;
   cleanup: Callable;

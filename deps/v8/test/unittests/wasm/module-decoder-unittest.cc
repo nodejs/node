@@ -838,7 +838,6 @@ TEST_F(WasmModuleVerifyTest, GlobalRttFreshSubOfCanon) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(gc_experiments);
 
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(2),
@@ -870,7 +869,6 @@ TEST_F(WasmModuleVerifyTest, GlobalRttFreshSubOfSubOfCanon) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(gc_experiments);
 
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(2),
@@ -888,7 +886,6 @@ TEST_F(WasmModuleVerifyTest, GlobalRttFreshSubOfFreshSubOfCanon) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(gc_experiments);
 
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(2),
@@ -928,7 +925,6 @@ TEST_F(WasmModuleVerifyTest, GlobalRttFreshSubOfGlobal) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(gc_experiments);
 
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(2),
@@ -974,7 +970,6 @@ TEST_F(WasmModuleVerifyTest, GlobalRttFreshSubOfGlobalTypeError) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(gc_experiments);
 
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(1),
@@ -1015,7 +1010,6 @@ TEST_F(WasmModuleVerifyTest, GlobalRttFreshSubIllegalParent) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(gc_experiments);
 
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(2),
@@ -1049,7 +1043,6 @@ TEST_F(WasmModuleVerifyTest, RttFreshSubGlobalTypeError) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(gc_experiments);
 
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(1),
@@ -1066,7 +1059,6 @@ TEST_F(WasmModuleVerifyTest, StructNewInitExpr) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(gc_experiments);
 
   static const byte basic[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
@@ -1116,7 +1108,6 @@ TEST_F(WasmModuleVerifyTest, ArrayInitInitExpr) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(gc_experiments);
 
   static const byte basic[] = {
       SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI16Code, true)),

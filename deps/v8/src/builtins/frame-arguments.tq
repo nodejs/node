@@ -6,7 +6,11 @@
 struct Arguments {
   const frame: FrameWithArguments;
   const base: RawPtr;
+  // length is the number of arguments without the receiver.
   const length: intptr;
+  // actual_count is the actual number of arguments on the stack (depending on
+  // kJSArgcIncludesReceiver may or may not include the receiver).
+  const actual_count: intptr;
 }
 
 extern operator '[]' macro GetArgumentValue(Arguments, intptr): JSAny;
@@ -45,8 +49,8 @@ macro GetFrameWithArgumentsInfo(implicit context: Context)():
   const f: JSFunction = frame.function;
 
   const shared: SharedFunctionInfo = f.shared_function_info;
-  const formalParameterCount: bint =
-      Convert<bint>(Convert<int32>(shared.formal_parameter_count));
+  const formalParameterCount: bint = Convert<bint>(Convert<int32>(
+      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(shared)));
   // TODO(victorgomes): When removing the v8_disable_arguments_adaptor flag,
   // FrameWithArgumentsInfo can be simplified, since the frame field already
   // contains the argument count.

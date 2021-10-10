@@ -45,8 +45,7 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
     Matcher<compiler::Node*> IsLoad(
         const Matcher<compiler::LoadRepresentation>& rep_matcher,
         const Matcher<compiler::Node*>& base_matcher,
-        const Matcher<compiler::Node*>& index_matcher,
-        LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
+        const Matcher<compiler::Node*>& index_matcher);
     Matcher<compiler::Node*> IsLoadFromObject(
         const Matcher<compiler::LoadRepresentation>& rep_matcher,
         const Matcher<compiler::Node*>& base_matcher,
@@ -60,30 +59,17 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
     Matcher<compiler::Node*> IsWordNot(
         const Matcher<compiler::Node*>& value_matcher);
 
-    Matcher<compiler::Node*> IsUnsignedByteOperand(
-        int offset, LoadSensitivity needs_poisoning);
-    Matcher<compiler::Node*> IsSignedByteOperand(
-        int offset, LoadSensitivity needs_poisoning);
-    Matcher<compiler::Node*> IsUnsignedShortOperand(
-        int offset, LoadSensitivity needs_poisoning);
-    Matcher<compiler::Node*> IsSignedShortOperand(
-        int offset, LoadSensitivity needs_poisoning);
-    Matcher<compiler::Node*> IsUnsignedQuadOperand(
-        int offset, LoadSensitivity needs_poisoning);
-    Matcher<compiler::Node*> IsSignedQuadOperand(
-        int offset, LoadSensitivity needs_poisoning);
-
-    Matcher<compiler::Node*> IsUnpoisonedSignedOperand(
-        int offset, OperandSize operand_size, LoadSensitivity needs_poisoning);
-    Matcher<compiler::Node*> IsUnpoisonedUnsignedOperand(
-        int offset, OperandSize operand_size, LoadSensitivity needs_poisoning);
+    Matcher<compiler::Node*> IsUnsignedByteOperand(int offset);
+    Matcher<compiler::Node*> IsSignedByteOperand(int offset);
+    Matcher<compiler::Node*> IsUnsignedShortOperand(int offset);
+    Matcher<compiler::Node*> IsSignedShortOperand(int offset);
+    Matcher<compiler::Node*> IsUnsignedQuadOperand(int offset);
+    Matcher<compiler::Node*> IsSignedQuadOperand(int offset);
 
     Matcher<compiler::Node*> IsSignedOperand(int offset,
-                                             OperandSize operand_size,
-                                             LoadSensitivity needs_poisoning);
+                                             OperandSize operand_size);
     Matcher<compiler::Node*> IsUnsignedOperand(int offset,
-                                               OperandSize operand_size,
-                                               LoadSensitivity needs_poisoning);
+                                               OperandSize operand_size);
 
     Matcher<compiler::Node*> IsLoadRegisterOperand(int offset,
                                                    OperandSize operand_size);

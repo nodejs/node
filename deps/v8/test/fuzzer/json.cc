@@ -6,7 +6,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-isolate.h"
+#include "include/v8-json.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
 #include "test/fuzzer/fuzzer-support.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

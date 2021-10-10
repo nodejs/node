@@ -72,7 +72,7 @@ class Interpreter {
   // Disassembler support.
   V8_EXPORT_PRIVATE const char* LookupNameOfBytecodeHandler(const Code code);
 
-  V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
+  V8_EXPORT_PRIVATE Handle<JSObject> GetDispatchCountersObject();
 
   void ForEachBytecode(const std::function<void(Bytecode, OperandScale)>& f);
 

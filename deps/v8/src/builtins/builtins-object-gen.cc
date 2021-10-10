@@ -436,7 +436,9 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
 
   Label done(this);
   // 2. If only one argument was passed, return to.
-  GotoIf(UintPtrLessThanOrEqual(args.GetLength(), IntPtrConstant(1)), &done);
+  GotoIf(UintPtrLessThanOrEqual(args.GetLengthWithoutReceiver(),
+                                IntPtrConstant(1)),
+         &done);
 
   // 3. Let sources be the List of argument values starting with the
   //    second argument.
@@ -1242,9 +1244,8 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   TNode<BytecodeArray> bytecode_array =
       LoadSharedFunctionInfoBytecodeArray(shared);
 
-  TNode<IntPtrT> formal_parameter_count =
-      ChangeInt32ToIntPtr(LoadObjectField<Uint16T>(
-          shared, SharedFunctionInfo::kFormalParameterCountOffset));
+  TNode<IntPtrT> formal_parameter_count = ChangeInt32ToIntPtr(
+      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(shared));
   TNode<IntPtrT> frame_size = ChangeInt32ToIntPtr(
       LoadObjectField<Int32T>(bytecode_array, BytecodeArray::kFrameSizeOffset));
   TNode<IntPtrT> size =

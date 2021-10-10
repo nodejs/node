@@ -440,7 +440,6 @@ Condition Assembler::GetCondition(Instr instr) {
     default:
       UNIMPLEMENTED();
   }
-  return al;
 }
 
 #if V8_TARGET_ARCH_S390X

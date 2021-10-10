@@ -89,6 +89,7 @@ v8_source_set("cctest_sources") {
     "compiler/function-tester.cc",
     "compiler/function-tester.h",
     "compiler/node-observer-tester.h",
+    "compiler/test-atomic-load-store-codegen.cc",
     "compiler/test-basic-block-profiler.cc",
     "compiler/test-branch-combine.cc",
     "compiler/test-calls-with-arraylike-or-spread.cc",
@@ -119,7 +120,6 @@ v8_source_set("cctest_sources") {
     "compiler/test-run-jsops.cc",
     "compiler/test-run-load-store.cc",
     "compiler/test-run-machops.cc",
-    "compiler/test-run-retpoline.cc",
     "compiler/test-run-stackcheck.cc",
     "compiler/test-run-tail-calls.cc",
     "compiler/test-run-unwinding-info.cc",
@@ -290,6 +290,7 @@ v8_source_set("cctest_sources") {
     "test-utils.cc",
     "test-verifiers.cc",
     "test-version.cc",
+    "test-virtual-memory-cage.cc",
     "test-weakmaps.cc",
     "test-weaksets.cc",
     "test-web-snapshots.cc",
@@ -307,7 +308,6 @@ v8_source_set("cctest_sources") {
       "test-assembler-arm.cc",
       "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
-      "test-poison-disasm-arm.cc",
       "test-sync-primitives-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
@@ -319,7 +319,6 @@ v8_source_set("cctest_sources") {
       "test-js-arm64-variables.cc",
       "test-macro-assembler-arm64.cc",
       "test-pointer-auth-arm64.cc",
-      "test-poison-disasm-arm64.cc",
       "test-sync-primitives-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
@@ -384,6 +383,12 @@ v8_source_set("cctest_sources") {
       "test-helper-riscv64.cc",
       "test-macro-assembler-riscv64.cc",
       "test-simple-riscv64.cc",
+    ]
+  } else if (v8_current_cpu == "loong64") {
+    sources += [  ### gcmole(arch:loong64) ###
+      "test-assembler-loong64.cc",
+      "test-disasm-loong64.cc",
+      "test-macro-assembler-loong64.cc",
     ]
   }
 
@@ -482,7 +487,7 @@ v8_source_set("cctest_sources") {
       v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
       v8_current_cpu == "mips" || v8_current_cpu == "mips64" ||
       v8_current_cpu == "mipsel" || v8_current_cpu == "mipsel64" ||
-      v8_current_cpu == "riscv64") {
+      v8_current_cpu == "riscv64" || v8_current_cpu == "loong64") {
     # Disable fmadd/fmsub so that expected results match generated code in
     # RunFloat64MulAndFloat64Add1 and friends.
     if (!is_win) {

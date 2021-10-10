@@ -161,36 +161,12 @@ namespace compiler {
   V(S390_StoreReverseSimd128)               \
   V(S390_StoreFloat32)                      \
   V(S390_StoreDouble)                       \
-  V(S390_CompressSigned)                    \
-  V(S390_CompressPointer)                   \
-  V(S390_CompressAny)                       \
-  V(S390_Word64AtomicExchangeUint8)         \
-  V(S390_Word64AtomicExchangeUint16)        \
-  V(S390_Word64AtomicExchangeUint32)        \
   V(S390_Word64AtomicExchangeUint64)        \
-  V(S390_Word64AtomicCompareExchangeUint8)  \
-  V(S390_Word64AtomicCompareExchangeUint16) \
-  V(S390_Word64AtomicCompareExchangeUint32) \
   V(S390_Word64AtomicCompareExchangeUint64) \
-  V(S390_Word64AtomicAddUint8)              \
-  V(S390_Word64AtomicAddUint16)             \
-  V(S390_Word64AtomicAddUint32)             \
   V(S390_Word64AtomicAddUint64)             \
-  V(S390_Word64AtomicSubUint8)              \
-  V(S390_Word64AtomicSubUint16)             \
-  V(S390_Word64AtomicSubUint32)             \
   V(S390_Word64AtomicSubUint64)             \
-  V(S390_Word64AtomicAndUint8)              \
-  V(S390_Word64AtomicAndUint16)             \
-  V(S390_Word64AtomicAndUint32)             \
   V(S390_Word64AtomicAndUint64)             \
-  V(S390_Word64AtomicOrUint8)               \
-  V(S390_Word64AtomicOrUint16)              \
-  V(S390_Word64AtomicOrUint32)              \
   V(S390_Word64AtomicOrUint64)              \
-  V(S390_Word64AtomicXorUint8)              \
-  V(S390_Word64AtomicXorUint16)             \
-  V(S390_Word64AtomicXorUint32)             \
   V(S390_Word64AtomicXorUint64)             \
   V(S390_F64x2Splat)                        \
   V(S390_F64x2ReplaceLane)                  \
@@ -396,6 +372,26 @@ namespace compiler {
   V(S390_S128Not)                           \
   V(S390_S128Select)                        \
   V(S390_S128AndNot)                        \
+  V(S390_S128Load8Splat)                    \
+  V(S390_S128Load16Splat)                   \
+  V(S390_S128Load32Splat)                   \
+  V(S390_S128Load64Splat)                   \
+  V(S390_S128Load8x8S)                      \
+  V(S390_S128Load8x8U)                      \
+  V(S390_S128Load16x4S)                     \
+  V(S390_S128Load16x4U)                     \
+  V(S390_S128Load32x2S)                     \
+  V(S390_S128Load32x2U)                     \
+  V(S390_S128Load32Zero)                    \
+  V(S390_S128Load64Zero)                    \
+  V(S390_S128Load8Lane)                     \
+  V(S390_S128Load16Lane)                    \
+  V(S390_S128Load32Lane)                    \
+  V(S390_S128Load64Lane)                    \
+  V(S390_S128Store8Lane)                    \
+  V(S390_S128Store16Lane)                   \
+  V(S390_S128Store32Lane)                   \
+  V(S390_S128Store64Lane)                   \
   V(S390_StoreSimd128)                      \
   V(S390_LoadSimd128)                       \
   V(S390_StoreCompressTagged)               \

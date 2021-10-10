@@ -28,6 +28,8 @@
 // Tests of profiles generator and utilities.
 
 #include "test/cctest/profiler-extension.h"
+
+#include "include/v8-template.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

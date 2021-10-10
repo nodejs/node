@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-// Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --allow-natives-syntax --concurrent-recompilation
 // Flags: --nostress-opt --no-always-opt
 
 // --nostress-opt is in place because this particular optimization
@@ -35,11 +34,6 @@
 // to the Object prototype below, future compiles will not use the
 // optimization anymore, and the code will remain optimized despite
 // additional changes to the prototype chain.
-
-if (!%IsConcurrentRecompilationSupported()) {
-  print("Concurrent recompilation is disabled. Skipping this test.");
-  quit();
-}
 
 function f1(a, i) {
   return a[i] + 0.5;
@@ -51,19 +45,21 @@ assertEquals(0.5, f1(arr, 0));
 assertEquals(0.5, f1(arr, 0));
 
 // Optimized code of f1 depends on initial object and array maps.
+%DisableOptimizationFinalization();
 %OptimizeFunctionOnNextCall(f1, "concurrent");
 // Kick off recompilation.
 assertEquals(0.5, f1(arr, 0));
+%WaitForBackgroundOptimization();
 // Invalidate current initial object map.
 Object.prototype[1] = 1.5;
 assertEquals(2, f1(arr, 1));
 // Not yet optimized since concurrent recompilation is blocked.
-assertUnoptimized(f1, "no sync");
-// Let concurrent recompilation proceed.
-%UnblockConcurrentRecompilation();
-// Sync with background thread to conclude optimization, which may or may not
-// bailout due to map dependency, depending on whether the compiler read the
-// NoElements protector before or after the store to Object.prototype above.
+assertUnoptimized(f1);
+// Sync with background thread to conclude optimization, which does bailout due
+// to map dependency, because the compiler read the NoElements protector before
+// the store to Object.prototype above.
+%FinalizeOptimization();
+assertUnoptimized(f1);
 assertEquals(2, f1(arr, 1));
 // Clear type info for stress runs.
 %ClearFunctionFeedback(f1);

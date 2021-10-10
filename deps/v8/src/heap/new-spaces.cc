@@ -57,7 +57,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       memory_chunk_list_.Remove(current_page);
       // Clear new space flags to avoid this page being treated as a new
       // space page that is potentially being swept.
-      current_page->SetFlags(0, Page::kIsInYoungGenerationMask);
+      current_page->ClearFlags(Page::kIsInYoungGenerationMask);
       heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(
           current_page);
       current_page = next_current;
@@ -76,8 +76,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       DCHECK_NOT_NULL(current_page);
       memory_chunk_list_.PushBack(current_page);
       marking_state->ClearLiveness(current_page);
-      current_page->SetFlags(first_page()->GetFlags(),
-                             static_cast<uintptr_t>(Page::kCopyAllFlags));
+      current_page->SetFlags(first_page()->GetFlags(), Page::kAllFlagsMask);
       heap()->CreateFillerObjectAt(current_page->area_start(),
                                    static_cast<int>(current_page->area_size()),
                                    ClearRecordedSlots::kNo);
@@ -214,7 +213,8 @@ void SemiSpace::ShrinkTo(size_t new_capacity) {
   target_capacity_ = new_capacity;
 }
 
-void SemiSpace::FixPagesFlags(intptr_t flags, intptr_t mask) {
+void SemiSpace::FixPagesFlags(Page::MainThreadFlags flags,
+                              Page::MainThreadFlags mask) {
   for (Page* page : *this) {
     page->set_owner(this);
     page->SetFlags(flags, mask);
@@ -253,8 +253,7 @@ void SemiSpace::RemovePage(Page* page) {
 }
 
 void SemiSpace::PrependPage(Page* page) {
-  page->SetFlags(current_page()->GetFlags(),
-                 static_cast<uintptr_t>(Page::kCopyAllFlags));
+  page->SetFlags(current_page()->GetFlags(), Page::kAllFlagsMask);
   page->set_owner(this);
   memory_chunk_list_.PushFront(page);
   current_capacity_ += Page::kPageSize;
@@ -276,7 +275,7 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   DCHECK(from->first_page());
   DCHECK(to->first_page());
 
-  intptr_t saved_to_space_flags = to->current_page()->GetFlags();
+  auto saved_to_space_flags = to->current_page()->GetFlags();
 
   // We swap all properties but id_.
   std::swap(from->target_capacity_, to->target_capacity_);
@@ -289,7 +288,7 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
             to->external_backing_store_bytes_);
 
   to->FixPagesFlags(saved_to_space_flags, Page::kCopyOnFlipFlagsMask);
-  from->FixPagesFlags(0, 0);
+  from->FixPagesFlags(Page::NO_FLAGS, Page::NO_FLAGS);
 }
 
 void SemiSpace::set_age_mark(Address mark) {

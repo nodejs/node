@@ -31,25 +31,22 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-objects-tq-inl.inc"
 
-OBJECT_CONSTRUCTORS_IMPL(JSReceiver, HeapObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSReceiver)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSCustomElementsObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSSpecialObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncFromSyncIterator)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDate)
-OBJECT_CONSTRUCTORS_IMPL(JSGlobalObject, JSSpecialObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSGlobalObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSGlobalProxy)
 JSIteratorResult::JSIteratorResult(Address ptr) : JSObject(ptr) {}
-OBJECT_CONSTRUCTORS_IMPL(JSMessageObject, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSMessageObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSPrimitiveWrapper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSStringIterator)
 
 NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
 
-CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSIteratorResult)
-CAST_ACCESSOR(JSMessageObject)
-CAST_ACCESSOR(JSReceiver)
 
 DEF_GETTER(JSObject, elements, FixedArrayBase) {
   return TaggedField<FixedArrayBase, kElementsOffset>::load(cage_base, *this);
@@ -472,9 +469,6 @@ void JSObject::InitializeBody(Map map, int start_offset,
   }
 }
 
-ACCESSORS(JSGlobalObject, native_context, NativeContext, kNativeContextOffset)
-ACCESSORS(JSGlobalObject, global_proxy, JSGlobalProxy, kGlobalProxyOffset)
-
 DEF_GETTER(JSGlobalObject, native_context_unchecked, Object) {
   return TaggedField<Object, kNativeContextOffset>::load(cage_base, *this);
 }
@@ -501,9 +495,6 @@ void JSMessageObject::set_type(MessageTemplate value) {
   set_raw_type(static_cast<int>(value));
 }
 
-ACCESSORS(JSMessageObject, argument, Object, kArgumentsOffset)
-ACCESSORS(JSMessageObject, script, Script, kScriptOffset)
-ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)
 ACCESSORS(JSMessageObject, shared_info, HeapObject, kSharedInfoOffset)
 ACCESSORS(JSMessageObject, bytecode_offset, Smi, kBytecodeOffsetOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)

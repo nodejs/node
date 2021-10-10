@@ -11,6 +11,7 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/utils/utils.h"
+#include "src/wasm/code-space-access.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -3880,28 +3881,31 @@ TEST(Liftoff_tier_up) {
       r.builder().instance_object()->module_object().native_module();
 
   // This test only works if we managed to compile with Liftoff.
-  if (native_module->GetCode(add.function_index())->is_liftoff()) {
-    // First run should execute {add}.
-    CHECK_EQ(18, r.Call(11, 7));
+  if (!native_module->GetCode(add.function_index())->is_liftoff()) return;
 
-    // Now make a copy of the {sub} function, and add it to the native module at
-    // the index of {add}.
-    CodeDesc desc;
-    memset(&desc, 0, sizeof(CodeDesc));
-    WasmCode* sub_code = native_module->GetCode(sub.function_index());
-    size_t sub_size = sub_code->instructions().size();
-    std::unique_ptr<byte[]> buffer(new byte[sub_code->instructions().size()]);
-    memcpy(buffer.get(), sub_code->instructions().begin(), sub_size);
-    desc.buffer = buffer.get();
-    desc.instr_size = static_cast<int>(sub_size);
+  // First run should execute {add}.
+  CHECK_EQ(18, r.Call(11, 7));
+
+  // Now make a copy of the {sub} function, and add it to the native module at
+  // the index of {add}.
+  CodeDesc desc;
+  memset(&desc, 0, sizeof(CodeDesc));
+  WasmCode* sub_code = native_module->GetCode(sub.function_index());
+  size_t sub_size = sub_code->instructions().size();
+  std::unique_ptr<byte[]> buffer(new byte[sub_code->instructions().size()]);
+  memcpy(buffer.get(), sub_code->instructions().begin(), sub_size);
+  desc.buffer = buffer.get();
+  desc.instr_size = static_cast<int>(sub_size);
+  {
+    CodeSpaceWriteScope write_scope(native_module);
     std::unique_ptr<WasmCode> new_code = native_module->AddCode(
         add.function_index(), desc, 0, 0, {}, {}, WasmCode::kFunction,
         ExecutionTier::kTurbofan, kNoDebugging);
     native_module->PublishCode(std::move(new_code));
-
-    // Second run should now execute {sub}.
-    CHECK_EQ(4, r.Call(11, 7));
   }
+
+  // Second run should now execute {sub}.
+  CHECK_EQ(4, r.Call(11, 7));
 }
 
 TEST(Regression_1085507) {

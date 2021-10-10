@@ -1517,7 +1517,6 @@ void Simulator::VisitPCRelAddressing(Instruction* instr) {
       break;
     case ADRP:  // Not implemented in the assembler.
       UNIMPLEMENTED();
-      break;
     default:
       UNREACHABLE();
   }
@@ -2212,7 +2211,6 @@ Simulator::TransactionSize Simulator::get_transaction_size(unsigned size) {
     default:
       UNREACHABLE();
   }
-  return TransactionSize::None;
 }
 
 void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
@@ -5210,7 +5208,6 @@ void Simulator::VisitNEONScalar2RegMisc(Instruction* instr) {
         break;
       default:
         UNIMPLEMENTED();
-        break;
     }
   } else {
     VectorFormat fpf = nfd.GetVectorFormat(nfd.FPScalarFormatMap());

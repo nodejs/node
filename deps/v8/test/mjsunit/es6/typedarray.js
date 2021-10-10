@@ -609,8 +609,10 @@ function TestTypedArraySet() {
   assertThrows(function() { a.set.call({}) }, TypeError);
   assertThrows(function() { a.set.call([]) }, TypeError);
 
-  assertThrows(function() { a.set(0); }, TypeError);
-  assertThrows(function() { a.set(0, 1); }, TypeError);
+  a.set(0);
+  assertArrayPrefix(expected, a);
+  a.set(0, 1);
+  assertArrayPrefix(expected, a);
 
   assertEquals(1, a.set.length);
 

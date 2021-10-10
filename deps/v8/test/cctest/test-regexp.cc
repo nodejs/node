@@ -29,7 +29,10 @@
 #include <memory>
 #include <sstream>
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-initialization.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/strings.h"
@@ -63,10 +66,9 @@ static bool CheckParse(const char* input) {
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
-  FlatStringReader reader(isolate, str);
   RegExpCompileData result;
-  return v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader,
-                                                 JSRegExp::kNone, &result);
+  return RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, {},
+                                                 &result);
 }
 
 static void CheckParseEq(const char* input, const char* expected,
@@ -76,11 +78,10 @@ static void CheckParseEq(const char* input, const char* expected,
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
-  FlatStringReader reader(isolate, str);
   RegExpCompileData result;
-  JSRegExp::Flags flags = JSRegExp::kNone;
-  if (unicode) flags |= JSRegExp::kUnicode;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
+  RegExpFlags flags;
+  if (unicode) flags |= RegExpFlag::kUnicode;
+  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, flags,
                                                 &result));
   CHECK_NOT_NULL(result.tree);
   CHECK(result.error == RegExpError::kNone);
@@ -98,10 +99,9 @@ static bool CheckSimple(const char* input) {
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
-  FlatStringReader reader(isolate, str);
   RegExpCompileData result;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader,
-                                                JSRegExp::kNone, &result));
+  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, {},
+                                                &result));
   CHECK_NOT_NULL(result.tree);
   CHECK(result.error == RegExpError::kNone);
   return result.simple;
@@ -118,10 +118,9 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
-  FlatStringReader reader(isolate, str);
   RegExpCompileData result;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader,
-                                                JSRegExp::kNone, &result));
+  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, {},
+                                                &result));
   CHECK_NOT_NULL(result.tree);
   CHECK(result.error == RegExpError::kNone);
   int min_match = result.tree->min_match();
@@ -433,11 +432,10 @@ static void ExpectError(const char* input, const char* expected,
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
-  FlatStringReader reader(isolate, str);
   RegExpCompileData result;
-  JSRegExp::Flags flags = JSRegExp::kNone;
-  if (unicode) flags |= JSRegExp::kUnicode;
-  CHECK(!v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
+  RegExpFlags flags;
+  if (unicode) flags |= RegExpFlag::kUnicode;
+  CHECK(!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, flags,
                                                  &result));
   CHECK_NULL(result.tree);
   CHECK(result.error != RegExpError::kNone);
@@ -536,15 +534,15 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
                            bool is_one_byte, Zone* zone) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
-  FlatStringReader reader(isolate, str);
   RegExpCompileData compile_data;
   compile_data.compilation_target = RegExpCompilationTarget::kNative;
-  JSRegExp::Flags flags = JSRegExp::kNone;
-  if (multiline) flags = JSRegExp::kMultiline;
-  if (unicode) flags = JSRegExp::kUnicode;
-  if (!v8::internal::RegExpParser::ParseRegExp(isolate, zone, &reader, flags,
-                                               &compile_data))
+  RegExpFlags flags;
+  if (multiline) flags |= RegExpFlag::kMultiline;
+  if (unicode) flags |= RegExpFlag::kUnicode;
+  if (!RegExpParser::ParseRegExpFromHeapString(isolate, zone, str, flags,
+                                               &compile_data)) {
     return nullptr;
+  }
   Handle<String> pattern = isolate->factory()
                                ->NewStringFromUtf8(base::CStrVector(input))
                                .ToHandleChecked();
@@ -614,8 +612,8 @@ using ArchRegExpMacroAssembler = RegExpMacroAssemblerPPC;
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
 #elif V8_TARGET_ARCH_MIPS64
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
-#elif V8_TARGET_ARCH_X87
-using ArchRegExpMacroAssembler = RegExpMacroAssemblerX87;
+#elif V8_TARGET_ARCH_LOONG64
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerLOONG64;
 #elif V8_TARGET_ARCH_RISCV64
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerRISCV;
 #endif
@@ -643,7 +641,7 @@ static Handle<JSRegExp> CreateJSRegExp(Handle<String> source, Handle<Code> code,
   Handle<JSRegExp> regexp =
       Handle<JSRegExp>::cast(factory->NewJSObject(constructor));
 
-  factory->SetRegExpIrregexpData(regexp, source, JSRegExp::kNone, 0,
+  factory->SetRegExpIrregexpData(regexp, source, {}, 0,
                                  JSRegExp::kNoBacktrackLimit);
   regexp->SetDataAt(is_unicode ? JSRegExp::kIrregexpUC16CodeIndex
                                : JSRegExp::kIrregexpLatin1CodeIndex,
@@ -2346,6 +2344,50 @@ TEST(UnicodePropertyEscapeCodeSize) {
   } else {
     UNREACHABLE();
   }
+}
+
+namespace {
+
+struct RegExpExecData {
+  i::Isolate* isolate;
+  i::Handle<i::JSRegExp> regexp;
+  i::Handle<i::String> subject;
+};
+
+i::Handle<i::Object> RegExpExec(const RegExpExecData* d) {
+  return i::RegExp::Exec(d->isolate, d->regexp, d->subject, 0,
+                         d->isolate->regexp_last_match_info())
+      .ToHandleChecked();
+}
+
+void ReenterRegExp(v8::Isolate* isolate, void* data) {
+  RegExpExecData* d = static_cast<RegExpExecData*>(data);
+  i::Handle<i::Object> result = RegExpExec(d);
+  CHECK(result->IsNull());
+}
+
+}  // namespace
+
+// Tests reentrant irregexp calls.
+TEST(RegExpInterruptReentrantExecution) {
+  CHECK(!i::FLAG_jitless);
+  i::FLAG_regexp_tier_up = false;  // Enter irregexp, not the interpreter.
+
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  RegExpExecData d;
+  d.isolate = reinterpret_cast<i::Isolate*>(isolate);
+  d.regexp = v8::Utils::OpenHandle(
+      *v8::RegExp::New(context.local(), v8_str("(a*)*x"), v8::RegExp::kNone)
+           .ToLocalChecked());
+  d.subject = v8::Utils::OpenHandle(*v8_str("aaaa"));
+
+  isolate->RequestInterrupt(&ReenterRegExp, &d);
+
+  i::Handle<i::Object> result = RegExpExec(&d);
+  CHECK(result->IsNull());
 }
 
 #undef CHECK_PARSE_ERROR

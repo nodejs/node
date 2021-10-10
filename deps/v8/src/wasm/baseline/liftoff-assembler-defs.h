@@ -46,6 +46,18 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs =
 constexpr RegList kLiftoffAssemblerFpCacheRegs = DoubleRegister::ListOf(
     f0, f2, f4, f6, f8, f10, f12, f14, f16, f18, f20, f22, f24, f26);
 
+#elif V8_TARGET_ARCH_LOONG64
+
+// t6-t8 and s3-s4: scratch registers, s6: root
+constexpr RegList kLiftoffAssemblerGpCacheRegs =
+    Register::ListOf(a0, a1, a2, a3, a4, a5, a6, a7, t0, t1, t2, t3, t4, t5, s0,
+                     s1, s2, s5, s7, s8);
+
+// f29: zero, f30-f31: macro-assembler scratch float Registers.
+constexpr RegList kLiftoffAssemblerFpCacheRegs = DoubleRegister::ListOf(
+    f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16,
+    f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28);
+
 #elif V8_TARGET_ARCH_ARM
 
 // r10: root, r11: fp, r12: ip, r13: sp, r14: lr, r15: pc.
@@ -95,8 +107,8 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs =
 // Any change of kLiftoffAssemblerGpCacheRegs also need to update
 // kPushedFpRegs in frame-constants-riscv64.h
 constexpr RegList kLiftoffAssemblerFpCacheRegs =
-    DoubleRegister::ListOf(ft0, ft1, ft2, ft3, ft4, ft5, ft6, ft7, fa0, fa1,
-                           fa2, fa3, fa4, fa5, fa6, fa7, ft8, ft9, ft10, ft11);
+    DoubleRegister::ListOf(ft1, ft2, ft3, ft4, ft5, ft6, ft7, fa0, fa1, fa2,
+                           fa3, fa4, fa5, fa6, fa7, ft8, ft9, ft10, ft11);
 #else
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs = 0xff;

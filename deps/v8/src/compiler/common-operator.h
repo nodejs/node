@@ -51,20 +51,6 @@ inline size_t hash_value(BranchHint hint) { return static_cast<size_t>(hint); }
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchHint);
 
-enum class IsSafetyCheck : uint8_t {
-  kCriticalSafetyCheck,
-  kSafetyCheck,
-  kNoSafetyCheck
-};
-
-// Get the more critical safety check of the two arguments.
-IsSafetyCheck CombineSafetyChecks(IsSafetyCheck, IsSafetyCheck);
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, IsSafetyCheck);
-inline size_t hash_value(IsSafetyCheck is_safety_check) {
-  return static_cast<size_t>(is_safety_check);
-}
-
 enum class TrapId : uint32_t {
 #define DEF_ENUM(Name, ...) k##Name,
   FOREACH_WASM_TRAPREASON(DEF_ENUM)
@@ -78,24 +64,6 @@ std::ostream& operator<<(std::ostream&, TrapId trap_id);
 
 TrapId TrapIdOf(const Operator* const op);
 
-struct BranchOperatorInfo {
-  BranchHint hint;
-  IsSafetyCheck is_safety_check;
-};
-
-inline size_t hash_value(const BranchOperatorInfo& info) {
-  return base::hash_combine(info.hint, info.is_safety_check);
-}
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchOperatorInfo);
-
-inline bool operator==(const BranchOperatorInfo& a,
-                       const BranchOperatorInfo& b) {
-  return a.hint == b.hint && a.is_safety_check == b.is_safety_check;
-}
-
-V8_EXPORT_PRIVATE const BranchOperatorInfo& BranchOperatorInfoOf(
-    const Operator* const) V8_WARN_UNUSED_RESULT;
 V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const)
     V8_WARN_UNUSED_RESULT;
 
@@ -106,23 +74,17 @@ int ValueInputCountOfReturn(Operator const* const op);
 class DeoptimizeParameters final {
  public:
   DeoptimizeParameters(DeoptimizeKind kind, DeoptimizeReason reason,
-                       FeedbackSource const& feedback,
-                       IsSafetyCheck is_safety_check)
-      : kind_(kind),
-        reason_(reason),
-        feedback_(feedback),
-        is_safety_check_(is_safety_check) {}
+                       FeedbackSource const& feedback)
+      : kind_(kind), reason_(reason), feedback_(feedback) {}
 
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
   const FeedbackSource& feedback() const { return feedback_; }
-  IsSafetyCheck is_safety_check() const { return is_safety_check_; }
 
  private:
   DeoptimizeKind const kind_;
   DeoptimizeReason const reason_;
   FeedbackSource const feedback_;
-  IsSafetyCheck is_safety_check_;
 };
 
 bool operator==(DeoptimizeParameters, DeoptimizeParameters);
@@ -134,8 +96,6 @@ std::ostream& operator<<(std::ostream&, DeoptimizeParameters p);
 
 DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const)
     V8_WARN_UNUSED_RESULT;
-
-IsSafetyCheck IsSafetyCheckOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class SelectParameters final {
  public:
@@ -479,8 +439,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Unreachable();
   const Operator* StaticAssert(const char* source);
   const Operator* End(size_t control_input_count);
-  const Operator* Branch(BranchHint = BranchHint::kNone,
-                         IsSafetyCheck = IsSafetyCheck::kSafetyCheck);
+  const Operator* Branch(BranchHint = BranchHint::kNone);
   const Operator* IfTrue();
   const Operator* IfFalse();
   const Operator* IfSuccess();
@@ -492,14 +451,10 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Throw();
   const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
                              FeedbackSource const& feedback);
-  const Operator* DeoptimizeIf(
-      DeoptimizeKind kind, DeoptimizeReason reason,
-      FeedbackSource const& feedback,
-      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
-  const Operator* DeoptimizeUnless(
-      DeoptimizeKind kind, DeoptimizeReason reason,
-      FeedbackSource const& feedback,
-      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  const Operator* DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason,
+                               FeedbackSource const& feedback);
+  const Operator* DeoptimizeUnless(DeoptimizeKind kind, DeoptimizeReason reason,
+                                   FeedbackSource const& feedback);
   // DynamicCheckMapsWithDeoptUnless will call the dynamic map check builtin if
   // the condition is false, which may then either deoptimize or resume
   // execution.
@@ -576,9 +531,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
       Handle<SharedFunctionInfo> shared_info,
       const wasm::FunctionSig* signature);
 #endif  // V8_ENABLE_WEBASSEMBLY
-
-  const Operator* MarkAsSafetyCheck(const Operator* op,
-                                    IsSafetyCheck safety_check);
 
   const Operator* DelayedStringConstant(const StringConstantBase* str);
 

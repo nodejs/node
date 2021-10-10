@@ -45,13 +45,13 @@ void ArrayBuiltinsAssembler::TypedArrayMapResultGenerator() {
 // See tc39.github.io/ecma262/#sec-%typedarray%.prototype.map.
 TNode<Object> ArrayBuiltinsAssembler::TypedArrayMapProcessor(
     TNode<Object> k_value, TNode<UintPtrT> k) {
-  // 8. c. Let mapped_value be ? Call(callbackfn, T, « kValue, k, O »).
+  // 7c. Let mapped_value be ? Call(callbackfn, T, « kValue, k, O »).
   TNode<Number> k_number = ChangeUintPtrToTagged(k);
   TNode<Object> mapped_value =
       Call(context(), callbackfn(), this_arg(), k_value, k_number, o());
   Label fast(this), slow(this), done(this), detached(this, Label::kDeferred);
 
-  // 8. d. Perform ? Set(A, Pk, mapped_value, true).
+  // 7d. Perform ? Set(A, Pk, mapped_value, true).
   // Since we know that A is a TypedArray, this always ends up in
   // #sec-integer-indexed-exotic-objects-set-p-v-receiver and then
   // tc39.github.io/ecma262/#sec-integerindexedelementset .
@@ -59,9 +59,9 @@ TNode<Object> ArrayBuiltinsAssembler::TypedArrayMapProcessor(
 
   BIND(&fast);
   // #sec-integerindexedelementset
-  // 5. If arrayTypeName is "BigUint64Array" or "BigInt64Array", let
+  // 2. If arrayTypeName is "BigUint64Array" or "BigInt64Array", let
   // numValue be ? ToBigInt(v).
-  // 6. Otherwise, let numValue be ? ToNumber(value).
+  // 3. Otherwise, let numValue be ? ToNumber(value).
   TNode<Object> num_value;
   if (source_elements_kind_ == BIGINT64_ELEMENTS ||
       source_elements_kind_ == BIGUINT64_ELEMENTS) {
@@ -175,24 +175,15 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
   size_t i = 0;
   for (auto it = labels.begin(); it != labels.end(); ++i, ++it) {
     BIND(&*it);
-    Label done(this);
     source_elements_kind_ = static_cast<ElementsKind>(elements_kinds[i]);
-    // TODO(turbofan): Silently cancelling the loop on buffer detachment is a
-    // spec violation. Should go to &throw_detached and throw a TypeError
-    // instead.
-    VisitAllTypedArrayElements(array_buffer, processor, &done, direction,
-                               typed_array);
-    Goto(&done);
-    // No exception, return success
-    BIND(&done);
+    VisitAllTypedArrayElements(array_buffer, processor, direction, typed_array);
     ReturnFromBuiltin(a_.value());
   }
 }
 
 void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
     TNode<JSArrayBuffer> array_buffer, const CallResultProcessor& processor,
-    Label* detached, ForEachDirection direction,
-    TNode<JSTypedArray> typed_array) {
+    ForEachDirection direction, TNode<JSTypedArray> typed_array) {
   VariableList list({&a_, &k_}, zone());
 
   TNode<UintPtrT> start = UintPtrConstant(0);
@@ -208,12 +199,28 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
   BuildFastLoop<UintPtrT>(
       list, start, end,
       [&](TNode<UintPtrT> index) {
-        GotoIf(IsDetachedBuffer(array_buffer), detached);
-        TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
-        TNode<Numeric> value = LoadFixedTypedArrayElementAsTagged(
-            data_ptr, index, source_elements_kind_);
-        k_ = index;
-        a_ = processor(this, value, index);
+        TVARIABLE(Object, value);
+        Label detached(this, Label::kDeferred);
+        Label process(this);
+        GotoIf(IsDetachedBuffer(array_buffer), &detached);
+        {
+          TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
+          value = LoadFixedTypedArrayElementAsTagged(data_ptr, index,
+                                                     source_elements_kind_);
+          Goto(&process);
+        }
+
+        BIND(&detached);
+        {
+          value = UndefinedConstant();
+          Goto(&process);
+        }
+
+        BIND(&process);
+        {
+          k_ = index;
+          a_ = processor(this, value.value(), index);
+        }
       },
       incr, advance_mode);
 }
@@ -621,9 +628,9 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
     Label is_smi(this), is_nonsmi(this), done(this);
 
     // If no fromIndex was passed, default to 0.
-    GotoIf(
-        IntPtrLessThanOrEqual(args.GetLength(), IntPtrConstant(kFromIndexArg)),
-        &done);
+    GotoIf(IntPtrLessThanOrEqual(args.GetLengthWithoutReceiver(),
+                                 IntPtrConstant(kFromIndexArg)),
+           &done);
 
     TNode<Object> start_from = args.AtIndex(kFromIndexArg);
     // Handle Smis and undefined here and everything else in runtime.
@@ -1774,11 +1781,13 @@ void ArrayBuiltinsAssembler::GenerateDispatchToArrayStub(
     base::Optional<TNode<AllocationSite>> allocation_site) {
   CodeStubArguments args(this, argc);
   Label check_one_case(this), fallthrough(this);
-  GotoIfNot(IntPtrEqual(args.GetLength(), IntPtrConstant(0)), &check_one_case);
+  GotoIfNot(IntPtrEqual(args.GetLengthWithoutReceiver(), IntPtrConstant(0)),
+            &check_one_case);
   CreateArrayDispatchNoArgument(context, target, argc, mode, allocation_site);
 
   BIND(&check_one_case);
-  GotoIfNot(IntPtrEqual(args.GetLength(), IntPtrConstant(1)), &fallthrough);
+  GotoIfNot(IntPtrEqual(args.GetLengthWithoutReceiver(), IntPtrConstant(1)),
+            &fallthrough);
   CreateArrayDispatchSingleArgument(context, target, argc, mode,
                                     allocation_site);
 

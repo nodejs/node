@@ -878,7 +878,6 @@ int Assembler::target_at(int pos, bool is_internal) {
       }
     }
   }
-  return 0;
 }
 
 static inline Instr SetBranchOffset(int32_t pos, int32_t target_pos,

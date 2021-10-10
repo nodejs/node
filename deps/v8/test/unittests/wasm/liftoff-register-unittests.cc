@@ -11,6 +11,8 @@
 #include "src/execution/mips/frame-constants-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/execution/mips64/frame-constants-mips64.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/execution/loong64/frame-constants-loong64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/execution/arm/frame-constants-arm.h"
 #elif V8_TARGET_ARCH_ARM64

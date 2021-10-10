@@ -150,7 +150,6 @@ bool MipsDebugger::GetValue(const char* desc, int32_t* value) {
   } else {
     return SScanF(desc, "%i", value) == 1;
   }
-  return false;
 }
 
 bool MipsDebugger::GetValue(const char* desc, int64_t* value) {
@@ -169,7 +168,6 @@ bool MipsDebugger::GetValue(const char* desc, int64_t* value) {
   } else {
     return SScanF(desc, "%" SCNu64, reinterpret_cast<uint64_t*>(value)) == 1;
   }
-  return false;
 }
 
 bool MipsDebugger::SetBreakpoint(Instruction* breakpc) {
@@ -2028,7 +2026,6 @@ double Simulator::ReadD(int32_t addr, Instruction* instr) {
   PrintF("Unaligned (double) read at 0x%08x, pc=0x%08" V8PRIxPTR "\n", addr,
          reinterpret_cast<intptr_t>(instr));
   base::OS::Abort();
-  return 0;
 }
 
 void Simulator::WriteD(int32_t addr, double value, Instruction* instr) {
@@ -2055,7 +2052,6 @@ uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
   PrintF("Unaligned unsigned halfword read at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
          addr, reinterpret_cast<intptr_t>(instr));
   base::OS::Abort();
-  return 0;
 }
 
 int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
@@ -2068,7 +2064,6 @@ int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
   PrintF("Unaligned signed halfword read at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
          addr, reinterpret_cast<intptr_t>(instr));
   base::OS::Abort();
-  return 0;
 }
 
 void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
@@ -2330,7 +2325,6 @@ void Simulator::SoftwareInterrupt() {
             break;
           default:
             UNREACHABLE();
-            break;
         }
       }
       switch (redirection->type()) {
@@ -2365,7 +2359,6 @@ void Simulator::SoftwareInterrupt() {
         }
         default:
           UNREACHABLE();
-          break;
       }
       if (::v8::internal::FLAG_trace_sim) {
         switch (redirection->type()) {
@@ -2379,7 +2372,6 @@ void Simulator::SoftwareInterrupt() {
             break;
           default:
             UNREACHABLE();
-            break;
         }
       }
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
@@ -2929,7 +2921,6 @@ void Simulator::DecodeTypeRegisterDRsType() {
       } else {
         UNSUPPORTED();
       }
-      break;
       break;
     }
     case TRUNC_L_D: {  // Mips32r2 instruction.
@@ -4233,7 +4224,6 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
             default:
               alu_out = 0x12345678;
               UNREACHABLE();
-              break;
           }
         }
       }
@@ -4271,7 +4261,6 @@ int Simulator::DecodeMsaDataFormat() {
         break;
       default:
         UNREACHABLE();
-        break;
     }
   } else {
     int DF[] = {MSA_BYTE, MSA_HALF, MSA_WORD, MSA_DWORD};
@@ -4316,7 +4305,6 @@ int Simulator::DecodeMsaDataFormat() {
         break;
       default:
         UNREACHABLE();
-        break;
     }
   }
   return df;
@@ -4682,7 +4670,6 @@ void Simulator::DecodeTypeMsaELM() {
         case SPLATI:
         case INSVE:
           UNIMPLEMENTED();
-          break;
         default:
           UNREACHABLE();
       }
@@ -6798,7 +6785,6 @@ void Simulator::DecodeTypeImmediate() {
             }
             default:
               UNREACHABLE();
-              break;
           }
         }
       }
@@ -6856,7 +6842,6 @@ void Simulator::DecodeTypeImmediate() {
           break;
         default:
           UNREACHABLE();
-          break;
       }
       break;
     default:
@@ -6880,14 +6865,16 @@ void Simulator::DecodeTypeImmediate() {
 
 // Type 3: instructions using a 26 bytes immediate. (e.g. j, jal).
 void Simulator::DecodeTypeJump() {
-  SimInstruction simInstr = instr_;
+  // instr_ will be overwritten by BranchDelayInstructionDecode(), so we save
+  // the result of IsLinkingInstruction now.
+  bool isLinkingInstr = instr_.IsLinkingInstruction();
   // Get current pc.
   int32_t current_pc = get_pc();
   // Get unchanged bits of pc.
   int32_t pc_high_bits = current_pc & 0xF0000000;
   // Next pc.
 
-  int32_t next_pc = pc_high_bits | (simInstr.Imm26Value() << 2);
+  int32_t next_pc = pc_high_bits | (instr_.Imm26Value() << 2);
 
   // Execute branch delay slot.
   // We don't check for end_sim_pc. First it should not be met as the current pc
@@ -6898,7 +6885,7 @@ void Simulator::DecodeTypeJump() {
 
   // Update pc and ra if necessary.
   // Do this after the branch delay execution.
-  if (simInstr.IsLinkingInstruction()) {
+  if (isLinkingInstr) {
     set_register(31, current_pc + 2 * kInstrSize);
   }
   set_pc(next_pc);

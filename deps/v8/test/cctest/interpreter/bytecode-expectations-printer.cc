@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/codegen/source-position-table.h"

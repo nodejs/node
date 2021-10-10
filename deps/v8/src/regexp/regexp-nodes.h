@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_REGEXP_NODES_H_
 #define V8_REGEXP_REGEXP_NODES_H_
 
+#include "src/codegen/label.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/zone/zone.h"
 
@@ -14,7 +15,6 @@ namespace internal {
 class AlternativeGenerationList;
 class BoyerMooreLookahead;
 class GreedyLoopState;
-class Label;
 class NodeVisitor;
 class QuickCheckDetails;
 class RegExpCompiler;
@@ -205,7 +205,7 @@ class RegExpNode : public ZoneObject {
   // If we know that the input is one-byte then there are some nodes that can
   // never match.  This method returns a node that can be substituted for
   // itself, or nullptr if the node can never match.
-  virtual RegExpNode* FilterOneByte(int depth, JSRegExp::Flags flags) {
+  virtual RegExpNode* FilterOneByte(int depth, RegExpFlags flags) {
     return this;
   }
   // Helper for FilterOneByte.
@@ -296,7 +296,7 @@ class SeqRegExpNode : public RegExpNode {
       : RegExpNode(on_success->zone()), on_success_(on_success) {}
   RegExpNode* on_success() { return on_success_; }
   void set_on_success(RegExpNode* node) { on_success_ = node; }
-  RegExpNode* FilterOneByte(int depth, JSRegExp::Flags flags) override;
+  RegExpNode* FilterOneByte(int depth, RegExpFlags flags) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm, bool not_at_start) override {
     on_success_->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
@@ -304,7 +304,7 @@ class SeqRegExpNode : public RegExpNode {
   }
 
  protected:
-  RegExpNode* FilterSuccessor(int depth, JSRegExp::Flags flags);
+  RegExpNode* FilterSuccessor(int depth, RegExpFlags flags);
 
  private:
   RegExpNode* on_success_;
@@ -423,14 +423,14 @@ class TextNode : public SeqRegExpNode {
   ZoneList<TextElement>* elements() { return elms_; }
   bool read_backward() { return read_backward_; }
   void MakeCaseIndependent(Isolate* isolate, bool is_one_byte,
-                           JSRegExp::Flags flags);
+                           RegExpFlags flags);
   int GreedyLoopTextLength() override;
   RegExpNode* GetSuccessorOfOmnivorousTextNode(
       RegExpCompiler* compiler) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm, bool not_at_start) override;
   void CalculateOffsets();
-  RegExpNode* FilterOneByte(int depth, JSRegExp::Flags flags) override;
+  RegExpNode* FilterOneByte(int depth, RegExpFlags flags) override;
   int Length();
 
  private:
@@ -498,7 +498,7 @@ class AssertionNode : public SeqRegExpNode {
 
 class BackReferenceNode : public SeqRegExpNode {
  public:
-  BackReferenceNode(int start_reg, int end_reg, JSRegExp::Flags flags,
+  BackReferenceNode(int start_reg, int end_reg, RegExpFlags flags,
                     bool read_backward, RegExpNode* on_success)
       : SeqRegExpNode(on_success),
         start_reg_(start_reg),
@@ -521,7 +521,7 @@ class BackReferenceNode : public SeqRegExpNode {
  private:
   int start_reg_;
   int end_reg_;
-  JSRegExp::Flags flags_;
+  RegExpFlags flags_;
   bool read_backward_;
 };
 
@@ -623,7 +623,7 @@ class ChoiceNode : public RegExpNode {
   virtual bool try_to_emit_quick_check_for_alternative(bool is_first) {
     return true;
   }
-  RegExpNode* FilterOneByte(int depth, JSRegExp::Flags flags) override;
+  RegExpNode* FilterOneByte(int depth, RegExpFlags flags) override;
   virtual bool read_backward() { return false; }
 
  protected:
@@ -695,7 +695,7 @@ class NegativeLookaroundChoiceNode : public ChoiceNode {
     return !is_first;
   }
   void Accept(NodeVisitor* visitor) override;
-  RegExpNode* FilterOneByte(int depth, JSRegExp::Flags flags) override;
+  RegExpNode* FilterOneByte(int depth, RegExpFlags flags) override;
 };
 
 class LoopChoiceNode : public ChoiceNode {
@@ -728,7 +728,7 @@ class LoopChoiceNode : public ChoiceNode {
   int min_loop_iterations() const { return min_loop_iterations_; }
   bool read_backward() override { return read_backward_; }
   void Accept(NodeVisitor* visitor) override;
-  RegExpNode* FilterOneByte(int depth, JSRegExp::Flags flags) override;
+  RegExpNode* FilterOneByte(int depth, RegExpFlags flags) override;
 
  private:
   // AddAlternative is made private for loop nodes because alternatives

@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "include/v8-unwinder-state.h"
-#include "include/v8.h"
+#include "include/v8-unwinder.h"
 #include "src/diagnostics/unwinder.h"
 #include "src/execution/frame-constants.h"
 

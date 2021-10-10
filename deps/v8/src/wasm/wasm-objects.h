@@ -356,7 +356,6 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(managed_object_maps, FixedArray)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(memory_size, size_t)
-  DECL_PRIMITIVE_ACCESSORS(memory_mask, size_t)
   DECL_PRIMITIVE_ACCESSORS(isolate_root, Address)
   DECL_PRIMITIVE_ACCESSORS(stack_limit_address, Address)
   DECL_PRIMITIVE_ACCESSORS(real_stack_limit_address, Address)
@@ -397,7 +396,6 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   V(kMemoryStartOffset, kSystemPointerSize)                               \
   V(kMemorySizeOffset, kSizetSize)                                        \
-  V(kMemoryMaskOffset, kSizetSize)                                        \
   V(kStackLimitAddressOffset, kSystemPointerSize)                         \
   V(kImportedFunctionTargetsOffset, kSystemPointerSize)                   \
   V(kIndirectFunctionTableTargetsOffset, kSystemPointerSize)              \
@@ -903,6 +901,8 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
   static inline wasm::StructType* GcSafeType(Map map);
   static inline int Size(const wasm::StructType* type);
   static inline int GcSafeSize(Map map);
+  static inline void EncodeInstanceSizeInMap(int instance_size, Map map);
+  static inline int DecodeInstanceSizeFromMap(Map map);
 
   // Returns the address of the field at given offset.
   inline Address RawFieldAddress(int raw_offset);
@@ -939,7 +939,6 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   wasm::WasmValue GetElement(uint32_t index);
 
   static inline int SizeFor(Map map, int length);
-  static inline int GcSafeSizeFor(Map map, int length);
 
   // Returns boxed value of the array's element.
   static inline Handle<Object> GetElement(Isolate* isolate,
@@ -948,6 +947,17 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
 
   // Returns the Address of the element at {index}.
   Address ElementAddress(uint32_t index);
+
+  static int MaxLength(const wasm::ArrayType* type) {
+    // The total object size must fit into a Smi, for filler objects. To make
+    // the behavior of Wasm programs independent from the Smi configuration,
+    // we hard-code the smaller of the two supported ranges.
+    int element_shift = type->element_type().element_size_log2();
+    return (SmiTagging<4>::kSmiMaxValue - kHeaderSize) >> element_shift;
+  }
+
+  static inline void EncodeElementSizeInMap(int element_size, Map map);
+  static inline int DecodeElementSizeFromMap(Map map);
 
   DECL_PRINTER(WasmArray)
 

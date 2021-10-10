@@ -4,6 +4,9 @@
 
 #include <stdlib.h>
 
+#include "include/v8-container.h"
+#include "include/v8-external.h"
+#include "include/v8-function.h"
 #include "test/cctest/cctest.h"
 
 namespace {

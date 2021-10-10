@@ -12,11 +12,17 @@ transitioning macro ReduceAllElements(implicit context: Context)(
     initialValue: JSAny|TheHole): JSAny {
   let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
   const length: uintptr = witness.Get().length;
+
   let accumulator = initialValue;
   for (let k: uintptr = 0; k < length; k++) {
-    // BUG(4895): We should throw on detached buffers rather than simply exit.
-    witness.Recheck() otherwise break;
-    const value: JSAny = witness.Load(k);
+    let value: JSAny;
+    try {
+      witness.Recheck()
+          otherwise goto IsDetached;
+      value = witness.Load(k);
+    } label IsDetached deferred {
+      value = Undefined;
+    }
     typeswitch (accumulator) {
       case (TheHole): {
         accumulator = value;

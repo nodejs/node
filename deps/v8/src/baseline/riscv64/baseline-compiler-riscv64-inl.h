@@ -37,69 +37,35 @@ void BaselineCompiler::PrologueFillFrame() {
   const int kLoopUnrollSize = 8;
   const int new_target_index = new_target_or_generator_register.index();
   const bool has_new_target = new_target_index != kMaxInt;
-  // BaselineOutOfLinePrologue already pushed one undefined.
-  register_count -= 1;
   if (has_new_target) {
-    if (new_target_index == 0) {
-      // Oops, need to fix up that undefined that BaselineOutOfLinePrologue
-      // pushed.
-      __ masm()->Sd(kJavaScriptCallNewTargetRegister, MemOperand(sp));
-    } else {
-      DCHECK_LE(new_target_index, register_count);
-      int index = 1;
-      for (; index + 2 <= new_target_index; index += 2) {
-        __ masm()->Push(kInterpreterAccumulatorRegister,
-                        kInterpreterAccumulatorRegister);
-      }
-      if (index == new_target_index) {
-        __ masm()->Push(kJavaScriptCallNewTargetRegister,
-                        kInterpreterAccumulatorRegister);
-      } else {
-        DCHECK_EQ(index, new_target_index - 1);
-        __ masm()->Push(kInterpreterAccumulatorRegister,
-                        kJavaScriptCallNewTargetRegister);
-      }
-      // We pushed "index" registers, minus the one the prologue pushed, plus
-      // the two registers that included new_target.
-      register_count -= (index - 1 + 2);
+    DCHECK_LE(new_target_index, register_count);
+    __ masm()->Add64(sp, sp, Operand(-(kPointerSize * new_target_index)));
+    for (int i = 0; i < new_target_index; i++) {
+      __ masm()->Sd(kInterpreterAccumulatorRegister, MemOperand(sp, i * 8));
     }
+    // Push new_target_or_generator.
+    __ Push(kJavaScriptCallNewTargetRegister);
+    register_count -= new_target_index + 1;
   }
   if (register_count < 2 * kLoopUnrollSize) {
     // If the frame is small enough, just unroll the frame fill completely.
-    for (int i = 0; i < register_count; i += 2) {
-      __ masm()->Push(kInterpreterAccumulatorRegister,
-                      kInterpreterAccumulatorRegister);
+    __ masm()->Add64(sp, sp, Operand(-(kPointerSize * register_count)));
+    for (int i = 0; i < register_count; ++i) {
+      __ masm()->Sd(kInterpreterAccumulatorRegister, MemOperand(sp, i * 8));
     }
   } else {
-    BaselineAssembler::ScratchRegisterScope temps(&basm_);
-    Register scratch = temps.AcquireScratch();
-
-    // Extract the first few registers to round to the unroll size.
-    int first_registers = register_count % kLoopUnrollSize;
-    for (int i = 0; i < first_registers; i += 2) {
-      __ masm()->Push(kInterpreterAccumulatorRegister,
-                      kInterpreterAccumulatorRegister);
+    __ masm()->Add64(sp, sp, Operand(-(kPointerSize * register_count)));
+    for (int i = 0; i < register_count; ++i) {
+      __ masm()->Sd(kInterpreterAccumulatorRegister, MemOperand(sp, i * 8));
     }
-    __ Move(scratch, register_count / kLoopUnrollSize);
-    // We enter the loop unconditionally, so make sure we need to loop at least
-    // once.
-    DCHECK_GT(register_count / kLoopUnrollSize, 0);
-    Label loop;
-    __ Bind(&loop);
-    for (int i = 0; i < kLoopUnrollSize; i += 2) {
-      __ masm()->Push(kInterpreterAccumulatorRegister,
-                      kInterpreterAccumulatorRegister);
-    }
-    __ masm()->Branch(&loop, gt, scratch, Operand(1));
   }
 }
 
 void BaselineCompiler::VerifyFrameSize() {
   ASM_CODE_COMMENT(&masm_);
   __ masm()->Add64(kScratchReg, sp,
-                   RoundUp(InterpreterFrameConstants::kFixedFrameSizeFromFp +
-                               bytecode_->frame_size(),
-                           2 * kSystemPointerSize));
+                   Operand(InterpreterFrameConstants::kFixedFrameSizeFromFp +
+                           bytecode_->frame_size()));
   __ masm()->Assert(eq, AbortReason::kUnexpectedStackPointer, kScratchReg,
                     Operand(fp));
 }

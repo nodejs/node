@@ -71,6 +71,15 @@ ReadOnlyRoots Factory::read_only_roots() const {
   return ReadOnlyRoots(isolate());
 }
 
+Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(
+    Handle<HeapObject> interpreter_data) {
+  // This DCHECK requires this function to be in -inl.h.
+  DCHECK(interpreter_data->IsInterpreterData() ||
+         interpreter_data->IsBytecodeArray());
+  interpreter_data_ = interpreter_data;
+  return *this;
+}
+
 }  // namespace internal
 }  // namespace v8
 

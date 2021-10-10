@@ -3,8 +3,13 @@
 // found in the LICENSE file.
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
 #include "include/v8-platform.h"
-#include "include/v8.h"
+#include "include/v8-primitive.h"
+#include "include/v8-script.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -155,6 +155,24 @@ constexpr Register arg_reg_4 = rcx;
   V(xmm13)                              \
   V(xmm14)
 
+#define YMM_REGISTERS(V) \
+  V(ymm0)                \
+  V(ymm1)                \
+  V(ymm2)                \
+  V(ymm3)                \
+  V(ymm4)                \
+  V(ymm5)                \
+  V(ymm6)                \
+  V(ymm7)                \
+  V(ymm8)                \
+  V(ymm9)                \
+  V(ymm10)               \
+  V(ymm11)               \
+  V(ymm12)               \
+  V(ymm13)               \
+  V(ymm14)               \
+  V(ymm15)
+
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
   // No argument padding required.
@@ -171,6 +189,17 @@ enum DoubleRegisterCode {
       kDoubleAfterLast
 };
 
+enum YMMRegisterCode {
+#define REGISTER_CODE(R) kYMMCode_##R,
+  YMM_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+      kYMMAfterLast
+};
+static_assert(static_cast<int>(kDoubleAfterLast) ==
+                  static_cast<int>(kYMMAfterLast),
+              "The number of XMM register codes must match the number of YMM "
+              "register codes");
+
 class XMMRegister : public RegisterBase<XMMRegister, kDoubleAfterLast> {
  public:
   // Return the high bit of the register code as a 0 or 1.  Used often
@@ -180,7 +209,7 @@ class XMMRegister : public RegisterBase<XMMRegister, kDoubleAfterLast> {
   // in modR/M, SIB, and opcode bytes.
   int low_bits() const { return code() & 0x7; }
 
- private:
+ protected:
   friend class RegisterBase<XMMRegister, kDoubleAfterLast>;
   explicit constexpr XMMRegister(int code) : RegisterBase(code) {}
 };
@@ -188,6 +217,22 @@ class XMMRegister : public RegisterBase<XMMRegister, kDoubleAfterLast> {
 ASSERT_TRIVIALLY_COPYABLE(XMMRegister);
 static_assert(sizeof(XMMRegister) == sizeof(int),
               "XMMRegister can efficiently be passed by value");
+
+class YMMRegister : public XMMRegister {
+ public:
+  static constexpr YMMRegister from_code(int code) {
+    DCHECK(base::IsInRange(code, 0, XMMRegister::kNumRegisters - 1));
+    return YMMRegister(code);
+  }
+
+ private:
+  friend class XMMRegister;
+  explicit constexpr YMMRegister(int code) : XMMRegister(code) {}
+};
+
+ASSERT_TRIVIALLY_COPYABLE(YMMRegister);
+static_assert(sizeof(YMMRegister) == sizeof(int),
+              "YMMRegister can efficiently be passed by value");
 
 using FloatRegister = XMMRegister;
 
@@ -201,9 +246,15 @@ DOUBLE_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
+#define DECLARE_REGISTER(R) \
+  constexpr YMMRegister R = YMMRegister::from_code(kYMMCode_##R);
+YMM_REGISTERS(DECLARE_REGISTER)
+#undef DECLARE_REGISTER
+
 // Define {RegisterName} methods for the register types.
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
 DEFINE_REGISTER_NAMES(XMMRegister, DOUBLE_REGISTERS)
+DEFINE_REGISTER_NAMES(YMMRegister, YMM_REGISTERS)
 
 // Give alias names to registers for calling conventions.
 constexpr Register kReturnRegister0 = rax;
@@ -212,7 +263,6 @@ constexpr Register kReturnRegister2 = r8;
 constexpr Register kJSFunctionRegister = rdi;
 constexpr Register kContextRegister = rsi;
 constexpr Register kAllocateSizeRegister = rdx;
-constexpr Register kSpeculationPoisonRegister = r11;
 constexpr Register kInterpreterAccumulatorRegister = rax;
 constexpr Register kInterpreterBytecodeOffsetRegister = r9;
 constexpr Register kInterpreterBytecodeArrayRegister = r12;

@@ -187,13 +187,17 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
     marker_->FinishMarking(config_.stack_state);
   }
   marker_.reset();
-  ExecutePreFinalizers();
-  // TODO(chromium:1056170): replace build flag with dedicated flag.
-#if DEBUG
+  const size_t bytes_allocated_in_prefinalizers = ExecutePreFinalizers();
+#if CPPGC_VERIFY_HEAP
   MarkingVerifier verifier(*this);
-  verifier.Run(config_.stack_state, stack_end_of_current_gc(),
-               stats_collector()->marked_bytes());
+  verifier.Run(
+      config_.stack_state, stack_end_of_current_gc(),
+      stats_collector()->marked_bytes() + bytes_allocated_in_prefinalizers);
+#endif  // CPPGC_VERIFY_HEAP
+#ifndef CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
+  DCHECK_EQ(0u, bytes_allocated_in_prefinalizers);
 #endif
+  USE(bytes_allocated_in_prefinalizers);
 
   subtle::NoGarbageCollectionScope no_gc(*this);
   const Sweeper::SweepingConfig sweeping_config{

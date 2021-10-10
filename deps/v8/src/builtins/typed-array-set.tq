@@ -115,18 +115,6 @@ TypedArrayPrototypeSetArray(implicit context: Context, receiver: JSAny)(
     IfDetached {
   // Steps 9-13 are not observable, do them later.
 
-  // TODO(v8:8906): This ported behaviour is an observable spec violation and
-  // the comment below seems to be outdated. Consider removing this code.
-  try {
-    const _arrayArgNum = Cast<Number>(arrayArg) otherwise NotNumber;
-    // For number as a first argument, throw TypeError instead of silently
-    // ignoring the call, so that users know they did something wrong.
-    // (Consistent with Firefox and Blink/WebKit)
-    ThrowTypeError(MessageTemplate::kInvalidArgument);
-  } label NotNumber {
-    // Proceed to step 14.
-  }
-
   // 14. Let src be ? ToObject(array).
   const src: JSReceiver = ToObject_Inline(context, arrayArg);
 

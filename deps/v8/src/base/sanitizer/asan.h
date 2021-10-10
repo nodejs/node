@@ -24,8 +24,9 @@
 
 // Check that all bytes in a memory region are poisoned. This is different from
 // `__asan_region_is_poisoned()` which only requires a single byte in the region
-// to be poisoned.
-#define ASAN_CHECK_MEMORY_REGION_IS_POISONED(start, size)                     \
+// to be poisoned. Please note that the macro only works if both start and size
+// are multiple of asan's shadow memory granularity.
+#define ASAN_CHECK_WHOLE_MEMORY_REGION_IS_POISONED(start, size)               \
   do {                                                                        \
     for (size_t i = 0; i < size; i++) {                                       \
       CHECK(__asan_address_is_poisoned(reinterpret_cast<const char*>(start) + \
@@ -47,7 +48,7 @@
 #define ASAN_UNPOISON_MEMORY_REGION(start, size) \
   ASAN_POISON_MEMORY_REGION(start, size)
 
-#define ASAN_CHECK_MEMORY_REGION_IS_POISONED(start, size) \
+#define ASAN_CHECK_WHOLE_MEMORY_REGION_IS_POISONED(start, size) \
   ASAN_POISON_MEMORY_REGION(start, size)
 
 #endif  // !V8_USE_ADDRESS_SANITIZER

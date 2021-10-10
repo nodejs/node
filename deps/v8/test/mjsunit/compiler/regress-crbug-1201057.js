@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo-fast-api-calls
+// Flags: --turbo-fast-api-calls --expose-fast-api
 
 const fast_c_api = new d8.test.FastCAPI();
 const fast_obj = Object.create(fast_c_api);

@@ -1456,12 +1456,12 @@ class LiftoffAssembler : public TurboAssembler {
   // Instrumentation for shadow-stack-compatible OSR on x64.
   inline void MaybeOSR();
 
-  // Set the i32 at address dst to 1 if src is a NaN.
+  // Set the i32 at address dst to a non-zero value if src is a NaN.
   inline void emit_set_if_nan(Register dst, DoubleRegister src, ValueKind kind);
 
   // Set the i32 at address dst to a non-zero value if src contains a NaN.
-  inline void emit_s128_set_if_nan(Register dst, DoubleRegister src,
-                                   Register tmp_gp, DoubleRegister tmp_fp,
+  inline void emit_s128_set_if_nan(Register dst, LiftoffRegister src,
+                                   Register tmp_gp, LiftoffRegister tmp_s128,
                                    ValueKind lane_kind);
 
   ////////////////////////////////////
@@ -1711,6 +1711,8 @@ bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b);
 #include "src/wasm/baseline/mips/liftoff-assembler-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/wasm/baseline/mips64/liftoff-assembler-mips64.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/wasm/baseline/loong64/liftoff-assembler-loong64.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/wasm/baseline/s390/liftoff-assembler-s390.h"
 #elif V8_TARGET_ARCH_RISCV64

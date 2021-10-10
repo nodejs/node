@@ -7,7 +7,7 @@
 
 #include "include/cppgc/heap.h"
 #include "include/v8-cppgc.h"
-#include "include/v8.h"
+#include "include/v8-local-handle.h"
 #include "test/unittests/heap/heap-utils.h"
 
 namespace v8 {

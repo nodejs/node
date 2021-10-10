@@ -109,9 +109,12 @@ class WasmGraphBuildingInterface {
         : ControlBase(std::forward<Args>(args)...) {}
   };
 
-  explicit WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder,
-                                      int func_index)
-      : builder_(builder), func_index_(func_index) {}
+  WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder,
+                             int func_index,
+                             EndpointInstrumentationMode instrumentation)
+      : builder_(builder),
+        func_index_(func_index),
+        instrumentation_(instrumentation) {}
 
   void StartFunction(FullDecoder* decoder) {
     // Get the branch hints map for this function (if available)
@@ -138,7 +141,9 @@ class WasmGraphBuildingInterface {
     while (index < num_locals) {
       ValueType type = decoder->local_type(index);
       TFNode* node;
-      if (decoder->enabled_.has_nn_locals() && !type.is_defaultable()) {
+      if ((decoder->enabled_.has_nn_locals() ||
+           decoder->enabled_.has_unsafe_nn_locals()) &&
+          !type.is_defaultable()) {
         DCHECK(type.is_reference());
         // TODO(jkummerow): Consider using "the hole" instead, to make any
         // illegal uses more obvious.
@@ -153,7 +158,9 @@ class WasmGraphBuildingInterface {
     }
     LoadContextIntoSsa(ssa_env);
 
-    if (FLAG_trace_wasm) builder_->TraceFunctionEntry(decoder->position());
+    if (FLAG_trace_wasm && instrumentation_ == kInstrumentEndpoints) {
+      builder_->TraceFunctionEntry(decoder->position());
+    }
   }
 
   // Reload the instance cache entries into the Ssa Environment.
@@ -163,7 +170,11 @@ class WasmGraphBuildingInterface {
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
-  void FinishFunction(FullDecoder*) { builder_->PatchInStackCheckIfNeeded(); }
+  void FinishFunction(FullDecoder*) {
+    if (instrumentation_ == kInstrumentEndpoints) {
+      builder_->PatchInStackCheckIfNeeded();
+    }
+  }
 
   void OnFirstError(FullDecoder*) {}
 
@@ -475,7 +486,7 @@ class WasmGraphBuildingInterface {
                               : decoder->stack_value(ret_count + drop_values);
       GetNodes(values.begin(), stack_base, ret_count);
     }
-    if (FLAG_trace_wasm) {
+    if (FLAG_trace_wasm && instrumentation_ == kInstrumentEndpoints) {
       builder_->TraceFunctionExit(base::VectorOf(values), decoder->position());
     }
     builder_->Return(base::VectorOf(values));
@@ -649,21 +660,15 @@ class WasmGraphBuildingInterface {
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
-    CheckForNull null_check = func_ref.type.is_nullable()
-                                  ? CheckForNull::kWithNullCheck
-                                  : CheckForNull::kWithoutNullCheck;
-    DoCall(decoder, kCallRef, 0, null_check, func_ref.node, sig, sig_index,
-           args, returns);
+    DoCall(decoder, kCallRef, 0, NullCheckFor(func_ref.type), func_ref.node,
+           sig, sig_index, args, returns);
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
-    CheckForNull null_check = func_ref.type.is_nullable()
-                                  ? CheckForNull::kWithNullCheck
-                                  : CheckForNull::kWithoutNullCheck;
-    DoReturnCall(decoder, kCallRef, 0, null_check, func_ref, sig, sig_index,
-                 args);
+    DoReturnCall(decoder, kCallRef, 0, NullCheckFor(func_ref.type), func_ref,
+                 sig, sig_index, args);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
@@ -922,23 +927,17 @@ class WasmGraphBuildingInterface {
   void StructGet(FullDecoder* decoder, const Value& struct_object,
                  const FieldImmediate<validate>& field, bool is_signed,
                  Value* result) {
-    CheckForNull null_check = struct_object.type.is_nullable()
-                                  ? CheckForNull::kWithNullCheck
-                                  : CheckForNull::kWithoutNullCheck;
     result->node = builder_->StructGet(
         struct_object.node, field.struct_imm.struct_type, field.field_imm.index,
-        null_check, is_signed, decoder->position());
+        NullCheckFor(struct_object.type), is_signed, decoder->position());
   }
 
   void StructSet(FullDecoder* decoder, const Value& struct_object,
                  const FieldImmediate<validate>& field,
                  const Value& field_value) {
-    CheckForNull null_check = struct_object.type.is_nullable()
-                                  ? CheckForNull::kWithNullCheck
-                                  : CheckForNull::kWithoutNullCheck;
     builder_->StructSet(struct_object.node, field.struct_imm.struct_type,
-                        field.field_imm.index, field_value.node, null_check,
-                        decoder->position());
+                        field.field_imm.index, field_value.node,
+                        NullCheckFor(struct_object.type), decoder->position());
   }
 
   void ArrayNewWithRtt(FullDecoder* decoder,
@@ -967,36 +966,28 @@ class WasmGraphBuildingInterface {
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate<validate>& imm, const Value& index,
                 bool is_signed, Value* result) {
-    CheckForNull null_check = array_obj.type.is_nullable()
-                                  ? CheckForNull::kWithNullCheck
-                                  : CheckForNull::kWithoutNullCheck;
-    result->node =
-        builder_->ArrayGet(array_obj.node, imm.array_type, index.node,
-                           null_check, is_signed, decoder->position());
+    result->node = builder_->ArrayGet(array_obj.node, imm.array_type,
+                                      index.node, NullCheckFor(array_obj.type),
+                                      is_signed, decoder->position());
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate<validate>& imm, const Value& index,
                 const Value& value) {
-    CheckForNull null_check = array_obj.type.is_nullable()
-                                  ? CheckForNull::kWithNullCheck
-                                  : CheckForNull::kWithoutNullCheck;
     builder_->ArraySet(array_obj.node, imm.array_type, index.node, value.node,
-                       null_check, decoder->position());
+                       NullCheckFor(array_obj.type), decoder->position());
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
-    CheckForNull null_check = array_obj.type.is_nullable()
-                                  ? CheckForNull::kWithNullCheck
-                                  : CheckForNull::kWithoutNullCheck;
-    result->node =
-        builder_->ArrayLen(array_obj.node, null_check, decoder->position());
+    result->node = builder_->ArrayLen(
+        array_obj.node, NullCheckFor(array_obj.type), decoder->position());
   }
 
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
                  const Value& src, const Value& src_index,
                  const Value& length) {
-    builder_->ArrayCopy(dst.node, dst_index.node, src.node, src_index.node,
+    builder_->ArrayCopy(dst.node, dst_index.node, NullCheckFor(dst.type),
+                        src.node, src_index.node, NullCheckFor(src.type),
                         length.node, decoder->position());
   }
 
@@ -1177,6 +1168,7 @@ class WasmGraphBuildingInterface {
   const BranchHintMap* branch_hints_ = nullptr;
   // Tracks loop data for loop unrolling.
   std::vector<compiler::WasmLoopInfo> loop_infos_;
+  EndpointInstrumentationMode instrumentation_;
 
   TFNode* effect() { return builder_->effect(); }
 
@@ -1547,7 +1539,6 @@ class WasmGraphBuildingInterface {
 
       WRAP_CACHE_FIELD(mem_start);
       WRAP_CACHE_FIELD(mem_size);
-      WRAP_CACHE_FIELD(mem_mask);
 #undef WRAP_CACHE_FIELD
     }
   }
@@ -1597,6 +1588,12 @@ class WasmGraphBuildingInterface {
       builder_->TerminateThrow(effect(), control());
     }
   }
+
+  CheckForNull NullCheckFor(ValueType type) {
+    DCHECK(type.is_object_reference());
+    return type.is_nullable() ? CheckForNull::kWithNullCheck
+                              : CheckForNull::kWithoutNullCheck;
+  }
 };
 
 }  // namespace
@@ -1607,10 +1604,12 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           WasmFeatures* detected, const FunctionBody& body,
                           std::vector<compiler::WasmLoopInfo>* loop_infos,
                           compiler::NodeOriginTable* node_origins,
-                          int func_index) {
+                          int func_index,
+                          EndpointInstrumentationMode instrumentation) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::kFullValidation, WasmGraphBuildingInterface> decoder(
-      &zone, module, enabled, detected, body, builder, func_index);
+      &zone, module, enabled, detected, body, builder, func_index,
+      instrumentation);
   if (node_origins) {
     builder->AddBytecodePositionDecorator(node_origins, &decoder);
   }

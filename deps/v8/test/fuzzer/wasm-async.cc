@@ -6,7 +6,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
 #include "src/api/api.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"

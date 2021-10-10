@@ -30,19 +30,30 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
                                           PageAllocator::Permission access) {
   MutexGuard guard(&mutex_);
   DCHECK(IsAligned(alignment, region_allocator_.page_size()));
+  DCHECK(IsAligned(alignment, allocate_page_size_));
 
-  // Region allocator does not support alignments bigger than it's own
-  // allocation alignment.
-  DCHECK_LE(alignment, allocate_page_size_);
-
-  // TODO(ishell): Consider using randomized version here.
-  Address address = region_allocator_.AllocateRegion(size);
+  Address address;
+  if (alignment <= allocate_page_size_) {
+    // TODO(ishell): Consider using randomized version here.
+    address = region_allocator_.AllocateRegion(size);
+  } else {
+    // Currently, this should only be necessary when V8_VIRTUAL_MEMORY_CAGE is
+    // enabled, in which case a bounded page allocator is used to allocate WASM
+    // memory buffers, which have a larger alignment.
+    address = region_allocator_.AllocateAlignedRegion(size, alignment);
+  }
   if (address == RegionAllocator::kAllocationFailure) {
     return nullptr;
   }
-  CHECK(page_allocator_->SetPermissions(reinterpret_cast<void*>(address), size,
-                                        access));
-  return reinterpret_cast<void*>(address);
+
+  void* ptr = reinterpret_cast<void*>(address);
+  if (!page_allocator_->SetPermissions(ptr, size, access)) {
+    // This most likely means that we ran out of memory.
+    CHECK_EQ(region_allocator_.FreeRegion(address), size);
+    return nullptr;
+  }
+
+  return ptr;
 }
 
 bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
@@ -59,8 +70,13 @@ bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
     }
   }
 
-  CHECK(page_allocator_->SetPermissions(reinterpret_cast<void*>(address), size,
-                                        access));
+  void* ptr = reinterpret_cast<void*>(address);
+  if (!page_allocator_->SetPermissions(ptr, size, access)) {
+    // This most likely means that we ran out of memory.
+    CHECK_EQ(region_allocator_.FreeRegion(address), size);
+    return false;
+  }
+
   return true;
 }
 
@@ -94,8 +110,16 @@ bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
   Address address = reinterpret_cast<Address>(raw_address);
   size_t freed_size = region_allocator_.FreeRegion(address);
   if (freed_size != size) return false;
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  // When the virtual memory cage is enabled, the pages returned by the
+  // BoundedPageAllocator must be zero-initialized, as some of the additional
+  // clients expect them to. Decommitting them during FreePages ensures that
+  // while also changing the access permissions to kNoAccess.
+  CHECK(page_allocator_->DecommitPages(raw_address, size));
+#else
   CHECK(page_allocator_->SetPermissions(raw_address, size,
                                         PageAllocator::kNoAccess));
+#endif
   return true;
 }
 
@@ -128,8 +152,14 @@ bool BoundedPageAllocator::ReleasePages(void* raw_address, size_t size,
   // Keep the region in "used" state just uncommit some pages.
   Address free_address = address + new_size;
   size_t free_size = size - new_size;
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  // See comment in FreePages().
+  return page_allocator_->DecommitPages(reinterpret_cast<void*>(free_address),
+                                        free_size);
+#else
   return page_allocator_->SetPermissions(reinterpret_cast<void*>(free_address),
                                          free_size, PageAllocator::kNoAccess);
+#endif
 }
 
 bool BoundedPageAllocator::SetPermissions(void* address, size_t size,
@@ -142,6 +172,10 @@ bool BoundedPageAllocator::SetPermissions(void* address, size_t size,
 
 bool BoundedPageAllocator::DiscardSystemPages(void* address, size_t size) {
   return page_allocator_->DiscardSystemPages(address, size);
+}
+
+bool BoundedPageAllocator::DecommitPages(void* address, size_t size) {
+  return page_allocator_->DecommitPages(address, size);
 }
 
 }  // namespace base

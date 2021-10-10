@@ -7,6 +7,15 @@
 #include <algorithm>
 #include <cmath>
 
+#include "include/v8-container.h"
+#include "include/v8-date.h"
+#include "include/v8-function.h"
+#include "include/v8-microtask-queue.h"
+#include "include/v8-primitive-object.h"
+#include "include/v8-proxy.h"
+#include "include/v8-regexp.h"
+#include "include/v8-typed-array.h"
+#include "include/v8-wasm.h"
 #include "src/base/optional.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/v8-debugger.h"
@@ -786,7 +795,7 @@ class PreviewPropertyAccumulator : public ValueMirror::PropertyAccumulator {
         !mirror.value) {
       return true;
     }
-    if (!mirror.isOwn) return true;
+    if (!mirror.isOwn && !mirror.isSynthetic) return true;
     if (std::find(m_blocklist.begin(), m_blocklist.end(), mirror.name) !=
         m_blocklist.end()) {
       return true;
@@ -844,7 +853,7 @@ bool getPropertiesForPreview(v8::Local<v8::Context> context,
                       : -1;
   PreviewPropertyAccumulator accumulator(blocklist, skipIndex, nameLimit,
                                          indexLimit, overflow, properties);
-  return ValueMirror::getProperties(context, object, false, false,
+  return ValueMirror::getProperties(context, object, false, false, false,
                                     &accumulator);
 }
 
@@ -1178,6 +1187,7 @@ ValueMirror::~ValueMirror() = default;
 bool ValueMirror::getProperties(v8::Local<v8::Context> context,
                                 v8::Local<v8::Object> object,
                                 bool ownProperties, bool accessorPropertiesOnly,
+                                bool nonIndexedPropertiesOnly,
                                 PropertyAccumulator* accumulator) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::TryCatch tryCatch(isolate);
@@ -1209,6 +1219,14 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
   while (!iterator->Done()) {
     bool isOwn = iterator->is_own();
     if (!isOwn && ownProperties) break;
+    bool isIndex = iterator->is_array_index();
+    if (isIndex && nonIndexedPropertiesOnly) {
+      if (!iterator->Advance().FromMaybe(false)) {
+        CHECK(tryCatch.HasCaught());
+        return false;
+      }
+      continue;
+    }
     v8::Local<v8::Name> v8Name = iterator->name();
     v8::Maybe<bool> result = set->Has(context, v8Name);
     if (result.IsNothing()) return false;
@@ -1287,10 +1305,14 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
             if (v8::debug::CallFunctionOn(context, getterFunction, object, 0,
                                           nullptr, true)
                     .ToLocal(&value)) {
-              valueMirror = ValueMirror::create(context, value);
-              isOwn = true;
-              setterMirror = nullptr;
-              getterMirror = nullptr;
+              if (value->IsPromise() &&
+                  value.As<v8::Promise>()->State() == v8::Promise::kRejected) {
+                value.As<v8::Promise>()->MarkAsHandled();
+              } else {
+                valueMirror = ValueMirror::create(context, value);
+                setterMirror = nullptr;
+                getterMirror = nullptr;
+              }
             }
           }
         }
@@ -1302,7 +1324,8 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
                                  configurable,
                                  enumerable,
                                  isOwn,
-                                 iterator->is_array_index(),
+                                 isIndex,
+                                 isAccessorProperty && valueMirror,
                                  std::move(valueMirror),
                                  std::move(getterMirror),
                                  std::move(setterMirror),

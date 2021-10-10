@@ -342,9 +342,9 @@ template <typename T>
 MaybeHandle<T> FormatCommon(
     Isolate* isolate, Handle<JSRelativeTimeFormat> format,
     Handle<Object> value_obj, Handle<Object> unit_obj, const char* func_name,
-    MaybeHandle<T> (*formatToResult)(Isolate*,
-                                     const icu::FormattedRelativeDateTime&,
-                                     Handle<Object>, Handle<String>)) {
+    const std::function<
+        MaybeHandle<T>(Isolate*, const icu::FormattedRelativeDateTime&,
+                       Handle<Object>, Handle<String>)>& formatToResult) {
   // 3. Let value be ? ToNumber(value).
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,

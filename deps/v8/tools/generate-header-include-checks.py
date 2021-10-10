@@ -23,7 +23,7 @@ import re
 import sys
 
 # TODO(clemensb): Extend to tests.
-DEFAULT_INPUT = ['base', 'src']
+DEFAULT_INPUT = ['base', 'include', 'src']
 DEFAULT_GN_FILE = 'BUILD.gn'
 MY_DIR = os.path.dirname(os.path.realpath(__file__))
 V8_DIR = os.path.dirname(MY_DIR)
@@ -44,7 +44,7 @@ AUTO_EXCLUDE_PATTERNS = [
   # platform-specific headers
   '\\b{}\\b'.format(p) for p in
     ('win', 'win32', 'ia32', 'x64', 'arm', 'arm64', 'mips', 'mips64', 's390',
-     'ppc','riscv64')]
+     'ppc', 'riscv64', 'loong64')]
 
 args = None
 def parse_args():

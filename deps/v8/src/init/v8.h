@@ -29,6 +29,10 @@ class V8 : public AllStatic {
                                                    const char* location,
                                                    bool is_heap_oom = false);
 
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  static bool InitializeVirtualMemoryCage();
+#endif
+
   static void InitializePlatform(v8::Platform* platform);
   static void ShutdownPlatform();
   V8_EXPORT_PRIVATE static v8::Platform* GetCurrentPlatform();

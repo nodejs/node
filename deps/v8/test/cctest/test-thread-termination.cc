@@ -25,13 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "include/v8-function.h"
+#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
+#include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-
-#include "src/base/platform/platform.h"
 
 v8::base::Semaphore* semaphore = nullptr;
 
@@ -241,7 +242,7 @@ TEST(TerminateBigIntToString) {
 
 TEST(TerminateBigIntFromString) {
   TestTerminatingSlowOperation(
-      "var a = '12344567890'.repeat(10000);\n"
+      "var a = '12344567890'.repeat(100000);\n"
       "terminate();\n"
       "BigInt(a);\n"
       "fail();\n");

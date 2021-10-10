@@ -306,6 +306,8 @@ ASSERT_TRIVIALLY_COPYABLE(Operand);
 static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
               "Operand must be small enough to pass it by value");
 
+bool operator!=(Operand op, XMMRegister r);
+
 // -----------------------------------------------------------------------------
 // A Displacement describes the 32bit immediate field of an instruction which
 // may be used together with a Label in order to refer to a yet unknown code
@@ -535,6 +537,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movzx_w(Register dst, Operand src);
 
   void movq(XMMRegister dst, Operand src);
+  void movq(Operand dst, XMMRegister src);
 
   // Conditional moves
   void cmov(Condition cc, Register dst, Register src) {
@@ -1544,6 +1547,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovdqa(XMMRegister dst, Operand src) {
     vinstr(0x6F, dst, xmm0, src, k66, k0F, kWIG);
   }
+  void vmovdqa(XMMRegister dst, XMMRegister src) {
+    vinstr(0x6F, dst, xmm0, src, k66, k0F, kWIG);
+  }
   void vmovdqu(XMMRegister dst, Operand src) {
     vinstr(0x6F, dst, xmm0, src, kF3, k0F, kWIG);
   }
@@ -1709,6 +1715,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   PACKED_CMP_LIST(AVX_CMP_P)
+  // vcmpgeps/vcmpgepd only in AVX.
+  AVX_CMP_P(cmpge, 0xd)
 #undef AVX_CMP_P
 #undef PACKED_CMP_LIST
 
@@ -1789,6 +1797,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSSE3_UNOP_INSTRUCTION_LIST(DECLARE_SSE4_AVX_RM_INSTRUCTION)
   SSE4_RM_INSTRUCTION_LIST(DECLARE_SSE4_AVX_RM_INSTRUCTION)
 #undef DECLARE_SSE4_AVX_RM_INSTRUCTION
+
+  // AVX2 instructions
+#define AVX2_INSTRUCTION(instr, prefix, escape1, escape2, opcode)           \
+  void instr(XMMRegister dst, XMMRegister src) {                            \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0, \
+           AVX2);                                                           \
+  }                                                                         \
+  void instr(XMMRegister dst, Operand src) {                                \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0, \
+           AVX2);                                                           \
+  }
+  AVX2_BROADCAST_LIST(AVX2_INSTRUCTION)
+#undef AVX2_INSTRUCTION
 
   // Prefetch src position into cache level.
   // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a

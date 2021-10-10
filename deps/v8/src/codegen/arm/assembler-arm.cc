@@ -4786,7 +4786,7 @@ static Instr EncodeNeonPairwiseOp(NeonPairwiseOp op, NeonDataType dt,
 void Assembler::vpadd(DwVfpRegister dst, DwVfpRegister src1,
                       DwVfpRegister src2) {
   DCHECK(IsEnabled(NEON));
-  // Dd = vpadd(Dn, Dm) SIMD integer pairwise ADD.
+  // Dd = vpadd(Dn, Dm) SIMD floating point pairwise ADD.
   // Instruction details available in ARM DDI 0406C.b, A8-982.
   int vd, d;
   dst.split_code(&vd, &d);
@@ -5472,8 +5472,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       if (!entry.is_merged()) {
         if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(entry.rmode())) {
           int offset = pc_offset();
-          saved_handles_for_raw_object_ptr_.push_back(
-              std::make_pair(offset, entry.value()));
+          saved_handles_for_raw_object_ptr_.emplace_back(offset, entry.value());
           Handle<HeapObject> object(reinterpret_cast<Address*>(entry.value()));
           emit(object->ptr());
           DCHECK(EmbeddedObjectMatches(offset, object));

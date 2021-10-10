@@ -5,10 +5,13 @@
 #ifndef V8_UTIL_H_
 #define V8_UTIL_H_
 
-#include "v8.h"  // NOLINT(build/include_directory)
 #include <assert.h>
+
 #include <map>
 #include <vector>
+
+#include "v8-function-callback.h"  // NOLINT(build/include_directory)
+#include "v8-persistent-handle.h"  // NOLINT(build/include_directory)
 
 /**
  * Support for Persistent containers.
@@ -18,6 +21,9 @@
  * may want these container classes.
  */
 namespace v8 {
+
+template <typename K, typename V, typename Traits>
+class GlobalValueMap;
 
 typedef uintptr_t PersistentContainerValue;
 static const uintptr_t kPersistentContainerNotFound = 0;

@@ -16,12 +16,14 @@ namespace {
 // TODO(mbid, v8:10765): Currently the experimental engine doesn't support
 // UTF-16, but this shouldn't be too hard to implement.
 constexpr base::uc32 kMaxSupportedCodepoint = 0xFFFFu;
+#ifdef DEBUG
+constexpr base::uc32 kMaxCodePoint = 0x10ffff;
+#endif  // DEBUG
 
 class CanBeHandledVisitor final : private RegExpVisitor {
   // Visitor to implement `ExperimentalRegExp::CanBeHandled`.
  public:
-  static bool Check(RegExpTree* tree, JSRegExp::Flags flags,
-                    int capture_count) {
+  static bool Check(RegExpTree* tree, RegExpFlags flags, int capture_count) {
     if (!AreSuitableFlags(flags)) return false;
     CanBeHandledVisitor visitor;
     tree->Accept(&visitor, nullptr);
@@ -31,15 +33,15 @@ class CanBeHandledVisitor final : private RegExpVisitor {
  private:
   CanBeHandledVisitor() = default;
 
-  static bool AreSuitableFlags(JSRegExp::Flags flags) {
+  static bool AreSuitableFlags(RegExpFlags flags) {
     // TODO(mbid, v8:10765): We should be able to support all flags in the
     // future.
-    static constexpr JSRegExp::Flags kAllowedFlags =
-        JSRegExp::kGlobal | JSRegExp::kSticky | JSRegExp::kMultiline |
-        JSRegExp::kDotAll | JSRegExp::kLinear;
+    static constexpr RegExpFlags kAllowedFlags =
+        RegExpFlag::kGlobal | RegExpFlag::kSticky | RegExpFlag::kMultiline |
+        RegExpFlag::kDotAll | RegExpFlag::kLinear;
     // We support Unicode iff kUnicode is among the supported flags.
     STATIC_ASSERT(ExperimentalRegExp::kSupportsUnicode ==
-                  ((kAllowedFlags & JSRegExp::kUnicode) != 0));
+                  IsUnicode(kAllowedFlags));
     return (flags & ~kAllowedFlags) == 0;
   }
 
@@ -173,7 +175,7 @@ class CanBeHandledVisitor final : private RegExpVisitor {
 }  // namespace
 
 bool ExperimentalRegExpCompiler::CanBeHandled(RegExpTree* tree,
-                                              JSRegExp::Flags flags,
+                                              RegExpFlags flags,
                                               int capture_count) {
   return CanBeHandledVisitor::Check(tree, flags, capture_count);
 }
@@ -294,11 +296,10 @@ class BytecodeAssembler {
 class CompileVisitor : private RegExpVisitor {
  public:
   static ZoneList<RegExpInstruction> Compile(RegExpTree* tree,
-                                             JSRegExp::Flags flags,
-                                             Zone* zone) {
+                                             RegExpFlags flags, Zone* zone) {
     CompileVisitor compiler(zone);
 
-    if ((flags & JSRegExp::kSticky) == 0 && !tree->IsAnchoredAtStart()) {
+    if (!IsSticky(flags) && !tree->IsAnchoredAtStart()) {
       // The match is not anchored, i.e. may start at any input position, so we
       // emit a preamble corresponding to /.*?/.  This skips an arbitrary
       // prefix in the input non-greedily.
@@ -409,7 +410,7 @@ class CompileVisitor : private RegExpVisitor {
       base::uc16 from_uc16 = static_cast<base::uc16>(from);
 
       base::uc32 to = (*ranges)[i].to();
-      DCHECK_IMPLIES(to > kMaxSupportedCodepoint, to == String::kMaxCodePoint);
+      DCHECK_IMPLIES(to > kMaxSupportedCodepoint, to == kMaxCodePoint);
       base::uc16 to_uc16 =
           static_cast<base::uc16>(std::min(to, kMaxSupportedCodepoint));
 
@@ -627,7 +628,7 @@ class CompileVisitor : private RegExpVisitor {
 }  // namespace
 
 ZoneList<RegExpInstruction> ExperimentalRegExpCompiler::Compile(
-    RegExpTree* tree, JSRegExp::Flags flags, Zone* zone) {
+    RegExpTree* tree, RegExpFlags flags, Zone* zone) {
   return CompileVisitor::Compile(tree, flags, zone);
 }
 

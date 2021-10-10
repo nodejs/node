@@ -330,24 +330,16 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Retain(Node* buffer);
   Node* UnsafePointerAdd(Node* base, Node* external);
 
-  Node* Word32PoisonOnSpeculation(Node* value);
-
-  Node* DeoptimizeIf(
-      DeoptimizeReason reason, FeedbackSource const& feedback, Node* condition,
-      Node* frame_state,
-      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
-  Node* DeoptimizeIf(
-      DeoptimizeKind kind, DeoptimizeReason reason,
-      FeedbackSource const& feedback, Node* condition, Node* frame_state,
-      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
-  Node* DeoptimizeIfNot(
-      DeoptimizeKind kind, DeoptimizeReason reason,
-      FeedbackSource const& feedback, Node* condition, Node* frame_state,
-      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
-  Node* DeoptimizeIfNot(
-      DeoptimizeReason reason, FeedbackSource const& feedback, Node* condition,
-      Node* frame_state,
-      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  Node* DeoptimizeIf(DeoptimizeReason reason, FeedbackSource const& feedback,
+                     Node* condition, Node* frame_state);
+  Node* DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason,
+                     FeedbackSource const& feedback, Node* condition,
+                     Node* frame_state);
+  Node* DeoptimizeIfNot(DeoptimizeKind kind, DeoptimizeReason reason,
+                        FeedbackSource const& feedback, Node* condition,
+                        Node* frame_state);
+  Node* DeoptimizeIfNot(DeoptimizeReason reason, FeedbackSource const& feedback,
+                        Node* condition, Node* frame_state);
   Node* DynamicCheckMapsWithDeoptUnless(Node* condition, Node* slot_index,
                                         Node* map, Node* handler,
                                         Node* feedback_vector,
@@ -557,7 +549,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   void BranchImpl(Node* condition,
                   GraphAssemblerLabel<sizeof...(Vars)>* if_true,
                   GraphAssemblerLabel<sizeof...(Vars)>* if_false,
-                  BranchHint hint, IsSafetyCheck is_safety_check, Vars...);
+                  BranchHint hint, Vars...);
   void RecordBranchInBlockUpdater(Node* branch, Node* if_true_control,
                                   Node* if_false_control,
                                   BasicBlock* if_true_block,
@@ -742,8 +734,7 @@ void GraphAssembler::Branch(Node* condition,
     hint = if_false->IsDeferred() ? BranchHint::kTrue : BranchHint::kFalse;
   }
 
-  BranchImpl(condition, if_true, if_false, hint, IsSafetyCheck::kNoSafetyCheck,
-             vars...);
+  BranchImpl(condition, if_true, if_false, hint, vars...);
 }
 
 template <typename... Vars>
@@ -751,20 +742,17 @@ void GraphAssembler::BranchWithHint(
     Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* if_true,
     GraphAssemblerLabel<sizeof...(Vars)>* if_false, BranchHint hint,
     Vars... vars) {
-  BranchImpl(condition, if_true, if_false, hint, IsSafetyCheck::kNoSafetyCheck,
-             vars...);
+  BranchImpl(condition, if_true, if_false, hint, vars...);
 }
 
 template <typename... Vars>
 void GraphAssembler::BranchImpl(Node* condition,
                                 GraphAssemblerLabel<sizeof...(Vars)>* if_true,
                                 GraphAssemblerLabel<sizeof...(Vars)>* if_false,
-                                BranchHint hint, IsSafetyCheck is_safety_check,
-                                Vars... vars) {
+                                BranchHint hint, Vars... vars) {
   DCHECK_NOT_NULL(control());
 
-  Node* branch = graph()->NewNode(common()->Branch(hint, is_safety_check),
-                                  condition, control());
+  Node* branch = graph()->NewNode(common()->Branch(hint), condition, control());
 
   Node* if_true_control = control_ =
       graph()->NewNode(common()->IfTrue(), branch);

@@ -1735,11 +1735,9 @@ class RepresentationSelector {
         VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                       MachineRepresentation::kWord32);
         if (lower<T>()) {
-          if (lowering->poisoning_level_ ==
-                  PoisoningMitigationLevel::kDontPoison &&
-              (index_type.IsNone() || length_type.IsNone() ||
-               (index_type.Min() >= 0.0 &&
-                index_type.Max() < length_type.Min()))) {
+          if (index_type.IsNone() || length_type.IsNone() ||
+              (index_type.Min() >= 0.0 &&
+               index_type.Max() < length_type.Min())) {
             // The bounds check is redundant if we already know that
             // the index is within the bounds of [0.0, length[.
             // TODO(neis): Move this into TypedOptimization?
@@ -3181,11 +3179,6 @@ class RepresentationSelector {
       }
       case IrOpcode::kCheckBounds:
         return VisitCheckBounds<T>(node, lowering);
-      case IrOpcode::kPoisonIndex: {
-        VisitUnop<T>(node, UseInfo::TruncatingWord32(),
-                     MachineRepresentation::kWord32);
-        return;
-      }
       case IrOpcode::kCheckHeapObject: {
         if (InputCannotBe(node, Type::SignedSmall())) {
           VisitUnop<T>(node, UseInfo::AnyTagged(),
@@ -3835,7 +3828,7 @@ class RepresentationSelector {
 
       case IrOpcode::kDateNow:
         VisitInputs<T>(node);
-        return SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
+        return SetOutput<T>(node, MachineRepresentation::kTagged);
       case IrOpcode::kFrameState:
         return VisitFrameState<T>(FrameState{node});
       case IrOpcode::kStateValues:
@@ -4225,18 +4218,19 @@ void RepresentationSelector::InsertUnreachableIfNecessary<LOWER>(Node* node) {
   }
 }
 
-SimplifiedLowering::SimplifiedLowering(
-    JSGraph* jsgraph, JSHeapBroker* broker, Zone* zone,
-    SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-    PoisoningMitigationLevel poisoning_level, TickCounter* tick_counter,
-    Linkage* linkage, ObserveNodeManager* observe_node_manager)
+SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker,
+                                       Zone* zone,
+                                       SourcePositionTable* source_positions,
+                                       NodeOriginTable* node_origins,
+                                       TickCounter* tick_counter,
+                                       Linkage* linkage,
+                                       ObserveNodeManager* observe_node_manager)
     : jsgraph_(jsgraph),
       broker_(broker),
       zone_(zone),
       type_cache_(TypeCache::Get()),
       source_positions_(source_positions),
       node_origins_(node_origins),
-      poisoning_level_(poisoning_level),
       tick_counter_(tick_counter),
       linkage_(linkage),
       observe_node_manager_(observe_node_manager) {}

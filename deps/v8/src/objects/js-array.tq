@@ -4,10 +4,34 @@
 
 extern enum IterationKind extends uint31 { kKeys, kValues, kEntries }
 
-@doNotGenerateCppClass
 extern class JSArrayIterator extends JSObject {
   iterated_object: JSReceiver;
+
+  // [next_index]: The [[ArrayIteratorNextIndex]] inobject property.
+  // The next_index is always a positive integer, and it points to
+  // the next index that is to be returned by this iterator. It's
+  // possible range is fixed depending on the [[iterated_object]]:
+  //
+  //   1. For JSArray's the next_index is always in Unsigned32
+  //      range, and when the iterator reaches the end it's set
+  //      to kMaxUInt32 to indicate that this iterator should
+  //      never produce values anymore even if the "length"
+  //      property of the JSArray changes at some later point.
+  //   2. For JSTypedArray's the next_index is always in
+  //      UnsignedSmall range, and when the iterator terminates
+  //      it's set to Smi::kMaxValue.
+  //   3. For all other JSReceiver's it's always between 0 and
+  //      kMaxSafeInteger, and the latter value is used to mark
+  //      termination.
+  //
+  // It's important that for 1. and 2. the value fits into the
+  // Unsigned32 range (UnsignedSmall is a subset of Unsigned32),
+  // since we use this knowledge in the fast-path for the array
+  // iterator next calls in TurboFan (in the JSCallReducer) to
+  // keep the index in Word32 representation. This invariant is
+  // checked in JSArrayIterator::JSArrayIteratorVerify().
   next_index: Number;
+
   kind: SmiTagged<IterationKind>;
 }
 
@@ -25,7 +49,6 @@ macro CreateArrayIterator(implicit context: NativeContext)(
   };
 }
 
-@doNotGenerateCppClass
 extern class JSArray extends JSObject {
   macro IsEmpty(): bool {
     return this.length == 0;

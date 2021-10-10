@@ -60,6 +60,544 @@
 #include "src/runtime/runtime-utils.h"
 #include "src/utils/ostreams.h"
 
+// The following code about RVV was based from:
+//   https://github.com/riscv/riscv-isa-sim
+// Copyright (c) 2010-2017, The Regents of the University of California
+// (Regents).  All Rights Reserved.
+
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the distribution.
+// 3. Neither the name of the Regents nor the
+//    names of its contributors may be used to endorse or promote products
+//    derived from this software without specific prior written permission.
+
+// IN NO EVENT SHALL REGENTS BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
+// SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS,
+// ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF
+// REGENTS HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+// REGENTS SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
+// TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+// PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
+// HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
+// MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+#define RVV_VI_GENERAL_LOOP_BASE \
+  for (uint64_t i = rvv_vstart(); i < rvv_vl(); i++) {
+#define RVV_VI_LOOP_END \
+  set_rvv_vstart(0);    \
+  }
+
+#define RVV_VI_MASK_VARS       \
+  const uint8_t midx = i / 64; \
+  const uint8_t mpos = i % 64;
+
+#define RVV_VI_LOOP_MASK_SKIP(BODY)                               \
+  RVV_VI_MASK_VARS                                                \
+  if (instr_.RvvVM() == 0) {                                      \
+    bool skip = ((Rvvelt<uint64_t>(0, midx) >> mpos) & 0x1) == 0; \
+    if (skip) {                                                   \
+      continue;                                                   \
+    }                                                             \
+  }
+
+#define RVV_VI_VV_LOOP(BODY)       \
+  RVV_VI_GENERAL_LOOP_BASE         \
+  RVV_VI_LOOP_MASK_SKIP()          \
+  if (rvv_vsew() == E8) {          \
+    VV_PARAMS(8);                  \
+    BODY                           \
+  } else if (rvv_vsew() == E16) {  \
+    VV_PARAMS(16);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E32) {  \
+    VV_PARAMS(32);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E64) {  \
+    VV_PARAMS(64);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E128) { \
+    VV_PARAMS(128);                \
+    BODY                           \
+  } else {                         \
+    UNREACHABLE();                 \
+  }                                \
+  RVV_VI_LOOP_END                  \
+  rvv_trace_vd();
+
+#define RVV_VI_VV_ULOOP(BODY)      \
+  RVV_VI_GENERAL_LOOP_BASE         \
+  RVV_VI_LOOP_MASK_SKIP()          \
+  if (rvv_vsew() == E8) {          \
+    VV_UPARAMS(8);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E16) {  \
+    VV_UPARAMS(16);                \
+    BODY                           \
+  } else if (rvv_vsew() == E32) {  \
+    VV_UPARAMS(32);                \
+    BODY                           \
+  } else if (rvv_vsew() == E64) {  \
+    VV_UPARAMS(64);                \
+    BODY                           \
+  } else if (rvv_vsew() == E128) { \
+    VV_UPARAMS(128);               \
+    BODY                           \
+  } else {                         \
+    UNREACHABLE();                 \
+  }                                \
+  RVV_VI_LOOP_END                  \
+  rvv_trace_vd();
+
+#define RVV_VI_VX_LOOP(BODY)       \
+  RVV_VI_GENERAL_LOOP_BASE         \
+  RVV_VI_LOOP_MASK_SKIP()          \
+  if (rvv_vsew() == E8) {          \
+    VX_PARAMS(8);                  \
+    BODY                           \
+  } else if (rvv_vsew() == E16) {  \
+    VX_PARAMS(16);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E32) {  \
+    VX_PARAMS(32);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E64) {  \
+    VX_PARAMS(64);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E128) { \
+    VX_PARAMS(128);                \
+    BODY                           \
+  } else {                         \
+    UNREACHABLE();                 \
+  }                                \
+  RVV_VI_LOOP_END                  \
+  rvv_trace_vd();
+
+#define RVV_VI_VX_ULOOP(BODY)      \
+  RVV_VI_GENERAL_LOOP_BASE         \
+  RVV_VI_LOOP_MASK_SKIP()          \
+  if (rvv_vsew() == E8) {          \
+    VX_UPARAMS(8);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E16) {  \
+    VX_UPARAMS(16);                \
+    BODY                           \
+  } else if (rvv_vsew() == E32) {  \
+    VX_UPARAMS(32);                \
+    BODY                           \
+  } else if (rvv_vsew() == E64) {  \
+    VX_UPARAMS(64);                \
+    BODY                           \
+  } else if (rvv_vsew() == E128) { \
+    VX_UPARAMS(128);               \
+    BODY                           \
+  } else {                         \
+    UNREACHABLE();                 \
+  }                                \
+  RVV_VI_LOOP_END                  \
+  rvv_trace_vd();
+
+#define RVV_VI_VI_LOOP(BODY)       \
+  RVV_VI_GENERAL_LOOP_BASE         \
+  RVV_VI_LOOP_MASK_SKIP()          \
+  if (rvv_vsew() == E8) {          \
+    VI_PARAMS(8);                  \
+    BODY                           \
+  } else if (rvv_vsew() == E16) {  \
+    VI_PARAMS(16);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E32) {  \
+    VI_PARAMS(32);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E64) {  \
+    VI_PARAMS(64);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E128) { \
+    VI_PARAMS(128);                \
+    BODY                           \
+  } else {                         \
+    UNREACHABLE();                 \
+  }                                \
+  RVV_VI_LOOP_END                  \
+  rvv_trace_vd();
+
+#define RVV_VI_VI_ULOOP(BODY)      \
+  RVV_VI_GENERAL_LOOP_BASE         \
+  RVV_VI_LOOP_MASK_SKIP()          \
+  if (rvv_vsew() == E8) {          \
+    VI_UPARAMS(8);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E16) {  \
+    VI_UPARAMS(16);                \
+    BODY                           \
+  } else if (rvv_vsew() == E32) {  \
+    VI_UPARAMS(32);                \
+    BODY                           \
+  } else if (rvv_vsew() == E64) {  \
+    VI_UPARAMS(64);                \
+    BODY                           \
+  } else if (rvv_vsew() == E128) { \
+    VI_UPARAMS(128);               \
+    BODY                           \
+  } else {                         \
+    UNREACHABLE();                 \
+  }                                \
+  RVV_VI_LOOP_END                  \
+  rvv_trace_vd();
+
+#define RVV_VI_VVXI_MERGE_LOOP(BODY) \
+  RVV_VI_GENERAL_LOOP_BASE           \
+  if (rvv_vsew() == E8) {            \
+    VXI_PARAMS(8);                   \
+    BODY;                            \
+  } else if (rvv_vsew() == E16) {    \
+    VXI_PARAMS(16);                  \
+    BODY;                            \
+  } else if (rvv_vsew() == E32) {    \
+    VXI_PARAMS(32);                  \
+    BODY;                            \
+  } else if (rvv_vsew() == E64) {    \
+    VXI_PARAMS(64);                  \
+    BODY;                            \
+  } else if (rvv_vsew() == E128) {   \
+    VXI_PARAMS(128);                 \
+    BODY                             \
+  }                                  \
+  RVV_VI_LOOP_END                    \
+  rvv_trace_vd();
+
+#define VV_WITH_CARRY_PARAMS(x)                                            \
+  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i); \
+  type_sew_t<x>::type vs1 = Rvvelt<type_sew_t<x>::type>(rvv_vs1_reg(), i); \
+  type_sew_t<x>::type& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);
+
+#define XI_WITH_CARRY_PARAMS(x)                                             \
+  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);  \
+  type_sew_t<x>::type rs1 = (type_sew_t<x>::type)(get_register(rs1_reg())); \
+  type_sew_t<x>::type simm5 = (type_sew_t<x>::type)instr_.RvvSimm5();       \
+  type_sew_t<x>::type& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);
+
+// carry/borrow bit loop
+#define RVV_VI_VV_LOOP_WITH_CARRY(BODY) \
+  CHECK_NE(rvv_vd_reg(), 0);            \
+  RVV_VI_GENERAL_LOOP_BASE              \
+  RVV_VI_MASK_VARS                      \
+  if (rvv_vsew() == E8) {               \
+    VV_WITH_CARRY_PARAMS(8)             \
+    BODY;                               \
+  } else if (rvv_vsew() == E16) {       \
+    VV_WITH_CARRY_PARAMS(16)            \
+    BODY;                               \
+  } else if (rvv_vsew() == E32) {       \
+    VV_WITH_CARRY_PARAMS(32)            \
+    BODY;                               \
+  } else if (rvv_vsew() == E64) {       \
+    VV_WITH_CARRY_PARAMS(64)            \
+    BODY;                               \
+  }                                     \
+  RVV_VI_LOOP_END
+
+#define RVV_VI_XI_LOOP_WITH_CARRY(BODY) \
+  CHECK_NE(rvv_vd_reg(), 0);            \
+  RVV_VI_GENERAL_LOOP_BASE              \
+  RVV_VI_MASK_VARS                      \
+  if (rvv_vsew() == E8) {               \
+    XI_WITH_CARRY_PARAMS(8)             \
+    BODY;                               \
+  } else if (rvv_vsew() == E16) {       \
+    XI_WITH_CARRY_PARAMS(16)            \
+    BODY;                               \
+  } else if (rvv_vsew() == E32) {       \
+    XI_WITH_CARRY_PARAMS(32)            \
+    BODY;                               \
+  } else if (rvv_vsew() == E64) {       \
+    XI_WITH_CARRY_PARAMS(64)            \
+    BODY;                               \
+  }                                     \
+  RVV_VI_LOOP_END
+
+#define VV_CMP_PARAMS(x)                                                   \
+  type_sew_t<x>::type vs1 = Rvvelt<type_sew_t<x>::type>(rvv_vs1_reg(), i); \
+  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define VX_CMP_PARAMS(x)                                                    \
+  type_sew_t<x>::type rs1 = (type_sew_t<x>::type)(get_register(rs1_reg())); \
+  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define VI_CMP_PARAMS(x)                                              \
+  type_sew_t<x>::type simm5 = (type_sew_t<x>::type)instr_.RvvSimm5(); \
+  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define VV_UCMP_PARAMS(x)                                                    \
+  type_usew_t<x>::type vs1 = Rvvelt<type_usew_t<x>::type>(rvv_vs1_reg(), i); \
+  type_usew_t<x>::type vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define VX_UCMP_PARAMS(x)                                 \
+  type_usew_t<x>::type rs1 =                              \
+      (type_sew_t<x>::type)(get_register(rvv_vs1_reg())); \
+  type_usew_t<x>::type vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define VI_UCMP_PARAMS(x)                                               \
+  type_usew_t<x>::type uimm5 = (type_usew_t<x>::type)instr_.RvvUimm5(); \
+  type_usew_t<x>::type vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define RVV_VI_LOOP_CMP_BASE                                    \
+  CHECK(rvv_vsew() >= E8 && rvv_vsew() <= E64);                 \
+  for (reg_t i = rvv_vstart(); i < rvv_vl(); ++i) {             \
+    RVV_VI_LOOP_MASK_SKIP();                                    \
+    uint64_t mmask = uint64_t(1) << mpos;                       \
+    uint64_t& vdi = Rvvelt<uint64_t>(rvv_vd_reg(), midx, true); \
+    uint64_t res = 0;
+
+#define RVV_VI_LOOP_CMP_END                         \
+  vdi = (vdi & ~mmask) | (((res) << mpos) & mmask); \
+  }                                                 \
+  set_rvv_vstart(0);
+
+// comparision result to masking register
+#define RVV_VI_VV_LOOP_CMP(BODY)  \
+  RVV_VI_LOOP_CMP_BASE            \
+  if (rvv_vsew() == E8) {         \
+    VV_CMP_PARAMS(8);             \
+    BODY;                         \
+  } else if (rvv_vsew() == E16) { \
+    VV_CMP_PARAMS(16);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E32) { \
+    VV_CMP_PARAMS(32);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E64) { \
+    VV_CMP_PARAMS(64);            \
+    BODY;                         \
+  }                               \
+  RVV_VI_LOOP_CMP_END             \
+  rvv_trace_vd();
+
+#define RVV_VI_VX_LOOP_CMP(BODY)  \
+  RVV_VI_LOOP_CMP_BASE            \
+  if (rvv_vsew() == E8) {         \
+    VX_CMP_PARAMS(8);             \
+    BODY;                         \
+  } else if (rvv_vsew() == E16) { \
+    VX_CMP_PARAMS(16);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E32) { \
+    VX_CMP_PARAMS(32);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E64) { \
+    VX_CMP_PARAMS(64);            \
+    BODY;                         \
+  }                               \
+  RVV_VI_LOOP_CMP_END
+
+#define RVV_VI_VI_LOOP_CMP(BODY)  \
+  RVV_VI_LOOP_CMP_BASE            \
+  if (rvv_vsew() == E8) {         \
+    VI_CMP_PARAMS(8);             \
+    BODY;                         \
+  } else if (rvv_vsew() == E16) { \
+    VI_CMP_PARAMS(16);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E32) { \
+    VI_CMP_PARAMS(32);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E64) { \
+    VI_CMP_PARAMS(64);            \
+    BODY;                         \
+  }                               \
+  RVV_VI_LOOP_CMP_END
+
+#define RVV_VI_VV_ULOOP_CMP(BODY) \
+  RVV_VI_LOOP_CMP_BASE            \
+  if (rvv_vsew() == E8) {         \
+    VV_UCMP_PARAMS(8);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E16) { \
+    VV_UCMP_PARAMS(16);           \
+    BODY;                         \
+  } else if (rvv_vsew() == E32) { \
+    VV_UCMP_PARAMS(32);           \
+    BODY;                         \
+  } else if (rvv_vsew() == E64) { \
+    VV_UCMP_PARAMS(64);           \
+    BODY;                         \
+  }                               \
+  RVV_VI_LOOP_CMP_END
+
+#define RVV_VI_VX_ULOOP_CMP(BODY) \
+  RVV_VI_LOOP_CMP_BASE            \
+  if (rvv_vsew() == E8) {         \
+    VX_UCMP_PARAMS(8);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E16) { \
+    VX_UCMP_PARAMS(16);           \
+    BODY;                         \
+  } else if (rvv_vsew() == E32) { \
+    VX_UCMP_PARAMS(32);           \
+    BODY;                         \
+  } else if (rvv_vsew() == E64) { \
+    VX_UCMP_PARAMS(64);           \
+    BODY;                         \
+  }                               \
+  RVV_VI_LOOP_CMP_END
+
+#define RVV_VI_VI_ULOOP_CMP(BODY) \
+  RVV_VI_LOOP_CMP_BASE            \
+  if (rvv_vsew() == E8) {         \
+    VI_UCMP_PARAMS(8);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E16) { \
+    VI_UCMP_PARAMS(16);           \
+    BODY;                         \
+  } else if (rvv_vsew() == E32) { \
+    VI_UCMP_PARAMS(32);           \
+    BODY;                         \
+  } else if (rvv_vsew() == E64) { \
+    VI_UCMP_PARAMS(64);           \
+    BODY;                         \
+  }                               \
+  RVV_VI_LOOP_CMP_END
+
+// reduction loop - signed
+#define RVV_VI_LOOP_REDUCTION_BASE(x)                                  \
+  auto& vd_0_des = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), 0, true); \
+  auto vd_0_res = Rvvelt<type_sew_t<x>::type>(rvv_vs1_reg(), 0);       \
+  for (uint64_t i = rvv_vstart(); i < rvv_vl(); ++i) {                 \
+    RVV_VI_LOOP_MASK_SKIP();                                           \
+    auto vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define RVV_VI_LOOP_REDUCTION_END(x) \
+  }                                  \
+  if (rvv_vl() > 0) {                \
+    vd_0_des = vd_0_res;             \
+  }                                  \
+  set_rvv_vstart(0);
+
+#define REDUCTION_LOOP(x, BODY) \
+  RVV_VI_LOOP_REDUCTION_BASE(x) \
+  BODY;                         \
+  RVV_VI_LOOP_REDUCTION_END(x)
+
+#define RVV_VI_VV_LOOP_REDUCTION(BODY) \
+  if (rvv_vsew() == E8) {              \
+    REDUCTION_LOOP(8, BODY)            \
+  } else if (rvv_vsew() == E16) {      \
+    REDUCTION_LOOP(16, BODY)           \
+  } else if (rvv_vsew() == E32) {      \
+    REDUCTION_LOOP(32, BODY)           \
+  } else if (rvv_vsew() == E64) {      \
+    REDUCTION_LOOP(64, BODY)           \
+  }                                    \
+  rvv_trace_vd();
+
+// reduction loop - unsgied
+#define RVV_VI_ULOOP_REDUCTION_BASE(x)                                  \
+  auto& vd_0_des = Rvvelt<type_usew_t<x>::type>(rvv_vd_reg(), 0, true); \
+  auto vd_0_res = Rvvelt<type_usew_t<x>::type>(rvv_vs1_reg(), 0);       \
+  for (reg_t i = rvv_vstart(); i < rvv_vl(); ++i) {                     \
+    RVV_VI_LOOP_MASK_SKIP();                                            \
+    auto vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define REDUCTION_ULOOP(x, BODY) \
+  RVV_VI_ULOOP_REDUCTION_BASE(x) \
+  BODY;                          \
+  RVV_VI_LOOP_REDUCTION_END(x)
+
+#define RVV_VI_VV_ULOOP_REDUCTION(BODY) \
+  if (rvv_vsew() == E8) {               \
+    REDUCTION_ULOOP(8, BODY)            \
+  } else if (rvv_vsew() == E16) {       \
+    REDUCTION_ULOOP(16, BODY)           \
+  } else if (rvv_vsew() == E32) {       \
+    REDUCTION_ULOOP(32, BODY)           \
+  } else if (rvv_vsew() == E64) {       \
+    REDUCTION_ULOOP(64, BODY)           \
+  }                                     \
+  rvv_trace_vd();
+
+#define VI_STRIP(inx) reg_t vreg_inx = inx;
+
+#define VI_ELEMENT_SKIP(inx)       \
+  if (inx >= vl) {                 \
+    continue;                      \
+  } else if (inx < rvv_vstart()) { \
+    continue;                      \
+  } else {                         \
+    RVV_VI_LOOP_MASK_SKIP();       \
+  }
+
+#define require_vm                                      \
+  do {                                                  \
+    if (instr_.RvvVM() == 0) CHECK_NE(rvv_vd_reg(), 0); \
+  } while (0);
+
+#define VI_CHECK_STORE(elt_width, is_mask_ldst) \
+  reg_t veew = is_mask_ldst ? 1 : sizeof(elt_width##_t) * 8;
+// float vemul = is_mask_ldst ? 1 : ((float)veew / rvv_vsew() * P.VU.vflmul);
+// reg_t emul = vemul < 1 ? 1 : vemul;
+// require(vemul >= 0.125 && vemul <= 8);
+// require_align(rvv_rd(), vemul);
+// require((nf * emul) <= (NVPR / 4) && (rvv_rd() + nf * emul) <= NVPR);
+
+#define VI_CHECK_LOAD(elt_width, is_mask_ldst) \
+  VI_CHECK_STORE(elt_width, is_mask_ldst);     \
+  require_vm;
+
+/*vd + fn * emul*/
+#define RVV_VI_LD(stride, offset, elt_width, is_mask_ldst)                     \
+  const reg_t nf = rvv_nf() + 1;                                               \
+  const reg_t vl = is_mask_ldst ? ((rvv_vl() + 7) / 8) : rvv_vl();             \
+  const int64_t baseAddr = rs1();                                              \
+  for (reg_t i = 0; i < vl; ++i) {                                             \
+    VI_ELEMENT_SKIP(i);                                                        \
+    VI_STRIP(i);                                                               \
+    set_rvv_vstart(i);                                                         \
+    for (reg_t fn = 0; fn < nf; ++fn) {                                        \
+      auto val = ReadMem<elt_width##_t>(                                       \
+          baseAddr + (stride) + (offset) * sizeof(elt_width##_t),              \
+          instr_.instr());                                                     \
+      type_sew_t<sizeof(elt_width##_t)* 8>::type& vd =                         \
+          Rvvelt<type_sew_t<sizeof(elt_width##_t) * 8>::type>(rvv_vd_reg(),    \
+                                                              vreg_inx, true); \
+      vd = val;                                                                \
+    }                                                                          \
+  }                                                                            \
+  set_rvv_vstart(0);                                                           \
+  if (::v8::internal::FLAG_trace_sim) {                                        \
+    __int128_t value = Vregister_[rvv_vd_reg()];                               \
+    SNPrintF(trace_buf_, "0x%016" PRIx64 "%016" PRIx64 " <-- 0x%016" PRIx64,   \
+             *(reinterpret_cast<int64_t*>(&value) + 1),                        \
+             *reinterpret_cast<int64_t*>(&value),                              \
+             (uint64_t)(get_register(rs1_reg())));                             \
+  }
+
+#define RVV_VI_ST(stride, offset, elt_width, is_mask_ldst)                     \
+  const reg_t nf = rvv_nf() + 1;                                               \
+  const reg_t vl = is_mask_ldst ? ((rvv_vl() + 7) / 8) : rvv_vl();             \
+  const int64_t baseAddr = rs1();                                              \
+  for (reg_t i = 0; i < vl; ++i) {                                             \
+    VI_STRIP(i)                                                                \
+    VI_ELEMENT_SKIP(i);                                                        \
+    set_rvv_vstart(i);                                                         \
+    for (reg_t fn = 0; fn < nf; ++fn) {                                        \
+      elt_width##_t vs1 = Rvvelt<type_sew_t<sizeof(elt_width##_t) * 8>::type>( \
+          rvv_vs3_reg(), vreg_inx);                                            \
+      WriteMem(baseAddr + (stride) + (offset) * sizeof(elt_width##_t), vs1,    \
+               instr_.instr());                                                \
+    }                                                                          \
+  }                                                                            \
+  set_rvv_vstart(0);                                                           \
+  if (::v8::internal::FLAG_trace_sim) {                                        \
+    __int128_t value = Vregister_[rvv_vd_reg()];                               \
+    SNPrintF(trace_buf_, "0x%016" PRIx64 "%016" PRIx64 " --> 0x%016" PRIx64,   \
+             *(reinterpret_cast<int64_t*>(&value) + 1),                        \
+             *reinterpret_cast<int64_t*>(&value),                              \
+             (uint64_t)(get_register(rs1_reg())));                             \
+  }
 namespace v8 {
 namespace internal {
 
@@ -116,13 +654,14 @@ class RiscvDebugger {
   int64_t GetFPURegisterValue(int regnum);
   float GetFPURegisterValueFloat(int regnum);
   double GetFPURegisterValueDouble(int regnum);
+  __int128_t GetVRegisterValue(int regnum);
   bool GetValue(const char* desc, int64_t* value);
 };
 
-inline void UNSUPPORTED() {
-  printf("Sim: Unsupported instruction.\n");
+#define UNSUPPORTED()                                                     \
+  printf("Sim: Unsupported instruction. Func:%s Line:%d\n", __FUNCTION__, \
+         __LINE__);                                                       \
   base::OS::Abort();
-}
 
 int64_t RiscvDebugger::GetRegisterValue(int regnum) {
   if (regnum == kNumSimuRegisters) {
@@ -156,6 +695,14 @@ double RiscvDebugger::GetFPURegisterValueDouble(int regnum) {
   }
 }
 
+__int128_t RiscvDebugger::GetVRegisterValue(int regnum) {
+  if (regnum == kNumVRegisters) {
+    return sim_->get_pc();
+  } else {
+    return sim_->get_vregister(regnum);
+  }
+}
+
 bool RiscvDebugger::GetValue(const char* desc, int64_t* value) {
   int regnum = Registers::Number(desc);
   int fpuregnum = FPURegisters::Number(desc);
@@ -172,7 +719,6 @@ bool RiscvDebugger::GetValue(const char* desc, int64_t* value) {
   } else {
     return SScanF(desc, "%" SCNu64, reinterpret_cast<uint64_t*>(value)) == 1;
   }
-  return false;
 }
 
 #define REG_INFO(name)                             \
@@ -315,6 +861,7 @@ void RiscvDebugger::Debug() {
           } else {
             int regnum = Registers::Number(arg1);
             int fpuregnum = FPURegisters::Number(arg1);
+            int vregnum = VRegisters::Number(arg1);
 
             if (regnum != kInvalidRegister) {
               value = GetRegisterValue(regnum);
@@ -325,6 +872,11 @@ void RiscvDebugger::Debug() {
               dvalue = GetFPURegisterValueDouble(fpuregnum);
               PrintF("%3s: 0x%016" PRIx64 "  %16.4e\n",
                      FPURegisters::Name(fpuregnum), value, dvalue);
+            } else if (vregnum != kInvalidVRegister) {
+              __int128_t v = GetVRegisterValue(vregnum);
+              PrintF("\t%s:0x%016" PRIx64 "%016" PRIx64 "\n",
+                     VRegisters::Name(vregnum), (uint64_t)(v >> 64),
+                     (uint64_t)v);
             } else {
               PrintF("%s unrecognized\n", arg1);
             }
@@ -960,6 +1512,11 @@ double Simulator::get_fpu_register_double(int fpureg) const {
   return *bit_cast<double*>(&FPUregisters_[fpureg]);
 }
 
+__int128_t Simulator::get_vregister(int vreg) const {
+  DCHECK((vreg >= 0) && (vreg < kNumVRegisters));
+  return Vregister_[vreg];
+}
+
 // Runtime FP routines take up to two double arguments and zero
 // or one integer arguments. All are constructed here,
 // from fa0, fa1, and a0.
@@ -1301,6 +1858,9 @@ void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
 #endif
   T* ptr = reinterpret_cast<T*>(addr);
   TraceMemWr(addr, value);
+  // PrintF("Unaligned read at 0x%08" PRIx64 " , pc=0x%08" PRId64 "\n",
+  // (int64_t)ptr,
+  //        (int64_t)value);
   *ptr = value;
 }
 
@@ -1424,7 +1984,6 @@ void Simulator::SoftwareInterrupt() {
             break;
           default:
             UNREACHABLE();
-            break;
         }
       }
       switch (redirection->type()) {
@@ -1459,7 +2018,6 @@ void Simulator::SoftwareInterrupt() {
         }
         default:
           UNREACHABLE();
-          break;
       }
       if (::v8::internal::FLAG_trace_sim) {
         switch (redirection->type()) {
@@ -1473,7 +2031,6 @@ void Simulator::SoftwareInterrupt() {
             break;
           default:
             UNREACHABLE();
-            break;
         }
       }
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
@@ -2376,7 +2933,8 @@ void Simulator::DecodeRVRFPType() {
           break;
         }
         case 0b00001: {  // RO_FCVT_WU_S
-          set_rd(RoundF2IHelper<uint32_t>(original_val, instr_.RoundMode()));
+          set_rd(sext32(
+              RoundF2IHelper<uint32_t>(original_val, instr_.RoundMode())));
           break;
         }
 #ifdef V8_TARGET_ARCH_64_BIT
@@ -2416,7 +2974,6 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
-    // TODO(RISCV): Implement handling of NaN (quiet and signalling).
     case RO_FLE_S: {  // RO_FEQ_S RO_FLT_S RO_FLE_S
       switch (instr_.Funct3Value()) {
         case 0b010: {  // RO_FEQ_S
@@ -2624,7 +3181,6 @@ void Simulator::DecodeRVRFPType() {
     case (RO_FCLASS_D & kRFPTypeMask): {  // RO_FCLASS_D , 64D RO_FMV_X_D
       if (instr_.Rs2Value() != 0b00000) {
         UNSUPPORTED();
-        break;
       }
       switch (instr_.Funct3Value()) {
         case 0b001: {  // RO_FCLASS_D
@@ -2651,7 +3207,8 @@ void Simulator::DecodeRVRFPType() {
           break;
         }
         case 0b00001: {  // RO_FCVT_WU_D
-          set_rd(RoundF2IHelper<uint32_t>(original_val, instr_.RoundMode()));
+          set_rd(sext32(
+              RoundF2IHelper<uint32_t>(original_val, instr_.RoundMode())));
           break;
         }
 #ifdef V8_TARGET_ARCH_64_BIT
@@ -2823,6 +3380,117 @@ void Simulator::DecodeRVR4Type() {
     }
     default:
       UNSUPPORTED();
+  }
+}
+
+bool Simulator::DecodeRvvVL() {
+  uint32_t instr_temp =
+      instr_.InstructionBits() & (kRvvMopMask | kRvvNfMask | kBaseOpcodeMask);
+  if (RO_V_VL == instr_temp) {
+    if (!(instr_.InstructionBits() & (kRvvRs2Mask))) {
+      switch (instr_.vl_vs_width()) {
+        case 8: {
+          RVV_VI_LD(0, (i * nf + fn), int8, false);
+          break;
+        }
+        case 16: {
+          UNIMPLEMENTED_RISCV();
+          break;
+        }
+        default:
+          UNIMPLEMENTED_RISCV();
+          break;
+      }
+      return true;
+    } else {
+      UNIMPLEMENTED_RISCV();
+      return true;
+    }
+  } else if (RO_V_VLS == instr_temp) {
+    UNIMPLEMENTED_RISCV();
+    return true;
+  } else if (RO_V_VLX == instr_temp) {
+    UNIMPLEMENTED_RISCV();
+    return true;
+  } else if (RO_V_VLSEG2 == instr_temp || RO_V_VLSEG3 == instr_temp ||
+             RO_V_VLSEG4 == instr_temp || RO_V_VLSEG5 == instr_temp ||
+             RO_V_VLSEG6 == instr_temp || RO_V_VLSEG7 == instr_temp ||
+             RO_V_VLSEG8 == instr_temp) {
+    if (!(instr_.InstructionBits() & (kRvvRs2Mask))) {
+      UNIMPLEMENTED_RISCV();
+      return true;
+    } else {
+      UNIMPLEMENTED_RISCV();
+      return true;
+    }
+  } else if (RO_V_VLSSEG2 == instr_temp || RO_V_VLSSEG3 == instr_temp ||
+             RO_V_VLSSEG4 == instr_temp || RO_V_VLSSEG5 == instr_temp ||
+             RO_V_VLSSEG6 == instr_temp || RO_V_VLSSEG7 == instr_temp ||
+             RO_V_VLSSEG8 == instr_temp) {
+    UNIMPLEMENTED_RISCV();
+    return true;
+  } else if (RO_V_VLXSEG2 == instr_temp || RO_V_VLXSEG3 == instr_temp ||
+             RO_V_VLXSEG4 == instr_temp || RO_V_VLXSEG5 == instr_temp ||
+             RO_V_VLXSEG6 == instr_temp || RO_V_VLXSEG7 == instr_temp ||
+             RO_V_VLXSEG8 == instr_temp) {
+    UNIMPLEMENTED_RISCV();
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool Simulator::DecodeRvvVS() {
+  uint32_t instr_temp =
+      instr_.InstructionBits() & (kRvvMopMask | kRvvNfMask | kBaseOpcodeMask);
+  if (RO_V_VS == instr_temp) {
+    if (!(instr_.InstructionBits() & (kRvvRs2Mask))) {
+      switch (instr_.vl_vs_width()) {
+        case 8: {
+          RVV_VI_ST(0, (i * nf + fn), uint8, false);
+          break;
+        }
+        case 16: {
+          UNIMPLEMENTED_RISCV();
+          break;
+        }
+        default:
+          UNIMPLEMENTED_RISCV();
+          break;
+      }
+    } else {
+      UNIMPLEMENTED_RISCV();
+    }
+    return true;
+  } else if (RO_V_VSS == instr_temp) {
+    UNIMPLEMENTED_RISCV();
+    return true;
+  } else if (RO_V_VSX == instr_temp) {
+    UNIMPLEMENTED_RISCV();
+    return true;
+  } else if (RO_V_VSU == instr_temp) {
+    UNIMPLEMENTED_RISCV();
+    return true;
+  } else if (RO_V_VSSEG2 == instr_temp || RO_V_VSSEG3 == instr_temp ||
+             RO_V_VSSEG4 == instr_temp || RO_V_VSSEG5 == instr_temp ||
+             RO_V_VSSEG6 == instr_temp || RO_V_VSSEG7 == instr_temp ||
+             RO_V_VSSEG8 == instr_temp) {
+    UNIMPLEMENTED_RISCV();
+    return true;
+  } else if (RO_V_VSSSEG2 == instr_temp || RO_V_VSSSEG3 == instr_temp ||
+             RO_V_VSSSEG4 == instr_temp || RO_V_VSSSEG5 == instr_temp ||
+             RO_V_VSSSEG6 == instr_temp || RO_V_VSSSEG7 == instr_temp ||
+             RO_V_VSSSEG8 == instr_temp) {
+    UNIMPLEMENTED_RISCV();
+    return true;
+  } else if (RO_V_VSXSEG2 == instr_temp || RO_V_VSXSEG3 == instr_temp ||
+             RO_V_VSXSEG4 == instr_temp || RO_V_VSXSEG5 == instr_temp ||
+             RO_V_VSXSEG6 == instr_temp || RO_V_VSXSEG7 == instr_temp ||
+             RO_V_VSXSEG8 == instr_temp) {
+    UNIMPLEMENTED_RISCV();
+    return true;
+  } else {
+    return false;
   }
 }
 
@@ -3061,8 +3729,12 @@ void Simulator::DecodeRVIType() {
       TraceMemRd(addr, val, get_fpu_register(frd_reg()));
       break;
     }
-    default:
-      UNSUPPORTED();
+    default: {
+      if (!DecodeRvvVL()) {
+        UNSUPPORTED();
+      }
+      break;
+    }
   }
 }
 
@@ -3095,7 +3767,10 @@ void Simulator::DecodeRVSType() {
       break;
     }
     default:
-      UNSUPPORTED();
+      if (!DecodeRvvVS()) {
+        UNSUPPORTED();
+      }
+      break;
   }
 }
 
@@ -3403,6 +4078,794 @@ void Simulator::DecodeCBType() {
   }
 }
 
+/**
+ * RISCV-ISA-SIM
+ *
+ * @link      https://github.com/riscv/riscv-isa-sim/
+ * @copyright Copyright (c)  The Regents of the University of California
+ * @license   hhttps://github.com/riscv/riscv-isa-sim/blob/master/LICENSE
+ */
+// ref:  https://locklessinc.com/articles/sat_arithmetic/
+template <typename T, typename UT>
+static inline T sat_add(T x, T y, bool& sat) {
+  UT ux = x;
+  UT uy = y;
+  UT res = ux + uy;
+  sat = false;
+  int sh = sizeof(T) * 8 - 1;
+
+  /* Calculate overflowed result. (Don't change the sign bit of ux) */
+  ux = (ux >> sh) + (((UT)0x1 << sh) - 1);
+
+  /* Force compiler to use cmovns instruction */
+  if ((T)((ux ^ uy) | ~(uy ^ res)) >= 0) {
+    res = ux;
+    sat = true;
+  }
+
+  return res;
+}
+
+template <typename T, typename UT>
+static inline T sat_sub(T x, T y, bool& sat) {
+  UT ux = x;
+  UT uy = y;
+  UT res = ux - uy;
+  sat = false;
+  int sh = sizeof(T) * 8 - 1;
+
+  /* Calculate overflowed result. (Don't change the sign bit of ux) */
+  ux = (ux >> sh) + (((UT)0x1 << sh) - 1);
+
+  /* Force compiler to use cmovns instruction */
+  if ((T)((ux ^ uy) & (ux ^ res)) < 0) {
+    res = ux;
+    sat = true;
+  }
+
+  return res;
+}
+
+void Simulator::DecodeRvvIVV() {
+  DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVV);
+  switch (instr_.InstructionBits() & kVTypeMask) {
+    case RO_V_VADD_VV: {
+      RVV_VI_VV_LOOP({ vd = vs1 + vs2; });
+      break;
+    }
+    case RO_V_VSADD_VV: {
+      RVV_VI_GENERAL_LOOP_BASE
+      bool sat = false;
+      switch (rvv_vsew()) {
+        case E8: {
+          VV_PARAMS(8);
+          vd = sat_add<int8_t, uint8_t>(vs2, vs1, sat);
+          break;
+        }
+        case E16: {
+          VV_PARAMS(16);
+          vd = sat_add<int16_t, uint16_t>(vs2, vs1, sat);
+          break;
+        }
+        case E32: {
+          VV_PARAMS(32);
+          vd = sat_add<int32_t, uint32_t>(vs2, vs1, sat);
+          break;
+        }
+        default: {
+          VV_PARAMS(64);
+          vd = sat_add<int64_t, uint64_t>(vs2, vs1, sat);
+          break;
+        }
+      }
+      set_rvv_vxsat(sat);
+      RVV_VI_LOOP_END
+      break;
+    }
+    case RO_V_VSUB_VV: {
+      RVV_VI_VV_LOOP({ vd = vs2 - vs1; })
+      break;
+    }
+    case RO_V_VSSUB_VV: {
+      RVV_VI_GENERAL_LOOP_BASE
+      bool sat = false;
+      switch (rvv_vsew()) {
+        case E8: {
+          VV_PARAMS(8);
+          vd = sat_sub<int8_t, uint8_t>(vs2, vs1, sat);
+          break;
+        }
+        case E16: {
+          VV_PARAMS(16);
+          vd = sat_sub<int16_t, uint16_t>(vs2, vs1, sat);
+          break;
+        }
+        case E32: {
+          VV_PARAMS(32);
+          vd = sat_sub<int32_t, uint32_t>(vs2, vs1, sat);
+          break;
+        }
+        default: {
+          VV_PARAMS(64);
+          vd = sat_sub<int64_t, uint64_t>(vs2, vs1, sat);
+          break;
+        }
+      }
+      set_rvv_vxsat(sat);
+      RVV_VI_LOOP_END
+      break;
+    }
+    case RO_V_VAND_VV: {
+      RVV_VI_VV_LOOP({ vd = vs1 & vs2; })
+      break;
+    }
+    case RO_V_VOR_VV: {
+      RVV_VI_VV_LOOP({ vd = vs1 | vs2; })
+      break;
+    }
+    case RO_V_VXOR_VV: {
+      RVV_VI_VV_LOOP({ vd = vs1 ^ vs2; })
+      break;
+    }
+    case RO_V_VMAXU_VV: {
+      RVV_VI_VV_ULOOP({
+        if (vs1 <= vs2) {
+          vd = vs2;
+        } else {
+          vd = vs1;
+        }
+      })
+      break;
+    }
+    case RO_V_VMAX_VV: {
+      RVV_VI_VV_LOOP({
+        if (vs1 <= vs2) {
+          vd = vs2;
+        } else {
+          vd = vs1;
+        }
+      })
+      break;
+    }
+    case RO_V_VMINU_VV: {
+      RVV_VI_VV_ULOOP({
+        if (vs1 <= vs2) {
+          vd = vs1;
+        } else {
+          vd = vs2;
+        }
+      })
+      break;
+    }
+    case RO_V_VMIN_VV: {
+      RVV_VI_VV_LOOP({
+        if (vs1 <= vs2) {
+          vd = vs1;
+        } else {
+          vd = vs2;
+        }
+      })
+      break;
+    }
+    case RO_V_VMV_VV: {
+      if (instr_.RvvVM()) {
+        RVV_VI_VVXI_MERGE_LOOP({
+          vd = vs1;
+          USE(simm5);
+          USE(vs2);
+          USE(rs1);
+        });
+      } else {
+        RVV_VI_VVXI_MERGE_LOOP({
+          bool use_first = (Rvvelt<uint64_t>(0, (i / 64)) >> (i % 64)) & 0x1;
+          vd = use_first ? vs1 : vs2;
+          USE(simm5);
+          USE(rs1);
+        });
+      }
+      break;
+    }
+    case RO_V_VMSEQ_VV: {
+      RVV_VI_VV_LOOP_CMP({ res = vs1 == vs2; })
+      break;
+    }
+    case RO_V_VMSNE_VV: {
+      RVV_VI_VV_LOOP_CMP({ res = vs1 != vs2; })
+      break;
+    }
+    case RO_V_VMSLTU_VV: {
+      RVV_VI_VV_ULOOP_CMP({ res = vs2 < vs1; })
+      break;
+    }
+    case RO_V_VMSLT_VV: {
+      RVV_VI_VV_LOOP_CMP({ res = vs2 < vs1; })
+      break;
+    }
+    case RO_V_VMSLE_VV: {
+      RVV_VI_VV_LOOP_CMP({ res = vs2 <= vs1; })
+      break;
+    }
+    case RO_V_VMSLEU_VV: {
+      RVV_VI_VV_ULOOP_CMP({ res = vs2 <= vs1; })
+      break;
+    }
+    case RO_V_VADC_VV:
+      if (instr_.RvvVM()) {
+        RVV_VI_VV_LOOP_WITH_CARRY({
+          auto& v0 = Rvvelt<uint64_t>(0, midx);
+          vd = vs1 + vs2 + (v0 >> mpos) & 0x1;
+        })
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    case RO_V_VSLL_VV: {
+      RVV_VI_VV_LOOP({ vd = vs2 << vs1; })
+      break;
+    }
+    case RO_V_VRGATHER_VV: {
+      RVV_VI_GENERAL_LOOP_BASE
+      switch (rvv_vsew()) {
+        case E8: {
+          auto vs1 = Rvvelt<uint8_t>(rvv_vs1_reg(), i);
+          // if (i > 255) continue;
+          Rvvelt<uint8_t>(rvv_vd_reg(), i, true) =
+              vs1 >= rvv_vlmax() ? 0 : Rvvelt<uint8_t>(rvv_vs2_reg(), vs1);
+          break;
+        }
+        case E16: {
+          auto vs1 = Rvvelt<uint16_t>(rvv_vs1_reg(), i);
+          Rvvelt<uint16_t>(rvv_vd_reg(), i, true) =
+              vs1 >= rvv_vlmax() ? 0 : Rvvelt<uint16_t>(rvv_vs2_reg(), vs1);
+          break;
+        }
+        case E32: {
+          auto vs1 = Rvvelt<uint32_t>(rvv_vs1_reg(), i);
+          Rvvelt<uint32_t>(rvv_vd_reg(), i, true) =
+              vs1 >= rvv_vlmax() ? 0 : Rvvelt<uint32_t>(rvv_vs2_reg(), vs1);
+          break;
+        }
+        default: {
+          auto vs1 = Rvvelt<uint64_t>(rvv_vs1_reg(), i);
+          Rvvelt<uint64_t>(rvv_vd_reg(), i, true) =
+              vs1 >= rvv_vlmax() ? 0 : Rvvelt<uint64_t>(rvv_vs2_reg(), vs1);
+          break;
+        }
+      }
+      RVV_VI_LOOP_END;
+      break;
+    }
+    default:
+      // v8::base::EmbeddedVector<char, 256> buffer;
+      // SNPrintF(trace_buf_, " ");
+      // disasm::NameConverter converter;
+      // disasm::Disassembler dasm(converter);
+      // // Use a reasonably large buffer.
+      // dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));
+
+      // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
+      //        reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+      UNIMPLEMENTED_RISCV();
+      break;
+  }
+  set_rvv_vstart(0);
+}
+
+void Simulator::DecodeRvvIVI() {
+  DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVI);
+  switch (instr_.InstructionBits() & kVTypeMask) {
+    case RO_V_VADD_VI: {
+      RVV_VI_VI_LOOP({ vd = simm5 + vs2; })
+      break;
+    }
+    case RO_V_VSADD_VI: {
+      RVV_VI_GENERAL_LOOP_BASE
+      bool sat = false;
+      switch (rvv_vsew()) {
+        case E8: {
+          VI_PARAMS(8);
+          vd = sat_add<int8_t, uint8_t>(vs2, simm5, sat);
+          break;
+        }
+        case E16: {
+          VI_PARAMS(16);
+          vd = sat_add<int16_t, uint16_t>(vs2, simm5, sat);
+          break;
+        }
+        case E32: {
+          VI_PARAMS(32);
+          vd = sat_add<int32_t, uint32_t>(vs2, simm5, sat);
+          break;
+        }
+        default: {
+          VI_PARAMS(64);
+          vd = sat_add<int64_t, uint64_t>(vs2, simm5, sat);
+          break;
+        }
+      }
+      set_rvv_vxsat(sat);
+      RVV_VI_LOOP_END
+      break;
+    }
+    case RO_V_VRSUB_VI: {
+      RVV_VI_VI_LOOP({ vd = vs2 - simm5; })
+      break;
+    }
+    case RO_V_VAND_VI: {
+      RVV_VI_VI_LOOP({ vd = simm5 & vs2; })
+      break;
+    }
+    case RO_V_VOR_VI: {
+      RVV_VI_VI_LOOP({ vd = simm5 | vs2; })
+      break;
+    }
+    case RO_V_VXOR_VI: {
+      RVV_VI_VI_LOOP({ vd = simm5 ^ vs2; })
+      break;
+    }
+    case RO_V_VMV_VI:
+      if (instr_.RvvVM()) {
+        RVV_VI_VVXI_MERGE_LOOP({
+          vd = simm5;
+          USE(vs1);
+          USE(vs2);
+          USE(rs1);
+        });
+      } else {
+        RVV_VI_VVXI_MERGE_LOOP({
+          bool use_first = (Rvvelt<uint64_t>(0, (i / 64)) >> (i % 64)) & 0x1;
+          vd = use_first ? simm5 : vs2;
+          USE(vs1);
+          USE(rs1);
+        });
+      }
+      break;
+    case RO_V_VMSEQ_VI:
+      RVV_VI_VI_LOOP_CMP({ res = simm5 == vs2; })
+      break;
+    case RO_V_VMSNE_VI:
+      RVV_VI_VI_LOOP_CMP({ res = simm5 != vs2; })
+      break;
+    case RO_V_VMSLEU_VI:
+      RVV_VI_VI_ULOOP_CMP({ res = vs2 <= uimm5; })
+      break;
+    case RO_V_VMSLE_VI:
+      RVV_VI_VI_LOOP_CMP({ res = vs2 <= simm5; })
+      break;
+    case RO_V_VMSGT_VI:
+      RVV_VI_VI_LOOP_CMP({ res = vs2 > simm5; })
+      break;
+    case RO_V_VSLIDEDOWN_VI: {
+      const uint8_t sh = instr_.RvvUimm5();
+      RVV_VI_GENERAL_LOOP_BASE
+
+      reg_t offset = 0;
+      bool is_valid = (i + sh) < rvv_vlmax();
+
+      if (is_valid) {
+        offset = sh;
+      }
+
+      switch (rvv_sew()) {
+        case E8: {
+          VI_XI_SLIDEDOWN_PARAMS(8, offset);
+          vd = is_valid ? vs2 : 0;
+        } break;
+        case E16: {
+          VI_XI_SLIDEDOWN_PARAMS(16, offset);
+          vd = is_valid ? vs2 : 0;
+        } break;
+        case E32: {
+          VI_XI_SLIDEDOWN_PARAMS(32, offset);
+          vd = is_valid ? vs2 : 0;
+        } break;
+        default: {
+          VI_XI_SLIDEDOWN_PARAMS(64, offset);
+          vd = is_valid ? vs2 : 0;
+        } break;
+      }
+      RVV_VI_LOOP_END
+    } break;
+    case RO_V_VSRL_VI:
+      RVV_VI_VI_LOOP({ vd = vs2 >> simm5; })
+      break;
+    case RO_V_VSLL_VI:
+      RVV_VI_VI_LOOP({ vd = vs2 << simm5; })
+      break;
+    case RO_V_VADC_VI:
+      if (instr_.RvvVM()) {
+        RVV_VI_XI_LOOP_WITH_CARRY({
+          auto& v0 = Rvvelt<uint64_t>(0, midx);
+          vd = simm5 + vs2 + (v0 >> mpos) & 0x1;
+          USE(rs1);
+        })
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    default:
+      UNIMPLEMENTED_RISCV();
+      break;
+  }
+}
+
+void Simulator::DecodeRvvIVX() {
+  DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVX);
+  switch (instr_.InstructionBits() & kVTypeMask) {
+    case RO_V_VADD_VX: {
+      RVV_VI_VX_LOOP({ vd = rs1 + vs2; })
+      break;
+    }
+    case RO_V_VSADD_VX: {
+      RVV_VI_GENERAL_LOOP_BASE
+      bool sat = false;
+      switch (rvv_vsew()) {
+        case E8: {
+          VX_PARAMS(8);
+          vd = sat_add<int8_t, uint8_t>(vs2, rs1, sat);
+          break;
+        }
+        case E16: {
+          VX_PARAMS(16);
+          vd = sat_add<int16_t, uint16_t>(vs2, rs1, sat);
+          break;
+        }
+        case E32: {
+          VX_PARAMS(32);
+          vd = sat_add<int32_t, uint32_t>(vs2, rs1, sat);
+          break;
+        }
+        default: {
+          VX_PARAMS(64);
+          vd = sat_add<int64_t, uint64_t>(vs2, rs1, sat);
+          break;
+        }
+      }
+      set_rvv_vxsat(sat);
+      RVV_VI_LOOP_END
+      break;
+    }
+    case RO_V_VSUB_VX: {
+      RVV_VI_VX_LOOP({ vd = vs2 - rs1; })
+      break;
+    }
+    case RO_V_VSSUB_VX: {
+      RVV_VI_GENERAL_LOOP_BASE
+      bool sat = false;
+      switch (rvv_vsew()) {
+        case E8: {
+          VX_PARAMS(8);
+          vd = sat_sub<int8_t, uint8_t>(vs2, rs1, sat);
+          break;
+        }
+        case E16: {
+          VX_PARAMS(16);
+          vd = sat_sub<int16_t, uint16_t>(vs2, rs1, sat);
+          break;
+        }
+        case E32: {
+          VX_PARAMS(32);
+          vd = sat_sub<int32_t, uint32_t>(vs2, rs1, sat);
+          break;
+        }
+        default: {
+          VX_PARAMS(64);
+          vd = sat_sub<int64_t, uint64_t>(vs2, rs1, sat);
+          break;
+        }
+      }
+      set_rvv_vxsat(sat);
+      RVV_VI_LOOP_END
+      break;
+    }
+    case RO_V_VRSUB_VX: {
+      RVV_VI_VX_LOOP({ vd = rs1 - vs2; })
+      break;
+    }
+    case RO_V_VAND_VX: {
+      RVV_VI_VX_LOOP({ vd = rs1 & vs2; })
+      break;
+    }
+    case RO_V_VOR_VX: {
+      RVV_VI_VX_LOOP({ vd = rs1 | vs2; })
+      break;
+    }
+    case RO_V_VXOR_VX: {
+      RVV_VI_VX_LOOP({ vd = rs1 ^ vs2; })
+      break;
+    }
+    case RO_V_VMAX_VX: {
+      RVV_VI_VX_LOOP({
+        if (rs1 <= vs2) {
+          vd = vs2;
+        } else {
+          vd = rs1;
+        }
+      })
+      break;
+    }
+    case RO_V_VMAXU_VX: {
+      RVV_VI_VX_ULOOP({
+        if (rs1 <= vs2) {
+          vd = vs2;
+        } else {
+          vd = rs1;
+        }
+      })
+      break;
+    }
+    case RO_V_VMINU_VX: {
+      RVV_VI_VX_ULOOP({
+        if (rs1 <= vs2) {
+          vd = rs1;
+        } else {
+          vd = vs2;
+        }
+      })
+      break;
+    }
+    case RO_V_VMIN_VX: {
+      RVV_VI_VX_LOOP({
+        if (rs1 <= vs2) {
+          vd = rs1;
+        } else {
+          vd = vs2;
+        }
+      })
+      break;
+    }
+    case RO_V_VMV_VX:
+      if (instr_.RvvVM()) {
+        RVV_VI_VVXI_MERGE_LOOP({
+          vd = rs1;
+          USE(vs1);
+          USE(vs2);
+          USE(simm5);
+        });
+      } else {
+        RVV_VI_VVXI_MERGE_LOOP({
+          bool use_first = (Rvvelt<uint64_t>(0, (i / 64)) >> (i % 64)) & 0x1;
+          vd = use_first ? rs1 : vs2;
+          USE(vs1);
+          USE(simm5);
+        });
+      }
+      break;
+    case RO_V_VMSEQ_VX:
+      RVV_VI_VX_LOOP_CMP({ res = vs2 == rs1; })
+      break;
+    case RO_V_VMSNE_VX:
+      RVV_VI_VX_LOOP_CMP({ res = vs2 != rs1; })
+      break;
+    case RO_V_VMSLT_VX:
+      RVV_VI_VX_LOOP_CMP({ res = vs2 < rs1; })
+      break;
+    case RO_V_VMSLTU_VX:
+      RVV_VI_VX_ULOOP_CMP({ res = vs2 < rs1; })
+      break;
+    case RO_V_VMSLE_VX:
+      RVV_VI_VX_LOOP_CMP({ res = vs2 <= rs1; })
+      break;
+    case RO_V_VMSLEU_VX:
+      RVV_VI_VX_ULOOP_CMP({ res = vs2 <= rs1; })
+      break;
+    case RO_V_VMSGT_VX:
+      RVV_VI_VX_LOOP_CMP({ res = vs2 > rs1; })
+      break;
+    case RO_V_VMSGTU_VX:
+      RVV_VI_VX_ULOOP_CMP({ res = vs2 > rs1; })
+      break;
+    case RO_V_VSLIDEDOWN_VX:
+      UNIMPLEMENTED_RISCV();
+      break;
+    case RO_V_VADC_VX:
+      if (instr_.RvvVM()) {
+        RVV_VI_XI_LOOP_WITH_CARRY({
+          auto& v0 = Rvvelt<uint64_t>(0, midx);
+          vd = rs1 + vs2 + (v0 >> mpos) & 0x1;
+          USE(simm5);
+        })
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    case RO_V_VSLL_VX: {
+      RVV_VI_VX_LOOP({ vd = vs2 << rs1; })
+      break;
+    }
+    default:
+      UNIMPLEMENTED_RISCV();
+      break;
+  }
+}
+
+void Simulator::DecodeRvvMVV() {
+  DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVV);
+  switch (instr_.InstructionBits() & kVTypeMask) {
+    case RO_V_VWXUNARY0: {
+      if (rvv_vs1_reg() == 0) {
+        switch (rvv_vsew()) {
+          case E8:
+            set_rd(Rvvelt<type_sew_t<8>::type>(rvv_vs2_reg(), 0));
+            break;
+          case E16:
+            set_rd(Rvvelt<type_sew_t<16>::type>(rvv_vs2_reg(), 0));
+            break;
+          case E32:
+            set_rd(Rvvelt<type_sew_t<32>::type>(rvv_vs2_reg(), 0));
+            break;
+          case E64:
+            set_rd(Rvvelt<type_sew_t<64>::type>(rvv_vs2_reg(), 0));
+            break;
+          default:
+            UNREACHABLE();
+        }
+        set_rvv_vstart(0);
+        SNPrintF(trace_buf_, "0x%ld", get_register(rd_reg()));
+      } else {
+        v8::base::EmbeddedVector<char, 256> buffer;
+        disasm::NameConverter converter;
+        disasm::Disassembler dasm(converter);
+        dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));
+        PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
+               reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+        UNIMPLEMENTED_RISCV();
+      }
+    } break;
+    case RO_V_VREDMAXU:
+      RVV_VI_VV_ULOOP_REDUCTION(
+          { vd_0_res = (vd_0_res >= vs2) ? vd_0_res : vs2; })
+      break;
+    case RO_V_VREDMAX:
+      RVV_VI_VV_LOOP_REDUCTION(
+          { vd_0_res = (vd_0_res >= vs2) ? vd_0_res : vs2; })
+      break;
+    case RO_V_VREDMINU:
+      RVV_VI_VV_ULOOP_REDUCTION(
+          { vd_0_res = (vd_0_res <= vs2) ? vd_0_res : vs2; })
+      break;
+    case RO_V_VREDMIN:
+      RVV_VI_VV_LOOP_REDUCTION(
+          { vd_0_res = (vd_0_res <= vs2) ? vd_0_res : vs2; })
+      break;
+    default:
+      v8::base::EmbeddedVector<char, 256> buffer;
+      disasm::NameConverter converter;
+      disasm::Disassembler dasm(converter);
+      dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));
+      PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
+             reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+      UNIMPLEMENTED_RISCV();
+      break;
+  }
+}
+
+void Simulator::DecodeRvvMVX() {
+  DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVX);
+  switch (instr_.InstructionBits() & kVTypeMask) {
+    case RO_V_VRXUNARY0:
+      if (instr_.Vs2Value() == 0x0) {
+        if (rvv_vl() > 0 && rvv_vstart() < rvv_vl()) {
+          switch (rvv_vsew()) {
+            case E8:
+              Rvvelt<uint8_t>(rvv_vd_reg(), 0, true) =
+                  (uint8_t)get_register(rs1_reg());
+              break;
+            case E16:
+              Rvvelt<uint16_t>(rvv_vd_reg(), 0, true) =
+                  (uint16_t)get_register(rs1_reg());
+              break;
+            case E32:
+              Rvvelt<uint32_t>(rvv_vd_reg(), 0, true) =
+                  (uint32_t)get_register(rs1_reg());
+              break;
+            case E64:
+              Rvvelt<uint64_t>(rvv_vd_reg(), 0, true) =
+                  (uint64_t)get_register(rs1_reg());
+              break;
+            default:
+              UNREACHABLE();
+          }
+          // set_rvv_vl(0);
+        }
+        set_rvv_vstart(0);
+        rvv_trace_vd();
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    default:
+      v8::base::EmbeddedVector<char, 256> buffer;
+      disasm::NameConverter converter;
+      disasm::Disassembler dasm(converter);
+      dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));
+      PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
+             reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+      UNIMPLEMENTED_RISCV();
+      break;
+  }
+}
+
+void Simulator::DecodeVType() {
+  switch (instr_.InstructionBits() & (kFunct3Mask | kBaseOpcodeMask)) {
+    case OP_IVV:
+      DecodeRvvIVV();
+      return;
+    case OP_FVV:
+      UNIMPLEMENTED_RISCV();
+      return;
+    case OP_MVV:
+      DecodeRvvMVV();
+      return;
+    case OP_IVI:
+      DecodeRvvIVI();
+      return;
+    case OP_IVX:
+      DecodeRvvIVX();
+      return;
+    case OP_FVF:
+      UNIMPLEMENTED_RISCV();
+      return;
+    case OP_MVX:
+      DecodeRvvMVX();
+      return;
+  }
+  switch (instr_.InstructionBits() &
+          (kBaseOpcodeMask | kFunct3Mask | 0x80000000)) {
+    case RO_V_VSETVLI: {
+      uint64_t avl;
+      set_rvv_vtype(rvv_zimm());
+      if (rs1_reg() != zero_reg) {
+        avl = rs1();
+      } else if (rd_reg() != zero_reg) {
+        avl = ~0;
+      } else {
+        avl = rvv_vl();
+      }
+      avl = avl <= rvv_vlmax() ? avl : rvv_vlmax();
+      set_rvv_vl(avl);
+      set_rd(rvv_vl());
+      rvv_trace_status();
+      break;
+    }
+    case RO_V_VSETVL: {
+      if (!(instr_.InstructionBits() & 0x40000000)) {
+        uint64_t avl;
+        set_rvv_vtype(rs2());
+        if (rs1_reg() != zero_reg) {
+          avl = rs1();
+        } else if (rd_reg() != zero_reg) {
+          avl = ~0;
+        } else {
+          avl = rvv_vl();
+        }
+        avl = avl <= rvv_vlmax()
+                  ? avl
+                  : avl < (rvv_vlmax() * 2) ? avl / 2 : rvv_vlmax();
+        set_rvv_vl(avl);
+        set_rd(rvv_vl());
+        rvv_trace_status();
+      } else {
+        DCHECK_EQ(instr_.InstructionBits() &
+                      (kBaseOpcodeMask | kFunct3Mask | 0xC0000000),
+                  RO_V_VSETIVLI);
+        uint64_t avl;
+        set_rvv_vtype(rvv_zimm());
+        avl = instr_.Rvvuimm();
+        avl = avl <= rvv_vlmax()
+                  ? avl
+                  : avl < (rvv_vlmax() * 2) ? avl / 2 : rvv_vlmax();
+        set_rvv_vl(avl);
+        set_rd(rvv_vl());
+        rvv_trace_status();
+        break;
+      }
+      break;
+    }
+    default:
+      FATAL("Error: Unsupport on FILE:%s:%d.", __FILE__, __LINE__);
+  }
+}
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
   if (v8::internal::FLAG_check_icache) {
@@ -3473,6 +4936,9 @@ void Simulator::InstructionDecode(Instruction* instr) {
     case Instruction::kCSType:
       DecodeCSType();
       break;
+    case Instruction::kVType:
+      DecodeVType();
+      break;
     default:
       if (1) {
         std::cout << "Unrecognized instruction [@pc=0x" << std::hex
@@ -3483,7 +4949,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
 
   if (::v8::internal::FLAG_trace_sim) {
-    PrintF("  0x%012" PRIxPTR "      %-44s   %s\n",
+    PrintF("  0x%012" PRIxPTR "      %-44s\t%s\n",
            reinterpret_cast<intptr_t>(instr), buffer.begin(),
            trace_buf_.begin());
   }
@@ -3524,8 +4990,6 @@ void Simulator::CallInternal(Address entry) {
   set_register(ra, end_sim_pc);
 
   // Remember the values of callee-saved registers.
-  // The code below assumes that r9 is not used as sb (static base) in
-  // simulator code and therefore is regarded as a callee-saved register.
   int64_t s0_val = get_register(s0);
   int64_t s1_val = get_register(s1);
   int64_t s2_val = get_register(s2);
@@ -3534,9 +4998,12 @@ void Simulator::CallInternal(Address entry) {
   int64_t s5_val = get_register(s5);
   int64_t s6_val = get_register(s6);
   int64_t s7_val = get_register(s7);
+  int64_t s8_val = get_register(s8);
+  int64_t s9_val = get_register(s9);
+  int64_t s10_val = get_register(s10);
+  int64_t s11_val = get_register(s11);
   int64_t gp_val = get_register(gp);
   int64_t sp_val = get_register(sp);
-  int64_t fp_val = get_register(fp);
 
   // Set up the callee-saved registers with a known value. To be able to check
   // that they are preserved properly across JS execution.
@@ -3549,8 +5016,11 @@ void Simulator::CallInternal(Address entry) {
   set_register(s5, callee_saved_value);
   set_register(s6, callee_saved_value);
   set_register(s7, callee_saved_value);
+  set_register(s8, callee_saved_value);
+  set_register(s9, callee_saved_value);
+  set_register(s10, callee_saved_value);
+  set_register(s11, callee_saved_value);
   set_register(gp, callee_saved_value);
-  set_register(fp, callee_saved_value);
 
   // Start the simulation.
   Execute();
@@ -3564,8 +5034,11 @@ void Simulator::CallInternal(Address entry) {
   CHECK_EQ(callee_saved_value, get_register(s5));
   CHECK_EQ(callee_saved_value, get_register(s6));
   CHECK_EQ(callee_saved_value, get_register(s7));
+  CHECK_EQ(callee_saved_value, get_register(s8));
+  CHECK_EQ(callee_saved_value, get_register(s9));
+  CHECK_EQ(callee_saved_value, get_register(s10));
+  CHECK_EQ(callee_saved_value, get_register(s11));
   CHECK_EQ(callee_saved_value, get_register(gp));
-  CHECK_EQ(callee_saved_value, get_register(fp));
 
   // Restore callee-saved registers with the original value.
   set_register(s0, s0_val);
@@ -3576,9 +5049,12 @@ void Simulator::CallInternal(Address entry) {
   set_register(s5, s5_val);
   set_register(s6, s6_val);
   set_register(s7, s7_val);
+  set_register(s8, s8_val);
+  set_register(s9, s9_val);
+  set_register(s10, s10_val);
+  set_register(s11, s11_val);
   set_register(gp, gp_val);
   set_register(sp, sp_val);
-  set_register(fp, fp_val);
 }
 
 intptr_t Simulator::CallImpl(Address entry, int argument_count,
@@ -3586,15 +5062,12 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   constexpr int kRegisterPassedArguments = 8;
   // Set up arguments.
 
-  // First four arguments passed in registers in both ABI's.
+  // RISC-V 64G ISA has a0-a7 for passing arguments
   int reg_arg_count = std::min(kRegisterPassedArguments, argument_count);
   if (reg_arg_count > 0) set_register(a0, arguments[0]);
   if (reg_arg_count > 1) set_register(a1, arguments[1]);
   if (reg_arg_count > 2) set_register(a2, arguments[2]);
   if (reg_arg_count > 3) set_register(a3, arguments[3]);
-
-  // Up to eight arguments passed in registers in N64 ABI.
-  // TODO(plind): N64 ABI calls these regs a4 - a7. Clarify this.
   if (reg_arg_count > 4) set_register(a4, arguments[4]);
   if (reg_arg_count > 5) set_register(a5, arguments[5]);
   if (reg_arg_count > 6) set_register(a6, arguments[6]);
@@ -3602,12 +5075,13 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
 
   if (::v8::internal::FLAG_trace_sim) {
     std::cout << "CallImpl: reg_arg_count = " << reg_arg_count << std::hex
-              << " entry-pc (JSEntry) = 0x" << entry << " a0 (Isolate) = 0x"
-              << get_register(a0) << " a1 (orig_func/new_target) = 0x"
-              << get_register(a1) << " a2 (func/target) = 0x"
-              << get_register(a2) << " a3 (receiver) = 0x" << get_register(a3)
-              << " a4 (argc) = 0x" << get_register(a4) << " a5 (argv) = 0x"
-              << get_register(a5) << std::endl;
+              << " entry-pc (JSEntry) = 0x" << entry
+              << " a0 (Isolate-root) = 0x" << get_register(a0)
+              << " a1 (orig_func/new_target) = 0x" << get_register(a1)
+              << " a2 (func/target) = 0x" << get_register(a2)
+              << " a3 (receiver) = 0x" << get_register(a3) << " a4 (argc) = 0x"
+              << get_register(a4) << " a5 (argv) = 0x" << get_register(a5)
+              << std::endl;
   }
 
   // Remaining arguments passed on stack.

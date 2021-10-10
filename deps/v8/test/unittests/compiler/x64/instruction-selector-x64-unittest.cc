@@ -1579,7 +1579,7 @@ TEST_F(InstructionSelectorTest, Float32Abs) {
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kSSEFloat32Abs, s[0]->arch_opcode());
+    EXPECT_EQ(kX64Float32Abs, s[0]->arch_opcode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
@@ -1594,7 +1594,7 @@ TEST_F(InstructionSelectorTest, Float32Abs) {
     m.Return(n);
     Stream s = m.Build(AVX);
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kAVXFloat32Abs, s[0]->arch_opcode());
+    EXPECT_EQ(kX64Float32Abs, s[0]->arch_opcode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
@@ -1612,7 +1612,7 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kSSEFloat64Abs, s[0]->arch_opcode());
+    EXPECT_EQ(kX64Float64Abs, s[0]->arch_opcode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
@@ -1627,7 +1627,7 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
     m.Return(n);
     Stream s = m.Build(AVX);
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kAVXFloat64Abs, s[0]->arch_opcode());
+    EXPECT_EQ(kX64Float64Abs, s[0]->arch_opcode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());

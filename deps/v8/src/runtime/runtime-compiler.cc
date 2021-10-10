@@ -83,13 +83,13 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
-  DCHECK(sfi->HasBaselineData());
+  DCHECK(sfi->HasBaselineCode());
   IsCompiledScope is_compiled_scope(*sfi, isolate);
   DCHECK(!function->HasAvailableOptimizedCode());
   DCHECK(!function->HasOptimizationMarker());
   DCHECK(!function->has_feedback_vector());
   JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
-  Code baseline_code = sfi->baseline_data().baseline_code();
+  Code baseline_code = sfi->baseline_code(kAcquireLoad);
   function->set_code(baseline_code);
   return baseline_code;
 }

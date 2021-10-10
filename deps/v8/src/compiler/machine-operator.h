@@ -8,6 +8,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/enum-set.h"
 #include "src/base/flags.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/write-barrier-kind.h"
@@ -48,6 +49,32 @@ class OptionalOperator final {
 using LoadRepresentation = MachineType;
 
 V8_EXPORT_PRIVATE LoadRepresentation LoadRepresentationOf(Operator const*)
+    V8_WARN_UNUSED_RESULT;
+
+// A Word(32|64)AtomicLoad needs both a LoadRepresentation and a memory
+// order.
+class AtomicLoadParameters final {
+ public:
+  AtomicLoadParameters(LoadRepresentation representation,
+                       AtomicMemoryOrder order)
+      : representation_(representation), order_(order) {}
+
+  LoadRepresentation representation() const { return representation_; }
+  AtomicMemoryOrder order() const { return order_; }
+
+ private:
+  LoadRepresentation representation_;
+  AtomicMemoryOrder order_;
+};
+
+V8_EXPORT_PRIVATE bool operator==(AtomicLoadParameters, AtomicLoadParameters);
+bool operator!=(AtomicLoadParameters, AtomicLoadParameters);
+
+size_t hash_value(AtomicLoadParameters);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, AtomicLoadParameters);
+
+V8_EXPORT_PRIVATE AtomicLoadParameters AtomicLoadParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
 enum class MemoryAccessKind {
@@ -131,6 +158,43 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, StoreRepresentation);
 V8_EXPORT_PRIVATE StoreRepresentation const& StoreRepresentationOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
+// A Word(32|64)AtomicStore needs both a StoreRepresentation and a memory order.
+class AtomicStoreParameters final {
+ public:
+  AtomicStoreParameters(MachineRepresentation representation,
+                        WriteBarrierKind write_barrier_kind,
+                        AtomicMemoryOrder order)
+      : store_representation_(representation, write_barrier_kind),
+        order_(order) {}
+
+  MachineRepresentation representation() const {
+    return store_representation_.representation();
+  }
+  WriteBarrierKind write_barrier_kind() const {
+    return store_representation_.write_barrier_kind();
+  }
+  AtomicMemoryOrder order() const { return order_; }
+
+  StoreRepresentation store_representation() const {
+    return store_representation_;
+  }
+
+ private:
+  StoreRepresentation store_representation_;
+  AtomicMemoryOrder order_;
+};
+
+V8_EXPORT_PRIVATE bool operator==(AtomicStoreParameters, AtomicStoreParameters);
+bool operator!=(AtomicStoreParameters, AtomicStoreParameters);
+
+size_t hash_value(AtomicStoreParameters);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           AtomicStoreParameters);
+
+V8_EXPORT_PRIVATE AtomicStoreParameters const& AtomicStoreParametersOf(
+    Operator const*) V8_WARN_UNUSED_RESULT;
+
 // An UnalignedStore needs a MachineType.
 using UnalignedStoreRepresentation = MachineRepresentation;
 
@@ -172,9 +236,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
 
 V8_EXPORT_PRIVATE StackSlotRepresentation const& StackSlotRepresentationOf(
     Operator const* op) V8_WARN_UNUSED_RESULT;
-
-MachineRepresentation AtomicStoreRepresentationOf(Operator const* op)
-    V8_WARN_UNUSED_RESULT;
 
 MachineType AtomicOpType(Operator const* op) V8_WARN_UNUSED_RESULT;
 
@@ -852,7 +913,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
   const Operator* LoadImmutable(LoadRepresentation rep);
-  const Operator* PoisonedLoad(LoadRepresentation rep);
   const Operator* ProtectedLoad(LoadRepresentation rep);
 
   const Operator* LoadTransform(MemoryAccessKind kind,
@@ -879,11 +939,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* StackSlot(int size, int alignment = 0);
   const Operator* StackSlot(MachineRepresentation rep, int alignment = 0);
 
-  // Destroy value by masking when misspeculating.
-  const Operator* TaggedPoisonOnSpeculation();
-  const Operator* Word32PoisonOnSpeculation();
-  const Operator* Word64PoisonOnSpeculation();
-
   // Access to the machine stack.
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
@@ -901,13 +956,13 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* MemBarrier();
 
   // atomic-load [base + index]
-  const Operator* Word32AtomicLoad(LoadRepresentation rep);
+  const Operator* Word32AtomicLoad(AtomicLoadParameters params);
   // atomic-load [base + index]
-  const Operator* Word64AtomicLoad(LoadRepresentation rep);
+  const Operator* Word64AtomicLoad(AtomicLoadParameters params);
   // atomic-store [base + index], value
-  const Operator* Word32AtomicStore(MachineRepresentation rep);
+  const Operator* Word32AtomicStore(AtomicStoreParameters params);
   // atomic-store [base + index], value
-  const Operator* Word64AtomicStore(MachineRepresentation rep);
+  const Operator* Word64AtomicStore(AtomicStoreParameters params);
   // atomic-exchange [base + index], value
   const Operator* Word32AtomicExchange(MachineType type);
   // atomic-exchange [base + index], value
@@ -937,9 +992,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // atomic-xor [base + index], value
   const Operator* Word64AtomicXor(MachineType type);
   // atomic-pair-load [base + index]
-  const Operator* Word32AtomicPairLoad();
+  const Operator* Word32AtomicPairLoad(AtomicMemoryOrder order);
   // atomic-pair-sub [base + index], value_high, value-low
-  const Operator* Word32AtomicPairStore();
+  const Operator* Word32AtomicPairStore(AtomicMemoryOrder order);
   // atomic-pair-add [base + index], value_high, value_low
   const Operator* Word32AtomicPairAdd();
   // atomic-pair-sub [base + index], value_high, value-low
@@ -980,7 +1035,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   V(Word, Ror)                 \
   V(Word, Clz)                 \
   V(Word, Equal)               \
-  V(Word, PoisonOnSpeculation) \
   V(Int, Add)                  \
   V(Int, Sub)                  \
   V(Int, Mul)                  \

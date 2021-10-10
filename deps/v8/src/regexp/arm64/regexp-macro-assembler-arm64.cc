@@ -185,7 +185,6 @@ void RegExpMacroAssemblerARM64::AdvanceRegister(int reg, int by) {
       }
       default:
         UNREACHABLE();
-        break;
     }
   }
 }

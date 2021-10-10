@@ -16,12 +16,14 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-array-tq.inc"
+
 // The JSArray describes JavaScript Arrays
 //  Such an array can be in one of two modes:
 //    - fast, backing storage is a FixedArray and length <= elements.length();
 //       Please note: push and pop can be used to grow and shrink the array.
 //    - slow, backing storage is a HashTable with numbers as keys.
-class JSArray : public JSObject {
+class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
  public:
   // [length]: The length property.
   DECL_ACCESSORS(length, Object)
@@ -109,17 +111,12 @@ class JSArray : public JSObject {
   // to Proxies and objects with a hidden prototype.
   inline bool HasArrayPrototype(Isolate* isolate);
 
-  DECL_CAST(JSArray)
-
   // Dispatched behavior.
   DECL_PRINTER(JSArray)
   DECL_VERIFIER(JSArray)
 
   // Number of element slots to pre-allocate for an empty array.
   static const int kPreallocatedArrayElements = 4;
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JS_ARRAY_FIELDS)
 
   static const int kLengthDescriptorIndex = 0;
 
@@ -144,7 +141,7 @@ class JSArray : public JSObject {
        AllocationMemento::kSize) >>
       kDoubleSizeLog2;
 
-  OBJECT_CONSTRUCTORS(JSArray, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSArray)
 };
 
 Handle<Object> CacheInitialJSArrayMaps(Isolate* isolate,
@@ -153,52 +150,20 @@ Handle<Object> CacheInitialJSArrayMaps(Isolate* isolate,
 
 // The JSArrayIterator describes JavaScript Array Iterators Objects, as
 // defined in ES section #sec-array-iterator-objects.
-class JSArrayIterator : public JSObject {
+class JSArrayIterator
+    : public TorqueGeneratedJSArrayIterator<JSArrayIterator, JSObject> {
  public:
   DECL_PRINTER(JSArrayIterator)
   DECL_VERIFIER(JSArrayIterator)
-
-  DECL_CAST(JSArrayIterator)
-
-  // [iterated_object]: the [[IteratedObject]] inobject property.
-  DECL_ACCESSORS(iterated_object, Object)
-
-  // [next_index]: The [[ArrayIteratorNextIndex]] inobject property.
-  // The next_index is always a positive integer, and it points to
-  // the next index that is to be returned by this iterator. It's
-  // possible range is fixed depending on the [[iterated_object]]:
-  //
-  //   1. For JSArray's the next_index is always in Unsigned32
-  //      range, and when the iterator reaches the end it's set
-  //      to kMaxUInt32 to indicate that this iterator should
-  //      never produce values anymore even if the "length"
-  //      property of the JSArray changes at some later point.
-  //   2. For JSTypedArray's the next_index is always in
-  //      UnsignedSmall range, and when the iterator terminates
-  //      it's set to Smi::kMaxValue.
-  //   3. For all other JSReceiver's it's always between 0 and
-  //      kMaxSafeInteger, and the latter value is used to mark
-  //      termination.
-  //
-  // It's important that for 1. and 2. the value fits into the
-  // Unsigned32 range (UnsignedSmall is a subset of Unsigned32),
-  // since we use this knowledge in the fast-path for the array
-  // iterator next calls in TurboFan (in the JSCallReducer) to
-  // keep the index in Word32 representation. This invariant is
-  // checked in JSArrayIterator::JSArrayIteratorVerify().
-  DECL_ACCESSORS(next_index, Object)
 
   // [kind]: the [[ArrayIterationKind]] inobject property.
   inline IterationKind kind() const;
   inline void set_kind(IterationKind kind);
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JS_ARRAY_ITERATOR_FIELDS)
-
  private:
   DECL_INT_ACCESSORS(raw_kind)
 
-  OBJECT_CONSTRUCTORS(JSArrayIterator, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSArrayIterator)
 };
 
 }  // namespace internal

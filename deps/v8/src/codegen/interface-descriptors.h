@@ -111,8 +111,8 @@ namespace internal {
   V(StringAt)                            \
   V(StringAtAsString)                    \
   V(StringSubstring)                     \
-  IF_TSAN(V, TSANRelaxedStore)           \
-  IF_TSAN(V, TSANRelaxedLoad)            \
+  IF_TSAN(V, TSANStore)                  \
+  IF_TSAN(V, TSANLoad)                   \
   V(TypeConversion)                      \
   V(TypeConversionNoContext)             \
   V(TypeConversion_Baseline)             \
@@ -1053,26 +1053,26 @@ class WriteBarrierDescriptor final
 };
 
 #ifdef V8_IS_TSAN
-class TSANRelaxedStoreDescriptor final
-    : public StaticCallInterfaceDescriptor<TSANRelaxedStoreDescriptor> {
+class TSANStoreDescriptor final
+    : public StaticCallInterfaceDescriptor<TSANStoreDescriptor> {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kValue)
   DEFINE_PARAMETER_TYPES(MachineType::Pointer(),    // kAddress
                          MachineType::AnyTagged())  // kValue
 
-  DECLARE_DESCRIPTOR(TSANRelaxedStoreDescriptor)
+  DECLARE_DESCRIPTOR(TSANStoreDescriptor)
 
   static constexpr auto registers();
   static constexpr bool kRestrictAllocatableRegisters = true;
 };
 
-class TSANRelaxedLoadDescriptor final
-    : public StaticCallInterfaceDescriptor<TSANRelaxedLoadDescriptor> {
+class TSANLoadDescriptor final
+    : public StaticCallInterfaceDescriptor<TSANLoadDescriptor> {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kAddress)
   DEFINE_PARAMETER_TYPES(MachineType::Pointer())  // kAddress
 
-  DECLARE_DESCRIPTOR(TSANRelaxedLoadDescriptor)
+  DECLARE_DESCRIPTOR(TSANLoadDescriptor)
 
   static constexpr auto registers();
   static constexpr bool kRestrictAllocatableRegisters = true;

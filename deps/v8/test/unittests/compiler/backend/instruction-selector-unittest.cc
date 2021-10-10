@@ -50,8 +50,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       InstructionSelector::kEnableSwitchJumpTable, &tick_counter, nullptr,
       &max_unoptimized_frame_height, &max_pushed_argument_count,
       source_position_mode, features, InstructionSelector::kDisableScheduling,
-      InstructionSelector::kEnableRootsRelativeAddressing,
-      PoisoningMitigationLevel::kPoisonAll);
+      InstructionSelector::kEnableRootsRelativeAddressing);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     StdoutStream{} << "=== Code sequence after instruction selection ==="
@@ -452,7 +451,6 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   EXPECT_EQ(kArchCallCodeObject, call_instr->arch_opcode());
   size_t num_operands =
       1 +  // Code object.
-      1 +  // Poison index
       6 +  // Frame state deopt id + one input for each value in frame state.
       1 +  // Function.
       1;   // Context.
@@ -462,23 +460,23 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   EXPECT_TRUE(call_instr->InputAt(0)->IsImmediate());
 
   // Deoptimization id.
-  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(2));
+  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(1));
   FrameStateDescriptor* desc_before =
       s.GetFrameStateDescriptor(deopt_id_before);
   EXPECT_EQ(bailout_id_before, desc_before->bailout_id());
   EXPECT_EQ(1u, desc_before->parameters_count());
   EXPECT_EQ(1u, desc_before->locals_count());
   EXPECT_EQ(1u, desc_before->stack_count());
-  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(4)));
-  EXPECT_EQ(0, s.ToInt32(call_instr->InputAt(5)));  // This should be a context.
+  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(3)));
+  EXPECT_EQ(0, s.ToInt32(call_instr->InputAt(4)));  // This should be a context.
                                                     // We inserted 0 here.
-  EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(6)));
-  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(7))->IsUndefined(isolate()));
+  EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(5)));
+  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(6))->IsUndefined(isolate()));
 
   // Function.
-  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(8)));
+  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(7)));
   // Context.
-  EXPECT_EQ(s.ToVreg(context), s.ToVreg(call_instr->InputAt(9)));
+  EXPECT_EQ(s.ToVreg(context), s.ToVreg(call_instr->InputAt(8)));
 
   EXPECT_EQ(kArchRet, s[index++]->arch_opcode());
 
@@ -559,7 +557,6 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_EQ(kArchCallCodeObject, call_instr->arch_opcode());
   size_t num_operands =
       1 +  // Code object.
-      1 +  // Poison index.
       1 +  // Frame state deopt id
       5 +  // One input for each value in frame state + context.
       5 +  // One input for each value in the parent frame state + context.
@@ -570,7 +567,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_TRUE(call_instr->InputAt(0)->IsImmediate());
 
   // Deoptimization id.
-  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(2));
+  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(1));
   FrameStateDescriptor* desc_before =
       s.GetFrameStateDescriptor(deopt_id_before);
   FrameStateDescriptor* desc_before_outer = desc_before->outer_state();
@@ -579,24 +576,24 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_EQ(1u, desc_before_outer->locals_count());
   EXPECT_EQ(1u, desc_before_outer->stack_count());
   // Values from parent environment.
-  EXPECT_EQ(63, s.ToInt32(call_instr->InputAt(4)));
+  EXPECT_EQ(63, s.ToInt32(call_instr->InputAt(3)));
   // Context:
-  EXPECT_EQ(66, s.ToInt32(call_instr->InputAt(5)));
-  EXPECT_EQ(64, s.ToInt32(call_instr->InputAt(6)));
-  EXPECT_EQ(65, s.ToInt32(call_instr->InputAt(7)));
+  EXPECT_EQ(66, s.ToInt32(call_instr->InputAt(4)));
+  EXPECT_EQ(64, s.ToInt32(call_instr->InputAt(5)));
+  EXPECT_EQ(65, s.ToInt32(call_instr->InputAt(6)));
   // Values from the nested frame.
   EXPECT_EQ(1u, desc_before->parameters_count());
   EXPECT_EQ(1u, desc_before->locals_count());
   EXPECT_EQ(1u, desc_before->stack_count());
-  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(9)));
-  EXPECT_EQ(46, s.ToInt32(call_instr->InputAt(10)));
-  EXPECT_EQ(0.25, s.ToFloat64(call_instr->InputAt(11)));
-  EXPECT_EQ(44, s.ToInt32(call_instr->InputAt(12)));
+  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(8)));
+  EXPECT_EQ(46, s.ToInt32(call_instr->InputAt(9)));
+  EXPECT_EQ(0.25, s.ToFloat64(call_instr->InputAt(10)));
+  EXPECT_EQ(44, s.ToInt32(call_instr->InputAt(11)));
 
   // Function.
-  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(13)));
+  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(12)));
   // Context.
-  EXPECT_EQ(s.ToVreg(context2), s.ToVreg(call_instr->InputAt(14)));
+  EXPECT_EQ(s.ToVreg(context2), s.ToVreg(call_instr->InputAt(13)));
   // Continuation.
 
   EXPECT_EQ(kArchRet, s[index++]->arch_opcode());

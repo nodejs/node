@@ -31,6 +31,12 @@
 #include "src/strings/string-builder-inl.h"
 #include "src/utils/ostreams.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+// TODO(jkummerow): Drop this when the "SaveAndClearThreadInWasmFlag"
+// short-term mitigation is no longer needed.
+#include "src/trap-handler/trap-handler.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 
@@ -418,6 +424,34 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromCode) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+
+#if V8_ENABLE_WEBASSEMBLY
+class SaveAndClearThreadInWasmFlag {
+ public:
+  SaveAndClearThreadInWasmFlag() {
+    if (trap_handler::IsTrapHandlerEnabled()) {
+      if (trap_handler::IsThreadInWasm()) {
+        thread_was_in_wasm_ = true;
+        trap_handler::ClearThreadInWasm();
+      }
+    }
+  }
+  ~SaveAndClearThreadInWasmFlag() {
+    if (thread_was_in_wasm_) {
+      trap_handler::SetThreadInWasm();
+    }
+  }
+
+ private:
+  bool thread_was_in_wasm_{false};
+};
+#else
+class SaveAndClearThreadInWasmFlag {};
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -433,6 +467,14 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   if (!allow_large_object_allocation) {
     CHECK(size <= kMaxRegularHeapObjectSize);
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  // Short-term mitigation for crbug.com/1236668. When this is called from
+  // WasmGC code, clear the "thread in wasm" flag, which is important in case
+  // any GC needs to happen.
+  // TODO(jkummerow): Find a better fix, likely by replacing the global flag.
+  SaveAndClearThreadInWasmFlag clear_wasm_flag;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // TODO(v8:9472): Until double-aligned allocation is fixed for new-space
   // allocations, don't request it.

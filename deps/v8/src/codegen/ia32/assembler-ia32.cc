@@ -291,6 +291,8 @@ Register Operand::reg() const {
   return Register::from_code(buf_[0] & 0x07);
 }
 
+bool operator!=(Operand op, XMMRegister r) { return !op.is_reg(r); }
+
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
@@ -686,6 +688,14 @@ void Assembler::movq(XMMRegister dst, Operand src) {
   EMIT(0x0F);
   EMIT(0x7E);
   emit_operand(dst, src);
+}
+
+void Assembler::movq(Operand dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xD6);
+  emit_operand(src, dst);
 }
 
 void Assembler::cmov(Condition cc, Register dst, Operand src) {

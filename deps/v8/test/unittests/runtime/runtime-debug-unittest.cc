@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8.h"
+#include "include/v8-exception.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-object.h"
+#include "include/v8-template.h"
 #include "src/api/api.h"
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime.h"

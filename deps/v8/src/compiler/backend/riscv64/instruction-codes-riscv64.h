@@ -355,7 +355,7 @@ namespace compiler {
   V(RiscvS8x16PackOdd)                      \
   V(RiscvS8x16InterleaveEven)               \
   V(RiscvS8x16InterleaveOdd)                \
-  V(RiscvS8x16Shuffle)                      \
+  V(RiscvI8x16Shuffle)                      \
   V(RiscvI8x16Swizzle)                      \
   V(RiscvS8x16Concat)                       \
   V(RiscvS8x8Reverse)                       \
@@ -373,8 +373,8 @@ namespace compiler {
   V(RiscvS128Load32x2U)                     \
   V(RiscvS128LoadLane)                      \
   V(RiscvS128StoreLane)                     \
-  V(RiscvMsaLd)                             \
-  V(RiscvMsaSt)                             \
+  V(RiscvRvvLd)                             \
+  V(RiscvRvvSt)                             \
   V(RiscvI32x4SConvertI16x8Low)             \
   V(RiscvI32x4SConvertI16x8High)            \
   V(RiscvI32x4UConvertI16x8Low)             \
@@ -387,41 +387,14 @@ namespace compiler {
   V(RiscvI16x8UConvertI8x16High)            \
   V(RiscvI8x16SConvertI16x8)                \
   V(RiscvI8x16UConvertI16x8)                \
-  V(RiscvWord64AtomicLoadUint8)             \
-  V(RiscvWord64AtomicLoadUint16)            \
-  V(RiscvWord64AtomicLoadUint32)            \
   V(RiscvWord64AtomicLoadUint64)            \
-  V(RiscvWord64AtomicStoreWord8)            \
-  V(RiscvWord64AtomicStoreWord16)           \
-  V(RiscvWord64AtomicStoreWord32)           \
   V(RiscvWord64AtomicStoreWord64)           \
-  V(RiscvWord64AtomicAddUint8)              \
-  V(RiscvWord64AtomicAddUint16)             \
-  V(RiscvWord64AtomicAddUint32)             \
   V(RiscvWord64AtomicAddUint64)             \
-  V(RiscvWord64AtomicSubUint8)              \
-  V(RiscvWord64AtomicSubUint16)             \
-  V(RiscvWord64AtomicSubUint32)             \
   V(RiscvWord64AtomicSubUint64)             \
-  V(RiscvWord64AtomicAndUint8)              \
-  V(RiscvWord64AtomicAndUint16)             \
-  V(RiscvWord64AtomicAndUint32)             \
   V(RiscvWord64AtomicAndUint64)             \
-  V(RiscvWord64AtomicOrUint8)               \
-  V(RiscvWord64AtomicOrUint16)              \
-  V(RiscvWord64AtomicOrUint32)              \
   V(RiscvWord64AtomicOrUint64)              \
-  V(RiscvWord64AtomicXorUint8)              \
-  V(RiscvWord64AtomicXorUint16)             \
-  V(RiscvWord64AtomicXorUint32)             \
   V(RiscvWord64AtomicXorUint64)             \
-  V(RiscvWord64AtomicExchangeUint8)         \
-  V(RiscvWord64AtomicExchangeUint16)        \
-  V(RiscvWord64AtomicExchangeUint32)        \
   V(RiscvWord64AtomicExchangeUint64)        \
-  V(RiscvWord64AtomicCompareExchangeUint8)  \
-  V(RiscvWord64AtomicCompareExchangeUint16) \
-  V(RiscvWord64AtomicCompareExchangeUint32) \
   V(RiscvWord64AtomicCompareExchangeUint64) \
   V(RiscvStoreCompressTagged)               \
   V(RiscvLoadDecompressTaggedSigned)        \

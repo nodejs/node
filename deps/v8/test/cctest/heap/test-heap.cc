@@ -29,6 +29,7 @@
 
 #include <utility>
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
 #include "src/codegen/assembler-inl.h"
@@ -5685,8 +5686,9 @@ TEST(Regress598319) {
     marking->Step(kSmallStepSizeInMs,
                   i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   StepOrigin::kV8);
-    if (page->IsFlagSet(Page::HAS_PROGRESS_BAR) && page->ProgressBar() > 0) {
-      CHECK_NE(page->ProgressBar(), arr.get().Size());
+    ProgressBar& progress_bar = page->ProgressBar();
+    if (progress_bar.IsEnabled() && progress_bar.Value() > 0) {
+      CHECK_NE(progress_bar.Value(), arr.get().Size());
       {
         // Shift by 1, effectively moving one white object across the progress
         // bar, meaning that we will miss marking it.

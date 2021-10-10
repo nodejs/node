@@ -280,17 +280,17 @@ class Simulator : public SimulatorBase {
   inline void WriteB(intptr_t addr, uint8_t value);
   inline void WriteB(intptr_t addr, int8_t value);
 
-  inline uint16_t ReadHU(intptr_t addr, Instruction* instr);
-  inline int16_t ReadH(intptr_t addr, Instruction* instr);
+  inline uint16_t ReadHU(intptr_t addr);
+  inline int16_t ReadH(intptr_t addr);
   // Note: Overloaded on the sign of the value.
-  inline void WriteH(intptr_t addr, uint16_t value, Instruction* instr);
-  inline void WriteH(intptr_t addr, int16_t value, Instruction* instr);
+  inline void WriteH(intptr_t addr, uint16_t value);
+  inline void WriteH(intptr_t addr, int16_t value);
 
-  inline uint32_t ReadWU(intptr_t addr, Instruction* instr);
-  inline int32_t ReadW(intptr_t addr, Instruction* instr);
-  inline int64_t ReadW64(intptr_t addr, Instruction* instr);
-  inline void WriteW(intptr_t addr, uint32_t value, Instruction* instr);
-  inline void WriteW(intptr_t addr, int32_t value, Instruction* instr);
+  inline uint32_t ReadWU(intptr_t addr);
+  inline int32_t ReadW(intptr_t addr);
+  inline int64_t ReadW64(intptr_t addr);
+  inline void WriteW(intptr_t addr, uint32_t value);
+  inline void WriteW(intptr_t addr, int32_t value);
 
   inline int64_t ReadDW(intptr_t addr);
   inline double ReadDouble(intptr_t addr);

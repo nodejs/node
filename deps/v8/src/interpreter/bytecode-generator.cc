@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "include/v8-extension.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
@@ -2525,7 +2526,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     const AstRawString* class_name =
         expr->scope()->class_variable() != nullptr
             ? expr->scope()->class_variable()->raw_name()
-            : ast_string_constants()->empty_string();
+            : ast_string_constants()->anonymous_string();
     builder()
         ->LoadLiteral(class_name)
         .StoreAccumulatorInRegister(brand)
@@ -3647,8 +3648,7 @@ void BytecodeGenerator::BuildVariableAssignment(
       break;
     }
     case VariableLocation::UNALLOCATED: {
-      FeedbackSlot slot = GetCachedStoreGlobalICSlot(language_mode(), variable);
-      builder()->StoreGlobal(variable->raw_name(), feedback_index(slot));
+      BuildStoreGlobal(variable);
       break;
     }
     case VariableLocation::CONTEXT: {
@@ -3737,9 +3737,7 @@ void BytecodeGenerator::BuildVariableAssignment(
         if (mode == VariableMode::kConst) {
           builder()->CallRuntime(Runtime::kThrowConstAssignError);
         } else {
-          FeedbackSlot slot =
-              GetCachedStoreGlobalICSlot(language_mode(), variable);
-          builder()->StoreGlobal(variable->raw_name(), feedback_index(slot));
+          BuildStoreGlobal(variable);
         }
       }
       break;
@@ -3766,6 +3764,21 @@ void BytecodeGenerator::BuildStoreNamedProperty(const Expression* object_expr,
   FeedbackSlot slot = GetCachedStoreICSlot(object_expr, name);
   builder()->StoreNamedProperty(object, name, feedback_index(slot),
                                 language_mode());
+
+  if (!execution_result()->IsEffect()) {
+    builder()->LoadAccumulatorWithRegister(value);
+  }
+}
+
+void BytecodeGenerator::BuildStoreGlobal(Variable* variable) {
+  Register value;
+  if (!execution_result()->IsEffect()) {
+    value = register_allocator()->NewRegister();
+    builder()->StoreAccumulatorInRegister(value);
+  }
+
+  FeedbackSlot slot = GetCachedStoreGlobalICSlot(language_mode(), variable);
+  builder()->StoreGlobal(variable->raw_name(), feedback_index(slot));
 
   if (!execution_result()->IsEffect()) {
     builder()->LoadAccumulatorWithRegister(value);

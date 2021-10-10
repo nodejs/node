@@ -579,7 +579,7 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
             .Position(signature.parameter_names[signature.implicit_count]->pos);
       }
 
-      csa_ccfile() << "   TNode<Word32T> argc = UncheckedParameter<Word32T>("
+      csa_ccfile() << "  TNode<Word32T> argc = UncheckedParameter<Word32T>("
                    << "Descriptor::kJSActualArgumentsCount);\n";
       csa_ccfile() << "  TNode<IntPtrT> "
                       "arguments_length(ChangeInt32ToIntPtr(UncheckedCast<"
@@ -588,13 +588,17 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                       "UncheckedCast<RawPtrT>(LoadFramePointer());\n";
       csa_ccfile() << "  TorqueStructArguments "
                       "torque_arguments(GetFrameArguments(arguments_frame, "
-                      "arguments_length));\n";
+                      "arguments_length, FrameArgumentsArgcType::"
+                   << (kJSArgcIncludesReceiver ? "kCountIncludesReceiver"
+                                               : "kCountExcludesReceiver")
+                   << "));\n";
       csa_ccfile()
           << "  CodeStubArguments arguments(this, torque_arguments);\n";
 
       parameters.Push("torque_arguments.frame");
       parameters.Push("torque_arguments.base");
       parameters.Push("torque_arguments.length");
+      parameters.Push("torque_arguments.actual_count");
       const Type* arguments_type = TypeOracle::GetArgumentsType();
       StackRange range = parameter_types.PushMany(LowerType(arguments_type));
       parameter_bindings.Add(*signature.arguments_variable,
@@ -625,7 +629,7 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                     ? "arguments.GetReceiver()"
                     : "UncheckedParameter<Object>(Descriptor::kReceiver)")
             << ";\n";
-        csa_ccfile() << "USE(" << generated_name << ");\n";
+        csa_ccfile() << "  USE(" << generated_name << ");\n";
         expected_types = {TypeOracle::GetJSAnyType()};
       } else if (param_name == "newTarget") {
         csa_ccfile() << "  TNode<Object> " << generated_name
@@ -3521,7 +3525,7 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
           // count.
           int parameter_count =
               static_cast<int>(builtin->signature().ExplicitCount());
-          builtin_definitions << ", " << parameter_count;
+          builtin_definitions << ", " << JSParameterCount(parameter_count);
           // And the receiver is explicitly declared.
           builtin_definitions << ", kReceiver";
           for (size_t i = builtin->signature().implicit_count;
@@ -3855,11 +3859,13 @@ namespace {
 class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
  public:
   ClassFieldOffsetGenerator(std::ostream& header, std::ostream& inline_header,
-                            const ClassType* type, std::string gen_name)
+                            const ClassType* type, std::string gen_name,
+                            const ClassType* parent)
       : FieldOffsetsGenerator(type),
         hdr_(header),
         inl_(inline_header),
-        previous_field_end_("P::kHeaderSize"),
+        previous_field_end_((parent && parent->IsShape()) ? "P::kSize"
+                                                          : "P::kHeaderSize"),
         gen_name_(gen_name) {}
   void WriteField(const Field& f, const std::string& size_string) override {
     std::string field = "k" + CamelifyString(f.name_and_type.name) + "Offset";
@@ -3981,7 +3987,7 @@ base::Optional<std::vector<Field>> GetOrderedUniqueIndexFields(
 
 void CppClassGenerator::GenerateClass() {
   // Is<name>_NonInline(HeapObject)
-  {
+  if (!type_->IsShape()) {
     cpp::Function f("Is"s + name_ + "_NonInline");
     f.SetDescription("Alias for HeapObject::Is"s + name_ +
                      "() that avoids inlining.");
@@ -4046,7 +4052,8 @@ void CppClassGenerator::GenerateClass() {
   }
 
   hdr_ << "\n";
-  ClassFieldOffsetGenerator g(hdr_, inl_, type_, gen_name_);
+  ClassFieldOffsetGenerator g(hdr_, inl_, type_, gen_name_,
+                              type_->GetSuperClass());
   for (auto f : type_->fields()) {
     CurrentSourcePosition::Scope scope(f.pos);
     g.RecordOffsetFor(f);
@@ -4174,6 +4181,15 @@ void CppClassGenerator::GenerateClassCasts() {
 }
 
 void CppClassGenerator::GenerateClassConstructors() {
+  const ClassType* typecheck_type = type_;
+  while (typecheck_type->IsShape()) {
+    typecheck_type = typecheck_type->GetSuperClass();
+
+    // Shapes have already been checked earlier to inherit from JSObject, so we
+    // should have found an appropriate type.
+    DCHECK(typecheck_type);
+  }
+
   hdr_ << " public:\n";
   hdr_ << "  template <class DAlias = D>\n";
   hdr_ << "  constexpr " << gen_name_ << "() : P() {\n";
@@ -4194,7 +4210,8 @@ void CppClassGenerator::GenerateClassConstructors() {
   inl_ << "template<class D, class P>\n";
   inl_ << "inline " << gen_name_T_ << "::" << gen_name_ << "(Address ptr)\n";
   inl_ << "  : P(ptr) {\n";
-  inl_ << "  SLOW_DCHECK(Is" << name_ << "_NonInline(*this));\n";
+  inl_ << "  SLOW_DCHECK(Is" << typecheck_type->name()
+       << "_NonInline(*this));\n";
   inl_ << "}\n";
 
   inl_ << "template<class D, class P>\n";
@@ -4204,7 +4221,7 @@ void CppClassGenerator::GenerateClassConstructors() {
   inl_ << "  SLOW_DCHECK("
        << "(allow_smi == HeapObject::AllowInlineSmiStorage::kAllowBeingASmi"
           " && this->IsSmi()) || Is"
-       << name_ << "_NonInline(*this));\n";
+       << typecheck_type->name() << "_NonInline(*this));\n";
   inl_ << "}\n";
 }
 
@@ -4603,9 +4620,11 @@ void ImplementationVisitor::GenerateClassDefinitions(
     for (const ClassType* type : TypeOracle::GetClasses()) {
       auto& streams = GlobalContext::GeneratedPerFile(type->AttributedToFile());
       std::ostream& header = streams.class_definition_headerfile;
-      header << "class " << type->GetGeneratedTNodeTypeName() << ";\n";
-      forward_declarations << "class " << type->GetGeneratedTNodeTypeName()
-                           << ";\n";
+      std::string name = type->GenerateCppClassDefinitions()
+                             ? type->name()
+                             : type->GetGeneratedTNodeTypeName();
+      header << "class " << name << ";\n";
+      forward_declarations << "class " << name << ";\n";
     }
 
     for (const ClassType* type : TypeOracle::GetClasses()) {

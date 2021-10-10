@@ -1641,7 +1641,8 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
   __ LoadTaggedPointerField(
-      r4, FieldMemOperand(r3, Code::kDeoptimizationDataOffset), r0);
+      r4, FieldMemOperand(r3, Code::kDeoptimizationDataOrInterpreterDataOffset),
+      r0);
 
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(masm);
@@ -2645,12 +2646,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ beq(&skip);
   __ StoreU64(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ bind(&skip);
-
-  // Reset the masking register. This is done independent of the underlying
-  // feature flag {FLAG_untrusted_code_mitigations} to make the snapshot work
-  // with both configurations. It is safe to always do this, because the
-  // underlying register is caller-saved and can be arbitrarily clobbered.
-  __ ResetSpeculationPoisonRegister();
 
   // Clear c_entry_fp, like we do in `LeaveExitFrame`.
   {

@@ -9,6 +9,7 @@
 
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
+#include "src/regexp/regexp-flags.h"
 #include "src/regexp/regexp-nodes.h"
 
 namespace v8 {
@@ -49,34 +50,10 @@ constexpr int kPatternTooShortForBoyerMoore = 2;
 
 }  // namespace regexp_compiler_constants
 
-inline bool IgnoreCase(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kIgnoreCase) != 0;
-}
-
-inline bool IsUnicode(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kUnicode) != 0;
-}
-
-inline bool IsSticky(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kSticky) != 0;
-}
-
-inline bool IsGlobal(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kGlobal) != 0;
-}
-
-inline bool DotAll(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kDotAll) != 0;
-}
-
-inline bool Multiline(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kMultiline) != 0;
-}
-
-inline bool NeedsUnicodeCaseEquivalents(JSRegExp::Flags flags) {
+inline bool NeedsUnicodeCaseEquivalents(RegExpFlags flags) {
   // Both unicode and ignore_case flags are set. We need to use ICU to find
   // the closure over case equivalents.
-  return IsUnicode(flags) && IgnoreCase(flags);
+  return IsUnicode(flags) && IsIgnoreCase(flags);
 }
 
 // Details of a quick mask-compare check that can look ahead in the
@@ -424,8 +401,8 @@ struct PreloadState {
 // Analysis performs assertion propagation and computes eats_at_least_ values.
 // See the comments on AssertionPropagator and EatsAtLeastPropagator for more
 // details.
-RegExpError AnalyzeRegExp(Isolate* isolate, bool is_one_byte,
-                          JSRegExp::Flags flags, RegExpNode* node);
+RegExpError AnalyzeRegExp(Isolate* isolate, bool is_one_byte, RegExpFlags flags,
+                          RegExpNode* node);
 
 class FrequencyCollator {
  public:
@@ -475,7 +452,7 @@ class FrequencyCollator {
 class RegExpCompiler {
  public:
   RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
-                 JSRegExp::Flags flags, bool is_one_byte);
+                 RegExpFlags flags, bool is_one_byte);
 
   int AllocateRegister() {
     if (next_register_ >= RegExpMacroAssembler::kMaxRegister) {
@@ -527,7 +504,7 @@ class RegExpCompiler {
   // - Inserting the implicit .* before/after the regexp if necessary.
   // - If the input is a one-byte string, filtering out nodes that can't match.
   // - Fixing up regexp matches that start within a surrogate pair.
-  RegExpNode* PreprocessRegExp(RegExpCompileData* data, JSRegExp::Flags flags,
+  RegExpNode* PreprocessRegExp(RegExpCompileData* data, RegExpFlags flags,
                                bool is_one_byte);
 
   // If the regexp matching starts within a surrogate pair, step back to the
@@ -553,7 +530,7 @@ class RegExpCompiler {
   inline void IncrementRecursionDepth() { recursion_depth_++; }
   inline void DecrementRecursionDepth() { recursion_depth_--; }
 
-  JSRegExp::Flags flags() const { return flags_; }
+  RegExpFlags flags() const { return flags_; }
 
   void SetRegExpTooBig() { reg_exp_too_big_ = true; }
 
@@ -585,7 +562,7 @@ class RegExpCompiler {
   int unicode_lookaround_position_register_;
   ZoneVector<RegExpNode*>* work_list_;
   int recursion_depth_;
-  const JSRegExp::Flags flags_;
+  const RegExpFlags flags_;
   RegExpMacroAssembler* macro_assembler_;
   bool one_byte_;
   bool reg_exp_too_big_;

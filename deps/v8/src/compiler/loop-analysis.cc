@@ -5,11 +5,16 @@
 #include "src/compiler/loop-analysis.h"
 
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/zone/zone.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-code-manager.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -581,12 +586,24 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallUnnestedLoopFromHeader(
                   loop_header);
         // All uses are outside the loop, do nothing.
         break;
-      case IrOpcode::kCall:
       case IrOpcode::kTailCall:
       case IrOpcode::kJSWasmCall:
       case IrOpcode::kJSCall:
         // Call nodes are considered to have unbounded size, i.e. >max_size.
+        // An exception is the call to the stack guard builtin at the beginning
+        // of many loops.
         return nullptr;
+      case IrOpcode::kCall: {
+        Node* callee = node->InputAt(0);
+        if (callee->opcode() == IrOpcode::kRelocatableInt32Constant ||
+            callee->opcode() == IrOpcode::kRelocatableInt64Constant) {
+          auto info = OpParameter<RelocatablePtrConstantInfo>(callee->op());
+          if (info.value() != v8::internal::wasm::WasmCode::kWasmStackGuard) {
+            return nullptr;
+          }
+        }
+        V8_FALLTHROUGH;
+      }
       default:
         for (Node* use : node->uses()) {
           if (visited->count(use) == 0) queue.push_back(use);

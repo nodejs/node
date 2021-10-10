@@ -1666,6 +1666,145 @@ MaybeHandle<JSArray> Intl::GetCanonicalLocales(Isolate* isolate,
   return CreateArrayFromList(isolate, maybe_ll.FromJust(), attr);
 }
 
+namespace {
+
+MaybeHandle<JSArray> AvailableCollations(Isolate* isolate) {
+  UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::StringEnumeration> enumeration(
+      icu::Collator::getKeywordValues("collation", status));
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSArray);
+  }
+  return Intl::ToJSArray(isolate, "co", enumeration.get(),
+                         Intl::RemoveCollation, true);
+}
+
+MaybeHandle<JSArray> VectorToJSArray(Isolate* isolate,
+                                     const std::vector<std::string>& array) {
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> fixed_array =
+      factory->NewFixedArray(static_cast<int32_t>(array.size()));
+  int32_t index = 0;
+  for (std::string item : array) {
+    Handle<String> str = factory->NewStringFromAsciiChecked(item.c_str());
+    fixed_array->set(index++, *str);
+  }
+  return factory->NewJSArrayWithElements(fixed_array);
+}
+
+MaybeHandle<JSArray> AvailableCurrencies(Isolate* isolate) {
+  UErrorCode status = U_ZERO_ERROR;
+  UEnumeration* ids =
+      ucurr_openISOCurrencies(UCURR_COMMON | UCURR_NON_DEPRECATED, &status);
+  const char* next = nullptr;
+  std::vector<std::string> array;
+  while (U_SUCCESS(status) &&
+         (next = uenum_next(ids, nullptr, &status)) != nullptr) {
+    array.push_back(next);
+  }
+  std::sort(array.begin(), array.end());
+  uenum_close(ids);
+  return VectorToJSArray(isolate, array);
+}
+
+MaybeHandle<JSArray> AvailableNumberingSystems(Isolate* isolate) {
+  UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::StringEnumeration> enumeration(
+      icu::NumberingSystem::getAvailableNames(status));
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSArray);
+  }
+  // Need to filter out isAlgorithmic
+  return Intl::ToJSArray(
+      isolate, "nu", enumeration.get(),
+      [](const char* value) {
+        UErrorCode status = U_ZERO_ERROR;
+        std::unique_ptr<icu::NumberingSystem> numbering_system(
+            icu::NumberingSystem::createInstanceByName(value, status));
+        // Skip algorithmic one since chrome filter out the resource.
+        return U_FAILURE(status) || numbering_system->isAlgorithmic();
+      },
+      true);
+}
+
+MaybeHandle<JSArray> AvailableTimeZones(Isolate* isolate) {
+  UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::StringEnumeration> enumeration(
+      icu::TimeZone::createTimeZoneIDEnumeration(
+          UCAL_ZONE_TYPE_CANONICAL_LOCATION, nullptr, nullptr, status));
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSArray);
+  }
+  return Intl::ToJSArray(isolate, nullptr, enumeration.get(), nullptr, true);
+}
+
+MaybeHandle<JSArray> AvailableUnits(Isolate* isolate) {
+  Factory* factory = isolate->factory();
+  std::set<std::string> sanctioned(Intl::SanctionedSimpleUnits());
+  Handle<FixedArray> fixed_array =
+      factory->NewFixedArray(static_cast<int32_t>(sanctioned.size()));
+  int32_t index = 0;
+  for (std::string item : sanctioned) {
+    Handle<String> str = factory->NewStringFromAsciiChecked(item.c_str());
+    fixed_array->set(index++, *str);
+  }
+  return factory->NewJSArrayWithElements(fixed_array);
+}
+
+}  // namespace
+
+// ecma-402 #sec-intl.supportedvaluesof
+MaybeHandle<JSArray> Intl::SupportedValuesOf(Isolate* isolate,
+                                             Handle<Object> key_obj) {
+  Factory* factory = isolate->factory();
+  // 1. 1. Let key be ? ToString(key).
+  Handle<String> key_str;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, key_str,
+                             Object::ToString(isolate, key_obj), JSArray);
+  // 2. If key is "calendar", then
+  if (factory->calendar_string()->Equals(*key_str)) {
+    // a. Let list be ! AvailableCalendars( ).
+    return Intl::AvailableCalendars(isolate);
+  }
+  // 3. Else if key is "collation", then
+  if (factory->collation_string()->Equals(*key_str)) {
+    // a. Let list be ! AvailableCollations( ).
+    return AvailableCollations(isolate);
+  }
+  // 4. Else if key is "currency", then
+  if (factory->currency_string()->Equals(*key_str)) {
+    // a. Let list be ! AvailableCurrencies( ).
+    return AvailableCurrencies(isolate);
+  }
+  // 5. Else if key is "numberingSystem", then
+  if (factory->numberingSystem_string()->Equals(*key_str)) {
+    // a. Let list be ! AvailableNumberingSystems( ).
+    return AvailableNumberingSystems(isolate);
+  }
+  // 6. Else if key is "timeZone", then
+  if (factory->timeZone_string()->Equals(*key_str)) {
+    // a. Let list be ! AvailableTimeZones( ).
+    return AvailableTimeZones(isolate);
+  }
+  // 7. Else if key is "unit", then
+  if (factory->unit_string()->Equals(*key_str)) {
+    // a. Let list be ! AvailableUnits( ).
+    return AvailableUnits(isolate);
+  }
+  // 8. Else,
+  // a. Throw a RangeError exception.
+  // 9. Return ! CreateArrayFromList( list ).
+
+  THROW_NEW_ERROR(
+      isolate,
+      NewRangeError(MessageTemplate::kInvalid,
+                    factory->NewStringFromStaticChars("key"), key_str),
+      JSArray);
+}
+
 // ECMA 402 Intl.*.supportedLocalesOf
 MaybeHandle<JSObject> Intl::SupportedLocalesOf(
     Isolate* isolate, const char* method,
@@ -2245,6 +2384,52 @@ MaybeHandle<JSReceiver> Intl::CoerceOptionsToObject(Isolate* isolate,
                              Object::ToObject(isolate, options, service),
                              JSReceiver);
   return Handle<JSReceiver>::cast(options);
+}
+
+MaybeHandle<JSArray> Intl::ToJSArray(
+    Isolate* isolate, const char* unicode_key,
+    icu::StringEnumeration* enumeration,
+    const std::function<bool(const char*)>& removes, bool sort) {
+  UErrorCode status = U_ZERO_ERROR;
+  std::vector<std::string> array;
+  for (const char* item = enumeration->next(nullptr, status);
+       U_SUCCESS(status) && item != nullptr;
+       item = enumeration->next(nullptr, status)) {
+    if (unicode_key != nullptr) {
+      item = uloc_toUnicodeLocaleType(unicode_key, item);
+    }
+    if (removes == nullptr || !(removes)(item)) {
+      array.push_back(item);
+    }
+  }
+
+  if (sort) {
+    std::sort(array.begin(), array.end());
+  }
+  return VectorToJSArray(isolate, array);
+}
+
+bool Intl::RemoveCollation(const char* collation) {
+  return strcmp("standard", collation) == 0 || strcmp("search", collation) == 0;
+}
+
+// See the list in ecma402 #sec-issanctionedsimpleunitidentifier
+std::set<std::string> Intl::SanctionedSimpleUnits() {
+  return std::set<std::string>({"acre",       "bit",        "byte",
+                                "celsius",    "centimeter", "day",
+                                "degree",     "fahrenheit", "fluid-ounce",
+                                "foot",       "gallon",     "gigabit",
+                                "gigabyte",   "gram",       "hectare",
+                                "hour",       "inch",       "kilobit",
+                                "kilobyte",   "kilogram",   "kilometer",
+                                "liter",      "megabit",    "megabyte",
+                                "meter",      "mile",       "mile-scandinavian",
+                                "millimeter", "milliliter", "millisecond",
+                                "minute",     "month",      "ounce",
+                                "percent",    "petabyte",   "pound",
+                                "second",     "stone",      "terabit",
+                                "terabyte",   "week",       "yard",
+                                "year"});
 }
 
 }  // namespace internal

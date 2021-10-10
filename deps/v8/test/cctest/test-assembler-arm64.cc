@@ -2168,7 +2168,6 @@ TEST(far_branch_backward) {
         break;
       default:
         UNREACHABLE();
-        break;
     }
 
     // Now go past the limit so that branches are now out of range.
@@ -2204,7 +2203,6 @@ TEST(far_branch_backward) {
         break;
       default:
         UNREACHABLE();
-        break;
     }
 
     __ Bind(&fail);

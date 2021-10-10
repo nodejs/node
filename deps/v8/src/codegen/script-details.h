@@ -5,6 +5,7 @@
 #ifndef V8_CODEGEN_SCRIPT_DETAILS_H_
 #define V8_CODEGEN_SCRIPT_DETAILS_H_
 
+#include "include/v8-script.h"
 #include "src/common/globals.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"

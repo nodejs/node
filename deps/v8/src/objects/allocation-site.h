@@ -51,7 +51,7 @@ class AllocationSite : public Struct {
   DECL_ACCESSORS(nested_site, Object)
 
   // Bitfield containing pretenuring information.
-  DECL_INT32_ACCESSORS(pretenure_data)
+  DECL_RELAXED_INT32_ACCESSORS(pretenure_data)
 
   DECL_INT32_ACCESSORS(pretenure_create_count)
   DECL_ACCESSORS(dependent_code, DependentCode)

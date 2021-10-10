@@ -334,9 +334,10 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // arithmetic for simplicity.
   int64_t allocated_bytes_since_safepoint_ = 0;
   int64_t explicitly_freed_bytes_since_safepoint_ = 0;
-#ifdef CPPGC_VERIFY_LIVE_BYTES
-  size_t live_bytes_ = 0;
-#endif  // CPPGC_VERIFY_LIVE_BYTES
+#ifdef CPPGC_VERIFY_HEAP
+  // Tracks live bytes for overflows.
+  size_t tracked_live_bytes_ = 0;
+#endif  // CPPGC_VERIFY_HEAP
 
   int64_t memory_allocated_bytes_ = 0;
   int64_t memory_freed_bytes_since_end_of_marking_ = 0;

@@ -117,7 +117,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   Zone* zone() const { return zone_; }
   bool tracing_enabled() const { return tracing_enabled_; }
   bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
-  bool is_isolate_bootstrapping() const { return is_isolate_bootstrapping_; }
   bool is_turboprop() const { return code_kind_ == CodeKind::TURBOPROP; }
 
   NexusConfig feedback_nexus_config() const {
@@ -173,7 +172,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
                    ProcessedFeedback const* feedback);
   FeedbackSlotKind GetFeedbackSlotKind(FeedbackSource const& source) const;
 
-  // TODO(neis): Move these into serializer when we're always in the background.
   ElementAccessFeedback const& ProcessFeedbackMapsForElementAccess(
       ZoneVector<MapRef>& maps, KeyedAccessMode const& keyed_mode,
       FeedbackSlotKind slot_kind);
@@ -291,8 +289,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
 
-  RootIndexMap const& root_index_map() { return root_index_map_; }
-
   // Locks {mutex} through the duration of this scope iff it is the first
   // occurrence. This is done to have a recursive shared lock on {mutex}.
   class V8_NODISCARD RecursiveSharedMutexGuardIfNeeded {
@@ -389,8 +385,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   void CollectArrayAndObjectPrototypes();
 
-  PerIsolateCompilerCache* compiler_cache() const { return compiler_cache_; }
-
   void set_persistent_handles(
       std::unique_ptr<PersistentHandles> persistent_handles) {
     DCHECK_NULL(ph_);
@@ -419,7 +413,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       std::unique_ptr<CanonicalHandlesMap> canonical_handles);
 
   Isolate* const isolate_;
-  Zone* const zone_ = nullptr;
+  Zone* const zone_;
   base::Optional<NativeContextRef> target_native_context_;
   RefsMap* refs_;
   RootIndexMap root_index_map_;
@@ -429,13 +423,11 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
   bool const is_concurrent_inlining_;
-  bool const is_isolate_bootstrapping_;
   CodeKind const code_kind_;
   std::unique_ptr<PersistentHandles> ph_;
   LocalIsolate* local_isolate_ = nullptr;
   std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
   unsigned trace_indentation_ = 0;
-  PerIsolateCompilerCache* compiler_cache_ = nullptr;
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
                    FeedbackSource::Hash, FeedbackSource::Equal>
       feedback_;
@@ -445,8 +437,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ZoneUnorderedMap<FeedbackSource, MinimorphicLoadPropertyAccessInfo,
                    FeedbackSource::Hash, FeedbackSource::Equal>
       minimorphic_property_access_infos_;
-
-  ZoneVector<ObjectData*> typed_array_string_tags_;
 
   CompilationDependencies* dependencies_ = nullptr;
 
@@ -460,7 +450,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // Likewise for boilerplate migrations.
   int boilerplate_migration_mutex_depth_ = 0;
 
-  static constexpr size_t kMaxSerializedFunctionsCacheSize = 200;
   static constexpr uint32_t kMinimalRefsBucketCount = 8;
   STATIC_ASSERT(base::bits::IsPowerOfTwo(kMinimalRefsBucketCount));
   static constexpr uint32_t kInitialRefsBucketCount = 1024;
@@ -486,21 +475,6 @@ class V8_NODISCARD TraceScope {
  private:
   JSHeapBroker* const broker_;
 };
-
-#define ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(something_var,             \
-                                                optionally_something)      \
-  auto optionally_something_ = optionally_something;                       \
-  if (!optionally_something_)                                              \
-    return NoChangeBecauseOfMissingData(broker(), __FUNCTION__, __LINE__); \
-  something_var = *optionally_something_;
-
-class Reduction;
-Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
-                                       const char* function, int line);
-
-// Miscellaneous definitions that should be moved elsewhere once concurrent
-// compilation is finished.
-bool CanInlineElementAccess(MapRef const& map);
 
 // Scope that unparks the LocalHeap, if:
 //   a) We have a JSHeapBroker,

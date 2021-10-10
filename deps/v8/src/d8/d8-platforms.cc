@@ -82,7 +82,14 @@ class PredictablePlatform final : public Platform {
   }
 
   double MonotonicallyIncreasingTime() override {
-    return synthetic_time_in_sec_ += 0.00001;
+    // In predictable mode, there should be no (observable) concurrency, but we
+    // still run some tests that explicitly specify '--predictable' in the
+    // '--isolates' variant, where several threads run the same test in
+    // different isolates. To avoid TSan issues in that scenario we use atomic
+    // increments here.
+    uint64_t synthetic_time =
+        synthetic_time_.fetch_add(1, std::memory_order_relaxed);
+    return 1e-5 * synthetic_time;
   }
 
   double CurrentClockTimeMillis() override {
@@ -96,7 +103,7 @@ class PredictablePlatform final : public Platform {
   Platform* platform() const { return platform_.get(); }
 
  private:
-  double synthetic_time_in_sec_ = 0.0;
+  std::atomic<uint64_t> synthetic_time_{0};
   std::unique_ptr<Platform> platform_;
 };
 

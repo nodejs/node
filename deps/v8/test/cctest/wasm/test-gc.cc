@@ -786,7 +786,8 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
                               WASM_RTT_CANON(type_index)),
        kExprEnd});
 
-  const uint32_t kTooLong = kV8MaxWasmArrayLength + 1;
+  ArrayType array_type(kWasmI32, true);
+  const uint32_t kTooLong = WasmArray::MaxLength(&array_type) + 1;
   const byte kAllocateTooLarge = tester.DefineFunction(
       &sig_q_v, {},
       {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(kTooLong),
@@ -904,7 +905,6 @@ WASM_COMPILED_EXEC_TEST(WasmPackedArrayS) {
 }
 
 WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
-  FLAG_SCOPE(experimental_wasm_gc_experiments);
   WasmGCTester tester(execution_tier);
   const byte array32_index = tester.DefineArray(kWasmI32, true);
   const byte array16_index = tester.DefineArray(kWasmI16, true);
@@ -1186,8 +1186,6 @@ WASM_COMPILED_EXEC_TEST(BasicRtt) {
 
 WASM_COMPILED_EXEC_TEST(RttFreshSub) {
   WasmGCTester tester(execution_tier);
-  FlagScope<bool> flag_gc_experiments(&FLAG_experimental_wasm_gc_experiments,
-                                      true);
   const byte kType = tester.DefineStruct({F(wasm::kWasmI32, true)});
   HeapType::Representation type_repr =
       static_cast<HeapType::Representation>(kType);

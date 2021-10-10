@@ -93,7 +93,6 @@ class MipsOperandConverter final : public InstructionOperandConverter {
             constant.ToDelayedStringConstant());
       case Constant::kRpoNumber:
         UNREACHABLE();  // TODO(titzer): RPO immediates on mips?
-        break;
     }
     UNREACHABLE();
   }
@@ -312,16 +311,6 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
   StdoutStream{} << "Unsupported " << #opcode << " condition: \"" << condition \
                  << "\"";                                                      \
   UNIMPLEMENTED();
-
-void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
-                                   InstructionCode opcode, Instruction* instr,
-                                   MipsOperandConverter const& i) {
-  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  if (access_mode == kMemoryAccessPoisoned) {
-    Register value = i.OutputRegister();
-    codegen->tasm()->And(value, value, kSpeculationPoisonRegister);
-  }
-}
 
 }  // namespace
 
@@ -614,31 +603,6 @@ void CodeGenerator::BailoutIfDeoptimized() {
           RelocInfo::CODE_TARGET, ne, kScratchReg, Operand(zero_reg));
 }
 
-void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
-  // Calculate a mask which has all bits set in the normal case, but has all
-  // bits cleared if we are speculatively executing the wrong PC.
-  //    difference = (current - expected) | (expected - current)
-  //    poison = ~(difference >> (kBitsPerSystemPointer - 1))
-  __ ComputeCodeStartAddress(kScratchReg);
-  __ Move(kSpeculationPoisonRegister, kScratchReg);
-  __ subu(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-          kJavaScriptCallCodeStartRegister);
-  __ subu(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
-          kScratchReg);
-  __ or_(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kJavaScriptCallCodeStartRegister);
-  __ sra(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kBitsPerSystemPointer - 1);
-  __ nor(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kSpeculationPoisonRegister);
-}
-
-void CodeGenerator::AssembleRegisterArgumentPoisoning() {
-  __ And(kJSFunctionRegister, kJSFunctionRegister, kSpeculationPoisonRegister);
-  __ And(kContextRegister, kContextRegister, kSpeculationPoisonRegister);
-  __ And(sp, sp, kSpeculationPoisonRegister);
-}
-
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {
@@ -902,7 +866,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
                            i.InputDoubleRegister(0), DetermineStubCallMode());
       break;
-    case kArchStoreWithWriteBarrier: {
+    case kArchStoreWithWriteBarrier:
+    case kArchAtomicStoreWithWriteBarrier: {
       RecordWriteMode mode =
           static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
       Register object = i.InputRegister(0);
@@ -914,7 +879,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                                    scratch0, scratch1, mode,
                                                    DetermineStubCallMode());
       __ Addu(kScratchReg, object, index);
-      __ sw(value, MemOperand(kScratchReg));
+      if (arch_opcode == kArchStoreWithWriteBarrier) {
+        __ sw(value, MemOperand(kScratchReg));
+      } else {
+        DCHECK_EQ(kArchAtomicStoreWithWriteBarrier, arch_opcode);
+        __ sync();
+        __ sw(value, MemOperand(kScratchReg));
+        __ sync();
+      }
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
@@ -938,10 +910,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kArchWordPoisonOnSpeculation:
-      __ And(i.OutputRegister(), i.InputRegister(0),
-             kSpeculationPoisonRegister);
-      break;
     case kIeee754Float64Acos:
       ASSEMBLE_IEEE754_UNOP(acos);
       break;
@@ -1541,30 +1509,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMipsLbu:
       __ lbu(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsLb:
       __ lb(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsSb:
       __ sb(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kMipsLhu:
       __ lhu(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsUlhu:
       __ Ulhu(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsLh:
       __ lh(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsUlh:
       __ Ulh(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsSh:
       __ sh(i.InputOrZeroRegister(2), i.MemoryOperand());
@@ -1574,11 +1536,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMipsLw:
       __ lw(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsUlw:
       __ Ulw(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsSw:
       __ sw(i.InputOrZeroRegister(2), i.MemoryOperand());
@@ -1658,7 +1618,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             break;
           default: {
             UNREACHABLE();
-            break;
           }
         }
       } else {
@@ -1823,74 +1782,74 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ilvr_w(dst, kSimd128RegZero, dst);
       break;
     }
-    case kWord32AtomicLoadInt8:
+    case kAtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lb);
       break;
-    case kWord32AtomicLoadUint8:
+    case kAtomicLoadUint8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lbu);
       break;
-    case kWord32AtomicLoadInt16:
+    case kAtomicLoadInt16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lh);
       break;
-    case kWord32AtomicLoadUint16:
+    case kAtomicLoadUint16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lhu);
       break;
-    case kWord32AtomicLoadWord32:
+    case kAtomicLoadWord32:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lw);
       break;
-    case kWord32AtomicStoreWord8:
+    case kAtomicStoreWord8:
       ASSEMBLE_ATOMIC_STORE_INTEGER(sb);
       break;
-    case kWord32AtomicStoreWord16:
+    case kAtomicStoreWord16:
       ASSEMBLE_ATOMIC_STORE_INTEGER(sh);
       break;
-    case kWord32AtomicStoreWord32:
+    case kAtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(sw);
       break;
-    case kWord32AtomicExchangeInt8:
+    case kAtomicExchangeInt8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(true, 8);
       break;
-    case kWord32AtomicExchangeUint8:
+    case kAtomicExchangeUint8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(false, 8);
       break;
-    case kWord32AtomicExchangeInt16:
+    case kAtomicExchangeInt16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(true, 16);
       break;
-    case kWord32AtomicExchangeUint16:
+    case kAtomicExchangeUint16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(false, 16);
       break;
-    case kWord32AtomicExchangeWord32:
+    case kAtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER();
       break;
-    case kWord32AtomicCompareExchangeInt8:
+    case kAtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(true, 8);
       break;
-    case kWord32AtomicCompareExchangeUint8:
+    case kAtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(false, 8);
       break;
-    case kWord32AtomicCompareExchangeInt16:
+    case kAtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(true, 16);
       break;
-    case kWord32AtomicCompareExchangeUint16:
+    case kAtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(false, 16);
       break;
-    case kWord32AtomicCompareExchangeWord32:
+    case kAtomicCompareExchangeWord32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER();
       break;
 #define ATOMIC_BINOP_CASE(op, inst)             \
-  case kWord32Atomic##op##Int8:                 \
+  case kAtomic##op##Int8:                       \
     ASSEMBLE_ATOMIC_BINOP_EXT(true, 8, inst);   \
     break;                                      \
-  case kWord32Atomic##op##Uint8:                \
+  case kAtomic##op##Uint8:                      \
     ASSEMBLE_ATOMIC_BINOP_EXT(false, 8, inst);  \
     break;                                      \
-  case kWord32Atomic##op##Int16:                \
+  case kAtomic##op##Int16:                      \
     ASSEMBLE_ATOMIC_BINOP_EXT(true, 16, inst);  \
     break;                                      \
-  case kWord32Atomic##op##Uint16:               \
+  case kAtomic##op##Uint16:                     \
     ASSEMBLE_ATOMIC_BINOP_EXT(false, 16, inst); \
     break;                                      \
-  case kWord32Atomic##op##Word32:               \
+  case kAtomic##op##Word32:                     \
     ASSEMBLE_ATOMIC_BINOP(inst);                \
     break;
       ATOMIC_BINOP_CASE(Add, Addu)
@@ -3675,7 +3634,6 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         break;
       default:
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
-        break;
     }
   } else if (instr->arch_opcode() == kMipsMulOvf) {
     // Overflow occurs if overflow register is not zero
@@ -3688,7 +3646,6 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         break;
       default:
         UNSUPPORTED_COND(kMipsMulOvf, condition);
-        break;
     }
   } else if (instr->arch_opcode() == kMipsCmp) {
     cc = FlagsConditionToConditionCmp(condition);
@@ -3725,85 +3682,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   Label* flabel = branch->false_label;
   AssembleBranchToLabels(this, tasm(), instr, branch->condition, tlabel, flabel,
                          branch->fallthru);
-}
-
-void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
-                                            Instruction* instr) {
-  // TODO(jarin) Handle float comparisons (kUnordered[Not]Equal).
-  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
-    return;
-  }
-
-  MipsOperandConverter i(this, instr);
-  condition = NegateFlagsCondition(condition);
-
-  switch (instr->arch_opcode()) {
-    case kMipsCmp: {
-      __ LoadZeroOnCondition(kSpeculationPoisonRegister, i.InputRegister(0),
-                             i.InputOperand(1),
-                             FlagsConditionToConditionCmp(condition));
-    }
-      return;
-    case kMipsTst: {
-      switch (condition) {
-        case kEqual:
-          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg);
-          break;
-        case kNotEqual:
-          __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister,
-                                        kScratchReg);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    }
-      return;
-    case kMipsAddOvf:
-    case kMipsSubOvf: {
-      // Overflow occurs if overflow register is negative
-      __ Slt(kScratchReg2, kScratchReg, zero_reg);
-      switch (condition) {
-        case kOverflow:
-          __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister,
-                                        kScratchReg2);
-          break;
-        case kNotOverflow:
-          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg2);
-          break;
-        default:
-          UNSUPPORTED_COND(instr->arch_opcode(), condition);
-      }
-    }
-      return;
-    case kMipsMulOvf: {
-      // Overflow occurs if overflow register is not zero
-      switch (condition) {
-        case kOverflow:
-          __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister,
-                                        kScratchReg);
-          break;
-        case kNotOverflow:
-          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg);
-          break;
-        default:
-          UNSUPPORTED_COND(instr->arch_opcode(), condition);
-      }
-    }
-      return;
-    case kMipsCmpS:
-    case kMipsCmpD: {
-      bool predicate;
-      FlagsConditionToConditionCmpFPU(&predicate, condition);
-      if (predicate) {
-        __ LoadZeroIfFPUCondition(kSpeculationPoisonRegister);
-      } else {
-        __ LoadZeroIfNotFPUCondition(kSpeculationPoisonRegister);
-      }
-    }
-      return;
-    default:
-      UNREACHABLE();
-  }
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
@@ -4130,7 +4008,6 @@ void CodeGenerator::AssembleConstructFrame() {
     __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     required_slots -= osr_helper()->UnoptimizedFrameSlots();
-    ResetSpeculationPoison();
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
@@ -4333,7 +4210,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
         case Constant::kInt64:
           UNREACHABLE();
-          break;
         case Constant::kFloat64:
           __ li(dst, Operand::EmbeddedNumber(src.ToFloat64().value()));
           break;
@@ -4357,7 +4233,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           UNREACHABLE();
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(titzer): loading RPO numbers on mips.
-          break;
       }
       if (destination->IsStackSlot()) __ sw(dst, g.ToMemOperand(destination));
     } else if (src.type() == Constant::kFloat32) {

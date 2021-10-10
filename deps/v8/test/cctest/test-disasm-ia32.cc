@@ -740,6 +740,8 @@ TEST(DisasmIa320) {
       __ vcmpunordps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
       __ vcmpneqps(xmm5, xmm4, xmm1);
       __ vcmpneqps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
+      __ vcmpgeps(xmm5, xmm4, xmm1);
+      __ vcmpgeps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
 
       __ vandpd(xmm0, xmm1, xmm2);
       __ vandpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
@@ -825,6 +827,7 @@ TEST(DisasmIa320) {
       __ vmovshdup(xmm1, xmm2);
       __ vbroadcastss(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmovdqa(xmm0, Operand(ebx, ecx, times_4, 10000));
+      __ vmovdqa(xmm0, xmm7);
       __ vmovdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ vmovdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
       __ vmovd(xmm0, edi);
@@ -862,6 +865,18 @@ TEST(DisasmIa320) {
       SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSE4_RM_AVXINSTR)
       SSE4_RM_INSTRUCTION_LIST(EMIT_SSE4_RM_AVXINSTR)
 #undef EMIT_SSE4_RM_AVXINSTR
+    }
+  }
+
+  // AVX2 instructions.
+  {
+    if (CpuFeatures::IsSupported(AVX2)) {
+      CpuFeatureScope scope(&assm, AVX2);
+#define EMIT_AVX2_BROADCAST(instruction, notUsed1, notUsed2, notUsed3, \
+                            notUsed4)                                  \
+  __ instruction(xmm0, xmm1);                                          \
+  __ instruction(xmm0, Operand(ebx, ecx, times_4, 10000));
+      AVX2_BROADCAST_LIST(EMIT_AVX2_BROADCAST)
     }
   }
 

@@ -130,7 +130,7 @@ MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
     // Not actually used but initialize anyway for predictability.
     chunk->invalidated_slots_[OLD_TO_CODE] = nullptr;
   }
-  chunk->progress_bar_ = 0;
+  chunk->progress_bar_.Initialize();
   chunk->set_concurrent_sweeping_state(ConcurrentSweepingState::kDone);
   chunk->page_protection_change_mutex_ = new base::Mutex();
   chunk->write_unprotect_counter_ = 0;

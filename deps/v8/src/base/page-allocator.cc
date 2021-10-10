@@ -151,5 +151,9 @@ bool PageAllocator::DiscardSystemPages(void* address, size_t size) {
   return base::OS::DiscardSystemPages(address, size);
 }
 
+bool PageAllocator::DecommitPages(void* address, size_t size) {
+  return base::OS::DecommitPages(address, size);
+}
+
 }  // namespace base
 }  // namespace v8

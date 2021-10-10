@@ -77,6 +77,9 @@
       'V8 Linux64 - no wasm - builder': 'release_x64_webassembly_disabled',
       # Windows.
       'V8 Win32 - builder': 'release_x86_minimal_symbols',
+      'V8 Win32 - builder (goma cache silo)': 'release_x64',
+      'V8 Win32 - builder (reclient)': 'release_x86_minimal_symbols_reclient',
+      'V8 Win32 - builder (reclient compare)': 'release_x86_minimal_symbols_reclient',
       'V8 Win32 - debug builder': 'debug_x86_minimal_symbols',
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'V8 Win64 ASAN': 'release_x64_asan_no_lsan',
@@ -105,6 +108,7 @@
       'V8 Linux gcc': 'release_x86_gcc',
       # FYI.
       'V8 iOS - sim': 'release_x64_ios_simulator',
+      'V8 Linux64 - cppgc-non-default - debug - builder': 'debug_x64_non_default_cppgc',
       'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
       'V8 Linux64 - disable runtime call stats': 'release_x64_disable_runtime_call_stats',
       'V8 Linux64 - debug - single generation - builder': 'debug_x64_single_generation',
@@ -194,6 +198,8 @@
       'V8 Linux - s390x - sim': 'release_simulate_s390x',
       # RISC-V
       'V8 Linux - riscv64 - sim - builder': 'release_simulate_riscv64',
+      # Loongson
+      'V8 Linux - loong64 - sim - builder': 'release_simulate_loong64',
     },
     'tryserver.v8': {
       'v8_android_arm_compile_rel': 'release_android_arm',
@@ -216,6 +222,7 @@
       'v8_linux_vtunejit': 'debug_x86_vtunejit',
       'v8_linux64_arm64_pointer_compression_rel_ng':
           'release_simulate_arm64_pointer_compression',
+      'v8_linux64_cppgc_non_default_dbg_ng': 'debug_x64_non_default_cppgc',
       'v8_linux64_dbg_ng': 'debug_x64_trybot',
       'v8_linux64_dict_tracking_dbg_ng': 'debug_x64_dict_tracking_trybot',
       'v8_linux64_disable_runtime_call_stats_rel': 'release_x64_disable_runtime_call_stats',
@@ -237,6 +244,7 @@
       'v8_linux64_asan_rel_ng': 'release_x64_asan_minimal_symbols',
       'v8_linux64_cfi_rel_ng': 'release_x64_cfi',
       'v8_linux64_fuzzilli_ng': 'release_x64_fuzzilli',
+      'v8_linux64_loong64_rel_ng': 'release_simulate_loong64',
       'v8_linux64_msan_rel_ng': 'release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_riscv64_rel_ng': 'release_simulate_riscv64',
       'v8_linux64_tsan_rel_ng': 'release_x64_tsan_minimal_symbols',
@@ -282,6 +290,9 @@
       'v8_linux_arm64_gc_stress_dbg_ng': 'debug_simulate_arm64',
       'v8_linux_mipsel_compile_rel': 'release_simulate_mipsel',
       'v8_linux_mips64el_compile_rel': 'release_simulate_mips64el',
+      'v8_numfuzz_ng': 'release_x64',
+      'v8_numfuzz_dbg_ng': 'debug_x64',
+      'v8_numfuzz_tsan_ng': 'release_x64_tsan',
     },
   },
 
@@ -413,6 +424,8 @@
       'release_bot', 'simulate_arm64', 'msan_no_origins'],
     'release_simulate_arm64_trybot': [
       'release_trybot', 'simulate_arm64'],
+    'release_simulate_loong64': [
+      'release_bot', 'simulate_loong64'],
     'release_simulate_mipsel': [
       'release_bot', 'simulate_mipsel'],
     'release_simulate_mips64el': [
@@ -562,6 +575,8 @@
       'debug_bot', 'x64', 'v8_enable_heap_sandbox'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
+    'debug_x64_non_default_cppgc': [
+      'debug_bot', 'x64', 'non_default_cppgc'],
     'debug_x64_perfetto': [
       'debug_bot', 'x64', 'perfetto'],
     'debug_x64_single_generation': [
@@ -606,6 +621,8 @@
       'release_trybot', 'x86', 'gcmole'],
     'release_x86_minimal_symbols': [
       'release_bot', 'x86', 'minimal_symbols'],
+    'release_x86_minimal_symbols_reclient': [
+      'release_bot_reclient', 'x86', 'minimal_symbols'],
     'release_x86_no_i18n_trybot': [
       'release_trybot', 'x86', 'v8_no_i18n'],
     'release_x86_predictable': [
@@ -779,6 +796,10 @@
       'gn_args': 'use_sysroot=false',
     },
 
+    'non_default_cppgc': {
+      'gn_args': 'cppgc_enable_object_names=true cppgc_enable_young_generation=true',
+    },
+
     'perfetto': {
       'gn_args': 'v8_use_perfetto=true',
     },
@@ -821,6 +842,10 @@
 
     'simulate_arm64': {
       'gn_args': 'target_cpu="x64" v8_target_cpu="arm64"',
+    },
+
+    'simulate_loong64': {
+      'gn_args': 'target_cpu="x64" v8_target_cpu="loong64"',
     },
 
     'simulate_mipsel': {

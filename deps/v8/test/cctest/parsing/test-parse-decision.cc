@@ -9,14 +9,14 @@
 
 #include <unordered_map>
 
-#include "include/v8.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
 #include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/utils/utils.h"
-
 #include "test/cctest/cctest.h"
 
 namespace v8 {

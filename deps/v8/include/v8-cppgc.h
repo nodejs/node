@@ -14,8 +14,9 @@
 #include "cppgc/heap-statistics.h"
 #include "cppgc/internal/write-barrier.h"
 #include "cppgc/visitor.h"
-#include "v8-internal.h"  // NOLINT(build/include_directory)
-#include "v8.h"           // NOLINT(build/include_directory)
+#include "v8-internal.h"       // NOLINT(build/include_directory)
+#include "v8-platform.h"       // NOLINT(build/include_directory)
+#include "v8-traced-handle.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
 class AllocationHandle;
@@ -23,6 +24,8 @@ class HeapHandle;
 }  // namespace cppgc
 
 namespace v8 {
+
+class Object;
 
 namespace internal {
 class CppHeap;

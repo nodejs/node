@@ -537,7 +537,7 @@ class PreParserFactory {
   PreParserExpression NewTheHoleLiteral() {
     return PreParserExpression::Default();
   }
-  PreParserExpression NewRegExpLiteral(const PreParserIdentifier& js_pattern,
+  PreParserExpression NewRegExpLiteral(const AstRawString* js_pattern,
                                        int js_flags, int pos) {
     return PreParserExpression::Default();
   }
@@ -1455,29 +1455,13 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default();
   }
 
-  // Reporting errors.
-  void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate message, const char* arg = nullptr) {
-    pending_error_handler()->ReportMessageAt(
-        source_location.beg_pos, source_location.end_pos, message, arg);
-    scanner()->set_parser_error();
+  V8_INLINE const AstRawString* PreParserIdentifierToAstRawString(
+      const PreParserIdentifier& x) {
+    return x.string_;
   }
 
   V8_INLINE void ReportUnidentifiableError() {
     pending_error_handler()->set_unidentifiable_error();
-    scanner()->set_parser_error();
-  }
-
-  V8_INLINE void ReportMessageAt(Scanner::Location source_location,
-                                 MessageTemplate message,
-                                 const PreParserIdentifier& arg) {
-    ReportMessageAt(source_location, message, arg.string_);
-  }
-
-  void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate message, const AstRawString* arg) {
-    pending_error_handler()->ReportMessageAt(
-        source_location.beg_pos, source_location.end_pos, message, arg);
     scanner()->set_parser_error();
   }
 

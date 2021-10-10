@@ -16,7 +16,6 @@
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
-#include "src/logging/tracing-flags.h"
 
 namespace v8_inspector {
 
@@ -30,8 +29,6 @@ static const char preciseCoverageDetailed[] = "preciseCoverageDetailed";
 static const char preciseCoverageAllowTriggeredUpdates[] =
     "preciseCoverageAllowTriggeredUpdates";
 static const char typeProfileStarted[] = "typeProfileStarted";
-static const char countersEnabled[] = "countersEnabled";
-static const char runtimeCallStatsEnabled[] = "runtimeCallStatsEnabled";
 }  // namespace ProfilerAgentState
 
 namespace {
@@ -243,16 +240,6 @@ Response V8ProfilerAgentImpl::disable() {
     m_state->setBoolean(ProfilerAgentState::profilerEnabled, false);
   }
 
-  if (m_counters) {
-    disableCounters();
-    m_state->setBoolean(ProfilerAgentState::countersEnabled, false);
-  }
-
-  if (m_runtime_call_stats_enabled) {
-    disableRuntimeCallStats();
-    m_state->setBoolean(ProfilerAgentState::runtimeCallStatsEnabled, false);
-  }
-
   return Response::Success();
 }
 
@@ -286,15 +273,6 @@ void V8ProfilerAgentImpl::restore() {
       startPreciseCoverage(Maybe<bool>(callCount), Maybe<bool>(detailed),
                            Maybe<bool>(updatesAllowed), &timestamp);
     }
-  }
-
-  if (m_state->booleanProperty(ProfilerAgentState::countersEnabled, false)) {
-    enableCounters();
-  }
-
-  if (m_state->booleanProperty(ProfilerAgentState::runtimeCallStatsEnabled,
-                               false)) {
-    enableRuntimeCallStats();
   }
 }
 
@@ -548,104 +526,6 @@ Response V8ProfilerAgentImpl::takeTypeProfile(
   v8::debug::TypeProfile type_profile =
       v8::debug::TypeProfile::Collect(m_isolate);
   *out_result = typeProfileToProtocol(m_session->inspector(), type_profile);
-  return Response::Success();
-}
-
-Response V8ProfilerAgentImpl::enableCounters() {
-  if (m_counters)
-    return Response::ServerError("Counters collection already enabled.");
-
-  if (V8Inspector* inspector = v8::debug::GetInspector(m_isolate))
-    m_counters = inspector->enableCounters();
-  else
-    return Response::ServerError("No inspector found.");
-
-  return Response::Success();
-}
-
-Response V8ProfilerAgentImpl::disableCounters() {
-  if (m_counters) m_counters.reset();
-  return Response::Success();
-}
-
-Response V8ProfilerAgentImpl::getCounters(
-    std::unique_ptr<protocol::Array<protocol::Profiler::CounterInfo>>*
-        out_result) {
-  if (!m_counters)
-    return Response::ServerError("Counters collection is not enabled.");
-
-  *out_result =
-      std::make_unique<protocol::Array<protocol::Profiler::CounterInfo>>();
-
-  for (const auto& counter : m_counters->getCountersMap()) {
-    (*out_result)
-        ->emplace_back(
-            protocol::Profiler::CounterInfo::create()
-                .setName(String16(counter.first.data(), counter.first.length()))
-                .setValue(counter.second)
-                .build());
-  }
-
-  return Response::Success();
-}
-
-Response V8ProfilerAgentImpl::enableRuntimeCallStats() {
-  if (v8::internal::TracingFlags::runtime_stats.load()) {
-    return Response::ServerError(
-        "Runtime Call Stats collection is already enabled.");
-  }
-
-  v8::internal::TracingFlags::runtime_stats.store(true);
-  m_runtime_call_stats_enabled = true;
-
-  return Response::Success();
-}
-
-Response V8ProfilerAgentImpl::disableRuntimeCallStats() {
-  if (!v8::internal::TracingFlags::runtime_stats.load()) {
-    return Response::ServerError(
-        "Runtime Call Stats collection is not enabled.");
-  }
-
-  if (!m_runtime_call_stats_enabled) {
-    return Response::ServerError(
-        "Runtime Call Stats collection was not enabled by this session.");
-  }
-
-  v8::internal::TracingFlags::runtime_stats.store(false);
-  m_runtime_call_stats_enabled = false;
-
-  return Response::Success();
-}
-
-Response V8ProfilerAgentImpl::getRuntimeCallStats(
-    std::unique_ptr<
-        protocol::Array<protocol::Profiler::RuntimeCallCounterInfo>>*
-        out_result) {
-  if (!m_runtime_call_stats_enabled) {
-    return Response::ServerError(
-        "Runtime Call Stats collection is not enabled.");
-  }
-
-  if (!v8::internal::TracingFlags::runtime_stats.load()) {
-    return Response::ServerError(
-        "Runtime Call Stats collection was disabled outside of this session.");
-  }
-
-  *out_result = std::make_unique<
-      protocol::Array<protocol::Profiler::RuntimeCallCounterInfo>>();
-
-  v8::debug::EnumerateRuntimeCallCounters(
-      m_isolate,
-      [&](const char* name, int64_t count, v8::base::TimeDelta time) {
-        (*out_result)
-            ->emplace_back(protocol::Profiler::RuntimeCallCounterInfo::create()
-                               .setName(String16(name))
-                               .setValue(static_cast<double>(count))
-                               .setTime(time.InSecondsF())
-                               .build());
-      });
-
   return Response::Success();
 }
 

@@ -29,7 +29,12 @@
 
 #include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "include/v8-array-buffer.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-locker.h"
 #include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -336,6 +341,9 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  CHECK(v8::V8::InitializeVirtualMemoryCage());
+#endif
   cppgc::InitializeProcess(platform->GetPageAllocator());
   using HelpOptions = v8::internal::FlagList::HelpOptions;
   v8::internal::FlagList::SetFlagsFromCommandLine(

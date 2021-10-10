@@ -814,9 +814,9 @@ Reduction TypedOptimization::ReduceJSToNumberInput(Node* input) {
     HeapObjectMatcher m(input);
     if (m.HasResolvedValue() && m.Ref(broker()).IsString()) {
       StringRef input_value = m.Ref(broker()).AsString();
-      double number;
-      ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(number, input_value.ToNumber());
-      return Replace(jsgraph()->Constant(number));
+      base::Optional<double> number = input_value.ToNumber();
+      if (!number.has_value()) return NoChange();
+      return Replace(jsgraph()->Constant(number.value()));
     }
   }
   if (input_type.IsHeapConstant()) {

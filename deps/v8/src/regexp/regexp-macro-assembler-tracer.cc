@@ -4,8 +4,8 @@
 
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 
-#include "src/ast/ast.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/fixed-array-inl.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {

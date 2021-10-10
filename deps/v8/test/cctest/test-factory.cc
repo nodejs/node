@@ -4,7 +4,7 @@
 
 #include <memory>
 
-#include "include/v8.h"
+#include "include/v8-isolate.h"
 #include "src/codegen/code-desc.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
