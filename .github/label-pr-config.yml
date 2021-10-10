@@ -71,6 +71,7 @@ subSystemLabels:
   # all other tool changes should be marked as such
   /^tools\//: tools
   /^\.eslint|\.remark|\.editorconfig/: tools
+  /^typings\//: typings
 
   ## Dependencies
   # libuv needs an explicit mapping, as the ordinary /deps/ mapping below would
@@ -186,6 +187,7 @@ allJsSubSystems:
   - timers
   - tls
   - tty
+  - typings
   - url
   - util
   - v8
