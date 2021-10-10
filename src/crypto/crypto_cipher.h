@@ -5,7 +5,6 @@
 
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
 #include "base_object.h"
 #include "env.h"
 #include "memory_tracker.h"
@@ -61,8 +60,9 @@ class CipherBase : public BaseObject {
   bool InitAuthenticated(const char* cipher_type, int iv_len,
                          unsigned int auth_tag_len);
   bool CheckCCMMessageLength(int message_len);
-  UpdateResult Update(const char* data, size_t len, AllocatedBuffer* out);
-  bool Final(AllocatedBuffer* out);
+  UpdateResult Update(const char* data, size_t len,
+                      std::unique_ptr<v8::BackingStore>* out);
+  bool Final(std::unique_ptr<v8::BackingStore>* out);
   bool SetAutoPadding(bool auto_padding);
 
   bool IsAuthenticatedMode() const;
@@ -115,7 +115,7 @@ class PublicKeyCipher {
                      const EVP_MD* digest,
                      const ArrayBufferOrViewContents<unsigned char>& oaep_label,
                      const ArrayBufferOrViewContents<unsigned char>& data,
-                     AllocatedBuffer* out);
+                     std::unique_ptr<v8::BackingStore>* out);
 
   template <Operation operation,
             EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,

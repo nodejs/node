@@ -12,6 +12,8 @@
 namespace node {
 
 using v8::Array;
+using v8::ArrayBuffer;
+using v8::BackingStore;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -752,7 +754,7 @@ void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
 CipherBase::UpdateResult CipherBase::Update(
     const char* data,
     size_t len,
-    AllocatedBuffer* out) {
+    std::unique_ptr<BackingStore>* out) {
   if (!ctx_ || len > INT_MAX)
     return kErrorState;
   MarkPopErrorOnReturn mark_pop_error_on_return;
@@ -779,15 +781,22 @@ CipherBase::UpdateResult CipherBase::Update(
     return kErrorState;
   }
 
-  *out = AllocatedBuffer::AllocateManaged(env(), buf_len);
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env()->isolate_data());
+    *out = ArrayBuffer::NewBackingStore(env()->isolate(), buf_len);
+  }
+
   int r = EVP_CipherUpdate(ctx_.get(),
-                           reinterpret_cast<unsigned char*>(out->data()),
+                           static_cast<unsigned char*>((*out)->Data()),
                            &buf_len,
                            reinterpret_cast<const unsigned char*>(data),
                            len);
 
-  CHECK_LE(static_cast<size_t>(buf_len), out->size());
-  out->Resize(buf_len);
+  CHECK_LE(static_cast<size_t>(buf_len), (*out)->ByteLength());
+  if (buf_len == 0)
+    *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
+  else
+    *out = BackingStore::Reallocate(env()->isolate(), std::move(*out), buf_len);
 
   // When in CCM mode, EVP_CipherUpdate will fail if the authentication tag is
   // invalid. In that case, remember the error and throw in final().
@@ -802,7 +811,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
   Decode<CipherBase>(args, [](CipherBase* cipher,
                               const FunctionCallbackInfo<Value>& args,
                               const char* data, size_t size) {
-    AllocatedBuffer out;
+    std::unique_ptr<BackingStore> out;
     Environment* env = Environment::GetCurrent(args);
 
     if (UNLIKELY(size > INT_MAX))
@@ -818,8 +827,9 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
-    CHECK(out.data() != nullptr || out.size() == 0);
-    args.GetReturnValue().Set(out.ToBuffer().FromMaybe(Local<Value>()));
+    Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(out));
+    args.GetReturnValue().Set(
+        Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Value>()));
   });
 }
 
@@ -838,36 +848,40 @@ void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(b);  // Possibly report invalid state failure
 }
 
-bool CipherBase::Final(AllocatedBuffer* out) {
+bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
   if (!ctx_)
     return false;
 
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
 
-  *out = AllocatedBuffer::AllocateManaged(
-      env(),
-      static_cast<size_t>(EVP_CIPHER_CTX_block_size(ctx_.get())));
-
-  if (kind_ == kDecipher && IsSupportedAuthenticatedMode(ctx_.get())) {
-    MaybePassAuthTagToOpenSSL();
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env()->isolate_data());
+    *out = ArrayBuffer::NewBackingStore(env()->isolate(),
+        static_cast<size_t>(EVP_CIPHER_CTX_block_size(ctx_.get())));
   }
+
+  if (kind_ == kDecipher && IsSupportedAuthenticatedMode(ctx_.get()))
+    MaybePassAuthTagToOpenSSL();
 
   // In CCM mode, final() only checks whether authentication failed in update().
   // EVP_CipherFinal_ex must not be called and will fail.
   bool ok;
   if (kind_ == kDecipher && mode == EVP_CIPH_CCM_MODE) {
     ok = !pending_auth_failed_;
-    *out = AllocatedBuffer::AllocateManaged(env(), 0);  // Empty buffer.
+    *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
   } else {
-    int out_len = out->size();
+    int out_len = (*out)->ByteLength();
     ok = EVP_CipherFinal_ex(ctx_.get(),
-                            reinterpret_cast<unsigned char*>(out->data()),
+                            static_cast<unsigned char*>((*out)->Data()),
                             &out_len) == 1;
 
-    if (out_len >= 0)
-      out->Resize(out_len);
-    else
-      *out = AllocatedBuffer();  // *out will not be used.
+    CHECK_LE(static_cast<size_t>(out_len), (*out)->ByteLength());
+    if (out_len > 0) {
+      *out =
+        BackingStore::Reallocate(env()->isolate(), std::move(*out), out_len);
+    } else {
+      *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
+    }
 
     if (ok && kind_ == kCipher && IsAuthenticatedMode()) {
       // In GCM mode, the authentication tag length can be specified in advance,
@@ -896,7 +910,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
   if (cipher->ctx_ == nullptr)
     return THROW_ERR_CRYPTO_INVALID_STATE(env);
 
-  AllocatedBuffer out;
+  std::unique_ptr<BackingStore> out;
 
   // Check IsAuthenticatedMode() first, Final() destroys the EVP_CIPHER_CTX.
   const bool is_auth_mode = cipher->IsAuthenticatedMode();
@@ -910,7 +924,9 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, ERR_get_error(), msg);
   }
 
-  args.GetReturnValue().Set(out.ToBuffer().FromMaybe(Local<Value>()));
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(out));
+  args.GetReturnValue().Set(
+      Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Value>()));
 }
 
 template <PublicKeyCipher::Operation operation,
@@ -923,7 +939,7 @@ bool PublicKeyCipher::Cipher(
     const EVP_MD* digest,
     const ArrayBufferOrViewContents<unsigned char>& oaep_label,
     const ArrayBufferOrViewContents<unsigned char>& data,
-    AllocatedBuffer* out) {
+    std::unique_ptr<BackingStore>* out) {
   EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
   if (!ctx)
     return false;
@@ -959,18 +975,26 @@ bool PublicKeyCipher::Cipher(
     return false;
   }
 
-  *out = AllocatedBuffer::AllocateManaged(env, out_len);
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    *out = ArrayBuffer::NewBackingStore(env->isolate(), out_len);
+  }
 
   if (EVP_PKEY_cipher(
           ctx.get(),
-          reinterpret_cast<unsigned char*>(out->data()),
+          static_cast<unsigned char*>((*out)->Data()),
           &out_len,
           data.data(),
           data.size()) <= 0) {
     return false;
   }
 
-  out->Resize(out_len);
+  CHECK_LE(out_len, (*out)->ByteLength());
+  if (out_len > 0)
+    *out = BackingStore::Reallocate(env->isolate(), std::move(*out), out_len);
+  else
+    *out = ArrayBuffer::NewBackingStore(env->isolate(), 0);
+
   return true;
 }
 
@@ -1009,15 +1033,15 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       return THROW_ERR_OUT_OF_RANGE(env, "oaep_label is too big");
   }
 
-  AllocatedBuffer out;
+  std::unique_ptr<BackingStore> out;
   if (!Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(
           env, pkey, padding, digest, oaep_label, buf, &out)) {
     return ThrowCryptoError(env, ERR_get_error());
   }
 
-  Local<Value> result;
-  if (out.ToBuffer().ToLocal(&result))
-    args.GetReturnValue().Set(result);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(out));
+  args.GetReturnValue().Set(
+      Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Value>()));
 }
 
 }  // namespace crypto
