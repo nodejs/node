@@ -140,6 +140,7 @@ package:
   `"commonjs"` package).
 
 ### `--input-type` flag
+
 <!-- YAML
 added: v12.0.0
 -->
@@ -275,6 +276,7 @@ absolute subpath of the package such as
 `require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
 
 ### Subpath exports
+
 <!-- YAML
 added: v12.7.0
 -->
@@ -308,6 +310,7 @@ import submodule from 'es-module-package/private-module.js';
 ```
 
 ### Subpath imports
+
 <!-- YAML
 added:
   - v14.6.0
@@ -350,6 +353,7 @@ The resolution rules for the imports field are otherwise
 analogous to the exports field.
 
 ### Subpath patterns
+
 <!-- YAML
 added:
   - v14.13.0
@@ -423,6 +427,7 @@ import featureX from 'es-module-package/features/x';
 ```
 
 ### Exports sugar
+
 <!-- YAML
 added: v12.11.0
 -->
@@ -450,6 +455,7 @@ can be written:
 ```
 
 ### Conditional exports
+
 <!-- YAML
 added:
   - v13.2.0
@@ -483,25 +489,25 @@ For example, a package that wants to provide different ES module exports for
 Node.js implements the following conditions:
 
 * `"import"` - matches when the package is loaded via `import` or
-   `import()`, or via any top-level import or resolve operation by the
-   ECMAScript module loader. Applies regardless of the module format of the
-   target file. _Always mutually exclusive with `"require"`._
+  `import()`, or via any top-level import or resolve operation by the
+  ECMAScript module loader. Applies regardless of the module format of the
+  target file. _Always mutually exclusive with `"require"`._
 * `"require"` - matches when the package is loaded via `require()`. The
-   referenced file should be loadable with `require()` although the condition
-   matches regardless of the module format of the target file. Expected
-   formats include CommonJS, JSON, and native addons but not ES modules as
-   `require()` doesn't support them. _Always mutually exclusive with
-   `"import"`._
+  referenced file should be loadable with `require()` although the condition
+  matches regardless of the module format of the target file. Expected
+  formats include CommonJS, JSON, and native addons but not ES modules as
+  `require()` doesn't support them. _Always mutually exclusive with
+  `"import"`._
 * `"node"` - matches for any Node.js environment. Can be a CommonJS or ES
-   module file. _This condition should always come after `"import"` or
-   `"require"`._
+  module file. _This condition should always come after `"import"` or
+  `"require"`._
 * `"node-addons"` - similar to `"node"` and matches for any Node.js environment.
-   This condition can be used to provide an entry point which uses native C++
-   addons as opposed to an entry point which is more universal and doesn't rely
-   on native addons. This condition can be disabled via the
-   [`--no-addons` flag][].
+  This condition can be used to provide an entry point which uses native C++
+  addons as opposed to an entry point which is more universal and doesn't rely
+  on native addons. This condition can be disabled via the
+  [`--no-addons` flag][].
 * `"default"` - the generic fallback that always matches. Can be a CommonJS
-   or ES module file. _This condition should always come last._
+  or ES module file. _This condition should always come last._
 
 Within the [`"exports"`][] object, key order is significant. During condition
 matching, earlier entries have higher priority and take precedence over later
@@ -564,6 +570,7 @@ the remaining conditions of the parent condition. In this way nested
 conditions behave analogously to nested JavaScript `if` statements.
 
 ### Resolving user conditions
+
 <!-- YAML
 added:
   - v14.9.0
@@ -603,12 +610,12 @@ These user conditions can be enabled in Node.js via the [`--conditions` flag][].
 The following condition definitions are currently endorsed by Node.js:
 
 * `"browser"` - any environment which implements a standard subset of global
-   browser APIs available from JavaScript in web browsers, including the DOM
-   APIs.
+  browser APIs available from JavaScript in web browsers, including the DOM
+  APIs.
 * `"development"` - can be used to define a development-only environment
-   entry point. _Must always be mutually exclusive with `"production"`._
+  entry point. _Must always be mutually exclusive with `"production"`._
 * `"production"` - can be used to define a production environment entry
-   point. _Must always be mutually exclusive with `"development"`._
+  point. _Must always be mutually exclusive with `"development"`._
 
 The above user conditions can be enabled in Node.js via the
 [`--conditions` flag][].
@@ -635,6 +642,7 @@ The above definitions may be moved to a dedicated conditions registry in due
 course.
 
 ### Self-referencing a package using its name
+
 <!-- YAML
 added:
   - v13.1.0
@@ -779,16 +787,16 @@ Every pattern has tradeoffs, but there are two broad approaches that satisfy the
 following conditions:
 
 1. The package is usable via both `require` and `import`.
-1. The package is usable in both current Node.js and older versions of Node.js
+2. The package is usable in both current Node.js and older versions of Node.js
    that lack support for ES modules.
-1. The package main entry point, e.g. `'pkg'` can be used by both `require` to
+3. The package main entry point, e.g. `'pkg'` can be used by both `require` to
    resolve to a CommonJS file and by `import` to resolve to an ES module file.
    (And likewise for exported paths, e.g. `'pkg/feature'`.)
-1. The package provides named exports, e.g. `import { name } from 'pkg'` rather
+4. The package provides named exports, e.g. `import { name } from 'pkg'` rather
    than `import pkg from 'pkg'; pkg.name`.
-1. The package is potentially usable in other ES module environments such as
+5. The package is potentially usable in other ES module environments such as
    browsers.
-1. The hazards described in the previous section are avoided or minimized.
+6. The hazards described in the previous section are avoided or minimized.
 
 #### Approach #1: Use an ES module wrapper
 
@@ -844,6 +852,7 @@ export default cjsModule;
 ```
 
 This approach is appropriate for any of the following use cases:
+
 * The package is currently written in CommonJS and the author would prefer not
   to refactor it into ES module syntax, but wishes to provide named exports for
   ES module consumers.
@@ -914,33 +923,33 @@ CommonJS and ES module instances of the package:
    `Date`, for example, needs to be instantiated to contain state; if it were a
    package, it would be used like this:
 
-    ```js
-    import Date from 'date';
-    const someDate = new Date();
-    // someDate contains state; Date does not
-    ```
+   ```js
+   import Date from 'date';
+   const someDate = new Date();
+   // someDate contains state; Date does not
+   ```
 
    The `new` keyword isn’t required; a package’s function can return a new
    object, or modify a passed-in object, to keep the state external to the
    package.
 
-1. Isolate the state in one or more CommonJS files that are shared between the
+2. Isolate the state in one or more CommonJS files that are shared between the
    CommonJS and ES module versions of the package. For example, if the CommonJS
    and ES module entry points are `index.cjs` and `index.mjs`, respectively:
 
-    ```cjs
-    // ./node_modules/pkg/index.cjs
-    const state = require('./state.cjs');
-    module.exports.state = state;
-    ```
+   ```cjs
+   // ./node_modules/pkg/index.cjs
+   const state = require('./state.cjs');
+   module.exports.state = state;
+   ```
 
-    ```js
-    // ./node_modules/pkg/index.mjs
-    import state from './state.cjs';
-    export {
-      state
-    };
-    ```
+   ```js
+   // ./node_modules/pkg/index.mjs
+   import state from './state.cjs';
+   export {
+     state
+   };
+   ```
 
    Even if `pkg` is used via both `require` and `import` in an application (for
    example, via `import` in application code and via `require` by a dependency)
@@ -951,6 +960,7 @@ Any plugins that attach to the package’s singleton would need to separately
 attach to both the CommonJS and ES module singletons.
 
 This approach is appropriate for any of the following use cases:
+
 * The package is currently written in ES module syntax and the package author
   wants that version to be used wherever such syntax is supported.
 * The package is stateless or its state can be isolated without too much
@@ -1000,6 +1010,7 @@ The following fields in `package.json` files are used in Node.js:
   itself.
 
 ### `"name"`
+
 <!-- YAML
 added:
   - v13.1.0
@@ -1028,6 +1039,7 @@ The `"name"` field can be used in addition to the [`"exports"`][] field to
 [self-reference][] a package using its name.
 
 ### `"main"`
+
 <!-- YAML
 added: v0.4.0
 -->
@@ -1052,6 +1064,7 @@ When a package has an [`"exports"`][] field, this will take precedence over the
 `"main"` field when importing the package by name.
 
 ### `"packageManager"`
+
 <!-- YAML
 added: v16.9.0
 -->
@@ -1076,6 +1089,7 @@ This field is currently experimental and needs to be opted-in; check the
 [Corepack][] page for details about the procedure.
 
 ### `"type"`
+
 <!-- YAML
 added: v12.0.0
 changes:
@@ -1097,7 +1111,7 @@ Files ending with `.js` are loaded as ES modules when the nearest parent
 
 The nearest parent `package.json` is defined as the first `package.json` found
 when searching in the current folder, that folder’s parent, and so on up
-until a node_modules folder or the volume root is reached.
+until a node\_modules folder or the volume root is reached.
 
 ```json
 // package.json
@@ -1128,6 +1142,7 @@ Regardless of the value of the `"type"` field, `.mjs` files are always treated
 as ES modules and `.cjs` files are always treated as CommonJS.
 
 ### `"exports"`
+
 <!-- YAML
 added: v12.7.0
 changes:
@@ -1153,7 +1168,7 @@ changes:
     description: Implement conditional exports.
 -->
 
-* Type: {Object} | {string} | {string[]}
+* Type: {Object} | {string} | {string\[]}
 
 ```json
 {
@@ -1175,6 +1190,7 @@ All paths defined in the `"exports"` must be relative file URLs starting with
 `./`.
 
 ### `"imports"`
+
 <!-- YAML
 added:
  - v14.6.0
