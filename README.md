@@ -202,7 +202,7 @@ For information about the governance of the Node.js project, see
 * [targos](https://github.com/targos) -
   **Michaël Zasso** \<targos@protonmail.com> (he/him)
 * [tniessen](https://github.com/tniessen) -
-  **Tobias Nießen** \<tniessen@tnie.de>
+  **Tobias Nießen** \<tniessen@tnie.de> (he/him)
 * [Trott](https://github.com/Trott) -
   **Rich Trott** \<rtrott@gmail.com> (he/him)
 
@@ -438,7 +438,7 @@ For information about the governance of the Node.js project, see
 * [TimothyGu](https://github.com/TimothyGu) -
   **Tiancheng "Timothy" Gu** \<timothygu99@gmail.com> (he/him)
 * [tniessen](https://github.com/tniessen) -
-  **Tobias Nießen** \<tniessen@tnie.de>
+  **Tobias Nießen** \<tniessen@tnie.de> (he/him)
 * [trivikr](https://github.com/trivikr) -
   **Trivikram Kamat** \<trivikr.dev@gmail.com>
 * [Trott](https://github.com/Trott) -
