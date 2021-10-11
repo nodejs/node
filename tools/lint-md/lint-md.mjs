@@ -2379,7 +2379,7 @@ function initializeDocument(effects) {
       while (index--) {
         if (
           // The token starts before the line ending…
-          childFlow.events[index][1].start.offset < lineStartOffset &&
+          childFlow.events[index][1].start.offset < lineStartOffset && // …and either is not ended yet…
           (!childFlow.events[index][1].end || // …or ends after it.
             childFlow.events[index][1].end.offset > lineStartOffset)
         ) {
@@ -6447,6 +6447,10 @@ function factoryLabel(effects, ok, nok, type, markerType, stringType) {
       code === null ||
       code === 91 ||
       (code === 93 && !data) ||
+      /* To do: remove in the future once we’ve switched from
+       * `micromark-extension-footnote` to `micromark-extension-gfm-footnote`,
+       * which doesn’t need this */
+
       /* Hidden footnotes hook */
 
       /* c8 ignore next 3 */
@@ -8468,6 +8472,10 @@ function tokenizeLabelStartImage(effects, ok, nok) {
   /** @type {State} */
 
   function after(code) {
+    /* To do: remove in the future once we’ve switched from
+     * `micromark-extension-footnote` to `micromark-extension-gfm-footnote`,
+     * which doesn’t need this */
+
     /* Hidden footnotes hook */
 
     /* c8 ignore next 3 */
@@ -8507,6 +8515,10 @@ function tokenizeLabelStartLink(effects, ok, nok) {
   /** @type {State} */
 
   function after(code) {
+    /* To do: remove in the future once we’ve switched from
+     * `micromark-extension-footnote` to `micromark-extension-gfm-footnote`,
+     * which doesn’t need this */
+
     /* Hidden footnotes hook. */
 
     /* c8 ignore next 3 */
@@ -10242,6 +10254,13 @@ const own$5 = {}.hasOwnProperty;
 
 const fromMarkdown =
   /**
+   * @type {(
+   *   ((value: Value, encoding: Encoding, options?: Options) => Root) &
+   *   ((value: Value, options?: Options) => Root)
+   * )}
+   */
+
+  /**
    * @param {Value} value
    * @param {Encoding} [encoding]
    * @param {Options} [options]
@@ -10783,7 +10802,9 @@ function compiler(options = {}) {
 
   function onenterlistitemvalue(token) {
     if (getData('expectingFirstListItemValue')) {
-      const ancestor = this.stack[this.stack.length - 2];
+      const ancestor =
+        /** @type {List} */
+        this.stack[this.stack.length - 2];
       ancestor.start = Number.parseInt(this.sliceSerialize(token), 10);
       setData('expectingFirstListItemValue');
     }
@@ -10792,14 +10813,18 @@ function compiler(options = {}) {
 
   function onexitcodefencedfenceinfo() {
     const data = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Code} */
+      this.stack[this.stack.length - 1];
     node.lang = data;
   }
   /** @type {Handle} */
 
   function onexitcodefencedfencemeta() {
     const data = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Code} */
+      this.stack[this.stack.length - 1];
     node.meta = data;
   }
   /** @type {Handle} */
@@ -10814,7 +10839,9 @@ function compiler(options = {}) {
 
   function onexitcodefenced() {
     const data = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Code} */
+      this.stack[this.stack.length - 1];
     node.value = data.replace(/^(\r?\n|\r)|(\r?\n|\r)$/g, '');
     setData('flowCodeInside');
   }
@@ -10822,7 +10849,9 @@ function compiler(options = {}) {
 
   function onexitcodeindented() {
     const data = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Code} */
+      this.stack[this.stack.length - 1];
     node.value = data.replace(/(\r?\n|\r)$/g, '');
   }
   /** @type {Handle} */
@@ -10830,7 +10859,9 @@ function compiler(options = {}) {
   function onexitdefinitionlabelstring(token) {
     // Discard label, use the source content instead.
     const label = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Definition} */
+      this.stack[this.stack.length - 1];
     node.label = label;
     node.identifier = normalizeIdentifier(
       this.sliceSerialize(token)
@@ -10840,20 +10871,26 @@ function compiler(options = {}) {
 
   function onexitdefinitiontitlestring() {
     const data = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Definition} */
+      this.stack[this.stack.length - 1];
     node.title = data;
   }
   /** @type {Handle} */
 
   function onexitdefinitiondestinationstring() {
     const data = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Definition} */
+      this.stack[this.stack.length - 1];
     node.url = data;
   }
   /** @type {Handle} */
 
   function onexitatxheadingsequence(token) {
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Heading} */
+      this.stack[this.stack.length - 1];
 
     if (!node.depth) {
       const depth = this.sliceSerialize(token).length;
@@ -10868,7 +10905,9 @@ function compiler(options = {}) {
   /** @type {Handle} */
 
   function onexitsetextheadinglinesequence(token) {
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Heading} */
+      this.stack[this.stack.length - 1];
     node.depth = this.sliceSerialize(token).charCodeAt(0) === 61 ? 1 : 2;
   }
   /** @type {Handle} */
@@ -10879,7 +10918,9 @@ function compiler(options = {}) {
   /** @type {Handle} */
 
   function onenterdata(token) {
-    const parent = this.stack[this.stack.length - 1];
+    const parent =
+      /** @type {Parent} */
+      this.stack[this.stack.length - 1];
     /** @type {Node} */
 
     let tail = parent.children[parent.children.length - 1];
@@ -10934,27 +10975,35 @@ function compiler(options = {}) {
 
   function onexithtmlflow() {
     const data = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {HTML} */
+      this.stack[this.stack.length - 1];
     node.value = data;
   }
   /** @type {Handle} */
 
   function onexithtmltext() {
     const data = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {HTML} */
+      this.stack[this.stack.length - 1];
     node.value = data;
   }
   /** @type {Handle} */
 
   function onexitcodetext() {
     const data = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {InlineCode} */
+      this.stack[this.stack.length - 1];
     node.value = data;
   }
   /** @type {Handle} */
 
   function onexitlink() {
-    const context = this.stack[this.stack.length - 1]; // To do: clean.
+    const context =
+      /** @type {Link & {identifier: string, label: string}} */
+      this.stack[this.stack.length - 1]; // To do: clean.
 
     if (getData('inReference')) {
       context.type += 'Reference'; // @ts-expect-error: mutate.
@@ -10975,7 +11024,9 @@ function compiler(options = {}) {
   /** @type {Handle} */
 
   function onexitimage() {
-    const context = this.stack[this.stack.length - 1]; // To do: clean.
+    const context =
+      /** @type {Image & {identifier: string, label: string}} */
+      this.stack[this.stack.length - 1]; // To do: clean.
 
     if (getData('inReference')) {
       context.type += 'Reference'; // @ts-expect-error: mutate.
@@ -10996,7 +11047,9 @@ function compiler(options = {}) {
   /** @type {Handle} */
 
   function onexitlabeltext(token) {
-    const ancestor = this.stack[this.stack.length - 2];
+    const ancestor =
+      /** @type {(Link|Image) & {identifier: string, label: string}} */
+      this.stack[this.stack.length - 2];
     const string = this.sliceSerialize(token);
     ancestor.label = decodeString(string);
     ancestor.identifier = normalizeIdentifier(string).toLowerCase();
@@ -11004,9 +11057,13 @@ function compiler(options = {}) {
   /** @type {Handle} */
 
   function onexitlabel() {
-    const fragment = this.stack[this.stack.length - 1];
+    const fragment =
+      /** @type {Fragment} */
+      this.stack[this.stack.length - 1];
     const value = this.resume();
-    const node = this.stack[this.stack.length - 1]; // Assume a reference.
+    const node =
+      /** @type {(Link|Image) & {identifier: string, label: string}} */
+      this.stack[this.stack.length - 1]; // Assume a reference.
 
     setData('inReference', true);
 
@@ -11021,14 +11078,18 @@ function compiler(options = {}) {
 
   function onexitresourcedestinationstring() {
     const data = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Link|Image} */
+      this.stack[this.stack.length - 1];
     node.url = data;
   }
   /** @type {Handle} */
 
   function onexitresourcetitlestring() {
     const data = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Link|Image} */
+      this.stack[this.stack.length - 1];
     node.title = data;
   }
   /** @type {Handle} */
@@ -11045,7 +11106,9 @@ function compiler(options = {}) {
 
   function onexitreferencestring(token) {
     const label = this.resume();
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {LinkReference|ImageReference} */
+      this.stack[this.stack.length - 1];
     node.label = label;
     node.identifier = normalizeIdentifier(
       this.sliceSerialize(token)
@@ -11086,14 +11149,18 @@ function compiler(options = {}) {
 
   function onexitautolinkprotocol(token) {
     onexitdata.call(this, token);
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Link} */
+      this.stack[this.stack.length - 1];
     node.url = this.sliceSerialize(token);
   }
   /** @type {Handle} */
 
   function onexitautolinkemail(token) {
     onexitdata.call(this, token);
-    const node = this.stack[this.stack.length - 1];
+    const node =
+      /** @type {Link} */
+      this.stack[this.stack.length - 1];
     node.url = 'mailto:' + this.sliceSerialize(token);
   } //
   // Creaters.
@@ -14650,19 +14717,7 @@ function gfmStrikethrough(options = {}) {
    */
 
   function resolveAllStrikethrough(events, context) {
-    let index = -1;
-    /** @type {Token} */
-
-    let strikethrough;
-    /** @type {Token} */
-
-    let text;
-    /** @type {number} */
-
-    let open;
-    /** @type {Event[]} */
-
-    let nextEvents; // Walk through all events.
+    let index = -1; // Walk through all events.
 
     while (++index < events.length) {
       // Find a token that can close.
@@ -14671,7 +14726,7 @@ function gfmStrikethrough(options = {}) {
         events[index][1].type === 'strikethroughSequenceTemporary' &&
         events[index][1]._close
       ) {
-        open = index; // Now walk back to find an opener.
+        let open = index; // Now walk back to find an opener.
 
         while (open--) {
           // Find a token that can open the closer.
@@ -14684,18 +14739,18 @@ function gfmStrikethrough(options = {}) {
           ) {
             events[index][1].type = 'strikethroughSequence';
             events[open][1].type = 'strikethroughSequence';
-            strikethrough = {
+            const strikethrough = {
               type: 'strikethrough',
               start: Object.assign({}, events[open][1].start),
               end: Object.assign({}, events[index][1].end)
             };
-            text = {
+            const text = {
               type: 'strikethroughText',
               start: Object.assign({}, events[open][1].end),
               end: Object.assign({}, events[index][1].start)
             }; // Opening.
 
-            nextEvents = [
+            const nextEvents = [
               ['enter', strikethrough, context],
               ['enter', events[open][1], context],
               ['exit', events[open][1], context],
@@ -14748,9 +14803,8 @@ function gfmStrikethrough(options = {}) {
 
     function start(code) {
       if (
-        code !== 126 ||
-        (previous === 126 &&
-          events[events.length - 1][1].type !== 'characterEscape')
+        previous === 126 &&
+        events[events.length - 1][1].type !== 'characterEscape'
       ) {
         return nok(code)
       }
@@ -14960,9 +15014,6 @@ const nextPrefixedOrBlank = {
 
 function resolveTable(events, context) {
   let index = -1;
-  /** @type {Token} */
-
-  let token;
   /** @type {boolean|undefined} */
 
   let inHead;
@@ -14972,15 +15023,6 @@ function resolveTable(events, context) {
   /** @type {boolean|undefined} */
 
   let inRow;
-  /** @type {Token} */
-
-  let cell;
-  /** @type {Token} */
-
-  let content;
-  /** @type {Token} */
-
-  let text;
   /** @type {number|undefined} */
 
   let contentStart;
@@ -14992,7 +15034,7 @@ function resolveTable(events, context) {
   let cellStart;
 
   while (++index < events.length) {
-    token = events[index][1];
+    const token = events[index][1];
 
     if (inRow) {
       if (token.type === 'temporaryTableCellContent') {
@@ -15005,13 +15047,14 @@ function resolveTable(events, context) {
         (token.type === 'tableCellDivider' || token.type === 'tableRow') &&
         contentEnd
       ) {
-        content = {
+        const content = {
           type: 'tableContent',
-          // @ts-expect-error `contentStart` is defined if `contentEnd` is too.
           start: events[contentStart][1].start,
           end: events[contentEnd][1].end
         };
-        text = {
+        /** @type {Token} */
+
+        const text = {
           type: 'chunkText',
           start: content.start,
           end: content.end,
@@ -15019,15 +15062,13 @@ function resolveTable(events, context) {
           contentType: 'text'
         };
         events.splice(
-          // @ts-expect-error `contentStart` is defined if `contentEnd` is too.
-          contentStart, // @ts-expect-error `contentStart` is defined if `contentEnd` is too.
+          contentStart,
           contentEnd - contentStart + 1,
           ['enter', content, context],
           ['enter', text, context],
           ['exit', text, context],
           ['exit', content, context]
-        ); // @ts-expect-error `contentStart` is defined if `contentEnd` is too.
-
+        );
         index -= contentEnd - contentStart - 3;
         contentStart = undefined;
         contentEnd = undefined;
@@ -15043,7 +15084,7 @@ function resolveTable(events, context) {
           (cellStart + 3 < index ||
             events[cellStart][1].type !== 'whitespace')))
     ) {
-      cell = {
+      const cell = {
         type: inDelimiterRow
           ? 'tableDelimiter'
           : inHead
@@ -15205,7 +15246,6 @@ function tokenizeTable(effects, ok, nok) {
   /** @type {State} */
 
   function atDelimiterLineStart(code) {
-    // To do: is the lazy setext thing still needed?
     return effects.check(
       setextUnderlineMini,
       nok, // Support an indent before the delimiter row.
@@ -18884,71 +18924,6 @@ var remarkLintListItemIndent$1 = remarkLintListItemIndent;
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-auto-link-without-protocol
- * @fileoverview
- *   Warn for autolinks without protocol.
- *   Autolinks are URLs enclosed in `<` (less than) and `>` (greater than)
- *   characters.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   adds a protocol where needed.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
- * @example
- *   {"name": "ok.md"}
- *
- *   <http://www.example.com>
- *   <mailto:foo@bar.com>
- *
- *   Most Markdown vendors don’t recognize the following as a link:
- *   <www.example.com>
- *
- * @example
- *   {"name": "not-ok.md", "label": "input"}
- *
- *   <foo@bar.com>
- *
- * @example
- *   {"name": "not-ok.md", "label": "output"}
- *
- *   1:1-1:14: All automatic links must start with a protocol
- */
-
-// Protocol expression.
-// See: <https://en.wikipedia.org/wiki/URI_scheme#Generic_syntax>.
-const protocol = /^[a-z][a-z+.-]+:\/?/i;
-
-const remarkLintNoAutoLinkWithoutProtocol = lintRule(
-  {
-    origin: 'remark-lint:no-auto-link-without-protocol',
-    url: 'https://github.com/remarkjs/remark-lint/tree/main/packages/remark-lint-no-auto-link-without-protocol#readme'
-  },
-  /** @type {import('unified-lint-rule').Rule<Root, void>} */
-  (tree, file) => {
-    visit$1(tree, 'link', (node) => {
-      if (
-        !generated(node) &&
-        pointStart(node).column === pointStart(node.children[0]).column - 1 &&
-        pointEnd(node).column ===
-          pointEnd(node.children[node.children.length - 1]).column + 1 &&
-        !protocol.test(toString(node))
-      ) {
-        file.message('All automatic links must start with a protocol', node);
-      }
-    });
-  }
-);
-
-var remarkLintNoAutoLinkWithoutProtocol$1 = remarkLintNoAutoLinkWithoutProtocol;
-
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
  * @module no-blockquote-without-marker
  * @fileoverview
  *   Warn when blank lines without `>` (greater than) markers are found in a
@@ -20012,8 +19987,6 @@ const remarkPresetLintRecommended = {
     // Rendering across vendors differs greatly if using other styles.
     remarkLintListItemBulletIndent$1,
     [remarkLintListItemIndent$1, 'tab-size'],
-    // Differs or unsupported across vendors.
-    remarkLintNoAutoLinkWithoutProtocol$1,
     remarkLintNoBlockquoteWithoutMarker$1,
     remarkLintNoLiteralUrls$1,
     [remarkLintOrderedListMarkerStyle$1, '.'],
