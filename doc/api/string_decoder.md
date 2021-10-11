@@ -47,6 +47,7 @@ console.log(decoder.end(Buffer.from([0xAC])));
 ## Class: `StringDecoder`
 
 ### `new StringDecoder([encoding])`
+
 <!-- YAML
 added: v0.1.99
 -->
@@ -57,6 +58,7 @@ added: v0.1.99
 Creates a new `StringDecoder` instance.
 
 ### `stringDecoder.end([buffer])`
+
 <!-- YAML
 added: v0.9.3
 -->
@@ -74,6 +76,7 @@ is performed before returning the remaining input.
 After `end()` is called, the `stringDecoder` object can be reused for new input.
 
 ### `stringDecoder.write(buffer)`
+
 <!-- YAML
 added: v0.1.99
 changes:
@@ -88,8 +91,8 @@ changes:
 * Returns: {string}
 
 Returns a decoded string, ensuring that any incomplete multibyte characters at
- the end of the `Buffer`, or `TypedArray`, or `DataView` are omitted from the
- returned string and stored in an internal buffer for the next call to
- `stringDecoder.write()` or `stringDecoder.end()`.
+the end of the `Buffer`, or `TypedArray`, or `DataView` are omitted from the
+returned string and stored in an internal buffer for the next call to
+`stringDecoder.write()` or `stringDecoder.end()`.
 
 [encoding]: buffer.md#buffers-and-character-encodings

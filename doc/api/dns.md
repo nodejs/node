@@ -52,6 +52,7 @@ dns.resolve4('archive.org', (err, addresses) => {
 See the [Implementation considerations section][] for more information.
 
 ## Class: `dns.Resolver`
+
 <!-- YAML
 added: v8.3.0
 -->
@@ -94,6 +95,7 @@ The following methods from the `dns` module are available:
 * [`resolver.setServers()`][`dns.setServers()`]
 
 ### `Resolver([options])`
+
 <!-- YAML
 added: v8.3.0
 changes:
@@ -115,6 +117,7 @@ Create a new resolver.
     each name server before giving up. **Default:** `4`
 
 ### `resolver.cancel()`
+
 <!-- YAML
 added: v8.3.0
 -->
@@ -123,6 +126,7 @@ Cancel all outstanding DNS queries made by this resolver. The corresponding
 callbacks will be called with an error with code `ECANCELLED`.
 
 ### `resolver.setLocalAddress([ipv4][, ipv6])`
+
 <!-- YAML
 added: v15.1.0
 -->
@@ -144,17 +148,19 @@ servers, and the v6 local address when making requests to IPv6 DNS servers.
 The `rrtype` of resolution requests has no impact on the local address used.
 
 ## `dns.getServers()`
+
 <!-- YAML
 added: v0.11.3
 -->
 
-* Returns: {string[]}
+* Returns: {string\[]}
 
 Returns an array of IP address strings, formatted according to [RFC 5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
 
 <!-- eslint-disable semi-->
+
 ```js
 [
   '4.4.4.4',
@@ -165,6 +171,7 @@ section if a custom port is used.
 ```
 
 ## `dns.lookup(hostname[, options], callback)`
+
 <!-- YAML
 added: v0.1.90
 changes:
@@ -244,6 +251,7 @@ is not set to `true`, it returns a `Promise` for an `Object` with `address` and
 `family` properties.
 
 ### Supported getaddrinfo flags
+
 <!-- YAML
 changes:
   - version:
@@ -265,6 +273,7 @@ The following flags can be passed as hints to [`dns.lookup()`][].
   well as IPv4 mapped IPv6 addresses.
 
 ## `dns.lookupService(address, port, callback)`
+
 <!-- YAML
 added: v0.11.14
 -->
@@ -297,6 +306,7 @@ If this method is invoked as its [`util.promisify()`][]ed version, it returns a
 `Promise` for an `Object` with `hostname` and `service` properties.
 
 ## `dns.resolve(hostname[, rrtype], callback)`
+
 <!-- YAML
 added: v0.1.27
 -->
@@ -305,15 +315,15 @@ added: v0.1.27
 * `rrtype` {string} Resource record type. **Default:** `'A'`.
 * `callback` {Function}
   * `err` {Error}
-  * `records` {string[] | Object[] | Object}
+  * `records` {string\[] | Object\[] | Object}
 
 Uses the DNS protocol to resolve a host name (e.g. `'nodejs.org'`) into an array
 of the resource records. The `callback` function has arguments
 `(err, records)`. When successful, `records` will be an array of resource
 records. The type and structure of individual results varies based on `rrtype`:
 
-|  `rrtype` | `records` contains             | Result type | Shorthand method         |
-|-----------|--------------------------------|-------------|--------------------------|
+| `rrtype`  | `records` contains             | Result type | Shorthand method         |
+| --------- | ------------------------------ | ----------- | ------------------------ |
 | `'A'`     | IPv4 addresses (default)       | {string}    | [`dns.resolve4()`][]     |
 | `'AAAA'`  | IPv6 addresses                 | {string}    | [`dns.resolve6()`][]     |
 | `'ANY'`   | any records                    | {Object}    | [`dns.resolveAny()`][]   |
@@ -325,12 +335,13 @@ records. The type and structure of individual results varies based on `rrtype`:
 | `'PTR'`   | pointer records                | {string}    | [`dns.resolvePtr()`][]   |
 | `'SOA'`   | start of authority records     | {Object}    | [`dns.resolveSoa()`][]   |
 | `'SRV'`   | service records                | {Object}    | [`dns.resolveSrv()`][]   |
-| `'TXT'`   | text records                   | {string[]}  | [`dns.resolveTxt()`][]   |
+| `'TXT'`   | text records                   | {string\[]} | [`dns.resolveTxt()`][]   |
 
 On error, `err` is an [`Error`][] object, where `err.code` is one of the
 [DNS error codes]().
 
 ## `dns.resolve4(hostname[, options], callback)`
+
 <!-- YAML
 added: v0.1.16
 changes:
@@ -348,7 +359,7 @@ changes:
     with the TTL expressed in seconds.
 * `callback` {Function}
   * `err` {Error}
-  * `addresses` {string[] | Object[]}
+  * `addresses` {string\[] | Object\[]}
 
 Uses the DNS protocol to resolve a IPv4 addresses (`A` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
@@ -356,6 +367,7 @@ will contain an array of IPv4 addresses (e.g.
 `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
 ## `dns.resolve6(hostname[, options], callback)`
+
 <!-- YAML
 added: v0.1.16
 changes:
@@ -373,7 +385,7 @@ changes:
     strings, with the TTL expressed in seconds.
 * `callback` {Function}
   * `err` {Error}
-  * `addresses` {string[] | Object[]}
+  * `addresses` {string\[] | Object\[]}
 
 Uses the DNS protocol to resolve a IPv6 addresses (`AAAA` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
@@ -384,7 +396,7 @@ will contain an array of IPv6 addresses.
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `ret` {Object[]}
+  * `ret` {Object\[]}
 
 Uses the DNS protocol to resolve all records (also known as `ANY` or `*` query).
 The `ret` argument passed to the `callback` function will be an array containing
@@ -392,22 +404,23 @@ various types of records. Each object has a property `type` that indicates the
 type of the current record. And depending on the `type`, additional properties
 will be present on the object:
 
-| Type | Properties |
-|------|------------|
-| `'A'` | `address`/`ttl` |
-| `'AAAA'` | `address`/`ttl` |
-| `'CNAME'` | `value` |
-| `'MX'` | Refer to [`dns.resolveMx()`][] |
-| `'NAPTR'` | Refer to [`dns.resolveNaptr()`][] |
-| `'NS'` | `value` |
-| `'PTR'` | `value` |
-| `'SOA'` | Refer to [`dns.resolveSoa()`][] |
-| `'SRV'` | Refer to [`dns.resolveSrv()`][] |
-| `'TXT'` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
+| Type      | Properties                                                                                                                                       |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `'A'`     | `address`/`ttl`                                                                                                                                  |
+| `'AAAA'`  | `address`/`ttl`                                                                                                                                  |
+| `'CNAME'` | `value`                                                                                                                                          |
+| `'MX'`    | Refer to [`dns.resolveMx()`][]                                                                                                                   |
+| `'NAPTR'` | Refer to [`dns.resolveNaptr()`][]                                                                                                                |
+| `'NS'`    | `value`                                                                                                                                          |
+| `'PTR'`   | `value`                                                                                                                                          |
+| `'SOA'`   | Refer to [`dns.resolveSoa()`][]                                                                                                                  |
+| `'SRV'`   | Refer to [`dns.resolveSrv()`][]                                                                                                                  |
+| `'TXT'`   | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
 
 Here is an example of the `ret` object passed to the callback:
 
 <!-- eslint-disable semi -->
+
 ```js
 [ { type: 'A', address: '127.0.0.1', ttl: 299 },
   { type: 'CNAME', value: 'example.com' },
@@ -429,6 +442,7 @@ queries. It may be better to call individual methods like [`dns.resolve4()`][],
 [`dns.resolveMx()`][], and so on. For more details, see [RFC 8482][].
 
 ## `dns.resolveCname(hostname, callback)`
+
 <!-- YAML
 added: v0.3.2
 -->
@@ -436,7 +450,7 @@ added: v0.3.2
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `addresses` {string[]}
+  * `addresses` {string\[]}
 
 Uses the DNS protocol to resolve `CNAME` records for the `hostname`. The
 `addresses` argument passed to the `callback` function
@@ -444,6 +458,7 @@ will contain an array of canonical name records available for the `hostname`
 (e.g. `['bar.example.com']`).
 
 ## `dns.resolveCaa(hostname, callback)`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -451,7 +466,7 @@ added: v15.0.0
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `records` {Object[]}
+  * `records` {Object\[]}
 
 Uses the DNS protocol to resolve `CAA` records for the `hostname`. The
 `addresses` argument passed to the `callback` function
@@ -460,6 +475,7 @@ available for the `hostname` (e.g. `[{critical: 0, iodef:
 'mailto:pki@example.com'}, {critical: 128, issue: 'pki.example.com'}]`).
 
 ## `dns.resolveMx(hostname, callback)`
+
 <!-- YAML
 added: v0.1.27
 -->
@@ -467,7 +483,7 @@ added: v0.1.27
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `addresses` {Object[]}
+  * `addresses` {Object\[]}
 
 Uses the DNS protocol to resolve mail exchange records (`MX` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
@@ -475,6 +491,7 @@ contain an array of objects containing both a `priority` and `exchange`
 property (e.g. `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 
 ## `dns.resolveNaptr(hostname, callback)`
+
 <!-- YAML
 added: v0.9.12
 -->
@@ -482,7 +499,7 @@ added: v0.9.12
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `addresses` {Object[]}
+  * `addresses` {Object\[]}
 
 Uses the DNS protocol to resolve regular expression based records (`NAPTR`
 records) for the `hostname`. The `addresses` argument passed to the `callback`
@@ -496,6 +513,7 @@ function will contain an array of objects with the following properties:
 * `preference`
 
 <!-- eslint-skip -->
+
 ```js
 {
   flags: 's',
@@ -508,6 +526,7 @@ function will contain an array of objects with the following properties:
 ```
 
 ## `dns.resolveNs(hostname, callback)`
+
 <!-- YAML
 added: v0.1.90
 -->
@@ -515,7 +534,7 @@ added: v0.1.90
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `addresses` {string[]}
+  * `addresses` {string\[]}
 
 Uses the DNS protocol to resolve name server records (`NS` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
@@ -523,6 +542,7 @@ contain an array of name server records available for `hostname`
 (e.g. `['ns1.example.com', 'ns2.example.com']`).
 
 ## `dns.resolvePtr(hostname, callback)`
+
 <!-- YAML
 added: v6.0.0
 -->
@@ -530,13 +550,14 @@ added: v6.0.0
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `addresses` {string[]}
+  * `addresses` {string\[]}
 
 Uses the DNS protocol to resolve pointer records (`PTR` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
 be an array of strings containing the reply records.
 
 ## `dns.resolveSoa(hostname, callback)`
+
 <!-- YAML
 added: v0.11.10
 -->
@@ -559,6 +580,7 @@ be an object with the following properties:
 * `minttl`
 
 <!-- eslint-skip -->
+
 ```js
 {
   nsname: 'ns.example.com',
@@ -572,6 +594,7 @@ be an object with the following properties:
 ```
 
 ## `dns.resolveSrv(hostname, callback)`
+
 <!-- YAML
 added: v0.1.27
 -->
@@ -579,7 +602,7 @@ added: v0.1.27
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `addresses` {Object[]}
+  * `addresses` {Object\[]}
 
 Uses the DNS protocol to resolve service records (`SRV` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
@@ -591,6 +614,7 @@ be an array of objects with the following properties:
 * `name`
 
 <!-- eslint-skip -->
+
 ```js
 {
   priority: 10,
@@ -601,15 +625,18 @@ be an array of objects with the following properties:
 ```
 
 ## `dns.resolveTxt(hostname, callback)`
+
 <!-- YAML
 added: v0.1.27
 -->
 
 <!--lint disable no-undefined-references list-item-bullet-indent-->
+
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `records` <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type" class="type">&lt;string[][]&gt;</a>
+  * `records` <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type" class="type">\<string\[]\[]></a>
+
 <!--lint enable no-undefined-references list-item-bullet-indent-->
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
@@ -620,6 +647,7 @@ one record. Depending on the use case, these could be either joined together or
 treated separately.
 
 ## `dns.reverse(ip, callback)`
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -627,7 +655,7 @@ added: v0.1.16
 * `ip` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `hostnames` {string[]}
+  * `hostnames` {string\[]}
 
 Performs a reverse DNS query that resolves an IPv4 or IPv6 address to an
 array of host names.
@@ -636,6 +664,7 @@ On error, `err` is an [`Error`][] object, where `err.code` is
 one of the [DNS error codes][].
 
 ## `dns.setDefaultResultOrder(order)`
+
 <!-- YAML
 added: v16.4.0
 -->
@@ -644,6 +673,7 @@ added: v16.4.0
 
 Set the default value of `verbatim` in [`dns.lookup()`][] and
 [`dnsPromises.lookup()`][]. The value could be:
+
 * `ipv4first`: sets default `verbatim` `false`.
 * `verbatim`: sets default `verbatim` `true`.
 
@@ -653,11 +683,12 @@ priority than [`--dns-result-order`][]. When using [worker threads][],
 dns orders in workers.
 
 ## `dns.setServers(servers)`
+
 <!-- YAML
 added: v0.11.3
 -->
 
-* `servers` {string[]} array of [RFC 5952][] formatted addresses
+* `servers` {string\[]} array of [RFC 5952][] formatted addresses
 
 Sets the IP address and port of servers to be used when performing DNS
 resolution. The `servers` argument is an array of [RFC 5952][] formatted
@@ -678,17 +709,18 @@ The `dns.setServers()` method must not be called while a DNS query is in
 progress.
 
 The [`dns.setServers()`][] method affects only [`dns.resolve()`][],
-`dns.resolve*()` and [`dns.reverse()`][] (and specifically *not*
+`dns.resolve*()` and [`dns.reverse()`][] (and specifically _not_
 [`dns.lookup()`][]).
 
 This method works much like
 [resolve.conf](https://man7.org/linux/man-pages/man5/resolv.conf.5.html).
 That is, if attempting to resolve with the first server provided results in a
-`NOTFOUND` error, the `resolve()` method will *not* attempt to resolve with
+`NOTFOUND` error, the `resolve()` method will _not_ attempt to resolve with
 subsequent servers provided. Fallback DNS servers will only be used if the
 earlier ones time out or result in some other error.
 
 ## DNS promises API
+
 <!-- YAML
 added: v10.6.0
 changes:
@@ -707,6 +739,7 @@ that return `Promise` objects rather than using callbacks. The API is accessible
 via `require('dns').promises` or `require('dns/promises')`.
 
 ### Class: `dnsPromises.Resolver`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -754,6 +787,7 @@ The following methods from the `dnsPromises` API are available:
 * [`resolver.setServers()`][`dnsPromises.setServers()`]
 
 ### `resolver.cancel()`
+
 <!-- YAML
 added: v15.3.0
 -->
@@ -762,17 +796,19 @@ Cancel all outstanding DNS queries made by this resolver. The corresponding
 promises will be rejected with an error with code `ECANCELLED`.
 
 ### `dnsPromises.getServers()`
+
 <!-- YAML
 added: v10.6.0
 -->
 
-* Returns: {string[]}
+* Returns: {string\[]}
 
 Returns an array of IP address strings, formatted according to [RFC 5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
 
 <!-- eslint-disable semi-->
+
 ```js
 [
   '4.4.4.4',
@@ -783,6 +819,7 @@ section if a custom port is used.
 ```
 
 ### `dnsPromises.lookup(hostname[, options])`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -849,6 +886,7 @@ dnsPromises.lookup('example.com', options).then((result) => {
 ```
 
 ### `dnsPromises.lookupService(address, port)`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -875,6 +913,7 @@ dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
 ```
 
 ### `dnsPromises.resolve(hostname[, rrtype])`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -887,12 +926,12 @@ of the resource records. When successful, the `Promise` is resolved with an
 array of resource records. The type and structure of individual results vary
 based on `rrtype`:
 
-|  `rrtype` | `records` contains             | Result type | Shorthand method         |
-|-----------|--------------------------------|-------------|--------------------------|
+| `rrtype`  | `records` contains             | Result type | Shorthand method                 |
+| --------- | ------------------------------ | ----------- | -------------------------------- |
 | `'A'`     | IPv4 addresses (default)       | {string}    | [`dnsPromises.resolve4()`][]     |
 | `'AAAA'`  | IPv6 addresses                 | {string}    | [`dnsPromises.resolve6()`][]     |
 | `'ANY'`   | any records                    | {Object}    | [`dnsPromises.resolveAny()`][]   |
-| `'CAA'`   | CA authorization records       | {Object}    | [`dnsPromises.resolveCaa()`][] |
+| `'CAA'`   | CA authorization records       | {Object}    | [`dnsPromises.resolveCaa()`][]   |
 | `'CNAME'` | canonical name records         | {string}    | [`dnsPromises.resolveCname()`][] |
 | `'MX'`    | mail exchange records          | {Object}    | [`dnsPromises.resolveMx()`][]    |
 | `'NAPTR'` | name authority pointer records | {Object}    | [`dnsPromises.resolveNaptr()`][] |
@@ -900,12 +939,13 @@ based on `rrtype`:
 | `'PTR'`   | pointer records                | {string}    | [`dnsPromises.resolvePtr()`][]   |
 | `'SOA'`   | start of authority records     | {Object}    | [`dnsPromises.resolveSoa()`][]   |
 | `'SRV'`   | service records                | {Object}    | [`dnsPromises.resolveSrv()`][]   |
-| `'TXT'`   | text records                   | {string[]}  | [`dnsPromises.resolveTxt()`][]   |
+| `'TXT'`   | text records                   | {string\[]} | [`dnsPromises.resolveTxt()`][]   |
 
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is one of the [DNS error codes]().
 
 ### `dnsPromises.resolve4(hostname[, options])`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -922,6 +962,7 @@ Uses the DNS protocol to resolve IPv4 addresses (`A` records) for the
 addresses (e.g. `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
 ### `dnsPromises.resolve6(hostname[, options])`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -938,6 +979,7 @@ Uses the DNS protocol to resolve IPv6 addresses (`AAAA` records) for the
 addresses.
 
 ### `dnsPromises.resolveAny(hostname)`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -950,22 +992,23 @@ records. Each object has a property `type` that indicates the type of the
 current record. And depending on the `type`, additional properties will be
 present on the object:
 
-| Type | Properties |
-|------|------------|
-| `'A'` | `address`/`ttl` |
-| `'AAAA'` | `address`/`ttl` |
-| `'CNAME'` | `value` |
-| `'MX'` | Refer to [`dnsPromises.resolveMx()`][] |
-| `'NAPTR'` | Refer to [`dnsPromises.resolveNaptr()`][] |
-| `'NS'` | `value` |
-| `'PTR'` | `value` |
-| `'SOA'` | Refer to [`dnsPromises.resolveSoa()`][] |
-| `'SRV'` | Refer to [`dnsPromises.resolveSrv()`][] |
-| `'TXT'` | This type of record contains an array property called `entries` which refers to [`dnsPromises.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
+| Type      | Properties                                                                                                                                               |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `'A'`     | `address`/`ttl`                                                                                                                                          |
+| `'AAAA'`  | `address`/`ttl`                                                                                                                                          |
+| `'CNAME'` | `value`                                                                                                                                                  |
+| `'MX'`    | Refer to [`dnsPromises.resolveMx()`][]                                                                                                                   |
+| `'NAPTR'` | Refer to [`dnsPromises.resolveNaptr()`][]                                                                                                                |
+| `'NS'`    | `value`                                                                                                                                                  |
+| `'PTR'`   | `value`                                                                                                                                                  |
+| `'SOA'`   | Refer to [`dnsPromises.resolveSoa()`][]                                                                                                                  |
+| `'SRV'`   | Refer to [`dnsPromises.resolveSrv()`][]                                                                                                                  |
+| `'TXT'`   | This type of record contains an array property called `entries` which refers to [`dnsPromises.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
 
 Here is an example of the result object:
 
 <!-- eslint-disable semi -->
+
 ```js
 [ { type: 'A', address: '127.0.0.1', ttl: 299 },
   { type: 'CNAME', value: 'example.com' },
@@ -983,6 +1026,7 @@ Here is an example of the result object:
 ```
 
 ### `dnsPromises.resolveCaa(hostname)`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -996,6 +1040,7 @@ certification authority authorization records available for the `hostname`
 'pki.example.com'}]`).
 
 ### `dnsPromises.resolveCname(hostname)`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -1007,6 +1052,7 @@ the `Promise` is resolved with an array of canonical name records available for
 the `hostname` (e.g. `['bar.example.com']`).
 
 ### `dnsPromises.resolveMx(hostname)`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -1019,6 +1065,7 @@ containing both a `priority` and `exchange` property (e.g.
 `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 
 ### `dnsPromises.resolveNaptr(hostname)`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -1037,6 +1084,7 @@ of objects with the following properties:
 * `preference`
 
 <!-- eslint-skip -->
+
 ```js
 {
   flags: 's',
@@ -1049,6 +1097,7 @@ of objects with the following properties:
 ```
 
 ### `dnsPromises.resolveNs(hostname)`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -1061,6 +1110,7 @@ records available for `hostname` (e.g.
 `['ns1.example.com', 'ns2.example.com']`).
 
 ### `dnsPromises.resolvePtr(hostname)`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -1072,6 +1122,7 @@ Uses the DNS protocol to resolve pointer records (`PTR` records) for the
 containing the reply records.
 
 ### `dnsPromises.resolveSoa(hostname)`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -1091,6 +1142,7 @@ following properties:
 * `minttl`
 
 <!-- eslint-skip -->
+
 ```js
 {
   nsname: 'ns.example.com',
@@ -1104,6 +1156,7 @@ following properties:
 ```
 
 ### `dnsPromises.resolveSrv(hostname)`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -1120,6 +1173,7 @@ the following properties:
 * `name`
 
 <!-- eslint-skip -->
+
 ```js
 {
   priority: 10,
@@ -1130,6 +1184,7 @@ the following properties:
 ```
 
 ### `dnsPromises.resolveTxt(hostname)`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -1144,6 +1199,7 @@ one record. Depending on the use case, these could be either joined together or
 treated separately.
 
 ### `dnsPromises.reverse(ip)`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -1157,6 +1213,7 @@ On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is one of the [DNS error codes]().
 
 ### `dnsPromises.setDefaultResultOrder(order)`
+
 <!-- YAML
 added: v16.4.0
 -->
@@ -1165,6 +1222,7 @@ added: v16.4.0
 
 Set the default value of `verbatim` in [`dns.lookup()`][] and
 [`dnsPromises.lookup()`][]. The value could be:
+
 * `ipv4first`: sets default `verbatim` `false`.
 * `verbatim`: sets default `verbatim` `true`.
 
@@ -1174,11 +1232,12 @@ higher priority than [`--dns-result-order`][]. When using [worker threads][],
 default dns orders in workers.
 
 ### `dnsPromises.setServers(servers)`
+
 <!-- YAML
 added: v10.6.0
 -->
 
-* `servers` {string[]} array of [RFC 5952][] formatted addresses
+* `servers` {string\[]} array of [RFC 5952][] formatted addresses
 
 Sets the IP address and port of servers to be used when performing DNS
 resolution. The `servers` argument is an array of [RFC 5952][] formatted
@@ -1201,7 +1260,7 @@ progress.
 This method works much like
 [resolve.conf](https://man7.org/linux/man-pages/man5/resolv.conf.5.html).
 That is, if attempting to resolve with the first server provided results in a
-`NOTFOUND` error, the `resolve()` method will *not* attempt to resolve with
+`NOTFOUND` error, the `resolve()` method will _not_ attempt to resolve with
 subsequent servers provided. Fallback DNS servers will only be used if the
 earlier ones time out or result in some other error.
 

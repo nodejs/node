@@ -62,6 +62,7 @@ Worker threads inherit non-process-specific options by default. Refer to
 specifically `argv` and `execArgv` options.
 
 ## `worker.getEnvironmentData(key)`
+
 <!-- YAML
 added: v15.12.0
 -->
@@ -94,6 +95,7 @@ if (isMainThread) {
 ```
 
 ## `worker.isMainThread`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -115,6 +117,7 @@ if (isMainThread) {
 ```
 
 ## `worker.markAsUntransferable(object)`
+
 <!-- YAML
 added:
   - v14.5.0
@@ -154,11 +157,13 @@ console.log(typedArray2);
 There is no equivalent to this API in browsers.
 
 ## `worker.moveMessagePortToContext(port, contextifiedSandbox)`
+
 <!-- YAML
 added: v11.13.0
 -->
 
 * `port` {MessagePort} The message port to transfer.
+
 * `contextifiedSandbox` {Object} A [contextified][] object as returned by the
   `vm.createContext()` method.
 
@@ -178,6 +183,7 @@ However, the created `MessagePort` no longer inherits from
 events using it.
 
 ## `worker.parentPort`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -209,6 +215,7 @@ if (isMainThread) {
 ```
 
 ## `worker.receiveMessageOnPort(port)`
+
 <!-- YAML
 added: v12.3.0
 changes:
@@ -241,6 +248,7 @@ When this function is used, no `'message'` event is emitted and the
 `onmessage` listener is not invoked.
 
 ## `worker.resourceLimits`
+
 <!-- YAML
 added:
  - v13.2.0
@@ -260,6 +268,7 @@ this matches its values.
 If this is used in the main thread, its value is an empty object.
 
 ## `worker.SHARE_ENV`
+
 <!-- YAML
 added: v11.14.0
 -->
@@ -279,6 +288,7 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
 ```
 
 ## `worker.setEnvironmentData(key[, value])`
+
 <!-- YAML
 added: v15.12.0
 -->
@@ -296,6 +306,7 @@ The `worker.setEnvironmentData()` API sets the content of
 instances spawned from the current context.
 
 ## `worker.threadId`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -307,6 +318,7 @@ An integer identifier for the current thread. On the corresponding worker object
 This value is unique for each [`Worker`][] instance inside a single process.
 
 ## `worker.workerData`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -328,6 +340,7 @@ if (isMainThread) {
 ```
 
 ## Class: `BroadcastChannel extends EventTarget`
+
 <!-- YAML
 added: v15.4.0
 -->
@@ -363,14 +376,16 @@ if (isMainThread) {
 ```
 
 ### `new BroadcastChannel(name)`
+
 <!-- YAML
 added: v15.4.0
 -->
 
 * `name` {any} The name of the channel to connect to. Any JavaScript value
-  that can be converted to a string using ``${name}`` is permitted.
+  that can be converted to a string using `` `${name}` `` is permitted.
 
 ### `broadcastChannel.close()`
+
 <!-- YAML
 added: v15.4.0
 -->
@@ -378,6 +393,7 @@ added: v15.4.0
 Closes the `BroadcastChannel` connection.
 
 ### `broadcastChannel.onmessage`
+
 <!-- YAML
 added: v15.4.0
 -->
@@ -386,6 +402,7 @@ added: v15.4.0
   when a message is received.
 
 ### `broadcastChannel.onmessageerror`
+
 <!-- YAML
 added: v15.4.0
 -->
@@ -394,6 +411,7 @@ added: v15.4.0
   deserialized.
 
 ### `broadcastChannel.postMessage(message)`
+
 <!-- YAML
 added: v15.4.0
 -->
@@ -401,16 +419,18 @@ added: v15.4.0
 * `message` {any} Any cloneable JavaScript value.
 
 ### `broadcastChannel.ref()`
+
 <!-- YAML
 added: v15.4.0
 -->
 
 Opposite of `unref()`. Calling `ref()` on a previously `unref()`ed
-BroadcastChannel does *not* let the program exit if it's the only active handle
+BroadcastChannel does _not_ let the program exit if it's the only active handle
 left (the default behavior). If the port is `ref()`ed, calling `ref()` again
 has no effect.
 
 ### `broadcastChannel.unref()`
+
 <!-- YAML
 added: v15.4.0
 -->
@@ -420,6 +440,7 @@ is the only active handle in the event system. If the BroadcastChannel is
 already `unref()`ed calling `unref()` again has no effect.
 
 ## Class: `MessageChannel`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -440,6 +461,7 @@ port2.postMessage({ foo: 'bar' });
 ```
 
 ## Class: `MessagePort`
+
 <!-- YAML
 added: v10.5.0
 changes:
@@ -460,6 +482,7 @@ structured data, memory regions and other `MessagePort`s between different
 This implementation matches [browser `MessagePort`][]s.
 
 ### Event: `'close'`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -482,6 +505,7 @@ port1.close();
 ```
 
 ### Event: `'message'`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -495,6 +519,7 @@ Listeners on this event receive a clone of the `value` parameter as passed
 to `postMessage()` and no further arguments.
 
 ### Event: `'messageerror'`
+
 <!-- YAML
 added:
   - v14.5.0
@@ -512,6 +537,7 @@ are received in a `vm.Context` (where Node.js APIs are currently
 unavailable).
 
 ### `port.close()`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -524,6 +550,7 @@ The [`'close'` event][] is emitted on both `MessagePort` instances that
 are part of the channel.
 
 ### `port.postMessage(value[, transferList])`
+
 <!-- YAML
 added: v10.5.0
 changes:
@@ -552,7 +579,7 @@ changes:
 -->
 
 * `value` {any}
-* `transferList` {Object[]}
+* `transferList` {Object\[]}
 
 Sends a JavaScript value to the receiving side of this channel.
 `value` is transferred in a way which is compatible with
@@ -564,7 +591,7 @@ In particular, the significant differences to `JSON` are:
 * `value` may contain instances of builtin JS types such as `RegExp`s,
   `BigInt`s, `Map`s, `Set`s, etc.
 * `value` may contain typed arrays, both using `ArrayBuffer`s
-   and `SharedArrayBuffer`s.
+  and `SharedArrayBuffer`s.
 * `value` may contain [`WebAssembly.Module`][] instances.
 * `value` may not contain native (C++-backed) objects other than:
   * {CryptoKey}s,
@@ -723,12 +750,13 @@ port2.postMessage(new URL('https://example.org'));
 ```
 
 ### `port.ref()`
+
 <!-- YAML
 added: v10.5.0
 -->
 
 Opposite of `unref()`. Calling `ref()` on a previously `unref()`ed port does
-*not* let the program exit if it's the only active handle left (the default
+_not_ let the program exit if it's the only active handle left (the default
 behavior). If the port is `ref()`ed, calling `ref()` again has no effect.
 
 If listeners are attached or removed using `.on('message')`, the port
@@ -736,6 +764,7 @@ is `ref()`ed and `unref()`ed automatically depending on whether
 listeners for the event exist.
 
 ### `port.start()`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -751,6 +780,7 @@ automatically calls `.start()`, but unsetting it lets messages queue up
 until a new handler is set or the port is discarded.
 
 ### `port.unref()`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -764,6 +794,7 @@ If listeners are attached or removed using `.on('message')`, the port is
 listeners for the event exist.
 
 ## Class: `Worker`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -839,6 +870,7 @@ if (isMainThread) {
 ```
 
 ### `new Worker(filename[, options])`
+
 <!-- YAML
 added: v10.5.0
 changes:
@@ -886,7 +918,7 @@ changes:
   If `options.eval` is `true`, this is a string containing JavaScript code
   rather than a path.
 * `options` {Object}
-  * `argv` {any[]} List of arguments which would be stringified and appended to
+  * `argv` {any\[]} List of arguments which would be stringified and appended to
     `process.argv` in the worker. This is mostly similar to the `workerData`
     but the values are available on the global `process.argv` as if they
     were passed as CLI options to the script.
@@ -898,7 +930,7 @@ changes:
   * `eval` {boolean} If `true` and the first argument is a `string`, interpret
     the first argument to the constructor as a script that is executed once the
     worker is online.
-  * `execArgv` {string[]} List of node CLI options passed to the worker.
+  * `execArgv` {string\[]} List of node CLI options passed to the worker.
     V8 options (such as `--max-old-space-size`) and options that affect the
     process (such as `--title`) are not supported. If set, this is provided
     as [`process.execArgv`][] inside the worker. By default, options are
@@ -921,7 +953,7 @@ changes:
     resources like network sockets or file descriptors managed through
     the [`FileHandle`][] API. This option is automatically inherited by all
     nested `Worker`s. **Default:** `true`.
-  * `transferList` {Object[]} If one or more `MessagePort`-like objects
+  * `transferList` {Object\[]} If one or more `MessagePort`-like objects
     are passed in `workerData`, a `transferList` is required for those
     items or [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][] is thrown.
     See [`port.postMessage()`][] for more information.
@@ -939,6 +971,7 @@ changes:
       Small values may lead to unusable Worker instances. **Default:** `4`.
 
 ### Event: `'error'`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -949,6 +982,7 @@ The `'error'` event is emitted if the worker thread throws an uncaught
 exception. In that case, the worker is terminated.
 
 ### Event: `'exit'`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -963,6 +997,7 @@ passed exit code. If the worker was terminated, the `exitCode` parameter is
 This is the final event emitted by any `Worker` instance.
 
 ### Event: `'message'`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -977,6 +1012,7 @@ All messages sent from the worker thread are emitted before the
 [`'exit'` event][] is emitted on the `Worker` object.
 
 ### Event: `'messageerror'`
+
 <!-- YAML
 added:
   - v14.5.0
@@ -988,6 +1024,7 @@ added:
 The `'messageerror'` event is emitted when deserializing a message failed.
 
 ### Event: `'online'`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -996,6 +1033,7 @@ The `'online'` event is emitted when the worker thread has started executing
 JavaScript code.
 
 ### `worker.getHeapSnapshot()`
+
 <!-- YAML
 added:
  - v13.9.0
@@ -1013,6 +1051,7 @@ If the Worker thread is no longer running, which may occur before the
 immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 
 ### `worker.performance`
+
 <!-- YAML
 added:
   - v15.1.0
@@ -1023,6 +1062,7 @@ An object that can be used to query performance information from a worker
 instance. Similar to [`perf_hooks.performance`][].
 
 #### `performance.eventLoopUtilization([utilization1[, utilization2]])`
+
 <!-- YAML
 added:
   - v15.1.0
@@ -1030,9 +1070,9 @@ added:
 -->
 
 * `utilization1` {Object} The result of a previous call to
-    `eventLoopUtilization()`.
+  `eventLoopUtilization()`.
 * `utilization2` {Object} The result of a previous call to
-    `eventLoopUtilization()` prior to `utilization1`.
+  `eventLoopUtilization()` prior to `utilization1`.
 * Returns {Object}
   * `idle` {number}
   * `active` {number}
@@ -1076,28 +1116,31 @@ event][] emitted, and if called before this, or after the [`'exit'`
 event][], then all properties have the value of `0`.
 
 ### `worker.postMessage(value[, transferList])`
+
 <!-- YAML
 added: v10.5.0
 -->
 
 * `value` {any}
-* `transferList` {Object[]}
+* `transferList` {Object\[]}
 
 Send a message to the worker that is received via
 [`require('worker_threads').parentPort.on('message')`][].
 See [`port.postMessage()`][] for more details.
 
 ### `worker.ref()`
+
 <!-- YAML
 added: v10.5.0
 -->
 
 Opposite of `unref()`, calling `ref()` on a previously `unref()`ed worker does
-*not* let the program exit if it's the only active handle left (the default
+_not_ let the program exit if it's the only active handle left (the default
 behavior). If the worker is `ref()`ed, calling `ref()` again has
 no effect.
 
 ### `worker.resourceLimits`
+
 <!-- YAML
 added:
  - v13.2.0
@@ -1117,6 +1160,7 @@ this matches its values.
 If the worker has stopped, the return value is an empty object.
 
 ### `worker.stderr`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -1129,6 +1173,7 @@ inside the worker thread. If `stderr: true` was not passed to the
 [`process.stderr`][] stream.
 
 ### `worker.stdin`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -1140,6 +1185,7 @@ writable stream. The data written to this stream will be made available in
 the worker thread as [`process.stdin`][].
 
 ### `worker.stdout`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -1152,6 +1198,7 @@ inside the worker thread. If `stdout: true` was not passed to the
 [`process.stdout`][] stream.
 
 ### `worker.terminate()`
+
 <!-- YAML
 added: v10.5.0
 changes:
@@ -1170,6 +1217,7 @@ Returns a Promise for the exit code that is fulfilled when the
 [`'exit'` event][] is emitted.
 
 ### `worker.threadId`
+
 <!-- YAML
 added: v10.5.0
 -->
@@ -1181,6 +1229,7 @@ it is available as [`require('worker_threads').threadId`][].
 This value is unique for each `Worker` instance inside a single process.
 
 ### `worker.unref()`
+
 <!-- YAML
 added: v10.5.0
 -->

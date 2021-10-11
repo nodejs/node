@@ -19,6 +19,7 @@ that are part of the JavaScript language itself, which are also globally
 accessible.
 
 ## Class: `AbortController`
+
 <!-- YAML
 added: v15.0.0
 changes:
@@ -44,6 +45,7 @@ console.log(ac.signal.aborted);  // Prints True
 ```
 
 ### `abortController.abort()`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -52,6 +54,7 @@ Triggers the abort signal, causing the `abortController.signal` to emit
 the `'abort'` event.
 
 ### `abortController.signal`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -59,6 +62,7 @@ added: v15.0.0
 * Type: {AbortSignal}
 
 ### Class: `AbortSignal`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -69,6 +73,7 @@ The `AbortSignal` is used to notify observers when the
 `abortController.abort()` method is called.
 
 #### Static method: `AbortSignal.abort()`
+
 <!-- YAML
 added: v15.12.0
 -->
@@ -78,6 +83,7 @@ added: v15.12.0
 Returns a new already aborted `AbortSignal`.
 
 #### Event: `'abort'`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -112,6 +118,7 @@ removed as soon as the `'abort'` event is handled. Failure to do so may
 result in memory leaks.
 
 #### `abortSignal.aborted`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -119,6 +126,7 @@ added: v15.0.0
 * Type: {boolean} True after the `AbortController` has been aborted.
 
 #### `abortSignal.onabort`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -129,6 +137,7 @@ An optional callback function that may be set by user code to be notified
 when the `abortController.abort()` function has been called.
 
 ## Class: `Buffer`
+
 <!-- YAML
 added: v0.1.103
 -->
@@ -148,6 +157,7 @@ This variable may appear to be global but is not. See [`__dirname`][].
 This variable may appear to be global but is not. See [`__filename`][].
 
 ## `atob(data)`
+
 <!-- YAML
 added: v16.0.0
 -->
@@ -157,6 +167,7 @@ added: v16.0.0
 Global alias for [`buffer.atob()`][].
 
 ## `btoa(data)`
+
 <!-- YAML
 added: v16.0.0
 -->
@@ -166,6 +177,7 @@ added: v16.0.0
 Global alias for [`buffer.btoa()`][].
 
 ## `clearImmediate(immediateObject)`
+
 <!-- YAML
 added: v0.9.1
 -->
@@ -175,6 +187,7 @@ added: v0.9.1
 [`clearImmediate`][] is described in the [timers][] section.
 
 ## `clearInterval(intervalObject)`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -184,6 +197,7 @@ added: v0.0.1
 [`clearInterval`][] is described in the [timers][] section.
 
 ## `clearTimeout(timeoutObject)`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -193,6 +207,7 @@ added: v0.0.1
 [`clearTimeout`][] is described in the [timers][] section.
 
 ## `console`
+
 <!-- YAML
 added: v0.1.100
 -->
@@ -204,6 +219,7 @@ added: v0.1.100
 Used to print to stdout and stderr. See the [`console`][] section.
 
 ## `Event`
+
 <!-- YAML
 added: v15.0.0
 changes:
@@ -218,6 +234,7 @@ A browser-compatible implementation of the `Event` class. See
 [`EventTarget` and `Event` API][] for more details.
 
 ## `EventTarget`
+
 <!-- YAML
 added: v15.0.0
 changes:
@@ -236,6 +253,7 @@ A browser-compatible implementation of the `EventTarget` class. See
 This variable may appear to be global but is not. See [`exports`][].
 
 ## `global`
+
 <!-- YAML
 added: v0.1.27
 -->
@@ -250,6 +268,7 @@ Node.js this is different. The top-level scope is not the global scope;
 `var something` inside a Node.js module will be local to that module.
 
 ## `MessageChannel`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -259,6 +278,7 @@ added: v15.0.0
 The `MessageChannel` class. See [`MessageChannel`][] for more details.
 
 ## `MessageEvent`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -268,6 +288,7 @@ added: v15.0.0
 The `MessageEvent` class. See [`MessageEvent`][] for more details.
 
 ## `MessagePort`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -285,6 +306,7 @@ This variable may appear to be global but is not. See [`module`][].
 The [`perf_hooks.performance`][] object.
 
 ## `process`
+
 <!-- YAML
 added: v0.1.7
 -->
@@ -296,6 +318,7 @@ added: v0.1.7
 The process object. See the [`process` object][] section.
 
 ## `queueMicrotask(callback)`
+
 <!-- YAML
 added: v11.0.0
 -->
@@ -339,6 +362,7 @@ DataHandler.prototype.load = async function load(key) {
 This variable may appear to be global but is not. See [`require()`][].
 
 ## `setImmediate(callback[, ...args])`
+
 <!-- YAML
 added: v0.9.1
 -->
@@ -348,6 +372,7 @@ added: v0.9.1
 [`setImmediate`][] is described in the [timers][] section.
 
 ## `setInterval(callback, delay[, ...args])`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -357,6 +382,7 @@ added: v0.0.1
 [`setInterval`][] is described in the [timers][] section.
 
 ## `setTimeout(callback, delay[, ...args])`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -366,6 +392,7 @@ added: v0.0.1
 [`setTimeout`][] is described in the [timers][] section.
 
 ## `TextDecoder`
+
 <!-- YAML
 added: v11.0.0
 -->
@@ -375,6 +402,7 @@ added: v11.0.0
 The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
 
 ## `TextEncoder`
+
 <!-- YAML
 added: v11.0.0
 -->
@@ -384,6 +412,7 @@ added: v11.0.0
 The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
 
 ## `URL`
+
 <!-- YAML
 added: v10.0.0
 -->
@@ -393,6 +422,7 @@ added: v10.0.0
 The WHATWG `URL` class. See the [`URL`][] section.
 
 ## `URLSearchParams`
+
 <!-- YAML
 added: v10.0.0
 -->
@@ -402,6 +432,7 @@ added: v10.0.0
 The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 
 ## `WebAssembly`
+
 <!-- YAML
 added: v8.0.0
 -->

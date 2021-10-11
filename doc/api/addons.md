@@ -235,6 +235,7 @@ NODE_MODULE_INIT(/* exports, module, context */) {
 ```
 
 #### Worker support
+
 <!-- YAML
 changes:
   - version:
