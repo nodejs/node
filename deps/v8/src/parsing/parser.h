@@ -709,6 +709,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return arg;
   }
 
+  const AstRawString* PreParserIdentifierToAstRawString(
+      const PreParserIdentifier& arg) {
+    // This method definition is only needed due to an MSVC oddity that
+    // instantiates the method despite it being unused. See crbug.com/v8/12266 .
+    UNREACHABLE();
+  }
+
   IterationStatement* AsIterationStatement(BreakableStatement* s) {
     return s->AsIterationStatement();
   }
