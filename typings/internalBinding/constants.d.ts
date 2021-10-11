@@ -1,30 +1,3 @@
-declare type TypedArray = Uint16Array | Uint32Array | Uint8Array | Uint8ClampedArray | Int16Array | Int32Array | Int8Array | BigInt64Array | Float32Array | Float64Array | BigUint64Array;
-declare function InternalBinding(binding: 'types'): {
-  isAsyncFunction(value: unknown): value is (...args: unknown[]) => Promise<unknown>,
-  isGeneratorFunction(value: unknown): value is GeneratorFunction,
-  isAnyArrayBuffer(value: unknown): value is (ArrayBuffer | SharedArrayBuffer),
-  isArrayBuffer(value: unknown): value is ArrayBuffer,
-  isArgumentsObject(value: unknown): value is ArrayLike<unknown>,
-  isBoxedPrimitive(value: unknown): value is (BigInt | Boolean | Number | String | Symbol),
-  isDataView(value: unknown): value is DataView,
-  isExternal(value: unknown): value is Object,
-  isMap(value: unknown): value is Map<unknown, unknown>,
-  isMapIterator: (value: unknown) => value is IterableIterator<unknown>,
-  isModuleNamespaceObject: (value: unknown) => value is {[Symbol.toStringTag]: 'Module', [key: string]: any},
-  isNativeError: (value: unknown) => Error,
-  isPromise: (value: unknown) => value is Promise<unknown>,
-  isSet: (value: unknown) => value is Set<unknown>,
-  isSetIterator: (value: unknown) => value is IterableIterator<unknown>,
-  isWeakMap: (value: unknown) => value is WeakMap<object, unknown>,
-  isWeakSet: (value: unknown) => value is WeakSet<object>,
-  isRegExp: (value: unknown) => RegExp,
-  isDate: (value: unknown) => Date,
-  isTypedArray: (value: unknown) => value is TypedArray,
-  isStringObject: (value: unknown) => value is String,
-  isNumberObject: (value: unknown) => value is Number,
-  isBooleanObject: (value: unknown) => value is Boolean,
-  isBigIntObject: (value: unknown) => value is BigInt,
-};
 declare function InternalBinding(binding: 'constants'): {
   os: {
     UV_UDP_REUSEADDR: 4,
@@ -427,18 +400,3 @@ declare function InternalBinding(binding: 'constants'): {
     TRACE_EVENT_PHASE_LINK_IDS: 61
   }
 };
-declare function InternalBinding(binding: 'config'): {
-  isDebugBuild: boolean,
-  hasOpenSSL: boolean,
-  fipsMode: boolean,
-  hasIntl: boolean,
-  hasTracing: boolean,
-  hasNodeOptions: boolean,
-  hasInspector: boolean,
-  noBrowserGlobals: boolean,
-  bits: number,
-  hasDtrace: boolean
-}
-declare function InternalBinding(binding: 'symbols'): {
-  [name: string]: symbol;
-}
