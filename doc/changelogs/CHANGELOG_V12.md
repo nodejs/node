@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.22.7">12.22.7</a><br/>
 <a href="#12.22.6">12.22.6</a><br/>
 <a href="#12.22.5">12.22.5</a><br/>
 <a href="#12.22.4">12.22.4</a><br/>
@@ -77,6 +78,24 @@
   * [0.10.x](CHANGELOG\_V010.md)
   * [io.js](CHANGELOG\_IOJS.md)
   * [Archive](CHANGELOG\_ARCHIVE.md)
+
+<a id="12.22.7"></a>
+## 2021-10-12, Version 12.22.7 'Erbium' (LTS), @danielleadams
+
+This is a security release.
+
+### Notable changes
+
+* **CVE-2021-22959**: HTTP Request Smuggling due to spaced in headers (Medium)
+  * The http parser accepts requests with a space (SP) right after the header name before the colon. This can lead to HTTP Request Smuggling (HRS). More details will be available at [CVE-2021-22959](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-22959) after publication.
+* **CVE-2021-22960**: HTTP Request Smuggling when parsing the body (Medium)
+  * The parse ignores chunk extensions when parsing the body of chunked requests. This leads to HTTP Request Smuggling (HRS) under certain conditions. More details will be available at [CVE-2021-22960](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-22960) after publication.
+
+### Commits
+
+* [[`21a2e554e3`](https://github.com/nodejs/node/commit/21a2e554e3)] - **deps**: update llhttp to 2.1.4 (Fedor Indutny) [nodejs-private/node-private#286](https://github.com/nodejs-private/node-private/pull/286)
+* [[`d5d3a03246`](https://github.com/nodejs/node/commit/d5d3a03246)] - **http**: add regression test for smuggling content length (Matteo Collina) [nodejs-private/node-private#286](https://github.com/nodejs-private/node-private/pull/286)
+* [[`0858587f21`](https://github.com/nodejs/node/commit/0858587f21)] - **http**: add regression test for chunked smuggling (Matteo Collina) [nodejs-private/node-private#286](https://github.com/nodejs-private/node-private/pull/286)
 
 <a id="12.22.6"></a>
 
