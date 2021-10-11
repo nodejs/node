@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#16.11.1">16.11.1</a><br/>
 <a href="#16.11.0">16.11.0</a><br/>
 <a href="#16.10.0">16.10.0</a><br/>
 <a href="#16.9.1">16.9.1</a><br/>
@@ -46,6 +47,24 @@
   * [0.10.x](CHANGELOG\_V010.md)
   * [io.js](CHANGELOG\_IOJS.md)
   * [Archive](CHANGELOG\_ARCHIVE.md)
+
+<a id="16.11.1"></a>
+## 2021-10-12, Version 16.11.1 (Current), @danielleadams
+
+This is a security release.
+
+### Notable changes
+
+* **CVE-2021-22959**: HTTP Request Smuggling due to spaced in headers (Medium)
+  * The http parser accepts requests with a space (SP) right after the header name before the colon. This can lead to HTTP Request Smuggling (HRS). More details will be available at [CVE-2021-22959](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-22959) after publication.
+* **CVE-2021-22960**: HTTP Request Smuggling when parsing the body (Medium)
+  * The parse ignores chunk extensions when parsing the body of chunked requests. This leads to HTTP Request Smuggling (HRS) under certain conditions. More details will be available at [CVE-2021-22960](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-22960) after publication.
+
+### Commits
+
+* [[`af488f8dc8`](https://github.com/nodejs/node/commit/af488f8dc8)] - **deps**: update llhttp to 6.0.4 (Matteo Collina) [nodejs-private/node-private#284](https://github.com/nodejs-private/node-private/pull/284)
+* [[`2d1eefad98`](https://github.com/nodejs/node/commit/2d1eefad98)] - **http**: add regression test for smuggling content length (Matteo Collina) [nodejs-private/node-private#284](https://github.com/nodejs-private/node-private/pull/284)
+* [[`45d419ab1c`](https://github.com/nodejs/node/commit/45d419ab1c)] - **http**: add regression test for chunked smuggling (Matteo Collina) [nodejs-private/node-private#284](https://github.com/nodejs-private/node-private/pull/284)
 
 <a id="16.11.0"></a>
 
