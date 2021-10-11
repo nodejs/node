@@ -22,6 +22,7 @@ Execute without arguments to start the [REPL][].
 For more info about `node inspect`, see the [debugger][] documentation.
 
 ## Options
+
 <!-- YAML
 changes:
   - version: v10.12.0
@@ -40,6 +41,7 @@ command line take precedence over options passed through the [`NODE_OPTIONS`][]
 environment variable.
 
 ### `-`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -49,6 +51,7 @@ meaning that the script is read from stdin, and the rest of the options
 are passed to that script.
 
 ### `--`
+
 <!-- YAML
 added: v6.11.0
 -->
@@ -58,6 +61,7 @@ If no script filename or eval/print script is supplied prior to this, then
 the next argument is used as a script filename.
 
 ### `--abort-on-uncaught-exception`
+
 <!-- YAML
 added: v0.10.8
 -->
@@ -70,6 +74,7 @@ If this flag is passed, the behavior can still be set to not abort through
 `domain` module that uses it).
 
 ### `--completion-bash`
+
 <!-- YAML
 added: v10.12.0
 -->
@@ -82,6 +87,7 @@ $ source node_bash_completion
 ```
 
 ### `-C=condition`, `--conditions=condition`
+
 <!-- YAML
 added:
   - v14.9.0
@@ -105,6 +111,7 @@ $ node -C=development app.js
 ```
 
 ### `--cpu-prof`
+
 <!-- YAML
 added: v12.0.0
 -->
@@ -127,6 +134,7 @@ CPU.20190409.202950.15293.0.0.cpuprofile
 ```
 
 ### `--cpu-prof-dir`
+
 <!-- YAML
 added: v12.0.0
 -->
@@ -140,6 +148,7 @@ The default value is controlled by the
 [`--diagnostic-dir`][] command-line option.
 
 ### `--cpu-prof-interval`
+
 <!-- YAML
 added: v12.2.0
 -->
@@ -150,6 +159,7 @@ Specify the sampling interval in microseconds for the CPU profiles generated
 by `--cpu-prof`. The default is 1000 microseconds.
 
 ### `--cpu-prof-name`
+
 <!-- YAML
 added: v12.0.0
 -->
@@ -164,11 +174,13 @@ Set the directory to which all diagnostic output files are written.
 Defaults to current working directory.
 
 Affects the default output directory of:
+
 * [`--cpu-prof-dir`][]
 * [`--heap-prof-dir`][]
 * [`--redirect-warnings`][]
 
 ### `--disable-proto=mode`
+
 <!-- YAML
 added:
  - v13.12.0
@@ -180,6 +192,7 @@ property is removed entirely. If `mode` is `throw`, accesses to the
 property throw an exception with the code `ERR_PROTO_ACCESS`.
 
 ### `--disallow-code-generation-from-strings`
+
 <!-- YAML
 added: v9.8.0
 -->
@@ -189,6 +202,7 @@ code from strings throw an exception instead. This does not affect the Node.js
 `vm` module.
 
 ### `--dns-result-order=order`
+
 <!-- YAML
 added:
   - v16.4.0
@@ -197,6 +211,7 @@ added:
 
 Set the default value of `verbatim` in [`dns.lookup()`][] and
 [`dnsPromises.lookup()`][]. The value could be:
+
 * `ipv4first`: sets default `verbatim` `false`.
 * `verbatim`: sets default `verbatim` `true`.
 
@@ -204,6 +219,7 @@ The default is `ipv4first` and [`dns.setDefaultResultOrder()`][] have higher
 priority than `--dns-result-order`.
 
 ### `--enable-fips`
+
 <!-- YAML
 added: v6.0.0
 -->
@@ -212,6 +228,7 @@ Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
 against FIPS-compatible OpenSSL.)
 
 ### `--enable-source-maps`
+
 <!-- YAML
 added: v12.12.0
 changes:
@@ -233,6 +250,7 @@ Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
 modifying the stack trace.
 
 ### `--experimental-abortcontroller`
+
 <!-- YAML
 added:
   - v15.0.0
@@ -247,6 +265,7 @@ changes:
 Use of this command-line flag is no longer required.
 
 ### `--experimental-import-meta-resolve`
+
 <!-- YAML
 added:
   - v13.9.0
@@ -256,6 +275,7 @@ added:
 Enable experimental `import.meta.resolve()` support.
 
 ### `--experimental-json-modules`
+
 <!-- YAML
 added: v12.9.0
 -->
@@ -263,6 +283,7 @@ added: v12.9.0
 Enable experimental JSON support for the ES Module loader.
 
 ### `--experimental-loader=module`
+
 <!-- YAML
 added: v9.0.0
 -->
@@ -271,6 +292,7 @@ Specify the `module` of a custom experimental [ECMAScript Module loader][].
 `module` may be either a path to a file, or an ECMAScript Module name.
 
 ### `--experimental-modules`
+
 <!-- YAML
 added: v8.5.0
 -->
@@ -278,6 +300,7 @@ added: v8.5.0
 Enable latest experimental modules features (deprecated).
 
 ### `--experimental-policy`
+
 <!-- YAML
 added: v11.8.0
 -->
@@ -285,12 +308,15 @@ added: v11.8.0
 Use the specified file as a security policy.
 
 ### `--no-experimental-repl-await`
+
 <!-- YAML
 added: v16.6.0
  -->
- Use this flag to disable top-level await in REPL.
+
+Use this flag to disable top-level await in REPL.
 
 ### `--experimental-specifier-resolution=mode`
+
 <!-- YAML
 added:
  - v13.4.0
@@ -307,6 +333,7 @@ the ability to import a directory that has an index file.
 See [customizing ESM specifier resolution][] for example usage.
 
 ### `--experimental-vm-modules`
+
 <!-- YAML
 added: v9.6.0
 -->
@@ -314,6 +341,7 @@ added: v9.6.0
 Enable experimental ES Module support in the `vm` module.
 
 ### `--experimental-wasi-unstable-preview1`
+
 <!-- YAML
 added:
   - v13.3.0
@@ -328,6 +356,7 @@ changes:
 Enable experimental WebAssembly System Interface (WASI) support.
 
 ### `--experimental-wasm-modules`
+
 <!-- YAML
 added: v12.3.0
 -->
@@ -335,6 +364,7 @@ added: v12.3.0
 Enable experimental WebAssembly module support.
 
 ### `--force-context-aware`
+
 <!-- YAML
 added: v12.12.0
 -->
@@ -342,6 +372,7 @@ added: v12.12.0
 Disable loading native addons that are not [context-aware][].
 
 ### `--force-fips`
+
 <!-- YAML
 added: v6.0.0
 -->
@@ -350,6 +381,7 @@ Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 (Same requirements as `--enable-fips`.)
 
 ### `--frozen-intrinsics`
+
 <!-- YAML
 added: v11.12.0
 -->
@@ -366,6 +398,7 @@ reference. Code may break under this flag.
 be added.
 
 ### `--heapsnapshot-near-heap-limit=max_count`
+
 <!-- YAML
 added:
   - v15.1.0
@@ -414,6 +447,7 @@ FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaS
 ```
 
 ### `--heapsnapshot-signal=signal`
+
 <!-- YAML
 added: v12.0.0
 -->
@@ -433,6 +467,7 @@ Heap.20190718.133405.15554.0.001.heapsnapshot
 ```
 
 ### `--heap-prof`
+
 <!-- YAML
 added: v12.4.0
 -->
@@ -455,6 +490,7 @@ Heap.20190409.202950.15293.0.001.heapprofile
 ```
 
 ### `--heap-prof-dir`
+
 <!-- YAML
 added: v12.4.0
 -->
@@ -468,6 +504,7 @@ The default value is controlled by the
 [`--diagnostic-dir`][] command-line option.
 
 ### `--heap-prof-interval`
+
 <!-- YAML
 added: v12.4.0
 -->
@@ -475,9 +512,10 @@ added: v12.4.0
 > Stability: 1 - Experimental
 
 Specify the average sampling interval in bytes for the heap profiles generated
-by `--heap-prof`. The default is 512 * 1024 bytes.
+by `--heap-prof`. The default is 512 \* 1024 bytes.
 
 ### `--heap-prof-name`
+
 <!-- YAML
 added: v12.4.0
 -->
@@ -487,6 +525,7 @@ added: v12.4.0
 Specify the file name of the heap profile generated by `--heap-prof`.
 
 ### `--icu-data-dir=file`
+
 <!-- YAML
 added: v0.11.15
 -->
@@ -494,6 +533,7 @@ added: v0.11.15
 Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 
 ### `--input-type=type`
+
 <!-- YAML
 added: v12.0.0
 -->
@@ -504,6 +544,7 @@ module. String input is input via `--eval`, `--print`, or `STDIN`.
 Valid values are `"commonjs"` and `"module"`. The default is `"commonjs"`.
 
 ### `--inspect-brk[=[host:]port]`
+
 <!-- YAML
 added: v7.6.0
 -->
@@ -512,6 +553,7 @@ Activate inspector on `host:port` and break at start of user script.
 Default `host:port` is `127.0.0.1:9229`.
 
 ### `--inspect-port=[host:]port`
+
 <!-- YAML
 added: v7.6.0
 -->
@@ -525,6 +567,7 @@ See the [security warning][] below regarding the `host`
 parameter usage.
 
 ### `--inspect[=[host:]port]`
+
 <!-- YAML
 added: v6.3.0
 -->
@@ -536,7 +579,9 @@ and profile Node.js instances. The tools attach to Node.js instances via a
 tcp port and communicate using the [Chrome DevTools Protocol][].
 
 <!-- Anchor to make sure old links find a target -->
+
 <a id="inspector_security"></a>
+
 #### Warning: binding inspector to a public IP:port combination is insecure
 
 Binding the inspector to a public IP (including `0.0.0.0`) with an open port is
@@ -561,6 +606,7 @@ By default inspector websocket url is available in stderr and under `/json/list`
 endpoint on `http://host:port/json/list`.
 
 ### `--insecure-http-parser`
+
 <!-- YAML
 added:
  - v13.4.0
@@ -574,6 +620,7 @@ request smuggling and other HTTP attacks that rely on invalid headers being
 accepted. Avoid using this option.
 
 ### `--jitless`
+
 <!-- YAML
 added: v12.0.0
 -->
@@ -586,6 +633,7 @@ This flag is inherited from V8 and is subject to change upstream. It may
 disappear in a non-semver-major release.
 
 ### `--max-http-header-size=size`
+
 <!-- YAML
 added:
  - v11.6.0
@@ -599,6 +647,7 @@ changes:
 Specify the maximum size, in bytes, of HTTP headers. Defaults to 16 KB.
 
 ### `--napi-modules`
+
 <!-- YAML
 added: v7.10.0
 -->
@@ -606,6 +655,7 @@ added: v7.10.0
 This option is a no-op. It is kept for compatibility.
 
 ### `--no-addons`
+
 <!-- YAML
 added: v16.10.0
 -->
@@ -615,6 +665,7 @@ native addons. When `--no-addons` is specified, calling `process.dlopen` or
 requiring a native C++ addon will fail and throw an exception.
 
 ### `--no-deprecation`
+
 <!-- YAML
 added: v0.8.0
 -->
@@ -622,6 +673,7 @@ added: v0.8.0
 Silence deprecation warnings.
 
 ### `--no-extra-info-on-fatal-exception`
+
 <!-- YAML
 added: v17.0.0
 -->
@@ -629,6 +681,7 @@ added: v17.0.0
 Hide extra information on fatal exception that causes exit.
 
 ### `--no-force-async-hooks-checks`
+
 <!-- YAML
 added: v9.0.0
 -->
@@ -637,6 +690,7 @@ Disables runtime checks for `async_hooks`. These will still be enabled
 dynamically when `async_hooks` is enabled.
 
 ### `--no-global-search-paths`
+
 <!-- YAML
 added: v16.10.0
 -->
@@ -645,6 +699,7 @@ Do not search modules from global paths like `$HOME/.node_modules` and
 `$NODE_PATH`.
 
 ### `--no-warnings`
+
 <!-- YAML
 added: v6.0.0
 -->
@@ -652,6 +707,7 @@ added: v6.0.0
 Silence all process warnings (including deprecations).
 
 ### `--node-memory-debug`
+
 <!-- YAML
 added:
   - v15.0.0
@@ -662,6 +718,7 @@ Enable extra debug checks for memory leaks in Node.js internals. This is
 usually only useful for developers debugging Node.js itself.
 
 ### `--openssl-config=file`
+
 <!-- YAML
 added: v6.9.0
 -->
@@ -671,14 +728,16 @@ used to enable FIPS-compliant crypto if Node.js is built
 against FIPS-enabled OpenSSL.
 
 ### `--openssl-legacy-provider`
+
 <!-- YAML
 added: v17.0.0
 -->
 
 Enable OpenSSL 3.0 legacy provider. For more information please see
-[OSSL_PROVIDER-legacy][].
+[OSSL\_PROVIDER-legacy][OSSL_PROVIDER-legacy].
 
 ### `--pending-deprecation`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -686,13 +745,14 @@ added: v8.0.0
 Emit pending deprecation warnings.
 
 Pending deprecations are generally identical to a runtime deprecation with the
-notable exception that they are turned *off* by default and will not be emitted
+notable exception that they are turned _off_ by default and will not be emitted
 unless either the `--pending-deprecation` command-line flag, or the
 `NODE_PENDING_DEPRECATION=1` environment variable, is set. Pending deprecations
 are used to provide a kind of selective "early warning" mechanism that
 developers may leverage to detect deprecated API usage.
 
 ### `--policy-integrity=sri`
+
 <!-- YAML
 added: v12.7.0
 -->
@@ -704,6 +764,7 @@ the specified integrity. It expects a [Subresource Integrity][] string as a
 parameter.
 
 ### `--preserve-symlinks`
+
 <!-- YAML
 added: v6.3.0
 -->
@@ -738,7 +799,7 @@ symlink path for modules as opposed to the real path, allowing symbolically
 linked peer dependencies to be found.
 
 Note, however, that using `--preserve-symlinks` can have other side effects.
-Specifically, symbolically linked *native* modules can fail to load if those
+Specifically, symbolically linked _native_ modules can fail to load if those
 are linked from more than one location in the dependency tree (Node.js would
 see those as two separate modules and would attempt to load the module multiple
 times, causing an exception to be thrown).
@@ -748,6 +809,7 @@ The `--preserve-symlinks` flag does not apply to the main module, which allows
 behavior for the main module, also use `--preserve-symlinks-main`.
 
 ### `--preserve-symlinks-main`
+
 <!-- YAML
 added: v10.2.0
 -->
@@ -767,6 +829,7 @@ resolving relative paths.
 See `--preserve-symlinks` for more information.
 
 ### `--prof`
+
 <!-- YAML
 added: v2.0.0
 -->
@@ -774,6 +837,7 @@ added: v2.0.0
 Generate V8 profiler output.
 
 ### `--prof-process`
+
 <!-- YAML
 added: v5.2.0
 -->
@@ -781,6 +845,7 @@ added: v5.2.0
 Process V8 profiler output generated using the V8 option `--prof`.
 
 ### `--redirect-warnings=file`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -795,6 +860,7 @@ will be written to is controlled by the
 [`--diagnostic-dir`]() command-line option.
 
 ### `--report-compact`
+
 <!-- YAML
 added:
  - v13.12.0
@@ -806,6 +872,7 @@ by log processing systems than the default multi-line format designed for
 human consumption.
 
 ### `--report-dir=directory`, `report-directory=directory`
+
 <!-- YAML
 added: v11.8.0
 changes:
@@ -823,6 +890,7 @@ changes:
 Location at which the report will be generated.
 
 ### `--report-filename=filename`
+
 <!-- YAML
 added: v11.8.0
 changes:
@@ -840,6 +908,7 @@ changes:
 Name of the file to which the report will be written.
 
 ### `--report-on-fatalerror`
+
 <!-- YAML
 added: v11.8.0
 changes:
@@ -862,6 +931,7 @@ stack, event loop state, resource consumption etc. to reason about the fatal
 error.
 
 ### `--report-on-signal`
+
 <!-- YAML
 added: v11.8.0
 changes:
@@ -881,6 +951,7 @@ signal to the running Node.js process. The signal to trigger the report is
 specified through `--report-signal`.
 
 ### `--report-signal=signal`
+
 <!-- YAML
 added: v11.8.0
 changes:
@@ -899,6 +970,7 @@ Sets or resets the signal for report generation (not supported on Windows).
 Default signal is `SIGUSR2`.
 
 ### `--report-uncaught-exception`
+
 <!-- YAML
 added: v11.8.0
 changes:
@@ -918,6 +990,7 @@ the JavaScript stack in conjunction with native stack and other runtime
 environment data.
 
 ### `--secure-heap=n`
+
 <!-- YAML
 added: v15.6.0
 -->
@@ -942,6 +1015,7 @@ The secure heap is not available on Windows.
 See [`CRYPTO_secure_malloc_init`][] for more details.
 
 ### `--secure-heap-min=n`
+
 <!-- YAML
 added: v15.6.0
 -->
@@ -952,6 +1026,7 @@ The maximum value is the lesser of `--secure-heap` or `2147483647`.
 The value given must be a power of two.
 
 ### `--throw-deprecation`
+
 <!-- YAML
 added: v0.11.14
 -->
@@ -959,6 +1034,7 @@ added: v0.11.14
 Throw errors for deprecations.
 
 ### `--title=title`
+
 <!-- YAML
 added: v10.7.0
 -->
@@ -966,6 +1042,7 @@ added: v10.7.0
 Set `process.title` on startup.
 
 ### `--tls-cipher-list=list`
+
 <!-- YAML
 added: v4.0.0
 -->
@@ -974,6 +1051,7 @@ Specify an alternative default TLS cipher list. Requires Node.js to be built
 with crypto support (default).
 
 ### `--tls-keylog=file`
+
 <!-- YAML
 added:
  - v13.2.0
@@ -985,6 +1063,7 @@ format and can be used by software (such as Wireshark) to decrypt the TLS
 traffic.
 
 ### `--tls-max-v1.2`
+
 <!-- YAML
 added:
  - v12.0.0
@@ -995,6 +1074,7 @@ Set [`tls.DEFAULT_MAX_VERSION`][] to 'TLSv1.2'. Use to disable support for
 TLSv1.3.
 
 ### `--tls-max-v1.3`
+
 <!-- YAML
 added: v12.0.0
 -->
@@ -1003,6 +1083,7 @@ Set default [`tls.DEFAULT_MAX_VERSION`][] to 'TLSv1.3'. Use to enable support
 for TLSv1.3.
 
 ### `--tls-min-v1.0`
+
 <!-- YAML
 added:
  - v12.0.0
@@ -1013,6 +1094,7 @@ Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1'. Use for compatibility with
 old TLS clients or servers.
 
 ### `--tls-min-v1.1`
+
 <!-- YAML
 added:
  - v12.0.0
@@ -1023,6 +1105,7 @@ Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.1'. Use for compatibility
 with old TLS clients or servers.
 
 ### `--tls-min-v1.2`
+
 <!-- YAML
 added:
  - v12.2.0
@@ -1034,6 +1117,7 @@ Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.2'. This is the default for
 versions.
 
 ### `--tls-min-v1.3`
+
 <!-- YAML
 added: v12.0.0
 -->
@@ -1042,6 +1126,7 @@ Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.3'. Use to disable support
 for TLSv1.2, which is not as secure as TLSv1.3.
 
 ### `--trace-atomics-wait`
+
 <!-- YAML
 added: v14.3.0
 -->
@@ -1069,6 +1154,7 @@ The fields here correspond to:
 * The timeout passed to `Atomics.wait`
 
 ### `--trace-deprecation`
+
 <!-- YAML
 added: v0.8.0
 -->
@@ -1076,6 +1162,7 @@ added: v0.8.0
 Print stack traces for deprecations.
 
 ### `--trace-event-categories`
+
 <!-- YAML
 added: v7.7.0
 -->
@@ -1084,6 +1171,7 @@ A comma separated list of categories that should be traced when trace event
 tracing is enabled using `--trace-events-enabled`.
 
 ### `--trace-event-file-pattern`
+
 <!-- YAML
 added: v9.8.0
 -->
@@ -1092,6 +1180,7 @@ Template string specifying the filepath for the trace event data, it
 supports `${rotation}` and `${pid}`.
 
 ### `--trace-events-enabled`
+
 <!-- YAML
 added: v7.7.0
 -->
@@ -1099,6 +1188,7 @@ added: v7.7.0
 Enables the collection of trace event tracing information.
 
 ### `--trace-exit`
+
 <!-- YAML
 added:
  - v13.5.0
@@ -1109,6 +1199,7 @@ Prints a stack trace whenever an environment is exited proactively,
 i.e. invoking `process.exit()`.
 
 ### `--trace-sigint`
+
 <!-- YAML
 added:
  - v13.9.0
@@ -1118,6 +1209,7 @@ added:
 Prints a stack trace on SIGINT.
 
 ### `--trace-sync-io`
+
 <!-- YAML
 added: v2.1.0
 -->
@@ -1126,6 +1218,7 @@ Prints a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
 
 ### `--trace-tls`
+
 <!-- YAML
 added: v12.2.0
 -->
@@ -1134,6 +1227,7 @@ Prints TLS packet trace information to `stderr`. This can be used to debug TLS
 connection problems.
 
 ### `--trace-uncaught`
+
 <!-- YAML
 added: v13.1.0
 -->
@@ -1146,6 +1240,7 @@ to be an `Error` instance).
 Enabling this option may affect garbage collection behavior negatively.
 
 ### `--trace-warnings`
+
 <!-- YAML
 added: v6.0.0
 -->
@@ -1153,6 +1248,7 @@ added: v6.0.0
 Print stack traces for process warnings (including deprecations).
 
 ### `--track-heap-objects`
+
 <!-- YAML
 added: v2.4.0
 -->
@@ -1160,6 +1256,7 @@ added: v2.4.0
 Track heap object allocations for heap snapshots.
 
 ### `--unhandled-rejections=mode`
+
 <!-- YAML
 added:
   - v12.0.0
@@ -1184,6 +1281,7 @@ occurs. One of the following modes can be chosen:
 * `none`: Silence all warnings.
 
 ### `--use-bundled-ca`, `--use-openssl-ca`
+
 <!-- YAML
 added: v6.11.0
 -->
@@ -1204,6 +1302,7 @@ environment variables.
 See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 
 ### `--use-largepages=mode`
+
 <!-- YAML
 added:
  - v13.6.0
@@ -1215,6 +1314,7 @@ the target system, this will cause the Node.js static code to be moved onto 2
 MiB pages instead of 4 KiB pages.
 
 The following values are valid for `mode`:
+
 * `off`: No mapping will be attempted. This is the default.
 * `on`: If supported by the OS, mapping will be attempted. Failure to map will
   be ignored and a message will be printed to standard error.
@@ -1222,6 +1322,7 @@ The following values are valid for `mode`:
   will be ignored and will not be reported.
 
 ### `--v8-options`
+
 <!-- YAML
 added: v0.1.3
 -->
@@ -1229,6 +1330,7 @@ added: v0.1.3
 Print V8 command-line options.
 
 ### `--v8-pool-size=num`
+
 <!-- YAML
 added: v5.10.0
 -->
@@ -1242,6 +1344,7 @@ If the value provided is larger than V8's maximum, then the largest value
 will be chosen.
 
 ### `--zero-fill-buffers`
+
 <!-- YAML
 added: v6.0.0
 -->
@@ -1250,6 +1353,7 @@ Automatically zero-fills all newly allocated [`Buffer`][] and [`SlowBuffer`][]
 instances.
 
 ### `-c`, `--check`
+
 <!-- YAML
 added:
   - v5.0.0
@@ -1263,6 +1367,7 @@ changes:
 Syntax check the script without executing.
 
 ### `-e`, `--eval "script"`
+
 <!-- YAML
 added: v0.5.2
 changes:
@@ -1279,6 +1384,7 @@ only recognizes double `"` for quoting. In Powershell or Git bash, both `'`
 and `"` are usable.
 
 ### `-h`, `--help`
+
 <!-- YAML
 added: v0.1.3
 -->
@@ -1287,6 +1393,7 @@ Print node command-line options.
 The output of this option is less detailed than this document.
 
 ### `-i`, `--interactive`
+
 <!-- YAML
 added: v0.7.7
 -->
@@ -1294,6 +1401,7 @@ added: v0.7.7
 Opens the REPL even if stdin does not appear to be a terminal.
 
 ### `-p`, `--print "script"`
+
 <!-- YAML
 added: v0.6.4
 changes:
@@ -1305,6 +1413,7 @@ changes:
 Identical to `-e` but prints the result.
 
 ### `-r`, `--require module`
+
 <!-- YAML
 added: v1.6.0
 -->
@@ -1318,6 +1427,7 @@ Only CommonJS modules are supported. Attempting to preload a
 ES6 Module using `--require` will fail with an error.
 
 ### `-v`, `--version`
+
 <!-- YAML
 added: v0.1.3
 -->
@@ -1339,7 +1449,9 @@ When `FORCE_COLOR` is used and set to a supported value, both the `NO_COLOR`,
 and `NODE_DISABLE_COLORS` environment variables are ignored.
 
 Any other value will result in colorized output being disabled.
+
 ### `NODE_DEBUG=module[,…]`
+
 <!-- YAML
 added: v0.1.32
 -->
@@ -1351,6 +1463,7 @@ added: v0.1.32
 `','`-separated list of core C++ modules that should print debug information.
 
 ### `NODE_DISABLE_COLORS=1`
+
 <!-- YAML
 added: v0.3.0
 -->
@@ -1358,6 +1471,7 @@ added: v0.3.0
 When set, colors will not be used in the REPL.
 
 ### `NODE_EXTRA_CA_CERTS=file`
+
 <!-- YAML
 added: v7.3.0
 -->
@@ -1379,6 +1493,7 @@ process is first launched. Changing the value at runtime using
 `process.env.NODE_EXTRA_CA_CERTS` has no effect on the current process.
 
 ### `NODE_ICU_DATA=file`
+
 <!-- YAML
 added: v0.11.15
 -->
@@ -1387,6 +1502,7 @@ Data path for ICU (`Intl` object) data. Will extend linked-in data when compiled
 with small-icu support.
 
 ### `NODE_NO_WARNINGS=1`
+
 <!-- YAML
 added: v6.11.0
 -->
@@ -1394,6 +1510,7 @@ added: v6.11.0
 When set to `1`, process warnings are silenced.
 
 ### `NODE_OPTIONS=options...`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -1429,7 +1546,9 @@ node --require "./a.js" --require "./b.js"
 ```
 
 Node.js options that are allowed are:
+
 <!-- node-options-node start -->
+
 * `--conditions`, `-C`
 * `--diagnostic-dir`
 * `--disable-proto`
@@ -1516,10 +1635,13 @@ Node.js options that are allowed are:
 * `--use-openssl-ca`
 * `--v8-pool-size`
 * `--zero-fill-buffers`
+
 <!-- node-options-node end -->
 
 V8 options that are allowed are:
+
 <!-- node-options-v8 start -->
+
 * `--abort-on-uncaught-exception`
 * `--disallow-code-generation-from-strings`
 * `--huge-max-old-generation-size`
@@ -1531,12 +1653,14 @@ V8 options that are allowed are:
 * `--perf-prof-unwinding-info`
 * `--perf-prof`
 * `--stack-trace-limit`
+
 <!-- node-options-v8 end -->
 
 `--perf-basic-prof-only-functions`, `--perf-basic-prof`,
 `--perf-prof-unwinding-info`, and `--perf-prof` are only available on Linux.
 
 ### `NODE_PATH=path[:…]`
+
 <!-- YAML
 added: v0.1.32
 -->
@@ -1546,6 +1670,7 @@ added: v0.1.32
 On Windows, this is a `';'`-separated list instead.
 
 ### `NODE_PENDING_DEPRECATION=1`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -1553,7 +1678,7 @@ added: v8.0.0
 When set to `1`, emit pending deprecation warnings.
 
 Pending deprecations are generally identical to a runtime deprecation with the
-notable exception that they are turned *off* by default and will not be emitted
+notable exception that they are turned _off_ by default and will not be emitted
 unless either the `--pending-deprecation` command-line flag, or the
 `NODE_PENDING_DEPRECATION=1` environment variable, is set. Pending deprecations
 are used to provide a kind of selective "early warning" mechanism that
@@ -1565,6 +1690,7 @@ Set the number of pending pipe instance handles when the pipe server is waiting
 for connections. This setting applies to Windows only.
 
 ### `NODE_PRESERVE_SYMLINKS=1`
+
 <!-- YAML
 added: v7.1.0
 -->
@@ -1573,6 +1699,7 @@ When set to `1`, instructs the module loader to preserve symbolic links when
 resolving and caching modules.
 
 ### `NODE_REDIRECT_WARNINGS=file`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -1584,6 +1711,7 @@ warning to the file, the warning will be written to stderr instead. This is
 equivalent to using the `--redirect-warnings=file` command-line flag.
 
 ### `NODE_REPL_HISTORY=file`
+
 <!-- YAML
 added: v3.0.0
 -->
@@ -1593,6 +1721,7 @@ Path to the file used to store the persistent REPL history. The default path is
 to an empty string (`''` or `' '`) disables persistent REPL history.
 
 ### `NODE_REPL_EXTERNAL_MODULE=file`
+
 <!-- YAML
 added:
  - v13.0.0
@@ -1603,6 +1732,7 @@ Path to a Node.js module which will be loaded in place of the built-in REPL.
 Overriding this value to an empty string (`''`) will use the built-in REPL.
 
 ### `NODE_SKIP_PLATFORM_CHECK=value`
+
 <!-- YAML
 added: v14.5.0
 -->
@@ -1699,18 +1829,20 @@ and the line lengths of the source file (in the key `lineLengths`).
 environment variable is arbitrary.
 
 ### `OPENSSL_CONF=file`
+
 <!-- YAML
 added: v6.11.0
 -->
 
 Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built with `./configure
---openssl-fips`.
+used to enable FIPS-compliant crypto if Node.js is built with
+`./configure --openssl-fips`.
 
 If the [`--openssl-config`][] command-line option is used, the environment
 variable is ignored.
 
 ### `SSL_CERT_DIR=dir`
+
 <!-- YAML
 added: v7.7.0
 -->
@@ -1723,6 +1855,7 @@ variable will be inherited by any child processes, and if they use OpenSSL, it
 may cause them to trust the same CAs as node.
 
 ### `SSL_CERT_FILE=file`
+
 <!-- YAML
 added: v7.7.0
 -->
@@ -1735,6 +1868,7 @@ variable will be inherited by any child processes, and if they use OpenSSL, it
 may cause them to trust the same CAs as node.
 
 ### `TZ`
+
 <!-- YAML
 added: v0.0.1
 changes:

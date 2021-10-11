@@ -10,6 +10,7 @@ The `assert` module provides a set of assertion functions for verifying
 invariants.
 
 ## Strict assertion mode
+
 <!-- YAML
 added: v9.9.0
 changes:
@@ -138,6 +139,7 @@ Indicates the failure of an assertion. All errors thrown by the `assert` module
 will be instances of the `AssertionError` class.
 
 ### `new assert.AssertionError(options)`
+
 <!-- YAML
 added: v0.1.21
 -->
@@ -216,6 +218,7 @@ try {
 ```
 
 ## Class: `assert.CallTracker`
+
 <!-- YAML
 added:
   - v14.2.0
@@ -227,6 +230,7 @@ added:
 This feature is currently experimental and behavior might still change.
 
 ### `new assert.CallTracker()`
+
 <!-- YAML
 added:
   - v14.2.0
@@ -278,6 +282,7 @@ process.on('exit', () => {
 ```
 
 ### `tracker.calls([fn][, exact])`
+
 <!-- YAML
 added:
   - v14.2.0
@@ -320,6 +325,7 @@ const callsfunc = tracker.calls(func);
 ```
 
 ### `tracker.report()`
+
 <!-- YAML
 added:
   - v14.2.0
@@ -396,6 +402,7 @@ tracker.report();
 ```
 
 ### `tracker.verify()`
+
 <!-- YAML
 added:
   - v14.2.0
@@ -443,6 +450,7 @@ tracker.verify();
 ```
 
 ## `assert(value[, message])`
+
 <!-- YAML
 added: v0.5.9
 -->
@@ -453,6 +461,7 @@ added: v0.5.9
 An alias of [`assert.ok()`][].
 
 ## `assert.deepEqual(actual, expected[, message])`
+
 <!-- YAML
 added: v0.1.21
 changes:
@@ -629,6 +638,7 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 [`AssertionError`][].
 
 ## `assert.deepStrictEqual(actual, expected[, message])`
+
 <!-- YAML
 added: v1.2.0
 changes:
@@ -879,6 +889,7 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
 ## `assert.doesNotMatch(string, regexp[, message])`
+
 <!-- YAML
 added:
   - v13.6.0
@@ -929,6 +940,7 @@ instance of an [`Error`][] then it will be thrown instead of the
 [`AssertionError`][].
 
 ## `assert.doesNotReject(asyncFn[, error][, message])`
+
 <!-- YAML
 added: v10.0.0
 -->
@@ -1001,6 +1013,7 @@ assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
 ```
 
 ## `assert.doesNotThrow(fn[, error][, message])`
+
 <!-- YAML
 added: v0.1.21
 changes:
@@ -1117,6 +1130,7 @@ assert.doesNotThrow(
 ```
 
 ## `assert.equal(actual, expected[, message])`
+
 <!-- YAML
 added: v0.1.21
 changes:
@@ -1187,6 +1201,7 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
 ## `assert.fail([message])`
+
 <!-- YAML
 added: v0.1.21
 -->
@@ -1227,6 +1242,7 @@ Using `assert.fail()` with more than two arguments is possible but deprecated.
 See below for further details.
 
 ## `assert.fail(actual, expected[, message[, operator[, stackStartFn]]])`
+
 <!-- YAML
 added: v0.1.21
 changes:
@@ -1324,6 +1340,7 @@ suppressFrame();
 ```
 
 ## `assert.ifError(value)`
+
 <!-- YAML
 added: v0.1.97
 changes:
@@ -1397,6 +1414,7 @@ let err;
 ```
 
 ## `assert.match(string, regexp[, message])`
+
 <!-- YAML
 added:
   - v13.6.0
@@ -1447,6 +1465,7 @@ instance of an [`Error`][] then it will be thrown instead of the
 [`AssertionError`][].
 
 ## `assert.notDeepEqual(actual, expected[, message])`
+
 <!-- YAML
 added: v0.1.21
 changes:
@@ -1570,6 +1589,7 @@ If the values are deeply equal, an [`AssertionError`][] is thrown with a
 instead of the `AssertionError`.
 
 ## `assert.notDeepStrictEqual(actual, expected[, message])`
+
 <!-- YAML
 added: v1.2.0
 changes:
@@ -1629,6 +1649,7 @@ the `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the [`AssertionError`][].
 
 ## `assert.notEqual(actual, expected[, message])`
+
 <!-- YAML
 added: v0.1.21
 changes:
@@ -1693,6 +1714,7 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
 ## `assert.notStrictEqual(actual, expected[, message])`
+
 <!-- YAML
 added: v0.1.21
 changes:
@@ -1745,6 +1767,7 @@ If the values are strictly equal, an [`AssertionError`][] is thrown with a
 instead of the `AssertionError`.
 
 ## `assert.ok(value[, message])`
+
 <!-- YAML
 added: v0.1.21
 changes:
@@ -1862,6 +1885,7 @@ assert(0);
 ```
 
 ## `assert.rejects(asyncFn[, error][, message])`
+
 <!-- YAML
 added: v10.0.0
 -->
@@ -1982,6 +2006,7 @@ example in [`assert.throws()`][] carefully if using a string as the second
 argument gets considered.
 
 ## `assert.strictEqual(actual, expected[, message])`
+
 <!-- YAML
 added: v0.1.21
 changes:
@@ -2060,6 +2085,7 @@ If the values are not strictly equal, an [`AssertionError`][] is thrown with a
 instead of the [`AssertionError`][].
 
 ## `assert.throws(fn[, error][, message])`
+
 <!-- YAML
 added: v0.1.21
 changes:

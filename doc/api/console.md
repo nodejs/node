@@ -17,7 +17,7 @@ The module exports two specific components:
   [`process.stderr`][]. The global `console` can be used without calling
   `require('console')`.
 
-***Warning***: The global console object's methods are neither consistently
+_**Warning**_: The global console object's methods are neither consistently
 synchronous like the browser APIs they resemble, nor are they consistently
 asynchronous like all other Node.js streams. See the [note on process I/O][] for
 more information.
@@ -65,6 +65,7 @@ myConsole.warn(`Danger ${name}! Danger!`);
 ```
 
 ## Class: `Console`
+
 <!-- YAML
 changes:
   - version: v8.0.0
@@ -88,7 +89,9 @@ const { Console } = console;
 ```
 
 ### `new Console(stdout[, stderr][, ignoreErrors])`
+
 ### `new Console(options)`
+
 <!-- YAML
 changes:
   - version:
@@ -148,6 +151,7 @@ new Console({ stdout: process.stdout, stderr: process.stderr });
 ```
 
 ### `console.assert(value[, ...message])`
+
 <!-- YAML
 added: v0.1.101
 changes:
@@ -178,6 +182,7 @@ console.assert();
 ```
 
 ### `console.clear()`
+
 <!-- YAML
 added: v8.3.0
 -->
@@ -192,6 +197,7 @@ will clear only the output in the current terminal viewport for the Node.js
 binary.
 
 ### `console.count([label])`
+
 <!-- YAML
 added: v8.3.0
 -->
@@ -202,6 +208,7 @@ Maintains an internal counter specific to `label` and outputs to `stdout` the
 number of times `console.count()` has been called with the given `label`.
 
 <!-- eslint-skip -->
+
 ```js
 > console.count()
 default: 1
@@ -225,6 +232,7 @@ undefined
 ```
 
 ### `console.countReset([label])`
+
 <!-- YAML
 added: v8.3.0
 -->
@@ -234,6 +242,7 @@ added: v8.3.0
 Resets the internal counter specific to `label`.
 
 <!-- eslint-skip -->
+
 ```js
 > console.count('abc');
 abc: 1
@@ -247,6 +256,7 @@ undefined
 ```
 
 ### `console.debug(data[, ...args])`
+
 <!-- YAML
 added: v8.0.0
 changes:
@@ -261,6 +271,7 @@ changes:
 The `console.debug()` function is an alias for [`console.log()`][].
 
 ### `console.dir(obj[, options])`
+
 <!-- YAML
 added: v0.1.101
 -->
@@ -273,13 +284,14 @@ added: v0.1.101
     formatting the object. This is useful for inspecting large complicated
     objects. To make it recurse indefinitely, pass `null`. **Default:** `2`.
   * `colors` {boolean} If `true`, then the output will be styled with ANSI color
-     codes. Colors are customizable;
-     see [customizing `util.inspect()` colors][]. **Default:** `false`.
+    codes. Colors are customizable;
+    see [customizing `util.inspect()` colors][]. **Default:** `false`.
 
 Uses [`util.inspect()`][] on `obj` and prints the resulting string to `stdout`.
 This function bypasses any custom `inspect()` function defined on `obj`.
 
 ### `console.dirxml(...data)`
+
 <!-- YAML
 added: v8.0.0
 changes:
@@ -294,6 +306,7 @@ This method calls `console.log()` passing it the arguments received.
 This method does not produce any XML formatting.
 
 ### `console.error([data][, ...args])`
+
 <!-- YAML
 added: v0.1.100
 -->
@@ -319,6 +332,7 @@ If formatting elements (e.g. `%d`) are not found in the first string then
 values are concatenated. See [`util.format()`][] for more information.
 
 ### `console.group([...label])`
+
 <!-- YAML
 added: v8.5.0
 -->
@@ -332,6 +346,7 @@ If one or more `label`s are provided, those are printed first without the
 additional indentation.
 
 ### `console.groupCollapsed()`
+
 <!-- YAML
   added: v8.5.0
 -->
@@ -339,6 +354,7 @@ additional indentation.
 An alias for [`console.group()`][].
 
 ### `console.groupEnd()`
+
 <!-- YAML
 added: v8.5.0
 -->
@@ -347,6 +363,7 @@ Decreases indentation of subsequent lines by spaces for `groupIndentation`
 length.
 
 ### `console.info([data][, ...args])`
+
 <!-- YAML
 added: v0.1.100
 -->
@@ -357,6 +374,7 @@ added: v0.1.100
 The `console.info()` function is an alias for [`console.log()`][].
 
 ### `console.log([data][, ...args])`
+
 <!-- YAML
 added: v0.1.100
 -->
@@ -380,12 +398,13 @@ console.log('count:', count);
 See [`util.format()`][] for more information.
 
 ### `console.table(tabularData[, properties])`
+
 <!-- YAML
 added: v10.0.0
 -->
 
 * `tabularData` {any}
-* `properties` {string[]} Alternate properties for constructing the table.
+* `properties` {string\[]} Alternate properties for constructing the table.
 
 Try to construct a table with the columns of the properties of `tabularData`
 (or use `properties`) and rows of `tabularData` and log it. Falls back to just
@@ -417,6 +436,7 @@ console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }], ['a']);
 ```
 
 ### `console.time([label])`
+
 <!-- YAML
 added: v0.1.104
 -->
@@ -430,6 +450,7 @@ suitable time units to `stdout`. For example, if the elapsed
 time is 3869ms, `console.timeEnd()` displays "3.869s".
 
 ### `console.timeEnd([label])`
+
 <!-- YAML
 added: v0.1.104
 changes:
@@ -455,6 +476,7 @@ console.timeEnd('100-elements');
 ```
 
 ### `console.timeLog([label][, ...data])`
+
 <!-- YAML
 added: v10.7.0
 -->
@@ -475,6 +497,7 @@ console.timeEnd('process');
 ```
 
 ### `console.trace([message][, ...args])`
+
 <!-- YAML
 added: v0.1.104
 -->
@@ -502,6 +525,7 @@ console.trace('Show me');
 ```
 
 ### `console.warn([data][, ...args])`
+
 <!-- YAML
 added: v0.1.100
 -->
@@ -512,11 +536,13 @@ added: v0.1.100
 The `console.warn()` function is an alias for [`console.error()`][].
 
 ## Inspector only methods
+
 The following methods are exposed by the V8 engine in the general API but do
 not display anything unless used in conjunction with the [inspector][]
 (`--inspect` flag).
 
 ### `console.profile([label])`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -536,6 +562,7 @@ console.profileEnd('MyLabel');
 ```
 
 ### `console.profileEnd([label])`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -551,6 +578,7 @@ If this method is called without a label, the most recently started profile is
 stopped.
 
 ### `console.timeStamp([label])`
+
 <!-- YAML
 added: v8.0.0
 -->

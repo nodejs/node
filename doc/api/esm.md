@@ -83,9 +83,8 @@ provides interoperability between them and its original module format,
 [CommonJS][].
 
 <!-- Anchors to make sure old links find a target -->
-<i id="esm_package_json_type_field"></i>
-<i id="esm_package_scope_and_file_extensions"></i>
-<i id="esm_input_type_flag"></i>
+
+<i id="esm_package_json_type_field"></i><i id="esm_package_scope_and_file_extensions"></i><i id="esm_input_type_flag"></i>
 
 ## Enabling
 
@@ -99,20 +98,8 @@ via the `.mjs` file extension, the `package.json` [`"type"`][] field, or the
 details.
 
 <!-- Anchors to make sure old links find a target -->
-<i id="esm_package_entry_points"></i>
-<i id="esm_main_entry_point_export"></i>
-<i id="esm_subpath_exports"></i>
-<i id="esm_package_exports_fallbacks"></i>
-<i id="esm_exports_sugar"></i>
-<i id="esm_conditional_exports"></i>
-<i id="esm_nested_conditions"></i>
-<i id="esm_self_referencing_a_package_using_its_name"></i>
-<i id="esm_internal_package_imports"></i>
-<i id="esm_dual_commonjs_es_module_packages"></i>
-<i id="esm_dual_package_hazard"></i>
-<i id="esm_writing_dual_packages_while_avoiding_or_minimizing_hazards"></i>
-<i id="esm_approach_1_use_an_es_module_wrapper"></i>
-<i id="esm_approach_2_isolate_state"></i>
+
+<i id="esm_package_entry_points"></i><i id="esm_main_entry_point_export"></i><i id="esm_subpath_exports"></i><i id="esm_package_exports_fallbacks"></i><i id="esm_exports_sugar"></i><i id="esm_conditional_exports"></i><i id="esm_nested_conditions"></i><i id="esm_self_referencing_a_package_using_its_name"></i><i id="esm_internal_package_imports"></i><i id="esm_dual_commonjs_es_module_packages"></i><i id="esm_dual_package_hazard"></i><i id="esm_writing_dual_packages_while_avoiding_or_minimizing_hazards"></i><i id="esm_approach_1_use_an_es_module_wrapper"></i><i id="esm_approach_2_isolate_state"></i>
 
 ## Packages
 
@@ -294,6 +281,7 @@ const buffer = readFileSync(new URL('./data.proto', import.meta.url));
 ```
 
 ### `import.meta.resolve(specifier[, parent])`
+
 <!--
 added:
   - v13.9.0
@@ -320,6 +308,7 @@ Provides a module-relative resolution function scoped to each module, returning
 the URL string.
 
 <!-- eslint-skip -->
+
 ```js
 const dependencyAsset = await import.meta.resolve('component-lib/asset.css');
 ```
@@ -328,6 +317,7 @@ const dependencyAsset = await import.meta.resolve('component-lib/asset.css');
 from which to resolve from:
 
 <!-- eslint-skip -->
+
 ```js
 await import.meta.resolve('./dep', import.meta.url);
 ```
@@ -364,6 +354,7 @@ When importing a CommonJS module, it can be reliably imported using the ES
 module default import or its corresponding sugar syntax:
 
 <!-- eslint-disable no-duplicate-imports -->
+
 ```js
 import { default as cjs } from 'cjs';
 
@@ -386,6 +377,7 @@ This Module Namespace Exotic Object can be directly observed either when using
 `import * as m from 'cjs'` or a dynamic import:
 
 <!-- eslint-skip -->
+
 ```js
 import * as m from 'cjs';
 console.log(m);
@@ -410,6 +402,7 @@ exports.name = 'exported';
 The preceding module supports named imports in ES modules:
 
 <!-- eslint-disable no-duplicate-imports -->
+
 ```js
 import { name } from './cjs.cjs';
 console.log(name);
@@ -463,6 +456,7 @@ JSON imports are still experimental and only supported via the
 Local JSON files can be loaded relative to `import.meta.url` with `fs` directly:
 
 <!-- eslint-skip -->
+
 ```js
 import { readFile } from 'fs/promises';
 const json = JSON.parse(await readFile(new URL('./dat.json', import.meta.url)));
@@ -523,6 +517,7 @@ same path.
 Assuming an `index.mjs` with
 
 <!-- eslint-skip -->
+
 ```js
 import packageConfig from './package.json';
 ```
@@ -575,6 +570,7 @@ within modules as per the [ECMAScript Top-Level `await` proposal][].
 Assuming an `a.mjs` with
 
 <!-- eslint-skip -->
+
 ```js
 export const five = await Promise.resolve(5);
 ```
@@ -616,7 +612,7 @@ CommonJS modules loaded.
 
 * `specifier` {string}
 * `context` {Object}
-  * `conditions` {string[]}
+  * `conditions` {string\[]}
   * `parentURL` {string|undefined}
 * `defaultResolve` {Function} The Node.js default resolver.
 * Returns: {Object}
@@ -1025,16 +1021,16 @@ The resolver has the following properties:
 * Relative and absolute URL resolution
 * No default extensions
 * No folder mains
-* Bare specifier package resolution lookup through node_modules
+* Bare specifier package resolution lookup through node\_modules
 
 ### Resolver algorithm
 
 The algorithm to load an ES module specifier is given through the
-**ESM_RESOLVE** method below. It returns the resolved URL for a
+**ESM\_RESOLVE** method below. It returns the resolved URL for a
 module specifier relative to a parentURL.
 
 The algorithm to determine the module format of a resolved URL is
-provided by **ESM_FORMAT**, which returns the unique module
+provided by **ESM\_FORMAT**, which returns the unique module
 format for any file. The _"module"_ format is returned for an ECMAScript
 Module, while the _"commonjs"_ format is used to indicate loading through the
 legacy CommonJS loader. Additional formats such as _"addon"_ can be extended in
@@ -1047,6 +1043,7 @@ _defaultConditions_ is the conditional environment name array,
 `["node", "import"]`.
 
 The resolver can throw the following errors:
+
 * _Invalid Module Specifier_: Module specifier is an invalid URL, package name
   or package subpath specifier.
 * _Invalid Package Configuration_: package.json configuration is invalid or
@@ -1062,261 +1059,263 @@ The resolver can throw the following errors:
 
 ### Resolver Algorithm Specification
 
-**ESM_RESOLVE**(_specifier_, _parentURL_)
+**ESM\_RESOLVE**(_specifier_, _parentURL_)
 
 > 1. Let _resolved_ be **undefined**.
-> 1. If _specifier_ is a valid URL, then
+> 2. If _specifier_ is a valid URL, then
 >    1. Set _resolved_ to the result of parsing and reserializing
 >       _specifier_ as a URL.
-> 1. Otherwise, if _specifier_ starts with _"/"_, _"./"_ or _"../"_, then
+> 3. Otherwise, if _specifier_ starts with _"/"_, _"./"_ or _"../"_, then
 >    1. Set _resolved_ to the URL resolution of _specifier_ relative to
 >       _parentURL_.
-> 1. Otherwise, if _specifier_ starts with _"#"_, then
->    1. Set _resolved_ to the result of **PACKAGE_IMPORTS_RESOLVE**(_specifier_,
+> 4. Otherwise, if _specifier_ starts with _"#"_, then
+>    1. Set _resolved_ to the result of
+>       **PACKAGE\_IMPORTS\_RESOLVE**(_specifier_,
 >       _parentURL_, _defaultConditions_).
-> 1. Otherwise,
+> 5. Otherwise,
 >    1. Note: _specifier_ is now a bare specifier.
->    1. Set _resolved_ the result of
->       **PACKAGE_RESOLVE**(_specifier_, _parentURL_).
-> 1. If _resolved_ contains any percent encodings of _"/"_ or _"\\"_ (_"%2f"_
+>    2. Set _resolved_ the result of
+>       **PACKAGE\_RESOLVE**(_specifier_, _parentURL_).
+> 6. If _resolved_ contains any percent encodings of _"/"_ or _"\\"_ (_"%2f"_
 >    and _"%5C"_ respectively), then
 >    1. Throw an _Invalid Module Specifier_ error.
-> 1. If the file at _resolved_ is a directory, then
+> 7. If the file at _resolved_ is a directory, then
 >    1. Throw an _Unsupported Directory Import_ error.
-> 1. If the file at _resolved_ does not exist, then
+> 8. If the file at _resolved_ does not exist, then
 >    1. Throw a _Module Not Found_ error.
-> 1. Set _resolved_ to the real path of _resolved_.
-> 1. Let _format_ be the result of **ESM_FORMAT**(_resolved_).
-> 1. Load _resolved_ as module format, _format_.
-> 1. Return _resolved_.
+> 9. Set _resolved_ to the real path of _resolved_.
+> 10. Let _format_ be the result of **ESM\_FORMAT**(_resolved_).
+> 11. Load _resolved_ as module format, _format_.
+> 12. Return _resolved_.
 
-**PACKAGE_RESOLVE**(_packageSpecifier_, _parentURL_)
+**PACKAGE\_RESOLVE**(_packageSpecifier_, _parentURL_)
 
 > 1. Let _packageName_ be **undefined**.
-> 1. If _packageSpecifier_ is an empty string, then
+> 2. If _packageSpecifier_ is an empty string, then
 >    1. Throw an _Invalid Module Specifier_ error.
-> 1. If _packageSpecifier_ does not start with _"@"_, then
+> 3. If _packageSpecifier_ does not start with _"@"_, then
 >    1. Set _packageName_ to the substring of _packageSpecifier_ until the first
 >       _"/"_ separator or the end of the string.
-> 1. Otherwise,
+> 4. Otherwise,
 >    1. If _packageSpecifier_ does not contain a _"/"_ separator, then
 >       1. Throw an _Invalid Module Specifier_ error.
->    1. Set _packageName_ to the substring of _packageSpecifier_
+>    2. Set _packageName_ to the substring of _packageSpecifier_
 >       until the second _"/"_ separator or the end of the string.
-> 1. If _packageName_ starts with _"."_ or contains _"\\"_ or _"%"_, then
+> 5. If _packageName_ starts with _"."_ or contains _"\\"_ or _"%"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
-> 1. Let _packageSubpath_ be _"."_ concatenated with the substring of
+> 6. Let _packageSubpath_ be _"."_ concatenated with the substring of
 >    _packageSpecifier_ from the position at the length of _packageName_.
-> 1. If _packageSubpath_ ends in _"/"_, then
+> 7. If _packageSubpath_ ends in _"/"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
-> 1. Let _selfUrl_ be the result of
->    **PACKAGE_SELF_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_).
-> 1. If _selfUrl_ is not **undefined**, return _selfUrl_.
-> 1. If _packageSubpath_ is _"."_ and _packageName_ is a Node.js builtin
->    module, then
->    1. Return the string _"node:"_ concatenated with _packageSpecifier_.
-> 1. While _parentURL_ is not the file system root,
->    1. Let _packageURL_ be the URL resolution of _"node_modules/"_
->       concatenated with _packageSpecifier_, relative to _parentURL_.
->    1. Set _parentURL_ to the parent folder URL of _parentURL_.
->    1. If the folder at _packageURL_ does not exist, then
->       1. Continue the next loop iteration.
->    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_packageURL_).
->    1. If _pjson_ is not **null** and _pjson_._exports_ is not **null** or
->       **undefined**, then
->       1. Return the result of **PACKAGE_EXPORTS_RESOLVE**(_packageURL_,
->          _packageSubpath_, _pjson.exports_, _defaultConditions_).
->    1. Otherwise, if _packageSubpath_ is equal to _"."_, then
->       1. If _pjson.main_ is a string, then
->          1. Return the URL resolution of _main_ in _packageURL_.
->    1. Otherwise,
->       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
-> 1. Throw a _Module Not Found_ error.
+> 8. Let _selfUrl_ be the result of
+>    **PACKAGE\_SELF\_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_).
+> 9. If _selfUrl_ is not **undefined**, return _selfUrl_.
+> 10. If _packageSubpath_ is _"."_ and _packageName_ is a Node.js builtin
+>     module, then
+>     1. Return the string _"node:"_ concatenated with _packageSpecifier_.
+> 11. While _parentURL_ is not the file system root,
+>     1. Let _packageURL_ be the URL resolution of _"node\_modules/"_
+>        concatenated with _packageSpecifier_, relative to _parentURL_.
+>     2. Set _parentURL_ to the parent folder URL of _parentURL_.
+>     3. If the folder at _packageURL_ does not exist, then
+>        1. Continue the next loop iteration.
+>     4. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
+>     5. If _pjson_ is not **null** and _pjson_._exports_ is not **null** or
+>        **undefined**, then
+>        1. Return the result of **PACKAGE\_EXPORTS\_RESOLVE**(_packageURL_,
+>           _packageSubpath_, _pjson.exports_, _defaultConditions_).
+>     6. Otherwise, if _packageSubpath_ is equal to _"."_, then
+>        1. If _pjson.main_ is a string, then
+>           1. Return the URL resolution of _main_ in _packageURL_.
+>     7. Otherwise,
+>        1. Return the URL resolution of _packageSubpath_ in _packageURL_.
+> 12. Throw a _Module Not Found_ error.
 
-**PACKAGE_SELF_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_)
+**PACKAGE\_SELF\_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_)
 
-> 1. Let _packageURL_ be the result of **READ_PACKAGE_SCOPE**(_parentURL_).
-> 1. If _packageURL_ is **null**, then
+> 1. Let _packageURL_ be the result of **READ\_PACKAGE\_SCOPE**(_parentURL_).
+> 2. If _packageURL_ is **null**, then
 >    1. Return **undefined**.
-> 1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_packageURL_).
-> 1. If _pjson_ is **null** or if _pjson_._exports_ is **null** or
+> 3. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
+> 4. If _pjson_ is **null** or if _pjson_._exports_ is **null** or
 >    **undefined**, then
 >    1. Return **undefined**.
-> 1. If _pjson.name_ is equal to _packageName_, then
->    1. Return the result of **PACKAGE_EXPORTS_RESOLVE**(_packageURL_,
+> 5. If _pjson.name_ is equal to _packageName_, then
+>    1. Return the result of **PACKAGE\_EXPORTS\_RESOLVE**(_packageURL_,
 >       _packageSubpath_, _pjson.exports_, _defaultConditions_).
-> 1. Otherwise, return **undefined**.
+> 6. Otherwise, return **undefined**.
 
-**PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _subpath_, _exports_, _conditions_)
+**PACKAGE\_EXPORTS\_RESOLVE**(_packageURL_, _subpath_, _exports_, _conditions_)
 
 > 1. If _exports_ is an Object with both a key starting with _"."_ and a key not
 >    starting with _"."_, throw an _Invalid Package Configuration_ error.
-> 1. If _subpath_ is equal to _"."_, then
+> 2. If _subpath_ is equal to _"."_, then
 >    1. Let _mainExport_ be **undefined**.
->    1. If _exports_ is a String or Array, or an Object containing no keys
+>    2. If _exports_ is a String or Array, or an Object containing no keys
 >       starting with _"."_, then
 >       1. Set _mainExport_ to _exports_.
->    1. Otherwise if _exports_ is an Object containing a _"."_ property, then
->       1. Set _mainExport_ to _exports_\[_"."_\].
->    1. If _mainExport_ is not **undefined**, then
->       1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
+>    3. Otherwise if _exports_ is an Object containing a _"."_ property, then
+>       1. Set _mainExport_ to _exports_\[_"."_].
+>    4. If _mainExport_ is not **undefined**, then
+>       1. Let _resolved_ be the result of **PACKAGE\_TARGET\_RESOLVE**(
 >          _packageURL_, _mainExport_, _""_, **false**, **false**,
 >          _conditions_).
->       1. If _resolved_ is not **null** or **undefined**, return _resolved_.
-> 1. Otherwise, if _exports_ is an Object and all keys of _exports_ start with
+>       2. If _resolved_ is not **null** or **undefined**, return _resolved_.
+> 3. Otherwise, if _exports_ is an Object and all keys of _exports_ start with
 >    _"."_, then
 >    1. Let _matchKey_ be the string _"./"_ concatenated with _subpath_.
->    1. Let _resolved_ be the result of **PACKAGE_IMPORTS_EXPORTS_RESOLVE**(
+>    2. Let _resolved_ be the result of **PACKAGE\_IMPORTS\_EXPORTS\_RESOLVE**(
 >       _matchKey_, _exports_, _packageURL_, **false**, _conditions_).
->    1. If _resolved_ is not **null** or **undefined**, return _resolved_.
-> 1. Throw a _Package Path Not Exported_ error.
+>    3. If _resolved_ is not **null** or **undefined**, return _resolved_.
+> 4. Throw a _Package Path Not Exported_ error.
 
-**PACKAGE_IMPORTS_RESOLVE**(_specifier_, _parentURL_, _conditions_)
+**PACKAGE\_IMPORTS\_RESOLVE**(_specifier_, _parentURL_, _conditions_)
 
 > 1. Assert: _specifier_ begins with _"#"_.
-> 1. If _specifier_ is exactly equal to _"#"_ or starts with _"#/"_, then
+> 2. If _specifier_ is exactly equal to _"#"_ or starts with _"#/"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
-> 1. Let _packageURL_ be the result of **READ_PACKAGE_SCOPE**(_parentURL_).
-> 1. If _packageURL_ is not **null**, then
->    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_packageURL_).
->    1. If _pjson.imports_ is a non-null Object, then
->       1. Let _resolved_ be the result of **PACKAGE_IMPORTS_EXPORTS_RESOLVE**(
+> 3. Let _packageURL_ be the result of **READ\_PACKAGE\_SCOPE**(_parentURL_).
+> 4. If _packageURL_ is not **null**, then
+>    1. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
+>    2. If _pjson.imports_ is a non-null Object, then
+>       1. Let _resolved_ be the result of
+>          **PACKAGE\_IMPORTS\_EXPORTS\_RESOLVE**(
 >          _specifier_, _pjson.imports_, _packageURL_, **true**, _conditions_).
->       1. If _resolved_ is not **null** or **undefined**, return _resolved_.
-> 1. Throw a _Package Import Not Defined_ error.
+>       2. If _resolved_ is not **null** or **undefined**, return _resolved_.
+> 5. Throw a _Package Import Not Defined_ error.
 
-**PACKAGE_IMPORTS_EXPORTS_RESOLVE**(_matchKey_, _matchObj_, _packageURL_,
+**PACKAGE\_IMPORTS\_EXPORTS\_RESOLVE**(_matchKey_, _matchObj_, _packageURL_,
 _isImports_, _conditions_)
 
-> 1. If _matchKey_ is a key of _matchObj_ and does not contain _"*"_, then
->    1. Let _target_ be the value of _matchObj_\[_matchKey_\].
->    1. Return the result of **PACKAGE_TARGET_RESOLVE**(_packageURL_, _target_,
->       _""_, **false**, _isImports_, _conditions_).
-> 1. Let _expansionKeys_ be the list of keys of _matchObj_ containing only a
->    single _"*"_, sorted by the sorting function **PATTERN_KEY_COMPARE** which
->    orders in descending order of specificity.
-> 1. For each key _expansionKey_ in _expansionKeys_, do
+> 1. If _matchKey_ is a key of _matchObj_ and does not contain _"\*"_, then
+>    1. Let _target_ be the value of _matchObj_\[_matchKey_].
+>    2. Return the result of **PACKAGE\_TARGET\_RESOLVE**(_packageURL_,
+>       _target_, _""_, **false**, _isImports_, _conditions_).
+> 2. Let _expansionKeys_ be the list of keys of _matchObj_ containing only a
+>    single _"\*"_, sorted by the sorting function **PATTERN\_KEY\_COMPARE**
+>    which orders in descending order of specificity.
+> 3. For each key _expansionKey_ in _expansionKeys_, do
 >    1. Let _patternBase_ be the substring of _expansionKey_ up to but excluding
->       the first _"*"_ character.
->    1. If _matchKey_ starts with but is not equal to _patternBase_, then
+>       the first _"\*"_ character.
+>    2. If _matchKey_ starts with but is not equal to _patternBase_, then
 >       1. Let _patternTrailer_ be the substring of _expansionKey_ from the
->          index after the first _"*"_ character.
->       1. If _patternTrailer_ has zero length, or if _matchKey_ ends with
+>          index after the first _"\*"_ character.
+>       2. If _patternTrailer_ has zero length, or if _matchKey_ ends with
 >          _patternTrailer_ and the length of _matchKey_ is greater than or
 >          equal to the length of _expansionKey_, then
->          1. Let _target_ be the value of _matchObj_\[_expansionKey_\].
->          1. Let _subpath_ be the substring of _matchKey_ starting at the
+>          1. Let _target_ be the value of _matchObj_\[_expansionKey_].
+>          2. Let _subpath_ be the substring of _matchKey_ starting at the
 >             index of the length of _patternBase_ up to the length of
 >             _matchKey_ minus the length of _patternTrailer_.
->          1. Return the result of **PACKAGE_TARGET_RESOLVE**(_packageURL_,
+>          3. Return the result of **PACKAGE\_TARGET\_RESOLVE**(_packageURL_,
 >             _target_, _subpath_, **true**, _isImports_, _conditions_).
-> 1. Return **null**.
+> 4. Return **null**.
 
-**PATTERN_KEY_COMPARE**(_keyA_, _keyB_)
+**PATTERN\_KEY\_COMPARE**(_keyA_, _keyB_)
 
-> 1. Assert: _keyA_ ends with _"/"_ or contains only a single _"*"_.
-> 1. Assert: _keyB_ ends with _"/"_ or contains only a single _"*"_.
-> 1. Let _baseLengthA_ be the index of _"*"_ in _keyA_ plus one, if _keyA_
->    contains _"*"_, or the length of _keyA_ otherwise.
-> 1. Let _baseLengthB_ be the index of _"*"_ in _keyB_ plus one, if _keyB_
->    contains _"*"_, or the length of _keyB_ otherwise.
-> 1. If _baseLengthA_ is greater than _baseLengthB_, return -1.
-> 1. If _baseLengthB_ is greater than _baseLengthA_, return 1.
-> 1. If _keyA_ does not contain _"*"_, return 1.
-> 1. If _keyB_ does not contain _"*"_, return -1.
-> 1. If the length of _keyA_ is greater than the length of _keyB_, return -1.
-> 1. If the length of _keyB_ is greater than the length of _keyA_, return 1.
-> 1. Return 0.
+> 1. Assert: _keyA_ ends with _"/"_ or contains only a single _"\*"_.
+> 2. Assert: _keyB_ ends with _"/"_ or contains only a single _"\*"_.
+> 3. Let _baseLengthA_ be the index of _"\*"_ in _keyA_ plus one, if _keyA_
+>    contains _"\*"_, or the length of _keyA_ otherwise.
+> 4. Let _baseLengthB_ be the index of _"\*"_ in _keyB_ plus one, if _keyB_
+>    contains _"\*"_, or the length of _keyB_ otherwise.
+> 5. If _baseLengthA_ is greater than _baseLengthB_, return -1.
+> 6. If _baseLengthB_ is greater than _baseLengthA_, return 1.
+> 7. If _keyA_ does not contain _"\*"_, return 1.
+> 8. If _keyB_ does not contain _"\*"_, return -1.
+> 9. If the length of _keyA_ is greater than the length of _keyB_, return -1.
+> 10. If the length of _keyB_ is greater than the length of _keyA_, return 1.
+> 11. Return 0.
 
-**PACKAGE_TARGET_RESOLVE**(_packageURL_, _target_, _subpath_, _pattern_,
+**PACKAGE\_TARGET\_RESOLVE**(_packageURL_, _target_, _subpath_, _pattern_,
 _internal_, _conditions_)
 
 > 1. If _target_ is a String, then
 >    1. If _pattern_ is **false**, _subpath_ has non-zero length and _target_
 >       does not end with _"/"_, throw an _Invalid Module Specifier_ error.
->    1. If _target_ does not start with _"./"_, then
+>    2. If _target_ does not start with _"./"_, then
 >       1. If _internal_ is **true** and _target_ does not start with _"../"_ or
 >          _"/"_ and is not a valid URL, then
 >          1. If _pattern_ is **true**, then
->             1. Return **PACKAGE_RESOLVE**(_target_ with every instance of
->                _"*"_ replaced by _subpath_, _packageURL_ + _"/"_)_.
->          1. Return **PACKAGE_RESOLVE**(_target_ + _subpath_,
->             _packageURL_ + _"/"_)_.
->       1. Otherwise, throw an _Invalid Package Target_ error.
->    1. If _target_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
->       _"node_modules"_ segments after the first segment, throw an
+>             1. Return **PACKAGE\_RESOLVE**(_target_ with every instance of
+>                _"\*"_ replaced by _subpath_, _packageURL_ + _"/"_)\_.
+>          2. Return **PACKAGE\_RESOLVE**(_target_ + _subpath_,
+>             _packageURL_ + _"/"_)\_.
+>       2. Otherwise, throw an _Invalid Package Target_ error.
+>    3. If _target_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
+>       _"node\_modules"_ segments after the first segment, throw an
 >       _Invalid Package Target_ error.
->    1. Let _resolvedTarget_ be the URL resolution of the concatenation of
+>    4. Let _resolvedTarget_ be the URL resolution of the concatenation of
 >       _packageURL_ and _target_.
->    1. Assert: _resolvedTarget_ is contained in _packageURL_.
->    1. If _subpath_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
->       _"node_modules"_ segments, throw an _Invalid Module Specifier_ error.
->    1. If _pattern_ is **true**, then
+>    5. Assert: _resolvedTarget_ is contained in _packageURL_.
+>    6. If _subpath_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
+>       _"node\_modules"_ segments, throw an _Invalid Module Specifier_ error.
+>    7. If _pattern_ is **true**, then
 >       1. Return the URL resolution of _resolvedTarget_ with every instance of
->          _"*"_ replaced with _subpath_.
->    1. Otherwise,
+>          _"\*"_ replaced with _subpath_.
+>    8. Otherwise,
 >       1. Return the URL resolution of the concatenation of _subpath_ and
 >          _resolvedTarget_.
-> 1. Otherwise, if _target_ is a non-null Object, then
+> 2. Otherwise, if _target_ is a non-null Object, then
 >    1. If _exports_ contains any index property keys, as defined in ECMA-262
 >       [6.1.7 Array Index][], throw an _Invalid Package Configuration_ error.
->    1. For each property _p_ of _target_, in object insertion order as,
+>    2. For each property _p_ of _target_, in object insertion order as,
 >       1. If _p_ equals _"default"_ or _conditions_ contains an entry for _p_,
 >          then
 >          1. Let _targetValue_ be the value of the _p_ property in _target_.
->          1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
+>          2. Let _resolved_ be the result of **PACKAGE\_TARGET\_RESOLVE**(
 >             _packageURL_, _targetValue_, _subpath_, _pattern_, _internal_,
 >             _conditions_).
->          1. If _resolved_ is equal to **undefined**, continue the loop.
->          1. Return _resolved_.
->    1. Return **undefined**.
-> 1. Otherwise, if _target_ is an Array, then
->    1. If _target.length is zero, return **null**.
->    1. For each item _targetValue_ in _target_, do
->       1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
+>          3. If _resolved_ is equal to **undefined**, continue the loop.
+>          4. Return _resolved_.
+>    3. Return **undefined**.
+> 3. Otherwise, if _target_ is an Array, then
+>    1. If \_target.length is zero, return **null**.
+>    2. For each item _targetValue_ in _target_, do
+>       1. Let _resolved_ be the result of **PACKAGE\_TARGET\_RESOLVE**(
 >          _packageURL_, _targetValue_, _subpath_, _pattern_, _internal_,
 >          _conditions_), continuing the loop on any _Invalid Package Target_
 >          error.
->       1. If _resolved_ is **undefined**, continue the loop.
->       1. Return _resolved_.
->    1. Return or throw the last fallback resolution **null** return or error.
-> 1. Otherwise, if _target_ is _null_, return **null**.
-> 1. Otherwise throw an _Invalid Package Target_ error.
+>       2. If _resolved_ is **undefined**, continue the loop.
+>       3. Return _resolved_.
+>    3. Return or throw the last fallback resolution **null** return or error.
+> 4. Otherwise, if _target_ is _null_, return **null**.
+> 5. Otherwise throw an _Invalid Package Target_ error.
 
-**ESM_FORMAT**(_url_)
+**ESM\_FORMAT**(_url_)
 
 > 1. Assert: _url_ corresponds to an existing file.
-> 1. Let _pjson_ be the result of **READ_PACKAGE_SCOPE**(_url_).
-> 1. If _url_ ends in _".mjs"_, then
+> 2. Let _pjson_ be the result of **READ\_PACKAGE\_SCOPE**(_url_).
+> 3. If _url_ ends in _".mjs"_, then
 >    1. Return _"module"_.
-> 1. If _url_ ends in _".cjs"_, then
+> 4. If _url_ ends in _".cjs"_, then
 >    1. Return _"commonjs"_.
-> 1. If _pjson?.type_ exists and is _"module"_, then
+> 5. If _pjson?.type_ exists and is _"module"_, then
 >    1. If _url_ ends in _".js"_, then
 >       1. Return _"module"_.
->    1. Throw an _Unsupported File Extension_ error.
-> 1. Otherwise,
+>    2. Throw an _Unsupported File Extension_ error.
+> 6. Otherwise,
 >    1. Throw an _Unsupported File Extension_ error.
 
-**READ_PACKAGE_SCOPE**(_url_)
+**READ\_PACKAGE\_SCOPE**(_url_)
 
 > 1. Let _scopeURL_ be _url_.
-> 1. While _scopeURL_ is not the file system root,
+> 2. While _scopeURL_ is not the file system root,
 >    1. Set _scopeURL_ to the parent URL of _scopeURL_.
->    1. If _scopeURL_ ends in a _"node_modules"_ path segment, return **null**.
->    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_scopeURL_).
->    1. If _pjson_ is not **null**, then
+>    2. If _scopeURL_ ends in a _"node\_modules"_ path segment, return **null**.
+>    3. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_scopeURL_).
+>    4. If _pjson_ is not **null**, then
 >       1. Return _pjson_.
-> 1. Return **null**.
+> 3. Return **null**.
 
-**READ_PACKAGE_JSON**(_packageURL_)
+**READ\_PACKAGE\_JSON**(_packageURL_)
 
 > 1. Let _pjsonURL_ be the resolution of _"package.json"_ within _packageURL_.
-> 1. If the file at _pjsonURL_ does not exist, then
+> 2. If the file at _pjsonURL_ does not exist, then
 >    1. Return **null**.
-> 1. If the file at _packageURL_ does not parse as valid JSON, then
+> 3. If the file at _packageURL_ does not parse as valid JSON, then
 >    1. Throw an _Invalid Package Configuration_ error.
-> 1. Return the parsed JSON source of the file at _pjsonURL_.
+> 4. Return the parsed JSON source of the file at _pjsonURL_.
 
 ### Customizing ESM specifier resolution algorithm
 
@@ -1343,6 +1342,7 @@ success!
 ```
 
 <!-- Note: The cjs-module-lexer link should be kept in-sync with the deps version -->
+
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [CommonJS]: modules.md
 [Conditional exports]: packages.md#conditional-exports

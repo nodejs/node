@@ -14,6 +14,7 @@ const os = require('os');
 ```
 
 ## `os.EOL`
+
 <!-- YAML
 added: v0.7.8
 -->
@@ -26,6 +27,7 @@ The operating system-specific end-of-line marker.
 * `\r\n` on Windows
 
 ## `os.arch()`
+
 <!-- YAML
 added: v0.5.0
 -->
@@ -39,6 +41,7 @@ compiled. Possible values are `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
 The return value is equivalent to [`process.arch`][].
 
 ## `os.constants`
+
 <!-- YAML
 added: v6.3.0
 -->
@@ -50,11 +53,12 @@ process signals, and so on. The specific constants defined are described in
 [OS constants](#os-constants).
 
 ## `os.cpus()`
+
 <!-- YAML
 added: v0.3.3
 -->
 
-* Returns: {Object[]}
+* Returns: {Object\[]}
 
 Returns an array of objects containing information about each logical CPU core.
 
@@ -70,6 +74,7 @@ The properties included on each object include:
   * `irq` {number} The number of milliseconds the CPU has spent in irq mode.
 
 <!-- eslint-disable semi -->
+
 ```js
 [
   {
@@ -123,6 +128,7 @@ The properties included on each object include:
 are always 0.
 
 ## `os.devNull`
+
 <!-- YAML
 added:
   - v16.3.0
@@ -137,6 +143,7 @@ The platform-specific file path of the null device.
 * `/dev/null` on POSIX
 
 ## `os.endianness()`
+
 <!-- YAML
 added: v0.9.4
 -->
@@ -149,6 +156,7 @@ binary was compiled.
 Possible values are `'BE'` for big endian and `'LE'` for little endian.
 
 ## `os.freemem()`
+
 <!-- YAML
 added: v0.3.3
 -->
@@ -158,6 +166,7 @@ added: v0.3.3
 Returns the amount of free system memory in bytes as an integer.
 
 ## `os.getPriority([pid])`
+
 <!-- YAML
 added: v10.10.0
 -->
@@ -170,6 +179,7 @@ Returns the scheduling priority for the process specified by `pid`. If `pid` is
 not provided or is `0`, the priority of the current process is returned.
 
 ## `os.homedir()`
+
 <!-- YAML
 added: v2.3.0
 -->
@@ -185,6 +195,7 @@ On Windows, it uses the `USERPROFILE` environment variable if defined.
 Otherwise it uses the path to the profile directory of the current user.
 
 ## `os.hostname()`
+
 <!-- YAML
 added: v0.3.3
 -->
@@ -194,11 +205,12 @@ added: v0.3.3
 Returns the host name of the operating system as a string.
 
 ## `os.loadavg()`
+
 <!-- YAML
 added: v0.3.3
 -->
 
-* Returns: {number[]}
+* Returns: {number\[]}
 
 Returns an array containing the 1, 5, and 15 minute load averages.
 
@@ -209,6 +221,7 @@ The load average is a Unix-specific concept. On Windows, the return value is
 always `[0, 0, 0]`.
 
 ## `os.networkInterfaces()`
+
 <!-- YAML
 added: v0.6.0
 -->
@@ -236,6 +249,7 @@ The properties available on the assigned network address object include:
   to `null`.
 
 <!-- eslint-skip -->
+
 ```js
 {
   lo: [
@@ -280,6 +294,7 @@ The properties available on the assigned network address object include:
 ```
 
 ## `os.platform()`
+
 <!-- YAML
 added: v0.5.0
 -->
@@ -296,6 +311,7 @@ The value `'android'` may also be returned if Node.js is built on the Android
 operating system. [Android support is experimental][Android building].
 
 ## `os.release()`
+
 <!-- YAML
 added: v0.3.3
 -->
@@ -309,6 +325,7 @@ On POSIX systems, the operating system release is determined by calling
 <https://en.wikipedia.org/wiki/Uname#Examples> for more information.
 
 ## `os.setPriority([pid, ]priority)`
+
 <!-- YAML
 added: v10.10.0
 -->
@@ -332,6 +349,7 @@ privileges. Otherwise the set priority will be silently reduced to
 `PRIORITY_HIGH`.
 
 ## `os.tmpdir()`
+
 <!-- YAML
 added: v0.9.9
 changes:
@@ -347,6 +365,7 @@ Returns the operating system's default directory for temporary files as a
 string.
 
 ## `os.totalmem()`
+
 <!-- YAML
 added: v0.3.3
 -->
@@ -356,6 +375,7 @@ added: v0.3.3
 Returns the total amount of system memory in bytes as an integer.
 
 ## `os.type()`
+
 <!-- YAML
 added: v0.3.3
 -->
@@ -369,6 +389,7 @@ See <https://en.wikipedia.org/wiki/Uname#Examples> for additional information
 about the output of running [`uname(3)`][] on various operating systems.
 
 ## `os.uptime()`
+
 <!-- YAML
 added: v0.3.3
 changes:
@@ -383,6 +404,7 @@ changes:
 Returns the system uptime in number of seconds.
 
 ## `os.userInfo([options])`
+
 <!-- YAML
 added: v6.0.0
 -->
@@ -406,6 +428,7 @@ operating system response.
 Throws a [`SystemError`][] if a user has no `username` or `homedir`.
 
 ## `os.version()`
+
 <!-- YAML
 added:
  - v13.11.0
@@ -428,6 +451,7 @@ The following constants are exported by `os.constants`.
 Not all constants will be available on every operating system.
 
 ### Signal constants
+
 <!-- YAML
 changes:
   - version: v5.11.0
@@ -1217,6 +1241,7 @@ information.
 </table>
 
 ### Priority constants
+
 <!-- YAML
 added: v10.10.0
 -->
