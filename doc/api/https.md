@@ -10,6 +10,7 @@ HTTPS is the HTTP protocol over TLS/SSL. In Node.js this is implemented as a
 separate module.
 
 ## Class: `https.Agent`
+
 <!-- YAML
 added: v0.4.5
 changes:
@@ -26,6 +27,7 @@ An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 [`https.request()`][] for more information.
 
 ### `new Agent([options])`
+
 <!-- YAML
 changes:
   - version: v12.5.0
@@ -48,6 +50,7 @@ changes:
     See [`Session Resumption`][] for information about TLS session reuse.
 
 #### Event: `'keylog'`
+
 <!-- YAML
 added:
  - v13.2.0
@@ -75,6 +78,7 @@ https.globalAgent.on('keylog', (line, tlsSocket) => {
 ```
 
 ## Class: `https.Server`
+
 <!-- YAML
 added: v0.3.4
 -->
@@ -84,6 +88,7 @@ added: v0.3.4
 See [`http.Server`][] for more information.
 
 ### `server.close([callback])`
+
 <!-- YAML
 added: v0.1.90
 -->
@@ -94,6 +99,7 @@ added: v0.1.90
 See [`server.close()`][`http.close()`] from the HTTP module for details.
 
 ### `server.headersTimeout`
+
 <!-- YAML
 added: v11.3.0
 -->
@@ -114,6 +120,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 See [`http.Server#maxHeadersCount`][].
 
 ### `server.requestTimeout`
+
 <!-- YAML
 added: v14.11.0
 -->
@@ -123,6 +130,7 @@ added: v14.11.0
 See [`http.Server#requestTimeout`][].
 
 ### `server.setTimeout([msecs][, callback])`
+
 <!-- YAML
 added: v0.11.2
 -->
@@ -134,6 +142,7 @@ added: v0.11.2
 See [`http.Server#setTimeout()`][].
 
 ### `server.timeout`
+
 <!-- YAML
 added: v0.11.2
 changes:
@@ -147,6 +156,7 @@ changes:
 See [`http.Server#timeout`][].
 
 ### `server.keepAliveTimeout`
+
 <!-- YAML
 added: v8.0.0
 -->
@@ -156,6 +166,7 @@ added: v8.0.0
 See [`http.Server#keepAliveTimeout`][].
 
 ## `https.createServer([options][, requestListener])`
+
 <!-- YAML
 added: v0.3.4
 -->
@@ -199,7 +210,9 @@ https.createServer(options, (req, res) => {
 ```
 
 ## `https.get(options[, callback])`
+
 ## `https.get(url[, options][, callback])`
+
 <!-- YAML
 added: v0.3.6
 changes:
@@ -240,6 +253,7 @@ https.get('https://encrypted.google.com/', (res) => {
 ```
 
 ## `https.globalAgent`
+
 <!-- YAML
 added: v0.5.9
 -->
@@ -247,7 +261,9 @@ added: v0.5.9
 Global instance of [`https.Agent`][] for all HTTPS client requests.
 
 ## `https.request(options[, callback])`
+
 ## `https.request(url[, options][, callback])`
+
 <!-- YAML
 added: v0.3.6
 changes:

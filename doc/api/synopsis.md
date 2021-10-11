@@ -11,6 +11,7 @@
 Please see the [Command-line options][] document for more information.
 
 ## Example
+
 An example of a [web server][] written with Node.js which responds with
 `'Hello, World!'`:
 
@@ -48,7 +49,7 @@ Windows PowerShell:
 ```
 
 Next, create a new source file in the `projects`
- folder and call it `hello-world.js`.
+folder and call it `hello-world.js`.
 
 Open `hello-world.js` in any preferred text editor and
 paste in the following content:

@@ -43,6 +43,7 @@ console.log(x); // 1; y is not defined.
 ```
 
 ## Class: `vm.Script`
+
 <!-- YAML
 added: v0.3.1
 -->
@@ -51,6 +52,7 @@ Instances of the `vm.Script` class contain precompiled scripts that can be
 executed in specific contexts.
 
 ### `new vm.Script(code[, options])`
+
 <!-- YAML
 added: v0.3.1
 changes:
@@ -78,8 +80,8 @@ changes:
     is displayed in stack traces produced by this script. **Default:** `0`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-     source. When supplied, the `cachedDataRejected` value will be set to
-     either `true` or `false` depending on acceptance of the data by V8.
+    source. When supplied, the `cachedDataRejected` value will be set to
+    either `true` or `false` depending on acceptance of the data by V8.
   * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
     will attempt to produce code cache data for `code`. Upon success, a
     `Buffer` with V8's code cache data will be produced and stored in the
@@ -109,6 +111,7 @@ compiled `vm.Script` can be run later multiple times. The `code` is not bound to
 any global object; rather, it is bound before each run, just for that run.
 
 ### `script.createCachedData()`
+
 <!-- YAML
 added: v10.6.0
 -->
@@ -136,6 +139,7 @@ const cacheWithX = script.createCachedData();
 ```
 
 ### `script.runInContext(contextifiedObject[, options])`
+
 <!-- YAML
 added: v0.3.1
 changes:
@@ -192,6 +196,7 @@ and corresponding threads being started, which have a non-zero performance
 overhead.
 
 ### `script.runInNewContext([contextObject[, options]])`
+
 <!-- YAML
 added: v0.3.1
 changes:
@@ -264,6 +269,7 @@ console.log(contexts);
 ```
 
 ### `script.runInThisContext([options])`
+
 <!-- YAML
 added: v0.3.1
 changes:
@@ -288,7 +294,7 @@ changes:
 
 Runs the compiled code contained by the `vm.Script` within the context of the
 current `global` object. Running code does not have access to local scope, but
-*does* have access to the current `global` object.
+_does_ have access to the current `global` object.
 
 The following example compiles code that increments a `global` variable then
 executes that code multiple times:
@@ -310,6 +316,7 @@ console.log(globalVar);
 ```
 
 ## Class: `vm.Module`
+
 <!-- YAML
 added:
  - v13.0.0
@@ -485,7 +492,7 @@ const contextifiedObject = vm.createContext({
 
 ### `module.dependencySpecifiers`
 
-* {string[]}
+* {string\[]}
 
 The specifiers of all dependencies of this module. The returned array is frozen
 to disallow any changes to it.
@@ -548,6 +555,7 @@ The identifier of the current module, as set in the constructor.
     import foo from 'foo';
     //              ^^^^^ the module specifier
     ```
+
   * `extra` {Object}
     * `assert` {Object} The data from the assertion:
       <!-- eslint-skip -->
@@ -560,6 +568,7 @@ The identifier of the current module, as set in the constructor.
       unsupported assertion is present.
 
   * `referencingModule` {vm.Module} The `Module` object `link()` is called on.
+
   * Returns: {vm.Module|Promise}
 * Returns: {Promise}
 
@@ -634,6 +643,7 @@ Other than `'errored'`, this status string corresponds to the specification's
 value that is not `undefined`.
 
 ## Class: `vm.SourceTextModule`
+
 <!-- YAML
 added: v9.6.0
 -->
@@ -649,6 +659,7 @@ The `vm.SourceTextModule` class provides the [Source Text Module Record][] as
 defined in the ECMAScript specification.
 
 ### `new vm.SourceTextModule(code[, options])`
+
 <!-- YAML
 changes:
   - version: v17.0.0
@@ -664,8 +675,8 @@ changes:
     index.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-     source. The `code` must be the same as the module from which this
-     `cachedData` was created.
+    source. The `code` must be the same as the module from which this
+    `cachedData` was created.
   * `context` {Object} The [contextified][] object as returned by the
     `vm.createContext()` method, to compile and evaluate this `Module` in.
   * `lineOffset` {integer} Specifies the line number offset that is displayed
@@ -750,6 +761,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
 ```
 
 ### `sourceTextModule.createCachedData()`
+
 <!-- YAML
 added:
  - v13.7.0
@@ -774,6 +786,7 @@ const module2 = new vm.SourceTextModule('const a = 1;', { cachedData });
 ```
 
 ## Class: `vm.SyntheticModule`
+
 <!-- YAML
 added:
  - v13.0.0
@@ -805,13 +818,15 @@ const module = new vm.SyntheticModule(['default'], function() {
 ```
 
 ### `new vm.SyntheticModule(exportNames, evaluateCallback[, options])`
+
 <!-- YAML
 added:
  - v13.0.0
  - v12.16.0
 -->
 
-* `exportNames` {string[]} Array of names that will be exported from the module.
+* `exportNames` {string\[]} Array of names that will be exported from the
+  module.
 * `evaluateCallback` {Function} Called when the module is evaluated.
 * `options`
   * `identifier` {string} String used in stack traces.
@@ -827,6 +842,7 @@ the module to access information outside the specified `context`. Use
 `vm.runInContext()` to create objects in a specific context.
 
 ### `syntheticModule.setExport(name, value)`
+
 <!-- YAML
 added:
  - v13.0.0
@@ -866,6 +882,7 @@ const vm = require('vm');
 ```
 
 ## `vm.compileFunction(code[, params[, options]])`
+
 <!-- YAML
 added: v10.10.0
 changes:
@@ -888,7 +905,7 @@ changes:
 -->
 
 * `code` {string} The body of the function to compile.
-* `params` {string[]} An array of strings containing all parameters for the
+* `params` {string\[]} An array of strings containing all parameters for the
   function.
 * `options` {Object}
   * `filename` {string} Specifies the filename used in stack traces produced
@@ -899,12 +916,12 @@ changes:
     is displayed in stack traces produced by this script. **Default:** `0`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-     source.
+    source.
   * `produceCachedData` {boolean} Specifies whether to produce new cache data.
     **Default:** `false`.
   * `parsingContext` {Object} The [contextified][] object in which the said
     function should be compiled in.
-  * `contextExtensions` {Object[]} An array containing a collection of context
+  * `contextExtensions` {Object\[]} An array containing a collection of context
     extensions (objects wrapping the current scope) to be applied while
     compiling. **Default:** `[]`.
   * `importModuleDynamically` {Function} Called during evaluation of this module
@@ -927,6 +944,7 @@ supplied, the current context is used), and returns it wrapped inside a
 function with the given `params`.
 
 ## `vm.createContext([contextObject[, options]])`
+
 <!-- YAML
 added: v0.3.1
 changes:
@@ -1002,6 +1020,7 @@ The provided `name` and `origin` of the context are made visible through the
 Inspector API.
 
 ## `vm.isContext(object)`
+
 <!-- YAML
 added: v0.11.7
 -->
@@ -1089,6 +1108,7 @@ vm.measureMemory({ mode: 'detailed', execution: 'eager' })
 ```
 
 ## `vm.runInContext(code, contextifiedObject[, options])`
+
 <!-- YAML
 added: v0.3.1
 changes:
@@ -1124,8 +1144,8 @@ changes:
     work after that. **Default:** `false`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-     source. When supplied, the `cachedDataRejected` value will be set to
-     either `true` or `false` depending on acceptance of the data by V8.
+    source. When supplied, the `cachedDataRejected` value will be set to
+    either `true` or `false` depending on acceptance of the data by V8.
   * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
     will attempt to produce code cache data for `code`. Upon success, a
     `Buffer` with V8's code cache data will be produced and stored in the
@@ -1151,7 +1171,7 @@ changes:
 
 The `vm.runInContext()` method compiles `code`, runs it within the context of
 the `contextifiedObject`, then returns the result. Running code does not have
-access to the local scope. The `contextifiedObject` object *must* have been
+access to the local scope. The `contextifiedObject` object _must_ have been
 previously [contextified][] using the [`vm.createContext()`][] method.
 
 If `options` is a string, then it specifies the filename.
@@ -1173,6 +1193,7 @@ console.log(contextObject);
 ```
 
 ## `vm.runInNewContext(code[, contextObject[, options]])`
+
 <!-- YAML
 added: v0.3.1
 changes:
@@ -1229,8 +1250,8 @@ changes:
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-     source. When supplied, the `cachedDataRejected` value will be set to
-     either `true` or `false` depending on acceptance of the data by V8.
+    source. When supplied, the `cachedDataRejected` value will be set to
+    either `true` or `false` depending on acceptance of the data by V8.
   * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
     will attempt to produce code cache data for `code`. Upon success, a
     `Buffer` with V8's code cache data will be produced and stored in the
@@ -1282,6 +1303,7 @@ console.log(contextObject);
 ```
 
 ## `vm.runInThisContext(code[, options])`
+
 <!-- YAML
 added: v0.3.1
 changes:
@@ -1315,8 +1337,8 @@ changes:
     work after that. **Default:** `false`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-     source. When supplied, the `cachedDataRejected` value will be set to
-     either `true` or `false` depending on acceptance of the data by V8.
+    source. When supplied, the `cachedDataRejected` value will be set to
+    either `true` or `false` depending on acceptance of the data by V8.
   * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
     will attempt to produce code cache data for `code`. Upon success, a
     `Buffer` with V8's code cache data will be produced and stored in the
@@ -1350,6 +1372,7 @@ The following example illustrates using both `vm.runInThisContext()` and
 the JavaScript [`eval()`][] function to run the same code:
 
 <!-- eslint-disable prefer-const -->
+
 ```js
 const vm = require('vm');
 let localVar = 'initial value';
@@ -1364,7 +1387,7 @@ console.log(`evalResult: '${evalResult}', localVar: '${localVar}'`);
 ```
 
 Because `vm.runInThisContext()` does not have access to the local scope,
-`localVar` is unchanged. In contrast, [`eval()`][] *does* have access to the
+`localVar` is unchanged. In contrast, [`eval()`][] _does_ have access to the
 local scope, so the value `localVar` is changed. In this way
 `vm.runInThisContext()` is much like an [indirect `eval()` call][], e.g.
 `(0,eval)('code')`.

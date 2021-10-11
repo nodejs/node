@@ -105,6 +105,7 @@ console.log(myURL.href);
 ## The WHATWG URL API
 
 ### Class: `URL`
+
 <!-- YAML
 added:
   - v7.0.0
@@ -242,7 +243,7 @@ Invalid host values assigned to the `host` property are ignored.
 * {string}
 
 Gets and sets the host name portion of the URL. The key difference between
-`url.host` and `url.hostname` is that `url.hostname` does *not* include the
+`url.host` and `url.hostname` is that `url.hostname` does _not_ include the
 port.
 
 ```js
@@ -290,6 +291,7 @@ If the value assigned to the `href` property is not a valid URL, a `TypeError`
 will be thrown.
 
 #### `url.origin`
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -360,6 +362,7 @@ to percent-encode may vary somewhat from what the [`url.parse()`][] and
 [`url.format()`][] methods would produce.
 
 #### `url.port`
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -467,6 +470,7 @@ console.log(myURL.href);
 Invalid URL protocol values assigned to the `protocol` property are ignored.
 
 ##### Special schemes
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -609,6 +613,7 @@ console.log(JSON.stringify(myURLs));
 ```
 
 #### `URL.createObjectURL(blob)`
+
 <!-- YAML
 added: v16.7.0
 -->
@@ -644,6 +649,7 @@ Threads, `Blob` objects registered within one Worker will not be available
 to other workers or the main thread.
 
 #### `URL.revokeObjectURL(id)`
+
 <!-- YAML
 added: v16.7.0
 -->
@@ -656,6 +662,7 @@ added: v16.7.0
 Removes the stored {Blob} identified by the given ID.
 
 ### Class: `URLSearchParams`
+
 <!-- YAML
 added:
   - v7.5.0
@@ -735,6 +742,7 @@ console.log(params.toString());
 ```
 
 #### `new URLSearchParams(obj)`
+
 <!-- YAML
 added:
   - v7.10.0
@@ -762,6 +770,7 @@ console.log(params.toString());
 ```
 
 #### `new URLSearchParams(iterable)`
+
 <!-- YAML
 added:
   - v7.10.0
@@ -869,7 +878,7 @@ are no such pairs, `null` is returned.
 #### `urlSearchParams.getAll(name)`
 
 * `name` {string}
-* Returns: {string[]}
+* Returns: {string\[]}
 
 Returns the values of all name-value pairs whose name is `name`. If there are
 no such pairs, an empty array is returned.
@@ -922,6 +931,7 @@ console.log(params.toString());
 ```
 
 #### `urlSearchParams.sort()`
+
 <!-- YAML
 added:
   - v7.7.0
@@ -975,6 +985,7 @@ for (const [name, value] of params) {
 ```
 
 ### `url.domainToASCII(domain)`
+
 <!-- YAML
 added:
   - v7.4.0
@@ -1015,6 +1026,7 @@ console.log(url.domainToASCII('xn--iñvalid.com'));
 ```
 
 ### `url.domainToUnicode(domain)`
+
 <!-- YAML
 added:
   - v7.4.0
@@ -1055,6 +1067,7 @@ console.log(url.domainToUnicode('xn--iñvalid.com'));
 ```
 
 ### `url.fileURLToPath(url)`
+
 <!-- YAML
 added: v10.12.0
 -->
@@ -1099,6 +1112,7 @@ fileURLToPath('file:///hello world');      // Correct:   /hello world (POSIX)
 ```
 
 ### `url.format(URL[, options])`
+
 <!-- YAML
 added: v7.6.0
 -->
@@ -1153,6 +1167,7 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 ```
 
 ### `url.pathToFileURL(path)`
+
 <!-- YAML
 added: v10.12.0
 -->
@@ -1188,6 +1203,7 @@ pathToFileURL('/some/path%.c');       // Correct:   file:///some/path%25.c (POSI
 ```
 
 ### `url.urlToHttpOptions(url)`
+
 <!-- YAML
 added:
   - v15.7.0
@@ -1253,6 +1269,7 @@ console.log(urlToHttpOptions(myUrl));
 ```
 
 ## Legacy URL API
+
 <!-- YAML
 changes:
   - version:
@@ -1268,6 +1285,7 @@ changes:
 > Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
 ### Legacy `urlObject`
+
 <!-- YAML
 changes:
   - version:
@@ -1312,7 +1330,7 @@ For example: `'sub.example.com:8080'`.
 #### `urlObject.hostname`
 
 The `hostname` property is the lower-cased host name portion of the `host`
-component *without* the `port` included.
+component _without_ the `port` included.
 
 For example: `'sub.example.com'`.
 
@@ -1383,6 +1401,7 @@ forward-slash characters (`/`) are required following the colon in the
 `protocol`.
 
 ### `url.format(urlObject)`
+
 <!-- YAML
 added: v0.1.25
 changes:
@@ -1440,7 +1459,7 @@ The formatting process operates as follows:
 * If `urlObject.protocol` is a string, it is appended as-is to `result`.
 * Otherwise, if `urlObject.protocol` is not `undefined` and is not a string, an
   [`Error`][] is thrown.
-* For all string values of `urlObject.protocol` that *do not end* with an ASCII
+* For all string values of `urlObject.protocol` that _do not end_ with an ASCII
   colon (`:`) character, the literal string `:` will be appended to `result`.
 * If either of the following conditions is true, then the literal string `//`
   will be appended to `result`:
@@ -1450,7 +1469,7 @@ The formatting process operates as follows:
 * If the value of the `urlObject.auth` property is truthy, and either
   `urlObject.host` or `urlObject.hostname` are not `undefined`, the value of
   `urlObject.auth` will be coerced into a string and appended to `result`
-   followed by the literal string `@`.
+  followed by the literal string `@`.
 * If the `urlObject.host` property is `undefined` then:
   * If the `urlObject.hostname` is a string, it is appended to `result`.
   * Otherwise, if `urlObject.hostname` is not `undefined` and is not a string,
@@ -1463,7 +1482,7 @@ The formatting process operates as follows:
 * Otherwise, if the `urlObject.host` property value is truthy, the value of
   `urlObject.host` is coerced to a string and appended to `result`.
 * If the `urlObject.pathname` property is a string that is not an empty string:
-  * If the `urlObject.pathname` *does not start* with an ASCII forward slash
+  * If the `urlObject.pathname` _does not start_ with an ASCII forward slash
     (`/`), then the literal string `'/'` is appended to `result`.
   * The value of `urlObject.pathname` is appended to `result`.
 * Otherwise, if `urlObject.pathname` is not `undefined` and is not a string, an
@@ -1473,13 +1492,13 @@ The formatting process operates as follows:
   followed by the output of calling the [`querystring`][] module's `stringify()`
   method passing the value of `urlObject.query`.
 * Otherwise, if `urlObject.search` is a string:
-  * If the value of `urlObject.search` *does not start* with the ASCII question
+  * If the value of `urlObject.search` _does not start_ with the ASCII question
     mark (`?`) character, the literal string `?` is appended to `result`.
   * The value of `urlObject.search` is appended to `result`.
 * Otherwise, if `urlObject.search` is not `undefined` and is not a string, an
   [`Error`][] is thrown.
 * If the `urlObject.hash` property is a string:
-  * If the value of `urlObject.hash` *does not start* with the ASCII hash (`#`)
+  * If the value of `urlObject.hash` _does not start_ with the ASCII hash (`#`)
     character, the literal string `#` is appended to `result`.
   * The value of `urlObject.hash` is appended to `result`.
 * Otherwise, if the `urlObject.hash` property is not `undefined` and is not a
@@ -1487,6 +1506,7 @@ The formatting process operates as follows:
 * `result` is returned.
 
 ### `url.parse(urlString[, parseQueryString[, slashesDenoteHost]])`
+
 <!-- YAML
 added: v0.1.25
 changes:
@@ -1536,6 +1556,7 @@ issues can be introduced. Specifically, issues with [host name spoofing][] and
 incorrect handling of usernames and passwords have been identified.
 
 ### `url.resolve(from, to)`
+
 <!-- YAML
 added: v0.1.25
 changes:
@@ -1596,6 +1617,7 @@ resolve('http://example.com/one', '/two'); // 'http://example.com/two'
 ```
 
 <a id="whatwg-percent-encoding"></a>
+
 ## Percent-encoding in URLs
 
 URLs are permitted to only contain a certain range of characters. Any character
@@ -1623,29 +1645,29 @@ selecting encoded characters than that used by the Legacy API.
 The WHATWG algorithm defines four "percent-encode sets" that describe ranges
 of characters that must be percent-encoded:
 
-* The *C0 control percent-encode set* includes code points in range U+0000 to
+* The _C0 control percent-encode set_ includes code points in range U+0000 to
   U+001F (inclusive) and all code points greater than U+007E.
 
-* The *fragment percent-encode set* includes the *C0 control percent-encode set*
+* The _fragment percent-encode set_ includes the _C0 control percent-encode set_
   and code points U+0020, U+0022, U+003C, U+003E, and U+0060.
 
-* The *path percent-encode set* includes the *C0 control percent-encode set*
+* The _path percent-encode set_ includes the _C0 control percent-encode set_
   and code points U+0020, U+0022, U+0023, U+003C, U+003E, U+003F, U+0060,
   U+007B, and U+007D.
 
-* The *userinfo encode set* includes the *path percent-encode set* and code
+* The _userinfo encode set_ includes the _path percent-encode set_ and code
   points U+002F, U+003A, U+003B, U+003D, U+0040, U+005B, U+005C, U+005D,
   U+005E, and U+007C.
 
-The *userinfo percent-encode set* is used exclusively for username and
-passwords encoded within the URL. The *path percent-encode set* is used for the
-path of most URLs. The *fragment percent-encode set* is used for URL fragments.
-The *C0 control percent-encode set* is used for host and path under certain
+The _userinfo percent-encode set_ is used exclusively for username and
+passwords encoded within the URL. The _path percent-encode set_ is used for the
+path of most URLs. The _fragment percent-encode set_ is used for URL fragments.
+The _C0 control percent-encode set_ is used for host and path under certain
 specific conditions, in addition to all other cases.
 
 When non-ASCII characters appear within a host name, the host name is encoded
-using the [Punycode][] algorithm. Note, however, that a host name *may* contain
-*both* Punycode encoded and percent-encoded characters:
+using the [Punycode][] algorithm. Note, however, that a host name _may_ contain
+_both_ Punycode encoded and percent-encoded characters:
 
 ```js
 const myURL = new URL('https://%CF%80.example.com/foo');

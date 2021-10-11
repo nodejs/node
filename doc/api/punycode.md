@@ -1,4 +1,5 @@
 # Punycode
+
 <!-- YAML
 deprecated: v7.0.0
 -->
@@ -39,6 +40,7 @@ made available to developers as a convenience. Fixes or other modifications to
 the module must be directed to the [Punycode.js][] project.
 
 ## `punycode.decode(string)`
+
 <!-- YAML
 added: v0.5.1
 -->
@@ -54,6 +56,7 @@ punycode.decode('--dqo34k'); // '☃-⌘'
 ```
 
 ## `punycode.encode(string)`
+
 <!-- YAML
 added: v0.5.1
 -->
@@ -69,6 +72,7 @@ punycode.encode('☃-⌘'); // '--dqo34k'
 ```
 
 ## `punycode.toASCII(domain)`
+
 <!-- YAML
 added: v0.6.1
 -->
@@ -88,6 +92,7 @@ punycode.toASCII('example.com'); // 'example.com'
 ```
 
 ## `punycode.toUnicode(domain)`
+
 <!-- YAML
 added: v0.6.1
 -->
@@ -106,11 +111,13 @@ punycode.toUnicode('example.com');       // 'example.com'
 ```
 
 ## `punycode.ucs2`
+
 <!-- YAML
 added: v0.7.0
 -->
 
 ### `punycode.ucs2.decode(string)`
+
 <!-- YAML
 added: v0.7.0
 -->
@@ -127,11 +134,12 @@ punycode.ucs2.decode('\uD834\uDF06'); // [0x1D306]
 ```
 
 ### `punycode.ucs2.encode(codePoints)`
+
 <!-- YAML
 added: v0.7.0
 -->
 
-* `codePoints` {integer[]}
+* `codePoints` {integer\[]}
 
 The `punycode.ucs2.encode()` method returns a string based on an array of
 numeric code point values.
@@ -142,6 +150,7 @@ punycode.ucs2.encode([0x1D306]); // '\uD834\uDF06'
 ```
 
 ## `punycode.version`
+
 <!-- YAML
 added: v0.6.1
 -->

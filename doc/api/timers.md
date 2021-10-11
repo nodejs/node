@@ -26,6 +26,7 @@ running as long as the immediate is active. The `Immediate` object returned by
 functions that can be used to control this default behavior.
 
 ### `immediate.hasRef()`
+
 <!-- YAML
 added: v11.0.0
 -->
@@ -35,13 +36,14 @@ added: v11.0.0
 If true, the `Immediate` object will keep the Node.js event loop active.
 
 ### `immediate.ref()`
+
 <!-- YAML
 added: v9.7.0
 -->
 
 * Returns: {Immediate} a reference to `immediate`
 
-When called, requests that the Node.js event loop *not* exit so long as the
+When called, requests that the Node.js event loop _not_ exit so long as the
 `Immediate` is active. Calling `immediate.ref()` multiple times will have no
 effect.
 
@@ -49,6 +51,7 @@ By default, all `Immediate` objects are "ref'ed", making it normally unnecessary
 to call `immediate.ref()` unless `immediate.unref()` had been called previously.
 
 ### `immediate.unref()`
+
 <!-- YAML
 added: v9.7.0
 -->
@@ -73,6 +76,7 @@ export both `timeout.ref()` and `timeout.unref()` functions that can be used to
 control this default behavior.
 
 ### `timeout.close()`
+
 <!-- YAML
 added: v0.9.1
 -->
@@ -84,6 +88,7 @@ added: v0.9.1
 Cancels the timeout.
 
 ### `timeout.hasRef()`
+
 <!-- YAML
 added: v11.0.0
 -->
@@ -93,19 +98,21 @@ added: v11.0.0
 If true, the `Timeout` object will keep the Node.js event loop active.
 
 ### `timeout.ref()`
+
 <!-- YAML
 added: v0.9.1
 -->
 
 * Returns: {Timeout} a reference to `timeout`
 
-When called, requests that the Node.js event loop *not* exit so long as the
+When called, requests that the Node.js event loop _not_ exit so long as the
 `Timeout` is active. Calling `timeout.ref()` multiple times will have no effect.
 
 By default, all `Timeout` objects are "ref'ed", making it normally unnecessary
 to call `timeout.ref()` unless `timeout.unref()` had been called previously.
 
 ### `timeout.refresh()`
+
 <!-- YAML
 added: v10.2.0
 -->
@@ -121,6 +128,7 @@ Using this on a timer that has already called its callback will reactivate the
 timer.
 
 ### `timeout.unref()`
+
 <!-- YAML
 added: v0.9.1
 -->
@@ -137,6 +145,7 @@ event loop. Creating too many of these can adversely impact performance
 of the Node.js application.
 
 ### `timeout[Symbol.toPrimitive]()`
+
 <!-- YAML
 added:
   - v14.9.0
@@ -160,6 +169,7 @@ which method was used to create the timer and what other work the Node.js
 event loop is doing.
 
 ### `setImmediate(callback[, ...args])`
+
 <!-- YAML
 added: v0.9.1
 -->
@@ -184,6 +194,7 @@ This method has a custom variant for promises that is available using
 [`timersPromises.setImmediate()`][].
 
 ### `setInterval(callback[, delay[, ...args]])`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -205,6 +216,7 @@ This method has a custom variant for promises that is available using
 [`timersPromises.setInterval()`][].
 
 ### `setTimeout(callback[, delay[, ...args]])`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -277,6 +289,7 @@ ac.abort();
 ```
 
 ### `clearImmediate(immediate)`
+
 <!-- YAML
 added: v0.9.1
 -->
@@ -287,6 +300,7 @@ added: v0.9.1
 Cancels an `Immediate` object created by [`setImmediate()`][].
 
 ### `clearInterval(timeout)`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -297,6 +311,7 @@ added: v0.0.1
 Cancels a `Timeout` object created by [`setInterval()`][].
 
 ### `clearTimeout(timeout)`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -307,6 +322,7 @@ added: v0.0.1
 Cancels a `Timeout` object created by [`setTimeout()`][].
 
 ## Timers Promises API
+
 <!-- YAML
 added: v15.0.0
 changes:
@@ -336,6 +352,7 @@ const {
 ```
 
 ### `timersPromises.setTimeout([delay[, value[, options]]])`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -371,6 +388,7 @@ setTimeout(100, 'result').then((res) => {
 ```
 
 ### `timersPromises.setImmediate([value[, options]])`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -404,6 +422,7 @@ setImmediate('result').then((res) => {
 ```
 
 ### `timersPromises.setInterval([delay[, value[, options]]])`
+
 <!-- YAML
 added: v15.9.0
 -->
@@ -411,7 +430,7 @@ added: v15.9.0
 Returns an async iterator that generates values in an interval of `delay` ms.
 
 * `delay` {number} The number of milliseconds to wait between iterations.
-   **Default:** `1`.
+  **Default:** `1`.
 * `value` {any} A value with which the iterator returns.
 * `options` {Object}
   * `ref` {boolean} Set to `false` to indicate that the scheduled `Timeout`

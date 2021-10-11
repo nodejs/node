@@ -45,7 +45,7 @@ An overview of available Node.js and JavaScript features for each `configure`
 option:
 
 | Feature                                 | `none`                            | `system-icu`                 | `small-icu`            | `full-icu` |
-|-----------------------------------------|-----------------------------------|------------------------------|------------------------|------------|
+| --------------------------------------- | --------------------------------- | ---------------------------- | ---------------------- | ---------- |
 | [`String.prototype.normalize()`][]      | none (function is no-op)          | full                         | full                   | full       |
 | `String.prototype.to*Case()`            | full                              | full                         | full                   | full       |
 | [`Intl`][]                              | none (object does not exist)      | partial/full (depends on OS) | partial (English-only) | full       |
@@ -80,7 +80,7 @@ OS.
 Functionalities that only require the ICU library itself, such as
 [`String.prototype.normalize()`][] and the [WHATWG URL parser][], are fully
 supported under `system-icu`. Features that require ICU locale data in
-addition, such as [`Intl.DateTimeFormat`][] *may* be fully or partially
+addition, such as [`Intl.DateTimeFormat`][] _may_ be fully or partially
 supported, depending on the completeness of the ICU data installed on the
 system.
 
