@@ -82,12 +82,11 @@ server.listen(0, common.mustCall(function() {
         assert.strictEqual(recvData.toString(), expectedRecvData);
       }));
 
-      console.log(res.headers);
-      const expectedHeaders = {
+      const expectedHeaders = Object.assign(Object.create(null), {
         hello: 'world',
         connection: 'upgrade',
         upgrade: 'websocket'
-      };
+      });
       assert.deepStrictEqual(res.headers, expectedHeaders);
       socket.end();
       countdown.dec();

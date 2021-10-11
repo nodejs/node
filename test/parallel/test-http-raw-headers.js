@@ -36,12 +36,12 @@ http.createServer(function(req, res) {
     'Connection',
     'close',
   ];
-  const expectHeaders = {
+  const expectHeaders = Object.assign(Object.create(null), {
     'host': `localhost:${this.address().port}`,
     'transfer-encoding': 'CHUNKED',
     'x-bar': 'yoyoyo',
     'connection': 'close'
-  };
+  });
   const expectRawTrailers = [
     'x-bAr',
     'yOyOyOy',
@@ -52,7 +52,9 @@ http.createServer(function(req, res) {
     'X-baR',
     'OyOyOyO',
   ];
-  const expectTrailers = { 'x-bar': 'yOyOyOy, OyOyOyO, yOyOyOy, OyOyOyO' };
+  const expectTrailers = Object.assign(Object.create(null), {
+    'x-bar': 'yOyOyOy, OyOyOyO, yOyOyOy, OyOyOyO'
+  });
 
   this.close();
 
@@ -95,12 +97,12 @@ http.createServer(function(req, res) {
       'Transfer-Encoding',
       'chunked',
     ];
-    const expectHeaders = {
+    const expectHeaders = Object.assign(Object.create(null), {
       'trailer': 'x-foo',
       'date': null,
       'connection': 'close',
       'transfer-encoding': 'chunked'
-    };
+    });
     res.rawHeaders[3] = null;
     res.headers.date = null;
     assert.deepStrictEqual(res.rawHeaders, expectRawHeaders);
@@ -116,7 +118,7 @@ http.createServer(function(req, res) {
         'X-foO',
         'OxOxOxO',
       ];
-      const expectTrailers = { 'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO' };
+      const expectTrailers = Object.assign(Object.create(null), { 'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO' });
 
       assert.deepStrictEqual(res.rawTrailers, expectRawTrailers);
       assert.deepStrictEqual(res.trailers, expectTrailers);

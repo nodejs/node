@@ -4,20 +4,20 @@ const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
 
-const expectedHeadersMultipleWrites = {
+const expectedHeadersMultipleWrites = Object.assign(Object.create(null), {
   'connection': 'close',
   'transfer-encoding': 'chunked',
-};
+});
 
-const expectedHeadersEndWithData = {
+const expectedHeadersEndWithData = Object.assign(Object.create(null), {
   'connection': 'close',
   'content-length': String('hello world'.length)
-};
+});
 
-const expectedHeadersEndNoData = {
+const expectedHeadersEndNoData = Object.assign(Object.create(null), {
   'connection': 'close',
   'content-length': '0',
-};
+});
 
 
 const countdown = new Countdown(3, () => server.close());

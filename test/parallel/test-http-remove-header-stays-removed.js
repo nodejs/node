@@ -51,7 +51,7 @@ process.on('exit', function() {
 server.listen(0, function() {
   http.get({ port: this.address().port }, function(res) {
     assert.strictEqual(res.statusCode, 200);
-    assert.deepStrictEqual(res.headers, { date: 'coffee o clock' });
+    assert.deepStrictEqual(res.headers, Object.assign(Object.create(null), { date: 'coffee o clock' }));
 
     res.setEncoding('ascii');
     res.on('data', function(chunk) {

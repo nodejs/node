@@ -71,10 +71,11 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
       assert.strictEqual(recvData.toString(), 'nurtzo');
     }));
 
-    console.log(res.headers);
-    const expectedHeaders = { 'hello': 'world',
-                              'connection': 'upgrade',
-                              'upgrade': 'websocket' };
+    const expectedHeaders = Object.assign(Object.create(null), {
+      'hello': 'world',
+      'connection': 'upgrade',
+      'upgrade': 'websocket'
+    });
     assert.deepStrictEqual(expectedHeaders, res.headers);
 
     // Make sure this request got removed from the pool.

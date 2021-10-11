@@ -7,11 +7,11 @@ const http = require('http');
 
 function execute(options) {
   http.createServer(function(req, res) {
-    const expectHeaders = {
+    const expectHeaders = Object.assign(Object.create(null), {
       'x-foo': 'boom',
       'cookie': 'a=1; b=2; c=3',
       'connection': 'close'
-    };
+    });
 
     // no Host header when you set headers an array
     if (!Array.isArray(options.headers)) {
