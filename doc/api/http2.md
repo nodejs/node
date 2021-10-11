@@ -1,4 +1,5 @@
 # HTTP/2
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -13,6 +14,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/22466
     description: HTTP/2 is now Stable. Previously, it had been Experimental.
 -->
+
 <!--introduced_in=v8.4.0-->
 
 > Stability: 2 - Stable
@@ -29,7 +31,7 @@ const http2 = require('http2');
 ## Core API
 
 The Core API provides a low-level interface designed specifically around
-support for HTTP/2 protocol features. It is specifically *not* designed for
+support for HTTP/2 protocol features. It is specifically _not_ designed for
 compatibility with the existing [HTTP/1][] module API. However,
 the [Compatibility API][] is.
 
@@ -105,6 +107,7 @@ req.end();
 ```
 
 ### Class: `Http2Session`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -112,7 +115,7 @@ added: v8.4.0
 * Extends: {EventEmitter}
 
 Instances of the `http2.Http2Session` class represent an active communications
-session between an HTTP/2 client and server. Instances of this class are *not*
+session between an HTTP/2 client and server. Instances of this class are _not_
 intended to be constructed directly by user code.
 
 Each `Http2Session` instance will exhibit slightly different behaviors
@@ -144,6 +147,7 @@ Once a `Socket` has been bound to an `Http2Session`, user code should rely
 solely on the API of the `Http2Session`.
 
 #### Event: `'close'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -152,6 +156,7 @@ The `'close'` event is emitted once the `Http2Session` has been destroyed. Its
 listener does not expect any arguments.
 
 #### Event: `'connect'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -165,6 +170,7 @@ connected to the remote peer and communication may begin.
 User code will typically not listen for this event directly.
 
 #### Event: `'error'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -175,6 +181,7 @@ The `'error'` event is emitted when an error occurs during the processing of
 an `Http2Session`.
 
 #### Event: `'frameError'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -195,6 +202,7 @@ event is not associated with a stream, the `Http2Session` will be shut down
 immediately following the `'frameError'` event.
 
 #### Event: `'goaway'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -211,6 +219,7 @@ The `Http2Session` instance will be shut down automatically when the `'goaway'`
 event is emitted.
 
 #### Event: `'localSettings'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -232,6 +241,7 @@ session.on('localSettings', (settings) => {
 ```
 
 #### Event: `'ping'`
+
 <!-- YAML
 added: v10.12.0
 -->
@@ -242,6 +252,7 @@ The `'ping'` event is emitted whenever a `PING` frame is received from the
 connected peer.
 
 #### Event: `'remoteSettings'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -258,6 +269,7 @@ session.on('remoteSettings', (settings) => {
 ```
 
 #### Event: `'stream'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -313,6 +325,7 @@ a network error will destroy each individual stream and must be handled on the
 stream level, as shown above.
 
 #### Event: `'timeout'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -328,6 +341,7 @@ session.on('timeout', () => { /* .. */ });
 ```
 
 #### `http2session.alpnProtocol`
+
 <!-- YAML
 added: v9.4.0
 -->
@@ -340,6 +354,7 @@ will return the value of the connected `TLSSocket`'s own `alpnProtocol`
 property.
 
 #### `http2session.close([callback])`
+
 <!-- YAML
 added: v9.4.0
 -->
@@ -348,13 +363,14 @@ added: v9.4.0
 
 Gracefully closes the `Http2Session`, allowing any existing streams to
 complete on their own and preventing new `Http2Stream` instances from being
-created. Once closed, `http2session.destroy()` *might* be called if there
+created. Once closed, `http2session.destroy()` _might_ be called if there
 are no open `Http2Stream` instances.
 
 If specified, the `callback` function is registered as a handler for the
 `'close'` event.
 
 #### `http2session.closed`
+
 <!-- YAML
 added: v9.4.0
 -->
@@ -365,6 +381,7 @@ Will be `true` if this `Http2Session` instance has been closed, otherwise
 `false`.
 
 #### `http2session.connecting`
+
 <!-- YAML
 added: v10.0.0
 -->
@@ -376,6 +393,7 @@ to `false` before emitting `connect` event and/or calling the `http2.connect`
 callback.
 
 #### `http2session.destroy([error][, code])`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -397,6 +415,7 @@ If there are any remaining open `Http2Streams` associated with the
 `Http2Session`, those will also be destroyed.
 
 #### `http2session.destroyed`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -407,6 +426,7 @@ Will be `true` if this `Http2Session` instance has been destroyed and must no
 longer be used, otherwise `false`.
 
 #### `http2session.encrypted`
+
 <!-- YAML
 added: v9.4.0
 -->
@@ -419,6 +439,7 @@ and `false` if the `Http2Session` is connected to any other kind of socket
 or stream.
 
 #### `http2session.goaway([code[, lastStreamID[, opaqueData]]])`
+
 <!-- YAML
 added: v9.4.0
 -->
@@ -428,10 +449,11 @@ added: v9.4.0
 * `opaqueData` {Buffer|TypedArray|DataView} A `TypedArray` or `DataView`
   instance containing additional data to be carried within the `GOAWAY` frame.
 
-Transmits a `GOAWAY` frame to the connected peer *without* shutting down the
+Transmits a `GOAWAY` frame to the connected peer _without_ shutting down the
 `Http2Session`.
 
 #### `http2session.localSettings`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -439,14 +461,15 @@ added: v8.4.0
 * {HTTP/2 Settings Object}
 
 A prototype-less object describing the current local settings of this
-`Http2Session`. The local settings are local to *this* `Http2Session` instance.
+`Http2Session`. The local settings are local to _this_ `Http2Session` instance.
 
 #### `http2session.originSet`
+
 <!-- YAML
 added: v9.4.0
 -->
 
-* {string[]|undefined}
+* {string\[]|undefined}
 
 If the `Http2Session` is connected to a `TLSSocket`, the `originSet` property
 will return an `Array` of origins for which the `Http2Session` may be
@@ -455,6 +478,7 @@ considered authoritative.
 The `originSet` property is only available when using a secure TLS connection.
 
 #### `http2session.pendingSettingsAck`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -467,6 +491,7 @@ a sent `SETTINGS` frame. Will be `true` after calling the
 frames have been acknowledged.
 
 #### `http2session.ping([payload, ]callback)`
+
 <!-- YAML
 added: v8.9.3
 -->
@@ -505,6 +530,7 @@ If the `payload` argument is not specified, the default payload will be the
 64-bit timestamp (little endian) marking the start of the `PING` duration.
 
 #### `http2session.ref()`
+
 <!-- YAML
 added: v9.4.0
 -->
@@ -513,6 +539,7 @@ Calls [`ref()`][`net.Socket.prototype.ref()`] on this `Http2Session`
 instance's underlying [`net.Socket`][].
 
 #### `http2session.remoteSettings`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -520,9 +547,10 @@ added: v8.4.0
 * {HTTP/2 Settings Object}
 
 A prototype-less object describing the current remote settings of this
-`Http2Session`. The remote settings are set by the *connected* HTTP/2 peer.
+`Http2Session`. The remote settings are set by the _connected_ HTTP/2 peer.
 
 #### `http2session.setLocalWindowSize(windowSize)`
+
 <!-- YAML
 added: v15.3.0
 -->
@@ -546,6 +574,7 @@ server.on('connect', (session) => {
 ```
 
 #### `http2session.setTimeout(msecs, callback)`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -558,6 +587,7 @@ the `Http2Session` after `msecs` milliseconds. The given `callback` is
 registered as a listener on the `'timeout'` event.
 
 #### `http2session.socket`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -576,6 +606,7 @@ an error with code `ERR_HTTP2_NO_SOCKET_MANIPULATION`. See
 All other interactions will be routed directly to the socket.
 
 #### `http2session.state`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -606,6 +637,7 @@ Provides miscellaneous information about the current state of the
 An object describing the current status of this `Http2Session`.
 
 #### `http2session.settings([settings][, callback])`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -629,6 +661,7 @@ is received and the `'localSettings'` event is emitted. It is possible to send
 multiple `SETTINGS` frames while acknowledgment is still pending.
 
 #### `http2session.type`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -641,6 +674,7 @@ server, and `http2.constants.NGHTTP2_SESSION_CLIENT` if the instance is a
 client.
 
 #### `http2session.unref()`
+
 <!-- YAML
 added: v9.4.0
 -->
@@ -649,6 +683,7 @@ Calls [`unref()`][`net.Socket.prototype.unref()`] on this `Http2Session`
 instance's underlying [`net.Socket`][].
 
 ### Class: `ServerHttp2Session`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -656,6 +691,7 @@ added: v8.4.0
 * Extends: {Http2Session}
 
 #### `serverhttp2session.altsvc(alt, originOrStream)`
+
 <!-- YAML
 added: v9.4.0
 -->
@@ -687,7 +723,7 @@ server.on('stream', (stream) => {
 Sending an `ALTSVC` frame with a specific stream ID indicates that the alternate
 service is associated with the origin of the given `Http2Stream`.
 
-The `alt` and origin string *must* contain only ASCII bytes and are
+The `alt` and origin string _must_ contain only ASCII bytes and are
 strictly interpreted as a sequence of ASCII bytes. The special value `'clear'`
 may be passed to clear any previously set alternative service for a given
 domain.
@@ -700,7 +736,7 @@ cannot be parsed as a URL or if a valid origin cannot be derived.
 
 A `URL` object, or any object with an `origin` property, may be passed as
 `originOrStream`, in which case the value of the `origin` property will be
-used. The value of the `origin` property *must* be a properly serialized
+used. The value of the `origin` property _must_ be a properly serialized
 ASCII origin.
 
 #### Specifying alternative services
@@ -711,7 +747,7 @@ associated with a specific host and port.
 
 For example, the value `'h2="example.org:81"'` indicates that the HTTP/2
 protocol is available on the host `'example.org'` on TCP/IP port 81. The
-host and port *must* be contained within the quote (`"`) characters.
+host and port _must_ be contained within the quote (`"`) characters.
 
 Multiple alternatives may be specified, for instance: `'h2="example.org:81",
 h2=":82"'`.
@@ -723,6 +759,7 @@ The syntax of these values is not validated by the Node.js implementation and
 are passed through as provided by the user or received from the peer.
 
 #### `serverhttp2session.origin(...origins)`
+
 <!-- YAML
 added: v10.12.0
 -->
@@ -755,7 +792,7 @@ cannot be parsed as a URL or if a valid origin cannot be derived.
 
 A `URL` object, or any object with an `origin` property, may be passed as
 an `origin`, in which case the value of the `origin` property will be
-used. The value of the `origin` property *must* be a properly serialized
+used. The value of the `origin` property _must_ be a properly serialized
 ASCII origin.
 
 Alternatively, the `origins` option may be used when creating a new HTTP/2
@@ -773,6 +810,7 @@ server.on('stream', (stream) => {
 ```
 
 ### Class: `ClientHttp2Session`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -780,6 +818,7 @@ added: v8.4.0
 * Extends: {Http2Session}
 
 #### Event: `'altsvc'`
+
 <!-- YAML
 added: v9.4.0
 -->
@@ -805,11 +844,12 @@ client.on('altsvc', (alt, origin, streamId) => {
 ```
 
 #### Event: `'origin'`
+
 <!-- YAML
 added: v10.12.0
 -->
 
-* `origins` {string[]}
+* `origins` {string\[]}
 
 The `'origin'` event is emitted whenever an `ORIGIN` frame is received by
 the client. The event is emitted with an array of `origin` strings. The
@@ -829,13 +869,15 @@ client.on('origin', (origins) => {
 The `'origin'` event is only emitted when using a secure TLS connection.
 
 #### `clienthttp2session.request(headers[, options])`
+
 <!-- YAML
 added: v8.4.0
 -->
 
 * `headers` {HTTP/2 Headers Object}
+
 * `options` {Object}
-  * `endStream` {boolean} `true` if the `Http2Stream` *writable* side should
+  * `endStream` {boolean} `true` if the `Http2Stream` _writable_ side should
     be closed initially, such as when sending a `GET` request that should not
     expect a payload body.
   * `exclusive` {boolean} When `true` and `parent` identifies a parent Stream,
@@ -898,6 +940,7 @@ they respectively default to:
 * `:path` = `/`
 
 ### Class: `Http2Stream`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -983,6 +1026,7 @@ property will be `true` and the `http2stream.rstCode` property will specify the
 destroyed.
 
 #### Event: `'aborted'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -995,6 +1039,7 @@ The `'aborted'` event will only be emitted if the `Http2Stream` writable side
 has not been ended.
 
 #### Event: `'close'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1007,6 +1052,7 @@ the `http2stream.rstCode` property. If the code is any value other than
 `NGHTTP2_NO_ERROR` (`0`), an `'error'` event will have also been emitted.
 
 #### Event: `'error'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1017,6 +1063,7 @@ The `'error'` event is emitted when an error occurs during the processing of
 an `Http2Stream`.
 
 #### Event: `'frameError'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1033,6 +1080,7 @@ error code. The `Http2Stream` instance will be destroyed immediately after the
 `'frameError'` event is emitted.
 
 #### Event: `'ready'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1042,6 +1090,7 @@ been assigned an `id`, and can be used. The listener does not expect any
 arguments.
 
 #### Event: `'timeout'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1052,6 +1101,7 @@ The `'timeout'` event is emitted after no activity is received for this
 Its listener does not expect any arguments.
 
 #### Event: `'trailers'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1074,6 +1124,7 @@ stream.on('trailers', (headers, flags) => {
 ```
 
 #### Event: `'wantTrailers'`
+
 <!-- YAML
 added: v10.0.0
 -->
@@ -1084,6 +1135,7 @@ trailing headers. When initiating a request or response, the `waitForTrailers`
 option must be set for this event to be emitted.
 
 #### `http2stream.aborted`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1094,6 +1146,7 @@ Set to `true` if the `Http2Stream` instance was aborted abnormally. When set,
 the `'aborted'` event will have been emitted.
 
 #### `http2stream.bufferSize`
+
 <!-- YAML
 added:
  - v11.2.0
@@ -1106,6 +1159,7 @@ This property shows the number of characters currently buffered to be written.
 See [`net.Socket.bufferSize`][] for details.
 
 #### `http2stream.close(code[, callback])`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1119,6 +1173,7 @@ Closes the `Http2Stream` instance by sending an `RST_STREAM` frame to the
 connected HTTP/2 peer.
 
 #### `http2stream.closed`
+
 <!-- YAML
 added: v9.4.0
 -->
@@ -1128,6 +1183,7 @@ added: v9.4.0
 Set to `true` if the `Http2Stream` instance has been closed.
 
 #### `http2stream.destroyed`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1138,6 +1194,7 @@ Set to `true` if the `Http2Stream` instance has been destroyed and is no longer
 usable.
 
 #### `http2stream.endAfterHeaders`
+
 <!-- YAML
 added: v10.11.0
 -->
@@ -1149,6 +1206,7 @@ HEADERS frame received, indicating that no additional data should be received
 and the readable side of the `Http2Stream` will be closed.
 
 #### `http2stream.id`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1159,6 +1217,7 @@ The numeric stream identifier of this `Http2Stream` instance. Set to `undefined`
 if the stream identifier has not yet been assigned.
 
 #### `http2stream.pending`
+
 <!-- YAML
 added: v9.4.0
 -->
@@ -1169,6 +1228,7 @@ Set to `true` if the `Http2Stream` instance has not yet been assigned a
 numeric stream identifier.
 
 #### `http2stream.priority(options)`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1189,6 +1249,7 @@ added: v8.4.0
 Updates the priority for this `Http2Stream` instance.
 
 #### `http2stream.rstCode`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1201,6 +1262,7 @@ calling `http2stream.close()`, or `http2stream.destroy()`. Will be
 `undefined` if the `Http2Stream` has not been closed.
 
 #### `http2stream.sentHeaders`
+
 <!-- YAML
 added: v9.5.0
 -->
@@ -1210,16 +1272,18 @@ added: v9.5.0
 An object containing the outbound headers sent for this `Http2Stream`.
 
 #### `http2stream.sentInfoHeaders`
+
 <!-- YAML
 added: v9.5.0
 -->
 
-* {HTTP/2 Headers Object[]}
+* {HTTP/2 Headers Object\[]}
 
 An array of objects containing the outbound informational (additional) headers
 sent for this `Http2Stream`.
 
 #### `http2stream.sentTrailers`
+
 <!-- YAML
 added: v9.5.0
 -->
@@ -1229,6 +1293,7 @@ added: v9.5.0
 An object containing the outbound trailers sent for this `HttpStream`.
 
 #### `http2stream.session`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1239,6 +1304,7 @@ A reference to the `Http2Session` instance that owns this `Http2Stream`. The
 value will be `undefined` after the `Http2Stream` instance is destroyed.
 
 #### `http2stream.setTimeout(msecs, callback)`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1257,9 +1323,11 @@ req.setTimeout(5000, () => req.close(NGHTTP2_CANCEL));
 ```
 
 #### `http2stream.state`
+
 <!-- YAML
 added: v8.4.0
 -->
+
 Provides miscellaneous information about the current state of the
 `Http2Stream`.
 
@@ -1279,6 +1347,7 @@ Provides miscellaneous information about the current state of the
 A current state of this `Http2Stream`.
 
 #### `http2stream.sendTrailers(headers)`
+
 <!-- YAML
 added: v10.0.0
 -->
@@ -1308,6 +1377,7 @@ The HTTP/1 specification forbids trailers from containing HTTP/2 pseudo-header
 fields (e.g. `':method'`, `':path'`, etc).
 
 ### Class: `ClientHttp2Stream`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1320,6 +1390,7 @@ provide events such as `'response'` and `'push'` that are only relevant on
 the client.
 
 #### Event: `'continue'`
+
 <!-- YAML
 added: v8.5.0
 -->
@@ -1329,6 +1400,7 @@ the request contained `Expect: 100-continue`. This is an instruction that
 the client should send the request body.
 
 #### Event: `'headers'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1345,6 +1417,7 @@ stream.on('headers', (headers, flags) => {
 ```
 
 #### Event: `'push'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1360,6 +1433,7 @@ stream.on('push', (headers, flags) => {
 ```
 
 #### Event: `'response'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1379,6 +1453,7 @@ req.on('response', (headers, flags) => {
 ```
 
 ### Class: `ServerHttp2Stream`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1391,6 +1466,7 @@ provide additional methods such as `http2stream.pushStream()` and
 `http2stream.respond()` that are only relevant on the server.
 
 #### `http2stream.additionalHeaders(headers)`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1400,6 +1476,7 @@ added: v8.4.0
 Sends an additional informational `HEADERS` frame to the connected HTTP/2 peer.
 
 #### `http2stream.headersSent`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1409,6 +1486,7 @@ added: v8.4.0
 True if headers were sent, false otherwise (read-only).
 
 #### `http2stream.pushAllowed`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1421,6 +1499,7 @@ accepts push streams, `false` otherwise. Settings are the same for every
 `Http2Stream` in the same `Http2Session`.
 
 #### `http2stream.pushStream(headers[, options], callback)`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1466,6 +1545,7 @@ Calling `http2stream.pushStream()` from within a pushed stream is not permitted
 and will throw an error.
 
 #### `http2stream.respond([headers[, options]])`
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -1515,6 +1595,7 @@ server.on('stream', (stream) => {
 ```
 
 #### `http2stream.respondWithFD(fd[, headers[, options]])`
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -1590,7 +1671,7 @@ sent. The `http2stream.sendTrailers()` method can then be used to sent trailing
 header fields to the peer.
 
 When `options.waitForTrailers` is set, the `Http2Stream` will not automatically
-close when the final `DATA` frame is transmitted. User code *must* call either
+close when the final `DATA` frame is transmitted. User code _must_ call either
 `http2stream.sendTrailers()` or `http2stream.close()` to close the
 `Http2Stream`.
 
@@ -1618,6 +1699,7 @@ server.on('stream', (stream) => {
 ```
 
 #### `http2stream.respondWithFile(path[, headers[, options]])`
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -1744,6 +1826,7 @@ server.on('stream', (stream) => {
 ```
 
 ### Class: `Http2Server`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1755,6 +1838,7 @@ function. The `Http2Server` class is not exported directly by the `http2`
 module.
 
 #### Event: `'checkContinue'`
+
 <!-- YAML
 added: v8.5.0
 -->
@@ -1777,6 +1861,7 @@ When this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
 
 #### Event: `'connection'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1791,6 +1876,7 @@ This event can also be explicitly emitted by users to inject connections
 into the HTTP server. In that case, any [`Duplex`][] stream can be passed.
 
 #### Event: `'request'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1802,6 +1888,7 @@ Emitted each time there is a request. There may be multiple requests
 per session. See the [Compatibility API][].
 
 #### Event: `'session'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1810,6 +1897,7 @@ The `'session'` event is emitted when a new `Http2Session` is created by the
 `Http2Server`.
 
 #### Event: `'sessionError'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1818,6 +1906,7 @@ The `'sessionError'` event is emitted when an `'error'` event is emitted by
 an `Http2Session` object associated with the `Http2Server`.
 
 #### Event: `'stream'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1857,6 +1946,7 @@ server.on('stream', (stream, headers, flags) => {
 ```
 
 #### Event: `'timeout'`
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -1870,6 +1960,7 @@ a given number of milliseconds set using `http2server.setTimeout()`.
 **Default:** 0 (no timeout)
 
 #### `server.close([callback])`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1886,6 +1977,7 @@ closed, although the server has already stopped allowing new sessions. See
 [`net.Server.close()`][] for more details.
 
 #### `server.setTimeout([msecs][, callback])`
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -1908,6 +2000,7 @@ In case if `callback` is not a function, a new `ERR_INVALID_CALLBACK`
 error will be thrown.
 
 #### `server.timeout`
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -1927,6 +2020,7 @@ The socket timeout logic is set up on connection, so changing this
 value only affects new connections to the server, not any existing connections.
 
 #### `server.updateSettings([settings])`
+
 <!-- YAML
 added: v15.1.0
 -->
@@ -1940,6 +2034,7 @@ Throws `ERR_HTTP2_INVALID_SETTING_VALUE` for invalid `settings` values.
 Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 
 ### Class: `Http2SecureServer`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1951,6 +2046,7 @@ Instances of `Http2SecureServer` are created using the
 exported directly by the `http2` module.
 
 #### Event: `'checkContinue'`
+
 <!-- YAML
 added: v8.5.0
 -->
@@ -1973,6 +2069,7 @@ When this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
 
 #### Event: `'connection'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1987,6 +2084,7 @@ This event can also be explicitly emitted by users to inject connections
 into the HTTP server. In that case, any [`Duplex`][] stream can be passed.
 
 #### Event: `'request'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -1998,6 +2096,7 @@ Emitted each time there is a request. There may be multiple requests
 per session. See the [Compatibility API][].
 
 #### Event: `'session'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -2006,6 +2105,7 @@ The `'session'` event is emitted when a new `Http2Session` is created by the
 `Http2SecureServer`.
 
 #### Event: `'sessionError'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -2014,6 +2114,7 @@ The `'sessionError'` event is emitted when an `'error'` event is emitted by
 an `Http2Session` object associated with the `Http2SecureServer`.
 
 #### Event: `'stream'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -2055,6 +2156,7 @@ server.on('stream', (stream, headers, flags) => {
 ```
 
 #### Event: `'timeout'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -2064,6 +2166,7 @@ a given number of milliseconds set using `http2secureServer.setTimeout()`.
 **Default:** 2 minutes.
 
 #### Event: `'unknownProtocol'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -2076,6 +2179,7 @@ the connection is terminated. A timeout may be specified using the
 See the [Compatibility API][].
 
 #### `server.close([callback])`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -2092,6 +2196,7 @@ closed, although the server has already stopped allowing new sessions. See
 [`tls.Server.close()`][] for more details.
 
 #### `server.setTimeout([msecs][, callback])`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -2110,6 +2215,7 @@ In case if `callback` is not a function, a new `ERR_INVALID_CALLBACK`
 error will be thrown.
 
 #### `server.timeout`
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -2129,6 +2235,7 @@ The socket timeout logic is set up on connection, so changing this
 value only affects new connections to the server, not any existing connections.
 
 #### `server.updateSettings([settings])`
+
 <!-- YAML
 added: v15.1.0
 -->
@@ -2142,6 +2249,7 @@ Throws `ERR_HTTP2_INVALID_SETTING_VALUE` for invalid `settings` values.
 Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 
 ### `http2.createServer(options[, onRequestHandler])`
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -2295,6 +2403,7 @@ server.listen(80);
 ```
 
 ### `http2.createSecureServer(options[, onRequestHandler])`
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -2399,7 +2508,7 @@ changes:
     remote peer upon connection.
   * ...: Any [`tls.createServer()`][] options can be provided. For
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
-  * `origins` {string[]} An array of origin strings to send within an `ORIGIN`
+  * `origins` {string\[]} An array of origin strings to send within an `ORIGIN`
     frame immediately following creation of a new server `Http2Session`.
   * `unknownProtocolTimeout` {number} Specifies a timeout in milliseconds that
     a server should wait when an [`'unknownProtocol'`][] event is emitted. If
@@ -2435,6 +2544,7 @@ server.listen(80);
 ```
 
 ### `http2.connect(authority[, options][, listener])`
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -2548,6 +2658,7 @@ client.close();
 ```
 
 ### `http2.constants`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -2555,7 +2666,7 @@ added: v8.4.0
 #### Error codes for `RST_STREAM` and `GOAWAY`
 
 | Value  | Name                | Constant                                      |
-|--------|---------------------|-----------------------------------------------|
+| ------ | ------------------- | --------------------------------------------- |
 | `0x00` | No Error            | `http2.constants.NGHTTP2_NO_ERROR`            |
 | `0x01` | Protocol Error      | `http2.constants.NGHTTP2_PROTOCOL_ERROR`      |
 | `0x02` | Internal Error      | `http2.constants.NGHTTP2_INTERNAL_ERROR`      |
@@ -2575,6 +2686,7 @@ The `'timeout'` event is emitted when there is no activity on the Server for
 a given number of milliseconds set using `http2server.setTimeout()`.
 
 ### `http2.getDefaultSettings()`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -2586,6 +2698,7 @@ instance. This method returns a new object instance every time it is called
 so instances returned may be safely modified for use.
 
 ### `http2.getPackedSettings([settings])`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -2607,6 +2720,7 @@ console.log(packed.toString('base64'));
 ```
 
 ### `http2.getUnpackedSettings(buf)`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -2618,6 +2732,7 @@ Returns a [HTTP/2 Settings Object][] containing the deserialized settings from
 the given `Buffer` as generated by `http2.getPackedSettings()`.
 
 ### `http2.sensitiveHeaders`
+
 <!-- YAML
 added: v15.0.0
 -->
@@ -2703,6 +2818,7 @@ This property is also set for received headers. It will contain the names of
 all headers marked as sensitive, including ones marked that way automatically.
 
 ### Settings object
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -2713,6 +2829,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/16676
     description: The `maxHeaderListSize` setting is now strictly enforced.
 -->
+
 The `http2.getDefaultSettings()`, `http2.getPackedSettings()`,
 `http2.createServer()`, `http2.createSecureServer()`,
 `http2session.settings()`, `http2session.localSettings`, and
@@ -2726,7 +2843,7 @@ properties.
   is 2<sup>32</sup>-1. **Default:** `4096`.
 * `enablePush` {boolean} Specifies `true` if HTTP/2 Push Streams are to be
   permitted on the `Http2Session` instances. **Default:** `true`.
-* `initialWindowSize` {number} Specifies the *sender's* initial window size in
+* `initialWindowSize` {number} Specifies the _sender's_ initial window size in
   bytes for stream-level flow control. The minimum allowed value is 0. The
   maximum allowed value is 2<sup>32</sup>-1. **Default:** `65535`.
 * `maxFrameSize` {number} Specifies the size in bytes of the largest frame
@@ -2777,20 +2894,20 @@ on where and when the error occurs.
 The HTTP/2 implementation applies stricter handling of invalid characters in
 HTTP header names and values than the HTTP/1 implementation.
 
-Header field names are *case-insensitive* and are transmitted over the wire
+Header field names are _case-insensitive_ and are transmitted over the wire
 strictly as lower-case strings. The API provided by Node.js allows header
 names to be set as mixed-case strings (e.g. `Content-Type`) but will convert
 those to lower-case (e.g. `content-type`) upon transmission.
 
-Header field-names *must only* contain one or more of the following ASCII
+Header field-names _must only_ contain one or more of the following ASCII
 characters: `a`-`z`, `A`-`Z`, `0`-`9`, `!`, `#`, `$`, `%`, `&`, `'`, `*`, `+`,
 `-`, `.`, `^`, `_`, `` ` `` (backtick), `|`, and `~`.
 
 Using invalid characters within an HTTP header field name will cause the
 stream to be closed with a protocol error being reported.
 
-Header field values are handled with more leniency but *should* not contain
-new-line or carriage return characters and *should* be limited to US-ASCII
+Header field values are handled with more leniency but _should_ not contain
+new-line or carriage return characters and _should_ be limited to US-ASCII
 characters, per the requirements of the HTTP specification.
 
 ### Push streams on the client
@@ -2989,6 +3106,7 @@ The `'request'` event works identically on both [HTTPS][] and
 HTTP/2.
 
 ### Class: `http2.Http2ServerRequest`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3001,6 +3119,7 @@ A `Http2ServerRequest` object is created by [`http2.Server`][] or
 data.
 
 #### Event: `'aborted'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3012,6 +3131,7 @@ The `'aborted'` event will only be emitted if the `Http2ServerRequest` writable
 side has not been ended.
 
 #### Event: `'close'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3020,6 +3140,7 @@ Indicates that the underlying [`Http2Stream`][] was closed.
 Just like `'end'`, this event occurs only once per response.
 
 #### `request.aborted`
+
 <!-- YAML
 added: v10.1.0
 -->
@@ -3030,6 +3151,7 @@ The `request.aborted` property will be `true` if the request has
 been aborted.
 
 #### `request.authority`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3042,6 +3164,7 @@ to set either `:authority` or `host`, this value is derived from
 `req.headers['host']`.
 
 #### `request.complete`
+
 <!-- YAML
 added: v12.10.0
 -->
@@ -3052,6 +3175,7 @@ The `request.complete` property will be `true` if the request has
 been completed, aborted, or destroyed.
 
 #### `request.connection`
+
 <!-- YAML
 added: v8.4.0
 deprecated: v13.0.0
@@ -3064,6 +3188,7 @@ deprecated: v13.0.0
 See [`request.socket`][].
 
 #### `request.destroy([error])`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3077,6 +3202,7 @@ is emitted and `error` is passed as an argument to any listeners on the event.
 It does nothing if the stream was already destroyed.
 
 #### `request.headers`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3110,6 +3236,7 @@ assert(request.url);   // Fails because the :path header has been removed
 ```
 
 #### `request.httpVersion`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3124,6 +3251,7 @@ Also `message.httpVersionMajor` is the first integer and
 `message.httpVersionMinor` is the second.
 
 #### `request.method`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3133,15 +3261,16 @@ added: v8.4.0
 The request method as a string. Read-only. Examples: `'GET'`, `'DELETE'`.
 
 #### `request.rawHeaders`
+
 <!-- YAML
 added: v8.4.0
 -->
 
-* {string[]}
+* {string\[]}
 
 The raw request/response headers list exactly as they were received.
 
-The keys and values are in the same list. It is *not* a
+The keys and values are in the same list. It is _not_ a
 list of tuples. So, the even-numbered offsets are key values, and the
 odd-numbered offsets are the associated values.
 
@@ -3162,16 +3291,18 @@ console.log(request.rawHeaders);
 ```
 
 #### `request.rawTrailers`
+
 <!-- YAML
 added: v8.4.0
 -->
 
-* {string[]}
+* {string\[]}
 
 The raw request/response trailer keys and values exactly as they were
 received. Only populated at the `'end'` event.
 
 #### `request.scheme`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3182,6 +3313,7 @@ The request scheme pseudo header field indicating the scheme
 portion of the target URL.
 
 #### `request.setTimeout(msecs, callback)`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3200,6 +3332,7 @@ handler is assigned to the request, the response, or the server's `'timeout'`
 events, timed out sockets must be handled explicitly.
 
 #### `request.socket`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3226,6 +3359,7 @@ use [`request.socket.getPeerCertificate()`][] to obtain the client's
 authentication details.
 
 #### `request.stream`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3235,6 +3369,7 @@ added: v8.4.0
 The [`Http2Stream`][] object backing the request.
 
 #### `request.trailers`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3244,6 +3379,7 @@ added: v8.4.0
 The request/response trailers object. Only populated at the `'end'` event.
 
 #### `request.url`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3261,6 +3397,7 @@ Accept: text/plain
 Then `request.url` will be:
 
 <!-- eslint-disable semi -->
+
 ```js
 '/status?name=ryan'
 ```
@@ -3287,6 +3424,7 @@ URL {
 ```
 
 ### Class: `http2.Http2ServerResponse`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3297,6 +3435,7 @@ This object is created internally by an HTTP server, not by the user. It is
 passed as the second parameter to the [`'request'`][] event.
 
 #### Event: `'close'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3305,6 +3444,7 @@ Indicates that the underlying [`Http2Stream`][] was terminated before
 [`response.end()`][] was called or able to flush.
 
 #### Event: `'finish'`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3317,6 +3457,7 @@ does not imply that the client has received anything yet.
 After this event, no more events will be emitted on the response object.
 
 #### `response.addTrailers(headers)`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3330,6 +3471,7 @@ Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
 #### `response.connection`
+
 <!-- YAML
 added: v8.4.0
 deprecated: v13.0.0
@@ -3342,6 +3484,7 @@ deprecated: v13.0.0
 See [`response.socket`][].
 
 #### `response.createPushResponse(headers, callback)`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3361,6 +3504,7 @@ parameter if successful. When `Http2ServerRequest` is closed, the callback is
 called with an error `ERR_HTTP2_INVALID_STREAM`.
 
 #### `response.end([data[, encoding]][, callback])`
+
 <!-- YAML
 added: v8.4.0
 changes:
@@ -3385,6 +3529,7 @@ If `callback` is specified, it will be called when the response stream
 is finished.
 
 #### `response.finished`
+
 <!-- YAML
 added: v8.4.0
 deprecated:
@@ -3400,6 +3545,7 @@ Boolean value that indicates whether the response has completed. Starts
 as `false`. After [`response.end()`][] executes, the value will be `true`.
 
 #### `response.getHeader(name)`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3415,11 +3561,12 @@ const contentType = response.getHeader('content-type');
 ```
 
 #### `response.getHeaderNames()`
+
 <!-- YAML
 added: v8.4.0
 -->
 
-* Returns: {string[]}
+* Returns: {string\[]}
 
 Returns an array containing the unique names of the current outgoing headers.
 All header names are lowercase.
@@ -3433,6 +3580,7 @@ const headerNames = response.getHeaderNames();
 ```
 
 #### `response.getHeaders()`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3448,7 +3596,7 @@ are lowercase.
 The object returned by the `response.getHeaders()` method _does not_
 prototypically inherit from the JavaScript `Object`. This means that typical
 `Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`, and others
-are not defined and *will not work*.
+are not defined and _will not work_.
 
 ```js
 response.setHeader('Foo', 'bar');
@@ -3459,6 +3607,7 @@ const headers = response.getHeaders();
 ```
 
 #### `response.hasHeader(name)`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3474,6 +3623,7 @@ const hasContentType = response.hasHeader('content-type');
 ```
 
 #### `response.headersSent`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3483,6 +3633,7 @@ added: v8.4.0
 True if headers were sent, false otherwise (read-only).
 
 #### `response.removeHeader(name)`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3496,6 +3647,7 @@ response.removeHeader('Content-Encoding');
 ```
 
 ### `response.req`
+
 <!-- YAML
 added: v15.7.0
 -->
@@ -3505,6 +3657,7 @@ added: v15.7.0
 A reference to the original HTTP2 `request` object.
 
 #### `response.sendDate`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3518,12 +3671,13 @@ This should only be disabled for testing; HTTP requires the Date header
 in responses.
 
 #### `response.setHeader(name, value)`
+
 <!-- YAML
 added: v8.4.0
 -->
 
 * `name` {string}
-* `value` {string|string[]}
+* `value` {string|string\[]}
 
 Sets a single header value for implicit headers. If this header already exists
 in the to-be-sent headers, its value will be replaced. Use an array of strings
@@ -3557,6 +3711,7 @@ const server = http2.createServer((req, res) => {
 ```
 
 #### `response.setTimeout(msecs[, callback])`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3575,6 +3730,7 @@ handler is assigned to the request, the response, or the server's `'timeout'`
 events, timed out sockets must be handled explicitly.
 
 #### `response.socket`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3608,6 +3764,7 @@ const server = http2.createServer((req, res) => {
 ```
 
 #### `response.statusCode`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3626,6 +3783,7 @@ After response header was sent to the client, this property indicates the
 status code which was sent out.
 
 #### `response.statusMessage`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3636,6 +3794,7 @@ Status message is not supported by HTTP/2 (RFC 7540 8.1.2.4). It returns
 an empty string.
 
 #### `response.stream`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3645,6 +3804,7 @@ added: v8.4.0
 The [`Http2Stream`][] object backing the response.
 
 #### `response.writableEnded`
+
 <!-- YAML
 added: v12.9.0
 -->
@@ -3656,6 +3816,7 @@ does not indicate whether the data has been flushed, for this use
 [`writable.writableFinished`][] instead.
 
 #### `response.write(chunk[, encoding][, callback])`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3694,6 +3855,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 `'drain'` will be emitted when the buffer is free again.
 
 #### `response.writeContinue()`
+
 <!-- YAML
 added: v8.4.0
 -->
@@ -3703,6 +3865,7 @@ should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 `Http2SecureServer`.
 
 #### `response.writeHead(statusCode[, statusMessage][, headers])`
+
 <!-- YAML
 added: v8.4.0
 changes:

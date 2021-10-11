@@ -107,6 +107,7 @@ The `--experimental-wasi-unstable-preview1` CLI argument is needed for this
 example to run.
 
 ## Class: `WASI`
+
 <!-- YAML
 added:
  - v13.3.0
@@ -120,6 +121,7 @@ instance must have its command-line arguments, environment variables, and
 sandbox directory structure configured explicitly.
 
 ### `new WASI([options])`
+
 <!-- YAML
 added:
  - v13.3.0
@@ -148,6 +150,7 @@ added:
     WebAssembly application. **Default:** `2`.
 
 ### `wasi.start(instance)`
+
 <!-- YAML
 added:
  - v13.3.0
@@ -166,6 +169,7 @@ Attempt to begin execution of `instance` as a WASI command by invoking its
 If `start()` is called more than once, an exception is thrown.
 
 ### `wasi.initialize(instance)`
+
 <!-- YAML
 added:
  - v14.6.0
@@ -184,6 +188,7 @@ export, then an exception is thrown.
 If `initialize()` is called more than once, an exception is thrown.
 
 ### `wasi.wasiImport`
+
 <!-- YAML
 added:
  - v13.3.0

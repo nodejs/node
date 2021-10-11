@@ -99,7 +99,7 @@ package may itself have dependencies, and in some cases, these may even collide
 or form cyclic dependencies.
 
 Because Node.js looks up the `realpath` of any modules it loads (that is, it
-resolves symlinks) and then [looks for their dependencies in `node_modules` folders](#loading-from-node_modules-folders),
+resolves symlinks) and then [looks for their dependencies in `node_modules` folders](#loading-from-node\_modules-folders),
 this situation can be resolved with the following architecture:
 
 * `/usr/lib/node/foo/1.2.3/`: Contents of the `foo` package, version 1.2.3.
@@ -268,7 +268,7 @@ function.
 
 Modules are cached based on their resolved filename. Since modules may resolve
 to a different filename based on the location of the calling module (loading
-from `node_modules` folders), it is not a *guarantee* that `require('foo')` will
+from `node_modules` folders), it is not a _guarantee_ that `require('foo')` will
 always return the exact same object, if it would resolve to different files.
 
 Additionally, on case-insensitive file systems or operating systems, different
@@ -485,7 +485,7 @@ when people are unaware that `NODE_PATH` must be set. Sometimes a
 module's dependencies change, causing a different version (or even a
 different module) to be loaded as the `NODE_PATH` is searched.
 
-Additionally, Node.js will search in the following list of GLOBAL_FOLDERS:
+Additionally, Node.js will search in the following list of GLOBAL\_FOLDERS:
 
 * 1: `$HOME/.node_modules`
 * 2: `$HOME/.node_libraries`
@@ -526,6 +526,7 @@ By doing this, Node.js achieves a few things:
 ## The module scope
 
 ### `__dirname`
+
 <!-- YAML
 added: v0.1.27
 -->
@@ -547,6 +548,7 @@ console.log(path.dirname(__filename));
 ```
 
 ### `__filename`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -585,6 +587,7 @@ References to `__filename` within `b.js` will return
 `a.js` will return `/Users/mjr/app/a.js`.
 
 ### `exports`
+
 <!-- YAML
 added: v0.1.12
 -->
@@ -598,6 +601,7 @@ See the section about the [exports shortcut][] for details on when to use
 `exports` and when to use `module.exports`.
 
 ### `module`
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -611,6 +615,7 @@ A reference to the current module, see the section about the
 a module exports and makes available through `require()`.
 
 ### `require(id)`
+
 <!-- YAML
 added: v0.1.13
 -->
@@ -641,6 +646,7 @@ const crypto = require('crypto');
 ```
 
 #### `require.cache`
+
 <!-- YAML
 added: v0.3.0
 -->
@@ -658,6 +664,7 @@ only `node:`-prefixed require calls are going to receive the native module.
 Use with care!
 
 <!-- eslint-disable node-core/no-duplicate-requires -->
+
 ```js
 const assert = require('assert');
 const realFs = require('fs');
@@ -670,6 +677,7 @@ assert.strictEqual(require('node:fs'), realFs);
 ```
 
 #### `require.extensions`
+
 <!-- YAML
 added: v0.3.0
 deprecated: v0.10.6
@@ -696,6 +704,7 @@ Avoid using `require.extensions`. Use could cause subtle bugs and resolving the
 extensions gets slower with each registered extension.
 
 #### `require.main`
+
 <!-- YAML
 added: v0.1.17
 -->
@@ -717,6 +726,7 @@ node entry.js
 ```
 
 <!-- eslint-skip -->
+
 ```js
 Module {
   id: '.',
@@ -733,6 +743,7 @@ Module {
 ```
 
 #### `require.resolve(request[, options])`
+
 <!-- YAML
 added: v0.3.0
 changes:
@@ -743,10 +754,10 @@ changes:
 
 * `request` {string} The module path to resolve.
 * `options` {Object}
-  * `paths` {string[]} Paths to resolve module location from. If present, these
+  * `paths` {string\[]} Paths to resolve module location from. If present, these
     paths are used instead of the default resolution paths, with the exception
-    of [GLOBAL_FOLDERS][] like `$HOME/.node_modules`, which are always
-    included. Each of these paths is used as a starting point for
+    of [GLOBAL\_FOLDERS][GLOBAL_FOLDERS] like `$HOME/.node_modules`, which are
+    always included. Each of these paths is used as a starting point for
     the module resolution algorithm, meaning that the `node_modules` hierarchy
     is checked from this location.
 * Returns: {string}
@@ -757,18 +768,20 @@ but rather than loading the module, just return the resolved filename.
 If the module can not be found, a `MODULE_NOT_FOUND` error is thrown.
 
 ##### `require.resolve.paths(request)`
+
 <!-- YAML
 added: v8.9.0
 -->
 
 * `request` {string} The module path whose lookup paths are being retrieved.
-* Returns: {string[]|null}
+* Returns: {string\[]|null}
 
 Returns an array containing the paths searched during resolution of `request` or
 `null` if the `request` string references a core module, for example `http` or
 `fs`.
 
 ## The `module` object
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -785,15 +798,17 @@ also accessible via the `exports` module-global. `module` is not actually
 a global but rather local to each module.
 
 ### `module.children`
+
 <!-- YAML
 added: v0.1.16
 -->
 
-* {module[]}
+* {module\[]}
 
 The module objects required for the first time by this one.
 
 ### `module.exports`
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -848,6 +863,7 @@ console.log(x.a);
 ```
 
 #### `exports` shortcut
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -868,6 +884,7 @@ When the `module.exports` property is being completely replaced by a new
 object, it is common to also reassign `exports`:
 
 <!-- eslint-disable func-name-matching -->
+
 ```js
 module.exports = exports = function Constructor() {
   // ... etc.
@@ -895,6 +912,7 @@ function require(/* ... */) {
 ```
 
 ### `module.filename`
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -904,6 +922,7 @@ added: v0.1.16
 The fully resolved filename of the module.
 
 ### `module.id`
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -914,6 +933,7 @@ The identifier for the module. Typically this is the fully resolved
 filename.
 
 ### `module.isPreloading`
+
 <!-- YAML
 added: v15.4.0
 -->
@@ -922,6 +942,7 @@ added: v15.4.0
   phase.
 
 ### `module.loaded`
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -932,6 +953,7 @@ Whether or not the module is done loading, or is in the process of
 loading.
 
 ### `module.parent`
+
 <!-- YAML
 added: v0.1.16
 deprecated:
@@ -949,6 +971,7 @@ entry point of the current process, or `undefined` if the module was loaded by
 something that is not a CommonJS module (E.G.: REPL or `import`).
 
 ### `module.path`
+
 <!-- YAML
 added: v11.14.0
 -->
@@ -959,15 +982,17 @@ The directory name of the module. This is usually the same as the
 [`path.dirname()`][] of the [`module.id`][].
 
 ### `module.paths`
+
 <!-- YAML
 added: v0.4.0
 -->
 
-* {string[]}
+* {string\[]}
 
 The search paths for the module.
 
 ### `module.require(id)`
+
 <!-- YAML
 added: v0.5.1
 -->
@@ -980,7 +1005,7 @@ The `module.require()` method provides a way to load a module as if
 
 In order to do this, it is necessary to get a reference to the `module` object.
 Since `require()` returns the `module.exports`, and the `module` is typically
-*only* available within a specific module's code, it must be explicitly exported
+_only_ available within a specific module's code, it must be explicitly exported
 in order to be used.
 
 ## The `Module` object
@@ -989,6 +1014,7 @@ This section was moved to
 [Modules: `module` core module](module.md#the-module-object).
 
 <!-- Anchors to make sure old links find a target -->
+
 * <a id="modules_module_builtinmodules" href="module.html#modulebuiltinmodules">`module.builtinModules`</a>
 * <a id="modules_module_createrequire_filename" href="module.html#modulecreaterequirefilename">`module.createRequire(filename)`</a>
 * <a id="modules_module_syncbuiltinesmexports" href="module.html#modulesyncbuiltinesmexports">`module.syncBuiltinESMExports()`</a>
@@ -999,6 +1025,7 @@ This section was moved to
 [Modules: `module` core module](module.md#source-map-v3-support).
 
 <!-- Anchors to make sure old links find a target -->
+
 * <a id="modules_module_findsourcemap_path_error" href="module.html#modulefindsourcemappath">`module.findSourceMap(path)`</a>
 * <a id="modules_class_module_sourcemap" href="module.html#class-modulesourcemap">Class: `module.SourceMap`</a>
   * <a id="modules_new_sourcemap_payload" href="module.html#new-sourcemappayload">`new SourceMap(payload)`</a>
