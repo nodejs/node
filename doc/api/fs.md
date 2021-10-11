@@ -3756,15 +3756,15 @@ Relative targets are relative to the link’s parent directory.
 ```mjs
 import { symlink } from 'fs';
 
-symlink('./mew', './example/mewtwo', callback);
+symlink('./mew', './mewtwo', callback);
 ```
 
-The above example creates a symbolic link `mewtwo` in the `example` which points
-to `mew` in the same directory:
+The above example creates a symbolic link `mewtwo` which points to `mew` in the
+same directory:
 
 ```bash
-$ tree example/
-example/
+$ tree .
+.
 ├── mew
 └── mewtwo -> ./mew
 ```
