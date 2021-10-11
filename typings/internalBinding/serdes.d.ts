@@ -1,4 +1,6 @@
 declare namespace InternalSerdesBinding {
+  type Buffer = Uint8Array;
+
   class Serializer {
     _getDataCloneError: typeof Error;
     constructor();

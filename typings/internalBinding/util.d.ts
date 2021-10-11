@@ -1,5 +1,5 @@
 declare namespace InternalUtilBinding {
-  class WeakReference<T extends object> {
+  class WeakReference<T> {
     constructor(value: T);
     get(): undefined | T;
     incRef(): void;

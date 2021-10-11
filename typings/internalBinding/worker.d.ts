@@ -5,7 +5,8 @@ declare namespace InternalWorkerBinding {
       env: object | null | undefined,
       execArgv: string[] | null | undefined,
       resourceLimits: Float64Array,
-      trackUnmanagedFds: boolean);
+      trackUnmanagedFds: boolean,
+    );
     startThread(): void;
     stopThread(): void;
     ref(): void;

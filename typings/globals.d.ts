@@ -1,1 +1,12 @@
-declare type TypedArray = Uint16Array | Uint32Array | Uint8Array | Uint8ClampedArray | Int16Array | Int32Array | Int8Array | BigInt64Array | Float32Array | Float64Array | BigUint64Array;
+declare type TypedArray =
+  | Uint8Array
+  | Uint8ClampedArray
+  | Uint16Array
+  | Uint32Array
+  | Int8Array
+  | Int16Array
+  | Int32Array
+  | Float32Array
+  | Float64Array
+  | BigUint64Array
+  | BigInt64Array;
