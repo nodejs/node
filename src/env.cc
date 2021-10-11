@@ -458,8 +458,11 @@ void Environment::InitializeMainContext(Local<Context> context,
                            environment_start_time_);
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
                            per_process::node_start_time);
-  performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_V8_START,
-                           performance::performance_v8_start);
+
+  if (per_process::v8_initialized) {
+    performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_V8_START,
+                            performance::performance_v8_start);
+  }
 }
 
 Environment::~Environment() {
