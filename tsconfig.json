@@ -1,7 +1,9 @@
 {
-  "include": ["lib","doc"],
-  "exclude": ["src","tools","out"],
+  "include": ["lib", "doc"],
+  "exclude": ["src", "tools", "out"],
   "files": [
+    "./typings/internalBinding/async_wrap.d.ts",
+    "./typings/internalBinding/blob.d.ts",
     "./typings/internalBinding/config.d.ts",
     "./typings/internalBinding/constants.d.ts",
     "./typings/internalBinding/fs.d.ts",
