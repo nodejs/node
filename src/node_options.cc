@@ -1072,15 +1072,15 @@ void GetEmbedderOptions(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
   Local<Object> ret = Object::New(isolate);
 
-  ret->Set(context,
+  if (ret->Set(context,
            FIXED_ONE_BYTE_STRING(env->isolate(), "shouldNotRegisterESMLoader"),
            Boolean::New(isolate, env->should_not_register_esm_loader()))
-      .Check();
+      .IsNothing()) return;
 
-  ret->Set(context,
+  if (ret->Set(context,
            FIXED_ONE_BYTE_STRING(env->isolate(), "noGlobalSearchPaths"),
            Boolean::New(isolate, env->no_global_search_paths()))
-      .Check();
+      .IsNothing()) return;
 
   args.GetReturnValue().Set(ret);
 }
