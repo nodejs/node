@@ -51,10 +51,10 @@
               '.',
             ],
           },
-          'cflags': [ '-Wno-implicit-fallthrough' ],
           'conditions': [
             ['OS!="win"', {
               'cflags!': [ '-ansi' ],
+              'cflags': [ '-Wno-implicit-fallthrough' ],
               'defines': [ 'HAVE_HIDDEN' ],
             }],
             ['OS=="mac" or OS=="ios" or OS=="freebsd" or OS=="android"', {
