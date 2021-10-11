@@ -956,7 +956,6 @@ function. See [`assert.throws()`][] for more details.
 Besides the async nature to await the completion behaves identically to
 [`assert.doesNotThrow()`][].
 
-<!-- eslint-disable no-restricted-syntax -->
 ```mjs
 import assert from 'assert/strict';
 
@@ -981,7 +980,6 @@ const assert = require('assert/strict');
 })();
 ```
 
-<!-- eslint-disable no-restricted-syntax -->
 ```mjs
 import assert from 'assert/strict';
 
@@ -991,7 +989,6 @@ assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
   });
 ```
 
-<!-- eslint-disable no-restricted-syntax -->
 ```cjs
 const assert = require('assert/strict');
 
@@ -1040,7 +1037,6 @@ function. See [`assert.throws()`][] for more details.
 The following, for instance, will throw the [`TypeError`][] because there is no
 matching error type in the assertion:
 
-<!-- eslint-disable no-restricted-syntax -->
 ```mjs
 import assert from 'assert/strict';
 
@@ -1052,7 +1048,6 @@ assert.doesNotThrow(
 );
 ```
 
-<!-- eslint-disable no-restricted-syntax -->
 ```cjs
 const assert = require('assert/strict');
 
@@ -1067,7 +1062,6 @@ assert.doesNotThrow(
 However, the following will result in an [`AssertionError`][] with the message
 'Got unwanted exception...':
 
-<!-- eslint-disable no-restricted-syntax -->
 ```mjs
 import assert from 'assert/strict';
 
@@ -1079,7 +1073,6 @@ assert.doesNotThrow(
 );
 ```
 
-<!-- eslint-disable no-restricted-syntax -->
 ```cjs
 const assert = require('assert/strict');
 
@@ -1095,7 +1088,6 @@ If an [`AssertionError`][] is thrown and a value is provided for the `message`
 parameter, the value of `message` will be appended to the [`AssertionError`][]
 message:
 
-<!-- eslint-disable no-restricted-syntax -->
 ```mjs
 import assert from 'assert/strict';
 
@@ -1109,7 +1101,6 @@ assert.doesNotThrow(
 // Throws: AssertionError: Got unwanted exception: Whoops
 ```
 
-<!-- eslint-disable no-restricted-syntax -->
 ```cjs
 const assert = require('assert/strict');
 
@@ -2338,7 +2329,6 @@ message as the thrown error message is going to result in an
 `ERR_AMBIGUOUS_ARGUMENT` error. Please read the example below carefully if using
 a string as the second argument gets considered:
 
-<!-- eslint-disable no-restricted-syntax -->
 ```mjs
 import assert from 'assert/strict';
 
@@ -2375,7 +2365,6 @@ assert.throws(throwingFirst, /Second$/);
 // AssertionError [ERR_ASSERTION]
 ```
 
-<!-- eslint-disable no-restricted-syntax -->
 ```cjs
 const assert = require('assert/strict');
 
