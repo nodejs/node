@@ -2,7 +2,20 @@ declare namespace InternalFSBinding {
   class FSReqCallback<ResultType = unknown> {
     constructor(bigint?: boolean);
     oncomplete: ((error: Error) => void) | ((error: null, result: ResultType) => void);
-    context: any;
+    context: ReadFileContext;
+  }
+
+  interface ReadFileContext {
+    fd: number | undefined;
+    isUserFd: boolean | undefined;
+    size: number;
+    callback: (err?: Error, data?: string | Buffer) => unknown;
+    buffers: Buffer[];
+    buffer: Buffer;
+    pos: number;
+    encoding: string;
+    err: Error | null;
+    signal: unknown /* AbortSignal | undefined */;
   }
 
   interface FSSyncContext {
@@ -16,9 +29,10 @@ declare namespace InternalFSBinding {
   }
 
   type Buffer = Uint8Array;
+  type Stream = object;
   type StringOrBuffer = string | Buffer;
 
-  const kUsePromises: symbol;
+  const kUsePromises: unique symbol;
 
   class FileHandle {
     constructor(fd: number, offset: number, length: number);
@@ -26,7 +40,7 @@ declare namespace InternalFSBinding {
     getAsyncId(): number;
     close(): Promise<void>;
     onread: () => void;
-    stream: unknown;
+    stream: Stream;
   }
 
   class StatWatcher {
