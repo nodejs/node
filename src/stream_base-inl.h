@@ -149,9 +149,11 @@ int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
 
   const char* msg = Error();
   if (msg != nullptr) {
-    req_wrap_obj->Set(
-        env->context(),
-        env->error_string(), OneByteString(env->isolate(), msg)).Check();
+    if (req_wrap_obj->Set(env->context(),
+                          env->error_string(),
+                          OneByteString(env->isolate(), msg)).IsNothing()) {
+      return UV_EBUSY;
+    }
     ClearError();
   }
 
@@ -203,9 +205,11 @@ StreamWriteResult StreamBase::Write(
 
   const char* msg = Error();
   if (msg != nullptr) {
-    req_wrap_obj->Set(env->context(),
-                      env->error_string(),
-                      OneByteString(env->isolate(), msg)).Check();
+    if (req_wrap_obj->Set(env->context(),
+                          env->error_string(),
+                          OneByteString(env->isolate(), msg)).IsNothing()) {
+      return StreamWriteResult { false, UV_EBUSY, nullptr, 0, {} };
+    }
     ClearError();
   }
 
@@ -279,10 +283,12 @@ void StreamReq::Done(int status, const char* error_str) {
   Environment* env = async_wrap->env();
   if (error_str != nullptr) {
     v8::HandleScope handle_scope(env->isolate());
-    async_wrap->object()->Set(env->context(),
-                              env->error_string(),
-                              OneByteString(env->isolate(), error_str))
-                              .Check();
+    if (async_wrap->object()->Set(
+            env->context(),
+            env->error_string(),
+            OneByteString(env->isolate(), error_str)).IsNothing()) {
+      return;
+    }
   }
 
   OnDone(status);
