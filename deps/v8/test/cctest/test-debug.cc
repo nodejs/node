@@ -598,10 +598,11 @@ TEST(BreakPointApiIntrinsics) {
     CHECK_EQ(2, break_point_hit_count);
 
     break_point_hit_count = 0;
-    v8::Local<v8::debug::WeakMap> weakmap =
-        v8::debug::WeakMap::New(env->GetIsolate());
-    CHECK(!weakmap->Set(env.local(), weakmap, v8_num(1)).IsEmpty());
-    CHECK(!weakmap->Get(env.local(), weakmap).IsEmpty());
+    v8::Local<v8::debug::EphemeronTable> weakmap =
+        v8::debug::EphemeronTable::New(env->GetIsolate());
+    v8::Local<v8::Object> key = v8::Object::New(env->GetIsolate());
+    CHECK(!weakmap->Set(env->GetIsolate(), key, v8_num(1)).IsEmpty());
+    CHECK(!weakmap->Get(env->GetIsolate(), key).IsEmpty());
     CHECK_EQ(0, break_point_hit_count);
   }
 

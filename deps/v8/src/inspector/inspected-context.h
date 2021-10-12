@@ -77,7 +77,7 @@ class InspectedContext {
   std::unordered_set<int> m_reportedSessionIds;
   std::unordered_map<int, std::unique_ptr<InjectedScript>> m_injectedScripts;
   WeakCallbackData* m_weakCallbackData;
-  v8::Global<v8::debug::WeakMap> m_internalObjects;
+  v8::Global<v8::debug::EphemeronTable> m_internalObjects;
 };
 
 }  // namespace v8_inspector
