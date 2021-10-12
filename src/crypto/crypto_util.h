@@ -551,7 +551,7 @@ struct EnginePointer {
   inline void reset(ENGINE* engine_ = nullptr, bool finish_on_exit_ = false) {
     if (engine != nullptr) {
       if (finish_on_exit) {
-        // this also does the equivalent of ENGINE_free
+        // This also does the equivalent of ENGINE_free.
         ENGINE_finish(engine);
       } else {
         ENGINE_free(engine);
