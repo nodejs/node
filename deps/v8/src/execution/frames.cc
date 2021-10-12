@@ -346,7 +346,8 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
     top_frame_type_ = type;
     state.fp = fast_c_fp;
     state.sp = sp;
-    state.pc_address = isolate->isolate_data()->fast_c_call_caller_pc_address();
+    state.pc_address = reinterpret_cast<Address*>(
+        isolate->isolate_data()->fast_c_call_caller_pc_address());
     advance_frame = false;
   } else if (IsValidTop(top)) {
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);

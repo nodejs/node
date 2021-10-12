@@ -517,6 +517,18 @@ class PageAllocator {
 };
 
 /**
+ * V8 Allocator used for allocating zone backings.
+ */
+class ZoneBackingAllocator {
+ public:
+  using MallocFn = void* (*)(size_t);
+  using FreeFn = void (*)(void*);
+
+  virtual MallocFn GetMallocFn() const { return ::malloc; }
+  virtual FreeFn GetFreeFn() const { return ::free; }
+};
+
+/**
  * V8 Platform abstraction layer.
  *
  * The embedder has to provide an implementation of this interface before
@@ -532,6 +544,14 @@ class Platform {
   virtual PageAllocator* GetPageAllocator() {
     // TODO(bbudge) Make this abstract after all embedders implement this.
     return nullptr;
+  }
+
+  /**
+   * Allows the embedder to specify a custom allocator used for zones.
+   */
+  virtual ZoneBackingAllocator* GetZoneBackingAllocator() {
+    static ZoneBackingAllocator default_allocator;
+    return &default_allocator;
   }
 
   /**

@@ -3,9 +3,22 @@
 // found in the LICENSE file.
 
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/isolate-data.h"
 
 namespace v8 {
 namespace internal {
+
+// The deopt exit sizes below depend on the following IsolateData layout
+// guarantees:
+#define ASSERT_OFFSET(BuiltinName)                                       \
+  STATIC_ASSERT(IsolateData::builtin_tier0_entry_table_offset() +        \
+                    Builtins::ToInt(BuiltinName) * kSystemPointerSize <= \
+                0x1000)
+ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Eager);
+ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Lazy);
+ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Soft);
+ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Bailout);
+#undef ASSERT_OFFSET
 
 const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
 const int Deoptimizer::kNonLazyDeoptExitSize = 6 + 2;
