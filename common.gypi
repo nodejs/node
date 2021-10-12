@@ -99,6 +99,11 @@
         'obj_dir%': '<(PRODUCT_DIR)/obj.target',
         'v8_base': '<(PRODUCT_DIR)/libv8_snapshot.a',
       }],
+      # V8 pointer compression only supports 64bit architectures.
+      ['target_arch in "arm ia32 mips mipsel ppc x32"', {
+        'v8_enable_pointer_compression': 0,
+        'v8_enable_31bit_smis_on_64bit_arch': 0,
+      }],
       ['target_arch in "ppc64 s390x"', {
         'v8_enable_backtrace': 1,
       }],
