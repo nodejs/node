@@ -570,19 +570,17 @@ class V8_NODISCARD DisableBreakScope {
   std::unique_ptr<i::DisableBreak> scope_;
 };
 
-class WeakMap : public v8::Object {
+class EphemeronTable : public v8::Object {
  public:
-  WeakMap() = delete;
+  EphemeronTable() = delete;
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT v8::MaybeLocal<v8::Value> Get(
-      v8::Local<v8::Context> context, v8::Local<v8::Value> key);
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT v8::Maybe<bool> Delete(
-      v8::Local<v8::Context> context, v8::Local<v8::Value> key);
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT v8::MaybeLocal<WeakMap> Set(
-      v8::Local<v8::Context> context, v8::Local<v8::Value> key,
+      v8::Isolate* isolate, v8::Local<v8::Value> key);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT v8::Local<EphemeronTable> Set(
+      v8::Isolate* isolate, v8::Local<v8::Value> key,
       v8::Local<v8::Value> value);
 
-  V8_EXPORT_PRIVATE static Local<WeakMap> New(v8::Isolate* isolate);
-  V8_INLINE static WeakMap* Cast(Value* obj);
+  V8_EXPORT_PRIVATE static Local<EphemeronTable> New(v8::Isolate* isolate);
+  V8_INLINE static EphemeronTable* Cast(Value* obj);
 };
 
 /**

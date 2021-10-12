@@ -56,7 +56,7 @@ class V8StackTraceImpl;
 
 class V8InspectorImpl : public V8Inspector {
  public:
-  V8InspectorImpl(v8::Isolate*, V8InspectorClient*);
+  V8_EXPORT_PRIVATE V8InspectorImpl(v8::Isolate*, V8InspectorClient*);
   ~V8InspectorImpl() override;
   V8InspectorImpl(const V8InspectorImpl&) = delete;
   V8InspectorImpl& operator=(const V8InspectorImpl&) = delete;
@@ -110,10 +110,9 @@ class V8InspectorImpl : public V8Inspector {
   void externalAsyncTaskStarted(const V8StackTraceId& parent) override;
   void externalAsyncTaskFinished(const V8StackTraceId& parent) override;
 
-  bool associateExceptionData(v8::Local<v8::Context>,
-                              v8::Local<v8::Value> exception,
-                              v8::Local<v8::Name> key,
-                              v8::Local<v8::Value> value) override;
+  V8_EXPORT_PRIVATE bool associateExceptionData(
+      v8::Local<v8::Context>, v8::Local<v8::Value> exception,
+      v8::Local<v8::Name> key, v8::Local<v8::Value> value) override;
 
   unsigned nextExceptionId() { return ++m_lastExceptionId; }
   void enableStackCapturingIfNeeded();
@@ -134,7 +133,7 @@ class V8InspectorImpl : public V8Inspector {
       int contextGroupId,
       const std::function<void(V8InspectorSessionImpl*)>& callback);
   int64_t generateUniqueId();
-  v8::MaybeLocal<v8::Object> getAssociatedExceptionData(
+  V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Object> getAssociatedExceptionData(
       v8::Local<v8::Value> exception);
 
   class EvaluateScope {
@@ -160,7 +159,7 @@ class V8InspectorImpl : public V8Inspector {
   std::unique_ptr<V8Debugger> m_debugger;
   v8::Global<v8::Context> m_regexContext;
   v8::Global<v8::Context> m_exceptionMetaDataContext;
-  v8::Global<v8::debug::WeakMap> m_exceptionMetaData;
+  v8::Global<v8::debug::EphemeronTable> m_exceptionMetaData;
   int m_capturingStackTracesCount;
   unsigned m_lastExceptionId;
   int m_lastContextId;
