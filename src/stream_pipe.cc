@@ -33,14 +33,26 @@ StreamPipe::StreamPipe(StreamBase* source,
   // In particular, this makes sure that they are garbage collected as a group,
   // if that applies to the given streams (for example, Http2Streams use
   // weak references).
-  obj->Set(env()->context(), env()->source_string(), source->GetObject())
-      .Check();
-  source->GetObject()->Set(env()->context(), env()->pipe_target_string(), obj)
-      .Check();
-  obj->Set(env()->context(), env()->sink_string(), sink->GetObject())
-      .Check();
-  sink->GetObject()->Set(env()->context(), env()->pipe_source_string(), obj)
-      .Check();
+  if (obj->Set(env()->context(),
+               env()->source_string(),
+               source->GetObject()).IsNothing()) {
+    return;
+  }
+  if (source->GetObject()->Set(env()->context(),
+                               env()->pipe_target_string(),
+                               obj).IsNothing()) {
+      return;
+  }
+  if (obj->Set(env()->context(),
+               env()->sink_string(),
+               sink->GetObject()).IsNothing()) {
+    return;
+  }
+  if (sink->GetObject()->Set(env()->context(),
+                             env()->pipe_source_string(),
+                             obj).IsNothing()) {
+    return;
+  }
 }
 
 StreamPipe::~StreamPipe() {
@@ -172,7 +184,8 @@ void StreamPipe::WritableListener::OnStreamAfterWrite(WriteWrap* w,
       Environment* env = pipe->env();
       HandleScope handle_scope(env->isolate());
       Context::Scope context_scope(env->context());
-      pipe->MakeCallback(env->oncomplete_string(), 0, nullptr).ToLocalChecked();
+      if (pipe->MakeCallback(env->oncomplete_string(), 0, nullptr).IsEmpty())
+        return;
       stream()->RemoveStreamListener(this);
     }
     return;
