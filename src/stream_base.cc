@@ -106,23 +106,30 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   if (!all_buffers) {
     // Determine storage size first
     for (size_t i = 0; i < count; i++) {
-      Local<Value> chunk = chunks->Get(context, i * 2).ToLocalChecked();
+      Local<Value> chunk;
+      if (!chunks->Get(context, i * 2).ToLocal(&chunk))
+        return -1;
 
       if (Buffer::HasInstance(chunk))
         continue;
         // Buffer chunk, no additional storage required
 
       // String chunk
-      Local<String> string = chunk->ToString(context).ToLocalChecked();
-      enum encoding encoding = ParseEncoding(isolate,
-          chunks->Get(context, i * 2 + 1).ToLocalChecked());
+      Local<String> string;
+      if (!chunk->ToString(context).ToLocal(&string))
+        return -1;
+      Local<Value> next_chunk;
+      if (!chunks->Get(context, i * 2 + 1).ToLocal(&next_chunk))
+        return -1;
+      enum encoding encoding = ParseEncoding(isolate, next_chunk);
       size_t chunk_size;
-      if (encoding == UTF8 && string->Length() > 65535 &&
-          !StringBytes::Size(isolate, string, encoding).To(&chunk_size))
-        return 0;
-      else if (!StringBytes::StorageSize(isolate, string, encoding)
-                    .To(&chunk_size))
-        return 0;
+      if ((encoding == UTF8 &&
+             string->Length() > 65535 &&
+             !StringBytes::Size(isolate, string, encoding).To(&chunk_size)) ||
+              !StringBytes::StorageSize(isolate, string, encoding)
+                  .To(&chunk_size)) {
+        return -1;
+      }
       storage_size += chunk_size;
     }
 
@@ -130,7 +137,9 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
       return UV_ENOBUFS;
   } else {
     for (size_t i = 0; i < count; i++) {
-      Local<Value> chunk = chunks->Get(context, i).ToLocalChecked();
+      Local<Value> chunk;
+      if (!chunks->Get(context, i).ToLocal(&chunk))
+        return -1;
       bufs[i].base = Buffer::Data(chunk);
       bufs[i].len = Buffer::Length(chunk);
     }
@@ -145,7 +154,9 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   offset = 0;
   if (!all_buffers) {
     for (size_t i = 0; i < count; i++) {
-      Local<Value> chunk = chunks->Get(context, i * 2).ToLocalChecked();
+      Local<Value> chunk;
+      if (!chunks->Get(context, i * 2).ToLocal(&chunk))
+        return -1;
 
       // Write buffer
       if (Buffer::HasInstance(chunk)) {
@@ -160,9 +171,13 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
           static_cast<char*>(bs ? bs->Data() : nullptr) + offset;
       size_t str_size = (bs ? bs->ByteLength() : 0) - offset;
 
-      Local<String> string = chunk->ToString(context).ToLocalChecked();
-      enum encoding encoding = ParseEncoding(isolate,
-          chunks->Get(context, i * 2 + 1).ToLocalChecked());
+      Local<String> string;
+      if (!chunk->ToString(context).ToLocal(&string))
+        return -1;
+      Local<Value> next_chunk;
+      if (!chunks->Get(context, i * 2 + 1).ToLocal(&next_chunk))
+        return -1;
+      enum encoding encoding = ParseEncoding(isolate, next_chunk);
       str_size = StringBytes::Write(isolate,
                                     str_storage,
                                     str_size,
@@ -207,9 +222,11 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
     send_handle = reinterpret_cast<uv_stream_t*>(wrap->GetHandle());
     // Reference LibuvStreamWrap instance to prevent it from being garbage
     // collected before `AfterWrite` is called.
-    req_wrap_obj->Set(env->context(),
-                      env->handle_string(),
-                      send_handle_obj).Check();
+    if (req_wrap_obj->Set(env->context(),
+                          env->handle_string(),
+                          send_handle_obj).IsNothing()) {
+      return -1;
+    }
   }
 
   StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj);
@@ -236,12 +253,12 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   // For UTF8 strings that are very long, go ahead and take the hit for
   // computing their actual size, rather than tripling the storage.
   size_t storage_size;
-  if (enc == UTF8 && string->Length() > 65535 &&
-      !StringBytes::Size(isolate, string, enc).To(&storage_size))
-    return 0;
-  else if (!StringBytes::StorageSize(isolate, string, enc)
-                .To(&storage_size))
-    return 0;
+  if ((enc == UTF8 &&
+         string->Length() > 65535 &&
+         !StringBytes::Size(isolate, string, enc).To(&storage_size)) ||
+          !StringBytes::StorageSize(isolate, string, enc).To(&storage_size)) {
+    return -1;
+  }
 
   if (storage_size > INT_MAX)
     return UV_ENOBUFS;
@@ -312,9 +329,11 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     send_handle = reinterpret_cast<uv_stream_t*>(wrap->GetHandle());
     // Reference LibuvStreamWrap instance to prevent it from being garbage
     // collected before `AfterWrite` is called.
-    req_wrap_obj->Set(env->context(),
-                      env->handle_string(),
-                      send_handle_obj).Check();
+    if (req_wrap_obj->Set(env->context(),
+                          env->handle_string(),
+                          send_handle_obj).IsNothing()) {
+      return -1;
+    }
   }
 
   StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj);
