@@ -90,9 +90,11 @@ class FreeStoreAllocationPolicy {
   }
 };
 
+using MallocFn = void* (*)(size_t);
+
 // Performs a malloc, with retry logic on failure. Returns nullptr on failure.
 // Call free to release memory allocated with this function.
-void* AllocWithRetry(size_t size);
+void* AllocWithRetry(size_t size, MallocFn = base::Malloc);
 
 V8_EXPORT_PRIVATE void* AlignedAlloc(size_t size, size_t alignment);
 V8_EXPORT_PRIVATE void AlignedFree(void* ptr);

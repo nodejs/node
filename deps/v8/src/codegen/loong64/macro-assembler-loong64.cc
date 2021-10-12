@@ -2768,7 +2768,7 @@ void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin,
 MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
   DCHECK(root_array_available());
   return MemOperand(kRootRegister,
-                    IsolateData::builtin_entry_slot_offset(builtin));
+                    IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
@@ -4030,8 +4030,8 @@ void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                                            DeoptimizeKind kind, Label* ret,
                                            Label*) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Ld_d(t7, MemOperand(kRootRegister,
-                      IsolateData::builtin_entry_slot_offset(target)));
+  Ld_d(t7,
+       MemOperand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(target)));
   Call(t7);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy)

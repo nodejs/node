@@ -1915,8 +1915,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 
 Operand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
   DCHECK(root_array_available());
-  return Operand(kRootRegister,
-                 IsolateData::builtin_entry_slot_offset(builtin));
+  return Operand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
 Operand TurboAssembler::EntryFromBuiltinIndexAsOperand(Register builtin_index) {

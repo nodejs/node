@@ -182,7 +182,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     // size s.t. pc-relative calls may be used.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    int offset = IsolateData::builtin_entry_slot_offset(code->builtin_id());
+    int offset = IsolateData::BuiltinEntrySlotOffset(code->builtin_id());
     ldr(scratch, MemOperand(kRootRegister, offset));
     Jump(scratch, cond);
     return;
@@ -269,7 +269,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     // This branch is taken only for specific cctests, where we force isolate
     // creation at runtime. At this point, Code space isn't restricted to a
     // size s.t. pc-relative calls may be used.
-    int offset = IsolateData::builtin_entry_slot_offset(code->builtin_id());
+    int offset = IsolateData::BuiltinEntrySlotOffset(code->builtin_id());
     ldr(ip, MemOperand(kRootRegister, offset));
     Call(ip, cond);
     return;
@@ -315,7 +315,7 @@ MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
   ASM_CODE_COMMENT(this);
   DCHECK(root_array_available());
   return MemOperand(kRootRegister,
-                    IsolateData::builtin_entry_slot_offset(builtin));
+                    IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
 void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
@@ -2671,9 +2671,15 @@ void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                                            DeoptimizeKind kind, Label* ret,
                                            Label*) {
   ASM_CODE_COMMENT(this);
+
+  // All constants should have been emitted prior to deoptimization exit
+  // emission. See PrepareForDeoptimizationExits.
+  DCHECK(!has_pending_constants());
   BlockConstPoolScope block_const_pool(this);
-  ldr(ip, MemOperand(kRootRegister,
-                     IsolateData::builtin_entry_slot_offset(target)));
+
+  CHECK_LE(target, Builtins::kLastTier0);
+  ldr(ip,
+      MemOperand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(target)));
   Call(ip);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy)
@@ -2685,6 +2691,9 @@ void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
     DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
               Deoptimizer::kEagerWithResumeBeforeArgsSize);
   }
+
+  // The above code must not emit constants either.
+  DCHECK(!has_pending_constants());
 }
 
 void TurboAssembler::Trap() { stop(); }

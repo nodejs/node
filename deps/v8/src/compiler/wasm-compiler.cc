@@ -3574,7 +3574,7 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
       Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
   Node* centry_stub =
       gasm_->LoadFromObject(MachineType::Pointer(), isolate_root,
-                            IsolateData::builtin_slot_offset(centry_id));
+                            IsolateData::BuiltinSlotOffset(centry_id));
   // TODO(titzer): allow arbitrary number of runtime arguments
   // At the moment we only allow 5 parameters. If more parameters are needed,
   // increase this constant accordingly.

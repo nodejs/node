@@ -8545,12 +8545,6 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
 }
 
 void Isolate::SetHostImportModuleDynamicallyCallback(
-    i::Isolate::DeprecatedHostImportModuleDynamicallyCallback callback) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->SetHostImportModuleDynamicallyCallback(callback);
-}
-
-void Isolate::SetHostImportModuleDynamicallyCallback(
     HostImportModuleDynamicallyWithImportAssertionsCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->SetHostImportModuleDynamicallyCallback(callback);

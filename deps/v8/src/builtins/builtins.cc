@@ -92,7 +92,7 @@ BytecodeOffset Builtins::GetContinuationBytecodeOffset(Builtin builtin) {
   DCHECK(Builtins::KindOf(builtin) == TFJ || Builtins::KindOf(builtin) == TFC ||
          Builtins::KindOf(builtin) == TFS);
   return BytecodeOffset(BytecodeOffset::kFirstBuiltinContinuationId +
-                        static_cast<int>(builtin));
+                        ToInt(builtin));
 }
 
 Builtin Builtins::GetBuiltinFromBytecodeOffset(BytecodeOffset id) {
@@ -182,7 +182,7 @@ Handle<Code> Builtins::code_handle(Builtin builtin) {
 // static
 int Builtins::GetStackParameterCount(Builtin builtin) {
   DCHECK(Builtins::KindOf(builtin) == TFJ);
-  return builtin_metadata[static_cast<int>(builtin)].data.parameter_count;
+  return builtin_metadata[ToInt(builtin)].data.parameter_count;
 }
 
 // static
@@ -224,7 +224,7 @@ bool Builtins::HasJSLinkage(Builtin builtin) {
 
 // static
 const char* Builtins::name(Builtin builtin) {
-  int index = static_cast<int>(builtin);
+  int index = ToInt(builtin);
   DCHECK(IsBuiltinId(index));
   return builtin_metadata[index].name;
 }
@@ -262,7 +262,7 @@ void Builtins::PrintBuiltinSize() {
 // static
 Address Builtins::CppEntryOf(Builtin builtin) {
   DCHECK(Builtins::IsCpp(builtin));
-  return builtin_metadata[static_cast<int>(builtin)].data.cpp_entry;
+  return builtin_metadata[ToInt(builtin)].data.cpp_entry;
 }
 
 // static
@@ -292,18 +292,24 @@ bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
 }
 
 // static
-void Builtins::InitializeBuiltinEntryTable(Isolate* isolate) {
-  EmbeddedData d = EmbeddedData::FromBlob(isolate);
-  Address* builtin_entry_table = isolate->builtin_entry_table();
-  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
-       ++builtin) {
-    // TODO(jgruber,chromium:1020986): Remove the CHECK once the linked issue is
-    // resolved.
-    CHECK(
-        Builtins::IsBuiltinId(isolate->heap()->builtin(builtin).builtin_id()));
-    DCHECK(isolate->heap()->builtin(builtin).is_off_heap_trampoline());
-    builtin_entry_table[static_cast<int>(builtin)] =
-        d.InstructionStartOfBuiltin(builtin);
+void Builtins::InitializeIsolateDataTables(Isolate* isolate) {
+  EmbeddedData embedded_data = EmbeddedData::FromBlob(isolate);
+  IsolateData* isolate_data = isolate->isolate_data();
+
+  // The entry table.
+  for (Builtin i = Builtins::kFirst; i <= Builtins::kLast; ++i) {
+    DCHECK(Builtins::IsBuiltinId(isolate->heap()->builtin(i).builtin_id()));
+    DCHECK(isolate->heap()->builtin(i).is_off_heap_trampoline());
+    isolate_data->builtin_entry_table()[ToInt(i)] =
+        embedded_data.InstructionStartOfBuiltin(i);
+  }
+
+  // T0 tables.
+  for (Builtin i = Builtins::kFirst; i <= Builtins::kLastTier0; ++i) {
+    const int ii = ToInt(i);
+    isolate_data->builtin_tier0_entry_table()[ii] =
+        isolate_data->builtin_entry_table()[ii];
+    isolate_data->builtin_tier0_table()[ii] = isolate_data->builtin_table()[ii];
   }
 }
 
@@ -314,10 +320,10 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
     return;  // No need to iterate the entire table in this case.
   }
 
-  Address* builtins = isolate->builtins_table();
+  Address* builtins = isolate->builtin_table();
   int i = 0;
   HandleScope scope(isolate);
-  for (; i < static_cast<int>(Builtin::kFirstBytecodeHandler); i++) {
+  for (; i < ToInt(Builtin::kFirstBytecodeHandler); i++) {
     Handle<AbstractCode> code(AbstractCode::cast(Object(builtins[i])), isolate);
     PROFILE(isolate, CodeCreateEvent(CodeEventListener::BUILTIN_TAG, code,
                                      Builtins::name(FromInt(i))));
@@ -420,7 +426,7 @@ Handle<ByteArray> Builtins::GenerateOffHeapTrampolineRelocInfo(
 
 Builtins::Kind Builtins::KindOf(Builtin builtin) {
   DCHECK(IsBuiltinId(builtin));
-  return builtin_metadata[static_cast<int>(builtin)].kind;
+  return builtin_metadata[ToInt(builtin)].kind;
 }
 
 // static

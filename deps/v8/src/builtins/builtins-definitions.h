@@ -31,16 +31,40 @@ namespace internal {
 // TODO(jgruber): Remove DummyDescriptor once all ASM builtins have been
 // properly associated with their descriptor.
 
-#define BUILTIN_LIST_BASE(CPP, TFJ, TFC, TFS, TFH, ASM)                        \
-  /* GC write barrirer */                                                      \
-  TFC(RecordWriteEmitRememberedSetSaveFP, WriteBarrier)                        \
-  TFC(RecordWriteOmitRememberedSetSaveFP, WriteBarrier)                        \
-  TFC(RecordWriteEmitRememberedSetIgnoreFP, WriteBarrier)                      \
-  TFC(RecordWriteOmitRememberedSetIgnoreFP, WriteBarrier)                      \
-  TFC(EphemeronKeyBarrierSaveFP, WriteBarrier)                                 \
-  TFC(EphemeronKeyBarrierIgnoreFP, WriteBarrier)                               \
-                                                                               \
-  /* TSAN support for stores in generated code.*/                              \
+// Builtins are additionally split into tiers, where the tier determines the
+// distance of the builtins table from the root register within IsolateData.
+//
+//  - Tier 0 (T0) are guaranteed to be close to the root register and can thus
+//    be accessed efficiently root-relative calls (so not, e.g., calls from
+//    generated code when short-builtin-calls is on).
+//  - T1 builtins have no distance guarantees.
+//
+// Note, this mechanism works only if the set of T0 builtins is kept as small
+// as possible. Please, resist the temptation to add your builtin here unless
+// there's a very good reason.
+#define BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM) \
+  /* Deoptimization entries. */                               \
+  ASM(DeoptimizationEntry_Eager, DeoptimizationEntry)         \
+  ASM(DeoptimizationEntry_Soft, DeoptimizationEntry)          \
+  ASM(DeoptimizationEntry_Bailout, DeoptimizationEntry)       \
+  ASM(DeoptimizationEntry_Lazy, DeoptimizationEntry)          \
+  ASM(DynamicCheckMapsTrampoline, DynamicCheckMaps)           \
+  ASM(DynamicCheckMapsWithFeedbackVectorTrampoline,           \
+      DynamicCheckMapsWithFeedbackVector)                     \
+                                                              \
+  /* GC write barrier. */                                     \
+  TFC(RecordWriteEmitRememberedSetSaveFP, WriteBarrier)       \
+  TFC(RecordWriteOmitRememberedSetSaveFP, WriteBarrier)       \
+  TFC(RecordWriteEmitRememberedSetIgnoreFP, WriteBarrier)     \
+  TFC(RecordWriteOmitRememberedSetIgnoreFP, WriteBarrier)     \
+  TFC(EphemeronKeyBarrierSaveFP, WriteBarrier)                \
+  TFC(EphemeronKeyBarrierIgnoreFP, WriteBarrier)              \
+                                                              \
+  /* Adaptor for CPP builtins. */                             \
+  TFC(AdaptorWithBuiltinExitFrame, CppBuiltinAdaptor)
+
+#define BUILTIN_LIST_BASE_TIER1(CPP, TFJ, TFC, TFS, TFH, ASM)                  \
+  /* TSAN support for stores in generated code. */                             \
   IF_TSAN(TFC, TSANRelaxedStore8IgnoreFP, TSANStore)                           \
   IF_TSAN(TFC, TSANRelaxedStore8SaveFP, TSANStore)                             \
   IF_TSAN(TFC, TSANRelaxedStore16IgnoreFP, TSANStore)                          \
@@ -58,14 +82,11 @@ namespace internal {
   IF_TSAN(TFC, TSANSeqCstStore64IgnoreFP, TSANStore)                           \
   IF_TSAN(TFC, TSANSeqCstStore64SaveFP, TSANStore)                             \
                                                                                \
-  /* TSAN support for loads in generated code.*/                               \
+  /* TSAN support for loads in generated code. */                              \
   IF_TSAN(TFC, TSANRelaxedLoad32IgnoreFP, TSANLoad)                            \
   IF_TSAN(TFC, TSANRelaxedLoad32SaveFP, TSANLoad)                              \
   IF_TSAN(TFC, TSANRelaxedLoad64IgnoreFP, TSANLoad)                            \
   IF_TSAN(TFC, TSANRelaxedLoad64SaveFP, TSANLoad)                              \
-                                                                               \
-  /* Adaptor for CPP builtin */                                                \
-  TFC(AdaptorWithBuiltinExitFrame, CppBuiltinAdaptor)                          \
                                                                                \
   /* Calls */                                                                  \
   /* ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList) */              \
@@ -187,10 +208,6 @@ namespace internal {
   TFC(CompileLazyDeoptimizedCode, JSTrampoline)                                \
   TFC(InstantiateAsmJs, JSTrampoline)                                          \
   ASM(NotifyDeoptimized, Dummy)                                                \
-  ASM(DeoptimizationEntry_Eager, DeoptimizationEntry)                          \
-  ASM(DeoptimizationEntry_Soft, DeoptimizationEntry)                           \
-  ASM(DeoptimizationEntry_Bailout, DeoptimizationEntry)                        \
-  ASM(DeoptimizationEntry_Lazy, DeoptimizationEntry)                           \
                                                                                \
   /* Trampolines called when returning from a deoptimization that expects   */ \
   /* to continue in a JavaScript builtin to finish the functionality of a   */ \
@@ -282,10 +299,7 @@ namespace internal {
   TFH(HasIndexedInterceptorIC, LoadWithVector)                                 \
                                                                                \
   /* Dynamic check maps */                                                     \
-  ASM(DynamicCheckMapsTrampoline, DynamicCheckMaps)                            \
   TFC(DynamicCheckMaps, DynamicCheckMaps)                                      \
-  ASM(DynamicCheckMapsWithFeedbackVectorTrampoline,                            \
-      DynamicCheckMapsWithFeedbackVector)                                      \
   TFC(DynamicCheckMapsWithFeedbackVector, DynamicCheckMapsWithFeedbackVector)  \
                                                                                \
   /* Microtask helpers */                                                      \
@@ -1032,6 +1046,10 @@ namespace internal {
   CPP(CallAsyncModuleFulfilled)                                                \
   CPP(CallAsyncModuleRejected)
 
+#define BUILTIN_LIST_BASE(CPP, TFJ, TFC, TFS, TFH, ASM) \
+  BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM) \
+  BUILTIN_LIST_BASE_TIER1(CPP, TFJ, TFC, TFS, TFH, ASM)
+
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                               \
   /* ecma402 #sec-intl.collator */                                     \
@@ -1216,6 +1234,17 @@ namespace internal {
   BUILTIN_LIST_BASE(CPP, TFJ, TFC, TFS, TFH, ASM)        \
   BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM) \
   BUILTIN_LIST_INTL(CPP, TFJ, TFS)                       \
+  BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
+
+// See the comment on top of BUILTIN_LIST_BASE_TIER0 for an explanation of
+// tiers.
+#define BUILTIN_LIST_TIER0(CPP, TFJ, TFC, TFS, TFH, BCH, ASM) \
+  BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)
+
+#define BUILTIN_LIST_TIER1(CPP, TFJ, TFC, TFS, TFH, BCH, ASM) \
+  BUILTIN_LIST_BASE_TIER1(CPP, TFJ, TFC, TFS, TFH, ASM)       \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)      \
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                            \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
 
 // The exception thrown in the following builtins are caught

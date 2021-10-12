@@ -1123,9 +1123,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   Address* builtin_entry_table() { return isolate_data_.builtin_entry_table(); }
-  V8_INLINE Address* builtins_table() { return isolate_data_.builtins(); }
+  V8_INLINE Address* builtin_table() { return isolate_data_.builtin_table(); }
 
-  bool IsBuiltinsTableHandleLocation(Address* handle_location);
+  bool IsBuiltinTableHandleLocation(Address* handle_location);
 
   StubCache* load_stub_cache() const { return load_stub_cache_; }
   StubCache* store_stub_cache() const { return store_stub_cache_; }
@@ -1644,18 +1644,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void ClearKeptObjects();
 
-  // While deprecating v8::HostImportModuleDynamicallyCallback in v8.h we still
-  // need to support the version of the API that uses it, but we can't directly
-  // reference the deprecated version because of the enusing build warnings. So,
-  // we declare this matching type for temporary internal use.
-  // TODO(v8:10958) Delete this declaration and all references to it once
-  // v8::HostImportModuleDynamicallyCallback is removed.
-  typedef MaybeLocal<Promise> (*DeprecatedHostImportModuleDynamicallyCallback)(
-      v8::Local<v8::Context> context, v8::Local<v8::ScriptOrModule> referrer,
-      v8::Local<v8::String> specifier);
-
-  void SetHostImportModuleDynamicallyCallback(
-      DeprecatedHostImportModuleDynamicallyCallback callback);
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyWithImportAssertionsCallback callback);
   MaybeHandle<JSPromise> RunHostImportModuleDynamicallyCallback(
@@ -2022,8 +2010,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   v8::Isolate::AtomicsWaitCallback atomics_wait_callback_ = nullptr;
   void* atomics_wait_callback_data_ = nullptr;
   PromiseHook promise_hook_ = nullptr;
-  DeprecatedHostImportModuleDynamicallyCallback
-      host_import_module_dynamically_callback_ = nullptr;
   HostImportModuleDynamicallyWithImportAssertionsCallback
       host_import_module_dynamically_with_import_assertions_callback_ = nullptr;
   std::atomic<debug::CoverageMode> code_coverage_mode_{

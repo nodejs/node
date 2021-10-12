@@ -8,9 +8,9 @@ namespace v8 {
 namespace internal {
 
 const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
-const int Deoptimizer::kNonLazyDeoptExitSize = 4 * kInstrSize;
-const int Deoptimizer::kLazyDeoptExitSize = 4 * kInstrSize;
-const int Deoptimizer::kEagerWithResumeBeforeArgsSize = 5 * kInstrSize;
+const int Deoptimizer::kNonLazyDeoptExitSize = 2 * kInstrSize;
+const int Deoptimizer::kLazyDeoptExitSize = 2 * kInstrSize;
+const int Deoptimizer::kEagerWithResumeBeforeArgsSize = 3 * kInstrSize;
 const int Deoptimizer::kEagerWithResumeDeoptExitSize =
     kEagerWithResumeBeforeArgsSize + 4 * kInstrSize;
 const int Deoptimizer::kEagerWithResumeImmedArgs1PcOffset = kInstrSize;

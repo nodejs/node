@@ -143,10 +143,10 @@ char* StrNDup(const char* str, size_t n) {
   return result;
 }
 
-void* AllocWithRetry(size_t size) {
+void* AllocWithRetry(size_t size, MallocFn malloc_fn) {
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
-    result = base::Malloc(size);
+    result = malloc_fn(size);
     if (result != nullptr) break;
     if (!OnCriticalMemoryPressure(size)) break;
   }

@@ -4653,21 +4653,29 @@ void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 Code Heap::builtin(Builtin builtin) {
   DCHECK(Builtins::IsBuiltinId(builtin));
   return Code::cast(
-      Object(isolate()->builtins_table()[static_cast<int>(builtin)]));
+      Object(isolate()->builtin_table()[static_cast<int>(builtin)]));
 }
 
 Address Heap::builtin_address(Builtin builtin) {
+  const int index = Builtins::ToInt(builtin);
+  DCHECK(Builtins::IsBuiltinId(builtin) || index == Builtins::kBuiltinCount);
+  // Note: Must return an address within the full builtin_table for
+  // IterateBuiltins to work.
+  return reinterpret_cast<Address>(&isolate()->builtin_table()[index]);
+}
+
+Address Heap::builtin_tier0_address(Builtin builtin) {
   const int index = static_cast<int>(builtin);
   DCHECK(Builtins::IsBuiltinId(builtin) || index == Builtins::kBuiltinCount);
-  return reinterpret_cast<Address>(&isolate()->builtins_table()[index]);
+  return reinterpret_cast<Address>(
+      &isolate()->isolate_data()->builtin_tier0_table()[index]);
 }
 
 void Heap::set_builtin(Builtin builtin, Code code) {
   DCHECK(Builtins::IsBuiltinId(builtin));
   DCHECK(Internals::HasHeapObjectTag(code.ptr()));
-  // The given builtin may be completely uninitialized thus we cannot check its
-  // type here.
-  isolate()->builtins_table()[static_cast<int>(builtin)] = code.ptr();
+  // The given builtin may be uninitialized thus we cannot check its type here.
+  isolate()->builtin_table()[Builtins::ToInt(builtin)] = code.ptr();
 }
 
 void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
@@ -4896,6 +4904,12 @@ void Heap::IterateBuiltins(RootVisitor* v) {
        ++builtin) {
     v->VisitRootPointer(Root::kBuiltins, Builtins::name(builtin),
                         FullObjectSlot(builtin_address(builtin)));
+  }
+
+  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLastTier0;
+       ++builtin) {
+    v->VisitRootPointer(Root::kBuiltins, Builtins::name(builtin),
+                        FullObjectSlot(builtin_tier0_address(builtin)));
   }
 
   // The entry table doesn't need to be updated since all builtins are embedded.
