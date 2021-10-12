@@ -49,6 +49,8 @@ class StreamReq {
   virtual AsyncWrap* GetAsyncWrap() = 0;
   inline v8::Local<v8::Object> object();
 
+  // TODO(RaisinTen): Update the return type to a Maybe, so that we can indicate
+  // if there is a pending exception/termination.
   inline void Done(int status, const char* error_str = nullptr);
   inline void Dispose();
 
@@ -326,6 +328,8 @@ class StreamBase : public StreamResource {
   // subclasses are also `BaseObject`s.
   Environment* stream_env() const { return env_; }
 
+  // TODO(RaisinTen): Update the return type to a Maybe, so that we can indicate
+  // if there is a pending exception/termination.
   // Shut down the current stream. This request can use an existing
   // ShutdownWrap object (that was created in JS), or a new one will be created.
   // Returns 1 in case of a synchronous completion, 0 in case of asynchronous
@@ -333,6 +337,8 @@ class StreamBase : public StreamResource {
   inline int Shutdown(
       v8::Local<v8::Object> req_wrap_obj = v8::Local<v8::Object>());
 
+  // TODO(RaisinTen): Update the return type to a Maybe, so that we can indicate
+  // if there is a pending exception/termination.
   // Write data to the current stream. This request can use an existing
   // WriteWrap object (that was created in JS), or a new one will be created.
   // This will first try to write synchronously using `DoTryWrite()`, then
