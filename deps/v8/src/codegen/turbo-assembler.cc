@@ -97,7 +97,7 @@ int32_t TurboAssemblerBase::RootRegisterOffsetForRootIndex(
 
 // static
 int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltin(Builtin builtin) {
-  return IsolateData::builtin_slot_offset(builtin);
+  return IsolateData::BuiltinSlotOffset(builtin);
 }
 
 // static

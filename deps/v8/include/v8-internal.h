@@ -224,23 +224,30 @@ class Internals {
   static const int kExternalOneByteRepresentationTag = 0x0a;
 
   static const uint32_t kNumIsolateDataSlots = 4;
+  static const int kStackGuardSize = 7 * kApiSystemPointerSize;
+  static const int kBuiltinTier0EntryTableSize = 13 * kApiSystemPointerSize;
+  static const int kBuiltinTier0TableSize = 13 * kApiSystemPointerSize;
 
   // IsolateData layout guarantees.
-  static const int kIsolateEmbedderDataOffset = 0;
+  static const int kIsolateCageBaseOffset = 0;
+  static const int kIsolateStackGuardOffset =
+      kIsolateCageBaseOffset + kApiSystemPointerSize;
+  static const int kBuiltinTier0EntryTableOffset =
+      kIsolateStackGuardOffset + kStackGuardSize;
+  static const int kBuiltinTier0TableOffset =
+      kBuiltinTier0EntryTableOffset + kBuiltinTier0EntryTableSize;
+  static const int kIsolateEmbedderDataOffset =
+      kBuiltinTier0TableOffset + kBuiltinTier0TableSize;
   static const int kIsolateFastCCallCallerFpOffset =
-      kNumIsolateDataSlots * kApiSystemPointerSize;
+      kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
   static const int kIsolateFastCCallCallerPcOffset =
       kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
   static const int kIsolateFastApiCallTargetOffset =
       kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
-  static const int kIsolateCageBaseOffset =
-      kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
   static const int kIsolateLongTaskStatsCounterOffset =
-      kIsolateCageBaseOffset + kApiSystemPointerSize;
-  static const int kIsolateStackGuardOffset =
-      kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
+      kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
   static const int kIsolateRootsOffset =
-      kIsolateStackGuardOffset + 7 * kApiSystemPointerSize;
+      kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
 
   static const int kExternalPointerTableBufferOffset = 0;
   static const int kExternalPointerTableLengthOffset =

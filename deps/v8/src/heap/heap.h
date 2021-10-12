@@ -1053,6 +1053,7 @@ class Heap {
 
   V8_EXPORT_PRIVATE Code builtin(Builtin builtin);
   Address builtin_address(Builtin builtin);
+  Address builtin_tier0_address(Builtin builtin);
   void set_builtin(Builtin builtin, Code code);
 
   // ===========================================================================

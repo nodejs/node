@@ -2673,10 +2673,10 @@ void Isolate::ReleaseSharedPtrs() {
   }
 }
 
-bool Isolate::IsBuiltinsTableHandleLocation(Address* handle_location) {
+bool Isolate::IsBuiltinTableHandleLocation(Address* handle_location) {
   FullObjectSlot location(handle_location);
-  FullObjectSlot first_root(builtins_table());
-  FullObjectSlot last_root(builtins_table() + Builtins::kBuiltinCount);
+  FullObjectSlot first_root(builtin_table());
+  FullObjectSlot last_root(builtin_table() + Builtins::kBuiltinCount);
   if (location >= last_root) return false;
   if (location < first_root) return false;
   return true;
@@ -3047,8 +3047,14 @@ void Isolate::CheckIsolateLayout() {
            Internals::kIsolateLongTaskStatsCounterOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)),
            Internals::kIsolateStackGuardOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_)),
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_table_)),
            Internals::kIsolateRootsOffset);
+
+  STATIC_ASSERT(Internals::kStackGuardSize == sizeof(StackGuard));
+  STATIC_ASSERT(Internals::kBuiltinTier0TableSize ==
+                Builtins::kBuiltinTier0Count * kSystemPointerSize);
+  STATIC_ASSERT(Internals::kBuiltinTier0EntryTableSize ==
+                Builtins::kBuiltinTier0Count * kSystemPointerSize);
 
 #ifdef V8_HEAP_SANDBOX
   CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, buffer_)),
@@ -3748,7 +3754,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   delete setup_delegate_;
   setup_delegate_ = nullptr;
 
-  Builtins::InitializeBuiltinEntryTable(this);
+  Builtins::InitializeIsolateDataTables(this);
   Builtins::EmitCodeCreateEvents(this);
 
 #ifdef DEBUG
@@ -4258,12 +4264,8 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     MaybeHandle<Object> maybe_import_assertions_argument) {
   v8::Local<v8::Context> api_context =
       v8::Utils::ToLocal(Handle<Context>(native_context()));
-  DCHECK(host_import_module_dynamically_callback_ == nullptr ||
-         host_import_module_dynamically_with_import_assertions_callback_ ==
-             nullptr);
-  if (host_import_module_dynamically_callback_ == nullptr &&
-      host_import_module_dynamically_with_import_assertions_callback_ ==
-          nullptr) {
+  if (host_import_module_dynamically_with_import_assertions_callback_ ==
+      nullptr) {
     Handle<Object> exception =
         factory()->NewError(error_function(), MessageTemplate::kUnsupported);
     return NewRejectedPromise(this, api_context, exception);
@@ -4279,34 +4281,21 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   DCHECK(!has_pending_exception());
 
   v8::Local<v8::Promise> promise;
-
-  if (host_import_module_dynamically_with_import_assertions_callback_) {
-    Handle<FixedArray> import_assertions_array;
-    if (GetImportAssertionsFromArgument(maybe_import_assertions_argument)
-            .ToHandle(&import_assertions_array)) {
-      ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
-          this, promise,
-          host_import_module_dynamically_with_import_assertions_callback_(
-              api_context, v8::Utils::ScriptOrModuleToLocal(referrer),
-              v8::Utils::ToLocal(specifier_str),
-              ToApiHandle<v8::FixedArray>(import_assertions_array)),
-          MaybeHandle<JSPromise>());
-      return v8::Utils::OpenHandle(*promise);
-    } else {
-      Handle<Object> exception(pending_exception(), this);
-      clear_pending_exception();
-      return NewRejectedPromise(this, api_context, exception);
-    }
-
-  } else {
-    DCHECK_NOT_NULL(host_import_module_dynamically_callback_);
+  Handle<FixedArray> import_assertions_array;
+  if (GetImportAssertionsFromArgument(maybe_import_assertions_argument)
+          .ToHandle(&import_assertions_array)) {
     ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
         this, promise,
-        host_import_module_dynamically_callback_(
+        host_import_module_dynamically_with_import_assertions_callback_(
             api_context, v8::Utils::ScriptOrModuleToLocal(referrer),
-            v8::Utils::ToLocal(specifier_str)),
+            v8::Utils::ToLocal(specifier_str),
+            ToApiHandle<v8::FixedArray>(import_assertions_array)),
         MaybeHandle<JSPromise>());
     return v8::Utils::OpenHandle(*promise);
+  } else {
+    Handle<Object> exception(pending_exception(), this);
+    clear_pending_exception();
+    return NewRejectedPromise(this, api_context, exception);
   }
 }
 
@@ -4396,11 +4385,6 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
 }
 
 void Isolate::ClearKeptObjects() { heap()->ClearKeptObjects(); }
-
-void Isolate::SetHostImportModuleDynamicallyCallback(
-    DeprecatedHostImportModuleDynamicallyCallback callback) {
-  host_import_module_dynamically_callback_ = callback;
-}
 
 void Isolate::SetHostImportModuleDynamicallyCallback(
     HostImportModuleDynamicallyWithImportAssertionsCallback callback) {
