@@ -486,19 +486,17 @@ bool V8InspectorImpl::associateExceptionData(v8::Local<v8::Context>,
   v8::Context::Scope contextScope(context);
   v8::HandleScope handles(m_isolate);
   if (m_exceptionMetaData.IsEmpty())
-    m_exceptionMetaData.Reset(m_isolate, v8::debug::WeakMap::New(m_isolate));
+    m_exceptionMetaData.Reset(m_isolate,
+                              v8::debug::EphemeronTable::New(m_isolate));
 
-  v8::Local<v8::debug::WeakMap> map = m_exceptionMetaData.Get(m_isolate);
-  v8::MaybeLocal<v8::Value> entry = map->Get(context, exception);
+  v8::Local<v8::debug::EphemeronTable> map = m_exceptionMetaData.Get(m_isolate);
+  v8::MaybeLocal<v8::Value> entry = map->Get(m_isolate, exception);
   v8::Local<v8::Object> object;
   if (entry.IsEmpty() || !entry.ToLocalChecked()->IsObject()) {
     object =
         v8::Object::New(m_isolate, v8::Null(m_isolate), nullptr, nullptr, 0);
-    v8::MaybeLocal<v8::debug::WeakMap> new_map =
-        map->Set(context, exception, object);
-    if (!new_map.IsEmpty()) {
-      m_exceptionMetaData.Reset(m_isolate, new_map.ToLocalChecked());
-    }
+    m_exceptionMetaData.Reset(m_isolate,
+                              map->Set(m_isolate, exception, object));
   } else {
     object = entry.ToLocalChecked().As<v8::Object>();
   }
@@ -518,8 +516,8 @@ v8::MaybeLocal<v8::Object> V8InspectorImpl::getAssociatedExceptionData(
       !exceptionMetaDataContext().ToLocal(&context)) {
     return v8::MaybeLocal<v8::Object>();
   }
-  v8::Local<v8::debug::WeakMap> map = m_exceptionMetaData.Get(m_isolate);
-  auto entry = map->Get(context, exception);
+  v8::Local<v8::debug::EphemeronTable> map = m_exceptionMetaData.Get(m_isolate);
+  auto entry = map->Get(m_isolate, exception);
   v8::Local<v8::Value> object;
   if (!entry.ToLocal(&object) || !object->IsObject())
     return v8::MaybeLocal<v8::Object>();
