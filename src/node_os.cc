@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "env-inl.h"
+#include "node_external_reference.h"
 #include "string_bytes.h"
 
 #ifdef __MINGW32__
