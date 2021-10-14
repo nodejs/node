@@ -1,5 +1,5 @@
 const t = require('tap')
-const { fake: mockNpm } = require('../fixtures/mock-npm.js')
+const { real: mockNpm } = require('../fixtures/mock-npm.js')
 const { join, sep } = require('path')
 
 const pkgDirs = t.testdir({
@@ -154,6 +154,7 @@ const pkgDirs = t.testdir({
       name: 'workspaces-test',
       version: '1.2.3-test',
       workspaces: ['workspace-a', 'workspace-b', 'workspace-c'],
+      repository: 'https://github.com/npm/workspaces-test',
     }),
     'workspace-a': {
       'package.json': JSON.stringify({
@@ -185,19 +186,17 @@ const openUrl = async (npm, url, errMsg) => {
   opened[url]++
 }
 
-const Repo = t.mock('../../lib/repo.js', {
+const { command, npm } = mockNpm(t, {
   '../../lib/utils/open-url.js': openUrl,
 })
-const flatOptions = {}
-const npm = mockNpm({ flatOptions })
-const repo = new Repo(npm)
+t.before(async () => {
+  await npm.load()
+})
 
 t.afterEach(() => opened = {})
 
 t.test('open repo urls', t => {
-  // XXX It is very odd that `where` is how pacote knows to look anywhere other
-  // than the cwd. I would think npm.localPrefix would factor in somehow
-  flatOptions.where = pkgDirs
+  npm.localPrefix = pkgDirs
   const expect = {
     hostedgit: 'https://github.com/foo/hostedgit',
     hostedgitat: 'https://github.com/foo/hostedgitat',
@@ -227,22 +226,19 @@ t.test('open repo urls', t => {
   const keys = Object.keys(expect)
   t.plan(keys.length)
   keys.forEach(pkg => {
-    t.test(pkg, t => {
-      repo.exec([['.', pkg].join(sep)], (err) => {
-        if (err)
-          throw err
-        const url = expect[pkg]
-        t.match({
-          [url]: 1,
-        }, opened, `opened ${url}`, {opened})
-        t.end()
-      })
+    t.test(pkg, async t => {
+      await command('repo', [['.', pkg].join(sep)])
+      const url = expect[pkg]
+      t.match({
+        [url]: 1,
+      }, opened, `opened ${url}`, {opened})
+      t.end()
     })
   })
 })
 
 t.test('fail if cannot figure out repo url', t => {
-  flatOptions.where = pkgDirs
+  npm.localPrefix = pkgDirs
   const cases = [
     'norepo',
     'repoobbj-nourl',
@@ -253,57 +249,65 @@ t.test('fail if cannot figure out repo url', t => {
   t.plan(cases.length)
 
   cases.forEach(pkg => {
-    t.test(pkg, t => {
-      repo.exec([['.', pkg].join(sep)], (err) => {
-        t.match(err, { pkgid: pkg })
-        t.end()
-      })
+    t.test(pkg, async t => {
+      t.rejects(
+        command('repo', [['.', pkg].join(sep)]),
+        { pkgid: pkg }
+      )
     })
   })
 })
 
-t.test('open default package if none specified', t => {
-  flatOptions.where = pkgDirs
-  repo.exec([], (er) => {
-    if (er)
-      throw er
-    t.equal(opened['https://example.com/thispkg'], 1, 'opened expected url', {opened})
-    t.end()
-  })
+t.test('open default package if none specified', async t => {
+  npm.localPrefix = pkgDirs
+  await command('repo', [])
+  t.equal(opened['https://example.com/thispkg'], 1, 'opened expected url', {opened})
 })
 
 t.test('workspaces', t => {
-  flatOptions.where = undefined
   npm.localPrefix = join(pkgDirs, 'workspaces')
 
-  t.test('all workspaces', (t) => {
-    repo.execWorkspaces([], [], (err) => {
-      t.notOk(err)
-      t.match({
-        'https://repo.workspace-a/': 1, // Gets translated to https!
-        'https://github.com/npm/workspace-b': 1,
-      }, opened, 'opened two valid repo urls')
-      t.end()
-    })
+  t.afterEach(() => {
+    npm.config.set('workspaces', null)
+    npm.config.set('workspace', [])
+    npm.config.set('include-workspace-root', false)
   })
 
-  t.test('one workspace', (t) => {
-    repo.execWorkspaces([], ['workspace-a'], (err) => {
-      t.notOk(err)
-      t.match({
-        'https://repo.workspace-a/': 1,
-      }, opened, 'opened one requested repo urls')
-      t.end()
-    })
+  t.test('include workspace root', async (t) => {
+    npm.config.set('workspaces', true)
+    npm.config.set('include-workspace-root', true)
+    await command('repo', [])
+    t.match({
+      'https://github.com/npm/workspaces-test': 1,
+      'https://repo.workspace-a/': 1, // Gets translated to https!
+      'https://github.com/npm/workspace-b': 1,
+    }, opened, 'opened two valid repo urls')
   })
 
-  t.test('invalid workspace', (t) => {
-    repo.execWorkspaces([], ['workspace-x'], (err) => {
-      t.match(err, /No workspaces found/)
-      t.match(err, /workspace-x/)
-      t.match({}, opened, 'opened no repo urls')
-      t.end()
-    })
+  t.test('all workspaces', async (t) => {
+    npm.config.set('workspaces', true)
+    await command('repo', [])
+    t.match({
+      'https://repo.workspace-a/': 1, // Gets translated to https!
+      'https://github.com/npm/workspace-b': 1,
+    }, opened, 'opened two valid repo urls')
+  })
+
+  t.test('one workspace', async (t) => {
+    npm.config.set('workspace', ['workspace-a'])
+    await command('repo', [])
+    t.match({
+      'https://repo.workspace-a/': 1,
+    }, opened, 'opened one requested repo urls')
+  })
+
+  t.test('invalid workspace', async (t) => {
+    npm.config.set('workspace', ['workspace-x'])
+    await t.rejects(
+      command('repo', []),
+      /workspace-x/
+    )
+    t.match({}, opened, 'opened no repo urls')
   })
   t.end()
 })

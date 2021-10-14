@@ -2,7 +2,7 @@ const t = require('tap')
 const npm = {
   prefix: null,
   color: true,
-  flatOptions: {},
+  flatOptions: { workspacesEnabled: true },
   output: (...args) => {
     OUTPUT.push(args)
   },
@@ -297,6 +297,83 @@ t.test('workspaces', async t => {
         'should throw usage if dep not found within filtered ws'
       )
 
+      res()
+    })
+  })
+})
+
+t.test('workspaces disabled', async t => {
+  npm.localPrefix = npm.prefix = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'workspaces-project',
+      version: '1.0.0',
+      workspaces: ['packages/*'],
+      dependencies: {
+        abbrev: '^1.0.0',
+      },
+    }),
+    node_modules: {
+      a: t.fixture('symlink', '../packages/a'),
+      b: t.fixture('symlink', '../packages/b'),
+      c: t.fixture('symlink', '../packages/c'),
+      once: {
+        'package.json': JSON.stringify({
+          name: 'once',
+          version: '1.0.0',
+          dependencies: {
+            wrappy: '2.0.0',
+          },
+        }),
+      },
+      abbrev: {
+        'package.json': JSON.stringify({
+          name: 'abbrev',
+          version: '1.0.0',
+        }),
+      },
+      wrappy: {
+        'package.json': JSON.stringify({
+          name: 'wrappy',
+          version: '2.0.0',
+        }),
+      },
+    },
+    packages: {
+      a: {
+        'package.json': JSON.stringify({
+          name: 'a',
+          version: '1.0.0',
+          dependencies: {
+            once: '1.0.0',
+          },
+        }),
+      },
+      b: {
+        'package.json': JSON.stringify({
+          name: 'b',
+          version: '1.0.0',
+          dependencies: {
+            abbrev: '^1.0.0',
+          },
+        }),
+      },
+      c: {
+        'package.json': JSON.stringify({
+          name: 'c',
+          version: '1.0.0',
+        }),
+      },
+    },
+  })
+
+  await new Promise((res, rej) => {
+    explain.npm.flatOptions.workspacesEnabled = false
+    explain.exec(['once'], err => {
+      t.equal(
+        err,
+        'No dependencies found matching once',
+        'should throw usage if dep not found when excluding ws'
+      )
       res()
     })
   })

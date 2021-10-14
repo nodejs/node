@@ -30,6 +30,7 @@ class Pack extends BaseCommand {
       'pack-destination',
       'workspace',
       'workspaces',
+      'include-workspace-root',
     ]
   }
 

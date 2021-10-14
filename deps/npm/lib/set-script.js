@@ -12,7 +12,7 @@ class SetScript extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['workspace', 'workspaces']
+    return ['workspace', 'workspaces', 'include-workspace-root']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */

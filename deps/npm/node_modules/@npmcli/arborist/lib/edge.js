@@ -37,7 +37,7 @@ const printableEdge = (edge) => {
     ...(edgeFrom != null ? { from: edgeFrom } : {}),
     ...(edgeTo ? { to: edgeTo } : {}),
     ...(edge.error ? { error: edge.error } : {}),
-    ...(edge.overridden ? { overridden: true } : {}),
+    ...(edge.peerConflicted ? { peerConflicted: true } : {}),
   })
 }
 
@@ -78,7 +78,7 @@ class Edge {
     }
     this[_setFrom](from)
     this[_error] = this[_loadError]()
-    this.overridden = false
+    this.peerConflicted = false
   }
 
   satisfiedBy (node) {

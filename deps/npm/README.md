@@ -4,7 +4,11 @@
 
 ### Requirements
 
-* [**Node.js** `v10`](https://nodejs.org/en/download/) or higher must be installed to run this program
+One of the following versions of [Node.js](https://nodejs.org/en/download/) must be installed to run **`npm`**:
+
+* `12.x.x` >= `12.13.0`
+* `14.x.x` >= `14.15.0`
+* `16.0.0` or higher
 
 ### Installation
 

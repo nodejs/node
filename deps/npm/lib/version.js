@@ -26,6 +26,7 @@ class Version extends BaseCommand {
       'sign-git-tag',
       'workspace',
       'workspaces',
+      'include-workspace-root',
     ]
   }
 

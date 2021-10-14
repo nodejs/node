@@ -875,3 +875,20 @@ t.test('workspace', t => {
   t.match(flat.userAgent, /workspaces\/true/)
   t.end()
 })
+
+t.test('workspaces derived', t => {
+  const obj = {
+    workspaces: ['a'],
+    'user-agent': definitions['user-agent'].default,
+  }
+  const flat = {}
+  definitions.workspaces.flatten('workspaces', obj, flat)
+  t.equal(flat.workspacesEnabled, true)
+  obj.workspaces = null
+  definitions.workspaces.flatten('workspaces', obj, flat)
+  t.equal(flat.workspacesEnabled, true)
+  obj.workspaces = false
+  definitions.workspaces.flatten('workspaces', obj, flat)
+  t.equal(flat.workspacesEnabled, false)
+  t.end()
+})

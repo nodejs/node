@@ -17,7 +17,13 @@ class Docs extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['browser', 'registry', 'workspace', 'workspaces']
+    return [
+      'browser',
+      'registry',
+      'workspace',
+      'workspaces',
+      'include-workspace-root',
+    ]
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */

@@ -63,7 +63,7 @@ const linkGently = async ({path, to, from, absFrom, force}) => {
   })
   .then(skipOrClobber => {
     if (skipOrClobber === SKIP)
-      return true
+      return false
     return symlink(from, to, 'file').catch(er => {
       if (skipOrClobber === CLOBBER || force)
         return rm(to).then(() => symlink(from, to, 'file'))

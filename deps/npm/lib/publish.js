@@ -36,7 +36,15 @@ class Publish extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['tag', 'access', 'dry-run', 'otp', 'workspace', 'workspaces']
+    return [
+      'tag',
+      'access',
+      'dry-run',
+      'otp',
+      'workspace',
+      'workspaces',
+      'include-workspace-root',
+    ]
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
