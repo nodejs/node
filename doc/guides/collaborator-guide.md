@@ -242,8 +242,8 @@ files also qualify as affecting the `node` binary:
 </details>
 
 If there are GitHub Actions CI failures unrelated to the change in the pull
-request, try "Re-run all jobs". It's under the "🔄 Re-run jobs" button, on the
-right-hand side of "Checks" tab.
+request, try the "🔄 Re-run all jobs" button, on the right-hand side of the
+"Checks" tab.
 
 If there are Jenkins CI failures unrelated to the change in the pull request,
 try "Resume Build". It is in the left navigation of the relevant
