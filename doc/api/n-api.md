@@ -403,12 +403,13 @@ napi_value create_addon(napi_env env);
     if (status != napi_ok) {                                      \
       const napi_extended_error_info* error_info = NULL;          \
       napi_get_last_error_info((env), &error_info);               \
+      const char* err_message = error_info->error_message;        \
       bool is_pending;                                            \
       napi_is_exception_pending((env), &is_pending);              \
       if (!is_pending) {                                          \
-        const char* message = (error_info->error_message == NULL) \
+        const char* message = (err_message == NULL)               \
             ? "empty error message"                               \
-            : error_info->error_message;                          \
+            : err_message;                                        \
         napi_throw_error((env), NULL, message);                   \
         return NULL;                                              \
       }                                                           \
@@ -1005,7 +1006,12 @@ This API retrieves a `napi_extended_error_info` structure with information
 about the last error that occurred.
 
 The content of the `napi_extended_error_info` returned is only valid up until
-a Node-API function is called on the same `env`.
+a Node-API function is called on the same `env`. This includes a call to
+`napi_is_exception_pending` so it may often be necessary to make a copy
+of the information so that it can be used later. The pointer returned
+in error_message points to a statically defined string so it is safe to use
+that pointer if you have copied it out of the error_message field (which will
+be overwritten) before another Node-API function was called.
 
 Do not rely on the content or format of any of the extended information as it
 is not subject to SemVer and may change at any time. It is intended only for
