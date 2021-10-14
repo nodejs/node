@@ -57,13 +57,12 @@ Alexis Campailla <alexis@janeasystems.com>
 Allan Sandfeld Jensen <allan.jensen@qt.io>
 Amos Lim <eui-sang.lim@samsung.com>
 Andreas Anyuru <andreas.anyuru@gmail.com>
-Andrew Paprocki <andrew@ishiboo.com>
 Andrei Kashcha <anvaka@gmail.com>
+Andrew Paprocki <andrew@ishiboo.com>
 Anna Henningsen <anna@addaleax.net>
 Antoine du Hamel <duhamelantoine1995@gmail.com>
 Anton Bikineev <ant.bikineev@gmail.com>
 Bangfu Tao <bangfu.tao@samsung.com>
-Daniel Shelton <d1.shelton@samsung.com>
 Ben Coe <bencoe@gmail.com>
 Ben Newman <ben@meteor.com>
 Ben Noordhuis <info@bnoordhuis.nl>
@@ -74,7 +73,6 @@ Brice Dobry <brice.dobry@futurewei.com>
 Burcu Dogan <burcujdogan@gmail.com>
 Caitlin Potter <caitpotter88@gmail.com>
 Chao Wang <chao.w@rioslab.org>
-Craig Schlenter <craig.schlenter@gmail.com>
 Charles Kerr <charles@charleskerr.com>
 Chengzhong Wu <legendecas@gmail.com>
 Choongwoo Han <cwhan.tunz@gmail.com>
@@ -82,10 +80,12 @@ Chris Nardi <hichris123@gmail.com>
 Christopher A. Taylor <chris@gameclosure.com>
 Colin Ihrig <cjihrig@gmail.com>
 Cong Zuo <zckevinzc@gmail.com>
+Craig Schlenter <craig.schlenter@gmail.com>
 Daniel Andersson <kodandersson@gmail.com>
 Daniel Bevenius <daniel.bevenius@gmail.com>
 Daniel Dromboski <dandromb@gmail.com>
 Daniel James <dnljms@gmail.com>
+Daniel Shelton <d1.shelton@samsung.com>
 Darshan Sen <raisinten@gmail.com>
 David Carlier <devnexen@gmail.com>
 David Manouchehri <david@davidmanouchehri.com>
@@ -120,13 +120,13 @@ Ingvar Stepanyan <me@rreverser.com>
 Ioseb Dzmanashvili <ioseb.dzmanashvili@gmail.com>
 Isiah Meadows <impinball@gmail.com>
 Jaime Bernardo <jaime@janeasystems.com>
-Jan de Mooij <jandemooij@gmail.com>
-Jan Krems <jan.krems@gmail.com>
-Janusz Majnert <jmajnert@gmail.com>
-Jay Freeman <saurik@saurik.com>
-James Pike <g00gle@chilon.net>
 James M Snell <jasnell@gmail.com>
+James Pike <g00gle@chilon.net>
+Jan Krems <jan.krems@gmail.com>
+Jan de Mooij <jandemooij@gmail.com>
+Janusz Majnert <jmajnert@gmail.com>
 Javad Amiri <javad.amiri@anu.edu.au>
+Jay Freeman <saurik@saurik.com>
 Jesper van den Ende <jespertheend@gmail.com>
 Ji Qiu <qiuji@iscas.ac.cn>
 Jianghua Yang <jianghua.yjh@alibaba-inc.com>
@@ -136,8 +136,8 @@ Joel Stanley <joel@jms.id.au>
 Johan Bergström <johan@bergstroem.nu>
 Jonathan Liu <net147@gmail.com>
 Julien Brianceau <jbriance@cisco.com>
-Junha Park <jpark3@scu.edu>
 JunHo Seo <sejunho@gmail.com>
+Junha Park <jpark3@scu.edu>
 Junming Huang <kiminghjm@gmail.com>
 Kang-Hao (Kenny) Lu <kennyluck@csail.mit.edu>
 Karl Skomski <karl@skomski.com>
@@ -181,20 +181,21 @@ Oleksandr Chekhovskyi <oleksandr.chekhovskyi@gmail.com>
 Oliver Dunk <oliver@oliverdunk.com>
 Paolo Giarrusso <p.giarrusso@gmail.com>
 Patrick Gansterer <paroga@paroga.com>
+Paul Lind <plind44@gmail.com>
+Pavel Medvedev <pmedvedev@gmail.com>
 Peng Fei <pfgenyun@gmail.com>
 Peng Wu <peng.w@rioslab.org>
 Peng-Yu Chen <pengyu@libstarrify.so>
 Peter Rybin <peter.rybin@gmail.com>
 Peter Varga <pvarga@inf.u-szeged.hu>
 Peter Wong <peter.wm.wong@gmail.com>
-Paul Lind <plind44@gmail.com>
-Pavel Medvedev <pmedvedev@gmail.com>
 PhistucK <phistuck@gmail.com>
 Qingyan Li <qingyan.liqy@alibaba-inc.com>
 Qiuyi Zhang <qiuyi.zqy@alibaba-inc.com>
 Rafal Krypa <rafal@krypa.net>
 Raul Tambre <raul@tambre.ee>
 Ray Glover <ray@rayglover.net>
+Ray Wang <ray@isrc.iscas.ac.cn>
 Refael Ackermann <refack@gmail.com>
 Rene Rebe <rene@exactcode.de>
 Reza Yazdani <ryazdani@futurewei.com>
@@ -219,11 +220,13 @@ Stefan Penner <stefan.penner@gmail.com>
 Stephan Hartmann <stha09@googlemail.com>
 Stephen Belanger <stephen.belanger@datadoghq.com>
 Sylvestre Ledru <sledru@mozilla.com>
+Takeshi Yoneda <takeshi@tetrate.io>
 Taketoshi Aono <brn@b6n.ch>
 Tao Liqiang <taolq@outlook.com>
 Teddy Katz <teddy.katz@gmail.com>
 Thomas Young <wenzhang5800@gmail.com>
 Tiancheng "Timothy" Gu <timothygu99@gmail.com>
+Tianping Yang <yangtianping@oppo.com>
 Timo Teräs <timo.teras@iki.fi>
 Tobias Burnus <burnus@net-b.de>
 Tobias Nießen <tniessen@tnie.de>
@@ -248,13 +251,11 @@ Yi Wang <wangyi8848@gmail.com>
 Yong Wang <ccyongwang@tencent.com>
 Youfeng Hao <ajihyf@gmail.com>
 Yu Yin <xwafish@gmail.com>
-Yusif Khudhur <yusif.khudhur@gmail.com>
 Yuri Iozzelli <yuri@leaningtech.com>
+Yusif Khudhur <yusif.khudhur@gmail.com>
 Zac Hansen <xaxxon@gmail.com>
 Zeynep Cankara <zeynepcankara402@gmail.com>
 Zhao Jiazhong <kyslie3100@gmail.com>
 Zheng Liu <i6122f@gmail.com>
 Zhongping Wang <kewpie.w.zp@gmail.com>
 柳荣一 <admin@web-tinker.com>
-Tianping Yang <yangtianping@oppo.com>
-Takeshi Yoneda <takeshi@tetrate.io>

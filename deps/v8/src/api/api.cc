@@ -3362,7 +3362,6 @@ struct ValueDeserializer::PrivateData {
       : isolate(i), deserializer(i, data, delegate) {}
   i::Isolate* isolate;
   i::ValueDeserializer deserializer;
-  bool has_aborted = false;
   bool supports_legacy_wire_format = false;
 };
 
@@ -3372,16 +3371,8 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate, const uint8_t* data,
 
 ValueDeserializer::ValueDeserializer(Isolate* isolate, const uint8_t* data,
                                      size_t size, Delegate* delegate) {
-  if (base::IsValueInRangeForNumericType<int>(size)) {
-    private_ = new PrivateData(
-        reinterpret_cast<i::Isolate*>(isolate),
-        base::Vector<const uint8_t>(data, static_cast<int>(size)), delegate);
-  } else {
-    private_ =
-        new PrivateData(reinterpret_cast<i::Isolate*>(isolate),
-                        base::Vector<const uint8_t>(nullptr, 0), nullptr);
-    private_->has_aborted = true;
-  }
+  private_ = new PrivateData(reinterpret_cast<i::Isolate*>(isolate),
+                             base::Vector<const uint8_t>(data, size), delegate);
 }
 
 ValueDeserializer::~ValueDeserializer() { delete private_; }
@@ -3390,15 +3381,6 @@ Maybe<bool> ValueDeserializer::ReadHeader(Local<Context> context) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8_NO_SCRIPT(isolate, context, ValueDeserializer, ReadHeader,
                      Nothing<bool>(), i::HandleScope);
-
-  // We could have aborted during the constructor.
-  // If so, ReadHeader is where we report it.
-  if (private_->has_aborted) {
-    isolate->Throw(*isolate->factory()->NewError(
-        i::MessageTemplate::kDataCloneDeserializationError));
-    has_pending_exception = true;
-    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  }
 
   bool read_header = false;
   has_pending_exception = !private_->deserializer.ReadHeader().To(&read_header);
@@ -3423,12 +3405,10 @@ void ValueDeserializer::SetSupportsLegacyWireFormat(
 }
 
 uint32_t ValueDeserializer::GetWireFormatVersion() const {
-  CHECK(!private_->has_aborted);
   return private_->deserializer.GetWireFormatVersion();
 }
 
 MaybeLocal<Value> ValueDeserializer::ReadValue(Local<Context> context) {
-  CHECK(!private_->has_aborted);
   PREPARE_FOR_EXECUTION(context, ValueDeserializer, ReadValue, Value);
   i::MaybeHandle<i::Object> result;
   if (GetWireFormatVersion() > 0) {
@@ -3445,14 +3425,12 @@ MaybeLocal<Value> ValueDeserializer::ReadValue(Local<Context> context) {
 
 void ValueDeserializer::TransferArrayBuffer(uint32_t transfer_id,
                                             Local<ArrayBuffer> array_buffer) {
-  CHECK(!private_->has_aborted);
   private_->deserializer.TransferArrayBuffer(transfer_id,
                                              Utils::OpenHandle(*array_buffer));
 }
 
 void ValueDeserializer::TransferSharedArrayBuffer(
     uint32_t transfer_id, Local<SharedArrayBuffer> shared_array_buffer) {
-  CHECK(!private_->has_aborted);
   private_->deserializer.TransferArrayBuffer(
       transfer_id, Utils::OpenHandle(*shared_array_buffer));
 }
