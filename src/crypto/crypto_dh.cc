@@ -9,6 +9,8 @@
 #include "threadpoolwork-inl.h"
 #include "v8.h"
 
+#include <variant>
+
 namespace node {
 
 using v8::ArrayBuffer;
@@ -459,7 +461,7 @@ Maybe<bool> DhKeyGenTraits::AdditionalConfig(
       return Nothing<bool>();
     }
 
-    params->params.prime_fixed_value = BignumPointer(
+    params->params.prime = BignumPointer(
         BN_bin2bn(reinterpret_cast<const unsigned char*>(group->prime),
                   group->prime_size, nullptr));
     params->params.generator = group->gen;
@@ -471,14 +473,14 @@ Maybe<bool> DhKeyGenTraits::AdditionalConfig(
         THROW_ERR_OUT_OF_RANGE(env, "Invalid prime size");
         return Nothing<bool>();
       }
-      params->params.prime_size = size;
+      params->params.prime = size;
     } else {
       ArrayBufferOrViewContents<unsigned char> input(args[*offset]);
       if (UNLIKELY(!input.CheckSizeInt32())) {
         THROW_ERR_OUT_OF_RANGE(env, "prime is too big");
         return Nothing<bool>();
       }
-      params->params.prime_fixed_value = BignumPointer(
+      params->params.prime = BignumPointer(
           BN_bin2bn(input.data(), input.size(), nullptr));
     }
 
@@ -492,31 +494,33 @@ Maybe<bool> DhKeyGenTraits::AdditionalConfig(
 
 EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
   EVPKeyPointer key_params;
-  if (params->params.prime_fixed_value) {
+  if (BignumPointer* prime_fixed_value =
+          std::get_if<BignumPointer>(&params->params.prime)) {
     DHPointer dh(DH_new());
     if (!dh)
       return EVPKeyCtxPointer();
 
-    BIGNUM* prime = params->params.prime_fixed_value.get();
+    BIGNUM* prime = prime_fixed_value->get();
     BignumPointer bn_g(BN_new());
     if (!BN_set_word(bn_g.get(), params->params.generator) ||
-        !DH_set0_pqg(dh.get(), prime, nullptr, bn_g.get()))
+        !DH_set0_pqg(dh.get(), prime, nullptr, bn_g.get())) {
       return EVPKeyCtxPointer();
+    }
 
-    params->params.prime_fixed_value.release();
+    prime_fixed_value->release();
     bn_g.release();
 
     key_params = EVPKeyPointer(EVP_PKEY_new());
     CHECK(key_params);
-    EVP_PKEY_assign_DH(key_params.get(), dh.release());
-  } else {
+    CHECK_EQ(EVP_PKEY_assign_DH(key_params.get(), dh.release()), 1);
+  } else if (int* prime_size = std::get_if<int>(&params->params.prime)) {
     EVPKeyCtxPointer param_ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DH, nullptr));
     EVP_PKEY* raw_params = nullptr;
     if (!param_ctx ||
         EVP_PKEY_paramgen_init(param_ctx.get()) <= 0 ||
         EVP_PKEY_CTX_set_dh_paramgen_prime_len(
             param_ctx.get(),
-            params->params.prime_size) <= 0 ||
+            *prime_size) <= 0 ||
         EVP_PKEY_CTX_set_dh_paramgen_generator(
             param_ctx.get(),
             params->params.generator) <= 0 ||
@@ -525,6 +529,8 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
     }
 
     key_params = EVPKeyPointer(raw_params);
+  } else {
+    UNREACHABLE();
   }
 
   EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(key_params.get(), nullptr));
