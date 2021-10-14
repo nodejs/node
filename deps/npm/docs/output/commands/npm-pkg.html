@@ -307,8 +307,8 @@ this configuration option.</p>
 <ul>
 <li>Workspace names</li>
 <li>Path to a workspace directory</li>
-<li>Path to a parent workspace directory (will result to selecting all of the
-nested workspaces)</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
 </ul>
 <p>When set for the <code>npm init</code> command, this may be set to the folder of a
 workspace which does not yet exist, to create the folder and set it up as a
@@ -318,11 +318,19 @@ brand new workspace within the project.</p>
 <!-- raw HTML omitted -->
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
-<li>Default: false</li>
-<li>Type: Boolean</li>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
 </ul>
-<p>Enable running a command in the context of <strong>all</strong> the configured
+<p>Set to true to run the command in the context of <strong>all</strong> configured
 workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code> to
+ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
+will link workspaces into the <code>node_modules</code> folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+</ul>
 <p>This value is not exported to the environment for child processes.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

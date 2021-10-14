@@ -82,6 +82,7 @@ class LS extends ArboristWorkspaceCmd {
     const production = this.npm.config.get('production')
     const unicode = this.npm.config.get('unicode')
     const packageLockOnly = this.npm.config.get('package-lock-only')
+    const workspacesEnabled = this.npm.flatOptions.workspacesEnabled
 
     const path = global ? resolve(this.npm.globalDir, '..') : this.npm.prefix
 
@@ -100,12 +101,18 @@ class LS extends ArboristWorkspaceCmd {
     if (this.workspaceNames && this.workspaceNames.length)
       wsNodes = arb.workspaceNodes(tree, this.workspaceNames)
     const filterBySelectedWorkspaces = edge => {
+      if (!workspacesEnabled
+        && edge.from.isProjectRoot
+        && edge.to.isWorkspace
+      )
+        return false
+
       if (!wsNodes || !wsNodes.length)
         return true
 
       if (edge.from.isProjectRoot) {
         return edge.to &&
-          edge.to.isWorkspace &
+          edge.to.isWorkspace &&
           wsNodes.includes(edge.to.target)
       }
 

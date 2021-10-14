@@ -247,7 +247,7 @@ class PlaceDep {
     // if we're placing in the tree with --force, we can get here even though
     // it's a conflict.  Treat it as a KEEP, but warn and move on.
     if (placementType === KEEP) {
-      // this was an overridden peer dep
+      // this was a peerConflicted peer dep
       if (edge.peer && !edge.valid) {
         this.warnPeerConflict()
       }
@@ -305,7 +305,7 @@ class PlaceDep {
       this.placed.parent = target
     }
 
-    // if it's an overridden peer dep, warn about it
+    // if it's a peerConflicted peer dep, warn about it
     if (edge.peer && !this.placed.satisfies(edge)) {
       this.warnPeerConflict()
     }
@@ -339,7 +339,7 @@ class PlaceDep {
     // otherwise they'd be gone and the peer set would change throughout
     // this loop.
     for (const peerEdge of this.placed.edgesOut.values()) {
-      if (peerEdge.valid || !peerEdge.peer || peerEdge.overridden) {
+      if (peerEdge.valid || !peerEdge.peer || peerEdge.peerConflicted) {
         continue
       }
 
@@ -353,7 +353,7 @@ class PlaceDep {
         continue
       }
 
-      // overridden peerEdge, just accept what's there already
+      // peerConflicted peerEdge, just accept what's there already
       if (!peer.satisfies(peerEdge)) {
         continue
       }
@@ -398,7 +398,7 @@ class PlaceDep {
       if (this.placed.satisfies(edge) ||
           !edge.peer ||
           edge.from.parent !== target ||
-          edge.overridden) {
+          edge.peerConflicted) {
         // not a peer dep, not invalid, or not from this level, so it's fine
         // to just let it re-evaluate as a problemEdge later, or let it be
         // satisfied by the new dep being placed.
@@ -406,14 +406,14 @@ class PlaceDep {
       }
       for (const entryEdge of peerEntrySets(edge.from).keys()) {
         // either this one needs to be pruned and re-evaluated, or marked
-        // as overridden and warned about.  If the entryEdge comes in from
+        // as peerConflicted and warned about.  If the entryEdge comes in from
         // the root, then we have to leave it alone, and in that case, it
         // will have already warned or crashed by getting to this point.
         const entryNode = entryEdge.to
         const deepestTarget = deepestNestingTarget(entryNode)
         if (deepestTarget !== target && !entryEdge.from.isRoot) {
           prunePeerSets.push(...gatherDepSet([entryNode], e => {
-            return e.to !== entryNode && !e.overridden
+            return e.to !== entryNode && !e.peerConflicted
           }))
         } else {
           this.warnPeerConflict(edge, this.dep)
@@ -532,7 +532,7 @@ class PlaceDep {
   warnPeerConflict (edge, dep) {
     edge = edge || this.edge
     dep = dep || this.dep
-    edge.overridden = true
+    edge.peerConflicted = true
     const expl = this.explainPeerConflict(edge, dep)
     log.warn('ERESOLVE', 'overriding peer dependency', expl)
   }

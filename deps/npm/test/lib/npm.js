@@ -292,6 +292,44 @@ t.test('npm.load', t => {
     await new Promise((res) => setTimeout(res))
   })
 
+  t.test('--no-workspaces with --workspace', async t => {
+    const dir = t.testdir({
+      packages: {
+        a: {
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+            scripts: { test: 'echo test a' },
+          }),
+        },
+      },
+      'package.json': JSON.stringify({
+        name: 'root',
+        version: '1.0.0',
+        workspaces: ['./packages/*'],
+      }),
+    })
+    process.argv = [
+      process.execPath,
+      process.argv[1],
+      '--userconfig', resolve(dir, '.npmrc'),
+      '--color', 'false',
+      '--workspaces', 'false',
+      '--workspace', 'a',
+    ]
+    const { npm } = mockNpm(t)
+    await npm.load()
+    npm.localPrefix = dir
+    await new Promise((res, rej) => {
+      npm.commands.run([], er => {
+        if (!er)
+          return rej(new Error('Expected an error'))
+        t.match(er.message, 'Can not use --no-workspaces and --workspace at the same time')
+        res()
+      })
+    })
+  })
+
   t.test('workspace-aware configs and commands', async t => {
     const dir = t.testdir({
       packages: {

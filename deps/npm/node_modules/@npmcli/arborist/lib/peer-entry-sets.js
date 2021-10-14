@@ -29,7 +29,7 @@ const peerEntrySets = node => {
   for (const peer of unionSet) {
     for (const edge of peer.edgesIn) {
       // if not valid, it doesn't matter anyway.  either it's been previously
-      // overridden, or it's the thing we're interested in replacing.
+      // peerConflicted, or it's the thing we're interested in replacing.
       if (!edge.valid) {
         continue
       }

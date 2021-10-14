@@ -26,7 +26,7 @@ example, running \fBnpm ls promzard\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@8\.0\.0 /path/to/npm
+npm@8\.1\.0 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
 .fi
@@ -269,8 +269,8 @@ Workspace names
 .IP \(bu 2
 Path to a workspace directory
 .IP \(bu 2
-Path to a parent workspace directory (will result to selecting all of the
-nested workspaces)
+Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)
 
 .RE
 .P
@@ -285,16 +285,44 @@ This value is not exported to the environment for child processes\.
 .SS \fBworkspaces\fP
 .RS 0
 .IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or Boolean
+
+.RE
+.P
+Set to true to run the command in the context of \fBall\fR configured
+workspaces\.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fP to
+ignore workspaces altogether\. When not set explicitly:
+.RS 0
+.IP \(bu 2
+Commands that operate on the \fBnode_modules\fP tree (install, update, etc\.)
+will link workspaces into the \fBnode_modules\fP folder\. \- Commands that do
+other things (test, exec, publish, etc\.) will operate on the root project,
+\fIunless\fR one or more workspaces are specified in the \fBworkspace\fP config\.
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
+<!\-\- automatically generated, do not edit manually \-\->
+<!\-\- see lib/utils/config/definitions\.js \-\->
+
+.SS \fBinclude\-workspace\-root\fP
+.RS 0
+.IP \(bu 2
 Default: false
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
-Enable running a command in the context of \fBall\fR the configured
-workspaces\.
+Include the workspace root when workspaces are enabled for a command\.
 .P
-This value is not exported to the environment for child processes\.
+When false, specifying individual workspaces via the \fBworkspace\fP config, or
+all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
+the specified workspaces, and not on the root project\.
 <!\-\- automatically generated, do not edit manually \-\->
 <!\-\- see lib/utils/config/definitions\.js \-\->
 

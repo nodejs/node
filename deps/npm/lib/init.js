@@ -19,7 +19,7 @@ class Init extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['yes', 'force', 'workspace', 'workspaces']
+    return ['yes', 'force', 'workspace', 'workspaces', 'include-workspace-root']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -54,6 +54,10 @@ class Init extends BaseCommand {
   }
 
   async initWorkspaces (args, filters) {
+    // if the root package is uninitiated, take care of it first
+    if (this.npm.flatOptions.includeWorkspaceRoot)
+      await this.init(args)
+
     // reads package.json for the top-level folder first, by doing this we
     // ensure the command throw if no package.json is found before trying
     // to create a workspace package.json file or its folders

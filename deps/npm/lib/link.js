@@ -185,6 +185,7 @@ class Link extends ArboristWorkspaceCmd {
         // atm but should be simple once we have a mocked registry again
         if (arg.name !== node.name /* istanbul ignore next */ || (
           arg.version &&
+          /* istanbul ignore next */
           !semver.satisfies(node.version, arg.version)
         )) {
           foundNodes.push(node)

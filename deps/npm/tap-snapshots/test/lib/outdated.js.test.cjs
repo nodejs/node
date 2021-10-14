@@ -192,6 +192,10 @@ exports[`test/lib/outdated.js TAP workspaces > should display no results if ws h
 
 `
 
+exports[`test/lib/outdated.js TAP workspaces > should display only root outdated when ws disabled 1`] = `
+
+`
+
 exports[`test/lib/outdated.js TAP workspaces > should display parseable results filtered by ws 1`] = `
 
 {CWD}/test/lib/tap-testdir-outdated-workspaces/node_modules/cat:cat@1.0.1:cat@1.0.0:cat@1.0.1:a

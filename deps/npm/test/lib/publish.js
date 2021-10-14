@@ -57,6 +57,7 @@ t.test('should publish with libnpmpublish, passing through flatOptions and respe
   const npm = mockNpm({
     flatOptions: {
       customValue: true,
+      workspacesEnabled: true,
     },
   })
   npm.config.getCredentialsByURI = (uri) => {

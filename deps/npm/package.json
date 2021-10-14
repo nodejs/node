@@ -1,5 +1,5 @@
 {
-  "version": "8.0.0",
+  "version": "8.1.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -7,6 +7,7 @@
     "packages/*"
   ],
   "files": [
+    "index.js",
     "bin",
     "docs/content/**/*.md",
     "docs/output/**/*.html",
@@ -54,10 +55,10 @@
   },
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
-    "@npmcli/arborist": "^3.0.0",
-    "@npmcli/ci-detect": "^1.2.0",
+    "@npmcli/arborist": "^4.0.1",
+    "@npmcli/ci-detect": "^1.4.0",
     "@npmcli/config": "^2.3.0",
-    "@npmcli/map-workspaces": "^1.0.4",
+    "@npmcli/map-workspaces": "^2.0.0",
     "@npmcli/package-json": "^1.0.1",
     "@npmcli/run-script": "^2.0.0",
     "abbrev": "~1.1.1",
@@ -80,8 +81,8 @@
     "json-parse-even-better-errors": "^2.3.1",
     "libnpmaccess": "^4.0.2",
     "libnpmdiff": "^2.0.4",
-    "libnpmexec": "^3.0.0",
-    "libnpmfund": "^2.0.0",
+    "libnpmexec": "^3.0.1",
+    "libnpmfund": "^2.0.1",
     "libnpmhook": "^6.0.2",
     "libnpmorg": "^2.0.2",
     "libnpmpack": "^3.0.0",
@@ -106,7 +107,7 @@
     "npm-user-validate": "^1.0.1",
     "npmlog": "^5.0.1",
     "opener": "^1.5.2",
-    "pacote": "^12.0.0",
+    "pacote": "^12.0.2",
     "parse-conflict-json": "^1.1.1",
     "qrcode-terminal": "^0.12.0",
     "read": "~1.0.7",

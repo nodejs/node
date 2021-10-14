@@ -130,8 +130,8 @@ class Edge {
     if (edge.error) {
       this.error = edge.error
     }
-    if (edge.overridden) {
-      this.overridden = edge.overridden
+    if (edge.peerConflicted) {
+      this.peerConflicted = edge.peerConflicted
     }
   }
 }
@@ -149,7 +149,7 @@ class EdgeOut extends Edge {
     }${
       this.error ? ' ' + this.error : ''
     }${
-      this.overridden ? ' overridden' : ''
+      this.peerConflicted ? ' peerConflicted' : ''
     } }`
   }
 }
@@ -165,7 +165,7 @@ class EdgeIn extends Edge {
     return `{ ${this.from || '""'} ${this.type} ${this.name}@${this.spec}${
       this.error ? ' ' + this.error : ''
     }${
-      this.overridden ? ' overridden' : ''
+      this.peerConflicted ? ' peerConflicted' : ''
     } }`
   }
 }

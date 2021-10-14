@@ -62,7 +62,14 @@ class Outdated extends ArboristWorkspaceCmd {
 
     if (this.workspaceNames && this.workspaceNames.length) {
       this.filterSet =
-        arb.workspaceDependencySet(this.tree, this.workspaceNames)
+        arb.workspaceDependencySet(
+          this.tree,
+          this.workspaceNames,
+          this.npm.flatOptions.includeWorkspaceRoot
+        )
+    } else if (!this.npm.flatOptions.workspacesEnabled) {
+      this.filterSet =
+        arb.excludeWorkspacesDependencySet(this.tree)
     }
 
     if (args.length !== 0) {

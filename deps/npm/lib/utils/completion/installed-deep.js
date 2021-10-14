@@ -7,6 +7,7 @@ const installedDeep = async (npm) => {
     depth,
     global,
     prefix,
+    workspacesEnabled,
   } = npm.flatOptions
 
   const getValues = (tree) =>
@@ -19,14 +20,18 @@ const installedDeep = async (npm) => {
       .sort((a, b) => (a.depth - b.depth) || localeCompare(a.name, b.name))
 
   const res = new Set()
-  const gArb = new Arborist({ global: true, path: resolve(npm.globalDir, '..') })
+  const gArb = new Arborist({
+    global: true,
+    path: resolve(npm.globalDir, '..'),
+    workspacesEnabled,
+  })
   const gTree = await gArb.loadActual({ global: true })
 
   for (const node of getValues(gTree))
     res.add(global ? node.name : [node.name, '-g'])
 
   if (!global) {
-    const arb = new Arborist({ global: false, path: prefix })
+    const arb = new Arborist({ global: false, path: prefix, workspacesEnabled })
     const tree = await arb.loadActual()
     for (const node of getValues(tree))
       res.add(node.name)

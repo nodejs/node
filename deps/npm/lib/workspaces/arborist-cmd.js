@@ -4,16 +4,21 @@
 
 const BaseCommand = require('../base-command.js')
 class ArboristCmd extends BaseCommand {
+  get isArboristCmd () {
+    return true
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
     return [
       'workspace',
       'workspaces',
+      'include-workspace-root',
     ]
   }
 
   execWorkspaces (args, filters, cb) {
-    this.setWorkspaces(filters)
+    this.setWorkspaces(filters, true)
       .then(() => {
         this.exec(args, cb)
       })

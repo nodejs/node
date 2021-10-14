@@ -43,6 +43,7 @@ class Diff extends BaseCommand {
       'tag',
       'workspace',
       'workspaces',
+      'include-workspace-root',
     ]
   }
 

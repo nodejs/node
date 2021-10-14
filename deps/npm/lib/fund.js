@@ -92,6 +92,7 @@ class Fund extends ArboristWorkspaceCmd {
       return
     }
 
+    // TODO: add !workspacesEnabled option handling to libnpmfund
     const fundingInfo = getFundingInfo(tree, {
       ...this.flatOptions,
       log: this.npm.log,

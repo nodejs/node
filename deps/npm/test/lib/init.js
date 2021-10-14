@@ -513,3 +513,26 @@ t.test('workspaces', t => {
 
   t.end()
 })
+t.test('npm init workspces with root', t => {
+  t.teardown(() => {
+    npm._mockOutputs.length = 0
+  })
+  npm.localPrefix = t.testdir({})
+  npm.flatOptions.includeWorkspaceRoot = true
+
+  // init-package-json prints directly to console.log
+  // this avoids poluting test output with those logs
+  console.log = noop
+
+  process.chdir(npm.localPrefix)
+  init.execWorkspaces([], ['packages/a'], err => {
+    if (err)
+      throw err
+
+    const pkg = require(resolve(npm.localPrefix, 'package.json'))
+    t.equal(pkg.version, '1.0.0')
+    t.equal(pkg.license, 'ISC')
+    t.matchSnapshot(npm._mockOutputs, 'does not print helper info')
+    t.end()
+  })
+})

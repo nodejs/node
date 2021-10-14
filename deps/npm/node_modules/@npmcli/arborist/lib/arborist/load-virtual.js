@@ -54,7 +54,10 @@ module.exports = cls => class VirtualLoader extends cls {
       return treeCheck(this.virtualTree)
     }
 
-    const s = await Shrinkwrap.load({ path: this.path })
+    const s = await Shrinkwrap.load({
+      path: this.path,
+      lockfileVersion: this.options.lockfileVersion,
+    })
     if (!s.loadedFromDisk && !options.root) {
       const er = new Error('loadVirtual requires existing shrinkwrap file')
       throw Object.assign(er, { code: 'ENOLOCK' })
