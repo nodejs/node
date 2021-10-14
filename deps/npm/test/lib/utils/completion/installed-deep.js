@@ -6,6 +6,7 @@ let globalDir = 'MISSING_GLOBAL_DIR'
 const _flatOptions = {
   depth: Infinity,
   global: false,
+  workspacesEnabled: true,
   get prefix () {
     return prefix
   },

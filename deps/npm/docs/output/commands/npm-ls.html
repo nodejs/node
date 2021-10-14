@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#note-design-changes-pending">Note: Design Changes Pending</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#all"><code>all</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#depth"><code>depth</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#link"><code>link</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#unicode"><code>unicode</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#note-design-changes-pending">Note: Design Changes Pending</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#all"><code>all</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#depth"><code>depth</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#link"><code>link</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#unicode"><code>unicode</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -159,7 +159,7 @@ tree at all, use <a href="../commands/npm-explain.html"><code>npm explain</code>
 the results to only the paths to the packages named.  Note that nested
 packages will <em>also</em> show the paths to the specified packages.  For
 example, running <code>npm ls promzard</code> in npm’s source tree will show:</p>
-<pre lang="bash"><code>npm@8.0.0 /path/to/npm
+<pre lang="bash"><code>npm@8.1.0 /path/to/npm
 └─┬ init-package-json@0.0.4
   └── promzard@0.1.5
 </code></pre>
@@ -320,8 +320,8 @@ this configuration option.</p>
 <ul>
 <li>Workspace names</li>
 <li>Path to a workspace directory</li>
-<li>Path to a parent workspace directory (will result to selecting all of the
-nested workspaces)</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
 </ul>
 <p>When set for the <code>npm init</code> command, this may be set to the folder of a
 workspace which does not yet exist, to create the folder and set it up as a
@@ -331,12 +331,31 @@ brand new workspace within the project.</p>
 <!-- raw HTML omitted -->
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Set to true to run the command in the context of <strong>all</strong> configured
+workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code> to
+ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
+will link workspaces into the <code>node_modules</code> folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
+<ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Enable running a command in the context of <strong>all</strong> the configured
-workspaces.</p>
-<p>This value is not exported to the environment for child processes.</p>
+<p>Include the workspace root when workspaces are enabled for a command.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
+all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

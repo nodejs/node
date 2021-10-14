@@ -5,6 +5,10 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
+exports[`test/lib/init.js TAP npm init workspces with root > does not print helper info 1`] = `
+Array []
+`
+
 exports[`test/lib/init.js TAP workspaces no args > should print helper info 1`] = `
 Array [
   Array [

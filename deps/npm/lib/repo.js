@@ -19,7 +19,7 @@ class Repo extends BaseCommand {
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get params () {
-    return ['browser', 'workspace', 'workspaces']
+    return ['browser', 'workspace', 'workspaces', 'include-workspace-root']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -48,7 +48,13 @@ class Repo extends BaseCommand {
   }
 
   async get (pkg) {
-    const opts = { ...this.npm.flatOptions, fullMetadata: true }
+    // XXX It is very odd that `where` is how pacote knows to look anywhere
+    // other than the cwd.
+    const opts = {
+      ...this.npm.flatOptions,
+      where: this.npm.localPrefix,
+      fullMetadata: true,
+    }
     const mani = await pacote.manifest(pkg, opts)
 
     const r = mani.repository

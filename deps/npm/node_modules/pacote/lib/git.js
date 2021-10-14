@@ -50,7 +50,7 @@ class GitFetcher extends Fetcher {
       // use hosted.tarball() when we shell to RemoteFetcher later
       this.resolved = this.spec.hosted
         ? repoUrl(this.spec.hosted, { noCommittish: false })
-        : this.spec.fetchSpec + '#' + this.spec.gitCommittish
+        : this.spec.rawSpec
     } else
       this.resolvedSha = ''
   }

@@ -137,7 +137,19 @@ const npm = module.exports = new class extends EventEmitter {
 
     const workspacesEnabled = this.config.get('workspaces')
     const workspacesFilters = this.config.get('workspace')
+    if (workspacesEnabled === false && workspacesFilters.length > 0)
+      return cb(new Error('Can not use --no-workspaces and --workspace at the same time'))
+
     const filterByWorkspaces = workspacesEnabled || workspacesFilters.length > 0
+    // normally this would go in the constructor, but our tests don't
+    // actually use a real npm object so this.npm.config isn't always
+    // populated.  this is the compromise until we can make that a reality
+    // and then move this into the constructor.
+    impl.workspaces = this.config.get('workspaces')
+    impl.workspacePaths = null
+    // normally this would be evaluated in base-command#setWorkspaces, see
+    // above for explanation
+    impl.includeWorkspaceRoot = this.config.get('include-workspace-root')
 
     if (this.config.get('usage')) {
       this.output(impl.usage)

@@ -7,8 +7,6 @@ class BaseCommand {
   constructor (npm) {
     this.wrapWidth = 80
     this.npm = npm
-    this.workspaces = null
-    this.workspacePaths = null
   }
 
   get name () {
@@ -75,7 +73,13 @@ class BaseCommand {
   }
 
   async setWorkspaces (filters) {
-    const ws = await getWorkspaces(filters, { path: this.npm.localPrefix })
+    if (this.isArboristCmd)
+      this.includeWorkspaceRoot = false
+
+    const ws = await getWorkspaces(filters, {
+      path: this.npm.localPrefix,
+      includeWorkspaceRoot: this.includeWorkspaceRoot,
+    })
     this.workspaces = ws
     this.workspaceNames = [...ws.keys()]
     this.workspacePaths = [...ws.values()]

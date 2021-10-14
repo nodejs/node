@@ -40,8 +40,9 @@ const _savePrefix = Symbol('savePrefix')
 const _retireShallowNodes = Symbol.for('retireShallowNodes')
 const _getBundlesByDepth = Symbol('getBundlesByDepth')
 const _registryResolved = Symbol('registryResolved')
-const _addNodeToTrashList = Symbol('addNodeToTrashList')
+const _addNodeToTrashList = Symbol.for('addNodeToTrashList')
 const _workspaces = Symbol.for('workspaces')
+const _workspacesEnabled = Symbol.for('workspacesEnabled')
 
 // shared by rebuild mixin
 const _trashList = Symbol.for('trashList')
@@ -314,6 +315,10 @@ module.exports = cls => class Reifier extends cls {
     // to just invalidate the parts that changed, but avoid walking the
     // whole tree again.
 
+    const includeWorkspaces = this[_workspacesEnabled]
+    const includeRootDeps = !this[_workspacesEnabled]
+      || this[_includeWorkspaceRoot] && this[_workspaces].length > 0
+
     const filterNodes = []
     if (this[_global] && this.explicitRequests.size) {
       const idealTree = this.idealTree.target
@@ -331,17 +336,21 @@ module.exports = cls => class Reifier extends cls {
         }
       }
     } else {
-      for (const ws of this[_workspaces]) {
-        const ideal = this.idealTree.children.get(ws)
-        if (ideal) {
-          filterNodes.push(ideal)
-        }
-        const actual = this.actualTree.children.get(ws)
-        if (actual) {
-          filterNodes.push(actual)
+      if (includeWorkspaces) {
+        // add all ws nodes to filterNodes
+        for (const ws of this[_workspaces]) {
+          const ideal = this.idealTree.children.get(ws)
+          if (ideal) {
+            filterNodes.push(ideal)
+          }
+          const actual = this.actualTree.children.get(ws)
+          if (actual) {
+            filterNodes.push(actual)
+          }
         }
       }
-      if (this[_includeWorkspaceRoot] && (this[_workspaces].length > 0)) {
+      if (includeRootDeps) {
+        // add all non-workspace nodes to filterNodes
         for (const tree of [this.idealTree, this.actualTree]) {
           for (const {type, to} of tree.edgesOut.values()) {
             if (type !== 'workspace' && to) {
@@ -451,10 +460,12 @@ module.exports = cls => class Reifier extends cls {
 
     const filter = node =>
       node.top.isProjectRoot &&
-        (node.peer && this[_omitPeer] ||
+        (
+          node.peer && this[_omitPeer] ||
           node.dev && this[_omitDev] ||
           node.optional && this[_omitOptional] ||
-          node.devOptional && this[_omitOptional] && this[_omitDev])
+          node.devOptional && this[_omitOptional] && this[_omitDev]
+        )
 
     for (const node of this.idealTree.inventory.filter(filter)) {
       this[_addNodeToTrashList](node)

@@ -547,6 +547,12 @@ exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should lis
 [0m[0m
 `
 
+exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should not list workspaces with --no-workspaces 1`] = `
+[0mworkspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces[0m
+[0m\`-- (empty)[0m
+[0m[0m
+`
+
 exports[`test/lib/ls.js TAP ls loading a tree containing workspaces > should print all tree and filter by dep within only the ws subtree 1`] = `
 workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces
 \`-- d@1.0.0 -> ./d
