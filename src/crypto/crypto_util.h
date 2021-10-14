@@ -552,7 +552,7 @@ struct EnginePointer {
     if (engine != nullptr) {
       if (finish_on_exit) {
         // This also does the equivalent of ENGINE_free.
-        ENGINE_finish(engine);
+        CHECK_EQ(ENGINE_finish(engine), 1);
       } else {
         ENGINE_free(engine);
       }
