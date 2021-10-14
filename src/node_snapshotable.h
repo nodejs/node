@@ -6,6 +6,8 @@
 
 #include "base_object.h"
 #include "util.h"
+#include "v8-forward.h"
+#include "v8-snapshot.h"
 
 namespace node {
 

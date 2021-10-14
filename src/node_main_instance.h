@@ -3,13 +3,14 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <cstddef>
-#include <memory>
-
 #include "node.h"
 #include "util.h"
 #include "uv.h"
-#include "v8.h"
+#include "v8-forward.h"
+#include "v8-snapshot.h"
+
+#include <cstddef>
+#include <memory>
 
 namespace node {
 

@@ -31,7 +31,12 @@
 #include "tracing/trace_event.h"
 #include "util.h"
 #include "uv.h"
-#include "v8.h"
+#include "v8-forward.h"
+#include "v8-debug.h"
+#include "v8-exception.h"
+#include "v8-isolate.h"
+#include "v8-maybe.h"
+#include "v8-profiler.h"
 
 #include <cstdint>
 #include <cstdlib>

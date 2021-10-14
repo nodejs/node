@@ -19,6 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#define NODE_WANT_V8_SUBHEADERS 1
+
 #include "node_v8.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
@@ -26,7 +28,18 @@
 #include "node.h"
 #include "node_external_reference.h"
 #include "util-inl.h"
-#include "v8.h"
+#include "v8-forward.h"
+#include "v8-container.h"
+#include "v8-context.h"
+#include "v8-function-callback.h"
+#include "v8-initialization.h"
+#include "v8-isolate.h"
+#include "v8-object.h"
+#include "v8-primitive.h"
+#include "v8-script.h"
+#include "v8-snapshot.h"
+#include "v8-statistics.h"
+#include "v8-value.h"
 
 namespace node {
 namespace v8_utils {
@@ -42,6 +55,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::ScriptCompiler;
+using v8::SnapshotCreator;
 using v8::String;
 using v8::Uint32;
 using v8::V8;
@@ -109,7 +123,7 @@ BindingData::BindingData(Environment* env, Local<Object> obj)
 }
 
 void BindingData::PrepareForSerialization(Local<Context> context,
-                                          v8::SnapshotCreator* creator) {
+                                          SnapshotCreator* creator) {
   // We'll just re-initialize the buffers in the constructor since their
   // contents can be thrown away once consumed in the previous call.
   heap_statistics_buffer.Release();
@@ -169,7 +183,7 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   HeapSpaceStatistics s;
   Isolate* const isolate = args.GetIsolate();
   CHECK(args[0]->IsUint32());
-  size_t space_index = static_cast<size_t>(args[0].As<v8::Uint32>()->Value());
+  size_t space_index = static_cast<size_t>(args[0].As<Uint32>()->Value());
   isolate->GetHeapSpaceStatistics(&s, space_index);
 
   AliasedFloat64Array& buffer = data->heap_space_statistics_buffer;

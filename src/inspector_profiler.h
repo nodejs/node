@@ -7,8 +7,10 @@
 #error("This header can only be used when inspector is enabled")
 #endif
 
-#include <unordered_set>
 #include "inspector_agent.h"
+#include "v8-forward.h"
+
+#include <unordered_set>
 
 namespace node {
 // Forward declaration to break recursive dependency chain with src/env.h.

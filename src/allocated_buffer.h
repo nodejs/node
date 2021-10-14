@@ -4,9 +4,10 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
-#include "uv.h"
-#include "v8.h"
 #include "env.h"
+#include "uv.h"
+#include "v8-forward.h"
+#include "v8-array-buffer.h"
 
 namespace node {
 

@@ -3,9 +3,13 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "v8-forward.h"
+#include "v8-function-callback.h"
+#include "v8-object.h"
+#include "v8-template.h"
+
 #include <cinttypes>
 #include <vector>
-#include "v8.h"
 
 namespace node {
 

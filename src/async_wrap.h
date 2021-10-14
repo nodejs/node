@@ -25,7 +25,8 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
-#include "v8.h"
+#include "v8-forward.h"
+#include "v8-weak-callback-info.h"
 
 #include <cstdint>
 

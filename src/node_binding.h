@@ -11,6 +11,7 @@
 #define NAPI_EXPERIMENTAL
 #include "node_api.h"
 #include "uv.h"
+#include "v8-forward.h"
 
 enum {
   NM_F_BUILTIN = 1 << 0,  // Unused.

@@ -4,6 +4,10 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "memory_tracker.h"
+#include "v8-forward.h"
+#include "v8-array-buffer.h"
+#include "v8-persistent-handle.h"
+#include "v8-profiler.h"
 
 namespace node {
 

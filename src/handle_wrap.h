@@ -27,7 +27,7 @@
 #include "async_wrap.h"
 #include "util.h"
 #include "uv.h"
-#include "v8.h"
+#include "v8-forward.h"
 
 namespace node {
 

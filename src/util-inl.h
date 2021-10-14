@@ -24,10 +24,15 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "util.h"
+#include "v8-forward.h"
+#include "v8-container.h"
+#include "v8-context.h"
+#include "v8-function-callback.h"
+
 #include <cmath>
 #include <cstring>
 #include <locale>
-#include "util.h"
 
 // These are defined by <sys/byteorder.h> or <netinet/in.h> on some systems.
 // To avoid warnings, undefine them before redefining them.

@@ -7,7 +7,8 @@
 #endif
 
 #include "node_options.h"
-#include "v8.h"
+#include "v8-forward.h"
+#include "v8-message.h"
 
 #include <cstddef>
 #include <memory>

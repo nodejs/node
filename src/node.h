@@ -60,9 +60,22 @@
 # define SIGKILL 9
 #endif
 
-#include "v8.h"  // NOLINT(build/include_order)
+#ifndef NODE_WANT_V8_SUBHEADERS
+#include "v8.h"
+#else
+#include "v8-forward.h"
+#include "v8-callbacks.h"
+#include "v8-date.h"
+#include "v8-exception.h"
+#include "v8-function.h"
+#include "v8-isolate.h"
+#include "v8-maybe.h"
+#include "v8-microtask.h"
+#include "v8-persistent-handle.h"
+#include "v8-platform.h"
+#include "v8-template.h"
+#endif  // NODE_WANT_V8_SUBHEADERS
 
-#include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
 #include <memory>

@@ -41,7 +41,12 @@
 #include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
-#include "v8.h"
+#include "v8-forward.h"
+#include "v8-array-buffer.h"
+#include "v8-persistent-handle.h"
+#include "v8-platform.h"
+#include "v8-profiler.h"
+#include "v8-snapshot.h"
 
 #include <array>
 #include <atomic>

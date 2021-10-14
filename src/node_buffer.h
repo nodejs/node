@@ -23,7 +23,11 @@
 #define SRC_NODE_BUFFER_H_
 
 #include "node.h"
+#ifndef NODE_WANT_V8_SUBHEADERS
 #include "v8.h"
+#else
+#include "v8-forward.h"
+#endif  // NODE_WANT_V8_SUBHEADERS
 
 namespace node {
 

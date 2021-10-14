@@ -3,12 +3,13 @@
 
 #include "allocated_buffer.h"
 #include "base_object-inl.h"
-#include "node_buffer.h"
 #include "env-inl.h"
-#include "uv.h"
-#include "v8.h"
-#include "util-inl.h"
+#include "node_buffer.h"
 #include "node_internals.h"
+#include "util-inl.h"
+#include "uv.h"
+#include "v8-forward.h"
+#include "v8-array-buffer.h"
 
 namespace node {
 

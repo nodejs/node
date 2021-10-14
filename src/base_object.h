@@ -24,9 +24,13 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <type_traits>  // std::remove_reference
 #include "memory_tracker.h"
-#include "v8.h"
+#include "v8-forward.h"
+#include "v8-maybe.h"
+#include "v8-persistent-handle.h"
+#include "v8-value-serializer.h"
+
+#include <type_traits>  // std::remove_reference
 
 namespace node {
 

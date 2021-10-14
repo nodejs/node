@@ -27,8 +27,9 @@
 #include "base_object.h"
 #include "env-inl.h"
 #include "util.h"
-
-#include "v8.h"
+#include "v8-forward.h"
+#include "v8-object.h"
+#include "v8-weak-callback-info.h"
 
 namespace node {
 
