@@ -1119,7 +1119,7 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate,
     : isolate_(isolate),
       delegate_(delegate),
       position_(data.begin()),
-      end_(data.begin() + data.length()),
+      end_(data.end()),
       id_map_(isolate->global_handles()->Create(
           ReadOnlyRoots(isolate_).empty_fixed_array())) {}
 
