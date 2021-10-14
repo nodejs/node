@@ -110,6 +110,7 @@ const config = {
   'package-lock-only': false,
 }
 const flatOptions = {
+  workspacesEnabled: true,
 }
 const npm = mockNpm({
   config,
@@ -1526,6 +1527,25 @@ t.test('ls', (t) => {
         config.all = true
         config.depth = Infinity
         npm.color = false
+        res()
+      })
+    })
+
+    await new Promise((res, rej) => {
+      config.all = false
+      config.depth = 0
+      npm.color = true
+      npm.flatOptions.workspacesEnabled = false
+      ls.exec([], (err) => {
+        if (err)
+          rej(err)
+
+        t.matchSnapshot(redactCwd(result),
+          'should not list workspaces with --no-workspaces')
+        config.all = true
+        config.depth = Infinity
+        npm.color = false
+        npm.flatOptions.workspacesEnabled = true
         res()
       })
     })

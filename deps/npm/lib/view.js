@@ -31,6 +31,7 @@ class View extends BaseCommand {
       'json',
       'workspace',
       'workspaces',
+      'include-workspace-root',
     ]
   }
 

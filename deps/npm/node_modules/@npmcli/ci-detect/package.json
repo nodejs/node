@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/ci-detect",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Detect what kind of CI environment the program is in",
   "author": "Isaac Z. Schlueter <i@izs.me> (https://izs.me)",
   "license": "ISC",

@@ -38,6 +38,7 @@ class RunScript extends BaseCommand {
     return [
       'workspace',
       'workspaces',
+      'include-workspace-root',
       'if-present',
       'ignore-scripts',
       'script-shell',

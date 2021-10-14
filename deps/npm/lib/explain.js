@@ -46,8 +46,15 @@ class Explain extends ArboristWorkspaceCmd {
     const arb = new Arborist({ path: this.npm.prefix, ...this.npm.flatOptions })
     const tree = await arb.loadActual()
 
-    if (this.workspaceNames && this.workspaceNames.length)
+    if (this.npm.flatOptions.workspacesEnabled
+      && this.workspaceNames
+      && this.workspaceNames.length
+    )
       this.filterSet = arb.workspaceDependencySet(tree, this.workspaceNames)
+    else if (!this.npm.flatOptions.workspacesEnabled) {
+      this.filterSet =
+        arb.excludeWorkspacesDependencySet(tree)
+    }
 
     const nodes = new Set()
     for (const arg of args) {

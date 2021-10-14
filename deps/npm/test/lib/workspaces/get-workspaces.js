@@ -86,6 +86,17 @@ t.test('get-workspaces', async t => {
     'should filter by package name'
   )
 
+  workspaces = await getWorkspaces(['a', 'b'], { path, includeWorkspaceRoot: true })
+  t.same(
+    clean(workspaces, path),
+    new Map(Object.entries({
+      x: '{PATH}',
+      a: '{PATH}/packages/a',
+      b: '{PATH}/packages/b',
+    })),
+    'include rootspace root'
+  )
+
   workspaces = await getWorkspaces(['./packages/c'], { path })
   t.same(
     clean(workspaces, path),

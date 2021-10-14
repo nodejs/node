@@ -69,8 +69,8 @@ Valid values for the `workspace` config are either:
 
 * Workspace names
 * Path to a workspace directory
-* Path to a parent workspace directory (will result to selecting all of the
-  nested workspaces)
+* Path to a parent workspace directory (will result in selecting all
+  workspaces within that folder)
 
 When set for the `npm init` command, this may be set to the folder of a
 workspace which does not yet exist, to create the folder and set it up as a
@@ -83,13 +83,35 @@ This value is not exported to the environment for child processes.
 
 #### `workspaces`
 
+* Default: null
+* Type: null or Boolean
+
+Set to true to run the command in the context of **all** configured
+workspaces.
+
+Explicitly setting this to false will cause commands like `install` to
+ignore workspaces altogether. When not set explicitly:
+
+- Commands that operate on the `node_modules` tree (install, update, etc.)
+will link workspaces into the `node_modules` folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+_unless_ one or more workspaces are specified in the `workspace` config.
+
+This value is not exported to the environment for child processes.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `include-workspace-root`
+
 * Default: false
 * Type: Boolean
 
-Enable running a command in the context of **all** the configured
-workspaces.
+Include the workspace root when workspaces are enabled for a command.
 
-This value is not exported to the environment for child processes.
+When false, specifying individual workspaces via the `workspace` config, or
+all workspaces via the `workspaces` flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
