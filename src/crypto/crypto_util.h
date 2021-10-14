@@ -554,7 +554,7 @@ struct EnginePointer {
         // This also does the equivalent of ENGINE_free.
         CHECK_EQ(ENGINE_finish(engine), 1);
       } else {
-        ENGINE_free(engine);
+        CHECK_EQ(ENGINE_free(engine), 1);
       }
     }
     engine = engine_;
