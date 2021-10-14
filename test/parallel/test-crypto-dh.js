@@ -10,10 +10,10 @@ const size = common.hasFipsCrypto || common.hasOpenSSL3 ? 1024 : 256;
 const dh1 = crypto.createDiffieHellman(size);
 const p1 = dh1.getPrime('buffer');
 const dh2 = crypto.createDiffieHellman(p1, 'buffer');
-let key1 = dh1.generateKeys();
-let key2 = dh2.generateKeys('hex');
-let secret1 = dh1.computeSecret(key2, 'hex', 'base64');
-let secret2 = dh2.computeSecret(key1, 'latin1', 'buffer');
+const key1 = dh1.generateKeys();
+const key2 = dh2.generateKeys('hex');
+const secret1 = dh1.computeSecret(key2, 'hex', 'base64');
+const secret2 = dh2.computeSecret(key1, 'latin1', 'buffer');
 
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along

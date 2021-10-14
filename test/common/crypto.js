@@ -1,5 +1,9 @@
 'use strict';
 
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const assert = require('assert');
 const crypto = require('crypto');
 
@@ -22,8 +26,8 @@ const modp2buf = Buffer.from([
 ]);
 
 function testDH({ publicKey: alicePublicKey, privateKey: alicePrivateKey },
-              { publicKey: bobPublicKey, privateKey: bobPrivateKey },
-              expectedValue) {
+                { publicKey: bobPublicKey, privateKey: bobPrivateKey },
+                expectedValue) {
   const buf1 = crypto.diffieHellman({
     privateKey: alicePrivateKey,
     publicKey: bobPublicKey
