@@ -1870,30 +1870,28 @@ added: v15.0.0
 Example: Converting a `CryptoKey` instance to a `KeyObject`:
 
 ```mjs
-const { webcrypto, KeyObject } = await import('crypto');
-const { subtle } = webcrypto;
+import { KeyObject } from 'crypto';
+import { crypto } from 'crypto/web';
 
-const key = await subtle.generateKey({
-  name: 'HMAC',
-  hash: 'SHA-256',
-  length: 256
-}, true, ['sign', 'verify']);
+(async function() {
+  const key = await crypto.subtle.generateKey({
+    name: 'HMAC',
+    hash: 'SHA-256',
+    length: 256
+  }, true, ['sign', 'verify']);
 
-const keyObject = KeyObject.from(key);
-console.log(keyObject.symmetricKeySize);
-// Prints: 32 (symmetric key size in bytes)
+  const keyObject = KeyObject.from(key);
+  console.log(keyObject.symmetricKeySize);
+  // Prints: 32 (symmetric key size in bytes)
+})();
 ```
 
 ```cjs
-const {
-  webcrypto: {
-    subtle,
-  },
-  KeyObject,
-} = require('crypto');
+const { KeyObject } = require('crypto');
+const { crypto } = require('crypto/web');
 
 (async function() {
-  const key = await subtle.generateKey({
+  const key = await crypto.subtle.generateKey({
     name: 'HMAC',
     hash: 'SHA-256',
     length: 256

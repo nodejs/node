@@ -6,20 +6,20 @@
 
 Node.js provides an implementation of the standard [Web Crypto API][].
 
-Use `require('crypto').webcrypto` to access this module.
+Use `require('crypto/web').crypto` to access this module.
 
 ```js
-const { subtle } = require('crypto').webcrypto;
+const { crypto } = require('crypto/web');
 
 (async function() {
 
-  const key = await subtle.generateKey({
+  const key = await crypto.subtle.generateKey({
     name: 'HMAC',
     hash: 'SHA-256',
     length: 256
   }, true, ['sign', 'verify']);
 
-  const digest = await subtle.sign({
+  const digest = await crypto.subtle.sign({
     name: 'HMAC'
   }, key, 'I love cupcakes');
 
@@ -36,10 +36,10 @@ or asymmetric key pairs (public key and private key).
 #### AES keys
 
 ```js
-const { subtle } = require('crypto').webcrypto;
+const { crypto } = require('crypto/web');
 
 async function generateAesKey(length = 256) {
-  const key = await subtle.generateKey({
+  const key = await crypto.subtle.generateKey({
     name: 'AES-CBC',
     length
   }, true, ['encrypt', 'decrypt']);
@@ -51,13 +51,13 @@ async function generateAesKey(length = 256) {
 #### Elliptic curve key pairs
 
 ```js
-const { subtle } = require('crypto').webcrypto;
+const { crypto } = require('crypto/web');
 
 async function generateEcKey(namedCurve = 'P-521') {
   const {
     publicKey,
     privateKey
-  } = await subtle.generateKey({
+  } = await crypto.subtle.generateKey({
     name: 'ECDSA',
     namedCurve,
   }, true, ['sign', 'verify']);
@@ -69,17 +69,17 @@ async function generateEcKey(namedCurve = 'P-521') {
 #### ED25519/ED448/X25519/X448 Elliptic curve key pairs
 
 ```js
-const { subtle } = require('crypto').webcrypto;
+const { crypto } = require('crypto/web');
 
 async function generateEd25519Key() {
-  return subtle.generateKey({
+  return crypto.subtle.generateKey({
     name: 'NODE-ED25519',
     namedCurve: 'NODE-ED25519',
   }, true, ['sign', 'verify']);
 }
 
 async function generateX25519Key() {
-  return subtle.generateKey({
+  return crypto.subtle.generateKey({
     name: 'ECDH',
     namedCurve: 'NODE-X25519',
   }, true, ['deriveKey']);
@@ -89,10 +89,10 @@ async function generateX25519Key() {
 #### HMAC keys
 
 ```js
-const { subtle } = require('crypto').webcrypto;
+const { crypto } = require('crypto/web');
 
 async function generateHmacKey(hash = 'SHA-256') {
-  const key = await subtle.generateKey({
+  const key = await crypto.subtle.generateKey({
     name: 'HMAC',
     hash
   }, true, ['sign', 'verify']);
@@ -104,14 +104,14 @@ async function generateHmacKey(hash = 'SHA-256') {
 #### RSA key pairs
 
 ```js
-const { subtle } = require('crypto').webcrypto;
+const { crypto } = require('crypto/web');
 const publicExponent = new Uint8Array([1, 0, 1]);
 
 async function generateRsaKey(modulusLength = 2048, hash = 'SHA-256') {
   const {
     publicKey,
     privateKey
-  } = await subtle.generateKey({
+  } = await crypto.subtle.generateKey({
     name: 'RSASSA-PKCS1-v1_5',
     modulusLength,
     publicExponent,
@@ -125,14 +125,14 @@ async function generateRsaKey(modulusLength = 2048, hash = 'SHA-256') {
 ### Encryption and decryption
 
 ```js
-const { subtle, getRandomValues } = require('crypto').webcrypto;
+const { crypto } = require('crypto/web').crypto;
 
 async function aesEncrypt(plaintext) {
   const ec = new TextEncoder();
   const key = await generateAesKey();
-  const iv = getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(16));
 
-  const ciphertext = await subtle.encrypt({
+  const ciphertext = await crypto.subtle.encrypt({
     name: 'AES-CBC',
     iv,
   }, key, ec.encode(plaintext));
@@ -146,7 +146,7 @@ async function aesEncrypt(plaintext) {
 
 async function aesDecrypt(ciphertext, key, iv) {
   const dec = new TextDecoder();
-  const plaintext = await subtle.decrypt({
+  const plaintext = await crypto.subtle.decrypt({
     name: 'AES-CBC',
     iv,
   }, key, ciphertext);
@@ -158,19 +158,19 @@ async function aesDecrypt(ciphertext, key, iv) {
 ### Exporting and importing keys
 
 ```js
-const { subtle } = require('crypto').webcrypto;
+const { crypto } = require('crypto/web');
 
 async function generateAndExportHmacKey(format = 'jwk', hash = 'SHA-512') {
-  const key = await subtle.generateKey({
+  const key = await crypto.subtle.generateKey({
     name: 'HMAC',
     hash
   }, true, ['sign', 'verify']);
 
-  return subtle.exportKey(format, key);
+  return crypto.subtle.exportKey(format, key);
 }
 
 async function importHmacKey(keyData, format = 'jwk', hash = 'SHA-512') {
-  const key = await subtle.importKey(format, keyData, {
+  const key = await crypto.subtle.importKey(format, keyData, {
     name: 'HMAC',
     hash
   }, true, ['sign', 'verify']);
@@ -182,23 +182,25 @@ async function importHmacKey(keyData, format = 'jwk', hash = 'SHA-512') {
 ### Wrapping and unwrapping keys
 
 ```js
-const { subtle } = require('crypto').webcrypto;
+const { crypto } = require('crypto/web');
 
 async function generateAndWrapHmacKey(format = 'jwk', hash = 'SHA-512') {
   const [
     key,
     wrappingKey,
   ] = await Promise.all([
-    subtle.generateKey({
+    crypto.subtle.generateKey({
       name: 'HMAC', hash
     }, true, ['sign', 'verify']),
-    subtle.generateKey({
+    crypto.subtle.generateKey({
       name: 'AES-KW',
       length: 256
     }, true, ['wrapKey', 'unwrapKey']),
   ]);
 
-  const wrappedKey = await subtle.wrapKey(format, key, wrappingKey, 'AES-KW');
+  const wrappedKey = await crypto.subtle.wrapKey(
+    format, key, wrappingKey, 'AES-KW'
+  );
 
   return wrappedKey;
 }
@@ -209,7 +211,7 @@ async function unwrapHmacKey(
   format = 'jwk',
   hash = 'SHA-512') {
 
-  const key = await subtle.unwrapKey(
+  const key = await crypto.subtle.unwrapKey(
     format,
     wrappedKey,
     unwrappingKey,
@@ -225,19 +227,19 @@ async function unwrapHmacKey(
 ### Sign and verify
 
 ```js
-const { subtle } = require('crypto').webcrypto;
+const { crypto } = require('crypto/web');
 
 async function sign(key, data) {
   const ec = new TextEncoder();
   const signature =
-    await subtle.sign('RSASSA-PKCS1-v1_5', key, ec.encode(data));
+    await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, ec.encode(data));
   return signature;
 }
 
 async function verify(key, signature, data) {
   const ec = new TextEncoder();
   const verified =
-    await subtle.verify(
+    await crypto.subtle.verify(
       'RSASSA-PKCS1-v1_5',
       key,
       signature,
@@ -249,17 +251,17 @@ async function verify(key, signature, data) {
 ### Deriving bits and keys
 
 ```js
-const { subtle } = require('crypto').webcrypto;
+const { crypto } = require('crypto/web');
 
 async function pbkdf2(pass, salt, iterations = 1000, length = 256) {
   const ec = new TextEncoder();
-  const key = await subtle.importKey(
+  const key = await crypto.subtle.importKey(
     'raw',
     ec.encode(pass),
     'PBKDF2',
     false,
     ['deriveBits']);
-  const bits = await subtle.deriveBits({
+  const bits = await crypto.subtle.deriveBits({
     name: 'PBKDF2',
     hash: 'SHA-512',
     salt: ec.encode(salt),
@@ -270,13 +272,13 @@ async function pbkdf2(pass, salt, iterations = 1000, length = 256) {
 
 async function pbkdf2Key(pass, salt, iterations = 1000, length = 256) {
   const ec = new TextEncoder();
-  const keyMaterial = await subtle.importKey(
+  const keyMaterial = await crypto.subtle.importKey(
     'raw',
     ec.encode(pass),
     'PBKDF2',
     false,
     ['deriveKey']);
-  const key = await subtle.deriveKey({
+  const key = await crypto.subtle.deriveKey({
     name: 'PBKDF2',
     hash: 'SHA-512',
     salt: ec.encode(salt),
@@ -292,11 +294,11 @@ async function pbkdf2Key(pass, salt, iterations = 1000, length = 256) {
 ### Digest
 
 ```js
-const { subtle } = require('crypto').webcrypto;
+const { crypto } = require('crypto/web');
 
 async function digest(data, algorithm = 'SHA-512') {
   const ec = new TextEncoder();
-  const digest = await subtle.digest(algorithm, ec.encode(data));
+  const digest = await crypto.subtle.digest(algorithm, ec.encode(data));
   return digest;
 }
 ```
@@ -336,8 +338,9 @@ implementation and the APIs supported for each:
 added: v15.0.0
 -->
 
-Calling `require('crypto').webcrypto` returns an instance of the `Crypto` class.
-`Crypto` is a singleton that provides access to the remainder of the crypto API.
+Calling `require('crypto/web').crypto` returns an instance of the `Crypto`
+class. `Crypto` is a singleton that provides access to the remainder of the
+crypto API.
 
 ### `crypto.subtle`
 <!-- YAML
