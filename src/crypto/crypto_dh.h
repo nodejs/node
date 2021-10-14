@@ -10,7 +10,7 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
-#include <vector>
+#include <variant>
 
 namespace node {
 namespace crypto {
@@ -59,12 +59,10 @@ class DiffieHellman : public BaseObject {
 };
 
 struct DhKeyPairParams final : public MemoryRetainer {
-  // TODO(tniessen): Use std::variant instead.
   // Diffie-Hellman can either generate keys using a fixed prime, or by first
   // generating a random prime of a given size (in bits). Only one of both
   // options may be specified.
-  BignumPointer prime_fixed_value;
-  unsigned int prime_size;
+  std::variant<BignumPointer, int> prime;
   unsigned int generator;
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(DhKeyPairParams)
