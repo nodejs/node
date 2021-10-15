@@ -900,6 +900,15 @@ test, or doc-related are to be listed as notable changes. Some SEMVER-MINOR
 commits may be listed as notable changes on a case-by-case basis. Use your
 judgment there.
 
+### Update the expected assets
+
+The promotion script does a basic check that the expected files are present.
+Open a pull request in the Build repository to add the list of expected files
+for the new release line as a new file, `v{N}.x` (where `{N}` is the major
+version of the release), in the [expected assets][] folder. The change will
+need to be deployed onto the web server by a member of the [build-infra team][]
+before the release is promoted.
+
 ### Snap
 
 The Node.js [Snap][] package has a "default" for installs where the user hasn't
@@ -914,5 +923,7 @@ take place once a new LTS line has been released.
 [Node.js Snap management repository]: https://github.com/nodejs/snap
 [Partner Communities]: https://github.com/nodejs/community-committee/blob/HEAD/governance/PARTNER_COMMUNITIES.md
 [Snap]: https://snapcraft.io/node
+[build-infra team]: https://github.com/orgs/nodejs/teams/build-infra
+[expected assets]: https://github.com/nodejs/build/tree/HEAD/ansible/www-standalone/tools/promote/expected_assets
 [nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/scripts/release-post.js
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org
