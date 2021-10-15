@@ -905,7 +905,7 @@ judgment there.
 The promotion script does a basic check that the expected files are present.
 Open a pull request in the Build repository to add the list of expected files
 for the new release line as a new file, `v{N}.x` (where `{N}` is the major
-version of the release), in the [expected assets][] folder. The change will 
+version of the release), in the [expected assets][] folder. The change will
 need to be deployed onto the web server by a member of the [build-infra team][]
 before the release is promoted.
 
