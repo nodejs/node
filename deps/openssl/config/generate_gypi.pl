@@ -50,7 +50,8 @@ my $buildinf = "crypto/buildinf.h";
 my $progs = "apps/progs.h";
 my $prov_headers = "providers/common/include/prov/der_dsa.h providers/common/include/prov/der_wrap.h providers/common/include/prov/der_rsa.h providers/common/include/prov/der_ecx.h providers/common/include/prov/der_sm2.h providers/common/include/prov/der_ec.h providers/common/include/prov/der_digests.h";
 my $fips_ld = ($arch =~ m/linux/ ? "providers/fips.ld" : "");
-my $cmd1 = "cd ../openssl; make -f $makefile clean build_generated $buildinf $progs $prov_headers $fips_ld;";
+my $legacy_ld = ($arch =~ m/linux/ ? "providers/legacy.ld" : "");
+my $cmd1 = "cd ../openssl; make -f $makefile clean build_generated $buildinf $progs $prov_headers $fips_ld $legacy_ld;";
 system($cmd1) == 0 or die "Error in system($cmd1)";
 
 # Copy and move all arch dependent header files into config/archs
@@ -100,11 +101,19 @@ copy("$src_dir/providers/common/include/prov/der_ec.h",
 copy("$src_dir/providers/common/include/prov/der_digests.h",
      "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
 
-my $fips_linker_script = "";
+my $version_script_dir = "\$(srcdir)/deps/openssl/config/archs/$arch/$asm/providers";
+my $fips_version_script = "";
 if ($fips_ld ne "") {
-  $fips_linker_script = "$base_dir/providers/fips.ld";
+  $fips_version_script = "$version_script_dir/fips.ld";
   copy("$src_dir/providers/fips.ld",
-       $fips_linker_script) or die "Copy failed: $!";
+       "$base_dir/providers/fips.ld") or die "Copy failed: $!";
+}
+
+my $legacy_version_script = "";
+if ($legacy_ld ne "") {
+  $legacy_version_script = "$version_script_dir/legacy.ld";
+  copy("$src_dir/providers/legacy.ld",
+       "$base_dir/providers/legacy.ld") or die "Copy failed: $!";
 }
 
 
@@ -172,25 +181,50 @@ foreach my $obj (@{$unified_info{sources}->{'providers/libcommon.a'}}) {
     $src =~ s\.[sS]$\.asm\ if ($is_win);
     push(@generated_srcs, $src);
   } else {
-    if ($src =~ m/\.c$/) { 
+    if ($src =~ m/\.c$/) {
       push(@libcrypto_srcs, $src);
     }
   }
 }
 
+my @liblegacy_srcs = ();
+
 foreach my $obj (@{$unified_info{sources}->{'providers/liblegacy.a'}}) {
   my $src = ${$unified_info{sources}->{$obj}}[0];
-  #print("liblegacy src: $src \n");
+  #print("providers/liblegacy.a obj: $obj src: $src \n");
   # .S files should be preprocessed into .s
   if ($unified_info{generate}->{$src}) {
     # .S or .s files should be preprocessed into .asm for WIN
-    $src =~ s\.[sS]$\.asm\ if ($is_win);
-    push(@generated_srcs, $src);
+    #$src =~ s\.[sS]$\.asm\ if ($is_win);
+    #push(@generated_srcs, $src);
   } else {
-    if ($src =~ m/\.c$/) { 
-      push(@libcrypto_srcs, $src);
+    if ($src =~ m/\.c$/) {
+      push(@liblegacy_srcs, $src);
     }
   }
+}
+
+foreach my $obj (@{$unified_info{sources}->{'providers/legacy'}}) {
+  if ($obj eq 'providers/legacy.ld') {
+    push(@generated_srcs, $obj);
+  } else {
+    my $src = ${$unified_info{sources}->{$obj}}[0];
+    #print("providers/fips obj: $obj, src: $src\n");
+    if ($src =~ m/\.c$/) {
+      push(@liblegacy_srcs, $src);
+    }
+  }
+}
+
+my @liblegacy_defines = ();
+foreach my $df (@{$unified_info{defines}->{'providers/liblegacy.a'}}) {
+  #print("liblegacy defines: $df\n");
+  push(@liblegacy_defines, $df);
+}
+
+foreach my $df (@{$unified_info{defines}->{'providers/legacy'}}) {
+  #print("liblegacy defines: $df\n");
+  push(@liblegacy_srcs, $df);
 }
 
 my @libfips_srcs = ();
@@ -316,12 +350,37 @@ my $fipsgypi = $fipstemplate->fill_in(
         arch => \$arch,
         lib_cppflags => \@lib_cppflags,
         is_win => \$is_win,
-	linker_script => \rel2abs($fips_linker_script),
+	version_script => $fips_version_script,
     });
 
 open(FIPSGYPI, "> ./archs/$arch/$asm/openssl-fips.gypi");
 print FIPSGYPI "$fipsgypi";
 close(FIPSGYPI);
+#
+# Create openssl-fips.gypi
+my $legacytemplate =
+    Text::Template->new(TYPE => 'FILE',
+                        SOURCE => 'openssl-legacy.gypi.tmpl',
+                        DELIMITERS => [ "%%-", "-%%" ]
+                        );
+my $legacygypi = $legacytemplate->fill_in(
+    HASH => {
+        liblegacy_srcs => \@liblegacy_srcs,
+        liblegacy_defines => \@liblegacy_defines,
+	#generated_srcs => \@generated_srcs,
+        config => \%config,
+        target => \%target,
+        cflags => \@cflags,
+        asm => \$asm,
+        arch => \$arch,
+        lib_cppflags => \@lib_cppflags,
+        is_win => \$is_win,
+	version_script => $legacy_version_script,
+    });
+
+open(LEGACYGYPI, "> ./archs/$arch/$asm/openssl-legacy.gypi");
+print LEGACYGYPI "$legacygypi";
+close(LEGACYGYPI);
 
 # Create openssl-cl.gypi
 my $cltemplate =

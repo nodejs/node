@@ -342,7 +342,27 @@
             '<(obj_dir)/<(node_text_start_object_path)'
           ]
         }],
-
+        ['node_openssl_legacy_module=="true"', {
+          #'dependencies': [
+          #   './deps/openssl/openssl.gyp:legacy'
+          #],
+          'actions': [
+            {
+              'action_name': 'copy_legacy_module',
+              'inputs': [
+                '<(obj_dir)/deps/openssl/liblegacy.so',
+              ],
+              'outputs': [
+		 '<(obj_dir)/deps/openssl/lib/openssl-modules/legacy.so',
+              ],
+              'action': [
+                'python', 'tools/copyfile.py',
+                '<(obj_dir)/deps/openssl/liblegacy.so',
+		 '<(obj_dir)/deps/openssl/lib/openssl-modules/legacy.so',
+              ],
+            },
+          ],
+        }],
         ['node_fipsinstall=="true"', {
           'variables': {
             'openssl-cli': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)openssl-cli<(EXECUTABLE_SUFFIX)',

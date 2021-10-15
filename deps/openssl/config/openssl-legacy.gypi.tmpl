@@ -1,7 +1,7 @@
 {
   'variables': {
     'openssl_sources': [
-%%- foreach $src (@libfips_srcs) {
+%%- foreach $src (@liblegacy_srcs) {
   $OUT .= "      'openssl/$src',\n";
 } -%%
     ],
@@ -20,10 +20,10 @@
     foreach $define (@{$target{defines}}) {
       $OUT .= "      '$define',\n";
     }
-    foreach $define (@{libfips_defines}) {
+    foreach $define (@{liblegacy_defines}) {
       $OUT .= "      '$define',\n";
     }
-    foreach $define (@{$config{libfips_defines}}) {
+    foreach $define (@{$config{liblegacy_defines}}) {
   $OUT .= "      '$define',\n";
 } -%%    ],
     'openssl_cflags_%%-$arch-%%': [

@@ -201,6 +201,12 @@ parser.add_argument('--openssl-is-fips',
     default=None,
     help='specifies that the OpenSSL library is FIPS compatible')
 
+parser.add_argument('--openssl-legacy-module',
+    action='store_true',
+    dest='openssl_legacy_module',
+    default=None,
+    help='specifies that the OpenSSL legacy module is to be built')
+
 parser.add_argument('--openssl-use-def-ca-store',
     action='store_true',
     dest='use_openssl_ca_store',
@@ -1410,6 +1416,7 @@ def configure_openssl(o):
   variables['node_shared_nghttp3'] = b(options.shared_nghttp3)
   variables['openssl_is_fips'] = b(options.openssl_is_fips)
   variables['node_fipsinstall'] = b(False)
+  variables['node_openssl_legacy_module'] = b(False)
 
   if options.openssl_no_asm:
     variables['openssl_no_asm'] = 1
@@ -1465,6 +1472,9 @@ def configure_openssl(o):
   if options.openssl_is_fips and not options.shared_openssl:
     o['defines'] += ['OPENSSL_FIPS']
     variables['node_fipsinstall'] = b(True)
+
+  if options.openssl_legacy_module and not options.shared_openssl:
+    variables['node_openssl_legacy_module'] = b(True)
 
   if options.shared_openssl:
     has_quic = getsharedopensslhasquic.get_has_quic(options.__dict__['shared_openssl_includes'])
