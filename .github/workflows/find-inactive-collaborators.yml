@@ -13,7 +13,7 @@ env:
 
 jobs:
   find:
-
+    if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
 
     steps:
