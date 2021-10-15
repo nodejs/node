@@ -222,7 +222,7 @@ our %config = (
     "patch" => "0",
     "perl_archname" => "x86_64-linux-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
-    "perl_version" => "5.30.3",
+    "perl_version" => "5.32.1",
     "perlargv" => [
         "no-comp",
         "no-shared",
@@ -290,7 +290,7 @@ our %target = (
     "LDFLAGS" => "/nologo /debug",
     "MT" => "mt",
     "MTFLAGS" => "-nologo",
-    "RANLIB" => "CODE(0x559328a9f718)",
+    "RANLIB" => "CODE(0x556d6c29c0b0)",
     "RC" => "rc",
     "_conf_fname_int" => [
         "Configurations/00-base-templates.conf",
@@ -27457,8 +27457,8 @@ unless (caller) {
     use File::Copy;
     use Pod::Usage;
 
-    use lib '/home/danielbevenius/work/nodejs/openssl/deps/openssl/openssl/util/perl';
-    use OpenSSL::fallback '/home/danielbevenius/work/nodejs/openssl/deps/openssl/openssl/external/perl/MODULES.txt';
+    use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/util/perl';
+    use OpenSSL::fallback '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/external/perl/MODULES.txt';
 
     my $here = dirname($0);
 
@@ -27485,7 +27485,7 @@ unless (caller) {
             );
 
         use lib '.';
-        use lib '/home/danielbevenius/work/nodejs/openssl/deps/openssl/openssl/Configurations';
+        use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/Configurations';
         use gentemplate;
 
         print 'Creating ',$buildfile_template,"\n";
@@ -27502,8 +27502,8 @@ unless (caller) {
 
         my $prepend = <<'_____';
 use File::Spec::Functions;
-use lib '/home/danielbevenius/work/nodejs/openssl/deps/openssl/openssl/util/perl';
-use lib '/home/danielbevenius/work/nodejs/openssl/deps/openssl/openssl/Configurations';
+use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/util/perl';
+use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/Configurations';
 use lib '.';
 use platform;
 _____

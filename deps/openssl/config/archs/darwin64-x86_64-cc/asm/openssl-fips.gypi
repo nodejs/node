@@ -310,13 +310,6 @@
       './config/archs/darwin64-x86_64-cc/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/darwin64-x86_64-cc/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/darwin64-x86_64-cc/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/bn/rsaz-avx2.s',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/bn/rsaz-avx512.s',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/bn/rsaz-x86_64.s',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/bn/x86_64-gf2m.s',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/bn/x86_64-mont.s',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/bn/x86_64-mont5.s',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/md5/md5-x86_64.s',
 
     ],
     'openssl_defines_darwin64-x86_64-cc': [
@@ -350,7 +343,7 @@
     'openssl_ex_libs_darwin64-x86_64-cc': [
       '',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'version_script': ''
   },
   'include_dirs': [
     '.',
@@ -362,7 +355,7 @@
   'defines': ['<@(openssl_defines_darwin64-x86_64-cc)'],
   'cflags': ['<@(openssl_cflags_darwin64-x86_64-cc)'],
   'libraries': ['<@(openssl_ex_libs_darwin64-x86_64-cc)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_darwin64-x86_64-cc)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

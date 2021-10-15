@@ -292,7 +292,6 @@
       './config/archs/darwin64-arm64-cc/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/darwin64-arm64-cc/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/darwin64-arm64-cc/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/darwin64-arm64-cc/asm/crypto/bn/armv8-mont.S',
 
     ],
     'openssl_defines_darwin64-arm64-cc': [
@@ -319,7 +318,7 @@
     'openssl_ex_libs_darwin64-arm64-cc': [
       '',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'version_script': ''
   },
   'include_dirs': [
     '.',
@@ -331,7 +330,7 @@
   'defines': ['<@(openssl_defines_darwin64-arm64-cc)'],
   'cflags': ['<@(openssl_cflags_darwin64-arm64-cc)'],
   'libraries': ['<@(openssl_ex_libs_darwin64-arm64-cc)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_darwin64-arm64-cc)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

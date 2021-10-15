@@ -300,9 +300,7 @@
       './config/archs/aix64-gcc-as/asm_avx2/providers/common/der/der_ecx_gen.c',
       './config/archs/aix64-gcc-as/asm_avx2/providers/common/der/der_rsa_gen.c',
       './config/archs/aix64-gcc-as/asm_avx2/providers/common/der/der_wrap_gen.c',
-      './config/archs/aix64-gcc-as/asm_avx2/crypto/bn/bn-ppc.s',
-      './config/archs/aix64-gcc-as/asm_avx2/crypto/bn/ppc-mont.s',
-      './config/archs/aix64-gcc-as/asm_avx2/crypto/bn/ppc64-mont-fixed.s',
+      './config/archs/aix64-gcc-as/asm_avx2/providers/legacy.ld',
       './config/archs/aix64-gcc-as/asm_avx2/providers/fips.ld',
 
     ],
@@ -331,7 +329,7 @@
     'openssl_ex_libs_aix64-gcc-as': [
       '-pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'version_script': ''
   },
   'include_dirs': [
     '.',
@@ -343,7 +341,7 @@
   'defines': ['<@(openssl_defines_aix64-gcc-as)'],
   'cflags': ['<@(openssl_cflags_aix64-gcc-as)'],
   'libraries': ['<@(openssl_ex_libs_aix64-gcc-as)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_aix64-gcc-as)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

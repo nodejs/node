@@ -310,13 +310,7 @@
       './config/archs/linux-x86_64/asm_avx2/providers/common/der/der_ecx_gen.c',
       './config/archs/linux-x86_64/asm_avx2/providers/common/der/der_rsa_gen.c',
       './config/archs/linux-x86_64/asm_avx2/providers/common/der/der_wrap_gen.c',
-      './config/archs/linux-x86_64/asm_avx2/crypto/bn/rsaz-avx2.s',
-      './config/archs/linux-x86_64/asm_avx2/crypto/bn/rsaz-avx512.s',
-      './config/archs/linux-x86_64/asm_avx2/crypto/bn/rsaz-x86_64.s',
-      './config/archs/linux-x86_64/asm_avx2/crypto/bn/x86_64-gf2m.s',
-      './config/archs/linux-x86_64/asm_avx2/crypto/bn/x86_64-mont.s',
-      './config/archs/linux-x86_64/asm_avx2/crypto/bn/x86_64-mont5.s',
-      './config/archs/linux-x86_64/asm_avx2/crypto/md5/md5-x86_64.s',
+      './config/archs/linux-x86_64/asm_avx2/providers/legacy.ld',
       './config/archs/linux-x86_64/asm_avx2/providers/fips.ld',
 
     ],
@@ -352,7 +346,7 @@
     'openssl_ex_libs_linux-x86_64': [
       '-ldl -pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux-x86_64/asm_avx2/providers/fips.ld'
+    'version_script': '$(srcdir)/deps/openssl/config/archs/linux-x86_64/asm_avx2/providers/fips.ld'
   },
   'include_dirs': [
     '.',
@@ -364,7 +358,7 @@
   'defines': ['<@(openssl_defines_linux-x86_64)'],
   'cflags': ['<@(openssl_cflags_linux-x86_64)'],
   'libraries': ['<@(openssl_ex_libs_linux-x86_64)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+  'ldflags': ['-Wl,--version-script=<@(version_script)'],
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_linux-x86_64)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

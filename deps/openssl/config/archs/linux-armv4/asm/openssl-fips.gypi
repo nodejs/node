@@ -293,8 +293,7 @@
       './config/archs/linux-armv4/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/linux-armv4/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/linux-armv4/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/linux-armv4/asm/crypto/bn/armv4-gf2m.S',
-      './config/archs/linux-armv4/asm/crypto/bn/armv4-mont.S',
+      './config/archs/linux-armv4/asm/providers/legacy.ld',
       './config/archs/linux-armv4/asm/providers/fips.ld',
 
     ],
@@ -325,7 +324,7 @@
     'openssl_ex_libs_linux-armv4': [
       '-ldl -pthread -latomic',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux-armv4/asm/providers/fips.ld'
+    'version_script': '$(srcdir)/deps/openssl/config/archs/linux-armv4/asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',
@@ -337,7 +336,7 @@
   'defines': ['<@(openssl_defines_linux-armv4)'],
   'cflags': ['<@(openssl_cflags_linux-armv4)'],
   'libraries': ['<@(openssl_ex_libs_linux-armv4)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+  'ldflags': ['-Wl,--version-script=<@(version_script)'],
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_linux-armv4)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

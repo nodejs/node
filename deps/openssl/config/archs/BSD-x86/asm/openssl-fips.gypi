@@ -298,13 +298,7 @@
       './config/archs/BSD-x86/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/BSD-x86/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/BSD-x86/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/BSD-x86/asm/crypto/bn/bn-586.s',
-      './config/archs/BSD-x86/asm/crypto/bn/co-586.s',
-      './config/archs/BSD-x86/asm/crypto/bn/x86-gf2m.s',
-      './config/archs/BSD-x86/asm/crypto/bn/x86-mont.s',
-      './config/archs/BSD-x86/asm/crypto/des/crypt586.s',
-      './config/archs/BSD-x86/asm/crypto/des/des-586.s',
-      './config/archs/BSD-x86/asm/crypto/md5/md5-586.s',
+      './config/archs/BSD-x86/asm/providers/legacy.ld',
       './config/archs/BSD-x86/asm/providers/fips.ld',
 
     ],
@@ -337,7 +331,7 @@
     'openssl_ex_libs_BSD-x86': [
       '-pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'version_script': ''
   },
   'include_dirs': [
     '.',
@@ -349,7 +343,7 @@
   'defines': ['<@(openssl_defines_BSD-x86)'],
   'cflags': ['<@(openssl_cflags_BSD-x86)'],
   'libraries': ['<@(openssl_ex_libs_BSD-x86)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_BSD-x86)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

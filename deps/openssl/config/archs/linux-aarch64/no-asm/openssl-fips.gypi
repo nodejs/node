@@ -279,6 +279,7 @@
       './config/archs/linux-aarch64/no-asm/providers/common/der/der_ecx_gen.c',
       './config/archs/linux-aarch64/no-asm/providers/common/der/der_rsa_gen.c',
       './config/archs/linux-aarch64/no-asm/providers/common/der/der_wrap_gen.c',
+      './config/archs/linux-aarch64/no-asm/providers/legacy.ld',
       './config/archs/linux-aarch64/no-asm/providers/fips.ld',
 
     ],
@@ -297,7 +298,7 @@
     'openssl_ex_libs_linux-aarch64': [
       '-ldl -pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux-aarch64/no-asm/providers/fips.ld'
+    'version_script': '$(srcdir)/deps/openssl/config/archs/linux-aarch64/no-asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',
@@ -309,7 +310,7 @@
   'defines': ['<@(openssl_defines_linux-aarch64)'],
   'cflags': ['<@(openssl_cflags_linux-aarch64)'],
   'libraries': ['<@(openssl_ex_libs_linux-aarch64)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+  'ldflags': ['-Wl,--version-script=<@(version_script)'],
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_linux-aarch64)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

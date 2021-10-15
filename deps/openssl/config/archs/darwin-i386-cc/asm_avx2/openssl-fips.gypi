@@ -298,13 +298,6 @@
       './config/archs/darwin-i386-cc/asm_avx2/providers/common/der/der_ecx_gen.c',
       './config/archs/darwin-i386-cc/asm_avx2/providers/common/der/der_rsa_gen.c',
       './config/archs/darwin-i386-cc/asm_avx2/providers/common/der/der_wrap_gen.c',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/bn/bn-586.s',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/bn/co-586.s',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/bn/x86-gf2m.s',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/bn/x86-mont.s',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/des/crypt586.s',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/des/des-586.s',
-      './config/archs/darwin-i386-cc/asm_avx2/crypto/md5/md5-586.s',
 
     ],
     'openssl_defines_darwin-i386-cc': [
@@ -336,7 +329,7 @@
     'openssl_ex_libs_darwin-i386-cc': [
       '',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'version_script': ''
   },
   'include_dirs': [
     '.',
@@ -348,7 +341,7 @@
   'defines': ['<@(openssl_defines_darwin-i386-cc)'],
   'cflags': ['<@(openssl_cflags_darwin-i386-cc)'],
   'libraries': ['<@(openssl_ex_libs_darwin-i386-cc)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_darwin-i386-cc)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

@@ -290,8 +290,7 @@
       './config/archs/linux32-s390x/asm_avx2/providers/common/der/der_ecx_gen.c',
       './config/archs/linux32-s390x/asm_avx2/providers/common/der/der_rsa_gen.c',
       './config/archs/linux32-s390x/asm_avx2/providers/common/der/der_wrap_gen.c',
-      './config/archs/linux32-s390x/asm_avx2/crypto/bn/s390x-gf2m.s',
-      './config/archs/linux32-s390x/asm_avx2/crypto/bn/s390x-mont.S',
+      './config/archs/linux32-s390x/asm_avx2/providers/legacy.ld',
       './config/archs/linux32-s390x/asm_avx2/providers/fips.ld',
 
     ],
@@ -324,7 +323,7 @@
     'openssl_ex_libs_linux32-s390x': [
       '-ldl -pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux32-s390x/asm_avx2/providers/fips.ld'
+    'version_script': '$(srcdir)/deps/openssl/config/archs/linux32-s390x/asm_avx2/providers/fips.ld'
   },
   'include_dirs': [
     '.',
@@ -336,7 +335,7 @@
   'defines': ['<@(openssl_defines_linux32-s390x)'],
   'cflags': ['<@(openssl_cflags_linux32-s390x)'],
   'libraries': ['<@(openssl_ex_libs_linux32-s390x)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+  'ldflags': ['-Wl,--version-script=<@(version_script)'],
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_linux32-s390x)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

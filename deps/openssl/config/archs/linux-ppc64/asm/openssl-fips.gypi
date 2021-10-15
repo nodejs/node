@@ -300,9 +300,7 @@
       './config/archs/linux-ppc64/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/linux-ppc64/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/linux-ppc64/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/linux-ppc64/asm/crypto/bn/bn-ppc.s',
-      './config/archs/linux-ppc64/asm/crypto/bn/ppc-mont.s',
-      './config/archs/linux-ppc64/asm/crypto/bn/ppc64-mont-fixed.s',
+      './config/archs/linux-ppc64/asm/providers/legacy.ld',
       './config/archs/linux-ppc64/asm/providers/fips.ld',
 
     ],
@@ -333,7 +331,7 @@
     'openssl_ex_libs_linux-ppc64': [
       '-ldl -pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux-ppc64/asm/providers/fips.ld'
+    'version_script': '$(srcdir)/deps/openssl/config/archs/linux-ppc64/asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',
@@ -345,7 +343,7 @@
   'defines': ['<@(openssl_defines_linux-ppc64)'],
   'cflags': ['<@(openssl_cflags_linux-ppc64)'],
   'libraries': ['<@(openssl_ex_libs_linux-ppc64)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+  'ldflags': ['-Wl,--version-script=<@(version_script)'],
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_linux-ppc64)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],
