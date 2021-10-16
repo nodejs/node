@@ -953,6 +953,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_darwin64-arm64-cc': [
       './config/archs/darwin64-arm64-cc/asm_avx2/crypto/aes/aesv8-armx.S',

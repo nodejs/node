@@ -949,6 +949,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_darwin64-x86_64-cc': [
       './config/archs/darwin64-x86_64-cc/asm/crypto/aes/aes-x86_64.s',

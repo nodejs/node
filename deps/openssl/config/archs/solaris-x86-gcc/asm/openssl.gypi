@@ -939,6 +939,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_solaris-x86-gcc': [
       './config/archs/solaris-x86-gcc/asm/crypto/aes/aes-586.s',
@@ -979,6 +980,7 @@
       './config/archs/solaris-x86-gcc/asm/crypto/des/crypt586.s',
       './config/archs/solaris-x86-gcc/asm/crypto/des/des-586.s',
       './config/archs/solaris-x86-gcc/asm/crypto/md5/md5-586.s',
+      './config/archs/solaris-x86-gcc/asm/providers/legacy.ld',
       './config/archs/solaris-x86-gcc/asm/providers/fips.ld',
     ],
     'openssl_defines_solaris-x86-gcc': [

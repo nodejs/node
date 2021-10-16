@@ -951,6 +951,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_linux64-mips64': [
       './config/archs/linux64-mips64/asm_avx2/crypto/aes/aes-mips.S',
@@ -969,6 +970,7 @@
       './config/archs/linux64-mips64/asm_avx2/providers/common/der/der_wrap_gen.c',
       './config/archs/linux64-mips64/asm_avx2/crypto/bn/bn-mips.S',
       './config/archs/linux64-mips64/asm_avx2/crypto/bn/mips-mont.S',
+      './config/archs/linux64-mips64/asm_avx2/providers/legacy.ld',
       './config/archs/linux64-mips64/asm_avx2/providers/fips.ld',
     ],
     'openssl_defines_linux64-mips64': [

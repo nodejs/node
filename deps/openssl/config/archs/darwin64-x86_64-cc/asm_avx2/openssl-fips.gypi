@@ -350,7 +350,7 @@
     'openssl_ex_libs_darwin64-x86_64-cc': [
       '',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'linker_script': ''
   },
   'include_dirs': [
     '.',
@@ -362,7 +362,7 @@
   'defines': ['<@(openssl_defines_darwin64-x86_64-cc)'],
   'cflags': ['<@(openssl_cflags_darwin64-x86_64-cc)'],
   'libraries': ['<@(openssl_ex_libs_darwin64-x86_64-cc)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_darwin64-x86_64-cc)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

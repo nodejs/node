@@ -939,6 +939,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_darwin-i386-cc': [
       './config/archs/darwin-i386-cc/asm_avx2/crypto/aes/aes-586.s',

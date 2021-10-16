@@ -305,6 +305,7 @@
       './config/archs/linux-elf/asm/crypto/des/crypt586.s',
       './config/archs/linux-elf/asm/crypto/des/des-586.s',
       './config/archs/linux-elf/asm/crypto/md5/md5-586.s',
+      './config/archs/linux-elf/asm/providers/legacy.ld',
       './config/archs/linux-elf/asm/providers/fips.ld',
 
     ],
@@ -338,7 +339,7 @@
     'openssl_ex_libs_linux-elf': [
       '-ldl -pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux-elf/asm/providers/fips.ld'
+    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux-elf/asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',

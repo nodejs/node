@@ -950,6 +950,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_BSD-x86_64': [
       './config/archs/BSD-x86_64/asm_avx2/crypto/aes/aes-x86_64.s',
@@ -998,6 +999,7 @@
       './config/archs/BSD-x86_64/asm_avx2/crypto/bn/x86_64-mont.s',
       './config/archs/BSD-x86_64/asm_avx2/crypto/bn/x86_64-mont5.s',
       './config/archs/BSD-x86_64/asm_avx2/crypto/md5/md5-x86_64.s',
+      './config/archs/BSD-x86_64/asm_avx2/providers/legacy.ld',
       './config/archs/BSD-x86_64/asm_avx2/providers/fips.ld',
     ],
     'openssl_defines_BSD-x86_64': [

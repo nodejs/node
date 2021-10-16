@@ -291,6 +291,7 @@
       './config/archs/linux64-s390x/asm/providers/common/der/der_wrap_gen.c',
       './config/archs/linux64-s390x/asm/crypto/bn/s390x-gf2m.s',
       './config/archs/linux64-s390x/asm/crypto/bn/s390x-mont.S',
+      './config/archs/linux64-s390x/asm/providers/legacy.ld',
       './config/archs/linux64-s390x/asm/providers/fips.ld',
 
     ],
@@ -323,7 +324,7 @@
     'openssl_ex_libs_linux64-s390x': [
       '-ldl -pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux64-s390x/asm/providers/fips.ld'
+    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux64-s390x/asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',

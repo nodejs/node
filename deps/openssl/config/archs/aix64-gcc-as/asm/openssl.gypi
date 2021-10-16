@@ -957,6 +957,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_aix64-gcc-as': [
       './config/archs/aix64-gcc-as/asm/crypto/aes/aes-ppc.s',
@@ -988,6 +989,7 @@
       './config/archs/aix64-gcc-as/asm/crypto/bn/bn-ppc.s',
       './config/archs/aix64-gcc-as/asm/crypto/bn/ppc-mont.s',
       './config/archs/aix64-gcc-as/asm/crypto/bn/ppc64-mont-fixed.s',
+      './config/archs/aix64-gcc-as/asm/providers/legacy.ld',
       './config/archs/aix64-gcc-as/asm/providers/fips.ld',
     ],
     'openssl_defines_aix64-gcc-as': [

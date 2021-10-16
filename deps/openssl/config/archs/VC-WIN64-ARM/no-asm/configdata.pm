@@ -216,7 +216,7 @@ our %config = (
     "patch" => "0",
     "perl_archname" => "x86_64-linux-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
-    "perl_version" => "5.30.3",
+    "perl_version" => "5.32.1",
     "perlargv" => [
         "no-comp",
         "no-shared",
@@ -283,7 +283,7 @@ our %target = (
     "LDFLAGS" => "/nologo /debug",
     "MT" => "mt",
     "MTFLAGS" => "-nologo",
-    "RANLIB" => "CODE(0x55fbb514a2f8)",
+    "RANLIB" => "CODE(0x55a97a668aa0)",
     "RC" => "rc",
     "_conf_fname_int" => [
         "Configurations/00-base-templates.conf",
@@ -9679,10 +9679,10 @@ our %unified_info = (
         },
         "providers/fips" => {
             "deps" => [
-                "providers/fips/fips-dso-fips_entry.o",
                 "providers/fips/libfips-lib-fipsprov.o",
                 "providers/fips/libfips-lib-self_test.o",
-                "providers/fips/libfips-lib-self_test_kats.o"
+                "providers/fips/libfips-lib-self_test_kats.o",
+                "providers/fips/fips-dso-fips_entry.o"
             ],
             "products" => {
                 "dso" => [
@@ -27104,8 +27104,8 @@ unless (caller) {
     use File::Copy;
     use Pod::Usage;
 
-    use lib '/home/danielbevenius/work/nodejs/openssl/deps/openssl/openssl/util/perl';
-    use OpenSSL::fallback '/home/danielbevenius/work/nodejs/openssl/deps/openssl/openssl/external/perl/MODULES.txt';
+    use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/util/perl';
+    use OpenSSL::fallback '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/external/perl/MODULES.txt';
 
     my $here = dirname($0);
 
@@ -27132,7 +27132,7 @@ unless (caller) {
             );
 
         use lib '.';
-        use lib '/home/danielbevenius/work/nodejs/openssl/deps/openssl/openssl/Configurations';
+        use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/Configurations';
         use gentemplate;
 
         print 'Creating ',$buildfile_template,"\n";
@@ -27149,8 +27149,8 @@ unless (caller) {
 
         my $prepend = <<'_____';
 use File::Spec::Functions;
-use lib '/home/danielbevenius/work/nodejs/openssl/deps/openssl/openssl/util/perl';
-use lib '/home/danielbevenius/work/nodejs/openssl/deps/openssl/openssl/Configurations';
+use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/util/perl';
+use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/Configurations';
 use lib '.';
 use platform;
 _____

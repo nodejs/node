@@ -954,6 +954,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_VC-WIN64A': [
       './config/archs/VC-WIN64A/no-asm/providers/common/der/der_sm2_gen.c',
@@ -963,6 +964,7 @@
       './config/archs/VC-WIN64A/no-asm/providers/common/der/der_ecx_gen.c',
       './config/archs/VC-WIN64A/no-asm/providers/common/der/der_rsa_gen.c',
       './config/archs/VC-WIN64A/no-asm/providers/common/der/der_wrap_gen.c',
+      './config/archs/VC-WIN64A/no-asm/providers/legacy.ld',
       './config/archs/VC-WIN64A/no-asm/providers/fips.ld',
     ],
     'openssl_defines_VC-WIN64A': [
