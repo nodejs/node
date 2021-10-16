@@ -100,11 +100,12 @@ copy("$src_dir/providers/common/include/prov/der_ec.h",
 copy("$src_dir/providers/common/include/prov/der_digests.h",
      "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
 
+my $linker_script_dir = "\$(srcdir)/deps/openssl/config/archs/$arch/$asm/providers";
 my $fips_linker_script = "";
 if ($fips_ld ne "") {
-  $fips_linker_script = "$base_dir/providers/fips.ld";
+  $fips_linker_script = "$linker_script_dir/fips.ld";
   copy("$src_dir/providers/fips.ld",
-       $fips_linker_script) or die "Copy failed: $!";
+       "$base_dir/providers/fips.ld") or die "Copy failed: $!";
 }
 
 
@@ -188,6 +189,18 @@ foreach my $obj (@{$unified_info{sources}->{'providers/liblegacy.a'}}) {
     push(@generated_srcs, $src);
   } else {
     if ($src =~ m/\.c$/) { 
+      push(@libcrypto_srcs, $src);
+    }
+  }
+}
+
+foreach my $obj (@{$unified_info{sources}->{'providers/legacy'}}) {
+  if ($obj eq 'providers/legacy.ld') {
+    push(@generated_srcs, $obj);
+  } else {
+    my $src = ${$unified_info{sources}->{$obj}}[0];
+    #print("providers/fips obj: $obj, src: $src\n");
+    if ($src =~ m/\.c$/) {
       push(@libcrypto_srcs, $src);
     }
   }
@@ -316,7 +329,7 @@ my $fipsgypi = $fipstemplate->fill_in(
         arch => \$arch,
         lib_cppflags => \@lib_cppflags,
         is_win => \$is_win,
-	linker_script => \rel2abs($fips_linker_script),
+	linker_script => $fips_linker_script,
     });
 
 open(FIPSGYPI, "> ./archs/$arch/$asm/openssl-fips.gypi");

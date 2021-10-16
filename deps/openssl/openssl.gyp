@@ -29,6 +29,7 @@
         # is able to create a malicious DLL in one of the default search paths.
         'OPENSSL_NO_HW',
         'OPENSSL_API_COMPAT=0x10100001L',
+        'STATIC_LEGACY',
         #'OPENSSL_NO_DEPRECATED',
       ],
       'conditions': [
