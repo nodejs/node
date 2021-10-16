@@ -52,6 +52,14 @@ for (const link of toc.match(/<a.*?>/g)) {
     .replace(/<a href="#(?!DEP[0-9]{4})([^"]+)"/g, (match, anchor) => {
       return `<a href="#${moduleName}_${anchor}"`;
     })
+    // Update footnote id attributes on anchors
+    .replace(/<a href="([^"]+)" id="(user-content-fn[^"]+)"/g, (match, href, id) => {
+      return `<a href="${href}" id="${moduleName}_${id}"`;
+    })
+    // Update footnote id attributes on list items
+    .replace(/<(\S+) id="(user-content-fn-\d+)"/g, (match, tagName, id) => {
+      return `<${tagName} id="${moduleName}_${id}"`;
+    })
     // Prefix all links to other docs modules with those module names
     .replace(/<a href="((\w[^#"]*)\.html)#/g, (match, href, linkModule) => {
       if (!htmlFiles.includes(href)) return match;
