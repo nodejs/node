@@ -954,6 +954,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_solaris64-x86_64-gcc': [
       './config/archs/solaris64-x86_64-gcc/no-asm/providers/common/der/der_sm2_gen.c',
@@ -963,6 +964,7 @@
       './config/archs/solaris64-x86_64-gcc/no-asm/providers/common/der/der_ecx_gen.c',
       './config/archs/solaris64-x86_64-gcc/no-asm/providers/common/der/der_rsa_gen.c',
       './config/archs/solaris64-x86_64-gcc/no-asm/providers/common/der/der_wrap_gen.c',
+      './config/archs/solaris64-x86_64-gcc/no-asm/providers/legacy.ld',
       './config/archs/solaris64-x86_64-gcc/no-asm/providers/fips.ld',
     ],
     'openssl_defines_solaris64-x86_64-gcc': [

@@ -296,7 +296,7 @@
     'openssl_ex_libs_darwin-i386-cc': [
       '',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'linker_script': ''
   },
   'include_dirs': [
     '.',
@@ -308,7 +308,7 @@
   'defines': ['<@(openssl_defines_darwin-i386-cc)'],
   'cflags': ['<@(openssl_cflags_darwin-i386-cc)'],
   'libraries': ['<@(openssl_ex_libs_darwin-i386-cc)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_darwin-i386-cc)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

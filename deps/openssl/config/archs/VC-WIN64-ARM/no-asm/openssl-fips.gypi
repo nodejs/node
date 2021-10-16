@@ -279,6 +279,7 @@
       './config/archs/VC-WIN64-ARM/no-asm/providers/common/der/der_ecx_gen.c',
       './config/archs/VC-WIN64-ARM/no-asm/providers/common/der/der_rsa_gen.c',
       './config/archs/VC-WIN64-ARM/no-asm/providers/common/der/der_wrap_gen.c',
+      './config/archs/VC-WIN64-ARM/no-asm/providers/legacy.ld',
       './config/archs/VC-WIN64-ARM/no-asm/providers/fips.ld',
 
     ],
@@ -304,7 +305,7 @@
     'openssl_ex_libs_VC-WIN64-ARM': [
       'onecore.lib',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'linker_script': ''
   },
   'include_dirs': [
     '.',

@@ -279,6 +279,7 @@
       './config/archs/linux64-mips64/no-asm/providers/common/der/der_ecx_gen.c',
       './config/archs/linux64-mips64/no-asm/providers/common/der/der_rsa_gen.c',
       './config/archs/linux64-mips64/no-asm/providers/common/der/der_wrap_gen.c',
+      './config/archs/linux64-mips64/no-asm/providers/legacy.ld',
       './config/archs/linux64-mips64/no-asm/providers/fips.ld',
 
     ],
@@ -297,7 +298,7 @@
     'openssl_ex_libs_linux64-mips64': [
       '-ldl -pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux64-mips64/no-asm/providers/fips.ld'
+    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux64-mips64/no-asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',

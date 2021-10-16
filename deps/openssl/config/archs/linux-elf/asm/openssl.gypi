@@ -939,6 +939,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_linux-elf': [
       './config/archs/linux-elf/asm/crypto/aes/aes-586.s',
@@ -979,6 +980,7 @@
       './config/archs/linux-elf/asm/crypto/des/crypt586.s',
       './config/archs/linux-elf/asm/crypto/des/des-586.s',
       './config/archs/linux-elf/asm/crypto/md5/md5-586.s',
+      './config/archs/linux-elf/asm/providers/legacy.ld',
       './config/archs/linux-elf/asm/providers/fips.ld',
     ],
     'openssl_defines_linux-elf': [

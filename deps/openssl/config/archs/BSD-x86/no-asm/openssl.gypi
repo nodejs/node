@@ -955,6 +955,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_BSD-x86': [
       './config/archs/BSD-x86/no-asm/providers/common/der/der_sm2_gen.c',
@@ -964,6 +965,7 @@
       './config/archs/BSD-x86/no-asm/providers/common/der/der_ecx_gen.c',
       './config/archs/BSD-x86/no-asm/providers/common/der/der_rsa_gen.c',
       './config/archs/BSD-x86/no-asm/providers/common/der/der_wrap_gen.c',
+      './config/archs/BSD-x86/no-asm/providers/legacy.ld',
       './config/archs/BSD-x86/no-asm/providers/fips.ld',
     ],
     'openssl_defines_BSD-x86': [

@@ -949,6 +949,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_linux-x86_64': [
       './config/archs/linux-x86_64/asm/crypto/aes/aes-x86_64.s',
@@ -997,6 +998,7 @@
       './config/archs/linux-x86_64/asm/crypto/bn/x86_64-mont.s',
       './config/archs/linux-x86_64/asm/crypto/bn/x86_64-mont5.s',
       './config/archs/linux-x86_64/asm/crypto/md5/md5-x86_64.s',
+      './config/archs/linux-x86_64/asm/providers/legacy.ld',
       './config/archs/linux-x86_64/asm/providers/fips.ld',
     ],
     'openssl_defines_linux-x86_64': [
