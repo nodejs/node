@@ -99,61 +99,61 @@ Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
 platforms. This is true regardless of entries in the table below.
 
-| Operating System | Architectures    | Versions                        | Support Type                                                     | Notes                                                                       |
-| ---------------- | ---------------- | ------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| GNU/Linux        | x64              | kernel >= 3.10, glibc >= 2.17   | Tier 1                                                           | e.g. Ubuntu 16.04 <sup>[1](#fn1)</sup>, Debian 9, EL 7 <sup>[2](#fn2)</sup> |
-| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19  | Experimental                                                     | e.g. Alpine 3.8                                                             |
-| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17   | Experimental                                                     | Downgraded as of Node.js 10                                                 |
-| GNU/Linux        | arm64            | kernel >= 4.5, glibc >= 2.17    | Tier 1                                                           | e.g. Ubuntu 16.04, Debian 9, EL 7 <sup>[3](#fn3)</sup>                      |
-| GNU/Linux        | armv7            | kernel >= 4.14, glibc >= 2.24   | Tier 1                                                           | e.g. Ubuntu 18.04, Debian 9                                                 |
-| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24   | Experimental                                                     | Downgraded as of Node.js 12                                                 |
-| GNU/Linux        | ppc64le >=power8 | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                                           | e.g. Ubuntu 16.04 <sup>[1](#fn1)</sup>, EL 7  <sup>[2](#fn2)</sup>          |
-| GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                                           | e.g. EL 7 <sup>[2](#fn2)</sup>                                              |
-| Windows          | x64, x86 (WoW64) | >= Windows 8.1/2012 R2          | Tier 1                                                           | <sup>[4](#fn4),[5](#fn5)</sup>                                              |
-| Windows          | x86 (native)     | >= Windows 8.1/2012 R2          | Tier 1 (running) / Experimental (compiling) <sup>[6](#fn6)</sup> |                                                                             |
-| Windows          | x64, x86         | Windows Server 2012 (not R2)    | Experimental                                                     |                                                                             |
-| Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running)                      |                                                                             |
-| macOS            | x64              | >= 10.13                        | Tier 1                                                           | For notes about compilation see <sup>[7](#fn7)</sup>                        |
-| macOS            | arm64            | >= 11                           | Tier 1                                                           |                                                                             |
-| SmartOS          | x64              | >= 18                           | Tier 2                                                           |                                                                             |
-| AIX              | ppc64be >=power7 | >= 7.2 TL04                     | Tier 2                                                           |                                                                             |
-| FreeBSD          | x64              | >= 12.2                         | Experimental                                                     |                                                                             |
+| Operating System | Architectures    | Versions                        | Support Type                                    | Notes                                     |
+| ---------------- | ---------------- | ------------------------------- | ----------------------------------------------- | ----------------------------------------- |
+| GNU/Linux        | x64              | kernel >= 3.10, glibc >= 2.17   | Tier 1                                          | e.g. Ubuntu 16.04[^1], Debian 9, EL 7[^2] |
+| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19  | Experimental                                    | e.g. Alpine 3.8                           |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17   | Experimental                                    | Downgraded as of Node.js 10               |
+| GNU/Linux        | arm64            | kernel >= 4.5, glibc >= 2.17    | Tier 1                                          | e.g. Ubuntu 16.04, Debian 9, EL 7[^3]     |
+| GNU/Linux        | armv7            | kernel >= 4.14, glibc >= 2.24   | Tier 1                                          | e.g. Ubuntu 18.04, Debian 9               |
+| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24   | Experimental                                    | Downgraded as of Node.js 12               |
+| GNU/Linux        | ppc64le >=power8 | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                          | e.g. Ubuntu 16.04[^1], EL 7[^2]           |
+| GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                          | e.g. EL 7[^2]                             |
+| Windows          | x64, x86 (WoW64) | >= Windows 8.1/2012 R2          | Tier 1                                          | [^4],[^5]                                 |
+| Windows          | x86 (native)     | >= Windows 8.1/2012 R2          | Tier 1 (running) / Experimental (compiling)[^6] |                                           |
+| Windows          | x64, x86         | Windows Server 2012 (not R2)    | Experimental                                    |                                           |
+| Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running)     |                                           |
+| macOS            | x64              | >= 10.13                        | Tier 1                                          | For notes about compilation see [^7]      |
+| macOS            | arm64            | >= 11                           | Tier 1                                          |                                           |
+| SmartOS          | x64              | >= 18                           | Tier 2                                          |                                           |
+| AIX              | ppc64be >=power7 | >= 7.2 TL04                     | Tier 2                                          |                                           |
+| FreeBSD          | x64              | >= 12.2                         | Experimental                                    |                                           |
 
-<em id="fn1">1</em>: GCC 8 is not provided on the base platform. Users will
-need the
-[Toolchain test builds PPA](https://launchpad.net/\~ubuntu-toolchain-r/+archive/ubuntu/test?field.series\_filter=xenial)
-or similar to source a newer compiler.
+[^1]: GCC 8 is not provided on the base platform. Users will
+    need the
+    [Toolchain test builds PPA](https://launchpad.net/\~ubuntu-toolchain-r/+archive/ubuntu/test?field.series\_filter=xenial)
+    or similar to source a newer compiler.
 
-<em id="fn2">2</em>: GCC 8 is not provided on the base platform. Users will
-need the
-[devtoolset-8](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-8/)
-or later to source a newer compiler.
+[^2]: GCC 8 is not provided on the base platform. Users will
+    need the
+    [devtoolset-8](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-8/)
+    or later to source a newer compiler.
 
-<em id="fn3">3</em>: Older kernel versions may work for ARM64. However the
-Node.js test infrastructure only tests >= 4.5.
+[^3]: Older kernel versions may work for ARM64. However the
+    Node.js test infrastructure only tests >= 4.5.
 
-<em id="fn4">4</em>: On Windows, running Node.js in Windows terminal emulators
-like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
-for the tty channels to work (e.g. `winpty node.exe script.js`).
-In "Git bash" if you call the node shell alias (`node` without the `.exe`
-extension), `winpty` is used automatically.
+[^4]: On Windows, running Node.js in Windows terminal emulators
+    like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
+    for the tty channels to work (e.g. `winpty node.exe script.js`).
+    In "Git bash" if you call the node shell alias (`node` without the `.exe`
+    extension), `winpty` is used automatically.
 
-<em id="fn5">5</em>: The Windows Subsystem for Linux (WSL) is not
-supported, but the GNU/Linux build process and binaries should work. The
-community will only address issues that reproduce on native GNU/Linux
-systems. Issues that only reproduce on WSL should be reported in the
-[WSL issue tracker](https://github.com/Microsoft/WSL/issues). Running the
-Windows binary (`node.exe`) in WSL is not recommended. It will not work
-without workarounds such as stdio redirection.
+[^5]: The Windows Subsystem for Linux (WSL) is not
+    supported, but the GNU/Linux build process and binaries should work. The
+    community will only address issues that reproduce on native GNU/Linux
+    systems. Issues that only reproduce on WSL should be reported in the
+    [WSL issue tracker](https://github.com/Microsoft/WSL/issues). Running the
+    Windows binary (`node.exe`) in WSL is not recommended. It will not work
+    without workarounds such as stdio redirection.
 
-<em id="fn6">6</em>: Running Node.js on x86 Windows should work and binaries
-are provided. However, tests in our infrastructure only run on WoW64.
-Furthermore, compiling on x86 Windows is Experimental and
-may not be possible.
+[^6]: Running Node.js on x86 Windows should work and binaries
+    are provided. However, tests in our infrastructure only run on WoW64.
+    Furthermore, compiling on x86 Windows is Experimental and
+    may not be possible.
 
-<em id="fn7">7</em>: Our macOS x64 Binaries are compiled with 10.13 as a target.
-However there is no guarantee compiling on 10.13 will work as Xcode11 is
-required to compile.
+[^7]: Our macOS x64 Binaries are compiled with 10.13 as a target.
+    However there is no guarantee compiling on 10.13 will work as Xcode11 is
+    required to compile.
 
 ### Supported toolchains
 
@@ -174,19 +174,19 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 8                                                                            |
 | darwin-x64              | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.13                                      |
 | darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode Command Line Tools 12 with -mmacosx-version-min=10.13                                 |
-| linux-arm64             | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
+| linux-arm64             | CentOS 7 with devtoolset-8 / GCC 8[^8]                                                                        |
 | linux-armv7l            | Cross-compiled on Ubuntu 18.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools) |
-| linux-ppc64le           | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
-| linux-s390x             | RHEL 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                         |
-| linux-x64               | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
+| linux-ppc64le           | CentOS 7 with devtoolset-8 / GCC 8[^8]                                                                        |
+| linux-s390x             | RHEL 7 with devtoolset-8 / GCC 8[^8]                                                                          |
+| linux-x64               | CentOS 7 with devtoolset-8 / GCC 8[^8]                                                                        |
 | win-x64 and win-x86     | Windows 2012 R2 (x64) with Visual Studio 2019                                                                 |
 
-<em id="fn8">8</em>: The Enterprise Linux devtoolset-8 allows us to compile
-binaries with GCC 8 but linked to the glibc and libstdc++ versions of the host
-platforms (CentOS 7 / RHEL 7). Therefore, binaries produced on these systems
-are compatible with glibc >= 2.17 and libstdc++ >= 6.0.20 (`GLIBCXX_3.4.20`).
-These are available on distributions natively supporting GCC 4.9, such as
-Ubuntu 14.04 and Debian 8.
+[^8]: The Enterprise Linux devtoolset-8 allows us to compile binaries with GCC 8
+    but linked to the glibc and libstdc++ versions of the host platforms
+    (CentOS 7 / RHEL 7). Therefore, binaries produced on these systems are
+    compatible with glibc >= 2.17 and libstdc++ >= 6.0.20 (`GLIBCXX_3.4.20`).
+    These are available on distributions natively supporting GCC 4.9, such as
+    Ubuntu 14.04 and Debian 8.
 
 #### OpenSSL asm support
 
@@ -771,6 +771,7 @@ dynamically linking with OpenSSL 3.0.0 by using the configuration flag
 ### FIPS support when statically linking OpenSSL
 
 FIPS can be supported by specifying the configuration flag `--openssl-is-fips`:
+
 ```console
 $ ./configure --openssl-is-fips
 $ make -j8
@@ -783,23 +784,30 @@ to include the correct path to fipsmodule.cnf and finally uncomment the fips
 section.
 
 We can then run node specifying `--enable-fips`:
+
 ```console
 $ ./node --enable-fips  -p 'crypto.getFips()'
 1
 ```
+
 The above will use the Node.js default locations for OpenSSL 3.0:
+
 ```console
 $ ./out/Release/openssl-cli version -m -d
 OPENSSLDIR: "/nodejs/openssl/out/Release/obj.target/deps/openssl"
 MODULESDIR: "/nodejs/openssl/out/Release/obj.target/deps/openssl/lib/openssl-modules"
 ```
+
 The OpenSSL configuration files will be found in `OPENSSLDIR` directory above:
+
 ```console
 $ ls -w 1 out/Release/obj.target/deps/openssl/*.cnf
 out/Release/obj.target/deps/openssl/fipsmodule.cnf
 out/Release/obj.target/deps/openssl/openssl.cnf
 ```
+
 And the FIPS module will be located in the `MODULESDIR` directory:
+
 ```console
 $ ls out/Release/obj.target/deps/openssl/lib/openssl-modules/
 fips.so
