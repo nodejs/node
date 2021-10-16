@@ -5,6 +5,9 @@
 #include "node_binding.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#if HAVE_OPENSSL
+#include "openssl/opensslv.h"
+#endif
 
 #include <errno.h>
 #include <sstream>
