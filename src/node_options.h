@@ -11,6 +11,10 @@
 #include "node_mutex.h"
 #include "util.h"
 
+#if HAVE_OPENSSL
+#include "openssl/opensslv.h"
+#endif
+
 namespace node {
 
 class HostPort {
@@ -251,6 +255,9 @@ class PerProcessOptions : public Options {
   bool use_bundled_ca = false;
   bool enable_fips_crypto = false;
   bool force_fips_crypto = false;
+#endif
+#if OPENSSL_VERSION_MAJOR >= 3
+  bool openssl_legacy_provider = false;
 #endif
 
   // Per-process because reports can be triggered outside a known V8 context.
