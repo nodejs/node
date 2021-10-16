@@ -4,6 +4,9 @@
 #include "env-inl.h"
 #include "node_binding.h"
 #include "node_internals.h"
+#if HAVE_OPENSSL
+#include "openssl/opensslv.h"
+#endif
 
 #include <errno.h>
 #include <sstream>
@@ -814,6 +817,13 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             &PerProcessOptions::secure_heap_min,
             kAllowedInEnvironment);
 #endif
+#if OPENSSL_VERSION_MAJOR >= 3
+  AddOption("--openssl-legacy-provider",
+            "enable OpenSSL 3.0 legacy provider",
+            &PerProcessOptions::openssl_legacy_provider,
+            kAllowedInEnvironment);
+
+#endif  // OPENSSL_VERSION_MAJOR
   AddOption("--use-largepages",
             "Map the Node.js static code to large pages. Options are "
             "'off' (the default value, meaning do not map), "

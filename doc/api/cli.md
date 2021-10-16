@@ -670,6 +670,14 @@ Load an OpenSSL configuration file on startup. Among other uses, this can be
 used to enable FIPS-compliant crypto if Node.js is built
 against FIPS-enabled OpenSSL.
 
+### `--openssl-legacy-provider`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable OpenSSL 3.0 legacy provider. For more information please see
+[OSSL_PROVIDER-legacy][].
+
 ### `--pending-deprecation`
 <!-- YAML
 added: v8.0.0
@@ -1463,6 +1471,7 @@ Node.js options that are allowed are:
 * `--no-warnings`
 * `--node-memory-debug`
 * `--openssl-config`
+* `--openssl-legacy-provider`
 * `--pending-deprecation`
 * `--policy-integrity`
 * `--preserve-symlinks-main`
@@ -1805,6 +1814,7 @@ $ node --max-old-space-size=1536 index.js
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [ECMAScript Module loader]: esm.md#loaders
+[OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [Source Map]: https://sourcemaps.info/spec.html
