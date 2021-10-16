@@ -306,30 +306,28 @@ async function digest(data, algorithm = 'SHA-512') {
 The table details the algorithms supported by the Node.js Web Crypto API
 implementation and the APIs supported for each:
 
-| Algorithm                    | `generateKey` | `exportKey` | `importKey` | `encrypt` | `decrypt` | `wrapKey` | `unwrapKey` | `deriveBits` | `deriveKey` | `sign` | `verify` | `digest` |
-| ---------------------------- | ------------- | ----------- | ----------- | --------- | --------- | --------- | ----------- | ------------ | ----------- | ------ | -------- | -------- |
-| `'RSASSA-PKCS1-v1_5'`        | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'RSA-PSS'`                  | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'RSA-OAEP'`                 | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
-| `'ECDSA'`                    | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'ECDH'`                     | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'AES-CTR'`                  | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
-| `'AES-CBC'`                  | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
-| `'AES-GCM'`                  | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
-| `'AES-KW'`                   | ✔             | ✔           | ✔           |           |           | ✔         | ✔           |              |             |        |          |          |
-| `'HMAC'`                     | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'HKDF'`                     |               | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'PBKDF2'`                   |               | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'SHA-1'`                    |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'SHA-256'`                  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'SHA-384'`                  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'SHA-512'`                  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'NODE-DSA'`<sup>1</sup>     | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'NODE-DH'`<sup>1</sup>      | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'NODE-ED25519'`<sup>1</sup> | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'NODE-ED448'`<sup>1</sup>   | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-
-<sup>1</sup> Node.js-specific extension
+| Algorithm             | `generateKey` | `exportKey` | `importKey` | `encrypt` | `decrypt` | `wrapKey` | `unwrapKey` | `deriveBits` | `deriveKey` | `sign` | `verify` | `digest` |
+| --------------------- | ------------- | ----------- | ----------- | --------- | --------- | --------- | ----------- | ------------ | ----------- | ------ | -------- | -------- |
+| `'RSASSA-PKCS1-v1_5'` | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
+| `'RSA-PSS'`           | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
+| `'RSA-OAEP'`          | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
+| `'ECDSA'`             | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
+| `'ECDH'`              | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
+| `'AES-CTR'`           | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
+| `'AES-CBC'`           | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
+| `'AES-GCM'`           | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
+| `'AES-KW'`            | ✔             | ✔           | ✔           |           |           | ✔         | ✔           |              |             |        |          |          |
+| `'HMAC'`              | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
+| `'HKDF'`              |               | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
+| `'PBKDF2'`            |               | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
+| `'SHA-1'`             |               |             |             |           |           |           |             |              |             |        |          | ✔        |
+| `'SHA-256'`           |               |             |             |           |           |           |             |              |             |        |          | ✔        |
+| `'SHA-384'`           |               |             |             |           |           |           |             |              |             |        |          | ✔        |
+| `'SHA-512'`           |               |             |             |           |           |           |             |              |             |        |          | ✔        |
+| `'NODE-DSA'`[^1]      | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
+| `'NODE-DH'`[^1]       | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
+| `'NODE-ED25519'`[^1]  | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
+| `'NODE-ED448'`[^1]    | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
 
 ## Class: `Crypto`
 
@@ -447,27 +445,25 @@ The possible usages are:
 Valid key usages depend on the key algorithm (identified by
 `cryptokey.algorithm.name`).
 
-| Key Type                      | `'encrypt'` | `'decrypt'` | `'sign'` | `'verify'` | `'deriveKey'` | `'deriveBits'` | `'wrapKey'` | `'unwrapKey'` |
-| ----------------------------- | ----------- | ----------- | -------- | ---------- | ------------- | -------------- | ----------- | ------------- |
-| `'AES-CBC'`                   | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
-| `'AES-CTR'`                   | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
-| `'AES-GCM'`                   | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
-| `'AES-KW'`                    |             |             |          |            |               |                | ✔           | ✔             |
-| `'ECDH'`                      |             |             |          |            | ✔             | ✔              |             |               |
-| `'ECDSA'`                     |             |             | ✔        | ✔          |               |                |             |               |
-| `'HDKF'`                      |             |             |          |            | ✔             | ✔              |             |               |
-| `'HMAC'`                      |             |             | ✔        | ✔          |               |                |             |               |
-| `'PBKDF2'`                    |             |             |          |            | ✔             | ✔              |             |               |
-| `'RSA-OAEP'`                  | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
-| `'RSA-PSS'`                   |             |             | ✔        | ✔          |               |                |             |               |
-| `'RSASSA-PKCS1-v1_5'`         |             |             | ✔        | ✔          |               |                |             |               |
-| `'NODE-DSA'` <sup>1</sup>     |             |             | ✔        | ✔          |               |                |             |               |
-| `'NODE-DH'` <sup>1</sup>      |             |             |          |            | ✔             | ✔              |             |               |
-| `'NODE-SCRYPT'` <sup>1</sup>  |             |             |          |            | ✔             | ✔              |             |               |
-| `'NODE-ED25519'` <sup>1</sup> |             |             | ✔        | ✔          |               |                |             |               |
-| `'NODE-ED448'` <sup>1</sup>   |             |             | ✔        | ✔          |               |                |             |               |
-
-<sup>1</sup> Node.js-specific extension.
+| Key Type              | `'encrypt'` | `'decrypt'` | `'sign'` | `'verify'` | `'deriveKey'` | `'deriveBits'` | `'wrapKey'` | `'unwrapKey'` |
+| --------------------- | ----------- | ----------- | -------- | ---------- | ------------- | -------------- | ----------- | ------------- |
+| `'AES-CBC'`           | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
+| `'AES-CTR'`           | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
+| `'AES-GCM'`           | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
+| `'AES-KW'`            |             |             |          |            |               |                | ✔           | ✔             |
+| `'ECDH'`              |             |             |          |            | ✔             | ✔              |             |               |
+| `'ECDSA'`             |             |             | ✔        | ✔          |               |                |             |               |
+| `'HDKF'`              |             |             |          |            | ✔             | ✔              |             |               |
+| `'HMAC'`              |             |             | ✔        | ✔          |               |                |             |               |
+| `'PBKDF2'`            |             |             |          |            | ✔             | ✔              |             |               |
+| `'RSA-OAEP'`          | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
+| `'RSA-PSS'`           |             |             | ✔        | ✔          |               |                |             |               |
+| `'RSASSA-PKCS1-v1_5'` |             |             | ✔        | ✔          |               |                |             |               |
+| `'NODE-DSA'`[^1]      |             |             | ✔        | ✔          |               |                |             |               |
+| `'NODE-DH'`[^1]       |             |             |          |            | ✔             | ✔              |             |               |
+| `'NODE-SCRYPT'`[^1]   |             |             |          |            | ✔             | ✔              |             |               |
+| `'NODE-ED25519'`[^1]  |             |             | ✔        | ✔          |               |                |             |               |
+| `'NODE-ED448'`[^1]    |             |             | ✔        | ✔          |               |                |             |               |
 
 ## Class: `CryptoKeyPair`
 
@@ -549,10 +545,8 @@ The algorithms currently supported include:
 * `'ECDH'`
 * `'HKDF'`
 * `'PBKDF2'`
-* `'NODE-DH'`<sup>1</sup>
-* `'NODE-SCRYPT'`<sup>1</sup>
-
-<sup>1</sup> Node.js-specific extension
+* `'NODE-DH'`[^1]
+* `'NODE-SCRYPT'`[^1]
 
 ### `subtle.deriveKey(algorithm, baseKey, derivedKeyAlgorithm, extractable, keyUsages)`
 
@@ -585,10 +579,8 @@ The algorithms currently supported include:
 * `'ECDH'`
 * `'HKDF'`
 * `'PBKDF2'`
-* `'NODE-DH'`<sup>1</sup>
-* '`NODE-SCRYPT'`<sup>1</sup>
-
-<sup>1</sup> Node.js-specific extension
+* `'NODE-DH'`[^1]
+* '`NODE-SCRYPT'`[^1]
 
 ### `subtle.digest(algorithm, data)`
 
@@ -667,27 +659,25 @@ specification.
 The special `'node.keyObject'` value for `format` is a Node.js-specific
 extension that allows converting a {CryptoKey} into a Node.js {KeyObject}.
 
-| Key Type                      | `'spki'` | `'pkcs8'` | `'jwk'` | `'raw'` |
-| ----------------------------- | -------- | --------- | ------- | ------- |
-| `'AES-CBC'`                   |          |           | ✔       | ✔       |
-| `'AES-CTR'`                   |          |           | ✔       | ✔       |
-| `'AES-GCM'`                   |          |           | ✔       | ✔       |
-| `'AES-KW'`                    |          |           | ✔       | ✔       |
-| `'ECDH'`                      | ✔        | ✔         | ✔       | ✔       |
-| `'ECDSA'`                     | ✔        | ✔         | ✔       | ✔       |
-| `'HDKF'`                      |          |           |         |         |
-| `'HMAC'`                      |          |           | ✔       | ✔       |
-| `'PBKDF2'`                    |          |           |         |         |
-| `'RSA-OAEP'`                  | ✔        | ✔         | ✔       |         |
-| `'RSA-PSS'`                   | ✔        | ✔         | ✔       |         |
-| `'RSASSA-PKCS1-v1_5'`         | ✔        | ✔         | ✔       |         |
-| `'NODE-DSA'` <sup>1</sup>     | ✔        | ✔         |         |         |
-| `'NODE-DH'` <sup>1</sup>      | ✔        | ✔         |         |         |
-| `'NODE-SCRYPT'` <sup>1</sup>  |          |           |         |         |
-| `'NODE-ED25519'` <sup>1</sup> | ✔        | ✔         | ✔       | ✔       |
-| `'NODE-ED448'` <sup>1</sup>   | ✔        | ✔         | ✔       | ✔       |
-
-<sup>1</sup> Node.js-specific extension
+| Key Type              | `'spki'` | `'pkcs8'` | `'jwk'` | `'raw'` |
+| --------------------- | -------- | --------- | ------- | ------- |
+| `'AES-CBC'`           |          |           | ✔       | ✔       |
+| `'AES-CTR'`           |          |           | ✔       | ✔       |
+| `'AES-GCM'`           |          |           | ✔       | ✔       |
+| `'AES-KW'`            |          |           | ✔       | ✔       |
+| `'ECDH'`              | ✔        | ✔         | ✔       | ✔       |
+| `'ECDSA'`             | ✔        | ✔         | ✔       | ✔       |
+| `'HDKF'`              |          |           |         |         |
+| `'HMAC'`              |          |           | ✔       | ✔       |
+| `'PBKDF2'`            |          |           |         |         |
+| `'RSA-OAEP'`          | ✔        | ✔         | ✔       |         |
+| `'RSA-PSS'`           | ✔        | ✔         | ✔       |         |
+| `'RSASSA-PKCS1-v1_5'` | ✔        | ✔         | ✔       |         |
+| `'NODE-DSA'`[^1]      | ✔        | ✔         |         |         |
+| `'NODE-DH'`[^1]       | ✔        | ✔         |         |         |
+| `'NODE-SCRYPT'`[^1]   |          |           |         |         |
+| `'NODE-ED25519'`[^1]  | ✔        | ✔         | ✔       | ✔       |
+| `'NODE-ED448'`[^1]    | ✔        | ✔         | ✔       | ✔       |
 
 ### `subtle.generateKey(algorithm, extractable, keyUsages)`
 
@@ -717,10 +707,10 @@ include:
 * `'RSA-OAEP'`
 * `'ECDSA'`
 * `'ECDH'`
-* `'NODE-DSA'` <sup>1</sup>
-* `'NODE-DH'` <sup>1</sup>
-* `'NODE-ED25519'` <sup>1</sup>
-* `'NODE-ED448'` <sup>1</sup>
+* `'NODE-DSA'`[^1]
+* `'NODE-DH'`[^1]
+* `'NODE-ED25519'`[^1]
+* `'NODE-ED448'`[^1]
 
 The {CryptoKey} (secret key) generating algorithms supported include:
 
@@ -729,8 +719,6 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 * `'AES-CBC'`
 * `'AES-GCM'`
 * `'AES-KW'`
-
-<sup>1</sup> Non-standard Node.js extension
 
 ### `subtle.importKey(format, keyData, algorithm, extractable, keyUsages)`
 
@@ -768,27 +756,25 @@ If importing a `'PBKDF2'` key, `extractable` must be `false`.
 
 The algorithms currently supported include:
 
-| Key Type                      | `'spki'` | `'pkcs8'` | `'jwk'` | `'raw'` |
-| ----------------------------- | -------- | --------- | ------- | ------- |
-| `'AES-CBC'`                   |          |           | ✔       | ✔       |
-| `'AES-CTR'`                   |          |           | ✔       | ✔       |
-| `'AES-GCM'`                   |          |           | ✔       | ✔       |
-| `'AES-KW'`                    |          |           | ✔       | ✔       |
-| `'ECDH'`                      | ✔        | ✔         | ✔       | ✔       |
-| `'ECDSA'`                     | ✔        | ✔         | ✔       | ✔       |
-| `'HDKF'`                      |          |           |         | ✔       |
-| `'HMAC'`                      |          |           | ✔       | ✔       |
-| `'PBKDF2'`                    |          |           |         | ✔       |
-| `'RSA-OAEP'`                  | ✔        | ✔         | ✔       |         |
-| `'RSA-PSS'`                   | ✔        | ✔         | ✔       |         |
-| `'RSASSA-PKCS1-v1_5'`         | ✔        | ✔         | ✔       |         |
-| `'NODE-DSA'` <sup>1</sup>     | ✔        | ✔         |         |         |
-| `'NODE-DH'` <sup>1</sup>      | ✔        | ✔         |         |         |
-| `'NODE-SCRYPT'` <sup>1</sup>  |          |           |         | ✔       |
-| `'NODE-ED25519'` <sup>1</sup> | ✔        | ✔         | ✔       | ✔       |
-| `'NODE-ED448'` <sup>1</sup>   | ✔        | ✔         | ✔       | ✔       |
-
-<sup>1</sup> Node.js-specific extension
+| Key Type              | `'spki'` | `'pkcs8'` | `'jwk'` | `'raw'` |
+| --------------------- | -------- | --------- | ------- | ------- |
+| `'AES-CBC'`           |          |           | ✔       | ✔       |
+| `'AES-CTR'`           |          |           | ✔       | ✔       |
+| `'AES-GCM'`           |          |           | ✔       | ✔       |
+| `'AES-KW'`            |          |           | ✔       | ✔       |
+| `'ECDH'`              | ✔        | ✔         | ✔       | ✔       |
+| `'ECDSA'`             | ✔        | ✔         | ✔       | ✔       |
+| `'HDKF'`              |          |           |         | ✔       |
+| `'HMAC'`              |          |           | ✔       | ✔       |
+| `'PBKDF2'`            |          |           |         | ✔       |
+| `'RSA-OAEP'`          | ✔        | ✔         | ✔       |         |
+| `'RSA-PSS'`           | ✔        | ✔         | ✔       |         |
+| `'RSASSA-PKCS1-v1_5'` | ✔        | ✔         | ✔       |         |
+| `'NODE-DSA'`[^1]      | ✔        | ✔         |         |         |
+| `'NODE-DH'`[^1]       | ✔        | ✔         |         |         |
+| `'NODE-SCRYPT'`[^1]   |          |           |         | ✔       |
+| `'NODE-ED25519'`[^1]  | ✔        | ✔         | ✔       | ✔       |
+| `'NODE-ED448'`[^1]    | ✔        | ✔         | ✔       | ✔       |
 
 ### `subtle.sign(algorithm, key, data)`
 
@@ -816,11 +802,9 @@ The algorithms currently supported include:
 * `'RSA-PSS'`
 * `'ECDSA'`
 * `'HMAC'`
-* `'NODE-DSA'`<sup>1</sup>
-* `'NODE-ED25519'`<sup>1</sup>
-* `'NODE-ED448'`<sup>1</sup>
-
-<sup>1</sup> Non-standard Node.js extension
+* `'NODE-DSA'`[^1]
+* `'NODE-ED25519'`[^1]
+* `'NODE-ED448'`[^1]
 
 ### `subtle.unwrapKey(format, wrappedKey, unwrappingKey, unwrapAlgo, unwrappedKeyAlgo, extractable, keyUsages)`
 
@@ -855,10 +839,10 @@ promise is resolved with a {CryptoKey} object.
 The wrapping algorithms currently supported include:
 
 * `'RSA-OAEP'`
-* `'AES-CTR'`<sup>1</sup>
-* `'AES-CBC'`<sup>1</sup>
-* `'AES-GCM'`<sup>1</sup>
-* `'AES-KW'`<sup>1</sup>
+* `'AES-CTR'`[^1]
+* `'AES-CBC'`[^1]
+* `'AES-GCM'`[^1]
+* `'AES-KW'`[^1]
 
 The unwrapped key algorithms supported include:
 
@@ -872,10 +856,8 @@ The unwrapped key algorithms supported include:
 * `'AES-CBC'`
 * `'AES-GCM'`
 * `'AES-KW'`
-* `'NODE-DSA'`<sup>1</sup>
-* `'NODE-DH'`<sup>1</sup>
-
-<sup>1</sup> Non-standard Node.js extension
+* `'NODE-DSA'`[^1]
+* `'NODE-DH'`[^1]
 
 ### `subtle.verify(algorithm, key, signature, data)`
 
@@ -904,11 +886,9 @@ The algorithms currently supported include:
 * `'RSA-PSS'`
 * `'ECDSA'`
 * `'HMAC'`
-* `'NODE-DSA'`<sup>1</sup>
-* `'NODE-ED25519'`<sup>1</sup>
-* `'NODE-ED448'`<sup>1</sup>
-
-<sup>1</sup> Non-standard Node.js extension
+* `'NODE-DSA'`[^1]
+* `'NODE-ED25519'`[^1]
+* `'NODE-ED448'`[^1]
 
 ### `subtle.wrapKey(format, key, wrappingKey, wrapAlgo)`
 
@@ -1932,6 +1912,8 @@ added: v15.0.0
 -->
 
 * Type: {string|ArrayBuffer|Buffer|TypedArray|DataView}
+
+[^1]: Non-standard Node.js-specific extension
 
 [JSON Web Key]: https://tools.ietf.org/html/rfc7517
 [Key usages]: #cryptokeyusages
