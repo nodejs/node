@@ -43,6 +43,10 @@ for (const line of [...nodeOptionsLines, ...v8OptionsLines]) {
   }
 }
 
+if (!common.hasOpenSSL3) {
+  documented.delete('--openssl-legacy-provider');
+}
+
 // Filter out options that are conditionally present.
 const conditionalOpts = [
   {
@@ -50,6 +54,7 @@ const conditionalOpts = [
     filter: (opt) => {
       return [
         '--openssl-config',
+        common.hasOpenSSL3 ? '--openssl-legacy-provider' : '',
         '--tls-cipher-list',
         '--use-bundled-ca',
         '--use-openssl-ca',
