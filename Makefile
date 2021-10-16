@@ -1327,6 +1327,7 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	test/cctest/*.h \
 	test/embedding/*.cc \
 	test/embedding/*.h \
+	test/fixtures/*.c \
 	test/js-native-api/*/*.cc \
 	test/js-native-api/*/*.h \
 	test/node-api/*/*.cc \
