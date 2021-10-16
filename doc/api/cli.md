@@ -670,6 +670,14 @@ Load an OpenSSL configuration file on startup. Among other uses, this can be
 used to enable FIPS-compliant crypto if Node.js is built
 against FIPS-enabled OpenSSL.
 
+### `--openssl-legacy-provider`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable OpenSSL 3.0 legacy provider. For more information please see
+[providers readme][].
+
 ### `--pending-deprecation`
 <!-- YAML
 added: v8.0.0
@@ -1463,6 +1471,7 @@ Node.js options that are allowed are:
 * `--no-warnings`
 * `--node-memory-debug`
 * `--openssl-config`
+* `--openssl-legacy-provider`
 * `--pending-deprecation`
 * `--policy-integrity`
 * `--preserve-symlinks-main`
@@ -1837,6 +1846,7 @@ $ node --max-old-space-size=1536 index.js
 [emit_warning]: process.md#processemitwarningwarning-options
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
+[providers readme]: https://github.com/openssl/openssl/blob/openssl-3.0.0/README-PROVIDERS.md
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
