@@ -317,6 +317,7 @@
       './config/archs/linux-x32/asm/crypto/bn/x86_64-mont.s',
       './config/archs/linux-x32/asm/crypto/bn/x86_64-mont5.s',
       './config/archs/linux-x32/asm/crypto/md5/md5-x86_64.s',
+      './config/archs/linux-x32/asm/providers/legacy.ld',
       './config/archs/linux-x32/asm/providers/fips.ld',
 
     ],
@@ -352,7 +353,7 @@
     'openssl_ex_libs_linux-x32': [
       '-ldl -pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux-x32/asm/providers/fips.ld'
+    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux-x32/asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',

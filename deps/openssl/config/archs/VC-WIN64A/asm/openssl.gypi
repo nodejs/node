@@ -949,6 +949,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_VC-WIN64A': [
       './config/archs/VC-WIN64A/asm/crypto/aes/aes-x86_64.asm',
@@ -997,6 +998,7 @@
       './config/archs/VC-WIN64A/asm/crypto/bn/x86_64-mont.asm',
       './config/archs/VC-WIN64A/asm/crypto/bn/x86_64-mont5.asm',
       './config/archs/VC-WIN64A/asm/crypto/md5/md5-x86_64.asm',
+      './config/archs/VC-WIN64A/asm/providers/legacy.ld',
       './config/archs/VC-WIN64A/asm/providers/fips.ld',
     ],
     'openssl_defines_VC-WIN64A': [

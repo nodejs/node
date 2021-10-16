@@ -317,6 +317,7 @@
       './config/archs/BSD-x86_64/asm_avx2/crypto/bn/x86_64-mont.s',
       './config/archs/BSD-x86_64/asm_avx2/crypto/bn/x86_64-mont5.s',
       './config/archs/BSD-x86_64/asm_avx2/crypto/md5/md5-x86_64.s',
+      './config/archs/BSD-x86_64/asm_avx2/providers/legacy.ld',
       './config/archs/BSD-x86_64/asm_avx2/providers/fips.ld',
 
     ],
@@ -351,7 +352,7 @@
     'openssl_ex_libs_BSD-x86_64': [
       '-pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'linker_script': ''
   },
   'include_dirs': [
     '.',
@@ -363,7 +364,7 @@
   'defines': ['<@(openssl_defines_BSD-x86_64)'],
   'cflags': ['<@(openssl_cflags_BSD-x86_64)'],
   'libraries': ['<@(openssl_ex_libs_BSD-x86_64)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_BSD-x86_64)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

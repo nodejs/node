@@ -949,6 +949,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_solaris64-x86_64-gcc': [
       './config/archs/solaris64-x86_64-gcc/asm_avx2/crypto/aes/aes-x86_64.s',
@@ -997,6 +998,7 @@
       './config/archs/solaris64-x86_64-gcc/asm_avx2/crypto/bn/x86_64-mont.s',
       './config/archs/solaris64-x86_64-gcc/asm_avx2/crypto/bn/x86_64-mont5.s',
       './config/archs/solaris64-x86_64-gcc/asm_avx2/crypto/md5/md5-x86_64.s',
+      './config/archs/solaris64-x86_64-gcc/asm_avx2/providers/legacy.ld',
       './config/archs/solaris64-x86_64-gcc/asm_avx2/providers/fips.ld',
     ],
     'openssl_defines_solaris64-x86_64-gcc': [

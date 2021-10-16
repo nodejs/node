@@ -317,6 +317,7 @@
       './config/archs/solaris64-x86_64-gcc/asm/crypto/bn/x86_64-mont.s',
       './config/archs/solaris64-x86_64-gcc/asm/crypto/bn/x86_64-mont5.s',
       './config/archs/solaris64-x86_64-gcc/asm/crypto/md5/md5-x86_64.s',
+      './config/archs/solaris64-x86_64-gcc/asm/providers/legacy.ld',
       './config/archs/solaris64-x86_64-gcc/asm/providers/fips.ld',
 
     ],
@@ -352,7 +353,7 @@
     'openssl_ex_libs_solaris64-x86_64-gcc': [
       '-lsocket -lnsl -ldl -pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'linker_script': ''
   },
   'include_dirs': [
     '.',
@@ -364,7 +365,7 @@
   'defines': ['<@(openssl_defines_solaris64-x86_64-gcc)'],
   'cflags': ['<@(openssl_cflags_solaris64-x86_64-gcc)'],
   'libraries': ['<@(openssl_ex_libs_solaris64-x86_64-gcc)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_solaris64-x86_64-gcc)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

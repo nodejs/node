@@ -317,6 +317,7 @@
       './config/archs/VC-WIN64A/asm/crypto/bn/x86_64-mont.asm',
       './config/archs/VC-WIN64A/asm/crypto/bn/x86_64-mont5.asm',
       './config/archs/VC-WIN64A/asm/crypto/md5/md5-x86_64.asm',
+      './config/archs/VC-WIN64A/asm/providers/legacy.ld',
       './config/archs/VC-WIN64A/asm/providers/fips.ld',
 
     ],
@@ -356,7 +357,7 @@
     'openssl_ex_libs_VC-WIN64A': [
       'ws2_32.lib gdi32.lib advapi32.lib crypt32.lib user32.lib',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'linker_script': ''
   },
   'include_dirs': [
     '.',

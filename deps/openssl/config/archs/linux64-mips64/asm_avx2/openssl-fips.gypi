@@ -286,6 +286,7 @@
       './config/archs/linux64-mips64/asm_avx2/providers/common/der/der_wrap_gen.c',
       './config/archs/linux64-mips64/asm_avx2/crypto/bn/bn-mips.S',
       './config/archs/linux64-mips64/asm_avx2/crypto/bn/mips-mont.S',
+      './config/archs/linux64-mips64/asm_avx2/providers/legacy.ld',
       './config/archs/linux64-mips64/asm_avx2/providers/fips.ld',
 
     ],
@@ -310,7 +311,7 @@
     'openssl_ex_libs_linux64-mips64': [
       '-ldl -pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux64-mips64/asm_avx2/providers/fips.ld'
+    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux64-mips64/asm_avx2/providers/fips.ld'
   },
   'include_dirs': [
     '.',

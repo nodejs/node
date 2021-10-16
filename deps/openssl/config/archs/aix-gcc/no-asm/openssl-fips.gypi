@@ -279,6 +279,7 @@
       './config/archs/aix-gcc/no-asm/providers/common/der/der_ecx_gen.c',
       './config/archs/aix-gcc/no-asm/providers/common/der/der_rsa_gen.c',
       './config/archs/aix-gcc/no-asm/providers/common/der/der_wrap_gen.c',
+      './config/archs/aix-gcc/no-asm/providers/legacy.ld',
       './config/archs/aix-gcc/no-asm/providers/fips.ld',
 
     ],
@@ -297,7 +298,7 @@
     'openssl_ex_libs_aix-gcc': [
       '-pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'linker_script': ''
   },
   'include_dirs': [
     '.',
@@ -309,7 +310,7 @@
   'defines': ['<@(openssl_defines_aix-gcc)'],
   'cflags': ['<@(openssl_cflags_aix-gcc)'],
   'libraries': ['<@(openssl_ex_libs_aix-gcc)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_aix-gcc)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

@@ -297,6 +297,7 @@
       './config/archs/linux-ppc/asm_avx2/providers/common/der/der_wrap_gen.c',
       './config/archs/linux-ppc/asm_avx2/crypto/bn/bn-ppc.s',
       './config/archs/linux-ppc/asm_avx2/crypto/bn/ppc-mont.s',
+      './config/archs/linux-ppc/asm_avx2/providers/legacy.ld',
       './config/archs/linux-ppc/asm_avx2/providers/fips.ld',
 
     ],
@@ -324,7 +325,7 @@
     'openssl_ex_libs_linux-ppc': [
       '-ldl -pthread -latomic',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux-ppc/asm_avx2/providers/fips.ld'
+    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux-ppc/asm_avx2/providers/fips.ld'
   },
   'include_dirs': [
     '.',

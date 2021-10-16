@@ -279,6 +279,7 @@
       './config/archs/BSD-x86_64/no-asm/providers/common/der/der_ecx_gen.c',
       './config/archs/BSD-x86_64/no-asm/providers/common/der/der_rsa_gen.c',
       './config/archs/BSD-x86_64/no-asm/providers/common/der/der_wrap_gen.c',
+      './config/archs/BSD-x86_64/no-asm/providers/legacy.ld',
       './config/archs/BSD-x86_64/no-asm/providers/fips.ld',
 
     ],
@@ -297,7 +298,7 @@
     'openssl_ex_libs_BSD-x86_64': [
       '-pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config'
+    'linker_script': ''
   },
   'include_dirs': [
     '.',
@@ -309,7 +310,7 @@
   'defines': ['<@(openssl_defines_BSD-x86_64)'],
   'cflags': ['<@(openssl_cflags_BSD-x86_64)'],
   'libraries': ['<@(openssl_ex_libs_BSD-x86_64)'],
-  'ldflags': ['-Wl,--version-script=<@(linker_script)'],
+
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_BSD-x86_64)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],

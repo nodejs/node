@@ -303,6 +303,7 @@
       './config/archs/linux-ppc64/asm/crypto/bn/bn-ppc.s',
       './config/archs/linux-ppc64/asm/crypto/bn/ppc-mont.s',
       './config/archs/linux-ppc64/asm/crypto/bn/ppc64-mont-fixed.s',
+      './config/archs/linux-ppc64/asm/providers/legacy.ld',
       './config/archs/linux-ppc64/asm/providers/fips.ld',
 
     ],
@@ -333,7 +334,7 @@
     'openssl_ex_libs_linux-ppc64': [
       '-ldl -pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux-ppc64/asm/providers/fips.ld'
+    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux-ppc64/asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',

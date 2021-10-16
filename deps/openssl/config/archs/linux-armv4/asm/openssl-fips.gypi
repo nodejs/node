@@ -295,6 +295,7 @@
       './config/archs/linux-armv4/asm/providers/common/der/der_wrap_gen.c',
       './config/archs/linux-armv4/asm/crypto/bn/armv4-gf2m.S',
       './config/archs/linux-armv4/asm/crypto/bn/armv4-mont.S',
+      './config/archs/linux-armv4/asm/providers/legacy.ld',
       './config/archs/linux-armv4/asm/providers/fips.ld',
 
     ],
@@ -325,7 +326,7 @@
     'openssl_ex_libs_linux-armv4': [
       '-ldl -pthread -latomic',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux-armv4/asm/providers/fips.ld'
+    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux-armv4/asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',

@@ -292,6 +292,7 @@
       './config/archs/linux32-s390x/asm_avx2/providers/common/der/der_wrap_gen.c',
       './config/archs/linux32-s390x/asm_avx2/crypto/bn/s390x-gf2m.s',
       './config/archs/linux32-s390x/asm_avx2/crypto/bn/s390x-mont.S',
+      './config/archs/linux32-s390x/asm_avx2/providers/legacy.ld',
       './config/archs/linux32-s390x/asm_avx2/providers/fips.ld',
 
     ],
@@ -324,7 +325,7 @@
     'openssl_ex_libs_linux32-s390x': [
       '-ldl -pthread',
     ],
-    'linker_script': '/home/danielbevenius/work/nodejs/openssl/deps/openssl/config/../config/archs/linux32-s390x/asm_avx2/providers/fips.ld'
+    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux32-s390x/asm_avx2/providers/fips.ld'
   },
   'include_dirs': [
     '.',

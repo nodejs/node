@@ -956,6 +956,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_linux-ppc': [
       './config/archs/linux-ppc/asm/crypto/aes/aes-ppc.s',
@@ -982,6 +983,7 @@
       './config/archs/linux-ppc/asm/providers/common/der/der_wrap_gen.c',
       './config/archs/linux-ppc/asm/crypto/bn/bn-ppc.s',
       './config/archs/linux-ppc/asm/crypto/bn/ppc-mont.s',
+      './config/archs/linux-ppc/asm/providers/legacy.ld',
       './config/archs/linux-ppc/asm/providers/fips.ld',
     ],
     'openssl_defines_linux-ppc': [

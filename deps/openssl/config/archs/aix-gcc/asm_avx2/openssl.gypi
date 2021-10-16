@@ -956,6 +956,7 @@
       'openssl/providers/implementations/digests/wp_prov.c',
       'openssl/providers/implementations/kdfs/pbkdf1.c',
       'openssl/providers/prov_running.c',
+      'openssl/providers/legacyprov.c',
     ],
     'openssl_sources_aix-gcc': [
       './config/archs/aix-gcc/asm_avx2/crypto/aes/aes-ppc.s',
@@ -982,6 +983,7 @@
       './config/archs/aix-gcc/asm_avx2/providers/common/der/der_wrap_gen.c',
       './config/archs/aix-gcc/asm_avx2/crypto/bn/bn-ppc.s',
       './config/archs/aix-gcc/asm_avx2/crypto/bn/ppc-mont.s',
+      './config/archs/aix-gcc/asm_avx2/providers/legacy.ld',
       './config/archs/aix-gcc/asm_avx2/providers/fips.ld',
     ],
     'openssl_defines_aix-gcc': [
