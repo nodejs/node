@@ -5,8 +5,8 @@ const http = require('http');
 const net = require('net');
 const assert = require('assert');
 
-// Verify that a request with a space before the content length will result
-// in a 400 Bad Request.
+// Verify that invalid chunk extensions cannot be used to perform HTTP request
+// smuggling attacks.
 
 const server = http.createServer(common.mustCall((request, response) => {
   assert.notStrictEqual(request.url, '/admin');
