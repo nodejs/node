@@ -23,7 +23,7 @@ function start() {
     'Host: localhost:8080\r\n' +
     'Transfer-Encoding: chunked\r\n' +
     '\r\n' +
-    '2 \n' +
+    '2;\n' +
     'xx\r\n' +
     '4c\r\n' +
     '0\r\n' +
