@@ -12,3 +12,6 @@ emeritus or leaves the project.
     a team listing. For example, if someone is removed from @nodejs/build,
     they should also be removed from the Build WG README.md file in the
     <https://github.com/nodejs/build> repository.
+* Open an issue in the [build](https://github.com/nodejs/build) repository
+  titled `Remove Collaborator from Coverity` asking that the collaborator
+  be removed from the Node.js coverity project if they had access.
