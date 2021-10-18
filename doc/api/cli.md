@@ -676,7 +676,7 @@ added: REPLACEME
 -->
 
 Enable OpenSSL 3.0 legacy provider. For more information please see
-[providers readme][].
+[OSSL_PROVIDER-legacy][].
 
 ### `--pending-deprecation`
 <!-- YAML
@@ -1814,6 +1814,7 @@ $ node --max-old-space-size=1536 index.js
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [ECMAScript Module loader]: esm.md#loaders
+[OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [Source Map]: https://sourcemaps.info/spec.html
@@ -1846,7 +1847,6 @@ $ node --max-old-space-size=1536 index.js
 [emit_warning]: process.md#processemitwarningwarning-options
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
-[providers readme]: https://github.com/openssl/openssl/blob/openssl-3.0.0/README-PROVIDERS.md
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
