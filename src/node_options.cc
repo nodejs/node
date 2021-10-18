@@ -1082,6 +1082,11 @@ void GetEmbedderOptions(const FunctionCallbackInfo<Value>& args) {
            Boolean::New(isolate, env->no_global_search_paths()))
       .IsNothing()) return;
 
+  if (ret->Set(context,
+           FIXED_ONE_BYTE_STRING(env->isolate(), "noBrowserGlobals"),
+           Boolean::New(isolate, env->no_browser_globals()))
+      .IsNothing()) return;
+
   args.GetReturnValue().Set(ret);
 }
 

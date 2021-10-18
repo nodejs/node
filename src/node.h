@@ -439,7 +439,9 @@ enum Flags : uint64_t {
   // $HOME/.node_modules and $NODE_PATH. This is used by standalone apps that
   // do not expect to have their behaviors changed because of globally
   // installed modules.
-  kNoGlobalSearchPaths = 1 << 7
+  kNoGlobalSearchPaths = 1 << 7,
+  // Do not export browser globals like setTimeout, console, etc.
+  kNoBrowserGlobals = 1 << 8,
 };
 }  // namespace EnvironmentFlags
 
