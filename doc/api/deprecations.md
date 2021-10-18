@@ -2998,7 +2998,9 @@ for package `"exports"` and `"imports"` pattern resolutions.
 
 <!-- YAML
 changes:
-  - version: v17.0.0
+  - version:
+    - v17.0.0
+    - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/36670
     description: Documentation-only deprecation.
 -->
