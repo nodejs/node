@@ -2830,7 +2830,7 @@ for package `"exports"` and `"imports"` pattern resolutions.
 ### DEP0156: `.aborted` property and `'abort'`, `'aborted'` event in `http`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.12.0
     pr-url: https://github.com/nodejs/node/pull/36670
     description: Documentation-only deprecation.
 -->
