@@ -17,6 +17,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          author: Node.js GitHub Bot <github-bot@iojs.org>
+          branch: actions/license-builder
           title: "doc: run license-builder"
           body: "License is likely out of date. This is an automatically generated PR by the `license-builder.yml` GitHub Action, which runs `license-builder.sh` and submits a new PR or updates an existing PR."
           commit-message: 'doc: run license-builder'
