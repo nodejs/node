@@ -28,8 +28,11 @@
     'node_intermediate_lib_type%': 'static_library',
     'node_builtin_modules_path%': '',
     # We list the deps/ files out instead of globbing them in js2c.py since we
+    
     # only include a subset of all the files under these directories.
+    
     # The lengths of their file names combined should not exceed the
+
     # Windows command length limit or there would be an error.
     # See https://docs.microsoft.com/en-us/troubleshoot/windows-client/shell-experience/command-line-string-limitation
     'library_files': [
