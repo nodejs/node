@@ -249,6 +249,8 @@ needs to be pointed out separately during the onboarding.
   project. The Foundation has travel funds to cover participants' expenses
   including accommodations, transportation, visa fees, etc. if needed. Check out
   the [summit](https://github.com/nodejs/summit) repository for details.
+* If you are interested in helping to fix coverity reports consider requesting
+  access to the projects coverity project as outlined in [static-analysis][].
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Labels]: doc/guides/collaborator-guide.md#labels
@@ -259,6 +261,7 @@ needs to be pointed out separately during the onboarding.
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-github-credentials
+[static-analysis]: doc/guides/static-analysis.md
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/
 [using a TOTP mobile app]: https://help.github.com/articles/configuring-two-factor-authentication-via-a-totp-mobile-app/
 [who-to-cc]: doc/guides/collaborator-guide.md#who-to-cc-in-the-issue-tracker
