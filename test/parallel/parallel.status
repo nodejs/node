@@ -28,6 +28,8 @@ test-util-inspect: SKIP
 # Temporarily skip for crrev.com/c/3106647
 test-repl: SKIP
 
+test-v8-stats: SKIP
+
 [$system==win32]
 # https://github.com/nodejs/node/issues/24497
 test-timers-immediate-queue: PASS,FLAKY
