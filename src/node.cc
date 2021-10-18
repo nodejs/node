@@ -182,6 +182,7 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
     return MaybeLocal<Value>();
   }
 
+  v8::TryCatch try_catch(env->isolate());
   MaybeLocal<Value> result = fn->Call(env->context(),
                                       Undefined(env->isolate()),
                                       arguments->size(),
@@ -193,8 +194,13 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
   // There are only two ways to have a stack size > 1: 1) the user manually
   // called MakeCallback or 2) user awaited during bootstrap, which triggered
   // _tickCallback().
-  if (result.IsEmpty()) {
+  if (result.IsEmpty() || try_catch.HasCaught()) {
     env->async_hooks()->clear_async_id_stack();
+
+    if (try_catch.HasCaught()) {
+      PrintCaughtException(env->isolate(), env->context(), try_catch);
+      return MaybeLocal<Value>();
+    }
   }
 
   return scope.EscapeMaybe(result);
