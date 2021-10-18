@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { Duplex, Readable, Writable } = require('stream');
+const { Duplex, Readable, Writable, pipeline } = require('stream');
 
 {
   const d = Duplex.from({
@@ -117,4 +117,30 @@ const { Duplex, Readable, Writable } = require('stream');
   d.once('end', common.mustCall(function() {
     assert.strictEqual(d.readable, false);
   }));
+}
+
+{
+  // https://github.com/nodejs/node/issues/40497
+  pipeline(
+    ['abc\ndef\nghi'],
+    Duplex.from(async function * (source) {
+      let rest = '';
+      for await (const chunk of source) {
+        const lines = (rest + chunk.toString()).split('\n');
+        rest = lines.pop();
+        for (const line of lines) {
+          yield line;
+        }
+      }
+      yield rest;
+    }),
+    async function * (source) {
+      let ret = '';
+      for await (const x of source) {
+        ret += x;
+      }
+      assert.strictEqual(ret, 'abcdefghi');
+    },
+    common.mustCall(() => {}),
+  );
 }
