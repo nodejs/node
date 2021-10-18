@@ -26,7 +26,23 @@ const net = require('net');
 
 const sockets = [];
 
-const server = net.createServer(function(c) {
+let server = new net.Server();
+
+// Ensure that the close callback is not called when the server was not
+// previously running.
+server.close(common.mustNotCall());
+
+server.listen();
+
+// Ensure that the close callback is called when the server was previously
+// running.
+server.close(common.mustCall());
+
+// Ensure that the close callback is not called when the server was previously
+// running but is no more.
+server.close(common.mustNotCall());
+
+server = net.createServer(function(c) {
   c.on('close', common.mustCall());
 
   sockets.push(c);
