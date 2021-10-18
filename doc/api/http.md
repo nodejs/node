@@ -424,7 +424,9 @@ body which has been transmitted are equal or not.
 
 <!-- YAML
 added: v1.4.1
-deprecated: v17.0.0
+deprecated:
+  - v17.0.0
+  - v16.12.0
 -->
 
 > Stability: 0 - Deprecated. Listen for the `'close'` event instead.
@@ -674,7 +676,9 @@ in the response to be dropped and the socket to be destroyed.
 
 <!-- YAML
 added: v0.11.14
-deprecated: v17.0.0
+deprecated:
+  - v17.0.0
+  - v16.12.0
 changes:
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/20230
@@ -2091,7 +2095,9 @@ may be reused multiple times in case of keep-alive.
 
 <!-- YAML
 added: v0.3.8
-deprecated: v17.0.0
+deprecated:
+  - v17.0.0
+  - v16.12.0
 -->
 
 > Stability: 0 - Deprecated. Listen for `'close'` event instead.
@@ -2110,7 +2116,9 @@ Indicates that the underlying connection was closed.
 
 <!-- YAML
 added: v10.1.0
-deprecated: v17.0.0
+deprecated:
+  - v17.0.0
+  - v16.12.0
 -->
 
 > Stability: 0 - Deprecated. Check `message.destroyed` from {stream.Readable}.
