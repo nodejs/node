@@ -100,7 +100,7 @@ copy("$src_dir/providers/common/include/prov/der_ec.h",
 copy("$src_dir/providers/common/include/prov/der_digests.h",
      "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
 
-my $linker_script_dir = "\$(srcdir)/deps/openssl/config/archs/$arch/$asm/providers";
+my $linker_script_dir = "<(PRODUCT_DIR)/../../deps/openssl/config/archs/$arch/$asm/providers";
 my $fips_linker_script = "";
 if ($fips_ld ne "") {
   $fips_linker_script = "$linker_script_dir/fips.ld";

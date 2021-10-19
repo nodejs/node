@@ -347,15 +347,21 @@
           'variables': {
             'openssl-cli': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)openssl-cli<(EXECUTABLE_SUFFIX)',
             'provider_name': 'libopenssl-fipsmodule',
-            'fipsmodule_internal': '<(obj_dir)/deps/openssl/<(provider_name).so',
-            'fipsmodule': '<(obj_dir)/deps/openssl/lib/openssl-modules/fips.so',
-            'fipsconfig': '<(obj_dir)/deps/openssl/fipsmodule.cnf',
-            'opensslconfig_internal': '<(obj_dir)/deps/openssl/openssl.cnf',
             'opensslconfig': './deps/openssl/openssl/apps/openssl.cnf',
+            'conditions': [
+              ['GENERATOR == "ninja"', {
+	        'fipsmodule_internal': '<(PRODUCT_DIR)/lib/<(provider_name).so',
+                'fipsmodule': '<(PRODUCT_DIR)/obj/lib/openssl-modules/fips.so',
+                'fipsconfig': '<(PRODUCT_DIR)/obj/lib/fipsmodule.cnf',
+                'opensslconfig_internal': '<(PRODUCT_DIR)/obj/lib/openssl.cnf',
+             }, {
+	        'fipsmodule_internal': '<(PRODUCT_DIR)/obj.target/deps/openssl/<(provider_name).so',
+                'fipsmodule': '<(PRODUCT_DIR)/obj.target/deps/openssl/lib/openssl-modules/fips.so',
+                'fipsconfig': '<(PRODUCT_DIR)/obj/deps/openssl/fipsmodule.cnf',
+                'opensslconfig_internal': '<(PRODUCT_DIR)/obj.target/deps/openssl/openssl.cnf',
+             }],
+            ],
           },
-          #'dependencies': [
-             #'./deps/openssl/openssl.gyp:openssl-fipsmodule'
-          #],
           'actions': [
             {
               'action_name': 'fipsinstall',
