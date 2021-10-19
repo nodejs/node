@@ -267,7 +267,7 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/40433
-    description: Added return value.
+    description: Added return value. Added to channels without subscribers.
 -->
 
 * `onMessage` {Function} The previous subscribed handler to remove
