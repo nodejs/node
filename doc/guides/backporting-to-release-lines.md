@@ -24,6 +24,20 @@ require that commits mature in the Current release for at least 2 weeks before
 they can be landed in an LTS staging branch. Only after "maturation" will those
 commits be cherry-picked or backported.
 
+## How to label backport issues and PRs?
+
+For the following labels, the `N` in `vN.x` refers to the major release number.
+
+| Label                   | Description                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------- |
+| backport-blocked-vN.x   | PRs that should land on the vN.x-staging branch but are blocked by another PR's pending backport. |
+| backport-open-vN.x      | Indicate that the PR has an open backport.                                                        |
+| backport-requested-vN.x | PRs awaiting manual backport to the vN.x-staging branch.                                          |
+| backported-to-vN.x      | PRs backported to the vN.x-staging branch.                                                        |
+| baking-for-lts          | PRs that need to wait before landing in a LTS release.                                            |
+| lts-watch-vN.x          | PRs that may need to be released in vN.x.                                                         |
+| vN.x                    | Issues that can be reproduced on vN.x or PRs targeting the vN.x-staging branch.                   |
+
 ## How to submit a backport pull request
 
 For the following steps, let's assume that a backport is needed for the v10.x
