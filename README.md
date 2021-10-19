@@ -197,6 +197,8 @@ For information about the governance of the Node.js project, see
   **Mary Marchini** \<oss@mmarchini.me> (she/her)
 * [MylesBorins](https://github.com/MylesBorins) -
   **Myles Borins** \<myles.borins@gmail.com> (he/him)
+* [richardlau](https://github.com/richardlau) -
+  **Richard Lau** \<rlau@redhat.com>
 * [ronag](https://github.com/ronag) -
   **Robert Nagy** \<ronagy@icloud.com>
 * [targos](https://github.com/targos) -
