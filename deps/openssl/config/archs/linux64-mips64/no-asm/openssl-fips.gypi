@@ -298,7 +298,7 @@
     'openssl_ex_libs_linux64-mips64': [
       '-ldl -pthread',
     ],
-    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux64-mips64/no-asm/providers/fips.ld'
+    'linker_script': '<(PRODUCT_DIR)/../../deps/openssl/config/archs/linux64-mips64/no-asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',
