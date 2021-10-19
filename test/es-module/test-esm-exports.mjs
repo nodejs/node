@@ -104,6 +104,10 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     // Even though 'pkgexports/sub/asdf.js' works, alternate "path-like"
     // variants do not to prevent confusion and accidental loopholes.
     ['pkgexports/sub/./../asdf.js', './sub/./../asdf.js'],
+    // Cannot reach into node_modules, even percent encoded
+    ['pkgexports/sub/no%64e_modules', './sub/no%64e_modules'],
+    // Cannot backtrack below exposed path, even with percent encoded "."
+    ['pkgexports/sub/%2e./asdf', './asdf'],
   ]);
 
   for (const [specifier, subpath] of undefinedExports) {

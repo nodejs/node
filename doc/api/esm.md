@@ -1077,59 +1077,63 @@ The resolver can throw the following errors:
 >    1. Note: _specifier_ is now a bare specifier.
 >    2. Set _resolved_ the result of
 >       **PACKAGE\_RESOLVE**(_specifier_, _parentURL_).
-> 6. If _resolved_ contains any percent encodings of _"/"_ or _"\\"_ (_"%2f"_
->    and _"%5C"_ respectively), then
->    1. Throw an _Invalid Module Specifier_ error.
-> 7. If the file at _resolved_ is a directory, then
->    1. Throw an _Unsupported Directory Import_ error.
-> 8. If the file at _resolved_ does not exist, then
->    1. Throw a _Module Not Found_ error.
-> 9. Set _resolved_ to the real path of _resolved_.
-> 10. Let _format_ be the result of **ESM\_FORMAT**(_resolved_).
-> 11. Load _resolved_ as module format, _format_.
-> 12. Return _resolved_.
+> 6. Let _format_ be **undefined**.
+> 7. If _resolved_ is a _"file:"_ URL, then
+>    1. If _resolved_ contains any percent encodings of _"/"_ or _"\\"_ (_"%2F"_
+>       and _"%5C"_ respectively), then
+>       1. Throw an _Invalid Module Specifier_ error.
+>    2. If the file at _resolved_ is a directory, then
+>       1. Throw an _Unsupported Directory Import_ error.
+>    3. If the file at _resolved_ does not exist, then
+>       1. Throw a _Module Not Found_ error.
+>    4. Set _resolved_ to the real path of _resolved_, maintaining the
+>       same URL querystring and fragment components.
+>    5. Set _format_ to the result of **ESM\_FILE\_FORMAT**(_resolved_).
+> 8. Otherwise,
+>    1. Set _format_ the module format of the content type associated with the
+>       URL _resolved_.
+> 9. Load _resolved_ as module format, _format_.
 
 **PACKAGE\_RESOLVE**(_packageSpecifier_, _parentURL_)
 
 > 1. Let _packageName_ be **undefined**.
 > 2. If _packageSpecifier_ is an empty string, then
 >    1. Throw an _Invalid Module Specifier_ error.
-> 3. If _packageSpecifier_ does not start with _"@"_, then
+> 3. If _packageSpecifier_ is a Node.js builtin module name, then
+>    1. Return the string _"node:"_ concatenated with _packageSpecifier_.
+> 4. If _packageSpecifier_ does not start with _"@"_, then
 >    1. Set _packageName_ to the substring of _packageSpecifier_ until the first
 >       _"/"_ separator or the end of the string.
-> 4. Otherwise,
+> 5. Otherwise,
 >    1. If _packageSpecifier_ does not contain a _"/"_ separator, then
 >       1. Throw an _Invalid Module Specifier_ error.
 >    2. Set _packageName_ to the substring of _packageSpecifier_
 >       until the second _"/"_ separator or the end of the string.
-> 5. If _packageName_ starts with _"."_ or contains _"\\"_ or _"%"_, then
+> 6. If _packageName_ starts with _"."_ or contains _"\\"_ or _"%"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
-> 6. Let _packageSubpath_ be _"."_ concatenated with the substring of
+> 7. Let _packageSubpath_ be _"."_ concatenated with the substring of
 >    _packageSpecifier_ from the position at the length of _packageName_.
-> 7. If _packageSubpath_ ends in _"/"_, then
+> 8. If _packageSubpath_ ends in _"/"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
-> 8. Let _selfUrl_ be the result of
+> 9. Let _selfUrl_ be the result of
 >    **PACKAGE\_SELF\_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_).
-> 9. If _selfUrl_ is not **undefined**, return _selfUrl_.
-> 10. If _packageSubpath_ is _"."_ and _packageName_ is a Node.js builtin
->     module, then
->     1. Return the string _"node:"_ concatenated with _packageSpecifier_.
+> 10. If _selfUrl_ is not **undefined**, return _selfUrl_.
 > 11. While _parentURL_ is not the file system root,
->     1. Let _packageURL_ be the URL resolution of _"node\_modules/"_
->        concatenated with _packageSpecifier_, relative to _parentURL_.
->     2. Set _parentURL_ to the parent folder URL of _parentURL_.
->     3. If the folder at _packageURL_ does not exist, then
->        1. Continue the next loop iteration.
->     4. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
->     5. If _pjson_ is not **null** and _pjson_._exports_ is not **null** or
->        **undefined**, then
->        1. Return the result of **PACKAGE\_EXPORTS\_RESOLVE**(_packageURL_,
->           _packageSubpath_, _pjson.exports_, _defaultConditions_).
->     6. Otherwise, if _packageSubpath_ is equal to _"."_, then
->        1. If _pjson.main_ is a string, then
->           1. Return the URL resolution of _main_ in _packageURL_.
->     7. Otherwise,
->        1. Return the URL resolution of _packageSubpath_ in _packageURL_.
+>    1. Let _packageURL_ be the URL resolution of _"node_modules/"_
+>       concatenated with _packageSpecifier_, relative to _parentURL_.
+>    2. Set _parentURL_ to the parent folder URL of _parentURL_.
+>    3. If the folder at _packageURL_ does not exist, then
+>       1. Continue the next loop iteration.
+>    4. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
+>    5. If _pjson_ is not **null** and _pjson_._exports_ is not **null** or
+>       **undefined**, then
+>       1. Return the result of **PACKAGE\_EXPORTS\_RESOLVE**(_packageURL_,
+>          _packageSubpath_, _pjson.exports_, _defaultConditions_).
+>    6. Otherwise, if _packageSubpath_ is equal to _"."_, then
+>       1. If _pjson.main_ is a string, then
+>          1. Return the URL resolution of _main_ in _packageURL_.
+>    7. Otherwise,
+>       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
 > 12. Throw a _Module Not Found_ error.
 
 **PACKAGE\_SELF\_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_)
@@ -1239,18 +1243,20 @@ _internal_, _conditions_)
 >          _"/"_ and is not a valid URL, then
 >          1. If _pattern_ is **true**, then
 >             1. Return **PACKAGE\_RESOLVE**(_target_ with every instance of
->                _"\*"_ replaced by _subpath_, _packageURL_ + _"/"_)\_.
+>                _"\*"_ replaced by _subpath_, _packageURL_ + _"/"_).
 >          2. Return **PACKAGE\_RESOLVE**(_target_ + _subpath_,
->             _packageURL_ + _"/"_)\_.
+>             _packageURL_ + _"/"_)_.
 >       2. Otherwise, throw an _Invalid Package Target_ error.
 >    3. If _target_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
->       _"node\_modules"_ segments after the first segment, throw an
->       _Invalid Package Target_ error.
+>       _"node\_modules"_ segments after the first segment, case insensitive and
+>       including percent encoded variants, throw an _Invalid Package Target_
+>       error.
 >    4. Let _resolvedTarget_ be the URL resolution of the concatenation of
 >       _packageURL_ and _target_.
 >    5. Assert: _resolvedTarget_ is contained in _packageURL_.
 >    6. If _subpath_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
->       _"node\_modules"_ segments, throw an _Invalid Module Specifier_ error.
+>       _"node\_modules"_ segments, case insensitive and including percent
+>       encoded variants, throw an _Invalid Module Specifier_ error.
 >    7. If _pattern_ is **true**, then
 >       1. Return the URL resolution of _resolvedTarget_ with every instance of
 >          _"\*"_ replaced with _subpath_.
@@ -1283,7 +1289,7 @@ _internal_, _conditions_)
 > 4. Otherwise, if _target_ is _null_, return **null**.
 > 5. Otherwise throw an _Invalid Package Target_ error.
 
-**ESM\_FORMAT**(_url_)
+**ESM\_FILE\_FORMAT**(_url_)
 
 > 1. Assert: _url_ corresponds to an existing file.
 > 2. Let _pjson_ be the result of **READ\_PACKAGE\_SCOPE**(_url_).
@@ -1291,11 +1297,13 @@ _internal_, _conditions_)
 >    1. Return _"module"_.
 > 4. If _url_ ends in _".cjs"_, then
 >    1. Return _"commonjs"_.
-> 5. If _pjson?.type_ exists and is _"module"_, then
+> 5. If _url_ ends in _".json"_, then
+>    1. Return _"json"_.
+> 6. If _pjson?.type_ exists and is _"module"_, then
 >    1. If _url_ ends in _".js"_, then
 >       1. Return _"module"_.
 >    2. Throw an _Unsupported File Extension_ error.
-> 6. Otherwise,
+> 7. Otherwise,
 >    1. Throw an _Unsupported File Extension_ error.
 
 **READ\_PACKAGE\_SCOPE**(_url_)
