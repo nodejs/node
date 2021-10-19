@@ -77,6 +77,26 @@ if (channel.hasSubscribers) {
 }
 ```
 
+Note the channels are weakly held by the runtime. It is your responsibility to keep a reference to the channel to ensure your subscriber receives calls.
+
+For example, the channel may be deallocated, if the emitter does not publish any event before the next GC cycle.
+
+```cjs
+const diagnostics_channel = require('diagnostics_channel');
+
+function createSubscriber() {
+  // Get a reusable channel object
+  const channel = diagnostics_channel.channel('my-channel');
+
+  // Subscribe to the channel
+  channel.subscribe((message, name) => {
+    // Received data
+  });
+}
+
+createSubscriber();
+```
+
 #### `diagnostics_channel.hasSubscribers(name)`
 
 <!-- YAML
