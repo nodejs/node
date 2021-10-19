@@ -325,7 +325,7 @@
     'openssl_ex_libs_linux-ppc': [
       '-ldl -pthread -latomic',
     ],
-    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux-ppc/asm/providers/fips.ld'
+    'linker_script': '<(PRODUCT_DIR)/../../deps/openssl/config/archs/linux-ppc/asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',

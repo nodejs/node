@@ -290,7 +290,7 @@ our %target = (
     "LDFLAGS" => "/nologo /debug",
     "MT" => "mt",
     "MTFLAGS" => "-nologo",
-    "RANLIB" => "CODE(0x5606abb4c230)",
+    "RANLIB" => "CODE(0x55dcfa1252b0)",
     "RC" => "rc",
     "_conf_fname_int" => [
         "Configurations/00-base-templates.conf",
@@ -8054,9 +8054,6 @@ our %unified_info = (
         },
         "apps/lib" => {
             "deps" => [
-                "apps/lib/openssl-bin-cmp_mock_srv.o",
-                "apps/lib/cmp_client_test-bin-cmp_mock_srv.o",
-                "apps/lib/uitest-bin-apps_ui.o",
                 "apps/lib/libapps-lib-app_libctx.o",
                 "apps/lib/libapps-lib-app_params.o",
                 "apps/lib/libapps-lib-app_provider.o",
@@ -8076,7 +8073,10 @@ our %unified_info = (
                 "apps/lib/libapps-lib-tlssrp_depr.o",
                 "apps/lib/libapps-lib-win32_init.o",
                 "apps/lib/libtestutil-lib-opt.o",
-                "apps/lib/libtestutil-lib-win32_init.o"
+                "apps/lib/libtestutil-lib-win32_init.o",
+                "apps/lib/openssl-bin-cmp_mock_srv.o",
+                "apps/lib/cmp_client_test-bin-cmp_mock_srv.o",
+                "apps/lib/uitest-bin-apps_ui.o"
             ],
             "products" => {
                 "bin" => [

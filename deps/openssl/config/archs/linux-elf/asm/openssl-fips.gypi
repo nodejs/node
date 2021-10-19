@@ -339,7 +339,7 @@
     'openssl_ex_libs_linux-elf': [
       '-ldl -pthread',
     ],
-    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux-elf/asm/providers/fips.ld'
+    'linker_script': '<(PRODUCT_DIR)/../../deps/openssl/config/archs/linux-elf/asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',

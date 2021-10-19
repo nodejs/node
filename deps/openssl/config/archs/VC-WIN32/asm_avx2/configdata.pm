@@ -287,7 +287,7 @@ our %target = (
     "LDFLAGS" => "/nologo /debug",
     "MT" => "mt",
     "MTFLAGS" => "-nologo",
-    "RANLIB" => "CODE(0x5625caa48ae0)",
+    "RANLIB" => "CODE(0x5582b32d0400)",
     "RC" => "rc",
     "_conf_fname_int" => [
         "Configurations/00-base-templates.conf",
@@ -9769,10 +9769,10 @@ our %unified_info = (
         },
         "providers/fips" => {
             "deps" => [
-                "providers/fips/fips-dso-fips_entry.o",
                 "providers/fips/libfips-lib-fipsprov.o",
                 "providers/fips/libfips-lib-self_test.o",
-                "providers/fips/libfips-lib-self_test_kats.o"
+                "providers/fips/libfips-lib-self_test_kats.o",
+                "providers/fips/fips-dso-fips_entry.o"
             ],
             "products" => {
                 "dso" => [

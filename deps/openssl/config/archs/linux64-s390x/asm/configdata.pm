@@ -7988,9 +7988,6 @@ our %unified_info = (
         },
         "apps/lib" => {
             "deps" => [
-                "apps/lib/openssl-bin-cmp_mock_srv.o",
-                "apps/lib/cmp_client_test-bin-cmp_mock_srv.o",
-                "apps/lib/uitest-bin-apps_ui.o",
                 "apps/lib/libapps-lib-app_libctx.o",
                 "apps/lib/libapps-lib-app_params.o",
                 "apps/lib/libapps-lib-app_provider.o",
@@ -8008,7 +8005,10 @@ our %unified_info = (
                 "apps/lib/libapps-lib-s_cb.o",
                 "apps/lib/libapps-lib-s_socket.o",
                 "apps/lib/libapps-lib-tlssrp_depr.o",
-                "apps/lib/libtestutil-lib-opt.o"
+                "apps/lib/libtestutil-lib-opt.o",
+                "apps/lib/openssl-bin-cmp_mock_srv.o",
+                "apps/lib/cmp_client_test-bin-cmp_mock_srv.o",
+                "apps/lib/uitest-bin-apps_ui.o"
             ],
             "products" => {
                 "bin" => [
@@ -9711,10 +9711,10 @@ our %unified_info = (
         },
         "providers/fips" => {
             "deps" => [
-                "providers/fips/fips-dso-fips_entry.o",
                 "providers/fips/libfips-lib-fipsprov.o",
                 "providers/fips/libfips-lib-self_test.o",
-                "providers/fips/libfips-lib-self_test_kats.o"
+                "providers/fips/libfips-lib-self_test_kats.o",
+                "providers/fips/fips-dso-fips_entry.o"
             ],
             "products" => {
                 "dso" => [
