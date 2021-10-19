@@ -9721,10 +9721,10 @@ our %unified_info = (
         },
         "providers/fips" => {
             "deps" => [
-                "providers/fips/fips-dso-fips_entry.o",
                 "providers/fips/libfips-lib-fipsprov.o",
                 "providers/fips/libfips-lib-self_test.o",
-                "providers/fips/libfips-lib-self_test_kats.o"
+                "providers/fips/libfips-lib-self_test_kats.o",
+                "providers/fips/fips-dso-fips_entry.o"
             ],
             "products" => {
                 "dso" => [
