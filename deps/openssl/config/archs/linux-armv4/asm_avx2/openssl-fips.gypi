@@ -326,7 +326,7 @@
     'openssl_ex_libs_linux-armv4': [
       '-ldl -pthread -latomic',
     ],
-    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux-armv4/asm_avx2/providers/fips.ld'
+    'linker_script': '<(PRODUCT_DIR)/../../deps/openssl/config/archs/linux-armv4/asm_avx2/providers/fips.ld'
   },
   'include_dirs': [
     '.',

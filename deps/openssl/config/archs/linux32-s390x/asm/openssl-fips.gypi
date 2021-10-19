@@ -325,7 +325,7 @@
     'openssl_ex_libs_linux32-s390x': [
       '-ldl -pthread',
     ],
-    'linker_script': '$(srcdir)/deps/openssl/config/archs/linux32-s390x/asm/providers/fips.ld'
+    'linker_script': '<(PRODUCT_DIR)/../../deps/openssl/config/archs/linux32-s390x/asm/providers/fips.ld'
   },
   'include_dirs': [
     '.',
