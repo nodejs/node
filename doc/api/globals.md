@@ -407,6 +407,16 @@ added: v0.0.1
 
 [`setTimeout`][] is described in the [timers][] section.
 
+## `structuredClone(value[, options])`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+<!-- type=global -->
+
+The WHATWG [`structuredClone`][] method.
+
 ## `DOMException`
 
 <!-- YAML
@@ -498,6 +508,7 @@ The object that acts as the namespace for all W3C
 [`setImmediate`]: timers.md#setimmediatecallback-args
 [`setInterval`]: timers.md#setintervalcallback-delay-args
 [`setTimeout`]: timers.md#settimeoutcallback-delay-args
+[`structuredClone`]: https://developer.mozilla.org/en-US/docs/Web/API/structuredClone
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [module system documentation]: modules.md
