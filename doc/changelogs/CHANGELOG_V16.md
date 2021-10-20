@@ -4,9 +4,13 @@
 
 <table>
 <tr>
+<th>LTS 'Gallium'</th>
 <th>Current</th>
 </tr>
 <tr>
+<td>
+<a href="#16.13.0">16.13.0</a><br/>
+</td>
 <td>
 <a href="#16.12.0">16.12.0</a><br/>
 <a href="#16.11.1">16.11.1</a><br/>
@@ -49,6 +53,16 @@
   * [0.10.x](CHANGELOG\_V010.md)
   * [io.js](CHANGELOG\_IOJS.md)
   * [Archive](CHANGELOG\_ARCHIVE.md)
+
+<a id="16.13.0"></a>
+## 2021-10-26, Version 16.13.0 'Gallium' (LTS), @richardlau
+
+### Notable Changes
+
+This release marks the transition of Node.js 16.x into Long Term Support (LTS)
+with the codename 'Gallium'. The 16.x release line now moves into "Active LTS"
+and will remain so until October 2022. After that time, it will move into
+"Maintenance" until end of life in April 2024.
 
 <a id="16.12.0"></a>
 ## 2021-10-20, Version 16.12.0 (Current), @richardlau

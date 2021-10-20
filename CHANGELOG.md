@@ -3,9 +3,9 @@
 Select a Node.js version below to view the changelog history:
 
 * [Node.js 17](doc/changelogs/CHANGELOG\_V17.md) **Current**
-* [Node.js 16](doc/changelogs/CHANGELOG\_V16.md) **Current**
+* [Node.js 16](doc/changelogs/CHANGELOG\_V16.md) **Long Term Support**
 * [Node.js 15](doc/changelogs/CHANGELOG\_V15.md) End-of-Life
-* [Node.js 14](doc/changelogs/CHANGELOG\_V14.md) **Long Term Support**
+* [Node.js 14](doc/changelogs/CHANGELOG\_V14.md) Long Term Support
 * [Node.js 13](doc/changelogs/CHANGELOG\_V13.md) End-of-Life
 * [Node.js 12](doc/changelogs/CHANGELOG\_V12.md) Long Term Support
 * [Node.js 11](doc/changelogs/CHANGELOG\_V11.md) End-of-Life
