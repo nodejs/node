@@ -60,8 +60,7 @@ fi
 addlicense "libuv" "deps/uv" "$(cat "${rootdir}"/deps/uv/LICENSE)"
 addlicense "llhttp" "deps/llhttp" "$(cat deps/llhttp/LICENSE-MIT)"
 addlicense "corepack" "deps/corepack" "$(cat "${rootdir}"/deps/corepack/LICENSE.md)"
-addlicense "OpenSSL" "deps/openssl" \
-           "$(sed -e '/^ \*\/$/,$d' -e '/^ [^*].*$/d' -e '/\/\*.*$/d' -e '/^$/d' -e 's/^[/ ]\* *//' "${rootdir}"/deps/openssl/openssl/LICENSE)"
+addlicense "OpenSSL" "deps/openssl" "$(cat "${rootdir}"/deps/openssl/openssl/LICENSE.txt)"
 addlicense "Punycode.js" "lib/punycode.js" \
            "$(curl -sL https://raw.githubusercontent.com/bestiejs/punycode.js/HEAD/LICENSE-MIT.txt)"
 addlicense "V8" "deps/v8" "$(cat "${rootdir}"/deps/v8/LICENSE)"
