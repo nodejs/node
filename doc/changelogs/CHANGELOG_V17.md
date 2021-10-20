@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#17.0.1">17.0.1</a><br/>
 <a href="#17.0.0">17.0.0</a><br/>
 </td>
 </tr>
@@ -31,6 +32,37 @@
   * [0.10.x](CHANGELOG\_V010.md)
   * [io.js](CHANGELOG\_IOJS.md)
   * [Archive](CHANGELOG\_ARCHIVE.md)
+
+<a id="17.0.1"></a>
+## 2021-10-20, Version 17.0.1 (Current), @targos
+
+### Notable Changes
+
+#### Fixed distribution for native addon builds
+
+This release fixes an issue introduced in Node.js v17.0.0, where some V8 headers
+were missing from the distributed tarball, making it impossible to build native
+addons. These headers are now included. [#40526](https://github.com/nodejs/node/pull/40526)
+
+#### Fixed stream issues
+
+* Fixed a regression in `stream.promises.pipeline`, which was introduced in version
+  16.10.0, is fixed. It is now possible again to pass an array of streams to the
+  function. [#40193](https://github.com/nodejs/node/pull/40193)
+* Fixed a bug in `stream.Duplex.from`, which didn't work properly when an async
+  generator function was passed to it. [#40499](https://github.com/nodejs/node/pull/40499)
+
+### Commits
+
+* [[`3f033556c3`](https://github.com/nodejs/node/commit/3f033556c3)] - **build**: include missing V8 headers in distribution (Michaël Zasso) [#40526](https://github.com/nodejs/node/pull/40526)
+* [[`adbd92ef1d`](https://github.com/nodejs/node/commit/adbd92ef1d)] - **crypto**: avoid double free (Michael Dawson) [#40380](https://github.com/nodejs/node/pull/40380)
+* [[`8dce85aadc`](https://github.com/nodejs/node/commit/8dce85aadc)] - **doc**: format doc/api/\*.md with markdown formatter (Rich Trott) [#40403](https://github.com/nodejs/node/pull/40403)
+* [[`977016a72f`](https://github.com/nodejs/node/commit/977016a72f)] - **doc**: specify that maxFreeSockets is per host (Luigi Pinca) [#40483](https://github.com/nodejs/node/pull/40483)
+* [[`f9f2442739`](https://github.com/nodejs/node/commit/f9f2442739)] - **src**: add missing inialization in agent.h (Michael Dawson) [#40379](https://github.com/nodejs/node/pull/40379)
+* [[`111f0bd9b6`](https://github.com/nodejs/node/commit/111f0bd9b6)] - **stream**: fix fromAsyncGen (Robert Nagy) [#40499](https://github.com/nodejs/node/pull/40499)
+* [[`b84f101049`](https://github.com/nodejs/node/commit/b84f101049)] - **stream**: support array of streams in promises pipeline (Mestery) [#40193](https://github.com/nodejs/node/pull/40193)
+* [[`3f7c503b69`](https://github.com/nodejs/node/commit/3f7c503b69)] - **test**: adjust CLI flags test to ignore blank lines in doc (Rich Trott) [#40403](https://github.com/nodejs/node/pull/40403)
+* [[`7c42d9fcc6`](https://github.com/nodejs/node/commit/7c42d9fcc6)] - **test**: split test-crypto-dh.js (Joyee Cheung) [#40451](https://github.com/nodejs/node/pull/40451)
 
 <a id="17.0.0"></a>
 ## 2021-10-19, Version 17.0.0 (Current), @BethGriggs
