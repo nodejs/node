@@ -202,7 +202,7 @@ changes:
   * `verbatim` {boolean} When `true`, the callback receives IPv4 and IPv6
     addresses in the order the DNS resolver returned them. When `false`,
     IPv4 addresses are placed before IPv6 addresses.
-    **Default:** `true` (addresses are reordered). Default value is
+    **Default:** `true` (addresses are not reordered). Default value is
     configurable using [`dns.setDefaultResultOrder()`][] or
     [`--dns-result-order`][].
 * `callback` {Function}
