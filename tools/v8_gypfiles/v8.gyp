@@ -50,12 +50,12 @@
     {
       'target_name': 'run_torque',
       'type': 'none',
+      'toolsets': ['host', 'target'],
       'conditions': [
         ['want_separate_host_toolset', {
           'dependencies': ['torque#host'],
-          'toolsets': ['host', 'target'],
         }, {
-          'dependencies': ['torque'],
+          'dependencies': ['torque#target'],
         }],
       ],
       'hard_dependency': 1,
@@ -110,11 +110,9 @@
     {
       'target_name': 'v8_maybe_icu',
       'type': 'none',
+      'toolsets': ['host', 'target'],
       'hard_dependency': 1,
       'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
         ['v8_enable_i18n_support==1', {
           'dependencies': [
             '<(icu_gyp_path):icui18n',
@@ -130,11 +128,7 @@
     {
       'target_name': 'torque_runtime_support',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'direct_dependent_settings': {
         'sources': [
           '<(V8_ROOT)/src/torque/runtime-support.h',
@@ -144,12 +138,8 @@
     {
       'target_name': 'torque_generated_initializers',
       'type': 'none',
+      'toolsets': ['host', 'target'],
       'hard_dependency': 1,
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
       'dependencies': [
         'generate_bytecode_builtins_list',
         'run_torque',
@@ -171,12 +161,8 @@
     {
       'target_name': 'torque_generated_definitions',
       'type': 'none',
+      'toolsets': ['host', 'target'],
       'hard_dependency': 1,
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
       'dependencies': [
         'generate_bytecode_builtins_list',
         'run_torque',
@@ -204,12 +190,12 @@
       'target_name': 'generate_bytecode_builtins_list',
       'type': 'none',
       'hard_dependency': 1,
+      'toolsets': ['host', 'target'],
       'conditions': [
         ['want_separate_host_toolset', {
           'dependencies': ['bytecode_builtins_list_generator#host'],
-          'toolsets': ['host', 'target'],
         }, {
-          'dependencies': ['bytecode_builtins_list_generator'],
+          'dependencies': ['bytecode_builtins_list_generator#target'],
         }],
       ],
       'direct_dependent_settings': {
@@ -242,11 +228,7 @@
     {
       'target_name': 'v8_init',
       'type': 'static_library',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'dependencies': [
         'generate_bytecode_builtins_list',
         'run_torque',
@@ -261,6 +243,7 @@
     {
       'target_name': 'v8_initializers',
       'type': 'static_library',
+      'toolsets': ['host', 'target'],
       'dependencies': [
         'torque_generated_initializers',
         'v8_base_without_compiler',
@@ -274,9 +257,6 @@
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?sources = ")',
       ],
       'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
         ['v8_enable_webassembly==1', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?v8_enable_webassembly.*?sources \\+= ")',
@@ -466,11 +446,7 @@
     {
       'target_name': 'v8_version',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'direct_dependent_settings': {
         'sources': [
           '<(V8_ROOT)/include/v8-value-serializer-version.h',
@@ -482,11 +458,7 @@
     {
       'target_name': 'v8_config_headers',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'direct_dependent_settings': {
         'sources': [
           '<(V8_ROOT)/include/v8-platform.h',
@@ -497,11 +469,7 @@
     {
       'target_name': 'v8_headers',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'dependencies': [
         'v8_config_headers',
         'cppgc_headers',
@@ -519,11 +487,7 @@
     {
       'target_name': 'v8_shared_internal_headers',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'dependencies': [
         'v8_headers',
         'v8_libbase',
@@ -539,11 +503,7 @@
     {
       'target_name': 'v8_flags',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'dependencies': [
         'v8_shared_internal_headers',
       ],
@@ -557,11 +517,7 @@
     {
       'target_name': 'v8_internal_headers',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'dependencies': [
         'torque_runtime_support',
         'v8_flags',
@@ -639,14 +595,23 @@
                   '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"arm64\\".*?v8_control_flow_integrity.*?sources \\+= ")',
                 ],
               }],
-              ['v8_enable_webassembly==1 and OS=="mac"', {
-                'sources': [
-                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"arm64\\".*?v8_enable_webassembly.*?is_mac.*?sources \\+= ")',
+              ['v8_enable_webassembly==1', {
+                'conditions': [
+                  ['OS=="mac" or (_toolset=="host" and host_arch=="x64" and OS=="linux")', {
+                    'sources': [
+                      '<(V8_ROOT)/src/trap-handler/handler-inside-posix.h',
+                    ],
+                  }],
+                  ['_toolset=="host" and host_arch=="x64" and (OS=="linux" or OS=="mac" or OS=="win")', {
+                    'sources': [
+                      '<(V8_ROOT)/src/trap-handler/trap-handler-simulator.h',
+                    ],
+                  }],
                 ],
               }],
               ['OS=="win"', {
                 'sources': [
-                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"arm64\\".*?is_win.*?sources \\+= ")',
+                  '<(V8_ROOT)/src/diagnostics/unwinding-info-win64.h',
                 ],
               }],
             ],
@@ -687,6 +652,7 @@
     {
       'target_name': 'v8_compiler_opt',
       'type': 'static_library',
+      'toolsets': ['host', 'target'],
       'dependencies': [
         'generate_bytecode_builtins_list',
         'run_torque',
@@ -698,9 +664,6 @@
       ],
       'sources': ['<@(v8_compiler_sources)'],
       'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
         ['OS=="win"', {
           'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
           'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
@@ -714,6 +677,7 @@
     {
       'target_name': 'v8_compiler',
       'type': 'static_library',
+      'toolsets': ['host', 'target'],
       'dependencies': [
         'generate_bytecode_builtins_list',
         'run_torque',
@@ -725,9 +689,6 @@
       ],
       'sources': ['<@(v8_compiler_sources)'],
       'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
         ['OS=="win"', {
           'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
           'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
@@ -741,6 +702,7 @@
     {
       'target_name': 'v8_compiler_for_mksnapshot',
       'type': 'none',
+      'toolsets': ['host', 'target'],
       'hard_dependency': 1,
       'dependencies': [
         'generate_bytecode_builtins_list',
@@ -748,9 +710,6 @@
         'v8_maybe_icu',
       ],
       'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
         ['is_component_build and not v8_optimized_debug and v8_enable_fast_mksnapshot', {
           'dependencies': [
             'v8_compiler_opt',
@@ -771,6 +730,7 @@
     {
       'target_name': 'v8_base_without_compiler',
       'type': 'static_library',
+      'toolsets': ['host', 'target'],
       'dependencies': [
         'torque_generated_definitions',
         'v8_bigint',
@@ -813,9 +773,6 @@
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_webassembly.*?sources \\+= ")',
           ],
         }],
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
         ['v8_target_arch=="ia32"', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x86.*?sources \\+= ")',
@@ -857,15 +814,30 @@
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm64\\".*?sources \\+= ")',
           ],
           'conditions': [
-            ['OS=="mac"', {
-              'sources': [
-                "<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc",
-                "<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc",
+            ['v8_enable_webassembly==1', {
+              'conditions': [
+                ['OS=="mac" or (_toolset=="host" and host_arch=="x64" and OS=="linux")', {
+                  'sources': [
+                    '<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc',
+                    '<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc',
+                  ],
+                }],
+                ['_toolset=="host" and host_arch=="x64" and OS=="win"', {
+                  'sources': [
+                    '<(V8_ROOT)/src/trap-handler/handler-inside-win.cc',
+                    '<(V8_ROOT)/src/trap-handler/handler-outside-win.cc',
+                  ],
+                }],
+                ['_toolset=="host" and host_arch=="x64" and (OS=="linux" or OS=="mac" or OS=="win")', {
+                  'sources': [
+                    '<(V8_ROOT)/src/trap-handler/handler-outside-simulator.cc',
+                  ],
+                }],
               ],
             }],
             ['OS=="win"', {
               'sources': [
-                "<(V8_ROOT)/src/diagnostics/unwinding-info-win64.cc",
+                '<(V8_ROOT)/src/diagnostics/unwinding-info-win64.cc',
               ],
             }],
           ],
@@ -975,11 +947,7 @@
     {
       'target_name': 'v8_base',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'dependencies': [
         'v8_base_without_compiler',
         'v8_compiler',
@@ -988,11 +956,7 @@
     {
       'target_name': 'torque_base',
       'type': 'static_library',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"torque_base.*?sources = ")',
       ],
@@ -1019,11 +983,7 @@
     {
       'target_name': 'torque_ls_base',
       'type': 'static_library',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"torque_ls_base.*?sources = ")',
       ],
@@ -1049,6 +1009,7 @@
     {
       'target_name': 'v8_libbase',
       'type': 'static_library',
+      'toolsets': ['host', 'target'],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libbase.*?sources = ")',
       ],
@@ -1058,9 +1019,6 @@
       ],
 
       'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
         ['is_component_build', {
           'defines': ["BUILDING_V8_BASE_SHARED"],
         }],
@@ -1307,6 +1265,7 @@
     {
       'target_name': 'v8_libplatform',
       'type': 'static_library',
+      'toolsets': ['host', 'target'],
       'dependencies': [
         'v8_libbase',
       ],
@@ -1338,9 +1297,6 @@
         '<(V8_ROOT)/src/libplatform/worker-thread.h',
       ],
       'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
         ['component=="shared_library"', {
           'direct_dependent_settings': {
             'defines': ['USING_V8_PLATFORM_SHARED'],
@@ -1387,11 +1343,7 @@
     {
       'target_name': 'v8_libsampler',
       'type': 'static_library',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'dependencies': [
         'v8_libbase',
       ],
@@ -1531,12 +1483,12 @@
     {
       'target_name': 'run_gen-regexp-special-case',
       'type': 'none',
+      'toolsets': ['host', 'target'],
       'conditions': [
         ['want_separate_host_toolset', {
           'dependencies': ['gen-regexp-special-case#host'],
-          'toolsets': ['host', 'target'],
         }, {
-          'dependencies': ['gen-regexp-special-case'],
+          'dependencies': ['gen-regexp-special-case#target'],
         }],
       ],
       'actions': [
@@ -1560,11 +1512,7 @@
     {
       'target_name': 'cppgc_headers',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'direct_dependent_settings': {
         'sources': [
           '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"cppgc_headers.*?sources = ")',
@@ -1574,11 +1522,7 @@
     {
       'target_name': 'cppgc_base',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'direct_dependent_settings': {
         'sources': [
           '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"cppgc_base.*?sources = ")',
@@ -1588,11 +1532,7 @@
     {
       'target_name': 'v8_bigint',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'direct_dependent_settings': {
         'sources': [
           '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"v8_bigint.*?sources = ")',
@@ -1812,11 +1752,7 @@
     {
       'target_name': 'postmortem-metadata',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-      ],
+      'toolsets': ['host', 'target'],
       'dependencies': ['run_torque'],
       'variables': {
         'heapobject_files': [
@@ -1910,10 +1846,8 @@
     {
       'target_name': 'v8_zlib',
       'type': 'static_library',
+      'toolsets': ['host', 'target'],
       'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
         ['OS=="win"', {
           'conditions': [
             ['"<(target_arch)"=="arm64" and _toolset=="target"', {
