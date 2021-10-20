@@ -11,9 +11,12 @@ not.
 2. The module can only be implemented in core.
 3. The module can only be implemented in a performant way in core.
 4. Developer experience is significantly improved if the module is in core.
-5. The module will be widely used, have cross platform native code, and being in
-   core will avoid the need for an end-user compilation chain.
-6. Part or all of the module will also be re-used or duplicated in core.
+5. The module provides functionality that can be expected to solve at least one
+   common use case Node.js users face.
+6. The module requires native bindings. Inclusion in core enables utility across
+   operating systems and architectures without requiring users to have a native
+   compilation toolchain.
+7. Part or all of the module will also be re-used or duplicated in core.
 
 ## Strong arguments against including a module in core
 
