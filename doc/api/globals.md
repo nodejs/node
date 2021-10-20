@@ -382,6 +382,7 @@ added: v0.0.1
 [`setTimeout`][] is described in the [timers][] section.
 
 ## `structuredClone(value[, options])`
+
 <!-- YAML
 added: v17.0.0
 -->
