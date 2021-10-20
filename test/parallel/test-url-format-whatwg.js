@@ -37,28 +37,28 @@ assert.strictEqual(
 // Any truthy value will be treated as true.
 
 assert.strictEqual(
-	url.format(myURL, { auth: false }),
-	'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  url.format(myURL, { auth: false }),
+  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 assert.strictEqual(
-	url.format(myURL, { auth: '' }),
-	'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  url.format(myURL, { auth: '' }),
+  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 assert.strictEqual(
-	url.format(myURL, { auth: 0 }),
-	'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  url.format(myURL, { auth: 0 }),
+  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 assert.strictEqual(
-	url.format(myURL, { auth: 1 }),
-	'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  url.format(myURL, { auth: 1 }),
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 assert.strictEqual(
-	url.format(myURL, { auth: {} }),
-	'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  url.format(myURL, { auth: {} }),
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 assert.strictEqual(
