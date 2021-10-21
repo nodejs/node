@@ -28,15 +28,11 @@ function assertValidAsm(func) {
 
     // The following methods verify that return statements with global constants
     // do not need type annotations.
-    function f() {
-      return fPrime;
-    }
-    function d() {
-      return dConst;
-    }
-    function i() {
-      return iConst;
-    }
+    f = () => fPrime;
+    
+    d = () => dConst;
+
+    i = () => iConst;
 
     // The following methods verify that locals initialized with global
     // constants do not need type annotations.

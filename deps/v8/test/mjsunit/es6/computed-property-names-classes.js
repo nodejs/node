@@ -5,9 +5,7 @@
 'use strict';
 
 
-function ID(x) {
-  return x;
-}
+const ID = x => x;
 
 
 (function TestClassMethodString() {

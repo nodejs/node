@@ -28,10 +28,8 @@ description('Tests to ensure that Function.apply works correctly for Arrays, arg
 
 function argumentsApply1(a, b, c)
 {
-    function t(a, b, c)
-    {
-        return a;
-    }
+    const t = (a, b, c) => a;
+
     return t.apply(null, arguments);
 }
 
