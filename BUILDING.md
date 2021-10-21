@@ -521,22 +521,18 @@ installing `ccache` can help to greatly reduce build times. Set up with:
 
 On GNU/Linux:
 
-```console
-$ sudo apt install ccache   # for Debian/Ubuntu, included in most Linux distros
-$ ccache -o cache_dir=<tmp_dir>
-$ ccache -o max_size=5.0G
-$ export CC="ccache gcc"    # add to your .profile
-$ export CXX="ccache g++"   # add to your .profile
+```bash
+sudo apt install ccache   # for Debian/Ubuntu, included in most Linux distros
+export CC="ccache gcc"    # add to your .profile
+export CXX="ccache g++"   # add to your .profile
 ```
 
 On macOS:
 
-```console
-$ brew install ccache      # see https://brew.sh
-$ ccache -o cache_dir=<tmp_dir>
-$ ccache -o max_size=5.0G
-$ export CC="ccache cc"    # add to ~/.zshrc or other shell config file
-$ export CXX="ccache c++"  # add to ~/.zshrc or other shell config file
+```bash
+brew install ccache      # see https://brew.sh
+export CC="ccache cc"    # add to ~/.zshrc or other shell config file
+export CXX="ccache c++"  # add to ~/.zshrc or other shell config file
 ```
 
 This will allow for near-instantaneous rebuilds even when switching branches.
