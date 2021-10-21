@@ -131,9 +131,9 @@ NgHeader<T>::NgHeader(
 
 template <typename T>
 NgHeader<T>::NgHeader(NgHeader<T>&& other) noexcept
-    : name_(std::move(other.name_)),
+    : env_(std::move(other.env_)),
+      name_(std::move(other.name_)),
       value_(std::move(other.value_)),
-      env_(std::move(other.env_)),
       token_(other.token_),
       flags_(other.flags_) {
   other.token_ = -1;
