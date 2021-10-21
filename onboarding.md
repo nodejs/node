@@ -256,7 +256,7 @@ needs to be pointed out separately during the onboarding.
 [`core-validate-commit`]: https://github.com/nodejs/core-validate-commit
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
-[set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
+[set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-github-credentials
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/
 [using a TOTP mobile app]: https://help.github.com/articles/configuring-two-factor-authentication-via-a-totp-mobile-app/
 [who-to-cc]: doc/guides/collaborator-guide.md#who-to-cc-in-the-issue-tracker
