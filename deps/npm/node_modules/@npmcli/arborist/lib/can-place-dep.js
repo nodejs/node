@@ -145,7 +145,12 @@ class CanPlaceDep {
       return CONFLICT
     }
 
-    if (targetEdge && !dep.satisfies(targetEdge) && targetEdge !== this.edge) {
+    // skip this test if there's a current node, because we might be able
+    // to dedupe against it anyway
+    if (!current &&
+        targetEdge &&
+        !dep.satisfies(targetEdge) &&
+        targetEdge !== this.edge) {
       return CONFLICT
     }
 
@@ -167,10 +172,10 @@ class CanPlaceDep {
     const { version: newVer } = dep
     const tryReplace = curVer && newVer && semver.gte(newVer, curVer)
     if (tryReplace && dep.canReplace(current)) {
-      /* XXX-istanbul ignore else - It's extremely rare that a replaceable
-       * node would be a conflict, if the current one wasn't a conflict,
-       * but it is theoretically possible if peer deps are pinned.  In
-       * that case we treat it like any other conflict, and keep trying */
+      // It's extremely rare that a replaceable node would be a conflict, if
+      // the current one wasn't a conflict, but it is theoretically possible
+      // if peer deps are pinned.  In that case we treat it like any other
+      // conflict, and keep trying.
       const cpp = this.canPlacePeers(REPLACE)
       if (cpp !== CONFLICT) {
         return cpp
