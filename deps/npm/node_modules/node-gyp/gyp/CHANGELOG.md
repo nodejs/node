@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://www.github.com/nodejs/gyp-next/compare/v0.9.6...v0.10.0) (2021-08-26)
+
+
+### Features
+
+* **msvs:** add support for Visual Studio 2022 ([#124](https://www.github.com/nodejs/gyp-next/issues/124)) ([4bd9215](https://www.github.com/nodejs/gyp-next/commit/4bd9215c44d300f06e916aec1d6327c22b78272d))
+
 ### [0.9.6](https://www.github.com/nodejs/gyp-next/compare/v0.9.5...v0.9.6) (2021-08-23)
 
 
