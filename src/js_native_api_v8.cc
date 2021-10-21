@@ -761,12 +761,14 @@ napi_status napi_get_last_error_info(napi_env env,
       NAPI_ARRAYSIZE(error_messages) == last_status + 1,
       "Count of error messages must match count of error values");
   CHECK_LE(env->last_error.error_code, last_status);
-
   // Wait until someone requests the last error information to fetch the error
   // message string
   env->last_error.error_message =
       error_messages[env->last_error.error_code];
 
+  if (env->last_error.error_code == napi_ok) {
+     napi_clear_last_error(env);
+  }
   *result = &(env->last_error);
   return napi_ok;
 }
