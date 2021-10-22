@@ -2,6 +2,8 @@ name: build-windows
 
 on:
   pull_request:
+    paths-ignore:
+      - "README.md"
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
@@ -10,6 +12,8 @@ on:
       - canary
       - v[0-9]+.x-staging
       - v[0-9]+.x
+    paths-ignore:
+      - "README.md"
 
 env:
   PYTHON_VERSION: '3.10'
