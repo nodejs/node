@@ -215,7 +215,9 @@ needs to be pointed out separately during the onboarding.
   labels. The `fast-track` label should cause the Node.js GitHub bot to post a
   comment in the pull request asking collaborators to approve the pull request
   by leaving a 👍 reaction on the comment.
-* Run CI on the pull request. Use the `node-test-pull-request` CI task.
+* Optional: Run CI on the pull request. Use the `node-test-pull-request` CI
+  task. As a convenience, you may apply the `request-ci` label to the pull
+  request to have a GitHub Actions workflow start the Jenkins CI task for you.
 * After two Collaborator approvals for the change and two Collaborator approvals
   for fast-tracking, land the PR.
 * If there are not enough approvals within a reasonable time, consider the
