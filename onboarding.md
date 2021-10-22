@@ -56,10 +56,10 @@ onboarding session.
   * Watching the main repository will flood your inbox (several hundred
     notifications on typical weekdays), so be prepared
 
-The project has two venues for real-time discussion:
+The project has a venue for real-time discussion:
 
 * [`#nodejs-dev`](https://openjs-foundation.slack.com/archives/C019Y2T6STH) on
-  the [OpenJS Foundation](https://slack-invite.openjsf.org/)
+  the [OpenJS Foundation Slack](https://slack-invite.openjsf.org/)
 
 ## Project goals and values
 
