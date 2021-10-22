@@ -1,4 +1,4 @@
-# Asynchronous Context Tracking
+# Asynchronous context tracking
 
 <!--introduced_in=v16.4.0-->
 
@@ -18,11 +18,11 @@ The `AsyncLocalStorage` and `AsyncResource` classes are part of the
 `async_hooks` module:
 
 ```mjs
-import async_hooks from 'async_hooks';
+import { AsyncLocalStorage, AsyncResource } from 'async_hooks';
 ```
 
 ```cjs
-const async_hooks = require('async_hooks');
+const { AsyncLocalStorage, AsyncResource } = require('async_hooks');
 ```
 
 ## Class: `AsyncLocalStorage`
