@@ -447,6 +447,8 @@ For information about the governance of the Node.js project, see
   **Rich Trott** \<rtrott@gmail.com> (he/him)
 * [vdeturckheim](https://github.com/vdeturckheim) -
   **Vladimir de Turckheim** \<vlad2t@hotmail.com> (he/him)
+* [VoltrexMaster](https://github.com/VoltrexMaster) -
+  **Voltrex** \<mohammadkeyvanzade94@gmail.com> (he/him)
 * [watilde](https://github.com/watilde) -
   **Daijiro Wachi** \<daijiro.wachi@gmail.com> (he/him)
 * [watson](https://github.com/watson) -
