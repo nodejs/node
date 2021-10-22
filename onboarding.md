@@ -217,7 +217,7 @@ needs to be pointed out separately during the onboarding.
   by leaving a 👍 reaction on the comment.
 * Optional: Run CI on the pull request. Use the `node-test-pull-request` CI
   task. As a convenience, you may apply the `request-ci` label to the pull
-  request and to have the Node.js GitHub bot start the Jenkins CI task for you.
+  request to have a GitHub Actions workflow start the Jenkins CI task for you.
 * After two Collaborator approvals for the change and two Collaborator approvals
   for fast-tracking, land the PR.
 * If there are not enough approvals within a reasonable time, consider the
