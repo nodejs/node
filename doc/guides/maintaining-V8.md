@@ -52,7 +52,7 @@ documented [on the V8 wiki][V8MergingPatching]. The summary of the process is:
 
 At any given time Node.js needs to be maintaining a few different V8 branches
 for the various Current, LTS, and nightly releases. At present this list
-includes the following branches<sup>1</sup>:
+includes the following branches:[^1]
 
 <table>
   <tr>
@@ -222,7 +222,7 @@ to be cherry-picked in the Node.js repository and V8-CI must test the change.
   * Run the Node.js [V8 CI][] in addition to the [Node.js CI][].
     The CI uses the `test-v8` target in the `Makefile`, which uses
     `tools/make-v8.sh` to reconstruct a git tree in the `deps/v8` directory to
-    run V8 tests<sup>2</sup>.
+    run V8 tests.[^2]
 
 The [`git-node`][] tool can be used to simplify this task. Run
 `git node v8 backport <sha>` to cherry-pick a commit.
@@ -404,17 +404,13 @@ This would require some tooling to:
   promoted from `nodejs/v8` to `nodejs/node`.
 * Enabled the V8-CI build in Jenkins to build from the `nodejs/v8` fork.
 
-<!-- Footnotes themselves at the bottom. -->
+[^1]: Node.js 0.12 and older are intentionally omitted from this document
+    as their support has ended.
 
-### Notes
-
-<sup>1</sup>Node.js 0.12 and older are intentionally omitted from this document
-as their support has ended.
-
-<sup>2</sup>The V8 tests still require Python 2. To run these tests locally,
-you can run `PYTHON2 ./configure.py` before running `make test-v8`, in the root
-of this repository. On macOS, this also requires a full Xcode install,
-not just the "command line tools" for Xcode.
+[^2]: The V8 tests still require Python 2. To run these tests locally, you can
+    run `PYTHON2 ./configure.py` before running `make test-v8`, in the root
+    of this repository. On macOS, this also requires a full Xcode install,
+    not just the "command line tools" for Xcode.
 
 [ChromiumReleaseCalendar]: https://www.chromium.org/developers/calendar
 [Node.js CI]: https://ci.nodejs.org/job/node-test-pull-request/
