@@ -191,3 +191,11 @@ if (common.hasIntl) {
     }
   );
 }
+
+// Test TextDecoder for incomplete UTF-8 byte sequence.
+{
+  const decoder = new TextDecoder();
+  const chunk = new Uint8Array([0x66, 0x6f, 0x6f, 0xed]);
+  const str = decoder.decode(chunk);
+  assert.strictEqual(str, 'foo\ufffd');
+}

@@ -13,6 +13,7 @@ const {
 } = require('stream/consumers');
 
 const {
+  Readable,
   PassThrough
 } = require('stream');
 
@@ -71,6 +72,19 @@ const kArrayBuffer =
 
   passthrough.write('hello');
   setTimeout(() => passthrough.end('there'), 10);
+}
+
+{
+  const readable = new Readable({
+    read() {}
+  });
+
+  text(readable).then((data) => {
+    assert.strictEqual(data, 'foo\ufffd\ufffd\ufffd');
+  });
+
+  readable.push(new Uint8Array([0x66, 0x6f, 0x6f, 0xed, 0xa0, 0x80]));
+  readable.push(null);
 }
 
 {
