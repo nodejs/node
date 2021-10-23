@@ -88,6 +88,15 @@ assert.throws(() => new Blob({}), {
 }
 
 {
+  const b = new Blob(['hello', new Uint8Array([0xed, 0xa0, 0x88])]);
+  assert.strictEqual(b.size, 8);
+  b.text().then(common.mustCall((text) => {
+    assert.strictEqual(text, 'hello\ufffd\ufffd\ufffd');
+    assert.strictEqual(text.length, 8);
+  }));
+}
+
+{
   const b = new Blob(
     [
       'h',
