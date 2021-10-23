@@ -899,7 +899,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 import CoffeeScript from 'coffeescript';
 
-const baseURL = pathToFileURL(`${cwd}/`).href;
+const baseURL = pathToFileURL(`${cwd()}/`).href;
 
 // CoffeeScript files end in .coffee, .litcoffee or .coffee.md.
 const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
