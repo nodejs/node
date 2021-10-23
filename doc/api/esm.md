@@ -893,8 +893,6 @@ purposes.
 ```js
 // coffeescript-loader.mjs
 import { readFile } from 'fs/promises';
-import { readFileSync } from 'fs';
-import { createRequire } from 'module';
 import { dirname, extname, resolve as resolvePath } from 'path';
 import { cwd } from 'process';
 import { fileURLToPath, pathToFileURL } from 'url';
