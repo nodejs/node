@@ -30,6 +30,8 @@ if (common.isWindows) {
   assert.strictEqual(process.getgid, undefined);
   assert.strictEqual(process.setuid, undefined);
   assert.strictEqual(process.setgid, undefined);
+  assert.strictEqual(process.getresuid, undefined);
+  assert.strictEqual(process.setresuid, undefined);
   return;
 }
 
@@ -51,6 +53,30 @@ assert.throws(() => {
   message: 'User identifier does not exist: fhqwhgadshgnsdhjsdbkhsdabkfabkveyb'
 });
 
+assert.throws(() => {
+  process.setresuid({}, 0, 0);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "ruid" argument must be one of type ' +
+    'number or string. Received an instance of Object'
+});
+
+assert.throws(() => {
+  process.setresuid(0, {}, 0);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "euid" argument must be one of type ' +
+    'number or string. Received an instance of Object'
+});
+
+assert.throws(() => {
+  process.setresuid(0, 0, {});
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "suid" argument must be one of type ' +
+    'number or string. Received an instance of Object'
+});
+
 // Passing -0 shouldn't crash the process
 // Refs: https://github.com/nodejs/node/issues/32750
 try { process.setuid(-0); } catch {}
@@ -63,6 +89,7 @@ if (process.getuid() !== 0) {
   // Should not throw.
   process.getgid();
   process.getuid();
+  process.getresuid();
 
   assert.throws(
     () => { process.setgid('nobody'); },
@@ -72,6 +99,11 @@ if (process.getuid() !== 0) {
   assert.throws(
     () => { process.setuid('nobody'); },
     /(?:EPERM, .+|User identifier does not exist: nobody)$/
+  );
+
+  assert.throws(
+    () => { process.setresuid('nobody', 1, 2); },
+    /(?:EPERM, .+|Group identifier does not exist: \[ 'nobody' \])$/
   );
   return;
 }

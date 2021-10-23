@@ -1966,6 +1966,36 @@ if (process.getuid) {
 This function is only available on POSIX platforms (i.e. not Windows or
 Android).
 
+## `process.getresuid()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `process.getresuid()` method returns an array with the real, effective,
+and saved user IDs.
+
+* Returns: {integer\[]}
+
+```mjs
+import process from 'process';
+
+if (process.getresuid) {
+  console.log(process.getresuid()); // [ 0, 0, 0 ]
+}
+```
+
+```cjs
+const process = require('process');
+
+if (process.getresuid) {
+  console.log(process.getresuid()); // [ 0, 0, 0 ]
+}
+```
+
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
+
 ## `process.hasUncaughtExceptionCaptureCallback()`
 
 <!-- YAML
@@ -3325,6 +3355,51 @@ if (process.getuid && process.setuid) {
     console.log(`New uid: ${process.getuid()}`);
   } catch (err) {
     console.log(`Failed to set uid: ${err}`);
+  }
+}
+```
+
+This function is only available on POSIX platforms (i.e. not Windows or
+Android).
+This feature is not available in [`Worker`][] threads.
+
+## `process.setresuid(ruid, euid, suid)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `process.setresuid(ruid, euid, suid)` method sets the real, effective,
+and saved user IDs.
+
+* `ruid` {string|number} The real user ID
+* `euid` {string|number} The effective user ID
+* `suid` {string|number} The saved user ID
+
+```mjs
+import process from 'process';
+
+if (process.getresuid && process.setresuid) {
+  console.log(`Current ids: ${process.getresuid()[0]}`);
+  try {
+    process.setresuid(501, 501, 501);
+    console.log(`New ids: ${process.getresuid()}`);
+  } catch (err) {
+    console.log(`Failed to set ids: ${err}`);
+  }
+}
+```
+
+```cjs
+const process = require('process');
+
+if (process.getresuid && process.setresuid) {
+  console.log(`Current ids: ${process.getresuid()[0]}`);
+  try {
+    process.setresuid(501, 501, 501);
+    console.log(`New ids: ${process.getresuid()}`);
+  } catch (err) {
+    console.log(`Failed to set ids: ${err}`);
   }
 }
 ```

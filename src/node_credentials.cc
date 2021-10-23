@@ -375,6 +375,44 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(0);
 }
 
+static void GetRESUid(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(env->has_run_bootstrapping_code());
+  uid_t ruid, euid, suid;
+  getresuid(&ruid, &euid, &suid);
+  MaybeLocal<Value> array =
+      ToV8Value(env->context(), std::vector<uid_t>{ruid, euid, suid});
+  args.GetReturnValue().Set(array.ToLocalChecked());
+}
+
+static void SetRESUid(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(env->owns_process_state());
+
+  CHECK_EQ(args.Length(), 3);
+  for (int i = 0; i < 3; i++) {
+    CHECK(args[i]->IsUint32() || args[i]->IsString());
+  }
+
+  uid_t ruid = uid_by_name(env->isolate(), args[0]);
+  uid_t euid = uid_by_name(env->isolate(), args[1]);
+  uid_t suid = uid_by_name(env->isolate(), args[2]);
+
+  if (ruid == uid_not_found || euid == uid_not_found ||
+      suid == uid_not_found) {
+    // Tells JS to throw ERR_INVALID_CREDENTIAL
+    int flag = 0b1000;
+    if (ruid == uid_not_found) flag |= 0b0001;
+    if (euid == uid_not_found) flag |= 0b0010;
+    if (suid == uid_not_found) flag |= 0b0100;
+    args.GetReturnValue().Set(flag);
+  } else if (setresuid(ruid, euid, suid)) {
+    env->ThrowErrnoException(errno, "setresuid");
+  } else {
+    args.GetReturnValue().Set(0);
+  }
+}
+
 static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -429,6 +467,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetEGid);
   registry->Register(GetGroups);
 
+  registry->Register(SetRESUid);
+  registry->Register(GetRESUid);
+
   registry->Register(InitGroups);
   registry->Register(SetEGid);
   registry->Register(SetEUid);
@@ -454,6 +495,7 @@ static void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getgid", GetGid);
   env->SetMethodNoSideEffect(target, "getegid", GetEGid);
   env->SetMethodNoSideEffect(target, "getgroups", GetGroups);
+  env->SetMethodNoSideEffect(target, "getresuid", GetRESUid);
 
   if (env->owns_process_state()) {
     env->SetMethod(target, "initgroups", InitGroups);
@@ -462,6 +504,7 @@ static void Initialize(Local<Object> target,
     env->SetMethod(target, "setgid", SetGid);
     env->SetMethod(target, "setuid", SetUid);
     env->SetMethod(target, "setgroups", SetGroups);
+    env->SetMethod(target, "setresuid", SetRESUid);
   }
 #endif  // NODE_IMPLEMENTS_POSIX_CREDENTIALS
 }
