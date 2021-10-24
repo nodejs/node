@@ -315,7 +315,7 @@ Buffer.alloc(8, '');
 
   buf.fill('h');
   for (let i = 0; i < buf.length; i++)
-    assert.strictEqual('h'.charCodeAt(0), buf[i]);
+    assert.strictEqual(buf[i], 'h'.charCodeAt(0));
 
   buf.fill(0);
   for (let i = 0; i < buf.length; i++)
