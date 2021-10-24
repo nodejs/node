@@ -8,7 +8,6 @@
 #include "nghttp2/nghttp2.h"
 
 #include "env.h"
-#include "allocated_buffer.h"
 #include "aliased_struct.h"
 #include "node_http2_state.h"
 #include "node_http_common.h"
@@ -897,7 +896,7 @@ class Http2Session : public AsyncWrap,
   // When processing input data, either stream_buf_ab_ or stream_buf_allocation_
   // will be set. stream_buf_ab_ is lazily created from stream_buf_allocation_.
   v8::Global<v8::ArrayBuffer> stream_buf_ab_;
-  AllocatedBuffer stream_buf_allocation_;
+  std::unique_ptr<v8::BackingStore> stream_buf_allocation_;
   size_t stream_buf_offset_ = 0;
   // Custom error code for errors that originated inside one of the callbacks
   // called by nghttp2_session_mem_recv.
@@ -1040,7 +1039,7 @@ class Origins {
   ~Origins() = default;
 
   const nghttp2_origin_entry* operator*() const {
-    return reinterpret_cast<const nghttp2_origin_entry*>(buf_.data());
+    return static_cast<const nghttp2_origin_entry*>(bs_->Data());
   }
 
   size_t length() const {
@@ -1049,7 +1048,7 @@ class Origins {
 
  private:
   size_t count_;
-  AllocatedBuffer buf_;
+  std::unique_ptr<v8::BackingStore> bs_;
 };
 
 #define HTTP2_HIDDEN_CONSTANTS(V)                                              \
