@@ -109,6 +109,8 @@ module.exports = {
     create(context) {
         const sourceCode = context.getSourceCode();
 
+        const tokensToIgnore = new WeakSet();
+
         /**
          * Reports a given token if there are not space(s) before the token.
          * @param {Token} token A token to report.
@@ -121,6 +123,7 @@ module.exports = {
             if (prevToken &&
                 (CHECK_TYPE.test(prevToken.type) || pattern.test(prevToken.value)) &&
                 !isOpenParenOfTemplate(prevToken) &&
+                !tokensToIgnore.has(prevToken) &&
                 astUtils.isTokenOnSameLine(prevToken, token) &&
                 !sourceCode.isSpaceBetweenTokens(prevToken, token)
             ) {
@@ -147,6 +150,7 @@ module.exports = {
             if (prevToken &&
                 (CHECK_TYPE.test(prevToken.type) || pattern.test(prevToken.value)) &&
                 !isOpenParenOfTemplate(prevToken) &&
+                !tokensToIgnore.has(prevToken) &&
                 astUtils.isTokenOnSameLine(prevToken, token) &&
                 sourceCode.isSpaceBetweenTokens(prevToken, token)
             ) {
@@ -173,6 +177,7 @@ module.exports = {
             if (nextToken &&
                 (CHECK_TYPE.test(nextToken.type) || pattern.test(nextToken.value)) &&
                 !isCloseParenOfTemplate(nextToken) &&
+                !tokensToIgnore.has(nextToken) &&
                 astUtils.isTokenOnSameLine(token, nextToken) &&
                 !sourceCode.isSpaceBetweenTokens(token, nextToken)
             ) {
@@ -199,6 +204,7 @@ module.exports = {
             if (nextToken &&
                 (CHECK_TYPE.test(nextToken.type) || pattern.test(nextToken.value)) &&
                 !isCloseParenOfTemplate(nextToken) &&
+                !tokensToIgnore.has(nextToken) &&
                 astUtils.isTokenOnSameLine(token, nextToken) &&
                 sourceCode.isSpaceBetweenTokens(token, nextToken)
             ) {
@@ -584,7 +590,14 @@ module.exports = {
             ImportNamespaceSpecifier: checkSpacingForImportNamespaceSpecifier,
             MethodDefinition: checkSpacingForProperty,
             PropertyDefinition: checkSpacingForProperty,
-            Property: checkSpacingForProperty
+            Property: checkSpacingForProperty,
+
+            // To avoid conflicts with `space-infix-ops`, e.g. `a > this.b`
+            "BinaryExpression[operator='>']"(node) {
+                const operatorToken = sourceCode.getTokenBefore(node.right, astUtils.isNotOpeningParenToken);
+
+                tokensToIgnore.add(operatorToken);
+            }
         };
     }
 };

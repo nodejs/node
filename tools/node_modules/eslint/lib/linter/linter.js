@@ -24,7 +24,7 @@ const
             ConfigValidator,
             environments: BuiltInEnvironments
         }
-    } = require("@eslint/eslintrc/universal"), // eslint-disable-line node/no-missing-require -- false positive
+    } = require("@eslint/eslintrc/universal"),
     Traverser = require("../shared/traverser"),
     { SourceCode } = require("../source-code"),
     CodePathAnalyzer = require("./code-path-analysis/code-path-analyzer"),

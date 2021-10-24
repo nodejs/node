@@ -570,8 +570,10 @@ class CLIEngine {
     /**
      * Creates a new instance of the core CLI engine.
      * @param {CLIEngineOptions} providedOptions The options for this instance.
+     * @param {Object} [additionalData] Additional settings that are not CLIEngineOptions.
+     * @param {Record<string,Plugin>|null} [additionalData.preloadedPlugins] Preloaded plugins.
      */
-    constructor(providedOptions) {
+    constructor(providedOptions, { preloadedPlugins } = {}) {
         const options = Object.assign(
             Object.create(null),
             defaultOptions,
@@ -584,6 +586,13 @@ class CLIEngine {
         }
 
         const additionalPluginPool = new Map();
+
+        if (preloadedPlugins) {
+            for (const [id, plugin] of Object.entries(preloadedPlugins)) {
+                additionalPluginPool.set(id, plugin);
+            }
+        }
+
         const cacheFilePath = getCacheFile(
             options.cacheLocation || options.cacheFile,
             options.cwd
@@ -696,26 +705,6 @@ class CLIEngine {
         report.results.filter(result => Object.prototype.hasOwnProperty.call(result, "output")).forEach(result => {
             fs.writeFileSync(result.filePath, result.output);
         });
-    }
-
-
-    /**
-     * Add a plugin by passing its configuration
-     * @param {string} name Name of the plugin.
-     * @param {Plugin} pluginObject Plugin configuration object.
-     * @returns {void}
-     */
-    addPlugin(name, pluginObject) {
-        const {
-            additionalPluginPool,
-            configArrayFactory,
-            lastConfigArrays
-        } = internalSlotsMap.get(this);
-
-        additionalPluginPool.set(name, pluginObject);
-        configArrayFactory.clearCache();
-        lastConfigArrays.length = 1;
-        lastConfigArrays[0] = configArrayFactory.getConfigArrayForFile();
     }
 
     /**
