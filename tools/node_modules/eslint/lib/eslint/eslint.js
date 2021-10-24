@@ -54,7 +54,7 @@ const { version } = require("../../package.json");
  * @property {string} [ignorePath] The ignore file to use instead of .eslintignore.
  * @property {ConfigData} [overrideConfig] Override config object, overrides all configs used with this instance
  * @property {string} [overrideConfigFile] The configuration file to use.
- * @property {Record<string,Plugin>} [plugins] An array of plugin implementations.
+ * @property {Record<string,Plugin>|null} [plugins] Preloaded plugins. This is a map-like object, keys are plugin IDs and each value is implementation.
  * @property {"error" | "warn" | "off"} [reportUnusedDisableDirectives] the severity to report unused eslint-disable directives.
  * @property {string} [resolvePluginsRelativeTo] The folder where plugins should be resolved from, defaulting to the CWD.
  * @property {string[]} [rulePaths] An array of directories to load custom rules from.
@@ -433,25 +433,12 @@ class ESLint {
      */
     constructor(options = {}) {
         const processedOptions = processOptions(options);
-        const cliEngine = new CLIEngine(processedOptions);
+        const cliEngine = new CLIEngine(processedOptions, { preloadedPlugins: options.plugins });
         const {
-            additionalPluginPool,
             configArrayFactory,
             lastConfigArrays
         } = getCLIEngineInternalSlots(cliEngine);
         let updated = false;
-
-        /*
-         * Address `plugins` to add plugin implementations.
-         * Operate the `additionalPluginPool` internal slot directly to avoid
-         * using `addPlugin(id, plugin)` method that resets cache everytime.
-         */
-        if (options.plugins) {
-            for (const [id, plugin] of Object.entries(options.plugins)) {
-                additionalPluginPool.set(id, plugin);
-                updated = true;
-            }
-        }
 
         /*
          * Address `overrideConfig` to set override config.
