@@ -78,15 +78,16 @@ function checkArgs(connected) {
       }
     );
 
+    const longArray = [1, 2, 3, 4, 5, 6, 7, 8];
     for (const input of ['hello',
                          Buffer.from('hello'),
                          Buffer.from('hello world').subarray(0, 5),
                          Buffer.from('hello world').subarray(4, 9),
                          Buffer.from('hello world').subarray(6),
                          new Uint8Array([1, 2, 3, 4, 5]),
-                         new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).slice(0, 5),
-                         new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).slice(2, 7),
-                         new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]).slice(3),
+                         new Uint8Array(longArray).subarray(0, 5),
+                         new Uint8Array(longArray).subarray(2, 7),
+                         new Uint8Array(longArray).subarray(3),
                          new DataView(new ArrayBuffer(5), 0),
                          new DataView(new ArrayBuffer(6), 1),
                          new DataView(new ArrayBuffer(7), 1, 5)]) {
