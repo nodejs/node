@@ -15,7 +15,7 @@ const levn = require("levn"),
         Legacy: {
             ConfigOps
         }
-    } = require("@eslint/eslintrc/universal"); // eslint-disable-line node/no-missing-require -- false positive
+    } = require("@eslint/eslintrc/universal");
 
 const debug = require("debug")("eslint:config-comment-parser");
 

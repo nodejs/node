@@ -67,6 +67,7 @@ const { SourceCode } = require("../source-code");
 /**
  * A test case that is expected to pass lint.
  * @typedef {Object} ValidTestCase
+ * @property {string} [name] Name for the test case.
  * @property {string} code Code for the test case.
  * @property {any[]} [options] Options for the test case.
  * @property {{ [name: string]: any }} [settings] Settings for the test case.
@@ -81,6 +82,7 @@ const { SourceCode } = require("../source-code");
 /**
  * A test case that is expected to fail lint.
  * @typedef {Object} InvalidTestCase
+ * @property {string} [name] Name for the test case.
  * @property {string} code Code for the test case.
  * @property {number | Array<TestCaseError | string | RegExp>} errors Expected errors.
  * @property {string | null} [output] The expected code after autofixes are applied. If set to `null`, the test runner will assert that no autofix is suggested.
@@ -124,6 +126,7 @@ let defaultConfig = { rules: {} };
  * configuration
  */
 const RuleTesterParameters = [
+    "name",
     "code",
     "filename",
     "options",
@@ -964,7 +967,7 @@ class RuleTester {
             RuleTester.describe("valid", () => {
                 test.valid.forEach(valid => {
                     RuleTester[valid.only ? "itOnly" : "it"](
-                        sanitize(typeof valid === "object" ? valid.code : valid),
+                        sanitize(typeof valid === "object" ? valid.name || valid.code : valid),
                         () => {
                             testValidTemplate(valid);
                         }
@@ -975,7 +978,7 @@ class RuleTester {
             RuleTester.describe("invalid", () => {
                 test.invalid.forEach(invalid => {
                     RuleTester[invalid.only ? "itOnly" : "it"](
-                        sanitize(invalid.code),
+                        sanitize(invalid.name || invalid.code),
                         () => {
                             testInvalidTemplate(invalid);
                         }
