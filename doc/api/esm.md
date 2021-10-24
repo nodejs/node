@@ -1138,7 +1138,7 @@ The resolver can throw the following errors:
 
 **PACKAGE\_SELF\_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_)
 
-> 1. Let _packageURL_ be the result of **READ\_PACKAGE\_SCOPE**(_parentURL_).
+> 1. Let _packageURL_ be the result of **LOOKUP\_PACKAGE\_SCOPE**(_parentURL_).
 > 2. If _packageURL_ is **null**, then
 >    1. Return **undefined**.
 > 3. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
@@ -1179,7 +1179,7 @@ The resolver can throw the following errors:
 > 1. Assert: _specifier_ begins with _"#"_.
 > 2. If _specifier_ is exactly equal to _"#"_ or starts with _"#/"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
-> 3. Let _packageURL_ be the result of **READ\_PACKAGE\_SCOPE**(_parentURL_).
+> 3. Let _packageURL_ be the result of **LOOKUP\_PACKAGE\_SCOPE**(_parentURL_).
 > 4. If _packageURL_ is not **null**, then
 >    1. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
 >    2. If _pjson.imports_ is a non-null Object, then
@@ -1292,29 +1292,31 @@ _internal_, _conditions_)
 **ESM\_FILE\_FORMAT**(_url_)
 
 > 1. Assert: _url_ corresponds to an existing file.
-> 2. Let _pjson_ be the result of **READ\_PACKAGE\_SCOPE**(_url_).
-> 3. If _url_ ends in _".mjs"_, then
+> 2. If _url_ ends in _".mjs"_, then
 >    1. Return _"module"_.
-> 4. If _url_ ends in _".cjs"_, then
+> 3. If _url_ ends in _".cjs"_, then
 >    1. Return _"commonjs"_.
-> 5. If _url_ ends in _".json"_, then
+> 4. If _url_ ends in _".json"_, then
 >    1. Return _"json"_.
-> 6. If _pjson?.type_ exists and is _"module"_, then
+> 5. Let _packageURL_ be the result of **LOOKUP\_PACKAGE\_SCOPE**(_url_).
+> 6. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
+> 7. If _pjson?.type_ exists and is _"module"_, then
 >    1. If _url_ ends in _".js"_, then
 >       1. Return _"module"_.
 >    2. Throw an _Unsupported File Extension_ error.
-> 7. Otherwise,
+> 8. Otherwise,
 >    1. Throw an _Unsupported File Extension_ error.
 
-**READ\_PACKAGE\_SCOPE**(_url_)
+**LOOKUP\_PACKAGE\_SCOPE**(_url_)
 
 > 1. Let _scopeURL_ be _url_.
 > 2. While _scopeURL_ is not the file system root,
 >    1. Set _scopeURL_ to the parent URL of _scopeURL_.
 >    2. If _scopeURL_ ends in a _"node\_modules"_ path segment, return **null**.
->    3. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_scopeURL_).
->    4. If _pjson_ is not **null**, then
->       1. Return _pjson_.
+>    3. Let _pjsonURL_ be the resolution of _"package.json"_ within
+>       _packageURL_.
+>    4. if the file at _pjsonURL_ exists, then
+>       1. Return _scopeURL_.
 > 3. Return **null**.
 
 **READ\_PACKAGE\_JSON**(_packageURL_)
