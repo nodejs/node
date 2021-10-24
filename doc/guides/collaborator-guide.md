@@ -185,7 +185,7 @@ delay. For example:
   * Regressions that happen right before a release, or reported soon after.
 
 To propose fast-tracking a pull request, apply the `fast-track` label. Then a
-GitHub Action will add a comment that collaborators can upvote.
+GitHub Actions workflow will add a comment that collaborators can upvote.
 
 If someone disagrees with the fast-tracking request, remove the label. Do not
 fast-track the pull request in that case.
