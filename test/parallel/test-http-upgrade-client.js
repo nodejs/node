@@ -82,7 +82,6 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
         assert.strictEqual(recvData.toString(), expectedRecvData);
       }));
 
-      console.log(res.headers);
       const expectedHeaders = {
         hello: 'world',
         connection: 'upgrade',
