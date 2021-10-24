@@ -242,7 +242,7 @@ Toru Nagashima
 </td><td align="center" valign="top" width="11%">
 <a href="https://github.com/aladdin-add">
 <img src="https://github.com/aladdin-add.png?s=75" width="75" height="75"><br />
-薛定谔的猫
+唯然
 </a>
 </td></tr></tbody></table>
 
