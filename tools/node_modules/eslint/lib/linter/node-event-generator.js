@@ -98,6 +98,13 @@ function getPossibleTypes(parsedSelector) {
         case "adjacent":
             return getPossibleTypes(parsedSelector.right);
 
+        case "class":
+            if (parsedSelector.name === "function") {
+                return ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"];
+            }
+
+            return null;
+
         default:
             return null;
 
