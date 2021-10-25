@@ -7,7 +7,7 @@ const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 
 function* expectedLines(lines) {
-  yield* line;
+  yield* lines;
 }
 
 const expectedDebug = expectedLines([
