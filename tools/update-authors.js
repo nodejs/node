@@ -121,7 +121,7 @@ rl.on('line', (line) => {
   const duplicate = previousAuthors.get(author);
   if (duplicate && !duplicate.includes(email)) {
     console.warn('Author name already in AUTHORS file. Possible duplicate:');
-    console.warn(`  ${author} <${email}>`);
+    console.warn(`  ${author} ${email}`);
   }
 });
 
