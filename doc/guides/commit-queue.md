@@ -38,9 +38,9 @@ From a high-level, the Commit Queue works as follow:
       4. Go to next PR in the queue
 
 To make the Commit Queue squash all the commits on a pull request in the first
-one, add the `commit-queue-fixupAll` label.
+one, add the `commit-queue-squash` label.
 To make the Commit Queue land a pull request containing several commits, add the
-`commit-queue-land-multiple-commits` label. When using this option, make sure
+`commit-queue-rebase` label. When using this option, make sure
 that all commits are self-contained, meaning every commit should pass all tests.
 
 ## Current limitations

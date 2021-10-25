@@ -70,9 +70,9 @@ for pr in "$@"; do
   # Delete the commit queue label
   gitHubCurl "$(labelsUrl "$pr")"/"$COMMIT_QUEUE_LABEL" DELETE
 
-  if gitHubCurl "$(labelsUrl "$pr")" GET | jq -e 'map(.name) | index("commit-queue-fixupAll")'; then
+  if gitHubCurl "$(labelsUrl "$pr")" GET | jq -e 'map(.name) | index("commit-queue-squash")'; then
     MULTIPLE_COMMIT_POLICY="--fixupAll"
-  elif gitHubCurl "$(labelsUrl "$pr")" GET | jq -e 'map(.name) | index("commit-queue-land-multiple-commits")'; then
+  elif gitHubCurl "$(labelsUrl "$pr")" GET | jq -e 'map(.name) | index("commit-queue-rebase")'; then
     MULTIPLE_COMMIT_POLICY=""
   else
     MULTIPLE_COMMIT_POLICY="--oneCommitMax"
