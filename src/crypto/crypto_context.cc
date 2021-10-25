@@ -1037,6 +1037,8 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     // TODO(@jasnell): Should this use ThrowCryptoError?
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     const char* str = ERR_reason_error_string(err);
+    str = str != nullptr ? str : "Unknown error";
+
     return env->ThrowError(str);
   }
 }
