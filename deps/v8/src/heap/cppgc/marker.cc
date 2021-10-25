@@ -243,6 +243,7 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
   }
   config_.stack_state = stack_state;
   config_.marking_type = MarkingConfig::MarkingType::kAtomic;
+  mutator_marking_state_.set_in_atomic_pause();
 
   // Lock guards against changes to {Weak}CrossThreadPersistent handles, that
   // may conflict with marking. E.g., a WeakCrossThreadPersistent may be
