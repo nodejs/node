@@ -131,7 +131,7 @@ NgHeader<T>::NgHeader(
 
 template <typename T>
 NgHeader<T>::NgHeader(NgHeader<T>&& other) noexcept
-    : env_(std::move(other.env_)),
+    : env_(other.env_),
       name_(std::move(other.name_)),
       value_(std::move(other.value_)),
       token_(other.token_),
