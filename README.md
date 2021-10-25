@@ -327,8 +327,6 @@ For information about the governance of the Node.js project, see
   **Evan Lucas** \<evanlucas@me.com> (he/him)
 * [fhinkel](https://github.com/fhinkel) -
   **Franziska Hinkelmann** \<franziska.hinkelmann@gmail.com> (she/her)
-* [Fishrock123](https://github.com/Fishrock123) -
-  **Jeremiah Senkpiel** \<fishrock123@rocketmail.com>  (he/they)
 * [Flarna](https://github.com/Flarna) -
   **Gerhard Stöbich** \<deb2001-github@yahoo.de>  (he/they)
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
@@ -501,6 +499,8 @@ For information about the governance of the Node.js project, see
   **Alexander Makarenko** \<estliberitas@gmail.com>
 * [firedfox](https://github.com/firedfox) -
   **Daniel Wang** \<wangyang0123@gmail.com>
+* [Fishrock123](https://github.com/Fishrock123) -
+  **Jeremiah Senkpiel** \<fishrock123@rocketmail.com> (he/they)
 * [gdams](https://github.com/gdams) -
   **George Adams** \<gadams@microsoft.com> (he/him)
 * [geek](https://github.com/geek) -
