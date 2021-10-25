@@ -343,8 +343,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ CallRecordWriteStubSaveRegisters(object_, scratch1_,
                                           remembered_set_action, save_fp_mode,
                                           StubCallMode::kCallWasmRuntimeStub);
-    } else {
 #endif  // V8_ENABLE_WEBASSEMBLY
+    } else {
       __ CallRecordWriteStubSaveRegisters(object_, scratch1_,
                                           remembered_set_action, save_fp_mode);
     }

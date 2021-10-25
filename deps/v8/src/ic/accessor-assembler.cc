@@ -846,8 +846,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     Comment("module export");
     TNode<UintPtrT> index =
         DecodeWord<LoadHandler::ExportsIndexBits>(handler_word);
-    TNode<Module> module = LoadObjectField<Module>(
-        CAST(p->receiver()), JSModuleNamespace::kModuleOffset);
+    TNode<Module> module =
+        LoadObjectField<Module>(CAST(holder), JSModuleNamespace::kModuleOffset);
     TNode<ObjectHashTable> exports =
         LoadObjectField<ObjectHashTable>(module, Module::kExportsOffset);
     TNode<Cell> cell = CAST(LoadFixedArrayElement(exports, index));
