@@ -29,7 +29,7 @@ release.
 <table>
 <tr>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V17.md">17</a><sup>Current</sup></th>
-  <th title="Current"><a href="doc/changelogs/CHANGELOG_V16.md">16</a><sup>Current</sup></th>
+  <th title="LTS Until 2024-04"><a href="doc/changelogs/CHANGELOG_V16.md">16</a><sup>LTS</sup></th>
   <th title="LTS Until 2023-04"><a href="doc/changelogs/CHANGELOG_V14.md">14</a><sup>LTS</sup></th>
   <th title="LTS Until 2022-04"><a href="doc/changelogs/CHANGELOG_V12.md">12</a><sup>LTS</sup></th>
 </tr>
@@ -39,7 +39,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V17.md#17.0.0">17.0.0</a><br/>
     </td>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V16.md#16.12.0">16.12.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V16.md#16.13.0">16.13.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V16.md#16.12.0">16.12.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V16.md#16.11.1">16.11.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V16.md#16.11.0">16.11.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V16.md#16.10.0">16.10.0</a><br/>
