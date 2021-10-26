@@ -77,8 +77,8 @@ struct ScryptJob {
   static void Initialize(
       Environment* env,
       v8::Local<v8::Object> target) {}
-}
-#endif  // !OPENSSL_NO_SCRIPT
+};
+#endif  // !OPENSSL_NO_SCRYPT
 
 }  // namespace crypto
 }  // namespace node
