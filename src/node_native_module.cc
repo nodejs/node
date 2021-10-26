@@ -207,6 +207,16 @@ static std::string OnDiskFileName(const char* id) {
 MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
                                                                const char* id) {
 #ifdef NODE_BUILTIN_MODULES_PATH
+  if (strncmp(id, "embedder_main_", strlen("embedder_main_")) == 0) {
+#endif  // NODE_BUILTIN_MODULES_PATH
+    const auto source_it = source_.find(id);
+    if (UNLIKELY(source_it == source_.end())) {
+      fprintf(stderr, "Cannot find native builtin: \"%s\".\n", id);
+      ABORT();
+    }
+    return source_it->second.ToStringChecked(isolate);
+#ifdef NODE_BUILTIN_MODULES_PATH
+  }
   std::string filename = OnDiskFileName(id);
 
   std::string contents;
@@ -222,13 +232,6 @@ MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
   }
   return String::NewFromUtf8(
       isolate, contents.c_str(), v8::NewStringType::kNormal, contents.length());
-#else
-  const auto source_it = source_.find(id);
-  if (UNLIKELY(source_it == source_.end())) {
-    fprintf(stderr, "Cannot find native builtin: \"%s\".\n", id);
-    ABORT();
-  }
-  return source_it->second.ToStringChecked(isolate);
 #endif  // NODE_BUILTIN_MODULES_PATH
 }
 
