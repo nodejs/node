@@ -5643,6 +5643,7 @@ See the [list of SSL OP Flags][] for details.
     <td><code>SSL_OP_NO_TLSv1_3</code></td>
     <td>Instructs OpenSSL to turn off TLS v1.3</td>
   </tr>
+  <tr>
     <td><code>SSL_OP_PKCS1_CHECK_1</code></td>
     <td></td>
   </tr>
@@ -5668,6 +5669,7 @@ See the [list of SSL OP Flags][] for details.
     <td>Instructs OpenSSL to always create a new key when using
     temporary/ephemeral ECDH parameters.</td>
   </tr>
+  <tr>
     <td><code>SSL_OP_SSLEAY_080_CLIENT_DH_BUG</code></td>
     <td></td>
   </tr>

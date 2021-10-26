@@ -344,7 +344,7 @@ records. The type and structure of individual results varies based on `rrtype`:
 | `'TXT'`   | text records                   | {string\[]} | [`dns.resolveTxt()`][]   |
 
 On error, `err` is an [`Error`][] object, where `err.code` is one of the
-[DNS error codes]().
+[DNS error codes][].
 
 ## `dns.resolve4(hostname[, options], callback)`
 
@@ -954,7 +954,7 @@ based on `rrtype`:
 | `'TXT'`   | text records                   | {string\[]} | [`dnsPromises.resolveTxt()`][]   |
 
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
-is one of the [DNS error codes]().
+is one of the [DNS error codes][].
 
 ### `dnsPromises.resolve4(hostname[, options])`
 
@@ -1224,7 +1224,7 @@ Performs a reverse DNS query that resolves an IPv4 or IPv6 address to an
 array of host names.
 
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
-is one of the [DNS error codes]().
+is one of the [DNS error codes][].
 
 ### `dnsPromises.setDefaultResultOrder(order)`
 
