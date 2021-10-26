@@ -207,7 +207,7 @@ static std::string OnDiskFileName(const char* id) {
 MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
                                                                const char* id) {
 #ifdef NODE_BUILTIN_MODULES_PATH
-  if(strncmp(id, "embedder_main_", strlen("embedder_main_")) == 0) {
+  if (strncmp(id, "embedder_main_", strlen("embedder_main_")) == 0) {
 #endif  // NODE_BUILTIN_MODULES_PATH
     const auto source_it = source_.find(id);
     if (UNLIKELY(source_it == source_.end())) {
