@@ -3052,13 +3052,13 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
     }
     compilation_progress_.assign(module->num_declared_functions,
                                  kProgressAfterDeserialization);
-    uint32_t num_imported_functions = module->num_imported_functions;
     for (auto func_index : missing_functions) {
       if (FLAG_wasm_lazy_compilation) {
-        native_module_->UseLazyStub(num_imported_functions + func_index);
+        native_module_->UseLazyStub(func_index);
       }
-      compilation_progress_[func_index] = SetupCompilationProgressForFunction(
-          lazy_module, module, enabled_features, func_index);
+      compilation_progress_[declared_function_index(module, func_index)] =
+          SetupCompilationProgressForFunction(lazy_module, module,
+                                              enabled_features, func_index);
     }
   }
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module_);

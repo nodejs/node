@@ -243,6 +243,7 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
   }
   config_.stack_state = stack_state;
   config_.marking_type = MarkingConfig::MarkingType::kAtomic;
+  mutator_marking_state_.set_in_atomic_pause();
 
   // Lock guards against changes to {Weak}CrossThreadPersistent handles, that
   // may conflict with marking. E.g., a WeakCrossThreadPersistent may be
@@ -421,7 +422,9 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
     size_t marked_bytes_deadline, v8::base::TimeTicks time_deadline) {
   StatsCollector::EnabledScope stats_scope(
       heap().stats_collector(), StatsCollector::kMarkTransitiveClosure);
+  bool saved_did_discover_new_ephemeron_pairs;
   do {
+    mutator_marking_state_.ResetDidDiscoverNewEphemeronPairs();
     if ((config_.marking_type == MarkingConfig::MarkingType::kAtomic) ||
         schedule_.ShouldFlushEphemeronPairs()) {
       mutator_marking_state_.FlushDiscoveredEphemeronPairs();
@@ -509,6 +512,8 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
       }
     }
 
+    saved_did_discover_new_ephemeron_pairs =
+        mutator_marking_state_.DidDiscoverNewEphemeronPairs();
     {
       StatsCollector::EnabledScope stats_scope(
           heap().stats_collector(), StatsCollector::kMarkProcessEphemerons);
@@ -522,7 +527,8 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
         return false;
       }
     }
-  } while (!mutator_marking_state_.marking_worklist().IsLocalAndGlobalEmpty());
+  } while (!mutator_marking_state_.marking_worklist().IsLocalAndGlobalEmpty() ||
+           saved_did_discover_new_ephemeron_pairs);
   return true;
 }
 

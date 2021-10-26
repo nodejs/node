@@ -27,6 +27,10 @@ per-file codereview.settings=file:INFRA_OWNERS
 per-file AUTHORS=file:COMMON_OWNERS
 per-file WATCHLISTS=file:COMMON_OWNERS
 
+# Needed by the auto_tag builder
+per-file WATCHLISTS=v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com
+per-file DEPS=v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com
+
 per-file ...-mips*=file:MIPS_OWNERS
 per-file ...-mips64*=file:MIPS_OWNERS
 per-file ...-ppc*=file:PPC_OWNERS
