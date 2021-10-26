@@ -954,7 +954,7 @@ The following error constants are exported by `os.constants.errno`.
   </tr>
   <tr>
     <td><code>EXDEV</code></td>
-    <td>Indicates an improper link.
+    <td>Indicates an improper link.</td>
   </tr>
 </table>
 
