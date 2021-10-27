@@ -48,8 +48,8 @@ const s = http.createServer(common.mustCall((req, res) => {
       assert.deepStrictEqual(headers, exoticObj);
       assert.deepStrictEqual(res.getHeaderNames(), []);
       assert.deepStrictEqual(res.getRawHeaderNames(), []);
-      assert.deepStrictEqual(res.hasHeader('Connection'), false);
-      assert.deepStrictEqual(res.getHeader('Connection'), undefined);
+      assert.strictEqual(res.hasHeader('Connection'), false);
+      assert.strictEqual(res.getHeader('Connection'), undefined);
 
       assert.throws(
         () => res.setHeader(),

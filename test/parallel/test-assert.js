@@ -1243,6 +1243,7 @@ assert.throws(
 {
   let threw = false;
   try {
+    // eslint-disable-next-line no-restricted-syntax
     assert.deepStrictEqual(Array(100).fill(1), 'foobar');
   } catch (err) {
     threw = true;

@@ -137,7 +137,7 @@ dns.lookup('127.0.0.1', {
   family: 4,
   all: false
 }, common.mustSucceed((result, addressType) => {
-  assert.deepStrictEqual(result, '127.0.0.1');
+  assert.strictEqual(result, '127.0.0.1');
   assert.strictEqual(addressType, 4);
 }));
 

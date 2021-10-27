@@ -7,12 +7,12 @@ process.stderr.columns = 20;
 
 // Confirm that there is no position indicator.
 assert.throws(
-  () => { assert.deepStrictEqual('a'.repeat(30), 'a'.repeat(31)); },
+  () => { assert.strictEqual('a'.repeat(30), 'a'.repeat(31)); },
   (err) => !err.message.includes('^')
 );
 
 // Confirm that there is a position indicator.
 assert.throws(
-  () => { assert.deepStrictEqual('aaaa', 'aaaaa'); },
+  () => { assert.strictEqual('aaaa', 'aaaaa'); },
   (err) => err.message.includes('^')
 );

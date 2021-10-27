@@ -22,7 +22,7 @@ tmpdir.refresh();
     const expectedLength = bufferArr.length * buffer.byteLength;
     let { bytesWritten, buffers } = await handle.writev([Buffer.from('')],
                                                         null);
-    assert.deepStrictEqual(bytesWritten, 0);
+    assert.strictEqual(bytesWritten, 0);
     assert.deepStrictEqual(buffers, [Buffer.from('')]);
     ({ bytesWritten, buffers } = await handle.writev(bufferArr, null));
     assert.deepStrictEqual(bytesWritten, expectedLength);
@@ -39,7 +39,7 @@ tmpdir.refresh();
     const bufferArr = [buffer, buffer, buffer];
     const expectedLength = bufferArr.length * buffer.byteLength;
     let { bytesWritten, buffers } = await handle.writev([Buffer.from('')]);
-    assert.deepStrictEqual(bytesWritten, 0);
+    assert.strictEqual(bytesWritten, 0);
     assert.deepStrictEqual(buffers, [Buffer.from('')]);
     ({ bytesWritten, buffers } = await handle.writev(bufferArr));
     assert.deepStrictEqual(bytesWritten, expectedLength);
