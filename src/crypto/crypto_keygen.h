@@ -301,6 +301,6 @@ using SecretKeyGenJob = KeyGenJob<SecretKeyGenTraits>;
 }  // namespace crypto
 }  // namespace node
 
-#endif  // !defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_KEYGEN_H_
 
