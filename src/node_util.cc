@@ -289,11 +289,6 @@ static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(OneByteString(env->isolate(), type));
 }
 
-static void IsConstructor(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsFunction());
-  args.GetReturnValue().Set(args[0].As<v8::Function>()->IsConstructor());
-}
-
 static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_GE(args.Length(), 2);
@@ -344,7 +339,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WeakReference::IncRef);
   registry->Register(WeakReference::DecRef);
   registry->Register(GuessHandleType);
-  registry->Register(IsConstructor);
   registry->Register(ToUSVString);
 }
 
@@ -384,7 +378,6 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getConstructorName", GetConstructorName);
   env->SetMethodNoSideEffect(target, "getExternalValue", GetExternalValue);
   env->SetMethod(target, "sleep", Sleep);
-  env->SetMethodNoSideEffect(target, "isConstructor", IsConstructor);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
   Local<Object> constants = Object::New(env->isolate());

@@ -26,6 +26,18 @@ const {
 }
 
 {
+  class Foo {
+    constructor() {
+      /* eslint-disable no-constructor-return */
+      return Promise.resolve('foo');
+    }
+  }
+  const perf = performance.timerify(Foo);
+  const result = perf();
+  result.then((val) => assert.strictEqual(val, 'foo'));
+}
+
+{
   // Intentional non-op. Do not wrap in common.mustCall();
   const n = performance.timerify(function noop() {});
 
