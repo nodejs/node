@@ -64,5 +64,5 @@ assert.strictEqual(cycle(Function), '[Function: Function]');
   }
 
   serializeError(new DynamicError());
-  assert.deepStrictEqual(called, true);
+  assert.strictEqual(called, true);
 }

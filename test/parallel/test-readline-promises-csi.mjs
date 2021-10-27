@@ -43,7 +43,7 @@ class TestWritable extends Writable {
 
   writable.data = '';
   await readline.clearScreenDown().rollback();
-  assert.deepStrictEqual(writable.data, '');
+  assert.strictEqual(writable.data, '');
 
   writable.data = '';
   await readline.clearLine(-1).commit();

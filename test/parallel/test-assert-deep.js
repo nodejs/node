@@ -856,11 +856,13 @@ assert.throws(
 }
 
 assert.throws(
+  // eslint-disable-next-line no-restricted-syntax
   () => assert.deepStrictEqual(4, '4'),
   { message: `${defaultMsgStart}\n4 !== '4'\n` }
 );
 
 assert.throws(
+  // eslint-disable-next-line no-restricted-syntax
   () => assert.deepStrictEqual(true, 1),
   { message: `${defaultMsgStart}\ntrue !== 1\n` }
 );

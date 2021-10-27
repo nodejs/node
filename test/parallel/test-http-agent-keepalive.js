@@ -82,8 +82,8 @@ function second() {
 function remoteClose() {
   // Mock remote server close the socket
   const req = get('/remote_close', common.mustCall((res) => {
-    assert.deepStrictEqual(req.reusedSocket, true);
-    assert.deepStrictEqual(res.statusCode, 200);
+    assert.strictEqual(req.reusedSocket, true);
+    assert.strictEqual(res.statusCode, 200);
     res.on('data', checkDataAndSockets);
     res.on('end', common.mustCall(() => {
       assert.strictEqual(agent.sockets[name].length, 1);

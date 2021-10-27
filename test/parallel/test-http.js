@@ -43,7 +43,7 @@ const server = http.Server(common.mustCall((req, res) => {
       break;
     case '/world':
       assert.strictEqual(req.method, 'POST');
-      assert.deepStrictEqual(req.headers.cookie, 'abc=123; def=456; ghi=789');
+      assert.strictEqual(req.headers.cookie, 'abc=123; def=456; ghi=789');
       break;
     default:
       assert(false, `Unexpected request for ${req.url}`);

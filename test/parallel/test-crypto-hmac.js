@@ -422,8 +422,8 @@ assert.strictEqual(
   }
   {
     const h = crypto.createHmac('sha1', 'key').update('data');
-    assert.deepStrictEqual(h.digest('latin1'), expected);
-    assert.deepStrictEqual(h.digest('latin1'), '');
+    assert.strictEqual(h.digest('latin1'), expected);
+    assert.strictEqual(h.digest('latin1'), '');
   }
 }
 
@@ -440,8 +440,8 @@ assert.strictEqual(
   }
   {
     const h = crypto.createHmac('sha1', 'key');
-    assert.deepStrictEqual(h.digest('latin1'), expected);
-    assert.deepStrictEqual(h.digest('latin1'), '');
+    assert.strictEqual(h.digest('latin1'), expected);
+    assert.strictEqual(h.digest('latin1'), '');
   }
 }
 

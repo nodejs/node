@@ -16,10 +16,10 @@ const unzip = zlib.createUnzip()
   })
   .on('data', (data) => resultBuffers.push(data))
   .on('finish', common.mustCall(() => {
-    assert.deepStrictEqual(Buffer.concat(resultBuffers).toString(), 'abcdef',
-                           `'${Buffer.concat(resultBuffers).toString()}' ` +
-                           'should match \'abcdef\' after ' +
-                           'zipping and unzipping');
+    const unzipped = Buffer.concat(resultBuffers).toString();
+    assert.strictEqual(unzipped, 'abcdef',
+                       `'${unzipped}' should match 'abcdef' after zipping ` +
+                       'and unzipping');
   }));
 
 for (let i = 0; i < data.length; i++) {

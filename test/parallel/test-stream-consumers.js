@@ -66,7 +66,7 @@ const kArrayBuffer =
 
   text(passthrough).then(common.mustCall(async (str) => {
     assert.strictEqual(str.length, 10);
-    assert.deepStrictEqual(str, 'hellothere');
+    assert.strictEqual(str, 'hellothere');
   }));
 
   passthrough.write('hello');
@@ -78,7 +78,7 @@ const kArrayBuffer =
 
   json(passthrough).then(common.mustCall(async (str) => {
     assert.strictEqual(str.length, 10);
-    assert.deepStrictEqual(str, 'hellothere');
+    assert.strictEqual(str, 'hellothere');
   }));
 
   passthrough.write('"hello');
@@ -126,7 +126,7 @@ const kArrayBuffer =
 
   text(readable).then(common.mustCall(async (str) => {
     assert.strictEqual(str.length, 10);
-    assert.deepStrictEqual(str, 'hellothere');
+    assert.strictEqual(str, 'hellothere');
   }));
 
   const writer = writable.getWriter();
@@ -144,7 +144,7 @@ const kArrayBuffer =
 
   json(readable).then(common.mustCall(async (str) => {
     assert.strictEqual(str.length, 10);
-    assert.deepStrictEqual(str, 'hellothere');
+    assert.strictEqual(str, 'hellothere');
   }));
 
   const writer = writable.getWriter();

@@ -13,6 +13,10 @@ rules:
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
+    - selector: "CallExpression:matches([callee.name='deepStrictEqual'], [callee.property.name='deepStrictEqual']):matches([arguments.1.type='Literal']:not([arguments.1.regex]), [arguments.1.type='Identifier'][arguments.1.name='undefined'])"
+      message: "Use strictEqual instead of deepStrictEqual for literals or undefined."
+    - selector: "CallExpression:matches([callee.name='notDeepStrictEqual'], [callee.property.name='notDeepStrictEqual']):matches([arguments.1.type='Literal']:not([arguments.1.regex]), [arguments.1.type='Identifier'][arguments.1.name='undefined'])"
+      message: "Use notStrictEqual instead of notDeepStrictEqual for literals or undefined."
     - selector: "CallExpression:matches([callee.name='deepStrictEqual'], [callee.property.name='deepStrictEqual'])[arguments.2.type='Literal']"
       message: "Do not use a literal for the third argument of assert.deepStrictEqual()"
     - selector: "CallExpression:matches([callee.name='doesNotThrow'], [callee.property.name='doesNotThrow'])"

@@ -183,7 +183,7 @@ async function executeOnHandle(dest, func) {
         assert.strictEqual(ret.bytesRead, bufLen);
         assert.deepStrictEqual(ret.buffer, buf);
         await truncate(dest, 5);
-        assert.deepStrictEqual((await readFile(dest)).toString(), 'hello');
+        assert.strictEqual((await readFile(dest)).toString(), 'hello');
       });
     }
 

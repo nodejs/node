@@ -336,10 +336,10 @@ assert.throws(() => {
 
 {
   dns.resolveMx('foo.onion', function(err) {
-    assert.deepStrictEqual(err.code, 'ENOTFOUND');
-    assert.deepStrictEqual(err.syscall, 'queryMx');
-    assert.deepStrictEqual(err.hostname, 'foo.onion');
-    assert.deepStrictEqual(err.message, 'queryMx ENOTFOUND foo.onion');
+    assert.strictEqual(err.code, 'ENOTFOUND');
+    assert.strictEqual(err.syscall, 'queryMx');
+    assert.strictEqual(err.hostname, 'foo.onion');
+    assert.strictEqual(err.message, 'queryMx ENOTFOUND foo.onion');
   });
 }
 

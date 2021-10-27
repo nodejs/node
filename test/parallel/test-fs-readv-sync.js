@@ -32,10 +32,10 @@ const allocateEmptyBuffers = (combinedLength) => {
   const bufferArr = allocateEmptyBuffers(exptectedBuff.length);
 
   let read = fs.readvSync(fd, [Buffer.from('')], 0);
-  assert.deepStrictEqual(read, 0);
+  assert.strictEqual(read, 0);
 
   read = fs.readvSync(fd, bufferArr, 0);
-  assert.deepStrictEqual(read, expectedLength);
+  assert.strictEqual(read, expectedLength);
 
   fs.closeSync(fd);
 
@@ -49,10 +49,10 @@ const allocateEmptyBuffers = (combinedLength) => {
   const bufferArr = allocateEmptyBuffers(exptectedBuff.length);
 
   let read = fs.readvSync(fd, [Buffer.from('')]);
-  assert.deepStrictEqual(read, 0);
+  assert.strictEqual(read, 0);
 
   read = fs.readvSync(fd, bufferArr);
-  assert.deepStrictEqual(read, expectedLength);
+  assert.strictEqual(read, expectedLength);
 
   fs.closeSync(fd);
 
