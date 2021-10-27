@@ -12,7 +12,7 @@ The initial version was created based on the work of the
 on August 5th 2021.
 
 They will be updated regularly and will be reviewed by the next-10 team
-and the TSC on a 6 month basis.
+and the TSC on a 6-month basis.
 
 ## Modern HTTP
 
