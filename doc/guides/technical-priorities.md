@@ -87,8 +87,8 @@ applications on top of the runtime.
 Organizations will only choose technologies that allow them to sufficiently
 manage risk in their production deployments. In order for Node.js to
 continue its growth in product/enterprise deployments we need to ensure
-that we help them manage that risk. It is important that we have a well
-documented security model so that consumers understand what threats are/are
+that we help them manage that risk. We must have a well-documented
+security model so that consumers understand what threats are/are
 not addressed by the Node.js runtime. We also need to provide
 functions/features which help them limit attack surfaces even if it does
 not result in 100% protection as this will still help organizations
