@@ -1555,6 +1555,7 @@ Node.js options that are allowed are:
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
+* `--experimental-modules`
 * `--experimental-policy`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`
