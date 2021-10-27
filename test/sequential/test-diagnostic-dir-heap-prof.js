@@ -44,7 +44,7 @@ function verifyFrames(output, file, func) {
     console.log(output.stderr.toString());
     console.log(roots);
   }
-  assert.notDeepStrictEqual(frame, undefined);
+  assert.notStrictEqual(frame, undefined);
 }
 
 const kHeapProfInterval = 128;

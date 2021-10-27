@@ -51,7 +51,7 @@ function verifyFrames(output, file, func) {
     console.log(output.stderr.toString());
     console.log(roots);
   }
-  assert.notDeepStrictEqual(frame, undefined);
+  assert.notStrictEqual(frame, undefined);
 }
 
 // We need to set --heap-prof-interval to a small enough value to make
