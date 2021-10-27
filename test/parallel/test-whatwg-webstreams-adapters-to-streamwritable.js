@@ -170,7 +170,7 @@ class TestSource {
   writable.on('finish', common.mustCall());
   writable.on('close', common.mustCall(() => {
     assert.strictEqual(source.chunks.length, 1);
-    assert.deepStrictEqual(source.chunks[0], 'hello');
+    assert.strictEqual(source.chunks[0], 'hello');
   }));
 
   writable.write('hello', common.mustCall());

@@ -28,7 +28,7 @@ const meowScript = () => 'meow';
 
 {
   const uint8Array = new Uint8Array([ 1, 2, 3, 4 ]);
-  assert.deepStrictEqual(uint8Array.length, 4);
+  assert.strictEqual(uint8Array.length, 4);
   new Worker(`
     const { parentPort, workerData } = require('worker_threads');
     parentPort.postMessage(workerData);
@@ -41,7 +41,7 @@ const meowScript = () => 'meow';
     (message) =>
       assert.deepStrictEqual(message, Uint8Array.of(1, 2, 3, 4))
   );
-  assert.deepStrictEqual(uint8Array.length, 0);
+  assert.strictEqual(uint8Array.length, 0);
 }
 
 {
