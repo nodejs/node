@@ -1602,3 +1602,18 @@ class Source {
     isReadable(stream, false);
   })().then(common.mustCall());
 }
+
+{
+  const stream = new ReadableStream({
+    type: 'bytes',
+    start(controller) {
+      controller.close();
+    }
+  });
+
+  const buffer = new ArrayBuffer(1024);
+  const reader = stream.getReader({ mode: 'byob' });
+
+  reader.read(new DataView(buffer))
+    .then(common.mustCall());
+}
