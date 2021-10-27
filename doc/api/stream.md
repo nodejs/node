@@ -2676,6 +2676,10 @@ added: v8.0.0
 The `_destroy()` method is called by [`writable.destroy()`][writable-destroy].
 It can be overridden by child classes but it **must not** be called directly.
 
+If you override `_destroy()` by child classes and return a promise,
+the `callback` will be executed when the promise is resolved.
+The `callback` is executed only on the first call.
+
 #### `writable._final(callback)`
 
 <!-- YAML
