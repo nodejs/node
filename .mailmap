@@ -512,15 +512,3 @@ Zachary Vacura <admin@hackzzila.com>
 Zoran Tomicic <ztomicic@gmail.com>
 Сковорода Никита Андреевич <chalkerx@gmail.com>
 隋鑫磊 <joshuasui@163.com>
-
-# These people didn't contribute patches to node directly,
-# but we've landed their v8 patches in the node repository:
-Daniel Clifford <danno@chromium.org>
-Erik Corry <erik.corry@gmail.com>
-Jakob Kummerow <jkummerow@chromium.org>
-Kevin Millikin <kmillikin@chromium.org>
-Lasse R.H. Nielsen <lrn@chromium.org>
-Michael Starzinger <mstarzinger@chromium.org>
-Toon Verwaest <verwaest@chromium.org>
-Vyacheslav Egorov <vegorov@chromium.org>
-Yang Guo <yangguo@chromium.org>
