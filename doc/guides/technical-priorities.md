@@ -40,7 +40,7 @@ to ensure there are good typings available for the public Node.js APIs.
 The current documentation is great for experienced developers or people
 who are aware of what they are looking for. On the other hand, for
 beginners this documentation can be quite hard to read and finding the
-desired information is difficult. It is important that we have documentation
+desired information is difficult. We must have documentation
 that is suitable for beginners in order to continue the rapid growth in use.
 This documentation should include more concrete examples and a learning
 path for newcomers.
