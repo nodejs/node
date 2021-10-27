@@ -26,10 +26,10 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_sync_${i}.txt`);
   const expectedLength = bufferArr.length * buffer.byteLength;
 
   let written = fs.writevSync(fd, [Buffer.from('')], null);
-  assert.deepStrictEqual(written, 0);
+  assert.strictEqual(written, 0);
 
   written = fs.writevSync(fd, bufferArr, null);
-  assert.deepStrictEqual(written, expectedLength);
+  assert.strictEqual(written, expectedLength);
 
   fs.closeSync(fd);
 
@@ -46,10 +46,10 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_sync_${i}.txt`);
   const expectedLength = bufferArr.length * buffer.byteLength;
 
   let written = fs.writevSync(fd, [Buffer.from('')]);
-  assert.deepStrictEqual(written, 0);
+  assert.strictEqual(written, 0);
 
   written = fs.writevSync(fd, bufferArr);
-  assert.deepStrictEqual(written, expectedLength);
+  assert.strictEqual(written, expectedLength);
 
   fs.closeSync(fd);
 

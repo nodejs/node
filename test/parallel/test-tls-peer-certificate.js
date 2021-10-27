@@ -128,7 +128,7 @@ connect({
   assert.strictEqual(peerCert.nistCurve, 'P-256');
   assert.strictEqual(peerCert.bits, 256);
 
-  assert.deepStrictEqual(peerCert.infoAccess, undefined);
+  assert.strictEqual(peerCert.infoAccess, undefined);
 
   const issuer = peerCert.issuerCertificate;
   assert.strictEqual(issuer.issuerCertificate, issuer);

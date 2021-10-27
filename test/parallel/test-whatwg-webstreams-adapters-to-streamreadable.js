@@ -143,7 +143,7 @@ class MySource {
   });
 
   readable.on('data', common.mustCall((chunk) => {
-    assert.deepStrictEqual(chunk, 'hello');
+    assert.strictEqual(chunk, 'hello');
   }));
   readable.on('end', common.mustCall());
   readable.on('close', common.mustCall());

@@ -42,7 +42,7 @@ assert.throws(() => mark(Symbol('a')), {
   const m = mark('a', { detail });
   assert.strictEqual(m.name, 'a');
   assert.strictEqual(m.entryType, 'mark');
-  assert.deepStrictEqual(m.detail, null);
+  assert.strictEqual(m.detail, null);
 });
 [1, 'any', {}, []].forEach((detail) => {
   const m = mark('a', { detail });
