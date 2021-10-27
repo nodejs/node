@@ -16,7 +16,7 @@ and the TSC on a 6-month basis.
 
 ## Modern HTTP
 
-Base HTTP support is a key component of modern cloud native applications
+Base HTTP support is a key component of modern cloud-native applications
 and built-in support was part of what made Node.js a success in the first
 10 years. The current implementation is hard to support and a common
 source of vulnerabilities. It is important that we work towards an
