@@ -66,7 +66,7 @@ continued growth for the next 10 years.
 
 JavaScript developers are a fast moving group and need/want support for new ES
 JavaScript features in a timely manner. Node.js must continue
-to provide support for up to date ES versions in order to remain the runtime
+to provide support for up to date ES versions to remain the runtime
 of choice and to ensure its continued growth for the next 10 years.
 
 ## Observability
