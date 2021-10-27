@@ -819,7 +819,7 @@ normally.
  * @param {object} utilities
  * @param {MessagePort} utilities.port
  */
-export function getGlobalPreloadCode({ port }) {
+export function globalPreloadCode({ port }) {
   port.onmessage = (evt) => {
     // ...
   };
