@@ -1544,6 +1544,7 @@ Node.js options that are allowed are:
 * `--dns-result-order`
 * `--enable-fips`
 * `--enable-source-maps`
+* `--experimental-abortcontroller`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
