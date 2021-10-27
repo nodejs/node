@@ -85,7 +85,7 @@ applications on top of the runtime.
 ## Permissions/policies/security model
 
 Organizations will only choose technologies that allow them to sufficiently
-manage risk in their production deployments. In order for Node.js to
+manage risk in their production deployments. For Node.js to
 continue its growth in product/enterprise deployments we need to ensure
 that we help them manage that risk. We must have a well-documented
 security model so that consumers understand what threats are/are
