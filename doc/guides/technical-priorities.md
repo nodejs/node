@@ -11,7 +11,7 @@ The initial version was created based on the work of the
 [mini-summit](https://github.com/nodejs/next-10/issues/76)
 on August 5th 2021.
 
-They will be updated on a regular basis and will be reviewed by the next-10 team
+They will be updated regularly and will be reviewed by the next-10 team
 and the TSC on a 6 month basis.
 
 ## Modern HTTP
