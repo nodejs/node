@@ -59,7 +59,7 @@ of the solution. This includes implementations of “host” APIs like WASI.
 The CommonJS module system was one of the key components that led to the success
 of Node.js in its first 10 years. ESM is the standard that has been adopted as
 the equivalent in the broader JavaScript ecosystem and Node.js must continue to
-develop and improve its ESM implementation in order to stay relevant and ensure
+develop and improve its ESM implementation to stay relevant and ensure
 continued growth for the next 10 years.
 
 ## Support for features from the latest ECMAScript spec
