@@ -26,7 +26,7 @@ for (const fn of [
     })
     .on('data', (chunk) => output.push(chunk))
     .on('end', common.mustCall(
-      () => assert.deepStrictEqual(Buffer.concat(output).toString(), 'abc')));
+      () => assert.strictEqual(Buffer.concat(output).toString(), 'abc')));
 
   fn(deflate, () => {
     fn(inflate, () => {

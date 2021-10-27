@@ -20,14 +20,14 @@ tmpdir.refresh();
   const fd = fs.openSync(filename, 'w');
   try {
     /* Write only five characters, so that the position moves to five. */
-    assert.deepStrictEqual(fs.writeSync(fd, 'Hello'), 5);
-    assert.deepStrictEqual(fs.readFileSync(filename).toString(), 'Hello');
+    assert.strictEqual(fs.writeSync(fd, 'Hello'), 5);
+    assert.strictEqual(fs.readFileSync(filename).toString(), 'Hello');
 
     /* Write some more with writeFileSync(). */
     fs.writeFileSync(fd, 'World');
 
     /* New content should be written at position five, instead of zero. */
-    assert.deepStrictEqual(fs.readFileSync(filename).toString(), 'HelloWorld');
+    assert.strictEqual(fs.readFileSync(filename).toString(), 'HelloWorld');
   } finally {
     fs.closeSync(fd);
   }
@@ -54,12 +54,12 @@ process.on('beforeExit', common.mustCall(() => {
     /* Write only five characters, so that the position moves to five. */
     fs.write(fd, 'Hello', common.mustSucceed((bytes) => {
       assert.strictEqual(bytes, 5);
-      assert.deepStrictEqual(fs.readFileSync(file).toString(), 'Hello');
+      assert.strictEqual(fs.readFileSync(file).toString(), 'Hello');
 
       /* Write some more with writeFile(). */
       fs.writeFile(fd, 'World', common.mustSucceed(() => {
         /* New content should be written at position five, instead of zero. */
-        assert.deepStrictEqual(fs.readFileSync(file).toString(), 'HelloWorld');
+        assert.strictEqual(fs.readFileSync(file).toString(), 'HelloWorld');
       }));
     }));
   }));
