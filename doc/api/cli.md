@@ -295,14 +295,6 @@ added: v9.0.0
 Specify the `module` of a custom experimental [ECMAScript Module loader][].
 `module` may be either a path to a file, or an ECMAScript Module name.
 
-### `--experimental-modules`
-
-<!-- YAML
-added: v8.5.0
--->
-
-Enable latest experimental modules features (deprecated).
-
 ### `--experimental-policy`
 
 <!-- YAML
