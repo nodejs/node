@@ -108,7 +108,7 @@ complete its work there can be issues. If that work is long running,
 blocking the event loop will interfere with other supporting work like
 metrics gathering and health checks. Node.js
 must provide good support for using multiple threads
-in order to ensure the continued growth and success of Node.js.
+to ensure the continued growth and success of Node.js.
 
 ## Single Executable Applications
 
