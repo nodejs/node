@@ -14,6 +14,18 @@ const {
 } = require('timers/promises');
 
 {
+  const perf = performance.timerify(function foo() {
+    let sum = 0;
+    for (let i = 0; i < 101; i++) {
+      sum += i;
+    }
+    return sum;
+  });
+  const result = perf();
+  assert.strictEqual(result, 5050);
+}
+
+{
   // Intentional non-op. Do not wrap in common.mustCall();
   const n = performance.timerify(function noop() {});
 
