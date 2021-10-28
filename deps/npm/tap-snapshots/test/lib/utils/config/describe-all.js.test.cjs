@@ -861,7 +861,7 @@ When passed to \`npm config\` this refers to which config file to use.
 
 * Default: Version 2 if no lockfile or current lockfile version less than or
   equal to 2, otherwise maintain current lockfile version
-* Type: null, 1, 2, or 3
+* Type: null, 1, 2, 3, "1", "2", or "3"
 
 Set the lockfile format version to be used in package-lock.json and
 npm-shrinkwrap-json files. Possible options are:

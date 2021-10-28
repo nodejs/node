@@ -1157,7 +1157,7 @@ define('location', {
 
 define('lockfile-version', {
   default: null,
-  type: [null, 1, 2, 3],
+  type: [null, 1, 2, 3, '1', '2', '3'],
   defaultDescription: `
     Version 2 if no lockfile or current lockfile version less than or equal to
     2, otherwise maintain current lockfile version
@@ -1179,7 +1179,9 @@ define('lockfile-version', {
     on disk than lockfile version 2, but not interoperable with older npm
     versions.  Ideal if all users are on npm version 7 and higher.
   `,
-  flatten,
+  flatten: (key, obj, flatOptions) => {
+    flatOptions.lockfileVersion = obj[key] && parseInt(obj[key], 10)
+  },
 })
 
 define('loglevel', {
