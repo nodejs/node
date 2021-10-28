@@ -80,7 +80,7 @@ the behavior of Node.js applications as well as ensuring there are well
 supported tools to implement those processes (logging, metrics and tracing).
 This includes support within the Node.js runtime itself (for example
 generating headumps, performance metrics, etc.) as well as support for
-applications on top of the runtime.
+applications on top of the runtime. In addition, it is also important to clearly document the use cases, problem determination methods and best practices for those tools.
 
 ## Permissions/policies/security model
 
