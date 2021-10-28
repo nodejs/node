@@ -102,7 +102,7 @@ use of the available resources. The right answer is often to use
 technologies like containers to run multiple single threaded Node.js
 instances on the same server. However, there are important use cases
 where a single Node.js instance needs to make use of multiple threads
-in order to achieve a performant and efficient implementation. In addition,
+to achieve a performant and efficient implementation. In addition,
 even when a Node.js instance only needs to consume a single thread to
 complete its work there can be issues. If that work is long running,
 blocking the event loop will interfere with other supporting work like
