@@ -34,7 +34,7 @@ const {
   }
   const perf = performance.timerify(Foo);
   const result = perf();
-  result.then((val) => assert.strictEqual(val, 'foo'));
+  result.then(common.mustCall((val) => assert.strictEqual(val, 'foo')));
 }
 
 {
