@@ -892,3 +892,12 @@ t.test('workspaces derived', t => {
   t.equal(flat.workspacesEnabled, false)
   t.end()
 })
+
+t.test('lockfile version', t => {
+  const flat = {}
+  definitions['lockfile-version'].flatten('lockfile-version', {
+    'lockfile-version': '3',
+  }, flat)
+  t.match(flat.lockfileVersion, 3, 'flattens to a number')
+  t.end()
+})
