@@ -50,7 +50,7 @@ path for newcomers.
 The use of WebAssembly has been growing over the last few years.
 To ensure Node.js continues to be part of solutions where a
 subset of the solution needs the performance that WebAssembly can
-deliver it is important that Node.js provide good support for running
+deliver, Node.js must provide good support for running
 WebAssembly components along with the JavaScript that makes up the rest
 of the solution. This includes implementations of “host” APIs like WASI.
 
