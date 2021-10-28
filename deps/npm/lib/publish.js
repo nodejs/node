@@ -8,6 +8,7 @@ const pacote = require('pacote')
 const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
 const chalk = require('chalk')
+const replaceInfo = require('./utils/replace-info.js')
 
 const otplease = require('./utils/otplease.js')
 const { getContents, logTar } = require('./utils/tar.js')
@@ -68,7 +69,7 @@ class Publish extends BaseCommand {
     if (args.length !== 1)
       throw this.usageError()
 
-    log.verbose('publish', args)
+    log.verbose('publish', replaceInfo(args))
 
     const unicode = this.npm.config.get('unicode')
     const dryRun = this.npm.config.get('dry-run')

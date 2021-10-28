@@ -1,5 +1,5 @@
 {
-  "version": "8.1.1",
+  "version": "8.1.2",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
-    "@npmcli/arborist": "^4.0.2",
+    "@npmcli/arborist": "^4.0.3",
     "@npmcli/ci-detect": "^1.4.0",
     "@npmcli/config": "^2.3.0",
     "@npmcli/map-workspaces": "^2.0.0",
