@@ -2,10 +2,12 @@
 #ifndef ARES_NAMESER_H
 #define ARES_NAMESER_H
 
-#ifdef HAVE_ARPA_NAMESER_H
+#include "ares_build.h"
+
+#ifdef CARES_HAVE_ARPA_NAMESER_H
 #  include <arpa/nameser.h>
 #endif
-#ifdef HAVE_ARPA_NAMESER_COMPAT_H
+#ifdef CARES_HAVE_ARPA_NAMESER_COMPAT_H
 #  include <arpa/nameser_compat.h>
 #endif
 
@@ -68,7 +70,7 @@
  * provide them
  * ============================================================================
  */
-#ifndef HAVE_ARPA_NAMESER_H
+#ifndef CARES_HAVE_ARPA_NAMESER_H
 
 typedef enum __ns_class {
     ns_c_invalid = 0,       /* Cookie. */
@@ -138,7 +140,7 @@ typedef enum __ns_type {
     ns_t_mailb = 253,       /* Transfer mailbox records. */
     ns_t_maila = 254,       /* Transfer mail agent records. */
     ns_t_any = 255,         /* Wildcard match. */
-    ns_t_zxfr = 256,        /* BIND-specific, nonstandard. */
+    ns_t_uri = 256,         /* Uniform Resource Identifier (RFC7553) */
     ns_t_caa = 257,         /* Certification Authority Authorization. */
     ns_t_max = 65536
 } ns_type;
@@ -173,7 +175,7 @@ typedef enum __ns_rcode {
     ns_r_badtime = 18
 } ns_rcode;
 
-#endif /* HAVE_ARPA_NAMESER_H */
+#endif /* CARES_HAVE_ARPA_NAMESER_H */
 
 
 /* ============================================================================
@@ -468,8 +470,8 @@ typedef enum __ns_rcode {
 #ifndef T_ANY
 #  define T_ANY           255 /* ns_t_any */
 #endif
-#ifndef T_ZXFR
-#  define T_ZXFR          256 /* ns_t_zxfr */
+#ifndef T_URI
+#  define T_URI          256 /* ns_t_uri */
 #endif
 #ifndef T_CAA
 #  define T_CAA           257 /* ns_t_caa */
