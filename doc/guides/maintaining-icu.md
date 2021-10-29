@@ -159,8 +159,7 @@ new Intl.DateTimeFormat('es', { month: 'long' }).format(new Date(9E8));
 
 (This should print your updated ICU version number, and also `enero` again.)
 
-You are ready to check in the updated `deps/icu-small`. This is a big commit,
-so make this a separate commit from the smaller changes.
+You are ready to check in (`git add`) the updated `deps/icu-small`.
 
 > :warning: Do not modify any source code in `deps/icu-small` !
 > See section below about floating patches to ICU.
@@ -185,13 +184,8 @@ make
 make test-ci
 ```
 
-* commit the change to `tools/icu/current_ver.dep` and `LICENSE` files.
-
-  * To simplify review, I often will “pre-land” this patch, meaning that I run
-    `curl -L https://github.com/nodejs/node/pull/xxx.patch | git am -3 --whitespace=fix`
-    per the collaborator’s guide… and then push that patched branch into my
-    PR's branch. This reduces the whitespace changes that show up in the PR,
-    since the final land will eliminate those anyway.
+* Commit the change to the `deps/icu-small`, `tools/icu/current_ver.dep`
+  and `LICENSE` files.
 
 ## Floating patches to ICU
 
