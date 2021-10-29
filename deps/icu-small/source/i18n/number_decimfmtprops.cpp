@@ -21,7 +21,7 @@ char kRawDefaultProperties[sizeof(DecimalFormatProperties)];
 icu::UInitOnce gDefaultPropertiesInitOnce = U_INITONCE_INITIALIZER;
 
 void U_CALLCONV initDefaultProperties(UErrorCode&) {
-    // can't fail, uses placement new into staticly allocated space.
+    // can't fail, uses placement new into statically allocated space.
     new(kRawDefaultProperties) DecimalFormatProperties(); // set to the default instance
 }
 
@@ -40,6 +40,7 @@ void DecimalFormatProperties::clear() {
     decimalPatternMatchRequired = false;
     decimalSeparatorAlwaysShown = false;
     exponentSignAlwaysShown = false;
+    currencyAsDecimal = false;
     formatFailIfMoreThanMaxDigits = false;
     formatWidth = -1;
     groupingSize = -1;
@@ -88,6 +89,7 @@ DecimalFormatProperties::_equals(const DecimalFormatProperties& other, bool igno
     eq = eq && currencyUsage == other.currencyUsage;
     eq = eq && decimalSeparatorAlwaysShown == other.decimalSeparatorAlwaysShown;
     eq = eq && exponentSignAlwaysShown == other.exponentSignAlwaysShown;
+    eq = eq && currencyAsDecimal == other.currencyAsDecimal;
     eq = eq && formatFailIfMoreThanMaxDigits == other.formatFailIfMoreThanMaxDigits;
     eq = eq && formatWidth == other.formatWidth;
     eq = eq && magnitudeMultiplier == other.magnitudeMultiplier;

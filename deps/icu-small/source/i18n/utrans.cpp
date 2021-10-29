@@ -52,13 +52,13 @@ public:
 
     virtual void handleReplaceBetween(int32_t start,
                                       int32_t limit,
-                                      const UnicodeString& text);
+                                      const UnicodeString& text) override;
 
     virtual void extractBetween(int32_t start,
                                 int32_t limit,
-                                UnicodeString& target) const;
+                                UnicodeString& target) const override;
 
-    virtual void copy(int32_t start, int32_t limit, int32_t dest);
+    virtual void copy(int32_t start, int32_t limit, int32_t dest) override;
 
     // virtual Replaceable *clone() const { return NULL; } same as default
 
@@ -67,7 +67,7 @@ public:
      *
      * @draft ICU 2.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -78,11 +78,11 @@ public:
 
 protected:
 
-    virtual int32_t getLength() const;
+    virtual int32_t getLength() const override;
 
-    virtual UChar getCharAt(int32_t offset) const;
+    virtual UChar getCharAt(int32_t offset) const override;
 
-    virtual UChar32 getChar32At(int32_t offset) const;
+    virtual UChar32 getChar32At(int32_t offset) const override;
 };
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(ReplaceableGlue)
@@ -147,11 +147,11 @@ utrans_openU(const UChar *id,
         return NULL;
     }
     UParseError temp;
-
+    
     if(parseError == NULL){
         parseError = &temp;
     }
-
+    
     UnicodeString ID(idLength<0, id, idLength); // r-o alias
 
     if(rules==NULL){
@@ -159,7 +159,7 @@ utrans_openU(const UChar *id,
         Transliterator *trans = NULL;
 
         trans = Transliterator::createInstance(ID, dir, *parseError, *status);
-
+        
         if(U_FAILURE(*status)){
             return NULL;
         }
@@ -170,8 +170,8 @@ utrans_openU(const UChar *id,
                               rulesLength); // r-o alias
 
         Transliterator *trans = NULL;
-        trans = Transliterator::createFromRules(ID, ruleStr, dir, *parseError, *status);
-        if(U_FAILURE(*status)) {
+        trans = Transliterator::createFromRules(ID, ruleStr, dir, *parseError, *status); 
+        if(U_FAILURE(*status)) { 
             return NULL;
         }
 
@@ -183,7 +183,7 @@ U_CAPI UTransliterator* U_EXPORT2
 utrans_open(const char* id,
             UTransDirection dir,
             const UChar* rules,         /* may be Null */
-            int32_t rulesLength,        /* -1 if null-terminated */
+            int32_t rulesLength,        /* -1 if null-terminated */ 
             UParseError* parseError,    /* may be Null */
             UErrorCode* status) {
     UnicodeString ID(id, -1, US_INV); // use invariant converter
@@ -449,7 +449,7 @@ utrans_transUChars(const UTransliterator* trans,
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
-
+ 
     int32_t textLen = (textLength == NULL || *textLength < 0)
         ? u_strlen(text) : *textLength;
     // writeable alias: for this ct, len CANNOT be -1 (why?)

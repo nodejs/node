@@ -108,7 +108,7 @@ enum URBNFRuleSetTag {
  * <p>In these rules, the <em>base value</em> is spelled out explicitly and set off from the
  * rule's output text with a colon. The rules are in a sorted list, and a rule is applicable
  * to all numbers from its own base value to one less than the next rule's base value. The
- * &quot;&gt;&gt;&quot; token is called a <em>substitution</em> and tells the fomatter to
+ * &quot;&gt;&gt;&quot; token is called a <em>substitution</em> and tells the formatter to
  * isolate the number's ones digit, format it using this same set of rules, and place the
  * result at the position of the &quot;&gt;&gt;&quot; token. Text in brackets is omitted if
  * the number being formatted is an even multiple of 10 (the hyphen is a literal hyphen; 24
@@ -698,7 +698,7 @@ public:
    * @return  A copy of the object.
    * @stable ICU 2.6
    */
-  virtual RuleBasedNumberFormat* clone() const;
+  virtual RuleBasedNumberFormat* clone() const override;
 
   /**
    * Return true if the given Format objects are semantically equal.
@@ -707,7 +707,7 @@ public:
    * @return        true if the given Format objects are semantically equal.
    * @stable ICU 2.6
    */
-  virtual UBool operator==(const Format& other) const;
+  virtual bool operator==(const Format& other) const override;
 
 //-----------------------------------------------------------------------
 // public API functions
@@ -793,7 +793,7 @@ public:
    */
   virtual UnicodeString& format(int32_t number,
                                 UnicodeString& toAppendTo,
-                                FieldPosition& pos) const;
+                                FieldPosition& pos) const override;
 
   /**
    * Formats the specified 64-bit number using the default ruleset.
@@ -805,7 +805,7 @@ public:
    */
   virtual UnicodeString& format(int64_t number,
                                 UnicodeString& toAppendTo,
-                                FieldPosition& pos) const;
+                                FieldPosition& pos) const override;
   /**
    * Formats the specified number using the default ruleset.
    * @param number The number to format.
@@ -816,7 +816,7 @@ public:
    */
   virtual UnicodeString& format(double number,
                                 UnicodeString& toAppendTo,
-                                FieldPosition& pos) const;
+                                FieldPosition& pos) const override;
 
   /**
    * Formats the specified number using the named ruleset.
@@ -888,13 +888,13 @@ protected:
     virtual UnicodeString& format(const number::impl::DecimalQuantity &number,
                                   UnicodeString& appendTo,
                                   FieldPosition& pos,
-                                  UErrorCode& status) const;
+                                  UErrorCode& status) const override;
 public:
 
   using NumberFormat::parse;
 
   /**
-   * Parses the specfied string, beginning at the specified position, according
+   * Parses the specified string, beginning at the specified position, according
    * to this formatter's rules.  This will match the string against all of the
    * formatter's public rule sets and return the value corresponding to the longest
    * parseable substring.  This function's behavior is affected by the lenient
@@ -909,7 +909,7 @@ public:
    */
   virtual void parse(const UnicodeString& text,
                      Formattable& result,
-                     ParsePosition& parsePosition) const;
+                     ParsePosition& parsePosition) const override;
 
 #if !UCONFIG_NO_COLLATION
 
@@ -946,7 +946,7 @@ public:
    * @see RuleBasedCollator
    * @stable ICU 2.0
    */
-  virtual void setLenient(UBool enabled);
+  virtual void setLenient(UBool enabled) override;
 
   /**
    * Returns true if lenient-parse mode is turned on.  Lenient parsing is off
@@ -955,7 +955,7 @@ public:
    * @see #setLenient
    * @stable ICU 2.0
    */
-  virtual inline UBool isLenient(void) const;
+  virtual inline UBool isLenient(void) const override;
 
 #endif
 
@@ -984,24 +984,24 @@ public:
    * @param value The UDisplayContext value to set.
    * @param status Input/output status. If at entry this indicates a failure
    *               status, the function will do nothing; otherwise this will be
-   *               updated with any new status from the function.
+   *               updated with any new status from the function. 
    * @stable ICU 53
    */
-  virtual void setContext(UDisplayContext value, UErrorCode& status);
+  virtual void setContext(UDisplayContext value, UErrorCode& status) override;
 
     /**
      * Get the rounding mode.
      * @return A rounding mode
      * @stable ICU 60
      */
-    virtual ERoundingMode getRoundingMode(void) const;
+    virtual ERoundingMode getRoundingMode(void) const override;
 
     /**
      * Set the rounding mode.
      * @param roundingMode A rounding mode
      * @stable ICU 60
      */
-    virtual void setRoundingMode(ERoundingMode roundingMode);
+    virtual void setRoundingMode(ERoundingMode roundingMode) override;
 
 public:
     /**
@@ -1016,7 +1016,7 @@ public:
      *
      * @stable ICU 2.8
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 
     /**
      * Sets the decimal format symbols, which is generally not changed

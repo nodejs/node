@@ -436,7 +436,7 @@ UBool  RBBISetBuilder::sawBOF() const {
 //------------------------------------------------------------------------
 //
 //   getFirstChar      Given a runtime RBBI character category, find
-//                     the first UChar32 that is in the set of chars
+//                     the first UChar32 that is in the set of chars 
 //                     in the category.
 //------------------------------------------------------------------------
 UChar32  RBBISetBuilder::getFirstChar(int32_t category) const {

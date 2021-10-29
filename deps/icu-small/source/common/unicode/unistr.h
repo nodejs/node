@@ -325,7 +325,7 @@ public:
    * false otherwise.
    * @stable ICU 2.0
    */
-  inline UBool operator== (const UnicodeString& text) const;
+  inline bool operator== (const UnicodeString& text) const;
 
   /**
    * Inequality operator. Performs only bitwise comparison.
@@ -334,7 +334,7 @@ public:
    * true otherwise.
    * @stable ICU 2.0
    */
-  inline UBool operator!= (const UnicodeString& text) const;
+  inline bool operator!= (const UnicodeString& text) const;
 
   /**
    * Greater than operator. Performs only bitwise comparison.
@@ -1526,7 +1526,7 @@ public:
    */
   virtual void extractBetween(int32_t start,
               int32_t limit,
-              UnicodeString& target) const;
+              UnicodeString& target) const override;
 
   /**
    * Copy the characters in the range
@@ -1545,7 +1545,7 @@ public:
    * @param target the target buffer for extraction, can be NULL
    *               if targetLength is 0
    * @param targetCapacity the length of the target buffer
-   * @param inv Signature-distinguishing paramater, use US_INV.
+   * @param inv Signature-distinguishing parameter, use US_INV.
    * @return the output string length, not including the terminating NUL
    * @stable ICU 3.2
    */
@@ -2456,14 +2456,14 @@ public:
    */
   virtual void handleReplaceBetween(int32_t start,
                                     int32_t limit,
-                                    const UnicodeString& text);
+                                    const UnicodeString& text) override;
 
   /**
    * Replaceable API
    * @return true if it has MetaData
    * @stable ICU 2.4
    */
-  virtual UBool hasMetaData() const;
+  virtual UBool hasMetaData() const override;
 
   /**
    * Copy a substring of this object, retaining attribute (out-of-band)
@@ -2478,7 +2478,7 @@ public:
    * dest >= limit`.
    * @stable ICU 2.0
    */
-  virtual void copy(int32_t start, int32_t limit, int32_t dest);
+  virtual void copy(int32_t start, int32_t limit, int32_t dest) override;
 
   /* Search and replace operations */
 
@@ -3274,7 +3274,7 @@ public:
    * \endcode
    * @param src String using only invariant characters.
    * @param textLength Length of src, or -1 if NUL-terminated.
-   * @param inv Signature-distinguishing paramater, use US_INV.
+   * @param inv Signature-distinguishing parameter, use US_INV.
    *
    * @see US_INV
    * @stable ICU 3.2
@@ -3338,7 +3338,7 @@ public:
    * @see getDynamicClassID
    * @stable ICU 2.6
    */
-  virtual UnicodeString *clone() const;
+  virtual UnicodeString *clone() const override;
 
   /** Destructor.
    * @stable ICU 2.0
@@ -3444,7 +3444,7 @@ public:
    *
    * @stable ICU 2.2
    */
-  virtual UClassID getDynamicClassID() const;
+  virtual UClassID getDynamicClassID() const override;
 
   //========================================
   // Implementation methods
@@ -3455,21 +3455,21 @@ protected:
    * Implement Replaceable::getLength() (see jitterbug 1027).
    * @stable ICU 2.4
    */
-  virtual int32_t getLength() const;
+  virtual int32_t getLength() const override;
 
   /**
    * The change in Replaceable to use virtual getCharAt() allows
    * UnicodeString::charAt() to be inline again (see jitterbug 709).
    * @stable ICU 2.4
    */
-  virtual char16_t getCharAt(int32_t offset) const;
+  virtual char16_t getCharAt(int32_t offset) const override;
 
   /**
    * The change in Replaceable to use virtual getChar32At() allows
    * UnicodeString::char32At() to be inline again (see jitterbug 709).
    * @stable ICU 2.4
    */
-  virtual UChar32 getChar32At(int32_t offset) const;
+  virtual UChar32 getChar32At(int32_t offset) const override;
 
 private:
   // For char* constructors. Could be made public.
@@ -3946,7 +3946,7 @@ UnicodeString::doCompare(int32_t start,
   }
 }
 
-inline UBool
+inline bool
 UnicodeString::operator== (const UnicodeString& text) const
 {
   if(isBogus()) {
@@ -3957,7 +3957,7 @@ UnicodeString::operator== (const UnicodeString& text) const
   }
 }
 
-inline UBool
+inline bool
 UnicodeString::operator!= (const UnicodeString& text) const
 { return (! operator==(text)); }
 

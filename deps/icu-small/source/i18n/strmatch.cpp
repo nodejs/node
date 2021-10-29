@@ -69,7 +69,7 @@ StringMatcher* StringMatcher::clone() const {
 UnicodeMatcher* StringMatcher::toMatcher() const {
   StringMatcher  *nonconst_this = const_cast<StringMatcher *>(this);
   UnicodeMatcher *nonconst_base = static_cast<UnicodeMatcher *>(nonconst_this);
-
+  
   return nonconst_base;
 }
 
@@ -80,7 +80,7 @@ UnicodeMatcher* StringMatcher::toMatcher() const {
 UnicodeReplacer* StringMatcher::toReplacer() const {
   StringMatcher  *nonconst_this = const_cast<StringMatcher *>(this);
   UnicodeReplacer *nonconst_base = static_cast<UnicodeReplacer *>(nonconst_this);
-
+  
   return nonconst_base;
 }
 
@@ -221,9 +221,9 @@ int32_t StringMatcher::replace(Replaceable& text,
                                int32_t start,
                                int32_t limit,
                                int32_t& /*cursor*/) {
-
+    
     int32_t outLen = 0;
-
+    
     // Copy segment with out-of-band data
     int32_t dest = limit;
     // If there was no match, that means that a quantifier
@@ -234,9 +234,9 @@ int32_t StringMatcher::replace(Replaceable& text,
             outLen = matchLimit - matchStart;
         }
     }
-
+    
     text.handleReplaceBetween(start, limit, UnicodeString()); // delete original text
-
+    
     return outLen;
 }
 

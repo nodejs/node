@@ -126,7 +126,7 @@ TransliterationRule::TransliterationRule(const UnicodeString& input,
             return;
         }
     }
-
+    
     key = NULL;
     if (keyLength > 0) {
         key = new StringMatcher(pattern, anteContextLength, anteContextLength + keyLength,
@@ -137,7 +137,7 @@ TransliterationRule::TransliterationRule(const UnicodeString& input,
             return;
         }
     }
-
+    
     int32_t postContextLength = pattern.length() - keyLength - anteContextLength;
     postContext = NULL;
     if (postContextLength > 0) {
@@ -259,7 +259,7 @@ UBool TransliterationRule::masks(const TransliterationRule& r2) const {
      * r1:      aakkkpppp
      * r2:     aaakkkkkpppp
      *            ^
-     *
+     * 
      * The strings must be aligned at the first character of the
      * key.  The length of r1 to the left of the alignment point
      * must be <= the length of r2 to the left; ditto for the
@@ -337,10 +337,10 @@ static inline int32_t posAfter(const Replaceable& str, int32_t pos) {
  * context and key characters match, but the text is not long
  * enough to match all of them.  A full match means all context
  * and key characters match.
- *
+ * 
  * If a full match is obtained, perform a replacement, update pos,
  * and return U_MATCH.  Otherwise both text and pos are unchanged.
- *
+ * 
  * @param text the text
  * @param pos the position indices
  * @param incremental if TRUE, test for partial matches that may
@@ -383,7 +383,7 @@ UMatchDegree TransliterationRule::matchAndReplace(Replaceable& text,
     // 32-bit code points.  This works because stand-ins are
     // always in the BMP and because we are doing a literal match
     // operation, which can be done 16-bits at a time.
-
+    
     int32_t anteLimit = posBefore(text, pos.contextStart);
 
     UMatchDegree match;
@@ -401,13 +401,13 @@ UMatchDegree TransliterationRule::matchAndReplace(Replaceable& text,
     minOText = posAfter(text, oText);
 
     // ------------------------ Start Anchor ------------------------
-
+    
     if (((flags & ANCHOR_START) != 0) && oText != anteLimit) {
         return U_MISMATCH;
     }
 
     // -------------------- Key and Post Context --------------------
-
+    
     oText = pos.start;
 
     if (key != NULL) {
@@ -433,9 +433,9 @@ UMatchDegree TransliterationRule::matchAndReplace(Replaceable& text,
             return match;
         }
     }
-
+    
     // ------------------------- Stop Anchor ------------------------
-
+    
     if (((flags & ANCHOR_END)) != 0) {
         if (oText != pos.contextLimit) {
             return U_MISMATCH;
@@ -444,7 +444,7 @@ UMatchDegree TransliterationRule::matchAndReplace(Replaceable& text,
             return U_PARTIAL_MATCH;
         }
     }
-
+    
     // =========================== REPLACE ==========================
 
     // We have a full match.  The key is between pos.start and

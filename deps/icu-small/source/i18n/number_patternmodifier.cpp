@@ -28,9 +28,13 @@ void MutablePatternModifier::setPatternInfo(const AffixPatternProvider* patternI
     fField = field;
 }
 
-void MutablePatternModifier::setPatternAttributes(UNumberSignDisplay signDisplay, bool perMille) {
+void MutablePatternModifier::setPatternAttributes(
+        UNumberSignDisplay signDisplay,
+        bool perMille,
+        bool approximately) {
     fSignDisplay = signDisplay;
     fPerMilleReplacesPercent = perMille;
+    fApproximately = approximately;
 }
 
 void MutablePatternModifier::setSymbols(const DecimalFormatSymbols* symbols,
@@ -244,19 +248,19 @@ bool MutablePatternModifier::isStrong() const {
 bool MutablePatternModifier::containsField(Field field) const {
     (void)field;
     // This method is not currently used.
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 void MutablePatternModifier::getParameters(Parameters& output) const {
     (void)output;
     // This method is not currently used.
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 bool MutablePatternModifier::semanticallyEquivalent(const Modifier& other) const {
     (void)other;
     // This method is not currently used.
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 int32_t MutablePatternModifier::insertPrefix(FormattedStringBuilder& sb, int position, UErrorCode& status) {
@@ -277,6 +281,7 @@ void MutablePatternModifier::prepareAffix(bool isPrefix) {
             *fPatternInfo,
             isPrefix,
             PatternStringUtils::resolveSignDisplay(fSignDisplay, fSignum),
+            fApproximately,
             fPlural,
             fPerMilleReplacesPercent,
             currentAffix);
@@ -289,28 +294,14 @@ UnicodeString MutablePatternModifier::getSymbol(AffixPatternType type) const {
             return fSymbols->getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kMinusSignSymbol);
         case AffixPatternType::TYPE_PLUS_SIGN:
             return fSymbols->getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kPlusSignSymbol);
+        case AffixPatternType::TYPE_APPROXIMATELY_SIGN:
+            return fSymbols->getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kApproximatelySignSymbol);
         case AffixPatternType::TYPE_PERCENT:
             return fSymbols->getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kPercentSymbol);
         case AffixPatternType::TYPE_PERMILLE:
             return fSymbols->getSymbol(DecimalFormatSymbols::ENumberFormatSymbol::kPerMillSymbol);
-        case AffixPatternType::TYPE_CURRENCY_SINGLE: {
-            switch (fUnitWidth) {
-            case UNumberUnitWidth::UNUM_UNIT_WIDTH_NARROW:
-                return fCurrencySymbols.getNarrowCurrencySymbol(localStatus);
-            case UNumberUnitWidth::UNUM_UNIT_WIDTH_SHORT:
-                return fCurrencySymbols.getCurrencySymbol(localStatus);
-            case UNumberUnitWidth::UNUM_UNIT_WIDTH_ISO_CODE:
-                return fCurrencySymbols.getIntlCurrencySymbol(localStatus);
-            case UNumberUnitWidth::UNUM_UNIT_WIDTH_FORMAL:
-                return fCurrencySymbols.getFormalCurrencySymbol(localStatus);
-            case UNumberUnitWidth::UNUM_UNIT_WIDTH_VARIANT:
-                return fCurrencySymbols.getVariantCurrencySymbol(localStatus);
-            case UNumberUnitWidth::UNUM_UNIT_WIDTH_HIDDEN:
-                return UnicodeString();
-            default:
-                return fCurrencySymbols.getCurrencySymbol(localStatus);
-            }
-        }
+        case AffixPatternType::TYPE_CURRENCY_SINGLE:
+            return getCurrencySymbolForUnitWidth(localStatus);
         case AffixPatternType::TYPE_CURRENCY_DOUBLE:
             return fCurrencySymbols.getIntlCurrencySymbol(localStatus);
         case AffixPatternType::TYPE_CURRENCY_TRIPLE:
@@ -324,13 +315,32 @@ UnicodeString MutablePatternModifier::getSymbol(AffixPatternType type) const {
         case AffixPatternType::TYPE_CURRENCY_QUINT:
             return UnicodeString(u"\uFFFD");
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
+    }
+}
+
+UnicodeString MutablePatternModifier::getCurrencySymbolForUnitWidth(UErrorCode& status) const {
+    switch (fUnitWidth) {
+    case UNumberUnitWidth::UNUM_UNIT_WIDTH_NARROW:
+        return fCurrencySymbols.getNarrowCurrencySymbol(status);
+    case UNumberUnitWidth::UNUM_UNIT_WIDTH_SHORT:
+        return fCurrencySymbols.getCurrencySymbol(status);
+    case UNumberUnitWidth::UNUM_UNIT_WIDTH_ISO_CODE:
+        return fCurrencySymbols.getIntlCurrencySymbol(status);
+    case UNumberUnitWidth::UNUM_UNIT_WIDTH_FORMAL:
+        return fCurrencySymbols.getFormalCurrencySymbol(status);
+    case UNumberUnitWidth::UNUM_UNIT_WIDTH_VARIANT:
+        return fCurrencySymbols.getVariantCurrencySymbol(status);
+    case UNumberUnitWidth::UNUM_UNIT_WIDTH_HIDDEN:
+        return UnicodeString();
+    default:
+        return fCurrencySymbols.getCurrencySymbol(status);
     }
 }
 
 UnicodeString MutablePatternModifier::toUnicodeString() const {
     // Never called by AffixUtils
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
