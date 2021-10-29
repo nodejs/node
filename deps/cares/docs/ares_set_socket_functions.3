@@ -1,0 +1,99 @@
+.\"
+.TH ARES_SET_SOCKET_FUNCTIONS 3 "13 Dec 2016"
+.SH NAME
+ares_set_socket_functions \- Set socket io callbacks
+.SH SYNOPSIS
+.nf
+.B #include <ares.h>
+.PP
+.B struct ares_socket_functions {
+	ares_socket_t(*\fIasocket\fP)(int, int, int, void *);
+	int(*\fIaclose\fP)(ares_socket_t, void *);
+	int(*\fIaconnect\fP)(ares_socket_t, const struct sockaddr *, ares_socklen_t, void *);
+	ares_ssize_t(*\fIarecvfrom\fP)(ares_socket_t, void *, size_t, int, struct sockaddr *, ares_socklen_t *, void *);
+	ares_ssize_t(*\fIasendv\fP)(ares_socket_t, const struct iovec *, int, void *);
+   };
+
+.PP
+.B void ares_set_socket_functions(ares_channel \fIchannel\fP,
+				  const struct ares_socket_functions * \fIfunctions\fP,
+				  void *\fIuser_data\fP);
+
+.fi
+.SH DESCRIPTION
+.PP
+This function sets a set of callback \fIfunctions\fP in the given ares channel handle.
+These callback functions will be invoked to create/destroy socket objects and perform
+io, instead of the normal system calls. A client application can override normal network
+operation fully through this functionality, and provide its own transport layer.
+.PP
+All callback functions are expected to operate like their system equivalents, and to
+set
+.BR errno(3)
+to an appropriate error code on failure. C-ares also expects all io functions to behave
+asynchronously, i.e. as if the socket object has been set to non-blocking mode. Thus
+read/write calls (for TCP connections) are expected to often generate
+.BR EAGAIN
+or
+.BR EWOULDBLOCK.
+
+.PP
+The \fIuser_data\fP value is provided to each callback function invocation to serve as
+context.
+.PP
+The
+.B ares_socket_functions
+must provide the following callbacks:
+.TP 18
+.B \fIasocket\fP
+.B ares_socket_t(*)(int \fIdomain\fP, int \fItype\fP, int \fIprotocol\fP, void * \fIuser_data\fP)
+.br
+Creates an endpoint for communication and returns a descriptor. \fIdomain\fP, \fItype\fP, and \fIprotocol\fP
+each correspond to the parameters of
+.BR socket(2).
+Returns ahandle to the newly created socket, or -1 on error.
+.TP 18
+.B \fIaclose\fP
+.B int(*)(ares_socket_t \fIfd\fP, void * \fIuser_data\fP)
+.br
+Closes the socket endpoint indicated by \fIfd\fP. See
+.BR close(2)
+.TP 18
+.B \fIaconnect\fP
+.B int(*)(ares_socket_t \fIfd\fP, const struct sockaddr * \fIaddr\fP, ares_socklen_t \fIaddr_len\fP, void * \fIuser_data\fP)
+.br
+Initiate a connection to the address indicated by \fIaddr\fP on a socket. See
+.BR connect(2)
+
+.TP 18
+.B \fIarecvfrom\fP
+.B ares_ssize_t(*)(ares_socket_t \fIfd\fP, void * \fIbuffer\fP, size_t \fIbuf_size\fP, int \fIflags\fP, struct sockaddr * \fIaddr\fP, ares_socklen_t * \fIaddr_len\fP, void * \fIuser_data\fP)
+.br
+Receives data from remote socket endpoint, if available. If the \fIaddr\fP parameter is not NULL and the connection protocol provides the source address, the callback should fill this in. See
+.BR recvfrom(2)
+
+.TP 18
+.B \fIasendv\fP
+.B ares_ssize_t(*)(ares_socket_t \fIfd\fP, const struct iovec * \fIdata\fP, int \fIlen\fP, void * \fIuser_data\fP)
+.br
+Send data, as provided by the iovec array \fIdata\fP, to the socket endpoint. See
+.BR writev(2),
+
+.PP
+The
+.B ares_socket_functions
+struct provided is not copied but directly referenced,
+and must thus remain valid through out the channels and any created socket's lifetime.
+.SH AVAILABILITY
+Added in c-ares 1.13.0
+.SH SEE ALSO
+.BR ares_init_options (3),
+.BR socket(2),
+.BR close(2),
+.BR connect(2),
+.BR recv(2),
+.BR recvfrom(2),
+.BR send(2),
+.BR writev(2)
+.SH AUTHOR
+Carl Wilund

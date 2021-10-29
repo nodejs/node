@@ -301,11 +301,15 @@ static int rfc6724_compare(const void *ptr1, const void *ptr2)
     }
 
   /* Rule 2: Prefer matching scope. */
-  scope_src1 = get_scope(&a1->src_addr.sa);
+  scope_src1 = ARES_IPV6_ADDR_SCOPE_NODELOCAL;
+  if (a1->has_src_addr)
+    scope_src1 = get_scope(&a1->src_addr.sa);
   scope_dst1 = get_scope(a1->ai->ai_addr);
   scope_match1 = (scope_src1 == scope_dst1);
 
-  scope_src2 = get_scope(&a2->src_addr.sa);
+  scope_src2 = ARES_IPV6_ADDR_SCOPE_NODELOCAL;
+  if (a2->has_src_addr)
+    scope_src2 = get_scope(&a2->src_addr.sa);
   scope_dst2 = get_scope(a2->ai->ai_addr);
   scope_match2 = (scope_src2 == scope_dst2);
 
@@ -319,11 +323,15 @@ static int rfc6724_compare(const void *ptr1, const void *ptr2)
   /* Rule 4: Prefer home addresses.  */
 
   /* Rule 5: Prefer matching label. */
-  label_src1 = get_label(&a1->src_addr.sa);
+  label_src1 = 1;
+  if (a1->has_src_addr)
+    label_src1 = get_label(&a1->src_addr.sa);
   label_dst1 = get_label(a1->ai->ai_addr);
   label_match1 = (label_src1 == label_dst1);
 
-  label_src2 = get_label(&a2->src_addr.sa);
+  label_src2 = 1;
+  if (a2->has_src_addr)
+    label_src2 = get_label(&a2->src_addr.sa);
   label_dst2 = get_label(a2->ai->ai_addr);
   label_match2 = (label_src2 == label_dst2);
 

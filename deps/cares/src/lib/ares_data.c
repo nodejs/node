@@ -77,6 +77,14 @@ void ares_free_data(void *dataptr)
             ares_free(ptr->data.srv_reply.host);
           break;
 
+        case ARES_DATATYPE_URI_REPLY:
+
+          if (ptr->data.uri_reply.next)
+            next_data = ptr->data.uri_reply.next;
+          if (ptr->data.uri_reply.uri)
+            ares_free(ptr->data.uri_reply.uri);
+          break;
+
         case ARES_DATATYPE_TXT_REPLY:
         case ARES_DATATYPE_TXT_EXT:
 
@@ -172,6 +180,14 @@ void *ares_malloc_data(ares_datatype type)
         ptr->data.srv_reply.priority = 0;
         ptr->data.srv_reply.weight = 0;
         ptr->data.srv_reply.port = 0;
+        break;
+
+      case ARES_DATATYPE_URI_REPLY:
+        ptr->data.uri_reply.next = NULL;
+        ptr->data.uri_reply.priority = 0;
+        ptr->data.uri_reply.weight = 0;
+        ptr->data.uri_reply.uri = NULL;
+        ptr->data.uri_reply.ttl = 0;
         break;
 
       case ARES_DATATYPE_TXT_EXT:
