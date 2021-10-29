@@ -773,7 +773,7 @@ source to a supported one (see [Examples](#examples) below).
 > signature may change. Do not rely on the API described below.
 
 > Note: In a previous version of this API, this hook was named
-> `getGlobalPreloadCode`.
+> `globalPreload`.
 
 * Returns: {string}
 
@@ -815,18 +815,21 @@ normally.
 
 ```js
 /**
- * This example causes
+ * This example has the application context send a message to the loader
+ * and sends the message back to the application context
  * @param {object} utilities
  * @param {MessagePort} utilities.port
  */
-export function globalPreloadCode({ port }) {
+export function globalPreload({ port }) {
   port.onmessage = (evt) => {
-    // ...
+    port.postMessage(evt.data);
   };
   return `\
-port.postMessage('I went to the Loader and back');
-port.onmessage = eval;
-`;
+    port.postMessage('console.log("I went to the Loader and back");');
+    port.onmessage = (evt) => {
+      eval(evt.data);
+    };
+  `;
 }
 ```
 
