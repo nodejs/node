@@ -1027,7 +1027,7 @@ const tsp = require('timers/promises');
   const src = new PassThrough();
   const dst = new PassThrough();
   pipeline(src, dst, common.mustSucceed(() => {
-    assert.strictEqual(dst.destroyed, false);
+    assert.strictEqual(dst.destroyed, true);
   }));
   src.end();
 }
@@ -1446,4 +1446,24 @@ const tsp = require('timers/promises');
     assert(finished);
     assert.strictEqual(text, 'Hello World!');
   }));
+}
+
+{
+  const pipelinePromise = promisify(pipeline);
+
+  async function run() {
+    const read = new Readable({
+      read() {}
+    });
+
+    const duplex = new PassThrough();
+
+    read.push(null);
+
+    await pipelinePromise(read, duplex);
+
+    assert.strictEqual(duplex.destroyed, true);
+  }
+
+  run();
 }
