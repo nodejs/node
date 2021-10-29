@@ -1009,8 +1009,8 @@ The content of the `napi_extended_error_info` returned is only valid up until
 a Node-API function is called on the same `env`. This includes a call to
 `napi_is_exception_pending` so it may often be necessary to make a copy
 of the information so that it can be used later. The pointer returned
-in error_message points to a statically defined string so it is safe to use
-that pointer if you have copied it out of the error_message field (which will
+in `error_message` points to a statically-defined string so it is safe to use
+that pointer if you have copied it out of the `error_message` field (which will
 be overwritten) before another Node-API function was called.
 
 Do not rely on the content or format of any of the extended information as it
