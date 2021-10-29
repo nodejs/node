@@ -37,10 +37,9 @@ UStack::~UStack() {}
 
 void* UStack::pop(void) {
     int32_t n = size() - 1;
-    void* result = 0;
+    void* result = nullptr;
     if (n >= 0) {
-        result = elementAt(n);
-        removeElementAt(n);
+        result = orphanElementAt(n);
     }
     return result;
 }

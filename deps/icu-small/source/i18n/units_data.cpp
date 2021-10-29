@@ -59,7 +59,7 @@ class ConversionRateDataSink : public ResourceSink {
      * @param noFallback Ignored.
      * @param status The standard ICU error code output parameter.
      */
-    void put(const char *source, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) {
+    void put(const char *source, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) override {
         if (U_FAILURE(status)) { return; }
         if (uprv_strcmp(source, "convertUnits") != 0) {
             // This is very strict, however it is the cheapest way to be sure
@@ -146,7 +146,7 @@ class UnitPreferencesSink : public ResourceSink {
      * @param status The standard ICU error code output parameter. Note: if an
      * error is returned, outPrefs and outMetadata may be inconsistent.
      */
-    void put(const char *key, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) {
+    void put(const char *key, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) override {
         if (U_FAILURE(status)) { return; }
         if (uprv_strcmp(key, "unitPreferenceData") != 0) {
             // This is very strict, however it is the cheapest way to be sure

@@ -241,7 +241,7 @@ private:
  * Low-level implementation of the Unicode Normalization Algorithm.
  * For the data structure and details see the documentation at the end of
  * this normalizer2impl.h and in the design doc at
- * http://site.icu-project.org/design/normalization/custom
+ * https://icu.unicode.org/design/normalization/custom
  */
 class U_COMMON_API Normalizer2Impl : public UObject {
 public:
@@ -806,7 +806,7 @@ unorm_getFCD16(UChar32 c);
  * Constants are defined as enum values of the Normalizer2Impl class.
  *
  * Many details of the data structures are described in the design doc
- * which is at http://site.icu-project.org/design/normalization/custom
+ * which is at https://icu.unicode.org/design/normalization/custom
  *
  * int32_t indexes[indexesLength]; -- indexesLength=indexes[IX_NORM_TRIE_OFFSET]/4;
  *

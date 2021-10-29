@@ -20,7 +20,7 @@
 #define __ERRORCODE_H__
 
 /**
- * \file
+ * \file 
  * \brief C++ API: ErrorCode class intended to make it easier to use
  *                 ICU C and C++ APIs from C++ user code.
  */

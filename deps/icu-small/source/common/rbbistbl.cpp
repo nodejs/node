@@ -45,7 +45,7 @@ RBBISymbolTable::RBBISymbolTable(RBBIRuleScanner *rs, const UnicodeString &rules
 {
     fHashTable       = NULL;
     fCachedSetLookup = NULL;
-
+    
     fHashTable = uhash_open(uhash_hashUnicodeString, uhash_compareUnicodeString, NULL, &status);
     // uhash_open checks status
     if (U_FAILURE(status)) {
@@ -63,7 +63,7 @@ RBBISymbolTable::~RBBISymbolTable()
 
 
 //
-//  RBBISymbolTable::lookup       This function from the abstract symbol table inteface
+//  RBBISymbolTable::lookup       This function from the abstract symbol table interface
 //                                looks up a variable name and returns a UnicodeString
 //                                containing the substitution text.
 //

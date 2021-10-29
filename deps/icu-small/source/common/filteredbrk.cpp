@@ -49,7 +49,7 @@ static void _fb_trace(const char *m, const UnicodeString *s, UBool b, int32_t d,
 /**
  * Used with sortedInsert()
  */
-static int8_t U_CALLCONV compareUnicodeString(UElement t1, UElement t2) {
+static int32_t U_CALLCONV compareUnicodeString(UElement t1, UElement t2) {
     const UnicodeString &a = *(const UnicodeString*)t1.pointer;
     const UnicodeString &b = *(const UnicodeString*)t2.pointer;
     return a.compare(b);
@@ -90,7 +90,6 @@ class U_COMMON_API UStringSet : public UVector {
     } else {
       sortedInsert(str, compareUnicodeString, status);
       if(U_FAILURE(status)) {
-        delete str;
         return false;
       }
       return true;
@@ -138,7 +137,7 @@ static const UChar   kFULLSTOP = 0x002E; // '.'
  */
 class SimpleFilteredSentenceBreakData : public UMemory {
 public:
-  SimpleFilteredSentenceBreakData(UCharsTrie *forwards, UCharsTrie *backwards )
+  SimpleFilteredSentenceBreakData(UCharsTrie *forwards, UCharsTrie *backwards ) 
       : fForwardsPartialTrie(forwards), fBackwardsTrie(backwards), refcount(1) { }
     SimpleFilteredSentenceBreakData *incr() {
         umtx_atomic_inc(&refcount);
@@ -186,37 +185,37 @@ public:
   /* -- cloning and other subclass stuff -- */
   virtual BreakIterator *  createBufferClone(void * /*stackBuffer*/,
                                              int32_t &/*BufferSize*/,
-                                             UErrorCode &status) {
+                                             UErrorCode &status) override {
     // for now - always deep clone
     status = U_SAFECLONE_ALLOCATED_WARNING;
     return clone();
   }
-  virtual SimpleFilteredSentenceBreakIterator* clone() const { return new SimpleFilteredSentenceBreakIterator(*this); }
-  virtual UClassID getDynamicClassID(void) const { return NULL; }
-  virtual UBool operator==(const BreakIterator& o) const { if(this==&o) return true; return false; }
+  virtual SimpleFilteredSentenceBreakIterator* clone() const override { return new SimpleFilteredSentenceBreakIterator(*this); }
+  virtual UClassID getDynamicClassID(void) const override { return NULL; }
+  virtual bool operator==(const BreakIterator& o) const override { if(this==&o) return true; return false; }
 
   /* -- text modifying -- */
-  virtual void setText(UText *text, UErrorCode &status) { fDelegate->setText(text,status); }
-  virtual BreakIterator &refreshInputText(UText *input, UErrorCode &status) { fDelegate->refreshInputText(input,status); return *this; }
-  virtual void adoptText(CharacterIterator* it) { fDelegate->adoptText(it); }
-  virtual void setText(const UnicodeString &text) { fDelegate->setText(text); }
+  virtual void setText(UText *text, UErrorCode &status) override { fDelegate->setText(text,status); }
+  virtual BreakIterator &refreshInputText(UText *input, UErrorCode &status) override { fDelegate->refreshInputText(input,status); return *this; }
+  virtual void adoptText(CharacterIterator* it) override { fDelegate->adoptText(it); }
+  virtual void setText(const UnicodeString &text) override { fDelegate->setText(text); }
 
   /* -- other functions that are just delegated -- */
-  virtual UText *getUText(UText *fillIn, UErrorCode &status) const { return fDelegate->getUText(fillIn,status); }
-  virtual CharacterIterator& getText(void) const { return fDelegate->getText(); }
+  virtual UText *getUText(UText *fillIn, UErrorCode &status) const override { return fDelegate->getUText(fillIn,status); }
+  virtual CharacterIterator& getText(void) const override { return fDelegate->getText(); }
 
   /* -- ITERATION -- */
-  virtual int32_t first(void);
-  virtual int32_t preceding(int32_t offset);
-  virtual int32_t previous(void);
-  virtual UBool isBoundary(int32_t offset);
-  virtual int32_t current(void) const { return fDelegate->current(); } // we keep the delegate current, so this should be correct.
+  virtual int32_t first(void) override;
+  virtual int32_t preceding(int32_t offset) override;
+  virtual int32_t previous(void) override;
+  virtual UBool isBoundary(int32_t offset) override;
+  virtual int32_t current(void) const override { return fDelegate->current(); } // we keep the delegate current, so this should be correct.
 
-  virtual int32_t next(void);
+  virtual int32_t next(void) override;
 
-  virtual int32_t next(int32_t n);
-  virtual int32_t following(int32_t offset);
-  virtual int32_t last(void);
+  virtual int32_t next(int32_t n) override;
+  virtual int32_t following(int32_t offset) override;
+  virtual int32_t last(void) override;
 
 private:
     /**
@@ -235,7 +234,7 @@ private:
     int32_t internalPrev(int32_t n);
     /**
      * set up the UText with the value of the fDelegate.
-     * Call this before calling breakExceptionAt.
+     * Call this before calling breakExceptionAt. 
      * May be able to avoid excess calls
      */
     void resetState(UErrorCode &status);
@@ -388,7 +387,7 @@ SimpleFilteredSentenceBreakIterator::internalNext(int32_t n) {
     default:
     case kNoExceptionHere:
       return n;
-    }
+    }    
   }
   return n;
 }
@@ -417,7 +416,7 @@ SimpleFilteredSentenceBreakIterator::internalPrev(int32_t n) {
     default:
     case kNoExceptionHere:
       return n;
-    }
+    }    
   }
   return n;
 }
@@ -460,9 +459,9 @@ UBool SimpleFilteredSentenceBreakIterator::isBoundary(int32_t offset) {
   default:
   case kNoExceptionHere:
     return true;
-  }
+  }    
 }
-
+ 
 int32_t
 SimpleFilteredSentenceBreakIterator::next(int32_t offset) {
   return internalNext(fDelegate->next(offset));
@@ -488,9 +487,9 @@ public:
   virtual ~SimpleFilteredBreakIteratorBuilder();
   SimpleFilteredBreakIteratorBuilder(const Locale &fromLocale, UErrorCode &status);
   SimpleFilteredBreakIteratorBuilder(UErrorCode &status);
-  virtual UBool suppressBreakAfter(const UnicodeString& exception, UErrorCode& status);
-  virtual UBool unsuppressBreakAfter(const UnicodeString& exception, UErrorCode& status);
-  virtual BreakIterator *build(BreakIterator* adoptBreakIterator, UErrorCode& status);
+  virtual UBool suppressBreakAfter(const UnicodeString& exception, UErrorCode& status) override;
+  virtual UBool unsuppressBreakAfter(const UnicodeString& exception, UErrorCode& status) override;
+  virtual BreakIterator *build(BreakIterator* adoptBreakIterator, UErrorCode& status) override;
 private:
   UStringSet fSet;
 };
@@ -499,7 +498,7 @@ SimpleFilteredBreakIteratorBuilder::~SimpleFilteredBreakIteratorBuilder()
 {
 }
 
-SimpleFilteredBreakIteratorBuilder::SimpleFilteredBreakIteratorBuilder(UErrorCode &status)
+SimpleFilteredBreakIteratorBuilder::SimpleFilteredBreakIteratorBuilder(UErrorCode &status) 
   : fSet(status)
 {
 }
@@ -510,16 +509,16 @@ SimpleFilteredBreakIteratorBuilder::SimpleFilteredBreakIteratorBuilder(const Loc
   if(U_SUCCESS(status)) {
     UErrorCode subStatus = U_ZERO_ERROR;
     LocalUResourceBundlePointer b(ures_open(U_ICUDATA_BRKITR, fromLocale.getBaseName(), &subStatus));
-    if (U_FAILURE(subStatus) || (subStatus == U_USING_DEFAULT_WARNING) ) {
-      status = subStatus; // copy the failing status
+    if (U_FAILURE(subStatus) || (subStatus == U_USING_DEFAULT_WARNING) ) {    
+      status = subStatus; // copy the failing status 
 #if FB_DEBUG
       fprintf(stderr, "open BUNDLE %s : %s, %s\n", fromLocale.getBaseName(), "[exit]", u_errorName(status));
 #endif
       return;  // leaves the builder empty, if you try to use it.
     }
     LocalUResourceBundlePointer exceptions(ures_getByKeyWithFallback(b.getAlias(), "exceptions", NULL, &subStatus));
-    if (U_FAILURE(subStatus) || (subStatus == U_USING_DEFAULT_WARNING) ) {
-      status = subStatus; // copy the failing status
+    if (U_FAILURE(subStatus) || (subStatus == U_USING_DEFAULT_WARNING) ) {    
+      status = subStatus; // copy the failing status 
 #if FB_DEBUG
       fprintf(stderr, "open EXCEPTIONS %s : %s, %s\n", fromLocale.getBaseName(), "[exit]", u_errorName(status));
 #endif
@@ -533,9 +532,9 @@ SimpleFilteredBreakIteratorBuilder::SimpleFilteredBreakIteratorBuilder(const Loc
       fprintf(stderr, "open SentenceBreak %s => %s, %s\n", fromLocale.getBaseName(), ures_getLocale(breaks.getAlias(), &subsub), u_errorName(subStatus));
     }
 #endif
-
-    if (U_FAILURE(subStatus) || (subStatus == U_USING_DEFAULT_WARNING) ) {
-      status = subStatus; // copy the failing status
+    
+    if (U_FAILURE(subStatus) || (subStatus == U_USING_DEFAULT_WARNING) ) {    
+      status = subStatus; // copy the failing status 
 #if FB_DEBUG
       fprintf(stderr, "open %s : %s, %s\n", fromLocale.getBaseName(), "[exit]", u_errorName(status));
 #endif
@@ -543,7 +542,7 @@ SimpleFilteredBreakIteratorBuilder::SimpleFilteredBreakIteratorBuilder(const Loc
     }
 
     LocalUResourceBundlePointer strs;
-    subStatus = status; // Pick up inherited warning status now
+    subStatus = status; // Pick up inherited warning status now 
     do {
       strs.adoptInstead(ures_getNextResource(breaks.getAlias(), strs.orphan(), &subStatus));
       if(strs.isValid() && U_SUCCESS(subStatus)) {
@@ -600,7 +599,7 @@ SimpleFilteredBreakIteratorBuilder::build(BreakIterator* adoptBreakIterator, UEr
   int32_t subCount = fSet.size();
 
   UnicodeString *ustrs_ptr = newUnicodeStringArray(subCount);
-
+  
   LocalArray<UnicodeString> ustrs(ustrs_ptr);
 
   LocalMemory<int> partials;

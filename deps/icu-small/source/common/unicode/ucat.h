@@ -50,7 +50,7 @@
  *     1%5  { "Good afternoon." }
  *     1%7  { "Good evening." }
  *     1%8  { "Good night." }
- *
+ * 
  *     4%14 { "Please " }
  *     4%19 { "Thank you." }
  *     4%20 { "Sincerely," }
@@ -67,7 +67,7 @@ U_CDECL_BEGIN
 
 /**
  * An ICU message catalog descriptor, analogous to nl_catd.
- *
+ * 
  * @stable ICU 2.6
  */
 typedef UResourceBundle* u_nl_catd;
@@ -100,7 +100,7 @@ typedef UResourceBundle* u_nl_catd;
  * is responsible for calling u_catclose() to close the message
  * catalog. If the ec parameter indicates failure, then NULL will be
  * returned.
- *
+ * 
  * @stable ICU 2.6
  */
 U_CAPI u_nl_catd U_EXPORT2
@@ -111,7 +111,7 @@ u_catopen(const char* name, const char* locale, UErrorCode* ec);
  *
  * @param catd a message catalog descriptor to be closed. May be NULL,
  * in which case no action is taken.
- *
+ * 
  * @stable ICU 2.6
  */
 U_CAPI void U_EXPORT2
@@ -146,7 +146,7 @@ u_catclose(u_nl_catd catd);
  * for any reason, then s is returned.  This includes the situation in
  * which ec indicates a failing error code upon entry to this
  * function.
- *
+ * 
  * @stable ICU 2.6
  */
 U_CAPI const UChar* U_EXPORT2

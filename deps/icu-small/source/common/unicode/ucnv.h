@@ -42,8 +42,7 @@
  * many other callback actions that can be used instead of a character substitution.</p>
  *
  * <p>More information about this API can be found in our
- * <a href="http://icu-project.org/userguide/conversion.html">User's
- * Guide</a>.</p>
+ * <a href="https://unicode-org.github.io/icu/userguide/conversion/">User Guide</a>.</p>
  */
 
 #ifndef UCNV_H
@@ -340,7 +339,7 @@ ucnv_compareNames(const char *name1, const char *name2);
  *
  * <p>The conversion behavior and names can vary between platforms. ICU may
  * convert some characters differently from other platforms. Details on this topic
- * are in the <a href="http://icu-project.org/userguide/conversion.html">User's
+ * are in the <a href="https://unicode-org.github.io/icu/userguide/conversion/">User
  * Guide</a>. Aliases starting with a "cp" prefix have no specific meaning
  * other than its an alias starting with the letters "cp". Please do not
  * associate any meaning to these aliases.</p>
@@ -1007,7 +1006,7 @@ ucnv_getUnicodeSet(const UConverter *cnv,
                    UErrorCode *pErrorCode);
 
 /**
- * Gets the current calback function used by the converter when an illegal
+ * Gets the current callback function used by the converter when an illegal
  *  or invalid codepage sequence is found.
  * Context pointers are always owned by the caller.
  *
@@ -1935,7 +1934,7 @@ ucnv_isAmbiguous(const UConverter *cnv);
  * reverse fallbacks (to Unicode).
  * For details see ".ucm File Format"
  * in the Conversion Data chapter of the ICU User Guide:
- * http://www.icu-project.org/userguide/conversion-data.html#ucmformat
+ * https://unicode-org.github.io/icu/userguide/conversion/data.html#ucm-file-format
  *
  * @param cnv The converter to set the fallback mapping usage on.
  * @param usesFallback true if the user wants the converter to take advantage of the fallback
@@ -2032,7 +2031,7 @@ ucnv_toUCountPending(const UConverter* cnv, UErrorCode* status);
  * fixed ratio of bytes to Unicode codes <i>units</i> for any particular Unicode encoding form.
  * false is returned with the UErrorCode if error occurs or cnv is NULL.
  * @param cnv       The converter to be tested
- * @param status    ICU error code in/out paramter
+ * @param status    ICU error code in/out parameter
  * @return true if the converter is fixed-width
  * @stable ICU 4.8
  */

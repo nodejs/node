@@ -399,6 +399,8 @@ typedef struct ResourceData {
     UBool useNativeStrcmp;
 } ResourceData;
 
+struct UResourceDataEntry;   // forward declared for ResoureDataValue below; actually defined in uresimp.h
+
 /*
  * Read a resource bundle from memory.
  */
@@ -511,12 +513,18 @@ inline uint32_t res_getUInt(const ResourceTracer& traceInfo, Resource res) {
 class ResourceDataValue : public ResourceValue {
 public:
     ResourceDataValue() :
+        pResData(nullptr),
+        validLocaleDataEntry(nullptr),
         res(static_cast<Resource>(URES_NONE)),
         fTraceInfo() {}
     virtual ~ResourceDataValue();
 
-    void setData(const ResourceData *data) {
-        resData = *data;
+    void setData(const ResourceData &data) {
+        pResData = &data;
+    }
+    
+    void setValidLocaleDataEntry(UResourceDataEntry *entry) {
+        validLocaleDataEntry = entry;
     }
 
     void setResource(Resource r, ResourceTracer&& traceInfo) {
@@ -524,27 +532,28 @@ public:
         fTraceInfo = traceInfo;
     }
 
-    const ResourceData &getData() const { return resData; }
-    virtual UResType getType() const;
-    virtual const UChar *getString(int32_t &length, UErrorCode &errorCode) const;
-    virtual const UChar *getAliasString(int32_t &length, UErrorCode &errorCode) const;
-    virtual int32_t getInt(UErrorCode &errorCode) const;
-    virtual uint32_t getUInt(UErrorCode &errorCode) const;
-    virtual const int32_t *getIntVector(int32_t &length, UErrorCode &errorCode) const;
-    virtual const uint8_t *getBinary(int32_t &length, UErrorCode &errorCode) const;
-    virtual ResourceArray getArray(UErrorCode &errorCode) const;
-    virtual ResourceTable getTable(UErrorCode &errorCode) const;
-    virtual UBool isNoInheritanceMarker() const;
+    const ResourceData &getData() const { return *pResData; }
+    UResourceDataEntry *getValidLocaleDataEntry() const { return validLocaleDataEntry; }
+    Resource getResource() const { return res; }
+    virtual UResType getType() const override;
+    virtual const UChar *getString(int32_t &length, UErrorCode &errorCode) const override;
+    virtual const UChar *getAliasString(int32_t &length, UErrorCode &errorCode) const override;
+    virtual int32_t getInt(UErrorCode &errorCode) const override;
+    virtual uint32_t getUInt(UErrorCode &errorCode) const override;
+    virtual const int32_t *getIntVector(int32_t &length, UErrorCode &errorCode) const override;
+    virtual const uint8_t *getBinary(int32_t &length, UErrorCode &errorCode) const override;
+    virtual ResourceArray getArray(UErrorCode &errorCode) const override;
+    virtual ResourceTable getTable(UErrorCode &errorCode) const override;
+    virtual UBool isNoInheritanceMarker() const override;
     virtual int32_t getStringArray(UnicodeString *dest, int32_t capacity,
-                                   UErrorCode &errorCode) const;
+                                   UErrorCode &errorCode) const override;
     virtual int32_t getStringArrayOrStringAsArray(UnicodeString *dest, int32_t capacity,
-                                                  UErrorCode &errorCode) const;
-    virtual UnicodeString getStringOrFirstOfArray(UErrorCode &errorCode) const;
+                                                  UErrorCode &errorCode) const override;
+    virtual UnicodeString getStringOrFirstOfArray(UErrorCode &errorCode) const override;
 
 private:
-    // TODO(ICU-20769): If UResourceBundle.fResData becomes a pointer,
-    // then remove this value field again and just store a pResData pointer.
-    ResourceData resData;
+    const ResourceData *pResData;
+    UResourceDataEntry *validLocaleDataEntry;
     Resource res;
     ResourceTracer fTraceInfo;
 };

@@ -62,7 +62,7 @@ private:
     int32_t   count;
 
     int32_t   capacity;
-
+    
     int32_t   maxCapacity;   // Limit beyond which capacity is not permitted to grow.
 
     int64_t*  elements;
@@ -85,12 +85,12 @@ public:
      * equal if they are of the same size and all elements are equal,
      * as compared using this object's comparer.
      */
-    UBool operator==(const UVector64& other);
+    bool operator==(const UVector64& other);
 
     /**
      * Equivalent to !operator==()
      */
-    inline UBool operator!=(const UVector64& other);
+    inline bool operator!=(const UVector64& other);
 
     //------------------------------------------------------------
     // subset of java.util.Vector API
@@ -101,7 +101,7 @@ public:
     void setElementAt(int64_t elem, int32_t index);
 
     void insertElementAt(int64_t elem, int32_t index, UErrorCode &status);
-
+    
     inline int64_t elementAti(int32_t index) const;
 
     //UBool equals(const UVector64 &other) const;
@@ -170,7 +170,7 @@ public:
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
 private:
     void _init(int32_t initialCapacity, UErrorCode &status);
@@ -189,9 +189,9 @@ public:
     //UBool empty(void) const;   // TODO:  redundant, same as empty().  Remove it?
 
     //int64_t peeki(void) const;
-
+    
     inline int64_t popi(void);
-
+    
     inline int64_t push(int64_t i, UErrorCode &status);
 
     inline int64_t *reserveBlock(int32_t size, UErrorCode &status);
@@ -249,7 +249,7 @@ inline int64_t UVector64::lastElementi(void) const {
     return elementAti(count-1);
 }
 
-inline UBool UVector64::operator!=(const UVector64& other) {
+inline bool UVector64::operator!=(const UVector64& other) {
     return !operator==(other);
 }
 

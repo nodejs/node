@@ -413,17 +413,15 @@ public:
          */
         Builder &addSupportedLocale(const Locale &locale);
 
-#ifndef U_HIDE_DRAFT_API
         /**
          * Sets no default locale.
          * There will be no explicit or implicit default locale.
          * If there is no good match, then the matcher will return nullptr for the
          * best supported locale.
          *
-         * @draft ICU 68
+         * @stable ICU 68
          */
         Builder &setNoDefaultLocale();
-#endif  // U_HIDE_DRAFT_API
 
         /**
          * Sets the default locale; if nullptr, or if it is not set explicitly,
@@ -474,7 +472,6 @@ public:
             return *this;
         }
 
-#ifndef U_HIDE_DRAFT_API
         /**
          * Sets the maximum distance for an acceptable match.
          * The matcher will return a match for a pair of locales only if
@@ -494,10 +491,9 @@ public:
          * @param desired the desired locale for distance comparison.
          * @param supported the supported locale for distance comparison.
          * @return this Builder object
-         * @draft ICU 68
+         * @stable ICU 68
          */
         Builder &setMaxDistance(const Locale &desired, const Locale &supported);
-#endif  // U_HIDE_DRAFT_API
 
         /**
          * Sets the UErrorCode if an error occurred while setting parameters.
@@ -638,7 +634,6 @@ public:
      */
     Result getBestMatchResult(Locale::Iterator &desiredLocales, UErrorCode &errorCode) const;
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns true if the pair of locales matches acceptably.
      * This is influenced by Builder options such as setDirection(), setFavorSubtag(),
@@ -650,10 +645,9 @@ public:
      *                  or else the function returns immediately. Check for U_FAILURE()
      *                  on output or use with function chaining. (See User Guide for details.)
      * @return true if the pair of locales matches acceptably.
-     * @draft ICU 68
+     * @stable ICU 68
      */
     UBool isMatch(const Locale &desired, const Locale &supported, UErrorCode &errorCode) const;
-#endif  // U_HIDE_DRAFT_API
 
 #ifndef U_HIDE_INTERNAL_API
     /**

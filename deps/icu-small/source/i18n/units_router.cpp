@@ -66,9 +66,9 @@ void UnitsRouter::init(const MeasureUnit &inputUnit, StringPiece region, StringP
     UnitPreferences prefs(status);
 
     MeasureUnitImpl inputUnitImpl = MeasureUnitImpl::forMeasureUnitMaybeCopy(inputUnit, status);
-    MeasureUnit baseUnit =
-        (extractCompoundBaseUnit(inputUnitImpl, conversionRates, status)).build(status);
-    CharString category = getUnitQuantity(baseUnit.getIdentifier(), status);
+    MeasureUnitImpl baseUnitImpl =
+        (extractCompoundBaseUnit(inputUnitImpl, conversionRates, status));
+    CharString category = getUnitQuantity(baseUnitImpl, status);
     if (U_FAILURE(status)) {
         return;
     }

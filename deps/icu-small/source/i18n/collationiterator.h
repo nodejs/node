@@ -109,8 +109,8 @@ public:
 
     virtual ~CollationIterator();
 
-    virtual UBool operator==(const CollationIterator &other) const;
-    inline UBool operator!=(const CollationIterator &other) const {
+    virtual bool operator==(const CollationIterator &other) const;
+    inline bool operator!=(const CollationIterator &other) const {
         return !operator==(other);
     }
 

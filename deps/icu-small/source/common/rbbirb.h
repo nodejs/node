@@ -73,10 +73,10 @@ private:
 
 public:
     //  API inherited from class SymbolTable
-    virtual const UnicodeString*  lookup(const UnicodeString& s) const;
-    virtual const UnicodeFunctor* lookupMatcher(UChar32 ch) const;
+    virtual const UnicodeString*  lookup(const UnicodeString& s) const override;
+    virtual const UnicodeFunctor* lookupMatcher(UChar32 ch) const override;
     virtual UnicodeString parseReference(const UnicodeString& text,
-                                         ParsePosition& pos, int32_t limit) const;
+                                         ParsePosition& pos, int32_t limit) const override;
 
     //  Additional Functions
     RBBISymbolTable(RBBIRuleScanner *, const UnicodeString &fRules, UErrorCode &status);
@@ -91,7 +91,7 @@ public:
     // A do-nothing inline function for non-debug builds.  Member funcs can't be empty
     //  or the call sites won't compile.
     int32_t fFakeField;
-    #define rbbiSymtablePrint() fFakeField=0;
+    #define rbbiSymtablePrint() fFakeField=0; 
 #endif
 
 private:
@@ -223,7 +223,7 @@ typedef std::pair<int32_t, int32_t> IntPair;
 #define RBBIDebugPrintf printf
 #define RBBIDebugPuts puts
 #else
-#undef RBBIDebugPrintf
+#undef RBBIDebugPrintf 
 #define RBBIDebugPuts(arg)
 #endif
 
@@ -232,3 +232,6 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_BREAK_ITERATION */
 
 #endif
+
+
+

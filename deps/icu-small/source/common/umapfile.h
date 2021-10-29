@@ -18,7 +18,7 @@
  *             whatever means are available.
  *
  *            These functions are part of the ICU internal implementation, and
- *            are not inteded to be used directly by applications.
+ *            are not intended to be used directly by applications.
  *
  *----------------------------------------------------------------------------------*/
 

@@ -33,12 +33,12 @@ class SimpleDateFormatStaticSets : public UMemory
 public:
     SimpleDateFormatStaticSets(UErrorCode &status);
     ~SimpleDateFormatStaticSets();
-
+    
     static void    initSets(UErrorCode *status);
     static UBool   cleanup();
-
+    
     static UnicodeSet *getIgnorables(UDateFormatField fieldIndex);
-
+    
 private:
     UnicodeSet *fDateIgnorables;
     UnicodeSet *fTimeIgnorables;

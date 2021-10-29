@@ -44,7 +44,7 @@ class LongNameHandler : public MicroPropsGenerator, public ModifierStore, public
      *
      * Mixed units are not supported, use MixedUnitLongNameHandler::forMeasureUnit.
      *
-     * This function uses a fillIn intead of returning a pointer, because we
+     * This function uses a fillIn instead of returning a pointer, because we
      * want to fill in instances in a MemoryPool (which cannot adopt pointers it
      * didn't create itself).
      *
@@ -139,7 +139,7 @@ class MixedUnitLongNameHandler : public MicroPropsGenerator, public ModifierStor
      * Construct a localized MixedUnitLongNameHandler for the specified
      * MeasureUnit. It must be a MIXED unit.
      *
-     * This function uses a fillIn intead of returning a pointer, because we
+     * This function uses a fillIn instead of returning a pointer, because we
      * want to fill in instances in a MemoryPool (which cannot adopt pointers it
      * didn't create itself).
      *

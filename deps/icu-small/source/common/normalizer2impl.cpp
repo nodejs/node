@@ -86,7 +86,7 @@ UChar32 codePointFromValidUTF8(const uint8_t *cpStart, const uint8_t *cpLimit) {
     case 4:
         return ((c&7)<<18) | ((cpStart[1]&0x3f)<<12) | ((cpStart[2]&0x3f)<<6) | (cpStart[3]&0x3f);
     default:
-        UPRV_UNREACHABLE;  // Should not occur.
+        UPRV_UNREACHABLE_EXIT;  // Should not occur.
     }
 }
 
@@ -2504,7 +2504,7 @@ void CanonIterData::addToStartSet(UChar32 origin, UChar32 decompLead, UErrorCode
             UChar32 firstOrigin=(UChar32)(canonValue&CANON_VALUE_MASK);
             canonValue=(canonValue&~CANON_VALUE_MASK)|CANON_HAS_SET|(uint32_t)canonStartSets.size();
             umutablecptrie_set(mutableTrie, decompLead, canonValue, &errorCode);
-            canonStartSets.addElement(set, errorCode);
+            canonStartSets.addElementX(set, errorCode);
             if(firstOrigin!=0) {
                 set->add(firstOrigin);
             }

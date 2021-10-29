@@ -63,28 +63,28 @@ TimeZoneTransition::operator=(const TimeZoneTransition& right) {
     return *this;
 }
 
-UBool
+bool
 TimeZoneTransition::operator==(const TimeZoneTransition& that) const {
     if (this == &that) {
-        return TRUE;
+        return true;
     }
     if (typeid(*this) != typeid(that)) {
-        return FALSE;
+        return false;
     }
     if (fTime != that.fTime) {
-        return FALSE;
+        return false;
     }
     if ((fFrom == NULL && that.fFrom == NULL)
         || (fFrom != NULL && that.fFrom != NULL && *fFrom == *(that.fFrom))) {
         if ((fTo == NULL && that.fTo == NULL)
             || (fTo != NULL && that.fTo != NULL && *fTo == *(that.fTo))) {
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
-UBool
+bool
 TimeZoneTransition::operator!=(const TimeZoneTransition& that) const {
     return !operator==(that);
 }

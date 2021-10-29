@@ -52,7 +52,7 @@ class ScientificHandler : public UMemory, public MicroPropsGenerator, public Mul
     int32_t getMultiplier(int32_t magnitude) const U_OVERRIDE;
 
   private:
-    const Notation::ScientificSettings& fSettings;
+    const Notation::ScientificSettings fSettings;
     const DecimalFormatSymbols *fSymbols;
     const MicroPropsGenerator *fParent;
 

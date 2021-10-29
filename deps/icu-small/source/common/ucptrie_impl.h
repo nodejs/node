@@ -148,7 +148,7 @@ U_CFUNC void umutablecptrie_setName(UMutableCPTrie *builder, const char *name);
 
 /*
  * Format of the binary, memory-mappable representation of a UCPTrie/CodePointTrie.
- * For overview information see http://site.icu-project.org/design/struct/utrie
+ * For overview information see https://icu.unicode.org/design/struct/utrie
  *
  * The binary trie data should be 32-bit-aligned.
  * The overall layout is:

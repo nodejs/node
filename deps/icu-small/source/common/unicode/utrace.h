@@ -27,15 +27,15 @@
 
 /**
  * \file
- * \brief C API:  Definitions for ICU tracing/logging.
+ * \brief C API:  Definitions for ICU tracing/logging. 
  *
  * This provides API for debugging the internals of ICU without the use of
  * a traditional debugger.
  *
- * By default, tracing is disabled in ICU. If you need to debug ICU with
+ * By default, tracing is disabled in ICU. If you need to debug ICU with 
  * tracing, please compile ICU with the --enable-tracing configure option.
  */
-
+ 
 U_CDECL_BEGIN
 
 /**
@@ -278,7 +278,7 @@ UTraceEntry(const void *context, int32_t fnNumber);
   *  @stable ICU 2.8
   */
 typedef void U_CALLCONV
-UTraceExit(const void *context, int32_t fnNumber,
+UTraceExit(const void *context, int32_t fnNumber, 
            const char *fmt, va_list args);
 
 /**
@@ -314,11 +314,11 @@ UTraceData(const void *context, int32_t fnNumber, int32_t level,
   *                 here will in turn be passed to each of the tracing
   *                 functions UTraceEntry, UTraceExit and UTraceData.
   *                 ICU does not use or alter this pointer.
-  *  @param e       Callback function to be called on entry to a
+  *  @param e       Callback function to be called on entry to a 
   *                 a traced ICU function.
   *  @param x       Callback function to be called on exit from a
   *                 traced ICU function.
-  *  @param d       Callback function to be called from within a
+  *  @param d       Callback function to be called from within a 
   *                 traced ICU function, for the purpose of providing
   *                 data to the trace.
   *
@@ -386,7 +386,7 @@ utrace_getFunctions(const void **context,
  * - S A UChar * string.  Requires two params, (ptr, length).  Length=-1 for nul term.
  * - b A byte (8-bit integer).
  * - h A 16-bit integer.  Also a 16 bit Unicode code unit.
- * - d A 32-bit integer.  Also a 20 bit Unicode code point value.
+ * - d A 32-bit integer.  Also a 20 bit Unicode code point value. 
  * - l A 64-bit integer.
  * - p A data pointer.
  *
@@ -418,7 +418,7 @@ utrace_getFunctions(const void **context,
  *   the type casts will not be necessary in actual code
  *
  * UTraceDataFunc(context, fnNumber, level,
- *              "There is a character %c in the string %s.",   // Format String
+ *              "There is a character %c in the string %s.",   // Format String 
  *              (char)c, (const char *)s);                     // varargs parameters
  * ->   There is a character 0x42 'B' in the string "Bravo".
  *
@@ -457,7 +457,7 @@ utrace_getFunctions(const void **context,
   *  @param fmt     Format specification for the data to output
   *  @param args    Data to be formatted.
   *  @return        Length of formatted output, including the terminating NUL.
-  *                 If buffer capacity is insufficient, the required capacity is returned.
+  *                 If buffer capacity is insufficient, the required capacity is returned. 
   *  @stable ICU 2.8
   */
 U_CAPI int32_t U_EXPORT2
@@ -478,7 +478,7 @@ utrace_vformat(char *outBuf, int32_t capacity,
   *  @param fmt     Format specification for the data to output
   *  @param ...     Data to be formatted.
   *  @return        Length of formatted output, including the terminating NUL.
-  *                 If buffer capacity is insufficient, the required capacity is returned.
+  *                 If buffer capacity is insufficient, the required capacity is returned. 
   *  @stable ICU 2.8
   */
 U_CAPI int32_t U_EXPORT2

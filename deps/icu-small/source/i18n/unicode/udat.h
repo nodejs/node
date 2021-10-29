@@ -1530,7 +1530,21 @@ typedef enum UDateFormatSymbolType {
      * udat_setSymbols not supported for UDAT_ZODIAC_NAMES_NARROW)
      * @stable ICU 54
      */
-    UDAT_ZODIAC_NAMES_NARROW
+    UDAT_ZODIAC_NAMES_NARROW,
+    
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * The narrow quarter names, for example 1
+     * @draft ICU 70
+     */
+    UDAT_NARROW_QUARTERS,
+    
+    /**
+     * The narrow standalone quarter names, for example 1
+     * @draft ICU 70
+     */
+    UDAT_STANDALONE_NARROW_QUARTERS
+#endif // U_HIDE_DRAFT_API
 } UDateFormatSymbolType;
 
 struct UDateFormatSymbols;
@@ -1566,7 +1580,7 @@ udat_getSymbols(const   UDateFormat             *fmt,
 
 /**
 * Count the number of particular symbols for an UDateFormat.
-* This function is most useful as for detemining the loop termination condition
+* This function is most useful as for determining the loop termination condition
 * for calls to {@link #udat_getSymbols }.
 * @param fmt The formatter to query.
 * @param type The type of symbols to count.  One of UDAT_ERAS, UDAT_MONTHS, UDAT_SHORT_MONTHS,

@@ -37,12 +37,12 @@ int main(int argc, const char *argv[]) {
   }
   printf("};\n\n");
 
-  //
+  // 
   //  UnicodeSet oldIllegal("[:print:]", status); // [a-zA-Z0-9_}{#)(><%:;.?*+-/^&|~!=,\\u005b\\u005d\\u005c]", status);
   UnicodeSet oldIllegal("[0-9 a-z A-Z "
                         "_ \\{ \\} \\[ \\] # \\( \\) < > % \\: ; . "
                         "? * + \\- / \\^ \\& | ~ ! = , \\ \" ' ]", status);
-
+  
   /*
 
 http://www.lirmm.fr/~ducour/Doc-objets/ISO+IEC+14882-1998.pdf ( note: 1998 )   page 10, section 2.2 says:
@@ -65,7 +65,7 @@ So basically:  printable ASCII plus  0x00-0x1F,  0x7F-0x9F, was all illegal.
 Some discussion at http://unicode.org/mail-arch/unicode-ml/y2003-m10/0471.html
 
    */
-
+  
 
 
   printf("static const bool oldIllegal[256] = { \n");
@@ -75,6 +75,6 @@ Some discussion at http://unicode.org/mail-arch/unicode-ml/y2003-m10/0471.html
            i);
   }
   printf("};\n\n");
-
+  
   return 0;
 }

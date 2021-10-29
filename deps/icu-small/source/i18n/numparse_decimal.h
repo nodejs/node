@@ -39,7 +39,7 @@ class DecimalMatcher : public NumberParseMatcher, public UMemory {
     bool groupingDisabled;
 
     // Fraction grouping parsing is disabled for now but could be enabled later.
-    // See http://bugs.icu-project.org/trac/ticket/10794
+    // See https://unicode-org.atlassian.net/browse/ICU-10794
     // bool fractionGrouping;
 
     /** If true, do not accept numbers in the fraction */

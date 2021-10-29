@@ -36,7 +36,7 @@
 
 U_NAMESPACE_BEGIN
 
-// Note these constants and the struct are only used when dealing with the fallback path for RDP sesssions.
+// Note these constants and the struct are only used when dealing with the fallback path for RDP sessions.
 
 // This is the location of the time zones in the registry on Vista+ systems.
 // See: https://docs.microsoft.com/windows/win32/api/timezoneapi/ns-timezoneapi-dynamic_time_zone_information
@@ -62,26 +62,26 @@ typedef struct _REG_TZI_FORMAT {
 
 /**
 * This is main Windows time zone detection function.
-*
+* 
 * It returns the Windows time zone converted to an ICU time zone as a heap-allocated buffer, or nullptr upon failure.
 *
 * We use the Win32 API GetDynamicTimeZoneInformation (which is available since Vista) to get the current time zone info,
 * as this API returns a non-localized time zone name which can be then mapped to an ICU time zone.
-*
+* 
 * However, in some RDP/terminal services situations, this struct isn't always fully complete, and the TimeZoneKeyName
 * field of the struct might be NULL. This can happen with some 3rd party RDP clients, and also when using older versions
 * of the RDP protocol, which don't send the newer TimeZoneKeyNamei information and only send the StandardName and DaylightName.
-*
-* Since these 3rd party clients and older RDP clients only send the pre-Vista time zone information to the server, this means that we
+* 
+* Since these 3rd party clients and older RDP clients only send the pre-Vista time zone information to the server, this means that we 
 * need to fallback on using the pre-Vista methods to determine the time zone. This unfortunately requires examining the registry directly
 * in order to try and determine the current time zone.
-*
+* 
 * Note that this can however still fail in some cases though if the client and server are using different languages, as the StandardName
 * that is sent by client is localized in the client's language. However, we must compare this to the names that are on the server, which
 * are localized in registry using the server's language. Despite that, this is the best we can do.
-*
+* 
 * Note: This fallback method won't work for the UWP version though, as we can't use the registry APIs in UWP.
-*
+* 
 * Once we have the current Windows time zone, then we can then map it to an ICU time zone ID (~ Olsen ID).
 */
 U_CAPI const char* U_EXPORT2
@@ -101,7 +101,7 @@ uprv_detectWindowsTimeZone()
     //
     // Note: This logic is based on how the Control Panel itself determines if DST is 'off' on Windows.
     // The code is somewhat convoluted; in a sort of pseudo-code it looks like this:
-    //
+    // 
     //   IF (GetDynamicTimeZoneInformation != TIME_ZONE_ID_INVALID) && (DynamicDaylightTimeDisabled != 0) &&
     //      (StandardDate == DaylightDate) &&
     //      (
@@ -135,7 +135,7 @@ uprv_detectWindowsTimeZone()
             //   "The offset specifies the time value you must add to the local time to get a Coordinated Universal Time value."
             //
             // However, the Bias value in DYNAMIC_TIME_ZONE_INFORMATION *already* follows the POSIX convention.
-            //
+            // 
             // From https://docs.microsoft.com/en-us/windows/win32/api/timezoneapi/ns-timezoneapi-dynamic_time_zone_information
             //   "The bias is the difference, in minutes, between Coordinated Universal Time (UTC) and
             //   local time. All translations between UTC and local time are based on the following formula:
@@ -180,7 +180,7 @@ uprv_detectWindowsTimeZone()
         HKEY hKeyAllTimeZones = nullptr;
         ret = RegOpenKeyExW(HKEY_LOCAL_MACHINE, WINDOWS_TIMEZONES_REG_KEY_PATH, 0, KEY_READ,
                             reinterpret_cast<PHKEY>(&hKeyAllTimeZones));
-
+        
         if (ret != ERROR_SUCCESS) {
             // If we can't open the key, then we can't do much, so fail.
             return nullptr;
@@ -190,7 +190,7 @@ uprv_detectWindowsTimeZone()
         DWORD numTimeZoneSubKeys;
         ret = RegQueryInfoKeyW(hKeyAllTimeZones, nullptr, nullptr, nullptr, &numTimeZoneSubKeys,
                                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
-
+        
         if (ret != ERROR_SUCCESS) {
             RegCloseKey(hKeyAllTimeZones);
             return nullptr;
@@ -214,10 +214,10 @@ uprv_detectWindowsTimeZone()
                 RegCloseKey(hKeyAllTimeZones);
                 return nullptr;
             }
-
+            
             ret = RegOpenKeyExW(hKeyAllTimeZones, timezoneSubKeyName, 0, KEY_READ,
                                 reinterpret_cast<PHKEY>(&hKeyTimeZoneSubKey));
-
+            
             if (ret != ERROR_SUCCESS) {
                 RegCloseKey(hKeyAllTimeZones);
                 return nullptr;
@@ -227,7 +227,7 @@ uprv_detectWindowsTimeZone()
             size = sizeof(registryStandardName);
             ret = RegQueryValueExW(hKeyTimeZoneSubKey, L"Std", nullptr, &registryValueType,
                                    reinterpret_cast<LPBYTE>(registryStandardName), &size);
-
+            
             if (ret != ERROR_SUCCESS || registryValueType != REG_SZ) {
                 RegCloseKey(hKeyTimeZoneSubKey);
                 RegCloseKey(hKeyAllTimeZones);
@@ -285,7 +285,7 @@ uprv_detectWindowsTimeZone()
     if (U_FAILURE(status)) {
         return nullptr;
     }
-
+    
     // Note: Since the ISO 3166 country/region codes are all invariant ASCII chars, we can
     // directly downcast from wchar_t to do the conversion.
     // We could call the A version of the GetGeoInfo API, but that would be slightly slower than calling the W API,

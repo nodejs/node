@@ -468,7 +468,7 @@ u_strFromPunycode(const UChar *src, int32_t srcLength,
             }
 
             i+=digit*w;
-            /** RAM: comment out the old code for conformance with draft-ietf-idn-punycode-03.txt
+            /** RAM: comment out the old code for conformance with draft-ietf-idn-punycode-03.txt  
             t=k-bias;
             if(t<TMIN) {
                 t=TMIN;

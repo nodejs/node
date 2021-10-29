@@ -115,7 +115,9 @@ unumrf_formatDoubleRange(
     auto* result = UFormattedNumberRangeApiHelper::validate(uresult, *ec);
     if (U_FAILURE(*ec)) { return; }
 
-    result->fData.getStringRef().clear();
+    result->fData.resetString();
+    result->fData.quantity1.clear();
+    result->fData.quantity2.clear();
     result->fData.quantity1.setToDouble(first);
     result->fData.quantity2.setToDouble(second);
     formatter->fFormatter.formatImpl(result->fData, first == second, *ec);
@@ -132,7 +134,9 @@ unumrf_formatDecimalRange(
     auto* result = UFormattedNumberRangeApiHelper::validate(uresult, *ec);
     if (U_FAILURE(*ec)) { return; }
 
-    result->fData.getStringRef().clear();
+    result->fData.resetString();
+    result->fData.quantity1.clear();
+    result->fData.quantity2.clear();
     result->fData.quantity1.setToDecNumber({first, firstLen}, *ec);
     result->fData.quantity2.setToDecNumber({second, secondLen}, *ec);
     formatter->fFormatter.formatImpl(result->fData, first == second, *ec);

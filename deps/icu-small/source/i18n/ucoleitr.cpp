@@ -11,7 +11,7 @@
 * Modification History:
 *
 * Date        Name        Description
-* 02/15/2001  synwee      Modified all methods to process its own function
+* 02/15/2001  synwee      Modified all methods to process its own function 
 *                         instead of calling the equivalent c++ api (coleitr.h)
 * 2012-2014   markus      Rewritten in C++ again.
 ******************************************************************************/
@@ -313,7 +313,7 @@ ucol_reset(UCollationElements *elems)
 }
 
 U_CAPI int32_t U_EXPORT2
-ucol_next(UCollationElements *elems,
+ucol_next(UCollationElements *elems, 
           UErrorCode         *status)
 {
     if (U_FAILURE(*status)) {
@@ -397,7 +397,7 @@ UCollationPCE::previousProcessed(
         // buffer raw CEs up to non-ignorable primary
         RCEBuffer rceb;
         int32_t ce;
-
+        
         // **** do we need to reset rceb, or will it always be empty at this point ****
         do {
             high = cei->getOffset();
@@ -433,14 +433,14 @@ UCollationPCE::previousProcessed(
 finish:
     if (pceBuffer.isEmpty()) {
         // **** Is -1 the right value for ixLow, ixHigh? ****
-	if (ixLow != NULL) {
-		*ixLow = -1;
-	}
-
-	if (ixHigh != NULL) {
-		*ixHigh = -1
-		;
-	}
+    	if (ixLow != NULL) {
+    		*ixLow = -1;
+    	}
+    	
+    	if (ixHigh != NULL) {
+    		*ixHigh = -1
+    		;
+    	}
         return UCOL_PROCESSED_NULLORDER;
     }
 
@@ -511,19 +511,19 @@ ucol_setOffset(UCollationElements    *elems,
 }
 
 U_CAPI int32_t U_EXPORT2
-ucol_primaryOrder (int32_t order)
+ucol_primaryOrder (int32_t order) 
 {
     return (order >> 16) & 0xffff;
 }
 
 U_CAPI int32_t U_EXPORT2
-ucol_secondaryOrder (int32_t order)
+ucol_secondaryOrder (int32_t order) 
 {
     return (order >> 8) & 0xff;
 }
 
 U_CAPI int32_t U_EXPORT2
-ucol_tertiaryOrder (int32_t order)
+ucol_tertiaryOrder (int32_t order) 
 {
     return order & 0xff;
 }

@@ -64,7 +64,7 @@ int32_t AffixUtils::estimateLength(const UnicodeString &patternString, UErrorCod
                 }
                 break;
             default:
-                UPRV_UNREACHABLE;
+                UPRV_UNREACHABLE_EXIT;
         }
 
         offset += U16_LENGTH(cp);
@@ -134,6 +134,9 @@ Field AffixUtils::getFieldForType(AffixPatternType type) {
             return {UFIELD_CATEGORY_NUMBER, UNUM_SIGN_FIELD};
         case TYPE_PLUS_SIGN:
             return {UFIELD_CATEGORY_NUMBER, UNUM_SIGN_FIELD};
+        case TYPE_APPROXIMATELY_SIGN:
+            // TODO: Introduce a new field for the approximately sign?
+            return {UFIELD_CATEGORY_NUMBER, UNUM_SIGN_FIELD};
         case TYPE_PERCENT:
             return {UFIELD_CATEGORY_NUMBER, UNUM_PERCENT_FIELD};
         case TYPE_PERMILLE:
@@ -151,7 +154,7 @@ Field AffixUtils::getFieldForType(AffixPatternType type) {
         case TYPE_CURRENCY_OVERFLOW:
             return {UFIELD_CATEGORY_NUMBER, UNUM_CURRENCY_FIELD};
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -295,6 +298,8 @@ AffixTag AffixUtils::nextToken(AffixTag tag, const UnicodeString &patternString,
                         return makeTag(offset + count, TYPE_MINUS_SIGN, STATE_BASE, 0);
                     case u'+':
                         return makeTag(offset + count, TYPE_PLUS_SIGN, STATE_BASE, 0);
+                    case u'~':
+                        return makeTag(offset + count, TYPE_APPROXIMATELY_SIGN, STATE_BASE, 0);
                     case u'%':
                         return makeTag(offset + count, TYPE_PERCENT, STATE_BASE, 0);
                     case u'‰':
@@ -385,7 +390,7 @@ AffixTag AffixUtils::nextToken(AffixTag tag, const UnicodeString &patternString,
                     return makeTag(offset, TYPE_CURRENCY_OVERFLOW, STATE_BASE, 0);
                 }
             default:
-                UPRV_UNREACHABLE;
+                UPRV_UNREACHABLE_EXIT;
         }
     }
     // End of string
@@ -414,7 +419,7 @@ AffixTag AffixUtils::nextToken(AffixTag tag, const UnicodeString &patternString,
         case STATE_OVERFLOW_CURR:
             return makeTag(offset, TYPE_CURRENCY_OVERFLOW, STATE_BASE, 0);
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 

@@ -8,7 +8,7 @@
 */
 
 /**
- * \file
+ * \file 
  * \brief C API: VTimeZone classes
  */
 
@@ -30,7 +30,7 @@ vzone_openID(const UChar* ID, int32_t idLength){
     UnicodeString s(idLength==-1, ID, idLength);
     return (VZone*) (VTimeZone::createVTimeZoneByID(s));
 }
-
+    
 U_CAPI VZone* U_EXPORT2
 vzone_openData(const UChar* vtzdata, int32_t vtzdataLength, UErrorCode& status) {
     UnicodeString s(vtzdataLength==-1, vtzdata, vtzdataLength);
@@ -59,7 +59,7 @@ vzone_getTZURL(VZone* zone, UChar* & url, int32_t & urlLength) {
 
     urlLength = s.length();
     memcpy(url,s.getBuffer(),urlLength);
-
+    
     return b;
 }
 

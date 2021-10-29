@@ -126,7 +126,7 @@ private:
  * assemble the target item name from the source item name, an ID
  * and a suffix
  */
-static void
+static void 
 makeTargetName(const char *itemName, const char *id, int32_t idLength, const char *suffix,
                char *target, int32_t capacity,
                UErrorCode *pErrorCode) {
@@ -160,7 +160,7 @@ makeTargetName(const char *itemName, const char *id, int32_t idLength, const cha
     memcpy(target+treeLength+idLength, suffix, suffixLength+1); // +1 includes the terminating NUL
 }
 
-static void
+static void 
 checkIDSuffix(const char *itemName, const char *id, int32_t idLength, const char *suffix,
               CheckDependency check, void *context,
               UErrorCode *pErrorCode) {
@@ -172,7 +172,7 @@ checkIDSuffix(const char *itemName, const char *id, int32_t idLength, const char
 }
 
 /* assemble the target item name from the item's parent item name */
-static void
+static void 
 checkParent(const char *itemName, CheckDependency check, void *context,
             UErrorCode *pErrorCode) {
     const char *itemID, *parent, *parentLimit, *suffix;
@@ -260,7 +260,7 @@ checkAlias(const char *itemName,
     }
 
     // convert the Unicode string to char *
-    char localeID[32];
+    char localeID[48];
     if(length>=(int32_t)sizeof(localeID)) {
         fprintf(stderr, "icupkg/ures_enumDependencies(%s res=%08x) alias locale ID length %ld too long\n",
                         itemName, res, (long)length);

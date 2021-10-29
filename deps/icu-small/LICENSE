@@ -281,31 +281,29 @@ property of their respective owners.
 
 3. Lao Word Break Dictionary Data (laodict.txt)
 
- #  Copyright (c) 2013 International Business Machines Corporation
- #  and others. All Rights Reserved.
+ # Copyright (C) 2016 and later: Unicode, Inc. and others.
+ # License & terms of use: http://www.unicode.org/copyright.html
+ # Copyright (c) 2015 International Business Machines Corporation
+ # and others. All Rights Reserved.
  #
- # Project: https://github.com/veer66/lao-dictionary
- # Dictionary: https://github.com/veer66/lao-dictionary/blob/master/Lao-Dictionary.txt
- # License: https://github.com/veer66/lao-dictionary/blob/master/Lao-Dictionary-LICENSE.txt
- #              (copied below)
+ # Project: https://github.com/rober42539/lao-dictionary
+ # Dictionary: https://github.com/rober42539/lao-dictionary/laodict.txt
+ # License: https://github.com/rober42539/lao-dictionary/LICENSE.txt
+ #          (copied below)
  #
- #  This file is derived from the above dictionary, with slight
- #  modifications.
+ #	This file is derived from the above dictionary version of Nov 22, 2020
  #  ----------------------------------------------------------------------
  #  Copyright (C) 2013 Brian Eugene Wilson, Robert Martin Campbell.
  #  All rights reserved.
  #
  #  Redistribution and use in source and binary forms, with or without
- #  modification,
- #  are permitted provided that the following conditions are met:
+ #  modification, are permitted provided that the following conditions are met:
  #
- #
- # Redistributions of source code must retain the above copyright notice, this
- #  list of conditions and the following disclaimer. Redistributions in
- #  binary form must reproduce the above copyright notice, this list of
- #  conditions and the following disclaimer in the documentation and/or
- #  other materials provided with the distribution.
- #
+ #  Redistributions of source code must retain the above copyright notice, this
+ #  list of conditions and the following disclaimer. Redistributions in binary
+ #  form must reproduce the above copyright notice, this list of conditions and
+ #  the following disclaimer in the documentation and/or other materials
+ #  provided with the distribution.
  #
  # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT

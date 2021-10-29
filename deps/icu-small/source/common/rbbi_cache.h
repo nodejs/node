@@ -30,7 +30,7 @@ U_NAMESPACE_BEGIN
  *
  *                 The boundaries are stored in a simple ArrayList (vector), with the
  *                 assumption that they will be accessed sequentially.
- */
+ */                 
 class RuleBasedBreakIterator::DictionaryCache: public UMemory {
   public:
      DictionaryCache(RuleBasedBreakIterator *bi, UErrorCode &status);
@@ -55,7 +55,7 @@ class RuleBasedBreakIterator::DictionaryCache: public UMemory {
 
 
     RuleBasedBreakIterator *fBI;
-
+    
     UVector32           fBreaks;                // A vector containing the boundaries.
     int32_t             fPositionInCache;       // Index in fBreaks of last boundary returned by following()
                                                 //    or preceding(). Optimizes sequential access.

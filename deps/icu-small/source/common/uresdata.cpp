@@ -935,13 +935,13 @@ res_findResource(const ResourceData *pResData, Resource r, char** path, const ch
   if(!URES_IS_CONTAINER(type)) {
       return RES_BOGUS;
   }
-
+  
   while(nextSepP && *pathP && t1 != RES_BOGUS && URES_IS_CONTAINER(type)) {
     /* Iteration stops if: the path has been consumed, we found a non-existing
      * resource (t1 == RES_BOGUS) or we found a scalar resource (including alias)
      */
     nextSepP = uprv_strchr(pathP, RES_PATH_SEPARATOR);
-    /* if there are more separators, terminate string
+    /* if there are more separators, terminate string 
      * and set path to the remaining part of the string
      */
     if(nextSepP != NULL) {

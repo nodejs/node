@@ -134,20 +134,20 @@ public:
     UnicodeString& appendTo(UnicodeString& string) const;
     UnicodeString& appendFieldTo(int32_t field, UnicodeString& string) const;
     UChar getFirstChar() const;
-    inline UBool operator==(const SkeletonFields& other) const;
-    inline UBool operator!=(const SkeletonFields& other) const;
+    inline bool operator==(const SkeletonFields& other) const;
+    inline bool operator!=(const SkeletonFields& other) const;
 
 private:
     int8_t chars[UDATPG_FIELD_COUNT];
     int8_t lengths[UDATPG_FIELD_COUNT];
 };
 
-inline UBool SkeletonFields::operator==(const SkeletonFields& other) const {
+inline bool SkeletonFields::operator==(const SkeletonFields& other) const {
     return (uprv_memcmp(chars, other.chars, sizeof(chars)) == 0
         && uprv_memcmp(lengths, other.lengths, sizeof(lengths)) == 0);
 }
 
-inline UBool SkeletonFields::operator!=(const SkeletonFields& other) const {
+inline bool SkeletonFields::operator!=(const SkeletonFields& other) const {
     return (! operator==(other));
 }
 
@@ -279,10 +279,10 @@ public:
     DTSkeletonEnumeration(PatternMap& patternMap, dtStrEnum type, UErrorCode& status);
     virtual ~DTSkeletonEnumeration();
     static UClassID U_EXPORT2 getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
-    virtual const UnicodeString* snext(UErrorCode& status);
-    virtual void reset(UErrorCode& status);
-    virtual int32_t count(UErrorCode& status) const;
+    virtual UClassID getDynamicClassID(void) const override;
+    virtual const UnicodeString* snext(UErrorCode& status) override;
+    virtual void reset(UErrorCode& status) override;
+    virtual int32_t count(UErrorCode& status) const override;
 private:
     int32_t pos;
     UBool isCanonicalItem(const UnicodeString& item);
@@ -294,10 +294,10 @@ public:
     DTRedundantEnumeration();
     virtual ~DTRedundantEnumeration();
     static UClassID U_EXPORT2 getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
-    virtual const UnicodeString* snext(UErrorCode& status);
-    virtual void reset(UErrorCode& status);
-    virtual int32_t count(UErrorCode& status) const;
+    virtual UClassID getDynamicClassID(void) const override;
+    virtual const UnicodeString* snext(UErrorCode& status) override;
+    virtual void reset(UErrorCode& status) override;
+    virtual int32_t count(UErrorCode& status) const override;
     void add(const UnicodeString &pattern, UErrorCode& status);
 private:
     int32_t pos;

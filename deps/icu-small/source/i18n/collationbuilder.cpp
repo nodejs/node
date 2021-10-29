@@ -59,7 +59,7 @@ public:
     virtual void getRules(
             const char *localeID, const char *collationType,
             UnicodeString &rules,
-            const char *&errorReason, UErrorCode &errorCode);
+            const char *&errorReason, UErrorCode &errorCode) override;
 };
 
 BundleImporter::~BundleImporter() {}
@@ -577,7 +577,7 @@ CollationBuilder::getSpecialResetPosition(const UnicodeString &str,
         parserErrorReason = "LDML forbids tailoring to U+FFFF";
         return 0;
     default:
-        UPRV_UNREACHABLE;
+        UPRV_UNREACHABLE_EXIT;
     }
 
     int32_t index = findOrInsertNodeForRootCE(ce, strength, errorCode);
@@ -1581,7 +1581,7 @@ class CEFinalizer : public CollationDataBuilder::CEModifier {
 public:
     CEFinalizer(const int64_t *ces) : finalCEs(ces) {}
     virtual ~CEFinalizer();
-    virtual int64_t modifyCE32(uint32_t ce32) const {
+    virtual int64_t modifyCE32(uint32_t ce32) const override {
         U_ASSERT(!Collation::isSpecialCE32(ce32));
         if(CollationBuilder::isTempCE32(ce32)) {
             // retain case bits
@@ -1590,7 +1590,7 @@ public:
             return Collation::NO_CE;
         }
     }
-    virtual int64_t modifyCE(int64_t ce) const {
+    virtual int64_t modifyCE(int64_t ce) const override {
         if(CollationBuilder::isTempCE(ce)) {
             // retain case bits
             return finalCEs[CollationBuilder::indexFromTempCE(ce)] | (ce & 0xc000);

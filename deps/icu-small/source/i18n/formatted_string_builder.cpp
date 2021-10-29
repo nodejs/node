@@ -277,7 +277,7 @@ int32_t FormattedStringBuilder::prepareForInsertHelper(int32_t index, int32_t co
     Field *oldFields = getFieldPtr();
     if (fLength + count > oldCapacity) {
         if ((fLength + count) > INT32_MAX / 2) {
-            // If we continue, then newCapacity will overlow int32_t in the next line.
+            // If we continue, then newCapacity will overflow int32_t in the next line.
             status = U_INPUT_TOO_LONG_ERROR;
             return -1;
         }

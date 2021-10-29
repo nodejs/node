@@ -37,10 +37,10 @@
  *         Previously, define this to define the throw() specification so
  *                 certain functions do not throw any exceptions
  *
- *         UMemory operator new methods should have the throw() specification
- *         appended to them, so that the compiler adds the additional NULL check
- *         before calling constructors. Without, if <code>operator new</code> returns NULL the
- *         constructor is still called, and if the constructor references member
+ *         UMemory operator new methods should have the throw() specification 
+ *         appended to them, so that the compiler adds the additional NULL check 
+ *         before calling constructors. Without, if <code>operator new</code> returns NULL the 
+ *         constructor is still called, and if the constructor references member 
  *         data, (which it typically does), the result is a segmentation violation.
  *
  * @stable ICU 4.2. Since ICU 64, Use U_NOEXCEPT instead. See ICU-20422.
@@ -116,7 +116,7 @@ class U_COMMON_API UMemory {
 public:
 
 /* test versions for debugging shaper heap memory problems */
-#ifdef SHAPER_MEMORY_DEBUG
+#ifdef SHAPER_MEMORY_DEBUG  
     static void * NewArray(int size, int count);
     static void * GrowArray(void * array, int newSize );
     static void   FreeArray(void * array );
@@ -175,19 +175,19 @@ public:
 #if U_HAVE_DEBUG_LOCATION_NEW
     /**
       * This method overrides the MFC debug version of the operator new
-      *
+      * 
       * @param size   The requested memory size
       * @param file   The file where the allocation was requested
-      * @param line   The line where the allocation was requested
-      */
+      * @param line   The line where the allocation was requested 
+      */ 
     static void * U_EXPORT2 operator new(size_t size, const char* file, int line) U_NOEXCEPT;
     /**
       * This method provides a matching delete for the MFC debug new
-      *
+      * 
       * @param p      The pointer to the allocated memory
       * @param file   The file where the allocation was requested
-      * @param line   The line where the allocation was requested
-      */
+      * @param line   The line where the allocation was requested 
+      */ 
     static void U_EXPORT2 operator delete(void* p, const char* file, int line) U_NOEXCEPT;
 #endif /* U_HAVE_DEBUG_LOCATION_NEW */
 #endif /* U_OVERRIDE_CXX_ALLOCATION */
@@ -262,8 +262,8 @@ protected:
     // UObject &operator=(const UObject &other) { return *this; }
 
     // comparison operators
-    virtual inline UBool operator==(const UObject &other) const { return this==&other; }
-    inline UBool operator!=(const UObject &other) const { return !operator==(other); }
+    virtual inline bool operator==(const UObject &other) const { return this==&other; }
+    inline bool operator!=(const UObject &other) const { return !operator==(other); }
 
     // clone() commented out from the base class:
     // some compilers do not support co-variant return types

@@ -89,26 +89,26 @@ public:
    * @internal
    */
   enum EEras {
-    /**
-     * Constant for Tishri, the 1st month of the Hebrew year.
+    /** 
+     * Constant for Tishri, the 1st month of the Hebrew year. 
      */
       TISHRI,
       /**
-     * Constant for Heshvan, the 2nd month of the Hebrew year.
+     * Constant for Heshvan, the 2nd month of the Hebrew year. 
      */
       HESHVAN,
       /**
-     * Constant for Kislev, the 3rd month of the Hebrew year.
+     * Constant for Kislev, the 3rd month of the Hebrew year. 
      */
       KISLEV,
 
     /**
-     * Constant for Tevet, the 4th month of the Hebrew year.
+     * Constant for Tevet, the 4th month of the Hebrew year. 
      */
       TEVET,
 
     /**
-     * Constant for Shevat, the 5th month of the Hebrew year.
+     * Constant for Shevat, the 5th month of the Hebrew year. 
      */
       SHEVAT,
 
@@ -119,38 +119,38 @@ public:
      */
       ADAR_1,
 
-    /**
-     * Constant for the Adar, the 7th month of the Hebrew year.
+    /** 
+     * Constant for the Adar, the 7th month of the Hebrew year. 
      */
       ADAR,
 
     /**
-     * Constant for Nisan, the 8th month of the Hebrew year.
+     * Constant for Nisan, the 8th month of the Hebrew year. 
      */
       NISAN,
 
     /**
-     * Constant for Iyar, the 9th month of the Hebrew year.
+     * Constant for Iyar, the 9th month of the Hebrew year. 
      */
       IYAR,
 
     /**
-     * Constant for Sivan, the 10th month of the Hebrew year.
+     * Constant for Sivan, the 10th month of the Hebrew year. 
      */
       SIVAN,
 
     /**
-     * Constant for Tammuz, the 11th month of the Hebrew year.
+     * Constant for Tammuz, the 11th month of the Hebrew year. 
      */
       TAMUZ,
 
     /**
-     * Constant for Av, the 12th month of the Hebrew year.
+     * Constant for Av, the 12th month of the Hebrew year. 
      */
       AV,
 
     /**
-     * Constant for Elul, the 13th month of the Hebrew year.
+     * Constant for Elul, the 13th month of the Hebrew year. 
      */
       ELUL
     };
@@ -192,8 +192,8 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual HebrewCalendar* clone() const;
-
+    virtual HebrewCalendar* clone() const override;
+    
 public:
     /**
      * Override Calendar Returns a unique class ID POLYMORPHICALLY. Pure virtual
@@ -205,7 +205,7 @@ public:
      *           same class ID. Objects of other classes have different class IDs.
      * @internal
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 
     /**
      * Return the class ID for this class. This is useful only for comparing to a return
@@ -226,7 +226,7 @@ public:
      * @return calendar type
      * @internal
      */
-    virtual const char * getType() const;
+    virtual const char * getType() const override;
 
 
     // Calendar API
@@ -242,11 +242,11 @@ public:
      *                previously set in the time field is invalid, this will be set to
      *                an error status.
      */
-    virtual void add(UCalendarDateFields field, int32_t amount, UErrorCode& status);
+    virtual void add(UCalendarDateFields field, int32_t amount, UErrorCode& status) override;
     /**
      * @deprecated ICU 2.6 use UCalendarDateFields instead of EDateFields
      */
-    virtual void add(EDateFields field, int32_t amount, UErrorCode& status);
+    virtual void add(EDateFields field, int32_t amount, UErrorCode& status) override;
 
 
     /**
@@ -260,7 +260,7 @@ public:
      *                an error status.
      * @internal
      */
-    virtual void roll(UCalendarDateFields field, int32_t amount, UErrorCode& status);
+    virtual void roll(UCalendarDateFields field, int32_t amount, UErrorCode& status) override;
 
     /**
      * (Overrides Calendar) Rolls up or down by the given amount in the specified field.
@@ -273,10 +273,10 @@ public:
      *                an error status.
      * @deprecated ICU 2.6. Use roll(UCalendarDateFields field, int32_t amount, UErrorCode& status) instead.
 `     */
-    virtual void roll(EDateFields field, int32_t amount, UErrorCode& status);
+    virtual void roll(EDateFields field, int32_t amount, UErrorCode& status) override;
 
     /**
-     * @internal
+     * @internal 
      */
     static UBool isLeapYear(int32_t year) ;
 
@@ -303,7 +303,7 @@ public:
      * <code>LEAST_MAXIMUM</code>, or <code>MAXIMUM</code>
      * @internal
      */
-    virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const;
+    virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const override;
 
     /**
      * Return the number of days in the given month of the given extended
@@ -312,7 +312,7 @@ public:
      * implementation than the default implementation in Calendar.
      * @internal
      */
-    virtual int32_t handleGetMonthLength(int32_t extendedYear, int32_t month) const;
+    virtual int32_t handleGetMonthLength(int32_t extendedYear, int32_t month) const override;
 
     /**
      * Return the number of days in the given extended year of this
@@ -321,7 +321,7 @@ public:
      * default implementation in Calendar.
      * @stable ICU 2.0
      */
-    virtual int32_t handleGetYearLength(int32_t eyear) const;
+    virtual int32_t handleGetYearLength(int32_t eyear) const override;
     /**
      * Subclasses may override this method to compute several fields
      * specific to each calendar system.  These are:
@@ -337,7 +337,7 @@ public:
      * a calendar with the specified Julian/Gregorian cutover date.
      * @internal
      */
-    virtual void handleComputeFields(int32_t julianDay, UErrorCode &status);
+    virtual void handleComputeFields(int32_t julianDay, UErrorCode &status) override;
     /**
      * Return the extended year defined by the current fields.  This will
      * use the UCAL_EXTENDED_YEAR field or the UCAL_YEAR and supra-year fields (such
@@ -346,7 +346,7 @@ public:
      * @return the extended year
      * @internal
      */
-    virtual int32_t handleGetExtendedYear();
+    virtual int32_t handleGetExtendedYear() override;
     /**
      * Return the Julian day number of day before the first day of the
      * given month in the given extended year.  Subclasses should override
@@ -361,7 +361,7 @@ public:
      * @internal
      */
     virtual int32_t handleComputeMonthStart(int32_t eyear, int32_t month,
-                                                   UBool useMonth) const;
+                                                   UBool useMonth) const override;
 
 
     /**
@@ -370,7 +370,7 @@ public:
      * special handling for month validation for Hebrew calendar.
      * @internal
      */
-    virtual void validateField(UCalendarDateFields field, UErrorCode &status);
+    virtual void validateField(UCalendarDateFields field, UErrorCode &status) override;
 
  protected:
 
@@ -383,26 +383,26 @@ public:
    *           false, otherwise.
    * @internal
    */
-  virtual UBool inDaylightTime(UErrorCode& status) const;
+  virtual UBool inDaylightTime(UErrorCode& status) const override;
 
-    /**
-     * Returns true because the Hebrew Calendar does have a default century
-     * @internal
-     */
-    virtual UBool haveDefaultCentury() const;
+  /**
+   * Returns true because the Hebrew Calendar does have a default century
+   * @internal
+   */
+  virtual UBool haveDefaultCentury() const override;
 
-    /**
-     * Returns the date of the start of the default century
-     * @return start of century - in milliseconds since epoch, 1970
-     * @internal
-     */
-    virtual UDate defaultCenturyStart() const;
+  /**
+   * Returns the date of the start of the default century
+   * @return start of century - in milliseconds since epoch, 1970
+   * @internal
+   */
+  virtual UDate defaultCenturyStart() const override;
 
-    /**
-     * Returns the year in which the default century begins
-     * @internal
-     */
-    virtual int32_t defaultCenturyStartYear() const;
+  /**
+   * Returns the year in which the default century begins
+   * @internal
+   */
+  virtual int32_t defaultCenturyStartYear() const override;
 
  private: // Calendar-specific implementation
     /**
@@ -431,14 +431,14 @@ public:
     static int32_t startOfYear(int32_t year, UErrorCode& status);
 
     static int32_t absoluteDayToDayOfWeek(int32_t day) ;
-
+    
     /**
-     * @internal
+     * @internal 
      */
     int32_t yearType(int32_t year) const;
 
     /**
-     * @internal
+     * @internal 
      */
     static int32_t monthsInYear(int32_t year) ;
 };
@@ -447,5 +447,6 @@ U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
-#endif
+#endif 
 //eof
+

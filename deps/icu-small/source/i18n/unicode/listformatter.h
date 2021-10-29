@@ -257,7 +257,7 @@ class U_I18N_API ListFormatter : public UObject{
 #endif  /* U_HIDE_INTERNAL_API */
 
   private:
-
+  
     /**
      * Creates a ListFormatter appropriate for a locale and style.
      *

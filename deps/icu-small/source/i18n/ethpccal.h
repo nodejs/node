@@ -28,7 +28,7 @@ class EthiopicCalendar : public CECalendar {
 public:
     /**
      * Calendar type - use Amete Alem era for all the time or not
-     * @internal
+     * @internal 
      */
     enum EEraType {
         AMETE_MIHRET_ERA,
@@ -40,68 +40,68 @@ public:
      * @internal
      */
     enum EMonths {
-        /**
+        /** 
          * Constant for &#x1218;&#x1235;&#x12a8;&#x1228;&#x121d;, the 1st month of the Ethiopic year.
          */
         MESKEREM,
 
-        /**
+        /** 
          * Constant for &#x1325;&#x1245;&#x121d;&#x1275;, the 2nd month of the Ethiopic year.
          */
         TEKEMT,
 
-        /**
-         * Constant for &#x1285;&#x12f3;&#x122d;, the 3rd month of the Ethiopic year.
+        /** 
+         * Constant for &#x1285;&#x12f3;&#x122d;, the 3rd month of the Ethiopic year. 
          */
         HEDAR,
 
-        /**
-         * Constant for &#x1273;&#x1285;&#x1223;&#x1225;, the 4th month of the Ethiopic year.
+        /** 
+         * Constant for &#x1273;&#x1285;&#x1223;&#x1225;, the 4th month of the Ethiopic year. 
          */
         TAHSAS,
 
-        /**
-         * Constant for &#x1325;&#x122d;, the 5th month of the Ethiopic year.
+        /** 
+         * Constant for &#x1325;&#x122d;, the 5th month of the Ethiopic year. 
          */
         TER,
 
-        /**
-         * Constant for &#x12e8;&#x12ab;&#x1272;&#x1275;, the 6th month of the Ethiopic year.
+        /** 
+         * Constant for &#x12e8;&#x12ab;&#x1272;&#x1275;, the 6th month of the Ethiopic year. 
          */
         YEKATIT,
 
-        /**
-         * Constant for &#x1218;&#x130b;&#x1262;&#x1275;, the 7th month of the Ethiopic year.
+        /** 
+         * Constant for &#x1218;&#x130b;&#x1262;&#x1275;, the 7th month of the Ethiopic year. 
          */
         MEGABIT,
 
-        /**
-         * Constant for &#x121a;&#x12eb;&#x12dd;&#x12eb;, the 8th month of the Ethiopic year.
+        /** 
+         * Constant for &#x121a;&#x12eb;&#x12dd;&#x12eb;, the 8th month of the Ethiopic year. 
          */
         MIAZIA,
 
-        /**
-         * Constant for &#x130d;&#x1295;&#x1266;&#x1275;, the 9th month of the Ethiopic year.
+        /** 
+         * Constant for &#x130d;&#x1295;&#x1266;&#x1275;, the 9th month of the Ethiopic year. 
          */
         GENBOT,
 
-        /**
-         * Constant for &#x1230;&#x1294;, the 10th month of the Ethiopic year.
+        /** 
+         * Constant for &#x1230;&#x1294;, the 10th month of the Ethiopic year. 
          */
         SENE,
 
-        /**
-         * Constant for &#x1210;&#x121d;&#x120c;, the 11th month of the Ethiopic year.
+        /** 
+         * Constant for &#x1210;&#x121d;&#x120c;, the 11th month of the Ethiopic year. 
          */
         HAMLE,
 
-        /**
-         * Constant for &#x1290;&#x1210;&#x1234;, the 12th month of the Ethiopic year.
+        /** 
+         * Constant for &#x1290;&#x1210;&#x1234;, the 12th month of the Ethiopic year. 
          */
         NEHASSA,
 
-        /**
-         * Constant for &#x1333;&#x1309;&#x121c;&#x1295;, the 13th month of the Ethiopic year.
+        /** 
+         * Constant for &#x1333;&#x1309;&#x121c;&#x1295;, the 13th month of the Ethiopic year. 
          */
         PAGUMEN
     };
@@ -141,14 +141,14 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual EthiopicCalendar* clone() const;
+    virtual EthiopicCalendar* clone() const override;
 
     /**
      * return the calendar type, "ethiopic"
      * @return calendar type
      * @internal
      */
-    virtual const char * getType() const;
+    virtual const char * getType() const override;
 
     /**
      * Set Alem or Mihret era.
@@ -173,38 +173,38 @@ protected:
      * Return the extended year defined by the current fields.
      * @internal
      */
-    virtual int32_t handleGetExtendedYear();
+    virtual int32_t handleGetExtendedYear() override;
 
     /**
      * Compute fields from the JD
      * @internal
      */
-    virtual void handleComputeFields(int32_t julianDay, UErrorCode &status);
+    virtual void handleComputeFields(int32_t julianDay, UErrorCode &status) override;
 
     /**
      * Calculate the limit for a specified type of limit and field
      * @internal
      */
-    virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const;
+    virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const override;
 
     /**
      * Returns the date of the start of the default century
      * @return start of century - in milliseconds since epoch, 1970
      * @internal
      */
-    virtual UDate defaultCenturyStart() const;
+    virtual UDate defaultCenturyStart() const override;
 
     /**
      * Returns the year in which the default century begins
      * @internal
      */
-    virtual int32_t defaultCenturyStartYear() const;
+    virtual int32_t defaultCenturyStartYear() const override;
 
     /**
      * Return the date offset from Julian
      * @internal
      */
-    virtual int32_t getJDEpochOffset() const;
+    virtual int32_t getJDEpochOffset() const override;
 
 private:
     /**
@@ -229,7 +229,7 @@ public:
      *           same class ID. Objects of other classes have different class IDs.
      * @internal
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 
     /**
      * Return the class ID for this class. This is useful only for comparing to a return
@@ -242,7 +242,7 @@ public:
      * @return   The class ID for all objects of this class.
      * @internal
      */
-    U_I18N_API static UClassID U_EXPORT2 getStaticClassID(void);
+    U_I18N_API static UClassID U_EXPORT2 getStaticClassID(void);  
 
 #if 0
 // We do not want to introduce this API in ICU4C.

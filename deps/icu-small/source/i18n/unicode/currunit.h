@@ -22,10 +22,10 @@
 #include "unicode/measunit.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Currency Unit Information.
  */
-
+ 
 U_NAMESPACE_BEGIN
 
 /**
@@ -94,7 +94,7 @@ class U_I18N_API CurrencyUnit: public MeasureUnit {
      * have the same class as returned by getDynamicClassID().
      * @stable ICU 3.0
      */
-    virtual CurrencyUnit* clone() const;
+    virtual CurrencyUnit* clone() const override;
 
     /**
      * Destructor
@@ -110,7 +110,7 @@ class U_I18N_API CurrencyUnit: public MeasureUnit {
      * different class IDs.
      * @stable ICU 3.0
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * Returns the class ID for this class. This is used to compare to

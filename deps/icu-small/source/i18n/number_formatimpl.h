@@ -34,6 +34,12 @@ class NumberFormatterImpl : public UMemory {
     NumberFormatterImpl(const MacroProps &macros, UErrorCode &status);
 
     /**
+     * Default constructor; leaves the NumberFormatterImpl in an undefined state.
+     * Takes an error code to prevent the method from being called accidentally.
+     */
+    NumberFormatterImpl(UErrorCode &) {}
+
+    /**
      * Builds and evaluates an "unsafe" MicroPropsGenerator, which is cheaper but can be used only once.
      */
     static int32_t formatStatic(const MacroProps &macros, UFormattedNumberData *results,
@@ -108,12 +114,6 @@ class NumberFormatterImpl : public UMemory {
     LocalPointer<MixedUnitLongNameHandler> fMixedUnitLongNameHandler;
     LocalPointer<const LongNameMultiplexer> fLongNameMultiplexer;
     LocalPointer<const CompactHandler> fCompactHandler;
-
-    // Value objects possibly used by the number formatting pipeline:
-    struct Warehouse {
-        CurrencySymbols fCurrencySymbols;
-    } fWarehouse;
-
 
     NumberFormatterImpl(const MacroProps &macros, bool safe, UErrorCode &status);
 

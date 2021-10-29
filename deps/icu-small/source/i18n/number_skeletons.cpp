@@ -74,6 +74,7 @@ void U_CALLCONV initNumberSkeletons(UErrorCode& status) {
     b.add(u"rounding-mode-half-down", STEM_ROUNDING_MODE_HALF_DOWN, status);
     b.add(u"rounding-mode-half-up", STEM_ROUNDING_MODE_HALF_UP, status);
     b.add(u"rounding-mode-unnecessary", STEM_ROUNDING_MODE_UNNECESSARY, status);
+    b.add(u"integer-width-trunc", STEM_INTEGER_WIDTH_TRUNC, status);
     b.add(u"group-off", STEM_GROUP_OFF, status);
     b.add(u"group-min2", STEM_GROUP_MIN2, status);
     b.add(u"group-auto", STEM_GROUP_AUTO, status);
@@ -176,7 +177,7 @@ Notation stem_to_object::notation(skeleton::StemEnum stem) {
         case STEM_NOTATION_SIMPLE:
             return Notation::simple();
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -189,7 +190,7 @@ MeasureUnit stem_to_object::unit(skeleton::StemEnum stem) {
         case STEM_PERMILLE:
             return MeasureUnit::getPermille();
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -204,7 +205,7 @@ Precision stem_to_object::precision(skeleton::StemEnum stem) {
         case STEM_PRECISION_CURRENCY_CASH:
             return Precision::currency(UCURR_USAGE_CASH);
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -233,7 +234,7 @@ UNumberFormatRoundingMode stem_to_object::roundingMode(skeleton::StemEnum stem) 
         case STEM_ROUNDING_MODE_UNNECESSARY:
             return UNUM_ROUND_UNNECESSARY;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -348,7 +349,7 @@ void enum_to_stem_string::roundingMode(UNumberFormatRoundingMode value, UnicodeS
             sb.append(u"rounding-mode-unnecessary", -1);
             break;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -370,7 +371,7 @@ void enum_to_stem_string::groupingStrategy(UNumberGroupingStrategy value, Unicod
             sb.append(u"group-thousands", -1);
             break;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -398,7 +399,7 @@ void enum_to_stem_string::unitWidth(UNumberUnitWidth value, UnicodeString& sb) {
             sb.append(u"unit-width-hidden", -1);
             break;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -432,7 +433,7 @@ void enum_to_stem_string::signDisplay(UNumberSignDisplay value, UnicodeString& s
             sb.append(u"sign-accounting-negative", -1);
             break;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -446,7 +447,7 @@ enum_to_stem_string::decimalSeparatorDisplay(UNumberDecimalSeparatorDisplay valu
             sb.append(u"decimal-always", -1);
             break;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -700,6 +701,11 @@ skeleton::parseStem(const StringSegment& segment, const UCharsTrie& stemTrie, Se
             macros.roundingMode = stem_to_object::roundingMode(stem);
             return STATE_NULL;
 
+        case STEM_INTEGER_WIDTH_TRUNC:
+            CHECK_NULL(seen, integerWidth, status);
+            macros.integerWidth = IntegerWidth::zeroFillTo(0).truncateAt(0);
+            return STATE_NULL;
+
         case STEM_GROUP_OFF:
         case STEM_GROUP_MIN2:
         case STEM_GROUP_AUTO:
@@ -785,7 +791,7 @@ skeleton::parseStem(const StringSegment& segment, const UCharsTrie& stemTrie, Se
             return STATE_SCALE;
 
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -1352,7 +1358,9 @@ bool blueprint_helpers::parseFracSigOption(const StringSegment& segment, MacroPr
             priority = UNUM_ROUNDING_PRIORITY_STRICT;
             offset++;
         } else {
-            U_ASSERT(offset < segment.length());
+            // Invalid digits option for fraction rounder
+            status = U_NUMBER_SKELETON_SYNTAX_ERROR;
+            return false;
         }
         if (offset < segment.length()) {
             // Invalid digits option for fraction rounder
@@ -1391,18 +1399,14 @@ void blueprint_helpers::parseIncrementOption(const StringSegment &segment, Macro
     number::impl::parseIncrementOption(segment, macros.precision, status);
 }
 
-void blueprint_helpers::generateIncrementOption(double increment, int32_t trailingZeros, UnicodeString& sb,
+void blueprint_helpers::generateIncrementOption(double increment, int32_t minFrac, UnicodeString& sb,
                                                 UErrorCode&) {
     // Utilize DecimalQuantity/double_conversion to format this for us.
     DecimalQuantity dq;
     dq.setToDouble(increment);
     dq.roundToInfinity();
+    dq.setMinFraction(minFrac);
     sb.append(dq.toPlainString());
-
-    // We might need to append extra trailing zeros for min fraction...
-    if (trailingZeros > 0) {
-        appendMultiple(sb, u'0', trailingZeros);
-    }
 }
 
 void blueprint_helpers::parseIntegerWidthOption(const StringSegment& segment, MacroProps& macros,
@@ -1491,7 +1495,7 @@ void blueprint_helpers::parseScaleOption(const StringSegment& segment, MacroProp
     LocalPointer<DecNum> decnum(new DecNum(), status);
     if (U_FAILURE(status)) { return; }
     decnum->setTo({buffer.data(), buffer.length()}, status);
-    if (U_FAILURE(status)) {
+    if (U_FAILURE(status) || decnum->isSpecial()) {
         // This is a skeleton syntax error; don't let the low-level decnum error bubble up
         status = U_NUMBER_SKELETON_SYNTAX_ERROR;
         return;
@@ -1626,7 +1630,7 @@ bool GeneratorHelpers::precision(const MacroProps& macros, UnicodeString& sb, UE
         sb.append(u"precision-increment/", -1);
         blueprint_helpers::generateIncrementOption(
                 impl.fIncrement,
-                impl.fMinFrac - impl.fMaxFrac,
+                impl.fMinFrac,
                 sb,
                 status);
     } else if (macros.precision.fType == Precision::RND_CURRENCY) {
@@ -1677,10 +1681,15 @@ bool GeneratorHelpers::integerWidth(const MacroProps& macros, UnicodeString& sb,
         // Error or Default
         return false;
     }
+    const auto& minMaxInt = macros.integerWidth.fUnion.minMaxInt;
+    if (minMaxInt.fMinInt == 0 && minMaxInt.fMaxInt == 0) {
+        sb.append(u"integer-width-trunc", -1);
+        return true;
+    }
     sb.append(u"integer-width/", -1);
     blueprint_helpers::generateIntegerWidthOption(
-            macros.integerWidth.fUnion.minMaxInt.fMinInt,
-            macros.integerWidth.fUnion.minMaxInt.fMaxInt,
+            minMaxInt.fMinInt,
+            minMaxInt.fMaxInt,
             sb,
             status);
     return true;

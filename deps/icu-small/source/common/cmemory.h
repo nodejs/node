@@ -150,7 +150,7 @@ uprv_calloc(size_t num, size_t size) U_MALLOC_ATTR U_ALLOC_SIZE_ATTR2(1,2);
   *    Clears any user heap functions from u_setMemoryFunctions()
   *    Does NOT deallocate any remaining allocated memory.
   */
-U_CFUNC UBool
+U_CFUNC UBool 
 cmemory_cleanup(void);
 
 /**

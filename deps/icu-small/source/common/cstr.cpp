@@ -30,7 +30,7 @@ CStr::CStr(const UnicodeString &in) {
     }
 #else
     // No conversion available. Convert any invariant characters; substitute '?' for the rest.
-    // Note: can't just call u_UCharsToChars() or CharString.appendInvariantChars() on the
+    // Note: can't just call u_UCharsToChars() or CharString.appendInvariantChars() on the 
     //       whole string because they require that the entire input be invariant.
     char buf[2];
     for (int i=0; i<in.length(); i = in.moveIndex32(i, 1)) {

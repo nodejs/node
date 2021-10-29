@@ -31,7 +31,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(MeasureUnit)
 // the "End generated code" comment is auto generated code
 // and must not be edited manually. For instructions on how to correctly
 // update this code, refer to:
-// http://site.icu-project.org/design/formatting/measureformat/updating-measure-unit
+// https://icu.unicode.org/design/formatting/measureformat/updating-measure-unit
 //
 // Start generated code for measunit.cpp
 
@@ -41,26 +41,26 @@ static const int32_t gOffsets[] = {
     2,
     7,
     17,
-    26,
-    30,
-    329,
-    340,
-    356,
-    360,
-    369,
-    371,
-    375,
-    383,
-    405,
-    409,
-    424,
-    425,
-    431,
-    441,
-    445,
-    449,
+    27,
+    31,
+    330,
+    341,
+    357,
+    361,
+    370,
+    373,
+    377,
+    385,
+    407,
+    411,
+    426,
+    427,
+    433,
+    443,
+    447,
     451,
-    485
+    453,
+    487
 };
 
 static const int32_t kCurrencyOffset = 5;
@@ -111,6 +111,7 @@ static const char * const gSubTypes[] = {
     "square-meter",
     "square-mile",
     "square-yard",
+    "item",
     "karat",
     "milligram-ofglucose-per-deciliter",
     "milligram-per-deciliter",
@@ -463,6 +464,7 @@ static const char * const gSubTypes[] = {
     "kilojoule",
     "kilowatt-hour",
     "therm-us",
+    "kilowatt-hour-per-100-kilometer",
     "newton",
     "pound-force",
     "gigahertz",
@@ -721,76 +723,84 @@ MeasureUnit MeasureUnit::getSquareYard() {
     return MeasureUnit(2, 9);
 }
 
-MeasureUnit *MeasureUnit::createKarat(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createItem(UErrorCode &status) {
     return MeasureUnit::create(3, 0, status);
 }
 
-MeasureUnit MeasureUnit::getKarat() {
+MeasureUnit MeasureUnit::getItem() {
     return MeasureUnit(3, 0);
 }
 
-MeasureUnit *MeasureUnit::createMilligramOfglucosePerDeciliter(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createKarat(UErrorCode &status) {
     return MeasureUnit::create(3, 1, status);
 }
 
-MeasureUnit MeasureUnit::getMilligramOfglucosePerDeciliter() {
+MeasureUnit MeasureUnit::getKarat() {
     return MeasureUnit(3, 1);
 }
 
-MeasureUnit *MeasureUnit::createMilligramPerDeciliter(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createMilligramOfglucosePerDeciliter(UErrorCode &status) {
     return MeasureUnit::create(3, 2, status);
 }
 
-MeasureUnit MeasureUnit::getMilligramPerDeciliter() {
+MeasureUnit MeasureUnit::getMilligramOfglucosePerDeciliter() {
     return MeasureUnit(3, 2);
 }
 
-MeasureUnit *MeasureUnit::createMillimolePerLiter(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createMilligramPerDeciliter(UErrorCode &status) {
     return MeasureUnit::create(3, 3, status);
 }
 
-MeasureUnit MeasureUnit::getMillimolePerLiter() {
+MeasureUnit MeasureUnit::getMilligramPerDeciliter() {
     return MeasureUnit(3, 3);
 }
 
-MeasureUnit *MeasureUnit::createMole(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createMillimolePerLiter(UErrorCode &status) {
     return MeasureUnit::create(3, 4, status);
 }
 
-MeasureUnit MeasureUnit::getMole() {
+MeasureUnit MeasureUnit::getMillimolePerLiter() {
     return MeasureUnit(3, 4);
 }
 
-MeasureUnit *MeasureUnit::createPercent(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createMole(UErrorCode &status) {
     return MeasureUnit::create(3, 5, status);
 }
 
-MeasureUnit MeasureUnit::getPercent() {
+MeasureUnit MeasureUnit::getMole() {
     return MeasureUnit(3, 5);
 }
 
-MeasureUnit *MeasureUnit::createPermille(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createPercent(UErrorCode &status) {
     return MeasureUnit::create(3, 6, status);
 }
 
-MeasureUnit MeasureUnit::getPermille() {
+MeasureUnit MeasureUnit::getPercent() {
     return MeasureUnit(3, 6);
 }
 
-MeasureUnit *MeasureUnit::createPartPerMillion(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createPermille(UErrorCode &status) {
     return MeasureUnit::create(3, 7, status);
 }
 
-MeasureUnit MeasureUnit::getPartPerMillion() {
+MeasureUnit MeasureUnit::getPermille() {
     return MeasureUnit(3, 7);
 }
 
-MeasureUnit *MeasureUnit::createPermyriad(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createPartPerMillion(UErrorCode &status) {
     return MeasureUnit::create(3, 8, status);
 }
 
-MeasureUnit MeasureUnit::getPermyriad() {
+MeasureUnit MeasureUnit::getPartPerMillion() {
     return MeasureUnit(3, 8);
+}
+
+MeasureUnit *MeasureUnit::createPermyriad(UErrorCode &status) {
+    return MeasureUnit::create(3, 9, status);
+}
+
+MeasureUnit MeasureUnit::getPermyriad() {
+    return MeasureUnit(3, 9);
 }
 
 MeasureUnit *MeasureUnit::createLiterPer100Kilometers(UErrorCode &status) {
@@ -1145,20 +1155,28 @@ MeasureUnit MeasureUnit::getThermUs() {
     return MeasureUnit(9, 8);
 }
 
-MeasureUnit *MeasureUnit::createNewton(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createKilowattHourPer100Kilometer(UErrorCode &status) {
     return MeasureUnit::create(10, 0, status);
 }
 
-MeasureUnit MeasureUnit::getNewton() {
+MeasureUnit MeasureUnit::getKilowattHourPer100Kilometer() {
     return MeasureUnit(10, 0);
 }
 
-MeasureUnit *MeasureUnit::createPoundForce(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createNewton(UErrorCode &status) {
     return MeasureUnit::create(10, 1, status);
 }
 
-MeasureUnit MeasureUnit::getPoundForce() {
+MeasureUnit MeasureUnit::getNewton() {
     return MeasureUnit(10, 1);
+}
+
+MeasureUnit *MeasureUnit::createPoundForce(UErrorCode &status) {
+    return MeasureUnit::create(10, 2, status);
+}
+
+MeasureUnit MeasureUnit::getPoundForce() {
+    return MeasureUnit(10, 2);
 }
 
 MeasureUnit *MeasureUnit::createGigahertz(UErrorCode &status) {
@@ -2178,12 +2196,12 @@ const char *MeasureUnit::getIdentifier() const {
     return fImpl ? fImpl->identifier.data() : gSubTypes[getOffset()];
 }
 
-UBool MeasureUnit::operator==(const UObject& other) const {
+bool MeasureUnit::operator==(const UObject& other) const {
     if (this == &other) {  // Same object, equal
-        return TRUE;
+        return true;
     }
     if (typeid(*this) != typeid(other)) { // Different types, not equal
-        return FALSE;
+        return false;
     }
     const MeasureUnit &rhs = static_cast<const MeasureUnit&>(other);
     return uprv_strcmp(getIdentifier(), rhs.getIdentifier()) == 0;

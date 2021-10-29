@@ -57,7 +57,7 @@ class CurrencyFormat : public MeasureFormat {
     /**
      * Override Format API.
      */
-    virtual CurrencyFormat* clone() const;
+    virtual CurrencyFormat* clone() const override;
 
 
     using MeasureFormat::format;
@@ -68,19 +68,19 @@ class CurrencyFormat : public MeasureFormat {
     virtual UnicodeString& format(const Formattable& obj,
                                   UnicodeString& appendTo,
                                   FieldPosition& pos,
-                                  UErrorCode& ec) const;
+                                  UErrorCode& ec) const override;
 
     /**
      * Override Format API.
      */
     virtual void parseObject(const UnicodeString& source,
                              Formattable& result,
-                             ParsePosition& pos) const;
+                             ParsePosition& pos) const override;
 
     /**
      * Override Format API.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * Returns the class ID for this class.

@@ -76,7 +76,7 @@ UnicodeString CurrencySymbols::loadSymbol(UCurrNameStyle selector, UErrorCode& s
     if (symbol == isoCode) {
         return UnicodeString(isoCode, 3);
     } else {
-        return UnicodeString(TRUE, symbol, symbolLen);
+        return UnicodeString(true, symbol, symbolLen);
     }
 }
 
@@ -104,7 +104,7 @@ UnicodeString CurrencySymbols::getPluralName(StandardPlural::Form plural, UError
     if (symbol == isoCode) {
         return UnicodeString(isoCode, 3);
     } else {
-        return UnicodeString(TRUE, symbol, symbolLen);
+        return UnicodeString(true, symbol, symbolLen);
     }
 }
 

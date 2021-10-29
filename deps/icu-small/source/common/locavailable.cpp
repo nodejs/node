@@ -64,7 +64,7 @@ U_NAMESPACE_BEGIN
 void U_CALLCONV locale_available_init() {
     // This function is a friend of class Locale.
     // This function is only invoked via umtx_initOnce().
-
+    
     // for now, there is a hardcoded list, so just walk through that list and set it up.
     //  Note: this function is a friend of class Locale.
     availableLocaleListCount = uloc_countAvailable();

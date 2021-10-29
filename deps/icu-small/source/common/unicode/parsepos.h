@@ -24,14 +24,14 @@
 
 #include "unicode/uobject.h"
 
-
+ 
 U_NAMESPACE_BEGIN
 
 /**
  * \file
  * \brief C++ API: Canonical Iterator
  */
-/**
+/** 
  * <code>ParsePosition</code> is a simple class used by <code>Format</code>
  * and its subclasses to keep track of the current position during parsing.
  * The <code>parseObject</code> method in the various <code>Format</code>
@@ -100,14 +100,14 @@ public:
      * @return true if the two parse positions are equal, false otherwise.
      * @stable ICU 2.0
      */
-    inline UBool              operator==(const ParsePosition& that) const;
+    inline bool               operator==(const ParsePosition& that) const;
 
     /**
      * Equality operator.
      * @return true if the two parse positions are not equal, false otherwise.
      * @stable ICU 2.0
      */
-    inline UBool              operator!=(const ParsePosition& that) const;
+    inline bool               operator!=(const ParsePosition& that) const;
 
     /**
      * Clone this object.
@@ -166,7 +166,7 @@ public:
      *
      * @stable ICU 2.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
 private:
     /**
@@ -192,7 +192,7 @@ ParsePosition::operator=(const ParsePosition& copy)
   return *this;
 }
 
-inline UBool
+inline bool
 ParsePosition::operator==(const ParsePosition& copy) const
 {
   if(index != copy.index || errorIndex != copy.errorIndex)
@@ -201,7 +201,7 @@ ParsePosition::operator==(const ParsePosition& copy) const
   return true;
 }
 
-inline UBool
+inline bool
 ParsePosition::operator!=(const ParsePosition& copy) const
 {
   return !operator==(copy);

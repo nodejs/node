@@ -29,7 +29,7 @@
 /**
  * \file
  * \brief C++ API: All-in-one formatter for localized numbers, currencies, and units.
- *
+ * 
  * For a full list of options, see icu::number::NumberFormatterSettings.
  *
  * <pre>
@@ -1518,6 +1518,9 @@ struct U_I18N_API MacroProps : public UMemory {
     UNumberSignDisplay sign = UNUM_SIGN_COUNT;
 
     /** @internal */
+    bool approximately = false;
+
+    /** @internal */
     UNumberDecimalSeparatorDisplay decimal = UNUM_DECIMAL_SEPARATOR_COUNT;
 
     /** @internal */
@@ -2164,7 +2167,6 @@ class U_I18N_API NumberFormatterSettings {
      */
     Derived scale(const Scale &scale) &&;
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Specifies the usage for which numbers will be formatted ("person-height",
      * "road", "rainfall", etc.)
@@ -2203,9 +2205,9 @@ class U_I18N_API NumberFormatterSettings {
      * @param usage A `usage` parameter from the units resource. See the
      * unitPreferenceData in *source/data/misc/units.txt*, generated from
      * `unitPreferenceData` in [CLDR's
-     * supplemental/units.xml](https://github.com/unicode-org/cldr/blob/master/common/supplemental/units.xml).
+     * supplemental/units.xml](https://github.com/unicode-org/cldr/blob/main/common/supplemental/units.xml).
      * @return The fluent chain.
-     * @draft ICU 68
+     * @stable ICU 68
      */
     Derived usage(StringPiece usage) const &;
 
@@ -2214,10 +2216,9 @@ class U_I18N_API NumberFormatterSettings {
      *
      * @param usage The unit `usage`.
      * @return The fluent chain.
-     * @draft ICU 68
+     * @stable ICU 68
      */
     Derived usage(StringPiece usage) &&;
-#endif // U_HIDE_DRAFT_API
 
 #ifndef U_HIDE_DRAFT_API
 #ifndef U_HIDE_INTERNAL_API
@@ -2486,6 +2487,12 @@ class U_I18N_API LocalizedNumberFormatter
 
 #ifndef U_HIDE_INTERNAL_API
 
+            
+    /**
+     * @internal
+     */
+    const DecimalFormatSymbols* getDecimalFormatSymbols() const;
+    
     /** Internal method.
      * @internal
      */
@@ -2715,7 +2722,6 @@ class U_I18N_API FormattedNumber : public UMemory, public FormattedValue {
     template<typename StringClass>
     inline StringClass toDecimalNumber(UErrorCode& status) const;
 
-#ifndef U_HIDE_DRAFT_API
 	/**
      * Gets the resolved output unit.
      *
@@ -2725,10 +2731,11 @@ class U_I18N_API FormattedNumber : public UMemory, public FormattedValue {
      * as "foot-and-inch" or "hour-and-minute-and-second".
      *
      * @return `MeasureUnit`.
-     * @draft ICU 68
+     * @stable ICU 68
      */
     MeasureUnit getOutputUnit(UErrorCode& status) const;
 
+#ifndef U_HIDE_INTERNAL_API
     /**
      * Gets the gender of the formatted output. Returns "" when the gender is
      * unknown, or for ungendered languages.
@@ -2736,9 +2743,6 @@ class U_I18N_API FormattedNumber : public UMemory, public FormattedValue {
      * @internal ICU 69 technology preview.
      */
     const char *getGender(UErrorCode& status) const;
-#endif // U_HIDE_DRAFT_API
-
-#ifndef U_HIDE_INTERNAL_API
 
     /**
      *  Gets the raw DecimalQuantity for plural rule selection.

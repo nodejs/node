@@ -101,7 +101,7 @@ void AffixPatternMatcherBuilder::consumeToken(AffixPatternType type, UChar32 cp,
                 addMatcher(fWarehouse.currency(status));
                 break;
             default:
-                UPRV_UNREACHABLE;
+                UPRV_UNREACHABLE_EXIT;
         }
 
     } else if (fIgnorables != nullptr && fIgnorables->getSet()->contains(cp)) {
@@ -294,18 +294,20 @@ void AffixMatcherWarehouse::createAffixMatchers(const AffixPatternProvider& patt
         }
 
         // Generate Prefix
+        // TODO: Handle approximately sign?
         bool hasPrefix = false;
         PatternStringUtils::patternInfoToStringBuilder(
-                patternInfo, true, type, StandardPlural::OTHER, false, sb);
+                patternInfo, true, type, false, StandardPlural::OTHER, false, sb);
         fAffixPatternMatchers[numAffixPatternMatchers] = AffixPatternMatcher::fromAffixPattern(
                 sb, *fTokenWarehouse, parseFlags, &hasPrefix, status);
         AffixPatternMatcher* prefix = hasPrefix ? &fAffixPatternMatchers[numAffixPatternMatchers++]
                                                 : nullptr;
 
         // Generate Suffix
+        // TODO: Handle approximately sign?
         bool hasSuffix = false;
         PatternStringUtils::patternInfoToStringBuilder(
-                patternInfo, false, type, StandardPlural::OTHER, false, sb);
+                patternInfo, false, type, false, StandardPlural::OTHER, false, sb);
         fAffixPatternMatchers[numAffixPatternMatchers] = AffixPatternMatcher::fromAffixPattern(
                 sb, *fTokenWarehouse, parseFlags, &hasSuffix, status);
         AffixPatternMatcher* suffix = hasSuffix ? &fAffixPatternMatchers[numAffixPatternMatchers++]

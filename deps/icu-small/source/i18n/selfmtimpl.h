@@ -1,10 +1,10 @@
 // © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /********************************************************************
- * COPYRIGHT:
+ * COPYRIGHT: 
  * Copyright (c) 1997-2011, International Business Machines Corporation and
  * others. All Rights Reserved.
- * Copyright (C) 2010 , Yahoo! Inc.
+ * Copyright (C) 2010 , Yahoo! Inc. 
  ********************************************************************
  * File selectfmtimpl.h
  *

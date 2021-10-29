@@ -39,22 +39,22 @@ public:
 
     virtual ~UIterCollationIterator();
 
-    virtual void resetToOffset(int32_t newOffset);
+    virtual void resetToOffset(int32_t newOffset) override;
 
-    virtual int32_t getOffset() const;
+    virtual int32_t getOffset() const override;
 
-    virtual UChar32 nextCodePoint(UErrorCode &errorCode);
+    virtual UChar32 nextCodePoint(UErrorCode &errorCode) override;
 
-    virtual UChar32 previousCodePoint(UErrorCode &errorCode);
+    virtual UChar32 previousCodePoint(UErrorCode &errorCode) override;
 
 protected:
-    virtual uint32_t handleNextCE32(UChar32 &c, UErrorCode &errorCode);
+    virtual uint32_t handleNextCE32(UChar32 &c, UErrorCode &errorCode) override;
 
-    virtual UChar handleGetTrailSurrogate();
+    virtual UChar handleGetTrailSurrogate() override;
 
-    virtual void forwardNumCodePoints(int32_t num, UErrorCode &errorCode);
+    virtual void forwardNumCodePoints(int32_t num, UErrorCode &errorCode) override;
 
-    virtual void backwardNumCodePoints(int32_t num, UErrorCode &errorCode);
+    virtual void backwardNumCodePoints(int32_t num, UErrorCode &errorCode) override;
 
     UCharIterator &iter;
 };
@@ -71,22 +71,23 @@ public:
 
     virtual ~FCDUIterCollationIterator();
 
-    virtual void resetToOffset(int32_t newOffset);
+    virtual void resetToOffset(int32_t newOffset) override;
 
-    virtual int32_t getOffset() const;
+    virtual int32_t getOffset() const override;
 
-    virtual UChar32 nextCodePoint(UErrorCode &errorCode);
+    virtual UChar32 nextCodePoint(UErrorCode &errorCode) override;
 
-    virtual UChar32 previousCodePoint(UErrorCode &errorCode);
+    virtual UChar32 previousCodePoint(UErrorCode &errorCode) override;
 
 protected:
-    virtual uint32_t handleNextCE32(UChar32 &c, UErrorCode &errorCode);
+    virtual uint32_t handleNextCE32(UChar32 &c, UErrorCode &errorCode) override;
 
-    virtual UChar handleGetTrailSurrogate();
+    virtual UChar handleGetTrailSurrogate() override;
 
-    virtual void forwardNumCodePoints(int32_t num, UErrorCode &errorCode);
 
-    virtual void backwardNumCodePoints(int32_t num, UErrorCode &errorCode);
+    virtual void forwardNumCodePoints(int32_t num, UErrorCode &errorCode) override;
+
+    virtual void backwardNumCodePoints(int32_t num, UErrorCode &errorCode) override;
 
 private:
     /**

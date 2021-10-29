@@ -15,7 +15,7 @@
 *   Date        Name        Description
 *   01/11/02    Ram         Creation.
 *   02/12/08    Spieth      Fix errant 'new Object[][]{' insertion
-*   02/19/08    Spieth      Removed ICUListResourceBundle dependancy
+*   02/19/08    Spieth      Removed ICUListResourceBundle dependency
 *******************************************************************************
 */
 
@@ -627,7 +627,7 @@ bundle_write_java(struct SRBRoot *bundle, const char *outputDir,const char* outp
     /*UBool j1 =FALSE;*/
     /*outDir = outputDir;*/
 
-    start = TRUE;                        /* Reset the start indictor*/
+    start = TRUE;                        /* Reset the start indicator*/
 
     bName = (bundleName==NULL) ? "LocaleElements" : bundleName;
     pName = (packageName==NULL)? "com.ibm.icu.impl.data" : packageName;

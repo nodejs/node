@@ -39,13 +39,13 @@ class Quantifier : public UnicodeFunctor, public UnicodeMatcher {
      * and return the pointer.
      * @return the UnicodeMatcher pointer.
      */
-    virtual UnicodeMatcher* toMatcher() const;
+    virtual UnicodeMatcher* toMatcher() const override;
 
     /**
      * Implement UnicodeFunctor
      * @return a copy of the object.
      */
-    virtual Quantifier* clone() const;
+    virtual Quantifier* clone() const override;
 
     /**
      * Implement UnicodeMatcher
@@ -72,7 +72,7 @@ class Quantifier : public UnicodeFunctor, public UnicodeMatcher {
     virtual UMatchDegree matches(const Replaceable& text,
                                  int32_t& offset,
                                  int32_t limit,
-                                 UBool incremental);
+                                 UBool incremental) override;
 
     /**
      * Implement UnicodeMatcher
@@ -81,29 +81,29 @@ class Quantifier : public UnicodeFunctor, public UnicodeMatcher {
      * @return                  A reference to 'result'.
      */
     virtual UnicodeString& toPattern(UnicodeString& result,
-                                     UBool escapeUnprintable = false) const;
+                                     UBool escapeUnprintable = false) const override;
 
     /**
      * Implement UnicodeMatcher
      * @param v    the given index value.
      * @return     true if this rule matches the given index value.
      */
-    virtual UBool matchesIndexValue(uint8_t v) const;
+    virtual UBool matchesIndexValue(uint8_t v) const override;
 
     /**
      * Implement UnicodeMatcher
      */
-    virtual void addMatchSetTo(UnicodeSet& toUnionTo) const;
+    virtual void addMatchSetTo(UnicodeSet& toUnionTo) const override;
 
     /**
      * UnicodeFunctor API
      */
-    virtual void setData(const TransliterationRuleData*);
+    virtual void setData(const TransliterationRuleData*) override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.

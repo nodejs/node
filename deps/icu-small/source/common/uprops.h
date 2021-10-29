@@ -224,7 +224,8 @@ enum {
 /*
  * Properties in vector word 2
  * Bits
- * 31..26   http://www.unicode.org/reports/tr51/#Emoji_Properties
+ * 31..26   unused since ICU 70 added uemoji.icu;
+ *          in ICU 57..69 stored emoji properties
  * 25..20   Line Break
  * 19..15   Sentence Break
  * 14..10   Word Break
@@ -232,12 +233,12 @@ enum {
  *  4.. 0   Decomposition Type
  */
 enum {
-    UPROPS_2_EXTENDED_PICTOGRAPHIC=26,
-    UPROPS_2_EMOJI_COMPONENT,
-    UPROPS_2_EMOJI,
-    UPROPS_2_EMOJI_PRESENTATION,
-    UPROPS_2_EMOJI_MODIFIER,
-    UPROPS_2_EMOJI_MODIFIER_BASE
+    UPROPS_2_UNUSED_WAS_EXTENDED_PICTOGRAPHIC=26,  // ICU 62..69
+    UPROPS_2_UNUSED_WAS_EMOJI_COMPONENT,  // ICU 60..69
+    UPROPS_2_UNUSED_WAS_EMOJI,  // ICU 57..69
+    UPROPS_2_UNUSED_WAS_EMOJI_PRESENTATION,  // ICU 57..69
+    UPROPS_2_UNUSED_WAS_EMOJI_MODIFIER,  // ICU 57..69
+    UPROPS_2_UNUSED_WAS_EMOJI_MODIFIER_BASE  // ICU 57..69
 };
 
 #define UPROPS_LB_MASK          0x03f00000
@@ -377,6 +378,7 @@ enum UPropertySource {
     UPROPS_SRC_INPC,
     UPROPS_SRC_INSC,
     UPROPS_SRC_VO,
+    UPROPS_SRC_EMOJI,
     /** One more than the highest UPropertySource (UPROPS_SRC_) constant. */
     UPROPS_SRC_COUNT
 };

@@ -10,8 +10,8 @@
 #define __TZGNAMES_H
 
 /**
- * \file
- * \brief C API: Time zone generic names classe
+ * \file 
+ * \brief C API: Time zone generic names classes
  */
 
 #include "unicode/utypes.h"
@@ -45,8 +45,8 @@ public:
 
     static TimeZoneGenericNames* createInstance(const Locale& locale, UErrorCode& status);
 
-    virtual UBool operator==(const TimeZoneGenericNames& other) const;
-    virtual UBool operator!=(const TimeZoneGenericNames& other) const {return !operator==(other);}
+    virtual bool operator==(const TimeZoneGenericNames& other) const;
+    virtual bool operator!=(const TimeZoneGenericNames& other) const {return !operator==(other);}
     virtual TimeZoneGenericNames* clone() const;
 
     UnicodeString& getDisplayName(const TimeZone& tz, UTimeZoneGenericNameType type,

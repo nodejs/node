@@ -91,7 +91,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual TaiwanCalendar* clone() const;
+    virtual TaiwanCalendar* clone() const override;
 
 public:
     /**
@@ -104,7 +104,7 @@ public:
      *           same class ID. Objects of other classes have different class IDs.
      * @internal
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 
     /**
      * Return the class ID for this class. This is useful only for comparing to a return
@@ -125,7 +125,7 @@ public:
      * @return calendar type
      * @internal
      */
-    virtual const char * getType() const;
+    virtual const char * getType() const override;
 
 private:
     TaiwanCalendar(); // default constructor not implemented
@@ -139,13 +139,13 @@ private:
      * @return the extended year
      * @internal
      */
-    virtual int32_t handleGetExtendedYear();
+    virtual int32_t handleGetExtendedYear() override;
     /**
      * Subclasses may override this method to compute several fields
-     * specific to each calendar system.
+     * specific to each calendar system.  
      * @internal
      */
-    virtual void handleComputeFields(int32_t julianDay, UErrorCode& status);
+    virtual void handleComputeFields(int32_t julianDay, UErrorCode& status) override;
     /**
      * Subclass API for defining limits of different types.
      * @param field one of the field numbers
@@ -153,26 +153,26 @@ private:
      * <code>LEAST_MAXIMUM</code>, or <code>MAXIMUM</code>
      * @internal
      */
-    virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const;
+    virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const override;
 
     /**
      * Returns true because the Taiwan Calendar does have a default century
      * @internal
      */
-    virtual UBool haveDefaultCentury() const;
+    virtual UBool haveDefaultCentury() const override;
 
     /**
      * Returns the date of the start of the default century
      * @return start of century - in milliseconds since epoch, 1970
      * @internal
      */
-    virtual UDate defaultCenturyStart() const;
+    virtual UDate defaultCenturyStart() const override;
 
     /**
      * Returns the year in which the default century begins
      * @internal
      */
-    virtual int32_t defaultCenturyStartYear() const;
+    virtual int32_t defaultCenturyStartYear() const override;
 };
 
 U_NAMESPACE_END
@@ -181,3 +181,4 @@ U_NAMESPACE_END
 
 #endif // _TAIWNCAL
 //eof
+

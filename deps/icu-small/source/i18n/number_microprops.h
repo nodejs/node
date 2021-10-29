@@ -18,6 +18,7 @@
 #include "number_roundingutils.h"
 #include "decNumber.h"
 #include "charstr.h"
+#include "util.h"
 
 U_NAMESPACE_BEGIN namespace number {
 namespace impl {
@@ -82,6 +83,9 @@ struct MicroProps : public MicroPropsGenerator {
     UNumberDecimalSeparatorDisplay decimal;
     bool useCurrency;
     char nsName[9];
+
+    // Currency symbol to be used as the decimal separator
+    UnicodeString currencyAsDecimal = ICU_Utility::makeBogusString();
 
     // No ownership: must point at a string which will outlive MicroProps
     // instances, e.g. a string with static storage duration, or just a string

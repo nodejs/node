@@ -118,8 +118,8 @@ RegexPattern &RegexPattern::operator = (const RegexPattern &other) {
     int32_t  numSets = other.fSets->size();
     fSets8 = new Regex8BitSet[numSets];
     if (fSets8 == NULL) {
-	fDeferredStatus = U_MEMORY_ALLOCATION_ERROR;
-	return *this;
+    	fDeferredStatus = U_MEMORY_ALLOCATION_ERROR;
+    	return *this;
     }
     for (i=1; i<numSets; i++) {
         if (U_FAILURE(fDeferredStatus)) {
@@ -291,13 +291,13 @@ RegexPattern  *RegexPattern::clone() const {
 //                                 characters can still be considered different.
 //
 //--------------------------------------------------------------------------
-UBool   RegexPattern::operator ==(const RegexPattern &other) const {
+bool    RegexPattern::operator ==(const RegexPattern &other) const {
     if (this->fFlags == other.fFlags && this->fDeferredStatus == other.fDeferredStatus) {
         if (this->fPatternString != NULL && other.fPatternString != NULL) {
             return *(this->fPatternString) == *(other.fPatternString);
         } else if (this->fPattern == NULL) {
             if (other.fPattern == NULL) {
-                return TRUE;
+                return true;
             }
         } else if (other.fPattern != NULL) {
             UTEXT_SETNATIVEINDEX(this->fPattern, 0);
@@ -305,7 +305,7 @@ UBool   RegexPattern::operator ==(const RegexPattern &other) const {
             return utext_equals(this->fPattern, other.fPattern);
         }
     }
-    return FALSE;
+    return false;
 }
 
 //---------------------------------------------------------------------
@@ -663,7 +663,7 @@ int32_t  RegexPattern::split(const UnicodeString &input,
     int32_t r = 0;
     // Check m's status to make sure all is ok.
     if (U_SUCCESS(m.fDeferredStatus)) {
-	r = m.split(input, dest, destCapacity, status);
+    	r = m.split(input, dest, destCapacity, status);
     }
     return r;
 }
@@ -684,7 +684,7 @@ int32_t  RegexPattern::split(UText *input,
     int32_t r = 0;
     // Check m's status to make sure all is ok.
     if (U_SUCCESS(m.fDeferredStatus)) {
-	r = m.split(input, dest, destCapacity, status);
+    	r = m.split(input, dest, destCapacity, status);
     }
     return r;
 }

@@ -444,7 +444,7 @@ struct ListFormatter::ListPatternsSink : public ResourceSink {
     }
 
     virtual void put(const char *key, ResourceValue &value, UBool /*noFallback*/,
-            UErrorCode &errorCode) {
+            UErrorCode &errorCode) override {
         aliasedStyle[0] = 0;
         if (value.getType() == URES_ALIAS) {
             setAliasedStyle(value.getAliasUnicodeString(errorCode));

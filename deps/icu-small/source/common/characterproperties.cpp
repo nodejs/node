@@ -14,6 +14,7 @@
 #include "unicode/uscript.h"
 #include "unicode/uset.h"
 #include "cmemory.h"
+#include "emojiprops.h"
 #include "mutex.h"
 #include "normalizer2impl.h"
 #include "uassert.h"
@@ -170,6 +171,13 @@ void U_CALLCONV initInclusion(UPropertySource src, UErrorCode &errorCode) {
     case UPROPS_SRC_VO:
         uprops_addPropertyStarts((UPropertySource)src, &sa, &errorCode);
         break;
+    case UPROPS_SRC_EMOJI: {
+        const icu::EmojiProps *ep = icu::EmojiProps::getSingleton(errorCode);
+        if (U_SUCCESS(errorCode)) {
+            ep->addPropertyStarts(&sa, errorCode);
+        }
+        break;
+    }
     default:
         errorCode = U_INTERNAL_PROGRAM_ERROR;
         break;
@@ -268,6 +276,26 @@ UnicodeSet *makeSet(UProperty property, UErrorCode &errorCode) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
         return nullptr;
     }
+    if (UCHAR_BASIC_EMOJI <= property && property <= UCHAR_RGI_EMOJI) {
+        // property of strings
+        const icu::EmojiProps *ep = icu::EmojiProps::getSingleton(errorCode);
+        if (U_FAILURE(errorCode)) { return nullptr; }
+        USetAdder sa = {
+            (USet *)set.getAlias(),
+            _set_add,
+            _set_addRange,
+            _set_addString,
+            nullptr, // don't need remove()
+            nullptr // don't need removeRange()
+        };
+        ep->addStrings(&sa, property, errorCode);
+        if (property != UCHAR_BASIC_EMOJI && property != UCHAR_RGI_EMOJI) {
+            // property of _only_ strings
+            set->freeze();
+            return set.orphan();
+        }
+    }
+
     const UnicodeSet *inclusions =
         icu::CharacterProperties::getInclusionsForProperty(property, errorCode);
     if (U_FAILURE(errorCode)) { return nullptr; }

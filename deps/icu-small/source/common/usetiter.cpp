@@ -120,7 +120,7 @@ void UnicodeSetIterator::reset() {
     }
     range = 0;
     endElement = -1;
-    nextElement = 0;
+    nextElement = 0;            
     if (endRange >= 0) {
         loadRange(range);
     }

@@ -187,7 +187,7 @@ LocaleMatcher::Builder &LocaleMatcher::Builder::setSupportedLocalesFromListStrin
     for (int32_t i = 0; i < length; ++i) {
         Locale *locale = list.orphanLocaleAt(i);
         if (locale == nullptr) { continue; }
-        supportedLocales_->addElement(locale, errorCode_);
+        supportedLocales_->addElementX(locale, errorCode_);
         if (U_FAILURE(errorCode_)) {
             delete locale;
             break;
@@ -207,7 +207,7 @@ LocaleMatcher::Builder &LocaleMatcher::Builder::setSupportedLocales(Locale::Iter
             errorCode_ = U_MEMORY_ALLOCATION_ERROR;
             break;
         }
-        supportedLocales_->addElement(clone, errorCode_);
+        supportedLocales_->addElementX(clone, errorCode_);
         if (U_FAILURE(errorCode_)) {
             delete clone;
             break;
@@ -223,7 +223,7 @@ LocaleMatcher::Builder &LocaleMatcher::Builder::addSupportedLocale(const Locale 
         errorCode_ = U_MEMORY_ALLOCATION_ERROR;
         return *this;
     }
-    supportedLocales_->addElement(clone, errorCode_);
+    supportedLocales_->addElementX(clone, errorCode_);
     if (U_FAILURE(errorCode_)) {
         delete clone;
     }

@@ -137,7 +137,7 @@ DecimalFormat::setAttribute(UNumberFormatAttribute attr, int32_t newValue, UErro
     if (U_FAILURE(status)) { return *this; }
 
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         return *this;
     }
@@ -269,9 +269,9 @@ DecimalFormat::setAttribute(UNumberFormatAttribute attr, int32_t newValue, UErro
 
 int32_t DecimalFormat::getAttribute(UNumberFormatAttribute attr, UErrorCode& status) const {
     if (U_FAILURE(status)) { return -1; }
-
+    
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         return -1;
     }
@@ -439,7 +439,7 @@ DecimalFormat::DecimalFormat(const DecimalFormat& source) : NumberFormat(source)
         return; // no way to report an error.
     }
     UErrorCode status = U_ZERO_ERROR;
-    fields->symbols.adoptInsteadAndCheckErrorCode(new DecimalFormatSymbols(*source.fields->symbols), status);
+    fields->symbols.adoptInsteadAndCheckErrorCode(new DecimalFormatSymbols(*source.getDecimalFormatSymbols()), status);
     // In order to simplify error handling logic in the various getters/setters/etc, we do not allow
     // any partially populated DecimalFormatFields object. We must have a fully complete fields object
     // or else we set it to nullptr.
@@ -463,7 +463,7 @@ DecimalFormat& DecimalFormat::operator=(const DecimalFormat& rhs) {
     fields->properties = rhs.fields->properties;
     fields->exportedProperties.clear();
     UErrorCode status = U_ZERO_ERROR;
-    LocalPointer<DecimalFormatSymbols> dfs(new DecimalFormatSymbols(*rhs.fields->symbols), status);
+    LocalPointer<DecimalFormatSymbols> dfs(new DecimalFormatSymbols(*rhs.getDecimalFormatSymbols()), status);
     if (U_FAILURE(status)) {
         // We failed to allocate DecimalFormatSymbols, release fields and its members.
         // We must have a fully complete fields object, we cannot have partially populated members.
@@ -497,7 +497,7 @@ DecimalFormat* DecimalFormat::clone() const {
     return nullptr;
 }
 
-UBool DecimalFormat::operator==(const Format& other) const {
+bool DecimalFormat::operator==(const Format& other) const {
     auto* otherDF = dynamic_cast<const DecimalFormat*>(&other);
     if (otherDF == nullptr) {
         return false;
@@ -507,7 +507,7 @@ UBool DecimalFormat::operator==(const Format& other) const {
     if (fields == nullptr || otherDF->fields == nullptr) {
         return false;
     }
-    return fields->properties == otherDF->fields->properties && *fields->symbols == *otherDF->fields->symbols;
+    return fields->properties == otherDF->fields->properties && *getDecimalFormatSymbols() == *otherDF->getDecimalFormatSymbols();
 }
 
 UnicodeString& DecimalFormat::format(double number, UnicodeString& appendTo, FieldPosition& pos) const {
@@ -534,7 +534,7 @@ UnicodeString& DecimalFormat::format(double number, UnicodeString& appendTo, Fie
         return appendTo; // don't overwrite status if it's already a failure.
     }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         appendTo.setToBogus();
         return appendTo;
@@ -558,7 +558,7 @@ DecimalFormat::format(double number, UnicodeString& appendTo, FieldPositionItera
         return appendTo; // don't overwrite status if it's already a failure.
     }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         appendTo.setToBogus();
         return appendTo;
@@ -614,7 +614,7 @@ UnicodeString& DecimalFormat::format(int64_t number, UnicodeString& appendTo, Fi
         return appendTo; // don't overwrite status if it's already a failure.
     }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         appendTo.setToBogus();
         return appendTo;
@@ -638,7 +638,7 @@ DecimalFormat::format(int64_t number, UnicodeString& appendTo, FieldPositionIter
         return appendTo; // don't overwrite status if it's already a failure.
     }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         appendTo.setToBogus();
         return appendTo;
@@ -662,7 +662,7 @@ DecimalFormat::format(StringPiece number, UnicodeString& appendTo, FieldPosition
         return appendTo; // don't overwrite status if it's already a failure.
     }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         appendTo.setToBogus();
         return appendTo;
@@ -682,7 +682,7 @@ UnicodeString& DecimalFormat::format(const DecimalQuantity& number, UnicodeStrin
         return appendTo; // don't overwrite status if it's already a failure.
     }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         appendTo.setToBogus();
         return appendTo;
@@ -703,7 +703,7 @@ DecimalFormat::format(const DecimalQuantity& number, UnicodeString& appendTo, Fi
         return appendTo; // don't overwrite status if it's already a failure.
     }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         appendTo.setToBogus();
         return appendTo;
@@ -794,7 +794,11 @@ const DecimalFormatSymbols* DecimalFormat::getDecimalFormatSymbols(void) const {
     if (fields == nullptr) {
         return nullptr;
     }
-    return fields->symbols.getAlias();
+    if (!fields->symbols.isNull()) {
+        return fields->symbols.getAlias();
+    } else {
+        return fields->formatter.getDecimalFormatSymbols();
+    }
 }
 
 void DecimalFormat::adoptDecimalFormatSymbols(DecimalFormatSymbols* symbolsToAdopt) {
@@ -1073,7 +1077,7 @@ void DecimalFormat::setFormatWidth(int32_t width) {
 UnicodeString DecimalFormat::getPadCharacterString() const {
     if (fields == nullptr || fields->properties.padString.isBogus()) {
         // Readonly-alias the static string kFallbackPaddingString
-        return {TRUE, kFallbackPaddingString, -1};
+        return {true, kFallbackPaddingString, -1};
     } else {
         return fields->properties.padString;
     }
@@ -1304,7 +1308,7 @@ void DecimalFormat::setFormatFailIfMoreThanMaxDigits(UBool value) {
 
 UnicodeString& DecimalFormat::toPattern(UnicodeString& result) const {
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         result.setToBogus();
         return result;
     }
@@ -1318,6 +1322,7 @@ UnicodeString& DecimalFormat::toPattern(UnicodeString& result) const {
         !tprops.currency.isNull() ||
         !tprops.currencyPluralInfo.fPtr.isNull() ||
         !tprops.currencyUsage.isNull() ||
+        tprops.currencyAsDecimal ||
         AffixUtils::hasCurrencySymbols(tprops.positivePrefixPattern, localStatus) ||
         AffixUtils::hasCurrencySymbols(tprops.positiveSuffixPattern, localStatus) ||
         AffixUtils::hasCurrencySymbols(tprops.negativePrefixPattern, localStatus) ||
@@ -1333,13 +1338,13 @@ UnicodeString& DecimalFormat::toPattern(UnicodeString& result) const {
 
 UnicodeString& DecimalFormat::toLocalizedPattern(UnicodeString& result) const {
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         result.setToBogus();
         return result;
     }
     ErrorCode localStatus;
     result = toPattern(result);
-    result = PatternStringUtils::convertLocalized(result, *fields->symbols, true, localStatus);
+    result = PatternStringUtils::convertLocalized(result, *getDecimalFormatSymbols(), true, localStatus);
     return result;
 }
 
@@ -1352,7 +1357,7 @@ void DecimalFormat::applyPattern(const UnicodeString& pattern, UErrorCode& statu
     // don't overwrite status if it's already a failure.
     if (U_FAILURE(status)) { return; }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -1370,12 +1375,12 @@ void DecimalFormat::applyLocalizedPattern(const UnicodeString& localizedPattern,
     // don't overwrite status if it's already a failure.
     if (U_FAILURE(status)) { return; }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
     UnicodeString pattern = PatternStringUtils::convertLocalized(
-            localizedPattern, *fields->symbols, false, status);
+            localizedPattern, *getDecimalFormatSymbols(), false, status);
     applyPattern(pattern, status);
 }
 
@@ -1480,12 +1485,12 @@ UBool DecimalFormat::areSignificantDigitsUsed() const {
     } else {
         dfp = &fields->properties;
     }
-    return dfp->minimumSignificantDigits != -1 || dfp->maximumSignificantDigits != -1;
+    return dfp->minimumSignificantDigits != -1 || dfp->maximumSignificantDigits != -1;    
 }
 
 void DecimalFormat::setSignificantDigitsUsed(UBool useSignificantDigits) {
     if (fields == nullptr) { return; }
-
+    
     // These are the default values from the old implementation.
     if (useSignificantDigits) {
         if (fields->properties.minimumSignificantDigits != -1 ||
@@ -1509,7 +1514,7 @@ void DecimalFormat::setCurrency(const char16_t* theCurrency, UErrorCode& ec) {
     // don't overwrite ec if it's already a failure.
     if (U_FAILURE(ec)) { return; }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         ec = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -1521,7 +1526,7 @@ void DecimalFormat::setCurrency(const char16_t* theCurrency, UErrorCode& ec) {
     NumberFormat::setCurrency(theCurrency, ec); // to set field for compatibility
     fields->properties.currency = currencyUnit;
     // In Java, the DecimalFormatSymbols is mutable. Why not in C++?
-    LocalPointer<DecimalFormatSymbols> newSymbols(new DecimalFormatSymbols(*fields->symbols), ec);
+    LocalPointer<DecimalFormatSymbols> newSymbols(new DecimalFormatSymbols(*getDecimalFormatSymbols()), ec);
     newSymbols->setCurrency(currencyUnit.getISOCurrency(), ec);
     fields->symbols.adoptInsteadAndCheckErrorCode(newSymbols.orphan(), ec);
     touch(ec);
@@ -1536,7 +1541,7 @@ void DecimalFormat::setCurrencyUsage(UCurrencyUsage newUsage, UErrorCode* ec) {
     // don't overwrite ec if it's already a failure.
     if (U_FAILURE(*ec)) { return; }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         *ec = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -1561,7 +1566,7 @@ DecimalFormat::formatToDecimalQuantity(double number, DecimalQuantity& output, U
     // don't overwrite status if it's already a failure.
     if (U_FAILURE(status)) { return; }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -1573,7 +1578,7 @@ void DecimalFormat::formatToDecimalQuantity(const Formattable& number, DecimalQu
     // don't overwrite status if it's already a failure.
     if (U_FAILURE(status)) { return; }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -1587,7 +1592,7 @@ const number::LocalizedNumberFormatter* DecimalFormat::toNumberFormatter(UErrorC
     // We sometimes need to return nullptr here (see ICU-20380)
     if (U_FAILURE(status)) { return nullptr; }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         status = U_MEMORY_ALLOCATION_ERROR;
         return nullptr;
     }
@@ -1600,7 +1605,7 @@ void DecimalFormat::touch(UErrorCode& status) {
         return;
     }
     if (fields == nullptr) {
-        // We only get here if an OOM error happend during construction, copy construction, assignment, or modification.
+        // We only get here if an OOM error happened during construction, copy construction, assignment, or modification.
         // For regular construction, the caller should have checked the status variable for errors.
         // For copy construction, there is unfortunately nothing to report the error, so we need to guard against
         // this possible bad state here and set the status to an error.
@@ -1608,20 +1613,26 @@ void DecimalFormat::touch(UErrorCode& status) {
         return;
     }
 
-    // In C++, fields->symbols is the source of truth for the locale.
-    Locale locale = fields->symbols->getLocale();
-
+    // In C++, fields->symbols (or, if it's null, the DecimalFormatSymbols owned by the underlying LocalizedNumberFormatter)
+    // is the source of truth for the locale.
+    const DecimalFormatSymbols* symbols = getDecimalFormatSymbols();
+    Locale locale = symbols->getLocale();
+    
     // Note: The formatter is relatively cheap to create, and we need it to populate fields->exportedProperties,
     // so automatically recompute it here. The parser is a bit more expensive and is not needed until the
     // parse method is called, so defer that until needed.
     // TODO: Only update the pieces that changed instead of re-computing the whole formatter?
-
+ 
     // Since memory has already been allocated for the formatter, we can move assign a stack-allocated object
     // and don't need to call new. (Which is slower and could possibly fail).
+    // [Note that "symbols" above might point to the DecimalFormatSymbols object owned by fields->formatter.
+    // That's okay, because NumberPropertyMapper::create() will clone it before fields->formatter's assignment
+    // operator deletes it.  But it does mean that "symbols" can't be counted on to be good after this line.]
     fields->formatter = NumberPropertyMapper::create(
-        fields->properties, *fields->symbols, fields->warehouse, fields->exportedProperties, status
+        fields->properties, *symbols, fields->warehouse, fields->exportedProperties, status
     ).locale(locale);
-
+    fields->symbols.adoptInstead(nullptr); // the fields->symbols property is only temporary, until we can copy it into a new LocalizedNumberFormatter
+    
     // Do this after fields->exportedProperties are set up
     setupFastFormat();
 
@@ -1668,7 +1679,7 @@ const numparse::impl::NumberParserImpl* DecimalFormat::getParser(UErrorCode& sta
     }
 
     // Try computing the parser on our own
-    auto* temp = NumberParserImpl::createParserFromProperties(fields->properties, *fields->symbols, false, status);
+    auto* temp = NumberParserImpl::createParserFromProperties(fields->properties, *getDecimalFormatSymbols(), false, status);
     if (U_FAILURE(status)) {
         return nullptr;
     }
@@ -1701,7 +1712,7 @@ const numparse::impl::NumberParserImpl* DecimalFormat::getCurrencyParser(UErrorC
     }
 
     // Try computing the parser on our own
-    auto* temp = NumberParserImpl::createParserFromProperties(fields->properties, *fields->symbols, true, status);
+    auto* temp = NumberParserImpl::createParserFromProperties(fields->properties, *getDecimalFormatSymbols(), true, status);
     if (temp == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         // although we may still dereference, call sites should be guarded
@@ -1775,11 +1786,13 @@ void DecimalFormat::setupFastFormat() {
         return;
     }
 
+    const DecimalFormatSymbols* symbols = getDecimalFormatSymbols();
+    
     // Grouping (secondary grouping is forbidden in equalsDefaultExceptFastFormat):
     bool groupingUsed = fields->properties.groupingUsed;
     int32_t groupingSize = fields->properties.groupingSize;
     bool unusualGroupingSize = groupingSize > 0 && groupingSize != 3;
-    const UnicodeString& groupingString = fields->symbols->getConstSymbol(DecimalFormatSymbols::kGroupingSeparatorSymbol);
+    const UnicodeString& groupingString = symbols->getConstSymbol(DecimalFormatSymbols::kGroupingSeparatorSymbol);
     if (groupingUsed && (unusualGroupingSize || groupingString.length() != 1)) {
         trace("no fast format: grouping\n");
         fields->canUseFastFormat = false;
@@ -1805,8 +1818,8 @@ void DecimalFormat::setupFastFormat() {
     }
 
     // Other symbols:
-    const UnicodeString& minusSignString = fields->symbols->getConstSymbol(DecimalFormatSymbols::kMinusSignSymbol);
-    UChar32 codePointZero = fields->symbols->getCodePointZero();
+    const UnicodeString& minusSignString = symbols->getConstSymbol(DecimalFormatSymbols::kMinusSignSymbol);
+    UChar32 codePointZero = symbols->getCodePointZero();
     if (minusSignString.length() != 1 || U16_LENGTH(codePointZero) != 1) {
         trace("no fast format: symbols\n");
         fields->canUseFastFormat = false;

@@ -59,7 +59,7 @@ public:
 
     void       compile(const UnicodeString &pat, UParseError &pp, UErrorCode &e);
     void       compile(UText *pat, UParseError &pp, UErrorCode &e);
-
+    
 
     virtual    ~RegexCompile();
 
@@ -182,7 +182,7 @@ private:
                                                      //   string will be cleared.
 
     int64_t                       fPatternLength;    // Length of the input pattern string.
-
+    
     UVector32                     fParenStack;       // parentheses stack.  Each frame consists of
                                                      //   the positions of compiled pattern operations
                                                      //   needing fixup, followed by negative value.  The
@@ -209,7 +209,7 @@ private:
                                                      //   initially scanned.  Each new interval
                                                      //   encountered overwrites these values.
                                                      //   -1 for the upper interval value means none
-                                                     //   was specified (unlimited occurences.)
+                                                     //   was specified (unlimited occurrences.)
 
     int64_t                       fNameStartPos;     // Starting position of a \N{NAME} name in a
                                                      //   pattern, valid while remainder of name is
@@ -228,7 +228,7 @@ private:
                                                      //   in this string while being scanned.
 };
 
-// Constant values to be pushed onto fSetOpStack while scanning & evalueating [set expressions]
+// Constant values to be pushed onto fSetOpStack while scanning & evaluating [set expressions]
 //   The high 16 bits are the operator precedence, and the low 16 are a code for the operation itself.
 
 enum SetOperations {

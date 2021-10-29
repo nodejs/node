@@ -118,35 +118,35 @@ public:
 
     virtual UnicodeString &
     labelToASCII(const UnicodeString &label, UnicodeString &dest,
-                 IDNAInfo &info, UErrorCode &errorCode) const;
+                 IDNAInfo &info, UErrorCode &errorCode) const override;
 
     virtual UnicodeString &
     labelToUnicode(const UnicodeString &label, UnicodeString &dest,
-                   IDNAInfo &info, UErrorCode &errorCode) const;
+                   IDNAInfo &info, UErrorCode &errorCode) const override;
 
     virtual UnicodeString &
     nameToASCII(const UnicodeString &name, UnicodeString &dest,
-                IDNAInfo &info, UErrorCode &errorCode) const;
+                IDNAInfo &info, UErrorCode &errorCode) const override;
 
     virtual UnicodeString &
     nameToUnicode(const UnicodeString &name, UnicodeString &dest,
-                  IDNAInfo &info, UErrorCode &errorCode) const;
+                  IDNAInfo &info, UErrorCode &errorCode) const override;
 
     virtual void
     labelToASCII_UTF8(StringPiece label, ByteSink &dest,
-                      IDNAInfo &info, UErrorCode &errorCode) const;
+                      IDNAInfo &info, UErrorCode &errorCode) const override;
 
     virtual void
     labelToUnicodeUTF8(StringPiece label, ByteSink &dest,
-                       IDNAInfo &info, UErrorCode &errorCode) const;
+                       IDNAInfo &info, UErrorCode &errorCode) const override;
 
     virtual void
     nameToASCII_UTF8(StringPiece name, ByteSink &dest,
-                     IDNAInfo &info, UErrorCode &errorCode) const;
+                     IDNAInfo &info, UErrorCode &errorCode) const override;
 
     virtual void
     nameToUnicodeUTF8(StringPiece name, ByteSink &dest,
-                      IDNAInfo &info, UErrorCode &errorCode) const;
+                      IDNAInfo &info, UErrorCode &errorCode) const override;
 
 private:
     UnicodeString &

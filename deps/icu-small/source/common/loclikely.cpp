@@ -115,7 +115,7 @@ findLikelySubtags(const char* localeID,
  * @param tag The tag to add.
  * @param tagLength The length of the tag.
  * @param buffer The output buffer.
- * @param bufferLength The length of the output buffer.  This is an input/ouput parameter.
+ * @param bufferLength The length of the output buffer.  This is an input/output parameter.
  **/
 static void U_CALLCONV
 appendTag(
@@ -148,7 +148,7 @@ appendTag(
  * to be used when constructing the new tag.  If the alternateTags parameter is NULL, or
  * it contains no language tag, the default tag for the unknown language is used.
  *
- * If the length of the new string exceeds the capacity of the output buffer,
+ * If the length of the new string exceeds the capacity of the output buffer, 
  * the function copies as many bytes to the output buffer as it can, and returns
  * the error U_BUFFER_OVERFLOW_ERROR.
  *
@@ -366,7 +366,7 @@ error:
  * must be less than or equal to 0.  If the lang parameter is an empty string, the
  * default value for an unknown language is written to the output buffer.
  *
- * If the length of the new string exceeds the capacity of the output buffer,
+ * If the length of the new string exceeds the capacity of the output buffer, 
  * the function copies as many bytes to the output buffer as it can, and returns
  * the error U_BUFFER_OVERFLOW_ERROR.
  *
@@ -506,7 +506,7 @@ parseTagString(
          */
         if (_isIDSeparator(*position)) {
             ++position;
-        }
+        }    
     }
 
     subtagLength = ulocimp_getCountry(position, &position, *err).extract(region, *regionLength, *err);
@@ -1181,13 +1181,13 @@ error:
     }
 }
 
-static UBool
+static int32_t
 do_canonicalize(const char*    localeID,
          char* buffer,
          int32_t bufferCapacity,
          UErrorCode* err)
 {
-    uloc_canonicalize(
+    int32_t canonicalizedSize = uloc_canonicalize(
         localeID,
         buffer,
         bufferCapacity,
@@ -1195,16 +1195,14 @@ do_canonicalize(const char*    localeID,
 
     if (*err == U_STRING_NOT_TERMINATED_WARNING ||
         *err == U_BUFFER_OVERFLOW_ERROR) {
-        *err = U_ILLEGAL_ARGUMENT_ERROR;
-
-        return FALSE;
+        return canonicalizedSize;
     }
     else if (U_FAILURE(*err)) {
 
-        return FALSE;
+        return -1;
     }
     else {
-        return TRUE;
+        return canonicalizedSize;
     }
 }
 
@@ -1241,12 +1239,17 @@ static UBool
 _ulocimp_addLikelySubtags(const char* localeID,
                           icu::ByteSink& sink,
                           UErrorCode* status) {
-    char localeBuffer[ULOC_FULLNAME_CAPACITY];
-
-    if (do_canonicalize(localeID, localeBuffer, sizeof localeBuffer, status)) {
-        return _uloc_addLikelySubtags(localeBuffer, sink, status);
+    PreflightingLocaleIDBuffer localeBuffer;
+    do {
+        localeBuffer.requestedCapacity = do_canonicalize(localeID, localeBuffer.getBuffer(),
+            localeBuffer.getCapacity(), status);
+    } while (localeBuffer.needToTryAgain(status));
+    
+    if (U_SUCCESS(*status)) {
+        return _uloc_addLikelySubtags(localeBuffer.getBuffer(), sink, status);
+    } else {
+        return FALSE;
     }
-    return FALSE;
 }
 
 U_CAPI void U_EXPORT2
@@ -1289,11 +1292,13 @@ U_CAPI void U_EXPORT2
 ulocimp_minimizeSubtags(const char* localeID,
                         icu::ByteSink& sink,
                         UErrorCode* status) {
-    char localeBuffer[ULOC_FULLNAME_CAPACITY];
-
-    if (do_canonicalize(localeID, localeBuffer, sizeof localeBuffer, status)) {
-        _uloc_minimizeSubtags(localeBuffer, sink, status);
-    }
+    PreflightingLocaleIDBuffer localeBuffer;
+    do {
+        localeBuffer.requestedCapacity = do_canonicalize(localeID, localeBuffer.getBuffer(),
+            localeBuffer.getCapacity(), status);
+    } while (localeBuffer.needToTryAgain(status));
+    
+    _uloc_minimizeSubtags(localeBuffer.getBuffer(), sink, status);
 }
 
 // Pairs of (language subtag, + or -) for finding out fast if common languages
@@ -1407,3 +1412,4 @@ ulocimp_getRegionForSupplementalData(const char *localeID, UBool inferRegion,
     uprv_strncpy(region, rgBuf, regionCapacity);
     return u_terminateChars(region, regionCapacity, rgLen, status);
 }
+

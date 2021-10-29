@@ -37,7 +37,7 @@
 #error U_USER_ATOMICS and U_USER_MUTEX_H are not supported
 #endif
 
-// Export an explicit template instantiation of std::atomic<int32_t>.
+// Export an explicit template instantiation of std::atomic<int32_t>. 
 // When building DLLs for Windows this is required as it is used as a data member of the exported SharedObject class.
 // See digitlst.h, pluralaffix.h, datefmt.h, and others for similar examples.
 //

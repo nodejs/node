@@ -58,22 +58,22 @@
 #include "unicode/locid.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Resource Bundle
  */
-
+ 
 U_NAMESPACE_BEGIN
 
 /**
  * A class representing a collection of resource information pertaining to a given
- * locale. A resource bundle provides a way of accessing locale- specfic information in
+ * locale. A resource bundle provides a way of accessing locale- specific information in
  * a data file. You create a resource bundle that manages the resources for a given
  * locale and then ask it for individual resources.
  * <P>
  * Resource bundles in ICU4C are currently defined using text files which conform to the following
- * <a href="http://source.icu-project.org/repos/icu/icuhtml/trunk/design/bnf_rb.txt">BNF definition</a>.
+ * <a href="https://github.com/unicode-org/icu-docs/blob/main/design/bnf_rb.txt">BNF definition</a>.
  * More on resource bundle concepts and syntax can be found in the
- * <a href="http://icu-project.org/userguide/ResourceManagement.html">Users Guide</a>.
+ * <a href="https://unicode-org.github.io/icu/userguide/locale/resources">Users Guide</a>.
  * <P>
  *
  * The ResourceBundle class is not suitable for subclassing.
@@ -85,8 +85,8 @@ public:
     /**
      * Constructor
      *
-     * @param packageName   The packageName and locale together point to an ICU udata object,
-     *                      as defined by <code> udata_open( packageName, "res", locale, err) </code>
+     * @param packageName   The packageName and locale together point to an ICU udata object, 
+     *                      as defined by <code> udata_open( packageName, "res", locale, err) </code> 
      *                      or equivalent.  Typically, packageName will refer to a (.dat) file, or to
      *                      a package registered with udata_setAppData(). Using a full file or directory
      *                      pathname for packageName is deprecated.
@@ -115,8 +115,8 @@ public:
     /**
      * Construct a resource bundle for the default bundle in the specified package.
      *
-     * @param packageName   The packageName and locale together point to an ICU udata object,
-     *                      as defined by <code> udata_open( packageName, "res", locale, err) </code>
+     * @param packageName   The packageName and locale together point to an ICU udata object, 
+     *                      as defined by <code> udata_open( packageName, "res", locale, err) </code> 
      *                      or equivalent.  Typically, packageName will refer to a (.dat) file, or to
      *                      a package registered with udata_setAppData(). Using a full file or directory
      *                      pathname for packageName is deprecated.
@@ -138,8 +138,8 @@ public:
      * Standard constructor, constructs a resource bundle for the locale-specific
      * bundle in the specified package.
      *
-     * @param packageName   The packageName and locale together point to an ICU udata object,
-     *                      as defined by <code> udata_open( packageName, "res", locale, err) </code>
+     * @param packageName   The packageName and locale together point to an ICU udata object, 
+     *                      as defined by <code> udata_open( packageName, "res", locale, err) </code> 
      *                      or equivalent.  Typically, packageName will refer to a (.dat) file, or to
      *                      a package registered with udata_setAppData(). Using a full file or directory
      *                      pathname for packageName is deprecated.
@@ -474,7 +474,7 @@ public:
      *
      * @stable ICU 2.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.

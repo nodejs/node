@@ -954,11 +954,7 @@ void SRBRoot::write(const char *outputDir, const char *outputPkg,
     if (writtenFilename) {
        int32_t off = 0, len = 0;
        if (outputDir) {
-           len = (int32_t)uprv_strlen(outputDir);
-           if (len > writtenFilenameLen) {
-               len = writtenFilenameLen;
-           }
-           uprv_strncpy(writtenFilename, outputDir, len);
+           uprv_strncpy(writtenFilename, outputDir, writtenFilenameLen);
        }
        if (writtenFilenameLen -= len) {
            off += len;
@@ -977,14 +973,10 @@ void SRBRoot::write(const char *outputDir, const char *outputPkg,
                if (len > writtenFilenameLen) {
                    len = writtenFilenameLen;
                }
-               uprv_strncpy(writtenFilename + off, fLocale, len);
+               uprv_strncpy(writtenFilename + off, fLocale, writtenFilenameLen - off);
                if (writtenFilenameLen -= len) {
                    off += len;
-                   len = 5;
-                   if (len > writtenFilenameLen) {
-                       len = writtenFilenameLen;
-                   }
-                   uprv_strncpy(writtenFilename +  off, ".res", len);
+                   uprv_strncpy(writtenFilename +  off, ".res", writtenFilenameLen - off);
                }
            }
        }

@@ -16,7 +16,7 @@
 *   created by: Markus W. Scherer
 *
 *   This is an implementation of the Standard Compression Scheme for Unicode
-*   as defined in http://www.unicode.org/unicode/reports/tr6/ .
+*   as defined in https://www.unicode.org/reports/tr6/ .
 *   Reserved commands and window settings are treated as illegal sequences and
 *   will result in callback calls.
 */
@@ -119,7 +119,7 @@ enum {
 };
 
 typedef struct SCSUData {
-    /* dynamic window offsets, intitialize to default values from initialDynamicOffsets */
+    /* dynamic window offsets, initialize to default values from initialDynamicOffsets */
     uint32_t toUDynamicOffsets[8];
     uint32_t fromUDynamicOffsets[8];
 
@@ -1969,9 +1969,9 @@ struct cloneSCSUStruct
 };
 
 static UConverter *  U_CALLCONV
-_SCSUSafeClone(const UConverter *cnv,
-               void *stackBuffer,
-               int32_t *pBufferSize,
+_SCSUSafeClone(const UConverter *cnv, 
+               void *stackBuffer, 
+               int32_t *pBufferSize, 
                UErrorCode *status)
 {
     struct cloneSCSUStruct * localClone;

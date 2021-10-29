@@ -5,7 +5,7 @@
  * Copyright (C) 2009-2010, Google, International Business Machines Corporation and *
  * others. All Rights Reserved.                                                *
  *******************************************************************************
- */
+ */ 
 
 #ifndef __TMUTAMT_H__
 #define __TMUTAMT_H__
@@ -38,27 +38,27 @@ class U_I18N_API TimeUnitAmount: public Measure {
 public:
     /**
      * Construct TimeUnitAmount object with the given number and the
-     * given time unit.
+     * given time unit. 
      * @param number        a numeric object; number.isNumeric() must be true
      * @param timeUnitField the time unit field of a time unit
-     * @param status        the input-output error code.
+     * @param status        the input-output error code. 
      *                      If the number is not numeric or the timeUnitField
      *                      is not valid,
      *                      then this will be set to a failing value:
      *                      U_ILLEGAL_ARGUMENT_ERROR.
      * @stable ICU 4.2
      */
-    TimeUnitAmount(const Formattable& number,
+    TimeUnitAmount(const Formattable& number, 
                    TimeUnit::UTimeUnitFields timeUnitField,
                    UErrorCode& status);
 
     /**
      * Construct TimeUnitAmount object with the given numeric amount and the
-     * given time unit.
+     * given time unit. 
      * @param amount        a numeric amount.
      * @param timeUnitField the time unit field on which a time unit amount
      *                      object will be created.
-     * @param status        the input-output error code.
+     * @param status        the input-output error code. 
      *                      If the timeUnitField is not valid,
      *                      then this will be set to a failing value:
      *                      U_ILLEGAL_ARGUMENT_ERROR.
@@ -69,7 +69,7 @@ public:
 
 
     /**
-     * Copy constructor
+     * Copy constructor 
      * @stable ICU 4.2
      */
     TimeUnitAmount(const TimeUnitAmount& other);
@@ -83,36 +83,36 @@ public:
 
 
     /**
-     * Clone.
+     * Clone. 
      * @return a polymorphic clone of this object. The result will have the same               class as returned by getDynamicClassID().
      * @stable ICU 4.2
      */
-    virtual TimeUnitAmount* clone() const;
+    virtual TimeUnitAmount* clone() const override;
 
-
+    
     /**
      * Destructor
      * @stable ICU 4.2
      */
     virtual ~TimeUnitAmount();
 
-
-    /**
-     * Equality operator.
+    
+    /** 
+     * Equality operator.  
      * @param other  the object to compare to.
      * @return       true if this object is equal to the given object.
      * @stable ICU 4.2
      */
-    virtual UBool operator==(const UObject& other) const;
+    virtual bool operator==(const UObject& other) const;
 
 
-    /**
-     * Not-equality operator.
+    /** 
+     * Not-equality operator.  
      * @param other  the object to compare to.
      * @return       true if this object is not equal to the given object.
      * @stable ICU 4.2
      */
-    UBool operator!=(const UObject& other) const;
+    bool operator!=(const UObject& other) const;
 
 
     /**
@@ -140,7 +140,7 @@ public:
      *                  other classes have different class IDs.
      * @stable ICU 4.2
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 
 
     /**
@@ -160,7 +160,7 @@ public:
 
 
 
-inline UBool
+inline bool
 TimeUnitAmount::operator!=(const UObject& other) const {
     return !operator==(other);
 }

@@ -74,7 +74,7 @@ UBool RuleBasedBreakIterator::DictionaryCache::following(int32_t fromPos, int32_
             return TRUE;
         }
     }
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 
@@ -114,7 +114,7 @@ UBool RuleBasedBreakIterator::DictionaryCache::preceding(int32_t fromPos, int32_
             return TRUE;
         }
     }
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPos, int32_t endPos,
@@ -163,7 +163,7 @@ void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPo
         // Ask the language object if there are any breaks. It will add them to the cache and
         // leave the text pointer on the other side of its range, ready to search for the next one.
         if (lbe != NULL) {
-            foundBreakCount += lbe->findBreaks(text, rangeStart, rangeEnd, fBreaks);
+            foundBreakCount += lbe->findBreaks(text, rangeStart, rangeEnd, fBreaks, status);
         }
 
         // Reload the loop variables for the next go-round
@@ -201,7 +201,7 @@ void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPo
 
 
 /*
- *   BreakCache implemetation
+ *   BreakCache implementation
  */
 
 RuleBasedBreakIterator::BreakCache::BreakCache(RuleBasedBreakIterator *bi, UErrorCode &status) :
@@ -386,7 +386,7 @@ UBool RuleBasedBreakIterator::BreakCache::populateNear(int32_t position, UErrorC
         // Add following position(s) to the cache.
         while (fBoundaries[fEndBufIdx] < position) {
             if (!populateFollowing()) {
-                UPRV_UNREACHABLE;
+                UPRV_UNREACHABLE_EXIT;
             }
         }
         fBufIdx = fEndBufIdx;                      // Set iterator position to the end of the buffer.

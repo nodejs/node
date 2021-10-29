@@ -40,13 +40,13 @@ public:
 
     virtual ~UTF8CollationIterator();
 
-    virtual void resetToOffset(int32_t newOffset);
+    virtual void resetToOffset(int32_t newOffset) override;
 
-    virtual int32_t getOffset() const;
+    virtual int32_t getOffset() const override;
 
-    virtual UChar32 nextCodePoint(UErrorCode &errorCode);
+    virtual UChar32 nextCodePoint(UErrorCode &errorCode) override;
 
-    virtual UChar32 previousCodePoint(UErrorCode &errorCode);
+    virtual UChar32 previousCodePoint(UErrorCode &errorCode) override;
 
 protected:
     /**
@@ -59,15 +59,15 @@ protected:
      * Valid lead surrogates are returned from inside a normalized text segment,
      * where handleGetTrailSurrogate() will return the matching trail surrogate.
      */
-    virtual uint32_t handleNextCE32(UChar32 &c, UErrorCode &errorCode);
+    virtual uint32_t handleNextCE32(UChar32 &c, UErrorCode &errorCode) override;
 
-    virtual UBool foundNULTerminator();
+    virtual UBool foundNULTerminator() override;
 
-    virtual UBool forbidSurrogateCodePoints() const;
+    virtual UBool forbidSurrogateCodePoints() const override;
 
-    virtual void forwardNumCodePoints(int32_t num, UErrorCode &errorCode);
+    virtual void forwardNumCodePoints(int32_t num, UErrorCode &errorCode) override;
 
-    virtual void backwardNumCodePoints(int32_t num, UErrorCode &errorCode);
+    virtual void backwardNumCodePoints(int32_t num, UErrorCode &errorCode) override;
 
     const uint8_t *u8;
     int32_t pos;
@@ -87,24 +87,24 @@ public:
 
     virtual ~FCDUTF8CollationIterator();
 
-    virtual void resetToOffset(int32_t newOffset);
+    virtual void resetToOffset(int32_t newOffset) override;
 
-    virtual int32_t getOffset() const;
+    virtual int32_t getOffset() const override;
 
-    virtual UChar32 nextCodePoint(UErrorCode &errorCode);
+    virtual UChar32 nextCodePoint(UErrorCode &errorCode) override;
 
-    virtual UChar32 previousCodePoint(UErrorCode &errorCode);
+    virtual UChar32 previousCodePoint(UErrorCode &errorCode) override;
 
 protected:
-    virtual uint32_t handleNextCE32(UChar32 &c, UErrorCode &errorCode);
+    virtual uint32_t handleNextCE32(UChar32 &c, UErrorCode &errorCode) override;
 
-    virtual UChar handleGetTrailSurrogate();
+    virtual UChar handleGetTrailSurrogate() override;
 
-    virtual UBool foundNULTerminator();
+    virtual UBool foundNULTerminator() override;
 
-    virtual void forwardNumCodePoints(int32_t num, UErrorCode &errorCode);
+    virtual void forwardNumCodePoints(int32_t num, UErrorCode &errorCode) override;
 
-    virtual void backwardNumCodePoints(int32_t num, UErrorCode &errorCode);
+    virtual void backwardNumCodePoints(int32_t num, UErrorCode &errorCode) override;
 
 private:
     UBool nextHasLccc() const;

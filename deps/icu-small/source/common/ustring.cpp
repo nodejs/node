@@ -575,7 +575,7 @@ u_strspn(const UChar *string, const UChar *matchSet)
 /* ----- Text manipulation functions --- */
 
 U_CAPI UChar* U_EXPORT2
-u_strtok_r(UChar    *src,
+u_strtok_r(UChar    *src, 
      const UChar    *delim,
            UChar   **saveState)
 {
@@ -625,7 +625,7 @@ u_strtok_r(UChar    *src,
 /* Miscellaneous functions -------------------------------------------------- */
 
 U_CAPI UChar* U_EXPORT2
-u_strcat(UChar     *dst,
+u_strcat(UChar     *dst, 
     const UChar     *src)
 {
     UChar *anchor = dst;            /* save a pointer to start of dst */
@@ -640,9 +640,9 @@ u_strcat(UChar     *dst,
 }
 
 U_CAPI UChar*  U_EXPORT2
-u_strncat(UChar     *dst,
-     const UChar     *src,
-     int32_t     n )
+u_strncat(UChar     *dst, 
+     const UChar     *src, 
+     int32_t     n ) 
 {
     if(n > 0) {
         UChar *anchor = dst;            /* save a pointer to start of dst */
@@ -668,8 +668,8 @@ u_strncat(UChar     *dst,
 /* ----- Text property functions --- */
 
 U_CAPI int32_t   U_EXPORT2
-u_strcmp(const UChar *s1,
-    const UChar *s2)
+u_strcmp(const UChar *s1, 
+    const UChar *s2) 
 {
     UChar  c1, c2;
 
@@ -755,7 +755,7 @@ uprv_strCompare(const UChar *s1, int32_t length1,
             length2=u_strlen(s2);
         }
 
-        /* limit1=start1+min(lenght1, length2) */
+        /* limit1=start1+min(length1, length2) */
         if(length1<length2) {
             lengthResult=-1;
             limit1=start1+length1;
@@ -939,9 +939,9 @@ u_strcmpCodePointOrder(const UChar *s1, const UChar *s2) {
 }
 
 U_CAPI int32_t   U_EXPORT2
-u_strncmp(const UChar     *s1,
-     const UChar     *s2,
-     int32_t     n)
+u_strncmp(const UChar     *s1, 
+     const UChar     *s2, 
+     int32_t     n) 
 {
     if(n > 0) {
         int32_t rc;
@@ -964,8 +964,8 @@ u_strncmpCodePointOrder(const UChar *s1, const UChar *s2, int32_t n) {
 }
 
 U_CAPI UChar* U_EXPORT2
-u_strcpy(UChar     *dst,
-    const UChar     *src)
+u_strcpy(UChar     *dst, 
+    const UChar     *src) 
 {
     UChar *anchor = dst;            /* save a pointer to start of dst */
 
@@ -976,9 +976,9 @@ u_strcpy(UChar     *dst,
 }
 
 U_CAPI UChar*  U_EXPORT2
-u_strncpy(UChar     *dst,
-     const UChar     *src,
-     int32_t     n)
+u_strncpy(UChar     *dst, 
+     const UChar     *src, 
+     int32_t     n) 
 {
     UChar *anchor = dst;            /* save a pointer to start of dst */
 
@@ -991,7 +991,7 @@ u_strncpy(UChar     *dst,
 }
 
 U_CAPI int32_t   U_EXPORT2
-u_strlen(const UChar *s)
+u_strlen(const UChar *s) 
 {
 #if U_SIZEOF_WCHAR_T == U_SIZEOF_UCHAR
     return (int32_t)uprv_wcslen((const wchar_t *)s);
@@ -1185,23 +1185,23 @@ static const UChar UNESCAPE_MAP[] = {
 enum { UNESCAPE_MAP_LENGTH = UPRV_LENGTHOF(UNESCAPE_MAP) };
 
 /* Convert one octal digit to a numeric value 0..7, or -1 on failure */
-static int8_t _digit8(UChar c) {
-    if (c >= 0x0030 && c <= 0x0037) {
-        return (int8_t)(c - 0x0030);
+static int32_t _digit8(UChar c) {
+    if (c >= u'0' && c <= u'7') {
+        return c - u'0';
     }
     return -1;
 }
 
 /* Convert one hex digit to a numeric value 0..F, or -1 on failure */
-static int8_t _digit16(UChar c) {
-    if (c >= 0x0030 && c <= 0x0039) {
-        return (int8_t)(c - 0x0030);
+static int32_t _digit16(UChar c) {
+    if (c >= u'0' && c <= u'9') {
+        return c - u'0';
     }
-    if (c >= 0x0041 && c <= 0x0046) {
-        return (int8_t)(c - (0x0041 - 10));
+    if (c >= u'A' && c <= u'F') {
+        return c - (u'A' - 10);
     }
-    if (c >= 0x0061 && c <= 0x0066) {
-        return (int8_t)(c - (0x0061 - 10));
+    if (c >= u'a' && c <= u'f') {
+        return c - (u'a' - 10);
     }
     return -1;
 }
@@ -1216,14 +1216,13 @@ u_unescapeAt(UNESCAPE_CHAR_AT charAt,
              void *context) {
 
     int32_t start = *offset;
-    UChar c;
+    UChar32 c;
     UChar32 result = 0;
     int8_t n = 0;
     int8_t minDig = 0;
     int8_t maxDig = 0;
-    int8_t bitsPerDigit = 4;
-    int8_t dig;
-    int32_t i;
+    int8_t bitsPerDigit = 4; 
+    int32_t dig;
     UBool braces = FALSE;
 
     /* Check that offset is in range */
@@ -1236,15 +1235,15 @@ u_unescapeAt(UNESCAPE_CHAR_AT charAt,
 
     /* Convert hexadecimal and octal escapes */
     switch (c) {
-    case 0x0075 /*'u'*/:
+    case u'u':
         minDig = maxDig = 4;
         break;
-    case 0x0055 /*'U'*/:
+    case u'U':
         minDig = maxDig = 8;
         break;
-    case 0x0078 /*'x'*/:
+    case u'x':
         minDig = 1;
-        if (*offset < length && charAt(*offset, context) == 0x7B /*{*/) {
+        if (*offset < length && charAt(*offset, context) == u'{') {
             ++(*offset);
             braces = TRUE;
             maxDig = 8;
@@ -1266,7 +1265,7 @@ u_unescapeAt(UNESCAPE_CHAR_AT charAt,
     if (minDig != 0) {
         while (*offset < length && n < maxDig) {
             c = charAt(*offset, context);
-            dig = (int8_t)((bitsPerDigit == 3) ? _digit8(c) : _digit16(c));
+            dig = (bitsPerDigit == 3) ? _digit8(c) : _digit16(c);
             if (dig < 0) {
                 break;
             }
@@ -1278,7 +1277,7 @@ u_unescapeAt(UNESCAPE_CHAR_AT charAt,
             goto err;
         }
         if (braces) {
-            if (c != 0x7D /*}*/) {
+            if (c != u'}') {
                 goto err;
             }
             ++(*offset);
@@ -1293,16 +1292,15 @@ u_unescapeAt(UNESCAPE_CHAR_AT charAt,
         if (*offset < length && U16_IS_LEAD(result)) {
             int32_t ahead = *offset + 1;
             c = charAt(*offset, context);
-            if (c == 0x5C /*'\\'*/ && ahead < length) {
-                // Calling u_unescapeAt recursively may cause a stack overflow if
-                // we have repeated surrogate lead after that. Limit the
-                // length to 5 ('u' and 4 hex) after ahead.
-                int32_t tailLimit = ahead + 5;
+            if (c == u'\\' && ahead < length) {
+                // Calling ourselves recursively may cause a stack overflow if
+                // we have repeated escaped lead surrogates.
+                // Limit the length to 11 ("x{0000DFFF}") after ahead.
+                int32_t tailLimit = ahead + 11;
                 if (tailLimit > length) {
                     tailLimit = length;
                 }
-                c = (UChar) u_unescapeAt(charAt, &ahead, tailLimit,
-                                         context);
+                c = u_unescapeAt(charAt, &ahead, tailLimit, context);
             }
             if (U16_IS_TRAIL(c)) {
                 *offset = ahead;
@@ -1313,7 +1311,7 @@ u_unescapeAt(UNESCAPE_CHAR_AT charAt,
     }
 
     /* Convert C-style escapes in table */
-    for (i=0; i<UNESCAPE_MAP_LENGTH; i+=2) {
+    for (int32_t i=0; i<UNESCAPE_MAP_LENGTH; i+=2) {
         if (c == UNESCAPE_MAP[i]) {
             return UNESCAPE_MAP[i+1];
         } else if (c < UNESCAPE_MAP[i]) {
@@ -1322,13 +1320,13 @@ u_unescapeAt(UNESCAPE_CHAR_AT charAt,
     }
 
     /* Map \cX to control-X: X & 0x1F */
-    if (c == 0x0063 /*'c'*/ && *offset < length) {
+    if (c == u'c' && *offset < length) {
         c = charAt((*offset)++, context);
         if (U16_IS_LEAD(c) && *offset < length) {
             UChar c2 = charAt(*offset, context);
             if (U16_IS_TRAIL(c2)) {
                 ++(*offset);
-                c = (UChar) U16_GET_SUPPLEMENTARY(c, c2); /* [sic] */
+                c = U16_GET_SUPPLEMENTARY(c, c2);
             }
         }
         return 0x1F & c;

@@ -13,6 +13,7 @@
 #include "double-conversion.h"
 #include "number_roundingutils.h"
 #include "number_skeletons.h"
+#include "number_decnum.h"
 #include "putilimp.h"
 #include "string_segment.h"
 
@@ -35,8 +36,10 @@ void number::impl::parseIncrementOption(const StringSegment &segment,
     // Utilize DecimalQuantity/decNumber to parse this for us.
     DecimalQuantity dq;
     UErrorCode localStatus = U_ZERO_ERROR;
-    dq.setToDecNumber({buffer.data(), buffer.length()}, localStatus);
-    if (U_FAILURE(localStatus)) {
+    DecNum decnum;
+    decnum.setTo({buffer.data(), buffer.length()}, localStatus);
+    dq.setToDecNum(decnum, localStatus);
+    if (U_FAILURE(localStatus) || decnum.isSpecial()) {
         // throw new SkeletonSyntaxException("Invalid rounding increment", segment, e);
         status = U_NUMBER_SKELETON_SYNTAX_ERROR;
         return;
@@ -498,10 +501,10 @@ void RoundingImpl::apply(impl::DecimalQuantity &value, UErrorCode& status) const
 
         case Precision::RND_CURRENCY:
             // Call .withCurrency() before .apply()!
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
 
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
     }
 
     if (fPrecision.fTrailingZeroDisplay == UNUM_TRAILING_ZERO_AUTO ||

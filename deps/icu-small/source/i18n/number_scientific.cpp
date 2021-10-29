@@ -96,7 +96,7 @@ bool ScientificModifier::isStrong() const {
 bool ScientificModifier::containsField(Field field) const {
     (void)field;
     // This method is not used for inner modifiers.
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 void ScientificModifier::getParameters(Parameters& output) const {
@@ -115,7 +115,7 @@ bool ScientificModifier::semanticallyEquivalent(const Modifier& other) const {
 
 // Note: Visual Studio does not compile this function without full name space. Why?
 icu::number::impl::ScientificHandler::ScientificHandler(const Notation *notation, const DecimalFormatSymbols *symbols,
-	const MicroPropsGenerator *parent) :
+	const MicroPropsGenerator *parent) : 
 	fSettings(notation->fUnion.scientific), fSymbols(symbols), fParent(parent) {}
 
 void ScientificHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micros,

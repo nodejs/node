@@ -81,7 +81,7 @@ typedef enum UDateRelativeDateTimeFormatterStyle {
 typedef enum URelativeDateTimeUnit {
     /**
      * Specifies that relative unit is year, e.g. "last year",
-     * "in 5 years".
+     * "in 5 years". 
      * @stable ICU 57
      */
     UDAT_REL_UNIT_YEAR,
@@ -153,7 +153,7 @@ typedef enum URelativeDateTimeUnit {
     UDAT_REL_UNIT_WEDNESDAY,
     /**
      * Specifies that relative unit is Thursday, e.g. "last Thursday",
-     * "this Thursday", "next Thursday", "in 5 Thursdays".
+     * "this Thursday", "next Thursday", "in 5 Thursdays". 
      * @stable ICU 57
      */
     UDAT_REL_UNIT_THURSDAY,

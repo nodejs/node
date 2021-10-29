@@ -48,7 +48,7 @@ public:
     IcuToolErrorCode(const char *loc) : location(loc) {}
     virtual ~IcuToolErrorCode();
 protected:
-    virtual void handleFailure() const;
+    virtual void handleFailure() const override;
 private:
     const char *location;
 };
@@ -87,13 +87,13 @@ findBasename(const char *filename);
 
 /**
  * Find the directory name of a pathname, that is, everything
- * up to but not including the last file separator.
+ * up to but not including the last file separator. 
  *
  * If successful, copies the directory name into the output buffer along with
- * a terminating NULL.
+ * a terminating NULL. 
  *
  * If there isn't a directory name in the path, it returns an empty string.
- * @param path the full pathname to inspect.
+ * @param path the full pathname to inspect. 
  * @param buffer the output buffer
  * @param bufLen the output buffer length
  * @param status error code- may return U_BUFFER_OVERFLOW_ERROR if bufLen is too small.
@@ -125,6 +125,21 @@ uprv_mkdir(const char *pathname, UErrorCode *status);
 U_CAPI UBool U_EXPORT2
 uprv_fileExists(const char *file);
 #endif
+
+/**
+ * Performs a golden data test. Asserts that the contents of the buffer is equal
+ * to the data in goldenFilePath.
+ *
+ * Pass the value of the -G flag to "overwrite"; if true, new goldens will be
+ * written to the filesystem.
+ * 
+ * @return The first index at which the files differ, or -1 if they are the same.
+ */
+U_CAPI int32_t U_EXPORT2
+uprv_compareGoldenFiles(
+    const char* buffer, int32_t bufferLen,
+    const char* goldenFilePath,
+    bool overwrite);
 
 /**
  * Return the modification date for the specified file or directory.

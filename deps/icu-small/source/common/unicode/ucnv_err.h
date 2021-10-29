@@ -108,7 +108,7 @@ typedef struct UConverter UConverter;
 #define UCNV_SKIP_STOP_ON_ILLEGAL "i"
 
 /**
- * FROM_U_CALLBACK_ESCAPE context option to escape the code unit according to ICU (%UXXXX)
+ * FROM_U_CALLBACK_ESCAPE context option to escape the code unit according to ICU (%UXXXX) 
  * @stable ICU 2.0
  */
 #define UCNV_ESCAPE_ICU       NULL
@@ -148,24 +148,24 @@ typedef struct UConverter UConverter;
  */
 #define UCNV_ESCAPE_CSS2   "S"
 
-/**
- * The process condition code to be used with the callbacks.
- * Codes which are greater than UCNV_IRREGULAR should be
+/** 
+ * The process condition code to be used with the callbacks.  
+ * Codes which are greater than UCNV_IRREGULAR should be 
  * passed on to any chained callbacks.
  * @stable ICU 2.0
  */
 typedef enum {
     UCNV_UNASSIGNED = 0,  /**< The code point is unassigned.
                              The error code U_INVALID_CHAR_FOUND will be set. */
-    UCNV_ILLEGAL = 1,     /**< The code point is illegal. For example,
+    UCNV_ILLEGAL = 1,     /**< The code point is illegal. For example, 
                              \\x81\\x2E is illegal in SJIS because \\x2E
-                             is not a valid trail byte for the \\x81
+                             is not a valid trail byte for the \\x81 
                              lead byte.
                              Also, starting with Unicode 3.0.1, non-shortest byte sequences
                              in UTF-8 (like \\xC1\\xA1 instead of \\x61 for U+0061)
                              are also illegal, not just irregular.
                              The error code U_ILLEGAL_CHAR_FOUND will be set. */
-    UCNV_IRREGULAR = 2,   /**< The codepoint is not a regular sequence in
+    UCNV_IRREGULAR = 2,   /**< The codepoint is not a regular sequence in 
                              the encoding. For example, \\xED\\xA0\\x80..\\xED\\xBF\\xBF
                              are irregular UTF-8 byte sequences for single surrogate
                              code points.
@@ -179,8 +179,8 @@ typedef enum {
                               converter. the pointer available as the
                               'context' is an alias to the original converters'
                               context pointer. If the context must be owned
-                              by the new converter, the callback must clone
-                              the data and call ucnv_setFromUCallback
+                              by the new converter, the callback must clone 
+                              the data and call ucnv_setFromUCallback 
                               (or setToUCallback) with the correct pointer.
                               @stable ICU 2.2
                            */
@@ -268,8 +268,8 @@ U_CAPI void U_EXPORT2 UCNV_TO_U_CALLBACK_STOP (
 /**
  * DO NOT CALL THIS FUNCTION DIRECTLY!
  * This From Unicode callback skips any ILLEGAL_SEQUENCE, or
- * skips only UNASSINGED_SEQUENCE depending on the context parameter
- * simply ignoring those characters.
+ * skips only UNASSIGNED_SEQUENCE depending on the context parameter
+ * simply ignoring those characters. 
  *
  * @param context  The function currently recognizes the callback options:
  *                 UCNV_SKIP_STOP_ON_ILLEGAL: STOPS at the ILLEGAL_SEQUENCE,
@@ -295,7 +295,7 @@ U_CAPI void U_EXPORT2 UCNV_FROM_U_CALLBACK_SKIP (
 
 /**
  * DO NOT CALL THIS FUNCTION DIRECTLY!
- * This From Unicode callback will Substitute the ILLEGAL SEQUENCE, or
+ * This From Unicode callback will Substitute the ILLEGAL SEQUENCE, or 
  * UNASSIGNED_SEQUENCE depending on context parameter, with the
  * current substitution string for the converter. This is the default
  * callback.
@@ -330,33 +330,33 @@ U_CAPI void U_EXPORT2 UCNV_FROM_U_CALLBACK_SUBSTITUTE (
  *
  * @param context The function currently recognizes the callback options:
  *        <ul>
- *        <li>UCNV_ESCAPE_ICU: Substitues the  ILLEGAL SEQUENCE with the hexadecimal
- *          representation in the format  %UXXXX, e.g. "%uFFFE%u00AC%uC8FE").
- *          In the Event the converter doesn't support the characters {%,U}[A-F][0-9],
+ *        <li>UCNV_ESCAPE_ICU: Substitutes the  ILLEGAL SEQUENCE with the hexadecimal 
+ *          representation in the format  %UXXXX, e.g. "%uFFFE%u00AC%uC8FE"). 
+ *          In the Event the converter doesn't support the characters {%,U}[A-F][0-9], 
  *          it will  substitute  the illegal sequence with the substitution characters.
  *          Note that  codeUnit(32bit int eg: unit of a surrogate pair) is represented as
  *          %UD84D%UDC56</li>
- *        <li>UCNV_ESCAPE_JAVA: Substitues the  ILLEGAL SEQUENCE with the hexadecimal
- *          representation in the format  \\uXXXX, e.g. "\\uFFFE\\u00AC\\uC8FE").
- *          In the Event the converter doesn't support the characters {\,u}[A-F][0-9],
+ *        <li>UCNV_ESCAPE_JAVA: Substitutes the  ILLEGAL SEQUENCE with the hexadecimal 
+ *          representation in the format  \\uXXXX, e.g. "\\uFFFE\\u00AC\\uC8FE"). 
+ *          In the Event the converter doesn't support the characters {\,u}[A-F][0-9], 
  *          it will  substitute  the illegal sequence with the substitution characters.
  *          Note that  codeUnit(32bit int eg: unit of a surrogate pair) is represented as
  *          \\uD84D\\uDC56</li>
- *        <li>UCNV_ESCAPE_C: Substitues the  ILLEGAL SEQUENCE with the hexadecimal
- *          representation in the format  \\uXXXX, e.g. "\\uFFFE\\u00AC\\uC8FE").
- *          In the Event the converter doesn't support the characters {\,u,U}[A-F][0-9],
+ *        <li>UCNV_ESCAPE_C: Substitutes the  ILLEGAL SEQUENCE with the hexadecimal 
+ *          representation in the format  \\uXXXX, e.g. "\\uFFFE\\u00AC\\uC8FE"). 
+ *          In the Event the converter doesn't support the characters {\,u,U}[A-F][0-9], 
  *          it will  substitute  the illegal sequence with the substitution characters.
  *          Note that  codeUnit(32bit int eg: unit of a surrogate pair) is represented as
  *          \\U00023456</li>
- *        <li>UCNV_ESCAPE_XML_DEC: Substitues the  ILLEGAL SEQUENCE with the decimal
- *          representation in the format \htmlonly&amp;#DDDDDDDD;, e.g. "&amp;#65534;&amp;#172;&amp;#51454;")\endhtmlonly.
- *          In the Event the converter doesn't support the characters {&amp;,#}[0-9],
+ *        <li>UCNV_ESCAPE_XML_DEC: Substitutes the  ILLEGAL SEQUENCE with the decimal 
+ *          representation in the format \htmlonly&amp;#DDDDDDDD;, e.g. "&amp;#65534;&amp;#172;&amp;#51454;")\endhtmlonly. 
+ *          In the Event the converter doesn't support the characters {&amp;,#}[0-9], 
  *          it will  substitute  the illegal sequence with the substitution characters.
  *          Note that  codeUnit(32bit int eg: unit of a surrogate pair) is represented as
  *          &amp;#144470; and Zero padding is ignored.</li>
- *        <li>UCNV_ESCAPE_XML_HEX:Substitues the  ILLEGAL SEQUENCE with the decimal
- *          representation in the format \htmlonly&amp;#xXXXX; e.g. "&amp;#xFFFE;&amp;#x00AC;&amp;#xC8FE;")\endhtmlonly.
- *          In the Event the converter doesn't support the characters {&,#,x}[0-9],
+ *        <li>UCNV_ESCAPE_XML_HEX:Substitutes the  ILLEGAL SEQUENCE with the decimal 
+ *          representation in the format \htmlonly&amp;#xXXXX; e.g. "&amp;#xFFFE;&amp;#x00AC;&amp;#xC8FE;")\endhtmlonly. 
+ *          In the Event the converter doesn't support the characters {&,#,x}[0-9], 
  *          it will  substitute  the illegal sequence with the substitution characters.
  *          Note that  codeUnit(32bit int eg: unit of a surrogate pair) is represented as
  *          \htmlonly&amp;#x23456;\endhtmlonly</li>
@@ -383,8 +383,8 @@ U_CAPI void U_EXPORT2 UCNV_FROM_U_CALLBACK_ESCAPE (
 /**
  * DO NOT CALL THIS FUNCTION DIRECTLY!
  * This To Unicode callback skips any ILLEGAL_SEQUENCE, or
- * skips only UNASSINGED_SEQUENCE depending on the context parameter
- * simply ignoring those characters.
+ * skips only UNASSIGNED_SEQUENCE depending on the context parameter
+ * simply ignoring those characters. 
  *
  * @param context  The function currently recognizes the callback options:
  *                 UCNV_SKIP_STOP_ON_ILLEGAL: STOPS at the ILLEGAL_SEQUENCE,
@@ -408,7 +408,7 @@ U_CAPI void U_EXPORT2 UCNV_TO_U_CALLBACK_SKIP (
 
 /**
  * DO NOT CALL THIS FUNCTION DIRECTLY!
- * This To Unicode callback will Substitute the ILLEGAL SEQUENCE,or
+ * This To Unicode callback will Substitute the ILLEGAL SEQUENCE,or 
  * UNASSIGNED_SEQUENCE depending on context parameter,  with the
  * Unicode substitution character, U+FFFD.
  *
@@ -462,4 +462,4 @@ U_CAPI void U_EXPORT2 UCNV_TO_U_CALLBACK_ESCAPE (
 
 #endif
 
-/*UCNV_ERR_H*/
+/*UCNV_ERR_H*/ 

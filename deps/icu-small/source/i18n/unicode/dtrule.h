@@ -14,7 +14,7 @@
 #if U_SHOW_CPLUSPLUS_API
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Rule for specifying date and time in an year
  */
 
@@ -27,7 +27,7 @@ U_NAMESPACE_BEGIN
  * <code>DateTimeRule</code> is a class representing a time in a year by
  * a rule specified by month, day of month, day of week and
  * time in the day.
- *
+ * 
  * @stable ICU 3.8
  */
 class U_I18N_API DateTimeRule : public UObject {
@@ -40,11 +40,11 @@ public:
     enum DateRuleType {
         DOM = 0,        /**< The exact day of month,
                              for example, March 11. */
-        DOW,            /**< The Nth occurence of the day of week,
+        DOW,            /**< The Nth occurrence of the day of week,
                              for example, 2nd Sunday in March. */
-        DOW_GEQ_DOM,    /**< The first occurence of the day of week on or after the day of monnth,
+        DOW_GEQ_DOM,    /**< The first occurrence of the day of week on or after the day of monnth,
                              for example, first Sunday on or after March 8. */
-        DOW_LEQ_DOM     /**< The last occurence of the day of week on or before the day of month,
+        DOW_LEQ_DOM     /**< The last occurrence of the day of week on or before the day of month,
                              for example, first Sunday on or before March 14. */
     };
 
@@ -62,7 +62,7 @@ public:
      * Constructs a <code>DateTimeRule</code> by the day of month and
      * the time rule.  The date rule type for an instance created by
      * this constructor is <code>DOM</code>.
-     *
+     * 
      * @param month         The rule month, for example, <code>Calendar::JANUARY</code>
      * @param dayOfMonth    The day of month, 1-based.
      * @param millisInDay   The milliseconds in the rule date.
@@ -74,10 +74,10 @@ public:
         int32_t millisInDay, TimeRuleType timeType);
 
     /**
-     * Constructs a <code>DateTimeRule</code> by the day of week and its oridinal
+     * Constructs a <code>DateTimeRule</code> by the day of week and its ordinal
      * number and the time rule.  The date rule type for an instance created
      * by this constructor is <code>DOW</code>.
-     *
+     * 
      * @param month         The rule month, for example, <code>Calendar::JANUARY</code>.
      * @param weekInMonth   The ordinal number of the day of week.  Negative number
      *                      may be used for specifying a rule date counted from the
@@ -96,7 +96,7 @@ public:
      * on or after/before the day of month and the time rule.  The date rule
      * type for an instance created by this constructor is either
      * <code>DOM_GEQ_DOM</code> or <code>DOM_LEQ_DOM</code>.
-     *
+     * 
      * @param month         The rule month, for example, <code>Calendar::JANUARY</code>
      * @param dayOfMonth    The day of month, 1-based.
      * @param dayOfWeek     The day of week, for example, <code>Calendar::SUNDAY</code>.
@@ -144,7 +144,7 @@ public:
      * @return  true if the given DateTimeRule objects are semantically equal.
      * @stable ICU 3.8
      */
-    UBool operator==(const DateTimeRule& that) const;
+    bool operator==(const DateTimeRule& that) const;
 
     /**
      * Return true if the given DateTimeRule objects are semantically unequal. Objects
@@ -153,7 +153,7 @@ public:
      * @return  true if the given DateTimeRule objects are semantically unequal.
      * @stable ICU 3.8
      */
-    UBool operator!=(const DateTimeRule& that) const;
+    bool operator!=(const DateTimeRule& that) const;
 
     /**
      * Gets the date rule type, such as <code>DOM</code>
@@ -194,7 +194,7 @@ public:
     int32_t getRuleDayOfWeek(void) const;
 
     /**
-     * Gets the ordinal number of the occurence of the day of week
+     * Gets the ordinal number of the occurrence of the day of week
      * in the month.  When the date rule type is not <code>DOW</code>,
      * the value is always 0.
      * @return The rule day of week ordinal number in the month.
@@ -243,7 +243,7 @@ public:
      *                  other classes have different class IDs.
      * @stable ICU 3.8
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 };
 
 U_NAMESPACE_END

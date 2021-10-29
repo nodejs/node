@@ -229,15 +229,15 @@ ulocdata_getMeasurementSystem(const char *localeID, UErrorCode *status);
 /**
  * Returns the element gives the normal business letter size, and customary units.
  * The units for the numbers are always in <em>milli-meters</em>.
- * For US since 8.5 and 11 do not yeild an integral value when converted to milli-meters,
+ * For US since 8.5 and 11 do not yield an integral value when converted to milli-meters,
  * the values are rounded off.
- * So for A4 size paper the height and width are 297 mm and 210 mm repectively,
+ * So for A4 size paper the height and width are 297 mm and 210 mm respectively,
  * and for US letter size the height and width are 279 mm and 216 mm respectively.
  * Please note that this API will change in ICU 3.6 and will use an ulocdata object.
  *
  * @param localeID      The id of the locale for which the paper size information to be retrieved.
- * @param height        A pointer to int to recieve the height information.
- * @param width         A pointer to int to recieve the width information.
+ * @param height        A pointer to int to receive the height information.
+ * @param width         A pointer to int to receive the width information.
  * @param status        Must be a valid pointer to an error code value,
  *                      which must not indicate a failure before the function call.
  * @stable ICU 2.8
@@ -247,7 +247,7 @@ ulocdata_getPaperSize(const char *localeID, int32_t *height, int32_t *width, UEr
 
 /**
  * Return the current CLDR version used by the library.
- * @param versionArray fillin that will recieve the version number
+ * @param versionArray fill-in that will receive the version number
  * @param status error code - could be U_MISSING_RESOURCE_ERROR if the version was not found.
  * @stable ICU 4.2
  */

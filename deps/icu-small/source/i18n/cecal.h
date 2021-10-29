@@ -68,13 +68,13 @@ protected:
      * Return JD of start of given month/extended year
      * @internal
      */
-    virtual int32_t handleComputeMonthStart(int32_t eyear, int32_t month, UBool useMonth) const;
+    virtual int32_t handleComputeMonthStart(int32_t eyear, int32_t month, UBool useMonth) const override;
 
     /**
      * Calculate the limit for a specified type of limit and field
      * @internal
      */
-    virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const;
+    virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const override;
 
     /**
      * (Overrides Calendar) Return true if the current date for this Calendar is in
@@ -85,13 +85,13 @@ protected:
      *           false, otherwise.
      * @internal
      */
-    virtual UBool inDaylightTime(UErrorCode&) const;
+    virtual UBool inDaylightTime(UErrorCode&) const override;
 
     /**
      * Returns true because Coptic/Ethiopic Calendar does have a default century
      * @internal
      */
-    virtual UBool haveDefaultCentury() const;
+    virtual UBool haveDefaultCentury() const override;
 
 protected:
     /**

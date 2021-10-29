@@ -84,7 +84,7 @@ RegexStaticSets::RegexStaticSets(UErrorCode *status) {
     fPropSets[URX_GC_T].applyPattern(UnicodeString(TRUE, gGC_TPattern, -1), *status).freeze();
     fPropSets[URX_GC_LV].applyPattern(UnicodeString(TRUE, gGC_LVPattern, -1), *status).freeze();
     fPropSets[URX_GC_LVT].applyPattern(UnicodeString(TRUE, gGC_LVTPattern, -1), *status).freeze();
-
+    
 
     //
     //  "Normal" is the set of characters that don't need special handling
@@ -121,10 +121,10 @@ RegexStaticSets::RegexStaticSets(UErrorCode *status) {
     fRuleSets[kRuleSet_digit_char-128].add(u'0', u'9').freeze();
     fRuleSets[kRuleSet_ascii_letter-128].add(u'A', u'Z').add(u'a', u'z').freeze();
     fRuleDigitsAlias = &fRuleSets[kRuleSet_digit_char-128];
-
+    
     // Finally, initialize an empty UText string for utility purposes
     fEmptyText = utext_openUChars(nullptr, nullptr, 0, status);
-
+    
 }
 
 
