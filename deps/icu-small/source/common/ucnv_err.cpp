@@ -61,7 +61,7 @@
  * When an ignorable code point is found and is unmappable, the default callbacks
  * will ignore them.
  * For a list of the default ignorable code points, use this link:
- * https://unicode.org/cldr/utility/list-unicodeset.jsp?a=%5B%3ADI%3A%5D&abb=on&g=&i=
+ * https://util.unicode.org/UnicodeJsps/list-unicodeset.jsp?a=%5B%3ADI%3A%5D&abb=on&g=&i=
  *
  * This list should be sync with the one in CharsetCallback.java
  */
@@ -72,7 +72,7 @@
     (c == 0x115F) || \
     (c == 0x1160) || \
     (0x17B4 <= c && c <= 0x17B5) || \
-    (0x180B <= c && c <= 0x180E) || \
+    (0x180B <= c && c <= 0x180F) || \
     (0x200B <= c && c <= 0x200F) || \
     (0x202A <= c && c <= 0x202E) || \
     (0x2060 <= c && c <= 0x206F) || \
@@ -129,7 +129,7 @@ UCNV_TO_U_CALLBACK_STOP (
 }
 
 U_CAPI void    U_EXPORT2
-UCNV_FROM_U_CALLBACK_SKIP (
+UCNV_FROM_U_CALLBACK_SKIP (                  
                   const void *context,
                   UConverterFromUnicodeArgs *fromUArgs,
                   const UChar* codeUnits,
@@ -217,7 +217,7 @@ UCNV_FROM_U_CALLBACK_ESCAPE (
 
   UConverterFromUCallback ignoredCallback = NULL;
   const void *ignoredContext;
-
+  
   if (reason > UCNV_IRREGULAR)
   {
       return;
@@ -237,14 +237,14 @@ UCNV_FROM_U_CALLBACK_ESCAPE (
                      &original,
                      &originalContext,
                      &err2);
-
+  
   if (U_FAILURE (err2))
   {
     *err = err2;
     return;
-  }
+  } 
   if(context==NULL)
-  {
+  { 
       while (i < length)
       {
         valueString[valueStringLength++] = (UChar) UNICODE_PERCENT_SIGN_CODEPOINT;  /* adding % */
@@ -334,7 +334,7 @@ UCNV_FROM_U_CALLBACK_ESCAPE (
               valueStringLength += uprv_itou (valueString + valueStringLength, VALUE_STRING_LENGTH - valueStringLength, (uint16_t)codeUnits[i++], 16, 4);
           }
       }
-  }
+  }  
   myValueSource = valueString;
 
   /* reset the error */
@@ -427,7 +427,7 @@ UCNV_TO_U_CALLBACK_ESCAPE (
     }
 
     if(context==NULL)
-    {
+    {    
         while (i < length)
         {
             uniValueString[valueStringLength++] = (UChar) UNICODE_PERCENT_SIGN_CODEPOINT; /* adding % */

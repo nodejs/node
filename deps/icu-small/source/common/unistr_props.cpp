@@ -25,7 +25,7 @@
 
 U_NAMESPACE_BEGIN
 
-UnicodeString&
+UnicodeString& 
 UnicodeString::trim()
 {
   if(isBogus()) {

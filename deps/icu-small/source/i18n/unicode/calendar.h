@@ -449,21 +449,21 @@ public:
      * represented time, use equals() instead.
      *
      * @param that  The Calendar object to be compared with.
-     * @return      True if the given Calendar is the same as this Calendar; false
+     * @return      true if the given Calendar is the same as this Calendar; false
      *              otherwise.
      * @stable ICU 2.0
      */
-    virtual UBool operator==(const Calendar& that) const;
+    virtual bool operator==(const Calendar& that) const;
 
     /**
      * Compares the inequality of two Calendar objects.
      *
      * @param that  The Calendar object to be compared with.
-     * @return      True if the given Calendar is not the same as this Calendar; false
+     * @return      true if the given Calendar is not the same as this Calendar; false
      *              otherwise.
      * @stable ICU 2.0
      */
-    UBool operator!=(const Calendar& that) const {return !operator==(that);}
+    bool operator!=(const Calendar& that) const {return !operator==(that);}
 
     /**
      * Returns true if the given Calendar object is equivalent to this
@@ -1341,7 +1341,7 @@ public:
      *           same class ID. Objects of other classes have different class IDs.
      * @stable ICU 2.0
      */
-    virtual UClassID getDynamicClassID(void) const = 0;
+    virtual UClassID getDynamicClassID(void) const override = 0;
 
     /**
      * Returns the calendar type name string for this Calendar object.

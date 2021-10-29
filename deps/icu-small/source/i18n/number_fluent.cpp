@@ -698,6 +698,10 @@ int32_t LocalizedNumberFormatter::getCallCount() const {
 
 // Note: toFormat defined in number_asformat.cpp
 
+const DecimalFormatSymbols* LocalizedNumberFormatter::getDecimalFormatSymbols() const {
+    return fMacros.symbols.getDecimalFormatSymbols();
+}
+
 #if (U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN) && defined(_MSC_VER)
 // Warning 4661.
 #pragma warning(pop)

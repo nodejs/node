@@ -15,8 +15,8 @@
 * 02/01/01    synwee      Added normalization quickcheck enum and method.
 * 02/12/01    synwee      Commented out quickcheck util api has been approved
 *                         Added private method for doing FCD checks
-* 02/23/01    synwee      Modified quickcheck and checkFCE to run through
-*                         string for codepoints < 0x300 for the normalization
+* 02/23/01    synwee      Modified quickcheck and checkFCE to run through 
+*                         string for codepoints < 0x300 for the normalization 
 *                         mode NFC.
 * 05/25/01+   Markus Scherer total rewrite, implement all normalization here
 *                         instead of just wrappers around normlzr.cpp,
@@ -45,7 +45,7 @@ U_NAMESPACE_USE
 
 U_CAPI UNormalizationCheckResult U_EXPORT2
 unorm_quickCheck(const UChar *src,
-                 int32_t srcLength,
+                 int32_t srcLength, 
                  UNormalizationMode mode,
                  UErrorCode *pErrorCode) {
     const Normalizer2 *n2=Normalizer2Factory::getInstance(mode, *pErrorCode);
@@ -53,7 +53,7 @@ unorm_quickCheck(const UChar *src,
 }
 
 U_CAPI UNormalizationCheckResult U_EXPORT2
-unorm_quickCheckWithOptions(const UChar *src, int32_t srcLength,
+unorm_quickCheckWithOptions(const UChar *src, int32_t srcLength, 
                             UNormalizationMode mode, int32_t options,
                             UErrorCode *pErrorCode) {
     const Normalizer2 *n2=Normalizer2Factory::getInstance(mode, *pErrorCode);
