@@ -5,7 +5,7 @@ issues in the C/C++ code base.
 
 Those who have been added to the Node.js coverity project can receive emails
 when there are new issues reported as well as view all current issues
-through [https://scan9.coverity.com/reports.htm](https://scan9.coverity.com/reports.htm).
+through <https://scan9.coverity.com/reports.htm>.
 
 Any collaborator can ask to be added to the Node.js coverity project
 by opening an issue in the [build](https://github.com/nodejs/build) repository

@@ -55,6 +55,7 @@
   * [Archive](CHANGELOG\_ARCHIVE.md)
 
 <a id="16.13.0"></a>
+
 ## 2021-10-26, Version 16.13.0 'Gallium' (LTS), @richardlau
 
 ### Notable Changes
@@ -65,6 +66,7 @@ and will remain so until October 2022. After that time, it will move into
 "Maintenance" until end of life in April 2024.
 
 <a id="16.12.0"></a>
+
 ## 2021-10-20, Version 16.12.0 (Current), @richardlau
 
 ### Notable Changes
@@ -72,14 +74,15 @@ and will remain so until October 2022. After that time, it will move into
 #### Experimental ESM Loader Hooks API
 
 Node.js ESM Loader hooks have been consolidated to represent the steps involved needed to facilitate future loader chaining:
-1. `resolve`: `resolve` \[+ `getFormat`\]
-1. `load`: `getFormat` + `getSource` + `transformSource`
+
+1. `resolve`: `resolve` \[+ `getFormat`]
+2. `load`: `getFormat` + `getSource` + `transformSource`
 
 For consistency, `getGlobalPreloadCode` has been renamed to `globalPreload`.
 
 A loader exporting obsolete hook(s) will trigger a single deprecation warning (per loader) listing the errant hooks.
 
-Contributed by Jacob Smith, Geoffrey Booth, and Bradley Farias - https://github.com/nodejs/node/pull/37468
+Contributed by Jacob Smith, Geoffrey Booth, and Bradley Farias - <https://github.com/nodejs/node/pull/37468>
 
 #### Other Notable Changes
 
@@ -150,6 +153,7 @@ Contributed by Jacob Smith, Geoffrey Booth, and Bradley Farias - https://github.
 * \[[`4116b6c907`](https://github.com/nodejs/node/commit/4116b6c907)] - **(SEMVER-MINOR)** **vm**: add support for import assertions in dynamic imports (Antoine du Hamel) [#40249](https://github.com/nodejs/node/pull/40249)
 
 <a id="16.11.1"></a>
+
 ## 2021-10-12, Version 16.11.1 (Current), @danielleadams
 
 This is a security release.
@@ -163,9 +167,9 @@ This is a security release.
 
 ### Commits
 
-* [[`af488f8dc8`](https://github.com/nodejs/node/commit/af488f8dc8)] - **deps**: update llhttp to 6.0.4 (Matteo Collina) [nodejs-private/node-private#284](https://github.com/nodejs-private/node-private/pull/284)
-* [[`2d1eefad98`](https://github.com/nodejs/node/commit/2d1eefad98)] - **http**: add regression test for smuggling content length (Matteo Collina) [nodejs-private/node-private#284](https://github.com/nodejs-private/node-private/pull/284)
-* [[`45d419ab1c`](https://github.com/nodejs/node/commit/45d419ab1c)] - **http**: add regression test for chunked smuggling (Matteo Collina) [nodejs-private/node-private#284](https://github.com/nodejs-private/node-private/pull/284)
+* \[[`af488f8dc8`](https://github.com/nodejs/node/commit/af488f8dc8)] - **deps**: update llhttp to 6.0.4 (Matteo Collina) [nodejs-private/node-private#284](https://github.com/nodejs-private/node-private/pull/284)
+* \[[`2d1eefad98`](https://github.com/nodejs/node/commit/2d1eefad98)] - **http**: add regression test for smuggling content length (Matteo Collina) [nodejs-private/node-private#284](https://github.com/nodejs-private/node-private/pull/284)
+* \[[`45d419ab1c`](https://github.com/nodejs/node/commit/45d419ab1c)] - **http**: add regression test for chunked smuggling (Matteo Collina) [nodejs-private/node-private#284](https://github.com/nodejs-private/node-private/pull/284)
 
 <a id="16.11.0"></a>
 

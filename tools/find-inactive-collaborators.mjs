@@ -78,7 +78,7 @@ async function getCollaboratorsFromReadme() {
       foundCollaboratorHeading = true;
     }
     if (line.startsWith('  **') && isCollaborator) {
-      const [, name, email] = /^  \*\*([^*]+)\*\* \\<(.+)>/.exec(line);
+      const [, name, email] = /^  \*\*([^*]+)\*\* <<(.+)>>/.exec(line);
       const mailmap = await runGitCommand(
         `git check-mailmap '${name} <${email}>'`
       );
@@ -142,7 +142,7 @@ async function moveCollaboratorToEmeritus(peopleToMove) {
       if (line.startsWith('* ')) {
         collaboratorFirstLine = line;
       } else if (line.startsWith('  **')) {
-        const [, name, email] = /^  \*\*([^*]+)\*\* \\<(.+)>/.exec(line);
+        const [, name, email] = /^  \*\*([^*]+)\*\* <<(.+)>>/.exec(line);
         if (peopleToMove.some((entry) => {
           return entry.name === name && entry.email === email;
         })) {

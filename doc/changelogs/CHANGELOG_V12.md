@@ -81,6 +81,7 @@
   * [Archive](CHANGELOG\_ARCHIVE.md)
 
 <a id="12.22.7"></a>
+
 ## 2021-10-12, Version 12.22.7 'Erbium' (LTS), @danielleadams
 
 This is a security release.
@@ -94,9 +95,9 @@ This is a security release.
 
 ### Commits
 
-* [[`21a2e554e3`](https://github.com/nodejs/node/commit/21a2e554e3)] - **deps**: update llhttp to 2.1.4 (Fedor Indutny) [nodejs-private/node-private#286](https://github.com/nodejs-private/node-private/pull/286)
-* [[`d5d3a03246`](https://github.com/nodejs/node/commit/d5d3a03246)] - **http**: add regression test for smuggling content length (Matteo Collina) [nodejs-private/node-private#286](https://github.com/nodejs-private/node-private/pull/286)
-* [[`0858587f21`](https://github.com/nodejs/node/commit/0858587f21)] - **http**: add regression test for chunked smuggling (Matteo Collina) [nodejs-private/node-private#286](https://github.com/nodejs-private/node-private/pull/286)
+* \[[`21a2e554e3`](https://github.com/nodejs/node/commit/21a2e554e3)] - **deps**: update llhttp to 2.1.4 (Fedor Indutny) [nodejs-private/node-private#286](https://github.com/nodejs-private/node-private/pull/286)
+* \[[`d5d3a03246`](https://github.com/nodejs/node/commit/d5d3a03246)] - **http**: add regression test for smuggling content length (Matteo Collina) [nodejs-private/node-private#286](https://github.com/nodejs-private/node-private/pull/286)
+* \[[`0858587f21`](https://github.com/nodejs/node/commit/0858587f21)] - **http**: add regression test for chunked smuggling (Matteo Collina) [nodejs-private/node-private#286](https://github.com/nodejs-private/node-private/pull/286)
 
 <a id="12.22.6"></a>
 

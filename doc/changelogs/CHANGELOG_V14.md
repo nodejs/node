@@ -69,6 +69,7 @@
   * [Archive](CHANGELOG\_ARCHIVE.md)
 
 <a id="14.18.1"></a>
+
 ## 2021-10-12, Version 14.18.1 'Fermium' (LTS), @danielleadams
 
 This is a security release.
@@ -82,9 +83,9 @@ This is a security release.
 
 ### Commits
 
-* [[`8c254ca7e4`](https://github.com/nodejs/node/commit/8c254ca7e4)] - **deps**: update llhttp to 2.1.4 (Fedor Indutny) [nodejs-private/node-private#285](https://github.com/nodejs-private/node-private/pull/285)
-* [[`9b92ae2499`](https://github.com/nodejs/node/commit/9b92ae2499)] - **http**: add regression test for smuggling content length (Matteo Collina) [nodejs-private/node-private#285](https://github.com/nodejs-private/node-private/pull/285)
-* [[`f467539719`](https://github.com/nodejs/node/commit/f467539719)] - **http**: add regression test for chunked smuggling (Matteo Collina) [nodejs-private/node-private#285](https://github.com/nodejs-private/node-private/pull/285)
+* \[[`8c254ca7e4`](https://github.com/nodejs/node/commit/8c254ca7e4)] - **deps**: update llhttp to 2.1.4 (Fedor Indutny) [nodejs-private/node-private#285](https://github.com/nodejs-private/node-private/pull/285)
+* \[[`9b92ae2499`](https://github.com/nodejs/node/commit/9b92ae2499)] - **http**: add regression test for smuggling content length (Matteo Collina) [nodejs-private/node-private#285](https://github.com/nodejs-private/node-private/pull/285)
+* \[[`f467539719`](https://github.com/nodejs/node/commit/f467539719)] - **http**: add regression test for chunked smuggling (Matteo Collina) [nodejs-private/node-private#285](https://github.com/nodejs-private/node-private/pull/285)
 
 <a id="14.18.0"></a>
 
