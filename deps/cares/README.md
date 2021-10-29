@@ -1,7 +1,7 @@
 c-ares
 ======
 
-[![Build Status](https://travis-ci.org/c-ares/c-ares.svg?branch=master)](https://travis-ci.org/c-ares/c-ares)
+[![Build Status](https://api.cirrus-ci.com/github/c-ares/c-ares.svg)](https://cirrus-ci.com/github/c-ares/c-ares)
 [![Windows Build Status](https://ci.appveyor.com/api/projects/status/aevgc5914tm72pvs/branch/master?svg=true)](https://ci.appveyor.com/project/c-ares/c-ares/branch/master)
 [![Coverage Status](https://coveralls.io/repos/c-ares/c-ares/badge.svg?branch=master&service=github)](https://coveralls.io/github/c-ares/c-ares?branch=master)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/291/badge)](https://bestpractices.coreinfrastructure.org/projects/291)
@@ -14,19 +14,19 @@ perform multiple DNS queries in parallel.  The primary examples of such
 applications are servers which communicate with multiple clients and programs
 with graphical user interfaces.
 
-The full source code is available in the ['c-ares' release archives](https://c-ares.haxx.se/download/),
-and in a git repository: http://github.com/c-ares/c-ares.  See the
+The full source code is available in the ['c-ares' release archives](https://c-ares.org/download/),
+and in a git repository: https://github.com/c-ares/c-ares.  See the
 [INSTALL.md](INSTALL.md) file for build information.
 
 If you find bugs, correct flaws, have questions or have comments in general in
 regard to c-ares (or by all means the original ares too), get in touch with us
-on the c-ares mailing list: http://cool.haxx.se/mailman/listinfo/c-ares
+on the c-ares mailing list: https://lists.haxx.se/listinfo/c-ares
 
 c-ares is of course distributed under the same MIT-style license as the
 original ares.
 
 You'll find all c-ares details and news here:
-        https://c-ares.haxx.se/
+        https://c-ares.org/
 
 
 Notes for c-ares hackers

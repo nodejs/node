@@ -39,23 +39,20 @@
 #include "ares_dns.h"
 #include "ares_private.h"
 
-int ares__parse_into_addrinfo2(const unsigned char *abuf,
-                               int alen,
-                               char **question_hostname,
-                               struct ares_addrinfo *ai)
+int ares__parse_into_addrinfo(const unsigned char *abuf,
+                              int alen, int cname_only_is_enodata,
+                              unsigned short port,
+                              struct ares_addrinfo *ai)
 {
   unsigned int qdcount, ancount;
   int status, i, rr_type, rr_class, rr_len, rr_ttl;
   int got_a = 0, got_aaaa = 0, got_cname = 0;
   long len;
   const unsigned char *aptr;
+  char *question_hostname = NULL;
   char *hostname, *rr_name = NULL, *rr_data;
   struct ares_addrinfo_cname *cname, *cnames = NULL;
-  struct ares_addrinfo_node *node, *nodes = NULL;
-  struct sockaddr_in *sin;
-  struct sockaddr_in6 *sin6;
-
-  *question_hostname = NULL;
+  struct ares_addrinfo_node *nodes = NULL;
 
   /* Give up if abuf doesn't have room for a header. */
   if (alen < HFIXEDSZ)
@@ -70,15 +67,16 @@ int ares__parse_into_addrinfo2(const unsigned char *abuf,
 
   /* Expand the name from the question, and skip past the question. */
   aptr = abuf + HFIXEDSZ;
-  status = ares__expand_name_for_response(aptr, abuf, alen, question_hostname, &len, 0);
+  status = ares__expand_name_for_response(aptr, abuf, alen, &question_hostname, &len, 0);
   if (status != ARES_SUCCESS)
     return status;
   if (aptr + len + QFIXEDSZ > abuf + alen)
     {
-      return ARES_EBADRESP;
+      status = ARES_EBADRESP;
+      goto failed_stat;
     }
 
-  hostname = *question_hostname;
+  hostname = question_hostname;
 
   aptr += len + QFIXEDSZ;
 
@@ -121,30 +119,9 @@ int ares__parse_into_addrinfo2(const unsigned char *abuf,
             goto failed_stat;
           }  /* LCOV_EXCL_STOP */
 
-          node = ares__append_addrinfo_node(&nodes);
-          if (!node)
-            {
-              status = ARES_ENOMEM;
-              goto failed_stat;
-            }
-
-          sin = ares_malloc(sizeof(struct sockaddr_in));
-          if (!sin)
-            {
-              status = ARES_ENOMEM;
-              goto failed_stat;
-            }
-          memset(sin, 0, sizeof(struct sockaddr_in));
-          memcpy(&sin->sin_addr.s_addr, aptr, sizeof(struct in_addr));
-          sin->sin_family = AF_INET;
-
-          node->ai_addr = (struct sockaddr *)sin;
-          node->ai_family = AF_INET;
-          node->ai_addrlen = sizeof(struct sockaddr_in);
-
-          node->ai_ttl = rr_ttl;
-
-          status = ARES_SUCCESS;
+          status = ares_append_ai_node(AF_INET, port, rr_ttl, aptr, &nodes);
+          if (status != ARES_SUCCESS)
+            goto failed_stat;
         }
       else if (rr_class == C_IN && rr_type == T_AAAA
           && rr_len == sizeof(struct ares_in6_addr)
@@ -157,31 +134,9 @@ int ares__parse_into_addrinfo2(const unsigned char *abuf,
             goto failed_stat;
           }  /* LCOV_EXCL_STOP */
 
-          node = ares__append_addrinfo_node(&nodes);
-          if (!node)
-            {
-              status = ARES_ENOMEM;
-              goto failed_stat;
-            }
-
-          sin6 = ares_malloc(sizeof(struct sockaddr_in6));
-          if (!sin6)
-            {
-              status = ARES_ENOMEM;
-              goto failed_stat;
-            }
-
-          memset(sin6, 0, sizeof(struct sockaddr_in6));
-          memcpy(&sin6->sin6_addr.s6_addr, aptr, sizeof(struct ares_in6_addr));
-          sin6->sin6_family = AF_INET6;
-
-          node->ai_addr = (struct sockaddr *)sin6;
-          node->ai_family = AF_INET6;
-          node->ai_addrlen = sizeof(struct sockaddr_in6);
-
-          node->ai_ttl = rr_ttl;
-
-          status = ARES_SUCCESS;
+          status = ares_append_ai_node(AF_INET6, port, rr_ttl, aptr, &nodes);
+          if (status != ARES_SUCCESS)
+            goto failed_stat;
         }
 
       if (rr_class == C_IN && rr_type == T_CNAME)
@@ -208,10 +163,13 @@ int ares__parse_into_addrinfo2(const unsigned char *abuf,
           cname->ttl = rr_ttl;
           cname->alias = rr_name;
           cname->name = rr_data;
+          rr_name = NULL;
         }
       else
         {
+          /* rr_name is only saved for cname */
           ares_free(rr_name);
+          rr_name = NULL;
         }
 
 
@@ -225,36 +183,47 @@ int ares__parse_into_addrinfo2(const unsigned char *abuf,
 
   if (status == ARES_SUCCESS)
     {
-      ares__addrinfo_cat_nodes(&ai->nodes, nodes);
+      if (!got_a && !got_aaaa)
+        {
+          if (!got_cname || (got_cname && cname_only_is_enodata))
+            {
+              status = ARES_ENODATA;
+              goto failed_stat;
+            }
+        }
+
+      /* save the question hostname as ai->name */
+      if (ai->name == NULL || strcasecmp(ai->name, question_hostname) != 0)
+        {
+          ares_free(ai->name);
+          ai->name = ares_strdup(question_hostname);
+          if (!ai->name)
+            {
+              status = ARES_ENOMEM;
+              goto failed_stat;
+            }
+        }
+
+      if (got_a || got_aaaa)
+        {
+          ares__addrinfo_cat_nodes(&ai->nodes, nodes);
+          nodes = NULL;
+        }
+
       if (got_cname)
         {
           ares__addrinfo_cat_cnames(&ai->cnames, cnames);
-          return status;
-        }
-      else if (got_a == 0 && got_aaaa == 0)
-        {
-          /* the check for naliases to be zero is to make sure CNAME responses
-             don't get caught here */
-          status = ARES_ENODATA;
+          cnames = NULL;
         }
     }
 
+  ares_free(question_hostname);
   return status;
 
 failed_stat:
+  ares_free(question_hostname);
   ares_free(rr_name);
   ares__freeaddrinfo_cnames(cnames);
   ares__freeaddrinfo_nodes(nodes);
-  return status;
-}
-
-int ares__parse_into_addrinfo(const unsigned char *abuf,
-                              int alen,
-                              struct ares_addrinfo *ai)
-{
-  int status;
-  char *question_hostname;
-  status = ares__parse_into_addrinfo2(abuf, alen, &question_hostname, ai);
-  ares_free(question_hostname);
   return status;
 }

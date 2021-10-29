@@ -85,6 +85,11 @@ W32_FUNC const char *_w32_GetHostsFile (void);
 
 #define PATH_HOSTS             "InetDBase:Hosts"
 
+#elif defined(__HAIKU__)
+
+#define PATH_RESOLV_CONF "/system/settings/network/resolv.conf"
+#define PATH_HOSTS              "/system/settings/network/hosts"
+
 #else
 
 #define PATH_RESOLV_CONF        "/etc/resolv.conf"
@@ -387,17 +392,26 @@ void ares__freeaddrinfo_cnames(struct ares_addrinfo_cname *ai_cname);
 
 struct ares_addrinfo_cname *ares__append_addrinfo_cname(struct ares_addrinfo_cname **ai_cname);
 
+int ares_append_ai_node(int aftype, unsigned short port, int ttl,
+                        const void *adata,
+                        struct ares_addrinfo_node **nodes);
+
 void ares__addrinfo_cat_cnames(struct ares_addrinfo_cname **head,
                                struct ares_addrinfo_cname *tail);
 
 int ares__parse_into_addrinfo(const unsigned char *abuf,
-                              int alen,
+                              int alen, int cname_only_is_enodata,
+                              unsigned short port,
                               struct ares_addrinfo *ai);
 
-int ares__parse_into_addrinfo2(const unsigned char *abuf,
-                               int alen,
-                               char **question_hostname,
-                               struct ares_addrinfo *ai);
+int ares__addrinfo2hostent(const struct ares_addrinfo *ai, int family,
+                           struct hostent **host);
+int ares__addrinfo2addrttl(const struct ares_addrinfo *ai, int family,
+                           int req_naddrttls, struct ares_addrttl *addrttls,
+                           struct ares_addr6ttl *addr6ttls, int *naddrttls);
+int ares__addrinfo_localhost(const char *name, unsigned short port,
+                             const struct ares_addrinfo_hints *hints,
+                             struct ares_addrinfo *ai);
 
 #if 0 /* Not used */
 long ares__tvdiff(struct timeval t1, struct timeval t2);

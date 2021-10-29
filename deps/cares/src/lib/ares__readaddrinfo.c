@@ -42,11 +42,10 @@ int ares__readaddrinfo(FILE *fp,
   char *txtaddr, *txthost, *txtalias;
   char *aliases[MAX_ALIASES];
   unsigned int i, alias_count;
-  int status;
+  int status = ARES_SUCCESS;
   size_t linesize;
-  ares_sockaddr addr;
   struct ares_addrinfo_cname *cname = NULL, *cnames = NULL;
-  struct ares_addrinfo_node *node = NULL, *nodes = NULL;
+  struct ares_addrinfo_node *nodes = NULL;
   int match_with_alias, match_with_canonical;
   int want_cname = hints->ai_flags & ARES_AI_CANONNAME;
 
@@ -60,6 +59,12 @@ int ares__readaddrinfo(FILE *fp,
       return ARES_EBADFAMILY;
   }
 
+  ai->name = ares_strdup(name);
+  if(!ai->name)
+    {
+      status = ARES_ENOMEM;
+      goto fail;
+    }
 
   while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS)
     {
@@ -163,57 +168,36 @@ int ares__readaddrinfo(FILE *fp,
           continue;
         }
 
-      /* Zero-out 'addr' struct, as there are members that we may not set, especially
-       * for ipv6.  We don't want garbage data */
-      memset(&addr, 0, sizeof(addr));
-
       /*
        * Convert address string to network address for the requested families.
        * Actual address family possible values are AF_INET and AF_INET6 only.
        */
       if ((hints->ai_family == AF_INET) || (hints->ai_family == AF_UNSPEC))
         {
-          addr.sa4.sin_port = htons(port);
-          if (ares_inet_pton(AF_INET, txtaddr, &addr.sa4.sin_addr) > 0)
+          struct in_addr addr4;
+          if (ares_inet_pton(AF_INET, txtaddr, &addr4) == 1)
             {
-              node = ares__append_addrinfo_node(&nodes);
-              if(!node)
+              status = ares_append_ai_node(AF_INET, port, 0, &addr4, &nodes);
+              if (status != ARES_SUCCESS)
                 {
-                  goto enomem;
+                  goto fail;
                 }
-
-              node->ai_family = addr.sa.sa_family = AF_INET;
-              node->ai_addrlen = sizeof(addr.sa4);
-              node->ai_addr = ares_malloc(sizeof(addr.sa4));
-              if (!node->ai_addr)
-                {
-                  goto enomem;
-                }
-              memcpy(node->ai_addr, &addr.sa4, sizeof(addr.sa4));
             }
         }
       if ((hints->ai_family == AF_INET6) || (hints->ai_family == AF_UNSPEC))
         {
-          addr.sa6.sin6_port = htons(port);
-          if (ares_inet_pton(AF_INET6, txtaddr, &addr.sa6.sin6_addr) > 0)
+          struct ares_in6_addr addr6;
+          if (ares_inet_pton(AF_INET6, txtaddr, &addr6) == 1)
             {
-              node = ares__append_addrinfo_node(&nodes);
-              if (!node)
+              status = ares_append_ai_node(AF_INET6, port, 0, &addr6, &nodes);
+              if (status != ARES_SUCCESS)
                 {
-                  goto enomem;
+                  goto fail;
                 }
-
-              node->ai_family = addr.sa.sa_family = AF_INET6;
-              node->ai_addrlen = sizeof(addr.sa6);
-              node->ai_addr = ares_malloc(sizeof(addr.sa6));
-              if (!node->ai_addr)
-                {
-                  goto enomem;
-                }
-              memcpy(node->ai_addr, &addr.sa6, sizeof(addr.sa6));
             }
         }
-      if (!node)
+
+      if (status != ARES_SUCCESS)
         /* Ignore line if invalid address string for the requested family. */
         continue;
 
@@ -224,7 +208,8 @@ int ares__readaddrinfo(FILE *fp,
               cname = ares__append_addrinfo_cname(&cnames);
               if (!cname)
                 {
-                  goto enomem;
+                  status = ARES_ENOMEM;
+                  goto fail;
                 }
               cname->alias = ares_strdup(aliases[i]);
               cname->name = ares_strdup(txthost);
@@ -235,7 +220,8 @@ int ares__readaddrinfo(FILE *fp,
               cname = ares__append_addrinfo_cname(&cnames);
               if (!cname)
                 {
-                  goto enomem;
+                  status = ARES_ENOMEM;
+                  goto fail;
                 }
               cname->name = ares_strdup(txthost);
             }
@@ -245,20 +231,21 @@ int ares__readaddrinfo(FILE *fp,
   /* Last read failed. */
   if (status == ARES_ENOMEM)
     {
-      goto enomem;
+      goto fail;
     }
 
   /* Free line buffer. */
   ares_free(line);
-
   ares__addrinfo_cat_cnames(&ai->cnames, cnames);
   ares__addrinfo_cat_nodes(&ai->nodes, nodes);
 
-  return node ? ARES_SUCCESS : ARES_ENOTFOUND;
+  return nodes ? ARES_SUCCESS : ARES_ENOTFOUND;
 
-enomem:
+fail:
   ares_free(line);
   ares__freeaddrinfo_cnames(cnames);
   ares__freeaddrinfo_nodes(nodes);
-  return ARES_ENOMEM;
+  ares_free(ai->name);
+  ai->name = NULL;
+  return status;
 }

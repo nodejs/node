@@ -30,15 +30,18 @@
     {
       'target_name': 'cares',
       'type': '<(library)',
-      'include_dirs': [ 'include', 'src/lib' ],
+      'include_dirs': [ 'include' ],
       'direct_dependent_settings': {
-        'include_dirs': [ 'include', 'src/lib' ]
+        'include_dirs': [ 'include' ]
       },
       'sources': [
         'include/ares.h',
         'include/ares_dns.h',
+        'include/ares_nameser.h',
         'include/ares_rules.h',
         'include/ares_version.h',
+        'src/lib/ares__addrinfo2hostent.c',
+        'src/lib/ares__addrinfo_localhost.c',
         'src/lib/ares_android.c',
         'src/lib/ares_cancel.c',
         'src/lib/ares__close_sockets.c',
@@ -66,7 +69,6 @@
         'src/lib/ares_llist.c',
         'src/lib/ares_llist.h',
         'src/lib/ares_mkquery.c',
-        'src/lib/ares_nameser.h',
         'src/lib/ares_nowarn.c',
         'src/lib/ares_nowarn.h',
         'src/lib/ares_options.c',
@@ -81,6 +83,7 @@
         'src/lib/ares_parse_soa_reply.c',
         'src/lib/ares_parse_srv_reply.c',
         'src/lib/ares_parse_txt_reply.c',
+        'src/lib/ares_parse_uri_reply.c',
         'src/lib/ares_platform.h',
         'src/lib/ares_private.h',
         'src/lib/ares_process.c',
