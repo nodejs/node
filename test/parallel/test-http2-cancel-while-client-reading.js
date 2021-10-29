@@ -20,6 +20,7 @@ server.on('stream', common.mustCall(function(stream) {
     client_stream.pause();
     client_stream.close(http2.constants.NGHTTP2_CANCEL);
   });
+  stream.on('error', () => {});
 }));
 
 server.listen(0, function() {
