@@ -51,6 +51,7 @@ Ben Lugavere <b.lugavere@gmail.com>
 Ben Noordhuis <info@bnoordhuis.nl> <ben@strongloop.com>
 Ben Noordhuis <info@bnoordhuis.nl> <bnoordhuis@bender.(none)>
 Ben Taber <ben.taber@gmail.com>
+Benedikt Meurer <bmeurer@google.com> <bmeurer@chromium.org>
 Benjamin Coe <bencoe@gmail.com> <ben@npmjs.com>
 Benjamin Coe <bencoe@gmail.com> <bencoe@google.com>
 Benjamin Fleischer <github@benjaminfleischer.com> <benjamin.fleischer@swipesense.com>
@@ -94,6 +95,7 @@ Corey Martin <coreymartin496@gmail.com>
 Cyril Lakech <cyril.lakech@axa.fr> <1169286+clakech@users.noreply.github.com>
 Daiki Arai <darai0512@yahoo.co.jp> <darai@yahoo-corp.jp>
 Damien Simonin Feugas <damien.feugas@gmail.com>
+Dan Carney <dcarney@chromium.org>
 Dan Fabulich <dan@fabulich.com> <dan.fabulich@redfin.com>
 Dan Kaplun <dbkaplun@gmail.com> <dan@beardtree.com>
 Dan Williams <dan@igniter.com> <daniel@chat.za.net>
@@ -101,6 +103,7 @@ Daniel Abrão <danielpaladar@gmail.com>
 Daniel Berger <code+node@dpbis.net>
 Daniel Bevenius <daniel.bevenius@gmail.com>
 Daniel Chcouri <333222@gmail.com>
+Daniel Clifford <danno@chromium.org>
 Daniel Gröber <darklord@darkboxed.org>
 Daniel Gröber <darklord@darkboxed.org> <dxld@darkboxed.org>
 Daniel Paulino <d_paulino@outlook.com>
@@ -111,9 +114,9 @@ Danielle Adams <adamzdanielle@gmail.com> <danielle.adams@heroku.com>
 Danny Guo <danny@dannyguo.com> <dannyguo91@gmail.com>
 Danny Nemer <hi@dannynemer.com> <DannyNemer@users.noreply.github.com>
 Danny Nemer <hi@dannynemer.com> <hi@DannyNemer.com>
-Dave Olszewski <cxreg@pobox.com> <daveo@nodesource.com>
 Darshan Sen <raisinten@gmail.com>
 Darshan Sen <raisinten@gmail.com> <darshan.sen@postman.com>
+Dave Olszewski <cxreg@pobox.com> <daveo@nodesource.com>
 Dave Pacheco <dap@joyent.com> <dap@cs.brown.edu>
 David Cai <davidcai1993@yahoo.com>
 David Mark Clements <david.clements@nearform.com>
@@ -129,8 +132,10 @@ Eduard Burtescu <eddy_me08@yahoo.com>
 Einar Otto Stangvik <einaros@gmail.com>
 Elliott Cable <me@ell.io>
 Emanuel Buholzer <contact@emanuelbuholzer.com> <EmanuelBuholzer@outlook.com>
+Enrico Pertoso <epertoso@chromium.org>
 Eric Bickle <wolf.code@outlook.com> <ebickle@users.noreply.github.com>
 Eric Phetteplace <phette23@gmail.com>
+Erik Corry <erik.corry@gmail.com>
 Ernesto Salazar <ernestoalbertosalazar@gmail.com>
 Erwin W. Ramadhan <erwinwahyuramadhan@gmail.com>
 Ethan Arrowood <ethan@arrowood.dev> <ethan.arrowood@gmail.com>
@@ -156,6 +161,7 @@ Florian Margaine <florian@margaine.com>
 Forrest L Norvell <othiym23@gmail.com> <forrest@npmjs.com>
 Forrest L Norvell <othiym23@gmail.com> <ogd@aoaioxxysz.net>
 Franziska Hinkelmann <franziska.hinkelmann@gmail.com> <fhinkel@vt.edu>
+Franziska Hinkelmann <franziska.hinkelmann@gmail.com> <franzih@chromium.org>
 Friedemann Altrock <frodenius@gmail.com>
 Fuji Goro <gfuji@cpan.org>
 Gabriel de Perthuis <g2p.code@gmail.com>
@@ -198,6 +204,7 @@ Isuru Siriwardana <isuruanatomy@gmail.com>
 Italo A. Casas <me@italoacasas.com> <italo@italoacasas.com>
 Jackson Tian <shyvo1987@gmail.com> <puling.tyq@alibaba-inc.com>
 Jake Verbaten <raynos2@gmail.com>
+Jakob Kummerow <jkummerow@chromium.org>
 Jamen Marzonie <jamenmarz@gmail.com> <jamenmarz+gh@gmail.com>
 James Beavers <jamesjbeavers@gmail.com>
 James Bromwell <james.bromwell@gdit.com> <943160+thw0rted@users.noreply.github.com>
@@ -213,12 +220,14 @@ Jennifer Bland <ratracegrad@gmail.com> <jennifer.bland@sbdinc.com>
 JeongHoon Byun <outsideris@gmail.com>
 Jered Schmidt <tr@nslator.jp>
 Jeremiah Senkpiel <fishrock123@rocketmail.com>
+Jeremy Apthorp <nornagon@nornagon.net> <jeremya@chromium.org>
 Jérémy Lal <kapouer@melix.org>
 Jérémy Lal <kapouer@melix.org> <holisme@gmail.com>
 Jerry Chin <qinjia@outlook.com>
 Jessica Quynh Tran <jessica.quynh.tran@gmail.com>
 Jesús Leganés-Combarro 'piranna <piranna@gmail.com>
 Jimb Esser <wasteland@gmail.com> <jimb@railgun3d.com>
+Jochen Eisinger <jochen@chromium.org> 
 Joe Shaw <joe@joeshaw.org> <joeshaw@litl.com>
 Johan Bergström <bugs@bergstroem.nu>
 Johan Dahlberg <jfd@distrop.com> <dahlberg.johan@gmail.com>
@@ -261,6 +270,7 @@ Kazuyuki Yamada <tasogare.pg@gmail.com>
 Ke Ding <dingkework@hotmail.com>
 Keith M Wesolowski <wesolows@joyent.com> <wesolows@foobazco.org>
 Kelsey Breseman <ifoundthemeaningoflife@gmail.com>
+Kevin Millikin <kmillikin@chromium.org>
 Khaidi Chu <i@2333.moe>
 Khaidi Chu <i@2333.moe> <admin@xcoder.in>
 Kimberly Wilber <gcr@sneakygcr.net>
@@ -274,6 +284,7 @@ Kyle Robinson Young <kyle@dontkry.com>
 Lakshmi Swetha Gopireddy <lakshmiswethagopireddy@gmail.com> <lakshmigopireddy@in.ibm.com>
 Lakshmi Swetha Gopireddy <lakshmiswethagopireddy@gmail.com> <lgopired@in.ibm.com>
 Lars-Magnus Skog <ralphtheninja@riseup.net> <lars.magnus.skog@gmail.com>
+Lasse R.H. Nielsen <lrn@chromium.org>
 Leeseean Chiu <leeseean@qq.com>
 Lucas Pardue <lucaspardue.24.7@gmail.com> <lucas.pardue@bbc.co.uk>
 Luke Bayes <lbayes@patternpark.com>
@@ -307,8 +318,10 @@ Matthew Lye <muddletoes@hotmail.com>
 Matthew Turner <matty_t47@hotmail.com> <ramesius@users.noreply.github.com>
 Matthias Bastian <dev@matthias-bastian.de> <piepmatz@users.noreply.github.com>
 Maurice Hayward <mauricehayward1@gmail.com>
+Maya Lekova <apokalyptra@gmail.com> <mslekova@chromium.org>
 Michael Bernstein <michaelrbernstein@gmail.com>
 Michael Dawson <michael_dawson@ca.ibm.com> <mdawson@devrus.com>
+Michael Starzinger <mstarzinger@chromium.org>
 Michaël Zasso <targos@protonmail.com> <mic.besace@gmail.com>
 Michael-Rainabba Richardson <rainabba@gmail.com>
 Michał Gołębiowski-Owczarek <m.goleb@gmail.com>
@@ -341,6 +354,7 @@ Nikolai Vavilov <vvnicholas@gmail.com>
 Nils Kuhnhenn <lain@volafile.io>
 Nitzan Uziely <linkgoron@gmail.com> <nitzan@testim.io>
 Noah Rose Ledesma <noahroseledesma@seattleacademy.org>
+Oliver Chang <ochang@chromium.org>
 Oluwaseun Omoyajowo <omoyajowo2015@gmail.com>
 Onne Gorter <onne@onnlucky.com>
 Oscar Martinez <oscar@mtnz-web.com> <oscar.martinez@hautelook.com>
@@ -349,6 +363,7 @@ Paul Querna <pquerna@apache.org> <paul@querna.org>
 Pedro Lima <pvsousalima@gmail.com>
 Peng Lyu <penn.lv@gmail.com>
 Peter Flannery <pflannery@users.noreply.github.com>
+Peter Marshall <p.s.marshall0@gmail.com> <petermarshall@chromium.org>
 Peter Marton <email@martonpeter.com> <peter@risingstack.com>
 Peter Paugh <ppaugh@chariotsolutions.com>
 Phillip Johnsen <johphi@gmail.com> <phillip.johnsen@finn.no>
@@ -393,9 +408,9 @@ Sam Roberts <vieuxtech@gmail.com> <sam@strongloop.com>
 Sam Shull <brickysam26@gmail.com> <brickysam26@samuel-shulls-computer.local>
 Sam Shull <brickysam26@gmail.com> <sam+github@samshull.com>
 Sam Shull <brickysam26@gmail.com> <sshull@squaremouth.com>
-Samuel Attard <samuel.r.attard@gmail.com> <sattard@slack-corp.com>
 Samantha Sample <ssample812@gmail.com> <=>
 Sambasiva Suda <sambasivarao@gmail.com>
+Samuel Attard <samuel.r.attard@gmail.com> <sattard@slack-corp.com>
 San-Tai Hsu <v@fatpipi.com>
 Santiago Gimeno <santiago.gimeno@gmail.com> <santiago.gimeno@ionide.es>
 Sarah Meyer <sarahsaltrick@gmail.com>
@@ -431,6 +446,7 @@ Stewart X Addison <sxa@redhat.com> <sxa@uk.ibm.com>
 Suraiya Hameed <hameedsuraiya@gmail.com>
 Suramya shah <shah.suramya@gmail.com> <ss22ever@users.noreply.github.com>
 Surya Panikkal <surya.com@gmail.com>
+Sven Panne <svenpanne@chromium.org>
 Szymon Marczak <sz.marczak@gmail.com> <36894700+szmarczak@users.noreply.github.com>
 Tadashi SAWADA <cesare@mayverse.jp>
 Tadhg Creedon <tadhgcreedon@gmail.com> <tadhg.creedon@rangle.io>
@@ -454,6 +470,7 @@ Tim Price <timprice@mangoraft.com>
 Tim Ruffles <timruffles@googlemail.com> <oi@truffles.me.uk>
 Tim Smart <timehandgod@gmail.com>
 Tim Smart <timehandgod@gmail.com> <tim@fostle.com>
+Timothy Gu <timothygu99@gmail.com> <timothygu@chromium.org>
 Timothy Leverett <zzzzBov@gmail.com>
 Timothy O. Peters <timotewpeters@gmail.com>
 Timur Shemsedinov <timur.shemsedinov@gmail.com>
@@ -471,20 +488,22 @@ Tom Hughes-Croucher <tom_croucher@yahoo.com>
 Tom Purcell <tpurcell@chariotsolutions.com>
 Tom White <tomtinkerer@gmail.com>
 Tomoki Okahana <umatomakun@gmail.com>
+Toon Verwaest <verwaest@chromium.org>
 Tracy Hinds <tracyhinds@gmail.com>
 Travis Meisenheimer <travis@indexoutofbounds.com> <tmeisenh@gmail.com>
 Trevor Burnham <trevor@databraid.com> <trevorburnham@gmail.com>
 Trivikram Kamat <trivikr.dev@gmail.com> <16024985+trivikr@users.noreply.github.com>
 ttzztztz <ttzztztz@outlook.com> <yangziyue80@outlook.com>
 Tyler Larson <talltyler@gmail.com>
-Ujjwal Sharma <ryzokuken@disroot.org> <usharma1998@gmail.com>
 Ujjwal Sharma <ryzokuken@disroot.org> <ryzokuken@igalia.com>
+Ujjwal Sharma <ryzokuken@disroot.org> <usharma1998@gmail.com>
 Uttam Pawar <upawar@gmail.com> <uttam.c.pawar@intel.com>
 Viktor Karpov <viktor.s.karpov@gmail.com>
 Vincent Voyer <v@fasterize.com>
 Vladimir de Turckheim <vlad2t@hotmail.com>
 Voltrex <mohammadkeyvanzade94@gmail.com> <62040526+VoltrexMaster@users.noreply.github.com>
 vsemozhetbyt <vsemozhetbyt@gmail.com>
+Vyacheslav Egorov <vegorov@chromium.org>
 Wang Xinyong <wang.xy.chn@gmail.com> <wangxy.chn@gmail.com>
 Wei-Wei Wu <wuxx1045@umn.edu>
 Weijia Wang <starkwang@126.com>
@@ -498,6 +517,7 @@ Xavier J Ortiz <xavier.ortiz.ch@gmail.com>
 xiaoyu <306766053@qq.com>
 Xu Meng <dmabupt@gmail.com> <mengxumx@cn.ibm.com>
 Yael Hermon <yaelherm@gmail.com> <yaelhe@wix.com>
+Yang Guo <yangguo@chromium.org>
 ycjcl868 <45808948@qq.com> <chaolinjin@gmail.com>
 Yingchen Xue <yingchenxue@qq.com>
 Yongsheng Zhang <zyszys98@gmail.com>
@@ -515,15 +535,3 @@ Zachary Vacura <admin@hackzzila.com>
 Zoran Tomicic <ztomicic@gmail.com>
 Сковорода Никита Андреевич <chalkerx@gmail.com>
 隋鑫磊 <joshuasui@163.com>
-
-# These people didn't contribute patches to node directly,
-# but we've landed their v8 patches in the node repository:
-Daniel Clifford <danno@chromium.org>
-Erik Corry <erik.corry@gmail.com>
-Jakob Kummerow <jkummerow@chromium.org>
-Kevin Millikin <kmillikin@chromium.org>
-Lasse R.H. Nielsen <lrn@chromium.org>
-Michael Starzinger <mstarzinger@chromium.org>
-Toon Verwaest <verwaest@chromium.org>
-Vyacheslav Egorov <vegorov@chromium.org>
-Yang Guo <yangguo@chromium.org>
