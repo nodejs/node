@@ -22,28 +22,21 @@
 
 char *ares_strdup(const char *s1)
 {
-#ifdef HAVE_STRDUP
-  if (ares_malloc == malloc)
-    return strdup(s1);
-  else
-#endif
-  {
-    size_t sz;
-    char * s2;
+  size_t sz;
+  char * s2;
 
-    if(s1) {
-      sz = strlen(s1);
-      if(sz < (size_t)-1) {
-        sz++;
-        if(sz < ((size_t)-1) / sizeof(char)) {
-          s2 = ares_malloc(sz * sizeof(char));
-          if(s2) {
-            memcpy(s2, s1, sz * sizeof(char));
-            return s2;
-          }
+  if(s1) {
+    sz = strlen(s1);
+    if(sz < (size_t)-1) {
+      sz++;
+      if(sz < ((size_t)-1)) {
+        s2 = ares_malloc(sz);
+        if(s2) {
+          memcpy(s2, s1, sz);
+          return s2;
         }
       }
     }
-    return (char *)NULL;
   }
+  return (char *)NULL;
 }

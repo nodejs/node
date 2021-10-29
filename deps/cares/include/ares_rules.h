@@ -2,7 +2,7 @@
 #define __CARES_RULES_H
 
 
-/* Copyright (C) 2009 by Daniel Stenberg et al
+/* Copyright (C) 2009 - 2021 by Daniel Stenberg et al
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose and without fee is hereby granted, provided
@@ -40,7 +40,7 @@
  * library is properly built and used.
  *
  * You can find further help on the c-ares development mailing list:
- * http://cool.haxx.se/mailman/listinfo/c-ares/
+ * http://lists.haxx.se/listinfo/c-ares/
  *
  * NOTE 2
  * ------
