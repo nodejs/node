@@ -52,7 +52,7 @@ u_cleanup(void)
 /*#endif*/
 }
 
-U_CAPI void U_EXPORT2 ucln_cleanupOne(ECleanupLibraryType libType)
+U_CAPI void U_EXPORT2 ucln_cleanupOne(ECleanupLibraryType libType) 
 {
     if (gLibCleanupFunctions[libType])
     {

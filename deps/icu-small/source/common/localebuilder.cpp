@@ -228,7 +228,7 @@ LocaleBuilder& LocaleBuilder::setExtension(char key, StringPiece value)
         return *this;
     }
     if (extensions_ == nullptr) {
-        extensions_ = new Locale();
+        extensions_ = Locale::getRoot().clone();
         if (extensions_ == nullptr) {
             status_ = U_MEMORY_ALLOCATION_ERROR;
             return *this;
@@ -259,11 +259,11 @@ LocaleBuilder& LocaleBuilder::setUnicodeLocaleKeyword(
       return *this;
     }
     if (extensions_ == nullptr) {
-        extensions_ = new Locale();
-    }
-    if (extensions_ == nullptr) {
-        status_ = U_MEMORY_ALLOCATION_ERROR;
-        return *this;
+        extensions_ = Locale::getRoot().clone();
+        if (extensions_ == nullptr) {
+            status_ = U_MEMORY_ALLOCATION_ERROR;
+            return *this;
+        }
     }
     extensions_->setUnicodeKeywordValue(key, type, status_);
     return *this;
@@ -280,7 +280,7 @@ LocaleBuilder& LocaleBuilder::addUnicodeLocaleAttribute(
         return *this;
     }
     if (extensions_ == nullptr) {
-        extensions_ = new Locale();
+        extensions_ = Locale::getRoot().clone();
         if (extensions_ == nullptr) {
             status_ = U_MEMORY_ALLOCATION_ERROR;
             return *this;
@@ -415,7 +415,7 @@ void LocaleBuilder::copyExtensionsFrom(const Locale& src, UErrorCode& errorCode)
         return;
     }
     if (extensions_ == nullptr) {
-        extensions_ = new Locale();
+        extensions_ = Locale::getRoot().clone();
         if (extensions_ == nullptr) {
             status_ = U_MEMORY_ALLOCATION_ERROR;
             return;

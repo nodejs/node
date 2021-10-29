@@ -79,7 +79,7 @@ static void push(UScriptRun *scriptRun, int32_t pairIndex, UScriptCode scriptCod
 {
     scriptRun->pushCount  = LIMIT_INC(scriptRun->pushCount);
     scriptRun->fixupCount = LIMIT_INC(scriptRun->fixupCount);
-
+    
     scriptRun->parenSP = INC1(scriptRun->parenSP);
     scriptRun->parenStack[scriptRun->parenSP].pairIndex  = pairIndex;
     scriptRun->parenStack[scriptRun->parenSP].scriptCode = scriptCode;
@@ -90,14 +90,14 @@ static void pop(UScriptRun *scriptRun)
     if (STACK_IS_EMPTY(scriptRun)) {
         return;
     }
-
+    
     if (scriptRun->fixupCount > 0) {
         scriptRun->fixupCount -= 1;
     }
-
+    
     scriptRun->pushCount -= 1;
     scriptRun->parenSP = DEC1(scriptRun->parenSP);
-
+    
     /* If the stack is now empty, reset the stack
        pointers to their initial values.
      */
@@ -109,7 +109,7 @@ static void pop(UScriptRun *scriptRun)
 static void fixup(UScriptRun *scriptRun, UScriptCode scriptCode)
 {
     int32_t fixupSP = DEC(scriptRun->parenSP, scriptRun->fixupCount);
-
+    
     while (scriptRun->fixupCount-- > 0) {
         fixupSP = INC1(fixupSP);
         scriptRun->parenStack[fixupSP].scriptCode = scriptCode;
@@ -263,7 +263,7 @@ uscript_nextRun(UScriptRun *scriptRun, int32_t *pRunStart, int32_t *pRunLimit, U
     if (scriptRun == NULL || scriptRun->scriptLimit >= scriptRun->textLength) {
         return FALSE;
     }
-
+    
     SYNC_FIXUP(scriptRun);
     scriptRun->scriptCode = USCRIPT_COMMON;
 

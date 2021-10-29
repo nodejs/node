@@ -44,13 +44,13 @@ ScriptSet & ScriptSet::operator =(const ScriptSet &other) {
     return *this;
 }
 
-UBool ScriptSet::operator == (const ScriptSet &other) const {
+bool ScriptSet::operator == (const ScriptSet &other) const {
     for (uint32_t i=0; i<UPRV_LENGTHOF(bits); i++) {
         if (bits[i] != other.bits[i]) {
-            return FALSE;
+            return false;
         }
     }
-    return TRUE;
+    return true;
 }
 
 UBool ScriptSet::test(UScriptCode script, UErrorCode &status) const {

@@ -43,7 +43,7 @@ typedef union UCPTrieData {
 /**
  * Immutable Unicode code point trie structure.
  * Fast, reasonably compact, map from Unicode code points (U+0000..U+10FFFF) to integer values.
- * For details see http://site.icu-project.org/design/struct/utrie
+ * For details see https://icu.unicode.org/design/struct/utrie
  *
  * Do not access UCPTrie fields directly; use public functions and macros.
  * Functions are easy to use: They support all trie types and value widths.

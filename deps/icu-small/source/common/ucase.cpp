@@ -351,7 +351,7 @@ strcmpMax(const UChar *s, int32_t length, const UChar *t, int32_t max) {
     if(max==0 || *t==0) {
         return 0; /* equal to length of both strings */
     } else {
-        return -max; /* return lengh difference */
+        return -max; /* return length difference */
     }
 }
 
@@ -690,7 +690,7 @@ ucase_isCaseSensitive(UChar32 c) {
  *   - The general category of C is
  *     Nonspacing Mark (Mn), or Enclosing Mark (Me), or Format Control (Cf), or
  *     Letter Modifier (Lm), or Symbol Modifier (Sk)
- *   - C is one of the following characters
+ *   - C is one of the following characters 
  *     U+0027 APOSTROPHE
  *     U+00AD SOFT HYPHEN (SHY)
  *     U+2019 RIGHT SINGLE QUOTATION MARK
@@ -1542,7 +1542,7 @@ U_CAPI UChar32 U_EXPORT2
 u_tolower(UChar32 c) {
     return ucase_tolower(c);
 }
-
+    
 /* Transforms the Unicode character to its upper case equivalent.*/
 U_CAPI UChar32 U_EXPORT2
 u_toupper(UChar32 c) {

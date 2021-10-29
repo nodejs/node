@@ -58,15 +58,15 @@ public:
         UErrorCode& status);
     virtual ~SameValueSubstitution();
 
-    virtual int64_t transformNumber(int64_t number) const { return number; }
-    virtual double transformNumber(double number) const { return number; }
-    virtual double composeRuleValue(double newRuleValue, double /*oldRuleValue*/) const { return newRuleValue; }
-    virtual double calcUpperBound(double oldUpperBound) const { return oldUpperBound; }
-    virtual UChar tokenChar() const { return (UChar)0x003d; } // '='
+    virtual int64_t transformNumber(int64_t number) const override { return number; }
+    virtual double transformNumber(double number) const override { return number; }
+    virtual double composeRuleValue(double newRuleValue, double /*oldRuleValue*/) const override { return newRuleValue; }
+    virtual double calcUpperBound(double oldUpperBound) const override { return oldUpperBound; }
+    virtual UChar tokenChar() const override { return (UChar)0x003d; } // '='
 
 public:
     static UClassID getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 };
 
 SameValueSubstitution::~SameValueSubstitution() {}
@@ -88,7 +88,7 @@ public:
     }
     virtual ~MultiplierSubstitution();
 
-    virtual void setDivisor(int32_t radix, int16_t exponent, UErrorCode& status) {
+    virtual void setDivisor(int32_t radix, int16_t exponent, UErrorCode& status) override {
         divisor = util64_pow(radix, exponent);
 
         if(divisor == 0) {
@@ -96,13 +96,13 @@ public:
         }
     }
 
-    virtual UBool operator==(const NFSubstitution& rhs) const;
+    virtual bool operator==(const NFSubstitution& rhs) const override;
 
-    virtual int64_t transformNumber(int64_t number) const {
+    virtual int64_t transformNumber(int64_t number) const override {
         return number / divisor;
     }
 
-    virtual double transformNumber(double number) const {
+    virtual double transformNumber(double number) const override {
         if (getRuleSet()) {
             return uprv_floor(number / divisor);
         } else {
@@ -110,17 +110,17 @@ public:
         }
     }
 
-    virtual double composeRuleValue(double newRuleValue, double /*oldRuleValue*/) const {
+    virtual double composeRuleValue(double newRuleValue, double /*oldRuleValue*/) const override {
         return newRuleValue * divisor;
     }
 
-    virtual double calcUpperBound(double /*oldUpperBound*/) const { return static_cast<double>(divisor); }
+    virtual double calcUpperBound(double /*oldUpperBound*/) const override { return static_cast<double>(divisor); }
 
-    virtual UChar tokenChar() const { return (UChar)0x003c; } // '<'
+    virtual UChar tokenChar() const override { return (UChar)0x003c; } // '<'
 
 public:
     static UClassID getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 };
 
 MultiplierSubstitution::~MultiplierSubstitution() {}
@@ -137,7 +137,7 @@ public:
         UErrorCode& status);
     virtual ~ModulusSubstitution();
 
-    virtual void setDivisor(int32_t radix, int16_t exponent, UErrorCode& status) {
+    virtual void setDivisor(int32_t radix, int16_t exponent, UErrorCode& status) override {
         divisor = util64_pow(radix, exponent);
 
         if (divisor == 0) {
@@ -145,37 +145,37 @@ public:
         }
     }
 
-    virtual UBool operator==(const NFSubstitution& rhs) const;
+    virtual bool operator==(const NFSubstitution& rhs) const override;
 
-    virtual void doSubstitution(int64_t number, UnicodeString& toInsertInto, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
-    virtual void doSubstitution(double number, UnicodeString& toInsertInto, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
+    virtual void doSubstitution(int64_t number, UnicodeString& toInsertInto, int32_t pos, int32_t recursionCount, UErrorCode& status) const override;
+    virtual void doSubstitution(double number, UnicodeString& toInsertInto, int32_t pos, int32_t recursionCount, UErrorCode& status) const override;
 
-    virtual int64_t transformNumber(int64_t number) const { return number % divisor; }
-    virtual double transformNumber(double number) const { return uprv_fmod(number, static_cast<double>(divisor)); }
+    virtual int64_t transformNumber(int64_t number) const override { return number % divisor; }
+    virtual double transformNumber(double number) const override { return uprv_fmod(number, static_cast<double>(divisor)); }
 
-    virtual UBool doParse(const UnicodeString& text,
+    virtual UBool doParse(const UnicodeString& text, 
         ParsePosition& parsePosition,
         double baseValue,
         double upperBound,
         UBool lenientParse,
         uint32_t nonNumericalExecutedRuleMask,
-        Formattable& result) const;
+        Formattable& result) const override;
 
-    virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const {
+    virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const override {
         return oldRuleValue - uprv_fmod(oldRuleValue, static_cast<double>(divisor)) + newRuleValue;
     }
 
-    virtual double calcUpperBound(double /*oldUpperBound*/) const { return static_cast<double>(divisor); }
+    virtual double calcUpperBound(double /*oldUpperBound*/) const override { return static_cast<double>(divisor); }
 
-    virtual UBool isModulusSubstitution() const { return TRUE; }
+    virtual UBool isModulusSubstitution() const override { return TRUE; }
 
-    virtual UChar tokenChar() const { return (UChar)0x003e; } // '>'
+    virtual UChar tokenChar() const override { return (UChar)0x003e; } // '>'
 
-	virtual void toString(UnicodeString& result) const;
+    virtual void toString(UnicodeString& result) const override;
 
 public:
     static UClassID getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 };
 
 ModulusSubstitution::~ModulusSubstitution() {}
@@ -189,15 +189,15 @@ public:
         : NFSubstitution(_pos, _ruleSet, description, status) {}
     virtual ~IntegralPartSubstitution();
 
-    virtual int64_t transformNumber(int64_t number) const { return number; }
-    virtual double transformNumber(double number) const { return uprv_floor(number); }
-    virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const { return newRuleValue + oldRuleValue; }
-    virtual double calcUpperBound(double /*oldUpperBound*/) const { return DBL_MAX; }
-    virtual UChar tokenChar() const { return (UChar)0x003c; } // '<'
+    virtual int64_t transformNumber(int64_t number) const override { return number; }
+    virtual double transformNumber(double number) const override { return uprv_floor(number); }
+    virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const override { return newRuleValue + oldRuleValue; }
+    virtual double calcUpperBound(double /*oldUpperBound*/) const override { return DBL_MAX; }
+    virtual UChar tokenChar() const override { return (UChar)0x003c; } // '<'
 
 public:
     static UClassID getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 };
 
 IntegralPartSubstitution::~IntegralPartSubstitution() {}
@@ -213,12 +213,12 @@ public:
         UErrorCode& status);
     virtual ~FractionalPartSubstitution();
 
-    virtual UBool operator==(const NFSubstitution& rhs) const;
+    virtual bool operator==(const NFSubstitution& rhs) const override;
 
-    virtual void doSubstitution(double number, UnicodeString& toInsertInto, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
-    virtual void doSubstitution(int64_t /*number*/, UnicodeString& /*toInsertInto*/, int32_t /*_pos*/, int32_t /*recursionCount*/, UErrorCode& /*status*/) const {}
-    virtual int64_t transformNumber(int64_t /*number*/) const { return 0; }
-    virtual double transformNumber(double number) const { return number - uprv_floor(number); }
+    virtual void doSubstitution(double number, UnicodeString& toInsertInto, int32_t pos, int32_t recursionCount, UErrorCode& status) const override;
+    virtual void doSubstitution(int64_t /*number*/, UnicodeString& /*toInsertInto*/, int32_t /*_pos*/, int32_t /*recursionCount*/, UErrorCode& /*status*/) const override {}
+    virtual int64_t transformNumber(int64_t /*number*/) const override { return 0; }
+    virtual double transformNumber(double number) const override { return number - uprv_floor(number); }
 
     virtual UBool doParse(const UnicodeString& text,
         ParsePosition& parsePosition,
@@ -226,15 +226,15 @@ public:
         double upperBound,
         UBool lenientParse,
         uint32_t nonNumericalExecutedRuleMask,
-        Formattable& result) const;
+        Formattable& result) const override;
 
-    virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const { return newRuleValue + oldRuleValue; }
-    virtual double calcUpperBound(double /*oldUpperBound*/) const { return 0.0; }
-    virtual UChar tokenChar() const { return (UChar)0x003e; } // '>'
+    virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const override { return newRuleValue + oldRuleValue; }
+    virtual double calcUpperBound(double /*oldUpperBound*/) const override { return 0.0; }
+    virtual UChar tokenChar() const override { return (UChar)0x003e; } // '>'
 
 public:
     static UClassID getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 };
 
 FractionalPartSubstitution::~FractionalPartSubstitution() {}
@@ -248,15 +248,15 @@ public:
         : NFSubstitution(_pos, _ruleSet, description, status) {}
     virtual ~AbsoluteValueSubstitution();
 
-    virtual int64_t transformNumber(int64_t number) const { return number >= 0 ? number : -number; }
-    virtual double transformNumber(double number) const { return uprv_fabs(number); }
-    virtual double composeRuleValue(double newRuleValue, double /*oldRuleValue*/) const { return -newRuleValue; }
-    virtual double calcUpperBound(double /*oldUpperBound*/) const { return DBL_MAX; }
-    virtual UChar tokenChar() const { return (UChar)0x003e; } // '>'
+    virtual int64_t transformNumber(int64_t number) const override { return number >= 0 ? number : -number; }
+    virtual double transformNumber(double number) const override { return uprv_fabs(number); }
+    virtual double composeRuleValue(double newRuleValue, double /*oldRuleValue*/) const override { return -newRuleValue; }
+    virtual double calcUpperBound(double /*oldUpperBound*/) const override { return DBL_MAX; }
+    virtual UChar tokenChar() const override { return (UChar)0x003e; } // '>'
 
 public:
     static UClassID getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 };
 
 AbsoluteValueSubstitution::~AbsoluteValueSubstitution() {}
@@ -278,37 +278,37 @@ public:
         NFRuleSet* _ruleSet,
         const UnicodeString& description,
         UErrorCode& status)
-        : NFSubstitution(_pos, _ruleSet, fixdesc(description), status), denominator(_denominator)
+        : NFSubstitution(_pos, _ruleSet, fixdesc(description), status), denominator(_denominator) 
     {
         ldenominator = util64_fromDouble(denominator);
         withZeros = description.endsWith(LTLT, 2);
     }
     virtual ~NumeratorSubstitution();
 
-    virtual UBool operator==(const NFSubstitution& rhs) const;
+    virtual bool operator==(const NFSubstitution& rhs) const override;
 
-    virtual int64_t transformNumber(int64_t number) const { return number * ldenominator; }
-    virtual double transformNumber(double number) const { return uprv_round(number * denominator); }
+    virtual int64_t transformNumber(int64_t number) const override { return number * ldenominator; }
+    virtual double transformNumber(double number) const override { return uprv_round(number * denominator); }
 
-    virtual void doSubstitution(int64_t /*number*/, UnicodeString& /*toInsertInto*/, int32_t /*_pos*/, int32_t /*recursionCount*/, UErrorCode& /*status*/) const {}
-    virtual void doSubstitution(double number, UnicodeString& toInsertInto, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
-    virtual UBool doParse(const UnicodeString& text,
+    virtual void doSubstitution(int64_t /*number*/, UnicodeString& /*toInsertInto*/, int32_t /*_pos*/, int32_t /*recursionCount*/, UErrorCode& /*status*/) const override {}
+    virtual void doSubstitution(double number, UnicodeString& toInsertInto, int32_t pos, int32_t recursionCount, UErrorCode& status) const override;
+    virtual UBool doParse(const UnicodeString& text, 
         ParsePosition& parsePosition,
         double baseValue,
         double upperBound,
         UBool /*lenientParse*/,
         uint32_t nonNumericalExecutedRuleMask,
-        Formattable& result) const;
+        Formattable& result) const override;
 
-    virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const { return newRuleValue / oldRuleValue; }
-    virtual double calcUpperBound(double /*oldUpperBound*/) const { return denominator; }
-    virtual UChar tokenChar() const { return (UChar)0x003c; } // '<'
+    virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const override { return newRuleValue / oldRuleValue; }
+    virtual double calcUpperBound(double /*oldUpperBound*/) const override { return denominator; }
+    virtual UChar tokenChar() const override { return (UChar)0x003c; } // '<'
 private:
     static const UChar LTLT[2];
 
 public:
     static UClassID getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 };
 
 NumeratorSubstitution::~NumeratorSubstitution() {}
@@ -515,7 +515,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(NFSubstitution)
  * @param The substitution to compare this one to
  * @return true if the two substitutions are functionally equivalent
  */
-UBool
+bool
 NFSubstitution::operator==(const NFSubstitution& rhs) const
 {
   // compare class and all of the fields all substitutions have
@@ -592,20 +592,20 @@ NFSubstitution::doSubstitution(int64_t number, UnicodeString& toInsertInto, int3
             UnicodeString temp;
             numberFormat->format(numberToFormat, temp, status);
             toInsertInto.insert(_pos + this->pos, temp);
-        }
-        else {
-            // We have gone beyond double precision. Something has to give.
-            // We're favoring accuracy of the large number over potential rules
-            // that round like a CompactDecimalFormat, which is not a common use case.
-            //
-            // Perform a transformation on the number that is dependent
-            // on the type of substitution this is, then just call its
-            // rule set's format() method to format the result
-            int64_t numberToFormat = transformNumber(number);
+        } 
+        else { 
+            // We have gone beyond double precision. Something has to give. 
+            // We're favoring accuracy of the large number over potential rules 
+            // that round like a CompactDecimalFormat, which is not a common use case. 
+            // 
+            // Perform a transformation on the number that is dependent 
+            // on the type of substitution this is, then just call its 
+            // rule set's format() method to format the result 
+            int64_t numberToFormat = transformNumber(number); 
             UnicodeString temp;
             numberFormat->format(numberToFormat, temp, status);
             toInsertInto.insert(_pos + this->pos, temp);
-        }
+        } 
     }
 }
 
@@ -810,7 +810,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(SameValueSubstitution)
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(MultiplierSubstitution)
 
-UBool MultiplierSubstitution::operator==(const NFSubstitution& rhs) const
+bool MultiplierSubstitution::operator==(const NFSubstitution& rhs) const
 {
     return NFSubstitution::operator==(rhs) &&
         divisor == ((const MultiplierSubstitution*)&rhs)->divisor;
@@ -845,7 +845,7 @@ ModulusSubstitution::ModulusSubstitution(int32_t _pos,
   }
 
   if (0 == description.compare(gGreaterGreaterGreaterThan, 3)) {
-    // the >>> token doesn't alter how this substituion calculates the
+    // the >>> token doesn't alter how this substitution calculates the
     // values it uses for formatting and parsing, but it changes
     // what's done with that value after it's obtained: >>> short-
     // circuits the rule-search process and goes straight to the
@@ -856,7 +856,7 @@ ModulusSubstitution::ModulusSubstitution(int32_t _pos,
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(ModulusSubstitution)
 
-UBool ModulusSubstitution::operator==(const NFSubstitution& rhs) const
+bool ModulusSubstitution::operator==(const NFSubstitution& rhs) const
 {
   return NFSubstitution::operator==(rhs) &&
   divisor == ((const ModulusSubstitution*)&rhs)->divisor &&
@@ -1075,7 +1075,7 @@ FractionalPartSubstitution::doSubstitution(double number, UnicodeString& toInser
     DecimalQuantity dl;
     dl.setToDouble(number);
     dl.roundToMagnitude(-20, UNUM_ROUND_HALFEVEN, status);     // round to 20 fraction digits.
-
+    
     UBool pad = FALSE;
     for (int32_t didx = dl.getLowerDisplayMagnitude(); didx<0; didx++) {
       // Loop iterates over fraction digits, starting with the LSD.
@@ -1195,7 +1195,7 @@ FractionalPartSubstitution::doParse(const UnicodeString& text,
     }
 }
 
-UBool
+bool
 FractionalPartSubstitution::operator==(const NFSubstitution& rhs) const
 {
   return NFSubstitution::operator==(rhs) &&
@@ -1254,8 +1254,8 @@ NumeratorSubstitution::doSubstitution(double number, UnicodeString& toInsertInto
     }
 }
 
-UBool
-NumeratorSubstitution::doParse(const UnicodeString& text,
+UBool 
+NumeratorSubstitution::doParse(const UnicodeString& text, 
                                ParsePosition& parsePosition,
                                double baseValue,
                                double upperBound,
@@ -1327,7 +1327,7 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
     return TRUE;
 }
 
-UBool
+bool
 NumeratorSubstitution::operator==(const NFSubstitution& rhs) const
 {
     return NFSubstitution::operator==(rhs) &&
@@ -1337,8 +1337,9 @@ NumeratorSubstitution::operator==(const NFSubstitution& rhs) const
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(NumeratorSubstitution)
 
 const UChar NumeratorSubstitution::LTLT[] = { 0x003c, 0x003c };
-
+        
 U_NAMESPACE_END
 
 /* U_HAVE_RBNF */
 #endif
+
