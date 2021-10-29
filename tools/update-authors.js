@@ -110,9 +110,7 @@ rl.on('line', (line) => {
     ({ author, email } = { author, email, ...replacement });
   }
 
-  if (seen.has(email) ||
-      /@chromium\.org/.test(email) ||
-      email === '<erik.corry@gmail.com>') {
+  if (seen.has(email)) {
     return;
   }
 
