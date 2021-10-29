@@ -800,6 +800,42 @@ float StringToDoubleConverter::StringToFloat(
                                          processed_characters_count));
 }
 
+
+template<>
+double StringToDoubleConverter::StringTo<double>(
+    const char* buffer,
+    int length,
+    int* processed_characters_count) const {
+    return StringToDouble(buffer, length, processed_characters_count);
+}
+
+
+template<>
+float StringToDoubleConverter::StringTo<float>(
+    const char* buffer,
+    int length,
+    int* processed_characters_count) const {
+    return StringToFloat(buffer, length, processed_characters_count);
+}
+
+
+template<>
+double StringToDoubleConverter::StringTo<double>(
+    const uc16* buffer,
+    int length,
+    int* processed_characters_count) const {
+    return StringToDouble(buffer, length, processed_characters_count);
+}
+
+
+template<>
+float StringToDoubleConverter::StringTo<float>(
+    const uc16* buffer,
+    int length,
+    int* processed_characters_count) const {
+    return StringToFloat(buffer, length, processed_characters_count);
+}
+
 }  // namespace double_conversion
 
 // ICU PATCH: Close ICU namespace

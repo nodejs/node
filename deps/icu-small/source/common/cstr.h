@@ -24,11 +24,11 @@
  * ICU-internal class CStr, a small helper class to facilitate passing UnicodeStrings
  * to functions needing (const char *) strings, such as printf().
  *
- * It is intended primarily for use in debugging or in tests. Uses platform
+ * It is intended primarily for use in debugging or in tests. Uses platform 
  * default code page conversion, which will do the best job possible,
  * but may be lossy, depending on the platform.
  *
- * If no other conversion is available, use invariant conversion and substitue
+ * If no other conversion is available, use invariant conversion and substitute
  * '?' for non-invariant characters.
  *
  * Example Usage:

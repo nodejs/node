@@ -35,7 +35,7 @@
 *   limitations and adds m:n character mappings and other features.
 *   See ucnv_ext.h for details.
 *
-*   Change history:
+*   Change history: 
 *
 *    5/6/2001       Ram       Moved  MBCS_SINGLE_RESULT_FROM_U,MBCS_STAGE_2_FROM_U,
 *                             MBCS_VALUE_2_FROM_STAGE_2, MBCS_VALUE_4_FROM_STAGE_2
@@ -849,7 +849,7 @@ ucnv_MBCSEnumToUnicode(UConverterMBCSTable *mbcsTable,
     }
 }
 
-U_CFUNC void
+U_CFUNC void 
 ucnv_MBCSGetFilteredUnicodeSetForUnicode(const UConverterSharedData *sharedData,
                                          const USetAdder *sa,
                                          UConverterUnicodeSet which,
@@ -1091,7 +1091,7 @@ ucnv_MBCSGetUnicodeSet(const UConverter *cnv,
  * Definition of LINEAR macros and gb18030Ranges see near the beginning of the file.
  *
  * In the future, conversion extensions may handle m:n mappings and delta tables,
- * see http://source.icu-project.org/repos/icu/icuhtml/trunk/design/conversion/conversion_extensions.html
+ * see https://htmlpreview.github.io/?https://github.com/unicode-org/icu-docs/blob/main/design/conversion/conversion_extensions.html
  *
  * If an input character cannot be mapped, then these functions set an error
  * code. The framework will then call the callback function.
@@ -4444,7 +4444,7 @@ getTrail:
                  * For EUC encodings that use only either 0x8e or 0x8f as the first
                  * byte of their longest byte sequences, the first two bytes in
                  * this third stage indicate with their 7th bits whether these bytes
-                 * are to be written directly or actually need to be preceeded by
+                 * are to be written directly or actually need to be preceded by
                  * one of the two Single-Shift codes. With this, the third stage
                  * stores one byte fewer per character than the actual maximum length of
                  * EUC byte sequences.

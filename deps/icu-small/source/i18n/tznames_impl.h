@@ -74,7 +74,7 @@ class U_I18N_API ZNStringPool: public UMemory {
  */
 struct CharacterNode {
     // No constructor or destructor.
-    // We malloc and free an uninitalized array of CharacterNode objects
+    // We malloc and free an uninitialized array of CharacterNode objects
     // and clear and delete them ourselves.
 
     void clear();
@@ -173,24 +173,24 @@ public:
 
     virtual ~TimeZoneNamesImpl();
 
-    virtual UBool operator==(const TimeZoneNames& other) const;
-    virtual TimeZoneNamesImpl* clone() const;
+    virtual bool operator==(const TimeZoneNames& other) const override;
+    virtual TimeZoneNamesImpl* clone() const override;
 
-    StringEnumeration* getAvailableMetaZoneIDs(UErrorCode& status) const;
-    StringEnumeration* getAvailableMetaZoneIDs(const UnicodeString& tzID, UErrorCode& status) const;
+    StringEnumeration* getAvailableMetaZoneIDs(UErrorCode& status) const override;
+    StringEnumeration* getAvailableMetaZoneIDs(const UnicodeString& tzID, UErrorCode& status) const override;
 
-    UnicodeString& getMetaZoneID(const UnicodeString& tzID, UDate date, UnicodeString& mzID) const;
-    UnicodeString& getReferenceZoneID(const UnicodeString& mzID, const char* region, UnicodeString& tzID) const;
+    UnicodeString& getMetaZoneID(const UnicodeString& tzID, UDate date, UnicodeString& mzID) const override;
+    UnicodeString& getReferenceZoneID(const UnicodeString& mzID, const char* region, UnicodeString& tzID) const override;
 
-    UnicodeString& getMetaZoneDisplayName(const UnicodeString& mzID, UTimeZoneNameType type, UnicodeString& name) const;
-    UnicodeString& getTimeZoneDisplayName(const UnicodeString& tzID, UTimeZoneNameType type, UnicodeString& name) const;
+    UnicodeString& getMetaZoneDisplayName(const UnicodeString& mzID, UTimeZoneNameType type, UnicodeString& name) const override;
+    UnicodeString& getTimeZoneDisplayName(const UnicodeString& tzID, UTimeZoneNameType type, UnicodeString& name) const override;
 
-    UnicodeString& getExemplarLocationName(const UnicodeString& tzID, UnicodeString& name) const;
+    UnicodeString& getExemplarLocationName(const UnicodeString& tzID, UnicodeString& name) const override;
 
-    TimeZoneNames::MatchInfoCollection* find(const UnicodeString& text, int32_t start, uint32_t types, UErrorCode& status) const;
+    TimeZoneNames::MatchInfoCollection* find(const UnicodeString& text, int32_t start, uint32_t types, UErrorCode& status) const override;
 
-    void loadAllDisplayNames(UErrorCode& status);
-    void getDisplayNames(const UnicodeString& tzID, const UTimeZoneNameType types[], int32_t numTypes, UDate date, UnicodeString dest[], UErrorCode& status) const;
+    void loadAllDisplayNames(UErrorCode& status) override;
+    void getDisplayNames(const UnicodeString& tzID, const UTimeZoneNameType types[], int32_t numTypes, UDate date, UnicodeString dest[], UErrorCode& status) const override;
 
     static UnicodeString& getDefaultExemplarLocationName(const UnicodeString& tzID, UnicodeString& name);
 
@@ -235,19 +235,19 @@ public:
     TZDBTimeZoneNames(const Locale& locale);
     virtual ~TZDBTimeZoneNames();
 
-    virtual UBool operator==(const TimeZoneNames& other) const;
-    virtual TZDBTimeZoneNames* clone() const;
+    virtual bool operator==(const TimeZoneNames& other) const override;
+    virtual TZDBTimeZoneNames* clone() const override;
 
-    StringEnumeration* getAvailableMetaZoneIDs(UErrorCode& status) const;
-    StringEnumeration* getAvailableMetaZoneIDs(const UnicodeString& tzID, UErrorCode& status) const;
+    StringEnumeration* getAvailableMetaZoneIDs(UErrorCode& status) const override;
+    StringEnumeration* getAvailableMetaZoneIDs(const UnicodeString& tzID, UErrorCode& status) const override;
 
-    UnicodeString& getMetaZoneID(const UnicodeString& tzID, UDate date, UnicodeString& mzID) const;
-    UnicodeString& getReferenceZoneID(const UnicodeString& mzID, const char* region, UnicodeString& tzID) const;
+    UnicodeString& getMetaZoneID(const UnicodeString& tzID, UDate date, UnicodeString& mzID) const override;
+    UnicodeString& getReferenceZoneID(const UnicodeString& mzID, const char* region, UnicodeString& tzID) const override;
 
-    UnicodeString& getMetaZoneDisplayName(const UnicodeString& mzID, UTimeZoneNameType type, UnicodeString& name) const;
-    UnicodeString& getTimeZoneDisplayName(const UnicodeString& tzID, UTimeZoneNameType type, UnicodeString& name) const;
+    UnicodeString& getMetaZoneDisplayName(const UnicodeString& mzID, UTimeZoneNameType type, UnicodeString& name) const override;
+    UnicodeString& getTimeZoneDisplayName(const UnicodeString& tzID, UTimeZoneNameType type, UnicodeString& name) const override;
 
-    TimeZoneNames::MatchInfoCollection* find(const UnicodeString& text, int32_t start, uint32_t types, UErrorCode& status) const;
+    TimeZoneNames::MatchInfoCollection* find(const UnicodeString& text, int32_t start, uint32_t types, UErrorCode& status) const override;
 
     // When TZDBNames for the metazone is not available, this method returns NULL,
     // but does NOT set U_MISSING_RESOURCE_ERROR to status.

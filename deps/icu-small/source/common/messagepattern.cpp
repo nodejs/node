@@ -309,10 +309,10 @@ MessagePattern::clear() {
     numericValuesLength=0;
 }
 
-UBool
+bool
 MessagePattern::operator==(const MessagePattern &other) const {
     if(this==&other) {
-        return TRUE;
+        return true;
     }
     return
         aposMode==other.aposMode &&
@@ -387,10 +387,10 @@ MessagePattern::getPluralOffset(int32_t pluralStart) const {
 
 // MessagePattern::Part ---------------------------------------------------- ***
 
-UBool
+bool
 MessagePattern::Part::operator==(const Part &other) const {
     if(this==&other) {
-        return TRUE;
+        return true;
     }
     return
         type==other.type &&
@@ -454,7 +454,7 @@ MessagePattern::parseMessage(int32_t index, int32_t msgStartLength,
         UChar c=msg.charAt(index++);
         if(c==u_apos) {
             if(index==msg.length()) {
-                // The apostrophe is the last character in the pattern.
+                // The apostrophe is the last character in the pattern. 
                 // Add a Part for auto-quoting.
                 addPart(UMSGPAT_PART_TYPE_INSERT_CHAR, index, 0,
                         u_apos, errorCode);  // value=char to be inserted

@@ -136,7 +136,7 @@ typedef HANDLE MemoryMap;
 
         /* open the input file */
 #if U_PLATFORM_HAS_WINUWP_API == 0
-        // Note: In the non-UWP code-path (ie: Win32), the value of the path variable might have come from
+        // Note: In the non-UWP code-path (ie: Win32), the value of the path variable might have come from 
         // the CRT 'getenv' function, and would be therefore be encoded in the default ANSI code page.
         // This means that we can't call the *W version of API below, whereas in the UWP code-path
         // there is no 'getenv' call, and thus the string will be only UTF-8/Invariant characters.
@@ -178,7 +178,7 @@ typedef HANDLE MemoryMap;
 
         CloseHandle(file);
         if (map == nullptr) {
-            // If we failed to create the mapping due to an out-of-memory error, then
+            // If we failed to create the mapping due to an out-of-memory error, then 
             // we want to report that error back to the caller.
             if (HRESULT_FROM_WIN32(GetLastError()) == E_OUTOFMEMORY) {
                 *status = U_MEMORY_ALLOCATION_ERROR;
@@ -360,14 +360,14 @@ typedef HANDLE MemoryMap;
         }
         return dest;
     }
-
+    
     /*------------------------------------------------------------------------------
-     *
-     *  computeDirPath   given a user-supplied path of an item to be opened,
-     *                         compute and return
-     *                            - the full directory path to be used
+     *                                                                              
+     *  computeDirPath   given a user-supplied path of an item to be opened,             
+     *                         compute and return 
+     *                            - the full directory path to be used 
      *                              when opening the file.
-     *                            - Pointer to null at end of above returned path
+     *                            - Pointer to null at end of above returned path    
      *
      *                       Parameters:
      *                          path:        input path.  Buffer is not altered.
@@ -379,23 +379,23 @@ typedef HANDLE MemoryMap;
      *                    TODO:  This works the way ICU historically has, but the
      *                           whole data fallback search path is so complicated that
      *                           probably almost no one will ever really understand it,
-     *                           the potential for confusion is large.  (It's not just
+     *                           the potential for confusion is large.  (It's not just 
      *                           this one function, but the whole scheme.)
-     *
+     *                            
      *------------------------------------------------------------------------------*/
     static char *uprv_computeDirPath(const char *path, char *pathBuffer)
     {
         char   *finalSlash;       /* Ptr to last dir separator in input path, or null if none. */
         int32_t pathLen;          /* Length of the returned directory path                     */
-
+        
         finalSlash = 0;
         if (path != 0) {
             finalSlash = uprv_strrchr(path, U_FILE_SEP_CHAR);
         }
-
+        
         *pathBuffer = 0;
         if (finalSlash == 0) {
-        /* No user-supplied path.
+        /* No user-supplied path.  
             * Copy the ICU_DATA path to the path buffer and return that*/
             const char *icuDataDir;
             icuDataDir=u_getDataDirectory();
@@ -405,8 +405,8 @@ typedef HANDLE MemoryMap;
                 /* there is no icuDataDir either.  Just return the empty pathBuffer. */
                 return pathBuffer;
             }
-        }
-
+        } 
+        
         /* User supplied path did contain a directory portion.
         * Copy it to the output path buffer */
         pathLen = (int32_t)(finalSlash - path + 1);
@@ -414,7 +414,7 @@ typedef HANDLE MemoryMap;
         *(pathBuffer+pathLen) = 0;
         return pathBuffer+pathLen;
     }
-
+    
 
 #   define DATA_TYPE "dat"
 
@@ -522,7 +522,7 @@ typedef HANDLE MemoryMap;
             pData->map     = nullptr;
             pData->mapAddr = nullptr;
             pData->pHeader = nullptr;
-        }
+        }   
     }
 
 #else
