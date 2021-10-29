@@ -9,7 +9,7 @@
 *
 *  ucnv_imp.h:
 *  Contains all internal and external data structure definitions
-* Created & Maitained by Bertrand A. Damiba
+* Created & Maintained by Bertrand A. Damiba
 *
 *
 *

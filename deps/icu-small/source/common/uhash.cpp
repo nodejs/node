@@ -320,7 +320,7 @@ _uhash_create(UHashFunction *keyHash,
  * Stop if it is identical or empty, otherwise continue by adding a
  * "jump" value (moduloing by the length again to keep it within
  * range) and retesting.  For efficiency, there need enough empty
- * values so that the searchs stop within a reasonable amount of time.
+ * values so that the searches stop within a reasonable amount of time.
  * This can be changed by changing the high/low water marks.
  *
  * In theory, this function can return NULL, if it is full (no empty
@@ -379,7 +379,7 @@ _uhash_find(const UHashtable *hash, UHashTok key,
          * WILL NEVER HAPPEN as long as uhash_put() makes sure that
          * count is always < length.
          */
-        UPRV_UNREACHABLE;
+        UPRV_UNREACHABLE_EXIT;
     }
     return &(elements[theIndex]);
 }

@@ -683,7 +683,7 @@ public:
     virtual void getRules(
             const char *localeID, const char *collationType,
             UnicodeString &rules,
-            const char *&errorReason, UErrorCode &errorCode);
+            const char *&errorReason, UErrorCode &errorCode) override;
 
 private:
     const char *inputDir;

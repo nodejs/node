@@ -92,13 +92,13 @@ bool ConstantAffixModifier::isStrong() const {
 bool ConstantAffixModifier::containsField(Field field) const {
     (void)field;
     // This method is not currently used.
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 void ConstantAffixModifier::getParameters(Parameters& output) const {
     (void)output;
     // This method is not currently used.
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 bool ConstantAffixModifier::semanticallyEquivalent(const Modifier& other) const {
@@ -181,7 +181,7 @@ bool SimpleModifier::isStrong() const {
 bool SimpleModifier::containsField(Field field) const {
     (void)field;
     // This method is not currently used.
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 void SimpleModifier::getParameters(Parameters& output) const {

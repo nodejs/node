@@ -107,7 +107,7 @@
  *
  * <em>Usage:</em>
  * ICU coding guidelines for if() statements should be followed when using these macros.
- * Compound statements (curly braces {}) must be used  for if-else-while...
+ * Compound statements (curly braces {}) must be used  for if-else-while... 
  * bodies and all macro statements should be terminated with semicolon.
  *
  * @stable ICU 2.4
@@ -167,7 +167,7 @@
  * @stable ICU 2.8
  */
 #define U_IS_SUPPLEMENTARY(c) ((uint32_t)((c)-0x10000)<=0xfffff)
-
+ 
 /**
  * Is this code point a lead surrogate (U+d800..U+dbff)?
  * @param c 32-bit code point

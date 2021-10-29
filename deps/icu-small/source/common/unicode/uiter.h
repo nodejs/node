@@ -171,7 +171,7 @@ UCharIteratorHasNext(UCharIterator *iter);
  */
 typedef UBool U_CALLCONV
 UCharIteratorHasPrevious(UCharIterator *iter);
-
+ 
 /**
  * Function type declaration for UCharIterator.current().
  *

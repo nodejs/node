@@ -86,7 +86,7 @@ vzone_equals(const VZone* zone1, const VZone* zone2);
 
 /**
  * Gets the RFC2445 TZURL property value.  When a vzone instance was
- * created from VTIMEZONE data, the initial value is set by the TZURL
+ * created from VTIMEZONE data, the initial value is set by the TZURL 
  * property value in the data.  Otherwise, the initial value is not set.
  * @param zone, the vzone to use
  * @param url Receives the RFC2445 TZURL property value.
@@ -107,8 +107,8 @@ vzone_setTZURL(VZone* zone, UChar* url, int32_t urlLength);
 
 /**
  * Gets the RFC2445 LAST-MODIFIED property value.  When a vzone instance
- * was created from VTIMEZONE data, the initial value is set by the
- * LAST-MODIFIED property value in the data.  Otherwise, the initial value
+ * was created from VTIMEZONE data, the initial value is set by the 
+ * LAST-MODIFIED property value in the data.  Otherwise, the initial value 
  * is not set.
  * @param zone, the vzone to use
  * @param lastModified Receives the last modified date.
@@ -323,7 +323,7 @@ vzone_getPreviousTransition(VZone* zone, UDate base, UBool inclusive, ZTrans* re
  * Returns the number of <code>TimeZoneRule</code>s which represents time transitions,
  * for this time zone, that is, all <code>TimeZoneRule</code>s for this time zone except
  * <code>InitialTimeZoneRule</code>.  The return value range is 0 or any positive value.
- * @param zone, the vzone to use
+ * @param zone, the vzone to use     
  * @param status    Receives error status code.
  * @return The number of <code>TimeZoneRule</code>s representing time transitions.
  */

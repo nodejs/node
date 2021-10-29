@@ -299,7 +299,7 @@ public:
      *                Objects of different subclasses are considered unequal.
      * @stable ICU 50
      */
-    virtual UBool operator==(const Format& other) const;
+    virtual bool operator==(const Format& other) const override;
 
     /**
      * Clone this object polymorphically. The caller is responsible
@@ -307,7 +307,7 @@ public:
      * @return A copy of the object
      * @stable ICU 50
      */
-    virtual TimeZoneFormat* clone() const;
+    virtual TimeZoneFormat* clone() const override;
 
     /**
      * Creates an instance of <code>TimeZoneFormat</code> for the given locale.
@@ -327,7 +327,7 @@ public:
     const TimeZoneNames* getTimeZoneNames() const;
 
     /**
-     * Sets the time zone display name data to this format instnace.
+     * Sets the time zone display name data to this format instance.
      * The caller should not delete the TimeZoenNames object after it is adopted
      * by this call.
      * @param tznames TimeZoneNames object to be adopted.
@@ -336,7 +336,7 @@ public:
     void adoptTimeZoneNames(TimeZoneNames *tznames);
 
     /**
-     * Sets the time zone display name data to this format instnace.
+     * Sets the time zone display name data to this format instance.
      * @param tznames TimeZoneNames object to be set.
      * @stable ICU 50
      */
@@ -355,7 +355,7 @@ public:
      * Sets the localized GMT format pattern. The pattern must contain
      * a single argument {0}, for example "GMT {0}".
      * @param pattern The localized GMT format pattern to be used by this object.
-     * @param status Recieves the status.
+     * @param status Receives the status.
      * @see #getGMTPattern
      * @stable ICU 50
      */
@@ -437,7 +437,7 @@ public:
      * Sets the default parse options.
      * <p><b>Note</b>: By default, an instance of <code>TimeZoneFormat</code>
      * created by {@link #createInstance} has no parse options set (UTZFMT_PARSE_OPTION_NONE).
-     * To specify multipe options, use bitwise flags of UTimeZoneFormatParseOption.
+     * To specify multiple options, use bitwise flags of UTimeZoneFormatParseOption.
      * @see #UTimeZoneFormatParseOption
      * @stable ICU 50
      */
@@ -590,7 +590,7 @@ public:
      * @param text The text contains a time zone string at the position.
      * @param style The format style
      * @param pos The position.
-     * @param parseOptions The parse options repesented by bitwise flags of UTimeZoneFormatParseOption.
+     * @param parseOptions The parse options represented by bitwise flags of UTimeZoneFormatParseOption.
      * @param timeType The output argument for receiving the time type (standard/daylight/unknown),
      * or NULL if the information is not necessary.
      * @return A <code>TimeZone</code>, or null if the input could not be parsed.
@@ -636,7 +636,7 @@ public:
      * @stable ICU 50
      */
     virtual UnicodeString& format(const Formattable& obj, UnicodeString& appendTo,
-        FieldPosition& pos, UErrorCode& status) const;
+        FieldPosition& pos, UErrorCode& status) const override;
 
     /**
      * Parse a string to produce an object. This methods handles parsing of
@@ -650,7 +650,7 @@ public:
      *                 delete it when done.
      * @stable ICU 50
      */
-    virtual void parseObject(const UnicodeString& source, Formattable& result, ParsePosition& parse_pos) const;
+    virtual void parseObject(const UnicodeString& source, Formattable& result, ParsePosition& parse_pos) const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -662,7 +662,7 @@ public:
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      * @stable ICU 50
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
 protected:
     /**
@@ -1058,7 +1058,7 @@ private:
      * Returns the time zone ID of a match at the specified index within
      * the MatchInfoCollection.
      * @param matches the collection of matches
-     * @param idx the index withing matches
+     * @param idx the index within matches
      * @param tzID receives the resolved time zone ID
      * @return a reference to tzID.
      */

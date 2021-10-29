@@ -67,7 +67,7 @@ utrace_exit(int32_t fnNumber, int32_t returnType, ...) {
             fmt = gExitFmtPtrStatus;
             break;
         default:
-            UPRV_UNREACHABLE;
+            UPRV_UNREACHABLE_EXIT;
         }
 
         va_start(args, returnType);
@@ -75,14 +75,14 @@ utrace_exit(int32_t fnNumber, int32_t returnType, ...) {
         va_end(args);
     }
 }
+ 
 
-
-
-U_CAPI void U_EXPORT2
+ 
+U_CAPI void U_EXPORT2 
 utrace_data(int32_t fnNumber, int32_t level, const char *fmt, ...) {
     if (pTraceDataFunc != NULL) {
            va_list args;
-           va_start(args, fmt );
+           va_start(args, fmt ); 
            (*pTraceDataFunc)(gTraceContext, fnNumber, level, fmt, args);
            va_end(args);
     }
@@ -93,7 +93,7 @@ static void outputChar(char c, char *outBuf, int32_t *outIx, int32_t capacity, i
     int32_t i;
     /* Check whether a start of line indenting is needed.  Three cases:
      *   1.  At the start of the first line  (output index == 0).
-     *   2.  At the start of subsequent lines  (preceeding char in buffer == '\n')
+     *   2.  At the start of subsequent lines  (preceding char in buffer == '\n')
      *   3.  When preflighting buffer len (buffer capacity is exceeded), when
      *       a \n is output.  Ideally we wouldn't do the indent until the following char
      *       is received, but that won't work because there's no place to remember that
@@ -146,7 +146,7 @@ static void outputPtrBytes(void *val, char *outBuf, int32_t *outIx, int32_t capa
     p += sizeof(void *) - 1;
 #endif
 
-    /* Loop through the bytes of the ptr as it sits in memory, from
+    /* Loop through the bytes of the ptr as it sits in memory, from 
      * most significant to least significant end                    */
     for (i=0; i<sizeof(void *); i++) {
         outputHexBytes(*p, 2, outBuf, outIx, capacity);
@@ -165,10 +165,10 @@ static void outputString(const char *s, char *outBuf, int32_t *outIx, int32_t ca
         outputChar(c, outBuf, outIx, capacity, indent);
     } while (c != 0);
 }
+        
 
 
-
-static void outputUString(const UChar *s, int32_t len,
+static void outputUString(const UChar *s, int32_t len, 
                           char *outBuf, int32_t *outIx, int32_t capacity, int32_t indent) {
     int32_t i = 0;
     UChar   c;
@@ -186,7 +186,7 @@ static void outputUString(const UChar *s, int32_t len,
         }
     }
 }
-
+        
 U_CAPI int32_t U_EXPORT2
 utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, va_list args) {
     int32_t   outIx  = 0;
@@ -260,7 +260,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
             longArg = va_arg(args, int64_t);
             outputHexBytes(longArg, 16, outBuf, &outIx, capacity);
             break;
-
+            
         case 'p':
             /*  Pointers.   */
             ptrArg = va_arg(args, char *);
@@ -268,7 +268,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
             break;
 
         case 0:
-            /* Single '%' at end of fmt string.  Output as literal '%'.
+            /* Single '%' at end of fmt string.  Output as literal '%'.   
              * Back up index into format string so that the terminating null will be
              * re-fetched in the outer loop, causing it to terminate.
              */
@@ -288,7 +288,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
                 void     **ptrPtr;
                 int32_t   charsToOutput = 0;
                 int32_t   i;
-
+                
                 vectorType = fmt[fmtIx];    /* b, h, d, l, p, etc. */
                 if (vectorType != 0) {
                     fmtIx++;
@@ -302,7 +302,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
                 if (ptrPtr == NULL) {
                     outputString("*NULL* ", outBuf, &outIx, capacity, indent);
                 } else {
-                    for (i=0; i<vectorLen || vectorLen==-1; i++) {
+                    for (i=0; i<vectorLen || vectorLen==-1; i++) { 
                         switch (vectorType) {
                         case 'b':
                             charsToOutput = 2;
@@ -348,7 +348,7 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
                             ptrPtr++;
                             break;
 
-
+                            
                         }
                         if (charsToOutput > 0) {
                             outputHexBytes(longArg, charsToOutput, outBuf, &outIx, capacity);
@@ -369,13 +369,13 @@ utrace_vformat(char *outBuf, int32_t capacity, int32_t indent, const char *fmt, 
         default:
             /* %. in format string, where . is some character not in the set
              *    of recognized format chars.  Just output it as if % wasn't there.
-             *    (Covers "%%" outputing a single '%')
+             *    (Covers "%%" outputting a single '%')
              */
              outputChar(fmtC, outBuf, &outIx, capacity, indent);
         }
     }
-    outputChar(0, outBuf, &outIx, capacity, indent);  /* Make sure that output is null terminated  */
-    return outIx + 1;     /* outIx + 1 because outIx does not increment when outputing final null. */
+    outputChar(0, outBuf, &outIx, capacity, indent);  /* Make sure that output is null terminated   */
+    return outIx + 1;     /* outIx + 1 because outIx does not increment when outputting final null. */
 }
 
 
@@ -386,7 +386,7 @@ utrace_format(char *outBuf, int32_t capacity,
                 int32_t indent, const char *fmt,  ...) {
     int32_t retVal;
     va_list args;
-    va_start(args, fmt );
+    va_start(args, fmt ); 
     retVal = utrace_vformat(outBuf, capacity, indent, fmt, args);
     va_end(args);
     return retVal;
@@ -429,7 +429,7 @@ utrace_getLevel() {
 }
 
 
-U_CFUNC UBool
+U_CFUNC UBool 
 utrace_cleanup() {
     pTraceEntryFunc = NULL;
     pTraceExitFunc  = NULL;
@@ -461,7 +461,7 @@ trConvNames[] = {
     NULL
 };
 
-
+    
 static const char * const
 trCollNames[] = {
     "ucol_open",
@@ -486,7 +486,7 @@ trResDataNames[] = {
     NULL
 };
 
-
+                
 U_CAPI const char * U_EXPORT2
 utrace_functionName(int32_t fnNumber) {
     if(UTRACE_FUNCTION_START <= fnNumber && fnNumber < UTRACE_FUNCTION_LIMIT) {
@@ -501,3 +501,4 @@ utrace_functionName(int32_t fnNumber) {
         return "[BOGUS Trace Function Number]";
     }
 }
+

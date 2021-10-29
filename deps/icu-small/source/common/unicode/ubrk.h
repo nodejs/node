@@ -94,7 +94,7 @@
  * <p>
  * Code snippets illustrating the use of the Break Iterator APIs
  * are available in the ICU User Guide,
- * http://icu-project.org/userguide/boundaryAnalysis.html
+ * https://unicode-org.github.io/icu/userguide/boundaryanalysis/
  * and in the sample program icu/source/samples/break/break.cpp
  */
 
