@@ -164,6 +164,7 @@ The commit message can be written as (with the openssl version set
 to the relevant value):
 
 ### OpenSSL 1.1.1
+
 ```text
  deps: update archs files for OpenSSL-1.1.1
 
@@ -178,6 +179,7 @@ to the relevant value):
 ```
 
 ### OpenSSL 3.0.0
+
 ```text
 deps: update archs files for quictls/openssl-3.0.0-alpha-16
 

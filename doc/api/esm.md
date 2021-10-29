@@ -1116,21 +1116,21 @@ The resolver can throw the following errors:
 >    **PACKAGE\_SELF\_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_).
 > 10. If _selfUrl_ is not **undefined**, return _selfUrl_.
 > 11. While _parentURL_ is not the file system root,
->    1. Let _packageURL_ be the URL resolution of _"node_modules/"_
->       concatenated with _packageSpecifier_, relative to _parentURL_.
->    2. Set _parentURL_ to the parent folder URL of _parentURL_.
->    3. If the folder at _packageURL_ does not exist, then
->       1. Continue the next loop iteration.
->    4. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
->    5. If _pjson_ is not **null** and _pjson_._exports_ is not **null** or
->       **undefined**, then
->       1. Return the result of **PACKAGE\_EXPORTS\_RESOLVE**(_packageURL_,
->          _packageSubpath_, _pjson.exports_, _defaultConditions_).
->    6. Otherwise, if _packageSubpath_ is equal to _"."_, then
->       1. If _pjson.main_ is a string, then
->          1. Return the URL resolution of _main_ in _packageURL_.
->    7. Otherwise,
->       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
+>     1. Let _packageURL_ be the URL resolution of _"node\_modules/"_
+>        concatenated with _packageSpecifier_, relative to _parentURL_.
+>     2. Set _parentURL_ to the parent folder URL of _parentURL_.
+>     3. If the folder at _packageURL_ does not exist, then
+>        1. Continue the next loop iteration.
+>     4. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
+>     5. If _pjson_ is not **null** and _pjson_._exports_ is not **null** or
+>        **undefined**, then
+>        1. Return the result of **PACKAGE\_EXPORTS\_RESOLVE**(_packageURL_,
+>           _packageSubpath_, _pjson.exports_, _defaultConditions_).
+>     6. Otherwise, if _packageSubpath_ is equal to _"."_, then
+>        1. If _pjson.main_ is a string, then
+>           1. Return the URL resolution of _main_ in _packageURL_.
+>     7. Otherwise,
+>        1. Return the URL resolution of _packageSubpath_ in _packageURL_.
 > 12. Throw a _Module Not Found_ error.
 
 **PACKAGE\_SELF\_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_)
@@ -1242,7 +1242,7 @@ _internal_, _conditions_)
 >             1. Return **PACKAGE\_RESOLVE**(_target_ with every instance of
 >                _"\*"_ replaced by _subpath_, _packageURL_ + _"/"_).
 >          2. Return **PACKAGE\_RESOLVE**(_target_ + _subpath_,
->             _packageURL_ + _"/"_)_.
+>             _packageURL_ + _"/"_).
 >       2. Otherwise, throw an _Invalid Package Target_ error.
 >    3. If _target_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
 >       _"node\_modules"_ segments after the first segment, case insensitive and
