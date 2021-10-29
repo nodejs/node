@@ -31,9 +31,9 @@ U_NAMESPACE_END
 
 /**
  * \file
- * \brief C API: String Enumeration
+ * \brief C API: String Enumeration 
  */
-
+ 
 /**
  * An enumeration object.
  * For usage in C programs.
@@ -78,7 +78,7 @@ U_NAMESPACE_END
  * U_ENUM_OUT_OF_SYNC_ERROR.
  * This is a convenience function. It can end up being very
  * expensive as all the items might have to be pre-fetched (depending
- * on the type of data being traversed). Use with caution and only
+ * on the type of data being traversed). Use with caution and only 
  * when necessary.
  * @param en UEnumeration structure pointer
  * @param status error code, can be U_ENUM_OUT_OF_SYNC_ERROR if the
@@ -154,7 +154,7 @@ uenum_next(UEnumeration* en,
  * to start at the first element.
  * @param en the iterator object
  * @param status the error code, set to U_ENUM_OUT_OF_SYNC_ERROR if
- *               the iterator is out of sync with its service.
+ *               the iterator is out of sync with its service.  
  * @stable ICU 2.2
  */
 U_CAPI void U_EXPORT2

@@ -38,7 +38,7 @@ protected:
     uint32_t fCount;
     uint32_t fCapacity;
 public:
-    NFRuleList(uint32_t capacity = 10)
+    NFRuleList(uint32_t capacity = 10) 
         : fStuff(capacity ? (NFRule**)uprv_malloc(capacity * sizeof(NFRule*)) : NULL)
         , fCount(0)
         , fCapacity(capacity) {}
@@ -52,9 +52,9 @@ public:
     }
     NFRule* operator[](uint32_t index) const { return fStuff != NULL ? fStuff[index] : NULL; }
     NFRule* remove(uint32_t index) {
-	if (fStuff == NULL) {
-		return NULL;
-	}
+    	if (fStuff == NULL) {
+    		return NULL;
+    	}
         NFRule* result = fStuff[index];
         fCount -= 1;
         for (uint32_t i = index; i < fCount; ++i) { // assumes small arrays
@@ -68,10 +68,10 @@ public:
             fStuff = (NFRule**)uprv_realloc(fStuff, fCapacity * sizeof(NFRule*)); // assume success
         }
         if (fStuff != NULL) {
-		fStuff[fCount++] = thing;
+        	fStuff[fCount++] = thing;
         } else {
-		fCapacity = 0;
-		fCount = 0;
+        	fCapacity = 0;
+        	fCount = 0;
         }
     }
     uint32_t size() const { return fCount; }

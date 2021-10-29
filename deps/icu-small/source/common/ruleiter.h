@@ -39,7 +39,7 @@ class RuleCharacterIterator : public UMemory {
 private:
     /**
      * Text being iterated.
-     */
+     */    
     const UnicodeString& text;
 
     /**
@@ -51,7 +51,7 @@ private:
      * Symbol table used to parse and dereference variables.  May be 0.
      */
     const SymbolTable* sym;
-
+    
     /**
      * Current variable expansion, or 0 if none.
      */
@@ -94,7 +94,7 @@ public:
      * position.
      * @param text the text to be iterated
      * @param sym the symbol table, or null if there is none.  If sym is null,
-     * then variables will not be deferenced, even if the PARSE_VARIABLES
+     * then variables will not be dereferenced, even if the PARSE_VARIABLES
      * option is set.
      * @param pos upon input, the index of the next character to return.  If a
      * variable has been dereferenced, then pos will <em>not</em> increment as
@@ -102,7 +102,7 @@ public:
      */
     RuleCharacterIterator(const UnicodeString& text, const SymbolTable* sym,
                           ParsePosition& pos);
-
+    
     /**
      * Returns true if this iterator has no more characters to return.
      */
@@ -207,7 +207,7 @@ public:
      * representation of this object
      */
 //    UnicodeString& toString(UnicodeString& result) const;
-
+    
 private:
     /**
      * Returns the current 32-bit code point without parsing escapes, parsing
@@ -215,7 +215,7 @@ private:
      * @return the current 32-bit code point
      */
     UChar32 _current() const;
-
+    
     /**
      * Advances the position by the given amount.
      * @param count the number of 16-bit code units to advance past

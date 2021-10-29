@@ -1,7 +1,7 @@
 // © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /********************************************************************
- * COPYRIGHT:
+ * COPYRIGHT: 
  * Copyright (c) 1997-2012, International Business Machines Corporation and
  * others. All Rights Reserved.
  *
@@ -22,7 +22,7 @@
 /*! \mainpage
  *
  * \section API API Reference Usage
- *
+ * 
  * <h3>C++ Programmers:</h3>
  * <p>Use <a href="hierarchy.html">Class Hierarchy</a> or <a href="classes.html"> Alphabetical List </a>
  * or <a href="annotated.html"> Compound List</a>
@@ -31,7 +31,7 @@
  * "BreakIterator". Once you are at the class, you will find an inheritance
  * chart, a list of the public members, a detailed description of the class,
  * then detailed member descriptions.</p>
- *
+ * 
  * <h3>C Programmers:</h3>
  * <p>Use <a href="#Module">Module List</a> or <a href="globals_u.html">File Members</a>
  * to find a list of all the functions and constants.
@@ -46,8 +46,8 @@
  *
  * <h3>API References for Previous Releases</h3>
  * <p>The API References for each release of ICU are also available as
- * a zip file from the ICU
- * <a href="http://site.icu-project.org/download">download page</a>.</p>
+ * a zip file from the ICU 
+ * <a href="https://icu.unicode.org/download">download page</a>.</p>
  *
  * <hr>
  *

@@ -92,12 +92,12 @@ ICULocaleService::get(const Locale& locale, int32_t kind, Locale* actualReturn, 
 
 
 URegistryKey
-ICULocaleService::registerInstance(UObject* objToAdopt, const UnicodeString& locale,
+ICULocaleService::registerInstance(UObject* objToAdopt, const UnicodeString& locale, 
     UBool visible, UErrorCode& status)
 {
     Locale loc;
     LocaleUtility::initLocaleFromName(locale, loc);
-    return registerInstance(objToAdopt, loc, LocaleKey::KIND_ANY,
+    return registerInstance(objToAdopt, loc, LocaleKey::KIND_ANY, 
         visible ? LocaleKeyFactory::VISIBLE : LocaleKeyFactory::INVISIBLE, status);
 }
 
@@ -179,7 +179,7 @@ private:
 
             length = other._ids.size();
             for(i = 0; i < length; ++i) {
-                _ids.addElement(((UnicodeString *)other._ids.elementAt(i))->clone(), status);
+                _ids.addElementX(((UnicodeString *)other._ids.elementAt(i))->clone(), status);
             }
 
             if(U_SUCCESS(status)) {
@@ -201,7 +201,7 @@ public:
 
     virtual ~ServiceEnumeration();
 
-    virtual StringEnumeration *clone() const {
+    virtual StringEnumeration *clone() const override {
         UErrorCode status = U_ZERO_ERROR;
         ServiceEnumeration *cl = new ServiceEnumeration(*this, status);
         if(U_FAILURE(status)) {
@@ -221,18 +221,18 @@ public:
         return FALSE;
     }
 
-    virtual int32_t count(UErrorCode& status) const {
+    virtual int32_t count(UErrorCode& status) const override {
         return upToDate(status) ? _ids.size() : 0;
     }
 
-    virtual const UnicodeString* snext(UErrorCode& status) {
+    virtual const UnicodeString* snext(UErrorCode& status) override {
         if (upToDate(status) && (_pos < _ids.size())) {
             return (const UnicodeString*)_ids[_pos++];
         }
         return NULL;
     }
 
-    virtual void reset(UErrorCode& status) {
+    virtual void reset(UErrorCode& status) override {
         if (status == U_ENUM_OUT_OF_SYNC_ERROR) {
             status = U_ZERO_ERROR;
         }
@@ -245,7 +245,7 @@ public:
 
 public:
     static UClassID U_EXPORT2 getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 };
 
 ServiceEnumeration::~ServiceEnumeration() {}
@@ -291,3 +291,5 @@ U_NAMESPACE_END
 
 /* !UCONFIG_NO_SERVICE */
 #endif
+
+

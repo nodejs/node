@@ -19,7 +19,7 @@
 #include "unicode/unistr.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Formats in scientific notation.
  */
 
@@ -159,14 +159,14 @@ public:
 
     class U_I18N_API SuperscriptStyle : public Style {
     public:
-        virtual SuperscriptStyle *clone() const;
+        virtual SuperscriptStyle *clone() const override;
     protected:
         virtual UnicodeString &format(
                 const UnicodeString &original,
                 FieldPositionIterator &fpi,
                 const UnicodeString &preExponent,
                 UnicodeString &appendTo,
-                UErrorCode &status) const;
+                UErrorCode &status) const override;
     };
 
     class U_I18N_API MarkupStyle : public Style {
@@ -177,14 +177,14 @@ public:
                 : Style(),
                   fBeginMarkup(beginMarkup),
                   fEndMarkup(endMarkup) { }
-        virtual MarkupStyle *clone() const;
+        virtual MarkupStyle *clone() const override;
     protected:
         virtual UnicodeString &format(
                 const UnicodeString &original,
                 FieldPositionIterator &fpi,
                 const UnicodeString &preExponent,
                 UnicodeString &appendTo,
-                UErrorCode &status) const;
+                UErrorCode &status) const override;
     private:
         UnicodeString fBeginMarkup;
         UnicodeString fEndMarkup;
@@ -219,4 +219,4 @@ U_NAMESPACE_END
 
 #endif /* U_SHOW_CPLUSPLUS_API */
 
-#endif
+#endif 

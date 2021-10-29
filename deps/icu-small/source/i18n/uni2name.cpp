@@ -87,7 +87,7 @@ void UnicodeNameTransliterator::handleTransliterate(Replaceable& text, UTransPos
         offsets.start = offsets.limit;
         return;
     }
-
+    
     int32_t cursor = offsets.start;
     int32_t limit = offsets.limit;
 
