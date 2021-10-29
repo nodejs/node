@@ -1447,3 +1447,29 @@ const tsp = require('timers/promises');
     assert.strictEqual(text, 'Hello World!');
   }));
 }
+
+{
+  const pipelinePromise = promisify(pipeline);
+
+  async function run() {
+    const read = new Readable({
+      read() {}
+    });
+
+    const duplex = new PassThrough();
+
+    read.push('data');
+    read.push(null);
+
+    const stream = await pipelinePromise(read, duplex);
+
+    let ret = ''
+    for await (const x of stream) {
+      ret += x;
+    }
+
+    assert.strictEqual(ret, 'data');
+  }
+
+  run();
+}
