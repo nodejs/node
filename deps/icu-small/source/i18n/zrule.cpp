@@ -8,7 +8,7 @@
 */
 
 /**
- * \file
+ * \file 
  * \brief C API: Time zone rule classes
  */
 
@@ -115,25 +115,25 @@ izrule_isEquivalentTo(IZRule* rule1,  IZRule* rule2) {
 }
 
 U_CAPI UBool U_EXPORT2
-izrule_getFirstStart(IZRule* rule, int32_t prevRawOffset, int32_t prevDSTSavings,
+izrule_getFirstStart(IZRule* rule, int32_t prevRawOffset, int32_t prevDSTSavings, 
                     UDate& result) {
     return ((const InitialTimeZoneRule*)rule)->InitialTimeZoneRule::getFirstStart(prevRawOffset, prevDSTSavings, result);
 }
 
 U_CAPI UBool U_EXPORT2
-izrule_getFinalStart(IZRule* rule, int32_t prevRawOffset, int32_t prevDSTSavings,
+izrule_getFinalStart(IZRule* rule, int32_t prevRawOffset, int32_t prevDSTSavings, 
                     UDate& result) {
     return ((InitialTimeZoneRule*)rule)->InitialTimeZoneRule::getFinalStart(prevRawOffset, prevDSTSavings, result);
 }
 
 U_CAPI UBool U_EXPORT2
-izrule_getNextStart(IZRule* rule, UDate base, int32_t prevRawOffset,
+izrule_getNextStart(IZRule* rule, UDate base, int32_t prevRawOffset, 
                    int32_t prevDSTSavings, UBool inclusive, UDate& result) {
     return ((InitialTimeZoneRule*)rule)->InitialTimeZoneRule::getNextStart(base, prevRawOffset, prevDSTSavings, inclusive, result);
 }
 
 U_CAPI UBool U_EXPORT2
-izrule_getPreviousStart(IZRule* rule, UDate base, int32_t prevRawOffset,
+izrule_getPreviousStart(IZRule* rule, UDate base, int32_t prevRawOffset, 
                        int32_t prevDSTSavings, UBool inclusive, UDate& result) {
     return ((InitialTimeZoneRule*)rule)->InitialTimeZoneRule::getPreviousStart(base, prevRawOffset, prevDSTSavings, inclusive, result);
 }

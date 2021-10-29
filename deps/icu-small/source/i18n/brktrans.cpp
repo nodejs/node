@@ -106,7 +106,7 @@ void BreakTransliterator::handleTransliterate(Replaceable& text, UTransPosition&
         int32_t boundary;
         for(boundary = bi->next(); boundary != UBRK_DONE && boundary < offsets.limit; boundary = bi->next()) {
             if (boundary == 0) continue;
-            // HACK: Check to see that preceeding item was a letter
+            // HACK: Check to see that preceding item was a letter
 
             UChar32 cp = sText.char32At(boundary-1);
             int type = u_charType(cp);

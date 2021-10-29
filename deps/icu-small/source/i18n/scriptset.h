@@ -41,8 +41,8 @@ class U_I18N_API ScriptSet: public UMemory {
     ScriptSet(const ScriptSet &other);
     ~ScriptSet();
 
-    UBool operator == (const ScriptSet &other) const;
-    UBool operator != (const ScriptSet &other) const {return !(*this == other);}
+    bool operator == (const ScriptSet &other) const;
+    bool operator != (const ScriptSet &other) const {return !(*this == other);}
     ScriptSet & operator = (const ScriptSet &other);
 
     UBool      test(UScriptCode script, UErrorCode &status) const;

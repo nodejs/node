@@ -124,8 +124,8 @@ class RuleCharacterIterator;
  * "[:Lu:]" and the Perl-like syntax "\\p{Lu}" are recognized.  For a
  * complete list of supported property patterns, see the User's Guide
  * for UnicodeSet at
- * <a href="http://icu-project.org/userguide/unicodeSet.html">
- * http://icu-project.org/userguide/unicodeSet.html</a>.
+ * <a href="https://unicode-org.github.io/icu/userguide/strings/unicodeset">
+ * https://unicode-org.github.io/icu/userguide/strings/unicodeset</a>.
  * Actual determination of property data is defined by the underlying
  * Unicode database as implemented by UCharacter.
  *
@@ -135,6 +135,13 @@ class RuleCharacterIterator;
  * after the opening '['.  Property patterns are inverted by modifying
  * their delimiters; "[:^foo]" and "\\P{foo}".  In any other location,
  * '^' has no special meaning.
+ *
+ * <p>Since ICU 70, "[^...]", "[:^foo]", "\\P{foo}", and "[:binaryProperty=No:]"
+ * perform a “code point complement” (all code points minus the original set),
+ * removing all multicharacter strings,
+ * equivalent to <code>.complement().removeAllStrings()</code>.
+ * The complement() API function continues to perform a
+ * symmetric difference with all code points and thus retains all multicharacter strings.
  *
  * <p>Ranges are indicated by placing two a '-' between two
  * characters, as in "a-z".  This specifies the range of all
@@ -217,9 +224,8 @@ class RuleCharacterIterator;
  *     </tr>
  *     <tr align="top">
  *       <td nowrap valign="top" align="right"><code>hex :=&nbsp; </code></td>
- *       <td valign="top"><em>any character for which
- *       </em><code>Character.digit(c, 16)</code><em>
- *       returns a non-negative result</em></td>
+ *       <td valign="top"><code>'0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' |<br>
+ *       &nbsp;&nbsp;&nbsp;&nbsp;'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f'</code></td>
  *     </tr>
  *     <tr>
  *       <td nowrap valign="top" align="right"><code>property :=&nbsp; </code></td>
@@ -263,7 +269,7 @@ class RuleCharacterIterator;
  *     </tr>
  *   </table>
  * \htmlonly</blockquote>\endhtmlonly
- *
+ * 
  * <p>Note:
  *  - Most UnicodeSet methods do not take a UErrorCode parameter because
  *   there are usually very few opportunities for failure other than a shortage
@@ -485,14 +491,14 @@ public:
      * @return <tt>true</tt> if the specified set is equal to this set.
      * @stable ICU 2.0
      */
-    virtual UBool operator==(const UnicodeSet& o) const;
+    virtual bool operator==(const UnicodeSet& o) const;
 
     /**
      * Compares the specified object with this set for equality.  Returns
      * <tt>true</tt> if the specified set is not equal to this set.
      * @stable ICU 2.0
      */
-    inline UBool operator!=(const UnicodeSet& o) const;
+    inline bool operator!=(const UnicodeSet& o) const;
 
     /**
      * Returns a copy of this object.  All UnicodeFunctor objects have
@@ -503,7 +509,7 @@ public:
      * @see cloneAsThawed
      * @stable ICU 2.0
      */
-    virtual UnicodeSet* clone() const;
+    virtual UnicodeSet* clone() const override;
 
     /**
      * Returns the hash code value for this set.
@@ -533,7 +539,7 @@ public:
      * @stable ICU 4.2
      */
     inline static const UnicodeSet *fromUSet(const USet *uset);
-
+    
     /**
      * Produce a USet * pointer for this UnicodeSet.
      * USet is the plain C type for UnicodeSet
@@ -705,7 +711,7 @@ public:
      * @stable ICU 2.0
      */
     virtual UnicodeString& toPattern(UnicodeString& result,
-                                     UBool escapeUnprintable = false) const;
+                                     UBool escapeUnprintable = false) const override;
 
     /**
      * Modifies this set to contain those code points which have the given value
@@ -771,8 +777,12 @@ public:
      * Note than the elements of a set may include both individual
      * codepoints and strings.
      *
+     * This is slower than getRangeCount() because
+     * it counts the code points of all ranges.
+     *
      * @return the number of elements in this set (its cardinality).
      * @stable ICU 2.0
+     * @see getRangeCount
      */
     virtual int32_t size(void) const;
 
@@ -784,6 +794,14 @@ public:
      */
     virtual UBool isEmpty(void) const;
 
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * @return true if this set contains multi-character strings or the empty string.
+     * @draft ICU 70
+     */
+    UBool hasStrings() const;
+#endif  // U_HIDE_DRAFT_API
+
     /**
      * Returns true if this set contains the given character.
      * This function works faster with a frozen set.
@@ -791,7 +809,7 @@ public:
      * @return true if the test condition is met
      * @stable ICU 2.0
      */
-    virtual UBool contains(UChar32 c) const;
+    virtual UBool contains(UChar32 c) const override;
 
     /**
      * Returns true if this set contains every character
@@ -1000,7 +1018,7 @@ public:
     virtual UMatchDegree matches(const Replaceable& text,
                          int32_t& offset,
                          int32_t limit,
-                         UBool incremental);
+                         UBool incremental) override;
 
 private:
     /**
@@ -1049,7 +1067,7 @@ public:
      * @param toUnionTo the set into which to union the source characters
      * @stable ICU 2.4
      */
-    virtual void addMatchSetTo(UnicodeSet& toUnionTo) const;
+    virtual void addMatchSetTo(UnicodeSet& toUnionTo) const override;
 
     /**
      * Returns the index of the given character within this set, where
@@ -1064,8 +1082,14 @@ public:
     /**
      * Returns the character at the given index within this set, where
      * the set is ordered by ascending code point.  If the index is
-     * out of range, return (UChar32)-1.  The inverse of this method is
-     * <code>indexOf()</code>.
+     * out of range for characters, returns (UChar32)-1.
+     * The inverse of this method is <code>indexOf()</code>.
+     *
+     * For iteration, this is slower than UnicodeSetIterator or
+     * getRangeCount()/getRangeStart()/getRangeEnd(),
+     * because for each call it skips linearly over <code>index</code>
+     * characters in the ranges.
+     *
      * @param index an index from 0..size()-1
      * @return the character at the given index, or (UChar32)-1.
      * @stable ICU 2.4
@@ -1258,13 +1282,18 @@ public:
     UnicodeSet& remove(const UnicodeString& s);
 
     /**
-     * Inverts this set.  This operation modifies this set so that
-     * its value is its complement.  This is equivalent to
+     * This is equivalent to
      * <code>complement(MIN_VALUE, MAX_VALUE)</code>.
+     *
+     * <strong>Note:</strong> This performs a symmetric difference with all code points
+     * <em>and thus retains all multicharacter strings</em>.
+     * In order to achieve a “code point complement” (all code points minus this set),
+     * the easiest is to <code>.complement().removeAllStrings()</code>.
+     *
      * A frozen set will not be modified.
      * @stable ICU 2.0
      */
-    virtual UnicodeSet& complement(void);
+    virtual UnicodeSet& complement();
 
     /**
      * Complements the specified range in this set.  Any character in
@@ -1504,7 +1533,7 @@ public:
      * different class IDs.
      * @stable ICU 2.4
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID(void) const override;
 
 private:
 
@@ -1525,7 +1554,7 @@ private:
      * is the given value.  This is used by <tt>RuleBasedTransliterator</tt> for
      * indexing.
      */
-    virtual UBool matchesIndexValue(uint8_t v) const;
+    virtual UBool matchesIndexValue(uint8_t v) const override;
 
 private:
     friend class RBBIRuleScanner;
@@ -1567,7 +1596,6 @@ private:
     void swapBuffers(void);
 
     UBool allocateStrings(UErrorCode &status);
-    UBool hasStrings() const;
     int32_t stringsSize() const;
     UBool stringsContains(const UnicodeString &s) const;
 
@@ -1580,6 +1608,9 @@ private:
     static void _appendToPat(UnicodeString& buf, const UnicodeString& s, UBool escapeUnprintable);
 
     static void _appendToPat(UnicodeString& buf, UChar32 c, UBool escapeUnprintable);
+
+    static void _appendToPat(UnicodeString &result, UChar32 start, UChar32 end,
+                             UBool escapeUnprintable);
 
     //----------------------------------------------------------------
     // Implementation: Fundamental operators
@@ -1608,7 +1639,7 @@ private:
      *
      * The original design document is out of date, but still useful.
      * Ignore the property and value names:
-     * http://source.icu-project.org/repos/icu/icuhtml/trunk/design/unicodeset_properties.html
+     * https://htmlpreview.github.io/?https://github.com/unicode-org/icu-docs/blob/main/design/unicodeset_properties.html
      *
      * Recognized syntax:
      *
@@ -1693,7 +1724,7 @@ private:
 
 
 
-inline UBool UnicodeSet::operator!=(const UnicodeSet& o) const {
+inline bool UnicodeSet::operator!=(const UnicodeSet& o) const {
     return !operator==(o);
 }
 
