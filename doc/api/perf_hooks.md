@@ -232,7 +232,9 @@ changes:
                  to time async functions.
 -->
 
-* `fn` {Function}
+* `fn` {Function} Only accept function and class. If the fn is a function(
+includes "old style" class) will be executed directly or will be executed
+by the `new` operator.
 * `options` {Object}
   * `histogram` {RecordableHistogram} A histogram object created using
     `perf_hooks.createHistogram()` that will record runtime durations in
