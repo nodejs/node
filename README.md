@@ -625,6 +625,7 @@ For information about the governance of the Node.js project, see
   **Yorkie Liu** <<yorkiefixer@gmail.com>>
 
 </details>
+
 <!--lint enable prohibited-strings-->
 
 Collaborators follow the [Collaborator Guide](./doc/guides/collaborator-guide.md) in
