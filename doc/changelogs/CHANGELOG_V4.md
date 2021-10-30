@@ -56,23 +56,23 @@
 </table>
 
 * Other Versions
-  * [17.x](CHANGELOG\_V17.md)
-  * [16.x](CHANGELOG\_V16.md)
-  * [15.x](CHANGELOG\_V15.md)
-  * [14.x](CHANGELOG\_V14.md)
-  * [13.x](CHANGELOG\_V13.md)
-  * [12.x](CHANGELOG\_V12.md)
-  * [11.x](CHANGELOG\_V11.md)
-  * [10.x](CHANGELOG\_V10.md)
-  * [9.x](CHANGELOG\_V9.md)
-  * [8.x](CHANGELOG\_V8.md)
-  * [7.x](CHANGELOG\_V7.md)
-  * [6.x](CHANGELOG\_V6.md)
-  * [5.x](CHANGELOG\_V5.md)
-  * [0.12.x](CHANGELOG\_V012.md)
-  * [0.10.x](CHANGELOG\_V010.md)
-  * [io.js](CHANGELOG\_IOJS.md)
-  * [Archive](CHANGELOG\_ARCHIVE.md)
+  * [17.x](CHANGELOG_V17.md)
+  * [16.x](CHANGELOG_V16.md)
+  * [15.x](CHANGELOG_V15.md)
+  * [14.x](CHANGELOG_V14.md)
+  * [13.x](CHANGELOG_V13.md)
+  * [12.x](CHANGELOG_V12.md)
+  * [11.x](CHANGELOG_V11.md)
+  * [10.x](CHANGELOG_V10.md)
+  * [9.x](CHANGELOG_V9.md)
+  * [8.x](CHANGELOG_V8.md)
+  * [7.x](CHANGELOG_V7.md)
+  * [6.x](CHANGELOG_V6.md)
+  * [5.x](CHANGELOG_V5.md)
+  * [0.12.x](CHANGELOG_V012.md)
+  * [0.10.x](CHANGELOG_V010.md)
+  * [io.js](CHANGELOG_IOJS.md)
+  * [Archive](CHANGELOG_ARCHIVE.md)
 
 _Note_: Node.js v4 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
@@ -262,7 +262,7 @@ This is a security release. All Node.js users should consult the security releas
 ### Notable Changes
 
 * **module**:
-  * The [module loading global fallback](https://nodejs.org/dist/latest-v4.x/docs/api/modules.html#modules\_loading\_from\_the\_global\_folders) to the Node executable's directory now works correctly on Windows.  (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
+  * The [module loading global fallback](https://nodejs.org/dist/latest-v4.x/docs/api/modules.html#modules_loading_from_the_global_folders) to the Node executable's directory now works correctly on Windows.  (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
 * **src**:
   * fix base64 decoding in rare edgecase (Nikolai Vavilov) [#11995](https://github.com/nodejs/node/pull/11995)
 * **tls**:
@@ -3226,7 +3226,7 @@ See <https://github.com/nodejs/node/labels/confirmed-bug> for complete and curre
 ### Notable changes
 
 * **buffer**: Fixed a bug introduced in v4.1.0 where allocating a new zero-length buffer can result in the _next_ allocation of a TypedArray in JavaScript not being zero-filled. In certain circumstances this could result in data leakage via reuse of memory space in TypedArrays, breaking the normally safe assumption that TypedArrays should be always zero-filled. (Trevor Norris) [#2931](https://github.com/nodejs/node/pull/2931).
-* **http**: Guard against response-splitting of HTTP trailing headers added via [`response.addTrailers()`](https://nodejs.org/api/http.html#http\_response\_addtrailers\_headers) by removing new-line (`[\r\n]`) characters from values. Note that standard header values are already stripped of new-line characters. The expected security impact is low because trailing headers are rarely used. (Ben Noordhuis) [#2945](https://github.com/nodejs/node/pull/2945).
+* **http**: Guard against response-splitting of HTTP trailing headers added via [`response.addTrailers()`](https://nodejs.org/api/http.html#http_response_addtrailers_headers) by removing new-line (`[\r\n]`) characters from values. Note that standard header values are already stripped of new-line characters. The expected security impact is low because trailing headers are rarely used. (Ben Noordhuis) [#2945](https://github.com/nodejs/node/pull/2945).
 * **npm**: Upgrade to npm 2.14.4 from 2.14.3, see [release notes](https://github.com/npm/npm/releases/tag/v2.14.4) for full details (Kat Marchán) [#2958](https://github.com/nodejs/node/pull/2958)
   * Upgrades `graceful-fs` on multiple dependencies to no longer rely on monkey-patching `fs`
   * Fix `npm link` for pre-release / RC builds of Node

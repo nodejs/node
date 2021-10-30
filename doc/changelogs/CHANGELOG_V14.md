@@ -50,23 +50,23 @@
 </table>
 
 * Other Versions
-  * [17.x](CHANGELOG\_V17.md)
-  * [16.x](CHANGELOG\_V16.md)
-  * [15.x](CHANGELOG\_V15.md)
-  * [13.x](CHANGELOG\_V13.md)
-  * [12.x](CHANGELOG\_V12.md)
-  * [11.x](CHANGELOG\_V11.md)
-  * [10.x](CHANGELOG\_V10.md)
-  * [9.x](CHANGELOG\_V9.md)
-  * [8.x](CHANGELOG\_V8.md)
-  * [7.x](CHANGELOG\_V7.md)
-  * [6.x](CHANGELOG\_V6.md)
-  * [5.x](CHANGELOG\_V5.md)
-  * [4.x](CHANGELOG\_V4.md)
-  * [0.12.x](CHANGELOG\_V012.md)
-  * [0.10.x](CHANGELOG\_V010.md)
-  * [io.js](CHANGELOG\_IOJS.md)
-  * [Archive](CHANGELOG\_ARCHIVE.md)
+  * [17.x](CHANGELOG_V17.md)
+  * [16.x](CHANGELOG_V16.md)
+  * [15.x](CHANGELOG_V15.md)
+  * [13.x](CHANGELOG_V13.md)
+  * [12.x](CHANGELOG_V12.md)
+  * [11.x](CHANGELOG_V11.md)
+  * [10.x](CHANGELOG_V10.md)
+  * [9.x](CHANGELOG_V9.md)
+  * [8.x](CHANGELOG_V8.md)
+  * [7.x](CHANGELOG_V7.md)
+  * [6.x](CHANGELOG_V6.md)
+  * [5.x](CHANGELOG_V5.md)
+  * [4.x](CHANGELOG_V4.md)
+  * [0.12.x](CHANGELOG_V012.md)
+  * [0.10.x](CHANGELOG_V010.md)
+  * [io.js](CHANGELOG_IOJS.md)
+  * [Archive](CHANGELOG_ARCHIVE.md)
 
 <a id="14.18.1"></a>
 
@@ -3940,10 +3940,10 @@ interact with `std::shared_ptr`. This is expected to be fixed in a later version
 #### Update to V8 8.1
 
 * **(SEMVER-MAJOR)** **deps**: update V8 to 8.1.307.20 (Matheus Marchini) [#32116](https://github.com/nodejs/node/pull/32116)
-  * Enables Optional Chaining by default ([MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional\_chaining), [v8.dev](https://v8.dev/features/optional-chaining))
-  * Enables Nullish Coalescing by default ([MDN](https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish\_Coalescing\_Operator), [v8.dev](https://v8.dev/features/nullish-coalescing))
-  * Enables `Intl.DisplayNames` by default ([MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global\_Objects/DisplayNames), [v8.dev](https://v8.dev/features/intl-displaynames))
-  * Enables `calendar` and `numberingSystem` options for `Intl.DateTimeFormat` by default ([MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global\_Objects/DateTimeFormat))
+  * Enables Optional Chaining by default ([MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining), [v8.dev](https://v8.dev/features/optional-chaining))
+  * Enables Nullish Coalescing by default ([MDN](https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_Coalescing_Operator), [v8.dev](https://v8.dev/features/nullish-coalescing))
+  * Enables `Intl.DisplayNames` by default ([MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DisplayNames), [v8.dev](https://v8.dev/features/intl-displaynames))
+  * Enables `calendar` and `numberingSystem` options for `Intl.DateTimeFormat` by default ([MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat))
 
 #### Other Notable Changes:
 
