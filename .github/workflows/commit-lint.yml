@@ -9,10 +9,12 @@ jobs:
   lint-commit-message:
     runs-on: ubuntu-latest
     steps:
+      - name: Compute number of commits in the PR
+        id: nb-of-commits
+        run: echo "::set-output name=nb::$((${{ github.event.pull_request.commits }} + 1))"
       - uses: actions/checkout@v2
         with:
-          # Last 100 commits should be enough for a PR
-          fetch-depth: 100
+          fetch-depth: ${{ steps.nb-of-commits.outputs.nb }}
       - name: Install Node.js
         uses: actions/setup-node@v2
         with:
