@@ -61,23 +61,23 @@
 </table>
 
 * Other Versions
-  * [17.x](CHANGELOG\_V17.md)
-  * [16.x](CHANGELOG\_V16.md)
-  * [15.x](CHANGELOG\_V15.md)
-  * [14.x](CHANGELOG\_V14.md)
-  * [13.x](CHANGELOG\_V13.md)
-  * [12.x](CHANGELOG\_V12.md)
-  * [11.x](CHANGELOG\_V11.md)
-  * [10.x](CHANGELOG\_V10.md)
-  * [9.x](CHANGELOG\_V9.md)
-  * [8.x](CHANGELOG\_V8.md)
-  * [7.x](CHANGELOG\_V7.md)
-  * [5.x](CHANGELOG\_V5.md)
-  * [4.x](CHANGELOG\_V4.md)
-  * [0.12.x](CHANGELOG\_V012.md)
-  * [0.10.x](CHANGELOG\_V010.md)
-  * [io.js](CHANGELOG\_IOJS.md)
-  * [Archive](CHANGELOG\_ARCHIVE.md)
+  * [17.x](CHANGELOG_V17.md)
+  * [16.x](CHANGELOG_V16.md)
+  * [15.x](CHANGELOG_V15.md)
+  * [14.x](CHANGELOG_V14.md)
+  * [13.x](CHANGELOG_V13.md)
+  * [12.x](CHANGELOG_V12.md)
+  * [11.x](CHANGELOG_V11.md)
+  * [10.x](CHANGELOG_V10.md)
+  * [9.x](CHANGELOG_V9.md)
+  * [8.x](CHANGELOG_V8.md)
+  * [7.x](CHANGELOG_V7.md)
+  * [5.x](CHANGELOG_V5.md)
+  * [4.x](CHANGELOG_V4.md)
+  * [0.12.x](CHANGELOG_V012.md)
+  * [0.10.x](CHANGELOG_V010.md)
+  * [io.js](CHANGELOG_IOJS.md)
+  * [Archive](CHANGELOG_ARCHIVE.md)
 
 _Note_: Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
@@ -203,7 +203,7 @@ Fixes for the following CVEs are included in this release:
   * Headers received by HTTP servers must not exceed 8192 bytes in total to prevent possible Denial of Service attacks. Reported by Trevor Norris. (CVE-2018-12121 / Matteo Collina)
   * A timeout of 40 seconds now applies to servers receiving HTTP headers. This value can be adjusted with `server.headersTimeout`. Where headers are not completely received within this period, the socket is destroyed on the next received chunk. In conjunction with `server.setTimeout()`, this aids in protecting against excessive resource retention and possible Denial of Service. Reported by Jan Maybach ([liebdich.com](https://liebdich.com)). (CVE-2018-12122 / Matteo Collina)
   * Two-byte characters are now strictly disallowed for the `path` option in HTTP client requests. Paths containing characters outside of the range `\u0021` - `\u00ff` will now be rejected with a `TypeError`. This behavior can be reverted if necessary by supplying the `--security-revert=CVE-2018-12116` command line argument (this is not recommended). Reported as security concern for Node.js 6 and 8 by [Arkadiy Tetelman](https://twitter.com/arkadiyt) ([Lob](https://lob.com)), fixed by backporting a change by Benno Fünfstück applied to Node.js 10 and later. (CVE-2018-12116 / Matteo Collina)
-* **url**: Fix a bug that would allow a hostname being spoofed when parsing URLs with `url.parse()` with the `'javascript:'` protocol. Reported by [Martin Bajanik](https://twitter.com/\_bayotop) ([Kentico](https://kenticocloud.com/)). (CVE-2018-12123 / Matteo Collina)
+* **url**: Fix a bug that would allow a hostname being spoofed when parsing URLs with `url.parse()` with the `'javascript:'` protocol. Reported by [Martin Bajanik](https://twitter.com/_bayotop) ([Kentico](https://kenticocloud.com/)). (CVE-2018-12123 / Matteo Collina)
 
 ### Commits
 
@@ -1660,7 +1660,7 @@ This LTS release comes with 221 commits. This includes 80 which are test related
 * **configure**:
   * add mips64el to valid\_arch (Aditya Anand) [#13620](https://github.com/nodejs/node/pull/13620)
 * **crypto**:
-  * Updated root certificates based on [NSS 3.30](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/NSS\_3.30\_release\_notes) (Ben Noordhuis)
+  * Updated root certificates based on [NSS 3.30](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/NSS_3.30_release_notes) (Ben Noordhuis)
     * [#13279](https://github.com/nodejs/node/pull/13279)
     * [#12402](https://github.com/nodejs/node/pull/12402)
 * **deps**:
@@ -2087,7 +2087,7 @@ This LTS release comes with 126 commits. This includes 40 which are test related
 ### Notable Changes
 
 * **module**:
-  * The [module loading global fallback](https://nodejs.org/dist/latest-v4.x/docs/api/modules.html#modules\_loading\_from\_the\_global\_folders) to the Node executable's directory now works correctly on Windows.  (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
+  * The [module loading global fallback](https://nodejs.org/dist/latest-v4.x/docs/api/modules.html#modules_loading_from_the_global_folders) to the Node executable's directory now works correctly on Windows.  (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
 * **src**:
   * fix base64 decoding in rare edgecase (Nikolai Vavilov) [#11995](https://github.com/nodejs/node/pull/11995)
 * **tls**:
@@ -3697,7 +3697,7 @@ Semver Patch:
 
 * **crypto**: Added `crypto.timingSafeEqual()`. (not-an-aardvark) [#8304](https://github.com/nodejs/node/pull/8304)
 * **events**: Made the "max event listeners" memory leak warning more accessible. (Anna Henningsen) [#8298](https://github.com/nodejs/node/pull/8298)
-* **promises**: Unhandled rejections now emit a [process warning](https://nodejs.org/dist/latest-v6.x/docs/api/process.html#process\_event\_warning) after the first tick. (Benjamin Gruenbaum) [#8223](https://github.com/nodejs/node/pull/8223)
+* **promises**: Unhandled rejections now emit a [process warning](https://nodejs.org/dist/latest-v6.x/docs/api/process.html#process_event_warning) after the first tick. (Benjamin Gruenbaum) [#8223](https://github.com/nodejs/node/pull/8223)
 * **repl**: Added auto alignment for `.editor` mode. (Prince J Wesley) [#8241](https://github.com/nodejs/node/pull/8241)
 * **util**: Some functionality has been added to `util.inspect()`:
   * Returning `this` from a custom inspect function now works. (Anna Henningsen) [#8174](https://github.com/nodejs/node/pull/8174)

@@ -36,23 +36,23 @@
 </table>
 
 * Other Versions
-  * [17.x](CHANGELOG\_V17.md)
-  * [15.x](CHANGELOG\_V15.md)
-  * [14.x](CHANGELOG\_V14.md)
-  * [13.x](CHANGELOG\_V13.md)
-  * [12.x](CHANGELOG\_V12.md)
-  * [11.x](CHANGELOG\_V11.md)
-  * [10.x](CHANGELOG\_V10.md)
-  * [9.x](CHANGELOG\_V9.md)
-  * [8.x](CHANGELOG\_V8.md)
-  * [7.x](CHANGELOG\_V7.md)
-  * [6.x](CHANGELOG\_V6.md)
-  * [5.x](CHANGELOG\_V5.md)
-  * [4.x](CHANGELOG\_V4.md)
-  * [0.12.x](CHANGELOG\_V012.md)
-  * [0.10.x](CHANGELOG\_V010.md)
-  * [io.js](CHANGELOG\_IOJS.md)
-  * [Archive](CHANGELOG\_ARCHIVE.md)
+  * [17.x](CHANGELOG_V17.md)
+  * [15.x](CHANGELOG_V15.md)
+  * [14.x](CHANGELOG_V14.md)
+  * [13.x](CHANGELOG_V13.md)
+  * [12.x](CHANGELOG_V12.md)
+  * [11.x](CHANGELOG_V11.md)
+  * [10.x](CHANGELOG_V10.md)
+  * [9.x](CHANGELOG_V9.md)
+  * [8.x](CHANGELOG_V8.md)
+  * [7.x](CHANGELOG_V7.md)
+  * [6.x](CHANGELOG_V6.md)
+  * [5.x](CHANGELOG_V5.md)
+  * [4.x](CHANGELOG_V4.md)
+  * [0.12.x](CHANGELOG_V012.md)
+  * [0.10.x](CHANGELOG_V010.md)
+  * [io.js](CHANGELOG_IOJS.md)
+  * [Archive](CHANGELOG_ARCHIVE.md)
 
 <a id="16.13.0"></a>
 
@@ -766,7 +766,7 @@ This is a security release.
 
 The V8 engine is updated to version 9.2.230.21.
 
-It notably introduces the new [`Array.prototype.at`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global\_Objects/Array/at) method (also on [Typed Arrays](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global\_Objects/TypedArray/at) and [strings](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global\_Objects/String/at)):
+It notably introduces the new [`Array.prototype.at`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/at) method (also on [Typed Arrays](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/at) and [strings](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/at)):
 
 ```js
 const array = [1, 2, 3];
@@ -913,7 +913,7 @@ Contributed by Michaël Zasso - [#39470](https://github.com/nodejs/node/pull/394
 #### Experimental Web Streams API
 
 Node.js now exposes an experimental implementation of the
-[Web Streams API](https://developer.mozilla.org/en-US/docs/Web/API/Streams\_API).
+[Web Streams API](https://developer.mozilla.org/en-US/docs/Web/API/Streams_API).
 
 While it is experimental, the API is not exposed on the global object and is only
 accessible using the new `stream/web` core module:

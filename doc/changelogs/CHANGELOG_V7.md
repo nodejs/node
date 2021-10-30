@@ -30,23 +30,23 @@
 </table>
 
 * Other Versions
-  * [17.x](CHANGELOG\_V17.md)
-  * [16.x](CHANGELOG\_V16.md)
-  * [15.x](CHANGELOG\_V15.md)
-  * [14.x](CHANGELOG\_V14.md)
-  * [13.x](CHANGELOG\_V13.md)
-  * [12.x](CHANGELOG\_V12.md)
-  * [11.x](CHANGELOG\_V11.md)
-  * [10.x](CHANGELOG\_V10.md)
-  * [9.x](CHANGELOG\_V9.md)
-  * [8.x](CHANGELOG\_V8.md)
-  * [6.x](CHANGELOG\_V6.md)
-  * [5.x](CHANGELOG\_V5.md)
-  * [4.x](CHANGELOG\_V4.md)
-  * [0.12.x](CHANGELOG\_V012.md)
-  * [0.10.x](CHANGELOG\_V010.md)
-  * [io.js](CHANGELOG\_IOJS.md)
-  * [Archive](CHANGELOG\_ARCHIVE.md)
+  * [17.x](CHANGELOG_V17.md)
+  * [16.x](CHANGELOG_V16.md)
+  * [15.x](CHANGELOG_V15.md)
+  * [14.x](CHANGELOG_V14.md)
+  * [13.x](CHANGELOG_V13.md)
+  * [12.x](CHANGELOG_V12.md)
+  * [11.x](CHANGELOG_V11.md)
+  * [10.x](CHANGELOG_V10.md)
+  * [9.x](CHANGELOG_V9.md)
+  * [8.x](CHANGELOG_V8.md)
+  * [6.x](CHANGELOG_V6.md)
+  * [5.x](CHANGELOG_V5.md)
+  * [4.x](CHANGELOG_V4.md)
+  * [0.12.x](CHANGELOG_V012.md)
+  * [0.10.x](CHANGELOG_V010.md)
+  * [io.js](CHANGELOG_IOJS.md)
+  * [Archive](CHANGELOG_ARCHIVE.md)
 
 <a id="7.10.1"></a>
 
@@ -497,7 +497,7 @@ Thank you to @italoacasas for preparing the majority of this release.
 
 ### Notable changes
 
-* **module**: The [module loading global fallback](https://nodejs.org/dist/latest-v6.x/docs/api/modules.html#modules\_loading\_from\_the\_global\_folders) to the Node executable's directory now works correctly on Windows. (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
+* **module**: The [module loading global fallback](https://nodejs.org/dist/latest-v6.x/docs/api/modules.html#modules_loading_from_the_global_folders) to the Node executable's directory now works correctly on Windows. (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
 * **net**: `Socket.prototype.connect` now once again functions without a callback. (Juwan Yoo) [#11762](https://github.com/nodejs/node/pull/11762)
 * **url**: `URL.prototype.origin` now properly specified an opaque return of `'null'` for `file://` URLs. (Brian White) [#11691](https://github.com/nodejs/node/pull/11691)
 

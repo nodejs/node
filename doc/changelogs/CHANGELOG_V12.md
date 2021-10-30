@@ -62,23 +62,23 @@
 </table>
 
 * Other Versions
-  * [17.x](CHANGELOG\_V17.md)
-  * [16.x](CHANGELOG\_V16.md)
-  * [15.x](CHANGELOG\_V15.md)
-  * [14.x](CHANGELOG\_V14.md)
-  * [13.x](CHANGELOG\_V13.md)
-  * [11.x](CHANGELOG\_V11.md)
-  * [10.x](CHANGELOG\_V10.md)
-  * [9.x](CHANGELOG\_V9.md)
-  * [8.x](CHANGELOG\_V8.md)
-  * [7.x](CHANGELOG\_V7.md)
-  * [6.x](CHANGELOG\_V6.md)
-  * [5.x](CHANGELOG\_V5.md)
-  * [4.x](CHANGELOG\_V4.md)
-  * [0.12.x](CHANGELOG\_V012.md)
-  * [0.10.x](CHANGELOG\_V010.md)
-  * [io.js](CHANGELOG\_IOJS.md)
-  * [Archive](CHANGELOG\_ARCHIVE.md)
+  * [17.x](CHANGELOG_V17.md)
+  * [16.x](CHANGELOG_V16.md)
+  * [15.x](CHANGELOG_V15.md)
+  * [14.x](CHANGELOG_V14.md)
+  * [13.x](CHANGELOG_V13.md)
+  * [11.x](CHANGELOG_V11.md)
+  * [10.x](CHANGELOG_V10.md)
+  * [9.x](CHANGELOG_V9.md)
+  * [8.x](CHANGELOG_V8.md)
+  * [7.x](CHANGELOG_V7.md)
+  * [6.x](CHANGELOG_V6.md)
+  * [5.x](CHANGELOG_V5.md)
+  * [4.x](CHANGELOG_V4.md)
+  * [0.12.x](CHANGELOG_V012.md)
+  * [0.10.x](CHANGELOG_V010.md)
+  * [io.js](CHANGELOG_IOJS.md)
+  * [Archive](CHANGELOG_ARCHIVE.md)
 
 <a id="12.22.7"></a>
 
@@ -276,7 +276,7 @@ The default HTTP parser based on llhttp is not affected. By default it is
 stricter than the now deprecated legacy HTTP parser. If interoperability with
 HTTP implementations that send invalid HTTP headers is required, the HTTP
 parser can be started in a less secure mode with the
-[`--insecure-http-parser`](https://nodejs.org/docs/latest-v12.x/api/cli.html#cli\_insecure\_http\_parser)
+[`--insecure-http-parser`](https://nodejs.org/docs/latest-v12.x/api/cli.html#cli_insecure_http_parser)
 command line option.
 
 Contributed by Beth Griggs [#37603](https://github.com/nodejs/node/pull/37603).
@@ -1561,7 +1561,7 @@ Contributed by Ruben Bridgewater - [#30907](https://github.com/nodejs/node/pull/
 #### REPL reverse-i-search
 
 The REPL supports bi-directional reverse-i-search similar to
-[ZSH](https://en.wikipedia.org/wiki/Z\_shell). It is triggered with `<ctrl> + R`
+[ZSH](https://en.wikipedia.org/wiki/Z_shell). It is triggered with `<ctrl> + R`
 to search backwards and `<ctrl> + S` to search forwards.
 
 Entries are accepted as soon as any button is pressed that doesn't correspond
@@ -1689,18 +1689,18 @@ Contributed by rosaxny - [#32392](https://github.com/nodejs/node/pull/32392).
 
 The following N-API features are now stable as part of the N-API 6 release:
 
-* [`napi_set_instance_data`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n\_api\_napi\_set\_instance\_data)
-* [`napi_get_instance_data`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n\_api\_napi\_get\_instance\_data)
-* [`napi_key_collection_mode`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n\_api\_napi\_key\_collection\_mode)
-* [`napi_key_filter`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n\_api\_napi\_key\_filter)
-* [`napi_key_conversion`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n\_api\_napi\_key\_conversion)
-* [`napi_create_bigint_int64`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n\_api\_napi\_create\_bigint\_int64)
-* [`napi_create_bigint_uint64`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n\_api\_napi\_create\_bigint\_uint64)
-* [`napi_create_bigint_words`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n\_api\_napi\_create\_bigint\_words)
-* [`napi_get_value_bigint_int64`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n\_api\_napi\_get\_value\_bigint\_int64)
-* [`napi_get_value_bigint_uint64`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n\_api\_napi\_get\_value\_bigint\_uint64)
-* [`napi_get_value_bigint_words`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n\_api\_napi\_get\_value\_bigint\_words)
-* [`napi_get_all_property_names`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n\_api\_napi\_get\_all\_property\_names)
+* [`napi_set_instance_data`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n_api_napi_set_instance_data)
+* [`napi_get_instance_data`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n_api_napi_get_instance_data)
+* [`napi_key_collection_mode`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n_api_napi_key_collection_mode)
+* [`napi_key_filter`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n_api_napi_key_filter)
+* [`napi_key_conversion`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n_api_napi_key_conversion)
+* [`napi_create_bigint_int64`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n_api_napi_create_bigint_int64)
+* [`napi_create_bigint_uint64`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n_api_napi_create_bigint_uint64)
+* [`napi_create_bigint_words`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n_api_napi_create_bigint_words)
+* [`napi_get_value_bigint_int64`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n_api_napi_get_value_bigint_int64)
+* [`napi_get_value_bigint_uint64`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n_api_napi_get_value_bigint_uint64)
+* [`napi_get_value_bigint_words`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n_api_napi_get_value_bigint_words)
+* [`napi_get_all_property_names`](https://nodejs.org/dist/latest-v12.x/docs/api/n-api.html#n_api_napi_get_all_property_names)
 
 #### Stable diagnostic reports
 
@@ -2805,7 +2805,7 @@ two values:
 * `'json'` (default): `JSON.stringify()` and `JSON.parse()` are used. This is
   how message serialization was done before.
 * `'advanced'`: The serialization API of the `v8` module is used. It is based on
-  the [HTML structured clone algorithm](https://developer.mozilla.org/en-US/docs/Web/API/Web\_Workers\_API/Structured\_clone\_algorithm)
+  the [HTML structured clone algorithm](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm)
   and is able to serialize more built-in JavaScript object types, such as
   `BigInt`, `Map`, `Set` etc. as well as circular data structures.
 
@@ -4357,7 +4357,7 @@ This release fixes two regressions in the **http** module:
   * Updated V8 to 7.6.303.29 (Michaël Zasso) [#28955](https://github.com/nodejs/node/pull/28955).
     * Improves the performance of various APIs such as `JSON.parse` and methods
       called on frozen arrays.
-    * Adds the [`Promise.allSettled`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global\_Objects/Promise/allSettled) method.
+    * Adds the [`Promise.allSettled`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled) method.
     * Improves support of `BigInt` in `Intl` methods.
     * For more information: <https://v8.dev/blog/v8-release-76>
   * Updated libuv to 1.31.0 (cjihrig) [#29070](https://github.com/nodejs/node/pull/29070).
@@ -4650,7 +4650,7 @@ Vulnerabilities fixed:
     we would use the physical memory size to estimate the necessary V8 heap sizes. The physical memory size
     is not necessarily the correct limit, e.g. if the process is running inside a docker container or is otherwise
     constrained. This change adds the ability to get a memory limit set by linux cgroups, which is used by
-    [docker containers to set resource constraints](https://docs.docker.com/config/containers/resource\_constraints/)
+    [docker containers to set resource constraints](https://docs.docker.com/config/containers/resource_constraints/)
     (Kelvin Jin) [#27508](https://github.com/nodejs/node/pull/27508).
 
 ### Commits

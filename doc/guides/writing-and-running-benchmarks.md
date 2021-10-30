@@ -347,7 +347,7 @@ $ cat compare-pr-5134.csv | sed '1p;/encoding='"'"ascii"'"'/!d' | Rscript benchm
 ...
 ```
 
-![compare tool boxplot](doc\_img/compare-boxplot.png)
+![compare tool boxplot](doc_img/compare-boxplot.png)
 
 ### Comparing parameters
 
@@ -427,7 +427,7 @@ chunkLen     encoding      rate confidence.interval
     1024         utf8 2025551.2            81770.69
 ```
 
-![compare tool boxplot](doc\_img/scatter-plot.png)
+![compare tool boxplot](doc_img/scatter-plot.png)
 
 ### Running benchmarks on the CI
 

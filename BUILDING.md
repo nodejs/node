@@ -121,7 +121,7 @@ platforms. This is true regardless of entries in the table below.
 
 [^1]: GCC 8 is not provided on the base platform. Users will
     need the
-    [Toolchain test builds PPA](https://launchpad.net/\~ubuntu-toolchain-r/+archive/ubuntu/test?field.series\_filter=xenial)
+    [Toolchain test builds PPA](https://launchpad.net/\~ubuntu-toolchain-r/+archive/ubuntu/test?field.series_filter=xenial)
     or similar to source a newer compiler.
 
 [^2]: GCC 8 is not provided on the base platform. Users will
@@ -272,7 +272,7 @@ $ make -j4
 
 The `-j4` option will cause `make` to run 4 simultaneous compilation jobs which
 may reduce build time. For more information, see the
-[GNU Make Documentation](https://www.gnu.org/software/make/manual/html\_node/Parallel.html).
+[GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html).
 
 The above requires that `python` resolves to a supported version of
 Python. See [Prerequisites](#prerequisites).

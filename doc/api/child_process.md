@@ -191,7 +191,7 @@ changes:
 Spawns a shell then executes the `command` within that shell, buffering any
 generated output. The `command` string passed to the exec function is processed
 directly by the shell and special characters (vary based on
-[shell](https://en.wikipedia.org/wiki/List\_of\_command-line\_interpreters))
+[shell](https://en.wikipedia.org/wiki/List_of_command-line_interpreters))
 need to be dealt with accordingly:
 
 ```js
