@@ -18,6 +18,10 @@ issueUrl() {
   echo "$API_URL/repos/${OWNER}/${REPOSITORY}/issues/${1}"
 }
 
+mergeUrl() {
+  echo "$API_URL/repos/${OWNER}/${REPOSITORY}/pulls/${1}/merge"
+}
+
 labelsUrl() {
   echo "$(issueUrl "${1}")/labels"
 }
@@ -55,8 +59,9 @@ git config --local user.email "github-bot@iojs.org"
 git config --local user.name "Node.js GitHub Bot"
 
 for pr in "$@"; do
+  gitHubCurl "$(labelsUrl "$pr")" GET > labels.json
   # Skip PR if CI was requested
-  if gitHubCurl "$(labelsUrl "$pr")" GET | jq -e 'map(.name) | index("request-ci")'; then
+  if jq -e 'map(.name) | index("request-ci")' < labels.json; then
     echo "pr ${pr} skipped, waiting for CI to start"
     continue
   fi
@@ -70,9 +75,9 @@ for pr in "$@"; do
   # Delete the commit queue label
   gitHubCurl "$(labelsUrl "$pr")"/"$COMMIT_QUEUE_LABEL" DELETE
 
-  if gitHubCurl "$(labelsUrl "$pr")" GET | jq -e 'map(.name) | index("commit-queue-squash")'; then
+  if jq -e 'map(.name) | index("commit-queue-squash")' < labels.json; then
     MULTIPLE_COMMIT_POLICY="--fixupAll"
-  elif gitHubCurl "$(labelsUrl "$pr")" GET | jq -e 'map(.name) | index("commit-queue-rebase")'; then
+  elif jq -e 'map(.name) | index("commit-queue-rebase")' < labels.json; then
     MULTIPLE_COMMIT_POLICY=""
   else
     MULTIPLE_COMMIT_POLICY="--oneCommitMax"
@@ -92,17 +97,35 @@ for pr in "$@"; do
     git node land --abort --yes
     continue
   fi
-  
-  commits="$(git rev-parse $UPSTREAM/$DEFAULT_BRANCH)...$(git rev-parse HEAD)"
 
-  if ! git push $UPSTREAM $DEFAULT_BRANCH >> output 2>&1; then
-    commit_queue_failed "$pr"
-    continue
+  if [ -z "$MULTIPLE_COMMIT_POLICY" ]; then
+    commits="$(git rev-parse $UPSTREAM/$DEFAULT_BRANCH)...$(git rev-parse HEAD)"
+
+    if ! git push $UPSTREAM $DEFAULT_BRANCH >> output 2>&1; then
+      commit_queue_failed "$pr"
+      continue
+    fi
+  else
+    # If there's only one commit, we can use the Squash and Merge feature from GitHub
+    jq -n \
+      --arg title "$(git log -1 --pretty='format:%s')" \
+      --arg body "$(git log -1 --pretty='format:%b')" \
+      '{merge_method:"squash",commit_title:$title,commit_message:$body}' > output.json
+    cat output.json
+    gitHubCurl "$(mergeUrl "$pr")" PUT --data @output.json > output
+    cat output
+    if ! commits="$(jq -r 'if .merged then .sha else error("not merged") end' < output)"; then
+      commit_queue_failed "$pr"
+      continue
+    fi
+    rm output.json
   fi
 
   rm output
 
   gitHubCurl "$(commentsUrl "$pr")" POST --data '{"body": "Landed in '"$commits"'"}'
 
-  gitHubCurl "$(issueUrl "$pr")" PATCH --data '{"state": "closed"}'
+  [ -z "$MULTIPLE_COMMIT_POLICY" ] && gitHubCurl "$(issueUrl "$pr")" PATCH --data '{"state": "closed"}'
 done
+
+rm -f labels.json
