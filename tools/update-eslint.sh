@@ -20,8 +20,7 @@ rm -rf node_modules/eslint node_modules/eslint-plugin-markdown
 
     "$NODE" "$NPM" init --yes
 
-    "$NODE" "$NPM" install --global-style --no-bin-links --production --no-package-lock eslint@latest
-    "$NODE" "$NPM" install --global-style --no-bin-links --production --no-package-lock eslint-plugin-markdown@latest
+    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts --no-package-lock eslint eslint-plugin-markdown
 
     # Use dmn to remove some unneeded files.
     "$NODE" "$NPM" exec -- dmn@2.2.2 -f clean
