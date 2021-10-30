@@ -15,7 +15,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [0. Pre-release steps](#0-pre-release-steps)
   * [1. Update the staging branch](#1-update-the-staging-branch)
   * [2. Create a new branch for the release](#2-create-a-new-branch-for-the-release)
-  * [3. Update `src/node_version.h`](#3-update-srcnode\_versionh)
+  * [3. Update `src/node_version.h`](#3-update-srcnode_versionh)
   * [4. Update the changelog](#4-update-the-changelog)
   * [5. Create release commit](#5-create-release-commit)
   * [6. Propose release on GitHub](#6-propose-release-on-github)
