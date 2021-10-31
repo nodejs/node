@@ -18,15 +18,15 @@ const cases = [
   },
   {
     timeZone: 'America/New_York',
-    expected: /Eastern (Standard|Daylight) Time/,
+    expected: /Eastern (?:Standard|Daylight) Time/,
   },
   {
     timeZone: 'America/Los_Angeles',
-    expected: /Pacific (Standard|Daylight) Time/,
+    expected: /Pacific (?:Standard|Daylight) Time/,
   },
   {
     timeZone: 'Europe/Dublin',
-    expected: /Irish/,
+    expected: /Irish Standard Time|Greenwich Mean Time/,
   },
 ];
 
