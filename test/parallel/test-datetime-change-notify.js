@@ -26,7 +26,7 @@ const cases = [
   },
   {
     timeZone: 'Europe/Dublin',
-    expected: /Irish/,
+    expected: /(Irish Standard Time|Greenwich Mean Time)/,
   },
 ];
 
