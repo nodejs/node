@@ -235,7 +235,8 @@ The Node.js project supports Python >= 3 for building and testing.
 
 * `gcc` and `g++` >= 8.3 or newer
 * GNU Make 3.81 or newer
-* Python 3.6, 3.7, 3.8, 3.9, or 3.10 (see note above) with pip installed
+* Python 3.6, 3.7, 3.8, 3.9, or 3.10 (see note above)
+  * For test coverage, your Python installation must include pip.
 
 Installation via Linux package manager can be achieved with:
 
