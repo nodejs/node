@@ -22,4 +22,4 @@ jobs:
       - name: Validate commit messages
         run: |
           echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
-          git log --oneline ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | grep -v -e fixup -e squash | awk '{ print $1 }' |  xargs npx -q core-validate-commit --no-validate-metadata --tap
+          git log --oneline -${{ github.event.pull_request.commits }} HEAD^ | awk '{ if ($2 != "fixup!" && $2 != "squash!") { print $1 } }' | xargs npx -q core-validate-commit --no-validate-metadata --tap
