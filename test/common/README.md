@@ -29,11 +29,9 @@ This directory contains modules used to test the Node.js implementation.
 
 The `benchmark` module is used by tests to run benchmarks.
 
-### `runBenchmark(name, args, env)`
+### `runBenchmark(name, env)`
 
 * `name` [\<string>][<string>] Name of benchmark suite to be run.
-* `args` [\<Array>][<Array>] Array of environment variable key/value pairs (ex:
-  `n=1`) to be applied via `--set`.
 * `env` [\<Object>][<Object>] Environment variables to be applied during the
   run.
 
