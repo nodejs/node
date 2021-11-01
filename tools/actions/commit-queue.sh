@@ -109,7 +109,7 @@ for pr in "$@"; do
     # If there's only one commit, we can use the Squash and Merge feature from GitHub
     jq -n \
       --arg title "$(git log -1 --pretty='format:%s')" \
-      --arg body "$(git log -1 HEAD^ --pretty='format:%b')" \
+      --arg body "$(git log -1 --pretty='format:%b')" \
       '{merge_method:"squash",commit_title:$title,commit_message:$body}' > output.json
     cat output.json
     gitHubCurl "$(mergeUrl "$pr")" PUT --data @output.json > output
