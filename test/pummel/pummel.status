@@ -7,6 +7,8 @@ prefix pummel
 [true] # This section applies to all platforms
 
 [$system==win32]
+# https://github.com/nodejs/node/issues/40694
+test-policy-integrity: PASS,FLAKY
 
 [$system==linux]
 # https://github.com/nodejs/node/issues/38226
