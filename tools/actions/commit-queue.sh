@@ -70,7 +70,15 @@ for pr in "$@"; do
   # Delete the commit queue label
   gitHubCurl "$(labelsUrl "$pr")"/"$COMMIT_QUEUE_LABEL" DELETE
 
-  git node land --autorebase --yes "$pr" >output 2>&1 || echo "Failed to land #${pr}"
+  if gitHubCurl "$(labelsUrl "$pr")" GET | jq -e 'map(.name) | index("commit-queue-squash")'; then
+    MULTIPLE_COMMIT_POLICY="--fixupAll"
+  elif gitHubCurl "$(labelsUrl "$pr")" GET | jq -e 'map(.name) | index("commit-queue-rebase")'; then
+    MULTIPLE_COMMIT_POLICY=""
+  else
+    MULTIPLE_COMMIT_POLICY="--oneCommitMax"
+  fi
+
+  git node land --autorebase --yes $MULTIPLE_COMMIT_POLICY "$pr" >output 2>&1 || echo "Failed to land #${pr}"
   # cat here otherwise we'll be supressing the output of git node land
   cat output
 
