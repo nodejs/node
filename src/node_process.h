@@ -79,7 +79,7 @@ class BindingData : public SnapshotableObject {
   static void SlowBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
-  static const size_t kBufferSize =
+  static constexpr size_t kBufferSize =
       std::max(sizeof(uint64_t), sizeof(uint32_t) * 3);
   v8::Global<v8::ArrayBuffer> array_buffer_;
   std::shared_ptr<v8::BackingStore> backing_store_;
