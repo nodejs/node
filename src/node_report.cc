@@ -687,7 +687,7 @@ static void PrintResourceUsage(JSONWriter* writer) {
     writer->json_objectend();
     writer->json_objectend();
   }
-#endif
+#endif  // RUSAGE_THREAD
 }
 
 // Report operating system information.
