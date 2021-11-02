@@ -13,6 +13,7 @@ const assert = require('assert');
   read.on('close', common.mustCall());
 
   read.destroy();
+  assert.strictEqual(read.readableErrored, null);
   assert.strictEqual(read.destroyed, true);
 }
 
@@ -31,6 +32,7 @@ const assert = require('assert');
   }));
 
   read.destroy(expected);
+  assert.strictEqual(read.readableErrored, expected);
   assert.strictEqual(read.destroyed, true);
 }
 
