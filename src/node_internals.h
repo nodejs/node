@@ -283,7 +283,7 @@ class ThreadPoolWork {
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 #define NODE_IMPLEMENTS_POSIX_CREDENTIALS 1
-#endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
+#endif  // defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 
 namespace credentials {
 bool SafeGetenv(const char* key, std::string* text, Environment* env = nullptr);

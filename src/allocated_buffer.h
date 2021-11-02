@@ -68,6 +68,6 @@ struct AllocatedBuffer {
 
 }  // namespace node
 
-#endif  // NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_ALLOCATED_BUFFER_H_
