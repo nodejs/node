@@ -612,8 +612,10 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   const w = new Writable();
   const _err = new Error();
   w.destroy(_err);
+  assert.strictEqual(w.writableErrored, _err);
   finished(w, common.mustCall((err) => {
     assert.strictEqual(_err, err);
+    assert.strictEqual(w.closed, true);
     finished(w, common.mustCall((err) => {
       assert.strictEqual(_err, err);
     }));
@@ -623,7 +625,9 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 {
   const w = new Writable();
   w.destroy();
+  assert.strictEqual(w.writableErrored, null);
   finished(w, common.mustCall((err) => {
+    assert.strictEqual(w.closed, true);
     assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
     finished(w, common.mustCall((err) => {
       assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
