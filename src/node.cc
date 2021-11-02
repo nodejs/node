@@ -960,7 +960,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   }
 # endif
 
-#endif
+#endif  // defined(NODE_HAVE_I18N_SUPPORT)
 
   NativeModuleEnv::InitializeCodeCache();
 
@@ -1091,7 +1091,7 @@ InitializationResult InitializeOncePerProcess(
         return result;
       }
     }
-#else
+#else  // OPENSSL_VERSION_MAJOR < 3
     if (FIPS_mode()) {
       OPENSSL_init();
     }

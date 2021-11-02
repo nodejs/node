@@ -80,7 +80,8 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
     if ((secure_heap_min & (secure_heap_min - 1)) != 0)
       errors->push_back("--secure-heap-min must be a power of 2");
   }
-#endif
+#endif  // HAVE_OPENSSL
+
   if (use_largepages != "off" &&
       use_largepages != "on" &&
       use_largepages != "silent") {
@@ -808,7 +809,14 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "minimum allocation size from the OpenSSL secure heap",
             &PerProcessOptions::secure_heap_min,
             kAllowedInEnvironment);
-#endif
+#endif  // HAVE_OPENSSL
+#if OPENSSL_VERSION_MAJOR >= 3
+  AddOption("--openssl-legacy-provider",
+            "enable OpenSSL 3.0 legacy provider",
+            &PerProcessOptions::openssl_legacy_provider,
+            kAllowedInEnvironment);
+
+#endif  // OPENSSL_VERSION_MAJOR
   AddOption("--use-largepages",
             "Map the Node.js static code to large pages. Options are "
             "'off' (the default value, meaning do not map), "
