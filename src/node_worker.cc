@@ -497,7 +497,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
         return;
       }
     }
-#endif
+#endif  // NODE_WITHOUT_NODE_OPTIONS
   }
 
   if (args[2]->IsArray()) {

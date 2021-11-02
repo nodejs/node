@@ -72,6 +72,6 @@ class StreamPipe : public AsyncWrap {
 
 }  // namespace node
 
-#endif
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STREAM_PIPE_H_

@@ -1474,7 +1474,7 @@ unsigned int TLSWrap::PskClientCallback(
   return psk_buf.length();
 }
 
-#endif
+#endif  // ifndef OPENSSL_NO_PSK
 
 void TLSWrap::GetWriteQueueSize(const FunctionCallbackInfo<Value>& info) {
   TLSWrap* wrap;

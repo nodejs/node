@@ -400,6 +400,6 @@ class SocketAddressBlockListWrap : public BaseObject {
 
 }  // namespace node
 
-#endif  // NOE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_SOCKADDR_H_

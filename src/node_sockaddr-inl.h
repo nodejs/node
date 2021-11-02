@@ -262,5 +262,5 @@ v8::MaybeLocal<v8::Value> SocketAddressBlockList::Rule::ToV8String(
 }
 }  // namespace node
 
-#endif  // NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_NODE_SOCKADDR_INL_H_
