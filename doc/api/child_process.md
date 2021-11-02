@@ -834,7 +834,8 @@ pipes between the parent and child. The value is one of the following:
 6. {Stream} object: Share a readable or writable stream that refers to a tty,
    file, socket, or a pipe with the child process. The stream's underlying
    file descriptor is duplicated in the child process to the fd that
-   corresponds to the index in the `stdio` array. The stream must have an
+   corresponds to the index in the `stdio` array, and stop its readable side to
+   avoid read from the stream at the same time. The stream must have an
    underlying descriptor (file streams do not until the `'open'` event has
    occurred).
 7. Positive integer: The integer value is interpreted as a file descriptor
