@@ -375,6 +375,8 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(0);
 }
 
+// MACOS does not support it yet
+#if !defined(__APPLE__)
 static void GetRESUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(env->has_run_bootstrapping_code());
@@ -412,6 +414,7 @@ static void SetRESUid(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(0);
   }
 }
+#endif
 
 static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -467,8 +470,10 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetEGid);
   registry->Register(GetGroups);
 
+  #if !defined(__APPLE__)
   registry->Register(SetRESUid);
   registry->Register(GetRESUid);
+  #endif
 
   registry->Register(InitGroups);
   registry->Register(SetEGid);
@@ -488,6 +493,10 @@ static void Initialize(Local<Object> target,
 
   env->SetMethod(target, "safeGetenv", SafeGetenv);
 
+#if defined(__APPLE__)
+  READONLY_TRUE_PROPERTY(target, "isApple");
+#endif
+
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
   READONLY_TRUE_PROPERTY(target, "implementsPosixCredentials");
   env->SetMethodNoSideEffect(target, "getuid", GetUid);
@@ -495,7 +504,10 @@ static void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getgid", GetGid);
   env->SetMethodNoSideEffect(target, "getegid", GetEGid);
   env->SetMethodNoSideEffect(target, "getgroups", GetGroups);
+
+  #if !defined(__APPLE__)
   env->SetMethodNoSideEffect(target, "getresuid", GetRESUid);
+  #endif
 
   if (env->owns_process_state()) {
     env->SetMethod(target, "initgroups", InitGroups);
@@ -504,7 +516,10 @@ static void Initialize(Local<Object> target,
     env->SetMethod(target, "setgid", SetGid);
     env->SetMethod(target, "setuid", SetUid);
     env->SetMethod(target, "setgroups", SetGroups);
+
+    #if !defined(__APPLE__)
     env->SetMethod(target, "setresuid", SetRESUid);
+    #endif
   }
 #endif  // NODE_IMPLEMENTS_POSIX_CREDENTIALS
 }

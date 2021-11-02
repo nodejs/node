@@ -35,6 +35,12 @@ if (common.isWindows) {
   return;
 }
 
+if (common.isOSX) {
+  // The resuid functions are OSX only.
+  assert.strictEqual(process.getresuid, undefined);
+  assert.strictEqual(process.setresuid, undefined);
+}
+
 if (!common.isMainThread)
   return;
 
@@ -53,29 +59,31 @@ assert.throws(() => {
   message: 'User identifier does not exist: fhqwhgadshgnsdhjsdbkhsdabkfabkveyb'
 });
 
-assert.throws(() => {
-  process.setresuid({}, 0, 0);
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "ruid" argument must be one of type ' +
-    'number or string. Received an instance of Object'
-});
+if (!common.isOSX) {
+  assert.throws(() => {
+    process.setresuid({}, 0, 0);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "ruid" argument must be one of type ' +
+      'number or string. Received an instance of Object'
+  });
 
-assert.throws(() => {
-  process.setresuid(0, {}, 0);
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "euid" argument must be one of type ' +
-    'number or string. Received an instance of Object'
-});
+  assert.throws(() => {
+    process.setresuid(0, {}, 0);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "euid" argument must be one of type ' +
+      'number or string. Received an instance of Object'
+  });
 
-assert.throws(() => {
-  process.setresuid(0, 0, {});
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "suid" argument must be one of type ' +
-    'number or string. Received an instance of Object'
-});
+  assert.throws(() => {
+    process.setresuid(0, 0, {});
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "suid" argument must be one of type ' +
+      'number or string. Received an instance of Object'
+  });
+}
 
 // Passing -0 shouldn't crash the process
 // Refs: https://github.com/nodejs/node/issues/32750
@@ -89,7 +97,7 @@ if (process.getuid() !== 0) {
   // Should not throw.
   process.getgid();
   process.getuid();
-  process.getresuid();
+  if (!common.isOSX) process.getresuid();
 
   assert.throws(
     () => { process.setgid('nobody'); },
@@ -101,10 +109,12 @@ if (process.getuid() !== 0) {
     /(?:EPERM, .+|User identifier does not exist: nobody)$/
   );
 
-  assert.throws(
-    () => { process.setresuid('nobody', 1, 2); },
-    /(?:EPERM, .+|Group identifier does not exist: \[ 'nobody' \])$/
-  );
+  if (!common.isOSX) {
+    assert.throws(
+      () => { process.setresuid('nobody', 1, 2); },
+      /(?:EPERM, .+|Group identifier does not exist: \[ 'nobody' \])$/
+    );
+  }
   return;
 }
 
