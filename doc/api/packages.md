@@ -612,16 +612,19 @@ The following condition definitions are currently endorsed by Node.js:
 * `"browser"` - any environment which implements a standard subset of global
   browser APIs available from JavaScript in web browsers, including the DOM
   APIs.
+* `"deno"` - indicates a variation for the Deno platform.
 * `"development"` - can be used to define a development-only environment
   entry point. _Must always be mutually exclusive with `"production"`._
 * `"production"` - can be used to define a production environment entry
   point. _Must always be mutually exclusive with `"development"`._
+* `"source"` - indicates the original .js source file without minification
+  or bundling optimizations, useful for development and debugging workflows.
 
 The above user conditions can be enabled in Node.js via the
 [`--conditions` flag][].
 
-Platform specific conditions such as `"deno"`, `"electron"`, or `"react-native"`
-may be used, but while there remain no implementation or integration intent
+Platform specific conditions such as `"electron"`, or `"react-native"` may
+be used, but while there remain no implementation or integration intent
 from these platforms, the above are not explicitly endorsed by Node.js.
 
 New conditions definitions may be added to this list by creating a pull request
