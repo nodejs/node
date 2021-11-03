@@ -486,8 +486,17 @@ For example, a package that wants to provide different ES module exports for
 }
 ```
 
-Node.js implements the following conditions:
+Node.js implements the following conditions, listed in order from most
+specific to least specific as conditions should be defined:
 
+* `"node-addons"` - similar to `"node"` and matches for any Node.js environment.
+  This condition can be used to provide an entry point which uses native C++
+  addons as opposed to an entry point which is more universal and doesn't rely
+  on native addons. This condition can be disabled via the
+  [`--no-addons` flag][].
+* `"node"` - matches for any Node.js environment. Can be a CommonJS or ES
+  module file. _In most cases explicitly calling out the Node.js platform is
+  not necessary._
 * `"import"` - matches when the package is loaded via `import` or
   `import()`, or via any top-level import or resolve operation by the
   ECMAScript module loader. Applies regardless of the module format of the
@@ -498,14 +507,6 @@ Node.js implements the following conditions:
   formats include CommonJS, JSON, and native addons but not ES modules as
   `require()` doesn't support them. _Always mutually exclusive with
   `"import"`._
-* `"node"` - matches for any Node.js environment. Can be a CommonJS or ES
-  module file. _This condition should always come after `"import"` or
-  `"require"`._
-* `"node-addons"` - similar to `"node"` and matches for any Node.js environment.
-  This condition can be used to provide an entry point which uses native C++
-  addons as opposed to an entry point which is more universal and doesn't rely
-  on native addons. This condition can be disabled via the
-  [`--no-addons` flag][].
 * `"default"` - the generic fallback that always matches. Can be a CommonJS
   or ES module file. _This condition should always come last._
 
@@ -516,6 +517,12 @@ least specific in object order_.
 
 Using the `"import"` and `"require"` conditions can lead to some hazards,
 which are further explained in [the dual CommonJS/ES module packages section][].
+
+The `"node-addons"` condition can be used to provide an entry point which
+uses native C++ addons. However, this condition can be disabled via the
+[`--no-addons` flag][]. When using `"node-addons"`, it's recommended to treat
+`"default"` as an enhancement that provides a more universal entry point, e.g.
+using WebAssembly instead of a native addon.
 
 Conditional exports can also be extended to exports subpaths, for example:
 
@@ -590,39 +597,29 @@ exports, while resolving the existing `"node"`, `"node-addons"`, `"default"`,
 
 Any number of custom conditions can be set with repeat flags.
 
-### Conditions Definitions
+### Community Conditions Definitions
 
-The `"import"`, `"require"`, `"node"`, `"node-addons"` and `"default"`
-conditions are defined and implemented in Node.js core,
-[as specified above](#conditional-exports).
+Condition strings other than the `"import"`, `"require"`, `"node"`,
+`"node-addons"` and `"default"` conditions
+[implemented in Node.js core](#conditional-exports) are ignored by default.
 
-The `"node-addons"` condition can be used to provide an entry point which
-uses native C++ addons. However, this condition can be disabled via the
-[`--no-addons` flag][]. When using `"node-addons"`, it's recommended to treat
-`"default"` as an enhancement that provides a more universal entry point, e.g.
-using WebAssembly instead of a native addon.
+Other platforms may implement other conditions and user conditions can be
+enabled in Node.js via the [`--conditions` / `-C` flag][].
 
-Other condition strings are unknown to Node.js and thus ignored by default.
-Runtimes or tools other than Node.js can use them at their discretion.
+Since custom package conditions require clear definitions to ensure correct
+usage, a list of common known package conditions and their strict definitions
+is provided below to assist with ecosystem coordination.
 
-These user conditions can be enabled in Node.js via the [`--conditions` flag][].
-
-The following condition definitions are currently endorsed by Node.js:
-
-* `"browser"` - any environment which implements a standard subset of global
-  browser APIs available from JavaScript in web browsers, including the DOM
-  APIs.
+* `"types"` - can be used by typing systems to resolve the typing file for
+  the given export. _This condition should always be included first._
+* `"deno"` - indicates a variation for the Deno platform.
+* `"browser"` - any web browser environment.
 * `"development"` - can be used to define a development-only environment
-  entry point. _Must always be mutually exclusive with `"production"`._
+  entry point, for example to provide additional debugging context such as
+  better error messages when running in a development mode. _Must always be
+  mutually exclusive with `"production"`._
 * `"production"` - can be used to define a production environment entry
   point. _Must always be mutually exclusive with `"development"`._
-
-The above user conditions can be enabled in Node.js via the
-[`--conditions` flag][].
-
-Platform specific conditions such as `"deno"`, `"electron"`, or `"react-native"`
-may be used, but while there remain no implementation or integration intent
-from these platforms, the above are not explicitly endorsed by Node.js.
 
 New conditions definitions may be added to this list by creating a pull request
 to the [Node.js documentation for this section][]. The requirements for listing
@@ -1233,7 +1230,7 @@ This field defines [subpath imports][] for the current package.
 [`"name"`]: #name
 [`"packageManager"`]: #packagemanager
 [`"type"`]: #type
-[`--conditions` flag]: #resolving-user-conditions
+[`--conditions` / `-C` flag]: #resolving-user-conditions
 [`--no-addons` flag]: cli.md#--no-addons
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`esm`]: https://github.com/standard-things/esm#readme
