@@ -619,6 +619,9 @@ The following condition definitions are currently endorsed by Node.js:
   point. _Must always be mutually exclusive with `"development"`._
 * `"source"` - indicates the original .js source file without minification
   or bundling optimizations, useful for development and debugging workflows.
+* `"types"` - can be used by typing systems to resolve the typing file for
+  the given export, possible since the interface should be the same for all
+  variations.
 
 The above user conditions can be enabled in Node.js via the
 [`--conditions` flag][].
