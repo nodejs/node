@@ -486,8 +486,17 @@ For example, a package that wants to provide different ES module exports for
 }
 ```
 
-Node.js implements the following conditions:
+Node.js implements the following conditions, listed in order from most
+specific to least specific as conditions should be defined:
 
+* `"node-addons"` - similar to `"node"` and matches for any Node.js environment.
+  This condition can be used to provide an entry point which uses native C++
+  addons as opposed to an entry point which is more universal and doesn't rely
+  on native addons. This condition can be disabled via the
+  [`--no-addons` flag][].
+* `"node"` - matches for any Node.js environment. Can be a CommonJS or ES
+  module file. _This condition should always come after `"import"` or
+  `"require"`._
 * `"import"` - matches when the package is loaded via `import` or
   `import()`, or via any top-level import or resolve operation by the
   ECMAScript module loader. Applies regardless of the module format of the
@@ -498,14 +507,6 @@ Node.js implements the following conditions:
   formats include CommonJS, JSON, and native addons but not ES modules as
   `require()` doesn't support them. _Always mutually exclusive with
   `"import"`._
-* `"node"` - matches for any Node.js environment. Can be a CommonJS or ES
-  module file. _This condition should always come after `"import"` or
-  `"require"`._
-* `"node-addons"` - similar to `"node"` and matches for any Node.js environment.
-  This condition can be used to provide an entry point which uses native C++
-  addons as opposed to an entry point which is more universal and doesn't rely
-  on native addons. This condition can be disabled via the
-  [`--no-addons` flag][].
 * `"default"` - the generic fallback that always matches. Can be a CommonJS
   or ES module file. _This condition should always come last._
 
@@ -607,21 +608,23 @@ Runtimes or tools other than Node.js can use them at their discretion.
 
 These user conditions can be enabled in Node.js via the [`--conditions` flag][].
 
-The following condition definitions are currently endorsed by Node.js:
+The following condition definitions are currently endorsed by Node.js, and
+are _listed in order from most to least specific, as conditions should be
+used._
 
+* `"types"` - can be used by typing systems to resolve the typing file for
+  the given export, possible since the interface should be the same for all
+  variations. _This condition should always be included first._
+* `"deno"` - indicates a variation for the Deno platform.
 * `"browser"` - any environment which implements a standard subset of global
   browser APIs available from JavaScript in web browsers, including the DOM
   APIs.
-* `"deno"` - indicates a variation for the Deno platform.
 * `"development"` - can be used to define a development-only environment
   entry point, for example to provide additional debugging context such as
   better error message when running in a development mode. _Must always be
   mutually exclusive with `"production"`._
 * `"production"` - can be used to define a production environment entry
   point. _Must always be mutually exclusive with `"development"`._
-* `"types"` - can be used by typing systems to resolve the typing file for
-  the given export, possible since the interface should be the same for all
-  variations. _This condition should always be included first._
 
 The above user conditions can be enabled in Node.js via the
 [`--conditions` flag][].
