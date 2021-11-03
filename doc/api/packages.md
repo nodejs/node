@@ -614,14 +614,14 @@ The following condition definitions are currently endorsed by Node.js:
   APIs.
 * `"deno"` - indicates a variation for the Deno platform.
 * `"development"` - can be used to define a development-only environment
-  entry point. _Must always be mutually exclusive with `"production"`._
+  entry point, for example to provide additional debugging context such as
+  better error message when running in a development mode. _Must always be
+  mutually exclusive with `"production"`._
 * `"production"` - can be used to define a production environment entry
   point. _Must always be mutually exclusive with `"development"`._
-* `"source"` - indicates the original .js source file without minification
-  or bundling optimizations, useful for development and debugging workflows.
 * `"types"` - can be used by typing systems to resolve the typing file for
   the given export, possible since the interface should be the same for all
-  variations.
+  variations. _This condition should always be included first._
 
 The above user conditions can be enabled in Node.js via the
 [`--conditions` flag][].
