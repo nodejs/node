@@ -551,6 +551,9 @@ added: v1.0.0
 The `cipher.getAuthTag()` method should only be called after encryption has
 been completed using the [`cipher.final()`][] method.
 
+If the `authTagLength` option was set during the `cipher` instance's creation,
+this function will return exactly `authTagLength` bytes.
+
 ### `cipher.setAAD(buffer[, options])`
 
 <!-- YAML
