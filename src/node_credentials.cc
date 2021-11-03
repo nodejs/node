@@ -381,7 +381,7 @@ static void GetRESUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(env->has_run_bootstrapping_code());
   uid_t ruid, euid, suid;
-  getresuid(&ruid, &euid, &suid);
+  CHECK_EQ(getresuid(&ruid, &euid, &suid), 0);
   MaybeLocal<Value> array =
       ToV8Value(env->context(), std::vector<uid_t>{ruid, euid, suid});
   args.GetReturnValue().Set(array.ToLocalChecked());
