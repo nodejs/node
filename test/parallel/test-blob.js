@@ -229,7 +229,7 @@ assert.throws(() => new Blob({}), {
     new Int16Array([0x4150, 0x5353]),
     new Uint32Array([0x53534150]),
     new Int32Array([0x53534150]),
-    new Float32Array([0xD341500000])
+    new Float32Array([0xD341500000]),
   ]);
 
   assert.equal(blob.text(), "PASSPASSPASSPASSPASSPASSPASS");
