@@ -81,6 +81,23 @@ new RuleTester({
         code: 'const { Map } = primordials; new Map()',
         options: [{ name: 'Map', into: 'Safe' }],
       },
+      {
+        code: `
+          const { Function } = primordials;
+          const rename = Function;
+          const obj = { rename };
+        `,
+        options: [{ name: 'Function' }],
+      },
+      {
+        code: `
+          const { Function } = primordials;
+          let rename;
+          rename = Function;
+          const obj = { rename };
+        `,
+        options: [{ name: 'Function' }],
+      },
     ],
     invalid: [
       {
@@ -159,6 +176,16 @@ new RuleTester({
         errors: [{ message: /const { ReflectOwnKeys } = primordials/ }]
       },
       {
+        code: `
+          const { Reflect } = primordials;
+          module.exports = function() {
+            const { ownKeys } = Reflect;
+          }
+        `,
+        options: [{ name: 'Reflect' }],
+        errors: [{ message: /const { ReflectOwnKeys } = primordials/ }]
+      },
+      {
         code: 'new Map()',
         options: [{ name: 'Map', into: 'Safe' }],
         errors: [{ message: /const { SafeMap } = primordials/ }]
@@ -170,6 +197,37 @@ new RuleTester({
         `,
         options: [{ name: 'Function' }],
         errors: [{ message: /const { FunctionPrototype } = primordials/ }]
+      },
+      {
+        code: `
+          const obj = { Function };
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { Function } = primordials/ }]
+      },
+      {
+        code: `
+          const rename = Function;
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { Function } = primordials/ }]
+      },
+      {
+        code: `
+          const rename = Function;
+          const obj = { rename };
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { Function } = primordials/ }]
+      },
+      {
+        code: `
+          let rename;
+          rename = Function;
+          const obj = { rename };
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { Function } = primordials/ }]
       },
     ]
   });
