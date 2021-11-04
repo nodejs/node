@@ -1173,6 +1173,10 @@ module.exports = cls => class Reifier extends cls {
         }
 
         let newSpec
+        // True if the dependency is getting installed from a local file path
+        // In this case it is not possible to do the normal version comparisons
+        // as the new version will be a file path
+        const isLocalDep = req.type === 'directory' || req.type === 'file'
         if (req.registry) {
           const version = child.version
           const prefixRange = version ? this[_savePrefix] + version : '*'
@@ -1204,7 +1208,7 @@ module.exports = cls => class Reifier extends cls {
           } else {
             newSpec = h.shortcut(opt)
           }
-        } else if (req.type === 'directory' || req.type === 'file') {
+        } else if (isLocalDep) {
           // save the relative path in package.json
           // Normally saveSpec is updated with the proper relative
           // path already, but it's possible to specify a full absolute
@@ -1233,11 +1237,11 @@ module.exports = cls => class Reifier extends cls {
           if (hasSubKey(pkg, 'devDependencies', name)) {
             pkg.devDependencies[name] = newSpec
             // don't update peer or optional if we don't have to
-            if (hasSubKey(pkg, 'peerDependencies', name) && !intersects(newSpec, pkg.peerDependencies[name])) {
+            if (hasSubKey(pkg, 'peerDependencies', name) && (isLocalDep || !intersects(newSpec, pkg.peerDependencies[name]))) {
               pkg.peerDependencies[name] = newSpec
             }
 
-            if (hasSubKey(pkg, 'optionalDependencies', name) && !intersects(newSpec, pkg.optionalDependencies[name])) {
+            if (hasSubKey(pkg, 'optionalDependencies', name) && (isLocalDep || !intersects(newSpec, pkg.optionalDependencies[name]))) {
               pkg.optionalDependencies[name] = newSpec
             }
           } else {

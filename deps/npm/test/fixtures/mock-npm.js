@@ -2,19 +2,56 @@ const npmlog = require('npmlog')
 const procLog = require('../../lib/utils/proc-log-listener.js')
 procLog.reset()
 
+// In theory we shouldn't have to do this if all the tests were tearing down
+// their listeners properly, we're still getting warnings even though
+// perfStop() and procLog.reset() is in the teardown script.  This silences the
+// warnings for now
+require('events').defaultMaxListeners = Infinity
+
 const realLog = {}
 for (const level in npmlog.levels)
   realLog[level] = npmlog[level]
 
 const { title, execPath } = process
 
+// Eventually this should default to having a prefix of an empty testdir, and
+// awaiting npm.load() unless told not to (for npm tests for example).  Ideally
+// the prefix of an empty dir is inferred rather than explicitly set
 const RealMockNpm = (t, otherMocks = {}) => {
+  const mock = {}
+  mock.logs = []
+  mock.outputs = []
+  mock.joinedOutput = () => {
+    return mock.outputs.map(o => o.join(' ')).join('\n')
+  }
+  const Npm = t.mock('../../lib/npm.js', otherMocks)
+  class MockNpm extends Npm {
+    constructor () {
+      super()
+      for (const level in npmlog.levels) {
+        npmlog[level] = (...msg) => {
+          mock.logs.push([level, ...msg])
+
+          const l = npmlog.level
+          npmlog.level = 'silent'
+          realLog[level](...msg)
+          npmlog.level = l
+        }
+      }
+      // npm.js tests need this restored to actually test this function!
+      mock.npmOutput = this.output
+      this.output = (...msg) => mock.outputs.push(msg)
+    }
+  }
+  mock.Npm = MockNpm
   t.afterEach(() => {
-    outputs.length = 0
-    logs.length = 0
+    mock.outputs.length = 0
+    mock.logs.length = 0
   })
+
   t.teardown(() => {
-    npm.perfStop()
+    process.removeAllListeners('time')
+    process.removeAllListeners('timeEnd')
     npmlog.record.length = 0
     for (const level in npmlog.levels)
       npmlog[level] = realLog[level]
@@ -24,33 +61,8 @@ const RealMockNpm = (t, otherMocks = {}) => {
     delete process.env.npm_command
     delete process.env.COLOR
   })
-  const logs = []
-  const outputs = []
-  const joinedOutput = () => {
-    return outputs.map(o => o.join(' ')).join('\n')
-  }
-  const npm = t.mock('../../lib/npm.js', otherMocks)
-  const command = async (command, args = []) => {
-    return new Promise((resolve, reject) => {
-      npm.commands[command](args, err => {
-        if (err)
-          return reject(err)
-        return resolve()
-      })
-    })
-  }
-  for (const level in npmlog.levels) {
-    npmlog[level] = (...msg) => {
-      logs.push([level, ...msg])
 
-      const l = npmlog.level
-      npmlog.level = 'silent'
-      realLog[level](...msg)
-      npmlog.level = l
-    }
-  }
-  npm.output = (...msg) => outputs.push(msg)
-  return { npm, logs, outputs, command, joinedOutput }
+  return mock
 }
 
 const realConfig = require('../../lib/utils/config')
@@ -67,9 +79,8 @@ class MockNpm {
     const config = base.config || {}
 
     for (const attr in base) {
-      if (attr !== 'config') {
+      if (attr !== 'config')
         this[attr] = base[attr]
-      }
     }
 
     this.flatOptions = base.flatOptions || {}
@@ -79,7 +90,7 @@ class MockNpm {
       find: (k) => ({...realConfig.defaults, ...config})[k],
       get: (k) => ({...realConfig.defaults, ...config})[k],
       set: (k, v) => config[k] = v,
-      list: [{ ...realConfig.defaults, ...config}]
+      list: [{ ...realConfig.defaults, ...config}],
     }
     if (!this.log) {
       this.log = {
@@ -98,7 +109,7 @@ class MockNpm {
     }
   }
 
-  output(...msg) {
+  output (...msg) {
     if (this.base.output)
       return this.base.output(msg)
     this._mockOutputs.push(msg)
@@ -106,10 +117,10 @@ class MockNpm {
 }
 
 const FakeMockNpm = (base = {}) => {
-    return new MockNpm(base)
+  return new MockNpm(base)
 }
 
 module.exports = {
   fake: FakeMockNpm,
-  real: RealMockNpm
+  real: RealMockNpm,
 }
