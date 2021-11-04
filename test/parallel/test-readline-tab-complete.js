@@ -31,11 +31,11 @@ common.skipIfDumbTerminal();
     const width = getStringWidth(char) - 1;
 
     class FakeInput extends EventEmitter {
-      columns = ((width + 1) * 10 + (lineBreak ? 0 : 10)) * 3
+      columns = ((width + 1) * 10 + (lineBreak ? 0 : 10)) * 3;
 
       write = common.mustCall((data) => {
         output += data;
-      }, 6)
+      }, 6);
 
       resume() {}
       pause() {}
@@ -72,11 +72,11 @@ common.skipIfDumbTerminal();
 {
   let output = '';
   class FakeInput extends EventEmitter {
-    columns = 80
+    columns = 80;
 
     write = common.mustCall((data) => {
       output += data;
-    }, 1)
+    }, 1);
 
     resume() {}
     pause() {}
@@ -104,11 +104,11 @@ common.skipIfDumbTerminal();
 {
   let output = '';
   class FakeInput extends EventEmitter {
-    columns = 80
+    columns = 80;
 
     write = common.mustCall((data) => {
       output += data;
-    }, 9)
+    }, 9);
 
     resume() {}
     pause() {}

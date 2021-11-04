@@ -72,7 +72,7 @@ const assert = require('assert');
 
     _write = common.mustCall((chunk, encoding, cb) => {
       cb();
-    })
+    });
 
     _read() {}
   }
@@ -91,7 +91,7 @@ const assert = require('assert');
 
     _write = common.mustCall((chunk, encoding, cb) => {
       cb();
-    })
+    });
 
     _read() {}
   }
@@ -107,7 +107,7 @@ const assert = require('assert');
   class Foo extends Writable {
     _write = common.mustCall((chunk, encoding, cb) => {
       cb();
-    })
+    });
 
     async _final() {
       // eslint-disable-next-line no-restricted-syntax
@@ -124,7 +124,7 @@ const assert = require('assert');
   class Foo extends Writable {
     _write = common.mustCall((chunk, encoding, cb) => {
       cb();
-    })
+    });
 
     async _final(callback) {
       // eslint-disable-next-line no-restricted-syntax
@@ -142,7 +142,7 @@ const assert = require('assert');
   class Foo extends Writable {
     _write = common.mustCall((chunk, encoding, cb) => {
       cb();
-    })
+    });
 
     async _final() {
       // eslint-disable-next-line no-restricted-syntax
