@@ -8,26 +8,27 @@ var pkg = require('./package.json')
 
 var args = process.argv.slice(2)
 
-var USAGE = 'Usage:\n' +
-            '  npx browserslist\n' +
-            '  npx browserslist "QUERIES"\n' +
-            '  npx browserslist --json "QUERIES"\n' +
-            '  npx browserslist --config="path/to/browserlist/file"\n' +
-            '  npx browserslist --coverage "QUERIES"\n' +
-            '  npx browserslist --coverage=US "QUERIES"\n' +
-            '  npx browserslist --coverage=US,RU,global "QUERIES"\n' +
-            '  npx browserslist --env="environment name defined in config"\n' +
-            '  npx browserslist --stats="path/to/browserlist/stats/file"\n' +
-            '  npx browserslist --mobile-to-desktop\n' +
-            '  npx browserslist --update-db'
+var USAGE =
+  'Usage:\n' +
+  '  npx browserslist\n' +
+  '  npx browserslist "QUERIES"\n' +
+  '  npx browserslist --json "QUERIES"\n' +
+  '  npx browserslist --config="path/to/browserlist/file"\n' +
+  '  npx browserslist --coverage "QUERIES"\n' +
+  '  npx browserslist --coverage=US "QUERIES"\n' +
+  '  npx browserslist --coverage=US,RU,global "QUERIES"\n' +
+  '  npx browserslist --env="environment name defined in config"\n' +
+  '  npx browserslist --stats="path/to/browserlist/stats/file"\n' +
+  '  npx browserslist --mobile-to-desktop\n' +
+  '  npx browserslist --update-db'
 
-function isArg (arg) {
+function isArg(arg) {
   return args.some(function (str) {
     return str === arg || str.indexOf(arg + '=') === 0
   })
 }
 
-function error (msg) {
+function error(msg) {
   process.stderr.write('browserslist: ' + msg + '\n')
   process.exit(1)
 }
@@ -42,7 +43,7 @@ if (isArg('--help') || isArg('-h')) {
   })
 } else {
   var mode = 'browsers'
-  var opts = { }
+  var opts = {}
   var queries
   var areas
 
@@ -138,7 +139,7 @@ if (isArg('--help') || isArg('-h')) {
       data.coverage = coverage.reduce(function (object, j) {
         object[j[0]] = j[1]
         return object
-      }, { })
+      }, {})
     }
     process.stdout.write(JSON.stringify(data, null, '  ') + '\n')
   }
