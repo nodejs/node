@@ -616,9 +616,7 @@ used._
   the given export, possible since the interface should be the same for all
   variations. _This condition should always be included first._
 * `"deno"` - indicates a variation for the Deno platform.
-* `"browser"` - any environment which implements a standard subset of global
-  browser APIs available from JavaScript in web browsers, including the DOM
-  APIs.
+* `"browser"` - any web browser environment.
 * `"development"` - can be used to define a development-only environment
   entry point, for example to provide additional debugging context such as
   better error message when running in a development mode. _Must always be
