@@ -114,7 +114,7 @@ for pr in "$@"; do
     cat output.json
     gitHubCurl "$(mergeUrl "$pr")" PUT --data @output.json > output
     cat output
-    if ! commits="$(jq 'if .merged then .sha else error("not merged") end' < output)"; then
+    if ! commits="$(jq -r 'if .merged then .sha else error("not merged") end' < output)"; then
       commit_queue_failed "$pr"
       continue
     fi
