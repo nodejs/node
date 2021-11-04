@@ -495,8 +495,8 @@ specific to least specific as conditions should be defined:
   on native addons. This condition can be disabled via the
   [`--no-addons` flag][].
 * `"node"` - matches for any Node.js environment. Can be a CommonJS or ES
-  module file. _This condition should always come after `"import"` or
-  `"require"`._
+  module file. _In most cases explictily calling out the Node.js platform is
+  not necessary._
 * `"import"` - matches when the package is loaded via `import` or
   `import()`, or via any top-level import or resolve operation by the
   ECMAScript module loader. Applies regardless of the module format of the
