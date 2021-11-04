@@ -1,11 +1,13 @@
 {
   "proposal-class-static-block": {
-    "chrome": "91",
-    "electron": "13.0"
+    "chrome": "94",
+    "firefox": "93"
   },
   "proposal-private-property-in-object": {
     "chrome": "91",
     "firefox": "90",
+    "safari": "15",
+    "ios": "15",
     "electron": "13.0"
   },
   "proposal-class-properties": {
@@ -15,6 +17,7 @@
     "firefox": "90",
     "safari": "14.1",
     "node": "12",
+    "ios": "15",
     "samsung": "11",
     "electron": "6.0"
   },
@@ -25,6 +28,8 @@
     "firefox": "90",
     "safari": "15",
     "node": "14.6",
+    "ios": "15",
+    "samsung": "14",
     "electron": "10.0"
   },
   "proposal-numeric-separator": {
@@ -46,6 +51,7 @@
     "safari": "14",
     "node": "15",
     "ios": "14",
+    "samsung": "14",
     "electron": "10.0"
   },
   "proposal-nullish-coalescing-operator": {
@@ -60,9 +66,11 @@
     "electron": "8.0"
   },
   "proposal-optional-chaining": {
+    "chrome": "91",
     "firefox": "74",
     "safari": "13.1",
-    "ios": "13.4"
+    "ios": "13.4",
+    "electron": "13.0"
   },
   "proposal-json-strings": {
     "chrome": "66",
@@ -91,9 +99,7 @@
     "opera": "36",
     "edge": "18",
     "firefox": "53",
-    "safari": "10",
     "node": "6",
-    "ios": "10",
     "samsung": "5",
     "electron": "0.37"
   },
@@ -379,7 +385,7 @@
     "chrome": "46",
     "opera": "33",
     "edge": "14",
-    "firefox": "45",
+    "firefox": "41",
     "safari": "10",
     "node": "5",
     "ios": "10",

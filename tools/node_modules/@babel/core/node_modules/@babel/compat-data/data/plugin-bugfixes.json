@@ -101,6 +101,16 @@
     "rhino": "1.7.13",
     "electron": "0.37"
   },
+  "bugfix/transform-safari-id-destructuring-collision-in-function-expression": {
+    "chrome": "49",
+    "opera": "36",
+    "edge": "14",
+    "firefox": "2",
+    "node": "6",
+    "samsung": "5",
+    "rhino": "1.7.13",
+    "electron": "0.37"
+  },
   "transform-template-literals": {
     "chrome": "41",
     "opera": "28",
@@ -135,8 +145,10 @@
     "electron": "8.0"
   },
   "bugfix/transform-v8-spread-parameters-in-optional-chaining": {
+    "chrome": "91",
     "firefox": "74",
     "safari": "13.1",
-    "ios": "13.4"
+    "ios": "13.4",
+    "electron": "13.0"
   }
 }

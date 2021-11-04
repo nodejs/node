@@ -13,45 +13,42 @@ var ANDROID_EVERGREEN_FIRST = 37
 var QUERY_OR = 1
 var QUERY_AND = 2
 
-function isVersionsMatch (versionA, versionB) {
+function isVersionsMatch(versionA, versionB) {
   return (versionA + '.').indexOf(versionB + '.') === 0
 }
 
-function isEolReleased (name) {
+function isEolReleased(name) {
   var version = name.slice(1)
   return jsReleases.some(function (i) {
     return isVersionsMatch(i.version, version)
   })
 }
 
-function normalize (versions) {
+function normalize(versions) {
   return versions.filter(function (version) {
     return typeof version === 'string'
   })
 }
 
-function normalizeElectron (version) {
+function normalizeElectron(version) {
   var versionToUse = version
   if (version.split('.').length === 3) {
-    versionToUse = version
-      .split('.')
-      .slice(0, -1)
-      .join('.')
+    versionToUse = version.split('.').slice(0, -1).join('.')
   }
   return versionToUse
 }
 
-function nameMapper (name) {
-  return function mapName (version) {
+function nameMapper(name) {
+  return function mapName(version) {
     return name + ' ' + version
   }
 }
 
-function getMajor (version) {
+function getMajor(version) {
   return parseInt(version.split('.')[0])
 }
 
-function getMajorVersions (released, number) {
+function getMajorVersions(released, number) {
   if (released.length === 0) return []
   var majorVersions = uniq(released.map(getMajor))
   var minimum = majorVersions[majorVersions.length - number]
@@ -66,7 +63,7 @@ function getMajorVersions (released, number) {
   return selected
 }
 
-function uniq (array) {
+function uniq(array) {
   var filtered = []
   for (var i = 0; i < array.length; i++) {
     if (filtered.indexOf(array[i]) === -1) filtered.push(array[i])
@@ -76,13 +73,13 @@ function uniq (array) {
 
 // Helpers
 
-function fillUsage (result, name, data) {
+function fillUsage(result, name, data) {
   for (var i in data) {
     result[name + ' ' + i] = data[i]
   }
 }
 
-function generateFilter (sign, version) {
+function generateFilter(sign, version) {
   version = parseFloat(version)
   if (sign === '>') {
     return function (v) {
@@ -103,7 +100,7 @@ function generateFilter (sign, version) {
   }
 }
 
-function generateSemverFilter (sign, version) {
+function generateSemverFilter(sign, version) {
   version = version.split('.').map(parseSimpleInt)
   version[1] = version[1] || 0
   version[2] = version[2] || 0
@@ -130,17 +127,17 @@ function generateSemverFilter (sign, version) {
   }
 }
 
-function parseSimpleInt (x) {
+function parseSimpleInt(x) {
   return parseInt(x)
 }
 
-function compare (a, b) {
+function compare(a, b) {
   if (a < b) return -1
   if (a > b) return +1
   return 0
 }
 
-function compareSemver (a, b) {
+function compareSemver(a, b) {
   return (
     compare(parseInt(a[0]), parseInt(b[0])) ||
     compare(parseInt(a[1] || '0'), parseInt(b[1] || '0')) ||
@@ -149,7 +146,7 @@ function compareSemver (a, b) {
 }
 
 // this follows the npm-like semver behavior
-function semverFilterLoose (operator, range) {
+function semverFilterLoose(operator, range) {
   range = range.split('.').map(parseSimpleInt)
   if (typeof range[1] === 'undefined') {
     range[1] = 'x'
@@ -162,8 +159,8 @@ function semverFilterLoose (operator, range) {
         version = version.split('.').map(parseSimpleInt)
         return compareSemverLoose(version, range) <= 0
       }
-    default:
     case '>=':
+    default:
       return function (version) {
         version = version.split('.').map(parseSimpleInt)
         return compareSemverLoose(version, range) >= 0
@@ -172,7 +169,7 @@ function semverFilterLoose (operator, range) {
 }
 
 // this follows the npm-like semver behavior
-function compareSemverLoose (version, range) {
+function compareSemverLoose(version, range) {
   if (version[0] !== range[0]) {
     return version[0] < range[0] ? -1 : +1
   }
@@ -185,7 +182,7 @@ function compareSemverLoose (version, range) {
   return 0
 }
 
-function resolveVersion (data, version) {
+function resolveVersion(data, version) {
   if (data.versions.indexOf(version) !== -1) {
     return version
   } else if (browserslist.versionAliases[data.name][version]) {
@@ -195,7 +192,7 @@ function resolveVersion (data, version) {
   }
 }
 
-function normalizeVersion (data, version) {
+function normalizeVersion(data, version) {
   var resolved = resolveVersion(data, version)
   if (resolved) {
     return resolved
@@ -206,7 +203,7 @@ function normalizeVersion (data, version) {
   }
 }
 
-function filterByYear (since, context) {
+function filterByYear(since, context) {
   since = since / 1000
   return Object.keys(agents).reduce(function (selected, name) {
     var data = byName(name, context)
@@ -218,7 +215,7 @@ function filterByYear (since, context) {
   }, [])
 }
 
-function cloneData (data) {
+function cloneData(data) {
   return {
     name: data.name,
     versions: data.versions,
@@ -227,14 +224,14 @@ function cloneData (data) {
   }
 }
 
-function mapVersions (data, map) {
+function mapVersions(data, map) {
   data.versions = data.versions.map(function (i) {
     return map[i] || i
   })
   data.released = data.versions.map(function (i) {
     return map[i] || i
   })
-  var fixedDate = { }
+  var fixedDate = {}
   for (var i in data.releaseDate) {
     fixedDate[map[i] || i] = data.releaseDate[i]
   }
@@ -242,7 +239,7 @@ function mapVersions (data, map) {
   return data
 }
 
-function byName (name, context) {
+function byName(name, context) {
   name = name.toLowerCase()
   name = browserslist.aliases[name] || name
   if (context.mobileToDesktop && browserslist.desktopNames[name]) {
@@ -261,34 +258,38 @@ function byName (name, context) {
   return browserslist.data[name]
 }
 
-function normalizeAndroidVersions (androidVersions, chromeVersions) {
+function normalizeAndroidVersions(androidVersions, chromeVersions) {
   var firstEvergreen = ANDROID_EVERGREEN_FIRST
   var last = chromeVersions[chromeVersions.length - 1]
   return androidVersions
-    .filter(function (version) { return /^(?:[2-4]\.|[34]$)/.test(version) })
+    .filter(function (version) {
+      return /^(?:[2-4]\.|[34]$)/.test(version)
+    })
     .concat(chromeVersions.slice(firstEvergreen - last - 1))
 }
 
-function normalizeAndroidData (android, chrome) {
+function normalizeAndroidData(android, chrome) {
   android.released = normalizeAndroidVersions(android.released, chrome.released)
   android.versions = normalizeAndroidVersions(android.versions, chrome.versions)
   return android
 }
 
-function checkName (name, context) {
+function checkName(name, context) {
   var data = byName(name, context)
   if (!data) throw new BrowserslistError('Unknown browser ' + name)
   return data
 }
 
-function unknownQuery (query) {
+function unknownQuery(query) {
   return new BrowserslistError(
-    'Unknown browser query `' + query + '`. ' +
-    'Maybe you are using old Browserslist or made typo in query.'
+    'Unknown browser query `' +
+      query +
+      '`. ' +
+      'Maybe you are using old Browserslist or made typo in query.'
   )
 }
 
-function filterAndroid (list, versions, context) {
+function filterAndroid(list, versions, context) {
   if (context.mobileToDesktop) return list
   var released = browserslist.data.android.released
   var last = released[released.length - 1]
@@ -308,7 +309,7 @@ function filterAndroid (list, versions, context) {
  * the select function in `queries`.
  * @returns {string[]} A list of browsers
  */
-function resolve (queries, context) {
+function resolve(queries, context) {
   if (Array.isArray(queries)) {
     queries = flatten(queries.map(parse))
   } else {
@@ -323,7 +324,10 @@ function resolve (queries, context) {
       if (index === 0) {
         throw new BrowserslistError(
           'Write any browsers query (for instance, `defaults`) ' +
-          'before `' + selection + '`')
+            'before `' +
+            selection +
+            '`'
+        )
       }
       selection = selection.slice(4)
     }
@@ -356,7 +360,7 @@ function resolve (queries, context) {
           case QUERY_OR:
           default:
             if (isExclude) {
-              var filter = { }
+              var filter = {}
               array.forEach(function (j) {
                 filter[j] = true
               })
@@ -373,7 +377,7 @@ function resolve (queries, context) {
   }, [])
 }
 
-var cache = { }
+var cache = {}
 
 /**
  * Return array of browsers by selection queries.
@@ -400,8 +404,8 @@ var cache = { }
  * @example
  * browserslist('IE >= 10, IE 8') //=> ['ie 11', 'ie 10', 'ie 8']
  */
-function browserslist (queries, opts) {
-  if (typeof opts === 'undefined') opts = { }
+function browserslist(queries, opts) {
+  if (typeof opts === 'undefined') opts = {}
 
   if (typeof opts.path === 'undefined') {
     opts.path = path.resolve ? path.resolve('.') : '.'
@@ -418,7 +422,8 @@ function browserslist (queries, opts) {
 
   if (!(typeof queries === 'string' || Array.isArray(queries))) {
     throw new BrowserslistError(
-      'Browser queries must be an array or string. Got ' + typeof queries + '.')
+      'Browser queries must be an array or string. Got ' + typeof queries + '.'
+    )
   }
 
   var context = {
@@ -432,7 +437,7 @@ function browserslist (queries, opts) {
   env.oldDataWarning(browserslist.data)
   var stats = env.getStat(opts, browserslist.data)
   if (stats) {
-    context.customUsage = { }
+    context.customUsage = {}
     for (var browser in stats) {
       fillUsage(context.customUsage, browser, stats[browser])
     }
@@ -461,7 +466,7 @@ function browserslist (queries, opts) {
   return result
 }
 
-function parse (queries) {
+function parse(queries) {
   var qs = []
   do {
     queries = doMatch(queries, qs)
@@ -469,7 +474,7 @@ function parse (queries) {
   return qs
 }
 
-function doMatch (string, qs) {
+function doMatch(string, qs) {
   var or = /^(?:,\s*|\s+or\s+)(.*)/i
   var and = /^\s+and\s+(.*)/i
 
@@ -488,7 +493,7 @@ function doMatch (string, qs) {
   })
 }
 
-function find (string, predicate) {
+function find(string, predicate) {
   for (var n = 1, max = string.length; n <= max; n++) {
     var parsed = string.substr(-n, n)
     if (predicate(parsed, n, max)) {
@@ -498,7 +503,7 @@ function find (string, predicate) {
   return ''
 }
 
-function flatten (array) {
+function flatten(array) {
   if (!Array.isArray(array)) return [array]
   return array.reduce(function (a, b) {
     return a.concat(flatten(b))
@@ -506,20 +511,15 @@ function flatten (array) {
 }
 
 // Will be filled by Can I Use data below
-browserslist.cache = { }
-browserslist.data = { }
+browserslist.cache = {}
+browserslist.data = {}
 browserslist.usage = {
-  global: { },
+  global: {},
   custom: null
 }
 
 // Default browsers query
-browserslist.defaults = [
-  '> 0.5%',
-  'last 2 versions',
-  'Firefox ESR',
-  'not dead'
-]
+browserslist.defaults = ['> 0.5%', 'last 2 versions', 'Firefox ESR', 'not dead']
 
 // Browser names aliases
 browserslist.aliases = {
@@ -548,7 +548,7 @@ browserslist.desktopNames = {
 }
 
 // Aliases to work with joined versions like `ios_saf 7.0-7.1`
-browserslist.versionAliases = { }
+browserslist.versionAliases = {}
 
 browserslist.clearCaches = env.clearCaches
 browserslist.parseConfig = env.parseConfig
@@ -597,7 +597,7 @@ browserslist.coverage = function (browsers, stats) {
     if ('dataByBrowser' in stats) {
       stats = stats.dataByBrowser
     }
-    data = { }
+    data = {}
     for (var name in stats) {
       for (var version in stats[name]) {
         data[name + ' ' + version] = stats[name][version]
@@ -614,7 +614,7 @@ browserslist.coverage = function (browsers, stats) {
   }, 0)
 }
 
-function nodeQuery (context, version) {
+function nodeQuery(context, version) {
   var nodeReleases = jsReleases.filter(function (i) {
     return i.name === 'nodejs'
   })
@@ -631,22 +631,20 @@ function nodeQuery (context, version) {
   return ['node ' + matched[matched.length - 1].version]
 }
 
-function sinceQuery (context, year, month, date) {
+function sinceQuery(context, year, month, date) {
   year = parseInt(year)
   month = parseInt(month || '01') - 1
   date = parseInt(date || '01')
   return filterByYear(Date.UTC(year, month, date, 0, 0, 0), context)
 }
 
-function coverQuery (context, coverage, statMode) {
+function coverQuery(context, coverage, statMode) {
   coverage = parseFloat(coverage)
   var usage = browserslist.usage.global
   if (statMode) {
     if (statMode.match(/^my\s+stats$/)) {
       if (!context.customUsage) {
-        throw new BrowserslistError(
-          'Custom usage statistics was not provided'
-        )
+        throw new BrowserslistError('Custom usage statistics was not provided')
       }
       usage = context.customUsage
     } else {
@@ -986,7 +984,7 @@ var QUERIES = [
       var data = checkName(name, context)
       from = parseFloat(normalizeVersion(data, from) || from)
       to = parseFloat(normalizeVersion(data, to) || to)
-      function filter (v) {
+      function filter(v) {
         var parsed = parseFloat(v)
         return parsed >= from && parsed <= to
       }
@@ -1180,11 +1178,11 @@ var QUERIES = [
       }
     }
   }
-];
+]
 
 // Get and convert Can I Use data
 
-(function () {
+;(function () {
   for (var name in agents) {
     var browser = agents[name]
     browserslist.data[name] = {
@@ -1195,7 +1193,7 @@ var QUERIES = [
     }
     fillUsage(browserslist.usage.global, name, browser.usage_global)
 
-    browserslist.versionAliases[name] = { }
+    browserslist.versionAliases[name] = {}
     for (var i = 0; i < browser.versions.length; i++) {
       var full = browser.versions[i]
       if (!full) continue
@@ -1210,6 +1208,6 @@ var QUERIES = [
   }
 
   browserslist.versionAliases.op_mob['59'] = '58'
-}())
+})()
 
 module.exports = browserslist

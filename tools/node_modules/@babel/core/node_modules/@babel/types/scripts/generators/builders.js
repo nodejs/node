@@ -100,7 +100,7 @@ import type * as t from "../..";
       formatedBuilderNameLocal === formatedBuilderName ? "export " : ""
     }function ${formatedBuilderNameLocal}(${defArgs.join(
       ", "
-    )}): t.${type} { return builder("${type}", ...arguments); }\n`;
+    )}): t.${type} { return builder.apply("${type}", arguments); }\n`;
     if (formatedBuilderNameLocal !== formatedBuilderName) {
       output += `export { ${formatedBuilderNameLocal} as ${formatedBuilderName} };\n`;
     }
@@ -119,9 +119,9 @@ import type * as t from "../..";
     const newType = definitions.DEPRECATED_KEYS[type];
     const formatedBuilderName = formatBuilderName(type);
     output += `/** @deprecated */
-function ${type}(...args: Array<any>): any {
+function ${type}(${generateBuilderArgs(newType).join(", ")}): t.${type} {
   console.trace("The node type ${type} has been renamed to ${newType}");
-  return builder("${type}", ...args);
+  return builder.apply("${type}", arguments);
 }
 export { ${type} as ${formatedBuilderName} };\n`;
     // This is needed for backwards compatibility.
