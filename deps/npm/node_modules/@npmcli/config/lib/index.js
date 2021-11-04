@@ -497,6 +497,12 @@ class Config {
   }
 
   async loadProjectConfig () {
+    if (this[_get]('global') === true || this[_get]('location') === 'global') {
+      this.data.get('project').source = '(global mode enabled, ignored)'
+      this.sources.set(this.data.get('project').source, 'project')
+      return
+    }
+
     // the localPrefix can be set by the CLI config, but otherwise is
     // found by walking up the folder tree
     await this.loadLocalPrefix()
