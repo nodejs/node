@@ -5,7 +5,7 @@ import { URL, fileURLToPath } from "url";
 const HELPERS_FOLDER = new URL("../src/helpers", import.meta.url);
 const IGNORED_FILES = new Set(["package.json"]);
 
-export default async function generateAsserts() {
+export default async function generateHelpers() {
   let output = `/*
  * This file is auto-generated! Do not modify it directly.
  * To re-generate run 'make build'
@@ -24,6 +24,11 @@ import template from "@babel/template";
     const varName = isValidId ? helperName : `_${helperName}`;
 
     const filePath = join(fileURLToPath(HELPERS_FOLDER), file);
+    if (!file.endsWith(".js")) {
+      console.error("ignoring", filePath);
+      continue;
+    }
+
     const fileContents = await fs.promises.readFile(filePath, "utf8");
     const minVersionMatch = fileContents.match(
       /^\s*\/\*\s*@minVersion\s+(?<minVersion>\S+)\s*\*\/\s*$/m

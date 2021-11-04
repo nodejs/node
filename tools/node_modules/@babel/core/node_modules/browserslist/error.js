@@ -1,4 +1,4 @@
-function BrowserslistError (message) {
+function BrowserslistError(message) {
   this.name = 'BrowserslistError'
   this.message = message
   this.browserslist = true
