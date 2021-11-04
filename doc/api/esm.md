@@ -807,7 +807,7 @@ const require = createRequire(cwd() + '/<preload>');
 ```
 
 In order to allow communication between the application and the loader, another
-argument is provided to the preload code `port`. This is available as a
+argument is provided to the preload code: `port`. This is available as a
 parameter to the loader hook and inside of the source text returned by the hook.
 Some care must be taken in order to properly `ref()` and `unref()` the
 `MessagePort` to prevent a process from being in a state where it won't close

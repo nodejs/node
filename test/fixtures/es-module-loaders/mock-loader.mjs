@@ -53,7 +53,7 @@ export function globalPreload({port}) {
         listeners
       });
       mockVersion++;
-      port.postMessage({mockVersion, resolved, exports });
+      port.postMessage({ mockVersion, resolved, exports });
       return namespace;
     }
     setImportMetaCallback((meta, context, parent) => {
