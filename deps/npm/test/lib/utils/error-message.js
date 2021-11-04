@@ -1,42 +1,47 @@
 const t = require('tap')
 const path = require('path')
+const { real: mockNpm } = require('../../fixtures/mock-npm.js')
+const { Npm } = mockNpm(t, {
+  '../../package.json': {
+    version: '123.456.789-npm',
+  },
+})
+const npm = new Npm()
+const { Npm: UnloadedNpm } = mockNpm(t, {
+  '../../package.json': {
+    version: '123.456.789-npm',
+  },
+})
+const unloadedNpm = new UnloadedNpm()
 
 // make a bunch of stuff consistent for snapshots
 
-process.getuid = () => 69
-process.getgid = () => 420
+process.getuid = () => 867
+process.getgid = () => 5309
 
 Object.defineProperty(process, 'arch', {
   value: 'x64',
   configurable: true,
 })
 
-const { resolve } = require('path')
-const npm = require('../../../lib/npm.js')
-const CACHE = '/some/cache/dir'
-npm.config = {
-  flat: {
-    color: false,
-  },
-  loaded: false,
-  localPrefix: '/some/prefix/dir',
-  get: key => {
-    if (key === 'cache')
-      return CACHE
-    else if (key === 'node-version')
-      return '99.99.99'
-    else if (key === 'global')
-      return false
-    else
-      throw new Error('unexpected config lookup: ' + key)
-  },
-}
-
-npm.version = '123.69.420-npm'
 Object.defineProperty(process, 'version', {
-  value: '123.69.420-node',
+  value: '123.456.789-node',
   configurable: true,
 })
+
+const CACHE = '/some/cache/dir'
+const testdir = t.testdir({})
+t.before(async () => {
+  await npm.load()
+  npm.localPrefix = testdir
+  unloadedNpm.localPrefix = testdir
+  npm.config.set('cache', CACHE)
+  npm.config.set('node-version', '99.99.99')
+  npm.version = '123.456.789-npm'
+  unloadedNpm.version = '123.456.789-npm'
+})
+
+const { resolve } = require('path')
 
 const npmlog = require('npmlog')
 const verboseLogs = []
@@ -137,11 +142,7 @@ t.test('replace message/stack sensistive info', t => {
   t.end()
 })
 
-t.test('bad engine with config loaded', t => {
-  npm.config.loaded = true
-  t.teardown(() => {
-    npm.config.loaded = false
-  })
+t.test('bad engine without config loaded', t => {
   const path = '/some/path'
   const pkgid = 'some@package'
   const file = '/some/file'
@@ -153,7 +154,7 @@ t.test('bad engine with config loaded', t => {
     file,
     stack,
   })
-  t.matchSnapshot(errorMessage(er, npm))
+  t.matchSnapshot(errorMessage(er, unloadedNpm))
   t.end()
 })
 
@@ -219,7 +220,6 @@ t.test('eacces/eperm', t => {
     else
       bePosix()
 
-    npm.config.loaded = loaded
     const path = `${cachePath ? CACHE : '/not/cache/dir'}/path`
     const dest = `${cacheDest ? CACHE : '/not/cache/dir'}/dest`
     const er = Object.assign(new Error('whoopsie'), {
@@ -229,7 +229,11 @@ t.test('eacces/eperm', t => {
       stack: 'dummy stack trace',
     })
     verboseLogs.length = 0
-    t.matchSnapshot(errorMessage(er, npm))
+    if (loaded)
+      t.matchSnapshot(errorMessage(er, npm))
+    else
+      t.matchSnapshot(errorMessage(er, unloadedNpm))
+
     t.matchSnapshot(verboseLogs)
     t.end()
     verboseLogs.length = 0
@@ -471,7 +475,7 @@ t.test('bad platform', t => {
       },
       required: {
         os: ['!yours', 'mine'],
-        cpu: ['x420', 'x69'],
+        cpu: ['x867', 'x5309'],
       },
       code: 'EBADPLATFORM',
     })
@@ -489,7 +493,7 @@ t.test('explain ERESOLVE errors', t => {
   t.matchSnapshot(errorMessage(er, npm))
   t.match(EXPLAIN_CALLED, [[
     er,
-    false,
+    undefined,
     path.resolve(npm.cache, 'eresolve-report.txt'),
   ]])
   t.end()
