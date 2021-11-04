@@ -54,7 +54,7 @@ function getDestructuringAssignmentParent(scope, node) {
   ) {
     return null;
   }
-  return declaration.defs[0].node.init.name;
+  return declaration.defs[0].node.init;
 }
 
 const identifierSelector =
@@ -94,17 +94,20 @@ module.exports = {
           return;
         }
         const name = node.name;
-        const parentName = getDestructuringAssignmentParent(
+        const parent = getDestructuringAssignmentParent(
           context.getScope(),
           node
         );
+        const parentName = parent?.name;
         if (!isTarget(nameMap, name) && !isTarget(nameMap, parentName)) {
           return;
         }
 
         const defs = globalScope.set.get(name)?.defs;
         if (parentName && isTarget(nameMap, parentName)) {
-          if (!defs || defs[0].name.name !== 'primordials') {
+          if (defs?.[0].name.name !== 'primordials' &&
+              !reported.has(parent.range[0]) &&
+              parent.parent?.id?.type !== 'Identifier') {
             reported.add(node.range[0]);
             const into = renameMap.get(name);
             context.report({
@@ -147,7 +150,20 @@ module.exports = {
             }
           });
         }
-      }
+      },
+      VariableDeclarator(node) {
+        const name = node.init?.name;
+        if (name !== undefined && isTarget(nameMap, name) &&
+            node.id.type === 'Identifier' &&
+            !globalScope.set.get(name)?.defs.length) {
+          reported.add(node.init.range[0]);
+          context.report({
+            node,
+            messageId: 'error',
+            data: { name },
+          });
+        }
+      },
     };
   }
 };
