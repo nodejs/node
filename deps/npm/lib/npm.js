@@ -9,29 +9,6 @@ require('graceful-fs').gracefulify(require('fs'))
 // TODO make this only ever load once (or unload) in tests
 const procLogListener = require('./utils/proc-log-listener.js')
 
-const proxyCmds = new Proxy({}, {
-  get: (target, cmd) => {
-    const actual = deref(cmd)
-    if (actual && !Reflect.has(target, actual)) {
-      const Impl = require(`./${actual}.js`)
-      const impl = new Impl(npm)
-      // Our existing npm.commands[x] act like a function with attributes, but
-      // our modules have non-inumerable attributes so we can't just assign
-      // them to an anonymous function like we used to.  This acts like that
-      // old way of doing things, until we can make breaking changes to the
-      // npm.commands[x] api
-      target[actual] = new Proxy(
-        (args, cb) => npm[_runCmd](actual, impl, args, cb),
-        {
-          get: (target, attr, receiver) => {
-            return Reflect.get(impl, attr, receiver)
-          },
-        })
-    }
-    return target[actual]
-  },
-})
-
 // Timers in progress
 const timers = new Map()
 // Finished timers
@@ -63,23 +40,26 @@ const cleanUpLogFiles = require('./utils/cleanup-log-files.js')
 const getProjectScope = require('./utils/get-project-scope.js')
 
 let warnedNonDashArg = false
-const _runCmd = Symbol('_runCmd')
 const _load = Symbol('_load')
 const _tmpFolder = Symbol('_tmpFolder')
 const _title = Symbol('_title')
+const pkg = require('../package.json')
 
-const npm = module.exports = new class extends EventEmitter {
+class Npm extends EventEmitter {
+  static get version () {
+    return pkg.version
+  }
+
   constructor () {
     super()
     this.started = Date.now()
     this.command = null
-    this.commands = proxyCmds
     this.timings = timings
     this.timers = timers
-    this.perfStart()
+    process.on('time', processOnTimeHandler)
+    process.on('timeEnd', processOnTimeEndHandler)
     procLogListener()
     process.emit('time', 'npm')
-    this.version = require('../package.json').version
     this.config = new Config({
       npmPath: dirname(__dirname),
       definitions,
@@ -90,14 +70,8 @@ const npm = module.exports = new class extends EventEmitter {
     this.updateNotification = null
   }
 
-  perfStart () {
-    process.on('time', processOnTimeHandler)
-    process.on('timeEnd', processOnTimeEndHandler)
-  }
-
-  perfStop () {
-    process.off('time', processOnTimeHandler)
-    process.off('timeEnd', processOnTimeEndHandler)
+  get version () {
+    return this.constructor.version
   }
 
   get shelloutCommands () {
@@ -108,21 +82,32 @@ const npm = module.exports = new class extends EventEmitter {
     return deref(c)
   }
 
-  // this will only ever be called with cmd set to the canonical command name
-  [_runCmd] (cmd, impl, args, cb) {
-    if (!this.loaded) {
-      throw new Error(
-        'Call npm.load() before using this command.\n' +
-        'See lib/cli.js for example usage.'
-      )
+  // Get an instantiated npm command
+  // npm.command is already taken as the currently running command, a refactor
+  // would be needed to change this
+  async cmd (cmd) {
+    await this.load()
+    const command = this.deref(cmd)
+    if (!command) {
+      throw Object.assign(new Error(`Unknown command ${cmd}`), {
+        code: 'EUNKNOWNCOMMAND',
+      })
     }
+    const Impl = require(`./commands/${command}.js`)
+    const impl = new Impl(this)
+    return impl
+  }
 
+  // Call an npm command
+  async exec (cmd, args) {
+    const command = await this.cmd(cmd)
     process.emit('time', `command:${cmd}`)
+
     // since 'test', 'start', 'stop', etc. commands re-enter this function
     // to call the run-script command, we need to only set it one time.
     if (!this.command) {
-      process.env.npm_command = cmd
-      this.command = cmd
+      process.env.npm_command = command.name
+      this.command = command.name
     }
 
     // Options are prefixed by a hyphen-minus (-, \u2d).
@@ -138,42 +123,38 @@ const npm = module.exports = new class extends EventEmitter {
     const workspacesEnabled = this.config.get('workspaces')
     const workspacesFilters = this.config.get('workspace')
     if (workspacesEnabled === false && workspacesFilters.length > 0)
-      return cb(new Error('Can not use --no-workspaces and --workspace at the same time'))
+      throw new Error('Can not use --no-workspaces and --workspace at the same time')
 
     const filterByWorkspaces = workspacesEnabled || workspacesFilters.length > 0
     // normally this would go in the constructor, but our tests don't
     // actually use a real npm object so this.npm.config isn't always
     // populated.  this is the compromise until we can make that a reality
     // and then move this into the constructor.
-    impl.workspaces = this.config.get('workspaces')
-    impl.workspacePaths = null
+    command.workspaces = this.config.get('workspaces')
+    command.workspacePaths = null
     // normally this would be evaluated in base-command#setWorkspaces, see
     // above for explanation
-    impl.includeWorkspaceRoot = this.config.get('include-workspace-root')
+    command.includeWorkspaceRoot = this.config.get('include-workspace-root')
 
     if (this.config.get('usage')) {
-      this.output(impl.usage)
-      cb()
-    } else if (filterByWorkspaces) {
+      this.output(command.usage)
+      return
+    }
+    if (filterByWorkspaces) {
       if (this.config.get('global'))
-        return cb(new Error('Workspaces not supported for global packages'))
+        throw new Error('Workspaces not supported for global packages')
 
-      impl.execWorkspaces(args, this.config.get('workspace'), er => {
+      return command.execWorkspaces(args, this.config.get('workspace')).finally(() => {
         process.emit('timeEnd', `command:${cmd}`)
-        cb(er)
       })
     } else {
-      impl.exec(args, er => {
+      return command.exec(args).finally(() => {
         process.emit('timeEnd', `command:${cmd}`)
-        cb(er)
       })
     }
   }
 
-  load (cb) {
-    if (cb && typeof cb !== 'function')
-      throw new TypeError('callback must be a function if provided')
-
+  async load () {
     if (!this.loadPromise) {
       process.emit('time', 'npm:load')
       this.log.pause()
@@ -190,12 +171,7 @@ const npm = module.exports = new class extends EventEmitter {
         })
       })
     }
-    if (!cb)
-      return this.loadPromise
-
-    // loadPromise is returned here for legacy purposes, old code was allowing
-    // the mixing of callback and promise here.
-    return this.loadPromise.then(cb, cb)
+    return this.loadPromise
   }
 
   get loaded () {
@@ -366,4 +342,5 @@ const npm = module.exports = new class extends EventEmitter {
     console.log(...msg)
     this.log.showProgress()
   }
-}()
+}
+module.exports = Npm

@@ -407,11 +407,12 @@ class PlaceDep {
       for (const entryEdge of peerEntrySets(edge.from).keys()) {
         // either this one needs to be pruned and re-evaluated, or marked
         // as peerConflicted and warned about.  If the entryEdge comes in from
-        // the root, then we have to leave it alone, and in that case, it
-        // will have already warned or crashed by getting to this point.
+        // the root or a workspace, then we have to leave it alone, and in that
+        // case, it will have already warned or crashed by getting to this point
         const entryNode = entryEdge.to
         const deepestTarget = deepestNestingTarget(entryNode)
-        if (deepestTarget !== target && !entryEdge.from.isRoot) {
+        if (deepestTarget !== target &&
+            !(entryEdge.from.isProjectRoot || entryEdge.from.isWorkspace)) {
           prunePeerSets.push(...gatherDepSet([entryNode], e => {
             return e.to !== entryNode && !e.peerConflicted
           }))

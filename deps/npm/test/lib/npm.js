@@ -55,8 +55,9 @@ t.afterEach(() => {
 const CACHE = t.testdir()
 process.env.npm_config_cache = CACHE
 
-t.test('not yet loaded', t => {
-  const { npm, logs } = mockNpm(t)
+t.test('not yet loaded', async t => {
+  const { Npm, logs } = mockNpm(t)
+  const npm = new Npm()
   t.match(npm, {
     started: Number,
     command: null,
@@ -70,56 +71,38 @@ t.test('not yet loaded', t => {
   })
   t.throws(() => npm.config.set('foo', 'bar'))
   t.throws(() => npm.config.get('foo'))
-  const list = npm.commands.list
-  t.throws(() => npm.commands.list())
-  t.equal(npm.commands.ls, list)
-  t.equal(npm.commands.list, list)
-  t.equal(npm.commands.asdfasdf, undefined)
-  t.equal(npm.deref('list'), 'ls')
   t.same(logs, [])
   t.end()
 })
 
-t.test('npm.load', t => {
-  t.test('callback must be a function', t => {
-    const { npm, logs } = mockNpm(t)
-    const er = new TypeError('callback must be a function if provided')
-    t.throws(() => npm.load({}), er)
-    t.same(logs, [])
-    t.end()
-  })
-
-  t.test('callback style', t => {
-    const { npm } = mockNpm(t)
-    npm.load((err) => {
-      if (err)
-        throw err
-      t.ok(npm.loaded)
-      t.end()
-    })
-  })
-
+t.test('npm.load', async t => {
   t.test('load error', async t => {
-    const { npm } = mockNpm(t)
+    const { Npm } = mockNpm(t)
+    const npm = new Npm()
     const loadError = new Error('load error')
     npm.config.load = async () => {
       throw loadError
     }
-    await npm.load().catch(er => {
-      t.equal(er, loadError)
-      t.equal(npm.loadErr, loadError)
-    })
+    await t.rejects(
+      () => npm.load(),
+      /load error/
+    )
+
+    t.equal(npm.loadErr, loadError)
     npm.config.load = async () => {
-      throw new Error('new load error')
+      throw new Error('different error')
     }
-    await npm.load().catch(er => {
-      t.equal(er, loadError, 'loading again returns the original error')
-      t.equal(npm.loadErr, loadError)
-    })
+    await t.rejects(
+      () => npm.load(),
+      /load error/,
+      'loading again returns the original error'
+    )
+    t.equal(npm.loadErr, loadError)
   })
 
   t.test('basic loading', async t => {
-    const { npm, logs } = mockNpm(t)
+    const { Npm, logs } = mockNpm(t)
+    const npm = new Npm()
     const dir = t.testdir({
       node_modules: {},
     })
@@ -187,7 +170,8 @@ t.test('npm.load', t => {
 
   t.test('forceful loading', async t => {
     process.argv = [...process.argv, '--force', '--color', 'always']
-    const { npm, logs } = mockNpm(t)
+    const { Npm, logs } = mockNpm(t)
+    const npm = new Npm()
     await npm.load()
     t.match(logs.filter(l => l[0] !== 'timing'), [
       [
@@ -223,7 +207,8 @@ t.test('npm.load', t => {
       process.env.PATH = PATH
     })
 
-    const { npm, logs, outputs } = mockNpm(t)
+    const { Npm, logs, outputs } = mockNpm(t)
+    const npm = new Npm()
     await npm.load()
     t.equal(npm.config.get('scope'), '@foo', 'added the @ sign to scope')
     t.match(logs.filter(l => l[0] !== 'timing' || !/^config:/.test(l[1])), [
@@ -246,50 +231,41 @@ t.test('npm.load', t => {
     t.equal(process.execPath, resolve(dir, 'bin', node))
 
     outputs.length = 0
-    await npm.commands.ll([], (er) => {
-      if (er)
-        throw er
+    await npm.exec('ll', [])
 
-      t.equal(npm.command, 'll', 'command set to first npm command')
-      t.equal(npm.flatOptions.npmCommand, 'll', 'npmCommand flatOption set')
+    t.equal(npm.command, 'll', 'command set to first npm command')
+    t.equal(npm.flatOptions.npmCommand, 'll', 'npmCommand flatOption set')
 
-      t.same(outputs, [[npm.commands.ll.usage]], 'print usage')
-      npm.config.set('usage', false)
-      t.equal(npm.commands.ll, npm.commands.ll, 'same command, different name')
-    })
+    const ll = await npm.cmd('ll')
+    t.same(outputs, [[ll.usage]], 'print usage')
+    npm.config.set('usage', false)
 
     outputs.length = 0
     logs.length = 0
-    await npm.commands.get(['scope', '\u2010not-a-dash'], (er) => {
-      if (er)
-        throw er
+    await npm.exec('get', ['scope', '\u2010not-a-dash'])
 
-      t.strictSame([npm.command, npm.flatOptions.npmCommand], ['ll', 'll'],
-        'does not change npm.command when another command is called')
+    t.strictSame([npm.command, npm.flatOptions.npmCommand], ['ll', 'll'],
+      'does not change npm.command when another command is called')
 
-      t.match(logs, [
-        [
-          'error',
-          'arg',
-          'Argument starts with non-ascii dash, this is probably invalid:',
-          '\u2010not-a-dash',
-        ],
-        [
-          'timing',
-          'command:config',
-          /Completed in [0-9.]+ms/,
-        ],
-        [
-          'timing',
-          'command:get',
-          /Completed in [0-9.]+ms/,
-        ],
-      ])
-      t.same(outputs, [['scope=@foo\n\u2010not-a-dash=undefined']])
-    })
-
-    // need this here or node 10 will improperly end the promise ahead of time
-    await new Promise((res) => setTimeout(res))
+    t.match(logs, [
+      [
+        'error',
+        'arg',
+        'Argument starts with non-ascii dash, this is probably invalid:',
+        '\u2010not-a-dash',
+      ],
+      [
+        'timing',
+        'command:config',
+        /Completed in [0-9.]+ms/,
+      ],
+      [
+        'timing',
+        'command:get',
+        /Completed in [0-9.]+ms/,
+      ],
+    ])
+    t.same(outputs, [['scope=@foo\n\u2010not-a-dash=undefined']])
   })
 
   t.test('--no-workspaces with --workspace', async t => {
@@ -317,17 +293,13 @@ t.test('npm.load', t => {
       '--workspaces', 'false',
       '--workspace', 'a',
     ]
-    const { npm } = mockNpm(t)
-    await npm.load()
+    const { Npm } = mockNpm(t)
+    const npm = new Npm()
     npm.localPrefix = dir
-    await new Promise((res, rej) => {
-      npm.commands.run([], er => {
-        if (!er)
-          return rej(new Error('Expected an error'))
-        t.match(er.message, 'Can not use --no-workspaces and --workspace at the same time')
-        res()
-      })
-    })
+    await t.rejects(
+      npm.exec('run', []),
+      /Can not use --no-workspaces and --workspace at the same time/
+    )
   })
 
   t.test('workspace-aware configs and commands', async t => {
@@ -367,36 +339,30 @@ t.test('npm.load', t => {
       'true',
     ]
 
-    const { npm, outputs } = mockNpm(t)
+    const { Npm, outputs } = mockNpm(t)
+    const npm = new Npm()
     await npm.load()
     npm.localPrefix = dir
 
-    await new Promise((res, rej) => {
-      // verify that calling the command with a short name still sets
-      // the npm.command property to the full canonical name of the cmd.
-      npm.command = null
-      npm.commands.run([], er => {
-        if (er)
-          rej(er)
+    // verify that calling the command with a short name still sets
+    // the npm.command property to the full canonical name of the cmd.
+    npm.command = null
+    await npm.exec('run', [])
 
-        t.equal(npm.command, 'run-script', 'npm.command set to canonical name')
+    t.equal(npm.command, 'run-script', 'npm.command set to canonical name')
 
-        t.match(
-          outputs,
-          [
-            ['Lifecycle scripts included in a@1.0.0:'],
-            ['  test\n    echo test a'],
-            [''],
-            ['Lifecycle scripts included in b@1.0.0:'],
-            ['  test\n    echo test b'],
-            [''],
-          ],
-          'should exec workspaces version of commands'
-        )
-
-        res()
-      })
-    })
+    t.match(
+      outputs,
+      [
+        ['Lifecycle scripts included in a@1.0.0:'],
+        ['  test\n    echo test a'],
+        [''],
+        ['Lifecycle scripts included in b@1.0.0:'],
+        ['  test\n    echo test b'],
+        [''],
+      ],
+      'should exec workspaces version of commands'
+    )
   })
 
   t.test('workspaces in global mode', async t => {
@@ -434,23 +400,21 @@ t.test('npm.load', t => {
       '--global',
       'true',
     ]
-    const { npm } = mockNpm(t)
+    const { Npm } = mockNpm(t)
+    const npm = new Npm()
     await npm.load()
     npm.localPrefix = dir
-    await new Promise((res, rej) => {
-      // verify that calling the command with a short name still sets
-      // the npm.command property to the full canonical name of the cmd.
-      npm.command = null
-      npm.commands.run([], er => {
-        t.match(er, /Workspaces not supported for global packages/)
-        res()
-      })
-    })
+    // verify that calling the command with a short name still sets
+    // the npm.command property to the full canonical name of the cmd.
+    npm.command = null
+    await t.rejects(
+      npm.exec('run', []),
+      /Workspaces not supported for global packages/
+    )
   })
-  t.end()
 })
 
-t.test('set process.title', t => {
+t.test('set process.title', async t => {
   t.test('basic title setting', async t => {
     process.argv = [
       process.execPath,
@@ -459,7 +423,8 @@ t.test('set process.title', t => {
       '--scope=foo',
       'ls',
     ]
-    const { npm } = mockNpm(t)
+    const { Npm } = mockNpm(t)
+    const npm = new Npm()
     await npm.load()
     t.equal(npm.title, 'npm ls')
     t.equal(process.title, 'npm ls')
@@ -475,7 +440,8 @@ t.test('set process.title', t => {
       'revoke',
       'deadbeefcafebad',
     ]
-    const { npm } = mockNpm(t)
+    const { Npm } = mockNpm(t)
+    const npm = new Npm()
     await npm.load()
     t.equal(npm.title, 'npm token revoke ***')
     t.equal(process.title, 'npm token revoke ***')
@@ -490,17 +456,17 @@ t.test('set process.title', t => {
       'token',
       'revoke',
     ]
-    const { npm } = mockNpm(t)
+    const { Npm } = mockNpm(t)
+    const npm = new Npm()
     await npm.load()
     t.equal(npm.title, 'npm token revoke')
     t.equal(process.title, 'npm token revoke')
   })
-
-  t.end()
 })
 
 t.test('timings', t => {
-  const { npm, logs } = mockNpm(t)
+  const { Npm, logs } = mockNpm(t)
+  const npm = new Npm()
   process.emit('time', 'foo')
   process.emit('time', 'bar')
   t.match(npm.timers.get('foo'), Number, 'foo timer is a number')
@@ -525,8 +491,10 @@ t.test('timings', t => {
 })
 
 t.test('output clears progress and console.logs the message', t => {
-  const npm = require('../../lib/npm.js')
-  const logs = []
+  const mock = mockNpm(t)
+  const { Npm, logs } = mock
+  const npm = new Npm()
+  npm.output = mock.npmOutput
   const { log } = console
   const { log: { clearProgress, showProgress } } = npm
   let showingProgress = true
@@ -545,4 +513,14 @@ t.test('output clears progress and console.logs the message', t => {
   npm.output('hello')
   t.strictSame(logs, [['hello']])
   t.end()
+})
+
+t.test('unknown command', async t => {
+  const mock = mockNpm(t)
+  const { Npm } = mock
+  const npm = new Npm()
+  await t.rejects(
+    npm.cmd('thisisnotacommand'),
+    { code: 'EUNKNOWNCOMMAND' }
+  )
 })

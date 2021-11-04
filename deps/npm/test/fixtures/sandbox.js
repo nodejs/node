@@ -6,16 +6,17 @@ const { promisify } = require('util')
 const mkdirp = require('mkdirp-infer-owner')
 const npmlog = require('npmlog')
 const rimraf = promisify(require('rimraf'))
-const t = require('tap')
 
-let active = null
 const chain = new Map()
 const sandboxes = new Map()
+
+// Disable lint errors for assigning to process global
+/* global process:writable */
 
 // keep a reference to the real process
 const _process = process
 
-const processHook = createHook({
+createHook({
   init: (asyncId, type, triggerAsyncId, resource) => {
     // track parentage of asyncIds
     chain.set(asyncId, triggerAsyncId)
@@ -23,9 +24,8 @@ const processHook = createHook({
   before: (asyncId) => {
     // find the nearest parent id that has a sandbox
     let parent = asyncId
-    while (chain.has(parent) && !sandboxes.has(parent)) {
+    while (chain.has(parent) && !sandboxes.has(parent))
       parent = chain.get(parent)
-    }
 
     process = sandboxes.has(parent)
       ? sandboxes.get(parent)
@@ -173,7 +173,7 @@ class Sandbox extends EventEmitter {
     if (this[_npm]) {
       // replace default config values with placeholders
       for (const name of redactedDefaults) {
-        let value = this[_npm].config.defaults[name]
+        const value = this[_npm].config.defaults[name]
         clean = clean.split(value).join(`{${name.toUpperCase()}}`)
       }
 
@@ -201,21 +201,19 @@ class Sandbox extends EventEmitter {
 
   // test.teardown hook
   teardown () {
-    if (this[_parent]) {
+    if (this[_parent])
       sandboxes.delete(this[_parent])
-    }
+
     return rimraf(this[_dirs].temp).catch(() => null)
   }
 
   // proxy get handler
   [_get] (target, prop, receiver) {
-    if (this[_data].has(prop)) {
+    if (this[_data].has(prop))
       return this[_data].get(prop)
-    }
 
-    if (this[prop] !== undefined) {
+    if (this[prop] !== undefined)
       return Reflect.get(this, prop, this)
-    }
 
     const actual = Reflect.get(target, prop, receiver)
     if (typeof actual === 'function') {
@@ -277,7 +275,8 @@ class Sandbox extends EventEmitter {
       ...argv,
     ]
 
-    this[_npm] = this[_test].mock('../../lib/npm.js', this[_mocks])
+    const Npm = this[_test].mock('../../lib/npm.js', this[_mocks])
+    this[_npm] = new Npm()
     this[_npm].output = (...args) => this[_output].push(args)
     await this[_npm].load()
     // in some node versions (later 10.x) our executionAsyncId at this point
@@ -290,20 +289,7 @@ class Sandbox extends EventEmitter {
     }
 
     const cmd = this[_npm].argv.shift()
-    const impl = this[_npm].commands[cmd]
-    if (!impl) {
-      throw new Error(`Unknown command: ${cmd}`)
-    }
-
-    return new Promise((resolve, reject) => {
-      impl(this[_npm].argv, (err) => {
-        if (err) {
-          return reject(err)
-        }
-
-        return resolve()
-      })
-    })
+    return this[_npm].exec(cmd, this[_npm].argv)
   }
 
   async complete (command, argv, partial) {
@@ -335,7 +321,8 @@ class Sandbox extends EventEmitter {
       ...argv,
     ]
 
-    this[_npm] = this[_test].mock('../../lib/npm.js', this[_mocks])
+    const Npm = this[_test].mock('../../lib/npm.js', this[_mocks])
+    this[_npm] = new Npm()
     this[_npm].output = (...args) => this[_output].push(args)
     await this[_npm].load()
     // in some node versions (later 10.x) our executionAsyncId at this point
@@ -347,11 +334,7 @@ class Sandbox extends EventEmitter {
       process = this[_proxy]
     }
 
-    const impl = this[_npm].commands[command]
-    if (!impl) {
-      throw new Error(`Unknown command: ${cmd}`)
-    }
-
+    const impl = await this[_npm].cmd(command)
     return impl.completion({
       partialWord: partial,
       conf: {

@@ -18,7 +18,8 @@ module.exports = async (process) => {
 
   checkForUnsupportedNode()
 
-  const npm = require('../lib/npm.js')
+  const Npm = require('../lib/npm.js')
+  const npm = new Npm()
   const exitHandler = require('../lib/utils/exit-handler.js')
   exitHandler.setNpm(npm)
 
@@ -38,6 +39,7 @@ module.exports = async (process) => {
 
   const updateNotifier = require('../lib/utils/update-notifier.js')
 
+  let cmd
   // now actually fire up npm and run the command.
   // this is how to use npm programmatically:
   try {
@@ -55,24 +57,23 @@ module.exports = async (process) => {
 
     updateNotifier(npm)
 
-    const cmd = npm.argv.shift()
+    cmd = npm.argv.shift()
     if (!cmd) {
-      npm.output(npm.usage)
+      npm.output(await npm.usage)
       process.exitCode = 1
       return exitHandler()
     }
 
-    const impl = npm.commands[cmd]
-    if (!impl) {
+    await npm.exec(cmd, npm.argv)
+    exitHandler()
+  } catch (err) {
+    if (err.code === 'EUNKNOWNCOMMAND') {
       const didYouMean = require('./utils/did-you-mean.js')
       const suggestions = await didYouMean(npm, npm.localPrefix, cmd)
       npm.output(`Unknown command: "${cmd}"${suggestions}\n\nTo see a list of supported npm commands, run:\n  npm help`)
       process.exitCode = 1
       return exitHandler()
     }
-
-    impl(npm.argv, exitHandler)
-  } catch (err) {
     return exitHandler(err)
   }
 }

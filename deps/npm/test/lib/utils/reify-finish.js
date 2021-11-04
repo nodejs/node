@@ -76,11 +76,3 @@ t.test('should write if everything above passes', async t => {
   const data = fs.readFileSync(`${path}/npmrc`, 'utf8').replace(/\r\n/g, '\n')
   t.matchSnapshot(data, 'written config')
 })
-
-t.test('works without fs.promises', async t => {
-  t.doesNotThrow(() => t.mock('../../../lib/utils/reify-finish.js', {
-    fs: { ...fs, promises: null },
-    '../../../lib/npm.js': npm,
-    '../../../lib/utils/reify-output.js': reifyOutput,
-  }))
-})

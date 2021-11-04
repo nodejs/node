@@ -214,7 +214,7 @@ Object {
 }
 `
 
-exports[`test/lib/utils/error-message.js TAP bad engine with config loaded > must match snapshot 1`] = `
+exports[`test/lib/utils/error-message.js TAP bad engine without config loaded > must match snapshot 1`] = `
 Object {
   "detail": Array [
     Array [
@@ -222,7 +222,7 @@ Object {
       String(
         Not compatible with your version of node/npm: some@package
         Required: undefined
-        Actual:   {"npm":"123.69.420-npm","node":"99.99.99"}
+        Actual:   {"npm":"123.456.789-npm","node":"123.456.789-node"}
       ),
     ],
   ],
@@ -246,7 +246,7 @@ Object {
       "notsup",
       String(
         Valid OS:    !yours,mine
-        Valid Arch:  x420,x69
+        Valid Arch:  x867,x5309
         Actual OS:   posix
         Actual Arch: x64
       ),
@@ -255,7 +255,7 @@ Object {
   "summary": Array [
     Array [
       "notsup",
-      "Unsupported platform for lodash@1.0.0: wanted {\\"os\\":\\"!yours,mine\\",\\"arch\\":\\"x420,x69\\"} (current: {\\"os\\":\\"posix\\",\\"arch\\":\\"x64\\"})",
+      "Unsupported platform for lodash@1.0.0: wanted {\\"os\\":\\"!yours,mine\\",\\"arch\\":\\"x867,x5309\\"} (current: {\\"os\\":\\"posix\\",\\"arch\\":\\"x64\\"})",
     ],
   ],
 }
@@ -517,7 +517,7 @@ Object {
         previous versions of npm which has since been addressed.
         
         To permanently fix this problem, please run:
-          sudo chown -R 69:420 "/some/cache/dir"
+          sudo chown -R 867:5309 "/some/cache/dir"
       ),
     ],
   ],
@@ -544,7 +544,7 @@ Object {
         previous versions of npm which has since been addressed.
         
         To permanently fix this problem, please run:
-          sudo chown -R 69:420 "/some/cache/dir"
+          sudo chown -R 867:5309 "/some/cache/dir"
       ),
     ],
   ],
@@ -571,7 +571,7 @@ Object {
         previous versions of npm which has since been addressed.
         
         To permanently fix this problem, please run:
-          sudo chown -R 69:420 "/some/cache/dir"
+          sudo chown -R 867:5309 "/some/cache/dir"
       ),
     ],
   ],
@@ -1145,7 +1145,7 @@ Object {
       String(
         Not compatible with your version of node/npm: some@package
         Required: undefined
-        Actual:   {"npm":"123.69.420-npm","node":"123.69.420-node"}
+        Actual:   {"npm":"123.456.789-npm","node":"99.99.99"}
       ),
     ],
   ],

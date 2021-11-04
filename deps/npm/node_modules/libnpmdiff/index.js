@@ -4,6 +4,10 @@ const formatDiff = require('./lib/format-diff.js')
 const getTarball = require('./lib/tarball.js')
 const untar = require('./lib/untar.js')
 
+// TODO: we test this condition in the diff command
+// so this error probably doesnt need to be here. Or
+// if it does we should figure out a standard code
+// so we can catch it in the cli and display it consistently
 const argsError = () =>
   Object.assign(
     new TypeError('libnpmdiff needs two arguments to compare'),

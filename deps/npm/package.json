@@ -1,5 +1,5 @@
 {
-  "version": "8.1.2",
+  "version": "8.1.3",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
-    "@npmcli/arborist": "^4.0.3",
+    "@npmcli/arborist": "^4.0.4",
     "@npmcli/ci-detect": "^1.4.0",
     "@npmcli/config": "^2.3.0",
     "@npmcli/map-workspaces": "^2.0.0",
@@ -220,7 +220,7 @@
     "sudotest:nocleanup": "sudo NO_TEST_CLEANUP=1 npm run test --",
     "posttest": "npm run lint",
     "eslint": "eslint",
-    "lint": "npm run eslint -- test/lib test/bin bin lib scripts docs smoke-tests",
+    "lint": "npm run eslint -- bin docs lib scripts smoke-tests test ./*.js",
     "lintfix": "npm run lint -- --fix",
     "prelint": "rimraf test/npm_cache*",
     "resetdeps": "bash scripts/resetdeps.sh",

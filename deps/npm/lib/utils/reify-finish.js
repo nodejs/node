@@ -1,8 +1,6 @@
 const reifyOutput = require('./reify-output.js')
 const ini = require('ini')
-const util = require('util')
-const fs = require('fs')
-const { writeFile } = fs.promises || { writeFile: util.promisify(fs.writeFile) }
+const { writeFile } = require('fs').promises
 const {resolve} = require('path')
 
 const reifyFinish = async (npm, arb) => {

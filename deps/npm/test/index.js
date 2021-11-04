@@ -8,7 +8,7 @@ t.throws(() => require(index), {
 
 t.test('loading as main module will load the cli', t => {
   const { spawn } = require('child_process')
-  const LS = require('../lib/ls.js')
+  const LS = require('../lib/commands/ls.js')
   const ls = new LS({})
   const p = spawn(process.execPath, [index, 'ls', '-h'])
   const out = []
