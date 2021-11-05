@@ -234,6 +234,8 @@
     # Enable global allocation site tracking.
     'v8_allocation_site_tracking%': 1,
 
+    'v8_scriptormodule_legacy_lifetime%': 1,
+
     # Variables from v8.gni
 
     # Enable ECMAScript Internationalization API. Enabling this feature will
@@ -403,6 +405,9 @@
       }],
       ['v8_allocation_site_tracking==1', {
         'defines': ['V8_ALLOCATION_SITE_TRACKING',],
+      }],
+      ['v8_scriptormodule_legacy_lifetime==1', {
+        'defines': ['V8_SCRIPTORMODULE_LEGACY_LIFETIME',],
       }],
       ['v8_advanced_bigint_algorithms==1', {
         'defines': ['V8_ADVANCED_BIGINT_ALGORITHMS',],
