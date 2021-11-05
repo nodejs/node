@@ -25,6 +25,16 @@ const stream = require('stream');
 The `stream` module is useful for creating new types of stream instances. It is
 usually not necessary to use the `stream` module to consume streams.
 
+### Class property: `Stream.defaultHighWatermark`
+<!-- YAML
+added: v0.11.3
+-->
+
+* {integer} **Default:** `Buffer.poolSize`
+
+This is the size (in bytes) for the deafault highwater mark for
+readable and writable streams. This value may be modified.
+
 ## Organization of this document
 
 This document contains two primary sections and a third section for notes. The
