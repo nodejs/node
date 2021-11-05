@@ -214,7 +214,7 @@ class TestSource {
 
 {
   const writableStream = new WritableStream({
-    write: common.mustCall(2),
+    write: common.mustCall(),
     close: common.mustCall(),
   });
   const writable = newStreamWritableFromWritableStream(writableStream);

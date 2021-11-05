@@ -25,9 +25,7 @@ assert.strictEqual(finished, promisify(stream.finished));
   let finished = false;
   const processed = [];
   const expected = [
-    Buffer.from('a'),
-    Buffer.from('b'),
-    Buffer.from('c'),
+    Buffer.from('abc'),
   ];
 
   const read = new Readable({
