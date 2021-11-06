@@ -171,16 +171,20 @@ napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NODE_API_PROPERTY("throwError", throwError),
     DECLARE_NODE_API_PROPERTY("throwRangeError", throwRangeError),
     DECLARE_NODE_API_PROPERTY("throwTypeError", throwTypeError),
+    DECLARE_NODE_API_PROPERTY("throwSyntaxError", throwSyntaxError),
     DECLARE_NODE_API_PROPERTY("throwErrorCode", throwErrorCode),
     DECLARE_NODE_API_PROPERTY("throwRangeErrorCode", throwRangeErrorCode),
     DECLARE_NODE_API_PROPERTY("throwTypeErrorCode", throwTypeErrorCode),
+    DECLARE_NODE_API_PROPERTY("throwSyntaxErrorCode", throwSyntaxErrorCode),
     DECLARE_NODE_API_PROPERTY("throwArbitrary", throwArbitrary),
     DECLARE_NODE_API_PROPERTY("createError", createError),
     DECLARE_NODE_API_PROPERTY("createRangeError", createRangeError),
     DECLARE_NODE_API_PROPERTY("createTypeError", createTypeError),
+    DECLARE_NODE_API_PROPERTY("createSyntaxError", createSyntaxError),
     DECLARE_NODE_API_PROPERTY("createErrorCode", createErrorCode),
     DECLARE_NODE_API_PROPERTY("createRangeErrorCode", createRangeErrorCode),
     DECLARE_NODE_API_PROPERTY("createTypeErrorCode", createTypeErrorCode),
+    DECLARE_NODE_API_PROPERTY("createSyntaxErrorCode", createSyntaxErrorCode),
   };
 
   NODE_API_CALL(env, napi_define_properties(
