@@ -80,7 +80,7 @@ const kArrayBuffer =
   });
 
   text(readable).then((data) => {
-    assert.deepStrictEqual(data, 'foo\ufffd\ufffd\ufffd');
+    assert.strictEqual(data, 'foo\ufffd\ufffd\ufffd');
   });
 
   readable.push(new Uint8Array([0x66, 0x6f, 0x6f, 0xed, 0xa0, 0x80]));
