@@ -104,12 +104,8 @@ class ObjectSchema {
                 const schema = new ObjectSchema(definitions[key].schema);
                 definitions[key] = {
                     ...definitions[key],
-                    merge(first, second) {
-                        if (first && second) {
-                            return schema.merge(first, second);
-                        }
-                        
-                        return MergeStrategy.assign(first, second);
+                    merge(first = {}, second = {}) {
+                        return schema.merge(first, second);
                     },
                     validate(value) {
                         ValidationStrategy.object(value);

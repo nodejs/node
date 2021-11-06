@@ -162,7 +162,7 @@ function loadYAMLConfigFile(filePath) {
     try {
 
         // empty YAML file can be null, so always use
-        return yaml.safeLoad(readFile(filePath)) || {};
+        return yaml.load(readFile(filePath)) || {};
     } catch (e) {
         debug(`Error reading YAML file: ${filePath}`);
         e.message = `Cannot read config file: ${filePath}\nError: ${e.message}`;
@@ -208,7 +208,7 @@ function loadLegacyConfigFile(filePath) {
     const yaml = require("js-yaml");
 
     try {
-        return yaml.safeLoad(stripComments(readFile(filePath))) || /* istanbul ignore next */ {};
+        return yaml.load(stripComments(readFile(filePath))) || /* istanbul ignore next */ {};
     } catch (e) {
         debug("Error reading YAML file: %s\n%o", filePath, e);
         e.message = `Cannot read config file: ${filePath}\nError: ${e.message}`;

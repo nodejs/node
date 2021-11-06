@@ -427,19 +427,7 @@ module.exports = {
          * @returns {void}
          */
         function report(property, side, whitespace, expected, mode) {
-            const diff = whitespace.length - expected,
-                nextColon = getNextColon(property.key),
-                tokenBeforeColon = sourceCode.getTokenBefore(nextColon, { includeComments: true }),
-                tokenAfterColon = sourceCode.getTokenAfter(nextColon, { includeComments: true }),
-                isKeySide = side === "key",
-                isExtra = diff > 0,
-                diffAbs = Math.abs(diff),
-                spaces = Array(diffAbs + 1).join(" ");
-
-            const locStart = isKeySide ? tokenBeforeColon.loc.end : nextColon.loc.start;
-            const locEnd = isKeySide ? nextColon.loc.start : tokenAfterColon.loc.start;
-            const missingLoc = isKeySide ? tokenBeforeColon.loc : tokenAfterColon.loc;
-            const loc = isExtra ? { start: locStart, end: locEnd } : missingLoc;
+            const diff = whitespace.length - expected;
 
             if ((
                 diff && mode === "strict" ||
@@ -447,6 +435,19 @@ module.exports = {
                 diff > 0 && !expected && mode === "minimum") &&
                 !(expected && containsLineTerminator(whitespace))
             ) {
+                const nextColon = getNextColon(property.key),
+                    tokenBeforeColon = sourceCode.getTokenBefore(nextColon, { includeComments: true }),
+                    tokenAfterColon = sourceCode.getTokenAfter(nextColon, { includeComments: true }),
+                    isKeySide = side === "key",
+                    isExtra = diff > 0,
+                    diffAbs = Math.abs(diff),
+                    spaces = Array(diffAbs + 1).join(" ");
+
+                const locStart = isKeySide ? tokenBeforeColon.loc.end : nextColon.loc.start;
+                const locEnd = isKeySide ? nextColon.loc.start : tokenAfterColon.loc.start;
+                const missingLoc = isKeySide ? tokenBeforeColon.loc : tokenAfterColon.loc;
+                const loc = isExtra ? { start: locStart, end: locEnd } : missingLoc;
+
                 let fix;
 
                 if (isExtra) {
