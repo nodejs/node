@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <js_native_api.h>
 #include "../common.h"
 
@@ -40,6 +41,11 @@ static napi_value throwTypeError(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
+static napi_value throwSyntaxError(napi_env env, napi_callback_info info) {
+  NODE_API_CALL(env, node_api_throw_syntax_error(env, NULL, "syntax error"));
+  return NULL;
+}
+
 static napi_value throwErrorCode(napi_env env, napi_callback_info info) {
   NODE_API_CALL(env, napi_throw_error(env, "ERR_TEST_CODE", "Error [error]"));
   return NULL;
@@ -57,6 +63,11 @@ static napi_value throwTypeErrorCode(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
+static napi_value throwSyntaxErrorCode(napi_env env, napi_callback_info info) {
+  NODE_API_CALL(env,
+      node_api_throw_syntax_error(env, "ERR_TEST_CODE", "SyntaxError [syntax error]"));
+  return NULL;
+}
 
 static napi_value createError(napi_env env, napi_callback_info info) {
   napi_value result;
@@ -82,6 +93,15 @@ static napi_value createTypeError(napi_env env, napi_callback_info info) {
   NODE_API_CALL(env, napi_create_string_utf8(
       env, "type error", NAPI_AUTO_LENGTH, &message));
   NODE_API_CALL(env, napi_create_type_error(env, NULL, message, &result));
+  return result;
+}
+
+static napi_value createSyntaxError(napi_env env, napi_callback_info info) {
+  napi_value result;
+  napi_value message;
+  NODE_API_CALL(env, napi_create_string_utf8(
+      env, "syntax error", NAPI_AUTO_LENGTH, &message));
+  NODE_API_CALL(env, node_api_create_syntax_error(env, NULL, message, &result));
   return result;
 }
 
@@ -123,6 +143,19 @@ static napi_value createTypeErrorCode(napi_env env, napi_callback_info info) {
   return result;
 }
 
+static napi_value createSyntaxErrorCode(napi_env env, napi_callback_info info) {
+  napi_value result;
+  napi_value message;
+  napi_value code;
+  NODE_API_CALL(env,
+      napi_create_string_utf8(
+          env, "SyntaxError [syntax error]", NAPI_AUTO_LENGTH, &message));
+  NODE_API_CALL(env, napi_create_string_utf8(
+      env, "ERR_TEST_CODE", NAPI_AUTO_LENGTH, &code));
+  NODE_API_CALL(env, node_api_create_syntax_error(env, code, message, &result));
+  return result;
+}
+
 static napi_value throwArbitrary(napi_env env, napi_callback_info info) {
   napi_value arbitrary;
   size_t argc = 1;
@@ -139,16 +172,20 @@ napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NODE_API_PROPERTY("throwError", throwError),
     DECLARE_NODE_API_PROPERTY("throwRangeError", throwRangeError),
     DECLARE_NODE_API_PROPERTY("throwTypeError", throwTypeError),
+    DECLARE_NODE_API_PROPERTY("throwSyntaxError", throwSyntaxError),
     DECLARE_NODE_API_PROPERTY("throwErrorCode", throwErrorCode),
     DECLARE_NODE_API_PROPERTY("throwRangeErrorCode", throwRangeErrorCode),
     DECLARE_NODE_API_PROPERTY("throwTypeErrorCode", throwTypeErrorCode),
+    DECLARE_NODE_API_PROPERTY("throwSyntaxErrorCode", throwSyntaxErrorCode),
     DECLARE_NODE_API_PROPERTY("throwArbitrary", throwArbitrary),
     DECLARE_NODE_API_PROPERTY("createError", createError),
     DECLARE_NODE_API_PROPERTY("createRangeError", createRangeError),
     DECLARE_NODE_API_PROPERTY("createTypeError", createTypeError),
+    DECLARE_NODE_API_PROPERTY("createSyntaxError", createSyntaxError),
     DECLARE_NODE_API_PROPERTY("createErrorCode", createErrorCode),
     DECLARE_NODE_API_PROPERTY("createRangeErrorCode", createRangeErrorCode),
     DECLARE_NODE_API_PROPERTY("createTypeErrorCode", createTypeErrorCode),
+    DECLARE_NODE_API_PROPERTY("createSyntaxErrorCode", createSyntaxErrorCode),
   };
 
   NODE_API_CALL(env, napi_define_properties(
