@@ -90,7 +90,10 @@ for pr in "$@"; do
       --arg body "$(git log -1 --pretty='format:%b')" \
       '{merge_method:"squash",commit_title:$title,commit_message:$body}' > output.json
     cat output.json
-    gh api -X PUT "$(mergeUrl "$pr")" --input output.json > output
+    if ! gh api -X PUT "$(mergeUrl "$pr")" --input output.json > output; then
+      commit_queue_failed "$pr"
+      continue
+    fi
     cat output
     if ! commits="$(jq -r 'if .merged then .sha else error("not merged") end' < output)"; then
       commit_queue_failed "$pr"
