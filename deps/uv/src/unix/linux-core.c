@@ -697,7 +697,7 @@ uint64_t uv_get_free_memory(void) {
   struct sysinfo info;
   uint64_t rc;
 
-  rc = uv__read_proc_meminfo("MemFree:");
+  rc = uv__read_proc_meminfo("MemAvailable:");
 
   if (rc != 0)
     return rc;
