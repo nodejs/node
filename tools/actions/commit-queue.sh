@@ -4,54 +4,31 @@ set -xe
 
 OWNER=$1
 REPOSITORY=$2
-GITHUB_TOKEN=$3
-shift 3
+shift 2
 
 UPSTREAM=origin
 DEFAULT_BRANCH=master
 
-API_URL=https://api.github.com
-COMMIT_QUEUE_LABEL='commit-queue'
-COMMIT_QUEUE_FAILED_LABEL='commit-queue-failed'
-
-issueUrl() {
-  echo "$API_URL/repos/${OWNER}/${REPOSITORY}/issues/${1}"
-}
+COMMIT_QUEUE_LABEL="commit-queue"
+COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 
 mergeUrl() {
-  echo "$API_URL/repos/${OWNER}/${REPOSITORY}/pulls/${1}/merge"
-}
-
-labelsUrl() {
-  echo "$(issueUrl "${1}")/labels"
-}
-
-commentsUrl() {
-  echo "$(issueUrl "${1}")/comments"
-}
-
-gitHubCurl() {
-  url=$1
-  method=$2
-  shift 2
-
-  curl -fsL --request "$method" \
-       --url "$url" \
-       --header "authorization: Bearer ${GITHUB_TOKEN}" \
-       --header 'content-type: application/json' "$@"
+  echo "repos/${OWNER}/${REPOSITORY}/pulls/${1}/merge"
 }
 
 commit_queue_failed() {
-  gitHubCurl "$(labelsUrl "${1}")" POST --data '{"labels": ["'"${COMMIT_QUEUE_FAILED_LABEL}"'"]}'
+  pr=$1
+
+  gh pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}"
 
   # shellcheck disable=SC2154
   cqurl="${GITHUB_SERVER_URL}/${OWNER}/${REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-  jq -n --arg content "<details><summary>Commit Queue failed</summary><pre>$(cat output)</pre><a href='$cqurl'>$cqurl</a></details>" '{body: $content}' > output.json
-  cat output.json
+  body="<details><summary>Commit Queue failed</summary><pre>$(cat output)</pre><a href='$cqurl'>$cqurl</a></details>"
+  echo "$body"
 
-  gitHubCurl "$(commentsUrl "${1}")" POST --data @output.json
+  gh pr comment "$pr" --body "$body"
 
-  rm output output.json
+  rm output
 }
 
 # TODO(mmarchini): should this be set with whoever added the label for each PR?
@@ -59,7 +36,7 @@ git config --local user.email "github-bot@iojs.org"
 git config --local user.name "Node.js GitHub Bot"
 
 for pr in "$@"; do
-  gitHubCurl "$(labelsUrl "$pr")" GET > labels.json
+  gh pr view "$pr" --json labels --jq ".labels" > labels.json
   # Skip PR if CI was requested
   if jq -e 'map(.name) | index("request-ci")' < labels.json; then
     echo "pr ${pr} skipped, waiting for CI to start"
@@ -73,7 +50,7 @@ for pr in "$@"; do
   fi
 
   # Delete the commit queue label
-  gitHubCurl "$(labelsUrl "$pr")"/"$COMMIT_QUEUE_LABEL" DELETE
+  gh pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL"
 
   if jq -e 'map(.name) | index("commit-queue-squash")' < labels.json; then
     MULTIPLE_COMMIT_POLICY="--fixupAll"
@@ -106,14 +83,18 @@ for pr in "$@"; do
       continue
     fi
   else
-    # If there's only one commit, we can use the Squash and Merge feature from GitHub
+    # If there's only one commit, we can use the Squash and Merge feature from GitHub.
+    # TODO: use `gh pr merge` when the GitHub CLI allows to customize the commit title (https://github.com/cli/cli/issues/1023).
     jq -n \
       --arg title "$(git log -1 --pretty='format:%s')" \
       --arg body "$(git log -1 --pretty='format:%b')" \
       --arg head "$(grep 'Fetched commits as' output | cut -d. -f3 | xargs git rev-parse)" \
       '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' > output.json
     cat output.json
-    gitHubCurl "$(mergeUrl "$pr")" PUT --data @output.json > output
+    if ! gh api -X PUT "$(mergeUrl "$pr")" --input output.json > output; then
+      commit_queue_failed "$pr"
+      continue
+    fi
     cat output
     if ! commits="$(jq -r 'if .merged then .sha else error("not merged") end' < output)"; then
       commit_queue_failed "$pr"
@@ -124,9 +105,9 @@ for pr in "$@"; do
 
   rm output
 
-  gitHubCurl "$(commentsUrl "$pr")" POST --data '{"body": "Landed in '"$commits"'"}'
+  gh pr comment "$pr" --body "Landed in $commits"
 
-  [ -z "$MULTIPLE_COMMIT_POLICY" ] && gitHubCurl "$(issueUrl "$pr")" PATCH --data '{"state": "closed"}'
+  [ -z "$MULTIPLE_COMMIT_POLICY" ] && gh pr close "$pr"
 done
 
 rm -f labels.json
