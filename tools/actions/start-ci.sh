@@ -2,31 +2,11 @@
 
 set -xe
 
-GITHUB_TOKEN=$1
-OWNER=$2
-REPOSITORY=$3
-API_URL=https://api.github.com
-REQUEST_CI_LABEL='request-ci'
-REQUEST_CI_FAILED_LABEL='request-ci-failed'
-shift 3
-
-issueUrl() {
-  echo "$API_URL/repos/${OWNER}/${REPOSITORY}/issues/${1}"
-}
-
-labelsUrl() {
-  echo "$(issueUrl "${1}")/labels"
-}
-
-commentsUrl() {
-  echo "$(issueUrl "${1}")/comments"
-}
+REQUEST_CI_LABEL="request-ci"
+REQUEST_CI_FAILED_LABEL="request-ci-failed"
 
 for pr in "$@"; do
-  curl -sL --request DELETE \
-       --url "$(labelsUrl "$pr")"/"$REQUEST_CI_LABEL" \
-       --header "authorization: Bearer ${GITHUB_TOKEN}" \
-       --header 'content-type: application/json'
+  gh pr edit "$pr" --remove-label "$REQUEST_CI_LABEL"
 
   ci_started=yes
   rm -f output;
@@ -35,19 +15,11 @@ for pr in "$@"; do
 
   if [ "$ci_started" = "no" ]; then
     # Do we need to reset?
-    curl -sL --request PUT \
-       --url "$(labelsUrl "$pr")" \
-       --header "authorization: Bearer ${GITHUB_TOKEN}" \
-       --header 'content-type: application/json' \
-       --data '{"labels": ["'"${REQUEST_CI_FAILED_LABEL}"'"]}'
+    gh pr edit "$pr" --add-label "$REQUEST_CI_FAILED_LABEL"
 
-    jq -n --arg content "<details><summary>Couldn't start CI</summary><pre>$(cat output)</pre></details>" '{body: $content}' > output.json
+    jq -n --arg content "<details><summary>Couldn't start CI</summary><pre>$(cat output)</pre></details>" > output.json
 
-    curl -sL --request POST \
-       --url "$(commentsUrl "$pr")" \
-       --header "authorization: Bearer ${GITHUB_TOKEN}" \
-       --header 'content-type: application/json' \
-       --data @output.json
+    gh pr comment "$pr" --body-file output.json
 
     rm output.json;
   fi

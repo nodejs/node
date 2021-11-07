@@ -78,4 +78,6 @@ jobs:
           ncu-config set owner "${OWNER}"
 
       - name: Start the commit queue
-        run: ./tools/actions/commit-queue.sh ${OWNER} ${REPOSITORY} ${{ secrets.GITHUB_TOKEN }} $(echo '${{ steps.get_mergable_pull_requests.outputs.data }}' | jq '.repository.pullRequests.nodes | map(.number) | .[]')
+        run: ./tools/actions/commit-queue.sh ${OWNER} ${REPOSITORY} $(echo '${{ steps.get_mergable_pull_requests.outputs.data }}' | jq '.repository.pullRequests.nodes | map(.number) | .[]')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}

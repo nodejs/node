@@ -60,4 +60,6 @@ jobs:
           ncu-config set repo ${{ env.REPOSITORY }}
 
       - name: Start CI
-        run: ./tools/actions/start-ci.sh ${{ secrets.GITHUB_TOKEN }} ${{ env.OWNER }} ${{ env.REPOSITORY }} $(echo '${{ steps.get_prs_for_ci.outputs.data }}' | jq '.repository.pullRequests.nodes | map(.number) | .[]')
+        run: ./tools/actions/start-ci.sh $(echo '${{ steps.get_prs_for_ci.outputs.data }}' | jq '.repository.pullRequests.nodes | map(.number) | .[]')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
