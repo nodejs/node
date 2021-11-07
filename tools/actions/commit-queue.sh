@@ -110,7 +110,8 @@ for pr in "$@"; do
     jq -n \
       --arg title "$(git log -1 --pretty='format:%s')" \
       --arg body "$(git log -1 --pretty='format:%b')" \
-      '{merge_method:"squash",commit_title:$title,commit_message:$body}' > output.json
+      --arg head "$(grep 'Fetched commits as' output | cut -d. -f3 | xargs git rev-parse)" \
+      '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' > output.json
     cat output.json
     gitHubCurl "$(mergeUrl "$pr")" PUT --data @output.json > output
     cat output
