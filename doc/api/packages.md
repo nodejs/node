@@ -619,7 +619,7 @@ used._
 * `"browser"` - any web browser environment.
 * `"development"` - can be used to define a development-only environment
   entry point, for example to provide additional debugging context such as
-  better error message when running in a development mode. _Must always be
+  better error messages when running in a development mode. _Must always be
   mutually exclusive with `"production"`._
 * `"production"` - can be used to define a production environment entry
   point. _Must always be mutually exclusive with `"development"`._
@@ -627,7 +627,7 @@ used._
 The above user conditions can be enabled in Node.js via the
 [`--conditions` flag][].
 
-Platform specific conditions such as `"electron"`, or `"react-native"` may
+Platform-specific conditions such as `"electron"`, or `"react-native"` may
 be used, but while there remain no implementation or integration intent
 from these platforms, we do not yet explicitly recommend them.
 
