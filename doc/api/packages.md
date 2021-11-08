@@ -629,7 +629,7 @@ The above user conditions can be enabled in Node.js via the
 
 Platform-specific conditions such as `"electron"`, or `"react-native"` may
 be used, but while there remain no implementation or integration intent
-from these platforms, we do not yet explicitly recommend them.
+from these platforms, they are not currently explicitly recommended.
 
 New conditions definitions may be added to this list by creating a pull request
 to the [Node.js documentation for this section][]. The requirements for listing
