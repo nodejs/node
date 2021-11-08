@@ -7,7 +7,7 @@
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v17.1.0
     pr-url: https://github.com/nodejs/node/pull/40250
     description: Add support for import assertions.
   - version:
@@ -226,7 +226,7 @@ import fs from 'node:fs/promises';
 ## Import assertions
 
 <!-- YAML
-added: REPLACEME
+added: v17.1.0
 -->
 
 The [Import Assertions proposal][] adds an inline syntax for module import
@@ -633,7 +633,7 @@ CommonJS modules loaded.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v17.1.0
     pr-url: https://github.com/nodejs/node/pull/40250
     description: Add support for import assertions.
 -->
