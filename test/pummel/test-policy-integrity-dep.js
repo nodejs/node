@@ -60,24 +60,6 @@ const parentBody = {
     import(process.env.DEP_FILE)
   `,
 };
-const workerSpawningBody = `
-  const path = require('path');
-  const { Worker } = require('worker_threads');
-  if (!process.env.PARENT_FILE) {
-    console.error(
-      'missing required PARENT_FILE env to determine worker entry point'
-    );
-    process.exit(33);
-  }
-  if (!process.env.DELETABLE_POLICY_FILE) {
-    console.error(
-      'missing required DELETABLE_POLICY_FILE env to check reloading'
-    );
-    process.exit(33);
-  }
-  const w = new Worker(path.resolve(process.env.PARENT_FILE));
-  w.on('exit', (status) => process.exit(status === 0 ? 0 : 1));
-`;
 
 let nextTestId = 1;
 function newTestId() {
@@ -100,12 +82,11 @@ function drainQueue() {
   if (toSpawn.length) {
     const config = toSpawn.shift();
     const {
-      shouldSucceed, // = (() => { throw new Error('required')})(),
-      preloads, // = (() =>{ throw new Error('required')})(),
-      entryPath, // = (() => { throw new Error('required')})(),
-      willDeletePolicy, // = (() => { throw new Error('required')})(),
-      onError, // = (() => { throw new Error('required')})(),
-      resources, // = (() => { throw new Error('required')})(),
+      shouldSucceed,
+      preloads,
+      entryPath,
+      onError,
+      resources,
       parentPath,
       depPath,
     } = config;
@@ -118,7 +99,7 @@ function drainQueue() {
       tmpdir.path,
       `deletable-policy-${testId}.json`
     );
-    const cliPolicy = willDeletePolicy ? tmpPolicyPath : policyPath;
+
     fs.rmSync(configDirPath, { maxRetries: 3, recursive: true, force: true });
     fs.mkdirSync(configDirPath, { recursive: true });
     const manifest = {
@@ -140,7 +121,7 @@ function drainQueue() {
     }
     const manifestBody = JSON.stringify(manifest);
     fs.writeFileSync(manifestPath, manifestBody);
-    if (cliPolicy === tmpPolicyPath) {
+    if (policyPath === tmpPolicyPath) {
       fs.writeFileSync(tmpPolicyPath, manifestBody);
     }
     const spawnArgs = [
@@ -148,7 +129,7 @@ function drainQueue() {
       [
         '--unhandled-rejections=strict',
         '--experimental-policy',
-        cliPolicy,
+        policyPath,
         ...preloads.flatMap((m) => ['-r', m]),
         entryPath,
         '--',
@@ -255,7 +236,6 @@ function fileExtensionFormat(extension, packageType) {
   throw new Error('unknown format ' + extension);
 }
 for (const permutation of permutations({
-  entry: ['worker', 'parent', 'dep'],
   preloads: [[], ['parent'], ['dep']],
   onError: ['log', 'exit'],
   parentExtension: ['.js', '.mjs', '.cjs'],
@@ -282,14 +262,9 @@ for (const permutation of permutations({
     continue;
   }
   const depPath = `./dep${permutation.depExtension}`;
-  const workerSpawnerPath = './worker-spawner.cjs';
-  const entryPath = {
-    dep: depPath,
-    parent: parentPath,
-    worker: workerSpawnerPath,
-  }[permutation.entry];
+
   const packageJSON = {
-    main: entryPath,
+    main: depPath,
     type: permutation.packageType,
   };
   if (permutation.packageType === 'no-field') {
@@ -314,8 +289,7 @@ for (const permutation of permutations({
   if (parentFormat !== 'commonjs') {
     permutation.preloads = permutation.preloads.filter((_) => _ !== 'parent');
   }
-  const hasParent =
-    permutation.entry !== 'dep' || permutation.preloads.includes('parent');
+  const hasParent = permutation.preloads.includes('parent');
   if (hasParent) {
     resources[parentPath] = {
       body: parentBody[parentFormat],
@@ -332,12 +306,7 @@ for (const permutation of permutations({
       throw new Error('unreachable');
     }
   }
-  if (permutation.entry === 'worker') {
-    resources[workerSpawnerPath] = {
-      body: workerSpawningBody,
-      integrities: hash('sha256', workerSpawningBody),
-    };
-  }
+
   if (permutation.packageType !== 'no-package-json') {
     let packageBody = JSON.stringify(packageJSON, null, 2);
     let packageIntegrities = hash('sha256', packageBody);
@@ -364,18 +333,15 @@ for (const permutation of permutations({
       integrities: packageIntegrities,
     };
   }
-  const willDeletePolicy = permutation.entry === 'worker';
+
   if (permutation.onError === 'log') {
     shouldSucceed = true;
   }
   tests.add(
     JSON.stringify({
-      // hasParent,
-      // original: permutation,
       onError: permutation.onError,
       shouldSucceed,
-      entryPath,
-      willDeletePolicy,
+      entryPath: depPath,
       preloads: permutation.preloads
         .map((_) => {
           return {
