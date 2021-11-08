@@ -16,8 +16,15 @@ using v8::Value;
 namespace crypto {
 namespace SPKAC {
 bool VerifySpkac(const ArrayBufferOrViewContents<char>& input) {
+  size_t length = input.size();
+#ifdef OPENSSL_IS_BORINGSSL
+  // OpenSSL uses EVP_DecodeBlock, which explicitly removes trailing characters,
+  // while BoringSSL uses EVP_DecodedLength and EVP_DecodeBase64, which do not.
+  // As such, we trim those characters here for compatibility.
+  length = std::string(input.data()).find_last_not_of(" \n\r\t") + 1;
+#endif
   NetscapeSPKIPointer spki(
-      NETSCAPE_SPKI_b64_decode(input.data(), input.size()));
+      NETSCAPE_SPKI_b64_decode(input.data(), length));
   if (!spki)
     return false;
 
@@ -45,8 +52,15 @@ ByteSource ExportPublicKey(Environment* env,
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return ByteSource();
 
+  size_t length = input.size();
+#ifdef OPENSSL_IS_BORINGSSL
+  // OpenSSL uses EVP_DecodeBlock, which explicitly removes trailing characters,
+  // while BoringSSL uses EVP_DecodedLength and EVP_DecodeBase64, which do not.
+  // As such, we trim those characters here for compatibility.
+  length = std::string(input.data()).find_last_not_of(" \n\r\t") + 1;
+#endif
   NetscapeSPKIPointer spki(
-      NETSCAPE_SPKI_b64_decode(input.data(), input.size()));
+      NETSCAPE_SPKI_b64_decode(input.data(), length));
   if (!spki) return ByteSource();
 
   EVPKeyPointer pkey(NETSCAPE_SPKI_get_pubkey(spki.get()));
@@ -73,8 +87,15 @@ void ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
 }
 
 ByteSource ExportChallenge(const ArrayBufferOrViewContents<char>& input) {
+  size_t length = input.size();
+#ifdef OPENSSL_IS_BORINGSSL
+  // OpenSSL uses EVP_DecodeBlock, which explicitly removes trailing characters,
+  // while BoringSSL uses EVP_DecodedLength and EVP_DecodeBase64, which do not.
+  // As such, we trim those characters here for compatibility.
+  length = std::string(input.data()).find_last_not_of(" \n\r\t") + 1;
+#endif
   NetscapeSPKIPointer sp(
-      NETSCAPE_SPKI_b64_decode(input.data(), input.size()));
+      NETSCAPE_SPKI_b64_decode(input.data(), length));
   if (!sp)
     return ByteSource();
 
