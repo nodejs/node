@@ -30,7 +30,7 @@ usually not necessary to use the `stream` module to consume streams.
 added: v0.11.3
 -->
 
-* {integer} **Default:** `Math.max(Buffer.poolSize, 16 * 1024)`
+* {integer} **Default:** `16 * 1024`
 
 This is the size (in bytes) for the default high water mark for
 readable and writable streams. This value may be modified.
