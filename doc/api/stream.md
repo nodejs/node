@@ -32,7 +32,7 @@ added: v0.11.3
 
 * {integer} **Default:** `Math.max(Buffer.poolSize, 16 * 1024)`
 
-This is the size (in bytes) for the deafault high water mark for
+This is the size (in bytes) for the default high water mark for
 readable and writable streams. This value may be modified.
 
 ## Organization of this document
