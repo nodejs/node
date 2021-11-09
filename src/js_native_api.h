@@ -112,7 +112,7 @@ NAPI_EXTERN napi_status napi_create_range_error(napi_env env,
                                                 napi_value msg,
                                                 napi_value* result);
 #ifdef NAPI_EXPERIMENTAL
-NAPI_EXTERN napi_status napi_create_syntax_error(napi_env env,
+NAPI_EXTERN napi_status node_api_create_syntax_error(napi_env env,
                                                 napi_value code,
                                                 napi_value msg,
                                                 napi_value* result);
@@ -377,7 +377,7 @@ NAPI_EXTERN napi_status napi_throw_range_error(napi_env env,
                                          const char* code,
                                          const char* msg);
 #ifdef NAPI_EXPERIMENTAL
-NAPI_EXTERN napi_status napi_throw_syntax_error(napi_env env,
+NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
                                          const char* code,
                                          const char* msg);
 #endif  // NAPI_EXPERIMENTAL

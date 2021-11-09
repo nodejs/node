@@ -42,7 +42,7 @@ static napi_value throwTypeError(napi_env env, napi_callback_info info) {
 }
 
 static napi_value throwSyntaxError(napi_env env, napi_callback_info info) {
-  NODE_API_CALL(env, napi_throw_syntax_error(env, NULL, "syntax error"));
+  NODE_API_CALL(env, node_api_throw_syntax_error(env, NULL, "syntax error"));
   return NULL;
 }
 
@@ -65,7 +65,7 @@ static napi_value throwTypeErrorCode(napi_env env, napi_callback_info info) {
 
 static napi_value throwSyntaxErrorCode(napi_env env, napi_callback_info info) {
   NODE_API_CALL(env,
-      napi_throw_syntax_error(env, "ERR_TEST_CODE", "SyntaxError [syntax error]"));
+      node_api_throw_syntax_error(env, "ERR_TEST_CODE", "SyntaxError [syntax error]"));
   return NULL;
 }
 
@@ -101,7 +101,7 @@ static napi_value createSyntaxError(napi_env env, napi_callback_info info) {
   napi_value message;
   NODE_API_CALL(env, napi_create_string_utf8(
       env, "syntax error", NAPI_AUTO_LENGTH, &message));
-  NODE_API_CALL(env, napi_create_syntax_error(env, NULL, message, &result));
+  NODE_API_CALL(env, node_api_create_syntax_error(env, NULL, message, &result));
   return result;
 }
 
@@ -152,7 +152,7 @@ static napi_value createSyntaxErrorCode(napi_env env, napi_callback_info info) {
           env, "SyntaxError [syntax error]", NAPI_AUTO_LENGTH, &message));
   NODE_API_CALL(env, napi_create_string_utf8(
       env, "ERR_TEST_CODE", NAPI_AUTO_LENGTH, &code));
-  NODE_API_CALL(env, napi_create_syntax_error(env, code, message, &result));
+  NODE_API_CALL(env, node_api_create_syntax_error(env, code, message, &result));
   return result;
 }
 

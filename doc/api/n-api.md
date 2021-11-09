@@ -1065,11 +1065,11 @@ JavaScript value to be thrown.
 The following utility functions are also available in case native code
 needs to throw an exception or determine if a `napi_value` is an instance
 of a JavaScript `Error` object: [`napi_throw_error`][],
-[`napi_throw_type_error`][], [`napi_throw_range_error`][], [`napi_throw_syntax_error`][] and [`napi_is_error`][].
+[`napi_throw_type_error`][], [`napi_throw_range_error`][], [`node_api_throw_syntax_error`][] and [`napi_is_error`][].
 
 The following utility functions are also available in case native
 code needs to create an `Error` object: [`napi_create_error`][],
-[`napi_create_type_error`][], [`napi_create_range_error`][] and [`napi_create_syntax_error`][],
+[`napi_create_type_error`][], [`napi_create_range_error`][] and [`node_api_create_syntax_error`][],
 where result is the `napi_value` that refers to the newly created
 JavaScript `Error` object.
 
@@ -1179,14 +1179,14 @@ Returns `napi_ok` if the API succeeded.
 
 This API throws a JavaScript `RangeError` with the text provided.
 
-#### `napi_throw_syntax_error`
+#### `node_api_throw_syntax_error`
 
 <!-- YAML
 added: REPLACEME
 -->
 
 ```c
-NAPI_EXTERN napi_status napi_throw_syntax_error(napi_env env,
+NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
                                                const char* code,
                                                const char* msg);
 ```
@@ -1296,14 +1296,14 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns a JavaScript `RangeError` with the text provided.
 
-#### `napi_create_syntax_error`
+#### `node_api_create_syntax_error`
 
 <!-- YAML
 added: REPLACEME
 -->
 
 ```c
-NAPI_EXTERN napi_status napi_create_syntax_error(napi_env env,
+NAPI_EXTERN napi_status node_api_create_syntax_error(napi_env env,
                                                 napi_value code,
                                                 napi_value msg,
                                                 napi_value* result);
@@ -6300,7 +6300,7 @@ the add-on's file name during loading.
 [`napi_create_external_arraybuffer`]: #napi_create_external_arraybuffer
 [`napi_create_range_error`]: #napi_create_range_error
 [`napi_create_reference`]: #napi_create_reference
-[`napi_create_syntax_error`]: #napi_create_syntax_error
+[`node_api_create_syntax_error`]: #node_api_create_syntax_error
 [`napi_create_type_error`]: #napi_create_type_error
 [`napi_define_class`]: #napi_define_class
 [`napi_delete_async_work`]: #napi_delete_async_work
@@ -6334,7 +6334,7 @@ the add-on's file name during loading.
 [`napi_threadsafe_function_call_js`]: #napi_threadsafe_function_call_js
 [`napi_throw_error`]: #napi_throw_error
 [`napi_throw_range_error`]: #napi_throw_range_error
-[`napi_throw_syntax_error`]: #napi_throw_syntax_error
+[`node_api_throw_syntax_error`]: #node_api_throw_syntax_error
 [`napi_throw_type_error`]: #napi_throw_type_error
 [`napi_throw`]: #napi_throw
 [`napi_unwrap`]: #napi_unwrap
