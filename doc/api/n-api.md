@@ -6300,7 +6300,6 @@ the add-on's file name during loading.
 [`napi_create_external_arraybuffer`]: #napi_create_external_arraybuffer
 [`napi_create_range_error`]: #napi_create_range_error
 [`napi_create_reference`]: #napi_create_reference
-[`node_api_create_syntax_error`]: #node_api_create_syntax_error
 [`napi_create_type_error`]: #napi_create_type_error
 [`napi_define_class`]: #napi_define_class
 [`napi_delete_async_work`]: #napi_delete_async_work
@@ -6334,13 +6333,14 @@ the add-on's file name during loading.
 [`napi_threadsafe_function_call_js`]: #napi_threadsafe_function_call_js
 [`napi_throw_error`]: #napi_throw_error
 [`napi_throw_range_error`]: #napi_throw_range_error
-[`node_api_throw_syntax_error`]: #node_api_throw_syntax_error
 [`napi_throw_type_error`]: #napi_throw_type_error
 [`napi_throw`]: #napi_throw
 [`napi_unwrap`]: #napi_unwrap
 [`napi_wrap`]: #napi_wrap
 [`node-addon-api`]: https://github.com/nodejs/node-addon-api
 [`node_api.h`]: https://github.com/nodejs/node/blob/HEAD/src/node_api.h
+[`node_api_create_syntax_error`]: #node_api_create_syntax_error
+[`node_api_throw_syntax_error`]: #node_api_throw_syntax_error
 [`process.release`]: process.md#processrelease
 [`uv_ref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_ref
 [`uv_unref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_unref
