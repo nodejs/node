@@ -225,6 +225,8 @@ import fs from 'node:fs/promises';
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 The [Import Assertions proposal][] adds an inline syntax for module import
 statements to pass on more information alongside the module specifier.
 
@@ -235,11 +237,12 @@ const { default: barData } =
   await import('./bar.json', { assert: { type: 'json' } });
 ```
 
-Node.js supports the following `type` values:
+Node.js supports the following `type` values, for which the assertion is
+mandatory:
 
-| `type`   | Resolves to      |
-| -------- | ---------------- |
-| `'json'` | [JSON modules][] |
+| Assertion `type` | Needed for       |
+| ---------------- | ---------------- |
+| `'json'`         | [JSON modules][] |
 
 ## Builtin modules
 
@@ -547,6 +550,8 @@ to work.
 node index.mjs # fails
 node --experimental-json-modules index.mjs # works
 ```
+
+The `assert { type: 'json' }` syntax is mandatory; see [Import Assertions][].
 
 <i id="esm_experimental_wasm_modules"></i>
 
@@ -1406,6 +1411,7 @@ success!
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
 [ES Module Integration Proposal for WebAssembly]: https://github.com/webassembly/esm-integration
+[Import Assertions]: #import-assertions
 [Import Assertions proposal]: https://github.com/tc39/proposal-import-assertions
 [JSON modules]: #json-modules
 [Node.js Module Resolution Algorithm]: #resolver-algorithm-specification
