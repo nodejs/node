@@ -2565,6 +2565,7 @@ added: v15.6.0
 The SHA-256 fingerprint of this certificate.
 
 ### `x509.fingerprint512`
+
 <!-- YAML
 added: REPLACEME
 -->
