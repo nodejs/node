@@ -5,7 +5,6 @@ const {
   Duplex,
 } = require('stream');
 const { setTimeout } = require('timers/promises');
-const assert = require('assert');
 
 {
   class Foo extends Duplex {
@@ -15,14 +14,13 @@ const assert = require('assert');
       callback();
     }
 
-    _write = common.mustCall((chunk, encoding, cb) => {
-      cb();
-    })
-
     _read() {}
   }
 
   const foo = new Foo();
+  foo._write = common.mustCall((chunk, encoding, cb) => {
+    cb();
+  });
   foo.end('test', common.mustCall());
   foo.on('error', common.mustNotCall());
 }
