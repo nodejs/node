@@ -31,7 +31,7 @@ child.on('close', (code, signal) => {
   strictEqual(code, 0);
   strictEqual(signal, null);
   ok(stderr.toString().includes(
-    'ExperimentalWarning: Importing Web Assembly modules is ' +
+    'ExperimentalWarning: Importing WebAssembly modules is ' +
     'an experimental feature. This feature could change at any time'
   ));
 });
