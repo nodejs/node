@@ -25,7 +25,7 @@ async function test() {
   );
 
   await rejects(
-    import('data:text/javascript,', { assert: { type: 'unsupported' } }),
+    import(jsModuleDataUrl, { assert: { type: 'unsupported' } }),
     { code: 'ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED' }
   );
 
