@@ -3019,6 +3019,20 @@ should have the same effect. The receiving end should also check the
 [`readable.readableEnded`][] value on [`http.IncomingMessage`][] to get whether
 it was an aborted or graceful destroy.
 
+### DEP0157: Thenable support in streams
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+An undocumented feature of Node.js streams was to support thenables in
+implementation methods. This is now deprecated, instead use callbacks.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3

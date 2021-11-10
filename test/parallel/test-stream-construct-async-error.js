@@ -9,6 +9,12 @@ const {
 const { setTimeout } = require('timers/promises');
 const assert = require('assert');
 
+common.expectWarning(
+  'DeprecationWarning',
+  'Returning a thenable is deprecated, use callbacks instead.',
+  'DEP0157'
+);
+
 {
   class Foo extends Duplex {
     async _destroy(err, cb) {
