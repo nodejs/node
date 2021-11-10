@@ -22,8 +22,8 @@ assert.throws(() => validateAssertions(url, 'module', { type: 'json' }), {
   code: 'ERR_IMPORT_ASSERTION_TYPE_FAILED',
 });
 
-// This should be allowed according to HTML spec. Let's keep it disabled
-// until WASM module import is sorted out.
+// The HTML spec specifically disallows this for now, while Wasm module import
+// and whether it will require a type assertion is still an open question.
 assert.throws(() => validateAssertions(url, 'module', { type: 'javascript' }), {
   code: 'ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED',
 });

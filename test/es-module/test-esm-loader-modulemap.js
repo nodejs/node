@@ -7,7 +7,6 @@ const { strictEqual, throws } = require('assert');
 const { ESMLoader } = require('internal/modules/esm/loader');
 const ModuleMap = require('internal/modules/esm/module_map');
 const ModuleJob = require('internal/modules/esm/module_job');
-const { kImplicitAssertType } = require('internal/modules/esm/assert');
 const createDynamicModule = require(
   'internal/modules/esm/create_dynamic_module');
 
@@ -38,14 +37,14 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
   strictEqual(moduleMap.get(jsonModuleDataUrl, 'json'), jsonModuleJob);
 
   strictEqual(moduleMap.has(jsModuleDataUrl), true);
-  strictEqual(moduleMap.has(jsModuleDataUrl, kImplicitAssertType), true);
+  strictEqual(moduleMap.has(jsModuleDataUrl, 'javascript'), true);
   strictEqual(moduleMap.has(jsonModuleDataUrl, 'json'), true);
 
   strictEqual(moduleMap.has('unknown'), false);
 
   // The types must match
   strictEqual(moduleMap.has(jsModuleDataUrl, 'json'), false);
-  strictEqual(moduleMap.has(jsonModuleDataUrl, kImplicitAssertType), false);
+  strictEqual(moduleMap.has(jsonModuleDataUrl, 'javascript'), false);
   strictEqual(moduleMap.has(jsonModuleDataUrl), false);
   strictEqual(moduleMap.has(jsModuleDataUrl, 'unknown'), false);
   strictEqual(moduleMap.has(jsonModuleDataUrl, 'unknown'), false);
