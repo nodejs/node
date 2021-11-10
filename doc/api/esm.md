@@ -560,12 +560,12 @@ node --experimental-json-modules index.mjs # works
 
 > Stability: 1 - Experimental
 
-Importing Web Assembly modules is supported under the
+Importing WebAssembly modules is supported under the
 `--experimental-wasm-modules` flag, allowing any `.wasm` files to be
 imported as normal modules while also supporting their module imports.
 
 This integration is in line with the
-[ES Module Integration Proposal for Web Assembly][].
+[ES Module Integration Proposal for WebAssembly][].
 
 For example, an `index.mjs` containing:
 
@@ -1390,7 +1390,7 @@ success!
 [Core modules]: modules.md#core-modules
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
-[ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
+[ES Module Integration Proposal for WebAssembly]: https://github.com/webassembly/esm-integration
 [Import Assertions proposal]: https://github.com/tc39/proposal-import-assertions
 [JSON modules]: #json-modules
 [Node.js Module Resolution Algorithm]: #resolver-algorithm-specification
