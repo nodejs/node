@@ -474,22 +474,6 @@ These CommonJS variables are not available in ES modules.
 `__filename` and `__dirname` use cases can be replicated via
 [`import.meta.url`][].
 
-#### No JSON Module Loading
-
-JSON imports are still experimental and only supported via the
-`--experimental-json-modules` flag.
-
-Local JSON files can be loaded relative to `import.meta.url` with `fs` directly:
-
-<!-- eslint-skip -->
-
-```js
-import { readFile } from 'fs/promises';
-const json = JSON.parse(await readFile(new URL('./dat.json', import.meta.url)));
-```
-
-Alternatively `module.createRequire()` can be used.
-
 #### No Native Module Loading
 
 Native modules are not currently supported with ES module imports.
