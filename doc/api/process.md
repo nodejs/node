@@ -818,7 +818,7 @@ return `true` in the following cases:
 * Flags may omit leading single (`-`) or double (`--`) dashes; e.g.,
   `inspect-brk` for `--inspect-brk`, or `r` for `-r`.
 * Flags passed through to V8 (as listed in `--v8-options`) may replace
-  one or more _non-leading_ dashes for an underscore, or vice-versa;
+  one or more _non-leading_ dashes for an underscore, or vice versa;
   e.g., `--perf_basic_prof`, `--perf-basic-prof`, `--perf_basic-prof`,
   etc.
 * Flags may contain one or more equals (`=`) characters; all
@@ -954,6 +954,61 @@ $ bash -c 'exec -a customArgv0 ./node'
 > process.argv0
 'customArgv0'
 ```
+
+## `process.availableV8Flags`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* {Set}
+
+The `process.availableV8Flags` property is a special, read-only `Set` of
+command-line flags. If a user supplies one or more of these flags, Node.js will
+pass the flags through to V8. These flags are not supported by Node.js. Avoid
+using these flags if at all possible. They may or may not work correctly, and
+their behavior can change in breaking ways in any Node.js release.
+
+`process.availableV8Flags` extends `Set`, but overrides `Set.prototype.has` to
+recognize several different possible flag representations.
+`process.availableV8Flags.has()` will return `true` in the following cases:
+
+* Flags may omit leading single (`-`) or double (`--`) dashes.
+* Flags may replace one or more non-leading dashes for an underscore, or vice
+  versa.
+* Flags may contain one or more equals (`=`) characters and all
+  characters after and including the first equals will be ignored.
+
+When iterating over `process.availableV8Flags`, flags will appear only once.
+Each will begin with one or more dashes. Flags will contain underscores instead
+of non-leading dashes.
+
+```mjs
+import { availableV8Flags } from 'process';
+
+availableV8Flags.forEach((flag) => {
+  // --abort-on-contradictory-flags
+  // --abort-on-uncaught-exception
+  // --adjust-os-scheduling-parameters
+  // ...
+});
+```
+
+```cjs
+const { availableV8Flags } = require('process');
+
+availableV8Flags.forEach((flag) => {
+  // --abort-on-contradictory-flags
+  // --abort-on-uncaught-exception
+  // --adjust-os-scheduling-parameters
+  // ...
+});
+```
+
+The methods `add()`, `clear()`, and `delete()` of `process.availableV8Flags` do
+nothing.
 
 ## `process.channel`
 
