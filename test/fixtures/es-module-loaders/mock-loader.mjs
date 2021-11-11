@@ -23,7 +23,7 @@ export function globalPreload({port}) {
   preloadPort = port;
   port.on('message', onPreloadPortMessage);
   port.unref();
-  return String(()=>{
+  const insideAppContext = (getBuiltin, port, setImportMetaCallback) => {
     let mockedModules = new Map();
     let mockVersion = 0;
     const doMock = (resolved, replacementProperties) => {
@@ -71,7 +71,8 @@ export function globalPreload({port}) {
       }
       parent(meta, context);
     });
-  });
+  };
+  return `(${insideAppContext})(getBuiltin, port, setImportMetaCallback)`
 }
 
 
