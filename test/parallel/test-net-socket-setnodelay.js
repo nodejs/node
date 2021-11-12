@@ -13,7 +13,7 @@ const genSetNoDelay = (desiredArg) => (enable) => {
 // setNoDelay should default to true
 let socket = new net.Socket({
   handle: {
-    setNoDelay: common.mustCall(genSetNoDelay(true)),
+    setNoDelay: common.mustCall(genSetNoDelay(true), 1),
     readStart() {}
   }
 });
@@ -29,11 +29,19 @@ truthyValues.forEach((testVal) => socket.setNoDelay(testVal));
 
 socket = new net.Socket({
   handle: {
-    setNoDelay: common.mustCall(() => {}, 3),
+    setNoDelay: common.mustCall(() => {}, 2),
     readStart() {}
   }
 });
-truthyValues.concat(falseyValues).concat(truthyValues)
+falseyValues.forEach((testVal) => socket.setNoDelay(testVal));
+
+socket = new net.Socket({
+  handle: {
+    setNoDelay: common.mustCall(() => {}, 5),
+    readStart() {}
+  }
+});
+falseyValues.concat(truthyValues).concat(falseyValues).concat(truthyValues)
   .forEach((testVal) => socket.setNoDelay(testVal));
 
 // If a handler doesn't have a setNoDelay function it shouldn't be called.
@@ -44,5 +52,5 @@ socket = new net.Socket({
     readStart() {}
   }
 });
-const returned = socket.setNoDelay(true);
+const returned = socket.setNoDelay(false);
 assert.ok(returned instanceof net.Socket);
