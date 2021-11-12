@@ -758,6 +758,18 @@ const server = net.createServer((conn) => {
 Promise contexts may not get valid `triggerAsyncId`s by default. See
 the section on [promise execution tracking][].
 
+### `async_hooks.asyncWrapProviders`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: A map of provider types to the corresponding numeric id.
+  This map contains all the event types that might be emitted by the `async_hooks.init()` event.
+
+This feature suppresses the deprecated usage of `process.binding('async_wrap').Providers`.
+See: [DEP0111][]
+
 ## Promise execution tracking
 
 By default, promise executions are not assigned `asyncId`s due to the relatively
@@ -841,6 +853,7 @@ The documentation for this class has moved [`AsyncResource`][].
 
 The documentation for this class has moved [`AsyncLocalStorage`][].
 
+[DEP0111]: deprecations.md#dep0111-processbinding
 [Hook Callbacks]: #hook-callbacks
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
