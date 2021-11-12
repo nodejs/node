@@ -642,6 +642,7 @@
         'src/tracing/trace_event_common.h',
         'src/tracing/traced_value.h',
         'src/timer_wrap.h',
+        'src/timer_wrap-inl.h',
         'src/tty_wrap.h',
         'src/udp_wrap.h',
         'src/util.h',
