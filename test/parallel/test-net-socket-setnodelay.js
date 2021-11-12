@@ -29,14 +29,6 @@ truthyValues.forEach((testVal) => socket.setNoDelay(testVal));
 
 socket = new net.Socket({
   handle: {
-    setNoDelay: common.mustNotCall(),
-    readStart() {}
-  }
-});
-falseyValues.forEach((testVal) => socket.setNoDelay(testVal));
-
-socket = new net.Socket({
-  handle: {
     setNoDelay: common.mustCall(() => {}, 3),
     readStart() {}
   }
