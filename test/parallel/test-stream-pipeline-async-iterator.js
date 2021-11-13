@@ -11,8 +11,7 @@ async function run() {
     read() {
     }
   });
-  source.push('hello');
-  source.push('world');
+  source.push('helloworld');
 
   setImmediate(() => { source.destroy(_err); });
 
