@@ -259,6 +259,8 @@ class ByteSource {
 
   v8::Local<v8::ArrayBuffer> ToArrayBuffer(Environment* env);
 
+  v8::MaybeLocal<v8::Uint8Array> ToBuffer(Environment* env);
+
   void reset();
 
   // Allows an Allocated ByteSource to be truncated.

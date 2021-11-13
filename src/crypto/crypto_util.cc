@@ -350,6 +350,11 @@ Local<ArrayBuffer> ByteSource::ToArrayBuffer(Environment* env) {
   return ArrayBuffer::New(env->isolate(), std::move(store));
 }
 
+MaybeLocal<Uint8Array> ByteSource::ToBuffer(Environment* env) {
+  Local<ArrayBuffer> ab = ToArrayBuffer(env);
+  return Buffer::New(env, ab, 0, ab->ByteLength());
+}
+
 const char* ByteSource::get() const {
   return data_;
 }
