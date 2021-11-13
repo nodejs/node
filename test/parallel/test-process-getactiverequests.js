@@ -1,10 +1,11 @@
 'use strict';
 
-const common = require('../common');
-const assert = require('assert');
-const fs = require('fs');
+const { expectWarning } = require('../common');
 
-for (let i = 0; i < 12; i++)
-  fs.open(__filename, 'r', common.mustCall());
+expectWarning(
+  'DeprecationWarning',
+  'process._getActiveRequests() is deprecated. Please use the `async_hooks` ' +
+  'module instead.',
+  'DEP0157');
 
-assert.strictEqual(process._getActiveRequests().length, 12);
+process._getActiveRequests();

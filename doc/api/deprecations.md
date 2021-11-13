@@ -3019,6 +3019,21 @@ should have the same effect. The receiving end should also check the
 [`readable.readableEnded`][] value on [`http.IncomingMessage`][] to get whether
 it was an aborted or graceful destroy.
 
+### DEP0157: `process._getActiveRequests()`, `process._getActiveHandles()` private APIs
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40804
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `process._getActiveRequests()` and `process._getActiveHandles()` functions
+are not needed anymore because the `async_hooks` module already provides
+functionality that helps us to keep a track of the active resources.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3

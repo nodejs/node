@@ -23,8 +23,29 @@
 // Verify that connect reqs are properly cleaned up.
 
 const common = require('../common');
+
 const assert = require('assert');
+const async_hooks = require('async_hooks');
 const net = require('net');
+
+const activeRequestsMap = new Map();
+const activeHandlesMap = new Map();
+async_hooks.createHook({
+  init(asyncId, type, triggerAsyncId, resource) {
+    switch (type) {
+      case 'TCPCONNECTWRAP':
+        activeRequestsMap.set(asyncId, resource);
+        break;
+      case 'TCPWRAP':
+        activeHandlesMap.set(asyncId, resource);
+        break;
+    }
+  },
+  destroy(asyncId) {
+    activeRequestsMap.delete(asyncId);
+    activeHandlesMap.delete(asyncId);
+  }
+}).enable();
 
 const ROUNDS = 5;
 const ATTEMPTS_PER_ROUND = 50;
@@ -54,9 +75,10 @@ function pummel() {
 
 function check() {
   setTimeout(common.mustCall(function() {
-    assert.strictEqual(process._getActiveRequests().length, 0);
-    const activeHandles = process._getActiveHandles();
-    assert.ok(activeHandles.every((val) => val.constructor.name !== 'Socket'));
+    const activeRequests = Array.from(activeRequestsMap.values());
+    assert.strictEqual(activeRequests.length, 0);
+    const activeHandles = Array.from(activeHandlesMap.values());
+    assert.ok(activeHandles.every((val) => val.constructor.name === 'TCP'));
   }), 0);
 }
 
