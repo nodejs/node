@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { Readable } = require('stream');
+const { Readable, Duplex } = require('stream');
 
 {
   const readable = new Readable({
