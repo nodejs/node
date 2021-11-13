@@ -44,11 +44,20 @@ ac.abort();
 console.log(ac.signal.aborted);  // Prints True
 ```
 
-### `abortController.abort()`
+### `abortController.abort([reason])`
 
 <!-- YAML
-added: v15.0.0
+added:
+  - v15.0.0
+  - v14.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40807
+    description: Added the new optional reason argument.
 -->
+
+* `reason` {any} An optional reason, retrievable on the `AbortSignal`s
+  `reason` property.
 
 Triggers the abort signal, causing the `abortController.signal` to emit
 the `'abort'` event.
@@ -72,12 +81,19 @@ added: v15.0.0
 The `AbortSignal` is used to notify observers when the
 `abortController.abort()` method is called.
 
-#### Static method: `AbortSignal.abort()`
+#### Static method: `AbortSignal.abort([reason])`
 
 <!-- YAML
-added: v15.12.0
+added:
+  - v15.12.0
+  - v14.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40807
+    description: Added the new optional reason argument.
 -->
 
+* `reason`: {any}
 * Returns: {AbortSignal}
 
 Returns a new already aborted `AbortSignal`.
@@ -135,6 +151,22 @@ added: v15.0.0
 
 An optional callback function that may be set by user code to be notified
 when the `abortController.abort()` function has been called.
+
+#### `abortSignal.reason`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {any}
+
+An optional reason specified when the `AbortSignal` was triggered.
+
+```js
+const ac = new AbortController();
+ac.abort(new Error('boom!'));
+console.log(ac.signal.reason);  // Error('boom!');
+```
 
 ## Class: `Buffer`
 
