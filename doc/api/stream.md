@@ -596,6 +596,18 @@ added: v11.4.0
 Is `true` if it is safe to call [`writable.write()`][stream-write], which means
 the stream has not been destroyed, errored or ended.
 
+##### `writable.writableAborted`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* {boolean}
+
+Returns whether the stream was destroyed or errored before emitting `'finish'`.
+
 ##### `writable.writableEnded`
 
 <!-- YAML

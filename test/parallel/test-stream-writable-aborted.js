@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const assert = require('assert');
 const { Writable } = require('stream');
 
@@ -14,12 +15,12 @@ const { Writable } = require('stream');
 }
 
 {
-  const writable = new writable({
+  const writable = new Writable({
     read() {
     }
   });
   assert.strictEqual(writable.writableAborted, false);
   writable.end();
-  writable.destroy()
+  writable.destroy();
   assert.strictEqual(writable.writableAborted, true);
 }
