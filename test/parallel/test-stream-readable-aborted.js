@@ -55,3 +55,12 @@ const { Readable } = require('stream');
   }));
   readable.resume();
 }
+
+{
+  const duplex = new Duplex({
+    readable: false,
+    write () {}
+  });
+  duplex.destroy();
+  assert.strictEqual(readable.readableAborted, false);
+}
