@@ -621,7 +621,7 @@ added:
 Number of times [`writable.uncork()`][stream-uncork] needs to be
 called in order to fully uncork the stream.
 
-##### `writable.writableErrored`
+##### `writable.errored`
 
 <!-- YAML
 added:
@@ -1377,7 +1377,7 @@ added: v12.9.0
 
 Becomes `true` when [`'end'`][] event is emitted.
 
-##### `readable.readableErrored`
+##### `readable.errored`
 
 <!-- YAML
 added:
