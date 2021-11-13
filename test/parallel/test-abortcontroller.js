@@ -140,3 +140,16 @@ const { ok, strictEqual, throws } = require('assert');
   strictEqual(inspect(ac, { depth: null }),
               'AbortController { signal: AbortSignal { aborted: false } }');
 }
+
+{
+  // Test AbortSignal.reason
+  const ac = new AbortController();
+  ac.abort('reason');
+  strictEqual(ac.signal.reason, 'reason');
+}
+
+{
+  // Test AbortSignal.reason
+  const signal = AbortSignal.abort('reason');
+  strictEqual(signal.reason, 'reason');
+}
