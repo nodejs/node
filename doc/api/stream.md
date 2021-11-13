@@ -421,6 +421,10 @@ This is a destructive and immediate way to destroy a stream. Previous calls to
 Use `end()` instead of destroy if data should flush before close, or wait for
 the `'drain'` event before destroying the stream.
 
+If `.destroy()` is called without an `error` and `autoDestroy` is
+enabled, then if the stream has not completed it will be
+automatically destroyed with an `AbortError`.
+
 ```cjs
 const { Writable } = require('stream');
 
@@ -1100,6 +1104,10 @@ further errors except from `_destroy()` may be emitted as `'error'`.
 
 Implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
+
+If `.destroy()` is called without an `error` and `autoDestroy` is
+enabled, then if the stream has not completed it will be
+automatically destroyed with an `AbortError`.
 
 ##### `readable.closed`
 
@@ -1805,6 +1813,10 @@ unless `emitClose` is set in false.
 Once `destroy()` has been called, any further calls will be a no-op and no
 further errors except from `_destroy()` may be emitted as `'error'`.
 
+If `.destroy()` is called without an `error` and `autoDestroy` is
+enabled, then if the stream has not completed it will be
+automatically destroyed with an `AbortError`.
+
 ### `stream.finished(stream[, options], callback)`
 
 <!-- YAML
@@ -2508,6 +2520,8 @@ changes:
     [`stream._construct()`][writable-_construct] method.
   * `autoDestroy` {boolean} Whether this stream should automatically call
     `.destroy()` on itself after ending. **Default:** `true`.
+  * `autoAbort` {boolean} Whether this stream should automatically
+  error if `.destroy()` is called without an error before the stream has emitted `'finish'`.
   * `signal` {AbortSignal} A signal representing possible cancellation.
 
 <!-- eslint-disable no-useless-constructor -->
@@ -2865,6 +2879,8 @@ changes:
     [`stream._construct()`][readable-_construct] method.
   * `autoDestroy` {boolean} Whether this stream should automatically call
     `.destroy()` on itself after ending. **Default:** `true`.
+  * `autoAbort` {boolean} Whether this stream should automatically
+  error if `.destroy()` is called without an error before the stream has emitted `'end'`.
   * `signal` {AbortSignal} A signal representing possible cancellation.
 
 <!-- eslint-disable no-useless-constructor -->
