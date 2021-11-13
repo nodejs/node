@@ -14,7 +14,7 @@ const { Duplex, Readable, Writable, pipeline } = require('stream');
     })
   });
   assert.strictEqual(d.readable, true);
-  assert.strictEqual(d.writable, false);
+  assert.strictEqual(d.writable, undefined);
   d.once('readable', common.mustCall(function() {
     assert.strictEqual(d.read().toString(), 'asd');
   }));
@@ -31,7 +31,7 @@ const { Duplex, Readable, Writable, pipeline } = require('stream');
     }
   }));
   assert.strictEqual(d.readable, true);
-  assert.strictEqual(d.writable, false);
+  assert.strictEqual(d.writable, undefined);
   d.once('readable', common.mustCall(function() {
     assert.strictEqual(d.read().toString(), 'asd');
   }));
@@ -48,7 +48,7 @@ const { Duplex, Readable, Writable, pipeline } = require('stream');
       callback();
     }
   }));
-  assert.strictEqual(d.readable, false);
+  assert.strictEqual(d.readable, undefined);
   assert.strictEqual(d.writable, true);
   d.end('asd');
   d.on('finish', common.mustCall(function() {
@@ -67,7 +67,7 @@ const { Duplex, Readable, Writable, pipeline } = require('stream');
       }
     })
   });
-  assert.strictEqual(d.readable, false);
+  assert.strictEqual(d.readable, undefined);
   assert.strictEqual(d.writable, true);
   d.end('asd');
   d.on('finish', common.mustCall(function() {
@@ -110,7 +110,7 @@ const { Duplex, Readable, Writable, pipeline } = require('stream');
 {
   const d = Duplex.from(Promise.resolve('asd'));
   assert.strictEqual(d.readable, true);
-  assert.strictEqual(d.writable, false);
+  assert.strictEqual(d.writable, undefined);
   d.once('readable', common.mustCall(function() {
     assert.strictEqual(d.read().toString(), 'asd');
   }));

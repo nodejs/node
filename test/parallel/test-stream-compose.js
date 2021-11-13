@@ -274,8 +274,8 @@ const assert = require('assert');
     }
   });
 
-  assert.strictEqual(s1.writable, false);
-  assert.strictEqual(s1.readable, false);
+  assert.strictEqual(s1.writable, undefined);
+  assert.strictEqual(s1.readable, undefined);
 
   finished(s1.resume(), common.mustCall((err) => {
     assert(!err);

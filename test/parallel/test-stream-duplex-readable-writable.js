@@ -8,7 +8,7 @@ const assert = require('assert');
   const duplex = new Duplex({
     readable: false
   });
-  assert.strictEqual(duplex.readable, false);
+  assert.strictEqual(duplex.readable, undefined);
   duplex.push('asd');
   duplex.on('error', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_STREAM_PUSH_AFTER_EOF');
@@ -22,7 +22,7 @@ const assert = require('assert');
     writable: false,
     write: common.mustNotCall()
   });
-  assert.strictEqual(duplex.writable, false);
+  assert.strictEqual(duplex.writable, undefined);
   duplex.write('asd');
   duplex.on('error', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
@@ -34,7 +34,7 @@ const assert = require('assert');
   const duplex = new Duplex({
     readable: false
   });
-  assert.strictEqual(duplex.readable, false);
+  assert.strictEqual(duplex.readable, undefined);
   duplex.on('data', common.mustNotCall());
   duplex.on('end', common.mustNotCall());
   async function run() {
