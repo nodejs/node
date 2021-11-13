@@ -59,8 +59,8 @@ const { Readable, Duplex } = require('stream');
 {
   const duplex = new Duplex({
     readable: false,
-    write () {}
+    write() {}
   });
   duplex.destroy();
-  assert.strictEqual(readable.readableAborted, false);
+  assert.strictEqual(duplex.readableAborted, false);
 }
