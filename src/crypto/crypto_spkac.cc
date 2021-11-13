@@ -1,7 +1,6 @@
 #include "crypto/crypto_spkac.h"
 #include "crypto/crypto_common.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
@@ -41,48 +40,36 @@ void VerifySpkac(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(VerifySpkac(input));
 }
 
-AllocatedBuffer ExportPublicKey(Environment* env,
-                                const ArrayBufferOrViewContents<char>& input,
-                                size_t* size) {
+ByteSource ExportPublicKey(Environment* env,
+                           const ArrayBufferOrViewContents<char>& input) {
   BIOPointer bio(BIO_new(BIO_s_mem()));
-  if (!bio) return AllocatedBuffer();
+  if (!bio) return ByteSource();
 
   NetscapeSPKIPointer spki(
       NETSCAPE_SPKI_b64_decode(input.data(), input.size()));
-  if (!spki) return AllocatedBuffer();
+  if (!spki) return ByteSource();
 
   EVPKeyPointer pkey(NETSCAPE_SPKI_get_pubkey(spki.get()));
-  if (!pkey) return AllocatedBuffer();
+  if (!pkey) return ByteSource();
 
-  if (PEM_write_bio_PUBKEY(bio.get(), pkey.get()) <= 0)
-    return AllocatedBuffer();
+  if (PEM_write_bio_PUBKEY(bio.get(), pkey.get()) <= 0) return ByteSource();
 
-  BUF_MEM* ptr;
-  BIO_get_mem_ptr(bio.get(), &ptr);
-
-  *size = ptr->length;
-  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, *size);
-  memcpy(buf.data(), ptr->data, *size);
-
-  return buf;
+  return ByteSource::FromBIO(bio);
 }
 
 void ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   ArrayBufferOrViewContents<char> input(args[0]);
-  if (input.size() == 0)
-    return args.GetReturnValue().SetEmptyString();
+  if (input.size() == 0) return args.GetReturnValue().SetEmptyString();
 
   if (UNLIKELY(!input.CheckSizeInt32()))
     return THROW_ERR_OUT_OF_RANGE(env, "spkac is too large");
 
-  size_t pkey_size;
-  AllocatedBuffer pkey = ExportPublicKey(env, input, &pkey_size);
-  if (pkey.data() == nullptr)
-    return args.GetReturnValue().SetEmptyString();
+  ByteSource pkey = ExportPublicKey(env, input);
+  if (!pkey) return args.GetReturnValue().SetEmptyString();
 
-  args.GetReturnValue().Set(pkey.ToBuffer().FromMaybe(Local<Value>()));
+  args.GetReturnValue().Set(pkey.ToBuffer(env).FromMaybe(Local<Value>()));
 }
 
 ByteSource ExportChallenge(const ArrayBufferOrViewContents<char>& input) {
