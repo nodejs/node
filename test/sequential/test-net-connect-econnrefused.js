@@ -54,9 +54,8 @@ function pummel() {
 
 function check() {
   setTimeout(common.mustCall(function() {
-    assert.strictEqual(process._getActiveRequests().length, 0);
-    const activeHandles = process._getActiveHandles();
-    assert.ok(activeHandles.every((val) => val.constructor.name !== 'Socket'));
+    assert.strictEqual(process.getActiveResourcesInfo().filter(
+      (type) => type === 'TCPWRAP').length, 0);
   }), 0);
 }
 

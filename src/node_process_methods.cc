@@ -1,3 +1,4 @@
+#include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
@@ -257,6 +258,21 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
       Array::New(env->isolate(), request_v.data(), request_v.size()));
 }
 
+static void GetActiveRequestsInfo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  std::vector<Local<Value>> requests_info;
+  for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
+    AsyncWrap* w = req_wrap->GetAsyncWrap();
+    if (w->persistent().IsEmpty()) continue;
+    requests_info.emplace_back(OneByteString(env->isolate(),
+                               w->MemoryInfoName().c_str()));
+  }
+
+  args.GetReturnValue().Set(
+      Array::New(env->isolate(), requests_info.data(), requests_info.size()));
+}
+
 // Non-static, friend of HandleWrap. Could have been a HandleWrap method but
 // implemented here for consistency with GetActiveRequests().
 void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
@@ -270,6 +286,20 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   }
   args.GetReturnValue().Set(
       Array::New(env->isolate(), handle_v.data(), handle_v.size()));
+}
+
+void GetActiveHandlesInfo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  std::vector<Local<Value>> handles_info;
+  for (HandleWrap* w : *env->handle_wrap_queue()) {
+    if (w->persistent().IsEmpty() || !HandleWrap::HasRef(w)) continue;
+    handles_info.emplace_back(OneByteString(env->isolate(),
+                              w->MemoryInfoName().c_str()));
+  }
+
+  args.GetReturnValue().Set(
+      Array::New(env->isolate(), handles_info.data(), handles_info.size()));
 }
 
 static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
@@ -547,7 +577,9 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "resourceUsage", ResourceUsage);
 
   env->SetMethod(target, "_getActiveRequests", GetActiveRequests);
+  env->SetMethod(target, "_getActiveRequestsInfo", GetActiveRequestsInfo);
   env->SetMethod(target, "_getActiveHandles", GetActiveHandles);
+  env->SetMethod(target, "_getActiveHandlesInfo", GetActiveHandlesInfo);
   env->SetMethod(target, "_kill", Kill);
 
   env->SetMethodNoSideEffect(target, "cwd", Cwd);
@@ -574,7 +606,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ResourceUsage);
 
   registry->Register(GetActiveRequests);
+  registry->Register(GetActiveRequestsInfo);
   registry->Register(GetActiveHandles);
+  registry->Register(GetActiveHandlesInfo);
   registry->Register(Kill);
 
   registry->Register(Cwd);
