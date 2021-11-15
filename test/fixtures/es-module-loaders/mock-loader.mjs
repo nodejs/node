@@ -1,4 +1,4 @@
-import {receiveMessageOnPort} from 'worker_threads';
+import { receiveMessageOnPort } from 'node:worker_threads';
 const mockedModuleExports = new Map();
 let currentMockVersion = 0;
 
