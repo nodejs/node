@@ -113,9 +113,9 @@ NAPI_EXTERN napi_status napi_create_range_error(napi_env env,
                                                 napi_value* result);
 #ifdef NAPI_EXPERIMENTAL
 NAPI_EXTERN napi_status node_api_create_syntax_error(napi_env env,
-                                                napi_value code,
-                                                napi_value msg,
-                                                napi_value* result);
+                                                     napi_value code,
+                                                     napi_value msg,
+                                                     napi_value* result);
 #endif  // NAPI_EXPERIMENTAL
 
 // Methods to get the native napi_value from Primitive type
