@@ -378,8 +378,8 @@ NAPI_EXTERN napi_status napi_throw_range_error(napi_env env,
                                          const char* msg);
 #ifdef NAPI_EXPERIMENTAL
 NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
-                                              const char* code,
-                                              const char* msg);
+                                                   const char* code,
+                                                   const char* msg);
 #endif  // NAPI_EXPERIMENTAL
 NAPI_EXTERN napi_status napi_is_error(napi_env env,
                                       napi_value value,
