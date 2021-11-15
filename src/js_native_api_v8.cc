@@ -1748,9 +1748,9 @@ napi_status napi_create_range_error(napi_env env,
 }
 
 napi_status node_api_create_syntax_error(napi_env env,
-                                    napi_value code,
-                                    napi_value msg,
-                                    napi_value* result) {
+                                         napi_value code,
+                                         napi_value msg,
+                                         napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, msg);
   CHECK_ARG(env, result);
