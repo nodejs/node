@@ -1737,6 +1737,50 @@ async function showBoth() {
 showBoth();
 ```
 
+### `readable.map(fn[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `fn` {Function|AsyncFunction} a function to map over every item in the stream.
+  * `data` {any} a chunk of data from the stream.
+  * `options` {Object}
+    * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
+      abort the `fn` call early.
+* `options` {Object}
+  * `concurrency` {number} the maximal concurrent invocation of `fn` to call
+    on the stream at once. **Default:** `1`.
+  * `signal` {AbortSignal} allows destroying the stream if the signal is
+    aborted.
+* Returns: {Readable} a stream mapped with the function `fn`.
+
+This method allows mapping over the stream. The `fn` function will be called
+for every item in the stream. If the `fn` function returns a promise - that
+promise will be `await`ed before being passed to the result stream.
+
+```mjs
+import { Readable } from 'stream';
+import { Resolver } from 'dns/promises';
+
+// With a synchronous mapper.
+for await (const item of Readable.from([1, 2, 3, 4]).map((x) => x * 2)) {
+  console.log(item); // 2, 4, 6, 8
+}
+// With an asynchronous mapper, making at most 2 queries at a time.
+const resolver = new Resolver();
+const dnsResults = await Readable.from([
+  'nodejs.org',
+  'openjsf.org',
+  'www.linuxfoundation.org',
+]).map((domain) => resolver.resolve4(domain), { concurrency: 2 });
+for await (const result of dnsResults) {
+  console.log(result); // Logs the DNS result of resolver.resolve4.
+}
+```
+
 ### Duplex and transform streams
 
 #### Class: `stream.Duplex`
