@@ -742,3 +742,17 @@ assert.throws(
     }
   }
 }
+
+// The sign function should not swallow OpenSSL errors.
+// Regression test for https://github.com/nodejs/node/issues/40794.
+{
+  assert.throws(() => {
+    const { privateKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 512
+    });
+    crypto.sign('sha512', 'message', privateKey);
+  }, {
+    code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY',
+    message: /digest too big for rsa key/
+  });
+}
