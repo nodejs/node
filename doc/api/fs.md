@@ -1147,6 +1147,32 @@ platform-specific. On macOS, Linux, and Windows, the promise will be rejected
 with an error. On FreeBSD, a representation of the directory's contents will be
 returned.
 
+An example of reading a `package.json` file located in the same directory of the running code:
+```mjs
+import { readFile } from 'fs/promises';
+try {
+  const contents = await readFile(new URL('./package.json', import.meta.url), { encoding: 'utf8' });
+  
+  console.log(contents);
+} catch (err) {
+  console.error(err.message);
+}
+```
+
+```cjs
+const { readFile } = require('fs/promises');
+const { resolve } = require('path');
+async function logFile() {
+  try {
+    const contents = await readFile(resolve('./package.json'), { encoding: 'utf8' });
+    console.log(contents);
+  } catch (err) {
+    console.error(err.message);
+  }
+}
+logFile();
+```
+
 It is possible to abort an ongoing `readFile` using an {AbortSignal}. If a
 request is aborted the promise returned is rejected with an `AbortError`:
 
