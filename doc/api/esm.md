@@ -809,8 +809,8 @@ const require = createRequire(cwd() + '/<preload>');
 In order to allow communication between the application and the loader, another
 argument is provided to the preload code: `port`. This is available as a
 parameter to the loader hook and inside of the source text returned by the hook.
-Some care must be taken in order to properly `ref()` and `unref()` the
-`MessagePort` to prevent a process from being in a state where it won't close
+Some care must be taken in order to properly call [`port.ref()`][] and
+[`port.unref()`][] to prevent a process from being in a state where it won't close
 normally.
 
 ```js
@@ -1404,6 +1404,8 @@ success!
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
 [`module.syncBuiltinESMExports()`]: module.md#modulesyncbuiltinesmexports
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
+[`port.ref()`]: https://nodejs.org/dist/latest-v17.x/docs/api/worker_threads.html#portref
+[`port.unref()`]: https://nodejs.org/dist/latest-v17.x/docs/api/worker_threads.html#portunref
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`util.TextDecoder`]: util.md#class-utiltextdecoder

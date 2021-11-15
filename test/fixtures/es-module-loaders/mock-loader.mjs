@@ -56,7 +56,7 @@ export function globalPreload({port}) {
       port.postMessage({ mockVersion, resolved, exports });
       return namespace;
     }
-    setImportMetaCallback((meta, context, parent) => {
+    setImportMetaCallback((meta, context, defaultImportMetaInitializer) => {
       if (context.url === 'node:mock') {
         meta.doMock = doMock;
         return;
@@ -69,7 +69,7 @@ export function globalPreload({port}) {
           return;
         }
       }
-      parent(meta, context);
+      defaultImportMetaInitializer(meta, context);
     });
   };
   return `(${insideAppContext})(getBuiltin, port, setImportMetaCallback)`

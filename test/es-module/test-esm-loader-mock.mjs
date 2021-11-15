@@ -1,6 +1,8 @@
 // Flags: --loader ./test/fixtures/es-module-loaders/mock-loader.mjs
 import '../common/index.mjs';
 import assert from 'assert/strict';
+
+// This is provided by test/fixtures/es-module-loaders/mock-loader.mjs
 import mock from 'node:mock';
 
 mock('node:events', {
@@ -8,6 +10,7 @@ mock('node:events', {
 });
 
 // This resolves to node:events
+// It is intercepted by mock-loader and doesn't return the normal value
 assert.deepStrictEqual(await import('events'), Object.defineProperty({
   __proto__: null,
   EventEmitter: 'This is mocked!'
@@ -20,6 +23,9 @@ const mutator = mock('node:events', {
   EventEmitter: 'This is mocked v2!'
 });
 
+// It is intercepted by mock-loader and doesn't return the normal value.
+// This is resolved separately from the import above since the specifiers
+// are different.
 const mockedV2 = await import('node:events');
 assert.deepStrictEqual(mockedV2, Object.defineProperty({
   __proto__: null,
