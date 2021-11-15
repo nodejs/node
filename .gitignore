@@ -7,6 +7,8 @@
 .*
 # Exclude specific dotfiles that we want to track.
 !deps/**/.*
+!.devcontainer/
+!.devcontainer/.devcontainer.json
 !test/fixtures/**/.*
 !.clang-format
 !.cpplint
