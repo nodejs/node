@@ -810,8 +810,8 @@ In order to allow communication between the application and the loader, another
 argument is provided to the preload code: `port`. This is available as a
 parameter to the loader hook and inside of the source text returned by the hook.
 Some care must be taken in order to properly call [`port.ref()`][] and
-[`port.unref()`][] to prevent a process from being in a state where it won't close
-normally.
+[`port.unref()`][] to prevent a process from being in a state where it won't
+close normally.
 
 ```js
 /**
