@@ -1303,9 +1303,9 @@ added: REPLACEME
 
 ```c
 NAPI_EXTERN napi_status node_api_create_syntax_error(napi_env env,
-                                                napi_value code,
-                                                napi_value msg,
-                                                napi_value* result);
+                                                     napi_value code,
+                                                     napi_value msg,
+                                                     napi_value* result);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
