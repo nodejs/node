@@ -10,11 +10,11 @@
   "dockerFile": "Dockerfile",
   "initializeCommand": "docker system prune -f -a",
   "settings": {
-        "terminal.integrated.profiles.linux": {
-          "zsh (login)": {
-            "path": "zsh",
-            "args": ["-l"]
-          }
+      "terminal.integrated.profiles.linux": {
+        "zsh (login)": {
+          "path": "zsh",
+          "args": ["-l"]
         }
       }
+    }
   }
