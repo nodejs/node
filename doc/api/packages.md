@@ -518,6 +518,12 @@ least specific in object order_.
 Using the `"import"` and `"require"` conditions can lead to some hazards,
 which are further explained in [the dual CommonJS/ES module packages section][].
 
+The `"node-addons"` condition can be used to provide an entry point which
+uses native C++ addons. However, this condition can be disabled via the
+[`--no-addons` flag][]. When using `"node-addons"`, it's recommended to treat
+`"default"` as an enhancement that provides a more universal entry point, e.g.
+using WebAssembly instead of a native addon.
+
 Conditional exports can also be extended to exports subpaths, for example:
 
 ```json
@@ -597,20 +603,14 @@ The `"import"`, `"require"`, `"node"`, `"node-addons"` and `"default"`
 conditions are defined and implemented in Node.js core,
 [as specified above](#conditional-exports).
 
-The `"node-addons"` condition can be used to provide an entry point which
-uses native C++ addons. However, this condition can be disabled via the
-[`--no-addons` flag][]. When using `"node-addons"`, it's recommended to treat
-`"default"` as an enhancement that provides a more universal entry point, e.g.
-using WebAssembly instead of a native addon.
-
 Other condition strings are unknown to Node.js and thus ignored by default.
 Runtimes or tools other than Node.js can use them at their discretion.
 
 These user conditions can be enabled in Node.js via the [`--conditions` flag][].
 
-The following condition definitions are currently endorsed by Node.js, and
-are _listed in order from most to least specific, as conditions should be
-used._
+Since user package conditions require clear definitions to ensure correct usage,
+a list of common known package conditions and their strict definitions is provided
+below to assist with ecosystem coordination.
 
 * `"types"` - can be used by typing systems to resolve the typing file for
   the given export, possible since the interface should be the same for all
@@ -626,10 +626,6 @@ used._
 
 The above user conditions can be enabled in Node.js via the
 [`--conditions` flag][].
-
-Platform-specific conditions such as `"electron"`, or `"react-native"` may
-be used, but while there remain no implementation or integration intent
-from these platforms, they are not currently explicitly recommended.
 
 New conditions definitions may be added to this list by creating a pull request
 to the [Node.js documentation for this section][]. The requirements for listing
