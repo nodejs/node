@@ -9,14 +9,18 @@ jobs:
   lint-commit-message:
     runs-on: ubuntu-latest
     steps:
+      - name: Compute number of commits in the PR
+        id: nb-of-commits
+        run: echo "::set-output name=nb::$((${{ github.event.pull_request.commits }} + 1))"
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 2
+          fetch-depth: ${{ steps.nb-of-commits.outputs.nb }}
       - name: Install Node.js
         uses: actions/setup-node@v2
         with:
           node-version: ${{ env.NODE_VERSION }}
+      - run: git --no-pager log HEAD~${{ steps.nb-of-commits.outputs.nb }}
       - name: Validate commit message
         run: |
           echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
-          git rev-parse HEAD^ | xargs npx -q core-validate-commit --no-validate-metadata --tap
+          git rev-parse HEAD~${{ steps.nb-of-commits.outputs.nb }} | xargs npx -q core-validate-commit --no-validate-metadata --tap
