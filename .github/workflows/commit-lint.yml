@@ -15,12 +15,12 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: ${{ steps.nb-of-commits.outputs.nb }}
-      - name: Install Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - run: git --no-pager log
-      - name: Validate commit message
-        run: |
-          echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
-          git rev-parse HEAD~${{ github.event.pull_request.commits }} | xargs npx -q core-validate-commit --no-validate-metadata --tap
+      - run: git --no-pager log HEAD^2~${{ github.event.pull_request.commits }}
+      # - name: Install Node.js
+      #   uses: actions/setup-node@v2
+      #   with:
+      #     node-version: ${{ env.NODE_VERSION }}
+      # - name: Validate commit message
+      #   run: |
+      #     echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
+      #     git rev-parse HEAD~${{ github.event.pull_request.commits }} | xargs npx -q core-validate-commit --no-validate-metadata --tap
