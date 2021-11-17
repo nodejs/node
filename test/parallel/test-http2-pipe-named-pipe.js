@@ -22,12 +22,15 @@ const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
   const dest = stream.pipe(fs.createWriteStream(fn));
 
-  dest.on('finish', () => {
+  stream.on('end', common.mustCall(() => {
+    stream.respond();
+    stream.end();
+  }));
+
+  dest.on('finish', common.mustCall(() => {
     assert.strictEqual(fs.readFileSync(loc).length,
                        fs.readFileSync(fn).length);
-  });
-  stream.respond();
-  stream.end();
+  }));
 }));
 
 server.listen(common.PIPE, common.mustCall(() => {
