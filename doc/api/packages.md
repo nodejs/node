@@ -597,20 +597,18 @@ exports, while resolving the existing `"node"`, `"node-addons"`, `"default"`,
 
 Any number of custom conditions can be set with repeat flags.
 
-### Conditions Definitions
+### Community Conditions Definitions
 
-The `"import"`, `"require"`, `"node"`, `"node-addons"` and `"default"`
-conditions are defined and implemented in Node.js core,
-[as specified above](#conditional-exports).
+Conditions strings other than the `"import"`, `"require"`, `"node"`,
+`"node-addons"` and `"default"` conditions [implemented in Node.js core]
+(#conditional-exports) are ignored by default.
 
-Other condition strings are unknown to Node.js and thus ignored by default.
-Runtimes or tools other than Node.js can use them at their discretion.
+Other platforms may implement other conditions and user conditions can be enabled
+in Node.js via the [`--conditions` / `-C` flag][].
 
-These user conditions can be enabled in Node.js via the [`--conditions` flag][].
-
-Since user package conditions require clear definitions to ensure correct usage,
-a list of common known package conditions and their strict definitions is provided
-below to assist with ecosystem coordination.
+Since custom package conditions require clear definitions to ensure correct usage,
+a list of common known package conditions and their strict definitions is
+provided below to assist with ecosystem coordination.
 
 * `"types"` - can be used by typing systems to resolve the typing file for
   the given export, possible since the interface should be the same for all
@@ -623,9 +621,6 @@ below to assist with ecosystem coordination.
   mutually exclusive with `"production"`._
 * `"production"` - can be used to define a production environment entry
   point. _Must always be mutually exclusive with `"development"`._
-
-The above user conditions can be enabled in Node.js via the
-[`--conditions` flag][].
 
 New conditions definitions may be added to this list by creating a pull request
 to the [Node.js documentation for this section][]. The requirements for listing
@@ -1236,7 +1231,7 @@ This field defines [subpath imports][] for the current package.
 [`"name"`]: #name
 [`"packageManager"`]: #packagemanager
 [`"type"`]: #type
-[`--conditions` flag]: #resolving-user-conditions
+[`--conditions` / `-C` flag]: #resolving-user-conditions
 [`--no-addons` flag]: cli.md#--no-addons
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`esm`]: https://github.com/standard-things/esm#readme
