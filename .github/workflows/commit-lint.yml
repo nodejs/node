@@ -19,8 +19,8 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - run: git --no-pager log HEAD~${{ steps.nb-of-commits.outputs.nb }}
+      - run: git --no-pager log HEAD~${{ github.event.pull_request.commits }}
       - name: Validate commit message
         run: |
           echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
-          git rev-parse HEAD~${{ steps.nb-of-commits.outputs.nb }} | xargs npx -q core-validate-commit --no-validate-metadata --tap
+          git rev-parse HEAD~${{ github.event.pull_request.commits }} | xargs npx -q core-validate-commit --no-validate-metadata --tap
