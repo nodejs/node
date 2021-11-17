@@ -15,7 +15,7 @@ const path = require('path');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 const loc = fixtures.path('person-large.jpg');
-const fn = path.join(tmpdir.path, 'http2-url-tests.js');
+const fn = path.join(tmpdir.path, 'person-large.jpg');
 
 const server = http2.createServer();
 
