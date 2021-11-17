@@ -28,8 +28,8 @@ server.on('stream', common.mustCall((stream) => {
   }));
 
   dest.on('finish', common.mustCall(() => {
-    assert.strictEqual(fs.readFileSync(loc).length,
-                       fs.readFileSync(fn).length);
+    assert.strictEqual(fs.readFileSync(fn).length,
+                       fs.readFileSync(loc).length);
   }));
 }));
 
