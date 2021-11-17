@@ -35,12 +35,6 @@ if (common.isWindows) {
   return;
 }
 
-if (common.isOSX) {
-  // The resuid functions are OSX only.
-  assert.strictEqual(process.getresuid, undefined);
-  assert.strictEqual(process.setresuid, undefined);
-}
-
 if (!common.isMainThread)
   return;
 
