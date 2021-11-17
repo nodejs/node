@@ -1007,6 +1007,33 @@ property indicating whether parent directories should be created. Calling
 `fsPromises.mkdir()` when `path` is a directory that exists results in a
 rejection only when `recursive` is false.
 
+```mjs
+import { mkdir } from 'fs/promises';
+
+try {
+  const path = new URL('./test/project', import.meta.url);
+  const createDir = await mkdir(path, { recursive: true });
+
+  console.log (`created ${createDir}`);
+} catch (err) {
+  console.error(err.message);
+}
+```
+
+```cjs
+const { mkdir } = require('fs/promises');
+const { resolve } = require('path');
+
+async function makeDirectory () {
+  const path = resolve('./test/project/lol/hi')
+  const dirCreation = await mkdir(path, { recursive: true });
+  
+  console.log(dirCreation)
+  return dirCreation;
+}
+
+makeDirectory();
+```
 ### `fsPromises.mkdtemp(prefix[, options])`
 
 <!-- YAML
