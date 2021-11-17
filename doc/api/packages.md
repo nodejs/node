@@ -599,16 +599,16 @@ Any number of custom conditions can be set with repeat flags.
 
 ### Community Conditions Definitions
 
-Conditions strings other than the `"import"`, `"require"`, `"node"`,
-`"node-addons"` and `"default"` conditions [implemented in Node.js core]
-(#conditional-exports) are ignored by default.
+Condition strings other than the `"import"`, `"require"`, `"node"`,
+`"node-addons"` and `"default"` conditions
+[implemented in Node.js core](#conditional-exports) are ignored by default.
 
-Other platforms may implement other conditions and user conditions can be enabled
-in Node.js via the [`--conditions` / `-C` flag][].
+Other platforms may implement other conditions and user conditions can be
+enabled in Node.js via the [`--conditions` / `-C` flag][].
 
-Since custom package conditions require clear definitions to ensure correct usage,
-a list of common known package conditions and their strict definitions is
-provided below to assist with ecosystem coordination.
+Since custom package conditions require clear definitions to ensure correct
+usage, a list of common known package conditions and their strict definitions
+is provided below to assist with ecosystem coordination.
 
 * `"types"` - can be used by typing systems to resolve the typing file for
   the given export, possible since the interface should be the same for all
