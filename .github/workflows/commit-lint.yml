@@ -9,9 +9,15 @@ jobs:
   lint-commit-message:
     runs-on: ubuntu-latest
     steps:
+      - name: Compute number of commits in the PR
+        id: nb-of-commits
+        run: |
+          echo "::set-output name=plusOne::$((${{ github.event.pull_request.commits }} + 1))"
+          echo "::set-output name=minusOne::$((${{ github.event.pull_request.commits }} - 1))"
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 2
+          fetch-depth: ${{ steps.nb-of-commits.outputs.plusOne }}
+      - run: git reset HEAD^2
       - name: Install Node.js
         uses: actions/setup-node@v2
         with:
@@ -19,4 +25,4 @@ jobs:
       - name: Validate commit message
         run: |
           echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
-          git rev-parse HEAD^ | xargs npx -q core-validate-commit --no-validate-metadata --tap
+          git rev-parse HEAD~${{ steps.nb-of-commits.outputs.minusOne }} | xargs npx -q core-validate-commit --no-validate-metadata --tap
