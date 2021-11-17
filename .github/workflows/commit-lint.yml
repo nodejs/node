@@ -15,7 +15,8 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: ${{ steps.nb-of-commits.outputs.nb }}
-      - run: git --no-pager log $(git rev-parse HEAD^2)~${{ github.event.pull_request.commits }}
+      - run: git reset HEAD^2
+      - run: git --no-pager log HEAD~${{ github.event.pull_request.commits }}
       # - name: Install Node.js
       #   uses: actions/setup-node@v2
       #   with:
