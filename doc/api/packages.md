@@ -611,8 +611,7 @@ usage, a list of common known package conditions and their strict definitions
 is provided below to assist with ecosystem coordination.
 
 * `"types"` - can be used by typing systems to resolve the typing file for
-  the given export, possible since the interface should be the same for all
-  variations. _This condition should always be included first._
+  the given export. _This condition should always be included first._
 * `"deno"` - indicates a variation for the Deno platform.
 * `"browser"` - any web browser environment.
 * `"development"` - can be used to define a development-only environment
