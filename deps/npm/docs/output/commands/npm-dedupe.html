@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-dedupe</title>
 <style>
 body {
@@ -167,7 +168,7 @@ be more effectively shared by multiple dependent packages.</p>
 +-- d
 `-- c@1.0.10
 </code></pre>
-<p>Because of the hierarchical nature of node’s module lookup, b and d
+<p>Because of the hierarchical nature of node's module lookup, b and d
 will both get their dependency met by the single c package at the root
 level of the tree.</p>
 <p>In some cases, you may have a dependency graph like this:</p>
@@ -178,7 +179,7 @@ level of the tree.</p>
     `-- c@1.9.9
 </code></pre>
 <p>During the installation process, the <code>c@1.0.3</code> dependency for <code>b</code> was
-placed in the root of the tree.  Though <code>d</code>’s dependency on <code>c@1.x</code> could
+placed in the root of the tree.  Though <code>d</code>'s dependency on <code>c@1.x</code> could
 have been satisfied by <code>c@1.0.3</code>, the newer <code>c@1.9.0</code> dependency was used,
 because npm favors updates by default, even when doing so causes
 duplication.</p>
@@ -231,7 +232,7 @@ dependency relationships.</p>
 <p>By default, conflicting <code>peerDependencies</code> deep in the dependency graph will
 be resolved using the nearest non-peer dependency specification, even if
 doing so will result in some packages receiving a peer dependency outside
-the range set in their package’s <code>peerDependencies</code> object.</p>
+the range set in their package's <code>peerDependencies</code> object.</p>
 <p>When such and override is performed, a warning is printed, explaining the
 conflict and the packages involved. If <code>--strict-peer-deps</code> is set, then
 this warning is treated as a failure.</p>
@@ -251,9 +252,9 @@ package-locks disabled use <code>npm prune</code>.</p>
 <!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>
 <ul>
-<li>Default: ‘dev’ if the <code>NODE_ENV</code> environment variable is set to
-‘production’, otherwise empty.</li>
-<li>Type: “dev”, “optional”, or “peer” (can be set multiple times)</li>
+<li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
+'production', otherwise empty.</li>
+<li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
 <p>Note that these dependencies <em>are</em> still resolved and added to the
@@ -282,7 +283,7 @@ will <em>not</em> run any pre- or post-scripts.</p>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When “true” submit audit reports alongside the current npm command to the
+<p>When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes. See the
 documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
 submitted.</p>
@@ -296,7 +297,7 @@ submitted.</p>
 <p>Tells npm to create symlinks (or <code>.cmd</code> shims on Windows) for package
 executables.</p>
 <p>Set to false to have it not do this. This can be used to work around the
-fact that some file systems don’t support symlinks, even on ostensibly Unix
+fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -305,7 +306,7 @@ systems.</p>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When “true” displays the message at the end of each <code>npm install</code>
+<p>When "true" displays the message at the end of each <code>npm install</code>
 acknowledging the number of dependencies looking for funding. See <a href="../commands/npm-fund.html"><code>npm fund</code></a> for details.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -314,7 +315,7 @@ acknowledging the number of dependencies looking for funding. See <a href="../co
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Indicates that you don’t want npm to make any changes and that it should
+<p>Indicates that you don't want npm to make any changes and that it should
 only report what it would have done. This can be passed into any of the
 commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>

@@ -20,47 +20,38 @@ const subcommands = [
 ]
 
 class Access extends BaseCommand {
-  static get description () {
-    return 'Set access level on published packages'
-  }
+  static description = 'Set access level on published packages'
+  static name = 'access'
+  static params = [
+    'registry',
+    'otp',
+  ]
 
-  static get name () {
-    return 'access'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'registry',
-      'otp',
-    ]
-  }
-
-  static get usage () {
-    return [
-      'public [<package>]',
-      'restricted [<package>]',
-      'grant <read-only|read-write> <scope:team> [<package>]',
-      'revoke <scope:team> [<package>]',
-      '2fa-required [<package>]',
-      '2fa-not-required [<package>]',
-      'ls-packages [<user>|<scope>|<scope:team>]',
-      'ls-collaborators [<package> [<user>]]',
-      'edit [<package>]',
-    ]
-  }
+  static usage = [
+    'public [<package>]',
+    'restricted [<package>]',
+    'grant <read-only|read-write> <scope:team> [<package>]',
+    'revoke <scope:team> [<package>]',
+    '2fa-required [<package>]',
+    '2fa-not-required [<package>]',
+    'ls-packages [<user>|<scope>|<scope:team>]',
+    'ls-collaborators [<package> [<user>]]',
+    'edit [<package>]',
+  ]
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
-    if (argv.length === 2)
+    if (argv.length === 2) {
       return subcommands
+    }
 
     switch (argv[2]) {
       case 'grant':
-        if (argv.length === 3)
+        if (argv.length === 3) {
           return ['read-only', 'read-write']
-        else
+        } else {
           return []
+        }
 
       case 'public':
       case 'restricted':
@@ -77,11 +68,13 @@ class Access extends BaseCommand {
   }
 
   async exec ([cmd, ...args]) {
-    if (!cmd)
+    if (!cmd) {
       throw this.usageError('Subcommand is required.')
+    }
 
-    if (!subcommands.includes(cmd) || !this[cmd])
+    if (!subcommands.includes(cmd) || !this[cmd]) {
       throw this.usageError(`${cmd} is not a recognized subcommand.`)
+    }
 
     return this[cmd](args, this.npm.flatOptions)
   }
@@ -95,11 +88,13 @@ class Access extends BaseCommand {
   }
 
   async grant ([perms, scopeteam, pkg], opts) {
-    if (!perms || (perms !== 'read-only' && perms !== 'read-write'))
+    if (!perms || (perms !== 'read-only' && perms !== 'read-write')) {
       throw this.usageError('First argument must be either `read-only` or `read-write`.')
+    }
 
-    if (!scopeteam)
+    if (!scopeteam) {
       throw this.usageError('`<scope:team>` argument is required.')
+    }
 
     const [, scope, team] = scopeteam.match(/^@?([^:]+):(.*)$/) || []
 
@@ -115,8 +110,9 @@ class Access extends BaseCommand {
   }
 
   async revoke ([scopeteam, pkg], opts) {
-    if (!scopeteam)
+    if (!scopeteam) {
       throw this.usageError('`<scope:team>` argument is required.')
+    }
 
     const [, scope, team] = scopeteam.match(/^@?([^:]+):(.*)$/) || []
 
@@ -152,8 +148,9 @@ class Access extends BaseCommand {
   }
 
   async lsPackages ([owner], opts) {
-    if (!owner)
+    if (!owner) {
       owner = await getIdentity(this.npm, opts)
+    }
 
     const pkgs = await libaccess.lsPackages(owner, opts)
 
@@ -183,9 +180,9 @@ class Access extends BaseCommand {
   }
 
   async getPackage (name, requireScope) {
-    if (name && name.trim())
+    if (name && name.trim()) {
       return name.trim()
-    else {
+    } else {
       try {
         const pkg = await readPackageJson(path.resolve(this.npm.prefix, 'package.json'))
         name = pkg.name
@@ -194,14 +191,16 @@ class Access extends BaseCommand {
           throw new Error(
             'no package name passed to command and no package.json found'
           )
-        } else
+        } else {
           throw err
+        }
       }
 
-      if (requireScope && !name.match(/^@[^/]+\/.*$/))
+      if (requireScope && !name.match(/^@[^/]+\/.*$/)) {
         throw this.usageError('This command is only available for scoped packages.')
-      else
+      } else {
         return name
+      }
     }
   }
 }

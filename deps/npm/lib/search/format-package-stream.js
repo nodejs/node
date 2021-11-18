@@ -31,8 +31,9 @@ class JSONOutputStream extends Minipass {
     if (!this._didFirst) {
       super.write('[\n')
       this._didFirst = true
-    } else
+    } else {
       super.write('\n,\n')
+    }
 
     try {
       return super.write(JSON.stringify(obj))
@@ -93,8 +94,9 @@ function prettify (data, num, opts) {
     }
   )
   output = trimToMaxWidth(output)
-  if (opts.color)
+  if (opts.color) {
     output = highlightSearchTerms(output, opts.args)
+  }
 
   return output
 }

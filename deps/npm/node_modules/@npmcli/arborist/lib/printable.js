@@ -87,7 +87,7 @@ class ArboristNode {
     // fsChildren sorted by path
     if (tree.fsChildren.size) {
       this.fsChildren = new Set([...tree.fsChildren]
-        .sort(({path: a}, {path: b}) => localeCompare(a, b))
+        .sort(({ path: a }, { path: b }) => localeCompare(a, b))
         .map(tree => printableTree(tree, path)))
     }
 
@@ -114,7 +114,7 @@ class ArboristLink extends ArboristNode {
   }
 }
 
-const treeError = ({code, path}) => ({
+const treeError = ({ code, path }) => ({
   code,
   ...(path ? { path } : {}),
 })

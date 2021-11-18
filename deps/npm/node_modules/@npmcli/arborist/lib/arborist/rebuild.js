@@ -2,13 +2,13 @@
 // bundle building needed.  Called by reify, and by `npm rebuild`.
 
 const localeCompare = require('@isaacs/string-locale-compare')('en')
-const {depth: dfwalk} = require('treeverse')
+const { depth: dfwalk } = require('treeverse')
 const promiseAllRejectLate = require('promise-all-reject-late')
 const rpj = require('read-package-json-fast')
 const binLinks = require('bin-links')
 const runScript = require('@npmcli/run-script')
 const promiseCallLimit = require('promise-call-limit')
-const {resolve} = require('path')
+const { resolve } = require('path')
 const {
   isNodeGypPackage,
   defaultGypInstallScript,
@@ -220,7 +220,7 @@ module.exports = cls => class Builder extends cls {
     }
 
     if (this[_oldMeta] === null) {
-      const {root: {meta}} = node
+      const { root: { meta } } = node
       this[_oldMeta] = meta && meta.loadedFromDisk &&
         !(meta.originalLockfileVersion >= 2)
     }
@@ -242,7 +242,7 @@ module.exports = cls => class Builder extends cls {
       const pkg = await rpj(node.path + '/package.json').catch(() => ({}))
       set.delete(node)
 
-      const {scripts = {}} = pkg
+      const { scripts = {} } = pkg
       node.package.scripts = scripts
       return this[_addToBuildSet](node, set, true)
     }
@@ -319,9 +319,9 @@ module.exports = cls => class Builder extends cls {
       }
       const p = runScript(runOpts).catch(er => {
         const { code, signal } = er
-        this.log.info('run', pkg._id, event, {code, signal})
+        this.log.info('run', pkg._id, event, { code, signal })
         throw er
-      }).then(({args, code, signal, stdout, stderr}) => {
+      }).then(({ args, code, signal, stdout, stderr }) => {
         this.scriptsRun.add({
           pkg,
           path,
@@ -333,7 +333,7 @@ module.exports = cls => class Builder extends cls {
           stdout,
           stderr,
         })
-        this.log.info('run', pkg._id, event, {code, signal})
+        this.log.info('run', pkg._id, event, { code, signal })
       })
 
       await (this[_doHandleOptionalFailure]

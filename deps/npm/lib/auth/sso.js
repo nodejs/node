@@ -25,8 +25,9 @@ const pollForSession = ({ registry, token, opts }) => {
         return sleep(opts.ssoPollFrequency).then(() => {
           return pollForSession({ registry, token, opts })
         })
-      } else
+      } else {
         throw err
+      }
     }
   )
 }
@@ -41,8 +42,9 @@ const login = async (npm, { creds, registry, scope }) => {
   const opts = { ...npm.flatOptions, creds, registry, scope }
   const { ssoType } = opts
 
-  if (!ssoType)
+  if (!ssoType) {
     throw new Error('Missing option: sso-type')
+  }
 
   // We're reusing the legacy login endpoint, so we need some dummy
   // stuff here to pass validation. They're never used.
@@ -57,10 +59,12 @@ const login = async (npm, { creds, registry, scope }) => {
     opts => profile.loginCouch(auth.username, auth.password, opts)
   )
 
-  if (!token)
+  if (!token) {
     throw new Error('no SSO token returned')
-  if (!sso)
+  }
+  if (!sso) {
     throw new Error('no SSO URL returned by services')
+  }
 
   await openUrl(npm, sso, 'to complete your login please visit')
 

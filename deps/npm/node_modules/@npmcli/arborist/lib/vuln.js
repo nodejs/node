@@ -11,7 +11,7 @@
 //   @npmcli/metavuln-calculator
 // - via: dependency vulns which cause this one
 
-const {satisfies, simplifyRange} = require('semver')
+const { satisfies, simplifyRange } = require('semver')
 const semverOpt = { loose: true, includePrerelease: true }
 
 const localeCompare = require('@isaacs/string-locale-compare')('en')

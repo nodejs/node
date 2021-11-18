@@ -9,20 +9,12 @@ const authTypes = {
 }
 
 class AddUser extends BaseCommand {
-  static get description () {
-    return 'Add a registry user account'
-  }
-
-  static get name () {
-    return 'adduser'
-  }
-
-  static get params () {
-    return [
-      'registry',
-      'scope',
-    ]
-  }
+  static description = 'Add a registry user account'
+  static name = 'adduser'
+  static params = [
+    'registry',
+    'scope',
+  ]
 
   async exec (args) {
     const { scope } = this.npm.flatOptions
@@ -54,8 +46,9 @@ class AddUser extends BaseCommand {
     if (scope) {
       const scopedRegistry = this.npm.config.get(`${scope}:registry`)
       const cliRegistry = this.npm.config.get('registry', 'cli')
-      if (scopedRegistry && !cliRegistry)
+      if (scopedRegistry && !cliRegistry) {
         return scopedRegistry
+      }
     }
     return registry
   }
@@ -63,8 +56,9 @@ class AddUser extends BaseCommand {
   getAuthType ({ authType }) {
     const type = authTypes[authType]
 
-    if (!type)
+    if (!type) {
       throw new Error('no such auth module')
+    }
 
     return type
   }
@@ -72,8 +66,9 @@ class AddUser extends BaseCommand {
   async updateConfig ({ newCreds, registry, scope }) {
     this.npm.config.delete('_token', 'user') // prevent legacy pollution
     this.npm.config.setCredentialsByURI(registry, newCreds)
-    if (scope)
+    if (scope) {
       this.npm.config.set(scope + ':registry', registry, 'user')
+    }
     await this.npm.config.save('user')
   }
 }

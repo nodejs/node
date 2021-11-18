@@ -8,11 +8,11 @@ module.exports = otplease
 function otplease (opts, fn) {
   opts = { prompt, ...opts }
   return Promise.resolve().then(() => fn(opts)).catch(err => {
-    if (!isOtpError(err))
+    if (!isOtpError(err)) {
       throw err
-    else if (!process.stdin.isTTY || !process.stdout.isTTY)
+    } else if (!process.stdin.isTTY || !process.stdout.isTTY) {
       throw err
-    else {
+    } else {
       return readUserInfo.otp(opts.prompt)
         .then(otp => fn({ ...opts, otp }))
     }

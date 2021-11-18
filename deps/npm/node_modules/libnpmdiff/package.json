@@ -46,11 +46,7 @@
     ]
   },
   "devDependencies": {
-    "eslint": "^7.28.0",
-    "eslint-plugin-import": "^2.23.4",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^5.1.0",
-    "eslint-plugin-standard": "^5.0.0",
+    "eslint": "^8.1.0",
     "tap": "^15.0.9"
   },
   "dependencies": {

@@ -14,8 +14,9 @@ const installTest = new InstallTest({
       installArgs = args
       installCalled = true
     }
-    if (installError)
+    if (installError) {
       throw installError
+    }
 
     if (cmd === 'test') {
       testArgs = args

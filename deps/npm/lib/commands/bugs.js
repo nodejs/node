@@ -5,26 +5,15 @@ const hostedFromMani = require('../utils/hosted-git-info-from-manifest.js')
 const BaseCommand = require('../base-command.js')
 
 class Bugs extends BaseCommand {
-  static get description () {
-    return 'Report bugs for a package in a web browser'
-  }
-
-  static get name () {
-    return 'bugs'
-  }
-
-  static get usage () {
-    return ['[<pkgname>]']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return ['browser', 'registry']
-  }
+  static description = 'Report bugs for a package in a web browser'
+  static name = 'bugs'
+  static usage = ['[<pkgname>]']
+  static params = ['browser', 'registry']
 
   async exec (args) {
-    if (!args || !args.length)
+    if (!args || !args.length) {
       args = ['.']
+    }
 
     await Promise.all(args.map(pkg => this.getBugs(pkg)))
   }
@@ -39,20 +28,24 @@ class Bugs extends BaseCommand {
 
   getBugsUrl (mani) {
     if (mani.bugs) {
-      if (typeof mani.bugs === 'string')
+      if (typeof mani.bugs === 'string') {
         return mani.bugs
+      }
 
-      if (typeof mani.bugs === 'object' && mani.bugs.url)
+      if (typeof mani.bugs === 'object' && mani.bugs.url) {
         return mani.bugs.url
+      }
 
-      if (typeof mani.bugs === 'object' && mani.bugs.email)
+      if (typeof mani.bugs === 'object' && mani.bugs.email) {
         return `mailto:${mani.bugs.email}`
+      }
     }
 
     // try to get it from the repo, if possible
     const info = hostedFromMani(mani)
-    if (info)
+    if (info) {
       return info.bugs()
+    }
 
     // just send them to the website, hopefully that has some info!
     return `https://www.npmjs.com/package/${mani.name}`

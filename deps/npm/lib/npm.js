@@ -14,18 +14,19 @@ const timers = new Map()
 // Finished timers
 const timings = {}
 
-const processOnTimeHandler = (name) => {
+const processOnTimeHandler = name => {
   timers.set(name, Date.now())
 }
 
-const processOnTimeEndHandler = (name) => {
+const processOnTimeEndHandler = name => {
   if (timers.has(name)) {
     const ms = Date.now() - timers.get(name)
     log.timing(name, `Completed in ${ms}ms`)
     timings[name] = ms
     timers.delete(name)
-  } else
+  } else {
     log.silly('timing', "Tried to end timer that doesn't exist:", name)
+  }
 }
 
 const { definitions, flatten, shorthands } = require('./utils/config/index.js')
@@ -113,17 +114,23 @@ class Npm extends EventEmitter {
     // Options are prefixed by a hyphen-minus (-, \u2d).
     // Other dash-type chars look similar but are invalid.
     if (!warnedNonDashArg) {
-      args.filter(arg => /^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg))
+      args
+        .filter(arg => /^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg))
         .forEach(arg => {
           warnedNonDashArg = true
-          this.log.error('arg', 'Argument starts with non-ascii dash, this is probably invalid:', arg)
+          this.log.error(
+            'arg',
+            'Argument starts with non-ascii dash, this is probably invalid:',
+            arg
+          )
         })
     }
 
     const workspacesEnabled = this.config.get('workspaces')
     const workspacesFilters = this.config.get('workspace')
-    if (workspacesEnabled === false && workspacesFilters.length > 0)
+    if (workspacesEnabled === false && workspacesFilters.length > 0) {
       throw new Error('Can not use --no-workspaces and --workspace at the same time')
+    }
 
     const filterByWorkspaces = workspacesEnabled || workspacesFilters.length > 0
     // normally this would go in the constructor, but our tests don't
@@ -141,8 +148,9 @@ class Npm extends EventEmitter {
       return
     }
     if (filterByWorkspaces) {
-      if (this.config.get('global'))
+      if (this.config.get('global')) {
         throw new Error('Workspaces not supported for global packages')
+      }
 
       return command.execWorkspaces(args, this.config.get('workspace')).finally(() => {
         process.emit('timeEnd', `command:${cmd}`)
@@ -159,16 +167,20 @@ class Npm extends EventEmitter {
       process.emit('time', 'npm:load')
       this.log.pause()
       this.loadPromise = new Promise((resolve, reject) => {
-        this[_load]().catch(er => er).then((er) => {
-          this.loadErr = er
-          if (!er && this.config.get('force'))
-            this.log.warn('using --force', 'Recommended protections disabled.')
+        this[_load]()
+          .catch(er => er)
+          .then(er => {
+            this.loadErr = er
+            if (!er && this.config.get('force')) {
+              this.log.warn('using --force', 'Recommended protections disabled.')
+            }
 
-          process.emit('timeEnd', 'npm:load')
-          if (er)
-            return reject(er)
-          resolve()
-        })
+            process.emit('timeEnd', 'npm:load')
+            if (er) {
+              return reject(er)
+            }
+            resolve()
+          })
       })
     }
     return this.loadPromise
@@ -215,7 +227,8 @@ class Npm extends EventEmitter {
     // args keeps those from being leaked.
     process.emit('time', 'npm:load:setTitle')
     const tokrev = deref(this.argv[0]) === 'token' && this.argv[1] === 'revoke'
-    this.title = tokrev ? 'npm token revoke' + (this.argv[2] ? ' ***' : '')
+    this.title = tokrev
+      ? 'npm token revoke' + (this.argv[2] ? ' ***' : '')
       : ['npm', ...this.argv].join(' ')
     process.emit('timeEnd', 'npm:load:setTitle')
 
@@ -232,20 +245,21 @@ class Npm extends EventEmitter {
 
     process.emit('time', 'npm:load:configScope')
     const configScope = this.config.get('scope')
-    if (configScope && !/^@/.test(configScope))
+    if (configScope && !/^@/.test(configScope)) {
       this.config.set('scope', `@${configScope}`, this.config.find('scope'))
+    }
     process.emit('timeEnd', 'npm:load:configScope')
 
     process.emit('time', 'npm:load:projectScope')
-    this.projectScope = this.config.get('scope') ||
-      getProjectScope(this.prefix)
+    this.projectScope = this.config.get('scope') || getProjectScope(this.prefix)
     process.emit('timeEnd', 'npm:load:projectScope')
   }
 
   get flatOptions () {
     const { flat } = this.config
-    if (this.command)
+    if (this.command) {
       flat.npmCommand = this.command
+    }
     return flat
   }
 
@@ -298,7 +312,7 @@ class Npm extends EventEmitter {
   }
 
   get dir () {
-    return (this.config.get('global')) ? this.globalDir : this.localDir
+    return this.config.get('global') ? this.globalDir : this.localDir
   }
 
   get globalBin () {

@@ -21,11 +21,13 @@ const cleanLogs = () => {
 const yesterday = new Date(Date.now() - 1000 * 60 * 60 * 25)
 
 const packument = (nv, opts) => {
-  if (!opts.fullMetadata)
+  if (!opts.fullMetadata) {
     throw new Error('must fetch fullMetadata')
+  }
 
-  if (!opts.preferOnline)
+  if (!opts.preferOnline) {
     throw new Error('must fetch with preferOnline')
+  }
 
   const mocks = {
     red: {
@@ -192,8 +194,9 @@ const packument = (nv, opts) => {
           license: {},
           dependencies: (() => {
             const deps = {}
-            for (let i = 0; i < 25; i++)
+            for (let i = 0; i < 25; i++) {
               deps[i] = '1.0.0'
+            }
 
             return deps
           })(),
@@ -255,8 +258,9 @@ const packument = (nv, opts) => {
       },
     },
   }
-  if (nv.type === 'git')
+  if (nv.type === 'git') {
     return mocks[nv.hosted.project]
+  }
   return mocks[nv.name]
 }
 
@@ -528,7 +532,7 @@ t.test('throws when unpublished', async t => {
   const view = new View(npm)
   await t.rejects(
     view.exec(['red']),
-    { code: 'E404'}
+    { code: 'E404' }
   )
 })
 
@@ -654,7 +658,7 @@ t.test('no registry completion', async t => {
     },
   })
   const view = new View(npm)
-  const res = await view.completion({conf: { argv: { remain: ['npm', 'view'] } } })
+  const res = await view.completion({ conf: { argv: { remain: ['npm', 'view'] } } })
   t.notOk(res, 'there is no package completion')
   t.end()
 })

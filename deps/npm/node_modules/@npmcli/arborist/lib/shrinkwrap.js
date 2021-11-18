@@ -35,7 +35,7 @@ const mismatch = (a, b) => a && b && a !== b
 
 const procLog = require('proc-log')
 const YarnLock = require('./yarn-lock.js')
-const {promisify} = require('util')
+const { promisify } = require('util')
 const rimraf = promisify(require('rimraf'))
 const fs = require('fs')
 const readFile = promisify(fs.readFile)
@@ -180,7 +180,7 @@ const assertNoNewer = async (path, data, lockTime, dir = path, seen = null) => {
 
   const parent = isParent ? dir : resolve(dir, 'node_modules')
   const children = dir === path
-    ? Promise.resolve([{name: 'node_modules', isDirectory: () => true }])
+    ? Promise.resolve([{ name: 'node_modules', isDirectory: () => true }])
     : readdir(parent, { withFileTypes: true })
 
   return children.catch(() => [])
@@ -366,7 +366,7 @@ class Shrinkwrap {
     if (fromYarn && fromYarn.version) {
       // if it's the yarn or npm default registry, use the version as
       // our effective spec.  if it's any other kind of thing, use that.
-      const {resolved, version, integrity} = fromYarn
+      const { resolved, version, integrity } = fromYarn
       const isYarnReg = spec.registry && yarnRegRe.test(resolved)
       const isnpmReg = spec.registry && !isYarnReg && npmRegRe.test(resolved)
       const isReg = isnpmReg || isYarnReg
@@ -1062,7 +1062,7 @@ class Shrinkwrap {
     }
 
     // now we walk the children, putting them in the 'dependencies' object
-    const {children} = node.target
+    const { children } = node.target
     if (!children.size) {
       delete lock.dependencies
     } else {

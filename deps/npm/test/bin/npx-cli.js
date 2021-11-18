@@ -6,7 +6,7 @@ const npm = require.resolve('../../bin/npm-cli.js')
 const logs = []
 console.error = (...msg) => logs.push(msg)
 
-t.afterEach(() => logs.length = 0)
+t.afterEach(() => (logs.length = 0))
 
 t.test('npx foo -> npm exec -- foo', t => {
   process.argv = ['node', npx, 'foo']
@@ -39,7 +39,17 @@ t.test('npx --x=y --no-install foo -z -> npm exec --x=y -- foo -z', t => {
 t.test('transform renamed options into proper values', t => {
   process.argv = ['node', npx, '-y', '--shell=bash', '-p', 'foo', '-c', 'asdf']
   t.mock(npx, { [cli]: () => {} })
-  t.strictSame(process.argv, ['node', npm, 'exec', '--yes', '--script-shell=bash', '--package', 'foo', '--call', 'asdf'])
+  t.strictSame(process.argv, [
+    'node',
+    npm,
+    'exec',
+    '--yes',
+    '--script-shell=bash',
+    '--package',
+    'foo',
+    '--call',
+    'asdf',
+  ])
   t.end()
 })
 

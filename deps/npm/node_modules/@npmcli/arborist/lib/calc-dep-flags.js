@@ -38,7 +38,7 @@ const calcDepFlagsStep = (node) => {
     return calcDepFlagsStep(node.target)
   }
 
-  node.edgesOut.forEach(({peer, optional, dev, to}) => {
+  node.edgesOut.forEach(({ peer, optional, dev, to }) => {
     // if the dep is missing, then its flags are already maximally unset
     if (!to) {
       return

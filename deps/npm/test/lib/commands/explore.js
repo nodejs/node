@@ -11,7 +11,7 @@ const mockRPJ = async path => {
     }
   }
   RPJ_CALLED = path
-  return {some: 'package'}
+  return { some: 'package' }
 }
 
 let RUN_SCRIPT_ERROR = null
@@ -19,8 +19,9 @@ let RUN_SCRIPT_EXIT_CODE = 0
 let RUN_SCRIPT_SIGNAL = null
 let RUN_SCRIPT_EXEC = null
 const mockRunScript = ({ pkg, banner, path, event, stdio }) => {
-  if (event !== '_explore')
+  if (event !== '_explore') {
     throw new Error('got wrong event name')
+  }
 
   RUN_SCRIPT_EXEC = pkg.scripts._explore
 

@@ -32,8 +32,9 @@ npm@${npm.version} ${dirname(dirname(__dirname))}`
 }
 
 const allCommands = async (npm) => {
-  if (npm.config.get('long'))
+  if (npm.config.get('long')) {
     return usages(npm)
+  }
   return ('\n    ' + wrap(cmdList))
 }
 
@@ -45,9 +46,9 @@ const wrap = (arr) => {
 
   let l = 0
   for (const c of arr.sort((a, b) => a < b ? -1 : 1)) {
-    if (out[l].length + c.length + 2 < line)
+    if (out[l].length + c.length + 2 < line) {
       out[l] += ', ' + c
-    else {
+    } else {
       out[l++] += ','
       out[l] = c
     }
