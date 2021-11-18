@@ -446,7 +446,7 @@ For information about the governance of the Node.js project, see
 * [vdeturckheim](https://github.com/vdeturckheim) -
   **Vladimir de Turckheim** <<vlad2t@hotmail.com>> (he/him)
 * [VoltrexMaster](https://github.com/VoltrexMaster) -
-  **Voltrex** <<mohammadkeyvanzade94@gmail.com>> (he/him)
+  **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
 * [watilde](https://github.com/watilde) -
   **Daijiro Wachi** <<daijiro.wachi@gmail.com>> (he/him)
 * [watson](https://github.com/watson) -
@@ -648,7 +648,7 @@ maintaining the Node.js project.
 * [RaisinTen](https://github.com/RaisinTen) -
   **Darshan Sen** <<raisinten@gmail.com>>
 * [VoltrexMaster](https://github.com/VoltrexMaster) -
-  **Voltrex** <<mohammadkeyvanzade94@gmail.com>> (he/him)
+  **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
 
 ### Release keys
 
