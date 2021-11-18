@@ -11,7 +11,8 @@ t.test('splitPackageNames', t => {
     ['@npmcli/one/semver', '@npmcli/one/node_modules/semver'],
   ]
 
-  for (const [input, expected] of assertions)
+  for (const [input, expected] of assertions) {
     t.equal(splitPackageNames(input), expected, `split ${input} correctly`)
+  }
   t.end()
 })

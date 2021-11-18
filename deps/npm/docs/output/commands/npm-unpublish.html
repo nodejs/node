@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-unpublish</title>
 <style>
 body {
@@ -161,7 +162,7 @@ want to maintain a package.</p>
 removing the tarball.</p>
 <p>The npm registry will return an error if you are not <a href="../commands/npm-adduser.html">logged
 in</a>.</p>
-<p>If you do not specify a version or if you remove all of a package’s
+<p>If you do not specify a version or if you remove all of a package's
 versions then the registry will remove the root package entry entirely.</p>
 <p>Even if you unpublish a package version, that specific name and version
 combination can never be reused. In order to publish the package again,
@@ -177,7 +178,7 @@ passed.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Indicates that you don’t want npm to make any changes and that it should
+<p>Indicates that you don't want npm to make any changes and that it should
 only report what it would have done. This can be passed into any of the
 commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
@@ -207,7 +208,7 @@ range (including SemVer-major changes).</li>
 <li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
 <li>Allow clobbering existing values in <code>npm pkg</code></li>
 </ul>
-<p>If you don’t have a clear idea of what you want to do, it is strongly
+<p>If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

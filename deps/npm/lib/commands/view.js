@@ -20,30 +20,16 @@ const readJson = async file => jsonParse(await readFile(file, 'utf8'))
 const Queryable = require('../utils/queryable.js')
 const BaseCommand = require('../base-command.js')
 class View extends BaseCommand {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'View registry info'
-  }
+  static description = 'View registry info'
+  static name = 'view'
+  static params = [
+    'json',
+    'workspace',
+    'workspaces',
+    'include-workspace-root',
+  ]
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'json',
-      'workspace',
-      'workspaces',
-      'include-workspace-root',
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'view'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]']
-  }
+  static usage = ['[<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]']
 
   async completion (opts) {
     if (opts.conf.argv.remain.length <= 2) {
@@ -67,44 +53,51 @@ class View extends BaseCommand {
 
     function getFields (d, f, pref) {
       f = f || []
-      if (!d)
+      if (!d) {
         return f
+      }
       pref = pref || []
       Object.keys(d).forEach((k) => {
-        if (k.charAt(0) === '_' || k.indexOf('.') !== -1)
+        if (k.charAt(0) === '_' || k.indexOf('.') !== -1) {
           return
+        }
         const p = pref.concat(k).join('.')
         f.push(p)
         if (Array.isArray(d[k])) {
           d[k].forEach((val, i) => {
             const pi = p + '[' + i + ']'
-            if (val && typeof val === 'object')
+            if (val && typeof val === 'object') {
               getFields(val, f, [p])
-            else
+            } else {
               f.push(pi)
+            }
           })
           return
         }
-        if (typeof d[k] === 'object')
+        if (typeof d[k] === 'object') {
           getFields(d[k], f, [p])
+        }
       })
       return f
     }
   }
 
   async exec (args) {
-    if (!args.length)
+    if (!args.length) {
       args = ['.']
+    }
     let pkg = args.shift()
     const local = /^\.@/.test(pkg) || pkg === '.'
 
     if (local) {
-      if (this.npm.config.get('global'))
+      if (this.npm.config.get('global')) {
         throw new Error('Cannot use view command in global mode.')
+      }
       const dir = this.npm.prefix
       const manifest = await readJson(resolve(dir, 'package.json'))
-      if (!manifest.name)
+      if (!manifest.name) {
         throw new Error('Invalid package.json, no "name" field')
+      }
       // put the version back if it existed
       pkg = `${manifest.name}${pkg.slice(1)}`
     }
@@ -131,14 +124,16 @@ class View extends BaseCommand {
       log.disableProgress()
 
       const msg = await this.jsonData(reducedData, pckmnt._id)
-      if (msg !== '')
+      if (msg !== '') {
         console.log(msg)
+      }
     }
   }
 
   async execWorkspaces (args, filters) {
-    if (!args.length)
+    if (!args.length) {
       args = ['.']
+    }
 
     const pkg = args.shift()
 
@@ -166,22 +161,25 @@ class View extends BaseCommand {
       }
 
       if (!this.npm.config.get('json')) {
-        if (wholePackument)
+        if (wholePackument) {
           data.map((v) => this.prettyView(pckmnt, v[Object.keys(v)[0]]['']))
-        else {
+        } else {
           console.log(`${name}:`)
           const msg = await this.jsonData(reducedData, pckmnt._id)
-          if (msg !== '')
+          if (msg !== '') {
             console.log(msg)
+          }
         }
       } else {
         const msg = await this.jsonData(reducedData, pckmnt._id)
-        if (msg !== '')
+        if (msg !== '') {
           results[name] = JSON.parse(msg)
+        }
       }
     }
-    if (Object.keys(results).length > 0)
+    if (Object.keys(results).length > 0) {
       console.log(JSON.stringify(results, null, 2))
+    }
   }
 
   async getData (pkg, args) {
@@ -196,13 +194,15 @@ class View extends BaseCommand {
     // get the data about this package
     let version = this.npm.config.get('tag')
     // rawSpec is the git url if this is from git
-    if (spec.type !== 'git' && spec.rawSpec)
+    if (spec.type !== 'git' && spec.rawSpec) {
       version = spec.rawSpec
+    }
 
     const pckmnt = await packument(spec, opts)
 
-    if (pckmnt['dist-tags'] && pckmnt['dist-tags'][version])
+    if (pckmnt['dist-tags'] && pckmnt['dist-tags'][version]) {
       version = pckmnt['dist-tags'][version]
+    }
 
     if (pckmnt.time && pckmnt.time.unpublished) {
       const u = pckmnt.time.unpublished
@@ -218,15 +218,17 @@ class View extends BaseCommand {
     pckmnt.versions = Object.keys(versions).sort(semver.compareLoose)
 
     // remove readme unless we asked for it
-    if (args.indexOf('readme') === -1)
+    if (args.indexOf('readme') === -1) {
       delete pckmnt.readme
+    }
 
     Object.keys(versions).forEach((v) => {
       if (semver.satisfies(v, version, true)) {
         args.forEach(arg => {
           // remove readme unless we asked for it
-          if (args.indexOf('readme') !== -1)
+          if (args.indexOf('readme') !== -1) {
             delete versions[v].readme
+          }
 
           data.push(showFields(pckmnt, versions[v], arg))
         })
@@ -237,8 +239,9 @@ class View extends BaseCommand {
       !this.npm.config.get('json') &&
       args.length === 1 &&
       args[0] === ''
-    )
+    ) {
       pckmnt.version = version
+    }
 
     return [pckmnt, data]
   }
@@ -254,17 +257,19 @@ class View extends BaseCommand {
     versions.forEach((v) => {
       const fields = Object.keys(data[v])
       includeFields = includeFields || (fields.length > 1)
-      if (json)
+      if (json) {
         msgJson.push({})
+      }
       fields.forEach((f) => {
         let d = cleanup(data[v][f])
-        if (fields.length === 1 && json)
+        if (fields.length === 1 && json) {
           msgJson[msgJson.length - 1][f] = d
+        }
 
         if (includeVersions || includeFields || typeof d !== 'string') {
-          if (json)
+          if (json) {
             msgJson[msgJson.length - 1][f] = d
-          else {
+          } else {
             d = inspect(d, {
               showHidden: false,
               depth: 5,
@@ -272,12 +277,14 @@ class View extends BaseCommand {
               maxArrayLength: null,
             })
           }
-        } else if (typeof d === 'string' && json)
+        } else if (typeof d === 'string' && json) {
           d = JSON.stringify(d)
+        }
 
         if (!json) {
-          if (f && includeFields)
+          if (f && includeFields) {
             f += ' = '
+          }
           msg += (includeVersions ? name + '@' + v + ' ' : '') +
             (includeFields ? f : '') + d + '\n'
         }
@@ -289,10 +296,11 @@ class View extends BaseCommand {
         const k = Object.keys(msgJson[0])[0]
         msgJson = msgJson.map(m => m[k])
       }
-      if (msgJson.length === 1)
+      if (msgJson.length === 1) {
         msg = JSON.stringify(msgJson[0], null, 2) + '\n'
-      else if (msgJson.length > 1)
+      } else if (msgJson.length > 1) {
         msg = JSON.stringify(msgJson, null, 2) + '\n'
+      }
     }
 
     return msg.trim()
@@ -351,10 +359,11 @@ class View extends BaseCommand {
         manifest.dist.fileCount && color.yellow(manifest.dist.fileCount),
       unpackedSize: unpackedSize && color.yellow(unpackedSize),
     }
-    if (info.license.toLowerCase().trim() === 'proprietary')
+    if (info.license.toLowerCase().trim() === 'proprietary') {
       info.license = style.bright(color.red(info.license))
-    else
+    } else {
       info.license = color.green(info.license)
+    }
 
     console.log('')
     console.log(
@@ -364,8 +373,9 @@ class View extends BaseCommand {
       ' | versions: ' + info.versions
     )
     info.description && console.log(info.description)
-    if (info.repo || info.site)
+    if (info.repo || info.site) {
       info.site && console.log(color.cyan(info.site))
+    }
 
     const warningSign = unicode ? ' ⚠️ ' : '!!'
     info.deprecated && console.log(
@@ -396,8 +406,9 @@ class View extends BaseCommand {
       console.log('')
       console.log('dependencies:')
       console.log(columns(info.deps.slice(0, maxDeps), { padding: 1 }))
-      if (info.deps.length > maxDeps)
+      if (info.deps.length > maxDeps) {
         console.log(`(...and ${info.deps.length - maxDeps} more.)`)
+      }
     }
 
     if (info.maintainers && info.maintainers.length) {
@@ -412,10 +423,12 @@ class View extends BaseCommand {
 
     if (info.publisher || info.modified) {
       let publishInfo = 'published'
-      if (info.modified)
+      if (info.modified) {
         publishInfo += ` ${info.modified}`
-      if (info.publisher)
+      }
+      if (info.publisher) {
         publishInfo += ` by ${info.publisher}`
+      }
       console.log('')
       console.log(publishInfo)
     }
@@ -458,24 +471,28 @@ function showFields (data, version, fields) {
   const s = queryable.query(fields)
   const res = { [version.version]: s }
 
-  if (s)
+  if (s) {
     return res
+  }
 }
 
 function cleanup (data) {
-  if (Array.isArray(data))
+  if (Array.isArray(data)) {
     return data.map(cleanup)
+  }
 
-  if (!data || typeof data !== 'object')
+  if (!data || typeof data !== 'object') {
     return data
+  }
 
   const keys = Object.keys(data)
   if (keys.length <= 3 &&
       data.name &&
       (keys.length === 1 ||
        (keys.length === 3 && data.email && data.url) ||
-       (keys.length === 2 && (data.email || data.url))))
+       (keys.length === 2 && (data.email || data.url)))) {
     data = unparsePerson(data)
+  }
 
   return data
 }

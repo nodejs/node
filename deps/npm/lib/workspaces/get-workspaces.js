@@ -10,18 +10,21 @@ const getWorkspaces = async (filters, { path, includeWorkspaceRoot }) => {
   const pkg = await rpj(resolve(path, 'package.json'))
   const workspaces = await mapWorkspaces({ cwd: path, pkg })
   let res = new Map()
-  if (includeWorkspaceRoot)
+  if (includeWorkspaceRoot) {
     res.set(pkg.name, path)
+  }
 
-  if (!filters.length)
+  if (!filters.length) {
     res = new Map([...res, ...workspaces])
+  }
 
   for (const filterArg of filters) {
     for (const [workspaceName, workspacePath] of workspaces.entries()) {
       if (filterArg === workspaceName
         || resolve(path, filterArg) === workspacePath
-        || minimatch(workspacePath, `${resolve(path, filterArg)}/*`))
+        || minimatch(workspacePath, `${resolve(path, filterArg)}/*`)) {
         res.set(workspaceName, workspacePath)
+      }
     }
   }
 

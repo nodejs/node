@@ -43,20 +43,25 @@ const printNode = (node, color) => {
   } = node
   const { bold, dim, green } = color ? chalk : nocolor
   const extra = []
-  if (extraneous)
+  if (extraneous) {
     extra.push(' ' + bold(colorType('extraneous', color)))
+  }
 
-  if (dev)
+  if (dev) {
     extra.push(' ' + bold(colorType('dev', color)))
+  }
 
-  if (optional)
+  if (optional) {
     extra.push(' ' + bold(colorType('optional', color)))
+  }
 
-  if (peer)
+  if (peer) {
     extra.push(' ' + bold(colorType('peer', color)))
+  }
 
-  if (bundled)
+  if (bundled) {
     extra.push(' ' + bold(colorType('bundled', color)))
+  }
 
   const pkgid = isWorkspace
     ? green(`${name}@${version}`)
@@ -67,8 +72,9 @@ const printNode = (node, color) => {
 }
 
 const explainLinksIn = ({ linksIn }, depth, color) => {
-  if (!linksIn || !linksIn.length || depth <= 0)
+  if (!linksIn || !linksIn.length || depth <= 0) {
     return ''
+  }
 
   const messages = linksIn.map(link => explainNode(link, depth - 1, color))
   const str = '\n' + messages.join('\n')
@@ -76,8 +82,9 @@ const explainLinksIn = ({ linksIn }, depth, color) => {
 }
 
 const explainDependents = ({ name, dependents }, depth, color) => {
-  if (!dependents || !dependents.length || depth <= 0)
+  if (!dependents || !dependents.length || depth <= 0) {
     return ''
+  }
 
   const max = Math.ceil(depth / 2)
   const messages = dependents.slice(0, max)
@@ -118,8 +125,9 @@ const explainEdge = ({ name, type, bundled, from, spec }, depth, color) => {
 }
 
 const explainFrom = (from, depth, color) => {
-  if (!from.name && !from.version)
+  if (!from.name && !from.version) {
     return 'the root project'
+  }
 
   return printNode(from, color) +
     explainDependents(from, depth - 1, color) +

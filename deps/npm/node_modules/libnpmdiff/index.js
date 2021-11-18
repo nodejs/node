@@ -14,8 +14,9 @@ const argsError = () =>
     { code: 'EDIFFARGS' }
   )
 const diff = async (specs, opts = {}) => {
-  if (specs.length !== 2)
+  if (specs.length !== 2) {
     throw argsError()
+  }
 
   const [
     aManifest,

@@ -31,8 +31,9 @@ const npm = {
   dir: resolve(__dirname, '../../../node_modules'),
   exec: async (cmd, args) => {
     rebuildArgs = args
-    if (rebuildFail)
+    if (rebuildFail) {
       throw rebuildFail
+    }
   },
 }
 

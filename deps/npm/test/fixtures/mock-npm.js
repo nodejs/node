@@ -9,8 +9,9 @@ procLog.reset()
 require('events').defaultMaxListeners = Infinity
 
 const realLog = {}
-for (const level in npmlog.levels)
+for (const level in npmlog.levels) {
   realLog[level] = npmlog[level]
+}
 
 const { title, execPath } = process
 
@@ -24,6 +25,7 @@ const RealMockNpm = (t, otherMocks = {}) => {
   mock.joinedOutput = () => {
     return mock.outputs.map(o => o.join(' ')).join('\n')
   }
+  mock.filteredLogs = title => mock.logs.filter(([t]) => t === title).map(([, , msg]) => msg)
   const Npm = t.mock('../../lib/npm.js', otherMocks)
   class MockNpm extends Npm {
     constructor () {
@@ -53,8 +55,9 @@ const RealMockNpm = (t, otherMocks = {}) => {
     process.removeAllListeners('time')
     process.removeAllListeners('timeEnd')
     npmlog.record.length = 0
-    for (const level in npmlog.levels)
+    for (const level in npmlog.levels) {
       npmlog[level] = realLog[level]
+    }
     procLog.reset()
     process.title = title
     process.execPath = execPath
@@ -79,18 +82,19 @@ class MockNpm {
     const config = base.config || {}
 
     for (const attr in base) {
-      if (attr !== 'config')
+      if (attr !== 'config') {
         this[attr] = base[attr]
+      }
     }
 
     this.flatOptions = base.flatOptions || {}
     this.config = {
       // for now just set `find` to what config.find should return
       // this works cause `find` is not an existing config entry
-      find: (k) => ({...realConfig.defaults, ...config})[k],
-      get: (k) => ({...realConfig.defaults, ...config})[k],
+      find: (k) => ({ ...realConfig.defaults, ...config })[k],
+      get: (k) => ({ ...realConfig.defaults, ...config })[k],
       set: (k, v) => config[k] = v,
-      list: [{ ...realConfig.defaults, ...config}],
+      list: [{ ...realConfig.defaults, ...config }],
     }
     if (!this.log) {
       this.log = {
@@ -110,8 +114,9 @@ class MockNpm {
   }
 
   output (...msg) {
-    if (this.base.output)
+    if (this.base.output) {
       return this.base.output(msg)
+    }
     this._mockOutputs.push(msg)
   }
 }

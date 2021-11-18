@@ -9,10 +9,10 @@ themes.addTheme('ASCII', {
   postProgressbar: ']',
   progressbarTheme: {
     complete: '#',
-    remaining: '.'
+    remaining: '.',
   },
   activityIndicatorTheme: '-\\|/',
-  preSubsection: '>'
+  preSubsection: '>',
 })
 
 themes.addTheme('colorASCII', themes.getTheme('ASCII'), {
@@ -22,8 +22,8 @@ themes.addTheme('colorASCII', themes.getTheme('ASCII'), {
     postComplete: color('reset'),
     preRemaining: color('bgBrightBlack', 'brightBlack'),
     remaining: '.',
-    postRemaining: color('reset')
-  }
+    postRemaining: color('reset'),
+  },
 })
 
 themes.addTheme('brailleSpinner', {
@@ -31,10 +31,10 @@ themes.addTheme('brailleSpinner', {
   postProgressbar: '⸩',
   progressbarTheme: {
     complete: '#',
-    remaining: '⠂'
+    remaining: '⠂',
   },
   activityIndicatorTheme: '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏',
-  preSubsection: '>'
+  preSubsection: '>',
 })
 
 themes.addTheme('colorBrailleSpinner', themes.getTheme('brailleSpinner'), {
@@ -44,13 +44,13 @@ themes.addTheme('colorBrailleSpinner', themes.getTheme('brailleSpinner'), {
     postComplete: color('reset'),
     preRemaining: color('bgBrightBlack', 'brightBlack'),
     remaining: '⠂',
-    postRemaining: color('reset')
-  }
+    postRemaining: color('reset'),
+  },
 })
 
 themes.setDefault({}, 'ASCII')
-themes.setDefault({hasColor: true}, 'colorASCII')
-themes.setDefault({platform: 'darwin', hasUnicode: true}, 'brailleSpinner')
-themes.setDefault({platform: 'darwin', hasUnicode: true, hasColor: true}, 'colorBrailleSpinner')
-themes.setDefault({platform: 'linux', hasUnicode: true}, 'brailleSpinner')
-themes.setDefault({platform: 'linux', hasUnicode: true, hasColor: true}, 'colorBrailleSpinner')
+themes.setDefault({ hasColor: true }, 'colorASCII')
+themes.setDefault({ platform: 'darwin', hasUnicode: true }, 'brailleSpinner')
+themes.setDefault({ platform: 'darwin', hasUnicode: true, hasColor: true }, 'colorBrailleSpinner')
+themes.setDefault({ platform: 'linux', hasUnicode: true }, 'brailleSpinner')
+themes.setDefault({ platform: 'linux', hasUnicode: true, hasColor: true }, 'colorBrailleSpinner')

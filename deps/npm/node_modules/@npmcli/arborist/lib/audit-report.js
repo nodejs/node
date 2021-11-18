@@ -265,7 +265,7 @@ class AuditReport extends Map {
         avoid: vuln.range,
         avoidStrict: true,
       })
-      return {name, version, isSemVerMajor}
+      return { name, version, isSemVerMajor }
     } catch (er) {
       return false
     }
@@ -285,7 +285,7 @@ class AuditReport extends Map {
     }
 
     const bulk = {}
-    const {advisories} = report
+    const { advisories } = report
     for (const advisory of Object.values(advisories)) {
       const {
         id,
@@ -296,7 +296,7 @@ class AuditReport extends Map {
         module_name: name,
       } = advisory
       bulk[name] = bulk[name] || []
-      bulk[name].push({id, url, title, severity, vulnerable_versions})
+      bulk[name].push({ id, url, title, severity, vulnerable_versions })
     }
 
     return bulk

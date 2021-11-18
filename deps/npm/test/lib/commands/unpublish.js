@@ -150,10 +150,11 @@ t.test('unpublish <pkg>@version', async t => {
   npm.log = {
     silly (title, key, value) {
       t.equal(title, 'unpublish', 'should silly log args')
-      if (key === 'spec')
+      if (key === 'spec') {
         t.match(value, { name: 'pkg', rawSpec: '1.0.0' })
-      else
+      } else {
         t.equal(value, 'pkg@1.0.0', 'should log originally passed arg')
+      }
     },
   }
 
@@ -337,7 +338,7 @@ t.test('completion', async t => {
   const testComp =
     async (t, { unpublish, argv, partialWord, expect, title }) => {
       const res = await unpublish.completion(
-        {conf: {argv: {remain: argv}}, partialWord}
+        { conf: { argv: { remain: argv } }, partialWord }
       )
       t.strictSame(res, expect, title || argv.join(' '))
     }

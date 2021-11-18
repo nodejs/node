@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-audit</title>
 <style>
 body {
@@ -159,13 +160,13 @@ provided, then remediations will be applied to the package tree.</p>
 <p>The command will exit with a 0 exit code if no vulnerabilities were found.</p>
 <p>Note that some vulnerabilities cannot be fixed automatically and will
 require manual intervention or review.  Also note that since <code>npm audit fix</code> runs a full-fledged <code>npm install</code> under the hood, all configs that
-apply to the installer will also apply to <code>npm install</code> – so things like
+apply to the installer will also apply to <code>npm install</code> -- so things like
 <code>npm audit fix --package-lock-only</code> will work as expected.</p>
 <p>By default, the audit command will exit with a non-zero code if any
 vulnerability is found. It may be useful in CI environments to include the
 <code>--audit-level</code> parameter to specify the minimum vulnerability level that
 will cause the command to fail. This option does not filter the report
-output, it simply changes the command’s failure threshold.</p>
+output, it simply changes the command's failure threshold.</p>
 <h3 id="audit-endpoints">Audit Endpoints</h3>
 <p>There are two audit endpoints that npm may use to fetch vulnerability
 information: the <code>Bulk Advisory</code> endpoint and the <code>Quick Audit</code> endpoint.</p>
@@ -203,7 +204,7 @@ with the following pieces of additional metadata:</p>
 <p>All packages in the tree are submitted to the Quick Audit endpoint.
 Omitted dependency types are skipped when generating the report.</p>
 <h4 id="scrubbing">Scrubbing</h4>
-<p>Out of an abundance of caution, npm versions 5 and 6 would “scrub” any
+<p>Out of an abundance of caution, npm versions 5 and 6 would "scrub" any
 packages from the submitted report if their name contained a <code>/</code> character,
 so as to avoid leaking the names of potentially private packages or git
 URLs.</p>
@@ -215,12 +216,12 @@ in package trees that used git dependencies or private modules.</p>
 <h4 id="calculating-meta-vulnerabilities-and-remediations">Calculating Meta-Vulnerabilities and Remediations</h4>
 <p>npm uses the
 <a href="http://npm.im/@npmcli/metavuln-calculator"><code>@npmcli/metavuln-calculator</code></a>
-module to turn a set of security advisories into a set of “vulnerability”
-objects.  A “meta-vulnerability” is a dependency that is vulnerable by
+module to turn a set of security advisories into a set of "vulnerability"
+objects.  A "meta-vulnerability" is a dependency that is vulnerable by
 virtue of dependence on vulnerable versions of a vulnerable package.</p>
 <p>For example, if the package <code>foo</code> is vulnerable in the range <code>&gt;=1.0.2 &lt;2.0.0</code>, and the package <code>bar</code> depends on <code>foo@^1.1.0</code>, then that version
 of <code>bar</code> can only be installed by installing a vulnerable version of <code>foo</code>.
-In this case, <code>bar</code> is a “metavulnerability”.</p>
+In this case, <code>bar</code> is a "metavulnerability".</p>
 <p>Once metavulnerabilities for a given package are calculated, they are
 cached in the <code>~/.npm</code> folder and only re-evaluated if the advisory range
 changes, or a new version of the package is published (in which case, the
@@ -275,7 +276,7 @@ fixing anything:</p>
 <h4 id="audit-level"><code>audit-level</code></h4>
 <ul>
 <li>Default: null</li>
-<li>Type: null, “info”, “low”, “moderate”, “high”, “critical”, or “none”</li>
+<li>Type: null, "info", "low", "moderate", "high", "critical", or "none"</li>
 </ul>
 <p>The minimum level of vulnerability for <code>npm audit</code> to exit with a non-zero
 exit code.</p>
@@ -286,7 +287,7 @@ exit code.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Indicates that you don’t want npm to make any changes and that it should
+<p>Indicates that you don't want npm to make any changes and that it should
 only report what it would have done. This can be passed into any of the
 commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
@@ -316,7 +317,7 @@ range (including SemVer-major changes).</li>
 <li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
 <li>Allow clobbering existing values in <code>npm pkg</code></li>
 </ul>
-<p>If you don’t have a clear idea of what you want to do, it is strongly
+<p>If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -348,9 +349,9 @@ instead of checking <code>node_modules</code> and downloading dependencies.</p>
 <!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>
 <ul>
-<li>Default: ‘dev’ if the <code>NODE_ENV</code> environment variable is set to
-‘production’, otherwise empty.</li>
-<li>Type: “dev”, “optional”, or “peer” (can be set multiple times)</li>
+<li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
+'production', otherwise empty.</li>
+<li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
 <p>Note that these dependencies <em>are</em> still resolved and added to the

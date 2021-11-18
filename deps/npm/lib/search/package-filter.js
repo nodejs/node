@@ -19,13 +19,15 @@ function getWords (data, opts) {
 function filterWords (data, include, exclude, opts) {
   var words = getWords(data, opts)
   for (var i = 0, l = include.length; i < l; i++) {
-    if (!match(words, include[i]))
+    if (!match(words, include[i])) {
       return false
+    }
   }
 
   for (i = 0, l = exclude.length; i < l; i++) {
-    if (match(words, exclude[i]))
+    if (match(words, exclude[i])) {
       return false
+    }
   }
 
   return true

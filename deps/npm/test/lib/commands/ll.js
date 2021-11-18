@@ -26,7 +26,8 @@ t.test('ll', t => {
   })
 
   ll.exec(['pkg'], err => {
-    if (err)
+    if (err) {
       throw err
+    }
   })
 })

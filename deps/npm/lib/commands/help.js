@@ -13,29 +13,15 @@ const BaseCommand = require('../base-command.js')
 const manNumberRegex = /\.(\d+)(\.[^/\\]*)?$/
 
 class Help extends BaseCommand {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Get help on npm'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'help'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['<term> [<terms..>]']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return ['viewer']
-  }
+  static description = 'Get help on npm'
+  static name = 'help'
+  static usage = ['<term> [<terms..>]']
+  static params = ['viewer']
 
   async completion (opts) {
-    if (opts.conf.argv.remain.length > 2)
+    if (opts.conf.argv.remain.length > 2) {
       return []
+    }
     const g = path.resolve(__dirname, '../../man/man[0-9]/*.[0-9]')
     const files = await glob(g)
 
@@ -51,15 +37,18 @@ class Help extends BaseCommand {
     // By default we search all of our man subdirectories, but if the user has
     // asked for a specific one we limit the search to just there
     let manSearch = 'man*'
-    if (/^\d+$/.test(args[0]))
+    if (/^\d+$/.test(args[0])) {
       manSearch = `man${args.shift()}`
+    }
 
-    if (!args.length)
+    if (!args.length) {
       return this.npm.output(await this.npm.usage)
+    }
 
     // npm help foo bar baz: search topics
-    if (args.length > 1)
+    if (args.length > 1) {
       return this.helpSearch(args)
+    }
 
     let section = this.npm.deref(args[0]) || args[0]
 
@@ -76,17 +65,19 @@ class Help extends BaseCommand {
       const bManNumber = b.match(manNumberRegex)[1]
 
       // man number sort first so that 1 aka commands are preferred
-      if (aManNumber !== bManNumber)
+      if (aManNumber !== bManNumber) {
         return aManNumber - bManNumber
+      }
 
       return localeCompare(a, b)
     })
     const man = mans[0]
 
-    if (man)
+    if (man) {
       await this.viewMan(man)
-    else
+    } else {
       return this.helpSearch(args)
+    }
   }
 
   helpSearch (args) {
@@ -114,7 +105,7 @@ class Help extends BaseCommand {
         break
 
       case 'browser':
-        await openUrl(this.npm, this.htmlMan(man), 'help available at the following URL')
+        await openUrl(this.npm, this.htmlMan(man), 'help available at the following URL', true)
         return
 
       default:
@@ -125,8 +116,9 @@ class Help extends BaseCommand {
     const proc = spawn(bin, args, opts)
     return new Promise((resolve, reject) => {
       proc.on('exit', (code) => {
-        if (code)
+        if (code) {
           return reject(new Error(`help process exited with code: ${code}`))
+        }
 
         return resolve()
       })

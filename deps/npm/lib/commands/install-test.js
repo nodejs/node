@@ -4,14 +4,8 @@
 const Install = require('./install.js')
 
 class InstallTest extends Install {
-  static get description () {
-    return 'Install package(s) and run tests'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'install-test'
-  }
+  static description = 'Install package(s) and run tests'
+  static name = 'install-test'
 
   async exec (args, cb) {
     await this.npm.exec('install', args)

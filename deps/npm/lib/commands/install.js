@@ -1,5 +1,4 @@
 /* eslint-disable camelcase */
-/* eslint-disable standard/no-callback-literal */
 const fs = require('fs')
 const util = require('util')
 const readdir = util.promisify(fs.readdir)
@@ -13,51 +12,37 @@ const checks = require('npm-install-checks')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 class Install extends ArboristWorkspaceCmd {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Install a package'
-  }
+  static description = 'Install a package'
+  static name = 'install'
+  static params = [
+    'save',
+    'save-exact',
+    'global',
+    'global-style',
+    'legacy-bundling',
+    'strict-peer-deps',
+    'package-lock',
+    'omit',
+    'ignore-scripts',
+    'audit',
+    'bin-links',
+    'fund',
+    'dry-run',
+    ...super.params,
+  ]
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'install'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'save',
-      'save-exact',
-      'global',
-      'global-style',
-      'legacy-bundling',
-      'strict-peer-deps',
-      'package-lock',
-      'omit',
-      'ignore-scripts',
-      'audit',
-      'bin-links',
-      'fund',
-      'dry-run',
-      ...super.params,
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return [
-      '[<@scope>/]<pkg>',
-      '[<@scope>/]<pkg>@<tag>',
-      '[<@scope>/]<pkg>@<version>',
-      '[<@scope>/]<pkg>@<version range>',
-      '<alias>@npm:<name>',
-      '<folder>',
-      '<tarball file>',
-      '<tarball url>',
-      '<git:// url>',
-      '<github username>/<github project>',
-    ]
-  }
+  static usage = [
+    '[<@scope>/]<pkg>',
+    '[<@scope>/]<pkg>@<tag>',
+    '[<@scope>/]<pkg>@<version>',
+    '[<@scope>/]<pkg>@<version range>',
+    '<alias>@npm:<name>',
+    '<folder>',
+    '<tarball file>',
+    '<tarball url>',
+    '<git:// url>',
+    '<github username>/<github project>',
+  ]
 
   async completion (opts) {
     const { partialWord } = opts
@@ -78,37 +63,33 @@ class Install extends ArboristWorkspaceCmd {
       const partialName = partialWord.slice(lastSlashIdx + 1)
       const partialPath = partialWord.slice(0, lastSlashIdx) || '/'
 
-      const annotatePackageDirMatch = async (sibling) => {
-        const fullPath = join(partialPath, sibling)
-        if (sibling.slice(0, partialName.length) !== partialName)
-          return null // not name match
+      const isDirMatch = async sibling => {
+        if (sibling.slice(0, partialName.length) !== partialName) {
+          return false
+        }
 
         try {
-          const contents = await readdir(fullPath)
-          return {
-            fullPath,
-            isPackage: contents.indexOf('package.json') !== -1,
-          }
+          const contents = await readdir(join(partialPath, sibling))
+          const result = (contents.indexOf('package.json') !== -1)
+          return result
         } catch (er) {
-          return { isPackage: false }
+          return false
         }
       }
 
       try {
         const siblings = await readdir(partialPath)
-        const matches = await Promise.all(
-          siblings.map(async sibling => {
-            return await annotatePackageDirMatch(sibling)
-          })
-        )
-        const match = matches.filter(el => !el || el.isPackage).pop()
-        if (match) {
-          // Success - only one match and it is a package dir
-          return [match.fullPath]
-        } else {
-          // no matches
-          return []
+        const matches = []
+        for (const sibling of siblings) {
+          if (await isDirMatch(sibling)) {
+            matches.push(sibling)
+          }
         }
+        if (matches.length === 1) {
+          return [join(partialPath, matches[0])]
+        }
+        // no matches
+        return []
       } catch (er) {
         return [] // invalid dir: no matching
       }
@@ -136,10 +117,15 @@ class Install extends ArboristWorkspaceCmd {
       try {
         checks.checkEngine(npmManifest, npmManifest.version, process.version)
       } catch (e) {
-        if (forced)
-          this.npm.log.warn('install', `Forcing global npm install with incompatible version ${npmManifest.version} into node ${process.version}`)
-        else
+        if (forced) {
+          this.npm.log.warn(
+            'install',
+            /* eslint-disable-next-line max-len */
+            `Forcing global npm install with incompatible version ${npmManifest.version} into node ${process.version}`
+          )
+        } else {
           throw e
+        }
       }
     }
 
@@ -147,12 +133,17 @@ class Install extends ArboristWorkspaceCmd {
     args = args.filter(a => resolve(a) !== this.npm.prefix)
 
     // `npm i -g` => "install this package globally"
-    if (where === globalTop && !args.length)
+    if (where === globalTop && !args.length) {
       args = ['.']
+    }
 
     // TODO: Add warnings for other deprecated flags?  or remove this one?
-    if (isDev)
-      log.warn('install', 'Usage of the `--dev` option is deprecated. Use `--include=dev` instead.')
+    if (isDev) {
+      log.warn(
+        'install',
+        'Usage of the `--dev` option is deprecated. Use `--include=dev` instead.'
+      )
+    }
 
     const opts = {
       ...this.npm.flatOptions,

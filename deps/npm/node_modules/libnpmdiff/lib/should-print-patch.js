@@ -5,8 +5,9 @@ const binaryExtensions = require('binary-extensions')
 // we should try to print patches as long as the
 // extension is not identified as binary files
 const shouldPrintPatch = (path, opts = {}) => {
-  if (opts.diffText)
+  if (opts.diffText) {
     return true
+  }
 
   const filename = basename(path)
   const extension = (

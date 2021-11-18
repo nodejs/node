@@ -8,14 +8,11 @@ class ArboristCmd extends BaseCommand {
     return true
   }
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'workspace',
-      'workspaces',
-      'include-workspace-root',
-    ]
-  }
+  static params = [
+    'workspace',
+    'workspaces',
+    'include-workspace-root',
+  ]
 
   async execWorkspaces (args, filters) {
     await this.setWorkspaces(filters)

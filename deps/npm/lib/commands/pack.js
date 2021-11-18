@@ -12,36 +12,23 @@ const writeFile = util.promisify(require('fs').writeFile)
 const BaseCommand = require('../base-command.js')
 
 class Pack extends BaseCommand {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Create a tarball from a package'
-  }
+  static description = 'Create a tarball from a package'
+  static name = 'pack'
+  static params = [
+    'dry-run',
+    'json',
+    'pack-destination',
+    'workspace',
+    'workspaces',
+    'include-workspace-root',
+  ]
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'pack'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'dry-run',
-      'json',
-      'pack-destination',
-      'workspace',
-      'workspaces',
-      'include-workspace-root',
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[[<@scope>/]<pkg>...]']
-  }
+  static usage = ['[[<@scope>/]<pkg>...]']
 
   async exec (args) {
-    if (args.length === 0)
+    if (args.length === 0) {
       args = ['.']
+    }
 
     const unicode = this.npm.config.get('unicode')
     const dryRun = this.npm.config.get('dry-run')
@@ -53,8 +40,9 @@ class Pack extends BaseCommand {
     for (const arg of args) {
       const spec = npa(arg)
       const manifest = await pacote.manifest(spec, this.npm.flatOptions)
-      if (!manifest._id)
+      if (!manifest._id) {
         throw new Error('Invalid package, must have name and version')
+      }
 
       const filename = `${manifest.name}-${manifest.version}.tgz`
         .replace(/^@/, '').replace(/\//, '-')
@@ -69,8 +57,9 @@ class Pack extends BaseCommand {
       const pkgContents = await getContents(manifest, tarballData)
       const tarballFilename = path.resolve(this.npm.config.get('pack-destination'), filename)
 
-      if (!dryRun)
+      if (!dryRun) {
         await writeFile(tarballFilename, tarballData)
+      }
 
       tarballs.push(pkgContents)
     }

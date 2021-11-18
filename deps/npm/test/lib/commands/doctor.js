@@ -17,14 +17,16 @@ const output = []
 
 let pingError
 const ping = async () => {
-  if (pingError)
+  if (pingError) {
     throw pingError
+  }
 }
 
 let whichError = null
 const which = async () => {
-  if (whichError)
+  if (whichError) {
     throw whichError
+  }
   return '/path/to/git'
 }
 
@@ -51,10 +53,11 @@ const logs = {
 const clearLogs = (obj = logs) => {
   output.length = 0
   for (const key in obj) {
-    if (Array.isArray(obj[key]))
+    if (Array.isArray(obj[key])) {
       obj[key].length = 0
-    else
+    } else {
       delete obj[key]
+    }
   }
 }
 
@@ -63,31 +66,35 @@ const npm = {
     registry: 'https://registry.npmjs.org/',
   },
   log: {
-    info: (msg) => {
+    info: msg => {
       logs.info.push(msg)
     },
-    newItem: (name) => {
+    newItem: name => {
       logs[name] = {}
 
       return {
         info: (_, msg) => {
-          if (!logs[name].info)
+          if (!logs[name].info) {
             logs[name].info = []
+          }
           logs[name].info.push(msg)
         },
         warn: (_, msg) => {
-          if (!logs[name].warn)
+          if (!logs[name].warn) {
             logs[name].warn = []
+          }
           logs[name].warn.push(msg)
         },
         error: (_, msg) => {
-          if (!logs[name].error)
+          if (!logs[name].error) {
             logs[name].error = []
+          }
           logs[name].error.push(msg)
         },
         silly: (_, msg) => {
-          if (!logs[name].silly)
+          if (!logs[name].silly) {
             logs[name].silly = []
+          }
           logs[name].silly.push(msg)
         },
         completeWork: () => {},
@@ -103,7 +110,7 @@ const npm = {
     },
   },
   version: '7.1.0',
-  output: (data) => {
+  output: data => {
     output.push(data)
   },
 }
@@ -162,18 +169,26 @@ t.test('node versions', t => {
         })
 
         await doctor.exec([])
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [dir]: { finished: true },
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [dir]: { finished: true },
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
+        )
         st.match(output, /npm ping\s*ok/, 'ping output is ok')
         st.match(output, /npm -v\s*ok/, 'npm -v output is ok')
         st.match(output, /node -v\s*ok/, 'node -v output is ok')
-        st.match(output, /npm config get registry\s*ok\s*using default/, 'npm config get registry output is ok')
+        st.match(
+          output,
+          /npm config get registry\s*ok\s*using default/,
+          'npm config get registry output is ok'
+        )
         st.match(output, /which git\s*ok/, 'which git output is ok')
         st.match(output, /cached files\s*ok/, 'cached files are ok')
         st.match(output, /local node_modules\s*ok/, 'local node_modules are ok')
@@ -205,14 +220,18 @@ t.test('node versions', t => {
 
         await doctor.exec([])
 
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [dir]: { finished: true },
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [dir]: { finished: true },
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
+        )
         st.strictSame(output, [], 'did not print output')
       })
 
@@ -241,23 +260,27 @@ t.test('node versions', t => {
           clearLogs()
         })
 
-        await st.rejects(
-          doctor.exec([]),
-          /Some problems found/,
-          'detected the ping error'
+        await st.rejects(doctor.exec([]), /Some problems found/, 'detected the ping error')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [dir]: { finished: true },
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
         )
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [dir]: { finished: true },
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
         st.match(output, /npm ping.*not ok/, 'ping output is ok')
         st.match(output, /npm -v.*ok/, 'npm -v output is ok')
         st.match(output, /node -v.*ok/, 'node -v output is ok')
-        st.match(output, /npm config get registry.*ok.*using default/, 'npm config get registry output is ok')
+        st.match(
+          output,
+          /npm config get registry.*ok.*using default/,
+          'npm config get registry output is ok'
+        )
         st.match(output, /which git.*ok/, 'which git output is ok')
         st.match(output, /cached files.*ok/, 'cached files are ok')
         st.match(output, /local node_modules.*ok/, 'local node_modules are ok')
@@ -297,18 +320,26 @@ t.test('node versions', t => {
         })
 
         await winDoctor.exec([])
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [dir]: undefined,
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [dir]: undefined,
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
+        )
         st.match(output, /npm ping\s*ok/, 'ping output is ok')
         st.match(output, /npm -v\s*ok/, 'npm -v output is ok')
         st.match(output, /node -v\s*ok/, 'node -v output is ok')
-        st.match(output, /npm config get registry\s*ok\s*using default/, 'npm config get registry output is ok')
+        st.match(
+          output,
+          /npm config get registry\s*ok\s*using default/,
+          'npm config get registry output is ok'
+        )
         st.match(output, /which git\s*ok/, 'which git output is ok')
         st.match(output, /cache contents\s*ok/, 'cache contents is ok')
       })
@@ -337,23 +368,31 @@ t.test('node versions', t => {
           clearLogs()
         })
 
-        await st.rejects(
-          doctor.exec([]),
-          /Some problems found/,
-          'detected the ping error'
+        await st.rejects(doctor.exec([]), /Some problems found/, 'detected the ping error')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [dir]: { finished: true },
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
         )
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [dir]: { finished: true },
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
-        st.match(output, /npm ping\s*not ok\s*111 this error is 111/, 'ping output contains trimmed error')
+        st.match(
+          output,
+          /npm ping\s*not ok\s*111 this error is 111/,
+          'ping output contains trimmed error'
+        )
         st.match(output, /npm -v\s*ok/, 'npm -v output is ok')
         st.match(output, /node -v\s*ok/, 'node -v output is ok')
-        st.match(output, /npm config get registry\s*ok\s*using default/, 'npm config get registry output is ok')
+        st.match(
+          output,
+          /npm config get registry\s*ok\s*using default/,
+          'npm config get registry output is ok'
+        )
         st.match(output, /which git\s*ok/, 'which git output is ok')
         st.match(output, /cached files\s*ok/, 'cached files are ok')
         st.match(output, /local node_modules\s*ok/, 'local node_modules are ok')
@@ -387,23 +426,27 @@ t.test('node versions', t => {
           clearLogs()
         })
 
-        await st.rejects(
-          doctor.exec([]),
-          /Some problems found/,
-          'detected the ping error'
+        await st.rejects(doctor.exec([]), /Some problems found/, 'detected the ping error')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [dir]: { finished: true },
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
         )
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [dir]: { finished: true },
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
         st.match(output, /npm ping\s*not ok\s*generic error/, 'ping output contains trimmed error')
         st.match(output, /npm -v\s*ok/, 'npm -v output is ok')
         st.match(output, /node -v\s*ok/, 'node -v output is ok')
-        st.match(output, /npm config get registry\s*ok\s*using default/, 'npm config get registry output is ok')
+        st.match(
+          output,
+          /npm config get registry\s*ok\s*using default/,
+          'npm config get registry output is ok'
+        )
         st.match(output, /which git\s*ok/, 'which git output is ok')
         st.match(output, /cached files\s*ok/, 'cached files are ok')
         st.match(output, /local node_modules\s*ok/, 'local node_modules are ok')
@@ -437,23 +480,27 @@ t.test('node versions', t => {
           clearLogs()
         })
 
-        await st.rejects(
-          doctor.exec([]),
-          /Some problems found/,
-          'detected the out of date npm'
+        await st.rejects(doctor.exec([]), /Some problems found/, 'detected the out of date npm')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [dir]: { finished: true },
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
         )
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [dir]: { finished: true },
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
         st.match(output, /npm ping\s*ok/, 'ping output is ok')
         st.match(output, /npm -v\s*not ok/, 'npm -v output is not ok')
         st.match(output, /node -v\s*ok/, 'node -v output is ok')
-        st.match(output, /npm config get registry\s*ok\s*using default/, 'npm config get registry output is ok')
+        st.match(
+          output,
+          /npm config get registry\s*ok\s*using default/,
+          'npm config get registry output is ok'
+        )
         st.match(output, /which git\s*ok/, 'which git output is ok')
         st.match(output, /cached files\s*ok/, 'cached files are ok')
         st.match(output, /local node_modules\s*ok/, 'local node_modules are ok')
@@ -524,8 +571,9 @@ t.test('node versions', t => {
             return cb(err)
           }
 
-          if (p === join(dir, 'cache', 'baddir'))
+          if (p === join(dir, 'cache', 'baddir')) {
             err = new Error('broken')
+          }
 
           return cb(err, result)
         }
@@ -577,27 +625,31 @@ t.test('node versions', t => {
           clearLogs()
         })
 
-        await st.rejects(
-          doctor.exec([]),
-          /Some problems found/,
-          'identified problems'
+        await st.rejects(doctor.exec([]), /Some problems found/, 'identified problems')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [join(dir, 'cache')]: { finished: true },
+            [join(dir, 'local')]: { finished: true },
+            [join(dir, 'global')]: { finished: true },
+            [join(dir, 'localBin')]: { finished: true },
+            [join(dir, 'globalBin')]: { finished: true },
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
         )
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [join(dir, 'cache')]: { finished: true },
-          [join(dir, 'local')]: { finished: true },
-          [join(dir, 'global')]: { finished: true },
-          [join(dir, 'localBin')]: { finished: true },
-          [join(dir, 'globalBin')]: { finished: true },
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
         st.match(output, /npm ping\s*ok/, 'ping output is ok')
         st.match(output, /npm -v\s*ok/, 'npm -v output is ok')
         st.match(output, /node -v\s*ok/, 'node -v output is ok')
-        st.match(output, /npm config get registry\s*ok\s*using default/, 'npm config get registry output is ok')
+        st.match(
+          output,
+          /npm config get registry\s*ok\s*using default/,
+          'npm config get registry output is ok'
+        )
         st.match(output, /which git\s*ok/, 'which git output is ok')
         st.match(output, /cached files\s*not ok/, 'cached files are not ok')
         st.match(output, /local node_modules\s*not ok/, 'local node_modules are not ok')
@@ -631,23 +683,27 @@ t.test('node versions', t => {
           clearLogs()
         })
 
-        await st.rejects(
-          doctor.exec([]),
-          /Some problems found/,
-          'detected the missing git'
+        await st.rejects(doctor.exec([]), /Some problems found/, 'detected the missing git')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [dir]: { finished: true },
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
         )
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [dir]: { finished: true },
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
         st.match(output, /npm ping\s*ok/, 'ping output is ok')
         st.match(output, /npm -v\s*ok/, 'npm -v output is ok')
         st.match(output, /node -v\s*ok/, 'node -v output is ok')
-        st.match(output, /npm config get registry\s*ok\s*using default/, 'npm config get registry output is ok')
+        st.match(
+          output,
+          /npm config get registry\s*ok\s*using default/,
+          'npm config get registry output is ok'
+        )
         st.match(output, /which git\s*not ok/, 'which git output is not ok')
         st.match(output, /cached files\s*ok/, 'cached files are ok')
         st.match(output, /local node_modules\s*ok/, 'local node_modules are ok')
@@ -687,18 +743,26 @@ t.test('node versions', t => {
 
         // cache verification problems get fixed and so do not throw an error
         await doctor.exec([])
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [dir]: { finished: true },
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [dir]: { finished: true },
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
+        )
         st.match(output, /npm ping\s*ok/, 'ping output is ok')
         st.match(output, /npm -v\s*ok/, 'npm -v output is ok')
         st.match(output, /node -v\s*ok/, 'node -v output is ok')
-        st.match(output, /npm config get registry\s*ok\s*using default/, 'npm config get registry output is ok')
+        st.match(
+          output,
+          /npm config get registry\s*ok\s*using default/,
+          'npm config get registry output is ok'
+        )
         st.match(output, /which git\s*ok/, 'which git output is ok')
         st.match(output, /cached files\s*ok/, 'cached files are ok')
         st.match(output, /local node_modules\s*ok/, 'local node_modules are ok')
@@ -740,18 +804,26 @@ t.test('node versions', t => {
         // cache verification problems get fixed and so do not throw an error
         await doctor.exec([])
 
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [dir]: { finished: true },
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [dir]: { finished: true },
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
+        )
         st.match(output, /npm ping\s*ok/, 'ping output is ok')
         st.match(output, /npm -v\s*ok/, 'npm -v output is ok')
         st.match(output, /node -v\s*ok/, 'node -v output is ok')
-        st.match(output, /npm config get registry\s*ok\s*using default/, 'npm config get registry output is ok')
+        st.match(
+          output,
+          /npm config get registry\s*ok\s*using default/,
+          'npm config get registry output is ok'
+        )
         st.match(output, /which git\s*ok/, 'which git output is ok')
         st.match(output, /cached files\s*ok/, 'cached files are ok')
         st.match(output, /local node_modules\s*ok/, 'local node_modules are ok')
@@ -791,18 +863,26 @@ t.test('node versions', t => {
 
         // cache verification problems get fixed and so do not throw an error
         await doctor.exec([])
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [dir]: { finished: true },
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [dir]: { finished: true },
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
+        )
         st.match(output, /npm ping\s*ok/, 'ping output is ok')
         st.match(output, /npm -v\s*ok/, 'npm -v output is ok')
         st.match(output, /node -v\s*ok/, 'node -v output is ok')
-        st.match(output, /npm config get registry\s*ok\s*using default/, 'npm config get registry output is ok')
+        st.match(
+          output,
+          /npm config get registry\s*ok\s*using default/,
+          'npm config get registry output is ok'
+        )
         st.match(output, /which git\s*ok/, 'which git output is ok')
         st.match(output, /cached files\s*ok/, 'cached files are ok')
         st.match(output, /local node_modules\s*ok/, 'local node_modules are ok')
@@ -842,18 +922,26 @@ t.test('node versions', t => {
           /Some problems found/,
           'detected the non-default registry'
         )
-        st.match(logs, {
-          checkPing: { finished: true },
-          getLatestNpmVersion: { finished: true },
-          getLatestNodejsVersion: { finished: true },
-          getGitPath: { finished: true },
-          [dir]: { finished: true },
-          verifyCachedFiles: { finished: true },
-        }, 'trackers all finished')
+        st.match(
+          logs,
+          {
+            checkPing: { finished: true },
+            getLatestNpmVersion: { finished: true },
+            getLatestNodejsVersion: { finished: true },
+            getGitPath: { finished: true },
+            [dir]: { finished: true },
+            verifyCachedFiles: { finished: true },
+          },
+          'trackers all finished'
+        )
         st.match(output, /npm ping\s*ok/, 'ping output is ok')
         st.match(output, /npm -v\s*ok/, 'npm -v output is ok')
         st.match(output, /node -v\s*ok/, 'node -v output is ok')
-        st.match(output, /npm config get registry\s*not ok/, 'npm config get registry output is not ok')
+        st.match(
+          output,
+          /npm config get registry\s*not ok/,
+          'npm config get registry output is not ok'
+        )
         st.match(output, /which git\s*ok/, 'which git output is ok')
         st.match(output, /cached files\s*ok/, 'cached files are ok')
         st.match(output, /local node_modules\s*ok/, 'local node_modules are ok')
@@ -901,23 +989,27 @@ t.test('outdated node version', vt => {
       clearLogs()
     })
 
-    await st.rejects(
-      doctor.exec([]),
-      /Some problems found/,
-      'detected the out of date nodejs'
+    await st.rejects(doctor.exec([]), /Some problems found/, 'detected the out of date nodejs')
+    st.match(
+      logs,
+      {
+        checkPing: { finished: true },
+        getLatestNpmVersion: { finished: true },
+        getLatestNodejsVersion: { finished: true },
+        getGitPath: { finished: true },
+        [dir]: { finished: true },
+        verifyCachedFiles: { finished: true },
+      },
+      'trackers all finished'
     )
-    st.match(logs, {
-      checkPing: { finished: true },
-      getLatestNpmVersion: { finished: true },
-      getLatestNodejsVersion: { finished: true },
-      getGitPath: { finished: true },
-      [dir]: { finished: true },
-      verifyCachedFiles: { finished: true },
-    }, 'trackers all finished')
     st.match(output, /npm ping\s*ok/, 'ping output is ok')
     st.match(output, /npm -v\s*ok/, 'npm -v output is ok')
     st.match(output, /node -v\s*not ok/, 'node -v output is not ok')
-    st.match(output, /npm config get registry\s*ok\s*using default/, 'npm config get registry output is ok')
+    st.match(
+      output,
+      /npm config get registry\s*ok\s*using default/,
+      'npm config get registry output is ok'
+    )
     st.match(output, /which git\s*ok/, 'which git output is ok')
     st.match(output, /cached files\s*ok/, 'cached files are ok')
     st.match(output, /local node_modules\s*ok/, 'local node_modules are ok')

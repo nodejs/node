@@ -1,7 +1,7 @@
 // mixin providing the loadVirtual method
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
-const {resolve} = require('path')
+const { resolve } = require('path')
 
 const nameFromFolder = require('@npmcli/name-from-folder')
 const consistentResolve = require('../consistent-resolve.js')
@@ -97,7 +97,7 @@ module.exports = cls => class VirtualLoader extends cls {
     this[checkRootEdges](s, root)
     root.meta = s
     this.virtualTree = root
-    const {links, nodes} = this[resolveNodes](s, root)
+    const { links, nodes } = this[resolveNodes](s, root)
     await this[resolveLinks](links, nodes)
     if (!(s.originalLockfileVersion >= 2)) {
       this[assignBundles](nodes)
@@ -208,7 +208,7 @@ module.exports = cls => class VirtualLoader extends cls {
         nodes.set(location, this[loadNode](location, meta))
       }
     }
-    return {links, nodes}
+    return { links, nodes }
   }
 
   // links is the set of metadata, and nodes is the map of non-Link nodes
@@ -240,7 +240,7 @@ module.exports = cls => class VirtualLoader extends cls {
       if (!location || node.isLink && !node.target.location) {
         continue
       }
-      const { name, parent, package: { inBundle }} = node
+      const { name, parent, package: { inBundle } } = node
 
       if (!parent) {
         continue

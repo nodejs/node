@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npmrc</title>
 <style>
 body {
@@ -167,7 +168,7 @@ example:</p>
 <p>Each of these files is loaded, and config options are resolved in priority
 order.  For example, a setting in the userconfig file would override the
 setting in the globalconfig file.</p>
-<p>Array values are specified by adding “[]” after the key name. For example:</p>
+<p>Array values are specified by adding "[]" after the key name. For example:</p>
 <pre lang="bash"><code>key[] = "first value"
 key[] = "second value"
 </code></pre>
@@ -184,9 +185,9 @@ key[] = "second value"
 <p>When working locally in a project, a <code>.npmrc</code> file in the root of the
 project (ie, a sibling of <code>node_modules</code> and <code>package.json</code>) will set
 config values specific to this project.</p>
-<p>Note that this only applies to the root of the project that you’re running
+<p>Note that this only applies to the root of the project that you're running
 npm in.  It has no effect when your module is published.  For example, you
-can’t publish a module that forces itself to install globally, or in a
+can't publish a module that forces itself to install globally, or in a
 different location.</p>
 <p>Additionally, this file is not read in global mode, such as when running
 <code>npm install -g</code>.</p>
@@ -199,7 +200,7 @@ is an ini-file formatted list of <code>key = value</code> parameters.  Environme
 variables can be replaced as above.</p>
 <h4 id="built-in-config-file">Built-in config file</h4>
 <p><code>path/to/npm/itself/npmrc</code></p>
-<p>This is an unchangeable “builtin” configuration file that npm keeps
+<p>This is an unchangeable "builtin" configuration file that npm keeps
 consistent across updates.  Set fields in here using the <code>./configure</code>
 script that comes with npm.  This is primarily for distribution maintainers
 to override default configs in a standard and consistent manner.</p>
