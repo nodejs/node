@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-pkg</title>
 <style>
 body {
@@ -154,7 +155,7 @@ npm pkg delete &lt;field&gt; [.&lt;subfield&gt; ...]
 <code>npm pkg</code> provide 3 different sub commands that allow you to modify or retrieve
 values for given object keys in your <code>package.json</code>.</p>
 <p>The syntax to retrieve and set fields is a dot separated representation of
-the nested object properties to be found within your <code>package.json</code>, it’s the
+the nested object properties to be found within your <code>package.json</code>, it's the
 same notation used in <a href="../commands/npm-view.html"><code>npm view</code></a> to retrieve information
 from the registry manifest, below you can find more examples on how to use it.</p>
 <p>Returned values are always in <strong>json</strong> format.</p>
@@ -166,7 +167,7 @@ from the registry manifest, below you can find more examples on how to use it.</
 can run:</p>
 <pre lang="bash"><code>npm pkg get name
 </code></pre>
-<p>It’s also possible to retrieve multiple values at once:</p>
+<p>It's also possible to retrieve multiple values at once:</p>
 <pre lang="bash"><code>npm pkg get name version
 </code></pre>
 <p>You can view child fields by separating them with a period. To retrieve
@@ -202,7 +203,7 @@ to a file <code>cli.js</code>:</p>
 <p>Setting multiple fields at once is also possible:</p>
 <pre lang="bash"><code>npm pkg set description='Awesome package' engines.node='&gt;=10'
 </code></pre>
-<p>It’s also possible to add to array values, for example to add a new
+<p>It's also possible to add to array values, for example to add a new
 contributor entry:</p>
 <pre lang="bash"><code>npm pkg set contributors[0].name='Foo' contributors[0].email='foo@bar.ca'
 </code></pre>
@@ -210,7 +211,7 @@ contributor entry:</p>
 empty bracket notation:</p>
 <pre lang="bash"><code>npm pkg set contributors[].name='Foo' contributors[].name='Bar'
 </code></pre>
-<p>It’s also possible to parse values as json prior to saving them to your
+<p>It's also possible to parse values as json prior to saving them to your
 <code>package.json</code> file, for example in order to set a <code>"private": true</code>
 property:</p>
 <pre lang="bash"><code>npm pkg set private=true --json
@@ -278,7 +279,7 @@ range (including SemVer-major changes).</li>
 <li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
 <li>Allow clobbering existing values in <code>npm pkg</code></li>
 </ul>
-<p>If you don’t have a clear idea of what you want to do, it is strongly
+<p>If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

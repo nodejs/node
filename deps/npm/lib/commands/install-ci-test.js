@@ -4,14 +4,8 @@
 const CI = require('./ci.js')
 
 class InstallCITest extends CI {
-  static get description () {
-    return 'Install a project with a clean slate and run tests'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'install-ci-test'
-  }
+  static description = 'Install a project with a clean slate and run tests'
+  static name = 'install-ci-test'
 
   async exec (args, cb) {
     await this.npm.exec('ci', args)

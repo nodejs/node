@@ -4,8 +4,9 @@ let pulseStarted = null
 const npmlog = {
   gauge: {
     pulse: () => {
-      if (pulseStarted)
+      if (pulseStarted) {
         pulseStarted()
+      }
     },
   },
 }

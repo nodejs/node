@@ -10,7 +10,7 @@ const npm = {
 
 const builtinConfMock = {
   loadError: new Error('no builtin config'),
-  raw: { hasBuiltinConfig: true, x: 'y', nested: { foo: 'bar' }},
+  raw: { hasBuiltinConfig: true, x: 'y', nested: { foo: 'bar' } },
 }
 
 const reifyOutput = () => {}
@@ -22,8 +22,9 @@ const fs = {
   promises: realFs.promises && {
     ...realFs.promises,
     writeFile: async (path, data) => {
-      if (!expectWrite)
+      if (!expectWrite) {
         throw new Error('did not expect to write builtin config file')
+      }
       return realFs.promises.writeFile(path, data)
     },
   },
@@ -69,7 +70,7 @@ t.test('should write if everything above passes', async t => {
   await reifyFinish(npm, {
     options: { global: true },
     actualTree: {
-      inventory: new Map([['node_modules/npm', {path}]]),
+      inventory: new Map([['node_modules/npm', { path }]]),
     },
   })
   // windowwwwwwssss!!!!!

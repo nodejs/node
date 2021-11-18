@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-link</title>
 <style>
 body {
@@ -168,7 +169,7 @@ directory name.</p>
 <a href="../using-npm/scope.html"><code>scope</code></a>.  The scope must be preceded by an @-symbol and
 followed by a slash.</p>
 <p>When creating tarballs for <code>npm publish</code>, the linked packages are
-“snapshotted” to their current state by resolving the symbolic links, if
+"snapshotted" to their current state by resolving the symbolic links, if
 they are included in <code>bundleDependencies</code>.</p>
 <p>For example:</p>
 <pre lang="bash"><code>cd ~/projects/node-redis    # go into the package directory
@@ -189,7 +190,7 @@ npm link ../node-redis     # link the dir of your dependency
 npm link redis
 </code></pre>
 <p>That is, it first creates a global link, and then links the global
-installation target into your project’s <code>node_modules</code> folder.</p>
+installation target into your project's <code>node_modules</code> folder.</p>
 <p>Note that in this case, you are referring to the directory name,
 <code>node-redis</code>, rather than the package name <code>redis</code>.</p>
 <p>If your linked package is scoped (see <a href="../using-npm/scope.html"><code>scope</code></a>) your
@@ -202,7 +203,7 @@ link command must include that scope, e.g.</p>
 a link stand in for a regular non-link dependency.  Otherwise, for example,
 if you depend on <code>redis@^3.0.1</code>, and ran <code>npm link redis</code>, it would replace
 the <code>^3.0.1</code> dependency with <code>file:../path/to/node-redis</code>, which you
-probably don’t want!  Additionally, other users or developers on your
+probably don't want!  Additionally, other users or developers on your
 project would run into issues if they do not have their folders set up
 exactly the same as yours.</p>
 <p>If you are adding a <em>new</em> dependency as a link, you should add it to the
@@ -212,7 +213,7 @@ relevant metadata by running <code>npm install &lt;dep&gt; --package-lock-only</
 <h3 id="workspace-usage">Workspace Usage</h3>
 <p><code>npm link &lt;pkg&gt; --workspace &lt;name&gt;</code> will link the relevant package as a
 dependency of the specified workspace(s).  Note that It may actually be
-linked into the parent project’s <code>node_modules</code> folder, if there are no
+linked into the parent project's <code>node_modules</code> folder, if there are no
 conflicting dependencies.</p>
 <p><code>npm link --workspace &lt;name&gt;</code> will create a global link to the specified
 workspace(s).</p>
@@ -236,7 +237,7 @@ package.json.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Dependencies saved to package.json will be configured with an exact version
-rather than using npm’s default semver range operator.</p>
+rather than using npm's default semver range operator.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="global"><code>global</code></h4>
@@ -244,7 +245,7 @@ rather than using npm’s default semver range operator.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Operates in “global” mode, so that packages are installed into the <code>prefix</code>
+<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
 folder instead of the current working directory. See
 <a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
 <ul>
@@ -291,7 +292,7 @@ dependency relationships.</p>
 <p>By default, conflicting <code>peerDependencies</code> deep in the dependency graph will
 be resolved using the nearest non-peer dependency specification, even if
 doing so will result in some packages receiving a peer dependency outside
-the range set in their package’s <code>peerDependencies</code> object.</p>
+the range set in their package's <code>peerDependencies</code> object.</p>
 <p>When such and override is performed, a warning is printed, explaining the
 conflict and the packages involved. If <code>--strict-peer-deps</code> is set, then
 this warning is treated as a failure.</p>
@@ -311,9 +312,9 @@ package-locks disabled use <code>npm prune</code>.</p>
 <!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>
 <ul>
-<li>Default: ‘dev’ if the <code>NODE_ENV</code> environment variable is set to
-‘production’, otherwise empty.</li>
-<li>Type: “dev”, “optional”, or “peer” (can be set multiple times)</li>
+<li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
+'production', otherwise empty.</li>
+<li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
 <p>Note that these dependencies <em>are</em> still resolved and added to the
@@ -342,7 +343,7 @@ will <em>not</em> run any pre- or post-scripts.</p>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When “true” submit audit reports alongside the current npm command to the
+<p>When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes. See the
 documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
 submitted.</p>
@@ -356,7 +357,7 @@ submitted.</p>
 <p>Tells npm to create symlinks (or <code>.cmd</code> shims on Windows) for package
 executables.</p>
 <p>Set to false to have it not do this. This can be used to work around the
-fact that some file systems don’t support symlinks, even on ostensibly Unix
+fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -365,7 +366,7 @@ systems.</p>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When “true” displays the message at the end of each <code>npm install</code>
+<p>When "true" displays the message at the end of each <code>npm install</code>
 acknowledging the number of dependencies looking for funding. See <a href="../commands/npm-fund.html"><code>npm fund</code></a> for details.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -374,7 +375,7 @@ acknowledging the number of dependencies looking for funding. See <a href="../co
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Indicates that you don’t want npm to make any changes and that it should
+<p>Indicates that you don't want npm to make any changes and that it should
 only report what it would have done. This can be passed into any of the
 commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>

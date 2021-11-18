@@ -37,8 +37,9 @@ const updateNotifier = async (npm, spec = 'latest') => {
   // never check for updates in CI, when updating npm already, or opted out
   if (!npm.config.get('update-notifier') ||
       isGlobalNpmUpdate(npm) ||
-      ciDetect())
+      ciDetect()) {
     return null
+  }
 
   // if we're on a prerelease train, then updates are coming fast
   // check for a new one daily.  otherwise, weekly.
@@ -46,15 +47,17 @@ const updateNotifier = async (npm, spec = 'latest') => {
   const current = semver.parse(version)
 
   // if we're on a beta train, always get the next beta
-  if (current.prerelease.length)
+  if (current.prerelease.length) {
     spec = `^${version}`
+  }
 
   // while on a beta train, get updates daily
   const duration = spec !== 'latest' ? DAILY : WEEKLY
 
   // if we've already checked within the specified duration, don't check again
-  if (!(await checkTimeout(npm, duration)))
+  if (!(await checkTimeout(npm, duration))) {
     return null
+  }
 
   // if they're currently using a prerelease, nudge to the next prerelease
   // otherwise, nudge to latest.
@@ -67,8 +70,9 @@ const updateNotifier = async (npm, spec = 'latest') => {
   }).catch(() => null)
 
   // if pacote failed, give up
-  if (!mani)
+  if (!mani) {
     return null
+  }
 
   const latest = mani.version
 
@@ -76,12 +80,14 @@ const updateNotifier = async (npm, spec = 'latest') => {
   // and should get the updates from that release train.
   // Note that this isn't another http request over the network, because
   // the packument will be cached by pacote from previous request.
-  if (semver.gt(version, latest) && spec === 'latest')
+  if (semver.gt(version, latest) && spec === 'latest') {
     return updateNotifier(npm, `^${version}`)
+  }
 
   // if we already have something >= the desired spec, then we're done
-  if (semver.gte(version, latest))
+  if (semver.gte(version, latest)) {
     return null
+  }
 
   // ok!  notify the user about this update they should get.
   // The message is saved for printing at process exit so it will not get

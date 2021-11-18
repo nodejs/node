@@ -16,8 +16,9 @@ const maybeReadFile = file => {
   try {
     return fs.readFileSync(file, 'utf8')
   } catch (er) {
-    if (er.code !== 'ENOENT')
+    if (er.code !== 'ENOENT') {
       throw er
+    }
     return null
   }
 }
@@ -27,27 +28,32 @@ const buildOmitList = obj => {
   const omit = obj.omit || []
 
   const only = obj.only
-  if (/^prod(uction)?$/.test(only) || obj.production)
+  if (/^prod(uction)?$/.test(only) || obj.production) {
     omit.push('dev')
-  else if (obj.production === false)
+  } else if (obj.production === false) {
     include.push('dev')
+  }
 
-  if (/^dev/.test(obj.also))
+  if (/^dev/.test(obj.also)) {
     include.push('dev')
+  }
 
-  if (obj.dev)
+  if (obj.dev) {
     include.push('dev')
+  }
 
-  if (obj.optional === false)
+  if (obj.optional === false) {
     omit.push('optional')
-  else if (obj.optional === true)
+  } else if (obj.optional === true) {
     include.push('optional')
+  }
 
   obj.omit = [...new Set(omit)].filter(type => !include.includes(type))
   obj.include = [...new Set(include)]
 
-  if (obj.omit.includes('dev'))
+  if (obj.omit.includes('dev')) {
     process.env.NODE_ENV = 'production'
+  }
 
   return obj.omit
 }
@@ -98,8 +104,9 @@ const {
 
 const define = (key, def) => {
   /* istanbul ignore if - this should never happen, prevents mistakes below */
-  if (definitions[key])
+  if (definitions[key]) {
     throw new Error(`defining key more than once: ${key}`)
+  }
   definitions[key] = new Definition(key, def)
 }
 
@@ -342,8 +349,9 @@ define('cache-max', {
     This option has been deprecated in favor of \`--prefer-online\`
   `,
   flatten (key, obj, flatOptions) {
-    if (obj[key] <= 0)
+    if (obj[key] <= 0) {
       flatOptions.preferOnline = true
+    }
   },
 })
 
@@ -357,8 +365,9 @@ define('cache-min', {
     This option has been deprecated in favor of \`--prefer-offline\`.
   `,
   flatten (key, obj, flatOptions) {
-    if (obj[key] >= 9999)
+    if (obj[key] >= 9999) {
       flatOptions.preferOffline = true
+    }
   },
 })
 
@@ -372,12 +381,14 @@ define('cafile', {
   `,
   flatten (key, obj, flatOptions) {
     // always set to null in defaults
-    if (!obj.cafile)
+    if (!obj.cafile) {
       return
+    }
 
     const raw = maybeReadFile(obj.cafile)
-    if (!raw)
+    if (!raw) {
       return
+    }
 
     const delim = '-----END CERTIFICATE-----'
     flatOptions.ca = raw.replace(/\r\n/g, '\n').split(delim)
@@ -806,8 +817,9 @@ define('global', {
   `,
   flatten: (key, obj, flatOptions) => {
     flatten(key, obj, flatOptions)
-    if (flatOptions.global)
+    if (flatOptions.global) {
       flatOptions.location = 'global'
+    }
   },
 })
 
@@ -1150,8 +1162,9 @@ define('location', {
   `,
   flatten: (key, obj, flatOptions) => {
     flatten(key, obj, flatOptions)
-    if (flatOptions.global)
+    if (flatOptions.global) {
       flatOptions.location = 'global'
+    }
   },
 })
 
@@ -1281,10 +1294,11 @@ define('noproxy', {
     Also accepts a comma-delimited string.
   `,
   flatten (key, obj, flatOptions) {
-    if (Array.isArray(obj[key]))
+    if (Array.isArray(obj[key])) {
       flatOptions.noProxy = obj[key].join(',')
-    else
+    } else {
       flatOptions.noProxy = obj[key]
+    }
   },
 })
 
@@ -1403,8 +1417,9 @@ define('package-lock', {
   `,
   flatten: (key, obj, flatOptions) => {
     flatten(key, obj, flatOptions)
-    if (flatOptions.packageLockOnly)
+    if (flatOptions.packageLockOnly) {
       flatOptions.packageLock = true
+    }
   },
 })
 
@@ -1423,8 +1438,9 @@ define('package-lock-only', {
   `,
   flatten: (key, obj, flatOptions) => {
     flatten(key, obj, flatOptions)
-    if (flatOptions.packageLockOnly)
+    if (flatOptions.packageLockOnly) {
       flatOptions.packageLock = true
+    }
   },
 })
 
@@ -1607,8 +1623,9 @@ define('save-dev', {
   `,
   flatten (key, obj, flatOptions) {
     if (!obj[key]) {
-      if (flatOptions.saveType === 'dev')
+      if (flatOptions.saveType === 'dev') {
         delete flatOptions.saveType
+      }
       return
     }
 
@@ -1640,20 +1657,23 @@ define('save-optional', {
   `,
   flatten (key, obj, flatOptions) {
     if (!obj[key]) {
-      if (flatOptions.saveType === 'optional')
+      if (flatOptions.saveType === 'optional') {
         delete flatOptions.saveType
-      else if (flatOptions.saveType === 'peerOptional')
+      } else if (flatOptions.saveType === 'peerOptional') {
         flatOptions.saveType = 'peer'
+      }
       return
     }
 
-    if (flatOptions.saveType === 'peerOptional')
+    if (flatOptions.saveType === 'peerOptional') {
       return
+    }
 
-    if (flatOptions.saveType === 'peer')
+    if (flatOptions.saveType === 'peer') {
       flatOptions.saveType = 'peerOptional'
-    else
+    } else {
       flatOptions.saveType = 'optional'
+    }
   },
 })
 
@@ -1665,20 +1685,23 @@ define('save-peer', {
   `,
   flatten (key, obj, flatOptions) {
     if (!obj[key]) {
-      if (flatOptions.saveType === 'peer')
+      if (flatOptions.saveType === 'peer') {
         delete flatOptions.saveType
-      else if (flatOptions.saveType === 'peerOptional')
+      } else if (flatOptions.saveType === 'peerOptional') {
         flatOptions.saveType = 'optional'
+      }
       return
     }
 
-    if (flatOptions.saveType === 'peerOptional')
+    if (flatOptions.saveType === 'peerOptional') {
       return
+    }
 
-    if (flatOptions.saveType === 'optional')
+    if (flatOptions.saveType === 'optional') {
       flatOptions.saveType = 'peerOptional'
-    else
+    } else {
       flatOptions.saveType = 'peer'
+    }
   },
 })
 
@@ -1715,8 +1738,9 @@ define('save-prod', {
   `,
   flatten (key, obj, flatOptions) {
     if (!obj[key]) {
-      if (flatOptions.saveType === 'prod')
+      if (flatOptions.saveType === 'prod') {
         delete flatOptions.saveType
+      }
       return
     }
 
@@ -2085,8 +2109,9 @@ define('user-agent', {
     const value = obj[key]
     const ciName = obj['ci-name']
     let inWorkspaces = false
-    if (obj.workspaces || obj.workspace && obj.workspace.length)
+    if (obj.workspaces || obj.workspace && obj.workspace.length) {
       inWorkspaces = true
+    }
     flatOptions.userAgent =
       value.replace(/\{node-version\}/gi, obj['node-version'])
         .replace(/\{npm-version\}/gi, obj['npm-version'])

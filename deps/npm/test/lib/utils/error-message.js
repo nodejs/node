@@ -215,10 +215,11 @@ t.test('args are cleaned', t => {
 
 t.test('eacces/eperm', t => {
   const runTest = (windows, loaded, cachePath, cacheDest) => t => {
-    if (windows)
+    if (windows) {
       beWindows()
-    else
+    } else {
       bePosix()
+    }
 
     const path = `${cachePath ? CACHE : '/not/cache/dir'}/path`
     const dest = `${cacheDest ? CACHE : '/not/cache/dir'}/dest`
@@ -229,10 +230,11 @@ t.test('eacces/eperm', t => {
       stack: 'dummy stack trace',
     })
     verboseLogs.length = 0
-    if (loaded)
+    if (loaded) {
       t.matchSnapshot(errorMessage(er, npm))
-    else
+    } else {
       t.matchSnapshot(errorMessage(er, unloadedNpm))
+    }
 
     t.matchSnapshot(verboseLogs)
     t.end()
@@ -243,7 +245,7 @@ t.test('eacces/eperm', t => {
     for (const loaded of [true, false]) {
       for (const cachePath of [true, false]) {
         for (const cacheDest of [true, false]) {
-          const m = JSON.stringify({windows, loaded, cachePath, cacheDest})
+          const m = JSON.stringify({ windows, loaded, cachePath, cacheDest })
           t.test(m, runTest(windows, loaded, cachePath, cacheDest))
         }
       }

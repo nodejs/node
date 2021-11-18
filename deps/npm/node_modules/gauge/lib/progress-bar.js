@@ -6,14 +6,20 @@ var stringWidth = require('string-width')
 
 module.exports = function (theme, width, completed) {
   validate('ONN', [theme, width, completed])
-  if (completed < 0) completed = 0
-  if (completed > 1) completed = 1
-  if (width <= 0) return ''
+  if (completed < 0) {
+    completed = 0
+  }
+  if (completed > 1) {
+    completed = 1
+  }
+  if (width <= 0) {
+    return ''
+  }
   var sofar = Math.round(width * completed)
   var rest = width - sofar
   var template = [
-    {type: 'complete', value: repeat(theme.complete, sofar), length: sofar},
-    {type: 'remaining', value: repeat(theme.remaining, rest), length: rest}
+    { type: 'complete', value: repeat(theme.complete, sofar), length: sofar },
+    { type: 'remaining', value: repeat(theme.remaining, rest), length: rest },
   ]
   return renderTemplate(width, template, theme)
 }

@@ -38,13 +38,10 @@ t.before(async () => {
   npm.config.set('cache', cacheFolder)
 })
 
-t.test('bootstrap tap before cutting off process ref', (t) => {
-  t.ok('ok')
-  t.end()
-})
-
 // cut off process from script so that it won't quit the test runner
-// while trying to run through the myriad of cases
+// while trying to run through the myriad of cases.  need to make it
+// have all the functions signal-exit relies on so that it doesn't
+// nerf itself, thinking global.process is broken or gone.
 const _process = process
 process = Object.assign(
   new EventEmitter(),
@@ -62,6 +59,9 @@ process = Object.assign(
     } },
     stderr: { write () {} },
     hrtime: _process.hrtime,
+    kill: () => {},
+    reallyExit: (code) => process.exit(code),
+    pid: 123456,
   }
 )
 

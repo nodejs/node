@@ -31,46 +31,35 @@ const publicVar = k => !/^(\/\/[^:]+:)?_/.test(k)
 
 const BaseCommand = require('../base-command.js')
 class Config extends BaseCommand {
-  static get description () {
-    return 'Manage the npm configuration files'
-  }
+  static description = 'Manage the npm configuration files'
+  static name = 'config'
+  static usage = [
+    'set <key>=<value> [<key>=<value> ...]',
+    'get [<key> [<key> ...]]',
+    'delete <key> [<key> ...]',
+    'list [--json]',
+    'edit',
+  ]
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'config'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return [
-      'set <key>=<value> [<key>=<value> ...]',
-      'get [<key> [<key> ...]]',
-      'delete <key> [<key> ...]',
-      'list [--json]',
-      'edit',
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'json',
-      'global',
-      'editor',
-      'location',
-      'long',
-    ]
-  }
+  static params = [
+    'json',
+    'global',
+    'editor',
+    'location',
+    'long',
+  ]
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
-    if (argv[1] !== 'config')
+    if (argv[1] !== 'config') {
       argv.unshift('config')
+    }
 
     if (argv.length === 2) {
       const cmds = ['get', 'set', 'delete', 'ls', 'rm', 'edit']
-      if (opts.partialWord !== 'l')
+      if (opts.partialWord !== 'l') {
         cmds.push('list')
+      }
 
       return cmds
     }
@@ -79,8 +68,9 @@ class Config extends BaseCommand {
     switch (action) {
       case 'set':
         // todo: complete with valid values, if possible.
-        if (argv.length > 3)
+        if (argv.length > 3) {
           return []
+        }
 
         // fallthrough
         /* eslint no-fallthrough:0 */
@@ -132,28 +122,32 @@ class Config extends BaseCommand {
   }
 
   async set (args) {
-    if (!args.length)
+    if (!args.length) {
       throw this.usageError()
+    }
 
     const where = this.npm.flatOptions.location
     for (const [key, val] of Object.entries(keyValues(args))) {
       this.npm.log.info('config', 'set %j %j', key, val)
       this.npm.config.set(key, val || '', where)
-      if (!this.npm.config.validate(where))
+      if (!this.npm.config.validate(where)) {
         this.npm.log.warn('config', 'omitting invalid config values')
+      }
     }
 
     await this.npm.config.save(where)
   }
 
   async get (keys) {
-    if (!keys.length)
+    if (!keys.length) {
       return this.list()
+    }
 
     const out = []
     for (const key of keys) {
-      if (!publicVar(key))
+      if (!publicVar(key)) {
         throw `The ${key} option is protected, and cannot be retrieved in this way`
+      }
 
       const pref = keys.length > 1 ? `${key}=` : ''
       out.push(pref + this.npm.config.get(key))
@@ -162,12 +156,14 @@ class Config extends BaseCommand {
   }
 
   async del (keys) {
-    if (!keys.length)
+    if (!keys.length) {
       throw this.usageError()
+    }
 
     const where = this.npm.flatOptions.location
-    for (const key of keys)
+    for (const key of keys) {
       this.npm.config.delete(key, where)
+    }
     await this.npm.config.save(where)
   }
 
@@ -220,8 +216,9 @@ ${defData}
       const [bin, ...args] = e.split(/\s+/)
       const editor = spawn(bin, [...args, file], { stdio: 'inherit' })
       editor.on('exit', (code) => {
-        if (code)
+        if (code) {
           return reject(new Error(`editor process exited with code: ${code}`))
+        }
         return resolve()
       })
     })
@@ -232,12 +229,14 @@ ${defData}
     // long does not have a flattener
     const long = this.npm.config.get('long')
     for (const [where, { data, source }] of this.npm.config.data.entries()) {
-      if (where === 'default' && !long)
+      if (where === 'default' && !long) {
         continue
+      }
 
       const keys = Object.keys(data).sort(localeCompare)
-      if (!keys.length)
+      if (!keys.length) {
         continue
+      }
 
       msg.push(`; "${where}" config from ${source}`, '')
       for (const k of keys) {
@@ -265,8 +264,9 @@ ${defData}
   async listJson () {
     const publicConf = {}
     for (const key in this.npm.config.list[0]) {
-      if (!publicVar(key))
+      if (!publicVar(key)) {
         continue
+      }
 
       publicConf[key] = this.npm.config.get(key)
     }

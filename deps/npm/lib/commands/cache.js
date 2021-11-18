@@ -12,8 +12,10 @@ const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const searchCachePackage = async (path, spec, cacheKeys) => {
   const parsed = npa(spec)
-  if (parsed.rawSpec !== '' && parsed.type === 'tag')
+  if (parsed.rawSpec !== '' && parsed.type === 'tag') {
     throw new Error(`Cannot list cache keys for a tagged package.`)
+  }
+  /* eslint-disable-next-line max-len */
   const searchMFH = new RegExp(`^make-fetch-happen:request-cache:.*(?<!/[@a-zA-Z]+)/${parsed.name}/-/(${parsed.name}[^/]+.tgz)$`)
   const searchPack = new RegExp(`^make-fetch-happen:request-cache:.*/${parsed.escapedName}$`)
   const results = new Set()
@@ -26,13 +28,15 @@ const searchCachePackage = async (path, spec, cacheKeys) => {
       const noExt = filename.slice(0, -4)
       const noScope = `${parsed.name.split('/').pop()}-`
       const ver = noExt.slice(noScope.length)
-      if (semver.satisfies(ver, parsed.rawSpec))
+      if (semver.satisfies(ver, parsed.rawSpec)) {
         results.add(key)
+      }
       continue
     }
     // is this key a packument?
-    if (!searchPack.test(key))
+    if (!searchPack.test(key)) {
       continue
+    }
 
     results.add(key)
     let packument, details
@@ -43,16 +47,19 @@ const searchCachePackage = async (path, spec, cacheKeys) => {
       // if we couldn't parse the packument, abort
       continue
     }
-    if (!packument.versions || typeof packument.versions !== 'object')
+    if (!packument.versions || typeof packument.versions !== 'object') {
       continue
+    }
     // assuming this is a packument
     for (const ver of Object.keys(packument.versions)) {
       if (semver.satisfies(ver, parsed.rawSpec)) {
-        if (packument.versions[ver].dist
-          && typeof packument.versions[ver].dist === 'object'
-          && packument.versions[ver].dist.tarball !== undefined
-          && cacheKeys.has(`make-fetch-happen:request-cache:${packument.versions[ver].dist.tarball}`))
+        if (packument.versions[ver].dist &&
+          typeof packument.versions[ver].dist === 'object' &&
+          packument.versions[ver].dist.tarball !== undefined &&
+          cacheKeys.has(`make-fetch-happen:request-cache:${packument.versions[ver].dist.tarball}`)
+        ) {
           results.add(`make-fetch-happen:request-cache:${packument.versions[ver].dist.tarball}`)
+        }
       }
     }
   }
@@ -60,38 +67,25 @@ const searchCachePackage = async (path, spec, cacheKeys) => {
 }
 
 class Cache extends BaseCommand {
-  static get description () {
-    return 'Manipulates packages cache'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'cache'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return ['cache']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return [
-      'add <tarball file>',
-      'add <folder>',
-      'add <tarball url>',
-      'add <git url>',
-      'add <name>@<version>',
-      'clean [<key>]',
-      'ls [<name>@<version>]',
-      'verify',
-    ]
-  }
+  static description = 'Manipulates packages cache'
+  static name = 'cache'
+  static params = ['cache']
+  static usage = [
+    'add <tarball file>',
+    'add <folder>',
+    'add <tarball url>',
+    'add <git url>',
+    'add <name>@<version>',
+    'clean [<key>]',
+    'ls [<name>@<version>]',
+    'verify',
+  ]
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
-    if (argv.length === 2)
+    if (argv.length === 2) {
       return ['add', 'clean', 'verify', 'ls', 'delete']
+    }
 
     // TODO - eventually...
     switch (argv[2]) {
@@ -162,8 +156,9 @@ class Cache extends BaseCommand {
   // npm cache add <folder>...
   async add (args) {
     log.silly('cache add', 'args', args)
-    if (args.length === 0)
+    if (args.length === 0) {
       throw this.usageError('First argument to `add` is required')
+    }
 
     return Promise.all(args.map(spec => {
       log.silly('cache add', 'spec', spec)
@@ -185,9 +180,16 @@ class Cache extends BaseCommand {
     const stats = await cacache.verify(cache)
     this.npm.output(`Cache verified and compressed (${prefix})`)
     this.npm.output(`Content verified: ${stats.verifiedContent} (${stats.keptSize} bytes)`)
-    stats.badContentCount && this.npm.output(`Corrupted content removed: ${stats.badContentCount}`)
-    stats.reclaimedCount && this.npm.output(`Content garbage-collected: ${stats.reclaimedCount} (${stats.reclaimedSize} bytes)`)
-    stats.missingContent && this.npm.output(`Missing content: ${stats.missingContent}`)
+    if (stats.badContentCount) {
+      this.npm.output(`Corrupted content removed: ${stats.badContentCount}`)
+    }
+    if (stats.reclaimedCount) {
+      /* eslint-disable-next-line max-len */
+      this.npm.output(`Content garbage-collected: ${stats.reclaimedCount} (${stats.reclaimedSize} bytes)`)
+    }
+    if (stats.missingContent) {
+      this.npm.output(`Missing content: ${stats.missingContent}`)
+    }
     this.npm.output(`Index entries: ${stats.totalEntries}`)
     this.npm.output(`Finished in ${stats.runTime.total / 1000}s`)
   }
@@ -201,8 +203,9 @@ class Cache extends BaseCommand {
       const results = new Set()
       for (const spec of specs) {
         const keySet = await searchCachePackage(cachePath, spec, cacheKeys)
-        for (const key of keySet)
+        for (const key of keySet) {
           results.add(key)
+        }
       }
       [...results].sort(localeCompare).forEach(key => this.npm.output(key))
       return

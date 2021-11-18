@@ -15,20 +15,22 @@ const explain = (expl, color, depth) => {
   const whileInstalling = dep && dep.whileInstalling ||
     current && current.whileInstalling ||
     edge && edge.from && edge.from.whileInstalling
-  if (whileInstalling)
+  if (whileInstalling) {
     out.push('While resolving: ' + printNode(whileInstalling, color))
+  }
 
   // it "should" be impossible for an ERESOLVE explanation to lack both
   // current and currentEdge, but better to have a less helpful error
   // than a crashing failure.
-  if (current)
+  if (current) {
     out.push('Found: ' + explainNode(current, depth, color))
-  else if (peerConflict && peerConflict.current)
+  } else if (peerConflict && peerConflict.current) {
     out.push('Found: ' + explainNode(peerConflict.current, depth, color))
-  else if (currentEdge)
+  } else if (currentEdge) {
     out.push('Found: ' + explainEdge(currentEdge, depth, color))
-  else /* istanbul ignore else - should always have one */ if (edge)
+  } else /* istanbul ignore else - should always have one */ if (edge) {
     out.push('Found: ' + explainEdge(edge, depth, color))
+  }
 
   out.push('\nCould not resolve dependency:\n' +
     explainEdge(edge, depth, color))

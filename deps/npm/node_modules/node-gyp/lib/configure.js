@@ -97,17 +97,15 @@ function configure (gyp, argv, callback) {
       process.env.GYP_MSVS_VERSION = Math.min(vsInfo.versionYear, 2015)
       process.env.GYP_MSVS_OVERRIDE_PATH = vsInfo.path
     }
-    createConfigGypi({ gyp, buildDir, nodeDir, vsInfo }, (err, configPath) => {
+    createConfigGypi({ gyp, buildDir, nodeDir, vsInfo }).then(configPath => {
       configs.push(configPath)
-      findConfigs(err)
+      findConfigs()
+    }).catch(err => {
+      callback(err)
     })
   }
 
-  function findConfigs (err) {
-    if (err) {
-      return callback(err)
-    }
-
+  function findConfigs () {
     var name = configNames.shift()
     if (!name) {
       return runGyp()

@@ -27,12 +27,14 @@ const shorthands = {
   reg: ['--registry'],
 }
 
-for (const [key, {short}] of Object.entries(definitions)) {
-  if (!short)
+for (const [key, { short }] of Object.entries(definitions)) {
+  if (!short) {
     continue
+  }
   // can be either an array or string
-  for (const s of [].concat(short))
+  for (const s of [].concat(short)) {
     shorthands[s] = [`--${key}`]
+  }
 }
 
 module.exports = {
