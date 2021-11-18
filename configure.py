@@ -1249,7 +1249,7 @@ def configure_node(o):
     o['variables']['node_use_node_snapshot'] = b(
       not cross_compiling and not options.shared)
 
-  if options.without_node_code_cache or options.node_builtin_modules_path:
+  if options.without_node_code_cache or options.without_node_snapshot or options.node_builtin_modules_path:
     o['variables']['node_use_node_code_cache'] = 'false'
   else:
     # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.

@@ -2,6 +2,7 @@
 
 #include "memory_tracker-inl.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 
 namespace node {
 namespace wasm_web_api {
