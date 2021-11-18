@@ -1014,7 +1014,7 @@ try {
   const path = new URL('./test/project', import.meta.url);
   const createDir = await mkdir(path, { recursive: true });
 
-  console.log (`created ${createDir}`);
+  console.log(`created ${createDir}`);
 } catch (err) {
   console.error(err.message);
 }
@@ -1024,16 +1024,22 @@ try {
 const { mkdir } = require('fs/promises');
 const { resolve } = require('path');
 
-async function makeDirectory () {
-  const path = resolve('./test/project/lol/hi')
-  const dirCreation = await mkdir(path, { recursive: true });
-  
-  console.log(dirCreation)
-  return dirCreation;
+async function makeDirectory() {
+  try {
+    const path = resolve('./test/project/lol/hi');
+    const dirCreation = await mkdir(path, { recursive: true });
+
+    console.log(dirCreation);
+    return dirCreation;
+  } catch (err) {
+    console.error(err.message);
+  }
+
 }
 
 makeDirectory();
 ```
+
 ### `fsPromises.mkdtemp(prefix[, options])`
 
 <!-- YAML
