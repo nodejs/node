@@ -7,7 +7,8 @@ const {
   Transform,
   finished,
   Duplex,
-  PassThrough
+  PassThrough,
+  Stream
 } = require('stream');
 const assert = require('assert');
 const EE = require('events');
@@ -629,4 +630,12 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
       assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
     }));
   }));
+}
+
+{
+  // Legacy Streams do not inherit from Readable or Writable.
+  // We cannot really assume anything about them, so we cannot close them
+  // automatically.
+  const s = new Stream();
+  finished(s, common.mustNotCall());
 }
