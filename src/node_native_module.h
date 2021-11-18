@@ -15,12 +15,18 @@
 class PerProcessTest;
 
 namespace node {
+class SnapshotBuilder;
 namespace native_module {
 
 using NativeModuleRecordMap = std::map<std::string, UnionBytes>;
 using NativeModuleCacheMap =
     std::unordered_map<std::string,
                        std::unique_ptr<v8::ScriptCompiler::CachedData>>;
+
+struct CodeCacheInfo {
+  std::string id;
+  std::vector<uint8_t> data;
+};
 
 // The native (C++) side of the NativeModule in JS land, which
 // handles compilation and caching of builtin modules (NativeModule)
@@ -66,6 +72,8 @@ class NODE_EXTERN_PRIVATE NativeModuleLoader {
   bool CannotBeRequired(const char* id);
 
   NativeModuleCacheMap* code_cache();
+  const Mutex& code_cache_mutex() const { return code_cache_mutex_; }
+
   v8::ScriptCompiler::CachedData* GetCodeCache(const char* id) const;
   enum class Result { kWithCache, kWithoutCache };
   v8::MaybeLocal<v8::String> LoadBuiltinModuleSource(v8::Isolate* isolate,
