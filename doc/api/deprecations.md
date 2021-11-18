@@ -3024,11 +3024,11 @@ it was an aborted or graceful destroy.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
-    description: Runtime deprecation.
+    pr-url: https://github.com/nodejs/node/pull/40860
+    description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: Documentation-only
 
 An undocumented feature of Node.js streams was to support thenables in
 implementation methods. This is now deprecated, instead use callbacks.
