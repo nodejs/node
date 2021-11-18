@@ -979,8 +979,6 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
 
 #endif  // defined(NODE_HAVE_I18N_SUPPORT)
 
-  NativeModuleEnv::InitializeCodeCache();
-
   // We should set node_is_initialized here instead of in node::Start,
   // otherwise embedders using node::Init to initialize everything will not be
   // able to set it and native modules will not load for them.
@@ -1174,6 +1172,10 @@ int Start(int argc, char** argv) {
                           : nullptr;
     uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
 
+    if (snapshot_data != nullptr) {
+      native_module::NativeModuleEnv::RefreshCodeCache(
+          snapshot_data->code_cache);
+    }
     NodeMainInstance main_instance(snapshot_data,
                                    uv_default_loop(),
                                    per_process::v8_platform.Platform(),
