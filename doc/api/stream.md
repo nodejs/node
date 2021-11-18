@@ -2080,12 +2080,14 @@ added: v16.9.0
 * `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]}
 * Returns: {stream.Duplex}
 
-Combines two or more `Duplex` streams (e.g. transforms) into a `Duplex` stream that writes to the
-first stream and reads from the last. Each provided stream is piped into
-the next, using `stream.pipeline`. If any of the streams error then all
-are destroyed, including the outer `Duplex` stream.
+Combines two or more `Duplex` streams (e.g. transforms) into a `Duplex` 
+stream that writes to the first stream and reads from the last. Each provided 
+stream is piped into the next, using `stream.pipeline`. If any of the streams 
+error then all are destroyed, including the outer `Duplex` stream.
 
-It should not be confused with `stream.Duplex.from({writable, readable})` which can combine a write-only stream with a read-only stream to create a `Duplex` (where the streams doesn't get piped).
+It should not be confused with `stream.Duplex.from({writable, readable})` 
+which can combine a write-only stream with a read-only stream to create a 
+`Duplex` (where the streams doesn't get piped).
 
 Because `stream.compose` returns a new stream that in turn can (and
 should) be piped into other streams, it enables composition. In contrast,
