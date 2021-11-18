@@ -19,8 +19,9 @@ const definitions = require(defpath)
 
 // Tie the definitions to a snapshot so that if they change we are forced to
 // update snapshots, which rebuilds the docs
-for (const key of Object.keys(definitions))
+for (const key of Object.keys(definitions)) {
   t.matchSnapshot(definitions[key].describe(), `config description for ${key}`)
+}
 
 const isWin = '../../../../lib/utils/is-windows.js'
 
@@ -184,7 +185,7 @@ t.test('cache', t => {
 
   const flat = {}
   defsNix.cache.flatten('cache', { cache: '/some/cache/value' }, flat)
-  const {join} = require('path')
+  const { join } = require('path')
   t.equal(flat.cache, join('/some/cache/value', '_cacache'))
   t.equal(flat.npxCache, join('/some/cache/value', '_npx'))
 
@@ -199,8 +200,8 @@ t.test('flatteners that populate flat.omit array', t => {
     // ignored if setting is not dev or development
     obj.also = 'ignored'
     definitions.also.flatten('also', obj, flat)
-    t.strictSame(obj, {also: 'ignored', omit: [], include: []}, 'nothing done')
-    t.strictSame(flat, {omit: []}, 'nothing done')
+    t.strictSame(obj, { also: 'ignored', omit: [], include: [] }, 'nothing done')
+    t.strictSame(flat, { omit: [] }, 'nothing done')
 
     obj.also = 'development'
     definitions.also.flatten('also', obj, flat)
@@ -227,10 +228,10 @@ t.test('flatteners that populate flat.omit array', t => {
     const flat = {}
     const obj = { include: ['dev'] }
     definitions.include.flatten('include', obj, flat)
-    t.strictSame(flat, {omit: []}, 'not omitting anything')
+    t.strictSame(flat, { omit: [] }, 'not omitting anything')
     obj.omit = ['optional', 'dev']
     definitions.include.flatten('include', obj, flat)
-    t.strictSame(flat, {omit: ['optional']}, 'only omitting optional')
+    t.strictSame(flat, { omit: ['optional'] }, 'only omitting optional')
     t.end()
   })
 
@@ -254,12 +255,12 @@ t.test('flatteners that populate flat.omit array', t => {
 
     obj.only = 'prod'
     definitions.only.flatten('only', obj, flat)
-    t.strictSame(flat, {omit: ['dev']}, 'omit dev when --only=prod')
+    t.strictSame(flat, { omit: ['dev'] }, 'omit dev when --only=prod')
 
     obj.include = ['dev']
     flat.omit = []
     definitions.only.flatten('only', obj, flat)
-    t.strictSame(flat, {omit: []}, 'do not omit when included')
+    t.strictSame(flat, { omit: [] }, 'do not omit when included')
 
     t.end()
   })
@@ -283,7 +284,7 @@ t.test('flatteners that populate flat.omit array', t => {
       optional: true,
       include: ['optional'],
     }, 'include optional when set')
-    t.strictSame(flat, {omit: []}, 'nothing to omit in flatOptions')
+    t.strictSame(flat, { omit: [] }, 'nothing to omit in flatOptions')
 
     delete obj.include
     obj.optional = false
@@ -293,21 +294,21 @@ t.test('flatteners that populate flat.omit array', t => {
       optional: false,
       include: [],
     }, 'omit optional when set false')
-    t.strictSame(flat, {omit: ['optional']}, 'omit optional when set false')
+    t.strictSame(flat, { omit: ['optional'] }, 'omit optional when set false')
 
     t.end()
   })
 
   t.test('production', t => {
     const flat = {}
-    const obj = {production: true}
+    const obj = { production: true }
     definitions.production.flatten('production', obj, flat)
     t.strictSame(obj, {
       production: true,
       omit: ['dev'],
       include: [],
     }, '--production sets --omit=dev')
-    t.strictSame(flat, {omit: ['dev']}, '--production sets --omit=dev')
+    t.strictSame(flat, { omit: ['dev'] }, '--production sets --omit=dev')
 
     delete obj.omit
     obj.production = false
@@ -328,14 +329,14 @@ t.test('flatteners that populate flat.omit array', t => {
       include: ['dev'],
       omit: [],
     }, 'omit and include dev')
-    t.strictSame(flat, {omit: []}, 'do not omit dev when included')
+    t.strictSame(flat, { omit: [] }, 'do not omit dev when included')
 
     t.end()
   })
 
   t.test('dev', t => {
     const flat = {}
-    const obj = {dev: true}
+    const obj = { dev: true }
     definitions.dev.flatten('dev', obj, flat)
     t.strictSame(obj, {
       dev: true,
@@ -355,7 +356,7 @@ t.test('cache-max', t => {
   t.strictSame(flat, {}, 'no effect if not <= 0')
   obj['cache-max'] = 0
   definitions['cache-max'].flatten('cache-max', obj, flat)
-  t.strictSame(flat, {preferOnline: true}, 'preferOnline if <= 0')
+  t.strictSame(flat, { preferOnline: true }, 'preferOnline if <= 0')
   t.end()
 })
 
@@ -366,7 +367,7 @@ t.test('cache-min', t => {
   t.strictSame(flat, {}, 'no effect if not >= 9999')
   obj['cache-min'] = 9999
   definitions['cache-min'].flatten('cache-min', obj, flat)
-  t.strictSame(flat, {preferOffline: true}, 'preferOffline if >=9999')
+  t.strictSame(flat, { preferOffline: true }, 'preferOffline if >=9999')
   t.end()
 })
 
@@ -378,19 +379,19 @@ t.test('color', t => {
   const obj = { color: 'always' }
 
   definitions.color.flatten('color', obj, flat)
-  t.strictSame(flat, {color: true}, 'true when --color=always')
+  t.strictSame(flat, { color: true }, 'true when --color=always')
 
   obj.color = false
   definitions.color.flatten('color', obj, flat)
-  t.strictSame(flat, {color: false}, 'true when --no-color')
+  t.strictSame(flat, { color: false }, 'true when --no-color')
 
   process.stdout.isTTY = false
   obj.color = true
   definitions.color.flatten('color', obj, flat)
-  t.strictSame(flat, {color: false}, 'no color when stdout not tty')
+  t.strictSame(flat, { color: false }, 'no color when stdout not tty')
   process.stdout.isTTY = true
   definitions.color.flatten('color', obj, flat)
-  t.strictSame(flat, {color: true}, '--color turns on color when stdout is tty')
+  t.strictSame(flat, { color: true }, '--color turns on color when stdout is tty')
 
   delete process.env.NO_COLOR
   const defsAllowColor = t.mock(defpath)
@@ -421,7 +422,7 @@ t.test('retry options', t => {
     const flat = {}
     obj[config] = 99
     definitions[config].flatten(config, obj, flat)
-    t.strictSame(flat, {retry: {[option]: 99}}, msg)
+    t.strictSame(flat, { retry: { [option]: 99 } }, msg)
     delete obj[config]
   }
   t.end()
@@ -442,7 +443,7 @@ t.test('search options', t => {
     const flat = {}
     obj[config] = 99
     definitions[config].flatten(config, obj, flat)
-    t.strictSame(flat, { search: { limit: 20, [option]: 99 }}, msg)
+    t.strictSame(flat, { search: { limit: 20, [option]: 99 } }, msg)
     delete obj[config]
   }
 
@@ -515,18 +516,18 @@ t.test('shrinkwrap/package-lock', t => {
   const obj = { shrinkwrap: false }
   const flat = {}
   definitions.shrinkwrap.flatten('shrinkwrap', obj, flat)
-  t.strictSame(flat, {packageLock: false})
+  t.strictSame(flat, { packageLock: false })
   obj.shrinkwrap = true
   definitions.shrinkwrap.flatten('shrinkwrap', obj, flat)
-  t.strictSame(flat, {packageLock: true})
+  t.strictSame(flat, { packageLock: true })
 
   delete obj.shrinkwrap
   obj['package-lock'] = false
   definitions['package-lock'].flatten('package-lock', obj, flat)
-  t.strictSame(flat, {packageLock: false})
+  t.strictSame(flat, { packageLock: false })
   obj['package-lock'] = true
   definitions['package-lock'].flatten('package-lock', obj, flat)
-  t.strictSame(flat, {packageLock: true})
+  t.strictSame(flat, { packageLock: true })
 
   t.end()
 })
@@ -550,7 +551,7 @@ t.test('defaultTag', t => {
   const obj = { tag: 'next' }
   const flat = {}
   definitions.tag.flatten('tag', obj, flat)
-  t.strictSame(flat, {defaultTag: 'next'})
+  t.strictSame(flat, { defaultTag: 'next' })
   t.end()
 })
 
@@ -558,7 +559,7 @@ t.test('timeout', t => {
   const obj = { 'fetch-timeout': 123 }
   const flat = {}
   definitions['fetch-timeout'].flatten('fetch-timeout', obj, flat)
-  t.strictSame(flat, {timeout: 123})
+  t.strictSame(flat, { timeout: 123 })
   t.end()
 })
 
@@ -573,10 +574,10 @@ t.test('saveType', t => {
     t.strictSame(flat, {}, 'remove if false and set to prod')
     flat.saveType = 'dev'
     definitions['save-prod'].flatten('save-prod', obj, flat)
-    t.strictSame(flat, {saveType: 'dev'}, 'ignore if false and not already prod')
+    t.strictSame(flat, { saveType: 'dev' }, 'ignore if false and not already prod')
     obj['save-prod'] = true
     definitions['save-prod'].flatten('save-prod', obj, flat)
-    t.strictSame(flat, {saveType: 'prod'}, 'set to prod if true')
+    t.strictSame(flat, { saveType: 'prod' }, 'set to prod if true')
     t.end()
   })
 
@@ -591,10 +592,10 @@ t.test('saveType', t => {
     flat.saveType = 'prod'
     obj['save-dev'] = false
     definitions['save-dev'].flatten('save-dev', obj, flat)
-    t.strictSame(flat, {saveType: 'prod'}, 'ignore if false and not already dev')
+    t.strictSame(flat, { saveType: 'prod' }, 'ignore if false and not already dev')
     obj['save-dev'] = true
     definitions['save-dev'].flatten('save-dev', obj, flat)
-    t.strictSame(flat, {saveType: 'dev'}, 'set to dev if true')
+    t.strictSame(flat, { saveType: 'dev' }, 'set to dev if true')
     t.end()
   })
 
@@ -602,40 +603,40 @@ t.test('saveType', t => {
     const obj = { 'save-bundle': true }
     const flat = {}
     definitions['save-bundle'].flatten('save-bundle', obj, flat)
-    t.strictSame(flat, {saveBundle: true}, 'set the saveBundle flag')
+    t.strictSame(flat, { saveBundle: true }, 'set the saveBundle flag')
 
     obj['save-bundle'] = false
     definitions['save-bundle'].flatten('save-bundle', obj, flat)
-    t.strictSame(flat, {saveBundle: false}, 'unset the saveBundle flag')
+    t.strictSame(flat, { saveBundle: false }, 'unset the saveBundle flag')
 
     obj['save-bundle'] = true
     obj['save-peer'] = true
     definitions['save-bundle'].flatten('save-bundle', obj, flat)
-    t.strictSame(flat, {saveBundle: false}, 'false if save-peer is set')
+    t.strictSame(flat, { saveBundle: false }, 'false if save-peer is set')
 
     t.end()
   })
 
   t.test('save-peer', t => {
-    const obj = { 'save-peer': false}
+    const obj = { 'save-peer': false }
     const flat = {}
     definitions['save-peer'].flatten('save-peer', obj, flat)
     t.strictSame(flat, {}, 'no effect if false and not yet set')
 
     obj['save-peer'] = true
     definitions['save-peer'].flatten('save-peer', obj, flat)
-    t.strictSame(flat, {saveType: 'peer'}, 'set saveType to peer if unset')
+    t.strictSame(flat, { saveType: 'peer' }, 'set saveType to peer if unset')
 
     flat.saveType = 'optional'
     definitions['save-peer'].flatten('save-peer', obj, flat)
-    t.strictSame(flat, {saveType: 'peerOptional'}, 'set to peerOptional if optional already')
+    t.strictSame(flat, { saveType: 'peerOptional' }, 'set to peerOptional if optional already')
 
     definitions['save-peer'].flatten('save-peer', obj, flat)
-    t.strictSame(flat, {saveType: 'peerOptional'}, 'no effect if already peerOptional')
+    t.strictSame(flat, { saveType: 'peerOptional' }, 'no effect if already peerOptional')
 
     obj['save-peer'] = false
     definitions['save-peer'].flatten('save-peer', obj, flat)
-    t.strictSame(flat, {saveType: 'optional'}, 'switch peerOptional to optional if false')
+    t.strictSame(flat, { saveType: 'optional' }, 'switch peerOptional to optional if false')
 
     obj['save-peer'] = false
     flat.saveType = 'peer'
@@ -646,25 +647,25 @@ t.test('saveType', t => {
   })
 
   t.test('save-optional', t => {
-    const obj = { 'save-optional': false}
+    const obj = { 'save-optional': false }
     const flat = {}
     definitions['save-optional'].flatten('save-optional', obj, flat)
     t.strictSame(flat, {}, 'no effect if false and not yet set')
 
     obj['save-optional'] = true
     definitions['save-optional'].flatten('save-optional', obj, flat)
-    t.strictSame(flat, {saveType: 'optional'}, 'set saveType to optional if unset')
+    t.strictSame(flat, { saveType: 'optional' }, 'set saveType to optional if unset')
 
     flat.saveType = 'peer'
     definitions['save-optional'].flatten('save-optional', obj, flat)
-    t.strictSame(flat, {saveType: 'peerOptional'}, 'set to peerOptional if peer already')
+    t.strictSame(flat, { saveType: 'peerOptional' }, 'set to peerOptional if peer already')
 
     definitions['save-optional'].flatten('save-optional', obj, flat)
-    t.strictSame(flat, {saveType: 'peerOptional'}, 'no effect if already peerOptional')
+    t.strictSame(flat, { saveType: 'peerOptional' }, 'no effect if already peerOptional')
 
     obj['save-optional'] = false
     definitions['save-optional'].flatten('save-optional', obj, flat)
-    t.strictSame(flat, {saveType: 'peer'}, 'switch peerOptional to peer if false')
+    t.strictSame(flat, { saveType: 'peer' }, 'switch peerOptional to peer if false')
 
     flat.saveType = 'optional'
     definitions['save-optional'].flatten('save-optional', obj, flat)

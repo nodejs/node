@@ -7,29 +7,15 @@ const openUrl = require('../utils/open-url.js')
 
 const BaseCommand = require('../base-command.js')
 class Repo extends BaseCommand {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Open package repository page in the browser'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'repo'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return ['browser', 'workspace', 'workspaces', 'include-workspace-root']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[<pkgname> [<pkgname> ...]]']
-  }
+  static description = 'Open package repository page in the browser'
+  static name = 'repo'
+  static params = ['browser', 'workspace', 'workspaces', 'include-workspace-root']
+  static usage = ['[<pkgname> [<pkgname> ...]]']
 
   async exec (args) {
-    if (!args || !args.length)
+    if (!args || !args.length) {
       args = ['.']
+    }
 
     await Promise.all(args.map(pkg => this.get(pkg)))
   }
@@ -86,8 +72,9 @@ const unknownHostedUrl = url => {
     } = new URL(url)
 
     /* istanbul ignore next - URL ctor should prevent this */
-    if (!protocol || !hostname)
+    if (!protocol || !hostname) {
       return null
+    }
 
     const proto = /(git\+)http:$/.test(protocol) ? 'http:' : 'https:'
     const path = pathname.replace(/\.git$/, '')

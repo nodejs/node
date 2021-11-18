@@ -55,8 +55,9 @@ const packument = spec => {
     },
   }
 
-  if (spec.name === 'eta')
+  if (spec.name === 'eta') {
     throw new Error('There is an error with this package.')
+  }
 
   if (!mocks[spec.name]) {
     const err = new Error()

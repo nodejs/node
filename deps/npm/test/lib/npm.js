@@ -18,8 +18,9 @@ for (const env of Object.keys(process.env).filter(e => /^npm_/.test(e))) {
         ['test', 'run-script'].some(i => i === event),
         'should match "npm test" or "npm run test"'
       )
-    } else
+    } else {
       t.match(process.env[env], /^(run-script|exec)$/)
+    }
   }
   delete process.env[env]
 }
@@ -42,8 +43,9 @@ const bePosix = () => {
 const argv = [...process.argv]
 
 t.afterEach(() => {
-  for (const env of Object.keys(process.env).filter(e => /^npm_/.test(e)))
+  for (const env of Object.keys(process.env).filter(e => /^npm_/.test(e))) {
     delete process.env[env]
+  }
   process.env.npm_config_cache = CACHE
   process.argv = argv
   Object.defineProperty(process, 'platform', {

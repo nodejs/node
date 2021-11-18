@@ -26,7 +26,7 @@ const removed = new Set([
 
 const { definitions, shorthands } = require('../lib/utils/config/index.js')
 const npmSwitches = Object.entries(definitions)
-  .filter(([key, {type}]) => type === Boolean ||
+  .filter(([key, { type }]) => type === Boolean ||
     (Array.isArray(type) && type.includes(Boolean)))
   .map(([key]) => key)
 
@@ -65,9 +65,9 @@ let i
 let sawRemovedFlags = false
 for (i = 3; i < process.argv.length; i++) {
   const arg = process.argv[i]
-  if (arg === '--')
+  if (arg === '--') {
     break
-  else if (/^-/.test(arg)) {
+  } else if (/^-/.test(arg)) {
     const [key, ...v] = arg.replace(/^-+/, '').split('=')
 
     switch (key) {
@@ -87,8 +87,9 @@ for (i = 3; i < process.argv.length; i++) {
         // resolve shorthands and run again
         if (shorthands[key] && !removed.has(key)) {
           const a = [...shorthands[key]]
-          if (v.length)
+          if (v.length) {
             a.push(v.join('='))
+          }
           process.argv.splice(i, 1, ...a)
           i--
           continue
@@ -109,8 +110,9 @@ for (i = 3; i < process.argv.length; i++) {
       if (removed.has(key)) {
         // also remove the value for the cut key.
         process.argv.splice(i + 1, 1)
-      } else
+      } else {
         i++
+      }
     }
   } else {
     // found a positional arg, put -- in front of it, and we're done
@@ -119,7 +121,8 @@ for (i = 3; i < process.argv.length; i++) {
   }
 }
 
-if (sawRemovedFlags)
+if (sawRemovedFlags) {
   console.error('See `npm help exec` for more information')
+}
 
 cli(process)

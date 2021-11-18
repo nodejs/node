@@ -20,8 +20,9 @@ t.test('prompts for otp for EOTP', async (t) => {
 
   let runs = 0
   const fn = async (opts) => {
-    if (++runs === 1)
+    if (++runs === 1) {
       throw Object.assign(new Error('nope'), { code: 'EOTP' })
+    }
 
     t.equal(opts.some, 'prop', 'carried original options')
     t.equal(opts.otp, '1234', 'received the otp')

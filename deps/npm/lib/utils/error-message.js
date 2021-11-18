@@ -9,10 +9,12 @@ module.exports = (er, npm) => {
   const short = []
   const detail = []
 
-  if (er.message)
+  if (er.message) {
     er.message = replaceInfo(er.message)
-  if (er.stack)
+  }
+  if (er.stack) {
     er.stack = replaceInfo(er.stack)
+  }
 
   switch (er.code) {
     case 'ERESOLVE':
@@ -46,10 +48,14 @@ module.exports = (er, npm) => {
 
     case 'EACCES':
     case 'EPERM': {
-      const isCachePath = typeof er.path === 'string' &&
-        npm.config.loaded && er.path.startsWith(npm.config.get('cache'))
-      const isCacheDest = typeof er.dest === 'string' &&
-        npm.config.loaded && er.dest.startsWith(npm.config.get('cache'))
+      const isCachePath =
+        typeof er.path === 'string' &&
+        npm.config.loaded &&
+        er.path.startsWith(npm.config.get('cache'))
+      const isCacheDest =
+        typeof er.dest === 'string' &&
+        npm.config.loaded &&
+        er.dest.startsWith(npm.config.get('cache'))
 
       const isWindows = require('./is-windows.js')
 
@@ -64,7 +70,9 @@ module.exports = (er, npm) => {
             'previous versions of npm which has since been addressed.',
             '',
             'To permanently fix this problem, please run:',
-            `  sudo chown -R ${process.getuid()}:${process.getgid()} ${JSON.stringify(npm.config.get('cache'))}`,
+            `  sudo chown -R ${process.getuid()}:${process.getgid()} ${JSON.stringify(
+              npm.config.get('cache')
+            )}`,
           ].join('\n'),
         ])
       } else {
@@ -73,14 +81,17 @@ module.exports = (er, npm) => {
           '',
           [
             '\nThe operation was rejected by your operating system.',
-            (isWindows
-              ? 'It\'s possible that the file was already in use (by a text editor or antivirus),\n' +
+            isWindows
+              /* eslint-disable-next-line max-len */
+              ? "It's possible that the file was already in use (by a text editor or antivirus),\n" +
                 'or that you lack permissions to access it.'
-              : 'It is likely you do not have the permissions to access this file as the current user'),
+              /* eslint-disable-next-line max-len */
+              : 'It is likely you do not have the permissions to access this file as the current user',
             '\nIf you believe this might be a permissions issue, please double-check the',
             'permissions of the file and its containing directories, or try running',
             'the command again as root/Administrator.',
-          ].join('\n')])
+          ].join('\n'),
+        ])
       }
       break
     }
@@ -89,11 +100,9 @@ module.exports = (er, npm) => {
       short.push(['', er.message])
       detail.push([
         '',
-        [
-          '',
-          'Failed using git.',
-          'Please check if you have git installed and in your PATH.',
-        ].join('\n'),
+        ['', 'Failed using git.', 'Please check if you have git installed and in your PATH.'].join(
+          '\n'
+        ),
       ])
       break
 
@@ -101,8 +110,7 @@ module.exports = (er, npm) => {
       // Check whether we ran into a conflict in our own package.json
       if (er.path === resolve(npm.prefix, 'package.json')) {
         const { isDiff } = require('parse-conflict-json')
-        const txt = require('fs').readFileSync(er.path, 'utf8')
-          .replace(/\r\n/g, '\n')
+        const txt = require('fs').readFileSync(er.path, 'utf8').replace(/\r\n/g, '\n')
         if (isDiff(txt)) {
           detail.push([
             '',
@@ -141,17 +149,19 @@ module.exports = (er, npm) => {
       } else {
         // npm ERR! code E401
         // npm ERR! Unable to authenticate, need: Basic
-        const auth = !er.headers || !er.headers['www-authenticate'] ? []
-          : er.headers['www-authenticate'].map((au) => au.split(/[,\s]+/))[0]
+        const auth =
+          !er.headers || !er.headers['www-authenticate']
+            ? []
+            : er.headers['www-authenticate'].map(au => au.split(/[,\s]+/))[0]
 
         if (auth.includes('Bearer')) {
-          short.push(['', 'Unable to authenticate, your authentication token seems to be invalid.'])
+          short.push([
+            '',
+            'Unable to authenticate, your authentication token seems to be invalid.',
+          ])
           detail.push([
             '',
-            [
-              'To correct this please trying logging in again with:',
-              '    npm login',
-            ].join('\n'),
+            ['To correct this please trying logging in again with:', '    npm login'].join('\n'),
           ])
         } else if (auth.includes('Basic')) {
           short.push(['', 'Incorrect or missing password.'])
@@ -169,8 +179,9 @@ module.exports = (er, npm) => {
               '    npm login',
             ].join('\n'),
           ])
-        } else
+        } else {
           short.push(['', er.message || er])
+        }
       }
       break
 
@@ -185,19 +196,16 @@ module.exports = (er, npm) => {
 
         const valResult = nameValidator(pkg)
 
-        if (valResult.validForNewPackages)
-          detail.push(['404', 'You should bug the author to publish it (or use the name yourself!)'])
-        else {
+        if (valResult.validForNewPackages) {
+          detail.push([
+            '404',
+            'You should bug the author to publish it (or use the name yourself!)',
+          ])
+        } else {
           detail.push(['404', 'This package name is not valid, because', ''])
 
-          const errorsArray = [
-            ...(valResult.errors || []),
-            ...(valResult.warnings || []),
-          ]
-          errorsArray.forEach((item, idx) => detail.push([
-            '404',
-            ' ' + (idx + 1) + '. ' + item,
-          ]))
+          const errorsArray = [...(valResult.errors || []), ...(valResult.warnings || [])]
+          errorsArray.forEach((item, idx) => detail.push(['404', ' ' + (idx + 1) + '. ' + item]))
         }
 
         detail.push(['404', '\nNote that you can also install from a'])
@@ -218,26 +226,30 @@ module.exports = (er, npm) => {
       short.push(['git', '    ' + er.path])
       detail.push([
         'git',
-        [
-          'Refusing to remove it. Update manually,',
-          'or move it out of the way first.',
-        ].join('\n'),
+        ['Refusing to remove it. Update manually,', 'or move it out of the way first.'].join('\n'),
       ])
       break
 
     case 'EBADPLATFORM': {
-      const validOs = er.required &&
-        er.required.os &&
-        er.required.os.join ? er.required.os.join(',') : er.required.os
-      const validArch = er.required &&
-        er.required.cpu &&
-        er.required.cpu.join ? er.required.cpu.join(',') : er.required.cpu
+      const validOs =
+        er.required && er.required.os && er.required.os.join
+          ? er.required.os.join(',')
+          : er.required.os
+      const validArch =
+        er.required && er.required.cpu && er.required.cpu.join
+          ? er.required.cpu.join(',')
+          : er.required.cpu
       const expected = { os: validOs, arch: validArch }
       const actual = { os: process.platform, arch: process.arch }
       short.push([
         'notsup',
         [
-          format('Unsupported platform for %s: wanted %j (current: %j)', er.pkgid, expected, actual),
+          format(
+            'Unsupported platform for %s: wanted %j (current: %j)',
+            er.pkgid,
+            expected,
+            actual
+          ),
         ].join('\n'),
       ])
       detail.push([
@@ -283,19 +295,25 @@ module.exports = (er, npm) => {
 
     case 'ETARGET':
       short.push(['notarget', er.message])
-      detail.push(['notarget', [
-        'In most cases you or one of your dependencies are requesting',
-        "a package version that doesn't exist.",
-      ].join('\n')])
+      detail.push([
+        'notarget',
+        [
+          'In most cases you or one of your dependencies are requesting',
+          "a package version that doesn't exist.",
+        ].join('\n'),
+      ])
       break
 
     case 'E403':
       short.push(['403', er.message])
-      detail.push(['403', [
-        'In most cases, you or one of your dependencies are requesting',
-        'a package version that is forbidden by your security policy, or',
-        'on a server you do not have access to.',
-      ].join('\n')])
+      detail.push([
+        '403',
+        [
+          'In most cases, you or one of your dependencies are requesting',
+          'a package version that is forbidden by your security policy, or',
+          'on a server you do not have access to.',
+        ].join('\n'),
+      ])
       break
 
     case 'EBADENGINE':
@@ -306,10 +324,11 @@ module.exports = (er, npm) => {
         [
           'Not compatible with your version of node/npm: ' + er.pkgid,
           'Required: ' + JSON.stringify(er.required),
-          'Actual:   ' + JSON.stringify({
-            npm: npm.version,
-            node: npm.config.loaded ? npm.config.get('node-version') : process.version,
-          }),
+          'Actual:   ' +
+            JSON.stringify({
+              npm: npm.version,
+              node: npm.config.loaded ? npm.config.get('node-version') : process.version,
+            }),
         ].join('\n'),
       ])
       break
@@ -363,17 +382,21 @@ module.exports = (er, npm) => {
 
     default:
       short.push(['', er.message || er])
-      if (er.signal)
+      if (er.signal) {
         detail.push(['signal', er.signal])
+      }
 
-      if (er.cmd && Array.isArray(er.args))
+      if (er.cmd && Array.isArray(er.args)) {
         detail.push(['command', ...[er.cmd, ...er.args.map(replaceInfo)]])
+      }
 
-      if (er.stdout)
+      if (er.stdout) {
         detail.push(['', er.stdout.trim()])
+      }
 
-      if (er.stderr)
+      if (er.stderr) {
         detail.push(['', er.stderr.trim()])
+      }
 
       break
   }

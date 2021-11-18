@@ -6,31 +6,18 @@ const getIdentity = require('../utils/get-identity')
 
 const BaseCommand = require('../base-command.js')
 class Star extends BaseCommand {
-  static get description () {
-    return 'Mark your favorite packages'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'star'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[<pkg>...]']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'registry',
-      'unicode',
-    ]
-  }
+  static description = 'Mark your favorite packages'
+  static name = 'star'
+  static usage = ['[<pkg>...]']
+  static params = [
+    'registry',
+    'unicode',
+  ]
 
   async exec (args) {
-    if (!args.length)
+    if (!args.length) {
       throw this.usageError()
+    }
 
     // if we're unstarring, then show an empty star image
     // otherwise, show the full star image
@@ -52,8 +39,9 @@ class Star extends BaseCommand {
         }),
       ])
 
-      if (!username)
+      if (!username) {
         throw new Error('You need to be logged in!')
+      }
 
       const body = {
         _id: fullData._id,

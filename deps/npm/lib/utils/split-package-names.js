@@ -4,15 +4,17 @@ const splitPackageNames = (path) => {
   return path.split('/')
     // combine scoped parts
     .reduce((parts, part) => {
-      if (parts.length === 0)
+      if (parts.length === 0) {
         return [part]
+      }
 
       const lastPart = parts[parts.length - 1]
       // check if previous part is the first part of a scoped package
-      if (lastPart[0] === '@' && !lastPart.includes('/'))
+      if (lastPart[0] === '@' && !lastPart.includes('/')) {
         parts[parts.length - 1] += '/' + part
-      else
+      } else {
         parts.push(part)
+      }
 
       return parts
     }, [])

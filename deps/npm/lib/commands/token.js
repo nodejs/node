@@ -10,50 +10,30 @@ const readUserInfo = require('../utils/read-user-info.js')
 
 const BaseCommand = require('../base-command.js')
 class Token extends BaseCommand {
-  static get description () {
-    return 'Manage your authentication tokens'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'token'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return [
-      'list',
-      'revoke <id|token>',
-      'create [--read-only] [--cidr=list]',
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'read-only',
-      'cidr',
-      'registry',
-      'otp',
-    ]
-  }
+  static description = 'Manage your authentication tokens'
+  static name = 'token'
+  static usage = ['list', 'revoke <id|token>', 'create [--read-only] [--cidr=list]']
+  static params = ['read-only', 'cidr', 'registry', 'otp']
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
     const subcommands = ['list', 'revoke', 'create']
-    if (argv.length === 2)
+    if (argv.length === 2) {
       return subcommands
+    }
 
-    if (subcommands.includes(argv[2]))
+    if (subcommands.includes(argv[2])) {
       return []
+    }
 
     throw new Error(argv[2] + ' not recognized')
   }
 
   async exec (args, cb) {
     log.gauge.show('token')
-    if (args.length === 0)
+    if (args.length === 0) {
       return this.list()
+    }
     switch (args[0]) {
       case 'list':
       case 'ls':
@@ -79,25 +59,26 @@ class Token extends BaseCommand {
       return
     } else if (conf.parseable) {
       this.npm.output(['key', 'token', 'created', 'readonly', 'CIDR whitelist'].join('\t'))
-      tokens.forEach((token) => {
-        this.npm.output([
-          token.key,
-          token.token,
-          token.created,
-          token.readonly ? 'true' : 'false',
-          token.cidr_whitelist ? token.cidr_whitelist.join(',') : '',
-        ].join('\t'))
+      tokens.forEach(token => {
+        this.npm.output(
+          [
+            token.key,
+            token.token,
+            token.created,
+            token.readonly ? 'true' : 'false',
+            token.cidr_whitelist ? token.cidr_whitelist.join(',') : '',
+          ].join('\t')
+        )
       })
       return
     }
     this.generateTokenIds(tokens, 6)
-    const idWidth = tokens.reduce((acc, token) =>
-      Math.max(acc, token.id.length), 0)
+    const idWidth = tokens.reduce((acc, token) => Math.max(acc, token.id.length), 0)
     const table = new Table({
       head: ['id', 'token', 'created', 'readonly', 'CIDR whitelist'],
       colWidths: [Math.max(idWidth, 2) + 2, 9, 12, 10],
     })
-    tokens.forEach((token) => {
+    tokens.forEach(token => {
       table.push([
         token.id,
         token.token + '…',
@@ -110,39 +91,47 @@ class Token extends BaseCommand {
   }
 
   async rm (args) {
-    if (args.length === 0)
+    if (args.length === 0) {
       throw this.usageError('`<tokenKey>` argument is required.')
+    }
 
     const conf = this.config()
     const toRemove = []
     const progress = log.newItem('removing tokens', toRemove.length)
     progress.info('token', 'getting existing list')
     const tokens = await pulseTillDone.withPromise(profile.listTokens(conf))
-    args.forEach((id) => {
-      const matches = tokens.filter((token) => token.key.indexOf(id) === 0)
-      if (matches.length === 1)
+    args.forEach(id => {
+      const matches = tokens.filter(token => token.key.indexOf(id) === 0)
+      if (matches.length === 1) {
         toRemove.push(matches[0].key)
-      else if (matches.length > 1)
-        throw new Error(`Token ID "${id}" was ambiguous, a new token may have been created since you last ran \`npm token list\`.`)
-      else {
+      } else if (matches.length > 1) {
+        throw new Error(
+          /* eslint-disable-next-line max-len */
+          `Token ID "${id}" was ambiguous, a new token may have been created since you last ran \`npm token list\`.`
+        )
+      } else {
         const tokenMatches = tokens.some(t => id.indexOf(t.token) === 0)
-        if (!tokenMatches)
+        if (!tokenMatches) {
           throw new Error(`Unknown token id or value "${id}".`)
+        }
 
         toRemove.push(id)
       }
     })
-    await Promise.all(toRemove.map(key => {
-      return otplease(conf, conf => {
-        return profile.removeToken(key, conf)
+    await Promise.all(
+      toRemove.map(key => {
+        return otplease(conf, conf => {
+          return profile.removeToken(key, conf)
+        })
       })
-    }))
-    if (conf.json)
+    )
+    if (conf.json) {
       this.npm.output(JSON.stringify(toRemove))
-    else if (conf.parseable)
+    } else if (conf.parseable) {
       this.npm.output(toRemove.join('\t'))
-    else
+    } else {
       this.npm.output('Removed ' + toRemove.length + ' token' + (toRemove.length !== 1 ? 's' : ''))
+    }
   }
 
   async create (args) {
@@ -150,34 +139,40 @@ class Token extends BaseCommand {
     const cidr = conf.cidr
     const readonly = conf.readOnly
 
-    return readUserInfo.password().then((password) => {
-      const validCIDR = this.validateCIDRList(cidr)
-      log.info('token', 'creating')
-      return pulseTillDone.withPromise(otplease(conf, conf => {
-        return profile.createToken(password, readonly, validCIDR, conf)
-      }))
-    }).then((result) => {
-      delete result.key
-      delete result.updated
-      if (conf.json)
-        this.npm.output(JSON.stringify(result))
-      else if (conf.parseable)
-        Object.keys(result).forEach((k) => this.npm.output(k + '\t' + result[k]))
-      else {
-        const table = new Table()
-        for (const k of Object.keys(result))
-          table.push({ [ansistyles.bright(k)]: String(result[k]) })
-        this.npm.output(table.toString())
-      }
-    })
+    return readUserInfo
+      .password()
+      .then(password => {
+        const validCIDR = this.validateCIDRList(cidr)
+        log.info('token', 'creating')
+        return pulseTillDone.withPromise(
+          otplease(conf, conf => {
+            return profile.createToken(password, readonly, validCIDR, conf)
+          })
+        )
+      })
+      .then(result => {
+        delete result.key
+        delete result.updated
+        if (conf.json) {
+          this.npm.output(JSON.stringify(result))
+        } else if (conf.parseable) {
+          Object.keys(result).forEach(k => this.npm.output(k + '\t' + result[k]))
+        } else {
+          const table = new Table()
+          for (const k of Object.keys(result)) {
+            table.push({ [ansistyles.bright(k)]: String(result[k]) })
+          }
+          this.npm.output(table.toString())
+        }
+      })
   }
 
   config () {
     const conf = { ...this.npm.flatOptions }
     const creds = this.npm.config.getCredentialsByURI(conf.registry)
-    if (creds.token)
+    if (creds.token) {
       conf.auth = { token: creds.token }
-    else if (creds.username) {
+    } else if (creds.username) {
       conf.auth = {
         basic: {
           username: creds.username,
@@ -192,11 +187,13 @@ class Token extends BaseCommand {
           password: auth[1],
         },
       }
-    } else
+    } else {
       conf.auth = {}
+    }
 
-    if (conf.otp)
+    if (conf.otp) {
       conf.auth.otp = conf.otp
+    }
     return conf
   }
 
@@ -209,9 +206,9 @@ class Token extends BaseCommand {
     for (const token of tokens) {
       token.id = token.key
       for (let ii = minLength; ii < token.key.length; ++ii) {
-        const match = tokens.some(ot =>
-          ot !== token &&
-          ot.key.slice(0, ii) === token.key.slice(0, ii))
+        const match = tokens.some(
+          ot => ot !== token && ot.key.slice(0, ii) === token.key.slice(0, ii)
+        )
         if (!match) {
           token.id = token.key.slice(0, ii)
           break
@@ -226,11 +223,15 @@ class Token extends BaseCommand {
     const maybeList = cidrs ? (Array.isArray(cidrs) ? cidrs : [cidrs]) : []
     const list = maybeList.length === 1 ? maybeList[0].split(/,\s*/) : maybeList
     for (const cidr of list) {
-      if (isCidrV6(cidr))
-        throw this.invalidCIDRError('CIDR whitelist can only contain IPv4 addresses, ' + cidr + ' is IPv6')
+      if (isCidrV6(cidr)) {
+        throw this.invalidCIDRError(
+          'CIDR whitelist can only contain IPv4 addresses, ' + cidr + ' is IPv6'
+        )
+      }
 
-      if (!isCidrV4(cidr))
+      if (!isCidrV4(cidr)) {
         throw this.invalidCIDRError('CIDR whitelist contains invalid CIDR entry: ' + cidr)
+      }
     }
     return list
   }

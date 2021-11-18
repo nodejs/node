@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-ci</title>
 <style>
 body {
@@ -149,9 +150,9 @@ npm command-line interface
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command is similar to <a href="../commands/npm-install.html"><code>npm install</code></a>, except
-it’s meant to be used in automated environments such as test platforms,
-continuous integration, and deployment – or any situation where you want
-to make sure you’re doing a clean install of your dependencies.</p>
+it's meant to be used in automated environments such as test platforms,
+continuous integration, and deployment -- or any situation where you want
+to make sure you're doing a clean install of your dependencies.</p>
 <p><code>npm ci</code> will be significantly faster when:</p>
 <ul>
 <li>There is a <code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file.</li>
@@ -199,7 +200,7 @@ cache:
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When “true” submit audit reports alongside the current npm command to the
+<p>When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes. See the
 documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
 submitted.</p>
@@ -219,7 +220,7 @@ will <em>not</em> run any pre- or post-scripts.</p>
 <!-- raw HTML omitted -->
 <h4 id="script-shell"><code>script-shell</code></h4>
 <ul>
-<li>Default: ‘/bin/sh’ on POSIX systems, ‘cmd.exe’ on Windows</li>
+<li>Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows</li>
 <li>Type: null or String</li>
 </ul>
 <p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;pkg&gt;</code> commands.</p>

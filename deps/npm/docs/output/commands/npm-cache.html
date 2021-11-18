@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-cache</title>
 <style>
 body {
@@ -141,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#details">Details</a></li><li><a href="#a-note-about-the-caches-design">A note about the cache’s design</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#cache"><code>cache</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#details">Details</a></li><li><a href="#a-note-about-the-caches-design">A note about the cache's design</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#cache"><code>cache</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -168,7 +169,7 @@ add data to the local installation cache explicitly.</p>
 <li>
 <p>clean:
 Delete all data out of the cache folder.  Note that this is typically
-unnecessary, as npm’s cache is self-healing and resistant to data
+unnecessary, as npm's cache is self-healing and resistant to data
 corruption issues.</p>
 </li>
 <li>
@@ -195,7 +196,7 @@ manage the contents of this cache. In order to access it, <code>cacache</code> m
 used directly.</p>
 <p>npm will not remove data by itself: the cache will grow as new packages are
 installed.</p>
-<h3 id="a-note-about-the-caches-design">A note about the cache’s design</h3>
+<h3 id="a-note-about-the-caches-design">A note about the cache's design</h3>
 <p>The npm cache is strictly a cache: it should not be relied upon as a
 persistent and reliable data store for package data. npm makes no guarantee
 that a previously-cached piece of data will be available later, and will
@@ -212,7 +213,7 @@ data that was inserted.</p>
 <li>Default: Windows: <code>%LocalAppData%\npm-cache</code>, Posix: <code>~/.npm</code></li>
 <li>Type: Path</li>
 </ul>
-<p>The location of npm’s cache directory. See <a href="../commands/npm-cache.html"><code>npm cache</code></a></p>
+<p>The location of npm's cache directory. See <a href="../commands/npm-cache.html"><code>npm cache</code></a></p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

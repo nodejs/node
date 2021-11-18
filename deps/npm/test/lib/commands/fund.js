@@ -102,10 +102,7 @@ const nestedMultipleFundingPackages = {
   'package.json': JSON.stringify({
     name: 'nested-multiple-funding-packages',
     version,
-    funding: [
-      'https://one.example.com',
-      'https://two.example.com',
-    ],
+    funding: ['https://one.example.com', 'https://two.example.com'],
     dependencies: {
       foo: '*',
     },
@@ -129,10 +126,7 @@ const nestedMultipleFundingPackages = {
       'package.json': JSON.stringify({
         name: 'bar',
         version,
-        funding: [
-          'http://collective.example.com',
-          { url: 'http://sponsors.example.com/you' },
-        ],
+        funding: ['http://collective.example.com', { url: 'http://sponsors.example.com/you' }],
       }),
     },
   },
@@ -188,25 +182,28 @@ const config = {
   which: null,
 }
 const openUrl = async (npm, url, msg) => {
-  if (url === 'http://npmjs.org')
+  if (url === 'http://npmjs.org') {
     throw new Error('ERROR')
+  }
 
   if (config.json) {
     printUrl = JSON.stringify({
       title: msg,
       url: url,
     })
-  } else
+  } else {
     printUrl = `${msg}:\n  ${url}`
+  }
 }
 const Fund = t.mock('../../../lib/commands/fund.js', {
   '../../../lib/utils/open-url.js': openUrl,
   pacote: {
-    manifest: (arg) => arg.name === 'ntl'
-      ? Promise.resolve({
-        funding: 'http://example.com/pacote',
-      })
-      : Promise.reject(new Error('ERROR')),
+    manifest: arg =>
+      arg.name === 'ntl'
+        ? Promise.resolve({
+          funding: 'http://example.com/pacote',
+        })
+        : Promise.reject(new Error('ERROR')),
   },
 })
 const npm = mockNpm({
@@ -278,10 +275,7 @@ t.test('fund containing multi-level nested deps with no funding', async t => {
   npm.prefix = t.testdir(nestedNoFundingPackages)
 
   await fund.exec([])
-  t.matchSnapshot(
-    result,
-    'should omit dependencies with no funding declared'
-  )
+  t.matchSnapshot(result, 'should omit dependencies with no funding declared')
   t.end()
 })
 
@@ -368,11 +362,7 @@ t.test('fund does not support global', async t => {
   npm.prefix = t.testdir({})
   config.global = true
 
-  await t.rejects(
-    fund.exec([]),
-    { code: 'EFUNDGLOBAL' },
-    'should throw EFUNDGLOBAL error'
-  )
+  await t.rejects(fund.exec([]), { code: 'EFUNDGLOBAL' }, 'should throw EFUNDGLOBAL error')
   config.global = false
 })
 
@@ -437,11 +427,7 @@ t.test('fund using symlink ref', async t => {
 
   // using symlinked ref
   await fund.exec(['./node_modules/a'])
-  t.match(
-    printUrl,
-    'http://example.com/a',
-    'should retrieve funding url from symlink'
-  )
+  t.match(printUrl, 'http://example.com/a', 'should retrieve funding url from symlink')
 
   printUrl = ''
   result = ''
@@ -449,11 +435,7 @@ t.test('fund using symlink ref', async t => {
   // using target ref
   await fund.exec(['./a'])
 
-  t.match(
-    printUrl,
-    'http://example.com/a',
-    'should retrieve funding url from symlink target'
-  )
+  t.match(printUrl, 'http://example.com/a', 'should retrieve funding url from symlink target')
 })
 
 t.test('fund using data from actual tree', async t => {
@@ -568,7 +550,11 @@ t.test('fund using bad which value', async t => {
 
   await t.rejects(
     fund.exec(['bar']),
-    { code: 'EFUNDNUMBER', message: '`npm fund [<@scope>/]<pkg> [--which=fundingSourceNumber]` must be given a positive integer' },
+    {
+      code: 'EFUNDNUMBER',
+      /* eslint-disable-next-line max-len */
+      message: '`npm fund [<@scope>/]<pkg> [--which=fundingSourceNumber]` must be given a positive integer',
+    },
     'should have bad which option error message'
   )
   config.which = null
@@ -595,11 +581,7 @@ t.test('fund a package throws on openUrl', async t => {
     }),
   })
 
-  await t.rejects(
-    fund.exec(['.']),
-    { message: 'ERROR' },
-    'should throw unknown error'
-  )
+  await t.rejects(fund.exec(['.']), { message: 'ERROR' }, 'should throw unknown error')
 })
 
 t.test('fund a package with type and multiple sources', async t => {
@@ -714,10 +696,7 @@ t.test('sub dep with fund info and a parent with no funding info', async t => {
         'package.json': JSON.stringify({
           name: 'c',
           version: '1.0.0',
-          funding: [
-            'http://example.com/c',
-            'http://example.com/c-other',
-          ],
+          funding: ['http://example.com/c', 'http://example.com/c-other'],
         }),
       },
     },
@@ -745,10 +724,7 @@ t.test('workspaces', async t => {
           'package.json': JSON.stringify({
             name: 'c',
             version: '1.0.0',
-            funding: [
-              'http://example.com/c',
-              'http://example.com/c-other',
-            ],
+            funding: ['http://example.com/c', 'http://example.com/c-other'],
           }),
         },
         d: {
@@ -785,14 +761,12 @@ t.test('workspaces', async t => {
 
     await fund.execWorkspaces([], ['a'])
 
-    t.matchSnapshot(result,
-      'should display only filtered workspace name and its deps')
+    t.matchSnapshot(result, 'should display only filtered workspace name and its deps')
 
     result = ''
 
     await fund.execWorkspaces([], ['./packages/a'])
 
-    t.matchSnapshot(result,
-      'should display only filtered workspace path and its deps')
+    t.matchSnapshot(result, 'should display only filtered workspace path and its deps')
   })
 })

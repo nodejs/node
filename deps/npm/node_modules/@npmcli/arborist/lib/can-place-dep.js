@@ -78,7 +78,7 @@ class CanPlaceDep {
       }
 
       this._treeSnapshot = JSON.stringify([...target.root.inventory.entries()]
-        .map(([loc, {packageName, version, resolved}]) => {
+        .map(([loc, { packageName, version, resolved }]) => {
           return [loc, packageName, version, resolved]
         }).sort(([a], [b]) => localeCompare(a, b)))
     })
@@ -118,7 +118,7 @@ class CanPlaceDep {
 
     debug(() => {
       const treeSnapshot = JSON.stringify([...target.root.inventory.entries()]
-        .map(([loc, {packageName, version, resolved}]) => {
+        .map(([loc, { packageName, version, resolved }]) => {
           return [loc, packageName, version, resolved]
         }).sort(([a], [b]) => localeCompare(a, b)))
       /* istanbul ignore if */

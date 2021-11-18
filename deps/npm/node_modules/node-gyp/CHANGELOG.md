@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.4.0](https://www.github.com/nodejs/node-gyp/compare/v8.3.0...v8.4.0) (2021-11-05)
+
+
+### Features
+
+* build with config.gypi from node headers ([a27dc08](https://www.github.com/nodejs/node-gyp/commit/a27dc08696911c6d81e76cc228697243069103c1))
+* support vs2022 ([#2533](https://www.github.com/nodejs/node-gyp/issues/2533)) ([5a00387](https://www.github.com/nodejs/node-gyp/commit/5a00387e5f8018264a1822f6c4d5dbf425f21cf6))
+
 ## [8.3.0](https://www.github.com/nodejs/node-gyp/compare/v8.2.0...v8.3.0) (2021-10-11)
 
 

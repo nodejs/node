@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-config</title>
 <style>
 body {
@@ -219,7 +220,7 @@ saving them to your <code>package.json</code>.</li>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Operates in “global” mode, so that packages are installed into the <code>prefix</code>
+<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
 folder instead of the current working directory. See
 <a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
 <ul>
@@ -232,8 +233,8 @@ of the current working directory.</li>
 <!-- raw HTML omitted -->
 <h4 id="editor"><code>editor</code></h4>
 <ul>
-<li>Default: The EDITOR or VISUAL environment variables, or ‘notepad.exe’ on
-Windows, or ‘vim’ on Unix systems</li>
+<li>Default: The EDITOR or VISUAL environment variables, or 'notepad.exe' on
+Windows, or 'vim' on Unix systems</li>
 <li>Type: String</li>
 </ul>
 <p>The command to run for <code>npm edit</code> and <code>npm config edit</code>.</p>
@@ -241,9 +242,9 @@ Windows, or ‘vim’ on Unix systems</li>
 <!-- raw HTML omitted -->
 <h4 id="location"><code>location</code></h4>
 <ul>
-<li>Default: “user” unless <code>--global</code> is passed, which will also set this value
-to “global”</li>
-<li>Type: “global”, “user”, or “project”</li>
+<li>Default: "user" unless <code>--global</code> is passed, which will also set this value
+to "global"</li>
+<li>Type: "global", "user", or "project"</li>
 </ul>
 <p>When passed to <code>npm config</code> this refers to which config file to use.</p>
 <!-- raw HTML omitted -->

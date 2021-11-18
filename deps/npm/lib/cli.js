@@ -1,13 +1,10 @@
 // Separated out for easier unit testing
-module.exports = async (process) => {
+module.exports = async process => {
   // set it here so that regardless of what happens later, we don't
   // leak any private CLI configs to other programs
   process.title = 'npm'
 
-  const {
-    checkForBrokenNode,
-    checkForUnsupportedNode,
-  } = require('../lib/utils/unsupported.js')
+  const { checkForBrokenNode, checkForUnsupportedNode } = require('../lib/utils/unsupported.js')
 
   checkForBrokenNode()
 
@@ -25,8 +22,9 @@ module.exports = async (process) => {
 
   // if npm is called as "npmg" or "npm_g", then
   // run in global mode.
-  if (process.argv[1][process.argv[1].length - 1] === 'g')
+  if (process.argv[1][process.argv[1].length - 1] === 'g') {
     process.argv.splice(1, 1, 'npm', '-g')
+  }
 
   const replaceInfo = require('../lib/utils/replace-info.js')
   log.verbose('cli', replaceInfo(process.argv))
@@ -70,7 +68,8 @@ module.exports = async (process) => {
     if (err.code === 'EUNKNOWNCOMMAND') {
       const didYouMean = require('./utils/did-you-mean.js')
       const suggestions = await didYouMean(npm, npm.localPrefix, cmd)
-      npm.output(`Unknown command: "${cmd}"${suggestions}\n\nTo see a list of supported npm commands, run:\n  npm help`)
+      npm.output(`Unknown command: "${cmd}"${suggestions}\n`)
+      npm.output('To see a list of supported npm commands, run:\n  npm help')
       process.exitCode = 1
       return exitHandler()
     }

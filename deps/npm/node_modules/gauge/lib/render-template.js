@@ -28,7 +28,9 @@ function postType (item) {
 }
 
 function hasPreOrPost (item, values) {
-  if (!item.type) return
+  if (!item.type) {
+    return
+  }
   return values[preType(item)] || values[postType(item)]
 }
 
@@ -39,7 +41,7 @@ function generatePreAndPost (baseItem, parentValues) {
   var pre = preType(item)
   var post = postType(item)
   if (values[pre]) {
-    template.push({value: values[pre]})
+    template.push({ value: values[pre] })
     values[pre] = null
   }
   item.minLength = null
@@ -48,7 +50,7 @@ function generatePreAndPost (baseItem, parentValues) {
   template.push(item)
   values[item.type] = values[item.type]
   if (values[post]) {
-    template.push({value: values[post]})
+    template.push({ value: values[post] })
     values[post] = null
   }
   return function ($1, $2, length) {
@@ -71,47 +73,73 @@ function prepareItems (width, template, values) {
         cloned.value = values[type]
       }
     }
-    if (cloned.value == null || cloned.value === '') return null
+    if (cloned.value == null || cloned.value === '') {
+      return null
+    }
     cloned.index = index
     cloned.first = index === 0
     cloned.last = index === arr.length - 1
-    if (hasPreOrPost(cloned, values)) cloned.value = generatePreAndPost(cloned, values)
+    if (hasPreOrPost(cloned, values)) {
+      cloned.value = generatePreAndPost(cloned, values)
+    }
     return cloned
   }
 
-  var output = template.map(cloneAndObjectify).filter(function (item) { return item != null })
+  var output = template.map(cloneAndObjectify).filter(function (item) {
+    return item != null
+  })
 
   var remainingSpace = width
   var variableCount = output.length
 
   function consumeSpace (length) {
-    if (length > remainingSpace) length = remainingSpace
+    if (length > remainingSpace) {
+      length = remainingSpace
+    }
     remainingSpace -= length
   }
 
   function finishSizing (item, length) {
-    if (item.finished) throw new error.Internal('Tried to finish template item that was already finished')
-    if (length === Infinity) throw new error.Internal('Length of template item cannot be infinity')
-    if (length != null) item.length = length
+    if (item.finished) {
+      throw new error.Internal('Tried to finish template item that was already finished')
+    }
+    if (length === Infinity) {
+      throw new error.Internal('Length of template item cannot be infinity')
+    }
+    if (length != null) {
+      item.length = length
+    }
     item.minLength = null
     item.maxLength = null
     --variableCount
     item.finished = true
-    if (item.length == null) item.length = item.getBaseLength()
-    if (item.length == null) throw new error.Internal('Finished template items must have a length')
+    if (item.length == null) {
+      item.length = item.getBaseLength()
+    }
+    if (item.length == null) {
+      throw new error.Internal('Finished template items must have a length')
+    }
     consumeSpace(item.getLength())
   }
 
   output.forEach(function (item) {
-    if (!item.kerning) return
+    if (!item.kerning) {
+      return
+    }
     var prevPadRight = item.first ? 0 : output[item.index - 1].padRight
-    if (!item.first && prevPadRight < item.kerning) item.padLeft = item.kerning - prevPadRight
-    if (!item.last) item.padRight = item.kerning
+    if (!item.first && prevPadRight < item.kerning) {
+      item.padLeft = item.kerning - prevPadRight
+    }
+    if (!item.last) {
+      item.padRight = item.kerning
+    }
   })
 
   // Finish any that have a fixed (literal or intuited) length
   output.forEach(function (item) {
-    if (item.getBaseLength() == null) return
+    if (item.getBaseLength() == null) {
+      return
+    }
     finishSizing(item)
   })
 
@@ -122,34 +150,48 @@ function prepareItems (width, template, values) {
     resizing = false
     hunkSize = Math.round(remainingSpace / variableCount)
     output.forEach(function (item) {
-      if (item.finished) return
-      if (!item.maxLength) return
+      if (item.finished) {
+        return
+      }
+      if (!item.maxLength) {
+        return
+      }
       if (item.getMaxLength() < hunkSize) {
         finishSizing(item, item.maxLength)
         resizing = true
       }
     })
   } while (resizing && resized++ < output.length)
-  if (resizing) throw new error.Internal('Resize loop iterated too many times while determining maxLength')
+  if (resizing) {
+    throw new error.Internal('Resize loop iterated too many times while determining maxLength')
+  }
 
   resized = 0
   do {
     resizing = false
     hunkSize = Math.round(remainingSpace / variableCount)
     output.forEach(function (item) {
-      if (item.finished) return
-      if (!item.minLength) return
+      if (item.finished) {
+        return
+      }
+      if (!item.minLength) {
+        return
+      }
       if (item.getMinLength() >= hunkSize) {
         finishSizing(item, item.minLength)
         resizing = true
       }
     })
   } while (resizing && resized++ < output.length)
-  if (resizing) throw new error.Internal('Resize loop iterated too many times while determining minLength')
+  if (resizing) {
+    throw new error.Internal('Resize loop iterated too many times while determining minLength')
+  }
 
   hunkSize = Math.round(remainingSpace / variableCount)
   output.forEach(function (item) {
-    if (item.finished) return
+    if (item.finished) {
+      return
+    }
     finishSizing(item, hunkSize)
   })
 
@@ -168,7 +210,9 @@ function renderFunction (item, values, length) {
 function renderValue (item, values) {
   var length = item.getBaseLength()
   var value = typeof item.value === 'function' ? renderFunction(item, values, length) : item.value
-  if (value == null || value === '') return ''
+  if (value == null || value === '') {
+    return ''
+  }
   var alignWith = align[item.align] || align.left
   var leftPadding = item.padLeft ? align.left('', item.padLeft) : ''
   var rightPadding = item.padRight ? align.right('', item.padRight) : ''

@@ -6,7 +6,7 @@
 
 const semver = require('semver')
 const npa = require('npm-package-arg')
-const {relative} = require('path')
+const { relative } = require('path')
 const fromPath = require('./from-path.js')
 
 const depValid = (child, requested, requestor) => {

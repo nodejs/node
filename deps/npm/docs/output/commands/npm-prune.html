@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-prune</title>
 <style>
 body {
@@ -148,10 +149,10 @@ npm command-line interface
 <pre lang="bash"><code>npm prune [[&lt;@scope&gt;/]&lt;pkg&gt;...] [--production] [--dry-run] [--json]
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This command removes “extraneous” packages.  If a package name is provided,
+<p>This command removes "extraneous" packages.  If a package name is provided,
 then only packages matching one of the supplied names are removed.</p>
 <p>Extraneous packages are those present in the <code>node_modules</code> folder that are
-not listed as any package’s dependency list.</p>
+not listed as any package's dependency list.</p>
 <p>If the <code>--production</code> flag is specified or the <code>NODE_ENV</code> environment
 variable is set to <code>production</code>, this command will remove the packages
 specified in your <code>devDependencies</code>. Setting <code>--no-production</code> will negate
@@ -159,9 +160,9 @@ specified in your <code>devDependencies</code>. Setting <code>--no-production</c
 <p>If the <code>--dry-run</code> flag is used then no changes will actually be made.</p>
 <p>If the <code>--json</code> flag is used, then the changes <code>npm prune</code> made (or would
 have made with <code>--dry-run</code>) are printed as a JSON object.</p>
-<p>In normal operation, extraneous modules are pruned automatically, so you’ll
+<p>In normal operation, extraneous modules are pruned automatically, so you'll
 only need this command with the <code>--production</code> flag.  However, in the real
-world, operation is not always “normal”.  When crashes or mistakes happen,
+world, operation is not always "normal".  When crashes or mistakes happen,
 this command can help clean up any resulting garbage.</p>
 <h3 id="configuration">Configuration</h3>
 <!-- raw HTML omitted -->
@@ -169,9 +170,9 @@ this command can help clean up any resulting garbage.</p>
 <!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>
 <ul>
-<li>Default: ‘dev’ if the <code>NODE_ENV</code> environment variable is set to
-‘production’, otherwise empty.</li>
-<li>Type: “dev”, “optional”, or “peer” (can be set multiple times)</li>
+<li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
+'production', otherwise empty.</li>
+<li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
 <p>Note that these dependencies <em>are</em> still resolved and added to the
@@ -188,7 +189,7 @@ variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Indicates that you don’t want npm to make any changes and that it should
+<p>Indicates that you don't want npm to make any changes and that it should
 only report what it would have done. This can be passed into any of the
 commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
