@@ -1410,10 +1410,12 @@ class Source {
 
   assert.strictEqual(
     inspect(readable),
-    'ReadableStream { locked: false, state: \'readable\' }');
+    'ReadableStream { locked: false, state: \'readable\', ' +
+    'supportsBYOB: false }');
   assert.strictEqual(
     inspect(readable, { depth: null }),
-    'ReadableStream { locked: false, state: \'readable\' }');
+    'ReadableStream { locked: false, state: \'readable\', ' +
+    'supportsBYOB: false }');
   assert.strictEqual(
     inspect(readable, { depth: 0 }),
     'ReadableStream [Object]');
