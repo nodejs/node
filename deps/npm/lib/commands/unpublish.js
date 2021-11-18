@@ -11,60 +11,52 @@ const getIdentity = require('../utils/get-identity.js')
 
 const BaseCommand = require('../base-command.js')
 class Unpublish extends BaseCommand {
-  static get description () {
-    return 'Remove a package from the registry'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'unpublish'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return ['dry-run', 'force', 'workspace', 'workspaces']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[<@scope>/]<pkg>[@<version>]']
-  }
+  static description = 'Remove a package from the registry'
+  static name = 'unpublish'
+  static params = ['dry-run', 'force', 'workspace', 'workspaces']
+  static usage = ['[<@scope>/]<pkg>[@<version>]']
 
   async completion (args) {
     const { partialWord, conf } = args
 
-    if (conf.argv.remain.length >= 3)
+    if (conf.argv.remain.length >= 3) {
       return []
+    }
 
     const opts = this.npm.flatOptions
     const username = await getIdentity(this.npm, { ...opts }).catch(() => null)
-    if (!username)
+    if (!username) {
       return []
+    }
 
     const access = await libaccess.lsPackages(username, opts)
     // do a bit of filtering at this point, so that we don't need
     // to fetch versions for more than one thing, but also don't
     // accidentally unpublish a whole project
     let pkgs = Object.keys(access || {})
-    if (!partialWord || !pkgs.length)
+    if (!partialWord || !pkgs.length) {
       return pkgs
+    }
 
     const pp = npa(partialWord).name
     pkgs = pkgs.filter(p => !p.indexOf(pp))
-    if (pkgs.length > 1)
+    if (pkgs.length > 1) {
       return pkgs
+    }
 
     const json = await npmFetch.json(npa(pkgs[0]).escapedName, opts)
     const versions = Object.keys(json.versions)
-    if (!versions.length)
+    if (!versions.length) {
       return pkgs
-    else
+    } else {
       return versions.map(v => `${pkgs[0]}@${v}`)
+    }
   }
 
   async exec (args) {
-    if (args.length > 1)
+    if (args.length > 1) {
       throw this.usageError()
+    }
 
     const spec = args.length && npa(args[0])
     const force = this.npm.config.get('force')
@@ -93,10 +85,11 @@ class Unpublish extends BaseCommand {
       try {
         manifest = await readJson(pkgJson)
       } catch (err) {
-        if (err && err.code !== 'ENOENT' && err.code !== 'ENOTDIR')
+        if (err && err.code !== 'ENOENT' && err.code !== 'ENOTDIR') {
           throw err
-        else
+        } else {
           throw this.usageError()
+        }
       }
 
       this.npm.log.verbose('unpublish', manifest)
@@ -104,19 +97,22 @@ class Unpublish extends BaseCommand {
       const { name, version, publishConfig } = manifest
       const pkgJsonSpec = npa.resolve(name, version)
       const optsWithPub = { ...opts, publishConfig }
-      if (!dryRun)
+      if (!dryRun) {
         await otplease(opts, opts => libunpub(pkgJsonSpec, optsWithPub))
+      }
       pkgName = name
       pkgVersion = version ? `@${version}` : ''
     } else {
-      if (!dryRun)
+      if (!dryRun) {
         await otplease(opts, opts => libunpub(spec, opts))
+      }
       pkgName = spec.name
       pkgVersion = spec.type === 'version' ? `@${spec.rawSpec}` : ''
     }
 
-    if (!silent)
+    if (!silent) {
       this.npm.output(`- ${pkgName}${pkgVersion}`)
+    }
   }
 
   async execWorkspaces (args, filters) {
@@ -130,8 +126,9 @@ class Unpublish extends BaseCommand {
       )
     }
 
-    for (const name of this.workspaceNames)
+    for (const name of this.workspaceNames) {
       await this.exec([name])
+    }
   }
 }
 module.exports = Unpublish

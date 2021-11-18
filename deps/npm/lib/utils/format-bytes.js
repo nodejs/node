@@ -4,17 +4,24 @@
 
 const formatBytes = (bytes, space = true) => {
   let spacer = ''
-  if (space)
+  if (space) {
     spacer = ' '
+  }
 
-  if (bytes < 1000) // B
+  if (bytes < 1000) {
+    // B
     return `${bytes}${spacer}B`
+  }
 
-  if (bytes < 1000000) // kB
+  if (bytes < 1000000) {
+    // kB
     return `${(bytes / 1000).toFixed(1)}${spacer}kB`
+  }
 
-  if (bytes < 1000000000) // MB
+  if (bytes < 1000000000) {
+    // MB
     return `${(bytes / 1000000).toFixed(1)}${spacer}MB`
+  }
 
   return `${(bytes / 1000000000).toFixed(1)}${spacer}GB`
 }

@@ -11,10 +11,11 @@ const definitions = require('./definitions.js')
 const flatten = (obj, flat = {}) => {
   for (const [key, val] of Object.entries(obj)) {
     const def = definitions[key]
-    if (def && def.flatten)
+    if (def && def.flatten) {
       def.flatten(key, obj, flat)
-    else if (/@.*:registry$/i.test(key) || /^\/\//.test(key))
+    } else if (/@.*:registry$/i.test(key) || /^\/\//.test(key)) {
       flat[key] = val
+    }
   }
 
   // XXX make this the bin/npm-cli.js file explicitly instead

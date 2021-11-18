@@ -30,11 +30,11 @@ log.useColor = function () {
 
 log.enableColor = function () {
   colorEnabled = true
-  this.gauge.setTheme({hasColor: colorEnabled, hasUnicode: unicodeEnabled})
+  this.gauge.setTheme({ hasColor: colorEnabled, hasUnicode: unicodeEnabled })
 }
 log.disableColor = function () {
   colorEnabled = false
-  this.gauge.setTheme({hasColor: colorEnabled, hasUnicode: unicodeEnabled})
+  this.gauge.setTheme({ hasColor: colorEnabled, hasUnicode: unicodeEnabled })
 }
 
 // default level
@@ -42,13 +42,13 @@ log.level = 'info'
 
 log.gauge = new Gauge(stream, {
   enabled: false, // no progress bars unless asked
-  theme: {hasColor: log.useColor()},
+  theme: { hasColor: log.useColor() },
   template: [
-    {type: 'progressbar', length: 20},
-    {type: 'activityIndicator', kerning: 1, length: 1},
-    {type: 'section', default: ''},
+    { type: 'progressbar', length: 20 },
+    { type: 'activityIndicator', kerning: 1, length: 1 },
+    { type: 'section', default: '' },
     ':',
-    {type: 'logline', kerning: 1, default: ''},
+    { type: 'logline', kerning: 1, default: '' },
   ],
 })
 
@@ -62,12 +62,12 @@ var unicodeEnabled
 
 log.enableUnicode = function () {
   unicodeEnabled = true
-  this.gauge.setTheme({hasColor: this.useColor(), hasUnicode: unicodeEnabled})
+  this.gauge.setTheme({ hasColor: this.useColor(), hasUnicode: unicodeEnabled })
 }
 
 log.disableUnicode = function () {
   unicodeEnabled = false
-  this.gauge.setTheme({hasColor: this.useColor(), hasUnicode: unicodeEnabled})
+  this.gauge.setTheme({ hasColor: this.useColor(), hasUnicode: unicodeEnabled })
 }
 
 log.setGaugeThemeset = function (themes) {

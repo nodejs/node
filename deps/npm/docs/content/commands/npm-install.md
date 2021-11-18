@@ -58,7 +58,7 @@ into a tarball (b).
 
 * `npm install` (in a package directory, no arguments):
 
-    Install the dependencies in the local `node_modules` folder.
+    Install the dependencies to the local `node_modules` folder.
 
     In global mode (ie, with `-g` or `--global` appended to the command),
     it installs the current package context (ie, the current working

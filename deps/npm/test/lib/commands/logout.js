@@ -26,7 +26,7 @@ const mocks = {
 const Logout = t.mock('../../../lib/commands/logout.js', mocks)
 const logout = new Logout(npm)
 
-t.test('token logout', async (t) => {
+t.test('token logout', async t => {
   t.teardown(() => {
     delete flatOptions.token
     result = null
@@ -49,7 +49,7 @@ t.test('token logout', async (t) => {
     )
   }
 
-  npm.config.clearCredentialsByURI = (registry) => {
+  npm.config.clearCredentialsByURI = registry => {
     t.equal(
       registry,
       'https://registry.npmjs.org/',
@@ -57,7 +57,7 @@ t.test('token logout', async (t) => {
     )
   }
 
-  npm.config.save = (type) => {
+  npm.config.save = type => {
     t.equal(type, 'user', 'should save to user config')
   }
 
@@ -79,7 +79,7 @@ t.test('token logout', async (t) => {
   )
 })
 
-t.test('token scoped logout', async (t) => {
+t.test('token scoped logout', async t => {
   t.teardown(() => {
     config.scope = ''
     delete flatOptions['//diff-registry.npmjs.com/:_authToken']
@@ -111,7 +111,7 @@ t.test('token scoped logout', async (t) => {
     )
   }
 
-  npm.config.clearCredentialsByURI = (registry) => {
+  npm.config.clearCredentialsByURI = registry => {
     t.equal(
       registry,
       'https://diff-registry.npmjs.com/',
@@ -120,15 +120,11 @@ t.test('token scoped logout', async (t) => {
   }
 
   npm.config.delete = (ref, type) => {
-    t.equal(
-      ref,
-      '@myscope:registry',
-      'should delete scoped registyr from config'
-    )
+    t.equal(ref, '@myscope:registry', 'should delete scoped registyr from config')
     t.equal(type, 'user', 'should delete from user config')
   }
 
-  npm.config.save = (type) => {
+  npm.config.save = type => {
     t.equal(type, 'user', 'should save to user config')
   }
 
@@ -152,7 +148,7 @@ t.test('token scoped logout', async (t) => {
   )
 })
 
-t.test('user/pass logout', async (t) => {
+t.test('user/pass logout', async t => {
   t.teardown(() => {
     delete flatOptions['//registry.npmjs.org/:username']
     delete flatOptions['//registry.npmjs.org/:_password']
@@ -183,12 +179,15 @@ t.test('user/pass logout', async (t) => {
 t.test('missing credentials', async t => {
   await t.rejects(
     logout.exec([]),
-    { code: 'ENEEDAUTH', message: /not logged in to https:\/\/registry.npmjs.org\/, so can't log out!/ },
+    {
+      code: 'ENEEDAUTH',
+      message: /not logged in to https:\/\/registry.npmjs.org\/, so can't log out!/,
+    },
     'should throw with expected error code'
   )
 })
 
-t.test('ignore invalid scoped registry config', async (t) => {
+t.test('ignore invalid scoped registry config', async t => {
   t.teardown(() => {
     delete flatOptions.token
     result = null
@@ -213,7 +212,7 @@ t.test('ignore invalid scoped registry config', async (t) => {
     )
   }
 
-  npm.config.clearCredentialsByURI = (registry) => {
+  npm.config.clearCredentialsByURI = registry => {
     t.equal(
       registry,
       'https://registry.npmjs.org/',

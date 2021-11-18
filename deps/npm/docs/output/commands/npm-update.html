@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-update</title>
 <style>
 body {
@@ -179,7 +180,7 @@ are:</p>
 }
 </code></pre>
 <h4 id="caret-dependencies">Caret Dependencies</h4>
-<p>If <code>app</code>’s <code>package.json</code> contains:</p>
+<p>If <code>app</code>'s <code>package.json</code> contains:</p>
 <pre lang="json"><code>"dependencies": {
   "dep1": "^1.1.1"
 }
@@ -187,7 +188,7 @@ are:</p>
 <p>Then <code>npm update</code> will install <code>dep1@1.2.2</code>, because <code>1.2.2</code> is <code>latest</code> and
 <code>1.2.2</code> satisfies <code>^1.1.1</code>.</p>
 <h4 id="tilde-dependencies">Tilde Dependencies</h4>
-<p>However, if <code>app</code>’s <code>package.json</code> contains:</p>
+<p>However, if <code>app</code>'s <code>package.json</code> contains:</p>
 <pre lang="json"><code>"dependencies": {
   "dep1": "~1.1.1"
 }
@@ -237,7 +238,7 @@ In this case if you really did need your package to use a newer version
 you would need to use <code>npm install</code>.</p>
 <h4 id="updating-globally-installed-packages">Updating Globally-Installed Packages</h4>
 <p><code>npm update -g</code> will apply the <code>update</code> action to each globally installed
-package that is <code>outdated</code> – that is, has a version that is different from
+package that is <code>outdated</code> -- that is, has a version that is different from
 <code>wanted</code>.</p>
 <p>Note: Globally installed packages are treated as if they are installed with a
 caret semver range specified. So if you require to update to <code>latest</code> you may
@@ -253,7 +254,7 @@ be <em>downgraded</em>.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Operates in “global” mode, so that packages are installed into the <code>prefix</code>
+<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
 folder instead of the current working directory. See
 <a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
 <ul>
@@ -300,7 +301,7 @@ dependency relationships.</p>
 <p>By default, conflicting <code>peerDependencies</code> deep in the dependency graph will
 be resolved using the nearest non-peer dependency specification, even if
 doing so will result in some packages receiving a peer dependency outside
-the range set in their package’s <code>peerDependencies</code> object.</p>
+the range set in their package's <code>peerDependencies</code> object.</p>
 <p>When such and override is performed, a warning is printed, explaining the
 conflict and the packages involved. If <code>--strict-peer-deps</code> is set, then
 this warning is treated as a failure.</p>
@@ -320,9 +321,9 @@ package-locks disabled use <code>npm prune</code>.</p>
 <!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>
 <ul>
-<li>Default: ‘dev’ if the <code>NODE_ENV</code> environment variable is set to
-‘production’, otherwise empty.</li>
-<li>Type: “dev”, “optional”, or “peer” (can be set multiple times)</li>
+<li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
+'production', otherwise empty.</li>
+<li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
 <p>Note that these dependencies <em>are</em> still resolved and added to the
@@ -351,7 +352,7 @@ will <em>not</em> run any pre- or post-scripts.</p>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When “true” submit audit reports alongside the current npm command to the
+<p>When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes. See the
 documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
 submitted.</p>
@@ -365,7 +366,7 @@ submitted.</p>
 <p>Tells npm to create symlinks (or <code>.cmd</code> shims on Windows) for package
 executables.</p>
 <p>Set to false to have it not do this. This can be used to work around the
-fact that some file systems don’t support symlinks, even on ostensibly Unix
+fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -374,7 +375,7 @@ systems.</p>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When “true” displays the message at the end of each <code>npm install</code>
+<p>When "true" displays the message at the end of each <code>npm install</code>
 acknowledging the number of dependencies looking for funding. See <a href="../commands/npm-fund.html"><code>npm fund</code></a> for details.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -383,7 +384,7 @@ acknowledging the number of dependencies looking for funding. See <a href="../co
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Indicates that you don’t want npm to make any changes and that it should
+<p>Indicates that you don't want npm to make any changes and that it should
 only report what it would have done. This can be passed into any of the
 commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>

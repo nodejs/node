@@ -4,7 +4,9 @@ var stringWidth = require('string-width')
 module.exports = TemplateItem
 
 function isPercent (num) {
-  if (typeof num !== 'string') return false
+  if (typeof num !== 'string') {
+    return false
+  }
   return num.slice(-1) === '%'
 }
 
@@ -30,7 +32,9 @@ function TemplateItem (values, outputLength) {
   if (typeof values === 'string') {
     this.value = values
   } else {
-    for (var prop in values) this[prop] = values[prop]
+    for (var prop in values) {
+      this[prop] = values[prop]
+    }
   }
   // Realize percents
   if (isPercent(this.length)) {
@@ -49,7 +53,12 @@ TemplateItem.prototype = {}
 
 TemplateItem.prototype.getBaseLength = function () {
   var length = this.length
-  if (length == null && typeof this.value === 'string' && this.maxLength == null && this.minLength == null) {
+  if (
+    length == null &&
+    typeof this.value === 'string' &&
+    this.maxLength == null &&
+    this.minLength == null
+  ) {
     length = stringWidth(this.value)
   }
   return length
@@ -57,16 +66,22 @@ TemplateItem.prototype.getBaseLength = function () {
 
 TemplateItem.prototype.getLength = function () {
   var length = this.getBaseLength()
-  if (length == null) return null
+  if (length == null) {
+    return null
+  }
   return length + this.padLeft + this.padRight
 }
 
 TemplateItem.prototype.getMaxLength = function () {
-  if (this.maxLength == null) return null
+  if (this.maxLength == null) {
+    return null
+  }
   return this.maxLength + this.padLeft + this.padRight
 }
 
 TemplateItem.prototype.getMinLength = function () {
-  if (this.minLength == null) return null
+  if (this.minLength == null) {
+    return null
+  }
   return this.minLength + this.padLeft + this.padRight
 }

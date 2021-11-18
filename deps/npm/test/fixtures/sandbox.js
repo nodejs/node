@@ -24,8 +24,9 @@ createHook({
   before: (asyncId) => {
     // find the nearest parent id that has a sandbox
     let parent = asyncId
-    while (chain.has(parent) && !sandboxes.has(parent))
+    while (chain.has(parent) && !sandboxes.has(parent)) {
       parent = chain.get(parent)
+    }
 
     process = sandboxes.has(parent)
       ? sandboxes.get(parent)
@@ -201,19 +202,22 @@ class Sandbox extends EventEmitter {
 
   // test.teardown hook
   teardown () {
-    if (this[_parent])
+    if (this[_parent]) {
       sandboxes.delete(this[_parent])
+    }
 
     return rimraf(this[_dirs].temp).catch(() => null)
   }
 
   // proxy get handler
   [_get] (target, prop, receiver) {
-    if (this[_data].has(prop))
+    if (this[_data].has(prop)) {
       return this[_data].get(prop)
+    }
 
-    if (this[prop] !== undefined)
+    if (this[prop] !== undefined) {
       return Reflect.get(this, prop, this)
+    }
 
     const actual = Reflect.get(target, prop, receiver)
     if (typeof actual === 'function') {

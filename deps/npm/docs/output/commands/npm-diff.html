@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-diff</title>
 <style>
 body {
@@ -158,13 +159,13 @@ of files for packages published to the npm registry.</p>
 <li>
 <p><code>npm diff --diff=&lt;spec-a&gt; --diff=&lt;spec-b&gt;</code></p>
 <p>Compares two package versions using their registry specifiers, e.g:
-<code>npm diff --diff=pkg@1.0.0 --diff=pkg@^2.0.0</code>. It’s also possible to
+<code>npm diff --diff=pkg@1.0.0 --diff=pkg@^2.0.0</code>. It's also possible to
 compare across forks of any package,
 e.g: <code>npm diff --diff=pkg@1.0.0 --diff=pkg-fork@1.0.0</code>.</p>
-<p>Any valid spec can be used, so that it’s also possible to compare
+<p>Any valid spec can be used, so that it's also possible to compare
 directories or git repositories,
 e.g: <code>npm diff --diff=pkg@latest --diff=./packages/pkg</code></p>
-<p>Here’s an example comparing two different versions of a package named
+<p>Here's an example comparing two different versions of a package named
 <code>abbrev</code> from the registry:</p>
 <pre lang="bash"><code>npm diff --diff=abbrev@1.1.0 --diff=abbrev@1.1.1
 </code></pre>
@@ -220,7 +221,7 @@ newer one if the version numbers are not the same.</p>
 </li>
 <li>
 <p><code>npm diff --diff=&lt;spec-a&gt;</code> (in a package directory):</p>
-<p>Similar to using only a single package name, it’s also possible to declare
+<p>Similar to using only a single package name, it's also possible to declare
 a full registry specifier version if you wish to compare the local version
 of an installed package with the specific version/tag/semver-range provided
 in <code>&lt;spec-a&gt;</code>.</p>
@@ -240,7 +241,7 @@ to compare different versions of the current package.</p>
 <code>npm diff --diff=pkg@1.0.0 --diff=pkg@1.0.1</code>.</p>
 <p>If only a single argument <code>&lt;version-a&gt;</code> is provided, then the current local
 file system is going to be compared against that version.</p>
-<p>Here’s an example comparing two specific versions (published to the
+<p>Here's an example comparing two specific versions (published to the
 configured registry) of the current project directory:</p>
 <pre lang="bash"><code>npm diff --diff=1.0.0 --diff=1.1.0
 </code></pre>
@@ -249,7 +250,7 @@ configured registry) of the current project directory:</p>
 <p>Note that tag names are not valid <code>--diff</code> argument values, if you wish to
 compare to a published tag, you must use the <code>pkg@tagname</code> syntax.</p>
 <h4 id="filtering-files">Filtering files</h4>
-<p>It’s possible to also specify positional arguments using file names or globs
+<p>It's possible to also specify positional arguments using file names or globs
 pattern matching in order to limit the result of diff patches to only a subset
 of files for a given package, e.g:</p>
 <pre lang="bash"><code>npm diff --diff=pkg@2 ./lib/ CHANGELOG.md
@@ -305,7 +306,7 @@ located within the folder <code>./lib/</code> and changed lines of code within t
 <!-- raw HTML omitted -->
 <h4 id="diff-src-prefix"><code>diff-src-prefix</code></h4>
 <ul>
-<li>Default: “a/”</li>
+<li>Default: "a/"</li>
 <li>Type: String</li>
 </ul>
 <p>Source prefix to be used in <code>npm diff</code> output.</p>
@@ -313,7 +314,7 @@ located within the folder <code>./lib/</code> and changed lines of code within t
 <!-- raw HTML omitted -->
 <h4 id="diff-dst-prefix"><code>diff-dst-prefix</code></h4>
 <ul>
-<li>Default: “b/”</li>
+<li>Default: "b/"</li>
 <li>Type: String</li>
 </ul>
 <p>Destination prefix to be used in <code>npm diff</code> output.</p>
@@ -332,7 +333,7 @@ located within the folder <code>./lib/</code> and changed lines of code within t
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Operates in “global” mode, so that packages are installed into the <code>prefix</code>
+<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
 folder instead of the current working directory. See
 <a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
 <ul>
@@ -345,10 +346,10 @@ of the current working directory.</li>
 <!-- raw HTML omitted -->
 <h4 id="tag"><code>tag</code></h4>
 <ul>
-<li>Default: “latest”</li>
+<li>Default: "latest"</li>
 <li>Type: String</li>
 </ul>
-<p>If you ask npm to install a package and don’t tell it a specific version,
+<p>If you ask npm to install a package and don't tell it a specific version,
 then it will install the specified tag.</p>
 <p>Also the tag that is added to the package@version specified by the <code>npm tag</code>
 command, if no explicit tag is given.</p>

@@ -14,14 +14,16 @@ const npmlog = {
 
 const npmUserValidate = {
   username: (username) => {
-    if (username === 'invalid')
+    if (username === 'invalid') {
       return new Error('invalid username')
+    }
 
     return null
   },
   email: (email) => {
-    if (email.startsWith('invalid'))
+    if (email.startsWith('invalid')) {
       return new Error('invalid email')
+    }
 
     return null
   },

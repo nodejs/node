@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-start</title>
 <style>
 body {
@@ -149,11 +150,11 @@ npm command-line interface
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This runs a predefined command specified in the <code>"start"</code> property of
-a package’s <code>"scripts"</code> object.</p>
+a package's <code>"scripts"</code> object.</p>
 <p>If the <code>"scripts"</code> object does not define a  <code>"start"</code> property, npm
 will run <code>node server.js</code>.</p>
 <p>Note that this is different from the default node behavior of running
-the file specified in a package’s <code>"main"</code> attribute when evoking with
+the file specified in a package's <code>"main"</code> attribute when evoking with
 <code>node .</code></p>
 <p>As of <a href="https://blog.npmjs.org/post/98131109725/npm-2-0-0"><code>npm@2.0.0</code></a>, you can
 use custom arguments when executing scripts. Refer to <a href="../commands/npm-run-script.html"><code>npm run-script</code></a> for more details.</p>
@@ -190,7 +191,7 @@ will <em>not</em> run any pre- or post-scripts.</p>
 <!-- raw HTML omitted -->
 <h4 id="script-shell"><code>script-shell</code></h4>
 <ul>
-<li>Default: ‘/bin/sh’ on POSIX systems, ‘cmd.exe’ on Windows</li>
+<li>Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows</li>
 <li>Type: null or String</li>
 </ul>
 <p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;pkg&gt;</code> commands.</p>

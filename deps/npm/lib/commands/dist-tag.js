@@ -8,33 +8,20 @@ const readPackageName = require('../utils/read-package-name.js')
 const BaseCommand = require('../base-command.js')
 
 class DistTag extends BaseCommand {
-  static get description () {
-    return 'Modify package distribution tags'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return ['workspace', 'workspaces', 'include-workspace-root']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'dist-tag'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return [
-      'add <pkg>@<version> [<tag>]',
-      'rm <pkg> <tag>',
-      'ls [<pkg>]',
-    ]
-  }
+  static description = 'Modify package distribution tags'
+  static params = ['workspace', 'workspaces', 'include-workspace-root']
+  static name = 'dist-tag'
+  static usage = [
+    'add <pkg>@<version> [<tag>]',
+    'rm <pkg> <tag>',
+    'ls [<pkg>]',
+  ]
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
-    if (argv.length === 2)
+    if (argv.length === 2) {
       return ['add', 'rm', 'ls']
+    }
 
     switch (argv[2]) {
       default:
@@ -45,21 +32,25 @@ class DistTag extends BaseCommand {
   async exec ([cmdName, pkg, tag]) {
     const opts = this.npm.flatOptions
 
-    if (['add', 'a', 'set', 's'].includes(cmdName))
+    if (['add', 'a', 'set', 's'].includes(cmdName)) {
       return this.add(pkg, tag, opts)
+    }
 
-    if (['rm', 'r', 'del', 'd', 'remove'].includes(cmdName))
+    if (['rm', 'r', 'del', 'd', 'remove'].includes(cmdName)) {
       return this.remove(pkg, tag, opts)
+    }
 
-    if (['ls', 'l', 'sl', 'list'].includes(cmdName))
+    if (['ls', 'l', 'sl', 'list'].includes(cmdName)) {
       return this.list(pkg, opts)
+    }
 
     if (!pkg) {
       // when only using the pkg name the default behavior
       // should be listing the existing tags
       return this.list(cmdName, opts)
-    } else
+    } else {
       throw this.usageError()
+    }
   }
 
   async execWorkspaces ([cmdName, pkg, tag], filters) {
@@ -68,16 +59,18 @@ class DistTag extends BaseCommand {
     // - unset
     // - .
     // - .@version
-    if (['ls', 'l', 'sl', 'list'].includes(cmdName) && (!pkg || pkg === '.' || /^\.@/.test(pkg)))
+    if (['ls', 'l', 'sl', 'list'].includes(cmdName) && (!pkg || pkg === '.' || /^\.@/.test(pkg))) {
       return this.listWorkspaces(filters)
+    }
 
     // pkg is unset
     // cmdName is one of:
     // - unset
     // - .
     // - .@version
-    if (!pkg && (!cmdName || cmdName === '.' || /^\.@/.test(cmdName)))
+    if (!pkg && (!cmdName || cmdName === '.' || /^\.@/.test(cmdName))) {
       return this.listWorkspaces(filters)
+    }
 
     // anything else is just a regular dist-tag command
     // so we fallback to the non-workspaces implementation
@@ -92,13 +85,15 @@ class DistTag extends BaseCommand {
 
     log.verbose('dist-tag add', defaultTag, 'to', spec.name + '@' + version)
 
-    if (!spec.name || !version || !defaultTag)
+    if (!spec.name || !version || !defaultTag) {
       throw this.usageError()
+    }
 
     const t = defaultTag.trim()
 
-    if (semver.validRange(t))
+    if (semver.validRange(t)) {
       throw new Error('Tag name must not be a valid SemVer range: ' + t)
+    }
 
     const tags = await this.fetchTags(spec, opts)
     if (tags[t] === version) {
@@ -125,8 +120,9 @@ class DistTag extends BaseCommand {
     spec = npa(spec || '')
     log.verbose('dist-tag del', tag, 'from', spec.name)
 
-    if (!spec.name)
+    if (!spec.name) {
       throw this.usageError()
+    }
 
     const tags = await this.fetchTags(spec, opts)
     if (!tags[tag]) {
@@ -148,11 +144,13 @@ class DistTag extends BaseCommand {
 
   async list (spec, opts) {
     if (!spec) {
-      if (this.npm.config.get('global'))
+      if (this.npm.config.get('global')) {
         throw this.usageError()
+      }
       const pkg = await readPackageName(this.npm.prefix)
-      if (!pkg)
+      if (!pkg) {
         throw this.usageError()
+      }
 
       return this.list(pkg, opts)
     }
@@ -190,10 +188,12 @@ class DistTag extends BaseCommand {
       `/-/package/${spec.escapedName}/dist-tags`,
       { ...opts, 'prefer-online': true, spec }
     )
-    if (data && typeof data === 'object')
+    if (data && typeof data === 'object') {
       delete data._etag
-    if (!data || !Object.keys(data).length)
+    }
+    if (!data || !Object.keys(data).length) {
       throw new Error('No dist-tags found for ' + spec.name)
+    }
 
     return data
   }

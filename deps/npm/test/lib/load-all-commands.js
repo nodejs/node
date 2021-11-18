@@ -20,12 +20,17 @@ t.test('load each command', async t => {
   for (const cmd of cmdList.sort((a, b) => a.localeCompare(b, 'en'))) {
     t.test(cmd, async t => {
       const impl = await npm.cmd(cmd)
-      if (impl.completion)
+      if (impl.completion) {
         t.type(impl.completion, 'function', 'completion, if present, is a function')
+      }
       t.type(impl.exec, 'function', 'implementation has an exec function')
       t.type(impl.execWorkspaces, 'function', 'implementation has an execWorkspaces function')
       t.equal(util.inspect(impl.exec), '[AsyncFunction: exec]', 'exec function is async')
-      t.equal(util.inspect(impl.execWorkspaces), '[AsyncFunction: execWorkspaces]', 'execWorkspaces function is async')
+      t.equal(
+        util.inspect(impl.execWorkspaces),
+        '[AsyncFunction: execWorkspaces]',
+        'execWorkspaces function is async'
+      )
       t.ok(impl.description, 'implementation has a description')
       t.ok(impl.name, 'implementation has a name')
       t.match(impl.usage, cmd, 'usage contains the command')

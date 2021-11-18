@@ -233,7 +233,7 @@ t.test('open repo urls', t => {
       const url = expect[pkg]
       t.match({
         [url]: 1,
-      }, opened, `opened ${url}`, {opened})
+      }, opened, `opened ${url}`, { opened })
       t.end()
     })
   })
@@ -263,7 +263,7 @@ t.test('fail if cannot figure out repo url', t => {
 t.test('open default package if none specified', async t => {
   npm.localPrefix = pkgDirs
   await npm.exec('repo', [])
-  t.equal(opened['https://example.com/thispkg'], 1, 'opened expected url', {opened})
+  t.equal(opened['https://example.com/thispkg'], 1, 'opened expected url', { opened })
 })
 
 t.test('workspaces', t => {

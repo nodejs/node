@@ -4,7 +4,7 @@ const { fake: mockNpm } = require('../../fixtures/mock-npm')
 const ansicolors = require('ansicolors')
 
 const OUTPUT = []
-const output = (msg) => {
+const output = msg => {
   OUTPUT.push(msg)
 }
 
@@ -20,17 +20,22 @@ const npm = mockNpm({
   },
   usage: 'npm test usage',
   exec: async () => {
-    if (npmHelpErr)
+    if (npmHelpErr) {
       throw npmHelpErr
+    }
   },
   output,
 })
 
 let globRoot = null
 const globDir = {
-  'npm-exec.md': 'the exec command\nhelp has multiple lines of exec help\none of them references exec',
+  'npm-exec.md':
+    'the exec command\nhelp has multiple lines of exec help\none of them references exec',
+  /* eslint-disable-next-line max-len */
   'npm-something.md': 'another\ncommand you run\nthat\nreferences exec\nand has multiple lines\nwith no matches\nthat will be ignored\nand another line\nthat does have exec as well',
+  /* eslint-disable-next-line max-len */
   'npm-run-script.md': 'the scripted run-script command runs scripts\nand has lines\nsome of which dont match the string run\nor script\nscript',
+  /* eslint-disable-next-line max-len */
   'npm-install.md': 'does a thing in a script\nif a thing does not exist in a thing you run\nto install it and run it maybe in a script',
   'npm-help.md': 'will run the `help-search` command if you need to run it to help you search',
   'npm-help-search.md': 'is the help search command\nthat you get if you run help-search',
@@ -39,7 +44,10 @@ const globDir = {
   'npm-extra-useless.md': 'exec\nexec\nexec',
 }
 const glob = (p, cb) =>
-  cb(null, Object.keys(globDir).map((file) => join(globRoot, file)))
+  cb(
+    null,
+    Object.keys(globDir).map(file => join(globRoot, file))
+  )
 
 const HelpSearch = t.mock('../../../lib/commands/help-search.js', {
   glob,
@@ -99,7 +107,11 @@ t.test('npm help-search long output with color', async t => {
   await helpSearch.exec(['help-search'])
 
   const highlightedText = ansicolors.bgBlack(ansicolors.red('help-search'))
-  t.equal(OUTPUT.some((line) => line.includes(highlightedText)), true, 'returned highlighted search terms')
+  t.equal(
+    OUTPUT.some(line => line.includes(highlightedText)),
+    true,
+    'returned highlighted search terms'
+  )
 })
 
 t.test('npm help-search no args', async t => {

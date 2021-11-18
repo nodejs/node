@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-hook</title>
 <style>
 body {
@@ -183,7 +184,7 @@ the request came from your own configured hook.</p>
 <p>List your active hooks for the <code>lodash</code> package:</p>
 <pre lang="bash"><code>$ npm hook ls lodash
 </code></pre>
-<p>Update an existing hook’s url:</p>
+<p>Update an existing hook's url:</p>
 <pre lang="bash"><code>$ npm hook update id-deadbeef https://my-new-website.here/
 </code></pre>
 <p>Remove a hook:</p>
@@ -195,7 +196,7 @@ the request came from your own configured hook.</p>
 <!-- raw HTML omitted -->
 <h4 id="registry"><code>registry</code></h4>
 <ul>
-<li>Default: “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”</li>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
 <li>Type: URL</li>
 </ul>
 <p>The base URL of the npm registry.</p>
@@ -206,7 +207,7 @@ the request came from your own configured hook.</p>
 <li>Default: null</li>
 <li>Type: null or String</li>
 </ul>
-<p>This is a one-time password from a two-factor authenticator. It’s needed
+<p>This is a one-time password from a two-factor authenticator. It's needed
 when publishing or changing package permissions with <code>npm access</code>.</p>
 <p>If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.</p>
@@ -215,7 +216,7 @@ password, npm will prompt on the command line for one.</p>
 <!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
-<li><a href="https://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm">“Introducing Hooks” blog post</a></li>
+<li><a href="https://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm">"Introducing Hooks" blog post</a></li>
 </ul>
 </div>
 

@@ -5,9 +5,15 @@ var stripAnsi = require('strip-ansi')
 module.exports = wideTruncate
 
 function wideTruncate (str, target) {
-  if (stringWidth(str) === 0) return str
-  if (target <= 0) return ''
-  if (stringWidth(str) <= target) return str
+  if (stringWidth(str) === 0) {
+    return str
+  }
+  if (target <= 0) {
+    return ''
+  }
+  if (stringWidth(str) <= target) {
+    return str
+  }
 
   // We compute the number of bytes of ansi sequences here and add
   // that to our initial truncation to ensure that we don't slice one

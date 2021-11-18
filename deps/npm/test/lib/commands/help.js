@@ -12,7 +12,7 @@ const OUTPUT = []
 const npm = {
   usage: 'test npm usage',
   config: {
-    get: (key) => npmConfig[key],
+    get: key => npmConfig[key],
     set: (key, value) => {
       npmConfig[key] = value
     },
@@ -21,12 +21,13 @@ const npm = {
     },
   },
   exec: async (cmd, args) => {
-    if (cmd === 'help-search')
+    if (cmd === 'help-search') {
       helpSearchArgs = args
-    else if (cmd === 'help')
+    } else if (cmd === 'help') {
       return { usage: 'npm help <term>' }
+    }
   },
-  deref: (cmd) => {},
+  deref: cmd => {},
   output: msg => {
     OUTPUT.push(msg)
   },
@@ -89,7 +90,11 @@ t.test('npm help completion', async t => {
   const threeArgs = await help.completion({ conf: { argv: { remain: ['one', 'two', 'three'] } } })
   t.strictSame(threeArgs, [], 'outputs no results when more than 2 args are provided')
   globErr = new Error('glob failed')
-  t.rejects(help.completion({ conf: { argv: { remain: [] } } }), /glob failed/, 'glob errors propagate')
+  t.rejects(
+    help.completion({ conf: { argv: { remain: [] } } }),
+    /glob failed/,
+    'glob errors propagate'
+  )
 })
 
 t.test('npm help multiple args calls search', async t => {
@@ -121,11 +126,7 @@ t.test('npm help glob errors propagate', async t => {
     spawnArgs = null
   })
 
-  await t.rejects(
-    help.exec(['whoami']),
-    /glob failed/,
-    'glob error propagates'
-  )
+  await t.rejects(help.exec(['whoami']), /glob failed/, 'glob error propagates')
 })
 
 t.test('npm help whoami', async t => {
@@ -144,10 +145,7 @@ t.test('npm help whoami', async t => {
 
 t.test('npm help 1 install', async t => {
   npmConfig.viewer = 'browser'
-  globResult = [
-    '/root/man/man5/install.5',
-    '/root/man/man1/npm-install.1',
-  ]
+  globResult = ['/root/man/man5/install.5', '/root/man/man1/npm-install.1']
 
   t.teardown(() => {
     npmConfig.viewer = undefined
@@ -164,9 +162,7 @@ t.test('npm help 1 install', async t => {
 
 t.test('npm help 5 install', async t => {
   npmConfig.viewer = 'browser'
-  globResult = [
-    '/root/man/man5/install.5',
-  ]
+  globResult = ['/root/man/man5/install.5']
 
   t.teardown(() => {
     npmConfig.viewer = undefined
@@ -184,9 +180,7 @@ t.test('npm help 5 install', async t => {
 
 t.test('npm help 7 config', async t => {
   npmConfig.viewer = 'browser'
-  globResult = [
-    '/root/man/man7/config.7',
-  ]
+  globResult = ['/root/man/man7/config.7']
   t.teardown(() => {
     npmConfig.viewer = undefined
     globParam = null
@@ -218,10 +212,7 @@ t.test('npm help package.json redirects to package-json', async t => {
 
 t.test('npm help ?(un)star', async t => {
   npmConfig.viewer = 'woman'
-  globResult = [
-    '/root/man/man1/npm-star.1',
-    '/root/man/man1/npm-unstar.1',
-  ]
+  globResult = ['/root/man/man1/npm-star.1', '/root/man/man1/npm-unstar.1']
   t.teardown(() => {
     npmConfig.viewer = undefined
     globResult = globDefaults
@@ -232,16 +223,17 @@ t.test('npm help ?(un)star', async t => {
   await help.exec(['?(un)star'])
 
   t.equal(spawnBin, 'emacsclient', 'maps woman to emacs correctly')
-  t.strictSame(spawnArgs, ['-e', `(woman-find-file '/root/man/man1/npm-star.1')`], 'passes the correct arguments')
+  t.strictSame(
+    spawnArgs,
+    ['-e', `(woman-find-file '/root/man/man1/npm-star.1')`],
+    'passes the correct arguments'
+  )
 })
 
 t.test('npm help - woman viewer propagates errors', async t => {
   npmConfig.viewer = 'woman'
   spawnCode = 1
-  globResult = [
-    '/root/man/man1/npm-star.1',
-    '/root/man/man1/npm-unstar.1',
-  ]
+  globResult = ['/root/man/man1/npm-star.1', '/root/man/man1/npm-unstar.1']
   t.teardown(() => {
     npmConfig.viewer = undefined
     spawnCode = 0
@@ -256,7 +248,11 @@ t.test('npm help - woman viewer propagates errors', async t => {
     'received the correct error'
   )
   t.equal(spawnBin, 'emacsclient', 'maps woman to emacs correctly')
-  t.strictSame(spawnArgs, ['-e', `(woman-find-file '/root/man/man1/npm-star.1')`], 'passes the correct arguments')
+  t.strictSame(
+    spawnArgs,
+    ['-e', `(woman-find-file '/root/man/man1/npm-star.1')`],
+    'passes the correct arguments'
+  )
 })
 
 t.test('npm help un*', async t => {
@@ -291,11 +287,7 @@ t.test('npm help - man viewer propagates errors', async t => {
     spawnArgs = null
   })
 
-  await t.rejects(
-    help.exec(['un*']),
-    /help process exited with code: 1/,
-    'received correct error'
-  )
+  await t.rejects(help.exec(['un*']), /help process exited with code: 1/, 'received correct error')
   t.equal(spawnBin, 'man', 'calls man by default')
   t.strictSame(spawnArgs, ['/root/man/man1/npm-uninstall.1'], 'passes the correct arguments')
 })

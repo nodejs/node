@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-install</title>
 <style>
 body {
@@ -182,7 +183,7 @@ following order of precedence:</p>
 <a href="../using-npm/registry.html"><code>registry</code></a>) with (c)</li>
 <li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> (see <a href="../commands/npm-dist-tag.html"><code>npm dist-tag</code></a>) that
 points to (d)</li>
-<li>f) a <code>&lt;name&gt;</code> that has a “latest” tag satisfying (e)</li>
+<li>f) a <code>&lt;name&gt;</code> that has a "latest" tag satisfying (e)</li>
 <li>g) a <code>&lt;git remote url&gt;</code> that resolves to (a)</li>
 </ul>
 <p>Even if you never publish your package, you can still get a lot of benefits
@@ -192,7 +193,7 @@ into a tarball (b).</p>
 <ul>
 <li>
 <p><code>npm install</code> (in a package directory, no arguments):</p>
-<p>Install the dependencies in the local <code>node_modules</code> folder.</p>
+<p>Install the dependencies to the local <code>node_modules</code> folder.</p>
 <p>In global mode (ie, with <code>-g</code> or <code>--global</code> appended to the command),
 it installs the current package context (ie, the current working
 directory) as a global package.</p>
@@ -211,7 +212,7 @@ dependency to a project.</p>
 <li>
 <p><code>npm install &lt;folder&gt;</code>:</p>
 <p>Install the package in the directory as a symlink in the current
-project.  Its dependencies will be installed before it’s linked. If
+project.  Its dependencies will be installed before it's linked. If
 <code>&lt;folder&gt;</code> sits inside the root of your project, its dependencies may
 be hoisted to the top-level <code>node_modules</code> as they would for other
 types of dependencies.</p>
@@ -238,15 +239,15 @@ when installing the package (an equivalent of <code>tar x --strip-components=1</
 <li>
 <p><code>npm install &lt;tarball url&gt;</code>:</p>
 <p>Fetch the tarball url, and then install it.  In order to distinguish between
-this and other options, the argument must start with “http://” or “https://”</p>
+this and other options, the argument must start with "http://" or "https://"</p>
 <p>Example:</p>
 <pre lang="bash"><code>npm install https://github.com/indexzero/forever/tarball/v0.5.6
 </code></pre>
 </li>
 <li>
 <p><code>npm install [&lt;@scope&gt;/]&lt;name&gt;</code>:</p>
-<p>Do a <code>&lt;name&gt;@&lt;tag&gt;</code> install, where <code>&lt;tag&gt;</code> is the “tag” config. (See
-<a href="../using-npm/config.html"><code>config</code></a>. The config’s default value is <code>latest</code>.)</p>
+<p>Do a <code>&lt;name&gt;@&lt;tag&gt;</code> install, where <code>&lt;tag&gt;</code> is the "tag" config. (See
+<a href="../using-npm/config.html"><code>config</code></a>. The config's default value is <code>latest</code>.)</p>
 <p>In most cases, this will install the version of the modules tagged as
 <code>latest</code> on the npm registry.</p>
 <p>Example:</p>
@@ -276,7 +277,7 @@ package.json, there are two additional, optional flags:</p>
 <ul>
 <li>
 <p><code>-E, --save-exact</code>: Saved dependencies will be configured with an
-exact version rather than using npm’s default semver range operator.</p>
+exact version rather than using npm's default semver range operator.</p>
 </li>
 <li>
 <p><code>-B, --save-bundle</code>: Saved dependencies will also be added to your
@@ -480,7 +481,7 @@ even if a local copy exists on disk.</p>
 </code></pre>
 <h3 id="configuration">Configuration</h3>
 <p>See the <a href="../using-npm/config.html"><code>config</code></a> help doc.  Many of the configuration
-params have some effect on installation, since that’s most of what npm
+params have some effect on installation, since that's most of what npm
 does.</p>
 <p>These are some of the most common options related to installation.</p>
 <!-- raw HTML omitted -->
@@ -502,7 +503,7 @@ package.json.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Dependencies saved to package.json will be configured with an exact version
-rather than using npm’s default semver range operator.</p>
+rather than using npm's default semver range operator.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="global"><code>global</code></h4>
@@ -510,7 +511,7 @@ rather than using npm’s default semver range operator.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Operates in “global” mode, so that packages are installed into the <code>prefix</code>
+<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
 folder instead of the current working directory. See
 <a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
 <ul>
@@ -557,7 +558,7 @@ dependency relationships.</p>
 <p>By default, conflicting <code>peerDependencies</code> deep in the dependency graph will
 be resolved using the nearest non-peer dependency specification, even if
 doing so will result in some packages receiving a peer dependency outside
-the range set in their package’s <code>peerDependencies</code> object.</p>
+the range set in their package's <code>peerDependencies</code> object.</p>
 <p>When such and override is performed, a warning is printed, explaining the
 conflict and the packages involved. If <code>--strict-peer-deps</code> is set, then
 this warning is treated as a failure.</p>
@@ -577,9 +578,9 @@ package-locks disabled use <code>npm prune</code>.</p>
 <!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>
 <ul>
-<li>Default: ‘dev’ if the <code>NODE_ENV</code> environment variable is set to
-‘production’, otherwise empty.</li>
-<li>Type: “dev”, “optional”, or “peer” (can be set multiple times)</li>
+<li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
+'production', otherwise empty.</li>
+<li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
 <p>Note that these dependencies <em>are</em> still resolved and added to the
@@ -608,7 +609,7 @@ will <em>not</em> run any pre- or post-scripts.</p>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When “true” submit audit reports alongside the current npm command to the
+<p>When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes. See the
 documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
 submitted.</p>
@@ -622,7 +623,7 @@ submitted.</p>
 <p>Tells npm to create symlinks (or <code>.cmd</code> shims on Windows) for package
 executables.</p>
 <p>Set to false to have it not do this. This can be used to work around the
-fact that some file systems don’t support symlinks, even on ostensibly Unix
+fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -631,7 +632,7 @@ systems.</p>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When “true” displays the message at the end of each <code>npm install</code>
+<p>When "true" displays the message at the end of each <code>npm install</code>
 acknowledging the number of dependencies looking for funding. See <a href="../commands/npm-fund.html"><code>npm fund</code></a> for details.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -640,7 +641,7 @@ acknowledging the number of dependencies looking for funding. See <a href="../co
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Indicates that you don’t want npm to make any changes and that it should
+<p>Indicates that you don't want npm to make any changes and that it should
 only report what it would have done. This can be passed into any of the
 commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
@@ -717,7 +718,7 @@ level because nothing conflicts with it.</p>
    `-- D@2
 +-- D@1
 </code></pre>
-<p>Because B’s D@1 will be installed in the top-level, C now has to install
+<p>Because B's D@1 will be installed in the top-level, C now has to install
 D@2 privately for itself. This algorithm is deterministic, but different
 trees may be produced if two dependencies are requested for installation in
 a different order.</p>

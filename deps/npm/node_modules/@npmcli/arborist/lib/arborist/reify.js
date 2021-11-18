@@ -3,15 +3,15 @@
 const onExit = require('../signal-handling.js')
 const pacote = require('pacote')
 const AuditReport = require('../audit-report.js')
-const {subset, intersects} = require('semver')
+const { subset, intersects } = require('semver')
 const npa = require('npm-package-arg')
 const debug = require('../debug.js')
 const walkUp = require('walk-up-path')
 
-const {dirname, resolve, relative} = require('path')
-const {depth: dfwalk} = require('treeverse')
+const { dirname, resolve, relative } = require('path')
+const { depth: dfwalk } = require('treeverse')
 const fs = require('fs')
-const {promisify} = require('util')
+const { promisify } = require('util')
 const lstat = promisify(fs.lstat)
 const symlink = promisify(fs.symlink)
 const mkdirp = require('mkdirp-infer-owner')
@@ -188,7 +188,7 @@ module.exports = cls => class Reifier extends cls {
     // ok, we're about to start touching the fs.  need to roll back
     // if we get an early termination.
     let reifyTerminated = null
-    const removeHandler = onExit(({signal}) => {
+    const removeHandler = onExit(({ signal }) => {
       // only call once.  if signal hits twice, we just terminate
       removeHandler()
       reifyTerminated = Object.assign(new Error('process terminated'), {
@@ -352,7 +352,7 @@ module.exports = cls => class Reifier extends cls {
       if (includeRootDeps) {
         // add all non-workspace nodes to filterNodes
         for (const tree of [this.idealTree, this.actualTree]) {
-          for (const {type, to} of tree.edgesOut.values()) {
+          for (const { type, to } of tree.edgesOut.values()) {
             if (type !== 'workspace' && to) {
               filterNodes.push(to)
             }
@@ -686,7 +686,7 @@ module.exports = cls => class Reifier extends cls {
   }
 
   [_warnDeprecated] (node) {
-    const {_id, deprecated} = node.package
+    const { _id, deprecated } = node.package
     if (deprecated) {
       this.log.warn('deprecated', `${_id}: ${deprecated}`)
     }
@@ -1159,7 +1159,7 @@ module.exports = cls => class Reifier extends cls {
         const edge = addTree.edgesOut.get(name)
         const pkg = addTree.package
         const req = npa.resolve(name, edge.spec, addTree.realpath)
-        const {rawSpec, subSpec} = req
+        const { rawSpec, subSpec } = req
 
         const spec = subSpec ? subSpec.rawSpec : rawSpec
         const child = edge.to

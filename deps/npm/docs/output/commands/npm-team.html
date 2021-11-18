@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-team</title>
 <style>
 body {
@@ -163,13 +164,13 @@ when operating on them, separated by a colon (<code>:</code>). That is, if you h
 as <code>@org:newteam</code> in these commands.</p>
 <p>If you have two-factor authentication enabled in <code>auth-and-writes</code> mode, then
 you can provide a code from your authenticator with <code>[--otp &lt;otpcode&gt;]</code>.
-If you don’t include this then you will be prompted.</p>
+If you don't include this then you will be prompted.</p>
 <ul>
 <li>
 <p>create / destroy:
 Create a new team, or destroy an existing one. Note: You cannot remove the
 <code>developers</code> team, <!-- raw HTML omitted -->learn more.<!-- raw HTML omitted --></p>
-<p>Here’s how to create a new team <code>newteam</code> under the <code>org</code> org:</p>
+<p>Here's how to create a new team <code>newteam</code> under the <code>org</code> org:</p>
 <pre lang="bash"><code>npm team create @org:newteam
 </code></pre>
 <p>You should see a confirming message such as: <code>+@org:newteam</code> once the new
@@ -186,7 +187,7 @@ Add a user to an existing team.</p>
 <li>
 <p>rm:
 Using <code>npm team rm</code> you can also remove users from a team they belong to.</p>
-<p>Here’s an example removing user <code>username</code> from <code>newteam</code> team
+<p>Here's an example removing user <code>username</code> from <code>newteam</code> team
 in <code>org</code> organization:</p>
 <pre lang="bash"><code>npm team rm @org:newteam username
 </code></pre>
@@ -198,7 +199,7 @@ in <code>org</code> organization:</p>
 If performed on an organization name, will return a list of existing teams
 under that organization. If performed on a team, it will instead return a list
 of all users belonging to that particular team.</p>
-<p>Here’s an example of how to list all teams from an org named <code>org</code>:</p>
+<p>Here's an example of how to list all teams from an org named <code>org</code>:</p>
 <pre lang="bash"><code>npm team ls @org
 </code></pre>
 <p>Example listing all members of a team named <code>newteam</code>:</p>
@@ -222,7 +223,7 @@ use the <code>npm access</code> command to grant or revoke the appropriate permi
 <!-- raw HTML omitted -->
 <h4 id="registry"><code>registry</code></h4>
 <ul>
-<li>Default: “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”</li>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
 <li>Type: URL</li>
 </ul>
 <p>The base URL of the npm registry.</p>
@@ -233,7 +234,7 @@ use the <code>npm access</code> command to grant or revoke the appropriate permi
 <li>Default: null</li>
 <li>Type: null or String</li>
 </ul>
-<p>This is a one-time password from a two-factor authenticator. It’s needed
+<p>This is a one-time password from a two-factor authenticator. It's needed
 when publishing or changing package permissions with <code>npm access</code>.</p>
 <p>If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.</p>

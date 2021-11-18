@@ -99,14 +99,14 @@ t.test('open docs urls', t => {
       const url = expect[pkg]
       t.match({
         [url]: 1,
-      }, opened, `opened ${url}`, {opened})
+      }, opened, `opened ${url}`, { opened })
     })
   })
 })
 
 t.test('open default package if none specified', async t => {
   await docs.exec([])
-  t.equal(opened['https://example.com'], 1, 'opened expected url', {opened})
+  t.equal(opened['https://example.com'], 1, 'opened expected url', { opened })
 })
 
 t.test('workspaces', (t) => {

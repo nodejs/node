@@ -388,8 +388,8 @@ t.test('completion', t => {
   })
 
   t.test('npm team unknown subcommand autocomplete', async t => {
-    t.rejects(completion({conf: {argv: {remain: ['npm', 'team', 'missing-subcommand'] } } }),
-      {message: 'missing-subcommand not recognized'}, 'should throw a a not recognized error'
+    t.rejects(completion({ conf: { argv: { remain: ['npm', 'team', 'missing-subcommand'] } } }),
+      { message: 'missing-subcommand not recognized' }, 'should throw a a not recognized error'
     )
 
     t.end()

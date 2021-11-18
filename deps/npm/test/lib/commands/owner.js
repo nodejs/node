@@ -211,8 +211,9 @@ t.test('owner add <user> <pkg>', async t => {
         'should contain expected new owners, adding requested user'
       )
       return {}
-    } else
+    } else {
       t.fail(`unexpected fetch json call to uri: ${uri}`)
+    }
   }
   pacote.packument = async (spec, opts) => {
     t.equal(spec.name, '@npmcli/map-workspaces', 'should use expect pkg name')
@@ -250,10 +251,11 @@ t.test('owner add <user> cwd package', async t => {
         email: 'foo@github.com',
         name: 'foo',
       }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1')
+    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
       return {}
-    else
+    } else {
       t.fail(`unexpected fetch json call to uri: ${uri}`)
+    }
   }
   pacote.packument = async (spec, opts) => ({
     _rev: '1-foobaaa1',
@@ -290,8 +292,9 @@ t.test('owner add <user> <pkg> already an owner', async t => {
         email: 'ruyadorno@hotmail.com',
         name: 'ruyadorno',
       }
-    } else
+    } else {
       t.fail(`unexpected fetch json call to uri: ${uri}`)
+    }
   }
   pacote.packument = async (spec, opts) => {
     return {
@@ -314,12 +317,13 @@ t.test('owner add <user> <pkg> fails to retrieve user', async t => {
   readPackageNameResponse =
   npmFetch.json = async (uri, opts) => {
     // retrieve borked user info from couchdb request
-    if (uri === '/-/user/org.couchdb.user:foo')
+    if (uri === '/-/user/org.couchdb.user:foo') {
       return { ok: false }
-    else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1')
+    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
       return {}
-    else
+    } else {
       t.fail(`unexpected fetch json call to uri: ${uri}`)
+    }
   }
   pacote.packument = async (spec, opts) => ({
     _rev: '1-foobaaa1',
@@ -356,8 +360,9 @@ t.test('owner add <user> <pkg> fails to PUT updates', async t => {
           message: "I'm a teapot",
         },
       }
-    } else
+    } else {
       t.fail(`unexpected fetch json call to uri: ${uri}`)
+    }
   }
   pacote.packument = async (spec, opts) => ({
     _rev: '1-foobaaa1',
@@ -391,8 +396,9 @@ t.test('owner add <user> <pkg> fails to retrieve user info', async t => {
         new Error("I'm a teapot"),
         { status: 418 }
       )
-    } else
+    } else {
       t.fail(`unexpected fetch json call to uri: ${uri}`)
+    }
   }
   pacote.packument = async (spec, opts) => ({
     _rev: '1-foobaaa1',
@@ -422,10 +428,11 @@ t.test('owner add <user> <pkg> no previous maintainers property from server', as
         email: 'foo@github.com',
         name: 'foo',
       }
-    } else if (uri === '/@npmcli%2fno-owners-pkg/-rev/1-foobaaa1')
+    } else if (uri === '/@npmcli%2fno-owners-pkg/-rev/1-foobaaa1') {
       return {}
-    else
+    } else {
       t.fail(`unexpected fetch json call to uri: ${uri}`)
+    }
   }
   pacote.packument = async (spec, opts) => {
     return {
@@ -512,8 +519,9 @@ t.test('owner rm <user> <pkg>', async t => {
         'should contain expected new owners, removing requested user'
       )
       return {}
-    } else
+    } else {
       t.fail(`unexpected fetch json call to: ${uri}`)
+    }
   }
   pacote.packument = async (spec, opts) => {
     t.equal(spec.name, '@npmcli/map-workspaces', 'should use expect pkg name')
@@ -556,10 +564,11 @@ t.test('owner rm <user> <pkg> not a current owner', async t => {
         email: 'foo@github.com',
         name: 'foo',
       }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1')
+    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
       return {}
-    else
+    } else {
       t.fail(`unexpected fetch json call to: ${uri}`)
+    }
   }
   pacote.packument = async (spec, opts) => {
     return {
@@ -588,10 +597,11 @@ t.test('owner rm <user> cwd package', async t => {
         email: 'ruyadorno@hotmail.com',
         name: 'ruyadorno',
       }
-    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1')
+    } else if (uri === '/@npmcli%2fmap-workspaces/-rev/1-foobaaa1') {
       return {}
-    else
+    } else {
       t.fail(`unexpected fetch json call to uri: ${uri}`)
+    }
   }
   pacote.packument = async (spec, opts) => ({
     _rev: '1-foobaaa1',
@@ -619,8 +629,9 @@ t.test('owner rm <user> only user', async t => {
         email: 'ruyadorno@hotmail.com',
         name: 'ruyadorno',
       }
-    } else
+    } else {
       t.fail(`unexpected fetch json call to uri: ${uri}`)
+    }
   }
   pacote.packument = async (spec, opts) => ({
     _rev: '1-foobaaa1',

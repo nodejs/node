@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-publish</title>
 <style>
 body {
@@ -173,15 +174,15 @@ that <code>npm install &lt;name&gt;@&lt;tag&gt;</code> will install this version
 <li>
 <p><code>[--access &lt;public|restricted&gt;]</code>: Tells the registry whether this package
 should be published as public or restricted. Only applies to scoped
-packages, which default to <code>restricted</code>.  If you don’t have a paid
+packages, which default to <code>restricted</code>.  If you don't have a paid
 account, you must publish with <code>--access public</code> to publish scoped
 packages.</p>
 </li>
 <li>
 <p><code>[--otp &lt;otpcode&gt;]</code>: If you have two-factor authentication enabled in
 <code>auth-and-writes</code> mode then you can provide a code from your
-authenticator with this. If you don’t include this and you’re running
-from a TTY then you’ll be prompted.</p>
+authenticator with this. If you don't include this and you're running
+from a TTY then you'll be prompted.</p>
 </li>
 <li>
 <p><code>[--dry-run]</code>: As of <code>npm@6</code>, does everything publish would do except
@@ -219,7 +220,7 @@ are always included.  For example, <code>package.json</code>, <code>README.md</c
 <code>LICENSE</code>, and so on.</p>
 </li>
 <li>
-<p>If there is a “files” list in
+<p>If there is a "files" list in
 <a href="../configuring-npm/package-json.html"><code>package.json</code></a>, then only the files
 specified will be included.  (If directories are specified, then they
 will be walked recursively and their contents included, subject to the
@@ -243,7 +244,7 @@ un-ignored with a <code>!</code> rule in a <code>.npmignore</code> or <code>.git
 <p>Symbolic links are never included in npm packages.</p>
 </li>
 </ul>
-<p>See <a href="../using-npm/developers.html"><code>developers</code></a> for full details on what’s
+<p>See <a href="../using-npm/developers.html"><code>developers</code></a> for full details on what's
 included in the published package, as well as details on how the package is
 built.</p>
 <h3 id="configuration">Configuration</h3>
@@ -252,10 +253,10 @@ built.</p>
 <!-- raw HTML omitted -->
 <h4 id="tag"><code>tag</code></h4>
 <ul>
-<li>Default: “latest”</li>
+<li>Default: "latest"</li>
 <li>Type: String</li>
 </ul>
-<p>If you ask npm to install a package and don’t tell it a specific version,
+<p>If you ask npm to install a package and don't tell it a specific version,
 then it will install the specified tag.</p>
 <p>Also the tag that is added to the package@version specified by the <code>npm tag</code>
 command, if no explicit tag is given.</p>
@@ -265,8 +266,8 @@ tarball that will be compared with the local files by default.</p>
 <!-- raw HTML omitted -->
 <h4 id="access"><code>access</code></h4>
 <ul>
-<li>Default: ‘restricted’ for scoped packages, ‘public’ for unscoped packages</li>
-<li>Type: null, “restricted”, or “public”</li>
+<li>Default: 'restricted' for scoped packages, 'public' for unscoped packages</li>
+<li>Type: null, "restricted", or "public"</li>
 </ul>
 <p>When publishing scoped packages, the access level defaults to <code>restricted</code>.
 If you want your scoped package to be publicly viewable (and installable)
@@ -284,7 +285,7 @@ initial publish use <code>npm access</code>.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Indicates that you don’t want npm to make any changes and that it should
+<p>Indicates that you don't want npm to make any changes and that it should
 only report what it would have done. This can be passed into any of the
 commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
@@ -297,7 +298,7 @@ commands that modify your local installation, eg, <code>install</code>, <code>up
 <li>Default: null</li>
 <li>Type: null or String</li>
 </ul>
-<p>This is a one-time password from a two-factor authenticator. It’s needed
+<p>This is a one-time password from a two-factor authenticator. It's needed
 when publishing or changing package permissions with <code>npm access</code>.</p>
 <p>If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.</p>

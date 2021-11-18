@@ -8,58 +8,51 @@ const readLocalPkgName = require('../utils/read-package-name.js')
 const BaseCommand = require('../base-command.js')
 
 class Owner extends BaseCommand {
-  static get description () {
-    return 'Manage package owners'
-  }
+  static description = 'Manage package owners'
+  static name = 'owner'
+  static params = [
+    'registry',
+    'otp',
+  ]
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'owner'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'registry',
-      'otp',
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return [
-      'add <user> [<@scope>/]<pkg>',
-      'rm <user> [<@scope>/]<pkg>',
-      'ls [<@scope>/]<pkg>',
-    ]
-  }
+  static usage = [
+    'add <user> [<@scope>/]<pkg>',
+    'rm <user> [<@scope>/]<pkg>',
+    'ls [<@scope>/]<pkg>',
+  ]
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
-    if (argv.length > 3)
+    if (argv.length > 3) {
       return []
+    }
 
-    if (argv[1] !== 'owner')
+    if (argv[1] !== 'owner') {
       argv.unshift('owner')
+    }
 
-    if (argv.length === 2)
+    if (argv.length === 2) {
       return ['add', 'rm', 'ls']
+    }
 
     // reaches registry in order to autocomplete rm
     if (argv[2] === 'rm') {
-      if (this.npm.config.get('global'))
+      if (this.npm.config.get('global')) {
         return []
+      }
       const pkgName = await readLocalPkgName(this.npm.prefix)
-      if (!pkgName)
+      if (!pkgName) {
         return []
+      }
 
       const spec = npa(pkgName)
       const data = await pacote.packument(spec, {
         ...this.npm.flatOptions,
         fullMetadata: true,
       })
-      if (data && data.maintainers && data.maintainers.length)
+      if (data && data.maintainers && data.maintainers.length) {
         return data.maintainers.map(m => m.name)
+      }
     }
     return []
   }
@@ -82,12 +75,14 @@ class Owner extends BaseCommand {
 
   async ls (pkg, opts) {
     if (!pkg) {
-      if (this.npm.config.get('global'))
+      if (this.npm.config.get('global')) {
         throw this.usageError()
+      }
 
       const pkgName = await readLocalPkgName(this.npm.prefix)
-      if (!pkgName)
+      if (!pkgName) {
         throw this.usageError()
+      }
 
       pkg = pkgName
     }
@@ -97,10 +92,11 @@ class Owner extends BaseCommand {
     try {
       const packumentOpts = { ...opts, fullMetadata: true }
       const { maintainers } = await pacote.packument(spec, packumentOpts)
-      if (!maintainers || !maintainers.length)
+      if (!maintainers || !maintainers.length) {
         this.npm.output('no admin found')
-      else
+      } else {
         this.npm.output(maintainers.map(o => `${o.name} <${o.email}>`).join('\n'))
+      }
 
       return maintainers
     } catch (err) {
@@ -110,15 +106,18 @@ class Owner extends BaseCommand {
   }
 
   async add (user, pkg, opts) {
-    if (!user)
+    if (!user) {
       throw this.usageError()
+    }
 
     if (!pkg) {
-      if (this.npm.config.get('global'))
+      if (this.npm.config.get('global')) {
         throw this.usageError()
+      }
       const pkgName = await readLocalPkgName(this.npm.prefix)
-      if (!pkgName)
+      if (!pkgName) {
         throw this.usageError()
+      }
 
       pkg = pkgName
     }
@@ -130,15 +129,18 @@ class Owner extends BaseCommand {
   }
 
   async rm (user, pkg, opts) {
-    if (!user)
+    if (!user) {
       throw this.usageError()
+    }
 
     if (!pkg) {
-      if (this.npm.config.get('global'))
+      if (this.npm.config.get('global')) {
         throw this.usageError()
+      }
       const pkgName = await readLocalPkgName(this.npm.prefix)
-      if (!pkgName)
+      if (!pkgName) {
         throw this.usageError()
+      }
 
       pkg = pkgName
     }
@@ -178,8 +180,9 @@ class Owner extends BaseCommand {
     const before = data.maintainers ? data.maintainers.length : 0
 
     const m = validation(u, data.maintainers)
-    if (!m)
-      return // invalid owners
+    if (!m) {
+      return
+    } // invalid owners
 
     const body = {
       _id: data._id,
@@ -197,10 +200,11 @@ class Owner extends BaseCommand {
     })
 
     if (!res.error) {
-      if (m.length < before)
+      if (m.length < before) {
         this.npm.output(`- ${user} (${spec.name})`)
-      else
+      } else {
         this.npm.output(`+ ${user} (${spec.name})`)
+      }
     } else {
       throw Object.assign(
         new Error('Failed to update package: ' + JSON.stringify(res)),

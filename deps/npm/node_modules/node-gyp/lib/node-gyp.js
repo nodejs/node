@@ -75,7 +75,8 @@ proto.configDefs = {
   'dist-url': String, // 'install'
   tarball: String, // 'install'
   jobs: String, // 'build'
-  thin: String // 'configure'
+  thin: String, // 'configure'
+  'force-process-config': Boolean // 'configure'
 }
 
 /**

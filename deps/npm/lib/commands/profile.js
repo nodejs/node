@@ -38,40 +38,28 @@ const writableProfileKeys = [
 
 const BaseCommand = require('../base-command.js')
 class Profile extends BaseCommand {
-  static get description () {
-    return 'Change settings on your registry profile'
-  }
+  static description = 'Change settings on your registry profile'
+  static name = 'profile'
+  static usage = [
+    'enable-2fa [auth-only|auth-and-writes]',
+    'disable-2fa',
+    'get [<key>]',
+    'set <key> <value>',
+  ]
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'profile'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return [
-      'enable-2fa [auth-only|auth-and-writes]',
-      'disable-2fa',
-      'get [<key>]',
-      'set <key> <value>',
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'registry',
-      'json',
-      'parseable',
-      'otp',
-    ]
-  }
+  static params = [
+    'registry',
+    'json',
+    'parseable',
+    'otp',
+  ]
 
   async completion (opts) {
     var argv = opts.conf.argv.remain
 
-    if (!argv[2])
+    if (!argv[2]) {
       return ['enable-2fa', 'disable-2fa', 'get', 'set']
+    }
 
     switch (argv[2]) {
       case 'enable-2fa':
@@ -89,8 +77,9 @@ class Profile extends BaseCommand {
   }
 
   async exec (args) {
-    if (args.length === 0)
+    if (args.length === 0) {
       throw this.usageError()
+    }
 
     log.gauge.show('profile')
 
@@ -122,8 +111,9 @@ class Profile extends BaseCommand {
       npmProfile.get(this.npm.flatOptions)
     )
 
-    if (!info.cidr_whitelist)
+    if (!info.cidr_whitelist) {
       delete info.cidr_whitelist
+    }
 
     if (this.npm.config.get('json')) {
       this.npm.output(JSON.stringify(info, null, 2))
@@ -132,21 +122,24 @@ class Profile extends BaseCommand {
 
     // clean up and format key/values for output
     const cleaned = {}
-    for (const key of knownProfileKeys)
+    for (const key of knownProfileKeys) {
       cleaned[key] = info[key] || ''
+    }
 
     const unknownProfileKeys = Object.keys(info).filter((k) => !(k in cleaned))
-    for (const key of unknownProfileKeys)
+    for (const key of unknownProfileKeys) {
       cleaned[key] = info[key] || ''
+    }
 
     delete cleaned.tfa
     delete cleaned.email_verified
     cleaned.email += info.email_verified ? ' (verified)' : '(unverified)'
 
-    if (info.tfa && !info.tfa.pending)
+    if (info.tfa && !info.tfa.pending) {
       cleaned[tfa] = info.tfa.mode
-    else
+    } else {
       cleaned[tfa] = 'disabled'
+    }
 
     if (args.length) {
       const values = args // comma or space separated
@@ -159,15 +152,17 @@ class Profile extends BaseCommand {
     } else {
       if (this.npm.config.get('parseable')) {
         for (const key of Object.keys(info)) {
-          if (key === 'tfa')
+          if (key === 'tfa') {
             this.npm.output(`${key}\t${cleaned[tfa]}`)
-          else
+          } else {
             this.npm.output(`${key}\t${info[key]}`)
+          }
         }
       } else {
         const table = new Table()
-        for (const key of Object.keys(cleaned))
+        for (const key of Object.keys(cleaned)) {
           table.push({ [ansistyles.bright(key)]: cleaned[key] })
+        }
 
         this.npm.output(table.toString())
       }
@@ -192,8 +187,9 @@ class Profile extends BaseCommand {
       return newpassword
     }
 
-    if (prop !== 'password' && value === null)
+    if (prop !== 'password' && value === null) {
       throw new Error('npm profile set <prop> <value>')
+    }
 
     if (prop === 'password' && value !== null) {
       throw new Error(
@@ -217,26 +213,29 @@ class Profile extends BaseCommand {
     const user = await pulseTillDone.withPromise(npmProfile.get(conf))
     const newUser = {}
 
-    for (const key of writableProfileKeys)
+    for (const key of writableProfileKeys) {
       newUser[key] = user[key]
+    }
 
     newUser[prop] = value
 
     const result = await otplease(conf, conf => npmProfile.set(newUser, conf))
 
-    if (this.npm.config.get('json'))
+    if (this.npm.config.get('json')) {
       this.npm.output(JSON.stringify({ [prop]: result[prop] }, null, 2))
-    else if (this.npm.config.get('parseable'))
+    } else if (this.npm.config.get('parseable')) {
       this.npm.output(prop + '\t' + result[prop])
-    else if (result[prop] != null)
+    } else if (result[prop] != null) {
       this.npm.output('Set', prop, 'to', result[prop])
-    else
+    } else {
       this.npm.output('Set', prop)
+    }
   }
 
   async enable2fa (args) {
-    if (args.length > 1)
+    if (args.length > 1) {
       throw new Error('npm profile enable-2fa [auth-and-writes|auth-only]')
+    }
 
     const mode = args[0] || 'auth-and-writes'
     if (mode !== 'auth-only' && mode !== 'auth-and-writes') {
@@ -267,11 +266,11 @@ class Profile extends BaseCommand {
     const creds = this.npm.config.getCredentialsByURI(this.npm.config.get('registry'))
     const auth = {}
 
-    if (creds.token)
+    if (creds.token) {
       auth.token = creds.token
-    else if (creds.username)
+    } else if (creds.username) {
       auth.basic = { username: creds.username, password: creds.password }
-    else if (creds.auth) {
+    } else if (creds.auth) {
       const basic = Buffer.from(creds.auth, 'base64').toString().split(':', 2)
       auth.basic = { username: basic[0], password: basic[1] }
     }
@@ -370,8 +369,9 @@ class Profile extends BaseCommand {
       'if you lose your authentication device.'
     )
 
-    for (const tfaCode of result.tfa)
+    for (const tfaCode of result.tfa) {
       this.npm.output('\t' + tfaCode)
+    }
   }
 
   async disable2fa (args) {
@@ -396,12 +396,13 @@ class Profile extends BaseCommand {
       tfa: { password: password, mode: 'disable' },
     }, conf))
 
-    if (this.npm.config.get('json'))
+    if (this.npm.config.get('json')) {
       this.npm.output(JSON.stringify({ tfa: false }, null, 2))
-    else if (this.npm.config.get('parseable'))
+    } else if (this.npm.config.get('parseable')) {
       this.npm.output('tfa\tfalse')
-    else
+    } else {
       this.npm.output('Two factor authentication disabled.')
+    }
   }
 }
 module.exports = Profile

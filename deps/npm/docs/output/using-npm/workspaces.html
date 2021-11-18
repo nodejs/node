@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>workspaces</title>
 <style>
 body {
@@ -154,7 +155,7 @@ as part of <code>npm install</code> and avoiding manually having to use <code>np
 order to add references to packages that should be symlinked into the current
 <code>node_modules</code> folder.</p>
 <p>We also refer to these packages being auto-symlinked during <code>npm install</code> as a
-single <strong>workspace</strong>, meaning it’s a nested package within the current local
+single <strong>workspace</strong>, meaning it's a nested package within the current local
 file system that is explicitly defined in the <a href="../configuring-npm/package-json#workspaces.html"><code>package.json</code></a>
 <code>workspaces</code> configuration.</p>
 <h3 id="defining-workspaces">Defining workspaces</h3>
@@ -198,7 +199,7 @@ structure of files and folders:</p>
 file (if needed) while also making sure to properly configure the
 <code>"workspaces"</code> property of your root project <code>package.json</code>.</p>
 <h3 id="adding-dependencies-to-a-workspace">Adding dependencies to a workspace</h3>
-<p>It’s possible to directly add/remove/update dependencies of your workspaces
+<p>It's possible to directly add/remove/update dependencies of your workspaces
 using the <a href="../using-npm/config#workspace.html"><code>workspace</code> config</a>.</p>
 <p>For example, assuming the following structure:</p>
 <pre><code>.
@@ -218,9 +219,9 @@ workspace:</p>
 <p>Note: other installing commands such as <code>uninstall</code>, <code>ci</code>, etc will also
 respect the provided <code>workspace</code> configuration.</p>
 <h3 id="using-workspaces">Using workspaces</h3>
-<p>Given the <a href="https://nodejs.org/dist/latest-v14.x/docs/api/modules.html#modules_all_together">specifities of how Node.js handles module resolution</a> it’s possible to consume any defined workspace
+<p>Given the <a href="https://nodejs.org/dist/latest-v14.x/docs/api/modules.html#modules_all_together">specifities of how Node.js handles module resolution</a> it's possible to consume any defined workspace
 by its declared <code>package.json</code> <code>name</code>. Continuing from the example defined
-above, let’s also create a Node.js script that will require the <code>workspace-a</code>
+above, let's also create a Node.js script that will require the <code>workspace-a</code>
 example module, e.g:</p>
 <pre><code>// ./workspace-a/index.js
 module.exports = 'a'
@@ -248,7 +249,7 @@ of nested workspaces. For a project containing multiple workspaces, e.g:</p>
    `-- b
        `-- package.json
 </code></pre>
-<p>By running a command using the <code>workspace</code> option, it’s possible to run the
+<p>By running a command using the <code>workspace</code> option, it's possible to run the
 given command in the context of that specific workspace. e.g:</p>
 <pre><code>npm run test --workspace=a
 </code></pre>
@@ -258,7 +259,7 @@ given command in the context of that specific workspace. e.g:</p>
 command-line in order to target multiple workspaces, e.g:</p>
 <pre><code>npm run test --workspace=a --workspace=b
 </code></pre>
-<p>It’s also possible to use the <code>workspaces</code> (plural) configuration option to
+<p>It's also possible to use the <code>workspaces</code> (plural) configuration option to
 enable the same behavior but running that command in the context of <strong>all</strong>
 configured workspaces. e.g:</p>
 <pre><code>npm run test --workspaces

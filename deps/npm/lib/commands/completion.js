@@ -45,20 +45,14 @@ const { promisify } = require('util')
 const BaseCommand = require('../base-command.js')
 
 class Completion extends BaseCommand {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Tab Completion for npm'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'completion'
-  }
+  static description = 'Tab Completion for npm'
+  static name = 'completion'
 
   // completion for the completion command
   async completion (opts) {
-    if (opts.w > 2)
+    if (opts.w > 2) {
       return
+    }
 
     const { resolve } = require('path')
     const [bashExists, zshExists] = await Promise.all([
@@ -66,11 +60,13 @@ class Completion extends BaseCommand {
       fileExists(resolve(process.env.HOME, '.zshrc')),
     ])
     const out = []
-    if (zshExists)
+    if (zshExists) {
       out.push(['>>', '~/.zshrc'])
+    }
 
-    if (bashExists)
+    if (bashExists) {
       out.push(['>>', '~/.bashrc'])
+    }
 
     return out
   }
@@ -88,8 +84,9 @@ class Completion extends BaseCommand {
     // if the COMP_* isn't in the env, then just dump the script.
     if (COMP_CWORD === undefined ||
       COMP_LINE === undefined ||
-      COMP_POINT === undefined)
+      COMP_POINT === undefined) {
       return dumpScript()
+    }
 
     // ok we're actually looking at the envs and outputting the suggestions
     // get the partial line and partial word,
@@ -106,8 +103,9 @@ class Completion extends BaseCommand {
     // figure out where in that last word the point is.
     const partialWordRaw = args[w]
     let i = partialWordRaw.length
-    while (partialWordRaw.substr(0, i) !== partialLine.substr(-1 * i) && i > 0)
+    while (partialWordRaw.substr(0, i) !== partialLine.substr(-1 * i) && i > 0) {
       i--
+    }
 
     const partialWord = unescape(partialWordRaw.substr(0, i))
     partialWords.push(partialWord)
@@ -126,8 +124,9 @@ class Completion extends BaseCommand {
     }
 
     if (partialWords.slice(0, -1).indexOf('--') === -1) {
-      if (word.charAt(0) === '-')
+      if (word.charAt(0) === '-') {
         return this.wrap(opts, configCompl(opts))
+      }
 
       if (words[w - 1] &&
         words[w - 1].charAt(0) === '-' &&
@@ -151,15 +150,16 @@ class Completion extends BaseCommand {
       nopt(types, shorthands, partialWords.slice(0, -1), 0)
     // check if there's a command already.
     const cmd = parsed.argv.remain[1]
-    if (!cmd)
+    if (!cmd) {
       return this.wrap(opts, cmdCompl(opts))
+    }
 
     Object.keys(parsed).forEach(k => this.npm.config.set(k, parsed[k]))
 
     // at this point, if words[1] is some kind of npm command,
     // then complete on it.
     // otherwise, do nothing
-    const impl = this.npm.cmd(cmd)
+    const impl = await this.npm.cmd(cmd)
     if (impl.completion) {
       const comps = await impl.completion(opts)
       return this.wrap(opts, comps)
@@ -173,17 +173,18 @@ class Completion extends BaseCommand {
   // Ie, returning ['a', 'b c', ['d', 'e']] would allow it to expand
   // to: 'a', 'b c', or 'd' 'e'
   wrap (opts, compls) {
-    if (!Array.isArray(compls))
-      compls = compls ? [compls] : []
+    // TODO this was dead code, leaving it in case we find some command we
+    // forgot that requires this. if so *that command should fix its
+    // completions*
+    // compls = compls.map(w => !/\s+/.test(w) ? w : '\'' + w + '\'')
 
-    compls = compls.map(c =>
-      Array.isArray(c) ? c.map(escape).join(' ') : escape(c))
-
-    if (opts.partialWord)
+    if (opts.partialWord) {
       compls = compls.filter(c => c.startsWith(opts.partialWord))
+    }
 
-    if (compls.length > 0)
+    if (compls.length > 0) {
       this.npm.output(compls.join('\n'))
+    }
   }
 }
 
@@ -197,8 +198,9 @@ const dumpScript = async () => {
   await new Promise((res, rej) => {
     let done = false
     process.stdout.on('error', er => {
-      if (done)
+      if (done) {
         return
+      }
 
       done = true
 
@@ -214,15 +216,17 @@ const dumpScript = async () => {
       // can never ever work on OS X.
       // TODO Ignoring coverage, see 'non EPIPE errors cause failures' test.
       /* istanbul ignore next */
-      if (er.errno === 'EPIPE')
+      if (er.errno === 'EPIPE') {
         res()
-      else
+      } else {
         rej(er)
+      }
     })
 
     process.stdout.write(d, () => {
-      if (done)
+      if (done) {
         return
+      }
 
       done = true
       res()
@@ -232,9 +236,6 @@ const dumpScript = async () => {
 
 const unescape = w => w.charAt(0) === '\'' ? w.replace(/^'|'$/g, '')
   : w.replace(/\\ /g, ' ')
-
-const escape = w => !/\s+/.test(w) ? w
-  : '\'' + w + '\''
 
 // the current word has a dash.  Return the config names,
 // with the same number of dashes as the current word has.
@@ -258,7 +259,7 @@ const isFlag = word => {
   const split = word.match(/^(-*)((?:no-)+)?(.*)$/)
   const no = split[2]
   const conf = split[3]
-  const {type} = definitions[conf]
+  const { type } = definitions[conf]
   return no ||
     type === Boolean ||
     (Array.isArray(type) && type.includes(Boolean)) ||
@@ -269,12 +270,14 @@ const isFlag = word => {
 // if they all resolve to the same thing, just return the thing it already is
 const cmdCompl = opts => {
   const matches = fullList.filter(c => c.startsWith(opts.partialWord))
-  if (!matches.length)
+  if (!matches.length) {
     return matches
+  }
 
   const derefs = new Set([...matches.map(c => deref(c))])
-  if (derefs.size === 1)
+  if (derefs.size === 1) {
     return [...derefs]
+  }
 
   return fullList
 }

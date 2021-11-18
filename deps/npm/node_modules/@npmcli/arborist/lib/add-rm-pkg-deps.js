@@ -2,9 +2,9 @@
 
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
-const add = ({pkg, add, saveBundle, saveType, log}) => {
+const add = ({ pkg, add, saveBundle, saveType, log }) => {
   for (const spec of add) {
-    addSingle({pkg, spec, saveBundle, saveType, log})
+    addSingle({ pkg, spec, saveBundle, saveType, log })
   }
 
   return pkg
@@ -20,7 +20,7 @@ const saveTypeMap = new Map([
   ['peer', 'peerDependencies'],
 ])
 
-const addSingle = ({pkg, spec, saveBundle, saveType, log}) => {
+const addSingle = ({ pkg, spec, saveBundle, saveType, log }) => {
   const { name, rawSpec } = spec
 
   // if the user does not give us a type, we infer which type(s)

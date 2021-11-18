@@ -1,321 +1,134 @@
 const t = require('tap')
-const { fake: mockNpm } = require('../../fixtures/mock-npm')
-const pacote = require('pacote')
+const { real: mockNpm } = require('../../fixtures/mock-npm')
 const path = require('path')
+const fs = require('fs')
 
-const OUTPUT = []
-const output = (...msg) => OUTPUT.push(msg)
-
-const libnpmpack = async (spec, opts) => {
-  if (!opts)
-    throw new Error('expected options object')
-
-  return ''
-}
-const mockPacote = {
-  manifest: (spec) => {
-    if (spec.type === 'directory')
-      return pacote.manifest(spec)
-    const m = {
-      name: spec.name || 'test-package',
-      version: spec.version || '1.0.0-test',
-    }
-    m._id = `${m.name}@${m.version}`
-    return m
-  },
-}
-
-t.afterEach(() => OUTPUT.length = 0)
+const cwd = process.cwd()
+t.afterEach(t => {
+  process.chdir(cwd)
+})
 
 t.test('should pack current directory with no arguments', async t => {
-  let tarballFileName
-  const Pack = t.mock('../../../lib/commands/pack.js', {
-    libnpmpack,
-    npmlog: {
-      notice: () => {},
-      showProgress: () => {},
-      clearProgress: () => {},
-    },
-    fs: {
-      writeFile: (file, data, cb) => {
-        tarballFileName = file
-        cb()
-      },
-    },
+  const { Npm, outputs, filteredLogs } = mockNpm(t)
+  const npm = new Npm()
+  await npm.load()
+  npm.prefix = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'test-package',
+      version: '1.0.0',
+    }),
   })
-  const npm = mockNpm({
-    output,
-  })
-  const pack = new Pack(npm)
-
-  await pack.exec([])
-  const filename = `npm-${require('../../../package.json').version}.tgz`
-  t.strictSame(OUTPUT, [[filename]])
-  t.strictSame(tarballFileName, path.resolve(filename))
+  process.chdir(npm.prefix)
+  await npm.exec('pack', [])
+  const filename = 'test-package-1.0.0.tgz'
+  t.strictSame(outputs, [[filename]])
+  t.matchSnapshot(filteredLogs('notice'), 'logs pack contents')
+  t.ok(fs.statSync(path.resolve(npm.prefix, filename)))
 })
 
 t.test('follows pack-destination config', async t => {
-  let tarballFileName
-  const Pack = t.mock('../../../lib/commands/pack.js', {
-    libnpmpack,
-    npmlog: {
-      notice: () => {},
-      showProgress: () => {},
-      clearProgress: () => {},
-    },
-    fs: {
-      writeFile: (file, data, cb) => {
-        tarballFileName = file
-        cb()
-      },
-    },
-  })
-  const npm = mockNpm({
-    config: {
-      'pack-destination': '/tmp/test',
-    },
-    output,
-  })
-  const pack = new Pack(npm)
-
-  await pack.exec([])
-
-  const filename = `npm-${require('../../../package.json').version}.tgz`
-  t.strictSame(OUTPUT, [[filename]])
-  t.strictSame(tarballFileName, path.resolve('/tmp/test', filename))
-})
-
-t.test('should pack given directory', async t => {
-  const testDir = t.testdir({
+  const { Npm, outputs } = mockNpm(t)
+  const npm = new Npm()
+  await npm.load()
+  npm.prefix = t.testdir({
     'package.json': JSON.stringify({
-      name: 'my-cool-pkg',
+      name: 'test-package',
       version: '1.0.0',
-    }, null, 2),
+    }),
+    'tar-destination': {},
   })
-
-  const Pack = t.mock('../../../lib/commands/pack.js', {
-    libnpmpack,
-    npmlog: {
-      notice: () => {},
-      showProgress: () => {},
-      clearProgress: () => {},
-    },
-    fs: {
-      writeFile: (file, data, cb) => cb(),
-    },
-  })
-  const npm = mockNpm({
-    config: {
-      unicode: true,
-      json: false,
-      'dry-run': true,
-    },
-    output,
-  })
-  const pack = new Pack(npm)
-
-  await pack.exec([testDir])
-
-  const filename = 'my-cool-pkg-1.0.0.tgz'
-  t.strictSame(OUTPUT, [[filename]])
+  process.chdir(npm.prefix)
+  npm.config.set('pack-destination', path.join(npm.prefix, 'tar-destination'))
+  await npm.exec('pack', [])
+  const filename = 'test-package-1.0.0.tgz'
+  t.strictSame(outputs, [[filename]])
+  t.ok(fs.statSync(path.resolve(npm.prefix, 'tar-destination', filename)))
 })
 
 t.test('should pack given directory for scoped package', async t => {
-  const testDir = t.testdir({
+  const { Npm, outputs } = mockNpm(t)
+  const npm = new Npm()
+  await npm.load()
+  npm.prefix = t.testdir({
     'package.json': JSON.stringify({
-      name: '@cool/my-pkg',
+      name: '@npm/test-package',
       version: '1.0.0',
-    }, null, 2),
+    }),
   })
-
-  const Pack = t.mock('../../../lib/commands/pack.js', {
-    libnpmpack,
-    npmlog: {
-      notice: () => {},
-      showProgress: () => {},
-      clearProgress: () => {},
-    },
-    fs: {
-      writeFile: (file, data, cb) => cb(),
-    },
-  })
-  const npm = mockNpm({
-    config: {
-      unicode: true,
-      json: false,
-      'dry-run': true,
-    },
-    output,
-  })
-  const pack = new Pack(npm)
-
-  await pack.exec([testDir])
-
-  const filename = 'cool-my-pkg-1.0.0.tgz'
-  t.strictSame(OUTPUT, [[filename]])
-})
-
-t.test('should log pack contents', async t => {
-  const Pack = t.mock('../../../lib/commands/pack.js', {
-    '../../../lib/utils/tar.js': {
-      ...require('../../../lib/utils/tar.js'),
-      logTar: () => {
-        t.ok(true, 'logTar is called')
-      },
-    },
-    libnpmpack,
-    npmlog: {
-      notice: () => {},
-      showProgress: () => {},
-      clearProgress: () => {},
-    },
-    fs: {
-      writeFile: (file, data, cb) => cb(),
-    },
-  })
-  const npm = mockNpm({
-    config: {
-      unicode: false,
-      json: false,
-      'dry-run': false,
-    },
-    output,
-  })
-  const pack = new Pack(npm)
-
-  await pack.exec([])
-
-  const filename = `npm-${require('../../../package.json').version}.tgz`
-  t.strictSame(OUTPUT, [[filename]])
+  process.chdir(npm.prefix)
+  await npm.exec('pack', [])
+  const filename = 'npm-test-package-1.0.0.tgz'
+  t.strictSame(outputs, [[filename]])
+  t.ok(fs.statSync(path.resolve(npm.prefix, filename)))
 })
 
 t.test('should log output as valid json', async t => {
-  const testDir = t.testdir({
+  const { Npm, outputs, filteredLogs } = mockNpm(t)
+  const npm = new Npm()
+  await npm.load()
+  npm.prefix = t.testdir({
     'package.json': JSON.stringify({
-      name: 'my-cool-pkg',
+      name: 'test-package',
       version: '1.0.0',
-      main: './index.js',
-    }, null, 2),
-    'README.md': 'text',
-    'index.js': 'void',
+    }),
   })
+  process.chdir(npm.prefix)
+  npm.config.set('json', true)
+  await npm.exec('pack', [])
+  const filename = 'test-package-1.0.0.tgz'
+  t.matchSnapshot(outputs.map(JSON.parse), 'outputs as json')
+  t.matchSnapshot(filteredLogs('notice'), 'logs pack contents')
+  t.ok(fs.statSync(path.resolve(npm.prefix, filename)))
+})
 
-  const Pack = t.mock('../../../lib/commands/pack.js', {
-    libnpmpack,
-    '../../../lib/utils/tar.js': {
-      getContents: async () => ({
-        id: '@ruyadorno/redact@1.0.0',
-        name: '@ruyadorno/redact',
-        version: '1.0.0',
-        size: 2450,
-        unpackedSize: 4911,
-        shasum: '044c7574639b923076069d6e801e2d1866430f17',
-        // mocks exactly how ssri Integrity works:
-        integrity: {
-          sha512: [
-            {
-              source: 'sha512-JSdyskeR2qonBUaQ4vdlU/vQGSfgCxSq5O+vH+d2yVWRqzso4O3gUzd6QX/V7OWV//zU7kA5o63Zf433jUnOtQ==',
-              digest: 'JSdyskeR2qonBUaQ4vdlU/vQGSfgCxSq5O+vH+d2yVWRqzso4O3gUzd6QX/V7OWV//zU7kA5o63Zf433jUnOtQ==',
-              algorithm: 'sha512',
-              options: [],
-            },
-          ],
-          toJSON () {
-            return 'sha512-JSdyskeR2qonBUaQ4vdlU/vQGSfgCxSq5O+vH+d2yVWRqzso4O3gUzd6QX/V7OWV//zU7kA5o63Zf433jUnOtQ=='
-          },
-        },
-        filename: '@ruyadorno/redact-1.0.0.tgz',
-        files: [
-          { path: 'LICENSE', size: 1113, mode: 420 },
-          { path: 'README.md', size: 2639, mode: 420 },
-          { path: 'index.js', size: 719, mode: 493 },
-          { path: 'package.json', size: 440, mode: 420 },
-        ],
-        entryCount: 4,
-        bundled: [],
-      }),
-    },
-    npmlog: {
-      notice: () => {},
-      showProgress: () => {},
-      clearProgress: () => {},
-    },
-    fs: {
-      writeFile: (file, data, cb) => cb(),
-    },
+t.test('dry run', async t => {
+  const { Npm, outputs, filteredLogs } = mockNpm(t)
+  const npm = new Npm()
+  await npm.load()
+  npm.prefix = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'test-package',
+      version: '1.0.0',
+    }),
   })
-  const npm = mockNpm({
-    config: {
-      unicode: true,
-      json: true,
-      'dry-run': true,
-    },
-    output,
-  })
-  const pack = new Pack(npm)
-
-  await pack.exec([testDir])
-
-  t.match(JSON.parse(OUTPUT), [{
-    id: '@ruyadorno/redact@1.0.0',
-    name: '@ruyadorno/redact',
-    version: '1.0.0',
-    size: 2450,
-    unpackedSize: 4911,
-    shasum: '044c7574639b923076069d6e801e2d1866430f17',
-    integrity: 'sha512-JSdyskeR2qonBUaQ4vdlU/vQGSfgCxSq5O+vH+d2yVWRqzso4O3gUzd6QX/V7OWV//zU7kA5o63Zf433jUnOtQ==',
-    filename: '@ruyadorno/redact-1.0.0.tgz',
-    files: [
-      { path: 'LICENSE' },
-      { path: 'README.md' },
-      { path: 'index.js' },
-      { path: 'package.json' },
-    ],
-    entryCount: 4,
-  }], 'pack details output as valid json')
+  npm.config.set('dry-run', true)
+  process.chdir(npm.prefix)
+  await npm.exec('pack', [])
+  const filename = 'test-package-1.0.0.tgz'
+  t.strictSame(outputs, [[filename]])
+  t.matchSnapshot(filteredLogs('notice'), 'logs pack contents')
+  t.throws(() => fs.statSync(path.resolve(npm.prefix, filename)))
 })
 
 t.test('invalid packument', async t => {
-  const mockPacote = {
-    manifest: () => {
-      return {}
-    },
-  }
-  const Pack = t.mock('../../../lib/commands/pack.js', {
-    libnpmpack,
-    pacote: mockPacote,
-    npmlog: {
-      notice: () => {},
-      showProgress: () => {},
-      clearProgress: () => {},
-    },
-    fs: {
-      writeFile: (file, data, cb) => cb(),
-    },
+  const { Npm, outputs } = mockNpm(t)
+  const npm = new Npm()
+  await npm.load()
+  npm.prefix = t.testdir({
+    'package.json': '{}',
   })
-  const npm = mockNpm({
-    config: {
-      unicode: true,
-      json: false,
-      'dry-run': true,
-    },
-    output,
-  })
-  const pack = new Pack(npm)
+  process.chdir(npm.prefix)
   await t.rejects(
-    pack.exec([]),
-    'Invalid package, must have name and version'
+    npm.exec('pack', []),
+    /Invalid package, must have name and version/
   )
-  t.strictSame(OUTPUT, [])
+  t.strictSame(outputs, [])
 })
 
-t.test('workspaces', (t) => {
-  const testDir = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'workspaces-test',
-      version: '1.0.0',
-      workspaces: ['workspace-a', 'workspace-b'],
-    }, null, 2),
+t.test('workspaces', async t => {
+  const { Npm, outputs } = mockNpm(t)
+  const npm = new Npm()
+  await npm.load()
+  npm.prefix = t.testdir({
+    'package.json': JSON.stringify(
+      {
+        name: 'workspaces-test',
+        version: '1.0.0',
+        workspaces: ['workspace-a', 'workspace-b'],
+      },
+      null,
+      2
+    ),
     'workspace-a': {
       'package.json': JSON.stringify({
         name: 'workspace-a',
@@ -329,61 +142,28 @@ t.test('workspaces', (t) => {
       }),
     },
   })
-  const Pack = t.mock('../../../lib/commands/pack.js', {
-    libnpmpack,
-    pacote: mockPacote,
-    npmlog: {
-      notice: () => {},
-      showProgress: () => {},
-      clearProgress: () => {},
-    },
-    fs: {
-      writeFile: (file, data, cb) => cb(),
-    },
-  })
-  const npm = mockNpm({
-    localPrefix: testDir,
-    config: {
-      unicode: false,
-      json: false,
-      'dry-run': false,
-    },
-    output,
-  })
-  const pack = new Pack(npm)
-
+  npm.config.set('workspaces', true)
   t.test('all workspaces', async t => {
-    await pack.execWorkspaces([], [])
-
-    t.strictSame(OUTPUT, [
-      ['workspace-a-1.0.0.tgz'],
-      ['workspace-b-1.0.0.tgz'],
-    ])
+    process.chdir(npm.prefix)
+    await npm.exec('pack', [])
+    t.strictSame(outputs, [['workspace-a-1.0.0.tgz'], ['workspace-b-1.0.0.tgz']])
   })
 
   t.test('all workspaces, `.` first arg', async t => {
-    await pack.execWorkspaces(['.'], [])
-
-    t.strictSame(OUTPUT, [
-      ['workspace-a-1.0.0.tgz'],
-      ['workspace-b-1.0.0.tgz'],
-    ])
+    process.chdir(npm.prefix)
+    await npm.exec('pack', ['.'])
+    t.strictSame(outputs, [['workspace-a-1.0.0.tgz'], ['workspace-b-1.0.0.tgz']])
   })
 
   t.test('one workspace', async t => {
-    await pack.execWorkspaces([], ['workspace-a'])
-
-    t.strictSame(OUTPUT, [
-      ['workspace-a-1.0.0.tgz'],
-    ])
+    process.chdir(npm.prefix)
+    await npm.exec('pack', ['workspace-a'])
+    t.strictSame(outputs, [['workspace-a-1.0.0.tgz']])
   })
 
   t.test('specific package', async t => {
-    await pack.execWorkspaces(['abbrev'], [])
-
-    t.strictSame(OUTPUT, [
-      ['abbrev-1.0.0-test.tgz'],
-    ])
+    process.chdir(npm.prefix)
+    await npm.exec('pack', [npm.prefix])
+    t.strictSame(outputs, [['workspaces-test-1.0.0.tgz']])
   })
-  t.end()
 })

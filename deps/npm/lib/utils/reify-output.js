@@ -92,14 +92,16 @@ const reifyOutput = (npm, arb) => {
 // to get the exitCode set appropriately.
 const printAuditReport = (npm, report) => {
   const res = getAuditReport(npm, report)
-  if (!res || !res.report)
+  if (!res || !res.report) {
     return
+  }
   npm.output(`\n${res.report}`)
 }
 
 const getAuditReport = (npm, report) => {
-  if (!report)
+  if (!report) {
     return
+  }
 
   // when in silent mode, we print nothing.  the JSON output is
   // going to just JSON.stringify() the report object.
@@ -115,8 +117,9 @@ const getAuditReport = (npm, report) => {
     ...npm.flatOptions,
     auditLevel,
   })
-  if (npm.command === 'audit')
+  if (npm.command === 'audit') {
     process.exitCode = process.exitCode || res.exitCode
+  }
   return res
 }
 
@@ -124,43 +127,52 @@ const packagesChangedMessage = (npm, { added, removed, changed, audited }) => {
   const msg = ['\n']
   if (added === 0 && removed === 0 && changed === 0) {
     msg.push('up to date')
-    if (audited)
+    if (audited) {
       msg.push(', ')
+    }
   } else {
-    if (added)
+    if (added) {
       msg.push(`added ${added} package${added === 1 ? '' : 's'}`)
+    }
 
     if (removed) {
-      if (added)
+      if (added) {
         msg.push(', ')
+      }
 
-      if (added && !audited && !changed)
+      if (added && !audited && !changed) {
         msg.push('and ')
+      }
 
       msg.push(`removed ${removed} package${removed === 1 ? '' : 's'}`)
     }
     if (changed) {
-      if (added || removed)
+      if (added || removed) {
         msg.push(', ')
+      }
 
-      if (!audited && (added || removed))
+      if (!audited && (added || removed)) {
         msg.push('and ')
+      }
 
       msg.push(`changed ${changed} package${changed === 1 ? '' : 's'}`)
     }
-    if (audited)
+    if (audited) {
       msg.push(', and ')
+    }
   }
-  if (audited)
+  if (audited) {
     msg.push(`audited ${audited} package${audited === 1 ? '' : 's'}`)
+  }
 
   msg.push(` in ${ms(Date.now() - npm.started)}`)
   npm.output(msg.join(''))
 }
 
 const packagesFundingMessage = (npm, { funding }) => {
-  if (!funding)
+  if (!funding) {
     return
+  }
 
   npm.output('')
   const pkg = funding === 1 ? 'package' : 'packages'

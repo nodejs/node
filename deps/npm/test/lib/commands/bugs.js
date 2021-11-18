@@ -89,12 +89,12 @@ t.test('open bugs urls & emails', t => {
   keys.forEach(pkg => {
     t.test(pkg, async t => {
       await bugs.exec([pkg])
-      t.equal(opened[expect[pkg]], 1, 'opened expected url', {opened})
+      t.equal(opened[expect[pkg]], 1, 'opened expected url', { opened })
     })
   })
 })
 
 t.test('open default package if none specified', async t => {
   await bugs.exec([])
-  t.equal(opened['https://example.com'], 1, 'opened expected url', {opened})
+  t.equal(opened['https://example.com'], 1, 'opened expected url', { opened })
 })

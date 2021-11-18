@@ -26,40 +26,27 @@ const readJson = util.promisify(require('read-package-json'))
 
 const BaseCommand = require('../base-command.js')
 class Publish extends BaseCommand {
-  static get description () {
-    return 'Publish a package'
-  }
+  static description = 'Publish a package'
+  static name = 'publish'
+  static params = [
+    'tag',
+    'access',
+    'dry-run',
+    'otp',
+    'workspace',
+    'workspaces',
+    'include-workspace-root',
+  ]
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'publish'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'tag',
-      'access',
-      'dry-run',
-      'otp',
-      'workspace',
-      'workspaces',
-      'include-workspace-root',
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return [
-      '[<folder>]',
-    ]
-  }
+  static usage = ['[<folder>]']
 
   async exec (args) {
-    if (args.length === 0)
+    if (args.length === 0) {
       args = ['.']
-    if (args.length !== 1)
+    }
+    if (args.length !== 1) {
       throw this.usageError()
+    }
 
     log.verbose('publish', replaceInfo(args))
 
@@ -70,8 +57,9 @@ class Publish extends BaseCommand {
     const ignoreScripts = this.npm.config.get('ignore-scripts')
     const silent = log.level === 'silent'
 
-    if (semver.validRange(defaultTag))
+    if (semver.validRange(defaultTag)) {
       throw new Error('Tag name must not be a valid SemVer range: ' + defaultTag.trim())
+    }
 
     const opts = { ...this.npm.flatOptions }
 
@@ -80,8 +68,9 @@ class Publish extends BaseCommand {
     const spec = npa(args[0])
     let manifest = await this.getManifest(spec, opts)
 
-    if (manifest.publishConfig)
+    if (manifest.publishConfig) {
       flatten(manifest.publishConfig, opts)
+    }
 
     // only run scripts for directory type publishes
     if (spec.type === 'directory' && !ignoreScripts) {
@@ -101,13 +90,15 @@ class Publish extends BaseCommand {
     // so that we send the latest and greatest thing to the registry
     // note that publishConfig might have changed as well!
     manifest = await this.getManifest(spec, opts)
-    if (manifest.publishConfig)
+    if (manifest.publishConfig) {
       flatten(manifest.publishConfig, opts)
+    }
 
     // note that logTar calls npmlog.notice(), so if we ARE in silent mode,
     // this will do nothing, but we still want it in the debuglog if it fails.
-    if (!json)
+    if (!json) {
       logTar(pkgContents, { log, unicode })
+    }
 
     if (!dryRun) {
       const resolved = npa.resolve(manifest.name, manifest.version)
@@ -140,10 +131,11 @@ class Publish extends BaseCommand {
     }
 
     if (!this.suppressOutput) {
-      if (!silent && json)
+      if (!silent && json) {
         this.npm.output(JSON.stringify(pkgContents, null, 2))
-      else if (!silent)
+      } else if (!silent) {
         this.npm.output(`+ ${pkgContents.id}`)
+      }
     }
 
     return pkgContents
@@ -180,21 +172,24 @@ class Publish extends BaseCommand {
       }
       // This needs to be in-line w/ the rest of the output that non-JSON
       // publish generates
-      if (!silent && !json)
+      if (!silent && !json) {
         this.npm.output(`+ ${pkgContents.id}`)
-      else
+      } else {
         results[name] = pkgContents
+      }
     }
 
-    if (!silent && json)
+    if (!silent && json) {
       this.npm.output(JSON.stringify(results, null, 2))
+    }
   }
 
   // if it's a directory, read it from the file system
   // otherwise, get the full metadata from whatever it is
   getManifest (spec, opts) {
-    if (spec.type === 'directory')
+    if (spec.type === 'directory') {
       return readJson(`${spec.fetchSpec}/package.json`)
+    }
     return pacote.manifest(spec, { ...opts, fullMetadata: true })
   }
 }

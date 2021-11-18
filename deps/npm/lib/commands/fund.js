@@ -5,11 +5,7 @@ const pacote = require('pacote')
 const semver = require('semver')
 const npa = require('npm-package-arg')
 const { depth } = require('treeverse')
-const {
-  readTree: getFundingInfo,
-  normalizeFunding,
-  isValidFunding,
-} = require('libnpmfund')
+const { readTree: getFundingInfo, normalizeFunding, isValidFunding } = require('libnpmfund')
 
 const completion = require('../utils/completion/installed-deep.js')
 const openUrl = require('../utils/open-url.js')
@@ -21,33 +17,13 @@ const getPrintableName = ({ name, version }) => {
 }
 
 class Fund extends ArboristWorkspaceCmd {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Retrieve funding information'
-  }
+  static description = 'Retrieve funding information'
+  static name = 'fund'
+  static params = ['json', 'browser', 'unicode', 'workspace', 'which']
+  static usage = ['[[<@scope>/]<pkg>]']
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'fund'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'json',
-      'browser',
-      'unicode',
-      'workspace',
-      'which',
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[[<@scope>/]<pkg>]']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  // TODO
+  /* istanbul ignore next */
   async completion (opts) {
     return completion(this.npm, opts)
   }
@@ -59,11 +35,12 @@ class Fund extends ArboristWorkspaceCmd {
     const fundingSourceNumber = numberArg && parseInt(numberArg, 10)
 
     const badFundingSourceNumber =
-      numberArg !== null &&
-      (String(fundingSourceNumber) !== numberArg || fundingSourceNumber < 1)
+      numberArg !== null && (String(fundingSourceNumber) !== numberArg || fundingSourceNumber < 1)
 
     if (badFundingSourceNumber) {
-      const err = new Error('`npm fund [<@scope>/]<pkg> [--which=fundingSourceNumber]` must be given a positive integer')
+      const err = new Error(
+        '`npm fund [<@scope>/]<pkg> [--which=fundingSourceNumber]` must be given a positive integer'
+      )
       err.code = 'EFUNDNUMBER'
       throw err
     }
@@ -95,10 +72,11 @@ class Fund extends ArboristWorkspaceCmd {
       workspaces: this.workspaceNames,
     })
 
-    if (this.npm.config.get('json'))
+    if (this.npm.config.get('json')) {
       this.npm.output(this.printJSON(fundingInfo))
-    else
+    } else {
       this.npm.output(this.printHuman(fundingInfo))
+    }
   }
 
   printJSON (fundingInfo) {
@@ -110,8 +88,7 @@ class Fund extends ArboristWorkspaceCmd {
     const unicode = this.npm.config.get('unicode')
     const seenUrls = new Map()
 
-    const tree = obj =>
-      archy(obj, '', { unicode })
+    const tree = obj => archy(obj, '', { unicode })
 
     const result = depth({
       tree: fundingInfo,
@@ -119,9 +96,7 @@ class Fund extends ArboristWorkspaceCmd {
       // composes human readable package name
       // and creates a new archy item for readable output
       visit: ({ name, version, funding }) => {
-        const [fundingSource] = []
-          .concat(normalizeFunding(funding))
-          .filter(isValidFunding)
+        const [fundingSource] = [].concat(normalizeFunding(funding)).filter(isValidFunding)
         const { url } = fundingSource || {}
         const pkgRef = getPrintableName({ name, version })
         let item = {
@@ -139,8 +114,9 @@ class Fund extends ArboristWorkspaceCmd {
             item = seenUrls.get(url)
             item.label += `, ${pkgRef}`
             return null
-          } else
+          } else {
             seenUrls.set(url, item)
+          }
         }
 
         return item
@@ -149,20 +125,20 @@ class Fund extends ArboristWorkspaceCmd {
       // puts child nodes back into returned archy
       // output while also filtering out missing items
       leave: (item, children) => {
-        if (item)
+        if (item) {
           item.nodes = children.filter(Boolean)
+        }
 
         return item
       },
 
       // turns tree-like object return by libnpmfund
       // into children to be properly read by treeverse
-      getChildren: (node) =>
-        Object.keys(node.dependencies || {})
-          .map(key => ({
-            name: key,
-            ...node.dependencies[key],
-          })),
+      getChildren: node =>
+        Object.keys(node.dependencies || {}).map(key => ({
+          name: key,
+          ...node.dependencies[key],
+        })),
     })
 
     const res = tree(result)
@@ -179,8 +155,9 @@ class Fund extends ArboristWorkspaceCmd {
         } else {
           // matches any file path within current arborist inventory
           for (const item of tree.inventory.values()) {
-            if (item.path === arg.fetchSpec)
+            if (item.path === arg.fetchSpec) {
               return item.package
+            }
           }
         }
       } else {
@@ -190,17 +167,17 @@ class Fund extends ArboristWorkspaceCmd {
           .filter(i => semver.valid(i.package.version))
           .sort((a, b) => semver.rcompare(a.package.version, b.package.version))
 
-        if (item)
+        if (item) {
           return item.package
+        }
       }
     }
 
-    const { funding } = retrievePackageMetadata() ||
-      await pacote.manifest(arg, this.npm.flatOptions).catch(() => ({}))
+    const { funding } =
+      retrievePackageMetadata() ||
+      (await pacote.manifest(arg, this.npm.flatOptions).catch(() => ({})))
 
-    const validSources = []
-      .concat(normalizeFunding(funding))
-      .filter(isValidFunding)
+    const validSources = [].concat(normalizeFunding(funding)).filter(isValidFunding)
 
     const matchesValidSource =
       validSources.length === 1 ||
@@ -218,7 +195,10 @@ class Fund extends ArboristWorkspaceCmd {
         const msg = `${typePrefix} available at the following URL`
         this.npm.output(`${i + 1}: ${msg}: ${url}`)
       })
-      this.npm.output('Run `npm fund [<@scope>/]<pkg> --which=1`, for example, to open the first funding URL listed in that package')
+      this.npm.output(
+        /* eslint-disable-next-line max-len */
+        'Run `npm fund [<@scope>/]<pkg> --which=1`, for example, to open the first funding URL listed in that package'
+      )
     } else {
       const noFundingError = new Error(`No valid funding method available for: ${spec}`)
       noFundingError.code = 'ENOFUND'

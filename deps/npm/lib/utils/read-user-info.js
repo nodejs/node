@@ -23,16 +23,18 @@ function read (opts) {
 }
 
 function readOTP (msg = otpPrompt, otp, isRetry) {
-  if (isRetry && otp && /^[\d ]+$|^[A-Fa-f0-9]{64,64}$/.test(otp))
+  if (isRetry && otp && /^[\d ]+$|^[A-Fa-f0-9]{64,64}$/.test(otp)) {
     return otp.replace(/\s+/g, '')
+  }
 
   return read({ prompt: msg, default: otp || '' })
     .then((otp) => readOTP(msg, otp, true))
 }
 
 function readPassword (msg = passwordPrompt, password, isRetry) {
-  if (isRetry && password)
+  if (isRetry && password) {
     return password
+  }
 
   return read({ prompt: msg, silent: true, default: password || '' })
     .then((password) => readPassword(msg, password, true))
@@ -41,10 +43,11 @@ function readPassword (msg = passwordPrompt, password, isRetry) {
 function readUsername (msg = usernamePrompt, username, opts = {}, isRetry) {
   if (isRetry && username) {
     const error = userValidate.username(username)
-    if (error)
+    if (error) {
       opts.log && opts.log.warn(error.message)
-    else
+    } else {
       return Promise.resolve(username.trim())
+    }
   }
 
   return read({ prompt: msg, default: username || '' })
@@ -54,10 +57,11 @@ function readUsername (msg = usernamePrompt, username, opts = {}, isRetry) {
 function readEmail (msg = emailPrompt, email, opts = {}, isRetry) {
   if (isRetry && email) {
     const error = userValidate.email(email)
-    if (error)
+    if (error) {
       opts.log && opts.log.warn(error.message)
-    else
+    } else {
       return email.trim()
+    }
   }
 
   return read({ prompt: msg, default: email || '' })

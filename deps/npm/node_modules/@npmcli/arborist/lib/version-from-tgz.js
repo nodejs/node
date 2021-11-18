@@ -1,7 +1,7 @@
 /* eslint node/no-deprecated-api: "off" */
 const semver = require('semver')
-const {basename} = require('path')
-const {parse} = require('url')
+const { basename } = require('path')
+const { parse } = require('url')
 module.exports = (name, tgz) => {
   const base = basename(tgz)
   if (!base.endsWith('.tgz')) {

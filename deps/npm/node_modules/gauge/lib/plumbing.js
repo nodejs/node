@@ -4,7 +4,9 @@ var renderTemplate = require('./render-template.js')
 var validate = require('aproba')
 
 var Plumbing = module.exports = function (theme, template, width) {
-  if (!width) width = 80
+  if (!width) {
+    width = 80
+  }
   validate('OAN', [theme, template, width])
   this.showing = false
   this.theme = theme

@@ -1,9 +1,9 @@
 // mix-in implementing the loadActual method
 
-const {relative, dirname, resolve, join, normalize} = require('path')
+const { relative, dirname, resolve, join, normalize } = require('path')
 
 const rpj = require('read-package-json-fast')
-const {promisify} = require('util')
+const { promisify } = require('util')
 const readdir = promisify(require('readdir-scoped-modules'))
 const walkUp = require('walk-up-path')
 const ancestorPath = require('common-ancestor-path')
@@ -128,7 +128,7 @@ module.exports = cls => class ActualLoader extends cls {
         pkg: {},
         global,
       })
-      return this[_loadActualActually]({root, ignoreMissing, global})
+      return this[_loadActualActually]({ root, ignoreMissing, global })
     }
 
     // not in global mode, hidden lockfile is allowed, load root pkg too
@@ -163,7 +163,7 @@ module.exports = cls => class ActualLoader extends cls {
     // we can't easily get a ref to Arborist in this module, without
     // creating a circular reference, since this class is a mixin used
     // to build up the Arborist class itself.
-    await new this.constructor({...this.options}).loadVirtual({
+    await new this.constructor({ ...this.options }).loadVirtual({
       root: this[_actualTree],
     })
     await this[_loadWorkspaces](this[_actualTree])

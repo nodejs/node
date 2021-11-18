@@ -7,38 +7,26 @@ const readFile = promisify(fs.readFile)
 const BaseCommand = require('../base-command.js')
 
 class HelpSearch extends BaseCommand {
-  static get description () {
-    return 'Search npm help documentation'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'help-search'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['<text>']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return ['long']
-  }
+  static description = 'Search npm help documentation'
+  static name = 'help-search'
+  static usage = ['<text>']
+  static params = ['long']
 
   async exec (args) {
-    if (!args.length)
+    if (!args.length) {
       throw this.usageError()
+    }
 
     const docPath = path.resolve(__dirname, '..', '..', 'docs/content')
     const files = await glob(`${docPath}/*/*.md`)
     const data = await this.readFiles(files)
     const results = await this.searchFiles(args, data, files)
     const formatted = this.formatResults(args, results)
-    if (!formatted.trim())
+    if (!formatted.trim()) {
       this.npm.output(`No matches in help for: ${args.join(' ')}\n`)
-    else
+    } else {
       this.npm.output(formatted)
+    }
   }
 
   async readFiles (files) {
@@ -55,8 +43,9 @@ class HelpSearch extends BaseCommand {
     for (const [file, content] of Object.entries(data)) {
       const lowerCase = content.toLowerCase()
       // skip if no matches at all
-      if (!args.some(a => lowerCase.includes(a.toLowerCase())))
+      if (!args.some(a => lowerCase.includes(a.toLowerCase()))) {
         continue
+      }
 
       const lines = content.split(/\n+/)
 
@@ -90,17 +79,20 @@ class HelpSearch extends BaseCommand {
 
       // now squish any string of nulls into a single null
       const pruned = lines.reduce((l, r) => {
-        if (!(r === null && l[l.length - 1] === null))
+        if (!(r === null && l[l.length - 1] === null)) {
           l.push(r)
+        }
 
         return l
       }, [])
 
-      if (pruned[pruned.length - 1] === null)
+      if (pruned[pruned.length - 1] === null) {
         pruned.pop()
+      }
 
-      if (pruned[0] === null)
+      if (pruned[0] === null) {
         pruned.shift()
+      }
 
       // now count how many args were found
       const found = {}
@@ -157,15 +149,17 @@ class HelpSearch extends BaseCommand {
       out.push(' '.repeat((Math.max(1, cols - out.join(' ').length - r.length - 1))))
       out.push(r)
 
-      if (!this.npm.config.get('long'))
+      if (!this.npm.config.get('long')) {
         return out.join('')
+      }
 
       out.unshift('\n\n')
       out.push('\n')
       out.push('-'.repeat(cols - 1) + '\n')
       res.lines.forEach((line, i) => {
-        if (line === null || i > 3)
+        if (line === null || i > 3) {
           return
+        }
 
         if (!this.npm.color) {
           out.push(line + '\n')

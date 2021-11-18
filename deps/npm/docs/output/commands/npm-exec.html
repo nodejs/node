@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-exec</title>
 <style>
 body {
@@ -207,7 +208,7 @@ the first command argument.</p>
 <h3 id="npx-vs-npm-exec"><code>npx</code> vs <code>npm exec</code></h3>
 <p>When run via the <code>npx</code> binary, all flags and options <em>must</em> be set prior to
 any positional arguments.  When run via <code>npm exec</code>, a double-hyphen <code>--</code>
-flag can be used to suppress npm’s parsing of switches and options that
+flag can be used to suppress npm's parsing of switches and options that
 should be sent to the executed command.</p>
 <p>For example:</p>
 <pre><code>$ npx foo@latest bar --package=@npmcli/foo
@@ -218,7 +219,7 @@ following command:</p>
 </code></pre>
 <p>Since the <code>--package</code> option comes <em>after</em> the positional arguments, it is
 treated as an argument to the executed command.</p>
-<p>In contrast, due to npm’s argument parsing logic, running this command is
+<p>In contrast, due to npm's argument parsing logic, running this command is
 different:</p>
 <pre><code>$ npm exec foo@latest bar --package=@npmcli/foo
 </code></pre>
@@ -246,7 +247,7 @@ thus be equivalent to the <code>npx</code> command above:</p>
 <!-- raw HTML omitted -->
 <h4 id="call"><code>call</code></h4>
 <ul>
-<li>Default: “”</li>
+<li>Default: ""</li>
 <li>Type: String</li>
 </ul>
 <p>Optional companion option for <code>npm exec</code>, <code>npx</code> that allows for specifying a
@@ -348,12 +349,12 @@ at a time.</p>
 </code></pre>
 <p>You can execute an arbitrary command from a package in the context of each of
 the configured workspaces when using the <code>workspaces</code> configuration options,
-in this example we’re using <strong>eslint</strong> to lint any js file found within each
+in this example we're using <strong>eslint</strong> to lint any js file found within each
 workspace folder:</p>
 <pre><code>npm exec --ws -- eslint ./*.js
 </code></pre>
 <h4 id="filtering-workspaces">Filtering workspaces</h4>
-<p>It’s also possible to execute a command in a single workspace using the
+<p>It's also possible to execute a command in a single workspace using the
 <code>workspace</code> config along with a name or directory path:</p>
 <pre><code>npm exec --workspace=a -- eslint ./*.js
 </code></pre>

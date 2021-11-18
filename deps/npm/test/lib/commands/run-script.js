@@ -2,12 +2,9 @@ const t = require('tap')
 const { resolve } = require('path')
 const { fake: mockNpm } = require('../../fixtures/mock-npm')
 
-const normalizePath = p => p
-  .replace(/\\+/g, '/')
-  .replace(/\r\n/g, '\n')
+const normalizePath = p => p.replace(/\\+/g, '/').replace(/\r\n/g, '\n')
 
-const cleanOutput = (str) => normalizePath(str)
-  .replace(normalizePath(process.cwd()), '{CWD}')
+const cleanOutput = str => normalizePath(str).replace(normalizePath(process.cwd()), '{CWD}')
 
 const RUN_SCRIPTS = []
 const flatOptions = {
@@ -23,7 +20,7 @@ const npm = mockNpm({
   localPrefix: __dirname,
   flatOptions,
   config,
-  cmd: (c) => {
+  cmd: c => {
     return { description: `test ${c} description` }
   },
   output: (...msg) => output.push(msg),
@@ -50,11 +47,14 @@ t.afterEach(() => {
 
 const getRS = windows => {
   const RunScript = t.mock('../../../lib/commands/run-script.js', {
-    '@npmcli/run-script': Object.assign(async opts => {
-      RUN_SCRIPTS.push(opts)
-    }, {
-      isServerPackage: require('@npmcli/run-script').isServerPackage,
-    }),
+    '@npmcli/run-script': Object.assign(
+      async opts => {
+        RUN_SCRIPTS.push(opts)
+      },
+      {
+        isServerPackage: require('@npmcli/run-script').isServerPackage,
+      }
+    ),
     npmlog,
     '../../../lib/utils/is-windows-shell.js': windows,
   })
@@ -69,26 +69,29 @@ t.test('completion', t => {
   const dir = t.testdir()
   npm.localPrefix = dir
   t.test('already have a script name', async t => {
-    const res = await runScript.completion({conf: {argv: {remain: ['npm', 'run', 'x']}}})
+    const res = await runScript.completion({ conf: { argv: { remain: ['npm', 'run', 'x'] } } })
     t.equal(res, undefined)
     t.end()
   })
   t.test('no package.json', async t => {
-    const res = await runScript.completion({conf: {argv: {remain: ['npm', 'run']}}})
+    const res = await runScript.completion({ conf: { argv: { remain: ['npm', 'run'] } } })
     t.strictSame(res, [])
     t.end()
   })
   t.test('has package.json, no scripts', async t => {
     writeFileSync(`${dir}/package.json`, JSON.stringify({}))
-    const res = await runScript.completion({conf: {argv: {remain: ['npm', 'run']}}})
+    const res = await runScript.completion({ conf: { argv: { remain: ['npm', 'run'] } } })
     t.strictSame(res, [])
     t.end()
   })
   t.test('has package.json, with scripts', async t => {
-    writeFileSync(`${dir}/package.json`, JSON.stringify({
-      scripts: { hello: 'echo hello', world: 'echo world' },
-    }))
-    const res = await runScript.completion({conf: {argv: {remain: ['npm', 'run']}}})
+    writeFileSync(
+      `${dir}/package.json`,
+      JSON.stringify({
+        scripts: { hello: 'echo hello', world: 'echo world' },
+      })
+    )
+    const res = await runScript.completion({ conf: { argv: { remain: ['npm', 'run'] } } })
     t.strictSame(res, ['hello', 'world'])
     t.end()
   })
@@ -98,14 +101,8 @@ t.test('completion', t => {
 t.test('fail if no package.json', async t => {
   t.plan(2)
   npm.localPrefix = t.testdir()
-  await t.rejects(
-    runScript.exec([]),
-    { code: 'ENOENT' }
-  )
-  await t.rejects(
-    runScript.exec(['test']),
-    { code: 'ENOENT' }
-  )
+  await t.rejects(runScript.exec([]), { code: 'ENOENT' })
+  await t.rejects(runScript.exec(['test']), { code: 'ENOENT' })
 })
 
 t.test('default env, start, and restart scripts', t => {
@@ -123,7 +120,7 @@ t.test('default env, start, and restart scripts', t => {
         scriptShell: undefined,
         stdio: 'inherit',
         stdioString: true,
-        pkg: { name: 'x', version: '1.2.3', _id: 'x@1.2.3', scripts: {}},
+        pkg: { name: 'x', version: '1.2.3', _id: 'x@1.2.3', scripts: {} },
         event: 'start',
       },
     ])
@@ -160,12 +157,14 @@ t.test('default env, start, and restart scripts', t => {
         scriptShell: undefined,
         stdio: 'inherit',
         stdioString: true,
-        pkg: { name: 'x',
+        pkg: {
+          name: 'x',
           version: '1.2.3',
           _id: 'x@1.2.3',
           scripts: {
             env: 'SET',
-          } },
+          },
+        },
         event: 'env',
       },
     ])
@@ -181,12 +180,14 @@ t.test('default env, start, and restart scripts', t => {
         scriptShell: undefined,
         stdio: 'inherit',
         stdioString: true,
-        pkg: { name: 'x',
+        pkg: {
+          name: 'x',
           version: '1.2.3',
           _id: 'x@1.2.3',
           scripts: {
             restart: 'npm stop --if-present && npm start',
-          } },
+          },
+        },
         event: 'restart',
       },
     ])
@@ -236,7 +237,8 @@ t.test('non-default env script', t => {
         scriptShell: undefined,
         stdio: 'inherit',
         stdioString: true,
-        pkg: { name: 'x',
+        pkg: {
+          name: 'x',
           version: '1.2.3',
           _id: 'x@1.2.3',
           scripts: {
@@ -258,30 +260,15 @@ t.test('try to run missing script', t => {
     }),
   })
   t.test('no suggestions', async t => {
-    await t.rejects(
-      runScript.exec(['notevenclose']),
-      'Missing script: "notevenclose"'
-    )
+    await t.rejects(runScript.exec(['notevenclose']), 'Missing script: "notevenclose"')
   })
   t.test('script suggestions', async t => {
-    await t.rejects(
-      runScript.exec(['helo']),
-      /Missing script: "helo"/
-    )
-    await t.rejects(
-      runScript.exec(['helo']),
-      /npm run hello/
-    )
+    await t.rejects(runScript.exec(['helo']), /Missing script: "helo"/)
+    await t.rejects(runScript.exec(['helo']), /npm run hello/)
   })
   t.test('bin suggestions', async t => {
-    await t.rejects(
-      runScript.exec(['goodneght']),
-      /Missing script: "goodneght"/
-    )
-    await t.rejects(
-      runScript.exec(['goodneght']),
-      /npm exec goodnight/
-    )
+    await t.rejects(runScript.exec(['goodneght']), /Missing script: "goodneght"/)
+    await t.rejects(runScript.exec(['goodneght']), /npm exec goodnight/)
   })
   t.test('with --if-present', async t => {
     config['if-present'] = true
@@ -313,12 +300,14 @@ t.test('run pre/post hooks', async t => {
       scriptShell: undefined,
       stdio: 'inherit',
       stdioString: true,
-      pkg: { name: 'x',
+      pkg: {
+        name: 'x',
         version: '1.2.3',
         _id: 'x@1.2.3',
         scripts: {
           env: 'env',
-        } },
+        },
+      },
       event: 'env',
     },
     { event: 'postenv' },
@@ -348,14 +337,16 @@ t.test('skip pre/post hooks when using ignoreScripts', async t => {
       scriptShell: undefined,
       stdio: 'inherit',
       stdioString: true,
-      pkg: { name: 'x',
+      pkg: {
+        name: 'x',
         version: '1.2.3',
         _id: 'x@1.2.3',
         scripts: {
           preenv: 'echo before the env',
           postenv: 'echo after the env',
           env: 'env',
-        } },
+        },
+      },
       banner: true,
       event: 'env',
     },
@@ -392,12 +383,14 @@ t.test('run silent', async t => {
       scriptShell: undefined,
       stdio: 'inherit',
       stdioString: true,
-      pkg: { name: 'x',
+      pkg: {
+        name: 'x',
         version: '1.2.3',
         _id: 'x@1.2.3',
         scripts: {
           env: 'env',
-        } },
+        },
+      },
       event: 'env',
       banner: false,
     },
@@ -426,16 +419,20 @@ t.test('list scripts', t => {
 
   t.test('no args', async t => {
     await runScript.exec([])
-    t.strictSame(output, [
-      ['Lifecycle scripts included in x@1.2.3:'],
-      ['  test\n    exit 2'],
-      ['  start\n    node server.js'],
-      ['  stop\n    node kill-server.js'],
-      ['\navailable via `npm run-script`:'],
-      ['  preenv\n    echo before the env'],
-      ['  postenv\n    echo after the env'],
-      [''],
-    ], 'basic report')
+    t.strictSame(
+      output,
+      [
+        ['Lifecycle scripts included in x@1.2.3:'],
+        ['  test\n    exit 2'],
+        ['  start\n    node server.js'],
+        ['  stop\n    node kill-server.js'],
+        ['\navailable via `npm run-script`:'],
+        ['  preenv\n    echo before the env'],
+        ['  postenv\n    echo after the env'],
+        [''],
+      ],
+      'basic report'
+    )
   })
 
   t.test('silent', async t => {
@@ -646,32 +643,28 @@ t.test('workspaces', t => {
     await runScript.execWorkspaces([], [])
     t.strictSame(output, [
       [
+        /* eslint-disable-next-line max-len */
         '\u001b[1mScripts\u001b[22m available in \x1B[32ma@1.0.0\x1B[39m via `\x1B[34mnpm run-script\x1B[39m`:',
       ],
       ['  glorp\n    \x1B[2mecho a doing the glerp glop\x1B[22m'],
       [''],
       [
+        /* eslint-disable-next-line max-len */
         '\u001b[1mScripts\u001b[22m available in \x1B[32mb@2.0.0\x1B[39m via `\x1B[34mnpm run-script\x1B[39m`:',
       ],
       ['  glorp\n    \x1B[2mecho b doing the glerp glop\x1B[22m'],
       [''],
-      [
-        '\x1B[0m\x1B[1mLifecycle scripts\x1B[22m\x1B[0m included in \x1B[32mc@1.0.0\x1B[39m:',
-      ],
+      ['\x1B[0m\x1B[1mLifecycle scripts\x1B[22m\x1B[0m included in \x1B[32mc@1.0.0\x1B[39m:'],
       ['  test\n    \x1B[2mexit 0\x1B[22m'],
       ['  posttest\n    \x1B[2mecho posttest\x1B[22m'],
       ['\navailable via `\x1B[34mnpm run-script\x1B[39m`:'],
       ['  lorem\n    \x1B[2mecho c lorem\x1B[22m'],
       [''],
-      [
-        '\x1B[0m\x1B[1mLifecycle scripts\x1B[22m\x1B[0m included in \x1B[32md@1.0.0\x1B[39m:',
-      ],
+      ['\x1B[0m\x1B[1mLifecycle scripts\x1B[22m\x1B[0m included in \x1B[32md@1.0.0\x1B[39m:'],
       ['  test\n    \x1B[2mexit 0\x1B[22m'],
       ['  posttest\n    \x1B[2mecho posttest\x1B[22m'],
       [''],
-      [
-        '\x1B[0m\x1B[1mLifecycle scripts\x1B[22m\x1B[0m included in \x1B[32me\x1B[39m:',
-      ],
+      ['\x1B[0m\x1B[1mLifecycle scripts\x1B[22m\x1B[0m included in \x1B[32me\x1B[39m:'],
       ['  test\n    \x1B[2mexit 0\x1B[22m'],
       ['  start\n    \x1B[2mecho start something\x1B[22m'],
       [''],
@@ -684,27 +677,27 @@ t.test('workspaces', t => {
     t.strictSame(output, [
       [
         '{\n' +
-        '  "a": {\n' +
-        '    "glorp": "echo a doing the glerp glop"\n' +
-        '  },\n' +
-        '  "b": {\n' +
-        '    "glorp": "echo b doing the glerp glop"\n' +
-        '  },\n' +
-        '  "c": {\n' +
-        '    "test": "exit 0",\n' +
-        '    "posttest": "echo posttest",\n' +
-        '    "lorem": "echo c lorem"\n' +
-        '  },\n' +
-        '  "d": {\n' +
-        '    "test": "exit 0",\n' +
-        '    "posttest": "echo posttest"\n' +
-        '  },\n' +
-        '  "e": {\n' +
-        '    "test": "exit 0",\n' +
-        '    "start": "echo start something"\n' +
-        '  },\n' +
-        '  "noscripts": {}\n' +
-        '}',
+          '  "a": {\n' +
+          '    "glorp": "echo a doing the glerp glop"\n' +
+          '  },\n' +
+          '  "b": {\n' +
+          '    "glorp": "echo b doing the glerp glop"\n' +
+          '  },\n' +
+          '  "c": {\n' +
+          '    "test": "exit 0",\n' +
+          '    "posttest": "echo posttest",\n' +
+          '    "lorem": "echo c lorem"\n' +
+          '  },\n' +
+          '  "d": {\n' +
+          '    "test": "exit 0",\n' +
+          '    "posttest": "echo posttest"\n' +
+          '  },\n' +
+          '  "e": {\n' +
+          '    "test": "exit 0",\n' +
+          '    "start": "echo start something"\n' +
+          '  },\n' +
+          '  "noscripts": {}\n' +
+          '}',
       ],
     ])
   })
@@ -765,7 +758,7 @@ t.test('workspaces', t => {
 
   t.test('missing scripts in all workspaces', async t => {
     const LOG = []
-    npmlog.error = (err) => {
+    npmlog.error = err => {
       LOG.push(String(err))
     }
     await t.rejects(
@@ -777,51 +770,60 @@ t.test('workspaces', t => {
     process.exitCode = 0 // clean exit code
 
     t.match(RUN_SCRIPTS, [])
-    t.strictSame(LOG.map(cleanOutput), [
-      'Lifecycle script `missing-script` failed with error:',
-      'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
-      '  in workspace: a@1.0.0',
-      '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/a',
-      'Lifecycle script `missing-script` failed with error:',
-      'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
-      '  in workspace: b@2.0.0',
-      '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/b',
-      'Lifecycle script `missing-script` failed with error:',
-      'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
-      '  in workspace: c@1.0.0',
-      '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/c',
-      'Lifecycle script `missing-script` failed with error:',
-      'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
-      '  in workspace: d@1.0.0',
-      '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/d',
-      'Lifecycle script `missing-script` failed with error:',
-      'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
-      '  in workspace: e',
-      '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/e',
-      'Lifecycle script `missing-script` failed with error:',
-      'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
-      '  in workspace: noscripts@1.0.0',
-      '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/noscripts',
-    ], 'should log error msgs for each workspace script')
+    t.strictSame(
+      LOG.map(cleanOutput),
+      [
+        'Lifecycle script `missing-script` failed with error:',
+        'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
+        '  in workspace: a@1.0.0',
+        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/a',
+        'Lifecycle script `missing-script` failed with error:',
+        'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
+        '  in workspace: b@2.0.0',
+        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/b',
+        'Lifecycle script `missing-script` failed with error:',
+        'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
+        '  in workspace: c@1.0.0',
+        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/c',
+        'Lifecycle script `missing-script` failed with error:',
+        'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
+        '  in workspace: d@1.0.0',
+        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/d',
+        'Lifecycle script `missing-script` failed with error:',
+        'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
+        '  in workspace: e',
+        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/e',
+        'Lifecycle script `missing-script` failed with error:',
+        'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
+        '  in workspace: noscripts@1.0.0',
+        /* eslint-disable-next-line max-len */
+        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/noscripts',
+      ],
+      'should log error msgs for each workspace script'
+    )
   })
 
   t.test('missing scripts in some workspaces', async t => {
     const LOG = []
-    npmlog.error = (err) => {
+    npmlog.error = err => {
       LOG.push(String(err))
     }
     await runScript.execWorkspaces(['test'], ['a', 'b', 'c', 'd'])
     t.match(RUN_SCRIPTS, [])
-    t.strictSame(LOG.map(cleanOutput), [
-      'Lifecycle script `test` failed with error:',
-      'Error: Missing script: "test"\n\nTo see a list of scripts, run:\n  npm run',
-      '  in workspace: a@1.0.0',
-      '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/a',
-      'Lifecycle script `test` failed with error:',
-      'Error: Missing script: "test"\n\nTo see a list of scripts, run:\n  npm run',
-      '  in workspace: b@2.0.0',
-      '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/b',
-    ], 'should log error msgs for each workspace script')
+    t.strictSame(
+      LOG.map(cleanOutput),
+      [
+        'Lifecycle script `test` failed with error:',
+        'Error: Missing script: "test"\n\nTo see a list of scripts, run:\n  npm run',
+        '  in workspace: a@1.0.0',
+        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/a',
+        'Lifecycle script `test` failed with error:',
+        'Error: Missing script: "test"\n\nTo see a list of scripts, run:\n  npm run',
+        '  in workspace: b@2.0.0',
+        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/b',
+      ],
+      'should log error msgs for each workspace script'
+    )
   })
 
   t.test('no workspaces when filtering by user args', async t => {
@@ -866,8 +868,9 @@ t.test('workspaces', t => {
   t.test('failed workspace run with succeeded runs', async t => {
     const RunScript = t.mock('../../../lib/commands/run-script.js', {
       '@npmcli/run-script': async opts => {
-        if (opts.pkg.name === 'a')
+        if (opts.pkg.name === 'a') {
           throw new Error('ERR')
+        }
 
         RUN_SCRIPTS.push(opts)
       },

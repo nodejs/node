@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>scripts</title>
 <style>
 body {
@@ -153,9 +154,9 @@ commands with matching names will be run for those as well (e.g. <code>premyscri
 <code>myscript</code>, <code>postmyscript</code>). Scripts from dependencies can be run with
 <code>npm explore &lt;pkg&gt; -- npm run &lt;stage&gt;</code>.</p>
 <h3 id="pre--post-scripts">Pre &amp; Post Scripts</h3>
-<p>To create “pre” or “post” scripts for any scripts defined in the
+<p>To create "pre" or "post" scripts for any scripts defined in the
 <code>"scripts"</code> section of the <code>package.json</code>, simply create another script
-<em>with a matching name</em> and add “pre” or “post” to the beginning of them.</p>
+<em>with a matching name</em> and add "pre" or "post" to the beginning of them.</p>
 <pre lang="json"><code>{
   "scripts": {
     "precompress": "{{ executes BEFORE the `compress` script }}",
@@ -213,8 +214,8 @@ and <code>npm install</code>. See below for more info.</li>
 </ul>
 <p><strong>prepack</strong></p>
 <ul>
-<li>Runs BEFORE a tarball is packed (on “<code>npm pack</code>”, “<code>npm publish</code>”, and when installing a git dependencies).</li>
-<li>NOTE: “<code>npm run pack</code>” is NOT the same as “<code>npm pack</code>”. “<code>npm run pack</code>” is an arbitrary user defined script name, where as, “<code>npm pack</code>” is a CLI defined command.</li>
+<li>Runs BEFORE a tarball is packed (on "<code>npm pack</code>", "<code>npm publish</code>", and when installing a git dependencies).</li>
+<li>NOTE: "<code>npm run pack</code>" is NOT the same as "<code>npm pack</code>". "<code>npm run pack</code>" is an arbitrary user defined script name, where as, "<code>npm pack</code>" is a CLI defined command.</li>
 </ul>
 <p><strong>postpack</strong></p>
 <ul>
@@ -222,7 +223,7 @@ and <code>npm install</code>. See below for more info.</li>
 </ul>
 <h4 id="prepare-and-prepublish">Prepare and Prepublish</h4>
 <p><strong>Deprecation Note: prepublish</strong></p>
-<p>Since <code>npm@1.1.71</code>, the npm CLI has run the <code>prepublish</code> script for both <code>npm publish</code> and <code>npm install</code>, because it’s a convenient way to prepare a package for use (some common use cases are described in the section below).  It has also turned out to be, in practice, <a href="https://github.com/npm/npm/issues/10074">very confusing</a>.  As of <code>npm@4.0.0</code>, a new event has been introduced, <code>prepare</code>, that preserves this existing behavior. A <em>new</em> event, <code>prepublishOnly</code> has been added as a transitional strategy to allow users to avoid the confusing behavior of existing npm versions and only run on <code>npm publish</code> (for instance, running the tests one last time to ensure they’re in good shape).</p>
+<p>Since <code>npm@1.1.71</code>, the npm CLI has run the <code>prepublish</code> script for both <code>npm publish</code> and <code>npm install</code>, because it's a convenient way to prepare a package for use (some common use cases are described in the section below).  It has also turned out to be, in practice, <a href="https://github.com/npm/npm/issues/10074">very confusing</a>.  As of <code>npm@4.0.0</code>, a new event has been introduced, <code>prepare</code>, that preserves this existing behavior. A <em>new</em> event, <code>prepublishOnly</code> has been added as a transitional strategy to allow users to avoid the confusing behavior of existing npm versions and only run on <code>npm publish</code> (for instance, running the tests one last time to ensure they're in good shape).</p>
 <p>See <a href="https://github.com/npm/npm/issues/10074">https://github.com/npm/npm/issues/10074</a> for a much lengthier justification, with further reading, for this change.</p>
 <p><strong>Use Cases</strong></p>
 <p>If you need to perform operations on your package before it is used, in a way that is not dependent on the operating system or architecture of the target system, use a <code>prepublish</code> script. This includes tasks such as:</p>
@@ -234,10 +235,10 @@ and <code>npm install</code>. See below for more info.</li>
 <p>The advantage of doing these things at <code>prepublish</code> time is that they can be done once, in a single place, thus reducing complexity and variability. Additionally, this means that:</p>
 <ul>
 <li>You can depend on <code>coffee-script</code> as a <code>devDependency</code>, and thus
-your users don’t need to have it installed.</li>
-<li>You don’t need to include minifiers in your package, reducing
+your users don't need to have it installed.</li>
+<li>You don't need to include minifiers in your package, reducing
 the size for your users.</li>
-<li>You don’t need to rely on your users having <code>curl</code> or <code>wget</code> or
+<li>You don't need to rely on your users having <code>curl</code> or <code>wget</code> or
 other system tools on the target machines.</li>
 </ul>
 <h3 id="life-cycle-operation-order">Life Cycle Operation Order</h3>
@@ -273,7 +274,7 @@ other system tools on the target machines.</li>
 <li><code>postprepare</code></li>
 </ul>
 <p>If there is a <code>binding.gyp</code> file in the root of your package and you
-haven’t defined your own <code>install</code> or <code>preinstall</code> scripts, npm will
+haven't defined your own <code>install</code> or <code>preinstall</code> scripts, npm will
 default the <code>install</code> command to compile using node-gyp via <code>node-gyp rebuild</code></p>
 <p>These are run from the scripts of <code>&lt;pkg-name&gt;</code></p>
 <h4 id="npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></h4>
@@ -338,7 +339,7 @@ will default the <code>start</code> command to <code>node server.js</code>.  <co
 <li><code>posttest</code></li>
 </ul>
 <h4 id="a-note-on-a-lack-of-npm-uninstall-scripts">A Note on a lack of <a href="../commands/npm-uninstall.html"><code>npm uninstall</code></a> scripts</h4>
-<p>While npm v6 had <code>uninstall</code> lifecycle scripts, npm v7 does not. Removal of a package can happen for a wide variety of reasons, and there’s no clear way to currently give the script enough context to be useful.</p>
+<p>While npm v6 had <code>uninstall</code> lifecycle scripts, npm v7 does not. Removal of a package can happen for a wide variety of reasons, and there's no clear way to currently give the script enough context to be useful.</p>
 <p>Reasons for a package removal include:</p>
 <ul>
 <li>a user directly uninstalled this package</li>
@@ -375,8 +376,8 @@ exported into the <code>node_modules/.bin</code> directory on <code>npm install<
 <p>The package.json fields are tacked onto the <code>npm_package_</code> prefix. So,
 for instance, if you had <code>{"name":"foo", "version":"1.2.5"}</code> in your
 package.json file, then your package scripts would have the
-<code>npm_package_name</code> environment variable set to “foo”, and the
-<code>npm_package_version</code> set to “1.2.5”.  You can access these variables
+<code>npm_package_name</code> environment variable set to "foo", and the
+<code>npm_package_version</code> set to "1.2.5".  You can access these variables
 in your code with <code>process.env.npm_package_name</code> and
 <code>process.env.npm_package_version</code>, and so on for other fields.</p>
 <p>See <a href="../configuring-npm/package-json.html"><code>package-json.md</code></a> for more on package configs.</p>
@@ -384,9 +385,9 @@ in your code with <code>process.env.npm_package_name</code> and
 <p>Lastly, the <code>npm_lifecycle_event</code> environment variable is set to
 whichever stage of the cycle is being executed. So, you could have a
 single script used for different parts of the process which switches
-based on what’s currently happening.</p>
+based on what's currently happening.</p>
 <p>Objects are flattened following this format, so if you had
-<code>{"scripts":{"install":"foo.js"}}</code> in your package.json, then you’d
+<code>{"scripts":{"install":"foo.js"}}</code> in your package.json, then you'd
 see this in the script:</p>
 <pre lang="bash"><code>process.env.npm_package_scripts_install === "foo.js"
 </code></pre>
@@ -420,15 +421,15 @@ fine:</p>
 <p>Scripts are run by passing the line as a script argument to <code>sh</code>.</p>
 <p>If the script exits with a code other than 0, then this will abort the
 process.</p>
-<p>Note that these script files don’t have to be Node.js or even
+<p>Note that these script files don't have to be Node.js or even
 JavaScript programs. They just have to be some kind of executable
 file.</p>
 <h3 id="best-practices">Best Practices</h3>
 <ul>
-<li>Don’t exit with a non-zero error code unless you <em>really</em> mean it.
+<li>Don't exit with a non-zero error code unless you <em>really</em> mean it.
 Except for uninstall scripts, this will cause the npm action to
 fail, and potentially be rolled back.  If the failure is minor or
-only will prevent some optional features, then it’s better to just
+only will prevent some optional features, then it's better to just
 print a warning and exit successfully.</li>
 <li>Try not to use scripts to do what npm can do for you.  Read through
 <a href="../configuring-npm/package-json.html"><code>package.json</code></a> to see all the things that you can specify and enable
@@ -436,12 +437,12 @@ by simply describing your package appropriately.  In general, this
 will lead to a more robust and consistent state.</li>
 <li>Inspect the env to determine where to put things.  For instance, if
 the <code>npm_config_binroot</code> environment variable is set to <code>/home/user/bin</code>, then
-don’t try to install executables into <code>/usr/local/bin</code>.  The user
+don't try to install executables into <code>/usr/local/bin</code>.  The user
 probably set it up that way for a reason.</li>
-<li>Don’t prefix your script commands with “sudo”.  If root permissions
-are required for some reason, then it’ll fail with that error, and
+<li>Don't prefix your script commands with "sudo".  If root permissions
+are required for some reason, then it'll fail with that error, and
 the user will sudo the npm command in question.</li>
-<li>Don’t use <code>install</code>. Use a <code>.gyp</code> file for compilation, and <code>prepublish</code>
+<li>Don't use <code>install</code>. Use a <code>.gyp</code> file for compilation, and <code>prepublish</code>
 for anything else. You should almost never have to explicitly set a
 preinstall or install script. If you are doing this, please consider if
 there is another option. The only valid use of <code>install</code> or <code>preinstall</code>

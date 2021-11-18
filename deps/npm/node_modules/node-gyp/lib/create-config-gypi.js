@@ -4,19 +4,45 @@ const fs = require('graceful-fs')
 const log = require('npmlog')
 const path = require('path')
 
-function getBaseConfigGypi () {
-  const config = JSON.parse(JSON.stringify(process.config))
+function parseConfigGypi (config) {
+  // translated from tools/js2c.py of Node.js
+  // 1. string comments
+  config = config.replace(/#.*/g, '')
+  // 2. join multiline strings
+  config = config.replace(/'$\s+'/mg, '')
+  // 3. normalize string literals from ' into "
+  config = config.replace(/'/g, '"')
+  return JSON.parse(config)
+}
+
+async function getBaseConfigGypi ({ gyp, nodeDir }) {
+  // try reading $nodeDir/include/node/config.gypi first when:
+  // 1. --dist-url or --nodedir is specified
+  // 2. and --force-process-config is not specified
+  const shouldReadConfigGypi = (gyp.opts.nodedir || gyp.opts['dist-url']) && !gyp.opts['force-process-config']
+  if (shouldReadConfigGypi && nodeDir) {
+    try {
+      const baseConfigGypiPath = path.resolve(nodeDir, 'include/node/config.gypi')
+      const baseConfigGypi = await fs.promises.readFile(baseConfigGypiPath)
+      return parseConfigGypi(baseConfigGypi.toString())
+    } catch (err) {
+      log.warn('read config.gypi', err.message)
+    }
+  }
+
+  // fallback to process.config if it is invalid
+  return JSON.parse(JSON.stringify(process.config))
+}
+
+async function getCurrentConfigGypi ({ gyp, nodeDir, vsInfo }) {
+  const config = await getBaseConfigGypi({ gyp, nodeDir })
   if (!config.target_defaults) {
     config.target_defaults = {}
   }
   if (!config.variables) {
     config.variables = {}
   }
-  return config
-}
 
-function getCurrentConfigGypi ({ gyp, nodeDir, vsInfo }) {
-  const config = getBaseConfigGypi()
   const defaults = config.target_defaults
   const variables = config.variables
 
@@ -85,13 +111,13 @@ function getCurrentConfigGypi ({ gyp, nodeDir, vsInfo }) {
   return config
 }
 
-function createConfigGypi ({ gyp, buildDir, nodeDir, vsInfo }, callback) {
+async function createConfigGypi ({ gyp, buildDir, nodeDir, vsInfo }) {
   const configFilename = 'config.gypi'
   const configPath = path.resolve(buildDir, configFilename)
 
   log.verbose('build/' + configFilename, 'creating config file')
 
-  const config = getCurrentConfigGypi({ gyp, nodeDir, vsInfo })
+  const config = await getCurrentConfigGypi({ gyp, nodeDir, vsInfo })
 
   // ensures that any boolean values in config.gypi get stringified
   function boolsToString (k, v) {
@@ -108,12 +134,13 @@ function createConfigGypi ({ gyp, buildDir, nodeDir, vsInfo }, callback) {
 
   const json = JSON.stringify(config, boolsToString, 2)
   log.verbose('build/' + configFilename, 'writing out config file: %s', configPath)
-  fs.writeFile(configPath, [prefix, json, ''].join('\n'), (err) => {
-    callback(err, configPath)
-  })
+  await fs.promises.writeFile(configPath, [prefix, json, ''].join('\n'))
+
+  return configPath
 }
 
 module.exports = createConfigGypi
 module.exports.test = {
+  parseConfigGypi: parseConfigGypi,
   getCurrentConfigGypi: getCurrentConfigGypi
 }

@@ -36,7 +36,7 @@ t.test('completion', async t => {
   testComp(['npm', 'access', 'revoke'], [])
 
   await t.rejects(
-    access.completion({conf: {argv: {remain: ['npm', 'access', 'foobar']}}}),
+    access.completion({ conf: { argv: { remain: ['npm', 'access', 'foobar'] } } }),
     { message: 'foobar not recognized' }
   )
 })

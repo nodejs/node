@@ -11,8 +11,9 @@ const cleanOutput = (str, path) => normalizePath(str)
 
 const clean = (res, path) => {
   const cleaned = new Map()
-  for (const [key, value] of res.entries())
+  for (const [key, value] of res.entries()) {
     cleaned.set(key, cleanOutput(value, path))
+  }
   return cleaned
 }
 

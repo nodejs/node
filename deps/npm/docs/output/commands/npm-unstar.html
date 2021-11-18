@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-unstar</title>
 <style>
 body {
@@ -149,12 +150,12 @@ npm command-line interface
 </code></pre>
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
-<p>“Unstarring” a package is the opposite of <a href="../commands/npm-star.html"><code>npm star</code></a>,
+<p>"Unstarring" a package is the opposite of <a href="../commands/npm-star.html"><code>npm star</code></a>,
 it removes an item from your list of favorite packages.</p>
 <h3 id="more">More</h3>
-<p>There’s also these extra commands to help you manage your favorite packages:</p>
+<p>There's also these extra commands to help you manage your favorite packages:</p>
 <h4 id="star">Star</h4>
-<p>You can “star” a package using <a href="../commands/npm-star.html"><code>npm star</code></a></p>
+<p>You can "star" a package using <a href="../commands/npm-star.html"><code>npm star</code></a></p>
 <h4 id="listing-stars">Listing stars</h4>
 <p>You can see all your starred packages using <a href="../commands/npm-stars.html"><code>npm stars</code></a></p>
 <h3 id="configuration">Configuration</h3>
@@ -163,7 +164,7 @@ it removes an item from your list of favorite packages.</p>
 <!-- raw HTML omitted -->
 <h4 id="registry"><code>registry</code></h4>
 <ul>
-<li>Default: “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”</li>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
 <li>Type: URL</li>
 </ul>
 <p>The base URL of the npm registry.</p>
@@ -184,7 +185,7 @@ false, it uses ascii characters instead of unicode glyphs.</p>
 <li>Default: null</li>
 <li>Type: null or String</li>
 </ul>
-<p>This is a one-time password from a two-factor authenticator. It’s needed
+<p>This is a one-time password from a two-factor authenticator. It's needed
 when publishing or changing package permissions with <code>npm access</code>.</p>
 <p>If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.</p>

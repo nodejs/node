@@ -16,8 +16,9 @@ let deletedConfig = {}
 let registryOutput = ''
 let setConfig = {}
 const authDummy = (npm, options) => {
-  if (!options.fromFlatOptions)
+  if (!options.fromFlatOptions) {
     throw new Error('did not pass full flatOptions to auth function')
+  }
 
   return Promise.resolve({
     message: 'success',
@@ -40,13 +41,15 @@ const npm = {
   config: {
     delete: deleteMock,
     get (key, where) {
-      if (!where || where === 'user')
+      if (!where || where === 'user') {
         return _flatOptions[key]
+      }
     },
     getCredentialsByURI,
     async save () {
-      if (failSave)
+      if (failSave) {
         throw new Error('error saving user config')
+      }
     },
     set (key, value, where) {
       setConfig = {

@@ -24,8 +24,9 @@ const tarball = (manifest, opts) => {
   const fromNodeModules = npa(resolved).type === 'directory'
     && /node_modules[\\/](@[^\\/]+\/)?[^\\/]+[\\/]?$/.test(relative(where, resolved))
 
-  if (fromNodeModules)
+  if (fromNodeModules) {
     return nodeModulesTarball(manifest, opts)
+  }
 
   return pacote.tarball(manifest._resolved, opts)
 }

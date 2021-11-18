@@ -1,5 +1,5 @@
 const crypto = require('crypto')
-const {dirname, basename, resolve} = require('path')
+const { dirname, basename, resolve } = require('path')
 
 // use sha1 because it's faster, and collisions extremely unlikely anyway
 const pathSafeHash = s =>

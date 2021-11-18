@@ -7,26 +7,13 @@ const completion = require('../utils/completion/installed-shallow.js')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 class Uninstall extends ArboristWorkspaceCmd {
-  static get description () {
-    return 'Remove a package'
-  }
+  static description = 'Remove a package'
+  static name = 'uninstall'
+  static params = ['save', ...super.params]
+  static usage = ['[<@scope>/]<pkg>...']
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'uninstall'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return ['save', ...super.params]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[<@scope>/]<pkg>...']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  // TODO
+  /* istanbul ignore next */
   async completion (opts) {
     return completion(this.npm, opts)
   }
@@ -39,18 +26,19 @@ class Uninstall extends ArboristWorkspaceCmd {
       : this.npm.localPrefix
 
     if (!args.length) {
-      if (!global)
+      if (!global) {
         throw new Error('Must provide a package name to remove')
-      else {
+      } else {
         let pkg
 
         try {
           pkg = await rpj(resolve(this.npm.localPrefix, 'package.json'))
         } catch (er) {
-          if (er.code !== 'ENOENT' && er.code !== 'ENOTDIR')
+          if (er.code !== 'ENOENT' && er.code !== 'ENOTDIR') {
             throw er
-          else
+          } else {
             throw this.usageError()
+          }
         }
 
         args.push(pkg.name)

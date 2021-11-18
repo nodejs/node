@@ -5,13 +5,13 @@
 // Thus, the root Diff node is the shallowest change required
 // for a given branch of the tree being mutated.
 
-const {depth} = require('treeverse')
-const {existsSync} = require('fs')
+const { depth } = require('treeverse')
+const { existsSync } = require('fs')
 
 const ssri = require('ssri')
 
 class Diff {
-  constructor ({actual, ideal, filterSet, shrinkwrapInflated}) {
+  constructor ({ actual, ideal, filterSet, shrinkwrapInflated }) {
     this.filterSet = filterSet
     this.shrinkwrapInflated = shrinkwrapInflated
     this.children = []
@@ -94,14 +94,14 @@ class Diff {
     }
 
     return depth({
-      tree: new Diff({actual, ideal, filterSet, shrinkwrapInflated}),
+      tree: new Diff({ actual, ideal, filterSet, shrinkwrapInflated }),
       getChildren,
       leave,
     })
   }
 }
 
-const getAction = ({actual, ideal}) => {
+const getAction = ({ actual, ideal }) => {
   if (!ideal) {
     return 'REMOVE'
   }
@@ -237,7 +237,7 @@ const diffNode = ({
     return
   }
 
-  const action = getAction({actual, ideal})
+  const action = getAction({ actual, ideal })
 
   // if it's a match, then get its children
   // otherwise, this is the child diff node
@@ -245,7 +245,7 @@ const diffNode = ({
     if (action === 'REMOVE') {
       removed.push(actual)
     }
-    children.push(new Diff({actual, ideal, filterSet, shrinkwrapInflated}))
+    children.push(new Diff({ actual, ideal, filterSet, shrinkwrapInflated }))
   } else {
     unchanged.push(ideal)
     // !*! Weird dirty hack warning !*!

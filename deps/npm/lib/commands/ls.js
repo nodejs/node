@@ -25,39 +25,25 @@ const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 class LS extends ArboristWorkspaceCmd {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'List installed packages'
-  }
+  static description = 'List installed packages'
+  static name = 'ls'
+  static usage = ['[[<@scope>/]<pkg> ...]']
+  static params = [
+    'all',
+    'json',
+    'long',
+    'parseable',
+    'global',
+    'depth',
+    'omit',
+    'link',
+    'package-lock-only',
+    'unicode',
+    ...super.params,
+  ]
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'ls'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[[<@scope>/]<pkg> ...]']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'all',
-      'json',
-      'long',
-      'parseable',
-      'global',
-      'depth',
-      'omit',
-      'link',
-      'package-lock-only',
-      'unicode',
-      ...super.params,
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  // TODO
+  /* istanbul ignore next */
   async completion (opts) {
     return completion(this.npm, opts)
   }
@@ -88,23 +74,26 @@ class LS extends ArboristWorkspaceCmd {
       legacyPeerDeps: false,
       path,
     })
-    const tree = await this.initTree({arb, args, packageLockOnly })
+    const tree = await this.initTree({ arb, args, packageLockOnly })
 
     // filters by workspaces nodes when using -w <workspace-name>
     // We only have to filter the first layer of edges, so we don't
     // explore anything that isn't part of the selected workspace set.
     let wsNodes
-    if (this.workspaceNames && this.workspaceNames.length)
+    if (this.workspaceNames && this.workspaceNames.length) {
       wsNodes = arb.workspaceNodes(tree, this.workspaceNames)
+    }
     const filterBySelectedWorkspaces = edge => {
       if (!workspacesEnabled
         && edge.from.isProjectRoot
         && edge.to.isWorkspace
-      )
+      ) {
         return false
+      }
 
-      if (!wsNodes || !wsNodes.length)
+      if (!wsNodes || !wsNodes.length) {
         return true
+      }
 
       if (edge.from.isProjectRoot) {
         return edge.to &&
@@ -176,8 +165,9 @@ class LS extends ArboristWorkspaceCmd {
 
         // loop through list of node problems to add them to global list
         if (node[_include]) {
-          for (const problem of node[_problems])
+          for (const problem of node[_problems]) {
             problems.add(problem)
+          }
         }
 
         seenItems.add(item)
@@ -200,8 +190,9 @@ class LS extends ArboristWorkspaceCmd {
     )
 
     // if filtering items, should exit with error code on no results
-    if (result && !result[_include] && args.length)
+    if (result && !result[_include] && args.length) {
       process.exitCode = 1
+    }
 
     if (rootError) {
       throw Object.assign(
@@ -237,8 +228,9 @@ class LS extends ArboristWorkspaceCmd {
 module.exports = LS
 
 const isGitNode = (node) => {
-  if (!node.resolved)
+  if (!node.resolved) {
     return
+  }
 
   try {
     const { type } = npa(node.resolved)
@@ -257,14 +249,17 @@ const isExtraneous = (node, { global }) =>
 const getProblems = (node, { global }) => {
   const problems = new Set()
 
-  if (node[_missing] && !isOptional(node))
+  if (node[_missing] && !isOptional(node)) {
     problems.add(`missing: ${node.pkgid}, required by ${node[_missing]}`)
+  }
 
-  if (node[_invalid])
+  if (node[_invalid]) {
     problems.add(`invalid: ${node.pkgid} ${node.path}`)
+  }
 
-  if (isExtraneous(node, { global }))
+  if (isExtraneous(node, { global })) {
     problems.add(`extraneous: ${node.pkgid} ${node.path}`)
+  }
 
   return problems
 }
@@ -297,10 +292,11 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
   // special formatting for top-level package name
   if (node.isRoot) {
     const hasNoPackageJson = !Object.keys(node.package).length
-    if (hasNoPackageJson || global)
+    if (hasNoPackageJson || global) {
       printable = path
-    else
+    } else {
       printable += `${long ? EOL : ' '}${path}`
+    }
   }
 
   const highlightDepName =
@@ -347,19 +343,22 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
 const getJsonOutputItem = (node, { global, long }) => {
   const item = {}
 
-  if (node.version)
+  if (node.version) {
     item.version = node.version
+  }
 
-  if (node.resolved)
+  if (node.resolved) {
     item.resolved = node.resolved
+  }
 
   item[_name] = node.name
 
   // special formatting for top-level package name
   const hasPackageJson =
     node && node.package && Object.keys(node.package).length
-  if (node.isRoot && hasPackageJson)
+  if (node.isRoot && hasPackageJson) {
     item.name = node.package.name || node.name
+  }
 
   if (long && !node[_missing]) {
     item.name = item[_name]
@@ -376,18 +375,21 @@ const getJsonOutputItem = (node, { global, long }) => {
   }
 
   // augment json output items with extra metadata
-  if (isExtraneous(node, { global }))
+  if (isExtraneous(node, { global })) {
     item.extraneous = true
+  }
 
-  if (node[_invalid])
+  if (node[_invalid]) {
     item.invalid = node[_invalid]
+  }
 
   if (node[_missing] && !isOptional(node)) {
     item.required = node[_required]
     item.missing = true
   }
-  if (node[_include] && node[_problems] && node[_problems].size)
+  if (node[_include] && node[_problems] && node[_problems].size) {
     item.problems = [...node[_problems]]
+  }
 
   return augmentItemWithIncludeMetadata(node, item)
 }
@@ -436,8 +438,9 @@ const mapEdgesToNodes = ({ seenPaths }) => (edge) => {
   // item would appear twice given that it's a children of an extraneous item,
   // so it's marked extraneous but it will ALSO show up in edgesOuts of
   // its parent so it ends up as two diff nodes if we don't track it
-  if (node.path)
+  if (node.path) {
     seenPaths.add(node.path)
+  }
 
   node[_required] = edge.spec || '*'
   node[_type] = edge.type
@@ -515,20 +518,23 @@ const humanOutput = ({ color, result, seenItems, unicode }) => {
   // so that all its ancestors should be displayed)
   // here is where we put items in their expected place for archy output
   for (const item of seenItems) {
-    if (item[_include] && item[_parent])
+    if (item[_include] && item[_parent]) {
       item[_parent].nodes.push(item)
+    }
   }
 
-  if (!result.nodes.length)
+  if (!result.nodes.length) {
     result.nodes = ['(empty)']
+  }
 
   const archyOutput = archy(result, '', { unicode })
   return color ? chalk.reset(archyOutput) : archyOutput
 }
 
 const jsonOutput = ({ path, problems, result, rootError, seenItems }) => {
-  if (problems.size)
+  if (problems.size) {
     result.problems = [...problems]
+  }
 
   if (rootError) {
     result.problems = [
@@ -546,8 +552,9 @@ const jsonOutput = ({ path, problems, result, rootError, seenItems }) => {
     // append current item to its parent item.dependencies obj in order
     // to provide a json object structure that represents the installed tree
     if (item[_include] && item[_parent]) {
-      if (!item[_parent].dependencies)
+      if (!item[_parent].dependencies) {
         item[_parent].dependencies = {}
+      }
 
       item[_parent].dependencies[item[_name]] = item
     }

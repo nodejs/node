@@ -32,15 +32,15 @@ const semver = require('semver')
 const nameFromFolder = require('@npmcli/name-from-folder')
 const Edge = require('./edge.js')
 const Inventory = require('./inventory.js')
-const {normalize} = require('read-package-json-fast')
-const {getPaths: getBinPaths} = require('bin-links')
+const { normalize } = require('read-package-json-fast')
+const { getPaths: getBinPaths } = require('bin-links')
 const npa = require('npm-package-arg')
 const debug = require('./debug.js')
 const gatherDepSet = require('./gather-dep-set.js')
 const treeCheck = require('./tree-check.js')
 const walkUp = require('walk-up-path')
 
-const {resolve, relative, dirname, basename} = require('path')
+const { resolve, relative, dirname, basename } = require('path')
 const util = require('util')
 const _package = Symbol('_package')
 const _parent = Symbol('_parent')
@@ -291,8 +291,8 @@ class Node {
   }
 
   get hasInstallScript () {
-    const {hasInstallScript, scripts} = this.package
-    const {install, preinstall, postinstall} = scripts || {}
+    const { hasInstallScript, scripts } = this.package
+    const { install, preinstall, postinstall } = scripts || {}
     return !!(hasInstallScript || install || preinstall || postinstall)
   }
 
@@ -376,7 +376,7 @@ class Node {
     }
 
     if (this.root.sourceReference) {
-      const {name, version} = this.root.package
+      const { name, version } = this.root.package
       why.whileInstalling = {
         name,
         version,

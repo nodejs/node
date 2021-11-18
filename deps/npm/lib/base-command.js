@@ -19,17 +19,22 @@ class BaseCommand {
 
   get usage () {
     let usage = `npm ${this.constructor.name}\n\n`
-    if (this.constructor.description)
+    if (this.constructor.description) {
       usage = `${usage}${this.constructor.description}\n\n`
+    }
 
     usage = `${usage}Usage:\n`
-    if (!this.constructor.usage)
+    if (!this.constructor.usage) {
       usage = `${usage}npm ${this.constructor.name}`
-    else
-      usage = `${usage}${this.constructor.usage.map(u => `npm ${this.constructor.name} ${u}`).join('\n')}`
+    } else {
+      usage = `${usage}${this.constructor.usage
+        .map(u => `npm ${this.constructor.name} ${u}`)
+        .join('\n')}`
+    }
 
-    if (this.constructor.params)
+    if (this.constructor.params) {
       usage = `${usage}\n\nOptions:\n${this.wrappedParams}`
+    }
 
     // Mostly this just appends aliases, this could be more clear
     usage = usageUtil(this.constructor.name, usage)
@@ -43,7 +48,7 @@ class BaseCommand {
 
     for (const param of this.constructor.params) {
       const usage = `[${ConfigDefinitions[param].usage}]`
-      if (line.length && (line.length + usage.length) > this.wrapWidth) {
+      if (line.length && line.length + usage.length > this.wrapWidth) {
         results = [results, line].filter(Boolean).join('\n')
         line = ''
       }
@@ -54,23 +59,24 @@ class BaseCommand {
   }
 
   usageError (prefix = '') {
-    if (prefix)
+    if (prefix) {
       prefix += '\n\n'
+    }
     return Object.assign(new Error(`\nUsage: ${prefix}${this.usage}`), {
       code: 'EUSAGE',
     })
   }
 
   async execWorkspaces (args, filters) {
-    throw Object.assign(
-      new Error('This command does not support workspaces.'),
-      { code: 'ENOWORKSPACES' }
-    )
+    throw Object.assign(new Error('This command does not support workspaces.'), {
+      code: 'ENOWORKSPACES',
+    })
   }
 
   async setWorkspaces (filters) {
-    if (this.isArboristCmd)
+    if (this.isArboristCmd) {
       this.includeWorkspaceRoot = false
+    }
 
     const ws = await getWorkspaces(filters, {
       path: this.npm.localPrefix,

@@ -6,39 +6,32 @@ const readFile = promisify(require('fs').readFile)
 const BaseCommand = require('../base-command.js')
 
 class Version extends BaseCommand {
-  static get description () {
-    return 'Bump a package version'
-  }
+  static description = 'Bump a package version'
+  static name = 'version'
+  static params = [
+    'allow-same-version',
+    'commit-hooks',
+    'git-tag-version',
+    'json',
+    'preid',
+    'sign-git-tag',
+    'workspace',
+    'workspaces',
+    'include-workspace-root',
+  ]
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'version'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'allow-same-version',
-      'commit-hooks',
-      'git-tag-version',
-      'json',
-      'preid',
-      'sign-git-tag',
-      'workspace',
-      'workspaces',
-      'include-workspace-root',
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]']
-  }
+  /* eslint-disable-next-line max-len */
+  static usage = ['[<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]']
 
   async completion (opts) {
-    const { conf: { argv: { remain } } } = opts
-    if (remain.length > 2)
+    const {
+      conf: {
+        argv: { remain },
+      },
+    } = opts
+    if (remain.length > 2) {
       return []
+    }
 
     return [
       'major',
@@ -104,17 +97,20 @@ class Version extends BaseCommand {
       .then(data => JSON.parse(data))
       .catch(() => ({}))
 
-    if (pkg.name && pkg.version)
+    if (pkg.name && pkg.version) {
       results[pkg.name] = pkg.version
+    }
 
     results.npm = this.npm.version
-    for (const [key, version] of Object.entries(process.versions))
+    for (const [key, version] of Object.entries(process.versions)) {
       results[key] = version
+    }
 
-    if (this.npm.config.get('json'))
+    if (this.npm.config.get('json')) {
       this.npm.output(JSON.stringify(results, null, 2))
-    else
+    } else {
       this.npm.output(results)
+    }
   }
 
   async listWorkspaces (filters) {
@@ -123,11 +119,11 @@ class Version extends BaseCommand {
     for (const path of this.workspacePaths) {
       const pj = resolve(path, 'package.json')
       // setWorkspaces has already parsed package.json so we know it won't error
-      const pkg = await readFile(pj, 'utf8')
-        .then(data => JSON.parse(data))
+      const pkg = await readFile(pj, 'utf8').then(data => JSON.parse(data))
 
-      if (pkg.name && pkg.version)
+      if (pkg.name && pkg.version) {
         results[pkg.name] = pkg.version
+      }
     }
     return this.list(results)
   }

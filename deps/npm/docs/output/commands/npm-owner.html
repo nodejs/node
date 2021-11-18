@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-owner</title>
 <style>
 body {
@@ -163,10 +164,10 @@ to modify metadata, publish new versions, and add other owners.</li>
 their privileges.</li>
 </ul>
 <p>Note that there is only one level of access.  Either you can modify a package,
-or you can’t.  Future versions may contain more fine-grained access levels, but
+or you can't.  Future versions may contain more fine-grained access levels, but
 that is not implemented at this time.</p>
 <p>If you have two-factor authentication enabled with <code>auth-and-writes</code> (see
-<a href="../commands/npm-profile.html"><code>npm-profile</code></a>) then you’ll need to include an otp
+<a href="../commands/npm-profile.html"><code>npm-profile</code></a>) then you'll need to include an otp
 on the command line when changing ownership with <code>--otp</code>.</p>
 <h3 id="configuration">Configuration</h3>
 <!-- raw HTML omitted -->
@@ -174,7 +175,7 @@ on the command line when changing ownership with <code>--otp</code>.</p>
 <!-- raw HTML omitted -->
 <h4 id="registry"><code>registry</code></h4>
 <ul>
-<li>Default: “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”</li>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
 <li>Type: URL</li>
 </ul>
 <p>The base URL of the npm registry.</p>
@@ -185,7 +186,7 @@ on the command line when changing ownership with <code>--otp</code>.</p>
 <li>Default: null</li>
 <li>Type: null or String</li>
 </ul>
-<p>This is a one-time password from a two-factor authenticator. It’s needed
+<p>This is a one-time password from a two-factor authenticator. It's needed
 when publishing or changing package permissions with <code>npm access</code>.</p>
 <p>If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.</p>

@@ -14,8 +14,9 @@ const npm = mockNpm({
   prefix: '',
   version: '1.0.0',
   output: (...msg) => {
-    for (const m of msg)
+    for (const m of msg) {
       result.push(m)
+    }
   },
 })
 const mocks = {
@@ -47,11 +48,13 @@ t.test('no args', async t => {
 
   t.same(
     result,
-    [{
-      'test-version-no-args': '3.2.1',
-      node: '1.0.0',
-      npm: '1.0.0',
-    }],
+    [
+      {
+        'test-version-no-args': '3.2.1',
+        node: '1.0.0',
+        npm: '1.0.0',
+      },
+    ],
     'should output expected values for various versions in npm'
   )
 })
@@ -70,16 +73,10 @@ t.test('completion', async t => {
     t.strictSame(res, expect, argv.join(' '))
   }
 
-  await testComp(['npm', 'version'], [
-    'major',
-    'minor',
-    'patch',
-    'premajor',
-    'preminor',
-    'prepatch',
-    'prerelease',
-    'from-git',
-  ])
+  await testComp(
+    ['npm', 'version'],
+    ['major', 'minor', 'patch', 'premajor', 'preminor', 'prepatch', 'prerelease', 'from-git']
+  )
   await testComp(['npm', 'version', 'major'], [])
 
   t.end()
@@ -93,10 +90,12 @@ t.test('failure reading package.json', async t => {
 
   t.same(
     result,
-    [{
-      npm: '1.0.0',
-      node: '1.0.0',
-    }],
+    [
+      {
+        npm: '1.0.0',
+        node: '1.0.0',
+      },
+    ],
     'should not have package name on returning object'
   )
 })
@@ -108,11 +107,7 @@ t.test('--json option', async t => {
   Object.defineProperty(process, 'versions', { value: {} })
 
   await version.exec([])
-  t.same(
-    result,
-    ['{\n  "npm": "1.0.0"\n}'],
-    'should return json stringified result'
-  )
+  t.same(result, ['{\n  "npm": "1.0.0"\n}'], 'should return json stringified result')
 })
 
 t.test('with one arg', async t => {
@@ -144,11 +139,15 @@ t.test('workspaces', async t => {
 
   t.test('no args, all workspaces', async t => {
     const testDir = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'workspaces-test',
-        version: '1.0.0',
-        workspaces: ['workspace-a', 'workspace-b'],
-      }, null, 2),
+      'package.json': JSON.stringify(
+        {
+          name: 'workspaces-test',
+          version: '1.0.0',
+          workspaces: ['workspace-a', 'workspace-b'],
+        },
+        null,
+        2
+      ),
       'workspace-a': {
         'package.json': JSON.stringify({
           name: 'workspace-a',
@@ -166,21 +165,31 @@ t.test('workspaces', async t => {
     npm.prefix = testDir
     const version = new Version(npm)
     await version.execWorkspaces([], [])
-    t.same(result, [{
-      'workspaces-test': '1.0.0',
-      'workspace-a': '1.0.0',
-      'workspace-b': '1.0.0',
-      npm: '1.0.0',
-    }], 'outputs includes main package and workspace versions')
+    t.same(
+      result,
+      [
+        {
+          'workspaces-test': '1.0.0',
+          'workspace-a': '1.0.0',
+          'workspace-b': '1.0.0',
+          npm: '1.0.0',
+        },
+      ],
+      'outputs includes main package and workspace versions'
+    )
   })
 
   t.test('no args, single workspaces', async t => {
     const testDir = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'workspaces-test',
-        version: '1.0.0',
-        workspaces: ['workspace-a', 'workspace-b'],
-      }, null, 2),
+      'package.json': JSON.stringify(
+        {
+          name: 'workspaces-test',
+          version: '1.0.0',
+          workspaces: ['workspace-a', 'workspace-b'],
+        },
+        null,
+        2
+      ),
       'workspace-a': {
         'package.json': JSON.stringify({
           name: 'workspace-a',
@@ -198,20 +207,30 @@ t.test('workspaces', async t => {
     npm.prefix = testDir
     const version = new Version(npm)
     await version.execWorkspaces([], ['workspace-a'])
-    t.same(result, [{
-      'workspaces-test': '1.0.0',
-      'workspace-a': '1.0.0',
-      npm: '1.0.0',
-    }], 'outputs includes main package and requested workspace versions')
+    t.same(
+      result,
+      [
+        {
+          'workspaces-test': '1.0.0',
+          'workspace-a': '1.0.0',
+          npm: '1.0.0',
+        },
+      ],
+      'outputs includes main package and requested workspace versions'
+    )
   })
 
   t.test('no args, all workspaces, workspace with missing name or version', async t => {
     const testDir = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'workspaces-test',
-        version: '1.0.0',
-        workspaces: ['workspace-a', 'workspace-b', 'workspace-c'],
-      }, null, 2),
+      'package.json': JSON.stringify(
+        {
+          name: 'workspaces-test',
+          version: '1.0.0',
+          workspaces: ['workspace-a', 'workspace-b', 'workspace-c'],
+        },
+        null,
+        2
+      ),
       'workspace-a': {
         'package.json': JSON.stringify({
           name: 'workspace-a',
@@ -233,21 +252,31 @@ t.test('workspaces', async t => {
     npm.prefix = testDir
     const version = new Version(npm)
     await version.execWorkspaces([], [])
-    t.same(result, [{
-      'workspaces-test': '1.0.0',
-      'workspace-a': '1.0.0',
-      npm: '1.0.0',
-    }], 'outputs includes main package and valid workspace versions')
+    t.same(
+      result,
+      [
+        {
+          'workspaces-test': '1.0.0',
+          'workspace-a': '1.0.0',
+          npm: '1.0.0',
+        },
+      ],
+      'outputs includes main package and valid workspace versions'
+    )
   })
 
   t.test('with one arg, all workspaces', async t => {
     const libNpmVersionArgs = []
     const testDir = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'workspaces-test',
-        version: '1.0.0',
-        workspaces: ['workspace-a', 'workspace-b'],
-      }, null, 2),
+      'package.json': JSON.stringify(
+        {
+          name: 'workspaces-test',
+          version: '1.0.0',
+          workspaces: ['workspace-a', 'workspace-b'],
+        },
+        null,
+        2
+      ),
       'workspace-a': {
         'package.json': JSON.stringify({
           name: 'workspace-a',
@@ -273,7 +302,11 @@ t.test('workspaces', async t => {
     const version = new Version(npm)
 
     await version.execWorkspaces(['major'], [])
-    t.same(result, ['workspace-a', 'v2.0.0', 'workspace-b', 'v2.0.0'], 'outputs the new version for only the workspaces prefixed by the tagVersionPrefix')
+    t.same(
+      result,
+      ['workspace-a', 'v2.0.0', 'workspace-b', 'v2.0.0'],
+      'outputs the new version for only the workspaces prefixed by the tagVersionPrefix'
+    )
   })
 
   t.test('too many args', async t => {

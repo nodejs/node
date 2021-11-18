@@ -8,7 +8,7 @@ const npm = {
     browser: true,
   },
   config: {
-    get: (k) => npm._config[k],
+    get: k => npm._config[k],
     set: (k, v) => {
       npm._config[k] = v
     },
@@ -29,7 +29,7 @@ const openUrl = t.mock('../../../lib/utils/open-url.js', {
   opener,
 })
 
-t.test('opens a url', async (t) => {
+t.test('opens a url', async t => {
   t.teardown(() => {
     openerUrl = null
     openerOpts = null
@@ -41,31 +41,67 @@ t.test('opens a url', async (t) => {
   t.same(OUTPUT, [], 'printed no output')
 })
 
-t.test('returns error for non-https and non-file url', async (t) => {
+t.test('returns error for non-https url', async t => {
   t.teardown(() => {
     openerUrl = null
     openerOpts = null
     OUTPUT.length = 0
   })
-  await t.rejects(openUrl(npm, 'ftp://www.npmjs.com', 'npm home'), /Invalid URL/, 'got the correct error')
+  await t.rejects(
+    openUrl(npm, 'ftp://www.npmjs.com', 'npm home'),
+    /Invalid URL/,
+    'got the correct error'
+  )
   t.equal(openerUrl, null, 'did not open')
   t.same(openerOpts, null, 'did not open')
   t.same(OUTPUT, [], 'printed no output')
 })
 
-t.test('returns error for non-parseable url', async (t) => {
+t.test('returns error for file url', async t => {
   t.teardown(() => {
     openerUrl = null
     openerOpts = null
     OUTPUT.length = 0
   })
-  await t.rejects(openUrl(npm, 'git+ssh://user@host:repo.git', 'npm home'), /Invalid URL/, 'got the correct error')
+  await t.rejects(
+    openUrl(npm, 'file:///usr/local/bin/ls', 'npm home'),
+    /Invalid URL/,
+    'got the correct error'
+  )
   t.equal(openerUrl, null, 'did not open')
   t.same(openerOpts, null, 'did not open')
   t.same(OUTPUT, [], 'printed no output')
 })
 
-t.test('encodes non-URL-safe characters in url provided', async (t) => {
+t.test('file url allowed if explicitly asked for', async t => {
+  t.teardown(() => {
+    openerUrl = null
+    openerOpts = null
+    OUTPUT.length = 0
+  })
+  await openUrl(npm, 'file:///man/page/npm-install', 'npm home', true)
+  t.equal(openerUrl, 'file:///man/page/npm-install', 'opened the given url')
+  t.same(openerOpts, { command: null }, 'passed command as null (the default)')
+  t.same(OUTPUT, [], 'printed no output')
+})
+
+t.test('returns error for non-parseable url', async t => {
+  t.teardown(() => {
+    openerUrl = null
+    openerOpts = null
+    OUTPUT.length = 0
+  })
+  await t.rejects(
+    openUrl(npm, 'git+ssh://user@host:repo.git', 'npm home'),
+    /Invalid URL/,
+    'got the correct error'
+  )
+  t.equal(openerUrl, null, 'did not open')
+  t.same(openerOpts, null, 'did not open')
+  t.same(OUTPUT, [], 'printed no output')
+})
+
+t.test('encodes non-URL-safe characters in url provided', async t => {
   t.teardown(() => {
     openerUrl = null
     openerOpts = null
@@ -77,7 +113,7 @@ t.test('encodes non-URL-safe characters in url provided', async (t) => {
   t.same(OUTPUT, [], 'printed no output')
 })
 
-t.test('opens a url with the given browser', async (t) => {
+t.test('opens a url with the given browser', async t => {
   npm.config.set('browser', 'chrome')
   t.teardown(() => {
     openerUrl = null
@@ -91,7 +127,7 @@ t.test('opens a url with the given browser', async (t) => {
   t.same(OUTPUT, [], 'printed no output')
 })
 
-t.test('prints where to go when browser is disabled', async (t) => {
+t.test('prints where to go when browser is disabled', async t => {
   npm.config.set('browser', false)
   t.teardown(() => {
     openerUrl = null
@@ -107,7 +143,7 @@ t.test('prints where to go when browser is disabled', async (t) => {
   t.matchSnapshot(OUTPUT[0][0], 'printed expected message')
 })
 
-t.test('prints where to go when browser is disabled and json is enabled', async (t) => {
+t.test('prints where to go when browser is disabled and json is enabled', async t => {
   npm.config.set('browser', false)
   npm.config.set('json', true)
   t.teardown(() => {
@@ -125,7 +161,7 @@ t.test('prints where to go when browser is disabled and json is enabled', async 
   t.matchSnapshot(OUTPUT[0][0], 'printed expected message')
 })
 
-t.test('prints where to go when given browser does not exist', async (t) => {
+t.test('prints where to go when given browser does not exist', async t => {
   npm.config.set('browser', 'firefox')
   openerResult = Object.assign(new Error('failed'), { code: 'ENOENT' })
   t.teardown(() => {
@@ -142,7 +178,7 @@ t.test('prints where to go when given browser does not exist', async (t) => {
   t.matchSnapshot(OUTPUT[0][0], 'printed expected message')
 })
 
-t.test('handles unknown opener error', async (t) => {
+t.test('handles unknown opener error', async t => {
   npm.config.set('browser', 'firefox')
   openerResult = Object.assign(new Error('failed'), { code: 'ENOBRIAN' })
   t.teardown(() => {

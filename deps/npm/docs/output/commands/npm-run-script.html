@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-run-script</title>
 <style>
 body {
@@ -152,11 +153,11 @@ npm run-script &lt;command&gt; [--workspaces]
 aliases: run, rum, urn
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This runs an arbitrary command from a package’s <code>"scripts"</code> object.  If no
+<p>This runs an arbitrary command from a package's <code>"scripts"</code> object.  If no
 <code>"command"</code> is provided, it will list the available scripts.</p>
 <p><code>run[-script]</code> is used by the test, start, restart, and stop commands, but
 can be called directly, as well. When the scripts in the package are
-printed out, they’re separated into lifecycle (test, start, restart) and
+printed out, they're separated into lifecycle (test, start, restart) and
 directly-run scripts.</p>
 <p>Any positional arguments are passed to the specified script.  Use <code>--</code> to
 pass <code>-</code>-prefixed flags and options which would otherwise be parsed by npm.</p>
@@ -167,9 +168,9 @@ pass <code>-</code>-prefixed flags and options which would otherwise be parsed b
 and not to any <code>pre</code> or <code>post</code> script.</p>
 <p>The <code>env</code> script is a special built-in command that can be used to list
 environment variables that will be available to the script at runtime. If an
-“env” command is defined in your package, it will take precedence over the
+"env" command is defined in your package, it will take precedence over the
 built-in.</p>
-<p>In addition to the shell’s pre-existing <code>PATH</code>, <code>npm run</code> adds
+<p>In addition to the shell's pre-existing <code>PATH</code>, <code>npm run</code> adds
 <code>node_modules/.bin</code> to the <code>PATH</code> provided to scripts. Any binaries
 provided by locally-installed dependencies can be used without the
 <code>node_modules/.bin</code> prefix. For example, if there is a <code>devDependency</code> on
@@ -186,17 +187,17 @@ The actual shell referred to by <code>/bin/sh</code> also depends on the system.
 You can customize the shell with the <code>script-shell</code> configuration.</p>
 <p>Scripts are run from the root of the package folder, regardless of what the
 current working directory is when <code>npm run</code> is called. If you want your
-script to use different behavior based on what subdirectory you’re in, you
+script to use different behavior based on what subdirectory you're in, you
 can use the <code>INIT_CWD</code> environment variable, which holds the full path you
 were in when you ran <code>npm run</code>.</p>
 <p><code>npm run</code> sets the <code>NODE</code> environment variable to the <code>node</code> executable
 with which <code>npm</code> is executed.</p>
 <p>If you try to run a script without having a <code>node_modules</code> directory and it
-fails, you will be given a warning to run <code>npm install</code>, just in case you’ve
+fails, you will be given a warning to run <code>npm install</code>, just in case you've
 forgotten.</p>
 <h3 id="workspaces-support">Workspaces support</h3>
 <p>You may use the <code>workspace</code> or <code>workspaces</code> configs in order to run an
-arbitrary command from a package’s <code>"scripts"</code> object in the context of the
+arbitrary command from a package's <code>"scripts"</code> object in the context of the
 specified workspaces. If no <code>"command"</code> is provided, it will list the available
 scripts for each of these configured workspaces.</p>
 <p>Given a project with configured workspaces, e.g:</p>
@@ -221,7 +222,7 @@ we can run tests in all of them using the <code>workspaces</code> config:</p>
 <pre><code>npm test --workspaces
 </code></pre>
 <h4 id="filtering-workspaces">Filtering workspaces</h4>
-<p>It’s also possible to run a script in a single workspace using the <code>workspace</code>
+<p>It's also possible to run a script in a single workspace using the <code>workspace</code>
 config along with a name or directory path:</p>
 <pre><code>npm test --workspace=a
 </code></pre>
@@ -293,9 +294,9 @@ the specified workspaces, and not on the root project.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>If true, npm will not exit with an error code when <code>run-script</code> is invoked
-for a script that isn’t defined in the <code>scripts</code> section of <code>package.json</code>.
-This option can be used when it’s desirable to optionally run a script when
-it’s present and fail if the script fails. This is useful, for example, when
+for a script that isn't defined in the <code>scripts</code> section of <code>package.json</code>.
+This option can be used when it's desirable to optionally run a script when
+it's present and fail if the script fails. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup.</p>
 <!-- raw HTML omitted -->
@@ -314,7 +315,7 @@ will <em>not</em> run any pre- or post-scripts.</p>
 <!-- raw HTML omitted -->
 <h4 id="script-shell"><code>script-shell</code></h4>
 <ul>
-<li>Default: ‘/bin/sh’ on POSIX systems, ‘cmd.exe’ on Windows</li>
+<li>Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows</li>
 <li>Type: null or String</li>
 </ul>
 <p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;pkg&gt;</code> commands.</p>

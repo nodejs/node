@@ -14,8 +14,9 @@ const installCITest = new InstallCITest({
       ciArgs = args
       ciCalled = true
     }
-    if (ciError)
+    if (ciError) {
       throw ciError
+    }
 
     if (cmd === 'test') {
       testArgs = args

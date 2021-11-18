@@ -4,25 +4,10 @@ const reifyFinish = require('../utils/reify-finish.js')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 class Prune extends ArboristWorkspaceCmd {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Remove extraneous packages'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'prune'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return ['omit', 'dry-run', 'json', ...super.params]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[[<@scope>/]<pkg>...]']
-  }
+  static description = 'Remove extraneous packages'
+  static name = 'prune'
+  static params = ['omit', 'dry-run', 'json', ...super.params]
+  static usage = ['[[<@scope>/]<pkg>...]']
 
   async exec () {
     const where = this.npm.prefix

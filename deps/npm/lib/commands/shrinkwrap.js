@@ -5,15 +5,8 @@ const log = require('npmlog')
 
 const BaseCommand = require('../base-command.js')
 class Shrinkwrap extends BaseCommand {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Lock down dependency versions for publication'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'shrinkwrap'
-  }
+  static description = 'Lock down dependency versions for publication'
+  static name = 'shrinkwrap'
 
   async exec () {
     // if has a npm-shrinkwrap.json, nothing to do
@@ -57,19 +50,22 @@ class Shrinkwrap extends BaseCommand {
 
     if (newFile) {
       let message = 'created a lockfile as npm-shrinkwrap.json'
-      if (updatedVersion)
+      if (updatedVersion) {
         message += ` with version ${updatedVersion}`
+      }
       log.notice('', message)
     } else if (notSW) {
       await unlink(oldFilename)
       let message = 'package-lock.json has been renamed to npm-shrinkwrap.json'
-      if (updatedVersion)
+      if (updatedVersion) {
         message += ` and updated to version ${updatedVersion}`
+      }
       log.notice('', message)
-    } else if (updatedVersion)
+    } else if (updatedVersion) {
       log.notice('', `npm-shrinkwrap.json updated to version ${updatedVersion}`)
-    else
+    } else {
       log.notice('', 'npm-shrinkwrap.json up to date')
+    }
   }
 }
 module.exports = Shrinkwrap

@@ -24,14 +24,14 @@ const setScript = new SetScript(npm)
 t.test('completion', t => {
   t.test('already have a script name', async t => {
     npm.localPrefix = t.testdir({})
-    const res = await setScript.completion({conf: {argv: {remain: ['npm', 'run', 'x']}}})
+    const res = await setScript.completion({ conf: { argv: { remain: ['npm', 'run', 'x'] } } })
     t.equal(res, undefined)
     t.end()
   })
 
   t.test('no package.json', async t => {
     npm.localPrefix = t.testdir({})
-    const res = await setScript.completion({conf: {argv: {remain: ['npm', 'run']}}})
+    const res = await setScript.completion({ conf: { argv: { remain: ['npm', 'run'] } } })
     t.strictSame(res, [])
     t.end()
   })
@@ -40,7 +40,7 @@ t.test('completion', t => {
     npm.localPrefix = t.testdir({
       'package.json': JSON.stringify({}),
     })
-    const res = await setScript.completion({conf: {argv: {remain: ['npm', 'run']}}})
+    const res = await setScript.completion({ conf: { argv: { remain: ['npm', 'run'] } } })
     t.strictSame(res, [])
     t.end()
   })
@@ -51,7 +51,7 @@ t.test('completion', t => {
         scripts: { hello: 'echo hello', world: 'echo world' },
       }),
     })
-    const res = await setScript.completion({conf: {argv: {remain: ['npm', 'run']}}})
+    const res = await setScript.completion({ conf: { argv: { remain: ['npm', 'run'] } } })
     t.strictSame(res, ['hello', 'world'])
     t.end()
   })
@@ -116,7 +116,7 @@ t.test('creates scripts object', async t => {
 
   await setScript.exec(['arg1', 'arg2'])
   const contents = fs.readFileSync(resolve(npm.localPrefix, 'package.json'))
-  t.ok(parseJSON(contents), {scripts: {arg1: 'arg2'}})
+  t.ok(parseJSON(contents), { scripts: { arg1: 'arg2' } })
 })
 
 t.test('warns when overwriting', async t => {

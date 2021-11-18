@@ -6,7 +6,7 @@ require('./lib/logging.js')
 require('./lib/timers.js')
 
 const printDiff = diff => {
-  const {depth} = require('treeverse')
+  const { depth } = require('treeverse')
   depth({
     tree: diff,
     visit: d => {

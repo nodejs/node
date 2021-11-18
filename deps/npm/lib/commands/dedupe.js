@@ -5,32 +5,21 @@ const reifyFinish = require('../utils/reify-finish.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
 class Dedupe extends ArboristWorkspaceCmd {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Reduce duplication in the package tree'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'dedupe'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'global-style',
-      'legacy-bundling',
-      'strict-peer-deps',
-      'package-lock',
-      'omit',
-      'ignore-scripts',
-      'audit',
-      'bin-links',
-      'fund',
-      'dry-run',
-      ...super.params,
-    ]
-  }
+  static description = 'Reduce duplication in the package tree'
+  static name = 'dedupe'
+  static params = [
+    'global-style',
+    'legacy-bundling',
+    'strict-peer-deps',
+    'package-lock',
+    'omit',
+    'ignore-scripts',
+    'audit',
+    'bin-links',
+    'fund',
+    'dry-run',
+    ...super.params,
+  ]
 
   async exec (args) {
     if (this.npm.config.get('global')) {

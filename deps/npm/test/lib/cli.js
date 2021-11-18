@@ -12,8 +12,9 @@ let exitHandlerNpm = null
 let exitHandlerCb
 const exitHandlerMock = (...args) => {
   exitHandlerCalled = args
-  if (exitHandlerCb)
+  if (exitHandlerCb) {
     exitHandlerCb()
+  }
 }
 exitHandlerMock.setNpm = npm => {
   exitHandlerNpm = npm
@@ -26,15 +27,16 @@ const npmlogMock = {
   info: (...msg) => logs.push(['info', ...msg]),
 }
 
-const cliMock = (Npm) => t.mock('../../lib/cli.js', {
-  '../../lib/npm.js': Npm,
-  '../../lib/utils/update-notifier.js': async () => null,
-  '../../lib/utils/unsupported.js': unsupportedMock,
-  '../../lib/utils/exit-handler.js': exitHandlerMock,
-  npmlog: npmlogMock,
-})
+const cliMock = Npm =>
+  t.mock('../../lib/cli.js', {
+    '../../lib/npm.js': Npm,
+    '../../lib/utils/update-notifier.js': async () => null,
+    '../../lib/utils/unsupported.js': unsupportedMock,
+    '../../lib/utils/exit-handler.js': exitHandlerMock,
+    npmlog: npmlogMock,
+  })
 
-const processMock = (proc) => {
+const processMock = proc => {
   const mocked = {
     ...process,
     on: () => {},
@@ -104,13 +106,16 @@ t.test('calling with --versions calls npm version with no args', async t => {
 
 t.test('logged argv is sanitized', async t => {
   const proc = processMock({
-    argv: ['node', 'npm', 'version', 'https://username:password@npmjs.org/test_url_with_a_password'],
+    argv: [
+      'node',
+      'npm',
+      'version',
+      'https://username:password@npmjs.org/test_url_with_a_password',
+    ],
   })
   const { Npm } = mockNpm(t, {
     '../../lib/commands/version.js': class Version {
-      async exec (args) {
-
-      }
+      async exec (args) {}
     },
   })
 
@@ -120,12 +125,11 @@ t.test('logged argv is sanitized', async t => {
   t.equal(proc.title, 'npm')
   t.strictSame(logs, [
     'pause',
-    ['verbose', 'cli', [
-      'node',
-      'npm',
-      'version',
-      'https://username:***@npmjs.org/test_url_with_a_password',
-    ]],
+    [
+      'verbose',
+      'cli',
+      ['node', 'npm', 'version', 'https://username:***@npmjs.org/test_url_with_a_password'],
+    ],
     ['info', 'using', 'npm@%s', Npm.version],
     ['info', 'using', 'node@%s', process.version],
   ])

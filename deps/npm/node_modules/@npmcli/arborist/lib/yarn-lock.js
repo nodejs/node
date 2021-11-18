@@ -30,8 +30,8 @@
 
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const consistentResolve = require('./consistent-resolve.js')
-const {dirname} = require('path')
-const {breadth} = require('treeverse')
+const { dirname } = require('path')
+const { breadth } = require('treeverse')
 
 // sort a key/value object into a string of JSON stringified keys and vals
 const sortKV = obj => Object.keys(obj)

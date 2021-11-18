@@ -43,8 +43,9 @@ const routeMap = {
 // XXX overriding this does not appear to do anything, adding t.plan to things
 // that use it fails the test
 let npmRegistryFetchMock = (url, opts) => {
-  if (url === '/-/package/foo/dist-tags')
+  if (url === '/-/package/foo/dist-tags') {
     throw new Error('no package found')
+  }
 
   return routeMap[url]
 }
@@ -52,8 +53,9 @@ let npmRegistryFetchMock = (url, opts) => {
 npmRegistryFetchMock.json = async (url, opts) => routeMap[url]
 
 const logger = (...msgs) => {
-  for (const msg of [...msgs])
+  for (const msg of [...msgs]) {
     log += msg + ' '
+  }
 
   log += '\n'
 }

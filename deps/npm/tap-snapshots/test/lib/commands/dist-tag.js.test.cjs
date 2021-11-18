@@ -5,50 +5,6 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
-exports[`test/lib/commands/dist-tag.js TAP add missing args > should exit usage error message 1`] = `
-Error:
-Usage: npm dist-tag
-
-Modify package distribution tags
-
-Usage:
-npm dist-tag add <pkg>@<version> [<tag>]
-npm dist-tag rm <pkg> <tag>
-npm dist-tag ls [<pkg>]
-
-Options:
-[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
-
-alias: dist-tags
-
-Run "npm help dist-tag" for more info {
-  "code": "EUSAGE",
-}
-`
-
-exports[`test/lib/commands/dist-tag.js TAP add missing pkg name > should exit usage error message 1`] = `
-Error:
-Usage: npm dist-tag
-
-Modify package distribution tags
-
-Usage:
-npm dist-tag add <pkg>@<version> [<tag>]
-npm dist-tag rm <pkg> <tag>
-npm dist-tag ls [<pkg>]
-
-Options:
-[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
-
-alias: dist-tags
-
-Run "npm help dist-tag" for more info {
-  "code": "EUSAGE",
-}
-`
-
 exports[`test/lib/commands/dist-tag.js TAP add new tag > should return success msg 1`] = `
 +c: @scoped/another@7.7.7
 `
@@ -58,85 +14,15 @@ dist-tag add 1.0.0 to @scoped/another@7.7.7
 
 `
 
-exports[`test/lib/commands/dist-tag.js TAP borked cmd usage > should show usage error 1`] = `
-Error:
-Usage: npm dist-tag
-
-Modify package distribution tags
-
-Usage:
-npm dist-tag add <pkg>@<version> [<tag>]
-npm dist-tag rm <pkg> <tag>
-npm dist-tag ls [<pkg>]
-
-Options:
-[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
-
-alias: dist-tags
-
-Run "npm help dist-tag" for more info {
-  "code": "EUSAGE",
-}
-`
-
-exports[`test/lib/commands/dist-tag.js TAP ls global > should throw basic usage 1`] = `
-Error:
-Usage: npm dist-tag
-
-Modify package distribution tags
-
-Usage:
-npm dist-tag add <pkg>@<version> [<tag>]
-npm dist-tag rm <pkg> <tag>
-npm dist-tag ls [<pkg>]
-
-Options:
-[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
-
-alias: dist-tags
-
-Run "npm help dist-tag" for more info {
-  "code": "EUSAGE",
-}
-`
-
 exports[`test/lib/commands/dist-tag.js TAP ls in current package > should list available tags for current package 1`] = `
 a: 0.0.1
 b: 0.5.0
 latest: 1.0.0
 `
 
-exports[`test/lib/commands/dist-tag.js TAP ls on missing name in current package > should throw usage error message 1`] = `
-Error:
-Usage: npm dist-tag
-
-Modify package distribution tags
-
-Usage:
-npm dist-tag add <pkg>@<version> [<tag>]
-npm dist-tag rm <pkg> <tag>
-npm dist-tag ls [<pkg>]
-
-Options:
-[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
-
-alias: dist-tags
-
-Run "npm help dist-tag" for more info {
-  "code": "EUSAGE",
-}
-`
-
 exports[`test/lib/commands/dist-tag.js TAP ls on missing package > should log no dist-tag found msg 1`] = `
 dist-tag ls Couldn't get dist-tag data for foo@latest
 
-`
-
-exports[`test/lib/commands/dist-tag.js TAP ls on missing package > should throw error message 1`] = `
-Error: No dist-tags found for foo
 `
 
 exports[`test/lib/commands/dist-tag.js TAP ls on named package > should list tags for the specified package 1`] = `
@@ -164,28 +50,6 @@ dist-tag del c from @scoped/another
 
 exports[`test/lib/commands/dist-tag.js TAP remove existing tag > should return success msg 1`] = `
 -c: @scoped/another@7.7.7
-`
-
-exports[`test/lib/commands/dist-tag.js TAP remove missing pkg name > should exit usage error message 1`] = `
-Error:
-Usage: npm dist-tag
-
-Modify package distribution tags
-
-Usage:
-npm dist-tag add <pkg>@<version> [<tag>]
-npm dist-tag rm <pkg> <tag>
-npm dist-tag ls [<pkg>]
-
-Options:
-[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
-
-alias: dist-tags
-
-Run "npm help dist-tag" for more info {
-  "code": "EUSAGE",
-}
 `
 
 exports[`test/lib/commands/dist-tag.js TAP remove non-existing tag > should log error msg 1`] = `

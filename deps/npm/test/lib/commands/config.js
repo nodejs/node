@@ -10,25 +10,37 @@ const readFile = promisify(fs.readFile)
 
 const Sandbox = require('../../fixtures/sandbox.js')
 
-t.test('config no args', async (t) => {
+t.test('config no args', async t => {
   const sandbox = new Sandbox(t)
 
-  await t.rejects(sandbox.run('config', []), {
-    code: 'EUSAGE',
-  }, 'rejects with usage')
+  await t.rejects(
+    sandbox.run('config', []),
+    {
+      code: 'EUSAGE',
+    },
+    'rejects with usage'
+  )
 })
 
-t.test('config ignores workspaces', async (t) => {
+t.test('config ignores workspaces', async t => {
   const sandbox = new Sandbox(t)
 
-  await t.rejects(sandbox.run('config', ['--workspaces']), {
-    code: 'EUSAGE',
-  }, 'rejects with usage')
+  await t.rejects(
+    sandbox.run('config', ['--workspaces']),
+    {
+      code: 'EUSAGE',
+    },
+    'rejects with usage'
+  )
 
-  t.match(sandbox.logs.warn, [['config', 'This command does not support workspaces.']], 'logged the warning')
+  t.match(
+    sandbox.logs.warn,
+    [['config', 'This command does not support workspaces.']],
+    'logged the warning'
+  )
 })
 
-t.test('config list', async (t) => {
+t.test('config list', async t => {
   const sandbox = new Sandbox(t)
 
   const temp = t.testdir({
@@ -51,7 +63,7 @@ t.test('config list', async (t) => {
   t.matchSnapshot(sandbox.output, 'output matches snapshot')
 })
 
-t.test('config list --long', async (t) => {
+t.test('config list --long', async t => {
   const temp = t.testdir({
     global: {
       npmrc: 'globalloaded=yes',
@@ -73,7 +85,7 @@ t.test('config list --long', async (t) => {
   t.matchSnapshot(sandbox.output, 'output matches snapshot')
 })
 
-t.test('config list --json', async (t) => {
+t.test('config list --json', async t => {
   const temp = t.testdir({
     global: {
       npmrc: 'globalloaded=yes',
@@ -95,15 +107,19 @@ t.test('config list --json', async (t) => {
   t.matchSnapshot(sandbox.output, 'output matches snapshot')
 })
 
-t.test('config delete no args', async (t) => {
+t.test('config delete no args', async t => {
   const sandbox = new Sandbox(t)
 
-  await t.rejects(sandbox.run('config', ['delete']), {
-    code: 'EUSAGE',
-  }, 'rejects with usage')
+  await t.rejects(
+    sandbox.run('config', ['delete']),
+    {
+      code: 'EUSAGE',
+    },
+    'rejects with usage'
+  )
 })
 
-t.test('config delete single key', async (t) => {
+t.test('config delete single key', async t => {
   // location defaults to user, so we work with a userconfig
   const home = t.testdir({
     '.npmrc': 'foo=bar\nbar=baz',
@@ -118,7 +134,7 @@ t.test('config delete single key', async (t) => {
   t.not(contents.includes('foo='), 'foo was removed on disk')
 })
 
-t.test('config delete multiple keys', async (t) => {
+t.test('config delete multiple keys', async t => {
   const home = t.testdir({
     '.npmrc': 'foo=bar\nbar=baz\nbaz=buz',
   })
@@ -134,7 +150,7 @@ t.test('config delete multiple keys', async (t) => {
   t.not(contents.includes('bar='), 'bar was removed on disk')
 })
 
-t.test('config delete key --location=global', async (t) => {
+t.test('config delete key --location=global', async t => {
   const global = t.testdir({
     npmrc: 'foo=bar\nbar=baz',
   })
@@ -148,7 +164,7 @@ t.test('config delete key --location=global', async (t) => {
   t.not(contents.includes('foo='), 'foo was removed on disk')
 })
 
-t.test('config delete key --global', async (t) => {
+t.test('config delete key --global', async t => {
   const global = t.testdir({
     npmrc: 'foo=bar\nbar=baz',
   })
@@ -162,15 +178,19 @@ t.test('config delete key --global', async (t) => {
   t.not(contents.includes('foo='), 'foo was removed on disk')
 })
 
-t.test('config set no args', async (t) => {
+t.test('config set no args', async t => {
   const sandbox = new Sandbox(t)
 
-  await t.rejects(sandbox.run('config', ['set']), {
-    code: 'EUSAGE',
-  }, 'rejects with usage')
+  await t.rejects(
+    sandbox.run('config', ['set']),
+    {
+      code: 'EUSAGE',
+    },
+    'rejects with usage'
+  )
 })
 
-t.test('config set key', async (t) => {
+t.test('config set key', async t => {
   const home = t.testdir({
     '.npmrc': 'foo=bar',
   })
@@ -185,7 +205,7 @@ t.test('config set key', async (t) => {
   t.ok(contents.includes('foo='), 'wrote foo to disk')
 })
 
-t.test('config set key value', async (t) => {
+t.test('config set key value', async t => {
   const home = t.testdir({
     '.npmrc': 'foo=bar',
   })
@@ -200,7 +220,7 @@ t.test('config set key value', async (t) => {
   t.ok(contents.includes('foo=baz'), 'wrote foo to disk')
 })
 
-t.test('config set key=value', async (t) => {
+t.test('config set key=value', async t => {
   const home = t.testdir({
     '.npmrc': 'foo=bar',
   })
@@ -215,7 +235,7 @@ t.test('config set key=value', async (t) => {
   t.ok(contents.includes('foo=baz'), 'wrote foo to disk')
 })
 
-t.test('config set key1 value1 key2=value2 key3', async (t) => {
+t.test('config set key1 value1 key2=value2 key3', async t => {
   const home = t.testdir({
     '.npmrc': 'foo=bar\nbar=baz\nbaz=foo',
   })
@@ -233,17 +253,19 @@ t.test('config set key1 value1 key2=value2 key3', async (t) => {
   t.ok(contents.includes('baz='), 'baz was written to disk')
 })
 
-t.test('config set invalid key logs warning', async (t) => {
+t.test('config set invalid key logs warning', async t => {
   const sandbox = new Sandbox(t)
 
   // this doesn't reject, it only logs a warning
   await sandbox.run('config', ['set', 'access=foo'])
-  t.match(sandbox.logs.warn, [
-    ['invalid config', 'access="foo"', `set in ${join(sandbox.home, '.npmrc')}`],
-  ], 'logged warning')
+  t.match(
+    sandbox.logs.warn,
+    [['invalid config', 'access="foo"', `set in ${join(sandbox.home, '.npmrc')}`]],
+    'logged warning'
+  )
 })
 
-t.test('config set key=value --location=global', async (t) => {
+t.test('config set key=value --location=global', async t => {
   const global = t.testdir({
     npmrc: 'foo=bar\nbar=baz',
   })
@@ -257,7 +279,7 @@ t.test('config set key=value --location=global', async (t) => {
   t.not(contents.includes('foo=buzz'), 'foo was saved on disk')
 })
 
-t.test('config set key=value --global', async (t) => {
+t.test('config set key=value --global', async t => {
   const global = t.testdir({
     npmrc: 'foo=bar\nbar=baz',
   })
@@ -271,7 +293,7 @@ t.test('config set key=value --global', async (t) => {
   t.not(contents.includes('foo=buzz'), 'foo was saved on disk')
 })
 
-t.test('config get no args', async (t) => {
+t.test('config get no args', async t => {
   const sandbox = new Sandbox(t)
 
   await sandbox.run('config', ['get'])
@@ -285,28 +307,38 @@ t.test('config get no args', async (t) => {
   t.equal(listOutput, getOutput, 'get with no args outputs list')
 })
 
-t.test('config get single key', async (t) => {
+t.test('config get single key', async t => {
   const sandbox = new Sandbox(t)
 
   await sandbox.run('config', ['get', 'node-version'])
   t.equal(sandbox.output, sandbox.config.get('node-version'), 'should get the value')
 })
 
-t.test('config get multiple keys', async (t) => {
+t.test('config get multiple keys', async t => {
   const sandbox = new Sandbox(t)
 
   await sandbox.run('config', ['get', 'node-version', 'npm-version'])
-  t.ok(sandbox.output.includes(`node-version=${sandbox.config.get('node-version')}`), 'outputs node-version')
-  t.ok(sandbox.output.includes(`npm-version=${sandbox.config.get('npm-version')}`), 'outputs npm-version')
+  t.ok(
+    sandbox.output.includes(`node-version=${sandbox.config.get('node-version')}`),
+    'outputs node-version'
+  )
+  t.ok(
+    sandbox.output.includes(`npm-version=${sandbox.config.get('npm-version')}`),
+    'outputs npm-version'
+  )
 })
 
-t.test('config get private key', async (t) => {
+t.test('config get private key', async t => {
   const sandbox = new Sandbox(t)
 
-  await t.rejects(sandbox.run('config', ['get', '_authToken']), '_authToken is protected', 'rejects with protected string')
+  await t.rejects(
+    sandbox.run('config', ['get', '_authToken']),
+    '_authToken is protected',
+    'rejects with protected string'
+  )
 })
 
-t.test('config edit', async (t) => {
+t.test('config edit', async t => {
   const home = t.testdir({
     '.npmrc': 'foo=bar\nbar=baz',
   })
@@ -323,7 +355,11 @@ t.test('config edit', async (t) => {
   await sandbox.run('config', ['edit'])
 
   t.ok(editor.called, 'editor was spawned')
-  t.same(editor.calledWith.args, [join(sandbox.home, '.npmrc')], 'editor opened the user config file')
+  t.same(
+    editor.calledWith.args,
+    [join(sandbox.home, '.npmrc')],
+    'editor opened the user config file'
+  )
 
   const contents = await readFile(join(home, '.npmrc'), { encoding: 'utf8' })
   t.ok(contents.includes('foo=bar'), 'kept foo')
@@ -331,7 +367,7 @@ t.test('config edit', async (t) => {
   t.ok(contents.includes('shown below with default values'), 'appends defaults to file')
 })
 
-t.test('config edit - editor exits non-0', async (t) => {
+t.test('config edit - editor exits non-0', async t => {
   t.teardown(() => {
     spawk.clean()
   })
@@ -341,22 +377,31 @@ t.test('config edit - editor exits non-0', async (t) => {
 
   const sandbox = new Sandbox(t)
   sandbox.process.env.EDITOR = EDITOR
-  await t.rejects(sandbox.run('config', ['edit']), {
-    message: 'editor process exited with code: 1',
-  }, 'rejects with error about editor code')
+  await t.rejects(
+    sandbox.run('config', ['edit']),
+    {
+      message: 'editor process exited with code: 1',
+    },
+    'rejects with error about editor code'
+  )
 
   t.ok(editor.called, 'editor was spawned')
-  t.same(editor.calledWith.args, [join(sandbox.home, '.npmrc')], 'editor opened the user config file')
+  t.same(
+    editor.calledWith.args,
+    [join(sandbox.home, '.npmrc')],
+    'editor opened the user config file'
+  )
 })
 
-t.test('completion', async (t) => {
+t.test('completion', async t => {
   const sandbox = new Sandbox(t)
 
   let allKeys
   const testComp = async (argv, expect) => {
     t.match(await sandbox.complete('config', argv), expect, argv.join(' '))
-    if (!allKeys)
+    if (!allKeys) {
       allKeys = Object.keys(sandbox.config.definitions)
+    }
     sandbox.reset()
   }
 

@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm</title>
 <style>
 body {
@@ -148,7 +149,7 @@ npm command-line interface
 <pre lang="bash"><code>npm &lt;command&gt; [args]
 </code></pre>
 <h3 id="version">Version</h3>
-<p>8.1.3</p>
+<p>8.1.4</p>
 <h3 id="description">Description</h3>
 <p>npm is the package manager for the Node JavaScript platform.  It puts
 modules in place so that node can find them, and manages dependency
@@ -158,22 +159,22 @@ commonly, you use it to publish, discover, install, and develop node
 programs.</p>
 <p>Run <code>npm help</code> to get a list of available commands.</p>
 <h3 id="important">Important</h3>
-<p>npm comes preconfigured to use npm’s public registry at
+<p>npm comes preconfigured to use npm's public registry at
 <a href="https://registry.npmjs.org">https://registry.npmjs.org</a> by default. Use of the npm public registry is
 subject to terms of use available at
 <a href="https://docs.npmjs.com/policies/terms">https://docs.npmjs.com/policies/terms</a>.</p>
 <p>You can configure npm to use any compatible registry you like, and even
-run your own registry. Use of someone else’s registry is governed by
+run your own registry. Use of someone else's registry is governed by
 their terms of use.</p>
 <h3 id="introduction">Introduction</h3>
 <p>You probably got npm because you want to install stuff.</p>
 <p>The very first thing you will most likely want to run in any node
 program is <code>npm install</code> to install its dependencies.</p>
 <p>You can also run <code>npm install blerg</code> to install the latest version of
-“blerg”.  Check out <a href="../commands/npm-install.html"><code>npm install</code></a> for more
+"blerg".  Check out <a href="../commands/npm-install.html"><code>npm install</code></a> for more
 info.  It can do a lot of stuff.</p>
-<p>Use the <code>npm search</code> command to show everything that’s available in the
-public registry.  Use <code>npm ls</code> to show everything you’ve installed.</p>
+<p>Use the <code>npm search</code> command to show everything that's available in the
+public registry.  Use <code>npm ls</code> to show everything you've installed.</p>
 <h3 id="dependencies">Dependencies</h3>
 <p>If a package lists a dependency using a git URL, npm will install that
 dependency using the <a href="https://github.com/git-guides/install-git"><code>git</code></a>
@@ -203,17 +204,17 @@ npm installs packages into the install prefix at
 <p>Local mode is the default.  Use <code>-g</code> or <code>--global</code> on any command to
 run in global mode instead.</p>
 <h3 id="developer-usage">Developer Usage</h3>
-<p>If you’re using npm to develop and publish your code, check out the
+<p>If you're using npm to develop and publish your code, check out the
 following help topics:</p>
 <ul>
 <li>json:
 Make a package.json file.  See
 <a href="../configuring-npm/package-json.html"><code>package.json</code></a>.</li>
 <li>link:
-Links your current working code into Node’s path, so that you don’t
+Links your current working code into Node's path, so that you don't
 have to reinstall every time you make a change.  Use <a href="../commands/npm-link.html"><code>npm link</code></a> to do this.</li>
 <li>install:
-It’s a good idea to install things if you don’t need the symbolic
+It's a good idea to install things if you don't need the symbolic
 link.  Especially, installing other peoples code from the registry is
 done via <a href="../commands/npm-install.html"><code>npm install</code></a></li>
 <li>adduser:
@@ -229,7 +230,7 @@ code to the registry.</li>
 <ul>
 <li>Command line switches:
 Set a config with <code>--key val</code>.  All keys take a value, even if they
-are booleans (the config parser doesn’t know what the options are at
+are booleans (the config parser doesn't know what the options are at
 the time of parsing).  If you do not provide a value (<code>--key</code>) then
 the option is set to boolean <code>true</code>.</li>
 <li>Environment Variables:
@@ -245,13 +246,13 @@ parsed if it is found.  See <a href="../commands/npm-prefix.html"><code>npm pref
 more info on the global prefix.  If the <code>globalconfig</code> option is set
 in the cli, env, or user config, then that file is parsed instead.</li>
 <li>Defaults:
-npm’s default configuration options are defined in
+npm's default configuration options are defined in
 lib/utils/config-defs.js.  These must not be changed.</li>
 </ul>
 <p>See <a href="../using-npm/config.html"><code>config</code></a> for much much more information.</p>
 <h3 id="contributions">Contributions</h3>
 <p>Patches welcome!</p>
-<p>If you would like to help, but don’t know what to work on, read the
+<p>If you would like to help, but don't know what to work on, read the
 <a href="https://github.com/npm/cli/blob/latest/CONTRIBUTING.md">contributing
 guidelines</a> and
 check the issues list.</p>

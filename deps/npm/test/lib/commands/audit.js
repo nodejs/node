@@ -1,24 +1,14 @@
 const t = require('tap')
-const { fake: mockNpm } = require('../../fixtures/mock-npm')
+const { real: mockNpm } = require('../../fixtures/mock-npm')
 
-t.test('should audit using Arborist', t => {
+t.test('should audit using Arborist', async t => {
   let ARB_ARGS = null
   let AUDIT_CALLED = false
   let REIFY_FINISH_CALLED = false
   let AUDIT_REPORT_CALLED = false
-  let OUTPUT_CALLED = false
   let ARB_OBJ = null
 
-  const npm = mockNpm({
-    prefix: 'foo',
-    config: {
-      json: false,
-    },
-    output: () => {
-      OUTPUT_CALLED = true
-    },
-  })
-  const Audit = t.mock('../../../lib/commands/audit.js', {
+  const { Npm, outputs } = mockNpm(t, {
     'npm-audit-report': () => {
       AUDIT_REPORT_CALLED = true
       return {
@@ -34,153 +24,139 @@ t.test('should audit using Arborist', t => {
         this.auditReport = {}
       }
     },
-    '../../../lib/utils/reify-finish.js': (npm, arb) => {
-      if (arb !== ARB_OBJ)
+    '../../lib/utils/reify-finish.js': (npm, arb) => {
+      if (arb !== ARB_OBJ) {
         throw new Error('got wrong object passed to reify-output')
+      }
 
       REIFY_FINISH_CALLED = true
     },
   })
 
-  const audit = new Audit(npm)
+  const npm = new Npm()
+  await npm.load()
+  npm.prefix = t.testdir()
 
   t.test('audit', async t => {
-    await audit.exec([])
-    t.match(ARB_ARGS, { audit: true, path: 'foo' })
+    await npm.exec('audit', [])
+    t.match(ARB_ARGS, { audit: true, path: npm.prefix })
     t.equal(AUDIT_CALLED, true, 'called audit')
     t.equal(AUDIT_REPORT_CALLED, true, 'called audit report')
-    t.equal(OUTPUT_CALLED, true, 'called audit report')
+    t.match(outputs, [['there are vulnerabilities']])
   })
 
   t.test('audit fix', async t => {
-    await audit.exec(['fix'])
+    await npm.exec('audit', ['fix'])
     t.equal(REIFY_FINISH_CALLED, true, 'called reify output')
   })
-
-  t.end()
 })
 
 t.test('should audit - json', async t => {
-  const npm = mockNpm({
-    prefix: 'foo',
-    config: {
-      json: true,
+  t.plan(1)
+  const { Npm } = mockNpm(t, {
+    'npm-audit-report': (_, opts) => {
+      t.match(opts.reporter, 'json')
+      return {
+        report: 'there are vulnerabilities',
+        exitCode: 0,
+      }
     },
-    output: () => {},
-  })
-
-  const Audit = t.mock('../../../lib/commands/audit.js', {
-    'npm-audit-report': () => ({
-      report: 'there are vulnerabilities',
-      exitCode: 0,
-    }),
     '@npmcli/arborist': function () {
       this.audit = () => {
         this.auditReport = {}
       }
     },
-    '../../../lib/utils/reify-output.js': () => {},
+    '../../lib/utils/reify-output.js': () => {},
   })
-  const audit = new Audit(npm)
-
-  await audit.exec([])
+  const npm = new Npm()
+  await npm.load()
+  npm.prefix = t.testdir()
+  npm.config.set('json', true)
+  await npm.exec('audit', [])
 })
 
-t.test('report endpoint error', t => {
-  for (const json of [true, false]) {
-    t.test(`json=${json}`, async t => {
-      const OUTPUT = []
-      const LOGS = []
-      const npm = mockNpm({
-        prefix: 'foo',
-        command: 'audit',
-        config: {
-          json,
-        },
-        flatOptions: {
-          json,
-        },
-        log: {
-          warn: (...warning) => LOGS.push(warning),
-        },
-        output: (...msg) => {
-          OUTPUT.push(msg)
-        },
-      })
-      const Audit = t.mock('../../../lib/commands/audit.js', {
-        'npm-audit-report': () => {
-          throw new Error('should not call audit report when there are errors')
-        },
-        '@npmcli/arborist': function () {
-          this.audit = () => {
-            this.auditReport = {
-              error: {
-                message: 'hello, this didnt work',
-                method: 'POST',
-                uri: 'https://example.com/',
-                headers: {
-                  head: ['ers'],
-                },
-                statusCode: 420,
-                body: json ? { nope: 'lol' }
-                : Buffer.from('i had a vuln but i eated it lol'),
-              },
-            }
-          }
-        },
-        '../../../lib/utils/reify-output.js': () => {},
-      })
-      const audit = new Audit(npm)
+t.test('report endpoint error', async t => {
+  const { Npm, outputs, filteredLogs } = mockNpm(t, {
+    'npm-audit-report': () => {
+      throw new Error('should not call audit report when there are errors')
+    },
+    '@npmcli/arborist': function () {
+      this.audit = () => {
+        this.auditReport = {
+          error: {
+            message: 'hello, this didnt work',
+            method: 'POST',
+            uri: 'https://example.com/',
+            headers: {
+              head: ['ers'],
+            },
+            statusCode: 420,
+            body: 'this is a string',
+            // body: json ? { nope: 'lol' } : Buffer.from('i had a vuln but i eated it lol'),
+          },
+        }
+      }
+    },
+    '../../lib/utils/reify-output.js': () => {},
+  })
+  const npm = new Npm()
+  await npm.load()
+  npm.prefix = t.testdir()
+  // npm.config.set('json', )
+  t.test('json=false', async t => {
+    await t.rejects(npm.exec('audit', []), 'audit endpoint returned an error')
+    t.match(filteredLogs('warn'), ['hello, this didnt work'])
+    t.strictSame(outputs, [['this is a string']])
+  })
 
-      await t.rejects(
-        audit.exec([]),
-        'audit endpoint returned an error'
-      )
-      t.strictSame(OUTPUT, [
-        [
-          json ? '{\n' +
-          '  "message": "hello, this didnt work",\n' +
-          '  "method": "POST",\n' +
-          '  "uri": "https://example.com/",\n' +
-          '  "headers": {\n' +
-          '    "head": [\n' +
-          '      "ers"\n' +
-          '    ]\n' +
-          '  },\n' +
-          '  "statusCode": 420,\n' +
-          '  "body": {\n' +
-          '    "nope": "lol"\n' +
-          '  }\n' +
-          '}'
-          : 'i had a vuln but i eated it lol',
-        ],
-      ])
-      t.strictSame(LOGS, [['audit', 'hello, this didnt work']])
+  t.test('json=true', async t => {
+    t.teardown(() => {
+      npm.config.set('json', false)
     })
-  }
-  t.end()
+    npm.config.set('json', true)
+    await t.rejects(npm.exec('audit', []), 'audit endpoint returned an error')
+    t.match(filteredLogs('warn'), ['hello, this didnt work'])
+    t.strictSame(outputs, [[
+      '{\n' +
+      '  "message": "hello, this didnt work",\n' +
+      '  "method": "POST",\n' +
+      '  "uri": "https://example.com/",\n' +
+      '  "headers": {\n' +
+      '    "head": [\n' +
+      '      "ers"\n' +
+      '    ]\n' +
+      '  },\n' +
+      '  "statusCode": 420,\n' +
+      '  "body": "this is a string"\n' +
+      '}',
+    ],
+    ])
+  })
 })
 
-t.test('completion', t => {
-  const Audit = require('../../../lib/commands/audit.js')
-  const audit = new Audit({})
+t.test('completion', async t => {
+  const { Npm } = mockNpm(t)
+  const npm = new Npm()
+  const audit = await npm.cmd('audit')
   t.test('fix', async t => {
-    t.resolveMatch(audit.completion({ conf: { argv: { remain: ['npm', 'audit'] } } }), ['fix'], 'completes to fix')
-    t.end()
-  })
-
-  t.test('subcommand fix', t => {
-    t.resolveMatch(audit.completion({ conf: { argv: { remain: ['npm', 'audit', 'fix'] } } }), [], 'resolves to ?')
-    t.end()
-  })
-
-  t.test('subcommand not recognized', t => {
-    t.rejects(
-      audit.completion({ conf: { argv: { remain: ['npm', 'audit', 'repare'] } } }),
-      { message: 'repare not recognized' }
+    await t.resolveMatch(
+      audit.completion({ conf: { argv: { remain: ['npm', 'audit'] } } }),
+      ['fix'],
+      'completes to fix'
     )
-    t.end()
   })
 
-  t.end()
+  t.test('subcommand fix', async t => {
+    await t.resolveMatch(
+      audit.completion({ conf: { argv: { remain: ['npm', 'audit', 'fix'] } } }),
+      [],
+      'resolves to ?'
+    )
+  })
+
+  t.test('subcommand not recognized', async t => {
+    await t.rejects(audit.completion({ conf: { argv: { remain: ['npm', 'audit', 'repare'] } } }), {
+      message: 'repare not recognized',
+    })
+  })
 })

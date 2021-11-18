@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-init</title>
 <style>
 body {
@@ -155,7 +156,7 @@ npm init [-w &lt;dir&gt;] [args...]
 package.</p>
 <p><code>initializer</code> in this case is an npm package named <code>create-&lt;initializer&gt;</code>,
 which will be installed by <a href="../commands/npm-exec.html"><code>npm-exec</code></a>, and then have its
-main bin executed – presumably creating or updating <code>package.json</code> and
+main bin executed -- presumably creating or updating <code>package.json</code> and
 running any other initialization-related operations.</p>
 <p>The init command is transformed to a corresponding <code>npm exec</code> operation as
 follows:</p>
@@ -173,7 +174,7 @@ set. You can also use <code>-y</code>/<code>--yes</code> to skip the questionnai
 you pass <code>--scope</code>, it will create a scoped package.</p>
 <h4 id="forwarding-additional-options">Forwarding additional options</h4>
 <p>Any additional options will be passed directly to the command, so <code>npm init foo -- --hello</code> will map to <code>npm exec -- create-foo --hello</code>.</p>
-<p>To better illustrate how options are forwarded, here’s a more evolved
+<p>To better illustrate how options are forwarded, here's a more evolved
 example showing options passed to both the <strong>npm cli</strong> and a create package,
 both following commands are equivalent:</p>
 <ul>
@@ -199,7 +200,7 @@ $ npm init
 <pre lang="bash"><code>$ npm init -y
 </code></pre>
 <h3 id="workspaces-support">Workspaces support</h3>
-<p>It’s possible to create a new workspace within your project by using the
+<p>It's possible to create a new workspace within your project by using the
 <code>workspace</code> config option. When using <code>npm init -w &lt;dir&gt;</code> the cli will
 create the folders and boilerplate expected while also adding a reference
 to your project <code>package.json</code> <code>"workspaces": []</code> property in order to make
@@ -230,7 +231,7 @@ project and configure your <code>package.json</code> to recognize it as such:</p
 </code></pre>
 <p>This will make sure to generate your react app as expected, one important
 consideration to have in mind is that <code>npm exec</code> is going to be run in the
-context of the newly created folder for that workspace, and that’s the reason
+context of the newly created folder for that workspace, and that's the reason
 why in this example the initializer uses the initializer name followed with a
 dot to represent the current directory in that context, e.g: <code>react-app .</code>:</p>
 <pre><code>.
@@ -252,7 +253,7 @@ dot to represent the current directory in that context, e.g: <code>react-app .</
 <li>Default: null</li>
 <li>Type: null or Boolean</li>
 </ul>
-<p>Automatically answer “yes” to any prompts that npm might print on the
+<p>Automatically answer "yes" to any prompts that npm might print on the
 command line.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -278,7 +279,7 @@ range (including SemVer-major changes).</li>
 <li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
 <li>Allow clobbering existing values in <code>npm pkg</code></li>
 </ul>
-<p>If you don’t have a clear idea of what you want to do, it is strongly
+<p>If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

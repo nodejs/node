@@ -31,7 +31,7 @@ const Node = require('../node.js')
 const Link = require('../link.js')
 const addRmPkgDeps = require('../add-rm-pkg-deps.js')
 const optionalSet = require('../optional-set.js')
-const {checkEngine, checkPlatform} = require('npm-install-checks')
+const { checkEngine, checkPlatform } = require('npm-install-checks')
 
 const relpath = require('../relpath.js')
 
@@ -311,7 +311,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
         ? Shrinkwrap.reset({
           path: this.path,
           lockfileVersion: this.options.lockfileVersion,
-        }).then(meta => Object.assign(root, {meta}))
+        }).then(meta => Object.assign(root, { meta }))
         : this.loadVirtual({ root }))
 
       // if we don't have a lockfile to go from, then start with the
@@ -492,7 +492,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
 
   // This returns a promise because we might not have the name yet,
   // and need to call pacote.manifest to find the name.
-  [_add] (tree, {add, saveType = null, saveBundle = false}) {
+  [_add] (tree, { add, saveType = null, saveBundle = false }) {
     // get the name for each of the specs in the list.
     // ie, doing `foo@bar` we just return foo
     // but if it's a url or git, we don't know the name until we
@@ -936,7 +936,7 @@ This is a one-time fix-up, please be patient...
         }
       })
 
-      tasks.push({edge, dep})
+      tasks.push({ edge, dep })
     }
 
     const placeDeps = tasks
@@ -1271,7 +1271,7 @@ This is a one-time fix-up, please be patient...
       // we typically only install non-optional peers, but we have to
       // factor them into the peerSet so that we can avoid conflicts
       .filter(e => e.peer && !(e.valid && e.to))
-      .sort(({name: a}, {name: b}) => localeCompare(a, b))
+      .sort(({ name: a }, { name: b }) => localeCompare(a, b))
 
     for (const edge of peerEdges) {
       // already placed this one, and we're happy with it.
@@ -1280,7 +1280,7 @@ This is a one-time fix-up, please be patient...
       }
 
       const parentEdge = node.parent.edgesOut.get(edge.name)
-      const {isProjectRoot, isWorkspace} = node.parent.sourceReference
+      const { isProjectRoot, isWorkspace } = node.parent.sourceReference
       const isMine = isProjectRoot || isWorkspace
       const conflictOK = this[_force] || !isMine && !this[_strictPeerDeps]
 

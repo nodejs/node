@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>registry</title>
 <style>
 body {
@@ -141,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#does-npm-send-any-information-about-me-back-to-the-registry">Does npm send any information about me back to the registry?</a></li><li><a href="#how-can-i-prevent-my-package-from-being-published-in-the-official-registry">How can I prevent my package from being published in the official registry?</a></li><li><a href="#where-can-i-find-my-own--others-published-packages">Where can I find my own, &amp; other’s, published packages?</a></li><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#does-npm-send-any-information-about-me-back-to-the-registry">Does npm send any information about me back to the registry?</a></li><li><a href="#how-can-i-prevent-my-package-from-being-published-in-the-official-registry">How can I prevent my package from being published in the official registry?</a></li><li><a href="#where-can-i-find-my-own--others-published-packages">Where can I find my own, &amp; other's, published packages?</a></li><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -152,9 +153,9 @@ package info.</p>
 <a href="https://registry.npmjs.org">https://registry.npmjs.org</a> by default. Use of the npm public registry is
 subject to terms of use available at <a href="https://docs.npmjs.com/policies/terms">https://docs.npmjs.com/policies/terms</a>.</p>
 <p>You can configure npm to use any compatible registry you like, and even run
-your own registry. Use of someone else’s registry may be governed by their
+your own registry. Use of someone else's registry may be governed by their
 terms of use.</p>
-<p>npm’s package registry implementation supports several
+<p>npm's package registry implementation supports several
 write APIs as well, to allow for publishing packages and managing user
 account information.</p>
 <p>The npm public registry is powered by a CouchDB database,
@@ -162,9 +163,9 @@ of which there is a public mirror at <a href="https://skimdb.npmjs.com/registry"
 <p>The registry URL used is determined by the scope of the package (see
 <a href="../using-npm/scope.html"><code>scope</code></a>. If no scope is specified, the default registry is used, which is
 supplied by the <code>registry</code> config parameter.  See <a href="../commands/npm-config.html"><code>npm config</code></a>,
-<a href="../configuring-npm/npmrc.html"><code>npmrc</code></a>, and <a href="../using-npm/config.html"><code>config</code></a> for more on managing npm’s configuration.</p>
+<a href="../configuring-npm/npmrc.html"><code>npmrc</code></a>, and <a href="../using-npm/config.html"><code>config</code></a> for more on managing npm's configuration.</p>
 <p>When the default registry is used in a package-lock or shrinkwrap is has the
-special meaning of “the currently configured registry”. If you create a lock
+special meaning of "the currently configured registry". If you create a lock
 file while using the default registry you can switch to another registry and
 npm will install packages from the new registry, but if you create a lock
 file while using a custom registry packages will be installed from that
@@ -178,10 +179,10 @@ about your environment:</p>
 scope. In the future npm hopes to build registry features that use this
 information to allow you to customize your experience for your
 organization.</li>
-<li><code>Npm-In-CI</code> – Set to “true” if npm believes this install is running in a
-continuous integration environment, “false” otherwise. This is detected by
+<li><code>Npm-In-CI</code> – Set to "true" if npm believes this install is running in a
+continuous integration environment, "false" otherwise. This is detected by
 looking for the following environment variables: <code>CI</code>, <code>TDDIUM</code>,
-<code>JENKINS_URL</code>, <code>bamboo.buildKey</code>. If you’d like to learn more you may find
+<code>JENKINS_URL</code>, <code>bamboo.buildKey</code>. If you'd like to learn more you may find
 the <a href="https://github.com/npm/npm-registry-client/pull/129">original PR</a>
 interesting.
 This is used to gather better metrics on how npm is used by humans, versus
@@ -195,7 +196,7 @@ published at all, or
 <code>"publishConfig":{"registry":"http://my-internal-registry.local"}</code>
 to force it to be published only to your internal/private registry.</p>
 <p>See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for more info on what goes in the package.json file.</p>
-<h3 id="where-can-i-find-my-own--others-published-packages">Where can I find my own, &amp; other’s, published packages?</h3>
+<h3 id="where-can-i-find-my-own--others-published-packages">Where can I find my own, &amp; other's, published packages?</h3>
 <p><a href="https://www.npmjs.com/">https://www.npmjs.com/</a></p>
 <h3 id="see-also">See also</h3>
 <ul>

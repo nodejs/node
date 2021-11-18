@@ -5,25 +5,10 @@ const PackageJson = require('@npmcli/package-json')
 
 const BaseCommand = require('../base-command.js')
 class SetScript extends BaseCommand {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Set tasks in the scripts section of package.json'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return ['workspace', 'workspaces', 'include-workspace-root']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'set-script'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[<script>] [<command>]']
-  }
+  static description = 'Set tasks in the scripts section of package.json'
+  static params = ['workspace', 'workspaces', 'include-workspace-root']
+  static name = 'set-script'
+  static usage = ['[<script>] [<command>]']
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
@@ -36,19 +21,22 @@ class SetScript extends BaseCommand {
   }
 
   validate (args) {
-    if (process.env.npm_lifecycle_event === 'postinstall')
+    if (process.env.npm_lifecycle_event === 'postinstall') {
       throw new Error('Scripts can’t set from the postinstall script')
+    }
 
     // Parse arguments
-    if (args.length !== 2)
+    if (args.length !== 2) {
       throw new Error(`Expected 2 arguments: got ${args.length}`)
+    }
   }
 
   async exec (args) {
     this.validate(args)
     const warn = await this.doSetScript(this.npm.localPrefix, args[0], args[1])
-    if (warn)
+    if (warn) {
       log.warn('set-script', `Script "${args[0]}" was overwritten`)
+    }
   }
 
   async execWorkspaces (args, filters) {
@@ -86,8 +74,9 @@ class SetScript extends BaseCommand {
         && scripts[name]
         && scripts[name] !== value
 
-    if (overwriting)
+    if (overwriting) {
       warn = true
+    }
 
     pkgJson.update({
       scripts: {

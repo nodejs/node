@@ -6,32 +6,19 @@ const completion = require('../utils/completion/installed-deep.js')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 class Rebuild extends ArboristWorkspaceCmd {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Rebuild a package'
-  }
+  static description = 'Rebuild a package'
+  static name = 'rebuild'
+  static params = [
+    'global',
+    'bin-links',
+    'ignore-scripts',
+    ...super.params,
+  ]
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'rebuild'
-  }
+  static usage = ['[[<@scope>/]<name>[@<version>] ...]']
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'global',
-      'bin-links',
-      'ignore-scripts',
-      ...super.params,
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[[<@scope>/]<name>[@<version>] ...]']
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  // TODO
+  /* istanbul ignore next */
   async completion (opts) {
     return completion(this.npm, opts)
   }
@@ -51,33 +38,39 @@ class Rebuild extends ArboristWorkspaceCmd {
       const tree = await arb.loadActual()
       const specs = args.map(arg => {
         const spec = npa(arg)
-        if (spec.type === 'tag' && spec.rawSpec === '')
+        if (spec.type === 'tag' && spec.rawSpec === '') {
           return spec
+        }
 
-        if (spec.type !== 'range' && spec.type !== 'version' && spec.type !== 'directory')
+        if (spec.type !== 'range' && spec.type !== 'version' && spec.type !== 'directory') {
           throw new Error('`npm rebuild` only supports SemVer version/range specifiers')
+        }
 
         return spec
       })
       const nodes = tree.inventory.filter(node => this.isNode(specs, node))
 
       await arb.rebuild({ nodes })
-    } else
+    } else {
       await arb.rebuild()
+    }
 
     this.npm.output('rebuilt dependencies successfully')
   }
 
   isNode (specs, node) {
     return specs.some(spec => {
-      if (spec.type === 'directory')
+      if (spec.type === 'directory') {
         return node.path === spec.fetchSpec
+      }
 
-      if (spec.name !== node.name)
+      if (spec.name !== node.name) {
         return false
+      }
 
-      if (spec.rawSpec === '' || spec.rawSpec === '*')
+      if (spec.rawSpec === '' || spec.rawSpec === '*') {
         return true
+      }
 
       const { version } = node.package
       // TODO: add tests for a package with missing version

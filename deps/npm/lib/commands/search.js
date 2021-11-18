@@ -14,10 +14,11 @@ function prepareIncludes (args) {
 
 function prepareExcludes (searchexclude) {
   var exclude
-  if (typeof searchexclude === 'string')
+  if (typeof searchexclude === 'string') {
     exclude = searchexclude.split(/\s+/)
-  else
+  } else {
     exclude = []
+  }
 
   return exclude
     .map(s => s.toLowerCase())
@@ -26,37 +27,23 @@ function prepareExcludes (searchexclude) {
 
 const BaseCommand = require('../base-command.js')
 class Search extends BaseCommand {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Search for packages'
-  }
+  static description = 'Search for packages'
+  static name = 'search'
+  static params = [
+    'long',
+    'json',
+    'color',
+    'parseable',
+    'description',
+    'searchopts',
+    'searchexclude',
+    'registry',
+    'prefer-online',
+    'prefer-offline',
+    'offline',
+  ]
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'search'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'long',
-      'json',
-      'color',
-      'parseable',
-      'description',
-      'searchopts',
-      'searchexclude',
-      'registry',
-      'prefer-online',
-      'prefer-offline',
-      'offline',
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[search terms ...]']
-  }
+  static usage = ['[search terms ...]']
 
   async exec (args) {
     const opts = {
@@ -66,16 +53,18 @@ class Search extends BaseCommand {
       exclude: prepareExcludes(this.npm.flatOptions.search.exclude),
     }
 
-    if (opts.include.length === 0)
+    if (opts.include.length === 0) {
       throw new Error('search must be called with arguments')
+    }
 
     // Used later to figure out whether we had any packages go out
     let anyOutput = false
 
     class FilterStream extends Minipass {
       write (pkg) {
-        if (packageFilter(pkg, opts.include, opts.exclude))
+        if (packageFilter(pkg, opts.include, opts.exclude)) {
           super.write(pkg)
+        }
       }
     }
 
@@ -96,14 +85,16 @@ class Search extends BaseCommand {
     )
 
     p.on('data', chunk => {
-      if (!anyOutput)
+      if (!anyOutput) {
         anyOutput = true
+      }
       this.npm.output(chunk.toString('utf8'))
     })
 
     await p.promise()
-    if (!anyOutput && !this.npm.config.get('json') && !this.npm.config.get('parseable'))
+    if (!anyOutput && !this.npm.config.get('json') && !this.npm.config.get('parseable')) {
       this.npm.output('No matches found for ' + (args.map(JSON.stringify).join(' ')))
+    }
 
     log.silly('search', 'search completed')
     log.clearProgress()

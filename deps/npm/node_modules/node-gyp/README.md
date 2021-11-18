@@ -85,6 +85,22 @@ Python executable, it will be used instead of any of the other configured or
 builtin Python search paths. If it's not a compatible version, no further
 searching will be done.
 
+### Build for Third Party Node.js Runtimes
+
+When building modules for thid party Node.js runtimes like Electron, which have
+different build configurations from the official Node.js distribution, you
+should use `--dist-url` or `--nodedir` flags to specify the headers of the
+runtime to build for.
+
+Also when `--dist-url` or `--nodedir` flags are passed, node-gyp will use the
+`config.gypi` shipped in the headers distribution to generate build
+configurations, which is different from the default mode that would use the
+`process.config` object of the running Node.js instance.
+
+Some old versions of Electron shipped malformed `config.gypi` in their headers
+distributions, and you might need to pass `--force-process-config` to node-gyp
+to work around configuration errors.
+
 ## How to Use
 
 To compile your native addon, first go to its root directory:
@@ -198,6 +214,7 @@ Some additional resources for Node.js native addons and writing `gyp` configurat
 | `--python=$path`                  | Set path to the Python binary
 | `--msvs_version=$version`         | Set Visual Studio version (Windows only)
 | `--solution=$solution`            | Set Visual Studio Solution version (Windows only)
+| `--force-process-config`          | Force using runtime's `process.config` object to generate `config.gypi` file
 
 ## Configuration
 

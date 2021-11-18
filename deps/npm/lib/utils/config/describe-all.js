@@ -5,7 +5,7 @@ const describeAll = () => {
   /* istanbul ignore next - typically already sorted in the definitions file,
    * but this is here so that our help doc will stay consistent if we decide
    * to move them around. */
-  const sort = ([keya, {deprecated: depa}], [keyb, {deprecated: depb}]) => {
+  const sort = ([keya, { deprecated: depa }], [keyb, { deprecated: depb }]) => {
     return depa && !depb ? 1
       : !depa && depb ? -1
       : localeCompare(keya, keyb)

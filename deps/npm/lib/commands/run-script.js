@@ -28,32 +28,18 @@ const nocolor = {
 
 const BaseCommand = require('../base-command.js')
 class RunScript extends BaseCommand {
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Run arbitrary package scripts'
-  }
+  static description = 'Run arbitrary package scripts'
+  static params = [
+    'workspace',
+    'workspaces',
+    'include-workspace-root',
+    'if-present',
+    'ignore-scripts',
+    'script-shell',
+  ]
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get params () {
-    return [
-      'workspace',
-      'workspaces',
-      'include-workspace-root',
-      'if-present',
-      'ignore-scripts',
-      'script-shell',
-    ]
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'run-script'
-  }
-
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['<command> [-- <args>]']
-  }
+  static name = 'run-script'
+  static usage = ['<command> [-- <args>]']
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
@@ -66,17 +52,19 @@ class RunScript extends BaseCommand {
   }
 
   async exec (args) {
-    if (args.length)
+    if (args.length) {
       return this.run(args)
-    else
+    } else {
       return this.list(args)
+    }
   }
 
   async execWorkspaces (args, filters) {
-    if (args.length)
+    if (args.length) {
       return this.runWorkspaces(args, filters)
-    else
+    } else {
       return this.listWorkspaces(args, filters)
+    }
   }
 
   async run ([event, ...args], { path = this.npm.localPrefix, pkg } = {}) {
@@ -87,32 +75,38 @@ class RunScript extends BaseCommand {
     pkg = pkg || (await rpj(`${path}/package.json`))
     const { scripts = {} } = pkg
 
-    if (event === 'restart' && !scripts.restart)
+    if (event === 'restart' && !scripts.restart) {
       scripts.restart = 'npm stop --if-present && npm start'
-    else if (event === 'env' && !scripts.env)
+    } else if (event === 'env' && !scripts.env) {
       scripts.env = isWindowsShell ? 'SET' : 'env'
+    }
 
     pkg.scripts = scripts
 
     if (
       !Object.prototype.hasOwnProperty.call(scripts, event) &&
-      !(event === 'start' && await isServerPackage(path))
+      !(event === 'start' && (await isServerPackage(path)))
     ) {
-      if (this.npm.config.get('if-present'))
+      if (this.npm.config.get('if-present')) {
         return
+      }
 
       const suggestions = await didYouMean(this.npm, path, event)
-      throw new Error(`Missing script: "${event}"${suggestions}\n\nTo see a list of scripts, run:\n  npm run`)
+      throw new Error(
+        `Missing script: "${event}"${suggestions}\n\nTo see a list of scripts, run:\n  npm run`
+      )
     }
 
     // positional args only added to the main event, not pre/post
     const events = [[event, args]]
     if (!this.npm.config.get('ignore-scripts')) {
-      if (scripts[`pre${event}`])
+      if (scripts[`pre${event}`]) {
         events.unshift([`pre${event}`, []])
+      }
 
-      if (scripts[`post${event}`])
+      if (scripts[`post${event}`]) {
         events.push([`post${event}`, []])
+      }
     }
 
     const opts = {
@@ -140,12 +134,14 @@ class RunScript extends BaseCommand {
     const pkgid = _id || name
     const color = this.npm.color
 
-    if (!scripts)
+    if (!scripts) {
       return []
+    }
 
     const allScripts = Object.keys(scripts)
-    if (log.level === 'silent')
+    if (log.level === 'silent') {
       return allScripts
+    }
 
     if (this.npm.config.get('json')) {
       this.npm.output(JSON.stringify(scripts, null, 2))
@@ -153,8 +149,9 @@ class RunScript extends BaseCommand {
     }
 
     if (this.npm.config.get('parseable')) {
-      for (const [script, cmd] of Object.entries(scripts))
+      for (const [script, cmd] of Object.entries(scripts)) {
         this.npm.output(`${script}:${cmd}`)
+      }
 
       return allScripts
     }
@@ -170,24 +167,30 @@ class RunScript extends BaseCommand {
     const colorize = color ? chalk : nocolor
 
     if (cmds.length) {
-      this.npm.output(`${
-        colorize.reset(colorize.bold('Lifecycle scripts'))} included in ${
-        colorize.green(pkgid)}:`)
+      this.npm.output(
+        `${colorize.reset(colorize.bold('Lifecycle scripts'))} included in ${colorize.green(
+          pkgid
+        )}:`
+      )
     }
 
-    for (const script of cmds)
+    for (const script of cmds) {
       this.npm.output(prefix + script + indent + colorize.dim(scripts[script]))
+    }
 
     if (!cmds.length && runScripts.length) {
-      this.npm.output(`${
-        colorize.bold('Scripts')
-      } available in ${colorize.green(pkgid)} via \`${
-        colorize.blue('npm run-script')}\`:`)
-    } else if (runScripts.length)
+      this.npm.output(
+        `${colorize.bold('Scripts')} available in ${colorize.green(pkgid)} via \`${colorize.blue(
+          'npm run-script'
+        )}\`:`
+      )
+    } else if (runScripts.length) {
       this.npm.output(`\navailable via \`${colorize.blue('npm run-script')}\`:`)
+    }
 
-    for (const script of runScripts)
+    for (const script of runScripts) {
       this.npm.output(prefix + script + indent + colorize.dim(scripts[script]))
+    }
 
     this.npm.output('')
     return allScripts
@@ -212,8 +215,9 @@ class RunScript extends BaseCommand {
 
         // avoids exiting with error code in case there's scripts missing
         // in some workspaces since other scripts might have succeeded
-        if (!scriptMissing)
+        if (!scriptMissing) {
           process.exitCode = 1
+        }
 
         return scriptMissing
       })
@@ -221,15 +225,17 @@ class RunScript extends BaseCommand {
     }
 
     // in case **all** tests are missing, then it should exit with error code
-    if (res.every(Boolean))
+    if (res.every(Boolean)) {
       throw new Error(`Missing script: ${args[0]}`)
+    }
   }
 
   async listWorkspaces (args, filters) {
     await this.setWorkspaces(filters)
 
-    if (log.level === 'silent')
+    if (log.level === 'silent') {
       return
+    }
 
     if (this.npm.config.get('json')) {
       const res = {}
@@ -244,14 +250,16 @@ class RunScript extends BaseCommand {
     if (this.npm.config.get('parseable')) {
       for (const workspacePath of this.workspacePaths) {
         const { scripts, name } = await rpj(`${workspacePath}/package.json`)
-        for (const [script, cmd] of Object.entries(scripts || {}))
+        for (const [script, cmd] of Object.entries(scripts || {})) {
           this.npm.output(`${name}:${script}:${cmd}`)
+        }
       }
       return
     }
 
-    for (const workspacePath of this.workspacePaths)
+    for (const workspacePath of this.workspacePaths) {
       await this.list(args, workspacePath)
+    }
   }
 }
 

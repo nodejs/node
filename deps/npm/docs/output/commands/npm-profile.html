@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-profile</title>
 <style>
 body {
@@ -190,7 +191,7 @@ homepage, freenode, twitter, github</p>
 </li>
 <li>
 <p><code>npm profile set password</code>: Change your password.  This is interactive,
-you’ll be prompted for your current password and a new password.  You’ll
+you'll be prompted for your current password and a new password.  You'll
 also be prompted for an OTP if you have two-factor authentication
 enabled.</p>
 </li>
@@ -199,7 +200,7 @@ enabled.</p>
 authentication. Defaults to <code>auth-and-writes</code> mode. Modes are:</p>
 <ul>
 <li><code>auth-only</code>: Require an OTP when logging in or making changes to your
-account’s authentication.  The OTP will be required on both the website
+account's authentication.  The OTP will be required on both the website
 and the command line.</li>
 <li><code>auth-and-writes</code>: Requires an OTP at all the times <code>auth-only</code> does,
 and also requires one when publishing a module, setting the <code>latest</code>
@@ -218,7 +219,7 @@ dist-tag, or changing access via <code>npm access</code> and <code>npm owner</co
 <!-- raw HTML omitted -->
 <h4 id="registry"><code>registry</code></h4>
 <ul>
-<li>Default: “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”</li>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
 <li>Type: URL</li>
 </ul>
 <p>The base URL of the npm registry.</p>
@@ -251,7 +252,7 @@ saving them to your <code>package.json</code>.</li>
 <li>Default: null</li>
 <li>Type: null or String</li>
 </ul>
-<p>This is a one-time password from a two-factor authenticator. It’s needed
+<p>This is a one-time password from a two-factor authenticator. It's needed
 when publishing or changing package permissions with <code>npm access</code>.</p>
 <p>If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.</p>

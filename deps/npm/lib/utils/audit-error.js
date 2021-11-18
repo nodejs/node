@@ -4,11 +4,13 @@
 // returns 'true' if there was an error, false otherwise
 
 const auditError = (npm, report) => {
-  if (!report || !report.error)
+  if (!report || !report.error) {
     return false
+  }
 
-  if (npm.command !== 'audit')
+  if (npm.command !== 'audit') {
     return true
+  }
 
   const { error } = report
 
@@ -25,8 +27,9 @@ const auditError = (npm, report) => {
       statusCode: error.statusCode,
       body,
     }, null, 2))
-  } else
+  } else {
     npm.output(body)
+  }
 
   throw 'audit endpoint returned an error'
 }

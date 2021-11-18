@@ -1,4 +1,5 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
 <title>npm-pack</title>
 <style>
 body {
@@ -156,7 +157,7 @@ npm command-line interface
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Indicates that you don’t want npm to make any changes and that it should
+<p>Indicates that you don't want npm to make any changes and that it should
 only report what it would have done. This can be passed into any of the
 commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
@@ -179,7 +180,7 @@ saving them to your <code>package.json</code>.</li>
 <!-- raw HTML omitted -->
 <h4 id="pack-destination"><code>pack-destination</code></h4>
 <ul>
-<li>Default: “.”</li>
+<li>Default: "."</li>
 <li>Type: String</li>
 </ul>
 <p>Directory in which <code>npm pack</code> will save tarballs.</p>
@@ -237,7 +238,7 @@ the specified workspaces, and not on the root project.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
-<p>For anything that’s installable (that is, a package folder, tarball,
+<p>For anything that's installable (that is, a package folder, tarball,
 tarball url, git url, name@tag, name@version, name, or scoped name), this
 command will fetch it to the cache, copy the tarball to the current working
 directory as <code>&lt;name&gt;-&lt;version&gt;.tgz</code>, and then write the filenames out to

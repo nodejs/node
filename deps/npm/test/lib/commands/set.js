@@ -8,21 +8,25 @@ t.skip('npm set', async t => {
   await npm.load()
 
   t.test('no args', async t => {
-    t.rejects(
-      npm.exec('set', []),
-      /Usage:/,
-      'prints usage'
-    )
+    t.rejects(npm.exec('set', []), /Usage:/, 'prints usage')
   })
 
   t.test('test-config-item', async t => {
     npm.localPrefix = t.testdir({})
-    t.not(npm.config.get('test-config-item', 'project'), 'test config value', 'config is not already new value')
+    t.not(
+      npm.config.get('test-config-item', 'project'),
+      'test config value',
+      'config is not already new value'
+    )
     // This will write to ~/.npmrc!
     // Don't unskip until we can write to project level
     await npm.exec('set', ['test-config-item=test config value'])
     t.equal(joinedOutput(), '', 'outputs nothing')
-    t.equal(npm.config.get('test-config-item', 'project'), 'test config value', 'config is set to new value')
+    t.equal(
+      npm.config.get('test-config-item', 'project'),
+      'test config value',
+      'config is set to new value'
+    )
   })
 })
 
@@ -31,8 +35,9 @@ t.skip('npm set', async t => {
 let configArgs = null
 const npm = {
   exec: async (cmd, args) => {
-    if (cmd === 'config')
+    if (cmd === 'config') {
       configArgs = args
+    }
   },
 }
 
@@ -40,10 +45,7 @@ const Set = t.mock('../../../lib/commands/set.js')
 const set = new Set(npm)
 
 t.test('npm set - no args', async t => {
-  await t.rejects(
-    set.exec([]),
-    set.usage
-  )
+  await t.rejects(set.exec([]), set.usage)
 })
 
 t.test('npm set', async t => {
