@@ -34,7 +34,6 @@
 #include "handle_wrap.h"
 #include "node.h"
 #include "node_binding.h"
-#include "node_external_reference.h"
 #include "node_main_instance.h"
 #include "node_native_module.h"
 #include "node_options.h"
@@ -984,6 +983,11 @@ struct SnapshotData {
   // TODO(joyeecheung): there should be a vector of env_info once we snapshot
   // the worker environments.
   EnvSerializeInfo env_info;
+  // A vector of built-in ids and v8::ScriptCompiler::CachedData, this can be
+  // shared across Node.js instances because they are supposed to share the
+  // read only space. We use the vector because v8::ScriptCompiler::CachedData
+  // is not copyable.
+  std::vector<native_module::CodeCacheInfo> code_cache;
 };
 
 class Environment : public MemoryRetainer {

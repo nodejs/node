@@ -6,6 +6,7 @@
 #include "debug_utils-inl.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "node_native_module_env.h"
 #include "node_options-inl.h"
 #include "node_snapshot_builder.h"
 #include "node_snapshotable.h"
@@ -189,6 +190,7 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code) {
 
     CHECK(!context.IsEmpty());
     Context::Scope context_scope(context);
+
     CHECK(InitializeContextRuntime(context).IsJust());
     SetIsolateErrorHandlers(isolate_, {});
     env->InitializeMainContext(context, &(snapshot_data_->env_info));
