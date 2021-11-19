@@ -919,9 +919,9 @@ for (let i = 0; i < 12; i++) {
     assert.rejects(
       rli.question('hello?', { signal }),
       {
-        code: 'ABORT_ERR'
+        name: 'AbortError'
       }
-    );
+    ).then(common.mustCall());
     rli.close();
   }
 
