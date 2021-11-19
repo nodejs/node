@@ -271,6 +271,11 @@ details, but feel free to skip parts if you're not sure what to put.
 
 Once opened, pull requests are usually reviewed within a few days.
 
+To get feedback on your proposed change even though it is not ready
+to land, use the `Convert to draft` option in the GitHub UI.
+Do not use the `wip` label as it might not prevent the PR
+from landing before you are ready.
+
 ### Step 9: Discuss and update
 
 You will probably get feedback or requests for changes to your pull request.
