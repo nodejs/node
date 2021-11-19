@@ -2216,6 +2216,7 @@ napi_status napi_create_arraybuffer(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] length`: The length in bytes of the array buffer to create.
 * `[out] data`: Pointer to the underlying byte buffer of the `ArrayBuffer`.
+  `data` can optionally be ignored by passing `NULL`.
 * `[out] result`: A `napi_value` representing a JavaScript `ArrayBuffer`.
 
 Returns `napi_ok` if the API succeeded.
@@ -2250,6 +2251,7 @@ napi_status napi_create_buffer(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] size`: Size in bytes of the underlying buffer.
 * `[out] data`: Raw pointer to the underlying buffer.
+  `data` can optionally be ignored by passing `NULL`.
 * `[out] result`: A `napi_value` representing a `node::Buffer`.
 
 Returns `napi_ok` if the API succeeded.
@@ -2277,6 +2279,7 @@ napi_status napi_create_buffer_copy(napi_env env,
   of the new buffer).
 * `[in] data`: Raw pointer to the underlying buffer to copy from.
 * `[out] result_data`: Pointer to the new `Buffer`'s underlying data buffer.
+  `result_data` can optionally be ignored by passing `NULL`.
 * `[out] result`: A `napi_value` representing a `node::Buffer`.
 
 Returns `napi_ok` if the API succeeded.
@@ -4588,8 +4591,8 @@ napi_status napi_create_function(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] utf8Name`: The name of the function encoded as UTF8. This is visible
-  within JavaScript as the new function object's `name` property.
+* `[in] utf8Name`: Optional name of the function encoded as UTF8. This is
+  visible within JavaScript as the new function object's `name` property.
 * `[in] length`: The length of the `utf8name` in bytes, or `NAPI_AUTO_LENGTH` if
   it is null-terminated.
 * `[in] cb`: The native function which should be called when this function
