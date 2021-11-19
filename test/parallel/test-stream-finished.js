@@ -8,7 +8,7 @@ const {
   finished,
   Duplex,
   PassThrough,
-  Stream
+  Stream,
 } = require('stream');
 const assert = require('assert');
 const EE = require('events');
