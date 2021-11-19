@@ -1484,7 +1484,7 @@ setTimeout(() => ac.abort(), 10000);
     for await (const event of watcher)
       console.log(event);
   } catch (err) {
-    if (err.name === 'AbortError')
+    if (signal.aborted)
       return;
     throw err;
   }

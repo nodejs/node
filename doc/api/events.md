@@ -955,7 +955,7 @@ async function foo(emitter, event, signal) {
     await once(emitter, event, { signal });
     console.log('event emitted!');
   } catch (error) {
-    if (error.name === 'AbortError') {
+    if (signal.aborted) {
       console.error('Waiting for the event was canceled!');
     } else {
       console.error('There was an error', error.message);

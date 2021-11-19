@@ -2357,18 +2357,16 @@ Or using an `AbortSignal` with a readable stream as an async iterable:
 
 ```js
 const controller = new AbortController();
+const { signal } = ac;
 setTimeout(() => controller.abort(), 10_000); // set a timeout
-const stream = addAbortSignal(
-  controller.signal,
-  fs.createReadStream(('object.json'))
-);
+const stream = addAbortSignal(signal, fs.createReadStream(('object.json')));
 (async () => {
   try {
     for await (const chunk of stream) {
       await process(chunk);
     }
   } catch (e) {
-    if (e.name === 'AbortError') {
+    if (signal.aborted) {
       // The operation was cancelled
     } else {
       throw e;
