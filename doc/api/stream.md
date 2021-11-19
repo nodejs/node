@@ -27,7 +27,7 @@ usually not necessary to use the `stream` module to consume streams.
 
 ### Class property: `Stream.defaultHighWaterMark`
 <!-- YAML
-added: v0.11.3
+added: REPLACEME
 -->
 
 * {integer} **Default:** `16 * 1024`
