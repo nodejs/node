@@ -1888,17 +1888,28 @@ bool IsSwitchOptimizable(SwitchStatement* stmt, SwitchInfo* info) {
   }
 
   // GCC also jump-table optimizes switch statements with 6 cases or more.
-  if (!(static_cast<int>(info->covered_cases.size()) >=
-            FLAG_switch_table_min_cases &&
-        IsSpreadAcceptable(info->MaxCase() - info->MinCase(),
-                           cases->length()))) {
-    // Invariant- covered_cases has all cases and only cases that will go in the
-    // jump table.
-    info->covered_cases.clear();
-    return false;
-  } else {
-    return true;
+  if (static_cast<int>(info->covered_cases.size()) >=
+      FLAG_switch_table_min_cases) {
+    // Due to case spread will be used as the size of jump-table,
+    // we need to check if it doesn't overflow by casting its
+    // min and max bounds to int64_t, and calculate if the difference is less
+    // than or equal to INT_MAX.
+    int64_t min = static_cast<int64_t>(info->MinCase());
+    int64_t max = static_cast<int64_t>(info->MaxCase());
+    int64_t spread = max - min + 1;
+
+    DCHECK_GT(spread, 0);
+
+    // Check if casted spread is acceptable and doesn't overflow.
+    if (spread <= INT_MAX &&
+        IsSpreadAcceptable(static_cast<int>(spread), cases->length())) {
+      return true;
+    }
   }
+  // Invariant- covered_cases has all cases and only cases that will go in the
+  // jump table.
+  info->covered_cases.clear();
+  return false;
 }
 
 }  // namespace
