@@ -1465,5 +1465,26 @@ const tsp = require('timers/promises');
     assert.strictEqual(duplex.destroyed, true);
   }
 
-  run();
+  run().then(common.mustCall());
+}
+
+{
+  const pipelinePromise = promisify(pipeline);
+
+  async function run() {
+    const read = new Readable({
+      read() {}
+    });
+
+    const duplex = new PassThrough();
+
+    read.push(null);
+
+    await pipelinePromise(read, duplex, { end: false });
+
+    assert.strictEqual(duplex.destroyed, false);
+    assert.strictEqual(duplex.writableEnded, false);
+  }
+
+  run().then(common.mustCall());
 }
