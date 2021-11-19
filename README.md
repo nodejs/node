@@ -10,14 +10,14 @@
   </a>
 </p>
 
-Node.js is an open-source, cross-platform, JavaScript runtime environment. It
-executes JavaScript code outside of a browser. For more information on using
-Node.js, see the [Node.js Website][].
+Node.js is an open-source, cross-platform, JavaScript runtime environment.
+
+For information on using Node.js, see the [Node.js Website][].
 
 The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 [OpenJS Foundation][] provides support for the project.
 
-**This project is bound by a [Code of Conduct][].**
+**This project has a [Code of Conduct][].**
 
 # Table of contents
 
