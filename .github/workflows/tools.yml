@@ -21,7 +21,7 @@ jobs:
               CURRENT_VERSION=$(node -p "require('./node_modules/eslint/package.json').version")
               if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                tools/update-eslint.sh
+                ./update-eslint.sh
               fi
           - id: "@babel/eslint-parser"
             run: |
@@ -30,7 +30,7 @@ jobs:
               CURRENT_VERSION=$(node -p "require('./node_modules/@babel/eslint-parser/package.json').version")
               if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                tools/update-babel-eslint.sh
+                ./update-babel-eslint.sh
               fi
           - id: "lint-md dependencies"
             run: |
@@ -38,7 +38,7 @@ jobs:
               NEW_VERSION=$(npm outdated --omit=dev --parseable | cut -d: -f4 | xargs)
               if [ "$NEW_VERSION" != "" ]; then
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                rm -rf package-lock.json node_modules && npm install --ignore-scripts)
+                rm -rf package-lock.json node_modules && npm install --ignore-scripts
                 make lint-md-rollup
               fi
     steps:
