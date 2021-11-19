@@ -935,7 +935,7 @@ close when the final `DATA` frame is transmitted. User code must call either
 
 When `options.signal` is set with an `AbortSignal` and then `abort` on the
 corresponding `AbortController` is called, the request will emit an `'error'`
-event with an `AbortError` error.
+event. Use `signal.aborted` to check if the error was from an abort.
 
 The `:method` and `:path` pseudo-headers are not specified within `headers`,
 they respectively default to:

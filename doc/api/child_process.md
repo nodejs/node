@@ -261,15 +261,15 @@ lsExample();
 ```
 
 If the `signal` option is enabled, calling `.abort()` on the corresponding
-`AbortController` is similar to calling `.kill()` on the child process except
-the error passed to the callback will be an `AbortError`:
+`AbortController` is similar to calling `.kill()` on the child process except a
+different error is passed:
 
 ```js
 const { exec } = require('child_process');
 const controller = new AbortController();
 const { signal } = controller;
 const child = exec('grep ssh', { signal }, (error) => {
-  console.log(error); // an AbortError
+  console.log('aborted', signal.aborted); // true
 });
 controller.abort();
 ```
@@ -373,15 +373,15 @@ function. Any input containing shell metacharacters may be used to trigger
 arbitrary command execution.**
 
 If the `signal` option is enabled, calling `.abort()` on the corresponding
-`AbortController` is similar to calling `.kill()` on the child process except
-the error passed to the callback will be an `AbortError`:
+`AbortController` is similar to calling `.kill()` on the child process except a
+different error is passed:
 
 ```js
 const { execFile } = require('child_process');
 const controller = new AbortController();
 const { signal } = controller;
 const child = execFile('node', ['--version'], { signal }, (error) => {
-  console.log(error); // an AbortError
+  console.log('aborted', signal.aborted); // true
 });
 controller.abort();
 ```
@@ -488,8 +488,8 @@ The `shell` option available in [`child_process.spawn()`][] is not supported by
 `child_process.fork()` and will be ignored if set.
 
 If the `signal` option is enabled, calling `.abort()` on the corresponding
-`AbortController` is similar to calling `.kill()` on the child process except
-the error passed to the callback will be an `AbortError`:
+`AbortController` is similar to calling `.kill()` on the child process except a
+different error is passed:
 
 ```js
 if (process.argv[2] === 'child') {
@@ -502,7 +502,7 @@ if (process.argv[2] === 'child') {
   const { signal } = controller;
   const child = fork(__filename, ['child'], { signal });
   child.on('error', (err) => {
-    // This will be called with err being an AbortError if the controller aborts
+    // This will be called with true signal.aborted if the controller aborts
   });
   controller.abort(); // Stops the child process
 }
@@ -689,8 +689,8 @@ parameter passed to `spawn` from the parent, retrieve it with the
 `process.argv0` property instead.
 
 If the `signal` option is enabled, calling `.abort()` on the corresponding
-`AbortController` is similar to calling `.kill()` on the child process except
-the error passed to the callback will be an `AbortError`:
+`AbortController` is similar to calling `.kill()` on the child process except a
+different error is passed:
 
 ```js
 const { spawn } = require('child_process');
@@ -698,7 +698,7 @@ const controller = new AbortController();
 const { signal } = controller;
 const grep = spawn('grep', ['ssh'], { signal });
 grep.on('error', (err) => {
-  // This will be called with err being an AbortError if the controller aborts
+  // This will be called with true signal.aborted if the controller aborts
 });
 controller.abort(); // Stops the child process
 ```

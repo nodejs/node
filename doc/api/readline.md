@@ -354,7 +354,8 @@ setTimeout(() => ac.abort(), 10000);
 
 If this method is invoked as it's util.promisify()ed version, it returns a
 Promise that fulfills with the answer. If the question is canceled using
-an `AbortController` it will reject with an `AbortError`.
+an `AbortController` it will reject. Use `signal.aborted` to test if the
+passed error is from an abort.
 
 ```js
 const util = require('util');
@@ -901,7 +902,8 @@ setTimeout(() => ac.abort(), 10000);
 
 If this method is invoked as it's util.promisify()ed version, it returns a
 Promise that fulfills with the answer. If the question is canceled using
-an `AbortController` it will reject with an `AbortError`.
+an `AbortController` it will reject. Use `signal.aborted` to test if the
+passed error is from an abort.
 
 ```js
 const util = require('util');

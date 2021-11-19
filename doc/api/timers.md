@@ -250,7 +250,7 @@ cancel the timer and prevent it from triggering.
 
 For the promisified variants of [`setImmediate()`][] and [`setTimeout()`][],
 an [`AbortController`][] may be used to cancel the timer. When canceled, the
-returned Promises will be rejected with an `'AbortError'`.
+returned Promises will be rejected.
 
 For `setImmediate()`:
 
