@@ -20,6 +20,7 @@ var USAGE =
   '  npx browserslist --env="environment name defined in config"\n' +
   '  npx browserslist --stats="path/to/browserlist/stats/file"\n' +
   '  npx browserslist --mobile-to-desktop\n' +
+  '  npx browserslist --ignore-unknown-versions' +
   '  npx browserslist --update-db'
 
 function isArg(arg) {
@@ -76,6 +77,8 @@ if (isArg('--help') || isArg('-h')) {
       mode = 'json'
     } else if (name === '--mobile-to-desktop') {
       opts.mobileToDesktop = true
+    } else if (name === '--ignore-unknown-versions') {
+      opts.ignoreUnknownVersions = true
     } else {
       error('Unknown arguments ' + args[i] + '.\n\n' + USAGE)
     }
