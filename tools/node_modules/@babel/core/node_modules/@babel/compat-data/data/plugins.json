@@ -1,12 +1,18 @@
 {
   "proposal-class-static-block": {
     "chrome": "94",
-    "firefox": "93"
+    "opera": "80",
+    "edge": "94",
+    "firefox": "93",
+    "node": "16.11"
   },
   "proposal-private-property-in-object": {
     "chrome": "91",
+    "opera": "77",
+    "edge": "91",
     "firefox": "90",
     "safari": "15",
+    "node": "16.9",
     "ios": "15",
     "electron": "13.0"
   },
@@ -67,8 +73,11 @@
   },
   "proposal-optional-chaining": {
     "chrome": "91",
+    "opera": "77",
+    "edge": "91",
     "firefox": "74",
     "safari": "13.1",
+    "node": "16.9",
     "ios": "13.4",
     "electron": "13.0"
   },

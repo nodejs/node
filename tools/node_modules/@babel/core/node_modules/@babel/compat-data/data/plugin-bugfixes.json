@@ -146,8 +146,11 @@
   },
   "bugfix/transform-v8-spread-parameters-in-optional-chaining": {
     "chrome": "91",
+    "opera": "77",
+    "edge": "91",
     "firefox": "74",
     "safari": "13.1",
+    "node": "16.9",
     "ios": "13.4",
     "electron": "13.0"
   }
