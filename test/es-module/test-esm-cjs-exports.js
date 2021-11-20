@@ -22,7 +22,7 @@ child.on('close', common.mustCall((code, signal) => {
 
 const entryInterop = fixtures.path('/es-modules/cjs-exports-interop.mjs');
 
-child = spawn(process.execPath, ["--cjs-import-interop", entryInterop]);
+child = spawn(process.execPath, ['--cjs-import-interop', entryInterop]);
 child.stderr.setEncoding('utf8');
 let stdout2 = '';
 child.stdout.setEncoding('utf8');
