@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* API: https://github.com/WebAssembly/WASI/blob/master/phases/snapshot/docs.md */
+/* API: https://github.com/WebAssembly/WASI/blob/main/phases/snapshot/docs.md */
 
 typedef uint32_t uvwasi_size_t;
 
