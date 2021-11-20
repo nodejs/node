@@ -20,6 +20,21 @@ child.on('close', common.mustCall((code, signal) => {
   assert.strictEqual(stdout, 'ok\n');
 }));
 
+const entryInterop = fixtures.path('/es-modules/cjs-exports-interop.mjs');
+
+child = spawn(process.execPath, ["--cjs-import-interop", entryInterop]);
+child.stderr.setEncoding('utf8');
+let stdout2 = '';
+child.stdout.setEncoding('utf8');
+child.stdout.on('data', (data) => {
+  stdout2 += data;
+});
+child.on('close', common.mustCall((code, signal) => {
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+  assert.strictEqual(stdout2, 'ok\n');
+}));
+
 const entryInvalid = fixtures.path('/es-modules/cjs-exports-invalid.mjs');
 child = spawn(process.execPath, [entryInvalid]);
 let stderr = '';

@@ -73,6 +73,14 @@ If this flag is passed, the behavior can still be set to not abort through
 [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
 `domain` module that uses it).
 
+### `--cjs-import-interop`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enables the CommonJS default export recognition.
+
 ### `--completion-bash`
 
 <!-- YAML
@@ -1545,6 +1553,7 @@ Node.js options that are allowed are:
 
 <!-- node-options-node start -->
 
+* `--cjs-import-interop`
 * `--conditions`, `-C`
 * `--diagnostic-dir`
 * `--disable-proto`

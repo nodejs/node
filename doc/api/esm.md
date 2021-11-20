@@ -364,6 +364,11 @@ When importing [CommonJS modules](#commonjs-namespaces), the
 available, provided by static analysis as a convenience for better ecosystem
 compatibility.
 
+If `--cjs-import-interop` is provided and the imported CommonJS module has
+`__esModule` exports as a truthy value, then the CommonJS module is treated as
+derived from an ES module. In this case, the `module.exports.default` value is
+used as the default export instead of `module.exports`.
+
 ### `require`
 
 The CommonJS module `require` always treats the files it references as CommonJS.

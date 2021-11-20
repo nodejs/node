@@ -292,6 +292,10 @@ DebugOptionsParser::DebugOptionsParser() {
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
+  AddOption("--cjs-import-interop",
+            "Supports interop with modules wiht __esModule",
+            &EnvironmentOptions::cjs_import_interop,
+            kAllowedInEnvironment);
   AddOption("--conditions",
             "additional user conditions for conditional exports and imports",
             &EnvironmentOptions::conditions,

@@ -107,6 +107,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> conditions;
   std::string dns_result_order;
   bool enable_source_maps = false;
+  bool cjs_import_interop = false;
   bool experimental_json_modules = false;
   bool experimental_modules = false;
   std::string experimental_specifier_resolution;
