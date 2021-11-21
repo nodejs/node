@@ -2,13 +2,13 @@ name: Find inactive collaborators
 
 on:
   schedule:
-    # Run on the 15th day of the month at 4:05 AM UTC.
-    - cron: '5 4 15 * *'
+    # Run every Monday at 4:05 AM UTC.
+    - cron: '5 4 * * 1'
 
   workflow_dispatch:
 
 env:
-  NODE_VERSION: 16.x
+  NODE_VERSION: lts/*
   NUM_COMMITS: 5000
 
 jobs:
