@@ -16,6 +16,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/objects/heap-object.h"
 
@@ -814,6 +815,14 @@ struct V8_EXPORT_PRIVATE DiamondMatcher
   Node* branch_;
   Node* if_true_;
   Node* if_false_;
+};
+
+struct LoadTransformMatcher
+    : ValueMatcher<LoadTransformParameters, IrOpcode::kLoadTransform> {
+  explicit LoadTransformMatcher(Node* node) : ValueMatcher(node) {}
+  bool Is(LoadTransformation t) {
+    return HasResolvedValue() && ResolvedValue().transformation == t;
+  }
 };
 
 }  // namespace compiler

@@ -132,8 +132,9 @@ class Declarations {
   static RuntimeFunction* DeclareRuntimeFunction(const std::string& name,
                                                  const Signature& signature);
 
-  static void DeclareExternConstant(Identifier* name, const Type* type,
-                                    std::string value);
+  static ExternConstant* DeclareExternConstant(Identifier* name,
+                                               const Type* type,
+                                               std::string value);
   static NamespaceConstant* DeclareNamespaceConstant(Identifier* name,
                                                      const Type* type,
                                                      Expression* body);

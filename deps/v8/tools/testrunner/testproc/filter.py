@@ -70,7 +70,7 @@ class NameFilterProc(base.TestProcFilter):
       else:
         self._exact_matches[suitename][path] = True
 
-    for s, globs in self._globs.iteritems():
+    for s, globs in list(self._globs.items()):
       if not globs or '*' in globs:
         self._globs[s] = ['*']
 

@@ -312,33 +312,29 @@ void AsyncStreamingDecoder::Abort() {
 
 namespace {
 
-class TopTierCompiledCallback {
+class CompilationChunkFinishedCallback {
  public:
-  TopTierCompiledCallback(
+  CompilationChunkFinishedCallback(
       std::weak_ptr<NativeModule> native_module,
       AsyncStreamingDecoder::ModuleCompiledCallback callback)
       : native_module_(std::move(native_module)),
         callback_(std::move(callback)) {}
 
   void operator()(CompilationEvent event) const {
-    if (event != CompilationEvent::kFinishedTopTierCompilation) return;
+    if (event != CompilationEvent::kFinishedCompilationChunk &&
+        event != CompilationEvent::kFinishedTopTierCompilation) {
+      return;
+    }
     // If the native module is still alive, get back a shared ptr and call the
     // callback.
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
       callback_(native_module);
     }
-#ifdef DEBUG
-    DCHECK(!called_);
-    called_ = true;
-#endif
   }
 
  private:
   const std::weak_ptr<NativeModule> native_module_;
   const AsyncStreamingDecoder::ModuleCompiledCallback callback_;
-#ifdef DEBUG
-  mutable bool called_ = false;
-#endif
 };
 
 }  // namespace
@@ -347,7 +343,7 @@ void AsyncStreamingDecoder::NotifyNativeModuleCreated(
     const std::shared_ptr<NativeModule>& native_module) {
   if (!module_compiled_callback_) return;
   auto* comp_state = native_module->compilation_state();
-  comp_state->AddCallback(TopTierCompiledCallback{
+  comp_state->AddCallback(CompilationChunkFinishedCallback{
       std::move(native_module), std::move(module_compiled_callback_)});
   module_compiled_callback_ = {};
 }

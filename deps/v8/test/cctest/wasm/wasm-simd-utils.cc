@@ -466,8 +466,8 @@ void RunF32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     }
   }
 
-  FOR_FLOAT32_NAN_INPUTS(i) {
-    float x = bit_cast<float>(nan_test_array[i]);
+  FOR_FLOAT32_NAN_INPUTS(f) {
+    float x = bit_cast<float>(nan_test_array[f]);
     if (!PlatformCanRepresent(x)) continue;
     // Extreme values have larger errors so skip them for approximation tests.
     if (!exact && IsExtreme(x)) continue;
@@ -510,8 +510,8 @@ void RunF32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     }
   }
 
-  FOR_FLOAT32_NAN_INPUTS(i) {
-    float x = bit_cast<float>(nan_test_array[i]);
+  FOR_FLOAT32_NAN_INPUTS(f) {
+    float x = bit_cast<float>(nan_test_array[f]);
     if (!PlatformCanRepresent(x)) continue;
     FOR_FLOAT32_NAN_INPUTS(j) {
       float y = bit_cast<float>(nan_test_array[j]);
@@ -630,8 +630,8 @@ void RunF64x2UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     }
   }
 
-  FOR_FLOAT64_NAN_INPUTS(i) {
-    double x = bit_cast<double>(double_nan_test_array[i]);
+  FOR_FLOAT64_NAN_INPUTS(d) {
+    double x = bit_cast<double>(double_nan_test_array[d]);
     if (!PlatformCanRepresent(x)) continue;
     // Extreme values have larger errors so skip them for approximation tests.
     if (!exact && IsExtreme(x)) continue;
@@ -674,8 +674,8 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     }
   }
 
-  FOR_FLOAT64_NAN_INPUTS(i) {
-    double x = bit_cast<double>(double_nan_test_array[i]);
+  FOR_FLOAT64_NAN_INPUTS(d) {
+    double x = bit_cast<double>(double_nan_test_array[d]);
     if (!PlatformCanRepresent(x)) continue;
     FOR_FLOAT64_NAN_INPUTS(j) {
       double y = bit_cast<double>(double_nan_test_array[j]);

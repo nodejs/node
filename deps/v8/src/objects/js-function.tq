@@ -17,6 +17,8 @@ extern class JSBoundFunction extends JSFunctionOrBoundFunction {
   bound_arguments: FixedArray;
 }
 
+// This class does not use the generated verifier, so if you change anything
+// here, please also update JSFunctionVerify in objects-debug.cc.
 @highestInstanceTypeWithinParentClassRange
 extern class JSFunction extends JSFunctionOrBoundFunction {
   shared_function_info: SharedFunctionInfo;
@@ -25,7 +27,15 @@ extern class JSFunction extends JSFunctionOrBoundFunction {
   @if(V8_EXTERNAL_CODE_SPACE) code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) code: Code;
   // Space for the following field may or may not be allocated.
-  @noVerifier prototype_or_initial_map: JSReceiver|Map;
+  prototype_or_initial_map: JSReceiver|Map;
 }
+
+// Class constructors are special, because they are callable, but [[Call]] will
+// raise an exception.
+// See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
+@doNotGenerateCast
+@highestInstanceTypeWithinParentClassRange
+extern class JSClassConstructor extends JSFunction
+    generates 'TNode<JSFunction>';
 
 type JSFunctionWithPrototypeSlot extends JSFunction;

@@ -189,6 +189,10 @@ class V8_EXPORT_PRIVATE Zone final {
   // Deletes all objects and free all memory allocated in the Zone.
   void DeleteAll();
 
+  // Releases the current segment without performing any local bookkeeping
+  // (e.g. tracking allocated bytes, maintaining linked lists, etc).
+  void ReleaseSegment(Segment* segment);
+
   // All pointers returned from New() are 8-byte aligned.
   static const size_t kAlignmentInBytes = 8;
 
@@ -235,6 +239,30 @@ class V8_EXPORT_PRIVATE Zone final {
   // The number of bytes freed in this zone so far.
   size_t freed_size_for_tracing_ = 0;
 #endif
+
+  friend class ZoneScope;
+};
+
+// Similar to the HandleScope, the ZoneScope defines a region of validity for
+// zone memory. All memory allocated in the given Zone during the scope's
+// lifetime is freed when the scope is destructed, i.e. the Zone is reset to
+// the state it was in when the scope was created.
+class ZoneScope final {
+ public:
+  explicit ZoneScope(Zone* zone);
+  ~ZoneScope();
+
+ private:
+  Zone* const zone_;
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+  const size_t allocation_size_for_tracing_;
+  const size_t freed_size_for_tracing_;
+#endif
+  const size_t allocation_size_;
+  const size_t segment_bytes_allocated_;
+  const Address position_;
+  const Address limit_;
+  Segment* const segment_head_;
 };
 
 // ZoneObject is an abstraction that helps define classes of objects

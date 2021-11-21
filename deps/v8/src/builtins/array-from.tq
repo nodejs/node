@@ -79,7 +79,7 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
       // memory, e.g. a proxy that discarded the values. Ignoring this case
       // just means we would repeatedly call CreateDataProperty with index =
       // 2^53
-      assert(k < kMaxSafeInteger);
+      dcheck(k < kMaxSafeInteger);
 
       // ii. Let Pk be ! ToString(k).
 

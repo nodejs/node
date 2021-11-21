@@ -11,6 +11,7 @@
 #include "include/v8-primitive.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate-utils.h"
 #include "src/handles/handles.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects-inl.h"
@@ -102,7 +103,7 @@ class ExternalStringStream {
   ExternalStringStream(ExternalString string, size_t start_offset,
                        size_t length)
       : lock_(string),
-        data_(string.GetChars() + start_offset),
+        data_(string.GetChars(GetPtrComprCageBase(string)) + start_offset),
         length_(length) {}
 
   ExternalStringStream(const ExternalStringStream& other) V8_NOEXCEPT

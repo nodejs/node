@@ -27,7 +27,7 @@ transitioning javascript builtin StringPrototypeSubstr(
   // 7. Let resultLength be min(max(end, 0), size - intStart).
   const length = arguments[1];
   const lengthLimit = size - initStart;
-  assert(lengthLimit <= size);
+  dcheck(lengthLimit <= size);
   const resultLength: uintptr = length != Undefined ?
       ClampToIndexRange(length, lengthLimit) :
       lengthLimit;

@@ -341,10 +341,10 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
                           kReleaseStore);
       return Heap::InYoungGeneration(target) ? KEEP_SLOT : REMOVE_SLOT;
     }
-    Map map = first_word.ToMap();
-    SlotCallbackResult result =
-        EvacuateObjectDefault(map, slot, first, first.SizeFromMap(map),
-                              Map::ObjectFieldsFrom(map.visitor_id()));
+    Map first_map = first_word.ToMap();
+    SlotCallbackResult result = EvacuateObjectDefault(
+        first_map, slot, first, first.SizeFromMap(first_map),
+        Map::ObjectFieldsFrom(first_map.visitor_id()));
     object.set_map_word(MapWord::FromForwardingAddress(slot.ToHeapObject()),
                         kReleaseStore);
     return result;

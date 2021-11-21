@@ -199,6 +199,8 @@ class V8_EXPORT_PRIVATE TurboAssembler
     SmiUntag(output);
   }
 
+  void SmiToInt32(Register reg) { SmiUntag(reg); }
+
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],
   // etc., not pushed. The argument count assumes all arguments are word sized.
@@ -302,57 +304,13 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
-  // Defined here because some callers take a pointer to member functions.
-  AVX_OP(Pcmpeqb, pcmpeqb)
-  AVX_OP(Pcmpeqw, pcmpeqw)
-  AVX_OP(Pcmpeqd, pcmpeqd)
-  AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
-
-// Macro for instructions that have 2 operands for AVX version and 1 operand for
-// SSE version. Will move src1 to dst if dst != src1.
-#define AVX_OP3_WITH_MOVE(macro_name, name, dst_type, src_type) \
-  void macro_name(dst_type dst, dst_type src1, src_type src2) { \
-    if (CpuFeatures::IsSupported(AVX)) {                        \
-      CpuFeatureScope scope(this, AVX);                         \
-      v##name(dst, src1, src2);                                 \
-    } else {                                                    \
-      if (dst != src1) {                                        \
-        movaps(dst, src1);                                      \
-      }                                                         \
-      name(dst, src2);                                          \
-    }                                                           \
+  void PextrdPreSse41(Register dst, XMMRegister src, uint8_t imm8);
+  void PinsrdPreSse41(XMMRegister dst, Register src, uint8_t imm8,
+                      uint32_t* load_pc_offset) {
+    PinsrdPreSse41(dst, Operand(src), imm8, load_pc_offset);
   }
-  AVX_OP3_WITH_MOVE(Movlps, movlps, XMMRegister, Operand)
-  AVX_OP3_WITH_MOVE(Movhps, movhps, XMMRegister, Operand)
-#undef AVX_OP3_WITH_MOVE
-
-  // TODO(zhin): Remove after moving more definitions into SharedTurboAssembler.
-  void Movlps(Operand dst, XMMRegister src) {
-    SharedTurboAssembler::Movlps(dst, src);
-  }
-  void Movhps(Operand dst, XMMRegister src) {
-    SharedTurboAssembler::Movhps(dst, src);
-  }
-
-  void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
-  void Pinsrb(XMMRegister dst, Register src, int8_t imm8) {
-    Pinsrb(dst, Operand(src), imm8);
-  }
-  void Pinsrb(XMMRegister dst, Operand src, int8_t imm8);
-  // Moves src1 to dst if AVX is not supported.
-  void Pinsrb(XMMRegister dst, XMMRegister src1, Operand src2, int8_t imm8);
-  void Pinsrd(XMMRegister dst, Register src, uint8_t imm8) {
-    Pinsrd(dst, Operand(src), imm8);
-  }
-  void Pinsrd(XMMRegister dst, Operand src, uint8_t imm8);
-  // Moves src1 to dst if AVX is not supported.
-  void Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);
-  void Pinsrw(XMMRegister dst, Register src, int8_t imm8) {
-    Pinsrw(dst, Operand(src), imm8);
-  }
-  void Pinsrw(XMMRegister dst, Operand src, int8_t imm8);
-  // Moves src1 to dst if AVX is not supported.
-  void Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2, int8_t imm8);
+  void PinsrdPreSse41(XMMRegister dst, Operand src, uint8_t imm8,
+                      uint32_t* load_pc_offset);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
@@ -477,7 +435,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   }
 
   // Checks if value is in range [lower_limit, higher_limit] using a single
-  // comparison.
+  // comparison. Flags CF=1 or ZF=1 indicate the value is in the range
+  // (condition below_equal). It is valid, that |value| == |scratch| as far as
+  // this function is concerned.
+  void CompareRange(Register value, unsigned lower_limit, unsigned higher_limit,
+                    Register scratch);
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Register scratch,
                        Label* on_in_range,
@@ -561,8 +523,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   //
   // Always use unsigned comparisons: below_equal for a positive
   // result.
-  void CmpInstanceTypeRange(Register map, Register scratch,
-                            InstanceType lower_limit,
+  void CmpInstanceTypeRange(Register map, Register instance_type_out,
+                            Register scratch, InstanceType lower_limit,
                             InstanceType higher_limit);
 
   // Smi tagging support.

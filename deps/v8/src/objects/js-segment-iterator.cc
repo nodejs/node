@@ -17,7 +17,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segments.h"
-#include "src/objects/managed.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "unicode/brkiter.h"
 

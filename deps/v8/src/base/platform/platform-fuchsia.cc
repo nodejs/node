@@ -134,8 +134,11 @@ bool OS::DiscardSystemPages(void* address, size_t size) {
 }
 
 bool OS::DecommitPages(void* address, size_t size) {
-  // TODO(chromium:1218005): support this.
-  return false;
+  // We rely on DiscardSystemPages decommitting the pages immediately (via
+  // ZX_VMO_OP_DECOMMIT) so that they are guaranteed to be zero-initialized
+  // should they be accessed again later on.
+  return SetPermissions(address, size, MemoryPermission::kNoAccess) &&
+         DiscardSystemPages(address, size);
 }
 
 // static

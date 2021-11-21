@@ -24,7 +24,7 @@ export class TimelineTrackStackedBase extends TimelineTrackBase {
   set data(timeline) {
     super.data = timeline;
     this._contentWidth = 0;
-    this._prepareDrawableItems();
+    if (timeline.values.length > 0) this._prepareDrawableItems();
   }
 
   _handleDoubleClick(event) {

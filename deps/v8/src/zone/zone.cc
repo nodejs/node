@@ -89,14 +89,8 @@ void Zone::DeleteAll() {
   // Traverse the chained list of segments and return them all to the allocator.
   while (current) {
     Segment* next = current->next();
-    size_t size = current->total_size();
-
-    // Un-poison the segment content so we can re-use or zap it later.
-    ASAN_UNPOISON_MEMORY_REGION(reinterpret_cast<void*>(current->start()),
-                                current->capacity());
-
-    segment_bytes_allocated_ -= size;
-    allocator_->ReturnSegment(current, supports_compression());
+    segment_bytes_allocated_ -= current->total_size();
+    ReleaseSegment(current);
     current = next;
   }
 
@@ -105,6 +99,13 @@ void Zone::DeleteAll() {
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS
   allocation_size_for_tracing_ = 0;
 #endif
+}
+
+void Zone::ReleaseSegment(Segment* segment) {
+  // Un-poison the segment content so we can re-use or zap it later.
+  ASAN_UNPOISON_MEMORY_REGION(reinterpret_cast<void*>(segment->start()),
+                              segment->capacity());
+  allocator_->ReturnSegment(segment, supports_compression());
 }
 
 Address Zone::NewExpand(size_t size) {
@@ -166,6 +167,49 @@ Address Zone::NewExpand(size_t size) {
   limit_ = segment->end();
   DCHECK(position_ <= limit_);
   return result;
+}
+
+ZoneScope::ZoneScope(Zone* zone)
+    : zone_(zone),
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+      allocation_size_for_tracing_(zone->allocation_size_for_tracing_),
+      freed_size_for_tracing_(zone->freed_size_for_tracing_),
+#endif
+      allocation_size_(zone->allocation_size_),
+      segment_bytes_allocated_(zone->segment_bytes_allocated_),
+      position_(zone->position_),
+      limit_(zone->limit_),
+      segment_head_(zone->segment_head_) {
+}
+
+ZoneScope::~ZoneScope() {
+  // Release segments up to the stored segment_head_.
+  Segment* current = zone_->segment_head_;
+  while (current != segment_head_) {
+    Segment* next = current->next();
+    zone_->ReleaseSegment(current);
+    current = next;
+  }
+
+  // Un-poison the trailing segment content so we can re-use or zap it later.
+  if (segment_head_ != nullptr) {
+    void* const start = reinterpret_cast<void*>(position_);
+    DCHECK_GE(start, reinterpret_cast<void*>(current->start()));
+    DCHECK_LE(start, reinterpret_cast<void*>(current->end()));
+    const size_t length = current->end() - reinterpret_cast<Address>(start);
+    ASAN_UNPOISON_MEMORY_REGION(start, length);
+  }
+
+  // Reset the Zone to the stored state.
+  zone_->allocation_size_ = allocation_size_;
+  zone_->segment_bytes_allocated_ = segment_bytes_allocated_;
+  zone_->position_ = position_;
+  zone_->limit_ = limit_;
+  zone_->segment_head_ = segment_head_;
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+  zone_->allocation_size_for_tracing_ = allocation_size_for_tracing_;
+  zone_->freed_size_for_tracing_ = freed_size_for_tracing_;
+#endif
 }
 
 }  // namespace internal

@@ -308,6 +308,9 @@ using WasmSimdEnabledCallback = bool (*)(Local<Context> context);
 // --- Callback for checking if WebAssembly exceptions are enabled ---
 using WasmExceptionsEnabledCallback = bool (*)(Local<Context> context);
 
+// --- Callback for checking if WebAssembly dynamic tiering is enabled ---
+using WasmDynamicTieringEnabledCallback = bool (*)(Local<Context> context);
+
 // --- Callback for checking if the SharedArrayBuffer constructor is enabled ---
 using SharedArrayBufferConstructorEnabledCallback =
     bool (*)(Local<Context> context);

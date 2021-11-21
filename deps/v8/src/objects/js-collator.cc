@@ -11,7 +11,9 @@
 #include "src/execution/isolate.h"
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-locale.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/coll.h"
 #include "unicode/locid.h"
 #include "unicode/strenum.h"
@@ -42,9 +44,9 @@ enum class Sensitivity {
 enum class CaseFirst { kUndefined, kUpper, kLower, kFalse };
 
 Maybe<CaseFirst> GetCaseFirst(Isolate* isolate, Handle<JSReceiver> options,
-                              const char* method) {
-  return Intl::GetStringOption<CaseFirst>(
-      isolate, options, "caseFirst", method, {"upper", "lower", "false"},
+                              const char* method_name) {
+  return GetStringOption<CaseFirst>(
+      isolate, options, "caseFirst", method_name, {"upper", "lower", "false"},
       {CaseFirst::kUpper, CaseFirst::kLower, CaseFirst::kFalse},
       CaseFirst::kUndefined);
 }
@@ -286,12 +288,12 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // 2. Set options to ? CoerceOptionsToObject(options).
   Handle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options,
-      Intl::CoerceOptionsToObject(isolate, options_obj, service), JSCollator);
+      isolate, options, CoerceOptionsToObject(isolate, options_obj, service),
+      JSCollator);
 
   // 4. Let usage be ? GetOption(options, "usage", "string", « "sort",
   // "search" », "sort").
-  Maybe<Usage> maybe_usage = Intl::GetStringOption<Usage>(
+  Maybe<Usage> maybe_usage = GetStringOption<Usage>(
       isolate, options, "usage", service, {"sort", "search"},
       {Usage::SORT, Usage::SEARCH}, Usage::SORT);
   MAYBE_RETURN(maybe_usage, MaybeHandle<JSCollator>());
@@ -309,7 +311,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // *undefined*, *undefined*).
   std::unique_ptr<char[]> collation_str = nullptr;
   const std::vector<const char*> empty_values = {};
-  Maybe<bool> maybe_collation = Intl::GetStringOption(
+  Maybe<bool> maybe_collation = GetStringOption(
       isolate, options, "collation", empty_values, service, &collation_str);
   MAYBE_RETURN(maybe_collation, MaybeHandle<JSCollator>());
   // x. If _collation_ is not *undefined*, then
@@ -334,13 +336,13 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   //    a. Let numeric be ! ToString(numeric).
   //
   // Note: We omit the ToString(numeric) operation as it's not
-  // observable. Intl::GetBoolOption returns a Boolean and
+  // observable. GetBoolOption returns a Boolean and
   // ToString(Boolean) is not side-effecting.
   //
   // 13. Set opt.[[kn]] to numeric.
   bool numeric;
   Maybe<bool> found_numeric =
-      Intl::GetBoolOption(isolate, options, "numeric", service, &numeric);
+      GetBoolOption(isolate, options, "numeric", service, &numeric);
   MAYBE_RETURN(found_numeric, MaybeHandle<JSCollator>());
 
   // 14. Let caseFirst be ? GetOption(options, "caseFirst", "string",
@@ -477,12 +479,12 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
 
   // 24. Let sensitivity be ? GetOption(options, "sensitivity",
   // "string", « "base", "accent", "case", "variant" », undefined).
-  Maybe<Sensitivity> maybe_sensitivity = Intl::GetStringOption<Sensitivity>(
-      isolate, options, "sensitivity", service,
-      {"base", "accent", "case", "variant"},
-      {Sensitivity::kBase, Sensitivity::kAccent, Sensitivity::kCase,
-       Sensitivity::kVariant},
-      Sensitivity::kUndefined);
+  Maybe<Sensitivity> maybe_sensitivity =
+      GetStringOption<Sensitivity>(isolate, options, "sensitivity", service,
+                                   {"base", "accent", "case", "variant"},
+                                   {Sensitivity::kBase, Sensitivity::kAccent,
+                                    Sensitivity::kCase, Sensitivity::kVariant},
+                                   Sensitivity::kUndefined);
   MAYBE_RETURN(maybe_sensitivity, MaybeHandle<JSCollator>());
   Sensitivity sensitivity = maybe_sensitivity.FromJust();
 
@@ -518,7 +520,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // 27.Let ignorePunctuation be ? GetOption(options,
   // "ignorePunctuation", "boolean", undefined, false).
   bool ignore_punctuation;
-  Maybe<bool> found_ignore_punctuation = Intl::GetBoolOption(
+  Maybe<bool> found_ignore_punctuation = GetBoolOption(
       isolate, options, "ignorePunctuation", service, &ignore_punctuation);
   MAYBE_RETURN(found_ignore_punctuation, MaybeHandle<JSCollator>());
 

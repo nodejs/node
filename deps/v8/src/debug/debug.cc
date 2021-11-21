@@ -24,7 +24,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/v8threads.h"
-#include "src/handles/global-handles.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-inl.h"  // For NextDebuggingId.
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -1583,7 +1583,16 @@ class SharedFunctionInfoFinder {
     }
 
     if (start_position > target_position_) return;
-    if (target_position_ > shared.EndPosition()) return;
+    if (target_position_ >= shared.EndPosition()) {
+      // The SharedFunctionInfo::EndPosition() is generally exclusive, but there
+      // are assumptions in various places in the debugger that for script level
+      // (toplevel function) there's an end position that is technically outside
+      // the script. It might be worth revisiting the overall design here at
+      // some point in the future.
+      if (!shared.is_toplevel() || target_position_ > shared.EndPosition()) {
+        return;
+      }
+    }
 
     if (!current_candidate_.is_null()) {
       if (current_start_position_ == start_position &&
@@ -2686,6 +2695,18 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
       handle(bytecode_array, isolate_), offset);
 
   Bytecode bytecode = bytecode_iterator.current_bytecode();
+  if (interpreter::Bytecodes::IsCallRuntime(bytecode)) {
+    auto id = (bytecode == Bytecode::kInvokeIntrinsic)
+                  ? bytecode_iterator.GetIntrinsicIdOperand(0)
+                  : bytecode_iterator.GetRuntimeIdOperand(0);
+    if (DebugEvaluate::IsSideEffectFreeIntrinsic(id)) {
+      return true;
+    }
+    side_effect_check_failed_ = true;
+    // Throw an uncatchable termination exception.
+    isolate_->TerminateExecution();
+    return false;
+  }
   interpreter::Register reg;
   switch (bytecode) {
     case Bytecode::kStaCurrentContextSlot:

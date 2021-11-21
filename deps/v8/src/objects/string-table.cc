@@ -574,13 +574,14 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
   std::unique_ptr<Char[]> buffer;
   const Char* chars;
 
-  if (source.IsConsString()) {
-    DCHECK(!source.IsFlat());
+  SharedStringAccessGuardIfNeeded access_guard(isolate);
+  if (source.IsConsString(isolate)) {
+    DCHECK(!source.IsFlat(isolate));
     buffer.reset(new Char[length]);
-    String::WriteToFlat(source, buffer.get(), 0, length);
+    String::WriteToFlat(source, buffer.get(), 0, length, isolate, access_guard);
     chars = buffer.get();
   } else {
-    chars = source.GetChars<Char>(no_gc) + start;
+    chars = source.GetChars<Char>(isolate, no_gc, access_guard) + start;
   }
   // TODO(verwaest): Internalize to one-byte when possible.
   SequentialStringKey<Char> key(base::Vector<const Char>(chars, length), seed);

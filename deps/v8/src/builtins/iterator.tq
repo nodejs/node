@@ -52,10 +52,10 @@ transitioning builtin GetIteratorWithFeedback(
     context: Context, receiver: JSAny, loadSlot: TaggedIndex,
     callSlot: TaggedIndex,
     maybeFeedbackVector: Undefined|FeedbackVector): JSAny {
-  // TODO(v8:9891): Remove this assert once all callers are ported to Torque.
-  // This assert ensures correctness of maybeFeedbackVector's type which can
+  // TODO(v8:9891): Remove this dcheck once all callers are ported to Torque.
+  // This dcheck ensures correctness of maybeFeedbackVector's type which can
   // be easily broken for calls from CSA.
-  assert(
+  dcheck(
       IsUndefined(maybeFeedbackVector) ||
       Is<FeedbackVector>(maybeFeedbackVector));
   let iteratorMethod: JSAny;
@@ -117,7 +117,7 @@ transitioning builtin CallIteratorWithFeedback(
 // https://tc39.es/ecma262/#sec-iteratorclose
 @export
 transitioning macro IteratorCloseOnException(implicit context: Context)(
-    iterator: IteratorRecord) {
+    iterator: IteratorRecord): void {
   try {
     // 4. Let innerResult be GetMethod(iterator, "return").
     const method = GetProperty(iterator.object, kReturnString);

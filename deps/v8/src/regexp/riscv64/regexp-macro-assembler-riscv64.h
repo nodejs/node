@@ -105,14 +105,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
 
   // Stack frame header.
   static const int kStackFrameHeader = kReturnAddress;
-  // Stack parameters placed by caller.
-  static const int kIsolate = kStackFrameHeader + kSystemPointerSize;
-
   // Below the frame pointer.
   // Register parameters stored by setup code.
-  static const int kDirectCall = kFramePointer - kSystemPointerSize;
-  static const int kStackHighEnd = kDirectCall - kSystemPointerSize;
-  static const int kNumOutputRegisters = kStackHighEnd - kSystemPointerSize;
+  static const int kIsolate = kFramePointer - kSystemPointerSize;
+  static const int kDirectCall = kIsolate - kSystemPointerSize;
+  static const int kNumOutputRegisters = kDirectCall - kSystemPointerSize;
   static const int kRegisterOutput = kNumOutputRegisters - kSystemPointerSize;
   static const int kInputEnd = kRegisterOutput - kSystemPointerSize;
   static const int kInputStart = kInputEnd - kSystemPointerSize;
@@ -124,8 +121,14 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   static const int kStringStartMinusOne =
       kSuccessfulCaptures - kSystemPointerSize;
   static const int kBacktrackCount = kStringStartMinusOne - kSystemPointerSize;
+  // Stores the initial value of the regexp stack pointer in a
+  // position-independent representation (in case the regexp stack grows and
+  // thus moves).
+  static const int kRegExpStackBasePointer =
+      kBacktrackCount - kSystemPointerSize;
+  static constexpr int kNumberOfStackLocals = 4;
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kBacktrackCount - kSystemPointerSize;
+  static const int kRegisterZero = kRegExpStackBasePointer - kSystemPointerSize;
 
   // Initial size of code buffer.
   static const int kRegExpCodeSize = 1024;
@@ -144,27 +147,27 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
 
   // Register holding the current input position as negative offset from
   // the end of the string.
-  inline Register current_input_offset() { return a6; }
+  static constexpr Register current_input_offset() { return a6; }
 
   // The register containing the current character after LoadCurrentCharacter.
-  inline Register current_character() { return a7; }
+  static constexpr Register current_character() { return a7; }
 
   // Register holding address of the end of the input string.
-  inline Register end_of_input_address() { return t2; }
+  static constexpr Register end_of_input_address() { return t2; }
 
   // Register holding the frame address. Local variables, parameters and
   // regexp registers are addressed relative to this.
-  inline Register frame_pointer() { return fp; }
+  static constexpr Register frame_pointer() { return fp; }
 
   // The register containing the backtrack stack top. Provides a meaningful
   // name to the register.
-  inline Register backtrack_stackpointer() { return t0; }
+  static constexpr Register backtrack_stackpointer() { return t0; }
 
   // Register holding pointer to the current code object.
-  inline Register code_pointer() { return a5; }
+  static constexpr Register code_pointer() { return a5; }
 
   // Byte size of chars in the string to match (decided by the Mode argument).
-  inline int char_size() { return static_cast<int>(mode_); }
+  inline int char_size() const { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.
@@ -186,19 +189,25 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   // and increments it by a word size.
   inline void Pop(Register target);
 
+  void LoadRegExpStackPointerFromMemory(Register dst);
+  void StoreRegExpStackPointerToMemory(Register src, Register scratch);
+  void PushRegExpBasePointer(Register scratch1, Register scratch2);
+  void PopRegExpBasePointer(Register scratch1, Register scratch2);
+
   Isolate* isolate() const { return masm_->isolate(); }
 
-  MacroAssembler* masm_;
+  const std::unique_ptr<MacroAssembler> masm_;
+  const NoRootArrayScope no_root_array_scope_;
 
   // Which mode to generate code for (Latin1 or UC16).
-  Mode mode_;
+  const Mode mode_;
 
   // One greater than maximal register index actually used.
   int num_registers_;
 
   // Number of registers to output at the end (the saved registers
   // are always 0..num_saved_registers_-1).
-  int num_saved_registers_;
+  const int num_saved_registers_;
 
   // Labels used internally.
   Label entry_label_;

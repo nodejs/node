@@ -97,6 +97,20 @@ V8_INLINE bool IsHeapSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
 // case another WasmModule gets allocated in the same address later.
 void DeleteCachedTypeJudgementsForModule(const WasmModule* module);
 
+// Checks whether {subtype_index} is a legal subtype of {supertype_index}.
+// These are the same checks that {IsSubtypeOf} uses for comparing types without
+// explicitly given supertypes; for validating such explicit supertypes they
+// can be called directly.
+bool StructIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
+                       const WasmModule* sub_module,
+                       const WasmModule* super_module);
+bool ArrayIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
+                      const WasmModule* sub_module,
+                      const WasmModule* super_module);
+bool FunctionIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
+                         const WasmModule* sub_module,
+                         const WasmModule* super_module);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

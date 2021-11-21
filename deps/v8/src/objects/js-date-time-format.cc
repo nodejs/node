@@ -20,7 +20,8 @@
 #include "src/heap/factory.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-date-time-format-inl.h"
-
+#include "src/objects/managed-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/calendar.h"
 #include "unicode/dtitvfmt.h"
 #include "unicode/dtptngen.h"
@@ -76,9 +77,9 @@ JSDateTimeFormat::HourCycle ToHourCycle(UDateFormatHourCycle hc) {
 
 Maybe<JSDateTimeFormat::HourCycle> GetHourCycle(Isolate* isolate,
                                                 Handle<JSReceiver> options,
-                                                const char* method) {
-  return Intl::GetStringOption<JSDateTimeFormat::HourCycle>(
-      isolate, options, "hourCycle", method, {"h11", "h12", "h23", "h24"},
+                                                const char* method_name) {
+  return GetStringOption<JSDateTimeFormat::HourCycle>(
+      isolate, options, "hourCycle", method_name, {"h11", "h12", "h23", "h24"},
       {JSDateTimeFormat::HourCycle::kH11, JSDateTimeFormat::HourCycle::kH12,
        JSDateTimeFormat::HourCycle::kH23, JSDateTimeFormat::HourCycle::kH24},
       JSDateTimeFormat::HourCycle::kUndefined);
@@ -525,13 +526,17 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   // and
   // http://www.unicode.org/repos/cldr/tags/latest/common/bcp47/calendar.xml
   if (calendar_str == "gregorian") {
-    if (date_time_format->iso8601()) {
+    if (date_time_format->alt_calendar()) {
       calendar_str = "iso8601";
     } else {
       calendar_str = "gregory";
     }
   } else if (calendar_str == "ethiopic-amete-alem") {
     calendar_str = "ethioaa";
+  } else if (calendar_str == "islamic") {
+    if (date_time_format->alt_calendar()) {
+      calendar_str = "islamic-rgsa";
+    }
   }
 
   const icu::TimeZone& tz = calendar->getTimeZone();
@@ -771,7 +776,7 @@ Isolate::ICUObjectCacheType ConvertToCacheType(
 MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
     Isolate* isolate, Handle<Object> date, Handle<Object> locales,
     Handle<Object> options, RequiredOption required, DefaultsOption defaults,
-    const char* method) {
+    const char* method_name) {
   Isolate::ICUObjectCacheType cache_type = ConvertToCacheType(defaults);
 
   Factory* factory = isolate->factory();
@@ -821,7 +826,8 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   Handle<JSDateTimeFormat> date_time_format;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_time_format,
-      JSDateTimeFormat::New(isolate, map, locales, internal_options, method),
+      JSDateTimeFormat::New(isolate, map, locales, internal_options,
+                            method_name),
       String);
 
   if (can_cache) {
@@ -1499,7 +1505,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   const std::vector<const char*> empty_values = {};
   // 6. Let calendar be ? GetOption(options, "calendar",
   //    "string", undefined, undefined).
-  Maybe<bool> maybe_calendar = Intl::GetStringOption(
+  Maybe<bool> maybe_calendar = GetStringOption(
       isolate, options, "calendar", empty_values, service, &calendar_str);
   MAYBE_RETURN(maybe_calendar, MaybeHandle<JSDateTimeFormat>());
   if (maybe_calendar.FromJust() && calendar_str != nullptr) {
@@ -1523,7 +1529,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   // undefined).
   bool hour12;
   Maybe<bool> maybe_get_hour12 =
-      Intl::GetBoolOption(isolate, options, "hour12", service, &hour12);
+      GetBoolOption(isolate, options, "hour12", service, &hour12);
   MAYBE_RETURN(maybe_get_hour12, Handle<JSDateTimeFormat>());
 
   // 7. Let hourCycle be ? GetOption(options, "hourCycle", "string", « "h11",
@@ -1588,7 +1594,9 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     icu_locale.setUnicodeKeywordValue("ca", calendar_str.get(), status);
     DCHECK(U_SUCCESS(status));
   }
-  bool iso8601 = strstr(icu_locale.getName(), "calendar=iso8601") != nullptr;
+  bool alt_calendar =
+      strstr(icu_locale.getName(), "calendar=iso8601") != nullptr ||
+      strstr(icu_locale.getName(), "calendar=islamic-rgsa") != nullptr;
 
   if (numbering_system_str != nullptr &&
       Intl::IsValidNumberingSystem(numbering_system_str.get())) {
@@ -1651,7 +1659,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
 
   // 17. Let timeZone be ? Get(options, "timeZone").
   std::unique_ptr<char[]> timezone = nullptr;
-  Maybe<bool> maybe_timezone = Intl::GetStringOption(
+  Maybe<bool> maybe_timezone = GetStringOption(
       isolate, options, "timeZone", empty_values, service, &timezone);
   MAYBE_RETURN(maybe_timezone, Handle<JSDateTimeFormat>());
 
@@ -1689,7 +1697,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     if (item.property == "timeZoneName") {
       // Let _value_ be ? GetNumberOption(options, "fractionalSecondDigits", 1,
       // 3, *undefined*). The *undefined* is represented by value 0 here.
-      Maybe<int> maybe_fsd = Intl::GetNumberOption(
+      Maybe<int> maybe_fsd = GetNumberOption(
           isolate, options, factory->fractionalSecondDigits_string(), 1, 3, 0);
       MAYBE_RETURN(maybe_fsd, MaybeHandle<JSDateTimeFormat>());
       // Convert fractionalSecondDigits to skeleton.
@@ -1703,8 +1711,8 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     // ii. Let value be ? GetOption(options, prop, "string", « the strings
     // given in the Values column of the row », undefined).
     Maybe<bool> maybe_get_option =
-        Intl::GetStringOption(isolate, options, item.property.c_str(),
-                              item.allowed_values, service, &input);
+        GetStringOption(isolate, options, item.property.c_str(),
+                        item.allowed_values, service, &input);
     MAYBE_RETURN(maybe_get_option, Handle<JSDateTimeFormat>());
     if (maybe_get_option.FromJust()) {
       if (item.property == "hour") {
@@ -1724,7 +1732,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   // c. Let matcher be ? GetOption(options, "formatMatcher", "string",
   //     «  "basic", "best fit" », "best fit").
   Maybe<FormatMatcherOption> maybe_format_matcher =
-      Intl::GetStringOption<FormatMatcherOption>(
+      GetStringOption<FormatMatcherOption>(
           isolate, options, "formatMatcher", service, {"best fit", "basic"},
           {FormatMatcherOption::kBestFit, FormatMatcherOption::kBasic},
           FormatMatcherOption::kBestFit);
@@ -1734,7 +1742,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
 
   // 32. Let dateStyle be ? GetOption(options, "dateStyle", "string", «
   // "full", "long", "medium", "short" », undefined).
-  Maybe<DateTimeStyle> maybe_date_style = Intl::GetStringOption<DateTimeStyle>(
+  Maybe<DateTimeStyle> maybe_date_style = GetStringOption<DateTimeStyle>(
       isolate, options, "dateStyle", service,
       {"full", "long", "medium", "short"},
       {DateTimeStyle::kFull, DateTimeStyle::kLong, DateTimeStyle::kMedium,
@@ -1746,7 +1754,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
 
   // 34. Let timeStyle be ? GetOption(options, "timeStyle", "string", «
   // "full", "long", "medium", "short" »).
-  Maybe<DateTimeStyle> maybe_time_style = Intl::GetStringOption<DateTimeStyle>(
+  Maybe<DateTimeStyle> maybe_time_style = GetStringOption<DateTimeStyle>(
       isolate, options, "timeStyle", service,
       {"full", "long", "medium", "short"},
       {DateTimeStyle::kFull, DateTimeStyle::kLong, DateTimeStyle::kMedium,
@@ -1896,7 +1904,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     date_time_format->set_time_style(time_style);
   }
   date_time_format->set_hour_cycle(dateTimeFormatHourCycle);
-  date_time_format->set_iso8601(iso8601);
+  date_time_format->set_alt_calendar(alt_calendar);
   date_time_format->set_locale(*locale_str);
   date_time_format->set_icu_locale(*managed_locale);
   date_time_format->set_icu_simple_date_format(*managed_format);

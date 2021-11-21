@@ -194,7 +194,7 @@ transitioning builtin
 FulfillPromise(implicit context: Context)(
     promise: JSPromise, value: JSAny): Undefined {
   // Assert: The value of promise.[[PromiseState]] is "pending".
-  assert(promise.Status() == PromiseState::kPending);
+  dcheck(promise.Status() == PromiseState::kPending);
 
   RunContextPromiseHookResolve(promise);
 
@@ -469,7 +469,7 @@ transitioning macro PerformPromiseThenImpl(implicit context: Context)(
           resultPromiseOrCapability);
     } else
       deferred {
-        assert(promise.Status() == PromiseState::kRejected);
+        dcheck(promise.Status() == PromiseState::kRejected);
         handlerContext = ExtractHandlerContext(onRejected, onFulfilled);
         microtask = NewPromiseRejectReactionJobTask(
             handlerContext, reactionsOrResult, onRejected,

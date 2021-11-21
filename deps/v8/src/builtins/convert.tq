@@ -29,7 +29,7 @@ FromConstexpr<Smi, constexpr int31>(i: constexpr int31): Smi {
   return %FromConstexpr<Smi>(i);
 }
 FromConstexpr<PositiveSmi, constexpr int31>(i: constexpr int31): PositiveSmi {
-  assert(i >= 0);
+  dcheck(i >= 0);
   return %FromConstexpr<PositiveSmi>(i);
 }
 FromConstexpr<String, constexpr string>(s: constexpr string): String {
@@ -232,11 +232,11 @@ Convert<TaggedIndex, intptr>(i: intptr): TaggedIndex {
 }
 Convert<intptr, uintptr>(ui: uintptr): intptr {
   const i = Signed(ui);
-  assert(i >= 0);
+  dcheck(i >= 0);
   return i;
 }
 Convert<PositiveSmi, intptr>(i: intptr): PositiveSmi {
-  assert(IsValidPositiveSmi(i));
+  dcheck(IsValidPositiveSmi(i));
   return %RawDownCast<PositiveSmi>(SmiTag(i));
 }
 Convert<PositiveSmi, uintptr>(ui: uintptr): PositiveSmi labels IfOverflow {

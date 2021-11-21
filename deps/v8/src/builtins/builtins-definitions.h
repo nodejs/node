@@ -316,7 +316,7 @@ namespace internal {
                                                                                \
   /* Abort */                                                                  \
   TFC(Abort, Abort)                                                            \
-  TFC(AbortCSAAssert, Abort)                                                   \
+  TFC(AbortCSADcheck, Abort)                                                   \
                                                                                \
   /* Built-in functions for Javascript */                                      \
   /* Special internal builtins */                                              \

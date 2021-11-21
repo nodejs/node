@@ -130,20 +130,20 @@ PropertyDetails MapUpdater::GetDetails(InternalIndex descriptor) const {
 Object MapUpdater::GetValue(InternalIndex descriptor) const {
   DCHECK(descriptor.is_found());
   if (descriptor == modified_descriptor_) {
-    DCHECK_EQ(kDescriptor, new_location_);
+    DCHECK_EQ(PropertyLocation::kDescriptor, new_location_);
     return *new_value_;
   }
-  DCHECK_EQ(kDescriptor, GetDetails(descriptor).location());
+  DCHECK_EQ(PropertyLocation::kDescriptor, GetDetails(descriptor).location());
   return old_descriptors_->GetStrongValue(descriptor);
 }
 
 FieldType MapUpdater::GetFieldType(InternalIndex descriptor) const {
   DCHECK(descriptor.is_found());
   if (descriptor == modified_descriptor_) {
-    DCHECK_EQ(kField, new_location_);
+    DCHECK_EQ(PropertyLocation::kField, new_location_);
     return *new_field_type_;
   }
-  DCHECK_EQ(kField, GetDetails(descriptor).location());
+  DCHECK_EQ(PropertyLocation::kField, GetDetails(descriptor).location());
   return old_descriptors_->GetFieldType(descriptor);
 }
 
@@ -153,7 +153,7 @@ Handle<FieldType> MapUpdater::GetOrComputeFieldType(
   DCHECK(descriptor.is_found());
   // |location| is just a pre-fetched GetDetails(descriptor).location().
   DCHECK_EQ(location, GetDetails(descriptor).location());
-  if (location == kField) {
+  if (location == PropertyLocation::kField) {
     return handle(GetFieldType(descriptor), isolate_);
   } else {
     return GetValue(descriptor).OptimalType(isolate_, representation);
@@ -165,7 +165,7 @@ Handle<FieldType> MapUpdater::GetOrComputeFieldType(
     PropertyLocation location, Representation representation) {
   // |location| is just a pre-fetched GetDetails(descriptor).location().
   DCHECK_EQ(descriptors->GetDetails(descriptor).location(), location);
-  if (location == kField) {
+  if (location == PropertyLocation::kField) {
     return handle(descriptors->GetFieldType(descriptor), isolate_);
   } else {
     return descriptors->GetStrongValue(descriptor)
@@ -188,7 +188,7 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
   modified_descriptor_ = descriptor;
   new_kind_ = kData;
   new_attributes_ = attributes;
-  new_location_ = kField;
+  new_location_ = PropertyLocation::kField;
 
   PropertyDetails old_details =
       old_descriptors_->GetDetails(modified_descriptor_);
@@ -460,7 +460,7 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
 
   DCHECK_EQ(new_kind_, old_details.kind());
   DCHECK_EQ(new_attributes_, old_details.attributes());
-  DCHECK_EQ(kField, old_details.location());
+  DCHECK_EQ(PropertyLocation::kField, old_details.location());
   if (FLAG_trace_generalization) {
     PrintGeneralization(
         isolate_, old_map_, stdout, "uninitialized field", modified_descriptor_,
@@ -581,7 +581,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
         old_details.attributes() != new_attributes_) {
       return Normalize("Normalize_RootModification1");
     }
-    if (old_details.location() != kField) {
+    if (old_details.location() != PropertyLocation::kField) {
       return Normalize("Normalize_RootModification2");
     }
     if (!new_representation_.fits_into(old_details.representation())) {
@@ -590,7 +590,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
 
     DCHECK_EQ(kData, old_details.kind());
     DCHECK_EQ(kData, new_kind_);
-    DCHECK_EQ(kField, new_location_);
+    DCHECK_EQ(PropertyLocation::kField, new_location_);
 
     // Modify root map in-place. The GeneralizeField method is a no-op
     // if the {old_map_} is already general enough to hold the requested
@@ -645,7 +645,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
       tmp_representation = generalized;
     }
 
-    if (tmp_details.location() == kField) {
+    if (tmp_details.location() == PropertyLocation::kField) {
       Handle<FieldType> old_field_type =
           GetOrComputeFieldType(i, old_details.location(), tmp_representation);
       GeneralizeField(tmp_map, i, old_details.constness(), tmp_representation,
@@ -676,12 +676,12 @@ MapUpdater::State MapUpdater::FindTargetMap() {
       DCHECK(IsGeneralizableTo(new_constness_, details.constness()));
       DCHECK_EQ(new_location_, details.location());
       DCHECK(new_representation_.fits_into(details.representation()));
-      if (new_location_ == kField) {
-        DCHECK_EQ(kField, details.location());
+      if (new_location_ == PropertyLocation::kField) {
+        DCHECK_EQ(PropertyLocation::kField, details.location());
         DCHECK(new_field_type_->NowIs(
             target_descriptors.GetFieldType(modified_descriptor_)));
       } else {
-        DCHECK(details.location() == kField ||
+        DCHECK(details.location() == PropertyLocation::kField ||
                EqualImmutableValues(
                    *new_value_,
                    target_descriptors.GetStrongValue(modified_descriptor_)));
@@ -766,7 +766,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   int current_offset = 0;
   for (InternalIndex i : InternalIndex::Range(root_nof)) {
     PropertyDetails old_details = old_descriptors_->GetDetails(i);
-    if (old_details.location() == kField) {
+    if (old_details.location() == PropertyLocation::kField) {
       current_offset += old_details.field_width_in_words();
     }
     Descriptor d(handle(GetKey(i), isolate_),
@@ -793,22 +793,22 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
     // Note: failed values equality check does not invalidate per-object
     // property constness.
     PropertyLocation next_location =
-        old_details.location() == kField ||
-                target_details.location() == kField ||
+        old_details.location() == PropertyLocation::kField ||
+                target_details.location() == PropertyLocation::kField ||
                 !EqualImmutableValues(target_descriptors->GetStrongValue(i),
                                       GetValue(i))
-            ? kField
-            : kDescriptor;
+            ? PropertyLocation::kField
+            : PropertyLocation::kDescriptor;
 
     // Ensure that mutable values are stored in fields.
     DCHECK_IMPLIES(next_constness == PropertyConstness::kMutable,
-                   next_location == kField);
+                   next_location == PropertyLocation::kField);
 
     Representation next_representation =
         old_details.representation().generalize(
             target_details.representation());
 
-    if (next_location == kField) {
+    if (next_location == PropertyLocation::kField) {
       Handle<FieldType> old_field_type =
           GetOrComputeFieldType(i, old_details.location(), next_representation);
 
@@ -837,7 +837,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       current_offset += d.GetDetails().field_width_in_words();
       new_descriptors->Set(i, &d);
     } else {
-      DCHECK_EQ(kDescriptor, next_location);
+      DCHECK_EQ(PropertyLocation::kDescriptor, next_location);
       DCHECK_EQ(PropertyConstness::kConst, next_constness);
 
       Handle<Object> value(GetValue(i), isolate_);
@@ -860,7 +860,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
     Representation next_representation = old_details.representation();
 
     Descriptor d;
-    if (next_location == kField) {
+    if (next_location == PropertyLocation::kField) {
       Handle<FieldType> next_field_type =
           GetOrComputeFieldType(i, old_details.location(), next_representation);
 
@@ -885,7 +885,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       current_offset += d.GetDetails().field_width_in_words();
       new_descriptors->Set(i, &d);
     } else {
-      DCHECK_EQ(kDescriptor, next_location);
+      DCHECK_EQ(PropertyLocation::kDescriptor, next_location);
       DCHECK_EQ(PropertyConstness::kConst, next_constness);
 
       Handle<Object> value(GetValue(i), isolate_);
@@ -924,7 +924,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
     if (details.location() != next_details.location()) break;
     if (!details.representation().Equals(next_details.representation())) break;
 
-    if (next_details.location() == kField) {
+    if (next_details.location() == PropertyLocation::kField) {
       FieldType next_field_type = next_descriptors.GetFieldType(i);
       if (!descriptors->GetFieldType(i).NowIs(next_field_type)) {
         break;
@@ -981,14 +981,14 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
     MaybeHandle<FieldType> new_field_type;
     MaybeHandle<Object> old_value;
     MaybeHandle<Object> new_value;
-    if (old_details.location() == kField) {
+    if (old_details.location() == PropertyLocation::kField) {
       old_field_type = handle(
           old_descriptors_->GetFieldType(modified_descriptor_), isolate_);
     } else {
       old_value = handle(old_descriptors_->GetStrongValue(modified_descriptor_),
                          isolate_);
     }
-    if (new_details.location() == kField) {
+    if (new_details.location() == PropertyLocation::kField) {
       new_field_type =
           handle(new_descriptors->GetFieldType(modified_descriptor_), isolate_);
     } else {
@@ -999,7 +999,8 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
     PrintGeneralization(
         isolate_, old_map_, stdout, "", modified_descriptor_, split_nof,
         old_nof_,
-        old_details.location() == kDescriptor && new_location_ == kField,
+        old_details.location() == PropertyLocation::kDescriptor &&
+            new_location_ == PropertyLocation::kField,
         old_details.representation(), new_details.representation(),
         old_details.constness(), new_details.constness(), old_field_type,
         old_value, new_field_type, new_value);
@@ -1099,7 +1100,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
   DisallowGarbageCollection no_gc;
   PropertyDetails details =
       map->instance_descriptors(isolate).GetDetails(descriptor);
-  if (details.location() != kField) return;
+  if (details.location() != PropertyLocation::kField) return;
   DCHECK_EQ(kData, details.kind());
 
   if (new_constness != details.constness() && map->is_prototype_map()) {

@@ -31,7 +31,7 @@ extern macro LoadSwissNameDictionaryCtrlTableGroup(intptr): uint64;
 
 // Counterpart to swiss_table::ProbeSequence in C++ implementation.
 struct ProbeSequence {
-  macro Next() {
+  macro Next(): void {
     this.index = this.index + Unsigned(FromConstexpr<int32>(kGroupWidth));
     this.offset = (this.offset + this.index) & this.mask;
   }
@@ -64,7 +64,7 @@ struct ByteMask {
   }
 
   // Counterpart to operator++() in C++ version.
-  macro ClearLowestSetBit() {
+  macro ClearLowestSetBit(): void {
     this.mask = ClearLowestSetBit<uint64>(this.mask);
   }
 
@@ -83,7 +83,7 @@ struct BitMask {
   }
 
   // Counterpart to operator++() in C++ version.
-  macro ClearLowestSetBit() {
+  macro ClearLowestSetBit(): void {
     this.mask = ClearLowestSetBit<uint32>(this.mask);
   }
 

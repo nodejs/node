@@ -190,12 +190,12 @@ void RawMachineAssembler::OptimizeControlFlow(Schedule* schedule, Graph* graph,
         false_block->ClearPredecessors();
 
         size_t arity = block->PredecessorCount();
-        for (size_t i = 0; i < arity; ++i) {
-          BasicBlock* predecessor = block->PredecessorAt(i);
+        for (size_t j = 0; j < arity; ++j) {
+          BasicBlock* predecessor = block->PredecessorAt(j);
           predecessor->ClearSuccessors();
           if (block->deferred()) predecessor->set_deferred(true);
           Node* branch_clone = graph->CloneNode(branch);
-          int phi_input = static_cast<int>(i);
+          int phi_input = static_cast<int>(j);
           NodeProperties::ReplaceValueInput(
               branch_clone, NodeProperties::GetValueInput(phi, phi_input), 0);
           BasicBlock* new_true_block = schedule->NewBasicBlock();
@@ -571,14 +571,14 @@ void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
   size_t succ_count = case_count + 1;
   Node* switch_node = MakeNode(common()->Switch(succ_count), 1, &index);
   BasicBlock** succ_blocks = zone()->NewArray<BasicBlock*>(succ_count);
-  for (size_t index = 0; index < case_count; ++index) {
-    int32_t case_value = case_values[index];
+  for (size_t i = 0; i < case_count; ++i) {
+    int32_t case_value = case_values[i];
     BasicBlock* case_block = schedule()->NewBasicBlock();
     Node* case_node =
         graph()->NewNode(common()->IfValue(case_value), switch_node);
     schedule()->AddNode(case_block, case_node);
-    schedule()->AddGoto(case_block, Use(case_labels[index]));
-    succ_blocks[index] = case_block;
+    schedule()->AddGoto(case_block, Use(case_labels[i]));
+    succ_blocks[i] = case_block;
   }
   BasicBlock* default_block = schedule()->NewBasicBlock();
   Node* default_node = graph()->NewNode(common()->IfDefault(), switch_node);
@@ -673,8 +673,8 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3,
   current_block_ = nullptr;
 }
 
-void RawMachineAssembler::AbortCSAAssert(Node* message) {
-  AddNode(machine()->AbortCSAAssert(), message);
+void RawMachineAssembler::AbortCSADcheck(Node* message) {
+  AddNode(machine()->AbortCSADcheck(), message);
 }
 
 void RawMachineAssembler::DebugBreak() { AddNode(machine()->DebugBreak()); }

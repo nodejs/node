@@ -61,6 +61,22 @@ TEST_F(InstructionTest, OperandInterference) {
     }
   }
 
+  // 128 bit slots can interfere with other slots at a different index.
+  for (int i = 0; i < 10; ++i) {
+    for (int j = 0; j < 128 / kBitsPerByte / kSystemPointerSize; ++j) {
+      EXPECT_TRUE(Interfere(LocationOperand::STACK_SLOT,
+                            MachineRepresentation::kSimd128, i, kWord, i - j));
+      EXPECT_TRUE(Interfere(LocationOperand::STACK_SLOT,
+                            MachineRepresentation::kSimd128, i, kFloat, i - j));
+      EXPECT_TRUE(Interfere(LocationOperand::STACK_SLOT,
+                            MachineRepresentation::kSimd128, i, kDouble,
+                            i - j));
+      EXPECT_TRUE(Interfere(LocationOperand::STACK_SLOT,
+                            MachineRepresentation::kSimd128, i,
+                            MachineRepresentation::kSimd128, i - j));
+    }
+  }
+
   // All FP registers interfere with themselves.
   for (int i = 0; i < RegisterConfiguration::kMaxFPRegisters; ++i) {
     EXPECT_TRUE(Interfere(LocationOperand::REGISTER, kFloat, i, kFloat, i));

@@ -16,7 +16,7 @@ transitioning builtin ProxyIsExtensible(implicit context: Context)(
     // 1. Let handler be O.[[ProxyHandler]].
     // 2. If handler is null, throw a TypeError exception.
     // 3. Assert: Type(handler) is Object.
-    assert(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+    dcheck(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
     const handler =
         Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
 

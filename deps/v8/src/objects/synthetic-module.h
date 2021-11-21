@@ -24,7 +24,6 @@ class SyntheticModule
  public:
   NEVER_READ_ONLY_SPACE
   DECL_VERIFIER(SyntheticModule)
-  DECL_PRINTER(SyntheticModule)
 
   // Set module's exported value for the specified export_name to the specified
   // export_value.  An error will be thrown if export_name is not one

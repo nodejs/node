@@ -82,13 +82,12 @@ std::ostream& operator<<(std::ostream& os, const GenericCallable& g) {
 }
 
 SpecializationRequester::SpecializationRequester(SourcePosition position,
-                                                 Scope* scope, std::string name)
+                                                 Scope* s, std::string name)
     : position(position), name(std::move(name)) {
   // Skip scopes that are not related to template specializations, they might be
   // stack-allocated and not live for long enough.
-  while (scope && scope->GetSpecializationRequester().IsNone())
-    scope = scope->ParentScope();
-  this->scope = scope;
+  while (s && s->GetSpecializationRequester().IsNone()) s = s->ParentScope();
+  this->scope = s;
 }
 
 std::vector<Declarable*> Scope::Lookup(const QualifiedName& name) {
@@ -165,11 +164,11 @@ TypeArgumentInference GenericCallable::InferSpecializationTypes(
 }
 
 base::Optional<Statement*> GenericCallable::CallableBody() {
-  if (auto* decl = TorqueMacroDeclaration::DynamicCast(declaration())) {
-    return decl->body;
-  } else if (auto* decl =
+  if (auto* macro_decl = TorqueMacroDeclaration::DynamicCast(declaration())) {
+    return macro_decl->body;
+  } else if (auto* builtin_decl =
                  TorqueBuiltinDeclaration::DynamicCast(declaration())) {
-    return decl->body;
+    return builtin_decl->body;
   } else {
     return base::nullopt;
   }

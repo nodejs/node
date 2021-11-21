@@ -523,3 +523,8 @@ assertEquals('{"":"inf"}', JSON.stringify({"":Infinity}, reviver));
 
 assertEquals([10.4, "\u1234"], JSON.parse("[10.4, \"\u1234\"]"));
 assertEquals(10, JSON.parse('{"10":10}')["10"]);
+
+assertEquals(`[
+          1,
+          2
+]`, JSON.stringify([1,2], undefined, 1000000000000000));

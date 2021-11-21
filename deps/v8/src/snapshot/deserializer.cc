@@ -510,7 +510,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     if (buffer->GetBackingStoreRefForDeserialization() != kNullRefSentinel) {
       new_off_heap_array_buffers_.push_back(buffer);
     } else {
-      buffer->set_backing_store(main_thread_isolate(), nullptr);
+      buffer->set_backing_store(nullptr);
     }
   } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
     // TODO(mythria): Remove these once we store the default values for these

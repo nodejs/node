@@ -459,7 +459,9 @@ class RunnableConfig(GraphConfig):
     """
     suite_dir = os.path.abspath(os.path.dirname(suite_path))
     bench_dir = os.path.normpath(os.path.join(*self.path))
-    os.chdir(os.path.join(suite_dir, bench_dir))
+    cwd = os.path.join(suite_dir, bench_dir)
+    logging.debug('Changing CWD to: %s' % cwd)
+    os.chdir(cwd)
 
   def GetCommandFlags(self, extra_flags=None):
     suffix = ['--'] + self.test_flags if self.test_flags else []
@@ -702,6 +704,7 @@ class DesktopPlatform(Platform):
   def _Run(self, runnable, count, secondary=False):
     shell_dir = self.shell_dir_secondary if secondary else self.shell_dir
     cmd = runnable.GetCommand(self.command_prefix, shell_dir, self.extra_flags)
+    logging.debug('Running command: %s' % cmd)
     output = cmd.execute()
 
     if output.IsSuccess() and '--prof' in self.extra_flags:

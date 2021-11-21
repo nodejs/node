@@ -155,11 +155,7 @@ async function logGetPropertiesResult(objectId, flags = { ownProperties: true })
     for (var i = 0; i < array.length; i++) {
       var p = array[i];
       var v = p.value;
-      if (p.name == "[[ArrayBufferData]]")
-        // Hex value for pointer is non-deterministic
-        InspectorTest.log(`  ${p.name} ${v.type} ${v.value.substr(0, 2)}...`);
-      else
-        InspectorTest.log(`  ${p.name} ${v.type} ${v.value}`);
+      InspectorTest.log(`  ${p.name} ${v.type} ${v.value}`);
     }
   }
 

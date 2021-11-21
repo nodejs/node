@@ -15,12 +15,12 @@ ProxySetPrototypeOf(implicit context: Context)(
   const kTrapName: constexpr string = 'setPrototypeOf';
   try {
     // 1. Assert: Either Type(V) is Object or Type(V) is Null.
-    assert(proto == Null || Is<JSReceiver>(proto));
+    dcheck(proto == Null || Is<JSReceiver>(proto));
 
     // 2. Let handler be O.[[ProxyHandler]].
     // 3. If handler is null, throw a TypeError exception.
     // 4. Assert: Type(handler) is Object.
-    assert(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+    dcheck(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
     const handler =
         Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
 
@@ -48,7 +48,7 @@ ProxySetPrototypeOf(implicit context: Context)(
     // 10. Let extensibleTarget be ? IsExtensible(target).
     // 11. If extensibleTarget is true, return true.
     const extensibleTarget: Object = object::ObjectIsExtensibleImpl(target);
-    assert(extensibleTarget == True || extensibleTarget == False);
+    dcheck(extensibleTarget == True || extensibleTarget == False);
     if (extensibleTarget == True) {
       return True;
     }

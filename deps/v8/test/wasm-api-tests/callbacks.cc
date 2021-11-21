@@ -137,11 +137,11 @@ TEST_F(WasmCapiTest, Recursion) {
       builder()->AddImport(base::CStrVector("fibonacci_c"), wasm_i_i_sig());
   byte code_fibo[] = {
       WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_ZERO),
-              WASM_RETURN1(WASM_ZERO)),
-      WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_ONE), WASM_RETURN1(WASM_ONE)),
+              WASM_RETURN(WASM_ZERO)),
+      WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(0), WASM_ONE), WASM_RETURN(WASM_ONE)),
       // Muck with the parameter to ensure callers don't depend on its value.
       WASM_LOCAL_SET(0, WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_ONE)),
-      WASM_RETURN1(WASM_I32_ADD(
+      WASM_RETURN(WASM_I32_ADD(
           WASM_CALL_FUNCTION(fibo_c_index, WASM_LOCAL_GET(0)),
           WASM_CALL_FUNCTION(fibo_c_index,
                              WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_ONE))))};

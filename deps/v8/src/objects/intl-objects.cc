@@ -23,7 +23,9 @@
 #include "src/objects/js-locale-inl.h"
 #include "src/objects/js-locale.h"
 #include "src/objects/js-number-format-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
@@ -181,12 +183,12 @@ const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
 template <typename T>
 MaybeHandle<T> New(Isolate* isolate, Handle<JSFunction> constructor,
                    Handle<Object> locales, Handle<Object> options,
-                   const char* method) {
+                   const char* method_name) {
   Handle<Map> map;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, map,
       JSFunction::GetDerivedMap(isolate, constructor, constructor), T);
-  return T::New(isolate, map, locales, options, method);
+  return T::New(isolate, map, locales, options, method_name);
 }
 }  // namespace
 
@@ -427,7 +429,9 @@ std::string Intl::GetNumberingSystem(const icu::Locale& icu_locale) {
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberingSystem> numbering_system(
       icu::NumberingSystem::createInstance(icu_locale, status));
-  if (U_SUCCESS(status)) return numbering_system->getName();
+  if (U_SUCCESS(status) && !numbering_system->isAlgorithmic()) {
+    return numbering_system->getName();
+  }
   return "latn";
 }
 
@@ -650,82 +654,6 @@ MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
   }
 
   return receiver;
-}
-
-Maybe<bool> Intl::GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
-                                  const char* property,
-                                  std::vector<const char*> values,
-                                  const char* service,
-                                  std::unique_ptr<char[]>* result) {
-  Handle<String> property_str =
-      isolate->factory()->NewStringFromAsciiChecked(property);
-
-  // 1. Let value be ? Get(options, property).
-  Handle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value,
-      Object::GetPropertyOrElement(isolate, options, property_str),
-      Nothing<bool>());
-
-  if (value->IsUndefined(isolate)) {
-    return Just(false);
-  }
-
-  // 2. c. Let value be ? ToString(value).
-  Handle<String> value_str;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value_str, Object::ToString(isolate, value), Nothing<bool>());
-  std::unique_ptr<char[]> value_cstr = value_str->ToCString();
-
-  // 2. d. if values is not undefined, then
-  if (values.size() > 0) {
-    // 2. d. i. If values does not contain an element equal to value,
-    // throw a RangeError exception.
-    for (size_t i = 0; i < values.size(); i++) {
-      if (strcmp(values.at(i), value_cstr.get()) == 0) {
-        // 2. e. return value
-        *result = std::move(value_cstr);
-        return Just(true);
-      }
-    }
-
-    Handle<String> service_str =
-        isolate->factory()->NewStringFromAsciiChecked(service);
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kValueOutOfRange, value, service_str,
-                      property_str),
-        Nothing<bool>());
-  }
-
-  // 2. e. return value
-  *result = std::move(value_cstr);
-  return Just(true);
-}
-
-V8_WARN_UNUSED_RESULT Maybe<bool> Intl::GetBoolOption(
-    Isolate* isolate, Handle<JSReceiver> options, const char* property,
-    const char* service, bool* result) {
-  Handle<String> property_str =
-      isolate->factory()->NewStringFromAsciiChecked(property);
-
-  // 1. Let value be ? Get(options, property).
-  Handle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value,
-      Object::GetPropertyOrElement(isolate, options, property_str),
-      Nothing<bool>());
-
-  // 2. If value is not undefined, then
-  if (!value->IsUndefined(isolate)) {
-    // 2. b. i. Let value be ToBoolean(value).
-    *result = value->BooleanValue(isolate);
-
-    // 2. e. return value
-    return Just(true);
-  }
-
-  return Just(false);
 }
 
 namespace {
@@ -999,9 +927,9 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
   }
 }
 
-MaybeHandle<Object> Intl::StringLocaleCompare(
+base::Optional<int> Intl::StringLocaleCompare(
     Isolate* isolate, Handle<String> string1, Handle<String> string2,
-    Handle<Object> locales, Handle<Object> options, const char* method) {
+    Handle<Object> locales, Handle<Object> options, const char* method_name) {
   // We only cache the instance when locales is a string/undefined and
   // options is undefined, as that is the only case when the specified
   // side-effects of examining those arguments are unobservable.
@@ -1025,9 +953,9 @@ MaybeHandle<Object> Intl::StringLocaleCompare(
       isolate);
 
   Handle<JSCollator> collator;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, collator,
-      New<JSCollator>(isolate, constructor, locales, options, method), Object);
+  MaybeHandle<JSCollator> maybe_collator =
+      New<JSCollator>(isolate, constructor, locales, options, method_name);
+  if (!maybe_collator.ToHandle(&collator)) return {};
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultCollator, locales,
@@ -1038,26 +966,19 @@ MaybeHandle<Object> Intl::StringLocaleCompare(
 }
 
 // ecma402/#sec-collator-comparestrings
-Handle<Object> Intl::CompareStrings(Isolate* isolate,
-                                    const icu::Collator& icu_collator,
-                                    Handle<String> string1,
-                                    Handle<String> string2) {
-  Factory* factory = isolate->factory();
-
+int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
+                         Handle<String> string1, Handle<String> string2) {
   // Early return for identical strings.
   if (string1.is_identical_to(string2)) {
-    return factory->NewNumberFromInt(UCollationResult::UCOL_EQUAL);
+    return UCollationResult::UCOL_EQUAL;
   }
 
   // Early return for empty strings.
   if (string1->length() == 0) {
-    return factory->NewNumberFromInt(string2->length() == 0
-                                         ? UCollationResult::UCOL_EQUAL
-                                         : UCollationResult::UCOL_LESS);
+    return string2->length() == 0 ? UCollationResult::UCOL_EQUAL
+                                  : UCollationResult::UCOL_LESS;
   }
-  if (string2->length() == 0) {
-    return factory->NewNumberFromInt(UCollationResult::UCOL_GREATER);
-  }
+  if (string2->length() == 0) return UCollationResult::UCOL_GREATER;
 
   string1 = String::Flatten(isolate, string1);
   string2 = String::Flatten(isolate, string2);
@@ -1070,7 +991,7 @@ Handle<Object> Intl::CompareStrings(Isolate* isolate,
     if (!string_piece2.empty()) {
       result = icu_collator.compareUTF8(string_piece1, string_piece2, status);
       DCHECK(U_SUCCESS(status));
-      return factory->NewNumberFromInt(result);
+      return result;
     }
   }
 
@@ -1078,8 +999,7 @@ Handle<Object> Intl::CompareStrings(Isolate* isolate,
   icu::UnicodeString string_val2 = Intl::ToICUUnicodeString(isolate, string2);
   result = icu_collator.compare(string_val1, string_val2, status);
   DCHECK(U_SUCCESS(status));
-
-  return factory->NewNumberFromInt(result);
+  return result;
 }
 
 // ecma402/#sup-properties-of-the-number-prototype-object
@@ -1087,7 +1007,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
                                                Handle<Object> num,
                                                Handle<Object> locales,
                                                Handle<Object> options,
-                                               const char* method) {
+                                               const char* method_name) {
   Handle<Object> numeric_obj;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, numeric_obj,
                              Object::ToNumeric(isolate, num), String);
@@ -1117,7 +1037,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, number_format,
-      New<JSNumberFormat>(isolate, constructor, locales, options, method),
+      New<JSNumberFormat>(isolate, constructor, locales, options, method_name),
       String);
 
   if (can_cache) {
@@ -1134,55 +1054,6 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
                                        numeric_obj);
 }
 
-namespace {
-
-// ecma402/#sec-defaultnumberoption
-Maybe<int> DefaultNumberOption(Isolate* isolate, Handle<Object> value, int min,
-                               int max, int fallback, Handle<String> property) {
-  // 2. Else, return fallback.
-  if (value->IsUndefined()) return Just(fallback);
-
-  // 1. If value is not undefined, then
-  // a. Let value be ? ToNumber(value).
-  Handle<Object> value_num;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value_num, Object::ToNumber(isolate, value), Nothing<int>());
-  DCHECK(value_num->IsNumber());
-
-  // b. If value is NaN or less than minimum or greater than maximum, throw a
-  // RangeError exception.
-  if (value_num->IsNaN() || value_num->Number() < min ||
-      value_num->Number() > max) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
-        Nothing<int>());
-  }
-
-  // The max and min arguments are integers and the above check makes
-  // sure that we are within the integer range making this double to
-  // int conversion safe.
-  //
-  // c. Return floor(value).
-  return Just(FastD2I(floor(value_num->Number())));
-}
-
-}  // namespace
-
-// ecma402/#sec-getnumberoption
-Maybe<int> Intl::GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
-                                 Handle<String> property, int min, int max,
-                                 int fallback) {
-  // 1. Let value be ? Get(options, property).
-  Handle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, JSReceiver::GetProperty(isolate, options, property),
-      Nothing<int>());
-
-  // Return ? DefaultNumberOption(value, minimum, maximum, fallback).
-  return DefaultNumberOption(isolate, value, min, max, fallback, property);
-}
-
 Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
     Isolate* isolate, Handle<JSReceiver> options, int mnfd_default,
     int mxfd_default, bool notation_is_compact) {
@@ -1192,8 +1063,8 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // 5. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21,
   // 1).
   int mnid = 1;
-  if (!Intl::GetNumberOption(isolate, options,
-                             factory->minimumIntegerDigits_string(), 1, 21, 1)
+  if (!GetNumberOption(isolate, options, factory->minimumIntegerDigits_string(),
+                       1, 21, 1)
            .To(&mnid)) {
     return Nothing<NumberFormatDigitOptions>();
   }
@@ -1613,7 +1484,7 @@ MaybeHandle<JSArray> CreateArrayFromList(Isolate* isolate,
 // ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
 // https://tc39.github.io/ecma402/#sec-supportedlocales
 MaybeHandle<JSObject> SupportedLocales(
-    Isolate* isolate, const char* method,
+    Isolate* isolate, const char* method_name,
     const std::set<std::string>& available_locales,
     const std::vector<std::string>& requested_locales, Handle<Object> options) {
   std::vector<std::string> supported_locales;
@@ -1622,12 +1493,12 @@ MaybeHandle<JSObject> SupportedLocales(
   Handle<JSReceiver> options_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options_obj,
-      Intl::CoerceOptionsToObject(isolate, options, method), JSObject);
+      CoerceOptionsToObject(isolate, options, method_name), JSObject);
 
   // 2. Let matcher be ? GetOption(options, "localeMatcher", "string",
   //       « "lookup", "best fit" », "best fit").
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
-      Intl::GetLocaleMatcher(isolate, options_obj, method);
+      Intl::GetLocaleMatcher(isolate, options_obj, method_name);
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSObject>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
@@ -1701,8 +1572,18 @@ MaybeHandle<JSArray> AvailableCurrencies(Isolate* isolate) {
   std::vector<std::string> array;
   while (U_SUCCESS(status) &&
          (next = uenum_next(ids, nullptr, &status)) != nullptr) {
+    // Work around the issue that we do not support VEF currency code
+    // in DisplayNames by not reporting it.
+    if (strcmp(next, "VEF") == 0) continue;
     array.push_back(next);
   }
+  // Work around the issue that we do support the following currency codes
+  // in DisplayNames but the ICU API does not reporting it.
+  array.push_back("SVC");
+  array.push_back("VES");
+  array.push_back("XDR");
+  array.push_back("XSU");
+  array.push_back("ZWL");
   std::sort(array.begin(), array.end());
   uenum_close(ids);
   return VectorToJSArray(isolate, array);
@@ -1807,7 +1688,7 @@ MaybeHandle<JSArray> Intl::SupportedValuesOf(Isolate* isolate,
 
 // ECMA 402 Intl.*.supportedLocalesOf
 MaybeHandle<JSObject> Intl::SupportedLocalesOf(
-    Isolate* isolate, const char* method,
+    Isolate* isolate, const char* method_name,
     const std::set<std::string>& available_locales, Handle<Object> locales,
     Handle<Object> options) {
   // Let availableLocales be %Collator%.[[AvailableLocales]].
@@ -1818,7 +1699,7 @@ MaybeHandle<JSObject> Intl::SupportedLocalesOf(
   MAYBE_RETURN(requested_locales, MaybeHandle<JSObject>());
 
   // Return ? SupportedLocales(availableLocales, requestedLocales, options).
-  return SupportedLocales(isolate, method, available_locales,
+  return SupportedLocales(isolate, method_name, available_locales,
                           requested_locales.FromJust(), options);
 }
 
@@ -1878,7 +1759,8 @@ bool Intl::IsValidNumberingSystem(const std::string& value) {
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberingSystem> numbering_system(
       icu::NumberingSystem::createInstanceByName(value.c_str(), status));
-  return U_SUCCESS(status) && numbering_system.get() != nullptr;
+  return U_SUCCESS(status) && numbering_system.get() != nullptr &&
+         !numbering_system->isAlgorithmic();
 }
 
 namespace {
@@ -2229,20 +2111,20 @@ base::TimezoneCache* Intl::CreateTimeZoneCache() {
 
 Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,
                                                   Handle<JSReceiver> options,
-                                                  const char* method) {
-  return Intl::GetStringOption<Intl::MatcherOption>(
-      isolate, options, "localeMatcher", method, {"best fit", "lookup"},
+                                                  const char* method_name) {
+  return GetStringOption<Intl::MatcherOption>(
+      isolate, options, "localeMatcher", method_name, {"best fit", "lookup"},
       {Intl::MatcherOption::kBestFit, Intl::MatcherOption::kLookup},
       Intl::MatcherOption::kBestFit);
 }
 
 Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
                                      Handle<JSReceiver> options,
-                                     const char* method,
+                                     const char* method_name,
                                      std::unique_ptr<char[]>* result) {
   const std::vector<const char*> empty_values = {};
-  Maybe<bool> maybe = Intl::GetStringOption(isolate, options, "numberingSystem",
-                                            empty_values, method, result);
+  Maybe<bool> maybe = GetStringOption(isolate, options, "numberingSystem",
+                                      empty_values, method_name, result);
   MAYBE_RETURN(maybe, Nothing<bool>());
   if (maybe.FromJust() && *result != nullptr) {
     if (!IsWellFormedNumberingSystem(result->get())) {
@@ -2349,41 +2231,6 @@ MaybeHandle<String> Intl::FormattedToString(
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
   }
   return Intl::ToString(isolate, result);
-}
-
-// ecma402/#sec-getoptionsobject
-MaybeHandle<JSReceiver> Intl::GetOptionsObject(Isolate* isolate,
-                                               Handle<Object> options,
-                                               const char* service) {
-  // 1. If options is undefined, then
-  if (options->IsUndefined(isolate)) {
-    // a. Return ! ObjectCreate(null).
-    return isolate->factory()->NewJSObjectWithNullProto();
-  }
-  // 2. If Type(options) is Object, then
-  if (options->IsJSReceiver()) {
-    // a. Return options.
-    return Handle<JSReceiver>::cast(options);
-  }
-  // 3. Throw a TypeError exception.
-  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument),
-                  JSReceiver);
-}
-
-// ecma402/#sec-coerceoptionstoobject
-MaybeHandle<JSReceiver> Intl::CoerceOptionsToObject(Isolate* isolate,
-                                                    Handle<Object> options,
-                                                    const char* service) {
-  // 1. If options is undefined, then
-  if (options->IsUndefined(isolate)) {
-    // a. Return ! ObjectCreate(null).
-    return isolate->factory()->NewJSObjectWithNullProto();
-  }
-  // 2. Return ? ToObject(options).
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                             Object::ToObject(isolate, options, service),
-                             JSReceiver);
-  return Handle<JSReceiver>::cast(options);
 }
 
 MaybeHandle<JSArray> Intl::ToJSArray(

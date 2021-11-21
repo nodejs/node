@@ -2026,13 +2026,11 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
   int op1 = instr->Bit(4);
   if (op0 == 0) {
     // Advanced SIMD three registers of same length.
-    int Vd, Vm, Vn;
+    int Vm, Vn;
     if (instr->Bit(6) == 0) {
-      Vd = instr->VFPDRegValue(kDoublePrecision);
       Vm = instr->VFPMRegValue(kDoublePrecision);
       Vn = instr->VFPNRegValue(kDoublePrecision);
     } else {
-      Vd = instr->VFPDRegValue(kSimd128Precision);
       Vm = instr->VFPMRegValue(kSimd128Precision);
       Vn = instr->VFPNRegValue(kSimd128Precision);
     }

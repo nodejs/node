@@ -12,6 +12,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/boxed-float.h"
@@ -659,19 +660,20 @@ class SideTable : public ZoneObject {
             auto p = map->catch_map.emplace(
                 offset, ZoneVector<CatchControlTransferEntry>(zone));
             auto& catch_entries = p.first->second;
-            for (auto& p : catch_targets) {
-              auto pcdiff = static_cast<pcdiff_t>(p.pc - ref.from_pc);
+            for (auto& catch_target : catch_targets) {
+              auto pcdiff =
+                  static_cast<pcdiff_t>(catch_target.pc - ref.from_pc);
               TRACE(
                   "control transfer @%zu: Δpc %d, stack %u->%u, exn: %d = "
                   "-%u\n",
                   offset, pcdiff, ref.stack_height, target_stack_height,
-                  p.tag_index, spdiff);
+                  catch_target.tag_index, spdiff);
               CatchControlTransferEntry entry;
               entry.pc_diff = pcdiff;
               entry.sp_diff = spdiff;
               entry.target_arity = arity;
-              entry.tag_index = p.tag_index;
-              entry.target_control_index = p.target_control_index;
+              entry.tag_index = catch_target.tag_index;
+              entry.target_control_index = catch_target.target_control_index;
               catch_entries.emplace_back(entry);
             }
           }
@@ -927,18 +929,20 @@ class SideTable : public ZoneObject {
                 // Bind else label for one-armed if.
                 c->else_label->Bind(i.pc());
               } else if (!exception_stack.empty()) {
+                DCHECK_IMPLIES(
+                    !unreachable,
+                    stack_height >= c->else_label->target_stack_height);
                 // No catch_all block, prepare for implicit rethrow.
                 if (exception_stack.back() == control_stack.size() - 1) {
                   // Close try scope for catch-less try.
                   exception_stack.pop_back();
+                  copy_unreachable();
+                  unreachable = control_stack.back().unreachable;
                 }
                 DCHECK_EQ(*c->pc, kExprTry);
                 constexpr int kUnusedControlIndex = -1;
                 c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex,
                                     kUnusedControlIndex);
-                DCHECK_IMPLIES(
-                    !unreachable,
-                    stack_height >= c->else_label->target_stack_height);
                 stack_height = c->else_label->target_stack_height;
                 rethrow = !unreachable && !exception_stack.empty();
               }
@@ -968,17 +972,20 @@ class SideTable : public ZoneObject {
           Control* c = &control_stack.back();
           const size_t new_stack_size = control_stack.size() - 1;
           const size_t max_depth = new_stack_size - 1;
-          size_t target_depth = imm.depth;
-          while (target_depth < max_depth &&
-                 *control_stack[max_depth - target_depth].pc != kExprTry) {
-            target_depth++;
+          // Find the first try block that is equal to or encloses the target
+          // block, i.e. has a lower than or equal index in the control stack.
+          int try_index = static_cast<int>(exception_stack.size()) - 1;
+          while (try_index >= 0 &&
+                 exception_stack[try_index] > max_depth - imm.depth) {
+            try_index--;
           }
-          if (target_depth < max_depth) {
+          if (try_index >= 0) {
+            size_t target_depth = exception_stack[try_index];
             constexpr int kUnusedControlIndex = -1;
             c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex,
                                 kUnusedControlIndex);
             c->else_label->Finish(&map_, code->start);
-            Control* target = &control_stack[max_depth - target_depth];
+            Control* target = &control_stack[target_depth];
             DCHECK_EQ(*target->pc, kExprTry);
             DCHECK_NOT_NULL(target->else_label);
             if (!control_parent().unreachable) {
@@ -1998,7 +2005,6 @@ class WasmInterpreterInternals {
 #else
     constexpr bool kBigEndian = false;
 #endif
-    WasmValue result;
     switch (opcode) {
 #define ATOMIC_BINOP_CASE(name, type, op_type, operation, op)                \
   case kExpr##name: {                                                        \
@@ -2118,20 +2124,20 @@ class WasmInterpreterInternals {
       ATOMIC_COMPARE_EXCHANGE_CASE(I64AtomicCompareExchange32U, uint32_t,
                                    uint64_t);
 #undef ATOMIC_COMPARE_EXCHANGE_CASE
-#define ATOMIC_LOAD_CASE(name, type, op_type, operation)                \
-  case kExpr##name: {                                                   \
-    Address addr;                                                       \
-    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, &addr, pc, \
-                                              len)) {                   \
-      return false;                                                     \
-    }                                                                   \
-    static_assert(sizeof(std::atomic<type>) == sizeof(type),            \
-                  "Size mismatch for types std::atomic<" #type          \
-                  ">, and " #type);                                     \
-    result = WasmValue(static_cast<op_type>(AdjustByteOrder<type>(      \
-        std::operation(reinterpret_cast<std::atomic<type>*>(addr)))));  \
-    Push(result);                                                       \
-    break;                                                              \
+#define ATOMIC_LOAD_CASE(name, type, op_type, operation)                     \
+  case kExpr##name: {                                                        \
+    Address addr;                                                            \
+    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, &addr, pc,      \
+                                              len)) {                        \
+      return false;                                                          \
+    }                                                                        \
+    static_assert(sizeof(std::atomic<type>) == sizeof(type),                 \
+                  "Size mismatch for types std::atomic<" #type               \
+                  ">, and " #type);                                          \
+    WasmValue result = WasmValue(static_cast<op_type>(AdjustByteOrder<type>( \
+        std::operation(reinterpret_cast<std::atomic<type>*>(addr)))));       \
+    Push(result);                                                            \
+    break;                                                                   \
   }
       ATOMIC_LOAD_CASE(I32AtomicLoad, uint32_t, uint32_t, atomic_load);
       ATOMIC_LOAD_CASE(I32AtomicLoad8U, uint8_t, uint32_t, atomic_load);

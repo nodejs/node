@@ -64,7 +64,7 @@ class Isolate;
  * given thread. This can be useful if you have code that can be called either
  * from code that holds the lock or from code that does not. The Unlocker is
  * not recursive so you can not have several Unlockers on the stack at once, and
- * you can not use an Unlocker in a thread that is not inside a Locker's scope.
+ * you cannot use an Unlocker in a thread that is not inside a Locker's scope.
  *
  * An unlocker will unlock several lockers if it has to and reinstate the
  * correct depth of locking on its destruction, e.g.:
@@ -122,8 +122,13 @@ class V8_EXPORT Locker {
   static bool IsLocked(Isolate* isolate);
 
   /**
-   * Returns whether v8::Locker is being used by this V8 instance.
+   * Returns whether any v8::Locker has ever been used in this process.
+   * TODO(cbruni, chromium:1240851): Fix locking checks on a per-thread basis.
+   * The current implementation is quite confusing and leads to unexpected
+   * results if anybody uses v8::Locker in the current process.
    */
+  static bool WasEverUsed();
+  V8_DEPRECATE_SOON("Use WasEverUsed instead")
   static bool IsActive();
 
   // Disallow copying and assigning.

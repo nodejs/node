@@ -36,7 +36,7 @@ void ArrayBuiltinsAssembler::TypedArrayMapResultGenerator() {
       context(), method_name, original_array, len());
   // In the Spec and our current implementation, the length check is already
   // performed in TypedArraySpeciesCreate.
-  CSA_ASSERT(this, UintPtrLessThanOrEqual(len(), LoadJSTypedArrayLength(a)));
+  CSA_DCHECK(this, UintPtrLessThanOrEqual(len(), LoadJSTypedArrayLength(a)));
   fast_typed_array_target_ =
       Word32Equal(LoadElementsKind(original_array), LoadElementsKind(a));
   a_ = a;
@@ -184,6 +184,7 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
 void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
     TNode<JSArrayBuffer> array_buffer, const CallResultProcessor& processor,
     ForEachDirection direction, TNode<JSTypedArray> typed_array) {
+  // TODO(v8:11111): Support RAB / GSAB.
   VariableList list({&a_, &k_}, zone());
 
   TNode<UintPtrT> start = UintPtrConstant(0);
@@ -228,7 +229,7 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
 TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  CSA_ASSERT(this, IsUndefined(Parameter<Object>(Descriptor::kJSNewTarget)));
+  CSA_DCHECK(this, IsUndefined(Parameter<Object>(Descriptor::kJSNewTarget)));
 
   CodeStubArguments args(this, argc);
   TNode<Object> receiver = args.GetReceiver();
@@ -248,7 +249,7 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
   BIND(&fast);
   {
     TNode<JSArray> array_receiver = CAST(receiver);
-    CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(array_receiver)));
+    CSA_DCHECK(this, TaggedIsPositiveSmi(LoadJSArrayLength(array_receiver)));
     TNode<IntPtrT> length =
         LoadAndUntagObjectField(array_receiver, JSArray::kLengthOffset);
     Label return_undefined(this), fast_elements(this);
@@ -330,7 +331,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
 
   auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  CSA_ASSERT(this, IsUndefined(Parameter<Object>(Descriptor::kJSNewTarget)));
+  CSA_DCHECK(this, IsUndefined(Parameter<Object>(Descriptor::kJSNewTarget)));
 
   CodeStubArguments args(this, argc);
   TNode<Object> receiver = args.GetReceiver();
@@ -369,8 +370,8 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
-    TNode<Int32T> kind = LoadElementsKind(array_receiver);
-    GotoIf(Word32Equal(kind, Int32Constant(DICTIONARY_ELEMENTS)),
+    TNode<Int32T> elements_kind = LoadElementsKind(array_receiver);
+    GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &default_label);
 
     GotoIfNotNumber(arg, &object_push);
@@ -413,8 +414,8 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
-    TNode<Int32T> kind = LoadElementsKind(array_receiver);
-    GotoIf(Word32Equal(kind, Int32Constant(DICTIONARY_ELEMENTS)),
+    TNode<Int32T> elements_kind = LoadElementsKind(array_receiver);
+    GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &default_label);
     Goto(&object_push);
   }
@@ -449,7 +450,7 @@ TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinsAssembler) {
   TNode<BInt> begin = SmiToBInt(Parameter<Smi>(Descriptor::kBegin));
   TNode<BInt> count = SmiToBInt(Parameter<Smi>(Descriptor::kCount));
 
-  CSA_ASSERT(this, Word32BinaryNot(IsNoElementsProtectorCellInvalid()));
+  CSA_DCHECK(this, Word32BinaryNot(IsNoElementsProtectorCellInvalid()));
 
   Return(ExtractFastJSArray(context, array, begin, count));
 }
@@ -458,7 +459,7 @@ TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto array = Parameter<JSArray>(Descriptor::kSource);
 
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              Word32Or(Word32BinaryNot(IsHoleyFastElementsKindForRead(
                           LoadElementsKind(array))),
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
@@ -477,7 +478,7 @@ TF_BUILTIN(CloneFastJSArrayFillingHoles, ArrayBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto array = Parameter<JSArray>(Descriptor::kSource);
 
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              Word32Or(Word32BinaryNot(IsHoleyFastElementsKindForRead(
                           LoadElementsKind(array))),
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
@@ -526,7 +527,7 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
                                    TNode<Number> length) {
     TVARIABLE(Object, array);
     Label is_constructor(this), is_not_constructor(this), done(this);
-    CSA_ASSERT(this, IsNumberNormalized(length));
+    CSA_DCHECK(this, IsNumberNormalized(length));
     GotoIf(TaggedIsSmi(receiver), &is_not_constructor);
     Branch(IsConstructor(CAST(receiver)), &is_constructor, &is_not_constructor);
 
@@ -619,7 +620,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
   TNode<JSArray> array = CAST(receiver);
 
   // JSArray length is always a positive Smi for fast arrays.
-  CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(array)));
+  CSA_DCHECK(this, TaggedIsPositiveSmi(LoadJSArrayLength(array)));
   TNode<Smi> array_length = LoadFastJSArrayLength(array);
   TNode<IntPtrT> array_length_untagged = SmiUntag(array_length);
 
@@ -806,16 +807,16 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
 
     BIND(&not_nan_loop);
     {
-      Label continue_loop(this), not_smi(this);
+      Label continue_loop(this), element_k_not_smi(this);
       GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
                 &return_not_found);
       TNode<Object> element_k =
           UnsafeLoadFixedArrayElement(elements, index_var.value());
-      GotoIfNot(TaggedIsSmi(element_k), &not_smi);
+      GotoIfNot(TaggedIsSmi(element_k), &element_k_not_smi);
       Branch(Float64Equal(search_num.value(), SmiToFloat64(CAST(element_k))),
              &return_found, &continue_loop);
 
-      BIND(&not_smi);
+      BIND(&element_k_not_smi);
       GotoIfNot(IsHeapNumber(CAST(element_k)), &continue_loop);
       Branch(Float64Equal(search_num.value(),
                           LoadHeapNumberValue(CAST(element_k))),
@@ -1207,7 +1208,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   // Let index be O.[[ArrayIteratorNextIndex]].
   TNode<Number> index = LoadJSArrayIteratorNextIndex(iterator);
-  CSA_ASSERT(this, IsNumberNonNegativeSafeInteger(index));
+  CSA_DCHECK(this, IsNumberNonNegativeSafeInteger(index));
 
   // Dispatch based on the type of the {array}.
   TNode<Map> array_map = LoadMap(array);
@@ -1219,7 +1220,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   BIND(&if_array);
   {
     // If {array} is a JSArray, then the {index} must be in Unsigned32 range.
-    CSA_ASSERT(this, IsNumberArrayIndex(index));
+    CSA_DCHECK(this, IsNumberArrayIndex(index));
 
     // Check that the {index} is within range for the {array}. We handle all
     // kinds of JSArray's here, so we do the computation on Uint32.
@@ -1260,8 +1261,8 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   BIND(&if_other);
   {
     // We cannot enter here with either JSArray's or JSTypedArray's.
-    CSA_ASSERT(this, Word32BinaryNot(IsJSArray(array)));
-    CSA_ASSERT(this, Word32BinaryNot(IsJSTypedArray(array)));
+    CSA_DCHECK(this, Word32BinaryNot(IsJSArray(array)));
+    CSA_DCHECK(this, Word32BinaryNot(IsJSTypedArray(array)));
 
     // Check that the {index} is within the bounds of the {array}s "length".
     TNode<Number> length = CAST(
@@ -1297,7 +1298,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     //
     // Note specifically that JSTypedArray's will never take this path, so
     // we don't need to worry about their maximum value.
-    CSA_ASSERT(this, Word32BinaryNot(IsJSTypedArray(array)));
+    CSA_DCHECK(this, Word32BinaryNot(IsJSTypedArray(array)));
     TNode<Number> max_length =
         SelectConstant(IsJSArray(array), NumberConstant(kMaxUInt32),
                        NumberConstant(kMaxSafeInteger));
@@ -1382,8 +1383,8 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
       TNode<Number> start, TNode<Number> depth,
       base::Optional<TNode<HeapObject>> mapper_function = base::nullopt,
       base::Optional<TNode<Object>> this_arg = base::nullopt) {
-    CSA_ASSERT(this, IsNumberPositive(source_length));
-    CSA_ASSERT(this, IsNumberPositive(start));
+    CSA_DCHECK(this, IsNumberPositive(source_length));
+    CSA_DCHECK(this, IsNumberPositive(start));
 
     // 1. Let targetIndex be start.
     TVARIABLE(Number, var_target_index, start);
@@ -1404,7 +1405,7 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
 
       // a. Let P be ! ToString(sourceIndex).
       // b. Let exists be ? HasProperty(source, P).
-      CSA_ASSERT(this,
+      CSA_DCHECK(this,
                  SmiGreaterThanOrEqual(CAST(source_index), SmiConstant(0)));
       const TNode<Oddball> exists =
           HasProperty(context, source, source_index, kHasProperty);
@@ -1419,7 +1420,7 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
 
         // ii. If mapperFunction is present, then
         if (mapper_function) {
-          CSA_ASSERT(this, Word32Or(IsUndefined(mapper_function.value()),
+          CSA_DCHECK(this, Word32Or(IsUndefined(mapper_function.value()),
                                     IsCallable(mapper_function.value())));
           DCHECK(this_arg.has_value());
 
@@ -1445,7 +1446,7 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
 
         BIND(&if_flatten_array);
         {
-          CSA_ASSERT(this, IsJSArray(element));
+          CSA_DCHECK(this, IsJSArray(element));
 
           // 1. Let elementLen be ? ToLength(? Get(element, "length")).
           const TNode<Object> element_length =
@@ -1462,7 +1463,7 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
 
         BIND(&if_flatten_proxy);
         {
-          CSA_ASSERT(this, IsJSProxy(element));
+          CSA_DCHECK(this, IsJSProxy(element));
 
           // 1. Let elementLen be ? ToLength(? Get(element, "length")).
           const TNode<Number> element_length = ToLength_Inline(
@@ -1802,11 +1803,11 @@ TF_BUILTIN(ArrayConstructorImpl, ArrayBuiltinsAssembler) {
       Parameter<HeapObject>(Descriptor::kAllocationSite);
 
   // Initial map for the builtin Array functions should be Map.
-  CSA_ASSERT(this, IsMap(CAST(LoadObjectField(
+  CSA_DCHECK(this, IsMap(CAST(LoadObjectField(
                        target, JSFunction::kPrototypeOrInitialMapOffset))));
 
   // We should either have undefined or a valid AllocationSite
-  CSA_ASSERT(this, Word32Or(IsUndefined(maybe_allocation_site),
+  CSA_DCHECK(this, Word32Or(IsUndefined(maybe_allocation_site),
                             IsAllocationSite(maybe_allocation_site)));
 
   // "Enter" the context of the Array function.

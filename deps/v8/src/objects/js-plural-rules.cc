@@ -12,6 +12,8 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-number-format.h"
 #include "src/objects/js-plural-rules-inl.h"
+#include "src/objects/managed-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/locid.h"
 #include "unicode/numberformatter.h"
 #include "unicode/plurrule.h"
@@ -74,8 +76,7 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
   Handle<JSReceiver> options;
   const char* service = "Intl.PluralRules";
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options,
-      Intl::CoerceOptionsToObject(isolate, options_obj, service),
+      isolate, options, CoerceOptionsToObject(isolate, options_obj, service),
       JSPluralRules);
 
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string",
@@ -88,7 +89,7 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
 
   // 7. Let t be ? GetOption(options, "type", "string", « "cardinal",
   // "ordinal" », "cardinal").
-  Maybe<Type> maybe_type = Intl::GetStringOption<Type>(
+  Maybe<Type> maybe_type = GetStringOption<Type>(
       isolate, options, "type", service, {"cardinal", "ordinal"},
       {Type::CARDINAL, Type::ORDINAL}, Type::CARDINAL);
   MAYBE_RETURN(maybe_type, MaybeHandle<JSPluralRules>());

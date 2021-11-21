@@ -447,6 +447,8 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)        \
   V(WasmSimdEnabledCallback, wasm_simd_enabled_callback, nullptr)             \
   V(WasmExceptionsEnabledCallback, wasm_exceptions_enabled_callback, nullptr) \
+  V(WasmDynamicTieringEnabledCallback, wasm_dynamic_tiering_enabled_callback, \
+    nullptr)                                                                  \
   /* State for Relocatable. */                                                \
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
@@ -715,6 +717,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool IsWasmSimdEnabled(Handle<Context> context);
   bool AreWasmExceptionsEnabled(Handle<Context> context);
+  bool IsWasmDynamicTieringEnabled();
 
   THREAD_LOCAL_TOP_ADDRESS(Context, pending_handler_context)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_entrypoint)
@@ -853,7 +856,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       v8::Isolate::AbortOnUncaughtExceptionCallback callback);
 
   enum PrintStackMode { kPrintStackConcise, kPrintStackVerbose };
-  void PrintCurrentStackTrace(FILE* out);
+  void PrintCurrentStackTrace(std::ostream& out);
   void PrintStack(StringStream* accumulator,
                   PrintStackMode mode = kPrintStackVerbose);
   void PrintStack(FILE* out, PrintStackMode mode = kPrintStackVerbose);
@@ -1075,6 +1078,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                    isolate_data()->cage_base() == kNullAddress);
     return isolate_data()->cage_base();
   }
+
+  Address code_cage_base() const { return cage_base(); }
 
   // When pointer compression is on, the PtrComprCage used by this
   // Isolate. Otherwise nullptr.
@@ -1350,18 +1355,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     default_locale_ = locale;
   }
 
-  // enum to access the icu object cache.
   enum class ICUObjectCacheType{
       kDefaultCollator, kDefaultNumberFormat, kDefaultSimpleDateFormat,
       kDefaultSimpleDateFormatForTime, kDefaultSimpleDateFormatForDate};
+  static constexpr int kICUObjectCacheTypeCount = 5;
 
   icu::UMemory* get_cached_icu_object(ICUObjectCacheType cache_type,
                                       Handle<Object> locales);
   void set_icu_object_in_cache(ICUObjectCacheType cache_type,
-                               Handle<Object> locale,
+                               Handle<Object> locales,
                                std::shared_ptr<icu::UMemory> obj);
   void clear_cached_icu_object(ICUObjectCacheType cache_type);
-  void ClearCachedIcuObjects();
+  void clear_cached_icu_objects();
 
 #endif  // V8_INTL_SUPPORT
 
@@ -1559,6 +1564,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
+
+  // Detach the environment from its outer global object.
+  void DetachGlobal(Handle<Context> env);
 
   std::vector<Object>* startup_object_cache() { return &startup_object_cache_; }
 
@@ -2033,14 +2041,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #ifdef V8_INTL_SUPPORT
   std::string default_locale_;
 
-  struct ICUObjectCacheTypeHash {
-    std::size_t operator()(ICUObjectCacheType a) const {
-      return static_cast<std::size_t>(a);
-    }
+  // The cache stores the most recently accessed {locales,obj} pair for each
+  // cache type.
+  struct ICUObjectCacheEntry {
+    std::string locales;
+    std::shared_ptr<icu::UMemory> obj;
+
+    ICUObjectCacheEntry() = default;
+    ICUObjectCacheEntry(std::string locales, std::shared_ptr<icu::UMemory> obj)
+        : locales(locales), obj(std::move(obj)) {}
   };
-  typedef std::pair<std::string, std::shared_ptr<icu::UMemory>> ICUCachePair;
-  std::unordered_map<ICUObjectCacheType, ICUCachePair, ICUObjectCacheTypeHash>
-      icu_object_cache_;
+
+  ICUObjectCacheEntry icu_object_cache_[kICUObjectCacheTypeCount];
 #endif  // V8_INTL_SUPPORT
 
   // true if being profiled. Causes collection of extra compile info.

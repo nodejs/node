@@ -523,10 +523,10 @@ TEST_F(LoopPeelingTest, SimpleLoopWithUnmarkedExit) {
 
   {
     LoopTree* loop_tree = GetLoopTree();
-    LoopTree::Loop* loop = loop_tree->outer_loops()[0];
+    LoopTree::Loop* outer_loop = loop_tree->outer_loops()[0];
     LoopPeeler peeler(graph(), common(), loop_tree, zone(), source_positions(),
                       node_origins());
-    EXPECT_FALSE(peeler.CanPeel(loop));
+    EXPECT_FALSE(peeler.CanPeel(outer_loop));
   }
 }
 

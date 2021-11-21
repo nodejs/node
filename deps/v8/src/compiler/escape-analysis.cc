@@ -510,12 +510,15 @@ int OffsetOfFieldAccess(const Operator* op) {
   return access.offset;
 }
 
-int OffsetOfElementAt(ElementAccess const& access, int index) {
+Maybe<int> OffsetOfElementAt(ElementAccess const& access, int index) {
+  MachineRepresentation representation = access.machine_type.representation();
+  // Double elements accesses are not yet supported. See chromium:1237821.
+  if (representation == MachineRepresentation::kFloat64) return Nothing<int>();
+
   DCHECK_GE(index, 0);
-  DCHECK_GE(ElementSizeLog2Of(access.machine_type.representation()),
-            kTaggedSizeLog2);
-  return access.header_size +
-         (index << ElementSizeLog2Of(access.machine_type.representation()));
+  DCHECK_GE(ElementSizeLog2Of(representation), kTaggedSizeLog2);
+  return Just(access.header_size +
+              (index << ElementSizeLog2Of(representation)));
 }
 
 Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
@@ -527,7 +530,7 @@ Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
   double min = index_type.Min();
   int index = static_cast<int>(min);
   if (index < 0 || index != min || index != max) return Nothing<int>();
-  return Just(OffsetOfElementAt(ElementAccessOf(op), index));
+  return OffsetOfElementAt(ElementAccessOf(op), index);
 }
 
 Node* LowerCompareMapsWithoutLoad(Node* checked_map,

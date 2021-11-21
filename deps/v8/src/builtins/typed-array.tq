@@ -19,6 +19,7 @@ type Float64Elements extends ElementsKind;
 type Uint8ClampedElements extends ElementsKind;
 type BigUint64Elements extends ElementsKind;
 type BigInt64Elements extends ElementsKind;
+type RabGsabUint8Elements extends ElementsKind;
 
 @export
 struct TypedArrayElementsInfo {
@@ -56,6 +57,8 @@ extern runtime TypedArrayCopyElements(
     Context, JSTypedArray, Object, Number): void;
 extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
     Context, JSAny, constexpr string): JSTypedArray;
+extern macro TypedArrayBuiltinsAssembler::ValidateTypedArrayAndGetLength(
+    Context, JSAny, constexpr string): uintptr;
 
 extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(
     RawPtr, RawPtr, uintptr): void;
@@ -80,9 +83,12 @@ extern macro TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(ElementsKind):
 extern macro LoadFixedTypedArrayElementAsTagged(
     RawPtr, uintptr, constexpr ElementsKind): Numeric;
 extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric(
-    Context, JSTypedArray, uintptr, Numeric, constexpr ElementsKind);
+    Context, JSTypedArray, uintptr, Numeric, constexpr ElementsKind): void;
 extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
-    Context, JSTypedArray, uintptr, JSAny, constexpr ElementsKind)
+    Context, JSTypedArray, uintptr, JSAny,
+    constexpr ElementsKind): void labels IfDetached;
+
+extern macro LoadJSTypedArrayLengthAndCheckDetached(JSTypedArray): uintptr
     labels IfDetached;
 
 type LoadNumericFn = builtin(JSTypedArray, uintptr) => Numeric;
@@ -100,21 +106,22 @@ struct TypedArrayAccessor {
   }
 
   macro StoreNumeric(
-      context: Context, array: JSTypedArray, index: uintptr, value: Numeric) {
+      context: Context, array: JSTypedArray, index: uintptr,
+      value: Numeric): void {
     const storefn: StoreNumericFn = this.storeNumericFn;
     const result = storefn(context, array, index, value);
-    assert(result == kStoreSucceded);
+    dcheck(result == kStoreSucceded);
   }
 
   macro StoreJSAny(
-      context: Context, array: JSTypedArray, index: uintptr, value: JSAny)
-      labels IfDetached {
+      context: Context, array: JSTypedArray, index: uintptr,
+      value: JSAny): void labels IfDetached {
     const storefn: StoreJSAnyFn = this.storeJSAnyFn;
     const result = storefn(context, array, index, value);
     if (result == kStoreFailureArrayDetached) {
       goto IfDetached;
     }
-    assert(result == kStoreSucceded);
+    dcheck(result == kStoreSucceded);
   }
 
   loadNumericFn: LoadNumericFn;
@@ -130,7 +137,15 @@ macro GetTypedArrayAccessor<T : type extends ElementsKind>():
   return TypedArrayAccessor{loadNumericFn, storeNumericFn, storeJSAnyFn};
 }
 
-macro GetTypedArrayAccessor(elementsKind: ElementsKind): TypedArrayAccessor {
+macro GetTypedArrayAccessor(elementsKindParam: ElementsKind):
+    TypedArrayAccessor {
+  let elementsKind = elementsKindParam;
+  if (IsElementsKindGreaterThanOrEqual(
+          elementsKind, kFirstRabGsabFixedTypedArrayElementsKind)) {
+    elementsKind = %RawDownCast<ElementsKind>(
+        elementsKind - kFirstRabGsabFixedTypedArrayElementsKind +
+        kFirstFixedTypedArrayElementsKind);
+  }
   if (IsElementsKindGreaterThan(elementsKind, ElementsKind::UINT32_ELEMENTS)) {
     if (elementsKind == ElementsKind::INT32_ELEMENTS) {
       return GetTypedArrayAccessor<Int32Elements>();
@@ -165,14 +180,19 @@ extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     JSTypedArray, ByteArray, uintptr): void;
 extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
     JSTypedArray, RawPtr, uintptr): void;
+extern macro IsJSTypedArrayDetachedOrOutOfBounds(JSTypedArray):
+    never labels Detached, NotDetached;
 
 // AttachedJSTypedArray guards that the array's buffer is not detached.
 transient type AttachedJSTypedArray extends JSTypedArray;
 
 macro EnsureAttached(array: JSTypedArray): AttachedJSTypedArray
     labels Detached {
-  if (IsDetachedBuffer(array.buffer)) goto Detached;
-  return %RawDownCast<AttachedJSTypedArray>(array);
+  try {
+    IsJSTypedArrayDetachedOrOutOfBounds(array) otherwise Detached, NotDetached;
+  } label NotDetached {
+    return %RawDownCast<AttachedJSTypedArray>(array);
+  }
 }
 
 struct AttachedJSTypedArrayWitness {
@@ -184,8 +204,18 @@ struct AttachedJSTypedArrayWitness {
     return this.stable;
   }
 
-  macro Recheck() labels Detached {
+  // TODO(v8:11111): Migrate users to use RecheckIndex.
+  macro Recheck(): void labels Detached {
     if (IsDetachedBuffer(this.stable.buffer)) goto Detached;
+    this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
+  }
+
+  macro RecheckIndex(index: uintptr): void labels DetachedOrOutOfBounds {
+    const length = LoadJSTypedArrayLengthAndCheckDetached(this.stable)
+        otherwise DetachedOrOutOfBounds;
+    if (index >= length) {
+      goto DetachedOrOutOfBounds;
+    }
     this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
   }
 

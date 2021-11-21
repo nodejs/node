@@ -40,7 +40,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
-#include "src/handles/global-handles.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/factory.h"
 #include "src/heap/gc-tracer.h"
@@ -60,7 +60,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
-#include "src/objects/managed.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/stack-frame-info-inl.h"
@@ -7318,7 +7318,6 @@ TEST(Regress11181) {
   v8::HandleScope scope(CcTest::isolate());
   GenerateGarbage();
   CcTest::CollectAllAvailableGarbage();
-  TracingFlags::runtime_stats.store(0, std::memory_order_relaxed);
 }
 
 TEST(LongTaskStatsFullAtomic) {

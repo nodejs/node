@@ -25,7 +25,6 @@
   'proposals/tail-call/func': [FAIL],
   'proposals/tail-call/globals': [FAIL],
   'proposals/tail-call/linking': [FAIL],
-  'proposals/tail-call/type': [FAIL],
 
   # TODO(v8:11401): Fix memory64 spec tests / the v8 implementation (whatever
   # is broken).

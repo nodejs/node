@@ -472,10 +472,23 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // Determine the call target.
   base::Optional<SharedFunctionInfoRef> shared_info(DetermineCallTarget(node));
   if (!shared_info.has_value()) return NoChange();
-  DCHECK(shared_info->IsInlineable());
 
   SharedFunctionInfoRef outer_shared_info =
       MakeRef(broker(), info_->shared_info());
+
+  SharedFunctionInfo::Inlineability inlineability =
+      shared_info->GetInlineability();
+  if (inlineability != SharedFunctionInfo::kIsInlineable) {
+    // The function is no longer inlineable. The only way this can happen is if
+    // the function had its optimization disabled in the meantime, e.g. because
+    // another optimization job failed too often.
+    CHECK_EQ(inlineability, SharedFunctionInfo::kHasOptimizationDisabled);
+    TRACE("Not inlining " << *shared_info << " into " << outer_shared_info
+                          << " because it had its optimization disabled.");
+    return NoChange();
+  }
+  // NOTE: Even though we bailout in the kHasOptimizationDisabled case above, we
+  // won't notice if the function's optimization is disabled after this point.
 
   // Constructor must be constructable.
   if (node->opcode() == IrOpcode::kJSConstruct &&

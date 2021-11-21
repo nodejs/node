@@ -169,6 +169,12 @@ class InstructionScheduler final : public ZoneObject {
     return (GetInstructionFlags(instr) & kIsLoadOperation) != 0;
   }
 
+  bool CanTrap(const Instruction* instr) const {
+    return instr->IsTrap() ||
+           (instr->HasMemoryAccessMode() &&
+            instr->memory_access_mode() == kMemoryAccessProtected);
+  }
+
   // The scheduler will not move the following instructions before the last
   // deopt/trap check:
   //  * loads (this is conservative)
@@ -184,7 +190,7 @@ class InstructionScheduler final : public ZoneObject {
   // trap point we encountered.
   bool DependsOnDeoptOrTrap(const Instruction* instr) const {
     return MayNeedDeoptOrTrapCheck(instr) || instr->IsDeoptimizeCall() ||
-           instr->IsTrap() || HasSideEffect(instr) || IsLoadOperation(instr);
+           CanTrap(instr) || HasSideEffect(instr) || IsLoadOperation(instr);
   }
 
   // Identify nops used as a definition point for live-in registers at

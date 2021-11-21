@@ -170,6 +170,9 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   _updateDimensions() {
+    // No data in this timeline, no need to resize
+    if (!this._timeline) return;
+
     const centerOffset = this._timelineBoundingClientRect.width / 2;
     const time =
         this.relativePositionToTime(this._timelineScrollLeft + centerOffset);

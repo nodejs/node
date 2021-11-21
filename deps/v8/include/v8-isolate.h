@@ -1482,6 +1482,9 @@ class V8_EXPORT Isolate {
 
   void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
 
+  void SetWasmDynamicTieringEnabledCallback(
+      WasmDynamicTieringEnabledCallback callback);
+
   void SetSharedArrayBufferConstructorEnabledCallback(
       SharedArrayBufferConstructorEnabledCallback callback);
 

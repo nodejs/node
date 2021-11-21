@@ -88,11 +88,10 @@
       'V8 Win64 - debug': 'debug_x64_minimal_symbols',
       'V8 Win64 - msvc': 'release_x64_msvc',
       # Mac.
-      'V8 Mac64': 'release_x64',
-      'V8 Mac64 - debug': 'debug_x64',
+      'V8 Mac64 - builder': 'release_x64',
+      'V8 Mac64 - debug builder': 'debug_x64',
       'V8 Official Mac ARM64': 'release_arm64',
       'V8 Official Mac ARM64 Debug': 'debug_arm64',
-      'V8 Mac64 GC Stress': 'debug_x64',
       'V8 Mac64 ASAN': 'release_x64_asan_no_lsan',
       'V8 Mac - arm64 - release builder': 'release_arm64',
       'V8 Mac - arm64 - debug builder': 'debug_arm64',
@@ -108,6 +107,7 @@
       'V8 Linux gcc': 'release_x86_gcc',
       # FYI.
       'V8 iOS - sim': 'release_x64_ios_simulator',
+      'V8 Linux64 - arm64 - sim - heap sandbox - debug - builder': 'debug_x64_heap_sandbox_arm64_sim',
       'V8 Linux64 - cppgc-non-default - debug - builder': 'debug_x64_non_default_cppgc',
       'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
       'V8 Linux64 - disable runtime call stats': 'release_x64_disable_runtime_call_stats',
@@ -232,6 +232,7 @@
       'v8_linux64_gcov_coverage': 'release_x64_gcc_coverage',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_heap_sandbox_dbg_ng': 'debug_x64_heap_sandbox',
+      'v8_linux_arm64_sim_heap_sandbox_dbg_ng': 'debug_x64_heap_sandbox_arm64_sim',
       'v8_linux64_fyi_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_nodcheck_rel_ng': 'release_x64',
       'v8_linux64_perfetto_dbg_ng': 'debug_x64_perfetto',
@@ -573,6 +574,8 @@
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_heap_sandbox': [
       'debug_bot', 'x64', 'v8_enable_heap_sandbox'],
+    'debug_x64_heap_sandbox_arm64_sim': [
+      'debug_bot', 'simulate_arm64', 'v8_enable_heap_sandbox'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
     'debug_x64_non_default_cppgc': [
@@ -805,7 +808,7 @@
     },
 
     'reclient': {
-      'gn_args': 'use_rbe=true',
+      'gn_args': 'use_rbe=true use_remoteexec=true',
     },
 
     'release': {

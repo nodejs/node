@@ -493,18 +493,21 @@ v8_source_set("unittests_sources") {
     ]
   }
 
-  if (is_posix && v8_enable_webassembly) {
-    sources += [ "wasm/trap-handler-posix-unittest.cc" ]
-  }
+  if (v8_enable_webassembly) {
+    if (is_posix) {
+      sources += [ "wasm/trap-handler-posix-unittest.cc" ]
+    }
 
-  if (is_win && v8_enable_webassembly) {
-    sources += [ "wasm/trap-handler-win-unittest.cc" ]
-  }
+    if (is_win) {
+      sources += [ "wasm/trap-handler-win-unittest.cc" ]
+    }
 
-  # Include this test only on arm64 simulator builds on x64 on Linux.
-  if (current_cpu == "x64" && v8_current_cpu == "arm64" && is_linux &&
-      v8_enable_webassembly) {
-    sources += [ "wasm/trap-handler-simulator-unittest.cc" ]
+    # Include this test only on arm64 simulator builds on x64 on Linux, Mac and
+    # Windows.
+    if (current_cpu == "x64" && v8_current_cpu == "arm64" &&
+        (is_linux || is_mac || is_win)) {
+      sources += [ "wasm/trap-handler-simulator-unittest.cc" ]
+    }
   }
 
   configs = [

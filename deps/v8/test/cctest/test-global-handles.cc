@@ -504,7 +504,7 @@ TEST(FinalizerOnUnmodifiedJSApiObjectDoesNotCrash) {
                     v8::WeakCallbackType::kFinalizer);
   fp.flag = false;
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     v8::Local<v8::Object> tmp = v8::Local<v8::Object>::New(isolate, fp.handle);
     USE(tmp);
     InvokeScavenge();

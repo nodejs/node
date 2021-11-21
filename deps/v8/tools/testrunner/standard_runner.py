@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 # Adds testrunner to the path hence it has to be imported at the beggining.
-from . import base_runner
+import testrunner.base_runner as base_runner
 
 from testrunner.local import utils
 from testrunner.local.variants import ALL_VARIANTS

@@ -3327,8 +3327,6 @@ class TypedElementsAccessor
     DisallowGarbageCollection no_gc;
     JSTypedArray typed_array = JSTypedArray::cast(*receiver);
 
-    // TODO(caitp): return Just(false) here when implementing strict throwing on
-    // detached views.
     if (typed_array.WasDetached()) {
       return Just(value->IsUndefined(isolate) && length > start_from);
     }
@@ -3541,7 +3539,7 @@ class TypedElementsAccessor
     CHECK(!source.WasDetached());
     CHECK(!destination.WasDetached());
     DCHECK_LE(start, end);
-    DCHECK_LE(end, source.length());
+    DCHECK_LE(end, source.GetLength());
     size_t count = end - start;
     DCHECK_LE(count, destination.length());
     ElementType* dest_data = static_cast<ElementType*>(destination.DataPtr());
@@ -3558,6 +3556,16 @@ class TypedElementsAccessor
     break;                                                                   \
   }
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, NON_RAB_GSAB_TYPE)         \
+  case TYPE##_ELEMENTS: {                                                    \
+    ctype* source_data = reinterpret_cast<ctype*>(source.DataPtr()) + start; \
+    CopyBetweenBackingStores<NON_RAB_GSAB_TYPE##_ELEMENTS, ctype>(           \
+        source_data, dest_data, count, is_shared);                           \
+    break;                                                                   \
+  }
+      RAB_GSAB_TYPED_ARRAYS_WITH_NON_RAB_GSAB_ELEMENTS_KIND(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       default:
         UNREACHABLE();

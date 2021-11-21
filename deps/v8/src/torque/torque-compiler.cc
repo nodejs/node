@@ -50,6 +50,9 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   if (options.collect_language_server_data) {
     GlobalContext::SetCollectLanguageServerData();
   }
+  if (options.collect_kythe_data) {
+    GlobalContext::SetCollectKytheData();
+  }
   if (options.force_assert_statements) {
     GlobalContext::SetForceAssertStatements();
   }
@@ -87,7 +90,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
 
   implementation_visitor.GenerateBuiltinDefinitionsAndInterfaceDescriptors(
       output_directory);
-  implementation_visitor.GenerateClassFieldOffsets(output_directory);
+  implementation_visitor.GenerateVisitorLists(output_directory);
   implementation_visitor.GenerateBitFields(output_directory);
   implementation_visitor.GeneratePrintDefinitions(output_directory);
   implementation_visitor.GenerateClassDefinitions(output_directory);
@@ -147,6 +150,38 @@ TorqueCompilerResult CompileTorque(std::vector<std::string> files,
   try {
     for (const auto& path : files) {
       ReadAndParseTorqueFile(path);
+    }
+    CompileCurrentAst(options);
+  } catch (TorqueAbortCompilation&) {
+    // Do nothing. The relevant TorqueMessage is part of the
+    // TorqueMessages contextual.
+  }
+
+  result.source_file_map = SourceFileMap::Get();
+  result.language_server_data = std::move(LanguageServerData::Get());
+  result.messages = std::move(TorqueMessages::Get());
+
+  return result;
+}
+
+TorqueCompilerResult CompileTorqueForKythe(
+    std::vector<TorqueCompilationUnit> units, TorqueCompilerOptions options,
+    KytheConsumer* consumer) {
+  SourceFileMap::Scope source_map_scope(options.v8_root);
+  CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
+  CurrentAst::Scope ast_scope;
+  TorqueMessages::Scope messages_scope;
+  LanguageServerData::Scope server_data_scope;
+  KytheData::Scope kythe_scope;
+
+  KytheData::Get().SetConsumer(consumer);
+
+  TorqueCompilerResult result;
+  try {
+    for (const auto& unit : units) {
+      SourceId source_id = SourceFileMap::AddSource(unit.source_file_path);
+      CurrentSourceFile::Scope source_id_scope(source_id);
+      ParseTorque(unit.file_content);
     }
     CompileCurrentAst(options);
   } catch (TorqueAbortCompilation&) {

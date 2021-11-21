@@ -92,6 +92,10 @@ class TestCase(testcase.D8TestCase):
             script = os.path.join(self.suite.test_root,
                                   os.sep.join(['proposals', proposal['name']]),
                                   script[len(WPT_ROOT):])
+        if 'wpt' in current_dir:
+          found = True
+          script = os.path.join(self.suite.test_root, 'wpt',
+                                script[len(WPT_ROOT):])
         if not found:
           script = os.path.join(self.suite.test_root, script[len(WPT_ROOT):])
       elif not script.startswith("/"):

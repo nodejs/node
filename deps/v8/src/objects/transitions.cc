@@ -270,7 +270,8 @@ MaybeHandle<Map> TransitionsAccessor::FindTransitionToDataProperty(
   PropertyDetails details = target.GetLastDescriptorDetails(isolate_);
   DCHECK_EQ(attributes, details.attributes());
   DCHECK_EQ(kData, details.kind());
-  if (requested_location == kFieldOnly && details.location() != kField) {
+  if (requested_location == kFieldOnly &&
+      details.location() != PropertyLocation::kField) {
     return MaybeHandle<Map>();
   }
   return Handle<Map>(target, isolate_);

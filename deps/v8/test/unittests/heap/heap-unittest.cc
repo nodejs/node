@@ -22,8 +22,6 @@ namespace internal {
 using HeapTest = TestWithContext;
 
 TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
-  const size_t MB = static_cast<size_t>(i::MB);
-  const size_t KB = static_cast<size_t>(i::KB);
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
   ASSERT_EQ(3 * 512u * pm * KB,
@@ -38,8 +36,6 @@ TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
 }
 
 TEST(Heap, GenerationSizesFromHeapSize) {
-  const size_t MB = static_cast<size_t>(i::MB);
-  const size_t KB = static_cast<size_t>(i::KB);
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
   size_t old, young;
@@ -50,7 +46,7 @@ TEST(Heap, GenerationSizesFromHeapSize) {
 
   i::Heap::GenerationSizesFromHeapSize(1 * KB + 3 * 512u * pm * KB, &young,
                                        &old);
-  ASSERT_EQ(1 * KB, old);
+  ASSERT_EQ(1u * KB, old);
   ASSERT_EQ(3 * 512u * pm * KB, young);
 
   i::Heap::GenerationSizesFromHeapSize(128 * hlm * MB + 3 * 512 * pm * KB,
@@ -75,7 +71,6 @@ TEST(Heap, GenerationSizesFromHeapSize) {
 }
 
 TEST(Heap, HeapSizeFromPhysicalMemory) {
-  const size_t MB = static_cast<size_t>(i::MB);
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
 

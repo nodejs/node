@@ -7,9 +7,11 @@
 #include "src/api/api.h"
 #include "src/base/ieee754.h"
 #include "src/codegen/cpu-features.h"
+#include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/isolate-utils.h"
 #include "src/execution/isolate.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/simulator-base.h"
@@ -188,8 +190,8 @@ ExternalReference ExternalReference::Create(const Runtime::Function* f) {
 }
 
 // static
-ExternalReference ExternalReference::Create(Address address) {
-  return ExternalReference(Redirect(address));
+ExternalReference ExternalReference::Create(Address address, Type type) {
+  return ExternalReference(Redirect(address, type));
 }
 
 ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
@@ -759,6 +761,11 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_top_address(
       isolate->regexp_stack()->memory_top_address_address());
 }
 
+ExternalReference ExternalReference::address_of_regexp_stack_stack_pointer(
+    Isolate* isolate) {
+  return ExternalReference(isolate->regexp_stack()->stack_pointer_address());
+}
+
 ExternalReference ExternalReference::javascript_execution_assert(
     Isolate* isolate) {
   return ExternalReference(isolate->javascript_execution_assert_address());
@@ -882,35 +889,37 @@ ExternalReference ExternalReference::search_string_raw_two_two() {
 
 namespace {
 
-void StringWriteToFlatOneByte(Address source, uint8_t* sink, int32_t from,
-                              int32_t to) {
-  return String::WriteToFlat<uint8_t>(String::cast(Object(source)), sink, from,
-                                      to);
+void StringWriteToFlatOneByte(Address source, uint8_t* sink, int32_t start,
+                              int32_t length) {
+  return String::WriteToFlat<uint8_t>(String::cast(Object(source)), sink, start,
+                                      length);
 }
 
-void StringWriteToFlatTwoByte(Address source, uint16_t* sink, int32_t from,
-                              int32_t to) {
-  return String::WriteToFlat<uint16_t>(String::cast(Object(source)), sink, from,
-                                       to);
+void StringWriteToFlatTwoByte(Address source, uint16_t* sink, int32_t start,
+                              int32_t length) {
+  return String::WriteToFlat<uint16_t>(String::cast(Object(source)), sink,
+                                       start, length);
 }
 
 const uint8_t* ExternalOneByteStringGetChars(Address string) {
+  PtrComprCageBase cage_base = GetPtrComprCageBaseFromOnHeapAddress(string);
   // The following CHECK is a workaround to prevent a CFI bug where
   // ExternalOneByteStringGetChars() and ExternalTwoByteStringGetChars() are
   // merged by the linker, resulting in one of the input type's vtable address
   // failing the address range check.
   // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
-  CHECK(Object(string).IsExternalOneByteString());
-  return ExternalOneByteString::cast(Object(string)).GetChars();
+  CHECK(Object(string).IsExternalOneByteString(cage_base));
+  return ExternalOneByteString::cast(Object(string)).GetChars(cage_base);
 }
 const uint16_t* ExternalTwoByteStringGetChars(Address string) {
+  PtrComprCageBase cage_base = GetPtrComprCageBaseFromOnHeapAddress(string);
   // The following CHECK is a workaround to prevent a CFI bug where
   // ExternalOneByteStringGetChars() and ExternalTwoByteStringGetChars() are
   // merged by the linker, resulting in one of the input type's vtable address
   // failing the address range check.
   // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
-  CHECK(Object(string).IsExternalTwoByteString());
-  return ExternalTwoByteString::cast(Object(string)).GetChars();
+  CHECK(Object(string).IsExternalTwoByteString(cage_base));
+  return ExternalTwoByteString::cast(Object(string)).GetChars(cage_base);
 }
 
 }  // namespace

@@ -646,7 +646,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     bool operator()(const Object a, const Object b) const { return a < b; }
   };
 
-  template <class T, typename std::enable_if<std::is_arithmetic<T>::value,
+  template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
+                                                 std::is_enum<T>::value,
                                              int>::type = 0>
   inline T ReadField(size_t offset) const {
     // Pointer compression causes types larger than kTaggedSize to be unaligned.
@@ -663,7 +664,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     }
   }
 
-  template <class T, typename std::enable_if<std::is_arithmetic<T>::value,
+  template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
+                                                 std::is_enum<T>::value,
                                              int>::type = 0>
   inline void WriteField(size_t offset, T value) const {
     // Pointer compression causes types larger than kTaggedSize to be unaligned.
@@ -785,8 +787,14 @@ class MapWord {
   // Create a map word from a forwarding address.
   static inline MapWord FromForwardingAddress(HeapObject object);
 
-  // View this map word as a forwarding address.
+  // View this map word as a forwarding address. The parameterless version
+  // is allowed to be used for objects allocated in the main pointer compression
+  // cage, while the second variant uses the value of the cage base explicitly
+  // and thus can be used in situations where one has to deal with both cases.
+  // Note, that the parameterless version is preferred because it avoids
+  // unnecessary recompressions.
   inline HeapObject ToForwardingAddress();
+  inline HeapObject ToForwardingAddress(PtrComprCageBase host_cage_base);
 
   inline Address ptr() { return value_; }
 

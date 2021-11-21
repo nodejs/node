@@ -119,7 +119,6 @@ class LoopFinderTester : HandleAndZoneScope {
   }
 
   Node* Return(Node* val, Node* effect, Node* control) {
-    Node* zero = graph.NewNode(common.Int32Constant(0));
     Node* ret = graph.NewNode(common.Return(), zero, val, effect, control);
     end->ReplaceInput(0, ret);
     return ret;

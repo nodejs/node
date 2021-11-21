@@ -139,9 +139,9 @@ void SharedArrayBufferBuiltinsAssembler::DebugCheckAtomicIndex(
   //
   // This function must always be called after ValidateIntegerTypedArray, which
   // will ensure that LoadJSArrayBufferViewBuffer will not be null.
-  CSA_ASSERT(this, Word32BinaryNot(
+  CSA_DCHECK(this, Word32BinaryNot(
                        IsDetachedBuffer(LoadJSArrayBufferViewBuffer(array))));
-  CSA_ASSERT(this, UintPtrLessThan(index, LoadJSTypedArrayLength(array)));
+  CSA_DCHECK(this, UintPtrLessThan(index, LoadJSTypedArrayLength(array)));
 }
 
 TNode<BigInt> SharedArrayBufferBuiltinsAssembler::BigIntFromSigned64(

@@ -68,8 +68,8 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
       if (state == MONOMORPHIC || state == POLYMORPHIC) {
         MapHandles maps;
         nexus.ExtractMaps(&maps);
-        for (unsigned int i = 0; i < maps.size(); i++) {
-          CHECK(maps[i]->IsMap());
+        for (unsigned int j = 0; j < maps.size(); j++) {
+          CHECK(maps[j]->IsMap());
         }
       }
 

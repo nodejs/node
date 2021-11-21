@@ -16,8 +16,9 @@
 #include "src/heap/factory.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-segmenter-inl.h"
-#include "src/objects/managed.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/brkiter.h"
 
 namespace v8 {
@@ -36,9 +37,9 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
   Handle<JSReceiver> options;
   const char* service = "Intl.Segmenter";
   // 5. Let options be GetOptionsObject(_options_).
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options, Intl::GetOptionsObject(isolate, input_options, service),
-      JSSegmenter);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
+                             GetOptionsObject(isolate, input_options, service),
+                             JSSegmenter);
 
   // 7. Let opt be a new Record.
   // 8. Let matcher be ? GetOption(options, "localeMatcher", "string",
@@ -68,7 +69,7 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
 
   // 13. Let granularity be ? GetOption(options, "granularity", "string", «
   // "grapheme", "word", "sentence" », "grapheme").
-  Maybe<Granularity> maybe_granularity = Intl::GetStringOption<Granularity>(
+  Maybe<Granularity> maybe_granularity = GetStringOption<Granularity>(
       isolate, options, "granularity", service,
       {"grapheme", "word", "sentence"},
       {Granularity::GRAPHEME, Granularity::WORD, Granularity::SENTENCE},

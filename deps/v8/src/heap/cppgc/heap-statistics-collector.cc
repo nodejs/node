@@ -73,7 +73,7 @@ void FinalizeSpace(HeapStatistics* stats,
 }
 
 void RecordObjectType(
-    std::unordered_map<const char*, size_t>& type_map,
+    std::unordered_map<const void*, size_t>& type_map,
     std::vector<HeapStatistics::ObjectStatsEntry>& object_statistics,
     HeapObjectHeader* header, size_t object_size) {
   if (!NameProvider::HideInternalNames()) {
@@ -109,7 +109,7 @@ HeapStatistics HeapStatisticsCollector::CollectDetailedStatistics(
   if (!NameProvider::HideInternalNames()) {
     stats.type_names.resize(type_name_to_index_map_.size());
     for (auto& it : type_name_to_index_map_) {
-      stats.type_names[it.second] = it.first;
+      stats.type_names[it.second] = reinterpret_cast<const char*>(it.first);
     }
   }
 

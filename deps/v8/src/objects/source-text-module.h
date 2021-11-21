@@ -283,7 +283,6 @@ class SourceTextModuleInfoEntry
     : public TorqueGeneratedSourceTextModuleInfoEntry<SourceTextModuleInfoEntry,
                                                       Struct> {
  public:
-  DECL_PRINTER(SourceTextModuleInfoEntry)
   DECL_VERIFIER(SourceTextModuleInfoEntry)
 
   template <typename IsolateT>

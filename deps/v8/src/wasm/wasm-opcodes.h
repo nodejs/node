@@ -650,13 +650,15 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
 
 #define FOREACH_GC_OPCODE(V)                                         \
   V(StructNewWithRtt, 0xfb01, _)                                     \
-  V(StructNewDefault, 0xfb02, _)                                     \
+  V(StructNewDefaultWithRtt, 0xfb02, _)                              \
   V(StructGet, 0xfb03, _)                                            \
   V(StructGetS, 0xfb04, _)                                           \
   V(StructGetU, 0xfb05, _)                                           \
   V(StructSet, 0xfb06, _)                                            \
+  V(StructNew, 0xfb07, _)                                            \
+  V(StructNewDefault, 0xfb08, _)                                     \
   V(ArrayNewWithRtt, 0xfb11, _)                                      \
-  V(ArrayNewDefault, 0xfb12, _)                                      \
+  V(ArrayNewDefaultWithRtt, 0xfb12, _)                               \
   V(ArrayGet, 0xfb13, _)                                             \
   V(ArrayGetS, 0xfb14, _)                                            \
   V(ArrayGetU, 0xfb15, _)                                            \
@@ -664,6 +666,9 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(ArrayLen, 0xfb17, _)                                             \
   V(ArrayCopy, 0xfb18, _) /* not standardized - V8 experimental */   \
   V(ArrayInit, 0xfb19, _) /* not standardized - V8 experimental */   \
+  V(ArrayInitStatic, 0xfb1a, _)                                      \
+  V(ArrayNew, 0xfb1b, _)                                             \
+  V(ArrayNewDefault, 0xfb1c, _)                                      \
   V(I31New, 0xfb20, _)                                               \
   V(I31GetS, 0xfb21, _)                                              \
   V(I31GetU, 0xfb22, _)                                              \
@@ -674,6 +679,10 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(RefCast, 0xfb41, _)                                              \
   V(BrOnCast, 0xfb42, _)                                             \
   V(BrOnCastFail, 0xfb43, _)                                         \
+  V(RefTestStatic, 0xfb44, _)                                        \
+  V(RefCastStatic, 0xfb45, _)                                        \
+  V(BrOnCastStatic, 0xfb46, _)                                       \
+  V(BrOnCastStaticFail, 0xfb47, _)                                   \
   V(RefIsFunc, 0xfb50, _)                                            \
   V(RefIsData, 0xfb51, _)                                            \
   V(RefIsI31, 0xfb52, _)                                             \

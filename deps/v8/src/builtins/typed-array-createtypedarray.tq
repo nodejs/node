@@ -28,8 +28,8 @@ transitioning macro AllocateTypedArray(implicit context: Context)(
     isLengthTracking: bool): JSTypedArray {
   let elements: ByteArray;
   if constexpr (isOnHeap) {
-    assert(!IsResizableArrayBuffer(buffer));
-    assert(!isLengthTracking);
+    dcheck(!IsResizableArrayBuffer(buffer));
+    dcheck(!isLengthTracking);
     elements = AllocateByteArray(byteLength);
   } else {
     elements = kEmptyByteArray;
@@ -44,7 +44,7 @@ transitioning macro AllocateTypedArray(implicit context: Context)(
     // allocator is NOT used. When the mock array buffer is used, impossibly
     // large allocations are allowed that would erroneously cause an overflow
     // and this assertion to fail.
-    assert(
+    dcheck(
         IsMockArrayBufferAllocatorFlag() ||
         (backingStore + byteOffset) >= backingStore);
   }
@@ -67,7 +67,7 @@ transitioning macro AllocateTypedArray(implicit context: Context)(
   } else {
     typed_array::SetJSTypedArrayOffHeapDataPtr(
         typedArray, buffer.backing_store_ptr, byteOffset);
-    assert(
+    dcheck(
         typedArray.data_ptr ==
         (buffer.backing_store_ptr + Convert<intptr>(byteOffset)));
   }
@@ -164,7 +164,7 @@ transitioning macro ConstructByArrayLike(implicit context: Context)(
 
       } else if (length > 0) {
         const byteLength = typedArray.byte_length;
-        assert(byteLength <= kArrayBufferMaxByteLength);
+        dcheck(byteLength <= kArrayBufferMaxByteLength);
         if (IsSharedArrayBuffer(src.buffer)) {
           typed_array::CallCRelaxedMemcpy(
               typedArray.data_ptr, src.data_ptr, byteLength);
@@ -326,7 +326,7 @@ transitioning macro ConstructByArrayBuffer(implicit context: Context)(
 transitioning macro TypedArrayCreateByLength(implicit context: Context)(
     constructor: Constructor, length: Number, methodName: constexpr string):
     JSTypedArray {
-  assert(IsSafeInteger(length));
+  dcheck(IsSafeInteger(length));
 
   // 1. Let newTypedArray be ? Construct(constructor, argumentList).
   const newTypedArrayObj = Construct(constructor, length);
@@ -384,7 +384,7 @@ transitioning macro ConstructByJSReceiver(implicit context: Context)(
 transitioning builtin CreateTypedArray(
     context: Context, target: JSFunction, newTarget: JSReceiver, arg1: JSAny,
     arg2: JSAny, arg3: JSAny): JSTypedArray {
-  assert(IsConstructor(target));
+  dcheck(IsConstructor(target));
   // 4. Let O be ? AllocateTypedArray(constructorName, NewTarget,
   // "%TypedArrayPrototype%").
   try {
@@ -441,7 +441,7 @@ transitioning macro TypedArraySpeciesCreate(implicit context: Context)(
 
     // It is assumed that the CreateTypedArray builtin does not produce a
     // typed array that fails ValidateTypedArray
-    assert(!IsDetachedBuffer(typedArray.buffer));
+    dcheck(!IsDetachedBuffer(typedArray.buffer));
 
     return typedArray;
   } label IfSlow deferred {
@@ -455,7 +455,7 @@ transitioning macro TypedArraySpeciesCreate(implicit context: Context)(
     if constexpr (numArgs == 1) {
       newObj = Construct(constructor, arg0);
     } else {
-      assert(numArgs == 3);
+      dcheck(numArgs == 3);
       newObj = Construct(constructor, arg0, arg1, arg2);
     }
 

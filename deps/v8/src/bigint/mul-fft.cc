@@ -144,7 +144,7 @@ void ShiftModFn_Large(digit_t* result, const digit_t* input, int digit_shift,
       result[digit_shift] = digit_sub(sum, i0_part, &borrow);
       input_carry = d >> (kDigitBits - bits_shift);
       if (digit_shift + 1 < K) {
-        digit_t d = input[1];
+        d = input[1];
         digit_t subtrahend = (d << bits_shift) | input_carry;
         result[digit_shift + 1] =
             digit_sub2(iK_carry, subtrahend, borrow, &borrow);

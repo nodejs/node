@@ -58,6 +58,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   LocalHeap* heap() { return &heap_; }
 
   inline Address cage_base() const;
+  inline Address code_cage_base() const;
   inline ReadOnlyHeap* read_only_heap() const;
   inline Object root(RootIndex index) const;
   inline Handle<Object> root_handle(RootIndex index) const;

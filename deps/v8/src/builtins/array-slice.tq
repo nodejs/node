@@ -89,7 +89,7 @@ macro HandleFastSlice(
     labels Bailout {
   const start: Smi = Cast<Smi>(startNumber) otherwise Bailout;
   const count: Smi = Cast<Smi>(countNumber) otherwise Bailout;
-  assert(start >= 0);
+  dcheck(start >= 0);
 
   try {
     typeswitch (o) {
@@ -130,17 +130,6 @@ macro HandleFastSlice(
 transitioning javascript builtin
 ArrayPrototypeSlice(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
-  // Handle array cloning case if the receiver is a fast array.
-  if (arguments.length == 0) {
-    typeswitch (receiver) {
-      case (a: FastJSArrayForCopy): {
-        return CloneFastJSArray(context, a);
-      }
-      case (JSAny): {
-      }
-    }
-  }
-
   // 1. Let O be ? ToObject(this value).
   const o: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -161,6 +150,30 @@ ArrayPrototypeSlice(
   const end: JSAny = arguments[1];
   const relativeEnd: Number = end == Undefined ? len : ToInteger_Inline(end);
 
+  // Handle array cloning case if the receiver is a fast array. In the case
+  // where relativeStart is 0 but start is not the SMI zero (e.g., start is an
+  // object whose valueOf returns 0) we must not call CloneFastJSArray. This is
+  // because CloneFastArray reloads the array length, and the ToInteger above
+  // might have called user code which changed it. Thus, calling
+  // CloneFastJSArray here is safe only if we know ToInteger didn't call user
+  // code.
+
+  // This logic should be in sync with ArrayPrototypeSlice (to a reasonable
+  // degree). This is because CloneFastJSArray produces arrays which are
+  // potentially COW. If there's a discrepancy, TF generates code which produces
+  // a COW array and then expects it to be non-COW (or the other way around) ->
+  // immediate deopt.
+  if ((start == Undefined || TaggedEqual(start, SmiConstant(0))) &&
+      end == Undefined) {
+    typeswitch (receiver) {
+      case (a: FastJSArrayForCopy): {
+        return CloneFastJSArray(context, a);
+      }
+      case (JSAny): {
+      }
+    }
+  }
+
   // 6. If relativeEnd < 0, let final be max((len + relativeEnd), 0);
   //    else let final be min(relativeEnd, len).
   const final: Number =
@@ -169,12 +182,12 @@ ArrayPrototypeSlice(
   // 7. Let count be max(final - k, 0).
   const count: Number = Max(final - k, 0);
 
-  assert(0 <= k);
-  assert(k <= len);
-  assert(0 <= final);
-  assert(final <= len);
-  assert(0 <= count);
-  assert(count <= len);
+  dcheck(0 <= k);
+  dcheck(k <= len);
+  dcheck(0 <= final);
+  dcheck(final <= len);
+  dcheck(0 <= count);
+  dcheck(count <= len);
 
   try {
     return HandleFastSlice(context, o, k, count)

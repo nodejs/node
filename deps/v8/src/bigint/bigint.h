@@ -227,12 +227,40 @@ void Add(RWDigits Z, Digits X, Digits Y);
 // Addition of signed integers. Returns true if the result is negative.
 bool AddSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
                bool y_negative);
+// Z := X + 1
+void AddOne(RWDigits Z, Digits X);
 
 // Z := X - Y. Requires X >= Y.
 void Subtract(RWDigits Z, Digits X, Digits Y);
 // Subtraction of signed integers. Returns true if the result is negative.
 bool SubtractSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
                     bool y_negative);
+// Z := X - 1
+void SubtractOne(RWDigits Z, Digits X);
+
+// The bitwise operations assume that negative BigInts are represented as
+// sign+magnitude. Their behavior depends on the sign of the inputs: negative
+// inputs perform an implicit conversion to two's complement representation.
+// Z := X & Y
+void BitwiseAnd_PosPos(RWDigits Z, Digits X, Digits Y);
+// Call this for a BigInt x = (magnitude=X, negative=true).
+void BitwiseAnd_NegNeg(RWDigits Z, Digits X, Digits Y);
+// Positive X, negative Y. Callers must swap arguments as needed.
+void BitwiseAnd_PosNeg(RWDigits Z, Digits X, Digits Y);
+void BitwiseOr_PosPos(RWDigits Z, Digits X, Digits Y);
+void BitwiseOr_NegNeg(RWDigits Z, Digits X, Digits Y);
+void BitwiseOr_PosNeg(RWDigits Z, Digits X, Digits Y);
+void BitwiseXor_PosPos(RWDigits Z, Digits X, Digits Y);
+void BitwiseXor_NegNeg(RWDigits Z, Digits X, Digits Y);
+void BitwiseXor_PosNeg(RWDigits Z, Digits X, Digits Y);
+
+// Z := (least significant n bits of X, interpreted as a signed n-bit integer).
+// Returns true if the result is negative; Z will hold the absolute value.
+bool AsIntN(RWDigits Z, Digits X, bool x_negative, int n);
+// Z := (least significant n bits of X).
+void AsUintN_Pos(RWDigits Z, Digits X, int n);
+// Same, but X is the absolute value of a negative BigInt.
+void AsUintN_Neg(RWDigits Z, Digits X, int n);
 
 enum class Status { kOk, kInterrupted };
 
@@ -302,6 +330,36 @@ inline int ModuloResultLength(Digits B) { return B.len(); }
 int ToStringResultLength(Digits X, int radix, bool sign);
 // In DEBUG builds, the result of {ToString} will be initialized to this value.
 constexpr char kStringZapValue = '?';
+
+inline int BitwiseAnd_PosPos_ResultLength(int x_length, int y_length) {
+  return std::min(x_length, y_length);
+}
+inline int BitwiseAnd_NegNeg_ResultLength(int x_length, int y_length) {
+  // Result length growth example: -2 & -3 = -4 (2-bit inputs, 3-bit result).
+  return std::max(x_length, y_length) + 1;
+}
+inline int BitwiseAnd_PosNeg_ResultLength(int x_length) { return x_length; }
+inline int BitwiseOrResultLength(int x_length, int y_length) {
+  return std::max(x_length, y_length);
+}
+inline int BitwiseXor_PosPos_ResultLength(int x_length, int y_length) {
+  return std::max(x_length, y_length);
+}
+inline int BitwiseXor_NegNeg_ResultLength(int x_length, int y_length) {
+  return std::max(x_length, y_length);
+}
+inline int BitwiseXor_PosNeg_ResultLength(int x_length, int y_length) {
+  // Result length growth example: 3 ^ -1 == -4 (2-bit inputs, 3-bit result).
+  return std::max(x_length, y_length) + 1;
+}
+
+// Returns -1 if this "asIntN" operation would be a no-op.
+int AsIntNResultLength(Digits X, bool x_negative, int n);
+// Returns -1 if this "asUintN" operation would be a no-op.
+int AsUintN_Pos_ResultLength(Digits X, int n);
+inline int AsUintN_Neg_ResultLength(int n) {
+  return ((n - 1) / kDigitBits) + 1;
+}
 
 // Support for parsing BigInts from Strings, using an Accumulator object
 // for intermediate state.

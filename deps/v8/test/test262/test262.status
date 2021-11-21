@@ -69,23 +69,6 @@
   # https://code.google.com/p/v8/issues/detail?id=10958
   'language/module-code/eval-gtbndng-indirect-faux-assertion': [FAIL],
 
-  # DataView functions should also throw on detached buffers
-  'built-ins/DataView/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/byteLength/instance-has-detached-buffer': [FAIL],
-  'built-ins/DataView/custom-proto-access-detaches-buffer': [FAIL],
-  # copyWithin should also throw on detached buffers
-  'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached-prototype': [FAIL],
-  'built-ins/TypedArray/prototype/copyWithin/coerced-values-start-detached': [FAIL],
-  'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached': [FAIL],
-  # fill should also throw on detached buffers
-  'built-ins/TypedArray/prototype/fill/coerced-value-detach': [FAIL],
-  'built-ins/TypedArray/prototype/fill/coerced-end-detach': [FAIL],
-  'built-ins/TypedArray/prototype/fill/coerced-start-detach': [FAIL],
-  'built-ins/TypedArray/prototype/includes/detached-buffer-during-fromIndex-returns-true-for-undefined': [FAIL],
-  'built-ins/TypedArray/prototype/includes/BigInt/detached-buffer-during-fromIndex-returns-true-for-undefined': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
   'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [FAIL],
@@ -194,10 +177,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4698
   'language/expressions/call/tco-call-args': [SKIP],
-  'language/expressions/call/tco-cross-realm-class-construct': [SKIP],
-  'language/expressions/call/tco-cross-realm-class-derived-construct': [SKIP],
-  'language/expressions/call/tco-cross-realm-fun-call': [SKIP],
-  'language/expressions/call/tco-cross-realm-fun-construct': [SKIP],
   'language/expressions/call/tco-member-args': [SKIP],
   'language/expressions/call/tco-non-eval-function': [SKIP],
   'language/expressions/call/tco-non-eval-function-dynamic': [SKIP],
@@ -240,8 +219,8 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12167
-  'intl402/DisplayNames/prototype/of/type-calendar-invalid': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=12209
+  'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
@@ -308,13 +287,6 @@
   'language/module-code/export-expname-binding-index': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11111
-  'built-ins/ArrayBuffer/prototype/resize/resize-grow': [FAIL],
-  'built-ins/ArrayBuffer/prototype/resize/resize-same-size': [FAIL],
-  'built-ins/ArrayBuffer/prototype/resize/resize-same-size-zero-explicit': [FAIL],
-  'built-ins/ArrayBuffer/prototype/resize/resize-same-size-zero-implicit': [FAIL],
-  'built-ins/ArrayBuffer/prototype/resize/resize-shrink': [FAIL],
-  'built-ins/ArrayBuffer/prototype/resize/resize-shrink-zero-explicit': [FAIL],
-  'built-ins/ArrayBuffer/prototype/resize/resize-shrink-zero-implicit': [FAIL],
   'built-ins/ArrayBuffer/prototype/transfer/*': [FAIL],
   'built-ins/ArrayBuffer/prototype/transfer/this-is-sharedarraybuffer': [PASS],
   'built-ins/DataView/prototype/byteLength/resizable-array-buffer-auto': [FAIL],
@@ -341,6 +313,41 @@
   'built-ins/DataView/prototype/setUint16/resizable-buffer': [FAIL],
   'built-ins/DataView/prototype/setUint32/resizable-buffer': [FAIL],
   'built-ins/DataView/prototype/setUint8/resizable-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/filter/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/filter/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/find/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/findIndex/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/findIndex/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/findLast/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/findLastIndex/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/findLastIndex/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/findLast/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/find/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/forEach/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/forEach/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/includes/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/includes/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/indexOf/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/indexOf/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/join/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/join/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/lastIndexOf/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/lastIndexOf/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/map/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/map/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/reduce/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/reduce/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/reduceRight/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/reduceRight/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/reverse/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/reverse/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/set/BigInt/typedarray-arg-target-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/set/BigInt/typedarray-arg-set-values-same-buffer-same-type-resized': [SKIP],
+  'built-ins/TypedArray/prototype/set/typedarray-arg-target-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/sort/BigInt/return-abrupt-from-this-out-of-bounds': [FAIL],
+  'built-ins/TypedArray/prototype/sort/return-abrupt-from-this-out-of-bounds': [FAIL],
+  'built-ins/TypedArray/prototype/toLocaleString/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
+  'built-ins/TypedArray/prototype/toLocaleString/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-different-type': [FAIL],
   'built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-same-type': [FAIL],
 
@@ -361,10 +368,13 @@
   'built-ins/ShadowRealm/prototype/evaluate/errors-from-the-other-realm-is-wrapped-into-a-typeerror': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/length': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/name': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/no-conditional-strict-mode': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/not-constructor': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/proto': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/returns-primitive-values': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/returns-proxy-callable-object': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/returns-symbol-values': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/throws-syntaxerror-on-bad-syntax': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/throws-typeerror-if-evaluation-resolves-to-non-primitive': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/throws-when-argument-is-not-a-string': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/validates-realm-object': [FAIL],
@@ -377,6 +387,9 @@
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-functions-new-wrapping-on-each-evaluation': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-functions-share-no-properties': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-functions-share-no-properties-extended': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-multiple-different-realms-nested': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-multiple-different-realms': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/nested-realms': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/descriptor': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/exportName-tostring': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/import-value': [FAIL],
@@ -390,22 +403,12 @@
   'built-ins/ShadowRealm/prototype/proto': [FAIL],
   'built-ins/ShadowRealm/prototype/Symbol.toStringTag': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12086
-  'language/expressions/in/private-field-invalid-assignment-reference': [FAIL],
-  'language/expressions/in/private-field-in-nested': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=12085
   'language/statements/class/subclass/derived-class-return-override-catch-finally': [FAIL],
   'language/statements/class/subclass/derived-class-return-override-catch-finally-arrow': [FAIL],
   'language/statements/class/subclass/derived-class-return-override-finally-super': [FAIL],
   'language/statements/class/subclass/derived-class-return-override-finally-super-arrow': [FAIL],
   'language/statements/class/subclass/derived-class-return-override-for-of-arrow': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12168
-  'built-ins/Date/prototype/valueOf/S9.4_A3_T1': [FAIL],
-  'built-ins/Date/prototype/valueOf/S9.4_A3_T2': [FAIL],
-  'built-ins/Error/prototype/S15.11.4_A3': [FAIL],
-  'built-ins/Error/prototype/S15.11.4_A4': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -444,65 +447,6 @@
   # Test against internals of harness; we plug in differently
   'harness/detachArrayBuffer': [SKIP],
   'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
-
-
-  # https://github.com/tc39/test262/issues/3111
-  'built-ins/TypedArray/prototype/at/BigInt/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/at/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/byteOffset/BigInt/resizable-array-buffer-auto': [FAIL],
-  'built-ins/TypedArray/prototype/copyWithin/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/copyWithin/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/entries/BigInt/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/entries/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/every/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/every/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/fill/BigInt/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/fill/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/filter/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/filter/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/find/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/findIndex/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/findIndex/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/findLast/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/findLastIndex/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/findLastIndex/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/findLast/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/find/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/forEach/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/forEach/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/includes/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/includes/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/indexOf/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/indexOf/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/join/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/join/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/keys/BigInt/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/keys/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/lastIndexOf/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/lastIndexOf/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/map/BigInt/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/map/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/reduce/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/reduce/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/reduceRight/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/reduceRight/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/reverse/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/reverse/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/set/BigInt/typedarray-arg-set-values-same-buffer-same-type-resized': [FAIL],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-target-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/slice/BigInt/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/slice/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/some/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/some/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/sort/BigInt/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/sort/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/toLocaleString/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/toLocaleString/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/values/BigInt/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/values/return-abrupt-from-this-out-of-bounds': [FAIL],
-
-  # Pending update after https://github.com/tc39/proposal-resizablearraybuffer/issues/68
-  'built-ins/TypedArray/prototype/byteOffset/resizable-array-buffer-auto': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 

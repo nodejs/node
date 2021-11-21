@@ -86,13 +86,23 @@ void IsolateAllocator::InitializeOncePerProcess() {
   // disallowed in the future, at the latest once ArrayBuffers are referenced
   // through an offset rather than a raw pointer.
   if (GetProcessWideVirtualMemoryCage()->is_disabled()) {
-    CHECK(kAllowBackingStoresOutsideDataCage);
+    CHECK(kAllowBackingStoresOutsideCage);
   } else {
     auto cage = GetProcessWideVirtualMemoryCage();
     CHECK(cage->is_initialized());
-    DCHECK_EQ(params.reservation_size, cage->pointer_cage_size());
-    existing_reservation = base::AddressRegion(cage->pointer_cage_base(),
-                                               cage->pointer_cage_size());
+    // The pointer compression cage must be placed at the start of the virtual
+    // memory cage.
+    // TODO(chromium:12180) this currently assumes that no other pages were
+    // allocated through the cage's page allocator in the meantime. In the
+    // future, the cage initialization will happen just before this function
+    // runs, and so this will be guaranteed. Currently however, it is possible
+    // that the embedder accidentally uses the cage's page allocator prior to
+    // initializing V8, in which case this CHECK will likely fail.
+    CHECK(cage->page_allocator()->AllocatePagesAt(
+        cage->base(), params.reservation_size, PageAllocator::kNoAccess));
+    existing_reservation =
+        base::AddressRegion(cage->base(), params.reservation_size);
+    params.page_allocator = cage->page_allocator();
   }
 #endif
   if (!GetProcessWidePtrComprCage()->InitReservation(params,

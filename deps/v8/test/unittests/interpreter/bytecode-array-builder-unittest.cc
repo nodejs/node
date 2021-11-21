@@ -713,11 +713,11 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
       .JumpLoop(&loop_header, 0, 0)
       .Bind(&after_loop);
   for (int i = 0; i < 42; i++) {
-    BytecodeLabel after_loop;
+    BytecodeLabel also_after_loop;
     // Conditional jump to force the code after the JumpLoop to be live.
-    builder.JumpIfNull(&after_loop)
+    builder.JumpIfNull(&also_after_loop)
         .JumpLoop(&loop_header, 0, 0)
-        .Bind(&after_loop);
+        .Bind(&also_after_loop);
   }
 
   // Add padding to force wide backwards jumps.

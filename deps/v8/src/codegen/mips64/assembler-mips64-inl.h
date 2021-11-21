@@ -145,7 +145,7 @@ HeapObject RelocInfo::target_object() {
       Object(Assembler::target_address_at(pc_, constant_pool_)));
 }
 
-HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
+HeapObject RelocInfo::target_object_no_host(PtrComprCageBase cage_base) {
   return target_object();
 }
 

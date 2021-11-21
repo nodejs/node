@@ -14,7 +14,18 @@ function testFunction()
   f,g;
   debugger;
 }
+async function testAsyncFunction(action) {
+  switch (action) {
+    case "resolve": return 1;
+    case "reject": throw new Error();
+  }
+}
 //# sourceURL=foo.js`);
+
+const check = async (expression) => {
+  const {result:{exceptionDetails}} = await Protocol.Runtime.evaluate({expression, throwOnSideEffect: true});
+  InspectorTest.log(expression + ' : ' + (exceptionDetails ? 'throws' : 'ok'));
+};
 
 InspectorTest.runAsyncTestSuite([
   async function basicTest() {
@@ -32,11 +43,12 @@ InspectorTest.runAsyncTestSuite([
     InspectorTest.log('g() throws ' + className);
   },
 
+  async function testAsyncFunctions() {
+    await check('testAsyncFunction("resolve")');
+    await check('testAsyncFunction("reject")');
+  },
+
   async function testDate() {
-    const check = async (expression) => {
-      const {result:{exceptionDetails}} = await Protocol.Runtime.evaluate({expression, throwOnSideEffect: true});
-      InspectorTest.log(expression + ' : ' + (exceptionDetails ? 'throws' : 'ok'));
-    };
     // setters are only ok on temporary objects
     await check('someGlobalDate.setDate(10)');
     await check('new Date().setDate(10)');
@@ -51,5 +63,9 @@ InspectorTest.runAsyncTestSuite([
     await check('new Date().getFullYear()');
     await check('someGlobalDate.getHours()');
     await check('new Date().getHours()');
+  },
+
+  async function testPromiseReject() {
+    await check('Promise.reject()');
   }
 ]);

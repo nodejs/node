@@ -452,6 +452,13 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedPointerField(dst, MemOperand{instance, offset});
 }
 
+void LiftoffAssembler::LoadExternalPointer(Register dst, Register instance,
+                                           int offset, ExternalPointerTag tag,
+                                           Register isolate_root) {
+  LoadExternalPointerField(dst, FieldMemOperand(instance, offset), tag,
+                           isolate_root);
+}
+
 void LiftoffAssembler::SpillInstance(Register instance) {
   Str(instance, liftoff::GetInstanceOperand());
 }

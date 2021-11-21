@@ -37,13 +37,50 @@ namespace internal {
 // - number of capture registers (output values) of the regexp.
 class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
  public:
-  // Meaning of Type:
-  // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
-  // ATOM: A simple string to match against using an indexOf operation.
-  // IRREGEXP: Compiled with Irregexp.
-  // EXPERIMENTAL: Compiled to use the new linear time engine.
-  enum Type { NOT_COMPILED, ATOM, IRREGEXP, EXPERIMENTAL };
+  enum Type {
+    NOT_COMPILED,  // Initial value. No data array has been set yet.
+    ATOM,          // A simple string match.
+    IRREGEXP,      // Compiled with Irregexp (code or bytecode).
+    EXPERIMENTAL,  // Compiled to use the experimental linear time engine.
+  };
   DEFINE_TORQUE_GENERATED_JS_REG_EXP_FLAGS()
+
+  V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(
+      Isolate* isolate, Handle<String> source, Flags flags,
+      uint32_t backtrack_limit = kNoBacktrackLimit);
+
+  static MaybeHandle<JSRegExp> Initialize(
+      Handle<JSRegExp> regexp, Handle<String> source, Flags flags,
+      uint32_t backtrack_limit = kNoBacktrackLimit);
+  static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
+                                          Handle<String> source,
+                                          Handle<String> flags_string);
+
+  DECL_ACCESSORS(last_index, Object)
+
+  // Instance fields accessors.
+  inline String source() const;
+  inline Flags flags() const;
+
+  // Data array field accessors.
+
+  inline Type type_tag() const;
+  inline String atom_pattern() const;
+  // This could be a Smi kUninitializedValue or Code.
+  V8_EXPORT_PRIVATE Object code(bool is_latin1) const;
+  V8_EXPORT_PRIVATE void set_code(bool is_unicode, Handle<Code> code);
+  // This could be a Smi kUninitializedValue or ByteArray.
+  V8_EXPORT_PRIVATE Object bytecode(bool is_latin1) const;
+  // Sets the bytecode as well as initializing trampoline slots to the
+  // RegExpInterpreterTrampoline.
+  void set_bytecode_and_trampoline(Isolate* isolate,
+                                   Handle<ByteArray> bytecode);
+  inline int max_register_count() const;
+  // Number of captures (without the match itself).
+  inline int capture_count() const;
+  inline Object capture_name_map();
+  inline void set_capture_name_map(Handle<FixedArray> capture_name_map);
+  uint32_t backtrack_limit() const;
 
   static constexpr Flag AsJSRegExpFlag(RegExpFlag f) {
     return static_cast<Flag>(f);
@@ -75,27 +112,13 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   STATIC_ASSERT(kFlagCount == v8::RegExp::kFlagCount);
   STATIC_ASSERT(kFlagCount == kRegExpFlagCount);
 
-  DECL_ACCESSORS(last_index, Object)
-
-  // If the backtrack limit is set to this marker value, no limit is applied.
-  static constexpr uint32_t kNoBacktrackLimit = 0;
-
-  V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(
-      Isolate* isolate, Handle<String> source, Flags flags,
-      uint32_t backtrack_limit = kNoBacktrackLimit);
-
-  static MaybeHandle<JSRegExp> Initialize(
-      Handle<JSRegExp> regexp, Handle<String> source, Flags flags,
-      uint32_t backtrack_limit = kNoBacktrackLimit);
-  static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
-                                          Handle<String> source,
-                                          Handle<String> flags_string);
-
   static base::Optional<Flags> FlagsFromString(Isolate* isolate,
                                                Handle<String> flags);
 
   V8_EXPORT_PRIVATE static Handle<String> StringFromFlags(Isolate* isolate,
                                                           Flags flags);
+
+  inline String EscapedPattern();
 
   bool CanTierUp();
   bool MarkedForTierUp();
@@ -103,28 +126,18 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   void TierUpTick();
   void MarkTierUpForNextExec();
 
-  inline Type TypeTag() const;
-  static bool TypeSupportsCaptures(Type t) {
+  bool ShouldProduceBytecode();
+  inline bool HasCompiledCode() const;
+  inline void DiscardCompiledCodeForSerialization();
+
+  static constexpr bool TypeSupportsCaptures(Type t) {
     return t == IRREGEXP || t == EXPERIMENTAL;
   }
 
-  // Maximum number of captures allowed.
-  static constexpr int kMaxCaptures = 1 << 16;
-
-  // Number of captures (without the match itself).
-  inline int CaptureCount() const;
   // Each capture (including the match itself) needs two registers.
-  static int RegistersForCaptureCount(int count) { return (count + 1) * 2; }
-
-  inline int MaxRegisterCount() const;
-  inline Flags GetFlags() const;
-  inline String Pattern();
-  inline String EscapedPattern();
-  inline Object CaptureNameMap();
-  inline Object DataAt(int index) const;
-  // Set implementation data after the object has been prepared.
-  inline void SetDataAt(int index, Object value);
-  inline void SetCaptureNameMap(Handle<FixedArray> capture_name_map);
+  static constexpr int RegistersForCaptureCount(int count) {
+    return (count + 1) * 2;
+  }
 
   static constexpr int code_index(bool is_latin1) {
     return is_latin1 ? kIrregexpLatin1CodeIndex : kIrregexpUC16CodeIndex;
@@ -134,17 +147,6 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
     return is_latin1 ? kIrregexpLatin1BytecodeIndex
                      : kIrregexpUC16BytecodeIndex;
   }
-
-  // This could be a Smi kUninitializedValue or Code.
-  V8_EXPORT_PRIVATE Object Code(bool is_latin1) const;
-  // This could be a Smi kUninitializedValue or ByteArray.
-  V8_EXPORT_PRIVATE Object Bytecode(bool is_latin1) const;
-
-  bool ShouldProduceBytecode();
-  inline bool HasCompiledCode() const;
-  inline void DiscardCompiledCodeForSerialization();
-
-  uint32_t BacktrackLimit() const;
 
   // Dispatched behavior.
   DECL_PRINTER(JSRegExp)
@@ -158,59 +160,49 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static constexpr int kInitialLastIndexValue = 0;
 
   // Indices in the data array.
-  static const int kTagIndex = 0;
-  static const int kSourceIndex = kTagIndex + 1;
-  static const int kFlagsIndex = kSourceIndex + 1;
-  static const int kDataIndex = kFlagsIndex + 1;
-
-  // TODO(jgruber): Rename kDataIndex to something more appropriate.
-  // There is no 'data' field, kDataIndex is just a marker for the
-  // first non-generic index.
-  static constexpr int kMinDataArrayLength = kDataIndex;
+  static constexpr int kTagIndex = 0;
+  static constexpr int kSourceIndex = kTagIndex + 1;
+  static constexpr int kFlagsIndex = kSourceIndex + 1;
+  static constexpr int kFirstTypeSpecificIndex = kFlagsIndex + 1;
+  static constexpr int kMinDataArrayLength = kFirstTypeSpecificIndex;
 
   // The data fields are used in different ways depending on the
   // value of the tag.
   // Atom regexps (literal strings).
-  static const int kAtomPatternIndex = kDataIndex;
+  static constexpr int kAtomPatternIndex = kFirstTypeSpecificIndex;
+  static constexpr int kAtomDataSize = kAtomPatternIndex + 1;
 
-  static const int kAtomDataSize = kAtomPatternIndex + 1;
-
-  // Irregexp compiled code or trampoline to interpreter for Latin1. If
-  // compilation fails, this fields hold an exception object that should be
-  // thrown if the regexp is used again.
-  static const int kIrregexpLatin1CodeIndex = kDataIndex;
-  // Irregexp compiled code or trampoline to interpreter for UC16.  If
-  // compilation fails, this fields hold an exception object that should be
-  // thrown if the regexp is used again.
-  static const int kIrregexpUC16CodeIndex = kDataIndex + 1;
-  // Bytecode to interpret the regexp for Latin1. Contains kUninitializedValue
-  // if we haven't compiled the regexp yet, regexp are always compiled or if
-  // tier-up has happened (i.e. when kIrregexpLatin1CodeIndex contains native
-  // irregexp code).
-  static const int kIrregexpLatin1BytecodeIndex = kDataIndex + 2;
-  // Bytecode to interpret the regexp for UC16. Contains kUninitializedValue if
-  // we haven't compiled the regxp yet, regexp are always compiled or if tier-up
-  // has happened (i.e. when kIrregexpUC16CodeIndex contains native irregexp
-  // code).
-  static const int kIrregexpUC16BytecodeIndex = kDataIndex + 3;
+  // A Code object or a Smi marker value equal to kUninitializedValue.
+  static constexpr int kIrregexpLatin1CodeIndex = kFirstTypeSpecificIndex;
+  static constexpr int kIrregexpUC16CodeIndex = kIrregexpLatin1CodeIndex + 1;
+  // A ByteArray object or a Smi marker value equal to kUninitializedValue.
+  static constexpr int kIrregexpLatin1BytecodeIndex =
+      kIrregexpUC16CodeIndex + 1;
+  static constexpr int kIrregexpUC16BytecodeIndex =
+      kIrregexpLatin1BytecodeIndex + 1;
   // Maximal number of registers used by either Latin1 or UC16.
   // Only used to check that there is enough stack space
-  static const int kIrregexpMaxRegisterCountIndex = kDataIndex + 4;
+  static constexpr int kIrregexpMaxRegisterCountIndex =
+      kIrregexpUC16BytecodeIndex + 1;
   // Number of captures in the compiled regexp.
-  static const int kIrregexpCaptureCountIndex = kDataIndex + 5;
+  static constexpr int kIrregexpCaptureCountIndex =
+      kIrregexpMaxRegisterCountIndex + 1;
   // Maps names of named capture groups (at indices 2i) to their corresponding
   // (1-based) capture group indices (at indices 2i + 1).
-  static const int kIrregexpCaptureNameMapIndex = kDataIndex + 6;
+  static constexpr int kIrregexpCaptureNameMapIndex =
+      kIrregexpCaptureCountIndex + 1;
   // Tier-up ticks are set to the value of the tier-up ticks flag. The value is
   // decremented on each execution of the bytecode, so that the tier-up
   // happens once the ticks reach zero.
   // This value is ignored if the regexp-tier-up flag isn't turned on.
-  static const int kIrregexpTicksUntilTierUpIndex = kDataIndex + 7;
+  static constexpr int kIrregexpTicksUntilTierUpIndex =
+      kIrregexpCaptureNameMapIndex + 1;
   // A smi containing either the backtracking limit or kNoBacktrackLimit.
   // TODO(jgruber): If needed, this limit could be packed into other fields
   // above to save space.
-  static const int kIrregexpBacktrackLimit = kDataIndex + 8;
-  static const int kIrregexpDataSize = kDataIndex + 9;
+  static constexpr int kIrregexpBacktrackLimit =
+      kIrregexpTicksUntilTierUpIndex + 1;
+  static constexpr int kIrregexpDataSize = kIrregexpBacktrackLimit + 1;
 
   // TODO(mbid,v8:10765): At the moment the EXPERIMENTAL data array conforms
   // to the format of an IRREGEXP data array, with most fields set to some
@@ -222,26 +214,38 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static constexpr int kExperimentalDataSize = kIrregexpDataSize;
 
   // In-object fields.
-  static const int kLastIndexFieldIndex = 0;
-  static const int kInObjectFieldCount = 1;
+  static constexpr int kLastIndexFieldIndex = 0;
+  static constexpr int kInObjectFieldCount = 1;
 
   // The actual object size including in-object fields.
-  static int Size() { return kHeaderSize + kInObjectFieldCount * kTaggedSize; }
+  static constexpr int Size() {
+    return kHeaderSize + kInObjectFieldCount * kTaggedSize;
+  }
 
   // Descriptor array index to important methods in the prototype.
-  static const int kExecFunctionDescriptorIndex = 1;
-  static const int kSymbolMatchFunctionDescriptorIndex = 14;
-  static const int kSymbolMatchAllFunctionDescriptorIndex = 15;
-  static const int kSymbolReplaceFunctionDescriptorIndex = 16;
-  static const int kSymbolSearchFunctionDescriptorIndex = 17;
-  static const int kSymbolSplitFunctionDescriptorIndex = 18;
+  static constexpr int kExecFunctionDescriptorIndex = 1;
+  static constexpr int kSymbolMatchFunctionDescriptorIndex = 14;
+  static constexpr int kSymbolMatchAllFunctionDescriptorIndex = 15;
+  static constexpr int kSymbolReplaceFunctionDescriptorIndex = 16;
+  static constexpr int kSymbolSearchFunctionDescriptorIndex = 17;
+  static constexpr int kSymbolSplitFunctionDescriptorIndex = 18;
 
   // The uninitialized value for a regexp code object.
-  static const int kUninitializedValue = -1;
+  static constexpr int kUninitializedValue = -1;
+
+  // If the backtrack limit is set to this marker value, no limit is applied.
+  static constexpr uint32_t kNoBacktrackLimit = 0;
 
   // The heuristic value for the length of the subject string for which we
   // tier-up to the compiler immediately, instead of using the interpreter.
   static constexpr int kTierUpForSubjectLengthValue = 1000;
+
+  // Maximum number of captures allowed.
+  static constexpr int kMaxCaptures = 1 << 16;
+
+ private:
+  inline Object DataAt(int index) const;
+  inline void SetDataAt(int index, Object value);
 
   TQ_OBJECT_CONSTRUCTORS(JSRegExp)
 };
@@ -262,17 +266,17 @@ class JSRegExpResult
   // instance type as JSArray.
 
   // Indices of in-object properties.
-  static const int kIndexIndex = 0;
-  static const int kInputIndex = 1;
-  static const int kGroupsIndex = 2;
+  static constexpr int kIndexIndex = 0;
+  static constexpr int kInputIndex = 1;
+  static constexpr int kGroupsIndex = 2;
 
   // Private internal only fields.
-  static const int kNamesIndex = 3;
-  static const int kRegExpInputIndex = 4;
-  static const int kRegExpLastIndex = 5;
-  static const int kInObjectPropertyCount = 6;
+  static constexpr int kNamesIndex = 3;
+  static constexpr int kRegExpInputIndex = 4;
+  static constexpr int kRegExpLastIndex = 5;
+  static constexpr int kInObjectPropertyCount = 6;
 
-  static const int kMapIndexInContext = Context::REGEXP_RESULT_MAP_INDEX;
+  static constexpr int kMapIndexInContext = Context::REGEXP_RESULT_MAP_INDEX;
 
   TQ_OBJECT_CONSTRUCTORS(JSRegExpResult)
 };
@@ -284,8 +288,8 @@ class JSRegExpResultWithIndices
   static_assert(
       JSRegExpResult::kInObjectPropertyCount == 6,
       "JSRegExpResultWithIndices must be a subclass of JSRegExpResult");
-  static const int kIndicesIndex = 6;
-  static const int kInObjectPropertyCount = 7;
+  static constexpr int kIndicesIndex = 6;
+  static constexpr int kInObjectPropertyCount = 7;
 
   TQ_OBJECT_CONSTRUCTORS(JSRegExpResultWithIndices)
 };
@@ -305,11 +309,11 @@ class JSRegExpResultIndices
       Handle<Object> maybe_names);
 
   // Indices of in-object properties.
-  static const int kGroupsIndex = 0;
-  static const int kInObjectPropertyCount = 1;
+  static constexpr int kGroupsIndex = 0;
+  static constexpr int kInObjectPropertyCount = 1;
 
   // Descriptor index of groups.
-  static const int kGroupsDescriptorIndex = 1;
+  static constexpr int kGroupsDescriptorIndex = 1;
 
   TQ_OBJECT_CONSTRUCTORS(JSRegExpResultIndices)
 };

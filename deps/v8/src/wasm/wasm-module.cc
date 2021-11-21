@@ -113,6 +113,23 @@ int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
   return func_index;
 }
 
+// TODO(7748): Measure whether this iterative implementation is fast enough.
+// We could cache the result on the module, in yet another vector indexed by
+// type index.
+int GetSubtypingDepth(const WasmModule* module, uint32_t type_index) {
+  uint32_t starting_point = type_index;
+  int depth = 0;
+  while ((type_index = module->supertype(type_index)) != kGenericSuperType) {
+    if (type_index == starting_point) return -1;  // Cycle detected.
+    // This is disallowed and will be rejected by validation, but might occur
+    // when this function is called.
+    if (type_index == kNoSuperType) break;
+    depth++;
+    if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) break;
+  }
+  return depth;
+}
+
 void LazilyGeneratedNames::AddForTesting(int function_index,
                                          WireBytesRef name) {
   base::MutexGuard lock(&mutex_);
@@ -293,19 +310,23 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
 }
 
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
-                                  base::Optional<uint32_t> max_size) {
+                                  base::Optional<uint32_t> max_size,
+                                  bool shared) {
   Factory* factory = isolate->factory();
 
   Handle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
   Handle<String> minimum_string = factory->InternalizeUtf8String("minimum");
   Handle<String> maximum_string = factory->InternalizeUtf8String("maximum");
+  Handle<String> shared_string = factory->InternalizeUtf8String("shared");
   JSObject::AddProperty(isolate, object, minimum_string,
                         factory->NewNumberFromUint(min_size), NONE);
   if (max_size.has_value()) {
     JSObject::AddProperty(isolate, object, maximum_string,
                           factory->NewNumberFromUint(max_size.value()), NONE);
   }
+  JSObject::AddProperty(isolate, object, shared_string,
+                        factory->ToBoolean(shared), NONE);
 
   return object;
 }
@@ -401,7 +422,8 @@ Handle<JSArray> GetImports(Isolate* isolate,
             maximum_size.emplace(module->maximum_pages);
           }
           type_value =
-              GetTypeForMemory(isolate, module->initial_pages, maximum_size);
+              GetTypeForMemory(isolate, module->initial_pages, maximum_size,
+                               module->has_shared_memory);
         }
         import_kind = memory_string;
         break;
@@ -498,7 +520,8 @@ Handle<JSArray> GetExports(Isolate* isolate,
             maximum_size.emplace(module->maximum_pages);
           }
           type_value =
-              GetTypeForMemory(isolate, module->initial_pages, maximum_size);
+              GetTypeForMemory(isolate, module->initial_pages, maximum_size,
+                               module->has_shared_memory);
         }
         export_kind = memory_string;
         break;

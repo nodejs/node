@@ -967,8 +967,9 @@ class SpecialRPONumberer : public ZoneObject {
       if (HasLoopNumber(current)) {
         ++loop_depth;
         current_loop = &loops_[GetLoopNumber(current)];
-        BasicBlock* end = current_loop->end;
-        current->set_loop_end(end == nullptr ? BeyondEndSentinel() : end);
+        BasicBlock* loop_end = current_loop->end;
+        current->set_loop_end(loop_end == nullptr ? BeyondEndSentinel()
+                                                  : loop_end);
         current_header = current_loop->header;
         TRACE("id:%d is a loop header, increment loop depth to %d\n",
               current->id().ToInt(), loop_depth);
@@ -1025,8 +1026,8 @@ class SpecialRPONumberer : public ZoneObject {
       // loop header H are members of the loop too. O(|blocks between M and H|).
       while (queue_length > 0) {
         BasicBlock* block = (*queue)[--queue_length].block;
-        for (size_t i = 0; i < block->PredecessorCount(); i++) {
-          BasicBlock* pred = block->PredecessorAt(i);
+        for (size_t j = 0; j < block->PredecessorCount(); j++) {
+          BasicBlock* pred = block->PredecessorAt(j);
           if (pred != header) {
             if (!loops_[loop_num].members->Contains(pred->id().ToInt())) {
               loops_[loop_num].members->Add(pred->id().ToInt());
@@ -1124,7 +1125,7 @@ class SpecialRPONumberer : public ZoneObject {
       // Check the contiguousness of loops.
       int count = 0;
       for (int j = 0; j < static_cast<int>(order->size()); j++) {
-        BasicBlock* block = order->at(j);
+        block = order->at(j);
         DCHECK_EQ(block->rpo_number(), j);
         if (j < header->rpo_number() || j >= end->rpo_number()) {
           DCHECK(!header->LoopContains(block));
@@ -1440,9 +1441,9 @@ class ScheduleLateNodeVisitor {
       queue->push(node);
       do {
         scheduler_->tick_counter_->TickAndMaybeEnterSafepoint();
-        Node* const node = queue->front();
+        Node* const n = queue->front();
         queue->pop();
-        VisitNode(node);
+        VisitNode(n);
       } while (!queue->empty());
     }
   }
@@ -1821,8 +1822,8 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   // temporary solution and should be merged into the rest of the scheduler as
   // soon as the approach settled for all floating loops.
   NodeVector propagation_roots(control_flow_builder_->control_);
-  for (Node* node : control_flow_builder_->control_) {
-    for (Node* use : node->uses()) {
+  for (Node* control : control_flow_builder_->control_) {
+    for (Node* use : control->uses()) {
       if (NodeProperties::IsPhi(use) && IsLive(use)) {
         propagation_roots.push_back(use);
       }
@@ -1830,8 +1831,8 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   }
   if (FLAG_trace_turbo_scheduler) {
     TRACE("propagation roots: ");
-    for (Node* node : propagation_roots) {
-      TRACE("#%d:%s ", node->id(), node->op()->mnemonic());
+    for (Node* r : propagation_roots) {
+      TRACE("#%d:%s ", r->id(), r->op()->mnemonic());
     }
     TRACE("\n");
   }

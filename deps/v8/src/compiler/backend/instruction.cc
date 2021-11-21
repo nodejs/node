@@ -7,7 +7,9 @@
 #include <cstddef>
 #include <iomanip>
 
+#include "src/codegen/aligned-slot-allocator.h"
 #include "src/codegen/interface-descriptors.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/common-operator.h"
@@ -77,10 +79,15 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
 }
 
 bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
-  if (kSimpleFPAliasing || !this->IsFPLocationOperand() ||
-      !other.IsFPLocationOperand())
+  const bool kComplexFPAliasing = !kSimpleFPAliasing &&
+                                  this->IsFPLocationOperand() &&
+                                  other.IsFPLocationOperand();
+  const bool kComplexS128SlotAliasing =
+      (this->IsSimd128StackSlot() && other.IsAnyStackSlot()) ||
+      (other.IsSimd128StackSlot() && this->IsAnyStackSlot());
+  if (!kComplexFPAliasing && !kComplexS128SlotAliasing) {
     return EqualsCanonicalized(other);
-  // Aliasing is complex and both operands are fp locations.
+  }
   const LocationOperand& loc = *LocationOperand::cast(this);
   const LocationOperand& other_loc = LocationOperand::cast(other);
   LocationOperand::LocationKind kind = loc.location_kind();
@@ -88,22 +95,29 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
   if (kind != other_kind) return false;
   MachineRepresentation rep = loc.representation();
   MachineRepresentation other_rep = other_loc.representation();
-  if (rep == other_rep) return EqualsCanonicalized(other);
-  if (kind == LocationOperand::REGISTER) {
-    // FP register-register interference.
-    return GetRegConfig()->AreAliases(rep, loc.register_code(), other_rep,
-                                      other_loc.register_code());
+
+  if (kComplexFPAliasing && !kComplexS128SlotAliasing) {
+    if (rep == other_rep) return EqualsCanonicalized(other);
+    if (kind == LocationOperand::REGISTER) {
+      // FP register-register interference.
+      return GetRegConfig()->AreAliases(rep, loc.register_code(), other_rep,
+                                        other_loc.register_code());
+    }
   }
-  // FP slot-slot interference. Slots of different FP reps can alias because
-  // the gap resolver may break a move into 2 or 4 equivalent smaller moves.
+
+  // Complex multi-slot operand interference:
+  // - slots of different FP reps can alias because the gap resolver may break a
+  // move into 2 or 4 equivalent smaller moves,
+  // - stack layout can be rearranged for tail calls
   DCHECK_EQ(LocationOperand::STACK_SLOT, kind);
   int index_hi = loc.index();
   int index_lo =
-      index_hi - (1 << ElementSizeLog2Of(rep)) / kSystemPointerSize + 1;
+      index_hi -
+      AlignedSlotAllocator::NumSlotsForWidth(ElementSizeInBytes(rep)) + 1;
   int other_index_hi = other_loc.index();
   int other_index_lo =
       other_index_hi -
-      (1 << ElementSizeLog2Of(other_rep)) / kSystemPointerSize + 1;
+      AlignedSlotAllocator::NumSlotsForWidth(ElementSizeInBytes(other_rep)) + 1;
   return other_index_hi >= index_lo && index_hi >= other_index_lo;
 }
 

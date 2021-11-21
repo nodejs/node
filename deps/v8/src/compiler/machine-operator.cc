@@ -1242,12 +1242,12 @@ struct MachineOperatorGlobalCache {
   };
   BitcastMaybeObjectToWordOperator kBitcastMaybeObjectToWord;
 
-  struct AbortCSAAssertOperator : public Operator {
-    AbortCSAAssertOperator()
-        : Operator(IrOpcode::kAbortCSAAssert, Operator::kNoThrow,
-                   "AbortCSAAssert", 1, 1, 1, 0, 1, 0) {}
+  struct AbortCSADcheckOperator : public Operator {
+    AbortCSADcheckOperator()
+        : Operator(IrOpcode::kAbortCSADcheck, Operator::kNoThrow,
+                   "AbortCSADcheck", 1, 1, 1, 0, 1, 0) {}
   };
-  AbortCSAAssertOperator kAbortCSAAssert;
+  AbortCSADcheckOperator kAbortCSADcheck;
 
   struct DebugBreakOperator : public Operator {
     DebugBreakOperator()
@@ -1626,8 +1626,8 @@ const Operator* MachineOperatorBuilder::BitcastMaybeObjectToWord() {
   return &cache_.kBitcastMaybeObjectToWord;
 }
 
-const Operator* MachineOperatorBuilder::AbortCSAAssert() {
-  return &cache_.kAbortCSAAssert;
+const Operator* MachineOperatorBuilder::AbortCSADcheck() {
+  return &cache_.kAbortCSADcheck;
 }
 
 const Operator* MachineOperatorBuilder::DebugBreak() {

@@ -88,7 +88,7 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
   BytecodeArray bytecode_handle_storage_;
   interpreter::BytecodeArrayIterator bytecode_iterator_;
   LocalHeap* local_heap_;
-  base::Optional<DisallowGarbageCollection> no_gc;
+  base::Optional<DisallowGarbageCollection> no_gc_;
 };
 
 }  // namespace baseline

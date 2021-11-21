@@ -6,6 +6,11 @@
 
 namespace data_view {
 
+const kBuiltinNameByteLength: constexpr string =
+    'DateView.prototype.byteLength';
+const kBuiltinNameByteOffset: constexpr string =
+    'DateView.prototype.byteOffset';
+
 macro MakeDataViewGetterNameString(kind: constexpr ElementsKind): String {
   if constexpr (kind == ElementsKind::UINT8_ELEMENTS) {
     return 'DataView.prototype.getUint8';
@@ -85,9 +90,7 @@ javascript builtin DataViewPrototypeGetByteLength(
   const dataView: JSDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.byte_length');
   if (WasDetached(dataView)) {
-    // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
-    // here if the JSArrayBuffer of the {dataView} was detached.
-    return 0;
+    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameByteLength);
   }
   return Convert<Number>(dataView.byte_length);
 }
@@ -98,9 +101,7 @@ javascript builtin DataViewPrototypeGetByteOffset(
   const dataView: JSDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.byte_offset');
   if (WasDetached(dataView)) {
-    // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
-    // here if the JSArrayBuffer of the {dataView} was detached.
-    return 0;
+    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameByteOffset);
   }
   return Convert<Number>(dataView.byte_offset);
 }
@@ -513,13 +514,14 @@ extern macro TruncateFloat64ToWord32(float64): uint32;
 extern macro DataViewBuiltinsAssembler::StoreWord8(
     RawPtr, uintptr, uint32): void;
 
-macro StoreDataView8(buffer: JSArrayBuffer, offset: uintptr, value: uint32) {
+macro StoreDataView8(
+    buffer: JSArrayBuffer, offset: uintptr, value: uint32): void {
   StoreWord8(buffer.backing_store_ptr, offset, value & 0xFF);
 }
 
 macro StoreDataView16(
     buffer: JSArrayBuffer, offset: uintptr, value: uint32,
-    requestedLittleEndian: bool) {
+    requestedLittleEndian: bool): void {
   const dataPointer: RawPtr = buffer.backing_store_ptr;
 
   const b0: uint32 = value & 0xFF;
@@ -536,7 +538,7 @@ macro StoreDataView16(
 
 macro StoreDataView32(
     buffer: JSArrayBuffer, offset: uintptr, value: uint32,
-    requestedLittleEndian: bool) {
+    requestedLittleEndian: bool): void {
   const dataPointer: RawPtr = buffer.backing_store_ptr;
 
   const b0: uint32 = value & 0xFF;
@@ -559,7 +561,7 @@ macro StoreDataView32(
 
 macro StoreDataView64(
     buffer: JSArrayBuffer, offset: uintptr, lowWord: uint32, highWord: uint32,
-    requestedLittleEndian: bool) {
+    requestedLittleEndian: bool): void {
   const dataPointer: RawPtr = buffer.backing_store_ptr;
 
   const b0: uint32 = lowWord & 0xFF;
@@ -603,7 +605,7 @@ extern macro DataViewBuiltinsAssembler::DataViewDecodeBigIntSign(BigIntBase):
 // on 64-bit platforms, and the 2 lowest BigInt digits on 32-bit ones.
 macro StoreDataViewBigInt(
     buffer: JSArrayBuffer, offset: uintptr, bigIntValue: BigInt,
-    requestedLittleEndian: bool) {
+    requestedLittleEndian: bool): void {
   const length: uint32 = DataViewDecodeBigIntLength(bigIntValue);
   const sign: uint32 = DataViewDecodeBigIntSign(bigIntValue);
 

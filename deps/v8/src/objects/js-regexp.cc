@@ -6,6 +6,7 @@
 
 #include "src/base/strings.h"
 #include "src/common/globals.h"
+#include "src/objects/code.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp.h"
@@ -105,8 +106,8 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   return indices;
 }
 
-uint32_t JSRegExp::BacktrackLimit() const {
-  CHECK_EQ(TypeTag(), IRREGEXP);
+uint32_t JSRegExp::backtrack_limit() const {
+  CHECK_EQ(type_tag(), IRREGEXP);
   return static_cast<uint32_t>(Smi::ToInt(DataAt(kIrregexpBacktrackLimit)));
 }
 
@@ -156,16 +157,31 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
   return JSRegExp::Initialize(regexp, pattern, flags, backtrack_limit);
 }
 
-Object JSRegExp::Code(bool is_latin1) const {
-  DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
+Object JSRegExp::code(bool is_latin1) const {
+  DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   Object value = DataAt(code_index(is_latin1));
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, value.IsSmi() || value.IsCodeT());
   return value;
 }
 
-Object JSRegExp::Bytecode(bool is_latin1) const {
-  DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
+void JSRegExp::set_code(bool is_latin1, Handle<Code> code) {
+  SetDataAt(code_index(is_latin1), ToCodeT(*code));
+}
+
+Object JSRegExp::bytecode(bool is_latin1) const {
+  DCHECK(type_tag() == JSRegExp::IRREGEXP ||
+         type_tag() == JSRegExp::EXPERIMENTAL);
   return DataAt(bytecode_index(is_latin1));
+}
+
+void JSRegExp::set_bytecode_and_trampoline(Isolate* isolate,
+                                           Handle<ByteArray> bytecode) {
+  SetDataAt(kIrregexpLatin1BytecodeIndex, *bytecode);
+  SetDataAt(kIrregexpUC16BytecodeIndex, *bytecode);
+
+  Handle<Code> trampoline = BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
+  SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, ToCodeT(*trampoline));
+  SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, ToCodeT(*trampoline));
 }
 
 bool JSRegExp::ShouldProduceBytecode() {
@@ -175,7 +191,7 @@ bool JSRegExp::ShouldProduceBytecode() {
 
 // Only irregexps are subject to tier-up.
 bool JSRegExp::CanTierUp() {
-  return FLAG_regexp_tier_up && TypeTag() == JSRegExp::IRREGEXP;
+  return FLAG_regexp_tier_up && type_tag() == JSRegExp::IRREGEXP;
 }
 
 // An irregexp is considered to be marked for tier up if the tier-up ticks
@@ -192,7 +208,7 @@ bool JSRegExp::MarkedForTierUp() {
 
 void JSRegExp::ResetLastTierUpTick() {
   DCHECK(FLAG_regexp_tier_up);
-  DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
+  DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) + 1;
   FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
                                Smi::FromInt(tier_up_ticks));
@@ -200,7 +216,7 @@ void JSRegExp::ResetLastTierUpTick() {
 
 void JSRegExp::TierUpTick() {
   DCHECK(FLAG_regexp_tier_up);
-  DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
+  DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex));
   if (tier_up_ticks == 0) {
     return;
@@ -211,7 +227,7 @@ void JSRegExp::TierUpTick() {
 
 void JSRegExp::MarkTierUpForNextExec() {
   DCHECK(FLAG_regexp_tier_up);
-  DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
+  DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
                                Smi::zero());
 }

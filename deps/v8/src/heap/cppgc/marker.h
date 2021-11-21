@@ -164,6 +164,8 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   void VisitRoots(MarkingConfig::StackState);
 
+  bool VisitCrossThreadPersistentsIfNeeded();
+
   void MarkNotFullyConstructedObjects();
 
   void ScheduleIncrementalMarkingTask();
@@ -186,6 +188,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   std::unique_ptr<ConcurrentMarkerBase> concurrent_marker_{nullptr};
 
   bool main_marking_disabled_for_testing_{false};
+  bool visited_cross_thread_persistents_in_atomic_pause_{false};
 
   friend class MarkerFactory;
 };

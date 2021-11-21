@@ -77,7 +77,7 @@
   # Enable once serializing a running isolate is fully implemented.
   'serialize-deserialize-now': [SKIP],
 
-  # BUG(v8:9506): times out.
+  # BUG(v8:9506): slow tests.
   'wasm/shared-memory-worker-explicit-gc-stress': [PASS, SLOW],
   'wasm/shared-memory-worker-gc-stress': [PASS, SLOW],
 
@@ -211,11 +211,6 @@
   'regress/regress-crbug-941743': [PASS, HEAVY],
   'regress/regress-crbug-1191886': [PASS, HEAVY],
   'wasm/externref-globals': [PASS, HEAVY],
-
-  # BUG(v8:12173).
-  'compiler/call-with-arraylike-or-spread-7': [PASS, FAIL],
-  'ic-migrated-map-add-when-monomorphic': [PASS, FAIL],
-  'es6/map-constructor-entry-side-effect2': [PASS, FAIL]
 }],  # ALWAYS
 
 ##############################################################################
@@ -848,7 +843,6 @@
   'regress/regress-490': [SKIP],
   'regress/regress-create-exception': [SKIP],
   'regress/regress-3247124': [SKIP],
-  'compiler/regress-1226988': [SKIP],
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
@@ -875,9 +869,6 @@
   # https://github.com/v8-riscv/v8/issues/418
   'regress/regress-1138075': [SKIP],
   'regress/regress-1138611': [SKIP],
-
-  # Some atomic functions are not yet implemented
-  'regress/wasm/regress-1196837': [SKIP],
 
   # SIMD not be implemented
   'regress/wasm/regress-1054466': [SKIP],
@@ -1284,17 +1275,17 @@
 }], # arch != x64 or deopt_fuzzer
 
 ##############################################################################
-# Liftoff is currently only sufficiently implemented on x64, ia32, arm64 and
-# arm.
-# TODO(clemensb): Implement on all other platforms (crbug.com/v8/6600).
-['arch not in (x64, ia32, arm64, arm)', {
+# Skip Liftoff tests on platforms that do not fully implement Liftoff.
+['arch not in (x64, ia32, arm64, arm, s390x)', {
   'wasm/liftoff': [SKIP],
   'wasm/liftoff-debug': [SKIP],
   'wasm/tier-up-testing-flag': [SKIP],
   'wasm/tier-down-to-liftoff': [SKIP],
   'wasm/wasm-dynamic-tiering': [SKIP],
   'wasm/test-partial-serialization': [SKIP],
-}], # arch not in (x64, ia32, arm64, arm)
+  'regress/wasm/regress-1248024': [SKIP],
+  'regress/wasm/regress-1251465': [SKIP],
+}], # arch not in (x64, ia32, arm64, arm, s390x)
 
 ##############################################################################
 ['system != linux or virtual_memory_cage == True', {
@@ -1438,6 +1429,7 @@
   'wasm/liftoff-simd-params': [SKIP],
   'wasm/multi-value-simd': [SKIP],
   'wasm/simd-*': [SKIP],
+  'regress/wasm/regress-9447': [SKIP],
   'regress/wasm/regress-10309': [SKIP],
   'regress/wasm/regress-10831': [SKIP],
   'regress/wasm/regress-1054466': [SKIP],
@@ -1450,14 +1442,21 @@
   'regress/wasm/regress-1124885': [SKIP],
   'regress/wasm/regress-1132461': [SKIP],
   'regress/wasm/regress-1161555': [SKIP],
+  'regress/wasm/regress-1161654': [SKIP],
   'regress/wasm/regress-1161954': [SKIP],
   'regress/wasm/regress-1165966': [SKIP],
   'regress/wasm/regress-1187831': [SKIP],
   'regress/wasm/regress-1199662': [SKIP],
   'regress/wasm/regress-1231950': [SKIP],
+  'regress/wasm/regress-1237024': [SKIP],
   'regress/wasm/regress-1242300': [SKIP],
   'regress/wasm/regress-1242689': [SKIP],
 }],  # no_simd_hardware == True
+
+##############################################################################
+['no_simd_hardware == False', {
+  'regress/wasm/regress-1254675': [SKIP],
+}],  # no_simd_hardware == False
 
 ##############################################################################
 # TODO(v8:11421): Port baseline compiler to other architectures.
@@ -1476,13 +1475,6 @@
 ['variant == experimental_regexp', {
   'regress/regress-779407': [SKIP],
 }],  # variant == experimental_regexp
-
-##############################################################################
-['variant == instruction_scheduling or variant == stress_instruction_scheduling', {
-  # BUG(12018): These tests currently fail with --turbo-instruction-scheduling.
-  'regress/wasm/regress-1231950': [SKIP],
-  'regress/wasm/regress-1242300': [SKIP],
-}],  # variant == instruction_scheduling or variant == stress_instruction_scheduling
 
 ################################################################################
 ['single_generation', {

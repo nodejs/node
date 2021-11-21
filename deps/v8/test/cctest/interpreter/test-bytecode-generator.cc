@@ -17,69 +17,33 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-#define XSTR(A) #A
-#define STR(A) XSTR(A)
+int global_counter = 0;  // For unique variable/property names.
 
-#define UNIQUE_VAR() "var a" STR(__COUNTER__) " = 0;\n"
+std::string LoadUniqueProperties(int n) {
+  // Don't take any fancy recursive shortcuts here because
+  // {LoadUniqueProperty} must actually be called {n} times.
+  std::string result;
+  for (int i = 0; i < n; i++) {
+    result += "  b.name" + std::to_string(global_counter++) + ";\n";
+  }
+  return result;
+}
 
-#define LOAD_UNIQUE_PROPERTY() "  b.name" STR(__COUNTER__) ";\n"
+std::string UniqueVars(int n) {
+  std::string result;
+  for (int i = 0; i < n; i++) {
+    result += "var a" + std::to_string(global_counter++) + " = 0;\n";
+  }
+  return result;
+}
 
-#define REPEAT_2(...) __VA_ARGS__ __VA_ARGS__
-#define REPEAT_4(...) REPEAT_2(__VA_ARGS__) REPEAT_2(__VA_ARGS__)
-#define REPEAT_8(...) REPEAT_4(__VA_ARGS__) REPEAT_4(__VA_ARGS__)
-#define REPEAT_16(...) REPEAT_8(__VA_ARGS__) REPEAT_8(__VA_ARGS__)
-#define REPEAT_32(...) REPEAT_16(__VA_ARGS__) REPEAT_16(__VA_ARGS__)
-#define REPEAT_64(...) REPEAT_32(__VA_ARGS__) REPEAT_32(__VA_ARGS__)
-#define REPEAT_128(...) REPEAT_64(__VA_ARGS__) REPEAT_64(__VA_ARGS__)
-#define REPEAT_256(...) REPEAT_128(__VA_ARGS__) REPEAT_128(__VA_ARGS__)
-
-#define REPEAT_127(...)  \
-  REPEAT_64(__VA_ARGS__) \
-  REPEAT_32(__VA_ARGS__) \
-  REPEAT_16(__VA_ARGS__) \
-  REPEAT_8(__VA_ARGS__)  \
-  REPEAT_4(__VA_ARGS__)  \
-  REPEAT_2(__VA_ARGS__)  \
-  __VA_ARGS__
-
-#define REPEAT_249(...)   \
-  REPEAT_127(__VA_ARGS__) \
-  REPEAT_64(__VA_ARGS__)  \
-  REPEAT_32(__VA_ARGS__)  \
-  REPEAT_16(__VA_ARGS__)  \
-  REPEAT_8(__VA_ARGS__)   \
-  REPEAT_2(__VA_ARGS__)
-
-#define REPEAT_2_UNIQUE_VARS() UNIQUE_VAR() UNIQUE_VAR()
-#define REPEAT_4_UNIQUE_VARS() REPEAT_2_UNIQUE_VARS() REPEAT_2_UNIQUE_VARS()
-#define REPEAT_8_UNIQUE_VARS() REPEAT_4_UNIQUE_VARS() REPEAT_4_UNIQUE_VARS()
-#define REPEAT_16_UNIQUE_VARS() REPEAT_8_UNIQUE_VARS() REPEAT_8_UNIQUE_VARS()
-#define REPEAT_32_UNIQUE_VARS() REPEAT_16_UNIQUE_VARS() REPEAT_16_UNIQUE_VARS()
-#define REPEAT_64_UNIQUE_VARS() REPEAT_32_UNIQUE_VARS() REPEAT_32_UNIQUE_VARS()
-#define REPEAT_128_UNIQUE_VARS() REPEAT_64_UNIQUE_VARS() REPEAT_64_UNIQUE_VARS()
-
-#define REPEAT_252_UNIQUE_VARS() \
-  REPEAT_128_UNIQUE_VARS()       \
-  REPEAT_64_UNIQUE_VARS()        \
-  REPEAT_32_UNIQUE_VARS()        \
-  REPEAT_16_UNIQUE_VARS()        \
-  REPEAT_8_UNIQUE_VARS()         \
-  REPEAT_4_UNIQUE_VARS()
-
-#define REPEAT_2_LOAD_UNIQUE_PROPERTY() \
-  LOAD_UNIQUE_PROPERTY() LOAD_UNIQUE_PROPERTY()
-#define REPEAT_4_LOAD_UNIQUE_PROPERTY() \
-  REPEAT_2_LOAD_UNIQUE_PROPERTY() REPEAT_2_LOAD_UNIQUE_PROPERTY()
-#define REPEAT_8_LOAD_UNIQUE_PROPERTY() \
-  REPEAT_4_LOAD_UNIQUE_PROPERTY() REPEAT_4_LOAD_UNIQUE_PROPERTY()
-#define REPEAT_16_LOAD_UNIQUE_PROPERTY() \
-  REPEAT_8_LOAD_UNIQUE_PROPERTY() REPEAT_8_LOAD_UNIQUE_PROPERTY()
-#define REPEAT_32_LOAD_UNIQUE_PROPERTY() \
-  REPEAT_16_LOAD_UNIQUE_PROPERTY() REPEAT_16_LOAD_UNIQUE_PROPERTY()
-#define REPEAT_64_LOAD_UNIQUE_PROPERTY() \
-  REPEAT_32_LOAD_UNIQUE_PROPERTY() REPEAT_32_LOAD_UNIQUE_PROPERTY()
-#define REPEAT_128_LOAD_UNIQUE_PROPERTY() \
-  REPEAT_64_LOAD_UNIQUE_PROPERTY() REPEAT_64_LOAD_UNIQUE_PROPERTY()
+std::string Repeat(std::string s, int n) {
+  if (n == 1) return s;
+  std::string half = Repeat(s, n >> 1);
+  std::string result = half + half;
+  if (n & 1) result += s;
+  return result;
+}
 
 static const char* kGoldenFileDirectory =
     "test/cctest/interpreter/bytecode_expectations/";
@@ -115,11 +79,11 @@ std::string LoadGolden(const std::string& golden_filename) {
 
 template <size_t N>
 std::string BuildActual(const BytecodeExpectationsPrinter& printer,
-                        const char* (&snippet_list)[N],
+                        std::string (&snippet_list)[N],
                         const char* prologue = nullptr,
                         const char* epilogue = nullptr) {
   std::ostringstream actual_stream;
-  for (const char* snippet : snippet_list) {
+  for (std::string snippet : snippet_list) {
     std::string source_code;
     if (prologue) source_code += prologue;
     source_code += snippet;
@@ -192,7 +156,7 @@ bool CompareTexts(const std::string& generated, const std::string& expected) {
 TEST(PrimitiveReturnStatements) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "",
 
       "return;\n",
@@ -223,7 +187,7 @@ TEST(PrimitiveReturnStatements) {
 TEST(PrimitiveExpressions) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var x = 0; return x;\n",
 
       "var x = 0; return x + 3;\n",
@@ -280,7 +244,7 @@ TEST(PrimitiveExpressions) {
 TEST(LogicalExpressions) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var x = 0; return x || 3;\n",
 
       "var x = 0; return (x == 1) || 3;\n",
@@ -293,21 +257,23 @@ TEST(LogicalExpressions) {
 
       "var a = 2, b = 3, c = 4; return a || (a, b, a, b, c = 5, 3);\n",
 
-      "var x = 1; var a = 2, b = 3; return x || ("  //
-      REPEAT_32("\n  a = 1, b = 2, ")               //
+      // clang-format off
+      "var x = 1; var a = 2, b = 3; return x || (" +
+      Repeat("\n  a = 1, b = 2, ", 32) +
       "3);\n",
 
-      "var x = 0; var a = 2, b = 3; return x && ("  //
-      REPEAT_32("\n  a = 1, b = 2, ")               //
+      "var x = 0; var a = 2, b = 3; return x && (" +
+      Repeat("\n  a = 1, b = 2, ", 32) +
       "3);\n",
 
-      "var x = 1; var a = 2, b = 3; return (x > 3) || ("  //
-      REPEAT_32("\n  a = 1, b = 2, ")                     //
+      "var x = 1; var a = 2, b = 3; return (x > 3) || (" +
+      Repeat("\n  a = 1, b = 2, ", 32) +
       "3);\n",
 
-      "var x = 0; var a = 2, b = 3; return (x < 5) && ("  //
-      REPEAT_32("\n  a = 1, b = 2, ")                     //
+      "var x = 0; var a = 2, b = 3; return (x < 5) && (" +
+      Repeat("\n  a = 1, b = 2, ", 32) +
       "3);\n",
+      // clang-format on
 
       "return 0 && 3;\n",
 
@@ -326,7 +292,7 @@ TEST(Parameters) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "function f() { return this; }",
 
       "function f(arg1) { return arg1; }",
@@ -349,7 +315,7 @@ TEST(Parameters) {
 TEST(IntegerConstants) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return 12345678;\n",
 
       "var a = 1234; return 5678;\n",
@@ -364,7 +330,7 @@ TEST(IntegerConstants) {
 TEST(HeapNumberConstants) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return 1.2;\n",
 
       "var a = 1.2; return 2.6;\n",
@@ -379,7 +345,7 @@ TEST(HeapNumberConstants) {
 TEST(StringConstants) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return \"This is a string\";\n",
 
       "var a = \"First string\"; return \"Second string\";\n",
@@ -397,7 +363,8 @@ TEST(PropertyLoads) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  // clang-format off
+  std::string snippets[] = {
     "function f(a) { return a.name; }\n"
     "f({name : \"test\"});\n",
 
@@ -414,20 +381,21 @@ TEST(PropertyLoads) {
     "f({\"-124\" : \"test\", name : 123 })",
 
     "function f(a) {\n"
-    "  var b = {};\n"
-    REPEAT_128_LOAD_UNIQUE_PROPERTY()
+    "  var b = {};\n" +
+       LoadUniqueProperties(128) +
     "  return a.name;\n"
     "}\n"
     "f({name : \"test\"})\n",
 
     "function f(a, b) {\n"
     "  var c;\n"
-    "  c = a[b];\n"
-    REPEAT_127("  c = a[b];\n")
+    "  c = a[b];\n" +
+       Repeat("  c = a[b];\n", 127) +
     "  return a[b];\n"
     "}\n"
     "f({name : \"test\"}, \"name\")\n",
   };
+  // clang-format on
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PropertyLoads.golden")));
@@ -439,7 +407,7 @@ TEST(PropertyLoadStore) {
   printer.set_wrap(false);
   printer.set_top_level(true);
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       R"(
       l = {
         'aa': 1.1,
@@ -475,7 +443,7 @@ TEST(IIFE) {
   printer.set_top_level(true);
   printer.set_print_callee(true);
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       R"(
       (function() {
         l = {};
@@ -543,7 +511,12 @@ TEST(PropertyStores) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  // For historical reasons, this test expects the first unique identifier
+  // to be 128.
+  global_counter = 128;
+
+  // clang-format off
+  std::string snippets[] = {
     "function f(a) { a.name = \"val\"; }\n"
     "f({name : \"test\"})",
 
@@ -567,8 +540,8 @@ TEST(PropertyStores) {
 
     "function f(a) {\n"
     "  a.name = 1;\n"
-    "  var b = {};\n"
-    REPEAT_128_LOAD_UNIQUE_PROPERTY()
+    "  var b = {};\n" +
+       LoadUniqueProperties(128) +
     "  a.name = 2;\n"
     "}\n"
     "f({name : \"test\"})\n",
@@ -576,27 +549,28 @@ TEST(PropertyStores) {
     "function f(a) {\n"
     " 'use strict';\n"
     "  a.name = 1;\n"
-    "  var b = {};\n"
-    REPEAT_128_LOAD_UNIQUE_PROPERTY()
+    "  var b = {};\n" +
+       LoadUniqueProperties(128) +
     "  a.name = 2;\n"
     "}\n"
     "f({name : \"test\"})\n",
 
     "function f(a, b) {\n"
-    "  a[b] = 1;\n"
-    REPEAT_127("  a[b] = 1;\n")
+    "  a[b] = 1;\n" +
+       Repeat("  a[b] = 1;\n", 127) +
     "  a[b] = 2;\n"
     "}\n"
     "f({name : \"test\"})\n",
 
     "function f(a, b) {\n"
     "  'use strict';\n"
-    "  a[b] = 1;\n"
-    REPEAT_127("  a[b] = 1;\n")
+    "  a[b] = 1;\n" +
+       Repeat("  a[b] = 1;\n", 127) +
     "  a[b] = 2;\n"
     "}\n"
     "f({name : \"test\"})\n",
   };
+  // clang-format on
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PropertyStores.golden")));
@@ -610,7 +584,12 @@ TEST(PropertyCall) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  // For historical reasons, this test expects the first unique identifier
+  // to be 384.
+  global_counter = 384;
+
+  // clang-format off
+  std::string snippets[] = {
       "function f(a) { return a.func(); }\n"
       "f(" FUNC_ARG ")",
 
@@ -621,15 +600,16 @@ TEST(PropertyCall) {
       "f(" FUNC_ARG ", 1)",
 
       "function f(a) {\n"
-      "  var b = {};\n"
-      REPEAT_128_LOAD_UNIQUE_PROPERTY()
-      "  a.func;\n"              //
+      "  var b = {};\n" +
+         LoadUniqueProperties(128) +
+      "  a.func;\n"
       "  return a.func(); }\n"
       "f(" FUNC_ARG ")",
 
       "function f(a) { return a.func(1).func(2).func(3); }\n"
       "f(new (function Obj() { this.func = function(a) { return this; }})())",
   };
+  // clang-format on
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PropertyCall.golden")));
@@ -641,7 +621,12 @@ TEST(LoadGlobal) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  // For historical reasons, this test expects the first unique identifier
+  // to be 512.
+  global_counter = 512;
+
+  // clang-format off
+  std::string snippets[] = {
     "var a = 1;\n"
     "function f() { return a; }\n"
     "f()",
@@ -656,12 +641,13 @@ TEST(LoadGlobal) {
 
     "a = 1;\n"
     "function f(c) {\n"
-    "  var b = {};\n"
-    REPEAT_128_LOAD_UNIQUE_PROPERTY()
+    "  var b = {};\n" +
+       LoadUniqueProperties(128) +
     "  return a;\n"
     "}\n"
     "f({name: 1});\n",
   };
+  // clang-format on
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("LoadGlobal.golden")));
@@ -673,7 +659,12 @@ TEST(StoreGlobal) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  // For historical reasons, this test expects the first unique identifier
+  // to be 640.
+  global_counter = 640;
+
+  // clang-format off
+  std::string snippets[] = {
     "var a = 1;\n"
     "function f() { a = 2; }\n"
     "f();\n",
@@ -691,8 +682,8 @@ TEST(StoreGlobal) {
 
     "a = 1;\n"
     "function f(c) {\n"
-    "  var b = {};\n"
-    REPEAT_128_LOAD_UNIQUE_PROPERTY()
+    "  var b = {};\n" +
+       LoadUniqueProperties(128) +
     "  a = 2;\n"
     "}\n"
     "f({name: 1});\n",
@@ -700,12 +691,13 @@ TEST(StoreGlobal) {
     "a = 1;\n"
     "function f(c) {\n"
     "  'use strict';\n"
-    "  var b = {};\n"
-    REPEAT_128_LOAD_UNIQUE_PROPERTY()
+    "  var b = {};\n" +
+       LoadUniqueProperties(128) +
     "  a = 2;\n"
     "}\n"
     "f({name: 1});\n",
   };
+  // clang-format on
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("StoreGlobal.golden")));
@@ -717,7 +709,7 @@ TEST(CallGlobal) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "function t() { }\n"
       "function f() { return t(); }\n"
       "f();\n",
@@ -737,7 +729,7 @@ TEST(CallRuntime) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "function f() { %TheHole() }\n"
       "f();\n",
 
@@ -758,7 +750,8 @@ TEST(IfConditions) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  // clang-format off
+  std::string snippets[] = {
     "function f() {\n"
     "  if (0) {\n"
     "    return 1;\n"
@@ -815,14 +808,14 @@ TEST(IfConditions) {
     "function f(a, b) { if (a in b) { return 200; } }"
     "f('prop', { prop: 'yes'});\n",
 
-    "function f(z) { var a = 0; var b = 0; if (a === 0.01) {\n"
-    REPEAT_64("  b = a; a = b;\n")
+    "function f(z) { var a = 0; var b = 0; if (a === 0.01) {\n" +
+      Repeat("  b = a; a = b;\n", 64) +
     " return 200; } else { return -200; } } f(0.001);\n",
 
     "function f() {\n"
     "  var a = 0; var b = 0;\n"
-    "  if (a) {\n"
-    REPEAT_64("  b = a; a = b;\n")
+    "  if (a) {\n" +
+         Repeat("  b = a; a = b;\n", 64) +
     "  return 200; } else { return -200; }\n"
     "};\n"
     "f();\n",
@@ -861,6 +854,7 @@ TEST(IfConditions) {
     "};\n"
     "f(-1, 1);\n",
   };
+  // clang-format on
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("IfConditions.golden")));
@@ -873,7 +867,7 @@ TEST(DeclareGlobals) {
   printer.set_test_function_name("f");
   printer.set_top_level(true);
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var a = 1;\n",
 
       "function f() {}\n",
@@ -893,7 +887,7 @@ TEST(BreakableBlocks) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var x = 0;\n"
       "label: {\n"
       "  x = x + 1;\n"
@@ -938,7 +932,7 @@ TEST(BreakableBlocks) {
 TEST(BasicLoops) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var x = 0;\n"
       "while (false) { x = 99; break; continue; }\n"
       "return x;\n",
@@ -1091,7 +1085,7 @@ TEST(BasicLoops) {
 TEST(UnaryOperators) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var x = 0;\n"
       "while (x != 10) {\n"
       "  x = x + 10;\n"
@@ -1131,7 +1125,7 @@ TEST(Typeof) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "function f() {\n"
       " var x = 13;\n"
       " return typeof(x);\n"
@@ -1151,7 +1145,7 @@ TEST(CompareTypeOf) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return typeof(1) === 'number';\n",
 
       "return 'string' === typeof('foo');\n",
@@ -1171,7 +1165,7 @@ TEST(CompareNil) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var a = 1;\n"
       "return a === null;\n",
 
@@ -1226,7 +1220,7 @@ TEST(Delete) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var a = {x:13, y:14}; return delete a.x;\n",
 
       "'use strict'; var a = {x:13, y:14}; return delete a.x;\n",
@@ -1255,7 +1249,7 @@ TEST(GlobalDelete) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var a = {x:13, y:14};\n"
       "function f() {\n"
       "  return delete a.x;\n"
@@ -1290,7 +1284,7 @@ TEST(FunctionLiterals) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return function(){ }\n",
 
       "return (function(){ })()\n",
@@ -1306,7 +1300,7 @@ TEST(RegExpLiterals) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return /ab+d/;\n",
 
       "return /(\\w+)\\s(\\w+)/i;\n",
@@ -1322,7 +1316,7 @@ TEST(ArrayLiterals) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return [ 1, 2 ];\n",
 
       "var a = 1; return [ a, a + 1 ];\n",
@@ -1346,7 +1340,7 @@ TEST(ObjectLiterals) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return { };\n",
 
       "return { name: 'string', val: 9.2 };\n",
@@ -1389,7 +1383,7 @@ TEST(TopLevelObjectLiterals) {
   printer.set_test_function_name("f");
   printer.set_top_level(true);
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var a = { func: function() { } };\n",
   };
 
@@ -1401,7 +1395,7 @@ TEST(TryCatch) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "try { return 1; } catch(e) { return 2; }\n",
 
       "var a;\n"
@@ -1416,7 +1410,7 @@ TEST(TryCatch) {
 TEST(TryFinally) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var a = 1;\n"
       "try { a = 2; } finally { a = 3; }\n",
 
@@ -1435,7 +1429,7 @@ TEST(TryFinally) {
 TEST(Throw) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "throw 1;\n",
 
       "throw 'Error';\n",
@@ -1453,7 +1447,7 @@ TEST(CallNew) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "function bar() { this.value = 0; }\n"
       "function f() { return new bar(); }\n"
       "f();\n",
@@ -1482,9 +1476,14 @@ TEST(ContextVariables) {
   // of unique variables to trigger the wide slot load / store.
   STATIC_ASSERT(Context::MIN_CONTEXT_EXTENDED_SLOTS + 3 + 250 == 256);
 
+  // For historical reasons, this test expects the first unique identifier
+  // to be 896.
+  global_counter = 896;
+
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  // clang-format off
+  std::string snippets[] = {
     "var a; return function() { a = 1; };\n",
 
     "var a = 1; return function() { a = 2; };\n",
@@ -1497,12 +1496,13 @@ TEST(ContextVariables) {
     "let a = 1;\n"
     "{ let b = 2; return function() { a + b; }; }\n",
 
-    "'use strict';\n"
-    REPEAT_252_UNIQUE_VARS()
+    "'use strict';\n" +
+     UniqueVars(252) +
     "eval();\n"
     "var b = 100;\n"
     "return b\n",
   };
+  // clang-format on
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("ContextVariables.golden")));
@@ -1514,7 +1514,7 @@ TEST(ContextParameters) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "function f(arg1) { return function() { arg1 = 2; }; }",
 
       "function f(arg1) { var a = function() { arg1 = 2; }; return arg1; }",
@@ -1534,7 +1534,7 @@ TEST(OuterContextVariables) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "function Outer() {\n"
       "  var outerVar = 1;\n"
       "  function Inner(innerArg) {\n"
@@ -1561,7 +1561,7 @@ TEST(OuterContextVariables) {
 TEST(CountOperators) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var a = 1; return ++a;\n",
 
       "var a = 1; return a++;\n",
@@ -1595,7 +1595,7 @@ TEST(GlobalCountOperators) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var global = 1;\n"
       "function f() { return ++global; }\n"
       "f();\n",
@@ -1620,7 +1620,7 @@ TEST(GlobalCountOperators) {
 TEST(CompoundExpressions) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var a = 1; a += 2;\n",
 
       "var a = 1; a /= 2;\n",
@@ -1642,7 +1642,7 @@ TEST(GlobalCompoundExpressions) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var global = 1;\n"
       "function f() { return global &= 1; }\n"
       "f();\n",
@@ -1662,7 +1662,7 @@ TEST(CreateArguments) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "function f() { return arguments; }",
 
       "function f() { return arguments[0]; }",
@@ -1686,7 +1686,7 @@ TEST(CreateRestParameter) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "function f(...restArgs) { return restArgs; }",
 
       "function f(a, ...restArgs) { return restArgs; }",
@@ -1703,7 +1703,7 @@ TEST(CreateRestParameter) {
 TEST(ForIn) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "for (var p in null) {}\n",
 
       "for (var p in undefined) {}\n",
@@ -1733,7 +1733,7 @@ TEST(ForIn) {
 TEST(ForOf) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "for (var p of [0, 1, 2]) {}\n",
 
       "var x = 'potatoes';\n"
@@ -1755,7 +1755,7 @@ TEST(ForOf) {
 TEST(Conditional) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return 1 ? 2 : 3;\n",
 
       "return 1 ? 2 ? 3 : 4 : 5;\n",
@@ -1773,7 +1773,8 @@ TEST(Conditional) {
 TEST(Switch) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  // clang-format off
+  std::string snippets[] = {
     "var a = 1;\n"
     "switch(a) {\n"
     " case 1: return 2;\n"
@@ -1814,8 +1815,8 @@ TEST(Switch) {
 
     "var a = 1;\n"
     "switch(a) {\n"
-    " case 1:\n"
-    REPEAT_64("  a = 2;\n")
+    " case 1:\n" +
+       Repeat("  a = 2;\n", 64) +
     "  break;\n"
     " case 2:\n"
     "  a = 3;\n"
@@ -1832,6 +1833,7 @@ TEST(Switch) {
     " case 2: a = 3;\n"
     "}\n",
   };
+  // clang-format on
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("Switch.golden")));
@@ -1840,7 +1842,7 @@ TEST(Switch) {
 TEST(BasicBlockToBoolean) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var a = 1; if (a || a < 0) { return 1; }\n",
 
       "var a = 1; if (a && a < 0) { return 1; }\n",
@@ -1855,7 +1857,7 @@ TEST(BasicBlockToBoolean) {
 TEST(DeadCodeRemoval) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return; var a = 1; a();\n",
 
       "if (false) { return; }; var a = 1;\n",
@@ -1875,7 +1877,7 @@ TEST(ThisFunction) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var f;\n"
       "f = function f() {};",
 
@@ -1891,7 +1893,7 @@ TEST(NewTarget) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return new.target;\n",
 
       "new.target;\n",
@@ -1904,7 +1906,7 @@ TEST(NewTarget) {
 TEST(RemoveRedundantLdar) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var ld_a = 1;\n"          // This test is to check Ldar does not
       "while(true) {\n"          // get removed if the preceding Star is
       "  ld_a = ld_a + ld_a;\n"  // in a different basicblock.
@@ -1931,7 +1933,7 @@ TEST(RemoveRedundantLdar) {
 TEST(GenerateTestUndetectable) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var obj_a = {val:1};\n"
       "var b = 10;\n"
       "if (obj_a == null) { b = 20;}\n"
@@ -1979,7 +1981,7 @@ TEST(GenerateTestUndetectable) {
 TEST(AssignmentsInBinaryExpression) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var x = 0, y = 1;\n"
       "return (x = 2, y = 3, x = 4, y = 5);\n",
 
@@ -2019,7 +2021,7 @@ TEST(AssignmentsInBinaryExpression) {
 TEST(DestructuringAssignment) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var x, a = [0,1,2,3];\n"
       "[x] = a;\n",
 
@@ -2046,7 +2048,7 @@ TEST(DestructuringAssignment) {
 TEST(Eval) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return eval('1;');\n",
   };
 
@@ -2060,7 +2062,7 @@ TEST(LookupSlot) {
   printer.set_test_function_name("f");
 
   // clang-format off
-  const char* snippets[] = {
+  std::string snippets[] = {
       "eval('var x = 10;'); return x;\n",
 
       "eval('var x = 10;'); return typeof x;\n",
@@ -2090,7 +2092,7 @@ TEST(LookupSlot) {
 TEST(CallLookupSlot) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "g = function(){}; eval(''); return g();\n",
   };
 
@@ -2106,7 +2108,7 @@ TEST(LookupSlotInEval) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "return x;",
 
       "x = 10;",
@@ -2135,7 +2137,7 @@ TEST(DeleteLookupSlotInEval) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "delete x;",
 
       "return delete y;",
@@ -2168,7 +2170,7 @@ TEST(WideRegisters) {
 
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "x0 = x127;\n"
       "return x0;\n",
 
@@ -2210,7 +2212,7 @@ TEST(WideRegisters) {
 TEST(ConstVariable) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "const x = 10;\n",
 
       "const x = 10; return x;\n",
@@ -2227,7 +2229,7 @@ TEST(ConstVariable) {
 TEST(LetVariable) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "let x = 10;\n",
 
       "let x = 10; return x;\n",
@@ -2246,7 +2248,7 @@ TEST(ConstVariableContextSlot) {
   // TODO(mythria): Add tests that walk the context chain.
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "const x = 10; function f1() {return x;}\n",
 
       "const x = 10; function f1() {return x;} return x;\n",
@@ -2263,7 +2265,7 @@ TEST(ConstVariableContextSlot) {
 TEST(LetVariableContextSlot) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "let x = 10; function f1() {return x;}\n",
 
       "let x = 10; function f1() {return x;} return x;\n",
@@ -2280,7 +2282,7 @@ TEST(LetVariableContextSlot) {
 TEST(WithStatement) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "with ({x:42}) { return x; }\n",
   };
 
@@ -2291,7 +2293,7 @@ TEST(WithStatement) {
 TEST(DoDebugger) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "debugger;\n",
   };
 
@@ -2302,7 +2304,7 @@ TEST(DoDebugger) {
 TEST(ClassDeclarations) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "class Person {\n"
       "  constructor(name) { this.name = name; }\n"
       "  speak() { console.log(this.name + ' is speaking.'); }\n"
@@ -2337,7 +2339,7 @@ TEST(ClassAndSuperClass) {
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
   printer.set_test_function_name("test");
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var test;\n"
       "(function() {\n"
       "  class A {\n"
@@ -2394,7 +2396,7 @@ TEST(PublicClassFields) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "{\n"
       "  class A {\n"
       "    a;\n"
@@ -2445,7 +2447,7 @@ TEST(PrivateClassFields) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "{\n"
       "  class A {\n"
       "    #a;\n"
@@ -2504,7 +2506,7 @@ TEST(PrivateClassFieldAccess) {
   printer.set_wrap(false);
   printer.set_test_function_name("test");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "class A {\n"
       "  #a;\n"
       "  #b;\n"
@@ -2538,7 +2540,7 @@ TEST(PrivateMethodDeclaration) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "{\n"
       "  class A {\n"
       "    #a() { return 1; }\n"
@@ -2571,7 +2573,7 @@ TEST(PrivateMethodAccess) {
   printer.set_wrap(false);
   printer.set_test_function_name("test");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "class A {\n"
       "  #a() { return 1; }\n"
       "  constructor() { return this.#a(); }\n"
@@ -2614,7 +2616,7 @@ TEST(PrivateAccessorAccess) {
   printer.set_wrap(false);
   printer.set_test_function_name("test");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "class A {\n"
       "  get #a() { return 1; }\n"
       "  set #a(val) { }\n"
@@ -2664,7 +2666,7 @@ TEST(StaticPrivateMethodDeclaration) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "{\n"
       "  class A {\n"
       "    static #a() { return 1; }\n"
@@ -2707,7 +2709,7 @@ TEST(StaticPrivateMethodAccess) {
   printer.set_wrap(false);
   printer.set_test_function_name("test");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "class A {\n"
       "  static #a() { return 1; }\n"
       "  static test() { return this.#a(); }\n"
@@ -2782,7 +2784,7 @@ TEST(PrivateAccessorDeclaration) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "{\n"
       "  class A {\n"
       "    get #a() { return 1; }\n"
@@ -2838,7 +2840,7 @@ TEST(StaticClassFields) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "{\n"
       "  class A {\n"
       "    a;\n"
@@ -2901,7 +2903,7 @@ TEST(Generators) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "function* f() { }\n"
       "f();\n",
 
@@ -2926,7 +2928,7 @@ TEST(AsyncGenerators) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "async function* f() { }\n"
       "f();\n",
 
@@ -2952,7 +2954,7 @@ TEST(Modules) {
   printer.set_module(true);
   printer.set_top_level(true);
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "import \"bar\";\n",
 
       "import {foo} from \"bar\";\n",
@@ -2998,7 +3000,7 @@ TEST(AsyncModules) {
   printer.set_module(true);
   printer.set_top_level(true);
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "await 42;\n",
 
       "await import(\"foo\");\n",
@@ -3023,7 +3025,7 @@ TEST(SuperCallAndSpread) {
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
   printer.set_test_function_name("test");
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var test;\n"
       "(function() {\n"
       "  class A {\n"
@@ -3063,7 +3065,7 @@ TEST(SuperCallAndSpread) {
 TEST(CallAndSpread) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {"Math.max(...[1, 2, 3]);\n",
+  std::string snippets[] = {"Math.max(...[1, 2, 3]);\n",
                             "Math.max(0, ...[1, 2, 3]);\n",
                             "Math.max(0, ...[1, 2, 3], 4);\n"};
 
@@ -3074,7 +3076,7 @@ TEST(CallAndSpread) {
 TEST(NewAndSpread) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
+  std::string snippets[] = {
       "class A { constructor(...args) { this.args = args; } }\n"
       "new A(...[1, 2, 3]);\n",
 
@@ -3094,7 +3096,7 @@ TEST(ForAwaitOf) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "async function f() {\n"
       "  for await (let x of [1, 2, 3]) {}\n"
       "}\n"
@@ -3129,7 +3131,7 @@ TEST(StandardForLoop) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "function f() {\n"
       "  for (let x = 0; x < 10; ++x) { let y = x; }\n"
       "}\n"
@@ -3180,7 +3182,7 @@ TEST(ForOfLoop) {
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "function f(arr) {\n"
       "  for (let x of arr) { let y = x; }\n"
       "}\n"
@@ -3229,7 +3231,7 @@ TEST(StringConcat) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var a = 1;\n"
       "var b = 2;\n"
       "return a + b + 'string';\n",
@@ -3264,7 +3266,7 @@ TEST(TemplateLiterals) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
-  const char* snippets[] = {
+  std::string snippets[] = {
       "var a = 1;\n"
       "var b = 2;\n"
       "return `${a}${b}string`;\n",
@@ -3294,37 +3296,6 @@ TEST(TemplateLiterals) {
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("TemplateLiterals.golden")));
 }
-
-#undef XSTR
-#undef STR
-#undef UNIQUE_VAR
-#undef REPEAT_2
-#undef REPEAT_4
-#undef REPEAT_8
-#undef REPEAT_16
-#undef REPEAT_32
-#undef REPEAT_64
-#undef REPEAT_128
-#undef REPEAT_256
-#undef REPEAT_127
-#undef REPEAT_249
-#undef REPEAT_2_UNIQUE_VARS
-#undef REPEAT_4_UNIQUE_VARS
-#undef REPEAT_8_UNIQUE_VARS
-#undef REPEAT_16_UNIQUE_VARS
-#undef REPEAT_32_UNIQUE_VARS
-#undef REPEAT_64_UNIQUE_VARS
-#undef REPEAT_128_UNIQUE_VARS
-#undef REPEAT_252_UNIQUE_VARS
-#undef LOAD_UNIQUE_PROPERTY
-#undef REPEAT_2_LOAD_UNIQUE_PROPERTY
-#undef REPEAT_4_LOAD_UNIQUE_PROPERTY
-#undef REPEAT_8_LOAD_UNIQUE_PROPERTY
-#undef REPEAT_16_LOAD_UNIQUE_PROPERTY
-#undef REPEAT_32_LOAD_UNIQUE_PROPERTY
-#undef REPEAT_64_LOAD_UNIQUE_PROPERTY
-#undef REPEAT_128_LOAD_UNIQUE_PROPERTY
-#undef FUNC_ARG
 
 }  // namespace interpreter
 }  // namespace internal

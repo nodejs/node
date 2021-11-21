@@ -416,7 +416,7 @@ MathHypot(
   } else if (max == 0) {
     return 0;
   }
-  assert(max > 0);
+  dcheck(max > 0);
 
   // Kahan summation to avoid rounding errors.
   // Normalize the numbers to the largest one to avoid overflow.

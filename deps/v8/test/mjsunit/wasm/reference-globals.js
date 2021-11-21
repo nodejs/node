@@ -113,7 +113,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var struct_index = builder.addStruct([{type: kWasmI32, mutability: false}]);
   var composite_struct_index = builder.addStruct(
       [{type: kWasmI32, mutability: false},
-       {type: wasmRefType(struct_index), mutability: false},
+       {type: wasmOptRefType(struct_index), mutability: false},
        {type: kWasmI8, mutability: true}]);
 
   let field1_value = 432;
@@ -136,6 +136,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
            WasmInitExpr.I32Const(field3_value),
            WasmInitExpr.RttCanon(composite_struct_index)]));
 
+  var global_default = builder.addGlobal(
+    wasmRefType(composite_struct_index), false,
+    WasmInitExpr.StructNewDefaultWithRtt(
+      composite_struct_index,
+      WasmInitExpr.RttCanon(composite_struct_index)));
+
   builder.addFunction("field_1", kSig_i_v)
     .addBody([
       kExprGlobalGet, global.index,
@@ -156,11 +162,33 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kExprGlobalGet, global.index,
       kGCPrefix, kExprStructGetS, composite_struct_index, 2])
     .exportFunc();
+
+  builder.addFunction("field_1_default", kSig_i_v)
+    .addBody([
+      kExprGlobalGet, global_default.index,
+      kGCPrefix, kExprStructGet, composite_struct_index, 0])
+    .exportFunc();
+
+  builder.addFunction("field_2_default", makeSig([], [kWasmAnyRef]))
+    .addBody([
+      kExprGlobalGet, global_default.index,
+      kGCPrefix, kExprStructGet, composite_struct_index, 1])
+    .exportFunc();
+
+  builder.addFunction("field_3_default", kSig_i_v)
+    .addBody([
+      kExprGlobalGet, global_default.index,
+      kGCPrefix, kExprStructGetS, composite_struct_index, 2])
+    .exportFunc();
+
   var instance = builder.instantiate({});
 
   assertEquals(field1_value, instance.exports.field_1());
   assertEquals(field2_value, instance.exports.field_2());
   assertEquals((field3_value << 24) >> 24, instance.exports.field_3());
+  assertEquals(0, instance.exports.field_1_default());
+  assertEquals(null, instance.exports.field_2_default());
+  assertEquals(0, instance.exports.field_3_default());
 })();
 
 (function TestArrayInitExprNumeric() {

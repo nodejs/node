@@ -55,12 +55,12 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
   // Let promiseCapability be ! NewPromiseCapability(%Promise%).
   const TNode<JSFunction> promise_fun =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
-  CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
+  CSA_DCHECK(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
   const TNode<Map> promise_map = CAST(
       LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset));
   // Assert that the JSPromise map has an instance size is
   // JSPromise::kSizeWithEmbedderFields.
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              IntPtrEqual(LoadMapInstanceSizeInWords(promise_map),
                          IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
                                         kTaggedSize)));
@@ -259,7 +259,7 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   // Ensure that we don't have to initialize prototype_or_initial_map field of
   // JSFunction.
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              IntPtrEqual(LoadMapInstanceSizeInWords(function_map),
                          IntPtrConstant(JSFunction::kSizeWithoutPrototype /
                                         kTaggedSize)));
@@ -302,7 +302,7 @@ TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(
 
 TNode<Context> AsyncBuiltinsAssembler::AllocateAsyncIteratorValueUnwrapContext(
     TNode<NativeContext> native_context, TNode<Oddball> done) {
-  CSA_ASSERT(this, IsBoolean(done));
+  CSA_DCHECK(this, IsBoolean(done));
 
   TNode<Context> context = AllocateSyntheticFunctionContext(
       native_context, ValueUnwrapContext::kLength);
@@ -317,7 +317,7 @@ TF_BUILTIN(AsyncIteratorValueUnwrap, AsyncBuiltinsAssembler) {
 
   const TNode<Object> done =
       LoadContextElement(context, ValueUnwrapContext::kDoneSlot);
-  CSA_ASSERT(this, IsBoolean(CAST(done)));
+  CSA_DCHECK(this, IsBoolean(CAST(done)));
 
   const TNode<Object> unwrapped_value =
       CallBuiltin(Builtin::kCreateIterResultObject, context, value, done);

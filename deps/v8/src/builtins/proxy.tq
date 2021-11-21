@@ -11,13 +11,13 @@ extern macro ProxiesCodeStubAssembler::AllocateProxy(implicit context: Context)(
 
 extern transitioning macro ProxiesCodeStubAssembler::CheckGetSetTrapResult(
     implicit context: Context)(
-    JSReceiver, JSProxy, Name, Object, constexpr int31);
+    JSReceiver, JSProxy, Name, Object, constexpr int31): void;
 
 extern transitioning macro ProxiesCodeStubAssembler::CheckDeleteTrapResult(
-    implicit context: Context)(JSReceiver, JSProxy, Name);
+    implicit context: Context)(JSReceiver, JSProxy, Name): void;
 
 extern transitioning macro ProxiesCodeStubAssembler::CheckHasTrapResult(
-    implicit context: Context)(JSReceiver, JSProxy, Name);
+    implicit context: Context)(JSReceiver, JSProxy, Name): void;
 
 const kProxyGet: constexpr int31
     generates 'JSProxy::AccessKind::kGet';

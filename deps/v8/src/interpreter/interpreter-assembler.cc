@@ -273,7 +273,7 @@ TNode<Object> InterpreterAssembler::LoadRegisterFromRegisterList(
 
 TNode<IntPtrT> InterpreterAssembler::RegisterLocationInRegisterList(
     const RegListNodePair& reg_list, int index) {
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              Uint32GreaterThan(reg_list.reg_count(), Int32Constant(index)));
   TNode<IntPtrT> offset = RegisterFrameOffset(IntPtrConstant(index));
   // Register indexes are negative, so subtract index from base location to get
@@ -299,10 +299,10 @@ void InterpreterAssembler::StoreRegisterForShortStar(TNode<Object> value,
   implicit_register_use_ =
       implicit_register_use_ | ImplicitRegisterUse::kWriteShortStar;
 
-  CSA_ASSERT(
+  CSA_DCHECK(
       this, UintPtrGreaterThanOrEqual(opcode, UintPtrConstant(static_cast<int>(
                                                   Bytecode::kFirstShortStar))));
-  CSA_ASSERT(
+  CSA_DCHECK(
       this,
       UintPtrLessThanOrEqual(
           opcode, UintPtrConstant(static_cast<int>(Bytecode::kLastShortStar))));
@@ -1013,7 +1013,7 @@ void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
 
   // Assert that the weight is positive (negative weights should be implemented
   // as backward updates).
-  CSA_ASSERT(this, Int32GreaterThanOrEqual(weight, Int32Constant(0)));
+  CSA_DCHECK(this, Int32GreaterThanOrEqual(weight, Int32Constant(0)));
 
   Label load_budget_from_bytecode(this), load_budget_done(this);
   TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
@@ -1399,7 +1399,7 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
       Signed(ChangeUint32ToWord(formal_parameter_count));
   TNode<UintPtrT> register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
-    CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
+    CSA_DCHECK(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
     AbortIfRegisterCountInvalid(array, formal_parameter_count_intptr,
                                 register_count);
@@ -1471,7 +1471,7 @@ TNode<FixedArray> InterpreterAssembler::ImportRegisterFile(
       Signed(ChangeUint32ToWord(formal_parameter_count));
   TNode<UintPtrT> register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
-    CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
+    CSA_DCHECK(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
     AbortIfRegisterCountInvalid(array, formal_parameter_count_intptr,
                                 register_count);

@@ -20,6 +20,7 @@
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
+#include "test/common/wasm/wasm-module-runner.h"
 
 namespace v8 {
 namespace internal {
@@ -1108,6 +1109,105 @@ STREAM_TEST(TestModuleWithImportedFunction) {
   CHECK(tester.IsPromiseFulfilled());
 }
 
+STREAM_TEST(TestIncrementalCaching) {
+  FLAG_VALUE_SCOPE(wasm_dynamic_tiering, true);
+  FLAG_VALUE_SCOPE(wasm_tier_up, false);
+  constexpr int threshold = 10;
+  FlagScope<int> caching_treshold(&FLAG_wasm_caching_threshold, threshold);
+  StreamTester tester(isolate);
+  int call_cache_counter = 0;
+  tester.stream()->SetModuleCompiledCallback(
+      [&call_cache_counter](
+          const std::shared_ptr<i::wasm::NativeModule>& native_module) {
+        call_cache_counter++;
+      });
+
+  ZoneBuffer buffer(tester.zone());
+  TestSignatures sigs;
+  WasmModuleBuilder builder(tester.zone());
+  builder.SetMinMemorySize(1);
+
+  base::Vector<const char> function_names[] = {
+      base::CStrVector("f0"), base::CStrVector("f1"), base::CStrVector("f2")};
+  for (int i = 0; i < 3; ++i) {
+    WasmFunctionBuilder* f = builder.AddFunction(sigs.v_v());
+
+    constexpr int64_t val = 0x123456789abc;
+    constexpr int index = 0x1234;
+    uint8_t store_mem[] = {
+        WASM_STORE_MEM(MachineType::Int64(), WASM_I32V(index), WASM_I64V(val))};
+    constexpr uint32_t kStoreLength = 20;
+    CHECK_EQ(kStoreLength, arraysize(store_mem));
+
+    // Produce a store {threshold} many times to reach the caching threshold.
+    constexpr uint32_t kCodeLength = kStoreLength * threshold + 1;
+    uint8_t code[kCodeLength];
+    for (int j = 0; j < threshold; ++j) {
+      memcpy(code + (j * kStoreLength), store_mem, kStoreLength);
+    }
+    code[kCodeLength - 1] = WasmOpcode::kExprEnd;
+    f->EmitCode(code, kCodeLength);
+    builder.AddExport(function_names[i], f);
+  }
+  builder.WriteTo(&buffer);
+  tester.OnBytesReceived(buffer.begin(), buffer.end() - buffer.begin());
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+  tester.native_module();
+  constexpr base::Vector<const char> kNoSourceUrl{"", 0};
+  Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  Handle<Script> script = GetWasmEngine()->GetOrCreateScript(
+      i_isolate, tester.native_module(), kNoSourceUrl);
+  Handle<FixedArray> export_wrappers = i_isolate->factory()->NewFixedArray(3);
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      i_isolate, tester.native_module(), script, export_wrappers);
+  ErrorThrower thrower(i_isolate, "Instantiation");
+  // We instantiated before, so the second instantiation must also succeed:
+  Handle<WasmInstanceObject> instance =
+      GetWasmEngine()
+          ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
+          .ToHandleChecked();
+  CHECK(!thrower.error());
+
+  WasmCodeRefScope code_scope;
+  CHECK(tester.native_module()->GetCode(0)->is_liftoff());
+  CHECK(tester.native_module()->GetCode(1)->is_liftoff());
+  CHECK(tester.native_module()->GetCode(2)->is_liftoff());
+  // No TurboFan compilation happened yet, and therefore no call to the cache.
+  CHECK_EQ(0, call_cache_counter);
+  bool exception = false;
+  // The tier-up threshold is hard-coded right now.
+  constexpr int tier_up_threshold = 4;
+  for (int i = 0; i < tier_up_threshold; ++i) {
+    testing::CallWasmFunctionForTesting(i_isolate, instance, "f0", 0, nullptr,
+                                        &exception);
+  }
+  tester.RunCompilerTasks();
+  CHECK(!tester.native_module()->GetCode(0)->is_liftoff());
+  CHECK(tester.native_module()->GetCode(1)->is_liftoff());
+  CHECK(tester.native_module()->GetCode(2)->is_liftoff());
+  CHECK_EQ(1, call_cache_counter);
+  size_t serialized_size;
+  {
+    i::wasm::WasmSerializer serializer(tester.native_module().get());
+    serialized_size = serializer.GetSerializedNativeModuleSize();
+  }
+  for (int i = 0; i < tier_up_threshold; ++i) {
+    testing::CallWasmFunctionForTesting(i_isolate, instance, "f1", 0, nullptr,
+                                        &exception);
+  }
+  tester.RunCompilerTasks();
+  CHECK(!tester.native_module()->GetCode(0)->is_liftoff());
+  CHECK(!tester.native_module()->GetCode(1)->is_liftoff());
+  CHECK(tester.native_module()->GetCode(2)->is_liftoff());
+  CHECK_EQ(2, call_cache_counter);
+  {
+    i::wasm::WasmSerializer serializer(tester.native_module().get());
+    CHECK_LT(serialized_size, serializer.GetSerializedNativeModuleSize());
+  }
+}
+
 STREAM_TEST(TestModuleWithErrorAfterDataSection) {
   StreamTester tester(isolate);
 
@@ -1264,19 +1364,19 @@ STREAM_TEST(TestCompileErrorFunctionName) {
   };
 
   const uint8_t bytes_names[] = {
-      kUnknownSectionCode,             // section code
-      U32V_1(11),                      // section size
-      4,                               // section name length
-      'n',                             // section name
-      'a',                             // section name
-      'm',                             // section name
-      'e',                             // section name
-      NameSectionKindCode::kFunction,  // name section kind
-      4,                               // name section kind length
-      1,                               // num function names
-      0,                               // function index
-      1,                               // function name length
-      'f',                             // function name
+      kUnknownSectionCode,                 // section code
+      U32V_1(11),                          // section size
+      4,                                   // section name length
+      'n',                                 // section name
+      'a',                                 // section name
+      'm',                                 // section name
+      'e',                                 // section name
+      NameSectionKindCode::kFunctionCode,  // name section kind
+      4,                                   // name section kind length
+      1,                                   // num function names
+      0,                                   // function index
+      1,                                   // function name length
+      'f',                                 // function name
   };
 
   for (bool late_names : {false, true}) {

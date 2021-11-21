@@ -62,7 +62,7 @@ transitioning macro ThisNumberValue(implicit context: Context)(
 }
 
 macro ToCharCode(input: int32): char8 {
-  assert(0 <= input && input < 36);
+  dcheck(0 <= input && input < 36);
   return input < 10 ?
       %RawDownCast<char8>(Unsigned(input + kAsciiZero)) :
       %RawDownCast<char8>(Unsigned(input - 10 + kAsciiLowerCaseA));
@@ -78,7 +78,7 @@ macro NumberToStringSmi(x: int32, radix: int32): String labels Slow {
       return StringFromSingleCharCode(ToCharCode(n));
     }
   } else {
-    assert(isNegative);
+    dcheck(isNegative);
     if (n == kMinInt32) {
       goto Slow;
     }
@@ -92,7 +92,7 @@ macro NumberToStringSmi(x: int32, radix: int32): String labels Slow {
     temp = temp / radix;
     length = length + 1;
   }
-  assert(length > 0);
+  dcheck(length > 0);
   const strSeq = AllocateNonEmptySeqOneByteString(Unsigned(length));
   let cursor: intptr = Convert<intptr>(length) - 1;
   while (n > 0) {
@@ -102,15 +102,15 @@ macro NumberToStringSmi(x: int32, radix: int32): String labels Slow {
     cursor = cursor - 1;
   }
   if (isNegative) {
-    assert(cursor == 0);
+    dcheck(cursor == 0);
     // Insert '-' to result.
     *UnsafeConstCast(&strSeq.chars[0]) = 45;
   } else {
-    assert(cursor == -1);
+    dcheck(cursor == -1);
     // In sync with Factory::SmiToString: If radix = 10 and positive number,
     // update hash for string.
     if (radix == 10) {
-      assert(strSeq.raw_hash_field == kNameEmptyHashField);
+      dcheck(strSeq.raw_hash_field == kNameEmptyHashField);
       strSeq.raw_hash_field = MakeArrayIndexHash(Unsigned(x), Unsigned(length));
     }
   }

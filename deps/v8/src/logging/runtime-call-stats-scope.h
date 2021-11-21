@@ -17,8 +17,10 @@ namespace internal {
 
 #ifdef V8_RUNTIME_CALL_STATS
 
-#define RCS_SCOPE(...) \
-  v8::internal::RuntimeCallTimerScope rcs_timer_scope(__VA_ARGS__)
+// Make the line number part of the scope's name to avoid -Wshadow warnings.
+#define RCS_SCOPE(...)                                        \
+  v8::internal::RuntimeCallTimerScope CONCAT(rcs_timer_scope, \
+                                             __LINE__)(__VA_ARGS__)
 
 RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
                                              RuntimeCallCounterId counter_id) {

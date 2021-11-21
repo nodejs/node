@@ -19,6 +19,7 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 class JSGraph;
+class SourcePositionTable;
 
 class V8_EXPORT_PRIVATE BranchElimination final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
@@ -28,7 +29,7 @@ class V8_EXPORT_PRIVATE BranchElimination final
     kLATE,
   };
   BranchElimination(Editor* editor, JSGraph* js_graph, Zone* zone,
-                    Phase phase = kLATE);
+                    SourcePositionTable* sourse_positions, Phase phase = kLATE);
   ~BranchElimination() final;
 
   const char* reducer_name() const override { return "BranchElimination"; }
@@ -108,6 +109,7 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherControl(Node* node);
   void SimplifyBranchCondition(Node* branch);
+  bool TryPullTrapIntoMerge(Node* node);
 
   Reduction TakeConditionsFromFirstControl(Node* node);
   Reduction UpdateConditions(Node* node, ControlPathConditions conditions);
@@ -131,6 +133,7 @@ class V8_EXPORT_PRIVATE BranchElimination final
       node_conditions_;
   NodeAuxData<bool> reduced_;
   Zone* zone_;
+  SourcePositionTable* source_positions_;
   Node* dead_;
   Phase phase_;
 };

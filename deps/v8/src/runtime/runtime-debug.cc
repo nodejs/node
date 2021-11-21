@@ -335,16 +335,15 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
                              "[[ArrayBufferByteLength]]"),
                          isolate->factory()->NewNumberFromSize(byte_length));
 
-      // Use the backing store pointer as a unique ID
-      base::EmbeddedVector<char, 32> buffer_data_vec;
-      int len =
-          SNPrintF(buffer_data_vec, V8PRIxPTR_FMT,
-                   reinterpret_cast<Address>(js_array_buffer->backing_store()));
+      auto backing_store = js_array_buffer->GetBackingStore();
+      Handle<Object> array_buffer_data =
+          backing_store
+              ? isolate->factory()->NewNumberFromUint(backing_store->id())
+              : isolate->factory()->null_value();
       result = ArrayList::Add(
           isolate, result,
           isolate->factory()->NewStringFromAsciiChecked("[[ArrayBufferData]]"),
-          isolate->factory()->InternalizeUtf8String(
-              buffer_data_vec.SubVector(0, len)));
+          array_buffer_data);
 
       Handle<Symbol> memory_symbol =
           isolate->factory()->array_buffer_wasm_memory_symbol();

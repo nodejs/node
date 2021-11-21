@@ -11,7 +11,7 @@ SetPropertyWithReceiver(implicit context: Context)(
     Object, Name, Object, Object): void;
 
 transitioning macro CallThrowTypeErrorIfStrict(implicit context: Context)(
-    message: constexpr MessageTemplate) {
+    message: constexpr MessageTemplate): void {
   ThrowTypeErrorIfStrict(SmiConstant(message), Null, Null);
 }
 
@@ -22,8 +22,8 @@ ProxySetProperty(implicit context: Context)(
     proxy: JSProxy, name: PropertyKey|PrivateSymbol, value: JSAny,
     receiverValue: JSAny): JSAny {
   // 1. Assert: IsPropertyKey(P) is true.
-  assert(TaggedIsNotSmi(name));
-  assert(Is<Name>(name));
+  dcheck(TaggedIsNotSmi(name));
+  dcheck(Is<Name>(name));
 
   let key: PropertyKey;
   typeswitch (name) {
@@ -40,7 +40,7 @@ ProxySetProperty(implicit context: Context)(
     // 2. Let handler be O.[[ProxyHandler]].
     // 3. If handler is null, throw a TypeError exception.
     // 4. Assert: Type(handler) is Object.
-    assert(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+    dcheck(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
     const handler =
         Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
 

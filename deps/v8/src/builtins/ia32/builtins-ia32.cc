@@ -2447,13 +2447,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   StackArgumentsAccessor args(eax);
   __ AssertFunction(edi, edx);
 
-  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
-  // Check that the function is not a "classConstructor".
-  Label class_constructor;
   __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ test(FieldOperand(edx, SharedFunctionInfo::kFlagsOffset),
-          Immediate(SharedFunctionInfo::IsClassConstructorBit::kMask));
-  __ j(not_zero, &class_constructor);
 
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
@@ -2534,13 +2528,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ movzx_w(
       ecx, FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
   __ InvokeFunctionCode(edi, no_reg, ecx, eax, InvokeType::kJump);
-  // The function is a "classConstructor", need to raise an exception.
-  __ bind(&class_constructor);
-  {
-    FrameScope frame(masm, StackFrame::INTERNAL);
-    __ push(edi);
-    __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
-  }
 }
 
 namespace {
@@ -2655,44 +2642,56 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   //  -- eax : the number of arguments
   //  -- edi : the target to call (can be any Object).
   // -----------------------------------
-  StackArgumentsAccessor args(eax);
+  Register argc = eax;
+  Register target = edi;
+  Register map = ecx;
+  Register instance_type = edx;
+  DCHECK(!AreAliased(argc, target, map, instance_type));
 
-  Label non_callable, non_function, non_smi, non_jsfunction,
-      non_jsboundfunction;
-  __ JumpIfSmi(edi, &non_callable);
+  StackArgumentsAccessor args(argc);
+
+  Label non_callable, non_smi, non_callable_jsfunction, non_jsboundfunction,
+      non_proxy, class_constructor;
+  __ JumpIfSmi(target, &non_callable);
   __ bind(&non_smi);
-  __ LoadMap(ecx, edi);
-  __ CmpInstanceTypeRange(ecx, ecx, FIRST_JS_FUNCTION_TYPE,
-                          LAST_JS_FUNCTION_TYPE);
-  __ j(above, &non_jsfunction);
+  __ LoadMap(map, target);
+  __ CmpInstanceTypeRange(map, instance_type, map,
+                          FIRST_CALLABLE_JS_FUNCTION_TYPE,
+                          LAST_CALLABLE_JS_FUNCTION_TYPE);
+  __ j(above, &non_callable_jsfunction);
   __ Jump(masm->isolate()->builtins()->CallFunction(mode),
           RelocInfo::CODE_TARGET);
 
-  __ bind(&non_jsfunction);
-  __ LoadMap(ecx, edi);
-  __ CmpInstanceType(ecx, JS_BOUND_FUNCTION_TYPE);
+  __ bind(&non_callable_jsfunction);
+  __ cmpw(instance_type, Immediate(JS_BOUND_FUNCTION_TYPE));
   __ j(not_equal, &non_jsboundfunction);
   __ Jump(BUILTIN_CODE(masm->isolate(), CallBoundFunction),
           RelocInfo::CODE_TARGET);
 
   // Check if target is a proxy and call CallProxy external builtin
   __ bind(&non_jsboundfunction);
-  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
+  __ LoadMap(map, target);
+  __ test_b(FieldOperand(map, Map::kBitFieldOffset),
             Immediate(Map::Bits1::IsCallableBit::kMask));
   __ j(zero, &non_callable);
 
   // Call CallProxy external builtin
-  __ CmpInstanceType(ecx, JS_PROXY_TYPE);
-  __ j(not_equal, &non_function);
+  __ cmpw(instance_type, Immediate(JS_PROXY_TYPE));
+  __ j(not_equal, &non_proxy);
   __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET);
+
+  // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
+  // Check that the function is not a "classConstructor".
+  __ bind(&non_proxy);
+  __ cmpw(instance_type, Immediate(JS_CLASS_CONSTRUCTOR_TYPE));
+  __ j(equal, &class_constructor);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
-  __ bind(&non_function);
   // Overwrite the original receiver with the (original) target.
-  __ mov(args.GetReceiverOperand(), edi);
+  __ mov(args.GetReceiverOperand(), target);
   // Let the "call_as_function_delegate" take care of the rest.
-  __ LoadNativeContextSlot(edi, Context::CALL_AS_FUNCTION_DELEGATE_INDEX);
+  __ LoadNativeContextSlot(target, Context::CALL_AS_FUNCTION_DELEGATE_INDEX);
   __ Jump(masm->isolate()->builtins()->CallFunction(
               ConvertReceiverMode::kNotNullOrUndefined),
           RelocInfo::CODE_TARGET);
@@ -2701,8 +2700,18 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ bind(&non_callable);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(edi);
+    __ Push(target);
     __ CallRuntime(Runtime::kThrowCalledNonCallable);
+    __ Trap();  // Unreachable.
+  }
+
+  // 4. The function is a "classConstructor", need to raise an exception.
+  __ bind(&class_constructor);
+  {
+    FrameScope frame(masm, StackFrame::INTERNAL);
+    __ Push(target);
+    __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
+    __ Trap();  // Unreachable.
   }
 }
 
@@ -2773,20 +2782,25 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   //           the JSFunction on which new was invoked initially)
   //  -- edi : the constructor to call (can be any Object)
   // -----------------------------------
-  StackArgumentsAccessor args(eax);
+  Register argc = eax;
+  Register target = edi;
+  Register map = ecx;
+  DCHECK(!AreAliased(argc, target, map));
+
+  StackArgumentsAccessor args(argc);
 
   // Check if target is a Smi.
   Label non_constructor, non_proxy, non_jsfunction, non_jsboundfunction;
-  __ JumpIfSmi(edi, &non_constructor);
+  __ JumpIfSmi(target, &non_constructor);
 
   // Check if target has a [[Construct]] internal method.
-  __ mov(ecx, FieldOperand(edi, HeapObject::kMapOffset));
-  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
+  __ mov(map, FieldOperand(target, HeapObject::kMapOffset));
+  __ test_b(FieldOperand(map, Map::kBitFieldOffset),
             Immediate(Map::Bits1::IsConstructorBit::kMask));
   __ j(zero, &non_constructor);
 
   // Dispatch based on instance type.
-  __ CmpInstanceTypeRange(ecx, ecx, FIRST_JS_FUNCTION_TYPE,
+  __ CmpInstanceTypeRange(map, map, map, FIRST_JS_FUNCTION_TYPE,
                           LAST_JS_FUNCTION_TYPE);
   __ j(above, &non_jsfunction);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructFunction),
@@ -2795,15 +2809,15 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   // Only dispatch to bound functions after checking whether they are
   // constructors.
   __ bind(&non_jsfunction);
-  __ mov(ecx, FieldOperand(edi, HeapObject::kMapOffset));
-  __ CmpInstanceType(ecx, JS_BOUND_FUNCTION_TYPE);
+  __ mov(map, FieldOperand(target, HeapObject::kMapOffset));
+  __ CmpInstanceType(map, JS_BOUND_FUNCTION_TYPE);
   __ j(not_equal, &non_jsboundfunction);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructBoundFunction),
           RelocInfo::CODE_TARGET);
 
   // Only dispatch to proxies after checking whether they are constructors.
   __ bind(&non_jsboundfunction);
-  __ CmpInstanceType(ecx, JS_PROXY_TYPE);
+  __ CmpInstanceType(map, JS_PROXY_TYPE);
   __ j(not_equal, &non_proxy);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),
           RelocInfo::CODE_TARGET);
@@ -2812,9 +2826,10 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ bind(&non_proxy);
   {
     // Overwrite the original receiver with the (original) target.
-    __ mov(args.GetReceiverOperand(), edi);
+    __ mov(args.GetReceiverOperand(), target);
     // Let the "call_as_constructor_delegate" take care of the rest.
-    __ LoadNativeContextSlot(edi, Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX);
+    __ LoadNativeContextSlot(target,
+                             Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX);
     __ Jump(masm->isolate()->builtins()->CallFunction(),
             RelocInfo::CODE_TARGET);
   }

@@ -154,13 +154,13 @@ TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
 
   // Default to zero if the {receiver}s buffer was detached / out of bounds.
-  Label detached_or_oob(this), not_detached_or_oob(this);
-  IsTypedArrayDetachedOrOutOfBounds(CAST(receiver), &detached_or_oob,
-                                    &not_detached_or_oob);
+  Label detached_or_oob(this), not_detached_nor_oob(this);
+  IsJSTypedArrayDetachedOrOutOfBounds(CAST(receiver), &detached_or_oob,
+                                      &not_detached_nor_oob);
   BIND(&detached_or_oob);
   Return(ChangeUintPtrToTagged(UintPtrConstant(0)));
 
-  BIND(&not_detached_or_oob);
+  BIND(&not_detached_nor_oob);
   Return(
       ChangeUintPtrToTagged(LoadJSArrayBufferViewByteOffset(CAST(receiver))));
 }
@@ -192,7 +192,10 @@ TNode<BoolT> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
     TNode<Int32T> kind) {
   STATIC_ASSERT(BIGUINT64_ELEMENTS + 1 == BIGINT64_ELEMENTS);
-  return IsElementsKindInRange(kind, BIGUINT64_ELEMENTS, BIGINT64_ELEMENTS);
+  return Word32Or(
+      IsElementsKindInRange(kind, BIGUINT64_ELEMENTS, BIGINT64_ELEMENTS),
+      IsElementsKindInRange(kind, RAB_GSAB_BIGUINT64_ELEMENTS,
+                            RAB_GSAB_BIGINT64_ELEMENTS));
 }
 
 TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
@@ -255,7 +258,25 @@ TNode<JSTypedArray> TypedArrayBuiltinsAssembler::ValidateTypedArray(
   // If the typed array's buffer is detached, throw
   ThrowIfArrayBufferViewBufferIsDetached(context, CAST(obj), method_name);
 
+  // TODO(v8:11111): Throw if the RAB / GSAB is OOB.
   return CAST(obj);
+}
+
+TNode<UintPtrT> TypedArrayBuiltinsAssembler::ValidateTypedArrayAndGetLength(
+    TNode<Context> context, TNode<Object> obj, const char* method_name) {
+  // If it is not a typed array, throw
+  ThrowIfNotInstanceType(context, obj, JS_TYPED_ARRAY_TYPE, method_name);
+
+  Label detached_or_oob(this), not_detached_nor_oob(this);
+  TNode<UintPtrT> length =
+      LoadJSTypedArrayLengthAndCheckDetached(CAST(obj), &detached_or_oob);
+  Goto(&not_detached_nor_oob);
+
+  BIND(&detached_or_oob);
+  ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
+
+  BIND(&not_detached_nor_oob);
+  return length;
 }
 
 void TypedArrayBuiltinsAssembler::CallCMemmove(TNode<RawPtrT> dest_ptr,
@@ -317,7 +338,7 @@ void TypedArrayBuiltinsAssembler::
     CallCCopyFastNumberJSArrayElementsToTypedArray(
         TNode<Context> context, TNode<JSArray> source, TNode<JSTypedArray> dest,
         TNode<UintPtrT> source_length, TNode<UintPtrT> offset) {
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              Word32BinaryNot(IsBigInt64ElementsKind(LoadElementsKind(dest))));
   TNode<ExternalReference> f = ExternalConstant(
       ExternalReference::copy_fast_number_jsarray_elements_to_typed_array());
@@ -388,13 +409,14 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)     \
-  BIND(&if_##type##array);                            \
-  {                                                   \
-    case_function(TYPE##_ELEMENTS, sizeof(ctype), 0); \
-    Goto(&next);                                      \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, NON_RAB_GSAB_TYPE) \
+  BIND(&if_##type##array);                                           \
+  {                                                                  \
+    case_function(TYPE##_ELEMENTS, sizeof(ctype),                    \
+                  Context::NON_RAB_GSAB_TYPE##_ARRAY_FUN_INDEX);     \
+    Goto(&next);                                                     \
   }
-  RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
+  RAB_GSAB_TYPED_ARRAYS_WITH_NON_RAB_GSAB_ELEMENTS_KIND(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
   BIND(&if_unknown_type);

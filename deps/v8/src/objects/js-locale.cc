@@ -15,11 +15,12 @@
 
 #include "src/api/api.h"
 #include "src/execution/isolate.h"
-#include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-locale-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/calendar.h"
 #include "unicode/char16ptr.h"
 #include "unicode/coll.h"
@@ -70,11 +71,11 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
     bool value_bool = false;
     Maybe<bool> maybe_found =
         option_to_bcp47.is_bool_value
-            ? Intl::GetBoolOption(isolate, options, option_to_bcp47.name,
-                                  "locale", &value_bool)
-            : Intl::GetStringOption(isolate, options, option_to_bcp47.name,
-                                    *(option_to_bcp47.possible_values),
-                                    "locale", &value_str);
+            ? GetBoolOption(isolate, options, option_to_bcp47.name, "locale",
+                            &value_bool)
+            : GetStringOption(isolate, options, option_to_bcp47.name,
+                              *(option_to_bcp47.possible_values), "locale",
+                              &value_str);
     MAYBE_RETURN(maybe_found, Nothing<bool>());
 
     // TODO(cira): Use fallback value if value is not found to make
@@ -183,19 +184,11 @@ bool JSLocale::Is38AlphaNumList(const std::string& in) {
   std::string value = in;
   while (true) {
     std::size_t found_dash = value.find("-");
-    std::size_t found_underscore = value.find("_");
-    if (found_dash == std::string::npos &&
-        found_underscore == std::string::npos) {
+    if (found_dash == std::string::npos) {
       return IsAlphanum(value, 3, 8);
     }
-    if (found_underscore == std::string::npos ||
-        found_dash < found_underscore) {
-      if (!IsAlphanum(value.substr(0, found_dash), 3, 8)) return false;
-      value = value.substr(found_dash + 1);
-    } else {
-      if (!IsAlphanum(value.substr(0, found_underscore), 3, 8)) return false;
-      value = value.substr(found_underscore + 1);
-    }
+    if (!IsAlphanum(value.substr(0, found_dash), 3, 8)) return false;
+    value = value.substr(found_dash + 1);
   }
 }
 
@@ -274,8 +267,8 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
   const std::vector<const char*> empty_values = {};
   std::unique_ptr<char[]> language_str = nullptr;
   Maybe<bool> maybe_language =
-      Intl::GetStringOption(isolate, options, "language", empty_values,
-                            "ApplyOptionsToTag", &language_str);
+      GetStringOption(isolate, options, "language", empty_values,
+                      "ApplyOptionsToTag", &language_str);
   MAYBE_RETURN(maybe_language, Nothing<bool>());
   // 4. If language is not undefined, then
   if (maybe_language.FromJust()) {
@@ -292,8 +285,8 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
   // undefined).
   std::unique_ptr<char[]> script_str = nullptr;
   Maybe<bool> maybe_script =
-      Intl::GetStringOption(isolate, options, "script", empty_values,
-                            "ApplyOptionsToTag", &script_str);
+      GetStringOption(isolate, options, "script", empty_values,
+                      "ApplyOptionsToTag", &script_str);
   MAYBE_RETURN(maybe_script, Nothing<bool>());
   // 6. If script is not undefined, then
   if (maybe_script.FromJust()) {
@@ -309,8 +302,8 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
   // undefined).
   std::unique_ptr<char[]> region_str = nullptr;
   Maybe<bool> maybe_region =
-      Intl::GetStringOption(isolate, options, "region", empty_values,
-                            "ApplyOptionsToTag", &region_str);
+      GetStringOption(isolate, options, "region", empty_values,
+                      "ApplyOptionsToTag", &region_str);
   MAYBE_RETURN(maybe_region, Nothing<bool>());
   // 8. If region is not undefined, then
   if (maybe_region.FromJust()) {

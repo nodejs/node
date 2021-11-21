@@ -420,8 +420,8 @@ Handle<Code> CSATestRunner::create_get_counts(Isolate* isolate) {
     TNode<FixedArray> results = m.AllocateZeroedFixedArray(m.IntPtrConstant(3));
 
     auto check_and_add = [&](TNode<IntPtrT> value, int array_index) {
-      CSA_ASSERT(&m, m.UintPtrGreaterThanOrEqual(value, m.IntPtrConstant(0)));
-      CSA_ASSERT(&m, m.UintPtrLessThanOrEqual(
+      CSA_DCHECK(&m, m.UintPtrGreaterThanOrEqual(value, m.IntPtrConstant(0)));
+      CSA_DCHECK(&m, m.UintPtrLessThanOrEqual(
                          value, m.IntPtrConstant(Smi::kMaxValue)));
       TNode<Smi> smi = m.SmiFromIntPtr(value);
       m.StoreFixedArrayElement(results, array_index, smi);

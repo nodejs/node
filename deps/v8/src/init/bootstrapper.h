@@ -80,9 +80,6 @@ class Bootstrapper final {
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template);
 
-  // Detach the environment from its outer global object.
-  void DetachGlobal(Handle<Context> env);
-
   // Traverses the pointers for memory management.
   void Iterate(RootVisitor* v);
 

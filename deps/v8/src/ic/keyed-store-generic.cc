@@ -317,7 +317,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     TNode<IntPtrT> index, TNode<Object> value, TNode<Context> context,
     Label* slow, UpdateLength update_length) {
   if (update_length != kDontChangeLength) {
-    CSA_ASSERT(this, IsJSArrayMap(receiver_map));
+    CSA_DCHECK(this, IsJSArrayMap(receiver_map));
     // Check if the length property is writable. The fast check is only
     // supported for fast properties.
     GotoIf(IsDictionaryMap(receiver_map), slow);
@@ -429,7 +429,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
         TryRewriteElements(receiver, receiver_map, elements, native_context,
                            PACKED_SMI_ELEMENTS, target_kind, slow);
         // The elements backing store didn't change, no reload necessary.
-        CSA_ASSERT(this, TaggedEqual(elements, LoadElements(receiver)));
+        CSA_DCHECK(this, TaggedEqual(elements, LoadElements(receiver)));
         Store(elements, offset, value);
         MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
       }
@@ -760,7 +760,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     TNode<JSReceiver> receiver, TNode<Map> receiver_map,
     const StoreICParameters* p, ExitPoint* exit_point, Label* slow,
     Maybe<LanguageMode> maybe_language_mode) {
-  CSA_ASSERT(this, IsSimpleObjectMap(receiver_map));
+  CSA_DCHECK(this, IsSimpleObjectMap(receiver_map));
   // TODO(rmcilroy) Type as Struct once we use a trimmed down
   // LoadAccessorFromFastObject instead of LoadPropertyFromFastObject.
   TVARIABLE(Object, var_accessor_pair);
@@ -891,14 +891,13 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       GotoIf(IsJSTypedArrayMap(receiver_map), slow);
       CheckForAssociatedProtector(name, slow);
       Label extensible(this), is_private_symbol(this);
-      TNode<Uint32T> bitfield3 = LoadMapBitField3(receiver_map);
       GotoIf(IsPrivateSymbol(name), &is_private_symbol);
       Branch(IsSetWord32<Map::Bits3::IsExtensibleBit>(bitfield3), &extensible,
              slow);
 
       BIND(&is_private_symbol);
       {
-        CSA_ASSERT(this, IsPrivateSymbol(name));
+        CSA_DCHECK(this, IsPrivateSymbol(name));
         // For private names, we miss to the runtime which will throw.
         // For private symbols, we extend and store an own property.
         Branch(IsPrivateName(CAST(name)), slow, &extensible);
@@ -931,7 +930,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       Label not_callable(this);
       TNode<Struct> accessor_pair = CAST(var_accessor_pair.value());
       GotoIf(IsAccessorInfo(accessor_pair), slow);
-      CSA_ASSERT(this, IsAccessorPair(accessor_pair));
+      CSA_DCHECK(this, IsAccessorPair(accessor_pair));
       TNode<HeapObject> setter =
           CAST(LoadObjectField(accessor_pair, AccessorPair::kSetterOffset));
       TNode<Map> setter_map = LoadMap(setter);
@@ -1112,7 +1111,7 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
   Label done(this), slow(this, Label::kDeferred);
   ExitPoint exit_point(this, [&](TNode<Object> result) { Goto(&done); });
 
-  CSA_ASSERT(this, Word32Equal(is_simple_receiver,
+  CSA_DCHECK(this, Word32Equal(is_simple_receiver,
                                IsSimpleObjectMap(LoadMap(receiver))));
   GotoIfNot(is_simple_receiver, &slow);
 

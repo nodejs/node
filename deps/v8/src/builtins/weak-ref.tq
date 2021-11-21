@@ -4,7 +4,8 @@
 
 namespace runtime {
 
-extern runtime JSWeakRefAddToKeptObjects(implicit context: Context)(JSReceiver);
+extern runtime JSWeakRefAddToKeptObjects(implicit context: Context)(JSReceiver):
+    void;
 
 }  // namespace runtime
 

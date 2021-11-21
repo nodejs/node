@@ -66,6 +66,8 @@ namespace {
 // == arm64 ====================================================================
 // ===========================================================================
 #define PARAM_REGISTERS x0, x1, x2, x3, x4, x5, x6, x7
+#define FP_PARAM_REGISTERS d0, d1, d2, d3, d4, d5, d6, d7
+#define FP_RETURN_REGISTER d0
 #define CALLEE_SAVE_REGISTERS                                     \
   (1 << x19.code()) | (1 << x20.code()) | (1 << x21.code()) |     \
       (1 << x22.code()) | (1 << x23.code()) | (1 << x24.code()) | \

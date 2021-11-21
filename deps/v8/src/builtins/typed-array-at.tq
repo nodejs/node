@@ -8,9 +8,10 @@ transitioning javascript builtin TypedArrayPrototypeAt(
     js-implicit context: NativeContext, receiver: JSAny)(index: JSAny): JSAny {
   // 1. Let O be the this value.
   // 2. Perform ? ValidateTypedArray(O).
-  const o = ValidateTypedArray(context, receiver, '%TypedArray%.prototype.at');
-  // 3. Let len be O.[[ArrayLength]].
-  const len = Convert<Number>(o.length);
+  // 3. Let len be IntegerIndexedObjectLength(O).
+  const len = Convert<Number>(ValidateTypedArrayAndGetLength(
+      context, receiver, '%TypedArray%.prototype.at'));
+
   // 4. Let relativeIndex be ? ToInteger(index).
   const relativeIndex = ToInteger_Inline(index);
   // 5. If relativeIndex ≥ 0, then
@@ -23,6 +24,6 @@ transitioning javascript builtin TypedArrayPrototypeAt(
     return Undefined;
   }
   // 8. Return ? Get(O, ! ToString(k)).
-  return GetProperty(o, k);
+  return GetProperty(receiver, k);
 }
 }

@@ -191,7 +191,7 @@ std::unique_ptr<const byte[]> WasmCode::ConcatenateBytes(
 
 void WasmCode::RegisterTrapHandlerData() {
   DCHECK(!has_trap_handler_index());
-  if (kind() != WasmCode::kFunction) return;
+  if (kind() != WasmCode::kWasmFunction) return;
   if (protected_instructions_size_ == 0) return;
 
   Address base = instruction_start();
@@ -217,6 +217,42 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
          isolate->is_profiling();
 }
 
+std::string WasmCode::DebugName() const {
+  if (IsAnonymous()) {
+    return "anonymous function";
+  }
+
+  ModuleWireBytes wire_bytes(native_module()->wire_bytes());
+  const WasmModule* module = native_module()->module();
+  WireBytesRef name_ref =
+      module->lazily_generated_names.LookupFunctionName(wire_bytes, index());
+  WasmName name = wire_bytes.GetNameOrNull(name_ref);
+  std::string name_buffer;
+  if (kind() == kWasmToJsWrapper) {
+    name_buffer = "wasm-to-js:";
+    size_t prefix_len = name_buffer.size();
+    constexpr size_t kMaxSigLength = 128;
+    name_buffer.resize(prefix_len + kMaxSigLength);
+    const FunctionSig* sig = module->functions[index()].sig;
+    size_t sig_length = PrintSignature(
+        base::VectorOf(&name_buffer[prefix_len], kMaxSigLength), sig);
+    name_buffer.resize(prefix_len + sig_length);
+    // If the import has a name, also append that (separated by "-").
+    if (!name.empty()) {
+      name_buffer += '-';
+      name_buffer.append(name.begin(), name.size());
+    }
+  } else if (name.empty()) {
+    name_buffer.resize(32);
+    name_buffer.resize(
+        SNPrintF(base::VectorOf(&name_buffer.front(), name_buffer.size()),
+                 "wasm-function[%d]", index()));
+  } else {
+    name_buffer.append(name.begin(), name.end());
+  }
+  return name_buffer;
+}
+
 void WasmCode::LogCode(Isolate* isolate, const char* source_url,
                        int script_id) const {
   DCHECK(ShouldBeLogged(isolate));
@@ -224,9 +260,8 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
 
   ModuleWireBytes wire_bytes(native_module_->wire_bytes());
   const WasmModule* module = native_module_->module();
-  WireBytesRef name_ref =
-      module->lazily_generated_names.LookupFunctionName(wire_bytes, index());
-  WasmName name = wire_bytes.GetNameOrNull(name_ref);
+  std::string fn_name = DebugName();
+  WasmName name = base::VectorOf(fn_name);
 
   const WasmDebugSymbols& debug_symbols = module->debug_symbols;
   auto load_wasm_source_map = isolate->wasm_load_source_map_callback();
@@ -242,30 +277,6 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
         load_wasm_source_map(v8_isolate, external_url_string.c_str());
     native_module_->SetWasmSourceMap(
         std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
-  }
-
-  std::string name_buffer;
-  if (kind() == kWasmToJsWrapper) {
-    name_buffer = "wasm-to-js:";
-    size_t prefix_len = name_buffer.size();
-    constexpr size_t kMaxSigLength = 128;
-    name_buffer.resize(prefix_len + kMaxSigLength);
-    const FunctionSig* sig = module->functions[index_].sig;
-    size_t sig_length = PrintSignature(
-        base::VectorOf(&name_buffer[prefix_len], kMaxSigLength), sig);
-    name_buffer.resize(prefix_len + sig_length);
-    // If the import has a name, also append that (separated by "-").
-    if (!name.empty()) {
-      name_buffer += '-';
-      name_buffer.append(name.begin(), name.size());
-    }
-    name = base::VectorOf(name_buffer);
-  } else if (name.empty()) {
-    name_buffer.resize(32);
-    name_buffer.resize(
-        SNPrintF(base::VectorOf(&name_buffer.front(), name_buffer.size()),
-                 "wasm-function[%d]", index()));
-    name = base::VectorOf(name_buffer);
   }
 
   // Record source positions before adding code, otherwise when code is added,
@@ -334,15 +345,16 @@ void WasmCode::Validate() const {
 #endif
 }
 
-void WasmCode::MaybePrint(const char* name) const {
+void WasmCode::MaybePrint() const {
   // Determines whether flags want this code to be printed.
   bool function_index_matches =
       (!IsAnonymous() &&
        FLAG_print_wasm_code_function_index == static_cast<int>(index()));
-  if (FLAG_print_code ||
-      (kind() == kFunction ? (FLAG_print_wasm_code || function_index_matches)
-                           : FLAG_print_wasm_stub_code)) {
-    Print(name);
+  if (FLAG_print_code || (kind() == kWasmFunction
+                              ? (FLAG_print_wasm_code || function_index_matches)
+                              : FLAG_print_wasm_stub_code)) {
+    std::string name = DebugName();
+    Print(name.c_str());
   }
 }
 
@@ -364,7 +376,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   if (name) os << "name: " << name << "\n";
   if (!IsAnonymous()) os << "index: " << index() << "\n";
   os << "kind: " << GetWasmCodeKindAsString(kind()) << "\n";
-  if (kind() == kFunction) {
+  if (kind() == kWasmFunction) {
     DCHECK(is_liftoff() || tier() == ExecutionTier::kTurbofan);
     const char* compiler =
         is_liftoff() ? (for_debugging() ? "Liftoff (debug)" : "Liftoff")
@@ -438,8 +450,8 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
         os << " registers: ";
         uint32_t register_bits = entry.register_bits();
         int bits = 32 - base::bits::CountLeadingZeros32(register_bits);
-        for (int i = bits - 1; i >= 0; --i) {
-          os << ((register_bits >> i) & 1);
+        for (int j = bits - 1; j >= 0; --j) {
+          os << ((register_bits >> j) & 1);
         }
       }
       os << "\n";
@@ -458,7 +470,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
 
 const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
   switch (kind) {
-    case WasmCode::kFunction:
+    case WasmCode::kWasmFunction:
       return "wasm function";
     case WasmCode::kWasmToCapiWrapper:
       return "wasm-to-capi";
@@ -958,6 +970,7 @@ BoundsCheckStrategy GetBoundsChecks(const WasmModule* module) {
 }  // namespace
 
 NativeModule::NativeModule(const WasmFeatures& enabled,
+                           DynamicTiering dynamic_tiering,
                            VirtualMemory code_space,
                            std::shared_ptr<const WasmModule> module,
                            std::shared_ptr<Counters> async_counters,
@@ -976,8 +989,8 @@ NativeModule::NativeModule(const WasmFeatures& enabled,
   DCHECK_NOT_NULL(shared_this);
   DCHECK_NULL(*shared_this);
   shared_this->reset(this);
-  compilation_state_ =
-      CompilationState::New(*shared_this, std::move(async_counters));
+  compilation_state_ = CompilationState::New(
+      *shared_this, std::move(async_counters), dynamic_tiering);
   compilation_state_->InitCompileJob();
   DCHECK_NOT_NULL(module_);
   if (module_->num_declared_functions > 0) {
@@ -1043,8 +1056,8 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
 }
 
 CompilationEnv NativeModule::CreateCompilationEnv() const {
-  return {module(), bounds_checks_, kRuntimeExceptionSupport,
-          enabled_features_};
+  return {module(), bounds_checks_, kRuntimeExceptionSupport, enabled_features_,
+          compilation_state()->dynamic_tiering()};
 }
 
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
@@ -1117,22 +1130,22 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
 
   std::unique_ptr<WasmCode> new_code{
-      new WasmCode{this,                    // native_module
-                   kAnonymousFuncIndex,     // index
-                   dst_code_bytes,          // instructions
-                   stack_slots,             // stack_slots
-                   0,                       // tagged_parameter_slots
-                   safepoint_table_offset,  // safepoint_table_offset
-                   handler_table_offset,    // handler_table_offset
-                   constant_pool_offset,    // constant_pool_offset
-                   code_comments_offset,    // code_comments_offset
-                   instructions.length(),   // unpadded_binary_size
-                   {},                      // protected_instructions
-                   reloc_info.as_vector(),  // reloc_info
-                   source_pos.as_vector(),  // source positions
-                   WasmCode::kFunction,     // kind
-                   ExecutionTier::kNone,    // tier
-                   kNoDebugging}};          // for_debugging
+      new WasmCode{this,                     // native_module
+                   kAnonymousFuncIndex,      // index
+                   dst_code_bytes,           // instructions
+                   stack_slots,              // stack_slots
+                   0,                        // tagged_parameter_slots
+                   safepoint_table_offset,   // safepoint_table_offset
+                   handler_table_offset,     // handler_table_offset
+                   constant_pool_offset,     // constant_pool_offset
+                   code_comments_offset,     // code_comments_offset
+                   instructions.length(),    // unpadded_binary_size
+                   {},                       // protected_instructions
+                   reloc_info.as_vector(),   // reloc_info
+                   source_pos.as_vector(),   // source positions
+                   WasmCode::kWasmFunction,  // kind
+                   ExecutionTier::kNone,     // tier
+                   kNoDebugging}};           // for_debugging
   new_code->MaybePrint();
   new_code->Validate();
 
@@ -1255,6 +1268,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, instr_size, protected_instructions_data, reloc_info,
       source_position_table, kind, tier, for_debugging}};
+
   code->MaybePrint();
   code->Validate();
 
@@ -1291,7 +1305,7 @@ WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {
     case WasmCompilationResult::kWasmToJsWrapper:
       return WasmCode::Kind::kWasmToJsWrapper;
     case WasmCompilationResult::kFunction:
-      return WasmCode::Kind::kFunction;
+      return WasmCode::Kind::kWasmFunction;
     default:
       UNREACHABLE();
   }
@@ -1971,7 +1985,6 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   DCHECK_GT(size, 0);
   size_t allocate_page_size = page_allocator->AllocatePageSize();
   size = RoundUp(size, allocate_page_size);
-  if (!BackingStore::ReserveAddressSpace(size)) return {};
   if (hint == nullptr) hint = page_allocator->GetRandomMmapAddr();
 
   // When we start exposing Wasm in jitless mode, then the jitless flag
@@ -1979,10 +1992,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   DCHECK(!FLAG_jitless);
   VirtualMemory mem(page_allocator, size, hint, allocate_page_size,
                     VirtualMemory::kMapAsJittable);
-  if (!mem.IsReserved()) {
-    BackingStore::ReleaseReservation(size);
-    return {};
-  }
+  if (!mem.IsReserved()) return {};
   TRACE_HEAP("VMem alloc: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n", mem.address(),
              mem.end(), mem.size());
 
@@ -2115,6 +2125,11 @@ void WasmCodeManager::SetThreadWritable(bool writable) {
   MemoryProtectionKeyPermission permissions =
       writable ? kNoRestrictions : kDisableWrite;
 
+  // When switching to writable we should not already be writable. Otherwise
+  // this points at a problem with counting writers, or with wrong
+  // initialization (globally or per thread).
+  DCHECK_IMPLIES(writable, !MemoryProtectionKeyWritable());
+
   TRACE_HEAP("Setting memory protection key %d to writable: %d.\n",
              memory_protection_key_, writable);
   SetPermissionsForMemoryProtectionKey(memory_protection_key_, permissions);
@@ -2122,6 +2137,10 @@ void WasmCodeManager::SetThreadWritable(bool writable) {
 
 bool WasmCodeManager::HasMemoryProtectionKeySupport() const {
   return memory_protection_key_ != kNoMemoryProtectionKey;
+}
+
+bool WasmCodeManager::MemoryProtectionKeyWritable() const {
+  return wasm::MemoryProtectionKeyWritable(memory_protection_key_);
 }
 
 void WasmCodeManager::InitializeMemoryProtectionKeyForTesting() {
@@ -2183,8 +2202,11 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   size_t size = code_space.size();
   Address end = code_space.end();
   std::shared_ptr<NativeModule> ret;
-  new NativeModule(enabled, std::move(code_space), std::move(module),
-                   isolate->async_counters(), &ret);
+  DynamicTiering dynamic_tiering = isolate->IsWasmDynamicTieringEnabled()
+                                       ? DynamicTiering::kEnabled
+                                       : DynamicTiering::kDisabled;
+  new NativeModule(enabled, dynamic_tiering, std::move(code_space),
+                   std::move(module), isolate->async_counters(), &ret);
   // The constructor initialized the shared_ptr.
   DCHECK_NOT_NULL(ret);
   TRACE_HEAP("New NativeModule %p: Mem: 0x%" PRIxPTR ",+%zu\n", ret.get(),
@@ -2414,7 +2436,6 @@ void WasmCodeManager::FreeNativeModule(
 #endif  // V8_OS_WIN64
 
     lookup_map_.erase(code_space.address());
-    BackingStore::ReleaseReservation(code_space.size());
     code_space.Free();
     DCHECK(!code_space.IsReserved());
   }

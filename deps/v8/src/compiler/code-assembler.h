@@ -631,7 +631,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   void ReturnIf(TNode<BoolT> condition, TNode<Object> value);
 
-  void AbortCSAAssert(Node* message);
+  void AbortCSADcheck(Node* message);
   void DebugBreak();
   void Unreachable();
   void Comment(const char* msg) {

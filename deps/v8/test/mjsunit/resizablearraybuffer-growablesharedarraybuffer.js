@@ -6,6 +6,8 @@
 
 "use strict";
 
+d8.file.execute('test/mjsunit/typedarray-helpers.js');
+
 function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   return new ArrayBuffer(byteLength, {maxByteLength: maxByteLength});
 }
@@ -52,11 +54,11 @@ function growHelper(ab, value) {
   assertEquals(0, rab.maxByteLength);
 })();
 
-const ctors = [[ArrayBuffer, (b) => b.resizable],
-               [SharedArrayBuffer, (b) => b.growable]];
+const arrayBufferCtors = [[ArrayBuffer, (b) => b.resizable],
+                          [SharedArrayBuffer, (b) => b.growable]];
 
 (function TestOptionsBagNotObject() {
-  for (let [ctor, resizable] of ctors) {
+  for (let [ctor, resizable] of arrayBufferCtors) {
     const buffer = new ctor(10, 'this is not an options bag');
     assertFalse(resizable(buffer));
   }
@@ -66,7 +68,7 @@ const ctors = [[ArrayBuffer, (b) => b.resizable],
   let evil = {};
   Object.defineProperty(evil, 'maxByteLength',
                         {get: () => { throw new Error('thrown'); }});
-  for (let [ctor, resizable] of ctors) {
+  for (let [ctor, resizable] of arrayBufferCtors) {
     let caught = false;
     try {
       new ctor(10, evil);
@@ -79,14 +81,14 @@ const ctors = [[ArrayBuffer, (b) => b.resizable],
 })();
 
 (function TestMaxByteLengthNonExisting() {
-  for (let [ctor, resizable] of ctors) {
+  for (let [ctor, resizable] of arrayBufferCtors) {
     const buffer = new ctor(10, {});
     assertFalse(resizable(buffer));
   }
 })();
 
 (function TestMaxByteLengthUndefinedOrNan() {
-  for (let [ctor, resizable] of ctors) {
+  for (let [ctor, resizable] of arrayBufferCtors) {
     const buffer1 = new ctor(10, {maxByteLength: undefined});
     assertFalse(resizable(buffer1));
     const buffer2 = new ctor(0, {maxByteLength: NaN});
@@ -97,7 +99,7 @@ const ctors = [[ArrayBuffer, (b) => b.resizable],
 })();
 
 (function TestMaxByteLengthBooleanNullOrString() {
-  for (let [ctor, resizable] of ctors) {
+  for (let [ctor, resizable] of arrayBufferCtors) {
     const buffer1 = new ctor(0, {maxByteLength: true});
     assertTrue(resizable(buffer1));
     assertEquals(0, buffer1.byteLength);
@@ -118,7 +120,7 @@ const ctors = [[ArrayBuffer, (b) => b.resizable],
 })();
 
 (function TestMaxByteLengthDouble() {
-  for (let [ctor, resizable] of ctors) {
+  for (let [ctor, resizable] of arrayBufferCtors) {
     const buffer1 = new ctor(0, {maxByteLength: -0.0});
     assertTrue(resizable(buffer1));
     assertEquals(0, buffer1.byteLength);
@@ -138,7 +140,7 @@ const ctors = [[ArrayBuffer, (b) => b.resizable],
 
 (function TestMaxByteLengthThrows() {
   const evil = {valueOf: () => { throw new Error('thrown');}};
-  for (let [ctor, resizable] of ctors) {
+  for (let [ctor, resizable] of arrayBufferCtors) {
     let caught = false;
     try {
       new ctor(0, {maxByteLength: evil});
@@ -153,7 +155,7 @@ const ctors = [[ArrayBuffer, (b) => b.resizable],
 (function TestByteLengthThrows() {
   const evil1 = {valueOf: () => { throw new Error('byteLength throws');}};
   const evil2 = {valueOf: () => { throw new Error('maxByteLength throws');}};
-  for (let [ctor, resizable] of ctors) {
+  for (let [ctor, resizable] of arrayBufferCtors) {
     let caught = false;
     try {
       new ctor(evil1, {maxByteLength: evil2});
@@ -543,4 +545,74 @@ const ctors = [[ArrayBuffer, (b) => b.resizable],
   w.postMessage({gsab: gsab});
   assertEquals('ok', w.getMessage());
   assertEquals(15, gsab.byteLength);
+})();
+
+(function Slice() {
+  const rab = CreateResizableArrayBuffer(10, 20);
+  const sliced1 = rab.slice();
+  assertEquals(10, sliced1.byteLength);
+  assertTrue(sliced1 instanceof ArrayBuffer);
+  assertFalse(sliced1 instanceof SharedArrayBuffer);
+  assertFalse(sliced1.resizable);
+
+  const gsab = CreateGrowableSharedArrayBuffer(10, 20);
+  const sliced2 = gsab.slice();
+  assertEquals(10, sliced2.byteLength);
+  assertFalse(sliced2 instanceof ArrayBuffer);
+  assertTrue(sliced2 instanceof SharedArrayBuffer);
+  assertFalse(sliced2.growable);
+})();
+
+(function SliceSpeciesConstructorReturnsResizable() {
+  class MyArrayBuffer extends ArrayBuffer {
+    static get [Symbol.species]() { return MyResizableArrayBuffer; }
+  }
+
+  class MyResizableArrayBuffer extends ArrayBuffer {
+    constructor(byteLength) {
+      super(byteLength, {maxByteLength: byteLength * 2});
+    }
+  }
+
+  const ab = new MyArrayBuffer(20);
+  const sliced1 = ab.slice();
+  assertTrue(sliced1.resizable);
+
+  class MySharedArrayBuffer extends SharedArrayBuffer {
+    static get [Symbol.species]() { return MyGrowableSharedArrayBuffer; }
+  }
+
+  class MyGrowableSharedArrayBuffer extends SharedArrayBuffer {
+    constructor(byteLength) {
+      super(byteLength, {maxByteLength: byteLength * 2});
+    }
+  }
+
+  const sab = new MySharedArrayBuffer(20);
+  const sliced2 = sab.slice();
+  assertTrue(sliced2.growable);
+})();
+
+(function SliceSpeciesConstructorResizes() {
+  let rab;
+  let resizeWhenConstructorCalled = false;
+  class MyArrayBuffer extends ArrayBuffer {
+    constructor(...params) {
+      super(...params);
+      if (resizeWhenConstructorCalled) {
+        rab.resize(2);
+      }
+    }
+  }
+  rab = new MyArrayBuffer(4, {maxByteLength: 8});
+  const taWrite = new Uint8Array(rab);
+  for (let i = 0; i < 4; ++i) {
+    taWrite[i] = 1;
+  }
+  assertEquals([1, 1, 1, 1], ToNumbers(taWrite));
+  resizeWhenConstructorCalled = true;
+  const sliced = rab.slice();
+  assertEquals(2, rab.byteLength);
+  assertEquals(4, sliced.byteLength);
+  assertEquals([1, 1, 0, 0], ToNumbers(new Uint8Array(sliced)));
 })();

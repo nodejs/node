@@ -1656,8 +1656,10 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
   // If the expected parameter count is equal to the adaptor sentinel, no need
   // to push undefined value as arguments.
-  CmpS64(expected_parameter_count, Operand(kDontAdaptArgumentsSentinel));
-  beq(&regular_invoke);
+  if (kDontAdaptArgumentsSentinel != 0) {
+    CmpS64(expected_parameter_count, Operand(kDontAdaptArgumentsSentinel));
+    beq(&regular_invoke);
+  }
 
   // If overapplication or if the actual argument count is equal to the
   // formal parameter count, no need to push extra undefined values.
@@ -1706,8 +1708,8 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
   bind(&stack_overflow);
   {
-    FrameScope frame(this,
-                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+    FrameScope frame(
+        this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
     CallRuntime(Runtime::kThrowStackOverflow);
     bkpt(0);
   }
@@ -1729,8 +1731,8 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
   {
     // Load receiver to pass it later to DebugOnFunctionCall hook.
     LoadReceiver(r6, actual_parameter_count);
-    FrameScope frame(this,
-                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+    FrameScope frame(
+        this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
 
     SmiTag(expected_parameter_count);
     Push(expected_parameter_count);
@@ -1889,16 +1891,27 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
   CmpS64(type_reg, Operand(type));
 }
 
+void MacroAssembler::CompareRange(Register value, unsigned lower_limit,
+                                  unsigned higher_limit) {
+  ASM_CODE_COMMENT(this);
+  DCHECK_LT(lower_limit, higher_limit);
+  if (lower_limit != 0) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    mov(scratch, value);
+    slgfi(scratch, Operand(lower_limit));
+    CmpU64(scratch, Operand(higher_limit - lower_limit));
+  } else {
+    CmpU64(value, Operand(higher_limit));
+  }
+}
+
 void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
                                               InstanceType lower_limit,
                                               InstanceType higher_limit) {
   DCHECK_LT(lower_limit, higher_limit);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   LoadU16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  mov(scratch, type_reg);
-  slgfi(scratch, Operand(lower_limit));
-  CmpU64(scratch, Operand(higher_limit - lower_limit));
+  CompareRange(type_reg, lower_limit, higher_limit);
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
@@ -1912,14 +1925,7 @@ void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
                                      unsigned higher_limit,
                                      Label* on_in_range) {
-  if (lower_limit != 0) {
-    Register scratch = r0;
-    mov(scratch, value);
-    slgfi(scratch, Operand(lower_limit));
-    CmpU64(scratch, Operand(higher_limit - lower_limit));
-  } else {
-    CmpU64(value, Operand(higher_limit));
-  }
+  CompareRange(value, lower_limit, higher_limit);
   ble(on_in_range);
 }
 
@@ -2079,7 +2085,7 @@ void TurboAssembler::Abort(AbortReason reason) {
 
   if (should_abort_hard()) {
     // We don't care if we constructed a frame. Just pretend we did.
-    FrameScope assume_frame(this, StackFrame::NONE);
+    FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
     lgfi(r2, Operand(static_cast<int>(reason)));
     PrepareCallCFunction(1, 0, r3);
     Move(r3, ExternalReference::abort_with_reason());
@@ -2095,7 +2101,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   if (!has_frame_) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
-    FrameScope scope(this, StackFrame::NONE);
+    FrameScope scope(this, StackFrame::NO_FRAME_TYPE);
     Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
   } else {
     Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
@@ -2116,7 +2122,7 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadTaggedPointerField(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 
-void MacroAssembler::AssertNotSmi(Register object) {
+void TurboAssembler::AssertNotSmi(Register object) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object);
@@ -2124,7 +2130,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
   }
 }
 
-void MacroAssembler::AssertSmi(Register object) {
+void TurboAssembler::AssertSmi(Register object) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object);
@@ -3917,125 +3923,6 @@ void TurboAssembler::StoreV128LE(Simd128Register src, const MemOperand& mem,
   }
 }
 
-// Vector LE Load and Transform instructions.
-void TurboAssembler::LoadAndSplat8x16LE(Simd128Register dst,
-                                        const MemOperand& mem) {
-  vlrep(dst, mem, Condition(0));
-}
-#define LOAD_SPLAT_LIST(V) \
-  V(64x2, LoadU64LE, 3)    \
-  V(32x4, LoadU32LE, 2)    \
-  V(16x8, LoadU16LE, 1)
-
-#define LOAD_SPLAT(name, scalar_instr, condition)                      \
-  void TurboAssembler::LoadAndSplat##name##LE(Simd128Register dst,     \
-                                              const MemOperand& mem) { \
-    if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&         \
-        is_uint12(mem.offset())) {                                     \
-      vlbrrep(dst, mem, Condition(condition));                         \
-      return;                                                          \
-    }                                                                  \
-    scalar_instr(r1, mem);                                             \
-    vlvg(dst, r1, MemOperand(r0, 0), Condition(condition));            \
-    vrep(dst, dst, Operand(0), Condition(condition));                  \
-  }
-LOAD_SPLAT_LIST(LOAD_SPLAT)
-#undef LOAD_SPLAT
-#undef LOAD_SPLAT_LIST
-
-#define LOAD_EXTEND_LIST(V) \
-  V(32x2U, vuplh, 2)        \
-  V(32x2S, vuph, 2)         \
-  V(16x4U, vuplh, 1)        \
-  V(16x4S, vuph, 1)         \
-  V(8x8U, vuplh, 0)         \
-  V(8x8S, vuph, 0)
-
-#define LOAD_EXTEND(name, unpack_instr, condition)                      \
-  void TurboAssembler::LoadAndExtend##name##LE(Simd128Register dst,     \
-                                               const MemOperand& mem) { \
-    if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&          \
-        is_uint12(mem.offset())) {                                      \
-      vlebrg(kScratchDoubleReg, mem, Condition(0));                     \
-    } else {                                                            \
-      LoadU64LE(r1, mem);                                               \
-      vlvg(kScratchDoubleReg, r1, MemOperand(r0, 0), Condition(3));     \
-    }                                                                   \
-    unpack_instr(dst, kScratchDoubleReg, Condition(0), Condition(0),    \
-                 Condition(condition));                                 \
-  }
-LOAD_EXTEND_LIST(LOAD_EXTEND)
-#undef LOAD_EXTEND
-#undef LOAD_EXTEND
-
-void TurboAssembler::LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem) {
-  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
-  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
-    vlebrf(dst, mem, Condition(3));
-    return;
-  }
-  LoadU32LE(r1, mem);
-  vlvg(dst, r1, MemOperand(r0, 3), Condition(2));
-}
-
-void TurboAssembler::LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem) {
-  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
-  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
-    vlebrg(dst, mem, Condition(1));
-    return;
-  }
-  LoadU64LE(r1, mem);
-  vlvg(dst, r1, MemOperand(r0, 1), Condition(3));
-}
-
-void TurboAssembler::LoadLane8LE(Simd128Register dst, const MemOperand& mem,
-                                 int index) {
-  vleb(dst, mem, Condition(index));
-}
-#define LOAD_LANE_LIST(V)     \
-  V(64, vlebrg, LoadU64LE, 3) \
-  V(32, vlebrf, LoadU32LE, 2) \
-  V(16, vlebrh, LoadU16LE, 1)
-
-#define LOAD_LANE(name, vector_instr, scalar_instr, condition)               \
-  void TurboAssembler::LoadLane##name##LE(Simd128Register dst,               \
-                                          const MemOperand& mem, int lane) { \
-    if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&               \
-        is_uint12(mem.offset())) {                                           \
-      vector_instr(dst, mem, Condition(lane));                               \
-      return;                                                                \
-    }                                                                        \
-    scalar_instr(r1, mem);                                                   \
-    vlvg(dst, r1, MemOperand(r0, lane), Condition(condition));               \
-  }
-LOAD_LANE_LIST(LOAD_LANE)
-#undef LOAD_LANE
-#undef LOAD_LANE_LIST
-
-void TurboAssembler::StoreLane8LE(Simd128Register src, const MemOperand& mem,
-                                  int index) {
-  vsteb(src, mem, Condition(index));
-}
-#define STORE_LANE_LIST(V)      \
-  V(64, vstebrg, StoreU64LE, 3) \
-  V(32, vstebrf, StoreU32LE, 2) \
-  V(16, vstebrh, StoreU16LE, 1)
-
-#define STORE_LANE(name, vector_instr, scalar_instr, condition)               \
-  void TurboAssembler::StoreLane##name##LE(Simd128Register src,               \
-                                           const MemOperand& mem, int lane) { \
-    if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&                \
-        is_uint12(mem.offset())) {                                            \
-      vector_instr(src, mem, Condition(lane));                                \
-      return;                                                                 \
-    }                                                                         \
-    vlgv(r1, src, MemOperand(r0, lane), Condition(condition));                \
-    scalar_instr(r1, mem);                                                    \
-  }
-STORE_LANE_LIST(STORE_LANE)
-#undef STORE_LANE
-#undef STORE_LANE_LIST
-
 #else
 void TurboAssembler::LoadU64LE(Register dst, const MemOperand& mem,
                                Register scratch) {
@@ -4107,83 +3994,6 @@ void TurboAssembler::StoreV128LE(Simd128Register src, const MemOperand& mem,
                                  Register scratch1, Register scratch2) {
   StoreV128(src, mem, scratch1);
 }
-
-// Vector LE Load and Transform instructions.
-#define LOAD_SPLAT_LIST(V) \
-  V(64x2, 3)               \
-  V(32x4, 2)               \
-  V(16x8, 1)               \
-  V(8x16, 0)
-
-#define LOAD_SPLAT(name, condition)                                    \
-  void TurboAssembler::LoadAndSplat##name##LE(Simd128Register dst,     \
-                                              const MemOperand& mem) { \
-    vlrep(dst, mem, Condition(condition));                             \
-  }
-LOAD_SPLAT_LIST(LOAD_SPLAT)
-#undef LOAD_SPLAT
-#undef LOAD_SPLAT_LIST
-
-#define LOAD_EXTEND_LIST(V) \
-  V(32x2U, vuplh, 2)        \
-  V(32x2S, vuph, 2)         \
-  V(16x4U, vuplh, 1)        \
-  V(16x4S, vuph, 1)         \
-  V(8x8U, vuplh, 0)         \
-  V(8x8S, vuph, 0)
-
-#define LOAD_EXTEND(name, unpack_instr, condition)                      \
-  void TurboAssembler::LoadAndExtend##name##LE(Simd128Register dst,     \
-                                               const MemOperand& mem) { \
-    vleg(kScratchDoubleReg, mem, Condition(0));                         \
-    unpack_instr(dst, kScratchDoubleReg, Condition(0), Condition(0),    \
-                 Condition(condition));                                 \
-  }
-LOAD_EXTEND_LIST(LOAD_EXTEND)
-#undef LOAD_EXTEND
-#undef LOAD_EXTEND
-
-void TurboAssembler::LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem) {
-  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
-  vlef(dst, mem, Condition(3));
-}
-
-void TurboAssembler::LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem) {
-  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
-  vleg(dst, mem, Condition(1));
-}
-
-#define LOAD_LANE_LIST(V) \
-  V(64, vleg)             \
-  V(32, vlef)             \
-  V(16, vleh)             \
-  V(8, vleb)
-
-#define LOAD_LANE(name, vector_instr)                                        \
-  void TurboAssembler::LoadLane##name##LE(Simd128Register dst,               \
-                                          const MemOperand& mem, int lane) { \
-    DCHECK(is_uint12(mem.offset()));                                         \
-    vector_instr(dst, mem, Condition(lane));                                 \
-  }
-LOAD_LANE_LIST(LOAD_LANE)
-#undef LOAD_LANE
-#undef LOAD_LANE_LIST
-
-#define STORE_LANE_LIST(V) \
-  V(64, vsteg)             \
-  V(32, vstef)             \
-  V(16, vsteh)             \
-  V(8, vsteb)
-
-#define STORE_LANE(name, vector_instr)                                        \
-  void TurboAssembler::StoreLane##name##LE(Simd128Register src,               \
-                                           const MemOperand& mem, int lane) { \
-    DCHECK(is_uint12(mem.offset()));                                          \
-    vector_instr(src, mem, Condition(lane));                                  \
-  }
-STORE_LANE_LIST(STORE_LANE)
-#undef STORE_LANE
-#undef STORE_LANE_LIST
 
 #endif
 
@@ -5611,6 +5421,123 @@ void TurboAssembler::I8x16GeU(Simd128Register dst, Simd128Register src1,
   vchl(dst, src1, src2, Condition(0), Condition(0));
   vo(dst, dst, kScratchDoubleReg, Condition(0), Condition(0), Condition(0));
 }
+
+// Vector LE Load and Transform instructions.
+#ifdef V8_TARGET_BIG_ENDIAN
+#define IS_BIG_ENDIAN true
+#else
+#define IS_BIG_ENDIAN false
+#endif
+
+#define CAN_LOAD_STORE_REVERSE \
+  IS_BIG_ENDIAN&& CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)
+
+#define LOAD_SPLAT_LIST(V)       \
+  V(64x2, vlbrrep, LoadU64LE, 3) \
+  V(32x4, vlbrrep, LoadU32LE, 2) \
+  V(16x8, vlbrrep, LoadU16LE, 1) \
+  V(8x16, vlrep, LoadU8, 0)
+
+#define LOAD_SPLAT(name, vector_instr, scalar_instr, condition)        \
+  void TurboAssembler::LoadAndSplat##name##LE(Simd128Register dst,     \
+                                              const MemOperand& mem) { \
+    if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {           \
+      vector_instr(dst, mem, Condition(condition));                    \
+      return;                                                          \
+    }                                                                  \
+    scalar_instr(r1, mem);                                             \
+    vlvg(dst, r1, MemOperand(r0, 0), Condition(condition));            \
+    vrep(dst, dst, Operand(0), Condition(condition));                  \
+  }
+LOAD_SPLAT_LIST(LOAD_SPLAT)
+#undef LOAD_SPLAT
+#undef LOAD_SPLAT_LIST
+
+#define LOAD_EXTEND_LIST(V) \
+  V(32x2U, vuplh, 2)        \
+  V(32x2S, vuph, 2)         \
+  V(16x4U, vuplh, 1)        \
+  V(16x4S, vuph, 1)         \
+  V(8x8U, vuplh, 0)         \
+  V(8x8S, vuph, 0)
+
+#define LOAD_EXTEND(name, unpack_instr, condition)                      \
+  void TurboAssembler::LoadAndExtend##name##LE(Simd128Register dst,     \
+                                               const MemOperand& mem) { \
+    if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {            \
+      vlebrg(kScratchDoubleReg, mem, Condition(0));                     \
+    } else {                                                            \
+      LoadU64LE(r1, mem);                                               \
+      vlvg(kScratchDoubleReg, r1, MemOperand(r0, 0), Condition(3));     \
+    }                                                                   \
+    unpack_instr(dst, kScratchDoubleReg, Condition(0), Condition(0),    \
+                 Condition(condition));                                 \
+  }
+LOAD_EXTEND_LIST(LOAD_EXTEND)
+#undef LOAD_EXTEND
+#undef LOAD_EXTEND
+
+void TurboAssembler::LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem) {
+  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
+  if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {
+    vlebrf(dst, mem, Condition(3));
+    return;
+  }
+  LoadU32LE(r1, mem);
+  vlvg(dst, r1, MemOperand(r0, 3), Condition(2));
+}
+
+void TurboAssembler::LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem) {
+  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
+  if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {
+    vlebrg(dst, mem, Condition(1));
+    return;
+  }
+  LoadU64LE(r1, mem);
+  vlvg(dst, r1, MemOperand(r0, 1), Condition(3));
+}
+
+#define LOAD_LANE_LIST(V)     \
+  V(64, vlebrg, LoadU64LE, 3) \
+  V(32, vlebrf, LoadU32LE, 2) \
+  V(16, vlebrh, LoadU16LE, 1) \
+  V(8, vleb, LoadU8, 0)
+
+#define LOAD_LANE(name, vector_instr, scalar_instr, condition)               \
+  void TurboAssembler::LoadLane##name##LE(Simd128Register dst,               \
+                                          const MemOperand& mem, int lane) { \
+    if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {                 \
+      vector_instr(dst, mem, Condition(lane));                               \
+      return;                                                                \
+    }                                                                        \
+    scalar_instr(r1, mem);                                                   \
+    vlvg(dst, r1, MemOperand(r0, lane), Condition(condition));               \
+  }
+LOAD_LANE_LIST(LOAD_LANE)
+#undef LOAD_LANE
+#undef LOAD_LANE_LIST
+
+#define STORE_LANE_LIST(V)      \
+  V(64, vstebrg, StoreU64LE, 3) \
+  V(32, vstebrf, StoreU32LE, 2) \
+  V(16, vstebrh, StoreU16LE, 1) \
+  V(8, vsteb, StoreU8, 0)
+
+#define STORE_LANE(name, vector_instr, scalar_instr, condition)               \
+  void TurboAssembler::StoreLane##name##LE(Simd128Register src,               \
+                                           const MemOperand& mem, int lane) { \
+    if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {                  \
+      vector_instr(src, mem, Condition(lane));                                \
+      return;                                                                 \
+    }                                                                         \
+    vlgv(r1, src, MemOperand(r0, lane), Condition(condition));                \
+    scalar_instr(r1, mem);                                                    \
+  }
+STORE_LANE_LIST(STORE_LANE)
+#undef STORE_LANE
+#undef STORE_LANE_LIST
+#undef CAN_LOAD_STORE_REVERSE
+#undef IS_BIG_ENDIAN
 
 #undef kScratchDoubleReg
 

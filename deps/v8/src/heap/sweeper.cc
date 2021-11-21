@@ -366,6 +366,7 @@ int Sweeper::RawSweep(
   // Iterate over the page using the live objects and free the memory before
   // the given live object.
   Address free_start = p->area_start();
+  PtrComprCageBase cage_base(heap_->isolate());
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(p, marking_state_->bitmap(p))) {
     HeapObject const object = object_and_size.first;
@@ -383,8 +384,8 @@ int Sweeper::RawSweep(
           free_start, free_end, p, non_empty_typed_slots, &free_ranges_map,
           &old_to_new_cleanup);
     }
-    Map map = object.map(kAcquireLoad);
-    DCHECK(map.IsMap());
+    Map map = object.map(cage_base, kAcquireLoad);
+    DCHECK(map.IsMap(cage_base));
     int size = object.SizeFromMap(map);
     live_bytes += size;
     free_start = free_end + size;

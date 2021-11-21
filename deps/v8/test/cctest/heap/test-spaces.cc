@@ -175,7 +175,8 @@ TEST(MemoryChunk) {
 
     base::BoundedPageAllocator code_page_allocator(
         page_allocator, code_range_reservation.address(),
-        code_range_reservation.size(), MemoryChunk::kAlignment);
+        code_range_reservation.size(), MemoryChunk::kAlignment,
+        base::PageInitializationMode::kAllocatedPagesCanBeUninitialized);
 
     VerifyMemoryChunk(isolate, heap, &code_page_allocator, reserve_area_size,
                       initial_commit_area_size, EXECUTABLE, heap->code_space());
@@ -355,7 +356,7 @@ TEST(OldLargeObjectSpace) {
 #ifndef DEBUG
 // The test verifies that committed size of a space is less then some threshold.
 // Debug builds pull in all sorts of additional instrumentation that increases
-// heap sizes. E.g. CSA_ASSERT creates on-heap strings for error messages. These
+// heap sizes. E.g. CSA_DCHECK creates on-heap strings for error messages. These
 // messages are also not stable if files are moved and modified during the build
 // process (jumbo builds).
 TEST(SizeOfInitialHeap) {

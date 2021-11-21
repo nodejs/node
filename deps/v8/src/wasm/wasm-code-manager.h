@@ -156,12 +156,7 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
 
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
-  enum Kind {
-    kFunction,
-    kWasmToCapiWrapper,
-    kWasmToJsWrapper,
-    kJumpTable
-  };
+  enum Kind { kWasmFunction, kWasmToCapiWrapper, kWasmToJsWrapper, kJumpTable };
 
   // Each runtime stub is identified by an id. This id is used to reference the
   // stub via {RelocInfo::WASM_STUB_CALL} and gets resolved during relocation.
@@ -318,7 +313,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   void Validate() const;
   void Print(const char* name = nullptr) const;
-  void MaybePrint(const char* name = nullptr) const;
+  void MaybePrint() const;
   void Disassemble(const char* name, std::ostream& os,
                    Address current_pc = kNullAddress) const;
 
@@ -419,6 +414,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   std::unique_ptr<const byte[]> ConcatenateBytes(
       std::initializer_list<base::Vector<const byte>>);
+
+  // Tries to get a reasonable name. Lazily looks up the name section, and falls
+  // back to the function index. Return value is guaranteed to not be empty.
+  std::string DebugName() const;
 
   // Code objects that have been registered with the global trap handler within
   // this process, will have a {trap_handler_index} associated with them.
@@ -729,7 +728,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   void LogWasmCodes(Isolate*, Script);
 
-  CompilationState* compilation_state() { return compilation_state_.get(); }
+  CompilationState* compilation_state() const {
+    return compilation_state_.get();
+  }
 
   // Create a {CompilationEnv} object for compilation. The caller has to ensure
   // that the {WasmModule} pointer stays valid while the {CompilationEnv} is
@@ -849,7 +850,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   };
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
-  NativeModule(const WasmFeatures& enabled_features, VirtualMemory code_space,
+  NativeModule(const WasmFeatures& enabled_features,
+               DynamicTiering dynamic_tiering, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
                std::shared_ptr<Counters> async_counters,
                std::shared_ptr<NativeModule>* shared_this);
@@ -1037,6 +1039,11 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   // Returns true if there is PKU support, false otherwise.
   bool HasMemoryProtectionKeySupport() const;
+
+  // Returns {true} if the memory protection key is write-enabled for the
+  // current thread.
+  // Can only be called if {HasMemoryProtectionKeySupport()} is {true}.
+  bool MemoryProtectionKeyWritable() const;
 
   // This allocates a memory protection key (if none was allocated before),
   // independent of the --wasm-memory-protection-keys flag.

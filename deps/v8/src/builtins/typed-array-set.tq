@@ -255,8 +255,8 @@ TypedArrayPrototypeSetTypedArray(implicit context: Context, receiver: JSAny)(
         otherwise unreachable;
     const dstPtr: RawPtr = target.data_ptr + Convert<intptr>(startOffset);
 
-    assert(countBytes <= target.byte_length - startOffset);
-    assert(countBytes <= typedArray.byte_length);
+    dcheck(countBytes <= target.byte_length - startOffset);
+    dcheck(countBytes <= typedArray.byte_length);
 
     // 29. If srcType is the same as targetType, then
     //   a. NOTE: If srcType and targetType are the same, the transfer must

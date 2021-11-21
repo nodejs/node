@@ -206,6 +206,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     stats_collector_->SetMetricRecorder(std::move(histogram_recorder));
   }
 
+  int GetCreationThreadId() const { return creation_thread_id_; }
+
  protected:
   // Used by the incremental scheduler to finalize a GC if supported.
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
@@ -269,6 +271,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   uintptr_t stack_end_of_current_gc_ = 0;
 
   bool in_atomic_pause_ = false;
+
+  int creation_thread_id_ = v8::base::OS::GetCurrentThreadId();
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class testing::TestWithHeap;

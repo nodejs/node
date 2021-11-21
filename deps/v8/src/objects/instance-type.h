@@ -128,6 +128,9 @@ enum InstanceType : uint16_t {
   FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_STRING_TYPE,
   LAST_UNIQUE_NAME_TYPE = SYMBOL_TYPE,
   FIRST_NONSTRING_TYPE = SYMBOL_TYPE,
+  // Callable JS Functions are all JS Functions except class constructors.
+  FIRST_CALLABLE_JS_FUNCTION_TYPE = FIRST_JS_FUNCTION_TYPE,
+  LAST_CALLABLE_JS_FUNCTION_TYPE = JS_CLASS_CONSTRUCTOR_TYPE - 1,
   // Boundary for testing JSReceivers that need special property lookup handling
   LAST_SPECIAL_RECEIVER_TYPE = LAST_JS_SPECIAL_OBJECT_TYPE,
   // Boundary case for testing JSReceivers that may have elements while having
@@ -170,6 +173,13 @@ STRING_TYPE_LIST(CHECK_STRING_RANGE)
 #define CHECK_NONSTRING_RANGE(TYPE) STATIC_ASSERT(TYPE >= FIRST_NONSTRING_TYPE);
 TORQUE_ASSIGNED_INSTANCE_TYPE_LIST(CHECK_NONSTRING_RANGE)
 #undef CHECK_NONSTRING_RANGE
+
+// classConstructor type has to be the last one in the JS Function type range.
+STATIC_ASSERT(JS_CLASS_CONSTRUCTOR_TYPE == LAST_JS_FUNCTION_TYPE);
+static_assert(JS_CLASS_CONSTRUCTOR_TYPE < FIRST_CALLABLE_JS_FUNCTION_TYPE ||
+                  JS_CLASS_CONSTRUCTOR_TYPE > LAST_CALLABLE_JS_FUNCTION_TYPE,
+              "JS_CLASS_CONSTRUCTOR_TYPE must not be in the callable JS "
+              "function type range");
 
 // Two ranges don't cleanly follow the inheritance hierarchy. Here we ensure
 // that only expected types fall within these ranges.

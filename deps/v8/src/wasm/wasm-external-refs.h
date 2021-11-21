@@ -111,6 +111,7 @@ int32_t memory_copy_wrapper(Address data);
 // zero-extend the result in the return register.
 int32_t memory_fill_wrapper(Address data);
 
+// Assumes copy ranges are in-bounds and length > 0.
 void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
                         uint32_t dst_index, Address raw_src_array,
                         uint32_t src_index, uint32_t length);

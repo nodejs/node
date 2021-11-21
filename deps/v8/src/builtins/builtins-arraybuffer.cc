@@ -191,8 +191,6 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
   // * [SAB] If IsSharedArrayBuffer(O) is false, throw a TypeError exception.
   CHECK_SHARED(is_shared, array_buffer, kMethodName);
 
-  CHECK_RESIZABLE(false, array_buffer, kMethodName);
-
   // * [AB] If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
   if (!is_shared && array_buffer->was_detached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -203,7 +201,7 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
 
   // * [AB] Let len be O.[[ArrayBufferByteLength]].
   // * [SAB] Let len be O.[[ArrayBufferByteLength]].
-  double const len = array_buffer->byte_length();
+  double const len = array_buffer->GetByteLength();
 
   // * Let relativeStart be ? ToInteger(start).
   Handle<Object> relative_start;
@@ -215,7 +213,6 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
   double const first = (relative_start->Number() < 0)
                            ? std::max(len + relative_start->Number(), 0.0)
                            : std::min(relative_start->Number(), len);
-  Handle<Object> first_obj = isolate->factory()->NewNumber(first);
 
   // * If end is undefined, let relativeEnd be len; else let relativeEnd be ?
   //   ToInteger(end).
@@ -279,6 +276,9 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
   Handle<JSArrayBuffer> new_array_buffer = Handle<JSArrayBuffer>::cast(new_);
   CHECK_SHARED(is_shared, new_array_buffer, kMethodName);
 
+  // The created ArrayBuffer might or might not be resizable, since the species
+  // constructor might return a non-resizable or a resizable buffer.
+
   // * [AB] If IsDetachedBuffer(new) is true, throw a TypeError exception.
   if (!is_shared && new_array_buffer->was_detached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -302,7 +302,8 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
   }
 
   // * If new.[[ArrayBufferByteLength]] < newLen, throw a TypeError exception.
-  if (new_array_buffer->byte_length() < new_len) {
+  size_t new_array_buffer_byte_length = new_array_buffer->GetByteLength();
+  if (new_array_buffer_byte_length < new_len) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(is_shared ? MessageTemplate::kSharedArrayBufferTooShort
@@ -321,21 +322,35 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
   // * Let fromBuf be O.[[ArrayBufferData]].
   // * Let toBuf be new.[[ArrayBufferData]].
   // * Perform CopyDataBlockBytes(toBuf, 0, fromBuf, first, newLen).
-  size_t first_size = 0, new_len_size = 0;
-  CHECK(TryNumberToSize(*first_obj, &first_size));
-  CHECK(TryNumberToSize(*new_len_obj, &new_len_size));
-  DCHECK(new_array_buffer->byte_length() >= new_len_size);
+  size_t first_size = first;
+  size_t new_len_size = new_len;
+  DCHECK(new_array_buffer_byte_length >= new_len_size);
 
   if (new_len_size != 0) {
-    size_t from_byte_length = array_buffer->byte_length();
-    USE(from_byte_length);
+    size_t from_byte_length = array_buffer->GetByteLength();
+    if (V8_UNLIKELY(!is_shared && array_buffer->is_resizable())) {
+      // The above steps might have resized the underlying buffer. In that case,
+      // only copy the still-accessible portion of the underlying data.
+      if (first_size > from_byte_length) {
+        return *new_;  // Nothing to copy.
+      }
+      if (new_len_size > from_byte_length - first_size) {
+        new_len_size = from_byte_length - first_size;
+      }
+    }
     DCHECK(first_size <= from_byte_length);
     DCHECK(from_byte_length - first_size >= new_len_size);
     uint8_t* from_data =
-        reinterpret_cast<uint8_t*>(array_buffer->backing_store());
+        reinterpret_cast<uint8_t*>(array_buffer->backing_store()) + first_size;
     uint8_t* to_data =
         reinterpret_cast<uint8_t*>(new_array_buffer->backing_store());
-    CopyBytes(to_data, from_data + first_size, new_len_size);
+    if (is_shared) {
+      base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(to_data),
+                           reinterpret_cast<base::Atomic8*>(from_data),
+                           new_len_size);
+    } else {
+      CopyBytes(to_data, from_data, new_len_size);
+    }
   }
 
   return *new_;
@@ -479,17 +494,7 @@ BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
             array_buffer->GetBackingStore()->max_byte_length());
 
   // 4. Let length be ArrayBufferByteLength(O, SeqCst).
-  size_t byte_length;
-  if (array_buffer->is_resizable()) {
-    // Invariant: byte_length for GSAB is 0 (it needs to be read from the
-    // BackingStore).
-    DCHECK_EQ(0, array_buffer->byte_length());
-
-    byte_length =
-        array_buffer->GetBackingStore()->byte_length(std::memory_order_seq_cst);
-  } else {
-    byte_length = array_buffer->byte_length();
-  }
+  size_t byte_length = array_buffer->GetByteLength();
   // 5. Return F(length).
   return *isolate->factory()->NewNumberFromSize(byte_length);
 }

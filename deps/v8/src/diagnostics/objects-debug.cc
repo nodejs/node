@@ -166,7 +166,9 @@ void TaggedIndex::TaggedIndexVerify(Isolate* isolate) {
 }
 
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::HeapObjectVerify(*this, isolate);
+  CHECK(IsHeapObject());
+  VerifyPointer(isolate, map(isolate));
+  CHECK(map(isolate).IsMap());
 
   switch (map().instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
@@ -293,6 +295,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       BigIntBase::cast(*this).BigIntBaseVerify(isolate);
       break;
 
+    case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:
     case JS_ARRAY_CONSTRUCTOR_TYPE:
@@ -417,7 +420,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
 
     for (InternalIndex i : map().IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(i);
-      if (details.location() == kField) {
+      if (details.location() == PropertyLocation::kField) {
         DCHECK_EQ(kData, details.kind());
         Representation r = details.representation();
         FieldIndex index = FieldIndex::ForDescriptor(map(), i);
@@ -652,7 +655,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
       }
       MaybeObject value = GetValue(descriptor);
       HeapObject heap_object;
-      if (details.location() == kField) {
+      if (details.location() == PropertyLocation::kField) {
         CHECK_EQ(details.field_index(), expected_field_index);
         CHECK(
             value == MaybeObject::FromObject(FieldType::None()) ||
@@ -826,7 +829,24 @@ void JSBoundFunction::JSBoundFunctionVerify(Isolate* isolate) {
 }
 
 void JSFunction::JSFunctionVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSFunctionVerify(*this, isolate);
+  // Don't call TorqueGeneratedClassVerifiers::JSFunctionVerify here because the
+  // Torque class definition contains the field `prototype_or_initial_map` which
+  // may not be allocated.
+
+  // This assertion exists to encourage updating this verification function if
+  // new fields are added in the Torque class layout definition.
+  STATIC_ASSERT(JSFunction::TorqueGeneratedClass::kHeaderSize ==
+                8 * kTaggedSize);
+
+  JSFunctionOrBoundFunctionVerify(isolate);
+  CHECK(IsJSFunction());
+  VerifyPointer(isolate, shared(isolate));
+  CHECK(shared(isolate).IsSharedFunctionInfo());
+  VerifyPointer(isolate, context(isolate, kRelaxedLoad));
+  CHECK(context(isolate, kRelaxedLoad).IsContext());
+  VerifyPointer(isolate, raw_feedback_cell(isolate));
+  CHECK(raw_feedback_cell(isolate).IsFeedbackCell());
+  VerifyPointer(isolate, raw_code(isolate));
   CHECK(raw_code(isolate).IsCodeT());
   CHECK(map(isolate).is_callable());
   Handle<JSFunction> function(*this, isolate);
@@ -1229,8 +1249,9 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify(
     }
   }
 }
+
 void SmallOrderedHashMap::SmallOrderedHashMapVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::SmallOrderedHashMapVerify(*this, isolate);
+  CHECK(IsSmallOrderedHashMap());
   SmallOrderedHashTable<SmallOrderedHashMap>::SmallOrderedHashTableVerify(
       isolate);
   for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
@@ -1243,7 +1264,7 @@ void SmallOrderedHashMap::SmallOrderedHashMapVerify(Isolate* isolate) {
 }
 
 void SmallOrderedHashSet::SmallOrderedHashSetVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::SmallOrderedHashSetVerify(*this, isolate);
+  CHECK(IsSmallOrderedHashSet());
   SmallOrderedHashTable<SmallOrderedHashSet>::SmallOrderedHashTableVerify(
       isolate);
   for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
@@ -1257,8 +1278,7 @@ void SmallOrderedHashSet::SmallOrderedHashSetVerify(Isolate* isolate) {
 
 void SmallOrderedNameDictionary::SmallOrderedNameDictionaryVerify(
     Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::SmallOrderedNameDictionaryVerify(*this,
-                                                                  isolate);
+  CHECK(IsSmallOrderedNameDictionary());
   SmallOrderedHashTable<
       SmallOrderedNameDictionary>::SmallOrderedHashTableVerify(isolate);
   for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
@@ -1348,7 +1368,7 @@ void SwissNameDictionary::SwissNameDictionaryVerify(Isolate* isolate,
 
 void JSRegExp::JSRegExpVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSRegExpVerify(*this, isolate);
-  switch (TypeTag()) {
+  switch (type_tag()) {
     case JSRegExp::ATOM: {
       FixedArray arr = FixedArray::cast(data());
       CHECK(arr.get(JSRegExp::kAtomPatternIndex).IsString());
@@ -1426,7 +1446,7 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       break;
     }
     default:
-      CHECK_EQ(JSRegExp::NOT_COMPILED, TypeTag());
+      CHECK_EQ(JSRegExp::NOT_COMPILED, type_tag());
       CHECK(data().IsUndefined(isolate));
       break;
   }
@@ -1654,9 +1674,20 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::DataHandlerVerify(*this, isolate);
+  // Don't call TorqueGeneratedClassVerifiers::DataHandlerVerify because the
+  // Torque definition of this class includes all of the optional fields.
+
+  // This assertion exists to encourage updating this verification function if
+  // new fields are added in the Torque class layout definition.
+  STATIC_ASSERT(DataHandler::kHeaderSize == 6 * kTaggedSize);
+
+  StructVerify(isolate);
+  CHECK(IsDataHandler());
+  VerifyPointer(isolate, smi_handler(isolate));
   CHECK_IMPLIES(!smi_handler().IsSmi(),
                 IsStoreHandler() && smi_handler().IsCodeT());
+  VerifyPointer(isolate, validity_cell(isolate));
+  CHECK(validity_cell().IsSmi() || validity_cell().IsCell());
   int data_count = data_field_count();
   if (data_count >= 1) {
     VerifyMaybeObjectField(isolate, kData1Offset);

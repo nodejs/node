@@ -640,7 +640,7 @@ void Heap::CreateApiObjects() {
 }
 
 void Heap::CreateInitialObjects() {
-  HandleScope scope(isolate());
+  HandleScope initial_objects_handle_scope(isolate());
   Factory* factory = isolate()->factory();
   ReadOnlyRoots roots(this);
 
@@ -736,7 +736,7 @@ void Heap::CreateInitialObjects() {
   set_interpreter_entry_trampoline_for_profiling(roots.undefined_value());
 
   {
-    HandleScope scope(isolate());
+    HandleScope handle_scope(isolate());
 #define SYMBOL_INIT(_, name)                                                \
   {                                                                         \
     Handle<Symbol> symbol(                                                  \
@@ -748,7 +748,7 @@ void Heap::CreateInitialObjects() {
   }
 
   {
-    HandleScope scope(isolate());
+    HandleScope handle_scope(isolate());
 #define SYMBOL_INIT(_, name, description)                                \
   Handle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);   \
   Handle<String> name##d = factory->InternalizeUtf8String(#description); \

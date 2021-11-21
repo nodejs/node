@@ -105,8 +105,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
   // one set of capture results.  For the case of non-global regexp, we ignore
   // this value.
   static const int kNumOutputRegisters = kRegisterOutput + kSystemPointerSize;
-  static const int kStackHighEnd = kNumOutputRegisters + kSystemPointerSize;
-  static const int kDirectCall = kStackHighEnd + kSystemPointerSize;
+  static const int kDirectCall = kNumOutputRegisters + kSystemPointerSize;
   static const int kIsolate = kDirectCall + kSystemPointerSize;
   // Below the frame pointer - local stack variables.
   // When adding local variables remember to push space for them in
@@ -114,12 +113,20 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
   static const int kBackup_esi = kFramePointer - kSystemPointerSize;
   static const int kBackup_edi = kBackup_esi - kSystemPointerSize;
   static const int kBackup_ebx = kBackup_edi - kSystemPointerSize;
-  static const int kSuccessfulCaptures = kBackup_ebx - kSystemPointerSize;
+  static const int kLastCalleeSaveRegister = kBackup_ebx;
+
+  static const int kSuccessfulCaptures =
+      kLastCalleeSaveRegister - kSystemPointerSize;
   static const int kStringStartMinusOne =
       kSuccessfulCaptures - kSystemPointerSize;
   static const int kBacktrackCount = kStringStartMinusOne - kSystemPointerSize;
+  // Stores the initial value of the regexp stack pointer in a
+  // position-independent representation (in case the regexp stack grows and
+  // thus moves).
+  static const int kRegExpStackBasePointer =
+      kBacktrackCount - kSystemPointerSize;
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kBacktrackCount - kSystemPointerSize;
+  static const int kRegisterZero = kRegExpStackBasePointer - kSystemPointerSize;
 
   // Initial size of code buffer.
   static const int kRegExpCodeSize = 1024;
@@ -137,14 +144,14 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
   Operand register_location(int register_index);
 
   // The register containing the current character after LoadCurrentCharacter.
-  inline Register current_character() { return edx; }
+  static constexpr Register current_character() { return edx; }
 
   // The register containing the backtrack stack top. Provides a meaningful
   // name to the register.
-  inline Register backtrack_stackpointer() { return ecx; }
+  static constexpr Register backtrack_stackpointer() { return ecx; }
 
   // Byte size of chars in the string to match (decided by the Mode argument)
-  inline int char_size() { return static_cast<int>(mode_); }
+  inline int char_size() const { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.
@@ -168,19 +175,25 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
   // (ecx) and increments it by a word size.
   inline void Pop(Register target);
 
+  void LoadRegExpStackPointerFromMemory(Register dst);
+  void StoreRegExpStackPointerToMemory(Register src, Register scratch);
+  void PushRegExpBasePointer(Register stack_pointer, Register scratch);
+  void PopRegExpBasePointer(Register stack_pointer_out, Register scratch);
+
   Isolate* isolate() const { return masm_->isolate(); }
 
-  MacroAssembler* masm_;
+  const std::unique_ptr<MacroAssembler> masm_;
+  const NoRootArrayScope no_root_array_scope_;
 
   // Which mode to generate code for (LATIN1 or UC16).
-  Mode mode_;
+  const Mode mode_;
 
   // One greater than maximal register index actually used.
   int num_registers_;
 
   // Number of registers to output at the end (the saved registers
-  // are always 0..num_saved_registers_-1)
-  int num_saved_registers_;
+  // are always 0..num_saved_registers_-1).
+  const int num_saved_registers_;
 
   // Labels used internally.
   Label entry_label_;

@@ -5454,6 +5454,91 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsSimd128) {
                expected_poke_pair, expected_poke);
 }
 
+struct SIMDConstZeroFcmTest {
+  const bool is_zero;
+  const uint8_t lane_size;
+  const Operator* (MachineOperatorBuilder::*fcm_operator)();
+  const ArchOpcode expected_op_left;
+  const ArchOpcode expected_op_right;
+  const size_t size;
+};
+
+static const SIMDConstZeroFcmTest SIMDConstZeroFcmTests[] = {
+    {true, 64, &MachineOperatorBuilder::F64x2Eq, kArm64FEq, kArm64FEq, 1},
+    {true, 64, &MachineOperatorBuilder::F64x2Ne, kArm64FNe, kArm64FNe, 1},
+    {true, 64, &MachineOperatorBuilder::F64x2Lt, kArm64FGt, kArm64FLt, 1},
+    {true, 64, &MachineOperatorBuilder::F64x2Le, kArm64FGe, kArm64FLe, 1},
+    {false, 64, &MachineOperatorBuilder::F64x2Eq, kArm64FEq, kArm64FEq, 2},
+    {false, 64, &MachineOperatorBuilder::F64x2Ne, kArm64FNe, kArm64FNe, 2},
+    {false, 64, &MachineOperatorBuilder::F64x2Lt, kArm64FLt, kArm64FLt, 2},
+    {false, 64, &MachineOperatorBuilder::F64x2Le, kArm64FLe, kArm64FLe, 2},
+    {true, 32, &MachineOperatorBuilder::F32x4Eq, kArm64FEq, kArm64FEq, 1},
+    {true, 32, &MachineOperatorBuilder::F32x4Ne, kArm64FNe, kArm64FNe, 1},
+    {true, 32, &MachineOperatorBuilder::F32x4Lt, kArm64FGt, kArm64FLt, 1},
+    {true, 32, &MachineOperatorBuilder::F32x4Le, kArm64FGe, kArm64FLe, 1},
+    {false, 32, &MachineOperatorBuilder::F32x4Eq, kArm64FEq, kArm64FEq, 2},
+    {false, 32, &MachineOperatorBuilder::F32x4Ne, kArm64FNe, kArm64FNe, 2},
+    {false, 32, &MachineOperatorBuilder::F32x4Lt, kArm64FLt, kArm64FLt, 2},
+    {false, 32, &MachineOperatorBuilder::F32x4Le, kArm64FLe, kArm64FLe, 2},
+};
+
+using InstructionSelectorSIMDConstZeroFcmTest =
+    InstructionSelectorTestWithParam<SIMDConstZeroFcmTest>;
+
+TEST_P(InstructionSelectorSIMDConstZeroFcmTest, ConstZero) {
+  const SIMDConstZeroFcmTest param = GetParam();
+  byte data[16] = {};
+  if (!param.is_zero) data[0] = 0xff;
+  // Const node on the left
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+    Node* cnst = m.S128Const(data);
+    Node* fcm =
+        m.AddNode((m.machine()->*param.fcm_operator)(), cnst, m.Parameter(0));
+    m.Return(fcm);
+    Stream s = m.Build();
+    ASSERT_EQ(param.size, s.size());
+    if (param.size == 1) {
+      EXPECT_EQ(param.expected_op_left, s[0]->arch_opcode());
+      EXPECT_EQ(1U, s[0]->InputCount());
+      EXPECT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(param.lane_size, LaneSizeField::decode(s[0]->opcode()));
+    } else {
+      EXPECT_EQ(kArm64S128Const, s[0]->arch_opcode());
+      EXPECT_EQ(param.expected_op_left, s[1]->arch_opcode());
+      EXPECT_EQ(2U, s[1]->InputCount());
+      EXPECT_EQ(1U, s[1]->OutputCount());
+      EXPECT_EQ(param.lane_size, LaneSizeField::decode(s[1]->opcode()));
+    }
+  }
+  //  Const node on the right
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+    Node* cnst = m.S128Const(data);
+    Node* fcm =
+        m.AddNode((m.machine()->*param.fcm_operator)(), m.Parameter(0), cnst);
+    m.Return(fcm);
+    Stream s = m.Build();
+    ASSERT_EQ(param.size, s.size());
+    if (param.size == 1) {
+      EXPECT_EQ(param.expected_op_right, s[0]->arch_opcode());
+      EXPECT_EQ(1U, s[0]->InputCount());
+      EXPECT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(param.lane_size, LaneSizeField::decode(s[0]->opcode()));
+    } else {
+      EXPECT_EQ(kArm64S128Const, s[0]->arch_opcode());
+      EXPECT_EQ(param.expected_op_right, s[1]->arch_opcode());
+      EXPECT_EQ(2U, s[1]->InputCount());
+      EXPECT_EQ(1U, s[1]->OutputCount());
+      EXPECT_EQ(param.lane_size, LaneSizeField::decode(s[1]->opcode()));
+    }
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorSIMDConstZeroFcmTest,
+                         ::testing::ValuesIn(SIMDConstZeroFcmTests));
+
 }  // namespace
 }  // namespace compiler
 }  // namespace internal

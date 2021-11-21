@@ -62,7 +62,6 @@ class Decoder {
   void PrintUi5(Instruction* instr);
   void PrintUi6(Instruction* instr);
   void PrintUi12(Instruction* instr);
-  void PrintXi12(Instruction* instr);
   void PrintMsbw(Instruction* instr);
   void PrintLsbw(Instruction* instr);
   void PrintMsbd(Instruction* instr);
@@ -72,6 +71,8 @@ class Decoder {
   void PrintSi14(Instruction* instr);
   void PrintSi16(Instruction* instr);
   void PrintSi20(Instruction* instr);
+  void PrintXi12(Instruction* instr);
+  void PrintXi20(Instruction* instr);
   void PrintCj(Instruction* instr);
   void PrintCd(Instruction* instr);
   void PrintCa(Instruction* instr);
@@ -206,6 +207,11 @@ void Decoder::PrintXi12(Instruction* instr) {
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", xi);
 }
 
+void Decoder::PrintXi20(Instruction* instr) {
+  int xi = instr->Si20Value();
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", xi);
+}
+
 void Decoder::PrintMsbd(Instruction* instr) {
   int msbd = instr->MsbdValue();
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%u", msbd);
@@ -228,23 +234,27 @@ void Decoder::PrintLsbw(Instruction* instr) {
 
 void Decoder::PrintSi12(Instruction* instr) {
   int si = ((instr->Si12Value()) << (32 - kSi12Bits)) >> (32 - kSi12Bits);
-  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", si);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d(0x%x)",
+                                    si, instr->Si12Value());
 }
 
 void Decoder::PrintSi14(Instruction* instr) {
   int si = ((instr->Si14Value()) << (32 - kSi14Bits)) >> (32 - kSi14Bits);
   si <<= 2;
-  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", si);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d(0x%x)",
+                                    si, instr->Si14Value() << 2);
 }
 
 void Decoder::PrintSi16(Instruction* instr) {
   int si = ((instr->Si16Value()) << (32 - kSi16Bits)) >> (32 - kSi16Bits);
-  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", si);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d(0x%x)",
+                                    si, instr->Si16Value());
 }
 
 void Decoder::PrintSi20(Instruction* instr) {
   int si = ((instr->Si20Value()) << (32 - kSi20Bits)) >> (32 - kSi20Bits);
-  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", si);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d(0x%x)",
+                                    si, instr->Si20Value());
 }
 
 void Decoder::PrintCj(Instruction* instr) {
@@ -314,23 +324,20 @@ void Decoder::PrintPCOffs26(Instruction* instr) {
 
 void Decoder::PrintOffs16(Instruction* instr) {
   int offs = instr->Offs16Value();
-  offs <<= (32 - kOffsLowBits);
-  offs >>= (32 - kOffsLowBits);
-  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", offs);
+  out_buffer_pos_ +=
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", offs << 2);
 }
 
 void Decoder::PrintOffs21(Instruction* instr) {
   int offs = instr->Offs21Value();
-  offs <<= (32 - kOffsLowBits - kOffs21HighBits);
-  offs >>= (32 - kOffsLowBits - kOffs21HighBits);
-  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", offs);
+  out_buffer_pos_ +=
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", offs << 2);
 }
 
 void Decoder::PrintOffs26(Instruction* instr) {
   int offs = instr->Offs26Value();
-  offs <<= (32 - kOffsLowBits - kOffs26HighBits);
-  offs >>= (32 - kOffsLowBits - kOffs26HighBits);
-  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", offs);
+  out_buffer_pos_ +=
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", offs << 2);
 }
 
 // Handle all register based formatting in this function to reduce the
@@ -541,9 +548,16 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       break;
     }
     case 'x': {
-      DCHECK(STRING_STARTS_WITH(format, "xi12"));
-      PrintXi12(instr);
-      return 4;
+      if (format[2] == '2') {
+        DCHECK(STRING_STARTS_WITH(format, "xi20"));
+        PrintXi20(instr);
+        return 4;
+      } else if (format[3] == '2') {
+        DCHECK(STRING_STARTS_WITH(format, "xi12"));
+        PrintXi12(instr);
+        return 4;
+      }
+      break;
     }
     default:
       UNREACHABLE();
@@ -587,53 +601,53 @@ int Decoder::DecodeBreakInstr(Instruction* instr) {
     Format(instr, "break, code: 'code");
     return kInstrSize;
   }*/
-  Format(instr, "break    code: 'code");
+  Format(instr, "break        code: 'code");
   return kInstrSize;
 }  //===================================================
 
 void Decoder::DecodeTypekOp6(Instruction* instr) {
   switch (instr->Bits(31, 26) << 26) {
     case ADDU16I_D:
-      Format(instr, "addu16i.d     'rd, 'rj, 'si16");
+      Format(instr, "addu16i.d    'rd, 'rj, 'si16");
       break;
     case BEQZ:
-      Format(instr, "beqz     'rj, 'offs21 -> 'pcoffs21");
+      Format(instr, "beqz         'rj, 'offs21 -> 'pcoffs21");
       break;
     case BNEZ:
-      Format(instr, "bnez     'rj, 'offs21 -> 'pcoffs21");
+      Format(instr, "bnez         'rj, 'offs21 -> 'pcoffs21");
       break;
     case BCZ:
       if (instr->Bit(8))
-        Format(instr, "bcnez     fcc'cj, 'offs21 -> 'pcoffs21");
+        Format(instr, "bcnez        fcc'cj, 'offs21 -> 'pcoffs21");
       else
-        Format(instr, "bceqz     fcc'cj, 'offs21 -> 'pcoffs21");
+        Format(instr, "bceqz        fcc'cj, 'offs21 -> 'pcoffs21");
       break;
     case JIRL:
-      Format(instr, "jirl     'rd, 'rj, 'offs16");
+      Format(instr, "jirl         'rd, 'rj, 'offs16");
       break;
     case B:
-      Format(instr, "b     'offs26 -> 'pcoffs26");
+      Format(instr, "b            'offs26 -> 'pcoffs26");
       break;
     case BL:
-      Format(instr, "bl     'offs26 -> 'pcoffs26");
+      Format(instr, "bl           'offs26 -> 'pcoffs26");
       break;
     case BEQ:
-      Format(instr, "beq     'rj, 'rd, 'offs16 -> 'pcoffs16");
+      Format(instr, "beq          'rj, 'rd, 'offs16 -> 'pcoffs16");
       break;
     case BNE:
-      Format(instr, "bne     'rj, 'rd, 'offs16 -> 'pcoffs16");
+      Format(instr, "bne          'rj, 'rd, 'offs16 -> 'pcoffs16");
       break;
     case BLT:
-      Format(instr, "blt     'rj, 'rd, 'offs16 -> 'pcoffs16");
+      Format(instr, "blt          'rj, 'rd, 'offs16 -> 'pcoffs16");
       break;
     case BGE:
-      Format(instr, "bge     'rj, 'rd, 'offs16 -> 'pcoffs16");
+      Format(instr, "bge          'rj, 'rd, 'offs16 -> 'pcoffs16");
       break;
     case BLTU:
-      Format(instr, "bltu     'rj, 'rd, 'offs16 -> 'pcoffs16");
+      Format(instr, "bltu         'rj, 'rd, 'offs16 -> 'pcoffs16");
       break;
     case BGEU:
-      Format(instr, "bgeu     'rj, 'rd, 'offs16 -> 'pcoffs16");
+      Format(instr, "bgeu         'rj, 'rd, 'offs16 -> 'pcoffs16");
       break;
     default:
       UNREACHABLE();
@@ -643,22 +657,22 @@ void Decoder::DecodeTypekOp6(Instruction* instr) {
 void Decoder::DecodeTypekOp7(Instruction* instr) {
   switch (instr->Bits(31, 25) << 25) {
     case LU12I_W:
-      Format(instr, "lu12i.w     'rd, 'si20");
+      Format(instr, "lu12i.w      'rd, 'xi20");
       break;
     case LU32I_D:
-      Format(instr, "lu32i.d     'rd, 'si20");
+      Format(instr, "lu32i.d      'rd, 'xi20");
       break;
     case PCADDI:
-      Format(instr, "pcaddi     'rd, 'si20");
+      Format(instr, "pcaddi       'rd, 'xi20");
       break;
     case PCALAU12I:
-      Format(instr, "pcalau12i     'rd, 'si20");
+      Format(instr, "pcalau12i    'rd, 'xi20");
       break;
     case PCADDU12I:
-      Format(instr, "pcaddu12i     'rd, 'si20");
+      Format(instr, "pcaddu12i    'rd, 'xi20");
       break;
     case PCADDU18I:
-      Format(instr, "pcaddu18i     'rd, 'si20");
+      Format(instr, "pcaddu18i    'rd, 'xi20");
       break;
     default:
       UNREACHABLE();
@@ -668,28 +682,28 @@ void Decoder::DecodeTypekOp7(Instruction* instr) {
 void Decoder::DecodeTypekOp8(Instruction* instr) {
   switch (instr->Bits(31, 24) << 24) {
     case LDPTR_W:
-      Format(instr, "ldptr.w     'rd, 'rj, 'si14");
+      Format(instr, "ldptr.w      'rd, 'rj, 'si14");
       break;
     case STPTR_W:
-      Format(instr, "stptr.w     'rd, 'rj, 'si14");
+      Format(instr, "stptr.w      'rd, 'rj, 'si14");
       break;
     case LDPTR_D:
-      Format(instr, "ldptr.d     'rd, 'rj, 'si14");
+      Format(instr, "ldptr.d      'rd, 'rj, 'si14");
       break;
     case STPTR_D:
-      Format(instr, "stptr.d     'rd, 'rj, 'si14");
+      Format(instr, "stptr.d      'rd, 'rj, 'si14");
       break;
     case LL_W:
-      Format(instr, "ll.w     'rd, 'rj, 'si14");
+      Format(instr, "ll.w         'rd, 'rj, 'si14");
       break;
     case SC_W:
-      Format(instr, "sc.w     'rd, 'rj, 'si14");
+      Format(instr, "sc.w         'rd, 'rj, 'si14");
       break;
     case LL_D:
-      Format(instr, "ll.d     'rd, 'rj, 'si14");
+      Format(instr, "ll.d         'rd, 'rj, 'si14");
       break;
     case SC_D:
-      Format(instr, "sc.d     'rd, 'rj, 'si14");
+      Format(instr, "sc.d         'rd, 'rj, 'si14");
       break;
     default:
       UNREACHABLE();
@@ -701,87 +715,87 @@ void Decoder::DecodeTypekOp10(Instruction* instr) {
     case BSTR_W: {
       if (instr->Bit(21) != 0) {
         if (instr->Bit(15) == 0) {
-          Format(instr, "bstrins.w     'rd, 'rj, 'msbw, 'lsbw");
+          Format(instr, "bstrins.w    'rd, 'rj, 'msbw, 'lsbw");
         } else {
-          Format(instr, "bstrpick.w     'rd, 'rj, 'msbw, 'lsbw");
+          Format(instr, "bstrpick.w   'rd, 'rj, 'msbw, 'lsbw");
         }
       }
       break;
     }
     case BSTRINS_D:
-      Format(instr, "bstrins.d     'rd, 'rj, 'msbd, 'lsbd");
+      Format(instr, "bstrins.d    'rd, 'rj, 'msbd, 'lsbd");
       break;
     case BSTRPICK_D:
-      Format(instr, "bstrpick.d     'rd, 'rj, 'msbd, 'lsbd");
+      Format(instr, "bstrpick.d   'rd, 'rj, 'msbd, 'lsbd");
       break;
     case SLTI:
-      Format(instr, "slti     'rd, 'rj, 'si12");
+      Format(instr, "slti         'rd, 'rj, 'si12");
       break;
     case SLTUI:
-      Format(instr, "sltui     'rd, 'rj, 'si12");
+      Format(instr, "sltui        'rd, 'rj, 'si12");
       break;
     case ADDI_W:
-      Format(instr, "addi.w     'rd, 'rj, 'si12");
+      Format(instr, "addi.w       'rd, 'rj, 'si12");
       break;
     case ADDI_D:
-      Format(instr, "addi.d     'rd, 'rj, 'si12");
+      Format(instr, "addi.d       'rd, 'rj, 'si12");
       break;
     case LU52I_D:
-      Format(instr, "lu52i.d     'rd, 'rj, 'si12");
+      Format(instr, "lu52i.d      'rd, 'rj, 'xi12");
       break;
     case ANDI:
-      Format(instr, "andi     'rd, 'rj, 'xi12");
+      Format(instr, "andi         'rd, 'rj, 'xi12");
       break;
     case ORI:
-      Format(instr, "ori     'rd, 'rj, 'xi12");
+      Format(instr, "ori          'rd, 'rj, 'xi12");
       break;
     case XORI:
-      Format(instr, "xori     'rd, 'rj, 'xi12");
+      Format(instr, "xori         'rd, 'rj, 'xi12");
       break;
     case LD_B:
-      Format(instr, "ld.b     'rd, 'rj, 'si12");
+      Format(instr, "ld.b         'rd, 'rj, 'si12");
       break;
     case LD_H:
-      Format(instr, "ld.h     'rd, 'rj, 'si12");
+      Format(instr, "ld.h         'rd, 'rj, 'si12");
       break;
     case LD_W:
-      Format(instr, "ld.w     'rd, 'rj, 'si12");
+      Format(instr, "ld.w         'rd, 'rj, 'si12");
       break;
     case LD_D:
-      Format(instr, "ld.d     'rd, 'rj, 'si12");
+      Format(instr, "ld.d         'rd, 'rj, 'si12");
       break;
     case ST_B:
-      Format(instr, "st.b     'rd, 'rj, 'si12");
+      Format(instr, "st.b         'rd, 'rj, 'si12");
       break;
     case ST_H:
-      Format(instr, "st.h     'rd, 'rj, 'si12");
+      Format(instr, "st.h         'rd, 'rj, 'si12");
       break;
     case ST_W:
-      Format(instr, "st.w     'rd, 'rj, 'si12");
+      Format(instr, "st.w         'rd, 'rj, 'si12");
       break;
     case ST_D:
-      Format(instr, "st.d     'rd, 'rj, 'si12");
+      Format(instr, "st.d         'rd, 'rj, 'si12");
       break;
     case LD_BU:
-      Format(instr, "ld.bu     'rd, 'rj, 'si12");
+      Format(instr, "ld.bu        'rd, 'rj, 'si12");
       break;
     case LD_HU:
-      Format(instr, "ld.hu     'rd, 'rj, 'si12");
+      Format(instr, "ld.hu        'rd, 'rj, 'si12");
       break;
     case LD_WU:
-      Format(instr, "ld.wu     'rd, 'rj, 'si12");
+      Format(instr, "ld.wu        'rd, 'rj, 'si12");
       break;
     case FLD_S:
-      Format(instr, "fld.s     'fd, 'rj, 'si12");
+      Format(instr, "fld.s        'fd, 'rj, 'si12");
       break;
     case FST_S:
-      Format(instr, "fst.s     'fd, 'rj, 'si12");
+      Format(instr, "fst.s        'fd, 'rj, 'si12");
       break;
     case FLD_D:
-      Format(instr, "fld.d     'fd, 'rj, 'si12");
+      Format(instr, "fld.d        'fd, 'rj, 'si12");
       break;
     case FST_D:
-      Format(instr, "fst.d     'fd, 'rj, 'si12");
+      Format(instr, "fst.d        'fd, 'rj, 'si12");
       break;
     default:
       UNREACHABLE();
@@ -791,16 +805,16 @@ void Decoder::DecodeTypekOp10(Instruction* instr) {
 void Decoder::DecodeTypekOp12(Instruction* instr) {
   switch (instr->Bits(31, 20) << 20) {
     case FMADD_S:
-      Format(instr, "fmadd.s     'fd, 'fj, 'fk, 'fa");
+      Format(instr, "fmadd.s      'fd, 'fj, 'fk, 'fa");
       break;
     case FMADD_D:
-      Format(instr, "fmadd.d     'fd, 'fj, 'fk, 'fa");
+      Format(instr, "fmadd.d      'fd, 'fj, 'fk, 'fa");
       break;
     case FMSUB_S:
-      Format(instr, "fmsub.s     'fd, 'fj, 'fk, 'fa");
+      Format(instr, "fmsub.s      'fd, 'fj, 'fk, 'fa");
       break;
     case FMSUB_D:
-      Format(instr, "fmsub.d     'fd, 'fj, 'fk, 'fa");
+      Format(instr, "fmsub.d      'fd, 'fj, 'fk, 'fa");
       break;
     case FNMADD_S:
       Format(instr, "fnmadd.s     'fd, 'fj, 'fk, 'fa");
@@ -817,67 +831,67 @@ void Decoder::DecodeTypekOp12(Instruction* instr) {
     case FCMP_COND_S:
       switch (instr->Bits(19, 15)) {
         case CAF:
-          Format(instr, "fcmp.caf.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.caf.s   fcc'cd, 'fj, 'fk");
           break;
         case SAF:
-          Format(instr, "fcmp.saf.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.saf.s   fcc'cd, 'fj, 'fk");
           break;
         case CLT:
-          Format(instr, "fcmp.clt.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.clt.s   fcc'cd, 'fj, 'fk");
           break;
         case CEQ:
-          Format(instr, "fcmp.ceq.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.ceq.s   fcc'cd, 'fj, 'fk");
           break;
         case SEQ:
-          Format(instr, "fcmp.seq.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.seq.s   fcc'cd, 'fj, 'fk");
           break;
         case CLE:
-          Format(instr, "fcmp.cle.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cle.s   fcc'cd, 'fj, 'fk");
           break;
         case SLE:
-          Format(instr, "fcmp.sle.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sle.s   fcc'cd, 'fj, 'fk");
           break;
         case CUN:
-          Format(instr, "fcmp.cun.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cun.s   fcc'cd, 'fj, 'fk");
           break;
         case SUN:
-          Format(instr, "fcmp.sun.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sun.s   fcc'cd, 'fj, 'fk");
           break;
         case CULT:
-          Format(instr, "fcmp.cult.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cult.s  fcc'cd, 'fj, 'fk");
           break;
         case SULT:
-          Format(instr, "fcmp.sult.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sult.s  fcc'cd, 'fj, 'fk");
           break;
         case CUEQ:
-          Format(instr, "fcmp.cueq.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cueq.s  fcc'cd, 'fj, 'fk");
           break;
         case SUEQ:
-          Format(instr, "fcmp.sueq.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sueq.s  fcc'cd, 'fj, 'fk");
           break;
         case CULE:
-          Format(instr, "fcmp.cule.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cule.s  fcc'cd, 'fj, 'fk");
           break;
         case SULE:
-          Format(instr, "fcmp.sule.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sule.s  fcc'cd, 'fj, 'fk");
           break;
         case CNE:
-          Format(instr, "fcmp.cne.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cne.s   fcc'cd, 'fj, 'fk");
           break;
         case SNE:
-          Format(instr, "fcmp.sne.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sne.s   fcc'cd, 'fj, 'fk");
           break;
         case COR:
-          Format(instr, "fcmp.cor.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cor.s   fcc'cd, 'fj, 'fk");
           break;
         case SOR:
-          Format(instr, "fcmp.sor.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sor.s   fcc'cd, 'fj, 'fk");
           break;
         case CUNE:
-          Format(instr, "fcmp.cune.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cune.s  fcc'cd, 'fj, 'fk");
           break;
         case SUNE:
-          Format(instr, "fcmp.sune.s     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sune.s  fcc'cd, 'fj, 'fk");
           break;
         default:
           UNREACHABLE();
@@ -886,74 +900,74 @@ void Decoder::DecodeTypekOp12(Instruction* instr) {
     case FCMP_COND_D:
       switch (instr->Bits(19, 15)) {
         case CAF:
-          Format(instr, "fcmp.caf.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.caf.d   fcc'cd, 'fj, 'fk");
           break;
         case SAF:
-          Format(instr, "fcmp.saf.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.saf.d   fcc'cd, 'fj, 'fk");
           break;
         case CLT:
-          Format(instr, "fcmp.clt.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.clt.d   fcc'cd, 'fj, 'fk");
           break;
         case CEQ:
-          Format(instr, "fcmp.ceq.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.ceq.d   fcc'cd, 'fj, 'fk");
           break;
         case SEQ:
-          Format(instr, "fcmp.seq.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.seq.d   fcc'cd, 'fj, 'fk");
           break;
         case CLE:
-          Format(instr, "fcmp.cle.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cle.d   fcc'cd, 'fj, 'fk");
           break;
         case SLE:
-          Format(instr, "fcmp.sle.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sle.d   fcc'cd, 'fj, 'fk");
           break;
         case CUN:
-          Format(instr, "fcmp.cun.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cun.d   fcc'cd, 'fj, 'fk");
           break;
         case SUN:
-          Format(instr, "fcmp.sun.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sun.d   fcc'cd, 'fj, 'fk");
           break;
         case CULT:
-          Format(instr, "fcmp.cult.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cult.d  fcc'cd, 'fj, 'fk");
           break;
         case SULT:
-          Format(instr, "fcmp.sult.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sult.d  fcc'cd, 'fj, 'fk");
           break;
         case CUEQ:
-          Format(instr, "fcmp.cueq.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cueq.d  fcc'cd, 'fj, 'fk");
           break;
         case SUEQ:
-          Format(instr, "fcmp.sueq.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sueq.d  fcc'cd, 'fj, 'fk");
           break;
         case CULE:
-          Format(instr, "fcmp.cule.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cule.d  fcc'cd, 'fj, 'fk");
           break;
         case SULE:
-          Format(instr, "fcmp.sule.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sule.d  fcc'cd, 'fj, 'fk");
           break;
         case CNE:
-          Format(instr, "fcmp.cne.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cne.d   fcc'cd, 'fj, 'fk");
           break;
         case SNE:
-          Format(instr, "fcmp.sne.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sne.d   fcc'cd, 'fj, 'fk");
           break;
         case COR:
-          Format(instr, "fcmp.cor.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cor.d   fcc'cd, 'fj, 'fk");
           break;
         case SOR:
-          Format(instr, "fcmp.sor.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sor.d   fcc'cd, 'fj, 'fk");
           break;
         case CUNE:
-          Format(instr, "fcmp.cune.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.cune.d  fcc'cd, 'fj, 'fk");
           break;
         case SUNE:
-          Format(instr, "fcmp.sune.d     fcc'cd, 'fj, 'fk");
+          Format(instr, "fcmp.sune.d  fcc'cd, 'fj, 'fk");
           break;
         default:
           UNREACHABLE();
       }
       break;
     case FSEL:
-      Format(instr, "fsel     'fd, 'fj, 'fk, fcc'ca");
+      Format(instr, "fsel         'fd, 'fj, 'fk, fcc'ca");
       break;
     default:
       UNREACHABLE();
@@ -964,42 +978,42 @@ void Decoder::DecodeTypekOp14(Instruction* instr) {
   switch (instr->Bits(31, 18) << 18) {
     case ALSL:
       if (instr->Bit(17))
-        Format(instr, "alsl.wu     'rd, 'rj, 'rk, 'sa2");
+        Format(instr, "alsl.wu      'rd, 'rj, 'rk, 'sa2");
       else
-        Format(instr, "alsl.w     'rd, 'rj, 'rk, 'sa2");
+        Format(instr, "alsl.w       'rd, 'rj, 'rk, 'sa2");
       break;
     case BYTEPICK_W:
-      Format(instr, "bytepick.w     'rd, 'rj, 'rk, 'sa2");
+      Format(instr, "bytepick.w   'rd, 'rj, 'rk, 'sa2");
       break;
     case BYTEPICK_D:
-      Format(instr, "bytepick.d     'rd, 'rj, 'rk, 'sa3");
+      Format(instr, "bytepick.d   'rd, 'rj, 'rk, 'sa3");
       break;
     case ALSL_D:
-      Format(instr, "alsl.d     'rd, 'rj, 'rk, 'sa2");
+      Format(instr, "alsl.d       'rd, 'rj, 'rk, 'sa2");
       break;
     case SLLI:
       if (instr->Bit(16))
-        Format(instr, "slli.d     'rd, 'rj, 'ui6");
+        Format(instr, "slli.d       'rd, 'rj, 'ui6");
       else
-        Format(instr, "slli.w     'rd, 'rj, 'ui5");
+        Format(instr, "slli.w       'rd, 'rj, 'ui5");
       break;
     case SRLI:
       if (instr->Bit(16))
-        Format(instr, "srli.d     'rd, 'rj, 'ui6");
+        Format(instr, "srli.d       'rd, 'rj, 'ui6");
       else
-        Format(instr, "srli.w     'rd, 'rj, 'ui5");
+        Format(instr, "srli.w       'rd, 'rj, 'ui5");
       break;
     case SRAI:
       if (instr->Bit(16))
-        Format(instr, "srai.d     'rd, 'rj, 'ui6");
+        Format(instr, "srai.d       'rd, 'rj, 'ui6");
       else
-        Format(instr, "srai.w     'rd, 'rj, 'ui5");
+        Format(instr, "srai.w       'rd, 'rj, 'ui5");
       break;
     case ROTRI:
       if (instr->Bit(16))
-        Format(instr, "rotri.d     'rd, 'rj, 'ui6");
+        Format(instr, "rotri.d      'rd, 'rj, 'ui6");
       else
-        Format(instr, "rotri.w     'rd, 'rj, 'ui5");
+        Format(instr, "rotri.w      'rd, 'rj, 'ui5");
       break;
     default:
       UNREACHABLE();
@@ -1009,213 +1023,213 @@ void Decoder::DecodeTypekOp14(Instruction* instr) {
 int Decoder::DecodeTypekOp17(Instruction* instr) {
   switch (instr->Bits(31, 15) << 15) {
     case ADD_W:
-      Format(instr, "add.w     'rd, 'rj, 'rk");
+      Format(instr, "add.w        'rd, 'rj, 'rk");
       break;
     case ADD_D:
-      Format(instr, "add.d     'rd, 'rj, 'rk");
+      Format(instr, "add.d        'rd, 'rj, 'rk");
       break;
     case SUB_W:
-      Format(instr, "sub.w     'rd, 'rj, 'rk");
+      Format(instr, "sub.w        'rd, 'rj, 'rk");
       break;
     case SUB_D:
-      Format(instr, "sub.d     'rd, 'rj, 'rk");
+      Format(instr, "sub.d        'rd, 'rj, 'rk");
       break;
     case SLT:
-      Format(instr, "slt     'rd, 'rj, 'rk");
+      Format(instr, "slt          'rd, 'rj, 'rk");
       break;
     case SLTU:
-      Format(instr, "sltu     'rd, 'rj, 'rk");
+      Format(instr, "sltu         'rd, 'rj, 'rk");
       break;
     case MASKEQZ:
-      Format(instr, "maskeqz     'rd, 'rj, 'rk");
+      Format(instr, "maskeqz      'rd, 'rj, 'rk");
       break;
     case MASKNEZ:
-      Format(instr, "masknez     'rd, 'rj, 'rk");
+      Format(instr, "masknez      'rd, 'rj, 'rk");
       break;
     case NOR:
-      Format(instr, "nor     'rd, 'rj, 'rk");
+      Format(instr, "nor          'rd, 'rj, 'rk");
       break;
     case AND:
-      Format(instr, "and     'rd, 'rj, 'rk");
+      Format(instr, "and          'rd, 'rj, 'rk");
       break;
     case OR:
-      Format(instr, "or     'rd, 'rj, 'rk");
+      Format(instr, "or           'rd, 'rj, 'rk");
       break;
     case XOR:
-      Format(instr, "xor     'rd, 'rj, 'rk");
+      Format(instr, "xor          'rd, 'rj, 'rk");
       break;
     case ORN:
-      Format(instr, "orn     'rd, 'rj, 'rk");
+      Format(instr, "orn          'rd, 'rj, 'rk");
       break;
     case ANDN:
-      Format(instr, "andn     'rd, 'rj, 'rk");
+      Format(instr, "andn         'rd, 'rj, 'rk");
       break;
     case SLL_W:
-      Format(instr, "sll.w     'rd, 'rj, 'rk");
+      Format(instr, "sll.w        'rd, 'rj, 'rk");
       break;
     case SRL_W:
-      Format(instr, "srl.w     'rd, 'rj, 'rk");
+      Format(instr, "srl.w        'rd, 'rj, 'rk");
       break;
     case SRA_W:
-      Format(instr, "sra.w     'rd, 'rj, 'rk");
+      Format(instr, "sra.w        'rd, 'rj, 'rk");
       break;
     case SLL_D:
-      Format(instr, "sll.d     'rd, 'rj, 'rk");
+      Format(instr, "sll.d        'rd, 'rj, 'rk");
       break;
     case SRL_D:
-      Format(instr, "srl.d     'rd, 'rj, 'rk");
+      Format(instr, "srl.d        'rd, 'rj, 'rk");
       break;
     case SRA_D:
-      Format(instr, "sra.d     'rd, 'rj, 'rk");
+      Format(instr, "sra.d        'rd, 'rj, 'rk");
       break;
     case ROTR_D:
-      Format(instr, "rotr.d     'rd, 'rj, 'rk");
+      Format(instr, "rotr.d       'rd, 'rj, 'rk");
       break;
     case ROTR_W:
-      Format(instr, "rotr.w     'rd, 'rj, 'rk");
+      Format(instr, "rotr.w       'rd, 'rj, 'rk");
       break;
     case MUL_W:
-      Format(instr, "mul.w     'rd, 'rj, 'rk");
+      Format(instr, "mul.w        'rd, 'rj, 'rk");
       break;
     case MULH_W:
-      Format(instr, "mulh.w     'rd, 'rj, 'rk");
+      Format(instr, "mulh.w       'rd, 'rj, 'rk");
       break;
     case MULH_WU:
-      Format(instr, "mulh.wu     'rd, 'rj, 'rk");
+      Format(instr, "mulh.wu      'rd, 'rj, 'rk");
       break;
     case MUL_D:
-      Format(instr, "mul.d     'rd, 'rj, 'rk");
+      Format(instr, "mul.d        'rd, 'rj, 'rk");
       break;
     case MULH_D:
-      Format(instr, "mulh.d     'rd, 'rj, 'rk");
+      Format(instr, "mulh.d       'rd, 'rj, 'rk");
       break;
     case MULH_DU:
-      Format(instr, "mulh.du     'rd, 'rj, 'rk");
+      Format(instr, "mulh.du      'rd, 'rj, 'rk");
       break;
     case MULW_D_W:
       Format(instr, "mulw.d.w     'rd, 'rj, 'rk");
       break;
     case MULW_D_WU:
-      Format(instr, "mulw.d.wu     'rd, 'rj, 'rk");
+      Format(instr, "mulw.d.wu    'rd, 'rj, 'rk");
       break;
     case DIV_W:
-      Format(instr, "div.w     'rd, 'rj, 'rk");
+      Format(instr, "div.w        'rd, 'rj, 'rk");
       break;
     case MOD_W:
-      Format(instr, "mod.w     'rd, 'rj, 'rk");
+      Format(instr, "mod.w        'rd, 'rj, 'rk");
       break;
     case DIV_WU:
-      Format(instr, "div.wu     'rd, 'rj, 'rk");
+      Format(instr, "div.wu       'rd, 'rj, 'rk");
       break;
     case MOD_WU:
-      Format(instr, "mod.wu     'rd, 'rj, 'rk");
+      Format(instr, "mod.wu       'rd, 'rj, 'rk");
       break;
     case DIV_D:
-      Format(instr, "div.d     'rd, 'rj, 'rk");
+      Format(instr, "div.d        'rd, 'rj, 'rk");
       break;
     case MOD_D:
-      Format(instr, "mod.d     'rd, 'rj, 'rk");
+      Format(instr, "mod.d        'rd, 'rj, 'rk");
       break;
     case DIV_DU:
-      Format(instr, "div.du     'rd, 'rj, 'rk");
+      Format(instr, "div.du       'rd, 'rj, 'rk");
       break;
     case MOD_DU:
-      Format(instr, "mod.du     'rd, 'rj, 'rk");
+      Format(instr, "mod.du       'rd, 'rj, 'rk");
       break;
     case BREAK:
       return DecodeBreakInstr(instr);
     case FADD_S:
-      Format(instr, "fadd.s     'fd, 'fj, 'fk");
+      Format(instr, "fadd.s       'fd, 'fj, 'fk");
       break;
     case FADD_D:
-      Format(instr, "fadd.d     'fd, 'fj, 'fk");
+      Format(instr, "fadd.d       'fd, 'fj, 'fk");
       break;
     case FSUB_S:
-      Format(instr, "fsub.s     'fd, 'fj, 'fk");
+      Format(instr, "fsub.s       'fd, 'fj, 'fk");
       break;
     case FSUB_D:
-      Format(instr, "fsub.d     'fd, 'fj, 'fk");
+      Format(instr, "fsub.d       'fd, 'fj, 'fk");
       break;
     case FMUL_S:
-      Format(instr, "fmul.s     'fd, 'fj, 'fk");
+      Format(instr, "fmul.s       'fd, 'fj, 'fk");
       break;
     case FMUL_D:
-      Format(instr, "fmul.d     'fd, 'fj, 'fk");
+      Format(instr, "fmul.d       'fd, 'fj, 'fk");
       break;
     case FDIV_S:
-      Format(instr, "fdiv.s     'fd, 'fj, 'fk");
+      Format(instr, "fdiv.s       'fd, 'fj, 'fk");
       break;
     case FDIV_D:
-      Format(instr, "fdiv.d     'fd, 'fj, 'fk");
+      Format(instr, "fdiv.d       'fd, 'fj, 'fk");
       break;
     case FMAX_S:
-      Format(instr, "fmax.s     'fd, 'fj, 'fk");
+      Format(instr, "fmax.s       'fd, 'fj, 'fk");
       break;
     case FMAX_D:
-      Format(instr, "fmax.d     'fd, 'fj, 'fk");
+      Format(instr, "fmax.d       'fd, 'fj, 'fk");
       break;
     case FMIN_S:
-      Format(instr, "fmin.s     'fd, 'fj, 'fk");
+      Format(instr, "fmin.s       'fd, 'fj, 'fk");
       break;
     case FMIN_D:
-      Format(instr, "fmin.d     'fd, 'fj, 'fk");
+      Format(instr, "fmin.d       'fd, 'fj, 'fk");
       break;
     case FMAXA_S:
-      Format(instr, "fmaxa.s     'fd, 'fj, 'fk");
+      Format(instr, "fmaxa.s      'fd, 'fj, 'fk");
       break;
     case FMAXA_D:
-      Format(instr, "fmaxa.d     'fd, 'fj, 'fk");
+      Format(instr, "fmaxa.d      'fd, 'fj, 'fk");
       break;
     case FMINA_S:
-      Format(instr, "fmina.s     'fd, 'fj, 'fk");
+      Format(instr, "fmina.s      'fd, 'fj, 'fk");
       break;
     case FMINA_D:
-      Format(instr, "fmina.d     'fd, 'fj, 'fk");
+      Format(instr, "fmina.d      'fd, 'fj, 'fk");
       break;
     case LDX_B:
-      Format(instr, "ldx.b     'rd, 'rj, 'rk");
+      Format(instr, "ldx.b        'rd, 'rj, 'rk");
       break;
     case LDX_H:
-      Format(instr, "ldx.h     'rd, 'rj, 'rk");
+      Format(instr, "ldx.h        'rd, 'rj, 'rk");
       break;
     case LDX_W:
-      Format(instr, "ldx.w     'rd, 'rj, 'rk");
+      Format(instr, "ldx.w        'rd, 'rj, 'rk");
       break;
     case LDX_D:
-      Format(instr, "ldx.d     'rd, 'rj, 'rk");
+      Format(instr, "ldx.d        'rd, 'rj, 'rk");
       break;
     case STX_B:
-      Format(instr, "stx.b     'rd, 'rj, 'rk");
+      Format(instr, "stx.b        'rd, 'rj, 'rk");
       break;
     case STX_H:
-      Format(instr, "stx.h     'rd, 'rj, 'rk");
+      Format(instr, "stx.h        'rd, 'rj, 'rk");
       break;
     case STX_W:
-      Format(instr, "stx.w     'rd, 'rj, 'rk");
+      Format(instr, "stx.w        'rd, 'rj, 'rk");
       break;
     case STX_D:
-      Format(instr, "stx.d     'rd, 'rj, 'rk");
+      Format(instr, "stx.d        'rd, 'rj, 'rk");
       break;
     case LDX_BU:
-      Format(instr, "ldx.bu     'rd, 'rj, 'rk");
+      Format(instr, "ldx.bu       'rd, 'rj, 'rk");
       break;
     case LDX_HU:
-      Format(instr, "ldx.hu     'rd, 'rj, 'rk");
+      Format(instr, "ldx.hu       'rd, 'rj, 'rk");
       break;
     case LDX_WU:
-      Format(instr, "ldx.wu     'rd, 'rj, 'rk");
+      Format(instr, "ldx.wu       'rd, 'rj, 'rk");
       break;
     case FLDX_S:
-      Format(instr, "fldx.s     'fd, 'rj, 'rk");
+      Format(instr, "fldx.s       'fd, 'rj, 'rk");
       break;
     case FLDX_D:
-      Format(instr, "fldx.d     'fd, 'rj, 'rk");
+      Format(instr, "fldx.d       'fd, 'rj, 'rk");
       break;
     case FSTX_S:
-      Format(instr, "fstx.s     'fd, 'rj, 'rk");
+      Format(instr, "fstx.s       'fd, 'rj, 'rk");
       break;
     case FSTX_D:
-      Format(instr, "fstx.d     'fd, 'rj, 'rk");
+      Format(instr, "fstx.d       'fd, 'rj, 'rk");
       break;
     case AMSWAP_W:
       Format(instr, "amswap.w     'rd, 'rk, 'rj");
@@ -1224,40 +1238,40 @@ int Decoder::DecodeTypekOp17(Instruction* instr) {
       Format(instr, "amswap.d     'rd, 'rk, 'rj");
       break;
     case AMADD_W:
-      Format(instr, "amadd.w     'rd, 'rk, 'rj");
+      Format(instr, "amadd.w      'rd, 'rk, 'rj");
       break;
     case AMADD_D:
-      Format(instr, "amadd.d     'rd, 'rk, 'rj");
+      Format(instr, "amadd.d      'rd, 'rk, 'rj");
       break;
     case AMAND_W:
-      Format(instr, "amand.w     'rd, 'rk, 'rj");
+      Format(instr, "amand.w      'rd, 'rk, 'rj");
       break;
     case AMAND_D:
-      Format(instr, "amand.d     'rd, 'rk, 'rj");
+      Format(instr, "amand.d      'rd, 'rk, 'rj");
       break;
     case AMOR_W:
-      Format(instr, "amor.w     'rd, 'rk, 'rj");
+      Format(instr, "amor.w       'rd, 'rk, 'rj");
       break;
     case AMOR_D:
-      Format(instr, "amor.d     'rd, 'rk, 'rj");
+      Format(instr, "amor.d       'rd, 'rk, 'rj");
       break;
     case AMXOR_W:
-      Format(instr, "amxor.w     'rd, 'rk, 'rj");
+      Format(instr, "amxor.w      'rd, 'rk, 'rj");
       break;
     case AMXOR_D:
-      Format(instr, "amxor.d     'rd, 'rk, 'rj");
+      Format(instr, "amxor.d      'rd, 'rk, 'rj");
       break;
     case AMMAX_W:
-      Format(instr, "ammax.w     'rd, 'rk, 'rj");
+      Format(instr, "ammax.w      'rd, 'rk, 'rj");
       break;
     case AMMAX_D:
-      Format(instr, "ammax.d     'rd, 'rk, 'rj");
+      Format(instr, "ammax.d      'rd, 'rk, 'rj");
       break;
     case AMMIN_W:
-      Format(instr, "ammin.w     'rd, 'rk, 'rj");
+      Format(instr, "ammin.w      'rd, 'rk, 'rj");
       break;
     case AMMIN_D:
-      Format(instr, "ammin.d     'rd, 'rk, 'rj");
+      Format(instr, "ammin.d      'rd, 'rk, 'rj");
       break;
     case AMMAX_WU:
       Format(instr, "ammax.wu     'rd, 'rk, 'rj");
@@ -1272,76 +1286,76 @@ int Decoder::DecodeTypekOp17(Instruction* instr) {
       Format(instr, "ammin.du     'rd, 'rk, 'rj");
       break;
     case AMSWAP_DB_W:
-      Format(instr, "amswap_db.w     'rd, 'rk, 'rj");
+      Format(instr, "amswap_db.w  'rd, 'rk, 'rj");
       break;
     case AMSWAP_DB_D:
-      Format(instr, "amswap_db.d     'rd, 'rk, 'rj");
+      Format(instr, "amswap_db.d  'rd, 'rk, 'rj");
       break;
     case AMADD_DB_W:
-      Format(instr, "amadd_db.w     'rd, 'rk, 'rj");
+      Format(instr, "amadd_db.w   'rd, 'rk, 'rj");
       break;
     case AMADD_DB_D:
-      Format(instr, "amadd_db.d     'rd, 'rk, 'rj");
+      Format(instr, "amadd_db.d   'rd, 'rk, 'rj");
       break;
     case AMAND_DB_W:
-      Format(instr, "amand_db.w     'rd, 'rk, 'rj");
+      Format(instr, "amand_db.w   'rd, 'rk, 'rj");
       break;
     case AMAND_DB_D:
-      Format(instr, "amand_db.d     'rd, 'rk, 'rj");
+      Format(instr, "amand_db.d   'rd, 'rk, 'rj");
       break;
     case AMOR_DB_W:
-      Format(instr, "amor_db.w     'rd, 'rk, 'rj");
+      Format(instr, "amor_db.w    'rd, 'rk, 'rj");
       break;
     case AMOR_DB_D:
-      Format(instr, "amor_db.d     'rd, 'rk, 'rj");
+      Format(instr, "amor_db.d    'rd, 'rk, 'rj");
       break;
     case AMXOR_DB_W:
-      Format(instr, "amxor_db.w     'rd, 'rk, 'rj");
+      Format(instr, "amxor_db.w   'rd, 'rk, 'rj");
       break;
     case AMXOR_DB_D:
-      Format(instr, "amxor_db.d     'rd, 'rk, 'rj");
+      Format(instr, "amxor_db.d   'rd, 'rk, 'rj");
       break;
     case AMMAX_DB_W:
-      Format(instr, "ammax_db.w     'rd, 'rk, 'rj");
+      Format(instr, "ammax_db.w   'rd, 'rk, 'rj");
       break;
     case AMMAX_DB_D:
-      Format(instr, "ammax_db.d     'rd, 'rk, 'rj");
+      Format(instr, "ammax_db.d   'rd, 'rk, 'rj");
       break;
     case AMMIN_DB_W:
-      Format(instr, "ammin_db.w     'rd, 'rk, 'rj");
+      Format(instr, "ammin_db.w   'rd, 'rk, 'rj");
       break;
     case AMMIN_DB_D:
-      Format(instr, "ammin_db.d     'rd, 'rk, 'rj");
+      Format(instr, "ammin_db.d   'rd, 'rk, 'rj");
       break;
     case AMMAX_DB_WU:
-      Format(instr, "ammax_db.wu     'rd, 'rk, 'rj");
+      Format(instr, "ammax_db.wu  'rd, 'rk, 'rj");
       break;
     case AMMAX_DB_DU:
-      Format(instr, "ammax_db.du     'rd, 'rk, 'rj");
+      Format(instr, "ammax_db.du  'rd, 'rk, 'rj");
       break;
     case AMMIN_DB_WU:
-      Format(instr, "ammin_db.wu     'rd, 'rk, 'rj");
+      Format(instr, "ammin_db.wu  'rd, 'rk, 'rj");
       break;
     case AMMIN_DB_DU:
-      Format(instr, "ammin_db.du     'rd, 'rk, 'rj");
+      Format(instr, "ammin_db.du  'rd, 'rk, 'rj");
       break;
     case DBAR:
-      Format(instr, "dbar     'hint15");
+      Format(instr, "dbar         'hint15");
       break;
     case IBAR:
-      Format(instr, "ibar     'hint15");
+      Format(instr, "ibar         'hint15");
       break;
     case FSCALEB_S:
-      Format(instr, "fscaleb.s     'fd, 'fj, 'fk");
+      Format(instr, "fscaleb.s    'fd, 'fj, 'fk");
       break;
     case FSCALEB_D:
-      Format(instr, "fscaleb.d     'fd, 'fj, 'fk");
+      Format(instr, "fscaleb.d    'fd, 'fj, 'fk");
       break;
     case FCOPYSIGN_S:
-      Format(instr, "fcopysign.s     'fd, 'fj, 'fk");
+      Format(instr, "fcopysign.s  'fd, 'fj, 'fk");
       break;
     case FCOPYSIGN_D:
-      Format(instr, "fcopysign.d     'fd, 'fj, 'fk");
+      Format(instr, "fcopysign.d  'fd, 'fj, 'fk");
       break;
     default:
       UNREACHABLE();
@@ -1352,40 +1366,40 @@ int Decoder::DecodeTypekOp17(Instruction* instr) {
 void Decoder::DecodeTypekOp22(Instruction* instr) {
   switch (instr->Bits(31, 10) << 10) {
     case CLZ_W:
-      Format(instr, "clz.w     'rd, 'rj");
+      Format(instr, "clz.w        'rd, 'rj");
       break;
     case CTZ_W:
-      Format(instr, "ctz.w     'rd, 'rj");
+      Format(instr, "ctz.w        'rd, 'rj");
       break;
     case CLZ_D:
-      Format(instr, "clz.d     'rd, 'rj");
+      Format(instr, "clz.d        'rd, 'rj");
       break;
     case CTZ_D:
-      Format(instr, "ctz.d     'rd, 'rj");
+      Format(instr, "ctz.d        'rd, 'rj");
       break;
     case REVB_2H:
-      Format(instr, "revb.2h     'rd, 'rj");
+      Format(instr, "revb.2h      'rd, 'rj");
       break;
     case REVB_4H:
-      Format(instr, "revb.4h     'rd, 'rj");
+      Format(instr, "revb.4h      'rd, 'rj");
       break;
     case REVB_2W:
-      Format(instr, "revb.2w     'rd, 'rj");
+      Format(instr, "revb.2w      'rd, 'rj");
       break;
     case REVB_D:
-      Format(instr, "revb.d     'rd, 'rj");
+      Format(instr, "revb.d       'rd, 'rj");
       break;
     case REVH_2W:
-      Format(instr, "revh.2w     'rd, 'rj");
+      Format(instr, "revh.2w      'rd, 'rj");
       break;
     case REVH_D:
-      Format(instr, "revh.d     'rd, 'rj");
+      Format(instr, "revh.d       'rd, 'rj");
       break;
     case BITREV_4B:
-      Format(instr, "bitrev.4b     'rd, 'rj");
+      Format(instr, "bitrev.4b    'rd, 'rj");
       break;
     case BITREV_8B:
-      Format(instr, "bitrev.8b     'rd, 'rj");
+      Format(instr, "bitrev.8b    'rd, 'rj");
       break;
     case BITREV_W:
       Format(instr, "bitrev.w     'rd, 'rj");
@@ -1394,58 +1408,58 @@ void Decoder::DecodeTypekOp22(Instruction* instr) {
       Format(instr, "bitrev.d     'rd, 'rj");
       break;
     case EXT_W_B:
-      Format(instr, "ext.w.b     'rd, 'rj");
+      Format(instr, "ext.w.b      'rd, 'rj");
       break;
     case EXT_W_H:
-      Format(instr, "ext.w.h     'rd, 'rj");
+      Format(instr, "ext.w.h      'rd, 'rj");
       break;
     case FABS_S:
-      Format(instr, "fabs.s     'fd, 'fj");
+      Format(instr, "fabs.s       'fd, 'fj");
       break;
     case FABS_D:
-      Format(instr, "fabs.d     'fd, 'fj");
+      Format(instr, "fabs.d       'fd, 'fj");
       break;
     case FNEG_S:
-      Format(instr, "fneg.s     'fd, 'fj");
+      Format(instr, "fneg.s       'fd, 'fj");
       break;
     case FNEG_D:
-      Format(instr, "fneg.d     'fd, 'fj");
+      Format(instr, "fneg.d       'fd, 'fj");
       break;
     case FSQRT_S:
-      Format(instr, "fsqrt.s     'fd, 'fj");
+      Format(instr, "fsqrt.s      'fd, 'fj");
       break;
     case FSQRT_D:
-      Format(instr, "fsqrt.d     'fd, 'fj");
+      Format(instr, "fsqrt.d      'fd, 'fj");
       break;
     case FMOV_S:
-      Format(instr, "fmov.s     'fd, 'fj");
+      Format(instr, "fmov.s       'fd, 'fj");
       break;
     case FMOV_D:
-      Format(instr, "fmov.d     'fd, 'fj");
+      Format(instr, "fmov.d       'fd, 'fj");
       break;
     case MOVGR2FR_W:
-      Format(instr, "movgr2fr.w     'fd, 'rj");
+      Format(instr, "movgr2fr.w   'fd, 'rj");
       break;
     case MOVGR2FR_D:
-      Format(instr, "movgr2fr.d     'fd, 'rj");
+      Format(instr, "movgr2fr.d   'fd, 'rj");
       break;
     case MOVGR2FRH_W:
-      Format(instr, "movgr2frh.w     'fd, 'rj");
+      Format(instr, "movgr2frh.w  'fd, 'rj");
       break;
     case MOVFR2GR_S:
-      Format(instr, "movfr2gr.s     'rd, 'fj");
+      Format(instr, "movfr2gr.s   'rd, 'fj");
       break;
     case MOVFR2GR_D:
-      Format(instr, "movfr2gr.d     'rd, 'fj");
+      Format(instr, "movfr2gr.d   'rd, 'fj");
       break;
     case MOVFRH2GR_S:
-      Format(instr, "movfrh2gr.s     'rd, 'fj");
+      Format(instr, "movfrh2gr.s  'rd, 'fj");
       break;
     case MOVGR2FCSR:
-      Format(instr, "movgr2fcsr     fcsr, 'rj");
+      Format(instr, "movgr2fcsr   fcsr, 'rj");
       break;
     case MOVFCSR2GR:
-      Format(instr, "movfcsr2gr     'rd, fcsr");
+      Format(instr, "movfcsr2gr   'rd, fcsr");
       break;
     case FCVT_S_D:
       Format(instr, "fcvt.s.d     'fd, 'fj");
@@ -1454,82 +1468,82 @@ void Decoder::DecodeTypekOp22(Instruction* instr) {
       Format(instr, "fcvt.d.s     'fd, 'fj");
       break;
     case FTINTRM_W_S:
-      Format(instr, "ftintrm.w.s     'fd, 'fj");
+      Format(instr, "ftintrm.w.s  'fd, 'fj");
       break;
     case FTINTRM_W_D:
-      Format(instr, "ftintrm.w.d     'fd, 'fj");
+      Format(instr, "ftintrm.w.d  'fd, 'fj");
       break;
     case FTINTRM_L_S:
-      Format(instr, "ftintrm.l.s     'fd, 'fj");
+      Format(instr, "ftintrm.l.s  'fd, 'fj");
       break;
     case FTINTRM_L_D:
-      Format(instr, "ftintrm.l.d     'fd, 'fj");
+      Format(instr, "ftintrm.l.d  'fd, 'fj");
       break;
     case FTINTRP_W_S:
-      Format(instr, "ftintrp.w.s     'fd, 'fj");
+      Format(instr, "ftintrp.w.s  'fd, 'fj");
       break;
     case FTINTRP_W_D:
-      Format(instr, "ftintrp.w.d     'fd, 'fj");
+      Format(instr, "ftintrp.w.d  'fd, 'fj");
       break;
     case FTINTRP_L_S:
-      Format(instr, "ftintrp.l.s     'fd, 'fj");
+      Format(instr, "ftintrp.l.s  'fd, 'fj");
       break;
     case FTINTRP_L_D:
-      Format(instr, "ftintrp.l.d     'fd, 'fj");
+      Format(instr, "ftintrp.l.d  'fd, 'fj");
       break;
     case FTINTRZ_W_S:
-      Format(instr, "ftintrz.w.s     'fd, 'fj");
+      Format(instr, "ftintrz.w.s  'fd, 'fj");
       break;
     case FTINTRZ_W_D:
-      Format(instr, "ftintrz.w.d     'fd, 'fj");
+      Format(instr, "ftintrz.w.d  'fd, 'fj");
       break;
     case FTINTRZ_L_S:
-      Format(instr, "ftintrz.l.s     'fd, 'fj");
+      Format(instr, "ftintrz.l.s  'fd, 'fj");
       break;
     case FTINTRZ_L_D:
-      Format(instr, "ftintrz.l.d     'fd, 'fj");
+      Format(instr, "ftintrz.l.d  'fd, 'fj");
       break;
     case FTINTRNE_W_S:
-      Format(instr, "ftintrne.w.s     'fd, 'fj");
+      Format(instr, "ftintrne.w.s 'fd, 'fj");
       break;
     case FTINTRNE_W_D:
-      Format(instr, "ftintrne.w.d     'fd, 'fj");
+      Format(instr, "ftintrne.w.d 'fd, 'fj");
       break;
     case FTINTRNE_L_S:
-      Format(instr, "ftintrne.l.s     'fd, 'fj");
+      Format(instr, "ftintrne.l.s 'fd, 'fj");
       break;
     case FTINTRNE_L_D:
-      Format(instr, "ftintrne.l.d     'fd, 'fj");
+      Format(instr, "ftintrne.l.d 'fd, 'fj");
       break;
     case FTINT_W_S:
-      Format(instr, "ftint.w.s     'fd, 'fj");
+      Format(instr, "ftint.w.s    'fd, 'fj");
       break;
     case FTINT_W_D:
-      Format(instr, "ftint.w.d     'fd, 'fj");
+      Format(instr, "ftint.w.d    'fd, 'fj");
       break;
     case FTINT_L_S:
-      Format(instr, "ftint.l.s     'fd, 'fj");
+      Format(instr, "ftint.l.s    'fd, 'fj");
       break;
     case FTINT_L_D:
-      Format(instr, "ftint.l.d     'fd, 'fj");
+      Format(instr, "ftint.l.d    'fd, 'fj");
       break;
     case FFINT_S_W:
-      Format(instr, "ffint.s.w     'fd, 'fj");
+      Format(instr, "ffint.s.w    'fd, 'fj");
       break;
     case FFINT_S_L:
-      Format(instr, "ffint.s.l     'fd, 'fj");
+      Format(instr, "ffint.s.l    'fd, 'fj");
       break;
     case FFINT_D_W:
-      Format(instr, "ffint.d.w     'fd, 'fj");
+      Format(instr, "ffint.d.w    'fd, 'fj");
       break;
     case FFINT_D_L:
-      Format(instr, "ffint.d.l     'fd, 'fj");
+      Format(instr, "ffint.d.l    'fd, 'fj");
       break;
     case FRINT_S:
-      Format(instr, "frint.s     'fd, 'fj");
+      Format(instr, "frint.s      'fd, 'fj");
       break;
     case FRINT_D:
-      Format(instr, "frint.d     'fd, 'fj");
+      Format(instr, "frint.d      'fd, 'fj");
       break;
     case MOVFR2CF:
       Format(instr, "movfr2cf     fcc'cd, 'fj");
@@ -1562,22 +1576,22 @@ void Decoder::DecodeTypekOp22(Instruction* instr) {
       Format(instr, "fclass.d     'fd, 'fj");
       break;
     case FLOGB_S:
-      Format(instr, "flogb.s     'fd, 'fj");
+      Format(instr, "flogb.s      'fd, 'fj");
       break;
     case FLOGB_D:
-      Format(instr, "flogb.d     'fd, 'fj");
+      Format(instr, "flogb.d      'fd, 'fj");
       break;
     case CLO_W:
-      Format(instr, "clo.w     'rd, 'rj");
+      Format(instr, "clo.w        'rd, 'rj");
       break;
     case CTO_W:
-      Format(instr, "cto.w     'rd, 'rj");
+      Format(instr, "cto.w        'rd, 'rj");
       break;
     case CLO_D:
-      Format(instr, "clo.d     'rd, 'rj");
+      Format(instr, "clo.d        'rd, 'rj");
       break;
     case CTO_D:
-      Format(instr, "cto.d     'rd, 'rj");
+      Format(instr, "cto.d        'rd, 'rj");
       break;
     default:
       UNREACHABLE();

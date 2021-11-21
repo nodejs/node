@@ -65,7 +65,7 @@ void RunInStore(Store* store, ZoneBuffer* wire_bytes, int iterations) {
 
 TEST_F(WasmCapiTest, InstanceFinalization) {
   // Add a dummy function: f(x) { return x; }
-  byte code[] = {WASM_RETURN1(WASM_LOCAL_GET(0))};
+  byte code[] = {WASM_RETURN(WASM_LOCAL_GET(0))};
   AddExportedFunction(base::CStrVector("f"), code, sizeof(code),
                       wasm_i_i_sig());
   Compile();

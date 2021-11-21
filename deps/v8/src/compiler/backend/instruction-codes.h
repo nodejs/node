@@ -92,7 +92,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchBinarySearchSwitch)                                                \
   V(ArchTableSwitch)                                                       \
   V(ArchNop)                                                               \
-  V(ArchAbortCSAAssert)                                                    \
+  V(ArchAbortCSADcheck)                                                    \
   V(ArchDebugBreak)                                                        \
   V(ArchComment)                                                           \
   V(ArchThrowTerminator)                                                   \
@@ -296,23 +296,58 @@ static_assert(
     "All addressing modes must fit in the 5-bit AddressingModeField.");
 using FlagsModeField = base::BitField<FlagsMode, 14, 3>;
 using FlagsConditionField = base::BitField<FlagsCondition, 17, 5>;
-using DeoptImmedArgsCountField = base::BitField<int, 22, 2>;
-using DeoptFrameStateOffsetField = base::BitField<int, 24, 8>;
+using MiscField = base::BitField<int, 22, 10>;
+
+// {MiscField} is used for a variety of things, depending on the opcode.
+// TODO(turbofan): There should be an abstraction that ensures safe encoding and
+// decoding. {HasMemoryAccessMode} and its uses are a small step in that
+// direction.
+
 // LaneSizeField and AccessModeField are helper types to encode/decode a lane
 // size, an access mode, or both inside the overlapping MiscField.
 using LaneSizeField = base::BitField<int, 22, 8>;
 using AccessModeField = base::BitField<MemoryAccessMode, 30, 2>;
+// TODO(turbofan): {HasMemoryAccessMode} is currently only used to guard
+// decoding (in CodeGenerator and InstructionScheduler). Encoding (in
+// InstructionSelector) is not yet guarded. There are in fact instructions for
+// which InstructionSelector does set a MemoryAccessMode but CodeGenerator
+// doesn't care to consume it (e.g. kArm64LdrDecompressTaggedSigned). This is
+// scary. {HasMemoryAccessMode} does not include these instructions, so they can
+// be easily found by guarding encoding.
+inline bool HasMemoryAccessMode(ArchOpcode opcode) {
+  switch (opcode) {
+#define CASE(Name) \
+  case k##Name:    \
+    return true;
+    TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(CASE)
+#undef CASE
+    default:
+      return false;
+  }
+}
+
+using DeoptImmedArgsCountField = base::BitField<int, 22, 2>;
+using DeoptFrameStateOffsetField = base::BitField<int, 24, 8>;
+
 // AtomicWidthField overlaps with MiscField and is used for the various Atomic
 // opcodes. Only used on 64bit architectures. All atomic instructions on 32bit
 // architectures are assumed to be 32bit wide.
 using AtomicWidthField = base::BitField<AtomicWidth, 22, 2>;
+
 // AtomicMemoryOrderField overlaps with MiscField and is used for the various
 // Atomic opcodes. This field is not used on all architectures. It is used on
 // architectures where the codegen for kSeqCst and kAcqRel differ only by
 // emitting fences.
 using AtomicMemoryOrderField = base::BitField<AtomicMemoryOrder, 24, 2>;
 using AtomicStoreRecordWriteModeField = base::BitField<RecordWriteMode, 26, 4>;
-using MiscField = base::BitField<int, 22, 10>;
+
+// ParamField and FPParamField overlap with MiscField, as the latter is never
+// used for Call instructions. These 2 fields represent the general purpose
+// and floating point parameter counts of a direct call into C and are given 5
+// bits each, which allow storing a number up to the current maximum parameter
+// count, which is 20 (see kMaxCParameters defined in macro-assembler.h).
+using ParamField = base::BitField<int, 22, 5>;
+using FPParamField = base::BitField<int, 27, 5>;
 
 // This static assertion serves as an early warning if we are about to exhaust
 // the available opcode space. If we are about to exhaust it, we should start

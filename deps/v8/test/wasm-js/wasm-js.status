@@ -5,15 +5,30 @@
 [
 
 [ALWAYS, {
+  # This test can only be executed in the browser
+  'wpt/idlharness': [SKIP],
+  # Failing WPT tests
+  'wpt/exception/toString.tentative': [FAIL],
+  'wpt/exception/type.tentative': [FAIL],
+  'wpt/function/constructor.tentative': [FAIL],
+  'wpt/function/table.tentative': [FAIL],
+  'wpt/function/type.tentative': [FAIL],
+
+  # Outdated proposal tests.
+  'proposals/js-types/table/get-set': [FAIL],
+  'proposals/memory64/table/get-set': [FAIL],
+  'proposals/simd/table/get-set': [FAIL],
+  'proposals/tail-call/table/get-set': [FAIL],
+  'proposals/js-types/memory/constructor': [FAIL],
+  'proposals/memory64/memory/constructor': [FAIL],
+  'proposals/simd/memory/constructor': [FAIL],
+  'proposals/tail-call/memory/constructor': [FAIL],
+
   # TODO(v8:10556): Remove sub-typing in the reference-types implementation
-  'constructor/instantiate': [FAIL],
-  'instance/constructor': [FAIL],
   'proposals/js-types/constructor/instantiate': [FAIL],
   'proposals/js-types/global/constructor': [FAIL],
   'proposals/js-types/global/value-get-set': [FAIL],
   'proposals/js-types/instance/constructor': [FAIL],
-
-  'prototypes': [FAIL],
 
   # These are slow, and not useful to run for the proposals:
   'proposals/js-types/limits': [SKIP],

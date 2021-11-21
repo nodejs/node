@@ -1021,14 +1021,14 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
           NewRawOneByteString(length).ToHandleChecked();
       DisallowGarbageCollection no_gc;
       uint8_t* dest = result->GetChars(no_gc);
-      String::WriteToFlat(*str, dest, begin, end);
+      String::WriteToFlat(*str, dest, begin, length);
       return result;
     } else {
       Handle<SeqTwoByteString> result =
           NewRawTwoByteString(length).ToHandleChecked();
       DisallowGarbageCollection no_gc;
       base::uc16* dest = result->GetChars(no_gc);
-      String::WriteToFlat(*str, dest, begin, end);
+      String::WriteToFlat(*str, dest, begin, length);
       return result;
     }
   }
@@ -1572,14 +1572,17 @@ Handle<WasmArray> Factory::NewWasmArray(
   WasmArray result = WasmArray::cast(raw);
   result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
   result.set_length(length);
-  for (uint32_t i = 0; i < length; i++) {
-    Address address = result.ElementAddress(i);
-    if (type->element_type().is_numeric()) {
+  if (type->element_type().is_numeric()) {
+    for (uint32_t i = 0; i < length; i++) {
+      Address address = result.ElementAddress(i);
       elements[i]
           .Packed(type->element_type())
           .CopyTo(reinterpret_cast<byte*>(address));
-    } else {
-      base::WriteUnalignedValue<Object>(address, *elements[i].to_ref());
+    }
+  } else {
+    for (uint32_t i = 0; i < length; i++) {
+      int offset = result.element_offset(i);
+      TaggedField<Object>::store(result, offset, *elements[i].to_ref());
     }
   }
   return handle(result, isolate());
@@ -1594,11 +1597,13 @@ Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
   WasmStruct result = WasmStruct::cast(raw);
   result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
   for (uint32_t i = 0; i < type->field_count(); i++) {
-    Address address = result.RawFieldAddress(type->field_offset(i));
+    int offset = type->field_offset(i);
     if (type->field(i).is_numeric()) {
+      Address address = result.RawFieldAddress(offset);
       args[i].Packed(type->field(i)).CopyTo(reinterpret_cast<byte*>(address));
     } else {
-      base::WriteUnalignedValue<Object>(address, *args[i].to_ref());
+      offset += WasmStruct::kHeaderSize;
+      TaggedField<Object>::store(result, offset, *args[i].to_ref());
     }
   }
   return handle(result, isolate());
@@ -3654,7 +3659,8 @@ Handle<Map> Factory::CreateStrictFunctionMap(
 }
 
 Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
-  Handle<Map> map = NewMap(JS_FUNCTION_TYPE, JSFunction::kSizeWithPrototype);
+  Handle<Map> map =
+      NewMap(JS_CLASS_CONSTRUCTOR_TYPE, JSFunction::kSizeWithPrototype);
   {
     DisallowGarbageCollection no_gc;
     Map raw_map = *map;

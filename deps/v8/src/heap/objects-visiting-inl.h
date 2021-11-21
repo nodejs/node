@@ -19,6 +19,7 @@
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/torque-defined-classes.h"
+#include "src/objects/visitors.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
@@ -28,6 +29,19 @@ namespace v8 {
 namespace internal {
 
 template <typename ResultType, typename ConcreteVisitor>
+HeapVisitor<ResultType, ConcreteVisitor>::HeapVisitor(
+    PtrComprCageBase cage_base, PtrComprCageBase code_cage_base)
+    : ObjectVisitorWithCageBases(cage_base, code_cage_base) {}
+
+template <typename ResultType, typename ConcreteVisitor>
+HeapVisitor<ResultType, ConcreteVisitor>::HeapVisitor(Isolate* isolate)
+    : ObjectVisitorWithCageBases(isolate) {}
+
+template <typename ResultType, typename ConcreteVisitor>
+HeapVisitor<ResultType, ConcreteVisitor>::HeapVisitor(Heap* heap)
+    : ObjectVisitorWithCageBases(heap) {}
+
+template <typename ResultType, typename ConcreteVisitor>
 template <typename T>
 T HeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject object) {
   return T::cast(object);
@@ -35,7 +49,7 @@ T HeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject object) {
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(HeapObject object) {
-  return Visit(object.map(), object);
+  return Visit(object.map(cage_base()), object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
@@ -171,6 +185,10 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
   }
   return static_cast<ResultType>(object.size(kRelaxedLoad));
 }
+
+template <typename ConcreteVisitor>
+NewSpaceVisitor<ConcreteVisitor>::NewSpaceVisitor(Isolate* isolate)
+    : HeapVisitor<int, ConcreteVisitor>(isolate) {}
 
 template <typename ConcreteVisitor>
 int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(Map map,

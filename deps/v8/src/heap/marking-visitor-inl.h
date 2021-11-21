@@ -21,6 +21,15 @@ namespace internal {
 // ===========================================================================
 
 template <typename ConcreteVisitor, typename MarkingState>
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMapPointer(
+    HeapObject host) {
+  // Note that we are skipping the recording the slot because map objects
+  // can't move, so this is safe (see ProcessStrongHeapObject for comparison)
+  MarkObject(host, HeapObject::cast(
+                       host.map(ObjectVisitorWithCageBases::cage_base())));
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkObject(
     HeapObject host, HeapObject object) {
   DCHECK(ReadOnlyHeap::Contains(object) || heap_->Contains(object));
@@ -76,7 +85,8 @@ MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitPointersImpl(
     HeapObject host, TSlot start, TSlot end) {
   using THeapObjectSlot = typename TSlot::THeapObjectSlot;
   for (TSlot slot = start; slot < end; ++slot) {
-    typename TSlot::TObject object = slot.Relaxed_Load();
+    typename TSlot::TObject object =
+        slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
     HeapObject heap_object;
     if (object.GetHeapObjectIfStrong(&heap_object)) {
       // If the reference changes concurrently from strong to weak, the write
@@ -94,9 +104,8 @@ V8_INLINE void
 MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerImpl(
     HeapObject host, CodeObjectSlot slot) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  // TODO(v8:11880): support external code space.
-  PtrComprCageBase code_cage_base = GetPtrComprCageBase(host);
-  Object object = slot.Relaxed_Load(code_cage_base);
+  Object object =
+      slot.Relaxed_Load(ObjectVisitorWithCageBases::code_cage_base());
   HeapObject heap_object;
   if (object.GetHeapObjectIfStrong(&heap_object)) {
     // If the reference changes concurrently from strong to weak, the write
@@ -110,7 +119,8 @@ template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
     Code host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
-  HeapObject object = rinfo->target_object();
+  HeapObject object =
+      rinfo->target_object_no_host(ObjectVisitorWithCageBases::cage_base());
   if (!concrete_visitor()->marking_state()->IsBlackOrGrey(object)) {
     if (host.IsWeakObject(object)) {
       weak_objects_->weak_objects_in_code.Push(task_id_,
@@ -142,7 +152,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitBytecodeArray(
   int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
   this->VisitMapPointer(object);
   BytecodeArray::BodyDescriptor::IterateBody(map, object, size, this);
-  if (!is_forced_gc_) {
+  if (!should_keep_ages_unchanged_) {
     object.MakeOlder();
   }
   return size;

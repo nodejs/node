@@ -1474,9 +1474,11 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
   // If the expected parameter count is equal to the adaptor sentinel, no need
   // to push undefined value as arguments.
-  mov(r0, Operand(kDontAdaptArgumentsSentinel));
-  CmpS64(expected_parameter_count, r0);
-  beq(&regular_invoke);
+  if (kDontAdaptArgumentsSentinel != 0) {
+    mov(r0, Operand(kDontAdaptArgumentsSentinel));
+    CmpS64(expected_parameter_count, r0);
+    beq(&regular_invoke);
+  }
 
   // If overapplication or if the actual argument count is equal to the
   // formal parameter count, no need to push extra undefined values.
@@ -1521,8 +1523,8 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
   bind(&stack_overflow);
   {
-    FrameScope frame(this,
-                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+    FrameScope frame(
+        this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
     CallRuntime(Runtime::kThrowStackOverflow);
     bkpt(0);
   }
@@ -1546,8 +1548,8 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
   {
     // Load receiver to pass it later to DebugOnFunctionCall hook.
     LoadReceiver(r7, actual_parameter_count);
-    FrameScope frame(this,
-                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+    FrameScope frame(
+        this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
 
     SmiTag(expected_parameter_count);
     Push(expected_parameter_count);
@@ -1702,16 +1704,28 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
   cmpi(type_reg, Operand(type));
 }
 
+void MacroAssembler::CompareRange(Register value, unsigned lower_limit,
+                                  unsigned higher_limit) {
+  ASM_CODE_COMMENT(this);
+  DCHECK_LT(lower_limit, higher_limit);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  if (lower_limit != 0) {
+    mov(scratch, Operand(lower_limit));
+    sub(scratch, value, scratch);
+    cmpli(scratch, Operand(higher_limit - lower_limit));
+  } else {
+    mov(scratch, Operand(higher_limit));
+    CmpU64(value, scratch);
+  }
+}
+
 void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
                                               InstanceType lower_limit,
                                               InstanceType higher_limit) {
   DCHECK_LT(lower_limit, higher_limit);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   LoadU16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  mov(scratch, Operand(lower_limit));
-  sub(scratch, type_reg, scratch);
-  cmpli(scratch, Operand(higher_limit - lower_limit));
+  CompareRange(type_reg, lower_limit, higher_limit);
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
@@ -1898,15 +1912,7 @@ void TurboAssembler::MaxF64(DoubleRegister dst, DoubleRegister lhs,
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
                                      unsigned higher_limit,
                                      Label* on_in_range) {
-  Register scratch = r0;
-  if (lower_limit != 0) {
-    mov(scratch, Operand(lower_limit));
-    sub(scratch, value, scratch);
-    cmpli(scratch, Operand(higher_limit - lower_limit));
-  } else {
-    mov(scratch, Operand(higher_limit));
-    CmpU64(value, scratch);
-  }
+  CompareRange(value, lower_limit, higher_limit);
   ble(on_in_range);
 }
 
@@ -2080,7 +2086,7 @@ void TurboAssembler::Abort(AbortReason reason) {
 
   if (should_abort_hard()) {
     // We don't care if we constructed a frame. Just pretend we did.
-    FrameScope assume_frame(this, StackFrame::NONE);
+    FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
     mov(r3, Operand(static_cast<int>(reason)));
     PrepareCallCFunction(1, r4);
     CallCFunction(ExternalReference::abort_with_reason(), 1);
@@ -2093,7 +2099,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   if (!has_frame_) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
-    FrameScope scope(this, StackFrame::NONE);
+    FrameScope scope(this, StackFrame::NO_FRAME_TYPE);
     Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
   } else {
     Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
@@ -2115,7 +2121,7 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadTaggedPointerField(dst, MemOperand(dst, Context::SlotOffset(index)), r0);
 }
 
-void MacroAssembler::AssertNotSmi(Register object) {
+void TurboAssembler::AssertNotSmi(Register object) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object, r0);
@@ -2123,7 +2129,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
   }
 }
 
-void MacroAssembler::AssertSmi(Register object) {
+void TurboAssembler::AssertSmi(Register object) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object, r0);
@@ -3059,6 +3065,11 @@ void TurboAssembler::DivF32(DoubleRegister dst, DoubleRegister lhs,
   frsp(dst, dst, r);
 }
 
+void TurboAssembler::CopySignF64(DoubleRegister dst, DoubleRegister lhs,
+                                 DoubleRegister rhs, RCBit r) {
+  fcpsgn(dst, rhs, lhs, r);
+}
+
 void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch,
                                    CRegister cr) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
@@ -3111,7 +3122,7 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
 
 #define GenerateMemoryOperation(reg, mem, ri_op, rr_op) \
   {                                                     \
-    int64_t offset = mem.offset();                          \
+    int64_t offset = mem.offset();                      \
                                                         \
     if (mem.rb() == no_reg) {                           \
       if (!is_int16(offset)) {                          \
@@ -3140,7 +3151,7 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
 
 #define GenerateMemoryOperationWithAlign(reg, mem, ri_op, rr_op) \
   {                                                              \
-    int64_t offset = mem.offset();                                   \
+    int64_t offset = mem.offset();                               \
     int misaligned = (offset & 3);                               \
                                                                  \
     if (mem.rb() == no_reg) {                                    \
@@ -3229,7 +3240,10 @@ void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem) {
 #define GenerateMemoryLEOperation(reg, mem, op)                \
   {                                                            \
     if (mem.offset() == 0) {                                   \
-      op(reg, mem);                                            \
+      if (mem.rb() != no_reg)                                  \
+        op(reg, mem);                                          \
+      else                                                     \
+        op(reg, MemOperand(r0, mem.ra()));                     \
     } else if (is_int16(mem.offset())) {                       \
       if (mem.rb() != no_reg)                                  \
         addi(scratch, mem.rb(), Operand(mem.offset()));        \
@@ -3506,6 +3520,27 @@ void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
   li(ip, Operand(kSimd128Size));
   LoadSimd128(v1, MemOperand(ip, sp));
   addi(sp, sp, Operand(2 * kSimd128Size));
+}
+
+void TurboAssembler::ByteReverseU16(Register dst, Register val) {
+  subi(sp, sp, Operand(kSystemPointerSize));
+  sth(val, MemOperand(sp));
+  lhbrx(dst, MemOperand(r0, sp));
+  addi(sp, sp, Operand(kSystemPointerSize));
+}
+
+void TurboAssembler::ByteReverseU32(Register dst, Register val) {
+  subi(sp, sp, Operand(kSystemPointerSize));
+  stw(val, MemOperand(sp));
+  lwbrx(dst, MemOperand(r0, sp));
+  addi(sp, sp, Operand(kSystemPointerSize));
+}
+
+void TurboAssembler::ByteReverseU64(Register dst, Register val) {
+  subi(sp, sp, Operand(kSystemPointerSize));
+  std(val, MemOperand(sp));
+  ldbrx(dst, MemOperand(r0, sp));
+  addi(sp, sp, Operand(kSystemPointerSize));
 }
 
 void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {

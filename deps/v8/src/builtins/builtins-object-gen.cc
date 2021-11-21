@@ -249,8 +249,9 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
   BIND(&if_has_enum_cache);
   {
     GotoIf(WordEqual(object_enum_length, IntPtrConstant(0)), if_no_properties);
-    TNode<FixedArray> values_or_entries = CAST(AllocateFixedArray(
-        PACKED_ELEMENTS, object_enum_length, kAllowLargeObjectAllocation));
+    TNode<FixedArray> values_or_entries =
+        CAST(AllocateFixedArray(PACKED_ELEMENTS, object_enum_length,
+                                AllocationFlag::kAllowLargeObjectAllocation));
 
     // If in case we have enum_cache,
     // we can't detect accessor of object until loop through descriptors.
@@ -278,7 +279,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
     {
       // Currently, we will not invoke getters,
       // so, map will not be changed.
-      CSA_ASSERT(this, TaggedEqual(map, LoadMap(object)));
+      CSA_DCHECK(this, TaggedEqual(map, LoadMap(object)));
       TNode<IntPtrT> descriptor_entry = var_descriptor_number.value();
       TNode<Name> next_key =
           LoadKeyByDescriptorEntry(descriptors, descriptor_entry);
@@ -293,7 +294,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
 
       // If property is accessor, we escape fast path and call runtime.
       GotoIf(IsPropertyKindAccessor(kind), if_call_runtime_with_fast_path);
-      CSA_ASSERT(this, IsPropertyKindData(kind));
+      CSA_DCHECK(this, IsPropertyKindData(kind));
 
       // If desc is not undefined and desc.[[Enumerable]] is true, then skip to
       // the next descriptor.
@@ -346,7 +347,7 @@ TNode<JSArray>
 ObjectEntriesValuesBuiltinsAssembler::FinalizeValuesOrEntriesJSArray(
     TNode<Context> context, TNode<FixedArray> result, TNode<IntPtrT> size,
     TNode<Map> array_map, Label* if_empty) {
-  CSA_ASSERT(this, IsJSArrayMap(array_map));
+  CSA_DCHECK(this, IsJSArrayMap(array_map));
 
   GotoIf(IntPtrEqual(size, IntPtrConstant(0)), if_empty);
   TNode<JSArray> array = AllocateJSArray(array_map, result, SmiTag(size));
@@ -477,7 +478,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
       &if_slow);
 
   // Ensure that the {object} doesn't have any elements.
-  CSA_ASSERT(this, IsJSObjectMap(object_map));
+  CSA_DCHECK(this, IsJSObjectMap(object_map));
   TNode<FixedArrayBase> object_elements = LoadElements(CAST(object));
   GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
   Branch(IsEmptySlowElementDictionary(object_elements), &if_empty_elements,
@@ -853,7 +854,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_object);
   {
-    CSA_ASSERT(this, IsJSReceiver(CAST(receiver)));
+    CSA_DCHECK(this, IsJSReceiver(CAST(receiver)));
     var_default = ObjectToStringConstant();
     Goto(&checkstringtag);
   }
@@ -868,7 +869,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     GotoIf(IsHeapNumberMap(receiver_map), &if_number);
     GotoIf(IsSymbolMap(receiver_map), &if_symbol);
     GotoIf(IsUndefined(receiver), &return_undefined);
-    CSA_ASSERT(this, IsNull(receiver));
+    CSA_DCHECK(this, IsNull(receiver));
     Return(NullToStringConstant());
 
     BIND(&return_undefined);
@@ -980,7 +981,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         LoadMapInstanceType(receiver_value_map);
     GotoIf(IsBigIntInstanceType(receiver_value_instance_type),
            &if_value_is_bigint);
-    CSA_ASSERT(this, IsStringInstanceType(receiver_value_instance_type));
+    CSA_DCHECK(this, IsStringInstanceType(receiver_value_instance_type));
     Goto(&if_value_is_string);
 
     BIND(&if_value_is_number);
@@ -1096,7 +1097,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   BIND(&no_properties);
   {
     TVARIABLE(Map, map);
-    TVARIABLE(HeapObject, properties);
+    TVARIABLE(HeapObject, new_properties);
     Label null_proto(this), non_null_proto(this), instantiate_map(this);
 
     Branch(IsNull(prototype), &null_proto, &non_null_proto);
@@ -1105,17 +1106,18 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     {
       map = LoadSlowObjectWithNullPrototypeMap(native_context);
       if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-        properties =
+        new_properties =
             AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
       } else {
-        properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
+        new_properties =
+            AllocateNameDictionary(NameDictionary::kInitialCapacity);
       }
       Goto(&instantiate_map);
     }
 
     BIND(&non_null_proto);
     {
-      properties = EmptyFixedArrayConstant();
+      new_properties = EmptyFixedArrayConstant();
       map = LoadObjectFunctionInitialMap(native_context);
       GotoIf(TaggedEqual(prototype, LoadMapPrototype(map.value())),
              &instantiate_map);
@@ -1133,7 +1135,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&instantiate_map);
     {
       TNode<JSObject> instance =
-          AllocateJSObjectFromMap(map.value(), properties.value());
+          AllocateJSObjectFromMap(map.value(), new_properties.value());
       args.PopAndReturn(instance);
     }
   }
@@ -1251,13 +1253,14 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   TNode<IntPtrT> size =
       IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
                 formal_parameter_count);
-  TNode<FixedArrayBase> parameters_and_registers =
-      AllocateFixedArray(HOLEY_ELEMENTS, size, kAllowLargeObjectAllocation);
+  TNode<FixedArrayBase> parameters_and_registers = AllocateFixedArray(
+      HOLEY_ELEMENTS, size, AllocationFlag::kAllowLargeObjectAllocation);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
                           IntPtrConstant(0), size, RootIndex::kUndefinedValue);
   // TODO(cbruni): support start_offset to avoid double initialization.
-  TNode<JSObject> result = AllocateJSObjectFromMap(
-      map, base::nullopt, base::nullopt, kNone, kWithSlackTracking);
+  TNode<JSObject> result =
+      AllocateJSObjectFromMap(map, base::nullopt, base::nullopt,
+                              AllocationFlag::kNone, kWithSlackTracking);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kFunctionOffset,
                                  closure);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContextOffset,
@@ -1294,7 +1297,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  CSA_ASSERT(this, IsUndefined(Parameter<Object>(Descriptor::kJSNewTarget)));
+  CSA_DCHECK(this, IsUndefined(Parameter<Object>(Descriptor::kJSNewTarget)));
 
   CodeStubArguments args(this, argc);
   TNode<Object> object_input = args.GetOptionalArgumentValue(0);
@@ -1496,7 +1499,7 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     Goto(&return_desc);
 
     BIND(&bailout);
-    CSA_ASSERT(this, Int32Constant(0));
+    CSA_DCHECK(this, Int32Constant(0));
     Unreachable();
   }
 

@@ -7,6 +7,10 @@ g() returns 2
 f() returns 1
 g() throws EvalError
 
+Running test: testAsyncFunctions
+testAsyncFunction("resolve") : ok
+testAsyncFunction("reject") : throws
+
 Running test: testDate
 someGlobalDate.setDate(10) : throws
 new Date().setDate(10) : ok
@@ -20,3 +24,6 @@ someGlobalDate.getFullYear() : ok
 new Date().getFullYear() : ok
 someGlobalDate.getHours() : ok
 new Date().getHours() : ok
+
+Running test: testPromiseReject
+Promise.reject() : throws

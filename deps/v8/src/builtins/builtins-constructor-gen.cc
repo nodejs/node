@@ -189,7 +189,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
     GotoIf(IsNoClosuresCellMap(feedback_cell_map), &no_closures);
     GotoIf(IsOneClosureCellMap(feedback_cell_map), &one_closure);
-    CSA_ASSERT(this, IsManyClosuresCellMap(feedback_cell_map),
+    CSA_DCHECK(this, IsManyClosuresCellMap(feedback_cell_map),
                feedback_cell_map, feedback_cell);
     Goto(&cell_done);
 
@@ -211,7 +211,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   const TNode<IntPtrT> function_map_index = Signed(IntPtrAdd(
       DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(flags),
       IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX)));
-  CSA_ASSERT(this, UintPtrLessThanOrEqual(
+  CSA_DCHECK(this, UintPtrLessThanOrEqual(
                        function_map_index,
                        IntPtrConstant(Context::LAST_FUNCTION_MAP_INDEX)));
 
@@ -338,7 +338,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
 
   BIND(&instantiate_map);
   return AllocateJSObjectFromMap(initial_map, properties.value(), base::nullopt,
-                                 kNone, kWithSlackTracking);
+                                 AllocationFlag::kNone, kWithSlackTracking);
 }
 
 TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
@@ -539,7 +539,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
   TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
   TNode<JSObject> boilerplate = LoadBoilerplate(allocation_site);
   TNode<Map> boilerplate_map = LoadMap(boilerplate);
-  CSA_ASSERT(this, IsJSObjectMap(boilerplate_map));
+  CSA_DCHECK(this, IsJSObjectMap(boilerplate_map));
 
   TVARIABLE(HeapObject, var_properties);
   {
@@ -587,7 +587,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     Goto(&done);
 
     BIND(&if_copy_elements);
-    CSA_ASSERT(this, Word32BinaryNot(
+    CSA_DCHECK(this, Word32BinaryNot(
                          IsFixedCOWArrayMap(LoadMap(boilerplate_elements))));
     auto flags = ExtractFixedArrayFlag::kAllFixedArrays;
     var_elements = CloneFixedArray(boilerplate_elements, flags);
@@ -681,7 +681,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::CreateEmptyObjectLiteral(
   TNode<Map> map = LoadObjectFunctionInitialMap(native_context);
   // Ensure that slack tracking is disabled for the map.
   STATIC_ASSERT(Map::kNoSlackTracking == 0);
-  CSA_ASSERT(this, IsClearWord32<Map::Bits3::ConstructionCounterBits>(
+  CSA_DCHECK(this, IsClearWord32<Map::Bits3::ConstructionCounterBits>(
                        LoadMapBitField3(map)));
   TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
   TNode<JSObject> result =

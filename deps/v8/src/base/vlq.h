@@ -91,7 +91,7 @@ VLQDecodeUnsigned(GetNextFunction&& get_next) {
   }
   uint32_t bits = cur_byte & kDataMask;
   for (int shift = kContinueShift; shift <= 32; shift += kContinueShift) {
-    byte cur_byte = get_next();
+    cur_byte = get_next();
     bits |= (cur_byte & kDataMask) << shift;
     if (cur_byte <= kDataMask) break;
   }

@@ -19,10 +19,10 @@ builtin GetTemplateObject(
   // handler; the current advantage of the split implementation is that the
   // bytecode can skip most work if feedback exists.
 
-  // TODO(v8:9891): Remove this assert once all callers are ported to Torque.
-  // This assert ensures correctness of maybeFeedbackVector's type which can
+  // TODO(v8:9891): Remove this dcheck once all callers are ported to Torque.
+  // This dcheck ensures correctness of maybeFeedbackVector's type which can
   // be easily broken for calls from CSA.
-  assert(
+  dcheck(
       IsUndefined(maybeFeedbackVector) ||
       Is<FeedbackVector>(maybeFeedbackVector));
   try {
@@ -52,14 +52,14 @@ extern transitioning builtin ForInFilter(implicit context: Context)(
 extern enum ForInFeedback extends uint31 { kAny, ...}
 extern macro UpdateFeedback(
     SmiTagged<ForInFeedback>, Undefined | FeedbackVector, uintptr,
-    constexpr UpdateFeedbackMode);
+    constexpr UpdateFeedbackMode): void;
 
 @export
 transitioning macro ForInNextSlow(
     context: Context, slot: uintptr, receiver: JSAnyNotSmi, key: JSAny,
     cacheType: Object, maybeFeedbackVector: Undefined|FeedbackVector,
     guaranteedFeedback: constexpr UpdateFeedbackMode): JSAny {
-  assert(receiver.map != cacheType);  // Handled on the fast path.
+  dcheck(receiver.map != cacheType);  // Handled on the fast path.
   UpdateFeedback(
       SmiTag<ForInFeedback>(ForInFeedback::kAny), maybeFeedbackVector, slot,
       guaranteedFeedback);

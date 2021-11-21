@@ -128,7 +128,7 @@ type DirectString extends String;
 
 macro AllocateNonEmptySeqOneByteString<Iterator: type>(
     length: uint32, content: Iterator): SeqOneByteString {
-  assert(length != 0 && length <= kStringMaxLength);
+  dcheck(length != 0 && length <= kStringMaxLength);
   return new SeqOneByteString{
     map: kOneByteStringMap,
     raw_hash_field: kNameEmptyHashField,
@@ -139,7 +139,7 @@ macro AllocateNonEmptySeqOneByteString<Iterator: type>(
 
 macro AllocateNonEmptySeqTwoByteString<Iterator: type>(
     length: uint32, content: Iterator): SeqTwoByteString {
-  assert(length > 0 && length <= kStringMaxLength);
+  dcheck(length > 0 && length <= kStringMaxLength);
   return new SeqTwoByteString{
     map: kStringMap,
     raw_hash_field: kNameEmptyHashField,
@@ -177,8 +177,10 @@ macro AllocateSeqTwoByteString(length: uint32): SeqTwoByteString|EmptyString {
   return AllocateSeqTwoByteString(length, UninitializedIterator{});
 }
 
-extern macro StringWriteToFlatOneByte(String, RawPtr<char8>, int32, int32);
-extern macro StringWriteToFlatTwoByte(String, RawPtr<char16>, int32, int32);
+extern macro StringWriteToFlatOneByte(
+    String, RawPtr<char8>, int32, int32): void;
+extern macro StringWriteToFlatTwoByte(
+    String, RawPtr<char16>, int32, int32): void;
 
 // Corresponds to String::SlowFlatten in the C++ runtime.
 builtin StringSlowFlatten(cons: ConsString): String {
@@ -222,7 +224,7 @@ macro Flatten(string: String): String {
       return Flatten(cons);
     }
     case (thin: ThinString): {
-      assert(!Is<ConsString>(thin.actual));
+      dcheck(!Is<ConsString>(thin.actual));
       return thin.actual;
     }
     case (other: String): {

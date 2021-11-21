@@ -949,10 +949,9 @@ static void Build_Select_With_Call(CallDescriptor* desc,
     // Build the actual select.
     Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
     Graph graph(&zone);
-    RawMachineAssembler raw(isolate, &graph, desc);
-    raw.Return(raw.Parameter(which));
-    inner =
-        CompileGraph("Select-indirection", desc, &graph, raw.ExportForTest());
+    RawMachineAssembler r(isolate, &graph, desc);
+    r.Return(r.Parameter(which));
+    inner = CompileGraph("Select-indirection", desc, &graph, r.ExportForTest());
     CHECK(!inner.is_null());
     CHECK(inner->IsCode());
   }
@@ -1044,8 +1043,8 @@ void MixedParamTest(int start) {
     Handle<Code> select;
     {
       // build the select.
-      Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-      Graph graph(&zone);
+      Zone select_zone(&allocator, ZONE_NAME, kCompressGraphZone);
+      Graph graph(&select_zone);
       RawMachineAssembler raw(isolate, &graph, desc);
       raw.Return(raw.Parameter(which));
       select = CompileGraph("Compute", desc, &graph, raw.ExportForTest());
@@ -1061,12 +1060,13 @@ void MixedParamTest(int start) {
       CSignatureOf<int32_t> csig;
       {
         // Wrap the select code with a callable function that passes constants.
-        Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-        Graph graph(&zone);
-        CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
+        Zone wrap_zone(&allocator, ZONE_NAME, kCompressGraphZone);
+        Graph graph(&wrap_zone);
+        CallDescriptor* cdesc =
+            Linkage::GetSimplifiedCDescriptor(&wrap_zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
         Node* target = raw.HeapConstant(select);
-        Node** inputs = zone.NewArray<Node*>(num_params + 1);
+        Node** inputs = wrap_zone.NewArray<Node*>(num_params + 1);
         int input_count = 0;
         inputs[input_count++] = target;
         int64_t constant = 0x0102030405060708;

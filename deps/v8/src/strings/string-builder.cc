@@ -34,7 +34,7 @@ void StringBuilderConcatHelper(String special, sinkchar* sink,
         pos = Smi::ToInt(obj);
         len = -encoded_slice;
       }
-      String::WriteToFlat(special, sink + position, pos, pos + len);
+      String::WriteToFlat(special, sink + position, pos, len);
       position += len;
     } else {
       String string = String::cast(element);

@@ -1117,7 +1117,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return AssembleArchJumpLatency();
     case kArchTableSwitch:
       return AssembleArchTableSwitchLatency();
-    case kArchAbortCSAAssert:
+    case kArchAbortCSADcheck:
       return CallLatency() + 1;
     case kArchDebugBreak:
       return 1;

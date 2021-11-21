@@ -836,7 +836,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         // occuring before a fast mode holder on the chain.
         return Invalid();
       }
-      if (details.location() == kField) {
+      if (details.location() == PropertyLocation::kField) {
         if (details.kind() == kData) {
           return ComputeDataFieldAccessInfo(receiver_map, map, holder, index,
                                             access_mode);
@@ -846,7 +846,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
           return Invalid();
         }
       } else {
-        DCHECK_EQ(kDescriptor, details.location());
+        DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
         DCHECK_EQ(kAccessor, details.kind());
         return ComputeAccessorDescriptorAccessInfo(receiver_map, name, map,
                                                    holder, index, access_mode);
@@ -1130,7 +1130,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   if (details.IsReadOnly()) return Invalid();
 
   // TODO(bmeurer): Handle transition to data constant?
-  if (details.location() != kField) return Invalid();
+  if (details.location() != PropertyLocation::kField) return Invalid();
 
   int const index = details.field_index();
   Representation details_representation = details.representation();
@@ -1172,8 +1172,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
     if (descriptors_field_type->IsClass()) {
       unrecorded_dependencies.push_back(
           dependencies()->FieldTypeDependencyOffTheRecord(
-              transition_map, number,
-              MakeRef<Object>(broker(), descriptors_field_type)));
+              transition_map, number, *descriptors_field_type_ref));
       // Remember the field map, and try to infer a useful type.
       base::Optional<MapRef> maybe_field_map =
           TryMakeRef(broker(), descriptors_field_type->AsClass());

@@ -66,14 +66,12 @@ namespace internal {
  *  ^^^^^^^^^ fp ^^^^^^^^^
  *  - fp[-8]     direct_call        1 => Direct call from JavaScript code.
  *                                  0 => Call through the runtime system.
- *  - fp[-16]    stack_base         High end of the memory area to use as
- *                                  the backtracking stack.
- *  - fp[-24]    output_size        Output may fit multiple sets of matches.
- *  - fp[-32]    input              Handle containing the input string.
- *  - fp[-40]    success_counter
+ *  - fp[-16]    output_size        Output may fit multiple sets of matches.
+ *  - fp[-24]    input              Handle containing the input string.
+ *  - fp[-32]    success_counter
  *  ^^^^^^^^^^^^^ From here and downwards we store 32 bit values ^^^^^^^^^^^^^
- *  - fp[-44]    register N         Capture registers initialized with
- *  - fp[-48]    register N + 1     non_position_value.
+ *  - fp[-40]    register N         Capture registers initialized with
+ *  - fp[-44]    register N + 1     non_position_value.
  *               ...                The first kNumCachedRegisters (N) registers
  *               ...                are cached in x0 to x7.
  *               ...                Only positions must be stored in the first
@@ -95,7 +93,6 @@ namespace internal {
  *              Address end,
  *              int* capture_output_array,
  *              int num_capture_registers,
- *              byte* stack_area_base,
  *              bool direct_call = false,
  *              Isolate* isolate,
  *              Address regexp);
@@ -111,8 +108,10 @@ RegExpMacroAssemblerARM64::RegExpMacroAssemblerARM64(Isolate* isolate,
                                                      Zone* zone, Mode mode,
                                                      int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(new MacroAssembler(isolate, CodeObjectRequired::kYes,
-                               NewAssemblerBuffer(kRegExpCodeSize))),
+      masm_(std::make_unique<MacroAssembler>(
+          isolate, CodeObjectRequired::kYes,
+          NewAssemblerBuffer(kRegExpCodeSize))),
+      no_root_array_scope_(masm_.get()),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -121,8 +120,6 @@ RegExpMacroAssemblerARM64::RegExpMacroAssemblerARM64(Isolate* isolate,
       success_label_(),
       backtrack_label_(),
       exit_label_() {
-  masm_->set_root_array_available(false);
-
   DCHECK_EQ(0, registers_to_save % 2);
   // We can cache at most 16 W registers in x0-x7.
   STATIC_ASSERT(kNumCachedRegisters <= 16);
@@ -134,7 +131,6 @@ RegExpMacroAssemblerARM64::RegExpMacroAssemblerARM64(Isolate* isolate,
 }
 
 RegExpMacroAssemblerARM64::~RegExpMacroAssemblerARM64() {
-  delete masm_;
   // Unuse labels in case we throw away the assembler without calling GetCode.
   entry_label_.Unuse();
   start_label_.Unuse();
@@ -194,7 +190,7 @@ void RegExpMacroAssemblerARM64::Backtrack() {
   CheckPreemption();
   if (has_backtrack_limit()) {
     Label next;
-    UseScratchRegisterScope temps(masm_);
+    UseScratchRegisterScope temps(masm_.get());
     Register scratch = temps.AcquireW();
     __ Ldr(scratch, MemOperand(frame_pointer(), kBacktrackCount));
     __ Add(scratch, scratch, 1);
@@ -425,7 +421,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     __ Mov(x3, ExternalReference::isolate_address(isolate()));
 
     {
-      AllowExternalCallThatCantCauseGC scope(masm_);
+      AllowExternalCallThatCantCauseGC scope(masm_.get());
       ExternalReference function =
           unicode ? ExternalReference::re_case_insensitive_compare_unicode(
                         isolate())
@@ -699,6 +695,42 @@ void RegExpMacroAssemblerARM64::Fail() {
   __ B(&exit_label_);
 }
 
+void RegExpMacroAssemblerARM64::LoadRegExpStackPointerFromMemory(Register dst) {
+  ExternalReference ref =
+      ExternalReference::address_of_regexp_stack_stack_pointer(isolate());
+  __ Mov(dst, ref);
+  __ Ldr(dst, MemOperand(dst));
+}
+
+void RegExpMacroAssemblerARM64::StoreRegExpStackPointerToMemory(
+    Register src, Register scratch) {
+  ExternalReference ref =
+      ExternalReference::address_of_regexp_stack_stack_pointer(isolate());
+  __ Mov(scratch, ref);
+  __ Str(src, MemOperand(scratch));
+}
+
+void RegExpMacroAssemblerARM64::PushRegExpBasePointer(Register stack_pointer,
+                                                      Register scratch) {
+  ExternalReference ref =
+      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
+  __ Mov(scratch, ref);
+  __ Ldr(scratch, MemOperand(scratch));
+  __ Sub(scratch, stack_pointer, scratch);
+  __ Str(scratch, MemOperand(frame_pointer(), kRegExpStackBasePointer));
+}
+
+void RegExpMacroAssemblerARM64::PopRegExpBasePointer(Register stack_pointer_out,
+                                                     Register scratch) {
+  ExternalReference ref =
+      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
+  __ Ldr(stack_pointer_out,
+         MemOperand(frame_pointer(), kRegExpStackBasePointer));
+  __ Mov(scratch, ref);
+  __ Ldr(scratch, MemOperand(scratch));
+  __ Add(stack_pointer_out, stack_pointer_out, scratch);
+  StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
+}
 
 Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   Label return_w0;
@@ -715,15 +747,14 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   // x3:  byte*    input_end
   // x4:  int*     output array
   // x5:  int      output array size
-  // x6:  Address  stack_base
-  // x7:  int      direct_call
-
-  //  sp[8]:  address of the current isolate
-  //  sp[0]:  secondary link/return address used by native call
+  // x6:  int      direct_call
+  // x7:  Isolate* isolate
+  //
+  // sp[0]:  secondary link/return address used by native call
 
   // Tell the system that we have a stack frame.  Because the type is MANUAL, no
   // code is generated.
-  FrameScope scope(masm_, StackFrame::MANUAL);
+  FrameScope scope(masm_.get(), StackFrame::MANUAL);
 
   // Push registers on the stack, only push the argument registers that we need.
   CPURegList argument_registers(x0, x5, x6, x7);
@@ -744,52 +775,63 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   __ Mov(input_end(), x3);
   __ Mov(output_array(), x4);
 
-  // Set the number of registers we will need to allocate, that is:
-  //   - kSuccessCounter / success_counter (X register)
-  //   - kBacktrackCount (X register)
-  //   - (num_registers_ - kNumCachedRegisters) (W registers)
-  int num_wreg_to_allocate = num_registers_ - kNumCachedRegisters;
-  // Do not allocate registers on the stack if they can all be cached.
-  if (num_wreg_to_allocate < 0) { num_wreg_to_allocate = 0; }
-  // Make room for the success_counter and kBacktrackCount. Each X (64-bit)
-  // register is equivalent to two W (32-bit) registers.
-  num_wreg_to_allocate += 2 + 2;
-
   // Make sure the stack alignment will be respected.
-  int alignment = masm_->ActivationFrameAlignment();
+  const int alignment = masm_->ActivationFrameAlignment();
   DCHECK_EQ(alignment % 16, 0);
-  int align_mask = (alignment / kWRegSize) - 1;
-  num_wreg_to_allocate = (num_wreg_to_allocate + align_mask) & ~align_mask;
+  const int align_mask = (alignment / kWRegSize) - 1;
 
-  // Check if we have space on the stack.
-  Label stack_limit_hit;
-  Label stack_ok;
+  // Make room for stack locals.
+  static constexpr int kWRegPerXReg = kXRegSize / kWRegSize;
+  DCHECK_EQ(kNumberOfStackLocals * kWRegPerXReg,
+            ((kNumberOfStackLocals * kWRegPerXReg) + align_mask) & ~align_mask);
+  __ Claim(kNumberOfStackLocals * kWRegPerXReg);
 
-  ExternalReference stack_limit =
-      ExternalReference::address_of_jslimit(isolate());
-  __ Mov(x10, stack_limit);
-  __ Ldr(x10, MemOperand(x10));
-  __ Subs(x10, sp, x10);
+  // Initialize backtrack stack pointer. It must not be clobbered from here on.
+  // Note the backtrack_stackpointer is callee-saved.
+  STATIC_ASSERT(backtrack_stackpointer() == x23);
+  LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
-  // Handle it if the stack pointer is already below the stack limit.
-  __ B(ls, &stack_limit_hit);
+  // Store the regexp base pointer - we'll later restore it / write it to
+  // memory when returning from this irregexp code object.
+  PushRegExpBasePointer(backtrack_stackpointer(), x11);
 
-  // Check if there is room for the variable number of registers above
-  // the stack limit.
-  __ Cmp(x10, num_wreg_to_allocate * kWRegSize);
-  __ B(hs, &stack_ok);
+  // Set the number of registers we will need to allocate, that is:
+  //   - (num_registers_ - kNumCachedRegisters) (W registers)
+  const int num_stack_registers =
+      std::max(0, num_registers_ - kNumCachedRegisters);
+  const int num_wreg_to_allocate =
+      (num_stack_registers + align_mask) & ~align_mask;
 
-  // Exit with OutOfMemory exception. There is not enough space on the stack
-  // for our working registers.
-  __ Mov(w0, EXCEPTION);
-  __ B(&return_w0);
+  {
+    // Check if we have space on the stack.
+    Label stack_limit_hit, stack_ok;
 
-  __ Bind(&stack_limit_hit);
-  CallCheckStackGuardState(x10);
-  // If returned value is non-zero, we exit with the returned value as result.
-  __ Cbnz(w0, &return_w0);
+    ExternalReference stack_limit =
+        ExternalReference::address_of_jslimit(isolate());
+    __ Mov(x10, stack_limit);
+    __ Ldr(x10, MemOperand(x10));
+    __ Subs(x10, sp, x10);
 
-  __ Bind(&stack_ok);
+    // Handle it if the stack pointer is already below the stack limit.
+    __ B(ls, &stack_limit_hit);
+
+    // Check if there is room for the variable number of registers above
+    // the stack limit.
+    __ Cmp(x10, num_wreg_to_allocate * kWRegSize);
+    __ B(hs, &stack_ok);
+
+    // Exit with OutOfMemory exception. There is not enough space on the stack
+    // for our working registers.
+    __ Mov(w0, EXCEPTION);
+    __ B(&return_w0);
+
+    __ Bind(&stack_limit_hit);
+    CallCheckStackGuardState(x10);
+    // If returned value is non-zero, we exit with the returned value as result.
+    __ Cbnz(w0, &return_w0);
+
+    __ Bind(&stack_ok);
+  }
 
   // Allocate space on stack.
   __ Claim(num_wreg_to_allocate, kWRegSize);
@@ -822,26 +864,27 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   // Initialize code pointer register.
   __ Mov(code_pointer(), Operand(masm_->CodeObject()));
 
-  Label load_char_start_regexp, start_regexp;
-  // Load newline if index is at start, previous character otherwise.
-  __ Cbnz(start_offset(), &load_char_start_regexp);
-  __ Mov(current_character(), '\n');
-  __ B(&start_regexp);
+  Label load_char_start_regexp;
+  {
+    Label start_regexp;
+    // Load newline if index is at start, previous character otherwise.
+    __ Cbnz(start_offset(), &load_char_start_regexp);
+    __ Mov(current_character(), '\n');
+    __ B(&start_regexp);
 
-  // Global regexp restarts matching here.
-  __ Bind(&load_char_start_regexp);
-  // Load previous char as initial value of current character register.
-  LoadCurrentCharacterUnchecked(-1, 1);
-  __ Bind(&start_regexp);
+    // Global regexp restarts matching here.
+    __ Bind(&load_char_start_regexp);
+    // Load previous char as initial value of current character register.
+    LoadCurrentCharacterUnchecked(-1, 1);
+    __ Bind(&start_regexp);
+  }
+
   // Initialize on-stack registers.
   if (num_saved_registers_ > 0) {
     ClearRegisters(0, num_saved_registers_ - 1);
   }
 
-  // Initialize backtrack stack pointer.
-  __ Ldr(backtrack_stackpointer(), MemOperand(frame_pointer(), kStackBase));
-
-  // Execute
+  // Execute.
   __ B(&start_label_);
 
   if (backtrack_label_.is_linked()) {
@@ -991,6 +1034,10 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
       // Update output size on the frame before we restart matching.
       __ Str(output_size, MemOperand(frame_pointer(), kOutputSize));
 
+      // Restore the original regexp stack pointer value (effectively, pop the
+      // stored base pointer).
+      PopRegExpBasePointer(backtrack_stackpointer(), x11);
+
       if (global_with_zero_length_check()) {
         // Special case for zero-length matches.
         __ Cmp(current_input_offset(), first_capture_start);
@@ -1013,7 +1060,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   }
 
   if (exit_label_.is_linked()) {
-    // Exit and return w0
+    // Exit and return w0.
     __ Bind(&exit_label_);
     if (global()) {
       __ Ldr(w0, MemOperand(frame_pointer(), kSuccessCounter));
@@ -1021,8 +1068,11 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   }
 
   __ Bind(&return_w0);
+  // Restore the original regexp stack pointer value (effectively, pop the
+  // stored base pointer).
+  PopRegExpBasePointer(backtrack_stackpointer(), x11);
 
-  // Set stack pointer back to first register to retain
+  // Set stack pointer back to first register to retain.
   __ Mov(sp, fp);
   __ Pop<TurboAssembler::kAuthLR>(fp, lr);
 
@@ -1039,6 +1089,9 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
 
   if (check_preempt_label_.is_linked()) {
     __ Bind(&check_preempt_label_);
+
+    StoreRegExpStackPointerToMemory(backtrack_stackpointer(), x10);
+
     SaveLinkRegister();
     // The cached registers need to be retained.
     __ PushCPURegList(cached_registers);
@@ -1048,26 +1101,30 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
     __ Cbnz(w0, &return_w0);
     // Reset the cached registers.
     __ PopCPURegList(cached_registers);
+
+    LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
+
     RestoreLinkRegister();
     __ Ret();
   }
 
   if (stack_overflow_label_.is_linked()) {
     __ Bind(&stack_overflow_label_);
+
+    StoreRegExpStackPointerToMemory(backtrack_stackpointer(), x10);
+
     SaveLinkRegister();
     // The cached registers need to be retained.
     __ PushCPURegList(cached_registers);
-    // Call GrowStack(backtrack_stackpointer(), &stack_base)
-    __ Mov(x2, ExternalReference::isolate_address(isolate()));
-    __ Add(x1, frame_pointer(), kStackBase);
-    __ Mov(x0, backtrack_stackpointer());
-    ExternalReference grow_stack =
-        ExternalReference::re_grow_stack(isolate());
-    __ CallCFunction(grow_stack, 3);
-    // If return nullptr, we have failed to grow the stack, and
-    // must exit with a stack-overflow exception.
-    // Returning from the regexp code restores the stack (sp <- fp)
-    // so we don't need to drop the link register from it before exiting.
+    // Call GrowStack(isolate)
+    static constexpr int kNumArguments = 1;
+    __ Mov(x0, ExternalReference::isolate_address(isolate()));
+    __ CallCFunction(ExternalReference::re_grow_stack(isolate()),
+                     kNumArguments);
+    // If return nullptr, we have failed to grow the stack, and must exit with
+    // a stack-overflow exception.  Returning from the regexp code restores the
+    // stack (sp <- fp) so we don't need to drop the link register from it
+    // before exiting.
     __ Cbz(w0, &exit_with_exception);
     // Otherwise use return value as new stack pointer.
     __ Mov(backtrack_stackpointer(), x0);
@@ -1191,13 +1248,28 @@ void RegExpMacroAssemblerARM64::ReadCurrentPositionFromRegister(int reg) {
   }
 }
 
-
-void RegExpMacroAssemblerARM64::ReadStackPointerFromRegister(int reg) {
-  Register read_from = GetRegister(reg, w10);
-  __ Ldr(x11, MemOperand(frame_pointer(), kStackBase));
-  __ Add(backtrack_stackpointer(), x11, Operand(read_from, SXTW));
+void RegExpMacroAssemblerARM64::WriteStackPointerToRegister(int reg) {
+  ExternalReference ref =
+      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
+  __ Mov(x10, ref);
+  __ Ldr(x10, MemOperand(x10));
+  __ Sub(x10, backtrack_stackpointer(), x10);
+  if (FLAG_debug_code) {
+    __ Cmp(x10, Operand(w10, SXTW));
+    // The stack offset needs to fit in a W register.
+    __ Check(eq, AbortReason::kOffsetOutOfRange);
+  }
+  StoreRegister(reg, w10);
 }
 
+void RegExpMacroAssemblerARM64::ReadStackPointerFromRegister(int reg) {
+  ExternalReference ref =
+      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
+  Register read_from = GetRegister(reg, w10);
+  __ Mov(x11, ref);
+  __ Ldr(x11, MemOperand(x11));
+  __ Add(backtrack_stackpointer(), x11, Operand(read_from, SXTW));
+}
 
 void RegExpMacroAssemblerARM64::SetCurrentPositionFromEnd(int by) {
   Label after_position;
@@ -1299,19 +1371,6 @@ void RegExpMacroAssemblerARM64::ClearRegisters(int reg_from, int reg_to) {
     }
   }
 }
-
-
-void RegExpMacroAssemblerARM64::WriteStackPointerToRegister(int reg) {
-  __ Ldr(x10, MemOperand(frame_pointer(), kStackBase));
-  __ Sub(x10, backtrack_stackpointer(), x10);
-  if (FLAG_debug_code) {
-    __ Cmp(x10, Operand(w10, SXTW));
-    // The stack offset needs to fit in a W register.
-    __ Check(eq, AbortReason::kOffsetOutOfRange);
-  }
-  StoreRegister(reg, w10);
-}
-
 
 // Helper function for reading a value out of a stack frame.
 template <typename T>

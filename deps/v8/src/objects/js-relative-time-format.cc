@@ -17,7 +17,9 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-number-format.h"
 #include "src/objects/js-relative-time-format-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/decimfmt.h"
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
@@ -78,8 +80,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   Handle<JSReceiver> options;
   const char* service = "Intl.RelativeTimeFormat";
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options,
-      Intl::CoerceOptionsToObject(isolate, input_options, service),
+      isolate, options, CoerceOptionsToObject(isolate, input_options, service),
       JSRelativeTimeFormat);
 
   // 4. Let opt be a new Record.
@@ -147,7 +148,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
 
   // 16. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
-  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
+  Maybe<Style> maybe_style = GetStringOption<Style>(
       isolate, options, "style", service, {"long", "short", "narrow"},
       {Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
   MAYBE_RETURN(maybe_style, MaybeHandle<JSRelativeTimeFormat>());
@@ -157,7 +158,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
 
   // 18. Let numeric be ? GetOption(options, "numeric", "string",
   //                                «"always", "auto"», "always").
-  Maybe<Numeric> maybe_numeric = Intl::GetStringOption<Numeric>(
+  Maybe<Numeric> maybe_numeric = GetStringOption<Numeric>(
       isolate, options, "numeric", service, {"always", "auto"},
       {Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
   MAYBE_RETURN(maybe_numeric, MaybeHandle<JSRelativeTimeFormat>());

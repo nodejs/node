@@ -882,6 +882,13 @@ class V8_EXPORT_PRIVATE Instruction final {
     return FlagsConditionField::decode(opcode());
   }
   int misc() const { return MiscField::decode(opcode()); }
+  bool HasMemoryAccessMode() const {
+    return compiler::HasMemoryAccessMode(arch_opcode());
+  }
+  MemoryAccessMode memory_access_mode() const {
+    DCHECK(HasMemoryAccessMode());
+    return AccessModeField::decode(opcode());
+  }
 
   static Instruction* New(Zone* zone, InstructionCode opcode) {
     return New(zone, opcode, 0, nullptr, 0, nullptr, 0, nullptr);

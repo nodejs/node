@@ -22,7 +22,7 @@ StringReplaceNonGlobalRegExpWithFunction(implicit context: Context)(
 transitioning macro RegExpReplaceCallableNoExplicitCaptures(
     implicit context: Context)(
     matchesElements: FixedArray, matchesLength: intptr, string: String,
-    replaceFn: Callable) {
+    replaceFn: Callable): void {
   let matchStart: Smi = 0;
   for (let i: intptr = 0; i < matchesLength; i++) {
     typeswitch (matchesElements.objects[i]) {
@@ -63,7 +63,8 @@ transitioning macro RegExpReplaceCallableNoExplicitCaptures(
 
 transitioning macro
 RegExpReplaceCallableWithExplicitCaptures(implicit context: Context)(
-    matchesElements: FixedArray, matchesLength: intptr, replaceFn: Callable) {
+    matchesElements: FixedArray, matchesLength: intptr,
+    replaceFn: Callable): void {
   for (let i: intptr = 0; i < matchesLength; i++) {
     const elArray =
         Cast<JSArray>(matchesElements.objects[i]) otherwise continue;
@@ -175,9 +176,9 @@ transitioning macro RegExpReplaceFastString(implicit context: Context)(
 
 transitioning builtin RegExpReplace(implicit context: Context)(
     regexp: FastJSRegExp, string: String, replaceValue: JSAny): String {
-  // TODO(pwong): Remove assert when all callers (StringPrototypeReplace) are
+  // TODO(pwong): Remove dcheck when all callers (StringPrototypeReplace) are
   // from Torque.
-  assert(Is<FastJSRegExp>(regexp));
+  dcheck(Is<FastJSRegExp>(regexp));
 
   // 2. Is {replace_value} callable?
   typeswitch (replaceValue) {

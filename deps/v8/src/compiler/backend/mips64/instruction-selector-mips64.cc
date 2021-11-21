@@ -311,14 +311,7 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.UseOperand(m.right().node(), opcode);
   }
 
-  if (cont->IsDeoptimize()) {
-    // If we can deoptimize as a result of the binop, we need to make sure that
-    // the deopt inputs are not overwritten by the binop result. One way
-    // to achieve that is to declare the output register as same-as-first.
-    outputs[output_count++] = g.DefineSameAsFirst(node);
-  } else {
-    outputs[output_count++] = g.DefineAsRegister(node);
-  }
+  outputs[output_count++] = g.DefineAsRegister(node);
 
   DCHECK_NE(0u, input_count);
   DCHECK_EQ(1u, output_count);
@@ -356,9 +349,9 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
-void InstructionSelector::VisitAbortCSAAssert(Node* node) {
+void InstructionSelector::VisitAbortCSADcheck(Node* node) {
   Mips64OperandGenerator g(this);
-  Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
+  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
 }
 
 void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
@@ -498,7 +491,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = load_rep.IsUnsigned() ? kMips64Lhu : kMips64Lh;
       break;
     case MachineRepresentation::kWord32:
-      opcode = load_rep.IsUnsigned() ? kMips64Lwu : kMips64Lw;
+      opcode = kMips64Lw;
       break;
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
@@ -854,7 +847,7 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
       m.right().IsInRange(32, 63) && CanCover(node, m.left().node())) {
     // There's no need to sign/zero-extend to 64-bit if we shift out the upper
     // 32 bits anyway.
-    Emit(kMips64Dshl, g.DefineSameAsFirst(node),
+    Emit(kMips64Dshl, g.DefineAsRegister(node),
          g.UseRegister(m.left().node()->InputAt(0)),
          g.UseImmediate(m.right().node()));
     return;
@@ -1446,44 +1439,49 @@ void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
 }
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
+  // On MIPS64, int32 values should all be sign-extended to 64-bit, so
+  // no need to sign-extend them here.
+  // But when call to a host function in simulator, if the function return an
+  // int32 value, the simulator do not sign-extend to int64, because in
+  // simulator we do not know the function whether return an int32 or int64.
+#ifdef USE_SIMULATOR
   Node* value = node->InputAt(0);
-  if ((value->opcode() == IrOpcode::kLoad ||
-       value->opcode() == IrOpcode::kLoadImmutable) &&
-      CanCover(node, value)) {
-    // Generate sign-extending load.
-    LoadRepresentation load_rep = LoadRepresentationOf(value->op());
-    InstructionCode opcode = kArchNop;
-    switch (load_rep.representation()) {
-      case MachineRepresentation::kBit:  // Fall through.
-      case MachineRepresentation::kWord8:
-        opcode = load_rep.IsUnsigned() ? kMips64Lbu : kMips64Lb;
-        break;
-      case MachineRepresentation::kWord16:
-        opcode = load_rep.IsUnsigned() ? kMips64Lhu : kMips64Lh;
-        break;
-      case MachineRepresentation::kWord32:
-        opcode = kMips64Lw;
-        break;
-      default:
-        UNREACHABLE();
-    }
-    EmitLoad(this, value, opcode, node);
-  } else {
+  if (value->opcode() == IrOpcode::kCall) {
     Mips64OperandGenerator g(this);
-    Emit(kMips64Shl, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+    Emit(kMips64Shl, g.DefineAsRegister(node), g.UseRegister(value),
          g.TempImmediate(0));
+    return;
   }
+#endif
+  EmitIdentity(node);
 }
 
 bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
   DCHECK_NE(node->opcode(), IrOpcode::kPhi);
   switch (node->opcode()) {
-    // 32-bit operations will write their result in a 64 bit register,
-    // clearing the top 32 bits of the destination register.
-    case IrOpcode::kUint32Div:
-    case IrOpcode::kUint32Mod:
-    case IrOpcode::kUint32MulHigh:
+    // Comparisons only emit 0/1, so the upper 32 bits must be zero.
+    case IrOpcode::kWord32Equal:
+    case IrOpcode::kInt32LessThan:
+    case IrOpcode::kInt32LessThanOrEqual:
+    case IrOpcode::kUint32LessThan:
+    case IrOpcode::kUint32LessThanOrEqual:
       return true;
+    case IrOpcode::kWord32And: {
+      Int32BinopMatcher m(node);
+      if (m.right().HasResolvedValue()) {
+        uint32_t mask = m.right().ResolvedValue();
+        return is_uint31(mask);
+      }
+      return false;
+    }
+    case IrOpcode::kWord32Shr: {
+      Int32BinopMatcher m(node);
+      if (m.right().HasResolvedValue()) {
+        uint8_t sa = m.right().ResolvedValue() & 0x1f;
+        return sa > 0;
+      }
+      return false;
+    }
     case IrOpcode::kLoad:
     case IrOpcode::kLoadImmutable: {
       LoadRepresentation load_rep = LoadRepresentationOf(node->op());
@@ -1491,7 +1489,6 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
         switch (load_rep.representation()) {
           case MachineRepresentation::kWord8:
           case MachineRepresentation::kWord16:
-          case MachineRepresentation::kWord32:
             return true;
           default:
             return false;
@@ -1507,10 +1504,24 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   Mips64OperandGenerator g(this);
   Node* value = node->InputAt(0);
+  IrOpcode::Value opcode = value->opcode();
+
+  if (opcode == IrOpcode::kLoad || opcode == IrOpcode::kUnalignedLoad) {
+    LoadRepresentation load_rep = LoadRepresentationOf(value->op());
+    ArchOpcode arch_opcode =
+        opcode == IrOpcode::kUnalignedLoad ? kMips64Ulwu : kMips64Lwu;
+    if (load_rep.IsUnsigned() &&
+        load_rep.representation() == MachineRepresentation::kWord32) {
+      EmitLoad(this, value, arch_opcode, node);
+      return;
+    }
+  }
+
   if (ZeroExtendsWord32ToWord64(value)) {
-    Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+    EmitIdentity(node);
     return;
   }
+
   Emit(kMips64Dext, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
        g.TempImmediate(0), g.TempImmediate(32));
 }
@@ -1528,7 +1539,7 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
           Int64BinopMatcher m(value);
           if (m.right().IsInRange(32, 63)) {
             // After smi untagging no need for truncate. Combine sequence.
-            Emit(kMips64Dsar, g.DefineSameAsFirst(node),
+            Emit(kMips64Dsar, g.DefineAsRegister(node),
                  g.UseRegister(m.left().node()),
                  g.UseImmediate(m.right().node()));
             return;
@@ -1540,8 +1551,8 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
         break;
     }
   }
-  Emit(kMips64Ext, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-       g.TempImmediate(0), g.TempImmediate(32));
+  Emit(kMips64Shl, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.TempImmediate(0));
 }
 
 void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
@@ -1836,7 +1847,7 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
       opcode = load_rep.IsUnsigned() ? kMips64Ulhu : kMips64Ulh;
       break;
     case MachineRepresentation::kWord32:
-      opcode = load_rep.IsUnsigned() ? kMips64Ulwu : kMips64Ulw;
+      opcode = kMips64Ulw;
       break;
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.

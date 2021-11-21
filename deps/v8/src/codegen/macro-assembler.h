@@ -94,13 +94,13 @@ class V8_NODISCARD FrameScope {
         type_(type),
         old_has_frame_(tasm->has_frame()) {
     tasm->set_has_frame(true);
-    if (type != StackFrame::MANUAL && type_ != StackFrame::NONE) {
+    if (type != StackFrame::MANUAL && type_ != StackFrame::NO_FRAME_TYPE) {
       tasm->EnterFrame(type);
     }
   }
 
   ~FrameScope() {
-    if (type_ != StackFrame::MANUAL && type_ != StackFrame::NONE) {
+    if (type_ != StackFrame::MANUAL && type_ != StackFrame::NO_FRAME_TYPE) {
       tasm_->LeaveFrame(type_);
     }
     tasm_->set_has_frame(old_has_frame_);
@@ -110,8 +110,8 @@ class V8_NODISCARD FrameScope {
 #ifdef V8_CODE_COMMENTS
   const char* frame_name(StackFrame::Type type) {
     switch (type) {
-      case StackFrame::NONE:
-        return "Frame: NONE";
+      case StackFrame::NO_FRAME_TYPE:
+        return "Frame: NO_FRAME_TYPE";
       case StackFrame::MANUAL:
         return "Frame: MANUAL";
 #define FRAME_TYPE_CASE(type, field) \
@@ -145,7 +145,7 @@ class V8_NODISCARD FrameAndConstantPoolScope {
     if (FLAG_enable_embedded_constant_pool) {
       masm->set_constant_pool_available(true);
     }
-    if (type_ != StackFrame::MANUAL && type_ != StackFrame::NONE) {
+    if (type_ != StackFrame::MANUAL && type_ != StackFrame::NO_FRAME_TYPE) {
       masm->EnterFrame(type, !old_constant_pool_available_);
     }
   }
@@ -194,7 +194,7 @@ class V8_NODISCARD ConstantPoolUnavailableScope {
 class V8_NODISCARD AllowExternalCallThatCantCauseGC : public FrameScope {
  public:
   explicit AllowExternalCallThatCantCauseGC(MacroAssembler* masm)
-      : FrameScope(masm, StackFrame::NONE) {}
+      : FrameScope(masm, StackFrame::NO_FRAME_TYPE) {}
 };
 
 // Prevent the use of the RootArray during the lifetime of this

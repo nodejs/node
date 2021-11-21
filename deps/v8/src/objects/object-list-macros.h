@@ -270,6 +270,7 @@ class ZoneForwardList;
   V(FreeSpaceOrFiller)                       \
   V(FunctionContext)                         \
   V(JSApiObject)                             \
+  V(JSClassConstructor)                      \
   V(JSLastDummyApiObject)                    \
   V(JSPromiseConstructor)                    \
   V(JSArrayConstructor)                      \

@@ -6,6 +6,7 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-inl.h"  // For Space::identity().
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/read-only-heap.h"
@@ -47,6 +48,10 @@ Serializer::Serializer(Isolate* isolate, Snapshot::SerializerFlags flags)
   }
 #endif  // OBJECT_PRINT
 }
+
+#ifdef DEBUG
+void Serializer::PopStack() { stack_.Pop(); }
+#endif
 
 void Serializer::CountAllocation(Map map, int size, SnapshotSpace space) {
   DCHECK(FLAG_serialization_statistics);
@@ -536,7 +541,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
 
   SerializeObject();
 
-  buffer->set_backing_store(isolate(), backing_store);
+  buffer->set_backing_store(backing_store);
   buffer->set_extension(extension);
 }
 

@@ -176,8 +176,8 @@ void PrintCommaSeparatedList(std::ostream& os, const T& list) {
 struct BottomOffset {
   size_t offset;
 
-  BottomOffset& operator=(std::size_t offset) {
-    this->offset = offset;
+  BottomOffset& operator=(std::size_t other_offset) {
+    this->offset = other_offset;
     return *this;
   }
   BottomOffset& operator++() {

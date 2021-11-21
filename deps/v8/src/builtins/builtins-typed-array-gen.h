@@ -49,6 +49,10 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                          TNode<Object> obj,
                                          const char* method_name);
 
+  TNode<UintPtrT> ValidateTypedArrayAndGetLength(TNode<Context> context,
+                                                 TNode<Object> obj,
+                                                 const char* method_name);
+
   void CallCMemmove(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
                     TNode<UintPtrT> byte_length);
 

@@ -152,6 +152,7 @@ class HeapObject : public Object {
   // during marking GC.
   inline ObjectSlot RawField(int byte_offset) const;
   inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
+  inline CodeObjectSlot RawCodeField(int byte_offset) const;
 
   DECL_CAST(HeapObject)
 

@@ -230,7 +230,18 @@ THREADED_TEST(ArrayBuffer_DetachingScript) {
   CheckIsTypedArrayVarDetached("f32a");
   CheckIsTypedArrayVarDetached("f64a");
 
-  CHECK(CompileRun("dv.byteLength == 0 && dv.byteOffset == 0")->IsTrue());
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun("dv.byteLength == 0 ");
+    CHECK(try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun("dv.byteOffset == 0");
+    CHECK(try_catch.HasCaught());
+  }
+
   CheckDataViewIsDetached(dv);
 }
 

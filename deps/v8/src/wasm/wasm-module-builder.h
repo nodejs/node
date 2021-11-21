@@ -331,10 +331,14 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   // size, or the maximum uint32_t value if the maximum table size has been
   // exceeded.
   uint32_t IncreaseTableMinSize(uint32_t table_index, uint32_t count);
-  uint32_t AddSignature(FunctionSig* sig);
+  // Adds the signature to the module if it does not already exist.
+  uint32_t AddSignature(FunctionSig* sig, uint32_t supertype = kNoSuperType);
+  // Does not deduplicate function signatures.
+  uint32_t ForceAddSignature(FunctionSig* sig,
+                             uint32_t supertype = kNoSuperType);
   uint32_t AddException(FunctionSig* type);
-  uint32_t AddStructType(StructType* type);
-  uint32_t AddArrayType(ArrayType* type);
+  uint32_t AddStructType(StructType* type, uint32_t supertype = kNoSuperType);
+  uint32_t AddArrayType(ArrayType* type, uint32_t supertype = kNoSuperType);
   uint32_t AddTable(ValueType type, uint32_t min_size);
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size);
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size,
@@ -399,13 +403,14 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
  private:
   struct Type {
     enum Kind { kFunctionSig, kStructType, kArrayType };
-    explicit Type(FunctionSig* signature)
-        : kind(kFunctionSig), sig(signature) {}
-    explicit Type(StructType* struct_type)
-        : kind(kStructType), struct_type(struct_type) {}
-    explicit Type(ArrayType* array_type)
-        : kind(kArrayType), array_type(array_type) {}
+    explicit Type(FunctionSig* signature, uint32_t supertype)
+        : kind(kFunctionSig), supertype(supertype), sig(signature) {}
+    explicit Type(StructType* struct_type, uint32_t supertype)
+        : kind(kStructType), supertype(supertype), struct_type(struct_type) {}
+    explicit Type(ArrayType* array_type, uint32_t supertype)
+        : kind(kArrayType), supertype(supertype), array_type(array_type) {}
     Kind kind;
+    uint32_t supertype;
     union {
       FunctionSig* sig;
       StructType* struct_type;

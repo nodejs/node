@@ -176,7 +176,7 @@ Running test: testDetachedArrayBuffer
 Running test: testArrayBufferWithBrokenUintCtor
 Internal properties
   [[ArrayBufferByteLength]] number 7
-  [[ArrayBufferData]] string 0x...
+  [[ArrayBufferData]] number 4
   [[Int8Array]] object undefined
   [[Prototype]] object undefined
   [[Uint8Array]] object undefined

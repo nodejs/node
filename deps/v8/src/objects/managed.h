@@ -7,7 +7,6 @@
 
 #include <memory>
 #include "src/execution/isolate.h"
-#include "src/handles/global-handles.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/objects/foreign.h"
@@ -65,49 +64,25 @@ class Managed : public Foreign {
   template <typename... Args>
   static Handle<Managed<CppType>> Allocate(Isolate* isolate,
                                            size_t estimated_size,
-                                           Args&&... args) {
-    return FromSharedPtr(
-        isolate, estimated_size,
-        std::make_shared<CppType>(std::forward<Args>(args)...));
-  }
+                                           Args&&... args);
 
   // Create a {Managed<CppType>} from an existing raw {CppType*}. The returned
   // object will now own the memory pointed to by {CppType}.
   static Handle<Managed<CppType>> FromRawPtr(Isolate* isolate,
                                              size_t estimated_size,
-                                             CppType* ptr) {
-    return FromSharedPtr(isolate, estimated_size,
-                         std::shared_ptr<CppType>{ptr});
-  }
+                                             CppType* ptr);
 
   // Create a {Managed<CppType>} from an existing {std::unique_ptr<CppType>}.
   // The returned object will now own the memory pointed to by {CppType}, and
   // the unique pointer will be released.
   static Handle<Managed<CppType>> FromUniquePtr(
       Isolate* isolate, size_t estimated_size,
-      std::unique_ptr<CppType> unique_ptr) {
-    return FromSharedPtr(isolate, estimated_size, std::move(unique_ptr));
-  }
+      std::unique_ptr<CppType> unique_ptr);
 
   // Create a {Managed<CppType>} from an existing {std::shared_ptr<CppType>}.
   static Handle<Managed<CppType>> FromSharedPtr(
       Isolate* isolate, size_t estimated_size,
-      std::shared_ptr<CppType> shared_ptr) {
-    reinterpret_cast<v8::Isolate*>(isolate)
-        ->AdjustAmountOfExternalAllocatedMemory(estimated_size);
-    auto destructor = new ManagedPtrDestructor(
-        estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
-        Destructor);
-    Handle<Managed<CppType>> handle = Handle<Managed<CppType>>::cast(
-        isolate->factory()->NewForeign(reinterpret_cast<Address>(destructor)));
-    Handle<Object> global_handle = isolate->global_handles()->Create(*handle);
-    destructor->global_handle_location_ = global_handle.location();
-    GlobalHandles::MakeWeak(destructor->global_handle_location_, destructor,
-                            &ManagedObjectFinalizer,
-                            v8::WeakCallbackType::kParameter);
-    isolate->RegisterManagedPtrDestructor(destructor);
-    return handle;
-  }
+      std::shared_ptr<CppType> shared_ptr);
 
  private:
   // Internally this {Foreign} object stores a pointer to a new

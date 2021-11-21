@@ -18,6 +18,11 @@
 // This macro does nothing. That's all.
 #define NOTHING(...)
 
+#define CONCAT_(a, b) a##b
+#define CONCAT(a, b) CONCAT_(a, b)
+// Creates an unique identifier. Useful for scopes to avoid shadowing names.
+#define UNIQUE_IDENTIFIER(base) CONCAT(base, __COUNTER__)
+
 // TODO(all) Replace all uses of this macro with C++'s offsetof. To do that, we
 // have to make sure that only standard-layout types and simple field
 // designators are used.
@@ -159,6 +164,13 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer)
 #define V8_USE_MEMORY_SANITIZER 1
+#endif
+#endif
+
+// Define V8_USE_UNDEFINED_BEHAVIOR_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(undefined_behavior_sanitizer)
+#define V8_USE_UNDEFINED_BEHAVIOR_SANITIZER 1
 #endif
 #endif
 

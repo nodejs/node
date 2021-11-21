@@ -17,6 +17,7 @@
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/utils/ostreams.h"
@@ -425,6 +426,44 @@ Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
   }
 
   return Just(it->property_attributes());
+}
+
+// ES
+// https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
+// static
+Maybe<bool> JSModuleNamespace::DefineOwnProperty(
+    Isolate* isolate, Handle<JSModuleNamespace> object, Handle<Object> key,
+    PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw) {
+  // 1. If Type(P) is Symbol, return OrdinaryDefineOwnProperty(O, P, Desc).
+  if (key->IsSymbol()) {
+    return OrdinaryDefineOwnProperty(isolate, object, key, desc, should_throw);
+  }
+
+  // 2. Let current be ? O.[[GetOwnProperty]](P).
+  PropertyKey lookup_key(isolate, key);
+  LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
+  PropertyDescriptor current;
+  Maybe<bool> has_own = GetOwnPropertyDescriptor(&it, &current);
+  MAYBE_RETURN(has_own, Nothing<bool>());
+
+  // 3. If current is undefined, return false.
+  // 4. If Desc.[[Configurable]] is present and has value true, return false.
+  // 5. If Desc.[[Enumerable]] is present and has value false, return false.
+  // 6. If ! IsAccessorDescriptor(Desc) is true, return false.
+  // 7. If Desc.[[Writable]] is present and has value false, return false.
+  // 8. If Desc.[[Value]] is present, return
+  //    SameValue(Desc.[[Value]], current.[[Value]]).
+  if (!has_own.FromJust() ||
+      (desc->has_configurable() && desc->configurable()) ||
+      (desc->has_enumerable() && !desc->enumerable()) ||
+      PropertyDescriptor::IsAccessorDescriptor(desc) ||
+      (desc->has_writable() && !desc->writable()) ||
+      (desc->has_value() && !desc->value()->SameValue(*current.value()))) {
+    RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
+                   NewTypeError(MessageTemplate::kRedefineDisallowed, key));
+  }
+
+  return Just(true);
 }
 
 bool Module::IsGraphAsync(Isolate* isolate) const {

@@ -27,16 +27,16 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
+#include "src/base/vector.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
-#include "src/utils/ostreams.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
+#include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -45,244 +45,12 @@ namespace internal {
 #define __ assm.
 
 TEST(DisasmX64) {
-  CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::internal::byte buffer[8192];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
-
-  // Short immediate instructions
-  __ addq(rax, Immediate(12345678));
-  __ orq(rax, Immediate(12345678));
-  __ subq(rax, Immediate(12345678));
-  __ xorq(rax, Immediate(12345678));
-  __ andq(rax, Immediate(12345678));
-
-  // ---- This one caused crash
-  __ movq(rbx,  Operand(rsp, rcx, times_2, 0));  // [rsp+rcx*4]
-
-  // ---- All instructions that I can think of
-  __ addq(rdx, rbx);
-  __ addq(rdx, Operand(rbx, 0));
-  __ addq(rdx, Operand(rbx, 16));
-  __ addq(rdx, Operand(rbx, 1999));
-  __ addq(rdx, Operand(rbx, -4));
-  __ addq(rdx, Operand(rbx, -1999));
-  __ addq(rdx, Operand(rsp, 0));
-  __ addq(rdx, Operand(rsp, 16));
-  __ addq(rdx, Operand(rsp, 1999));
-  __ addq(rdx, Operand(rsp, -4));
-  __ addq(rdx, Operand(rsp, -1999));
-  __ nop();
-  __ addq(rsi, Operand(rcx, times_4, 0));
-  __ addq(rsi, Operand(rcx, times_4, 24));
-  __ addq(rsi, Operand(rcx, times_4, -4));
-  __ addq(rsi, Operand(rcx, times_4, -1999));
-  __ nop();
-  __ addq(rdi, Operand(rbp, rcx, times_4, 0));
-  __ addq(rdi, Operand(rbp, rcx, times_4, 12));
-  __ addq(rdi, Operand(rbp, rcx, times_4, -8));
-  __ addq(rdi, Operand(rbp, rcx, times_4, -3999));
-  __ addq(Operand(rbp, rcx, times_4, 12), Immediate(12));
-
-  __ bswapl(rax);
-  __ bswapq(rdi);
-  __ bsrl(rax, r15);
-  __ bsrl(r9, Operand(rcx, times_8, 91919));
-
-  __ nop();
-  __ addq(rbx, Immediate(12));
-  __ nop();
-  __ nop();
-  __ andq(rdx, Immediate(3));
-  __ andq(rdx, Operand(rsp, 4));
-  __ cmpq(rdx, Immediate(3));
-  __ cmpq(rdx, Operand(rsp, 4));
-  __ cmpq(Operand(rbp, rcx, times_4, 0), Immediate(1000));
-  __ cmpb(rbx, Operand(rbp, rcx, times_2, 0));
-  __ cmpb(Operand(rbp, rcx, times_2, 0), rbx);
-  __ orq(rdx, Immediate(3));
-  __ xorq(rdx, Immediate(3));
-  __ nop();
-  __ cpuid();
-  __ movsxbl(rdx, Operand(rcx, 0));
-  __ movsxbq(rdx, Operand(rcx, 0));
-  __ movsxwl(rdx, Operand(rcx, 0));
-  __ movsxwq(rdx, Operand(rcx, 0));
-  __ movzxbl(rdx, Operand(rcx, 0));
-  __ movzxwl(rdx, Operand(rcx, 0));
-  __ movzxbq(rdx, Operand(rcx, 0));
-  __ movzxwq(rdx, Operand(rcx, 0));
-
-  __ nop();
-  __ imulq(rdx, rcx);
-  __ shld(rdx, rcx);
-  __ shrd(rdx, rcx);
-  __ shlq(Operand(rdi, rax, times_4, 100), Immediate(1));
-  __ shlq(Operand(rdi, rax, times_4, 100), Immediate(6));
-  __ shlq(Operand(r15, 0), Immediate(1));
-  __ shlq(Operand(r15, 0), Immediate(6));
-  __ shlq_cl(Operand(r15, 0));
-  __ shlq_cl(Operand(r15, 0));
-  __ shlq_cl(Operand(rdi, rax, times_4, 100));
-  __ shlq_cl(Operand(rdi, rax, times_4, 100));
-  __ shlq(rdx, Immediate(1));
-  __ shlq(rdx, Immediate(6));
-  __ shll(Operand(rdi, rax, times_4, 100), Immediate(1));
-  __ shll(Operand(rdi, rax, times_4, 100), Immediate(6));
-  __ shll(Operand(r15, 0), Immediate(1));
-  __ shll(Operand(r15, 0), Immediate(6));
-  __ shll_cl(Operand(r15, 0));
-  __ shll_cl(Operand(r15, 0));
-  __ shll_cl(Operand(rdi, rax, times_4, 100));
-  __ shll_cl(Operand(rdi, rax, times_4, 100));
-  __ shll(rdx, Immediate(1));
-  __ shll(rdx, Immediate(6));
-  __ btq(Operand(rdx, 0), rcx);
-  __ btsq(Operand(rdx, 0), rcx);
-  __ btsq(Operand(rbx, rcx, times_4, 0), rcx);
-  __ btsq(rcx, Immediate(13));
-  __ btrq(rcx, Immediate(13));
-  __ nop();
-  __ pushq(Immediate(12));
-  __ pushq(Immediate(23456));
-  __ pushq(rcx);
-  __ pushq(rsi);
-  __ pushq(Operand(rbp, StandardFrameConstants::kFunctionOffset));
-  __ pushq(Operand(rbx, rcx, times_4, 0));
-  __ pushq(Operand(rbx, rcx, times_4, 0));
-  __ pushq(Operand(rbx, rcx, times_4, 10000));
-  __ popq(rdx);
-  __ popq(rax);
-  __ popq(Operand(rbx, rcx, times_4, 0));
-  __ nop();
-
-  __ addq(rdx, Operand(rsp, 16));
-  __ addq(rdx, rcx);
-  __ movb(rdx, Operand(rcx, 0));
-  __ movb(rcx, Immediate(6));
-  __ movb(Operand(rsp, 16), rdx);
-  __ movw(Operand(rsp, 16), rdx);
-  __ nop();
-  __ movsxwq(rdx, Operand(rsp, 12));
-  __ movsxbq(rdx, Operand(rsp, 12));
-  __ movsxlq(rdx, Operand(rsp, 12));
-  __ movzxwq(rdx, Operand(rsp, 12));
-  __ movzxbq(rdx, Operand(rsp, 12));
-  __ nop();
-  __ movq(rdx, Immediate(1234567));
-  __ movq(rdx, Operand(rsp, 12));
-  __ movq(Operand(rbx, rcx, times_4, 10000), Immediate(12345));
-  __ movq(Operand(rbx, rcx, times_4, 10000), rdx);
-  __ nop();
-  __ decb(rdx);
-  __ decb(Operand(rax, 10));
-  __ decb(Operand(rbx, rcx, times_4, 10000));
-  __ decq(rdx);
-  __ cdq();
-
-  __ repstosl();
-  __ repstosq();
-
-  __ nop();
-  __ idivq(rdx);
-  __ mull(rdx);
-  __ mulq(rdx);
-
-  __ negb(rdx);
-  __ negb(r10);
-  __ negw(rdx);
-  __ negl(rdx);
-  __ negq(rdx);
-  __ negb(Operand(rsp, 12));
-  __ negw(Operand(rsp, 12));
-  __ negl(Operand(rsp, 12));
-  __ negb(Operand(rsp, 12));
-
-  __ notq(rdx);
-  __ testq(Operand(rbx, rcx, times_4, 10000), rdx);
-
-  __ imulq(rdx, rcx, Immediate(12));
-  __ imulq(rdx, rcx, Immediate(1000));
-  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000));
-  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000), Immediate(12));
-  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000), Immediate(1000));
-  __ imull(r15, rcx, Immediate(12));
-  __ imull(r15, rcx, Immediate(1000));
-  __ imull(r15, Operand(rbx, rcx, times_4, 10000));
-  __ imull(r15, Operand(rbx, rcx, times_4, 10000), Immediate(12));
-  __ imull(r15, Operand(rbx, rcx, times_4, 10000), Immediate(1000));
-
-  __ incq(rdx);
-  __ incq(Operand(rbx, rcx, times_4, 10000));
-  __ pushq(Operand(rbx, rcx, times_4, 10000));
-  __ popq(Operand(rbx, rcx, times_4, 10000));
-  __ jmp(Operand(rbx, rcx, times_4, 10000));
-
-  __ leaq(rdx, Operand(rbx, rcx, times_4, 10000));
-  __ orq(rdx, Immediate(12345));
-  __ orq(rdx, Operand(rbx, rcx, times_4, 10000));
-
-  __ nop();
-
-  __ rclq(rdx, Immediate(1));
-  __ rclq(rdx, Immediate(7));
-  __ rcrq(rdx, Immediate(1));
-  __ rcrq(rdx, Immediate(7));
-  __ sarq(rdx, Immediate(1));
-  __ sarq(rdx, Immediate(6));
-  __ sarq_cl(rdx);
-  __ sbbq(rdx, rbx);
-  __ shld(rdx, rbx);
-  __ shlq(rdx, Immediate(1));
-  __ shlq(rdx, Immediate(6));
-  __ shlq_cl(rdx);
-  __ shrd(rdx, rbx);
-  __ shrq(rdx, Immediate(1));
-  __ shrq(rdx, Immediate(7));
-  __ shrq_cl(rdx);
-
-
-  // Immediates
-
-  __ addq(rbx, Immediate(12));
-  __ addq(Operand(rdx, rcx, times_4, 10000), Immediate(12));
-
-  __ andq(rbx, Immediate(12345));
-
-  __ cmpq(rbx, Immediate(12345));
-  __ cmpq(rbx, Immediate(12));
-  __ cmpq(Operand(rdx, rcx, times_4, 10000), Immediate(12));
-  __ cmpb(rax, Immediate(100));
-
-  __ orq(rbx, Immediate(12345));
-
-  __ subq(rbx, Immediate(12));
-  __ subq(Operand(rdx, rcx, times_4, 10000), Immediate(12));
-
-  __ xorq(rbx, Immediate(12345));
-
-  __ imulq(rdx, rcx, Immediate(12));
-  __ imulq(rdx, rcx, Immediate(1000));
-
-  __ cld();
-
-  __ subq(rdx, Operand(rbx, rcx, times_4, 10000));
-  __ subq(rdx, rbx);
-
-  __ testq(rdx, Immediate(12345));
-  __ testq(Operand(rbx, rcx, times_8, 10000), rdx);
-  __ testb(Operand(rcx, rbx, times_2, 1000), rdx);
-  __ testb(Operand(rax, -20), Immediate(0x9A));
-  __ nop();
-
-  __ xorq(rdx, Immediate(12345));
-  __ xorq(rdx, Operand(rbx, rcx, times_8, 10000));
-  __ hlt();
-  __ int3();
-  __ ret(0);
-  __ ret(8);
+  // Some instructions are tested in DisasmX64CheckOutput.
 
   // Calls
 
@@ -344,181 +112,6 @@ TEST(DisasmX64) {
   __ j(less_equal, &Ljcc);
   __ j(greater, &Ljcc);
 
-  // 0xD9 instructions
-  __ nop();
-
-  __ fld(1);
-  __ fld1();
-  __ fldz();
-  __ fldpi();
-  __ fabs();
-  __ fchs();
-  __ fprem();
-  __ fprem1();
-  __ fincstp();
-  __ ftst();
-  __ fxch(3);
-  __ fld_s(Operand(rbx, rcx, times_4, 10000));
-  __ fstp_s(Operand(rbx, rcx, times_4, 10000));
-  __ ffree(3);
-  __ fld_d(Operand(rbx, rcx, times_4, 10000));
-  __ fstp_d(Operand(rbx, rcx, times_4, 10000));
-  __ nop();
-
-  __ fild_s(Operand(rbx, rcx, times_4, 10000));
-  __ fistp_s(Operand(rbx, rcx, times_4, 10000));
-  __ fild_d(Operand(rbx, rcx, times_4, 10000));
-  __ fistp_d(Operand(rbx, rcx, times_4, 10000));
-  __ fnstsw_ax();
-  __ nop();
-  __ fadd(3);
-  __ fsub(3);
-  __ fmul(3);
-  __ fdiv(3);
-
-  __ faddp(3);
-  __ fsubp(3);
-  __ fmulp(3);
-  __ fdivp(3);
-  __ fcompp();
-  __ fwait();
-  __ frndint();
-  __ fninit();
-  __ nop();
-
-  // SSE instruction
-  {
-    // Move operation
-    __ cvttss2si(rdx, Operand(rbx, rcx, times_4, 10000));
-    __ cvttss2si(rdx, xmm1);
-    __ cvtqsi2ss(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ cvtqsi2ss(xmm1, rdx);
-    __ cvttps2dq(xmm0, xmm1);
-    __ cvttps2dq(xmm0, Operand(rbx, rcx, times_4, 10000));
-    __ movaps(xmm0, xmm1);
-    __ movaps(xmm0, Operand(rbx, rcx, times_4, 10000));
-    __ movdqa(xmm0, Operand(rsp, 12));
-    __ movdqa(Operand(rsp, 12), xmm0);
-    __ movdqu(xmm0, Operand(rsp, 12));
-    __ movdqu(Operand(rsp, 12), xmm0);
-    __ movdqu(xmm1, xmm0);
-    __ movhlps(xmm5, xmm1);
-    __ movlps(xmm8, Operand(rbx, rcx, times_4, 10000));
-    __ movlps(Operand(rbx, rcx, times_4, 10000), xmm9);
-    __ movlhps(xmm5, xmm1);
-    __ movhps(xmm8, Operand(rbx, rcx, times_4, 10000));
-    __ movhps(Operand(rbx, rcx, times_4, 10000), xmm9);
-    __ shufps(xmm0, xmm9, 0x0);
-
-    __ ucomiss(xmm0, xmm1);
-    __ ucomiss(xmm0, Operand(rbx, rcx, times_4, 10000));
-
-    __ movmskps(rdx, xmm9);
-
-#define EMIT_SSE_INSTR(instruction, notUsed1, notUsed2) \
-  __ instruction(xmm1, xmm0);                           \
-  __ instruction(xmm1, Operand(rbx, rcx, times_4, 10000));
-    SSE_BINOP_INSTRUCTION_LIST(EMIT_SSE_INSTR)
-    SSE_UNOP_INSTRUCTION_LIST(EMIT_SSE_INSTR)
-#undef EMIT_SSE_INSTR
-
-#define EMIT_SSE_INSTR(instruction, notUsed1, notUsed2, notUse3) \
-  __ instruction(xmm1, xmm0);                                    \
-  __ instruction(xmm1, Operand(rbx, rcx, times_4, 10000));
-    SSE_INSTRUCTION_LIST_SS(EMIT_SSE_INSTR)
-#undef EMIT_SSE_INSTR
-  }
-
-  // SSE2 instructions
-  {
-    __ cvtdq2pd(xmm3, xmm4);
-    __ cvttsd2si(rdx, Operand(rbx, rcx, times_4, 10000));
-    __ cvttsd2si(rdx, xmm1);
-    __ cvttsd2siq(rdx, xmm1);
-    __ cvttsd2siq(rdx, Operand(rbx, rcx, times_4, 10000));
-    __ cvtlsi2sd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ cvtlsi2sd(xmm1, rdx);
-    __ cvtqsi2sd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ cvtqsi2sd(xmm1, rdx);
-    __ cvtss2sd(xmm1, xmm9);
-    __ cvtss2sd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ cvtsd2si(rdx, xmm9);
-    __ cvtsd2siq(rdx, xmm9);
-
-    __ movsd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ movsd(Operand(rbx, rcx, times_4, 10000), xmm1);
-    // 128 bit move instructions.
-    __ movupd(xmm0, Operand(rbx, rcx, times_4, 10000));
-    __ movupd(Operand(rbx, rcx, times_4, 10000), xmm0);
-    __ movdqa(xmm0, Operand(rbx, rcx, times_4, 10000));
-    __ movdqa(Operand(rbx, rcx, times_4, 10000), xmm0);
-    __ movdqa(xmm0, xmm1);
-
-    __ ucomisd(xmm0, xmm1);
-    __ ucomisd(xmm8, Operand(rbx, rdx, times_4, 10000));
-
-    __ cmpltsd(xmm3, xmm11);
-
-    __ movmskpd(rdx, xmm9);
-    __ pmovmskb(rdx, xmm9);
-
-    __ pcmpeqd(xmm1, xmm0);
-
-    __ punpckldq(xmm1, xmm11);
-    __ punpckldq(xmm5, Operand(rdx, 4));
-    __ punpckhdq(xmm8, xmm15);
-
-    __ pshuflw(xmm2, xmm4, 3);
-    __ pshufhw(xmm1, xmm9, 6);
-
-#define EMIT_SSE2_INSTR(instruction, notUsed1, notUsed2, notUsed3) \
-  __ instruction(xmm5, xmm1);                                      \
-  __ instruction(xmm5, Operand(rdx, 4));
-
-    SSE2_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
-    SSE2_UNOP_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
-    SSE2_INSTRUCTION_LIST_SD(EMIT_SSE2_INSTR)
-#undef EMIT_SSE2_INSTR
-
-#define EMIT_SSE2_SHIFT_IMM(instruction, notUsed1, notUsed2, notUsed3, \
-                            notUsed4)                                  \
-  __ instruction(xmm3, 0xA3);
-    SSE2_INSTRUCTION_LIST_SHIFT_IMM(EMIT_SSE2_SHIFT_IMM)
-#undef EMIT_SSE2_SHIFT_IMM
-  }
-
-  // cmov.
-  {
-    __ cmovq(overflow, rax, Operand(rax, 0));
-    __ cmovq(no_overflow, rax, Operand(rax, 1));
-    __ cmovq(below, rax, Operand(rax, 2));
-    __ cmovq(above_equal, rax, Operand(rax, 3));
-    __ cmovq(equal, rax, Operand(rbx, 0));
-    __ cmovq(not_equal, rax, Operand(rbx, 1));
-    __ cmovq(below_equal, rax, Operand(rbx, 2));
-    __ cmovq(above, rax, Operand(rbx, 3));
-    __ cmovq(sign, rax, Operand(rcx, 0));
-    __ cmovq(not_sign, rax, Operand(rcx, 1));
-    __ cmovq(parity_even, rax, Operand(rcx, 2));
-    __ cmovq(parity_odd, rax, Operand(rcx, 3));
-    __ cmovq(less, rax, Operand(rdx, 0));
-    __ cmovq(greater_equal, rax, Operand(rdx, 1));
-    __ cmovq(less_equal, rax, Operand(rdx, 2));
-    __ cmovq(greater, rax, Operand(rdx, 3));
-  }
-
-  {
-    if (CpuFeatures::IsSupported(SSE3)) {
-      CpuFeatureScope scope(&assm, SSE3);
-      __ haddps(xmm1, xmm0);
-      __ haddps(xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ lddqu(xmm1, Operand(rdx, 4));
-      __ movddup(xmm1, Operand(rax, 5));
-      __ movddup(xmm1, xmm2);
-      __ movshdup(xmm1, xmm2);
-    }
-  }
-
 #define EMIT_SSE34_INSTR(instruction, notUsed1, notUsed2, notUsed3, notUsed4) \
   __ instruction(xmm5, xmm1);                                                 \
   __ instruction(xmm5, Operand(rdx, 4));
@@ -527,16 +120,6 @@ TEST(DisasmX64) {
                              notUsed4)                                  \
   __ instruction(rbx, xmm15, 0);                                        \
   __ instruction(Operand(rax, 10), xmm0, 1);
-
-  {
-    if (CpuFeatures::IsSupported(SSSE3)) {
-      CpuFeatureScope scope(&assm, SSSE3);
-      __ palignr(xmm5, xmm1, 5);
-      __ palignr(xmm5, Operand(rdx, 4), 5);
-      SSSE3_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
-      SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
-    }
-  }
 
   {
     if (CpuFeatures::IsSupported(SSE4_1)) {
@@ -724,6 +307,8 @@ TEST(DisasmX64) {
       __ vxorps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vhaddps(xmm0, xmm1, xmm9);
       __ vhaddps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vhaddps(ymm0, ymm1, ymm2);
+      __ vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000));
 
       __ vpcmpeqd(xmm0, xmm15, xmm5);
       __ vpcmpeqd(xmm15, xmm0, Operand(rbx, rcx, times_4, 10000));
@@ -1057,31 +642,639 @@ TEST(DisasmX64) {
 #endif
 }
 
-TEST(DisasmX64YMMRegister) {
+constexpr int kAssemblerBufferSize = 8192;
+
+// Helper to package up all the required classes for disassembling into a
+// buffer using |InstructionDecode|.
+struct DisassemblerTester {
+  DisassemblerTester()
+      : assm_(AssemblerOptions{},
+              ExternalAssemblerBuffer(buffer_, sizeof(buffer_))),
+        disasm(converter_) {}
+
+  std::string InstructionDecode() {
+    disasm.InstructionDecode(disasm_buffer, buffer_ + prev_offset);
+    return std::string{disasm_buffer.begin()};
+  }
+
+  int pc_offset() { return assm_.pc_offset(); }
+
+  Assembler* assm() { return &assm_; }
+
+  v8::internal::byte buffer_[kAssemblerBufferSize];
+  Assembler assm_;
+  disasm::NameConverter converter_;
+  disasm::Disassembler disasm;
+  base::EmbeddedVector<char, 128> disasm_buffer;
+  int prev_offset = 0;
+};
+
+// Helper macro to compare the disassembly of an assembler function call with
+// the expected disassembly output. We reuse |Assembler|, so we need to keep
+// track of the offset into |buffer| which the Assembler has used, and
+// disassemble the instruction at that offset.
+// Requires a DisassemblerTester named t.
+#define COMPARE(str, ASM)        \
+  t.prev_offset = t.pc_offset(); \
+  t.assm_.ASM;                   \
+  CHECK_EQ(str, t.InstructionDecode());
+
+// Tests that compares the checks the disassembly output with an expected
+// string.
+UNINITIALIZED_TEST(DisasmX64CheckOutput) {
+  DisassemblerTester t;
+
+  // Short immediate instructions
+  COMPARE("48054e61bc00         REX.W add rax,0xbc614e",
+          addq(rax, Immediate(12345678)));
+  COMPARE("480d4e61bc00         REX.W or rax,0xbc614e",
+          orq(rax, Immediate(12345678)));
+  COMPARE("482d4e61bc00         REX.W sub rax,0xbc614e",
+          subq(rax, Immediate(12345678)));
+  COMPARE("48354e61bc00         REX.W xor rax,0xbc614e",
+          xorq(rax, Immediate(12345678)));
+  COMPARE("48254e61bc00         REX.W and rax,0xbc614e",
+          andq(rax, Immediate(12345678)));
+  COMPARE("488b1c4c             REX.W movq rbx,[rsp+rcx*2]",
+          movq(rbx, Operand(rsp, rcx, times_2, 0)));  // [rsp+rcx*2);
+  COMPARE("4803d3               REX.W addq rdx,rbx", addq(rdx, rbx));
+  COMPARE("480313               REX.W addq rdx,[rbx]",
+          addq(rdx, Operand(rbx, 0)));
+  COMPARE("48035310             REX.W addq rdx,[rbx+0x10]",
+          addq(rdx, Operand(rbx, 16)));
+  COMPARE("480393cf070000       REX.W addq rdx,[rbx+0x7cf]",
+          addq(rdx, Operand(rbx, 1999)));
+  COMPARE("480353fc             REX.W addq rdx,[rbx-0x4]",
+          addq(rdx, Operand(rbx, -4)));
+  COMPARE("48039331f8ffff       REX.W addq rdx,[rbx-0x7cf]",
+          addq(rdx, Operand(rbx, -1999)));
+  COMPARE("48031424             REX.W addq rdx,[rsp]",
+          addq(rdx, Operand(rsp, 0)));
+  COMPARE("4803542410           REX.W addq rdx,[rsp+0x10]",
+          addq(rdx, Operand(rsp, 16)));
+  COMPARE("48039424cf070000     REX.W addq rdx,[rsp+0x7cf]",
+          addq(rdx, Operand(rsp, 1999)));
+  COMPARE("48035424fc           REX.W addq rdx,[rsp-0x4]",
+          addq(rdx, Operand(rsp, -4)));
+  COMPARE("4803942431f8ffff     REX.W addq rdx,[rsp-0x7cf]",
+          addq(rdx, Operand(rsp, -1999)));
+  COMPARE("4803348d00000000     REX.W addq rsi,[rcx*4+0x0]",
+          addq(rsi, Operand(rcx, times_4, 0)));
+  COMPARE("4803348d18000000     REX.W addq rsi,[rcx*4+0x18]",
+          addq(rsi, Operand(rcx, times_4, 24)));
+  COMPARE("4803348dfcffffff     REX.W addq rsi,[rcx*4-0x4]",
+          addq(rsi, Operand(rcx, times_4, -4)));
+  COMPARE("4803348d31f8ffff     REX.W addq rsi,[rcx*4-0x7cf]",
+          addq(rsi, Operand(rcx, times_4, -1999)));
+  COMPARE("48037c8d00           REX.W addq rdi,[rbp+rcx*4+0x0]",
+          addq(rdi, Operand(rbp, rcx, times_4, 0)));
+  COMPARE("48037c8d0c           REX.W addq rdi,[rbp+rcx*4+0xc]",
+          addq(rdi, Operand(rbp, rcx, times_4, 12)));
+  COMPARE("48037c8df8           REX.W addq rdi,[rbp+rcx*4-0x8]",
+          addq(rdi, Operand(rbp, rcx, times_4, -8)));
+  COMPARE("4803bc8d61f0ffff     REX.W addq rdi,[rbp+rcx*4-0xf9f]",
+          addq(rdi, Operand(rbp, rcx, times_4, -3999)));
+  COMPARE("4883448d0c0c         REX.W addq [rbp+rcx*4+0xc],0xc",
+          addq(Operand(rbp, rcx, times_4, 12), Immediate(12)));
+
+  COMPARE("400fc8               bswapl rax", bswapl(rax));
+  COMPARE("480fcf               REX.W bswapq rdi", bswapq(rdi));
+  COMPARE("410fbdc7             bsrl rax,r15", bsrl(rax, r15));
+  COMPARE("440fbd0ccd0f670100   bsrl r9,[rcx*8+0x1670f]",
+          bsrl(r9, Operand(rcx, times_8, 91919)));
+
+  COMPARE("90                   nop", nop());
+  COMPARE("4883c30c             REX.W addq rbx,0xc", addq(rbx, Immediate(12)));
+  COMPARE("4883e203             REX.W andq rdx,0x3", andq(rdx, Immediate(3)));
+  COMPARE("4823542404           REX.W andq rdx,[rsp+0x4]",
+          andq(rdx, Operand(rsp, 4)));
+  COMPARE("4883fa03             REX.W cmpq rdx,0x3", cmpq(rdx, Immediate(3)));
+  COMPARE("483b542404           REX.W cmpq rdx,[rsp+0x4]",
+          cmpq(rdx, Operand(rsp, 4)));
+  COMPARE("48817c8d00e8030000   REX.W cmpq [rbp+rcx*4+0x0],0x3e8",
+          cmpq(Operand(rbp, rcx, times_4, 0), Immediate(1000)));
+  COMPARE("3a5c4d00             cmpb bl,[rbp+rcx*2+0x0]",
+          cmpb(rbx, Operand(rbp, rcx, times_2, 0)));
+  COMPARE("385c4d00             cmpb [rbp+rcx*2+0x0],bl",
+          cmpb(Operand(rbp, rcx, times_2, 0), rbx));
+  COMPARE("4883ca03             REX.W orq rdx,0x3", orq(rdx, Immediate(3)));
+  COMPARE("4883f203             REX.W xorq rdx,0x3", xorq(rdx, Immediate(3)));
+  COMPARE("90                   nop", nop());
+  COMPARE("0fa2                 cpuid", cpuid());
+  COMPARE("0fbe11               movsxbl rdx,[rcx]",
+          movsxbl(rdx, Operand(rcx, 0)));
+  COMPARE("480fbe11             REX.W movsxbq rdx,[rcx]",
+          movsxbq(rdx, Operand(rcx, 0)));
+  COMPARE("0fbf11               movsxwl rdx,[rcx]",
+          movsxwl(rdx, Operand(rcx, 0)));
+  COMPARE("480fbf11             REX.W movsxwq rdx,[rcx]",
+          movsxwq(rdx, Operand(rcx, 0)));
+  COMPARE("0fb611               movzxbl rdx,[rcx]",
+          movzxbl(rdx, Operand(rcx, 0)));
+  COMPARE("0fb711               movzxwl rdx,[rcx]",
+          movzxwl(rdx, Operand(rcx, 0)));
+  COMPARE("0fb611               movzxbl rdx,[rcx]",
+          movzxbq(rdx, Operand(rcx, 0)));
+  COMPARE("0fb711               movzxwl rdx,[rcx]",
+          movzxwq(rdx, Operand(rcx, 0)));
+
+  COMPARE("480fafd1             REX.W imulq rdx,rcx", imulq(rdx, rcx));
+  COMPARE("480fa5ca             REX.W shld rdx,rcx,cl", shld(rdx, rcx));
+  COMPARE("480fadca             REX.W shrd rdx,rcx,cl", shrd(rdx, rcx));
+  COMPARE("48d1648764           REX.W shlq [rdi+rax*4+0x64], 1",
+          shlq(Operand(rdi, rax, times_4, 100), Immediate(1)));
+  COMPARE("48c164876406         REX.W shlq [rdi+rax*4+0x64], 6",
+          shlq(Operand(rdi, rax, times_4, 100), Immediate(6)));
+  COMPARE("49d127               REX.W shlq [r15], 1",
+          shlq(Operand(r15, 0), Immediate(1)));
+  COMPARE("49c12706             REX.W shlq [r15], 6",
+          shlq(Operand(r15, 0), Immediate(6)));
+  COMPARE("49d327               REX.W shlq [r15], cl",
+          shlq_cl(Operand(r15, 0)));
+  COMPARE("49d327               REX.W shlq [r15], cl",
+          shlq_cl(Operand(r15, 0)));
+  COMPARE("48d3648764           REX.W shlq [rdi+rax*4+0x64], cl",
+          shlq_cl(Operand(rdi, rax, times_4, 100)));
+  COMPARE("48d3648764           REX.W shlq [rdi+rax*4+0x64], cl",
+          shlq_cl(Operand(rdi, rax, times_4, 100)));
+  COMPARE("48d1e2               REX.W shlq rdx, 1", shlq(rdx, Immediate(1)));
+  COMPARE("48c1e206             REX.W shlq rdx, 6", shlq(rdx, Immediate(6)));
+  COMPARE("d1648764             shll [rdi+rax*4+0x64], 1",
+          shll(Operand(rdi, rax, times_4, 100), Immediate(1)));
+  COMPARE("c164876406           shll [rdi+rax*4+0x64], 6",
+          shll(Operand(rdi, rax, times_4, 100), Immediate(6)));
+  COMPARE("41d127               shll [r15], 1",
+          shll(Operand(r15, 0), Immediate(1)));
+  COMPARE("41c12706             shll [r15], 6",
+          shll(Operand(r15, 0), Immediate(6)));
+  COMPARE("41d327               shll [r15], cl", shll_cl(Operand(r15, 0)));
+  COMPARE("41d327               shll [r15], cl", shll_cl(Operand(r15, 0)));
+  COMPARE("d3648764             shll [rdi+rax*4+0x64], cl",
+          shll_cl(Operand(rdi, rax, times_4, 100)));
+  COMPARE("d3648764             shll [rdi+rax*4+0x64], cl",
+          shll_cl(Operand(rdi, rax, times_4, 100)));
+  COMPARE("d1e2                 shll rdx, 1", shll(rdx, Immediate(1)));
+  COMPARE("c1e206               shll rdx, 6", shll(rdx, Immediate(6)));
+  COMPARE("480fa30a             REX.W bt [rdx],rcx,cl",
+          btq(Operand(rdx, 0), rcx));
+  COMPARE("480fab0a             REX.W bts [rdx],rcx",
+          btsq(Operand(rdx, 0), rcx));
+  COMPARE("480fab0c8b           REX.W bts [rbx+rcx*4],rcx",
+          btsq(Operand(rbx, rcx, times_4, 0), rcx));
+  COMPARE("480fbae90d           REX.W bts rcx,13", btsq(rcx, Immediate(13)));
+  COMPARE("480fbaf10d           REX.W btr rcx,13", btrq(rcx, Immediate(13)));
+  COMPARE("6a0c                 push 0xc", pushq(Immediate(12)));
+  COMPARE("68a05b0000           push 0x5ba0", pushq(Immediate(23456)));
+  COMPARE("51                   push rcx", pushq(rcx));
+  COMPARE("56                   push rsi", pushq(rsi));
+  COMPARE("ff75f0               push [rbp-0x10]",
+          pushq(Operand(rbp, StandardFrameConstants::kFunctionOffset)));
+  COMPARE("ff348b               push [rbx+rcx*4]",
+          pushq(Operand(rbx, rcx, times_4, 0)));
+  COMPARE("ff348b               push [rbx+rcx*4]",
+          pushq(Operand(rbx, rcx, times_4, 0)));
+  COMPARE("ffb48b10270000       push [rbx+rcx*4+0x2710]",
+          pushq(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("5a                   pop rdx", popq(rdx));
+  COMPARE("58                   pop rax", popq(rax));
+  COMPARE("8f048b               pop [rbx+rcx*4]",
+          popq(Operand(rbx, rcx, times_4, 0)));
+
+  COMPARE("4803542410           REX.W addq rdx,[rsp+0x10]",
+          addq(rdx, Operand(rsp, 16)));
+  COMPARE("4803d1               REX.W addq rdx,rcx", addq(rdx, rcx));
+  COMPARE("8a11                 movb dl,[rcx]", movb(rdx, Operand(rcx, 0)));
+  COMPARE("b106                 movb cl,6", movb(rcx, Immediate(6)));
+  COMPARE("88542410             movb [rsp+0x10],dl",
+          movb(Operand(rsp, 16), rdx));
+  COMPARE("6689542410           movw [rsp+0x10],rdx",
+          movw(Operand(rsp, 16), rdx));
+  COMPARE("90                   nop", nop());
+  COMPARE("480fbf54240c         REX.W movsxwq rdx,[rsp+0xc]",
+          movsxwq(rdx, Operand(rsp, 12)));
+  COMPARE("480fbe54240c         REX.W movsxbq rdx,[rsp+0xc]",
+          movsxbq(rdx, Operand(rsp, 12)));
+  COMPARE("486354240c           REX.W movsxlq rdx,[rsp+0xc]",
+          movsxlq(rdx, Operand(rsp, 12)));
+  COMPARE("0fb754240c           movzxwl rdx,[rsp+0xc]",
+          movzxwq(rdx, Operand(rsp, 12)));
+  COMPARE("0fb654240c           movzxbl rdx,[rsp+0xc]",
+          movzxbq(rdx, Operand(rsp, 12)));
+  COMPARE("90                   nop", nop());
+  COMPARE("48c7c287d61200       REX.W movq rdx,0x12d687",
+          movq(rdx, Immediate(1234567)));
+  COMPARE("488b54240c           REX.W movq rdx,[rsp+0xc]",
+          movq(rdx, Operand(rsp, 12)));
+  COMPARE("48c7848b1027000039300000 REX.W movq [rbx+rcx*4+0x2710],0x3039",
+          movq(Operand(rbx, rcx, times_4, 10000), Immediate(12345)));
+  COMPARE("4889948b10270000     REX.W movq [rbx+rcx*4+0x2710],rdx",
+          movq(Operand(rbx, rcx, times_4, 10000), rdx));
+  COMPARE("90                   nop", nop());
+  COMPARE("feca                 decb dl", decb(rdx));
+  COMPARE("fe480a               decb [rax+0xa]", decb(Operand(rax, 10)));
+  COMPARE("fe8c8b10270000       decb [rbx+rcx*4+0x2710]",
+          decb(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("48ffca               REX.W decq rdx", decq(rdx));
+  COMPARE("99                   cdql", cdq());
+
+  COMPARE("f3ab                 rep stosl", repstosl());
+  COMPARE("f348ab               REX.W rep stosq", repstosq());
+
+  COMPARE("48f7fa               REX.W idivq rdx", idivq(rdx));
+  COMPARE("f7e2                 mull rdx", mull(rdx));
+  COMPARE("48f7e2               REX.W mulq rdx", mulq(rdx));
+
+  COMPARE("f6da                 negb rdx", negb(rdx));
+  COMPARE("41f6da               negb r10", negb(r10));
+  COMPARE("66f7da               negw rdx", negw(rdx));
+  COMPARE("f7da                 negl rdx", negl(rdx));
+  COMPARE("48f7da               REX.W negq rdx", negq(rdx));
+  COMPARE("f65c240c             negb [rsp+0xc]", negb(Operand(rsp, 12)));
+  COMPARE("66f75c240c           negw [rsp+0xc]", negw(Operand(rsp, 12)));
+  COMPARE("f75c240c             negl [rsp+0xc]", negl(Operand(rsp, 12)));
+  COMPARE("f65c240c             negb [rsp+0xc]", negb(Operand(rsp, 12)));
+
+  COMPARE("48f7d2               REX.W notq rdx", notq(rdx));
+  COMPARE("4885948b10270000     REX.W testq rdx,[rbx+rcx*4+0x2710]",
+          testq(Operand(rbx, rcx, times_4, 10000), rdx));
+
+  COMPARE("486bd10c             REX.W imulq rdx,rcx,0xc",
+          imulq(rdx, rcx, Immediate(12)));
+  COMPARE("4869d1e8030000       REX.W imulq rdx,rcx,0x3e8",
+          imulq(rdx, rcx, Immediate(1000)));
+  COMPARE("480faf948b10270000   REX.W imulq rdx,[rbx+rcx*4+0x2710]",
+          imulq(rdx, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("486b948b102700000c   REX.W imulq rdx,[rbx+rcx*4+0x2710],0xc",
+          imulq(rdx, Operand(rbx, rcx, times_4, 10000), Immediate(12)));
+  COMPARE("4869948b10270000e8030000 REX.W imulq rdx,[rbx+rcx*4+0x2710],0x3e8",
+          imulq(rdx, Operand(rbx, rcx, times_4, 10000), Immediate(1000)));
+  COMPARE("446bf90c             imull r15,rcx,0xc",
+          imull(r15, rcx, Immediate(12)));
+  COMPARE("4469f9e8030000       imull r15,rcx,0x3e8",
+          imull(r15, rcx, Immediate(1000)));
+  COMPARE("440fafbc8b10270000   imull r15,[rbx+rcx*4+0x2710]",
+          imull(r15, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("446bbc8b102700000c   imull r15,[rbx+rcx*4+0x2710],0xc",
+          imull(r15, Operand(rbx, rcx, times_4, 10000), Immediate(12)));
+  COMPARE("4469bc8b10270000e8030000 imull r15,[rbx+rcx*4+0x2710],0x3e8",
+          imull(r15, Operand(rbx, rcx, times_4, 10000), Immediate(1000)));
+
+  COMPARE("48ffc2               REX.W incq rdx", incq(rdx));
+  COMPARE("48ff848b10270000     REX.W incq [rbx+rcx*4+0x2710]",
+          incq(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("ffb48b10270000       push [rbx+rcx*4+0x2710]",
+          pushq(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("8f848b10270000       pop [rbx+rcx*4+0x2710]",
+          popq(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("ffa48b10270000       jmp [rbx+rcx*4+0x2710]",
+          jmp(Operand(rbx, rcx, times_4, 10000)));
+
+  COMPARE("488d948b10270000     REX.W leaq rdx,[rbx+rcx*4+0x2710]",
+          leaq(rdx, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("4881ca39300000       REX.W orq rdx,0x3039",
+          orq(rdx, Immediate(12345)));
+  COMPARE("480b948b10270000     REX.W orq rdx,[rbx+rcx*4+0x2710]",
+          orq(rdx, Operand(rbx, rcx, times_4, 10000)));
+
+  COMPARE("48d1d2               REX.W rclq rdx, 1", rclq(rdx, Immediate(1)));
+  COMPARE("48c1d207             REX.W rclq rdx, 7", rclq(rdx, Immediate(7)));
+  COMPARE("48d1da               REX.W rcrq rdx, 1", rcrq(rdx, Immediate(1)));
+  COMPARE("48c1da07             REX.W rcrq rdx, 7", rcrq(rdx, Immediate(7)));
+  COMPARE("48d1fa               REX.W sarq rdx, 1", sarq(rdx, Immediate(1)));
+  COMPARE("48c1fa06             REX.W sarq rdx, 6", sarq(rdx, Immediate(6)));
+  COMPARE("48d3fa               REX.W sarq rdx, cl", sarq_cl(rdx));
+  COMPARE("481bd3               REX.W sbbq rdx,rbx", sbbq(rdx, rbx));
+  COMPARE("480fa5da             REX.W shld rdx,rbx,cl", shld(rdx, rbx));
+  COMPARE("48d1e2               REX.W shlq rdx, 1", shlq(rdx, Immediate(1)));
+  COMPARE("48c1e206             REX.W shlq rdx, 6", shlq(rdx, Immediate(6)));
+  COMPARE("48d3e2               REX.W shlq rdx, cl", shlq_cl(rdx));
+  COMPARE("480fadda             REX.W shrd rdx,rbx,cl", shrd(rdx, rbx));
+  COMPARE("48d1ea               REX.W shrq rdx, 1", shrq(rdx, Immediate(1)));
+  COMPARE("48c1ea07             REX.W shrq rdx, 7", shrq(rdx, Immediate(7)));
+  COMPARE("48d3ea               REX.W shrq rdx, cl", shrq_cl(rdx));
+
+  COMPARE("4883c30c             REX.W addq rbx,0xc", addq(rbx, Immediate(12)));
+  COMPARE("4883848a102700000c   REX.W addq [rdx+rcx*4+0x2710],0xc",
+          addq(Operand(rdx, rcx, times_4, 10000), Immediate(12)));
+  COMPARE("4881e339300000       REX.W andq rbx,0x3039",
+          andq(rbx, Immediate(12345)));
+
+  COMPARE("4881fb39300000       REX.W cmpq rbx,0x3039",
+          cmpq(rbx, Immediate(12345)));
+  COMPARE("4883fb0c             REX.W cmpq rbx,0xc", cmpq(rbx, Immediate(12)));
+  COMPARE("4883bc8a102700000c   REX.W cmpq [rdx+rcx*4+0x2710],0xc",
+          cmpq(Operand(rdx, rcx, times_4, 10000), Immediate(12)));
+  COMPARE("80f864               cmpb al,0x64", cmpb(rax, Immediate(100)));
+
+  COMPARE("4881cb39300000       REX.W orq rbx,0x3039",
+          orq(rbx, Immediate(12345)));
+  COMPARE("4883eb0c             REX.W subq rbx,0xc", subq(rbx, Immediate(12)));
+  COMPARE("4883ac8a102700000c   REX.W subq [rdx+rcx*4+0x2710],0xc",
+          subq(Operand(rdx, rcx, times_4, 10000), Immediate(12)));
+  COMPARE("4881f339300000       REX.W xorq rbx,0x3039",
+          xorq(rbx, Immediate(12345)));
+  COMPARE("486bd10c             REX.W imulq rdx,rcx,0xc",
+          imulq(rdx, rcx, Immediate(12)));
+  COMPARE("4869d1e8030000       REX.W imulq rdx,rcx,0x3e8",
+          imulq(rdx, rcx, Immediate(1000)));
+
+  COMPARE("fc                   cldl", cld());
+
+  COMPARE("482b948b10270000     REX.W subq rdx,[rbx+rcx*4+0x2710]",
+          subq(rdx, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("482bd3               REX.W subq rdx,rbx", subq(rdx, rbx));
+
+  COMPARE("66f7c23930           testw rdx,0x3039",
+          testq(rdx, Immediate(12345)));
+  COMPARE("488594cb10270000     REX.W testq rdx,[rbx+rcx*8+0x2710]",
+          testq(Operand(rbx, rcx, times_8, 10000), rdx));
+  COMPARE("849459e8030000       testb dl,[rcx+rbx*2+0x3e8]",
+          testb(Operand(rcx, rbx, times_2, 1000), rdx));
+  COMPARE("f640ec9a             testb [rax-0x14],0x9a",
+          testb(Operand(rax, -20), Immediate(0x9A)));
+
+  COMPARE("4881f239300000       REX.W xorq rdx,0x3039",
+          xorq(rdx, Immediate(12345)));
+  COMPARE("483394cb10270000     REX.W xorq rdx,[rbx+rcx*8+0x2710]",
+          xorq(rdx, Operand(rbx, rcx, times_8, 10000)));
+  COMPARE("f4                   hltl", hlt());
+  COMPARE("cc                   int3l", int3());
+  COMPARE("c3                   retl", ret(0));
+  COMPARE("c20800               ret 0x8", ret(8));
+
+  // 0xD9 instructions
+  COMPARE("d9c1                 fld st1", fld(1));
+  COMPARE("d9e8                 fld1", fld1());
+  COMPARE("d9ee                 fldz", fldz());
+  COMPARE("d9eb                 fldpi", fldpi());
+  COMPARE("d9e1                 fabs", fabs());
+  COMPARE("d9e0                 fchs", fchs());
+  COMPARE("d9f8                 fprem", fprem());
+  COMPARE("d9f5                 fprem1", fprem1());
+  COMPARE("d9f7                 fincstp", fincstp());
+  COMPARE("d9e4                 ftst", ftst());
+  COMPARE("d9cb                 fxch st3", fxch(3));
+  COMPARE("d9848b10270000       fld_s [rbx+rcx*4+0x2710]",
+          fld_s(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("d99c8b10270000       fstp_s [rbx+rcx*4+0x2710]",
+          fstp_s(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("ddc3                 ffree st3", ffree(3));
+  COMPARE("dd848b10270000       fld_d [rbx+rcx*4+0x2710]",
+          fld_d(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("dd9c8b10270000       fstp_d [rbx+rcx*4+0x2710]",
+          fstp_d(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("db848b10270000       fild_s [rbx+rcx*4+0x2710]",
+          fild_s(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("db9c8b10270000       fistp_s [rbx+rcx*4+0x2710]",
+          fistp_s(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("dfac8b10270000       fild_d [rbx+rcx*4+0x2710]",
+          fild_d(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("dfbc8b10270000       fistp_d [rbx+rcx*4+0x2710]",
+          fistp_d(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("dfe0                 fnstsw_ax", fnstsw_ax());
+  COMPARE("dcc3                 fadd st3", fadd(3));
+  COMPARE("dceb                 fsub st3", fsub(3));
+  COMPARE("dccb                 fmul st3", fmul(3));
+  COMPARE("dcfb                 fdiv st3", fdiv(3));
+  COMPARE("dec3                 faddp st3", faddp(3));
+  COMPARE("deeb                 fsubp st3", fsubp(3));
+  COMPARE("decb                 fmulp st3", fmulp(3));
+  COMPARE("defb                 fdivp st3", fdivp(3));
+  COMPARE("ded9                 fcompp", fcompp());
+  COMPARE("9b                   fwaitl", fwait());
+  COMPARE("d9fc                 frndint", frndint());
+  COMPARE("dbe3                 fninit", fninit());
+
+  COMPARE("480f4000             REX.W cmovoq rax,[rax]",
+          cmovq(overflow, rax, Operand(rax, 0)));
+  COMPARE("480f414001           REX.W cmovnoq rax,[rax+0x1]",
+          cmovq(no_overflow, rax, Operand(rax, 1)));
+  COMPARE("480f424002           REX.W cmovcq rax,[rax+0x2]",
+          cmovq(below, rax, Operand(rax, 2)));
+  COMPARE("480f434003           REX.W cmovncq rax,[rax+0x3]",
+          cmovq(above_equal, rax, Operand(rax, 3)));
+  COMPARE("480f4403             REX.W cmovzq rax,[rbx]",
+          cmovq(equal, rax, Operand(rbx, 0)));
+  COMPARE("480f454301           REX.W cmovnzq rax,[rbx+0x1]",
+          cmovq(not_equal, rax, Operand(rbx, 1)));
+  COMPARE("480f464302           REX.W cmovnaq rax,[rbx+0x2]",
+          cmovq(below_equal, rax, Operand(rbx, 2)));
+  COMPARE("480f474303           REX.W cmovaq rax,[rbx+0x3]",
+          cmovq(above, rax, Operand(rbx, 3)));
+  COMPARE("480f4801             REX.W cmovsq rax,[rcx]",
+          cmovq(sign, rax, Operand(rcx, 0)));
+  COMPARE("480f494101           REX.W cmovnsq rax,[rcx+0x1]",
+          cmovq(not_sign, rax, Operand(rcx, 1)));
+  COMPARE("480f4a4102           REX.W cmovpeq rax,[rcx+0x2]",
+          cmovq(parity_even, rax, Operand(rcx, 2)));
+  COMPARE("480f4b4103           REX.W cmovpoq rax,[rcx+0x3]",
+          cmovq(parity_odd, rax, Operand(rcx, 3)));
+  COMPARE("480f4c02             REX.W cmovlq rax,[rdx]",
+          cmovq(less, rax, Operand(rdx, 0)));
+  COMPARE("480f4d4201           REX.W cmovgeq rax,[rdx+0x1]",
+          cmovq(greater_equal, rax, Operand(rdx, 1)));
+  COMPARE("480f4e4202           REX.W cmovleq rax,[rdx+0x2]",
+          cmovq(less_equal, rax, Operand(rdx, 2)));
+  COMPARE("480f4f4203           REX.W cmovgq rax,[rdx+0x3]",
+          cmovq(greater, rax, Operand(rdx, 3)));
+}
+
+// This compares just the disassemble instruction (without the hex).
+// Requires a |std::string actual| to be in scope.
+// Hard coded offset of 21, the hex part is 20 bytes, plus a space. If and when
+// the padding changes, this should be adjusted.
+constexpr int kHexOffset = 21;
+#define COMPARE_INSTR(str, ASM)                                         \
+  t.prev_offset = t.pc_offset();                                        \
+  t.assm_.ASM;                                                          \
+  actual = t.InstructionDecode();                                       \
+  actual = std::string(actual, kHexOffset, actual.size() - kHexOffset); \
+  CHECK_EQ(str, actual);
+
+UNINITIALIZED_TEST(DisasmX64CheckOutputSSE) {
+  DisassemblerTester t;
+  std::string actual;
+
+  COMPARE("f30f2c948b10270000   cvttss2sil rdx,[rbx+rcx*4+0x2710]",
+          cvttss2si(rdx, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f30f2cd1             cvttss2sil rdx,xmm1", cvttss2si(rdx, xmm1));
+  COMPARE("f3480f2a8c8b10270000 REX.W cvtsi2ss xmm1,[rbx+rcx*4+0x2710]",
+          cvtqsi2ss(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f3480f2aca           REX.W cvtsi2ss xmm1,rdx", cvtqsi2ss(xmm1, rdx));
+  COMPARE("f3480f5bc1           REX.W cvttps2dq xmm0,xmm1",
+          cvttps2dq(xmm0, xmm1));
+  COMPARE("f3480f5b848b10270000 REX.W cvttps2dq xmm0,[rbx+rcx*4+0x2710]",
+          cvttps2dq(xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("0f28c1               movaps xmm0,xmm1", movaps(xmm0, xmm1));
+  COMPARE("0f28848b10270000     movaps xmm0,[rbx+rcx*4+0x2710]",
+          movaps(xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("66480f6f44240c       REX.W movdqa xmm0,[rsp+0xc]",
+          movdqa(xmm0, Operand(rsp, 12)));
+  COMPARE("66480f7f44240c       REX.W movdqa [rsp+0xc],xmm0",
+          movdqa(Operand(rsp, 12), xmm0));
+  COMPARE("f3480f6f44240c       REX.W movdqu xmm0,[rsp+0xc]",
+          movdqu(xmm0, Operand(rsp, 12)));
+  COMPARE("f3480f7f44240c       REX.W movdqu [rsp+0xc],xmm0",
+          movdqu(Operand(rsp, 12), xmm0));
+  COMPARE("f3480f6fc8           REX.W movdqu xmm1,xmm0", movdqu(xmm1, xmm0));
+  COMPARE("0f12e9               movhlps xmm5,xmm1", movhlps(xmm5, xmm1));
+  COMPARE("440f12848b10270000   movlps xmm8,[rbx+rcx*4+0x2710]",
+          movlps(xmm8, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("440f138c8b10270000   movlps [rbx+rcx*4+0x2710],xmm9",
+          movlps(Operand(rbx, rcx, times_4, 10000), xmm9));
+  COMPARE("0f16e9               movlhps xmm5,xmm1", movlhps(xmm5, xmm1));
+  COMPARE("440f16848b10270000   movhps xmm8,[rbx+rcx*4+0x2710]",
+          movhps(xmm8, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("440f178c8b10270000   movhps [rbx+rcx*4+0x2710],xmm9",
+          movhps(Operand(rbx, rcx, times_4, 10000), xmm9));
+  COMPARE("410fc6c100           shufps xmm0, xmm9, 0", shufps(xmm0, xmm9, 0x0));
+  COMPARE("0f2ec1               ucomiss xmm0,xmm1", ucomiss(xmm0, xmm1));
+  COMPARE("0f2e848b10270000     ucomiss xmm0,[rbx+rcx*4+0x2710]",
+          ucomiss(xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("410f50d1             movmskps rdx,xmm9", movmskps(rdx, xmm9));
+
+  std::string exp;
+
+#define COMPARE_SSE_INSTR(instruction, _, __)    \
+  exp = #instruction " xmm1,xmm0";               \
+  COMPARE_INSTR(exp, instruction(xmm1, xmm0));   \
+  exp = #instruction " xmm1,[rbx+rcx*4+0x2710]"; \
+  COMPARE_INSTR(exp, instruction(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  SSE_BINOP_INSTRUCTION_LIST(COMPARE_SSE_INSTR)
+  SSE_UNOP_INSTRUCTION_LIST(COMPARE_SSE_INSTR)
+#undef COMPARE_SSE_INSTR
+
+#define COMPARE_SSE_INSTR(instruction, _, __, ___) \
+  exp = #instruction " xmm1,xmm0";                 \
+  COMPARE_INSTR(exp, instruction(xmm1, xmm0));     \
+  exp = #instruction " xmm1,[rbx+rcx*4+0x2710]";   \
+  COMPARE_INSTR(exp, instruction(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  SSE_INSTRUCTION_LIST_SS(COMPARE_SSE_INSTR)
+#undef COMPARE_SSE_INSTR
+}
+
+UNINITIALIZED_TEST(DisasmX64CheckOutputSSE2) {
+  DisassemblerTester t;
+  std::string actual, exp;
+
+  COMPARE("f30fe6dc             cvtdq2pd xmm3,xmm4", cvtdq2pd(xmm3, xmm4));
+  COMPARE("f20f2c948b10270000   cvttsd2sil rdx,[rbx+rcx*4+0x2710]",
+          cvttsd2si(rdx, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f20f2cd1             cvttsd2sil rdx,xmm1", cvttsd2si(rdx, xmm1));
+  COMPARE("f2480f2cd1           REX.W cvttsd2siq rdx,xmm1",
+          cvttsd2siq(rdx, xmm1));
+  COMPARE("f2480f2c948b10270000 REX.W cvttsd2siq rdx,[rbx+rcx*4+0x2710]",
+          cvttsd2siq(rdx, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f20f2a8c8b10270000   cvtsi2sd xmm1,[rbx+rcx*4+0x2710]",
+          cvtlsi2sd(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f20f2aca             cvtsi2sd xmm1,rdx", cvtlsi2sd(xmm1, rdx));
+  COMPARE("f2480f2a8c8b10270000 REX.W cvtsi2sd xmm1,[rbx+rcx*4+0x2710]",
+          cvtqsi2sd(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f2480f2aca           REX.W cvtsi2sd xmm1,rdx", cvtqsi2sd(xmm1, rdx));
+  COMPARE("f3410f5ac9           cvtss2sd xmm1,xmm9", cvtss2sd(xmm1, xmm9));
+  COMPARE("f30f5a8c8b10270000   cvtss2sd xmm1,[rbx+rcx*4+0x2710]",
+          cvtss2sd(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f2410f2dd1           cvtsd2sil rdx,xmm9", cvtsd2si(rdx, xmm9));
+  COMPARE("f2490f2dd1           REX.W cvtsd2siq rdx,xmm9",
+          cvtsd2siq(rdx, xmm9););
+
+  COMPARE("f20f108c8b10270000   movsd xmm1,[rbx+rcx*4+0x2710]",
+          movsd(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f20f118c8b10270000   movsd [rbx+rcx*4+0x2710],xmm1",
+          movsd(Operand(rbx, rcx, times_4, 10000), xmm1));
+  COMPARE("660f10848b10270000   movupd xmm0,[rbx+rcx*4+0x2710]",
+          movupd(xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("660f11848b10270000   movupd [rbx+rcx*4+0x2710],xmm0",
+          movupd(Operand(rbx, rcx, times_4, 10000), xmm0));
+  COMPARE("66480f6f848b10270000 REX.W movdqa xmm0,[rbx+rcx*4+0x2710]",
+          movdqa(xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("66480f7f848b10270000 REX.W movdqa [rbx+rcx*4+0x2710],xmm0",
+          movdqa(Operand(rbx, rcx, times_4, 10000), xmm0));
+  COMPARE("66480f7fc8           REX.W movdqa xmm0,xmm1", movdqa(xmm0, xmm1));
+  COMPARE("660f2ec1             ucomisd xmm0,xmm1", ucomisd(xmm0, xmm1));
+  COMPARE("66440f2e849310270000 ucomisd xmm8,[rbx+rdx*4+0x2710]",
+          ucomisd(xmm8, Operand(rbx, rdx, times_4, 10000)));
+  COMPARE("f2410fc2db01         cmpltsd xmm3,xmm11", cmpltsd(xmm3, xmm11));
+  COMPARE("66410f50d1           movmskpd rdx,xmm9", movmskpd(rdx, xmm9));
+  COMPARE("66410fd7d1           pmovmskb r9,xmm2", pmovmskb(rdx, xmm9));
+  COMPARE("660f76c8             pcmpeqd xmm1,xmm0", pcmpeqd(xmm1, xmm0));
+  COMPARE("66410f62cb           punpckldq xmm1,xmm11", punpckldq(xmm1, xmm11));
+  COMPARE("660f626a04           punpckldq xmm5,[rdx+0x4]",
+          punpckldq(xmm5, Operand(rdx, 4)));
+  COMPARE("66450f6ac7           punpckhdq xmm8,xmm15", punpckhdq(xmm8, xmm15));
+  COMPARE("f20f70d403           pshuflw xmm2,xmm4,3", pshuflw(xmm2, xmm4, 3));
+  COMPARE("f3410f70c906         pshufhw xmm1,xmm9, 6", pshufhw(xmm1, xmm9, 6));
+
+#define COMPARE_SSE2_INSTR(instruction, _, __, ___) \
+  exp = #instruction " xmm1,xmm0";                  \
+  COMPARE_INSTR(exp, instruction(xmm1, xmm0));      \
+  exp = #instruction " xmm1,[rbx+rcx*4+0x2710]";    \
+  COMPARE_INSTR(exp, instruction(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  SSE2_INSTRUCTION_LIST(COMPARE_SSE2_INSTR)
+  SSE2_UNOP_INSTRUCTION_LIST(COMPARE_SSE2_INSTR)
+  SSE2_INSTRUCTION_LIST_SD(COMPARE_SSE2_INSTR)
+#undef COMPARE_SSE2_INSTR
+
+#define COMPARE_SSE2_SHIFT_IMM(instruction, _, __, ___, ____) \
+  exp = #instruction " xmm3,35";                              \
+  COMPARE_INSTR(exp, instruction(xmm3, 0xA3));
+  SSE2_INSTRUCTION_LIST_SHIFT_IMM(COMPARE_SSE2_SHIFT_IMM)
+#undef COMPARE_SSE2_SHIFT_IMM
+}
+
+UNINITIALIZED_TEST(DisasmX64CheckOutputSSE3) {
+  if (!CpuFeatures::IsSupported(SSE3)) {
+    return;
+  }
+
+  DisassemblerTester t;
+  CpuFeatureScope scope(&t.assm_, SSE3);
+
+  COMPARE("f20f7cc8             haddps xmm1,xmm0", haddps(xmm1, xmm0));
+  COMPARE("f20f7c8c8b10270000   haddps xmm1,[rbx+rcx*4+0x2710]",
+          haddps(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f20ff04a04           lddqu xmm1,[rdx+0x4]",
+          lddqu(xmm1, Operand(rdx, 4)));
+  COMPARE("f20f124805           movddup xmm1,[rax+0x5]",
+          movddup(xmm1, Operand(rax, 5)));
+  COMPARE("f20f12ca             movddup xmm1,xmm2", movddup(xmm1, xmm2));
+  COMPARE("f30f16ca             movshdup xmm1,xmm2", movshdup(xmm1, xmm2));
+}
+
+UNINITIALIZED_TEST(DisasmX64CheckOutputSSSE3) {
+  if (!CpuFeatures::IsSupported(SSSE3)) {
+    return;
+  }
+
+  DisassemblerTester t;
+  std::string actual, exp;
+  CpuFeatureScope scope(&t.assm_, SSSE3);
+
+  COMPARE("660f3a0fe905         palignr xmm5,xmm1,0x5", palignr(xmm5, xmm1, 5));
+  COMPARE("660f3a0f6a0405       palignr xmm5,[rdx+0x4],0x5",
+          palignr(xmm5, Operand(rdx, 4), 5));
+
+#define COMPARE_SSSE3_INSTR(instruction, _, __, ___, ____) \
+  exp = #instruction " xmm5,xmm1";                         \
+  COMPARE_INSTR(exp, instruction(xmm5, xmm1));             \
+  exp = #instruction " xmm5,[rbx+rcx*4+0x2710]";           \
+  COMPARE_INSTR(exp, instruction(xmm5, Operand(rbx, rcx, times_4, 10000)));
+  SSSE3_INSTRUCTION_LIST(COMPARE_SSSE3_INSTR)
+  SSSE3_UNOP_INSTRUCTION_LIST(COMPARE_SSSE3_INSTR)
+#undef COMPARE_SSSE3_INSTR
+}
+
+UNINITIALIZED_TEST(DisasmX64YMMRegister) {
   if (!CpuFeatures::IsSupported(AVX)) return;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  v8::internal::byte buffer[8192];
-  Assembler assm(AssemblerOptions{},
-                 ExternalAssemblerBuffer(buffer, sizeof buffer));
-  CpuFeatureScope fscope(&assm, AVX);
+  DisassemblerTester t;
+  CpuFeatureScope fscope(t.assm(), AVX);
 
-  __ vmovdqa(ymm0, ymm1);
-
-  base::Vector<char> actual = base::Vector<char>::New(37);
-  disasm::NameConverter converter;
-  disasm::Disassembler disassembler(converter);
-  disassembler.InstructionDecode(actual, buffer);
-#ifdef OBJECT_PRINT
-  fprintf(stdout, "Disassembled buffer: %s\n", actual.begin());
-#endif
-
-  base::Vector<const char> expected =
-      base::StaticCharVector("c5fd6fc1           vmovdqa ymm0,ymm1\0");
-  CHECK(expected == actual);
-
-  actual.Dispose();
+  // Short immediate instructions
+  COMPARE("c5fd6fc1             vmovdqa ymm0,ymm1", vmovdqa(ymm0, ymm1));
+  COMPARE("c5f77cc2             vhaddps ymm0,ymm1,ymm2",
+          vhaddps(ymm0, ymm1, ymm2));
+  COMPARE("c5f77c848b10270000   vhaddps ymm0,ymm1,[rbx+rcx*4+0x2710]",
+          vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000)));
 }
 
 #undef __

@@ -14,7 +14,9 @@
 #include "src/execution/isolate.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-number-format-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/currunit.h"
 #include "unicode/decimfmt.h"
 #include "unicode/locid.h"
@@ -816,8 +818,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 2. Set options to ? CoerceOptionsToObject(options).
   Handle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options,
-      Intl::CoerceOptionsToObject(isolate, options_obj, service),
+      isolate, options, CoerceOptionsToObject(isolate, options_obj, service),
       JSNumberFormat);
 
   // 4. Let opt be a new Record.
@@ -899,7 +900,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 3. Let style be ? GetOption(options, "style", "string",  « "decimal",
   // "percent", "currency", "unit" », "decimal").
 
-  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
+  Maybe<Style> maybe_style = GetStringOption<Style>(
       isolate, options, "style", service,
       {"decimal", "percent", "currency", "unit"},
       {Style::DECIMAL, Style::PERCENT, Style::CURRENCY, Style::UNIT},
@@ -913,7 +914,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // undefined).
   std::unique_ptr<char[]> currency_cstr;
   const std::vector<const char*> empty_values = {};
-  Maybe<bool> found_currency = Intl::GetStringOption(
+  Maybe<bool> found_currency = GetStringOption(
       isolate, options, "currency", empty_values, service, &currency_cstr);
   MAYBE_RETURN(found_currency, MaybeHandle<JSNumberFormat>());
 
@@ -943,7 +944,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 8. Let currencyDisplay be ? GetOption(options, "currencyDisplay",
   // "string", « "code",  "symbol", "name", "narrowSymbol" », "symbol").
   Maybe<CurrencyDisplay> maybe_currency_display =
-      Intl::GetStringOption<CurrencyDisplay>(
+      GetStringOption<CurrencyDisplay>(
           isolate, options, "currencyDisplay", service,
           {"code", "symbol", "name", "narrowSymbol"},
           {CurrencyDisplay::CODE, CurrencyDisplay::SYMBOL,
@@ -955,7 +956,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   CurrencySign currency_sign = CurrencySign::STANDARD;
   // 9. Let currencySign be ? GetOption(options, "currencySign", "string", «
   // "standard",  "accounting" », "standard").
-  Maybe<CurrencySign> maybe_currency_sign = Intl::GetStringOption<CurrencySign>(
+  Maybe<CurrencySign> maybe_currency_sign = GetStringOption<CurrencySign>(
       isolate, options, "currencySign", service, {"standard", "accounting"},
       {CurrencySign::STANDARD, CurrencySign::ACCOUNTING},
       CurrencySign::STANDARD);
@@ -965,8 +966,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 10. Let unit be ? GetOption(options, "unit", "string", undefined,
   // undefined).
   std::unique_ptr<char[]> unit_cstr;
-  Maybe<bool> found_unit = Intl::GetStringOption(
-      isolate, options, "unit", empty_values, service, &unit_cstr);
+  Maybe<bool> found_unit = GetStringOption(isolate, options, "unit",
+                                           empty_values, service, &unit_cstr);
   MAYBE_RETURN(found_unit, MaybeHandle<JSNumberFormat>());
 
   std::pair<icu::MeasureUnit, icu::MeasureUnit> unit_pair;
@@ -1001,7 +1002,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
 
   // 13. Let unitDisplay be ? GetOption(options, "unitDisplay", "string", «
   // "short", "narrow", "long" »,  "short").
-  Maybe<UnitDisplay> maybe_unit_display = Intl::GetStringOption<UnitDisplay>(
+  Maybe<UnitDisplay> maybe_unit_display = GetStringOption<UnitDisplay>(
       isolate, options, "unitDisplay", service, {"short", "narrow", "long"},
       {UnitDisplay::SHORT, UnitDisplay::NARROW, UnitDisplay::LONG},
       UnitDisplay::SHORT);
@@ -1097,7 +1098,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   Notation notation = Notation::STANDARD;
   // 25. Let notation be ? GetOption(options, "notation", "string", «
   // "standard", "scientific",  "engineering", "compact" », "standard").
-  Maybe<Notation> maybe_notation = Intl::GetStringOption<Notation>(
+  Maybe<Notation> maybe_notation = GetStringOption<Notation>(
       isolate, options, "notation", service,
       {"standard", "scientific", "engineering", "compact"},
       {Notation::STANDARD, Notation::SCIENTIFIC, Notation::ENGINEERING,
@@ -1119,10 +1120,9 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
 
   // 28. Let compactDisplay be ? GetOption(options, "compactDisplay",
   // "string", « "short", "long" »,  "short").
-  Maybe<CompactDisplay> maybe_compact_display =
-      Intl::GetStringOption<CompactDisplay>(
-          isolate, options, "compactDisplay", service, {"short", "long"},
-          {CompactDisplay::SHORT, CompactDisplay::LONG}, CompactDisplay::SHORT);
+  Maybe<CompactDisplay> maybe_compact_display = GetStringOption<CompactDisplay>(
+      isolate, options, "compactDisplay", service, {"short", "long"},
+      {CompactDisplay::SHORT, CompactDisplay::LONG}, CompactDisplay::SHORT);
   MAYBE_RETURN(maybe_compact_display, MaybeHandle<JSNumberFormat>());
   CompactDisplay compact_display = maybe_compact_display.FromJust();
 
@@ -1136,8 +1136,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 30. Let useGrouping be ? GetOption(options, "useGrouping", "boolean",
   // undefined, true).
   bool use_grouping = true;
-  Maybe<bool> found_use_grouping = Intl::GetBoolOption(
-      isolate, options, "useGrouping", service, &use_grouping);
+  Maybe<bool> found_use_grouping =
+      GetBoolOption(isolate, options, "useGrouping", service, &use_grouping);
   MAYBE_RETURN(found_use_grouping, MaybeHandle<JSNumberFormat>());
   // 31. Set numberFormat.[[UseGrouping]] to useGrouping.
   if (!use_grouping) {
@@ -1147,7 +1147,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
 
   // 32. Let signDisplay be ? GetOption(options, "signDisplay", "string", «
   // "auto", "never", "always",  "exceptZero" », "auto").
-  Maybe<SignDisplay> maybe_sign_display = Intl::GetStringOption<SignDisplay>(
+  Maybe<SignDisplay> maybe_sign_display = GetStringOption<SignDisplay>(
       isolate, options, "signDisplay", service,
       {"auto", "never", "always", "exceptZero"},
       {SignDisplay::AUTO, SignDisplay::NEVER, SignDisplay::ALWAYS,

@@ -25,7 +25,6 @@
 #include "src/roots/roots.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
-#include "torque-generated/field-offsets.h"
 
 namespace v8 {
 namespace internal {
@@ -206,6 +205,7 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitJSDataView;
 
     case JS_FUNCTION_TYPE:
+    case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:
     case JS_ARRAY_CONSTRUCTOR_TYPE:
@@ -502,7 +502,8 @@ int Map::NumberOfFields(ConcurrencyMode cmode) const {
                                     : instance_descriptors();
   int result = 0;
   for (InternalIndex i : IterateOwnDescriptors()) {
-    if (descriptors.GetDetails(i).location() == kField) result++;
+    if (descriptors.GetDetails(i).location() == PropertyLocation::kField)
+      result++;
   }
   return result;
 }
@@ -513,7 +514,7 @@ Map::FieldCounts Map::GetFieldCounts() const {
   int const_count = 0;
   for (InternalIndex i : IterateOwnDescriptors()) {
     PropertyDetails details = descriptors.GetDetails(i);
-    if (details.location() == kField) {
+    if (details.location() == PropertyLocation::kField) {
       switch (details.constness()) {
         case PropertyConstness::kMutable:
           mutable_count++;
@@ -599,9 +600,10 @@ Map Map::FindRootMap(Isolate* isolate) const {
 
 Map Map::FindFieldOwner(Isolate* isolate, InternalIndex descriptor) const {
   DisallowGarbageCollection no_gc;
-  DCHECK_EQ(kField, instance_descriptors(isolate, kRelaxedLoad)
-                        .GetDetails(descriptor)
-                        .location());
+  DCHECK_EQ(PropertyLocation::kField,
+            instance_descriptors(isolate, kRelaxedLoad)
+                .GetDetails(descriptor)
+                .location());
   Map result = *this;
   while (true) {
     Object back = result.GetBackPointer(isolate);
@@ -635,7 +637,8 @@ Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
   DescriptorArray old_descriptors = old_map.instance_descriptors(isolate);
   for (InternalIndex i : old_map.IterateOwnDescriptors()) {
     PropertyDetails old_details = old_descriptors.GetDetails(i);
-    if (old_details.location() == kField && old_details.kind() == kData) {
+    if (old_details.location() == PropertyLocation::kField &&
+        old_details.kind() == kData) {
       FieldType old_type = old_descriptors.GetFieldType(i);
       if (Map::FieldTypeIsCleared(old_details.representation(), old_type)) {
         return Map();
@@ -708,7 +711,7 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
     if (!old_details.representation().fits_into(new_details.representation())) {
       return Map();
     }
-    if (new_details.location() == kField) {
+    if (new_details.location() == PropertyLocation::kField) {
       if (new_details.kind() == kData) {
         FieldType new_type = new_descriptors.GetFieldType(i);
         // Cleared field types need special treatment. They represent lost
@@ -717,7 +720,7 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
           return Map();
         }
         DCHECK_EQ(kData, old_details.kind());
-        DCHECK_EQ(kField, old_details.location());
+        DCHECK_EQ(PropertyLocation::kField, old_details.location());
         FieldType old_type = old_descriptors.GetFieldType(i);
         if (FieldTypeIsCleared(old_details.representation(), old_type) ||
             !old_type.NowIs(new_type)) {
@@ -732,8 +735,8 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
         UNREACHABLE();
       }
     } else {
-      DCHECK_EQ(kDescriptor, new_details.location());
-      if (old_details.location() == kField ||
+      DCHECK_EQ(PropertyLocation::kDescriptor, new_details.location());
+      if (old_details.location() == PropertyLocation::kField ||
           old_descriptors.GetStrongValue(i) !=
               new_descriptors.GetStrongValue(i)) {
         return Map();
@@ -1061,7 +1064,7 @@ int Map::NextFreePropertyIndex() const {
   // Search properties backwards to find the last field.
   for (int i = number_of_own_descriptors - 1; i >= 0; --i) {
     PropertyDetails details = descs.GetDetails(InternalIndex(i));
-    if (details.location() == kField) {
+    if (details.location() == PropertyLocation::kField) {
       return details.field_index() + details.field_width_in_words();
     }
   }
@@ -1479,7 +1482,7 @@ void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
                                 new_descriptor.as_int() + 1);
   child->CopyUnusedPropertyFields(*parent);
   PropertyDetails details = descriptors->GetDetails(new_descriptor);
-  if (details.location() == kField) {
+  if (details.location() == PropertyLocation::kField) {
     child->AccountAddedPropertyField();
   }
 
@@ -1712,7 +1715,7 @@ namespace {
 bool CanHoldValue(DescriptorArray descriptors, InternalIndex descriptor,
                   PropertyConstness constness, Object value) {
   PropertyDetails details = descriptors.GetDetails(descriptor);
-  if (details.location() == kField) {
+  if (details.location() == PropertyLocation::kField) {
     if (details.kind() == kData) {
       return IsGeneralizableTo(constness, details.constness()) &&
              value.FitsRepresentation(details.representation()) &&
@@ -1723,7 +1726,7 @@ bool CanHoldValue(DescriptorArray descriptors, InternalIndex descriptor,
     }
 
   } else {
-    DCHECK_EQ(kDescriptor, details.location());
+    DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
     DCHECK_EQ(PropertyConstness::kConst, details.constness());
     DCHECK_EQ(kAccessor, details.kind());
     return false;
@@ -2009,8 +2012,9 @@ Handle<Map> Map::CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
   DCHECK_EQ(*key, descriptors->GetKey(insertion_index));
   // This function does not support replacing property fields as
   // that would break property field counters.
-  DCHECK_NE(kField, descriptor->GetDetails().location());
-  DCHECK_NE(kField, descriptors->GetDetails(insertion_index).location());
+  DCHECK_NE(PropertyLocation::kField, descriptor->GetDetails().location());
+  DCHECK_NE(PropertyLocation::kField,
+            descriptors->GetDetails(insertion_index).location());
 
   Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
       isolate, descriptors, map->NumberOfOwnDescriptors());
@@ -2089,7 +2093,7 @@ bool Map::EquivalentToForElementsKindTransition(const Map other,
                                     : instance_descriptors();
   for (InternalIndex i : IterateOwnDescriptors()) {
     PropertyDetails details = descriptors.GetDetails(i);
-    if (details.location() == kField) {
+    if (details.location() == PropertyLocation::kField) {
       DCHECK(IsMostGeneralFieldType(details.representation(),
                                     descriptors.GetFieldType(i)));
     }

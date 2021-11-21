@@ -435,7 +435,7 @@ TEST(Run_WasmModule_Global) {
     ExportAsMain(f2);
     byte code2[] = {WASM_GLOBAL_SET(global1, WASM_I32V_1(56)),
                     WASM_GLOBAL_SET(global2, WASM_I32V_1(41)),
-                    WASM_RETURN1(WASM_CALL_FUNCTION0(f1->func_index()))};
+                    WASM_RETURN(WASM_CALL_FUNCTION0(f1->func_index()))};
     EMIT_CODE_WITH_END(f2, code2);
     TestModule(&zone, builder, 97);
   }
@@ -555,12 +555,12 @@ TEST(TestInterruptLoop) {
     ExportAsMain(f);
     byte code[] = {
         WASM_LOOP(
-            WASM_IFB(WASM_NOT(WASM_LOAD_MEM(
-                         MachineType::Int32(),
-                         WASM_I32V(InterruptThread::interrupt_location_ * 4))),
-                     WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO,
-                                    WASM_I32V(InterruptThread::signal_value_)),
-                     WASM_BR(1))),
+            WASM_IF(WASM_NOT(WASM_LOAD_MEM(
+                        MachineType::Int32(),
+                        WASM_I32V(InterruptThread::interrupt_location_ * 4))),
+                    WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO,
+                                   WASM_I32V(InterruptThread::signal_value_)),
+                    WASM_BR(1))),
         WASM_I32V(121)};
     EMIT_CODE_WITH_END(f, code);
     ZoneBuffer buffer(&zone);

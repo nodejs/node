@@ -173,8 +173,8 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   // Create a WasmRunner with stack checks and traps enabled.
   WasmRunner<int> r(execution_tier, nullptr, "main", kRuntimeExceptionSupport);
 
-  std::vector<byte> code(1, kExprUnreachable);
-  r.Build(code.data(), code.data() + code.size());
+  std::vector<byte> trap_code(1, kExprUnreachable);
+  r.Build(trap_code.data(), trap_code.data() + trap_code.size());
 
   WasmFunctionCompiler& f = r.NewFunction<int>("call_main");
   BUILD(f, WASM_CALL_FUNCTION0(0));
@@ -235,9 +235,9 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     WasmRunner<int> r(execution_tier, nullptr, "main",
                       kRuntimeExceptionSupport);
 
-    std::vector<byte> code(unreachable_pos + 1, kExprNop);
-    code[unreachable_pos] = kExprUnreachable;
-    r.Build(code.data(), code.data() + code.size());
+    std::vector<byte> trap_code(unreachable_pos + 1, kExprNop);
+    trap_code[unreachable_pos] = kExprUnreachable;
+    r.Build(trap_code.data(), trap_code.data() + trap_code.size());
 
     uint32_t wasm_index_1 = r.function()->func_index;
 

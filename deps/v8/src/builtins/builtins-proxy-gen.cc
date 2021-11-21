@@ -91,7 +91,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   auto proxy = Parameter<JSProxy>(Descriptor::kFunction);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  CSA_ASSERT(this, IsCallable(proxy));
+  CSA_DCHECK(this, IsCallable(proxy));
 
   PerformStackCheck(context);
 
@@ -103,11 +103,11 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
       CAST(LoadObjectField(proxy, JSProxy::kHandlerOffset));
 
   // 2. If handler is null, throw a TypeError exception.
-  CSA_ASSERT(this, IsNullOrJSReceiver(handler));
+  CSA_DCHECK(this, IsNullOrJSReceiver(handler));
   GotoIfNot(IsJSReceiver(handler), &throw_proxy_handler_revoked);
 
   // 3. Assert: Type(handler) is Object.
-  CSA_ASSERT(this, IsJSReceiver(handler));
+  CSA_DCHECK(this, IsJSReceiver(handler));
 
   // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
   TNode<Object> target = LoadObjectField(proxy, JSProxy::kTargetOffset);
@@ -147,7 +147,7 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  CSA_ASSERT(this, IsCallable(proxy));
+  CSA_DCHECK(this, IsCallable(proxy));
 
   Label throw_proxy_handler_revoked(this, Label::kDeferred),
       trap_undefined(this), not_an_object(this, Label::kDeferred);
@@ -157,11 +157,11 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
       CAST(LoadObjectField(proxy, JSProxy::kHandlerOffset));
 
   // 2. If handler is null, throw a TypeError exception.
-  CSA_ASSERT(this, IsNullOrJSReceiver(handler));
+  CSA_DCHECK(this, IsNullOrJSReceiver(handler));
   GotoIfNot(IsJSReceiver(handler), &throw_proxy_handler_revoked);
 
   // 3. Assert: Type(handler) is Object.
-  CSA_ASSERT(this, IsJSReceiver(handler));
+  CSA_DCHECK(this, IsJSReceiver(handler));
 
   // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
   TNode<Object> target = LoadObjectField(proxy, JSProxy::kTargetOffset);
@@ -198,7 +198,7 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
   BIND(&trap_undefined);
   {
     // 6.a. Assert: target has a [[Construct]] internal method.
-    CSA_ASSERT(this, IsConstructor(CAST(target)));
+    CSA_DCHECK(this, IsConstructor(CAST(target)));
 
     // 6.b. Return ? Construct(target, argumentsList, newTarget).
     TailCallStub(CodeFactory::Construct(isolate()), context, target, new_target,

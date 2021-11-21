@@ -18,6 +18,7 @@
 #include "src/builtins/builtins.h"
 #include "src/common/external-pointer-inl.h"
 #include "src/common/globals.h"
+#include "src/common/ptr-compr-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -59,7 +60,7 @@ Smi PropertyDetails::AsSmi() const {
 }
 
 int PropertyDetails::field_width_in_words() const {
-  DCHECK_EQ(location(), kField);
+  DCHECK_EQ(location(), PropertyLocation::kField);
   return 1;
 }
 
@@ -648,6 +649,10 @@ MaybeObjectSlot HeapObject::RawMaybeWeakField(int byte_offset) const {
   return MaybeObjectSlot(field_address(byte_offset));
 }
 
+CodeObjectSlot HeapObject::RawCodeField(int byte_offset) const {
+  return CodeObjectSlot(field_address(byte_offset));
+}
+
 MapWord MapWord::FromMap(const Map map) {
   DCHECK(map.is_null() || !MapWord::IsPacked(map.ptr()));
 #ifdef V8_MAP_PACKING
@@ -675,6 +680,22 @@ MapWord MapWord::FromForwardingAddress(HeapObject object) {
 
 HeapObject MapWord::ToForwardingAddress() {
   DCHECK(IsForwardingAddress());
+  HeapObject obj = HeapObject::FromAddress(value_);
+  // For objects allocated outside of the main pointer compression cage the
+  // variant with explicit cage base must be used.
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !obj.IsCode());
+  return obj;
+}
+
+HeapObject MapWord::ToForwardingAddress(PtrComprCageBase host_cage_base) {
+  DCHECK(IsForwardingAddress());
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    // Recompress value_ using proper host_cage_base since the map word
+    // has the upper 32 bits that correspond to the main cage base value.
+    Address value =
+        DecompressTaggedPointer(host_cage_base, CompressTagged(value_));
+    return HeapObject::FromAddress(value);
+  }
   return HeapObject::FromAddress(value_);
 }
 

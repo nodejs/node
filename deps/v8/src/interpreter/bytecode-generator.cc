@@ -1670,7 +1670,7 @@ void BytecodeGenerator::VisitModuleDeclarations(Declaration::List* decls) {
         top_level_builder()->record_module_variable_declaration();
       }
     } else {
-      RegisterAllocationScope register_scope(this);
+      RegisterAllocationScope inner_register_scope(this);
       Visit(decl);
     }
   }
@@ -1889,28 +1889,17 @@ bool IsSwitchOptimizable(SwitchStatement* stmt, SwitchInfo* info) {
   }
 
   // GCC also jump-table optimizes switch statements with 6 cases or more.
-  if (static_cast<int>(info->covered_cases.size()) >=
-      FLAG_switch_table_min_cases) {
-    // Due to case spread will be used as the size of jump-table,
-    // we need to check if it doesn't overflow by casting its
-    // min and max bounds to int64_t, and calculate if the difference is less
-    // than or equal to INT_MAX.
-    int64_t min = static_cast<int64_t>(info->MinCase());
-    int64_t max = static_cast<int64_t>(info->MaxCase());
-    int64_t spread = max - min + 1;
-
-    DCHECK_GT(spread, 0);
-
-    // Check if casted spread is acceptable and doesn't overflow.
-    if (spread <= INT_MAX &&
-        IsSpreadAcceptable(static_cast<int>(spread), cases->length())) {
-      return true;
-    }
+  if (!(static_cast<int>(info->covered_cases.size()) >=
+            FLAG_switch_table_min_cases &&
+        IsSpreadAcceptable(info->MaxCase() - info->MinCase(),
+                           cases->length()))) {
+    // Invariant- covered_cases has all cases and only cases that will go in the
+    // jump table.
+    info->covered_cases.clear();
+    return false;
+  } else {
+    return true;
   }
-  // Invariant- covered_cases has all cases and only cases that will go in the
-  // jump table.
-  info->covered_cases.clear();
-  return false;
 }
 
 }  // namespace
@@ -3941,7 +3930,7 @@ void BytecodeGenerator::BuildFinalizeIteration(
       ToBooleanMode::kConvertToBoolean, iterator_is_done.New());
 
   {
-    RegisterAllocationScope register_scope(this);
+    RegisterAllocationScope inner_register_scope(this);
     BuildTryCatch(
         // try {
         //   let method = iterator.return
@@ -4240,7 +4229,7 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
 void BytecodeGenerator::BuildDestructuringObjectAssignment(
     ObjectLiteral* pattern, Token::Value op,
     LookupHoistingMode lookup_hoisting_mode) {
-  RegisterAllocationScope scope(this);
+  RegisterAllocationScope register_scope(this);
 
   // Store the assignment value in a register.
   Register value;
@@ -4283,7 +4272,7 @@ void BytecodeGenerator::BuildDestructuringObjectAssignment(
 
   int i = 0;
   for (ObjectLiteralProperty* pattern_property : *pattern->properties()) {
-    RegisterAllocationScope scope(this);
+    RegisterAllocationScope inner_register_scope(this);
 
     // The key of the pattern becomes the key into the RHS value, and the value
     // of the pattern becomes the target of the assignment.
@@ -4380,12 +4369,16 @@ void BytecodeGenerator::BuildAssignment(
   // Assign the value to the LHS.
   switch (lhs_data.assign_type()) {
     case NON_PROPERTY: {
-      if (ObjectLiteral* pattern = lhs_data.expr()->AsObjectLiteral()) {
+      if (ObjectLiteral* pattern_as_object =
+              lhs_data.expr()->AsObjectLiteral()) {
         // Split object literals into destructuring.
-        BuildDestructuringObjectAssignment(pattern, op, lookup_hoisting_mode);
-      } else if (ArrayLiteral* pattern = lhs_data.expr()->AsArrayLiteral()) {
+        BuildDestructuringObjectAssignment(pattern_as_object, op,
+                                           lookup_hoisting_mode);
+      } else if (ArrayLiteral* pattern_as_array =
+                     lhs_data.expr()->AsArrayLiteral()) {
         // Split object literals into destructuring.
-        BuildDestructuringArrayAssignment(pattern, op, lookup_hoisting_mode);
+        BuildDestructuringArrayAssignment(pattern_as_array, op,
+                                          lookup_hoisting_mode);
       } else {
         DCHECK(lhs_data.expr()->IsVariableProxy());
         VariableProxy* proxy = lhs_data.expr()->AsVariableProxy();
@@ -4868,7 +4861,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
       if (iterator_type == IteratorType::kNormal) {
         builder()->LoadAccumulatorWithRegister(output);
       } else {
-        RegisterAllocationScope register_scope(this);
+        RegisterAllocationScope inner_register_scope(this);
         DCHECK_EQ(iterator_type, IteratorType::kAsync);
         // If generatorKind is async, perform AsyncGeneratorYield(output.value),
         // which will await `output.value` before resolving the current
@@ -6323,7 +6316,7 @@ void BytecodeGenerator::BuildIteratorClose(const IteratorRecord& iterator,
 
   builder()->JumpIfJSReceiver(done.New());
   {
-    RegisterAllocationScope register_scope(this);
+    RegisterAllocationScope inner_register_scope(this);
     Register return_result = register_allocator()->NewRegister();
     builder()
         ->StoreAccumulatorInRegister(return_result)

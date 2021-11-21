@@ -15,22 +15,22 @@
 namespace {
 
 bool IsTrackedYoung(i::Heap* heap, i::ArrayBufferExtension* extension) {
-  bool in_young = heap->array_buffer_sweeper()->young().Contains(extension);
-  bool in_old = heap->array_buffer_sweeper()->old().Contains(extension);
+  bool in_young = heap->array_buffer_sweeper()->young().ContainsSlow(extension);
+  bool in_old = heap->array_buffer_sweeper()->old().ContainsSlow(extension);
   CHECK(!(in_young && in_old));
   return in_young;
 }
 
 bool IsTrackedOld(i::Heap* heap, i::ArrayBufferExtension* extension) {
-  bool in_young = heap->array_buffer_sweeper()->young().Contains(extension);
-  bool in_old = heap->array_buffer_sweeper()->old().Contains(extension);
+  bool in_young = heap->array_buffer_sweeper()->young().ContainsSlow(extension);
+  bool in_old = heap->array_buffer_sweeper()->old().ContainsSlow(extension);
   CHECK(!(in_young && in_old));
   return in_old;
 }
 
 bool IsTracked(i::Heap* heap, i::ArrayBufferExtension* extension) {
-  bool in_young = heap->array_buffer_sweeper()->young().Contains(extension);
-  bool in_old = heap->array_buffer_sweeper()->old().Contains(extension);
+  bool in_young = heap->array_buffer_sweeper()->young().ContainsSlow(extension);
+  bool in_old = heap->array_buffer_sweeper()->old().ContainsSlow(extension);
   CHECK(!(in_young && in_old));
   return in_young || in_old;
 }

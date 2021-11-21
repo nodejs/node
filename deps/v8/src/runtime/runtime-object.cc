@@ -186,7 +186,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
 
   // Zap the property to avoid keeping objects alive. Zapping is not necessary
   // for properties stored in the descriptor array.
-  if (details.location() == kField) {
+  if (details.location() == PropertyLocation::kField) {
     DisallowGarbageCollection no_gc;
 
     // Invalidate slots manually later in case we delete an in-object tagged

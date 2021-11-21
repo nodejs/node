@@ -2627,7 +2627,7 @@ THREADED_TEST(DescriptorInheritance2) {
   v8::Local<v8::Script> script = v8_compile("o = new F()");
 
   for (int i = 0; i < 100; i++) {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     script->Run(env.local()).ToLocalChecked();
   }
   v8::Local<v8::Object> object = script->Run(env.local())
@@ -7857,7 +7857,7 @@ void InternalFieldCallback(bool global_gc) {
   instance_templ->SetInternalFieldCount(2);
   v8::Persistent<v8::Object> handle;
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     Local<v8::Object> obj = templ->GetFunction(env.local())
                                 .ToLocalChecked()
                                 ->NewInstance(env.local())
@@ -9249,7 +9249,8 @@ THREADED_TEST(SecurityChecksForPrototypeChain) {
   // Change context to be able to get to the Object function in the
   // other context without hitting the security checks.
   v8::Local<Value> other_object;
-  { Context::Scope scope(other);
+  {
+    Context::Scope context_scope(other);
     other_object =
         other->Global()->Get(other, v8_str("Object")).ToLocalChecked();
     CHECK(other->Global()->Set(other, v8_num(42), v8_num(87)).FromJust());
@@ -9293,7 +9294,8 @@ THREADED_TEST(SecurityChecksForPrototypeChain) {
   // Now it gets hairy: Set the prototype for the other global object
   // to be the current global object. The prototype chain for 'f' now
   // goes through 'other' but ends up in the current global object.
-  { Context::Scope scope(other);
+  {
+    Context::Scope context_scope(other);
     CHECK(other->Global()
               ->Set(other, v8_str("__proto__"), current->Global())
               .FromJust());
@@ -9589,7 +9591,7 @@ TEST(DetachGlobal) {
 
   // Create a property on the global object in env2.
   {
-    v8::Context::Scope scope(env2);
+    v8::Context::Scope context_scope(env2);
     CHECK(env2->Global()
               ->Set(env2, v8_str("p"), v8::Integer::New(env2->GetIsolate(), 42))
               .FromJust());
@@ -9624,7 +9626,7 @@ TEST(DetachGlobal) {
 
   // Create a property on the global object in env3.
   {
-    v8::Context::Scope scope(env3);
+    v8::Context::Scope context_scope(env3);
     CHECK(env3->Global()
               ->Set(env3, v8_str("p"), v8::Integer::New(env3->GetIsolate(), 24))
               .FromJust());
@@ -9667,7 +9669,7 @@ TEST(DetachedAccesses) {
             .FromJust());
 
   {
-    v8::Context::Scope scope(env2);
+    v8::Context::Scope context_scope(env2);
     CHECK(env2->Global()->Set(env2, v8_str("x"), v8_str("env2_x")).FromJust());
     CompileRun(
         "function bound_x() { return x; }"
@@ -9706,7 +9708,7 @@ TEST(DetachedAccesses) {
                       v8::Local<v8::ObjectTemplate>(), env2_global);
   env2->SetSecurityToken(foo);
   {
-    v8::Context::Scope scope(env2);
+    v8::Context::Scope context_scope(env2);
     CHECK(env2->Global()->Set(env2, v8_str("x"), v8_str("env3_x")).FromJust());
     CHECK(env2->Global()->Set(env2, v8_str("env1"), env1->Global()).FromJust());
     result = CompileRun(
@@ -10548,7 +10550,6 @@ THREADED_TEST(ObjectGetOwnPropertyNames) {
             ->Equals(context.local(), v8_str("length"))
             .FromMaybe(false));
   for (int i = 0; i < 4; ++i) {
-    v8::Local<v8::Value> property;
     CHECK(properties->Get(context.local(), i).ToLocal(&property) &&
           property->IsInt32());
     CHECK_EQ(property.As<v8::Int32>()->Value(), i);
@@ -10594,7 +10595,6 @@ THREADED_TEST(ObjectGetOwnPropertyNames) {
   bool concat_found = false;
   bool starts_with_found = false;
   for (uint32_t i = 0; i < properties->Length(); ++i) {
-    v8::Local<v8::Value> property;
     CHECK(properties->Get(context.local(), i).ToLocal(&property));
     if (!property->IsString()) continue;
     if (!concat_found)
@@ -15316,8 +15316,9 @@ TEST(DefineProperty) {
     v8::TryCatch try_catch(isolate);
     // Use a writable descriptor, otherwise the next test, that changes
     // the array length will fail.
-    v8::PropertyDescriptor desc(v8_num(42), true);
-    CHECK(arr->DefineProperty(env.local(), v8_str("length"), desc).FromJust());
+    v8::PropertyDescriptor desc_writable(v8_num(42), true);
+    CHECK(arr->DefineProperty(env.local(), v8_str("length"), desc_writable)
+              .FromJust());
     CHECK(!try_catch.HasCaught());
   }
 
@@ -15412,11 +15413,11 @@ TEST(DefineProperty) {
         env->Global()->Get(env.local(), v8_str("get")).ToLocalChecked());
     v8::Local<v8::Function> set = v8::Local<v8::Function>::Cast(
         env->Global()->Get(env.local(), v8_str("set")).ToLocalChecked());
-    v8::PropertyDescriptor desc(get, set);
+    v8::PropertyDescriptor desc_getter_setter(get, set);
 
     p = v8_str("v7");
     v8::TryCatch try_catch(isolate);
-    CHECK(obj->DefineProperty(env.local(), p, desc).FromJust());
+    CHECK(obj->DefineProperty(env.local(), p, desc_getter_setter).FromJust());
     CHECK(!try_catch.HasCaught());
 
     v8::Local<v8::Value> val = obj->Get(env.local(), p).ToLocalChecked();
@@ -15437,12 +15438,12 @@ TEST(DefineProperty) {
     // Redefine an existing property.
 
     // desc = {value: 42, enumerable: true}
-    v8::PropertyDescriptor desc(v8_num(42));
-    desc.set_enumerable(true);
+    v8::PropertyDescriptor desc42(v8_num(42));
+    desc42.set_enumerable(true);
 
     p = v8_str("v8");
     v8::TryCatch try_catch(isolate);
-    CHECK(obj->DefineProperty(env.local(), p, desc).FromJust());
+    CHECK(obj->DefineProperty(env.local(), p, desc42).FromJust());
     CHECK(!try_catch.HasCaught());
 
     // desc = {enumerable: true}
@@ -15476,11 +15477,11 @@ TEST(DefineProperty) {
         env->Global()->Get(env.local(), v8_str("get")).ToLocalChecked());
 
     // desc = {get: function() {}}
-    v8::PropertyDescriptor desc(get, v8::Local<v8::Function>());
+    v8::PropertyDescriptor desc_getter(get, v8::Local<v8::Function>());
     v8::TryCatch try_catch(isolate);
 
     p = v8_str("v9");
-    CHECK(obj->DefineProperty(env.local(), p, desc).FromJust());
+    CHECK(obj->DefineProperty(env.local(), p, desc_getter).FromJust());
     CHECK(!try_catch.HasCaught());
 
     // desc_empty = {}
@@ -15491,7 +15492,7 @@ TEST(DefineProperty) {
 
     // desc = {get: function() {}}
     // Successful because we redefine the getter with its current value.
-    CHECK(obj->DefineProperty(env.local(), p, desc).FromJust());
+    CHECK(obj->DefineProperty(env.local(), p, desc_getter).FromJust());
     CHECK(!try_catch.HasCaught());
 
     // desc = {get: undefined}
@@ -17345,7 +17346,7 @@ TEST(Regress528) {
   // cache to the global object.
   const char* source_simple = "1";
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     v8::Local<Context> context = Context::New(isolate);
 
     context->Enter();
@@ -17369,7 +17370,7 @@ TEST(Regress528) {
   // global object.
   const char* source_eval = "function f(){eval('1')}; f()";
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     v8::Local<Context> context = Context::New(isolate);
 
     context->Enter();
@@ -17391,7 +17392,7 @@ TEST(Regress528) {
   // compilation cache to the global object.
   const char* source_exception = "function f(){throw 1;} f()";
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     v8::Local<Context> context = Context::New(isolate);
 
     context->Enter();
@@ -20333,7 +20334,7 @@ TEST(SetAutorunMicrotasks) {
   env->GetIsolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskTwo).ToLocalChecked());
   {
-    v8::Isolate::SuppressMicrotaskExecutionScope scope(env->GetIsolate());
+    v8::Isolate::SuppressMicrotaskExecutionScope suppress(env->GetIsolate());
     CompileRun("1+1;");
     CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
@@ -24264,11 +24265,12 @@ TEST(CodeCache) {
     v8::Context::Scope cscope(context);
     v8::Local<v8::String> source_string = v8_str(source);
     v8::ScriptOrigin script_origin(isolate1, v8_str(origin));
-    v8::ScriptCompiler::Source source(source_string, script_origin);
+    v8::ScriptCompiler::Source script_source(source_string, script_origin);
     v8::ScriptCompiler::CompileOptions option =
         v8::ScriptCompiler::kNoCompileOptions;
     v8::Local<v8::Script> script =
-        v8::ScriptCompiler::Compile(context, &source, option).ToLocalChecked();
+        v8::ScriptCompiler::Compile(context, &script_source, option)
+            .ToLocalChecked();
     cache = v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
   }
   isolate1->Dispose();
@@ -24281,14 +24283,15 @@ TEST(CodeCache) {
     v8::Context::Scope cscope(context);
     v8::Local<v8::String> source_string = v8_str(source);
     v8::ScriptOrigin script_origin(isolate2, v8_str(origin));
-    v8::ScriptCompiler::Source source(source_string, script_origin, cache);
+    v8::ScriptCompiler::Source script_source(source_string, script_origin,
+                                             cache);
     v8::ScriptCompiler::CompileOptions option =
         v8::ScriptCompiler::kConsumeCodeCache;
     v8::Local<v8::Script> script;
     {
       i::DisallowCompilation no_compile(
           reinterpret_cast<i::Isolate*>(isolate2));
-      script = v8::ScriptCompiler::Compile(context, &source, option)
+      script = v8::ScriptCompiler::Compile(context, &script_source, option)
                    .ToLocalChecked();
     }
     CHECK_EQ(2, script->Run(context)
@@ -24879,11 +24882,11 @@ TEST(CodeCacheScriptModuleMismatch) {
       v8::Context::Scope cscope(context);
       v8::Local<v8::String> source_string = v8_str(source);
       v8::ScriptOrigin script_origin(isolate, v8_str(origin));
-      v8::ScriptCompiler::Source source(source_string, script_origin);
+      v8::ScriptCompiler::Source script_source(source_string, script_origin);
       v8::ScriptCompiler::CompileOptions option =
           v8::ScriptCompiler::kNoCompileOptions;
       v8::Local<v8::Script> script =
-          v8::ScriptCompiler::Compile(context, &source, option)
+          v8::ScriptCompiler::Compile(context, &script_source, option)
               .ToLocalChecked();
       cache = v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
     }
@@ -25147,7 +25150,7 @@ TEST(SealHandleScopeNested) {
   v8::SealHandleScope seal(isolate);
 
   {
-    v8::HandleScope handle_scope(isolate);
+    v8::HandleScope inner_handle_scope(isolate);
 
     // Should work
     v8::Local<v8::Object> obj = v8::Object::New(isolate);
@@ -26044,7 +26047,7 @@ TEST(CrossActivationEval) {
   v8::HandleScope scope(isolate);
   {
     call_eval_context = v8::Context::New(isolate);
-    v8::Context::Scope scope(call_eval_context);
+    v8::Context::Scope context_scope(call_eval_context);
     call_eval_bound_function =
         Local<Function>::Cast(CompileRun("eval.bind(this, '1')"));
   }

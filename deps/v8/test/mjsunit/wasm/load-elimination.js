@@ -182,7 +182,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       kExprI32Const, 5,
       kGCPrefix, kExprRttCanon, array,
-      kGCPrefix, kExprArrayNewDefault, array,
+      kGCPrefix, kExprArrayNewDefaultWithRtt, array,
       kExprLocalSet, 1,
 
       kExprLocalGet, 1,  // a[i] = i for i = {0..4}
@@ -308,7 +308,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_i_i)
     .addBody([
       kExprI32Const, 10, kGCPrefix, kExprRttCanon, array,
-      kGCPrefix, kExprArrayNewDefault, array,
+      kGCPrefix, kExprArrayNewDefaultWithRtt, array,
       kExprI32Const, 7,
       kExprCallFunction, tester.index,
     ])

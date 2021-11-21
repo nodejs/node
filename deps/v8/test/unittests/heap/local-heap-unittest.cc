@@ -132,8 +132,8 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
       unparked_scope.emplace(&lh);
     }
     {
-      base::Optional<UnparkedScope> unparked_scope;
-      if (parked_) unparked_scope.emplace(&lh);
+      base::Optional<UnparkedScope> nested_unparked_scope;
+      if (parked_) nested_unparked_scope.emplace(&lh);
       lh.AddGCEpilogueCallback(&GCEpilogue::Callback, epilogue_);
     }
     epilogue_->NotifyStarted();
@@ -141,8 +141,8 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
       lh.Safepoint();
     }
     {
-      base::Optional<UnparkedScope> unparked_scope;
-      if (parked_) unparked_scope.emplace(&lh);
+      base::Optional<UnparkedScope> nested_unparked_scope;
+      if (parked_) nested_unparked_scope.emplace(&lh);
       lh.RemoveGCEpilogueCallback(&GCEpilogue::Callback, epilogue_);
     }
   }

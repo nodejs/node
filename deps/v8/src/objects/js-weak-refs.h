@@ -71,7 +71,6 @@ class JSFinalizationRegistry
 // Internal object for storing weak references in JSFinalizationRegistry.
 class WeakCell : public TorqueGeneratedWeakCell<WeakCell, HeapObject> {
  public:
-  DECL_PRINTER(WeakCell)
   EXPORT_DECL_VERIFIER(WeakCell)
 
   class BodyDescriptor;

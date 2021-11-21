@@ -3269,15 +3269,16 @@ TEST(DebugScriptLineEndsAreAscending) {
   v8::HandleScope scope(isolate);
 
   // Compile a test script.
-  v8::Local<v8::String> script = v8_str(isolate,
-                                        "function f() {\n"
-                                        "  debugger;\n"
-                                        "}\n");
+  v8::Local<v8::String> script_source = v8_str(isolate,
+                                               "function f() {\n"
+                                               "  debugger;\n"
+                                               "}\n");
 
   v8::ScriptOrigin origin1 = v8::ScriptOrigin(isolate, v8_str(isolate, "name"));
-  v8::Local<v8::Script> script1 =
-      v8::Script::Compile(env.local(), script, &origin1).ToLocalChecked();
-  USE(script1);
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(env.local(), script_source, &origin1)
+          .ToLocalChecked();
+  USE(script);
 
   Handle<v8::internal::FixedArray> instances;
   {
@@ -3287,12 +3288,12 @@ TEST(DebugScriptLineEndsAreAscending) {
 
   CHECK_GT(instances->length(), 0);
   for (int i = 0; i < instances->length(); i++) {
-    Handle<v8::internal::Script> script = Handle<v8::internal::Script>(
+    Handle<v8::internal::Script> new_script = Handle<v8::internal::Script>(
         v8::internal::Script::cast(instances->get(i)), CcTest::i_isolate());
 
-    v8::internal::Script::InitLineEnds(CcTest::i_isolate(), script);
+    v8::internal::Script::InitLineEnds(CcTest::i_isolate(), new_script);
     v8::internal::FixedArray ends =
-        v8::internal::FixedArray::cast(script->line_ends());
+        v8::internal::FixedArray::cast(new_script->line_ends());
     CHECK_GT(ends.length(), 0);
 
     int prev_end = -1;

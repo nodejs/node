@@ -220,7 +220,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       instance_object(), table_index, table_size);
   Handle<WasmTableObject> table_obj =
       WasmTableObject::New(isolate_, instance, table.type, table.initial_size,
-                           table.has_maximum_size, table.maximum_size, nullptr);
+                           table.has_maximum_size, table.maximum_size, nullptr,
+                           isolate_->factory()->null_value());
 
   WasmTableObject::AddDispatchTable(isolate_, table_obj, instance_object_,
                                     table_index);
@@ -335,7 +336,8 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
 
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   return {test_module_.get(), native_module_->bounds_checks(),
-          runtime_exception_support_, enabled_features_};
+          runtime_exception_support_, enabled_features_,
+          DynamicTiering::kDisabled};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
@@ -382,10 +384,9 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
   WasmFeatures unused_detected_features;
   FunctionBody body(sig, 0, start, end);
   std::vector<compiler::WasmLoopInfo> loops;
-  DecodeResult result =
-      BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
-                   &unused_detected_features, body, &loops, nullptr, 0,
-                   kInstrumentEndpoints);
+  DecodeResult result = BuildTFGraph(
+      zone->allocator(), WasmFeatures::All(), nullptr, builder,
+      &unused_detected_features, body, &loops, nullptr, 0, kRegularFunction);
   if (result.failed()) {
 #ifdef DEBUG
     if (!FLAG_trace_wasm_decoder) {
@@ -393,7 +394,7 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
       FLAG_trace_wasm_decoder = true;
       result = BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr,
                             builder, &unused_detected_features, body, &loops,
-                            nullptr, 0, kInstrumentEndpoints);
+                            nullptr, 0, kRegularFunction);
     }
 #endif
 

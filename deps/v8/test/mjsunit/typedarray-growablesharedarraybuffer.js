@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-rab-gsab --allow-natives-syntax
+// Flags: --harmony-relative-indexing-methods
 
 "use strict";
 
@@ -398,7 +399,7 @@ function CreateGrowableSharedArrayBuffer(byteLength, maxByteLength) {
     // We can use the same GSAB for all the TAs below, since we won't modify it
     // after writing the initial values.
     const gsab = CreateGrowableSharedArrayBuffer(buffer_byte_length,
-                                               2 * buffer_byte_length);
+                                                 2 * buffer_byte_length);
     const byte_offset = offset * ctor.BYTES_PER_ELEMENT;
 
     // Write some data into the array.
@@ -461,7 +462,12 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
   let values = [];
   let grown = false;
   for (const value of ta) {
-    values.push(Number(value));
+    if (value instanceof Array) {
+      // When iterating via entries(), the values will be arrays [key, value].
+      values.push([value[0], Number(value[1])]);
+    } else {
+      values.push(Number(value));
+    }
     if (!grown && values.length == grow_after) {
       gsab.grow(new_byte_length);
       grown = true;
@@ -571,7 +577,7 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
 (function Destructuring() {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
-                                                8 * ctor.BYTES_PER_ELEMENT);
+                                                 8 * ctor.BYTES_PER_ELEMENT);
     const fixedLength = new ctor(gsab, 0, 4);
     const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     const lengthTracking = new ctor(gsab, 0);
@@ -639,7 +645,7 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
 (function TestFill() {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
-                                                8 * ctor.BYTES_PER_ELEMENT);
+                                                 8 * ctor.BYTES_PER_ELEMENT);
     const fixedLength = new ctor(gsab, 0, 4);
     const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     const lengthTracking = new ctor(gsab, 0);
@@ -685,5 +691,688 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
 
     FillHelper(lengthTrackingWithOffset, 20, 1, 2);
     assertEquals([15, 19, 19, 20, 16, 16], ReadDataFromBuffer(gsab, ctor));
+  }
+})();
+
+(function At() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    let ta_write = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(ta_write, i, i);
+    }
+
+    assertEquals(3, AtHelper(fixedLength, -1));
+    assertEquals(3, AtHelper(lengthTracking, -1));
+    assertEquals(3, AtHelper(fixedLengthWithOffset, -1));
+    assertEquals(3, AtHelper(lengthTrackingWithOffset, -1));
+
+    // Grow. New memory is zeroed.
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+    assertEquals(3, AtHelper(fixedLength, -1));
+    assertEquals(0, AtHelper(lengthTracking, -1));
+    assertEquals(3, AtHelper(fixedLengthWithOffset, -1));
+    assertEquals(0, AtHelper(lengthTrackingWithOffset, -1));
+  }
+})();
+
+(function Slice() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    const fixedLengthSlice = fixedLength.slice();
+    assertEquals([0, 1, 2, 3], ToNumbers(fixedLengthSlice));
+    assertTrue(fixedLengthSlice.buffer instanceof ArrayBuffer);
+    assertFalse(fixedLengthSlice.buffer instanceof SharedArrayBuffer);
+    assertFalse(fixedLengthSlice.buffer.resizable);
+
+    const fixedLengthWithOffsetSlice = fixedLengthWithOffset.slice();
+    assertEquals([2, 3], ToNumbers(fixedLengthWithOffsetSlice));
+    assertTrue(fixedLengthWithOffsetSlice.buffer instanceof ArrayBuffer);
+    assertFalse(fixedLengthWithOffsetSlice.buffer instanceof SharedArrayBuffer);
+    assertFalse(fixedLengthWithOffsetSlice.buffer.resizable);
+
+    const lengthTrackingSlice = lengthTracking.slice();
+    assertEquals([0, 1, 2, 3], ToNumbers(lengthTrackingSlice));
+    assertTrue(lengthTrackingSlice.buffer instanceof ArrayBuffer);
+    assertFalse(lengthTrackingSlice.buffer instanceof SharedArrayBuffer);
+    assertFalse(lengthTrackingSlice.buffer.resizable);
+
+    const lengthTrackingWithOffsetSlice = lengthTrackingWithOffset.slice();
+    assertEquals([2, 3], ToNumbers(lengthTrackingWithOffsetSlice));
+    assertTrue(lengthTrackingWithOffsetSlice.buffer instanceof ArrayBuffer);
+    assertFalse(lengthTrackingWithOffsetSlice.buffer instanceof
+        SharedArrayBuffer);
+    assertFalse(lengthTrackingWithOffsetSlice.buffer.resizable);
+
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+    assertEquals([0, 1, 2, 3], ToNumbers(fixedLength.slice()));
+    assertEquals([2, 3], ToNumbers(fixedLengthWithOffset.slice()));
+    assertEquals([0, 1, 2, 3, 0, 0], ToNumbers(lengthTracking.slice()));
+    assertEquals([2, 3, 0, 0], ToNumbers(lengthTrackingWithOffset.slice()));
+
+    // Verify that the previously created slices aren't affected by the growing.
+    assertEquals([0, 1, 2, 3], ToNumbers(fixedLengthSlice));
+    assertEquals([2, 3], ToNumbers(fixedLengthWithOffsetSlice));
+    assertEquals([0, 1, 2, 3], ToNumbers(lengthTrackingSlice));
+    assertEquals([2, 3], ToNumbers(lengthTrackingWithOffsetSlice));
+  }
+})();
+
+(function SliceSpeciesCreateResizes() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 1);
+    }
+
+    let resizeWhenConstructorCalled = false;
+    class MyArray extends ctor {
+      constructor(...params) {
+        super(...params);
+        if (resizeWhenConstructorCalled) {
+          gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+        }
+      }
+    };
+
+    const fixedLength = new MyArray(gsab, 0, 4);
+    resizeWhenConstructorCalled = true;
+    const a = fixedLength.slice();
+    assertEquals(4, a.length);
+    assertEquals([1, 1, 1, 1], ToNumbers(a));
+
+    assertEquals(6 * ctor.BYTES_PER_ELEMENT, gsab.byteLength);
+  }
+
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 1);
+    }
+
+    let resizeWhenConstructorCalled = false;
+    class MyArray extends ctor {
+      constructor(...params) {
+        super(...params);
+        if (resizeWhenConstructorCalled) {
+          gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+        }
+      }
+    };
+
+    const lengthTracking = new MyArray(gsab);
+    resizeWhenConstructorCalled = true;
+    const a = lengthTracking.slice();
+    assertEquals(6 * ctor.BYTES_PER_ELEMENT, gsab.byteLength);
+    // The length of the resulting TypedArray is determined before
+    // TypedArraySpeciesCreate is called, and it doesn't change.
+    assertEquals(4, a.length);
+    assertEquals([1, 1, 1, 1], ToNumbers(a));
+  }
+})();
+
+(function CopyWithin() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    // Orig. array: [0, 1, 2, 3]
+    //              [0, 1, 2, 3] << fixedLength
+    //                    [2, 3] << fixedLengthWithOffset
+    //              [0, 1, 2, 3, ...] << lengthTracking
+    //                    [2, 3, ...] << lengthTrackingWithOffset
+
+    fixedLength.copyWithin(0, 2);
+    assertEquals([2, 3, 2, 3], ToNumbers(fixedLength));
+
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    fixedLengthWithOffset.copyWithin(0, 1);
+    assertEquals([3, 3], ToNumbers(fixedLengthWithOffset));
+
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    lengthTracking.copyWithin(0, 2);
+    assertEquals([2, 3, 2, 3], ToNumbers(lengthTracking));
+
+    lengthTrackingWithOffset.copyWithin(0, 1);
+    assertEquals([3, 3], ToNumbers(lengthTrackingWithOffset));
+
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    // Orig. array: [0, 1, 2, 3, 4, 5]
+    //              [0, 1, 2, 3] << fixedLength
+    //                    [2, 3] << fixedLengthWithOffset
+    //              [0, 1, 2, 3, 4, 5, ...] << lengthTracking
+    //                    [2, 3, 4, 5, ...] << lengthTrackingWithOffset
+
+    fixedLength.copyWithin(0, 2);
+    assertEquals([2, 3, 2, 3], ToNumbers(fixedLength));
+
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    fixedLengthWithOffset.copyWithin(0, 1);
+    assertEquals([3, 3], ToNumbers(fixedLengthWithOffset));
+
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    //              [0, 1, 2, 3, 4, 5, ...] << lengthTracking
+    //        target ^     ^ start
+    lengthTracking.copyWithin(0, 2);
+    assertEquals([2, 3, 4, 5, 4, 5], ToNumbers(lengthTracking));
+
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    //                    [2, 3, 4, 5, ...] << lengthTrackingWithOffset
+    //              target ^  ^ start
+    lengthTrackingWithOffset.copyWithin(0, 1);
+    assertEquals([3, 4, 5, 5], ToNumbers(lengthTrackingWithOffset));
+  }
+})();
+
+(function CopyWithinParameterConversionGrows() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i);
+    }
+
+    const evil = { valueOf: () => { gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+                                    WriteToTypedArray(lengthTracking, 4, 4);
+                                    WriteToTypedArray(lengthTracking, 5, 5);
+                                    return 0;} };
+    // Orig. array: [0, 1, 2, 3]  [4, 5]
+    //               ^     ^       ^ new elements
+    //          target     start
+    lengthTracking.copyWithin(evil, 2);
+    assertEquals([2, 3, 2, 3, 4, 5], ToNumbers(lengthTracking));
+  }
+})();
+
+(function EntriesKeysValues() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, ...] << lengthTracking
+    //                    [4, 6, ...] << lengthTrackingWithOffset
+
+    assertEquals([0, 2, 4, 6], ToNumbersWithEntries(fixedLength));
+    assertEquals([0, 2, 4, 6], ValuesToNumbers(fixedLength));
+    assertEquals([0, 1, 2, 3], Keys(fixedLength));
+
+    assertEquals([4, 6], ToNumbersWithEntries(fixedLengthWithOffset));
+    assertEquals([4, 6], ValuesToNumbers(fixedLengthWithOffset));
+    assertEquals([0, 1], Keys(fixedLengthWithOffset));
+
+    assertEquals([0, 2, 4, 6], ToNumbersWithEntries(lengthTracking));
+    assertEquals([0, 2, 4, 6], ValuesToNumbers(lengthTracking));
+    assertEquals([0, 1, 2, 3], Keys(lengthTracking));
+
+    assertEquals([4, 6], ToNumbersWithEntries(lengthTrackingWithOffset));
+    assertEquals([4, 6], ValuesToNumbers(lengthTrackingWithOffset));
+    assertEquals([0, 1], Keys(lengthTrackingWithOffset));
+
+    // Grow.
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6, 8, 10]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
+    //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
+
+    assertEquals([0, 2, 4, 6], ToNumbersWithEntries(fixedLength));
+    assertEquals([0, 2, 4, 6], ValuesToNumbers(fixedLength));
+    assertEquals([0, 1, 2, 3], Keys(fixedLength));
+
+    assertEquals([4, 6], ToNumbersWithEntries(fixedLengthWithOffset));
+    assertEquals([4, 6], ValuesToNumbers(fixedLengthWithOffset));
+    assertEquals([0, 1], Keys(fixedLengthWithOffset));
+
+    assertEquals([0, 2, 4, 6, 8, 10], ToNumbersWithEntries(lengthTracking));
+    assertEquals([0, 2, 4, 6, 8, 10], ValuesToNumbers(lengthTracking));
+    assertEquals([0, 1, 2, 3, 4, 5], Keys(lengthTracking));
+
+    assertEquals([4, 6, 8, 10], ToNumbersWithEntries(lengthTrackingWithOffset));
+    assertEquals([4, 6, 8, 10], ValuesToNumbers(lengthTrackingWithOffset));
+    assertEquals([0, 1, 2, 3], Keys(lengthTrackingWithOffset));
+  }
+})();
+
+(function EntriesKeysValuesGrowMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateGsabForTest(ctor) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return gsab;
+  }
+
+  // Iterating with entries() (the 4 loops below).
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const fixedLength = new ctor(gsab, 0, 4);
+
+    // The fixed length array is not affected by resizing.
+    TestIterationAndGrow(fixedLength.entries(),
+                         [[0, 0], [1, 2], [2, 4], [3, 6]],
+                         gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+
+    // The fixed length array is not affected by resizing.
+    TestIterationAndGrow(fixedLengthWithOffset.entries(),
+                         [[0, 4], [1, 6]],
+                         gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const lengthTracking = new ctor(gsab, 0);
+
+    TestIterationAndGrow(lengthTracking.entries(),
+                         [[0, 0], [1, 2], [2, 4], [3, 6], [4, 0], [5, 0]],
+                         gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    TestIterationAndGrow(lengthTrackingWithOffset.entries(),
+                         [[0, 4], [1, 6], [2, 0], [3, 0]],
+                         gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  // Iterating with keys() (the 4 loops below).
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const fixedLength = new ctor(gsab, 0, 4);
+
+    // The fixed length array is not affected by resizing.
+    TestIterationAndGrow(fixedLength.keys(),
+                         [0, 1, 2, 3],
+                         gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+
+    // The fixed length array is not affected by resizing.
+    TestIterationAndGrow(fixedLengthWithOffset.keys(),
+                         [0, 1],
+                         gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const lengthTracking = new ctor(gsab, 0);
+
+    TestIterationAndGrow(lengthTracking.keys(),
+                         [0, 1, 2, 3, 4, 5],
+                         gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    TestIterationAndGrow(lengthTrackingWithOffset.keys(),
+                         [0, 1, 2, 3],
+                         gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  // Iterating with values() (the 4 loops below).
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const fixedLength = new ctor(gsab, 0, 4);
+
+    // The fixed length array is not affected by resizing.
+    TestIterationAndGrow(fixedLength.values(),
+                         [0, 2, 4, 6],
+                         gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+
+    // The fixed length array is not affected by resizing.
+    TestIterationAndGrow(fixedLengthWithOffset.values(),
+                         [4, 6],
+                         gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const lengthTracking = new ctor(gsab, 0);
+
+    TestIterationAndGrow(lengthTracking.values(),
+                         [0, 2, 4, 6, 0, 0],
+                         gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    TestIterationAndGrow(lengthTrackingWithOffset.values(),
+                         [4, 6, 0, 0],
+                         gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+})();
+
+(function EverySome() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, ...] << lengthTracking
+    //                    [4, 6, ...] << lengthTrackingWithOffset
+
+    function div3(n) {
+      return Number(n) % 3 == 0;
+    }
+
+    function even(n) {
+      return Number(n) % 2 == 0;
+    }
+
+    function over10(n) {
+      return Number(n) > 10;
+    }
+
+    assertFalse(fixedLength.every(div3));
+    assertTrue(fixedLength.every(even));
+    assertTrue(fixedLength.some(div3));
+    assertFalse(fixedLength.some(over10));
+
+    assertFalse(fixedLengthWithOffset.every(div3));
+    assertTrue(fixedLengthWithOffset.every(even));
+    assertTrue(fixedLengthWithOffset.some(div3));
+    assertFalse(fixedLengthWithOffset.some(over10));
+
+    assertFalse(lengthTracking.every(div3));
+    assertTrue(lengthTracking.every(even));
+    assertTrue(lengthTracking.some(div3));
+    assertFalse(lengthTracking.some(over10));
+
+    assertFalse(lengthTrackingWithOffset.every(div3));
+    assertTrue(lengthTrackingWithOffset.every(even));
+    assertTrue(lengthTrackingWithOffset.some(div3));
+    assertFalse(lengthTrackingWithOffset.some(over10));
+
+    // Grow.
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6, 8, 10]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
+    //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
+
+    assertFalse(fixedLength.every(div3));
+    assertTrue(fixedLength.every(even));
+    assertTrue(fixedLength.some(div3));
+    assertFalse(fixedLength.some(over10));
+
+    assertFalse(fixedLengthWithOffset.every(div3));
+    assertTrue(fixedLengthWithOffset.every(even));
+    assertTrue(fixedLengthWithOffset.some(div3));
+    assertFalse(fixedLengthWithOffset.some(over10));
+
+    assertFalse(lengthTracking.every(div3));
+    assertTrue(lengthTracking.every(even));
+    assertTrue(lengthTracking.some(div3));
+    assertFalse(lengthTracking.some(over10));
+
+    assertFalse(lengthTrackingWithOffset.every(div3));
+    assertTrue(lengthTrackingWithOffset.every(even));
+    assertTrue(lengthTrackingWithOffset.some(div3));
+    assertFalse(lengthTrackingWithOffset.some(over10));
+  }
+})();
+
+(function EveryGrowMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateGsabForTest(ctor) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return gsab;
+  }
+
+  let values;
+  let gsab;
+  let growAfter;
+  let growTo;
+  function myFunc(n) {
+    if (n == undefined) {
+      values.push(n);
+    } else {
+      values.push(Number(n));
+    }
+    if (values.length == growAfter) {
+      gsab.grow(growTo);
+    }
+    return true;
+  }
+
+  for (let ctor of ctors) {
+    gsab = CreateGsabForTest(ctor);
+    const fixedLength = new ctor(gsab, 0, 4);
+    values = [];
+    growAfter = 2;
+    growTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertTrue(fixedLength.every(myFunc));
+    assertEquals([0, 2, 4, 6], values);
+  }
+
+  for (let ctor of ctors) {
+    gsab = CreateGsabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    values = [];
+    growAfter = 1;
+    growTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertTrue(fixedLengthWithOffset.every(myFunc));
+    assertEquals([4, 6], values);
+  }
+
+  for (let ctor of ctors) {
+    gsab = CreateGsabForTest(ctor);
+    const lengthTracking = new ctor(gsab, 0);
+    values = [];
+    growAfter = 2;
+    growTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertTrue(lengthTracking.every(myFunc));
+    assertEquals([0, 2, 4, 6], values);
+  }
+
+  for (let ctor of ctors) {
+    gsab = CreateGsabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+    values = [];
+    growAfter = 1;
+    growTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertTrue(lengthTrackingWithOffset.every(myFunc));
+    assertEquals([4, 6], values);
+  }
+})();
+
+(function SomeGrowMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateGsabForTest(ctor) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return gsab;
+  }
+
+  let values;
+  let gsab;
+  let growAfter;
+  let growTo;
+  function myFunc(n) {
+    if (n == undefined) {
+      values.push(n);
+    } else {
+      values.push(Number(n));
+    }
+    if (values.length == growAfter) {
+      gsab.grow(growTo);
+    }
+    return false;
+  }
+
+  for (let ctor of ctors) {
+    gsab = CreateGsabForTest(ctor);
+    const fixedLength = new ctor(gsab, 0, 4);
+    values = [];
+    growAfter = 2;
+    growTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertFalse(fixedLength.some(myFunc));
+    assertEquals([0, 2, 4, 6], values);
+  }
+
+  for (let ctor of ctors) {
+    gsab = CreateGsabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    values = [];
+    gsab = gsab;
+    growAfter = 1;
+    growTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertFalse(fixedLengthWithOffset.some(myFunc));
+    assertEquals([4, 6], values);
+  }
+
+  for (let ctor of ctors) {
+    gsab = CreateGsabForTest(ctor);
+    const lengthTracking = new ctor(gsab, 0);
+    values = [];
+    growAfter = 2;
+    growTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertFalse(lengthTracking.some(myFunc));
+    assertEquals([0, 2, 4, 6], values);
+  }
+
+  for (let ctor of ctors) {
+    gsab = CreateGsabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+    values = [];
+    growAfter = 1;
+    growTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertFalse(lengthTrackingWithOffset.some(myFunc));
+    assertEquals([4, 6], values);
   }
 })();

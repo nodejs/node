@@ -13,7 +13,8 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"  // Only for static asserts.
-#endif                                   // V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -251,6 +252,13 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kInvoke);
   DCHECK(!params.receiver->IsJSGlobalObject());
   DCHECK_LE(params.argc, FixedArray::kMaxLength);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // If we have PKU support for Wasm, ensure that code is currently write
+  // protected for this thread.
+  DCHECK_IMPLIES(wasm::GetWasmCodeManager()->HasMemoryProtectionKeySupport(),
+                 !wasm::GetWasmCodeManager()->MemoryProtectionKeyWritable());
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef USE_SIMULATOR
   // Simulators use separate stacks for C++ and JS. JS stack overflow checks

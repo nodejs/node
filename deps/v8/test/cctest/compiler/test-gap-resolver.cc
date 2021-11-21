@@ -235,12 +235,12 @@ class ParallelMoveCreator : public HandleAndZoneScope {
       // destinations set with the float equivalents of the operand and check
       // that all destinations are unique and do not alias each other.
       if (!kSimpleFPAliasing && mo.destination().IsFPLocationOperand()) {
-        std::vector<InstructionOperand> fragments;
-        GetCanonicalOperands(dst, &fragments);
-        CHECK(!fragments.empty());
-        for (size_t i = 0; i < fragments.size(); ++i) {
-          if (destinations.find(fragments[i]) == destinations.end()) {
-            destinations.insert(fragments[i]);
+        std::vector<InstructionOperand> dst_fragments;
+        GetCanonicalOperands(dst, &dst_fragments);
+        CHECK(!dst_fragments.empty());
+        for (size_t j = 0; j < dst_fragments.size(); ++j) {
+          if (destinations.find(dst_fragments[j]) == destinations.end()) {
+            destinations.insert(dst_fragments[j]);
           } else {
             reject = true;
             break;
@@ -250,18 +250,18 @@ class ParallelMoveCreator : public HandleAndZoneScope {
         // representations.
         const InstructionOperand& src = mo.source();
         if (src.IsFPRegister()) {
-          std::vector<InstructionOperand> fragments;
+          std::vector<InstructionOperand> src_fragments;
           MachineRepresentation src_rep =
               LocationOperand::cast(src).representation();
-          GetCanonicalOperands(src, &fragments);
-          CHECK(!fragments.empty());
-          for (size_t i = 0; i < fragments.size(); ++i) {
-            auto find_it = sources.find(fragments[i]);
+          GetCanonicalOperands(src, &src_fragments);
+          CHECK(!src_fragments.empty());
+          for (size_t j = 0; j < src_fragments.size(); ++j) {
+            auto find_it = sources.find(src_fragments[j]);
             if (find_it != sources.end() && find_it->second != src_rep) {
               reject = true;
               break;
             }
-            sources.insert(std::make_pair(fragments[i], src_rep));
+            sources.insert(std::make_pair(src_fragments[j], src_rep));
           }
         }
       } else {

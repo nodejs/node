@@ -194,7 +194,7 @@ class DebugInfoImpl {
     base::MutexGuard guard(&mutex_);
     if (!type_names_) {
       type_names_ = std::make_unique<NameMap>(DecodeNameMap(
-          native_module_->wire_bytes(), NameSectionKindCode::kType));
+          native_module_->wire_bytes(), NameSectionKindCode::kTypeCode));
     }
     return type_names_->GetName(type_index);
   }
@@ -203,7 +203,7 @@ class DebugInfoImpl {
     base::MutexGuard guard(&mutex_);
     if (!local_names_) {
       local_names_ = std::make_unique<IndirectNameMap>(DecodeIndirectNameMap(
-          native_module_->wire_bytes(), NameSectionKindCode::kLocal));
+          native_module_->wire_bytes(), NameSectionKindCode::kLocalCode));
     }
     return local_names_->GetName(func_index, local_index);
   }
@@ -212,7 +212,7 @@ class DebugInfoImpl {
     base::MutexGuard guard(&mutex_);
     if (!field_names_) {
       field_names_ = std::make_unique<IndirectNameMap>(DecodeIndirectNameMap(
-          native_module_->wire_bytes(), NameSectionKindCode::kField));
+          native_module_->wire_bytes(), NameSectionKindCode::kFieldCode));
     }
     return field_names_->GetName(struct_index, field_index);
   }

@@ -228,6 +228,8 @@ struct LayoutForInitialization {
   VisitResult size;
 };
 
+extern uint64_t next_unique_binding_index;
+
 template <class T>
 class Binding;
 
@@ -262,7 +264,8 @@ class Binding : public T {
         name_(name),
         previous_binding_(this),
         used_(false),
-        written_(false) {
+        written_(false),
+        unique_index_(next_unique_binding_index++) {
     std::swap(previous_binding_, manager_->current_bindings_[name]);
   }
   template <class... Args>
@@ -300,6 +303,8 @@ class Binding : public T {
   bool Written() const { return written_; }
   void SetWritten() { written_ = true; }
 
+  uint64_t unique_index() const { return unique_index_; }
+
  private:
   bool SkipLintCheck() const { return name_.length() > 0 && name_[0] == '_'; }
 
@@ -309,26 +314,31 @@ class Binding : public T {
   SourcePosition declaration_position_ = CurrentSourcePosition::Get();
   bool used_;
   bool written_;
+  uint64_t unique_index_;
 };
 
 template <class T>
 class BlockBindings {
  public:
   explicit BlockBindings(BindingsManager<T>* manager) : manager_(manager) {}
-  void Add(std::string name, T value, bool mark_as_used = false) {
+  Binding<T>* Add(std::string name, T value, bool mark_as_used = false) {
     ReportErrorIfAlreadyBound(name);
     auto binding =
         std::make_unique<Binding<T>>(manager_, name, std::move(value));
+    Binding<T>* result = binding.get();
     if (mark_as_used) binding->SetUsed();
     bindings_.push_back(std::move(binding));
+    return result;
   }
 
-  void Add(const Identifier* name, T value, bool mark_as_used = false) {
+  Binding<T>* Add(const Identifier* name, T value, bool mark_as_used = false) {
     ReportErrorIfAlreadyBound(name->value);
     auto binding =
         std::make_unique<Binding<T>>(manager_, name, std::move(value));
+    Binding<T>* result = binding.get();
     if (mark_as_used) binding->SetUsed();
     bindings_.push_back(std::move(binding));
+    return result;
   }
 
   std::vector<Binding<T>*> bindings() const {
@@ -433,7 +443,7 @@ class ImplementationVisitor {
  public:
   void GenerateBuiltinDefinitionsAndInterfaceDescriptors(
       const std::string& output_directory);
-  void GenerateClassFieldOffsets(const std::string& output_directory);
+  void GenerateVisitorLists(const std::string& output_directory);
   void GenerateBitFields(const std::string& output_directory);
   void GeneratePrintDefinitions(const std::string& output_directory);
   void GenerateClassDefinitions(const std::string& output_directory);

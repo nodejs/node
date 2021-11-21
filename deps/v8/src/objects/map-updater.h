@@ -230,7 +230,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
   PropertyKind new_kind_ = kData;
   PropertyAttributes new_attributes_ = NONE;
   PropertyConstness new_constness_ = PropertyConstness::kMutable;
-  PropertyLocation new_location_ = kField;
+  PropertyLocation new_location_ = PropertyLocation::kField;
   Representation new_representation_ = Representation::None();
 
   // Data specific to kField location.

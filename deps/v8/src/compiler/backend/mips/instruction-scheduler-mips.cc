@@ -1427,7 +1427,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
                                                    2);
     case kArchTableSwitch:
       return AssembleArchTableSwitchLatency();
-    case kArchAbortCSAAssert:
+    case kArchAbortCSADcheck:
       return CallLatency() + 1;
     case kArchComment:
     case kArchDeoptimize:

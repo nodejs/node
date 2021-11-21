@@ -244,8 +244,6 @@ SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
     return kNeedsBinaryCoverage;
   }
 
-  if (optimization_disabled()) return kHasOptimizationDisabled;
-
   // Built-in functions are handled by the JSCallReducer.
   if (HasBuiltinId()) return kIsBuiltin;
 
@@ -265,6 +263,8 @@ SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
   }
 
   if (HasBreakInfo()) return kMayContainBreakPoints;
+
+  if (optimization_disabled()) return kHasOptimizationDisabled;
 
   return kIsInlineable;
 }

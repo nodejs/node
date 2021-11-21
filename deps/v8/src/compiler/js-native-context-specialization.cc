@@ -1744,10 +1744,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
   }
 
-  for (ElementAccessInfo const& access_info : access_infos) {
-    if (!IsTypedArrayElementsKind(access_info.elements_kind())) continue;
-  }
-
   // Check for the monomorphic case.
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
   if (access_infos.size() == 1) {

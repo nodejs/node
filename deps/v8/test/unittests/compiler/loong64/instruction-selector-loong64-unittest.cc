@@ -235,12 +235,17 @@ const Conversion kConversionInstructions[] = {
 
 // LOONG64 instructions that clear the top 32 bits of the destination.
 const MachInst2 kCanElideChangeUint32ToUint64[] = {
-    {&RawMachineAssembler::Uint32Div, "Uint32Div", kLoong64Div_wu,
+    {&RawMachineAssembler::Word32Equal, "Word32Equal", kLoong64Cmp,
      MachineType::Uint32()},
-    {&RawMachineAssembler::Uint32Mod, "Uint32Mod", kLoong64Mod_wu,
+    {&RawMachineAssembler::Int32LessThan, "Int32LessThan", kLoong64Cmp,
      MachineType::Uint32()},
-    {&RawMachineAssembler::Uint32MulHigh, "Uint32MulHigh", kLoong64Mulh_wu,
-     MachineType::Uint32()}};
+    {&RawMachineAssembler::Int32LessThanOrEqual, "Int32LessThanOrEqual",
+     kLoong64Cmp, MachineType::Uint32()},
+    {&RawMachineAssembler::Uint32LessThan, "Uint32LessThan", kLoong64Cmp,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Uint32LessThanOrEqual, "Uint32LessThanOrEqual",
+     kLoong64Cmp, MachineType::Uint32()},
+};
 
 }  // namespace
 
@@ -991,13 +996,10 @@ TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
       (m.*binop.constructor)(m.Parameter(0), m.Parameter(1))));
   Stream s = m.Build();
   // Make sure the `ChangeUint32ToUint64` node turned into a no-op.
-  ASSERT_EQ(2U, s.size());
+  ASSERT_EQ(1U, s.size());
   EXPECT_EQ(binop.arch_opcode, s[0]->arch_opcode());
   EXPECT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(kLoong64Bstrpick_d, s[1]->arch_opcode());
-  EXPECT_EQ(3U, s[1]->InputCount());
-  EXPECT_EQ(1U, s[1]->OutputCount());
 }
 
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,

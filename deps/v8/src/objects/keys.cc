@@ -405,7 +405,7 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
     Object key = descriptors->GetKey(i);
     if (key.IsSymbol()) continue;
     keys->set(index, key);
-    if (details.location() != kField) fields_only = false;
+    if (details.location() != PropertyLocation::kField) fields_only = false;
     index++;
   }
   DCHECK_EQ(index, keys->length());
@@ -422,7 +422,7 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
       Object key = descriptors->GetKey(i);
       if (key.IsSymbol()) continue;
       DCHECK_EQ(kData, details.kind());
-      DCHECK_EQ(kField, details.location());
+      DCHECK_EQ(PropertyLocation::kField, details.location());
       FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
       indices->set(index, Smi::FromInt(field_index.GetLoadByFieldIndex()));
       index++;

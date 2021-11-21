@@ -22,7 +22,6 @@
 #include "src/roots/roots.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 #include "torque-generated/bit-fields.h"
-#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -146,8 +145,6 @@ class InterpreterData
     : public TorqueGeneratedInterpreterData<InterpreterData, Struct> {
  public:
   DECL_ACCESSORS(interpreter_trampoline, Code)
-
-  DECL_PRINTER(InterpreterData)
 
  private:
   DECL_ACCESSORS(raw_interpreter_trampoline, CodeT)
@@ -533,17 +530,19 @@ class SharedFunctionInfo
   inline bool ShouldFlushCode(base::EnumSet<CodeFlushMode> code_flush_mode);
 
   enum Inlineability {
-    kIsInlineable,
     // Different reasons for not being inlineable:
     kHasNoScript,
     kNeedsBinaryCoverage,
-    kHasOptimizationDisabled,
     kIsBuiltin,
     kIsNotUserCode,
     kHasNoBytecode,
     kExceedsBytecodeLimit,
     kMayContainBreakPoints,
+    kHasOptimizationDisabled,
+    // Actually inlineable!
+    kIsInlineable,
   };
+  // Returns the first value that applies (see enum definition for the order).
   template <typename IsolateT>
   Inlineability GetInlineability(IsolateT* isolate, bool is_turboprop) const;
 

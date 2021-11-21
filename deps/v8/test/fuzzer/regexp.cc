@@ -75,7 +75,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   i::Handle<i::JSRegExp> regexp;
   {
     CHECK(!i_isolate->has_pending_exception());
-    v8::TryCatch try_catch(isolate);
+    v8::TryCatch try_catch_inner(isolate);
     // Create a string so that we can calculate a hash from the input data.
     std::string str = std::string(reinterpret_cast<const char*>(data), size);
     i::JSRegExp::Flags flag = static_cast<i::JSRegExp::Flags>(

@@ -51,7 +51,17 @@ struct NoWriteBarrierPolicy {
   static void AssigningBarrier(const void*, const void*) {}
 };
 
-class V8_EXPORT EnabledCheckingPolicy {
+class V8_EXPORT SameThreadEnabledCheckingPolicyBase {
+ protected:
+  void CheckPointerImpl(const void* ptr, bool points_to_payload,
+                        bool check_off_heap_assignments);
+
+  const HeapBase* heap_ = nullptr;
+};
+
+template <bool kCheckOffHeapAssignments>
+class V8_EXPORT SameThreadEnabledCheckingPolicy
+    : private SameThreadEnabledCheckingPolicyBase {
  protected:
   template <typename T>
   void CheckPointer(const T* ptr) {
@@ -61,23 +71,20 @@ class V8_EXPORT EnabledCheckingPolicy {
   }
 
  private:
-  void CheckPointerImpl(const void* ptr, bool points_to_payload);
-
   template <typename T, bool = IsCompleteV<T>>
   struct CheckPointersImplTrampoline {
-    static void Call(EnabledCheckingPolicy* policy, const T* ptr) {
-      policy->CheckPointerImpl(ptr, false);
+    static void Call(SameThreadEnabledCheckingPolicy* policy, const T* ptr) {
+      policy->CheckPointerImpl(ptr, false, kCheckOffHeapAssignments);
     }
   };
 
   template <typename T>
   struct CheckPointersImplTrampoline<T, true> {
-    static void Call(EnabledCheckingPolicy* policy, const T* ptr) {
-      policy->CheckPointerImpl(ptr, IsGarbageCollectedTypeV<T>);
+    static void Call(SameThreadEnabledCheckingPolicy* policy, const T* ptr) {
+      policy->CheckPointerImpl(ptr, IsGarbageCollectedTypeV<T>,
+                               kCheckOffHeapAssignments);
     }
   };
-
-  const HeapBase* heap_ = nullptr;
 };
 
 class DisabledCheckingPolicy {
@@ -86,8 +93,12 @@ class DisabledCheckingPolicy {
 };
 
 #if V8_ENABLE_CHECKS
-using DefaultMemberCheckingPolicy = EnabledCheckingPolicy;
-using DefaultPersistentCheckingPolicy = EnabledCheckingPolicy;
+// Off heap members are not connected to object graph and thus cannot ressurect
+// dead objects.
+using DefaultMemberCheckingPolicy =
+    SameThreadEnabledCheckingPolicy<false /* kCheckOffHeapAssignments*/>;
+using DefaultPersistentCheckingPolicy =
+    SameThreadEnabledCheckingPolicy<true /* kCheckOffHeapAssignments*/>;
 #else
 using DefaultMemberCheckingPolicy = DisabledCheckingPolicy;
 using DefaultPersistentCheckingPolicy = DisabledCheckingPolicy;

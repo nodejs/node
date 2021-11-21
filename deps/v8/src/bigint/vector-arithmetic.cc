@@ -118,5 +118,22 @@ bool SubtractSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
   return !x_negative;
 }
 
+void AddOne(RWDigits Z, Digits X) {
+  digit_t carry = 1;
+  int i = 0;
+  for (; carry > 0 && i < X.len(); i++) Z[i] = digit_add2(X[i], carry, &carry);
+  if (carry > 0) Z[i++] = carry;
+  for (; i < X.len(); i++) Z[i] = X[i];
+  for (; i < Z.len(); i++) Z[i] = 0;
+}
+
+void SubtractOne(RWDigits Z, Digits X) {
+  digit_t borrow = 1;
+  int i = 0;
+  for (; borrow > 0; i++) Z[i] = digit_sub(X[i], borrow, &borrow);
+  for (; i < X.len(); i++) Z[i] = X[i];
+  for (; i < Z.len(); i++) Z[i] = 0;
+}
+
 }  // namespace bigint
 }  // namespace v8

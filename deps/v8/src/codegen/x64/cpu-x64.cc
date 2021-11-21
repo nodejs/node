@@ -4,7 +4,7 @@
 
 // CPU specific code for x64 independent of OS goes here.
 
-#if defined(__GNUC__) && !defined(__MINGW64__)
+#if defined(__GNUC__) && !defined(__MINGW64__) && !defined(GOOGLE3)
 #include "src/third_party/valgrind/valgrind.h"
 #endif
 

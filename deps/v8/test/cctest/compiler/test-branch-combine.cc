@@ -471,9 +471,9 @@ TEST(BranchCombineInt32AddLessThanZero) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Int32Add(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Int32Add(p0, p1);
   Node* compare = m.Int32LessThan(add, m.Int32Constant(0));
 
   RawMachineLabel blocka, blockb;
@@ -498,9 +498,9 @@ TEST(BranchCombineInt32AddGreaterThanOrEqualZero) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Int32Add(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Int32Add(p0, p1);
   Node* compare = m.Int32GreaterThanOrEqual(add, m.Int32Constant(0));
 
   RawMachineLabel blocka, blockb;
@@ -525,9 +525,9 @@ TEST(BranchCombineInt32ZeroGreaterThanAdd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Int32Add(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Int32Add(p0, p1);
   Node* compare = m.Int32GreaterThan(m.Int32Constant(0), add);
 
   RawMachineLabel blocka, blockb;
@@ -552,9 +552,9 @@ TEST(BranchCombineInt32ZeroLessThanOrEqualAdd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Int32Add(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Int32Add(p0, p1);
   Node* compare = m.Int32LessThanOrEqual(m.Int32Constant(0), add);
 
   RawMachineLabel blocka, blockb;
@@ -579,9 +579,9 @@ TEST(BranchCombineUint32AddLessThanOrEqualZero) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Int32Add(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Int32Add(p0, p1);
   Node* compare = m.Uint32LessThanOrEqual(add, m.Int32Constant(0));
 
   RawMachineLabel blocka, blockb;
@@ -605,9 +605,9 @@ TEST(BranchCombineUint32AddGreaterThanZero) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Int32Add(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Int32Add(p0, p1);
   Node* compare = m.Uint32GreaterThan(add, m.Int32Constant(0));
 
   RawMachineLabel blocka, blockb;
@@ -631,9 +631,9 @@ TEST(BranchCombineUint32ZeroGreaterThanOrEqualAdd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Int32Add(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Int32Add(p0, p1);
   Node* compare = m.Uint32GreaterThanOrEqual(m.Int32Constant(0), add);
 
   RawMachineLabel blocka, blockb;
@@ -657,9 +657,9 @@ TEST(BranchCombineUint32ZeroLessThanAdd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Int32Add(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Int32Add(p0, p1);
   Node* compare = m.Uint32LessThan(m.Int32Constant(0), add);
 
   RawMachineLabel blocka, blockb;
@@ -683,9 +683,9 @@ TEST(BranchCombineWord32AndLessThanZero) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Word32And(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Word32And(p0, p1);
   Node* compare = m.Int32LessThan(add, m.Int32Constant(0));
 
   RawMachineLabel blocka, blockb;
@@ -709,9 +709,9 @@ TEST(BranchCombineWord32AndGreaterThanOrEqualZero) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Word32And(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Word32And(p0, p1);
   Node* compare = m.Int32GreaterThanOrEqual(add, m.Int32Constant(0));
 
   RawMachineLabel blocka, blockb;
@@ -735,9 +735,9 @@ TEST(BranchCombineInt32ZeroGreaterThanAnd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Word32And(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Word32And(p0, p1);
   Node* compare = m.Int32GreaterThan(m.Int32Constant(0), add);
 
   RawMachineLabel blocka, blockb;
@@ -761,9 +761,9 @@ TEST(BranchCombineInt32ZeroLessThanOrEqualAnd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Word32And(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Word32And(p0, p1);
   Node* compare = m.Int32LessThanOrEqual(m.Int32Constant(0), add);
 
   RawMachineLabel blocka, blockb;
@@ -787,9 +787,9 @@ TEST(BranchCombineUint32AndLessThanOrEqualZero) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Word32And(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Word32And(p0, p1);
   Node* compare = m.Uint32LessThanOrEqual(add, m.Int32Constant(0));
 
   RawMachineLabel blocka, blockb;
@@ -813,9 +813,9 @@ TEST(BranchCombineUint32AndGreaterThanZero) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Word32And(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Word32And(p0, p1);
   Node* compare = m.Uint32GreaterThan(add, m.Int32Constant(0));
 
   RawMachineLabel blocka, blockb;
@@ -839,9 +839,9 @@ TEST(BranchCombineUint32ZeroGreaterThanOrEqualAnd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Word32And(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Word32And(p0, p1);
   Node* compare = m.Uint32GreaterThanOrEqual(m.Int32Constant(0), add);
 
   RawMachineLabel blocka, blockb;
@@ -865,9 +865,9 @@ TEST(BranchCombineUint32ZeroLessThanAnd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* a = m.Parameter(0);
-  Node* b = m.Parameter(1);
-  Node* add = m.Word32And(a, b);
+  Node* p0 = m.Parameter(0);
+  Node* p1 = m.Parameter(1);
+  Node* add = m.Word32And(p0, p1);
   Node* compare = m.Uint32LessThan(m.Int32Constant(0), add);
 
   RawMachineLabel blocka, blockb;
