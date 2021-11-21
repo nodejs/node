@@ -26,7 +26,11 @@ if (cluster.isPrimary) {
     // to send messages when the worker is disconnecting.
     worker.on('error', (err) => {
       assert.strictEqual(err.syscall, 'write');
-      assert.strictEqual(err.code, 'EPIPE');
+      if (common.isOSX) {
+        assert(['EPIPE', 'ENOTCONN'].includes(err.code), err);
+      } else {
+        assert.strictEqual(err.code, 'EPIPE');
+      }
     });
 
     worker.once('disconnect', common.mustCall(() => {
