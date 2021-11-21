@@ -106,6 +106,12 @@ module.exports = {
             if (node.type === "SwitchStatement") {
                 return sourceCode.getTokenBefore(node.cases[0]);
             }
+
+            if (node.type === "StaticBlock") {
+                return sourceCode.getFirstToken(node, { skip: 1 }); // skip the `static` token
+            }
+
+            // `BlockStatement` or `ClassBody`
             return sourceCode.getFirstToken(node);
         }
 
@@ -172,6 +178,7 @@ module.exports = {
         function requirePaddingFor(node) {
             switch (node.type) {
                 case "BlockStatement":
+                case "StaticBlock":
                     return options.blocks;
                 case "SwitchStatement":
                     return options.switches;
@@ -282,6 +289,7 @@ module.exports = {
                 }
                 checkPadding(node);
             };
+            rule.StaticBlock = rule.BlockStatement;
         }
 
         if (Object.prototype.hasOwnProperty.call(options, "classes")) {

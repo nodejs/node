@@ -68,6 +68,7 @@ const KNOWN_NODES = new Set([
     "ReturnStatement",
     "SequenceExpression",
     "SpreadElement",
+    "StaticBlock",
     "Super",
     "SwitchCase",
     "SwitchStatement",
@@ -583,6 +584,16 @@ module.exports = {
                         },
                         additionalProperties: false
                     },
+                    StaticBlock: {
+                        type: "object",
+                        properties: {
+                            body: {
+                                type: "integer",
+                                minimum: 0
+                            }
+                        },
+                        additionalProperties: false
+                    },
                     CallExpression: {
                         type: "object",
                         properties: {
@@ -644,6 +655,9 @@ module.exports = {
             },
             FunctionExpression: {
                 parameters: DEFAULT_PARAMETER_INDENT,
+                body: DEFAULT_FUNCTION_BODY_INDENT
+            },
+            StaticBlock: {
                 body: DEFAULT_FUNCTION_BODY_INDENT
             },
             CallExpression: {
@@ -1395,6 +1409,13 @@ module.exports = {
                 } else if (astUtils.isSemicolonToken(maybeSemicolonToken)) {
                     offsets.setDesiredOffset(maybeSemicolonToken, keyLastToken, 1);
                 }
+            },
+
+            StaticBlock(node) {
+                const openingCurly = sourceCode.getFirstToken(node, { skip: 1 }); // skip the `static` token
+                const closingCurly = sourceCode.getLastToken(node);
+
+                addElementListIndent(node.body, openingCurly, closingCurly, options.StaticBlock.body);
             },
 
             SwitchStatement(node) {

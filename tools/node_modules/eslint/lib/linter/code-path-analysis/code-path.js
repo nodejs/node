@@ -40,7 +40,7 @@ class CodePath {
 
         /**
          * The reason that this code path was started. May be "program",
-         * "function", or "class-field-initializer".
+         * "function", "class-field-initializer", or "class-static-block".
          * @type {string}
          */
         this.origin = origin;

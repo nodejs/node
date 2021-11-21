@@ -17,7 +17,8 @@ $ npm install eslint-visitor-keys
 
 ### Requirements
 
-- [Node.js] 10.0.0 or later.
+- [Node.js] `^12.22.0`, `^14.17.0`, or `>=16.0.0`
+
 
 ## 📖 Usage
 
@@ -102,5 +103,5 @@ Welcome. See [ESLint contribution guidelines](https://eslint.org/docs/developer-
 
 
 [npm]: https://www.npmjs.com/
-[Node.js]: https://nodejs.org/en/
+[Node.js]: https://nodejs.org/
 [ESTree]: https://github.com/estree/estree

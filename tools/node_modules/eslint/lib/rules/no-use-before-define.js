@@ -45,25 +45,37 @@ function isInRange(node, location) {
 
 /**
  * Checks whether or not a given location is inside of the range of a class static initializer.
+ * Static initializers are static blocks and initializers of static fields.
  * @param {ASTNode} node `ClassBody` node to check static initializers.
  * @param {number} location A location to check.
  * @returns {boolean} `true` if the location is inside of a class static initializer.
  */
 function isInClassStaticInitializerRange(node, location) {
     return node.body.some(classMember => (
-        classMember.type === "PropertyDefinition" &&
-        classMember.static &&
-        classMember.value &&
-        isInRange(classMember.value, location)
+        (
+            classMember.type === "StaticBlock" &&
+            isInRange(classMember, location)
+        ) ||
+        (
+            classMember.type === "PropertyDefinition" &&
+            classMember.static &&
+            classMember.value &&
+            isInRange(classMember.value, location)
+        )
     ));
 }
 
 /**
- * Checks whether a given scope is the scope of a static class field initializer.
+ * Checks whether a given scope is the scope of a a class static initializer.
+ * Static initializers are static blocks and initializers of static fields.
  * @param {eslint-scope.Scope} scope A scope to check.
  * @returns {boolean} `true` if the scope is a class static initializer scope.
  */
 function isClassStaticInitializerScope(scope) {
+    if (scope.type === "class-static-block") {
+        return true;
+    }
+
     if (scope.type === "class-field-initializer") {
 
         // `scope.block` is PropertyDefinition#value node
@@ -82,7 +94,8 @@ function isClassStaticInitializerScope(scope) {
  * - top-level
  * - functions
  * - class field initializers (implicit functions)
- * Static class field initializers are automatically run during the class definition evaluation,
+ * - class static blocks (implicit functions)
+ * Static class field initializers and class static blocks are automatically run during the class definition evaluation,
  * and therefore we'll consider them as a part of the parent execution context.
  * Example:
  *
@@ -90,12 +103,21 @@ function isClassStaticInitializerScope(scope) {
  *
  *   x; // returns `false`
  *   () => x; // returns `true`
+ *
  *   class C {
  *       field = x; // returns `true`
  *       static field = x; // returns `false`
  *
  *       method() {
  *           x; // returns `true`
+ *       }
+ *
+ *       static method() {
+ *           x; // returns `true`
+ *       }
+ *
+ *       static {
+ *           x; // returns `false`
  *       }
  *   }
  * @param {eslint-scope.Reference} reference A reference to check.
@@ -127,8 +149,9 @@ function isFromSeparateExecutionContext(reference) {
  *     var {a = a} = obj
  *     for (var a in a) {}
  *     for (var a of a) {}
- *     var C = class { [C]; }
- *     var C = class { static foo = C; }
+ *     var C = class { [C]; };
+ *     var C = class { static foo = C; };
+ *     var C = class { static { foo = C; } };
  *     class C extends C {}
  *     class C extends (class { static foo = C; }) {}
  *     class C { [C]; }
@@ -158,7 +181,7 @@ function isEvaluatedDuringInitialization(reference) {
 
             /*
              * Class binding is initialized before running static initializers.
-             * For example, `class C { static foo = C; }` is valid.
+             * For example, `class C { static foo = C; static { bar = C; } }` is valid.
              */
             !isInClassStaticInitializerRange(classDefinition.body, location)
         );

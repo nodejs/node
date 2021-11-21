@@ -176,7 +176,17 @@ module.exports = {
         },
 
         fixable: null,
-        schema: [],
+
+        schema: [{
+            type: "object",
+            properties: {
+                allowProperties: {
+                    type: "boolean",
+                    default: false
+                }
+            },
+            additionalProperties: false
+        }],
 
         messages: {
             nonAtomicUpdate: "Possible race condition: `{{value}}` might be reassigned based on an outdated value of `{{value}}`.",
@@ -185,6 +195,8 @@ module.exports = {
     },
 
     create(context) {
+        const allowProperties = !!context.options[0] && context.options[0].allowProperties;
+
         const sourceCode = context.getSourceCode();
         const assignmentReferences = new Map();
         const segmentInfo = new SegmentInfo();
@@ -284,7 +296,7 @@ module.exports = {
                                         value: variable.name
                                     }
                                 });
-                            } else {
+                            } else if (!allowProperties) {
                                 context.report({
                                     node: node.parent,
                                     messageId: "nonAtomicObjectUpdate",
