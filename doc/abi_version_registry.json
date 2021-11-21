@@ -1,5 +1,6 @@
 {
   "NODE_MODULE_VERSION": [
+    { "modules": 104,"runtime": "node",     "variant": "v8_9.7",               "versions": "18.0.0-pre" },
     { "modules": 103,"runtime": "electron", "variant": "electron",             "versions": "18" },
     { "modules": 102,"runtime": "node",     "variant": "v8_9.5",               "versions": "17.0.0" },
     { "modules": 101,"runtime": "electron", "variant": "electron",             "versions": "17" },
