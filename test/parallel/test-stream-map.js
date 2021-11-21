@@ -89,17 +89,17 @@ const { setTimeout } = require('timers/promises');
   assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars
     for await (const unused of Readable.from([1]).map(1));
-  }, /ERR_INVALID_ARG_TYPE/);
+  }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
   assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars
     for await (const _ of Readable.from([1]).map((x) => x, {
       concurrency: 'Foo'
     }));
-  }, /ERR_INVALID_ARG_TYPE/);
+  }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
   assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars
     for await (const _ of Readable.from([1]).map((x) => x, 1));
-  }, /ERR_INVALID_ARG_TYPE/);
+  }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
 }
 {
   // Test result is a Readable
