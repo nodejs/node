@@ -95,6 +95,13 @@
 }],  # 'msan == True'
 
 ##############################################################################
+['tsan == True', {
+  # Large allocations
+  'fail/map-grow-failed': [SKIP],
+  'fail/set-grow-failed': [SKIP],
+}],  # 'tsan == True'
+
+##############################################################################
 ['simulator_run', {
   # Too slow on simulators
   'fail/map-grow-failed': [SKIP],

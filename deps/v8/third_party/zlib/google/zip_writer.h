@@ -44,6 +44,9 @@ class ZipWriter {
   static std::unique_ptr<ZipWriter> Create(const base::FilePath& zip_file,
                                            FileAccessor* file_accessor);
 
+  ZipWriter(const ZipWriter&) = delete;
+  ZipWriter& operator=(const ZipWriter&) = delete;
+
   ~ZipWriter();
 
   // Sets the optional progress callback. The callback is called once for each
@@ -135,8 +138,6 @@ class ZipWriter {
 
   // Should recursively add directories?
   bool recursive_ = false;
-
-  DISALLOW_COPY_AND_ASSIGN(ZipWriter);
 };
 
 }  // namespace internal

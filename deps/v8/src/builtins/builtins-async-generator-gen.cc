@@ -65,18 +65,18 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
   }
 
   inline void SetGeneratorAwaiting(const TNode<JSGeneratorObject> generator) {
-    CSA_ASSERT(this, Word32BinaryNot(IsGeneratorAwaiting(generator)));
+    CSA_DCHECK(this, Word32BinaryNot(IsGeneratorAwaiting(generator)));
     StoreObjectFieldNoWriteBarrier(
         generator, JSAsyncGeneratorObject::kIsAwaitingOffset, SmiConstant(1));
-    CSA_ASSERT(this, IsGeneratorAwaiting(generator));
+    CSA_DCHECK(this, IsGeneratorAwaiting(generator));
   }
 
   inline void SetGeneratorNotAwaiting(
       const TNode<JSGeneratorObject> generator) {
-    CSA_ASSERT(this, IsGeneratorAwaiting(generator));
+    CSA_DCHECK(this, IsGeneratorAwaiting(generator));
     StoreObjectFieldNoWriteBarrier(
         generator, JSAsyncGeneratorObject::kIsAwaitingOffset, SmiConstant(0));
-    CSA_ASSERT(this, Word32BinaryNot(IsGeneratorAwaiting(generator)));
+    CSA_DCHECK(this, Word32BinaryNot(IsGeneratorAwaiting(generator)));
   }
 
   inline void CloseGenerator(const TNode<JSGeneratorObject> generator) {
@@ -216,7 +216,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
 
   SetGeneratorNotAwaiting(generator);
 
-  CSA_SLOW_ASSERT(this, IsGeneratorSuspended(generator));
+  CSA_SLOW_DCHECK(this, IsGeneratorSuspended(generator));
 
   // Remember the {resume_mode} for the {generator}.
   StoreObjectFieldNoWriteBarrier(generator,
@@ -401,7 +401,7 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
   Goto(&start);
   BIND(&start);
 
-  CSA_ASSERT(this, IsGeneratorNotExecuting(generator));
+  CSA_DCHECK(this, IsGeneratorNotExecuting(generator));
 
   // Stop resuming if suspended for Await.
   ReturnIf(IsGeneratorAwaiting(generator), UndefinedConstant());
@@ -478,7 +478,7 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
   const auto done = Parameter<Object>(Descriptor::kDone);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
-  CSA_ASSERT(this, Word32BinaryNot(IsGeneratorAwaiting(generator)));
+  CSA_DCHECK(this, Word32BinaryNot(IsGeneratorAwaiting(generator)));
 
   // This operation should be called only when the `value` parameter has been
   // Await-ed. Typically, this means `value` is not a JSPromise value. However,

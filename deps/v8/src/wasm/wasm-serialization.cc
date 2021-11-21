@@ -303,7 +303,7 @@ NativeModuleSerializer::NativeModuleSerializer(
 
 size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
   if (code == nullptr) return sizeof(bool);
-  DCHECK_EQ(WasmCode::kFunction, code->kind());
+  DCHECK_EQ(WasmCode::kWasmFunction, code->kind());
   if (code->tier() != ExecutionTier::kTurbofan) {
     return sizeof(bool);
   }
@@ -334,7 +334,7 @@ bool NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
     writer->Write(false);
     return true;
   }
-  DCHECK_EQ(WasmCode::kFunction, code->kind());
+  DCHECK_EQ(WasmCode::kWasmFunction, code->kind());
   // Only serialize TurboFan code, as Liftoff code can contain breakpoints or
   // non-relocatable constants.
   if (code->tier() != ExecutionTier::kTurbofan) {

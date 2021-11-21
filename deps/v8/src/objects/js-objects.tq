@@ -55,7 +55,7 @@ macro GetDerivedMap(implicit context: Context)(
   try {
     const constructor =
         Cast<JSFunctionWithPrototypeSlot>(newTarget) otherwise SlowPath;
-    assert(IsConstructor(constructor));
+    dcheck(IsConstructor(constructor));
     const map =
         Cast<Map>(constructor.prototype_or_initial_map) otherwise SlowPath;
     if (LoadConstructorOrBackPointer(map) != target) {

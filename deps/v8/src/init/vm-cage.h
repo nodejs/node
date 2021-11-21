@@ -6,6 +6,7 @@
 #define V8_INIT_VM_CAGE_H_
 
 #include "include/v8-internal.h"
+#include "src/base/bounded-page-allocator.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -19,47 +20,44 @@ namespace internal {
 /**
  * V8 Virtual Memory Cage.
  *
- * When the virtual memory cage is enabled, v8 will place most of its objects
- * inside a dedicated region of virtual address space. In particular, all v8
- * heaps, inside which objects reference themselves using compressed (32-bit)
- * pointers, are located at the start of the virtual memory cage (the "pointer
- * cage") and pure memory buffers like ArrayBuffer backing stores, which
- * themselves do not contain any pointers, are located in the remaining part of
- * the cage (the "data cage"). These buffers will eventually be referenced from
- * inside the v8 heap using offsets rather than pointers. It should then be
- * assumed that an attacker is able to corrupt data arbitrarily and concurrently
- * inside the virtual memory cage.
+ * When the virtual memory cage is enabled, V8 will reserve a large region of
+ * virtual address space - the cage - and place most of its objects inside of
+ * it. This allows these objects to reference each other through offsets rather
+ * than raw pointers, which in turn makes it harder for an attacker to abuse
+ * them in an exploit.
+ *
+ * The pointer compression region, which contains most V8 objects, and inside
+ * of which compressed (32-bit) pointers are used, is located at the start of
+ * the virtual memory cage. The remainder of the cage is mostly used for memory
+ * buffers, in particular ArrayBuffer backing stores and WASM memory cages.
+ *
+ * It should be assumed that an attacker is able to corrupt data arbitrarily
+ * and concurrently inside the virtual memory cage. The heap sandbox, of which
+ * the virtual memory cage is one building block, attempts to then stop an
+ * attacker from corrupting data outside of the cage.
  *
  * As the embedder is responsible for providing ArrayBuffer allocators, v8
- * exposes a page allocator for the data cage to the embedder.
+ * exposes a page allocator for the virtual memory cage to the embedder.
  *
- * TODO(chromium:1218005) Maybe don't call the sub-regions "cages" as well to
- * avoid confusion? In any case, the names should probably be identical to the
- * internal names for these virtual memory regions (where they are currently
- * called cages).
  * TODO(chromium:1218005) come up with a coherent naming scheme for this class
  * and the other "cages" in v8.
  */
-class V8VirtualMemoryCage {
+class V8_EXPORT_PRIVATE V8VirtualMemoryCage {
  public:
+  // +-  ~~~  -+----------------------------------------  ~~~  -+-  ~~~  -+
+  // |  32 GB  |                 (Ideally) 1 TB                 |  32 GB  |
+  // |         |                                                |         |
+  // | Guard   |      4 GB      :  ArrayBuffer backing stores,  | Guard   |
+  // | Region  |    V8 Heap     :  WASM memory buffers, and     | Region  |
+  // | (front) |     Region     :  any other caged objects.     | (back)  |
   // +-  ~~~  -+----------------+-----------------------  ~~~  -+-  ~~~  -+
-  // |  32 GB  |      4 GB      |                               |  32 GB  |
-  // +-  ~~~  -+----------------+-----------------------  ~~~  -+-  ~~~  -+
-  // ^         ^                ^                               ^
-  // Guard     Pointer Cage     Data Cage                       Guard
-  // Region    (contains all    (contains all ArrayBuffer and   Region
-  // (front)   V8 heaps)        WASM memory backing stores)     (back)
-  //
-  //           | base ---------------- size ------------------> |
+  //           ^                                                ^
+  //           base                                             base + size
 
   V8VirtualMemoryCage() = default;
 
   V8VirtualMemoryCage(const V8VirtualMemoryCage&) = delete;
   V8VirtualMemoryCage& operator=(V8VirtualMemoryCage&) = delete;
-
-  bool is_initialized() const { return initialized_; }
-  bool is_disabled() const { return disabled_; }
-  bool is_enabled() const { return !disabled_; }
 
   bool Initialize(v8::PageAllocator* page_allocator);
   void Disable() {
@@ -69,16 +67,16 @@ class V8VirtualMemoryCage {
 
   void TearDown();
 
+  bool is_initialized() const { return initialized_; }
+  bool is_disabled() const { return disabled_; }
+  bool is_enabled() const { return !disabled_; }
+
   Address base() const { return base_; }
   size_t size() const { return size_; }
 
-  Address pointer_cage_base() const { return base_; }
-  size_t pointer_cage_size() const { return kVirtualMemoryCagePointerCageSize; }
-
-  Address data_cage_base() const {
-    return pointer_cage_base() + pointer_cage_size();
+  base::BoundedPageAllocator* page_allocator() const {
+    return cage_page_allocator_.get();
   }
-  size_t data_cage_size() const { return size_ - pointer_cage_size(); }
 
   bool Contains(Address addr) const {
     return addr >= base_ && addr < base_ + size_;
@@ -88,11 +86,9 @@ class V8VirtualMemoryCage {
     return Contains(reinterpret_cast<Address>(ptr));
   }
 
-  v8::PageAllocator* GetDataCagePageAllocator() {
-    return data_cage_page_allocator_.get();
-  }
-
  private:
+  // The SequentialUnmapperTest calls the private Initialize method to create a
+  // cage without guard regions, which would otherwise consume too much memory.
   friend class SequentialUnmapperTest;
 
   // We allow tests to disable the guard regions around the cage. This is useful
@@ -106,18 +102,21 @@ class V8VirtualMemoryCage {
   bool has_guard_regions_ = false;
   bool initialized_ = false;
   bool disabled_ = false;
+  // The PageAllocator through which the virtual memory of the cage was
+  // allocated.
   v8::PageAllocator* page_allocator_ = nullptr;
-  std::unique_ptr<v8::PageAllocator> data_cage_page_allocator_;
+  // The BoundedPageAllocator to allocate pages inside the cage.
+  std::unique_ptr<base::BoundedPageAllocator> cage_page_allocator_;
 };
 
-V8VirtualMemoryCage* GetProcessWideVirtualMemoryCage();
+V8_EXPORT_PRIVATE V8VirtualMemoryCage* GetProcessWideVirtualMemoryCage();
 
 #endif  // V8_VIRTUAL_MEMORY_CAGE
 
 V8_INLINE bool IsValidBackingStorePointer(void* ptr) {
 #ifdef V8_VIRTUAL_MEMORY_CAGE
   Address addr = reinterpret_cast<Address>(ptr);
-  return kAllowBackingStoresOutsideDataCage || addr == kNullAddress ||
+  return kAllowBackingStoresOutsideCage || addr == kNullAddress ||
          GetProcessWideVirtualMemoryCage()->Contains(addr);
 #else
   return true;

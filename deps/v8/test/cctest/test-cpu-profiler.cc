@@ -4277,7 +4277,7 @@ TEST(BytecodeFlushEventsEagerLogging) {
 
     // This compile will add the code to the compilation cache.
     {
-      v8::HandleScope scope(isolate);
+      v8::HandleScope inner_scope(isolate);
       CompileRun(source);
     }
 

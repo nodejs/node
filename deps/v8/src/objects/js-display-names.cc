@@ -15,8 +15,9 @@
 #include "src/heap/factory.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-display-names-inl.h"
-#include "src/objects/managed.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/dtfmtsym.h"
 #include "unicode/dtptngen.h"
 #include "unicode/localebuilder.h"
@@ -118,8 +119,11 @@ class LanguageNames : public LocaleDisplayNamesCommon {
   LanguageNames(const icu::Locale& locale, JSDisplayNames::Style style,
                 bool fallback, bool dialect)
       : LocaleDisplayNamesCommon(locale, style, fallback, dialect) {}
+
   ~LanguageNames() override = default;
+
   const char* type() const override { return "language"; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     UErrorCode status = U_ZERO_ERROR;
@@ -152,8 +156,11 @@ class RegionNames : public LocaleDisplayNamesCommon {
   RegionNames(const icu::Locale& locale, JSDisplayNames::Style style,
               bool fallback, bool dialect)
       : LocaleDisplayNamesCommon(locale, style, fallback, dialect) {}
+
   ~RegionNames() override = default;
+
   const char* type() const override { return "region"; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
@@ -174,8 +181,11 @@ class ScriptNames : public LocaleDisplayNamesCommon {
   ScriptNames(const icu::Locale& locale, JSDisplayNames::Style style,
               bool fallback, bool dialect)
       : LocaleDisplayNamesCommon(locale, style, fallback, dialect) {}
+
   ~ScriptNames() override = default;
+
   const char* type() const override { return "script"; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
@@ -194,30 +204,47 @@ class ScriptNames : public LocaleDisplayNamesCommon {
 class KeyValueDisplayNames : public LocaleDisplayNamesCommon {
  public:
   KeyValueDisplayNames(const icu::Locale& locale, JSDisplayNames::Style style,
-                       bool fallback, bool dialect, const char* key)
-      : LocaleDisplayNamesCommon(locale, style, fallback, dialect), key_(key) {}
+                       bool fallback, bool dialect, const char* key,
+                       bool prevent_fallback)
+      : LocaleDisplayNamesCommon(locale, style, fallback, dialect),
+        key_(key),
+        prevent_fallback_(prevent_fallback) {}
+
   ~KeyValueDisplayNames() override = default;
+
   const char* type() const override { return key_.c_str(); }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
     icu::UnicodeString result;
     locale_display_names()->keyValueDisplayName(key_.c_str(), code_str.c_str(),
                                                 result);
+    // Work around the issue that the keyValueDisplayNames ignore no
+    // substituion and always fallback.
+    if (prevent_fallback_ && (result.length() == 3) &&
+        (code_str.length() == 3) &&
+        (result == icu::UnicodeString(code_str.c_str(), -1, US_INV))) {
+      result.setToBogus();
+    }
 
     return Just(result);
   }
 
  private:
   std::string key_;
+  bool prevent_fallback_;
 };
 
 class CurrencyNames : public KeyValueDisplayNames {
  public:
   CurrencyNames(const icu::Locale& locale, JSDisplayNames::Style style,
                 bool fallback, bool dialect)
-      : KeyValueDisplayNames(locale, style, fallback, dialect, "currency") {}
+      : KeyValueDisplayNames(locale, style, fallback, dialect, "currency",
+                             fallback == false) {}
+
   ~CurrencyNames() override = default;
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
@@ -234,8 +261,11 @@ class CalendarNames : public KeyValueDisplayNames {
  public:
   CalendarNames(const icu::Locale& locale, JSDisplayNames::Style style,
                 bool fallback, bool dialect)
-      : KeyValueDisplayNames(locale, style, fallback, dialect, "calendar") {}
+      : KeyValueDisplayNames(locale, style, fallback, dialect, "calendar",
+                             false) {}
+
   ~CalendarNames() override = default;
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
@@ -312,9 +342,13 @@ class DateTimeFieldNames : public DisplayNamesInternal {
         icu::DateTimePatternGenerator::createInstance(locale_, status));
     DCHECK(U_SUCCESS(status));
   }
+
   ~DateTimeFieldNames() override = default;
+
   const char* type() const override { return "dateTimeField"; }
+
   icu::Locale locale() const override { return locale_; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     UDateTimePatternField field = StringToUDateTimePatternField(code);
@@ -372,9 +406,9 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
       maybe_requested_locales.FromJust();
 
   // 4. Let options be ? GetOptionsObject(options).
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options, Intl::GetOptionsObject(isolate, input_options, service),
-      JSDisplayNames);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
+                             GetOptionsObject(isolate, input_options, service),
+                             JSDisplayNames);
 
   // Note: No need to create a record. It's not observable.
   // 5. Let opt be a new Record.
@@ -409,7 +443,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
 
   // 10. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
-  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
+  Maybe<Style> maybe_style = GetStringOption<Style>(
       isolate, options, "style", service, {"long", "short", "narrow"},
       {Style::kLong, Style::kShort, Style::kNarrow}, Style::kLong);
   MAYBE_RETURN(maybe_style, MaybeHandle<JSDisplayNames>());
@@ -422,23 +456,22 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   // undefined).
   Maybe<Type> maybe_type =
       FLAG_harmony_intl_displaynames_v2
-          ? Intl::GetStringOption<Type>(
+          ? GetStringOption<Type>(
                 isolate, options, "type", service,
                 {"language", "region", "script", "currency", "calendar",
                  "dateTimeField"},
                 {Type::kLanguage, Type::kRegion, Type::kScript, Type::kCurrency,
                  Type::kCalendar, Type::kDateTimeField},
                 Type::kUndefined)
-          : Intl::GetStringOption<Type>(
-                isolate, options, "type", service,
-                {"language", "region", "script", "currency"},
-                {
-                    Type::kLanguage,
-                    Type::kRegion,
-                    Type::kScript,
-                    Type::kCurrency,
-                },
-                Type::kUndefined);
+          : GetStringOption<Type>(isolate, options, "type", service,
+                                  {"language", "region", "script", "currency"},
+                                  {
+                                      Type::kLanguage,
+                                      Type::kRegion,
+                                      Type::kScript,
+                                      Type::kCurrency,
+                                  },
+                                  Type::kUndefined);
   MAYBE_RETURN(maybe_type, MaybeHandle<JSDisplayNames>());
   Type type_enum = maybe_type.FromJust();
 
@@ -452,7 +485,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
 
   // 15. Let fallback be ? GetOption(options, "fallback", "string",
   //     « "code", "none" », "code").
-  Maybe<Fallback> maybe_fallback = Intl::GetStringOption<Fallback>(
+  Maybe<Fallback> maybe_fallback = GetStringOption<Fallback>(
       isolate, options, "fallback", service, {"code", "none"},
       {Fallback::kCode, Fallback::kNone}, Fallback::kCode);
   MAYBE_RETURN(maybe_fallback, MaybeHandle<JSDisplayNames>());
@@ -465,7 +498,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
     // 24. Let languageDisplay be ? GetOption(options, "languageDisplay",
     // "string", « "dialect", "standard" », "dialect").
     Maybe<LanguageDisplay> maybe_language_display =
-        Intl::GetStringOption<LanguageDisplay>(
+        GetStringOption<LanguageDisplay>(
             isolate, options, "languageDisplay", service,
             {"dialect", "standard"},
             {LanguageDisplay::kDialect, LanguageDisplay::kStandard},

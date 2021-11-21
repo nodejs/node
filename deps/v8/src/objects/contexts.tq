@@ -61,11 +61,12 @@ type Slot<Container : type extends Context, T : type extends Object> extends
 // slot has the right type already.
 macro InitContextSlot<
     ArgumentContext: type, AnnotatedContext: type, T: type, U: type>(
-    context: ArgumentContext, index: Slot<AnnotatedContext, T>, value: U) {
+    context: ArgumentContext, index: Slot<AnnotatedContext, T>,
+    value: U): void {
   // Make sure the arguments have the right type.
   const context: AnnotatedContext = context;
   const value: T = value;
-  assert(TaggedEqual(context.elements[index], kInitialContextSlotValue));
+  dcheck(TaggedEqual(context.elements[index], kInitialContextSlotValue));
   context.elements[index] = value;
 }
 
@@ -179,17 +180,17 @@ macro LoadContextElement(c: Context, i: constexpr int32): Object {
 }
 
 @export
-macro StoreContextElement(c: Context, i: intptr, o: Object) {
+macro StoreContextElement(c: Context, i: intptr, o: Object): void {
   c.elements[i] = o;
 }
 
 @export
-macro StoreContextElement(c: Context, i: Smi, o: Object) {
+macro StoreContextElement(c: Context, i: Smi, o: Object): void {
   c.elements[i] = o;
 }
 
 @export
-macro StoreContextElement(c: Context, i: constexpr int32, o: Object) {
+macro StoreContextElement(c: Context, i: constexpr int32, o: Object): void {
   c.elements[i] = o;
 }
 

@@ -36,6 +36,10 @@ namespace {
 class StringWriterDelegate : public WriterDelegate {
  public:
   StringWriterDelegate(size_t max_read_bytes, std::string* output);
+
+  StringWriterDelegate(const StringWriterDelegate&) = delete;
+  StringWriterDelegate& operator=(const StringWriterDelegate&) = delete;
+
   ~StringWriterDelegate() override;
 
   // WriterDelegate methods:
@@ -52,8 +56,6 @@ class StringWriterDelegate : public WriterDelegate {
  private:
   size_t max_read_bytes_;
   std::string* output_;
-
-  DISALLOW_COPY_AND_ASSIGN(StringWriterDelegate);
 };
 
 StringWriterDelegate::StringWriterDelegate(size_t max_read_bytes,

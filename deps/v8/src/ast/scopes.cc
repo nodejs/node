@@ -566,7 +566,6 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
 
     // Check if there's a conflict with a lexical declaration
     Scope* query_scope = sloppy_block_function->scope()->outer_scope();
-    Variable* var = nullptr;
     bool should_hoist = true;
 
     // It is not sufficient to just do a Lookup on query_scope: for
@@ -576,7 +575,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
     // Don't use a generic cache scope, as the cache scope would be the outer
     // scope and we terminate the iteration there anyway.
     do {
-      var = query_scope->LookupInScopeOrScopeInfo(name, query_scope);
+      Variable* var = query_scope->LookupInScopeOrScopeInfo(name, query_scope);
       if (var != nullptr && IsLexicalVariableMode(var->mode())) {
         should_hoist = false;
         break;
@@ -840,12 +839,12 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
     new_parent->sibling_ = top_inner_scope_;
   }
 
-  Scope* outer_scope_ = outer_scope_and_calls_eval_.GetPointer();
-  new_parent->unresolved_list_.MoveTail(&outer_scope_->unresolved_list_,
+  Scope* outer_scope = outer_scope_and_calls_eval_.GetPointer();
+  new_parent->unresolved_list_.MoveTail(&outer_scope->unresolved_list_,
                                         top_unresolved_);
 
   // Move temporaries allocated for complex parameter initializers.
-  DeclarationScope* outer_closure = outer_scope_->GetClosureScope();
+  DeclarationScope* outer_closure = outer_scope->GetClosureScope();
   for (auto it = top_local_; it != outer_closure->locals()->end(); ++it) {
     Variable* local = *it;
     DCHECK_EQ(VariableMode::kTemporary, local->mode());
@@ -2014,7 +2013,7 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
         // scope when we get to it (we may still have deserialized scopes
         // in-between the initial and cache scopes so we can't just check the
         // cache before the loop).
-        Variable* var = scope->variables_.Lookup(proxy->raw_name());
+        var = scope->variables_.Lookup(proxy->raw_name());
         if (var != nullptr) return var;
       }
       var = scope->LookupInScopeInfo(proxy->raw_name(),
@@ -2063,7 +2062,7 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     // TODO(verwaest): Separate through AnalyzePartially.
     if (mode == kParsedScope && !scope->scope_info_.is_null()) {
       DCHECK_NULL(cache_scope);
-      Scope* cache_scope = scope->GetNonEvalDeclarationScope();
+      cache_scope = scope->GetNonEvalDeclarationScope();
       return Lookup<kDeserializedScope>(proxy, scope, outer_scope_end,
                                         cache_scope);
     }

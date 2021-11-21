@@ -16,8 +16,8 @@ extern class JSPromise extends JSObject {
   }
 
   macro SetStatus(status: constexpr PromiseState): void {
-    assert(this.Status() == PromiseState::kPending);
-    assert(status != PromiseState::kPending);
+    dcheck(this.Status() == PromiseState::kPending);
+    dcheck(status != PromiseState::kPending);
 
     this.flags.status = status;
   }

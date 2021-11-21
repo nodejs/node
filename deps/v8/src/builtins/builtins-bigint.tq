@@ -70,9 +70,9 @@ macro MutableBigIntAbsoluteSub(implicit context: Context)(
   const ylength = ReadBigIntLength(y);
   const xsign = ReadBigIntSign(x);
 
-  assert(MutableBigIntAbsoluteCompare(x, y) >= 0);
+  dcheck(MutableBigIntAbsoluteCompare(x, y) >= 0);
   if (xlength == 0) {
-    assert(ylength == 0);
+    dcheck(ylength == 0);
     return x;
   }
 
@@ -104,7 +104,7 @@ macro MutableBigIntAbsoluteAdd(implicit context: Context)(
 
   // case: 0n + 0n
   if (xlength == 0) {
-    assert(ylength == 0);
+    dcheck(ylength == 0);
     return x;
   }
 

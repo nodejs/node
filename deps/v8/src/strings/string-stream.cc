@@ -302,7 +302,7 @@ void StringStream::PrintUsingMap(JSObject js_object) {
   DescriptorArray descs = map.instance_descriptors(js_object.GetIsolate());
   for (InternalIndex i : map.IterateOwnDescriptors()) {
     PropertyDetails details = descs.GetDetails(i);
-    if (details.location() == kField) {
+    if (details.location() == PropertyLocation::kField) {
       DCHECK_EQ(kData, details.kind());
       Object key = descs.GetKey(i);
       if (key.IsString() || key.IsNumber()) {

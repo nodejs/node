@@ -89,8 +89,8 @@ Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
                                  Representation representation,
                                  const MaybeObjectHandle& wrapped_field_type) {
   DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeak());
-  PropertyDetails details(kData, attributes, kField, constness, representation,
-                          field_index);
+  PropertyDetails details(kData, attributes, PropertyLocation::kField,
+                          constness, representation, field_index);
   return Descriptor(key, wrapped_field_type, details);
 }
 
@@ -98,7 +98,7 @@ Descriptor Descriptor::DataConstant(Handle<Name> key, Handle<Object> value,
                                     PropertyAttributes attributes) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*key);
   return Descriptor(key, MaybeObjectHandle(value), kData, attributes,
-                    kDescriptor, PropertyConstness::kConst,
+                    PropertyLocation::kDescriptor, PropertyConstness::kConst,
                     value->OptimalRepresentation(cage_base), 0);
 }
 
@@ -114,7 +114,7 @@ Descriptor Descriptor::AccessorConstant(Handle<Name> key,
                                         Handle<Object> foreign,
                                         PropertyAttributes attributes) {
   return Descriptor(key, MaybeObjectHandle(foreign), kAccessor, attributes,
-                    kDescriptor, PropertyConstness::kConst,
+                    PropertyLocation::kDescriptor, PropertyConstness::kConst,
                     Representation::Tagged(), 0);
 }
 
@@ -134,7 +134,7 @@ void PropertyDetails::PrintAsFastTo(std::ostream& os, PrintMode mode) {
   os << "(";
   if (constness() == PropertyConstness::kConst) os << "const ";
   os << (kind() == kData ? "data" : "accessor");
-  if (location() == kField) {
+  if (location() == PropertyLocation::kField) {
     os << " field";
     if (mode & kPrintFieldIndex) {
       os << " " << field_index();

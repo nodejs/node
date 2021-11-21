@@ -48,6 +48,7 @@ FEATURE_FLAGS = {
   'Intl.Locale-info': '--harmony_intl_locale_info',
   'Intl.DateTimeFormat-extend-timezonename': '--harmony_intl_more_timezone',
   'Intl.DisplayNames-v2': '--harmony_intl_displaynames_v2',
+  'Intl-enumeration': '--harmony_intl_enumeration',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
   'WeakRef': '--harmony-weak-refs-with-cleanup-some',

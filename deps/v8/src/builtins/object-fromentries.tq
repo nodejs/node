@@ -58,7 +58,7 @@ ObjectFromEntries(
     const fastIteratorResultMap: Map = GetIteratorResultMap();
     let i: iterator::IteratorRecord = iterator::GetIterator(iterable);
     try {
-      assert(!IsNullOrUndefined(i.object));
+      dcheck(!IsNullOrUndefined(i.object));
       while (true) {
         const step: JSReceiver =
             iterator::IteratorStep(i, fastIteratorResultMap)

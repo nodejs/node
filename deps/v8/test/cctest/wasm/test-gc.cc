@@ -81,18 +81,20 @@ class WasmGCTester {
                            isolate_->factory()->undefined_value(), argc, args);
   }
 
-  byte DefineStruct(std::initializer_list<F> fields) {
+  byte DefineStruct(std::initializer_list<F> fields,
+                    uint32_t supertype = kNoSuperType) {
     StructType::Builder type_builder(&zone_,
                                      static_cast<uint32_t>(fields.size()));
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }
-    return builder_.AddStructType(type_builder.Build());
+    return builder_.AddStructType(type_builder.Build(), supertype);
   }
 
-  byte DefineArray(ValueType element_type, bool mutability) {
-    return builder_.AddArrayType(
-        zone_.New<ArrayType>(element_type, mutability));
+  byte DefineArray(ValueType element_type, bool mutability,
+                   uint32_t supertype = kNoSuperType) {
+    return builder_.AddArrayType(zone_.New<ArrayType>(element_type, mutability),
+                                 supertype);
   }
 
   byte DefineSignature(FunctionSig* sig) { return builder_.AddSignature(sig); }
@@ -211,7 +213,7 @@ class WasmGCTester {
 
   void CallFunctionImpl(uint32_t function_index, const FunctionSig* sig,
                         CWasmArgumentsPacker* packer) {
-    WasmCodeRefScope scope;
+    WasmCodeRefScope code_ref_scope;
     NativeModule* native_module = instance_->module_object().native_module();
     WasmCode* code = native_module->GetCode(function_index);
     Address wasm_call_target = code->instruction_start();
@@ -276,6 +278,11 @@ WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
                                 WASM_RTT_CANON(type_index)),
        kExprEnd});
 
+  const byte kGetStructNominal = tester.DefineFunction(
+      &sig_q_v, {},
+      {WASM_STRUCT_NEW_DEFAULT(type_index), WASM_DROP,
+       WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(64)), kExprEnd});
+
   // Test struct.new, returning reference to an empty struct.
   const byte kGetEmptyStruct = tester.DefineFunction(
       &sig_qe_v, {},
@@ -303,6 +310,9 @@ WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
   tester.CheckResult(kGet1, 42);
   tester.CheckResult(kGet2, 64);
   CHECK(tester.GetResultObject(kGetStruct).ToHandleChecked()->IsWasmStruct());
+  CHECK(tester.GetResultObject(kGetStructNominal)
+            .ToHandleChecked()
+            ->IsWasmStruct());
   CHECK(tester.GetResultObject(kGetEmptyStruct)
             .ToHandleChecked()
             ->IsWasmStruct());
@@ -457,6 +467,30 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
        WASM_GC_OP(kExprStructGet), type_index, 0, WASM_LOCAL_GET(0),
        kExprI32Add, kExprEnd});
 
+  const byte kTestStructStatic = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmI32, kDataRefNull},
+      {WASM_BLOCK_R(
+           ValueType::Ref(type_index, kNullable),
+           WASM_LOCAL_SET(0, WASM_I32V(111)),
+           // Pipe a struct through a local so it's statically typed
+           // as dataref.
+           WASM_LOCAL_SET(1, WASM_STRUCT_NEW(other_type_index, WASM_F32(1.0))),
+           WASM_LOCAL_GET(1),
+           // The type check fails, so this branch isn't taken.
+           WASM_BR_ON_CAST_STATIC(0, type_index), WASM_DROP,
+
+           WASM_LOCAL_SET(0, WASM_I32V(221)),  // (Final result) - 1
+           WASM_LOCAL_SET(1, WASM_STRUCT_NEW(type_index, WASM_I32V(1))),
+           WASM_LOCAL_GET(1),
+           // This branch is taken.
+           WASM_BR_ON_CAST_STATIC(0, type_index),
+           WASM_GC_OP(kExprRefCastStatic), type_index,
+
+           // Not executed due to the branch.
+           WASM_LOCAL_SET(0, WASM_I32V(333))),
+       WASM_GC_OP(kExprStructGet), type_index, 0, WASM_LOCAL_GET(0),
+       kExprI32Add, kExprEnd});
+
   const byte kTestNull = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmI32, kDataRefNull},
       {WASM_BLOCK_R(ValueType::Ref(type_index, kNullable),
@@ -488,6 +522,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
 
   tester.CompileModule();
   tester.CheckResult(kTestStruct, 222);
+  tester.CheckResult(kTestStructStatic, 222);
   tester.CheckResult(kTestNull, 222);
   tester.CheckResult(kTypedAfterBranch, 42);
 }
@@ -542,8 +577,21 @@ WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
                                               WASM_RTT_CANON(type1)))});
 #undef FUNCTION_BODY
 
+  const byte kBranchTakenStatic = tester.DefineFunction(
+      tester.sigs.i_v(), {kDataRefNull},
+      {WASM_LOCAL_SET(
+           0, WASM_STRUCT_NEW(type1, WASM_I64V(10), WASM_I32V(field1_value))),
+       WASM_BLOCK(
+           WASM_BLOCK_R(kDataRefNull, WASM_LOCAL_GET(0),
+                        WASM_BR_ON_CAST_STATIC_FAIL(0, type0),
+                        WASM_GC_OP(kExprStructGet), type0, 0, kExprReturn),
+           kExprBrOnNull, 0, WASM_GC_OP(kExprRefCastStatic), type1,
+           WASM_GC_OP(kExprStructGet), type1, 1, kExprReturn),
+       WASM_I32V(null_value), kExprEnd});
+
   tester.CompileModule();
   tester.CheckResult(kBranchTaken, field1_value);
+  tester.CheckResult(kBranchTakenStatic, field1_value);
   tester.CheckResult(kBranchNotTaken, field0_value);
   tester.CheckResult(kNull, null_value);
   tester.CheckResult(kUnrelatedTypes, field1_value);
@@ -779,19 +827,30 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
                                WASM_RTT_CANON(type_index)),
        kExprEnd});
 
+  const byte kAllocateStatic = tester.DefineFunction(
+      &sig_q_v, {},
+      {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(2)), WASM_DROP,
+       WASM_ARRAY_NEW(type_index, WASM_I32V(42), WASM_I32V(2)), kExprEnd});
+
+  const byte kInit = tester.DefineFunction(
+      &sig_q_v, {},
+      {WASM_ARRAY_INIT(type_index, 3, WASM_I32V(10), WASM_I32V(20),
+                       WASM_I32V(30), WASM_RTT_CANON(type_index)),
+       kExprEnd});
+
   const uint32_t kLongLength = 1u << 16;
   const byte kAllocateLarge = tester.DefineFunction(
       &sig_q_v, {},
-      {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(kLongLength),
-                              WASM_RTT_CANON(type_index)),
+      {WASM_ARRAY_NEW_DEFAULT_WITH_RTT(type_index, WASM_I32V(kLongLength),
+                                       WASM_RTT_CANON(type_index)),
        kExprEnd});
 
   ArrayType array_type(kWasmI32, true);
   const uint32_t kTooLong = WasmArray::MaxLength(&array_type) + 1;
   const byte kAllocateTooLarge = tester.DefineFunction(
       &sig_q_v, {},
-      {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(kTooLong),
-                              WASM_RTT_CANON(type_index)),
+      {WASM_ARRAY_NEW_DEFAULT_WITH_RTT(type_index, WASM_I32V(kTooLong),
+                                       WASM_RTT_CANON(type_index)),
        kExprEnd});
 
   // Tests that fp arrays work properly.
@@ -818,11 +877,20 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   tester.CheckResult(kGetLength, 42);
   tester.CheckResult(kTestFpArray, static_cast<int32_t>(result_value));
 
-  MaybeHandle<Object> h_result = tester.GetResultObject(kAllocate);
-  CHECK(h_result.ToHandleChecked()->IsWasmArray());
-#if OBJECT_PRINT
-  h_result.ToHandleChecked()->Print();
-#endif
+  Handle<Object> h_result = tester.GetResultObject(kAllocate).ToHandleChecked();
+  CHECK(h_result->IsWasmArray());
+  CHECK_EQ(2, Handle<WasmArray>::cast(h_result)->length());
+
+  h_result = tester.GetResultObject(kAllocateStatic).ToHandleChecked();
+  CHECK(h_result->IsWasmArray());
+  CHECK_EQ(2, Handle<WasmArray>::cast(h_result)->length());
+
+  Handle<Object> init_result = tester.GetResultObject(kInit).ToHandleChecked();
+  CHECK(init_result->IsWasmArray());
+  CHECK_EQ(3, Handle<WasmArray>::cast(init_result)->length());
+  CHECK_EQ(10, Handle<WasmArray>::cast(init_result)->GetElement(0).to_i32());
+  CHECK_EQ(20, Handle<WasmArray>::cast(init_result)->GetElement(1).to_i32());
+  CHECK_EQ(30, Handle<WasmArray>::cast(init_result)->GetElement(2).to_i32());
 
   MaybeHandle<Object> maybe_large_result =
       tester.GetResultObject(kAllocateLarge);
@@ -913,8 +981,9 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   // Copies i32 ranges: local1[0..3] to local2[6..9].
   const byte kCopyI32 = tester.DefineFunction(
       tester.sigs.i_i(), {optref(array32_index), optref(array32_index)},
-      {WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
-                                                WASM_RTT_CANON(array32_index))),
+      {WASM_LOCAL_SET(
+           1, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(array32_index))),
        WASM_ARRAY_SET(array32_index, WASM_LOCAL_GET(1), WASM_I32V(0),
                       WASM_I32V(0)),
        WASM_ARRAY_SET(array32_index, WASM_LOCAL_GET(1), WASM_I32V(1),
@@ -923,8 +992,9 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
                       WASM_I32V(2)),
        WASM_ARRAY_SET(array32_index, WASM_LOCAL_GET(1), WASM_I32V(3),
                       WASM_I32V(3)),
-       WASM_LOCAL_SET(2, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
-                                                WASM_RTT_CANON(array32_index))),
+       WASM_LOCAL_SET(
+           2, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(array32_index))),
        WASM_ARRAY_COPY(array32_index, array32_index, WASM_LOCAL_GET(2),
                        WASM_I32V(6), WASM_LOCAL_GET(1), WASM_I32V(0),
                        WASM_I32V(4)),
@@ -934,8 +1004,9 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   // Copies i16 ranges: local1[0..3] to local2[6..9].
   const byte kCopyI16 = tester.DefineFunction(
       tester.sigs.i_i(), {optref(array16_index), optref(array16_index)},
-      {WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array16_index, WASM_I32V(10),
-                                                WASM_RTT_CANON(array16_index))),
+      {WASM_LOCAL_SET(
+           1, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array16_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(array16_index))),
        WASM_ARRAY_SET(array16_index, WASM_LOCAL_GET(1), WASM_I32V(0),
                       WASM_I32V(0)),
        WASM_ARRAY_SET(array16_index, WASM_LOCAL_GET(1), WASM_I32V(1),
@@ -944,8 +1015,9 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
                       WASM_I32V(2)),
        WASM_ARRAY_SET(array16_index, WASM_LOCAL_GET(1), WASM_I32V(3),
                       WASM_I32V(3)),
-       WASM_LOCAL_SET(2, WASM_ARRAY_NEW_DEFAULT(array16_index, WASM_I32V(10),
-                                                WASM_RTT_CANON(array16_index))),
+       WASM_LOCAL_SET(
+           2, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array16_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(array16_index))),
        WASM_ARRAY_COPY(array16_index, array16_index, WASM_LOCAL_GET(2),
                        WASM_I32V(6), WASM_LOCAL_GET(1), WASM_I32V(0),
                        WASM_I32V(4)),
@@ -956,24 +1028,28 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   const byte kCopyRef = tester.DefineFunction(
       FunctionSig::Build(tester.zone(), {optref(array32_index)}, {kWasmI32}),
       {optref(arrayref_index), optref(arrayref_index)},
-      {WASM_LOCAL_SET(1,
-                      WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10),
-                                             WASM_RTT_CANON(arrayref_index))),
-       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(0),
-                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(6),
-                                             WASM_RTT_CANON(array32_index))),
-       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(1),
-                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(7),
-                                             WASM_RTT_CANON(array32_index))),
-       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(2),
-                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(8),
-                                             WASM_RTT_CANON(array32_index))),
-       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(3),
-                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(9),
-                                             WASM_RTT_CANON(array32_index))),
-       WASM_LOCAL_SET(2,
-                      WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10),
-                                             WASM_RTT_CANON(arrayref_index))),
+      {WASM_LOCAL_SET(
+           1, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(arrayref_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(arrayref_index))),
+       WASM_ARRAY_SET(
+           arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(0),
+           WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(6),
+                                           WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(
+           arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(1),
+           WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(7),
+                                           WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(
+           arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(2),
+           WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(8),
+                                           WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(
+           arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(3),
+           WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(9),
+                                           WASM_RTT_CANON(array32_index))),
+       WASM_LOCAL_SET(
+           2, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(arrayref_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(arrayref_index))),
        WASM_ARRAY_COPY(arrayref_index, arrayref_index, WASM_LOCAL_GET(2),
                        WASM_I32V(6), WASM_LOCAL_GET(1), WASM_I32V(0),
                        WASM_I32V(4)),
@@ -984,21 +1060,25 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   const byte kCopyRefOverlapping = tester.DefineFunction(
       FunctionSig::Build(tester.zone(), {optref(array32_index)}, {kWasmI32}),
       {optref(arrayref_index)},
-      {WASM_LOCAL_SET(1,
-                      WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10),
-                                             WASM_RTT_CANON(arrayref_index))),
-       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(0),
-                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(2),
-                                             WASM_RTT_CANON(array32_index))),
-       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(1),
-                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(3),
-                                             WASM_RTT_CANON(array32_index))),
-       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(2),
-                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(4),
-                                             WASM_RTT_CANON(array32_index))),
-       WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(3),
-                      WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(5),
-                                             WASM_RTT_CANON(array32_index))),
+      {WASM_LOCAL_SET(
+           1, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(arrayref_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(arrayref_index))),
+       WASM_ARRAY_SET(
+           arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(0),
+           WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(2),
+                                           WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(
+           arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(1),
+           WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(3),
+                                           WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(
+           arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(2),
+           WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(4),
+                                           WASM_RTT_CANON(array32_index))),
+       WASM_ARRAY_SET(
+           arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(3),
+           WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(5),
+                                           WASM_RTT_CANON(array32_index))),
        WASM_ARRAY_COPY(arrayref_index, arrayref_index, WASM_LOCAL_GET(1),
                        WASM_I32V(2), WASM_LOCAL_GET(1), WASM_I32V(0),
                        WASM_I32V(4)),
@@ -1007,10 +1087,12 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
 
   const byte kOobSource = tester.DefineFunction(
       tester.sigs.v_v(), {optref(array32_index), optref(array32_index)},
-      {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
-                                                WASM_RTT_CANON(array32_index))),
-       WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
-                                                WASM_RTT_CANON(array32_index))),
+      {WASM_LOCAL_SET(
+           0, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(array32_index))),
+       WASM_LOCAL_SET(
+           1, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(array32_index))),
        WASM_ARRAY_COPY(array32_index, array32_index, WASM_LOCAL_GET(1),
                        WASM_I32V(6), WASM_LOCAL_GET(0), WASM_I32V(8),
                        WASM_I32V(4)),
@@ -1018,14 +1100,29 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
 
   const byte kOobDestination = tester.DefineFunction(
       tester.sigs.v_v(), {optref(array32_index), optref(array32_index)},
-      {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
-                                                WASM_RTT_CANON(array32_index))),
-       WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10),
-                                                WASM_RTT_CANON(array32_index))),
+      {WASM_LOCAL_SET(
+           0, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(array32_index))),
+       WASM_LOCAL_SET(
+           1, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array32_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(array32_index))),
        WASM_ARRAY_COPY(array32_index, array32_index, WASM_LOCAL_GET(1),
                        WASM_I32V(6), WASM_LOCAL_GET(0), WASM_I32V(3),
                        WASM_I32V(5)),
        kExprEnd});
+
+  const byte kZeroLength = tester.DefineFunction(
+      tester.sigs.i_v(), {optref(arrayref_index), optref(arrayref_index)},
+      {WASM_LOCAL_SET(
+           0, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(arrayref_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(arrayref_index))),
+       WASM_LOCAL_SET(
+           1, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(arrayref_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(arrayref_index))),
+       WASM_ARRAY_COPY(arrayref_index, arrayref_index, WASM_LOCAL_GET(1),
+                       WASM_I32V(6), WASM_LOCAL_GET(0), WASM_I32V(3),
+                       WASM_I32V(0)),
+       WASM_I32V(0), kExprEnd});
 
   tester.CompileModule();
 
@@ -1069,6 +1166,7 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
 
   tester.CheckHasThrown(kOobSource);
   tester.CheckHasThrown(kOobDestination);
+  tester.CheckResult(kZeroLength, 0);  // Does not throw.
 }
 
 WASM_COMPILED_EXEC_TEST(NewDefault) {
@@ -1079,8 +1177,8 @@ WASM_COMPILED_EXEC_TEST(NewDefault) {
   // Returns: struct[0] + f64_to_i32(struct[1]) + (struct[2].is_null ^ 1) == 0.
   const byte allocate_struct = tester.DefineFunction(
       tester.sigs.i_v(), {optref(struct_type)},
-      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(struct_type,
-                                                 WASM_RTT_CANON(struct_type))),
+      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
+                             struct_type, WASM_RTT_CANON(struct_type))),
        WASM_I32_ADD(
            WASM_I32_ADD(WASM_STRUCT_GET(struct_type, 0, WASM_LOCAL_GET(0)),
                         WASM_I32_SCONVERT_F64(WASM_STRUCT_GET(
@@ -1091,8 +1189,9 @@ WASM_COMPILED_EXEC_TEST(NewDefault) {
        kExprEnd});
   const byte allocate_array = tester.DefineFunction(
       tester.sigs.i_v(), {optref(array_type)},
-      {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(array_type, WASM_I32V(2),
-                                                WASM_RTT_CANON(array_type))),
+      {WASM_LOCAL_SET(
+           0, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_type, WASM_I32V(2),
+                                              WASM_RTT_CANON(array_type))),
        WASM_I32_ADD(
            WASM_ARRAY_GET(array_type, WASM_LOCAL_GET(0), WASM_I32V(0)),
            WASM_ARRAY_GET(array_type, WASM_LOCAL_GET(0), WASM_I32V(1))),
@@ -1227,7 +1326,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
   const byte kRefTestUpcast = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_TEST(
-           WASM_STRUCT_NEW_DEFAULT(
+           WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
                subtype_index,
                WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
            WASM_RTT_CANON(type_index)),
@@ -1239,7 +1338,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
   const byte kRefTestUnrelated = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_TEST(
-           WASM_STRUCT_NEW_DEFAULT(
+           WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
                subtype_index,
                WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
            WASM_RTT_CANON(sig_index)),
@@ -1250,9 +1349,9 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
        kExprEnd});
   const byte kRefTestUnrelatedNonNullable = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_TEST(
-           WASM_STRUCT_NEW_DEFAULT(type_index, WASM_RTT_CANON(type_index)),
-           WASM_RTT_CANON(sig_index)),
+      {WASM_REF_TEST(WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
+                         type_index, WASM_RTT_CANON(type_index)),
+                     WASM_RTT_CANON(sig_index)),
        kExprEnd});
 
   const byte kRefCastNull = tester.DefineFunction(
@@ -1263,7 +1362,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
   const byte kRefCastUpcast = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_IS_NULL(WASM_REF_CAST(
-           WASM_STRUCT_NEW_DEFAULT(
+           WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
                subtype_index,
                WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
            WASM_RTT_CANON(type_index))),
@@ -1276,7 +1375,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
   const byte kRefCastUnrelated = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_IS_NULL(WASM_REF_CAST(
-           WASM_STRUCT_NEW_DEFAULT(
+           WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
                subtype_index,
                WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
            WASM_RTT_CANON(sig_index))),
@@ -1286,11 +1385,95 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
       {WASM_REF_IS_NULL(WASM_REF_CAST(WASM_REF_NULL(subtype_index),
                                       WASM_RTT_CANON(sig_index))),
        kExprEnd});
+  const byte kRefCastUnrelatedNonNullable =
+      tester.DefineFunction(tester.sigs.i_v(), {},
+                            {WASM_REF_IS_NULL(WASM_REF_CAST(
+                                 WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
+                                     type_index, WASM_RTT_CANON(type_index)),
+                                 WASM_RTT_CANON(sig_index))),
+                             kExprEnd});
+
+  tester.CompileModule();
+
+  tester.CheckResult(kRefTestNull, 0);
+  tester.CheckResult(kRefTestUpcast, 1);
+  tester.CheckResult(kRefTestUpcastNull, 0);
+  tester.CheckResult(kRefTestUnrelated, 0);
+  tester.CheckResult(kRefTestUnrelatedNull, 0);
+  tester.CheckResult(kRefTestUnrelatedNonNullable, 0);
+
+  tester.CheckResult(kRefCastNull, 1);
+  tester.CheckResult(kRefCastUpcast, 0);
+  tester.CheckResult(kRefCastUpcastNull, 1);
+  tester.CheckHasThrown(kRefCastUnrelated);
+  tester.CheckResult(kRefCastUnrelatedNull, 1);
+  tester.CheckHasThrown(kRefCastUnrelatedNonNullable);
+}
+
+WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
+  WasmGCTester tester(execution_tier);
+  byte type_index =
+      tester.DefineStruct({F(wasm::kWasmI32, true)}, kGenericSuperType);
+  byte subtype_index = tester.DefineStruct(
+      {F(wasm::kWasmI32, true), F(wasm::kWasmS128, false)}, type_index);
+  ValueType sig_types[] = {kWasmS128, kWasmI32, kWasmF64};
+  FunctionSig sig(1, 2, sig_types);
+  byte sig_index = tester.DefineSignature(&sig);
+
+  const byte kRefTestNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST_STATIC(WASM_REF_NULL(type_index), subtype_index),
+       kExprEnd});
+  const byte kRefTestUpcast = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST_STATIC(WASM_STRUCT_NEW_DEFAULT(subtype_index), type_index),
+       kExprEnd});
+  const byte kRefTestUpcastNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST_STATIC(WASM_REF_NULL(subtype_index), type_index),
+       kExprEnd});
+  const byte kRefTestUnrelated = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST_STATIC(WASM_STRUCT_NEW_DEFAULT(subtype_index), sig_index),
+       kExprEnd});
+  const byte kRefTestUnrelatedNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST_STATIC(WASM_REF_NULL(subtype_index), sig_index),
+       kExprEnd});
+  const byte kRefTestUnrelatedNonNullable = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST_STATIC(WASM_STRUCT_NEW_DEFAULT(type_index), sig_index),
+       kExprEnd});
+
+  const byte kRefCastNull =
+      tester.DefineFunction(tester.sigs.i_v(), {},
+                            {WASM_REF_IS_NULL(WASM_REF_CAST_STATIC(
+                                 WASM_REF_NULL(type_index), subtype_index)),
+                             kExprEnd});
+  const byte kRefCastUpcast = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST_STATIC(
+           WASM_STRUCT_NEW_DEFAULT(subtype_index), type_index)),
+       kExprEnd});
+  const byte kRefCastUpcastNull =
+      tester.DefineFunction(tester.sigs.i_v(), {},
+                            {WASM_REF_IS_NULL(WASM_REF_CAST_STATIC(
+                                 WASM_REF_NULL(subtype_index), type_index)),
+                             kExprEnd});
+  const byte kRefCastUnrelated = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_CAST_STATIC(
+           WASM_STRUCT_NEW_DEFAULT(subtype_index), sig_index)),
+       kExprEnd});
+  const byte kRefCastUnrelatedNull =
+      tester.DefineFunction(tester.sigs.i_v(), {},
+                            {WASM_REF_IS_NULL(WASM_REF_CAST_STATIC(
+                                 WASM_REF_NULL(subtype_index), sig_index)),
+                             kExprEnd});
   const byte kRefCastUnrelatedNonNullable = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_IS_NULL(WASM_REF_CAST(
-           WASM_STRUCT_NEW_DEFAULT(type_index, WASM_RTT_CANON(type_index)),
-           WASM_RTT_CANON(sig_index))),
+      {WASM_REF_IS_NULL(WASM_REF_CAST_STATIC(
+           WASM_STRUCT_NEW_DEFAULT(type_index), sig_index)),
        kExprEnd});
 
   tester.CompileModule();
@@ -1404,6 +1587,9 @@ WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
       {WASM_ARRAY_NEW_WITH_RTT(type_index, WASM_I32V(10), WASM_I32V(42),
                                WASM_RTT_CANON(type_index)),
        kExprEnd});
+  const byte array_new_nominal = tester.DefineFunction(
+      &sig, {},
+      {WASM_ARRAY_NEW(type_index, WASM_I32V(10), WASM_I32V(42)), kExprEnd});
 
   ValueType rtt_type = ValueType::Rtt(type_index, 0);
   FunctionSig rtt_canon_sig(1, 0, &rtt_type);
@@ -1416,6 +1602,10 @@ WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
 
   Handle<Object> result =
       tester.GetResultObject(array_new_with_rtt).ToHandleChecked();
+  CHECK(result->IsWasmArray());
+  CHECK_EQ(Handle<WasmArray>::cast(result)->map(), *map);
+
+  result = tester.GetResultObject(array_new_nominal).ToHandleChecked();
   CHECK(result->IsWasmArray());
   CHECK_EQ(Handle<WasmArray>::cast(result)->map(), *map);
 }
@@ -1593,18 +1783,18 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
                         {WASM_LOCAL_SET(0, WASM_SEQ(value)), \
                          WASM_REF_IS_##type(WASM_LOCAL_GET(0)), kExprEnd})
 
-  byte kDataCheckSuccess =
-      TYPE_CHECK(DATA, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10),
-                                              WASM_RTT_CANON(array_index)));
+  byte kDataCheckSuccess = TYPE_CHECK(
+      DATA, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_index, WASM_I32V(10),
+                                            WASM_RTT_CANON(array_index)));
   byte kDataCheckFailure = TYPE_CHECK(DATA, WASM_I31_NEW(WASM_I32V(42)));
   byte kFuncCheckSuccess = TYPE_CHECK(FUNC, WASM_REF_FUNC(function_index));
-  byte kFuncCheckFailure =
-      TYPE_CHECK(FUNC, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10),
-                                              WASM_RTT_CANON(array_index)));
+  byte kFuncCheckFailure = TYPE_CHECK(
+      FUNC, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_index, WASM_I32V(10),
+                                            WASM_RTT_CANON(array_index)));
   byte kI31CheckSuccess = TYPE_CHECK(I31, WASM_I31_NEW(WASM_I32V(42)));
-  byte kI31CheckFailure =
-      TYPE_CHECK(I31, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10),
-                                             WASM_RTT_CANON(array_index)));
+  byte kI31CheckFailure = TYPE_CHECK(
+      I31, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_index, WASM_I32V(10),
+                                           WASM_RTT_CANON(array_index)));
 #undef TYPE_CHECK
 
 #define TYPE_CAST(type, value)                                             \
@@ -1613,18 +1803,18 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
                          WASM_REF_AS_##type(WASM_LOCAL_GET(0)), WASM_DROP, \
                          WASM_I32V(1), kExprEnd})
 
-  byte kDataCastSuccess =
-      TYPE_CAST(DATA, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10),
-                                             WASM_RTT_CANON(array_index)));
+  byte kDataCastSuccess = TYPE_CAST(
+      DATA, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_index, WASM_I32V(10),
+                                            WASM_RTT_CANON(array_index)));
   byte kDataCastFailure = TYPE_CAST(DATA, WASM_I31_NEW(WASM_I32V(42)));
   byte kFuncCastSuccess = TYPE_CAST(FUNC, WASM_REF_FUNC(function_index));
-  byte kFuncCastFailure =
-      TYPE_CAST(FUNC, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10),
-                                             WASM_RTT_CANON(array_index)));
-  byte kI31CastSuccess = TYPE_CAST(I31, WASM_I31_NEW(WASM_I32V(42)));
-  byte kI31CastFailure =
-      TYPE_CAST(I31, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10),
+  byte kFuncCastFailure = TYPE_CAST(
+      FUNC, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_index, WASM_I32V(10),
                                             WASM_RTT_CANON(array_index)));
+  byte kI31CastSuccess = TYPE_CAST(I31, WASM_I31_NEW(WASM_I32V(42)));
+  byte kI31CastFailure = TYPE_CAST(
+      I31, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_index, WASM_I32V(10),
+                                           WASM_RTT_CANON(array_index)));
 #undef TYPE_CAST
 
 // If the branch is not taken, we return 0. If it is taken, then the respective
@@ -1640,16 +1830,16 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
 
   byte kBrOnDataTaken =
       BR_ON(DATA, Data,
-            WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10),
-                                   WASM_RTT_CANON(array_index)));
+            WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_index, WASM_I32V(10),
+                                            WASM_RTT_CANON(array_index)));
   byte kBrOnDataNotTaken = BR_ON(DATA, Data, WASM_REF_FUNC(function_index));
   byte kBrOnFuncTaken = BR_ON(FUNC, Func, WASM_REF_FUNC(function_index));
   byte kBrOnFuncNotTaken = BR_ON(FUNC, Func, WASM_I31_NEW(WASM_I32V(42)));
   byte kBrOnI31Taken = BR_ON(I31, I31, WASM_I31_NEW(WASM_I32V(42)));
   byte kBrOnI31NotTaken =
       BR_ON(I31, I31,
-            WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10),
-                                   WASM_RTT_CANON(array_index)));
+            WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_index, WASM_I32V(10),
+                                            WASM_RTT_CANON(array_index)));
 #undef BR_ON
 
 // If the branch is not taken, we return 1. If it is taken, then the respective
@@ -1665,8 +1855,8 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
 
   byte kBrOnNonDataNotTaken =
       BR_ON_NON(DATA, Data,
-                WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10),
-                                       WASM_RTT_CANON(array_index)));
+                WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array_index)));
   byte kBrOnNonDataTaken = BR_ON_NON(DATA, Data, WASM_REF_FUNC(function_index));
   byte kBrOnNonFuncNotTaken =
       BR_ON_NON(FUNC, Func, WASM_REF_FUNC(function_index));
@@ -1674,8 +1864,8 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   byte kBrOnNonI31NotTaken = BR_ON_NON(I31, I31, WASM_I31_NEW(WASM_I32V(42)));
   byte kBrOnNonI31Taken =
       BR_ON_NON(I31, I31,
-                WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10),
-                                       WASM_RTT_CANON(array_index)));
+                WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array_index)));
 #undef BR_ON_NON
 
   tester.CompileModule();
@@ -1769,9 +1959,9 @@ WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
   const byte Prepare = tester.DefineFunction(
       tester.sigs.i_v(), {wasm::kWasmI32},
       {// List = new eqref[kListLength];
-       WASM_GLOBAL_SET(List,
-                       WASM_ARRAY_NEW_DEFAULT(ListType, WASM_I32V(kListLength),
-                                              WASM_GLOBAL_GET(RttList))),
+       WASM_GLOBAL_SET(List, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(
+                                 ListType, WASM_I32V(kListLength),
+                                 WASM_GLOBAL_GET(RttList))),
        // for (int i = 0; i < kListLength; ) {
        //   List[i] = new Super(i);
        //   i++;

@@ -134,6 +134,8 @@ class Decoder {
 
   void DecodeVType(Instruction* instr);
   void DecodeRvvIVV(Instruction* instr);
+  void DecodeRvvFVV(Instruction* instr);
+  void DecodeRvvFVF(Instruction* instr);
   void DecodeRvvIVI(Instruction* instr);
   void DecodeRvvIVX(Instruction* instr);
   void DecodeRvvVL(Instruction* instr);
@@ -800,7 +802,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       }
       UNREACHABLE();
     }
-    case 'v': {  // 'vs1: Raw values from register fields
+    case 'v': {
       if (format[1] == 'd') {
         DCHECK(STRING_STARTS_WITH(format, "vd"));
         PrintVd(instr);
@@ -1912,6 +1914,9 @@ void Decoder::DecodeRvvIVV(Instruction* instr) {
     case RO_V_VSADD_VV:
       Format(instr, "vsadd.vv  'vd, 'vs2, 'vs1'vm");
       break;
+    case RO_V_VSADDU_VV:
+      Format(instr, "vsaddu.vv 'vd, 'vs2, 'vs1'vm");
+      break;
     case RO_V_VSUB_VV:
       Format(instr, "vsub.vv   'vd, 'vs2, 'vs1'vm");
       break;
@@ -1996,6 +2001,9 @@ void Decoder::DecodeRvvIVI(Instruction* instr) {
     case RO_V_VSADD_VI:
       Format(instr, "vsadd.vi  'vd, 'vs2, 'simm5'vm");
       break;
+    case RO_V_VSADDU_VI:
+      Format(instr, "vsaddu.vi 'vd, 'vs2, 'simm5'vm");
+      break;
     case RO_V_VRSUB_VI:
       Format(instr, "vrsub.vi  'vd, 'vs2, 'simm5'vm");
       break;
@@ -2073,6 +2081,9 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
       break;
     case RO_V_VSADD_VX:
       Format(instr, "vsadd.vx  'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VSADDU_VX:
+      Format(instr, "vsaddu.vx 'vd, 'vs2, 'rs1'vm");
       break;
     case RO_V_VSUB_VX:
       Format(instr, "vsub.vx   'vd, 'vs2, 'rs1'vm");
@@ -2155,6 +2166,12 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
         UNREACHABLE();
       }
       break;
+    case RO_V_VSLL_VX:
+      Format(instr, "vsll.vx  'vd, 'vs2, 'rs1");
+      break;
+    case RO_V_VSRL_VX:
+      Format(instr, "vsrl.vx  'vd, 'vs2, 'rs1");
+      break;
     default:
       UNSUPPORTED_RISCV();
       break;
@@ -2205,13 +2222,118 @@ void Decoder::DecodeRvvMVX(Instruction* instr) {
   }
 }
 
+void Decoder::DecodeRvvFVV(Instruction* instr) {
+  DCHECK_EQ(instr->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_FVV);
+  switch (instr->InstructionBits() & kVTypeMask) {
+    case RO_V_VFUNARY0:
+      switch (instr->Vs1Value()) {
+        case VFCVT_XU_F_V:
+          Format(instr, "vfcvt.xu.f.v  'vd, 'vs2'vm");
+          break;
+        case VFCVT_X_F_V:
+          Format(instr, "vfcvt.x.f.v   'vd, 'vs2'vm");
+          break;
+        case VFNCVT_F_F_W:
+          Format(instr, "vfncvt.f.f.w  'vd, 'vs2'vm");
+          break;
+        case VFCVT_F_X_V:
+          Format(instr, "vfcvt.f.x.v   'vd, 'vs2'vm");
+          break;
+        case VFCVT_F_XU_V:
+          Format(instr, "vfcvt.f.xu.v  'vd, 'vs2'vm");
+          break;
+        default:
+          UNSUPPORTED_RISCV();
+          break;
+      }
+      break;
+    case RO_V_VFUNARY1:
+      switch (instr->Vs1Value()) {
+        case VFCLASS_V:
+          Format(instr, "vfclass.v  'vd, 'vs2'vm");
+          break;
+        default:
+          break;
+      }
+      break;
+    case RO_V_VMFEQ_VV:
+      Format(instr, "vmfeq.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMFNE_VV:
+      Format(instr, "vmfne.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMFLT_VV:
+      Format(instr, "vmflt.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMFLE_VV:
+      Format(instr, "vmfle.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFMAX_VV:
+      Format(instr, "vfmax.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFMIN_VV:
+      Format(instr, "vfmin.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFSGNJ_VV:
+      Format(instr, "vfsgnj.vv   'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFSGNJN_VV:
+      if (instr->Vs1Value() == instr->Vs2Value()) {
+        Format(instr, "vneg.vv   'vd, 'vs1'vm");
+      } else {
+        Format(instr, "vfsgnjn.vv   'vd, 'vs2, 'vs1'vm");
+      }
+      break;
+    case RO_V_VFSGNJX_VV:
+      if (instr->Vs1Value() == instr->Vs2Value()) {
+        Format(instr, "vabs.vv   'vd, 'vs1'vm");
+      } else {
+        Format(instr, "vfsgnjn.vv   'vd, 'vs2, 'vs1'vm");
+      }
+      break;
+    case RO_V_VFADD_VV:
+      Format(instr, "vfadd.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFSUB_VV:
+      Format(instr, "vfsub.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFDIV_VV:
+      Format(instr, "vfdiv.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFMUL_VV:
+      Format(instr, "vfmul.vv  'vd, 'vs2, 'vs1'vm");
+      break;
+    default:
+      UNSUPPORTED_RISCV();
+      break;
+  }
+}
+
+void Decoder::DecodeRvvFVF(Instruction* instr) {
+  DCHECK_EQ(instr->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_FVF);
+  switch (instr->InstructionBits() & kVTypeMask) {
+    case RO_V_VFSGNJ_VF:
+      Format(instr, "vfsgnj.vf   'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFSGNJN_VF:
+      Format(instr, "vfsgnjn.vf   'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFSGNJX_VF:
+      Format(instr, "vfsgnjn.vf   'vd, 'vs2, 'fs1'vm");
+      break;
+    default:
+      UNSUPPORTED_RISCV();
+      break;
+  }
+}
+
 void Decoder::DecodeVType(Instruction* instr) {
   switch (instr->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) {
     case OP_IVV:
       DecodeRvvIVV(instr);
       return;
     case OP_FVV:
-      UNSUPPORTED_RISCV();
+      DecodeRvvFVV(instr);
       return;
     case OP_MVV:
       DecodeRvvMVV(instr);
@@ -2502,7 +2624,7 @@ const char* NameConverter::NameOfXMMRegister(int reg) const {
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
   UNREACHABLE();  // RISC-V does not have the concept of a byte register.
-  //return "nobytereg";
+  // return "nobytereg";
 }
 
 const char* NameConverter::NameInCode(byte* addr) const {

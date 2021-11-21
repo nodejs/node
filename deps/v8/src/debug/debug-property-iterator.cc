@@ -15,15 +15,14 @@ namespace v8 {
 namespace internal {
 
 std::unique_ptr<DebugPropertyIterator> DebugPropertyIterator::Create(
-    Isolate* isolate, Handle<JSReceiver> receiver) {
+    Isolate* isolate, Handle<JSReceiver> receiver, bool skip_indices) {
   // Can't use std::make_unique as Ctor is private.
   auto iterator = std::unique_ptr<DebugPropertyIterator>(
-      new DebugPropertyIterator(isolate, receiver));
+      new DebugPropertyIterator(isolate, receiver, skip_indices));
 
   if (receiver->IsJSProxy()) {
     iterator->AdvanceToPrototype();
   }
-  if (iterator->Done()) return iterator;
 
   if (!iterator->FillKeysForCurrentPrototypeAndStage()) return nullptr;
   if (iterator->should_move_to_next_stage() && !iterator->AdvanceInternal()) {
@@ -34,10 +33,15 @@ std::unique_ptr<DebugPropertyIterator> DebugPropertyIterator::Create(
 }
 
 DebugPropertyIterator::DebugPropertyIterator(Isolate* isolate,
-                                             Handle<JSReceiver> receiver)
+                                             Handle<JSReceiver> receiver,
+                                             bool skip_indices)
     : isolate_(isolate),
       prototype_iterator_(isolate, receiver, kStartAtReceiver,
-                          PrototypeIterator::END_AT_NULL) {}
+                          PrototypeIterator::END_AT_NULL),
+      skip_indices_(skip_indices),
+      current_key_index_(0),
+      current_keys_(isolate_->factory()->empty_fixed_array()),
+      current_keys_length_(0) {}
 
 bool DebugPropertyIterator::Done() const { return is_done_; }
 
@@ -54,13 +58,13 @@ bool DebugPropertyIterator::AdvanceInternal() {
   calculated_native_accessor_flags_ = false;
   while (should_move_to_next_stage()) {
     switch (stage_) {
-      case Stage::kExoticIndices:
-        stage_ = Stage::kEnumerableStrings;
+      case kExoticIndices:
+        stage_ = kEnumerableStrings;
         break;
-      case Stage::kEnumerableStrings:
-        stage_ = Stage::kAllProperties;
+      case kEnumerableStrings:
+        stage_ = kAllProperties;
         break;
-      case Stage::kAllProperties:
+      case kAllProperties:
         AdvanceToPrototype();
         break;
     }
@@ -70,20 +74,17 @@ bool DebugPropertyIterator::AdvanceInternal() {
 }
 
 bool DebugPropertyIterator::is_native_accessor() {
-  if (stage_ == kExoticIndices) return false;
   CalculateNativeAccessorFlags();
   return native_accessor_flags_;
 }
 
 bool DebugPropertyIterator::has_native_getter() {
-  if (stage_ == kExoticIndices) return false;
   CalculateNativeAccessorFlags();
   return native_accessor_flags_ &
          static_cast<int>(debug::NativeAccessorType::HasGetter);
 }
 
 bool DebugPropertyIterator::has_native_setter() {
-  if (stage_ == kExoticIndices) return false;
   CalculateNativeAccessorFlags();
   return native_accessor_flags_ &
          static_cast<int>(debug::NativeAccessorType::HasSetter);
@@ -95,7 +96,7 @@ Handle<Name> DebugPropertyIterator::raw_name() const {
     return isolate_->factory()->SizeToString(current_key_index_);
   } else {
     return Handle<Name>::cast(FixedArray::get(
-        *keys_, static_cast<int>(current_key_index_), isolate_));
+        *current_keys_, static_cast<int>(current_key_index_), isolate_));
   }
 }
 
@@ -140,42 +141,38 @@ bool DebugPropertyIterator::is_own() { return is_own_; }
 
 bool DebugPropertyIterator::is_array_index() {
   if (stage_ == kExoticIndices) return true;
-  uint32_t index = 0;
-  return raw_name()->AsArrayIndex(&index);
+  PropertyKey key(isolate_, raw_name());
+  return key.is_element();
 }
 
 bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
   current_key_index_ = 0;
-  exotic_length_ = 0;
-  keys_ = Handle<FixedArray>::null();
+  current_keys_ = isolate_->factory()->empty_fixed_array();
+  current_keys_length_ = 0;
   if (is_done_) return true;
   Handle<JSReceiver> receiver =
       PrototypeIterator::GetCurrent<JSReceiver>(prototype_iterator_);
-  bool has_exotic_indices = receiver->IsJSTypedArray();
   if (stage_ == kExoticIndices) {
-    if (!has_exotic_indices) return true;
+    if (skip_indices_ || !receiver->IsJSTypedArray()) return true;
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(receiver);
-    exotic_length_ = typed_array->WasDetached() ? 0 : typed_array->length();
+    current_keys_length_ =
+        typed_array->WasDetached() ? 0 : typed_array->length();
     return true;
   }
-  bool skip_indices = has_exotic_indices;
   PropertyFilter filter =
       stage_ == kEnumerableStrings ? ENUMERABLE_STRINGS : ALL_PROPERTIES;
-  if (!KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly, filter,
-                               GetKeysConversion::kConvertToString, false,
-                               skip_indices)
-           .ToHandle(&keys_)) {
-    keys_ = Handle<FixedArray>::null();
-    return false;
+  if (KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly, filter,
+                              GetKeysConversion::kConvertToString, false,
+                              skip_indices_ || receiver->IsJSTypedArray())
+          .ToHandle(&current_keys_)) {
+    current_keys_length_ = current_keys_->length();
+    return true;
   }
-  return true;
+  return false;
 }
 
 bool DebugPropertyIterator::should_move_to_next_stage() const {
-  if (is_done_) return false;
-  if (stage_ == kExoticIndices) return current_key_index_ >= exotic_length_;
-  return keys_.is_null() ||
-         current_key_index_ >= static_cast<size_t>(keys_->length());
+  return !is_done_ && current_key_index_ >= current_keys_length_;
 }
 
 namespace {
@@ -210,10 +207,14 @@ base::Flags<debug::NativeAccessorType, int> GetNativeAccessorDescriptorInternal(
 
 void DebugPropertyIterator::CalculateNativeAccessorFlags() {
   if (calculated_native_accessor_flags_) return;
-  Handle<JSReceiver> receiver =
-      PrototypeIterator::GetCurrent<JSReceiver>(prototype_iterator_);
-  native_accessor_flags_ =
-      GetNativeAccessorDescriptorInternal(receiver, raw_name());
+  if (stage_ == kExoticIndices) {
+    native_accessor_flags_ = 0;
+  } else {
+    Handle<JSReceiver> receiver =
+        PrototypeIterator::GetCurrent<JSReceiver>(prototype_iterator_);
+    native_accessor_flags_ =
+        GetNativeAccessorDescriptorInternal(receiver, raw_name());
+  }
   calculated_native_accessor_flags_ = true;
 }
 }  // namespace internal

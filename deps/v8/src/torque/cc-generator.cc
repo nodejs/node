@@ -105,7 +105,6 @@ std::vector<std::string> CCGenerator::ProcessArgumentsCommon(
   std::vector<std::string> args;
   for (auto it = parameter_types.rbegin(); it != parameter_types.rend(); ++it) {
     const Type* type = *it;
-    VisitResult arg;
     if (type->IsConstexpr()) {
       args.push_back(std::move(constexpr_arguments.back()));
       constexpr_arguments.pop_back();

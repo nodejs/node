@@ -821,7 +821,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssemblePrepareTailCall();
       break;
     case kArchCallCFunction: {
-      int const num_parameters = MiscField::decode(instr->opcode());
+      int const num_gp_parameters = ParamField::decode(instr->opcode());
+      int const num_fp_parameters = FPParamField::decode(instr->opcode());
       Label return_location;
 #if V8_ENABLE_WEBASSEMBLY
       if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
@@ -832,10 +833,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_parameters, 0);
+        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_parameters, 0);
+        __ CallCFunction(func, num_gp_parameters, num_fp_parameters);
       }
       __ Bind(&return_location);
 #if V8_ENABLE_WEBASSEMBLY
@@ -871,16 +872,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchBinarySearchSwitch:
       AssembleArchBinarySearchSwitch(instr);
       break;
-    case kArchAbortCSAAssert:
+    case kArchAbortCSADcheck:
       DCHECK_EQ(i.InputRegister(0), x1);
       {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
-        FrameScope scope(tasm(), StackFrame::NONE);
-        __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSAAssert),
+        FrameScope scope(tasm(), StackFrame::NO_FRAME_TYPE);
+        __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSADcheck),
                 RelocInfo::CODE_TARGET);
       }
-      __ Debug("kArchAbortCSAAssert", 0, BREAK);
+      __ Debug("kArchAbortCSADcheck", 0, BREAK);
       unwinding_info_writer_.MarkBlockWillExit();
       break;
     case kArchDebugBreak:
@@ -2077,6 +2078,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputSimd128Register(1).Format(f));                     \
     break;                                                             \
   }
+#define SIMD_FCM_L_CASE(Op, ImmOp, RegOp)                              \
+  case Op: {                                                           \
+    VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode)); \
+    if (instr->InputCount() == 1) {                                    \
+      __ Fcm##ImmOp(i.OutputSimd128Register().Format(f),               \
+                    i.InputSimd128Register(0).Format(f), +0.0);        \
+    } else {                                                           \
+      __ Fcm##RegOp(i.OutputSimd128Register().Format(f),               \
+                    i.InputSimd128Register(1).Format(f),               \
+                    i.InputSimd128Register(0).Format(f));              \
+    }                                                                  \
+    break;                                                             \
+  }
+#define SIMD_FCM_G_CASE(Op, ImmOp)                                     \
+  case Op: {                                                           \
+    VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode)); \
+    /* Currently Gt/Ge instructions are only used with zero */         \
+    DCHECK_EQ(instr->InputCount(), 1);                                 \
+    __ Fcm##ImmOp(i.OutputSimd128Register().Format(f),                 \
+                  i.InputSimd128Register(0).Format(f), +0.0);          \
+    break;                                                             \
+  }
 #define SIMD_DESTRUCTIVE_BINOP_CASE(Op, Instr, FORMAT)     \
   case Op: {                                               \
     VRegister dst = i.OutputSimd128Register().V##FORMAT(); \
@@ -2192,29 +2215,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst, i.InputInt8(1), i.InputSimd128Register(2).Format(f), 0);
       break;
     }
-      SIMD_BINOP_LANE_SIZE_CASE(kArm64FEq, Fcmeq);
+      SIMD_FCM_L_CASE(kArm64FEq, eq, eq);
     case kArm64FNe: {
       VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       VRegister dst = i.OutputSimd128Register().Format(f);
-      __ Fcmeq(dst, i.InputSimd128Register(0).Format(f),
-               i.InputSimd128Register(1).Format(f));
+      if (instr->InputCount() == 1) {
+        __ Fcmeq(dst, i.InputSimd128Register(0).Format(f), +0.0);
+      } else {
+        __ Fcmeq(dst, i.InputSimd128Register(0).Format(f),
+                 i.InputSimd128Register(1).Format(f));
+      }
       __ Mvn(dst, dst);
       break;
     }
-    case kArm64FLt: {
-      VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
-      __ Fcmgt(i.OutputSimd128Register().Format(f),
-               i.InputSimd128Register(1).Format(f),
-               i.InputSimd128Register(0).Format(f));
-      break;
-    }
-    case kArm64FLe: {
-      VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
-      __ Fcmge(i.OutputSimd128Register().Format(f),
-               i.InputSimd128Register(1).Format(f),
-               i.InputSimd128Register(0).Format(f));
-      break;
-    }
+      SIMD_FCM_L_CASE(kArm64FLt, lt, gt);
+      SIMD_FCM_L_CASE(kArm64FLe, le, ge);
+      SIMD_FCM_G_CASE(kArm64FGt, gt);
+      SIMD_FCM_G_CASE(kArm64FGe, ge);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F64x2Qfma, Fmla, 2D);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F64x2Qfms, Fmls, 2D);
     case kArm64F64x2Pmin: {

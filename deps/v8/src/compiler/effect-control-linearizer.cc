@@ -5165,6 +5165,8 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
     Node* value_is_smi = ObjectIsSmi(node);
     __ GotoIf(value_is_smi, if_error);
 
+    ExternalReference::Type ref_type = ExternalReference::FAST_C_CALL;
+
     switch (arg_type.GetSequenceType()) {
       case CTypeInfo::SequenceType::kIsSequence: {
         CHECK_EQ(arg_type.GetType(), CTypeInfo::Type::kVoid);
@@ -5185,8 +5187,8 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
                                      kNoWriteBarrier),
                  stack_slot, 0, node);
 
-        Node* target_address = __ ExternalConstant(
-            ExternalReference::Create(c_functions[func_index].address));
+        Node* target_address = __ ExternalConstant(ExternalReference::Create(
+            c_functions[func_index].address, ref_type));
         __ Goto(&merge, target_address, stack_slot);
         break;
       }
@@ -5199,8 +5201,8 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
             fast_api_call::GetTypedArrayElementsKind(
                 overloads_resolution_result.element_type),
             &next);
-        Node* target_address = __ ExternalConstant(
-            ExternalReference::Create(c_functions[func_index].address));
+        Node* target_address = __ ExternalConstant(ExternalReference::Create(
+            c_functions[func_index].address, ref_type));
         __ Goto(&merge, target_address, stack_slot);
         break;
       }
@@ -5387,6 +5389,8 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   Node** const inputs = graph()->zone()->NewArray<Node*>(
       kFastTargetAddressInputCount + c_arg_count + n.FastCallExtraInputCount());
 
+  ExternalReference::Type ref_type = ExternalReference::FAST_C_CALL;
+
   // The inputs to {Call} node for the fast call look like:
   // [fast callee, receiver, ... C arguments, [optional Options], effect,
   //  control].
@@ -5398,7 +5402,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   // with a Phi node created by AdaptOverloadedFastCallArgument.
   inputs[kFastTargetAddressInputIndex] =
       (c_functions.size() == 1) ? __ ExternalConstant(ExternalReference::Create(
-                                      c_functions[0].address))
+                                      c_functions[0].address, ref_type))
                                 : nullptr;
 
   for (int i = 0; i < c_arg_count; ++i) {

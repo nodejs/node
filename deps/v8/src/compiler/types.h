@@ -72,10 +72,6 @@ namespace compiler {
 // existing assumptions or tests.
 // Consequently, do not normally use Equals for type tests, always use Is!
 //
-// The NowIs operator implements state-sensitive subtying, as described above.
-// Any compilation decision based on such temporary properties requires runtime
-// guarding!
-//
 //
 // PROPERTIES
 //

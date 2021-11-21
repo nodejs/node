@@ -52,6 +52,7 @@
 #include "src/execution/simulator.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
@@ -74,6 +75,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/prototype.h"
@@ -682,7 +684,7 @@ class StackTraceBuilder {
 
 #if V8_ENABLE_WEBASSEMBLY
   void AppendWasmFrame(FrameSummary::WasmFrameSummary const& summary) {
-    if (summary.code()->kind() != wasm::WasmCode::kFunction) return;
+    if (summary.code()->kind() != wasm::WasmCode::kWasmFunction) return;
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = StackFrameInfo::kIsWasm;
     if (instance->module_object().is_asm_js()) {
@@ -830,6 +832,7 @@ class StackTraceBuilder {
 };
 
 bool GetStackTraceLimit(Isolate* isolate, int* result) {
+  DCHECK(!FLAG_correctness_fuzzer_suppressions);
   Handle<JSObject> error = isolate->error_function();
 
   Handle<String> key = isolate->factory()->stackTraceLimit_string();
@@ -876,7 +879,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
                           Builtin::kAsyncGeneratorAwaitResolveClosure) ||
         IsBuiltinFunction(isolate, reaction->fulfill_handler(),
                           Builtin::kAsyncGeneratorYieldResolveClosure)) {
-      // Now peak into the handlers' AwaitContext to get to
+      // Now peek into the handlers' AwaitContext to get to
       // the JSGeneratorObject for the async function.
       Handle<Context> context(
           JSFunction::cast(reaction->fulfill_handler()).context(), isolate);
@@ -1074,7 +1077,7 @@ Handle<FixedArray> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
                             Builtin::kAsyncFunctionAwaitRejectClosure) ||
           IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
                             Builtin::kAsyncGeneratorAwaitRejectClosure)) {
-        // Now peak into the handlers' AwaitContext to get to
+        // Now peek into the handlers' AwaitContext to get to
         // the JSGeneratorObject for the async function.
         Handle<Context> context(
             JSFunction::cast(promise_reaction_job_task->handler()).context(),
@@ -1129,7 +1132,10 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                                 FrameSkipMode mode,
                                                 Handle<Object> caller) {
   int limit;
-  if (!GetStackTraceLimit(this, &limit)) return factory()->undefined_value();
+  if (FLAG_correctness_fuzzer_suppressions ||
+      !GetStackTraceLimit(this, &limit)) {
+    return factory()->undefined_value();
+  }
 
   CaptureStackTraceOptions options;
   options.limit = limit;
@@ -1527,7 +1533,7 @@ void ReportBootstrappingException(Handle<Object> exception,
       PrintF(" <not available>\n");
     } else {
       PrintF("\n");
-      int line_number = 1;
+      line_number = 1;
       PrintF("%5d: ", line_number);
       for (int i = 0; i < len; i++) {
         uint16_t character = src->Get(i);
@@ -1564,7 +1570,9 @@ Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
       // print a user-friendly stack trace (not an internal one).
       PrintF(stderr, "%s\n\nFROM\n",
              MessageHandler::GetLocalizedMessage(this, message_obj).get());
-      PrintCurrentStackTrace(stderr);
+      std::ostringstream stack_trace_stream;
+      PrintCurrentStackTrace(stack_trace_stream);
+      PrintF(stderr, "%s", stack_trace_stream.str().c_str());
       base::OS::Abort();
     }
   }
@@ -2125,7 +2133,7 @@ Object Isolate::PromoteScheduledException() {
   return ReThrow(thrown);
 }
 
-void Isolate::PrintCurrentStackTrace(FILE* out) {
+void Isolate::PrintCurrentStackTrace(std::ostream& out) {
   CaptureStackTraceOptions options;
   options.limit = 0;
   options.skip_mode = SKIP_NONE;
@@ -2441,8 +2449,7 @@ bool PromiseHasUserDefinedRejectHandlerInternal(Isolate* isolate,
             Handle<PromiseCapability>::cast(promise_or_capability)->promise(),
             isolate);
       }
-      Handle<JSPromise> promise =
-          Handle<JSPromise>::cast(promise_or_capability);
+      promise = Handle<JSPromise>::cast(promise_or_capability);
       if (!reaction->reject_handler().IsUndefined(isolate)) {
         Handle<JSReceiver> reject_handler(
             JSReceiver::cast(reaction->reject_handler()), isolate);
@@ -2609,6 +2616,20 @@ bool Isolate::AreWasmExceptionsEnabled(Handle<Context> context) {
     return wasm_exceptions_enabled_callback()(api_context);
   }
   return FLAG_experimental_wasm_eh;
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
+bool Isolate::IsWasmDynamicTieringEnabled() {
+#if V8_ENABLE_WEBASSEMBLY
+  if (wasm_dynamic_tiering_enabled_callback()) {
+    HandleScope handle_scope(this);
+    v8::Local<v8::Context> api_context =
+        v8::Utils::ToLocal(handle(context(), this));
+    return wasm_dynamic_tiering_enabled_callback()(api_context);
+  }
+  return FLAG_wasm_dynamic_tiering;
 #else
   return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3119,8 +3140,6 @@ void Isolate::Deinit() {
   // All client isolates should already be detached.
   DCHECK_NULL(client_isolate_head_);
 
-  DumpAndResetStats();
-
   if (FLAG_print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
   }
@@ -3135,6 +3154,11 @@ void Isolate::Deinit() {
   // We start with the heap tear down so that releasing managed objects does
   // not cause a GC.
   heap_.StartTearDown();
+
+  // This stops cancelable tasks (i.e. concurrent marking tasks).
+  // Stop concurrent tasks before destroying resources since they might still
+  // use those.
+  cancelable_task_manager()->CancelAndWait();
 
   ReleaseSharedPtrs();
 
@@ -3157,8 +3181,9 @@ void Isolate::Deinit() {
   delete baseline_batch_compiler_;
   baseline_batch_compiler_ = nullptr;
 
-  // This stops cancelable tasks (i.e. concurrent marking tasks)
-  cancelable_task_manager()->CancelAndWait();
+  // After all concurrent tasks are stopped, we know for sure that stats aren't
+  // updated anymore.
+  DumpAndResetStats();
 
   main_thread_local_isolate_->heap()->FreeLinearAllocationArea();
 
@@ -3598,7 +3623,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   store_stub_cache_ = new StubCache(this);
   materialized_object_store_ = new MaterializedObjectStore(this);
   regexp_stack_ = new RegExpStack();
-  regexp_stack_->isolate_ = this;
   date_cache_ = new DateCache();
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
@@ -3728,7 +3752,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   // If we are deserializing, read the state into the now-empty heap.
   {
-    AlwaysAllocateScope always_allocate(heap());
     CodeSpaceMemoryModificationScope modification_scope(heap());
 
     if (create_heap_objects) {
@@ -4553,7 +4576,7 @@ void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
           debug::kDebugDidHandle, promise->async_task_id(), false);
       break;
     case PromiseHookType::kInit:
-      debug::DebugAsyncActionType type = debug::kDebugPromiseThen;
+      debug::DebugAsyncActionType action_type = debug::kDebugPromiseThen;
       bool last_frame_was_promise_builtin = false;
       JavaScriptFrameIterator it(this);
       while (!it.done()) {
@@ -4569,21 +4592,22 @@ void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
                 promise->set_async_task_id(++async_task_count_);
               }
               async_event_delegate_->AsyncEventOccurred(
-                  type, promise->async_task_id(), debug()->IsBlackboxed(info));
+                  action_type, promise->async_task_id(),
+                  debug()->IsBlackboxed(info));
             }
             return;
           }
           last_frame_was_promise_builtin = false;
           if (info->HasBuiltinId()) {
             if (info->builtin_id() == Builtin::kPromisePrototypeThen) {
-              type = debug::kDebugPromiseThen;
+              action_type = debug::kDebugPromiseThen;
               last_frame_was_promise_builtin = true;
             } else if (info->builtin_id() == Builtin::kPromisePrototypeCatch) {
-              type = debug::kDebugPromiseCatch;
+              action_type = debug::kDebugPromiseCatch;
               last_frame_was_promise_builtin = true;
             } else if (info->builtin_id() ==
                        Builtin::kPromisePrototypeFinally) {
-              type = debug::kDebugPromiseFinally;
+              action_type = debug::kDebugPromiseFinally;
               last_frame_was_promise_builtin = true;
             }
           }
@@ -4707,6 +4731,24 @@ void Isolate::CheckDetachedContextsAfterGC() {
   }
 }
 
+void Isolate::DetachGlobal(Handle<Context> env) {
+  counters()->errors_thrown_per_context()->AddSample(
+      env->native_context().GetErrorsThrown());
+
+  ReadOnlyRoots roots(this);
+  Handle<JSGlobalProxy> global_proxy(env->global_proxy(), this);
+  global_proxy->set_native_context(roots.null_value());
+  // NOTE: Turbofan's JSNativeContextSpecialization depends on DetachGlobal
+  // causing a map change.
+  JSObject::ForceSetPrototype(this, global_proxy, factory()->null_value());
+  global_proxy->map().set_constructor_or_back_pointer(roots.null_value(),
+                                                      kRelaxedStore);
+  if (FLAG_track_detached_contexts) AddDetachedContext(env);
+  DCHECK(global_proxy->IsDetached());
+
+  env->native_context().set_microtask_queue(this, nullptr);
+}
+
 double Isolate::LoadStartTimeMs() {
   base::MutexGuard guard(&rail_mutex_);
   return load_start_time_ms_;
@@ -4784,48 +4826,47 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
 }
 
 #ifdef V8_INTL_SUPPORT
-namespace {
-std::string GetStringFromLocale(Handle<Object> locales_obj) {
-  DCHECK(locales_obj->IsString() || locales_obj->IsUndefined());
-  if (locales_obj->IsString()) {
-    return std::string(String::cast(*locales_obj).ToCString().get());
-  }
 
-  return "";
+namespace {
+
+std::string GetStringFromLocales(Isolate* isolate, Handle<Object> locales) {
+  if (locales->IsUndefined(isolate)) return "";
+  return std::string(String::cast(*locales).ToCString().get());
 }
+
+bool StringEqualsLocales(Isolate* isolate, const std::string& str,
+                         Handle<Object> locales) {
+  if (locales->IsUndefined(isolate)) return str == "";
+  return Handle<String>::cast(locales)->IsEqualTo(
+      base::VectorOf(str.c_str(), str.length()));
+}
+
 }  // namespace
 
 icu::UMemory* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type,
-                                             Handle<Object> locales_obj) {
-  std::string locale = GetStringFromLocale(locales_obj);
-  auto value = icu_object_cache_.find(cache_type);
-  if (value == icu_object_cache_.end()) return nullptr;
-
-  ICUCachePair pair = value->second;
-  if (pair.first != locale) return nullptr;
-
-  return pair.second.get();
+                                             Handle<Object> locales) {
+  const ICUObjectCacheEntry& entry =
+      icu_object_cache_[static_cast<int>(cache_type)];
+  return StringEqualsLocales(this, entry.locales, locales) ? entry.obj.get()
+                                                           : nullptr;
 }
 
-void Isolate::set_icu_object_in_cache(
-    ICUObjectCacheType cache_type, Handle<Object> locales_obj,
-    std::shared_ptr<icu::UMemory> icu_formatter) {
-  std::string locale = GetStringFromLocale(locales_obj);
-  ICUCachePair pair = std::make_pair(locale, icu_formatter);
-
-  auto it = icu_object_cache_.find(cache_type);
-  if (it == icu_object_cache_.end()) {
-    icu_object_cache_.insert({cache_type, pair});
-  } else {
-    it->second = pair;
-  }
+void Isolate::set_icu_object_in_cache(ICUObjectCacheType cache_type,
+                                      Handle<Object> locales,
+                                      std::shared_ptr<icu::UMemory> obj) {
+  icu_object_cache_[static_cast<int>(cache_type)] = {
+      GetStringFromLocales(this, locales), std::move(obj)};
 }
 
 void Isolate::clear_cached_icu_object(ICUObjectCacheType cache_type) {
-  icu_object_cache_.erase(cache_type);
+  icu_object_cache_[static_cast<int>(cache_type)] = ICUObjectCacheEntry{};
 }
 
-void Isolate::ClearCachedIcuObjects() { icu_object_cache_.clear(); }
+void Isolate::clear_cached_icu_objects() {
+  for (int i = 0; i < kICUObjectCacheTypeCount; i++) {
+    clear_cached_icu_object(static_cast<ICUObjectCacheType>(i));
+  }
+}
 
 #endif  // V8_INTL_SUPPORT
 

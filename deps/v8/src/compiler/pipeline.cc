@@ -1696,8 +1696,11 @@ struct WasmInliningPhase {
         data->jsgraph()->Dead(), data->observe_node_manager());
     DeadCodeElimination dead(&graph_reducer, data->graph(),
                              data->mcgraph()->common(), temp_zone);
+    // For now, hard-code inlining the function at index 0.
+    InlineByIndex heuristics({0});
     WasmInliner inliner(&graph_reducer, env, data->source_positions(),
-                        data->node_origins(), data->mcgraph(), wire_bytes, 0);
+                        data->node_origins(), data->mcgraph(), wire_bytes,
+                        &heuristics);
     AddReducer(data, &graph_reducer, &dead);
     AddReducer(data, &graph_reducer, &inliner);
 
@@ -1850,9 +1853,9 @@ struct LoadEliminationPhase {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
-    BranchElimination branch_condition_elimination(&graph_reducer,
-                                                   data->jsgraph(), temp_zone,
-                                                   BranchElimination::kEARLY);
+    BranchElimination branch_condition_elimination(
+        &graph_reducer, data->jsgraph(), temp_zone, data->source_positions(),
+        BranchElimination::kEARLY);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
@@ -1919,8 +1922,8 @@ struct LateOptimizationPhase {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
-    BranchElimination branch_condition_elimination(&graph_reducer,
-                                                   data->jsgraph(), temp_zone);
+    BranchElimination branch_condition_elimination(
+        &graph_reducer, data->jsgraph(), temp_zone, data->source_positions());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
@@ -2048,7 +2051,7 @@ struct WasmOptimizationPhase {
                                            data->machine(), temp_zone);
       ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
       BranchElimination branch_condition_elimination(
-          &graph_reducer, data->jsgraph(), temp_zone);
+          &graph_reducer, data->jsgraph(), temp_zone, data->source_positions());
       AddReducer(data, &graph_reducer, &machine_reducer);
       AddReducer(data, &graph_reducer, &dead_code_elimination);
       AddReducer(data, &graph_reducer, &common_reducer);
@@ -2103,7 +2106,7 @@ struct CsaEarlyOptimizationPhase {
                                            data->machine(), temp_zone);
       ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
       BranchElimination branch_condition_elimination(
-          &graph_reducer, data->jsgraph(), temp_zone);
+          &graph_reducer, data->jsgraph(), temp_zone, data->source_positions());
       AddReducer(data, &graph_reducer, &machine_reducer);
       AddReducer(data, &graph_reducer, &dead_code_elimination);
       AddReducer(data, &graph_reducer, &common_reducer);
@@ -2121,8 +2124,8 @@ struct CsaOptimizationPhase {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
-    BranchElimination branch_condition_elimination(&graph_reducer,
-                                                   data->jsgraph(), temp_zone);
+    BranchElimination branch_condition_elimination(
+        &graph_reducer, data->jsgraph(), temp_zone, data->source_positions());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
@@ -3097,7 +3100,7 @@ std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
 // static
 wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
     CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,
-    int wasm_kind, const char* debug_name, const AssemblerOptions& options,
+    const char* debug_name, const AssemblerOptions& options,
     SourcePositionTable* source_positions) {
   Graph* graph = mcgraph->graph();
   OptimizedCompilationInfo info(base::CStrVector(debug_name), graph->zone(),
@@ -3160,6 +3163,9 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   result.frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result.result_tier = wasm::ExecutionTier::kTurbofan;
+  if (kind == CodeKind::WASM_TO_JS_FUNCTION) {
+    result.kind = wasm::WasmCompilationResult::kWasmToJsWrapper;
+  }
 
   DCHECK(result.succeeded());
 

@@ -189,7 +189,7 @@ void DescriptorArray::SetDetails(InternalIndex descriptor_number,
 }
 
 int DescriptorArray::GetFieldIndex(InternalIndex descriptor_number) {
-  DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
+  DCHECK_EQ(GetDetails(descriptor_number).location(), PropertyLocation::kField);
   return GetDetails(descriptor_number).field_index();
 }
 
@@ -200,7 +200,7 @@ FieldType DescriptorArray::GetFieldType(InternalIndex descriptor_number) {
 
 FieldType DescriptorArray::GetFieldType(PtrComprCageBase cage_base,
                                         InternalIndex descriptor_number) {
-  DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
+  DCHECK_EQ(GetDetails(descriptor_number).location(), PropertyLocation::kField);
   MaybeObject wrapped_type = GetValue(cage_base, descriptor_number);
   return Map::UnwrapFieldType(wrapped_type);
 }

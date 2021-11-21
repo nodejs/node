@@ -250,17 +250,19 @@ class SequentialUnmapperTest : public TestWithIsolate {
              SetPlatformPageAllocatorForTesting(tracking_page_allocator_));
     old_flag_ = i::FLAG_concurrent_sweeping;
     i::FLAG_concurrent_sweeping = false;
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    // Reinitialize the process-wide pointer cage so it can pick up the
+    // TrackingPageAllocator.
+    // The pointer cage must be destroyed before the virtual memory cage.
+    IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
 #ifdef V8_VIRTUAL_MEMORY_CAGE
+    // Reinitialze the virtual memory cage so it uses the TrackingPageAllocator.
     GetProcessWideVirtualMemoryCage()->TearDown();
     constexpr bool use_guard_regions = false;
     CHECK(GetProcessWideVirtualMemoryCage()->Initialize(
         tracking_page_allocator_, kVirtualMemoryCageMinimumSize,
         use_guard_regions));
 #endif
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-    // Reinitialize the process-wide pointer cage so it can pick up the
-    // TrackingPageAllocator.
-    IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
     IsolateAllocator::InitializeOncePerProcess();
 #endif
     TestWithIsolate::SetUpTestCase();

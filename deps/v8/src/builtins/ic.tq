@@ -62,7 +62,8 @@ extern macro StoreFeedbackVectorSlot(
     constexpr int32): void;
 extern macro StoreWeakReferenceInFeedbackVector(
     FeedbackVector, uintptr, HeapObject): MaybeObject;
-extern macro ReportFeedbackUpdate(FeedbackVector, uintptr, constexpr string);
+extern macro ReportFeedbackUpdate(
+    FeedbackVector, uintptr, constexpr string): void;
 extern operator '.length_intptr' macro LoadFeedbackVectorLength(FeedbackVector):
     intptr;
 

@@ -765,8 +765,8 @@ TEST(RemoveToNumberEffects) {
     if (effect_use != nullptr) {
       R.CheckEffectInput(R.start(), effect_use);
       // Check that value uses of ToNumber() do not go to start().
-      for (int i = 0; i < effect_use->op()->ValueInputCount(); i++) {
-        CHECK_NE(R.start(), effect_use->InputAt(i));
+      for (int j = 0; j < effect_use->op()->ValueInputCount(); j++) {
+        CHECK_NE(R.start(), effect_use->InputAt(j));
       }
     }
   }
@@ -843,8 +843,8 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
       const Operator* op = strict ? R->javascript.StrictEqual(feedback_source)
                                   : R->javascript.Equal(feedback_source);
       Node* eq = R->Binop(op, p0, p1);
-      Node* r = R->reduce(eq);
-      R->CheckBinop(expected, r);
+      Node* reduced = R->reduce(eq);
+      R->CheckBinop(expected, reduced);
     }
   }
 }

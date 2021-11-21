@@ -365,6 +365,7 @@ void PagedSpace::DecreaseLimit(Address new_limit) {
       optional_scope.emplace(chunk);
     }
 
+    ConcurrentAllocationMutex guard(this);
     SetTopAndLimit(top(), new_limit);
     Free(new_limit, old_limit - new_limit,
          SpaceAccountingMode::kSpaceAccounted);
@@ -498,11 +499,11 @@ void PagedSpace::SetReadAndExecutable() {
   }
 }
 
-void PagedSpace::SetReadAndWritable() {
+void PagedSpace::SetCodeModificationPermissions() {
   DCHECK(identity() == CODE_SPACE);
   for (Page* page : *this) {
     CHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
-    page->SetReadAndWritable();
+    page->SetCodeModificationPermissions();
   }
 }
 
@@ -570,8 +571,9 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
   DCHECK(identity() == OLD_SPACE || identity() == MAP_SPACE);
   DCHECK_EQ(origin, AllocationOrigin::kRuntime);
 
-  auto result = TryAllocationFromFreeListBackground(
-      local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
+  base::Optional<std::pair<Address, size_t>> result =
+      TryAllocationFromFreeListBackground(local_heap, min_size_in_bytes,
+                                          max_size_in_bytes, alignment, origin);
   if (result) return result;
 
   MarkCompactCollector* collector = heap()->mark_compact_collector();
@@ -582,7 +584,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
     RefillFreeList();
 
     // Retry the free list allocation.
-    auto result = TryAllocationFromFreeListBackground(
+    result = TryAllocationFromFreeListBackground(
         local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
     if (result) return result;
 
@@ -600,7 +602,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
     RefillFreeList();
 
     if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
-      auto result = TryAllocationFromFreeListBackground(
+      result = TryAllocationFromFreeListBackground(
           local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
       if (result) return result;
     }
@@ -608,7 +610,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
 
   if (heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap) &&
       heap()->CanExpandOldGenerationBackground(local_heap, AreaSize())) {
-    auto result = ExpandBackground(local_heap, max_size_in_bytes);
+    result = ExpandBackground(local_heap, max_size_in_bytes);
     if (result) {
       DCHECK_EQ(Heap::GetFillToAlign(result->first, alignment), 0);
       return result;
@@ -686,6 +688,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
     external_space_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
   }
 
+  PtrComprCageBase cage_base(isolate);
   for (Page* page : *this) {
     CHECK_EQ(page->owner(), this);
 
@@ -727,10 +730,11 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       CHECK(object.address() + size <= top);
       end_of_previous_object = object.address() + size;
 
-      if (object.IsExternalString()) {
+      if (object.IsExternalString(cage_base)) {
         ExternalString external_string = ExternalString::cast(object);
-        size_t size = external_string.ExternalPayloadSize();
-        external_page_bytes[ExternalBackingStoreType::kExternalString] += size;
+        size_t payload_size = external_string.ExternalPayloadSize();
+        external_page_bytes[ExternalBackingStoreType::kExternalString] +=
+            payload_size;
       }
     }
     for (int i = 0; i < kNumTypes; i++) {

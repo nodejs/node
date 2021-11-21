@@ -21,7 +21,7 @@ FromConstexpr<FrameType, constexpr FrameType>(t: constexpr FrameType):
 Cast<FrameType>(o: Object): FrameType
     labels CastError {
   if (TaggedIsNotSmi(o)) goto CastError;
-  assert(
+  dcheck(
       Convert<int32>(BitcastTaggedToWordForTagAndSmiBits(o)) <
       Convert<int32>(kFrameTypeCount << kSmiTagSize));
   return %RawDownCast<FrameType>(o);

@@ -290,13 +290,18 @@ void WasmModuleBuilder::AddDataSegment(const byte* data, uint32_t size,
   }
 }
 
-uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig) {
-  auto sig_entry = signature_map_.find(*sig);
-  if (sig_entry != signature_map_.end()) return sig_entry->second;
+uint32_t WasmModuleBuilder::ForceAddSignature(FunctionSig* sig,
+                                              uint32_t supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
   signature_map_.emplace(*sig, index);
-  types_.push_back(Type(sig));
+  types_.push_back(Type(sig, supertype));
   return index;
+}
+
+uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig, uint32_t supertype) {
+  auto sig_entry = signature_map_.find(*sig);
+  if (sig_entry != signature_map_.end()) return sig_entry->second;
+  return ForceAddSignature(sig, supertype);
 }
 
 uint32_t WasmModuleBuilder::AddException(FunctionSig* type) {
@@ -307,15 +312,16 @@ uint32_t WasmModuleBuilder::AddException(FunctionSig* type) {
   return except_index;
 }
 
-uint32_t WasmModuleBuilder::AddStructType(StructType* type) {
+uint32_t WasmModuleBuilder::AddStructType(StructType* type,
+                                          uint32_t supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.push_back(Type(type));
+  types_.push_back(Type(type, supertype));
   return index;
 }
 
-uint32_t WasmModuleBuilder::AddArrayType(ArrayType* type) {
+uint32_t WasmModuleBuilder::AddArrayType(ArrayType* type, uint32_t supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.push_back(Type(type));
+  types_.push_back(Type(type, supertype));
   return index;
 }
 
@@ -509,22 +515,49 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       }
       break;
     }
+    case WasmInitExpr::kStructNew:
     case WasmInitExpr::kStructNewWithRtt:
+    case WasmInitExpr::kStructNewDefault:
+    case WasmInitExpr::kStructNewDefaultWithRtt:
+      STATIC_ASSERT((kExprStructNew >> 8) == kGCPrefix);
       STATIC_ASSERT((kExprStructNewWithRtt >> 8) == kGCPrefix);
+      STATIC_ASSERT((kExprStructNewDefault >> 8) == kGCPrefix);
+      STATIC_ASSERT((kExprStructNewDefaultWithRtt >> 8) == kGCPrefix);
       for (const WasmInitExpr& operand : init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
-      buffer->write_u8(static_cast<uint8_t>(kExprStructNewWithRtt));
+      WasmOpcode opcode;
+      switch (init.kind()) {
+        case WasmInitExpr::kStructNewWithRtt:
+          opcode = kExprStructNewWithRtt;
+          break;
+        case WasmInitExpr::kStructNew:
+          opcode = kExprStructNew;
+          break;
+        case WasmInitExpr::kStructNewDefaultWithRtt:
+          opcode = kExprStructNewDefaultWithRtt;
+          break;
+        case WasmInitExpr::kStructNewDefault:
+          opcode = kExprStructNewDefault;
+          break;
+        default:
+          UNREACHABLE();
+      }
+      buffer->write_u8(static_cast<uint8_t>(opcode));
       buffer->write_u32v(init.immediate().index);
       break;
     case WasmInitExpr::kArrayInit:
+    case WasmInitExpr::kArrayInitStatic:
       STATIC_ASSERT((kExprArrayInit >> 8) == kGCPrefix);
+      STATIC_ASSERT((kExprArrayInitStatic >> 8) == kGCPrefix);
       for (const WasmInitExpr& operand : init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
-      buffer->write_u8(static_cast<uint8_t>(kExprArrayInit));
+      buffer->write_u8(static_cast<uint8_t>(
+          init.kind() == WasmInitExpr::kArrayInit ? kExprArrayInit
+                                                  : kExprArrayInitStatic));
       buffer->write_u32v(init.immediate().index);
       buffer->write_u32v(static_cast<uint32_t>(init.operands().size() - 1));
       break;
@@ -568,10 +601,12 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_size(types_.size());
 
     for (const Type& type : types_) {
+      bool has_super = type.supertype != kNoSuperType;
       switch (type.kind) {
         case Type::kFunctionSig: {
           FunctionSig* sig = type.sig;
-          buffer->write_u8(kWasmFunctionTypeCode);
+          buffer->write_u8(has_super ? kWasmFunctionSubtypeCode
+                                     : kWasmFunctionTypeCode);
           buffer->write_size(sig->parameter_count());
           for (auto param : sig->parameters()) {
             WriteValueType(buffer, param);
@@ -580,23 +615,40 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           for (auto ret : sig->returns()) {
             WriteValueType(buffer, ret);
           }
+          if (type.supertype == kGenericSuperType) {
+            buffer->write_u8(kFuncRefCode);
+          } else if (has_super) {
+            buffer->write_i32v(type.supertype);
+          }
           break;
         }
         case Type::kStructType: {
           StructType* struct_type = type.struct_type;
-          buffer->write_u8(kWasmStructTypeCode);
+          buffer->write_u8(has_super ? kWasmStructSubtypeCode
+                                     : kWasmStructTypeCode);
           buffer->write_size(struct_type->field_count());
           for (uint32_t i = 0; i < struct_type->field_count(); i++) {
             WriteValueType(buffer, struct_type->field(i));
             buffer->write_u8(struct_type->mutability(i) ? 1 : 0);
           }
+          if (type.supertype == kGenericSuperType) {
+            buffer->write_u8(kDataRefCode);
+          } else if (has_super) {
+            buffer->write_i32v(type.supertype);
+          }
           break;
         }
         case Type::kArrayType: {
           ArrayType* array_type = type.array_type;
-          buffer->write_u8(kWasmArrayTypeCode);
+          buffer->write_u8(has_super ? kWasmArraySubtypeCode
+                                     : kWasmArrayTypeCode);
           WriteValueType(buffer, array_type->element_type());
           buffer->write_u8(array_type->mutability() ? 1 : 0);
+          if (type.supertype == kGenericSuperType) {
+            buffer->write_u8(kDataRefCode);
+          } else if (has_super) {
+            buffer->write_i32v(type.supertype);
+          }
           break;
         }
       }
@@ -852,7 +904,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     // Emit the section string.
     buffer->write_string(base::CStrVector("name"));
     // Emit a subsection for the function names.
-    buffer->write_u8(NameSectionKindCode::kFunction);
+    buffer->write_u8(NameSectionKindCode::kFunctionCode);
     // Emit a placeholder for the subsection length.
     size_t functions_start = buffer->reserve_u32v();
     // Emit the function names.

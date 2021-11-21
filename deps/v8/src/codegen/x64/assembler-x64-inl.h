@@ -342,12 +342,12 @@ HeapObject RelocInfo::target_object() {
   return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
 }
 
-HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
+HeapObject RelocInfo::target_object_no_host(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Tagged_t compressed = ReadUnalignedValue<Tagged_t>(pc_);
     DCHECK(!HAS_SMI_TAG(compressed));
-    Object obj(DecompressTaggedPointer(isolate, compressed));
+    Object obj(DecompressTaggedPointer(cage_base, compressed));
     return HeapObject::cast(obj);
   }
   DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));

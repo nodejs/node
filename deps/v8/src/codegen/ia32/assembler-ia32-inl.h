@@ -86,7 +86,7 @@ HeapObject RelocInfo::target_object() {
   return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
 }
 
-HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
+HeapObject RelocInfo::target_object_no_host(PtrComprCageBase cage_base) {
   return target_object();
 }
 

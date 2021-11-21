@@ -48,7 +48,7 @@ class LoadHandler final : public DataHandler {
   DECL_PRINTER(LoadHandler)
   DECL_VERIFIER(LoadHandler)
 
-  enum Kind {
+  enum class Kind {
     kElement,
     kIndexedString,
     kNormal,
@@ -245,7 +245,7 @@ class StoreHandler final : public DataHandler {
   DECL_PRINTER(StoreHandler)
   DECL_VERIFIER(StoreHandler)
 
-  enum Kind {
+  enum class Kind {
     kField,
     kConstField,
     kAccessor,

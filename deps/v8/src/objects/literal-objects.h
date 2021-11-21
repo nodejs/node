@@ -80,7 +80,6 @@ class RegExpBoilerplateDescription
           RegExpBoilerplateDescription, Struct> {
  public:
   // Dispatched behavior.
-  DECL_PRINTER(RegExpBoilerplateDescription)
   void BriefPrintDetails(std::ostream& os);
 
  private:

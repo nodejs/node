@@ -55,7 +55,7 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
 
 TNode<RawPtrT> MicrotaskQueueBuiltinsAssembler::GetMicrotaskQueue(
     TNode<Context> native_context) {
-  CSA_ASSERT(this, IsNativeContext(native_context));
+  CSA_DCHECK(this, IsNativeContext(native_context));
   return LoadExternalPointerFromObject(native_context,
                                        NativeContext::kMicrotaskQueueOffset,
                                        kNativeContextMicrotaskQueueTag);
@@ -105,7 +105,7 @@ TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::CalculateRingBufferOffset(
 
 void MicrotaskQueueBuiltinsAssembler::PrepareForContext(
     TNode<Context> native_context, Label* bailout) {
-  CSA_ASSERT(this, IsNativeContext(native_context));
+  CSA_DCHECK(this, IsNativeContext(native_context));
 
   // Skip the microtask execution if the associated context is shutdown.
   GotoIf(WordEqual(GetMicrotaskQueue(native_context), IntPtrConstant(0)),
@@ -117,7 +117,7 @@ void MicrotaskQueueBuiltinsAssembler::PrepareForContext(
 
 void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Context> current_context, TNode<Microtask> microtask) {
-  CSA_ASSERT(this, TaggedIsNotSmi(microtask));
+  CSA_DCHECK(this, TaggedIsNotSmi(microtask));
 
   StoreRoot(RootIndex::kCurrentMicrotask, microtask);
   TNode<IntPtrT> saved_entered_context_count = GetEnteredContextCount();
@@ -378,7 +378,7 @@ TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::GetEnteredContextCount() {
 
 void MicrotaskQueueBuiltinsAssembler::EnterMicrotaskContext(
     TNode<Context> native_context) {
-  CSA_ASSERT(this, IsNativeContext(native_context));
+  CSA_DCHECK(this, IsNativeContext(native_context));
 
   auto ref = ExternalReference::handle_scope_implementer_address(isolate());
   TNode<RawPtrT> hsi = Load<RawPtrT>(ExternalConstant(ref));

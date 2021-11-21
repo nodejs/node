@@ -670,10 +670,10 @@ HeapObject RelocInfo::target_object() {
   }
 }
 
-HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
+HeapObject RelocInfo::target_object_no_host(PtrComprCageBase cage_base) {
   if (IsCompressedEmbeddedObject(rmode_)) {
     return HeapObject::cast(Object(DecompressTaggedAny(
-        isolate,
+        cage_base,
         Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
     return target_object();

@@ -170,6 +170,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64FNe:
     case kArm64FLt:
     case kArm64FLe:
+    case kArm64FGt:
+    case kArm64FGe:
     case kArm64F64x2Qfma:
     case kArm64F64x2Qfms:
     case kArm64F64x2Pmin:

@@ -529,9 +529,10 @@ int ArrayLiteral::InitDepthAndFlags() {
   int array_index = 0;
   for (; array_index < constants_length; array_index++) {
     Expression* element = values()->at(array_index);
-    MaterializedLiteral* literal = element->AsMaterializedLiteral();
-    if (literal != nullptr) {
-      int subliteral_depth = literal->InitDepthAndFlags() + 1;
+    MaterializedLiteral* materialized_literal =
+        element->AsMaterializedLiteral();
+    if (materialized_literal != nullptr) {
+      int subliteral_depth = materialized_literal->InitDepthAndFlags() + 1;
       if (subliteral_depth > depth_acc) depth_acc = subliteral_depth;
     }
 

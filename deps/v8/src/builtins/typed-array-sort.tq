@@ -33,7 +33,7 @@ transitioning macro
 TypedArrayMerge(
     implicit context: Context, array: JSTypedArray, comparefn: Callable)(
     source: FixedArray, from: uintptr, middle: uintptr, to: uintptr,
-    target: FixedArray) {
+    target: FixedArray): void {
   let left: uintptr = from;
   let right: uintptr = middle;
 
@@ -56,7 +56,7 @@ TypedArrayMerge(
     } else {
       // No elements on the left, but the right does, so we take
       // from the right.
-      assert(left == middle);
+      dcheck(left == middle);
       target.objects[targetIndex] = source.objects[right++];
     }
   }
@@ -66,7 +66,7 @@ transitioning builtin
 TypedArrayMergeSort(implicit context: Context)(
     source: FixedArray, from: uintptr, to: uintptr, target: FixedArray,
     array: JSTypedArray, comparefn: Callable): JSAny {
-  assert(to - from > 1);
+  dcheck(to - from > 1);
   const middle: uintptr = from + ((to - from) >>> 1);
 
   // On the next recursion step source becomes target and vice versa.

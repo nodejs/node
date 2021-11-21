@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef INCLUDE_V8_LOCAL_HANDLES_H_
-#define INCLUDE_V8_LOCAL_HANDLES_H_
+#ifndef INCLUDE_V8_FORWARD_H_
+#define INCLUDE_V8_FORWARD_H_
 
 // This header is intended to be used by headers that pass around V8 types,
 // either by pointer or using Local<Type>. The full definitions can be included
@@ -27,6 +27,7 @@ class Context;
 class DataView;
 class Data;
 class Date;
+class Extension;
 class External;
 class FixedArray;
 class Float32Array;
@@ -63,6 +64,7 @@ class StringObject;
 class Symbol;
 class SymbolObject;
 class Template;
+class TryCatch;
 class TypedArray;
 class Uint16Array;
 class Uint32;
@@ -76,4 +78,4 @@ class WasmModuleObject;
 
 }  // namespace v8
 
-#endif  // INCLUDE_V8_LOCAL_HANDLES_H_
+#endif  // INCLUDE_V8_FORWARD_H_

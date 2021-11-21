@@ -23,7 +23,7 @@ namespace v8_inspector {
 
 namespace {
 
-static const int kMaxAsyncTaskStacks = 128 * 1024;
+static const int kMaxAsyncTaskStacks = 8 * 1024;
 static const int kNoBreakpointId = 0;
 
 template <typename Map>
@@ -657,7 +657,7 @@ void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
       break;
     case v8::debug::kAsyncFunctionSuspended: {
       if (m_asyncTaskStacks.find(task) == m_asyncTaskStacks.end()) {
-        asyncTaskScheduledForStack("async function", task, true);
+        asyncTaskScheduledForStack("await", task, true, true);
       }
       auto stackIt = m_asyncTaskStacks.find(task);
       if (stackIt != m_asyncTaskStacks.end() && !stackIt->second.expired()) {
@@ -770,12 +770,13 @@ v8::MaybeLocal<v8::Value> V8Debugger::generatorScopes(
 }
 
 v8::MaybeLocal<v8::Array> V8Debugger::collectionsEntries(
-    v8::Local<v8::Context> context, v8::Local<v8::Value> value) {
+    v8::Local<v8::Context> context, v8::Local<v8::Value> collection) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::Local<v8::Array> entries;
   bool isKeyValue = false;
-  if (!value->IsObject() ||
-      !value.As<v8::Object>()->PreviewEntries(&isKeyValue).ToLocal(&entries)) {
+  if (!collection->IsObject() || !collection.As<v8::Object>()
+                                      ->PreviewEntries(&isKeyValue)
+                                      .ToLocal(&entries)) {
     return v8::MaybeLocal<v8::Array>();
   }
 
@@ -976,11 +977,13 @@ void V8Debugger::asyncTaskFinished(void* task) {
 }
 
 void V8Debugger::asyncTaskScheduledForStack(const String16& taskName,
-                                            void* task, bool recurring) {
+                                            void* task, bool recurring,
+                                            bool skipTopFrame) {
   if (!m_maxAsyncCallStackDepth) return;
   v8::HandleScope scope(m_isolate);
   std::shared_ptr<AsyncStackTrace> asyncStack = AsyncStackTrace::capture(
-      this, taskName, V8StackTraceImpl::maxCallStackSizeToCapture);
+      this, taskName, V8StackTraceImpl::maxCallStackSizeToCapture,
+      skipTopFrame);
   if (asyncStack) {
     m_asyncTaskStacks[task] = asyncStack;
     if (recurring) m_recurringTasks.insert(task);

@@ -9,7 +9,7 @@ namespace regexp {
 transitioning macro
 RegExpPrototypeSearchBodyFast(implicit context: Context)(
     regexp: JSRegExp, string: String): JSAny {
-  assert(IsFastRegExpPermissive(regexp));
+  dcheck(IsFastRegExpPermissive(regexp));
 
   // Grab the initial value of last index.
   const previousLastIndex: Smi = FastLoadLastIndex(regexp);

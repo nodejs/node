@@ -138,8 +138,8 @@ ResolvePromise(implicit context: Context)(
       // ensures that the intrinsic %ObjectPrototype% doesn't contain any
       // "then" property. This helps to avoid negative lookups on iterator
       // results from async generators.
-      assert(IsJSReceiverMap(resolutionMap));
-      assert(!IsPromiseThenProtectorCellInvalid());
+      dcheck(IsJSReceiverMap(resolutionMap));
+      dcheck(!IsPromiseThenProtectorCellInvalid());
       if (resolutionMap ==
           *NativeContextSlot(
               nativeContext, ContextSlot::ITERATOR_RESULT_MAP_INDEX)) {

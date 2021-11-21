@@ -13,12 +13,14 @@ DEFINE_CONTEXTUAL_VARIABLE(TargetArchitecture)
 
 GlobalContext::GlobalContext(Ast ast)
     : collect_language_server_data_(false),
+      collect_kythe_data_(false),
       force_assert_statements_(false),
       annotate_ir_(false),
       ast_(std::move(ast)) {
   CurrentScope::Scope current_scope(nullptr);
   CurrentSourcePosition::Scope current_source_position(
-      SourcePosition{CurrentSourceFile::Get(), {-1, -1}, {-1, -1}});
+      SourcePosition{CurrentSourceFile::Get(), LineAndColumn::Invalid(),
+                     LineAndColumn::Invalid()});
   default_namespace_ =
       RegisterDeclarable(std::make_unique<Namespace>(kBaseNamespaceName));
 }

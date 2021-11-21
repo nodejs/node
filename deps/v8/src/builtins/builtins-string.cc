@@ -140,21 +140,25 @@ BUILTIN(StringPrototypeLocaleCompare) {
   HandleScope handle_scope(isolate);
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringLocaleCompare);
-  const char* method = "String.prototype.localeCompare";
+  static const char* const kMethod = "String.prototype.localeCompare";
 
 #ifdef V8_INTL_SUPPORT
-  TO_THIS_STRING(str1, method);
+  TO_THIS_STRING(str1, kMethod);
   Handle<String> str2;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, str2, Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::StringLocaleCompare(
-                   isolate, str1, str2, args.atOrUndefined(isolate, 2),
-                   args.atOrUndefined(isolate, 3), method));
+  base::Optional<int> result = Intl::StringLocaleCompare(
+      isolate, str1, str2, args.atOrUndefined(isolate, 2),
+      args.atOrUndefined(isolate, 3), kMethod);
+  if (!result.has_value()) {
+    DCHECK(isolate->has_pending_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  return Smi::FromInt(result.value());
 #else
   DCHECK_LE(2, args.length());
 
-  TO_THIS_STRING(str1, method);
+  TO_THIS_STRING(str1, kMethod);
   Handle<String> str2;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str2,
                                      Object::ToString(isolate, args.at(1)));

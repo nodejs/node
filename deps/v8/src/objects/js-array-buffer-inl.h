@@ -42,7 +42,7 @@ DEF_GETTER(JSArrayBuffer, backing_store, void*) {
   return reinterpret_cast<void*>(ReadField<Address>(kBackingStoreOffset));
 }
 
-void JSArrayBuffer::set_backing_store(Isolate* isolate, void* value) {
+void JSArrayBuffer::set_backing_store(void* value) {
   DCHECK(IsValidBackingStorePointer(value));
   WriteField<Address>(kBackingStoreOffset, reinterpret_cast<Address>(value));
 }
@@ -195,13 +195,13 @@ size_t JSTypedArray::GetLengthOrOutOfBounds(bool& out_of_bounds) const {
   if (WasDetached()) return 0;
   if (is_length_tracking()) {
     if (is_backed_by_rab()) {
-      if (byte_offset() >= buffer().byte_length()) {
+      if (byte_offset() > buffer().byte_length()) {
         out_of_bounds = true;
         return 0;
       }
       return (buffer().byte_length() - byte_offset()) / element_size();
     }
-    if (byte_offset() >=
+    if (byte_offset() >
         buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst)) {
       out_of_bounds = true;
       return 0;

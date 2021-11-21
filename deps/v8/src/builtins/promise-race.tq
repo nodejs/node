@@ -27,7 +27,7 @@ PromiseRace(
   const promise = capability.promise;
 
   // NewPromiseCapability guarantees that receiver is Constructor.
-  assert(Is<Constructor>(receiver));
+  dcheck(Is<Constructor>(receiver));
   const constructor = UnsafeCast<Constructor>(receiver);
 
   // For catch prediction, don't treat the .then calls as handling it;

@@ -40,7 +40,7 @@ TEST(NondeterminismUnopF64) {
   CHECK(r.HasNondeterminism());
 }
 
-TEST(NondeterminismUnopF32x4) {
+TEST(NondeterminismUnopF32x4AllNaN) {
   WasmRunner<int32_t, float> r(TestExecutionTier::kLiftoffForFuzzing);
 
   byte value = 0;
@@ -55,7 +55,21 @@ TEST(NondeterminismUnopF32x4) {
   CHECK(r.HasNondeterminism());
 }
 
-TEST(NondeterminismUnopF64x2) {
+TEST(NondeterminismUnopF32x4OneNaN) {
+  for (byte lane = 0; lane < 4; ++lane) {
+    WasmRunner<int32_t, float> r(TestExecutionTier::kLiftoffForFuzzing);
+    BUILD(r, WASM_SIMD_F32x4_SPLAT(WASM_F32(0)), WASM_LOCAL_GET(0),
+          WASM_SIMD_OP(kExprF32x4ReplaceLane), lane,
+          WASM_SIMD_OP(kExprF32x4Ceil), kExprDrop, WASM_ONE);
+    CHECK(!r.HasNondeterminism());
+    r.CheckCallViaJS(1, 0.0);
+    CHECK(!r.HasNondeterminism());
+    r.CheckCallViaJS(1, std::nanf(""));
+    CHECK(r.HasNondeterminism());
+  }
+}
+
+TEST(NondeterminismUnopF64x2AllNaN) {
   WasmRunner<int32_t, double> r(TestExecutionTier::kLiftoffForFuzzing);
 
   byte value = 0;
@@ -68,6 +82,20 @@ TEST(NondeterminismUnopF64x2) {
   CHECK(!r.HasNondeterminism());
   r.CheckCallViaJS(1, std::nan(""));
   CHECK(r.HasNondeterminism());
+}
+
+TEST(NondeterminismUnopF64x2OneNaN) {
+  for (byte lane = 0; lane < 2; ++lane) {
+    WasmRunner<int32_t, double> r(TestExecutionTier::kLiftoffForFuzzing);
+    BUILD(r, WASM_SIMD_F64x2_SPLAT(WASM_F64(0)), WASM_LOCAL_GET(0),
+          WASM_SIMD_OP(kExprF64x2ReplaceLane), lane,
+          WASM_SIMD_OP(kExprF64x2Ceil), kExprDrop, WASM_ONE);
+    CHECK(!r.HasNondeterminism());
+    r.CheckCallViaJS(1, 0.0);
+    CHECK(!r.HasNondeterminism());
+    r.CheckCallViaJS(1, std::nan(""));
+    CHECK(r.HasNondeterminism());
+  }
 }
 
 TEST(NondeterminismBinop) {

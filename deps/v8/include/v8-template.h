@@ -27,6 +27,7 @@ class Signature;
   F(ArrayProto_forEach, array_for_each_iterator)              \
   F(ArrayProto_keys, array_keys_iterator)                     \
   F(ArrayProto_values, array_values_iterator)                 \
+  F(ArrayPrototype, initial_array_prototype)                  \
   F(AsyncIteratorPrototype, initial_async_iterator_prototype) \
   F(ErrorPrototype, initial_error_prototype)                  \
   F(IteratorPrototype, initial_iterator_prototype)            \

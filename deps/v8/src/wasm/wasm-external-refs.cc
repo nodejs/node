@@ -548,6 +548,7 @@ inline void* ArrayElementAddress(WasmArray array, uint32_t index,
 void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
                         uint32_t dst_index, Address raw_src_array,
                         uint32_t src_index, uint32_t length) {
+  DCHECK_GT(length, 0);
   ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   WasmArray dst_array = WasmArray::cast(Object(raw_dst_array));

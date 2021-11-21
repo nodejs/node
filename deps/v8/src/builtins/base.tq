@@ -158,7 +158,7 @@ struct float64_or_hole {
     return this.value;
   }
   macro ValueUnsafeAssumeNotHole(): float64 {
-    assert(!this.is_hole);
+    dcheck(!this.is_hole);
     return this.value;
   }
 
@@ -307,8 +307,17 @@ extern enum ElementsKind extends int32 {
   UINT8_CLAMPED_ELEMENTS,
   BIGUINT64_ELEMENTS,
   BIGINT64_ELEMENTS,
+  RAB_GSAB_UINT8_ELEMENTS,
+  // TODO(torque): Allow duplicate enum values.
+  // FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
+  // FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
   ...
 }
+
+const kFirstFixedTypedArrayElementsKind: constexpr ElementsKind =
+    ElementsKind::UINT8_ELEMENTS;
+const kFirstRabGsabFixedTypedArrayElementsKind: constexpr ElementsKind =
+    ElementsKind::RAB_GSAB_UINT8_ELEMENTS;
 
 extern enum AllocationFlag extends int32
 constexpr 'CodeStubAssembler::AllocationFlag' {
@@ -554,7 +563,6 @@ extern class Filler extends HeapObject generates 'TNode<HeapObject>';
 // Like JSObject, but created from API function.
 @apiExposedInstanceTypeValue(0x422)
 @doNotGenerateCast
-@noVerifier
 extern class JSApiObject extends JSObject generates 'TNode<JSObject>';
 
 // TODO(gsathya): This only exists to make JSApiObject instance type into a
@@ -562,7 +570,6 @@ extern class JSApiObject extends JSObject generates 'TNode<JSObject>';
 @apiExposedInstanceTypeValue(0x80A)
 @doNotGenerateCast
 @highestInstanceTypeWithinParentClassRange
-@noVerifier
 extern class JSLastDummyApiObject extends JSApiObject
     generates 'TNode<JSObject>';
 
@@ -578,11 +585,11 @@ extern macro Is64(): constexpr bool;
 
 extern macro SelectBooleanConstant(bool): Boolean;
 
-extern macro Print(constexpr string);
-extern macro Print(constexpr string, Object);
-extern macro Comment(constexpr string);
-extern macro Print(Object);
-extern macro DebugBreak();
+extern macro Print(constexpr string): void;
+extern macro Print(constexpr string, Object): void;
+extern macro Comment(constexpr string): void;
+extern macro Print(Object): void;
+extern macro DebugBreak(): void;
 
 // ES6 7.1.4 ToInteger ( argument )
 transitioning macro ToIntegerImpl(implicit context: Context)(input: JSAny):
@@ -601,7 +608,7 @@ transitioning macro ToIntegerImpl(implicit context: Context)(input: JSAny):
         // ToInteger normalizes -0 to +0.
         if (value == 0.0) return SmiConstant(0);
         const result = ChangeFloat64ToTagged(value);
-        assert(IsNumberNormalized(result));
+        dcheck(IsNumberNormalized(result));
         return result;
       }
       case (a: JSAnyNotNumber): {
@@ -741,9 +748,9 @@ transitioning macro ToPrimitiveDefault(implicit context: Context)(v: JSAny):
   }
 }
 
-extern transitioning runtime NormalizeElements(Context, JSObject);
+extern transitioning runtime NormalizeElements(Context, JSObject): void;
 extern transitioning runtime TransitionElementsKindWithKind(
-    Context, JSObject, Smi);
+    Context, JSObject, Smi): void;
 
 extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
 extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
@@ -805,6 +812,8 @@ operator '!=' macro ElementsKindNotEqual(
 extern macro IsElementsKindLessThanOrEqual(
     ElementsKind, constexpr ElementsKind): bool;
 extern macro IsElementsKindGreaterThan(
+    ElementsKind, constexpr ElementsKind): bool;
+extern macro IsElementsKindGreaterThanOrEqual(
     ElementsKind, constexpr ElementsKind): bool;
 extern macro IsElementsKindInRange(
     ElementsKind, constexpr ElementsKind, constexpr ElementsKind): bool;
@@ -1228,7 +1237,7 @@ extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
 
 extern operator '.length' macro LoadFastJSArrayLength(FastJSArray): Smi;
 operator '.length=' macro StoreFastJSArrayLength(
-    array: FastJSArray, length: Smi) {
+    array: FastJSArray, length: Smi): void {
   const array: JSArray = array;
   array.length = length;
 }
@@ -1252,7 +1261,7 @@ macro FastHoleyElementsKind(kind: ElementsKind): ElementsKind {
   } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
     return ElementsKind::HOLEY_DOUBLE_ELEMENTS;
   }
-  assert(kind == ElementsKind::PACKED_ELEMENTS);
+  dcheck(kind == ElementsKind::PACKED_ELEMENTS);
   return ElementsKind::HOLEY_ELEMENTS;
 }
 
@@ -1362,7 +1371,7 @@ macro NumberIsNaN(number: Number): bool {
   }
 }
 
-extern macro GotoIfForceSlowPath() labels Taken;
+extern macro GotoIfForceSlowPath(): void labels Taken;
 macro IsForceSlowPath(): bool {
   GotoIfForceSlowPath() otherwise return true;
   return false;
@@ -1394,10 +1403,10 @@ macro SameValue(a: JSAny, b: JSAny): bool {
 // Does "if (index1 + index2 > limit) goto IfOverflow" in an uintptr overflow
 // friendly way where index1 and index2 are in [0, kMaxSafeInteger] range.
 macro CheckIntegerIndexAdditionOverflow(
-    index1: uintptr, index2: uintptr, limit: uintptr) labels IfOverflow {
+    index1: uintptr, index2: uintptr, limit: uintptr): void labels IfOverflow {
   if constexpr (Is64()) {
-    assert(index1 <= kMaxSafeIntegerUint64);
-    assert(index2 <= kMaxSafeIntegerUint64);
+    dcheck(index1 <= kMaxSafeIntegerUint64);
+    dcheck(index2 <= kMaxSafeIntegerUint64);
     // Given that both index1 and index2 are in a safe integer range the
     // addition can't overflow.
     if (index1 + index2 > limit) goto IfOverflow;
@@ -1431,7 +1440,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
       if (kMode == kModeValueIsAnyNumber) {
         if (valueSmi < 0) goto IfLessThanZero;
       } else {
-        assert(valueSmi >= 0);
+        dcheck(valueSmi >= 0);
       }
       const value: uintptr = Unsigned(Convert<intptr>(valueSmi));
       // Positive Smi values definitely fit into both [0, kMaxSafeInteger] and
@@ -1439,14 +1448,14 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
       return value;
     }
     case (valueHeapNumber: HeapNumber): {
-      assert(IsNumberNormalized(valueHeapNumber));
+      dcheck(IsNumberNormalized(valueHeapNumber));
       const valueDouble: float64 = Convert<float64>(valueHeapNumber);
       // NaNs must be handled outside.
-      assert(!Float64IsNaN(valueDouble));
+      dcheck(!Float64IsNaN(valueDouble));
       if (kMode == kModeValueIsAnyNumber) {
         if (valueDouble < 0) goto IfLessThanZero;
       } else {
-        assert(valueDouble >= 0);
+        dcheck(valueDouble >= 0);
       }
 
       if constexpr (Is64()) {
@@ -1455,7 +1464,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
         if (kMode == kModeValueIsAnyNumber) {
           if (valueDouble > kMaxSafeInteger) goto IfSafeIntegerOverflow;
         } else {
-          assert(valueDouble <= kMaxSafeInteger);
+          dcheck(valueDouble <= kMaxSafeInteger);
         }
       } else {
         // On 32-bit architectures uintptr range is smaller than safe integer
@@ -1464,7 +1473,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
             kMode == kModeValueIsSafeInteger) {
           if (valueDouble > kMaxUInt32Double) goto IfUIntPtrOverflow;
         } else {
-          assert(valueDouble <= kMaxUInt32Double);
+          dcheck(valueDouble <= kMaxUInt32Double);
         }
       }
       return ChangeFloat64ToUintPtr(valueDouble);
@@ -1602,13 +1611,13 @@ macro ConvertToRelativeIndex(indexNumber: Number, length: uintptr): uintptr {
       }
     }
     case (indexHeapNumber: HeapNumber): {
-      assert(IsNumberNormalized(indexHeapNumber));
+      dcheck(IsNumberNormalized(indexHeapNumber));
       const indexDouble: float64 = Convert<float64>(indexHeapNumber);
       // NaNs must already be handled by ConvertToRelativeIndex() version
       // above accepting JSAny indices.
-      assert(!Float64IsNaN(indexDouble));
+      dcheck(!Float64IsNaN(indexDouble));
       const lengthDouble: float64 = Convert<float64>(length);
-      assert(lengthDouble <= kMaxSafeInteger);
+      dcheck(lengthDouble <= kMaxSafeInteger);
       if (indexDouble < 0) {
         const relativeIndex: float64 = lengthDouble + indexDouble;
         return relativeIndex > 0 ? ChangeFloat64ToUintPtr(relativeIndex) : 0;
@@ -1643,15 +1652,15 @@ macro ClampToIndexRange(indexNumber: Number, limit: uintptr): uintptr {
       return index;
     }
     case (indexHeapNumber: HeapNumber): {
-      assert(IsNumberNormalized(indexHeapNumber));
+      dcheck(IsNumberNormalized(indexHeapNumber));
       const indexDouble: float64 = Convert<float64>(indexHeapNumber);
       // NaNs must already be handled by ClampToIndexRange() version
       // above accepting JSAny indices.
-      assert(!Float64IsNaN(indexDouble));
+      dcheck(!Float64IsNaN(indexDouble));
       if (indexDouble <= 0) return 0;
 
       const maxIndexDouble: float64 = Convert<float64>(limit);
-      assert(maxIndexDouble <= kMaxSafeInteger);
+      dcheck(maxIndexDouble <= kMaxSafeInteger);
       if (indexDouble >= maxIndexDouble) return limit;
 
       return ChangeFloat64ToUintPtr(indexDouble);
@@ -1713,10 +1722,10 @@ macro IsFastJSArrayForReadWithNoCustomIteration(context: Context, o: Object):
 }
 
 extern transitioning runtime
-CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, JSAny);
+CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, JSAny): void;
 
 extern transitioning runtime SetOwnPropertyIgnoreAttributes(
-    implicit context: Context)(JSObject, String, JSAny, Smi);
+    implicit context: Context)(JSObject, String, JSAny, Smi): void;
 
 namespace runtime {
 extern runtime
@@ -1746,7 +1755,7 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
         BuildAppendJSArray(ElementsKind::HOLEY_DOUBLE_ELEMENTS, array, value)
             otherwise Slow;
       } else {
-        assert(IsFastSmiOrTaggedElementsKind(kind));
+        dcheck(IsFastSmiOrTaggedElementsKind(kind));
         BuildAppendJSArray(ElementsKind::HOLEY_ELEMENTS, array, value)
             otherwise Slow;
       }
@@ -1767,7 +1776,7 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
             otherwise unreachable;
         doubleElements[index] = numberValue;
       } else {
-        assert(IsFastSmiOrTaggedElementsKind(kind));
+        dcheck(IsFastSmiOrTaggedElementsKind(kind));
         const elements = Cast<FixedArray>(array.elements) otherwise unreachable;
         elements[index] = value;
       }

@@ -30,10 +30,10 @@ class HeapStatisticsCollector : private HeapVisitor<HeapStatisticsCollector> {
   HeapStatistics::SpaceStatistics* current_space_stats_ = nullptr;
   HeapStatistics::PageStatistics* current_page_stats_ = nullptr;
   // Index from type name to final index in `HeapStats::type_names`.
-  // Canonicalizing based on `const char*` assuming stable addresses. If the
+  // Canonicalizing based on `const void*` assuming stable addresses. If the
   // implementation of `NameProvider` decides to return different type name
   // c-strings, the final outcome is less compact.
-  std::unordered_map<const char*, size_t> type_name_to_index_map_;
+  std::unordered_map<const void*, size_t> type_name_to_index_map_;
 };
 
 }  // namespace internal

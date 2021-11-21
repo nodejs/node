@@ -90,8 +90,8 @@ transitioning builtin StringToList(implicit context: Context)(string: String):
     i = i + value.length_intptr;
     arrayLength++;
   }
-  assert(arrayLength >= 0);
-  assert(SmiTag(stringLength) >= arrayLength);
+  dcheck(arrayLength >= 0);
+  dcheck(SmiTag(stringLength) >= arrayLength);
   array.length = arrayLength;
 
   return array;
@@ -121,7 +121,7 @@ IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
       goto IfInBounds(string, index, length);
     }
     case (indexHeapNumber: HeapNumber): {
-      assert(IsNumberNormalized(indexHeapNumber));
+      dcheck(IsNumberNormalized(indexHeapNumber));
       // Valid string indices fit into Smi range, so HeapNumber index is
       // definitely an out of bounds case.
       goto IfOutOfBounds;

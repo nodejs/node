@@ -50,9 +50,9 @@ enum ValueTypeCode : uint8_t {
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
-constexpr uint8_t kWasmFunctionExtendingTypeCode = 0x5d;
-constexpr uint8_t kWasmStructExtendingTypeCode = 0x5c;
-constexpr uint8_t kWasmArrayExtendingTypeCode = 0x5b;
+constexpr uint8_t kWasmFunctionSubtypeCode = 0x5d;
+constexpr uint8_t kWasmStructSubtypeCode = 0x5c;
+constexpr uint8_t kWasmArraySubtypeCode = 0x5b;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {
@@ -118,19 +118,19 @@ constexpr uint8_t kNoCompilationHint = kMaxUInt8;
 
 // Binary encoding of name section kinds.
 enum NameSectionKindCode : uint8_t {
-  kModule = 0,
-  kFunction = 1,
-  kLocal = 2,
+  kModuleCode = 0,
+  kFunctionCode = 1,
+  kLocalCode = 2,
   // https://github.com/WebAssembly/extended-name-section/
-  kLabel = 3,
-  kType = 4,
-  kTable = 5,
-  kMemory = 6,
-  kGlobal = 7,
-  kElementSegment = 8,
-  kDataSegment = 9,
+  kLabelCode = 3,
+  kTypeCode = 4,
+  kTableCode = 5,
+  kMemoryCode = 6,
+  kGlobalCode = 7,
+  kElementSegmentCode = 8,
+  kDataSegmentCode = 9,
   // https://github.com/WebAssembly/gc/issues/193
-  kField = 10
+  kFieldCode = 10
 };
 
 constexpr size_t kWasmPageSize = 0x10000;

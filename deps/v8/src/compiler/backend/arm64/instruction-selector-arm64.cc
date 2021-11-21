@@ -579,9 +579,9 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
-void InstructionSelector::VisitAbortCSAAssert(Node* node) {
+void InstructionSelector::VisitAbortCSADcheck(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), x1));
+  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), x1));
 }
 
 void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
@@ -3538,19 +3538,11 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Add, kArm64FAdd, 64)                          \
   V(F64x2Sub, kArm64FSub, 64)                          \
   V(F64x2Div, kArm64FDiv, 64)                          \
-  V(F64x2Eq, kArm64FEq, 64)                            \
-  V(F64x2Ne, kArm64FNe, 64)                            \
-  V(F64x2Lt, kArm64FLt, 64)                            \
-  V(F64x2Le, kArm64FLe, 64)                            \
   V(F32x4Min, kArm64FMin, 32)                          \
   V(F32x4Max, kArm64FMax, 32)                          \
   V(F32x4Add, kArm64FAdd, 32)                          \
   V(F32x4Sub, kArm64FSub, 32)                          \
   V(F32x4Div, kArm64FDiv, 32)                          \
-  V(F32x4Eq, kArm64FEq, 32)                            \
-  V(F32x4Ne, kArm64FNe, 32)                            \
-  V(F32x4Lt, kArm64FLt, 32)                            \
-  V(F32x4Le, kArm64FLe, 32)                            \
   V(I64x2Sub, kArm64ISub, 64)                          \
   V(I64x2Eq, kArm64IEq, 64)                            \
   V(I64x2Ne, kArm64INe, 64)                            \
@@ -3950,6 +3942,44 @@ VISIT_SIMD_ADD(I16x8, I8x16, 16)
 VISIT_SIMD_SUB(I32x4, 32)
 VISIT_SIMD_SUB(I16x8, 16)
 #undef VISIT_SIMD_SUB
+
+namespace {
+bool isSimdZero(Arm64OperandGenerator& g, Node* node) {
+  auto m = V128ConstMatcher(node);
+  if (m.HasResolvedValue()) {
+    auto imms = m.ResolvedValue().immediate();
+    return (std::all_of(imms.begin(), imms.end(), std::logical_not<uint8_t>()));
+  }
+  return node->opcode() == IrOpcode::kS128Zero;
+}
+}  // namespace
+
+#define VISIT_SIMD_FCM(Type, CmOp, CmOpposite, LaneSize)                   \
+  void InstructionSelector::Visit##Type##CmOp(Node* node) {                \
+    Arm64OperandGenerator g(this);                                         \
+    Node* left = node->InputAt(0);                                         \
+    Node* right = node->InputAt(1);                                        \
+    if (isSimdZero(g, left)) {                                             \
+      Emit(kArm64F##CmOpposite | LaneSizeField::encode(LaneSize),          \
+           g.DefineAsRegister(node), g.UseRegister(right));                \
+      return;                                                              \
+    } else if (isSimdZero(g, right)) {                                     \
+      Emit(kArm64F##CmOp | LaneSizeField::encode(LaneSize),                \
+           g.DefineAsRegister(node), g.UseRegister(left));                 \
+      return;                                                              \
+    }                                                                      \
+    VisitRRR(this, kArm64F##CmOp | LaneSizeField::encode(LaneSize), node); \
+  }
+
+VISIT_SIMD_FCM(F64x2, Eq, Eq, 64)
+VISIT_SIMD_FCM(F64x2, Ne, Ne, 64)
+VISIT_SIMD_FCM(F64x2, Lt, Gt, 64)
+VISIT_SIMD_FCM(F64x2, Le, Ge, 64)
+VISIT_SIMD_FCM(F32x4, Eq, Eq, 32)
+VISIT_SIMD_FCM(F32x4, Ne, Ne, 32)
+VISIT_SIMD_FCM(F32x4, Lt, Gt, 32)
+VISIT_SIMD_FCM(F32x4, Le, Ge, 32)
+#undef VISIT_SIMD_FCM
 
 void InstructionSelector::VisitS128Select(Node* node) {
   Arm64OperandGenerator g(this);
