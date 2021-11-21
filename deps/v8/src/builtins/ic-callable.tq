@@ -21,7 +21,7 @@ macro InSameNativeContext(lhs: Context, rhs: Context): bool {
 
 macro MaybeObjectToStrong(maybeObject: MaybeObject):
     HeapObject labels IfCleared {
-  assert(IsWeakOrCleared(maybeObject));
+  dcheck(IsWeakOrCleared(maybeObject));
   const weakObject = %RawDownCast<Weak<HeapObject>>(maybeObject);
   return WeakToStrong(weakObject) otherwise IfCleared;
 }
@@ -91,10 +91,10 @@ macro SetCallFeedbackContent(implicit context: Context)(
 macro CollectCallFeedback(
     maybeTarget: JSAny, maybeReceiver: Lazy<JSAny>, context: Context,
     maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
-  // TODO(v8:9891): Remove this assert once all callers are ported to Torque.
-  // This assert ensures correctness of maybeFeedbackVector's type which can
+  // TODO(v8:9891): Remove this dcheck once all callers are ported to Torque.
+  // This dcheck ensures correctness of maybeFeedbackVector's type which can
   // be easily broken for calls from CSA.
-  assert(
+  dcheck(
       IsUndefined(maybeFeedbackVector) ||
       Is<FeedbackVector>(maybeFeedbackVector));
   const feedbackVector =
@@ -158,7 +158,7 @@ macro CollectCallFeedback(
       SetCallFeedbackContent(
           feedbackVector, slotId, CallFeedbackContent::kReceiver);
     } else {
-      assert(!FeedbackValueIsReceiver(feedbackVector, slotId));
+      dcheck(!FeedbackValueIsReceiver(feedbackVector, slotId));
     }
     TryInitializeAsMonomorphic(recordedFunction, feedbackVector, slotId)
         otherwise TransitionToMegamorphic;
@@ -170,10 +170,10 @@ macro CollectCallFeedback(
 macro CollectInstanceOfFeedback(
     maybeTarget: JSAny, context: Context,
     maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
-  // TODO(v8:9891): Remove this assert once all callers are ported to Torque.
-  // This assert ensures correctness of maybeFeedbackVector's type which can
+  // TODO(v8:9891): Remove this dcheck once all callers are ported to Torque.
+  // This dcheck ensures correctness of maybeFeedbackVector's type which can
   // be easily broken for calls from CSA.
-  assert(
+  dcheck(
       IsUndefined(maybeFeedbackVector) ||
       Is<FeedbackVector>(maybeFeedbackVector));
   const feedbackVector =
@@ -228,10 +228,10 @@ macro CollectConstructFeedback(implicit context: Context)(
     updateFeedbackMode: constexpr UpdateFeedbackMode):
     never labels ConstructGeneric,
     ConstructArray(AllocationSite) {
-  // TODO(v8:9891): Remove this assert once all callers are ported to Torque.
-  // This assert ensures correctness of maybeFeedbackVector's type which can
+  // TODO(v8:9891): Remove this dcheck once all callers are ported to Torque.
+  // This dcheck ensures correctness of maybeFeedbackVector's type which can
   // be easily broken for calls from CSA.
-  assert(
+  dcheck(
       IsUndefined(maybeFeedbackVector) ||
       Is<FeedbackVector>(maybeFeedbackVector));
 

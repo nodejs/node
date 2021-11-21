@@ -112,9 +112,9 @@ const char* Builtins::Lookup(Address pc) {
 
   // May be called during initialization (disassembler).
   if (!initialized_) return nullptr;
-  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
-       ++builtin) {
-    if (code(builtin).contains(isolate_, pc)) return name(builtin);
+  for (Builtin builtin_ix = Builtins::kFirst; builtin_ix <= Builtins::kLast;
+       ++builtin_ix) {
+    if (code(builtin_ix).contains(isolate_, pc)) return name(builtin_ix);
   }
   return nullptr;
 }
@@ -358,7 +358,7 @@ class OffHeapTrampolineGenerator {
     // Generate replacement code that simply tail-calls the off-heap code.
     DCHECK(!masm_.has_frame());
     {
-      FrameScope scope(&masm_, StackFrame::NONE);
+      FrameScope scope(&masm_, StackFrame::NO_FRAME_TYPE);
       if (type == TrampolineType::kJump) {
         masm_.CodeEntry();
         masm_.JumpToInstructionStream(off_heap_entry);

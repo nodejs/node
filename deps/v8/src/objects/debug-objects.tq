@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@generatePrint
 extern class BreakPoint extends Struct {
   id: Smi;
   condition: String;
 }
 
-@generatePrint
 extern class BreakPointInfo extends Struct {
   // The position in the source for the break position.
   source_position: Smi;
@@ -32,7 +30,6 @@ bitfield struct DebuggerHints extends uint31 {
   debugging_id: int32: 20 bit;
 }
 
-@generatePrint
 extern class DebugInfo extends Struct {
   shared: SharedFunctionInfo;
   // Bit field containing various information collected for debugging.

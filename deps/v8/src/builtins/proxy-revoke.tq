@@ -26,7 +26,7 @@ ProxyRevoke(js-implicit context: Context)(): Undefined {
       *proxySlot = Null;
 
       // 4. Assert: p is a Proxy object.
-      assert(Is<JSProxy>(proxy));
+      dcheck(Is<JSProxy>(proxy));
 
       // 5. Set p.[[ProxyTarget]] to null.
       proxy.target = Null;

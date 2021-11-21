@@ -8,7 +8,7 @@
 #include "src/base/platform/time.h"
 #include "src/codegen/compiler.h"
 #include "src/flags/flags.h"
-#include "src/handles/global-handles.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects-inl.h"

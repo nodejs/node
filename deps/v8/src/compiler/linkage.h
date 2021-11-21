@@ -305,8 +305,26 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // The number of return values from this call.
   size_t ReturnCount() const { return location_sig_->return_count(); }
 
-  // The number of C parameters to this call.
+  // The number of C parameters to this call. The following invariant
+  // should hold true:
+  // ParameterCount() == GPParameterCount() + FPParameterCount()
   size_t ParameterCount() const { return location_sig_->parameter_count(); }
+
+  // The number of general purpose C parameters to this call.
+  size_t GPParameterCount() const {
+    if (!gp_param_count_) {
+      ComputeParamCounts();
+    }
+    return gp_param_count_.value();
+  }
+
+  // The number of floating point C parameters to this call.
+  size_t FPParameterCount() const {
+    if (!fp_param_count_) {
+      ComputeParamCounts();
+    }
+    return fp_param_count_.value();
+  }
 
   // The number of stack parameter slots to the call.
   size_t ParameterSlotCount() const { return param_slot_count_; }
@@ -417,6 +435,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   }
 
  private:
+  void ComputeParamCounts() const;
+
   friend class Linkage;
 
   const Kind kind_;
@@ -434,6 +454,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const Flags flags_;
   const StackArgumentOrder stack_order_;
   const char* const debug_name_;
+
+  mutable base::Optional<size_t> gp_param_count_;
+  mutable base::Optional<size_t> fp_param_count_;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(CallDescriptor::Flags)

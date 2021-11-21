@@ -354,6 +354,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
     external_backing_store_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
   }
 
+  PtrComprCageBase cage_base(isolate);
   for (LargePage* chunk = first_page(); chunk != nullptr;
        chunk = chunk->next_page()) {
     // Each chunk contains an object that starts at the large object page's
@@ -364,23 +365,26 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
 
     // The first word should be a map, and we expect all map pointers to be
     // in map space or read-only space.
-    Map map = object.map();
-    CHECK(map.IsMap());
+    Map map = object.map(cage_base);
+    CHECK(map.IsMap(cage_base));
     CHECK(ReadOnlyHeap::Contains(map) || heap()->map_space()->Contains(map));
 
     // We have only the following types in the large object space:
-    if (!(object.IsAbstractCode() || object.IsSeqString() ||
-          object.IsExternalString() || object.IsThinString() ||
-          object.IsFixedArray() || object.IsFixedDoubleArray() ||
-          object.IsWeakFixedArray() || object.IsWeakArrayList() ||
-          object.IsPropertyArray() || object.IsByteArray() ||
-          object.IsFeedbackVector() || object.IsBigInt() ||
-          object.IsFreeSpace() || object.IsFeedbackMetadata() ||
-          object.IsContext() || object.IsUncompiledDataWithoutPreparseData() ||
-          object.IsPreparseData()) &&
+    if (!(object.IsAbstractCode(cage_base) || object.IsSeqString(cage_base) ||
+          object.IsExternalString(cage_base) ||
+          object.IsThinString(cage_base) || object.IsFixedArray(cage_base) ||
+          object.IsFixedDoubleArray(cage_base) ||
+          object.IsWeakFixedArray(cage_base) ||
+          object.IsWeakArrayList(cage_base) ||
+          object.IsPropertyArray(cage_base) || object.IsByteArray(cage_base) ||
+          object.IsFeedbackVector(cage_base) || object.IsBigInt(cage_base) ||
+          object.IsFreeSpace(cage_base) ||
+          object.IsFeedbackMetadata(cage_base) || object.IsContext(cage_base) ||
+          object.IsUncompiledDataWithoutPreparseData(cage_base) ||
+          object.IsPreparseData(cage_base)) &&
         !FLAG_young_generation_large_objects) {
       FATAL("Found invalid Object (instance_type=%i) in large object space.",
-            object.map().instance_type());
+            object.map(cage_base).instance_type());
     }
 
     // The object itself should look OK.
@@ -391,27 +395,27 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
     }
 
     // Byte arrays and strings don't have interior pointers.
-    if (object.IsAbstractCode()) {
+    if (object.IsAbstractCode(cage_base)) {
       VerifyPointersVisitor code_visitor(heap());
       object.IterateBody(map, object.Size(), &code_visitor);
-    } else if (object.IsFixedArray()) {
+    } else if (object.IsFixedArray(cage_base)) {
       FixedArray array = FixedArray::cast(object);
       for (int j = 0; j < array.length(); j++) {
         Object element = array.get(j);
         if (element.IsHeapObject()) {
           HeapObject element_object = HeapObject::cast(element);
           CHECK(IsValidHeapObject(heap(), element_object));
-          CHECK(element_object.map().IsMap());
+          CHECK(element_object.map(cage_base).IsMap(cage_base));
         }
       }
-    } else if (object.IsPropertyArray()) {
+    } else if (object.IsPropertyArray(cage_base)) {
       PropertyArray array = PropertyArray::cast(object);
       for (int j = 0; j < array.length(); j++) {
         Object property = array.get(j);
         if (property.IsHeapObject()) {
           HeapObject property_object = HeapObject::cast(property);
           CHECK(heap()->Contains(property_object));
-          CHECK(property_object.map().IsMap());
+          CHECK(property_object.map(cage_base).IsMap(cage_base));
         }
       }
     }

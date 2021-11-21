@@ -793,7 +793,7 @@ macro Is<A : type extends Object, B : type extends Object>(
 
 macro UnsafeCast<A : type extends Object>(implicit context: Context)(o: Object):
     A {
-  assert(Is<A>(o));
+  dcheck(Is<A>(o));
   return %RawDownCast<A>(o);
 }
 
@@ -803,12 +803,12 @@ macro UnsafeConstCast<T: type>(r: const &T):&T {
 
 UnsafeCast<RegExpMatchInfo>(implicit context: Context)(o: Object):
     RegExpMatchInfo {
-  assert(Is<FixedArray>(o));
+  dcheck(Is<FixedArray>(o));
   return %RawDownCast<RegExpMatchInfo>(o);
 }
 
 macro UnsafeCast<A : type extends WeakHeapObject>(o: A|Object): A {
-  assert(IsWeakOrCleared(o));
+  dcheck(IsWeakOrCleared(o));
   return %RawDownCast<A>(o);
 }
 

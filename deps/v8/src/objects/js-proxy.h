@@ -98,7 +98,6 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
       LookupIterator* it);
 
   // Dispatched behavior.
-  DECL_PRINTER(JSProxy)
   DECL_VERIFIER(JSProxy)
 
   static const int kMaxIterationLimit = 100 * 1024;

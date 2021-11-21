@@ -31,7 +31,7 @@ class BranchEliminationTest : public GraphTest {
     GraphReducer graph_reducer(zone(), graph(), tick_counter(), broker(),
                                jsgraph.Dead());
     BranchElimination branch_condition_elimination(&graph_reducer, &jsgraph,
-                                                   zone());
+                                                   zone(), nullptr);
     graph_reducer.AddReducer(&branch_condition_elimination);
     graph_reducer.ReduceGraph();
   }

@@ -680,12 +680,12 @@ TEST(CodeGenInt32Binop) {
   for (size_t i = 0; i < arraysize(kOps); ++i) {
     for (int j = 0; j < 8; j++) {
       for (int k = 0; k < 8; k++) {
-        RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
+        RawMachineAssemblerTester<int32_t> t(MachineType::Int32(),
                                              MachineType::Int32());
-        Node* a = Int32Input(&m, j);
-        Node* b = Int32Input(&m, k);
-        m.Return(m.AddNode(kOps[i], a, b));
-        m.GenerateCode();
+        Node* a = Int32Input(&t, j);
+        Node* b = Int32Input(&t, k);
+        t.Return(t.AddNode(kOps[i], a, b));
+        t.GenerateCode();
       }
     }
   }
@@ -741,12 +741,12 @@ TEST(CodeGenInt64Binop) {
   for (size_t i = 0; i < arraysize(kOps); ++i) {
     for (int j = 0; j < 8; j++) {
       for (int k = 0; k < 8; k++) {
-        RawMachineAssemblerTester<int64_t> m(MachineType::Int64(),
+        RawMachineAssemblerTester<int64_t> t(MachineType::Int64(),
                                              MachineType::Int64());
-        Node* a = Int64Input(&m, j);
-        Node* b = Int64Input(&m, k);
-        m.Return(m.AddNode(kOps[i], a, b));
-        m.GenerateCode();
+        Node* a = Int64Input(&t, j);
+        Node* b = Int64Input(&t, k);
+        t.Return(t.AddNode(kOps[i], a, b));
+        t.GenerateCode();
       }
     }
   }
@@ -1814,18 +1814,18 @@ TEST(RunInt32AddInBranch) {
                                m.machine()->Word32Shl(),
                                m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
-      RawMachineAssemblerTester<int32_t> m(
+      RawMachineAssemblerTester<int32_t> t(
           MachineType::Uint32(), MachineType::Int32(), MachineType::Uint32());
       RawMachineLabel blocka, blockb;
-      m.Branch(m.Word32Equal(m.Int32Add(m.Parameter(0),
-                                        m.AddNode(shops[n], m.Parameter(1),
-                                                  m.Parameter(2))),
-                             m.Int32Constant(0)),
+      t.Branch(t.Word32Equal(t.Int32Add(t.Parameter(0),
+                                        t.AddNode(shops[n], t.Parameter(1),
+                                                  t.Parameter(2))),
+                             t.Int32Constant(0)),
                &blocka, &blockb);
-      m.Bind(&blocka);
-      m.Return(m.Int32Constant(constant));
-      m.Bind(&blockb);
-      m.Return(m.Int32Constant(0 - constant));
+      t.Bind(&blocka);
+      t.Return(t.Int32Constant(constant));
+      t.Bind(&blockb);
+      t.Return(t.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
           FOR_UINT32_SHIFTS(shift) {
@@ -1844,7 +1844,7 @@ TEST(RunInt32AddInBranch) {
                 break;
             }
             int32_t expected = ((i + right) == 0) ? constant : 0 - constant;
-            CHECK_EQ(expected, m.Call(i, j, shift));
+            CHECK_EQ(expected, t.Call(i, j, shift));
           }
         }
       }
@@ -1906,12 +1906,12 @@ TEST(RunInt32AddInComparison) {
                                m.machine()->Word32Shl(),
                                m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
-      RawMachineAssemblerTester<int32_t> m(
+      RawMachineAssemblerTester<int32_t> t(
           MachineType::Uint32(), MachineType::Int32(), MachineType::Uint32());
-      m.Return(m.Word32Equal(
-          m.Int32Add(m.Parameter(0),
-                     m.AddNode(shops[n], m.Parameter(1), m.Parameter(2))),
-          m.Int32Constant(0)));
+      t.Return(t.Word32Equal(
+          t.Int32Add(t.Parameter(0),
+                     t.AddNode(shops[n], t.Parameter(1), t.Parameter(2))),
+          t.Int32Constant(0)));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
           FOR_UINT32_SHIFTS(shift) {
@@ -1930,7 +1930,7 @@ TEST(RunInt32AddInComparison) {
                 break;
             }
             int32_t expected = (i + right) == 0;
-            CHECK_EQ(expected, m.Call(i, j, shift));
+            CHECK_EQ(expected, t.Call(i, j, shift));
           }
         }
       }
@@ -2159,18 +2159,18 @@ TEST(RunInt32SubInBranch) {
                                m.machine()->Word32Shl(),
                                m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
-      RawMachineAssemblerTester<int32_t> m(
+      RawMachineAssemblerTester<int32_t> t(
           MachineType::Uint32(), MachineType::Int32(), MachineType::Uint32());
       RawMachineLabel blocka, blockb;
-      m.Branch(m.Word32Equal(m.Int32Sub(m.Parameter(0),
-                                        m.AddNode(shops[n], m.Parameter(1),
-                                                  m.Parameter(2))),
-                             m.Int32Constant(0)),
+      t.Branch(t.Word32Equal(t.Int32Sub(t.Parameter(0),
+                                        t.AddNode(shops[n], t.Parameter(1),
+                                                  t.Parameter(2))),
+                             t.Int32Constant(0)),
                &blocka, &blockb);
-      m.Bind(&blocka);
-      m.Return(m.Int32Constant(constant));
-      m.Bind(&blockb);
-      m.Return(m.Int32Constant(0 - constant));
+      t.Bind(&blocka);
+      t.Return(t.Int32Constant(constant));
+      t.Bind(&blockb);
+      t.Return(t.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
           FOR_UINT32_SHIFTS(shift) {
@@ -2189,7 +2189,7 @@ TEST(RunInt32SubInBranch) {
                 break;
             }
             int32_t expected = ((i - right) == 0) ? constant : 0 - constant;
-            CHECK_EQ(expected, m.Call(i, j, shift));
+            CHECK_EQ(expected, t.Call(i, j, shift));
           }
         }
       }
@@ -2251,12 +2251,12 @@ TEST(RunInt32SubInComparison) {
                                m.machine()->Word32Shl(),
                                m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
-      RawMachineAssemblerTester<int32_t> m(
+      RawMachineAssemblerTester<int32_t> t(
           MachineType::Uint32(), MachineType::Int32(), MachineType::Uint32());
-      m.Return(m.Word32Equal(
-          m.Int32Sub(m.Parameter(0),
-                     m.AddNode(shops[n], m.Parameter(1), m.Parameter(2))),
-          m.Int32Constant(0)));
+      t.Return(t.Word32Equal(
+          t.Int32Sub(t.Parameter(0),
+                     t.AddNode(shops[n], t.Parameter(1), t.Parameter(2))),
+          t.Int32Constant(0)));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
           FOR_UINT32_SHIFTS(shift) {
@@ -2275,7 +2275,7 @@ TEST(RunInt32SubInComparison) {
                 break;
             }
             int32_t expected = (i - right) == 0;
-            CHECK_EQ(expected, m.Call(i, j, shift));
+            CHECK_EQ(expected, t.Call(i, j, shift));
           }
         }
       }
@@ -2835,18 +2835,18 @@ TEST(RunWord32AndInBranch) {
                                m.machine()->Word32Shl(),
                                m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
-      RawMachineAssemblerTester<int32_t> m(
+      RawMachineAssemblerTester<int32_t> t(
           MachineType::Uint32(), MachineType::Int32(), MachineType::Uint32());
       RawMachineLabel blocka, blockb;
-      m.Branch(m.Word32Equal(m.Word32And(m.Parameter(0),
-                                         m.AddNode(shops[n], m.Parameter(1),
-                                                   m.Parameter(2))),
-                             m.Int32Constant(0)),
+      t.Branch(t.Word32Equal(t.Word32And(t.Parameter(0),
+                                         t.AddNode(shops[n], t.Parameter(1),
+                                                   t.Parameter(2))),
+                             t.Int32Constant(0)),
                &blocka, &blockb);
-      m.Bind(&blocka);
-      m.Return(m.Int32Constant(constant));
-      m.Bind(&blockb);
-      m.Return(m.Int32Constant(0 - constant));
+      t.Bind(&blocka);
+      t.Return(t.Int32Constant(constant));
+      t.Bind(&blockb);
+      t.Return(t.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
           FOR_UINT32_SHIFTS(shift) {
@@ -2865,7 +2865,7 @@ TEST(RunWord32AndInBranch) {
                 break;
             }
             int32_t expected = ((i & right) == 0) ? constant : 0 - constant;
-            CHECK_EQ(expected, m.Call(i, j, shift));
+            CHECK_EQ(expected, t.Call(i, j, shift));
           }
         }
       }
@@ -3064,18 +3064,18 @@ TEST(RunWord32OrInBranch) {
                                m.machine()->Word32Shl(),
                                m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
-      RawMachineAssemblerTester<int32_t> m(
+      RawMachineAssemblerTester<int32_t> t(
           MachineType::Uint32(), MachineType::Int32(), MachineType::Uint32());
       RawMachineLabel blocka, blockb;
-      m.Branch(m.Word32Equal(m.Word32Or(m.Parameter(0),
-                                        m.AddNode(shops[n], m.Parameter(1),
-                                                  m.Parameter(2))),
-                             m.Int32Constant(0)),
+      t.Branch(t.Word32Equal(t.Word32Or(t.Parameter(0),
+                                        t.AddNode(shops[n], t.Parameter(1),
+                                                  t.Parameter(2))),
+                             t.Int32Constant(0)),
                &blocka, &blockb);
-      m.Bind(&blocka);
-      m.Return(m.Int32Constant(constant));
-      m.Bind(&blockb);
-      m.Return(m.Int32Constant(0 - constant));
+      t.Bind(&blocka);
+      t.Return(t.Int32Constant(constant));
+      t.Bind(&blockb);
+      t.Return(t.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
           FOR_UINT32_SHIFTS(shift) {
@@ -3094,7 +3094,7 @@ TEST(RunWord32OrInBranch) {
                 break;
             }
             int32_t expected = ((i | right) == 0) ? constant : 0 - constant;
-            CHECK_EQ(expected, m.Call(i, j, shift));
+            CHECK_EQ(expected, t.Call(i, j, shift));
           }
         }
       }
@@ -3289,18 +3289,18 @@ TEST(RunWord32XorInBranch) {
                                m.machine()->Word32Shl(),
                                m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
-      RawMachineAssemblerTester<int32_t> m(
+      RawMachineAssemblerTester<int32_t> t(
           MachineType::Uint32(), MachineType::Int32(), MachineType::Uint32());
       RawMachineLabel blocka, blockb;
-      m.Branch(m.Word32Equal(m.Word32Xor(m.Parameter(0),
-                                         m.AddNode(shops[n], m.Parameter(1),
-                                                   m.Parameter(2))),
-                             m.Int32Constant(0)),
+      t.Branch(t.Word32Equal(t.Word32Xor(t.Parameter(0),
+                                         t.AddNode(shops[n], t.Parameter(1),
+                                                   t.Parameter(2))),
+                             t.Int32Constant(0)),
                &blocka, &blockb);
-      m.Bind(&blocka);
-      m.Return(m.Int32Constant(constant));
-      m.Bind(&blockb);
-      m.Return(m.Int32Constant(0 - constant));
+      t.Bind(&blocka);
+      t.Return(t.Int32Constant(constant));
+      t.Bind(&blockb);
+      t.Return(t.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
           FOR_UINT32_SHIFTS(shift) {
@@ -3319,7 +3319,7 @@ TEST(RunWord32XorInBranch) {
                 break;
             }
             int32_t expected = ((i ^ right) == 0) ? constant : 0 - constant;
-            CHECK_EQ(expected, m.Call(i, j, shift));
+            CHECK_EQ(expected, t.Call(i, j, shift));
           }
         }
       }
@@ -3857,13 +3857,13 @@ TEST(RunDeadInt32Binops) {
       m.machine()->Uint32LessThanOrEqual()};
 
   for (size_t i = 0; i < arraysize(kOps); ++i) {
-    RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
+    RawMachineAssemblerTester<int32_t> t(MachineType::Int32(),
                                          MachineType::Int32());
     int32_t constant = static_cast<int32_t>(0x55555 + i);
-    m.AddNode(kOps[i], m.Parameter(0), m.Parameter(1));
-    m.Return(m.Int32Constant(constant));
+    t.AddNode(kOps[i], t.Parameter(0), t.Parameter(1));
+    t.Return(t.Int32Constant(constant));
 
-    CHECK_EQ(constant, m.Call(1, 1));
+    CHECK_EQ(constant, t.Call(1, 1));
   }
 }
 
@@ -3985,11 +3985,11 @@ TEST(RunDeadFloat32Binops) {
                            nullptr};
 
   for (int i = 0; ops[i] != nullptr; i++) {
-    RawMachineAssemblerTester<int32_t> m;
+    RawMachineAssemblerTester<int32_t> t;
     int constant = 0x53355 + i;
-    m.AddNode(ops[i], m.Float32Constant(0.1f), m.Float32Constant(1.11f));
-    m.Return(m.Int32Constant(constant));
-    CHECK_EQ(constant, m.Call());
+    t.AddNode(ops[i], t.Float32Constant(0.1f), t.Float32Constant(1.11f));
+    t.Return(t.Int32Constant(constant));
+    CHECK_EQ(constant, t.Call());
   }
 }
 
@@ -4002,11 +4002,11 @@ TEST(RunDeadFloat64Binops) {
                            m.machine()->Float64Mod(), nullptr};
 
   for (int i = 0; ops[i] != nullptr; i++) {
-    RawMachineAssemblerTester<int32_t> m;
+    RawMachineAssemblerTester<int32_t> t;
     int constant = 0x53355 + i;
-    m.AddNode(ops[i], m.Float64Constant(0.1), m.Float64Constant(1.11));
-    m.Return(m.Int32Constant(constant));
-    CHECK_EQ(constant, m.Call());
+    t.AddNode(ops[i], t.Float64Constant(0.1), t.Float64Constant(1.11));
+    t.Return(t.Int32Constant(constant));
+    CHECK_EQ(constant, t.Call());
   }
 }
 
@@ -5471,12 +5471,12 @@ TEST(RunFloat64UnorderedCompare) {
   FOR_FLOAT64_INPUTS(i) {
     for (size_t o = 0; o < arraysize(operators); ++o) {
       for (int j = 0; j < 2; j++) {
-        RawMachineAssemblerTester<int32_t> m;
-        Node* a = m.Float64Constant(i);
-        Node* b = m.Float64Constant(nan);
+        RawMachineAssemblerTester<int32_t> t;
+        Node* a = t.Float64Constant(i);
+        Node* b = t.Float64Constant(nan);
         if (j == 1) std::swap(a, b);
-        m.Return(m.AddNode(operators[o], a, b));
-        CHECK_EQ(0, m.Call());
+        t.Return(t.AddNode(operators[o], a, b));
+        CHECK_EQ(0, t.Call());
       }
     }
   }

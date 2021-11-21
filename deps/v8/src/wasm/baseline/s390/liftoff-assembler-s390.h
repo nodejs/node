@@ -10,6 +10,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/simd-shuffle.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -122,26 +123,72 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 
 void LiftoffAssembler::AlignFrameSize() {}
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset,
-                                              SafepointTableBuilder*) {
+void LiftoffAssembler::PatchPrepareStackFrame(
+    int offset, SafepointTableBuilder* safepoint_table_builder) {
   int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
 
   constexpr int LayInstrSize = 6;
 
-#ifdef USE_SIMULATOR
-  // When using the simulator, deal with Liftoff which allocates the stack
-  // before checking it.
-  // TODO(arm): Remove this when the stack check mechanism will be updated.
-  if (frame_size > KB / 2) {
-    bailout(kOtherReason,
-            "Stack limited to 512 bytes to avoid a bug in StackCheck");
-    return;
-  }
-#endif
   Assembler patching_assembler(
       AssemblerOptions{},
       ExternalAssemblerBuffer(buffer_start_ + offset, LayInstrSize + kGap));
-  patching_assembler.lay(sp, MemOperand(sp, -frame_size));
+  if (V8_LIKELY(frame_size < 4 * KB)) {
+    patching_assembler.lay(sp, MemOperand(sp, -frame_size));
+    return;
+  }
+
+  // The frame size is bigger than 4KB, so we might overflow the available stack
+  // space if we first allocate the frame and then do the stack check (we will
+  // need some remaining stack space for throwing the exception). That's why we
+  // check the available stack space before we allocate the frame. To do this we
+  // replace the {__ sub(sp, sp, framesize)} with a jump to OOL code that does
+  // this "extended stack check".
+  //
+  // The OOL code can simply be generated here with the normal assembler,
+  // because all other code generation, including OOL code, has already finished
+  // when {PatchPrepareStackFrame} is called. The function prologue then jumps
+  // to the current {pc_offset()} to execute the OOL code for allocating the
+  // large frame.
+
+  // Emit the unconditional branch in the function prologue (from {offset} to
+  // {pc_offset()}).
+
+  int jump_offset = pc_offset() - offset;
+  patching_assembler.branchOnCond(al, jump_offset, true, true);
+
+  // If the frame is bigger than the stack, we throw the stack overflow
+  // exception unconditionally. Thereby we can avoid the integer overflow
+  // check in the condition code.
+  RecordComment("OOL: stack check for large frame");
+  Label continuation;
+  if (frame_size < FLAG_stack_size * 1024) {
+    Register stack_limit = ip;
+    LoadU64(stack_limit,
+            FieldMemOperand(kWasmInstanceRegister,
+                            WasmInstanceObject::kRealStackLimitAddressOffset),
+            r0);
+    LoadU64(stack_limit, MemOperand(stack_limit), r0);
+    AddU64(stack_limit, Operand(frame_size));
+    CmpU64(sp, stack_limit);
+    bge(&continuation);
+  }
+
+  Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
+  // The call will not return; just define an empty safepoint.
+  safepoint_table_builder->DefineSafepoint(this);
+  if (FLAG_debug_code) stop();
+
+  bind(&continuation);
+
+  // Now allocate the stack space. Note that this might do more than just
+  // decrementing the SP; consult {TurboAssembler::AllocateStackSpace}.
+  lay(sp, MemOperand(sp, -frame_size));
+
+  // Jump back to the start of the function, from {pc_offset()} to
+  // right after the reserved space for the {__ sub(sp, sp, framesize)} (which
+  // is a branch now).
+  jump_offset = offset - pc_offset() + 6;
+  branchOnCond(al, jump_offset, true);
 }
 
 void LiftoffAssembler::FinishCode() {}
@@ -2057,8 +2104,13 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
 void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
                                            Label* label, Register lhs,
                                            int32_t imm) {
+  bool use_signed = liftoff::UseSignedOp(liftoff_cond);
   Condition cond = liftoff::ToCondition(liftoff_cond);
-  CmpS32(lhs, Operand(imm));
+  if (use_signed) {
+    CmpS32(lhs, Operand(imm));
+  } else {
+    CmpU32(lhs, Operand(imm));
+  }
   b(cond, label);
 }
 

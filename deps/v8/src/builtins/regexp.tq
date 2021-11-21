@@ -86,7 +86,7 @@ transitioning macro RegExpPrototypeExecBodyWithoutResult(
     regexp: JSRegExp, string: String, regexpLastIndex: Number,
     isFastPath: constexpr bool): RegExpMatchInfo labels IfDidNotMatch {
   if (isFastPath) {
-    assert(HasInitialRegExpMap(regexp));
+    dcheck(HasInitialRegExpMap(regexp));
   } else {
     IncrementUseCounter(context, SmiConstant(kRegExpExecCalledOnSlowRegExp));
   }
@@ -397,7 +397,7 @@ transitioning macro IsRegExp(implicit context: Context)(obj: JSAny): bool {
     return Is<JSRegExp>(receiver);
   }
 
-  assert(value != Undefined);
+  dcheck(value != Undefined);
   // The common path. Symbol.match exists, equals the RegExpPrototypeMatch
   // function (and is thus trueish), and the receiver is a JSRegExp.
   if (ToBoolean(value)) {
@@ -408,7 +408,7 @@ transitioning macro IsRegExp(implicit context: Context)(obj: JSAny): bool {
     return true;
   }
 
-  assert(!ToBoolean(value));
+  dcheck(!ToBoolean(value));
   if (Is<JSRegExp>(receiver)) {
     IncrementUseCounter(context, SmiConstant(kRegExpMatchIsFalseishOnJSRegExp));
   }

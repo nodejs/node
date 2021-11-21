@@ -55,7 +55,7 @@ LoadJoinElement<array::FastDoubleElements>(
 builtin LoadJoinTypedElement<T : type extends ElementsKind>(
     context: Context, receiver: JSReceiver, k: uintptr): JSAny {
   const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
-  assert(!IsDetachedBuffer(typedArray.buffer));
+  dcheck(!IsDetachedBuffer(typedArray.buffer));
   return typed_array::LoadFixedTypedArrayElementAsTagged(
       typedArray.data_ptr, k, typed_array::KindForArrayType<T>());
 }
@@ -126,14 +126,14 @@ macro AddStringLength(implicit context: Context)(
 macro StoreAndGrowFixedArray<T: type>(
     fixedArray: FixedArray, index: intptr, element: T): FixedArray {
   const length: intptr = fixedArray.length_intptr;
-  assert(index <= length);
+  dcheck(index <= length);
   if (index < length) {
     fixedArray.objects[index] = element;
     return fixedArray;
   } else
     deferred {
       const newLength: intptr = CalculateNewElementsCapacity(length);
-      assert(index < newLength);
+      dcheck(index < newLength);
       const newfixedArray: FixedArray =
           ExtractFixedArray(fixedArray, 0, length, newLength);
       newfixedArray.objects[index] = element;
@@ -147,7 +147,7 @@ macro StoreAndGrowFixedArray<T: type>(
 // Buffer.AddSeparators().
 struct Buffer {
   macro Add(implicit context: Context)(
-      str: String, nofSeparators: intptr, separatorLength: intptr) {
+      str: String, nofSeparators: intptr, separatorLength: intptr): void {
     // Add separators if necessary (at the beginning or more than one)
     const writeSeparators: bool = this.index == 0 | nofSeparators > 1;
     this.AddSeparators(nofSeparators, separatorLength, writeSeparators);
@@ -161,7 +161,7 @@ struct Buffer {
   }
 
   macro AddSeparators(implicit context: Context)(
-      nofSeparators: intptr, separatorLength: intptr, write: bool) {
+      nofSeparators: intptr, separatorLength: intptr, write: bool): void {
     if (nofSeparators == 0 || separatorLength == 0) return;
 
     const nofSeparatorsInt: intptr = nofSeparators;
@@ -211,7 +211,7 @@ macro NewBuffer(len: uintptr, sep: String): Buffer {
   const cappedBufferSize: intptr = len > kMaxNewSpaceFixedArrayElements ?
       kMaxNewSpaceFixedArrayElements :
       Signed(len);
-  assert(cappedBufferSize > 0);
+  dcheck(cappedBufferSize > 0);
   return Buffer{
     fixedArray: AllocateZeroedFixedArray(cappedBufferSize),
     index: 0,
@@ -222,7 +222,7 @@ macro NewBuffer(len: uintptr, sep: String): Buffer {
 
 macro BufferJoin(implicit context: Context)(
     buffer: Buffer, sep: String): String {
-  assert(IsValidPositiveSmi(buffer.totalStringLength));
+  dcheck(IsValidPositiveSmi(buffer.totalStringLength));
   if (buffer.totalStringLength == 0) return kEmptyString;
 
   // Fast path when there's only one buffer element.
@@ -504,7 +504,8 @@ builtin JoinStackPop(implicit context: Context)(
 }
 
 // Fast path the common non-nested calls.
-macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver) {
+macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver):
+    void {
   const stack: FixedArray = LoadJoinStack()
       otherwise unreachable;
   const len: intptr = stack.length_intptr;

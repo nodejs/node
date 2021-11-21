@@ -327,7 +327,7 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   __ Ld(scratch, FieldMemOperand(code, Code::kFlagsOffset));
   __ DecodeField<Code::KindField>(scratch);
   __ Assert(eq, AbortReason::kExpectedBaselineData, scratch,
-            Operand(static_cast<int>(CodeKind::BASELINE)));
+            Operand(static_cast<int64_t>(CodeKind::BASELINE)));
 }
 // TODO(v8:11429): Add a path for "not_compiled" and unify the two uses under
 // the more general dispatch.
@@ -1023,7 +1023,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 // Bailout to the return label if this is a return bytecode.
 #define JUMP_IF_EQUAL(NAME)          \
   __ Branch(if_return, eq, bytecode, \
-            Operand(static_cast<int>(interpreter::Bytecode::k##NAME)));
+            Operand(static_cast<int64_t>(interpreter::Bytecode::k##NAME)));
   RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
 #undef JUMP_IF_EQUAL
 
@@ -1031,7 +1031,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   // of the loop.
   Label end, not_jump_loop;
   __ Branch(&not_jump_loop, ne, bytecode,
-            Operand(static_cast<int>(interpreter::Bytecode::kJumpLoop)),
+            Operand(static_cast<int64_t>(interpreter::Bytecode::kJumpLoop)),
             Label::Distance::kNear);
   // We need to restore the original bytecode_offset since we might have
   // increased it to skip the wide / extra-wide prefix bytecode.
@@ -3479,7 +3479,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ JumpIfSmi(a1, &context_check);
   __ Ld(a0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ bind(&context_check);
-  __ li(a1, Operand(static_cast<int>(deopt_kind)));
+  __ li(a1, Operand(static_cast<int64_t>(deopt_kind)));
   // a2: bailout id already loaded.
   // a3: code address or 0 already loaded.
   // a4: already has fp-to-sp delta.
@@ -3851,7 +3851,7 @@ void Builtins::Generate_DynamicCheckMapsTrampoline(
 
   Label deopt, bailout;
   __ Branch(&deopt, ne, a0,
-            Operand(static_cast<int>(DynamicCheckMapsStatus::kSuccess)),
+            Operand(static_cast<int64_t>(DynamicCheckMapsStatus::kSuccess)),
             Label::Distance::kNear);
 
   __ MaybeRestoreRegisters(registers);
@@ -3860,11 +3860,11 @@ void Builtins::Generate_DynamicCheckMapsTrampoline(
 
   __ bind(&deopt);
   __ Branch(&bailout, eq, a0,
-            Operand(static_cast<int>(DynamicCheckMapsStatus::kBailout)));
+            Operand(static_cast<int64_t>(DynamicCheckMapsStatus::kBailout)));
 
   if (FLAG_debug_code) {
     __ Assert(eq, AbortReason::kUnexpectedDynamicCheckMapsStatus, a0,
-              Operand(static_cast<int>(DynamicCheckMapsStatus::kDeopt)));
+              Operand(static_cast<int64_t>(DynamicCheckMapsStatus::kDeopt)));
   }
   __ MaybeRestoreRegisters(registers);
   __ LeaveFrame(StackFrame::INTERNAL);

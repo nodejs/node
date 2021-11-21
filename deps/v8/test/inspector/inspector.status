@@ -522,4 +522,9 @@
   'cpu-profiler/coverage-block': [SKIP],
 }],  # variant == turboprop or variant = turboprop_as_toptier
 
+##############################################################################
+['no_i18n == True', {
+  'runtime/evaluate-without-side-effects-i18n': [SKIP],
+}],  # no_i18n == True
+
 ]

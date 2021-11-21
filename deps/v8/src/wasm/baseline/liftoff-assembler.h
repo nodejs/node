@@ -32,7 +32,9 @@ namespace wasm {
 
 enum LiftoffCondition {
   kEqual,
+  kEqualZero = kEqual,  // When used in a unary operation.
   kUnequal,
+  kNotEqualZero = kUnequal,  // When used in a unary operation.
   kSignedLessThan,
   kSignedLessEqual,
   kSignedGreaterThan,
@@ -43,8 +45,8 @@ enum LiftoffCondition {
   kUnsignedGreaterEqual
 };
 
-inline constexpr LiftoffCondition Negate(LiftoffCondition liftoff_cond) {
-  switch (liftoff_cond) {
+inline constexpr LiftoffCondition Negate(LiftoffCondition cond) {
+  switch (cond) {
     case kEqual:
       return kUnequal;
     case kUnequal:
@@ -65,6 +67,31 @@ inline constexpr LiftoffCondition Negate(LiftoffCondition liftoff_cond) {
       return kUnsignedLessThan;
     case kUnsignedGreaterThan:
       return kUnsignedLessEqual;
+  }
+}
+
+inline constexpr LiftoffCondition Flip(LiftoffCondition cond) {
+  switch (cond) {
+    case kEqual:
+      return kEqual;
+    case kUnequal:
+      return kUnequal;
+    case kSignedLessThan:
+      return kSignedGreaterThan;
+    case kSignedLessEqual:
+      return kSignedGreaterEqual;
+    case kSignedGreaterEqual:
+      return kSignedLessEqual;
+    case kSignedGreaterThan:
+      return kSignedLessThan;
+    case kUnsignedLessThan:
+      return kUnsignedGreaterThan;
+    case kUnsignedLessEqual:
+      return kUnsignedGreaterEqual;
+    case kUnsignedGreaterEqual:
+      return kUnsignedLessEqual;
+    case kUnsignedGreaterThan:
+      return kUnsignedLessThan;
   }
 }
 
@@ -668,6 +695,9 @@ class LiftoffAssembler : public TurboAssembler {
                                int size);
   inline void LoadTaggedPointerFromInstance(Register dst, Register instance,
                                             int offset);
+  inline void LoadExternalPointer(Register dst, Register instance, int offset,
+                                  ExternalPointerTag tag,
+                                  Register isolate_root);
   inline void SpillInstance(Register instance);
   inline void ResetOSRTarget();
   inline void FillInstanceInto(Register dst);
@@ -975,8 +1005,8 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void emit_cond_jump(LiftoffCondition, Label*, ValueKind value,
                              Register lhs, Register rhs = no_reg);
-  inline void emit_i32_cond_jumpi(LiftoffCondition liftoff_cond, Label* label,
-                                  Register lhs, int imm);
+  inline void emit_i32_cond_jumpi(LiftoffCondition, Label*, Register lhs,
+                                  int imm);
   // Set {dst} to 1 if condition holds, 0 otherwise.
   inline void emit_i32_eqz(Register dst, Register src);
   inline void emit_i32_set_cond(LiftoffCondition, Register dst, Register lhs,
@@ -1506,6 +1536,10 @@ class LiftoffAssembler : public TurboAssembler {
  private:
   LiftoffRegister LoadI64HalfIntoRegister(VarState slot, RegPairHalf half);
 
+  V8_NOINLINE LiftoffRegister SpillOneRegister(LiftoffRegList candidates);
+  // Spill one or two fp registers to get a pair of adjacent fp registers.
+  LiftoffRegister SpillAdjacentFpRegisters(LiftoffRegList pinned);
+
   uint32_t num_locals_ = 0;
   static constexpr uint32_t kInlineLocalKinds = 16;
   union {
@@ -1521,10 +1555,6 @@ class LiftoffAssembler : public TurboAssembler {
   int ool_spill_space_size_ = 0;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   const char* bailout_detail_ = nullptr;
-
-  V8_NOINLINE LiftoffRegister SpillOneRegister(LiftoffRegList candidates);
-  // Spill one or two fp registers to get a pair of adjacent fp registers.
-  LiftoffRegister SpillAdjacentFpRegisters(LiftoffRegList pinned);
 };
 
 std::ostream& operator<<(std::ostream& os, LiftoffAssembler::VarState);

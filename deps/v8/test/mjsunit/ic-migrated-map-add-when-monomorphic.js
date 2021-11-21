@@ -13,7 +13,8 @@ function load(o) { return o.x }
 %PrepareFunctionForOptimization(load);
 
 // Initialize the load IC with a map that will not be deprecated.
-load(new A());
+var a = new A();
+load(a);
 
 const oldB = new B();
 (new B()).x = 1.5; // deprecates map

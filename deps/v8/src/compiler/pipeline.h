@@ -66,8 +66,7 @@ class Pipeline : public AllStatic {
   // Run the pipeline on a machine graph and generate code.
   static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(
       CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,
-      int wasm_kind, const char* debug_name,
-      const AssemblerOptions& assembler_options,
+      const char* debug_name, const AssemblerOptions& assembler_options,
       SourcePositionTable* source_positions = nullptr);
 
   // Returns a new compilation job for a wasm heap stub.

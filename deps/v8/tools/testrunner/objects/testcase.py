@@ -30,14 +30,14 @@ import os
 import re
 import shlex
 
-from ..outproc import base as outproc
-from ..local import command
-from ..local import statusfile
-from ..local import utils
-from ..local.variants import ALL_VARIANT_FLAGS
-from ..local.variants import INCOMPATIBLE_FLAGS_PER_VARIANT
-from ..local.variants import INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE
-from ..local.variants import INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG
+from testrunner.outproc import base as outproc
+from testrunner.local import command
+from testrunner.local import statusfile
+from testrunner.local import utils
+from testrunner.local.variants import ALL_VARIANT_FLAGS
+from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_VARIANT
+from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE
+from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG
 
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
@@ -75,6 +75,13 @@ except NameError:
   def cmp(x, y):  # Python 3
     return (x > y) - (x < y)
 
+def read_file_utf8(file):
+  try:                # Python 3
+    with open(file, encoding='utf-8') as f:
+      return f.read()
+  except TypeError:   # Python 2
+    with open(file) as f:
+      return f.read()
 
 class TestCase(object):
   def __init__(self, suite, path, name, test_config):
@@ -130,8 +137,8 @@ class TestCase(object):
         return not is_flag(outcome)
 
       outcomes = self.suite.statusfile.get_outcomes(self.name, self.variant)
-      self._statusfile_outcomes = filter(not_flag, outcomes)
-      self._statusfile_flags = filter(is_flag, outcomes)
+      self._statusfile_outcomes = list(filter(not_flag, outcomes))
+      self._statusfile_flags = list(filter(is_flag, outcomes))
     self._expected_outcomes = (
       self._parse_status_file_outcomes(self._statusfile_outcomes))
 
@@ -407,8 +414,7 @@ class TestCase(object):
     return self._get_source_path() is not None
 
   def get_source(self):
-    with open(self._get_source_path()) as f:
-      return f.read()
+    return read_file_utf8(self._get_source_path())
 
   def _get_source_path(self):
     return None
@@ -454,8 +460,7 @@ class D8TestCase(TestCase):
     """Returns for a given file a list of absolute paths of files needed by the
     given file.
     """
-    with open(file) as f:
-      source = f.read()
+    source = read_file_utf8(file)
     result = []
     def add_path(path):
       result.append(os.path.abspath(path.replace('/', os.path.sep)))

@@ -39,7 +39,7 @@ struct FrameWithArgumentsInfo {
 // This macro is should only be used in builtins that can be called from
 // interpreted or JITted code, not from CSA/Torque builtins (the number of
 // returned formal parameters would be wrong).
-// It is difficult to actually check/assert this, since interpreted or JITted
+// It is difficult to actually check/dcheck this, since interpreted or JITted
 // frames are StandardFrames, but so are hand-written builtins. Doing that
 // more refined check would be prohibitively expensive.
 macro GetFrameWithArgumentsInfo(implicit context: Context)():

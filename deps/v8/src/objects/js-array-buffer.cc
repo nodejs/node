@@ -56,7 +56,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   }
   set_extension(nullptr);
   if (!backing_store) {
-    set_backing_store(GetIsolate(), nullptr);
+    set_backing_store(nullptr);
     set_byte_length(0);
     set_max_byte_length(0);
   } else {
@@ -76,8 +76,7 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
       !backing_store->is_wasm_memory() && !backing_store->is_resizable(),
       backing_store->byte_length() == backing_store->max_byte_length());
   DCHECK(!was_detached());
-  Isolate* isolate = GetIsolate();
-  set_backing_store(isolate, backing_store->buffer_start());
+  set_backing_store(backing_store->buffer_start());
   if (is_shared() && is_resizable()) {
     // GSABs need to read their byte_length from the BackingStore. Maintain the
     // invariant that their byte_length field is always 0.
@@ -88,12 +87,11 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   set_max_byte_length(backing_store->max_byte_length());
   if (backing_store->is_wasm_memory()) set_is_detachable(false);
   if (!backing_store->free_on_destruct()) set_is_external(true);
-  Heap* heap = isolate->heap();
   ArrayBufferExtension* extension = EnsureExtension();
   size_t bytes = backing_store->PerIsolateAccountingLength();
   extension->set_accounting_length(bytes);
   extension->set_backing_store(std::move(backing_store));
-  heap->AppendArrayBufferExtension(*this, extension);
+  GetIsolate()->heap()->AppendArrayBufferExtension(*this, extension);
 }
 
 void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
@@ -122,14 +120,25 @@ void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
 
   DCHECK(!is_shared());
   DCHECK(!is_asmjs_memory());
-  set_backing_store(isolate, nullptr);
+  set_backing_store(nullptr);
   set_byte_length(0);
   set_was_detached(true);
 }
 
-std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() {
-    if (!extension()) return nullptr;
-    return extension()->backing_store();
+std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
+  if (!extension()) return nullptr;
+  return extension()->backing_store();
+}
+
+size_t JSArrayBuffer::GetByteLength() const {
+  if V8_UNLIKELY (is_shared() && is_resizable()) {
+    // Invariant: byte_length for GSAB is 0 (it needs to be read from the
+    // BackingStore).
+    DCHECK_EQ(0, byte_length());
+
+    return GetBackingStore()->byte_length(std::memory_order_seq_cst);
+  }
+  return byte_length();
 }
 
 ArrayBufferExtension* JSArrayBuffer::EnsureExtension() {

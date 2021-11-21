@@ -20,7 +20,7 @@ namespace {
 
 // Track whether this V8 instance has ever called v8::Locker. This allows the
 // API code to verify that the lock is always held when V8 is being entered.
-base::Atomic32 g_locker_was_ever_used_ = 0;
+base::AtomicWord g_locker_was_ever_used_ = 0;
 
 }  // namespace
 
@@ -53,8 +53,12 @@ bool Locker::IsLocked(v8::Isolate* isolate) {
   return internal_isolate->thread_manager()->IsLockedByCurrentThread();
 }
 
-bool Locker::IsActive() {
-  return !!base::Relaxed_Load(&g_locker_was_ever_used_);
+// static
+bool Locker::IsActive() { return WasEverUsed(); }
+
+// static
+bool Locker::WasEverUsed() {
+  return base::Relaxed_Load(&g_locker_was_ever_used_) != 0;
 }
 
 Locker::~Locker() {

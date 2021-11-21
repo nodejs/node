@@ -35,11 +35,11 @@ void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
   NodeVector copies(tmp_zone);
 
   NodeCopier copier(graph, copied_size, &copies, unrolling_count);
-  {
-    copier.CopyNodes(graph, tmp_zone, graph->NewNode(common->Dead()),
-                     base::make_iterator_range(loop->begin(), loop->end()),
-                     source_positions, node_origins);
-  }
+  source_positions->AddDecorator();
+  copier.CopyNodes(graph, tmp_zone, graph->NewNode(common->Dead()),
+                   base::make_iterator_range(loop->begin(), loop->end()),
+                   source_positions, node_origins);
+  source_positions->RemoveDecorator();
 
 #define COPY(node, n) copier.map(node, n)
 #define FOREACH_COPY_INDEX(i) for (uint32_t i = 0; i < unrolling_count; i++)

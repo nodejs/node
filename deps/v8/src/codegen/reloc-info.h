@@ -255,8 +255,9 @@ class RelocInfo {
   V8_INLINE HeapObject target_object();
 
   // In GC operations, we don't have a host_ pointer. Retrieving a target
-  // for COMPRESSED_EMBEDDED_OBJECT mode requires an isolate.
-  V8_INLINE HeapObject target_object_no_host(Isolate* isolate);
+  // for COMPRESSED_EMBEDDED_OBJECT mode requires a pointer compression cage
+  // base value.
+  V8_INLINE HeapObject target_object_no_host(PtrComprCageBase cage_base);
   V8_INLINE Handle<HeapObject> target_object_handle(Assembler* origin);
 
   V8_INLINE void set_target_object(

@@ -7,6 +7,8 @@
 
 #include <stdio.h>
 
+#include <iosfwd>
+
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-maybe.h"         // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
@@ -58,9 +60,7 @@ class ScriptOriginOptions {
  */
 class V8_EXPORT ScriptOrigin {
  public:
-  #if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
   V8_DEPRECATE_SOON("Use constructor with primitive C++ types")
-  #endif
   ScriptOrigin(
       Local<Value> resource_name, Local<Integer> resource_line_offset,
       Local<Integer> resource_column_offset,
@@ -71,9 +71,7 @@ class V8_EXPORT ScriptOrigin {
       Local<Boolean> is_wasm = Local<Boolean>(),
       Local<Boolean> is_module = Local<Boolean>(),
       Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
-  #if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
   V8_DEPRECATE_SOON("Use constructor that takes an isolate")
-  #endif
   explicit ScriptOrigin(
       Local<Value> resource_name, int resource_line_offset = 0,
       int resource_column_offset = 0,
@@ -210,8 +208,9 @@ class V8_EXPORT Message {
   bool IsSharedCrossOrigin() const;
   bool IsOpaque() const;
 
-  // TODO(1245381): Print to a string instead of on a FILE.
+  V8_DEPRECATE_SOON("Use the version that takes a std::ostream&.")
   static void PrintCurrentStackTrace(Isolate* isolate, FILE* out);
+  static void PrintCurrentStackTrace(Isolate* isolate, std::ostream& out);
 
   static const int kNoLineNumberInfo = 0;
   static const int kNoColumnInfo = 0;

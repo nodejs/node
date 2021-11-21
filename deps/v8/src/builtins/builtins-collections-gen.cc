@@ -151,7 +151,7 @@ void BaseCollectionsAssembler::AddConstructorEntry(
     Label* if_may_have_side_effects, Label* if_exception,
     TVariable<Object>* var_exception) {
   compiler::ScopedExceptionHandler handler(this, if_exception, var_exception);
-  CSA_ASSERT(this, Word32BinaryNot(IsTheHole(key_value)));
+  CSA_DCHECK(this, Word32BinaryNot(IsTheHole(key_value)));
   if (variant == kMap || variant == kWeakMap) {
     TorqueStructKeyValuePair pair =
         if_may_have_side_effects != nullptr
@@ -191,7 +191,7 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     TNode<JSArray> initial_entries_jsarray =
         UncheckedCast<JSArray>(initial_entries);
 #if DEBUG
-    CSA_ASSERT(this, IsFastJSArrayWithNoCustomIteration(
+    CSA_DCHECK(this, IsFastJSArrayWithNoCustomIteration(
                          context, initial_entries_jsarray));
     TNode<Map> original_initial_entries_map = LoadMap(initial_entries_jsarray);
 #endif
@@ -215,7 +215,7 @@ void BaseCollectionsAssembler::AddConstructorEntries(
         Unreachable();
         BIND(&if_not_modified);
       }
-      CSA_ASSERT(this, TaggedEqual(original_initial_entries_map,
+      CSA_DCHECK(this, TaggedEqual(original_initial_entries_map,
                                    LoadMap(initial_entries_jsarray)));
 #endif
       use_fast_loop = Int32FalseConstant();
@@ -238,13 +238,13 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
   TNode<FixedArrayBase> elements = LoadElements(fast_jsarray);
   TNode<Int32T> elements_kind = LoadElementsKind(fast_jsarray);
   TNode<JSFunction> add_func = GetInitialAddFunction(variant, native_context);
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              TaggedEqual(GetAddFunction(variant, native_context, collection),
                          add_func));
-  CSA_ASSERT(this, IsFastJSArrayWithNoCustomIteration(context, fast_jsarray));
+  CSA_DCHECK(this, IsFastJSArrayWithNoCustomIteration(context, fast_jsarray));
   TNode<IntPtrT> length = SmiUntag(LoadFastJSArrayLength(fast_jsarray));
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(length, IntPtrConstant(0)));
-  CSA_ASSERT(
+  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(length, IntPtrConstant(0)));
+  CSA_DCHECK(
       this, HasInitialCollectionPrototype(variant, native_context, collection));
 
 #if DEBUG
@@ -277,7 +277,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
     // A Map constructor requires entries to be arrays (ex. [key, value]),
     // so a FixedDoubleArray can never succeed.
     if (variant == kMap || variant == kWeakMap) {
-      CSA_ASSERT(this, IntPtrGreaterThan(length, IntPtrConstant(0)));
+      CSA_DCHECK(this, IntPtrGreaterThan(length, IntPtrConstant(0)));
       TNode<Object> element =
           LoadAndNormalizeFixedDoubleArrayElement(elements, IntPtrConstant(0));
       ThrowTypeError(context, MessageTemplate::kIteratorValueNotAnObject,
@@ -296,9 +296,9 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
   }
   BIND(&exit);
 #if DEBUG
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              TaggedEqual(original_collection_map, LoadMap(CAST(collection))));
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              TaggedEqual(original_fast_js_array_map, LoadMap(fast_jsarray)));
 #endif
 }
@@ -307,14 +307,14 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
     Variant variant, TNode<Context> context, TNode<Context> native_context,
     TNode<Object> collection, TNode<Object> iterable) {
   Label exit(this), loop(this), if_exception(this, Label::kDeferred);
-  CSA_ASSERT(this, Word32BinaryNot(IsNullOrUndefined(iterable)));
+  CSA_DCHECK(this, Word32BinaryNot(IsNullOrUndefined(iterable)));
 
   TNode<Object> add_func = GetAddFunction(variant, context, collection);
   IteratorBuiltinsAssembler iterator_assembler(this->state());
   TorqueStructIteratorRecord iterator =
       iterator_assembler.GetIterator(context, iterable);
 
-  CSA_ASSERT(this, Word32BinaryNot(IsUndefined(iterator.object)));
+  CSA_DCHECK(this, Word32BinaryNot(IsUndefined(iterator.object)));
 
   TNode<Map> fast_iterator_result_map = CAST(
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
@@ -402,7 +402,7 @@ TNode<JSObject> BaseCollectionsAssembler::AllocateJSCollection(
 
 TNode<JSObject> BaseCollectionsAssembler::AllocateJSCollectionFast(
     TNode<JSFunction> constructor) {
-  CSA_ASSERT(this, IsConstructorMap(LoadMap(constructor)));
+  CSA_DCHECK(this, IsConstructorMap(LoadMap(constructor)));
   TNode<Map> initial_map =
       CAST(LoadJSFunctionPrototypeOrInitialMap(constructor));
   return AllocateJSObjectFromMap(initial_map);
@@ -779,7 +779,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
            not_found);
 
     // Make sure the entry index is within range.
-    CSA_ASSERT(
+    CSA_DCHECK(
         this,
         UintPtrLessThan(
             var_entry.value(),
@@ -1081,7 +1081,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
   TNode<IntPtrT> index;
   std::tie(table, index) =
       TransitionAndUpdate<JSMapIterator, OrderedHashMap>(iterator);
-  CSA_ASSERT(this, IntPtrEqual(index, IntPtrConstant(0)));
+  CSA_DCHECK(this, IntPtrEqual(index, IntPtrConstant(0)));
 
   TNode<IntPtrT> size =
       LoadAndUntagObjectField(table, OrderedHashMap::NumberOfElementsOffset());
@@ -1089,8 +1089,9 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
   const ElementsKind kind = PACKED_ELEMENTS;
   TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
-  TNode<JSArray> array = AllocateJSArray(kind, array_map, size, SmiTag(size),
-                                         kAllowLargeObjectAllocation);
+  TNode<JSArray> array =
+      AllocateJSArray(kind, array_map, size, SmiTag(size),
+                      AllocationFlag::kAllowLargeObjectAllocation);
   TNode<FixedArray> elements = CAST(LoadElements(array));
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
@@ -1128,7 +1129,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
 
     BIND(&write_value);
     {
-      CSA_ASSERT(this, InstanceTypeEqual(LoadInstanceType(iterator),
+      CSA_DCHECK(this, InstanceTypeEqual(LoadInstanceType(iterator),
                                          JS_MAP_VALUE_ITERATOR_TYPE));
       TNode<Object> entry_value =
           UnsafeLoadFixedArrayElement(table, entry_start_position,
@@ -1187,7 +1188,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
     TNode<IntPtrT> iter_index;
     std::tie(iter_table, iter_index) =
         TransitionAndUpdate<JSSetIterator, OrderedHashSet>(CAST(iterable));
-    CSA_ASSERT(this, IntPtrEqual(iter_index, IntPtrConstant(0)));
+    CSA_DCHECK(this, IntPtrEqual(iter_index, IntPtrConstant(0)));
     var_table = iter_table;
     Goto(&copy);
   }
@@ -1200,8 +1201,9 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
   const ElementsKind kind = PACKED_ELEMENTS;
   TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
-  TNode<JSArray> array = AllocateJSArray(kind, array_map, size, SmiTag(size),
-                                         kAllowLargeObjectAllocation);
+  TNode<JSArray> array =
+      AllocateJSArray(kind, array_map, size, SmiTag(size),
+                      AllocationFlag::kAllowLargeObjectAllocation);
   TNode<FixedArray> elements = CAST(LoadElements(array));
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
@@ -1272,7 +1274,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForSmiKey(
   const TNode<IntPtrT> key_untagged = SmiUntag(smi_key);
   const TNode<IntPtrT> hash =
       ChangeInt32ToIntPtr(ComputeUnseededHash(key_untagged));
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
+  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
   *result = hash;
   FindOrderedHashTableEntry<CollectionType>(
       table, hash,
@@ -1287,7 +1289,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForStringKey(
     TNode<CollectionType> table, TNode<String> key_tagged,
     TVariable<IntPtrT>* result, Label* entry_found, Label* not_found) {
   const TNode<IntPtrT> hash = ComputeStringHash(key_tagged);
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
+  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
   *result = hash;
   FindOrderedHashTableEntry<CollectionType>(
       table, hash,
@@ -1302,7 +1304,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForHeapNumberKey(
     TNode<CollectionType> table, TNode<HeapNumber> key_heap_number,
     TVariable<IntPtrT>* result, Label* entry_found, Label* not_found) {
   const TNode<IntPtrT> hash = CallGetHashRaw(key_heap_number);
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
+  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
   *result = hash;
   const TNode<Float64T> key_float = LoadHeapNumberValue(key_heap_number);
   FindOrderedHashTableEntry<CollectionType>(
@@ -1318,7 +1320,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForBigIntKey(
     TNode<CollectionType> table, TNode<BigInt> key_big_int,
     TVariable<IntPtrT>* result, Label* entry_found, Label* not_found) {
   const TNode<IntPtrT> hash = CallGetHashRaw(key_big_int);
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
+  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
   *result = hash;
   FindOrderedHashTableEntry<CollectionType>(
       table, hash,
@@ -1333,7 +1335,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForOtherKey(
     TNode<CollectionType> table, TNode<HeapObject> key_heap_object,
     TVariable<IntPtrT>* result, Label* entry_found, Label* not_found) {
   const TNode<IntPtrT> hash = GetHash(key_heap_object);
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
+  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
   *result = hash;
   FindOrderedHashTableEntry<CollectionType>(
       table, hash,
@@ -1481,17 +1483,17 @@ CollectionsBuiltinsAssembler::Transition(
     Goto(&loop);
     BIND(&loop);
     {
-      TNode<TableType> table = var_table.value();
-      TNode<IntPtrT> index = var_index.value();
+      TNode<TableType> current_table = var_table.value();
+      TNode<IntPtrT> current_index = var_index.value();
 
       TNode<Object> next_table =
-          LoadObjectField(table, TableType::NextTableOffset());
+          LoadObjectField(current_table, TableType::NextTableOffset());
       GotoIf(TaggedIsSmi(next_table), &done_loop);
 
       var_table = CAST(next_table);
-      var_index = SmiUntag(
-          CAST(CallBuiltin(Builtin::kOrderedHashTableHealIndex,
-                           NoContextConstant(), table, SmiTag(index))));
+      var_index = SmiUntag(CAST(CallBuiltin(Builtin::kOrderedHashTableHealIndex,
+                                            NoContextConstant(), current_table,
+                                            SmiTag(current_index))));
       Goto(&loop);
     }
     BIND(&done_loop);
@@ -2496,14 +2498,14 @@ void WeakCollectionsBuiltinsAssembler::AddEntry(
 TNode<HeapObject> WeakCollectionsBuiltinsAssembler::AllocateTable(
     Variant variant, TNode<IntPtrT> at_least_space_for) {
   // See HashTable::New().
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              IntPtrLessThanOrEqual(IntPtrConstant(0), at_least_space_for));
   TNode<IntPtrT> capacity = HashTableComputeCapacity(at_least_space_for);
 
   // See HashTable::NewInternal().
   TNode<IntPtrT> length = KeyIndexFromEntry(capacity);
-  TNode<FixedArray> table = CAST(
-      AllocateFixedArray(HOLEY_ELEMENTS, length, kAllowLargeObjectAllocation));
+  TNode<FixedArray> table = CAST(AllocateFixedArray(
+      HOLEY_ELEMENTS, length, AllocationFlag::kAllowLargeObjectAllocation));
 
   TNode<Map> map =
       HeapConstant(EphemeronHashTable::GetMap(ReadOnlyRoots(isolate())));
@@ -2814,7 +2816,7 @@ TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
   auto key = Parameter<JSReceiver>(Descriptor::kKey);
   auto value = Parameter<Object>(Descriptor::kValue);
 
-  CSA_ASSERT(this, IsJSReceiver(key));
+  CSA_DCHECK(this, IsJSReceiver(key));
 
   Label call_runtime(this), if_no_hash(this), if_not_found(this);
 

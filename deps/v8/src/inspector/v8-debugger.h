@@ -161,7 +161,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
                                                v8::Local<v8::Value> value);
 
   void asyncTaskScheduledForStack(const String16& taskName, void* task,
-                                  bool recurring);
+                                  bool recurring, bool skipTopFrame = false);
   void asyncTaskCanceledForStack(void* task);
   void asyncTaskStartedForStack(void* task);
   void asyncTaskFinishedForStack(void* task);

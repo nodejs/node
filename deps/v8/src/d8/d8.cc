@@ -52,7 +52,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
 #include "src/logging/log-utils.h"
-#include "src/objects/managed.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
@@ -170,11 +170,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
   void* AllocateVM(size_t length) {
     DCHECK_LE(kVMThreshold, length);
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-    v8::PageAllocator* page_allocator = i::GetPlatformDataCagePageAllocator();
-#else
-    v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
-#endif
+    v8::PageAllocator* page_allocator = i::GetArrayBufferPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     return i::AllocatePages(page_allocator, nullptr, allocated, page_size,
@@ -182,11 +178,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   }
 
   void FreeVM(void* data, size_t length) {
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-    v8::PageAllocator* page_allocator = i::GetPlatformDataCagePageAllocator();
-#else
-    v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
-#endif
+    v8::PageAllocator* page_allocator = i::GetArrayBufferPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     CHECK(i::FreePages(page_allocator, data, allocated));
@@ -714,7 +706,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     ScriptOrigin origin(isolate, name);
 
     for (int i = 1; i < options.repeat_compile; ++i) {
-      HandleScope handle_scope(isolate);
+      HandleScope handle_scope_for_compiling(isolate);
       if (CompileString<Script>(isolate, context, source, origin).IsEmpty()) {
         return false;
       }
@@ -3260,10 +3252,10 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
         int end_line = end.GetLineNumber();
         uint32_t count = function_data.Count();
 
-        Local<String> name;
+        Local<String> function_name;
         std::stringstream name_stream;
-        if (function_data.Name().ToLocal(&name)) {
-          name_stream << ToSTLString(isolate, name);
+        if (function_data.Name().ToLocal(&function_name)) {
+          name_stream << ToSTLString(isolate, function_name);
         } else {
           name_stream << "<" << start_line + 1 << "-";
           name_stream << start.GetColumnNumber() << ">";
@@ -3283,8 +3275,8 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
       }
     }
     // Write per-line coverage. LCOV uses 1-based line numbers.
-    for (size_t i = 0; i < lines.size(); i++) {
-      sink << "DA:" << (i + 1) << "," << lines[i] << std::endl;
+    for (size_t j = 0; j < lines.size(); j++) {
+      sink << "DA:" << (j + 1) << "," << lines[j] << std::endl;
     }
     sink << "end_of_record" << std::endl;
   }
@@ -5202,15 +5194,15 @@ int Shell::Main(int argc, char* argv[]) {
                  ShellOptions::CodeCacheOptions::kNoProduceCache) {
         printf("============ Run: Produce code cache ============\n");
         // First run to produce the cache
-        Isolate::CreateParams create_params;
-        create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+        Isolate::CreateParams create_params2;
+        create_params2.array_buffer_allocator = Shell::array_buffer_allocator;
         i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
-        Isolate* isolate2 = Isolate::New(create_params);
+        Isolate* isolate2 = Isolate::New(create_params2);
         i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
         {
-          D8Console console(isolate2);
-          Initialize(isolate2, &console);
-          PerIsolateData data(isolate2);
+          D8Console console2(isolate2);
+          Initialize(isolate2, &console2);
+          PerIsolateData data2(isolate2);
           Isolate::Scope isolate_scope(isolate2);
 
           result = RunMain(isolate2, false);

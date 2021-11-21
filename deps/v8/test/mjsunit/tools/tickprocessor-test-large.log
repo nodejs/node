@@ -171,7 +171,7 @@ code-creation,Builtin,2,5847,0x557426348760,1112,DeleteProperty
 code-creation,Builtin,2,5859,0x557426348bc0,1972,CopyDataProperties
 code-creation,Builtin,2,5871,0x557426349380,10024,SetDataProperties
 code-creation,Builtin,2,5883,0x55742634bac0,28,Abort
-code-creation,Builtin,2,5895,0x55742634bae0,28,AbortCSAAssert
+code-creation,Builtin,2,5895,0x55742634bae0,28,AbortCSADcheck
 code-creation,Builtin,2,5907,0x55742634bb00,12,EmptyFunction
 code-creation,Builtin,2,5922,0x55742634bb20,12,Illegal
 code-creation,Builtin,2,5934,0x55742634bb40,12,StrictPoisonPillThrower

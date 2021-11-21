@@ -77,9 +77,9 @@ let kLocalNamesCode = 2;
 let kWasmFunctionTypeForm = 0x60;
 let kWasmStructTypeForm = 0x5f;
 let kWasmArrayTypeForm = 0x5e;
-let kWasmFunctionExtendingTypeForm = 0x5d;
-let kWasmStructExtendingTypeForm = 0x5c;
-let kWasmArrayExtendingTypeForm = 0x5b;
+let kWasmFunctionSubtypeForm = 0x5d;
+let kWasmStructSubtypeForm = 0x5c;
+let kWasmArraySubtypeForm = 0x5b;
 
 let kLimitsNoMaximum = 0x00;
 let kLimitsWithMaximum = 0x01;
@@ -469,13 +469,15 @@ for (let prefix in kPrefixOpcodes) {
 
 // GC opcodes
 let kExprStructNewWithRtt = 0x01;
-let kExprStructNewDefault = 0x02;
+let kExprStructNewDefaultWithRtt = 0x02;
 let kExprStructGet = 0x03;
 let kExprStructGetS = 0x04;
 let kExprStructGetU = 0x05;
 let kExprStructSet = 0x06;
+let kExprStructNew = 0x07;
+let kExprStructNewDefault = 0x08;
 let kExprArrayNewWithRtt = 0x11;
-let kExprArrayNewDefault = 0x12;
+let kExprArrayNewDefaultWithRtt = 0x12;
 let kExprArrayGet = 0x13;
 let kExprArrayGetS = 0x14;
 let kExprArrayGetU = 0x15;
@@ -483,6 +485,9 @@ let kExprArraySet = 0x16;
 let kExprArrayLen = 0x17;
 let kExprArrayCopy = 0x18;
 let kExprArrayInit = 0x19;
+let kExprArrayInitStatic = 0x1a;
+let kExprArrayNew = 0x1b;
+let kExprArrayNewDefault = 0x1c;
 let kExprI31New = 0x20;
 let kExprI31GetS = 0x21;
 let kExprI31GetU = 0x22;
@@ -493,6 +498,10 @@ let kExprRefTest = 0x40;
 let kExprRefCast = 0x41;
 let kExprBrOnCast = 0x42;
 let kExprBrOnCastFail = 0x43;
+let kExprRefTestStatic = 0x44;
+let kExprRefCastStatic = 0x45;
+let kExprBrOnCastStatic = 0x46;
+let kExprBrOnCastStaticFail = 0x47;
 let kExprRefIsFunc = 0x50;
 let kExprRefIsData = 0x51;
 let kExprRefIsI31 = 0x52;
@@ -974,7 +983,6 @@ class Binary {
     }
   }
 
-
   emit_init_expr_recursive(expr) {
     switch (expr.kind) {
       case kExprGlobalGet:
@@ -1004,20 +1012,24 @@ class Binary {
         this.emit_u8(kExprRefNull);
         this.emit_heap_type(expr.value);
         break;
+      case kExprStructNew:
       case kExprStructNewWithRtt:
+      case kExprStructNewDefault:
+      case kExprStructNewDefaultWithRtt:
         for (let operand of expr.operands) {
           this.emit_init_expr_recursive(operand);
         }
         this.emit_u8(kGCPrefix);
-        this.emit_u8(kExprStructNewWithRtt);
+        this.emit_u8(expr.kind);
         this.emit_u32v(expr.value);
         break;
       case kExprArrayInit:
+      case kExprArrayInitStatic:
         for (let operand of expr.operands) {
           this.emit_init_expr_recursive(operand);
         }
         this.emit_u8(kGCPrefix);
-        this.emit_u8(kExprArrayInit);
+        this.emit_u8(expr.kind);
         this.emit_u32v(expr.value);
         this.emit_u32v(expr.operands.length - 1);
         break;
@@ -1170,8 +1182,20 @@ class WasmInitExpr {
   static StructNewWithRtt(type, args) {
     return {kind: kExprStructNewWithRtt, value: type, operands: args};
   }
+  static StructNew(type, args) {
+    return {kind: kExprStructNew, value: type, operands: args};
+  }
+  static StructNewDefaultWithRtt(type, rtt) {
+    return {kind: kExprStructNewDefaultWithRtt, value: type, operands: [rtt]};
+  }
+  static StructNewDefault(type) {
+    return {kind: kExprStructNewDefault, value: type, operands: []};
+  }
   static ArrayInit(type, args) {
     return {kind: kExprArrayInit, value: type, operands: args};
+  }
+  static ArrayInitStatic(type, args) {
+    return {kind: kExprArrayInitStatic, value: type, operands: args};
   }
   static RttCanon(type) {
     return {kind: kExprRttCanon, value: type};
@@ -1256,11 +1280,11 @@ class WasmStruct {
   }
 }
 
-class WasmStructExtending extends WasmStruct {
+class WasmStructSubtype extends WasmStruct {
   constructor(fields, supertype_idx) {
     super(fields);
     this.supertype = supertype_idx;
-    this.type_form = kWasmStructExtendingTypeForm;
+    this.type_form = kWasmStructSubtypeForm;
   }
 }
 
@@ -1273,11 +1297,11 @@ class WasmArray {
   }
 }
 
-class WasmArrayExtending extends WasmArray {
+class WasmArraySubtype extends WasmArray {
   constructor(type, mutability, supertype_idx) {
     super(type, mutability);
     this.supertype = supertype_idx;
-    this.type_form = kWasmArrayExtendingTypeForm;
+    this.type_form = kWasmArraySubtypeForm;
   }
 }
 class WasmElemSegment {
@@ -1402,8 +1426,9 @@ class WasmModuleBuilder {
     return this.types.length - 1;
   }
 
-  addStructExtending(fields, supertype_idx) {
-    this.types.push(new WasmStructExtending(fields, supertype_idx));
+  kGenericSuperType = 0xFFFFFFFE;
+  addStructSubtype(fields, supertype_idx = this.kGenericSuperType) {
+    this.types.push(new WasmStructSubtype(fields, supertype_idx));
     return this.types.length - 1;
   }
 
@@ -1412,8 +1437,8 @@ class WasmModuleBuilder {
     return this.types.length - 1;
   }
 
-  addArrayExtending(type, mutability, supertype_idx) {
-    this.types.push(new WasmArrayExtending(type, mutability, supertype_idx));
+  addArraySubtype(type, mutability, supertype_idx = this.kGenericSuperType) {
+    this.types.push(new WasmArraySubtype(type, mutability, supertype_idx));
     return this.types.length - 1;
   }
 
@@ -1651,15 +1676,23 @@ class WasmModuleBuilder {
               section.emit_type(field.type);
               section.emit_u8(field.mutability ? 1 : 0);
             }
-            if (type instanceof WasmStructExtending) {
-              section.emit_u32v(type.supertype);
+            if (type instanceof WasmStructSubtype) {
+              if (type.supertype === this.kGenericSuperType) {
+                section.emit_u8(kDataRefCode);
+              } else {
+                section.emit_heap_type(type.supertype);
+              }
             }
           } else if (type instanceof WasmArray) {
             section.emit_u8(type.type_form);
             section.emit_type(type.type);
             section.emit_u8(type.mutability ? 1 : 0);
-            if (type instanceof WasmArrayExtending) {
-              section.emit_u32v(type.supertype);
+            if (type instanceof WasmArraySubtype) {
+              if (type.supertype === this.kGenericSuperType) {
+                section.emit_u8(kDataRefCode);
+              } else {
+                section.emit_heap_type(type.supertype);
+              }
             }
           } else {
             section.emit_u8(kWasmFunctionTypeForm);

@@ -172,7 +172,7 @@ KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
   if (handler->IsSmi()) {
     int const raw_handler = handler.ToSmi().value();
     Kind const kind = KindBits::decode(raw_handler);
-    if ((kind == kElement || kind == kIndexedString) &&
+    if ((kind == Kind::kElement || kind == Kind::kIndexedString) &&
         AllowOutOfBoundsBits::decode(raw_handler)) {
       return LOAD_IGNORE_OUT_OF_BOUNDS;
     }
@@ -191,7 +191,7 @@ KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
     // KeyedAccessStoreMode, compute it using KeyedAccessStoreModeForBuiltin
     // method. Hence if any other Handler get to this path, just return
     // STANDARD_STORE.
-    if (kind != kSlow) {
+    if (kind != Kind::kSlow) {
       return STANDARD_STORE;
     }
     KeyedAccessStoreMode store_mode =
@@ -251,8 +251,8 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
     DCHECK(!transition_map->IsJSGlobalObjectMap());
     Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(0);
     // Store normal with enabled lookup on receiver.
-    int config =
-        KindBits::encode(kNormal) | LookupOnLookupStartObjectBits::encode(true);
+    int config = KindBits::encode(Kind::kNormal) |
+                 LookupOnLookupStartObjectBits::encode(true);
     handler->set_smi_handler(Smi::FromInt(config));
     handler->set_validity_cell(*validity_cell);
     return MaybeObjectHandle(handler);

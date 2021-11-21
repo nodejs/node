@@ -818,10 +818,10 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
   //   );
   // }
   //
-  // If the field has an unknown offset, and the previous field is named p, and
-  // an item in the previous field has size 4:
+  // If the field has an unknown offset, and the previous field is named p, is
+  // not const, and is of type PType with size 4:
   // FieldSliceClassNameFieldName(o: ClassName) {
-  //   const previous = %FieldSlice<ClassName>(o, "p");
+  //   const previous = %FieldSlice<ClassName, MutableSlice<PType>>(o, "p");
   //   return torque_internal::unsafe::New{Const,Mutable}Slice<FieldType>(
   //     /*object:*/ o,
   //     /*offset:*/ previous.offset + 4 * previous.length,
@@ -853,14 +853,21 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
     const Field* previous = GetFieldPreceding(field_index);
     DCHECK_NOT_NULL(previous);
 
-    // %FieldSlice<ClassName>(o, "p")
+    const Type* previous_slice_type =
+        previous->const_qualified
+            ? TypeOracle::GetConstSliceType(previous->name_and_type.type)
+            : TypeOracle::GetMutableSliceType(previous->name_and_type.type);
+
+    // %FieldSlice<ClassName, MutableSlice<PType>>(o, "p")
     Expression* previous_expression = MakeCallExpression(
-        MakeIdentifierExpression({"torque_internal"}, "%FieldSlice",
-                                 {MakeNode<PrecomputedTypeExpression>(this)}),
+        MakeIdentifierExpression(
+            {"torque_internal"}, "%FieldSlice",
+            {MakeNode<PrecomputedTypeExpression>(this),
+             MakeNode<PrecomputedTypeExpression>(previous_slice_type)}),
         {parameter, MakeNode<StringLiteralExpression>(
                         StringLiteralQuote(previous->name_and_type.name))});
 
-    // const previous = %FieldSlice<ClassName>(o, "p");
+    // const previous = %FieldSlice<ClassName, MutableSlice<PType>>(o, "p");
     Statement* define_previous =
         MakeConstDeclarationStatement("previous", previous_expression);
     statements.push_back(define_previous);

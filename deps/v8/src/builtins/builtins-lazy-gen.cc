@@ -136,7 +136,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
          &maybe_use_sfi_code);
 
   // If it isn't undefined or fixed array it must be a feedback vector.
-  CSA_ASSERT(this, IsFeedbackVector(feedback_cell_value));
+  CSA_DCHECK(this, IsFeedbackVector(feedback_cell_value));
 
   // Is there an optimization marker or optimized code in the feedback vector?
   MaybeTailCallOptimizedCodeSlot(function, CAST(feedback_cell_value));
@@ -146,7 +146,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // optimized Code object (we'd have tail-called it above). A usual case would
   // be the InterpreterEntryTrampoline to start executing existing bytecode.
   BIND(&maybe_use_sfi_code);
-  CSA_ASSERT(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
+  CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
                                                 isolate(), CompileLazy))));
   StoreObjectField(function, JSFunction::kCodeOffset, ToCodeT(sfi_code));
 

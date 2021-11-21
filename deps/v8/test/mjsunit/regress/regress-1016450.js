@@ -26,4 +26,6 @@ assertEquals(17n, f(2n));
 assertEquals(16n, f(1n));
 assertOptimized(f);
 assertEquals(15n, f(0));
-assertUnoptimized(f);
+if (%Is64Bit()) {
+  assertUnoptimized(f);
+}

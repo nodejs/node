@@ -325,16 +325,19 @@ class WasmGraphBuilder {
   Node* CallIndirect(uint32_t table_index, uint32_t sig_index,
                      base::Vector<Node*> args, base::Vector<Node*> rets,
                      wasm::WasmCodePosition position);
-  Node* CallRef(uint32_t sig_index, base::Vector<Node*> args,
+  Node* CallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                 base::Vector<Node*> rets, CheckForNull null_check,
                 wasm::WasmCodePosition position);
+  void CompareToExternalFunctionAtIndex(Node* func_ref, uint32_t function_index,
+                                        Node** success_control,
+                                        Node** failure_control);
 
   Node* ReturnCall(uint32_t index, base::Vector<Node*> args,
                    wasm::WasmCodePosition position);
   Node* ReturnCallIndirect(uint32_t table_index, uint32_t sig_index,
                            base::Vector<Node*> args,
                            wasm::WasmCodePosition position);
-  Node* ReturnCallRef(uint32_t sig_index, base::Vector<Node*> args,
+  Node* ReturnCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                       CheckForNull null_check, wasm::WasmCodePosition position);
 
   void BrOnNull(Node* ref_object, Node** non_null_node, Node** null_node);
@@ -474,6 +477,8 @@ class WasmGraphBuilder {
   void ArrayCopy(Node* dst_array, Node* dst_index, CheckForNull dst_null_check,
                  Node* src_array, Node* src_index, CheckForNull src_null_check,
                  Node* length, wasm::WasmCodePosition position);
+  Node* ArrayInit(uint32_t array_index, const wasm::ArrayType* type, Node* rtt,
+                  base::Vector<Node*> elements);
   Node* I31New(Node* input);
   Node* I31GetS(Node* input);
   Node* I31GetU(Node* input);
@@ -586,7 +591,7 @@ class WasmGraphBuilder {
                         base::Vector<Node*> rets,
                         wasm::WasmCodePosition position, Node* func_index,
                         IsReturnCall continuation);
-  Node* BuildCallRef(uint32_t sig_index, base::Vector<Node*> args,
+  Node* BuildCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                      base::Vector<Node*> rets, CheckForNull null_check,
                      IsReturnCall continuation,
                      wasm::WasmCodePosition position);

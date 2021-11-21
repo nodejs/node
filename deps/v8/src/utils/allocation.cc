@@ -63,21 +63,12 @@ class PageAllocatorInitializer {
 
   PageAllocator* page_allocator() const { return page_allocator_; }
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  PageAllocator* data_cage_page_allocator() const {
-    return data_cage_page_allocator_;
-  }
-#endif
-
   void SetPageAllocatorForTesting(PageAllocator* allocator) {
     page_allocator_ = allocator;
   }
 
  private:
   PageAllocator* page_allocator_;
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  PageAllocator* data_cage_page_allocator_;
-#endif
 };
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(PageAllocatorInitializer,
@@ -95,16 +86,14 @@ v8::PageAllocator* GetPlatformPageAllocator() {
 }
 
 #ifdef V8_VIRTUAL_MEMORY_CAGE
-// TODO(chromium:1218005) once we disallow disabling the cage, name this e.g.
-// "GetPlatformDataPageAllocator", and set it to the PlatformPageAllocator when
-// V8_VIRTUAL_MEMORY_CAGE is not defined. Then use that allocator whenever
-// allocating ArrayBuffer backing stores inside v8.
-v8::PageAllocator* GetPlatformDataCagePageAllocator() {
+v8::PageAllocator* GetVirtualMemoryCagePageAllocator() {
+  // TODO(chromium:1218005) remove this code once the cage is no longer
+  // optional.
   if (GetProcessWideVirtualMemoryCage()->is_disabled()) {
     return GetPlatformPageAllocator();
   } else {
     CHECK(GetProcessWideVirtualMemoryCage()->is_initialized());
-    return GetProcessWideVirtualMemoryCage()->GetDataCagePageAllocator();
+    return GetProcessWideVirtualMemoryCage()->page_allocator();
   }
 }
 #endif
@@ -372,7 +361,6 @@ bool VirtualMemoryCage::InitReservation(
         VirtualMemory(params.page_allocator, existing_reservation.begin(),
                       existing_reservation.size());
     base_ = reservation_.address() + params.base_bias_size;
-    reservation_is_owned_ = false;
   } else if (params.base_alignment == ReservationParams::kAnyBaseAlignment) {
     // When the base doesn't need to be aligned, the virtual memory reservation
     // fails only due to OOM.
@@ -454,7 +442,8 @@ bool VirtualMemoryCage::InitReservation(
                 params.page_size);
   page_allocator_ = std::make_unique<base::BoundedPageAllocator>(
       params.page_allocator, allocatable_base, allocatable_size,
-      params.page_size);
+      params.page_size,
+      base::PageInitializationMode::kAllocatedPagesCanBeUninitialized);
   return true;
 }
 
@@ -462,13 +451,7 @@ void VirtualMemoryCage::Free() {
   if (IsReserved()) {
     base_ = kNullAddress;
     page_allocator_.reset();
-    if (reservation_is_owned_) {
-      reservation_.Free();
-    } else {
-      // Reservation is owned by the Platform.
-      DCHECK(V8_VIRTUAL_MEMORY_CAGE_BOOL);
-      reservation_.Reset();
-    }
+    reservation_.Free();
   }
 }
 

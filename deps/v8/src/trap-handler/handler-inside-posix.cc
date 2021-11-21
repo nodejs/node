@@ -88,7 +88,7 @@ class UnmaskOobSignalScope {
 
 #ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
 // This is the address where we continue on a failed "ProbeMemory". It's defined
-// in "handler-outside-simulators.cc".
+// in "handler-outside-simulator.cc".
 extern "C" char v8_probe_memory_continuation[];
 #endif  // V8_TRAP_HANDLER_VIA_SIMULATOR
 

@@ -257,14 +257,14 @@ void GCTracer::Start(GarbageCollector collector,
   previous_ = current_;
 
   switch (collector) {
-    case SCAVENGER:
+    case GarbageCollector::SCAVENGER:
       current_ = Event(Event::SCAVENGER, gc_reason, collector_reason);
       break;
-    case MINOR_MARK_COMPACTOR:
+    case GarbageCollector::MINOR_MARK_COMPACTOR:
       current_ =
           Event(Event::MINOR_MARK_COMPACTOR, gc_reason, collector_reason);
       break;
-    case MARK_COMPACTOR:
+    case GarbageCollector::MARK_COMPACTOR:
       if (heap_->incremental_marking()->WasActivated()) {
         current_ = Event(Event::INCREMENTAL_MARK_COMPACTOR, gc_reason,
                          collector_reason);
@@ -344,10 +344,11 @@ void GCTracer::Stop(GarbageCollector collector) {
   }
 
   DCHECK_LE(0, start_counter_);
-  DCHECK((collector == SCAVENGER && current_.type == Event::SCAVENGER) ||
-         (collector == MINOR_MARK_COMPACTOR &&
+  DCHECK((collector == GarbageCollector::SCAVENGER &&
+          current_.type == Event::SCAVENGER) ||
+         (collector == GarbageCollector::MINOR_MARK_COMPACTOR &&
           current_.type == Event::MINOR_MARK_COMPACTOR) ||
-         (collector == MARK_COMPACTOR &&
+         (collector == GarbageCollector::MARK_COMPACTOR &&
           (current_.type == Event::MARK_COMPACTOR ||
            current_.type == Event::INCREMENTAL_MARK_COMPACTOR)));
 

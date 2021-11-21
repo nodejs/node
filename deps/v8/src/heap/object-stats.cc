@@ -145,7 +145,7 @@ FieldStatsCollector::GetInobjectFieldStats(Map map) {
     DescriptorArray descriptors = map.instance_descriptors();
     for (InternalIndex descriptor : map.IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(descriptor);
-      if (details.location() == kField) {
+      if (details.location() == PropertyLocation::kField) {
         FieldIndex index = FieldIndex::ForDescriptor(map, descriptor);
         // Stop on first out-of-object field.
         if (!index.is_inobject()) break;

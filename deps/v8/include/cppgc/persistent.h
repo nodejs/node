@@ -45,7 +45,7 @@ class PersistentBase {
   mutable const void* raw_ = nullptr;
   mutable PersistentNode* node_ = nullptr;
 
-  friend class PersistentRegion;
+  friend class PersistentRegionBase;
 };
 
 // The basic class from which all Persistent classes are generated.

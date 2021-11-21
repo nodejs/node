@@ -47,7 +47,7 @@ transitioning javascript builtin ArrayBufferPrototypeGetMaxByteLength(
   // 6. Else,
   //   a. Let length be O.[[ArrayBufferByteLength]].
   // 7. Return F(length);
-  assert(IsResizableArrayBuffer(o) || o.max_byte_length == o.byte_length);
+  dcheck(IsResizableArrayBuffer(o) || o.max_byte_length == o.byte_length);
   return Convert<Number>(o.max_byte_length);
 }
 
@@ -92,7 +92,7 @@ SharedArrayBufferPrototypeGetMaxByteLength(
   // 5. Else,
   //   a. Let length be O.[[ArrayBufferByteLength]].
   // 6. Return F(length);
-  assert(IsResizableArrayBuffer(o) || o.max_byte_length == o.byte_length);
+  dcheck(IsResizableArrayBuffer(o) || o.max_byte_length == o.byte_length);
   return Convert<Number>(o.max_byte_length);
 }
 

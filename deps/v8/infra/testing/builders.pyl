@@ -593,6 +593,14 @@
       {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 12},
     ],
   },
+  'v8_linux_arm64_sim_heap_sandbox_dbg_ng_triggered': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 14},
+    ],
+  },
   'v8_linux_arm64_rel_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
@@ -1889,6 +1897,19 @@
       },
     ],
   },
+  'V8 Linux64 - arm64 - sim - heap sandbox - debug': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'swarming_task_attrs': {
+      'expiration': 14400,
+      'hard_timeout': 7200,
+      'priority': 35,
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 14},
+    ],
+  },
   'V8 Linux - loong64 - sim': {
     'swarming_dimensions': {
       'os': 'Ubuntu-18.04',
@@ -2029,6 +2050,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'stack',
+        'test_args': ['--total-timeout-sec=2100', '--stress-stack-size=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=2100',
@@ -2039,6 +2065,7 @@
           '--stress-marking=4',
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
+          '--stress-stack-size=1',
         ],
         'shards': 4
       },
@@ -2078,6 +2105,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'stack',
+        'test_args': ['--total-timeout-sec=2100', '--stress-stack-size=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=2100',
@@ -2088,6 +2120,7 @@
           '--stress-marking=4',
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
+          '--stress-stack-size=1',
         ],
         'shards': 3
       },
@@ -2104,148 +2137,9 @@
       },
     ],
   },
-  'V8 NumFuzz - staging': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-18.04',
-    },
-    'swarming_task_attrs': {
-      'expiration': 13800,
-      'hard_timeout': 4200,
-      'priority': 35,
-    },
-    'tests': [
-      {
-        'name': 'numfuzz',
-        'suffix': 'deopt',
-        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-deopt=1']
-      },
-    ],
-  },
-  'V8 NumFuzz - TSAN - staging': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-18.04',
-    },
-    'swarming_task_attrs': {
-      'expiration': 13800,
-      'hard_timeout': 4200,
-      'priority': 35,
-    },
-    'tests': [
-      {'name': 'd8testing_random_gc', 'shards': 2},
-      {
-        'name': 'numfuzz',
-        'suffix': 'marking',
-        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-marking=1']
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'delay',
-        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-delay-tasks=1']
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'threads',
-        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-thread-pool-size=1']
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'stack',
-        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-stack-size=1']
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'combined',
-        'test_args': [
-          '--infra-staging',
-          '--total-timeout-sec=2100',
-          '--stress-delay-tasks=4',
-          '--stress-deopt=2',
-          '--stress-compaction=2',
-          '--stress-gc=4',
-          '--stress-marking=4',
-          '--stress-scavenge=4',
-          '--stress-thread-pool-size=2',
-          '--stress-stack-size=1',
-        ],
-        'shards': 4
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'scavenge',
-        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-scavenge=1']
-      },
-    ],
-  },
-  'V8 NumFuzz - debug - staging': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-18.04',
-    },
-    'swarming_task_attrs': {
-      'expiration': 13800,
-      'hard_timeout': 4200,
-      'priority': 35,
-    },
-    'tests': [
-      {'name': 'd8testing_random_gc'},
-      {
-        'name': 'numfuzz',
-        'suffix': 'marking',
-        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-marking=1'],
-        'shards': 2
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'delay',
-        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-delay-tasks=1']
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'threads',
-        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-thread-pool-size=1']
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'stack',
-        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-stack-size=1']
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'combined',
-        'test_args': [
-          '--infra-staging',
-          '--total-timeout-sec=2100',
-          '--stress-delay-tasks=4',
-          '--stress-deopt=2',
-          '--stress-compaction=2',
-          '--stress-gc=4',
-          '--stress-marking=4',
-          '--stress-scavenge=4',
-          '--stress-thread-pool-size=2',
-          '--stress-stack-size=1',
-        ],
-        'shards': 3
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'scavenge',
-        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-scavenge=1']
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'deopt',
-        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-deopt=1'],
-        'shards': 2
-      },
-    ],
-  },
   'v8_numfuzz_ng_triggered': {
     'swarming_dimensions': {
       'os': 'Ubuntu-18.04',
-    },
-    'swarming_task_attrs': {
-      'expiration': 13800,
-      'hard_timeout': 4200,
-      'priority': 35,
     },
     'tests': [
       {
@@ -2253,21 +2147,11 @@
         'suffix': 'deopt',
         'test_args': ['--total-timeout-sec=900', '--stress-deopt=1']
       },
-      {
-        'name': 'numfuzz',
-        'suffix': 'deopt-staging',
-        'test_args': ['--infra-staging', '--total-timeout-sec=900', '--stress-deopt=1']
-      },
     ],
   },
   'v8_numfuzz_tsan_ng_triggered': {
     'swarming_dimensions': {
       'os': 'Ubuntu-18.04',
-    },
-    'swarming_task_attrs': {
-      'expiration': 13800,
-      'hard_timeout': 4200,
-      'priority': 35,
     },
     'tests': [
       {
@@ -2287,6 +2171,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'stack',
+        'test_args': ['--total-timeout-sec=900', '--stress-stack-size=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=900',
@@ -2297,21 +2186,7 @@
           '--stress-marking=4',
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
-        ],
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'combined-staging',
-        'test_args': [
-          '--infra-staging',
-          '--total-timeout-sec=900',
-          '--stress-delay-tasks=4',
-          '--stress-deopt=2',
-          '--stress-compaction=2',
-          '--stress-gc=4',
-          '--stress-marking=4',
-          '--stress-scavenge=4',
-          '--stress-thread-pool-size=2',
+          '--stress-stack-size=1',
         ],
       },
       {
@@ -2325,13 +2200,7 @@
     'swarming_dimensions': {
       'os': 'Ubuntu-18.04',
     },
-    'swarming_task_attrs': {
-      'expiration': 13800,
-      'hard_timeout': 4200,
-      'priority': 35,
-    },
     'tests': [
-      {'name': 'd8testing_random_gc'},
       {
         'name': 'numfuzz',
         'suffix': 'marking',
@@ -2349,6 +2218,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'stack',
+        'test_args': ['--total-timeout-sec=900', '--stress-stack-size=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=900',
@@ -2359,21 +2233,7 @@
           '--stress-marking=4',
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
-        ],
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'combined-staging',
-        'test_args': [
-          '--infra-staging',
-          '--total-timeout-sec=900',
-          '--stress-delay-tasks=4',
-          '--stress-deopt=2',
-          '--stress-compaction=2',
-          '--stress-gc=4',
-          '--stress-marking=4',
-          '--stress-scavenge=4',
-          '--stress-thread-pool-size=2',
+          '--stress-stack-size=1',
         ],
       },
       {

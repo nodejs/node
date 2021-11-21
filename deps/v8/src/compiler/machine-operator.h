@@ -119,6 +119,10 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
 V8_EXPORT_PRIVATE LoadTransformParameters const& LoadTransformParametersOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
+V8_EXPORT_PRIVATE bool operator==(LoadTransformParameters,
+                                  LoadTransformParameters);
+bool operator!=(LoadTransformParameters, LoadTransformParameters);
+
 struct LoadLaneParameters {
   MemoryAccessKind kind;
   LoadRepresentation rep;
@@ -404,7 +408,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   MachineOperatorBuilder& operator=(const MachineOperatorBuilder&) = delete;
 
   const Operator* Comment(const char* msg);
-  const Operator* AbortCSAAssert();
+  const Operator* AbortCSADcheck();
   const Operator* DebugBreak();
   const Operator* UnsafePointerAdd();
 

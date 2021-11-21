@@ -28,7 +28,7 @@ ACCESSORS(JSDateTimeFormat, icu_simple_date_format,
 ACCESSORS(JSDateTimeFormat, icu_date_interval_format,
           Managed<icu::DateIntervalFormat>, kIcuDateIntervalFormatOffset)
 
-BOOL_ACCESSORS(JSDateTimeFormat, flags, iso8601, Iso8601Bit::kShift)
+BOOL_ACCESSORS(JSDateTimeFormat, flags, alt_calendar, AltCalendarBit::kShift)
 
 inline void JSDateTimeFormat::set_hour_cycle(HourCycle hour_cycle) {
   int hints = flags();

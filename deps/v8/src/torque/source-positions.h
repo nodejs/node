@@ -30,16 +30,27 @@ class SourceId {
 };
 
 struct LineAndColumn {
+  static constexpr int kUnknownOffset = -1;
+
+  int offset;
   int line;
   int column;
 
-  static LineAndColumn Invalid() { return {-1, -1}; }
+  static LineAndColumn Invalid() { return {-1, -1, -1}; }
+  static LineAndColumn WithUnknownOffset(int line, int column) {
+    return {kUnknownOffset, line, column};
+  }
 
   bool operator==(const LineAndColumn& other) const {
-    return line == other.line && column == other.column;
+    if (offset == kUnknownOffset || other.offset == kUnknownOffset) {
+      return line == other.line && column == other.column;
+    }
+    DCHECK_EQ(offset == other.offset,
+              line == other.line && column == other.column);
+    return offset == other.offset;
   }
   bool operator!=(const LineAndColumn& other) const {
-    return !(*this == other);
+    return !operator==(other);
   }
 };
 

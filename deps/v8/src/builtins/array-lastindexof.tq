@@ -44,7 +44,7 @@ macro FastArrayLastIndexOf<Elements : type extends FixedArrayBase>(
 
       const same: Boolean = StrictEqual(searchElement, element);
       if (same == True) {
-        assert(Is<FastJSArray>(array));
+        dcheck(Is<FastJSArray>(array));
         return k;
       }
     } label Hole {}  // Do nothing for holes.
@@ -52,7 +52,7 @@ macro FastArrayLastIndexOf<Elements : type extends FixedArrayBase>(
     --k;
   }
 
-  assert(Is<FastJSArray>(array));
+  dcheck(Is<FastJSArray>(array));
   return -1;
 }
 
@@ -90,7 +90,7 @@ macro TryFastArrayLastIndexOf(
     return FastArrayLastIndexOf<FixedArray>(
         context, array, fromSmi, searchElement);
   }
-  assert(IsDoubleElementsKind(kind));
+  dcheck(IsDoubleElementsKind(kind));
   return FastArrayLastIndexOf<FixedDoubleArray>(
       context, array, fromSmi, searchElement);
 }

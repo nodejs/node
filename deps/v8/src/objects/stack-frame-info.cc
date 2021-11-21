@@ -292,7 +292,7 @@ PrimitiveHeapObject InferMethodNameFromFastObject(Isolate* isolate,
     auto details = descriptors.GetDetails(i);
     if (details.IsDontEnum()) continue;
     Object value;
-    if (details.location() == kField) {
+    if (details.location() == PropertyLocation::kField) {
       auto field_index = FieldIndex::ForPropertyIndex(
           map, details.field_index(), details.representation());
       if (field_index.is_double()) continue;

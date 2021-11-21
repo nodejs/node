@@ -3,11 +3,9 @@
 // found in the LICENSE file.
 
 @abstract
-@generatePrint
 extern class Struct extends HeapObject {
 }
 
-@generatePrint
 extern class Tuple2 extends Struct {
   value1: Object;
   value2: Object;

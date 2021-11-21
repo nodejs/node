@@ -25,17 +25,17 @@ base::TimeTicks RuntimeCallTimer::NowCPUTime() {
 class RuntimeCallStatEntries {
  public:
   void Print(std::ostream& os) {
-    if (total_call_count == 0) return;
-    std::sort(entries.rbegin(), entries.rend());
+    if (total_call_count_ == 0) return;
+    std::sort(entries_.rbegin(), entries_.rend());
     os << std::setw(50) << "Runtime Function/C++ Builtin" << std::setw(12)
        << "Time" << std::setw(18) << "Count" << std::endl
        << std::string(88, '=') << std::endl;
-    for (Entry& entry : entries) {
-      entry.SetTotal(total_time, total_call_count);
+    for (Entry& entry : entries_) {
+      entry.SetTotal(total_time_, total_call_count_);
       entry.Print(os);
     }
     os << std::string(88, '-') << std::endl;
-    Entry("Total", total_time, total_call_count).Print(os);
+    Entry("Total", total_time_, total_call_count_).Print(os);
   }
 
   // By default, the compiler will usually inline this, which results in a large
@@ -43,10 +43,10 @@ class RuntimeCallStatEntries {
   // instructions, and this function is invoked repeatedly by macros.
   V8_NOINLINE void Add(RuntimeCallCounter* counter) {
     if (counter->count() == 0) return;
-    entries.push_back(
+    entries_.push_back(
         Entry(counter->name(), counter->time(), counter->count()));
-    total_time += counter->time();
-    total_call_count += counter->count();
+    total_time_ += counter->time();
+    total_call_count_ += counter->count();
   }
 
  private:
@@ -94,9 +94,9 @@ class RuntimeCallStatEntries {
     double count_percent_;
   };
 
-  uint64_t total_call_count = 0;
-  base::TimeDelta total_time;
-  std::vector<Entry> entries;
+  uint64_t total_call_count_ = 0;
+  base::TimeDelta total_time_;
+  std::vector<Entry> entries_;
 };
 
 void RuntimeCallCounter::Reset() {

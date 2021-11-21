@@ -70,7 +70,7 @@ PromiseCatchFinally(
       *ContextSlot(context, PromiseFinallyContextSlot::kConstructorSlot);
 
   // 5. Assert: IsConstructor(C) is true.
-  assert(IsConstructor(constructor));
+  dcheck(IsConstructor(constructor));
 
   // 6. Let promise be ? PromiseResolve(C, result).
   const promise = PromiseResolve(constructor, result);
@@ -117,7 +117,7 @@ PromiseThenFinally(
       *ContextSlot(context, PromiseFinallyContextSlot::kConstructorSlot);
 
   // 5. Assert: IsConstructor(C) is true.
-  assert(IsConstructor(constructor));
+  dcheck(IsConstructor(constructor));
 
   // 6. Let promise be ? PromiseResolve(C, result).
   const promise = PromiseResolve(constructor, result);
@@ -185,7 +185,7 @@ PromisePrototypeFinally(
     }
 
   // 4. Assert: IsConstructor(C) is true.
-  assert(IsConstructor(constructor));
+  dcheck(IsConstructor(constructor));
 
   // 5. If IsCallable(onFinally) is not true,
   //    a. Let thenFinally be onFinally.

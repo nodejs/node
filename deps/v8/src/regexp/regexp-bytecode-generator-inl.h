@@ -23,29 +23,29 @@ void RegExpBytecodeGenerator::Emit(uint32_t byte, int32_t twenty_four_bits) {
 }
 
 void RegExpBytecodeGenerator::Emit16(uint32_t word) {
-  DCHECK(pc_ <= buffer_.length());
-  if (pc_ + 1 >= buffer_.length()) {
-    Expand();
+  DCHECK(pc_ <= static_cast<int>(buffer_.size()));
+  if (pc_ + 1 >= static_cast<int>(buffer_.size())) {
+    ExpandBuffer();
   }
-  *reinterpret_cast<uint16_t*>(buffer_.begin() + pc_) = word;
+  *reinterpret_cast<uint16_t*>(buffer_.data() + pc_) = word;
   pc_ += 2;
 }
 
 void RegExpBytecodeGenerator::Emit8(uint32_t word) {
-  DCHECK(pc_ <= buffer_.length());
-  if (pc_ == buffer_.length()) {
-    Expand();
+  DCHECK(pc_ <= static_cast<int>(buffer_.size()));
+  if (pc_ == static_cast<int>(buffer_.size())) {
+    ExpandBuffer();
   }
-  *reinterpret_cast<unsigned char*>(buffer_.begin() + pc_) = word;
+  *reinterpret_cast<unsigned char*>(buffer_.data() + pc_) = word;
   pc_ += 1;
 }
 
 void RegExpBytecodeGenerator::Emit32(uint32_t word) {
-  DCHECK(pc_ <= buffer_.length());
-  if (pc_ + 3 >= buffer_.length()) {
-    Expand();
+  DCHECK(pc_ <= static_cast<int>(buffer_.size()));
+  if (pc_ + 3 >= static_cast<int>(buffer_.size())) {
+    ExpandBuffer();
   }
-  *reinterpret_cast<uint32_t*>(buffer_.begin() + pc_) = word;
+  *reinterpret_cast<uint32_t*>(buffer_.data() + pc_) = word;
   pc_ += 4;
 }
 

@@ -103,10 +103,22 @@ V8_EXPORT_PRIVATE void AlignedFree(void* ptr);
 V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformPageAllocator();
 
 #ifdef V8_VIRTUAL_MEMORY_CAGE
-// Returns the platform data cage page allocator instance. Guaranteed to be a
-// valid pointer.
-V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformDataCagePageAllocator();
+// Returns the virtual memory cage page allocator instance for allocating pages
+// inside the virtual memory cage. Guaranteed to be a valid pointer.
+V8_EXPORT_PRIVATE v8::PageAllocator* GetVirtualMemoryCagePageAllocator();
 #endif
+
+// Returns the appropriate page allocator to use for ArrayBuffer backing stores.
+// If the virtual memory cage is enabled, these must be allocated inside the
+// cage and so this will be the CagePageAllocator. Otherwise it will be the
+// PlatformPageAllocator.
+inline v8::PageAllocator* GetArrayBufferPageAllocator() {
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  return GetVirtualMemoryCagePageAllocator();
+#else
+  return GetPlatformPageAllocator();
+#endif
+}
 
 // Sets the given page allocator as the platform page allocator and returns
 // the current one. This function *must* be used only for testing purposes.
@@ -374,11 +386,6 @@ class VirtualMemoryCage {
  protected:
   Address base_ = kNullAddress;
   std::unique_ptr<base::BoundedPageAllocator> page_allocator_;
-  // Whether this cage owns the virtual memory reservation and thus should
-  // release it upon destruction. TODO(chromium:1218005) this is only needed
-  // when V8_VIRTUAL_MEMORY_CAGE is enabled. Maybe we can remove this again e.g.
-  // by merging this class and v8::VirtualMemoryCage in v8-platform.h.
-  bool reservation_is_owned_ = true;
   VirtualMemory reservation_;
 };
 

@@ -316,7 +316,7 @@ THREADED_TEST(HandleScopePop) {
   int count_before =
       i::HandleScope::NumberOfHandles(reinterpret_cast<i::Isolate*>(isolate));
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     CompileRun(
         "for (var i = 0; i < 1000; i++) {"
         "  obj.one;"

@@ -200,7 +200,7 @@ class TyperTest : public TypedGraphTest {
       Type r1 = RandomRange();
       Type r2 = RandomRange();
       Type expected_type = TypeBinaryOp(op, r1, r2);
-      for (int i = 0; i < 10; i++) {
+      for (int j = 0; j < 10; j++) {
         double x1 = RandomInt(r1.AsRange());
         double x2 = RandomInt(r2.AsRange());
         double result_value = opfun(x1, x2);
@@ -229,7 +229,7 @@ class TyperTest : public TypedGraphTest {
       Type r1 = RandomRange();
       Type r2 = RandomRange();
       Type expected_type = TypeBinaryOp(op, r1, r2);
-      for (int i = 0; i < 10; i++) {
+      for (int j = 0; j < 10; j++) {
         double x1 = RandomInt(r1.AsRange());
         double x2 = RandomInt(r2.AsRange());
         bool result_value = opfun(x1, x2);
@@ -249,7 +249,7 @@ class TyperTest : public TypedGraphTest {
       Type r1 = RandomRange(true);
       Type r2 = RandomRange(true);
       Type expected_type = TypeBinaryOp(op, r1, r2);
-      for (int i = 0; i < 10; i++) {
+      for (int j = 0; j < 10; j++) {
         int32_t x1 = static_cast<int32_t>(RandomInt(r1.AsRange()));
         int32_t x2 = static_cast<int32_t>(RandomInt(r2.AsRange()));
         double result_value = opfun(x1, x2);

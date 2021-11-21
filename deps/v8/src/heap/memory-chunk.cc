@@ -76,7 +76,7 @@ void MemoryChunk::SetReadAndExecutable() {
       PageAllocator::kReadExecute);
 }
 
-void MemoryChunk::SetReadAndWritable() {
+void MemoryChunk::SetCodeModificationPermissions() {
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
   DCHECK(owner_identity() == CODE_SPACE || owner_identity() == CODE_LO_SPACE);
   // Incrementing the write_unprotect_counter_ and changing the page
@@ -97,6 +97,14 @@ void MemoryChunk::SetReadAndWritable() {
                                       FLAG_write_code_using_rwx
                                           ? PageAllocator::kReadWriteExecute
                                           : PageAllocator::kReadWrite));
+  }
+}
+
+void MemoryChunk::SetDefaultCodePermissions() {
+  if (FLAG_jitless) {
+    SetReadable();
+  } else {
+    SetReadAndExecutable();
   }
 }
 

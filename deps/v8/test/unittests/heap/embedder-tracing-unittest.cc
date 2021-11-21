@@ -153,7 +153,7 @@ TEST_F(LocalEmbedderHeapTracerWithIsolate,
     EmbedderStackStateScope scope(
         &local_tracer, EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
     {
-      EmbedderStackStateScope scope(
+      EmbedderStackStateScope nested_scope(
           &local_tracer,
           EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers);
       EXPECT_CALL(

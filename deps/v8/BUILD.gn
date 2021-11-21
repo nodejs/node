@@ -293,10 +293,6 @@ declare_args() {
   # Enables additional heap verification phases and checks.
   cppgc_enable_verify_heap = ""
 
-  # Enable assignment checks for Members/Persistents during prefinalizer invocations.
-  # TODO(v8:11749): Enable by default after fixing any existing issues in Blink.
-  cppgc_enable_check_assignments_in_prefinalizers = false
-
   # Enable allocations during prefinalizer invocations.
   cppgc_allow_allocations_in_prefinalizers = false
 
@@ -351,7 +347,9 @@ declare_args() {
   # parameter count of function with JS linkage.
   # TODO(v8:11112): Remove once all architectures support the flag and it is
   # enabled unconditionally.
-  v8_include_receiver_in_argc = false
+  v8_include_receiver_in_argc =
+      v8_current_cpu == "x86" || v8_current_cpu == "x64" ||
+      v8_current_cpu == "arm" || v8_current_cpu == "arm64"
 }
 
 # Derived defaults.
@@ -472,6 +470,13 @@ if (v8_enable_shared_ro_heap == "") {
 if (build_with_chromium && v8_current_cpu == "arm64" &&
     arm_control_flow_integrity == "standard") {
   v8_control_flow_integrity = true
+}
+
+# Enable the virtual memory cage on 64-bit Chromium builds.
+if (build_with_chromium &&
+    (v8_current_cpu == "arm64" || v8_current_cpu == "x64")) {
+  # The cage is incompatible with lsan.
+  v8_enable_virtual_memory_cage = !is_lsan
 }
 
 assert(!v8_disable_write_barriers || v8_enable_single_generation,
@@ -787,10 +792,6 @@ config("features") {
 
   if (cppgc_enable_verify_heap) {
     defines += [ "CPPGC_VERIFY_HEAP" ]
-  }
-
-  if (cppgc_enable_check_assignments_in_prefinalizers) {
-    defines += [ "CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS" ]
   }
 
   if (cppgc_allow_allocations_in_prefinalizers) {
@@ -1219,7 +1220,12 @@ config("toolchain") {
   }
 
   if (is_clang) {
-    cflags += [ "-Wmissing-field-initializers" ]
+    cflags += [
+      "-Wmissing-field-initializers",
+
+      # TODO(v8:12245): Fix shadowing instances and remove.
+      "-Wno-shadow",
+    ]
 
     if (v8_current_cpu != "mips" && v8_current_cpu != "mipsel") {
       # We exclude MIPS because the IsMipsArchVariant macro causes trouble.
@@ -1255,7 +1261,144 @@ config("toolchain") {
   }
 
   if (!is_clang && is_win) {
-    cflags += [ "/wd4506" ]  # Benign "no definition for inline function"
+    cflags += [
+      "/wd4506",  # Benign "no definition for inline function"
+
+      # Warnings permanently disabled:
+
+      # C4091: 'typedef ': ignored on left of 'X' when no variable is
+      #                    declared.
+      # This happens in a number of Windows headers. Dumb.
+      "/wd4091",
+
+      # C4127: conditional expression is constant
+      # This warning can in theory catch dead code and other problems, but
+      # triggers in far too many desirable cases where the conditional
+      # expression is either set by macros or corresponds some legitimate
+      # compile-time constant expression (due to constant template args,
+      # conditionals comparing the sizes of different types, etc.).  Some of
+      # these can be worked around, but it's not worth it.
+      "/wd4127",
+
+      # C4251: 'identifier' : class 'type' needs to have dll-interface to be
+      #        used by clients of class 'type2'
+      # This is necessary for the shared library build.
+      "/wd4251",
+
+      # C4275:  non dll-interface class used as base for dll-interface class
+      # This points out a potential (but rare) problem with referencing static
+      # fields of a non-exported base, through the base's non-exported inline
+      # functions, or directly. The warning is subtle enough that people just
+      # suppressed it when they saw it, so it's not worth it.
+      "/wd4275",
+
+      # C4312 is a VS 2015 64-bit warning for integer to larger pointer.
+      # TODO(brucedawson): fix warnings, crbug.com/554200
+      "/wd4312",
+
+      # C4324 warns when padding is added to fulfill alignas requirements,
+      # but can trigger in benign cases that are difficult to individually
+      # suppress.
+      "/wd4324",
+
+      # C4351: new behavior: elements of array 'array' will be default
+      #        initialized
+      # This is a silly "warning" that basically just alerts you that the
+      # compiler is going to actually follow the language spec like it's
+      # supposed to, instead of not following it like old buggy versions did.
+      # There's absolutely no reason to turn this on.
+      "/wd4351",
+
+      # C4355: 'this': used in base member initializer list
+      # It's commonly useful to pass |this| to objects in a class' initializer
+      # list.  While this warning can catch real bugs, most of the time the
+      # constructors in question don't attempt to call methods on the passed-in
+      # pointer (until later), and annotating every legit usage of this is
+      # simply more hassle than the warning is worth.
+      "/wd4355",
+
+      # C4503: 'identifier': decorated name length exceeded, name was
+      #        truncated
+      # This only means that some long error messages might have truncated
+      # identifiers in the presence of lots of templates.  It has no effect on
+      # program correctness and there's no real reason to waste time trying to
+      # prevent it.
+      "/wd4503",
+
+      # Warning C4589 says: "Constructor of abstract class ignores
+      # initializer for virtual base class." Disable this warning because it
+      # is flaky in VS 2015 RTM. It triggers on compiler generated
+      # copy-constructors in some cases.
+      "/wd4589",
+
+      # C4611: interaction between 'function' and C++ object destruction is
+      #        non-portable
+      # This warning is unavoidable when using e.g. setjmp/longjmp.  MSDN
+      # suggests using exceptions instead of setjmp/longjmp for C++, but
+      # Chromium code compiles without exception support.  We therefore have to
+      # use setjmp/longjmp for e.g. JPEG decode error handling, which means we
+      # have to turn off this warning (and be careful about how object
+      # destruction happens in such cases).
+      "/wd4611",
+
+      # Warnings to evaluate and possibly fix/reenable later:
+
+      "/wd4100",  # Unreferenced formal function parameter.
+      "/wd4121",  # Alignment of a member was sensitive to packing.
+      "/wd4244",  # Conversion: possible loss of data.
+      "/wd4505",  # Unreferenced local function has been removed.
+      "/wd4510",  # Default constructor could not be generated.
+      "/wd4512",  # Assignment operator could not be generated.
+      "/wd4610",  # Class can never be instantiated, constructor required.
+      "/wd4838",  # Narrowing conversion. Doesn't seem to be very useful.
+      "/wd4995",  # 'X': name was marked as #pragma deprecated
+      "/wd4996",  # Deprecated function warning.
+
+      # These are variable shadowing warnings that are new in VS2015. We
+      # should work through these at some point -- they may be removed from
+      # the RTM release in the /W4 set.
+      "/wd4456",
+      "/wd4457",
+      "/wd4458",
+      "/wd4459",
+
+      # All of our compilers support the extensions below.
+      "/wd4200",  # nonstandard extension used: zero-sized array in struct/union
+      "/wd4201",  # nonstandard extension used: nameless struct/union
+      "/wd4204",  # nonstandard extension used : non-constant aggregate
+                  # initializer
+
+      "/wd4221",  # nonstandard extension used : 'identifier' : cannot be
+                  # initialized using address of automatic variable
+
+      # http://crbug.com/588506 - Conversion suppressions waiting on Clang
+      # -Wconversion.
+      "/wd4245",  # 'conversion' : conversion from 'type1' to 'type2',
+                  # signed/unsigned mismatch
+
+      "/wd4267",  # 'var' : conversion from 'size_t' to 'type', possible loss of
+                  # data
+
+      "/wd4305",  # 'identifier' : truncation from 'type1' to 'type2'
+      "/wd4389",  # 'operator' : signed/unsigned mismatch
+
+      "/wd4702",  # unreachable code
+
+      # http://crbug.com/848979 - MSVC is more conservative than Clang with
+      # regards to variables initialized and consumed in different branches.
+      "/wd4701",  # Potentially uninitialized local variable 'name' used
+      "/wd4703",  # Potentially uninitialized local pointer variable 'name' used
+
+      # http://crbug.com/848979 - Remaining Clang permitted warnings.
+      "/wd4661",  # 'identifier' : no suitable definition provided for explicit
+                  # template instantiation request
+
+      "/wd4706",  # assignment within conditional expression
+                  # MSVC is stricter and requires a boolean expression.
+
+      "/wd4715",  # 'function' : not all control paths return a value'
+                  # MSVC does not analyze switch (enum) for completeness.
+    ]
   }
 
   if (!is_clang && !is_win) {
@@ -1702,11 +1845,11 @@ template("run_torque") {
       "$destination_folder/exported-macros-assembler.h",
       "$destination_folder/factory.cc",
       "$destination_folder/factory.inc",
-      "$destination_folder/field-offsets.h",
       "$destination_folder/instance-types.h",
       "$destination_folder/interface-descriptors.inc",
       "$destination_folder/objects-body-descriptors-inl.inc",
       "$destination_folder/objects-printer.cc",
+      "$destination_folder/visitor-lists.h",
     ]
 
     foreach(file, torque_files) {
@@ -2751,6 +2894,7 @@ v8_header_set("v8_internal_headers") {
     "src/extensions/ignition-statistics-extension.h",
     "src/extensions/statistics-extension.h",
     "src/extensions/trigger-failure-extension.h",
+    "src/handles/global-handles-inl.h",
     "src/handles/global-handles.h",
     "src/handles/handles-inl.h",
     "src/handles/handles.h",
@@ -3004,6 +3148,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/lookup-cache.h",
     "src/objects/lookup-inl.h",
     "src/objects/lookup.h",
+    "src/objects/managed-inl.h",
     "src/objects/managed.h",
     "src/objects/map-inl.h",
     "src/objects/map-updater.h",
@@ -3029,6 +3174,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/objects.h",
     "src/objects/oddball-inl.h",
     "src/objects/oddball.h",
+    "src/objects/option-utils.h",
     "src/objects/ordered-hash-table-inl.h",
     "src/objects/ordered-hash-table.h",
     "src/objects/osr-optimized-code-cache-inl.h",
@@ -3097,6 +3243,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/transitions.h",
     "src/objects/type-hints.h",
     "src/objects/value-serializer.h",
+    "src/objects/visitors-inl.h",
     "src/objects/visitors.h",
     "src/parsing/expression-scope.h",
     "src/parsing/func-name-inferrer.h",
@@ -3467,7 +3614,8 @@ v8_header_set("v8_internal_headers") {
           (current_cpu == "x64" && (is_linux || is_chromeos || is_mac))) {
         sources += [ "src/trap-handler/handler-inside-posix.h" ]
       }
-      if (current_cpu == "x64" && (is_linux || is_chromeos || is_mac)) {
+      if (current_cpu == "x64" &&
+          (is_linux || is_chromeos || is_mac || is_win)) {
         sources += [ "src/trap-handler/trap-handler-simulator.h" ]
       }
     }
@@ -4072,6 +4220,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/module.cc",
     "src/objects/object-type.cc",
     "src/objects/objects.cc",
+    "src/objects/option-utils.cc",
     "src/objects/ordered-hash-table.cc",
     "src/objects/osr-optimized-code-cache.cc",
     "src/objects/property-descriptor.cc",
@@ -4388,16 +4537,22 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
     ]
     if (v8_enable_webassembly) {
-      # Trap handling is enabled on arm64 Mac and in simulators on x64 on Linux
-      # and Mac.
+      # Trap handling is enabled on arm64 Mac and in simulators on x64 on Linux,
+      # Mac, and Windows.
       if ((current_cpu == "arm64" && is_mac) ||
           (current_cpu == "x64" && (is_linux || is_chromeos || is_mac))) {
         sources += [
           "src/trap-handler/handler-inside-posix.cc",
           "src/trap-handler/handler-outside-posix.cc",
         ]
+      } else if (current_cpu == "x64" && is_win) {
+        sources += [
+          "src/trap-handler/handler-inside-win.cc",
+          "src/trap-handler/handler-outside-win.cc",
+        ]
       }
-      if (current_cpu == "x64" && (is_linux || is_chromeos || is_mac)) {
+      if (current_cpu == "x64" &&
+          (is_linux || is_chromeos || is_mac || is_win)) {
         sources += [ "src/trap-handler/handler-outside-simulator.cc" ]
       }
     }
@@ -4675,6 +4830,8 @@ v8_source_set("torque_base") {
     "src/torque/instance-type-generator.cc",
     "src/torque/instructions.cc",
     "src/torque/instructions.h",
+    "src/torque/kythe-data.cc",
+    "src/torque/kythe-data.h",
     "src/torque/parameter-difference.h",
     "src/torque/server-data.cc",
     "src/torque/server-data.h",
@@ -5106,6 +5263,7 @@ v8_source_set("v8_bigint") {
     "src/bigint/bigint-internal.cc",
     "src/bigint/bigint-internal.h",
     "src/bigint/bigint.h",
+    "src/bigint/bitwise.cc",
     "src/bigint/digit-arithmetic.h",
     "src/bigint/div-burnikel.cc",
     "src/bigint/div-helpers.cc",

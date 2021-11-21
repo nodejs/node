@@ -69,9 +69,6 @@ class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
 
   inline bool Equals(Object getter_value, Object setter_value);
 
-  // Dispatched behavior.
-  DECL_PRINTER(AccessorPair)
-
   TQ_OBJECT_CONSTRUCTORS(AccessorPair)
 };
 
@@ -79,7 +76,6 @@ class ClassPositions
     : public TorqueGeneratedClassPositions<ClassPositions, Struct> {
  public:
   // Dispatched behavior.
-  DECL_PRINTER(ClassPositions)
   void BriefPrintDetails(std::ostream& os);
 
   TQ_OBJECT_CONSTRUCTORS(ClassPositions)

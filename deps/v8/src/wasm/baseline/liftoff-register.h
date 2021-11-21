@@ -313,9 +313,9 @@ class LiftoffRegister {
   }
 
  private:
-  storage_t code_;
-
   explicit constexpr LiftoffRegister(storage_t code) : code_(code) {}
+
+  storage_t code_;
 };
 ASSERT_TRIVIALLY_COPYABLE(LiftoffRegister);
 
@@ -467,10 +467,10 @@ class LiftoffRegList {
   }
 
  private:
-  storage_t regs_ = 0;
-
   // Unchecked constructor. Only use for valid bits.
   explicit constexpr LiftoffRegList(storage_t bits) : regs_(bits) {}
+
+  storage_t regs_ = 0;
 };
 ASSERT_TRIVIALLY_COPYABLE(LiftoffRegList);
 

@@ -357,6 +357,16 @@ inline base::Vector<const int64_t> ValueHelper::GetVector() {
   return int64_vector();
 }
 
+template <>
+inline base::Vector<const float> ValueHelper::GetVector() {
+  return float32_vector();
+}
+
+template <>
+inline base::Vector<const double> ValueHelper::GetVector() {
+  return float64_vector();
+}
+
 // Helper macros that can be used in FOR_INT32_INPUTS(i) { ... i ... }
 #define FOR_INPUTS(ctype, itype, var) \
   for (ctype var : ::v8::internal::compiler::ValueHelper::itype##_vector())

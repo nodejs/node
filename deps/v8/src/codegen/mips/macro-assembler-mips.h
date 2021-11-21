@@ -460,6 +460,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void SmiUntag(Register dst, Register src) { sra(dst, src, kSmiTagSize); }
 
+  void SmiToInt32(Register smi) { SmiUntag(smi); }
+
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);
 

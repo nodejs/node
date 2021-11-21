@@ -22,7 +22,7 @@ macro SplitOffTail(weakCell: WeakCell): WeakCell|Undefined {
     case (Undefined): {
     }
     case (tailIsNowAHead: WeakCell): {
-      assert(tailIsNowAHead.prev == weakCell);
+      dcheck(tailIsNowAHead.prev == weakCell);
       tailIsNowAHead.prev = Undefined;
     }
   }
@@ -37,7 +37,7 @@ PopClearedCell(finalizationRegistry: JSFinalizationRegistry): WeakCell|
       return Undefined;
     }
     case (weakCell: WeakCell): {
-      assert(weakCell.prev == Undefined);
+      dcheck(weakCell.prev == Undefined);
       finalizationRegistry.cleared_cells = SplitOffTail(weakCell);
 
       // If the WeakCell has an unregister token, remove the cell from the
@@ -55,7 +55,7 @@ PopClearedCell(finalizationRegistry: JSFinalizationRegistry): WeakCell|
 }
 
 transitioning macro PushCell(
-    finalizationRegistry: JSFinalizationRegistry, cell: WeakCell) {
+    finalizationRegistry: JSFinalizationRegistry, cell: WeakCell): void {
   cell.next = finalizationRegistry.active_cells;
   typeswitch (finalizationRegistry.active_cells) {
     case (Undefined): {
@@ -69,7 +69,7 @@ transitioning macro PushCell(
 
 transitioning macro
 FinalizationRegistryCleanupLoop(implicit context: Context)(
-    finalizationRegistry: JSFinalizationRegistry, callback: Callable) {
+    finalizationRegistry: JSFinalizationRegistry, callback: Callable): void {
   while (true) {
     const weakCellHead = PopClearedCell(finalizationRegistry);
     typeswitch (weakCellHead) {
@@ -118,9 +118,9 @@ FinalizationRegistryConstructor(
   finalizationRegistry.flags =
       SmiTag(FinalizationRegistryFlags{scheduled_for_cleanup: false});
   // 7. Set finalizationRegistry.[[Cells]] to be an empty List.
-  assert(finalizationRegistry.active_cells == Undefined);
-  assert(finalizationRegistry.cleared_cells == Undefined);
-  assert(finalizationRegistry.key_map == Undefined);
+  dcheck(finalizationRegistry.active_cells == Undefined);
+  dcheck(finalizationRegistry.cleared_cells == Undefined);
+  dcheck(finalizationRegistry.key_map == Undefined);
   // 8. Return finalizationRegistry.
   return finalizationRegistry;
 }

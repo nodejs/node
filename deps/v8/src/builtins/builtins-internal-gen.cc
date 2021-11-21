@@ -323,12 +323,13 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     GotoIfNot(IsPageFlagSet(value, MemoryChunk::kEvacuationCandidateMask),
               &next);
 
-    TNode<IntPtrT> object = BitcastTaggedToWord(
-        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
-    Branch(
-        IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
-        &next, &call_incremental_wb);
-
+    {
+      TNode<IntPtrT> object = BitcastTaggedToWord(
+          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+      Branch(
+          IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
+          &next, &call_incremental_wb);
+    }
     BIND(&call_incremental_wb);
     {
       TNode<ExternalReference> function = ExternalConstant(
@@ -842,7 +843,7 @@ TF_BUILTIN(CopyDataProperties, SetOrCopyDataPropertiesAssembler) {
   auto source = Parameter<Object>(Descriptor::kSource);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  CSA_ASSERT(this, TaggedNotEqual(target, source));
+  CSA_DCHECK(this, TaggedNotEqual(target, source));
 
   Label if_runtime(this, Label::kDeferred);
   Return(SetOrCopyDataProperties(context, target, source, &if_runtime, false));
@@ -1049,9 +1050,9 @@ TF_BUILTIN(Abort, CodeStubAssembler) {
   TailCallRuntime(Runtime::kAbort, NoContextConstant(), message_id);
 }
 
-TF_BUILTIN(AbortCSAAssert, CodeStubAssembler) {
+TF_BUILTIN(AbortCSADcheck, CodeStubAssembler) {
   auto message = Parameter<String>(Descriptor::kMessageOrMessageId);
-  TailCallRuntime(Runtime::kAbortCSAAssert, NoContextConstant(), message);
+  TailCallRuntime(Runtime::kAbortCSADcheck, NoContextConstant(), message);
 }
 
 void Builtins::Generate_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit(
@@ -1233,7 +1234,7 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
   GotoIf(TaggedEqual(on_non_existent,
                      SmiConstant(OnNonExistent::kThrowReferenceError)),
          &throw_reference_error);
-  CSA_ASSERT(this, TaggedEqual(on_non_existent,
+  CSA_DCHECK(this, TaggedEqual(on_non_existent,
                                SmiConstant(OnNonExistent::kReturnUndefined)));
   Return(UndefinedConstant());
 

@@ -136,9 +136,6 @@
   'test-strings/Traverse': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
-
-  # TODO(v8:11382): Reenable once irregexp is reentrant.
-  'test-regexp/RegExpInterruptReentrantExecution': [FAIL],
 }],  # ALWAYS
 
 ##############################################################################
@@ -385,6 +382,10 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+
+  # The uint32 values are sign-extended on MIPS64.
+  'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
+  'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
@@ -427,6 +428,7 @@
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
 
   # SIMD not fully implemented yet.
+  'test-run-wasm-relaxed-simd/*': [SKIP],
   'test-run-wasm-simd/RunWasm_F64x2ExtractLaneWithI64x2_liftoff': [SKIP],
   'test-run-wasm-simd/RunWasm_I64x2ExtractWithF64x2_liftoff': [SKIP],
   'test-run-wasm-simd-liftoff/*': [SKIP],
@@ -440,9 +442,14 @@
   'test-run-wasm-64/*': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
   'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF32x2': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2AllNaN': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2OneNaN': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4AllNaN': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4OneNaN': [SKIP],
+
+  # riscv64 sign extend on uint32.
+  'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
+  'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
 }],  # 'arch == riscv64'
 
 ##############################################################################
@@ -509,9 +516,10 @@
 
   'test-wasm-breakpoints/*' : [SKIP],
 
-  # SIMD not fully implemented yet
+  # SIMD / Liftoff not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
+  'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
 
   # TODO(11856): Port nondeterminism detection.
   'test-liftoff-for-fuzzing/*': [SKIP],
@@ -526,6 +534,8 @@
   'test-gc/RunWasmLiftoff*': [SKIP],
   'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
   'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
+  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
+  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
 }],
 
 ##############################################################################
@@ -756,14 +766,19 @@
 
 ##############################################################################
 ['no_simd_hardware == True', {
-  'test-run-wasm-simd/*': [SKIP],
+  'test-run-wasm-relaxed-simd/*': [SKIP],
   'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-run-wasm-simd/*': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
+  'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
+  'test-gc/RunWasmTurbofan_RefTrivialCastsStatic': [SKIP],
   'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4AllNaN': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4OneNaN': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2AllNaN': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2OneNaN': [SKIP],
 }],  # no_simd_hardware == True
 
 ################################################################################
@@ -1227,4 +1242,13 @@
   'test-calls-with-arraylike-or-spread/*': [SKIP],
 }],
 
+################################################################################
+['variant == stress', {
+  # The 'stress' variants sets the '--stress-opt' d8 flag, which executes 2 runs
+  # in debug mode and 5 runs in release mode. Hence the module will be cached
+  # between runs, and the correct caching behavior cannot be observed anymore in
+  # the later runs.
+  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
+  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
+}],
 ]

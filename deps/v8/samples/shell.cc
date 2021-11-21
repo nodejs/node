@@ -381,8 +381,8 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
         stack_trace_string->IsString() &&
         stack_trace_string.As<v8::String>()->Length() > 0) {
       v8::String::Utf8Value stack_trace(isolate, stack_trace_string);
-      const char* stack_trace_string = ToCString(stack_trace);
-      fprintf(stderr, "%s\n", stack_trace_string);
+      const char* err = ToCString(stack_trace);
+      fprintf(stderr, "%s\n", err);
     }
   }
 }
