@@ -30,9 +30,6 @@ class Microtask : public TorqueGeneratedMicrotask<Microtask, Struct> {
 class CallbackTask
     : public TorqueGeneratedCallbackTask<CallbackTask, Microtask> {
  public:
-  // Dispatched behavior.
-  DECL_PRINTER(CallbackTask)
-
   TQ_OBJECT_CONSTRUCTORS(CallbackTask)
 };
 
@@ -43,7 +40,6 @@ class CallableTask
     : public TorqueGeneratedCallableTask<CallableTask, Microtask> {
  public:
   // Dispatched behavior.
-  DECL_PRINTER(CallableTask)
   DECL_VERIFIER(CallableTask)
   void BriefPrintDetails(std::ostream& os);
 

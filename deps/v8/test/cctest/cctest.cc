@@ -122,7 +122,7 @@ void CcTest::Run() {
   DCHECK_EQ(active_isolates, i::Isolate::non_disposed_isolates());
 #endif  // DEBUG
   if (initialize_) {
-    if (v8::Locker::IsActive()) {
+    if (v8::Locker::WasEverUsed()) {
       v8::Locker locker(isolate_);
       EmptyMessageQueues(isolate_);
     } else {

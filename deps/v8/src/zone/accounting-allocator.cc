@@ -54,7 +54,8 @@ std::unique_ptr<v8::base::BoundedPageAllocator> CreateBoundedAllocator(
 
   auto allocator = std::make_unique<v8::base::BoundedPageAllocator>(
       platform_allocator, reservation_start, ZoneCompression::kReservationSize,
-      kZonePageSize);
+      kZonePageSize,
+      base::PageInitializationMode::kAllocatedPagesCanBeUninitialized);
 
   // Exclude first page from allocation to ensure that accesses through
   // decompressed null pointer will seg-fault.

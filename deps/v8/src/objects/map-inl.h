@@ -654,7 +654,8 @@ bool Map::CanBeDeprecated() const {
   for (InternalIndex i : IterateOwnDescriptors()) {
     PropertyDetails details = instance_descriptors(kRelaxedLoad).GetDetails(i);
     if (details.representation().MightCauseMapDeprecation()) return true;
-    if (details.kind() == kData && details.location() == kDescriptor) {
+    if (details.kind() == kData &&
+        details.location() == PropertyLocation::kDescriptor) {
       return true;
     }
   }
@@ -729,7 +730,7 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
     set_may_have_interesting_symbols(true);
   }
   PropertyDetails details = desc->GetDetails();
-  if (details.location() == kField) {
+  if (details.location() == PropertyLocation::kField) {
     DCHECK_GT(UnusedPropertyFields(), 0);
     AccountAddedPropertyField();
   }
@@ -737,7 +738,8 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 // This function does not support appending double field descriptors and
 // it should never try to (otherwise, layout descriptor must be updated too).
 #ifdef DEBUG
-  DCHECK(details.location() != kField || !details.representation().IsDouble());
+  DCHECK(details.location() != PropertyLocation::kField ||
+         !details.representation().IsDouble());
 #endif
 }
 

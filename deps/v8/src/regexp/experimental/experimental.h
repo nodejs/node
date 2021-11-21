@@ -34,7 +34,6 @@ class ExperimentalRegExp final : public AllStatic {
                                     Address input_start, Address input_end,
                                     int* output_registers,
                                     int32_t output_register_count,
-                                    Address backtrack_stack,
                                     RegExp::CallOrigin call_origin,
                                     Isolate* isolate, Address regexp);
   static MaybeHandle<Object> Exec(

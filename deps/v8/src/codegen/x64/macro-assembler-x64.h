@@ -61,36 +61,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
     : public SharedTurboAssemblerBase<TurboAssembler> {
  public:
   using SharedTurboAssemblerBase<TurboAssembler>::SharedTurboAssemblerBase;
-  AVX_OP(Ucomiss, ucomiss)
-  AVX_OP(Ucomisd, ucomisd)
-  AVX_OP(Pcmpeqb, pcmpeqb)
-  AVX_OP(Pcmpeqw, pcmpeqw)
-  AVX_OP(Pcmpeqd, pcmpeqd)
-  AVX_OP(Movlhps, movlhps)
-  AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
-  AVX_OP_SSE4_1(Packusdw, packusdw)
-  AVX_OP_SSE4_1(Insertps, insertps)
-  AVX_OP_SSE4_1(Pinsrq, pinsrq)
-  AVX_OP_SSE4_1(Pextrq, pextrq)
-  AVX_OP_SSE4_1(Roundss, roundss)
-  AVX_OP_SSE4_1(Roundsd, roundsd)
-
-#undef AVX_OP
-
-  // Define movq here instead of using AVX_OP. movq is defined using templates
-  // and there is a function template `void movq(P1)`, while technically
-  // impossible, will be selected when deducing the arguments for AvxHelper.
-  void Movq(XMMRegister dst, Register src);
-  void Movq(Register dst, XMMRegister src);
-
-  void F64x2Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F64x2Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F32x4Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F32x4Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
 
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
@@ -149,8 +119,11 @@ class V8_EXPORT_PRIVATE TurboAssembler
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
 
-  void Movdqa(XMMRegister dst, Operand src);
-  void Movdqa(XMMRegister dst, XMMRegister src);
+  // Define movq here instead of using AVX_OP. movq is defined using templates
+  // and there is a function template `void movq(P1)`, while technically
+  // impossible, will be selected when deducing the arguments for AvxHelper.
+  void Movq(XMMRegister dst, Register src);
+  void Movq(Register dst, XMMRegister src);
 
   void Cvtss2sd(XMMRegister dst, XMMRegister src);
   void Cvtss2sd(XMMRegister dst, Operand src);
@@ -190,6 +163,28 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Cvtlsi2ss(XMMRegister dst, Operand src);
   void Cvtlsi2sd(XMMRegister dst, Register src);
   void Cvtlsi2sd(XMMRegister dst, Operand src);
+
+  void PextrdPreSse41(Register dst, XMMRegister src, uint8_t imm8);
+  void Pextrq(Register dst, XMMRegister src, int8_t imm8);
+
+  void PinsrdPreSse41(XMMRegister dst, Register src2, uint8_t imm8,
+                      uint32_t* load_pc_offset = nullptr);
+  void PinsrdPreSse41(XMMRegister dst, Operand src2, uint8_t imm8,
+                      uint32_t* load_pc_offset = nullptr);
+
+  void Pinsrq(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+  void Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+
+  void F64x2Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F64x2Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F32x4Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F32x4Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
 
   void Lzcntq(Register dst, Register src);
   void Lzcntq(Register dst, Operand src);
@@ -357,6 +352,9 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void SmiUntag(Register dst, Register src);
   void SmiUntag(Register dst, Operand src);
 
+  // Convert smi to 32-bit value.
+  void SmiToInt32(Register reg);
+
   // Loads the address of the external reference into the destination
   // register.
   void LoadAddress(Register destination, ExternalReference source);
@@ -423,35 +421,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
 
   void Trap();
   void DebugBreak();
-
-  // Non-SSE2 instructions.
-  void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
-
-  void Pinsrb(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8,
-              uint32_t* load_pc_offset = nullptr);
-  void Pinsrb(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
-              uint32_t* load_pc_offset = nullptr);
-  void Pinsrw(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8,
-              uint32_t* load_pc_offset = nullptr);
-  void Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
-              uint32_t* load_pc_offset = nullptr);
-  void Pinsrd(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8,
-              uint32_t* load_pc_offset = nullptr);
-  void Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
-              uint32_t* load_pc_offset = nullptr);
-  void Pinsrd(XMMRegister dst, Register src2, uint8_t imm8,
-              uint32_t* load_pc_offset = nullptr);
-  void Pinsrd(XMMRegister dst, Operand src2, uint8_t imm8,
-              uint32_t* load_pc_offset = nullptr);
-  void Pinsrq(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8,
-              uint32_t* load_pc_offset = nullptr);
-  void Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
-              uint32_t* load_pc_offset = nullptr);
-
-  void Absps(XMMRegister dst, XMMRegister src);
-  void Negps(XMMRegister dst, XMMRegister src);
-  void Abspd(XMMRegister dst, XMMRegister src);
-  void Negpd(XMMRegister dst, XMMRegister src);
 
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);
@@ -781,7 +750,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void Cmp(Operand dst, Handle<Object> source);
 
   // Checks if value is in range [lower_limit, higher_limit] using a single
-  // comparison.
+  // comparison. Flags CF=1 or ZF=1 indicate the value is in the range
+  // (condition below_equal).
+  void CompareRange(Register value, unsigned lower_limit,
+                    unsigned higher_limit);
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range,
                        Label::Distance near_jump = Label::kFar);
@@ -815,7 +787,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Compare instance type ranges for a map (low and high inclusive)
   // Always use unsigned comparisons: below_equal for a positive result.
-  void CmpInstanceTypeRange(Register map, InstanceType low, InstanceType high);
+  void CmpInstanceTypeRange(Register map, Register instance_type_out,
+                            InstanceType low, InstanceType high);
 
   template <typename Field>
   void DecodeField(Register reg) {

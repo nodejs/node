@@ -9,12 +9,11 @@ extern class BigIntBase extends PrimitiveHeapObject
 
 type BigInt extends BigIntBase;
 
-@noVerifier
 @hasSameInstanceTypeAsParent
 @doNotGenerateCast
 extern class MutableBigInt extends BigIntBase generates 'TNode<BigInt>';
 
 Convert<BigInt, MutableBigInt>(i: MutableBigInt): BigInt {
-  assert(bigint::IsCanonicalized(i));
+  dcheck(bigint::IsCanonicalized(i));
   return %RawDownCast<BigInt>(Convert<BigIntBase>(i));
 }

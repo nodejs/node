@@ -21,12 +21,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define ADD_CODE(vec, ...)                                              \
-  do {                                                                  \
-    byte __buf[] = {__VA_ARGS__};                                       \
-    for (size_t i = 0; i < sizeof(__buf); i++) vec.push_back(__buf[i]); \
-  } while (false)
-
 namespace {
 // A helper for generating predictable but unique argument values that
 // are easy to debug (e.g. with misaligned stacks).
@@ -570,8 +564,6 @@ WASM_COMPILED_EXEC_TEST(Run_ReturnCallImportedFunction) {
 WASM_COMPILED_EXEC_TEST(Run_ReturnCallIndirectImportedFunction) {
   RunPickerTest(execution_tier, true);
 }
-
-#undef ADD_CODE
 
 }  // namespace wasm
 }  // namespace internal

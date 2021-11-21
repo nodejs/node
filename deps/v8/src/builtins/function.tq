@@ -24,7 +24,8 @@ const kMinDescriptorsForFastBind:
     constexpr int31 generates 'JSFunction::kMinDescriptorsForFastBind';
 
 macro CheckAccessor(implicit context: Context)(
-    array: DescriptorArray, index: constexpr int32, name: Name) labels Slow {
+    array: DescriptorArray, index: constexpr int32,
+    name: Name): void labels Slow {
   const descriptor: DescriptorEntry = array.descriptors[index];
   const key: Name|Undefined = descriptor.key;
   if (!TaggedEqual(key, name)) goto Slow;

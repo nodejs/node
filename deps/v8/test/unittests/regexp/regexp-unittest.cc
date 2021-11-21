@@ -13,7 +13,7 @@ TEST_F(TestWithNativeContext, ConvertRegExpFlagsToString) {
   Handle<JSRegExp> regexp = RunJS<JSRegExp>("regexp");
   Handle<String> flags = RunJS<String>("regexp.flags");
   Handle<String> converted_flags =
-      JSRegExp::StringFromFlags(isolate(), regexp->GetFlags());
+      JSRegExp::StringFromFlags(isolate(), regexp->flags());
   EXPECT_TRUE(String::Equals(isolate(), flags, converted_flags));
 }
 
@@ -22,7 +22,7 @@ TEST_F(TestWithNativeContext, ConvertRegExpFlagsToStringNoFlags) {
   Handle<JSRegExp> regexp = RunJS<JSRegExp>("regexp");
   Handle<String> flags = RunJS<String>("regexp.flags");
   Handle<String> converted_flags =
-      JSRegExp::StringFromFlags(isolate(), regexp->GetFlags());
+      JSRegExp::StringFromFlags(isolate(), regexp->flags());
   EXPECT_TRUE(String::Equals(isolate(), flags, converted_flags));
 }
 
@@ -31,7 +31,7 @@ TEST_F(TestWithNativeContext, ConvertRegExpFlagsToStringAllFlags) {
   Handle<JSRegExp> regexp = RunJS<JSRegExp>("regexp");
   Handle<String> flags = RunJS<String>("regexp.flags");
   Handle<String> converted_flags =
-      JSRegExp::StringFromFlags(isolate(), regexp->GetFlags());
+      JSRegExp::StringFromFlags(isolate(), regexp->flags());
   EXPECT_TRUE(String::Equals(isolate(), flags, converted_flags));
 }
 

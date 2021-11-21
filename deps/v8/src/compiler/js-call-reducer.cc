@@ -4451,8 +4451,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     // Try to further reduce the JSCall {node}.
     return Changed(node).FollowedBy(ReduceJSCall(node));
   } else if (feedback_target.has_value() && feedback_target->IsFeedbackCell()) {
-    FeedbackCellRef feedback_cell =
-        MakeRef(broker(), feedback_target.value().AsFeedbackCell().object());
+    FeedbackCellRef feedback_cell = feedback_target.value().AsFeedbackCell();
     // TODO(neis): This check seems unnecessary.
     if (feedback_cell.feedback_vector().has_value()) {
       // Check that {target} is a closure with given {feedback_cell},
@@ -5951,9 +5950,13 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
   Effect effect = n.effect();
   Control control = n.control();
 
-  // Optimize for the case where we simply clone the {receiver},
-  // i.e. when the {start} is zero and the {end} is undefined
-  // (meaning it will be set to {receiver}s "length" property).
+  // Optimize for the case where we simply clone the {receiver}, i.e. when the
+  // {start} is zero and the {end} is undefined (meaning it will be set to
+  // {receiver}s "length" property). This logic should be in sync with
+  // ReduceArrayPrototypeSlice (to a reasonable degree). This is because
+  // CloneFastJSArray produces arrays which are potentially COW. If there's a
+  // discrepancy, TF generates code which produces a COW array and then expects
+  // it to be non-COW (or the other way around) -> immediate deopt.
   if (!NumberMatcher(start).Is(0) ||
       !HeapObjectMatcher(end).Is(factory()->undefined_value())) {
     return NoChange();

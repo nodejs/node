@@ -256,8 +256,7 @@ void TurboAssembler::Mov(const Register& rd, uint64_t imm) {
     bool invert_move = false;
     // If the number of 0xFFFF halfwords is greater than the number of 0x0000
     // halfwords, it's more efficient to use move-inverted.
-    if (CountClearHalfWords(~imm, reg_size) >
-        CountClearHalfWords(imm, reg_size)) {
+    if (CountSetHalfWords(imm, reg_size) > CountSetHalfWords(~imm, reg_size)) {
       ignored_halfword = 0xFFFFL;
       invert_move = true;
     }
@@ -560,23 +559,27 @@ void TurboAssembler::Mvn(const Register& rd, const Operand& operand) {
   }
 }
 
-unsigned TurboAssembler::CountClearHalfWords(uint64_t imm, unsigned reg_size) {
-  DCHECK_EQ(reg_size % 8, 0);
-  int count = 0;
-  for (unsigned i = 0; i < (reg_size / 16); i++) {
-    if ((imm & 0xFFFF) == 0) {
-      count++;
-    }
-    imm >>= 16;
+unsigned TurboAssembler::CountSetHalfWords(uint64_t imm, unsigned reg_size) {
+  DCHECK_EQ(reg_size % 16, 0);
+
+#define HALFWORD(idx) (((imm >> ((idx)*16)) & 0xFFFF) ? 1u : 0u)
+  switch (reg_size / 16) {
+    case 1:
+      return HALFWORD(0);
+    case 2:
+      return HALFWORD(0) + HALFWORD(1);
+    case 4:
+      return HALFWORD(0) + HALFWORD(1) + HALFWORD(2) + HALFWORD(3);
   }
-  return count;
+#undef HALFWORD
+  UNREACHABLE();
 }
 
 // The movz instruction can generate immediates containing an arbitrary 16-bit
 // half-word, with remaining bits clear, eg. 0x00001234, 0x0000123400000000.
 bool TurboAssembler::IsImmMovz(uint64_t imm, unsigned reg_size) {
   DCHECK((reg_size == kXRegSizeInBits) || (reg_size == kWRegSizeInBits));
-  return CountClearHalfWords(imm, reg_size) >= ((reg_size / 16) - 1);
+  return CountSetHalfWords(imm, reg_size) <= 1;
 }
 
 // The movn instruction can generate immediates containing an arbitrary 16-bit
@@ -1690,23 +1693,13 @@ void TurboAssembler::CallCFunction(ExternalReference function,
 }
 
 static const int kRegisterPassedArguments = 8;
+static const int kFPRegisterPassedArguments = 8;
 
 void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
                                    int num_of_double_args) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_of_reg_args + num_of_double_args, kMaxCParameters);
   DCHECK(has_frame());
-
-  // If we're passing doubles, we're limited to the following prototypes
-  // (defined by ExternalReference::Type):
-  //  BUILTIN_COMPARE_CALL:  int f(double, double)
-  //  BUILTIN_FP_FP_CALL:    double f(double, double)
-  //  BUILTIN_FP_CALL:       double f(double)
-  //  BUILTIN_FP_INT_CALL:   double f(double, int)
-  if (num_of_double_args > 0) {
-    DCHECK_LE(num_of_reg_args, 1);
-    DCHECK_LE(num_of_double_args + num_of_reg_args, 2);
-  }
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
@@ -1756,6 +1749,13 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
   if (num_of_reg_args > kRegisterPassedArguments) {
     // Drop the register passed arguments.
     int claim_slots = RoundUp(num_of_reg_args - kRegisterPassedArguments, 2);
+    Drop(claim_slots);
+  }
+
+  if (num_of_double_args > kFPRegisterPassedArguments) {
+    // Drop the register passed arguments.
+    int claim_slots =
+        RoundUp(num_of_double_args - kFPRegisterPassedArguments, 2);
     Drop(claim_slots);
   }
 }
@@ -2041,9 +2041,9 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // (off-heap) entry point directly without going through the (on-heap)
     // trampoline.  Otherwise, just call the Code object as always.
 
-    Ldrsw(scratch, FieldMemOperand(code_object, Code::kFlagsOffset));
-    Tst(scratch, Operand(Code::IsOffHeapTrampoline::kMask));
-    B(ne, &if_code_is_off_heap);
+    Ldr(scratch.W(), FieldMemOperand(code_object, Code::kFlagsOffset));
+    TestAndBranchIfAnySet(scratch.W(), Code::IsOffHeapTrampoline::kMask,
+                          &if_code_is_off_heap);
 
     // Not an off-heap trampoline object, the entry point is at
     // Code::raw_instruction_start().
@@ -2054,8 +2054,8 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // table.
     bind(&if_code_is_off_heap);
     Ldrsw(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
-    Lsl(destination, scratch, kSystemPointerSizeLog2);
-    Add(destination, destination, kRootRegister);
+    Add(destination, kRootRegister,
+        Operand(scratch, LSL, kSystemPointerSizeLog2));
     Ldr(destination,
         MemOperand(destination, IsolateData::builtin_entry_table_offset()));
 
@@ -2088,8 +2088,12 @@ void TurboAssembler::LoadCodeDataContainerEntry(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  Ldr(destination, FieldMemOperand(code_data_container_object,
-                                   CodeDataContainer::kCodeEntryPointOffset));
+
+  LoadExternalPointerField(
+      destination,
+      FieldMemOperand(code_data_container_object,
+                      CodeDataContainer::kCodeEntryPointOffset),
+      kCodeEntryPointTag);
 }
 
 void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
@@ -2259,8 +2263,10 @@ void MacroAssembler::InvokePrologue(Register formal_parameter_count,
 
   // If the formal parameter count is equal to the adaptor sentinel, no need
   // to push undefined value as arguments.
-  Cmp(formal_parameter_count, Operand(kDontAdaptArgumentsSentinel));
-  B(eq, &regular_invoke);
+  if (kDontAdaptArgumentsSentinel != 0) {
+    Cmp(formal_parameter_count, Operand(kDontAdaptArgumentsSentinel));
+    B(eq, &regular_invoke);
+  }
 
   // If overapplication or if the actual argument count is equal to the
   // formal parameter count, no need to push extra undefined values.
@@ -2354,8 +2360,8 @@ void MacroAssembler::InvokePrologue(Register formal_parameter_count,
 
   bind(&stack_overflow);
   {
-    FrameScope frame(this,
-                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+    FrameScope frame(
+        this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
     CallRuntime(Runtime::kThrowStackOverflow);
     Unreachable();
   }
@@ -2369,7 +2375,8 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
   ASM_CODE_COMMENT(this);
   // Load receiver to pass it later to DebugOnFunctionCall hook.
   Peek(x4, ReceiverOperand(actual_parameter_count));
-  FrameScope frame(this, has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+  FrameScope frame(
+      this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
 
   if (!new_target.is_valid()) new_target = padreg;
 
@@ -3056,6 +3063,34 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   Bind(&done);
 }
 
+void TurboAssembler::LoadExternalPointerField(Register destination,
+                                              MemOperand field_operand,
+                                              ExternalPointerTag tag,
+                                              Register isolate_root) {
+  DCHECK(!AreAliased(destination, isolate_root));
+  ASM_CODE_COMMENT(this);
+#ifdef V8_HEAP_SANDBOX
+  UseScratchRegisterScope temps(this);
+  Register external_table = temps.AcquireX();
+  if (isolate_root == no_reg) {
+    DCHECK(root_array_available_);
+    isolate_root = kRootRegister;
+  }
+  Ldr(external_table,
+      MemOperand(isolate_root,
+                 IsolateData::external_pointer_table_offset() +
+                     Internals::kExternalPointerTableBufferOffset));
+  Ldr(destination, field_operand);
+  Ldr(destination,
+      MemOperand(external_table, destination, LSL, kSystemPointerSizeLog2));
+  if (tag != 0) {
+    And(destination, destination, Immediate(~tag));
+  }
+#else
+  Ldr(destination, field_operand);
+#endif  // V8_HEAP_SANDBOX
+}
+
 void TurboAssembler::MaybeSaveRegisters(RegList registers) {
   if (registers == 0) return;
   ASM_CODE_COMMENT(this);
@@ -3274,7 +3309,7 @@ void TurboAssembler::Abort(AbortReason reason) {
 
   if (should_abort_hard()) {
     // We don't care if we constructed a frame. Just pretend we did.
-    FrameScope assume_frame(this, StackFrame::NONE);
+    FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
     Mov(w0, static_cast<int>(reason));
     Call(ExternalReference::abort_with_reason());
     return;
@@ -3288,7 +3323,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   if (!has_frame_) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
-    FrameScope scope(this, StackFrame::NONE);
+    FrameScope scope(this, StackFrame::NO_FRAME_TYPE);
     Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
   } else {
     Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);

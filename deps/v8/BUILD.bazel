@@ -165,7 +165,6 @@ config_setting(
 # v8_control_flow_integrity
 # v8_enable_virtual_memory_cage
 # cppgc_enable_caged_heap
-# cppgc_enable_check_assignments_in_prefinalizers
 # cppgc_enable_object_names
 # cppgc_enable_verify_heap
 # cppgc_enable_young_generation
@@ -894,6 +893,8 @@ filegroup(
         "src/torque/instance-type-generator.cc",
         "src/torque/instructions.cc",
         "src/torque/instructions.h",
+        "src/torque/kythe-data.cc",
+        "src/torque/kythe-data.h",
         "src/torque/parameter-difference.h",
         "src/torque/server-data.cc",
         "src/torque/server-data.h",
@@ -1218,6 +1219,7 @@ filegroup(
         "src/flags/flag-definitions.h",
         "src/flags/flags.cc",
         "src/flags/flags.h",
+        "src/handles/global-handles-inl.h",
         "src/handles/global-handles.cc",
         "src/handles/global-handles.h",
         "src/handles/handles-inl.h",
@@ -1588,6 +1590,7 @@ filegroup(
         "src/objects/lookup-inl.h",
         "src/objects/lookup.cc",
         "src/objects/lookup.h",
+        "src/objects/managed-inl.h",
         "src/objects/managed.cc",
         "src/objects/managed.h",
         "src/objects/map-inl.h",
@@ -1619,6 +1622,8 @@ filegroup(
         "src/objects/objects-definitions.h",
         "src/objects/oddball-inl.h",
         "src/objects/oddball.h",
+        "src/objects/option-utils.h",
+        "src/objects/option-utils.cc",
         "src/objects/ordered-hash-table-inl.h",
         "src/objects/ordered-hash-table.cc",
         "src/objects/ordered-hash-table.h",
@@ -1708,6 +1713,7 @@ filegroup(
         "src/objects/value-serializer.cc",
         "src/objects/value-serializer.h",
         "src/objects/visitors.cc",
+        "src/objects/visitors-inl.h",
         "src/objects/visitors.h",
         "src/parsing/expression-scope.h",
         "src/parsing/func-name-inferrer.cc",
@@ -2727,6 +2733,7 @@ filegroup(
         "src/bigint/bigint-internal.cc",
         "src/bigint/bigint-internal.h",
         "src/bigint/bigint.h",
+        "src/bigint/bitwise.cc",
         "src/bigint/digit-arithmetic.h",
         "src/bigint/div-barrett.cc",
         "src/bigint/div-burnikel.cc",
@@ -2909,11 +2916,11 @@ v8_torque(
         "exported-macros-assembler.h",
         "factory.cc",
         "factory.inc",
-        "field-offsets.h",
         "instance-types.h",
         "interface-descriptors.inc",
         "objects-body-descriptors-inl.inc",
         "objects-printer.cc",
+        "visitor-lists.h",
     ],
     args = select({
         ":is_v8_annotate_torque_ir": [ "-annotate-ir" ],

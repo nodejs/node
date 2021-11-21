@@ -389,7 +389,6 @@ void V8StackTraceImpl::StackFrameIterator::next() {
   while (m_currentIt == m_currentEnd && m_parent) {
     const std::vector<std::shared_ptr<StackFrame>>& frames = m_parent->frames();
     m_currentIt = frames.begin();
-    if (m_parent->description() == "async function") ++m_currentIt;
     m_currentEnd = frames.end();
     m_parent = m_parent->parent().lock().get();
   }
@@ -405,7 +404,8 @@ StackFrame* V8StackTraceImpl::StackFrameIterator::frame() {
 
 // static
 std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
-    V8Debugger* debugger, const String16& description, int maxStackSize) {
+    V8Debugger* debugger, const String16& description, int maxStackSize,
+    bool skipTopFrame) {
   DCHECK(debugger);
 
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
@@ -419,6 +419,9 @@ std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
     v8::Local<v8::StackTrace> v8StackTrace = v8::StackTrace::CurrentStackTrace(
         isolate, maxStackSize, stackTraceOptions);
     frames = toFramesVector(debugger, v8StackTrace, maxStackSize);
+    if (skipTopFrame && !frames.empty()) {
+      frames.erase(frames.begin());
+    }
   }
 
   std::shared_ptr<AsyncStackTrace> asyncParent;

@@ -2728,7 +2728,7 @@ inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
   assm->cmov(zero, dst.gp(), tmp);
 }
 
-template <void (TurboAssembler::*pcmp)(XMMRegister, XMMRegister)>
+template <void (SharedTurboAssembler::*pcmp)(XMMRegister, XMMRegister)>
 inline void EmitAllTrue(LiftoffAssembler* assm, LiftoffRegister dst,
                         LiftoffRegister src,
                         base::Optional<CpuFeature> feature = base::nullopt) {
@@ -3133,17 +3133,11 @@ void LiftoffAssembler::emit_i64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64x2_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
   // Different register alias requirements depending on CpuFeatures supported:
-  if (CpuFeatures::IsSupported(AVX)) {
-    // 1. AVX, no requirements.
+  if (CpuFeatures::IsSupported(AVX) || CpuFeatures::IsSupported(SSE4_2)) {
+    // 1. AVX, or SSE4_2 no requirements (I64x2GtS takes care of aliasing).
     I64x2GtS(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
-  } else if (CpuFeatures::IsSupported(SSE4_2)) {
-    // 2. SSE4_2, dst == lhs.
-    if (dst != lhs) {
-      movaps(dst.fp(), lhs.fp());
-    }
-    I64x2GtS(dst.fp(), dst.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
   } else {
-    // 3. Else, dst != lhs && dst != rhs (lhs == rhs is ok).
+    // 2. Else, dst != lhs && dst != rhs (lhs == rhs is ok).
     if (dst == lhs || dst == rhs) {
       LiftoffRegister tmp = GetUnusedRegister(
           RegClass::kFpReg, LiftoffRegList::ForRegs(lhs, rhs));
@@ -3863,19 +3857,7 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
       GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, lhs, rhs));
   LiftoffRegister tmp2 =
       GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, lhs, rhs, tmp1));
-  Movaps(tmp1.fp(), lhs.fp());
-  Movaps(tmp2.fp(), rhs.fp());
-  // Multiply high dword of each qword of left with right.
-  Psrlq(tmp1.fp(), byte{32});
-  Pmuludq(tmp1.fp(), tmp1.fp(), rhs.fp());
-  // Multiply high dword of each qword of right with left.
-  Psrlq(tmp2.fp(), byte{32});
-  Pmuludq(tmp2.fp(), tmp2.fp(), lhs.fp());
-  Paddq(tmp2.fp(), tmp2.fp(), tmp1.fp());
-  Psllq(tmp2.fp(), tmp2.fp(), byte{32});
-  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmuludq, &Assembler::pmuludq>(
-      this, dst, lhs, rhs);
-  Paddq(dst.fp(), dst.fp(), tmp2.fp());
+  I64x2Mul(dst.fp(), lhs.fp(), rhs.fp(), tmp1.fp(), tmp2.fp());
 }
 
 void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_s(LiftoffRegister dst,
@@ -3933,28 +3915,14 @@ void LiftoffAssembler::emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  if (dst.fp() == src.fp()) {
-    Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    Psrld(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{1});
-    Andps(dst.fp(), liftoff::kScratchDoubleReg);
-  } else {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Psrld(dst.fp(), dst.fp(), byte{1});
-    Andps(dst.fp(), src.fp());
-  }
+  Register tmp = GetUnusedRegister(kGpReg, {}).gp();
+  Absps(dst.fp(), src.fp(), tmp);
 }
 
 void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  if (dst.fp() == src.fp()) {
-    Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    Pslld(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{31});
-    Xorps(dst.fp(), liftoff::kScratchDoubleReg);
-  } else {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Pslld(dst.fp(), dst.fp(), byte{31});
-    Xorps(dst.fp(), src.fp());
-  }
+  Register tmp = GetUnusedRegister(kGpReg, {}).gp();
+  Negps(dst.fp(), src.fp(), tmp);
 }
 
 void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
@@ -4016,61 +3984,12 @@ void LiftoffAssembler::emit_f32x4_div(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // The minps instruction doesn't propagate NaNs and +0's in its first
-  // operand. Perform minps in both orders, merge the results, and adjust.
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vminps(liftoff::kScratchDoubleReg, lhs.fp(), rhs.fp());
-    vminps(dst.fp(), rhs.fp(), lhs.fp());
-  } else if (dst.fp() == lhs.fp() || dst.fp() == rhs.fp()) {
-    XMMRegister src = dst.fp() == lhs.fp() ? rhs.fp() : lhs.fp();
-    movaps(liftoff::kScratchDoubleReg, src);
-    minps(liftoff::kScratchDoubleReg, dst.fp());
-    minps(dst.fp(), src);
-  } else {
-    movaps(liftoff::kScratchDoubleReg, lhs.fp());
-    minps(liftoff::kScratchDoubleReg, rhs.fp());
-    movaps(dst.fp(), rhs.fp());
-    minps(dst.fp(), lhs.fp());
-  }
-  // propagate -0's and NaNs, which may be non-canonical.
-  Orps(liftoff::kScratchDoubleReg, dst.fp());
-  // Canonicalize NaNs by quieting and clearing the payload.
-  Cmpunordps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
-  Orps(liftoff::kScratchDoubleReg, dst.fp());
-  Psrld(dst.fp(), dst.fp(), byte{10});
-  Andnps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
+  F32x4Min(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // The maxps instruction doesn't propagate NaNs and +0's in its first
-  // operand. Perform maxps in both orders, merge the results, and adjust.
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vmaxps(liftoff::kScratchDoubleReg, lhs.fp(), rhs.fp());
-    vmaxps(dst.fp(), rhs.fp(), lhs.fp());
-  } else if (dst.fp() == lhs.fp() || dst.fp() == rhs.fp()) {
-    XMMRegister src = dst.fp() == lhs.fp() ? rhs.fp() : lhs.fp();
-    movaps(liftoff::kScratchDoubleReg, src);
-    maxps(liftoff::kScratchDoubleReg, dst.fp());
-    maxps(dst.fp(), src);
-  } else {
-    movaps(liftoff::kScratchDoubleReg, lhs.fp());
-    maxps(liftoff::kScratchDoubleReg, rhs.fp());
-    movaps(dst.fp(), rhs.fp());
-    maxps(dst.fp(), lhs.fp());
-  }
-  // Find discrepancies.
-  Xorps(dst.fp(), liftoff::kScratchDoubleReg);
-  // Propagate NaNs, which may be non-canonical.
-  Orps(liftoff::kScratchDoubleReg, dst.fp());
-  // Propagate sign discrepancy and (subtle) quiet NaNs.
-  Subps(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, dst.fp());
-  // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-  Cmpunordps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
-  Psrld(dst.fp(), dst.fp(), byte{10});
-  Andnps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
+  F32x4Max(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
@@ -4089,28 +4008,14 @@ void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  if (dst.fp() == src.fp()) {
-    Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    Psrlq(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{1});
-    Andpd(dst.fp(), liftoff::kScratchDoubleReg);
-  } else {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Psrlq(dst.fp(), dst.fp(), byte{1});
-    Andpd(dst.fp(), src.fp());
-  }
+  Register tmp = GetUnusedRegister(kGpReg, {}).gp();
+  Abspd(dst.fp(), src.fp(), tmp);
 }
 
 void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  if (dst.fp() == src.fp()) {
-    Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    Psllq(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{63});
-    Xorpd(dst.fp(), liftoff::kScratchDoubleReg);
-  } else {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Psllq(dst.fp(), dst.fp(), byte{63});
-    Xorpd(dst.fp(), src.fp());
-  }
+  Register tmp = GetUnusedRegister(kGpReg, {}).gp();
+  Negpd(dst.fp(), src.fp(), tmp);
 }
 
 void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,

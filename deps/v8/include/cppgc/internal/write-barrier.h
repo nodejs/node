@@ -214,6 +214,11 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
   static V8_INLINE WriteBarrier::Type Get(const void* slot, const void* value,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback) {
+#if !defined(CPPGC_YOUNG_GENERATION)
+    if (V8_LIKELY(!WriteBarrier::IsAnyIncrementalOrConcurrentMarking())) {
+      return SetAndReturnType<WriteBarrier::Type::kNone>(params);
+    }
+#endif  // !CPPGC_YOUNG_GENERATION
     bool within_cage = TryGetCagedHeap(slot, value, params);
     if (!within_cage) {
       return WriteBarrier::Type::kNone;
@@ -317,7 +322,10 @@ struct WriteBarrierTypeForNonCagedHeapPolicy::ValueModeDispatch<
                                           HeapHandleCallback callback) {
     // The following check covers nullptr as well as sentinel pointer.
     if (object <= static_cast<void*>(kSentinelPointer)) {
-      return WriteBarrier::Type::kNone;
+      return SetAndReturnType<WriteBarrier::Type::kNone>(params);
+    }
+    if (V8_LIKELY(!WriteBarrier::IsAnyIncrementalOrConcurrentMarking())) {
+      return SetAndReturnType<WriteBarrier::Type::kNone>(params);
     }
     if (IsMarking(object, &params.heap)) {
       return SetAndReturnType<WriteBarrier::Type::kMarking>(params);

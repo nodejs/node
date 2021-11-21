@@ -16,7 +16,6 @@ bitfield struct InterceptorInfoFlags extends uint31 {
   has_no_side_effect: bool: 1 bit;
 }
 
-@generatePrint
 extern class InterceptorInfo extends Struct {
   getter: NonNullForeign|Zero|Undefined;
   setter: NonNullForeign|Zero|Undefined;
@@ -29,7 +28,6 @@ extern class InterceptorInfo extends Struct {
   flags: SmiTagged<InterceptorInfoFlags>;
 }
 
-@generatePrint
 extern class AccessCheckInfo extends Struct {
   callback: Foreign|Zero|Undefined;
   named_interceptor: InterceptorInfo|Zero|Undefined;
@@ -50,7 +48,6 @@ bitfield struct AccessorInfoFlags extends uint31 {
   initial_attributes: PropertyAttributes: 3 bit;
 }
 
-@generatePrint
 extern class AccessorInfo extends Struct {
   name: Name;
   flags: SmiTagged<AccessorInfoFlags>;

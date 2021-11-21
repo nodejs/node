@@ -146,7 +146,7 @@ MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
 
 void RegExp::ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
                                   RegExpError error_text) {
-  USE(ThrowRegExpException(isolate, re, Handle<String>(re->Pattern(), isolate),
+  USE(ThrowRegExpException(isolate, re, Handle<String>(re->source(), isolate),
                            error_text));
 }
 
@@ -273,7 +273,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
 // static
 bool RegExp::EnsureFullyCompiled(Isolate* isolate, Handle<JSRegExp> re,
                                  Handle<String> subject) {
-  switch (re->TypeTag()) {
+  switch (re->type_tag()) {
     case JSRegExp::NOT_COMPILED:
       UNREACHABLE();
     case JSRegExp::ATOM:
@@ -308,7 +308,7 @@ MaybeHandle<Object> RegExp::Exec(Isolate* isolate, Handle<JSRegExp> regexp,
                                  Handle<String> subject, int index,
                                  Handle<RegExpMatchInfo> last_match_info,
                                  ExecQuirks exec_quirks) {
-  switch (regexp->TypeTag()) {
+  switch (regexp->type_tag()) {
     case JSRegExp::NOT_COMPILED:
       UNREACHABLE();
     case JSRegExp::ATOM:
@@ -352,7 +352,7 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
   subject = String::Flatten(isolate, subject);
   DisallowGarbageCollection no_gc;  // ensure vectors stay valid
 
-  String needle = String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex));
+  String needle = regexp->atom_pattern();
   int needle_len = needle.length();
   DCHECK(needle.IsFlat());
   DCHECK_LT(0, needle_len);
@@ -420,8 +420,8 @@ Handle<Object> RegExpImpl::AtomExec(Isolate* isolate, Handle<JSRegExp> re,
 bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                                         Handle<String> sample_subject,
                                         bool is_one_byte) {
-  Object compiled_code = re->Code(is_one_byte);
-  Object bytecode = re->Bytecode(is_one_byte);
+  Object compiled_code = re->code(is_one_byte);
+  Object bytecode = re->bytecode(is_one_byte);
   bool needs_initial_compilation =
       compiled_code == Smi::FromInt(JSRegExp::kUninitializedValue);
   // Recompile is needed when we're dealing with the first execution of the
@@ -450,8 +450,8 @@ namespace {
 
 #ifdef DEBUG
 bool RegExpCodeIsValidForPreCompilation(Handle<JSRegExp> re, bool is_one_byte) {
-  Object entry = re->Code(is_one_byte);
-  Object bytecode = re->Bytecode(is_one_byte);
+  Object entry = re->code(is_one_byte);
+  Object bytecode = re->bytecode(is_one_byte);
   // If we're not using the tier-up strategy, entry can only be a smi
   // representing an uncompiled regexp here. If we're using the tier-up
   // strategy, entry can still be a smi representing an uncompiled regexp, when
@@ -528,9 +528,9 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
 
   DCHECK(RegExpCodeIsValidForPreCompilation(re, is_one_byte));
 
-  RegExpFlags flags = JSRegExp::AsRegExpFlags(re->GetFlags());
+  RegExpFlags flags = JSRegExp::AsRegExpFlags(re->flags());
 
-  Handle<String> pattern(re->Pattern(), isolate);
+  Handle<String> pattern(re->source(), isolate);
   pattern = String::Flatten(isolate, pattern);
   RegExpCompileData compile_data;
   if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern, flags,
@@ -548,7 +548,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   compile_data.compilation_target = re->ShouldProduceBytecode()
                                         ? RegExpCompilationTarget::kBytecode
                                         : RegExpCompilationTarget::kNative;
-  uint32_t backtrack_limit = re->BacktrackLimit();
+  uint32_t backtrack_limit = re->backtrack_limit();
   const bool compilation_succeeded =
       Compile(isolate, &zone, &compile_data, flags, pattern, sample_subject,
               is_one_byte, backtrack_limit);
@@ -581,7 +581,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   }
   Handle<FixedArray> capture_name_map =
       RegExp::CreateCaptureNameMap(isolate, compile_data.named_captures);
-  re->SetCaptureNameMap(capture_name_map);
+  re->set_capture_name_map(capture_name_map);
   int register_max = IrregexpMaxRegisterCount(*data);
   if (compile_data.register_count > register_max) {
     SetIrregexpMaxRegisterCount(*data, compile_data.register_count);
@@ -644,7 +644,7 @@ int RegExpImpl::IrregexpPrepare(Isolate* isolate, Handle<JSRegExp> regexp,
 
   // Only reserve room for output captures. Internal registers are allocated by
   // the engine.
-  return JSRegExp::RegistersForCaptureCount(regexp->CaptureCount());
+  return JSRegExp::RegistersForCaptureCount(regexp->capture_count());
 }
 
 int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
@@ -654,7 +654,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
   DCHECK_LE(index, subject->length());
   DCHECK(subject->IsFlat());
   DCHECK_GE(output_size,
-            JSRegExp::RegistersForCaptureCount(regexp->CaptureCount()));
+            JSRegExp::RegistersForCaptureCount(regexp->capture_count()));
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
 
@@ -721,14 +721,13 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
     Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
     int previous_index, Handle<RegExpMatchInfo> last_match_info,
     RegExp::ExecQuirks exec_quirks) {
-  DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
+  DCHECK_EQ(regexp->type_tag(), JSRegExp::IRREGEXP);
 
   subject = String::Flatten(isolate, subject);
 
 #ifdef DEBUG
   if (FLAG_trace_regexp_bytecodes && regexp->ShouldProduceBytecode()) {
-    String pattern = regexp->Pattern();
-    PrintF("\n\nRegexp match:   /%s/\n\n", pattern.ToCString().get());
+    PrintF("\n\nRegexp match:   /%s/\n\n", regexp->source().ToCString().get());
     PrintF("\n\nSubject string: '%s'\n\n", subject->ToCString().get());
   }
 #endif
@@ -775,7 +774,7 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
         return isolate->factory()->null_value();
       }
     }
-    int capture_count = regexp->CaptureCount();
+    int capture_count = regexp->capture_count();
     return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
                                     capture_count, output_registers);
   } else if (res == RegExp::RE_FALLBACK_TO_EXPERIMENTAL) {
@@ -1042,9 +1041,9 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<JSRegExp> regexp,
       regexp_(regexp),
       subject_(subject),
       isolate_(isolate) {
-  DCHECK(IsGlobal(JSRegExp::AsRegExpFlags(regexp->GetFlags())));
+  DCHECK(IsGlobal(JSRegExp::AsRegExpFlags(regexp->flags())));
 
-  switch (regexp_->TypeTag()) {
+  switch (regexp_->type_tag()) {
     case JSRegExp::NOT_COMPILED:
       UNREACHABLE();
     case JSRegExp::ATOM: {
@@ -1081,7 +1080,7 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<JSRegExp> regexp,
         return;
       }
       registers_per_match_ =
-          JSRegExp::RegistersForCaptureCount(regexp->CaptureCount());
+          JSRegExp::RegistersForCaptureCount(regexp->capture_count());
       register_array_size_ = std::max(
           {registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize});
       break;
@@ -1117,7 +1116,7 @@ RegExpGlobalCache::~RegExpGlobalCache() {
 }
 
 int RegExpGlobalCache::AdvanceZeroLength(int last_index) {
-  if (IsUnicode(JSRegExp::AsRegExpFlags(regexp_->GetFlags())) &&
+  if (IsUnicode(JSRegExp::AsRegExpFlags(regexp_->flags())) &&
       last_index + 1 < subject_->length() &&
       unibrow::Utf16::IsLeadSurrogate(subject_->Get(last_index)) &&
       unibrow::Utf16::IsTrailSurrogate(subject_->Get(last_index + 1))) {
@@ -1142,7 +1141,7 @@ int32_t* RegExpGlobalCache::FetchNext() {
         &register_array_[(current_match_index_ - 1) * registers_per_match_];
     int last_end_index = last_match[1];
 
-    switch (regexp_->TypeTag()) {
+    switch (regexp_->type_tag()) {
       case JSRegExp::NOT_COMPILED:
         UNREACHABLE();
       case JSRegExp::ATOM:

@@ -167,12 +167,16 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
         last_side_effect_instr_->AddSuccessor(new_node);
       }
       pending_loads_.push_back(new_node);
-    } else if (instr->IsDeoptimizeCall() || instr->IsTrap()) {
+    } else if (instr->IsDeoptimizeCall() || CanTrap(instr)) {
       // Ensure that deopts or traps are not reordered with respect to
       // side-effect instructions.
       if (last_side_effect_instr_ != nullptr) {
         last_side_effect_instr_->AddSuccessor(new_node);
       }
+    }
+
+    // Update last deoptimization or trap point.
+    if (instr->IsDeoptimizeCall() || CanTrap(instr)) {
       last_deopt_or_trap_ = new_node;
     }
 
@@ -304,7 +308,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
 #if V8_ENABLE_WEBASSEMBLY
     case kArchTailCallWasm:
 #endif  // V8_ENABLE_WEBASSEMBLY
-    case kArchAbortCSAAssert:
+    case kArchAbortCSADcheck:
       return kHasSideEffect;
 
     case kArchDebugBreak:

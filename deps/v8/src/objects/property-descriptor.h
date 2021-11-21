@@ -122,10 +122,6 @@ class PropertyDescriptor {
   Handle<Object> get_;
   Handle<Object> set_;
   Handle<Object> name_;
-
-  // Some compilers (Xcode 5.1, ARM GCC 4.9) insist on having a copy
-  // constructor for std::vector<PropertyDescriptor>, so we can't
-  // DISALLOW_COPY_AND_ASSIGN(PropertyDescriptor); here.
 };
 
 }  // namespace internal

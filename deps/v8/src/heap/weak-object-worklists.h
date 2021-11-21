@@ -74,13 +74,13 @@ class WeakObjects {
 
  private:
 #define DECLARE_UPDATE_METHODS(Type, _, Name) \
-  void Update##Name(WeakObjectWorklist<Type>&);
+  static void Update##Name(WeakObjectWorklist<Type>&);
   WEAK_OBJECT_WORKLISTS(DECLARE_UPDATE_METHODS)
 #undef DECLARE_UPDATE_METHODS
 
 #ifdef DEBUG
   template <typename Type>
-  bool ContainsYoungObjects(WeakObjectWorklist<Type>& worklist);
+  static bool ContainsYoungObjects(WeakObjectWorklist<Type>& worklist);
 #endif
 };
 

@@ -5,9 +5,7 @@
 #ifndef V8_REGEXP_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
 #define V8_REGEXP_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
 
-#include "src/base/strings.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/mips/assembler-mips.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
@@ -94,7 +92,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   static const int kFramePointer = 0;
 
   // Above the frame pointer - Stored registers and stack passed parameters.
-  // Registers s0 to s7, fp, and ra.
   static const int kStoredRegisters = kFramePointer;
   // Return address (stored from link register, read into pc on return).
   static const int kReturnAddress = kStoredRegisters + 9 * kPointerSize;
@@ -103,8 +100,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   // Stack parameters placed by caller.
   static const int kRegisterOutput = kStackFrameHeader + 20;
   static const int kNumOutputRegisters = kRegisterOutput + kPointerSize;
-  static const int kStackHighEnd = kNumOutputRegisters + kPointerSize;
-  static const int kDirectCall = kStackHighEnd + kPointerSize;
+  static const int kDirectCall = kNumOutputRegisters + kPointerSize;
   static const int kIsolate = kDirectCall + kPointerSize;
 
   // Below the frame pointer.
@@ -118,8 +114,14 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   static const int kSuccessfulCaptures = kInputString - kPointerSize;
   static const int kStringStartMinusOne = kSuccessfulCaptures - kPointerSize;
   static const int kBacktrackCount = kStringStartMinusOne - kSystemPointerSize;
+  // Stores the initial value of the regexp stack pointer in a
+  // position-independent representation (in case the regexp stack grows and
+  // thus moves).
+  static const int kRegExpStackBasePointer =
+      kBacktrackCount - kSystemPointerSize;
+
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kBacktrackCount - kSystemPointerSize;
+  static const int kRegisterZero = kRegExpStackBasePointer - kSystemPointerSize;
 
   // Initial size of code buffer.
   static const int kRegExpCodeSize = 1024;
@@ -130,7 +132,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
 
-
   // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState(Register scratch);
 
@@ -139,27 +140,27 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
 
   // Register holding the current input position as negative offset from
   // the end of the string.
-  inline Register current_input_offset() { return t2; }
+  static constexpr Register current_input_offset() { return t2; }
 
   // The register containing the current character after LoadCurrentCharacter.
-  inline Register current_character() { return t3; }
+  static constexpr Register current_character() { return t3; }
 
   // Register holding address of the end of the input string.
-  inline Register end_of_input_address() { return t6; }
+  static constexpr Register end_of_input_address() { return t6; }
 
   // Register holding the frame address. Local variables, parameters and
   // regexp registers are addressed relative to this.
-  inline Register frame_pointer() { return fp; }
+  static constexpr Register frame_pointer() { return fp; }
 
   // The register containing the backtrack stack top. Provides a meaningful
   // name to the register.
-  inline Register backtrack_stackpointer() { return t4; }
+  static constexpr Register backtrack_stackpointer() { return t4; }
 
   // Register holding pointer to the current code object.
-  inline Register code_pointer() { return t1; }
+  static constexpr Register code_pointer() { return t1; }
 
   // Byte size of chars in the string to match (decided by the Mode argument).
-  inline int char_size() { return static_cast<int>(mode_); }
+  inline int char_size() const { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.
@@ -185,19 +186,25 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   // and increments it by a word size.
   inline void Pop(Register target);
 
+  void LoadRegExpStackPointerFromMemory(Register dst);
+  void StoreRegExpStackPointerToMemory(Register src, Register scratch);
+  void PushRegExpBasePointer(Register scratch1, Register scratch2);
+  void PopRegExpBasePointer(Register scratch1, Register scratch2);
+
   Isolate* isolate() const { return masm_->isolate(); }
 
-  MacroAssembler* masm_;
+  const std::unique_ptr<MacroAssembler> masm_;
+  const NoRootArrayScope no_root_array_scope_;
 
   // Which mode to generate code for (Latin1 or UC16).
-  Mode mode_;
+  const Mode mode_;
 
   // One greater than maximal register index actually used.
   int num_registers_;
 
   // Number of registers to output at the end (the saved registers
   // are always 0..num_saved_registers_-1).
-  int num_saved_registers_;
+  const int num_saved_registers_;
 
   // Labels used internally.
   Label entry_label_;

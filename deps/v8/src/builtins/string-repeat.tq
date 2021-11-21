@@ -7,8 +7,8 @@ const kBuiltinName: constexpr string = 'String.prototype.repeat';
 
 builtin StringRepeat(implicit context: Context)(
     string: String, count: Smi): String {
-  assert(count >= 0);
-  assert(string != kEmptyString);
+  dcheck(count >= 0);
+  dcheck(string != kEmptyString);
 
   let result: String = kEmptyString;
   let powerOfTwoRepeats: String = string;
@@ -50,7 +50,7 @@ transitioning javascript builtin StringPrototypeRepeat(
         return StringRepeat(s, n);
       }
       case (heapNum: HeapNumber): deferred {
-        assert(IsNumberNormalized(heapNum));
+        dcheck(IsNumberNormalized(heapNum));
         const n = LoadHeapNumberValue(heapNum);
 
         // 4. If n < 0, throw a RangeError exception.

@@ -57,14 +57,14 @@ transitioning macro CreatePromiseAnyRejectElementContext(
 macro CreatePromiseAnyRejectElementFunction(implicit context: Context)(
     rejectElementContext: PromiseAnyRejectElementContext, index: Smi,
     nativeContext: NativeContext): JSFunction {
-  assert(index > 0);
-  assert(index < kPropertyArrayHashFieldMax);
+  dcheck(index > 0);
+  dcheck(index < kPropertyArrayHashFieldMax);
   const map = *ContextSlot(
       nativeContext, ContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   const rejectInfo = PromiseAnyRejectElementSharedFunConstant();
   const reject =
       AllocateFunctionWithMapAndContext(map, rejectInfo, rejectElementContext);
-  assert(kPropertyArrayNoHashSentinel == 0);
+  dcheck(kPropertyArrayNoHashSentinel == 0);
   reject.properties_or_hash = index;
   return reject;
 }
@@ -89,7 +89,7 @@ PromiseAnyRejectElementClosure(
       return Undefined;
     }
 
-  assert(
+  dcheck(
       context.length ==
       SmiTag(
           PromiseAnyRejectElementContextSlots::kPromiseAnyRejectElementLength));
@@ -100,9 +100,9 @@ PromiseAnyRejectElementClosure(
   target.context = nativeContext;
 
   // 5. Let index be F.[[Index]].
-  assert(kPropertyArrayNoHashSentinel == 0);
+  dcheck(kPropertyArrayNoHashSentinel == 0);
   const identityHash = LoadJSReceiverIdentityHash(target) otherwise unreachable;
-  assert(identityHash > 0);
+  dcheck(identityHash > 0);
   const index = identityHash - 1;
 
   // 6. Let errors be F.[[Errors]].
@@ -328,7 +328,7 @@ PromiseAny(
   const capability = NewPromiseCapability(receiver, False);
 
   // NewPromiseCapability guarantees that receiver is Constructor.
-  assert(Is<Constructor>(receiver));
+  dcheck(Is<Constructor>(receiver));
   const constructor = UnsafeCast<Constructor>(receiver);
 
   try {
@@ -365,7 +365,7 @@ PromiseAny(
     goto Reject(e);
   } label Reject(e: Object) deferred {
     // Exception must be bound to a JS value.
-    assert(e != TheHole);
+    dcheck(e != TheHole);
     Call(
         context, UnsafeCast<Callable>(capability.reject), Undefined,
         UnsafeCast<JSAny>(e));

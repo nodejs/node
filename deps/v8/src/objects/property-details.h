@@ -83,7 +83,7 @@ enum PropertyKind { kData = 0, kAccessor = 1 };
 
 // Order of modes is significant.
 // Must fit in the BitField PropertyDetails::LocationField.
-enum PropertyLocation { kField = 0, kDescriptor = 1 };
+enum class PropertyLocation { kField = 0, kDescriptor = 1 };
 
 // Order of modes is significant.
 // Must fit in the BitField PropertyDetails::ConstnessField.
@@ -256,7 +256,8 @@ class PropertyDetails {
   // Property details for global dictionary properties.
   PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
                   PropertyCellType cell_type, int dictionary_index = 0) {
-    value_ = KindField::encode(kind) | LocationField::encode(kField) |
+    value_ = KindField::encode(kind) |
+             LocationField::encode(PropertyLocation::kField) |
              AttributesField::encode(attributes) |
              // We track PropertyCell constness via PropertyCellTypeField,
              // so we set ConstnessField to kMutable to simplify DCHECKs related
@@ -269,7 +270,8 @@ class PropertyDetails {
   // Property details for dictionary mode properties/elements.
   PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
                   PropertyConstness constness, int dictionary_index = 0) {
-    value_ = KindField::encode(kind) | LocationField::encode(kField) |
+    value_ = KindField::encode(kind) |
+             LocationField::encode(PropertyLocation::kField) |
              AttributesField::encode(attributes) |
              ConstnessField::encode(constness) |
              DictionaryStorageField::encode(dictionary_index) |
@@ -499,7 +501,7 @@ class PropertyDetails {
 // kField location is more general than kDescriptor, kDescriptor generalizes
 // only to itself.
 inline bool IsGeneralizableTo(PropertyLocation a, PropertyLocation b) {
-  return b == kField || a == kDescriptor;
+  return b == PropertyLocation::kField || a == PropertyLocation::kDescriptor;
 }
 
 // PropertyConstness::kMutable constness is more general than

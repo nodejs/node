@@ -12,6 +12,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/logging/counters.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/struct-inl.h"
@@ -251,7 +252,7 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
 Handle<WasmTableObject> WasmTableObject::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance, wasm::ValueType type,
     uint32_t initial, bool has_maximum, uint32_t maximum,
-    Handle<FixedArray>* entries) {
+    Handle<FixedArray>* entries, Handle<Object> initial_value) {
   // TODO(7748): Make this work with other types when spec clears up.
   {
     const WasmModule* module =
@@ -260,9 +261,8 @@ Handle<WasmTableObject> WasmTableObject::New(
   }
 
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArray(initial);
-  Object null = ReadOnlyRoots(isolate).null_value();
   for (int i = 0; i < static_cast<int>(initial); ++i) {
-    backing_store->set(i, null);
+    backing_store->set(i, *initial_value);
   }
 
   Handle<Object> max;
@@ -1686,18 +1686,6 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
     case wasm::kBottom:
       UNREACHABLE();
   }
-}
-
-ObjectSlot WasmArray::ElementSlot(uint32_t index) {
-  DCHECK_LE(index, length());
-  DCHECK(type()->element_type().is_reference());
-  return RawField(kHeaderSize + kTaggedSize * index);
-}
-
-Address WasmArray::ElementAddress(uint32_t index) {
-  DCHECK_LE(index, length());
-  return ptr() + WasmArray::kHeaderSize +
-         index * type()->element_type().element_size_bytes() - kHeapObjectTag;
 }
 
 // static

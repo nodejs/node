@@ -165,10 +165,12 @@ class ExecArgs {
           "os.system(): String conversion of program name failed");
       return false;
     }
-    int len = prog.length() + 3;
-    char* c_arg = new char[len];
-    snprintf(c_arg, len, "%s", *prog);
-    exec_args_[0] = c_arg;
+    {
+      int len = prog.length() + 3;
+      char* c_arg = new char[len];
+      snprintf(c_arg, len, "%s", *prog);
+      exec_args_[0] = c_arg;
+    }
     int i = 1;
     for (unsigned j = 0; j < command_args->Length(); i++, j++) {
       Local<Value> arg(

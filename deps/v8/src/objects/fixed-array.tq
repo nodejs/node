@@ -86,10 +86,11 @@ extern operator '.floats[]=' macro StoreFixedDoubleArrayElement(
 extern operator '.floats[]' macro LoadFixedDoubleArrayElement(
     FixedDoubleArray, intptr): float64;
 operator '[]=' macro StoreFixedDoubleArrayDirect(
-    a: FixedDoubleArray, i: Smi, v: Number) {
+    a: FixedDoubleArray, i: Smi, v: Number): void {
   a.floats[i] = Convert<float64_or_hole>(Convert<float64>(v));
 }
-operator '[]=' macro StoreFixedArrayDirect(a: FixedArray, i: Smi, v: Object) {
+operator '[]=' macro StoreFixedArrayDirect(
+    a: FixedArray, i: Smi, v: Object): void {
   a.objects[i] = v;
 }
 

@@ -373,8 +373,8 @@ TEST(Utf8ChunkBoundaries) {
         v8::internal::ScannerStream::For(
             &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
 
-    for (size_t i = 0; unicode_ucs2[i]; i++) {
-      CHECK_EQ(unicode_ucs2[i], stream->Advance());
+    for (size_t j = 0; unicode_ucs2[j]; j++) {
+      CHECK_EQ(unicode_ucs2[j], stream->Advance());
     }
     CHECK_EQ(v8::internal::Utf16CharacterStream::kEndOfInput,
              stream->Advance());

@@ -40,9 +40,10 @@ class CpuSampler : public sampler::Sampler {
 
   void SampleStack(const v8::RegisterState& regs) override {
     Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
-    if (v8::Locker::IsActive() && (!isolate->thread_manager()->IsLockedByThread(
-                                       perThreadData_->thread_id()) ||
-                                   perThreadData_->thread_state() != nullptr)) {
+    if (v8::Locker::WasEverUsed() &&
+        (!isolate->thread_manager()->IsLockedByThread(
+             perThreadData_->thread_id()) ||
+         perThreadData_->thread_state() != nullptr)) {
       ProfilerStats::Instance()->AddReason(
           ProfilerStats::Reason::kIsolateNotLocked);
       return;

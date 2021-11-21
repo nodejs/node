@@ -97,7 +97,7 @@ transitioning builtin ArrayFilterLoopContinuation(implicit context: Context)(
 
 transitioning macro FastArrayFilter(implicit context: Context)(
     fastO: FastJSArray, len: Smi, callbackfn: Callable, thisArg: JSAny,
-    output: FastJSArray) labels
+    output: FastJSArray): void labels
 Bailout(Number, Number) {
   let k: Smi = 0;
   let to: Smi = 0;

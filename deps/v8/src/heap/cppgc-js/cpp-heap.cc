@@ -254,6 +254,7 @@ void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
   if (incremental_mark_batched_events_.events.size() == kMaxBatchedEvents) {
     recorder->AddMainThreadEvent(std::move(incremental_mark_batched_events_),
                                  GetContextId());
+    incremental_mark_batched_events_ = {};
   }
 }
 
@@ -272,6 +273,7 @@ void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
   if (incremental_sweep_batched_events_.events.size() == kMaxBatchedEvents) {
     recorder->AddMainThreadEvent(std::move(incremental_sweep_batched_events_),
                                  GetContextId());
+    incremental_sweep_batched_events_ = {};
   }
 }
 
@@ -282,10 +284,12 @@ void CppHeap::MetricRecorderAdapter::FlushBatchedIncrementalEvents() {
   if (!incremental_mark_batched_events_.events.empty()) {
     recorder->AddMainThreadEvent(std::move(incremental_mark_batched_events_),
                                  GetContextId());
+    incremental_mark_batched_events_ = {};
   }
   if (!incremental_sweep_batched_events_.events.empty()) {
     recorder->AddMainThreadEvent(std::move(incremental_sweep_batched_events_),
                                  GetContextId());
+    incremental_sweep_batched_events_ = {};
   }
 }
 

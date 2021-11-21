@@ -212,7 +212,7 @@ class FrozenDict(dict):
 
 def Freeze(obj):
   if isinstance(obj, dict):
-    return FrozenDict((k, Freeze(v)) for k, v in obj.iteritems())
+    return FrozenDict((k, Freeze(v)) for k, v in list(obj.items()))
   elif isinstance(obj, set):
     return frozenset(obj)
   elif isinstance(obj, list):

@@ -609,9 +609,9 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
     }
   }
   if (!selectedColumns.empty()) {
-    for (const std::unique_ptr<PropertyPreview>& column :
+    for (const std::unique_ptr<PropertyPreview>& prop :
          *preview->getProperties()) {
-      ObjectPreview* columnPreview = column->getValuePreview(nullptr);
+      ObjectPreview* columnPreview = prop->getValuePreview(nullptr);
       if (!columnPreview) continue;
       // Use raw pointer here since the lifetime of each PropertyPreview is
       // ensured by columnPreview. This saves an additional clone.

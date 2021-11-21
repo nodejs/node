@@ -58,6 +58,23 @@ namespace internal {
   V(BigUint64, rab_gsab_biguint64, RAB_GSAB_BIGUINT64, uint64_t)           \
   V(BigInt64, rab_gsab_bigint64, RAB_GSAB_BIGINT64, int64_t)
 
+// Like RAB_GSAB_TYPED_ARRAYS but has an additional parameter for
+// for the corresponding non-RAB/GSAB ElementsKind.
+#define RAB_GSAB_TYPED_ARRAYS_WITH_NON_RAB_GSAB_ELEMENTS_KIND(V)         \
+  V(RabGsabUint8, rab_gsab_uint8, RAB_GSAB_UINT8, uint8_t, UINT8)        \
+  V(RabGsabInt8, rab_gsab_int8, RAB_GSAB_INT8, int8_t, INT8)             \
+  V(RabGsabUint16, rab_gsab_uint16, RAB_GSAB_UINT16, uint16_t, UINT16)   \
+  V(RabGsabInt16, rab_gsab_int16, RAB_GSAB_INT16, int16_t, INT16)        \
+  V(RabGsabUint32, rab_gsab_uint32, RAB_GSAB_UINT32, uint32_t, UINT32)   \
+  V(RabGsabInt32, rab_gsab_int32, RAB_GSAB_INT32, int32_t, INT32)        \
+  V(RabGsabFloat32, rab_gsab_float32, RAB_GSAB_FLOAT32, float, FLOAT32)  \
+  V(RabGsabFloat64, rab_gsab_float64, RAB_GSAB_FLOAT64, double, FLOAT64) \
+  V(RabGsabUint8Clamped, rab_gsab_uint8_clamped, RAB_GSAB_UINT8_CLAMPED, \
+    uint8_t, UINT8_CLAMPED)                                              \
+  V(RabGsabBigUint64, rab_gsab_biguint64, RAB_GSAB_BIGUINT64, uint64_t,  \
+    BIGUINT64)                                                           \
+  V(RabGsabBigInt64, rab_gsab_bigint64, RAB_GSAB_BIGINT64, int64_t, BIGINT64)
+
 enum ElementsKind : uint8_t {
   // The "fast" kind for elements that only contain SMI values. Must be first
   // to make it possible to efficiently check maps for this kind.

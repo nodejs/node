@@ -1711,7 +1711,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
   for (InternalIndex i : InternalIndex::Range(boilerplate_nof)) {
     PropertyDetails const property_details =
         boilerplate_map.GetPropertyDetails(i);
-    if (property_details.location() != kField) continue;
+    if (property_details.location() != PropertyLocation::kField) continue;
     DCHECK_EQ(kData, property_details.kind());
     if ((*max_properties)-- == 0) return {};
 

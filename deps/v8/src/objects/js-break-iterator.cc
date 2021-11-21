@@ -10,6 +10,8 @@
 
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-break-iterator-inl.h"
+#include "src/objects/managed-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/brkiter.h"
 
 namespace v8 {
@@ -56,7 +58,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   // Extract type from options
-  Maybe<Type> maybe_type = Intl::GetStringOption<Type>(
+  Maybe<Type> maybe_type = GetStringOption<Type>(
       isolate, options, "type", service,
       {"word", "character", "sentence", "line"},
       {Type::WORD, Type::CHARACTER, Type::SENTENCE, Type::LINE}, Type::WORD);

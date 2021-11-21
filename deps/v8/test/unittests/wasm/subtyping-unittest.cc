@@ -26,19 +26,21 @@ void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields) {
   for (FieldInit field : fields) {
     builder.AddField(field.first, field.second);
   }
-  return module->add_struct_type(builder.Build());
+  return module->add_struct_type(builder.Build(), kNoSuperType);
 }
 
 void DefineArray(WasmModule* module, FieldInit element_type) {
   module->add_array_type(module->signature_zone->New<ArrayType>(
-      element_type.first, element_type.second));
+                             element_type.first, element_type.second),
+                         kNoSuperType);
 }
 
 void DefineSignature(WasmModule* module,
                      std::initializer_list<ValueType> params,
                      std::initializer_list<ValueType> returns) {
   module->add_signature(
-      FunctionSig::Build(module->signature_zone.get(), returns, params));
+      FunctionSig::Build(module->signature_zone.get(), returns, params),
+      kNoSuperType);
 }
 
 TEST_F(WasmSubtypingTest, Subtyping) {

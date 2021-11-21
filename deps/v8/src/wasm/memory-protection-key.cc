@@ -166,7 +166,7 @@ bool SetPermissionsAndMemoryProtectionKey(
 DISABLE_CFI_ICALL
 void SetPermissionsForMemoryProtectionKey(
     int key, MemoryProtectionKeyPermission permissions) {
-  CHECK_NE(kNoMemoryProtectionKey, key);
+  DCHECK_NE(kNoMemoryProtectionKey, key);
 
 #if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
   typedef int (*pkey_set_t)(int, unsigned int);
@@ -177,8 +177,27 @@ void SetPermissionsForMemoryProtectionKey(
   int ret = pkey_set(key, permissions);
   CHECK_EQ(0 /* success */, ret);
 #else
-  // On platforms without PKU support, we should have failed the CHECK above
-  // because the key must be {kNoMemoryProtectionKey}.
+  // On platforms without PKU support, this method cannot be called because
+  // no protection key can have been allocated.
+  UNREACHABLE();
+#endif
+}
+
+DISABLE_CFI_ICALL
+bool MemoryProtectionKeyWritable(int key) {
+  DCHECK_NE(kNoMemoryProtectionKey, key);
+
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+  typedef int (*pkey_get_t)(int);
+  static auto* pkey_get = bit_cast<pkey_get_t>(dlsym(RTLD_DEFAULT, "pkey_get"));
+  // If a valid key was allocated, {pkey_get()} must also be available.
+  DCHECK_NOT_NULL(pkey_get);
+
+  int permissions = pkey_get(key);
+  return permissions == kNoRestrictions;
+#else
+  // On platforms without PKU support, this method cannot be called because
+  // no protection key can have been allocated.
   UNREACHABLE();
 #endif
 }

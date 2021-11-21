@@ -240,6 +240,9 @@ class FileWriterDelegate : public WriterDelegate {
   // Constructs a FileWriterDelegate that takes ownership of |file|.
   explicit FileWriterDelegate(std::unique_ptr<base::File> file);
 
+  FileWriterDelegate(const FileWriterDelegate&) = delete;
+  FileWriterDelegate& operator=(const FileWriterDelegate&) = delete;
+
   // Truncates the file to the number of bytes written.
   ~FileWriterDelegate() override;
 
@@ -267,14 +270,16 @@ class FileWriterDelegate : public WriterDelegate {
   std::unique_ptr<base::File> owned_file_;
 
   int64_t file_length_ = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(FileWriterDelegate);
 };
 
 // A writer delegate that writes a file at a given path.
 class FilePathWriterDelegate : public WriterDelegate {
  public:
   explicit FilePathWriterDelegate(const base::FilePath& output_file_path);
+
+  FilePathWriterDelegate(const FilePathWriterDelegate&) = delete;
+  FilePathWriterDelegate& operator=(const FilePathWriterDelegate&) = delete;
+
   ~FilePathWriterDelegate() override;
 
   // WriterDelegate methods:
@@ -292,8 +297,6 @@ class FilePathWriterDelegate : public WriterDelegate {
  private:
   base::FilePath output_file_path_;
   base::File file_;
-
-  DISALLOW_COPY_AND_ASSIGN(FilePathWriterDelegate);
 };
 
 }  // namespace zip

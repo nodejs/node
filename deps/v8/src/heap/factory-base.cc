@@ -627,13 +627,13 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
       // Copy left part.
       {
         const uint8_t* src =
-            left->template GetChars<uint8_t>(no_gc, access_guard);
+            left->template GetChars<uint8_t>(isolate(), no_gc, access_guard);
         CopyChars(dest, src, left_length);
       }
       // Copy right part.
       {
         const uint8_t* src =
-            right->template GetChars<uint8_t>(no_gc, access_guard);
+            right->template GetChars<uint8_t>(isolate(), no_gc, access_guard);
         CopyChars(dest + left_length, src, right_length);
       }
       return result;
@@ -645,9 +645,10 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
     DisallowGarbageCollection no_gc;
     SharedStringAccessGuardIfNeeded access_guard(isolate());
     base::uc16* sink = result->GetChars(no_gc, access_guard);
-    String::WriteToFlat(*left, sink, 0, left->length(), access_guard);
-    String::WriteToFlat(*right, sink + left->length(), 0, right->length(),
+    String::WriteToFlat(*left, sink, 0, left->length(), isolate(),
                         access_guard);
+    String::WriteToFlat(*right, sink + left->length(), 0, right->length(),
+                        isolate(), access_guard);
     return result;
   }
 

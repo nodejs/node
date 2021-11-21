@@ -20,6 +20,10 @@ const ctors = [
   MyBigInt64Array,
 ];
 
+function CreateResizableArrayBuffer(byteLength, maxByteLength) {
+  return new ArrayBuffer(byteLength, {maxByteLength: maxByteLength});
+}
+
 function ReadDataFromBuffer(ab, ctor) {
   let result = [];
   const ta = new ctor(ab, 0, ab.byteLength / ctor.BYTES_PER_ELEMENT);
@@ -46,10 +50,45 @@ function ToNumbers(array) {
   return result;
 }
 
-function FillHelper(ta, n, start, end) {
-  if (ta instanceof BigInt64Array || ta instanceof BigUint64Array) {
-    ta.fill(BigInt(n), start, end);
+function ToNumbersWithEntries(array) {
+  let result = [];
+  let expectedKey = 0;
+  for (let [key, value] of array.entries()) {
+    assertEquals(expectedKey, key);
+    ++expectedKey;
+    result.push(Number(value));
+  }
+  return result;
+}
+
+function Keys(array) {
+  let result = [];
+  for (let key of array.keys()) {
+    result.push(key);
+  }
+  return result;
+}
+
+function ValuesToNumbers(array) {
+  let result = [];
+  for (let value of array.values()) {
+    result.push(Number(value));
+  }
+  return result;
+}
+
+function AtHelper(array, index) {
+  let result = array.at(index);
+  if (typeof result == 'bigint') {
+    return Number(result);
+  }
+  return result;
+}
+
+function FillHelper(array, n, start, end) {
+  if (array instanceof BigInt64Array || array instanceof BigUint64Array) {
+    array.fill(BigInt(n), start, end);
   } else {
-    ta.fill(n, start, end);
+    array.fill(n, start, end);
   }
 }

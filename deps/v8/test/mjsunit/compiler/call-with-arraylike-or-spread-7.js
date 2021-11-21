@@ -43,6 +43,7 @@
   // The call with spread should have been inlined.
   assertFalse(log_got_interpreted);
   assertOptimized(foo);
+  %PrepareFunctionForOptimization(foo);
 
   // This invalidates the DependOnArrayIteratorProtector and causes deopt.
   Object.defineProperty(Array.prototype, Symbol.iterator, {

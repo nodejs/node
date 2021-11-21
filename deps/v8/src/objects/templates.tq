@@ -11,7 +11,6 @@ extern class TemplateInfo extends Struct {
   property_accessors: TemplateList|Undefined;
 }
 
-@generatePrint
 extern class FunctionTemplateRareData extends Struct {
   // See DECL_RARE_ACCESSORS in FunctionTemplateInfo.
   prototype_template: ObjectTemplateInfo|Undefined;

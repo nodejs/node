@@ -211,6 +211,13 @@ struct MaybeBoolFlag {
 #define ENABLE_SPARKPLUG_BY_DEFAULT false
 #endif
 
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+// Must be enabled on M1.
+#define MUST_WRITE_PROTECT_CODE_MEMORY true
+#else
+#define MUST_WRITE_PROTECT_CODE_MEMORY false
+#endif
+
 // Supported ARM configurations are:
 //  "armv6":       ARMv6 + VFPv2
 //  "armv7":       ARMv7 + VFPv3-D32 + NEON
@@ -292,7 +299,6 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS_BASE(V)                                             \
-  V(harmony_regexp_sequence, "RegExp Unicode sequence properties")             \
   V(harmony_weak_refs_with_cleanup_some,                                       \
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
   V(harmony_import_assertions, "harmony import assertions")                    \
@@ -502,13 +508,15 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 
-DEFINE_WEAK_IMPLICATION(future, turbo_inline_js_wasm_calls)
 #if ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, sparkplug)
 DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 #endif
 #if V8_SHORT_BUILTIN_CALLS
 DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
+#endif
+#if !MUST_WRITE_PROTECT_CODE_MEMORY
+DEFINE_WEAK_VALUE_IMPLICATION(future, write_protect_code_memory, false)
 #endif
 
 // Flags for jitless
@@ -720,7 +728,7 @@ DEFINE_INT(concurrent_recompilation_queue_length, 8,
            "the length of the concurrent compilation queue")
 DEFINE_INT(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
-DEFINE_BOOL(concurrent_inlining, false,
+DEFINE_BOOL(concurrent_inlining, true,
             "run optimizing compiler's inlining phase on a separate thread")
 DEFINE_BOOL(
     stress_concurrent_inlining, false,
@@ -947,6 +955,9 @@ DEFINE_BOOL(wasm_tier_up, true,
             "have an effect)")
 DEFINE_BOOL(wasm_dynamic_tiering, false,
             "enable dynamic tier up to the optimizing compiler")
+DEFINE_INT(
+    wasm_caching_threshold, 1000000,
+    "the amount of wasm top tier code that triggers the next caching event")
 DEFINE_DEBUG_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_interpreter, false,
@@ -1181,7 +1192,12 @@ DEFINE_INT(scavenge_task_trigger, 80,
 DEFINE_BOOL(scavenge_separate_stack_scanning, false,
             "use a separate phase for stack scanning in scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
+#if MUST_WRITE_PROTECT_CODE_MEMORY
+DEFINE_BOOL_READONLY(write_protect_code_memory, true,
+                     "write protect code memory")
+#else
 DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
+#endif
 #if defined(V8_ATOMIC_MARKING_STATE) && defined(V8_ATOMIC_OBJECT_FIELD_WRITES)
 #define V8_CONCURRENT_MARKING_BOOL true
 #else
@@ -1803,6 +1819,8 @@ DEFINE_BOOL_READONLY(minor_mc, false,
 //
 
 DEFINE_BOOL(help, false, "Print usage message, including flags, on console")
+DEFINE_BOOL(print_flag_values, false, "Print all flag values of V8")
+
 DEFINE_BOOL(dump_counters, false, "Dump counters on exit")
 DEFINE_BOOL(slow_histograms, false,
             "Enable slow histograms with more overhead.")
@@ -1984,7 +2002,9 @@ DEFINE_PERF_PROF_BOOL(
     "Remove the perf file right after creating it (for testing only).")
 DEFINE_NEG_IMPLICATION(perf_prof, compact_code_space)
 // TODO(v8:8462) Remove implication once perf supports remapping.
+#if !MUST_WRITE_PROTECT_CODE_MEMORY
 DEFINE_NEG_IMPLICATION(perf_prof, write_protect_code_memory)
+#endif
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_NEG_IMPLICATION(perf_prof, wasm_write_protect_code_memory)
 #endif  // V8_ENABLE_WEBASSEMBLY

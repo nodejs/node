@@ -817,7 +817,7 @@ class Sweeper::SweeperImpl final {
       MutatorThreadSweeper sweeper(&space_states_, platform_,
                                    config_.free_memory_handling);
       {
-        StatsCollector::EnabledScope stats_scope(
+        StatsCollector::EnabledScope inner_stats_scope(
             stats_collector_, internal_scope_id, "deltaInSeconds",
             deadline_in_seconds - platform_->MonotonicallyIncreasingTime());
 

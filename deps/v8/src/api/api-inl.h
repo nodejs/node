@@ -264,12 +264,12 @@ void CopyDoubleElementsToTypedBuffer(T* dst, uint32_t length,
   }
 }
 
-template <const CTypeInfo* type_info, typename T>
+template <CTypeInfo::Identifier type_info_id, typename T>
 bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
                                     uint32_t max_length) {
   static_assert(
-      std::is_same<
-          T, typename i::CTypeInfoTraits<type_info->GetType()>::ctype>::value,
+      std::is_same<T, typename i::CTypeInfoTraits<
+                          CTypeInfo(type_info_id).GetType()>::ctype>::value,
       "Type mismatch between the expected CTypeInfo::Type and the destination "
       "array");
 
@@ -299,11 +299,20 @@ bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
   }
 }
 
+// Deprecated; to be removed.
 template <const CTypeInfo* type_info, typename T>
 inline bool V8_EXPORT TryCopyAndConvertArrayToCppBuffer(Local<Array> src,
                                                         T* dst,
                                                         uint32_t max_length) {
-  return CopyAndConvertArrayToCppBuffer<type_info, T>(src, dst, max_length);
+  return CopyAndConvertArrayToCppBuffer<type_info->GetId(), T>(src, dst,
+                                                               max_length);
+}
+
+template <CTypeInfo::Identifier type_info_id, typename T>
+inline bool V8_EXPORT TryToCopyAndConvertArrayToCppBuffer(Local<Array> src,
+                                                          T* dst,
+                                                          uint32_t max_length) {
+  return CopyAndConvertArrayToCppBuffer<type_info_id, T>(src, dst, max_length);
 }
 
 namespace internal {

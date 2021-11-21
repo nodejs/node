@@ -49,6 +49,8 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   static bool collect_language_server_data() {
     return Get().collect_language_server_data_;
   }
+  static void SetCollectKytheData() { Get().collect_kythe_data_ = true; }
+  static bool collect_kythe_data() { return Get().collect_kythe_data_; }
   static void SetForceAssertStatements() {
     Get().force_assert_statements_ = true;
   }
@@ -118,6 +120,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
 
  private:
   bool collect_language_server_data_;
+  bool collect_kythe_data_;
   bool force_assert_statements_;
   bool annotate_ir_;
   Namespace* default_namespace_;

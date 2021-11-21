@@ -219,11 +219,12 @@ class MarkCompactCollectorBase {
   virtual std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) = 0;
 
+  // Returns the number of wanted compaction tasks.
   template <class Evacuator, class Collector>
-  void CreateAndExecuteEvacuationTasks(
+  size_t CreateAndExecuteEvacuationTasks(
       Collector* collector,
       std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items,
-      MigrationObserver* migration_observer, const intptr_t live_bytes);
+      MigrationObserver* migration_observer);
 
   // Returns whether this page should be moved according to heuristics.
   bool ShouldMovePage(Page* p, intptr_t live_bytes, bool promote_young);
@@ -377,11 +378,12 @@ class MainMarkingVisitor final
                      WeakObjects* weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
-                     bool embedder_tracing_enabled, bool is_forced_gc)
+                     bool embedder_tracing_enabled,
+                     bool should_keep_ages_unchanged)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
             kMainThreadTask, local_marking_worklists, weak_objects, heap,
             mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
-            is_forced_gc),
+            should_keep_ages_unchanged),
         marking_state_(marking_state),
         revisiting_object_(false) {}
 
@@ -390,9 +392,6 @@ class MainMarkingVisitor final
     return marking_state_->GreyToBlack(object) ||
            V8_UNLIKELY(revisiting_object_);
   }
-
-  void MarkDescriptorArrayFromWriteBarrier(DescriptorArray descriptors,
-                                           int number_of_own_descriptors);
 
  private:
   // Functions required by MarkingVisitorBase.
@@ -582,10 +581,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void VisitObject(HeapObject obj);
   // Used by incremental marking for black-allocated objects.
   void RevisitObject(HeapObject obj);
-  // Ensures that all descriptors int range [0, number_of_own_descripts)
-  // are visited.
-  void MarkDescriptorArrayFromWriteBarrier(DescriptorArray array,
-                                           int number_of_own_descriptors);
 
   // Drains the main thread marking worklist until the specified number of
   // bytes are processed. If the number of bytes is zero, then the worklist
@@ -723,8 +718,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) override;
 
   void ReleaseEvacuationCandidates();
-  void PostProcessEvacuationCandidates();
-  void ReportAbortedEvacuationCandidate(HeapObject failed_object,
+  // Returns number of aborted pages.
+  size_t PostProcessEvacuationCandidates();
+  void ReportAbortedEvacuationCandidate(Address failed_start,
                                         MemoryChunk* chunk);
 
   static const int kEphemeronChunkSize = 8 * KB;
@@ -778,7 +774,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Pages that are actually processed during evacuation.
   std::vector<Page*> old_space_evacuation_pages_;
   std::vector<Page*> new_space_evacuation_pages_;
-  std::vector<std::pair<HeapObject, Page*>> aborted_evacuation_candidates_;
+  std::vector<std::pair<Address, Page*>> aborted_evacuation_candidates_;
 
   Sweeper* sweeper_;
 

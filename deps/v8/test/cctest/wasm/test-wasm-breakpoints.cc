@@ -328,7 +328,7 @@ WASM_COMPILED_EXEC_TEST(WasmNonBreakablePosition) {
   WasmRunner<int> runner(execution_tier);
   Isolate* isolate = runner.main_isolate();
 
-  BUILD(runner, WASM_RETURN1(WASM_I32V_2(1024)));
+  BUILD(runner, WASM_RETURN(WASM_I32V_2(1024)));
 
   Handle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
@@ -377,7 +377,7 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
   // functions in the code section matches the function indexes.
 
   // return arg0
-  BUILD(runner, WASM_RETURN1(WASM_LOCAL_GET(0)));
+  BUILD(runner, WASM_RETURN(WASM_LOCAL_GET(0)));
   // for (int i = 0; i < 10; ++i) { f2(i); }
   BUILD(f2, WASM_LOOP(
                 WASM_BR_IF(0, WASM_BINOP(kExprI32GeU, WASM_LOCAL_GET(0),

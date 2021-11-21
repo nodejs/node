@@ -36,7 +36,7 @@ BytecodeOffsetIterator::BytecodeOffsetIterator(ByteArray mapping_table,
       bytecode_iterator_(Handle<BytecodeArray>(
           reinterpret_cast<Address*>(&bytecode_handle_storage_))),
       local_heap_(nullptr) {
-  no_gc.emplace();
+  no_gc_.emplace();
   Initialize();
 }
 

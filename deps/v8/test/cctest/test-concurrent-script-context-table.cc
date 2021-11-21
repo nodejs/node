@@ -184,10 +184,10 @@ TEST(ScriptContextTable_AccessScriptContextTable) {
   sema_started.Wait();
 
   for (; initialized_entries < 1000; ++initialized_entries) {
-    Handle<Context> context =
+    Handle<Context> new_context =
         factory->NewScriptContext(native_context, scope_info);
     script_context_table =
-        ScriptContextTable::Extend(script_context_table, context);
+        ScriptContextTable::Extend(script_context_table, new_context);
     native_context->synchronized_set_script_context_table(
         *script_context_table);
     // Update with relaxed semantics to not introduce ordering constraints.

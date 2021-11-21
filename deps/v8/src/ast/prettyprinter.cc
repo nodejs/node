@@ -346,17 +346,12 @@ void CallPrinter::VisitAssignment(Assignment* node) {
     Find(node->target());
     if (node->target()->IsArrayLiteral()) {
       // Special case the visit for destructuring array assignment.
-      bool was_found = false;
       if (node->value()->position() == position_) {
         is_iterator_error_ = true;
         was_found = !found_;
         found_ = true;
       }
       Find(node->value(), true);
-      if (was_found) {
-        done_ = true;
-        found_ = false;
-      }
     } else {
       Find(node->value());
     }
@@ -967,7 +962,7 @@ void AstPrinter::VisitWithStatement(WithStatement* node) {
 
 
 void AstPrinter::VisitSwitchStatement(SwitchStatement* node) {
-  IndentedScope indent(this, "SWITCH", node->position());
+  IndentedScope switch_indent(this, "SWITCH", node->position());
   PrintIndentedVisit("TAG", node->tag());
   for (CaseClause* clause : *node->cases()) {
     if (clause->is_default()) {
@@ -1247,7 +1242,7 @@ void AstPrinter::PrintObjectProperties(
 
 
 void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
-  IndentedScope indent(this, "ARRAY LITERAL", node->position());
+  IndentedScope array_indent(this, "ARRAY LITERAL", node->position());
   if (node->values()->length() > 0) {
     IndentedScope indent(this, "VALUES", node->position());
     for (int i = 0; i < node->values()->length(); i++) {

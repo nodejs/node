@@ -13,6 +13,11 @@ namespace v8 {
 namespace internal {
 
 Address LocalIsolate::cage_base() const { return isolate_->cage_base(); }
+
+Address LocalIsolate::code_cage_base() const {
+  return isolate_->code_cage_base();
+}
+
 ReadOnlyHeap* LocalIsolate::read_only_heap() const {
   return isolate_->read_only_heap();
 }

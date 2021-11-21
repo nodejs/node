@@ -44,7 +44,6 @@ class StackFrameInfo
   DECL_ACCESSORS(code_object, HeapObject)
 
   // Dispatched behavior.
-  DECL_PRINTER(StackFrameInfo)
   DECL_VERIFIER(StackFrameInfo)
 
   // Used to signal that the requested field is unknown.

@@ -7,13 +7,14 @@
 namespace v8 {
 namespace base {
 
-BoundedPageAllocator::BoundedPageAllocator(v8::PageAllocator* page_allocator,
-                                           Address start, size_t size,
-                                           size_t allocate_page_size)
+BoundedPageAllocator::BoundedPageAllocator(
+    v8::PageAllocator* page_allocator, Address start, size_t size,
+    size_t allocate_page_size, PageInitializationMode page_initialization_mode)
     : allocate_page_size_(allocate_page_size),
       commit_page_size_(page_allocator->CommitPageSize()),
       page_allocator_(page_allocator),
-      region_allocator_(start, size, allocate_page_size_) {
+      region_allocator_(start, size, allocate_page_size_),
+      page_initialization_mode_(page_initialization_mode) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK(IsAligned(allocate_page_size, page_allocator->AllocatePageSize()));
   DCHECK(IsAligned(allocate_page_size_, commit_page_size_));
@@ -110,16 +111,17 @@ bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
   Address address = reinterpret_cast<Address>(raw_address);
   size_t freed_size = region_allocator_.FreeRegion(address);
   if (freed_size != size) return false;
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  // When the virtual memory cage is enabled, the pages returned by the
-  // BoundedPageAllocator must be zero-initialized, as some of the additional
-  // clients expect them to. Decommitting them during FreePages ensures that
-  // while also changing the access permissions to kNoAccess.
-  CHECK(page_allocator_->DecommitPages(raw_address, size));
-#else
-  CHECK(page_allocator_->SetPermissions(raw_address, size,
-                                        PageAllocator::kNoAccess));
-#endif
+  if (page_initialization_mode_ ==
+      PageInitializationMode::kAllocatedPagesMustBeZeroInitialized) {
+    // When we are required to return zero-initialized pages, we decommit the
+    // pages here, which will cause any wired pages to be removed by the OS.
+    CHECK(page_allocator_->DecommitPages(raw_address, size));
+  } else {
+    DCHECK_EQ(page_initialization_mode_,
+              PageInitializationMode::kAllocatedPagesCanBeUninitialized);
+    CHECK(page_allocator_->SetPermissions(raw_address, size,
+                                          PageAllocator::kNoAccess));
+  }
   return true;
 }
 
@@ -152,14 +154,18 @@ bool BoundedPageAllocator::ReleasePages(void* raw_address, size_t size,
   // Keep the region in "used" state just uncommit some pages.
   Address free_address = address + new_size;
   size_t free_size = size - new_size;
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  // See comment in FreePages().
-  return page_allocator_->DecommitPages(reinterpret_cast<void*>(free_address),
-                                        free_size);
-#else
-  return page_allocator_->SetPermissions(reinterpret_cast<void*>(free_address),
-                                         free_size, PageAllocator::kNoAccess);
-#endif
+  if (page_initialization_mode_ ==
+      PageInitializationMode::kAllocatedPagesMustBeZeroInitialized) {
+    // See comment in FreePages().
+    return page_allocator_->DecommitPages(reinterpret_cast<void*>(free_address),
+                                          free_size);
+  } else {
+    DCHECK_EQ(page_initialization_mode_,
+              PageInitializationMode::kAllocatedPagesCanBeUninitialized);
+    return page_allocator_->SetPermissions(
+        reinterpret_cast<void*>(free_address), free_size,
+        PageAllocator::kNoAccess);
+  }
 }
 
 bool BoundedPageAllocator::SetPermissions(void* address, size_t size,

@@ -41,7 +41,7 @@ transitioning macro RegExpPrototypeMatchAllImpl(implicit context: Context)(
       const flags: String = FastFlagsGetter(fastRegExp);
       matcher = RegExpCreate(nativeContext, source, flags);
       const matcherRegExp = UnsafeCast<JSRegExp>(matcher);
-      assert(IsFastRegExpPermissive(matcherRegExp));
+      dcheck(IsFastRegExpPermissive(matcherRegExp));
 
       // 7. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
       // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
@@ -159,7 +159,7 @@ transitioning javascript builtin RegExpStringIteratorPrototypeNext(
         return AllocateJSIteratorResult(UnsafeCast<JSAny>(match), False);
       }
       // a. If global is true,
-      assert(flags.global);
+      dcheck(flags.global);
       if (isFastRegExp) {
         // i. Let matchStr be ? ToString(? Get(match, "0")).
         const match = UnsafeCast<JSRegExpResult>(match);
@@ -168,7 +168,7 @@ transitioning javascript builtin RegExpStringIteratorPrototypeNext(
 
         // When iterating_regexp is fast, we assume it stays fast even after
         // accessing the first match from the RegExp result.
-        assert(IsFastRegExpPermissive(iteratingRegExp));
+        dcheck(IsFastRegExpPermissive(iteratingRegExp));
         const iteratingRegExp = UnsafeCast<JSRegExp>(iteratingRegExp);
         if (matchStr == kEmptyString) {
           // 1. Let thisIndex be ? ToLength(? Get(R, "lastIndex")).
@@ -186,7 +186,7 @@ transitioning javascript builtin RegExpStringIteratorPrototypeNext(
         // iii. Return ! CreateIterResultObject(match, false).
         return AllocateJSIteratorResult(match, False);
       }
-      assert(!isFastRegExp);
+      dcheck(!isFastRegExp);
       // i. Let matchStr be ? ToString(? Get(match, "0")).
       const match = UnsafeCast<JSAny>(match);
       const matchStr = ToString_Inline(GetProperty(match, SmiConstant(0)));

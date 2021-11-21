@@ -284,8 +284,8 @@ constexpr bool is_defaultable(ValueKind kind) {
 // representation (for reference types), and an inheritance depth (for rtts
 // only). Those are encoded into 32 bits using base::BitField. The underlying
 // ValueKind enumeration includes four elements which do not strictly correspond
-// to value types: the two packed types i8 and i16, the type of void blocks
-// (stmt), and a bottom value (for internal use).
+// to value types: the two packed types i8 and i16, the void type (for control
+// structures), and a bottom value (for internal use).
 class ValueType {
  public:
   /******************************* Constructors *******************************/

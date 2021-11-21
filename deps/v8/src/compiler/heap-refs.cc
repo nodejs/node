@@ -1272,7 +1272,7 @@ bool JSObjectData::SerializeAsBoilerplateRecursive(JSHeapBroker* broker,
       boilerplate->map().instance_descriptors(isolate), isolate);
   for (InternalIndex i : boilerplate->map().IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
-    if (details.location() != kField) continue;
+    if (details.location() != PropertyLocation::kField) continue;
     DCHECK_EQ(kData, details.kind());
 
     FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
@@ -1778,11 +1778,6 @@ MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
   return MakeRefAssumeMemoryFence(
       broker(),
       object()->FindFieldOwner(broker()->isolate(), descriptor_index));
-}
-
-ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
-  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  return instance_descriptors().GetFieldType(descriptor_index);
 }
 
 base::Optional<ObjectRef> StringRef::GetCharAsStringOrUndefined(
@@ -2603,12 +2598,6 @@ NameRef DescriptorArrayRef::GetPropertyKey(
   NameRef result = MakeRef(broker(), object()->GetKey(descriptor_index));
   CHECK(result.IsUniqueName());
   return result;
-}
-
-ObjectRef DescriptorArrayRef::GetFieldType(
-    InternalIndex descriptor_index) const {
-  return MakeRef(broker(),
-                 Object::cast(object()->GetFieldType(descriptor_index)));
 }
 
 base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(

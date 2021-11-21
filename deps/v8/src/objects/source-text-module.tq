@@ -47,7 +47,6 @@ extern class SourceTextModule extends Module {
   flags: SmiTagged<SourceTextModuleFlags>;
 }
 
-@generatePrint
 extern class ModuleRequest extends Struct {
   specifier: String;
 

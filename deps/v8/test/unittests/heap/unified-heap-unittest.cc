@@ -147,7 +147,7 @@ class Unreferenced : public cppgc::GarbageCollected<Unreferenced> {
 }  // namespace
 
 TEST_F(UnifiedHeapTest, FreeUnreferencedDuringNoGcScope) {
-  v8::HandleScope scope(v8_isolate());
+  v8::HandleScope handle_scope(v8_isolate());
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   auto* unreferenced = cppgc::MakeGarbageCollected<Unreferenced>(
@@ -156,7 +156,7 @@ TEST_F(UnifiedHeapTest, FreeUnreferencedDuringNoGcScope) {
   // Force safepoint to force flushing of cached allocated/freed sizes in cppgc.
   cpp_heap().stats_collector()->NotifySafePointForTesting();
   {
-    cppgc::subtle::NoGarbageCollectionScope scope(cpp_heap());
+    cppgc::subtle::NoGarbageCollectionScope no_gc_scope(cpp_heap());
     cppgc::internal::FreeUnreferencedObject(cpp_heap(), unreferenced);
     // Force safepoint to make sure allocated size decrease due to freeing
     // unreferenced object is reported to CppHeap. Due to
@@ -177,12 +177,12 @@ TEST_F(UnifiedHeapTest, FreeUnreferencedDuringNoGcScope) {
 
 #if !V8_OS_FUCHSIA
 TEST_F(UnifiedHeapTest, TracedReferenceRetainsFromStack) {
-  v8::HandleScope scope(v8_isolate());
+  v8::HandleScope handle_scope(v8_isolate());
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   TracedReference<v8::Object> holder;
   {
-    v8::HandleScope scope(v8_isolate());
+    v8::HandleScope inner_handle_scope(v8_isolate());
     auto local = v8::Object::New(v8_isolate());
     EXPECT_TRUE(local->IsObject());
     holder.Reset(v8_isolate(), local);

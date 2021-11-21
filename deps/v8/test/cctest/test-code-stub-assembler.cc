@@ -604,7 +604,7 @@ TEST(TryToName) {
       m.Goto(&check_result);
 
       m.BIND(&if_expectedisheapnumber);
-      CSA_ASSERT(&m, m.IsHeapNumber(m.CAST(expected_arg)));
+      CSA_DCHECK(&m, m.IsHeapNumber(m.CAST(expected_arg)));
       TNode<Float64T> value = m.LoadHeapNumberValue(m.CAST(expected_arg));
       // We know this to be safe as all expected values are in intptr
       // range.
@@ -3036,12 +3036,15 @@ TEST(NewPromiseCapability) {
         handle(JSFunction::cast(result->reject()), isolate)};
 
     for (auto&& callback : callbacks) {
-      Handle<Context> context(Context::cast(callback->context()), isolate);
+      Handle<Context> callback_context(Context::cast(callback->context()),
+                                       isolate);
       CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo),
-               context->scope_info());
-      CHECK_EQ(*isolate->native_context(), context->native_context());
-      CHECK_EQ(PromiseBuiltins::kPromiseContextLength, context->length());
-      CHECK_EQ(context->get(PromiseBuiltins::kPromiseSlot), result->promise());
+               callback_context->scope_info());
+      CHECK_EQ(*isolate->native_context(), callback_context->native_context());
+      CHECK_EQ(PromiseBuiltins::kPromiseContextLength,
+               callback_context->length());
+      CHECK_EQ(callback_context->get(PromiseBuiltins::kPromiseSlot),
+               result->promise());
     }
   }
 

@@ -103,7 +103,7 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
     }
   }
 
-  assert(
+  dcheck(
       promiseContext.length ==
       SmiTag(PromiseAllResolveElementContextSlots::
                  kPromiseAllResolveElementLength));
@@ -111,10 +111,10 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
   function.context = nativeContext;
 
   // Determine the index from the {function}.
-  assert(kPropertyArrayNoHashSentinel == 0);
+  dcheck(kPropertyArrayNoHashSentinel == 0);
   const identityHash =
       LoadJSReceiverIdentityHash(function) otherwise unreachable;
-  assert(identityHash > 0);
+  dcheck(identityHash > 0);
   const index = identityHash - 1;
 
   let remainingElementsCount = *ContextSlot(

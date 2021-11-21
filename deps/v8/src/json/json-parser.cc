@@ -5,6 +5,7 @@
 #include "src/json/json-parser.h"
 
 #include "src/base/strings.h"
+#include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/numbers/conversions.h"
@@ -210,19 +211,21 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
       original_source_(source) {
   size_t start = 0;
   size_t length = source->length();
-  if (source->IsSlicedString()) {
+  PtrComprCageBase cage_base(isolate);
+  if (source->IsSlicedString(cage_base)) {
     SlicedString string = SlicedString::cast(*source);
     start = string.offset();
-    String parent = string.parent();
-    if (parent.IsThinString()) parent = ThinString::cast(parent).actual();
+    String parent = string.parent(cage_base);
+    if (parent.IsThinString(cage_base))
+      parent = ThinString::cast(parent).actual(cage_base);
     source_ = handle(parent, isolate);
   } else {
     source_ = String::Flatten(isolate, source);
   }
 
-  if (StringShape(*source_).IsExternal()) {
-    chars_ =
-        static_cast<const Char*>(SeqExternalString::cast(*source_).GetChars());
+  if (StringShape(*source_, cage_base).IsExternal()) {
+    chars_ = static_cast<const Char*>(
+        SeqExternalString::cast(*source_).GetChars(cage_base));
     chars_may_relocate_ = false;
   } else {
     DisallowGarbageCollection no_gc;

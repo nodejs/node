@@ -14,6 +14,5 @@
 #include "src/compiler/code-assembler.h"
 #include "src/utils/utils.h"
 #include "torque-generated/csa-types.h"
-#include "torque-generated/field-offsets.h"
 
 #endif  // V8_BUILTINS_TORQUE_CSA_HEADER_INCLUDES_H_

@@ -681,7 +681,7 @@
   MACHINE_FLOAT64_BINOP_LIST(V)          \
   MACHINE_FLOAT64_UNOP_LIST(V)           \
   MACHINE_ATOMIC_OP_LIST(V)              \
-  V(AbortCSAAssert)                      \
+  V(AbortCSADcheck)                      \
   V(DebugBreak)                          \
   V(Comment)                             \
   V(Load)                                \

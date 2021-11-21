@@ -14,7 +14,6 @@ const kSmallOrderedHashTableNotFound: constexpr int31
 const kSmallOrderedHashTableLoadFactor: constexpr int31
     generates 'SmallOrderedHashTable<int>::kLoadFactor';
 
-@noVerifier
 @abstract
 @doNotGenerateCppClass
 extern class SmallOrderedHashTable extends HeapObject
@@ -41,7 +40,7 @@ extern class SmallOrderedHashSet extends SmallOrderedHashTable {
 @export
 macro AllocateSmallOrderedHashSet(capacity: intptr): SmallOrderedHashSet {
   const hashTableSize = capacity / kSmallOrderedHashTableLoadFactor;
-  assert(
+  dcheck(
       0 <= hashTableSize && hashTableSize <= kSmallOrderedHashTableMaxCapacity);
   return new SmallOrderedHashSet{
     map: kSmallOrderedHashSetMap,
@@ -80,7 +79,7 @@ extern class SmallOrderedHashMap extends SmallOrderedHashTable {
 @export
 macro AllocateSmallOrderedHashMap(capacity: intptr): SmallOrderedHashMap {
   const hashTableSize = capacity / kSmallOrderedHashTableLoadFactor;
-  assert(
+  dcheck(
       0 <= hashTableSize && hashTableSize <= kSmallOrderedHashTableMaxCapacity);
   return new SmallOrderedHashMap{
     map: kSmallOrderedHashMapMap,

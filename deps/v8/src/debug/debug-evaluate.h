@@ -53,6 +53,7 @@ class DebugEvaluate : public AllStatic {
   static DebugInfo::SideEffectState FunctionGetSideEffectState(
       Isolate* isolate, Handle<SharedFunctionInfo> info);
   static void ApplySideEffectChecks(Handle<BytecodeArray> bytecode_array);
+  static bool IsSideEffectFreeIntrinsic(Runtime::FunctionId id);
 
 #ifdef DEBUG
   static void VerifyTransitiveBuiltins(Isolate* isolate);

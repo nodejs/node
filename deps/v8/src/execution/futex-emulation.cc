@@ -531,7 +531,8 @@ Object FutexEmulation::WaitAsync(Isolate* isolate,
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   Handle<JSObject> promise_capability = factory->NewJSPromise();
 
-  enum { kNotEqual, kTimedOut, kAsync } result_kind;
+  enum class ResultKind { kNotEqual, kTimedOut, kAsync };
+  ResultKind result_kind;
   {
     // 16. Perform EnterCriticalSection(WL).
     NoGarbageCollectionMutexGuard lock_guard(g_mutex.Pointer());
@@ -543,11 +544,11 @@ Object FutexEmulation::WaitAsync(Isolate* isolate,
     std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(
         static_cast<int8_t*>(backing_store->buffer_start()) + addr);
     if (p->load() != value) {
-      result_kind = kNotEqual;
+      result_kind = ResultKind::kNotEqual;
     } else if (use_timeout && rel_timeout_ns == 0) {
-      result_kind = kTimedOut;
+      result_kind = ResultKind::kTimedOut;
     } else {
-      result_kind = kAsync;
+      result_kind = ResultKind::kAsync;
 
       FutexWaitListNode* node = new FutexWaitListNode(
           backing_store, addr, promise_capability, isolate);
@@ -571,7 +572,7 @@ Object FutexEmulation::WaitAsync(Isolate* isolate,
   }
 
   switch (result_kind) {
-    case kNotEqual:
+    case ResultKind::kNotEqual:
       // 18. If v is not equal to w, then
       //   ...
       //   c. Perform ! CreateDataPropertyOrThrow(resultObject, "async", false).
@@ -588,7 +589,7 @@ Object FutexEmulation::WaitAsync(Isolate* isolate,
                 .FromJust());
       break;
 
-    case kTimedOut:
+    case ResultKind::kTimedOut:
       // 19. If t is 0 and mode is async, then
       //   ...
       //   c. Perform ! CreateDataPropertyOrThrow(resultObject, "async", false).
@@ -605,7 +606,7 @@ Object FutexEmulation::WaitAsync(Isolate* isolate,
                 .FromJust());
       break;
 
-    case kAsync:
+    case ResultKind::kAsync:
       // Add the Promise into the NativeContext's atomics_waitasync_promises
       // set, so that the list keeps it alive.
       Handle<NativeContext> native_context(isolate->native_context());

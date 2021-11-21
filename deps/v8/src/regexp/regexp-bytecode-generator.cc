@@ -16,7 +16,7 @@ namespace internal {
 
 RegExpBytecodeGenerator::RegExpBytecodeGenerator(Isolate* isolate, Zone* zone)
     : RegExpMacroAssembler(isolate, zone),
-      buffer_(base::Vector<byte>::New(1024)),
+      buffer_(kInitialBufferSize, zone),
       pc_(0),
       advance_current_end_(kInvalidPC),
       jump_edges_(zone),
@@ -24,7 +24,6 @@ RegExpBytecodeGenerator::RegExpBytecodeGenerator(Isolate* isolate, Zone* zone)
 
 RegExpBytecodeGenerator::~RegExpBytecodeGenerator() {
   if (backtrack_.is_linked()) backtrack_.Unuse();
-  buffer_.Dispose();
 }
 
 RegExpBytecodeGenerator::IrregexpImplementation
@@ -39,8 +38,8 @@ void RegExpBytecodeGenerator::Bind(Label* l) {
     int pos = l->pos();
     while (pos != 0) {
       int fixup = pos;
-      pos = *reinterpret_cast<int32_t*>(buffer_.begin() + fixup);
-      *reinterpret_cast<uint32_t*>(buffer_.begin() + fixup) = pc_;
+      pos = *reinterpret_cast<int32_t*>(buffer_.data() + fixup);
+      *reinterpret_cast<uint32_t*>(buffer_.data() + fixup) = pc_;
       jump_edges_.emplace(fixup, pc_);
     }
   }
@@ -383,7 +382,7 @@ Handle<HeapObject> RegExpBytecodeGenerator::GetCode(Handle<String> source) {
   Handle<ByteArray> array;
   if (FLAG_regexp_peephole_optimization) {
     array = RegExpBytecodePeepholeOptimization::OptimizeBytecode(
-        isolate_, zone(), source, buffer_.begin(), length(), jump_edges_);
+        isolate_, zone(), source, buffer_.data(), length(), jump_edges_);
   } else {
     array = isolate_->factory()->NewByteArray(length());
     Copy(array->GetDataStartAddress());
@@ -395,14 +394,13 @@ Handle<HeapObject> RegExpBytecodeGenerator::GetCode(Handle<String> source) {
 int RegExpBytecodeGenerator::length() { return pc_; }
 
 void RegExpBytecodeGenerator::Copy(byte* a) {
-  MemCopy(a, buffer_.begin(), length());
+  MemCopy(a, buffer_.data(), length());
 }
 
-void RegExpBytecodeGenerator::Expand() {
-  base::Vector<byte> old_buffer = buffer_;
-  buffer_ = base::Vector<byte>::New(old_buffer.length() * 2);
-  MemCopy(buffer_.begin(), old_buffer.begin(), old_buffer.length());
-  old_buffer.Dispose();
+void RegExpBytecodeGenerator::ExpandBuffer() {
+  // TODO(jgruber): The growth strategy could be smarter for large sizes.
+  // TODO(jgruber): It's not necessary to default-initialize new elements.
+  buffer_.resize(buffer_.size() * 2);
 }
 
 }  // namespace internal

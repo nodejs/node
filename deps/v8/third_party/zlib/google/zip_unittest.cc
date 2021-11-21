@@ -88,6 +88,9 @@ class VirtualFileSystem : public zip::FileAccessor {
     file_tree_[bar2_txt_path] = {};
   }
 
+  VirtualFileSystem(const VirtualFileSystem&) = delete;
+  VirtualFileSystem& operator=(const VirtualFileSystem&) = delete;
+
   ~VirtualFileSystem() override = default;
 
  private:
@@ -153,8 +156,6 @@ class VirtualFileSystem : public zip::FileAccessor {
 
   std::map<base::FilePath, DirContents> file_tree_;
   std::map<base::FilePath, base::File> files_;
-
-  DISALLOW_COPY_AND_ASSIGN(VirtualFileSystem);
 };
 
 // static

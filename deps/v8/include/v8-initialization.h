@@ -195,22 +195,38 @@ class V8_EXPORT V8 {
    * This must be invoked after the platform was initialized but before V8 is
    * initialized. The virtual memory cage is torn down during platform shutdown.
    * Returns true on success, false otherwise.
+   *
+   * TODO(saelo) Once it is no longer optional to create the virtual memory
+   * cage when compiling with V8_VIRTUAL_MEMORY_CAGE, the cage initialization
+   * will likely happen as part of V8::Initialize, at which point this function
+   * should be removed.
    */
   static bool InitializeVirtualMemoryCage();
 
   /**
-   * Provides access to the data page allocator for the virtual memory cage.
+   * Provides access to the virtual memory cage page allocator.
    *
-   * This allocator allocates pages inside the data cage part of the virtual
-   * memory cage in which data buffers such as ArrayBuffer backing stores must
-   * be allocated. Objects in this region should generally consists purely of
-   * data and not contain any pointers. It should be assumed that an attacker
-   * can corrupt data inside the cage, and so in particular the contents of
-   * pages returned by this allocator, arbitrarily and concurrently.
+   * This allocator allocates pages inside the virtual memory cage. It can for
+   * example be used to obtain virtual memory for ArrayBuffer backing stores,
+   * which must be located inside the cage.
    *
-   * The virtual memory cage must have been initialized before.
+   * It should be assumed that an attacker can corrupt data inside the cage,
+   * and so in particular the contents of pages returned by this allocator,
+   * arbitrarily and concurrently. Due to this, it is recommended to to only
+   * place pure data buffers in pages obtained through this allocator.
+   *
+   * This function must only be called after initializing the virtual memory
+   * cage and V8.
    */
-  static PageAllocator* GetVirtualMemoryCageDataPageAllocator();
+  static PageAllocator* GetVirtualMemoryCagePageAllocator();
+
+  /**
+   * Returns the size of the virtual memory cage in bytes.
+   *
+   * If the cage has not been initialized, or if the initialization failed,
+   * this returns zero.
+   */
+  static size_t GetVirtualMemoryCageSizeInBytes();
 #endif
 
   /**

@@ -41,6 +41,7 @@
     %OptimizeFunctionForTopTier(foo);
     assertEquals(78, foo(26, 6, 46, null));
     assertOptimized(foo);
+    %PrepareFunctionForOptimization(foo);
 
     if (i < 3) {
       assertFalse(sum_js_got_interpreted);
@@ -60,6 +61,7 @@
       assertUnoptimized(foo);
     } else {
       assertOptimized(foo);
+      %PrepareFunctionForOptimization(foo);
     }
   }
 })();

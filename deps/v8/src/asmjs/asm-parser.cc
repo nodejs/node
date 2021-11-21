@@ -963,7 +963,6 @@ void AsmJsParser::ValidateFunctionLocals(size_t param_count,
           if (Check('-')) {
             negate = true;
           }
-          double dvalue = 0.0;
           if (CheckForDouble(&dvalue)) {
             info->kind = VarKind::kLocal;
             info->type = AsmType::Float();
@@ -1671,9 +1670,9 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
   uint32_t uvalue;
   if (CheckForUnsignedBelow(0x100000, &uvalue)) {
     if (Check('*')) {
-      AsmType* a;
-      RECURSEn(a = UnaryExpression());
-      if (!a->IsA(AsmType::Int())) {
+      AsmType* type;
+      RECURSEn(type = UnaryExpression());
+      if (!type->IsA(AsmType::Int())) {
         FAILn("Expected int");
       }
       int32_t value = static_cast<int32_t>(uvalue);
@@ -1689,9 +1688,9 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
       int32_t value = -static_cast<int32_t>(uvalue);
       current_function_builder_->EmitI32Const(value);
       if (Check('*')) {
-        AsmType* a;
-        RECURSEn(a = UnaryExpression());
-        if (!a->IsA(AsmType::Int())) {
+        AsmType* type;
+        RECURSEn(type = UnaryExpression());
+        if (!type->IsA(AsmType::Int())) {
           FAILn("Expected int");
         }
         current_function_builder_->Emit(kExprI32Mul);
@@ -1707,7 +1706,6 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
   }
   for (;;) {
     if (Check('*')) {
-      uint32_t uvalue;
       if (Check('-')) {
         if (!PeekForZero() && CheckForUnsigned(&uvalue)) {
           if (uvalue >= 0x100000) {
@@ -2115,7 +2113,7 @@ AsmType* AsmJsParser::ValidateCall() {
   // both cases we might be seeing the {function_name} for the first time and
   // hence allocate a {VarInfo} here, all subsequent uses of the same name then
   // need to match the information stored at this point.
-  base::Optional<TemporaryVariableScope> tmp;
+  base::Optional<TemporaryVariableScope> tmp_scope;
   if (Check('[')) {
     AsmType* index = nullptr;
     RECURSEn(index = EqualityExpression());
@@ -2138,13 +2136,13 @@ AsmType* AsmJsParser::ValidateCall() {
       if (module_builder_->NumTables() == 0) {
         module_builder_->AddTable(kWasmFuncRef, 0);
       }
-      uint32_t index = module_builder_->IncreaseTableMinSize(0, mask + 1);
-      if (index == std::numeric_limits<uint32_t>::max()) {
+      uint32_t func_index = module_builder_->IncreaseTableMinSize(0, mask + 1);
+      if (func_index == std::numeric_limits<uint32_t>::max()) {
         FAILn("Exceeded maximum function table size");
       }
       function_info->kind = VarKind::kTable;
       function_info->mask = mask;
-      function_info->index = index;
+      function_info->index = func_index;
       function_info->mutable_variable = false;
     } else {
       if (function_info->kind != VarKind::kTable) {
@@ -2157,8 +2155,8 @@ AsmType* AsmJsParser::ValidateCall() {
     current_function_builder_->EmitI32Const(function_info->index);
     current_function_builder_->Emit(kExprI32Add);
     // We have to use a temporary for the correct order of evaluation.
-    tmp.emplace(this);
-    current_function_builder_->EmitSetLocal(tmp->get());
+    tmp_scope.emplace(this);
+    current_function_builder_->EmitSetLocal(tmp_scope->get());
     // The position of function table calls is after the table lookup.
     call_pos = scanner_.Position();
   } else {
@@ -2394,7 +2392,7 @@ AsmType* AsmJsParser::ValidateCall() {
       }
     }
     if (function_info->kind == VarKind::kTable) {
-      current_function_builder_->EmitGetLocal(tmp->get());
+      current_function_builder_->EmitGetLocal(tmp_scope->get());
       current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
       current_function_builder_->Emit(kExprCallIndirect);
       current_function_builder_->EmitU32V(signature_index);

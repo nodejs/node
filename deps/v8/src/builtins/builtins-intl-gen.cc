@@ -29,7 +29,7 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
   TNode<JSArray> AllocateEmptyJSArray(TNode<Context> context);
 
   TNode<IntPtrT> PointerToSeqStringData(TNode<String> seq_string) {
-    CSA_ASSERT(this,
+    CSA_DCHECK(this,
                IsSequentialStringInstanceType(LoadInstanceType(seq_string)));
     STATIC_ASSERT(SeqOneByteString::kHeaderSize ==
                   SeqTwoByteString::kHeaderSize);
@@ -55,7 +55,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
   to_direct.TryToDirect(&runtime);
 
   const TNode<Int32T> instance_type = to_direct.instance_type();
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              Word32BinaryNot(IsIndirectStringInstanceType(instance_type)));
   GotoIfNot(IsOneByteStringInstanceType(instance_type), &runtime);
 

@@ -280,7 +280,7 @@ class Serializer : public SerializerDeserializer {
 
 #ifdef DEBUG
   void PushStack(Handle<HeapObject> o) { stack_.Push(*o); }
-  void PopStack() { stack_.Pop(); }
+  void PopStack();
   void PrintStack();
   void PrintStack(std::ostream&);
 #endif  // DEBUG
