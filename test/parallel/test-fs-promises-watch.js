@@ -47,9 +47,11 @@ for (const testCase of kCases) {
   const content1 = Date.now() + testCase.fileName.toLowerCase().repeat(1e4);
   fs.writeFileSync(testCase.filePath, content1);
 
+  let interval;
   async function test() {
     const watcher = watch(testCase[testCase.field]);
     for await (const { eventType, filename } of watcher) {
+      clearInterval(interval);
       assert.strictEqual(['rename', 'change'].includes(eventType), true);
       assert.strictEqual(filename, testCase.fileName);
       break;
@@ -64,10 +66,10 @@ for (const testCase of kCases) {
 
   // Long content so it's actually flushed. toUpperCase so there's real change.
   const content2 = Date.now() + testCase.fileName.toUpperCase().repeat(1e4);
-  setImmediate(() => {
+  interval = setInterval(() => {
     fs.writeFileSync(testCase.filePath, '');
     fs.writeFileSync(testCase.filePath, content2);
-  });
+  }, 100);
 
   test().then(common.mustCall());
 }
