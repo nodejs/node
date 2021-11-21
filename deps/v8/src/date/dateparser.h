@@ -75,6 +75,9 @@ class DateParser : public AllStatic {
     int ReadUnsignedNumeral() {
       int n = 0;
       int i = 0;
+      // First, skip leading zeros
+      while (ch_ == '0') Next();
+      // And then, do the conversion
       while (IsAsciiDigit()) {
         if (i < kMaxSignificantDigits) n = n * 10 + ch_ - '0';
         i++;
