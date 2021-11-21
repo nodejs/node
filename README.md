@@ -156,8 +156,9 @@ For information on reporting security vulnerabilities in Node.js, see
 For information about the governance of the Node.js project, see
 [GOVERNANCE.md](./GOVERNANCE.md).
 
-<!-- node-core-utils depends on the format of the TSC list. If the
-     format changes, those utilities need to be tested and updated. -->
+<!-- node-core-utils and find-inactive-tsc.mjs depend on the format of the TSC
+     list. If the format changes, those utilities need to be tested and
+     updated. -->
 
 ### TSC (Technical Steering Committee)
 
