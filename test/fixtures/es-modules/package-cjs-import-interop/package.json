@@ -1,0 +1,6 @@
+{
+  "name": "package-cjs-import-interop",
+  "main": "index.mjs",
+  "type": "module",
+  "cjsImportInterop": true
+}
