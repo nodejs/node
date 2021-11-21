@@ -96,6 +96,8 @@ async function getAttendance(tscMembers, meetings) {
         if (match) {
           return match[1];
         }
+        // Using `console.warn` so that stdout output is not generated.
+        // The stdout output is consumed in find-inactive-tsc.yml.
         console.warn(`Attendee entry does not contain GitHub handle: ${line}`);
         return '';
       })
@@ -251,10 +253,13 @@ const noVotes = tscMembers.filter(
 const inactive = lightAttendance.filter((member) => noVotes.includes(member));
 
 if (inactive.length) {
-  console.log('\nInactive TSC members:\n');
-  console.log(inactive.map((entry) => `* ${entry}`).join('\n'));
-  console.log('\nGenerating new README.md file...');
+  // The stdout output is consumed in find-inactive-tsc.yml. If format of output
+  // changes, find-inactive-tsc.yml may need to be updated.
+  console.log(`INACTIVE_TSC_HANDLES="${inactive.map((entry) => '@' + entry).join(' ')}"`);
+  // Using console.warn() to avoid messing with find-inactive-tsc which consumes
+  // stdout.
+  console.warn('Generating new README.md file...');
   const newReadmeText = await moveTscToEmeritus(inactive);
   fs.writeFileSync(new URL('../README.md', import.meta.url), newReadmeText);
-  console.log('Updated README.md generated. Please commit these changes.');
+  console.warn('Updated README.md generated. Please commit these changes.');
 }
