@@ -124,20 +124,28 @@ module.exports = {
 
                 /*
                  * This rule only evaluates complexity of functions, so "program" is excluded.
-                 * Class field initializers are implicit functions. Therefore, they shouldn't contribute
-                 * to the enclosing function's complexity, but their own complexity should be evaluated.
+                 * Class field initializers and class static blocks are implicit functions. Therefore,
+                 * they shouldn't contribute to the enclosing function's complexity, but their
+                 * own complexity should be evaluated.
                  */
                 if (
                     codePath.origin !== "function" &&
-                    codePath.origin !== "class-field-initializer"
+                    codePath.origin !== "class-field-initializer" &&
+                    codePath.origin !== "class-static-block"
                 ) {
                     return;
                 }
 
                 if (complexity > THRESHOLD) {
-                    const name = codePath.origin === "class-field-initializer"
-                        ? "class field initializer"
-                        : astUtils.getFunctionNameWithKind(node);
+                    let name;
+
+                    if (codePath.origin === "class-field-initializer") {
+                        name = "class field initializer";
+                    } else if (codePath.origin === "class-static-block") {
+                        name = "class static block";
+                    } else {
+                        name = astUtils.getFunctionNameWithKind(node);
+                    }
 
                     context.report({
                         node,

@@ -248,6 +248,8 @@ module.exports = {
             "ArrowFunctionExpression:exit": exitVarScope,
             "PropertyDefinition > *.value": enterVarScope,
             "PropertyDefinition > *.value:exit": exitVarScope,
+            StaticBlock: enterVarScope,
+            "StaticBlock:exit": exitVarScope,
 
             ThisExpression(node) {
                 if (!isMember(node.parent, "eval")) {

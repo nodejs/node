@@ -25,7 +25,8 @@ const SELECTOR = [
 
 /**
  * Get the child node list of a given node.
- * This returns `Program#body`, `BlockStatement#body`, or `SwitchCase#consequent`.
+ * This returns `BlockStatement#body`, `StaticBlock#body`, `Program#body`,
+ * `ClassBody#body`, or `SwitchCase#consequent`.
  * This is used to check whether a node is the first/last child.
  * @param {Node} node A node to get child node list.
  * @returns {Node[]|null} The child node list.
@@ -33,7 +34,12 @@ const SELECTOR = [
 function getChildren(node) {
     const t = node.type;
 
-    if (t === "BlockStatement" || t === "Program" || t === "ClassBody") {
+    if (
+        t === "BlockStatement" ||
+        t === "StaticBlock" ||
+        t === "Program" ||
+        t === "ClassBody"
+    ) {
         return node.body;
     }
     if (t === "SwitchCase") {

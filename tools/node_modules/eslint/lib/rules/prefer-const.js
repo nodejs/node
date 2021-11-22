@@ -17,7 +17,7 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 
 const PATTERN_TYPE = /^(?:.+?Pattern|RestElement|SpreadProperty|ExperimentalRestProperty|Property)$/u;
-const DECLARATION_HOST_TYPE = /^(?:Program|BlockStatement|SwitchCase)$/u;
+const DECLARATION_HOST_TYPE = /^(?:Program|BlockStatement|StaticBlock|SwitchCase)$/u;
 const DESTRUCTURING_HOST_TYPE = /^(?:VariableDeclarator|AssignmentExpression)$/u;
 
 /**

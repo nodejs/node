@@ -461,6 +461,10 @@ function processCodePathToEnter(analyzer, node) {
             startCodePath("function");
             break;
 
+        case "StaticBlock":
+            startCodePath("class-static-block");
+            break;
+
         case "ChainExpression":
             state.pushChainContext();
             break;
@@ -706,7 +710,8 @@ function postprocess(analyzer, node) {
         case "Program":
         case "FunctionDeclaration":
         case "FunctionExpression":
-        case "ArrowFunctionExpression": {
+        case "ArrowFunctionExpression":
+        case "StaticBlock": {
             endCodePath();
             break;
         }

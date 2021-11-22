@@ -132,6 +132,10 @@ module.exports = {
             "PropertyDefinition > *.value": enterFunction,
             "PropertyDefinition > *.value:exit": exitFunction,
 
+            // Class static blocks are implicit functions.
+            StaticBlock: enterFunction,
+            "StaticBlock:exit": exitFunction,
+
             // Reports if `this` of the current context is invalid.
             ThisExpression(node) {
                 const current = stack.getCurrent();

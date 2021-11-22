@@ -470,6 +470,14 @@ class Referencer extends esrecurse.Visitor {
         }
     }
 
+    StaticBlock(node) {
+        this.scopeManager.__nestClassStaticBlockScope(node);
+
+        this.visitChildren(node);
+
+        this.close(node);
+    }
+
     MethodDefinition(node) {
         this.visitProperty(node);
     }

@@ -155,6 +155,12 @@ module.exports = {
                     validateCurlyPair(sourceCode.getFirstToken(node), sourceCode.getLastToken(node));
                 }
             },
+            StaticBlock(node) {
+                validateCurlyPair(
+                    sourceCode.getFirstToken(node, { skip: 1 }), // skip the `static` token
+                    sourceCode.getLastToken(node)
+                );
+            },
             ClassBody(node) {
                 validateCurlyPair(sourceCode.getFirstToken(node), sourceCode.getLastToken(node));
             },

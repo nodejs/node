@@ -116,7 +116,7 @@ module.exports = {
              * @param {Node} node A MethodDefinition node of the start point.
              * @returns {void}
              */
-            "MethodDefinition, PropertyDefinition"(node) {
+            "MethodDefinition, PropertyDefinition, StaticBlock"(node) {
                 checkForPartOfClassBody(sourceCode.getTokenAfter(node));
             }
         };

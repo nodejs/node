@@ -115,6 +115,12 @@ module.exports = {
             const parent = ancestors[ancestors.length - 1],
                 grandparent = ancestors[ancestors.length - 2];
 
+            /**
+             * https://tc39.es/ecma262/#directive-prologue
+             *
+             * Only `FunctionBody`, `ScriptBody` and `ModuleBody` can have directive prologue.
+             * Class static blocks do not have directive prologue.
+             */
             return (parent.type === "Program" || parent.type === "BlockStatement" &&
                     (/Function/u.test(grandparent.type))) &&
                     directives(parent).indexOf(node) >= 0;

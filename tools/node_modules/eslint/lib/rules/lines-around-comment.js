@@ -185,10 +185,39 @@ module.exports = {
         /**
          * Returns the parent node that contains the given token.
          * @param {token} token The token to check.
-         * @returns {ASTNode} The parent node that contains the given token.
+         * @returns {ASTNode|null} The parent node that contains the given token.
          */
         function getParentNodeOfToken(token) {
-            return sourceCode.getNodeByRangeIndex(token.range[0]);
+            const node = sourceCode.getNodeByRangeIndex(token.range[0]);
+
+            /*
+             * For the purpose of this rule, the comment token is in a `StaticBlock` node only
+             * if it's inside the braces of that `StaticBlock` node.
+             *
+             * Example where this function returns `null`:
+             *
+             *   static
+             *   // comment
+             *   {
+             *   }
+             *
+             * Example where this function returns `StaticBlock` node:
+             *
+             *   static
+             *   {
+             *   // comment
+             *   }
+             *
+             */
+            if (node && node.type === "StaticBlock") {
+                const openingBrace = sourceCode.getFirstToken(node, { skip: 1 }); // skip the `static` token
+
+                return token.range[0] >= openingBrace.range[0]
+                    ? node
+                    : null;
+            }
+
+            return node;
         }
 
         /**
@@ -200,8 +229,15 @@ module.exports = {
         function isCommentAtParentStart(token, nodeType) {
             const parent = getParentNodeOfToken(token);
 
-            return parent && isParentNodeType(parent, nodeType) &&
-                    token.loc.start.line - parent.loc.start.line === 1;
+            if (parent && isParentNodeType(parent, nodeType)) {
+                const parentStartNodeOrToken = parent.type === "StaticBlock"
+                    ? sourceCode.getFirstToken(parent, { skip: 1 }) // opening brace of the static block
+                    : parent;
+
+                return token.loc.start.line - parentStartNodeOrToken.loc.start.line === 1;
+            }
+
+            return false;
         }
 
         /**
@@ -213,7 +249,7 @@ module.exports = {
         function isCommentAtParentEnd(token, nodeType) {
             const parent = getParentNodeOfToken(token);
 
-            return parent && isParentNodeType(parent, nodeType) &&
+            return !!parent && isParentNodeType(parent, nodeType) &&
                     parent.loc.end.line - token.loc.end.line === 1;
         }
 
@@ -223,7 +259,12 @@ module.exports = {
          * @returns {boolean} True if the comment is at block start.
          */
         function isCommentAtBlockStart(token) {
-            return isCommentAtParentStart(token, "ClassBody") || isCommentAtParentStart(token, "BlockStatement") || isCommentAtParentStart(token, "SwitchCase");
+            return (
+                isCommentAtParentStart(token, "ClassBody") ||
+                isCommentAtParentStart(token, "BlockStatement") ||
+                isCommentAtParentStart(token, "StaticBlock") ||
+                isCommentAtParentStart(token, "SwitchCase")
+            );
         }
 
         /**
@@ -232,7 +273,13 @@ module.exports = {
          * @returns {boolean} True if the comment is at block end.
          */
         function isCommentAtBlockEnd(token) {
-            return isCommentAtParentEnd(token, "ClassBody") || isCommentAtParentEnd(token, "BlockStatement") || isCommentAtParentEnd(token, "SwitchCase") || isCommentAtParentEnd(token, "SwitchStatement");
+            return (
+                isCommentAtParentEnd(token, "ClassBody") ||
+                isCommentAtParentEnd(token, "BlockStatement") ||
+                isCommentAtParentEnd(token, "StaticBlock") ||
+                isCommentAtParentEnd(token, "SwitchCase") ||
+                isCommentAtParentEnd(token, "SwitchStatement")
+            );
         }
 
         /**

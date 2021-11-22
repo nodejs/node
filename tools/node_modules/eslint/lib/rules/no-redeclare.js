@@ -161,6 +161,8 @@ module.exports = {
             FunctionExpression: checkForBlock,
             ArrowFunctionExpression: checkForBlock,
 
+            StaticBlock: checkForBlock,
+
             BlockStatement: checkForBlock,
             ForStatement: checkForBlock,
             ForInStatement: checkForBlock,

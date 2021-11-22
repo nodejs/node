@@ -157,7 +157,8 @@ class Scope {
     constructor(scopeManager, type, upperScope, block, isMethodDefinition) {
 
         /**
-         * One of 'module', 'block', 'switch', 'function', 'catch', 'with', 'function', 'class', 'global'.
+         * One of "global", "module", "function", "function-expression-name", "block", "switch", "catch", "with", "for",
+         * "class", "class-field-initializer", "class-static-block".
          * @member {string} Scope#type
          */
         this.type = type;
@@ -225,7 +226,13 @@ class Scope {
          * @member {Scope} Scope#variableScope
          */
         this.variableScope =
-            (this.type === "global" || this.type === "function" || this.type === "module" || this.type === "class-field-initializer") ? this : upperScope.variableScope;
+            this.type === "global" ||
+            this.type === "module" ||
+            this.type === "function" ||
+            this.type === "class-field-initializer" ||
+            this.type === "class-static-block"
+                ? this
+                : upperScope.variableScope;
 
         /**
          * Whether this scope is created by a FunctionExpression.
@@ -738,6 +745,12 @@ class ClassFieldInitializerScope extends Scope {
     }
 }
 
+class ClassStaticBlockScope extends Scope {
+    constructor(scopeManager, upperScope, block) {
+        super(scopeManager, "class-static-block", upperScope, block, true);
+    }
+}
+
 export {
     Scope,
     GlobalScope,
@@ -750,7 +763,8 @@ export {
     FunctionScope,
     ForScope,
     ClassScope,
-    ClassFieldInitializerScope
+    ClassFieldInitializerScope,
+    ClassStaticBlockScope
 };
 
 /* vim: set sw=4 ts=4 et tw=80 : */

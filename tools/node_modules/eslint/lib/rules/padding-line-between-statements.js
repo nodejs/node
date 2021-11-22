@@ -618,9 +618,11 @@ module.exports = {
             Program: enterScope,
             BlockStatement: enterScope,
             SwitchStatement: enterScope,
+            StaticBlock: enterScope,
             "Program:exit": exitScope,
             "BlockStatement:exit": exitScope,
             "SwitchStatement:exit": exitScope,
+            "StaticBlock:exit": exitScope,
 
             ":statement": verify,
 

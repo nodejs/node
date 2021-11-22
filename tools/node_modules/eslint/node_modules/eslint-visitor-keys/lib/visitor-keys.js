@@ -235,6 +235,9 @@ const KEYS = {
     SpreadElement: [
         "argument"
     ],
+    StaticBlock: [
+        "body"
+    ],
     Super: [],
     SwitchStatement: [
         "discriminant",

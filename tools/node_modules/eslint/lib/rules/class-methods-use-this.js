@@ -161,8 +161,17 @@ module.exports = {
             /*
              * Class field value are implicit functions.
              */
-            "PropertyDefinition:exit": popContext,
             "PropertyDefinition > *.key:exit": pushContext,
+            "PropertyDefinition:exit": popContext,
+
+            /*
+             * Class static blocks are implicit functions. They aren't required to use `this`,
+             * but we have to push context so that it captures any use of `this` in the static block
+             * separately from enclosing contexts, because static blocks have their own `this` and it
+             * shouldn't count as used `this` in enclosing contexts.
+             */
+            StaticBlock: pushContext,
+            "StaticBlock:exit": popContext,
 
             ThisExpression: markThisUsed,
             Super: markThisUsed,
