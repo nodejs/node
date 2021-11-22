@@ -1,14 +1,17 @@
 import fs from 'fs';
 import path$1 from 'path';
 import { fileURLToPath, pathToFileURL, URL as URL$1 } from 'url';
+import process$2 from 'node:process';
+import os from 'node:os';
+import tty from 'node:tty';
 import process$1 from 'process';
-import os from 'os';
-import tty from 'tty';
 
 /**
  * Throw a given error.
  *
- * @param {Error | null | undefined} [error]
+ * @param {Error|null|undefined} [error]
+ *   Maybe error.
+ * @returns {asserts error is null|undefined}
  */
 function bail(error) {
   if (error) {
@@ -566,12 +569,13 @@ function isUrl(fileURLOrPath) {
  * @typedef {import('unist').Position} Position
  * @typedef {import('unist').Point} Point
  * @typedef {import('./minurl.shared.js').URL} URL
+ * @typedef {import('..').VFileData} VFileData
  *
- * @typedef {'ascii'|'utf8'|'utf-8'|'utf16le'|'ucs2'|'ucs-2'|'base64'|'latin1'|'binary'|'hex'} BufferEncoding
+ * @typedef {'ascii'|'utf8'|'utf-8'|'utf16le'|'ucs2'|'ucs-2'|'base64'|'base64url'|'latin1'|'binary'|'hex'} BufferEncoding
  *   Encodings supported by the buffer class.
  *   This is a copy of the typing from Node, copied to prevent Node globals from
  *   being needed.
- *   Copied from: <https://github.com/DefinitelyTyped/DefinitelyTyped/blob/a2bc1d8/types/node/globals.d.ts#L174>
+ *   Copied from: <https://github.com/DefinitelyTyped/DefinitelyTyped/blob/90a4ec8/types/node/buffer.d.ts#L170>
  *
  * @typedef {string|Uint8Array} VFileValue
  *   Contents of the file.
@@ -593,7 +597,7 @@ function isUrl(fileURLOrPath) {
  * @property {string} [stem]
  * @property {string} [extname]
  * @property {string} [dirname]
- * @property {Object.<string, unknown>} [data]
+ * @property {VFileData} [data]
  *
  * @typedef {{[key: string]: unknown} & VFileCoreOptions} VFileOptions
  *   Configuration: a bunch of keys that will be shallow copied over to the new
@@ -645,7 +649,7 @@ class VFile {
      * Place to store custom information.
      * It’s OK to store custom data directly on the file, moving it to `data`
      * gives a little more privacy.
-     * @type {Object.<string, unknown>}
+     * @type {VFileData}
      */
     this.data = {};
 
@@ -2199,7 +2203,9 @@ function initializeDocument(effects) {
       // but we’d be interrupting it w/ a new container if there’s a current
       // construct.
 
-      self.interrupt = Boolean(childFlow.currentConstruct);
+      self.interrupt = Boolean(
+        childFlow.currentConstruct && !childFlow._gfmTableDynamicInterruptHack
+      );
     } // Check if there is a new container.
 
     self.containerState = {};
@@ -2987,7 +2993,12 @@ function tokenizeCharacterEscape(effects, ok, nok) {
   }
 }
 
-var characterEntities = {
+/**
+ * Map of named character references.
+ *
+ * @type {Record<string, string>}
+ */
+const characterEntities = {
   AEli: 'Æ',
   AElig: 'Æ',
   AM: '&',
@@ -5212,16 +5223,22 @@ var characterEntities = {
   zwnj: '‌'
 };
 
-var own$6 = {}.hasOwnProperty;
+const own$6 = {}.hasOwnProperty;
 
 /**
- * @param {string} characters
+ * Decode a single character reference (without the `&` or `;`).
+ * You probably only need this when you’re building parsers yourself that follow
+ * different rules compared to HTML.
+ * This is optimized to be tiny in browsers.
+ *
+ * @param {string} value
+ *   `notin` (named), `#123` (deci), `#x123` (hexa).
  * @returns {string|false}
+ *   Decoded reference.
  */
-function decodeEntity(characters) {
-  return own$6.call(characterEntities, characters)
-    ? characterEntities[characters]
-    : false
+function decodeEntity(value) {
+  // @ts-expect-error: to do: use `Record` for `character-entities`.
+  return own$6.call(characterEntities, value) ? characterEntities[value] : false
 }
 
 /**
@@ -7517,6 +7534,11 @@ function tokenizeHtmlFlow(effects, ok, nok) {
     if (code === 62) {
       effects.consume(code);
       return continuationClose
+    } // More dashes.
+
+    if (code === 45 && kind === 2) {
+      effects.consume(code);
+      return continuationDeclarationInside
     }
 
     return continuation(code)
@@ -10199,7 +10221,7 @@ function decode($0, $1, $2) {
  * @typedef {import('mdast').Text} Text
  * @typedef {import('mdast').ThematicBreak} ThematicBreak
  *
- * @typedef {UnistParent & {type: 'fragment', children: PhrasingContent[]}} Fragment
+ * @typedef {UnistParent & {type: 'fragment', children: Array<PhrasingContent>}} Fragment
  */
 const own$5 = {}.hasOwnProperty;
 /**
@@ -10354,7 +10376,7 @@ function compiler(options = {}) {
   const data = {};
   return compile
   /**
-   * @param {Array.<Event>} events
+   * @param {Array<Event>} events
    * @returns {Root}
    */
 
@@ -10370,7 +10392,7 @@ function compiler(options = {}) {
     /** @type {CompileContext['tokenStack']} */
 
     const tokenStack = [];
-    /** @type {Array.<number>} */
+    /** @type {Array<number>} */
 
     const listStack = [];
     /** @type {Omit<CompileContext, 'sliceSerialize'>} */
@@ -10423,16 +10445,9 @@ function compiler(options = {}) {
     }
 
     if (tokenStack.length > 0) {
-      throw new Error(
-        'Cannot close document, a token (`' +
-          tokenStack[tokenStack.length - 1].type +
-          '`, ' +
-          stringifyPosition({
-            start: tokenStack[tokenStack.length - 1].start,
-            end: tokenStack[tokenStack.length - 1].end
-          }) +
-          ') is still open'
-      )
+      const tail = tokenStack[tokenStack.length - 1];
+      const handler = tail[1] || defaultOnError;
+      handler.call(context, undefined, tail[0]);
     } // Figure out `root` position.
 
     tree.position = {
@@ -10464,7 +10479,7 @@ function compiler(options = {}) {
     return tree
   }
   /**
-   * @param {Array.<Event>} events
+   * @param {Array<Event>} events
    * @param {number} start
    * @param {number} length
    * @returns {number}
@@ -10665,15 +10680,16 @@ function compiler(options = {}) {
    * @this {CompileContext}
    * @param {N} node
    * @param {Token} token
+   * @param {OnError} [errorHandler]
    * @returns {N}
    */
 
-  function enter(node, token) {
+  function enter(node, token, errorHandler) {
     const parent = this.stack[this.stack.length - 1];
     // @ts-expect-error: Assume `Node` can exist as a child of `parent`.
     parent.children.push(node);
     this.stack.push(node);
-    this.tokenStack.push(token); // @ts-expect-error: `end` will be patched later.
+    this.tokenStack.push([token, errorHandler]); // @ts-expect-error: `end` will be patched later.
 
     node.position = {
       start: point(token.start)
@@ -10715,24 +10731,9 @@ function compiler(options = {}) {
           }) +
           '): it’s not open'
       )
-    } else if (open.type !== token.type) {
-      throw new Error(
-        'Cannot close `' +
-          token.type +
-          '` (' +
-          stringifyPosition({
-            start: token.start,
-            end: token.end
-          }) +
-          '): a different token (`' +
-          open.type +
-          '`, ' +
-          stringifyPosition({
-            start: open.start,
-            end: open.end
-          }) +
-          ') is open'
-      )
+    } else if (open[0].type !== token.type) {
+      const handler = open[1] || defaultOnError;
+      handler.call(this, token, open[0]);
     }
 
     node.position.end = point(token.end);
@@ -11275,7 +11276,7 @@ function compiler(options = {}) {
 }
 /**
  * @param {Extension} combined
- * @param {Array.<Extension|Array.<Extension>>} extensions
+ * @param {Array<Extension|Array<Extension>>} extensions
  * @returns {Extension}
  */
 
@@ -11322,6 +11323,40 @@ function extension(combined, extension) {
         }
       }
     }
+  }
+}
+/** @type {OnError} */
+
+function defaultOnError(left, right) {
+  if (left) {
+    throw new Error(
+      'Cannot close `' +
+        left.type +
+        '` (' +
+        stringifyPosition({
+          start: left.start,
+          end: left.end
+        }) +
+        '): a different token (`' +
+        right.type +
+        '`, ' +
+        stringifyPosition({
+          start: right.start,
+          end: right.end
+        }) +
+        ') is open'
+    )
+  } else {
+    throw new Error(
+      'Cannot close document, a token (`' +
+        right.type +
+        '`, ' +
+        stringifyPosition({
+          start: right.start,
+          end: right.end
+        }) +
+        ') is still open'
+    )
   }
 }
 
@@ -11658,16 +11693,19 @@ function hardBreak(_, _1, context, safe) {
 /**
  * Get the count of the longest repeating streak of `character` in `value`.
  *
- * @param {string} value Content.
- * @param {string} character Single character to look for
- * @returns {number} Count of most frequent adjacent `character`s in `value`
+ * @param {string} value
+ *   Content to search in.
+ * @param {string} character
+ *   Single character to look for.
+ * @returns {number}
+ *   Count of most frequent adjacent `character`s in `value`.
  */
 function longestStreak(value, character) {
-  var source = String(value);
-  var index = source.indexOf(character);
-  var expected = index;
-  var count = 0;
-  var max = 0;
+  const source = String(value);
+  let index = source.indexOf(character);
+  let expected = index;
+  let count = 0;
+  let max = 0;
 
   if (typeof character !== 'string' || character.length !== 1) {
     throw new Error('Expected character')
@@ -15059,10 +15097,6 @@ const gfmTable = {
     }
   }
 };
-const setextUnderlineMini = {
-  tokenize: tokenizeSetextUnderlineMini,
-  partial: true
-};
 const nextPrefixedOrBlank = {
   tokenize: tokenizeNextPrefixedOrBlank,
   partial: true
@@ -15089,6 +15123,9 @@ function resolveTable(events, context) {
   /** @type {number|undefined} */
 
   let cellStart;
+  /** @type {boolean|undefined} */
+
+  let seenCellInRow;
 
   while (++index < events.length) {
     const token = events[index][1];
@@ -15134,8 +15171,8 @@ function resolveTable(events, context) {
 
     if (
       events[index][0] === 'exit' &&
-      cellStart &&
-      cellStart + 1 < index &&
+      cellStart !== undefined &&
+      cellStart + (seenCellInRow ? 0 : 1) < index &&
       (token.type === 'tableCellDivider' ||
         (token.type === 'tableRow' &&
           (cellStart + 3 < index ||
@@ -15158,6 +15195,7 @@ function resolveTable(events, context) {
       events.splice(cellStart, 0, ['enter', cell, context]);
       index += 2;
       cellStart = index + 1;
+      seenCellInRow = true;
     }
 
     if (token.type === 'tableRow') {
@@ -15165,6 +15203,7 @@ function resolveTable(events, context) {
 
       if (inRow) {
         cellStart = index + 1;
+        seenCellInRow = false;
       }
     }
 
@@ -15173,6 +15212,7 @@ function resolveTable(events, context) {
 
       if (inDelimiterRow) {
         cellStart = index + 1;
+        seenCellInRow = false;
       }
     }
 
@@ -15291,34 +15331,23 @@ function tokenizeTable(effects, ok, nok) {
 
     effects.exit('tableRow');
     effects.exit('tableHead');
+    const originalInterrupt = self.interrupt;
+    self.interrupt = true;
     return effects.attempt(
       {
         tokenize: tokenizeRowEnd,
         partial: true
       },
-      atDelimiterLineStart,
-      nok
+      function (code) {
+        self.interrupt = originalInterrupt;
+        effects.enter('tableDelimiterRow');
+        return atDelimiterRowBreak(code)
+      },
+      function (code) {
+        self.interrupt = originalInterrupt;
+        return nok(code)
+      }
     )(code)
-  }
-  /** @type {State} */
-
-  function atDelimiterLineStart(code) {
-    return effects.check(
-      setextUnderlineMini,
-      nok, // Support an indent before the delimiter row.
-      factorySpace(effects, rowStartDelimiter, 'linePrefix', 4)
-    )(code)
-  }
-  /** @type {State} */
-
-  function rowStartDelimiter(code) {
-    // If there’s another space, or we’re at the EOL/EOF, exit.
-    if (code === null || markdownLineEndingOrSpace(code)) {
-      return nok(code)
-    }
-
-    effects.enter('tableDelimiterRow');
-    return atDelimiterRowBreak(code)
   }
   /** @type {State} */
 
@@ -15575,55 +15604,44 @@ function tokenizeTable(effects, ok, nok) {
       effects.enter('lineEnding');
       effects.consume(code);
       effects.exit('lineEnding');
-      return lineStart
+      return factorySpace(effects, prefixed, 'linePrefix')
     }
     /** @type {State} */
 
-    function lineStart(code) {
-      return self.parser.lazy[self.now().line] ? nok(code) : ok(code)
+    function prefixed(code) {
+      // Blank or interrupting line.
+      if (
+        self.parser.lazy[self.now().line] ||
+        code === null ||
+        markdownLineEnding(code)
+      ) {
+        return nok(code)
+      }
+
+      const tail = self.events[self.events.length - 1]; // Indented code can interrupt delimiter and body rows.
+
+      if (
+        !self.parser.constructs.disable.null.includes('codeIndented') &&
+        tail &&
+        tail[1].type === 'linePrefix' &&
+        tail[2].sliceSerialize(tail[1], true).length >= 4
+      ) {
+        return nok(code)
+      }
+
+      self._gfmTableDynamicInterruptHack = true;
+      return effects.check(
+        self.parser.constructs.flow,
+        function (code) {
+          self._gfmTableDynamicInterruptHack = false;
+          return nok(code)
+        },
+        function (code) {
+          self._gfmTableDynamicInterruptHack = false;
+          return ok(code)
+        }
+      )(code)
     }
-  }
-} // Based on micromark, but that won’t work as we’re in a table, and that expects
-// content.
-// <https://github.com/micromark/micromark/blob/main/lib/tokenize/setext-underline.js>
-
-/** @type {Tokenizer} */
-
-function tokenizeSetextUnderlineMini(effects, ok, nok) {
-  return start
-  /** @type {State} */
-
-  function start(code) {
-    if (code !== 45) {
-      return nok(code)
-    }
-
-    effects.enter('setextUnderline');
-    return sequence(code)
-  }
-  /** @type {State} */
-
-  function sequence(code) {
-    if (code === 45) {
-      effects.consume(code);
-      return sequence
-    }
-
-    return whitespace(code)
-  }
-  /** @type {State} */
-
-  function whitespace(code) {
-    if (code === null || markdownLineEnding(code)) {
-      return ok(code)
-    }
-
-    if (markdownSpace(code)) {
-      effects.consume(code);
-      return whitespace
-    }
-
-    return nok(code)
   }
 }
 /** @type {Tokenizer} */
@@ -15779,22 +15797,24 @@ function gfm(options) {
 }
 
 /**
- * Get the total count of `character` in `value`.
+ * Count how often a character (or substring) is used in a string.
  *
- * @param {any} value Content, coerced to string
- * @param {string} character Single character to look for
- * @return {number} Number of times `character` occurred in `value`.
+ * @param {string} value
+ *   Value to search in.
+ * @param {string} character
+ *   Character (or substring) to look for.
+ * @return {number}
+ *   Number of times `character` occurred in `value`.
  */
 function ccount(value, character) {
-  var source = String(value);
-  var count = 0;
-  var index;
+  const source = String(value);
 
   if (typeof character !== 'string') {
-    throw new Error('Expected character')
+    throw new TypeError('Expected character')
   }
 
-  index = source.indexOf(character);
+  let count = 0;
+  let index = source.indexOf(character);
 
   while (index !== -1) {
     count++;
@@ -17294,7 +17314,7 @@ function gfmToMarkdown(options) {
  */
 
 /**
- * Plugin to support GitHub Flavored Markdown (GFM).
+ * Plugin to support GFM (autolink literals, footnotes, strikethrough, tables, tasklists).
  *
  * @type {import('unified').Plugin<[Options?]|void[], Root>}
  */
@@ -28672,25 +28692,30 @@ toVFile.writeSync = writeSync;
 toVFile.read = read;
 toVFile.write = write;
 
-function hasFlag(flag, argv = process$1.argv) {
+// From: https://github.com/sindresorhus/has-flag/blob/main/index.js
+function hasFlag(flag, argv = process$2.argv) {
 	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
 	const position = argv.indexOf(prefix + flag);
 	const terminatorPosition = argv.indexOf('--');
 	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
 }
 
-const {env} = process$1;
+const {env} = process$2;
 
 let flagForceColor;
-if (hasFlag('no-color') ||
-	hasFlag('no-colors') ||
-	hasFlag('color=false') ||
-	hasFlag('color=never')) {
+if (
+	hasFlag('no-color')
+	|| hasFlag('no-colors')
+	|| hasFlag('color=false')
+	|| hasFlag('color=never')
+) {
 	flagForceColor = 0;
-} else if (hasFlag('color') ||
-	hasFlag('colors') ||
-	hasFlag('color=true') ||
-	hasFlag('color=always')) {
+} else if (
+	hasFlag('color')
+	|| hasFlag('colors')
+	|| hasFlag('color=true')
+	|| hasFlag('color=always')
+) {
 	flagForceColor = 1;
 }
 
@@ -28717,7 +28742,7 @@ function translateLevel(level) {
 		level,
 		hasBasic: true,
 		has256: level >= 2,
-		has16m: level >= 3
+		has16m: level >= 3,
 	};
 }
 
@@ -28734,9 +28759,9 @@ function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
 	}
 
 	if (sniffFlags) {
-		if (hasFlag('color=16m') ||
-			hasFlag('color=full') ||
-			hasFlag('color=truecolor')) {
+		if (hasFlag('color=16m')
+			|| hasFlag('color=full')
+			|| hasFlag('color=truecolor')) {
 			return 3;
 		}
 
@@ -28755,15 +28780,15 @@ function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
 		return min;
 	}
 
-	if (process$1.platform === 'win32') {
+	if (process$2.platform === 'win32') {
 		// Windows 10 build 10586 is the first Windows release that supports 256 colors.
 		// Windows 10 build 14931 is the first release that supports 16m/TrueColor.
 		const osRelease = os.release().split('.');
 		if (
-			Number(osRelease[0]) >= 10 &&
-			Number(osRelease[2]) >= 10586
+			Number(osRelease[0]) >= 10
+			&& Number(osRelease[2]) >= 10_586
 		) {
-			return Number(osRelease[2]) >= 14931 ? 3 : 2;
+			return Number(osRelease[2]) >= 14_931 ? 3 : 2;
 		}
 
 		return 1;
@@ -28815,7 +28840,7 @@ function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
 function createSupportsColor(stream, options = {}) {
 	const level = _supportsColor(stream, {
 		streamIsTTY: stream && stream.isTTY,
-		...options
+		...options,
 	});
 
 	return translateLevel(level);
@@ -28823,7 +28848,7 @@ function createSupportsColor(stream, options = {}) {
 
 const supportsColor = {
 	stdout: createSupportsColor({isTTY: tty.isatty(1)}),
-	stderr: createSupportsColor({isTTY: tty.isatty(2)})
+	stderr: createSupportsColor({isTTY: tty.isatty(2)}),
 };
 
 function ansiRegex({onlyFirst = false} = {}) {
