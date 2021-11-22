@@ -3043,7 +3043,7 @@ would cause an error since mixing promise and callback semantics is not valid.
 const w = new Writable({
   async final (callback) {
     await someOp();
-    callback(); // Not valid
+    callback();
   }
 });
 ```
