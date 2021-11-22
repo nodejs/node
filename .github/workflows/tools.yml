@@ -32,7 +32,7 @@ jobs:
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
                 ./update-babel-eslint.sh
               fi
-          - id: "lint-md dependencies"
+          - id: "lint-md-dependencies"
             run: |
               cd tools/lint-md
               npm ci
