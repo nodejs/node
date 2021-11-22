@@ -2,6 +2,11 @@ import { receiveMessageOnPort } from 'node:worker_threads';
 const mockedModuleExports = new Map();
 let currentMockVersion = 0;
 
+// This loader causes import.meta.mock to become available as a way to swap
+// module resolution.
+//
+//
+
 /**
  * FIXME: this is a hack to workaround loaders being
  * single threaded for now
@@ -61,7 +66,7 @@ export function globalPreload({port}) {
         meta.doMock = doMock;
         return;
       }
-      if (context.url.startsWith('mock:')) {
+      if (context.url.startsWith('mock-facade:')) {
         let [proto, version, encodedTargetURL] = context.url.split(':');
         let decodedTargetURL = decodeURIComponent(encodedTargetURL);
         if (mockedModules.has(decodedTargetURL)) {
@@ -76,7 +81,7 @@ export function globalPreload({port}) {
 }
 
 
-// rewrites node: loading to mock: so that it can be intercepted
+// rewrites node: loading to mock-facade: so that it can be intercepted
 export function resolve(specifier, context, defaultResolve) {
   if (specifier === 'node:mock') {
     return {
@@ -85,11 +90,11 @@ export function resolve(specifier, context, defaultResolve) {
   }
   doDrainPort();
   const def = defaultResolve(specifier, context);
-  if (context.parentURL?.startsWith('mock:')) {
+  if (context.parentURL?.startsWith('mock-facade:')) {
     // do nothing, let it get the "real" module
   } else if (mockedModuleExports.has(def.url)) {
     return {
-      url: `mock:${currentMockVersion}:${encodeURIComponent(def.url)}`
+      url: `mock-facade:${currentMockVersion}:${encodeURIComponent(def.url)}`
     };
   };
   return {
@@ -105,7 +110,7 @@ export function load(url, context, defaultLoad) {
       format: 'module'
     };
   }
-  if (url.startsWith('mock:')) {
+  if (url.startsWith('mock-facade:')) {
     let [proto, version, encodedTargetURL] = url.split(':');
     let ret = generateModule(mockedModuleExports.get(
       decodeURIComponent(encodedTargetURL)
@@ -119,19 +124,22 @@ export function load(url, context, defaultLoad) {
 }
 
 function generateModule(exports) {
-  let body = 'export {};let mapping = {__proto__: null};'
+  let body = [
+    'export {};',
+    'let mapping = {__proto__: null};'
+  ];
   for (const [i, name] of Object.entries(exports)) {
     let key = JSON.stringify(name);
-    body += `var _${i} = import.meta.mock.namespace[${key}];`
-    body += `Object.defineProperty(mapping, ${key}, {enumerable: true,set(v) {_${i} = v;}});`
-    body += `export {_${i} as ${name}};`;
+    body.push(`var _${i} = import.meta.mock.namespace[${key}];`);
+    body.push(`Object.defineProperty(mapping, ${key}, { enumerable: true, set(v) {_${i} = v;}, get() {return _${i};} });`);
+    body.push(`export {_${i} as ${name}};`);
   }
-  body += `import.meta.mock.listeners.push(${
+  body.push(`import.meta.mock.listeners.push(${
     () => {
       for (var k in mapping) {
         mapping[k] = import.meta.mock.namespace[k];
       }
     }
-  });`
-  return body;
+  });`);
+  return body.join('\n');
 }
