@@ -5236,8 +5236,7 @@ const own$6 = {}.hasOwnProperty;
  * @returns {string|false}
  *   Decoded reference.
  */
-function decodeEntity(value) {
-  // @ts-expect-error: to do: use `Record` for `character-entities`.
+function decodeNamedCharacterReference(value) {
   return own$6.call(characterEntities, value) ? characterEntities[value] : false
 }
 
@@ -5319,7 +5318,7 @@ function tokenizeCharacterReference(effects, ok, nok) {
 
       if (
         test === asciiAlphanumeric &&
-        !decodeEntity(self.sliceSerialize(token))
+        !decodeNamedCharacterReference(self.sliceSerialize(token))
       ) {
         return nok(code)
       }
@@ -10185,7 +10184,7 @@ function decode($0, $1, $2) {
     return decodeNumericCharacterReference($2.slice(hex ? 2 : 1), hex ? 16 : 10)
   }
 
-  return decodeEntity($2) || $0
+  return decodeNamedCharacterReference($2) || $0
 }
 
 /**
@@ -10680,7 +10679,7 @@ function compiler(options = {}) {
    * @this {CompileContext}
    * @param {N} node
    * @param {Token} token
-   * @param {OnError} [errorHandler]
+   * @param {OnEnterError} [errorHandler]
    * @returns {N}
    */
 
@@ -10714,9 +10713,15 @@ function compiler(options = {}) {
       exit.call(this, token);
     }
   }
-  /** @type {CompileContext['exit']} */
+  /**
+   * @type {CompileContext['exit']}
+   * @this {CompileContext}
+   * @param {Token} token
+   * @param {OnExitError} [onExitError]
+   * @returns {Node}
+   */
 
-  function exit(token) {
+  function exit(token, onExitError) {
     const node = this.stack.pop();
     const open = this.tokenStack.pop();
 
@@ -10732,8 +10737,12 @@ function compiler(options = {}) {
           '): it’s not open'
       )
     } else if (open[0].type !== token.type) {
-      const handler = open[1] || defaultOnError;
-      handler.call(this, token, open[0]);
+      if (onExitError) {
+        onExitError.call(this, token, open[0]);
+      } else {
+        const handler = open[1] || defaultOnError;
+        handler.call(this, token, open[0]);
+      }
     }
 
     node.position.end = point(token.end);
@@ -11093,9 +11102,10 @@ function compiler(options = {}) {
       );
       setData('characterReferenceType');
     } else {
-      // @ts-expect-error `decodeEntity` can return false for invalid named
-      // character references, but everything we’ve tokenized is valid.
-      value = decodeEntity(data);
+      // @ts-expect-error `decodeNamedCharacterReference` can return false for
+      // invalid named character references, but everything we’ve tokenized is
+      // valid.
+      value = decodeNamedCharacterReference(data);
     }
 
     const tail = this.stack.pop();
@@ -11325,7 +11335,7 @@ function extension(combined, extension) {
     }
   }
 }
-/** @type {OnError} */
+/** @type {OnEnterError} */
 
 function defaultOnError(left, right) {
   if (left) {
