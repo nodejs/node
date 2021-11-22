@@ -87,6 +87,16 @@ async function validateReadWithPositionZero() {
   }
 }
 
+async function validateReadLength() {
+  const len = 1;
+  const buf = Buffer.alloc(4);
+  const opts = { useConf: true };
+  const filePath = fixtures.path('x.txt');
+  const fileHandle = await open(filePath, 'r');
+  const { bytesRead } = await read(fileHandle, buf, 0, len, 0, opts);
+  assert.strictEqual(bytesRead, len);
+}
+
 
 (async function() {
   tmpdir.refresh();
@@ -98,4 +108,5 @@ async function validateReadWithPositionZero() {
   await validateLargeRead({ useConf: true });
   await validateReadNoParams();
   await validateReadWithPositionZero();
+  await validateReadLength();
 })().then(common.mustCall());
