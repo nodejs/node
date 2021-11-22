@@ -56,6 +56,8 @@ export default () => Parser => {
                 code = String(code);
             }
 
+            // save original source type in case of commonjs
+            const originalSourceType = opts.sourceType;
             const options = normalizeOptions(opts);
             const ecmaFeatures = options.ecmaFeatures || {};
             const tokenTranslator =
@@ -74,7 +76,7 @@ export default () => Parser => {
                 allowReserved: options.allowReserved,
 
                 // Truthy value is true for backward compatibility.
-                allowReturnOutsideFunction: Boolean(ecmaFeatures.globalReturn),
+                allowReturnOutsideFunction: options.allowReturnOutsideFunction,
 
                 // Collect tokens
                 onToken: token => {
@@ -98,8 +100,13 @@ export default () => Parser => {
                 }
             }, code);
 
-            // Initialize internal state.
+            /*
+             * Data that is unique to Espree and is not represented internally in
+             * Acorn. We put all of this data into a symbol property as a way to
+             * avoid potential naming conflicts with future versions of Acorn.
+             */
             this[STATE] = {
+                originalSourceType: originalSourceType || options.sourceType,
                 tokens: tokenTranslator ? [] : null,
                 comments: options.comment === true ? [] : null,
                 impliedStrict: ecmaFeatures.impliedStrict === true && this.options.ecmaVersion >= 5,
@@ -144,7 +151,7 @@ export default () => Parser => {
             const extra = this[STATE];
             const program = super.parse();
 
-            program.sourceType = this.options.sourceType;
+            program.sourceType = extra.originalSourceType;
 
             if (extra.comments) {
                 program.comments = extra.comments;

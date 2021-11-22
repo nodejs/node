@@ -123,6 +123,14 @@ module.exports = {
         function endFunction(node) {
             const count = functionStack.pop();
 
+            /*
+             * This rule does not apply to class static blocks, but we have to track them so
+             * that stataments in them do not count as statements in the enclosing function.
+             */
+            if (node.type === "StaticBlock") {
+                return;
+            }
+
             if (ignoreTopLevelFunctions && functionStack.length === 0) {
                 topLevelFunctions.push({ node, count });
             } else {
@@ -148,12 +156,14 @@ module.exports = {
             FunctionDeclaration: startFunction,
             FunctionExpression: startFunction,
             ArrowFunctionExpression: startFunction,
+            StaticBlock: startFunction,
 
             BlockStatement: countStatements,
 
             "FunctionDeclaration:exit": endFunction,
             "FunctionExpression:exit": endFunction,
             "ArrowFunctionExpression:exit": endFunction,
+            "StaticBlock:exit": endFunction,
 
             "Program:exit"() {
                 if (topLevelFunctions.length === 1) {
