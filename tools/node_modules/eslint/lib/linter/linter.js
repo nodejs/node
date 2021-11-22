@@ -626,7 +626,7 @@ function analyzeScope(ast, parserOptions, visitorKeys) {
         ignoreEval: true,
         nodejsScope: ecmaFeatures.globalReturn,
         impliedStrict: ecmaFeatures.impliedStrict,
-        ecmaVersion,
+        ecmaVersion: typeof ecmaVersion === "number" ? ecmaVersion : 6,
         sourceType: parserOptions.sourceType || "script",
         childVisitorKeys: visitorKeys || evk.KEYS,
         fallback: Traverser.getKeys

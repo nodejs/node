@@ -590,6 +590,7 @@ module.exports = {
             ImportNamespaceSpecifier: checkSpacingForImportNamespaceSpecifier,
             MethodDefinition: checkSpacingForProperty,
             PropertyDefinition: checkSpacingForProperty,
+            StaticBlock: checkSpacingAroundFirstToken,
             Property: checkSpacingForProperty,
 
             // To avoid conflicts with `space-infix-ops`, e.g. `a > this.b`
