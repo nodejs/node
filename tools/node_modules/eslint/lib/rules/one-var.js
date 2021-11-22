@@ -541,6 +541,8 @@ module.exports = {
             FunctionDeclaration: startFunction,
             FunctionExpression: startFunction,
             ArrowFunctionExpression: startFunction,
+            StaticBlock: startFunction, // StaticBlock creates a new scope for `var` variables
+
             BlockStatement: startBlock,
             ForStatement: startBlock,
             ForInStatement: startBlock,
@@ -552,10 +554,12 @@ module.exports = {
             "ForInStatement:exit": endBlock,
             "SwitchStatement:exit": endBlock,
             "BlockStatement:exit": endBlock,
+
             "Program:exit": endFunction,
             "FunctionDeclaration:exit": endFunction,
             "FunctionExpression:exit": endFunction,
-            "ArrowFunctionExpression:exit": endFunction
+            "ArrowFunctionExpression:exit": endFunction,
+            "StaticBlock:exit": endFunction
         };
 
     }

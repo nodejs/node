@@ -306,22 +306,31 @@ module.exports = {
         }
 
         /**
-         * Checks a node to see if it's in a one-liner block statement.
+         * Checks a node to see if it's the last item in a one-liner block.
+         * Block is any `BlockStatement` or `StaticBlock` node. Block is a one-liner if its
+         * braces (and consequently everything between them) are on the same line.
          * @param {ASTNode} node The node to check.
-         * @returns {boolean} whether the node is in a one-liner block statement.
+         * @returns {boolean} whether the node is the last item in a one-liner block.
          */
-        function isOneLinerBlock(node) {
+        function isLastInOneLinerBlock(node) {
             const parent = node.parent;
             const nextToken = sourceCode.getTokenAfter(node);
 
             if (!nextToken || nextToken.value !== "}") {
                 return false;
             }
-            return (
-                !!parent &&
-                parent.type === "BlockStatement" &&
-                parent.loc.start.line === parent.loc.end.line
-            );
+
+            if (parent.type === "BlockStatement") {
+                return parent.loc.start.line === parent.loc.end.line;
+            }
+
+            if (parent.type === "StaticBlock") {
+                const openingBrace = sourceCode.getFirstToken(parent, { skip: 1 }); // skip the `static` token
+
+                return openingBrace.loc.start.line === parent.loc.end.line;
+            }
+
+            return false;
         }
 
         /**
@@ -343,7 +352,7 @@ module.exports = {
                     report(node);
                 }
             } else {
-                const oneLinerBlock = (exceptOneLine && isOneLinerBlock(node));
+                const oneLinerBlock = (exceptOneLine && isLastInOneLinerBlock(node));
 
                 if (isSemi && oneLinerBlock) {
                     report(node, true);

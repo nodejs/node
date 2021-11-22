@@ -73,6 +73,11 @@ function normalizeSourceType(sourceType = "script") {
     if (sourceType === "script" || sourceType === "module") {
         return sourceType;
     }
+
+    if (sourceType === "commonjs") {
+        return "script";
+    }
+
     throw new Error("Invalid sourceType.");
 }
 
@@ -88,15 +93,20 @@ export function normalizeOptions(options) {
     const ranges = options.range === true;
     const locations = options.loc === true;
     const allowReserved = ecmaVersion === 3 ? "never" : false;
+    const ecmaFeatures = options.ecmaFeatures || {};
+    const allowReturnOutsideFunction = options.sourceType === "commonjs" ||
+        Boolean(ecmaFeatures.globalReturn);
 
     if (sourceType === "module" && ecmaVersion < 6) {
         throw new Error("sourceType 'module' is not supported when ecmaVersion < 2015. Consider adding `{ ecmaVersion: 2015 }` to the parser options.");
     }
+
     return Object.assign({}, options, {
         ecmaVersion,
         sourceType,
         ranges,
         locations,
-        allowReserved
+        allowReserved,
+        allowReturnOutsideFunction
     });
 }

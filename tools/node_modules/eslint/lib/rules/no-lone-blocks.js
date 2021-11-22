@@ -39,7 +39,9 @@ module.exports = {
          * @returns {void}
          */
         function report(node) {
-            const messageId = node.parent.type === "BlockStatement" ? "redundantNestedBlock" : "redundantBlock";
+            const messageId = node.parent.type === "BlockStatement" || node.parent.type === "StaticBlock"
+                ? "redundantNestedBlock"
+                : "redundantBlock";
 
             context.report({
                 node,
@@ -54,6 +56,7 @@ module.exports = {
          */
         function isLoneBlock(node) {
             return node.parent.type === "BlockStatement" ||
+                node.parent.type === "StaticBlock" ||
                 node.parent.type === "Program" ||
 
                 // Don't report blocks in switch cases if the block is the only statement of the case.
@@ -99,7 +102,10 @@ module.exports = {
                         loneBlocks.pop();
                         report(node);
                     } else if (
-                        node.parent.type === "BlockStatement" &&
+                        (
+                            node.parent.type === "BlockStatement" ||
+                            node.parent.type === "StaticBlock"
+                        ) &&
                         node.parent.body.length === 1
                     ) {
                         report(node);

@@ -124,4 +124,4 @@ self.Flatted = (function (exports) {
 
   return exports;
 
-}({}));
+})({});

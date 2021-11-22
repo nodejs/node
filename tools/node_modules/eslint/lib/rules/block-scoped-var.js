@@ -112,6 +112,8 @@ module.exports = {
             "SwitchStatement:exit": exitScope,
             CatchClause: enterScope,
             "CatchClause:exit": exitScope,
+            StaticBlock: enterScope,
+            "StaticBlock:exit": exitScope,
 
             // Finds and reports references which are outside of valid scope.
             VariableDeclaration: checkForVariables
