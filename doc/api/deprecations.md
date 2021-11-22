@@ -3031,7 +3031,9 @@ changes:
 Type: Documentation-only
 
 An undocumented feature of Node.js streams was to support thenables in
-implementation methods. This is now deprecated, instead use callbacks.
+implementation methods. This feature was causing stream instability when using
+async functions as stream methods. This is now deprecated, instead use
+callbacks.
 
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
