@@ -643,3 +643,19 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   const s = new Stream();
   finished(s, common.mustNotCall());
 }
+
+{
+  const server = http.createServer(common.mustCall(function (req, res) {
+    fs.createReadStream(__filename).pipe(res)
+    finished(res, common.mustCall(function (err) {
+      if (err) {
+        throw err
+      }
+    }))
+  })).listen(0, function () {
+    http.request({ method: 'GET', port: this.address().port }, common.mustCall(function (res) {
+      res.resume()
+      server.close()
+    })).end()
+  })
+}
