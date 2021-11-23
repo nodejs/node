@@ -87,8 +87,7 @@ async function validateReadWithPositionZero() {
   }
 }
 
-async function validateReadLength() {
-  const len = 1;
+async function validateReadLength(len) {
   const buf = Buffer.alloc(4);
   const opts = { useConf: true };
   const filePath = fixtures.path('x.txt');
@@ -108,5 +107,6 @@ async function validateReadLength() {
   await validateLargeRead({ useConf: true });
   await validateReadNoParams();
   await validateReadWithPositionZero();
-  await validateReadLength();
+  await validateReadLength(0);
+  await validateReadLength(1);
 })().then(common.mustCall());
