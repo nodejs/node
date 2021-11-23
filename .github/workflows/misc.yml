@@ -11,7 +11,7 @@ on:
       - v[0-9]+.x
 
 env:
-  NODE_VERSION: lts/*
+  NODE_VERSION: 14
 
 jobs:
   build-docs:
