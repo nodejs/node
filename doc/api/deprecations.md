@@ -3031,9 +3031,8 @@ changes:
 Type: Documentation-only
 
 An undocumented feature of Node.js streams was to support thenables in
-implementation methods. This feature was causing stream instability when using
-async functions as stream methods. This is now deprecated, instead use
-callbacks.
+implementation methods. This is now deprecated, use callbacks instead and avoid
+use of async function for streams implementation methods.
 
 This feature caused users to encounter unexpected problems where the user
 implements the function in callback style but uses e.g. an async method which
@@ -3041,12 +3040,13 @@ would cause an error since mixing promise and callback semantics is not valid.
 
 ```js
 const w = new Writable({
-  async final (callback) {
+  async final(callback) {
     await someOp();
     callback();
   }
 });
 ```
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
