@@ -123,6 +123,7 @@ def corepack_files(action):
 def subdir_files(path, dest, action):
   ret = {}
   for dirpath, dirnames, filenames in os.walk(path):
+    if sys.platform == 'win32': dirpath = dirpath.replace('\\', '/')
     files_in_path = [dirpath + '/' + f for f in filenames if f.endswith('.h')]
     ret[dest + dirpath.replace(path, '')] = files_in_path
   for subdir, files_in_path in ret.items():
