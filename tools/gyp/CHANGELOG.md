@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.10.1](https://www.github.com/nodejs/gyp-next/compare/v0.10.0...v0.10.1) (2021-11-24)
+
+
+### Bug Fixes
+
+* **make:** only generate makefile for multiple toolsets if requested ([#133](https://www.github.com/nodejs/gyp-next/issues/133)) ([f463a77](https://www.github.com/nodejs/gyp-next/commit/f463a77705973289ea38fec1b244c922ac438e26))
+
 ## [0.10.0](https://www.github.com/nodejs/gyp-next/compare/v0.9.6...v0.10.0) (2021-08-26)
 
 
