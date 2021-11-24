@@ -1362,9 +1362,9 @@ def BuildOptions():
       default="")
   result.add_option("--warn-unused", help="Report unused rules",
       default=False, action="store_true")
-  result.add_option("-j", help="The number of parallel tasks to run",
-      default=1, type="int")
-  result.add_option("-J", help="Run tasks in parallel on all cores",
+  result.add_option("-j", help="The number of parallel tasks to run, 0=use number of cores",
+      default=0, type="int")
+  result.add_option("-J", help="For legacy compatibility, has no effect",
       default=False, action="store_true")
   result.add_option("--time", help="Print timing information after running",
       default=False, action="store_true")
@@ -1423,7 +1423,7 @@ def ProcessOptions(options):
     if options.run[0] >= options.run[1]:
       print("The test group to run (n) must be smaller than number of groups (m).")
       return False
-  if options.J:
+  if options.j == 0:
     # inherit JOBS from environment if provided. some virtualised systems
     # tends to exaggerate the number of available cpus/cores.
     cores = os.environ.get('JOBS')
