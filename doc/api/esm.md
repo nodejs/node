@@ -773,7 +773,7 @@ source to a supported one (see [Examples](#examples) below).
 > signature may change. Do not rely on the API described below.
 
 > Note: In a previous version of this API, this hook was named
-> `globalPreload`.
+> `getGlobalPreloadCode`.
 
 * Returns: {string}
 
@@ -792,9 +792,10 @@ its own `require` using  `module.createRequire()`.
 /**
  * This example has the application context send a message to the loader
  * and sends the message back to the application context
- * @param {object} utilities
- * @param {MessagePort} utilities.port
- * @returns {string}
+ * @param {{
+     port: MessagePort,
+   }} utilities Functions that preload code might find useful
+ * @returns {string} Code to execute in the preload context
  */
 export function globalPreload({ port }) {
   port.onmessage = (evt) => {

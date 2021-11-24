@@ -4,17 +4,17 @@ let currentMockVersion = 0;
 
 // This loader causes a new module `node:mock` to become available as a way to
 // swap module resolution results for mocking purposes. It uses this instead
-// of import.meta so that CJS can still use the functionality
+// of import.meta so that CommonJS can still use the functionality.
 //
 // It does so by allowing non-mocked modules to live in normal URL cache
 // locations but creates 'mock-facade:' URL cache location for every time a
 // module location is mocked. Since a single URL can be mocked multiple
-// times but it cannot be removed from the cache `mock-facade:` URLs have a
+// times but it cannot be removed from the cache, `mock-facade:` URLs have a
 // form of mock-facade:$VERSION:$REPLACING_URL with the parameters being URL
 // percent encoded every time a module is resolved
 //
 // NOTE: due to ESM spec, once a specifier has been resolved in a source text
-//       it cannot be changed. so things like the following DO NOT WORK
+//       it cannot be changed. So things like the following DO NOT WORK:
 //
 // ```mjs
 // import mock from 'node:mock';
