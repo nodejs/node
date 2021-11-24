@@ -403,7 +403,7 @@ by providing the name of a subsystem:
 
 ```text
 $ make coverage-clean
-$ NODE_V8_COVERAGE=coverage/tmp tools/test.py -J --mode=release child-process
+$ NODE_V8_COVERAGE=coverage/tmp tools/test.py --mode=release child-process
 $ make coverage-report-js
 ```
 
