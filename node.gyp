@@ -1476,7 +1476,7 @@
     }], # end aix section
     # TODO(RaisinTen): Enable this to build on other platforms as well.
     ['(OS=="mac" or (OS=="linux" and target_arch=="x64")) and \
-      node_use_openssl=="true"', {
+      node_use_openssl=="true" and node_shared_openssl=="false"', {
       'targets': [
         {
           'target_name': 'test_crypto_engine',
