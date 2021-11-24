@@ -1362,9 +1362,9 @@ def BuildOptions():
       default="")
   result.add_option("--warn-unused", help="Report unused rules",
       default=False, action="store_true")
-  result.add_option("-j", help="The number of parallel tasks to run",
-      default=1, type="int")
-  result.add_option("-J", help="Run tasks in parallel on all cores",
+  result.add_option("-j", help="The number of parallel tasks to run, 0=use number of cores",
+      default=0, type="int")
+  result.add_option("-J", help="For legacy compatibility, has no effect",
       default=False, action="store_true")
   result.add_option("--time", help="Print timing information after running",
       default=False, action="store_true")
@@ -1423,11 +1423,16 @@ def ProcessOptions(options):
     if options.run[0] >= options.run[1]:
       print("The test group to run (n) must be smaller than number of groups (m).")
       return False
-  if options.J:
+  if options.j == 0:
     # inherit JOBS from environment if provided. some virtualised systems
     # tends to exaggerate the number of available cpus/cores.
     cores = os.environ.get('JOBS')
     options.j = int(cores) if cores is not None else multiprocessing.cpu_count()
+  elif options.J:
+    # If someone uses -j and legacy -J, let them know that we will be respecting
+    # -j and ignoring -J, which is the opposite of what we used to do before -J
+    # became a legacy no-op.
+    print('Warning: Legacy -J option is ignored. Using the -j option.')
   if options.flaky_tests not in [RUN, SKIP, DONTCARE]:
     print("Unknown flaky-tests mode %s" % options.flaky_tests)
     return False
