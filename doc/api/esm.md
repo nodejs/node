@@ -790,12 +790,38 @@ its own `require` using  `module.createRequire()`.
 
 ```js
 /**
+ * @param {{
+     port: MessagePort,
+   }} utilities Things that preload code might find useful
+ * @returns {string} Code to run before application startup
+ */
+export function globalPreload() {
+  return `\
+globalThis.someInjectedProperty = 42;
+console.log('I just set some globals!');
+
+const { createRequire } = getBuiltin('module');
+const { cwd } = getBuiltin('process');
+
+const require = createRequire(cwd() + '/<preload>');
+// [...]
+`;
+}
+
+In order to allow communication between the application and the loader, another
+argument is provided to the preload code: `port`. This is available as a
+parameter to the loader hook and inside of the source text returned by the hook.
+Some care must be taken in order to properly call [`port.ref()`][] and
+[`port.unref()`][] to prevent a process from being in a state where it won't
+close normally.
+
+/**
  * This example has the application context send a message to the loader
  * and sends the message back to the application context
  * @param {{
      port: MessagePort,
-   }} utilities Functions that preload code might find useful
- * @returns {string} Code to execute in the preload context
+   }} utilities Things that preload code might find useful
+ * @returns {string} Code to run before application startup
  */
 export function globalPreload({ port }) {
   port.onmessage = (evt) => {
@@ -809,13 +835,6 @@ export function globalPreload({ port }) {
   `;
 }
 ```
-
-In order to allow communication between the application and the loader, another
-argument is provided to the preload code: `port`. This is available as a
-parameter to the loader hook and inside of the source text returned by the hook.
-Some care must be taken in order to properly call [`port.ref()`][] and
-[`port.unref()`][] to prevent a process from being in a state where it won't
-close normally.
 
 ### Examples
 
