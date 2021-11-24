@@ -23,7 +23,7 @@ FIND ?= find
 ifdef JOBS
 	PARALLEL_ARGS = -j $(JOBS)
 else
-	PARALLEL_ARGS = -J
+	PARALLEL_ARGS =
 endif
 
 ifdef ENABLE_V8_TAP
