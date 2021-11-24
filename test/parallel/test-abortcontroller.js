@@ -230,3 +230,24 @@ const { setTimeout: sleep } = require('timers/promises');
   // keep the Node.js process open (the timer is unref'd)
   AbortSignal.timeout(1_200_000);
 }
+
+{
+  // Test AbortSignal.reason default
+  const signal = AbortSignal.abort();
+  ok(signal.reason instanceof DOMException);
+  strictEqual(signal.reason.code, 20);
+
+  const ac = new AbortController();
+  ac.abort();
+  ok(ac.signal.reason instanceof DOMException);
+  strictEqual(ac.signal.reason.code, 20);
+}
+
+{
+  // Test abortSignal.throwIfAborted()
+  throws(() => AbortSignal.abort().throwIfAborted(), { code: 20 });
+
+  // Does not throw because it's not aborted.
+  const ac = new AbortController();
+  ac.signal.throwIfAborted();
+}

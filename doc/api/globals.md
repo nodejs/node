@@ -191,6 +191,14 @@ ac.abort(new Error('boom!'));
 console.log(ac.signal.reason);  // Error('boom!');
 ```
 
+#### `abortSignal.throwIfAborted()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+If `abortSignal.aborted` is `true`, throws `abortSignal.reason`.
+
 ## Class: `Buffer`
 
 <!-- YAML
