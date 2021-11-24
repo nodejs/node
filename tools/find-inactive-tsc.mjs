@@ -113,10 +113,6 @@ async function getVotingRecords(tscMembers, votes) {
     votingRecords[member] = 0;
   }
   for (const vote of votes) {
-    // Skip if not a .json file, such as README.md.
-    if (!vote.endsWith('.json')) {
-      continue;
-    }
     // Get the vote data.
     const voteData = JSON.parse(
       await fs.promises.readFile(path.join('.tmp', vote), 'utf8')
@@ -240,7 +236,7 @@ const lightAttendance = tscMembers.filter(
 // Get all votes since SINCE.
 // Assumes that the TSC repo is cloned in the .tmp dir.
 const votes = await runGitCommand(
-  `git whatchanged --since '${SINCE}' --name-only --pretty=format: votes`,
+  `git whatchanged --since '${SINCE}' --name-only --pretty=format: votes/*.json`,
   { cwd: '.tmp', mapFn: (line) => line }
 );
 
@@ -256,6 +252,14 @@ if (inactive.length) {
   // The stdout output is consumed in find-inactive-tsc.yml. If format of output
   // changes, find-inactive-tsc.yml may need to be updated.
   console.log(`INACTIVE_TSC_HANDLES="${inactive.map((entry) => '@' + entry).join(' ')}"`);
+  const commitDetails = inactive.map((entry) => {
+    let details = `Since ${SINCE}, `;
+    details += `${entry} attended ${attendance[entry]} out of ${meetings.size} meetings`;
+    details += ` and voted in ${votingRecords[entry]} of ${votes.size} votes.`;
+    return details;
+  });
+  console.log(`DETAILS_FOR_COMMIT_BODY="${commitDetails.join(' ')}"`);
+
   // Using console.warn() to avoid messing with find-inactive-tsc which consumes
   // stdout.
   console.warn('Generating new README.md file...');
