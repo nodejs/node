@@ -11,7 +11,12 @@ let currentMockVersion = 0;
 // module location is mocked. Since a single URL can be mocked multiple
 // times but it cannot be removed from the cache, `mock-facade:` URLs have a
 // form of mock-facade:$VERSION:$REPLACING_URL with the parameters being URL
-// percent encoded every time a module is resolved
+// percent encoded every time a module is resolved. So if a module for
+// 'file:///app.js' is mocked it might look like
+// 'mock-facade:12:file%3A%2F%2F%2Fapp.js'. This encoding is done to prevent
+// problems like mocking URLs with special URL characters like '#' or '?' from
+// accidentally being picked up as part of the 'mock-facade:' URL containing
+// the mocked URL.
 //
 // NOTE: due to ESM spec, once a specifier has been resolved in a source text
 //       it cannot be changed. So things like the following DO NOT WORK:
