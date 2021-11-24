@@ -807,6 +807,7 @@ const require = createRequire(cwd() + '/<preload>');
 // [...]
 `;
 }
+```
 
 In order to allow communication between the application and the loader, another
 argument is provided to the preload code: `port`. This is available as a
@@ -815,6 +816,7 @@ Some care must be taken in order to properly call [`port.ref()`][] and
 [`port.unref()`][] to prevent a process from being in a state where it won't
 close normally.
 
+```js
 /**
  * This example has the application context send a message to the loader
  * and sends the message back to the application context
