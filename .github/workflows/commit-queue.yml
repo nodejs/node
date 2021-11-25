@@ -26,6 +26,7 @@ jobs:
           # Needs the whole git history for ncu to work
           # See https://github.com/nodejs/node-core-utils/pull/486
           fetch-depth: 0
+          persist-credentials: false
           # A personal token is required because pushing with GITHUB_TOKEN will
           # prevent commits from running CI after they land. It needs
           # to be set here because `checkout` configures GitHub authentication
