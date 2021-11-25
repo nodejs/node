@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.18.2">14.18.2</a><br/>
 <a href="#14.18.1">14.18.1</a><br/>
 <a href="#14.18.0">14.18.0</a><br/>
 <a href="#14.17.6">14.17.6</a><br/>
@@ -67,6 +68,36 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.18.2"></a>
+
+## 2021-11-30, Version 14.18.2 'Fermium' (LTS), @richardlau
+
+### Notable changes
+
+This release contains a c-ares update to fix a regression introduced in
+Node.js 14.17.5 resolving CNAME records containing underscores
+[#39780](https://github.com/nodejs/node/issues/39780).
+
+Also included are commits to allow Node.js 14 to continue to build and
+pass tests on our Jenkins CI, including adding Python 3.10 to the list
+of allowable Python versions for building.
+
+### Commits
+
+* \[[`7923c61a62`](https://github.com/nodejs/node/commit/7923c61a62)] - **build**: pin build-docs workflow to Node.js 14 (Richard Lau) [#40939](https://github.com/nodejs/node/pull/40939)
+* \[[`da356128fb`](https://github.com/nodejs/node/commit/da356128fb)] - **build**: support Python 3.10.0 (FrankQiu) [#40296](https://github.com/nodejs/node/pull/40296)
+* \[[`9c3a85d279`](https://github.com/nodejs/node/commit/9c3a85d279)] - **deps**: update c-ares to 1.18.1 (Richard Lau) [#40660](https://github.com/nodejs/node/pull/40660)
+* \[[`cd7c340545`](https://github.com/nodejs/node/commit/cd7c340545)] - **deps**: V8: patch jinja2 for Python 3.10 compat (Michaël Zasso) [#40296](https://github.com/nodejs/node/pull/40296)
+* \[[`6330d435f5`](https://github.com/nodejs/node/commit/6330d435f5)] - **doc**: mark Node.js 10 as End-of-Life (Richard Lau) [#38482](https://github.com/nodejs/node/pull/38482)
+* \[[`8ca082ec71`](https://github.com/nodejs/node/commit/8ca082ec71)] - **doc**: fix CJS-ESM selector in Safari (Bradley Farias) [#40135](https://github.com/nodejs/node/pull/40135)
+* \[[`92490d1c89`](https://github.com/nodejs/node/commit/92490d1c89)] - **doc**: add macOS arm64 experimental status (Michael Rienstra) [#40127](https://github.com/nodejs/node/pull/40127)
+* \[[`8894bdd4d8`](https://github.com/nodejs/node/commit/8894bdd4d8)] - **lib**: fix regular expression to detect \`/\` and \`\\\` (Francesco Trotta) [#40325](https://github.com/nodejs/node/pull/40325)
+* \[[`704989b698`](https://github.com/nodejs/node/commit/704989b698)] - **test**: deflake child-process-pipe-dataflow (Luigi Pinca) [#40838](https://github.com/nodejs/node/pull/40838)
+* \[[`df401cd346`](https://github.com/nodejs/node/commit/df401cd346)] - **test**: update upload.zip to be uncorrupted (Greg Ziskind) [#37294](https://github.com/nodejs/node/pull/37294)
+* \[[`aa947f7dbf`](https://github.com/nodejs/node/commit/aa947f7dbf)] - **tools**: add script to update c-ares (Richard Lau) [#40660](https://github.com/nodejs/node/pull/40660)
+* \[[`6b7b2bba41`](https://github.com/nodejs/node/commit/6b7b2bba41)] - **tools**: patch jinja2 for Python 3.10 compat (Michaël Zasso) [#40296](https://github.com/nodejs/node/pull/40296)
+* \[[`39583f77d8`](https://github.com/nodejs/node/commit/39583f77d8)] - **worker**: avoid potential deadlock on NearHeapLimit (Santiago Gimeno) [#38403](https://github.com/nodejs/node/pull/38403)
 
 <a id="14.18.1"></a>
 
