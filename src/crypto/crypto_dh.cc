@@ -13,7 +13,6 @@
 
 namespace node {
 
-using v8::ArrayBuffer;
 using v8::ConstructorBehavior;
 using v8::DontDelete;
 using v8::FunctionCallback;
@@ -610,13 +609,8 @@ void DiffieHellman::Stateless(const FunctionCallbackInfo<Value>& args) {
   ManagedEVPPKey our_key = our_key_object->Data()->GetAsymmetricKey();
   ManagedEVPPKey their_key = their_key_object->Data()->GetAsymmetricKey();
 
-  Local<Value> out;
-  {
-    Local<ArrayBuffer> ab = StatelessDiffieHellmanThreadsafe(our_key, their_key)
-        .ToArrayBuffer(env);
-    out = Buffer::New(env, ab, 0, ab->ByteLength())
-        .FromMaybe(Local<Uint8Array>());
-  }
+  Local<Value> out = StatelessDiffieHellmanThreadsafe(our_key, their_key)
+      .ToBuffer(env).FromMaybe(Local<Uint8Array>());
 
   if (Buffer::Length(out) == 0)
     return ThrowCryptoError(env, ERR_get_error(), "diffieHellman failed");
