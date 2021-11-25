@@ -251,14 +251,14 @@ const inactive = lightAttendance.filter((member) => noVotes.includes(member));
 if (inactive.length) {
   // The stdout output is consumed in find-inactive-tsc.yml. If format of output
   // changes, find-inactive-tsc.yml may need to be updated.
-  console.log(`INACTIVE_TSC_HANDLES="${inactive.map((entry) => '@' + entry).join(' ')}"`);
+  console.log(`INACTIVE_TSC_HANDLES=${inactive.map((entry) => '@' + entry).join(' ')}`);
   const commitDetails = inactive.map((entry) => {
     let details = `Since ${SINCE}, `;
     details += `${entry} attended ${attendance[entry]} out of ${meetings.size} meetings`;
     details += ` and voted in ${votingRecords[entry]} of ${votes.size} votes.`;
     return details;
   });
-  console.log(`DETAILS_FOR_COMMIT_BODY="${commitDetails.join(' ')}"`);
+  console.log(`DETAILS_FOR_COMMIT_BODY=${commitDetails.join(' ')}`);
 
   // Using console.warn() to avoid messing with find-inactive-tsc which consumes
   // stdout.
