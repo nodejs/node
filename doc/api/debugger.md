@@ -6,8 +6,12 @@
 
 <!-- type=misc -->
 
-Node.js includes a command-line debugging utility. To use it, start Node.js
-with the `inspect` argument followed by the path to the script to debug.
+Node.js includes a command-line debugging utility. The Node.js debugger client
+is not a full-featured debugger, but simple stepping and inspection are
+possible.
+
+To use it, start Node.js with the `inspect` argument followed by the path to the
+script to debug.
 
 ```console
 $ node inspect myscript.js
@@ -25,15 +29,12 @@ Break on start in myscript.js:2
 debug>
 ```
 
-The Node.js debugger client is not a full-featured debugger, but simple step and
-inspection are possible.
+The debugger automatically breaks on the first executable line. To instead
+run until the first breakpoint (specified by a [`debugger`][] statement), set
+the `NODE_INSPECT_RESUME_ON_START` environment variable to `1`.
 
-Inserting the statement `debugger;` into the source code of a script will
-enable a breakpoint at that position in the code:
-
-<!-- eslint-disable no-debugger -->
-
-```js
+```console
+$ cat myscript.js
 // myscript.js
 global.x = 5;
 setTimeout(() => {
@@ -41,24 +42,13 @@ setTimeout(() => {
   console.log('world');
 }, 1000);
 console.log('hello');
-```
-
-Once the debugger is run, a breakpoint will occur at line 3:
-
-```console
-$ node inspect myscript.js
-< Debugger listening on ws://127.0.0.1:9229/621111f9-ffcb-4e82-b718-48a145fa5db8
+$ NODE_INSPECT_RESUME_ON_START=1 node inspect myscript.js
+< Debugger listening on ws://127.0.0.1:9229/f1ed133e-7876-495b-83ae-c32c6fc319c2
 < For help, see: https://nodejs.org/en/docs/inspector
 <
+connecting to 127.0.0.1:9229 ... ok
 < Debugger attached.
 <
- ok
-Break on start in myscript.js:2
-  1 // myscript.js
-> 2 global.x = 5;
-  3 setTimeout(() => {
-  4   debugger;
-debug> cont
 < hello
 <
 break in myscript.js:4
@@ -252,5 +242,6 @@ Chrome DevTools doesn't support debugging [worker threads][] yet.
 [ndb][] can be used to debug them.
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
+[`debugger`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/debugger
 [ndb]: https://github.com/GoogleChromeLabs/ndb/
 [worker threads]: worker_threads.md
