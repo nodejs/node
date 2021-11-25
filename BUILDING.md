@@ -143,8 +143,8 @@ platforms. This is true regardless of entries in the table below.
     community will only address issues that reproduce on native GNU/Linux
     systems. Issues that only reproduce on WSL should be reported in the
     [WSL issue tracker](https://github.com/Microsoft/WSL/issues). Running the
-    Windows binary (`node.exe`) in WSL is not recommended. It will not work
-    without workarounds such as stdio redirection.
+    Windows binary (`node.exe`) in WSL will not work without workarounds such as
+    stdio redirection.
 
 [^6]: Running Node.js on x86 Windows should work and binaries
     are provided. However, tests in our infrastructure only run on WoW64.
@@ -306,8 +306,7 @@ $ make test-only
 
 At this point, you are ready to make code changes and re-run the tests.
 
-If you are running tests before submitting a pull request, the recommended
-command is:
+If you are running tests before submitting a pull request, use:
 
 ```console
 $ make -j4 test
@@ -316,31 +315,34 @@ $ make -j4 test
 `make -j4 test` does a full check on the codebase, including running linters and
 documentation tests.
 
-Make sure the linter does not report any issues and that all tests pass. Please
-do not submit patches that fail either check.
-
-If you want to run the linter without running tests, use
+To run the linter without running tests, use
 `make lint`/`vcbuild lint`. It will lint JavaScript, C++, and Markdown files.
 
 If you are updating tests and want to run tests in a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):
 
 ```text
-$ python tools/test.py test/parallel/test-stream2-transform.js
+$ tools/test.py test/parallel/test-stream2-transform.js
 ```
 
 You can execute the entire suite of tests for a given subsystem
 by providing the name of a subsystem:
 
 ```text
-$ python tools/test.py -J --mode=release child-process
+$ tools/test.py -J child-process
+```
+
+You can also execute the tests in a tests directory (such as `test/message`):
+
+```text
+$ tools/test.py -J test/message
 ```
 
 If you want to check the other options, please refer to the help by using
 the `--help` option:
 
 ```text
-$ python tools/test.py --help
+$ tools/test.py --help
 ```
 
 You can usually run tests directly with node:
@@ -355,7 +357,7 @@ the `lib` or `src` directories.
 The tests attempt to detect support for IPv6 and exclude IPv6 tests if
 appropriate. If your main interface has IPv6 addresses, then your
 loopback interface must also have '::1' enabled. For some default installations
-on Ubuntu that does not seem to be the case. To enable '::1' on the
+on Ubuntu, that does not seem to be the case. To enable '::1' on the
 loopback interface on Ubuntu:
 
 ```bash
@@ -364,7 +366,7 @@ sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=0
 
 You can use
 [node-code-ide-configs](https://github.com/nodejs/node-code-ide-configs)
-to run/debug tests, if your IDE configs are present.
+to run/debug tests if your IDE configs are present.
 
 #### Running coverage
 
@@ -392,7 +394,7 @@ If you are updating tests and want to collect coverage for a single test file
 
 ```text
 $ make coverage-clean
-$ NODE_V8_COVERAGE=coverage/tmp python tools/test.py test/parallel/test-stream2-transform.js
+$ NODE_V8_COVERAGE=coverage/tmp tools/test.py test/parallel/test-stream2-transform.js
 $ make coverage-report-js
 ```
 
@@ -401,7 +403,7 @@ by providing the name of a subsystem:
 
 ```text
 $ make coverage-clean
-$ NODE_V8_COVERAGE=coverage/tmp python tools/test.py -J --mode=release child-process
+$ NODE_V8_COVERAGE=coverage/tmp tools/test.py -J --mode=release child-process
 $ make coverage-report-js
 ```
 
