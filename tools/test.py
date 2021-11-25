@@ -1428,6 +1428,11 @@ def ProcessOptions(options):
     # tends to exaggerate the number of available cpus/cores.
     cores = os.environ.get('JOBS')
     options.j = int(cores) if cores is not None else multiprocessing.cpu_count()
+  elif options.J:
+    # If someone uses -j and legacy -J, let them know that we will be respecting
+    # -j and ignoring -J, which is the opposite of what we used to do before -J
+    # became a legacy no-op.
+    print('Warning: Legacy -J option is ignored. Using the -j option.')
   if options.flaky_tests not in [RUN, SKIP, DONTCARE]:
     print("Unknown flaky-tests mode %s" % options.flaky_tests)
     return False
