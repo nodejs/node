@@ -5,9 +5,7 @@ const ArrayStream = require('../common/arraystream');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { builtinModules } = require('module');
-const publicModules = builtinModules.filter(
-  (lib) => !lib.startsWith('_') && !lib.includes('/'),
-);
+const publicModules = builtinModules.filter((lib) => !lib.startsWith('_'));
 
 if (!common.isMainThread)
   common.skip('process.chdir is not available in Workers');
