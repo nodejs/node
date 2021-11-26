@@ -1,4 +1,4 @@
-name: coverage-windows
+name: Coverage Windows
 
 on:
   pull_request:
@@ -12,9 +12,7 @@ on:
       - .github/**
       - '!.github/workflows/coverage-windows.yml'
   push:
-    branches:
-      - master
-      - main
+    branches: [master, main]
     paths-ignore:
       - '**.md'
       - 'benchmark/**'

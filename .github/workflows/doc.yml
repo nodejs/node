@@ -1,4 +1,4 @@
-name: misc
+name: Test and upload documentation to artifacts
 
 on:
   pull_request:
