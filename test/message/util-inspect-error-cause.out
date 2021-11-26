@@ -1,0 +1,68 @@
+RangeError: New Stack Frames
+    at *
+    at * {
+  [cause]: FoobarError: Individual message
+      at *
+      at *
+      ... 4 lines matching cause stack trace ...
+      at * {
+    status: 'Feeling good',
+    extraProperties: 'Yes!',
+    [cause]: TypeError: Inner error
+        at *
+        at *
+        at *
+        at *
+        at *
+        at *
+        at *
+  }
+}
+Error: Stack causes
+    at *
+    at *
+    ... 4 lines matching cause stack trace ...
+    at * {
+  [cause]: FoobarError: Individual message
+      at *
+      at *
+      ... 4 lines matching cause stack trace ...
+      at *
+    status: 'Feeling good',
+    extraProperties: 'Yes!',
+    [cause]: TypeError: Inner error
+        at *
+        at *
+        at *
+        at *
+        at *
+        at *
+        at *
+  }
+}
+RangeError: New Stack Frames
+    at *
+    at * {
+  [cause]: Error: Stack causes
+      at *
+      at *
+      ... 4 lines matching cause stack trace ...
+      at * {
+    [cause]: FoobarError: Individual message
+        at *
+        at *
+        ... 4 lines matching cause stack trace ...
+        at * {
+      status: 'Feeling good',
+      extraProperties: 'Yes!',
+      [cause]: TypeError: Inner error
+          at *
+          at *
+          at *
+          at *
+          at *
+          at *
+          at *
+    }
+  }
+}
