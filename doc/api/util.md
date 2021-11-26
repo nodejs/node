@@ -485,6 +485,9 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41003
+    description: The `numericSeparator` option is supported now.
   - version:
     - v14.6.0
     - v12.19.0
@@ -606,6 +609,8 @@ changes:
     set to `'set'`, only getters with a corresponding setter are inspected.
     This might cause side effects depending on the getter function.
     **Default:** `false`.
+  * `numericSeparator` {boolean} If set to `true`, an underscore is used to
+    separate thousands in all bigints and numbers. **Default:** `false`.
 * Returns: {string} The representation of `object`.
 
 The `util.inspect()` method returns a string representation of `object` that is
