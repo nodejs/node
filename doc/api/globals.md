@@ -53,7 +53,7 @@ added:
   - v15.0.0
   - v14.17.0
 changes:
-  - version: REPLACEME
+  - version: v17.2.0
     pr-url: https://github.com/nodejs/node/pull/40807
     description: Added the new optional reason argument.
 -->
@@ -94,7 +94,7 @@ added:
   - v15.12.0
   - v14.17.0
 changes:
-  - version: REPLACEME
+  - version: v17.2.0
     pr-url: https://github.com/nodejs/node/pull/40807
     description: Added the new optional reason argument.
 -->
@@ -167,7 +167,7 @@ when the `abortController.abort()` function has been called.
 #### `abortSignal.reason`
 
 <!-- YAML
-added: REPLACEME
+added: v17.2.0
 -->
 
 * Type: {any}

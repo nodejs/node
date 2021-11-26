@@ -2567,7 +2567,7 @@ The SHA-256 fingerprint of this certificate.
 ### `x509.fingerprint512`
 
 <!-- YAML
-added: REPLACEME
+added: v17.2.0
 -->
 
 * Type: {string}
