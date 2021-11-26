@@ -329,7 +329,6 @@ You can execute the entire suite of tests for a given subsystem
 by providing the name of a subsystem:
 
 ```text
-<<<<<<< HEAD
 $ tools/test.py -J child-process
 ```
 
@@ -337,9 +336,6 @@ You can also execute the tests in a tests directory (such as `test/message`):
 
 ```text
 $ tools/test.py -J test/message
-=======
-$ python tools/test.py --mode=release child-process
->>>>>>> doc: remove legacy -J test.py option from BUILDING.md
 ```
 
 If you want to check the other options, please refer to the help by using
