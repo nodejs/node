@@ -40,6 +40,18 @@ const stack = err.stack;
 })();
 
 assert.throws(
+  () => {
+    const error = new Error();
+    error.stack = 'Error: containing weird stack\nYes!\nI am part of a stack.';
+    assert.ifError(error);
+  },
+  (error) => {
+    assert(!error.stack.includes('Yes!'));
+    return true;
+  }
+);
+
+assert.throws(
   () => assert.ifError(new TypeError()),
   {
     message: 'ifError got unwanted exception: TypeError'
