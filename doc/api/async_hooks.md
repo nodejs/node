@@ -761,7 +761,7 @@ the section on [promise execution tracking][].
 ### `async_hooks.asyncWrapProviders`
 
 <!-- YAML
-added: REPLACEME
+added: v17.2.0
 -->
 
 * Returns: A map of provider types to the corresponding numeric id.
