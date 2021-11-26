@@ -50,7 +50,7 @@ generator_default_variables = {
 }
 
 # Make supports multiple toolsets
-generator_supports_multiple_toolsets = True
+generator_supports_multiple_toolsets = gyp.common.CrossCompileRequested()
 
 # Request sorted dependencies in the order from dependents to dependencies.
 generator_wants_sorted_dependencies = False
