@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
 
       # Install dependencies
       - name: Install Node.js

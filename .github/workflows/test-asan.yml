@@ -40,6 +40,8 @@ jobs:
       CONFIG_FLAGS: --enable-asan
     steps:
       - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v2
         with:
