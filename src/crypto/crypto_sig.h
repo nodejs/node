@@ -53,11 +53,11 @@ class Sign : public SignBase {
 
   struct SignResult {
     Error error;
-    AllocatedBuffer signature;
+    std::unique_ptr<v8::BackingStore> signature;
 
     explicit SignResult(
         Error err,
-        AllocatedBuffer&& sig = AllocatedBuffer())
+        std::unique_ptr<v8::BackingStore>&& sig = nullptr)
       : error(err), signature(std::move(sig)) {}
   };
 
