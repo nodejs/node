@@ -8,6 +8,8 @@ on:
       - '**.md'
       - 'AUTHORS'
       - 'doc/**'
+      - .github/**
+      - '!.github/workflows/test-macos.yml'
   push:
     branches:
       - master
@@ -20,6 +22,8 @@ on:
       - '**.md'
       - 'AUTHORS'
       - 'doc/**'
+      - .github/**
+      - '!.github/workflows/test-macos.yml'
 
 env:
   PYTHON_VERSION: '3.10'
