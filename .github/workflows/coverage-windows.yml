@@ -9,6 +9,8 @@ on:
       - 'deps/**'
       - 'doc/**'
       - 'tools/**'
+      - .github/**
+      - '!.github/workflows/coverage-windows.yml'
   push:
     branches:
       - master
@@ -19,6 +21,8 @@ on:
       - 'deps/**'
       - 'doc/**'
       - 'tools/**'
+      - .github/**
+      - '!.github/workflows/coverage-windows.yml'
 
 env:
   PYTHON_VERSION: '3.10'
