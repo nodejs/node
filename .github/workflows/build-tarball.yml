@@ -8,6 +8,8 @@ on:
       - '**.md'
       - 'AUTHORS'
       - 'doc/**'
+      - .github/**
+      - '!.github/workflows/build-tarball.yml'
   push:
     branches:
       - master
@@ -19,6 +21,8 @@ on:
       - '**.md'
       - 'AUTHORS'
       - 'doc/**'
+      - .github/**
+      - '!.github/workflows/build-tarball.yml'
 
 env:
   FLAKY_TESTS: dontcare
