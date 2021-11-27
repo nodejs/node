@@ -25,6 +25,8 @@ rm -rf node_modules/eslint
     (cd node_modules/eslint && "$NODE" "$NPM" install --no-bin-links --ignore-scripts --production --omit=peer eslint-plugin-markdown @babel/core @babel/eslint-parser @babel/plugin-syntax-import-assertions)
     # Use dmn to remove some unneeded files.
     "$NODE" "$NPM" exec -- dmn@2.2.2 -f clean
+    # TODO: Get this into dmn.
+    find node_modules -name .package-lock.json -exec rm {} \;
     # Use removeNPMAbsolutePaths to remove unused data in package.json.
     # This avoids churn as absolute paths can change from one dev to another.
     "$NODE" "$NPM" exec -- removeNPMAbsolutePaths@1.0.4 .
