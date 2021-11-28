@@ -910,6 +910,15 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
+  (async () => {
+    const [rli] = getInterface({ terminal });
+    const signal = AbortSignal.abort('boom');
+    await assert.rejects(rli.question('hello', { signal }), {
+      cause: 'boom',
+    });
+    rli.close();
+  })().then(common.mustCall());
+
   // Throw an error when question is executed with an aborted signal
   {
     const ac = new AbortController();
