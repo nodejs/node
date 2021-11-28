@@ -97,3 +97,10 @@ process.on('multipleResolves', common.mustNotCall());
     assert.strictEqual(stderr, '');
   }));
 }
+
+(async () => {
+  const signal = AbortSignal.abort('boom');
+  await assert.rejects(timerPromises.setImmediate(undefined, { signal }), {
+    cause: 'boom',
+  });
+})().then(common.mustCall());
