@@ -27,9 +27,6 @@ rm -rf node_modules/eslint
     "$NODE" "$NPM" exec -- dmn@2.2.2 -f clean
     # TODO: Get this into dmn.
     find node_modules -name .package-lock.json -exec rm {} \;
-    # Use removeNPMAbsolutePaths to remove unused data in package.json.
-    # This avoids churn as absolute paths can change from one dev to another.
-    "$NODE" "$NPM" exec -- removeNPMAbsolutePaths@1.0.4 .
 )
 
 mv eslint-tmp/node_modules/eslint node_modules/eslint
