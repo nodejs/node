@@ -2804,19 +2804,55 @@ void TurboAssembler::DivU32(Register dst, Register src, Register value, OEBit s,
 }
 
 void TurboAssembler::ModS64(Register dst, Register src, Register value) {
-  modsd(dst, src, value);
+  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+    modsd(dst, src, value);
+  } else {
+    Register scratch = GetRegisterThatIsNotOneOf(dst, src, value);
+    Push(scratch);
+    divd(scratch, src, value);
+    mulld(scratch, scratch, value);
+    sub(dst, src, scratch);
+    Pop(scratch);
+  }
 }
 
 void TurboAssembler::ModU64(Register dst, Register src, Register value) {
-  modud(dst, src, value);
+  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+    modud(dst, src, value);
+  } else {
+    Register scratch = GetRegisterThatIsNotOneOf(dst, src, value);
+    Push(scratch);
+    divdu(scratch, src, value);
+    mulld(scratch, scratch, value);
+    sub(dst, src, scratch);
+    Pop(scratch);
+  }
 }
 
 void TurboAssembler::ModS32(Register dst, Register src, Register value) {
-  modsw(dst, src, value);
+  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+    modsw(dst, src, value);
+  } else {
+    Register scratch = GetRegisterThatIsNotOneOf(dst, src, value);
+    Push(scratch);
+    divw(scratch, src, value);
+    mullw(scratch, scratch, value);
+    sub(dst, src, scratch);
+    Pop(scratch);
+  }
   extsw(dst, dst);
 }
 void TurboAssembler::ModU32(Register dst, Register src, Register value) {
-  moduw(dst, src, value);
+  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+    moduw(dst, src, value);
+  } else {
+    Register scratch = GetRegisterThatIsNotOneOf(dst, src, value);
+    Push(scratch);
+    divwu(scratch, src, value);
+    mullw(scratch, scratch, value);
+    sub(dst, src, scratch);
+    Pop(scratch);
+  }
   ZeroExtWord32(dst, dst);
 }
 
@@ -3718,14 +3754,88 @@ void TurboAssembler::CountLeadingZerosU64(Register dst, Register src, RCBit r) {
   cntlzd(dst, src, r);
 }
 
+#define COUNT_TRAILING_ZEROES_SLOW(max_count, scratch1, scratch2) \
+  Label loop, done;                                               \
+  li(scratch1, Operand(max_count));                               \
+  mtctr(scratch1);                                                \
+  mr(scratch1, src);                                              \
+  li(dst, Operand::Zero());                                       \
+  bind(&loop); /* while ((src & 1) == 0) */                       \
+  andi(scratch2, scratch1, Operand(1));                           \
+  bne(&done, cr0);                                                \
+  srdi(scratch1, scratch1, Operand(1)); /* src >>= 1;*/           \
+  addi(dst, dst, Operand(1));           /* dst++ */               \
+  bdnz(&loop);                                                    \
+  bind(&done);
 void TurboAssembler::CountTrailingZerosU32(Register dst, Register src,
+                                           Register scratch1, Register scratch2,
                                            RCBit r) {
-  cnttzw(dst, src, r);
+  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+    cnttzw(dst, src, r);
+  } else {
+    COUNT_TRAILING_ZEROES_SLOW(32, scratch1, scratch2);
+  }
 }
 
 void TurboAssembler::CountTrailingZerosU64(Register dst, Register src,
+                                           Register scratch1, Register scratch2,
                                            RCBit r) {
-  cnttzd(dst, src, r);
+  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+    cnttzd(dst, src, r);
+  } else {
+    COUNT_TRAILING_ZEROES_SLOW(64, scratch1, scratch2);
+  }
+}
+#undef COUNT_TRAILING_ZEROES_SLOW
+
+void TurboAssembler::ClearByteU64(Register dst, int byte_idx) {
+  CHECK(0 <= byte_idx && byte_idx <= 7);
+  int shift = byte_idx*8;
+  rldicl(dst, dst, shift, 8);
+  rldicl(dst, dst, 64-shift, 0);
+}
+
+void TurboAssembler::ReverseBitsU64(Register dst, Register src,
+                                    Register scratch1, Register scratch2) {
+  ByteReverseU64(dst, src);
+  for (int i = 0; i < 8; i++) {
+    ReverseBitsInSingleByteU64(dst, dst, scratch1, scratch2, i);
+  }
+}
+
+void TurboAssembler::ReverseBitsU32(Register dst, Register src,
+                                    Register scratch1, Register scratch2) {
+  ByteReverseU32(dst, src);
+  for (int i = 4; i < 8; i++) {
+    ReverseBitsInSingleByteU64(dst, dst, scratch1, scratch2, i);
+  }
+}
+
+// byte_idx=7 refers to least significant byte
+void TurboAssembler::ReverseBitsInSingleByteU64(Register dst, Register src,
+                                                Register scratch1,
+                                                Register scratch2,
+                                                int byte_idx) {
+  CHECK(0 <= byte_idx && byte_idx <= 7);
+  int j = byte_idx;
+  // zero all bits of scratch1
+  li(scratch2, Operand(0));
+  for (int i = 0; i <= 7; i++) {
+    // zero all bits of scratch1
+    li(scratch1, Operand(0));
+    // move bit (j+1)*8-i-1 of src to bit j*8+i of scratch1, erase bits
+    // (j*8+i+1):end of scratch1
+    int shift = 7 - (2*i);
+    if (shift < 0) shift += 64;
+    rldicr(scratch1, src, shift, j*8+i);
+    // erase bits start:(j*8-1+i) of scratch1 (inclusive)
+    rldicl(scratch1, scratch1, 0, j*8+i);
+    // scratch2 = scratch2|scratch1
+    orx(scratch2, scratch2, scratch1);
+  }
+  // clear jth byte of dst and insert jth byte of scratch2
+  ClearByteU64(dst, j);
+  orx(dst, dst, scratch2);
 }
 
 }  // namespace internal
