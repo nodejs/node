@@ -1713,12 +1713,9 @@
               'is_ubsan_vptr=0',
               'target_cpu=<(target_arch)',
               'v8_current_cpu=<(v8_current_cpu)',
-              # Not available in gyp.
-              'v8_enable_atomic_marking_state=0',
-              # Not available in gyp.
-              'v8_enable_atomic_object_field_writes=0',
-              # Not available in gyp.
-              'v8_enable_concurrent_marking=0',
+              'v8_enable_atomic_marking_state=<(v8_enable_atomic_marking_state)',
+              'v8_enable_atomic_object_field_writes=<(v8_enable_atomic_object_field_writes)',
+              'v8_enable_concurrent_marking=<(v8_enable_concurrent_marking)',
               'v8_enable_i18n_support=<(v8_enable_i18n_support)',
               'v8_enable_verify_predictable=<(v8_enable_verify_predictable)',
               'v8_enable_verify_csa=<(v8_enable_verify_csa)',
