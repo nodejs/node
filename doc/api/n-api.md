@@ -4735,7 +4735,8 @@ napi_status napi_new_instance(napi_env env,
   as a constructor.
 * `[in] argc`: The count of elements in the `argv` array.
 * `[in] argv`: Array of JavaScript values as `napi_value` representing the
-  arguments to the constructor.
+  arguments to the constructor. If `argc` is zero this parameter may be
+  omitted by passing in `NULL`.
 * `[out] result`: `napi_value` representing the JavaScript object returned,
   which in this case is the constructed object.
 
@@ -5512,7 +5513,8 @@ NAPI_EXTERN napi_status napi_make_callback(napi_env env,
 * `[in] func`: `napi_value` representing the JavaScript function to be invoked.
 * `[in] argc`: The count of elements in the `argv` array.
 * `[in] argv`: Array of JavaScript values as `napi_value` representing the
-  arguments to the function.
+  arguments to the function. If `argc` is zero this parameter may be
+  omitted by passing in `NULL`.
 * `[out] result`: `napi_value` representing the JavaScript object returned.
 
 Returns `napi_ok` if the API succeeded.
