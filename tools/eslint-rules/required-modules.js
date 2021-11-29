@@ -27,8 +27,8 @@ module.exports = function(context) {
 
   /**
    * Function to check if the path is a required module and return its name.
-   * @param {String} str The path to check
-   * @returns {undefined|String} required module name or undefined
+   * @param {string} str The path to check
+   * @returns {undefined | string} required module name or undefined
    */
   function getRequiredModuleName(str) {
     const match = requiredModules.find(([, test]) => {
@@ -41,7 +41,7 @@ module.exports = function(context) {
    * Function to check if a node has an argument that is a required module and
    * return its name.
    * @param {ASTNode} node The node to check
-   * @returns {undefined|String} required module name or undefined
+   * @returns {undefined | string} required module name or undefined
    */
   function getRequiredModuleNameFromCall(node) {
     // Node has arguments and first argument is string
