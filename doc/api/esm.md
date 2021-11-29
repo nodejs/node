@@ -678,8 +678,8 @@ Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
 /**
  * @param {string} specifier
  * @param {{
- *   conditions: !Array<string>,
- *   parentURL: !(string | undefined),
+ *   conditions: string[],
+ *   parentURL: string | undefined,
  * }} context
  * @param {Function} defaultResolve
  * @returns {Promise<{ url: string }>}
@@ -772,8 +772,8 @@ format to a supported one, for example `yaml` to `module`.
   }} context If resolve settled with a `format`, that value is included here.
  * @param {Function} defaultLoad
  * @returns {Promise<{
-    format: !string,
-    source: !(string | ArrayBuffer | SharedArrayBuffer | Uint8Array),
+    format: string,
+    source: string | ArrayBuffer | SharedArrayBuffer | Uint8Array,
   }>}
  */
 export async function load(url, context, defaultLoad) {
