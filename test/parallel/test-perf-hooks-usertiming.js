@@ -44,12 +44,15 @@ assert.throws(() => mark(Symbol('a')), {
   assert.strictEqual(m.entryType, 'mark');
   assert.strictEqual(m.detail, null);
 });
-[1, 'any', {}, []].forEach((detail) => {
+[1, 'any', {}, [], /a/].forEach((detail) => {
   const m = mark('a', { detail });
   assert.strictEqual(m.name, 'a');
   assert.strictEqual(m.entryType, 'mark');
   // Value of detail is structured cloned.
   assert.deepStrictEqual(m.detail, detail);
+  if (typeof detail === 'object') {
+    assert.notStrictEqual(m.detail, detail);
+  }
 });
 
 clearMarks();
