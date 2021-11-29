@@ -509,7 +509,7 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
     Handle<Object> caller, StackTraceCollection stack_trace_collection) {
   if (FLAG_correctness_fuzzer_suppressions) {
     // Abort range errors in correctness fuzzing, as their causes differ
-    // accross correctness-fuzzing scenarios.
+    // across correctness-fuzzing scenarios.
     if (target.is_identical_to(isolate->range_error_function())) {
       FATAL("Aborting on range error");
     }
