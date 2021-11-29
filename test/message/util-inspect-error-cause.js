@@ -2,6 +2,8 @@
 
 require('../common');
 
+const { inspect } = require('util');
+
 class FoobarError extends Error {
   status = 'Feeling good';
 }
@@ -15,7 +17,15 @@ process.nextTick(() => {
   const error = new RangeError('New Stack Frames', { cause: cause2 });
   const error2 = new RangeError('New Stack Frames', { cause: cause3 });
 
-  console.log(error);
-  console.log(cause3);
-  console.log(error2);
+  inspect.defaultOptions.colors = true;
+
+  console.log(inspect(error));
+  console.log(inspect(cause3));
+  console.log(inspect(error2));
+
+  inspect.defaultOptions.colors = false;
+
+  console.log(inspect(error));
+  console.log(inspect(cause3));
+  console.log(inspect(error2));
 });
