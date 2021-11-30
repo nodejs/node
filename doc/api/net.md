@@ -1479,9 +1479,17 @@ added: v0.3.0
 * `input` {string}
 * Returns: {integer}
 
-Tests if input is an IP address. Returns `0` for invalid strings,
-returns `4` for IP version 4 addresses, and returns `6` for IP version 6
-addresses.
+Returns `6` if `input` is an IPv6 address. Returns `4` if `input` is an IPv4
+address in [dot-decimal notation][] with no leading zeroes. Otherwise, returns
+`0`.
+
+```js
+net.isIP('::1'); // returns 6
+net.isIP('127.0.0.1'); // returns 4
+net.isIP('127.000.000.001'); // returns 0
+net.isIP('127.0.0.1/24'); // returns 0
+net.isIP('fhqwhgads'); // returns 0
+```
 
 ## `net.isIPv4(input)`
 
@@ -1492,7 +1500,15 @@ added: v0.3.0
 * `input` {string}
 * Returns: {boolean}
 
-Returns `true` if input is a version 4 IP address, otherwise returns `false`.
+Returns `true` if `input` is an IPv4 address in [dot-decimal notation][] with no
+leading zeroes. Otherwise, returns `false`.
+
+```js
+net.isIPv4('127.0.0.1'); // returns true
+net.isIPv4('127.000.000.001'); // returns false
+net.isIPv4('127.0.0.1/24'); // returns false
+net.isIPv4('fhqwhgads'); // returns false
+```
 
 ## `net.isIPv6(input)`
 
@@ -1503,7 +1519,12 @@ added: v0.3.0
 * `input` {string}
 * Returns: {boolean}
 
-Returns `true` if input is a version 6 IP address, otherwise returns `false`.
+Returns `true` if `input` is an IPv6 address. Otherwise, returns `false`.
+
+```js
+net.isIPv6('::1'); // returns true
+net.isIPv6('fhqwhgads'); // returns false
+```
 
 [IPC]: #ipc-support
 [Identifying paths for IPC connections]: #identifying-paths-for-ipc-connections
@@ -1557,6 +1578,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`writable.destroyed`]: stream.md#writabledestroyed
 [`writable.end()`]: stream.md#writableendchunk-encoding-callback
 [`writable.writableLength`]: stream.md#writablewritablelength
+[dot-decimal notation]: https://en.wikipedia.org/wiki/Dot-decimal_notation
 [half-closed]: https://tools.ietf.org/html/rfc1122
 [stream_writable_write]: stream.md#writablewritechunk-encoding-callback
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
