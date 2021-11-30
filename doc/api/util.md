@@ -610,7 +610,8 @@ changes:
     This might cause side effects depending on the getter function.
     **Default:** `false`.
   * `numericSeparator` {boolean} If set to `true`, an underscore is used to
-    separate thousands in all bigints and numbers. **Default:** `false`.
+    separate every three digits in all bigints and numbers.
+    **Default:** `false`.
 * Returns: {string} The representation of `object`.
 
 The `util.inspect()` method returns a string representation of `object` that is
@@ -757,6 +758,21 @@ assert.strict.equal(
   inspect(o1, { sorted: true }),
   inspect(o2, { sorted: true })
 );
+```
+
+The `numericSeparator` option adds an underscore every three digits to all
+numbers.
+
+```js
+const { inspect } = require('util');
+
+const thousand = 1_000;
+const million = 1_000_000;
+const bigNumber = 123_456_789n;
+const bigDecimal = 1_234.123_45;
+
+console.log(thousand, million, bigNumber, bigDecimal);
+// 1_000 1_000_000 123_456_789n 1_234.123_45
 ```
 
 `util.inspect()` is a synchronous method intended for debugging. Its maximum
