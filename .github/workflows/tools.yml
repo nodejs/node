@@ -39,6 +39,20 @@ jobs:
                 cd ../..
                 make lint-md-rollup
               fi
+          - id: doc
+            run: |
+              cd tools/doc
+              npm ci
+              NEW_VERSION=$(npm outdated --parseable | cut -d: -f4 | xargs)
+              if [ "$NEW_VERSION" != "" ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                rm -rf package-lock.json node_modules
+                # Include $NEW_VERSION to explicitly update the package.json
+                # entry for the dependency and also so that semver-major updates
+                # are not skipped.
+                npm install --ignore-scripts $NEW_VERSION
+                npm install --ignore-scripts
+              fi
     steps:
       - uses: actions/checkout@v2
         with:
