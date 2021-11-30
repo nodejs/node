@@ -8,6 +8,8 @@ on:
       - 'benchmark/**'
       - 'deps/**'
       - 'doc/**'
+      - .github/**
+      - '!.github/workflows/coverage-linux.yml'
   push:
     branches:
       - master
@@ -17,6 +19,8 @@ on:
       - 'benchmark/**'
       - 'deps/**'
       - 'doc/**'
+      - .github/**
+      - '!.github/workflows/coverage-linux.yml'
 
 env:
   PYTHON_VERSION: '3.10'
