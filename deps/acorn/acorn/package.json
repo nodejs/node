@@ -16,7 +16,7 @@
     ],
     "./package.json": "./package.json"
   },
-  "version": "8.5.0",
+  "version": "8.6.0",
   "engines": {"node": ">=0.4.0"},
   "maintainers": [
     {

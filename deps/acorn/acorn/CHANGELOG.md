@@ -1,3 +1,13 @@
+## 8.6.0 (2021-11-18)
+
+### Bug fixes
+
+Fix a bug where an object literal with multiple `__proto__` properties would incorrectly be accepted if a later property value held an assigment.
+
+### New features
+
+Support class private fields with the `in` operator.
+
 ## 8.5.0 (2021-09-06)
 
 ### Bug fixes
@@ -36,7 +46,7 @@ A new option, `allowSuperOutsideMethod`, can be used to suppress the error when 
 
 Default `allowAwaitOutsideFunction` to true for ECMAScript 2022 an higher.
 
-Add support for the `p` ([indices](https://github.com/tc39/proposal-regexp-match-indices)) regexp flag.
+Add support for the `d` ([indices](https://github.com/tc39/proposal-regexp-match-indices)) regexp flag.
 
 ## 8.2.4 (2021-05-04)
 
