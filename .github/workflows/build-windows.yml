@@ -4,6 +4,8 @@ on:
   pull_request:
     paths-ignore:
       - "README.md"
+      - .github/**
+      - '!.github/workflows/build-windows.yml'
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
@@ -14,6 +16,8 @@ on:
       - v[0-9]+.x
     paths-ignore:
       - "README.md"
+      - .github/**
+      - '!.github/workflows/build-windows.yml'
 
 env:
   PYTHON_VERSION: '3.10'
