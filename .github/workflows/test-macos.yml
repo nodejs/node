@@ -43,6 +43,14 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
         run: npx envinfo
+      # The `npm ci` for this step fails a lot as part of the Test step. Run it
+      # now so that we don't have to wait 2 hours for the Build step to pass
+      # first before that failure happens. (And if there's something about
+      # `make run-ci -j2` that is causing the failure and the failure doesn't
+      # happen anymore running this step here first, that's also useful
+      # information.)
+      - name: tools/doc/node_modules workaround
+        run: make tools/doc/node_modules
       - name: Build
         run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test
