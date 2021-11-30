@@ -1577,7 +1577,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
   // may eventually crash with this new limit - effectively raising
   // the heap limit to the new one.
   if (env->is_processing_heap_limit_callback_) {
-    size_t new_limit = initial_heap_limit + max_young_gen_size;
+    size_t new_limit = current_heap_limit + max_young_gen_size;
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "Not generating snapshots in nested callback. "
@@ -1595,7 +1595,9 @@ size_t Environment::NearHeapLimitCallback(void* data,
           "Not generating snapshots because it's too risky.\n");
     env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
                                                 initial_heap_limit);
-    return current_heap_limit;
+    // The new limit must be higher than current_heap_limit or V8 might
+    // crash.
+    return current_heap_limit + 1;
   }
 
   // Take the snapshot synchronously.
@@ -1631,7 +1633,10 @@ size_t Environment::NearHeapLimitCallback(void* data,
   env->isolate()->AutomaticallyRestoreInitialHeapLimit(0.95);
 
   env->is_processing_heap_limit_callback_ = false;
-  return initial_heap_limit;
+
+  // The new limit must be higher than current_heap_limit or V8 might
+  // crash.
+  return current_heap_limit + 1;
 }
 
 inline size_t Environment::SelfSize() const {
