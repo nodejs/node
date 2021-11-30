@@ -89,8 +89,10 @@ added: REPLACEME
 
 The `'codeGenerationFromString'` event is emitted when a call is made to `eval(str)`
 or `new Function(str)`.
-The event will be emitted with the argument passed to `eval` or the
+
+The event handler callback will be invoked with the argument passed to `eval` or the
 `Function` constructor.
+
 The call to `eval` or `new Function` will happen after the event is emitted.
 
 ```js
