@@ -1,0 +1,5 @@
+extraction:
+  javascript:
+    index:
+      filters:
+        - exclude: "dist"
