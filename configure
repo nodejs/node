@@ -32,4 +32,10 @@ else:
       python_cmd_path = which(python_cmd)
       if python_cmd_path and 'pyenv/shims' not in python_cmd_path:
         sys.stderr.write('\t{} {}\n'.format(python_cmd_path, ' '.join(sys.argv[:1])))
+  if sys.version_info > (3, 10):
+    sys.stderr.write('Running "configure" with newer versions of python has not been tested and may not work.\n')
+    sys.stderr.write('To bypass this check, run "python ./configure.py" and report whether it works via an issue at https://github.com/nodejs/node\n')
+  else:
+    sys.stderr.write('Running "configure" with a pre-3.6 version of python is not supported and will likely not work.\n')
+    sys.stderr.write('To bypass this check (not recommended) run "python ./configure.py\n"')
   sys.exit(1)
