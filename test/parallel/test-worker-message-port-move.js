@@ -15,7 +15,8 @@ Object.assign(context, {
   global: context,
   assert,
   MessagePort,
-  MessageChannel
+  MessageChannel,
+  Error,
 });
 
 vm.runInContext('(' + function() {
@@ -51,7 +52,7 @@ vm.runInContext('(' + function() {
       port.postMessage(global);
     } catch (e) {
       assert.strictEqual(e.constructor.name, 'DOMException');
-      assert(e instanceof Object);
+      assert.strictEqual(typeof e, 'object');
       assert(e instanceof Error);
       threw = true;
     }

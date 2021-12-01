@@ -20,7 +20,7 @@ runner.setInitScript(`
   global.performance = performance;
 
   const { internalBinding } = require('internal/test/binding');
-  const { DOMException } = internalBinding('messaging');
+  const { DOMException } = internalBinding('errors');
   global.DOMException = DOMException;
 `);
 

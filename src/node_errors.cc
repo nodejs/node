@@ -1175,6 +1175,27 @@ BaseObjectPtr<DOMException> DOMException::Create(
   return MakeBaseObject<DOMException>(env, obj, message, name);
 }
 
+BaseObjectPtr<DOMException> DOMException::Create(
+    Environment* env,
+    Local<Value> message,
+    const std::string& name) {
+  HandleScope scope(env->isolate());
+
+  Local<Function> ctor;
+  if (!GetConstructorTemplate(env)->GetFunction(env->context()).ToLocal(&ctor))
+    return BaseObjectPtr<DOMException>();
+
+  Local<Object> obj;
+  if (!ctor->NewInstance(env->context()).ToLocal(&obj))
+    return BaseObjectPtr<DOMException>();
+
+  return MakeBaseObject<DOMException>(
+      env,
+      obj,
+      message,
+      String::NewFromUtf8(env->isolate(), name.c_str()).ToLocalChecked());
+}
+
 void DOMException::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
 

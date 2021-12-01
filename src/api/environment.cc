@@ -669,7 +669,6 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
   }
 
   static const char* context_files[] = {"internal/per_context/primordials",
-                                        "internal/per_context/domexception",
                                         "internal/per_context/messageport",
                                         nullptr};
 

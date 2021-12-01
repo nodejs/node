@@ -27,7 +27,7 @@ runner.setInitScript(`
   } = require('stream/web');
 
   const { internalBinding } = require('internal/test/binding');
-  const { DOMException } = internalBinding('messaging');
+  const { DOMException } = internalBinding('errors');
   global.DOMException = DOMException;
 
   Object.defineProperties(global, {

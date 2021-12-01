@@ -298,6 +298,11 @@ class DOMException : public BaseObject {
       const std::string& message,
       const std::string& name = "DOMException");
 
+  static BaseObjectPtr<DOMException> Create(
+      Environment* env,
+      v8::Local<v8::Value> message,
+      const std::string& name = "DOMException");
+
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetName(const v8::FunctionCallbackInfo<v8::Value>& args);
