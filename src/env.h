@@ -231,6 +231,7 @@ constexpr size_t kFsStatsBufferLength =
   V(dns_soa_string, "SOA")                                                     \
   V(dns_srv_string, "SRV")                                                     \
   V(dns_txt_string, "TXT")                                                     \
+  V(domexception_string, "DOMException")                                       \
   V(done_string, "done")                                                       \
   V(duration_string, "duration")                                               \
   V(ecdh_string, "ECDH")                                                       \
@@ -462,6 +463,7 @@ constexpr size_t kFsStatsBufferLength =
   V(blocklist_constructor_template, v8::FunctionTemplate)                      \
   V(compiled_fn_entry_template, v8::ObjectTemplate)                            \
   V(dir_instance_template, v8::ObjectTemplate)                                 \
+  V(domexception_constructor_template, v8::FunctionTemplate)                   \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \

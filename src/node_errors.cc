@@ -1,8 +1,10 @@
 #include <cerrno>
 #include <cstdarg>
 
+#include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "node_errors.h"
+#include "memory_tracker-inl.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_process-inl.h"
@@ -18,6 +20,8 @@ using v8::Context;
 using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Global;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
@@ -873,6 +877,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetEnhanceStackForFatalException);
   registry->Register(NoSideEffectsToString);
   registry->Register(TriggerUncaughtException);
+  DOMException::RegisterExternalReferences(registry);
 }
 
 void Initialize(Local<Object> target,
@@ -889,6 +894,7 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(
       target, "noSideEffectsToString", NoSideEffectsToString);
   env->SetMethod(target, "triggerUncaughtException", TriggerUncaughtException);
+  DOMException::Initialize(env, target);
 }
 
 void DecorateErrorStack(Environment* env,
@@ -1043,6 +1049,283 @@ void TriggerUncaughtException(Isolate* isolate, const v8::TryCatch& try_catch) {
 }
 
 }  // namespace errors
+
+namespace {
+// This is annoying, but v8 does not give a nice way of getting a good
+// stack property so we have to create an error object and capture a
+// stack that way.
+Global<Value> MakeErrorStack(
+    Environment* env,
+    const Local<Value>& message,
+    const Local<Value>& name) {
+  Local<String> message_str;
+  Local<String> name_str;
+  if (!message->ToDetailString(env->context()).ToLocal(&message_str) ||
+      !name->ToDetailString(env->context()).ToLocal(&name_str)) {
+    return Global<Value>();
+  }
+  Local<Object> err = Exception::Error(message_str).As<Object>();
+
+  if (!err->Set(env->context(), env->name_string(), name_str).FromJust()) {
+    return Global<Value>();
+  }
+
+  Local<Value> stack;
+  if (!err->Get(env->context(), env->stack_string()).ToLocal(&stack)) {
+    return Global<Value>();
+  }
+
+  return Global<Value>(env->isolate(), stack);
+}
+}  // namespace
+
+bool DOMException::HasInstance(Environment* env, v8::Local<v8::Value> value) {
+  return GetConstructorTemplate(env)->HasInstance(value);
+}
+
+Local<FunctionTemplate> DOMException::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> tmpl = env->domexception_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Local<FunctionTemplate> proto = v8::FunctionTemplate::New(env->isolate());
+    proto->RemovePrototype();
+    proto->SetIntrinsicDataProperty(
+        FIXED_ONE_BYTE_STRING(env->isolate(), "prototype"),
+        v8::kErrorPrototype);
+    proto->Inherit(BaseObject::GetConstructorTemplate(env));
+
+    tmpl = env->NewFunctionTemplate(New);
+    tmpl->Inherit(proto);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        BaseObject::kInternalFieldCount);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "DOMException"));
+
+    tmpl->PrototypeTemplate()->SetAccessorProperty(
+        env->name_string(),
+        FunctionTemplate::New(env->isolate(), GetName),
+        Local<FunctionTemplate>(),
+        v8::PropertyAttribute::ReadOnly);
+    tmpl->PrototypeTemplate()->SetAccessorProperty(
+        env->message_string(),
+        FunctionTemplate::New(env->isolate(), GetMessage),
+        Local<FunctionTemplate>(),
+        v8::PropertyAttribute::ReadOnly);
+    tmpl->PrototypeTemplate()->SetAccessorProperty(
+        env->stack_string(),
+        FunctionTemplate::New(env->isolate(), GetStack),
+        Local<FunctionTemplate>(),
+        v8::PropertyAttribute::ReadOnly);
+    tmpl->PrototypeTemplate()->SetAccessorProperty(
+        env->code_string(),
+        FunctionTemplate::New(env->isolate(), GetCode),
+        Local<FunctionTemplate>(),
+        v8::PropertyAttribute::ReadOnly);
+
+    env->set_domexception_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
+void DOMException::Initialize(Environment* env, v8::Local<v8::Object> target) {
+  env->SetConstructorFunction(
+      target,
+      "DOMException",
+      GetConstructorTemplate(env),
+      Environment::SetConstructorFunctionFlag::NONE);
+}
+
+void DOMException::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(GetMessage);
+  registry->Register(GetName);
+  registry->Register(GetStack);
+  registry->Register(GetCode);
+}
+
+BaseObjectPtr<DOMException> DOMException::Create(
+    Environment* env,
+    const TransferData& transferData) {
+  HandleScope scope(env->isolate());
+
+  Local<Function> ctor;
+  if (!GetConstructorTemplate(env)->GetFunction(env->context()).ToLocal(&ctor))
+    return BaseObjectPtr<DOMException>();
+
+  Local<Object> obj;
+  if (!ctor->NewInstance(env->context()).ToLocal(&obj))
+    return BaseObjectPtr<DOMException>();
+
+  return MakeBaseObject<DOMException>(env, obj, transferData);
+}
+
+BaseObjectPtr<DOMException> DOMException::Create(
+    Environment* env,
+    const std::string& message,
+    const std::string& name) {
+  HandleScope scope(env->isolate());
+
+  Local<Function> ctor;
+  if (!GetConstructorTemplate(env)->GetFunction(env->context()).ToLocal(&ctor))
+    return BaseObjectPtr<DOMException>();
+
+  Local<Object> obj;
+  if (!ctor->NewInstance(env->context()).ToLocal(&obj))
+    return BaseObjectPtr<DOMException>();
+
+  return MakeBaseObject<DOMException>(env, obj, message, name);
+}
+
+void DOMException::New(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+
+  new DOMException(
+      Environment::GetCurrent(args),
+      args.This(),
+      args[0],
+      args[1]);
+}
+
+DOMException::DOMException(
+    Environment* env,
+    Local<Object> object,
+    Local<Value> message,
+    Local<Value> name)
+    : BaseObject(env, object),
+      message(env->isolate(), message),
+      name(env->isolate(), name),
+      stack(env->isolate(), MakeErrorStack(env, message, name)) {}
+
+DOMException::DOMException(
+    Environment* env,
+    Local<Object> object,
+    const std::string& message,
+    const std::string& name)
+    : BaseObject(env, object) {
+  Local<Value> message_value =
+      String::NewFromUtf8(env->isolate(), message.c_str()).ToLocalChecked();
+  Local<Value> name_value =
+      String::NewFromUtf8(env->isolate(), name.c_str()).ToLocalChecked();
+  this->message.Reset(env->isolate(), message_value);
+  this->name.Reset(env->isolate(), name_value);
+  this->stack = MakeErrorStack(env, message_value, name_value);
+}
+
+DOMException::DOMException(
+    Environment* env,
+    Local<Object> object,
+    const TransferData& transferData)
+    : BaseObject(env, object),
+      message(
+        env->isolate(),
+        String::NewFromUtf8(
+            env->isolate(),
+            transferData.get_message().c_str()).ToLocalChecked()),
+     name(
+        env->isolate(),
+        String::NewFromUtf8(
+            env->isolate(),
+            transferData.get_name().c_str()).ToLocalChecked()),
+     stack(
+        env->isolate(),
+        String::NewFromUtf8(
+            env->isolate(),
+            transferData.get_stack().c_str()).ToLocalChecked()) {}
+
+void DOMException::GetName(const FunctionCallbackInfo<Value>& args) {
+  DOMException* ex;
+  ASSIGN_OR_RETURN_UNWRAP(&ex, args.Holder());
+  args.GetReturnValue().Set(ex->name);
+}
+
+void DOMException::GetMessage(const FunctionCallbackInfo<Value>& args) {
+  DOMException* ex;
+  ASSIGN_OR_RETURN_UNWRAP(&ex, args.Holder());
+  args.GetReturnValue().Set(ex->message);
+}
+
+void DOMException::GetStack(const FunctionCallbackInfo<Value>& args) {
+  DOMException* ex;
+  ASSIGN_OR_RETURN_UNWRAP(&ex, args.Holder());
+  args.GetReturnValue().Set(ex->stack);
+}
+
+#define DOMEXCEPTION_CODES(V)                                                  \
+  V(IndexSize, 1)                                                              \
+  V(DOMStringSize, 2)                                                          \
+  V(HierarchyRequest, 3)                                                       \
+  V(WrongDocument, 4)                                                          \
+  V(InvalidCharacter, 5)                                                       \
+  V(NoDataAllowed, 6)                                                          \
+  V(NoModificationAllowed, 7)                                                  \
+  V(NotFound, 8)                                                               \
+  V(NotSupported, 9)                                                           \
+  V(InUseAttribute, 10)                                                        \
+  V(InvalidState, 11)                                                          \
+  V(Syntax, 12)                                                                \
+  V(InvalidModification, 13)                                                   \
+  V(Namespace, 14)                                                             \
+  V(InvalidAccess, 15)                                                         \
+  V(Validation, 16)                                                            \
+  V(TypeMismatch, 17)                                                          \
+  V(Security, 18)                                                              \
+  V(Network, 19)                                                               \
+  V(Abort, 20)                                                                 \
+  V(URLMismatch, 21)                                                           \
+  V(QuotaExceeded, 22)                                                         \
+  V(Timeout, 23)                                                               \
+  V(InvalidNodeType, 24)                                                       \
+  V(DataClone, 25)
+
+void DOMException::GetCode(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  DOMException* ex;
+  ASSIGN_OR_RETURN_UNWRAP(&ex, args.Holder());
+
+  Local<Value> name = ex->name.Get(env->isolate());
+  Utf8Value val(env->isolate(), name);
+  int ret = 0;
+
+#define V(name, code) if (strcmp(#name "Error", *val) == 0) ret = code;
+  DOMEXCEPTION_CODES(V)
+  args.GetReturnValue().Set(ret);
+#undef V
+}
+#undef DOMEXCEPTION_CODES
+
+void DOMException::MemoryInfo(node::MemoryTracker* tracker) const {
+  tracker->TrackField("message", message);
+  tracker->TrackField("name", name);
+  tracker->TrackField("stack", stack);
+}
+
+std::unique_ptr<worker::TransferData> DOMException::CloneForMessaging() const {
+  return std::make_unique<TransferData>(env(), *this);
+}
+
+DOMException::TransferData::TransferData(
+    Environment* env,
+    const DOMException& exception) {
+  Utf8Value message(env->isolate(), exception.message.Get(env->isolate()));
+  Utf8Value name(env->isolate(), exception.name.Get(env->isolate()));
+  Utf8Value stack(env->isolate(), exception.stack.Get(env->isolate()));
+  this->message = *message;
+  this->name = *name;
+  this->stack = *stack;
+}
+
+BaseObjectPtr<BaseObject> DOMException::TransferData::Deserialize(
+    Environment* env,
+    v8::Local<v8::Context> context,
+    std::unique_ptr<worker::TransferData> self) {
+  return DOMException::Create(env, *this);
+}
+
+void DOMException::TransferData::MemoryInfo(
+    node::MemoryTracker* tracker) const {
+  tracker->TrackField("message", message);
+  tracker->TrackField("name", name);
+  tracker->TrackField("stack", stack);
+}
 
 }  // namespace node
 

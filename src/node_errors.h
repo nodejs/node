@@ -1,10 +1,16 @@
 #ifndef SRC_NODE_ERRORS_H_
 #define SRC_NODE_ERRORS_H_
 
+#include "v8-debug.h"
+#include "v8-function-callback.h"
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "base_object.h"
 #include "debug_utils-inl.h"
 #include "env.h"
+#include "memory_tracker.h"
+#include "node_external_reference.h"
+#include "node_worker.h"
 #include "v8.h"
 
 // Use ostringstream to print exact-width integer types
@@ -269,6 +275,92 @@ void PerIsolateMessageListener(v8::Local<v8::Message> message,
 void DecorateErrorStack(Environment* env,
                         const errors::TryCatchScope& try_catch);
 }  // namespace errors
+
+class DOMException : public BaseObject {
+ public:
+  class TransferData;
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+
+  static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
+
+  static void Initialize(Environment* env, v8::Local<v8::Object> object);
+
+  static BaseObjectPtr<DOMException> Create(
+      Environment* env,
+      const TransferData& transferData);
+
+  static BaseObjectPtr<DOMException> Create(
+      Environment* env,
+      const std::string& message,
+      const std::string& name = "DOMException");
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetName(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetStack(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCode(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  DOMException(
+      Environment* env,
+      v8::Local<v8::Object> object,
+      v8::Local<v8::Value> message,
+      v8::Local<v8::Value> name);
+
+  DOMException(
+      Environment* env,
+      v8::Local<v8::Object> object,
+      const std::string& message,
+      const std::string& name = "DOMException");
+
+  DOMException(
+      Environment* env,
+      v8::Local<v8::Object> object,
+      const TransferData& transferData);
+
+  void MemoryInfo(node::MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(DOMException);
+  SET_SELF_SIZE(DOMException);
+
+  inline TransferMode GetTransferMode() const override {
+    return TransferMode::kCloneable;
+  }
+
+  std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
+
+  class TransferData : public worker::TransferData {
+   public:
+    explicit TransferData(Environment* env, const DOMException& ex);
+
+    BaseObjectPtr<BaseObject> Deserialize(
+        Environment* env,
+        v8::Local<v8::Context> context,
+        std::unique_ptr<worker::TransferData> self) override;
+
+    SET_MEMORY_INFO_NAME(DOMException::TransferData);
+    SET_SELF_SIZE(TransferData);
+    void MemoryInfo(node::MemoryTracker* tracker) const override;
+
+    const std::string& get_message() const { return message; }
+    const std::string& get_name() const { return name; }
+    const std::string& get_stack() const { return stack; }
+
+   private:
+    std::string message;
+    std::string name;
+    std::string stack;
+  };
+
+ private:
+  v8::Global<v8::Value> message;
+  v8::Global<v8::Value> name;
+  v8::Global<v8::Value> stack;
+
+  friend class TransferData;
+};
 
 }  // namespace node
 
