@@ -1268,7 +1268,7 @@ format-md:
 LINT_JS_TARGETS = .eslintrc.js benchmark doc lib test tools
 
 run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
-	--report-unused-disable-directives $(LINT_JS_TARGETS)
+	--max-warnings=0 --report-unused-disable-directives $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix
 
 .PHONY: lint-js-fix
@@ -1292,7 +1292,7 @@ jslint: lint-js
 	$(warning Please use lint-js instead of jslint)
 
 run-lint-js-ci = tools/node_modules/eslint/bin/eslint.js \
-  --report-unused-disable-directives -f tap \
+  --max-warnings=0 --report-unused-disable-directives -f tap \
 	-o test-eslint.tap $(LINT_JS_TARGETS)
 
 .PHONY: lint-js-ci
