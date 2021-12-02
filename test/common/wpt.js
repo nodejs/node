@@ -323,7 +323,7 @@ class WPTRunner {
 
   /**
    * Set the scripts modifier for each script.
-   * @param {(meta: { code: string, filename: string }) => void}
+   * @param {(meta: { code: string, filename: string }) => void} modifier
    */
   setScriptModifier(modifier) {
     this.scriptsModifier = modifier;
