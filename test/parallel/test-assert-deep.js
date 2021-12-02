@@ -712,7 +712,7 @@ assertNotDeepOrStrict(/a/igm, /a/im);
 {
   const re1 = /a/g;
   re1.lastIndex = 3;
-  assert.deepEqual(re1, /a/g);
+  assert.notDeepEqual(re1, /a/g);
 }
 
 assert.deepEqual(4, '4');
@@ -852,7 +852,7 @@ assert.throws(
 {
   const re1 = /a/;
   re1.lastIndex = 3;
-  assert.deepStrictEqual(re1, /a/);
+  assert.notDeepStrictEqual(re1, /a/);
 }
 
 assert.throws(
