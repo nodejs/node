@@ -31,7 +31,7 @@ const npm = mockNpm({
 })
 
 const mocks = {
-  npmlog: { info: noop, verbose: noop },
+  'proc-log': { info: noop, verbose: noop },
   libnpmdiff: (...args) => libnpmdiff(...args),
   'npm-registry-fetch': async () => ({}),
   '../../../lib/utils/usage.js': () => 'usage instructions',

@@ -11,9 +11,9 @@ const npm = {
   },
 }
 const npmFetch = { json: noop }
-const npmlog = { warn: noop }
+const log = { warn: noop }
 const mocks = {
-  npmlog,
+  'proc-log': log,
   'npm-registry-fetch': npmFetch,
   '../../../lib/utils/get-identity.js': async () => 'foo',
   '../../../lib/utils/usage.js': () => 'usage instructions',
@@ -24,7 +24,7 @@ const stars = new Stars(npm)
 
 t.afterEach(() => {
   npm.config = { get () {} }
-  npmlog.warn = noop
+  log.warn = noop
   result = ''
 })
 
@@ -81,7 +81,7 @@ t.test('unauthorized request', async t => {
     )
   }
 
-  npmlog.warn = (title, msg) => {
+  log.warn = (title, msg) => {
     t.equal(title, 'stars', 'should use expected title')
     t.equal(
       msg,
@@ -108,7 +108,7 @@ t.test('unexpected error', async t => {
     throw new Error('ERROR')
   }
 
-  npmlog.warn = (title, msg) => {
+  log.warn = (title, msg) => {
     throw new Error('Should not output extra warning msgs')
   }
 
@@ -123,7 +123,7 @@ t.test('no pkg starred', async t => {
   t.plan(2)
   npmFetch.json = async (uri, opts) => ({ rows: [] })
 
-  npmlog.warn = (title, msg) => {
+  log.warn = (title, msg) => {
     t.equal(title, 'stars', 'should use expected title')
     t.equal(
       msg,

@@ -12,11 +12,6 @@ const rimraf = (path, cb) => {
 }
 
 let logOutput = []
-const npmlog = {
-  silly: (...args) => {
-    logOutput.push(['silly', ...args])
-  },
-}
 
 let tarballStreamSpec = ''
 let tarballStreamOpts = {}
@@ -141,9 +136,16 @@ const cacache = {
 
 const Cache = t.mock('../../../lib/commands/cache.js', {
   cacache,
-  npmlog,
   pacote,
   rimraf,
+  'proc-log': {
+    silly: (...args) => {
+      logOutput.push(['silly', ...args])
+    },
+    warn: (...args) => {
+      logOutput.push(['warn', ...args])
+    },
+  },
 })
 
 const npm = mockNpm({
@@ -152,11 +154,6 @@ const npm = mockNpm({
   config: { force: false },
   output: (msg) => {
     outputOutput.push(msg)
-  },
-  log: {
-    warn: (...args) => {
-      logOutput.push(['warn', ...args])
-    },
   },
 })
 const cache = new Cache(npm)

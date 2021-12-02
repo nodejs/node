@@ -9,7 +9,7 @@
 // found 37 vulnerabilities (5 low, 7 moderate, 25 high)
 //   run `npm audit fix` to fix them, or `npm audit` for details
 
-const log = require('npmlog')
+const log = require('./log-shim.js')
 const { depth } = require('treeverse')
 const ms = require('ms')
 const auditReport = require('npm-audit-report')

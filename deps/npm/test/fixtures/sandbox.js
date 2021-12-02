@@ -4,14 +4,11 @@ const { homedir, tmpdir } = require('os')
 const { dirname, join } = require('path')
 const { promisify } = require('util')
 const mkdirp = require('mkdirp-infer-owner')
-const npmlog = require('npmlog')
 const rimraf = promisify(require('rimraf'))
+const mockLogs = require('./mock-logs')
 
 const chain = new Map()
 const sandboxes = new Map()
-
-// Disable lint errors for assigning to process global
-/* global process:writable */
 
 // keep a reference to the real process
 const _process = process
@@ -34,19 +31,6 @@ createHook({
   },
 }).enable()
 
-for (const level in npmlog.levels) {
-  npmlog[`_${level}`] = npmlog[level]
-  npmlog[level] = (...args) => {
-    process._logs = process._logs || {}
-    process._logs[level] = process._logs[level] || []
-    process._logs[level].push(args)
-    const _level = npmlog.level
-    npmlog.level = 'silent'
-    npmlog[`_${level}`](...args)
-    npmlog.level = _level
-  }
-}
-
 const _data = Symbol('sandbox.data')
 const _dirs = Symbol('sandbox.dirs')
 const _test = Symbol('sandbox.test')
@@ -57,6 +41,7 @@ const _output = Symbol('sandbox.output')
 const _proxy = Symbol('sandbox.proxy')
 const _get = Symbol('sandbox.proxy.get')
 const _set = Symbol('sandbox.proxy.set')
+const _logs = Symbol('sandbox.logs')
 
 // these config keys can be redacted widely
 const redactedDefaults = [
@@ -92,6 +77,7 @@ class Sandbox extends EventEmitter {
       global: options.global || join(tempDir, 'global'),
       home: options.home || join(tempDir, 'home'),
       project: options.project || join(tempDir, 'project'),
+      cache: options.cache || join(tempDir, 'cache'),
     }
 
     this[_proxy] = new Proxy(_process, {
@@ -111,7 +97,7 @@ class Sandbox extends EventEmitter {
   }
 
   get logs () {
-    return this[_proxy]._logs
+    return this[_logs]
   }
 
   get global () {
@@ -124,6 +110,10 @@ class Sandbox extends EventEmitter {
 
   get project () {
     return this[_dirs].project
+  }
+
+  get cache () {
+    return this[_dirs].cache
   }
 
   get process () {
@@ -205,7 +195,9 @@ class Sandbox extends EventEmitter {
     if (this[_parent]) {
       sandboxes.delete(this[_parent])
     }
-
+    if (this[_npm]) {
+      this[_npm].unload()
+    }
     return rimraf(this[_dirs].temp).catch(() => null)
   }
 
@@ -275,11 +267,17 @@ class Sandbox extends EventEmitter {
       '--prefix', this.project,
       '--userconfig', join(this.home, '.npmrc'),
       '--globalconfig', join(this.global, 'npmrc'),
+      '--cache', this.cache,
       command,
       ...argv,
     ]
 
-    const Npm = this[_test].mock('../../lib/npm.js', this[_mocks])
+    const mockedLogs = mockLogs(this[_mocks])
+    this[_logs] = mockedLogs.logs
+    const Npm = this[_test].mock('../../lib/npm.js', {
+      ...this[_mocks],
+      ...mockedLogs.logMocks,
+    })
     this[_npm] = new Npm()
     this[_npm].output = (...args) => this[_output].push(args)
     await this[_npm].load()
@@ -321,11 +319,17 @@ class Sandbox extends EventEmitter {
       '--prefix', this.project,
       '--userconfig', join(this.home, '.npmrc'),
       '--globalconfig', join(this.global, 'npmrc'),
+      '--cache', this.cache,
       command,
       ...argv,
     ]
 
-    const Npm = this[_test].mock('../../lib/npm.js', this[_mocks])
+    const mockedLogs = mockLogs(this[_mocks])
+    this[_logs] = mockedLogs.logs
+    const Npm = this[_test].mock('../../lib/npm.js', {
+      ...this[_mocks],
+      ...mockedLogs.logMocks,
+    })
     this[_npm] = new Npm()
     this[_npm].output = (...args) => this[_output].push(args)
     await this[_npm].load()

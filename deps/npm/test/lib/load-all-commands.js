@@ -4,21 +4,16 @@
 // renders also ensures that any params we've defined in our commands work.
 const t = require('tap')
 const util = require('util')
-const { real: mockNpm } = require('../fixtures/mock-npm.js')
+const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
 const { cmdList } = require('../../lib/utils/cmd-list.js')
 
-const { Npm, outputs } = mockNpm(t)
-const npm = new Npm()
-
 t.test('load each command', async t => {
-  t.afterEach(() => {
-    outputs.length = 0
-  })
   t.plan(cmdList.length)
-  await npm.load()
-  npm.config.set('usage', true) // This makes npm.exec output the usage
   for (const cmd of cmdList.sort((a, b) => a.localeCompare(b, 'en'))) {
     t.test(cmd, async t => {
+      const { npm, outputs } = await loadMockNpm(t, {
+        config: { usage: true },
+      })
       const impl = await npm.cmd(cmd)
       if (impl.completion) {
         t.type(impl.completion, 'function', 'completion, if present, is a function')

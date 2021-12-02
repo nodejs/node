@@ -1,4 +1,4 @@
-const log = require('npmlog')
+const log = require('../utils/log-shim.js')
 const replaceInfo = require('../utils/replace-info.js')
 const BaseCommand = require('../base-command.js')
 const authTypes = {
@@ -31,6 +31,7 @@ class AddUser extends BaseCommand {
       creds,
       registry,
       scope,
+      log,
     })
 
     await this.updateConfig({

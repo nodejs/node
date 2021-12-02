@@ -1,14 +1,11 @@
 const util = require('util')
-const log = require('npmlog')
 const pacote = require('pacote')
 const libpack = require('libnpmpack')
 const npa = require('npm-package-arg')
 const path = require('path')
-
+const log = require('../utils/log-shim')
 const { getContents, logTar } = require('../utils/tar.js')
-
 const writeFile = util.promisify(require('fs').writeFile)
-
 const BaseCommand = require('../base-command.js')
 
 class Pack extends BaseCommand {
@@ -70,7 +67,7 @@ class Pack extends BaseCommand {
     }
 
     for (const tar of tarballs) {
-      logTar(tar, { log, unicode })
+      logTar(tar, { unicode })
       this.npm.output(tar.filename.replace(/^@/, '').replace(/\//, '-'))
     }
   }
@@ -82,7 +79,7 @@ class Pack extends BaseCommand {
     const useWorkspaces = args.length === 0 || args.includes('.')
 
     if (!useWorkspaces) {
-      this.npm.log.warn('Ignoring workspaces for specified package(s)')
+      log.warn('Ignoring workspaces for specified package(s)')
       return this.exec(args)
     }
 

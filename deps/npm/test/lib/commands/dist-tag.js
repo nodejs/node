@@ -61,7 +61,7 @@ const logger = (...msgs) => {
 }
 
 const DistTag = t.mock('../../../lib/commands/dist-tag.js', {
-  npmlog: {
+  'proc-log': {
     error: logger,
     info: logger,
     verbose: logger,

@@ -3,14 +3,6 @@ const fs = require('fs')
 const { resolve } = require('path')
 const { fake: mockNpm } = require('../../fixtures/mock-npm')
 
-const npmLog = {
-  disableProgress: () => null,
-  enableProgress: () => null,
-  info: () => null,
-  pause: () => null,
-  resume: () => null,
-  silly: () => null,
-}
 const config = {
   cache: 'bad-cache-dir',
   'init-module': '~/.npm-init.js',
@@ -23,10 +15,19 @@ const flatOptions = {
 const npm = mockNpm({
   flatOptions,
   config,
-  log: npmLog,
 })
 const mocks = {
   '../../../lib/utils/usage.js': () => 'usage instructions',
+  npmlog: {
+    disableProgress: () => null,
+    enableProgress: () => null,
+  },
+  'proc-log': {
+    info: () => null,
+    pause: () => null,
+    resume: () => null,
+    silly: () => null,
+  },
 }
 const Init = t.mock('../../../lib/commands/init.js', mocks)
 const init = new Init(npm)
@@ -37,7 +38,6 @@ const noop = () => {}
 t.afterEach(() => {
   config.yes = true
   config.package = undefined
-  npm.log = npmLog
   process.chdir(_cwd)
   console.log = _consolelog
 })
@@ -251,13 +251,15 @@ t.test('npm init cancel', async t => {
     'init-package-json': (dir, initFile, config, cb) => cb(
       new Error('canceled')
     ),
+    'proc-log': {
+      ...mocks['proc-log'],
+      warn: (title, msg) => {
+        t.equal(title, 'init', 'should have init title')
+        t.equal(msg, 'canceled', 'should log canceled')
+      },
+    },
   })
   const init = new Init(npm)
-  npm.log = { ...npm.log }
-  npm.log.warn = (title, msg) => {
-    t.equal(title, 'init', 'should have init title')
-    t.equal(msg, 'canceled', 'should log canceled')
-  }
 
   process.chdir(npm.localPrefix)
   await init.exec([])

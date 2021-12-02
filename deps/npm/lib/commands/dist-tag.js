@@ -1,8 +1,7 @@
-const log = require('npmlog')
 const npa = require('npm-package-arg')
 const regFetch = require('npm-registry-fetch')
 const semver = require('semver')
-
+const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
 const readPackageName = require('../utils/read-package-name.js')
 const BaseCommand = require('../base-command.js')

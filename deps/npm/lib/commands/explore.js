@@ -4,6 +4,7 @@
 const rpj = require('read-package-json-fast')
 const runScript = require('@npmcli/run-script')
 const { join, resolve, relative } = require('path')
+const log = require('../utils/log-shim.js')
 const completion = require('../utils/completion/installed-shallow.js')
 const BaseCommand = require('../base-command.js')
 
@@ -37,7 +38,7 @@ class Explore extends BaseCommand {
     // handle all the escaping and PATH setup stuff.
 
     const pkg = await rpj(resolve(path, 'package.json')).catch(er => {
-      this.npm.log.error('explore', `It doesn't look like ${pkgname} is installed.`)
+      log.error('explore', `It doesn't look like ${pkgname} is installed.`)
       throw er
     })
 
@@ -50,7 +51,7 @@ class Explore extends BaseCommand {
     if (!args.length) {
       this.npm.output(`\nExploring ${path}\nType 'exit' or ^D when finished\n`)
     }
-    this.npm.log.disableProgress()
+    log.disableProgress()
     try {
       return await runScript({
         ...this.npm.flatOptions,
@@ -71,7 +72,7 @@ class Explore extends BaseCommand {
         }
       })
     } finally {
-      this.npm.log.enableProgress()
+      log.enableProgress()
     }
   }
 }

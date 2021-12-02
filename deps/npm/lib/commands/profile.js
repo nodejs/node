@@ -1,7 +1,7 @@
 const inspect = require('util').inspect
 const { URL } = require('url')
 const ansistyles = require('ansistyles')
-const log = require('npmlog')
+const log = require('../utils/log-shim.js')
 const npmProfile = require('npm-profile')
 const qrcodeTerminal = require('qrcode-terminal')
 const Table = require('cli-table3')
@@ -321,7 +321,7 @@ class Profile extends BaseCommand {
     } else if (userInfo && userInfo.tfa) {
       if (!conf.otp) {
         conf.otp = await readUserInfo.otp(
-          'Enter one-time password from your authenticator app: '
+          'Enter one-time password: '
         )
       }
     }
@@ -386,7 +386,7 @@ class Profile extends BaseCommand {
     const password = await readUserInfo.password()
 
     if (!conf.otp) {
-      const msg = 'Enter one-time password from your authenticator app: '
+      const msg = 'Enter one-time password: '
       conf.otp = await readUserInfo.otp(msg)
     }
 

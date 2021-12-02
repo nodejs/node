@@ -1,6 +1,7 @@
 // dedupe duplicated packages, or find them in the tree
 const Arborist = require('@npmcli/arborist')
 const reifyFinish = require('../utils/reify-finish.js')
+const log = require('../utils/log-shim.js')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
@@ -32,7 +33,7 @@ class Dedupe extends ArboristWorkspaceCmd {
     const where = this.npm.prefix
     const opts = {
       ...this.npm.flatOptions,
-      log: this.npm.log,
+      log,
       path: where,
       dryRun,
       workspaces: this.workspaceNames,

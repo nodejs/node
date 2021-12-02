@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "November 2021" "" ""
+.TH "CONFIG" "7" "December 2021" "" ""
 .SH "NAME"
 \fBconfig\fR \- More than you probably want to know about npm configuration
 .SS Description
@@ -1286,8 +1286,8 @@ Type: "silent", "error", "warn", "notice", "http", "timing", "info",
 
 .RE
 .P
-What level of logs to report\. On failure, \fIall\fR logs are written to
-\fBnpm\-debug\.log\fP in the current working directory\.
+What level of logs to report\. All logs are written to a debug log, with the
+path to that file printed if the execution of a command fails\.
 .P
 Any logs of a higher level than the setting are shown\. The default is
 "notice"\.
@@ -1752,7 +1752,7 @@ Type: Boolean
 
 .RE
 .P
-Save installed packages\. to a package\.json file as \fBpeerDependencies\fP
+Save installed packages to a package\.json file as \fBpeerDependencies\fP
 <!\-\- automatically generated, do not edit manually \-\->
 <!\-\- see lib/utils/config/definitions\.js \-\->
 

@@ -8,7 +8,7 @@ description: Working with workspaces
 
 **Workspaces** is a generic term that refers to the set of features in the
 npm cli that provides support to managing multiple packages from your local
-files system from within a singular top-level, root package.
+file system from within a singular top-level, root package.
 
 This set of features makes up for a much more streamlined workflow handling
 linked packages from the local file system. Automating the linking process

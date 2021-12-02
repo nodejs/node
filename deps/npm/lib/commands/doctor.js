@@ -8,6 +8,7 @@ const pacote = require('pacote')
 const { resolve } = require('path')
 const semver = require('semver')
 const { promisify } = require('util')
+const log = require('../utils/log-shim.js')
 const ansiTrim = require('../utils/ansi-trim.js')
 const isWindows = require('../utils/is-windows.js')
 const ping = require('../utils/ping.js')
@@ -42,7 +43,7 @@ class Doctor extends BaseCommand {
   static params = ['registry']
 
   async exec (args) {
-    this.npm.log.info('Running checkup')
+    log.info('Running checkup')
 
     // each message is [title, ok, message]
     const messages = []
@@ -124,7 +125,7 @@ class Doctor extends BaseCommand {
       stringLength: s => ansiTrim(s).length,
     }
 
-    const silent = this.npm.log.levels[this.npm.log.level] > this.npm.log.levels.error
+    const silent = log.levels[log.level] > log.levels.error
     if (!silent) {
       this.npm.output(table(outTable, tableOpts))
       if (!allOk) {
@@ -137,7 +138,7 @@ class Doctor extends BaseCommand {
   }
 
   async checkPing () {
-    const tracker = this.npm.log.newItem('checkPing', 1)
+    const tracker = log.newItem('checkPing', 1)
     tracker.info('checkPing', 'Pinging registry')
     try {
       await ping(this.npm.flatOptions)
@@ -154,7 +155,7 @@ class Doctor extends BaseCommand {
   }
 
   async getLatestNpmVersion () {
-    const tracker = this.npm.log.newItem('getLatestNpmVersion', 1)
+    const tracker = log.newItem('getLatestNpmVersion', 1)
     tracker.info('getLatestNpmVersion', 'Getting npm package information')
     try {
       const latest = (await pacote.manifest('npm@latest', this.npm.flatOptions)).version
@@ -173,7 +174,7 @@ class Doctor extends BaseCommand {
     const current = process.version
     const currentRange = `^${current}`
     const url = 'https://nodejs.org/dist/index.json'
-    const tracker = this.npm.log.newItem('getLatestNodejsVersion', 1)
+    const tracker = log.newItem('getLatestNodejsVersion', 1)
     tracker.info('getLatestNodejsVersion', 'Getting Node.js release information')
     try {
       const res = await fetch(url, { method: 'GET', ...this.npm.flatOptions })
@@ -207,7 +208,7 @@ class Doctor extends BaseCommand {
 
     let ok = true
 
-    const tracker = this.npm.log.newItem(root, 1)
+    const tracker = log.newItem(root, 1)
 
     try {
       const uid = process.getuid()
@@ -269,7 +270,7 @@ class Doctor extends BaseCommand {
   }
 
   async getGitPath () {
-    const tracker = this.npm.log.newItem('getGitPath', 1)
+    const tracker = log.newItem('getGitPath', 1)
     tracker.info('getGitPath', 'Finding git in your PATH')
     try {
       return await which('git').catch(er => {
@@ -282,7 +283,7 @@ class Doctor extends BaseCommand {
   }
 
   async verifyCachedFiles () {
-    const tracker = this.npm.log.newItem('verifyCachedFiles', 1)
+    const tracker = log.newItem('verifyCachedFiles', 1)
     tracker.info('verifyCachedFiles', 'Verifying the npm cache')
     try {
       const stats = await cacache.verify(this.npm.flatOptions.cache)

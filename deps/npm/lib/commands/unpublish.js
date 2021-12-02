@@ -5,7 +5,7 @@ const libaccess = require('libnpmaccess')
 const npmFetch = require('npm-registry-fetch')
 const libunpub = require('libnpmpublish').unpublish
 const readJson = util.promisify(require('read-package-json'))
-
+const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
 const getIdentity = require('../utils/get-identity.js')
 
@@ -66,8 +66,8 @@ class Unpublish extends BaseCommand {
     let pkgName
     let pkgVersion
 
-    this.npm.log.silly('unpublish', 'args[0]', args[0])
-    this.npm.log.silly('unpublish', 'spec', spec)
+    log.silly('unpublish', 'args[0]', args[0])
+    log.silly('unpublish', 'spec', spec)
 
     if ((!spec || !spec.rawSpec) && !force) {
       throw this.usageError(
@@ -92,7 +92,7 @@ class Unpublish extends BaseCommand {
         }
       }
 
-      this.npm.log.verbose('unpublish', manifest)
+      log.verbose('unpublish', manifest)
 
       const { name, version, publishConfig } = manifest
       const pkgJsonSpec = npa.resolve(name, version)

@@ -16,7 +16,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with hidden lockfile ancient > must
   },
   "config": {},
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-hidden-lockfile-ancient",
+    "name": "root",
     "lockfileVersion": 1,
     "requires": true
   },
@@ -36,10 +36,10 @@ exports[`test/lib/commands/shrinkwrap.js TAP with hidden lockfile ancient upgrad
     }
   },
   "config": {
-    "lockfileVersion": 3
+    "lockfile-version": 3
   },
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-hidden-lockfile-ancient-upgrade",
+    "name": "root",
     "lockfileVersion": 3,
     "requires": true,
     "packages": {}
@@ -61,7 +61,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with hidden lockfile existing > mus
   },
   "config": {},
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-hidden-lockfile-existing",
+    "name": "root",
     "lockfileVersion": 2,
     "requires": true,
     "packages": {}
@@ -82,10 +82,10 @@ exports[`test/lib/commands/shrinkwrap.js TAP with hidden lockfile existing downg
     }
   },
   "config": {
-    "lockfileVersion": 1
+    "lockfile-version": 1
   },
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-hidden-lockfile-existing-downgrade",
+    "name": "root",
     "lockfileVersion": 1,
     "requires": true
   },
@@ -105,10 +105,10 @@ exports[`test/lib/commands/shrinkwrap.js TAP with hidden lockfile existing upgra
     }
   },
   "config": {
-    "lockfileVersion": 3
+    "lockfile-version": 3
   },
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-hidden-lockfile-existing-upgrade",
+    "name": "root",
     "lockfileVersion": 3,
     "requires": true,
     "packages": {}
@@ -124,7 +124,7 @@ exports[`test/lib/commands/shrinkwrap.js TAP with nothing ancient > must match s
   "localPrefix": {},
   "config": {},
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-nothing-ancient",
+    "name": "root",
     "lockfileVersion": 2,
     "requires": true,
     "packages": {}
@@ -139,10 +139,10 @@ exports[`test/lib/commands/shrinkwrap.js TAP with nothing ancient upgrade > must
 {
   "localPrefix": {},
   "config": {
-    "lockfileVersion": 3
+    "lockfile-version": 3
   },
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-nothing-ancient-upgrade",
+    "name": "root",
     "lockfileVersion": 3,
     "requires": true,
     "packages": {}
@@ -162,12 +162,12 @@ exports[`test/lib/commands/shrinkwrap.js TAP with npm-shrinkwrap.json ancient > 
   },
   "config": {},
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-npm-shrinkwrap.json-ancient",
+    "name": "root",
     "lockfileVersion": 2,
     "requires": true,
     "packages": {
       "": {
-        "name": "tap-testdir-shrinkwrap-with-npm-shrinkwrap.json-ancient"
+        "name": "root"
       }
     }
   },
@@ -185,15 +185,15 @@ exports[`test/lib/commands/shrinkwrap.js TAP with npm-shrinkwrap.json ancient up
     }
   },
   "config": {
-    "lockfileVersion": 3
+    "lockfile-version": 3
   },
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-npm-shrinkwrap.json-ancient-upgrade",
+    "name": "root",
     "lockfileVersion": 3,
     "requires": true,
     "packages": {
       "": {
-        "name": "tap-testdir-shrinkwrap-with-npm-shrinkwrap.json-ancient-upgrade"
+        "name": "root"
       }
     }
   },
@@ -212,12 +212,12 @@ exports[`test/lib/commands/shrinkwrap.js TAP with npm-shrinkwrap.json existing >
   },
   "config": {},
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-npm-shrinkwrap.json-existing",
+    "name": "root",
     "lockfileVersion": 2,
     "requires": true,
     "packages": {
       "": {
-        "name": "tap-testdir-shrinkwrap-with-npm-shrinkwrap.json-existing"
+        "name": "root"
       }
     }
   },
@@ -235,10 +235,10 @@ exports[`test/lib/commands/shrinkwrap.js TAP with npm-shrinkwrap.json existing d
     }
   },
   "config": {
-    "lockfileVersion": 1
+    "lockfile-version": 1
   },
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-npm-shrinkwrap.json-existing-downgrade",
+    "name": "root",
     "lockfileVersion": 1,
     "requires": true
   },
@@ -256,15 +256,15 @@ exports[`test/lib/commands/shrinkwrap.js TAP with npm-shrinkwrap.json existing u
     }
   },
   "config": {
-    "lockfileVersion": 3
+    "lockfile-version": 3
   },
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-npm-shrinkwrap.json-existing-upgrade",
+    "name": "root",
     "lockfileVersion": 3,
     "requires": true,
     "packages": {
       "": {
-        "name": "tap-testdir-shrinkwrap-with-npm-shrinkwrap.json-existing-upgrade"
+        "name": "root"
       }
     }
   },
@@ -283,12 +283,12 @@ exports[`test/lib/commands/shrinkwrap.js TAP with package-lock.json ancient > mu
   },
   "config": {},
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-package-lock.json-ancient",
+    "name": "root",
     "lockfileVersion": 2,
     "requires": true,
     "packages": {
       "": {
-        "name": "tap-testdir-shrinkwrap-with-package-lock.json-ancient"
+        "name": "root"
       }
     }
   },
@@ -306,15 +306,15 @@ exports[`test/lib/commands/shrinkwrap.js TAP with package-lock.json ancient upgr
     }
   },
   "config": {
-    "lockfileVersion": 3
+    "lockfile-version": 3
   },
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-package-lock.json-ancient-upgrade",
+    "name": "root",
     "lockfileVersion": 3,
     "requires": true,
     "packages": {
       "": {
-        "name": "tap-testdir-shrinkwrap-with-package-lock.json-ancient-upgrade"
+        "name": "root"
       }
     }
   },
@@ -333,12 +333,12 @@ exports[`test/lib/commands/shrinkwrap.js TAP with package-lock.json existing > m
   },
   "config": {},
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-package-lock.json-existing",
+    "name": "root",
     "lockfileVersion": 2,
     "requires": true,
     "packages": {
       "": {
-        "name": "tap-testdir-shrinkwrap-with-package-lock.json-existing"
+        "name": "root"
       }
     }
   },
@@ -356,10 +356,10 @@ exports[`test/lib/commands/shrinkwrap.js TAP with package-lock.json existing dow
     }
   },
   "config": {
-    "lockfileVersion": 1
+    "lockfile-version": 1
   },
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-package-lock.json-existing-downgrade",
+    "name": "root",
     "lockfileVersion": 1,
     "requires": true
   },
@@ -377,15 +377,15 @@ exports[`test/lib/commands/shrinkwrap.js TAP with package-lock.json existing upg
     }
   },
   "config": {
-    "lockfileVersion": 3
+    "lockfile-version": 3
   },
   "shrinkwrap": {
-    "name": "tap-testdir-shrinkwrap-with-package-lock.json-existing-upgrade",
+    "name": "root",
     "lockfileVersion": 3,
     "requires": true,
     "packages": {
       "": {
-        "name": "tap-testdir-shrinkwrap-with-package-lock.json-existing-upgrade"
+        "name": "root"
       }
     }
   },

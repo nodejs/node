@@ -1,6 +1,5 @@
-const log = require('npmlog')
 const fetch = require('npm-registry-fetch')
-
+const log = require('../utils/log-shim')
 const getIdentity = require('../utils/get-identity.js')
 
 const BaseCommand = require('../base-command.js')

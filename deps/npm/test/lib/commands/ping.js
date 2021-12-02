@@ -11,7 +11,7 @@ t.test('pings', async t => {
       t.equal(spec.registry, registry, 'passes flatOptions')
       return {}
     },
-    npmlog: {
+    'proc-log': {
       notice: (type, spec) => {
         ++noticeCalls
         if (noticeCalls === 1) {
@@ -45,7 +45,7 @@ t.test('pings and logs details', async t => {
       t.equal(spec.registry, registry, 'passes flatOptions')
       return details
     },
-    npmlog: {
+    'proc-log': {
       notice: (type, spec) => {
         ++noticeCalls
         if (noticeCalls === 1) {
@@ -83,7 +83,7 @@ t.test('pings and returns json', async t => {
       t.equal(spec.registry, registry, 'passes flatOptions')
       return details
     },
-    npmlog: {
+    'proc-log': {
       notice: (type, spec) => {
         ++noticeCalls
         if (noticeCalls === 1) {

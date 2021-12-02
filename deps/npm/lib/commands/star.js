@@ -1,7 +1,6 @@
 const fetch = require('npm-registry-fetch')
-const log = require('npmlog')
 const npa = require('npm-package-arg')
-
+const log = require('../utils/log-shim')
 const getIdentity = require('../utils/get-identity')
 
 const BaseCommand = require('../base-command.js')

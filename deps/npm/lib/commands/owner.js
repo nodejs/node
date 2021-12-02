@@ -1,8 +1,7 @@
-const log = require('npmlog')
 const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
 const pacote = require('pacote')
-
+const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
 const readLocalPkgName = require('../utils/read-package-name.js')
 const BaseCommand = require('../base-command.js')

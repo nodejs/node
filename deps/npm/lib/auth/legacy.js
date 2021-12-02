@@ -1,15 +1,12 @@
-const log = require('npmlog')
 const profile = require('npm-profile')
-
+const log = require('../utils/log-shim')
 const openUrl = require('../utils/open-url.js')
 const read = require('../utils/read-user-info.js')
 
 const loginPrompter = async (creds) => {
-  const opts = { log: log }
-
-  creds.username = await read.username('Username:', creds.username, opts)
+  creds.username = await read.username('Username:', creds.username)
   creds.password = await read.password('Password:', creds.password)
-  creds.email = await read.email('Email: (this IS public) ', creds.email, opts)
+  creds.email = await read.email('Email: (this IS public) ', creds.email)
 
   return creds
 }
@@ -19,7 +16,7 @@ const login = async (npm, opts) => {
 
   const requestOTP = async () => {
     const otp = await read.otp(
-      'Enter one-time password from your authenticator app: '
+      'Enter one-time password: '
     )
 
     return profile.loginCouch(

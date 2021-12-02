@@ -1,7 +1,7 @@
 const Table = require('cli-table3')
 const ansistyles = require('ansistyles')
 const { v4: isCidrV4, v6: isCidrV6 } = require('is-cidr')
-const log = require('npmlog')
+const log = require('../utils/log-shim.js')
 const profile = require('npm-profile')
 
 const otplease = require('../utils/otplease.js')

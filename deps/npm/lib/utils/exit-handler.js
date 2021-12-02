@@ -1,119 +1,108 @@
 const os = require('os')
-const path = require('path')
-const writeFileAtomic = require('write-file-atomic')
-const mkdirp = require('mkdirp-infer-owner')
-const fs = require('graceful-fs')
+const log = require('./log-shim.js')
 
 const errorMessage = require('./error-message.js')
 const replaceInfo = require('./replace-info.js')
 
+const messageText = msg => msg.map(line => line.slice(1).join(' ')).join('\n')
+
+let npm = null // set by the cli
 let exitHandlerCalled = false
-let logFileName
-let npm // set by the cli
-let wroteLogFile = false
-
-const getLogFile = () => {
-  // we call this multiple times, so we need to treat it as a singleton because
-  // the date is part of the name
-  if (!logFileName) {
-    logFileName = path.resolve(
-      npm.config.get('cache'),
-      '_logs',
-      new Date().toISOString().replace(/[.:]/g, '_') + '-debug.log'
-    )
-  }
-
-  return logFileName
-}
+let showLogFileMessage = false
 
 process.on('exit', code => {
+  log.disableProgress()
+
   // process.emit is synchronous, so the timeEnd handler will run before the
   // unfinished timer check below
   process.emit('timeEnd', 'npm')
-  npm.log.disableProgress()
-  for (const [name, timers] of npm.timers) {
-    npm.log.verbose('unfinished npm timer', name, timers)
-  }
 
-  if (npm.config.loaded && npm.config.get('timing')) {
-    try {
-      const file = path.resolve(npm.config.get('cache'), '_timing.json')
-      const dir = path.dirname(npm.config.get('cache'))
-      mkdirp.sync(dir)
+  const hasNpm = !!npm
+  const hasLoadedNpm = hasNpm && npm.config.loaded
 
-      fs.appendFileSync(
-        file,
-        JSON.stringify({
-          command: process.argv.slice(2),
-          logfile: getLogFile(),
-          version: npm.version,
-          ...npm.timings,
-        }) + '\n'
-      )
-
-      const st = fs.lstatSync(path.dirname(npm.config.get('cache')))
-      fs.chownSync(dir, st.uid, st.gid)
-      fs.chownSync(file, st.uid, st.gid)
-    } catch (ex) {
-      // ignore
+  // Unfinished timers can be read before config load
+  if (hasNpm) {
+    for (const [name, timer] of npm.unfinishedTimers) {
+      log.verbose('unfinished npm timer', name, timer)
     }
   }
 
   if (!code) {
-    npm.log.info('ok')
+    log.info('ok')
   } else {
-    npm.log.verbose('code', code)
+    log.verbose('code', code)
   }
 
   if (!exitHandlerCalled) {
     process.exitCode = code || 1
-    npm.log.error('', 'Exit handler never called!')
+    log.error('', 'Exit handler never called!')
     console.error('')
-    npm.log.error('', 'This is an error with npm itself. Please report this error at:')
-    npm.log.error('', '    <https://github.com/npm/cli/issues>')
-    // TODO this doesn't have an npm.config.loaded guard
-    writeLogFile()
+    log.error('', 'This is an error with npm itself. Please report this error at:')
+    log.error('', '    <https://github.com/npm/cli/issues>')
+    showLogFileMessage = true
   }
-  // In timing mode we always write the log file
-  if (npm.config.loaded && npm.config.get('timing') && !wroteLogFile) {
-    writeLogFile()
+
+  // In timing mode we always show the log file message
+  if (hasLoadedNpm && npm.config.get('timing')) {
+    showLogFileMessage = true
   }
-  if (wroteLogFile) {
+
+  // npm must be loaded to know where the log file was written
+  if (showLogFileMessage && hasLoadedNpm) {
     // just a line break
-    if (npm.log.levels[npm.log.level] <= npm.log.levels.error) {
+    if (log.levels[log.level] <= log.levels.error) {
       console.error('')
     }
 
-    npm.log.error(
+    log.error(
       '',
-      ['A complete log of this run can be found in:', '    ' + getLogFile()].join('\n')
+      [
+        'A complete log of this run can be found in:',
+        ...npm.logFiles.map(f => '    ' + f),
+      ].join('\n')
     )
+  }
+
+  // This removes any listeners npm setup and writes files if necessary
+  // This is mostly used for tests to avoid max listener warnings
+  if (hasLoadedNpm) {
+    npm.unload()
   }
 
   // these are needed for the tests to have a clean slate in each test case
   exitHandlerCalled = false
-  wroteLogFile = false
+  showLogFileMessage = false
 })
 
 const exitHandler = err => {
-  npm.log.disableProgress()
-  if (!npm.config.loaded) {
+  exitHandlerCalled = true
+
+  log.disableProgress()
+
+  const hasNpm = !!npm
+  const hasLoadedNpm = hasNpm && npm.config.loaded
+
+  if (!hasNpm) {
+    err = err || new Error('Exit prior to setting npm in exit handler')
+    console.error(err.stack || err.message)
+    return process.exit(1)
+  }
+
+  if (!hasLoadedNpm) {
     err = err || new Error('Exit prior to config file resolving.')
     console.error(err.stack || err.message)
   }
 
   // only show the notification if it finished.
   if (typeof npm.updateNotification === 'string') {
-    const { level } = npm.log
-    npm.log.level = 'notice'
-    npm.log.notice('', npm.updateNotification)
-    npm.log.level = level
+    const { level } = log
+    log.level = 'notice'
+    log.notice('', npm.updateNotification)
+    log.level = level
   }
 
-  exitHandlerCalled = true
-
   let exitCode
-  let noLog
+  let noLogMessage
 
   if (err) {
     exitCode = 1
@@ -125,13 +114,13 @@ const exitHandler = err => {
     const quietShellout = isShellout && typeof err.code === 'number' && err.code
     if (quietShellout) {
       exitCode = err.code
-      noLog = true
+      noLogMessage = true
     } else if (typeof err === 'string') {
-      noLog = true
-      npm.log.error('', err)
+      log.error('', err)
+      noLogMessage = true
     } else if (!(err instanceof Error)) {
-      noLog = true
-      npm.log.error('weird error', err)
+      log.error('weird error', err)
+      noLogMessage = true
     } else {
       if (!err.code) {
         const matchErrorCode = err.message.match(/^(?:Error: )?(E[A-Z]+)/)
@@ -141,31 +130,30 @@ const exitHandler = err => {
       for (const k of ['type', 'stack', 'statusCode', 'pkgid']) {
         const v = err[k]
         if (v) {
-          npm.log.verbose(k, replaceInfo(v))
+          log.verbose(k, replaceInfo(v))
         }
       }
 
-      npm.log.verbose('cwd', process.cwd())
-
       const args = replaceInfo(process.argv)
-      npm.log.verbose('', os.type() + ' ' + os.release())
-      npm.log.verbose('argv', args.map(JSON.stringify).join(' '))
-      npm.log.verbose('node', process.version)
-      npm.log.verbose('npm ', 'v' + npm.version)
+      log.verbose('cwd', process.cwd())
+      log.verbose('', os.type() + ' ' + os.release())
+      log.verbose('argv', args.map(JSON.stringify).join(' '))
+      log.verbose('node', process.version)
+      log.verbose('npm ', 'v' + npm.version)
 
       for (const k of ['code', 'syscall', 'file', 'path', 'dest', 'errno']) {
         const v = err[k]
         if (v) {
-          npm.log.error(k, v)
+          log.error(k, v)
         }
       }
 
       const msg = errorMessage(err, npm)
       for (const errline of [...msg.summary, ...msg.detail]) {
-        npm.log.error(...errline)
+        log.error(...errline)
       }
 
-      if (npm.config.loaded && npm.config.get('json')) {
+      if (hasLoadedNpm && npm.config.get('json')) {
         const error = {
           error: {
             code: err.code,
@@ -183,58 +171,17 @@ const exitHandler = err => {
       }
     }
   }
-  npm.log.verbose('exit', exitCode || 0)
 
-  if (npm.log.level === 'silent') {
-    noLog = true
-  }
+  log.verbose('exit', exitCode || 0)
 
-  // noLog is true if there was an error, including if config wasn't loaded, so
-  // this doesn't need a config.loaded guard
-  if (exitCode && !noLog) {
-    writeLogFile()
-  }
+  showLogFileMessage = log.level === 'silent' || noLogMessage
+    ? false
+    : !!exitCode
 
   // explicitly call process.exit now so we don't hang on things like the
   // update notifier, also flush stdout beforehand because process.exit doesn't
   // wait for that to happen.
   process.stdout.write('', () => process.exit(exitCode))
-}
-
-const messageText = msg => msg.map(line => line.slice(1).join(' ')).join('\n')
-
-const writeLogFile = () => {
-  try {
-    let logOutput = ''
-    npm.log.record.forEach(m => {
-      const p = [m.id, m.level]
-      if (m.prefix) {
-        p.push(m.prefix)
-      }
-      const pref = p.join(' ')
-
-      m.message
-        .trim()
-        .split(/\r?\n/)
-        .map(line => (pref + ' ' + line).trim())
-        .forEach(line => {
-          logOutput += line + os.EOL
-        })
-    })
-
-    const file = getLogFile()
-    const dir = path.dirname(file)
-    mkdirp.sync(dir)
-    writeFileAtomic.sync(file, logOutput)
-
-    const st = fs.lstatSync(path.dirname(npm.config.get('cache')))
-    fs.chownSync(dir, st.uid, st.gid)
-    fs.chownSync(file, st.uid, st.gid)
-
-    // truncate once it's been written.
-    npm.log.record.length = 0
-    wroteLogFile = true
-  } catch (ex) {}
 }
 
 module.exports = exitHandler

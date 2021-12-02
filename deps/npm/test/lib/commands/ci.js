@@ -159,7 +159,7 @@ t.test('should throw if package-lock.json or npm-shrinkwrap missing', async t =>
   const CI = t.mock('../../../lib/commands/ci.js', {
     '@npmcli/run-script': opts => {},
     '../../../lib/utils/reify-finish.js': async () => {},
-    npmlog: {
+    'proc-log': {
       verbose: () => {
         t.ok(true, 'log fn called')
       },

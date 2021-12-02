@@ -4,7 +4,7 @@ const color = require('ansicolors')
 const columns = require('cli-columns')
 const fs = require('fs')
 const jsonParse = require('json-parse-even-better-errors')
-const log = require('npmlog')
+const log = require('../utils/log-shim.js')
 const npa = require('npm-package-arg')
 const { resolve } = require('path')
 const formatBytes = require('../utils/format-bytes.js')
@@ -139,7 +139,7 @@ class View extends BaseCommand {
 
     const local = /^\.@/.test(pkg) || pkg === '.'
     if (!local) {
-      this.npm.log.warn('Ignoring workspaces for specified package(s)')
+      log.warn('Ignoring workspaces for specified package(s)')
       return this.exec([pkg, ...args])
     }
     let wholePackument = false

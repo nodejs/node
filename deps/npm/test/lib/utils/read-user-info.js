@@ -7,11 +7,6 @@ const read = (opts, cb) => {
   return cb(null, readResult)
 }
 
-const npmlog = {
-  clearProgress: () => {},
-  showProgress: () => {},
-}
-
 const npmUserValidate = {
   username: (username) => {
     if (username === 'invalid') {
@@ -29,10 +24,21 @@ const npmUserValidate = {
   },
 }
 
+let logMsg = null
 const readUserInfo = t.mock('../../../lib/utils/read-user-info.js', {
   read,
-  npmlog,
+  npmlog: {
+    clearProgress: () => {},
+    showProgress: () => {},
+  },
+  'proc-log': {
+    warn: (msg) => logMsg = msg,
+  },
   'npm-user-validate': npmUserValidate,
+})
+
+t.beforeEach(() => {
+  logMsg = null
 })
 
 t.test('otp', async (t) => {
@@ -75,11 +81,7 @@ t.test('username - invalid warns and retries', async (t) => {
     readOpts = null
   })
 
-  let logMsg
-  const log = {
-    warn: (msg) => logMsg = msg,
-  }
-  const pResult = readUserInfo.username(null, null, { log })
+  const pResult = readUserInfo.username(null, null)
   // have to swap it to a valid username after execution starts
   // or it will loop forever
   readResult = 'valid'
@@ -105,11 +107,7 @@ t.test('email - invalid warns and retries', async (t) => {
     readOpts = null
   })
 
-  let logMsg
-  const log = {
-    warn: (msg) => logMsg = msg,
-  }
-  const pResult = readUserInfo.email(null, null, { log })
+  const pResult = readUserInfo.email(null, null)
   readResult = 'foo@bar.baz'
   const result = await pResult
   t.equal(result, 'foo@bar.baz', 'received the email')

@@ -6,7 +6,7 @@ const token = '24528a24f240'
 const profile = {}
 const read = {}
 const legacy = t.mock('../../../lib/auth/legacy.js', {
-  npmlog: {
+  'proc-log': {
     info: (...msgs) => {
       log += msgs.join(' ')
     },

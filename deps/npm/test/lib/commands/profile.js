@@ -22,6 +22,8 @@ const mocks = {
   ansistyles: { bright: a => a },
   npmlog: {
     gauge: { show () {} },
+  },
+  'proc-log': {
     info () {},
     notice () {},
     warn () {},
@@ -489,23 +491,23 @@ t.test('profile set <key> <value>', t => {
       },
     }
 
-    const npmlog = {
-      gauge: {
-        show () {},
-      },
-      warn (title, msg) {
-        t.equal(title, 'profile', 'should use expected profile')
-        t.equal(
-          msg,
-          'Passwords do not match, please try again.',
-          'should log password mismatch message'
-        )
-      },
-    }
-
     const Profile = t.mock('../../../lib/commands/profile.js', {
       ...mocks,
-      npmlog,
+      npmlog: {
+        gauge: {
+          show () {},
+        },
+      },
+      'proc-log': {
+        warn (title, msg) {
+          t.equal(title, 'profile', 'should use expected profile')
+          t.equal(
+            msg,
+            'Passwords do not match, please try again.',
+            'should log password mismatch message'
+          )
+        },
+      },
       'npm-profile': npmProfile,
       '../../../lib/utils/read-user-info.js': readUserInfo,
     })
@@ -687,7 +689,7 @@ t.test('enable-2fa', t => {
       async otp (label) {
         t.equal(
           label,
-          'Enter one-time password from your authenticator app: ',
+          'Enter one-time password: ',
           'should ask for otp confirmation'
         )
         return '123456'
@@ -1042,7 +1044,7 @@ t.test('disable-2fa', t => {
       async otp (label) {
         t.equal(
           label,
-          'Enter one-time password from your authenticator app: ',
+          'Enter one-time password: ',
           'should ask for otp confirmation'
         )
         return '1234'

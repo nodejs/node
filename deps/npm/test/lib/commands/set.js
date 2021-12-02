@@ -2,6 +2,7 @@ const t = require('tap')
 
 // can't run this until npm set can save to project level npmrc
 t.skip('npm set', async t => {
+  // XXX: convert to loadMockNpm
   const { real: mockNpm } = require('../../fixtures/mock-npm')
   const { joinedOutput, Npm } = mockNpm(t)
   const npm = new Npm()

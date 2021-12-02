@@ -17,7 +17,6 @@ const testDir = t.testdir({
 
 const npm = mockNpm({
   localPrefix: testDir,
-  log: { silly () {}, verbose () {} },
   config,
   output: (...msg) => {
     result += msg.join('\n')
@@ -30,10 +29,10 @@ const mocks = {
   'npm-registry-fetch': { json: noop },
   '../../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
   '../../../lib/utils/get-identity.js': async () => 'foo',
+  'proc-log': { silly () {}, verbose () {} },
 }
 
 t.afterEach(() => {
-  npm.log = { silly () {}, verbose () {} }
   npm.localPrefix = testDir
   result = ''
   config['dry-run'] = false
@@ -44,7 +43,7 @@ t.afterEach(() => {
 t.test('no args --force', async t => {
   config.force = true
 
-  npm.log = {
+  const log = {
     silly (title) {
       t.equal(title, 'unpublish', 'should silly log args')
     },
@@ -74,6 +73,7 @@ t.test('no args --force', async t => {
   const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
     ...mocks,
     libnpmpublish,
+    'proc-log': log,
   })
 
   const unpublish = new Unpublish(npm)
@@ -147,7 +147,7 @@ t.test('too many args', async t => {
 })
 
 t.test('unpublish <pkg>@version', async t => {
-  npm.log = {
+  const log = {
     silly (title, key, value) {
       t.equal(title, 'unpublish', 'should silly log args')
       if (key === 'spec') {
@@ -172,6 +172,7 @@ t.test('unpublish <pkg>@version', async t => {
   const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
     ...mocks,
     libnpmpublish,
+    'proc-log': log,
   })
   const unpublish = new Unpublish(npm)
 

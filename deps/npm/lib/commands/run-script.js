@@ -3,7 +3,7 @@ const chalk = require('chalk')
 const runScript = require('@npmcli/run-script')
 const { isServerPackage } = runScript
 const rpj = require('read-package-json-fast')
-const log = require('npmlog')
+const log = require('../utils/log-shim.js')
 const didYouMean = require('../utils/did-you-mean.js')
 const isWindowsShell = require('../utils/is-windows-shell.js')
 
