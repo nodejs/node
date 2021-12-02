@@ -35,6 +35,7 @@ Module._findPath = (request, paths, isMain) => {
 
 module.exports = {
   root: true,
+  extends: ['plugin:jsdoc/recommended'],
   plugins: ['jsdoc', 'markdown', 'node-core'],
   parser: '@babel/eslint-parser',
   parserOptions: {
@@ -338,7 +339,22 @@ module.exports = {
     'valid-typeof': ['error', { requireStringLiterals: true }],
 
     // JSDoc rules
-    'jsdoc/check-types': 'error',
+    'jsdoc/require-jsdoc': 'off',
+    'jsdoc/require-param-description': 'off',
+    'jsdoc/newline-after-description': 'off',
+    'jsdoc/require-returns-description': 'off',
+    'jsdoc/valid-types': 'off',
+    'jsdoc/no-undefined-types': 'off',
+    'jsdoc/require-param': 'off',
+    'jsdoc/check-tag-names': 'off',
+    'jsdoc/require-returns': 'off',
+    'jsdoc/require-property-description': 'off',
+    'jsdoc/check-param-names': 'off',
+    'jsdoc/tag-lines': 'off',
+    'jsdoc/require-returns-type': 'off',
+    'jsdoc/check-alignment': 'off',
+    'jsdoc/require-returns-check': 'off',
+    'jsdoc/require-param-name': 'off',
 
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',
