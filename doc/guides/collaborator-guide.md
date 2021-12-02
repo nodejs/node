@@ -26,6 +26,7 @@
   * [Deprecations](#deprecations)
   * [Involving the TSC](#involving-the-tsc)
 * [Landing pull requests](#landing-pull-requests)
+  * [Using the commit queue GitHub labels](#using-the-commit-queue-github-labels)
   * [Using `git-node`](#using-git-node)
   * [Technical HOWTO](#technical-howto)
   * [Troubleshooting](#troubleshooting)
@@ -512,6 +513,10 @@ settings are to their liking.
 All commits should be self-contained, meaning every commit should pass all
 tests. This makes it much easier when bisecting to find a breaking change.
 
+### Using the commit queue GitHub labels
+
+See the [commit queue guide][commit-queue.md].
+
 ### Using `git-node`
 
 In most cases, using [the `git-node` command][git-node] of [`node-core-utils`][]
@@ -922,6 +927,7 @@ need to be attached anymore, as only important bugfixes will be included.
 [backporting guide]: backporting-to-release-lines.md
 [commit message guidelines]: contributing/pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
+[commit-queue.md]: ./commit-queue.md
 [git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
 [git-node]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
 [git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-metadata
