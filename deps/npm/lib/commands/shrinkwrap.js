@@ -1,8 +1,7 @@
 const { resolve, basename } = require('path')
 const { unlink } = require('fs').promises
 const Arborist = require('@npmcli/arborist')
-const log = require('npmlog')
-
+const log = require('../utils/log-shim')
 const BaseCommand = require('../base-command.js')
 class Shrinkwrap extends BaseCommand {
   static description = 'Lock down dependency versions for publication'

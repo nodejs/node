@@ -962,8 +962,8 @@ Ideal if all users are on npm version 7 and higher.</p>
 <li>Type: "silent", "error", "warn", "notice", "http", "timing", "info",
 "verbose", or "silly"</li>
 </ul>
-<p>What level of logs to report. On failure, <em>all</em> logs are written to
-<code>npm-debug.log</code> in the current working directory.</p>
+<p>What level of logs to report. All logs are written to a debug log, with the
+path to that file printed if the execution of a command fails.</p>
 <p>Any logs of a higher level than the setting are shown. The default is
 "notice".</p>
 <p>See also the <code>foreground-scripts</code> config.</p>
@@ -1259,7 +1259,7 @@ rather than using npm's default semver range operator.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Save installed packages. to a package.json file as <code>peerDependencies</code></p>
+<p>Save installed packages to a package.json file as <code>peerDependencies</code></p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="save-prefix"><code>save-prefix</code></h4>

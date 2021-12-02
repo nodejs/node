@@ -1,7 +1,7 @@
 const Minipass = require('minipass')
 const Pipeline = require('minipass-pipeline')
 const libSearch = require('libnpmsearch')
-const log = require('npmlog')
+const log = require('../utils/log-shim.js')
 
 const formatPackageStream = require('../search/format-package-stream.js')
 const packageFilter = require('../search/package-filter.js')

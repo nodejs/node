@@ -9,6 +9,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
 {
   "prefix": "{LOCALPREFIX}",
   "userconfig": "{HOME}/.npmrc",
+  "cache": "{NPMDIR}/test/lib/commands/tap-testdir-config-config-list---json-sandbox/cache",
   "json": true,
   "projectloaded": "yes",
   "userloaded": "yes",
@@ -24,7 +25,6 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "bin-links": true,
   "browser": null,
   "ca": null,
-  "cache": "{CACHE}",
   "cache-max": null,
   "cache-min": 0,
   "cafile": null,
@@ -175,7 +175,7 @@ before = null
 bin-links = true
 browser = null
 ca = null
-cache = "{CACHE}"
+; cache = "{CACHE}" ; overridden by cli
 cache-max = null
 cache-min = 0
 cafile = null
@@ -324,6 +324,7 @@ projectloaded = "yes"
 
 ; "cli" config from command line options
 
+cache = "{NPMDIR}/test/lib/commands/tap-testdir-config-config-list---long-sandbox/cache"
 long = true
 prefix = "{LOCALPREFIX}"
 userconfig = "{HOME}/.npmrc"
@@ -332,6 +333,7 @@ userconfig = "{HOME}/.npmrc"
 exports[`test/lib/commands/config.js TAP config list > output matches snapshot 1`] = `
 ; "cli" config from command line options
 
+cache = "{NPMDIR}/test/lib/commands/tap-testdir-config-config-list-sandbox/cache"
 prefix = "{LOCALPREFIX}"
 userconfig = "{HOME}/.npmrc"
 

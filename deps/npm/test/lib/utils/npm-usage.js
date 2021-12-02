@@ -1,10 +1,8 @@
 const t = require('tap')
-const { real: mockNpm } = require('../../fixtures/mock-npm.js')
-const { Npm } = mockNpm(t)
-const npm = new Npm()
+const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
 
 t.test('usage', async t => {
-  await npm.load()
+  const { npm } = await loadMockNpm(t)
   t.afterEach(() => {
     npm.config.set('viewer', null)
     npm.config.set('long', false)

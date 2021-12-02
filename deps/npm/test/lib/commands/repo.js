@@ -1,8 +1,8 @@
 const t = require('tap')
-const { real: mockNpm } = require('../../fixtures/mock-npm.js')
-const { join, sep } = require('path')
+const { load: _loadMockNpm } = require('../../fixtures/mock-npm.js')
+const { sep } = require('path')
 
-const pkgDirs = t.testdir({
+const fixture = {
   'package.json': JSON.stringify({
     name: 'thispkg',
     version: '1.2.3',
@@ -149,35 +149,36 @@ const pkgDirs = t.testdir({
       },
     }),
   },
-  workspaces: {
+}
+
+const workspaceFixture = {
+  'package.json': JSON.stringify({
+    name: 'workspaces-test',
+    version: '1.2.3-test',
+    workspaces: ['workspace-a', 'workspace-b', 'workspace-c'],
+    repository: 'https://github.com/npm/workspaces-test',
+  }),
+  'workspace-a': {
     'package.json': JSON.stringify({
-      name: 'workspaces-test',
-      version: '1.2.3-test',
-      workspaces: ['workspace-a', 'workspace-b', 'workspace-c'],
-      repository: 'https://github.com/npm/workspaces-test',
-    }),
-    'workspace-a': {
-      'package.json': JSON.stringify({
-        name: 'workspace-a',
-        version: '1.2.3-a',
-        repository: 'http://repo.workspace-a/',
-      }),
-    },
-    'workspace-b': {
-      'package.json': JSON.stringify({
-        name: 'workspace-b',
-        version: '1.2.3-n',
-        repository: 'https://github.com/npm/workspace-b',
-      }),
-    },
-    'workspace-c': JSON.stringify({
-      'package.json': {
-        name: 'workspace-n',
-        version: '1.2.3-n',
-      },
+      name: 'workspace-a',
+      version: '1.2.3-a',
+      repository: 'http://repo.workspace-a/',
     }),
   },
-})
+  'workspace-b': {
+    'package.json': JSON.stringify({
+      name: 'workspace-b',
+      version: '1.2.3-n',
+      repository: 'https://github.com/npm/workspace-b',
+    }),
+  },
+  'workspace-c': JSON.stringify({
+    'package.json': {
+      name: 'workspace-n',
+      version: '1.2.3-n',
+    },
+  }),
+}
 
 // keep a tally of which urls got opened
 let opened = {}
@@ -185,20 +186,18 @@ const openUrl = async (npm, url, errMsg) => {
   opened[url] = opened[url] || 0
   opened[url]++
 }
-
-const { Npm } = mockNpm(t, {
-  '../../lib/utils/open-url.js': openUrl,
-})
-const npm = new Npm()
-
-t.before(async () => {
-  await npm.load()
-})
-
 t.afterEach(() => opened = {})
 
-t.test('open repo urls', t => {
-  npm.localPrefix = pkgDirs
+const loadMockNpm = async (t, prefix) => {
+  const res = await _loadMockNpm(t, {
+    mocks: { '../../lib/utils/open-url.js': openUrl },
+    testdir: prefix,
+  })
+  return res
+}
+
+t.test('open repo urls', async t => {
+  const { npm } = await loadMockNpm(t, fixture)
   const expect = {
     hostedgit: 'https://github.com/foo/hostedgit',
     hostedgitat: 'https://github.com/foo/hostedgitat',
@@ -239,8 +238,9 @@ t.test('open repo urls', t => {
   })
 })
 
-t.test('fail if cannot figure out repo url', t => {
-  npm.localPrefix = pkgDirs
+t.test('fail if cannot figure out repo url', async t => {
+  const { npm } = await loadMockNpm(t, fixture)
+
   const cases = [
     'norepo',
     'repoobbj-nourl',
@@ -261,13 +261,13 @@ t.test('fail if cannot figure out repo url', t => {
 })
 
 t.test('open default package if none specified', async t => {
-  npm.localPrefix = pkgDirs
+  const { npm } = await loadMockNpm(t, fixture)
   await npm.exec('repo', [])
   t.equal(opened['https://example.com/thispkg'], 1, 'opened expected url', { opened })
 })
 
-t.test('workspaces', t => {
-  npm.localPrefix = join(pkgDirs, 'workspaces')
+t.test('workspaces', async t => {
+  const { npm } = await loadMockNpm(t, workspaceFixture)
 
   t.afterEach(() => {
     npm.config.set('workspaces', null)
@@ -311,5 +311,4 @@ t.test('workspaces', t => {
     )
     t.match({}, opened, 'opened no repo urls')
   })
-  t.end()
 })
