@@ -1849,6 +1849,7 @@ changes:
     [modifying the default TLS cipher suite][]. Permitted ciphers can be
     obtained via [`tls.getCiphers()`][]. Cipher names must be uppercased in
     order for OpenSSL to accept them.
+    **Default:** [`tls.DEFAULT_CIPHERS`][].
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
     client certificate.
   * `crl` {string|string\[]|Buffer|Buffer\[]} PEM formatted CRLs (Certificate
@@ -2177,6 +2178,21 @@ from the bundled Mozilla CA store as supplied by the current Node.js version.
 The bundled CA store, as supplied by Node.js, is a snapshot of Mozilla CA store
 that is fixed at release time. It is identical on all supported platforms.
 
+## `tls.DEFAULT_CIPHERS`
+
+<!-- YAML
+added: v0.11.3
+changes:
+  - version: v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2412
+    description: Made configurable using the --tls-cipher-list command line
+      switch.
+-->
+
+* {string} The default TLS cipher suites supported by this Node.js process,
+  as a colon-separated string. See [modifying the default TLS cipher suite][]
+  for further information.
+
 ## `tls.DEFAULT_ECDH_CURVE`
 
 <!-- YAML
@@ -2258,6 +2274,7 @@ added: v11.4.0
 [`server.listen()`]: net.md#serverlisten
 [`server.setTicketKeys()`]: #serversetticketkeyskeys
 [`socket.connect()`]: net.md#socketconnectoptions-connectlistener
+[`tls.DEFAULT_CIPHERS`]: #tlsdefault_ciphers
 [`tls.DEFAULT_ECDH_CURVE`]: #tlsdefault_ecdh_curve
 [`tls.DEFAULT_MAX_VERSION`]: #tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: #tlsdefault_min_version
