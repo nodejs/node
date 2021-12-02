@@ -361,14 +361,14 @@ The default can also be replaced on a per client or server basis using the
 in [`tls.createServer()`][], [`tls.connect()`][], and when creating new
 [`tls.TLSSocket`][]s.
 
-The ciphers list can contain a mixture of TLSv1.3 cipher suite names, the ones
-that start with `'TLS_'`, and specifications for TLSv1.2 and below cipher
-suites. The TLSv1.2 ciphers support a legacy specification format, consult
-the OpenSSL [cipher list format][] documentation for details, but those
-specifications do _not_ apply to TLSv1.3 ciphers. The TLSv1.3 suites can only
-be enabled by including their full name in the cipher list. They cannot, for
-example, be enabled or disabled by using the legacy TLSv1.2 `'EECDH'` or
-`'!EECDH'` specification.
+The ciphers list is colon-separated and can contain a mixture of TLSv1.3
+cipher suite names, the ones that start with `'TLS_'`, and specifications for
+TLSv1.2 and below cipher suites. The TLSv1.2 ciphers support a legacy
+specification format, consult the OpenSSL [cipher list format][] documentation
+for details, but those specifications do _not_ apply to TLSv1.3 ciphers. The
+TLSv1.3 suites can only be enabled by including their full name in the cipher
+list. They cannot, for example, be enabled or disabled by using the legacy
+TLSv1.2 `'EECDH'` or `'!EECDH'` specification.
 
 Despite the relative order of TLSv1.3 and TLSv1.2 cipher suites, the TLSv1.3
 protocol is significantly more secure than TLSv1.2, and will always be chosen
@@ -1844,10 +1844,11 @@ changes:
     'RSA+SHA384') or TLS v1.3 scheme names (e.g. `rsa_pss_pss_sha512`).
     See [OpenSSL man pages](https://www.openssl.org/docs/man1.1.1/man3/SSL_CTX_set1_sigalgs_list.html)
     for more info.
-  * `ciphers` {string} Cipher suite specification, replacing the default. For
-    more information, see [Modifying the default TLS cipher suite][]. Permitted
-    ciphers can be obtained via [`tls.getCiphers()`][]. Cipher names must be
-    uppercased in order for OpenSSL to accept them.
+  * `ciphers` {string} Colon-separated cipher suite specification, replacing
+    the default. For more information, see
+    [modifying the default TLS cipher suite][]. Permitted ciphers can be
+    obtained via [`tls.getCiphers()`][]. Cipher names must be uppercased in
+    order for OpenSSL to accept them.
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
     client certificate.
   * `crl` {string|string\[]|Buffer|Buffer\[]} PEM formatted CRLs (Certificate
