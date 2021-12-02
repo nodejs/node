@@ -1,5 +1,5 @@
-const log = require('npmlog')
 const pacote = require('pacote')
+const log = require('../utils/log-shim')
 const openUrl = require('../utils/open-url.js')
 const hostedFromMani = require('../utils/hosted-git-info-from-manifest.js')
 const BaseCommand = require('../base-command.js')

@@ -1,71 +1,126 @@
-const npmlog = require('npmlog')
-const procLog = require('../../lib/utils/proc-log-listener.js')
-procLog.reset()
+const os = require('os')
+const fs = require('fs').promises
+const path = require('path')
+const mockLogs = require('./mock-logs')
+const mockGlobals = require('./mock-globals')
+const log = require('../../lib/utils/log-shim')
 
-// In theory we shouldn't have to do this if all the tests were tearing down
-// their listeners properly, we're still getting warnings even though
-// perfStop() and procLog.reset() is in the teardown script.  This silences the
-// warnings for now
-require('events').defaultMaxListeners = Infinity
-
-const realLog = {}
-for (const level in npmlog.levels) {
-  realLog[level] = npmlog[level]
-}
-
-const { title, execPath } = process
-
-// Eventually this should default to having a prefix of an empty testdir, and
-// awaiting npm.load() unless told not to (for npm tests for example).  Ideally
-// the prefix of an empty dir is inferred rather than explicitly set
 const RealMockNpm = (t, otherMocks = {}) => {
-  const mock = {}
-  mock.logs = []
-  mock.outputs = []
-  mock.joinedOutput = () => {
-    return mock.outputs.map(o => o.join(' ')).join('\n')
+  const mock = {
+    ...mockLogs(otherMocks),
+    outputs: [],
+    joinedOutput: () => mock.outputs.map(o => o.join(' ')).join('\n'),
   }
-  mock.filteredLogs = title => mock.logs.filter(([t]) => t === title).map(([, , msg]) => msg)
-  const Npm = t.mock('../../lib/npm.js', otherMocks)
-  class MockNpm extends Npm {
-    constructor () {
-      super()
-      for (const level in npmlog.levels) {
-        npmlog[level] = (...msg) => {
-          mock.logs.push([level, ...msg])
 
-          const l = npmlog.level
-          npmlog.level = 'silent'
-          realLog[level](...msg)
-          npmlog.level = l
-        }
-      }
-      // npm.js tests need this restored to actually test this function!
-      mock.npmOutput = this.output
-      this.output = (...msg) => mock.outputs.push(msg)
-    }
-  }
-  mock.Npm = MockNpm
-  t.afterEach(() => {
-    mock.outputs.length = 0
-    mock.logs.length = 0
+  const Npm = t.mock('../../lib/npm.js', {
+    ...otherMocks,
+    ...mock.logMocks,
   })
 
-  t.teardown(() => {
-    process.removeAllListeners('time')
-    process.removeAllListeners('timeEnd')
-    npmlog.record.length = 0
-    for (const level in npmlog.levels) {
-      npmlog[level] = realLog[level]
+  mock.Npm = class MockNpm extends Npm {
+    // lib/npm.js tests needs this to actually test the function!
+    originalOutput (...args) {
+      super.output(...args)
     }
-    procLog.reset()
-    process.title = title
-    process.execPath = execPath
-    delete process.env.npm_command
-    delete process.env.COLOR
-  })
+
+    output (...args) {
+      mock.outputs.push(args)
+    }
+  }
 
   return mock
+}
+
+// Resolve some options to a function call with supplied args
+const result = (fn, ...args) => typeof fn === 'function' ? fn(...args) : fn
+
+const LoadMockNpm = async (t, {
+  init = true,
+  load = init,
+  testdir = {},
+  config = {},
+  mocks = {},
+  globals = null,
+} = {}) => {
+  // Mock some globals with their original values so they get torn down
+  // back to the original at the end of the test since they are manipulated
+  // by npm itself
+  mockGlobals(t, {
+    process: {
+      title: process.title,
+      execPath: process.execPath,
+      env: {
+        npm_command: process.env.npm_command,
+        COLOR: process.env.COLOR,
+      },
+    },
+  })
+
+  const { Npm, ...rest } = RealMockNpm(t, mocks)
+
+  if (!init && load) {
+    throw new Error('cant `load` without `init`')
+  }
+
+  const _level = log.level
+  t.teardown(() => log.level = _level)
+
+  if (config.loglevel) {
+    // Set log level as early as possible since it is set
+    // on the npmlog singleton and shared across everything
+    log.level = config.loglevel
+  }
+
+  const dir = t.testdir({ root: testdir, cache: {} })
+  const prefix = path.join(dir, 'root')
+  const cache = path.join(dir, 'cache')
+
+  // Set cache to testdir via env var so it is available when load is run
+  // XXX: remove this for a solution where cache argv is passed in
+  mockGlobals(t, {
+    'process.env.npm_config_cache': cache,
+  })
+
+  if (globals) {
+    mockGlobals(t, result(globals, { prefix, cache }))
+  }
+
+  const npm = init ? new Npm() : null
+  t.teardown(() => npm && npm.unload())
+
+  if (load) {
+    await npm.load()
+    for (const [k, v] of Object.entries(result(config, { npm, prefix, cache }))) {
+      npm.config.set(k, v)
+    }
+    if (config.loglevel) {
+      // Set global loglevel *again* since it possibly got reset during load
+      // XXX: remove with npmlog
+      log.level = config.loglevel
+    }
+    npm.prefix = prefix
+    npm.cache = cache
+  }
+
+  return {
+    ...rest,
+    Npm,
+    npm,
+    prefix,
+    cache,
+    debugFile: async () => {
+      const readFiles = npm.logFiles.map(f => fs.readFile(f))
+      const logFiles = await Promise.all(readFiles)
+      return logFiles
+        .flatMap((d) => d.toString().trim().split(os.EOL))
+        .filter(Boolean)
+        .join('\n')
+    },
+    timingFile: async () => {
+      const data = await fs.readFile(path.resolve(cache, '_timing.json'), 'utf8')
+      return JSON.parse(data) // XXX: this fails if multiple timings are written
+    },
+  }
 }
 
 const realConfig = require('../../lib/utils/config')
@@ -96,21 +151,6 @@ class MockNpm {
       set: (k, v) => config[k] = v,
       list: [{ ...realConfig.defaults, ...config }],
     }
-    if (!this.log) {
-      this.log = {
-        clearProgress: () => {},
-        disableProgress: () => {},
-        enableProgress: () => {},
-        http: () => {},
-        info: () => {},
-        levels: [],
-        notice: () => {},
-        pause: () => {},
-        silly: () => {},
-        verbose: () => {},
-        warn: () => {},
-      }
-    }
   }
 
   output (...msg) {
@@ -127,5 +167,5 @@ const FakeMockNpm = (base = {}) => {
 
 module.exports = {
   fake: FakeMockNpm,
-  real: RealMockNpm,
+  load: LoadMockNpm,
 }

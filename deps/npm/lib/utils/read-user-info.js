@@ -1,7 +1,7 @@
 const { promisify } = require('util')
 const readAsync = promisify(require('read'))
 const userValidate = require('npm-user-validate')
-const log = require('npmlog')
+const log = require('./log-shim.js')
 
 exports.otp = readOTP
 exports.password = readPassword
@@ -40,30 +40,30 @@ function readPassword (msg = passwordPrompt, password, isRetry) {
     .then((password) => readPassword(msg, password, true))
 }
 
-function readUsername (msg = usernamePrompt, username, opts = {}, isRetry) {
+function readUsername (msg = usernamePrompt, username, isRetry) {
   if (isRetry && username) {
     const error = userValidate.username(username)
     if (error) {
-      opts.log && opts.log.warn(error.message)
+      log.warn(error.message)
     } else {
       return Promise.resolve(username.trim())
     }
   }
 
   return read({ prompt: msg, default: username || '' })
-    .then((username) => readUsername(msg, username, opts, true))
+    .then((username) => readUsername(msg, username, true))
 }
 
-function readEmail (msg = emailPrompt, email, opts = {}, isRetry) {
+function readEmail (msg = emailPrompt, email, isRetry) {
   if (isRetry && email) {
     const error = userValidate.email(email)
     if (error) {
-      opts.log && opts.log.warn(error.message)
+      log.warn(error.message)
     } else {
       return email.trim()
     }
   }
 
   return read({ prompt: msg, default: email || '' })
-    .then((username) => readEmail(msg, username, opts, true))
+    .then((username) => readEmail(msg, username, true))
 }

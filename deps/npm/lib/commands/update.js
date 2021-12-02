@@ -1,7 +1,7 @@
 const path = require('path')
 
 const Arborist = require('@npmcli/arborist')
-const log = require('npmlog')
+const log = require('../utils/log-shim.js')
 
 const reifyFinish = require('../utils/reify-finish.js')
 const completion = require('../utils/completion/installed-deep.js')
@@ -47,7 +47,7 @@ class Update extends ArboristWorkspaceCmd {
 
     const arb = new Arborist({
       ...this.npm.flatOptions,
-      log: this.npm.log,
+      log,
       path: where,
       workspaces: this.workspaceNames,
     })

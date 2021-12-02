@@ -1,7 +1,7 @@
 const { resolve } = require('path')
-const log = require('npmlog')
 const rpj = require('read-package-json-fast')
 const PackageJson = require('@npmcli/package-json')
+const log = require('../utils/log-shim')
 
 const BaseCommand = require('../base-command.js')
 class SetScript extends BaseCommand {

@@ -9,12 +9,10 @@ const config = {
 const noop = () => null
 const npm = mockNpm({
   globalDir: '',
-  log: noop,
   config,
   prefix: '',
 })
 const mocks = {
-  npmlog: { warn () {} },
   '@npmcli/arborist': class {
     reify () {}
   },
@@ -29,22 +27,23 @@ t.afterEach(() => {
 })
 
 t.test('no args', async t => {
-  t.plan(3)
+  t.plan(4)
 
   npm.prefix = '/project/a'
 
   class Arborist {
     constructor (args) {
+      const { log, ...rest } = args
       t.same(
-        args,
+        rest,
         {
           ...npm.flatOptions,
           path: npm.prefix,
-          log: noop,
           workspaces: null,
         },
         'should call arborist contructor with expected args'
       )
+      t.match(log, {}, 'log is passed in')
     }
 
     reify ({ update }) {
@@ -65,22 +64,23 @@ t.test('no args', async t => {
 })
 
 t.test('with args', async t => {
-  t.plan(3)
+  t.plan(4)
 
   npm.prefix = '/project/a'
 
   class Arborist {
     constructor (args) {
+      const { log, ...rest } = args
       t.same(
-        args,
+        rest,
         {
           ...npm.flatOptions,
           path: npm.prefix,
-          log: noop,
           workspaces: null,
         },
         'should call arborist contructor with expected args'
       )
+      t.match(log, {}, 'log is passed in')
     }
 
     reify ({ update }) {
@@ -108,7 +108,7 @@ t.test('update --depth=<number>', async t => {
 
   const Update = t.mock('../../../lib/commands/update.js', {
     ...mocks,
-    npmlog: {
+    'proc-log': {
       warn: (title, msg) => {
         t.equal(title, 'update', 'should print expected title')
         t.match(
@@ -125,7 +125,7 @@ t.test('update --depth=<number>', async t => {
 })
 
 t.test('update --global', async t => {
-  t.plan(2)
+  t.plan(3)
 
   const normalizePath = p => p.replace(/\\+/g, '/')
   const redactCwd = (path) => normalizePath(path)
@@ -137,12 +137,14 @@ t.test('update --global', async t => {
 
   class Arborist {
     constructor (args) {
-      const { path, ...opts } = args
+      const { path, log, ...rest } = args
       t.same(
-        opts,
-        { ...npm.flatOptions, log: noop, workspaces: undefined },
+        rest,
+        { ...npm.flatOptions, workspaces: undefined },
         'should call arborist contructor with expected options'
       )
+
+      t.match(log, {}, 'log is passed in')
 
       t.equal(
         redactCwd(path),

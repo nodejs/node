@@ -14,11 +14,11 @@ const npm = mockNpm({
 })
 
 const npmFetch = { json: noop }
-const npmlog = { error: noop, info: noop, verbose: noop }
+const log = { error: noop, info: noop, verbose: noop }
 const pacote = { packument: noop }
 
 const mocks = {
-  npmlog,
+  'proc-log': log,
   'npm-registry-fetch': npmFetch,
   pacote,
   '../../../lib/utils/otplease.js': async (opts, fn) => fn({ otp: '123456', opts }),
@@ -97,7 +97,7 @@ t.test('owner ls no args no cwd package', async t => {
   result = ''
   t.teardown(() => {
     result = ''
-    npmlog.error = noop
+    log.error = noop
   })
 
   await t.rejects(
@@ -114,14 +114,14 @@ t.test('owner ls fails to retrieve packument', async t => {
   pacote.packument = () => {
     throw new Error('ERR')
   }
-  npmlog.error = (title, msg, pkgName) => {
+  log.error = (title, msg, pkgName) => {
     t.equal(title, 'owner ls', 'should list npm owner ls title')
     t.equal(msg, "Couldn't get owner data", 'should use expected msg')
     t.equal(pkgName, '@npmcli/map-workspaces', 'should use pkg name')
   }
   t.teardown(() => {
     result = ''
-    npmlog.error = noop
+    log.error = noop
     pacote.packument = noop
   })
 
@@ -276,7 +276,7 @@ t.test('owner add <user> <pkg> already an owner', async t => {
   t.plan(2)
 
   result = ''
-  npmlog.info = (title, msg) => {
+  log.info = (title, msg) => {
     t.equal(title, 'owner add', 'should use expected title')
     t.equal(
       msg,
@@ -304,7 +304,7 @@ t.test('owner add <user> <pkg> already an owner', async t => {
   }
   t.teardown(() => {
     result = ''
-    npmlog.info = noop
+    log.info = noop
     npmFetch.json = noop
     pacote.packument = noop
   })
@@ -385,7 +385,7 @@ t.test('owner add <user> <pkg> fails to retrieve user info', async t => {
   t.plan(3)
 
   result = ''
-  npmlog.error = (title, msg) => {
+  log.error = (title, msg) => {
     t.equal(title, 'owner mutate', 'should use expected title')
     t.equal(msg, 'Error getting user data for foo')
   }
@@ -406,7 +406,7 @@ t.test('owner add <user> <pkg> fails to retrieve user info', async t => {
   })
   t.teardown(() => {
     result = ''
-    npmlog.error = noop
+    log.error = noop
     npmFetch.json = noop
     pacote.packument = noop
   })
@@ -552,7 +552,7 @@ t.test('owner rm <user> <pkg> not a current owner', async t => {
   t.plan(2)
 
   result = ''
-  npmlog.info = (title, msg) => {
+  log.info = (title, msg) => {
     t.equal(title, 'owner rm', 'should log expected title')
     t.equal(msg, 'Not a package owner: foo', 'should log.info not a package owner msg')
   }
@@ -578,7 +578,7 @@ t.test('owner rm <user> <pkg> not a current owner', async t => {
   }
   t.teardown(() => {
     result = ''
-    npmlog.info = noop
+    log.info = noop
     npmFetch.json = noop
     pacote.packument = noop
   })

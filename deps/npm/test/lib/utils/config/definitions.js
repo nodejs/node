@@ -1,11 +1,9 @@
 const t = require('tap')
-
 const { resolve } = require('path')
+const mockGlobals = require('../../../fixtures/mock-globals')
 
 // have to fake the node version, or else it'll only pass on this one
-Object.defineProperty(process, 'version', {
-  value: 'v14.8.0',
-})
+mockGlobals(t, { 'process.version': 'v14.8.0', 'process.env.NODE_ENV': undefined })
 
 // also fake the npm version, so that it doesn't get reset every time
 const pkg = require('../../../../package.json')
@@ -13,8 +11,6 @@ const pkg = require('../../../../package.json')
 // this is a pain to keep typing
 const defpath = '../../../../lib/utils/config/definitions.js'
 
-// set this in the test when we need it
-delete process.env.NODE_ENV
 const definitions = require(defpath)
 
 // Tie the definitions to a snapshot so that if they change we are forced to
@@ -43,22 +39,19 @@ t.test('basic flattening function camelCases from css-case', t => {
 
 t.test('editor', t => {
   t.test('has EDITOR and VISUAL, use EDITOR', t => {
-    process.env.EDITOR = 'vim'
-    process.env.VISUAL = 'mate'
+    mockGlobals(t, { 'process.env': { EDITOR: 'vim', VISUAL: 'mate' } })
     const defs = t.mock(defpath)
     t.equal(defs.editor.default, 'vim')
     t.end()
   })
   t.test('has VISUAL but no EDITOR, use VISUAL', t => {
-    delete process.env.EDITOR
-    process.env.VISUAL = 'mate'
+    mockGlobals(t, { 'process.env': { EDITOR: undefined, VISUAL: 'mate' } })
     const defs = t.mock(defpath)
     t.equal(defs.editor.default, 'mate')
     t.end()
   })
   t.test('has neither EDITOR nor VISUAL, system specific', t => {
-    delete process.env.EDITOR
-    delete process.env.VISUAL
+    mockGlobals(t, { 'process.env': { EDITOR: undefined, VISUAL: undefined } })
     const defsWin = t.mock(defpath, {
       [isWin]: true,
     })
@@ -74,12 +67,12 @@ t.test('editor', t => {
 
 t.test('shell', t => {
   t.test('windows, env.ComSpec then cmd.exe', t => {
-    process.env.ComSpec = 'command.com'
+    mockGlobals(t, { 'process.env.ComSpec': 'command.com' })
     const defsComSpec = t.mock(defpath, {
       [isWin]: true,
     })
     t.equal(defsComSpec.shell.default, 'command.com')
-    delete process.env.ComSpec
+    mockGlobals(t, { 'process.env.ComSpec': undefined })
     const defsNoComSpec = t.mock(defpath, {
       [isWin]: true,
     })
@@ -88,12 +81,12 @@ t.test('shell', t => {
   })
 
   t.test('nix, SHELL then sh', t => {
-    process.env.SHELL = '/usr/local/bin/bash'
+    mockGlobals(t, { 'process.env.SHELL': '/usr/local/bin/bash' })
     const defsShell = t.mock(defpath, {
       [isWin]: false,
     })
     t.equal(defsShell.shell.default, '/usr/local/bin/bash')
-    delete process.env.SHELL
+    mockGlobals(t, { 'process.env.SHELL': undefined })
     const defsNoShell = t.mock(defpath, {
       [isWin]: false,
     })
@@ -136,43 +129,40 @@ t.test('local-address allowed types', t => {
 })
 
 t.test('unicode allowed?', t => {
-  const { LC_ALL, LC_CTYPE, LANG } = process.env
-  t.teardown(() => Object.assign(process.env, { LC_ALL, LC_CTYPE, LANG }))
+  const setGlobal = (obj = {}) => mockGlobals(t, { 'process.env': obj })
 
-  process.env.LC_ALL = 'utf8'
-  process.env.LC_CTYPE = 'UTF-8'
-  process.env.LANG = 'Unicode utf-8'
+  setGlobal({ LC_ALL: 'utf8', LC_CTYPE: 'UTF-8', LANG: 'Unicode utf-8' })
 
   const lcAll = t.mock(defpath)
   t.equal(lcAll.unicode.default, true)
-  process.env.LC_ALL = 'no unicode for youUUUU!'
+  setGlobal({ LC_ALL: 'no unicode for youUUUU!' })
   const noLcAll = t.mock(defpath)
   t.equal(noLcAll.unicode.default, false)
 
-  delete process.env.LC_ALL
+  setGlobal({ LC_ALL: undefined })
   const lcCtype = t.mock(defpath)
   t.equal(lcCtype.unicode.default, true)
-  process.env.LC_CTYPE = 'something other than unicode version 8'
+  setGlobal({ LC_CTYPE: 'something other than unicode version 8' })
   const noLcCtype = t.mock(defpath)
   t.equal(noLcCtype.unicode.default, false)
 
-  delete process.env.LC_CTYPE
+  setGlobal({ LC_CTYPE: undefined })
   const lang = t.mock(defpath)
   t.equal(lang.unicode.default, true)
-  process.env.LANG = 'ISO-8859-1'
+  setGlobal({ LANG: 'ISO-8859-1' })
   const noLang = t.mock(defpath)
   t.equal(noLang.unicode.default, false)
   t.end()
 })
 
 t.test('cache', t => {
-  process.env.LOCALAPPDATA = 'app/data/local'
+  mockGlobals(t, { 'process.env.LOCALAPPDATA': 'app/data/local' })
   const defsWinLocalAppData = t.mock(defpath, {
     [isWin]: true,
   })
   t.equal(defsWinLocalAppData.cache.default, 'app/data/local/npm-cache')
 
-  delete process.env.LOCALAPPDATA
+  mockGlobals(t, { 'process.env.LOCALAPPDATA': undefined })
   const defsWinNoLocalAppData = t.mock(defpath, {
     [isWin]: true,
   })
@@ -241,7 +231,7 @@ t.test('flatteners that populate flat.omit array', t => {
     definitions.omit.flatten('omit', obj, flat)
     t.strictSame(flat, { omit: ['optional'] }, 'do not omit what is included')
 
-    process.env.NODE_ENV = 'production'
+    mockGlobals(t, { 'process.env.NODE_ENV': 'production' })
     const defProdEnv = t.mock(defpath)
     t.strictSame(defProdEnv.omit.default, ['dev'], 'omit dev in production')
     t.end()
@@ -372,38 +362,75 @@ t.test('cache-min', t => {
 })
 
 t.test('color', t => {
-  const { isTTY } = process.stdout
-  t.teardown(() => process.stdout.isTTY = isTTY)
+  const setTTY = (stream, value) => mockGlobals(t, { [`process.${stream}.isTTY`]: value })
 
   const flat = {}
   const obj = { color: 'always' }
 
   definitions.color.flatten('color', obj, flat)
-  t.strictSame(flat, { color: true }, 'true when --color=always')
+  t.strictSame(flat, { color: true, logColor: true }, 'true when --color=always')
 
   obj.color = false
   definitions.color.flatten('color', obj, flat)
-  t.strictSame(flat, { color: false }, 'true when --no-color')
+  t.strictSame(flat, { color: false, logColor: false }, 'true when --no-color')
 
-  process.stdout.isTTY = false
+  setTTY('stdout', false)
   obj.color = true
   definitions.color.flatten('color', obj, flat)
-  t.strictSame(flat, { color: false }, 'no color when stdout not tty')
-  process.stdout.isTTY = true
+  t.strictSame(flat, { color: false, logColor: false }, 'no color when stdout not tty')
+  setTTY('stdout', true)
   definitions.color.flatten('color', obj, flat)
-  t.strictSame(flat, { color: true }, '--color turns on color when stdout is tty')
+  t.strictSame(flat, { color: true, logColor: false }, '--color turns on color when stdout is tty')
+  setTTY('stdout', false)
 
-  delete process.env.NO_COLOR
+  setTTY('stderr', false)
+  obj.color = true
+  definitions.color.flatten('color', obj, flat)
+  t.strictSame(flat, { color: false, logColor: false }, 'no color when stderr not tty')
+  setTTY('stderr', true)
+  definitions.color.flatten('color', obj, flat)
+  t.strictSame(flat, { color: false, logColor: true }, '--color turns on color when stderr is tty')
+  setTTY('stderr', false)
+
+  const setColor = (value) => mockGlobals(t, { 'process.env.NO_COLOR': value })
+
+  setColor(undefined)
   const defsAllowColor = t.mock(defpath)
   t.equal(defsAllowColor.color.default, true, 'default true when no NO_COLOR env')
 
-  process.env.NO_COLOR = '0'
+  setColor('0')
   const defsNoColor0 = t.mock(defpath)
   t.equal(defsNoColor0.color.default, true, 'default true when no NO_COLOR=0')
 
-  process.env.NO_COLOR = '1'
+  setColor('1')
   const defsNoColor1 = t.mock(defpath)
   t.equal(defsNoColor1.color.default, false, 'default false when no NO_COLOR=1')
+
+  t.end()
+})
+
+t.test('progress', t => {
+  const setEnv = ({ tty, term } = {}) => mockGlobals(t, {
+    'process.stderr.isTTY': tty,
+    'process.env.TERM': term,
+  })
+
+  const flat = {}
+
+  definitions.progress.flatten('progress', {}, flat)
+  t.strictSame(flat, { progress: false })
+
+  setEnv({ tty: true, term: 'notdumb' })
+  definitions.progress.flatten('progress', { progress: true }, flat)
+  t.strictSame(flat, { progress: true })
+
+  setEnv({ tty: false, term: 'notdumb' })
+  definitions.progress.flatten('progress', { progress: true }, flat)
+  t.strictSame(flat, { progress: false })
+
+  setEnv({ tty: true, term: 'dumb' })
+  definitions.progress.flatten('progress', { progress: true }, flat)
+  t.strictSame(flat, { progress: false })
 
   t.end()
 })
@@ -488,15 +515,15 @@ t.test('maxSockets', t => {
   t.end()
 })
 
-t.test('projectScope', t => {
+t.test('scope', t => {
   const obj = { scope: 'asdf' }
   const flat = {}
   definitions.scope.flatten('scope', obj, flat)
-  t.strictSame(flat, { projectScope: '@asdf' }, 'prepend @ if needed')
+  t.strictSame(flat, { scope: '@asdf', projectScope: '@asdf' }, 'prepend @ if needed')
 
   obj.scope = '@asdf'
   definitions.scope.flatten('scope', obj, flat)
-  t.strictSame(flat, { projectScope: '@asdf' }, 'leave untouched if has @')
+  t.strictSame(flat, { scope: '@asdf', projectScope: '@asdf' }, 'leave untouched if has @')
 
   t.end()
 })

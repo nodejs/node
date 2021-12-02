@@ -10,7 +10,7 @@ const npm = mockNpm(flatOptions)
 const ERROR_OUTPUT = []
 const WARN_OUTPUT = []
 const SetScript = t.mock('../../../lib/commands/set-script.js', {
-  npmlog: {
+  'proc-log': {
     error: (...args) => {
       ERROR_OUTPUT.push(args)
     },

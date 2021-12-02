@@ -1,5 +1,5 @@
 const t = require('tap')
-const { real: mockNpm } = require('../../fixtures/mock-npm')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 const path = require('path')
 const fs = require('fs')
 
@@ -9,33 +9,31 @@ t.afterEach(t => {
 })
 
 t.test('should pack current directory with no arguments', async t => {
-  const { Npm, outputs, filteredLogs } = mockNpm(t)
-  const npm = new Npm()
-  await npm.load()
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'test-package',
-      version: '1.0.0',
-    }),
+  const { npm, outputs, logs } = await loadMockNpm(t, {
+    testdir: {
+      'package.json': JSON.stringify({
+        name: 'test-package',
+        version: '1.0.0',
+      }),
+    },
   })
   process.chdir(npm.prefix)
   await npm.exec('pack', [])
   const filename = 'test-package-1.0.0.tgz'
   t.strictSame(outputs, [[filename]])
-  t.matchSnapshot(filteredLogs('notice'), 'logs pack contents')
+  t.matchSnapshot(logs.notice.map(([, m]) => m), 'logs pack contents')
   t.ok(fs.statSync(path.resolve(npm.prefix, filename)))
 })
 
 t.test('follows pack-destination config', async t => {
-  const { Npm, outputs } = mockNpm(t)
-  const npm = new Npm()
-  await npm.load()
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'test-package',
-      version: '1.0.0',
-    }),
-    'tar-destination': {},
+  const { npm, outputs } = await loadMockNpm(t, {
+    testdir: {
+      'package.json': JSON.stringify({
+        name: 'test-package',
+        version: '1.0.0',
+      }),
+      'tar-destination': {},
+    },
   })
   process.chdir(npm.prefix)
   npm.config.set('pack-destination', path.join(npm.prefix, 'tar-destination'))
@@ -46,14 +44,13 @@ t.test('follows pack-destination config', async t => {
 })
 
 t.test('should pack given directory for scoped package', async t => {
-  const { Npm, outputs } = mockNpm(t)
-  const npm = new Npm()
-  await npm.load()
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: '@npm/test-package',
-      version: '1.0.0',
-    }),
+  const { npm, outputs } = await loadMockNpm(t, {
+    testdir: {
+      'package.json': JSON.stringify({
+        name: '@npm/test-package',
+        version: '1.0.0',
+      }),
+    },
   })
   process.chdir(npm.prefix)
   await npm.exec('pack', [])
@@ -63,49 +60,46 @@ t.test('should pack given directory for scoped package', async t => {
 })
 
 t.test('should log output as valid json', async t => {
-  const { Npm, outputs, filteredLogs } = mockNpm(t)
-  const npm = new Npm()
-  await npm.load()
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'test-package',
-      version: '1.0.0',
-    }),
+  const { npm, outputs, logs } = await loadMockNpm(t, {
+    testdir: {
+      'package.json': JSON.stringify({
+        name: 'test-package',
+        version: '1.0.0',
+      }),
+    },
   })
   process.chdir(npm.prefix)
   npm.config.set('json', true)
   await npm.exec('pack', [])
   const filename = 'test-package-1.0.0.tgz'
   t.matchSnapshot(outputs.map(JSON.parse), 'outputs as json')
-  t.matchSnapshot(filteredLogs('notice'), 'logs pack contents')
+  t.matchSnapshot(logs.notice.map(([, m]) => m), 'logs pack contents')
   t.ok(fs.statSync(path.resolve(npm.prefix, filename)))
 })
 
 t.test('dry run', async t => {
-  const { Npm, outputs, filteredLogs } = mockNpm(t)
-  const npm = new Npm()
-  await npm.load()
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'test-package',
-      version: '1.0.0',
-    }),
+  const { npm, outputs, logs } = await loadMockNpm(t, {
+    testdir: {
+      'package.json': JSON.stringify({
+        name: 'test-package',
+        version: '1.0.0',
+      }),
+    },
   })
   npm.config.set('dry-run', true)
   process.chdir(npm.prefix)
   await npm.exec('pack', [])
   const filename = 'test-package-1.0.0.tgz'
   t.strictSame(outputs, [[filename]])
-  t.matchSnapshot(filteredLogs('notice'), 'logs pack contents')
+  t.matchSnapshot(logs.notice.map(([, m]) => m), 'logs pack contents')
   t.throws(() => fs.statSync(path.resolve(npm.prefix, filename)))
 })
 
 t.test('invalid packument', async t => {
-  const { Npm, outputs } = mockNpm(t)
-  const npm = new Npm()
-  await npm.load()
-  npm.prefix = t.testdir({
-    'package.json': '{}',
+  const { npm, outputs } = await loadMockNpm(t, {
+    testdir: {
+      'package.json': '{}',
+    },
   })
   process.chdir(npm.prefix)
   await t.rejects(
@@ -116,52 +110,58 @@ t.test('invalid packument', async t => {
 })
 
 t.test('workspaces', async t => {
-  const { Npm, outputs } = mockNpm(t)
-  const npm = new Npm()
-  await npm.load()
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify(
-      {
-        name: 'workspaces-test',
-        version: '1.0.0',
-        workspaces: ['workspace-a', 'workspace-b'],
+  const loadWorkspaces = (t) => loadMockNpm(t, {
+    testdir: {
+      'package.json': JSON.stringify(
+        {
+          name: 'workspaces-test',
+          version: '1.0.0',
+          workspaces: ['workspace-a', 'workspace-b'],
+        },
+        null,
+        2
+      ),
+      'workspace-a': {
+        'package.json': JSON.stringify({
+          name: 'workspace-a',
+          version: '1.0.0',
+        }),
       },
-      null,
-      2
-    ),
-    'workspace-a': {
-      'package.json': JSON.stringify({
-        name: 'workspace-a',
-        version: '1.0.0',
-      }),
+      'workspace-b': {
+        'package.json': JSON.stringify({
+          name: 'workspace-b',
+          version: '1.0.0',
+        }),
+      },
     },
-    'workspace-b': {
-      'package.json': JSON.stringify({
-        name: 'workspace-b',
-        version: '1.0.0',
-      }),
+    config: {
+      workspaces: true,
     },
   })
-  npm.config.set('workspaces', true)
+
   t.test('all workspaces', async t => {
+    const { npm, outputs } = await loadWorkspaces(t)
     process.chdir(npm.prefix)
     await npm.exec('pack', [])
     t.strictSame(outputs, [['workspace-a-1.0.0.tgz'], ['workspace-b-1.0.0.tgz']])
   })
 
   t.test('all workspaces, `.` first arg', async t => {
+    const { npm, outputs } = await loadWorkspaces(t)
     process.chdir(npm.prefix)
     await npm.exec('pack', ['.'])
     t.strictSame(outputs, [['workspace-a-1.0.0.tgz'], ['workspace-b-1.0.0.tgz']])
   })
 
   t.test('one workspace', async t => {
+    const { npm, outputs } = await loadWorkspaces(t)
     process.chdir(npm.prefix)
     await npm.exec('pack', ['workspace-a'])
     t.strictSame(outputs, [['workspace-a-1.0.0.tgz']])
   })
 
   t.test('specific package', async t => {
+    const { npm, outputs } = await loadWorkspaces(t)
     process.chdir(npm.prefix)
     await npm.exec('pack', [npm.prefix])
     t.strictSame(outputs, [['workspaces-test-1.0.0.tgz']])
