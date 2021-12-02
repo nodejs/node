@@ -3,7 +3,7 @@ const fs = require('fs')
 const util = require('util')
 const readdir = util.promisify(fs.readdir)
 const reifyFinish = require('../utils/reify-finish.js')
-const log = require('npmlog')
+const log = require('../utils/log-shim.js')
 const { resolve, join } = require('path')
 const Arborist = require('@npmcli/arborist')
 const runScript = require('@npmcli/run-script')
@@ -118,7 +118,7 @@ class Install extends ArboristWorkspaceCmd {
         checks.checkEngine(npmManifest, npmManifest.version, process.version)
       } catch (e) {
         if (forced) {
-          this.npm.log.warn(
+          log.warn(
             'install',
             /* eslint-disable-next-line max-len */
             `Forcing global npm install with incompatible version ${npmManifest.version} into node ${process.version}`
@@ -147,7 +147,7 @@ class Install extends ArboristWorkspaceCmd {
 
     const opts = {
       ...this.npm.flatOptions,
-      log: this.npm.log,
+      log,
       auditLevel: null,
       path: where,
       add: args,

@@ -20,6 +20,13 @@ const authDummy = (npm, options) => {
     throw new Error('did not pass full flatOptions to auth function')
   }
 
+  if (!options.log) {
+    // A quick to test to make sure a log gets passed to auth
+    // XXX: should be refactored with change to real mock npm
+    // https://github.com/npm/statusboard/issues/411
+    throw new Error('pass log to auth')
+  }
+
   return Promise.resolve({
     message: 'success',
     newCreds: {
@@ -71,6 +78,8 @@ const AddUser = t.mock('../../../lib/commands/adduser.js', {
   npmlog: {
     clearProgress: () => null,
     disableProgress: () => null,
+  },
+  'proc-log': {
     notice: (_, msg) => {
       registryOutput = msg
     },

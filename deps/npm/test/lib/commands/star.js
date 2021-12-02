@@ -15,9 +15,9 @@ const npm = mockNpm({
   },
 })
 const npmFetch = { json: noop }
-const npmlog = { error: noop, info: noop, verbose: noop }
+const log = { error: noop, info: noop, verbose: noop }
 const mocks = {
-  npmlog,
+  'proc-log': log,
   'npm-registry-fetch': npmFetch,
   '../../../lib/utils/get-identity.js': async () => 'foo',
   '../../../lib/utils/usage.js': () => 'usage instructions',
@@ -29,7 +29,7 @@ const star = new Star(npm)
 t.afterEach(() => {
   config.unicode = false
   config['star.unstar'] = false
-  npmlog.info = noop
+  log.info = noop
   result = ''
 })
 
@@ -53,7 +53,7 @@ t.test('star a package', async t => {
         : {}
     ),
   })
-  npmlog.info = (title, msg, id) => {
+  log.info = (title, msg, id) => {
     t.equal(title, 'star', 'should use expected title')
     t.equal(msg, 'starring', 'should use expected msg')
     t.equal(id, pkgName, 'should use expected id')
@@ -78,7 +78,7 @@ t.test('unstar a package', async t => {
       : { foo: true }
     ),
   })
-  npmlog.info = (title, msg, id) => {
+  log.info = (title, msg, id) => {
     t.equal(title, 'unstar', 'should use expected title')
     t.equal(msg, 'unstarring', 'should use expected msg')
     t.equal(id, pkgName, 'should use expected id')

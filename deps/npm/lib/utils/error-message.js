@@ -1,9 +1,9 @@
 const { format } = require('util')
 const { resolve } = require('path')
 const nameValidator = require('validate-npm-package-name')
-const npmlog = require('npmlog')
 const replaceInfo = require('./replace-info.js')
 const { report } = require('./explain-eresolve.js')
+const log = require('./log-shim')
 
 module.exports = (er, npm) => {
   const short = []
@@ -20,7 +20,10 @@ module.exports = (er, npm) => {
     case 'ERESOLVE':
       short.push(['ERESOLVE', er.message])
       detail.push(['', ''])
-      detail.push(['', report(er, npm.color, resolve(npm.cache, 'eresolve-report.txt'))])
+      // XXX(display): error messages are logged so we use the logColor since that is based
+      // on stderr. This should be handled solely by the display layer so it could also be
+      // printed to stdout if necessary.
+      detail.push(['', report(er, !!npm.logColor, resolve(npm.cache, 'eresolve-report.txt'))])
       break
 
     case 'ENOLOCK': {
@@ -61,7 +64,7 @@ module.exports = (er, npm) => {
 
       if (!isWindows && (isCachePath || isCacheDest)) {
         // user probably doesn't need this, but still add it to the debug log
-        npmlog.verbose(er.stack)
+        log.verbose(er.stack)
         short.push([
           '',
           [

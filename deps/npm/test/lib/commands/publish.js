@@ -1,13 +1,15 @@
 const t = require('tap')
 const { fake: mockNpm } = require('../../fixtures/mock-npm')
 const fs = require('fs')
+const log = require('../../../lib/utils/log-shim')
 
 // The way we set loglevel is kind of convoluted, and there is no way to affect
 // it from these tests, which only interact with lib/publish.js, which assumes
 // that the code that is requiring and calling lib/publish.js has already
 // taken care of the loglevel
-const log = require('npmlog')
-log.level = 'silent'
+const _level = log.level
+t.beforeEach(() => (log.level = 'silent'))
+t.teardown(() => (log.level = _level))
 
 t.cleanSnapshot = data => {
   return data.replace(/^ *"gitHead": .*$\n/gm, '')
@@ -18,8 +20,6 @@ const defaults = Object.entries(definitions).reduce((defaults, [key, def]) => {
   defaults[key] = def.default
   return defaults
 }, {})
-
-t.afterEach(() => (log.level = 'silent'))
 
 t.test(
   /* eslint-disable-next-line max-len */
@@ -147,7 +147,7 @@ t.test('if loglevel=info and json, should not output package contents', async t 
         id: 'someid',
       }),
       logTar: () => {
-        t.pass('logTar is called')
+        t.fail('logTar is not called in json mode')
       },
     },
     libnpmpublish: {
@@ -188,7 +188,6 @@ t.test(
       ),
     })
 
-    log.level = 'silent'
     const Publish = t.mock('../../../lib/commands/publish.js', {
       '../../../lib/utils/tar.js': {
         getContents: () => ({
@@ -681,9 +680,12 @@ t.test('private workspaces', async t => {
   }
 
   t.test('with color', async t => {
+    t.plan(4)
+
+    log.level = 'info'
     const Publish = t.mock('../../../lib/commands/publish.js', {
       ...mocks,
-      npmlog: {
+      'proc-log': {
         notice () {},
         verbose () {},
         warn (title, msg) {
@@ -707,9 +709,12 @@ t.test('private workspaces', async t => {
   })
 
   t.test('colorless', async t => {
+    t.plan(4)
+
+    log.level = 'info'
     const Publish = t.mock('../../../lib/commands/publish.js', {
       ...mocks,
-      npmlog: {
+      'proc-log': {
         notice () {},
         verbose () {},
         warn (title, msg) {
@@ -730,6 +735,8 @@ t.test('private workspaces', async t => {
   })
 
   t.test('unexpected error', async t => {
+    t.plan(1)
+
     const Publish = t.mock('../../../lib/commands/publish.js', {
       ...mocks,
       libnpmpublish: {
@@ -741,7 +748,7 @@ t.test('private workspaces', async t => {
           publishes.push(manifest)
         },
       },
-      npmlog: {
+      'proc-log': {
         notice () {},
         verbose () {},
       },
@@ -755,6 +762,8 @@ t.test('private workspaces', async t => {
 })
 
 t.test('runs correct lifecycle scripts', async t => {
+  t.plan(5)
+
   const testDir = t.testdir({
     'package.json': JSON.stringify(
       {
@@ -773,6 +782,7 @@ t.test('runs correct lifecycle scripts', async t => {
   })
 
   const scripts = []
+  log.level = 'info'
   const Publish = t.mock('../../../lib/commands/publish.js', {
     '@npmcli/run-script': args => {
       scripts.push(args)
@@ -810,6 +820,8 @@ t.test('runs correct lifecycle scripts', async t => {
 })
 
 t.test('does not run scripts on --ignore-scripts', async t => {
+  t.plan(4)
+
   const testDir = t.testdir({
     'package.json': JSON.stringify(
       {
@@ -821,6 +833,7 @@ t.test('does not run scripts on --ignore-scripts', async t => {
     ),
   })
 
+  log.level = 'info'
   const Publish = t.mock('../../../lib/commands/publish.js', {
     '@npmcli/run-script': () => {
       t.fail('should not call run-script')

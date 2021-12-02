@@ -10,44 +10,30 @@ const flatOptions = {
   scope: '',
 }
 const npm = mockNpm({ config, flatOptions })
-
-const npmlog = {}
-
 let result = null
-const npmFetch = (url, opts) => {
-  result = { url, opts }
+
+const mockLogout = (otherMocks) => {
+  const Logout = t.mock('../../../lib/commands/logout.js', {
+    'npm-registry-fetch': (url, opts) => {
+      result = { url, opts }
+    },
+    ...otherMocks,
+  })
+  return new Logout(npm)
 }
 
-const mocks = {
-  npmlog,
-  'npm-registry-fetch': npmFetch,
-}
-
-const Logout = t.mock('../../../lib/commands/logout.js', mocks)
-const logout = new Logout(npm)
+t.afterEach(() => {
+  delete flatOptions.token
+  result = null
+  config.clearCredentialsByURI = null
+  config.delete = null
+  config.save = null
+})
 
 t.test('token logout', async t => {
-  t.teardown(() => {
-    delete flatOptions.token
-    result = null
-    mocks['npm-registry-fetch'] = null
-    config.clearCredentialsByURI = null
-    config.delete = null
-    config.save = null
-    npmlog.verbose = null
-  })
   t.plan(5)
 
   flatOptions['//registry.npmjs.org/:_authToken'] = '@foo/'
-
-  npmlog.verbose = (title, msg) => {
-    t.equal(title, 'logout', 'should have correcct log prefix')
-    t.equal(
-      msg,
-      'clearing token for https://registry.npmjs.org/',
-      'should log message with correct registry'
-    )
-  }
 
   npm.config.clearCredentialsByURI = registry => {
     t.equal(
@@ -60,6 +46,19 @@ t.test('token logout', async t => {
   npm.config.save = type => {
     t.equal(type, 'user', 'should save to user config')
   }
+
+  const logout = mockLogout({
+    'proc-log': {
+      verbose: (title, msg) => {
+        t.equal(title, 'logout', 'should have correcct log prefix')
+        t.equal(
+          msg,
+          'clearing token for https://registry.npmjs.org/',
+          'should log message with correct registry'
+        )
+      },
+    },
+  })
 
   await logout.exec([])
 
@@ -87,12 +86,11 @@ t.test('token scoped logout', async t => {
     delete config['@myscope:registry']
     delete flatOptions.scope
     result = null
-    mocks['npm-registry-fetch'] = null
     config.clearCredentialsByURI = null
     config.delete = null
     config.save = null
-    npmlog.verbose = null
   })
+
   t.plan(7)
 
   flatOptions['//diff-registry.npmjs.com/:_authToken'] = '@bar/'
@@ -101,15 +99,6 @@ t.test('token scoped logout', async t => {
   config['@myscope:registry'] = 'https://diff-registry.npmjs.com/'
   flatOptions.scope = '@myscope'
   flatOptions['@myscope:registry'] = 'https://diff-registry.npmjs.com/'
-
-  npmlog.verbose = (title, msg) => {
-    t.equal(title, 'logout', 'should have correcct log prefix')
-    t.equal(
-      msg,
-      'clearing token for https://diff-registry.npmjs.com/',
-      'should log message with correct registry'
-    )
-  }
 
   npm.config.clearCredentialsByURI = registry => {
     t.equal(
@@ -127,6 +116,19 @@ t.test('token scoped logout', async t => {
   npm.config.save = type => {
     t.equal(type, 'user', 'should save to user config')
   }
+
+  const logout = mockLogout({
+    'proc-log': {
+      verbose: (title, msg) => {
+        t.equal(title, 'logout', 'should have correcct log prefix')
+        t.equal(
+          msg,
+          'clearing token for https://diff-registry.npmjs.com/',
+          'should log message with correct registry'
+        )
+      },
+    },
+  })
 
   await logout.exec([])
 
@@ -154,29 +156,34 @@ t.test('user/pass logout', async t => {
     delete flatOptions['//registry.npmjs.org/:_password']
     npm.config.clearCredentialsByURI = null
     npm.config.save = null
-    npmlog.verbose = null
   })
   t.plan(2)
 
   flatOptions['//registry.npmjs.org/:username'] = 'foo'
   flatOptions['//registry.npmjs.org/:_password'] = 'bar'
 
-  npmlog.verbose = (title, msg) => {
-    t.equal(title, 'logout', 'should have correct log prefix')
-    t.equal(
-      msg,
-      'clearing user credentials for https://registry.npmjs.org/',
-      'should log message with correct registry'
-    )
-  }
-
   npm.config.clearCredentialsByURI = () => null
   npm.config.save = () => null
+
+  const logout = mockLogout({
+    'proc-log': {
+      verbose: (title, msg) => {
+        t.equal(title, 'logout', 'should have correct log prefix')
+        t.equal(
+          msg,
+          'clearing user credentials for https://registry.npmjs.org/',
+          'should log message with correct registry'
+        )
+      },
+    },
+  })
 
   await logout.exec([])
 })
 
 t.test('missing credentials', async t => {
+  const logout = mockLogout()
+
   await t.rejects(
     logout.exec([]),
     {
@@ -191,26 +198,15 @@ t.test('ignore invalid scoped registry config', async t => {
   t.teardown(() => {
     delete flatOptions.token
     result = null
-    mocks['npm-registry-fetch'] = null
     config.clearCredentialsByURI = null
     config.delete = null
     config.save = null
-    npmlog.verbose = null
   })
   t.plan(4)
 
   flatOptions['//registry.npmjs.org/:_authToken'] = '@foo/'
   config.scope = '@myscope'
   flatOptions['@myscope:registry'] = ''
-
-  npmlog.verbose = (title, msg) => {
-    t.equal(title, 'logout', 'should have correcct log prefix')
-    t.equal(
-      msg,
-      'clearing token for https://registry.npmjs.org/',
-      'should log message with correct registry'
-    )
-  }
 
   npm.config.clearCredentialsByURI = registry => {
     t.equal(
@@ -222,6 +218,19 @@ t.test('ignore invalid scoped registry config', async t => {
 
   npm.config.delete = () => null
   npm.config.save = () => null
+
+  const logout = mockLogout({
+    'proc-log': {
+      verbose: (title, msg) => {
+        t.equal(title, 'logout', 'should have correcct log prefix')
+        t.equal(
+          msg,
+          'clearing token for https://registry.npmjs.org/',
+          'should log message with correct registry'
+        )
+      },
+    },
+  })
 
   await logout.exec([])
 

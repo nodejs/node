@@ -5,8 +5,7 @@ const reifyFinish = require('../utils/reify-finish.js')
 const runScript = require('@npmcli/run-script')
 const fs = require('fs')
 const readdir = util.promisify(fs.readdir)
-
-const log = require('npmlog')
+const log = require('../utils/log-shim.js')
 
 const removeNodeModules = async where => {
   const rimrafOpts = { glob: false }
@@ -39,7 +38,7 @@ class CI extends ArboristWorkspaceCmd {
     const opts = {
       ...this.npm.flatOptions,
       path: where,
-      log: this.npm.log,
+      log,
       save: false, // npm ci should never modify the lockfile or package.json
       workspaces: this.workspaceNames,
     }

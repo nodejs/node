@@ -1,7 +1,7 @@
 const t = require('tap')
 const fs = require('fs')
 const { resolve } = require('path')
-const { real: mockNpm } = require('../../fixtures/mock-npm')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 
 // Attempt to parse json values in snapshots before
 // stringifying to remove escaped values like \\"
@@ -13,7 +13,7 @@ t.formatSnapshot = obj =>
     (k, v) => {
       try {
         return JSON.parse(v)
-      } catch (_) {}
+      } catch {}
       return v
     },
     2
@@ -23,33 +23,25 @@ t.formatSnapshot = obj =>
 // and make some assertions that should always be true. Sets
 // the results on t.context for use in child tests
 const shrinkwrap = async (t, testdir = {}, config = {}, mocks = {}) => {
-  const { Npm, filteredLogs } = mockNpm(t, mocks)
-  const npm = new Npm()
-  await npm.load()
-
-  npm.localPrefix = t.testdir(testdir)
-  if (config.lockfileVersion) {
-    npm.config.set('lockfile-version', config.lockfileVersion)
-  }
-  if (config.global) {
-    npm.config.set('global', config.global)
-  }
+  const { npm, logs } = await loadMockNpm(t, {
+    mocks,
+    config,
+    testdir,
+  })
 
   await npm.exec('shrinkwrap', [])
 
-  const newFile = resolve(npm.localPrefix, 'npm-shrinkwrap.json')
-  const oldFile = resolve(npm.localPrefix, 'package-lock.json')
-  const notices = filteredLogs('notice')
-  const warnings = filteredLogs('warn')
+  const newFile = resolve(npm.prefix, 'npm-shrinkwrap.json')
+  const oldFile = resolve(npm.prefix, 'package-lock.json')
 
   t.notOk(fs.existsSync(oldFile), 'package-lock is always deleted')
-  t.same(warnings, [], 'no warnings')
+  t.same(logs.warn, [], 'no warnings')
   t.teardown(() => delete t.context)
   t.context = {
     localPrefix: testdir,
     config,
     shrinkwrap: JSON.parse(fs.readFileSync(newFile)),
-    logs: notices,
+    logs: logs.notice.map(([, m]) => m),
   }
 }
 
@@ -58,8 +50,8 @@ const shrinkwrap = async (t, testdir = {}, config = {}, mocks = {}) => {
 const shrinkwrapMatrix = async (t, file, assertions) => {
   const ancient = JSON.stringify({ lockfileVersion: 1 })
   const existing = JSON.stringify({ lockfileVersion: 2 })
-  const upgrade = { lockfileVersion: 3 }
-  const downgrade = { lockfileVersion: 1 }
+  const upgrade = { 'lockfile-version': 3 }
+  const downgrade = { 'lockfile-version': 1 }
 
   let ancientDir = {}
   let existingDir = null

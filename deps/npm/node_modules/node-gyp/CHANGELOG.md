@@ -1,5 +1,22 @@
 # Changelog
 
+### [8.4.1](https://www.github.com/nodejs/node-gyp/compare/v8.4.0...v8.4.1) (2021-11-19)
+
+
+### Bug Fixes
+
+* windows command missing space ([#2553](https://www.github.com/nodejs/node-gyp/issues/2553)) ([cc37b88](https://www.github.com/nodejs/node-gyp/commit/cc37b880690706d3c5d04d5a68c76c392a0a23ed))
+
+
+### Doc
+
+* fix typo in powershell node-gyp update ([787cf7f](https://www.github.com/nodejs/node-gyp/commit/787cf7f8e5ddd5039e02b64ace6b7b15e06fe0a4))
+
+
+### Core
+
+* npmlog@6.0.0 ([8083f6b](https://www.github.com/nodejs/node-gyp/commit/8083f6b855bd7f3326af04c5f5269fc28d7f2508))
+
 ## [8.4.0](https://www.github.com/nodejs/node-gyp/compare/v8.3.0...v8.4.0) (2021-11-05)
 
 

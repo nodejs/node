@@ -1,4 +1,4 @@
-const aliases = require('../utils/cmd-list').aliases
+const aliases = require('./cmd-list').aliases
 
 module.exports = function usage (cmd, txt, opt) {
   const post = Object.keys(aliases).reduce(function (p, c) {

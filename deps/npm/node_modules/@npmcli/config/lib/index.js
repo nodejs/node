@@ -497,15 +497,17 @@ class Config {
   }
 
   async loadProjectConfig () {
+    // the localPrefix can be set by the CLI config, but otherwise is
+    // found by walking up the folder tree. either way, we load it before
+    // we return to make sure localPrefix is set
+    await this.loadLocalPrefix()
+
     if (this[_get]('global') === true || this[_get]('location') === 'global') {
       this.data.get('project').source = '(global mode enabled, ignored)'
       this.sources.set(this.data.get('project').source, 'project')
       return
     }
 
-    // the localPrefix can be set by the CLI config, but otherwise is
-    // found by walking up the folder tree
-    await this.loadLocalPrefix()
     const projectFile = resolve(this.localPrefix, '.npmrc')
     // if we're in the ~ directory, and there happens to be a node_modules
     // folder (which is not TOO uncommon, it turns out), then we can end

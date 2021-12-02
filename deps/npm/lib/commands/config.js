@@ -11,6 +11,7 @@ const { spawn } = require('child_process')
 const { EOL } = require('os')
 const ini = require('ini')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
+const log = require('../utils/log-shim.js')
 
 // take an array of `[key, value, k2=v2, k3, v3, ...]` and turn into
 // { key: value, k2: v2, k3: v3 }
@@ -87,12 +88,12 @@ class Config extends BaseCommand {
   }
 
   async execWorkspaces (args, filters) {
-    this.npm.log.warn('config', 'This command does not support workspaces.')
+    log.warn('config', 'This command does not support workspaces.')
     return this.exec(args)
   }
 
   async exec ([action, ...args]) {
-    this.npm.log.disableProgress()
+    log.disableProgress()
     try {
       switch (action) {
         case 'set':
@@ -117,7 +118,7 @@ class Config extends BaseCommand {
           throw this.usageError()
       }
     } finally {
-      this.npm.log.enableProgress()
+      log.enableProgress()
     }
   }
 
@@ -128,10 +129,10 @@ class Config extends BaseCommand {
 
     const where = this.npm.flatOptions.location
     for (const [key, val] of Object.entries(keyValues(args))) {
-      this.npm.log.info('config', 'set %j %j', key, val)
+      log.info('config', 'set %j %j', key, val)
       this.npm.config.set(key, val || '', where)
       if (!this.npm.config.validate(where)) {
-        this.npm.log.warn('config', 'omitting invalid config values')
+        log.warn('config', 'omitting invalid config values')
       }
     }
 

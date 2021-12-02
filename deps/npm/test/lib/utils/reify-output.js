@@ -1,7 +1,9 @@
 const t = require('tap')
+const log = require('../../../lib/utils/log-shim')
 
-const log = require('npmlog')
-log.level = 'warn'
+const _level = log.level
+t.beforeEach(() => log.level = 'warn')
+t.teardown(() => log.level = _level)
 
 t.cleanSnapshot = str => str.replace(/in [0-9]+m?s/g, 'in {TIME}')
 
@@ -237,7 +239,6 @@ t.test('showing and not showing audit report', async t => {
     npm.output = out => {
       t.fail('should not get output when silent', { actual: out })
     }
-    t.teardown(() => log.level = 'warn')
     log.level = 'silent'
     reifyOutput(npm, {
       actualTree: { inventory: { size: 999 }, children: [] },

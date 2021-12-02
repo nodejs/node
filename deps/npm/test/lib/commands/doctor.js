@@ -50,13 +50,13 @@ const logs = {
   info: [],
 }
 
-const clearLogs = (obj = logs) => {
+const clearLogs = () => {
   output.length = 0
-  for (const key in obj) {
-    if (Array.isArray(obj[key])) {
-      obj[key].length = 0
+  for (const key in logs) {
+    if (Array.isArray(logs[key])) {
+      logs[key].length = 0
     } else {
-      delete obj[key]
+      delete logs[key]
     }
   }
 }
@@ -65,13 +65,41 @@ const npm = {
   flatOptions: {
     registry: 'https://registry.npmjs.org/',
   },
-  log: {
+  version: '7.1.0',
+  output: data => {
+    output.push(data)
+  },
+}
+
+let latestNpm = npm.version
+const pacote = {
+  manifest: async () => {
+    return { version: latestNpm }
+  },
+}
+
+let verifyResponse = { verifiedCount: 1, verifiedContent: 1 }
+const cacache = {
+  verify: async () => {
+    return verifyResponse
+  },
+}
+
+const mocks = {
+  '../../../lib/utils/is-windows.js': false,
+  '../../../lib/utils/ping.js': ping,
+  cacache,
+  pacote,
+  'make-fetch-happen': fetch,
+  which,
+  'proc-log': {
     info: msg => {
       logs.info.push(msg)
     },
+  },
+  npmlog: {
     newItem: name => {
       logs[name] = {}
-
       return {
         info: (_, msg) => {
           if (!logs[name].info) {
@@ -109,33 +137,11 @@ const npm = {
       error: 0,
     },
   },
-  version: '7.1.0',
-  output: data => {
-    output.push(data)
-  },
-}
 
-let latestNpm = npm.version
-const pacote = {
-  manifest: async () => {
-    return { version: latestNpm }
-  },
-}
-
-let verifyResponse = { verifiedCount: 1, verifiedContent: 1 }
-const cacache = {
-  verify: async () => {
-    return verifyResponse
-  },
 }
 
 const Doctor = t.mock('../../../lib/commands/doctor.js', {
-  '../../../lib/utils/is-windows.js': false,
-  '../../../lib/utils/ping.js': ping,
-  cacache,
-  pacote,
-  'make-fetch-happen': fetch,
-  which,
+  ...mocks,
 })
 const doctor = new Doctor(npm)
 
@@ -205,7 +211,7 @@ t.test('node versions', t => {
         npm.globalDir = dir
         npm.localBin = dir
         npm.globalBin = dir
-        npm.log.level = 'info'
+        mocks.npmlog.level = 'info'
 
         st.teardown(() => {
           delete npm.cache
@@ -214,7 +220,7 @@ t.test('node versions', t => {
           delete npm.globalDir
           delete npm.localBin
           delete npm.globalBin
-          npm.log.level = 'error'
+          mocks.npmlog.level = 'error'
           clearLogs()
         })
 
@@ -293,12 +299,8 @@ t.test('node versions', t => {
 
       vt.test('npm doctor skips some tests in windows', async st => {
         const WinDoctor = t.mock('../../../lib/commands/doctor.js', {
+          ...mocks,
           '../../../lib/utils/is-windows.js': true,
-          '../../../lib/utils/ping.js': ping,
-          cacache,
-          pacote,
-          'make-fetch-happen': fetch,
-          which,
         })
         const winDoctor = new WinDoctor(npm)
 
@@ -592,12 +594,7 @@ t.test('node versions', t => {
         }
 
         const Doctor = t.mock('../../../lib/commands/doctor.js', {
-          '../../../lib/utils/is-windows.js': false,
-          '../../../lib/utils/ping.js': ping,
-          cacache,
-          pacote,
-          'make-fetch-happen': fetch,
-          which,
+          ...mocks,
           fs,
         })
         const doctor = new Doctor(npm)

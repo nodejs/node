@@ -44,17 +44,6 @@ const npm = mockNpm({
   localPrefix: 'local-prefix',
   localBin: 'local-bin',
   globalBin: 'global-bin',
-  log: {
-    disableProgress: () => {
-      PROGRESS_ENABLED = false
-    },
-    enableProgress: () => {
-      PROGRESS_ENABLED = true
-    },
-    warn: (...args) => {
-      LOG_WARN.push(args)
-    },
-  },
 })
 
 const RUN_SCRIPTS = []
@@ -87,6 +76,23 @@ const PATH = require('../../../lib/utils/path.js')
 
 let CI_NAME = 'travis-ci'
 
+const log = {
+  'proc-log': {
+    warn: (...args) => {
+      LOG_WARN.push(args)
+    },
+  },
+  npmlog: {
+    disableProgress: () => {
+      PROGRESS_ENABLED = false
+    },
+    enableProgress: () => {
+      PROGRESS_ENABLED = true
+    },
+    clearProgress: () => {},
+  },
+}
+
 const mocks = {
   libnpmexec: t.mock('libnpmexec', {
     '@npmcli/arborist': Arborist,
@@ -95,7 +101,9 @@ const mocks = {
     pacote,
     read,
     'mkdirp-infer-owner': mkdirp,
+    ...log,
   }),
+  ...log,
 }
 const Exec = t.mock('../../../lib/commands/exec.js', mocks)
 const exec = new Exec(npm)

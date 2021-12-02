@@ -31,13 +31,16 @@ const output = []
 const npmlog = {
   disableProgress: () => null,
   level: 'warn',
+}
+
+const log = {
   error: () => null,
 }
 
 t.afterEach(() => {
   npm.color = false
   npmlog.level = 'warn'
-  npmlog.error = () => null
+  log.error = () => null
   output.length = 0
   RUN_SCRIPTS.length = 0
   config['if-present'] = false
@@ -56,6 +59,7 @@ const getRS = windows => {
       }
     ),
     npmlog,
+    'proc-log': log,
     '../../../lib/utils/is-windows-shell.js': windows,
   })
   return new RunScript(npm)
@@ -758,7 +762,7 @@ t.test('workspaces', t => {
 
   t.test('missing scripts in all workspaces', async t => {
     const LOG = []
-    npmlog.error = err => {
+    log.error = err => {
       LOG.push(String(err))
     }
     await t.rejects(
@@ -805,7 +809,7 @@ t.test('workspaces', t => {
 
   t.test('missing scripts in some workspaces', async t => {
     const LOG = []
-    npmlog.error = err => {
+    log.error = err => {
       LOG.push(String(err))
     }
     await runScript.execWorkspaces(['test'], ['a', 'b', 'c', 'd'])
@@ -857,6 +861,7 @@ t.test('workspaces', t => {
         throw new Error('err')
       },
       npmlog,
+      'proc-log': log,
       '../../../lib/utils/is-windows-shell.js': false,
     })
     const runScript = new RunScript(npm)
@@ -875,6 +880,7 @@ t.test('workspaces', t => {
         RUN_SCRIPTS.push(opts)
       },
       npmlog,
+      'proc-log': log,
       '../../../lib/utils/is-windows-shell.js': false,
     })
     const runScript = new RunScript(npm)

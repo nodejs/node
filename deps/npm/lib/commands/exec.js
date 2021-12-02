@@ -1,6 +1,7 @@
 const libexec = require('libnpmexec')
 const BaseCommand = require('../base-command.js')
 const getLocationMsg = require('../exec/get-workspace-location-msg.js')
+const log = require('../utils/log-shim')
 
 // it's like this:
 //
@@ -59,7 +60,6 @@ class Exec extends BaseCommand {
     const {
       flatOptions,
       localBin,
-      log,
       globalBin,
     } = this.npm
     const output = (...outputArgs) => this.npm.output(...outputArgs)

@@ -1,4 +1,4 @@
-const log = require('npmlog')
+const log = require('../utils/log-shim')
 const pingUtil = require('../utils/ping.js')
 const BaseCommand = require('../base-command.js')
 

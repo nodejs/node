@@ -1,5 +1,5 @@
 const util = require('util')
-const log = require('npmlog')
+const log = require('../utils/log-shim.js')
 const semver = require('semver')
 const pack = require('libnpmpack')
 const libpub = require('libnpmpublish').publish
@@ -94,10 +94,10 @@ class Publish extends BaseCommand {
       flatten(manifest.publishConfig, opts)
     }
 
-    // note that logTar calls npmlog.notice(), so if we ARE in silent mode,
+    // note that logTar calls log.notice(), so if we ARE in silent mode,
     // this will do nothing, but we still want it in the debuglog if it fails.
     if (!json) {
-      logTar(pkgContents, { log, unicode })
+      logTar(pkgContents, { unicode })
     }
 
     if (!dryRun) {

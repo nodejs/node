@@ -1014,8 +1014,8 @@ Ideal if all users are on npm version 7 and higher.
 * Type: "silent", "error", "warn", "notice", "http", "timing", "info",
   "verbose", or "silly"
 
-What level of logs to report. On failure, *all* logs are written to
-`npm-debug.log` in the current working directory.
+What level of logs to report. All logs are written to a debug log, with the
+path to that file printed if the execution of a command fails.
 
 Any logs of a higher level than the setting are shown. The default is
 "notice".
@@ -1387,7 +1387,7 @@ Save installed packages to a package.json file as `optionalDependencies`.
 * Default: false
 * Type: Boolean
 
-Save installed packages. to a package.json file as `peerDependencies`
+Save installed packages to a package.json file as `peerDependencies`
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

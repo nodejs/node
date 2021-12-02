@@ -1,6 +1,6 @@
 const tar = require('tar')
 const ssri = require('ssri')
-const npmlog = require('npmlog')
+const log = require('./log-shim')
 const formatBytes = require('./format-bytes.js')
 const columnify = require('columnify')
 const localeCompare = require('@isaacs/string-locale-compare')('en', {
@@ -9,7 +9,7 @@ const localeCompare = require('@isaacs/string-locale-compare')('en', {
 })
 
 const logTar = (tarball, opts = {}) => {
-  const { unicode = false, log = npmlog } = opts
+  const { unicode = false } = opts
   log.notice('')
   log.notice('', `${unicode ? '📦 ' : 'package:'} ${tarball.name}@${tarball.version}`)
   log.notice('=== Tarball Contents ===')

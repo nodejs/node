@@ -1,33 +1,9 @@
 const EventEmitter = require('events')
 const { resolve, dirname } = require('path')
 const Config = require('@npmcli/config')
-const log = require('npmlog')
 
 // Patch the global fs module here at the app level
 require('graceful-fs').gracefulify(require('fs'))
-
-// TODO make this only ever load once (or unload) in tests
-const procLogListener = require('./utils/proc-log-listener.js')
-
-// Timers in progress
-const timers = new Map()
-// Finished timers
-const timings = {}
-
-const processOnTimeHandler = name => {
-  timers.set(name, Date.now())
-}
-
-const processOnTimeEndHandler = name => {
-  if (timers.has(name)) {
-    const ms = Date.now() - timers.get(name)
-    log.timing(name, `Completed in ${ms}ms`)
-    timings[name] = ms
-    timers.delete(name)
-  } else {
-    log.silly('timing', "Tried to end timer that doesn't exist:", name)
-  }
-}
 
 const { definitions, flatten, shorthands } = require('./utils/config/index.js')
 const { shellouts } = require('./utils/cmd-list.js')
@@ -36,9 +12,11 @@ const usage = require('./utils/npm-usage.js')
 const which = require('which')
 
 const deref = require('./utils/deref-command.js')
-const setupLog = require('./utils/setup-log.js')
-const cleanUpLogFiles = require('./utils/cleanup-log-files.js')
-const getProjectScope = require('./utils/get-project-scope.js')
+const LogFile = require('./utils/log-file.js')
+const Timers = require('./utils/timers.js')
+const Display = require('./utils/display.js')
+const log = require('./utils/log-shim')
+const replaceInfo = require('./utils/replace-info.js')
 
 let warnedNonDashArg = false
 const _load = Symbol('_load')
@@ -51,21 +29,30 @@ class Npm extends EventEmitter {
     return pkg.version
   }
 
+  #unloaded = false
+  #timers = null
+  #logFile = null
+  #display = null
+
   constructor () {
     super()
-    this.started = Date.now()
     this.command = null
-    this.timings = timings
-    this.timers = timers
-    process.on('time', processOnTimeHandler)
-    process.on('timeEnd', processOnTimeEndHandler)
-    procLogListener()
-    process.emit('time', 'npm')
+    this.#logFile = new LogFile()
+    this.#display = new Display()
+    this.#timers = new Timers({
+      start: 'npm',
+      listener: (name, ms) => {
+        const args = ['timing', name, `Completed in ${ms}ms`]
+        this.#logFile.log(...args)
+        this.#display.log(...args)
+      },
+    })
     this.config = new Config({
       npmPath: dirname(__dirname),
       definitions,
       flatten,
       shorthands,
+      log,
     })
     this[_title] = process.title
     this.updateNotification = null
@@ -118,7 +105,7 @@ class Npm extends EventEmitter {
         .filter(arg => /^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg))
         .forEach(arg => {
           warnedNonDashArg = true
-          this.log.error(
+          log.error(
             'arg',
             'Argument starts with non-ascii dash, this is probably invalid:',
             arg
@@ -165,14 +152,13 @@ class Npm extends EventEmitter {
   async load () {
     if (!this.loadPromise) {
       process.emit('time', 'npm:load')
-      this.log.pause()
       this.loadPromise = new Promise((resolve, reject) => {
         this[_load]()
           .catch(er => er)
           .then(er => {
             this.loadErr = er
             if (!er && this.config.get('force')) {
-              this.log.warn('using --force', 'Recommended protections disabled.')
+              log.warn('using --force', 'Recommended protections disabled.')
             }
 
             process.emit('timeEnd', 'npm:load')
@@ -190,6 +176,34 @@ class Npm extends EventEmitter {
     return this.config.loaded
   }
 
+  // This gets called at the end of the exit handler and
+  // during any tests to cleanup all of our listeners
+  // Everything in here should be synchronous
+  unload () {
+    // Track if we've already unloaded so we dont
+    // write multiple timing files. This is only an
+    // issue in tests right now since we unload
+    // in both tap teardowns and the exit handler
+    if (this.#unloaded) {
+      return
+    }
+    this.#timers.off()
+    this.#display.off()
+    this.#logFile.off()
+    if (this.loaded && this.config.get('timing')) {
+      this.#timers.writeFile({
+        command: process.argv.slice(2),
+        // We used to only ever report a single log file
+        // so to be backwards compatible report the last logfile
+        // XXX: remove this in npm 9 or just keep it forever
+        logfile: this.logFiles[this.logFiles.length - 1],
+        logfiles: this.logFiles,
+        version: this.version,
+      })
+    }
+    this.#unloaded = true
+  }
+
   get title () {
     return this[_title]
   }
@@ -204,12 +218,12 @@ class Npm extends EventEmitter {
     let node
     try {
       node = which.sync(process.argv[0])
-    } catch (_) {
+    } catch {
       // TODO should we throw here?
     }
     process.emit('timeEnd', 'npm:load:whichnode')
     if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
-      this.log.verbose('node symlink', node)
+      log.verbose('node symlink', node)
       process.execPath = node
       this.config.execPath = node
     }
@@ -229,19 +243,35 @@ class Npm extends EventEmitter {
     const tokrev = deref(this.argv[0]) === 'token' && this.argv[1] === 'revoke'
     this.title = tokrev
       ? 'npm token revoke' + (this.argv[2] ? ' ***' : '')
-      : ['npm', ...this.argv].join(' ')
+      : replaceInfo(['npm', ...this.argv].join(' '))
     process.emit('timeEnd', 'npm:load:setTitle')
 
-    process.emit('time', 'npm:load:setupLog')
-    setupLog(this.config)
-    process.emit('timeEnd', 'npm:load:setupLog')
+    process.emit('time', 'npm:load:display')
+    this.#display.load({
+      // Use logColor since that is based on stderr
+      color: this.logColor,
+      progress: this.flatOptions.progress,
+      timing: this.config.get('timing'),
+      loglevel: this.config.get('loglevel'),
+      unicode: this.config.get('unicode'),
+      heading: this.config.get('heading'),
+    })
+    process.emit('timeEnd', 'npm:load:display')
     process.env.COLOR = this.color ? '1' : '0'
 
-    process.emit('time', 'npm:load:cleanupLog')
-    cleanUpLogFiles(this.cache, this.config.get('logs-max'), this.log.warn)
-    process.emit('timeEnd', 'npm:load:cleanupLog')
+    process.emit('time', 'npm:load:logFile')
+    this.#logFile.load({
+      dir: resolve(this.cache, '_logs'),
+      logsMax: this.config.get('logs-max'),
+    })
+    log.verbose('logfile', this.#logFile.files[0])
+    process.emit('timeEnd', 'npm:load:logFile')
 
-    this.log.resume()
+    process.emit('time', 'npm:load:timers')
+    this.#timers.load({
+      dir: this.cache,
+    })
+    process.emit('timeEnd', 'npm:load:timers')
 
     process.emit('time', 'npm:load:configScope')
     const configScope = this.config.get('scope')
@@ -249,10 +279,6 @@ class Npm extends EventEmitter {
       this.config.set('scope', `@${configScope}`, this.config.find('scope'))
     }
     process.emit('timeEnd', 'npm:load:configScope')
-
-    process.emit('time', 'npm:load:projectScope')
-    this.projectScope = this.config.get('scope') || getProjectScope(this.prefix)
-    process.emit('timeEnd', 'npm:load:projectScope')
   }
 
   get flatOptions () {
@@ -263,18 +289,35 @@ class Npm extends EventEmitter {
     return flat
   }
 
+  // color and logColor are a special derived values that takes into
+  // consideration not only the config, but whether or not we are operating
+  // in a tty with the associated output (stdout/stderr)
   get color () {
-    // This is a special derived value that takes into consideration not only
-    // the config, but whether or not we are operating in a tty.
     return this.flatOptions.color
+  }
+
+  get logColor () {
+    return this.flatOptions.logColor
   }
 
   get lockfileVersion () {
     return 2
   }
 
-  get log () {
-    return log
+  get unfinishedTimers () {
+    return this.#timers.unfinished
+  }
+
+  get finishedTimers () {
+    return this.#timers.finished
+  }
+
+  get started () {
+    return this.#timers.started
+  }
+
+  get logFiles () {
+    return this.#logFile.files
   }
 
   get cache () {
@@ -352,9 +395,10 @@ class Npm extends EventEmitter {
 
   // output to stdout in a progress bar compatible way
   output (...msg) {
-    this.log.clearProgress()
+    log.clearProgress()
+    // eslint-disable-next-line no-console
     console.log(...msg)
-    this.log.showProgress()
+    log.showProgress()
   }
 }
 module.exports = Npm

@@ -1,6 +1,5 @@
 const cacache = require('cacache')
 const { promisify } = require('util')
-const log = require('npmlog')
 const pacote = require('pacote')
 const path = require('path')
 const rimraf = promisify(require('rimraf'))
@@ -9,6 +8,7 @@ const BaseCommand = require('../base-command.js')
 const npa = require('npm-package-arg')
 const jsonParse = require('json-parse-even-better-errors')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
+const log = require('../utils/log-shim')
 
 const searchCachePackage = async (path, spec, cacheKeys) => {
   const parsed = npa(spec)
@@ -141,7 +141,7 @@ class Cache extends BaseCommand {
       try {
         entry = await cacache.get(cachePath, key)
       } catch (err) {
-        this.npm.log.warn(`Not Found: ${key}`)
+        log.warn(`Not Found: ${key}`)
         break
       }
       this.npm.output(`Deleted: ${key}`)

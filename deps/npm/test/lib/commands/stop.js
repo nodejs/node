@@ -1,6 +1,6 @@
 const t = require('tap')
 const spawk = require('spawk')
-const { real: mockNpm } = require('../../fixtures/mock-npm')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 
 spawk.preventUnmatched()
 t.teardown(() => {
@@ -13,21 +13,21 @@ t.teardown(() => {
 const makeSpawnArgs = require('@npmcli/run-script/lib/make-spawn-args.js')
 
 t.test('should run stop script from package.json', async t => {
-  const prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'x',
-      version: '1.2.3',
-      scripts: {
-        stop: 'node ./test-stop.js',
-      },
-    }),
+  const { npm } = await loadMockNpm(t, {
+    testdir: {
+      'package.json': JSON.stringify({
+        name: 'x',
+        version: '1.2.3',
+        scripts: {
+          stop: 'node ./test-stop.js',
+        },
+      }),
+    },
+    config: {
+      loglevel: 'silent',
+    },
   })
-  const { Npm } = mockNpm(t)
-  const npm = new Npm()
-  await npm.load()
-  npm.log.level = 'silent'
-  npm.localPrefix = prefix
-  const [scriptShell] = makeSpawnArgs({ path: prefix })
+  const [scriptShell] = makeSpawnArgs({ path: npm.prefix })
   const script = spawk.spawn(scriptShell, (args) => {
     t.ok(args.includes('node ./test-stop.js "foo"'), 'ran stop script with extra args')
     return true

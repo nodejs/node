@@ -472,7 +472,10 @@ define('color', {
   flatten (key, obj, flatOptions) {
     flatOptions.color = !obj.color ? false
       : obj.color === 'always' ? true
-      : process.stdout.isTTY
+      : !!process.stdout.isTTY
+    flatOptions.logColor = !obj.color ? false
+      : obj.color === 'always' ? true
+      : !!process.stderr.isTTY
   },
 })
 
@@ -1211,8 +1214,8 @@ define('loglevel', {
     'silly',
   ],
   description: `
-    What level of logs to report.  On failure, *all* logs are written to
-    \`npm-debug.log\` in the current working directory.
+    What level of logs to report.  All logs are written to a debug log,
+    with the path to that file printed if the execution of a command fails.
 
     Any logs of a higher level than the setting are shown. The default is
     "notice".
@@ -1533,6 +1536,10 @@ define('progress', {
 
     Set to \`false\` to suppress the progress bar.
   `,
+  flatten (key, obj, flatOptions) {
+    flatOptions.progress = !obj.progress ? false
+      : !!process.stderr.isTTY && process.env.TERM !== 'dumb'
+  },
 })
 
 define('proxy', {
@@ -1681,7 +1688,7 @@ define('save-peer', {
   default: false,
   type: Boolean,
   description: `
-    Save installed packages. to a package.json file as \`peerDependencies\`
+    Save installed packages to a package.json file as \`peerDependencies\`
   `,
   flatten (key, obj, flatOptions) {
     if (!obj[key]) {
@@ -1782,7 +1789,10 @@ define('scope', {
   `,
   flatten (key, obj, flatOptions) {
     const value = obj[key]
-    flatOptions.projectScope = value && !/^@/.test(value) ? `@${value}` : value
+    const scope = value && !/^@/.test(value) ? `@${value}` : value
+    flatOptions.scope = scope
+    // projectScope is kept for compatibility with npm-registry-fetch
+    flatOptions.projectScope = scope
   },
 })
 

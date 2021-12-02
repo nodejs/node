@@ -1,6 +1,6 @@
-const log = require('npmlog')
 const getAuth = require('npm-registry-fetch/auth.js')
 const npmFetch = require('npm-registry-fetch')
+const log = require('../utils/log-shim')
 const BaseCommand = require('../base-command.js')
 
 class Logout extends BaseCommand {

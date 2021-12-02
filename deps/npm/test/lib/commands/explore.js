@@ -51,14 +51,17 @@ const getExplore = (windows) => {
     path: require('path')[windows ? 'win32' : 'posix'],
     'read-package-json-fast': mockRPJ,
     '@npmcli/run-script': mockRunScript,
-  })
-  const npm = {
-    dir: windows ? 'c:\\npm\\dir' : '/npm/dir',
-    log: {
+    'proc-log': {
       error: (...msg) => logs.push(msg),
+      warn: () => {},
+    },
+    npmlog: {
       disableProgress: () => {},
       enableProgress: () => {},
     },
+  })
+  const npm = {
+    dir: windows ? 'c:\\npm\\dir' : '/npm/dir',
     flatOptions: {
       shell: 'shell-command',
     },

@@ -4,20 +4,23 @@ module.exports = async process => {
   // leak any private CLI configs to other programs
   process.title = 'npm'
 
-  const { checkForBrokenNode, checkForUnsupportedNode } = require('../lib/utils/unsupported.js')
-
+  // We used to differentiate between known broken and unsupported
+  // versions of node and attempt to only log unsupported but still run.
+  // After we dropped node 10 support, we can use new features
+  // (like static, private, etc) which will only give vague syntax errors,
+  // so now both broken and unsupported use console, but only broken
+  // will process.exit. It is important to now perform *both* of these
+  // checks as early as possible so the user gets the error message.
+  const { checkForBrokenNode, checkForUnsupportedNode } = require('./utils/unsupported.js')
   checkForBrokenNode()
-
-  const log = require('npmlog')
-  // pause it here so it can unpause when we've loaded the configs
-  // and know what loglevel we should be printing.
-  log.pause()
-
   checkForUnsupportedNode()
 
-  const Npm = require('../lib/npm.js')
+  const exitHandler = require('./utils/exit-handler.js')
+  process.on('uncaughtException', exitHandler)
+  process.on('unhandledRejection', exitHandler)
+
+  const Npm = require('./npm.js')
   const npm = new Npm()
-  const exitHandler = require('../lib/utils/exit-handler.js')
   exitHandler.setNpm(npm)
 
   // if npm is called as "npmg" or "npm_g", then
@@ -26,16 +29,14 @@ module.exports = async process => {
     process.argv.splice(1, 1, 'npm', '-g')
   }
 
-  const replaceInfo = require('../lib/utils/replace-info.js')
+  const log = require('./utils/log-shim.js')
+  const replaceInfo = require('./utils/replace-info.js')
   log.verbose('cli', replaceInfo(process.argv))
 
   log.info('using', 'npm@%s', npm.version)
   log.info('using', 'node@%s', process.version)
 
-  process.on('uncaughtException', exitHandler)
-  process.on('unhandledRejection', exitHandler)
-
-  const updateNotifier = require('../lib/utils/update-notifier.js')
+  const updateNotifier = require('./utils/update-notifier.js')
 
   let cmd
   // now actually fire up npm and run the command.
@@ -63,7 +64,7 @@ module.exports = async process => {
     }
 
     await npm.exec(cmd, npm.argv)
-    exitHandler()
+    return exitHandler()
   } catch (err) {
     if (err.code === 'EUNKNOWNCOMMAND') {
       const didYouMean = require('./utils/did-you-mean.js')

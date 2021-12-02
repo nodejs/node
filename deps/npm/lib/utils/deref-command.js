@@ -1,6 +1,6 @@
 // de-reference abbreviations and shorthands into canonical command name
 
-const { aliases, cmdList, plumbing } = require('../utils/cmd-list.js')
+const { aliases, cmdList, plumbing } = require('./cmd-list.js')
 const aliasNames = Object.keys(aliases)
 const fullList = cmdList.concat(aliasNames).filter(c => !plumbing.includes(c))
 const abbrev = require('abbrev')
