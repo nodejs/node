@@ -11,7 +11,7 @@ const SSO_URL = 'https://registry.npmjs.org/{SSO_URL}'
 const profile = {}
 const npmFetch = {}
 const sso = t.mock('../../../lib/auth/sso.js', {
-  npmlog: {
+  'proc-log': {
     info: (...msgs) => {
       log += msgs.join(' ') + '\n'
     },

@@ -10,6 +10,7 @@ class Bin extends BaseCommand {
     const b = this.npm.bin
     this.npm.output(b)
     if (this.npm.config.get('global') && !envPath.includes(b)) {
+      // XXX: does this need to be console?
       console.error('(not in PATH env variable)')
     }
   }

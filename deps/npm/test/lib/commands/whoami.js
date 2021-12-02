@@ -1,26 +1,24 @@
 const t = require('tap')
-const { real: mockNpm } = require('../../fixtures/mock-npm')
+const { load: _loadMockNpm } = require('../../fixtures/mock-npm')
 
 const username = 'foo'
-const { joinedOutput, Npm } = mockNpm(t, {
-  '../../lib/utils/get-identity.js': () => Promise.resolve(username),
-})
-const npm = new Npm()
-
-t.before(async () => {
-  await npm.load()
+const loadMockNpm = (t, options) => _loadMockNpm(t, {
+  mocks: {
+    '../../lib/utils/get-identity.js': () => Promise.resolve(username),
+  },
+  ...options,
 })
 
 t.test('npm whoami', async (t) => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
   await npm.exec('whoami', [])
   t.equal(joinedOutput(), username, 'should print username')
 })
 
 t.test('npm whoami --json', async (t) => {
-  t.teardown(() => {
-    npm.config.set('json', false)
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: { json: true },
   })
-  npm.config.set('json', true)
   await npm.exec('whoami', [])
   t.equal(JSON.parse(joinedOutput()), username, 'should print username')
 })

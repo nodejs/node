@@ -1,8 +1,7 @@
-const log = require('npmlog')
 const pacote = require('pacote')
 const openUrl = require('../utils/open-url.js')
 const hostedFromMani = require('../utils/hosted-git-info-from-manifest.js')
-
+const log = require('../utils/log-shim')
 const BaseCommand = require('../base-command.js')
 class Docs extends BaseCommand {
   static description = 'Open documentation for a package in a web browser'

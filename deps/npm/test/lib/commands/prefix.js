@@ -1,9 +1,8 @@
 const t = require('tap')
-const { real: mockNpm } = require('../../fixtures/mock-npm')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 
 t.test('prefix', async t => {
-  const { joinedOutput, Npm } = mockNpm(t)
-  const npm = new Npm()
+  const { joinedOutput, npm } = await loadMockNpm(t, { load: false })
   await npm.exec('prefix', [])
   t.equal(
     joinedOutput(),

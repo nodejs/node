@@ -7,6 +7,7 @@ const rpj = require('read-package-json-fast')
 const libexec = require('libnpmexec')
 const mapWorkspaces = require('@npmcli/map-workspaces')
 const PackageJson = require('@npmcli/package-json')
+const log = require('../utils/log-shim.js')
 
 const getLocationMsg = require('../exec/get-workspace-location-msg.js')
 const BaseCommand = require('../base-command.js')
@@ -94,7 +95,6 @@ class Init extends BaseCommand {
     const {
       flatOptions,
       localBin,
-      log,
       globalBin,
     } = this.npm
     // this function is definitely called.  But because of coverage map stuff
@@ -125,8 +125,8 @@ class Init extends BaseCommand {
   }
 
   async template (path = process.cwd()) {
-    this.npm.log.pause()
-    this.npm.log.disableProgress()
+    log.pause()
+    log.disableProgress()
 
     const initFile = this.npm.config.get('init-module')
     if (!this.npm.config.get('yes') && !this.npm.config.get('force')) {
@@ -147,17 +147,17 @@ class Init extends BaseCommand {
     // XXX promisify init-package-json
     await new Promise((res, rej) => {
       initJson(path, initFile, this.npm.config, (er, data) => {
-        this.npm.log.resume()
-        this.npm.log.enableProgress()
-        this.npm.log.silly('package data', data)
+        log.resume()
+        log.enableProgress()
+        log.silly('package data', data)
         if (er && er.message === 'canceled') {
-          this.npm.log.warn('init', 'canceled')
+          log.warn('init', 'canceled')
           return res()
         }
         if (er) {
           rej(er)
         } else {
-          this.npm.log.info('init', 'written successfully')
+          log.info('init', 'written successfully')
           res(data)
         }
       })

@@ -7,10 +7,9 @@
 // CLI, we can remove this, and fold the lib/auth/legacy.js back into
 // lib/adduser.js
 
-const log = require('npmlog')
 const profile = require('npm-profile')
 const npmFetch = require('npm-registry-fetch')
-
+const log = require('../utils/log-shim')
 const openUrl = require('../utils/open-url.js')
 const otplease = require('../utils/otplease.js')
 

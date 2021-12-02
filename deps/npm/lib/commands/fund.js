@@ -5,6 +5,7 @@ const pacote = require('pacote')
 const semver = require('semver')
 const npa = require('npm-package-arg')
 const { depth } = require('treeverse')
+const log = require('../utils/log-shim.js')
 const { readTree: getFundingInfo, normalizeFunding, isValidFunding } = require('libnpmfund')
 
 const completion = require('../utils/completion/installed-deep.js')
@@ -68,7 +69,7 @@ class Fund extends ArboristWorkspaceCmd {
     // TODO: add !workspacesEnabled option handling to libnpmfund
     const fundingInfo = getFundingInfo(tree, {
       ...this.flatOptions,
-      log: this.npm.log,
+      log,
       workspaces: this.workspaceNames,
     })
 

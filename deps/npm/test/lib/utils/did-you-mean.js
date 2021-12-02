@@ -1,11 +1,9 @@
 const t = require('tap')
-const { real: mockNpm } = require('../../fixtures/mock-npm.js')
-const { Npm } = mockNpm(t)
-const npm = new Npm()
+const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
 
 const dym = require('../../../lib/utils/did-you-mean.js')
 t.test('did-you-mean', async t => {
-  await npm.load()
+  const { npm } = await loadMockNpm(t)
   t.test('with package.json', async t => {
     const testdir = t.testdir({
       'package.json': JSON.stringify({

@@ -1,5 +1,5 @@
 {
-  "version": "8.1.4",
+  "version": "8.2.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -57,7 +57,7 @@
     "@isaacs/string-locale-compare": "^1.1.0",
     "@npmcli/arborist": "^4.0.5",
     "@npmcli/ci-detect": "^1.4.0",
-    "@npmcli/config": "^2.3.0",
+    "@npmcli/config": "^2.3.2",
     "@npmcli/map-workspaces": "^2.0.0",
     "@npmcli/package-json": "^1.0.1",
     "@npmcli/run-script": "^2.0.0",
@@ -96,7 +96,7 @@
     "mkdirp": "^1.0.4",
     "mkdirp-infer-owner": "^2.0.0",
     "ms": "^2.1.2",
-    "node-gyp": "^8.4.0",
+    "node-gyp": "^8.4.1",
     "nopt": "^5.0.0",
     "npm-audit-report": "^2.1.5",
     "npm-install-checks": "^4.0.0",
@@ -109,6 +109,7 @@
     "opener": "^1.5.2",
     "pacote": "^12.0.2",
     "parse-conflict-json": "^1.1.1",
+    "proc-log": "^1.0.0",
     "qrcode-terminal": "^0.12.0",
     "read": "~1.0.7",
     "read-package-json": "^4.1.1",
@@ -181,6 +182,7 @@
     "opener",
     "pacote",
     "parse-conflict-json",
+    "proc-log",
     "qrcode-terminal",
     "read",
     "read-package-json",
@@ -199,10 +201,10 @@
   ],
   "devDependencies": {
     "@npmcli/eslint-config": "^2.0.0",
-    "eslint": "^8.2.0",
+    "eslint": "^8.3.0",
     "licensee": "^8.2.0",
     "spawk": "^1.7.1",
-    "tap": "^15.1.2"
+    "tap": "^15.1.5"
   },
   "scripts": {
     "dumpconf": "env | grep npm | sort | uniq",
