@@ -354,7 +354,6 @@ module.exports = {
     'jsdoc/require-returns-type': 'off',
     'jsdoc/check-alignment': 'off',
     'jsdoc/require-returns-check': 'off',
-    'jsdoc/require-param-name': 'off',
 
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',
