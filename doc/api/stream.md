@@ -1744,6 +1744,7 @@ added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
+
 * `fn` {Function|AsyncFunction} a function to map over every item in the stream.
   * `data` {any} a chunk of data from the stream.
   * `options` {Object}
