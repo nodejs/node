@@ -3104,3 +3104,52 @@ assert.strictEqual(
     "{ ['__proto__']: { a: 1 } }"
   );
 }
+
+{
+  const { numericSeparator } = util.inspect.defaultOptions;
+  util.inspect.defaultOptions.numericSeparator = true;
+
+  assert.strictEqual(
+    util.inspect(1234567891234567891234),
+    '1.234567891234568e+21'
+  );
+  assert.strictEqual(
+    util.inspect(123456789.12345678),
+    '123_456_789.123_456_78'
+  );
+
+  assert.strictEqual(util.inspect(10_000_000), '10_000_000');
+  assert.strictEqual(util.inspect(1_000_000), '1_000_000');
+  assert.strictEqual(util.inspect(100_000), '100_000');
+  assert.strictEqual(util.inspect(99_999.9), '99_999.9');
+  assert.strictEqual(util.inspect(9_999), '9_999');
+  assert.strictEqual(util.inspect(999), '999');
+  assert.strictEqual(util.inspect(NaN), 'NaN');
+  assert.strictEqual(util.inspect(Infinity), 'Infinity');
+  assert.strictEqual(util.inspect(-Infinity), '-Infinity');
+
+  assert.strictEqual(
+    util.inspect(new Float64Array([100_000_000])),
+    'Float64Array(1) [ 100_000_000 ]'
+  );
+  assert.strictEqual(
+    util.inspect(new BigInt64Array([9_100_000_100n])),
+    'BigInt64Array(1) [ 9_100_000_100n ]'
+  );
+
+  assert.strictEqual(
+    util.inspect(123456789),
+    '123_456_789'
+  );
+  assert.strictEqual(
+    util.inspect(123456789n),
+    '123_456_789n'
+  );
+
+  util.inspect.defaultOptions.numericSeparator = numericSeparator;
+
+  assert.strictEqual(
+    util.inspect(123456789.12345678, { numericSeparator: true }),
+    '123_456_789.123_456_78'
+  );
+}
