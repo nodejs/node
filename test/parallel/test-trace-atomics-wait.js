@@ -90,6 +90,12 @@ values mismatched
 [Thread 1] Atomics.wait(<address> + 4, -1, inf) started
 [Thread 1] Atomics.wait(<address> + 4, -1, inf) did not wait because the \
 values mismatched`,
+  `${begin}
+[Thread 1] Atomics.wait(<address> + 4, -1, inf) started
+[Thread 0] Atomics.wait(<address> + 4, 0, inf) started
+[Thread 0] Atomics.wait(<address> + 4, 0, inf) did not wait because the \
+values mismatched
+[Thread 1] Atomics.wait(<address> + 4, -1, inf) was woken up by another thread`,
 ];
 
 assert(expectedTimelines.includes(actualTimeline));
