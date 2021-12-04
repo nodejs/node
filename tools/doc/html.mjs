@@ -22,7 +22,14 @@
 import fs from 'fs';
 import path from 'path';
 
-import highlightJs from 'highlight.js';
+import highlightJs from 'highlight.js/lib/core';
+import c from 'highlight.js/lib/languages/c';
+import coffeescript from 'highlight.js/lib/languages/coffeescript';
+import cpp from 'highlight.js/lib/languages/cpp';
+import http from 'highlight.js/lib/languages/http';
+import javascript from 'highlight.js/lib/languages/javascript';
+import json from 'highlight.js/lib/languages/json';
+
 import raw from 'rehype-raw';
 import htmlStringify from 'rehype-stringify';
 import gfm from 'remark-gfm';
@@ -33,6 +40,13 @@ import { visit } from 'unist-util-visit';
 
 import * as common from './common.mjs';
 import * as typeParser from './type-parser.mjs';
+
+highlightJs.registerLanguage('js', javascript);
+highlightJs.registerLanguage('c', c);
+highlightJs.registerLanguage('coffee', coffeescript);
+highlightJs.registerLanguage('cpp', cpp);
+highlightJs.registerLanguage('http', http);
+highlightJs.registerLanguage('json', json);
 
 const { highlight, getLanguage } = highlightJs;
 
