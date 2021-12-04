@@ -2631,6 +2631,24 @@ assert.strictEqual(
 
   assert.strictEqual(out, expected);
 
+  // Array grouping should prevent lining up outer elements on a single line.
+  obj = [[[1, 2, 3, 4, 5, 6, 7, 8, 9]]];
+
+  out = util.inspect(obj, { compact: 3 });
+
+  expected = [
+    '[',
+    '  [',
+    '    [',
+    '      1, 2, 3, 4, 5,',
+    '      6, 7, 8, 9',
+    '    ]',
+    '  ]',
+    ']',
+  ].join('\n');
+
+  assert.strictEqual(out, expected);
+
   // Verify that array grouping and line consolidation does not happen together.
   obj = {
     a: {
