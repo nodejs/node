@@ -1501,7 +1501,7 @@ const tsp = require('timers/promises');
     let n = 0;
     for await (const chunk of source) {
       if (n++ > 1) {
-        return;
+        break;
       }
       ret += chunk;
     }
