@@ -178,7 +178,7 @@ async function printResults(engine, results, format, outputFile) {
         return false;
     }
 
-    const output = formatter.format(results);
+    const output = await formatter.format(results);
 
     if (output) {
         if (outputFile) {

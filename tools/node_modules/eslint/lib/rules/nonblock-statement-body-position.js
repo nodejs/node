@@ -10,6 +10,7 @@
 
 const POSITION_SCHEMA = { enum: ["beside", "below", "any"] };
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",

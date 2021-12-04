@@ -25,6 +25,7 @@ const LINE_BREAK = astUtils.createGlobalLinebreakMatcher();
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
