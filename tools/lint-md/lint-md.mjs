@@ -1,10 +1,10 @@
 import fs from 'fs';
 import path$1 from 'path';
 import { fileURLToPath, pathToFileURL, URL as URL$1 } from 'url';
+import process$1 from 'process';
 import process$2 from 'node:process';
 import os from 'node:os';
 import tty from 'node:tty';
-import process$1 from 'process';
 
 /**
  * Throw a given error.
@@ -12107,8 +12107,8 @@ function definition(node, _, context) {
   if (
     // If there’s no url, or…
     !node.url ||
-    // If there’s whitespace, enclosed is prettier.
-    /[ \t\r\n]/.test(node.url)
+    // If there are control characters or whitespace.
+    /[\0- \u007F]/.test(node.url)
   ) {
     subexit = context.enter('destinationLiteral');
     value += '<' + safe(context, node.url, {before: '<', after: '>'}) + '>';
@@ -12417,7 +12417,7 @@ function ok() {
  * @param {string} d
  * @returns {string}
  */
-function color$1(d) {
+function color$2(d) {
   return '\u001B[33m' + d + '\u001B[39m'
 }
 
@@ -12503,7 +12503,7 @@ const visitParents$1 =
           Object.defineProperty(visit, 'name', {
             value:
               'node (' +
-              color$1(value.type + (name ? '<' + name + '>' : '')) +
+              color$2(value.type + (name ? '<' + name + '>' : '')) +
               ')'
           });
         }
@@ -12760,8 +12760,8 @@ function image(node, _, context) {
   if (
     // If there’s no url but there is a title…
     (!node.url && node.title) ||
-    // Or if there’s markdown whitespace or an eol, enclose.
-    /[ \t\r\n]/.test(node.url)
+    // If there are control characters or whitespace.
+    /[\0- \u007F]/.test(node.url)
   ) {
     subexit = context.enter('destinationLiteral');
     value += '<' + safe(context, node.url, {before: '<', after: '>'}) + '>';
@@ -12946,7 +12946,7 @@ function formatLinkAsAutolink(node, context) {
       // And that starts w/ a protocol…
       /^[a-z][a-z+.-]+:/i.test(node.url) &&
       // And that doesn’t contain ASCII control codes (character escapes and
-      // references don’t work) or angle brackets…
+      // references don’t work), space, or angle brackets…
       !/[\0- <>\u007F]/.test(node.url)
   )
 }
@@ -12994,8 +12994,8 @@ function link(node, _, context) {
   if (
     // If there’s no url but there is a title…
     (!node.url && node.title) ||
-    // Or if there’s markdown whitespace or an eol, enclose.
-    /[ \t\r\n]/.test(node.url)
+    // If there are control characters or whitespace.
+    /[\0- \u007F]/.test(node.url)
   ) {
     subexit = context.enter('destinationLiteral');
     value += '<' + safe(context, node.url, {before: '<', after: '>'}) + '>';
@@ -13281,8 +13281,7 @@ function list(node, parent, context) {
       // That are each the first child.
       context.indexStack[context.indexStack.length - 1] === 0 &&
       context.indexStack[context.indexStack.length - 2] === 0 &&
-      context.indexStack[context.indexStack.length - 3] === 0 &&
-      context.indexStack[context.indexStack.length - 4] === 0
+      context.indexStack[context.indexStack.length - 3] === 0
     ) {
       useDifferentMarker = true;
     }
@@ -15850,7 +15849,7 @@ function escapeStringRegexp(string) {
  * @param {string} d
  * @returns {string}
  */
-function color(d) {
+function color$1(d) {
   return '\u001B[33m' + d + '\u001B[39m'
 }
 
@@ -15925,7 +15924,7 @@ const visitParents =
           Object.defineProperty(visit, 'name', {
             value:
               'node (' +
-              color(value.type + (name ? '<' + name + '>' : '')) +
+              color$1(value.type + (name ? '<' + name + '>' : '')) +
               ')'
           });
         }
@@ -18052,13 +18051,13 @@ function remarkMessageControl(options) {
  * This adds support for ignoring stuff from messages (`<!--lint ignore-->`).
  * All rules are in their own packages and presets.
  *
- * @type {import('unified').Plugin<void[], Root>}
+ * @type {import('unified').Plugin<Array<void>, Root>}
  */
 function remarkLint() {
   this.use(lintMessageControl);
 }
 
-/** @type {import('unified').Plugin<void[], Root>} */
+/** @type {import('unified').Plugin<Array<void>, Root>} */
 function lintMessageControl() {
   return remarkMessageControl({name: 'lint', source: 'remark-lint'})
 }
@@ -18069,7 +18068,7 @@ function lintMessageControl() {
  *
  * @typedef {0|1|2} Severity
  * @typedef {'warn'|'on'|'off'|'error'} Label
- * @typedef {[Severity, ...unknown[]]} SeverityTuple
+ * @typedef {[Severity, ...Array<unknown>]} SeverityTuple
  *
  * @typedef RuleMeta
  * @property {string} origin name of the lint rule
@@ -18101,7 +18100,7 @@ function lintRule(meta, rule) {
 
   return plugin
 
-  /** @type {import('unified').Plugin<[unknown]|void[]>} */
+  /** @type {import('unified').Plugin<[unknown]|Array<void>>} */
   function plugin(raw) {
     const [severity, options] = coerce$1(ruleId, raw);
 
@@ -18143,7 +18142,7 @@ function lintRule(meta, rule) {
  * @returns {SeverityTuple}
  */
 function coerce$1(name, value) {
-  /** @type {unknown[]} */
+  /** @type {Array<unknown>} */
   let result;
 
   if (typeof value === 'boolean') {
@@ -18152,11 +18151,11 @@ function coerce$1(name, value) {
     result = [1];
   } else if (
     Array.isArray(value) &&
-    // `isArray(unknown)` is turned into `any[]`:
+    // `isArray(unknown)` is turned into `Array<any>`:
     // type-coverage:ignore-next-line
     primitives.has(typeof value[0])
   ) {
-    // `isArray(unknown)` is turned into `any[]`:
+    // `isArray(unknown)` is turned into `Array<any>`:
     // type-coverage:ignore-next-line
     result = [...value];
   } else {
@@ -18198,55 +18197,63 @@ function coerce$1(name, value) {
 }
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that fenced code markers are consistent.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * Turn this rule on.
+ * See [StackExchange](https://unix.stackexchange.com/questions/18743) for more
+ * info.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * always adds final line endings.
+ *
+ * ## Example
+ *
+ * ##### `ok.md`
+ *
+ * ###### In
+ *
+ * > 👉 **Note**: `␊` represents a line feed (`\n`).
+ *
+ * ```markdown
+ * Alpha␊
+ * ```
+ *
+ * ###### Out
+ *
+ * No messages.
+ *
+ * ##### `not-ok.md`
+ *
+ * ###### In
+ *
+ * > 👉 **Note**: `␀` represents the end of the file.
+ *
+ * ```markdown
+ * Bravo␀
+ * ```
+ *
+ * ###### Out
+ *
+ * ```text
+ * 1:1: Missing newline character at end of file
+ * ```
+ *
+ * @module final-newline
+ * @summary
+ *   remark-lint rule to warn when files don’t end in a newline.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module final-newline
- * @fileoverview
- *   Warn when a line feed at the end of a file is missing.
- *   Empty files are allowed.
- *
- *   See [StackExchange](https://unix.stackexchange.com/questions/18743) for why.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   always adds a final line feed to files.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
- *   ## Example
- *
- *   ##### `ok.md`
- *
- *   ###### In
- *
- *   Note: `␊` represents LF.
- *
- *   ```markdown
- *   Alpha␊
- *   ```
- *
- *   ###### Out
- *
- *   No messages.
- *
- *   ##### `not-ok.md`
- *
- *   ###### In
- *
- *   Note: The below file does not have a final newline.
- *
- *   ```markdown
- *   Bravo
- *   ```
- *
- *   ###### Out
- *
- *   ```text
- *   1:1: Missing newline character at end of file
- *   ```
  */
 
 const remarkLintFinalNewline = lintRule(
@@ -18773,21 +18780,42 @@ var pluralize = {exports: {}};
 var plural = pluralize.exports;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that list items are not indented.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * There is no specific handling of indented list items (or anything else) in
+ * markdown.
+ * While it is possible to use an indent to align ordered lists on their marker:
+ *
+ * ```markdown
+ *   1. One
+ *  10. Ten
+ * 100. Hundred
+ * ```
+ *
+ * …such a style is uncommon and a bit hard to maintain: adding a 10th item
+ * means 9 other items have to change (more arduous, while unlikely, would be
+ * the 100th item).
+ * Hence, it’s recommended to not indent items and to turn this rule on.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * formats all items without indent.
+ *
+ * @module list-item-bullet-indent
+ * @summary
+ *   remark-lint rule to warn when list items are indented.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module list-item-bullet-indent
- * @fileoverview
- *   Warn when list item bullets are indented.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   removes all indentation before bullets.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -18930,29 +18958,66 @@ function generated(node) {
 }
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that the spacing between list item markers
+ * and content is inconsistent.
+ *
+ * ## API
+ *
+ * The following options (default: `'tab-size'`) are accepted:
+ *
+ * *   `'space'`
+ *     — prefer a single space
+ * *   `'tab-size'`
+ *     — prefer spaces the size of the next tab stop
+ * *   `'mixed'`
+ *     — prefer `'space'` for tight lists and `'tab-size'` for loose lists
+ *
+ * ## Recommendation
+ *
+ * First, some background.
+ * The number of spaces that occur after list markers (`*`, `-`, and `+` for
+ * unordered lists, or `.` and `)` for unordered lists) and before the content
+ * on the first line, defines how much indentation can be used for further
+ * lines.
+ * At least one space is required and up to 4 spaces are allowed (if there is no
+ * further content after the marker then it’s a blank line which is handled as
+ * if there was one space; if there are 5 or more spaces and then content, it’s
+ * also seen as one space and the rest is seen as indented code).
+ *
+ * There are two types of lists in markdown (other than ordered and unordered):
+ * tight and loose lists.
+ * Lists are tight by default but if there is a blank line between two list
+ * items or between two blocks inside an item, that turns the whole list into a
+ * loose list.
+ * When turning markdown into HTML, paragraphs in tight lists are not wrapped
+ * in `<p>` tags.
+ *
+ * Historically, how indentation of lists works in markdown has been a mess,
+ * especially with how they interact with indented code.
+ * CommonMark made that a *lot* better, but there remain (documented but
+ * complex) edge cases and some behavior intuitive.
+ * Due to this, the default of this list is `'tab-size'`, which worked the best
+ * in most markdown parsers.
+ * Currently, the situation between markdown parsers is better, so choosing
+ * `'space'` (which seems to be the most common style used by authors) should
+ * be okay.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * uses `'tab-size'` (named `'tab'` there) by default.
+ * [`listItemIndent: '1'` (for `'space'`) or `listItemIndent: 'mixed'`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify#optionslistitemindent)
+ * is supported.
+ *
+ * @module list-item-indent
+ * @summary
+ *   remark-lint rule to warn when spacing between list item markers and
+ *   content is inconsistent.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module list-item-indent
- * @fileoverview
- *   Warn when the spacing between a list item’s bullet and its content violates
- *   a given style.
- *
- *   Options: `'tab-size'`, `'mixed'`, or `'space'`, default: `'tab-size'`.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   uses `'tab-size'` (named `'tab'` there) by default to ensure Markdown is
- *   seen the same way across vendors.
- *   This can be configured with the
- *   [`listItemIndent`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify#optionslistitemindent)
- *   option.
- *   This rule’s `'space'` option is named `'1'` there.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -19105,22 +19170,30 @@ const remarkLintListItemIndent = lintRule(
 var remarkLintListItemIndent$1 = remarkLintListItemIndent;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that lines in block quotes start with `>`.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * Rules around “lazy” lines are not straightforward and visually confusing,
+ * so it’s recommended to start each line with a `>`.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * adds `>` markers to every line in a block quote.
+ *
+ * @module no-blockquote-without-marker
+ * @summary
+ *   remark-lint rule to warn when lines in block quotes start without `>`.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-blockquote-without-marker
- * @fileoverview
- *   Warn when blank lines without `>` (greater than) markers are found in a
- *   block quote.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   adds markers to every line in a block quote.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -19205,25 +19278,32 @@ const remarkLintNoBlockquoteWithoutMarker = lintRule(
 var remarkLintNoBlockquoteWithoutMarker$1 = remarkLintNoBlockquoteWithoutMarker;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that autolink literal URLs are not used.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * Autolink literal URLs (just a URL) are a feature enabled by GFM.
+ * They don’t work everywhere.
+ * Due to this, it’s recommended to instead use normal autolinks
+ * (`<https://url>`) or links (`[text](url)`).
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * never creates autolink literals and always uses normal autolinks (`<url>`).
+ *
+ * @module no-literal-urls
+ * @summary
+ *   remark-lint rule to warn for autolink literals.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-literal-urls
- * @fileoverview
- *   Warn for literal URLs in text.
- *   URLs are treated as links in some Markdown vendors, but not in others.
- *   To make sure they are always linked, wrap them in `<` (less than) and `>`
- *   (greater than).
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   never creates literal URLs and always uses `<` (less than) and `>`
- *   (greater than).
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -19266,18 +19346,42 @@ const remarkLintNoLiteralUrls = lintRule(
 var remarkLintNoLiteralUrls$1 = remarkLintNoLiteralUrls;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that ordered list markers are consistent.
+ *
+ * ## API
+ *
+ * The following options (default: `'consistent'`) are accepted:
+ *
+ * *   `'.'`
+ *     — prefer dots
+ * *   `')'`
+ *     — prefer parens
+ * *   `'consistent'`
+ *     — detect the first used style and warn when further markers differ
+ *
+ * ## Recommendation
+ *
+ * Parens for list markers were not supported in markdown before CommonMark.
+ * While they should work in most places now, not all markdown parsers follow
+ * CommonMark.
+ * Due to this, it’s recommended to prefer dots.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * formats ordered lists with dots by default.
+ * Pass
+ * [`bulletOrdered: ')'`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify#optionsbulletordered)
+ * to always use parens.
+ *
+ * @module ordered-list-marker-style
+ * @summary
+ *   remark-lint rule to warn when ordered list markers are inconsistent.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module ordered-list-marker-style
- * @fileoverview
- *   Warn when the list item marker style of ordered lists violate a given style.
- *
- *   Options: `'consistent'`, `'.'`, or `')'`, default: `'consistent'`.
- *
- *   `'consistent'` detects the first used list style and warns when subsequent
- *   lists use different styles.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -19372,13 +19476,28 @@ const remarkLintOrderedListMarkerStyle = lintRule(
 var remarkLintOrderedListMarkerStyle$1 = remarkLintOrderedListMarkerStyle;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that hard breaks use two spaces and
+ * not more.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * Less than two spaces do not create a hard breaks and more than two spaces
+ * have no effect.
+ * Due to this, it’s recommended to turn this rule on.
+ *
+ * @module hard-break-spaces
+ * @summary
+ *   remark-lint rule to warn when more spaces are used than needed
+ *   for hard breaks.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module hard-break-spaces
- * @fileoverview
- *   Warn when too many spaces are used to create a hard break.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -19424,13 +19543,24 @@ const remarkLintHardBreakSpaces = lintRule(
 var remarkLintHardBreakSpaces$1 = remarkLintHardBreakSpaces;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that identifiers are defined once.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * It’s a mistake when the same identifier is defined multiple times.
+ *
+ * @module no-duplicate-definitions
+ * @summary
+ *   remark-lint rule to warn when identifiers are defined multiple times.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-duplicate-definitions
- * @fileoverview
- *   Warn when duplicate definitions are found.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -19542,21 +19672,32 @@ function consolidate(depth, relative) {
 }
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that there is on space between `#`
+ * characters and the content in headings.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * One space is required and more than one space has no effect.
+ * Due to this, it’s recommended to turn this rule on.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * formats headings with exactly one space.
+ *
+ * @module no-heading-content-indent
+ * @summary
+ *   remark-lint rule to warn when there are too many spaces between
+ *   hashes and content in headings.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-heading-content-indent
- * @fileoverview
- *   Warn when content of headings is indented.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   removes all unneeded padding around content in headings.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -19653,16 +19794,23 @@ const remarkLintNoHeadingContentIndent = lintRule(
 var remarkLintNoHeadingContentIndent$1 = remarkLintNoHeadingContentIndent;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that inline constructs (links) are
+ * not padded.
+ * Historically, it was possible to pad emphasis, strong, and strikethrough
+ * too, but this was removed in CommonMark, making this rule much less useful.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * @module no-inline-padding
+ * @summary
+ *   remark-lint rule to warn when inline constructs are padded.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-inline-padding
- * @fileoverview
- *   Warn when phrasing content is padded with spaces between their markers and
- *   content.
- *
- *   Warns for emphasis, strong, delete, image, and link.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -19706,19 +19854,29 @@ const remarkLintNoInlinePadding = lintRule(
 var remarkLintNoInlinePadding$1 = remarkLintNoInlinePadding;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that collapsed or full reference images
+ * are used.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * Shortcut references use an implicit style that looks a lot like something
+ * that could occur as plain text instead of syntax.
+ * In some cases, plain text is intended instead of an image.
+ * Due to this, it’s recommended to use collapsed (or full) references
+ * instead.
+ *
+ * @module no-shortcut-reference-image
+ * @summary
+ *   remark-lint rule to warn when shortcut reference images are used.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-shortcut-reference-image
- * @fileoverview
- *   Warn when shortcut reference images are used.
- *
- *   Shortcut references render as images when a definition is found, and as
- *   plain text without definition.
- *   Sometimes, you don’t intend to create an image from the reference, but this
- *   rule still warns anyway.
- *   In that case, you can escape the reference like so: `!\[foo]`.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -19757,19 +19915,29 @@ const remarkLintNoShortcutReferenceImage = lintRule(
 var remarkLintNoShortcutReferenceImage$1 = remarkLintNoShortcutReferenceImage;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that collapsed or full reference links
+ * are used.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * Shortcut references use an implicit style that looks a lot like something
+ * that could occur as plain text instead of syntax.
+ * In some cases, plain text is intended instead of a link.
+ * Due to this, it’s recommended to use collapsed (or full) references
+ * instead.
+ *
+ * @module no-shortcut-reference-link
+ * @summary
+ *   remark-lint rule to warn when shortcut reference links are used.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-shortcut-reference-link
- * @fileoverview
- *   Warn when shortcut reference links are used.
- *
- *   Shortcut references render as links when a definition is found, and as
- *   plain text without definition.
- *   Sometimes, you don’t intend to create a link from the reference, but this
- *   rule still warns anyway.
- *   In that case, you can escape the reference like so: `\[foo]`.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -19808,19 +19976,48 @@ const remarkLintNoShortcutReferenceLink = lintRule(
 var remarkLintNoShortcutReferenceLink$1 = remarkLintNoShortcutReferenceLink;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that referenced definitions are defined.
+ *
+ * ## API
+ *
+ * The following options (default: `undefined`) are accepted:
+ *
+ * *   `Object` with the following fields:
+ *     *   `allow` (`Array<string>`, default: `[]`)
+ *         — text that you want to allowed between `[` and `]` even though it’s
+ *         undefined
+ *
+ * ## Recommendation
+ *
+ * Shortcut references use an implicit syntax that could also occur as plain
+ * text.
+ * For example, it is reasonable to expect an author adding `[…]` to abbreviate
+ * some text somewhere in a document:
+ *
+ * ```markdown
+ * > Some […] quote.
+ * ```
+ *
+ * This isn’t a problem, but it might become one when an author later adds a
+ * definition:
+ *
+ * ```markdown
+ * Some text. […][]
+ *
+ * […] #read-more "Read more"
+ * ```
+ *
+ * The second author might expect only their newly added text to form a link,
+ * but their changes also result in a link for the first author’s text.
+ *
+ * @module no-undefined-references
+ * @summary
+ *   remark-lint rule to warn when undefined definitions are referenced.
  * @author Titus Wormer
  * @copyright 2016 Titus Wormer
  * @license MIT
- * @module no-undefined-references
- * @fileoverview
- *   Warn when references to undefined definitions are found.
- *
- *   Options: `Object`, optional.
- *
- *   The object can have an `allow` field, set to an array of strings that may
- *   appear between `[` and `]`, but that should not be treated as link
- *   identifiers.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -19924,7 +20121,7 @@ const remarkLintNoUndefinedReferences = lintRule(
      * @param {Heading|Paragraph} node
      */
     function findInPhrasing(node) {
-      /** @type {Range[]} */
+      /** @type {Array<Range>} */
       let ranges = [];
 
       visit$1(node, (child) => {
@@ -19949,7 +20146,7 @@ const remarkLintNoUndefinedReferences = lintRule(
         }
 
         const source = contents.slice(start, end);
-        /** @type {Array.<[number, string]>} */
+        /** @type {Array<[number, string]>} */
         const lines = [[start, '']];
         let last = 0;
 
@@ -20079,13 +20276,24 @@ const remarkLintNoUndefinedReferences = lintRule(
 var remarkLintNoUndefinedReferences$1 = remarkLintNoUndefinedReferences;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check definitions are referenced.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * Unused definitions do not contribute anything, so they can be removed.
+ *
+ * @module no-unused-definitions
+ * @summary
+ *   remark-lint rule to warn when unreferenced definitions are used.
  * @author Titus Wormer
  * @copyright 2016 Titus Wormer
  * @license MIT
- * @module no-unused-definitions
- * @fileoverview
- *   Warn when unused definitions are found.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -20157,9 +20365,12 @@ const remarkLintNoUnusedDefinitions = lintRule(
 var remarkLintNoUnusedDefinitions$1 = remarkLintNoUnusedDefinitions;
 
 /**
- * @fileoverview
- *   remark preset to configure `remark-lint` with settings that prevent
- *   mistakes or stuff that fails across vendors.
+ * ## When should I use this?
+ *
+ * You can use this package to check that markdown follows some best practices.
+ *
+ * @summary
+ *   Preset of remark-lint rules to warn for some likely problems.
  */
 
 /** @type {Preset} */
@@ -20189,18 +20400,48 @@ const remarkPresetLintRecommended = {
 var remarkPresetLintRecommended$1 = remarkPresetLintRecommended;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that the “indent” of block quotes is
+ * consistent.
+ * Indent here is the `>` (greater than) marker and the spaces before content.
+ *
+ * ## API
+ *
+ * The following options (default: `'consistent'`) are accepted:
+ *
+ * *   `number` (example: `2`)
+ *     — preferred indent of `>` and spaces before content
+ * *   `'consistent'`
+ *     — detect the first used style and warn when further block quotes differ
+ *
+ * ## Recommendation
+ *
+ * CommonMark specifies that when block quotes are used the `>` markers can be
+ * followed by an optional space.
+ * No space at all arguably looks rather ugly:
+ *
+ * ```markdown
+ * >Mars and
+ * >Venus.
+ * ```
+ *
+ * There is no specific handling of more that one space, so if 5 spaces were
+ * used after `>`, then indented code kicks in:
+ *
+ * ```markdown
+ * >     neptune()
+ * ```
+ *
+ * Due to this, it’s recommended to configure this rule with `2`.
+ *
+ * @module blockquote-indentation
+ * @summary
+ *   remark-lint rule to warn when block quotes are indented too much or
+ *   too little.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module blockquote-indentation
- * @fileoverview
- *   Warn when block quotes are indented too much or too little.
- *
- *   Options: `number` or `'consistent'`, default: `'consistent'`.
- *
- *   `'consistent'` detects the first used indentation and will warn when
- *   other block quotes use a different indentation.
- *
  * @example
  *   {"name": "ok.md", "setting": 4}
  *
@@ -20284,33 +20525,43 @@ function check$1(node) {
 }
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that the style of GFM tasklists is
+ * consistent.
+ *
+ * ## API
+ *
+ * The following options (default: `'consistent'`) are accepted:
+ *
+ * *   `Object` with the following fields:
+ *     *   `checked` (`'x'`, `'X'`, or `'consistent'`, default: `'consistent'`)
+ *         — preferred character to use for checked checkboxes
+ *     *   `unchecked` (`'·'` (a space), `'»'` (a tab), or `'consistent'`,
+ *         default: `'consistent'`)
+ *         — preferred character to use for unchecked checkboxes
+ * *   `'consistent'`
+ *     — detect the first used styles and warn when further checkboxes differ
+ *
+ * ## Recommendation
+ *
+ * It’s recommended to set `options.checked` to `'x'` (a lowercase X) as it
+ * prevents an extra keyboard press and `options.unchecked` to `'·'` (a space)
+ * to make all checkboxes align.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * formats checked checkboxes using `'x'` (lowercase X) and unchecked checkboxes
+ * using `'·'` (a space).
+ *
+ * @module checkbox-character-style
+ * @summary
+ *   remark-lint rule to warn when list item checkboxes violate a given
+ *   style.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module checkbox-character-style
- * @fileoverview
- *   Warn when list item checkboxes violate a given style.
- *
- *   Options: `Object` or `'consistent'`, default: `'consistent'`.
- *
- *   `'consistent'` detects the first used checked and unchecked checkbox
- *   styles and warns when subsequent checkboxes use different styles.
- *
- *   Styles can also be passed in like so:
- *
- *   ```js
- *   {checked: 'x', unchecked: ' '}
- *   ```
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   formats checked checkboxes using `x` (lowercase X) and unchecked checkboxes
- *   as `·` (a single space).
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md", "setting": {"checked": "x"}, "gfm": true}
  *
@@ -20449,13 +20700,44 @@ const remarkLintCheckboxCharacterStyle = lintRule(
 var remarkLintCheckboxCharacterStyle$1 = remarkLintCheckboxCharacterStyle;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that the “indent” after a GFM tasklist
+ * checkbox is a single space.
+ *
+ * ## API
+ *
+ * There are no accepted options.
+ *
+ * ## Recommendation
+ *
+ * GFM allows zero or more spaces and tabs after checkboxes.
+ * No space at all arguably looks rather ugly:
+ *
+ * ```markdown
+ * * [x]Pluto
+ * ```
+ *
+ * More that one space is superfluous:
+ *
+ * ```markdown
+ * * [x]   Jupiter
+ * ```
+ *
+ * Due to this, it’s recommended to turn this rule on.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * formats checkboxes and the content after them with a single space between.
+ *
+ * @module checkbox-content-indent
+ * @summary
+ *   remark-lint rule to warn when GFM tasklist checkboxes are followed by
+ *   more than one space.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module checkbox-content-indent
- * @fileoverview
- *   Warn when list item checkboxes are followed by too much whitespace.
- *
  * @example
  *   {"name": "ok.md", "gfm": true}
  *
@@ -20680,13 +20962,30 @@ const remarkLintCodeBlockStyle = lintRule(
 var remarkLintCodeBlockStyle$1 = remarkLintCodeBlockStyle;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that the labels used in definitions
+ * do not use meaningless white space.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * Definitions and references are matched together by collapsing white space.
+ * Using more white space in labels might incorrectly indicate that they are of
+ * importance.
+ * Due to this, it’s recommended to use one space (or a line ending if needed)
+ * and turn this rule on.
+ *
+ * @module definition-spacing
+ * @summary
+ *   remark-lint rule to warn when consecutive whitespace is used in
+ *   a definition label.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module definition-spacing
- * @fileoverview
- *   Warn when consecutive whitespace is used in a definition.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -20737,21 +21036,36 @@ const remarkLintDefinitionSpacing = lintRule(
 var remarkLintDefinitionSpacing$1 = remarkLintDefinitionSpacing;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that language flags of fenced code
+ * are used and consistent.
+ *
+ * ## API
+ *
+ * The following options (default: `undefined`) are accepted:
+ *
+ * *   `Array<string>`
+ *     — as if passing `{flags: options}`
+ * *   `Object` with the following fields:
+ *     *   `allowEmpty` (`boolean`, default: `false`)
+ *         — allow language flags to be omitted
+ *     *   `flags` (`Array<string>` default: `[]`)
+ *         — specific flags to allow (other flags will result in a warning)
+ *
+ * ## Recommendation
+ *
+ * While omitting the language flag is perfectly fine to signal that the code is
+ * plain text, it *could* point to a mistake.
+ * It’s recommended to instead use a certain flag for plain text (such as `txt`)
+ * and to turn this rule on.
+ *
+ * @module fenced-code-flag
+ * @summary
+ *   remark-lint rule to check that language flags of fenced code are used.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module fenced-code-flag
- * @fileoverview
- *   Check fenced code block flags.
- *
- *   Options: `Array.<string>` or `Object`, optional.
- *
- *   Providing an array is as passing `{flags: Array}`.
- *
- *   The object can have an array of `'flags'` which are allowed: other flags
- *   will not be allowed.
- *   An `allowEmpty` field (`boolean`, default: `false`) can be set to allow
- *   code blocks without language flags.
  *
  * @example
  *   {"name": "ok.md"}
@@ -20829,7 +21143,7 @@ const remarkLintFencedCodeFlag = lintRule(
   (tree, file, option) => {
     const value = String(file);
     let allowEmpty = false;
-    /** @type {string[]} */
+    /** @type {Array<string>} */
     let allowed = [];
 
     if (typeof option === 'object') {
@@ -20868,29 +21182,40 @@ const remarkLintFencedCodeFlag = lintRule(
 var remarkLintFencedCodeFlag$1 = remarkLintFencedCodeFlag;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that fenced code markers are consistent.
+ *
+ * ## API
+ *
+ * The following options (default: `'consistent'`) are accepted:
+ *
+ * *   ``'`'``
+ *     — prefer grave accents
+ * *   `'~'`
+ *     — prefer tildes
+ * *   `'consistent'`
+ *     — detect the first used style and warn when further fenced code differs
+ *
+ * ## Recommendation
+ *
+ * Tildes are extremely uncommon.
+ * Due to this, it’s recommended to configure this rule with ``'`'``.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * formats fenced code with grave accents by default.
+ * Pass
+ * [`fence: '~'`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify#optionsfence)
+ * to always use tildes.
+ *
+ * @module fenced-code-marker
+ * @summary
+ *   remark-lint rule to warn when fenced code markers are inconsistent.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module fenced-code-marker
- * @fileoverview
- *   Warn for violating fenced code markers.
- *
- *   Options: `` '`' ``, `'~'`, or `'consistent'`, default: `'consistent'`.
- *
- *   `'consistent'` detects the first used fenced code marker style and warns
- *   when subsequent fenced code blocks use different styles.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   formats fences using ``'`'`` (grave accent) by default.
- *   Pass
- *   [`fence: '~'`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify#optionsfence)
- *   to use `~` (tilde) instead.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -21005,18 +21330,33 @@ const remarkLintFencedCodeMarker = lintRule(
 var remarkLintFencedCodeMarker$1 = remarkLintFencedCodeMarker;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that file extensions are `md`.
+ *
+ * ## API
+ *
+ * The following options (default: `'md'`) are accepted:
+ *
+ * *   `string` (example `'markdown'`)
+ *     — preferred file extension (no dot)
+ *
+ * > 👉 **Note**: does not warn when files have no file extensions (such as
+ * > `AUTHORS` or `LICENSE`).
+ *
+ * ## Recommendation
+ *
+ * Use `md` as it’s the most common.
+ * Also use `md` when your markdown contains common syntax extensions (such as
+ * GFM, frontmatter, or math).
+ * Do not use `md` for MDX: use `mdx` instead.
+ *
+ * @module file-extension
+ * @summary
+ *   remark-lint rule to check the file extension.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module file-extension
- * @fileoverview
- *   Warn when the file extension differ from the preferred extension.
- *
- *   Does not warn when given documents have no file extensions (such as
- *   `AUTHORS` or `LICENSE`).
- *
- *   Options: `string`, default: `'md'` — Expected file extension.
- *
  * @example
  *   {"name": "readme.md"}
  *
@@ -21050,14 +21390,28 @@ const remarkLintFileExtension = lintRule(
 var remarkLintFileExtension$1 = remarkLintFileExtension;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that definitions are placed at the end of
+ * the document.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * There are different strategies for placing definitions.
+ * The simplest is perhaps to place them all at the bottem of documents.
+ * If you prefer that, turn on this rule.
+ *
+ * @module final-definition
+ * @summary
+ *   remark-lint rule to warn when definitions are used *in* the document
+ *   instead of at the end.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module final-definition
- * @fileoverview
- *   Warn when definitions are placed somewhere other than at the end of
- *   the file.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -21135,15 +21489,31 @@ const remarkLintFinalDefinition = lintRule(
 var remarkLintFinalDefinition$1 = remarkLintFinalDefinition;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check the heading rank of the first heading.
+ *
+ * ## API
+ *
+ * The following options (default: `1`) are accepted:
+ *
+ * *   `number` (example `1`)
+ *     — expected rank of first heading
+ *
+ * ## Recommendation
+ *
+ * In most cases you’d want to first heading in a markdown document to start at
+ * rank 1.
+ * In some cases a different rank makes more sense, such as when building a blog
+ * and generating the primary heading from frontmatter metadata, in which case
+ * a value of `2` can be defined here.
+ *
+ * @module first-heading-level
+ * @summary
+ *   remark-lint rule to warn when the first heading has an unexpected rank.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module first-heading-level
- * @fileoverview
- *   Warn when the first heading has a level other than a specified value.
- *
- *   Options: `number`, default: `1`.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -21271,32 +21641,68 @@ function infer(node) {
 }
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that headings are consistent.
+ *
+ * ## API
+ *
+ * The following options (default: `'consistent'`) are accepted:
+ *
+ * *   `'atx'`
+ *     — prefer ATX headings:
+ *     ```markdown
+ *     ## Hello
+ *     ```
+ * *   `'atx-closed'`
+ *     — prefer ATX headings with a closing sequence:
+ *     ```markdown
+ *     ## Hello ##
+ *     ```
+ * *   `'setext'`
+ *     — prefer setext headings:
+ *     ```markdown
+ *     Hello
+ *     -----
+ *     ```
+ * *   `'consistent'`
+ *     — detect the first used style and warn when further headings differ
+ *
+ * ## Recommendation
+ *
+ * Setext headings are limited in that they can only construct headings with a
+ * rank of one and two.
+ * On the other hand, they do allow multiple lines of content whereas ATX only
+ * allows one line.
+ * The number of used markers in their underline does not matter, leading to
+ * either:
+ *
+ * *   1 marker (`Hello\n-`), which is the bare minimum, and for rank 2 headings
+ *     looks suspiciously like an empty list item
+ * *   using as many markers as the content (`Hello\n-----`), which is hard to
+ *     maintain
+ * *   an arbitrary number (`Hello\n---`), which for rank 2 headings looks
+ *     suspiciously like a thematic break
+ *
+ * Setext headings are also rather uncommon.
+ * Using a sequence of hashes at the end of ATX headings is even more uncommon.
+ * Due to this, it’s recommended to prefer ATX headings.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * formats headings as ATX by default.
+ * The other styles can be configured with
+ * [`setext: true`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify#optionssetext)
+ * or
+ * [`closeAtx: true`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify#optionscloseatx).
+ *
+ * @module heading-style
+ * @summary
+ *   remark-lint rule to warn when headings violate a given style.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module heading-style
- * @fileoverview
- *   Warn when a heading does not conform to a given style.
- *
- *   Options: `'consistent'`, `'atx'`, `'atx-closed'`, or `'setext'`,
- *   default: `'consistent'`.
- *
- *   `'consistent'` detects the first used heading style and warns when
- *   subsequent headings use different styles.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   formats headings as ATX by default.
- *   This can be configured with the
- *   [`setext`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify#optionssetext)
- *   and
- *   [`closeAtx`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify#optionscloseatx)
- *   options.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md", "setting": "atx"}
  *
@@ -21385,21 +21791,32 @@ const remarkLintHeadingStyle = lintRule(
 var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that lines do not exceed a certain size.
+ *
+ * ## API
+ *
+ * The following options (default: `80`) are accepted:
+ *
+ * *   `number` (example: `72`)
+ *     — max number of characters to accept in heading text
+ *
+ * Ignores nodes that cannot be wrapped, such as headings, tables, code,
+ * definitions, HTML, and JSX.
+ * Ignores images, links, and code (inline) if they start before the wrap, end
+ * after the wrap, and there’s no white space after them.
+ *
+ * ## Recommendation
+ *
+ * Whether to wrap prose or not is a stylistic choice.
+ *
+ * @module maximum-line-length
+ * @summary
+ *   remark-lint rule to warn when lines are too long.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module maximum-line-length
- * @fileoverview
- *   Warn when lines are too long.
- *
- *   Options: `number`, default: `80`.
- *
- *   Ignores nodes that cannot be wrapped, such as headings, tables, code,
- *   definitions, HTML, and JSX.
- *
- *   Ignores images, links, and inline code if they start before the wrap, end
- *   after the wrap, and there’s no whitespace after them.
- *
  * @example
  *   {"name": "ok.md", "positionless": true, "gfm": true}
  *
@@ -21424,7 +21841,7 @@ var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
  *
  *   <a><b><i><p><q><s><u>alpha bravo charlie delta echo foxtrot golf</u></s></q></p></i></b></a>
  *
- *   The following is also fine, because there is no whitespace.
+ *   The following is also fine (note the `.`), because there is no whitespace.
  *
  *   <http://this-long-url-with-a-long-domain-is-ok.co.uk/a-long-path?query=variables>.
  *
@@ -21589,24 +22006,31 @@ const remarkLintMaximumLineLength = lintRule(
 var remarkLintMaximumLineLength$1 = remarkLintMaximumLineLength;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that no more blank lines than needed
+ * are used between blocks.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * More than one blank line has no effect between blocks.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * adds exactly one blank line between any block.
+ *
+ * @module no-consecutive-blank-lines
+ * @summary
+ *   remark-lint rule to warn when more blank lines that needed are used
+ *   between blocks.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-consecutive-blank-lines
- * @fileoverview
- *   Warn for too many consecutive blank lines.
- *   Knows about the extra line needed between a list and indented code, and two
- *   lists.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   always uses one blank line between blocks if possible, or two lines when
- *   needed.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -21710,13 +22134,21 @@ const remarkLintNoConsecutiveBlankLines = lintRule(
 var remarkLintNoConsecutiveBlankLines$1 = remarkLintNoConsecutiveBlankLines;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that file names do not start with
+ *  articles (`a`, `the`, etc).
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * @module no-file-name-articles
+ * @summary
+ *   remark-lint rule to warn when file names start with articles.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-file-name-articles
- * @fileoverview
- *   Warn when file names start with an article.
- *
  * @example
  *   {"name": "title.md"}
  *
@@ -21759,13 +22191,21 @@ const remarkLintNoFileNameArticles = lintRule(
 var remarkLintNoFileNameArticles$1 = remarkLintNoFileNameArticles;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that no consecutive dashes appear in
+ * file names.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * @module no-file-name-consecutive-dashes
+ * @summary
+ *   remark-lint rule to warn when consecutive dashes appear in file names.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-file-name-consecutive-dashes
- * @fileoverview
- *   Warn when file names contain consecutive dashes.
- *
  * @example
  *   {"name": "plug-ins.md"}
  *
@@ -21791,13 +22231,21 @@ const remarkLintNoFileNameConsecutiveDashes = lintRule(
 var remarkLintNoFileNameConsecutiveDashes$1 = remarkLintNoFileNameConsecutiveDashes;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that no initial or final dashes appear in
+ * file names.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * @module no-file-name-outer-dashes
+ * @summary
+ *   remark-lint rule to warn when initial or final dashes appear in file names.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-file-name-outer-dashes
- * @fileoverview
- *   Warn when file names contain initial or final dashes (hyphen-minus, `-`).
- *
  * @example
  *   {"name": "readme.md"}
  *
@@ -21828,21 +22276,42 @@ const remarkLintNofileNameOuterDashes = lintRule(
 var remarkLintNofileNameOuterDashes$1 = remarkLintNofileNameOuterDashes;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that headings are not indented.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * There is no specific handling of indented headings (or anything else) in
+ * markdown.
+ * While it is possible to use an indent to headings on their text:
+ *
+ * ```markdown
+ *    # One
+ *   ## Two
+ *  ### Three
+ * #### Four
+ * ```
+ *
+ * …such style is uncommon, a bit hard to maintain, and it’s impossible to add a
+ * heading with a rank of 5 as it would form indented code instead.
+ * Hence, it’s recommended to not indent headings and to turn this rule on.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * formats all headings without indent.
+ *
+ * @module no-heading-indent
+ * @summary
+ *   remark-lint rule to warn when headings are indented.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-heading-indent
- * @fileoverview
- *   Warn when a heading is indented.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   removes all unneeded indentation before headings.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -21911,15 +22380,29 @@ const remarkLintNoHeadingIndent = lintRule(
 var remarkLintNoHeadingIndent$1 = remarkLintNoHeadingIndent;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that no more than one top level heading
+ * is used.
+ *
+ * ## API
+ *
+ * The following options (default: `1`) are accepted:
+ *
+ * *   `number` (example: `1`)
+ *     — assumed top level heading rank
+ *
+ * ## Recommendation
+ *
+ * Documents should almost always have one main heading, which is typically a
+ * heading with a rank of `1`.
+ *
+ * @module no-multiple-toplevel-headings
+ * @summary
+ *   remark-lint rule to warn when more than one top level heading is used.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-multiple-toplevel-headings
- * @fileoverview
- *   Warn when multiple top level headings are used.
- *
- *   Options: `number`, default: `1`.
- *
  * @example
  *   {"name": "ok.md", "setting": 1}
  *
@@ -21968,15 +22451,29 @@ const remarkLintNoMultipleToplevelHeadings = lintRule(
 var remarkLintNoMultipleToplevelHeadings$1 = remarkLintNoMultipleToplevelHeadings;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that not all lines in shell code are
+ * preceded by dollars (`$`).
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * Dollars make copy/pasting hard.
+ * Either put both dollars in front of some lines (to indicate shell commands)
+ * and don’t put them in front of other lines, or use fenced code to indicate
+ * shell commands on their own, followed by another fenced code that contains
+ * just the output.
+ *
+ * @module no-shell-dollars
+ * @summary
+ *   remark-lint rule to warn every line in shell code is preceded by `$`s.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-shell-dollars
- * @fileoverview
- *   Warn when shell code is prefixed by `$` (dollar sign) characters.
- *
- *   Ignores indented code blocks and fenced code blocks without language flag.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -22077,21 +22574,33 @@ const remarkLintNoShellDollars = lintRule(
 var remarkLintNoShellDollars$1 = remarkLintNoShellDollars;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that tables are not indented.
+ * Tables are a GFM feature enabled with
+ * [`remark-gfm`](https://github.com/remarkjs/remark-gfm).
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * There is no specific handling of indented tables (or anything else) in
+ * markdown.
+ * Hence, it’s recommended to not indent tables and to turn this rule on.
+ *
+ * ## Fix
+ *
+ * [`remark-gfm`](https://github.com/remarkjs/remark-gfm)
+ * formats all tables without indent.
+ *
+ * @module no-table-indentation
+ * @summary
+ *   remark-lint rule to warn when tables are indented.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-table-indentation
- * @fileoverview
- *   Warn when tables are indented.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   removes all unneeded indentation before tables.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md", "gfm": true}
  *
@@ -22207,22 +22716,60 @@ const remarkLintNoTableIndentation = lintRule(
 var remarkLintNoTableIndentation$1 = remarkLintNoTableIndentation;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that tabs are not used.
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * Regardless of the debate in other languages of whether to use tabs vs.
+ * spaces, when it comes to markdown, tabs do not work as expected.
+ * Largely around contains such as block quotes and lists.
+ * Take for example block quotes: `>\ta` gives a paragraph with the text `a`
+ * in a blockquote, so one might expect that `>\t\ta` results in indented code
+ * with the text `a` in a block quote.
+ *
+ * ```markdown
+ * >\ta
+ *
+ * >\t\ta
+ * ```
+ *
+ * Yields:
+ *
+ * ```html
+ * <blockquote>
+ * <p>a</p>
+ * </blockquote>
+ * <blockquote>
+ * <pre><code>  a
+ * </code></pre>
+ * </blockquote>
+ * ```
+ *
+ * Because markdown uses a hardcoded tab size of 4, the first tab could be
+ * represented as 3 spaces (because there’s a `>` before).
+ * One of those “spaces” is taken because block quotes allow the `>` to be
+ * followed by one space, leaving 2 spaces.
+ * The next tab can be represented as 4 spaces, so together we have 6 spaces.
+ * The indented code uses 4 spaces, so there are two spaces left, which are
+ * shown in the indented code.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * uses spaces exclusively for indentation.
+ *
+ * @module no-tabs
+ * @summary
+ *   remark-lint rule to warn when tabs are used.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module no-tabs
- * @fileoverview
- *   Warn when hard tabs (`\t`) are used instead of spaces.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   uses spaces where tabs are used for indentation, but retains tabs used in
- *   content.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -27656,35 +28203,49 @@ function prohibitedStrings (ast, file, strings) {
 }
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that rules (thematic breaks, horizontal
+ * rules) are consistent.
+ *
+ * ## API
+ *
+ * The following options (default: `'consistent'`) are accepted:
+ *
+ * *   `string` (example: `'** * **'`, `'___'`)
+ *     — thematic break to prefer
+ * *   `'consistent'`
+ *     — detect the first used style and warn when further rules differ
+ *
+ * ## Recommendation
+ *
+ * Rules consist of a `*`, `-`, or `_` character, which occurs at least three
+ * times with nothing else except for arbitrary spaces or tabs on a single line.
+ * Using spaces, tabs, and more than three markers seems unnecessary work to
+ * type out.
+ * Because asterisks can be used as a marker for more markdown constructs,
+ * it’s recommended to use that for rules (and lists, emphasis, strong) too.
+ * Due to this, it’s recommended to pass `'***'`.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * formats rules with `***` by default.
+ * There are three settings to control rules:
+ *
+ * *   [`rule`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify#optionsrule)
+ *     (default: `'*'`) — marker
+ * *   [`ruleRepetition`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify#optionsrulerepetition)
+ *     (default: `3`) — repetitions
+ * *   [`ruleSpaces`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify#optionsrulespaces)
+ *     (default: `false`) — use spaces between markers
+ *
+ * @module rule-style
+ * @summary
+ *   remark-lint rule to warn when rule markers are inconsistent.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module rule-style
- * @fileoverview
- *   Warn when the thematic breaks (horizontal rules) violate a given or
- *   detected style.
- *
- *   Options: `string`, either a corect thematic breaks such as `***`, or
- *   `'consistent'`, default: `'consistent'`.
- *
- *   `'consistent'` detects the first used thematic break style and warns when
- *   subsequent rules use different styles.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   has three settings that define how rules are created:
- *
- *   *   [`rule`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify#optionsrule)
- *       (default: `*`) — Marker to use
- *   *   [`ruleRepetition`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify#optionsrulerepetition)
- *       (default: `3`) — Number of markers to use
- *   *   [`ruleSpaces`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify#optionsrulespaces)
- *       (default: `true`) — Whether to pad markers with spaces
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md", "setting": "* * *"}
  *
@@ -27752,29 +28313,46 @@ const remarkLintRuleStyle = lintRule(
 var remarkLintRuleStyle$1 = remarkLintRuleStyle;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that strong markers are consistent.
+ *
+ * ## API
+ *
+ * The following options (default: `'consistent'`) are accepted:
+ *
+ * *   `'*'`
+ *     — prefer asterisks
+ * *   `'_'`
+ *     — prefer underscores
+ * *   `'consistent'`
+ *     — detect the first used style and warn when further strong differs
+ *
+ * ## Recommendation
+ *
+ * Underscores and asterisks work slightly different: asterisks can form strong
+ * in more cases than underscores.
+ * Because underscores are sometimes used to represent normal underscores inside
+ * words, there are extra rules supporting that.
+ * Asterisks can also be used as the marker of more constructs than underscores:
+ * lists.
+ * Due to having simpler parsing rules, looking more like syntax, and that they
+ * can be used for more constructs, it’s recommended to prefer asterisks.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * formats strong with asterisks by default.
+ * Pass
+ * [`strong: '_'`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify#optionsstrong)
+ * to always use underscores.
+ *
+ * @module strong-marker
+ * @summary
+ *   remark-lint rule to warn when strong markers are inconsistent.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module strong-marker
- * @fileoverview
- *   Warn for violating importance (strong) markers.
- *
- *   Options: `'consistent'`, `'*'`, or `'_'`, default: `'consistent'`.
- *
- *   `'consistent'` detects the first used importance style and warns when
- *   subsequent importance sequences use different styles.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   formats importance using an `*` (asterisk) by default.
- *   Pass
- *   [`strong: '_'`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify#optionsstrong)
- *   to use `_` (underscore) instead.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -27847,29 +28425,42 @@ const remarkLintStrongMarker = lintRule(
 var remarkLintStrongMarker$1 = remarkLintStrongMarker;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that table cells are padded consistently.
+ * Tables are a GFM feature enabled with
+ * [`remark-gfm`](https://github.com/remarkjs/remark-gfm).
+ *
+ * ## API
+ *
+ * The following options (default: `'consistent'`) are accepted:
+ *
+ * *   `'padded'`
+ *     — prefer at least one space between pipes and content
+ * *   `'compact'`
+ *     — prefer zero spaces between pipes and content
+ * *   `'consistent'`
+ *     — detect the first used style and warn when further tables differ
+ *
+ * ## Recommendation
+ *
+ * It’s recommended to use at least one space between pipes and content for
+ * legibility of the markup (`'padded'`).
+ *
+ * ## Fix
+ *
+ * [`remark-gfm`](https://github.com/remarkjs/remark-gfm)
+ * formats all table cells as padded by default.
+ * Pass
+ * [`tableCellPadding: false`](https://github.com/remarkjs/remark-gfm#optionstablecellpadding)
+ * to use a more compact style.
+ *
+ * @module table-cell-padding
+ * @summary
+ *   remark-lint rule to warn when table cells are inconsistently padded.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module table-cell-padding
- * @fileoverview
- *   Warn when table cells are incorrectly padded.
- *
- *   Options: `'consistent'`, `'padded'`, or `'compact'`, default: `'consistent'`.
- *
- *   `'consistent'` detects the first used cell padding style and warns when
- *   subsequent cells use different styles.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   formats tables with padding by default.
- *   Pass
- *   [`spacedTable: false`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify#optionsspacedtable)
- *   to not use padding.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md", "setting": "padded", "gfm": true}
  *
@@ -28042,9 +28633,9 @@ const remarkLintTableCellPadding = lintRule(
       // To do: fix types to always have `align` defined.
       /* c8 ignore next */
       const align = node.align || [];
-      /** @type {number[]} */
+      /** @type {Array<number>} */
       const sizes = [];
-      /** @type {Entry[]} */
+      /** @type {Array<Entry>} */
       const entries = [];
       let index = -1;
 
@@ -28124,7 +28715,7 @@ const remarkLintTableCellPadding = lintRule(
      * @param {'start'|'end'} side
      * @param {Entry} entry
      * @param {0|1} style
-     * @param {number[]} sizes
+     * @param {Array<number>} sizes
      */
     function checkSide(side, entry, style, sizes) {
       const cell = entry.node;
@@ -28198,21 +28789,34 @@ function size$1(node) {
 }
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that tables have initial and final
+ * delimiters.
+ * Tables are a GFM feature enabled with
+ * [`remark-gfm`](https://github.com/remarkjs/remark-gfm).
+ *
+ * ## API
+ *
+ * There are no options.
+ *
+ * ## Recommendation
+ *
+ * While tables don’t require initial or final delimiters (pipes before the
+ * first and after the last cells in a row), it arguably does look weird.
+ *
+ * ## Fix
+ *
+ * [`remark-gfm`](https://github.com/remarkjs/remark-gfm)
+ * formats all tables with initial and final delimiters.
+ *
+ * @module table-pipes
+ * @summary
+ *   remark-lint rule to warn when tables are missing initial and final
+ *   delimiters.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module table-pipes
- * @fileoverview
- *   Warn when table rows are not fenced with pipes.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   creates fenced rows with initial and final pipes by default.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md", "gfm": true}
  *
@@ -28277,30 +28881,44 @@ const remarkLintTablePipes = lintRule(
 var remarkLintTablePipes$1 = remarkLintTablePipes;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that unordered list markers (bullets)
+ * are consistent.
+ *
+ * ## API
+ *
+ * The following options (default: `'consistent'`) are accepted:
+ *
+ * *   `'*'`
+ *     — prefer asterisks
+ * *   `'+'`
+ *     — prefer plusses
+ * *   `'-'`
+ *     — prefer dashes
+ * *   `'consistent'`
+ *     — detect the first used style and warn when further markers differ
+ *
+ * ## Recommendation
+ *
+ * Because asterisks can be used as a marker for more markdown constructs,
+ * it’s recommended to use that for lists (and thematic breaks, emphasis,
+ * strong) too.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * formats ordered lists with asterisks by default.
+ * Pass
+ * [`bullet: '+'` or `bullet: '-'`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify#optionsbullet)
+ * to always use plusses or dashes.
+ *
+ * @module unordered-list-marker-style
+ * @summary
+ *   remark-lint rule to warn when unordered list markers are inconsistent.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module unordered-list-marker-style
- * @fileoverview
- *   Warn when the list item marker style of unordered lists violate a given
- *   style.
- *
- *   Options: `'consistent'`, `'-'`, `'*'`, or `'+'`, default: `'consistent'`.
- *
- *   `'consistent'` detects the first used list style and warns when subsequent
- *   lists use different styles.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   formats unordered lists using `-` (hyphen-minus) by default.
- *   Pass
- *   [`bullet: '*'` or `bullet: '+'`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify#optionsbullet)
- *   to use `*` (asterisk) or `+` (plus sign) instead.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
- *
  * @example
  *   {"name": "ok.md"}
  *
@@ -28702,165 +29320,6 @@ toVFile.writeSync = writeSync;
 toVFile.read = read;
 toVFile.write = write;
 
-// From: https://github.com/sindresorhus/has-flag/blob/main/index.js
-function hasFlag(flag, argv = process$2.argv) {
-	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
-	const position = argv.indexOf(prefix + flag);
-	const terminatorPosition = argv.indexOf('--');
-	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
-}
-
-const {env} = process$2;
-
-let flagForceColor;
-if (
-	hasFlag('no-color')
-	|| hasFlag('no-colors')
-	|| hasFlag('color=false')
-	|| hasFlag('color=never')
-) {
-	flagForceColor = 0;
-} else if (
-	hasFlag('color')
-	|| hasFlag('colors')
-	|| hasFlag('color=true')
-	|| hasFlag('color=always')
-) {
-	flagForceColor = 1;
-}
-
-function envForceColor() {
-	if ('FORCE_COLOR' in env) {
-		if (env.FORCE_COLOR === 'true') {
-			return 1;
-		}
-
-		if (env.FORCE_COLOR === 'false') {
-			return 0;
-		}
-
-		return env.FORCE_COLOR.length === 0 ? 1 : Math.min(Number.parseInt(env.FORCE_COLOR, 10), 3);
-	}
-}
-
-function translateLevel(level) {
-	if (level === 0) {
-		return false;
-	}
-
-	return {
-		level,
-		hasBasic: true,
-		has256: level >= 2,
-		has16m: level >= 3,
-	};
-}
-
-function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
-	const noFlagForceColor = envForceColor();
-	if (noFlagForceColor !== undefined) {
-		flagForceColor = noFlagForceColor;
-	}
-
-	const forceColor = sniffFlags ? flagForceColor : noFlagForceColor;
-
-	if (forceColor === 0) {
-		return 0;
-	}
-
-	if (sniffFlags) {
-		if (hasFlag('color=16m')
-			|| hasFlag('color=full')
-			|| hasFlag('color=truecolor')) {
-			return 3;
-		}
-
-		if (hasFlag('color=256')) {
-			return 2;
-		}
-	}
-
-	if (haveStream && !streamIsTTY && forceColor === undefined) {
-		return 0;
-	}
-
-	const min = forceColor || 0;
-
-	if (env.TERM === 'dumb') {
-		return min;
-	}
-
-	if (process$2.platform === 'win32') {
-		// Windows 10 build 10586 is the first Windows release that supports 256 colors.
-		// Windows 10 build 14931 is the first release that supports 16m/TrueColor.
-		const osRelease = os.release().split('.');
-		if (
-			Number(osRelease[0]) >= 10
-			&& Number(osRelease[2]) >= 10_586
-		) {
-			return Number(osRelease[2]) >= 14_931 ? 3 : 2;
-		}
-
-		return 1;
-	}
-
-	if ('CI' in env) {
-		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'GITHUB_ACTIONS', 'BUILDKITE', 'DRONE'].some(sign => sign in env) || env.CI_NAME === 'codeship') {
-			return 1;
-		}
-
-		return min;
-	}
-
-	if ('TEAMCITY_VERSION' in env) {
-		return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
-	}
-
-	if (env.COLORTERM === 'truecolor') {
-		return 3;
-	}
-
-	if ('TERM_PROGRAM' in env) {
-		const version = Number.parseInt((env.TERM_PROGRAM_VERSION || '').split('.')[0], 10);
-
-		switch (env.TERM_PROGRAM) {
-			case 'iTerm.app':
-				return version >= 3 ? 3 : 2;
-			case 'Apple_Terminal':
-				return 2;
-			// No default
-		}
-	}
-
-	if (/-256(color)?$/i.test(env.TERM)) {
-		return 2;
-	}
-
-	if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
-		return 1;
-	}
-
-	if ('COLORTERM' in env) {
-		return 1;
-	}
-
-	return min;
-}
-
-function createSupportsColor(stream, options = {}) {
-	const level = _supportsColor(stream, {
-		streamIsTTY: stream && stream.isTTY,
-		...options,
-	});
-
-	return translateLevel(level);
-}
-
-const supportsColor = {
-	stdout: createSupportsColor({isTTY: tty.isatty(1)}),
-	stderr: createSupportsColor({isTTY: tty.isatty(2)}),
-};
-
 function ansiRegex({onlyFirst = false} = {}) {
 	const pattern = [
 	    '[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
@@ -29081,6 +29540,174 @@ function compare(a, b, property) {
   return String(a[property] || '').localeCompare(b[property] || '')
 }
 
+// From: https://github.com/sindresorhus/has-flag/blob/main/index.js
+function hasFlag(flag, argv = process$2.argv) {
+	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
+	const position = argv.indexOf(prefix + flag);
+	const terminatorPosition = argv.indexOf('--');
+	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
+}
+
+const {env} = process$2;
+
+let flagForceColor;
+if (
+	hasFlag('no-color')
+	|| hasFlag('no-colors')
+	|| hasFlag('color=false')
+	|| hasFlag('color=never')
+) {
+	flagForceColor = 0;
+} else if (
+	hasFlag('color')
+	|| hasFlag('colors')
+	|| hasFlag('color=true')
+	|| hasFlag('color=always')
+) {
+	flagForceColor = 1;
+}
+
+function envForceColor() {
+	if ('FORCE_COLOR' in env) {
+		if (env.FORCE_COLOR === 'true') {
+			return 1;
+		}
+
+		if (env.FORCE_COLOR === 'false') {
+			return 0;
+		}
+
+		return env.FORCE_COLOR.length === 0 ? 1 : Math.min(Number.parseInt(env.FORCE_COLOR, 10), 3);
+	}
+}
+
+function translateLevel(level) {
+	if (level === 0) {
+		return false;
+	}
+
+	return {
+		level,
+		hasBasic: true,
+		has256: level >= 2,
+		has16m: level >= 3,
+	};
+}
+
+function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
+	const noFlagForceColor = envForceColor();
+	if (noFlagForceColor !== undefined) {
+		flagForceColor = noFlagForceColor;
+	}
+
+	const forceColor = sniffFlags ? flagForceColor : noFlagForceColor;
+
+	if (forceColor === 0) {
+		return 0;
+	}
+
+	if (sniffFlags) {
+		if (hasFlag('color=16m')
+			|| hasFlag('color=full')
+			|| hasFlag('color=truecolor')) {
+			return 3;
+		}
+
+		if (hasFlag('color=256')) {
+			return 2;
+		}
+	}
+
+	if (haveStream && !streamIsTTY && forceColor === undefined) {
+		return 0;
+	}
+
+	const min = forceColor || 0;
+
+	if (env.TERM === 'dumb') {
+		return min;
+	}
+
+	if (process$2.platform === 'win32') {
+		// Windows 10 build 10586 is the first Windows release that supports 256 colors.
+		// Windows 10 build 14931 is the first release that supports 16m/TrueColor.
+		const osRelease = os.release().split('.');
+		if (
+			Number(osRelease[0]) >= 10
+			&& Number(osRelease[2]) >= 10_586
+		) {
+			return Number(osRelease[2]) >= 14_931 ? 3 : 2;
+		}
+
+		return 1;
+	}
+
+	if ('CI' in env) {
+		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'GITHUB_ACTIONS', 'BUILDKITE', 'DRONE'].some(sign => sign in env) || env.CI_NAME === 'codeship') {
+			return 1;
+		}
+
+		return min;
+	}
+
+	if ('TEAMCITY_VERSION' in env) {
+		return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
+	}
+
+	// Check for Azure DevOps pipelines
+	if ('TF_BUILD' in env && 'AGENT_NAME' in env) {
+		return 1;
+	}
+
+	if (env.COLORTERM === 'truecolor') {
+		return 3;
+	}
+
+	if ('TERM_PROGRAM' in env) {
+		const version = Number.parseInt((env.TERM_PROGRAM_VERSION || '').split('.')[0], 10);
+
+		switch (env.TERM_PROGRAM) {
+			case 'iTerm.app':
+				return version >= 3 ? 3 : 2;
+			case 'Apple_Terminal':
+				return 2;
+			// No default
+		}
+	}
+
+	if (/-256(color)?$/i.test(env.TERM)) {
+		return 2;
+	}
+
+	if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
+		return 1;
+	}
+
+	if ('COLORTERM' in env) {
+		return 1;
+	}
+
+	return min;
+}
+
+function createSupportsColor(stream, options = {}) {
+	const level = _supportsColor(stream, {
+		streamIsTTY: stream && stream.isTTY,
+		...options,
+	});
+
+	return translateLevel(level);
+}
+
+const supportsColor = {
+	stdout: createSupportsColor({isTTY: tty.isatty(1)}),
+	stderr: createSupportsColor({isTTY: tty.isatty(2)}),
+};
+
+/** @type {boolean} */
+// @ts-expect-error Types are incorrect.
+const color = supportsColor.stderr.hasBasic;
+
 /**
  * @typedef {import('vfile').VFile} VFile
  * @typedef {import('vfile-message').VFileMessage} VFileMessage
@@ -29093,30 +29720,27 @@ function compare(a, b, property) {
  * @property {boolean} [verbose=false]
  * @property {string} [defaultName='<stdin>']
  *
- * @typedef _Row
+ * @typedef Row
  * @property {string} place
  * @property {string} label
  * @property {string} reason
  * @property {string} ruleId
  * @property {string} source
  *
- * @typedef _FileRow
+ * @typedef FileRow
  * @property {'file'} type
  * @property {VFile} file
  * @property {Statistics} stats
  *
- * @typedef {{[x: string]: number}} _Sizes
+ * @typedef {{[x: string]: number}} Sizes
  *
- * @typedef _Info
- * @property {Array.<_FileRow|_Row>} rows
+ * @typedef Info
+ * @property {Array<FileRow|Row>} rows
  * @property {Statistics} stats
- * @property {_Sizes} sizes
+ * @property {Sizes} sizes
  */
 
 const own = {}.hasOwnProperty;
-
-// @ts-expect-error Types are incorrect.
-const supported = supportsColor.stderr.hasBasic;
 
 // `log-symbols` without chalk, ignored for Windows:
 /* c8 ignore next 4 */
@@ -29135,7 +29759,7 @@ const labels = {
 /**
  * Report a file’s messages.
  *
- * @param {Error|VFile|Array.<VFile>} [files]
+ * @param {Error|VFile|Array<VFile>} [files]
  * @param {Options} [options]
  * @returns {string}
  */
@@ -29162,23 +29786,23 @@ function reporter(files, options = {}) {
 }
 
 /**
- * @param {Array.<VFile>} files
+ * @param {Array<VFile>} files
  * @param {Options} options
- * @returns {_Info}
+ * @returns {Info}
  */
 function transform(files, options) {
-  /** @type {Array.<_FileRow|_Row>} */
+  /** @type {Array<FileRow|Row>} */
   const rows = [];
-  /** @type {Array.<VFileMessage>} */
+  /** @type {Array<VFileMessage>} */
   const all = [];
-  /** @type {_Sizes} */
+  /** @type {Sizes} */
   const sizes = {};
   let index = -1;
 
   while (++index < files.length) {
     // @ts-expect-error it works fine.
     const messages = sort({messages: [...files[index].messages]}).messages;
-    /** @type {Array.<_Row>} */
+    /** @type {Array<Row>} */
     const messageRows = [];
     let offset = -1;
 
@@ -29230,7 +29854,7 @@ function transform(files, options) {
 }
 
 /**
- * @param {_Info} map
+ * @param {Info} map
  * @param {boolean|undefined} one
  * @param {Options} options
  */
@@ -29239,9 +29863,9 @@ function format$1(map, one, options) {
   /** @type {boolean} */
   const enabled =
     options.color === undefined || options.color === null
-      ? supported
+      ? color
       : options.color;
-  /** @type {Array.<string>} */
+  /** @type {Array<string>} */
   const lines = [];
   let index = -1;
 
