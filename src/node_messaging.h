@@ -322,6 +322,7 @@ class JSTransferable : public BaseObject {
  public:
   JSTransferable(Environment* env, v8::Local<v8::Object> obj);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static v8::Local<v8::Function> GetConstructorFunction(v8::Isolate* isolate);
 
   TransferMode GetTransferMode() const override;
   std::unique_ptr<TransferData> TransferForMessaging() override;

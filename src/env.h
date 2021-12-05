@@ -168,15 +168,13 @@ constexpr size_t kFsStatsBufferLength =
   V(async_id_symbol, "async_id_symbol")                                        \
   V(handle_onclose_symbol, "handle_onclose")                                   \
   V(no_message_symbol, "no_message_symbol")                                    \
-  V(messaging_deserialize_symbol, "messaging_deserialize_symbol")              \
   V(messaging_transfer_symbol, "messaging_transfer_symbol")                    \
-  V(messaging_clone_symbol, "messaging_clone_symbol")                          \
   V(messaging_transfer_list_symbol, "messaging_transfer_list_symbol")          \
   V(oninit_symbol, "oninit")                                                   \
   V(owner_symbol, "owner_symbol")                                              \
   V(onpskexchange_symbol, "onpskexchange")                                     \
   V(resource_symbol, "resource_symbol")                                        \
-  V(trigger_async_id_symbol, "trigger_async_id_symbol")                        \
+  V(trigger_async_id_symbol, "trigger_async_id_symbol")
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
@@ -455,10 +453,12 @@ constexpr size_t kFsStatsBufferLength =
   V(x_forwarded_string, "x-forwarded-for")                                     \
   V(zero_return_string, "ZERO_RETURN")
 
+#define PER_ISOLATE_ETERNALS(V)                                                \
+  V(base_object_ctor_template, v8::FunctionTemplate)
+
 #define ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                             \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
-  V(base_object_ctor_template, v8::FunctionTemplate)                           \
   V(binding_data_ctor_template, v8::FunctionTemplate)                          \
   V(blob_constructor_template, v8::FunctionTemplate)                           \
   V(blocklist_constructor_template, v8::FunctionTemplate)                      \
@@ -1327,6 +1327,14 @@ class Environment : public MemoryRetainer {
   inline void set_ ## PropertyName(v8::Local<TypeName> value);
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
   ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
+  PER_ISOLATE_ETERNALS(V)
+#undef V
+
+#define V(PropertyName, TypeName)                                              \
+  static v8::Local<TypeName> get_##PropertyName(v8::Isolate* isolate);         \
+  static void set_##PropertyName(v8::Isolate* isolate,                         \
+                                 v8::Local<TypeName> value);
+  PER_ISOLATE_ETERNALS(V)
 #undef V
 
   inline v8::Local<v8::Context> context() const;

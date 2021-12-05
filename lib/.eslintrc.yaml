@@ -239,3 +239,4 @@ globals:
   module: false
   internalBinding: false
   primordials: false
+  JSTransferable: false

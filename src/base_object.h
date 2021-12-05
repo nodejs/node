@@ -112,6 +112,9 @@ class BaseObject : public MemoryRetainer {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      v8::Isolate* isolate);
+
   // Interface for transferring BaseObject instances using the .postMessage()
   // method of MessagePorts (and, by extension, Workers).
   // GetTransferMode() returns a transfer mode that indicates how to deal with

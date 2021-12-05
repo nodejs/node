@@ -1289,9 +1289,19 @@ void Environment::set_process_exit_handler(
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
-v8::Local<v8::Context> Environment::context() const {
-  return PersistentToLocal::Strong(context_);
-}
+#define V(PropertyName, TypeName)                                              \
+  inline v8::Local<TypeName> Environment::PropertyName() const {               \
+    return get_##PropertyName(isolate());                                      \
+  }                                                                            \
+  inline void Environment::set_##PropertyName(v8::Local<TypeName> value) {     \
+    set_##PropertyName(isolate(), value);                                      \
+  }
+  PER_ISOLATE_ETERNALS(V)
+#undef V
+
+  v8::Local<v8::Context> Environment::context() const {
+    return PersistentToLocal::Strong(context_);
+  }
 
 }  // namespace node
 

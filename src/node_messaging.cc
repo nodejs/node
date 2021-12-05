@@ -1136,14 +1136,32 @@ void JSTransferable::New(const FunctionCallbackInfo<Value>& args) {
   new JSTransferable(Environment::GetCurrent(args), args.This());
 }
 
+Local<Function> JSTransferable::GetConstructorFunction(Isolate* isolate) {
+  Local<FunctionTemplate> tmpl =
+      FunctionTemplate::New(isolate,
+                            New,
+                            Local<Value>(),
+                            Local<v8::Signature>(),
+                            0,
+                            v8::ConstructorBehavior::kAllow,
+                            v8::SideEffectType::kHasSideEffect,
+                            nullptr);
+  tmpl->Inherit(BaseObject::GetConstructorTemplate(isolate));
+  tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
+  return tmpl->GetFunction(isolate->GetCurrentContext()).ToLocalChecked();
+}
+
 JSTransferable::TransferMode JSTransferable::GetTransferMode() const {
   // Implement `kClone in this ? kCloneable : kTransferable`.
   HandleScope handle_scope(env()->isolate());
   errors::TryCatchScope ignore_exceptions(env());
 
   bool has_clone;
-  if (!object()->Has(env()->context(),
-                     env()->messaging_clone_symbol()).To(&has_clone)) {
+
+  Local<String> kClone =
+      FIXED_ONE_BYTE_STRING(env()->isolate(), "nodejs.worker_threads.clone");
+
+  if (!object()->Has(env()->context(), kClone).To(&has_clone)) {
     return TransferMode::kUntransferable;
   }
 
@@ -1166,8 +1184,12 @@ std::unique_ptr<TransferData> JSTransferable::TransferOrClone(
   // on the `TransferData` instance as a string.
   HandleScope handle_scope(env()->isolate());
   Local<Context> context = env()->isolate()->GetCurrentContext();
-  Local<Symbol> method_name = mode == TransferMode::kCloneable ?
-      env()->messaging_clone_symbol() : env()->messaging_transfer_symbol();
+  Local<String> kClone =
+      FIXED_ONE_BYTE_STRING(env()->isolate(), "nodejs.worker_threads.clone");
+  Local<Value> method_name =
+      mode == TransferMode::kCloneable
+          ? kClone.As<Value>()
+          : env()->messaging_transfer_symbol().As<Value>();
 
   Local<Value> method;
   if (!object()->Get(context, method_name).ToLocal(&method)) {
@@ -1242,7 +1264,8 @@ Maybe<bool> JSTransferable::FinalizeTransferRead(
   Local<Value> data;
   if (!deserializer->ReadValue(context).ToLocal(&data)) return Nothing<bool>();
 
-  Local<Symbol> method_name = env()->messaging_deserialize_symbol();
+  Local<String> method_name = FIXED_ONE_BYTE_STRING(
+      env()->isolate(), "nodejs.worker_threads.deserialize");
   Local<Value> method;
   if (!object()->Get(context, method_name).ToLocal(&method)) {
     return Nothing<bool>();
@@ -1459,13 +1482,11 @@ static void InitMessaging(Local<Object> target,
         env->NewFunctionTemplate(MessageChannel));
   }
 
-  {
-    Local<FunctionTemplate> t = env->NewFunctionTemplate(JSTransferable::New);
-    t->Inherit(BaseObject::GetConstructorTemplate(env));
-    t->InstanceTemplate()->SetInternalFieldCount(
-        JSTransferable::kInternalFieldCount);
-    env->SetConstructorFunction(target, "JSTransferable", t);
-  }
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "JSTransferable"),
+            JSTransferable::GetConstructorFunction(env->isolate()))
+      .Check();
 
   env->SetConstructorFunction(
       target,

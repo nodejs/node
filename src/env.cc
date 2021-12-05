@@ -62,6 +62,22 @@ int const Environment::kNodeContextTag = 0x6e6f64;
 void* const Environment::kNodeContextTagPtr = const_cast<void*>(
     static_cast<const void*>(&Environment::kNodeContextTag));
 
+#define V(PropertyName, TypeName)                                              \
+  static v8::Eternal<TypeName> PropertyName##_eternal;
+PER_ISOLATE_ETERNALS(V)
+#undef V
+
+#define V(PropertyName, TypeName)                                              \
+  Local<TypeName> Environment::get_##PropertyName(Isolate* isolate) {          \
+    return PropertyName##_eternal.Get(isolate);                                \
+  }                                                                            \
+  void Environment::set_##PropertyName(Isolate* isolate,                       \
+                                       Local<TypeName> value) {                \
+    PropertyName##_eternal.Set(isolate, value);                                \
+  }
+PER_ISOLATE_ETERNALS(V)
+#undef V
+
 std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
   Isolate* isolate = creator->GetIsolate();
   std::vector<size_t> indexes;
@@ -1354,6 +1370,7 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
     id++;                                                                      \
   } while (0);
   ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
+  PER_ISOLATE_ETERNALS(V)
 #undef V
 
   id = 0;
@@ -1488,6 +1505,7 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
 #define V(PropertyName, TypeName) SetProperty(PropertyName, TypeName,          \
                                               templates, template, isolate_)
   ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V);
+  PER_ISOLATE_ETERNALS(V)
 #undef V
 
   i = 0;  // index to the array
@@ -1736,11 +1754,23 @@ bool BaseObject::IsRootNode() const {
 }
 
 Local<FunctionTemplate> BaseObject::GetConstructorTemplate(Environment* env) {
-  Local<FunctionTemplate> tmpl = env->base_object_ctor_template();
+  return GetConstructorTemplate(env->isolate());
+}
+
+Local<FunctionTemplate> BaseObject::GetConstructorTemplate(Isolate* isolate) {
+  Local<FunctionTemplate> tmpl =
+      Environment::get_base_object_ctor_template(isolate);
   if (tmpl.IsEmpty()) {
-    tmpl = env->NewFunctionTemplate(nullptr);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BaseObject"));
-    env->set_base_object_ctor_template(tmpl);
+    tmpl = FunctionTemplate::New(isolate,
+                                 nullptr,
+                                 Local<Value>(),
+                                 Local<v8::Signature>(),
+                                 0,
+                                 v8::ConstructorBehavior::kAllow,
+                                 v8::SideEffectType::kHasSideEffect,
+                                 nullptr);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "BaseObject"));
+    Environment::set_base_object_ctor_template(isolate, tmpl);
   }
   return tmpl;
 }

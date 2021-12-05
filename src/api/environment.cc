@@ -2,6 +2,7 @@
 #include "node_context_data.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "node_messaging.h"
 #include "node_native_module_env.h"
 #include "node_options-inl.h"
 #include "node_platform.h"
@@ -681,6 +682,8 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
       FIXED_ONE_BYTE_STRING(isolate, "primordials");
   Local<String> global_string = FIXED_ONE_BYTE_STRING(isolate, "global");
   Local<String> exports_string = FIXED_ONE_BYTE_STRING(isolate, "exports");
+  Local<String> js_transferable_string =
+      FIXED_ONE_BYTE_STRING(isolate, "JSTransferable");
 
   // Create primordials first and make it available to per-context scripts.
   Local<Object> primordials = Object::New(isolate);
@@ -696,9 +699,15 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
                                         nullptr};
 
   for (const char** module = context_files; *module != nullptr; module++) {
-    std::vector<Local<String>> parameters = {
-        global_string, exports_string, primordials_string};
-    Local<Value> arguments[] = {context->Global(), exports, primordials};
+    std::vector<Local<String>> parameters = {global_string,
+                                             exports_string,
+                                             primordials_string,
+                                             js_transferable_string};
+    Local<Value> arguments[] = {
+        context->Global(),
+        exports,
+        primordials,
+        worker::JSTransferable::GetConstructorFunction(isolate)};
     MaybeLocal<Function> maybe_fn =
         native_module::NativeModuleEnv::LookupAndCompile(
             context, *module, &parameters, nullptr);
