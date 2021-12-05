@@ -353,7 +353,6 @@ module.exports = {
     'jsdoc/tag-lines': 'off',
     'jsdoc/require-returns-type': 'off',
     'jsdoc/check-alignment': 'off',
-    'jsdoc/require-returns-check': 'off',
 
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',
