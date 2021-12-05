@@ -378,40 +378,6 @@ assert.strictEqual(
   testUnlimitedKeys();
 }
 
-{
-  const b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
-    '%0d%ac%a2%2f%9d%eb%d8%a2%e6');
-  // <Buffer d3 f2 55 67 1f 36 76 24 5e 98 cb 0d ac a2 2f 9d eb d8 a2 e6>
-  assert.strictEqual(b[0], 0xd3);
-  assert.strictEqual(b[1], 0xf2);
-  assert.strictEqual(b[2], 0x55);
-  assert.strictEqual(b[3], 0x67);
-  assert.strictEqual(b[4], 0x1f);
-  assert.strictEqual(b[5], 0x36);
-  assert.strictEqual(b[6], 0x76);
-  assert.strictEqual(b[7], 0x24);
-  assert.strictEqual(b[8], 0x5e);
-  assert.strictEqual(b[9], 0x98);
-  assert.strictEqual(b[10], 0xcb);
-  assert.strictEqual(b[11], 0x0d);
-  assert.strictEqual(b[12], 0xac);
-  assert.strictEqual(b[13], 0xa2);
-  assert.strictEqual(b[14], 0x2f);
-  assert.strictEqual(b[15], 0x9d);
-  assert.strictEqual(b[16], 0xeb);
-  assert.strictEqual(b[17], 0xd8);
-  assert.strictEqual(b[18], 0xa2);
-  assert.strictEqual(b[19], 0xe6);
-}
-
-assert.strictEqual(qs.unescapeBuffer('a+b', true).toString(), 'a b');
-assert.strictEqual(qs.unescapeBuffer('a+b').toString(), 'a+b');
-assert.strictEqual(qs.unescapeBuffer('a%').toString(), 'a%');
-assert.strictEqual(qs.unescapeBuffer('a%2').toString(), 'a%2');
-assert.strictEqual(qs.unescapeBuffer('a%20').toString(), 'a ');
-assert.strictEqual(qs.unescapeBuffer('a%2g').toString(), 'a%2g');
-assert.strictEqual(qs.unescapeBuffer('a%%').toString(), 'a%%');
-
 // Test invalid encoded string
 check(qs.parse('%\u0100=%\u0101'), { '%Ā': '%ā' });
 
@@ -459,10 +425,9 @@ check(qs.parse('%\u0100=%\u0101'), { '%Ā': '%ā' });
     'number=1&bigint=2&true=true&false=false&object=');
 }
 
-// Test QueryString.unescapeBuffer
+// Test QueryString.unescape
 qsUnescapeTestCases.forEach((testCase) => {
   assert.strictEqual(qs.unescape(testCase[0]), testCase[1]);
-  assert.strictEqual(qs.unescapeBuffer(testCase[0]).toString(), testCase[1]);
 });
 
 // Test overriding .unescape
