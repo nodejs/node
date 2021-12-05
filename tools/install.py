@@ -163,6 +163,8 @@ def files(action):
 
   if 'true' == variables.get('node_install_npm'):
     npm_files(action)
+
+  if 'true' == variables.get('node_install_corepack'):
     corepack_files(action)
 
   headers(action)
