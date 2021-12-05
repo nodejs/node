@@ -1913,6 +1913,153 @@ added: v15.0.0
 
 * Type: {string|ArrayBuffer|Buffer|TypedArray|DataView}
 
+## Crypto Streams
+
+The "Crypto Streams" are Web Crypto API compatible implementations of Web
+Streams objects.
+
+### Class: `DigestStream`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A {WritableStream} implementation that calculates a hash digest of all data
+written into it.
+
+#### `new DigestStream(algorithm[, queueingStrategy])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `algorithm`: {string|Object}
+* `queueingStrategy` {Object}
+  * `highWaterMark` {number} The maximum internal queue size before backpressure
+    is applied.
+  * `size` {Function} A user-defined function used to identify the size of each
+
+Using the method identified by `algorithm`, the `DigestStream` generates a
+digest of all data written into it.
+
+If `algorithm` is provided as a {string}, it must be one of:
+
+* `'SHA-1'`
+* `'SHA-256'`
+* `'SHA-384'`
+* `'SHA-512'`
+
+If `algorithm` is provided as an {Object}, it must have a `name` property
+whose value is one of the above.
+
+#### `digestStream.digest`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Promise} A promise fulfilled with an {ArrayBuffer} containing the
+  hash digest.
+
+### Class: `SignStream`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A {WritableStream} implemenation that calculates a cryptographic signature
+of all data written into it.
+
+#### `new SignStream(algorithm, key[, queueingStrategy])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!--lint disable maximum-line-length remark-lint-->
+
+* `algorithm`: {RsaSignParams|RsaPssParams|EcdsaParams|HmacParams|NodeDsaSignParams}
+* `key`: {CryptoKey}
+* `queueingStrategy` {Object}
+  * `highWaterMark` {number} The maximum internal queue size before backpressure
+    is applied.
+  * `size` {Function} A user-defined function used to identify the size of each
+
+<!--lint enable maximum-line-length remark-lint-->
+
+Using the method and parameters given by `algorithm` and he keying material
+provided by `key`, the `SignStream` generates a cryptographic signature of the
+data written into the stream.
+
+The algorithms currently supported include:
+
+* `'RSASSA-PKCS1-v1_5'`
+* `'RSA-PSS'`
+* `'ECDSA'`
+* `'HMAC'`
+* `'NODE-DSA'`[^1]
+* `'NODE-ED25519'`[^1]
+* `'NODE-ED448'`[^1]
+
+#### `signStream.signature`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Promise} A promise fulfilled with an {ArrayBuffer} containing the
+  calculated signature.
+
+### Class: `VerifyStream`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A {WritableStream} implemenation that verified a cryptographic signature
+of all data written into it.
+
+#### `new VerifyStream(algorithm, key, signature[, queueingStrategy])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!--lint disable maximum-line-length remark-lint-->
+
+* `algorithm`: {RsaSignParams|RsaPssParams|EcdsaParams|HmacParams|NodeDsaSignParams}
+* `key`: {CryptoKey}
+* `signature`: {ArrayBuffer|TypedArray|DataView|Buffer}
+* `queueingStrategy` {Object}
+  * `highWaterMark` {number} The maximum internal queue size before backpressure
+    is applied.
+  * `size` {Function} A user-defined function used to identify the size of each
+
+<!--lint enable maximum-line-length remark-lint-->
+
+Using the method and parameters given in `algorithm` and the keying material
+provided by `key`, The `VerifyStream` verifies that `signature` is
+a valid cryptographic signature of the data written into it.
+
+The algorithms currently supported include:
+
+* `'RSASSA-PKCS1-v1_5'`
+* `'RSA-PSS'`
+* `'ECDSA'`
+* `'HMAC'`
+* `'NODE-DSA'`[^1]
+* `'NODE-ED25519'`[^1]
+* `'NODE-ED448'`[^1]
+
+#### `verifyStream.verified`
+
+\<!-YAML
+added: REPLACEME
+\-->
+
+* Type: {Promise} A promise fulfilled with either `true` or `false` indicating
+  whether the signature is valid.
+
 [^1]: Non-standard Node.js-specific extension
 
 [JSON Web Key]: https://tools.ietf.org/html/rfc7517
