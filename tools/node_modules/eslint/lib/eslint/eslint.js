@@ -34,7 +34,12 @@ const { version } = require("../../package.json");
 /** @typedef {import("../shared/types").LintMessage} LintMessage */
 /** @typedef {import("../shared/types").Plugin} Plugin */
 /** @typedef {import("../shared/types").Rule} Rule */
-/** @typedef {import("./load-formatter").Formatter} Formatter */
+
+/**
+ * The main formatter object.
+ * @typedef Formatter
+ * @property {function(LintResult[]): string | Promise<string>} format format function.
+ */
 
 /**
  * The options with which to configure the ESLint instance.
@@ -617,7 +622,7 @@ class ESLint {
             throw new Error("'name' must be a string");
         }
 
-        const { cliEngine } = privateMembersMap.get(this);
+        const { cliEngine, options } = privateMembersMap.get(this);
         const formatter = cliEngine.getFormatter(name);
 
         if (typeof formatter !== "function") {
@@ -629,7 +634,7 @@ class ESLint {
             /**
              * The main formatter method.
              * @param {LintResults[]} results The lint results to format.
-             * @returns {string} The formatted lint results.
+             * @returns {string | Promise<string>} The formatted lint results.
              */
             format(results) {
                 let rulesMeta = null;
@@ -637,6 +642,9 @@ class ESLint {
                 results.sort(compareResultsByFilePath);
 
                 return formatter(results, {
+                    get cwd() {
+                        return options.cwd;
+                    },
                     get rulesMeta() {
                         if (!rulesMeta) {
                             rulesMeta = createRulesMeta(cliEngine.getRules());

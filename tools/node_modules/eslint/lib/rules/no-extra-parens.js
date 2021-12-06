@@ -11,6 +11,7 @@
 const { isParenthesized: isParenthesizedRaw } = require("eslint-utils");
 const astUtils = require("./utils/ast-utils.js");
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",

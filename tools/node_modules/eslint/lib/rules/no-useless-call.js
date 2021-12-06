@@ -49,6 +49,7 @@ function isValidThisArg(expectedThis, thisArg, sourceCode) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
