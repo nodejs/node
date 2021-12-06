@@ -1,3 +1,28 @@
+Error: Number error cause
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at * {
+  [cause]: 42
+}
+Error: Object cause
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at * {
+  [cause]: {
+    message: 'Unique',
+    name: 'Error',
+    stack: 'Error: Unique\n' +
+      '    at Module._compile (node:internal/modules/cjs/loader:827:30)'
+  }
+}
 RangeError: New Stack Frames
     at *
 *[90m    at *[39m {
