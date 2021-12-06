@@ -290,6 +290,8 @@ For information about the governance of the Node.js project, see
   **Beth Griggs** <<bgriggs@redhat.com>> (she/her)
 * [bmeck](https://github.com/bmeck) -
   **Bradley Farias** <<bradley.meck@gmail.com>>
+* [bnb](https://github.com/bnb) -
+  **Tierney Cyren** <<hello@bnb.im>> (they/he)
 * [boneskull](https://github.com/boneskull) -
   **Christopher Hiller** <<boneskull@boneskull.com>> (he/him)
 * [BridgeAR](https://github.com/BridgeAR) -
