@@ -837,6 +837,48 @@ assert.strictEqual(util.inspect(Object.create(Date.prototype)), 'Date {}');
   );
 }
 
+// Escape unpaired surrogate pairs.
+{
+  const edgeChar = String.fromCharCode(0xd799);
+
+  for (let charCode = 0xD800; charCode < 0xDFFF; charCode++) {
+    const surrogate = String.fromCharCode(charCode);
+
+    assert.strictEqual(
+      util.inspect(surrogate),
+      `'\\u${charCode.toString(16)}'`
+    );
+    assert.strictEqual(
+      util.inspect(`${'a'.repeat(200)}${surrogate}`),
+      `'${'a'.repeat(200)}\\u${charCode.toString(16)}'`
+    );
+    assert.strictEqual(
+      util.inspect(`${surrogate}${'a'.repeat(200)}`),
+      `'\\u${charCode.toString(16)}${'a'.repeat(200)}'`
+    );
+    if (charCode < 0xdc00) {
+      const highSurrogate = surrogate;
+      const lowSurrogate = String.fromCharCode(charCode + 1024);
+      assert(
+        !util.inspect(
+          `${edgeChar}${highSurrogate}${lowSurrogate}${edgeChar}`
+        ).includes('\\u')
+      );
+      assert.strictEqual(
+        (util.inspect(
+          `${highSurrogate}${highSurrogate}${lowSurrogate}`
+        ).match(/\\u/g) ?? []).length,
+        1
+      );
+    } else {
+      assert.strictEqual(
+        util.inspect(`${edgeChar}${surrogate}${edgeChar}`),
+        `'${edgeChar}\\u${charCode.toString(16)}${edgeChar}'`
+      );
+    }
+  }
+}
+
 // Test util.inspect.styles and util.inspect.colors.
 {
   function testColorStyle(style, input, implicit) {
