@@ -144,6 +144,7 @@ function areLineBreaksRequired(node, options, first, last) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",

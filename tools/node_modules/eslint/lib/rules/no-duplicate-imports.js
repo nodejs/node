@@ -227,6 +227,7 @@ function handleImportsExports(
     };
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",

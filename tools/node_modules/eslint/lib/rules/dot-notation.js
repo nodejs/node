@@ -20,6 +20,7 @@ const validIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/u;
 // `null` literal must be handled separately.
 const literalTypesToCheck = new Set(["string", "boolean"]);
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",

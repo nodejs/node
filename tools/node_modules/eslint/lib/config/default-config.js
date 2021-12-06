@@ -26,7 +26,7 @@ exports.defaultConfig = [
 
                 /*
                  * Because we try to delay loading rules until absolutely
-                 * necessary, a proxy  allows us to hook into the lazy-loading
+                 * necessary, a proxy allows us to hook into the lazy-loading
                  * aspect of the rules map while still keeping all of the
                  * relevant configuration inside of the config array.
                  */
@@ -46,7 +46,16 @@ exports.defaultConfig = [
             ".git/**"
         ],
         languageOptions: {
-            parser: "@/espree"
+            ecmaVersion: "latest",
+            sourceType: "module",
+            parser: "@/espree",
+            parserOptions: {}
+        }
+    },
+    {
+        files: ["**/*.cjs"],
+        languageOptions: {
+            sourceType: "commonjs"
         }
     }
 ];

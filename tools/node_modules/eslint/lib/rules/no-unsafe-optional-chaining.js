@@ -18,6 +18,7 @@ function isDestructuringPattern(node) {
     return node.type === "ObjectPattern" || node.type === "ArrayPattern";
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",

@@ -25,6 +25,7 @@ const OVERRIDE_SCHEMA = {
     ]
 };
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",

@@ -16,6 +16,7 @@ const anyNonWhitespaceRegex = /\S/u;
 // Public Interface
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",

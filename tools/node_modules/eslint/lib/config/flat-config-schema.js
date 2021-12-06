@@ -195,13 +195,6 @@ function assertIsObjectOrString(value) {
 // Low-Level Schemas
 //-----------------------------------------------------------------------------
 
-
-/** @type {ObjectPropertySchema} */
-const numberSchema = {
-    merge: "replace",
-    validate: "number"
-};
-
 /** @type {ObjectPropertySchema} */
 const booleanSchema = {
     merge: "replace",
@@ -416,6 +409,18 @@ const rulesSchema = {
 };
 
 /** @type {ObjectPropertySchema} */
+const ecmaVersionSchema = {
+    merge: "replace",
+    validate(value) {
+        if (typeof value === "number" || value === "latest") {
+            return;
+        }
+
+        throw new TypeError("Expected a number or \"latest\".");
+    }
+};
+
+/** @type {ObjectPropertySchema} */
 const sourceTypeSchema = {
     merge: "replace",
     validate(value) {
@@ -439,7 +444,7 @@ exports.flatConfigSchema = {
     },
     languageOptions: {
         schema: {
-            ecmaVersion: numberSchema,
+            ecmaVersion: ecmaVersionSchema,
             sourceType: sourceTypeSchema,
             globals: globalsSchema,
             parser: parserSchema,

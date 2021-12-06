@@ -48,6 +48,7 @@ function isShadowed(scope, node) {
     return reference && reference.resolved && reference.resolved.defs.length > 0;
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         deprecated: true,

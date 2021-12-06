@@ -28,6 +28,7 @@ const NODE_DESCRIPTIONS = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",

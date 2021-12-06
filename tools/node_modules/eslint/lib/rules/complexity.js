@@ -17,6 +17,7 @@ const { upperCaseFirst } = require("../shared/string-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",

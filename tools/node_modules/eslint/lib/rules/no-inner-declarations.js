@@ -42,6 +42,7 @@ function getAllowedBodyDescription(node) {
     return "program";
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",

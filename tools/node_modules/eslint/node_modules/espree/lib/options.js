@@ -92,7 +92,16 @@ export function normalizeOptions(options) {
     const sourceType = normalizeSourceType(options.sourceType);
     const ranges = options.range === true;
     const locations = options.loc === true;
-    const allowReserved = ecmaVersion === 3 ? "never" : false;
+
+    if (ecmaVersion !== 3 && options.allowReserved) {
+
+        // a value of `false` is intentionally allowed here, so a shared config can overwrite it when needed
+        throw new Error("`allowReserved` is only supported when ecmaVersion is 3");
+    }
+    if (typeof options.allowReserved !== "undefined" && typeof options.allowReserved !== "boolean") {
+        throw new Error("`allowReserved`, when present, must be `true` or `false`");
+    }
+    const allowReserved = ecmaVersion === 3 ? (options.allowReserved || "never") : false;
     const ecmaFeatures = options.ecmaFeatures || {};
     const allowReturnOutsideFunction = options.sourceType === "commonjs" ||
         Boolean(ecmaFeatures.globalReturn);

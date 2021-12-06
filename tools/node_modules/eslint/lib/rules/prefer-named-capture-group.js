@@ -27,6 +27,7 @@ const parser = new regexpp.RegExpParser();
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",

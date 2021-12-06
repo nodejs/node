@@ -65,6 +65,7 @@ function getCommentLineNumbers(comments) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
@@ -79,7 +80,7 @@ module.exports = {
             OPTIONS_OR_INTEGER_SCHEMA
         ],
         messages: {
-            exceed: "{{name}} has too many lines ({{lineCount}}). Maximum allowed is {{maxLines}}."
+            exceed: "{{name}} has exceeded the limit of lines allowed by {{linesExceed}}. Maximum allowed number of lines per function is {{maxLines}}."
         }
     },
 
@@ -169,18 +170,26 @@ module.exports = {
                 return;
             }
             let lineCount = 0;
+            let comments = 0;
+            let blankLines = 0;
 
             for (let i = node.loc.start.line - 1; i < node.loc.end.line; ++i) {
                 const line = lines[i];
 
                 if (skipComments) {
                     if (commentLineNumbers.has(i + 1) && isFullLineComment(line, i + 1, commentLineNumbers.get(i + 1))) {
+                        if (lineCount <= maxLines) {
+                            comments++;
+                        }
                         continue;
                     }
                 }
 
                 if (skipBlankLines) {
                     if (line.match(/^\s*$/u)) {
+                        if (lineCount <= maxLines) {
+                            blankLines++;
+                        }
                         continue;
                     }
                 }
@@ -190,11 +199,21 @@ module.exports = {
 
             if (lineCount > maxLines) {
                 const name = upperCaseFirst(astUtils.getFunctionNameWithKind(funcNode));
+                const linesExceed = lineCount - maxLines;
+
+                const loc = {
+                    start: {
+                        line: node.loc.start.line + maxLines + (comments + blankLines),
+                        column: 0
+                    },
+                    end: node.loc.end
+                };
 
                 context.report({
                     node,
+                    loc,
                     messageId: "exceed",
-                    data: { name, lineCount, maxLines }
+                    data: { name, linesExceed, maxLines }
                 });
             }
         }

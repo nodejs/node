@@ -58,6 +58,7 @@ function hasBlankLinesBetween(node, token) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",

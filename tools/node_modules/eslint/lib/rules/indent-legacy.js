@@ -20,6 +20,7 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 
 /* istanbul ignore next: this rule has known coverage issues, but it's deprecated and shouldn't be updated in the future anyway. */
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",

@@ -68,6 +68,7 @@ const optionsObject = {
     additionalProperties: false
 };
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",

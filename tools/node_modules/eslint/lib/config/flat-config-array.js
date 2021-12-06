@@ -52,13 +52,13 @@ class FlatConfigArray extends ConfigArray {
      * @param {{basePath: string, baseConfig: FlatConfig}} options The options
      *      to use for the config array instance.
      */
-    constructor(configs, { basePath, baseConfig = defaultConfig }) {
+    constructor(configs, { basePath, baseConfig = defaultConfig } = {}) {
         super(configs, {
             basePath,
             schema: flatConfigSchema
         });
 
-        this.unshift(baseConfig);
+        this.unshift(...baseConfig);
     }
 
     /* eslint-disable class-methods-use-this -- Desired as instance method */

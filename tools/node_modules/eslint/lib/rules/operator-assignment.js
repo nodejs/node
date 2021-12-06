@@ -57,6 +57,7 @@ function canBeFixed(node) {
     );
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
