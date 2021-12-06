@@ -53,6 +53,7 @@ function isLooped(node, parent) {
     }
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",

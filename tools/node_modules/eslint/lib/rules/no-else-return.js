@@ -16,6 +16,7 @@ const FixTracker = require("./utils/fix-tracker");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",

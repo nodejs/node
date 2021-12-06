@@ -124,6 +124,7 @@ function eachSelfAssignment(left, right, props, report) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
