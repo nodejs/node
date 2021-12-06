@@ -22,9 +22,7 @@ const tsp = require('timers/promises');
   let finished = false;
   const processed = [];
   const expected = [
-    Buffer.from('a'),
-    Buffer.from('b'),
-    Buffer.from('c'),
+    Buffer.from('abc'),
   ];
 
   const read = new Readable({
@@ -217,10 +215,9 @@ const tsp = require('timers/promises');
     let sent = 0;
     const rs = new Readable({
       read() {
-        if (sent++ > 10) {
-          return;
-        }
-        rs.push('hello');
+        setImmediate(() => {
+          rs.push('hello');
+        });
       },
       destroy: common.mustCall((err, cb) => {
         cb();
@@ -348,8 +345,7 @@ const tsp = require('timers/promises');
   };
 
   const expected = [
-    Buffer.from('hello'),
-    Buffer.from('world'),
+    Buffer.from('helloworld'),
   ];
 
   const rs = new Readable({
@@ -985,7 +981,7 @@ const tsp = require('timers/promises');
   // Make sure 'close' before 'end' finishes without error
   // if readable has received eof.
   // Ref: https://github.com/nodejs/node/issues/29699
-  const r = new Readable();
+  const r = new Readable(({ read() {} }));
   const w = new Writable({
     write(chunk, encoding, cb) {
       cb();
@@ -1350,7 +1346,7 @@ const tsp = require('timers/promises');
   });
   const cb = common.mustCall((err) => {
     assert.strictEqual(err.name, 'AbortError');
-    assert.strictEqual(res, '012345');
+    assert.strictEqual(res, '01234');
     assert.strictEqual(w.destroyed, true);
     assert.strictEqual(r.destroyed, true);
     assert.strictEqual(pipelined.destroyed, true);

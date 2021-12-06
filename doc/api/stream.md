@@ -1948,6 +1948,10 @@ changes:
 A module method to pipe between streams and generators forwarding errors and
 properly cleaning up and provide a callback when the pipeline is complete.
 
+Pipeline will try to use the `.read()` API when available and dynamically
+adjust the `highWaterMark` of each readable stream to match the destination.
+If `.read()` is not available it will fallback to use `.pipe(dst)`.
+
 ```js
 const { pipeline } = require('stream');
 const fs = require('fs');
