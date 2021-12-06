@@ -661,6 +661,16 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 }
 
 {
+  const falsyCause1 = new Error('', { cause: false });
+  delete falsyCause1.stack;
+  const falsyCause2 = new Error(undefined, { cause: null });
+  falsyCause2.stack = '';
+
+  assert.strictEqual(util.inspect(falsyCause1), '[Error] { [cause]: false }');
+  assert.strictEqual(util.inspect(falsyCause2), '[Error] { [cause]: null }');
+}
+
+{
   const tmp = Error.stackTraceLimit;
   Error.stackTraceLimit = 0;
   const err = new Error('foo');
