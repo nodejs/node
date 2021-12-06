@@ -24,11 +24,7 @@ function testNormalIIFE() {
 
 function testAsyncIIEF() {
   const server = runRepl();
-  const asyncFn = '(async() => {' +
-    'await new Promise((resolve, reject) => {' +
-      'resolve(true)' +
-    '});' +
-  '})()';
+  const asyncFn = '(async() => true)();';
 
   stream.run([asyncFn]);
   // promise output twice
