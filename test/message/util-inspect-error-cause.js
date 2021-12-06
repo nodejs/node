@@ -13,6 +13,19 @@ const cause2 = new FoobarError('Individual message', { cause: cause1 });
 cause2.extraProperties = 'Yes!';
 const cause3 = new Error('Stack causes', { cause: cause2 });
 
+const cause4 = new Error('Number error cause', { cause: 42 });
+const cause5 = new Error('Object cause', {
+  cause: {
+    message: 'Unique',
+    name: 'Error',
+    stack: 'Error: Unique\n' +
+           '    at Module._compile (node:internal/modules/cjs/loader:827:30)'
+  }
+});
+
+console.log(cause4);
+console.log(cause5);
+
 process.nextTick(() => {
   const error = new RangeError('New Stack Frames', { cause: cause2 });
   const error2 = new RangeError('New Stack Frames', { cause: cause3 });
