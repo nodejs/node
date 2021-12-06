@@ -570,7 +570,7 @@ to run it again before invoking `make -j4`.
 
 ##### Option 1: Manual install
 
-* [Python 3.9](https://www.microsoft.com/en-us/p/python-39/9p7qfqmjrfp7)
+* [Python 3.10](https://www.microsoft.com/en-us/p/python-310/9pjpw5ldxlz5)
 * The "Desktop development with C++" workload from
   [Visual Studio 2019](https://visualstudio.microsoft.com/downloads/) or
   the "C++ build tools" workload from the
