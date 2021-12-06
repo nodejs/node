@@ -20,9 +20,7 @@ for (const withPendingData of [ false, true ]) {
 
     let chunksWritten = 0;
     let drains = 0;
-    let finished = false;
     w.on('drain', () => drains++);
-    w.on('finish', () => finished = true);
 
     function onWrite(err) {
       if (err) {
