@@ -67,6 +67,7 @@ function isLastChild(node) {
     return nodeList !== null && nodeList[nodeList.length - 1] === node; // before `}` or etc.
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",

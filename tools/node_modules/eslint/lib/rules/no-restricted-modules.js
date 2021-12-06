@@ -39,6 +39,7 @@ const arrayOfStringsOrObjects = {
     uniqueItems: true
 };
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         deprecated: true,

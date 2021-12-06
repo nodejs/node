@@ -24,6 +24,7 @@ function alwaysFalse() {
     return false;
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",

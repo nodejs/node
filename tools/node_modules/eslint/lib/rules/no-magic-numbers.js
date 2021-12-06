@@ -26,6 +26,7 @@ function normalizeIgnoreValue(x) {
     return x;
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",

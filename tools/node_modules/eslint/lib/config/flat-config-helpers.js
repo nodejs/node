@@ -1,0 +1,67 @@
+/**
+ * @fileoverview Shared functions to work with configs.
+ * @author Nicholas C. Zakas
+ */
+
+"use strict";
+
+//-----------------------------------------------------------------------------
+// Functions
+//-----------------------------------------------------------------------------
+
+/**
+ * Parses a ruleId into its plugin and rule parts.
+ * @param {string} ruleId The rule ID to parse.
+ * @returns {{pluginName:string,ruleName:string}} The plugin and rule
+ *      parts of the ruleId;
+ */
+function parseRuleId(ruleId) {
+    let pluginName, ruleName;
+
+    // distinguish between core rules and plugin rules
+    if (ruleId.includes("/")) {
+        pluginName = ruleId.slice(0, ruleId.lastIndexOf("/"));
+        ruleName = ruleId.slice(pluginName.length + 1);
+    } else {
+        pluginName = "@";
+        ruleName = ruleId;
+    }
+
+    return {
+        pluginName,
+        ruleName
+    };
+}
+
+/**
+ * Retrieves a rule instance from a given config based on the ruleId.
+ * @param {string} ruleId The rule ID to look for.
+ * @param {FlatConfig} config The config to search.
+ * @returns {import("../shared/types").Rule|undefined} The rule if found
+ *      or undefined if not.
+ */
+function getRuleFromConfig(ruleId, config) {
+
+    const { pluginName, ruleName } = parseRuleId(ruleId);
+
+    const plugin = config.plugins && config.plugins[pluginName];
+    let rule = plugin && plugin.rules && plugin.rules[ruleName];
+
+    // normalize function rules into objects
+    if (rule && typeof rule === "function") {
+        rule = {
+            create: rule
+        };
+    }
+
+    return rule;
+}
+
+//-----------------------------------------------------------------------------
+// Exports
+//-----------------------------------------------------------------------------
+
+module.exports = {
+    parseRuleId,
+    getRuleFromConfig
+};

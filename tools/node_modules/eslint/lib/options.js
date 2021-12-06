@@ -50,7 +50,7 @@ const optionator = require("optionator");
  * @property {boolean | undefined} reportUnusedDisableDirectives Adds reported errors for unused eslint-disable directives
  * @property {string} [resolvePluginsRelativeTo] A folder where plugins should be resolved from, CWD by default
  * @property {Object} [rule] Specify rules
- * @property {string[]} [rulesdir] Use additional rules from this directory
+ * @property {string[]} [rulesdir] Load additional rules from this directory. Deprecated: Use rules from plugins
  * @property {boolean} stdin Lint code provided on <STDIN>
  * @property {string} [stdinFilename] Specify filename to process STDIN as
  * @property {boolean} quiet Report errors only
@@ -119,11 +119,6 @@ module.exports = optionator({
             heading: "Specifying rules and plugins"
         },
         {
-            option: "rulesdir",
-            type: "[path::String]",
-            description: "Use additional rules from this directory"
-        },
-        {
             option: "plugin",
             type: "[String]",
             description: "Specify plugins"
@@ -132,6 +127,11 @@ module.exports = optionator({
             option: "rule",
             type: "Object",
             description: "Specify rules"
+        },
+        {
+            option: "rulesdir",
+            type: "[path::String]",
+            description: "Load additional rules from this directory. Deprecated: Use rules from plugins"
         },
         {
             heading: "Fixing problems"

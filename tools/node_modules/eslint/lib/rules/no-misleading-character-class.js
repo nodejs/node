@@ -98,6 +98,7 @@ const kinds = Object.keys(hasCharacterSequence);
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",

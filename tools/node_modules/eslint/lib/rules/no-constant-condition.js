@@ -13,6 +13,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
@@ -138,6 +139,7 @@ module.exports = {
                 case "ArrowFunctionExpression":
                 case "FunctionExpression":
                 case "ObjectExpression":
+                case "ClassExpression":
                     return true;
                 case "TemplateLiteral":
                     return (inBooleanPosition && node.quasis.some(quasi => quasi.value.cooked.length)) ||
@@ -179,7 +181,8 @@ module.exports = {
                         isLeftShortCircuit ||
                         isRightShortCircuit;
                 }
-
+                case "NewExpression":
+                    return inBooleanPosition;
                 case "AssignmentExpression":
                     if (node.operator === "=") {
                         return isConstant(node.right, inBooleanPosition);

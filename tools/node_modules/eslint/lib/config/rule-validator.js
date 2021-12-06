@@ -10,52 +10,49 @@
 //-----------------------------------------------------------------------------
 
 const ajv = require("../shared/ajv")();
+const { parseRuleId, getRuleFromConfig } = require("./flat-config-helpers");
+const ruleReplacements = require("../../conf/replacements.json");
 
 //-----------------------------------------------------------------------------
 // Helpers
 //-----------------------------------------------------------------------------
 
 /**
- * Finds a rule with the given ID in the given config.
- * @param {string} ruleId The ID of the rule to find.
+ * Throws a helpful error when a rule cannot be found.
+ * @param {Object} ruleId The rule identifier.
+ * @param {string} ruleId.pluginName The ID of the rule to find.
+ * @param {string} ruleId.ruleName The ID of the rule to find.
  * @param {Object} config The config to search in.
  * @throws {TypeError} For missing plugin or rule.
- * @returns {{create: Function, schema: (Array|null)}} THe rule object.
+ * @returns {void}
  */
-function findRuleDefinition(ruleId, config) {
-    const ruleIdParts = ruleId.split("/");
-    let pluginName, ruleName;
+function throwRuleNotFoundError({ pluginName, ruleName }, config) {
 
-    // built-in rule
-    if (ruleIdParts.length === 1) {
-        pluginName = "@";
-        ruleName = ruleIdParts[0];
-    } else {
-        ruleName = ruleIdParts.pop();
-        pluginName = ruleIdParts.join("/");
-    }
+    const ruleId = pluginName === "@" ? ruleName : `${pluginName}/${ruleName}`;
 
     const errorMessageHeader = `Key "rules": Key "${ruleId}"`;
     let errorMessage = `${errorMessageHeader}: Could not find plugin "${pluginName}".`;
 
     // if the plugin exists then we need to check if the rule exists
     if (config.plugins && config.plugins[pluginName]) {
+        const replacementRuleName = ruleReplacements.rules[ruleName];
 
-        const plugin = config.plugins[pluginName];
+        if (pluginName === "@" && replacementRuleName) {
 
-        // first check for exact rule match
-        if (plugin.rules && plugin.rules[ruleName]) {
-            return config.plugins[pluginName].rules[ruleName];
-        }
+            errorMessage = `${errorMessageHeader}: Rule "${ruleName}" was removed and replaced by "${replacementRuleName}".`;
 
-        errorMessage = `${errorMessageHeader}: Could not find "${ruleName}" in plugin "${pluginName}".`;
+        } else {
 
-        // otherwise, let's see if we can find the rule name elsewhere
-        for (const [otherPluginName, otherPlugin] of Object.entries(config.plugins)) {
-            if (otherPlugin.rules && otherPlugin.rules[ruleName]) {
-                errorMessage += ` Did you mean "${otherPluginName}/${ruleName}"?`;
-                break;
+            errorMessage = `${errorMessageHeader}: Could not find "${ruleName}" in plugin "${pluginName}".`;
+
+            // otherwise, let's see if we can find the rule name elsewhere
+            for (const [otherPluginName, otherPlugin] of Object.entries(config.plugins)) {
+                if (otherPlugin.rules && otherPlugin.rules[ruleName]) {
+                    errorMessage += ` Did you mean "${otherPluginName}/${ruleName}"?`;
+                    break;
+                }
             }
+
         }
 
         // falls through to throw error
@@ -154,7 +151,11 @@ class RuleValidator {
                 continue;
             }
 
-            const rule = findRuleDefinition(ruleId, config);
+            const rule = getRuleFromConfig(ruleId, config);
+
+            if (!rule) {
+                throwRuleNotFoundError(parseRuleId(ruleId), config);
+            }
 
             // Precompile and cache validator the first time
             if (!this.validators.has(rule)) {

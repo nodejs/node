@@ -494,6 +494,7 @@ const ELEMENT_LIST_SCHEMA = {
     ]
 };
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",

@@ -63,6 +63,7 @@ const OPTIONS_OR_INTEGER_SCHEMA = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",

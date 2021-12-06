@@ -23,6 +23,16 @@ module.exports = {};
  * @property {EcmaFeatures} [ecmaFeatures] The optional features.
  * @property {3|5|6|7|8|9|10|11|12|13|2015|2016|2017|2018|2019|2020|2021|2022} [ecmaVersion] The ECMAScript version (or revision number).
  * @property {"script"|"module"} [sourceType] The source code type.
+ * @property {boolean} [allowReserved] Allowing the use of reserved words as identifiers in ES3.
+ */
+
+/**
+ * @typedef {Object} LanguageOptions
+ * @property {number|"latest"} [ecmaVersion] The ECMAScript version (or revision number).
+ * @property {Record<string, GlobalConf>} [globals] The global variable settings.
+ * @property {"script"|"module"|"commonjs"} [sourceType] The source code type.
+ * @property {string|Object} [parser] The parser to use.
+ * @property {Object} [parserOptions] The parser options to use.
  */
 
 /**

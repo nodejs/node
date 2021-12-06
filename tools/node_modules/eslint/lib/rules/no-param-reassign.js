@@ -10,6 +10,7 @@
 
 const stopNodePattern = /(?:Statement|Declaration|Function(?:Expression)?|Program)$/u;
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",

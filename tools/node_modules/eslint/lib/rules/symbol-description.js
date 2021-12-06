@@ -16,6 +16,7 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",

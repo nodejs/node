@@ -20,6 +20,7 @@ const PRECEDENCE_OF_ASSIGNMENT_EXPR = astUtils.getPrecedence({ type: "Assignment
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",

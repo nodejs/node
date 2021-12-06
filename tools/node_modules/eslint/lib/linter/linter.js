@@ -37,6 +37,8 @@ const
     SourceCodeFixer = require("./source-code-fixer"),
     timing = require("./timing"),
     ruleReplacements = require("../../conf/replacements.json");
+const { getRuleFromConfig } = require("../config/flat-config-helpers");
+const { FlatConfigArray } = require("../config/flat-config-array");
 
 const debug = require("debug")("eslint:linter");
 const MAX_AUTOFIX_PASSES = 10;
@@ -45,6 +47,7 @@ const DEFAULT_ECMA_VERSION = 5;
 const commentParser = new ConfigCommentParser();
 const DEFAULT_ERROR_LOC = { start: { line: 1, column: 0 }, end: { line: 1, column: 1 } };
 const parserSymbol = Symbol.for("eslint.RuleTester.parser");
+const globals = require("../../conf/globals");
 
 //------------------------------------------------------------------------------
 // Typedefs
@@ -57,6 +60,7 @@ const parserSymbol = Symbol.for("eslint.RuleTester.parser");
 /** @typedef {import("../shared/types").GlobalConf} GlobalConf */
 /** @typedef {import("../shared/types").LintMessage} LintMessage */
 /** @typedef {import("../shared/types").ParserOptions} ParserOptions */
+/** @typedef {import("../shared/types").LanguageOptions} LanguageOptions */
 /** @typedef {import("../shared/types").Processor} Processor */
 /** @typedef {import("../shared/types").Rule} Rule */
 
@@ -125,6 +129,38 @@ const parserSymbol = Symbol.for("eslint.RuleTester.parser");
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
+
+/**
+ * Determines if a given object is Espree.
+ * @param {Object} parser The parser to check.
+ * @returns {boolean} True if the parser is Espree or false if not.
+ */
+function isEspree(parser) {
+    return !!(parser === espree || parser[parserSymbol] === espree);
+}
+
+/**
+ * Retrieves globals for the given ecmaVersion.
+ * @param {number} ecmaVersion The version to retrieve globals for.
+ * @returns {Object} The globals for the given ecmaVersion.
+ */
+function getGlobalsForEcmaVersion(ecmaVersion) {
+
+    switch (ecmaVersion) {
+        case 3:
+            return globals.es3;
+
+        case 5:
+            return globals.es5;
+
+        default:
+            if (ecmaVersion < 2015) {
+                return globals[`es${ecmaVersion + 2009}`];
+            }
+
+            return globals[`es${ecmaVersion}`];
+    }
+}
 
 /**
  * Ensures that variables representing built-in properties of the Global Object,
@@ -268,7 +304,7 @@ function createDisableDirectives(options) {
     for (const ruleId of directiveRules) {
 
         // push to directives, if the rule is defined(including null, e.g. /*eslint enable*/)
-        if (ruleId === null || ruleMapper(ruleId) !== null) {
+        if (ruleId === null || !!ruleMapper(ruleId)) {
             result.directives.push({ parentComment, type, line: commentToken.loc.start.line, column: commentToken.loc.start.column + 1, ruleId });
         } else {
             result.directiveProblems.push(createLintingProblem({ ruleId, loc: commentToken.loc }));
@@ -400,7 +436,7 @@ function getDirectiveComments(filename, ast, ruleMapper, warnInlineConfig) {
                         const rule = ruleMapper(name);
                         const ruleValue = parseResult.config[name];
 
-                        if (rule === null) {
+                        if (!rule) {
                             problems.push(createLintingProblem({ ruleId: name, loc: comment.loc }));
                             return;
                         }
@@ -447,7 +483,8 @@ function getDirectiveComments(filename, ast, ruleMapper, warnInlineConfig) {
  * @returns {number} normalized ECMAScript version
  */
 function normalizeEcmaVersion(parser, ecmaVersion) {
-    if ((parser[parserSymbol] || parser) === espree) {
+
+    if (isEspree(parser)) {
         if (ecmaVersion === "latest") {
             return espree.latestEcmaVersion;
         }
@@ -458,6 +495,38 @@ function normalizeEcmaVersion(parser, ecmaVersion) {
      * ES2015, which corresponds with ES6 (or a difference of 2009).
      */
     return ecmaVersion >= 2015 ? ecmaVersion - 2009 : ecmaVersion;
+}
+
+/**
+ * Normalize ECMAScript version from the initial config into languageOptions (year)
+ * format.
+ * @param {any} [ecmaVersion] ECMAScript version from the initial config
+ * @returns {number} normalized ECMAScript version
+ */
+function normalizeEcmaVersionForLanguageOptions(ecmaVersion) {
+
+    switch (ecmaVersion) {
+        case 3:
+            return 3;
+
+        // void 0 = no ecmaVersion specified so use the default
+        case 5:
+        case void 0:
+            return 5;
+
+        default:
+            if (typeof ecmaVersion === "number") {
+                return ecmaVersion >= 2015 ? ecmaVersion : ecmaVersion + 2009;
+            }
+    }
+
+    /*
+     * We default to the latest supported ecmaVersion for everything else.
+     * Remember, this is for languageOptions.ecmaVersion, which sets the version
+     * that is used for a number of processes inside of ESLint. It's normally
+     * safe to assume people want the latest unless otherwise specified.
+     */
+    return espree.latestEcmaVersion + 2009;
 }
 
 const eslintEnvPattern = /\/\*\s*eslint-env\s(.+?)(?:\*\/|$)/gsu;
@@ -511,7 +580,11 @@ function normalizeFilename(filename) {
  * @returns {Required<VerifyOptions> & InternalOptions} Normalized options
  */
 function normalizeVerifyOptions(providedOptions, config) {
-    const disableInlineConfig = config.noInlineConfig === true;
+
+    const linterOptions = config.linterOptions || config;
+
+    // .noInlineConfig for eslintrc, .linterOptions.noInlineConfig for flat
+    const disableInlineConfig = linterOptions.noInlineConfig === true;
     const ignoreInlineConfig = providedOptions.allowInlineConfig === false;
     const configNameOfNoInlineConfig = config.configNameOfNoInlineConfig
         ? ` (${config.configNameOfNoInlineConfig})`
@@ -523,7 +596,9 @@ function normalizeVerifyOptions(providedOptions, config) {
         reportUnusedDisableDirectives = reportUnusedDisableDirectives ? "error" : "off";
     }
     if (typeof reportUnusedDisableDirectives !== "string") {
-        reportUnusedDisableDirectives = config.reportUnusedDisableDirectives ? "warn" : "off";
+        reportUnusedDisableDirectives =
+            linterOptions.reportUnusedDisableDirectives
+                ? "warn" : "off";
     }
 
     return {
@@ -564,6 +639,30 @@ function resolveParserOptions(parser, providedOptions, enabledEnvironments) {
     mergedParserOptions.ecmaVersion = normalizeEcmaVersion(parser, mergedParserOptions.ecmaVersion);
 
     return mergedParserOptions;
+}
+
+/**
+ * Converts parserOptions to languageOptions for backwards compatibility with eslintrc.
+ * @param {ConfigData} config Config object.
+ * @param {Object} config.globals Global variable definitions.
+ * @param {Parser} config.parser The parser to use.
+ * @param {ParserOptions} config.parserOptions The parserOptions to use.
+ * @returns {LanguageOptions} The languageOptions equivalent.
+ */
+function createLanguageOptions({ globals: configuredGlobals, parser, parserOptions }) {
+
+    const {
+        ecmaVersion,
+        sourceType
+    } = parserOptions;
+
+    return {
+        globals: configuredGlobals,
+        ecmaVersion: normalizeEcmaVersionForLanguageOptions(ecmaVersion),
+        sourceType,
+        parser,
+        parserOptions
+    };
 }
 
 /**
@@ -614,20 +713,21 @@ function getRuleOptions(ruleConfig) {
 /**
  * Analyze scope of the given AST.
  * @param {ASTNode} ast The `Program` node to analyze.
- * @param {ParserOptions} parserOptions The parser options.
+ * @param {LanguageOptions} languageOptions The parser options.
  * @param {Record<string, string[]>} visitorKeys The visitor keys.
  * @returns {ScopeManager} The analysis result.
  */
-function analyzeScope(ast, parserOptions, visitorKeys) {
+function analyzeScope(ast, languageOptions, visitorKeys) {
+    const parserOptions = languageOptions.parserOptions;
     const ecmaFeatures = parserOptions.ecmaFeatures || {};
-    const ecmaVersion = parserOptions.ecmaVersion || DEFAULT_ECMA_VERSION;
+    const ecmaVersion = languageOptions.ecmaVersion || DEFAULT_ECMA_VERSION;
 
     return eslintScope.analyze(ast, {
         ignoreEval: true,
         nodejsScope: ecmaFeatures.globalReturn,
         impliedStrict: ecmaFeatures.impliedStrict,
         ecmaVersion: typeof ecmaVersion === "number" ? ecmaVersion : 6,
-        sourceType: parserOptions.sourceType || "script",
+        sourceType: languageOptions.sourceType || "script",
         childVisitorKeys: visitorKeys || evk.KEYS,
         fallback: Traverser.getKeys
     });
@@ -638,25 +738,29 @@ function analyzeScope(ast, parserOptions, visitorKeys) {
  * optimization of functions, so it's best to keep the try-catch as isolated
  * as possible
  * @param {string} text The text to parse.
- * @param {Parser} parser The parser to parse.
- * @param {ParserOptions} providedParserOptions Options to pass to the parser
+ * @param {LanguageOptions} languageOptions Options to pass to the parser
  * @param {string} filePath The path to the file being parsed.
  * @returns {{success: false, error: Problem}|{success: true, sourceCode: SourceCode}}
  * An object containing the AST and parser services if parsing was successful, or the error if parsing failed
  * @private
  */
-function parse(text, parser, providedParserOptions, filePath) {
+function parse(text, languageOptions, filePath) {
     const textToParse = stripUnicodeBOM(text).replace(astUtils.shebangPattern, (match, captured) => `//${captured}`);
-    const parserOptions = Object.assign({}, providedParserOptions, {
-        loc: true,
-        range: true,
-        raw: true,
-        tokens: true,
-        comment: true,
-        eslintVisitorKeys: true,
-        eslintScopeManager: true,
-        filePath
-    });
+    const { ecmaVersion, sourceType, parser } = languageOptions;
+    const parserOptions = Object.assign(
+        { ecmaVersion, sourceType },
+        languageOptions.parserOptions,
+        {
+            loc: true,
+            range: true,
+            raw: true,
+            tokens: true,
+            comment: true,
+            eslintVisitorKeys: true,
+            eslintScopeManager: true,
+            filePath
+        }
+    );
 
     /*
      * Check for parsing errors first. If there's a parsing error, nothing
@@ -671,7 +775,7 @@ function parse(text, parser, providedParserOptions, filePath) {
         const ast = parseResult.ast;
         const parserServices = parseResult.services || {};
         const visitorKeys = parseResult.visitorKeys || evk.KEYS;
-        const scopeManager = parseResult.scopeManager || analyzeScope(ast, parserOptions, visitorKeys);
+        const scopeManager = parseResult.scopeManager || analyzeScope(ast, languageOptions, visitorKeys);
 
         return {
             success: true,
@@ -740,13 +844,17 @@ function getScope(scopeManager, currentNode) {
  * Marks a variable as used in the current scope
  * @param {ScopeManager} scopeManager The scope manager for this AST. The scope may be mutated by this function.
  * @param {ASTNode} currentNode The node currently being traversed
- * @param {Object} parserOptions The options used to parse this text
+ * @param {LanguageOptions} languageOptions The options used to parse this text
  * @param {string} name The name of the variable that should be marked as used.
  * @returns {boolean} True if the variable was found and marked as used, false if not.
  */
-function markVariableAsUsed(scopeManager, currentNode, parserOptions, name) {
-    const hasGlobalReturn = parserOptions.ecmaFeatures && parserOptions.ecmaFeatures.globalReturn;
-    const specialScope = hasGlobalReturn || parserOptions.sourceType === "module";
+function markVariableAsUsed(scopeManager, currentNode, languageOptions, name) {
+    const parserOptions = languageOptions.parserOptions;
+    const sourceType = languageOptions.sourceType;
+    const hasGlobalReturn =
+        (parserOptions.ecmaFeatures && parserOptions.ecmaFeatures.globalReturn) ||
+        sourceType === "commonjs";
+    const specialScope = hasGlobalReturn || sourceType === "module";
     const currentScope = getScope(scopeManager, currentNode);
 
     // Special Node.js scope means we need to start one level deeper
@@ -837,8 +945,8 @@ const BASE_TRAVERSAL_CONTEXT = Object.freeze(
  * @param {SourceCode} sourceCode A SourceCode object for the given text
  * @param {Object} configuredRules The rules configuration
  * @param {function(string): Rule} ruleMapper A mapper function from rule names to rules
- * @param {Object} parserOptions The options that were passed to the parser
- * @param {string} parserName The name of the parser in the config
+ * @param {string | undefined} parserName The name of the parser in the config
+ * @param {LanguageOptions} languageOptions The options for parsing the code.
  * @param {Object} settings The settings that were enabled in the config
  * @param {string} filename The reported filename of the code
  * @param {boolean} disableFixes If true, it doesn't make `fix` properties.
@@ -846,7 +954,7 @@ const BASE_TRAVERSAL_CONTEXT = Object.freeze(
  * @param {string} physicalFilename The full path of the file on disk without any code block information
  * @returns {Problem[]} An array of reported problems
  */
-function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parserName, settings, filename, disableFixes, cwd, physicalFilename) {
+function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageOptions, settings, filename, disableFixes, cwd, physicalFilename) {
     const emitter = createEmitter();
     const nodeQueue = [];
     let currentNode = sourceCode.ast;
@@ -878,15 +986,17 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parser
                 getPhysicalFilename: () => physicalFilename || filename,
                 getScope: () => getScope(sourceCode.scopeManager, currentNode),
                 getSourceCode: () => sourceCode,
-                markVariableAsUsed: name => markVariableAsUsed(sourceCode.scopeManager, currentNode, parserOptions, name),
-                parserOptions,
+                markVariableAsUsed: name => markVariableAsUsed(sourceCode.scopeManager, currentNode, languageOptions, name),
+                parserOptions: {
+                    ...languageOptions.parserOptions
+                },
                 parserPath: parserName,
+                languageOptions,
                 parserServices: sourceCode.parserServices,
                 settings
             }
         )
     );
-
 
     const lintingProblems = [];
 
@@ -900,7 +1010,7 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parser
 
         const rule = ruleMapper(ruleId);
 
-        if (rule === null) {
+        if (!rule) {
             lintingProblems.push(createLintingProblem({ ruleId }));
             return;
         }
@@ -1074,13 +1184,28 @@ function normalizeCwd(cwd) {
  */
 const internalSlotsMap = new WeakMap();
 
+/**
+ * Throws an error when the given linter is in flat config mode.
+ * @param {Linter} linter The linter to check.
+ * @returns {void}
+ * @throws {Error} If the linter is in flat config mode.
+ */
+function assertEslintrcConfig(linter) {
+    const { configType } = internalSlotsMap.get(linter);
+
+    if (configType === "flat") {
+        throw new Error("This method cannot be used with flat config. Add your entries directly into the config array.");
+    }
+}
+
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
 
 /**
  * Object that is responsible for verifying JavaScript text
- * @name eslint
+ * @name Linter
  */
 class Linter {
 
@@ -1088,12 +1213,14 @@ class Linter {
      * Initialize the Linter.
      * @param {Object} [config] the config object
      * @param {string} [config.cwd] path to a directory that should be considered as the current working directory, can be undefined.
+     * @param {"flat"|"eslintrc"} [config.configType="eslintrc"] the type of config used.
      */
-    constructor({ cwd } = {}) {
+    constructor({ cwd, configType } = {}) {
         internalSlotsMap.set(this, {
             cwd: normalizeCwd(cwd),
             lastConfigArray: null,
             lastSourceCode: null,
+            configType, // TODO: Remove after flat config conversion
             parserMap: new Map([["espree", espree]]),
             ruleMap: new Rules()
         });
@@ -1168,12 +1295,16 @@ class Linter {
         const parserOptions = resolveParserOptions(parser, config.parserOptions || {}, enabledEnvs);
         const configuredGlobals = resolveGlobals(config.globals || {}, enabledEnvs);
         const settings = config.settings || {};
+        const languageOptions = createLanguageOptions({
+            globals: config.globals,
+            parser,
+            parserOptions
+        });
 
         if (!slots.lastSourceCode) {
             const parseResult = parse(
                 text,
-                parser,
-                parserOptions,
+                languageOptions,
                 options.filename
             );
 
@@ -1194,7 +1325,7 @@ class Linter {
                     ast: slots.lastSourceCode.ast,
                     parserServices: slots.lastSourceCode.parserServices,
                     visitorKeys: slots.lastSourceCode.visitorKeys,
-                    scopeManager: analyzeScope(slots.lastSourceCode.ast, parserOptions)
+                    scopeManager: analyzeScope(slots.lastSourceCode.ast, languageOptions)
                 });
             }
         }
@@ -1220,8 +1351,8 @@ class Linter {
                 sourceCode,
                 configuredRules,
                 ruleId => getRule(slots, ruleId),
-                parserOptions,
                 parserName,
+                languageOptions,
                 settings,
                 options.filename,
                 options.disableFixes,
@@ -1270,14 +1401,42 @@ class Linter {
      */
     verify(textOrSourceCode, config, filenameOrOptions) {
         debug("Verify");
+
+        const { configType } = internalSlotsMap.get(this);
+
         const options = typeof filenameOrOptions === "string"
             ? { filename: filenameOrOptions }
             : filenameOrOptions || {};
 
-        // CLIEngine passes a `ConfigArray` object.
-        if (config && typeof config.extractConfig === "function") {
-            return this._verifyWithConfigArray(textOrSourceCode, config, options);
+        if (config) {
+            if (configType === "flat") {
+
+                /*
+                 * Because of how Webpack packages up the files, we can't
+                 * compare directly to `FlatConfigArray` using `instanceof`
+                 * because it's not the same `FlatConfigArray` as in the tests.
+                 * So, we work around it by assuming an array is, in fact, a
+                 * `FlatConfigArray` if it has a `getConfig()` method.
+                 */
+                let configArray = config;
+
+                if (!Array.isArray(config) || typeof config.getConfig !== "function") {
+                    configArray = new FlatConfigArray(config);
+                    configArray.normalizeSync();
+                }
+
+                return this._verifyWithFlatConfigArray(textOrSourceCode, configArray, options, true);
+            }
+
+            if (typeof config.extractConfig === "function") {
+                return this._verifyWithConfigArray(textOrSourceCode, config, options);
+            }
         }
+
+        /*
+         * If we get to here, it means `config` is just an object rather
+         * than a config array so we can go right into linting.
+         */
 
         /*
          * `Linter` doesn't support `overrides` property in configuration.
@@ -1287,6 +1446,214 @@ class Linter {
             return this._verifyWithProcessor(textOrSourceCode, config, options);
         }
         return this._verifyWithoutProcessors(textOrSourceCode, config, options);
+    }
+
+    /**
+     * Verify with a processor.
+     * @param {string|SourceCode} textOrSourceCode The source code.
+     * @param {FlatConfig} config The config array.
+     * @param {VerifyOptions&ProcessorOptions} options The options.
+     * @param {FlatConfigArray} [configForRecursive] The `ConfigArray` object to apply multiple processors recursively.
+     * @returns {LintMessage[]} The found problems.
+     */
+    _verifyWithFlatConfigArrayAndProcessor(textOrSourceCode, config, options, configForRecursive) {
+        const filename = options.filename || "<input>";
+        const filenameToExpose = normalizeFilename(filename);
+        const physicalFilename = options.physicalFilename || filenameToExpose;
+        const text = ensureText(textOrSourceCode);
+        const preprocess = options.preprocess || (rawText => [rawText]);
+        const postprocess = options.postprocess || (messagesList => messagesList.flat());
+        const filterCodeBlock =
+            options.filterCodeBlock ||
+            (blockFilename => blockFilename.endsWith(".js"));
+        const originalExtname = path.extname(filename);
+        const messageLists = preprocess(text, filenameToExpose).map((block, i) => {
+            debug("A code block was found: %o", block.filename || "(unnamed)");
+
+            // Keep the legacy behavior.
+            if (typeof block === "string") {
+                return this._verifyWithFlatConfigArrayAndWithoutProcessors(block, config, options);
+            }
+
+            const blockText = block.text;
+            const blockName = path.join(filename, `${i}_${block.filename}`);
+
+            // Skip this block if filtered.
+            if (!filterCodeBlock(blockName, blockText)) {
+                debug("This code block was skipped.");
+                return [];
+            }
+
+            // Resolve configuration again if the file content or extension was changed.
+            if (configForRecursive && (text !== blockText || path.extname(blockName) !== originalExtname)) {
+                debug("Resolving configuration again because the file content or extension was changed.");
+                return this._verifyWithFlatConfigArray(
+                    blockText,
+                    configForRecursive,
+                    { ...options, filename: blockName, physicalFilename }
+                );
+            }
+
+            // Does lint.
+            return this._verifyWithFlatConfigArrayAndWithoutProcessors(
+                blockText,
+                config,
+                { ...options, filename: blockName, physicalFilename }
+            );
+        });
+
+        return postprocess(messageLists, filenameToExpose);
+    }
+
+    /**
+     * Same as linter.verify, except without support for processors.
+     * @param {string|SourceCode} textOrSourceCode The text to parse or a SourceCode object.
+     * @param {FlatConfig} providedConfig An ESLintConfig instance to configure everything.
+     * @param {VerifyOptions} [providedOptions] The optional filename of the file being checked.
+     * @throws {Error} If during rule execution.
+     * @returns {LintMessage[]} The results as an array of messages or an empty array if no messages.
+     */
+    _verifyWithFlatConfigArrayAndWithoutProcessors(textOrSourceCode, providedConfig, providedOptions) {
+        const slots = internalSlotsMap.get(this);
+        const config = providedConfig || {};
+        const options = normalizeVerifyOptions(providedOptions, config);
+        let text;
+
+        // evaluate arguments
+        if (typeof textOrSourceCode === "string") {
+            slots.lastSourceCode = null;
+            text = textOrSourceCode;
+        } else {
+            slots.lastSourceCode = textOrSourceCode;
+            text = textOrSourceCode.text;
+        }
+
+        const languageOptions = config.languageOptions;
+
+        languageOptions.ecmaVersion = normalizeEcmaVersionForLanguageOptions(
+            languageOptions.ecmaVersion
+        );
+
+        // add configured globals and language globals
+        const configuredGlobals = {
+            ...(getGlobalsForEcmaVersion(languageOptions.ecmaVersion)),
+            ...(languageOptions.sourceType === "commonjs" ? globals.commonjs : void 0),
+            ...languageOptions.globals
+        };
+
+        // Espree expects this information to be passed in
+        if (isEspree(languageOptions.parser)) {
+            const parserOptions = languageOptions.parserOptions;
+
+            if (languageOptions.sourceType) {
+
+                parserOptions.sourceType = languageOptions.sourceType;
+
+                if (
+                    parserOptions.sourceType === "module" &&
+                    parserOptions.ecmaFeatures &&
+                    parserOptions.ecmaFeatures.globalReturn
+                ) {
+                    parserOptions.ecmaFeatures.globalReturn = false;
+                }
+            }
+        }
+
+        const settings = config.settings || {};
+
+        if (!slots.lastSourceCode) {
+            const parseResult = parse(
+                text,
+                languageOptions,
+                options.filename
+            );
+
+            if (!parseResult.success) {
+                return [parseResult.error];
+            }
+
+            slots.lastSourceCode = parseResult.sourceCode;
+        } else {
+
+            /*
+             * If the given source code object as the first argument does not have scopeManager, analyze the scope.
+             * This is for backward compatibility (SourceCode is frozen so it cannot rebind).
+             */
+            if (!slots.lastSourceCode.scopeManager) {
+                slots.lastSourceCode = new SourceCode({
+                    text: slots.lastSourceCode.text,
+                    ast: slots.lastSourceCode.ast,
+                    parserServices: slots.lastSourceCode.parserServices,
+                    visitorKeys: slots.lastSourceCode.visitorKeys,
+                    scopeManager: analyzeScope(slots.lastSourceCode.ast, languageOptions)
+                });
+            }
+        }
+
+        const sourceCode = slots.lastSourceCode;
+        const commentDirectives = options.allowInlineConfig
+            ? getDirectiveComments(
+                options.filename,
+                sourceCode.ast,
+                ruleId => getRuleFromConfig(ruleId, config),
+                options.warnInlineConfig
+            )
+            : { configuredRules: {}, enabledGlobals: {}, exportedVariables: {}, problems: [], disableDirectives: [] };
+
+        // augment global scope with declared global variables
+        addDeclaredGlobals(
+            sourceCode.scopeManager.scopes[0],
+            configuredGlobals,
+            { exportedVariables: commentDirectives.exportedVariables, enabledGlobals: commentDirectives.enabledGlobals }
+        );
+
+        const configuredRules = Object.assign({}, config.rules, commentDirectives.configuredRules);
+
+        let lintingProblems;
+
+        try {
+            lintingProblems = runRules(
+                sourceCode,
+                configuredRules,
+                ruleId => getRuleFromConfig(ruleId, config),
+                void 0,
+                languageOptions,
+                settings,
+                options.filename,
+                options.disableFixes,
+                slots.cwd,
+                providedOptions.physicalFilename
+            );
+        } catch (err) {
+            err.message += `\nOccurred while linting ${options.filename}`;
+            debug("An error occurred while traversing");
+            debug("Filename:", options.filename);
+            if (err.currentNode) {
+                const { line } = err.currentNode.loc.start;
+
+                debug("Line:", line);
+                err.message += `:${line}`;
+            }
+            debug("Parser Options:", languageOptions.parserOptions);
+
+            // debug("Parser Path:", parserName);
+            debug("Settings:", settings);
+
+            if (err.ruleId) {
+                err.message += `\nRule: "${err.ruleId}"`;
+            }
+
+            throw err;
+        }
+
+        return applyDisableDirectives({
+            directives: commentDirectives.disableDirectives,
+            disableFixes: options.disableFixes,
+            problems: lintingProblems
+                .concat(commentDirectives.problems)
+                .sort((problemA, problemB) => problemA.line - problemB.line || problemA.column - problemB.column),
+            reportUnusedDisableDirectives: options.reportUnusedDisableDirectives
+        });
     }
 
     /**
@@ -1322,6 +1689,47 @@ class Linter {
             );
         }
         return this._verifyWithoutProcessors(textOrSourceCode, config, options);
+    }
+
+    /**
+     * Verify a given code with a flat config.
+     * @param {string|SourceCode} textOrSourceCode The source code.
+     * @param {FlatConfigArray} configArray The config array.
+     * @param {VerifyOptions&ProcessorOptions} options The options.
+     * @param {boolean} [firstCall=false] Indicates if this is being called directly
+     *      from verify(). (TODO: Remove once eslintrc is removed.)
+     * @returns {LintMessage[]} The found problems.
+     */
+    _verifyWithFlatConfigArray(textOrSourceCode, configArray, options, firstCall = false) {
+        debug("With flat config: %s", options.filename);
+
+        // we need a filename to match configs against
+        const filename = options.filename || "<input>";
+
+        // Store the config array in order to get plugin envs and rules later.
+        internalSlotsMap.get(this).lastConfigArray = configArray;
+        const config = configArray.getConfig(filename);
+
+        // Verify.
+        if (config.processor) {
+            debug("Apply the processor: %o", config.processor);
+            const { preprocess, postprocess, supportsAutofix } = config.processor;
+            const disableFixes = options.disableFixes || !supportsAutofix;
+
+            return this._verifyWithFlatConfigArrayAndProcessor(
+                textOrSourceCode,
+                config,
+                { ...options, filename, disableFixes, postprocess, preprocess },
+                configArray
+            );
+        }
+
+        // check for options-based processing
+        if (firstCall && (options.preprocess || options.postprocess)) {
+            return this._verifyWithFlatConfigArrayAndProcessor(textOrSourceCode, config, options);
+        }
+
+        return this._verifyWithFlatConfigArrayAndWithoutProcessors(textOrSourceCode, config, options);
     }
 
     /**
@@ -1397,6 +1805,7 @@ class Linter {
      * @returns {void}
      */
     defineRule(ruleId, ruleModule) {
+        assertEslintrcConfig(this);
         internalSlotsMap.get(this).ruleMap.define(ruleId, ruleModule);
     }
 
@@ -1406,6 +1815,7 @@ class Linter {
      * @returns {void}
      */
     defineRules(rulesToDefine) {
+        assertEslintrcConfig(this);
         Object.getOwnPropertyNames(rulesToDefine).forEach(ruleId => {
             this.defineRule(ruleId, rulesToDefine[ruleId]);
         });
@@ -1416,6 +1826,7 @@ class Linter {
      * @returns {Map<string, Rule>} All loaded rules
      */
     getRules() {
+        assertEslintrcConfig(this);
         const { lastConfigArray, ruleMap } = internalSlotsMap.get(this);
 
         return new Map(function *() {
@@ -1434,6 +1845,7 @@ class Linter {
      * @returns {void}
      */
     defineParser(parserId, parserModule) {
+        assertEslintrcConfig(this);
         internalSlotsMap.get(this).parserMap.set(parserId, parserModule);
     }
 
@@ -1441,7 +1853,7 @@ class Linter {
      * Performs multiple autofix passes over the text until as many fixes as possible
      * have been applied.
      * @param {string} text The source text to apply fixes to.
-     * @param {ConfigData|ConfigArray} config The ESLint config object to use.
+     * @param {ConfigData|ConfigArray|FlatConfigArray} config The ESLint config object to use.
      * @param {VerifyOptions&ProcessorOptions&FixOptions} options The ESLint options object to use.
      * @returns {{fixed:boolean,messages:LintMessage[],output:string}} The result of the fix operation as returned from the
      *      SourceCodeFixer.
