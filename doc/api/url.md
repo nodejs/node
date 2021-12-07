@@ -1233,7 +1233,7 @@ import { urlToHttpOptions } from 'url';
 const myURL = new URL('https://a:b@測試?abc#foo');
 
 console.log(urlToHttpOptions(myURL));
-/**
+/*
 {
   protocol: 'https:',
   hostname: 'xn--g6w251d',
@@ -1252,7 +1252,7 @@ const { urlToHttpOptions } = require('url');
 const myURL = new URL('https://a:b@測試?abc#foo');
 
 console.log(urlToHttpOptions(myUrl));
-/**
+/*
 {
   protocol: 'https:',
   hostname: 'xn--g6w251d',
