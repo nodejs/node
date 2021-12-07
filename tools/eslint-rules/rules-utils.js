@@ -30,9 +30,9 @@ module.exports.isRequired = function(node, modules) {
 };
 
 /**
-* Return true if common module is required
-* in AST Node under inspection
-*/
+ * Return true if common module is required
+ * in AST Node under inspection
+ */
 const commonModuleRegExp = new RegExp(/^(\.\.\/)*common(\.js)?$/);
 module.exports.isCommonModule = function(node) {
   return isRequireCall(node) &&
