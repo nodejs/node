@@ -154,8 +154,8 @@ typically configured server.
 
 ### URLs
 
-ES modules are resolved and cached as URLs. This means that files containing
-special characters such as `#` and `?` need to be escaped.
+ES modules are resolved and cached as URLs. This means that special characters
+must be [percent-encoded][], such as `#` with `%23` and `?` with `%3F`.
 
 `file:`, `node:`, and `data:` URL schemes are supported. A specifier like
 `'https://example.com/app.js'` is not supported natively in Node.js unless using
@@ -1457,6 +1457,7 @@ success!
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
 [custom https loader]: #https-loader
 [load hook]: #loadurl-context-defaultload
+[percent-encoded]: url.md#percent-encoding-in-urls
 [resolve hook]: #resolvespecifier-context-defaultresolve
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
