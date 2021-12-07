@@ -15,7 +15,6 @@ If you didn't find an answer in the resources above, try these unofficial
 resources:
 
 * [Questions tagged 'node.js' on Stack Overflow](https://stackoverflow.com/questions/tagged/node.js)
-* [#nodejs](https://openjs-foundation.slack.com/archives/CK9Q4MB53) channel on the OpenJS Foundation Slack ([join here](https://slack-invite.openjsf.org/))
 * [#node.js channel on libera.chat](https://web.libera.chat?channels=node.js&uio=d4)
 * [Node.js Slack Community](https://node-js.slack.com/)
   * To register: [nodeslackers.com](https://www.nodeslackers.com/)
