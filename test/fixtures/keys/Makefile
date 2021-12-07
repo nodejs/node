@@ -87,6 +87,8 @@ all: \
   ec_secp256k1_public.pem \
   incorrect_san_correct_subject-cert.pem \
   incorrect_san_correct_subject-key.pem \
+  irrelevant_san_correct_subject-cert.pem \
+  irrelevant_san_correct_subject-key.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -794,6 +796,18 @@ incorrect_san_correct_subject-cert.pem: incorrect_san_correct_subject-key.pem
 
 incorrect_san_correct_subject-key.pem:
 	openssl ecparam -name prime256v1 -genkey -noout -out incorrect_san_correct_subject-key.pem
+
+irrelevant_san_correct_subject-cert.pem: irrelevant_san_correct_subject-key.pem
+	openssl req -x509 \
+	            -key irrelevant_san_correct_subject-key.pem \
+	            -out irrelevant_san_correct_subject-cert.pem \
+	            -sha256 \
+	            -days 3650 \
+	            -subj "/CN=good.example.com" \
+	            -addext "subjectAltName = IP:1.2.3.4"
+
+irrelevant_san_correct_subject-key.pem:
+	openssl ecparam -name prime256v1 -genkey -noout -out irrelevant_san_correct_subject-key.pem
 
 clean:
 	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
