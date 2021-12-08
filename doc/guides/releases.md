@@ -782,18 +782,16 @@ announced immediately following the release of 12.0.0).
 
 ### Release branch
 
-Approximately three months before a major release, new `vN.x` and
+Approximately two months before a major release, new `vN.x` and
 `vN.x-staging` branches (where `N` indicates the major release) should be
-created as forks of the `master` branch. Up until one month before the release
-date, these must be kept in sync with `master` and must not be considered to
-be stable branches (e.g. they may be force pushed).
+created as forks of the `master` branch. Up until one week before the release
+date, these must be kept in sync with `master`.
 
 The `vN.x` and `vN.x-staging` branches must be kept in sync with one another
-up until the date of release.
+up until the date of the release.
 
-One month or less before the release date, commits must be cherry-picked into
-the two branches. To land `SEMVER-MAJOR` at this time requires no objections
-from the TSC.
+The TSC should be informed of any `SEMVER-MAJOR` commits that land within one
+month of the release.
 
 ### Create release labels
 
@@ -812,7 +810,7 @@ labels of previous releases.
 
 ### Release proposal
 
-A draft release proposal should be created two months before the release. A
+A draft release proposal should be created 6 weeks before the release. A
 separate `vN.x-proposal` branch should be created that tracks the `vN.x`
 branch. This branch will contain the draft release commit (with the draft
 changelog).
