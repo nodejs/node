@@ -2225,10 +2225,10 @@ added: v16.8.0
 
 Returns whether the stream has been read from or cancelled.
 
-### `stream.Readable.isErrored(stream)`
+### `stream.isErrored(stream)`
 
 <!-- YAML
-added: v16.8.0
+added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
@@ -2236,7 +2236,7 @@ added: v16.8.0
 * `stream` {stream.Readable|ReadableStream}
 * Returns: `boolean`
 
-Returns whether the stream has been errored.
+Returns whether the stream has encountered an error.
 
 ### `stream.Readable.toWeb(streamReadable)`
 
