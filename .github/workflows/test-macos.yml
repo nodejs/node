@@ -8,11 +8,11 @@ env:
 
 jobs:
   test-macOS:
-    runs-on: macos-latest
+    runs-on: "macos-10.15"
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
