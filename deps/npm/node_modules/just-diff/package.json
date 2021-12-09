@@ -1,11 +1,19 @@
 {
   "name": "just-diff",
-  "version": "3.1.1",
+  "version": "5.0.1",
   "description": "Return an object representing the diffs between two objects. Supports jsonPatch protocol",
   "main": "index.js",
+  "module": "index.mjs",
+  "exports": {
+    ".": {
+      "require": "./index.js",
+      "default": "./index.mjs"
+    }
+  },
   "types": "index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rollup -c"
   },
   "repository": "https://github.com/angus-c/just",
   "keywords": [

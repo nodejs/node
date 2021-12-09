@@ -295,6 +295,7 @@ class PlaceDep {
       integrity: dep.integrity,
       legacyPeerDeps: this.legacyPeerDeps,
       error: dep.errors[0],
+      ...(dep.overrides ? { overrides: dep.overrides } : {}),
       ...(dep.isLink ? { target: dep.target, realpath: dep.realpath } : {}),
     })
 

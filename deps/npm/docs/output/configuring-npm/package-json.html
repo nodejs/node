@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#name">name</a></li><li><a href="#version">version</a></li><li><a href="#description2">description</a></li><li><a href="#keywords">keywords</a></li><li><a href="#homepage">homepage</a></li><li><a href="#bugs">bugs</a></li><li><a href="#license">license</a></li><li><a href="#people-fields-author-contributors">people fields: author, contributors</a></li><li><a href="#funding">funding</a></li><li><a href="#files">files</a></li><li><a href="#main">main</a></li><li><a href="#browser">browser</a></li><li><a href="#bin">bin</a></li><li><a href="#man">man</a></li><li><a href="#directories">directories</a></li><ul><li><a href="#directoriesbin">directories.bin</a></li><li><a href="#directoriesman">directories.man</a></li></ul><li><a href="#repository">repository</a></li><li><a href="#scripts">scripts</a></li><li><a href="#config">config</a></li><li><a href="#dependencies">dependencies</a></li><ul><li><a href="#urls-as-dependencies">URLs as Dependencies</a></li><li><a href="#git-urls-as-dependencies">Git URLs as Dependencies</a></li><li><a href="#github-urls">GitHub URLs</a></li><li><a href="#local-paths">Local Paths</a></li></ul><li><a href="#devdependencies">devDependencies</a></li><li><a href="#peerdependencies">peerDependencies</a></li><li><a href="#peerdependenciesmeta">peerDependenciesMeta</a></li><li><a href="#bundleddependencies">bundledDependencies</a></li><li><a href="#optionaldependencies">optionalDependencies</a></li><li><a href="#engines">engines</a></li><li><a href="#os">os</a></li><li><a href="#cpu">cpu</a></li><li><a href="#private">private</a></li><li><a href="#publishconfig">publishConfig</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#default-values">DEFAULT VALUES</a></li><li><a href="#see-also">SEE ALSO</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#name">name</a></li><li><a href="#version">version</a></li><li><a href="#description2">description</a></li><li><a href="#keywords">keywords</a></li><li><a href="#homepage">homepage</a></li><li><a href="#bugs">bugs</a></li><li><a href="#license">license</a></li><li><a href="#people-fields-author-contributors">people fields: author, contributors</a></li><li><a href="#funding">funding</a></li><li><a href="#files">files</a></li><li><a href="#main">main</a></li><li><a href="#browser">browser</a></li><li><a href="#bin">bin</a></li><li><a href="#man">man</a></li><li><a href="#directories">directories</a></li><ul><li><a href="#directoriesbin">directories.bin</a></li><li><a href="#directoriesman">directories.man</a></li></ul><li><a href="#repository">repository</a></li><li><a href="#scripts">scripts</a></li><li><a href="#config">config</a></li><li><a href="#dependencies">dependencies</a></li><ul><li><a href="#urls-as-dependencies">URLs as Dependencies</a></li><li><a href="#git-urls-as-dependencies">Git URLs as Dependencies</a></li><li><a href="#github-urls">GitHub URLs</a></li><li><a href="#local-paths">Local Paths</a></li></ul><li><a href="#devdependencies">devDependencies</a></li><li><a href="#peerdependencies">peerDependencies</a></li><li><a href="#peerdependenciesmeta">peerDependenciesMeta</a></li><li><a href="#bundleddependencies">bundledDependencies</a></li><li><a href="#optionaldependencies">optionalDependencies</a></li><li><a href="#overrides">overrides</a></li><li><a href="#engines">engines</a></li><li><a href="#os">os</a></li><li><a href="#cpu">cpu</a></li><li><a href="#private">private</a></li><li><a href="#publishconfig">publishConfig</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#default-values">DEFAULT VALUES</a></li><li><a href="#see-also">SEE ALSO</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -800,6 +800,88 @@ if (foo) {
 </code></pre>
 <p>Entries in <code>optionalDependencies</code> will override entries of the same name in
 <code>dependencies</code>, so it's usually best to only put in one place.</p>
+<h3 id="overrides">overrides</h3>
+<p>If you need to make specific changes to dependencies of your dependencies, for
+example replacing the version of a dependency with a known security issue,
+replacing an existing dependency with a fork, or making sure that the same
+version of a package is used everywhere, then you may add an override.</p>
+<p>Overrides provide a way to replace a package in your dependency tree with
+another version, or another package entirely. These changes can be scoped as
+specific or as vague as desired.</p>
+<p>To make sure the package <code>foo</code> is always installed as version <code>1.0.0</code> no matter
+what version your dependencies rely on:</p>
+<pre lang="json"><code>{
+  "overrides": {
+    "foo": "1.0.0"
+  }
+}
+</code></pre>
+<p>The above is a short hand notation, the full object form can be used to allow
+overriding a package itself as well as a child of the package. This will cause
+<code>foo</code> to always be <code>1.0.0</code> while also making <code>bar</code> at any depth beyond <code>foo</code>
+also <code>1.0.0</code>:</p>
+<pre lang="json"><code>{
+  "overrides": {
+    "foo": {
+      ".": "1.0.0",
+      "bar": "1.0.0"
+    }
+  }
+}
+</code></pre>
+<p>To only override <code>foo</code> to be <code>1.0.0</code> when it's a child (or grandchild, or great
+grandchild, etc) of the package <code>bar</code>:</p>
+<pre lang="json"><code>{
+  "overrides": {
+    "bar": {
+      "foo": "1.0.0"
+    }
+  }
+}
+</code></pre>
+<p>Keys can be nested to any arbitrary length. To override <code>foo</code> only when it's a
+child of <code>bar</code> and only when <code>bar</code> is a child of <code>baz</code>:</p>
+<pre lang="json"><code>{
+  "overrides": {
+    "baz": {
+      "bar": {
+        "foo": "1.0.0"
+      }
+    }
+  }
+}
+</code></pre>
+<p>The key of an override can also include a version, or range of versions.
+To override <code>foo</code> to <code>1.0.0</code>, but only when it's a child of <code>bar@2.0.0</code>:</p>
+<pre lang="json"><code>{
+  "overrides": {
+    "bar@2.0.0": {
+      "foo": "1.0.0"
+    }
+  }
+}
+</code></pre>
+<p>You may not set an override for a package that you directly depend on unless
+both the dependency and the override itself share the exact same spec. To make
+this limitation easier to deal with, overrides may also be defined as a
+reference to a spec for a direct dependency by prefixing the name of the
+package you wish the version to match with a <code>$</code>.</p>
+<pre lang="json"><code>{
+  "dependencies": {
+    "foo": "^1.0.0"
+  },
+  "overrides": {
+    // BAD, will throw an EOVERRIDE error
+    // "foo": "^2.0.0"
+    // GOOD, specs match so override is allowed
+    // "foo": "^1.0.0"
+    // BEST, the override is defined as a reference to the dependency
+    "foo": "$foo",
+    // the referenced package does not need to match the overridden one
+    "bar": "$foo"
+  }
+}
+</code></pre>
 <h3 id="engines">engines</h3>
 <p>You can specify the version of node that your stuff works on:</p>
 <pre lang="json"><code>{

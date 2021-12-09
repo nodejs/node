@@ -127,6 +127,7 @@ module.exports = cls => class ActualLoader extends cls {
         realpath: real,
         pkg: {},
         global,
+        loadOverrides: true,
       })
       return this[_loadActualActually]({ root, ignoreMissing, global })
     }
@@ -135,7 +136,10 @@ module.exports = cls => class ActualLoader extends cls {
     this[_actualTree] = await this[_loadFSNode]({
       path: this.path,
       real: await realpath(this.path, this[_rpcache], this[_stcache]),
+      loadOverrides: true,
     })
+
+    this[_actualTree].assertRootOverrides()
 
     // Note: hidden lockfile will be rejected if it's not the latest thing
     // in the folder, or if any of the entries in the hidden lockfile are
@@ -236,13 +240,26 @@ module.exports = cls => class ActualLoader extends cls {
     this[_actualTree] = root
   }
 
-  [_loadFSNode] ({ path, parent, real, root }) {
+  [_loadFSNode] ({ path, parent, real, root, loadOverrides }) {
     if (!real) {
       return realpath(path, this[_rpcache], this[_stcache])
         .then(
-          real => this[_loadFSNode]({ path, parent, real, root }),
+          real => this[_loadFSNode]({
+            path,
+            parent,
+            real,
+            root,
+            loadOverrides,
+          }),
           // if realpath fails, just provide a dummy error node
-          error => new Node({ error, path, realpath: path, parent, root })
+          error => new Node({
+            error,
+            path,
+            realpath: path,
+            parent,
+            root,
+            loadOverrides,
+          })
         )
     }
 
@@ -271,6 +288,7 @@ module.exports = cls => class ActualLoader extends cls {
           error,
           parent,
           root,
+          loadOverrides,
         })
       })
       .then(node => {

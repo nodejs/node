@@ -871,6 +871,109 @@ if (foo) {
 Entries in `optionalDependencies` will override entries of the same name in
 `dependencies`, so it's usually best to only put in one place.
 
+### overrides
+
+If you need to make specific changes to dependencies of your dependencies, for
+example replacing the version of a dependency with a known security issue,
+replacing an existing dependency with a fork, or making sure that the same
+version of a package is used everywhere, then you may add an override.
+
+Overrides provide a way to replace a package in your dependency tree with
+another version, or another package entirely. These changes can be scoped as
+specific or as vague as desired.
+
+To make sure the package `foo` is always installed as version `1.0.0` no matter
+what version your dependencies rely on:
+
+```json
+{
+  "overrides": {
+    "foo": "1.0.0"
+  }
+}
+```
+
+The above is a short hand notation, the full object form can be used to allow
+overriding a package itself as well as a child of the package. This will cause
+`foo` to always be `1.0.0` while also making `bar` at any depth beyond `foo`
+also `1.0.0`:
+
+```json
+{
+  "overrides": {
+    "foo": {
+      ".": "1.0.0",
+      "bar": "1.0.0"
+    }
+  }
+}
+```
+
+To only override `foo` to be `1.0.0` when it's a child (or grandchild, or great
+grandchild, etc) of the package `bar`:
+
+```json
+{
+  "overrides": {
+    "bar": {
+      "foo": "1.0.0"
+    }
+  }
+}
+```
+
+Keys can be nested to any arbitrary length. To override `foo` only when it's a
+child of `bar` and only when `bar` is a child of `baz`:
+
+```json
+{
+  "overrides": {
+    "baz": {
+      "bar": {
+        "foo": "1.0.0"
+      }
+    }
+  }
+}
+```
+
+The key of an override can also include a version, or range of versions.
+To override `foo` to `1.0.0`, but only when it's a child of `bar@2.0.0`:
+
+```json
+{
+  "overrides": {
+    "bar@2.0.0": {
+      "foo": "1.0.0"
+    }
+  }
+}
+```
+
+You may not set an override for a package that you directly depend on unless
+both the dependency and the override itself share the exact same spec. To make
+this limitation easier to deal with, overrides may also be defined as a
+reference to a spec for a direct dependency by prefixing the name of the
+package you wish the version to match with a `$`.
+
+```json
+{
+  "dependencies": {
+    "foo": "^1.0.0"
+  },
+  "overrides": {
+    // BAD, will throw an EOVERRIDE error
+    // "foo": "^2.0.0"
+    // GOOD, specs match so override is allowed
+    // "foo": "^1.0.0"
+    // BEST, the override is defined as a reference to the dependency
+    "foo": "$foo",
+    // the referenced package does not need to match the overridden one
+    "bar": "$foo"
+  }
+}
+```
+
 ### engines
 
 You can specify the version of node that your stuff works on:

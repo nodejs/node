@@ -342,3 +342,44 @@ userconfig = "{HOME}/.npmrc"
 ; HOME = {HOME}
 ; Run \`npm config ls -l\` to show all defaults.
 `
+
+exports[`test/lib/commands/config.js TAP config list with publishConfig > output matches snapshot 1`] = `
+; "cli" config from command line options
+
+cache = "{NPMDIR}/test/lib/commands/tap-testdir-config-config-list-with-publishConfig-sandbox/cache"
+prefix = "{LOCALPREFIX}"
+userconfig = "{HOME}/.npmrc"
+
+; node bin location = {EXECPATH}
+; cwd = {NPMDIR}
+; HOME = {HOME}
+; Run \`npm config ls -l\` to show all defaults.
+
+; "publishConfig" from {LOCALPREFIX}/package.json
+; This set of config values will be used at publish-time.
+
+_authToken = (protected)
+registry = "https://some.registry"
+; "env" config from environment
+
+; cache = "{NPMDIR}/test/lib/commands/tap-testdir-config-config-list-with-publishConfig-sandbox/cache" ; overridden by cli
+global-prefix = "{LOCALPREFIX}"
+globalconfig = "{GLOBALPREFIX}/npmrc"
+init-module = "{HOME}/.npm-init.js"
+local-prefix = "{LOCALPREFIX}"
+; prefix = "{LOCALPREFIX}" ; overridden by cli
+user-agent = "npm/{NPM-VERSION} node/{NODE-VERSION} {PLATFORM} {ARCH} workspaces/false"
+; userconfig = "{HOME}/.npmrc" ; overridden by cli
+
+; "cli" config from command line options
+
+cache = "{NPMDIR}/test/lib/commands/tap-testdir-config-config-list-with-publishConfig-sandbox/cache"
+global = true
+prefix = "{LOCALPREFIX}"
+userconfig = "{HOME}/.npmrc"
+
+; node bin location = {EXECPATH}
+; cwd = {NPMDIR}
+; HOME = {HOME}
+; Run \`npm config ls -l\` to show all defaults.
+`

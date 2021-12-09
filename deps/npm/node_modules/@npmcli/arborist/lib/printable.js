@@ -1,6 +1,5 @@
 // helper function to output a clearer visualization
 // of the current node and its descendents
-
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const util = require('util')
 const relpath = require('./relpath.js')
@@ -65,6 +64,11 @@ class ArboristNode {
       this.errors = tree.errors.map(treeError)
     }
 
+    if (tree.overrides) {
+      this.overrides = new Map([...tree.overrides.ruleset.values()]
+        .map((override) => [override.key, override.value]))
+    }
+
     // edgesOut sorted by name
     if (tree.edgesOut.size) {
       this.edgesOut = new Map([...tree.edgesOut.entries()]
@@ -126,7 +130,10 @@ class Edge {
   constructor (edge) {
     this.type = edge.type
     this.name = edge.name
-    this.spec = edge.spec || '*'
+    this.spec = edge.rawSpec || '*'
+    if (edge.rawSpec !== edge.spec) {
+      this.override = edge.spec
+    }
     if (edge.error) {
       this.error = edge.error
     }
@@ -145,6 +152,8 @@ class EdgeOut extends Edge {
 
   [util.inspect.custom] () {
     return `{ ${this.type} ${this.name}@${this.spec}${
+      this.override ? ` overridden:${this.override}` : ''
+    }${
       this.to ? ' -> ' + this.to : ''
     }${
       this.error ? ' ' + this.error : ''

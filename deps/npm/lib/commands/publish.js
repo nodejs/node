@@ -104,11 +104,15 @@ class Publish extends BaseCommand {
       const resolved = npa.resolve(manifest.name, manifest.version)
       const registry = npmFetch.pickRegistry(resolved, opts)
       const creds = this.npm.config.getCredentialsByURI(registry)
+      const outputRegistry = replaceInfo(registry)
       if (!creds.token && !creds.username) {
-        throw Object.assign(new Error('This command requires you to be logged in.'), {
-          code: 'ENEEDAUTH',
-        })
+        throw Object.assign(
+          new Error(`This command requires you to be logged in to ${outputRegistry}`), {
+            code: 'ENEEDAUTH',
+          }
+        )
       }
+      log.notice('', `Publishing to ${outputRegistry}`)
       await otplease(opts, opts => libpub(manifest, tarballData, opts))
     }
 

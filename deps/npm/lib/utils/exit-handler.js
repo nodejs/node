@@ -116,6 +116,7 @@ const exitHandler = err => {
       exitCode = err.code
       noLogMessage = true
     } else if (typeof err === 'string') {
+      // XXX: we should stop throwing strings
       log.error('', err)
       noLogMessage = true
     } else if (!(err instanceof Error)) {
