@@ -2,7 +2,7 @@
 const configDefs = require('../utils/config/index.js')
 
 const mkdirp = require('mkdirp-infer-owner')
-const { dirname } = require('path')
+const { dirname, resolve } = require('path')
 const { promisify } = require('util')
 const fs = require('fs')
 const readFile = promisify(fs.readFile)
@@ -11,6 +11,7 @@ const { spawn } = require('child_process')
 const { EOL } = require('os')
 const ini = require('ini')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
+const rpj = require('read-package-json-fast')
 const log = require('../utils/log-shim.js')
 
 // take an array of `[key, value, k2=v2, k3, v3, ...]` and turn into
@@ -28,7 +29,17 @@ const keyValues = args => {
   return kv
 }
 
-const publicVar = k => !/^(\/\/[^:]+:)?_/.test(k)
+const publicVar = k => {
+  // _password
+  if (k.startsWith('_')) {
+    return false
+  }
+  // //localhost:8080/:_password
+  if (k.startsWith('//') && k.includes(':_')) {
+    return false
+  }
+  return true
+}
 
 const BaseCommand = require('../base-command.js')
 class Config extends BaseCommand {
@@ -147,7 +158,7 @@ class Config extends BaseCommand {
     const out = []
     for (const key of keys) {
       if (!publicVar(key)) {
-        throw `The ${key} option is protected, and cannot be retrieved in this way`
+        throw new Error(`The ${key} option is protected, and cannot be retrieved in this way`)
       }
 
       const pref = keys.length > 1 ? `${key}=` : ''
@@ -257,6 +268,23 @@ ${defData}
         `; HOME = ${process.env.HOME}`,
         '; Run `npm config ls -l` to show all defaults.'
       )
+      msg.push('')
+    }
+
+    if (!this.npm.config.get('global')) {
+      const pkgPath = resolve(this.npm.prefix, 'package.json')
+      const pkg = await rpj(pkgPath).catch(() => ({}))
+
+      if (pkg.publishConfig) {
+        msg.push(`; "publishConfig" from ${pkgPath}`)
+        msg.push('; This set of config values will be used at publish-time.', '')
+        const pkgKeys = Object.keys(pkg.publishConfig).sort(localeCompare)
+        for (const k of pkgKeys) {
+          const v = publicVar(k) ? JSON.stringify(pkg.publishConfig[k]) : '(protected)'
+          msg.push(`${k} = ${v}`)
+        }
+        msg.push('')
+      }
     }
 
     this.npm.output(msg.join('\n').trim())
