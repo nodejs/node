@@ -87,11 +87,11 @@
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.cc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.inc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/field-offsets.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/instance-types.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/interface-descriptors.inc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-body-descriptors-inl.inc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-printer.cc",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/visitor-lists.h",
             '<@(torque_outputs_csa_cc)',
             '<@(torque_outputs_csa_h)',
             '<@(torque_outputs_inl_inc)',
@@ -1135,11 +1135,6 @@
             '<(V8_ROOT)/src/base/platform/platform-win32.cc',
             '<(V8_ROOT)/src/base/win32-headers.h',
           ],
-          'conditions': [
-            ['target_arch == "arm64"', {
-              'defines': ['_WIN32_WINNT=0x0602'], # For GetCurrentThreadStackLimits on Windows on Arm
-            }],
-          ],
           'defines': ['_CRT_RAND_S'], # for rand_s()
           'direct_dependent_settings': {
             'msvs_settings': {
@@ -1733,7 +1728,6 @@
               'is_ubsan_vptr=0',
               'target_cpu=<(target_arch)',
               'v8_current_cpu=<(v8_current_cpu)',
-              'v8_enable_atomic_marking_state=<(v8_enable_atomic_marking_state)',
               'v8_enable_atomic_object_field_writes=<(v8_enable_atomic_object_field_writes)',
               'v8_enable_concurrent_marking=<(v8_enable_concurrent_marking)',
               'v8_enable_i18n_support=<(v8_enable_i18n_support)',
