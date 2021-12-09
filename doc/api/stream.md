@@ -2234,7 +2234,7 @@ added: REPLACEME
 > Stability: 1 - Experimental
 
 * `stream` {stream.Readable|ReadableStream}
-* Returns: `boolean`
+* Returns: {boolean}
 
 Returns whether the stream has encountered an error.
 
