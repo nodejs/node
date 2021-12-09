@@ -151,9 +151,6 @@
     # into relaxed atomic operations.
     'v8_enable_atomic_object_field_writes%': 1,
 
-    # Sets -dV8_ATOMIC_MARKING_STATE
-    'v8_enable_atomic_marking_state%': 1,
-
     # Has no effect in Node.js. Here for completeness with V8's config.
     'v8_enable_concurrent_marking%': 1,
 
@@ -235,6 +232,8 @@
     'v8_allocation_site_tracking%': 1,
 
     'v8_scriptormodule_legacy_lifetime%': 1,
+
+    'v8_include_receiver_in_argc%': 1,
 
     # Variables from v8.gni
 
@@ -358,9 +357,6 @@
       ['v8_enable_atomic_object_field_writes==1', {
         'defines': ['V8_ATOMIC_OBJECT_FIELD_WRITES',],
       }],
-      ['v8_enable_atomic_marking_state==1', {
-        'defines': ['V8_ATOMIC_MARKING_STATE',],
-      }],
       ['v8_enable_lazy_source_positions==1', {
         'defines': ['V8_ENABLE_LAZY_SOURCE_POSITIONS',],
       }],
@@ -411,6 +407,9 @@
       }],
       ['v8_advanced_bigint_algorithms==1', {
         'defines': ['V8_ADVANCED_BIGINT_ALGORITHMS',],
+      }],
+      ['v8_include_receiver_in_argc==1', {
+        'defines': ['V8_INCLUDE_RECEIVER_IN_ARGC',],
       }],
     ],  # conditions
     'defines': [
