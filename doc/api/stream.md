@@ -2154,6 +2154,57 @@ added: v16.8.0
 
 Returns whether the stream has been read from or cancelled.
 
+### `stream.isErrored(stream)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `stream` {Readable|Writable|Duplex|WritableStream|ReadableStream}
+* Returns: {boolean}
+
+Returns whether the stream has encountered an error.
+
+### `stream.Readable.toWeb(streamReadable)`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+> Stability: 1 - Experimental
+
+* `streamReadable` {stream.Readable}
+* Returns: {ReadableStream}
+
+### `stream.Writable.fromWeb(writableStream[, options])`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+> Stability: 1 - Experimental
+
+* `writableStream` {WritableStream}
+* `options` {Object}
+  * `decodeStrings` {boolean}
+  * `highWaterMark` {number}
+  * `objectMode` {boolean}
+  * `signal` {AbortSignal}
+* Returns: {stream.Writable}
+
+### `stream.Writable.toWeb(streamWritable)`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+> Stability: 1 - Experimental
+
+* `streamWritable` {stream.Writable}
+* Returns: {WritableStream}
+
 ### `stream.Duplex.from(src)`
 
 <!-- YAML
