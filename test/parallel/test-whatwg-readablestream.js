@@ -2,7 +2,7 @@
 'use strict';
 
 const common = require('../common');
-const { isDisturbed } = require('stream');
+const { isDisturbed, isErrored } = require('stream');
 const assert = require('assert');
 const {
   isPromise,
@@ -1570,5 +1570,22 @@ class Source {
     isDisturbed(stream, false);
     await reader.read();
     isDisturbed(stream, true);
+  })().then(common.mustCall());
+}
+
+
+{
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.error(new Error());
+    },
+    pull: common.mustNotCall(),
+  });
+
+  const reader = stream.getReader();
+  (async () => {
+    isErrored(stream, false);
+    await reader.read();
+    isErrored(stream, true);
   })().then(common.mustCall());
 }
