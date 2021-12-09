@@ -29,6 +29,7 @@ class ArboristEdge {}
 const printableEdge = (edge) => {
   const edgeFrom = edge.from && edge.from.location
   const edgeTo = edge.to && edge.to.location
+  const override = edge.overrides && edge.overrides.value
 
   return Object.assign(new ArboristEdge(), {
     name: edge.name,
@@ -38,12 +39,13 @@ const printableEdge = (edge) => {
     ...(edgeTo ? { to: edgeTo } : {}),
     ...(edge.error ? { error: edge.error } : {}),
     ...(edge.peerConflicted ? { peerConflicted: true } : {}),
+    ...(override ? { overridden: override } : {}),
   })
 }
 
 class Edge {
   constructor (options) {
-    const { type, name, spec, accept, from } = options
+    const { type, name, spec, accept, from, overrides } = options
 
     if (typeof spec !== 'string') {
       throw new TypeError('must provide string spec')
@@ -54,6 +56,10 @@ class Edge {
     }
 
     this[_spec] = spec
+
+    if (overrides !== undefined) {
+      this.overrides = overrides
+    }
 
     if (accept !== undefined) {
       if (typeof accept !== 'string') {
@@ -82,8 +88,11 @@ class Edge {
   }
 
   satisfiedBy (node) {
-    return node.name === this.name &&
-      depValid(node, this.spec, this.accept, this.from)
+    if (node.name !== this.name) {
+      return false
+    }
+
+    return depValid(node, this.spec, this.accept, this.from)
   }
 
   explain (seen = []) {
@@ -101,6 +110,10 @@ class Edge {
       type: this.type,
       name: this.name,
       spec: this.spec,
+      ...(this.rawSpec !== this.spec ? {
+        rawSpec: this.rawSpec,
+        overridden: true,
+      } : {}),
       ...(bundled ? { bundled } : {}),
       ...(error ? { error } : {}),
       ...(from ? { from: from.explain(null, seen) } : {}),
@@ -143,7 +156,28 @@ class Edge {
     return this[_name]
   }
 
+  get rawSpec () {
+    return this[_spec]
+  }
+
   get spec () {
+    if (this.overrides && this.overrides.value && this.overrides.name === this.name) {
+      if (this.overrides.value.startsWith('$')) {
+        const ref = this.overrides.value.slice(1)
+        const pkg = this.from.root.package
+        const overrideSpec = (pkg.devDependencies && pkg.devDependencies[ref]) ||
+            (pkg.optionalDependencies && pkg.optionalDependencies[ref]) ||
+            (pkg.dependencies && pkg.dependencies[ref]) ||
+            (pkg.peerDependencies && pkg.peerDependencies[ref])
+
+        if (overrideSpec) {
+          return overrideSpec
+        }
+
+        throw new Error(`Unable to resolve reference ${this.overrides.value}`)
+      }
+      return this.overrides.value
+    }
     return this[_spec]
   }
 
@@ -213,6 +247,7 @@ class Edge {
     if (node.edgesOut.has(this.name)) {
       node.edgesOut.get(this.name).detach()
     }
+
     node.addEdgeOut(this)
     this.reload()
   }

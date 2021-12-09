@@ -12,15 +12,20 @@ t.cleanSnapshot = (path) => cleanCwd(path)
 
 const last = arr => arr[arr.length - 1]
 const range = (n) => Array.from(Array(n).keys())
-const makeOldLogs = (count) => {
+const makeOldLogs = (count, oldStyle) => {
   const d = new Date()
   d.setHours(-1)
   d.setSeconds(0)
-  return range(count / 2).reduce((acc, i) => {
+  return range(oldStyle ? count : (count / 2)).reduce((acc, i) => {
     const cloneDate = new Date(d.getTime())
     cloneDate.setSeconds(i)
-    acc[LogFile.fileName(LogFile.logId(cloneDate), 0)] = 'hello'
-    acc[LogFile.fileName(LogFile.logId(cloneDate), 1)] = 'hello'
+    const dateId = LogFile.logId(cloneDate)
+    if (oldStyle) {
+      acc[`${dateId}-debug.log`] = 'hello'
+    } else {
+      acc[`${dateId}-debug-0.log`] = 'hello'
+      acc[`${dateId}-debug-1.log`] = 'hello'
+    }
     return acc
   }, {})
 }
@@ -245,6 +250,18 @@ t.test('glob error', async t => {
   const logs = await readLogs()
   t.equal(logs.length, 1)
   t.match(last(logs).content, /error cleaning log files .* bad glob/)
+})
+
+t.test('cleans old style logs too', async t => {
+  const logsMax = 5
+  const oldLogs = 10
+  const { readLogs } = await loadLogFile(t, {
+    logsMax,
+    testdir: makeOldLogs(oldLogs, false),
+  })
+
+  const logs = await readLogs()
+  t.equal(logs.length, logsMax + 1)
 })
 
 t.test('rimraf error', async t => {

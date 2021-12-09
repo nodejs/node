@@ -72,6 +72,7 @@ module.exports = cls => class VirtualLoader extends cls {
     this[rootOptionProvided] = options.root
 
     await this[loadFromShrinkwrap](s, root)
+    root.assertRootOverrides()
     return treeCheck(this.virtualTree)
   }
 

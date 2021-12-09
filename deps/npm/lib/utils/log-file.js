@@ -8,6 +8,8 @@ const fsMiniPass = require('fs-minipass')
 const log = require('./log-shim')
 const withChownSync = require('./with-chown-sync')
 
+const padZero = (n, length) => n.toString().padStart(length.toString().length, '0')
+
 const _logHandler = Symbol('logHandler')
 const _formatLogItem = Symbol('formatLogItem')
 const _getLogFilePath = Symbol('getLogFilePath')
@@ -34,7 +36,7 @@ class LogFiles {
   // here for infinite loops that still log. This is also partially handled
   // by the config.get('max-files') option, but this is a failsafe to
   // prevent runaway log file creation
-  #MAX_LOG_FILES_PER_PROCESS = null
+  #MAX_FILES_PER_PROCESS = null
 
   #fileLogCount = 0
   #totalLogCount = 0
@@ -48,16 +50,12 @@ class LogFiles {
   } = {}) {
     this.#logId = LogFiles.logId(new Date())
     this.#MAX_LOGS_PER_FILE = maxLogsPerFile
-    this.#MAX_LOG_FILES_PER_PROCESS = maxFilesPerProcess
+    this.#MAX_FILES_PER_PROCESS = maxFilesPerProcess
     this.on()
   }
 
   static logId (d) {
     return d.toISOString().replace(/[.:]/g, '_')
-  }
-
-  static fileName (prefix, suffix) {
-    return `${prefix}-debug-${suffix}.log`
   }
 
   static format (count, level, title, ...args) {
@@ -149,7 +147,7 @@ class LogFiles {
     if (this.#fileLogCount >= this.#MAX_LOGS_PER_FILE) {
       // Write last chunk to the file and close it
       this[_endStream](logOutput)
-      if (this.#files.length >= this.#MAX_LOG_FILES_PER_PROCESS) {
+      if (this.#files.length >= this.#MAX_FILES_PER_PROCESS) {
         // but if its way too many then we just stop listening
         this.off()
       } else {
@@ -166,23 +164,21 @@ class LogFiles {
     return LogFiles.format(this.#totalLogCount++, ...args)
   }
 
-  [_getLogFilePath] (prefix, suffix) {
-    return path.resolve(this.#dir, LogFiles.fileName(prefix, suffix))
+  [_getLogFilePath] (prefix, suffix, sep = '-') {
+    return path.resolve(this.#dir, prefix + sep + 'debug' + sep + suffix + '.log')
   }
 
   [_openLogFile] () {
     // Count in filename will be 0 indexed
     const count = this.#files.length
 
-    // Pad with zeros so that our log files are always sorted properly
-    // We never want to write files ending in `-9.log` and `-10.log` because
-    // log file cleaning is done by deleting the oldest so in this example
-    // `-10.log` would be deleted next
-    const countDigits = this.#MAX_LOG_FILES_PER_PROCESS.toString().length
-
     try {
       const logStream = withChownSync(
-        this[_getLogFilePath](this.#logId, count.toString().padStart(countDigits, '0')),
+        // Pad with zeros so that our log files are always sorted properly
+        // We never want to write files ending in `-9.log` and `-10.log` because
+        // log file cleaning is done by deleting the oldest so in this example
+        // `-10.log` would be deleted next
+        this[_getLogFilePath](this.#logId, padZero(count, this.#MAX_FILES_PER_PROCESS)),
         // Some effort was made to make the async, but we need to write logs
         // during process.on('exit') which has to be synchronous. So in order
         // to never drop log messages, it is easiest to make it sync all the time
@@ -214,14 +210,13 @@ class LogFiles {
       return
     }
 
-    // Add 1 to account for the current log file and make
-    // minimum config 0 so current log file is never deleted
-    // XXX: we should make a separate documented option to
-    // disable log file writing
-    const max = Math.max(this.#logsMax, 0) + 1
     try {
-      const files = await glob(this[_getLogFilePath]('*', '*'))
-      const toDelete = files.length - max
+      // Handle the old (prior to 8.2.0) log file names which did not have an counter suffix
+      // so match by anything after `-debug` and before `.log` (including nothing)
+      const logGlob = this[_getLogFilePath]('*-', '*', '')
+      // Always ignore the currently written files
+      const files = await glob(logGlob, { ignore: this.#files })
+      const toDelete = files.length - this.#logsMax
 
       if (toDelete <= 0) {
         return
@@ -233,7 +228,7 @@ class LogFiles {
         try {
           await rimraf(file)
         } catch (e) {
-          log.warn('logfile', 'error removing log file', file, e)
+          log.silly('logfile', 'error removing log file', file, e)
         }
       }
     } catch (e) {

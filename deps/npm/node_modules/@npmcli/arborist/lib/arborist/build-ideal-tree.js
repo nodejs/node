@@ -379,6 +379,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       optional: false,
       global: this[_global],
       legacyPeerDeps: this.legacyPeerDeps,
+      loadOverrides: true,
     })
     if (root.isLink) {
       root.target = new Node({
@@ -676,6 +677,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     // calls rather than walking over everything in the tree.
     const set = this.idealTree.inventory
       .filter(n => this[_shouldUpdateNode](n))
+    // XXX add any invalid edgesOut to the queue
     for (const node of set) {
       for (const edge of node.edgesIn) {
         this.addTracker('idealTree', edge.from.name, edge.from.location)
@@ -772,7 +774,10 @@ This is a one-time fix-up, please be patient...
   [_buildDeps] () {
     process.emit('time', 'idealTree:buildDeps')
     const tree = this.idealTree.target
+    tree.assertRootOverrides()
     this[_depsQueue].push(tree)
+    // XXX also push anything that depends on a node with a name
+    // in the override list
     this.log.silly('idealTree', 'buildDeps')
     this.addTracker('idealTree', tree.name, '')
     return this[_buildDepStep]()
@@ -1112,6 +1117,7 @@ This is a one-time fix-up, please be patient...
       path: node.realpath,
       sourceReference: node,
       legacyPeerDeps: this.legacyPeerDeps,
+      overrides: node.overrides,
     })
 
     // also need to set up any targets from any link deps, so that

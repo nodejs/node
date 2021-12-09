@@ -165,7 +165,12 @@ module.exports = class Minipass extends Stream {
       // because we're mid-write, so that'd be bad.
       if (this[BUFFERLENGTH] !== 0)
         this[FLUSH](true)
-      this.emit('data', chunk)
+
+      // if we are still flowing after flushing the buffer we can emit the
+      // chunk otherwise we have to buffer it.
+      this.flowing
+        ? this.emit('data', chunk)
+        : this[BUFFERPUSH](chunk)
     } else
       this[BUFFERPUSH](chunk)
 

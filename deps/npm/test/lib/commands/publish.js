@@ -341,8 +341,10 @@ t.test('can publish a tarball', async t => {
 
 t.test('should check auth for default registry', async t => {
   t.plan(2)
-  const Publish = t.mock('../../../lib/commands/publish.js')
   const npm = mockNpm()
+  const registry = npm.config.get('registry')
+  const errorMessage = `This command requires you to be logged in to ${registry}`
+  const Publish = t.mock('../../../lib/commands/publish.js')
   npm.config.getCredentialsByURI = uri => {
     t.same(uri, npm.config.get('registry'), 'gets credentials for expected registry')
     return {}
@@ -351,7 +353,7 @@ t.test('should check auth for default registry', async t => {
 
   await t.rejects(
     publish.exec([]),
-    { message: 'This command requires you to be logged in.', code: 'ENEEDAUTH' },
+    { message: errorMessage, code: 'ENEEDAUTH' },
     'throws when not logged in'
   )
 })
@@ -359,6 +361,7 @@ t.test('should check auth for default registry', async t => {
 t.test('should check auth for configured registry', async t => {
   t.plan(2)
   const registry = 'https://some.registry'
+  const errorMessage = 'This command requires you to be logged in to https://some.registry'
   const Publish = t.mock('../../../lib/commands/publish.js')
   const npm = mockNpm({
     flatOptions: { registry },
@@ -371,7 +374,7 @@ t.test('should check auth for configured registry', async t => {
 
   await t.rejects(
     publish.exec([]),
-    { message: 'This command requires you to be logged in.', code: 'ENEEDAUTH' },
+    { message: errorMessage, code: 'ENEEDAUTH' },
     'throws when not logged in'
   )
 })
@@ -379,6 +382,7 @@ t.test('should check auth for configured registry', async t => {
 t.test('should check auth for scope specific registry', async t => {
   t.plan(2)
   const registry = 'https://some.registry'
+  const errorMessage = 'This command requires you to be logged in to https://some.registry'
   const testDir = t.testdir({
     'package.json': JSON.stringify(
       {
@@ -402,7 +406,7 @@ t.test('should check auth for scope specific registry', async t => {
 
   await t.rejects(
     publish.exec([testDir]),
-    { message: 'This command requires you to be logged in.', code: 'ENEEDAUTH' },
+    { message: errorMessage, code: 'ENEEDAUTH' },
     'throws when not logged in'
   )
 })
@@ -735,7 +739,7 @@ t.test('private workspaces', async t => {
   })
 
   t.test('unexpected error', async t => {
-    t.plan(1)
+    t.plan(2)
 
     const Publish = t.mock('../../../lib/commands/publish.js', {
       ...mocks,
@@ -749,7 +753,9 @@ t.test('private workspaces', async t => {
         },
       },
       'proc-log': {
-        notice () {},
+        notice (__, msg) {
+          t.match(msg, 'Publishing to https://registry.npmjs.org/')
+        },
         verbose () {},
       },
     })
