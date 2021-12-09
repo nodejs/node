@@ -32,6 +32,7 @@ const semver = require('semver')
 const nameFromFolder = require('@npmcli/name-from-folder')
 const Edge = require('./edge.js')
 const Inventory = require('./inventory.js')
+const OverrideSet = require('./override-set.js')
 const { normalize } = require('read-package-json-fast')
 const { getPaths: getBinPaths } = require('bin-links')
 const npa = require('npm-package-arg')
@@ -88,6 +89,8 @@ class Node {
       legacyPeerDeps = false,
       linksIn,
       hasShrinkwrap,
+      overrides,
+      loadOverrides = false,
       extraneous = true,
       dev = true,
       optional = true,
@@ -189,6 +192,17 @@ class Node {
     // have to set the internal package ref before assigning the parent,
     // because this.package is read when adding to inventory
     this[_package] = pkg && typeof pkg === 'object' ? pkg : {}
+
+    if (overrides) {
+      this.overrides = overrides
+    } else if (loadOverrides) {
+      const overrides = this[_package].overrides || {}
+      if (Object.keys(overrides).length > 0) {
+        this.overrides = new OverrideSet({
+          overrides: this[_package].overrides,
+        })
+      }
+    }
 
     // only relevant for the root and top nodes
     this.meta = meta
@@ -963,6 +977,11 @@ class Node {
       return false
     }
 
+    // XXX need to check for two root nodes?
+    if (node.overrides !== this.overrides) {
+      return false
+    }
+
     ignorePeers = new Set(ignorePeers)
 
     // gather up all the deps of this node and that are only depended
@@ -1208,6 +1227,10 @@ class Node {
       this[_changePath](newPath)
     }
 
+    if (parent.overrides) {
+      this.overrides = parent.overrides.getNodeRule(this)
+    }
+
     // clobbers anything at that path, resets all appropriate references
     this.root = parent.root
   }
@@ -1279,11 +1302,33 @@ class Node {
     }
   }
 
+  assertRootOverrides () {
+    if (!this.isProjectRoot || !this.overrides) {
+      return
+    }
+
+    for (const edge of this.edgesOut.values()) {
+      // if these differ an override has been applied, those are not allowed
+      // for top level dependencies so throw an error
+      if (edge.spec !== edge.rawSpec && !edge.spec.startsWith('$')) {
+        throw Object.assign(new Error(`Override for ${edge.name}@${edge.rawSpec} conflicts with direct dependency`), { code: 'EOVERRIDE' })
+      }
+    }
+  }
+
   addEdgeOut (edge) {
+    if (this.overrides) {
+      edge.overrides = this.overrides.getEdgeRule(edge)
+    }
+
     this.edgesOut.set(edge.name, edge)
   }
 
   addEdgeIn (edge) {
+    if (edge.overrides) {
+      this.overrides = edge.overrides
+    }
+
     this.edgesIn.add(edge)
 
     // try to get metadata from the yarn.lock file

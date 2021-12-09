@@ -1,4 +1,4 @@
-import diffObj = require('./index');
+import * as diffObj from './index'
 
 const {diff, jsonPatchPathConverter} = diffObj;
 const obj1 = {a: 2, b: 3};
