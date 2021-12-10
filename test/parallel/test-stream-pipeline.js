@@ -17,6 +17,7 @@ const http = require('http');
 const { promisify } = require('util');
 const net = require('net');
 const tsp = require('timers/promises');
+const fs = require('fs');
 
 {
   let finished = false;
@@ -1510,5 +1511,115 @@ const tsp = require('timers/promises');
     assert.strictEqual(err, undefined);
     assert.strictEqual(val, 'helloworld');
     assert.strictEqual(s.destroyed, true);
+  }));
+}
+
+{
+  const r = new Readable({
+    read() {}
+  });
+  r.push('hello');
+  r.push('world');
+  r.push(null);
+  let res = '';
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      res += chunk;
+      callback();
+    }
+  });
+  pipeline([r, w], common.mustCall((err) => {
+    assert.ok(r.destroyed);
+    assert.ok(w.destroyed);
+    assert.ok(!err);
+    assert.strictEqual(res, 'helloworld');
+  }));
+}
+
+{
+  const r = new Readable({
+    read() {}
+  });
+  r.push('hello');
+  r.push('world');
+  r.push(null);
+  let res = '';
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      res += chunk;
+      callback();
+    }
+  });
+  pipeline([r, w], common.mustCall((err) => {
+    assert.ok(r.destroyed);
+    assert.ok(w.destroyed);
+    assert.ok(!err);
+    assert.strictEqual(res, 'helloworld');
+  }));
+}
+
+// When occurs an error in the pipeline the IncomingRequest
+// should not destroy the connection automatically.
+{
+  const server = http.createServer(common.mustCall((req, res) => {
+    const r = fs.createReadStream('./notfound');
+    pipeline(r, res, common.mustCall((err) => {
+      assert.ok(res.destroyed === false);
+      assert.ok(r.destroyed);
+      assert.strictEqual(err.code, 'ENOENT');
+      assert.strictEqual(err.message,
+                         'ENOENT: no such file or directory, ' +
+                         'open \'./notfound\'');
+      res.end(err.message);
+    }));
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    http.request({
+      port: server.address().port
+    }, common.mustCall((res) => {
+      res.setEncoding('utf8');
+      let responseData = '';
+      res.on('data', (chunk) => { responseData += chunk; });
+      res.on('end', common.mustCall(() => {
+        assert.strictEqual(responseData,
+                           'ENOENT: no such file or directory, ' +
+                           'open \'./notfound\'');
+        setImmediate(() => {
+          res.destroy();
+          server.close();
+        });
+      }));
+    })).end();
+  }));
+}
+
+// Should close the IncomingRequest stream automatically when no error occurs
+{
+  const server = http.createServer(common.mustCall((req, res) => {
+    const r = fs.createReadStream(__filename);
+    pipeline(r, res, common.mustCall((err) => {
+      assert.ok(res.destroyed);
+      assert.ok(r.destroyed);
+      assert.ok(err === undefined);
+    }));
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    http.request({
+      port: server.address().port
+    }, common.mustCall((res) => {
+      res.setEncoding('utf8');
+      let responseData = '';
+      res.on('data', (chunk) => { responseData += chunk; });
+      res.on('end', common.mustCall(() => {
+        const data = fs.readFileSync(__filename);
+        assert.strictEqual(responseData, data.toString());
+        setImmediate(() => {
+          res.destroy();
+          server.close();
+        });
+      }));
+    })).end();
   }));
 }
