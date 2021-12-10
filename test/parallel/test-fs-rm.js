@@ -5,7 +5,7 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { pathToFileURL }=require('url');
+const { pathToFileURL } = require('url');
 const { execSync } = require('child_process');
 
 const { validateRmOptionsSync } = require('internal/fs/utils');
