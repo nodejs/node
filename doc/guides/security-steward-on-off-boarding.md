@@ -19,7 +19,7 @@
 
 * Remove them from security-stewards team in the GitHub nodejs-private
   organization
-* Unless they have access for another reason remove them from the
+* Unless they have access for another reason, remove them from the
   standard team in H1 using this
   [page](https://hackerone.com/nodejs/team_members).
 * Unless they are a jenkins admin for another reason, remove them from the
