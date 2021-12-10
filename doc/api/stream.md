@@ -2233,7 +2233,7 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-* `stream` {stream.Readable|stream.Writable|stream.Duplex|WritableStream||ReadableStream}
+* `stream` {Readable|Writable|Duplex|WritableStream|ReadableStream}
 * Returns: {boolean}
 
 Returns whether the stream has encountered an error.
