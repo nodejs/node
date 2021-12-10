@@ -25,6 +25,8 @@ rules:
       message: "Please use `require('internal/errors').hideStackFrames()` instead."
     - selector: "AssignmentExpression:matches([left.name='prepareStackTrace'], [left.property.name='prepareStackTrace'])"
       message: "Use 'overrideStackTrace' from 'lib/internal/errors.js' instead of 'Error.prepareStackTrace'."
+    - selector: "ThrowStatement > NewExpression[callee.name=/^ERR_[A-Z_]+$/] > ObjectExpression:first-child:not(:has([key.name='message']):has([key.name='code']):has([key.name='syscall']))"
+      message: "The context passed into SystemError constructor must have .code, .syscall and .message."
   no-restricted-globals:
     - error
     - name: AbortController
