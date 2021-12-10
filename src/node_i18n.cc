@@ -447,8 +447,9 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
 
   // When flushing the final chunk, the limit is the maximum
   // of either the input buffer length or the number of pending
-  // characters times the min char size.
-  size_t limit = converter->min_char_size() *
+  // characters times the min char size, multiplied by 2 as unicode may
+  // take up to 2 UChars to encode a character
+  size_t limit = 2 * converter->min_char_size() *
       (!flush ?
           input.length() :
           std::max(
@@ -474,7 +475,7 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
   UChar* target = *result;
   ucnv_toUnicode(converter->conv(),
                  &target,
-                 target + (limit * sizeof(UChar)),
+                 target + limit,
                  &source,
                  source + source_length,
                  nullptr,
