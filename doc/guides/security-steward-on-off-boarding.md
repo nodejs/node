@@ -8,10 +8,6 @@
   organization
 * Add them to the standard team in H1 using this
   [page](https://hackerone.com/nodejs/team_members);
-* Add them to the
-  [jenkin-admins team](https://GitHub.com/orgs/nodejs/teams/jenkins-admins)
-  in the GitHub nodejs org. This is needed for them to be able
-  to lock/unlock the CI during a security release.
 * Add them as managers of the
   [nodejs-sec](https://groups.google.com/g/nodejs-sec/members) mailing list.
 
