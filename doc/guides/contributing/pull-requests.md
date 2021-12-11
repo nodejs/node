@@ -251,7 +251,9 @@ And on Windows:
 > vcbuild test
 ```
 
-(See the [running tests][] section of Building guide for more details.)
+(This code might take more than an hour to execute on a PC, want to run a part 
+of tests quickly or for more details see the [running tests][] section of Build
+ing guide.)
 
 ### Step 7: Push
 
