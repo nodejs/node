@@ -109,7 +109,7 @@ For topics not covered here, refer to the [Microsoft Writing Style Guide][].
 [Use sentence-style capitalization for headings]: https://docs.microsoft.com/en-us/style-guide/scannable-content/headings#formatting-headings
 [Use serial commas]: https://docs.microsoft.com/en-us/style-guide/punctuation/commas
 [`remark-preset-lint-node`]: https://github.com/nodejs/remark-preset-lint-node
-[doctools README]: ../../tools/doc/README.md
+[doctools README]: ../tools/doc/README.md
 [info string]: https://github.github.com/gfm/#info-string
 [language]: https://github.com/highlightjs/highlight.js/blob/HEAD/SUPPORTED_LANGUAGES.md
 [plugin]: https://editorconfig.org/#download
