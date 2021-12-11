@@ -974,7 +974,7 @@ util.inspect({ hasOwnProperty: null });
 
   assert.strictEqual(util.inspect(subject), "{ foo: 'bar' }");
 
-  subject[util.inspect.custom] = common.mustCall((depth, opts) => {
+  subject[util.inspect.custom] = common.mustCall((depth, opts, inspect) => {
     const clone = { ...opts };
     // This might change at some point but for now we keep the stylize function.
     // The function should either be documented or an alternative should be
@@ -984,12 +984,13 @@ util.inspect({ hasOwnProperty: null });
     assert.strictEqual(opts.budget, undefined);
     assert.strictEqual(opts.indentationLvl, undefined);
     assert.strictEqual(opts.showHidden, false);
+    assert.strictEqual(inspect, util.inspect);
     assert.deepStrictEqual(
-      new Set(Object.keys(util.inspect.defaultOptions).concat(['stylize'])),
+      new Set(Object.keys(inspect.defaultOptions).concat(['stylize'])),
       new Set(Object.keys(opts))
     );
     opts.showHidden = true;
-    return { [util.inspect.custom]: common.mustCall((depth, opts2) => {
+    return { [inspect.custom]: common.mustCall((depth, opts2) => {
       assert.deepStrictEqual(clone, opts2);
     }) };
   });

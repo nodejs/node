@@ -579,7 +579,7 @@ changes:
     codes. Colors are customizable. See [Customizing `util.inspect` colors][].
     **Default:** `false`.
   * `customInspect` {boolean} If `false`,
-    `[util.inspect.custom](depth, opts)` functions are not invoked.
+    `[util.inspect.custom](depth, opts, inspect)` functions are not invoked.
     **Default:** `true`.
   * `showProxy` {boolean} If `true`, `Proxy` inspection includes
     the [`target` and `handler`][] objects. **Default:** `false`.
@@ -874,10 +874,18 @@ ignored, if not supported.
 
 <!-- type=misc -->
 
+<!-- YAML
+added: v0.1.97
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41019
+    description: The inspect argument is added for more interoperability.
+-->
+
 Objects may also define their own
-[`[util.inspect.custom](depth, opts)`][util.inspect.custom] function,
+[`[util.inspect.custom](depth, opts, inspect)`][util.inspect.custom] function,
 which `util.inspect()` will invoke and use the result of when inspecting
-the object:
+the object.
 
 ```js
 const util = require('util');
@@ -887,7 +895,7 @@ class Box {
     this.value = value;
   }
 
-  [util.inspect.custom](depth, options) {
+  [util.inspect.custom](depth, options, inspect) {
     if (depth < 0) {
       return options.stylize('[Box]', 'special');
     }
@@ -898,8 +906,8 @@ class Box {
 
     // Five space padding because that's the size of "Box< ".
     const padding = ' '.repeat(5);
-    const inner = util.inspect(this.value, newOptions)
-                      .replace(/\n/g, `\n${padding}`);
+    const inner = inspect(this.value, newOptions)
+                  .replace(/\n/g, `\n${padding}`);
     return `${options.stylize('Box', 'special')}< ${inner} >`;
   }
 }
@@ -910,9 +918,9 @@ util.inspect(box);
 // Returns: "Box< true >"
 ```
 
-Custom `[util.inspect.custom](depth, opts)` functions typically return a string
-but may return a value of any type that will be formatted accordingly by
-`util.inspect()`.
+Custom `[util.inspect.custom](depth, opts, inspect)` functions typically return
+a string but may return a value of any type that will be formatted accordingly
+by `util.inspect()`.
 
 ```js
 const util = require('util');
@@ -942,8 +950,13 @@ In addition to being accessible through `util.inspect.custom`, this
 symbol is [registered globally][global symbol registry] and can be
 accessed in any environment as `Symbol.for('nodejs.util.inspect.custom')`.
 
+Using this allows code to be written in a portable fashion, so that the custom
+inspect function is used in an Node.js environment and ignored in the browser.
+The `util.inspect()` function itself is passed as third argument to the custom
+inspect function to allow further portability.
+
 ```js
-const inspect = Symbol.for('nodejs.util.inspect.custom');
+const customInspectSymbol = Symbol.for('nodejs.util.inspect.custom');
 
 class Password {
   constructor(value) {
@@ -954,7 +967,7 @@ class Password {
     return 'xxxxxxxx';
   }
 
-  [inspect]() {
+  [customInspectSymbol](depth, inspectOptions, inspect) {
     return `Password <${this.toString()}>`;
   }
 }
