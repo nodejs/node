@@ -252,8 +252,8 @@ And on Windows:
 ```
 
 (This code might take more than an hour to execute on a PC, want to run a part
-of tests quickly or for more details see the [running tests][] section of Buil
-ding guide.)
+of tests quickly or for more details see the [running tests][] section of
+Building guide.)
 
 ### Step 7: Push
 
