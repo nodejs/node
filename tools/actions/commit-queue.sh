@@ -6,9 +6,6 @@ OWNER=$1
 REPOSITORY=$2
 shift 2
 
-UPSTREAM=origin
-DEFAULT_BRANCH=master
-
 COMMIT_QUEUE_LABEL="commit-queue"
 COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 
@@ -54,10 +51,13 @@ for pr in "$@"; do
 
   if jq -e 'map(.name) | index("commit-queue-squash")' < labels.json; then
     MULTIPLE_COMMIT_POLICY="--fixupAll"
+    MERGE_METHOD="squash"
   elif jq -e 'map(.name) | index("commit-queue-rebase")' < labels.json; then
     MULTIPLE_COMMIT_POLICY=""
+    MERGE_METHOD="rebase"
   else
     MULTIPLE_COMMIT_POLICY="--oneCommitMax"
+    MERGE_METHOD="squash"
   fi
 
   git node land --autorebase --yes $MULTIPLE_COMMIT_POLICY "$pr" >output 2>&1 || echo "Failed to land #${pr}"
@@ -75,33 +75,25 @@ for pr in "$@"; do
     continue
   fi
 
-  if [ -z "$MULTIPLE_COMMIT_POLICY" ]; then
-    commits="$(git rev-parse $UPSTREAM/$DEFAULT_BRANCH)...$(git rev-parse HEAD)"
+  # TODO: use `gh pr merge` when the GitHub CLI allows to customize the commit title (https://github.com/cli/cli/issues/1023).
+  jq -n \
+    --arg title "$(git log -1 --pretty='format:%s')" \
+    --arg body "$(git log -1 --pretty='format:%b')" \
+    --arg head "$(grep 'Fetched commits as' output | cut -d. -f3 | xargs git rev-parse)" \
+    --arg merge_method "$MERGE_METHOD" \
+    '{merge_method:$merge_method,commit_title:$title,commit_message:$body,sha:$head}' > output.json
+  cat output.json
 
-    if ! git push $UPSTREAM $DEFAULT_BRANCH >> output 2>&1; then
-      commit_queue_failed "$pr"
-      continue
-    fi
-  else
-    # If there's only one commit, we can use the Squash and Merge feature from GitHub.
-    # TODO: use `gh pr merge` when the GitHub CLI allows to customize the commit title (https://github.com/cli/cli/issues/1023).
-    jq -n \
-      --arg title "$(git log -1 --pretty='format:%s')" \
-      --arg body "$(git log -1 --pretty='format:%b')" \
-      --arg head "$(grep 'Fetched commits as' output | cut -d. -f3 | xargs git rev-parse)" \
-      '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' > output.json
-    cat output.json
-    if ! gh api -X PUT "$(mergeUrl "$pr")" --input output.json > output; then
-      commit_queue_failed "$pr"
-      continue
-    fi
-    cat output
-    if ! commits="$(jq -r 'if .merged then .sha else error("not merged") end' < output)"; then
-      commit_queue_failed "$pr"
-      continue
-    fi
-    rm output.json
+  if ! gh api -X PUT "$(mergeUrl "$pr")" --input output.json > output; then
+    commit_queue_failed "$pr"
+    continue
   fi
+  cat output
+  if ! commits="$(jq -r 'if .merged then .sha else error("not merged") end' < output)"; then
+    commit_queue_failed "$pr"
+    continue
+  fi
+  rm output.json
 
   rm output
 
