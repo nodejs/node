@@ -142,7 +142,7 @@
         '<@(inspector_generated_output_root)/src/js_protocol.stamp',
       ],
       'action': [
-        'python',
+        '<(python)',
         '<(inspector_protocol_path)/check_protocol_compatibility.py',
         '--stamp', '<@(_outputs)',
         '<@(_inputs)',
@@ -161,7 +161,7 @@
       ],
       'process_outputs_as_sources': 1,
       'action': [
-        'python',
+        '<(python)',
         '<(inspector_protocol_path)/code_generator.py',
         '--jinja_dir', '<(V8_ROOT)/third_party',
         '--output_base', '<(inspector_generated_output_root)/src/inspector',
