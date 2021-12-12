@@ -11,12 +11,12 @@
     "remark-stringify": "^10.0.2",
     "to-vfile": "^7.2.2",
     "unified": "^10.1.1",
-    "vfile-reporter": "^7.0.2"
+    "vfile-reporter": "^7.0.3"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^21.0.1",
     "@rollup/plugin-node-resolve": "^13.0.6",
-    "rollup": "^2.60.1",
+    "rollup": "^2.61.1",
     "rollup-plugin-cleanup": "^3.2.1"
   }
 }
