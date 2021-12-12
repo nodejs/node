@@ -58,7 +58,8 @@ information described.
   The Node.js project will release new versions of all supported release lines on or shortly after Day of week, Month Day of Month, Year
   For more information see: https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
   ```
-  (Get access from existing manager: Ben Noordhuis, Rod Vagg, Michael Dawson)
+  (Get access from existing manager: Matteo Collina, Rodd Vagg, Michael Dawson,
+  Bryan English, Vladimir de Turckheim)
 
 * [ ] CC `oss-security@lists.openwall.com` on pre-release
 
