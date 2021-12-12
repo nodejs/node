@@ -1,9 +1,6 @@
 /**
  * @fileoverview Check that common.hasCrypto is used if crypto, tls,
  * https, or http2 modules are required.
- *
- * This rule can be ignored using // eslint-disable-line crypto-check
- *
  * @author Daniel Bevenius <daniel.bevenius@gmail.com>
  */
 'use strict';
