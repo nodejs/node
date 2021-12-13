@@ -8,7 +8,7 @@ import cp from 'node:child_process';
 import fs from 'node:fs';
 import readline from 'node:readline';
 
-const SINCE = +process.argv[2] || 5000;
+const SINCE = process.argv[2] || '18 months ago';
 
 async function runGitCommand(cmd, mapFn) {
   const childProcess = cp.spawn('/bin/sh', ['-c', cmd], {
@@ -42,19 +42,13 @@ async function runGitCommand(cmd, mapFn) {
 
 // Get all commit authors during the time period.
 const authors = await runGitCommand(
-  `git shortlog -n -s --email --max-count="${SINCE}" HEAD`,
-  (line) => line.trim().split('\t', 2)[1]
-);
-
-// Get all commit landers during the time period.
-const landers = await runGitCommand(
-  `git shortlog -n -s -c --email --max-count="${SINCE}" HEAD`,
+  `git shortlog -n -s --email --since="${SINCE}" HEAD`,
   (line) => line.trim().split('\t', 2)[1]
 );
 
 // Get all approving reviewers of landed commits during the time period.
 const approvingReviewers = await runGitCommand(
-  `git log --max-count="${SINCE}" | egrep "^    Reviewed-By: "`,
+  `git log --since="${SINCE}" | egrep "^    Reviewed-By: "`,
   (line) => /^    Reviewed-By: ([^<]+)/.exec(line)[1].trim()
 );
 
@@ -182,15 +176,13 @@ async function moveCollaboratorToEmeritus(peopleToMove) {
 // Get list of current collaborators from README.md.
 const collaborators = await getCollaboratorsFromReadme();
 
-console.log(`In the last ${SINCE} commits:\n`);
+console.log(`Since ${SINCE}:\n`);
 console.log(`* ${authors.size.toLocaleString()} authors have made commits.`);
-console.log(`* ${landers.size.toLocaleString()} landers have landed commits.`);
 console.log(`* ${approvingReviewers.size.toLocaleString()} reviewers have approved landed commits.`);
 console.log(`* ${collaborators.length.toLocaleString()} collaborators currently in the project.`);
 
 const inactive = collaborators.filter((collaborator) =>
   !authors.has(collaborator.mailmap) &&
-  !landers.has(collaborator.mailmap) &&
   !approvingReviewers.has(collaborator.name)
 );
 
