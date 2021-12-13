@@ -9,7 +9,6 @@ on:
 
 env:
   NODE_VERSION: lts/*
-  NUM_COMMITS: 5000
 
 jobs:
   find:
@@ -19,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: ${{ env.NUM_COMMITS }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Use Node.js ${{ env.NODE_VERSION }}
@@ -28,7 +27,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Find inactive collaborators
-        run: tools/find-inactive-collaborators.mjs ${{ env.NUM_COMMITS }}
+        run: tools/find-inactive-collaborators.mjs
 
       - name: Open pull request
         uses: gr2m/create-or-update-pull-request-action@v1
