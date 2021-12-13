@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.22.8">12.22.8</a><br/>
 <a href="#12.22.7">12.22.7</a><br/>
 <a href="#12.22.6">12.22.6</a><br/>
 <a href="#12.22.5">12.22.5</a><br/>
@@ -79,6 +80,38 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.22.8"></a>
+
+## 2012-12-16, Version 12.22.8 'Erbium' (LTS), @richardlau
+
+### Notable Changes
+
+This release contains a c-ares update to fix a regression introduced in
+Node.js 12.22.5 resolving CNAME records containing underscores
+[#39780](https://github.com/nodejs/node/issues/39780).
+
+Root certificates have been updated to those from Mozilla's Network
+Security Services 3.71 [#40281](https://github.com/nodejs/node/pull/40280).
+
+### Commits
+
+* \[[`2d42295d2a`](https://github.com/nodejs/node/commit/2d42295d2a)] - **build**: pin macOS GitHub runner to macos-10.15 (Richard Lau) [#41124](https://github.com/nodejs/node/pull/41124)
+* \[[`41e09ec71b`](https://github.com/nodejs/node/commit/41e09ec71b)] - **child\_process**: retain reference to data with advanced serialization (Anna Henningsen) [#38728](https://github.com/nodejs/node/pull/38728)
+* \[[`f0be07796e`](https://github.com/nodejs/node/commit/f0be07796e)] - **crypto**: update root certificates (Richard Lau) [#40280](https://github.com/nodejs/node/pull/40280)
+* \[[`4c9f920d34`](https://github.com/nodejs/node/commit/4c9f920d34)] - **deps**: update archs files for OpenSSL-1.1.1m (Richard Lau) [#41172](https://github.com/nodejs/node/pull/41172)
+* \[[`60d7d4171e`](https://github.com/nodejs/node/commit/60d7d4171e)] - **deps**: upgrade openssl sources to 1.1.1m (Richard Lau) [#41172](https://github.com/nodejs/node/pull/41172)
+* \[[`7feff67419`](https://github.com/nodejs/node/commit/7feff67419)] - **deps**: add -fno-strict-aliasing flag to libuv (Daniel Bevenius) [#40631](https://github.com/nodejs/node/pull/40631)
+* \[[`534ac7c7c6`](https://github.com/nodejs/node/commit/534ac7c7c6)] - **deps**: update c-ares to 1.18.1 (Richard Lau) [#40660](https://github.com/nodejs/node/pull/40660)
+* \[[`c019fa9b70`](https://github.com/nodejs/node/commit/c019fa9b70)] - **deps**: update to cjs-module-lexer\@1.2.2 (Guy Bedford) [#39402](https://github.com/nodejs/node/pull/39402)
+* \[[`b13340eff4`](https://github.com/nodejs/node/commit/b13340eff4)] - **doc**: add alternative version links to the packages page (Filip Skokan) [#36915](https://github.com/nodejs/node/pull/36915)
+* \[[`243b2fbfdb`](https://github.com/nodejs/node/commit/243b2fbfdb)] - **lib**: fix regular expression to detect \`/\` and \`\\\` (Francesco Trotta) [#40325](https://github.com/nodejs/node/pull/40325)
+* \[[`70e094a26b`](https://github.com/nodejs/node/commit/70e094a26b)] - **repl**: fix error message printing (Anna Henningsen) [#38209](https://github.com/nodejs/node/pull/38209)
+* \[[`02b432a704`](https://github.com/nodejs/node/commit/02b432a704)] - **src**: fix crash in AfterGetAddrInfo (Anna Henningsen) [#39735](https://github.com/nodejs/node/pull/39735)
+* \[[`7479447d6a`](https://github.com/nodejs/node/commit/7479447d6a)] - **test**: deflake child-process-pipe-dataflow (Luigi Pinca) [#40838](https://github.com/nodejs/node/pull/40838)
+* \[[`833e199393`](https://github.com/nodejs/node/commit/833e199393)] - **tools**: update certdata.txt (Richard Lau) [#40280](https://github.com/nodejs/node/pull/40280)
+* \[[`e4339fe286`](https://github.com/nodejs/node/commit/e4339fe286)] - **tools**: add script to update c-ares (Richard Lau) [#40660](https://github.com/nodejs/node/pull/40660)
+* \[[`f50b9c1e8a`](https://github.com/nodejs/node/commit/f50b9c1e8a)] - **worker**: avoid potential deadlock on NearHeapLimit (Santiago Gimeno) [#38403](https://github.com/nodejs/node/pull/38403)
 
 <a id="12.22.7"></a>
 
