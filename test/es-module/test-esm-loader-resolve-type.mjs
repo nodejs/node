@@ -3,7 +3,6 @@ import { allowGlobals } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { strict as assert } from 'assert';
 import * as fs from 'fs';
-import { fileURLToPath } from 'url';
 
 allowGlobals(global.getModuleTypeStats);
 
@@ -32,7 +31,7 @@ const { importedESM: importedESMBefore,
         importedCJS: importedCJSBefore } = global.getModuleTypeStats();
 
 import(`${moduleName}`).finally(() => {
-  fs.rmSync(fileURLToPath(basePath), { recursive: true, force: true });
+  fs.rmSync(basePath, { recursive: true, force: true });
 });
 
 const { importedESM: importedESMAfter,
