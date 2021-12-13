@@ -67,6 +67,10 @@ See:
 The TSC can remove inactive collaborators or provide them with _emeritus_
 status. Emeriti may request that the TSC restore them to active status.
 
+A collaborator is automatically made emeritus (and removed from active
+collaborator status) if it has been more than 18 months since the collaborator
+has authored or approved a commit that has landed.
+
 ## Technical Steering Committee
 
 A subset of the collaborators forms the Technical Steering Committee (TSC).
