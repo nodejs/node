@@ -5,6 +5,7 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const { execSync } = require('child_process');
 
 const { validateRmOptionsSync } = require('internal/fs/utils');
@@ -97,6 +98,11 @@ function removeAsync(dir) {
   makeNonEmptyDirectory(2, 10, 2, dir, false);
   removeAsync(dir);
 
+  // Same test using URL instead of a path
+  dir = nextDirPath();
+  makeNonEmptyDirectory(2, 10, 2, dir, false);
+  removeAsync(pathToFileURL(dir));
+
   // Create a flat folder including symlinks
   dir = nextDirPath();
   makeNonEmptyDirectory(1, 10, 2, dir, true);
@@ -156,6 +162,16 @@ function removeAsync(dir) {
     fs.rmSync(filePath, { force: true });
   }
 
+  // Should accept URL
+  const fileURL = pathToFileURL(path.join(tmpdir.path, 'rm-file.txt'));
+  fs.writeFileSync(fileURL, '');
+
+  try {
+    fs.rmSync(fileURL, { recursive: true });
+  } finally {
+    fs.rmSync(fileURL, { force: true });
+  }
+
   // Recursive removal should succeed.
   fs.rmSync(dir, { recursive: true });
 
@@ -201,6 +217,16 @@ function removeAsync(dir) {
     await fs.promises.rm(filePath, { recursive: true });
   } finally {
     fs.rmSync(filePath, { force: true });
+  }
+
+  // Should accept URL
+  const fileURL = pathToFileURL(path.join(tmpdir.path, 'rm-promises-file.txt'));
+  fs.writeFileSync(fileURL, '');
+
+  try {
+    await fs.promises.rm(fileURL, { recursive: true });
+  } finally {
+    fs.rmSync(fileURL, { force: true });
   }
 })().then(common.mustCall());
 
