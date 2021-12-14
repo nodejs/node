@@ -15,6 +15,16 @@
 #include "internal/property.h"
 #include "../crypto/property/property_local.h"
 
+/*
+ * We make our OSSL_PROVIDER for testing purposes.  All we really need is
+ * a pointer.  We know that as long as we don't try to use the method
+ * cache flush functions, the provider pointer is merely a pointer being
+ * passed around, and used as a tag of sorts.
+ */
+struct ossl_provider_st {
+    int x;
+};
+
 static int add_property_names(const char *n, ...)
 {
     va_list args;
@@ -146,6 +156,52 @@ static int test_property_query_value_create(void)
 }
 
 static const struct {
+    int query;
+    const char *ps;
+} parse_error_tests[] = {
+    { 0, "n=1, n=1" },          /* duplicate name */
+    { 0, "n=1, a=hi, n=1" },    /* duplicate name */
+    { 1, "n=1, a=bye, ?n=0" },  /* duplicate name */
+    { 0, "a=abc,#@!, n=1" },    /* non-ASCII character located */
+    { 1, "a='Hello" },          /* Unterminated string */
+    { 0, "a=\"World" },         /* Unterminated string */
+    { 1, "a=2, n=012345678" },  /* Bad octal digit */
+    { 0, "n=0x28FG, a=3" },     /* Bad hex digit */
+    { 0, "n=145d, a=2" },       /* Bad decimal digit */
+    { 1, "@='hello'" },         /* Invalid name */
+    { 1, "n0123456789012345678901234567890123456789"
+         "0123456789012345678901234567890123456789"
+         "0123456789012345678901234567890123456789"
+         "0123456789012345678901234567890123456789=yes" }, /* Name too long */
+    { 0, ".n=3" },              /* Invalid name */
+    { 1, "fnord.fnord.=3" }     /* Invalid name */
+};
+
+static int test_property_parse_error(int n)
+{
+    OSSL_METHOD_STORE *store;
+    OSSL_PROPERTY_LIST *p = NULL;
+    int r = 0;
+    const char *ps;
+
+    if (!TEST_ptr(store = ossl_method_store_new(NULL))
+        || !add_property_names("a", "n", NULL))
+        goto err;
+    ps = parse_error_tests[n].ps;
+    if (parse_error_tests[n].query) {
+        if (!TEST_ptr_null(p = ossl_parse_query(NULL, ps, 1)))
+            goto err;
+    } else if (!TEST_ptr_null(p = ossl_parse_property(NULL, ps))) {
+        goto err;
+    }
+    r = 1;
+ err:
+    ossl_property_free(p);
+    ossl_method_store_free(store);
+    return r;
+}
+
+static const struct {
     const char *q_global;
     const char *q_local;
     const char *prop;
@@ -267,13 +323,14 @@ static int test_register_deregister(void)
     size_t i;
     int ret = 0;
     OSSL_METHOD_STORE *store;
+    OSSL_PROVIDER prov = { 1 };
 
     if (!TEST_ptr(store = ossl_method_store_new(NULL))
         || !add_property_names("position", NULL))
         goto err;
 
     for (i = 0; i < OSSL_NELEM(impls); i++)
-        if (!TEST_true(ossl_method_store_add(store, NULL, impls[i].nid,
+        if (!TEST_true(ossl_method_store_add(store, &prov, impls[i].nid,
                                              impls[i].prop, impls[i].impl,
                                              &up_ref, &down_ref))) {
             TEST_note("iteration %zd", i + 1);
@@ -302,34 +359,40 @@ err:
 
 static int test_property(void)
 {
+    static OSSL_PROVIDER fake_provider1 = { 1 };
+    static OSSL_PROVIDER fake_provider2 = { 2 };
+    static const OSSL_PROVIDER *fake_prov1 = &fake_provider1;
+    static const OSSL_PROVIDER *fake_prov2 = &fake_provider2;
     static const struct {
+        const OSSL_PROVIDER **prov;
         int nid;
         const char *prop;
         char *impl;
     } impls[] = {
-        { 1, "fast=no, colour=green", "a" },
-        { 1, "fast, colour=blue", "b" },
-        { 1, "", "-" },
-        { 9, "sky=blue, furry", "c" },
-        { 3, NULL, "d" },
-        { 6, "sky.colour=blue, sky=green, old.data", "e" },
+        { &fake_prov1, 1, "fast=no, colour=green", "a" },
+        { &fake_prov1, 1, "fast, colour=blue", "b" },
+        { &fake_prov1, 1, "", "-" },
+        { &fake_prov2, 9, "sky=blue, furry", "c" },
+        { &fake_prov2, 3, NULL, "d" },
+        { &fake_prov2, 6, "sky.colour=blue, sky=green, old.data", "e" },
     };
     static struct {
+        const OSSL_PROVIDER **prov;
         int nid;
         const char *prop;
         char *expected;
     } queries[] = {
-        { 1, "fast", "b" },
-        { 1, "fast=yes", "b" },
-        { 1, "fast=no, colour=green", "a" },
-        { 1, "colour=blue, fast", "b" },
-        { 1, "colour=blue", "b" },
-        { 9, "furry", "c" },
-        { 6, "sky.colour=blue", "e" },
-        { 6, "old.data", "e" },
-        { 9, "furry=yes, sky=blue", "c" },
-        { 1, "", "a" },
-        { 3, "", "d" },
+        { &fake_prov1, 1, "fast", "b" },
+        { &fake_prov1, 1, "fast=yes", "b" },
+        { &fake_prov1, 1, "fast=no, colour=green", "a" },
+        { &fake_prov1, 1, "colour=blue, fast", "b" },
+        { &fake_prov1, 1, "colour=blue", "b" },
+        { &fake_prov2, 9, "furry", "c" },
+        { &fake_prov2, 6, "sky.colour=blue", "e" },
+        { &fake_prov2, 6, "old.data", "e" },
+        { &fake_prov2, 9, "furry=yes, sky=blue", "c" },
+        { &fake_prov1, 1, "", "a" },
+        { &fake_prov2, 3, "", "d" },
     };
     OSSL_METHOD_STORE *store;
     size_t i;
@@ -341,21 +404,92 @@ static int test_property(void)
         goto err;
 
     for (i = 0; i < OSSL_NELEM(impls); i++)
-        if (!TEST_true(ossl_method_store_add(store, NULL, impls[i].nid,
-                                             impls[i].prop, impls[i].impl,
+        if (!TEST_true(ossl_method_store_add(store, *impls[i].prov,
+                                             impls[i].nid, impls[i].prop,
+                                             impls[i].impl,
                                              &up_ref, &down_ref))) {
             TEST_note("iteration %zd", i + 1);
             goto err;
         }
+    /*
+     * The first check of queries is with NULL given as provider.  All
+     * queries are expected to succeed.
+     */
     for (i = 0; i < OSSL_NELEM(queries); i++) {
+        const OSSL_PROVIDER *nullprov = NULL;
         OSSL_PROPERTY_LIST *pq = NULL;
 
-        if (!TEST_true(ossl_method_store_fetch(store, queries[i].nid,
-                                               queries[i].prop, &result))
+        if (!TEST_true(ossl_method_store_fetch(store,
+                                               queries[i].nid, queries[i].prop,
+                                               &nullprov, &result))
             || !TEST_str_eq((char *)result, queries[i].expected)) {
             TEST_note("iteration %zd", i + 1);
             ossl_property_free(pq);
             goto err;
+        }
+        ossl_property_free(pq);
+    }
+    /*
+     * The second check of queries is with &address1 given as provider.
+     */
+    for (i = 0; i < OSSL_NELEM(queries); i++) {
+        OSSL_PROPERTY_LIST *pq = NULL;
+
+        result = NULL;
+        if (queries[i].prov == &fake_prov1) {
+            if (!TEST_true(ossl_method_store_fetch(store,
+                                                   queries[i].nid,
+                                                   queries[i].prop,
+                                                   &fake_prov1, &result))
+                || !TEST_ptr_eq(fake_prov1, &fake_provider1)
+                || !TEST_str_eq((char *)result, queries[i].expected)) {
+                TEST_note("iteration %zd", i + 1);
+                ossl_property_free(pq);
+                goto err;
+            }
+        } else {
+            if (!TEST_false(ossl_method_store_fetch(store,
+                                                    queries[i].nid,
+                                                    queries[i].prop,
+                                                    &fake_prov1, &result))
+                || !TEST_ptr_eq(fake_prov1, &fake_provider1)
+                || !TEST_ptr_null(result)) {
+                TEST_note("iteration %zd", i + 1);
+                ossl_property_free(pq);
+                goto err;
+            }
+        }
+        ossl_property_free(pq);
+    }
+    /*
+     * The third check of queries is with &address2 given as provider.
+     */
+    for (i = 0; i < OSSL_NELEM(queries); i++) {
+        OSSL_PROPERTY_LIST *pq = NULL;
+
+        result = NULL;
+        if (queries[i].prov == &fake_prov2) {
+            if (!TEST_true(ossl_method_store_fetch(store,
+                                                   queries[i].nid,
+                                                   queries[i].prop,
+                                                   &fake_prov2, &result))
+                || !TEST_ptr_eq(fake_prov2, &fake_provider2)
+                || !TEST_str_eq((char *)result, queries[i].expected)) {
+                TEST_note("iteration %zd", i + 1);
+                ossl_property_free(pq);
+                goto err;
+            }
+        } else {
+            if (!TEST_false(ossl_method_store_fetch(store,
+                                                    queries[i].nid,
+                                                    queries[i].prop,
+                                                    &fake_prov2, &result))
+                || !TEST_ptr_eq(fake_prov2, &fake_provider2)
+                || !TEST_ptr_null(result)) {
+                TEST_note("iteration %zd", i + 1);
+                ossl_property_free(pq);
+                goto err;
+            }
         }
         ossl_property_free(pq);
     }
@@ -374,6 +508,7 @@ static int test_query_cache_stochastic(void)
     void *result;
     int errors = 0;
     int v[10001];
+    OSSL_PROVIDER prov = { 1 };
 
     if (!TEST_ptr(store = ossl_method_store_new(NULL))
         || !add_property_names("n", NULL))
@@ -382,20 +517,21 @@ static int test_query_cache_stochastic(void)
     for (i = 1; i <= max; i++) {
         v[i] = 2 * i;
         BIO_snprintf(buf, sizeof(buf), "n=%d\n", i);
-        if (!TEST_true(ossl_method_store_add(store, NULL, i, buf, "abc",
+        if (!TEST_true(ossl_method_store_add(store, &prov, i, buf, "abc",
                                              &up_ref, &down_ref))
-                || !TEST_true(ossl_method_store_cache_set(store, i, buf, v + i,
+                || !TEST_true(ossl_method_store_cache_set(store, &prov, i,
+                                                          buf, v + i,
                                                           &up_ref, &down_ref))
-                || !TEST_true(ossl_method_store_cache_set(store, i, "n=1234",
-                                                          "miss", &up_ref,
-                                                          &down_ref))) {
+                || !TEST_true(ossl_method_store_cache_set(store, &prov, i,
+                                                          "n=1234", "miss",
+                                                          &up_ref, &down_ref))) {
             TEST_note("iteration %d", i);
             goto err;
         }
     }
     for (i = 1; i <= max; i++) {
         BIO_snprintf(buf, sizeof(buf), "n=%d\n", i);
-        if (!ossl_method_store_cache_get(store, i, buf, &result)
+        if (!ossl_method_store_cache_get(store, NULL, i, buf, &result)
             || result != v + i)
             errors++;
     }
@@ -493,6 +629,7 @@ int setup_tests(void)
     ADD_TEST(test_property_string);
     ADD_TEST(test_property_query_value_create);
     ADD_ALL_TESTS(test_property_parse, OSSL_NELEM(parser_tests));
+    ADD_ALL_TESTS(test_property_parse_error, OSSL_NELEM(parse_error_tests));
     ADD_ALL_TESTS(test_property_merge, OSSL_NELEM(merge_tests));
     ADD_TEST(test_property_defn_cache);
     ADD_ALL_TESTS(test_definition_compares, OSSL_NELEM(definition_tests));

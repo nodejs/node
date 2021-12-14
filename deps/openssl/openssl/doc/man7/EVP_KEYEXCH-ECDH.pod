@@ -74,7 +74,7 @@ Keys for the host and peer must be generated as shown in
 L<EVP_PKEY-EC(7)/Examples> using the same curve name.
 
 The code to generate a shared secret for the normal case is identical to
-L<EVP_KEYEXCH-DH(7)/Examples>. 
+L<EVP_KEYEXCH-DH(7)/Examples>.
 
 To derive a shared secret on the host using the host's key and the peer's public
 key but also using X963KDF with a user key material:

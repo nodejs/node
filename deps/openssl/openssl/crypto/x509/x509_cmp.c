@@ -208,8 +208,12 @@ int X509_add_cert(STACK_OF(X509) *sk, X509 *cert, int flags)
                 return 1;
         }
     }
-    if ((flags & X509_ADD_FLAG_NO_SS) != 0 && X509_self_signed(cert, 0))
-        return 1;
+    if ((flags & X509_ADD_FLAG_NO_SS) != 0) {
+        int ret = X509_self_signed(cert, 0);
+
+        if (ret != 0)
+            return ret > 0 ? 1 : 0;
+    }
     if (!sk_X509_insert(sk, cert,
                         (flags & X509_ADD_FLAG_PREPEND) != 0 ? 0 : -1)) {
         ERR_raise(ERR_LIB_X509, ERR_R_MALLOC_FAILURE);

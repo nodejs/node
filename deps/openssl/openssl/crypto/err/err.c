@@ -80,6 +80,10 @@ static ERR_STRING_DATA ERR_str_libraries[] = {
     {0, NULL},
 };
 
+/*
+ * Should make sure that all ERR_R_ reasons defined in include/openssl/err.h.in
+ * are listed.  For maintainability, please keep all reasons in the same order.
+ */
 static ERR_STRING_DATA ERR_str_reasons[] = {
     {ERR_R_SYS_LIB, "system lib"},
     {ERR_R_BN_LIB, "BN lib"},
@@ -92,17 +96,16 @@ static ERR_STRING_DATA ERR_str_reasons[] = {
     {ERR_R_DSA_LIB, "DSA lib"},
     {ERR_R_X509_LIB, "X509 lib"},
     {ERR_R_ASN1_LIB, "ASN1 lib"},
+    {ERR_R_CRYPTO_LIB, "CRYPTO lib"},
     {ERR_R_EC_LIB, "EC lib"},
     {ERR_R_BIO_LIB, "BIO lib"},
     {ERR_R_PKCS7_LIB, "PKCS7 lib"},
     {ERR_R_X509V3_LIB, "X509V3 lib"},
     {ERR_R_ENGINE_LIB, "ENGINE lib"},
     {ERR_R_UI_LIB, "UI lib"},
-    {ERR_R_OSSL_STORE_LIB, "STORE lib"},
     {ERR_R_ECDSA_LIB, "ECDSA lib"},
-
-    {ERR_R_NESTED_ASN1_ERROR, "nested asn1 error"},
-    {ERR_R_MISSING_ASN1_EOS, "missing asn1 eos"},
+    {ERR_R_OSSL_STORE_LIB, "OSSL_STORE lib"},
+    {ERR_R_OSSL_DECODER_LIB, "OSSL_DECODER lib"},
 
     {ERR_R_FATAL, "fatal"},
     {ERR_R_MALLOC_FAILURE, "malloc failure"},
@@ -112,10 +115,12 @@ static ERR_STRING_DATA ERR_str_reasons[] = {
     {ERR_R_INTERNAL_ERROR, "internal error"},
     {ERR_R_DISABLED, "called a function that was disabled at compile-time"},
     {ERR_R_INIT_FAIL, "init fail"},
+    {ERR_R_PASSED_INVALID_ARGUMENT, "passed invalid argument"},
     {ERR_R_OPERATION_FAIL, "operation fail"},
     {ERR_R_INVALID_PROVIDER_FUNCTIONS, "invalid provider functions"},
     {ERR_R_INTERRUPTED_OR_CANCELLED, "interrupted or cancelled"},
-
+    {ERR_R_NESTED_ASN1_ERROR, "nested asn1 error"},
+    {ERR_R_MISSING_ASN1_EOS, "missing asn1 eos"},
     /*
      * Something is unsupported, exactly what is expressed with additional data
      */
@@ -125,7 +130,6 @@ static ERR_STRING_DATA ERR_str_reasons[] = {
      * unsupported.
      */
     {ERR_R_FETCH_FAILED, "fetch failed"},
-
     {ERR_R_INVALID_PROPERTY_DEFINITION, "invalid property definition"},
     {ERR_R_UNABLE_TO_GET_READ_LOCK, "unable to get read lock"},
     {ERR_R_UNABLE_TO_GET_WRITE_LOCK, "unable to get write lock"},

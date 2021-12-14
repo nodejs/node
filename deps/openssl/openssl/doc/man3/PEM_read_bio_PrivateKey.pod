@@ -134,9 +134,9 @@ PEM_write_bio_PKCS7, PEM_write_PKCS7 - PEM routines
  int PEM_write_bio_PKCS7(BIO *bp, PKCS7 *x);
  int PEM_write_PKCS7(FILE *fp, PKCS7 *x);
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  RSA *PEM_read_bio_RSAPrivateKey(BIO *bp, RSA **x,
                                  pem_password_cb *cb, void *u);
@@ -209,7 +209,14 @@ refer to the B<PEM_read_bio_I<TYPE>>(), B<PEM_read_I<TYPE>>(),
 B<PEM_write_bio_I<TYPE>>(), and B<PEM_write_I<TYPE>>() functions.
 
 Some operations have additional variants that take a library context I<libctx>
-and a property query string I<propq>.
+and a property query string I<propq>. The B<X509>, B<X509_REQ> and B<X509_CRL>
+objects may have an associated library context or property query string but
+there are no variants of these functions that take a library context or property
+query string parameter. In this case it is possible to set the appropriate
+library context or property query string by creating an empty B<X509>,
+B<X509_REQ> or B<X509_CRL> object using L<X509_new_ex(3)>, L<X509_REQ_new_ex(3)>
+or L<X509_CRL_new_ex(3)> respectively. Then pass the empty object as a parameter
+to the relevant PEM function. See the L</EXAMPLES> section below.
 
 The B<PrivateKey> functions read or write a private key in PEM format using
 an EVP_PKEY structure. The write routines use PKCS#8 private key format and are
@@ -448,7 +455,8 @@ where I<x> already contains a valid certificate, may not work, whereas:
  X509_free(x);
  x = PEM_read_bio_X509(bp, NULL, 0, NULL);
 
-is guaranteed to work.
+is guaranteed to work. It is always acceptable for I<x> to contain a newly
+allocated, empty B<X509> object (for example allocated via L<X509_new_ex(3)>).
 
 =head1 RETURN VALUES
 

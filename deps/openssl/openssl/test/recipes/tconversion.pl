@@ -19,6 +19,7 @@ my %conversionforms = (
     # specific test types as key.
     "*"		=> [ "d", "p" ],
     "msb"	=> [ "d", "p", "msblob" ],
+    "pvk"	=> [ "d", "p", "pvk" ],
     );
 sub tconversion {
     my %opts = @_;
@@ -45,8 +46,9 @@ sub tconversion {
 	+ $n			# initial conversions from p to all forms (A)
 	+ $n*$n			# conversion from result of A to all forms (B)
 	+ 1			# comparing original test file to p form of A
-	+ $n*($n-1);		# comparing first conversion to each fom in A with B
+	+ $n*($n-1);		# comparing first conversion to each form in A with B
     $totaltests-- if ($testtype eq "p7d"); # no comparison of original test file
+    $totaltests -= $n if ($testtype eq "pvk"); # no comparisons of the pvk form
     plan tests => $totaltests;
 
     my @cmd = ("openssl", @openssl_args);
@@ -91,7 +93,7 @@ sub tconversion {
       }
 
       foreach my $to (@conversionforms) {
-	  next if $to eq "d";
+	  next if $to eq "d" or $to eq "pvk";
 	  foreach my $from (@conversionforms) {
 	      is(cmp_text("$prefix-f.$to", "$prefix-ff.$from$to"), 0,
 		 "comparing $to to $from$to");

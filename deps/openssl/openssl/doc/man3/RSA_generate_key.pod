@@ -12,14 +12,16 @@ RSA_generate_multi_prime_key - generate RSA key pair
 
  EVP_PKEY *EVP_RSA_gen(unsigned int bits);
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  int RSA_generate_key_ex(RSA *rsa, int bits, BIGNUM *e, BN_GENCB *cb);
  int RSA_generate_multi_prime_key(RSA *rsa, int bits, int primes, BIGNUM *e, BN_GENCB *cb);
 
-Deprecated since OpenSSL 0.9.8:
+The following function has been deprecated since OpenSSL 0.9.8, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  RSA *RSA_generate_key(int bits, unsigned long e,
                        void (*callback)(int, int, void *), void *cb_arg);

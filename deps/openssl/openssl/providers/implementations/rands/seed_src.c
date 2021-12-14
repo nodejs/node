@@ -201,10 +201,11 @@ static size_t seed_get_seed(void *vseed, unsigned char **pout,
         ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
         return 0;
     }
-    *pout = p;
     if (seed_src_generate(vseed, p, bytes_needed, 0, prediction_resistance,
-                          adin, adin_len) != 0)
+                          adin, adin_len) != 0) {
+        *pout = p;
         return bytes_needed;
+    }
     OPENSSL_secure_clear_free(p, bytes_needed);
     return 0;
 }

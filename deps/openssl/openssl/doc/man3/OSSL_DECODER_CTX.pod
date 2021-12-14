@@ -47,7 +47,9 @@ OSSL_DECODER_INSTANCE_get_input_structure
  int OSSL_DECODER_CTX_set_input_structure(OSSL_DECODER_CTX *ctx,
                                           const char *input_structure);
  int OSSL_DECODER_CTX_add_decoder(OSSL_DECODER_CTX *ctx, OSSL_DECODER *decoder);
- int OSSL_DECODER_CTX_add_extra(OSSL_DECODER_CTX *ctx);
+ int OSSL_DECODER_CTX_add_extra(OSSL_DECODER_CTX *ctx, 
+                                OSSL_LIB_CTX *libctx, 
+                                const char *propq);
  int OSSL_DECODER_CTX_get_num_decoders(OSSL_DECODER_CTX *ctx);
 
  typedef struct ossl_decoder_instance_st OSSL_DECODER_INSTANCE;
@@ -159,7 +161,7 @@ OSSL_DECODER_CTX_set_cleanup() respectively.
 
 OSSL_DECODER_export() is a fallback function for constructors that cannot
 use the data they get directly for diverse reasons.  It takes the same
-decode instance I<decoder_inst> that the constructor got and an object 
+decode instance I<decoder_inst> that the constructor got and an object
 I<reference>, unpacks the object which it refers to, and exports it by
 creating an L<OSSL_PARAM(3)> array that it then passes to I<export_cb>,
 along with I<export_arg>.
@@ -247,7 +249,7 @@ The functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

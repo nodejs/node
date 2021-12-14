@@ -23,7 +23,7 @@ static EVP_PKEY *get_dh_from_pg_bn(OSSL_LIB_CTX *libctx, const char *type,
     OSSL_PARAM *params = NULL;
     EVP_PKEY *dhpkey = NULL;
 
-    if (pctx == NULL || !EVP_PKEY_fromdata_init(pctx))
+    if (pctx == NULL || EVP_PKEY_fromdata_init(pctx) <= 0)
         goto err;
 
     if ((tmpl = OSSL_PARAM_BLD_new()) == NULL
@@ -35,7 +35,7 @@ static EVP_PKEY *get_dh_from_pg_bn(OSSL_LIB_CTX *libctx, const char *type,
 
     params = OSSL_PARAM_BLD_to_param(tmpl);
     if (params == NULL
-        || !EVP_PKEY_fromdata(pctx, &dhpkey, EVP_PKEY_KEY_PARAMETERS, params))
+        || EVP_PKEY_fromdata(pctx, &dhpkey, EVP_PKEY_KEY_PARAMETERS, params) <= 0)
         goto err;
 
  err:

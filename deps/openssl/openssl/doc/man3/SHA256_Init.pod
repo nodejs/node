@@ -11,15 +11,15 @@ SHA512_Final - Secure Hash Algorithm
 
  #include <openssl/sha.h>
 
- unsigned char *SHA1(const void *data, size_t count, unsigned char *md_buf);
- unsigned char *SHA224(const void *data, size_t count, unsigned char *md_buf);
- unsigned char *SHA256(const void *data, size_t count, unsigned char *md_buf);
- unsigned char *SHA384(const void *data, size_t count, unsigned char *md_buf);
- unsigned char *SHA512(const void *data, size_t count, unsigned char *md_buf);
+ unsigned char *SHA1(const unsigned char *data, size_t count, unsigned char *md_buf);
+ unsigned char *SHA224(const unsigned char *data, size_t count, unsigned char *md_buf);
+ unsigned char *SHA256(const unsigned char *data, size_t count, unsigned char *md_buf);
+ unsigned char *SHA384(const unsigned char *data, size_t count, unsigned char *md_buf);
+ unsigned char *SHA512(const unsigned char *data, size_t count, unsigned char *md_buf);
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  int SHA1_Init(SHA_CTX *c);
  int SHA1_Update(SHA_CTX *c, const void *data, size_t len);

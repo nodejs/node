@@ -27,6 +27,7 @@
 #include "internal/cryptlib.h"
 #include "internal/sm3.h"
 #include "prov/implementations.h"
+#include "prov/providercommon.h"
 #include "prov/provider_ctx.h"
 #include "crypto/ec.h"
 #include "crypto/sm2.h"
@@ -94,9 +95,16 @@ static int sm2sig_set_mdname(PROV_SM2_CTX *psm2ctx, const char *mdname)
     if (psm2ctx->md == NULL) /* We need an SM3 md to compare with */
         psm2ctx->md = EVP_MD_fetch(psm2ctx->libctx, psm2ctx->mdname,
                                    psm2ctx->propq);
-    if (psm2ctx->md == NULL
-        || strlen(mdname) >= sizeof(psm2ctx->mdname)
+    if (psm2ctx->md == NULL)
+        return 0;
+
+    if (mdname == NULL)
+        return 1;
+
+    if (strlen(mdname) >= sizeof(psm2ctx->mdname)
         || !EVP_MD_is_a(psm2ctx->md, mdname)) {
+        ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_DIGEST, "digest=%s",
+                       mdname);
         return 0;
     }
 
@@ -127,10 +135,22 @@ static int sm2sig_signature_init(void *vpsm2ctx, void *ec,
 {
     PROV_SM2_CTX *psm2ctx = (PROV_SM2_CTX *)vpsm2ctx;
 
-    if (psm2ctx == NULL || ec == NULL || !EC_KEY_up_ref(ec))
+    if (!ossl_prov_is_running()
+            || psm2ctx == NULL)
         return 0;
-    EC_KEY_free(psm2ctx->ec);
-    psm2ctx->ec = ec;
+
+    if (ec == NULL && psm2ctx->ec == NULL) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_NO_KEY_SET);
+        return 0;
+    }
+
+    if (ec != NULL) {
+        if (!EC_KEY_up_ref(ec))
+            return 0;
+        EC_KEY_free(psm2ctx->ec);
+        psm2ctx->ec = ec;
+    }
+
     return sm2sig_set_ctx_params(psm2ctx, params);
 }
 
@@ -193,10 +213,11 @@ static int sm2sig_digest_signverify_init(void *vpsm2ctx, const char *mdname,
         || !sm2sig_set_mdname(ctx, mdname))
         return ret;
 
-    EVP_MD_CTX_free(ctx->mdctx);
-    ctx->mdctx = EVP_MD_CTX_new();
-    if (ctx->mdctx == NULL)
-        goto error;
+    if (ctx->mdctx == NULL) {
+        ctx->mdctx = EVP_MD_CTX_new();
+        if (ctx->mdctx == NULL)
+            goto error;
+    }
 
     md_nid = EVP_MD_get_type(ctx->md);
 
@@ -224,8 +245,6 @@ static int sm2sig_digest_signverify_init(void *vpsm2ctx, const char *mdname,
     ret = 1;
 
  error:
-    if (!ret)
-        free_md(ctx);
     return ret;
 }
 

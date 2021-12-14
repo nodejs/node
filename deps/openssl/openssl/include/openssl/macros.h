@@ -20,7 +20,7 @@
 # define OPENSSL_MSTR(x) OPENSSL_MSTR_HELPER(x)
 
 /*
- * Sometimes OPENSSSL_NO_xxx ends up with an empty file and some compilers
+ * Sometimes OPENSSL_NO_xxx ends up with an empty file and some compilers
  * don't like that.  This will hopefully silence them.
  */
 # define NON_EMPTY_TRANSLATION_UNIT static void *dummy = &dummy;

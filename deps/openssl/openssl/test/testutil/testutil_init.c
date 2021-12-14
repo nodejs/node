@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -71,15 +71,18 @@ static void setup_trace_category(int category)
 {
     BIO *channel;
     tracedata *trace_data;
+    BIO *bio = NULL;
 
     if (OSSL_trace_enabled(category))
         return;
 
-    channel = BIO_push(BIO_new(BIO_f_prefix()),
+    bio = BIO_new(BIO_f_prefix());
+    channel = BIO_push(bio,
                        BIO_new_fp(stderr, BIO_NOCLOSE | BIO_FP_TEXT));
     trace_data = OPENSSL_zalloc(sizeof(*trace_data));
 
     if (trace_data == NULL
+        || bio == NULL
         || (trace_data->bio = channel) == NULL
         || OSSL_trace_set_callback(category, internal_trace_cb,
                                    trace_data) == 0

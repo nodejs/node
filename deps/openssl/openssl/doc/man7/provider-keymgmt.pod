@@ -200,12 +200,11 @@ Indicating that everything in a key object should be considered.
 The exact interpretation of those bits or how they combine is left to
 each function where you can specify a selector.
 
-=for comment One might think that a combination of bits means that all
-the selected data subsets must be considered, but then you have to
-consider that when comparing key objects (future function), an
-implementation might opt to not compare the private key if it has
-compared the public key, since a match of one half implies a match of
-the other half.
+It's left to the provider implementation to decide what is reasonable
+to do with regards to received selector bits and how to do it.
+Among others, an implementation of OSSL_FUNC_keymgmt_match() might opt
+to not compare the private half if it has compared the public half,
+since a match of one half implies a match of the other half.
 
 =head2 Constructing and Destructing Functions
 
@@ -237,7 +236,7 @@ OSSL_FUNC_keymgmt_gen_set_params() should set additional parameters from
 I<params> in the key object generation context I<genctx>.
 
 OSSL_FUNC_keymgmt_gen_settable_params() should return a constant array of
-descriptor B<OSSL_PARAM>, for parameters that OSSL_FUNC_keymgmt_gen_set_params() 
+descriptor B<OSSL_PARAM>, for parameters that OSSL_FUNC_keymgmt_gen_set_params()
 can handle.
 
 OSSL_FUNC_keymgmt_gen() should perform the key object generation itself, and
@@ -254,9 +253,10 @@ provider knows how to interpret, but that may come from other operations.
 Outside the provider, this reference is simply an array of bytes.
 
 At least one of OSSL_FUNC_keymgmt_new(), OSSL_FUNC_keymgmt_gen() and
-OSSL_FUNC_keymgmt_load() are mandatory, as well as OSSL_FUNC_keymgmt_free().
-Additionally, if OSSL_FUNC_keymgmt_gen() is present, OSSL_FUNC_keymgmt_gen_init()
-and OSSL_FUNC_keymgmt_gen_cleanup() must be present as well.
+OSSL_FUNC_keymgmt_load() are mandatory, as well as OSSL_FUNC_keymgmt_free() and
+OSSL_FUNC_keymgmt_has(). Additionally, if OSSL_FUNC_keymgmt_gen() is present,
+OSSL_FUNC_keymgmt_gen_init() and OSSL_FUNC_keymgmt_gen_cleanup() must be
+present as well.
 
 =head2 Key Object Information Functions
 

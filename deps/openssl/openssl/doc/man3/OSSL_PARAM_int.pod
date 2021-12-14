@@ -331,6 +331,12 @@ representable by the target type or parameter.
 Apart from that, the functions must be used appropriately for the
 expected type of the parameter.
 
+OSSL_PARAM_get_BN() and OSSL_PARAM_set_BN() currently only support
+nonnegative B<BIGNUM>s, and by consequence, only
+B<OSSL_PARAM_UNSIGNED_INTEGER>.  OSSL_PARAM_construct_BN() currently
+constructs an B<OSSL_PARAM> structure with the data type
+B<OSSL_PARAM_UNSIGNED_INTEGER>.
+
 For OSSL_PARAM_construct_utf8_ptr() and OSSL_PARAM_consstruct_octet_ptr(),
 I<bsize> is not relevant if the purpose is to send the B<OSSL_PARAM> array
 to a I<responder>, i.e. to get parameter data back.

@@ -63,9 +63,21 @@ sub sharedname_simple {
 }
 
 sub sharedlib_simple {
-    return undef if $_[0]->shlibext() eq $_[0]->shlibextsimple();
-    return platform::BASE::__concat($_[0]->sharedname_simple($_[1]),
-                                    $_[0]->shlibextsimple());
+    # This function returns the simplified shared library name (no version
+    # or variant in the shared library file name) if the simple variants of
+    # the base name or the suffix differ from the full variants of the same.
+
+    # Note: if $_[1] isn't a shared library name, then $_[0]->sharedname()
+    # and $_[0]->sharedname_simple() will return undef.  This needs being
+    # accounted for.
+    my $name = $_[0]->sharedname($_[1]);
+    my $simplename = $_[0]->sharedname_simple($_[1]);
+    my $ext = $_[0]->shlibext();
+    my $simpleext = $_[0]->shlibextsimple();
+
+    return undef unless defined $simplename && defined $name;
+    return undef if ($name eq $simplename && $ext eq $simpleext);
+    return platform::BASE::__concat($simplename, $simpleext);
 }
 
 sub sharedlib_import {

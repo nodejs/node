@@ -146,9 +146,6 @@ static int provider_conf_load(OSSL_LIB_CTX *libctx, const char *name,
     const char *path = NULL;
     long activate = 0;
     int ok = 0;
-    PROVIDER_CONF_GLOBAL *pcgbl
-        = ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_PROVIDER_CONF_INDEX,
-                                &provider_conf_ossl_ctx_method);
 
     name = skip_dot(name);
     OSSL_TRACE1(CONF, "Configuring provider %s\n", name);
@@ -185,7 +182,11 @@ static int provider_conf_load(OSSL_LIB_CTX *libctx, const char *name,
     }
 
     if (activate) {
-        if (!CRYPTO_THREAD_write_lock(pcgbl->lock)) {
+        PROVIDER_CONF_GLOBAL *pcgbl
+            = ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_PROVIDER_CONF_INDEX,
+                                    &provider_conf_ossl_ctx_method);
+
+        if (pcgbl == NULL || !CRYPTO_THREAD_write_lock(pcgbl->lock)) {
             ERR_raise(ERR_LIB_CRYPTO, ERR_R_INTERNAL_ERROR);
             return 0;
         }
@@ -221,13 +222,24 @@ static int provider_conf_load(OSSL_LIB_CTX *libctx, const char *name,
                 if (!ossl_provider_activate(prov, 1, 0)) {
                     ok = 0;
                 } else if (!ossl_provider_add_to_store(prov, &actual, 0)) {
-                    ossl_provider_deactivate(prov);
+                    ossl_provider_deactivate(prov, 1);
+                    ok = 0;
+                } else if (actual != prov
+                           && !ossl_provider_activate(actual, 1, 0)) {
+                    ossl_provider_free(actual);
                     ok = 0;
                 } else {
                     if (pcgbl->activated_providers == NULL)
                         pcgbl->activated_providers = sk_OSSL_PROVIDER_new_null();
-                    sk_OSSL_PROVIDER_push(pcgbl->activated_providers, actual);
-                    ok = 1;
+                    if (pcgbl->activated_providers == NULL
+                        || !sk_OSSL_PROVIDER_push(pcgbl->activated_providers,
+                                                  actual)) {
+                        ossl_provider_deactivate(actual, 1);
+                        ossl_provider_free(actual);
+                        ok = 0;
+                    } else {
+                        ok = 1;
+                    }
                 }
             }
             if (!ok)

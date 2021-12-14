@@ -574,7 +574,7 @@ appear in a linking command line (because of recursive dependencies
 through other libraries), they will be ordered in such a way that this
 dependency is maintained:
 
-    DEPEND[libfoo.a]{weak}=libfoo.a libcookie.a 
+    DEPEND[libfoo.a]{weak}=libfoo.a libcookie.a
 
 This is useful in complex dependency trees where two libraries can be
 used as alternatives for each other.  In this example, C<lib1.a> and

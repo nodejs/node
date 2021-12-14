@@ -70,9 +70,9 @@ i2d_EC_PUBKEY_fp
 
 =for openssl generic
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  TYPE *d2i_TYPEPrivateKey(TYPE **a, const unsigned char **ppin, long length);
  TYPE *d2i_TYPEPrivateKey_bio(BIO *bp, TYPE **a);
@@ -172,13 +172,13 @@ There are two migration paths:
 =item *
 
 Replace
-b<d2i_I<TYPE>PrivateKey()> with L<d2i_PrivateKey(3)>, 
-b<d2i_I<TYPE>PublicKey()> with L<d2i_PublicKey(3)>, 
-b<d2i_I<TYPE>params()> with L<d2i_KeyParams(3)>, 
-b<d2i_I<TYPE>_PUBKEY()> with L<d2i_PUBKEY(3)>, 
-b<i2d_I<TYPE>PrivateKey()> with L<i2d_PrivateKey(3)>, 
-b<i2d_I<TYPE>PublicKey()> with L<i2d_PublicKey(3)>, 
-b<i2d_I<TYPE>params()> with L<i2d_KeyParams(3)>, 
+b<d2i_I<TYPE>PrivateKey()> with L<d2i_PrivateKey(3)>,
+b<d2i_I<TYPE>PublicKey()> with L<d2i_PublicKey(3)>,
+b<d2i_I<TYPE>params()> with L<d2i_KeyParams(3)>,
+b<d2i_I<TYPE>_PUBKEY()> with L<d2i_PUBKEY(3)>,
+b<i2d_I<TYPE>PrivateKey()> with L<i2d_PrivateKey(3)>,
+b<i2d_I<TYPE>PublicKey()> with L<i2d_PublicKey(3)>,
+b<i2d_I<TYPE>params()> with L<i2d_KeyParams(3)>,
 b<i2d_I<TYPE>_PUBKEY()> with L<i2d_PUBKEY(3)>.
 A caveat is that L<i2d_PrivateKey(3)> may output a DER encoded PKCS#8
 outermost structure instead of the type specific structure, and that

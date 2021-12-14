@@ -64,7 +64,9 @@ EC_GROUP_get_field_type
 
  int EC_GROUP_get_field_type(const EC_GROUP *group);
 
-Deprecated since OpenSSL 3.0:
+The following function has been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  const EC_METHOD *EC_GROUP_method_of(const EC_GROUP *group);
 

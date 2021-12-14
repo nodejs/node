@@ -459,9 +459,11 @@ int ossl_prov_drbg_instantiate(PROV_DRBG *drbg, unsigned int strength,
 
     if (!drbg->instantiate(drbg, entropy, entropylen, nonce, noncelen,
                            pers, perslen)) {
+        cleanup_entropy(drbg, entropy, entropylen);
         ERR_raise(ERR_LIB_PROV, PROV_R_ERROR_INSTANTIATING_DRBG);
         goto end;
     }
+    cleanup_entropy(drbg, entropy, entropylen);
 
     drbg->state = EVP_RAND_STATE_READY;
     drbg->generate_counter = 1;
@@ -469,8 +471,6 @@ int ossl_prov_drbg_instantiate(PROV_DRBG *drbg, unsigned int strength,
     tsan_store(&drbg->reseed_counter, drbg->reseed_next_counter);
 
  end:
-    if (entropy != NULL)
-        cleanup_entropy(drbg, entropy, entropylen);
     if (nonce != NULL)
         ossl_prov_cleanup_nonce(drbg->provctx, nonce, noncelen);
     if (drbg->state == EVP_RAND_STATE_READY)

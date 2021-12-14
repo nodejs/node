@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -417,8 +417,8 @@ int test_BN_eq_word(const char *file, int line, const char *bns, const char *ws,
 
     if (a != NULL && BN_is_word(a, w))
         return 1;
-    bw = BN_new();
-    BN_set_word(bw, w);
+    if ((bw = BN_new()) != NULL)
+        BN_set_word(bw, w);
     test_fail_bignum_message(NULL, file, line, "BIGNUM", bns, ws, "==", a, bw);
     BN_free(bw);
     return 0;
@@ -431,10 +431,10 @@ int test_BN_abs_eq_word(const char *file, int line, const char *bns,
 
     if (a != NULL && BN_abs_is_word(a, w))
         return 1;
-    bw = BN_new();
-    aa = BN_dup(a);
-    BN_set_negative(aa, 0);
-    BN_set_word(bw, w);
+    if ((aa = BN_dup(a)) != NULL)
+        BN_set_negative(aa, 0);
+    if ((bw = BN_new()) != NULL)
+        BN_set_word(bw, w);
     test_fail_bignum_message(NULL, file, line, "BIGNUM", bns, ws, "abs==",
                              aa, bw);
     BN_free(bw);

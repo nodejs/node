@@ -93,7 +93,7 @@ This is the canonical list.
 
  Function Call                --------------------- Current State ----------------------
                               start   newed    initialised   updated     finaled   freed
- EVP_MD_CTX_new               newed           
+ EVP_MD_CTX_new               newed
  EVP_DigestInit                    initialised initialised initialised initialised
  EVP_DigestUpdate                                updated     updated
  EVP_DigestFinal                                             finaled

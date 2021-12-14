@@ -7,6 +7,9 @@
 ./mkcert.sh genroot "Root CA" root-key2 root-cert2
 ./mkcert.sh genroot "Root Cert 2" root-key root-name2
 DAYS=-1 ./mkcert.sh genroot "Root CA" root-key root-expired
+# cross root and root cross cert
+./mkcert.sh genroot "Cross Root" cross-key cross-root
+./mkcert.sh genca "Root CA" root-key root-cross-cert cross-key cross-root
 # trust variants: +serverAuth -serverAuth +clientAuth -clientAuth,
 openssl x509 -in root-cert.pem -trustout \
     -addtrust serverAuth -out root+serverAuth.pem
@@ -278,6 +281,12 @@ NC=$NC ./mkcert.sh genca "Test NC sub CA" ncca3-key ncca3-cert \
     "3.CN=not..dns" "4.CN=not@dns" "5.CN=not-.dns" "6.CN=not.dns." | \
     ./mkcert.sh geneealt goodcn1-key goodcn1-cert ncca1-key ncca1-cert \
     "IP = 127.0.0.1" "IP = 192.168.0.1"
+
+# all DNS-like CNs allowed by CA1, no SANs
+
+./mkcert.sh req goodcn2-key "O = Good NC Test Certificate 1" \
+    "CN=www.good.org" | \
+    ./mkcert.sh geneeconfig goodcn2-key goodcn2-cert ncca1-key ncca1-cert
 
 # Some DNS-like CNs not permitted by CA1, no DNS SANs.
 

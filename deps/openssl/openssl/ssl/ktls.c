@@ -129,28 +129,28 @@ int ktls_check_supported_cipher(const SSL *s, const EVP_CIPHER *c,
     /* check that cipher is AES_GCM_128, AES_GCM_256, AES_CCM_128 
      * or Chacha20-Poly1305
      */
-    switch (EVP_CIPHER_get_nid(c))
-    {
 # ifdef OPENSSL_KTLS_AES_CCM_128
-    case NID_aes_128_ccm:
+    if (EVP_CIPHER_is_a(c, "AES-128-CCM")) {
         if (s->version == TLS_1_3_VERSION /* broken on 5.x kernels */
             || EVP_CIPHER_CTX_get_tag_length(dd) != EVP_CCM_TLS_TAG_LEN)
-          return 0;
+            return 0;
+        return 1;
+    } else
 # endif
+    if (0
 # ifdef OPENSSL_KTLS_AES_GCM_128
-        /* Fall through */
-    case NID_aes_128_gcm:
+        || EVP_CIPHER_is_a(c, "AES-128-GCM")
 # endif
 # ifdef OPENSSL_KTLS_AES_GCM_256
-    case NID_aes_256_gcm:
+        || EVP_CIPHER_is_a(c, "AES-256-GCM")
 # endif
 # ifdef OPENSSL_KTLS_CHACHA20_POLY1305
-    case NID_chacha20_poly1305:
+        || EVP_CIPHER_is_a(c, "ChaCha20-Poly1305")
 # endif
+        ) {
         return 1;
-    default:
-        return 0;
     }
+    return 0;
 }
 
 /* Function to configure kernel TLS structure */

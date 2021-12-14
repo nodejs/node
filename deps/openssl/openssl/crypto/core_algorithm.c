@@ -105,10 +105,23 @@ void ossl_algorithm_do_all(OSSL_LIB_CTX *libctx, int operation_id,
     cbdata.post = post;
     cbdata.data = data;
 
-    if (provider == NULL)
+    if (provider == NULL) {
         ossl_provider_doall_activated(libctx, algorithm_do_this, &cbdata);
-    else
+    } else {
+        OSSL_LIB_CTX *libctx2 = ossl_provider_libctx(provider);
+
+        /*
+         * If a provider is given, its library context MUST match the library
+         * context we're passed.  If this turns out not to be true, there is
+         * a programming error in the functions up the call stack.
+         */
+        if (!ossl_assert(ossl_lib_ctx_get_concrete(libctx)
+                         == ossl_lib_ctx_get_concrete(libctx2)))
+            return;
+
+        cbdata.libctx = libctx2;
         algorithm_do_this(provider, &cbdata);
+    }
 }
 
 char *ossl_algorithm_get1_first_name(const OSSL_ALGORITHM *algo)

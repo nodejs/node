@@ -54,26 +54,26 @@ The SSL BIO is then reset to the initial accept or connect state.
 If the close flag is set when an SSL BIO is freed then the internal
 SSL structure is also freed using SSL_free().
 
-BIO_set_ssl() sets the internal SSL pointer of BIO B<b> to B<ssl> using
+BIO_set_ssl() sets the internal SSL pointer of SSL BIO B<b> to B<ssl> using
 the close flag B<c>.
 
-BIO_get_ssl() retrieves the SSL pointer of BIO B<b>, it can then be
+BIO_get_ssl() retrieves the SSL pointer of SSL BIO B<b>, it can then be
 manipulated using the standard SSL library functions.
 
 BIO_set_ssl_mode() sets the SSL BIO mode to B<client>. If B<client>
 is 1 client mode is set. If B<client> is 0 server mode is set.
 
-BIO_set_ssl_renegotiate_bytes() sets the renegotiate byte count
+BIO_set_ssl_renegotiate_bytes() sets the renegotiate byte count of SSL BIO B<b>
 to B<num>. When set after every B<num> bytes of I/O (read and write)
 the SSL session is automatically renegotiated. B<num> must be at
 least 512 bytes.
 
-BIO_set_ssl_renegotiate_timeout() sets the renegotiate timeout to
-B<seconds>. When the renegotiate timeout elapses the session is
-automatically renegotiated.
+BIO_set_ssl_renegotiate_timeout() sets the renegotiate timeout of SSL BIO B<b>
+to B<seconds>.
+When the renegotiate timeout elapses the session is automatically renegotiated.
 
 BIO_get_num_renegotiates() returns the total number of session
-renegotiations due to I/O or timeout.
+renegotiations due to I/O or timeout of SSL BIO B<b>.
 
 BIO_new_ssl() allocates an SSL BIO using SSL_CTX B<ctx> and using
 client mode if B<client> is non zero.
@@ -82,8 +82,7 @@ BIO_new_ssl_connect() creates a new BIO chain consisting of an
 SSL BIO (using B<ctx>) followed by a connect BIO.
 
 BIO_new_buffer_ssl_connect() creates a new BIO chain consisting
-of a buffering BIO, an SSL BIO (using B<ctx>) and a connect
-BIO.
+of a buffering BIO, an SSL BIO (using B<ctx>), and a connect BIO.
 
 BIO_ssl_copy_session_id() copies an SSL session id between
 BIO chains B<from> and B<to>. It does this by locating the
@@ -96,7 +95,7 @@ chain and calling SSL_shutdown() on its internal SSL
 pointer.
 
 BIO_do_handshake() attempts to complete an SSL handshake on the
--supplied BIO and establish the SSL connection.
+supplied BIO and establish the SSL connection.
 For non-SSL BIOs the connection is done typically at TCP level.
 If domain name resolution yields multiple IP addresses all of them are tried
 after connect() failures.

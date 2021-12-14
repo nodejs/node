@@ -131,16 +131,29 @@ static int ecdsa_signverify_init(void *vctx, void *ec,
     PROV_ECDSA_CTX *ctx = (PROV_ECDSA_CTX *)vctx;
 
     if (!ossl_prov_is_running()
-            || ctx == NULL
-            || ec == NULL
-            || !EC_KEY_up_ref(ec))
+            || ctx == NULL)
         return 0;
-    EC_KEY_free(ctx->ec);
-    ctx->ec = ec;
+
+    if (ec == NULL && ctx->ec == NULL) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_NO_KEY_SET);
+        return 0;
+    }
+
+    if (ec != NULL) {
+        if (!ossl_ec_check_key(ctx->libctx, ec, operation == EVP_PKEY_OP_SIGN))
+            return 0;
+        if (!EC_KEY_up_ref(ec))
+            return 0;
+        EC_KEY_free(ctx->ec);
+        ctx->ec = ec;
+    }
+
     ctx->operation = operation;
+
     if (!ecdsa_set_ctx_params(ctx, params))
         return 0;
-    return ossl_ec_check_key(ctx->libctx, ec, operation == EVP_PKEY_OP_SIGN);
+
+    return 1;
 }
 
 static int ecdsa_sign_init(void *vctx, void *ec, const OSSL_PARAM params[])
@@ -279,18 +292,19 @@ static int ecdsa_digest_signverify_init(void *vctx, const char *mdname,
         return 0;
 
     ctx->flag_allow_md = 0;
-    ctx->mdctx = EVP_MD_CTX_new();
-    if (ctx->mdctx == NULL)
-        goto error;
+
+    if (ctx->mdctx == NULL) {
+        ctx->mdctx = EVP_MD_CTX_new();
+        if (ctx->mdctx == NULL)
+            goto error;
+    }
 
     if (!EVP_DigestInit_ex2(ctx->mdctx, ctx->md, params))
         goto error;
     return 1;
 error:
     EVP_MD_CTX_free(ctx->mdctx);
-    EVP_MD_free(ctx->md);
     ctx->mdctx = NULL;
-    ctx->md = NULL;
     return 0;
 }
 

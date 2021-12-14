@@ -1718,7 +1718,11 @@ int tls_parse_stoc_etm(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
     /* Ignore if inappropriate ciphersuite */
     if (!(s->options & SSL_OP_NO_ENCRYPT_THEN_MAC)
             && s->s3.tmp.new_cipher->algorithm_mac != SSL_AEAD
-            && s->s3.tmp.new_cipher->algorithm_enc != SSL_RC4)
+            && s->s3.tmp.new_cipher->algorithm_enc != SSL_RC4
+            && s->s3.tmp.new_cipher->algorithm_enc != SSL_eGOST2814789CNT
+            && s->s3.tmp.new_cipher->algorithm_enc != SSL_eGOST2814789CNT12
+            && s->s3.tmp.new_cipher->algorithm_enc != SSL_MAGMA
+            && s->s3.tmp.new_cipher->algorithm_enc != SSL_KUZNYECHIK)
         s->ext.use_etm = 1;
 
     return 1;
@@ -1870,6 +1874,7 @@ int tls_parse_stoc_key_share(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
         skey = EVP_PKEY_new();
         if (skey == NULL || EVP_PKEY_copy_parameters(skey, ckey) <= 0) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_R_COPY_PARAMETERS_FAILED);
+            EVP_PKEY_free(skey);
             return 0;
         }
 

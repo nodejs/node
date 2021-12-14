@@ -29,6 +29,8 @@ static const ERR_STRING_DATA CRYPTO_str_reasons[] = {
     "insufficient param size"},
     {ERR_PACK(ERR_LIB_CRYPTO, 0, CRYPTO_R_INSUFFICIENT_SECURE_DATA_SPACE),
     "insufficient secure data space"},
+    {ERR_PACK(ERR_LIB_CRYPTO, 0, CRYPTO_R_INVALID_NEGATIVE_VALUE),
+    "invalid negative value"},
     {ERR_PACK(ERR_LIB_CRYPTO, 0, CRYPTO_R_INVALID_NULL_ARGUMENT),
     "invalid null argument"},
     {ERR_PACK(ERR_LIB_CRYPTO, 0, CRYPTO_R_INVALID_OSSL_PARAM_TYPE),

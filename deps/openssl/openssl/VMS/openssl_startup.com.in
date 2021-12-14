@@ -15,7 +15,8 @@ $	!				are located
 $	!	OSSL$SHARE		Where the shareable image files
 $	!				are located
 $	!	OSSL$EXE		Where the executables are located
-$	!	OSSL$ENGINESnnn		Where the shareable images are located
+$	!	OSSL$ENGINESnnn		Where the engines modules are located
+$	!	OSSL$MODULES		Where the non-engine modules are located
 $	!	OSSL$LIBCRYPTO		The static crypto library
 $	!	OSSL$LIBSSL		The static ssl library
 $	!	OSSL$LIBCRYPTOnnn_SHR	The shareable crypto image
@@ -88,8 +89,8 @@ $
 $	! Abbrevs
 $	DEFT := DEFINE /TRANSLATION=CONCEALED /NOLOG 'P1'
 $	DEF  := DEFINE /NOLOG 'P1'
-$	sv   := {- sprintf "%02d%02d", split m|\.|, $config{shlib_version} -}
-$	pz   := {- $config{pointer_size} -}
+$	sv   := {- platform->shlib_version_as_filename(); -}
+$	pz   := {- $target{pointer_size} -}
 $
 $	DEFT OSSL$DATAROOT		'OPENSSLDIR_']
 $	DEFT OSSL$INSTROOT		'INSTALLTOP_']
@@ -97,6 +98,7 @@ $	DEFT OSSL$INCLUDE		'INSTALLTOP_'INCLUDE.]
 $	DEF  OSSL$LIB			OSSL$INSTROOT:[LIB.'arch']
 $	DEF  OSSL$SHARE			OSSL$INSTROOT:[LIB.'arch']
 $	DEF  OSSL$ENGINES'sv''pz'	OSSL$INSTROOT:[ENGINES'sv''pz'.'arch']
+$	DEF  OSSL$MODULES'pz'           OSSL$INSTROOT:[MODULES'pz'.'arch']
 $	DEF  OSSL$EXE			OSSL$INSTROOT:[EXE.'arch'],-
 					OSSL$INSTROOT:[EXE]
 $	DEF  OSSL$LIBCRYPTO'pz'		OSSL$LIB:OSSL$LIBCRYPTO'pz'.OLB

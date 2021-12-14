@@ -135,7 +135,11 @@ IMPLEMENT_LHASH_DOALL_ARG_CONST(CONF_VALUE, LH_CONF_VALUE);
 
 void _CONF_free_data(CONF *conf)
 {
-    if (conf == NULL || conf->data == NULL)
+    if (conf == NULL)
+        return;
+
+    OPENSSL_free(conf->includedir);
+    if (conf->data == NULL)
         return;
 
     /* evil thing to make sure the 'OPENSSL_free()' works as expected */
@@ -147,7 +151,6 @@ void _CONF_free_data(CONF *conf)
      * with
      */
 
-    OPENSSL_free(conf->includedir);
     lh_CONF_VALUE_doall(conf->data, value_free_stack_doall);
     lh_CONF_VALUE_free(conf->data);
 }

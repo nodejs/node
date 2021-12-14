@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-evp_generic_fetch, evp_generic_fetch_by_number
+evp_generic_fetch, evp_generic_fetch_by_number, evp_generic_fetch_from_prov
 - generic algorithm fetchers and method creators for EVP
 
 =head1 SYNOPSIS
@@ -29,6 +29,15 @@ evp_generic_fetch, evp_generic_fetch_by_number
                                    void *method_data,
                                    int (*up_ref_method)(void *),
                                    void (*free_method)(void *));
+ void *evp_generic_fetch_from_prov(OSSL_PROVIDER *prov, int operation_id,
+                                   int name_id, const char *properties,
+                                   void *(*new_method)(int name_id,
+                                                       const OSSL_DISPATCH *fns,
+                                                       OSSL_PROVIDER *prov,
+                                                       void *method_data),
+                                   void *method_data,
+                                   int (*up_ref_method)(void *),
+                                   void (*free_method)(void *));
 
 =head1 DESCRIPTION
 
@@ -37,13 +46,18 @@ I<libctx>, I<operation_id>, I<name>, and I<properties> and uses
 it to create an EVP method with the help of the functions
 I<new_method>, I<up_ref_method>, and I<free_method>.
 
-evp_generic_fetch_by_number() does the same thing as evp_generic_fetch(), 
+evp_generic_fetch_by_number() does the same thing as evp_generic_fetch(),
 but takes a numeric I<name_id> instead of a name.
 I<name_id> must always be nonzero; as a matter of fact, it being zero
 is considered a programming error.
 This is meant to be used when one method needs to fetch an associated
-other method, and is typically called from inside the given function
+method, and is typically called from inside the given function
 I<new_method>.
+
+evp_generic_fetch_from_prov() does the same thing as evp_generic_fetch(),
+but limits the search of methods to the provider given with I<prov>.
+This is meant to be used when one method needs to fetch an associated
+method in the same provider.
 
 The three functions I<new_method>, I<up_ref_method>, and
 I<free_method> are supposed to:

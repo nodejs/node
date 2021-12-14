@@ -18,12 +18,16 @@ X509V3_set_issuer_pkey - X.509 v3 extension generation utilities
 X509V3_set_ctx() fills in the basic fields of I<ctx> of type B<X509V3_CTX>,
 providing details potentially needed by functions producing X509 v3 extensions,
 e.g., to look up values for filling in authority key identifiers.
-Any of I<subj>, I<req>, or I<crl> may be provided, pointing to a certificate,
+Any of I<subject>, I<req>, or I<crl> may be provided, pointing to a certificate,
 certification request, or certificate revocation list, respectively.
-If I<subj> or I<crl> is provided, I<issuer> should point to its issuer,
+When constructing the subject key identifier of a certificate by computing a
+hash value of its public key, the public key is taken from I<subject> or I<req>.
+Similarly, when constructing subject alternative names from any email addresses
+contained in a subject DN, the subject DN is taken from I<subject> or I<req>.
+If I<subject> or I<crl> is provided, I<issuer> should point to its issuer,
 for instance to help generating an authority key identifier extension.
-Note that if I<subj> is provided, I<issuer> may be the same as I<subj>,
-which means that I<subj> is self-issued (or even self-signed).
+Note that if I<subject> is provided, I<issuer> may be the same as I<subject>,
+which means that I<subject> is self-issued (or even self-signed).
 I<flags> may be 0
 or contain B<X509V3_CTX_TEST>, which means that just the syntax of
 extension definitions is to be checked without actually producing an extension,

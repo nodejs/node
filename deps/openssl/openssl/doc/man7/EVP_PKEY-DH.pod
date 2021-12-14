@@ -74,7 +74,7 @@ See EVP_PKEY_set1_encoded_public_key() and EVP_PKEY_get1_encoded_public_key().
 Used for DH generation of safe primes using the old safe prime generator code.
 The default value is 2.
 It is recommended to use a named safe prime group instead, if domain parameter
-validation is required. 
+validation is required.
 
 Randomly generated safe primes are not allowed by FIPS, so setting this value
 for the OpenSSL FIPS provider will instead choose a named safe prime group
@@ -156,7 +156,7 @@ A B<DH> key can be generated with a named safe prime group by calling:
     EVP_PKEY_CTX_set_params(pctx, params);
     EVP_PKEY_generate(pctx, &pkey);
     ...
-    EVP_PKEY_free(key);
+    EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(pctx);
 
 B<DHX> domain parameters can be generated according to B<FIPS 186-4> by calling:

@@ -1307,10 +1307,10 @@ DEPEND[html/man3/EVP_RAND.html]=man3/EVP_RAND.pod
 GENERATE[html/man3/EVP_RAND.html]=man3/EVP_RAND.pod
 DEPEND[man/man3/EVP_RAND.3]=man3/EVP_RAND.pod
 GENERATE[man/man3/EVP_RAND.3]=man3/EVP_RAND.pod
-DEPEND[html/man3/EVP_SIGNATURE_free.html]=man3/EVP_SIGNATURE_free.pod
-GENERATE[html/man3/EVP_SIGNATURE_free.html]=man3/EVP_SIGNATURE_free.pod
-DEPEND[man/man3/EVP_SIGNATURE_free.3]=man3/EVP_SIGNATURE_free.pod
-GENERATE[man/man3/EVP_SIGNATURE_free.3]=man3/EVP_SIGNATURE_free.pod
+DEPEND[html/man3/EVP_SIGNATURE.html]=man3/EVP_SIGNATURE.pod
+GENERATE[html/man3/EVP_SIGNATURE.html]=man3/EVP_SIGNATURE.pod
+DEPEND[man/man3/EVP_SIGNATURE.3]=man3/EVP_SIGNATURE.pod
+GENERATE[man/man3/EVP_SIGNATURE.3]=man3/EVP_SIGNATURE.pod
 DEPEND[html/man3/EVP_SealInit.html]=man3/EVP_SealInit.pod
 GENERATE[html/man3/EVP_SealInit.html]=man3/EVP_SealInit.pod
 DEPEND[man/man3/EVP_SealInit.3]=man3/EVP_SealInit.pod
@@ -3050,7 +3050,7 @@ html/man3/EVP_PKEY_todata.html \
 html/man3/EVP_PKEY_verify.html \
 html/man3/EVP_PKEY_verify_recover.html \
 html/man3/EVP_RAND.html \
-html/man3/EVP_SIGNATURE_free.html \
+html/man3/EVP_SIGNATURE.html \
 html/man3/EVP_SealInit.html \
 html/man3/EVP_SignInit.html \
 html/man3/EVP_VerifyInit.html \
@@ -3643,7 +3643,7 @@ man/man3/EVP_PKEY_todata.3 \
 man/man3/EVP_PKEY_verify.3 \
 man/man3/EVP_PKEY_verify_recover.3 \
 man/man3/EVP_RAND.3 \
-man/man3/EVP_SIGNATURE_free.3 \
+man/man3/EVP_SIGNATURE.3 \
 man/man3/EVP_SealInit.3 \
 man/man3/EVP_SignInit.3 \
 man/man3/EVP_VerifyInit.3 \

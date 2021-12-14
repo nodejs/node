@@ -14,7 +14,7 @@ See L<EVP_PKEY-RSA(7)> for information related to RSA keys.
 
 The following signature parameters can be set using EVP_PKEY_CTX_set_params().
 This may be called after EVP_PKEY_sign_init() or EVP_PKEY_verify_init(),
-and before calling EVP_PKEY_sign() or EVP_PKEY_verify(). 
+and before calling EVP_PKEY_sign() or EVP_PKEY_verify().
 
 =over 4
 
@@ -32,11 +32,11 @@ The type of padding to be used. Its value can be one of the following:
 
 =item "none" (B<OSSL_PKEY_RSA_PAD_MODE_NONE>)
 
-=item "pkcs1" (B<OSSL_PKEY_RSA_PAD_MODE_PKCSV15>) 
+=item "pkcs1" (B<OSSL_PKEY_RSA_PAD_MODE_PKCSV15>)
 
 =item "x931" (B<OSSL_PKEY_RSA_PAD_MODE_X931>)
 
-=item "pss" (B<OSSL_PKEY_RSA_PAD_MODE_PSS>) 
+=item "pss" (B<OSSL_PKEY_RSA_PAD_MODE_PSS>)
 
 =back
 

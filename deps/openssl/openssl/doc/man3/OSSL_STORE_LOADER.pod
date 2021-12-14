@@ -52,9 +52,9 @@ unregister STORE loaders for different URI schemes
                                     void (*fn)(const char *name, void *data),
                                     void *data);
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  OSSL_STORE_LOADER *OSSL_STORE_LOADER_new(ENGINE *e, const char *scheme);
  const ENGINE *OSSL_STORE_LOADER_get0_engine(const OSSL_STORE_LOADER

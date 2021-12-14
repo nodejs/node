@@ -16,7 +16,7 @@ use OpenSSL::Test::Utils;
 
 setup("test_rsa");
 
-plan tests => 10;
+plan tests => 12;
 
 require_ok(srctop_file('test', 'recipes', 'tconversion.pl'));
 
@@ -32,7 +32,7 @@ sub run_rsa_tests {
     ok(run(app([ 'openssl', $cmd, '-check', '-in', srctop_file('test', 'testrsa.pem'), '-noout'])),
            "$cmd -check" );
 
-     SKIP: {
+    SKIP: {
          skip "Skipping $cmd conversion test", 3
              if disabled("rsa");
 
@@ -47,7 +47,7 @@ sub run_rsa_tests {
          };
     }
 
-     SKIP: {
+    SKIP: {
          skip "Skipping msblob conversion test", 1
              if disabled($cmd) || $cmd eq 'pkey';
 
@@ -55,6 +55,20 @@ sub run_rsa_tests {
              tconversion( -type => 'msb', -prefix => "$cmd-msb-pub",
                           -in => srctop_file("test", "testrsapub.pem"),
                           -args => ["rsa", "-pubin", "-pubout"] );
+         };
+    }
+    SKIP: {
+         skip "Skipping PVK conversion test", 1
+             if disabled($cmd) || $cmd eq 'pkey' || disabled("rc4")
+                || disabled ("legacy");
+
+         subtest "$cmd conversions -- private key" => sub {
+             tconversion( -type => 'pvk', -prefix => "$cmd-pvk",
+                          -in => srctop_file("test", "testrsa.pem"),
+                          -args => ["rsa", "-passin", "pass:testpass",
+                                    "-passout", "pass:testpass",
+                                    "-provider", "default",
+                                    "-provider", "legacy"] );
          };
     }
 }

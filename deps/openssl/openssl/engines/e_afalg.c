@@ -683,11 +683,8 @@ static int afalg_cipher_cleanup(EVP_CIPHER_CTX *ctx)
     }
 
     actx = (afalg_ctx *) EVP_CIPHER_CTX_get_cipher_data(ctx);
-    if (actx == NULL || actx->init_done != MAGIC_INIT_NUM) {
-        ALG_WARN("%s afalg ctx passed\n",
-                 ctx == NULL ? "NULL" : "Uninitialised");
-        return 0;
-    }
+    if (actx == NULL || actx->init_done != MAGIC_INIT_NUM)
+        return 1;
 
     close(actx->sfd);
     close(actx->bfd);

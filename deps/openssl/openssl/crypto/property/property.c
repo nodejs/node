@@ -45,6 +45,7 @@ typedef struct {
 DEFINE_STACK_OF(IMPLEMENTATION)
 
 typedef struct {
+    const OSSL_PROVIDER *provider;
     const char *query;
     METHOD method;
     char body[1];
@@ -117,7 +118,7 @@ OSSL_PROPERTY_LIST **ossl_ctx_global_properties(OSSL_LIB_CTX *libctx,
     globp = ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_GLOBAL_PROPERTIES,
                                   &ossl_ctx_global_properties_method);
 
-    return &globp->list;
+    return globp != NULL ? &globp->list : NULL;
 }
 
 #ifndef FIPS_MODULE
@@ -127,7 +128,7 @@ int ossl_global_properties_no_mirrored(OSSL_LIB_CTX *libctx)
         = ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_GLOBAL_PROPERTIES,
                                 &ossl_ctx_global_properties_method);
 
-    return globp->no_mirrored ? 1 : 0;
+    return globp != NULL && globp->no_mirrored ? 1 : 0;
 }
 
 void ossl_global_properties_stop_mirroring(OSSL_LIB_CTX *libctx)
@@ -136,7 +137,8 @@ void ossl_global_properties_stop_mirroring(OSSL_LIB_CTX *libctx)
         = ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_GLOBAL_PROPERTIES,
                                 &ossl_ctx_global_properties_method);
 
-    globp->no_mirrored = 1;
+    if (globp != NULL)
+        globp->no_mirrored = 1;
 }
 #endif
 
@@ -172,7 +174,13 @@ static unsigned long query_hash(const QUERY *a)
 
 static int query_cmp(const QUERY *a, const QUERY *b)
 {
-    return strcmp(a->query, b->query);
+    int res = strcmp(a->query, b->query);
+
+    if (res == 0 && a->provider != NULL && b->provider != NULL)
+        res = b->provider > a->provider ? 1
+            : b->provider < a->provider ? -1
+            : 0;
+    return res;
 }
 
 static void impl_free(IMPLEMENTATION *impl)
@@ -259,6 +267,9 @@ int ossl_method_store_add(OSSL_METHOD_STORE *store, const OSSL_PROVIDER *prov,
         return 0;
     if (properties == NULL)
         properties = "";
+
+    if (!ossl_assert(prov != NULL))
+        return 0;
 
     /* Create new entry */
     impl = OPENSSL_malloc(sizeof(*impl));
@@ -393,15 +404,15 @@ void ossl_method_store_do_all(OSSL_METHOD_STORE *store,
         ossl_sa_ALGORITHM_doall_arg(store->algs, alg_do_each, &data);
 }
 
-int ossl_method_store_fetch(OSSL_METHOD_STORE *store, int nid,
-                            const char *prop_query,
-                            void **method)
+int ossl_method_store_fetch(OSSL_METHOD_STORE *store,
+                            int nid, const char *prop_query,
+                            const OSSL_PROVIDER **prov_rw, void **method)
 {
     OSSL_PROPERTY_LIST **plp;
     ALGORITHM *alg;
-    IMPLEMENTATION *impl;
+    IMPLEMENTATION *impl, *best_impl = NULL;
     OSSL_PROPERTY_LIST *pq = NULL, *p2 = NULL;
-    METHOD *best_method = NULL;
+    const OSSL_PROVIDER *prov = prov_rw != NULL ? *prov_rw : NULL;
     int ret = 0;
     int j, best = -1, score, optional;
 
@@ -438,29 +449,38 @@ int ossl_method_store_fetch(OSSL_METHOD_STORE *store, int nid,
     }
 
     if (pq == NULL) {
-        if ((impl = sk_IMPLEMENTATION_value(alg->impls, 0)) != NULL) {
-            best_method = &impl->method;
-            ret = 1;
+        for (j = 0; j < sk_IMPLEMENTATION_num(alg->impls); j++) {
+            if ((impl = sk_IMPLEMENTATION_value(alg->impls, j)) != NULL
+                && (prov == NULL || impl->provider == prov)) {
+                best_impl = impl;
+                ret = 1;
+                break;
+            }
         }
         goto fin;
     }
     optional = ossl_property_has_optional(pq);
     for (j = 0; j < sk_IMPLEMENTATION_num(alg->impls); j++) {
-        impl = sk_IMPLEMENTATION_value(alg->impls, j);
-        score = ossl_property_match_count(pq, impl->properties);
-        if (score > best) {
-            best_method = &impl->method;
-            best = score;
-            ret = 1;
-            if (!optional)
-                goto fin;
+        if ((impl = sk_IMPLEMENTATION_value(alg->impls, j)) != NULL
+            && (prov == NULL || impl->provider == prov)) {
+            score = ossl_property_match_count(pq, impl->properties);
+            if (score > best) {
+                best_impl = impl;
+                best = score;
+                ret = 1;
+                if (!optional)
+                    goto fin;
+            }
         }
     }
 fin:
-    if (ret && ossl_method_up_ref(best_method))
-        *method = best_method->method;
-    else
+    if (ret && ossl_method_up_ref(&best_impl->method)) {
+        *method = best_impl->method.method;
+        if (prov_rw != NULL)
+            *prov_rw = best_impl->provider;
+    } else {
         ret = 0;
+    }
     ossl_property_unlock(store);
     ossl_property_free(p2);
     return ret;
@@ -569,8 +589,8 @@ static void ossl_method_cache_flush_some(OSSL_METHOD_STORE *store)
     store->nelem = state.nelem;
 }
 
-int ossl_method_store_cache_get(OSSL_METHOD_STORE *store, int nid,
-                                const char *prop_query, void **method)
+int ossl_method_store_cache_get(OSSL_METHOD_STORE *store, OSSL_PROVIDER *prov,
+                                int nid, const char *prop_query, void **method)
 {
     ALGORITHM *alg;
     QUERY elem, *r;
@@ -586,6 +606,7 @@ int ossl_method_store_cache_get(OSSL_METHOD_STORE *store, int nid,
         goto err;
 
     elem.query = prop_query != NULL ? prop_query : "";
+    elem.provider = prov;
     r = lh_QUERY_retrieve(alg->cache, &elem);
     if (r == NULL)
         goto err;
@@ -598,8 +619,8 @@ err:
     return res;
 }
 
-int ossl_method_store_cache_set(OSSL_METHOD_STORE *store, int nid,
-                                const char *prop_query, void *method,
+int ossl_method_store_cache_set(OSSL_METHOD_STORE *store, OSSL_PROVIDER *prov,
+                                int nid, const char *prop_query, void *method,
                                 int (*method_up_ref)(void *),
                                 void (*method_destruct)(void *))
 {
@@ -613,6 +634,9 @@ int ossl_method_store_cache_set(OSSL_METHOD_STORE *store, int nid,
     if (prop_query == NULL)
         return 1;
 
+    if (!ossl_assert(prov != NULL))
+        return 0;
+
     if (!ossl_property_write_lock(store))
         return 0;
     if (store->need_flush)
@@ -623,6 +647,7 @@ int ossl_method_store_cache_set(OSSL_METHOD_STORE *store, int nid,
 
     if (method == NULL) {
         elem.query = prop_query;
+        elem.provider = prov;
         if ((old = lh_QUERY_delete(alg->cache, &elem)) != NULL) {
             impl_cache_free(old);
             store->nelem--;
@@ -632,6 +657,7 @@ int ossl_method_store_cache_set(OSSL_METHOD_STORE *store, int nid,
     p = OPENSSL_malloc(sizeof(*p) + (len = strlen(prop_query)));
     if (p != NULL) {
         p->query = p->body;
+        p->provider = prov;
         p->method.method = method;
         p->method.up_ref = method_up_ref;
         p->method.free = method_destruct;

@@ -116,7 +116,7 @@ EVP_PKEY_CTX_set_kem_op
  int EVP_PKEY_CTX_get_rsa_oaep_md(EVP_PKEY_CTX *ctx, const EVP_MD **md);
  int EVP_PKEY_CTX_get_rsa_oaep_md_name(EVP_PKEY_CTX *ctx, char *name,
                                        size_t namelen);
- int EVP_PKEY_CTX_set0_rsa_oaep_label(EVP_PKEY_CTX *ctx, unsigned char *label,
+ int EVP_PKEY_CTX_set0_rsa_oaep_label(EVP_PKEY_CTX *ctx, void *label,
                                       int len);
  int EVP_PKEY_CTX_get0_rsa_oaep_label(EVP_PKEY_CTX *ctx, unsigned char **label);
 
@@ -176,9 +176,9 @@ EVP_PKEY_CTX_set_kem_op
  int EVP_PKEY_CTX_get1_id(EVP_PKEY_CTX *ctx, void *id);
  int EVP_PKEY_CTX_get1_id_len(EVP_PKEY_CTX *ctx, size_t *id_len);
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  #include <openssl/rsa.h>
 
@@ -356,8 +356,8 @@ EVP_MD object instead. Note that only known, built-in EVP_MD objects will be
 returned. The EVP_MD object may be NULL if the digest is not one of these (such
 as a digest only implemented in a third party provider).
 
-EVP_PKEY_CTX_set0_rsa_oaep_label() sets the RSA OAEP label to
-I<label> and its length to I<len>. If I<label> is NULL or I<len> is 0,
+EVP_PKEY_CTX_set0_rsa_oaep_label() sets the RSA OAEP label to binary data
+I<label> and its length in bytes to I<len>. If I<label> is NULL or I<len> is 0,
 the label is cleared. The library takes ownership of the label so the
 caller should not free the original memory pointed to by I<label>.
 The padding mode must have been set to B<RSA_PKCS1_OAEP_PADDING>.

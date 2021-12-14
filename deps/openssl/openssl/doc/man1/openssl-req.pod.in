@@ -79,9 +79,10 @@ The data is a PKCS#10 object.
 
 =item B<-in> I<filename>
 
-This specifies the input filename to read a request from or standard input
-if this option is not specified. A request is only read if the creation
-options (B<-new> or B<-newkey>) are not specified.
+This specifies the input filename to read a request from.
+This defaults to standard input unless B<-x509> or B<-CA> is specified.
+A request is only read if the creation options
+(B<-new> or B<-newkey> or B<-precert>) are not specified.
 
 =item B<-sigopt> I<nm>:I<v>
 
@@ -156,8 +157,13 @@ else by default an RSA key with 2048 bits length.
 
 =item B<-newkey> I<arg>
 
-This option creates a new certificate request and a new private
-key. The argument takes one of several forms.
+This option is used to generate a new private key unless B<-key> is given.
+It is subsequently used as if it was given using the B<-key> option.
+
+This option implies the B<-new> flag to create a new certificate request
+or a new certificate in case B<-x509> is given.
+
+The argument takes one of several forms.
 
 [B<rsa:>]I<nbits> generates an RSA key I<nbits> in size.
 If I<nbits> is omitted, i.e., B<-newkey> B<rsa> is specified,
@@ -193,9 +199,14 @@ See L<openssl-genpkey(1)/KEY GENERATION OPTIONS> for more details.
 
 =item B<-key> I<filename>|I<uri>
 
-This specifies the key to include and to use for request self-signature
-and for self-signing certificates produced with the B<-x509> option.
-It also accepts PKCS#8 format private keys for PEM format files.
+This option provides the private key for signing a new certificate or
+certificate request.
+Unless B<-in> is given, the corresponding public key is placed in
+the new certificate or certificate request, resulting in a self-signature.
+
+For certificate signing this option is overridden by the B<-CA> option.
+
+This option also accepts PKCS#8 format private keys for PEM format files.
 
 =item B<-keyform> B<DER>|B<PEM>|B<P12>|B<ENGINE>
 
@@ -267,6 +278,8 @@ This option has been deprecated and has no effect.
 This option outputs a certificate instead of a certificate request.
 This is typically used to generate test certificates.
 It is implied by the B<-CA> option.
+
+This option implies the B<-new> flag if B<-in> is not given.
 
 If an existing request is specified with the B<-in> option, it is converted
 to the a certificate; otherwise a request is created from scratch.

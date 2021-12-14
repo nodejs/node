@@ -100,7 +100,7 @@ in the same way as L<OSSL_CMP_MSG_http_perform(3)>.
 The B<OSSL_CMP_SRV_CTX> must be set as I<transfer_cb_arg> of I<client_ctx>.
 
 OSSL_CMP_SRV_CTX_new() creates and initializes an B<OSSL_CMP_SRV_CTX> structure
-associated with the library context I<libctx> and property query string 
+associated with the library context I<libctx> and property query string
 I<propq>, both of which may be NULL to select the defaults.
 
 OSSL_CMP_SRV_CTX_free() deletes the given I<srv_ctx>.

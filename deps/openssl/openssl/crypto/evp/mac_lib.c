@@ -132,6 +132,7 @@ static int evp_mac_final(EVP_MAC_CTX *ctx, int xof,
     size_t l;
     int res;
     OSSL_PARAM params[2];
+    size_t macsize;
 
     if (ctx == NULL || ctx->meth == NULL) {
         ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_NULL_ALGORITHM);
@@ -142,13 +143,18 @@ static int evp_mac_final(EVP_MAC_CTX *ctx, int xof,
         return 0;
     }
 
+    macsize = EVP_MAC_CTX_get_mac_size(ctx);
     if (out == NULL) {
         if (outl == NULL) {
             ERR_raise(ERR_LIB_EVP, ERR_R_PASSED_NULL_PARAMETER);
             return 0;
         }
-        *outl = EVP_MAC_CTX_get_mac_size(ctx);
+        *outl = macsize;
         return 1;
+    }
+    if (outsize < macsize) {
+        ERR_raise(ERR_LIB_EVP, EVP_R_BUFFER_TOO_SMALL);
+        return 0;
     }
     if (xof) {
         params[0] = OSSL_PARAM_construct_int(OSSL_MAC_PARAM_XOF, &xof);

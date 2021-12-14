@@ -28,7 +28,7 @@ SSL_SESSION_get_max_fragment_length - Control fragment size settings and pipelin
 
  int SSL_CTX_set_tlsext_max_fragment_length(SSL_CTX *ctx, uint8_t mode);
  int SSL_set_tlsext_max_fragment_length(SSL *ssl, uint8_t mode);
- uint8_t SSL_SESSION_get_max_fragment_length(SSL_SESSION *session);
+ uint8_t SSL_SESSION_get_max_fragment_length(const SSL_SESSION *session);
 
 =head1 DESCRIPTION
 
@@ -179,7 +179,7 @@ and SSL_SESSION_get_max_fragment_length() functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

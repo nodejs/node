@@ -92,7 +92,7 @@ AES-256-CBC into a buffer:
  size_t datalen;
 
  ectx = OSSL_ENCODER_CTX_new_for_pkey(pkey,
-                                      OSSL_KEYMGMT_SELECT_KEYPAIR,
+                                      OSSL_KEYMGMT_SELECT_KEYPAIR
                                       | OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS,
                                       format, structure,
                                       NULL);

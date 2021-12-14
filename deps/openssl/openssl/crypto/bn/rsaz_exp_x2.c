@@ -14,6 +14,7 @@
  */
 
 #include <openssl/opensslconf.h>
+#include <openssl/crypto.h>
 #include "rsaz_exp.h"
 
 #ifndef RSAZ_ENABLED
@@ -310,13 +311,22 @@ static void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
 
     /* Exponentiation */
     {
-        int rem = BITSIZE_MODULUS % EXP_WIN_SIZE;
-        int delta = rem ? rem : EXP_WIN_SIZE;
+        const int rem = BITSIZE_MODULUS % EXP_WIN_SIZE;
         BN_ULONG table_idx_mask = EXP_WIN_MASK;
 
-        int exp_bit_no = BITSIZE_MODULUS - delta;
+        int exp_bit_no = BITSIZE_MODULUS - rem;
         int exp_chunk_no = exp_bit_no / 64;
         int exp_chunk_shift = exp_bit_no % 64;
+
+        /*
+         * If rem == 0, then
+         *      exp_bit_no = modulus_bitsize - exp_win_size
+         * However, this isn't possible because rem is { 1024, 1536, 2048 } % 5
+         * which is { 4, 1, 3 } respectively.
+         *
+         * If this assertion ever fails the fix above is easy.
+         */
+        OPENSSL_assert(rem != 0);
 
         /* Process 1-st exp window - just init result */
         BN_ULONG red_table_idx_0 = expz[0][exp_chunk_no];

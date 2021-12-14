@@ -197,6 +197,7 @@ void *evp_keymgmt_util_export_to_provider(EVP_PKEY *pk, EVP_KEYMGMT *keymgmt)
 
     /* Add the new export to the operation cache */
     if (!evp_keymgmt_util_cache_keydata(pk, keymgmt, import_data.keydata)) {
+        CRYPTO_THREAD_unlock(pk->lock);
         evp_keymgmt_freedata(keymgmt, import_data.keydata);
         return NULL;
     }
@@ -560,4 +561,23 @@ int evp_keymgmt_util_get_deflt_digest_name(EVP_KEYMGMT *keymgmt,
     if (rv > 0)
         OPENSSL_strlcpy(mdname, result, mdname_sz);
     return rv;
+}
+
+/*
+ * If |keymgmt| has the method function |query_operation_name|, use it to get
+ * the name of a supported operation identity.  Otherwise, return the keytype,
+ * assuming that it works as a default operation name.
+ */
+const char *evp_keymgmt_util_query_operation_name(EVP_KEYMGMT *keymgmt,
+                                                  int op_id)
+{
+    const char *name = NULL;
+
+    if (keymgmt != NULL) {
+        if (keymgmt->query_operation_name != NULL)
+            name = keymgmt->query_operation_name(op_id);
+        if (name == NULL)
+            name = EVP_KEYMGMT_get0_name(keymgmt);
+    }
+    return name;
 }

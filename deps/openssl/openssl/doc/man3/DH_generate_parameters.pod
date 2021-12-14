@@ -12,9 +12,9 @@ parameters
 
  #include <openssl/dh.h>
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  int DH_generate_parameters_ex(DH *dh, int prime_len, int generator, BN_GENCB *cb);
 
@@ -25,9 +25,9 @@ L<openssl_user_macros(7)>:
  int DH_check_params_ex(const DH *dh);
  int DH_check_pub_key_ex(const DH *dh, const BIGNUM *pub_key);
 
-Deprecated since OpenSSL 0.9.8, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 0.9.8, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  DH *DH_generate_parameters(int prime_len, int generator,
                             void (*callback)(int, int, void *), void *cb_arg);
@@ -160,7 +160,7 @@ DH_generate_parameters_ex() instead.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -21,7 +21,7 @@ decrypt functions
 PKCS12_decrypt_skey() Decrypt the PKCS#8 shrouded keybag contained within I<bag>
 using the supplied password I<pass> of length I<passlen>.
 
-PKCS12_decrypt_skey_ex() is similar to the above but allows for a library contex 
+PKCS12_decrypt_skey_ex() is similar to the above but allows for a library contex
 I<ctx> and property query I<propq> to be used to select algorithm implementations.
 
 =head1 RETURN VALUES

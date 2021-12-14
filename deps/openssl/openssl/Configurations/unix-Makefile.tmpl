@@ -67,6 +67,7 @@ BLDDIR={- $config{builddir} -}
 FIPSKEY={- $config{FIPSKEY} -}
 
 VERSION={- "$config{full_version}" -}
+VERSION_NUMBER={- "$config{version}" -}
 MAJOR={- $config{major} -}
 MINOR={- $config{minor} -}
 SHLIB_VERSION_NUMBER={- $config{shlib_version} -}
@@ -618,6 +619,7 @@ uninstall_docs: uninstall_man_docs uninstall_html_docs
 install_fips: build_sw $(INSTALL_FIPSMODULECONF)
 	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl $(DESTDIR)$(MODULESDIR)
+	@$(PERL) $(SRCDIR)/util/mkdir-p.pl $(DESTDIR)$(OPENSSLDIR)
 	@$(ECHO) "*** Installing FIPS module"
 	@$(ECHO) "install $(INSTALL_FIPSMODULE) -> $(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME)"
 	@cp "$(INSTALL_FIPSMODULE)" $(DESTDIR)$(MODULESDIR)/$(FIPSMODULENAME).new
@@ -691,11 +693,11 @@ install_dev: install_runtime_libs
 	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
 	@$(ECHO) "*** Installing development files"
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl $(DESTDIR)$(INSTALLTOP)/include/openssl
-	@ : {- output_off() unless grep { $_ eq "OPENSSL_USE_APPLINK" } (@{$target{defines}}, @{$config{defines}}); "" -}
+	@ : {- output_off() if $disabled{uplink}; "" -}
 	@$(ECHO) "install $(SRCDIR)/ms/applink.c -> $(DESTDIR)$(INSTALLTOP)/include/openssl/applink.c"
 	@cp $(SRCDIR)/ms/applink.c $(DESTDIR)$(INSTALLTOP)/include/openssl/applink.c
 	@chmod 644 $(DESTDIR)$(INSTALLTOP)/include/openssl/applink.c
-	@ : {- output_on() unless grep { $_ eq "OPENSSL_USE_APPLINK" } (@{$target{defines}}, @{$config{defines}}); "" -}
+	@ : {- output_on() if $disabled{uplink}; "" -}
 	@set -e; for i in $(SRCDIR)/include/openssl/*.h \
 			  $(BLDDIR)/include/openssl/*.h; do \
 		fn=`basename $$i`; \
@@ -765,10 +767,10 @@ install_dev: install_runtime_libs
 
 uninstall_dev: uninstall_runtime_libs
 	@$(ECHO) "*** Uninstalling development files"
-	@ : {- output_off() unless grep { $_ eq "OPENSSL_USE_APPLINK" } (@{$target{defines}}, @{$config{defines}}); "" -}
+	@ : {- output_off() if $disabled{uplink}; "" -}
 	@$(ECHO) "$(RM) $(DESTDIR)$(INSTALLTOP)/include/openssl/applink.c"
 	@$(RM) $(DESTDIR)$(INSTALLTOP)/include/openssl/applink.c
-	@ : {- output_on() unless grep { $_ eq "OPENSSL_USE_APPLINK" } (@{$target{defines}}, @{$config{defines}}); "" -}
+	@ : {- output_on() if $disabled{uplink}; "" -}
 	@set -e; for i in $(SRCDIR)/include/openssl/*.h \
 			  $(BLDDIR)/include/openssl/*.h; do \
 		fn=`basename $$i`; \
@@ -1305,23 +1307,23 @@ SSLHEADERS={- join(" \\\n" . ' ' x 11,
                    fill_lines(" ", $COLUMNS - 11, sort keys %sslheaders)) -}
 
 renumber: build_generated
-	$(PERL) $(SRCDIR)/util/mknum.pl --version $(VERSION) --no-warnings \
+	$(PERL) $(SRCDIR)/util/mknum.pl --version $(VERSION_NUMBER) --no-warnings \
                 --ordinals $(SRCDIR)/util/libcrypto.num \
                 --symhacks $(SRCDIR)/include/openssl/symhacks.h \
                 --renumber \
                 $(CRYPTOHEADERS)
-	$(PERL) $(SRCDIR)/util/mknum.pl --version $(VERSION) --no-warnings \
+	$(PERL) $(SRCDIR)/util/mknum.pl --version $(VERSION_NUMBER) --no-warnings \
                 --ordinals $(SRCDIR)/util/libssl.num \
                 --symhacks $(SRCDIR)/include/openssl/symhacks.h \
                 --renumber \
                 $(SSLHEADERS)
 
 ordinals: build_generated
-	$(PERL) $(SRCDIR)/util/mknum.pl --version $(VERSION) --no-warnings \
+	$(PERL) $(SRCDIR)/util/mknum.pl --version $(VERSION_NUMBER) --no-warnings \
                 --ordinals $(SRCDIR)/util/libcrypto.num \
                 --symhacks $(SRCDIR)/include/openssl/symhacks.h \
                 $(CRYPTOHEADERS)
-	$(PERL) $(SRCDIR)/util/mknum.pl --version $(VERSION) --no-warnings \
+	$(PERL) $(SRCDIR)/util/mknum.pl --version $(VERSION_NUMBER) --no-warnings \
                 --ordinals $(SRCDIR)/util/libssl.num \
                 --symhacks $(SRCDIR)/include/openssl/symhacks.h \
                 $(SSLHEADERS)
@@ -1529,7 +1531,7 @@ EOF
           #
           my $target = platform->def($args{src});
           (my $mkdef_os = $target{shared_target}) =~ s|-shared$||;
-          my $ord_ver = $args{intent} eq 'lib' ? ' --version $(VERSION)' : '';
+          my $ord_ver = $args{intent} eq 'lib' ? ' --version $(VERSION_NUMBER)' : '';
           my $ord_name = $args{generator}->[1] || $args{product};
           return <<"EOF";
 $target: $gen0 $deps \$(SRCDIR)/util/mkdef.pl

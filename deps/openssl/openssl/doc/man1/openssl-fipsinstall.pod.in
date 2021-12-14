@@ -197,6 +197,18 @@ All other options are ignored if '-config' is used.
 
 =back
 
+=head1 NOTES
+
+Self tests results are logged by default if the options B<-quiet> and B<-noout>
+are not specified, or if either of the options B<-corrupt_desc> or
+B<-corrupt_type> are used.
+If the base configuration file is set up to autoload the fips module, then the
+fips module will be loaded and self tested BEFORE the fipsinstall application
+has a chance to set up its own self test callback. As a result of this the self
+test output and the options B<-corrupt_desc> and B<-corrupt_type> will be ignored.
+For normal usage the base configuration file should use the default provider
+when generating the fips configuration file.
+
 =head1 EXAMPLES
 
 Calculate the mac of a FIPS module F<fips.so> and run a FIPS self test

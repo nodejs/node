@@ -44,6 +44,7 @@
 # define HTTP_R_REDIRECTION_NOT_ENABLED                   116
 # define HTTP_R_RESPONSE_LINE_TOO_LONG                    113
 # define HTTP_R_RESPONSE_PARSE_ERROR                      104
+# define HTTP_R_RETRY_TIMEOUT                             129
 # define HTTP_R_SERVER_CANCELED_CONNECTION                127
 # define HTTP_R_SOCK_NOT_SUPPORTED                        122
 # define HTTP_R_STATUS_CODE_UNSUPPORTED                   114

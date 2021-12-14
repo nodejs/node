@@ -87,7 +87,7 @@ static int spki2typespki_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
         strcpy(dataname, "SM2");
     else
 #endif
-    if (!OBJ_obj2txt(dataname, sizeof(dataname), oid, 0))
+    if (OBJ_obj2txt(dataname, sizeof(dataname), oid, 0) <= 0)
         goto end;
 
     ossl_X509_PUBKEY_INTERNAL_free(xpub);

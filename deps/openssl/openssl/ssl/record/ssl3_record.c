@@ -1218,23 +1218,17 @@ int tls1_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
             }
 
             if (!sending) {
-                /* Adjust the record to remove the explicit IV/MAC/Tag */
-                if (EVP_CIPHER_get_mode(enc) == EVP_CIPH_GCM_MODE) {
-                    for (ctr = 0; ctr < n_recs; ctr++) {
+                for (ctr = 0; ctr < n_recs; ctr++) {
+                    /* Adjust the record to remove the explicit IV/MAC/Tag */
+                    if (EVP_CIPHER_get_mode(enc) == EVP_CIPH_GCM_MODE) {
                         recs[ctr].data += EVP_GCM_TLS_EXPLICIT_IV_LEN;
                         recs[ctr].input += EVP_GCM_TLS_EXPLICIT_IV_LEN;
                         recs[ctr].length -= EVP_GCM_TLS_EXPLICIT_IV_LEN;
-                    }
-                } else if (EVP_CIPHER_get_mode(enc) == EVP_CIPH_CCM_MODE) {
-                    for (ctr = 0; ctr < n_recs; ctr++) {
+                    } else if (EVP_CIPHER_get_mode(enc) == EVP_CIPH_CCM_MODE) {
                         recs[ctr].data += EVP_CCM_TLS_EXPLICIT_IV_LEN;
                         recs[ctr].input += EVP_CCM_TLS_EXPLICIT_IV_LEN;
                         recs[ctr].length -= EVP_CCM_TLS_EXPLICIT_IV_LEN;
-                    }
-                }
-
-                for (ctr = 0; ctr < n_recs; ctr++) {
-                    if (bs != 1 && SSL_USE_EXPLICIT_IV(s)) {
+                    } else if (bs != 1 && SSL_USE_EXPLICIT_IV(s)) {
                         if (recs[ctr].length < bs)
                             return 0;
                         recs[ctr].data += bs;
@@ -1254,16 +1248,11 @@ int tls1_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
                                          (macs != NULL) ? &macs[ctr].alloced
                                                         : NULL,
                                          bs,
-                                         macsize,
+                                         pad ? (size_t)pad : macsize,
                                          (EVP_CIPHER_get_flags(enc)
                                          & EVP_CIPH_FLAG_AEAD_CIPHER) != 0,
                                          s->ctx->libctx))
                         return 0;
-                }
-                if (pad) {
-                    for (ctr = 0; ctr < n_recs; ctr++) {
-                        recs[ctr].length -= pad;
-                    }
                 }
             }
         }

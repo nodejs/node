@@ -189,22 +189,31 @@ static int dsa_signverify_init(void *vpdsactx, void *vdsa,
     PROV_DSA_CTX *pdsactx = (PROV_DSA_CTX *)vpdsactx;
 
     if (!ossl_prov_is_running()
-            || pdsactx == NULL
-            || vdsa == NULL
-            || !DSA_up_ref(vdsa))
+            || pdsactx == NULL)
         return 0;
-    DSA_free(pdsactx->dsa);
-    pdsactx->dsa = vdsa;
+
+    if (vdsa == NULL && pdsactx->dsa == NULL) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_NO_KEY_SET);
+        return 0;
+    }
+
+    if (vdsa != NULL) {
+        if (!ossl_dsa_check_key(pdsactx->libctx, vdsa,
+                                operation == EVP_PKEY_OP_SIGN)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
+            return 0;
+        }
+        if (!DSA_up_ref(vdsa))
+            return 0;
+        DSA_free(pdsactx->dsa);
+        pdsactx->dsa = vdsa;
+    }
+
     pdsactx->operation = operation;
 
     if (!dsa_set_ctx_params(pdsactx, params))
         return 0;
 
-    if (!ossl_dsa_check_key(pdsactx->libctx, vdsa,
-                            operation == EVP_PKEY_OP_SIGN)) {
-        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
-        return 0;
-    }
     return 1;
 }
 
@@ -278,9 +287,12 @@ static int dsa_digest_signverify_init(void *vpdsactx, const char *mdname,
         return 0;
 
     pdsactx->flag_allow_md = 0;
-    pdsactx->mdctx = EVP_MD_CTX_new();
-    if (pdsactx->mdctx == NULL)
-        goto error;
+
+    if (pdsactx->mdctx == NULL) {
+        pdsactx->mdctx = EVP_MD_CTX_new();
+        if (pdsactx->mdctx == NULL)
+            goto error;
+    }
 
     if (!EVP_DigestInit_ex2(pdsactx->mdctx, pdsactx->md, params))
         goto error;
@@ -289,9 +301,7 @@ static int dsa_digest_signverify_init(void *vpdsactx, const char *mdname,
 
  error:
     EVP_MD_CTX_free(pdsactx->mdctx);
-    EVP_MD_free(pdsactx->md);
     pdsactx->mdctx = NULL;
-    pdsactx->md = NULL;
     return 0;
 }
 

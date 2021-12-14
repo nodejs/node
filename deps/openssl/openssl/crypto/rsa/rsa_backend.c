@@ -392,6 +392,8 @@ RSA *ossl_rsa_dup(const RSA *rsa, int selection)
     if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0
         && (pnum = sk_RSA_PRIME_INFO_num(rsa->prime_infos)) > 0) {
         dupkey->prime_infos = sk_RSA_PRIME_INFO_new_reserve(NULL, pnum);
+        if (dupkey->prime_infos == NULL)
+            goto err;
         for (i = 0; i < pnum; i++) {
             const RSA_PRIME_INFO *pinfo = NULL;
             RSA_PRIME_INFO *duppinfo = NULL;

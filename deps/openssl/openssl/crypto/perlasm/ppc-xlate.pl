@@ -153,13 +153,14 @@ my $quad = sub {
 # vs<N> -> v<N-32> if N > 32
 sub vsr2vr1 {
     my $in = shift;
+    my ($prefix, $reg) = ($in =~ m/(\D*)(\d+)/);
 
-    my $n = int($in);
+    my $n = int($reg);
     if ($n >= 32) {
 	    $n -= 32;
     }
 
-    return "$n";
+    return "${prefix}${n}";
 }
 # As above for first $num register args, returns list
 sub _vsr2vr {

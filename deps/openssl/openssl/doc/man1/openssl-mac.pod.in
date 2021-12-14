@@ -116,7 +116,7 @@ This option is identical to the B<-cipher> option.
 =item I<mac_name>
 
 Specifies the name of a supported MAC algorithm which will be used.
-To see the list of supported MAC's use the command C<opensssl list
+To see the list of supported MAC's use the command C<openssl list
 -mac-algorithms>.
 
 =back

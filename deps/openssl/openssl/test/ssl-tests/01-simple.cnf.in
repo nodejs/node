@@ -1,5 +1,5 @@
 # -*- mode: perl; -*-
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -38,5 +38,17 @@ our @tests = (
           "ExpectedResult" => "ClientFail",
           "ExpectedClientAlert" => "UnknownCA",
         },
+    },
+
+    {
+        name => "name-constraints-no-san-in-ee",
+        server => {
+            "Certificate" => test_pem("goodcn2-chain.pem"),
+            "PrivateKey"  => test_pem("goodcn2-key.pem"),
+        },
+        client => {
+            "VerifyCAFile" => test_pem("root-cert.pem"),
+        },
+        test   => { "ExpectedResult" => "Success" },
     },
 );

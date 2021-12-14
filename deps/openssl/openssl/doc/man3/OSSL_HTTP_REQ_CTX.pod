@@ -70,8 +70,7 @@ The allocated context structure is also populated with an internal allocated
 memory B<BIO>, which collects the HTTP request and additional headers as text.
 
 OSSL_HTTP_REQ_CTX_free() frees up the HTTP request context I<rctx>.
-The I<wbio> and I<rbio> are not free'd and it is up to the application
-to do so.
+The I<rbio> is not free'd, I<wbio> will be free'd if I<free_wbio> is set.
 
 OSSL_HTTP_REQ_CTX_set_request_line() adds the HTTP request line to the context.
 The HTTP method is determined by I<method_POST>,
@@ -140,13 +139,15 @@ using the ASN.1 template I<it> and places the result in I<*pval>.
 
 OSSL_HTTP_REQ_CTX_exchange() calls OSSL_HTTP_REQ_CTX_nbio() as often as needed
 in order to exchange a request and response or until a timeout is reached.
-If successful and an ASN.1-encoded response was expected, the response contents
-should be read via the BIO returned by OSSL_HTTP_REQ_CTX_get0_mem_bio().
-Else the I<rbio> that was given when calling OSSL_HTTP_REQ_CTX_new()
-represents the current state of reading the response.
-If OSSL_HTTP_REQ_CTX_exchange() was successful, this BIO has been read past the
-end of the response headers, such that the actual response contents can be read
-via this BIO, which may support streaming.
+On success it returns a pointer to the BIO that can be used to read the result.
+If an ASN.1-encoded response was expected, this is the BIO
+returned by OSSL_HTTP_REQ_CTX_get0_mem_bio() when called after the exchange.
+This memory BIO does not support streaming.
+Otherwise it may be the I<rbio> given when calling OSSL_HTTP_REQ_CTX_new(),
+and this BIO has been read past the end of the response headers,
+such that the actual response body can be read via this BIO,
+which may support streaming.
+The returned BIO pointer must not be freed by the caller.
 
 OSSL_HTTP_REQ_CTX_get0_mem_bio() returns the internal memory B<BIO>.
 Before sending the request, this could used to modify the HTTP request text.
@@ -154,6 +155,7 @@ I<Use with caution!>
 After receiving a response via HTTP, the BIO represents the current state of
 reading the response headers. If the response was expected to be ASN.1 encoded,
 its contents can be read via this BIO, which does not support streaming.
+The returned BIO pointer must not be freed by the caller.
 
 OSSL_HTTP_REQ_CTX_get_resp_len() returns the size of the response contents
 in I<rctx> if provided by the server as <Content-Length> header field, else 0.
@@ -228,6 +230,7 @@ return 1 for success, 0 on error or redirection, -1 if retry is needed.
 
 OSSL_HTTP_REQ_CTX_exchange() and OSSL_HTTP_REQ_CTX_get0_mem_bio()
 return a pointer to a B<BIO> on success and NULL on failure.
+The returned BIO must not be freed by the caller.
 
 OSSL_HTTP_REQ_CTX_get_resp_len() returns the size of the response contents
 or 0 if not available or an error occurred.

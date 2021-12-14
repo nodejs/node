@@ -118,7 +118,7 @@ static int dh_cms_set_shared_info(EVP_PKEY_CTX *pctx, CMS_RecipientInfo *ri)
     if (kekctx == NULL)
         goto err;
 
-    if (!OBJ_obj2txt(name, sizeof(name), kekalg->algorithm, 0))
+    if (OBJ_obj2txt(name, sizeof(name), kekalg->algorithm, 0) <= 0)
         goto err;
 
     kekcipher = EVP_CIPHER_fetch(pctx->libctx, name, pctx->propquery);

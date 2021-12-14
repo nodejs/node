@@ -16,9 +16,9 @@ EVP_PKEY_cmp - public key parameter and comparison functions
  int EVP_PKEY_parameters_eq(const EVP_PKEY *a, const EVP_PKEY *b);
  int EVP_PKEY_eq(const EVP_PKEY *a, const EVP_PKEY *b);
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  int EVP_PKEY_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b);
  int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b);
@@ -37,8 +37,8 @@ in B<from> and B<to> are both present and match this function has no effect.
 The function EVP_PKEY_parameters_eq() checks the parameters of keys
 B<a> and B<b> for equality.
 
-The function EVP_PKEY_eq() checks the public key components and parameters
-(if present) of keys B<a> and B<b> for equality.
+The function EVP_PKEY_eq() checks the keys B<a> and B<b> for equality,
+including their parameters if they are available.
 
 =head1 NOTES
 
@@ -47,13 +47,39 @@ EVP_PKEY_copy_parameters() is to handle public keys in certificates where the
 parameters are sometimes omitted from a public key if they are inherited from
 the CA that signed it.
 
-Since OpenSSL private keys contain public key components too the function
-EVP_PKEY_eq() can also be used to determine if a private key matches
-a public key.
-
 The deprecated functions EVP_PKEY_cmp() and EVP_PKEY_cmp_parameters() differ in
-their return values  compared to other _cmp() functions. They are aliases for
+their return values compared to other _cmp() functions. They are aliases for
 EVP_PKEY_eq() and EVP_PKEY_parameters_eq().
+
+The function EVP_PKEY_cmp() previously only checked the key parameters
+(if there are any) and the public key, assuming that there always was
+a public key and that private key equality could be derived from that.
+Because it's no longer assumed that the private key in an L<EVP_PKEY(3)> is
+always accompanied by a public key, the comparison can not rely on public
+key comparison alone.
+
+Instead, EVP_PKEY_eq() (and therefore also EVP_PKEY_cmp()) now compares:
+
+=over 4
+
+=item 1.
+
+the key parameters (if there are any)
+
+=item 2.
+
+the public keys or the private keys of the two B<EVP_PKEY>s, depending on
+what they both contain.
+
+=back
+
+=begin comment
+
+Exactly what is compared is ultimately at the discretion of the provider
+that holds the key, as they will compare what makes sense to them that fits
+the selector bits they are passed.
+
+=end comment
 
 =head1 RETURN VALUES
 
@@ -64,7 +90,7 @@ doesn't use parameters.
 These functions EVP_PKEY_copy_parameters() returns 1 for success and 0 for
 failure.
 
-The functions EVP_PKEY_cmp_parameters(), EVP_PKEY_parameters_eq(), 
+The functions EVP_PKEY_cmp_parameters(), EVP_PKEY_parameters_eq(),
 EVP_PKEY_cmp() and EVP_PKEY_eq() return 1 if their
 inputs match, 0 if they don't match, -1 if the key types are different and
 -2 if the operation is not supported.

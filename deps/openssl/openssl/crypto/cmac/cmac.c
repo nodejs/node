@@ -227,7 +227,7 @@ int CMAC_Final(CMAC_CTX *ctx, unsigned char *out, size_t *poutlen)
         for (i = 0; i < bl; i++)
             out[i] = ctx->last_block[i] ^ ctx->k2[i];
     }
-    if (!EVP_Cipher(ctx->cctx, out, out, bl)) {
+    if (EVP_Cipher(ctx->cctx, out, out, bl) <= 0) {
         OPENSSL_cleanse(out, bl);
         return 0;
     }

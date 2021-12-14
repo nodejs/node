@@ -128,7 +128,8 @@ static OSSL_METHOD_STORE *get_loader_store(OSSL_LIB_CTX *libctx)
 }
 
 /* Get loader methods from a store, or put one in */
-static void *get_loader_from_store(void *store, void *data)
+static void *get_loader_from_store(void *store, const OSSL_PROVIDER **prov,
+                                   void *data)
 {
     struct loader_data_st *methdata = data;
     void *method = NULL;
@@ -144,7 +145,7 @@ static void *get_loader_from_store(void *store, void *data)
         && (store = get_loader_store(methdata->libctx)) == NULL)
         return NULL;
 
-    if (!ossl_method_store_fetch(store, id, methdata->propquery, &method))
+    if (!ossl_method_store_fetch(store, id, methdata->propquery, prov, &method))
         return NULL;
     return method;
 }
@@ -308,7 +309,7 @@ inner_loader_fetch(struct loader_data_st *methdata, int id,
         unsupported = 1;
 
     if (id == 0
-        || !ossl_method_store_cache_get(store, id, properties, &method)) {
+        || !ossl_method_store_cache_get(store, NULL, id, properties, &method)) {
         OSSL_METHOD_CONSTRUCT_METHOD mcm = {
             get_tmp_loader_store,
             get_loader_from_store,
@@ -322,7 +323,7 @@ inner_loader_fetch(struct loader_data_st *methdata, int id,
         methdata->propquery = properties;
         methdata->flag_construct_error_occurred = 0;
         if ((method = ossl_method_construct(methdata->libctx, OSSL_OP_STORE,
-                                            0 /* !force_cache */,
+                                            NULL, 0 /* !force_cache */,
                                             &mcm, methdata)) != NULL) {
             /*
              * If construction did create a method for us, we know that there
@@ -331,7 +332,7 @@ inner_loader_fetch(struct loader_data_st *methdata, int id,
              */
             if (id == 0)
                 id = ossl_namemap_name2num(namemap, scheme);
-            ossl_method_store_cache_set(store, id, properties, method,
+            ossl_method_store_cache_set(store, NULL, id, properties, method,
                                         up_ref_loader, free_loader);
         }
 

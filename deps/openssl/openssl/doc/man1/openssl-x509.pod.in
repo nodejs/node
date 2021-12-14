@@ -102,9 +102,11 @@ Print out a usage message.
 
 =item B<-in> I<filename>|I<uri>
 
-If the B<-req> option is not used this specifies the input
-to read a certificate from or standard input if this option is not specified.
-With the B<-req> option this specifies a certificate request file.
+This specifies the input to read a certificate from
+or the input file for reading a certificate request if the B<-req> flag is used.
+In both cases this defaults to standard input.
+
+This option cannot be combined with the B<-new> flag.
 
 =item B<-passin> I<arg>
 
@@ -118,14 +120,14 @@ Generate a certificate from scratch, not using an input certificate
 or certificate request. So the B<-in> option must not be used in this case.
 Instead, the B<-subj> option needs to be given.
 The public key to include can be given with the B<-force_pubkey> option
-and defaults to the key given with the B<-key> option,
+and defaults to the key given with the B<-key> (or B<-signkey>) option,
 which implies self-signature.
 
 =item B<-x509toreq>
 
 Output a PKCS#10 certificate request (rather than a certificate).
-The B<-key> option must be used to provide the private key for self-signing;
-the corresponding public key is placed in the subjectPKInfo field.
+The B<-key> (or B<-signkey>) option must be used to provide the private key for
+self-signing; the corresponding public key is placed in the subjectPKInfo field.
 
 X.509 extensions included in a certificate input are not copied by default.
 X.509 extensions to be added can be specified using the B<-extfile> option.
@@ -163,9 +165,12 @@ Names and values of these options are algorithm-specific.
 
 =item B<-key> I<filename>|I<uri>
 
-This option causes the new certificate or certificate request
-to be self-signed using the supplied private key.
-This cannot be used in conjunction with the B<-CA> option.
+This option provides the private key for signing a new certificate or
+certificate request.
+Unless B<-force_pubkey> is given, the corresponding public key is placed in
+the new certificate or certificate request, resulting in a self-signature.
+
+This option cannot be used in conjunction with the B<-CA> option.
 
 It sets the issuer name to the subject name (i.e., makes it self-issued)
 and changes the public key to the supplied value (unless overridden
@@ -355,8 +360,9 @@ Check that the certificate matches the specified IP address.
 
 =item B<-set_serial> I<n>
 
-Specifies the serial number to use. This option can be used with either
-the B<-key> or B<-CA> options. If used in conjunction with the B<-CA> option
+Specifies the serial number to use.
+This option can be used with the B<-key>, B<-signkey>, or B<-CA> options.
+If used in conjunction with the B<-CA> option
 the serial number file (as specified by the B<-CAserial> option) is not used.
 
 The serial number can be decimal or hex (if preceded by C<0x>).
@@ -400,7 +406,8 @@ or certificate request.
 =item B<-force_pubkey> I<filename>
 
 When a certificate is created set its public key to the key in I<filename>
-instead of the key contained in the input or given with the B<-key> option.
+instead of the key contained in the input
+or given with the B<-key> (or B<-signkey>) option.
 
 This option is useful for creating self-issued certificates that are not
 self-signed, for instance when the key cannot be used for signing, such as DH.
@@ -446,7 +453,7 @@ for testing.
 
 The digest to use.
 This affects any signing or printing option that uses a message
-digest, such as the B<-fingerprint>, B<-key> and B<-CA> options.
+digest, such as the B<-fingerprint>, B<-key>, and B<-CA> options.
 Any digest supported by the L<openssl-dgst(1)> command can be used.
 If not specified then SHA1 is used with B<-fingerprint> or
 the default digest for the signing algorithm is used, typically SHA256.
@@ -464,9 +471,9 @@ When present, this behaves like a "micro CA" as follows:
 The subject name of the "CA" certificate is placed as issuer name in the new
 certificate, which is then signed using the "CA" key given as detailed below.
 
-This option cannot be used in conjunction with the B<-key> option.
+This option cannot be used in conjunction with B<-key> (or B<-signkey>).
 This option is normally combined with the B<-req> option referencing a CSR.
-Without the B<-req> option the input must be a self-signed certificate
+Without the B<-req> option the input must be an existing certificate
 unless the B<-new> option is given, which generates a certificate from scratch.
 
 =item B<-CAform> B<DER>|B<PEM>|B<P12>,

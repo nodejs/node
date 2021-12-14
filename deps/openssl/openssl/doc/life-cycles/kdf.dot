@@ -13,4 +13,4 @@ strict digraph kdf {
     deriving -> newed [label="EVP_KDF_CTX_reset", style=dashed,
                       color="#034f84", fontcolor="#034f84"];
 }
- 
+

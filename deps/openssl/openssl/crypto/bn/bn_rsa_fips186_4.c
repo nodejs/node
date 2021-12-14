@@ -106,6 +106,7 @@ static int bn_rsa_fips186_4_find_aux_prob_prime(const BIGNUM *Xp1,
 {
     int ret = 0;
     int i = 0;
+    int tmp = 0;
 
     if (BN_copy(p1, Xp1) == NULL)
         return 0;
@@ -116,8 +117,11 @@ static int bn_rsa_fips186_4_find_aux_prob_prime(const BIGNUM *Xp1,
         i++;
         BN_GENCB_call(cb, 0, i);
         /* MR test with trial division */
-        if (BN_check_prime(p1, ctx, cb))
+        tmp = BN_check_prime(p1, ctx, cb);
+        if (tmp > 0)
             break;
+        if (tmp < 0)
+            goto err;
         /* Get next odd number */
         if (!BN_add_word(p1, 2))
             goto err;
@@ -329,8 +333,14 @@ int ossl_bn_rsa_fips186_4_derive_prime(BIGNUM *Y, BIGNUM *X, const BIGNUM *Xin,
                     || !BN_sub_word(y1, 1)
                     || !BN_gcd(tmp, y1, e, ctx))
                 goto err;
-            if (BN_is_one(tmp) && BN_check_prime(Y, ctx, cb))
-                goto end;
+            if (BN_is_one(tmp)) {
+                int rv = BN_check_prime(Y, ctx, cb);
+
+                if (rv > 0)
+                    goto end;
+                if (rv < 0)
+                    goto err;
+            }
             /* (Step 8-10) */
             if (++i >= imax || !BN_add(Y, Y, r1r2x2))
                 goto err;

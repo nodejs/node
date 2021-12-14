@@ -52,9 +52,8 @@ they can all be set as well as read.
 =item "test_entropy" (B<OSSL_RAND_PARAM_TEST_ENTROPY>) <octet string>
 
 Sets the bytes returned when the test generator is sent an entropy request.
-When entropy is requested, these bytes are treated as a cyclic buffer and they
-are repeated as required.  The current position is remembered across generate
-calls.
+The current position is remembered across generate calls.
+If there are insufficient data present to satisfy a call, an error is returned.
 
 =item "test_nonce" (B<OSSL_RAND_PARAM_TEST_NONCE>) <octet string>
 

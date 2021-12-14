@@ -669,7 +669,7 @@ static EVP_PKEY *gen_dh_key(void)
     params[1] = OSSL_PARAM_construct_end();
 
     if (!TEST_ptr(gctx = EVP_PKEY_CTX_new_from_name(libctx, "DH", NULL))
-        || !TEST_true(EVP_PKEY_keygen_init(gctx))
+        || !TEST_int_gt(EVP_PKEY_keygen_init(gctx), 0)
         || !TEST_true(EVP_PKEY_CTX_set_params(gctx, params))
         || !TEST_true(EVP_PKEY_keygen(gctx, &pkey)))
         goto err;

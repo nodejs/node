@@ -54,7 +54,7 @@ only in exceptional cases and is not recommended, unless you have a profound
 knowledge of cryptographic principles and understand the implications of your
 changes.
 
-=head1 DEAFULT SETUP
+=head1 DEFAULT SETUP
 
 The default OpenSSL RAND method is based on the EVP_RAND deterministic random
 bit generator (DRBG) classes.

@@ -213,7 +213,7 @@ static int dummy_provider_init(const OSSL_CORE_HANDLE *handle,
      * Do some work using the child libctx, to make sure this is possible from
      * inside the init function.
      */
-    if (!RAND_bytes_ex(libctx, buf, sizeof(buf), 0))
+    if (RAND_bytes_ex(libctx, buf, sizeof(buf), 0) <= 0)
         return 0;
 
     return 1;

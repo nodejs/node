@@ -401,7 +401,7 @@ static int key_to_type_specific_pem_bio_cb(BIO *out, const void *key,
 {
     return
         PEM_ASN1_write_bio(k2d, pemname, out, key, ctx->cipher,
-                           NULL, 0, ossl_pw_pem_password, &ctx->pwdata) > 0;
+                           NULL, 0, cb, cbarg) > 0;
 }
 
 static int key_to_type_specific_pem_priv_bio(BIO *out, const void *key,
@@ -701,6 +701,10 @@ static int prepare_ec_params(const void *eckey, int nid, int save,
 
 static int ec_spki_pub_to_der(const void *eckey, unsigned char **pder)
 {
+    if (EC_KEY_get0_public_key(eckey) == NULL) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_NOT_A_PUBLIC_KEY);
+        return 0;
+    }
     return i2o_ECPublicKey(eckey, pder);
 }
 
@@ -727,7 +731,7 @@ static int ec_pki_priv_to_der(const void *veckey, unsigned char **pder)
 # define ec_epki_priv_to_der ec_pki_priv_to_der
 
 # define ec_type_specific_params_to_der (i2d_of_void *)i2d_ECParameters
-# define ec_type_specific_pub_to_der    (i2d_of_void *)i2o_ECPublicKey
+/* No ec_type_specific_pub_to_der, there simply is no such thing */
 # define ec_type_specific_priv_to_der   (i2d_of_void *)i2d_ECPrivateKey
 
 # define ec_check_key_type      NULL
@@ -1186,11 +1190,11 @@ static int key2any_encode(struct key2any_ctx_st *ctx, OSSL_CORE_BIO *cout,
 #define DO_DSA_selection_mask DO_type_specific_selection_mask
 #define DO_DSA(impl, type, output) DO_type_specific(impl, type, output)
 
-#define DO_EC_selection_mask DO_type_specific_selection_mask
-#define DO_EC(impl, type, output) DO_type_specific(impl, type, output)
+#define DO_EC_selection_mask DO_type_specific_no_pub_selection_mask
+#define DO_EC(impl, type, output) DO_type_specific_no_pub(impl, type, output)
 
-#define DO_SM2_selection_mask DO_type_specific_selection_mask
-#define DO_SM2(impl, type, output) DO_type_specific(impl, type, output)
+#define DO_SM2_selection_mask DO_type_specific_no_pub_selection_mask
+#define DO_SM2(impl, type, output) DO_type_specific_no_pub(impl, type, output)
 
 /* PKCS#1 defines a structure for RSA private and public keys */
 #define DO_PKCS1_selection_mask DO_RSA_selection_mask

@@ -2302,23 +2302,35 @@ int do_X509_CRL_sign(X509_CRL *x, EVP_PKEY *pkey, const char *md,
     return rv;
 }
 
+/*
+ * do_X509_verify returns 1 if the signature is valid,
+ * 0 if the signature check fails, or -1 if error occurs.
+ */
 int do_X509_verify(X509 *x, EVP_PKEY *pkey, STACK_OF(OPENSSL_STRING) *vfyopts)
 {
     int rv = 0;
 
     if (do_x509_init(x, vfyopts) > 0)
-        rv = (X509_verify(x, pkey) > 0);
+        rv = X509_verify(x, pkey);
+    else
+        rv = -1;
     return rv;
 }
 
+/*
+ * do_X509_REQ_verify returns 1 if the signature is valid,
+ * 0 if the signature check fails, or -1 if error occurs.
+ */
 int do_X509_REQ_verify(X509_REQ *x, EVP_PKEY *pkey,
                        STACK_OF(OPENSSL_STRING) *vfyopts)
 {
     int rv = 0;
 
     if (do_x509_req_init(x, vfyopts) > 0)
-        rv = (X509_REQ_verify_ex(x, pkey,
-                                 app_get0_libctx(), app_get0_propq()) > 0);
+        rv = X509_REQ_verify_ex(x, pkey,
+                                 app_get0_libctx(), app_get0_propq());
+    else
+        rv = -1;
     return rv;
 }
 

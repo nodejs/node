@@ -14,7 +14,7 @@ SUBDIRS = man1
          map { $_ => 1 } glob catfile($sourcedir, "man$section", "img", "*.png");
      my %podfiles =
          map { $_ => 1 } glob catfile($sourcedir, "man$section", "*.pod");
-     my %podinfiles = 
+     my %podinfiles =
          map { $_ => 1 } glob catfile($sourcedir, "man$section", "*.pod.in");
 
      foreach (keys %podinfiles) {

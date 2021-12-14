@@ -55,9 +55,9 @@ Functions for creating and destroying EC_GROUP objects
  size_t EC_get_builtin_curves(EC_builtin_curve *r, size_t nitems);
  const char *OSSL_EC_curve_nid2name(int nid);
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  EC_GROUP *EC_GROUP_new(const EC_METHOD *meth);
  void EC_GROUP_clear_free(EC_GROUP *group);

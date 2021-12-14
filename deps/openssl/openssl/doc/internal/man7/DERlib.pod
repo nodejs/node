@@ -81,7 +81,7 @@ As a reminder, the AlgorithmIdentifier is specified like this:
     -- From RFC 3280, section 4.1.1.2
     AlgorithmIdentifier  ::=  SEQUENCE  {
          algorithm               OBJECT IDENTIFIER,
-         parameters              ANY DEFINED BY algorithm OPTIONAL  }    
+         parameters              ANY DEFINED BY algorithm OPTIONAL  }
 
 And the RSASSA-PSS OID and parameters are specified like this:
 
@@ -139,7 +139,7 @@ L<ossl_DER_w_precompiled(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -46,7 +46,7 @@
 
 #include "e_os.h"
 
-#define MIN(a, b) ((a) < (b)) ? (a) : (b)
+#define ossl_min(a, b) ((a) < (b)) ? (a) : (b)
 
 typedef enum {
     COUNTER = 0,
@@ -195,7 +195,7 @@ static int derive(EVP_MAC_CTX *ctx_init, kbkdf_mode mode, unsigned char *iv,
             goto done;
 
         to_write = ko_len - written;
-        memcpy(ko + written, k_i, MIN(to_write, h));
+        memcpy(ko + written, k_i, ossl_min(to_write, h));
         written += h;
 
         k_i_len = h;

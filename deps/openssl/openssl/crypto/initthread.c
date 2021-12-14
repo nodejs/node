@@ -309,10 +309,22 @@ void ossl_ctx_thread_stop(OSSL_LIB_CTX *ctx)
 static void init_thread_stop(void *arg, THREAD_EVENT_HANDLER **hands)
 {
     THREAD_EVENT_HANDLER *curr, *prev = NULL, *tmp;
+#ifndef FIPS_MODULE
+    GLOBAL_TEVENT_REGISTER *gtr;
+#endif
 
     /* Can't do much about this */
     if (hands == NULL)
         return;
+
+#ifndef FIPS_MODULE
+    gtr = get_global_tevent_register();
+    if (gtr == NULL)
+        return;
+
+    if (!CRYPTO_THREAD_write_lock(gtr->lock))
+        return;
+#endif
 
     curr = *hands;
     while (curr != NULL) {
@@ -332,6 +344,9 @@ static void init_thread_stop(void *arg, THREAD_EVENT_HANDLER **hands)
 
         OPENSSL_free(tmp);
     }
+#ifndef FIPS_MODULE
+    CRYPTO_THREAD_unlock(gtr->lock);
+#endif
 }
 
 int ossl_init_thread_start(const void *index, void *arg,

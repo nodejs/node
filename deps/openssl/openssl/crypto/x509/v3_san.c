@@ -393,11 +393,11 @@ static GENERAL_NAMES *v2i_subject_alt(X509V3_EXT_METHOD *method,
 
     for (i = 0; i < num; i++) {
         cnf = sk_CONF_VALUE_value(nval, i);
-        if (!ossl_v3_name_cmp(cnf->name, "email")
+        if (ossl_v3_name_cmp(cnf->name, "email") == 0
             && cnf->value && strcmp(cnf->value, "copy") == 0) {
             if (!copy_email(ctx, gens, 0))
                 goto err;
-        } else if (!ossl_v3_name_cmp(cnf->name, "email")
+        } else if (ossl_v3_name_cmp(cnf->name, "email") == 0
                    && cnf->value && strcmp(cnf->value, "move") == 0) {
             if (!copy_email(ctx, gens, 1))
                 goto err;
@@ -434,10 +434,9 @@ static int copy_email(X509V3_CTX *ctx, GENERAL_NAMES *gens, int move_p)
         return 0;
     }
     /* Find the subject name */
-    if (ctx->subject_cert)
-        nm = X509_get_subject_name(ctx->subject_cert);
-    else
-        nm = X509_REQ_get_subject_name(ctx->subject_req);
+    nm = ctx->subject_cert != NULL ?
+        X509_get_subject_name(ctx->subject_cert) :
+        X509_REQ_get_subject_name(ctx->subject_req);
 
     /* Now add any email address(es) to STACK */
     while ((i = X509_NAME_get_index_by_NID(nm,

@@ -424,6 +424,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
                     if (!parsebool(pval, &conf->flag_abspath))
                         goto err;
                 } else if (strcmp(p, "includedir") == 0) {
+                    OPENSSL_free(conf->includedir);
                     if ((conf->includedir = OPENSSL_strdup(pval)) == NULL) {
                         ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
                         goto err;
@@ -474,6 +475,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
                 if (conf->flag_abspath
                         && !ossl_is_absolute_path(include_path)) {
                     ERR_raise(ERR_LIB_CONF, CONF_R_RELATIVE_PATH);
+                    OPENSSL_free(include_path);
                     goto err;
                 }
 

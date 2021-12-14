@@ -239,7 +239,7 @@ static int SSKDF_mac_kdm(EVP_MAC_CTX *ctx_init,
         goto end;
 
     out_len = EVP_MAC_CTX_get_mac_size(ctx_init); /* output size */
-    if (out_len <= 0)
+    if (out_len <= 0 || (mac == mac_buf && out_len > sizeof(mac_buf)))
         goto end;
     len = derived_key_len;
 
@@ -263,7 +263,7 @@ static int SSKDF_mac_kdm(EVP_MAC_CTX *ctx_init,
             if (len == 0)
                 break;
         } else {
-            if (!EVP_MAC_final(ctx, mac, NULL, len))
+            if (!EVP_MAC_final(ctx, mac, NULL, out_len))
                 goto end;
             memcpy(out, mac, len);
             break;

@@ -1566,6 +1566,15 @@ MSG_PROCESS_RETURN tls_process_client_hello(SSL *s, PACKET *pkt)
                 goto err;
             }
         }
+#ifndef OPENSSL_NO_QUIC
+        if (SSL_IS_QUIC(s)) {
+            /* Any other QUIC checks on ClientHello here */
+            if (clienthello->session_id_len > 0) {
+                SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_R_LENGTH_MISMATCH);
+                goto err;
+            }
+        }
+#endif
     }
 
     if (!PACKET_copy_all(&compression, clienthello->compressions,

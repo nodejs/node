@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+EVP_SIGNATURE,
 EVP_SIGNATURE_fetch, EVP_SIGNATURE_free, EVP_SIGNATURE_up_ref,
 EVP_SIGNATURE_is_a, EVP_SIGNATURE_get0_provider,
 EVP_SIGNATURE_do_all_provided, EVP_SIGNATURE_names_do_all,
@@ -12,6 +13,8 @@ EVP_SIGNATURE_gettable_ctx_params, EVP_SIGNATURE_settable_ctx_params
 =head1 SYNOPSIS
 
  #include <openssl/evp.h>
+
+ typedef struct evp_signature_st EVP_SIGNATURE;
 
  EVP_SIGNATURE *EVP_SIGNATURE_fetch(OSSL_LIB_CTX *ctx, const char *algorithm,
                                     const char *properties);

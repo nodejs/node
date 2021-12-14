@@ -99,6 +99,11 @@ void engine_pkey_asn1_meths_free(ENGINE *e);
 extern CRYPTO_ONCE engine_lock_init;
 DECLARE_RUN_ONCE(do_engine_lock_init)
 
+typedef void (*ENGINE_DYNAMIC_ID)(void);
+int engine_add_dynamic_id(ENGINE *e, ENGINE_DYNAMIC_ID dynamic_id,
+                          int not_locked);
+void engine_remove_dynamic_id(ENGINE *e, int not_locked);
+
 /*
  * This is a structure for storing implementations of various crypto
  * algorithms and functions.
@@ -143,6 +148,10 @@ struct engine_st {
     /* Used to maintain the linked-list of engines. */
     struct engine_st *prev;
     struct engine_st *next;
+    /* Used to maintain the linked-list of dynamic engines. */
+    struct engine_st *prev_dyn;
+    struct engine_st *next_dyn;
+    ENGINE_DYNAMIC_ID dynamic_id;
 };
 
 typedef struct st_engine_pile ENGINE_PILE;

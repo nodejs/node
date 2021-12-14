@@ -31,8 +31,6 @@ This command computes the hash of a password typed at
 run-time or the hash of each password in a list.  The password list is
 taken from the named file for option B<-in>, from stdin for
 option B<-stdin>, or from the command line, or from the terminal otherwise.
-The MD5-based BSD password algorithm B<-1>, its Apache variant B<-apr1>,
-and its AIX variant are available.
 
 =head1 OPTIONS
 

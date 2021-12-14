@@ -43,7 +43,7 @@ This documentation is primarily aimed at provider authors. See L<provider(7)>
 for further information.
 
 The key exchange (OSSL_OP_KEYEXCH) operation enables providers to implement key
-exchange algorithms and make them available to applications via 
+exchange algorithms and make them available to applications via
 L<EVP_PKEY_derive(3)> and
 other related functions).
 

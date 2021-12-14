@@ -39,9 +39,9 @@ BN_get_rfc3526_prime_8192
  BIGNUM *BN_get_rfc3526_prime_6144(BIGNUM *bn);
  BIGNUM *BN_get_rfc3526_prime_8192(BIGNUM *bn);
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  #include <openssl/dh.h>
 

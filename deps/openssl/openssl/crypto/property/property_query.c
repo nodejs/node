@@ -75,8 +75,8 @@ int ossl_property_is_enabled(OSSL_LIB_CTX *ctx,  const char *property_name,
         return 0;
     return (prop->type == OSSL_PROPERTY_TYPE_STRING
             && ((prop->oper == OSSL_PROPERTY_OPER_EQ
-                     && prop->v.str_val == ossl_property_true)
+                     && prop->v.str_val == OSSL_PROPERTY_TRUE)
                  || (prop->oper == OSSL_PROPERTY_OPER_NE
-                     && prop->v.str_val != ossl_property_true)));
+                     && prop->v.str_val != OSSL_PROPERTY_TRUE)));
 }
 

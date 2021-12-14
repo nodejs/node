@@ -67,7 +67,7 @@ or canonical name, on a per algorithm implementation basis.
 
 This type is a structure that allows passing arbitrary object data
 between two parties that have no or very little shared knowledge about
-their respective internal structures for that object. 
+their respective internal structures for that object.
 It's normally passed in arrays, where the array is terminated with an
 element where all fields are zero (for non-pointers) or NULL (for
 pointers).

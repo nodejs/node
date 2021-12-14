@@ -18,7 +18,7 @@ SSL_CTX_set_client_hello_cb, SSL_client_hello_cb_fn, SSL_client_hello_isv2, SSL_
                                                   const unsigned char **out);
  int SSL_client_hello_get1_extensions_present(SSL *s, int **out,
                                               size_t *outlen);
- int SSL_client_hello_get0_ext(SSL *s, int type, const unsigned char **out,
+ int SSL_client_hello_get0_ext(SSL *s, unsigned int type, const unsigned char **out,
                                size_t *outlen);
 
 =head1 DESCRIPTION
@@ -122,7 +122,7 @@ were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

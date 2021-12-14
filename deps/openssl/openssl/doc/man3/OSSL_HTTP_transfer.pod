@@ -56,9 +56,10 @@ OSSL_HTTP_open() initiates an HTTP session using the I<bio> argument if not
 NULL, else by connecting to a given I<server> optionally via a I<proxy>.
 
 Typically the OpenSSL build supports sockets and the I<bio> parameter is NULL.
-In this case I<rbio> must be NULL as well, and the
-library creates a network BIO internally for connecting to the given I<server>
-at the specified I<port> if any, defaulting to 80 for HTTP or 443 for HTTPS.
+In this case I<rbio> must be NULL as well and the I<server> must be non-NULL.
+The function creates a network BIO internally using L<BIO_new_connect(3)>
+for connecting to the given server and the optionally given I<port>,
+defaulting to 80 for HTTP or 443 for HTTPS.
 Then this internal BIO is used for setting up a connection
 and for exchanging one or more request and response.
 If I<bio> is given and I<rbio> is NULL then this I<bio> is used instead.
@@ -68,6 +69,8 @@ I<bio> is used for writing requests and I<rbio> for reading responses.
 As soon as the client has flushed I<bio> the server must be ready to provide
 a response or indicate a waiting condition via I<rbio>.
 
+If I<bio> is given, it is an error to provide I<proxy> or I<no_proxy> arguments,
+while I<server> and I<port> arguments may be given to support diagnostic output.
 If I<bio> is NULL the optional I<proxy> parameter can be used to set an
 HTTP(S) proxy to use (unless overridden by "no_proxy" settings).
 If TLS is not used this defaults to the environment variable C<http_proxy>
@@ -95,16 +98,19 @@ I<bio_update_fn> is a BIO connect/disconnect callback function with prototype
 
  BIO *(*OSSL_HTTP_bio_cb_t)(BIO *bio, void *arg, int connect, int detail)
 
-The callback may modify the HTTP BIO provided in the I<bio> argument,
+The callback function may modify the BIO provided in the I<bio> argument,
 whereby it may make use of a custom defined argument I<arg>,
-which may for instance refer to an I<SSL_CTX> structure.
-During connection establishment, just after calling BIO_do_connect_retry(),
-the function is invoked with the I<connect> argument being 1 and the I<detail>
+which may for instance point to an B<SSL_CTX> structure.
+During connection establishment, just after calling BIO_do_connect_retry(), the
+callback function is invoked with the I<connect> argument being 1 and the I<detail>
 argument being 1 if HTTPS is requested, i.e., SSL/TLS should be enabled, else 0.
 On disconnect I<connect> is 0 and I<detail> is 1 if no error occurred, else 0.
-For instance, on connect the function may prepend a TLS BIO to implement HTTPS;
-after disconnect it may do some diagnostic output and/or specific cleanup.
-The function should return NULL to indicate failure.
+For instance, on connect the callback may push an SSL BIO to implement HTTPS;
+after disconnect it may do some diagnostic output and pop and free the SSL BIO.
+
+The callback function must return either the potentially modified BIO I<bio>.
+or NULL to indicate failure, in which case it should not modify the BIO.
+
 Here is a simple example that supports TLS connections (but not via a proxy):
 
  BIO *http_tls_cb(BIO *hbio, void *arg, int connect, int detail)
@@ -147,6 +153,8 @@ NULL) to print additional diagnostic information in a user-oriented way.
 
 OSSL_HTTP_set1_request() sets up in I<rctx> the request header and content data
 and expectations on the response using the following parameters.
+If <rctx> indicates using a proxy for HTTP (but not HTTPS), the server hostname
+(and optionally port) needs to be placed in the header and thus must be present.
 If I<path> is NULL it defaults to "/".
 If I<req> is NULL the HTTP GET method will be used to send the request
 else HTTP POST with the contents of I<req> and optional I<content_type>, where
@@ -185,10 +193,11 @@ If the response header contains one or more "Content-Length" header lines and/or
 an ASN.1-encoded response is expected, which should include a total length,
 the length indications received are checked for consistency
 and for not exceeding any given maximum response length.
-On receiving a response, the function returns the contents as a memory BIO,
-which does not support streaming, in case an ASN.1-encoded response is expected.
-Else it returns directly the read BIO that holds the response contents,
+If an ASN.1-encoded response is expected, the function returns on success
+the contents as a memory BIO, which does not support streaming.
+Otherwise it returns directly the read BIO that holds the response contents,
 which allows a response of indefinite length and may support streaming.
+The caller is responsible for freeing the BIO pointer obtained.
 
 OSSL_HTTP_get() uses HTTP GET to obtain data from I<bio> if non-NULL,
 else from the server contained in the I<url>, and returns it as a BIO.
@@ -202,6 +211,7 @@ If the scheme component of the I<url> is C<https> a TLS connection is requested
 and the I<bio_update_fn>, as described for OSSL_HTTP_open(), must be provided.
 Also the remaining parameters are interpreted as described for OSSL_HTTP_open()
 and OSSL_HTTP_set1_request(), respectively.
+The caller is responsible for freeing the BIO pointer obtained.
 
 OSSL_HTTP_transfer() exchanges an HTTP request and response
 over a connection managed via I<prctx> without supporting redirection.
@@ -213,10 +223,12 @@ or required and this was granted by the server, else it closes the connection
 and assigns NULL to I<*prctx>.
 The remaining parameters are interpreted as described for OSSL_HTTP_open()
 and OSSL_HTTP_set1_request(), respectively.
+The caller is responsible for freeing the BIO pointer obtained.
 
 OSSL_HTTP_close() closes the connection and releases I<rctx>.
 The I<ok> parameter is passed to any BIO update function
 given during setup as described above for OSSL_HTTP_open().
+It must be 1 if no error occurred during the HTTP transfer and 0 otherwise.
 
 =head1 NOTES
 
@@ -238,12 +250,13 @@ is expected, else a BIO that may support streaming.
 The BIO must be freed by the caller.
 On failure, they return NULL.
 Failure conditions include connection/transfer timeout, parse errors, etc.
+The caller is responsible for freeing the BIO pointer obtained.
 
 OSSL_HTTP_close() returns 0 if anything went wrong while disconnecting, else 1.
 
 =head1 SEE ALSO
 
-L<OSSL_HTTP_parse_url(3)>, L<BIO_set_conn_port(3)>
+L<OSSL_HTTP_parse_url(3)>, L<BIO_new_connect(3)>,
 L<ASN1_item_i2d_mem_bio(3)>, L<ASN1_item_d2i_bio(3)>,
 L<OSSL_HTTP_is_alive(3)>
 

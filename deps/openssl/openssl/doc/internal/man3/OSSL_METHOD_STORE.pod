@@ -27,14 +27,14 @@ ossl_method_store_flush_cache
                               int nid, const void *method);
  int ossl_method_store_fetch(OSSL_METHOD_STORE *store,
                              int nid, const char *properties,
-                             void **method);
- int ossl_method_store_cache_get(OSSL_METHOD_STORE *store, int nid,
-                                 const char *prop_query, void **method);
- int ossl_method_store_cache_set(OSSL_METHOD_STORE *store, int nid,
-                                 const char *prop_query, void *method,
+                             void **method, const OSSL_PROVIDER **prov_rw);
+ int ossl_method_store_cache_get(OSSL_METHOD_STORE *store, OSSL_PROVIDER *prov,
+                                 int nid, const char *prop_query, void **method);
+ int ossl_method_store_cache_set(OSSL_METHOD_STORE *store, OSSL_PROVIDER *prov,
+                                 int nid, const char *prop_query, void *method,
                                  int (*method_up_ref)(void *),
                                  void (*method_destruct)(void *));
- void ossl_method_store_flush_cache(OSSL_METHOD_STORE *store);
+ void ossl_method_store_flush_cache(OSSL_METHOD_STORE *store, int all);
 
 =head1 DESCRIPTION
 
@@ -79,7 +79,9 @@ I<store>.
 
 ossl_method_store_fetch() queries I<store> for a method identified by I<nid>
 that matches the property query I<prop_query>.
-The result, if any, is returned in I<method>.
+I<*prop> may be a pointer to a provider, which will narrow the search
+to methods from that provider.
+The result, if any, is returned in I<*method>, and its provider in I<*prov>.
 
 ossl_method_store_flush_cache() flushes all cached entries associated with
 I<store>.
@@ -89,10 +91,12 @@ I<store>.
 ossl_method_store_cache_get() queries the cache associated with the I<store>
 for a method identified by I<nid> that matches the property query
 I<prop_query>.
+Additionally, if I<prov> isn't NULL, it will be used to narrow the search
+to only include methods from that provider.
 The result, if any, is returned in I<method>.
 
-ossl_method_store_cache_set() sets a cache entry identified by I<nid> with the
-property query I<prop_query> in the I<store>.
+ossl_method_store_cache_set() sets a cache entry identified by I<nid> from the
+provider I<prov>, with the property query I<prop_query> in the I<store>.
 Future calls to ossl_method_store_cache_get() will return the specified I<method>.
 The I<method_up_ref> function is called to increment the
 reference count of the method and the I<method_destruct> function is called

@@ -16,8 +16,8 @@ SSL_get_secure_renegotiation_support - manipulate SSL options
  uint64_t SSL_CTX_clear_options(SSL_CTX *ctx, uint64_t options);
  uint64_t SSL_clear_options(SSL *ssl, uint64_t options);
 
- uint64_t SSL_CTX_get_options(SSL_CTX *ctx);
- uint64_t SSL_get_options(SSL *ssl);
+ uint64_t SSL_CTX_get_options(const SSL_CTX *ctx);
+ uint64_t SSL_get_options(const SSL *ssl);
 
  long SSL_get_secure_renegotiation_support(SSL *ssl);
 

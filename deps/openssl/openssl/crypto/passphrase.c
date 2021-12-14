@@ -296,7 +296,8 @@ int ossl_pw_get_passphrase(char *pass, size_t pass_size, size_t *pass_len,
     return ret;
 }
 
-int ossl_pw_pem_password(char *buf, int size, int rwflag, void *userdata)
+static int ossl_pw_get_password(char *buf, int size, int rwflag,
+                                void *userdata, const char *info)
 {
     size_t password_len = 0;
     OSSL_PARAM params[] = {
@@ -304,11 +305,21 @@ int ossl_pw_pem_password(char *buf, int size, int rwflag, void *userdata)
         OSSL_PARAM_END
     };
 
-    params[0].data = "PEM";
+    params[0].data = (void *)info;
     if (ossl_pw_get_passphrase(buf, (size_t)size, &password_len, params,
                                rwflag, userdata))
         return (int)password_len;
     return -1;
+}
+
+int ossl_pw_pem_password(char *buf, int size, int rwflag, void *userdata)
+{
+    return ossl_pw_get_password(buf, size, rwflag, userdata, "PEM");
+}
+
+int ossl_pw_pvk_password(char *buf, int size, int rwflag, void *userdata)
+{
+    return ossl_pw_get_password(buf, size, rwflag, userdata, "PVK");
 }
 
 int ossl_pw_passphrase_callback_enc(char *pass, size_t pass_size,

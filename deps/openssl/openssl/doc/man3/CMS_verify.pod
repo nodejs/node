@@ -71,7 +71,7 @@ verified, unless CMS_CADES flag is also set.
 If B<CMS_NO_ATTR_VERIFY> is set the signed attributes signature is not
 verified, unless CMS_CADES flag is also set.
 
-If B<CMS_CADES> is set, each signer certificate is checked against the 
+If B<CMS_CADES> is set, each signer certificate is checked against the
 ESS signingCertificate or ESS signingCertificateV2 extension
 that is required in the signed attributes of the signature.
 

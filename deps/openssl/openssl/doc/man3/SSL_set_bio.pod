@@ -78,7 +78,7 @@ and no references are consumed for the B<wbio>.
 If the B<rbio> and B<wbio> parameters are different and the B<wbio>
 is the same as the
 previously set value and the old B<rbio> and B<wbio> values were different
-to each other, then one reference is consumed for the B<rbio> and one 
+to each other, then one reference is consumed for the B<rbio> and one
 reference is consumed for the B<wbio>.
 
 =back
@@ -102,7 +102,7 @@ SSL_set0_rbio() and SSL_set0_wbio() were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

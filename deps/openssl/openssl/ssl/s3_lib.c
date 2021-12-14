@@ -3448,7 +3448,11 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
                 ERR_raise(ERR_LIB_SSL, ERR_R_MALLOC_FAILURE);
                 return 0;
             }
-            return SSL_set0_tmp_dh_pkey(s, pkdh);
+            if (!SSL_set0_tmp_dh_pkey(s, pkdh)) {
+                EVP_PKEY_free(pkdh);
+                return 0;
+            }
+            return 1;
         }
         break;
     case SSL_CTRL_SET_TMP_DH_CB:
@@ -3771,7 +3775,11 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
                 ERR_raise(ERR_LIB_SSL, ERR_R_MALLOC_FAILURE);
                 return 0;
             }
-            return SSL_CTX_set0_tmp_dh_pkey(ctx, pkdh);
+            if (!SSL_CTX_set0_tmp_dh_pkey(ctx, pkdh)) {
+                EVP_PKEY_free(pkdh);
+                return 0;
+            }
+            return 1;
         }
     case SSL_CTRL_SET_TMP_DH_CB:
         {

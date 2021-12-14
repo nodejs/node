@@ -211,7 +211,7 @@ int dsaparam_main(int argc, char **argv)
                        "Error, DSA key generation context allocation failed\n");
             goto end;
         }
-        if (!EVP_PKEY_keygen_init(ctx)) {
+        if (EVP_PKEY_keygen_init(ctx) <= 0) {
             BIO_printf(bio_err,
                        "Error, unable to initialise for key generation\n");
             goto end;

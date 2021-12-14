@@ -66,9 +66,9 @@ OPENSSL_MALLOC_FD
  env OPENSSL_MALLOC_FAILURES=... <application>
  env OPENSSL_MALLOC_FD=... <application>
 
-Deprecated since OpenSSL 3.0.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  int CRYPTO_mem_leaks(BIO *b);
  int CRYPTO_mem_leaks_fp(FILE *fp);

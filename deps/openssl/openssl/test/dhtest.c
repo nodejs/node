@@ -730,6 +730,27 @@ err:
     return ok;
 }
 
+static int dh_rfc5114_fix_nid_test(void)
+{
+    int ok = 0;
+    EVP_PKEY_CTX *paramgen_ctx;
+
+    /* Run the test. Success is any time the test does not cause a SIGSEGV interrupt */
+    paramgen_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DHX, 0);
+    if (!TEST_ptr(paramgen_ctx))
+        goto err;
+    if (!TEST_int_eq(EVP_PKEY_paramgen_init(paramgen_ctx), 1))
+        goto err;
+    /* Tested function is called here */
+    if (!TEST_int_eq(EVP_PKEY_CTX_set_dhx_rfc5114(paramgen_ctx, 3), 1))
+        goto err;
+    /* If we're still running then the test passed. */
+    ok = 1;
+err:
+    EVP_PKEY_CTX_free(paramgen_ctx);
+    return ok;
+}
+
 static int dh_get_nid(void)
 {
     int ok = 0;
@@ -876,6 +897,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(dh_test_prime_groups, OSSL_NELEM(prime_groups));
     ADD_TEST(dh_get_nid);
     ADD_TEST(dh_load_pkcs3_namedgroup_privlen_test);
+    ADD_TEST(dh_rfc5114_fix_nid_test);
 #endif
     return 1;
 }

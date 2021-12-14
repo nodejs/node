@@ -132,7 +132,7 @@ L<OSSL_PROVIDER-null(7)>
 
 =item Operation
 
-An operation is a group of OpenSSL functions with a common purpose such as 
+An operation is a group of OpenSSL functions with a common purpose such as
 encryption, or digesting.
 
 L<crypto(7)>

@@ -265,7 +265,20 @@ static EVP_PKEY_CTX *int_ctx_new(OSSL_LIB_CTX *libctx,
      * fetching a provider implementation.
      */
     if (e == NULL && app_pmeth == NULL && keytype != NULL) {
-        keymgmt = EVP_KEYMGMT_fetch(libctx, keytype, propquery);
+        /*
+         * If |pkey| is given and is provided, we take a reference to its
+         * keymgmt.  Otherwise, we fetch one for the keytype we got. This
+         * is to ensure that operation init functions can access what they
+         * need through this single pointer.
+         */
+        if (pkey != NULL && pkey->keymgmt != NULL) {
+            if (!EVP_KEYMGMT_up_ref(pkey->keymgmt))
+                ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
+            else
+                keymgmt = pkey->keymgmt;
+        } else {
+            keymgmt = EVP_KEYMGMT_fetch(libctx, keytype, propquery);
+        }
         if (keymgmt == NULL)
             return NULL;   /* EVP_KEYMGMT_fetch() recorded an error */
 

@@ -189,7 +189,7 @@ B<OPT_PARAMETERS> macro:
     OPT_PARAMETERS()
     {OPT_PARAM_STR, 1, '-', "Parameters:\n"}
 
-Every "option" after after this should contain the parameter and 
+Every "option" after after this should contain the parameter and
 the help string:
 
     {"text", 0, 0, "Words to display (optional)"},

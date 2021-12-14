@@ -87,7 +87,7 @@ This is the canonical list.
 
  Function Call              ------------------ Current State ------------------
                             start   newed   instantiated  uninstantiated  freed
- EVP_RAND_CTX_new           newed       
+ EVP_RAND_CTX_new           newed
  EVP_RAND_instantiate            instantiated
  EVP_RAND_generate                          instantiated
  EVP_RAND_uninstantiate                    uninstantiated

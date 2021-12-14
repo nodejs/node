@@ -124,6 +124,11 @@ on error.
 All of the OSSL_PARAM_BLD_push_TYPE functions return 1 on success and 0
 on error.
 
+=head1 NOTES
+
+OSSL_PARAM_BLD_push_BN() and OSSL_PARAM_BLD_push_BN_pad() currently only
+support nonnegative B<BIGNUM>s.  They return an error on negative B<BIGNUM>s.
+
 =head1 EXAMPLES
 
 Both examples creating an OSSL_PARAM array that contains an RSA key.

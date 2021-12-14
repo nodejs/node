@@ -51,6 +51,7 @@ EVP_PKEY_METHOD                         datatype
 EVP_PKEY_ASN1_METHOD                    datatype
 EVP_RAND                                datatype
 EVP_RAND_CTX                            datatype
+EVP_SIGNATURE                           datatype
 GEN_SESSION_CB                          datatype
 OPENSSL_Applink                         external
 OSSL_LIB_CTX                            datatype

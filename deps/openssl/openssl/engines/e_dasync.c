@@ -211,7 +211,8 @@ static int bind_dasync(ENGINE *e)
     /* Setup RSA */
     ;
     if ((dasync_rsa_orig = EVP_PKEY_meth_find(EVP_PKEY_RSA)) == NULL
-        || (dasync_rsa = EVP_PKEY_meth_new(EVP_PKEY_RSA, 0)) == NULL)
+        || (dasync_rsa = EVP_PKEY_meth_new(EVP_PKEY_RSA,
+                                           EVP_PKEY_FLAG_AUTOARGLEN)) == NULL)
         return 0;
     EVP_PKEY_meth_set_init(dasync_rsa, dasync_rsa_init);
     EVP_PKEY_meth_set_cleanup(dasync_rsa, dasync_rsa_cleanup);
@@ -267,7 +268,8 @@ static int bind_dasync(ENGINE *e)
             || !EVP_CIPHER_meth_set_flags(_hidden_aes_128_cbc,
                                           EVP_CIPH_FLAG_DEFAULT_ASN1
                                           | EVP_CIPH_CBC_MODE
-                                          | EVP_CIPH_FLAG_PIPELINE)
+                                          | EVP_CIPH_FLAG_PIPELINE
+                                          | EVP_CIPH_CUSTOM_COPY)
             || !EVP_CIPHER_meth_set_init(_hidden_aes_128_cbc,
                                          dasync_aes128_init_key)
             || !EVP_CIPHER_meth_set_do_cipher(_hidden_aes_128_cbc,
@@ -292,7 +294,8 @@ static int bind_dasync(ENGINE *e)
                                             EVP_CIPH_CBC_MODE
                                           | EVP_CIPH_FLAG_DEFAULT_ASN1
                                           | EVP_CIPH_FLAG_AEAD_CIPHER
-                                          | EVP_CIPH_FLAG_PIPELINE)
+                                          | EVP_CIPH_FLAG_PIPELINE
+                                          | EVP_CIPH_CUSTOM_COPY)
             || !EVP_CIPHER_meth_set_init(_hidden_aes_128_cbc_hmac_sha1,
                                          dasync_aes128_cbc_hmac_sha1_init_key)
             || !EVP_CIPHER_meth_set_do_cipher(_hidden_aes_128_cbc_hmac_sha1,
@@ -312,7 +315,10 @@ static int bind_dasync(ENGINE *e)
 
 static void destroy_pkey(void)
 {
-    EVP_PKEY_meth_free(dasync_rsa);
+    /*
+     * We don't actually need to free the dasync_rsa method since this is
+     * automatically freed for us by libcrypto.
+     */
     dasync_rsa_orig = NULL;
     dasync_rsa = NULL;
 }
@@ -576,7 +582,8 @@ static int dasync_sha1_final(EVP_MD_CTX *ctx, unsigned char *md)
 /* Cipher helper functions */
 
 static int dasync_cipher_ctrl_helper(EVP_CIPHER_CTX *ctx, int type, int arg,
-                                     void *ptr, int aeadcapable)
+                                     void *ptr, int aeadcapable,
+                                     const EVP_CIPHER *ciph)
 {
     int ret;
     struct dasync_pipeline_ctx *pipe_ctx =
@@ -586,6 +593,18 @@ static int dasync_cipher_ctrl_helper(EVP_CIPHER_CTX *ctx, int type, int arg,
         return 0;
 
     switch (type) {
+        case EVP_CTRL_COPY:
+            {
+                size_t sz = EVP_CIPHER_impl_ctx_size(ciph);
+                void *inner_cipher_data = OPENSSL_malloc(sz);
+
+                if (inner_cipher_data == NULL)
+                    return -1;
+                memcpy(inner_cipher_data, pipe_ctx->inner_cipher_data, sz);
+                pipe_ctx->inner_cipher_data = inner_cipher_data;
+            }
+            break;
+
         case EVP_CTRL_SET_PIPELINE_OUTPUT_BUFS:
             pipe_ctx->numpipes = arg;
             pipe_ctx->outbufs = (unsigned char **)ptr;
@@ -740,7 +759,7 @@ static int dasync_cipher_cleanup_helper(EVP_CIPHER_CTX *ctx,
 static int dasync_aes128_cbc_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
                                   void *ptr)
 {
-    return dasync_cipher_ctrl_helper(ctx, type, arg, ptr, 0);
+    return dasync_cipher_ctrl_helper(ctx, type, arg, ptr, 0, EVP_aes_128_cbc());
 }
 
 static int dasync_aes128_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
@@ -768,7 +787,7 @@ static int dasync_aes128_cbc_cleanup(EVP_CIPHER_CTX *ctx)
 static int dasync_aes128_cbc_hmac_sha1_ctrl(EVP_CIPHER_CTX *ctx, int type,
                                              int arg, void *ptr)
 {
-    return dasync_cipher_ctrl_helper(ctx, type, arg, ptr, 1);
+    return dasync_cipher_ctrl_helper(ctx, type, arg, ptr, 1, EVP_aes_128_cbc_hmac_sha1());
 }
 
 static int dasync_aes128_cbc_hmac_sha1_init_key(EVP_CIPHER_CTX *ctx,
@@ -829,7 +848,7 @@ static int dasync_rsa_paramgen_init(EVP_PKEY_CTX *ctx)
 
     if (pparamgen_init == NULL)
         EVP_PKEY_meth_get_paramgen(dasync_rsa_orig, &pparamgen_init, NULL);
-    return pparamgen_init(ctx);
+    return pparamgen_init != NULL ? pparamgen_init(ctx) : 1;
 }
 
 static int dasync_rsa_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
@@ -838,7 +857,7 @@ static int dasync_rsa_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
 
     if (pparamgen == NULL)
         EVP_PKEY_meth_get_paramgen(dasync_rsa_orig, NULL, &pparamgen);
-    return pparamgen(ctx, pkey);
+    return pparamgen != NULL ? pparamgen(ctx, pkey) : 1;
 }
 
 static int dasync_rsa_keygen_init(EVP_PKEY_CTX *ctx)
@@ -847,7 +866,7 @@ static int dasync_rsa_keygen_init(EVP_PKEY_CTX *ctx)
 
     if (pkeygen_init == NULL)
         EVP_PKEY_meth_get_keygen(dasync_rsa_orig, &pkeygen_init, NULL);
-    return pkeygen_init(ctx);
+    return pkeygen_init != NULL ? pkeygen_init(ctx) : 1;
 }
 
 static int dasync_rsa_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
@@ -865,7 +884,7 @@ static int dasync_rsa_encrypt_init(EVP_PKEY_CTX *ctx)
 
     if (pencrypt_init == NULL)
         EVP_PKEY_meth_get_encrypt(dasync_rsa_orig, &pencrypt_init, NULL);
-    return pencrypt_init(ctx);
+    return pencrypt_init != NULL ? pencrypt_init(ctx) : 1;
 }
 
 static int dasync_rsa_encrypt(EVP_PKEY_CTX *ctx, unsigned char *out,
@@ -887,7 +906,7 @@ static int dasync_rsa_decrypt_init(EVP_PKEY_CTX *ctx)
 
     if (pdecrypt_init == NULL)
         EVP_PKEY_meth_get_decrypt(dasync_rsa_orig, &pdecrypt_init, NULL);
-    return pdecrypt_init(ctx);
+    return pdecrypt_init != NULL ? pdecrypt_init(ctx) : 1;
 }
 
 static int dasync_rsa_decrypt(EVP_PKEY_CTX *ctx, unsigned char *out,

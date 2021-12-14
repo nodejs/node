@@ -21,7 +21,9 @@ ERR_add_error_txt, ERR_add_error_mem_bio
  void ERR_add_error_txt(const char *sep, const char *txt);
  void ERR_add_error_mem_bio(const char *sep, BIO *bio);
 
-Deprecated since OpenSSL 3.0:
+The following function has been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  void ERR_put_error(int lib, int func, int reason, const char *file, int line);
 
@@ -35,7 +37,7 @@ record.
 
 ERR_raise_data() does the same thing as ERR_raise(), but also lets the
 caller specify additional information as a format string B<fmt> and an
-arbitrary number of values, which are processed with L<BIO_snprintf(3)>.  
+arbitrary number of values, which are processed with L<BIO_snprintf(3)>.
 
 ERR_put_error() adds an error code to the thread's error queue. It
 signals that the error of reason code B<reason> occurred in function
@@ -177,7 +179,7 @@ were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

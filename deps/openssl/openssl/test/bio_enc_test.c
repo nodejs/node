@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -51,6 +51,8 @@ static int do_bio_cipher(const EVP_CIPHER* cipher, const unsigned char* key,
 
     /* reference output for single-chunk operation */
     b = BIO_new(BIO_f_cipher());
+    if (!TEST_ptr(b))
+        return 0;
     if (!TEST_true(BIO_set_cipher(b, cipher, key, iv, ENCRYPT)))
         return 0;
     BIO_push(b, BIO_new_mem_buf(inp, DATA_SIZE));
@@ -60,6 +62,8 @@ static int do_bio_cipher(const EVP_CIPHER* cipher, const unsigned char* key,
     /* perform split operations and compare to reference */
     for (i = 1; i < lref; i++) {
         b = BIO_new(BIO_f_cipher());
+        if (!TEST_ptr(b))
+            return 0;
         if (!TEST_true(BIO_set_cipher(b, cipher, key, iv, ENCRYPT))) {
             TEST_info("Split encrypt failed @ operation %d", i);
             return 0;
@@ -87,6 +91,8 @@ static int do_bio_cipher(const EVP_CIPHER* cipher, const unsigned char* key,
         int delta;
 
         b = BIO_new(BIO_f_cipher());
+        if (!TEST_ptr(b))
+            return 0;
         if (!TEST_true(BIO_set_cipher(b, cipher, key, iv, ENCRYPT))) {
             TEST_info("Small chunk encrypt failed @ operation %d", i);
             return 0;
@@ -108,6 +114,8 @@ static int do_bio_cipher(const EVP_CIPHER* cipher, const unsigned char* key,
 
     /* reference output for single-chunk operation */
     b = BIO_new(BIO_f_cipher());
+    if (!TEST_ptr(b))
+        return 0;
     if (!TEST_true(BIO_set_cipher(b, cipher, key, iv, DECRYPT)))
         return 0;
     /* Use original reference output as input */
@@ -123,6 +131,8 @@ static int do_bio_cipher(const EVP_CIPHER* cipher, const unsigned char* key,
     /* perform split operations and compare to reference */
     for (i = 1; i < lref; i++) {
         b = BIO_new(BIO_f_cipher());
+        if (!TEST_ptr(b))
+            return 0;
         if (!TEST_true(BIO_set_cipher(b, cipher, key, iv, DECRYPT))) {
             TEST_info("Split decrypt failed @ operation %d", i);
             return 0;
@@ -150,6 +160,8 @@ static int do_bio_cipher(const EVP_CIPHER* cipher, const unsigned char* key,
         int delta;
 
         b = BIO_new(BIO_f_cipher());
+        if (!TEST_ptr(b))
+            return 0;
         if (!TEST_true(BIO_set_cipher(b, cipher, key, iv, DECRYPT))) {
             TEST_info("Small chunk decrypt failed @ operation %d", i);
             return 0;

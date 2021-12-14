@@ -502,7 +502,8 @@ static int test_kdf_pbkdf1(void)
     unsigned int iterations = 4096;
     OSSL_LIB_CTX *libctx = NULL;
     OSSL_PARAM *params = NULL;
-    OSSL_PROVIDER *prov = NULL;
+    OSSL_PROVIDER *legacyprov = NULL;
+    OSSL_PROVIDER *defprov = NULL;
     const unsigned char expected[sizeof(out)] = {
         0xfb, 0x83, 0x4d, 0x36, 0x6d, 0xbc, 0x53, 0x87, 0x35, 0x1b, 0x34, 0x75,
         0x95, 0x88, 0x32, 0x4f, 0x3e, 0x82, 0x81, 0x01, 0x21, 0x93, 0x64, 0x00,
@@ -513,11 +514,14 @@ static int test_kdf_pbkdf1(void)
         goto err;
 
     /* PBKDF1 only available in the legacy provider */
-    prov = OSSL_PROVIDER_load(libctx, "legacy");
-    if (prov == NULL) {
+    legacyprov = OSSL_PROVIDER_load(libctx, "legacy");
+    if (legacyprov == NULL) {
         OSSL_LIB_CTX_free(libctx);
         return TEST_skip("PBKDF1 only available in legacy provider");
     }
+
+    if (!TEST_ptr(defprov = OSSL_PROVIDER_load(libctx, "default")))
+        goto err;
 
     params = construct_pbkdf1_params("passwordPASSWORDpassword", "sha256",
                                      "saltSALTsaltSALTsaltSALTsaltSALTsalt",
@@ -534,7 +538,8 @@ static int test_kdf_pbkdf1(void)
 err:
     EVP_KDF_CTX_free(kctx);
     OPENSSL_free(params);
-    OSSL_PROVIDER_unload(prov);
+    OSSL_PROVIDER_unload(defprov);
+    OSSL_PROVIDER_unload(legacyprov);
     OSSL_LIB_CTX_free(libctx);
     return ret;
 }

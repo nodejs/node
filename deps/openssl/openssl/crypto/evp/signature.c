@@ -314,6 +314,17 @@ EVP_SIGNATURE *EVP_SIGNATURE_fetch(OSSL_LIB_CTX *ctx, const char *algorithm,
                              (void (*)(void *))EVP_SIGNATURE_free);
 }
 
+EVP_SIGNATURE *evp_signature_fetch_from_prov(OSSL_PROVIDER *prov,
+                                             const char *algorithm,
+                                             const char *properties)
+{
+    return evp_generic_fetch_from_prov(prov, OSSL_OP_SIGNATURE,
+                                       algorithm, properties,
+                                       evp_signature_from_algorithm,
+                                       (int (*)(void *))EVP_SIGNATURE_up_ref,
+                                       (void (*)(void *))EVP_SIGNATURE_free);
+}
+
 int EVP_SIGNATURE_is_a(const EVP_SIGNATURE *signature, const char *name)
 {
     return evp_is_a(signature->prov, signature->name_id, NULL, name);
@@ -386,7 +397,9 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
     void *provkey = NULL;
     EVP_SIGNATURE *signature = NULL;
     EVP_KEYMGMT *tmp_keymgmt = NULL;
+    const OSSL_PROVIDER *tmp_prov = NULL;
     const char *supported_sig = NULL;
+    int iter;
 
     if (ctx == NULL) {
         ERR_raise(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
@@ -401,55 +414,102 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
     if (evp_pkey_ctx_is_legacy(ctx))
         goto legacy;
 
+    if (ctx->pkey == NULL) {
+        ERR_clear_last_mark();
+        ERR_raise(ERR_LIB_EVP, EVP_R_NO_KEY_SET);
+        goto err;
+    }
+
     /*
-     * Ensure that the key is provided, either natively, or as a cached export.
-     *  If not, go legacy
+     * Try to derive the supported signature from |ctx->keymgmt|.
      */
-    tmp_keymgmt = ctx->keymgmt;
-    provkey = evp_pkey_export_to_provider(ctx->pkey, ctx->libctx,
-                                          &tmp_keymgmt, ctx->propquery);
-    if (tmp_keymgmt == NULL)
-        goto legacy;
-    if (!EVP_KEYMGMT_up_ref(tmp_keymgmt)) {
+    if (!ossl_assert(ctx->pkey->keymgmt == NULL
+                     || ctx->pkey->keymgmt == ctx->keymgmt)) {
+        ERR_clear_last_mark();
+        ERR_raise(ERR_LIB_EVP, ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+    supported_sig = evp_keymgmt_util_query_operation_name(ctx->keymgmt,
+                                                          OSSL_OP_SIGNATURE);
+    if (supported_sig == NULL) {
         ERR_clear_last_mark();
         ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
         goto err;
     }
-    EVP_KEYMGMT_free(ctx->keymgmt);
-    ctx->keymgmt = tmp_keymgmt;
-
-    if (ctx->keymgmt->query_operation_name != NULL)
-        supported_sig = ctx->keymgmt->query_operation_name(OSSL_OP_SIGNATURE);
 
     /*
-     * If we didn't get a supported sig, assume there is one with the
-     * same name as the key type.
+     * We perform two iterations:
+     *
+     * 1.  Do the normal signature fetch, using the fetching data given by
+     *     the EVP_PKEY_CTX.
+     * 2.  Do the provider specific signature fetch, from the same provider
+     *     as |ctx->keymgmt|
+     *
+     * We then try to fetch the keymgmt from the same provider as the
+     * signature, and try to export |ctx->pkey| to that keymgmt (when
+     * this keymgmt happens to be the same as |ctx->keymgmt|, the export
+     * is a no-op, but we call it anyway to not complicate the code even
+     * more).
+     * If the export call succeeds (returns a non-NULL provider key pointer),
+     * we're done and can perform the operation itself.  If not, we perform
+     * the second iteration, or jump to legacy.
      */
-    if (supported_sig == NULL)
-        supported_sig = ctx->keytype;
+    for (iter = 1; iter < 3 && provkey == NULL; iter++) {
+        EVP_KEYMGMT *tmp_keymgmt_tofree = NULL;
 
-    /*
-     * Because we cleared out old ops, we shouldn't need to worry about
-     * checking if signature is already there.
-     */
-    signature =
-        EVP_SIGNATURE_fetch(ctx->libctx, supported_sig, ctx->propquery);
-
-    if (signature == NULL
-        || (EVP_KEYMGMT_get0_provider(ctx->keymgmt)
-            != EVP_SIGNATURE_get0_provider(signature))) {
         /*
-         * We don't need to free ctx->keymgmt here, as it's not necessarily
-         * tied to this operation.  It will be freed by EVP_PKEY_CTX_free().
+         * If we're on the second iteration, free the results from the first.
+         * They are NULL on the first iteration, so no need to check what
+         * iteration we're on.
          */
+        EVP_SIGNATURE_free(signature);
+        EVP_KEYMGMT_free(tmp_keymgmt);
+
+        switch (iter) {
+        case 1:
+            signature =
+                EVP_SIGNATURE_fetch(ctx->libctx, supported_sig, ctx->propquery);
+            if (signature != NULL)
+                tmp_prov = EVP_SIGNATURE_get0_provider(signature);
+            break;
+        case 2:
+            tmp_prov = EVP_KEYMGMT_get0_provider(ctx->keymgmt);
+            signature =
+                evp_signature_fetch_from_prov((OSSL_PROVIDER *)tmp_prov,
+                                              supported_sig, ctx->propquery);
+            if (signature == NULL)
+                goto legacy;
+            break;
+        }
+        if (signature == NULL)
+            continue;
+
+        /*
+         * Ensure that the key is provided, either natively, or as a cached
+         * export.  We start by fetching the keymgmt with the same name as
+         * |ctx->pkey|, but from the provider of the signature method, using
+         * the same property query as when fetching the signature method.
+         * With the keymgmt we found (if we did), we try to export |ctx->pkey|
+         * to it (evp_pkey_export_to_provider() is smart enough to only actually
+
+         * export it if |tmp_keymgmt| is different from |ctx->pkey|'s keymgmt)
+         */
+        tmp_keymgmt_tofree = tmp_keymgmt =
+            evp_keymgmt_fetch_from_prov((OSSL_PROVIDER *)tmp_prov,
+                                        EVP_KEYMGMT_get0_name(ctx->keymgmt),
+                                        ctx->propquery);
+        if (tmp_keymgmt != NULL)
+            provkey = evp_pkey_export_to_provider(ctx->pkey, ctx->libctx,
+                                                  &tmp_keymgmt, ctx->propquery);
+        if (tmp_keymgmt == NULL)
+            EVP_KEYMGMT_free(tmp_keymgmt_tofree);
+    }
+
+    if (provkey == NULL) {
         EVP_SIGNATURE_free(signature);
         goto legacy;
     }
 
-    /*
-     * If we don't have the full support we need with provided methods,
-     * let's go see if legacy does.
-     */
     ERR_pop_to_mark();
 
     /* No more legacy from here down to legacy: */
@@ -507,6 +567,8 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
      * let's go see if legacy does.
      */
     ERR_pop_to_mark();
+    EVP_KEYMGMT_free(tmp_keymgmt);
+    tmp_keymgmt = NULL;
 
     if (ctx->pmeth == NULL
             || (operation == EVP_PKEY_OP_SIGN && ctx->pmeth->sign == NULL)
@@ -545,10 +607,12 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, int operation,
         ret = evp_pkey_ctx_use_cached_data(ctx);
 #endif
 
+    EVP_KEYMGMT_free(tmp_keymgmt);
     return ret;
  err:
     evp_pkey_ctx_free_old_ops(ctx);
     ctx->operation = EVP_PKEY_OP_UNDEFINED;
+    EVP_KEYMGMT_free(tmp_keymgmt);
     return ret;
 }
 
@@ -582,7 +646,7 @@ int EVP_PKEY_sign(EVP_PKEY_CTX *ctx,
         goto legacy;
 
     ret = ctx->op.sig.signature->sign(ctx->op.sig.algctx, sig, siglen,
-                                      SIZE_MAX, tbs, tbslen);
+                                      (sig == NULL) ? 0 : *siglen, tbs, tbslen);
 
     return ret;
  legacy:

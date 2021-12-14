@@ -2415,6 +2415,8 @@ int tls13_save_handshake_digest_for_pha(SSL *s)
         if (!EVP_MD_CTX_copy_ex(s->pha_dgst,
                                 s->s3.handshake_dgst)) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+            EVP_MD_CTX_free(s->pha_dgst);
+            s->pha_dgst = NULL;
             return 0;
         }
     }

@@ -167,8 +167,8 @@ call to L<EVP_MD_fetch(3)>.
 =head2 Implicit fetch
 
 OpenSSL has a number of functions that return an algorithm object with no
-associated implementation, such as L<EVP_sha256(3)>,
-L<EVP_blake2b512(3)> or L<EVP_aes_128_cbc(3)>. These are present for
+associated implementation, such as L<EVP_sha256(3)>, L<EVP_aes_128_cbc(3)>,
+L<EVP_get_cipherbyname(3)> or L<EVP_get_digestbyname(3)>. These are present for
 compatibility with OpenSSL before version 3.0 where explicit fetching was not
 available.
 
@@ -180,6 +180,35 @@ In some cases implicit fetching can also occur when a NULL algorithm parameter
 is supplied. In this case an algorithm implementation is implicitly fetched
 using default search criteria and an algorithm name that is consistent with
 the context in which it is being used.
+
+Functions that revolve around B<EVP_PKEY_CTX> and L<EVP_PKEY(3)>, such as
+L<EVP_DigestSignInit(3)> and friends, all fetch the implementations
+implicitly.  Because these functions involve both an operation type (such as
+L<EVP_SIGNATURE(3)>) and an L<EVP_KEYMGMT(3)> for the L<EVP_PKEY(3)>, they try
+the following:
+
+=over 4
+
+=item 1.
+
+Fetch the operation type implementation from any provider given a library
+context and property string stored in the B<EVP_PKEY_CTX>.
+
+If the provider of the operation type implementation is different from the
+provider of the L<EVP_PKEY(3)>'s L<EVP_KEYMGMT(3)> implementation, try to
+fetch a L<EVP_KEYMGMT(3)> implementation in the same provider as the operation
+type implementation and export the L<EVP_PKEY(3)> to it (effectively making a
+temporary copy of the original key).
+
+If anything in this step fails, the next step is used as a fallback.
+
+=item 2.
+
+As a fallback, try to fetch the operation type implementation from the same
+provider as the original L<EVP_PKEY(3)>'s L<EVP_KEYMGMT(3)>, still using the
+propery string from the B<EVP_PKEY_CTX>.
+
+=back
 
 =head1 FETCHING EXAMPLES
 
@@ -259,7 +288,7 @@ algorithm identifier to the appropriate fetching function. Also see the provider
 specific manual pages linked below for further details about using the
 algorithms available in each of the providers.
 
-As well as the OpenSSL providers third parties can also implemment providers.
+As well as the OpenSSL providers third parties can also implement providers.
 For information on writing a provider see L<provider(7)>.
 
 =head2 Default provider

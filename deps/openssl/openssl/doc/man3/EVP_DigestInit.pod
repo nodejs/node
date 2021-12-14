@@ -117,9 +117,9 @@ EVP_MD_CTX_type, EVP_MD_CTX_pkey_ctx, EVP_MD_CTX_md_data
  #define EVP_MD_CTX_pkey_ctx EVP_MD_CTX_get_pkey_ctx
  #define EVP_MD_CTX_md_data EVP_MD_CTX_get0_md_data
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  const EVP_MD *EVP_MD_CTX_md(const EVP_MD_CTX *ctx);
 
@@ -419,6 +419,24 @@ EVP_get_digestbyobj()
 
 Returns an B<EVP_MD> structure when passed a digest name, a digest B<NID> or an
 B<ASN1_OBJECT> structure respectively.
+
+The EVP_get_digestbyname() function is present for backwards compatibility with
+OpenSSL prior to version 3 and is different to the EVP_MD_fetch() function
+since it does not attempt to "fetch" an implementation of the cipher.
+Additionally, it only knows about digests that are built-in to OpenSSL and have
+an associated NID. Similarly EVP_get_digestbynid() and EVP_get_digestbyobj()
+also return objects without an associated implementation.
+
+When the digest objects returned by these functions are used (such as in a call
+to EVP_DigestInit_ex()) an implementation of the digest will be implicitly
+fetched from the loaded providers. This fetch could fail if no suitable
+implementation is available. Use EVP_MD_fetch() instead to explicitly fetch
+the algorithm and an associated implementation from a provider.
+
+See L<crypto(7)/ALGORITHM FETCHING> for more information about fetching.
+
+The digest objects returned from these functions do not need to be freed with
+EVP_MD_free().
 
 =item EVP_MD_CTX_get_pkey_ctx()
 

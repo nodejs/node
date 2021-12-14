@@ -77,26 +77,27 @@ return a size_t type and are functions, BIO_pending() and BIO_wpending() are
 macros which call BIO_ctrl().
 
 BIO_get_ktls_send() returns 1 if the BIO is using the Kernel TLS data-path for
-sending. Otherwise, it returns zero.
+sending. Otherwise, it returns zero. It also returns negative values for failure.
 BIO_get_ktls_recv() returns 1 if the BIO is using the Kernel TLS data-path for
-receiving. Otherwise, it returns zero.
+receiving. Otherwise, it returns zero. It also returns negative values for failure.
 
 =head1 RETURN VALUES
 
-BIO_reset() normally returns 1 for success and 0 or -1 for failure. File
+BIO_reset() normally returns 1 for success and <=0 for failure. File
 BIOs are an exception, they return 0 for success and -1 for failure.
 
 BIO_seek() and BIO_tell() both return the current file position on success
 and -1 for failure, except file BIOs which for BIO_seek() always return 0
 for success and -1 for failure.
 
-BIO_flush() returns 1 for success and 0 or -1 for failure.
+BIO_flush() returns 1 for success and <=0 for failure.
 
-BIO_eof() returns 1 if EOF has been reached, 0 if not, or -1 for failure.
+BIO_eof() returns 1 if EOF has been reached, 0 if not, or negative values for failure.
 
-BIO_set_close() always returns 1.
+BIO_set_close() returns 1 on success or <=0 for failure.
 
-BIO_get_close() returns the close flag value: BIO_CLOSE or BIO_NOCLOSE.
+BIO_get_close() returns the close flag value: BIO_CLOSE or BIO_NOCLOSE. It also
+returns other negative values if an error occurs.
 
 BIO_pending(), BIO_ctrl_pending(), BIO_wpending() and BIO_ctrl_wpending()
 return the amount of pending data.

@@ -31,7 +31,7 @@ beforehand in order to set the validation status of an SCT first.
 
 =head1 RETURN VALUES
 
-SCT_validation_status_string() returns a null-terminated string representing
+SCT_validation_status_string() returns a NUL-terminated string representing
 the validation status of an B<SCT> object.
 
 =head1 SEE ALSO
@@ -47,7 +47,7 @@ These functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

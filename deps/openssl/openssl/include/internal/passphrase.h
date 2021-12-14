@@ -114,6 +114,7 @@ int ossl_pw_get_passphrase(char *pass, size_t pass_size, size_t *pass_len,
  */
 
 pem_password_cb ossl_pw_pem_password;
+pem_password_cb ossl_pw_pvk_password;
 /* One callback for encoding (verification prompt) and one for decoding */
 OSSL_PASSPHRASE_CALLBACK ossl_pw_passphrase_callback_enc;
 OSSL_PASSPHRASE_CALLBACK ossl_pw_passphrase_callback_dec;

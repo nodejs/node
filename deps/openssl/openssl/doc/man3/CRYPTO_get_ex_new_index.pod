@@ -32,7 +32,7 @@ CRYPTO_free_ex_data, CRYPTO_new_ex_data
 
  int CRYPTO_set_ex_data(CRYPTO_EX_DATA *r, int idx, void *arg);
 
- void *CRYPTO_get_ex_data(CRYPTO_EX_DATA *r, int idx);
+ void *CRYPTO_get_ex_data(const CRYPTO_EX_DATA *r, int idx);
 
  void CRYPTO_free_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *r);
 
@@ -152,7 +152,7 @@ will fail.
 CRYPTO_get_ex_new_index() returns a new index or -1 on failure.
 
 CRYPTO_free_ex_index(), CRYPTO_alloc_ex_data() and CRYPTO_set_ex_data()
-return 1 on success or 0 on failure. 
+return 1 on success or 0 on failure.
 
 CRYPTO_get_ex_data() returns the application data or NULL on failure;
 note that NULL may be a valid value.

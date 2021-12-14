@@ -75,7 +75,7 @@ Encapsulate an RSASVE key (for RSA keys).
  /*
   * The generated 'secret' can be used as key material.
   * The encapsulated 'out' can be sent to another party who can
-  * decapsulate it using their private key to retrieve the 'secret'. 
+  * decapsulate it using their private key to retrieve the 'secret'.
   */
  if (EVP_PKEY_encapsulate(ctx, out, &outlen, secret, &secretlen) <= 0)
      /* Error */

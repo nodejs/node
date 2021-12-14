@@ -69,7 +69,7 @@ if the standard calls such as BIO_set_md() are not sufficiently flexible.
 BIO_f_md() returns the digest BIO method.
 
 BIO_set_md(), BIO_get_md() and BIO_md_ctx() return 1 for success and
-0 for failure.
+<=0 for failure.
 
 =head1 EXAMPLES
 

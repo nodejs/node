@@ -23,9 +23,9 @@ OCSP_parse_url
                          char **pport, int *pport_num,
                          char **ppath, char **pquery, char **pfrag);
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  int OCSP_parse_url(const char *url, char **phost, char **pport, char **ppath,
                     int *pssl);

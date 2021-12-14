@@ -94,7 +94,7 @@ This is the canonical list.
 
  Function Call                   --------------------- Current State ----------------------
                                  start   newed    initialised   updated     finaled   freed
- EVP_MAC_CTX_new                 newed           
+ EVP_MAC_CTX_new                 newed
  EVP_MAC_init                         initialised initialised initialised initialised
  EVP_MAC_update                                     updated     updated
  EVP_MAC_final                                                  finaled

@@ -154,12 +154,30 @@ static int dsa_match(const void *keydata1, const void *keydata2, int selection)
     if (!ossl_prov_is_running())
         return 0;
 
-    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0)
-        ok = ok
-            && BN_cmp(DSA_get0_pub_key(dsa1), DSA_get0_pub_key(dsa2)) == 0;
-    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
-        ok = ok
-            && BN_cmp(DSA_get0_priv_key(dsa1), DSA_get0_priv_key(dsa2)) == 0;
+    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
+        int key_checked = 0;
+
+        if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
+            const BIGNUM *pa = DSA_get0_pub_key(dsa1);
+            const BIGNUM *pb = DSA_get0_pub_key(dsa2);
+
+            if (pa != NULL && pb != NULL) {
+                ok = ok && BN_cmp(pa, pb) == 0;
+                key_checked = 1;
+            }
+        }
+        if (!key_checked
+            && (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
+            const BIGNUM *pa = DSA_get0_priv_key(dsa1);
+            const BIGNUM *pb = DSA_get0_priv_key(dsa2);
+
+            if (pa != NULL && pb != NULL) {
+                ok = ok && BN_cmp(pa, pb) == 0;
+                key_checked = 1;
+            }
+        }
+        ok = ok && key_checked;
+    }
     if ((selection & OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS) != 0) {
         FFC_PARAMS *dsaparams1 = ossl_dsa_get0_params((DSA *)dsa1);
         FFC_PARAMS *dsaparams2 = ossl_dsa_get0_params((DSA *)dsa2);

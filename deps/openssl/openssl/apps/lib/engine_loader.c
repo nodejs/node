@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -91,7 +91,7 @@ static OSSL_STORE_LOADER_CTX *engine_open(const OSSL_STORE_LOADER *loader,
         keyid = OPENSSL_strdup(q + 1);
     }
 
-    if (e != NULL)
+    if (e != NULL && keyid != NULL)
         ctx = OSSL_STORE_LOADER_CTX_new(e, keyid);
 
     if (ctx == NULL) {
