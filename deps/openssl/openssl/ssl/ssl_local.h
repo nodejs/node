@@ -2680,7 +2680,7 @@ __owur char ssl3_cbc_record_digest_supported(const EVP_MD_CTX *ctx);
 __owur int ssl3_cbc_digest_record(const EVP_MD_CTX *ctx,
                                   unsigned char *md_out,
                                   size_t *md_out_size,
-                                  const unsigned char header[13],
+                                  const unsigned char *header,
                                   const unsigned char *data,
                                   size_t data_plus_mac_size,
                                   size_t data_plus_mac_plus_padding_size,
@@ -2716,6 +2716,11 @@ __owur int custom_exts_copy_flags(custom_ext_methods *dst,
 void custom_exts_free(custom_ext_methods *exts);
 
 void ssl_comp_free_compression_methods_int(void);
+
+#ifndef OPENSSL_NO_QUIC
+__owur int SSL_clear_not_quic(SSL *s);
+__owur int SSL_clear_quic(SSL *s);
+#endif
 
 /* ssl_mcnf.c */
 void ssl_ctx_system_config(SSL_CTX *ctx);

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -3151,6 +3151,8 @@ int s_client_main(int argc, char **argv)
 #endif
     OPENSSL_free(connectstr);
     OPENSSL_free(bindstr);
+    OPENSSL_free(bindhost);
+    OPENSSL_free(bindport);
     OPENSSL_free(host);
     OPENSSL_free(port);
     X509_VERIFY_PARAM_free(vpm);

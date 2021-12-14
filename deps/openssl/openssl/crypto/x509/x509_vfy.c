@@ -2924,6 +2924,26 @@ static int get_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *cert)
     return ok;
 }
 
+static int augment_stack(STACK_OF(X509) *src, STACK_OF(X509) **dstPtr)
+{
+    if (src) {
+        STACK_OF(X509) *dst;
+        int i;
+
+        if (*dstPtr == NULL)
+            return ((*dstPtr = sk_X509_dup(src)) != NULL);
+
+        for (dst = *dstPtr, i = 0; i < sk_X509_num(src); ++i) {
+            if (!sk_X509_push(dst, sk_X509_value(src, i))) {
+                sk_X509_free(dst);
+                *dstPtr = NULL;
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 static int build_chain(X509_STORE_CTX *ctx)
 {
     SSL_DANE *dane = ctx->dane;
@@ -2967,18 +2987,7 @@ static int build_chain(X509_STORE_CTX *ctx)
     }
 
     /*
-     * Shallow-copy the stack of untrusted certificates (with TLS, this is
-     * typically the content of the peer's certificate message) so can make
-     * multiple passes over it, while free to remove elements as we go.
-     */
-    if (ctx->untrusted && (sktmp = sk_X509_dup(ctx->untrusted)) == NULL) {
-        X509err(X509_F_BUILD_CHAIN, ERR_R_MALLOC_FAILURE);
-        ctx->error = X509_V_ERR_OUT_OF_MEM;
-        return 0;
-    }
-
-    /*
-     * If we got any "DANE-TA(2) Cert(0) Full(0)" trust-anchors from DNS, add
+     * If we got any "Cert(0) Full(0)" issuer certificates from DNS, *prepend*
      * them to our working copy of the untrusted certificate stack.  Since the
      * caller of X509_STORE_CTX_init() may have provided only a leaf cert with
      * no corresponding stack of untrusted certificates, we may need to create
@@ -2987,20 +2996,21 @@ static int build_chain(X509_STORE_CTX *ctx)
      * containing at least the leaf certificate, but we must be prepared for
      * this to change. ]
      */
-    if (DANETLS_ENABLED(dane) && dane->certs != NULL) {
-        if (sktmp == NULL && (sktmp = sk_X509_new_null()) == NULL) {
-            X509err(X509_F_BUILD_CHAIN, ERR_R_MALLOC_FAILURE);
-            ctx->error = X509_V_ERR_OUT_OF_MEM;
-            return 0;
-        }
-        for (i = 0; i < sk_X509_num(dane->certs); ++i) {
-            if (!sk_X509_push(sktmp, sk_X509_value(dane->certs, i))) {
-                sk_X509_free(sktmp);
-                X509err(X509_F_BUILD_CHAIN, ERR_R_MALLOC_FAILURE);
-                ctx->error = X509_V_ERR_OUT_OF_MEM;
-                return 0;
-            }
-        }
+    if (DANETLS_ENABLED(dane) && !augment_stack(dane->certs, &sktmp)) {
+        X509err(X509_F_BUILD_CHAIN, ERR_R_MALLOC_FAILURE);
+        ctx->error = X509_V_ERR_OUT_OF_MEM;
+        return 0;
+    }
+
+    /*
+     * Shallow-copy the stack of untrusted certificates (with TLS, this is
+     * typically the content of the peer's certificate message) so can make
+     * multiple passes over it, while free to remove elements as we go.
+     */
+    if (!augment_stack(ctx->untrusted, &sktmp)) {
+        X509err(X509_F_BUILD_CHAIN, ERR_R_MALLOC_FAILURE);
+        ctx->error = X509_V_ERR_OUT_OF_MEM;
+        return 0;
     }
 
     /*

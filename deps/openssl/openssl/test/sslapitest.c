@@ -4272,6 +4272,11 @@ static int sni_cb(SSL *s, int *al, void *arg)
     return SSL_TLSEXT_ERR_OK;
 }
 
+static int verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx)
+{
+    return 1;
+}
+
 /*
  * Custom call back tests.
  * Test 0: Old style callbacks in TLSv1.2
@@ -4279,6 +4284,7 @@ static int sni_cb(SSL *s, int *al, void *arg)
  * Test 2: New style callbacks in TLSv1.2 with SNI
  * Test 3: New style callbacks in TLSv1.3. Extensions in CH and EE
  * Test 4: New style callbacks in TLSv1.3. Extensions in CH, SH, EE, Cert + NST
+ * Test 5: New style callbacks in TLSv1.3. Extensions in CR + Client Cert
  */
 static int test_custom_exts(int tst)
 {
@@ -4320,7 +4326,19 @@ static int test_custom_exts(int tst)
             SSL_CTX_set_options(sctx2, SSL_OP_NO_TLSv1_3);
     }
 
-    if (tst == 4) {
+    if (tst == 5) {
+        context = SSL_EXT_TLS1_3_CERTIFICATE_REQUEST
+                  | SSL_EXT_TLS1_3_CERTIFICATE;
+        SSL_CTX_set_verify(sctx,
+                           SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                           verify_cb);
+        if (!TEST_int_eq(SSL_CTX_use_certificate_file(cctx, cert,
+                                                      SSL_FILETYPE_PEM), 1)
+                || !TEST_int_eq(SSL_CTX_use_PrivateKey_file(cctx, privkey,
+                                                            SSL_FILETYPE_PEM), 1)
+                || !TEST_int_eq(SSL_CTX_check_private_key(cctx), 1))
+            goto end;
+    } else if (tst == 4) {
         context = SSL_EXT_CLIENT_HELLO
                   | SSL_EXT_TLS1_2_SERVER_HELLO
                   | SSL_EXT_TLS1_3_SERVER_HELLO
@@ -4416,6 +4434,12 @@ static int test_custom_exts(int tst)
                 || (tst != 2 && snicb != 0)
                 || (tst == 2 && snicb != 1))
             goto end;
+    } else if (tst == 5) {
+        if (clntaddnewcb != 1
+                || clntparsenewcb != 1
+                || srvaddnewcb != 1
+                || srvparsenewcb != 1)
+            goto end;
     } else {
         /* In this case there 2 NewSessionTicket messages created */
         if (clntaddnewcb != 1
@@ -4432,8 +4456,8 @@ static int test_custom_exts(int tst)
     SSL_free(clientssl);
     serverssl = clientssl = NULL;
 
-    if (tst == 3) {
-        /* We don't bother with the resumption aspects for this test */
+    if (tst == 3 || tst == 5) {
+        /* We don't bother with the resumption aspects for these tests */
         testresult = 1;
         goto end;
     }
@@ -6412,11 +6436,6 @@ static int client_cert_cb(SSL *ssl, X509 **x509, EVP_PKEY **pkey)
     return 1;
 }
 
-static int verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx)
-{
-    return 1;
-}
-
 static int test_client_cert_cb(int tst)
 {
     SSL_CTX *cctx = NULL, *sctx = NULL;
@@ -7076,8 +7095,8 @@ static int test_quic_api_version(int clnt, int srvr)
             || !TEST_true(SSL_set_app_data(clientssl, serverssl))
             || !TEST_true(test_quic_api_set_versions(clientssl, clnt))
             || !TEST_true(test_quic_api_set_versions(serverssl, srvr))
-            || !TEST_true(create_ssl_connection(serverssl, clientssl,
-                                                SSL_ERROR_NONE))
+            || !TEST_true(create_bare_ssl_connection(serverssl, clientssl,
+                                                     SSL_ERROR_NONE, 0))
             || !TEST_true(SSL_version(serverssl) == TLS1_3_VERSION)
             || !TEST_true(SSL_version(clientssl) == TLS1_3_VERSION)
             || !(TEST_int_eq(SSL_quic_read_level(clientssl), ssl_encryption_application))
@@ -7280,8 +7299,8 @@ static int quic_setupearly_data_test(SSL_CTX **cctx, SSL_CTX **sctx,
     if (sess == NULL)
         return 1;
 
-    if (!TEST_true(create_ssl_connection(*serverssl, *clientssl,
-                                         SSL_ERROR_NONE)))
+    if (!TEST_true(create_bare_ssl_connection(*serverssl, *clientssl,
+                                              SSL_ERROR_NONE, 0)))
         return 0;
 
     /* Deal with two NewSessionTickets */
@@ -7325,7 +7344,7 @@ static int test_quic_early_data(int tst)
                                              &serverssl, &sess, tst)))
         goto end;
 
-    if (!TEST_true(create_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE))
+    if (!TEST_true(create_bare_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE, 0))
             || !TEST_true(SSL_get_early_data_status(serverssl)))
         goto end;
 
@@ -7438,7 +7457,7 @@ int setup_tests(void)
 #else
     ADD_ALL_TESTS(test_tls13_psk, 4);
 #endif  /* OPENSSL_NO_PSK */
-    ADD_ALL_TESTS(test_custom_exts, 5);
+    ADD_ALL_TESTS(test_custom_exts, 6);
     ADD_TEST(test_stateless);
     ADD_TEST(test_pha_key_update);
 #else

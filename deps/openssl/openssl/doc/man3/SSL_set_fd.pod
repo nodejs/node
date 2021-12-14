@@ -45,6 +45,17 @@ The operation succeeded.
 
 =back
 
+=head1 NOTES
+
+On Windows, a socket handle is a 64-bit data type (UINT_PTR), which leads to a
+compiler warning (conversion from 'SOCKET' to 'int', possible loss of data) when
+passing the socket handle to SSL_set_*fd(). For the time being, this warning can
+safely be ignored, because although the Microsoft documentation claims that the
+upper limit is INVALID_SOCKET-1 (2^64 - 2), in practice the current socket()
+implementation returns an index into the kernel handle table, the size of which
+is limited to 2^24.
+
+
 =head1 SEE ALSO
 
 L<SSL_get_fd(3)>, L<SSL_set_bio(3)>,
@@ -53,7 +64,7 @@ L<SSL_shutdown(3)>, L<ssl(7)> , L<bio(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -548,7 +548,7 @@ ECPKPARAMETERS *EC_GROUP_get_ecpkparameters(const EC_GROUP *group,
             ECPARAMETERS_free(ret->value.parameters);
     }
 
-    if (EC_GROUP_get_asn1_flag(group)) {
+    if (EC_GROUP_get_asn1_flag(group) == OPENSSL_EC_NAMED_CURVE) {
         /*
          * use the asn1 OID to describe the elliptic curve parameters
          */

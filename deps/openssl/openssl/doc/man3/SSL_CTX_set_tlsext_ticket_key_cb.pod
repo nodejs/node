@@ -123,7 +123,7 @@ enable an attacker to obtain the session keys.
 
 =head1 RETURN VALUES
 
-returns 0 to indicate the callback function was set.
+Returns 1 to indicate the callback function was set and 0 otherwise.
 
 =head1 EXAMPLES
 
@@ -193,7 +193,7 @@ L<SSL_CTX_set_session_id_context(3)>,
 
 =head1 COPYRIGHT
 
-Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1972,12 +1972,12 @@ EXT_RETURN tls_construct_stoc_early_data(SSL *s, WPACKET *pkt,
     if (context == SSL_EXT_TLS1_3_NEW_SESSION_TICKET) {
         uint32_t max_early_data = s->max_early_data;
 
-        if (max_early_data == 0)
+        if (s->max_early_data == 0)
             return EXT_RETURN_NOT_SENT;
 
 #ifndef OPENSSL_NO_QUIC
         /* QUIC server must always send 0xFFFFFFFF, per draft-ietf-quic-tls-27 S4.5 */
-        if (s->quic_method != NULL)
+        if (SSL_IS_QUIC(s))
             max_early_data = 0xFFFFFFFF;
 #endif
 

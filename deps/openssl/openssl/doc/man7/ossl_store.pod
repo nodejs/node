@@ -58,7 +58,7 @@ other encoding is undefined.
       * here just one example
       */
      switch (OSSL_STORE_INFO_get_type(info)) {
-     case OSSL_STORE_INFO_X509:
+     case OSSL_STORE_INFO_CERT:
          /* Print the X.509 certificate text */
          X509_print_fp(stdout, OSSL_STORE_INFO_get0_CERT(info));
          /* Print the X.509 certificate PEM output */
@@ -77,7 +77,7 @@ L<OSSL_STORE_SEARCH(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
