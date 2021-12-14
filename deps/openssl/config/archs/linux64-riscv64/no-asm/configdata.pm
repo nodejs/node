@@ -62,7 +62,7 @@ our %config = (
   options => "enable-ssl-trace no-afalgeng no-asan no-asm no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-heartbeats no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-ubsan no-unit-test no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
   perl_archname => "x86_64-linux-gnu-thread-multi",
   perl_cmd => "/usr/bin/perl",
-  perl_version => "5.26.1",
+  perl_version => "5.30.0",
   perlargv => [ "no-comp", "no-shared", "no-afalgeng", "enable-ssl-trace", "no-asm", "linux64-riscv64" ],
   perlenv => {
       "AR" => undef,
@@ -111,8 +111,8 @@ our %config = (
   sourcedir => ".",
   target => "linux64-riscv64",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1l+quic",
-  version_num => "0x101010cfL",
+  version => "1.1.1m+quic",
+  version_num => "0x101010dfL",
 );
 
 our %target = (
@@ -1285,6 +1285,7 @@ our %unified_info = (
                 ],
             "test/ec_internal_test" =>
                 [
+                    "apps/libapps.a",
                     "libcrypto.a",
                     "test/libtestutil.a",
                 ],
