@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2017 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -301,5 +301,5 @@ Ctrl.salt = salt:SodiumChloride
 Ctrl.N = N:1048576
 Ctrl.r = r:8
 Ctrl.p = p:1
-Result = INTERNAL_ERROR
+Result = KDF_MISMATCH
 

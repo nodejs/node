@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,12 +18,13 @@ int ASN1_PRINTABLE_type(const unsigned char *s, int len)
     int ia5 = 0;
     int t61 = 0;
 
-    if (len <= 0)
-        len = -1;
     if (s == NULL)
         return V_ASN1_PRINTABLESTRING;
 
-    while ((*s) && (len-- != 0)) {
+    if (len < 0)
+        len = strlen((const char *)s);
+
+    while (len-- > 0) {
         c = *(s++);
         if (!ossl_isasn1print(c))
             ia5 = 1;

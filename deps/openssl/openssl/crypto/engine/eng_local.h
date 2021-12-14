@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -118,6 +118,11 @@ void engine_pkey_asn1_meths_free(ENGINE *e);
 extern CRYPTO_ONCE engine_lock_init;
 DECLARE_RUN_ONCE(do_engine_lock_init)
 
+typedef void (*ENGINE_DYNAMIC_ID)(void);
+int engine_add_dynamic_id(ENGINE *e, ENGINE_DYNAMIC_ID dynamic_id,
+                          int not_locked);
+void engine_remove_dynamic_id(ENGINE *e, int not_locked);
+
 /*
  * This is a structure for storing implementations of various crypto
  * algorithms and functions.
@@ -162,6 +167,10 @@ struct engine_st {
     /* Used to maintain the linked-list of engines. */
     struct engine_st *prev;
     struct engine_st *next;
+    /* Used to maintain the linked-list of dynamic engines. */
+    struct engine_st *prev_dyn;
+    struct engine_st *next_dyn;
+    ENGINE_DYNAMIC_ID dynamic_id;
 };
 
 typedef struct st_engine_pile ENGINE_PILE;

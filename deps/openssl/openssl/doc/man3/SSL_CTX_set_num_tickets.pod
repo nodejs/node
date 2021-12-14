@@ -25,10 +25,10 @@ the client after a full handshake. Set the desired value (which could be 0) in
 the B<num_tickets> argument. Typically these functions should be called before
 the start of the handshake.
 
-The default number of tickets is 2; the default number of tickets sent following
-a resumption handshake is 1 but this cannot be changed using these functions.
-The number of tickets following a resumption handshake can be reduced to 0 using
-custom session ticket callbacks (see L<SSL_CTX_set_session_ticket_cb(3)>).
+The default number of tickets is 2. Following a resumption the number of tickets
+issued will never be more than 1 regardless of the value set via
+SSL_set_num_tickets() or SSL_CTX_set_num_tickets(). If B<num_tickets> is set to
+0 then no tickets will be issued for either a normal connection or a resumption.
 
 Tickets are also issued on receipt of a post-handshake certificate from the
 client following a request by the server using
@@ -58,7 +58,7 @@ These functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

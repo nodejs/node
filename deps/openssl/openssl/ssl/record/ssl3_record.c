@@ -1039,7 +1039,7 @@ int tls1_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending)
 
                 if (SSL_IS_DTLS(s)) {
                     /* DTLS does not support pipelining */
-                    unsigned char dtlsseq[9], *p = dtlsseq;
+                    unsigned char dtlsseq[8], *p = dtlsseq;
 
                     s2n(sending ? DTLS_RECORD_LAYER_get_w_epoch(&s->rlayer) :
                         DTLS_RECORD_LAYER_get_r_epoch(&s->rlayer), p);

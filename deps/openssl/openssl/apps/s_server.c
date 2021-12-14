@@ -134,12 +134,12 @@ static unsigned int psk_server_cb(SSL *ssl, const char *identity,
     if (s_debug)
         BIO_printf(bio_s_out, "psk_server_cb\n");
 
-    if (SSL_version(ssl) >= TLS1_3_VERSION) {
+    if (!SSL_is_dtls(ssl) && SSL_version(ssl) >= TLS1_3_VERSION) {
         /*
-         * This callback is designed for use in TLSv1.2. It is possible to use
-         * a single callback for all protocol versions - but it is preferred to
-         * use a dedicated callback for TLSv1.3. For TLSv1.3 we have
-         * psk_find_session_cb.
+         * This callback is designed for use in (D)TLSv1.2 (or below). It is
+         * possible to use a single callback for all protocol versions - but it
+         * is preferred to use a dedicated callback for TLSv1.3. For TLSv1.3 we
+         * have psk_find_session_cb.
          */
         return 0;
     }

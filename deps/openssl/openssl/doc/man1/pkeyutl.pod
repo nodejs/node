@@ -246,6 +246,11 @@ B<PSS> block structure.
 For PSS and OAEP padding sets the MGF1 digest. If the MGF1 digest is not
 explicitly set in PSS mode then the signing digest is used.
 
+=item B<rsa_oaep_md:>I<digest>
+
+Sets the digest used for the OAEP hash function. If not explicitly set then
+SHA1 is used.
+
 =back
 
 =head1 RSA-PSS ALGORITHM
@@ -318,6 +323,11 @@ seed consisting of the single byte 0xFF:
 
  openssl pkeyutl -kdf TLS1-PRF -kdflen 48 -pkeyopt md:SHA256 \
     -pkeyopt hexsecret:ff -pkeyopt hexseed:ff -hexdump
+
+Decrypt some data using a private key with OAEP padding using SHA256:
+
+ openssl pkeyutl -decrypt -in file -inkey key.pem -out secret \
+    -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256
 
 =head1 SEE ALSO
 

@@ -37,8 +37,11 @@ L<SSL_SESSION_is_resumable(3)> for information on how to determine whether an
 SSL_SESSION object can be used for resumption or not.
 
 Additionally, in TLSv1.3, a server can send multiple messages that establish a
-session for a single connection. In that case the above functions will only
-return information on the last session that was received.
+session for a single connection. In that case, on the client side, the above
+functions will only return information on the last session that was received. On
+the server side they will only return information on the last session that was
+sent, or if no session tickets were sent then the session for the current
+connection.
 
 The preferred way for applications to obtain a resumable SSL_SESSION object is
 to use a new session callback as described in L<SSL_CTX_sess_set_new_cb(3)>.
@@ -100,7 +103,7 @@ L<SSL_SESSION_free(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
