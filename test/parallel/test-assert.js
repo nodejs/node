@@ -1372,11 +1372,34 @@ assert.throws(
 // Multiple assert.match() tests.
 {
   assert.throws(
-    () => assert.match(/abc/, 'string'),
+    () => assert.match(/abc/, 5),
     {
+      actual: 5,
+      expected: /abc/,
+      operator: 'match',
+      message: 'The "string" argument must be of type string. ' +
+               'Received type number (5)',
+      generatedMessage: true
+    }
+  );
+  assert.throws(
+    () => assert.match(5, 'string'),
+    {
+      name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "regexp" argument must be an instance of RegExp. ' +
-               "Received type string ('string')"
+               "Received type string ('string')",
+    }
+  );
+  assert.throws(
+    () => assert.match(/abc/, 'string'),
+    {
+      actual: 'string',
+      expected: /abc/,
+      operator: 'match',
+      message: 'The input did not match the regular expression /abc/. ' +
+               "Input:\n\n'string'\n",
+      generatedMessage: true
     }
   );
   assert.throws(
@@ -1422,8 +1445,31 @@ assert.throws(
 // Multiple assert.doesNotMatch() tests.
 {
   assert.throws(
-    () => assert.doesNotMatch(/abc/, 'string'),
+    () => assert.doesNotMatch(/string/, 5),
     {
+      actual: 5,
+      expected: /string/,
+      operator: 'doesNotMatch',
+      message: 'The "string" argument must be of type string. ' +
+               'Received type number (5)',
+      generatedMessage: true
+    }
+  );
+  assert.throws(
+    () => assert.doesNotMatch(/string/, 'string'),
+    {
+      actual: 'string',
+      expected: /string/,
+      operator: 'doesNotMatch',
+      message: 'The input was expected to not match the regular expression ' +
+               "/string/. Input:\n\n'string'\n",
+      generatedMessage: true
+    }
+  );
+  assert.throws(
+    () => assert.doesNotMatch(5, 'string'),
+    {
+      name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "regexp" argument must be an instance of RegExp. ' +
                "Received type string ('string')"

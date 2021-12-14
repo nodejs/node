@@ -900,11 +900,16 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 
 ## `assert.doesNotMatch(string, regexp[, message])`
 
+## `assert.doesNotMatch(regexp, string[, message])`
+
 <!-- YAML
 added:
   - v13.6.0
   - v12.16.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41007
+    description: The argument order may now be "regexp, string".
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/38111
     description: This API is no longer experimental.
@@ -1425,11 +1430,16 @@ let err;
 
 ## `assert.match(string, regexp[, message])`
 
+## `assert.match(regexp, string[, message])`
+
 <!-- YAML
 added:
   - v13.6.0
   - v12.16.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41007
+    description: The argument order may now be "regexp, string".
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/38111
     description: This API is no longer experimental.
