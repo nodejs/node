@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -182,8 +182,8 @@ static int dasync_ciphers(ENGINE *e, const EVP_CIPHER **cipher,
                                    const int **nids, int nid);
 
 static int dasync_cipher_nids[] = {
-    NID_aes_128_cbc,
     NID_aes_128_cbc_hmac_sha1,
+    NID_aes_128_cbc,
     0
 };
 
@@ -244,7 +244,8 @@ static int bind_dasync(ENGINE *e)
             || !EVP_CIPHER_meth_set_flags(_hidden_aes_128_cbc,
                                           EVP_CIPH_FLAG_DEFAULT_ASN1
                                           | EVP_CIPH_CBC_MODE
-                                          | EVP_CIPH_FLAG_PIPELINE)
+                                          | EVP_CIPH_FLAG_PIPELINE
+                                          | EVP_CIPH_CUSTOM_COPY)
             || !EVP_CIPHER_meth_set_init(_hidden_aes_128_cbc,
                                          dasync_aes128_init_key)
             || !EVP_CIPHER_meth_set_do_cipher(_hidden_aes_128_cbc,
@@ -264,12 +265,14 @@ static int bind_dasync(ENGINE *e)
                                                 16 /* block size */,
                                                 16 /* key len */);
     if (_hidden_aes_128_cbc_hmac_sha1 == NULL
+            || EVP_aes_128_cbc_hmac_sha1() == NULL
             || !EVP_CIPHER_meth_set_iv_length(_hidden_aes_128_cbc_hmac_sha1,16)
             || !EVP_CIPHER_meth_set_flags(_hidden_aes_128_cbc_hmac_sha1,
                                             EVP_CIPH_CBC_MODE
                                           | EVP_CIPH_FLAG_DEFAULT_ASN1
                                           | EVP_CIPH_FLAG_AEAD_CIPHER
-                                          | EVP_CIPH_FLAG_PIPELINE)
+                                          | EVP_CIPH_FLAG_PIPELINE
+                                          | EVP_CIPH_CUSTOM_COPY)
             || !EVP_CIPHER_meth_set_init(_hidden_aes_128_cbc_hmac_sha1,
                                          dasync_aes128_cbc_hmac_sha1_init_key)
             || !EVP_CIPHER_meth_set_do_cipher(_hidden_aes_128_cbc_hmac_sha1,
@@ -371,6 +374,10 @@ static int dasync_ciphers(ENGINE *e, const EVP_CIPHER **cipher,
     int ok = 1;
     if (cipher == NULL) {
         /* We are returning a list of supported nids */
+        if (dasync_aes_128_cbc_hmac_sha1() == NULL) {
+            *nids = dasync_cipher_nids + 1;
+            return 1;
+        }
         *nids = dasync_cipher_nids;
         return (sizeof(dasync_cipher_nids) -
                 1) / sizeof(dasync_cipher_nids[0]);
@@ -622,6 +629,21 @@ static int dasync_cipher_ctrl_helper(EVP_CIPHER_CTX *ctx, int type, int arg,
             } else {
                 return SHA_DIGEST_LENGTH;
             }
+        }
+
+        case EVP_CTRL_COPY:
+        {
+            const EVP_CIPHER *cipher = aeadcapable
+                                       ? EVP_aes_128_cbc_hmac_sha1()
+                                       : EVP_aes_128_cbc();
+            size_t data_size = EVP_CIPHER_impl_ctx_size(cipher);
+            void *cipher_data = OPENSSL_malloc(data_size);
+
+            if (cipher_data == NULL)
+                return 0;
+            memcpy(cipher_data, pipe_ctx->inner_cipher_data, data_size);
+            pipe_ctx->inner_cipher_data = cipher_data;
+            return 1;
         }
 
         default:

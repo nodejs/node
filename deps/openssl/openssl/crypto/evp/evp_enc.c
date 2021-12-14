@@ -85,7 +85,11 @@ int EVP_CipherInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
          * previous check attempted to avoid this if the same ENGINE and
          * EVP_CIPHER could be used).
          */
-        if (ctx->cipher) {
+        if (ctx->cipher
+#ifndef OPENSSL_NO_ENGINE
+                || ctx->engine
+#endif
+                || ctx->cipher_data) {
             unsigned long flags = ctx->flags;
             EVP_CIPHER_CTX_reset(ctx);
             /* Restore encrypt and flags */
@@ -105,11 +109,7 @@ int EVP_CipherInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
             /* There's an ENGINE for this job ... (apparently) */
             const EVP_CIPHER *c = ENGINE_get_cipher(impl, cipher->nid);
             if (!c) {
-                /*
-                 * One positive side-effect of US's export control history,
-                 * is that we should at least be able to avoid using US
-                 * misspellings of "initialisation"?
-                 */
+                ENGINE_finish(impl);
                 EVPerr(EVP_F_EVP_CIPHERINIT_EX, EVP_R_INITIALIZATION_ERROR);
                 return 0;
             }

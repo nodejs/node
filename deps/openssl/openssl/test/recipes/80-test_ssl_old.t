@@ -519,7 +519,7 @@ sub testssl {
 	    skip "skipping auto PSK tests", 1
 	        if ($no_dh || $no_psk || $no_ec);
 
-	    ok(run(test(['ssltest_old', '-psk', '0102030405', '-cipher', '@SECLEVEL=2:DHE-PSK-AES128-CCM'])),
+	    ok(run(test(['ssltest_old', '-dhe2048', '-psk', '0102030405', '-cipher', '@SECLEVEL=2:DHE-PSK-AES128-CCM'])),
 	       'test auto DH meets security strength');
 	  }
 	}

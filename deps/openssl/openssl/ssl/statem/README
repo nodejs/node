@@ -55,7 +55,7 @@ Conceptually the state machine component is designed as follows:
                |       |                   |      |
    ____________V_______V________   ________V______V_______________
   |                             | |                               |
-  | statem_both.c               | | statem_dtls.c                 |
+  | statem_lib.c                | | statem_dtls.c                 |
   |                             | |                               |
   | Non core functions common   | | Non core functions common to  |
   | to both servers and clients | | both DTLS servers and clients |

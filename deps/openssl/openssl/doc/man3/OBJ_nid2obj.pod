@@ -46,26 +46,26 @@ Deprecated:
 The ASN1 object utility functions process ASN1_OBJECT structures which are
 a representation of the ASN1 OBJECT IDENTIFIER (OID) type.
 For convenience, OIDs are usually represented in source code as numeric
-identifiers, or B<NID>s.  OpenSSL has an internal table of OIDs that
+identifiers, or I<NID>s.  OpenSSL has an internal table of OIDs that
 are generated when the library is built, and their corresponding NIDs
 are available as defined constants.  For the functions below, application
 code should treat all returned values -- OIDs, NIDs, or names -- as
 constants.
 
-OBJ_nid2obj(), OBJ_nid2ln() and OBJ_nid2sn() convert the NID B<n> to
+OBJ_nid2obj(), OBJ_nid2ln() and OBJ_nid2sn() convert the NID I<n> to
 an ASN1_OBJECT structure, its long name and its short name respectively,
 or B<NULL> if an error occurred.
 
 OBJ_obj2nid(), OBJ_ln2nid(), OBJ_sn2nid() return the corresponding NID
-for the object B<o>, the long name <ln> or the short name <sn> respectively
+for the object I<o>, the long name <ln> or the short name <sn> respectively
 or NID_undef if an error occurred.
 
-OBJ_txt2nid() returns NID corresponding to text string <s>. B<s> can be
+OBJ_txt2nid() returns NID corresponding to text string I<s>. I<s> can be
 a long name, a short name or the numerical representation of an object.
 
-OBJ_txt2obj() converts the text string B<s> into an ASN1_OBJECT structure.
-If B<no_name> is 0 then long names and short names will be interpreted
-as well as numerical forms. If B<no_name> is 1 only the numerical form
+OBJ_txt2obj() converts the text string I<s> into an ASN1_OBJECT structure.
+If I<no_name> is 0 then long names and short names will be interpreted
+as well as numerical forms. If I<no_name> is 1 only the numerical form
 is acceptable.
 
 OBJ_obj2txt() converts the B<ASN1_OBJECT> B<a> into a textual representation.
@@ -76,20 +76,20 @@ if the object has a long or short name then that will be used, otherwise
 the numerical form will be used. If B<no_name> is 1 then the numerical
 form will always be used.
 
-i2t_ASN1_OBJECT() is the same as OBJ_obj2txt() with the B<no_name> set to zero.
+i2t_ASN1_OBJECT() is the same as OBJ_obj2txt() with the I<no_name> set to zero.
 
-OBJ_cmp() compares B<a> to B<b>. If the two are identical 0 is returned.
+OBJ_cmp() compares I<a> to I<b>. If the two are identical 0 is returned.
 
-OBJ_dup() returns a copy of B<o>.
+OBJ_dup() returns a copy of I<o>.
 
-OBJ_create() adds a new object to the internal table. B<oid> is the
-numerical form of the object, B<sn> the short name and B<ln> the
+OBJ_create() adds a new object to the internal table. I<oid> is the
+numerical form of the object, I<sn> the short name and I<ln> the
 long name. A new NID is returned for the created object in case of
 success and NID_undef in case of failure.
 
-OBJ_length() returns the size of the content octets of B<obj>.
+OBJ_length() returns the size of the content octets of I<obj>.
 
-OBJ_get0_data() returns a pointer to the content octets of B<obj>.
+OBJ_get0_data() returns a pointer to the content octets of I<obj>.
 The returned pointer is an internal pointer which B<must not> be freed.
 
 OBJ_cleanup() releases any resources allocated by creating new objects.
@@ -181,7 +181,7 @@ and should not be used.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

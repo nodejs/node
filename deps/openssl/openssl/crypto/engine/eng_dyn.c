@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -477,7 +477,9 @@ static int dynamic_load(ENGINE *e, dynamic_data_ctx *ctx)
     engine_set_all_null(e);
 
     /* Try to bind the ENGINE onto our own ENGINE structure */
-    if (!ctx->bind_engine(e, ctx->engine_id, &fns)) {
+    if (!engine_add_dynamic_id(e, (ENGINE_DYNAMIC_ID)ctx->bind_engine, 1)
+            || !ctx->bind_engine(e, ctx->engine_id, &fns)) {
+        engine_remove_dynamic_id(e, 1);
         ctx->bind_engine = NULL;
         ctx->v_check = NULL;
         DSO_free(ctx->dynamic_dso);

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -217,8 +217,8 @@ static int x509_name_ex_i2d(ASN1_VALUE **val, unsigned char **out,
         if (ret < 0)
             return ret;
         ret = x509_name_canon(a);
-        if (ret < 0)
-            return ret;
+        if (!ret)
+            return -1;
     }
     ret = a->bytes->length;
     if (out != NULL) {

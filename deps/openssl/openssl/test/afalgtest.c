@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -21,26 +21,7 @@
 
 #ifndef OPENSSL_NO_ENGINE
 static ENGINE *e;
-#endif
 
-
-#ifndef OPENSSL_NO_AFALGENG
-# include <linux/version.h>
-# define K_MAJ   4
-# define K_MIN1  1
-# define K_MIN2  0
-# if LINUX_VERSION_CODE < KERNEL_VERSION(K_MAJ, K_MIN1, K_MIN2)
-/*
- * If we get here then it looks like there is a mismatch between the linux
- * headers and the actual kernel version, so we have tried to compile with
- * afalg support, but then skipped it in e_afalg.c. As far as this test is
- * concerned we behave as if we had been configured without support
- */
-#  define OPENSSL_NO_AFALGENG
-# endif
-#endif
-
-#ifndef OPENSSL_NO_AFALGENG
 static int test_afalg_aes_cbc(int keysize_idx)
 {
     EVP_CIPHER_CTX *ctx;
@@ -112,9 +93,25 @@ static int test_afalg_aes_cbc(int keysize_idx)
     EVP_CIPHER_CTX_free(ctx);
     return ret;
 }
-#endif
 
-#ifndef OPENSSL_NO_ENGINE
+static int test_pr16743(void)
+{
+    int ret = 0;
+    const EVP_CIPHER * cipher;
+    EVP_CIPHER_CTX *ctx;
+
+    if (!TEST_true(ENGINE_init(e)))
+        return 0;
+    cipher = ENGINE_get_cipher(e, NID_aes_128_cbc);
+    ctx = EVP_CIPHER_CTX_new();
+    if (cipher != NULL && ctx != NULL)
+        ret = EVP_EncryptInit_ex(ctx, cipher, e, NULL, NULL);
+    TEST_true(ret);
+    EVP_CIPHER_CTX_free(ctx);
+    ENGINE_finish(e);
+    return ret;
+}
+
 int global_init(void)
 {
     ENGINE_load_builtin_engines();
@@ -132,9 +129,8 @@ int setup_tests(void)
         /* Probably a platform env issue, not a test failure. */
         TEST_info("Can't load AFALG engine");
     } else {
-# ifndef OPENSSL_NO_AFALGENG
         ADD_ALL_TESTS(test_afalg_aes_cbc, 3);
-# endif
+        ADD_TEST(test_pr16743);
     }
 #endif
 

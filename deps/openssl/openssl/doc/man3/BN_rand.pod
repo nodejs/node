@@ -38,7 +38,7 @@ the number will be set to 1, so that the product of two such random
 numbers will always have 2*B<bits> length.
 If B<bottom> is B<BN_RAND_BOTTOM_ODD>, the number will be odd; if it
 is B<BN_RAND_BOTTOM_ANY> it can be odd or even.
-If B<bits> is 1 then B<top> cannot also be B<BN_RAND_FLG_TOPTWO>.
+If B<bits> is 1 then B<top> cannot also be B<BN_RAND_TOP_TWO>.
 
 BN_rand_range() generates a cryptographically strong pseudo-random
 number B<rnd> in the range 0 E<lt>= B<rnd> E<lt> B<range>.
@@ -89,7 +89,7 @@ BN_priv_rand() and BN_priv_rand_range() functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
