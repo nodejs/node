@@ -433,7 +433,7 @@ cert_ext_has_n_different_lines($cert, 0, $SKID_AKID); # no SKID and no AKID
 
 $cert = "self-signed_v3_CA_both_KIDs.pem";
 generate_cert($cert, @v3_ca, "-addext", "subjectKeyIdentifier = hash",
-            "-addext", "authorityKeyIdentifier = keyid");
+            "-addext", "authorityKeyIdentifier = keyid:always");
 cert_ext_has_n_different_lines($cert, 3, $SKID_AKID); # SKID == AKID
 strict_verify($cert, 1);
 

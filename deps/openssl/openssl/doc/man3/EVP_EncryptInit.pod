@@ -229,15 +229,15 @@ EVP_CIPHER_CTX_mode
  #define EVP_CIPHER_CTX_type EVP_CIPHER_CTX_get_type
  #define EVP_CIPHER_CTX_mode EVP_CIPHER_CTX_get_mode
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following function has been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  const EVP_CIPHER *EVP_CIPHER_CTX_cipher(const EVP_CIPHER_CTX *ctx);
 
-Deprecated since OpenSSL 1.1.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following function has been deprecated since OpenSSL 1.1.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  int EVP_CIPHER_CTX_flags(const EVP_CIPHER_CTX *ctx);
 
@@ -444,13 +444,30 @@ EVP_CipherFinal_ex() instead.
 
 =item EVP_get_cipherbyname(), EVP_get_cipherbynid() and EVP_get_cipherbyobj()
 
-Return an EVP_CIPHER structure when passed a cipher name, a NID or an
-ASN1_OBJECT structure.
+Returns an B<EVP_CIPHER> structure when passed a cipher name, a cipher B<NID> or
+an B<ASN1_OBJECT> structure respectively.
 
 EVP_get_cipherbyname() will return NULL for algorithms such as "AES-128-SIV",
 "AES-128-CBC-CTS" and "CAMELLIA-128-CBC-CTS" which were previously only
-accessible via low level interfaces. Use EVP_CIPHER_fetch() instead to retrieve
-these algorithms from a provider.
+accessible via low level interfaces.
+
+The EVP_get_cipherbyname() function is present for backwards compatibility with
+OpenSSL prior to version 3 and is different to the EVP_CIPHER_fetch() function
+since it does not attempt to "fetch" an implementation of the cipher.
+Additionally, it only knows about ciphers that are built-in to OpenSSL and have
+an associated NID. Similarly EVP_get_cipherbynid() and EVP_get_cipherbyobj()
+also return objects without an associated implementation.
+
+When the cipher objects returned by these functions are used (such as in a call
+to EVP_EncryptInit_ex()) an implementation of the cipher will be implicitly
+fetched from the loaded providers. This fetch could fail if no suitable
+implementation is available. Use EVP_CIPHER_fetch() instead to explicitly fetch
+the algorithm and an associated implementation from a provider.
+
+See L<crypto(7)/ALGORITHM FETCHING> for more information about fetching.
+
+The cipher objects returned from these functions do not need to be freed with
+EVP_CIPHER_free().
 
 =item EVP_CIPHER_get_nid() and EVP_CIPHER_CTX_get_nid()
 
@@ -1283,18 +1300,20 @@ B<EVP_CTRL_AEAD_SET_TAG>.
 
 =item EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, taglen, tag)
 
-Sets the expected tag to C<taglen> bytes from C<tag>.
-The tag length can only be set before specifying an IV.
+When decrypting, this call sets the expected tag to C<taglen> bytes from C<tag>.
 C<taglen> must be between 1 and 16 inclusive.
+The tag must be set prior to any call to EVP_DecryptFinal() or
+EVP_DecryptFinal_ex().
 
 For GCM, this call is only valid when decrypting data.
 
 For OCB, this call is valid when decrypting data to set the expected tag,
-and before encryption to set the desired tag length.
+and when encrypting to set the desired tag length.
 
-In OCB mode, calling this before encryption with C<tag> set to C<NULL> sets the
-tag length.  If this is not called prior to encryption, a default tag length is
-used.
+In OCB mode, calling this when encrypting with C<tag> set to C<NULL> sets the
+tag length. The tag length can only be set before specifying an IV. If this is
+not called prior to setting the IV during encryption, then a default tag length
+is used.
 
 For OCB AES, the default tag length is 16 (i.e. 128 bits).  It is also the
 maximum tag length for OCB.
@@ -1330,7 +1349,7 @@ Sets the CCM B<L> value. If not set a default is used (8 for AES).
 
 =item EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, ivlen, NULL)
 
-Sets the CCM nonce (IV) length. This call can only be made before specifying a 
+Sets the CCM nonce (IV) length. This call can only be made before specifying a
 nonce value. The nonce length is given by B<15 - L> so it is 7 by default for
 AES.
 

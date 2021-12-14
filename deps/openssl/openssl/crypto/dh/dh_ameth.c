@@ -311,7 +311,7 @@ static int dh_security_bits(const EVP_PKEY *pkey)
 
 static int dh_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b)
 {
-    return ossl_ffc_params_cmp(&a->pkey.dh->params, &a->pkey.dh->params,
+    return ossl_ffc_params_cmp(&a->pkey.dh->params, &b->pkey.dh->params,
                                a->ameth != &ossl_dhx_asn1_meth);
 }
 

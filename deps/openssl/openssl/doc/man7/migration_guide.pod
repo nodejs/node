@@ -119,7 +119,22 @@ bypass provider selection and configuration, with unintended consequences.
 This is particularly relevant for applications written to use the OpenSSL 3.0
 FIPS module, as detailed below. Authors and maintainers of external engines are
 strongly encouraged to refactor their code transforming engines into providers
-using the new Provider API and avoiding deprecated methods. 
+using the new Provider API and avoiding deprecated methods.
+
+=head3 Support of legacy engines
+
+If openssl is not built without engine support or deprecated API support, engines
+will still work. However, their applicability will be limited.
+
+New algorithms provided via engines will still work.
+
+Engine-backed keys can be loaded via custom B<OSSL_STORE> implementation.
+In this case the B<EVP_PKEY> objects created via L<ENGINE_load_private_key(3)>
+will be concidered legacy and will continue to work.
+
+To ensure the future compatibility, the engines should be turned to providers.
+To prefer the provider-based hardware offload, you can specify the default
+properties to prefer your provider.
 
 =head3 Versioning Scheme
 
@@ -133,7 +148,7 @@ at the end of the release version number. This will no longer be used and
 instead the patch level is indicated by the final number in the version. A
 change in the second (MINOR) number indicates that new features may have been
 added. OpenSSL versions with the same major number are API and ABI compatible.
-If the major number changes then API and ABI compatibility is not guaranteed. 
+If the major number changes then API and ABI compatibility is not guaranteed.
 
 For more information, see L<OpenSSL_version(3)>.
 
@@ -409,7 +424,7 @@ enable them to be "freed". However they should also be treated as read-only.
 
 This may mean result in an error in L<EVP_PKEY_derive_set_peer(3)> rather than
 during L<EVP_PKEY_derive(3)>.
-To disable this check use EVP_PKEY_derive_set_peer_ex(dh, peer, 0). 
+To disable this check use EVP_PKEY_derive_set_peer_ex(dh, peer, 0).
 
 =head4 The print format has cosmetic changes for some functions
 
@@ -451,6 +466,11 @@ For example when setting an unsupported curve with
 EVP_PKEY_CTX_set_ec_paramgen_curve_nid() this function call will not fail
 but later keygen operations with the EVP_PKEY_CTX will fail.
 
+=head4 Removal of function code from the error codes
+
+The function code part of the error code is now always set to 0. For that
+reason the ERR_GET_FUNC() macro was removed. Applications must resolve
+the error codes only using the library number and the reason code.
 
 =head2 Installation and Compilation
 
@@ -541,14 +561,14 @@ The code needs to be amended to look like this:
 
 Support for TLSv1.3 has been added.
 
-This has a number of implications for SSL/TLS applications. See the 
+This has a number of implications for SSL/TLS applications. See the
 L<TLS1.3 page|https://wiki.openssl.org/index.php/TLS1.3> for further details.
 
 =back
 
 More details about the breaking changes between OpenSSL versions 1.0.2 and 1.1.0
 can be found on the
-L<OpenSSL 1.1.0 Changes page|https://wiki.openssl.org/index.php/OpenSSL_1.1.0_Changes>. 
+L<OpenSSL 1.1.0 Changes page|https://wiki.openssl.org/index.php/OpenSSL_1.1.0_Changes>.
 
 =head3 Upgrading from the OpenSSL 2.0 FIPS Object Module
 
@@ -985,7 +1005,7 @@ APIs, or alternatively use L<EVP_PKEY_fromdata(3)> or L<EVP_PKEY_todata(3)>.
 Functions that access low-level objects directly such as L<RSA_get0_n(3)> are now
 deprecated. Applications should use one of L<EVP_PKEY_get_bn_param(3)>,
 L<EVP_PKEY_get_int_param(3)>, l<EVP_PKEY_get_size_t_param(3)>,
-L<EVP_PKEY_get_utf8_string_param(3)>, L<EVP_PKEY_get_octet_string_param(3)> or 
+L<EVP_PKEY_get_utf8_string_param(3)>, L<EVP_PKEY_get_octet_string_param(3)> or
 L<EVP_PKEY_get_params(3)> to access fields from an EVP_PKEY.
 Gettable parameters are listed in L<EVP_PKEY-RSA(7)/Common RSA parameters>,
 L<EVP_PKEY-DH(7)/DH parameters>, L<EVP_PKEY-DSA(7)/DSA parameters>,
@@ -1115,7 +1135,7 @@ Bi-directional IGE mode. These modes were never formally standardised and
 usage of these functions is believed to be very small. In particular
 AES_bi_ige_encrypt() has a known bug. It accepts 2 AES keys, but only one
 is ever used. The security implications are believed to be minimal, but
-this issue was never fixed for backwards compatibility reasons. 
+this issue was never fixed for backwards compatibility reasons.
 
 =item *
 
@@ -1265,7 +1285,7 @@ DES_decrypt3(), DES_ede3_cbc_encrypt(), DES_ede3_cfb64_encrypt(),
 DES_ede3_cfb_encrypt(),DES_ede3_ofb64_encrypt(),
 DES_ecb_encrypt(), DES_ecb3_encrypt(), DES_ofb64_encrypt(), DES_ofb_encrypt(),
 DES_cfb64_encrypt DES_cfb_encrypt(), DES_cbc_encrypt(), DES_ncbc_encrypt(),
-DES_pcbc_encrypt(), DES_xcbc_encrypt(), DES_cbc_cksum(), DES_quad_cksum(), 
+DES_pcbc_encrypt(), DES_xcbc_encrypt(), DES_cbc_cksum(), DES_quad_cksum(),
 DES_check_key_parity(), DES_is_weak_key(), DES_key_sched(), DES_options(),
 DES_random_key(), DES_set_key(), DES_set_key_checked(), DES_set_key_unchecked(),
 DES_set_odd_parity(), DES_string_to_2keys(), DES_string_to_key()
@@ -1513,7 +1533,7 @@ EC_KEY_set_flags(), EC_KEY_get_flags(), EC_KEY_clear_flags()
 See L<EVP_PKEY-EC(7)/Common EC parameters> which handles flags as seperate
 parameters for B<OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT>,
 B<OSSL_PKEY_PARAM_EC_GROUP_CHECK_TYPE>, B<OSSL_PKEY_PARAM_EC_ENCODING>,
-B<OSSL_PKEY_PARAM_USE_COFACTOR_ECDH> and 
+B<OSSL_PKEY_PARAM_USE_COFACTOR_ECDH> and
 B<OSSL_PKEY_PARAM_EC_INCLUDE_PUBLIC>.
 See also L<EVP_PKEY-EC(7)/EXAMPLES>
 
@@ -1715,7 +1735,7 @@ See L<EVP_PKEY_copy_parameters(3)> for further details.
 
 =item *
 
-EVP_PKEY_encrypt_old(), EVP_PKEY_decrypt_old(), 
+EVP_PKEY_encrypt_old(), EVP_PKEY_decrypt_old(),
 
 Applications should use L<EVP_PKEY_encrypt_init(3)> and L<EVP_PKEY_encrypt(3)> or
 L<EVP_PKEY_decrypt_init(3)> and L<EVP_PKEY_decrypt(3)> instead.
@@ -1795,7 +1815,7 @@ See L</Deprecated low-level MAC functions>.
 i2d_DHparams(), i2d_DHxparams()
 
 See L</Deprecated low-level key reading and writing functions>
-and L<d2i_RSAPrivateKey(3)/Migration> 
+and L<d2i_RSAPrivateKey(3)/Migration>
 
 =item *
 
@@ -1804,7 +1824,7 @@ i2d_DSAPrivateKey_fp(), i2d_DSA_PUBKEY(), i2d_DSA_PUBKEY_bio(),
 i2d_DSA_PUBKEY_fp(), i2d_DSAPublicKey()
 
 See L</Deprecated low-level key reading and writing functions>
-and L<d2i_RSAPrivateKey(3)/Migration> 
+and L<d2i_RSAPrivateKey(3)/Migration>
 
 =item *
 
@@ -1813,7 +1833,7 @@ i2d_ECPrivateKey_fp(), i2d_EC_PUBKEY(), i2d_EC_PUBKEY_bio(),
 i2d_EC_PUBKEY_fp(), i2o_ECPublicKey()
 
 See L</Deprecated low-level key reading and writing functions>
-and L<d2i_RSAPrivateKey(3)/Migration> 
+and L<d2i_RSAPrivateKey(3)/Migration>
 
 =item *
 
@@ -1822,7 +1842,7 @@ i2d_RSA_PUBKEY(), i2d_RSA_PUBKEY_bio(), i2d_RSA_PUBKEY_fp(),
 i2d_RSAPublicKey(), i2d_RSAPublicKey_bio(), i2d_RSAPublicKey_fp()
 
 See L</Deprecated low-level key reading and writing functions>
-and L<d2i_RSAPrivateKey(3)/Migration> 
+and L<d2i_RSAPrivateKey(3)/Migration>
 
 =item *
 
@@ -2201,7 +2221,7 @@ B<-provider_path> and B<-provider> are available to all apps and can be used
 multiple times to load any providers, such as the 'legacy' provider or third
 party providers. If used then the 'default' provider would also need to be
 specified if required. The B<-provider_path> must be specified before the
-B<-provider> option. 
+B<-provider> option.
 
 The B<list> app has many new options. See L<openssl-list(1)> for more
 information.

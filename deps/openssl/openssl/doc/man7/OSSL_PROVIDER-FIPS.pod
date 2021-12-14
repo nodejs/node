@@ -6,7 +6,7 @@ OSSL_PROVIDER-FIPS - OpenSSL FIPS provider
 
 =head1 DESCRIPTION
 
-The OpenSSL FIPS provider is a special provider that conforms to the Federal 
+The OpenSSL FIPS provider is a special provider that conforms to the Federal
 Information Processing Standards (FIPS) specified in FIPS 140-2. This 'module'
 contains an approved set of cryptographic algorithms that is validated by an
 accredited testing laboratory.
@@ -214,7 +214,7 @@ Known answer test for a digest.
 
 Known answer test for a signature.
 
-=item "PCT_Signature" (B<OSSL_SELF_TEST_TYPE_PCT_SIGNATURE>)      
+=item "PCT_Signature" (B<OSSL_SELF_TEST_TYPE_PCT_SIGNATURE>)
 
 Pairwise Consistency check for a signature.
 

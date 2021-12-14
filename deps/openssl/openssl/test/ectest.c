@@ -2919,11 +2919,11 @@ static int custom_params_test(int id)
     /* create two new provider-native `EVP_PKEY`s */
     EVP_PKEY_CTX_free(pctx2);
     if (!TEST_ptr(pctx2 = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL))
-            || !TEST_true(EVP_PKEY_fromdata_init(pctx2))
-            || !TEST_true(EVP_PKEY_fromdata(pctx2, &pkey1, EVP_PKEY_KEYPAIR,
-                                            params1))
-            || !TEST_true(EVP_PKEY_fromdata(pctx2, &pkey2, EVP_PKEY_PUBLIC_KEY,
-                                            params2)))
+            || !TEST_int_eq(EVP_PKEY_fromdata_init(pctx2), 1)
+            || !TEST_int_eq(EVP_PKEY_fromdata(pctx2, &pkey1, EVP_PKEY_KEYPAIR,
+                                              params1), 1)
+            || !TEST_int_eq(EVP_PKEY_fromdata(pctx2, &pkey2, EVP_PKEY_PUBLIC_KEY,
+                                              params2), 1))
         goto err;
 
     /* compute keyexchange once more using the provider keys */
@@ -2966,6 +2966,47 @@ static int custom_params_test(int id)
     return ret;
 }
 
+static int ec_d2i_publickey_test(void)
+{
+   unsigned char buf[1000];
+   unsigned char *pubkey_enc = buf;
+   const unsigned char *pk_enc = pubkey_enc;
+   EVP_PKEY *gen_key = NULL, *decoded_key = NULL;
+   EVP_PKEY_CTX *pctx = NULL;
+   int pklen, ret = 0;
+   OSSL_PARAM params[2];
+
+   if (!TEST_ptr(gen_key = EVP_EC_gen("P-256")))
+       goto err;
+
+   if (!TEST_int_gt(pklen = i2d_PublicKey(gen_key, &pubkey_enc), 0))
+       goto err;
+
+   params[0] = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
+                                                "P-256", 0);
+   params[1] = OSSL_PARAM_construct_end();
+
+   if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL))
+       || !TEST_true(EVP_PKEY_fromdata_init(pctx))
+       || !TEST_true(EVP_PKEY_fromdata(pctx, &decoded_key,
+                                       OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS,
+                                       params))
+       || !TEST_ptr(decoded_key)
+       || !TEST_ptr(decoded_key = d2i_PublicKey(EVP_PKEY_EC, &decoded_key,
+                                                &pk_enc, pklen)))
+       goto err;
+
+   if (!TEST_true(EVP_PKEY_eq(gen_key, decoded_key)))
+       goto err;
+   ret = 1;
+
+ err:
+   EVP_PKEY_CTX_free(pctx);
+   EVP_PKEY_free(gen_key);
+   EVP_PKEY_free(decoded_key);
+   return ret;
+}
+
 int setup_tests(void)
 {
     crv_len = EC_get_builtin_curves(NULL, 0);
@@ -2993,6 +3034,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(ec_point_hex2point_test, crv_len);
     ADD_ALL_TESTS(custom_generator_test, crv_len);
     ADD_ALL_TESTS(custom_params_test, crv_len);
+    ADD_TEST(ec_d2i_publickey_test);
     return 1;
 }
 

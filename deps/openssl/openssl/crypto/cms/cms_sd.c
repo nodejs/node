@@ -784,8 +784,8 @@ int CMS_SignerInfo_sign(CMS_SignerInfo *si)
     const CMS_CTX *ctx = si->cms_ctx;
     char md_name[OSSL_MAX_NAME_SIZE];
 
-    if (!OBJ_obj2txt(md_name, sizeof(md_name),
-                     si->digestAlgorithm->algorithm, 0))
+    if (OBJ_obj2txt(md_name, sizeof(md_name),
+                     si->digestAlgorithm->algorithm, 0) <= 0)
         return 0;
 
     if (CMS_signed_get_attr_by_NID(si, NID_pkcs9_signingTime, -1) < 0) {

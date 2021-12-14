@@ -48,10 +48,10 @@ Certificate enrollment and revocation options:
 Message transfer options:
 
 [B<-server> I<[http[s]://][userinfo@]host[:port][/path][?query][#fragment]>]
-[B<-path> I<remote_path>]
 [B<-proxy> I<[http[s]://][userinfo@]host[:port][/path][?query][#fragment]>]
 [B<-no_proxy> I<addresses>]
 [B<-recipient> I<name>]
+[B<-path> I<remote_path>]
 [B<-keep_alive> I<value>]
 [B<-msg_timeout> I<seconds>]
 [B<-total_timeout> I<seconds>]
@@ -448,11 +448,6 @@ The optional userinfo and fragment components are ignored.
 Any given query component is handled as part of the path component.
 If a path is included it provides the default value for the B<-path> option.
 
-=item B<-path> I<remote_path>
-
-HTTP path at the CMP server (aka CMP alias) to use for POST requests.
-Defaults to any path given with B<-server>, else C<"/">.
-
 =item B<-proxy> I<[http[s]://][userinfo@]host[:port][/path][?query][#fragment]>
 
 The HTTP(S) proxy server to use for reaching the CMP server unless B<-no_proxy>
@@ -486,6 +481,11 @@ as far as any of those is present, else the NULL-DN as last resort.
 
 The argument must be formatted as I</type0=value0/type1=value1/type2=...>.
 For details see the description of the B<-subject> option.
+
+=item B<-path> I<remote_path>
+
+HTTP path at the CMP server (aka CMP alias) to use for POST requests.
+Defaults to any path given with B<-server>, else C<"/">.
 
 =item B<-keep_alive> I<value>
 
@@ -835,7 +835,7 @@ have no effect on the certificate verification enabled via this option.
 
 =item B<-tls_host> I<name>
 
-Address to be checked during hostname validation. 
+Address to be checked during hostname validation.
 This may be a DNS name or an IP address.
 If not given it defaults to the B<-server> address.
 

@@ -188,7 +188,7 @@ static int demo_verify(OSSL_LIB_CTX *libctx, const char *sig_name,
         fprintf(stderr, "EVP_DigestVerifyUpdate(hamlet_2) failed.\n");
         goto cleanup;
     }
-    if (!EVP_DigestVerifyFinal(verify_context, sig_value, sig_len)) {
+    if (EVP_DigestVerifyFinal(verify_context, sig_value, sig_len) <= 0) {
         fprintf(stderr, "EVP_DigestVerifyFinal failed.\n");
         goto cleanup;
     }

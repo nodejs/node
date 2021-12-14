@@ -215,7 +215,7 @@ The following skeleton code can be used as a starting point:
              * bottom.  You get the CA root first, followed by the
              * possible chain of intermediate CAs, followed by the EE
              * certificate, followed by the possible proxy
-             * certificates. 
+             * certificates.
              */
             X509 *xs = X509_STORE_CTX_get_current_cert(ctx);
 
@@ -234,7 +234,7 @@ The following skeleton code can be used as a starting point:
                      * by pulling them from some database.  If there
                      * are none to be found, clear all rights (making
                      * this and any subsequent proxy certificate void
-                     * of any rights). 
+                     * of any rights).
                      */
                     memset(rights->rights, 0, sizeof(rights->rights));
                     break;
@@ -351,7 +351,7 @@ L<RFC 3820|https://tools.ietf.org/html/rfc3820>
 
 =head1 COPYRIGHT
 
-Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

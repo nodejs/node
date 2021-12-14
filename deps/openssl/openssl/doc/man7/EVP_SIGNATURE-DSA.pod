@@ -14,7 +14,7 @@ See L<EVP_PKEY-DSA(7)> for information related to DSA keys.
 
 The following signature parameters can be set using EVP_PKEY_CTX_set_params().
 This may be called after EVP_PKEY_sign_init() or EVP_PKEY_verify_init(),
-and before calling EVP_PKEY_sign() or EVP_PKEY_verify(). 
+and before calling EVP_PKEY_sign() or EVP_PKEY_verify().
 
 =over 4
 
@@ -48,7 +48,7 @@ L<provider-signature(7)>,
 
 =head1 COPYRIGHT
 
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

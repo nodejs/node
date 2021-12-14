@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,20 +10,10 @@
 #include "dso_local.h"
 #include "internal/refcount.h"
 
-static DSO_METHOD *default_DSO_meth = NULL;
-
 static DSO *DSO_new_method(DSO_METHOD *meth)
 {
     DSO *ret;
 
-    if (default_DSO_meth == NULL) {
-        /*
-         * We default to DSO_METH_openssl() which in turn defaults to
-         * stealing the "best available" method. Will fallback to
-         * DSO_METH_null() in the worst case.
-         */
-        default_DSO_meth = DSO_METHOD_openssl();
-    }
     ret = OPENSSL_zalloc(sizeof(*ret));
     if (ret == NULL) {
         ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
@@ -36,7 +26,7 @@ static DSO *DSO_new_method(DSO_METHOD *meth)
         OPENSSL_free(ret);
         return NULL;
     }
-    ret->meth = default_DSO_meth;
+    ret->meth = DSO_METHOD_openssl();
     ret->references = 1;
     ret->lock = CRYPTO_THREAD_lock_new();
     if (ret->lock == NULL) {
@@ -309,9 +299,8 @@ char *DSO_convert_filename(DSO *dso, const char *filename)
 
 int DSO_pathbyaddr(void *addr, char *path, int sz)
 {
-    DSO_METHOD *meth = default_DSO_meth;
-    if (meth == NULL)
-        meth = DSO_METHOD_openssl();
+    DSO_METHOD *meth = DSO_METHOD_openssl();
+
     if (meth->pathbyaddr == NULL) {
         ERR_raise(ERR_LIB_DSO, DSO_R_UNSUPPORTED);
         return -1;
@@ -339,9 +328,8 @@ DSO *DSO_dsobyaddr(void *addr, int flags)
 
 void *DSO_global_lookup(const char *name)
 {
-    DSO_METHOD *meth = default_DSO_meth;
-    if (meth == NULL)
-        meth = DSO_METHOD_openssl();
+    DSO_METHOD *meth = DSO_METHOD_openssl();
+
     if (meth->globallookup == NULL) {
         ERR_raise(ERR_LIB_DSO, DSO_R_UNSUPPORTED);
         return NULL;

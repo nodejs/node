@@ -42,11 +42,6 @@ provider-base
   */
  void *CRYPTO_malloc(size_t num, const char *file, int line);
  void *CRYPTO_zalloc(size_t num, const char *file, int line);
- void *CRYPTO_memdup(const void *str, size_t siz,
-                     const char *file, int line);
- char *CRYPTO_strdup(const char *str, const char *file, int line);
- char *CRYPTO_strndup(const char *str, size_t s,
-                      const char *file, int line);
  void CRYPTO_free(void *ptr, const char *file, int line);
  void CRYPTO_clear_free(void *ptr, size_t num,
                         const char *file, int line);
@@ -153,9 +148,6 @@ provider):
  core_obj_create                OSSL_FUNC_CORE_OBJ_CREATE
  CRYPTO_malloc                  OSSL_FUNC_CRYPTO_MALLOC
  CRYPTO_zalloc                  OSSL_FUNC_CRYPTO_ZALLOC
- CRYPTO_memdup                  OSSL_FUNC_CRYPTO_MEMDUP
- CRYPTO_strdup                  OSSL_FUNC_CRYPTO_STRDUP
- CRYPTO_strndup                 OSSL_FUNC_CRYPTO_STRNDUP
  CRYPTO_free                    OSSL_FUNC_CRYPTO_FREE
  CRYPTO_clear_free              OSSL_FUNC_CRYPTO_CLEAR_FREE
  CRYPTO_realloc                 OSSL_FUNC_CRYPTO_REALLOC
@@ -220,10 +212,14 @@ the thread that is stopping and gets passed the provider context as an
 argument. This may be useful to perform thread specific clean up such as
 freeing thread local variables.
 
-core_get_libctx() retrieves the library context in which the library
+core_get_libctx() retrieves the core context in which the library
 object for the current provider is stored, accessible through the I<handle>.
-This may sometimes be useful if the provider wishes to store a
-reference to its context in the same library context.
+This function is useful only for built-in providers such as the default
+provider. Never cast this to OSSL_LIB_CTX in a provider that is not
+built-in as the OSSL_LIB_CTX of the library loading the provider might be
+a completely different structure than the OSSL_LIB_CTX of the library the
+provider is linked to. Use  L<OSSL_LIB_CTX_new_child(3)> instead to obtain
+a proper library context that is linked to the application library context.
 
 core_new_error(), core_set_error_debug() and core_vset_error() are
 building blocks for reporting an error back to the core, with
@@ -285,8 +281,7 @@ underlying signature or digest algorithm). It returns 1 on success or 0 on
 failure.
 This function is not thread safe.
 
-CRYPTO_malloc(), CRYPTO_zalloc(), CRYPTO_memdup(), CRYPTO_strdup(),
-CRYPTO_strndup(), CRYPTO_free(), CRYPTO_clear_free(),
+CRYPTO_malloc(), CRYPTO_zalloc(), CRYPTO_free(), CRYPTO_clear_free(),
 CRYPTO_realloc(), CRYPTO_clear_realloc(), CRYPTO_secure_malloc(),
 CRYPTO_secure_zalloc(), CRYPTO_secure_free(),
 CRYPTO_secure_clear_free(), CRYPTO_secure_allocated(),
@@ -443,7 +438,7 @@ different for any third party provider.
 This returns 0 if the provider has entered an error state, otherwise it returns
 1.
 
-=back 
+=back
 
 provider_gettable_params() should return the above parameters.
 

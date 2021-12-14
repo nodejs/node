@@ -6,7 +6,7 @@
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
 
-use OpenSSL::Test qw/:DEFAULT srctop_dir bldtop_dir/;
+use OpenSSL::Test qw/:DEFAULT srctop_dir bldtop_dir bldtop_file/;
 use OpenSSL::Test::Utils;
 
 BEGIN {
@@ -25,7 +25,7 @@ plan skip_all => 'Test is disabled in an address sanitizer build' unless disable
 
 plan tests => 1;
 
-my $fips = bldtop_dir('providers', platform->dso('fips'));
+my $fips = bldtop_file('providers', platform->dso('fips'));
 
 ok(run(test(['moduleloadtest', $fips, 'OSSL_provider_init'])),
    "trying to load $fips in its own");

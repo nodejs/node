@@ -228,7 +228,10 @@ static int evp_md_init_internal(EVP_MD_CTX *ctx, const EVP_MD *type,
         ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
         return 0;
 #else
-        EVP_MD *provmd = EVP_MD_fetch(NULL, OBJ_nid2sn(type->type), "");
+        /* The NULL digest is a special case */
+        EVP_MD *provmd = EVP_MD_fetch(NULL,
+                                      type->type != NID_undef ? OBJ_nid2sn(type->type)
+                                                              : "NULL", "");
 
         if (provmd == NULL) {
             ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
@@ -506,9 +509,18 @@ int EVP_MD_CTX_copy_ex(EVP_MD_CTX *out, const EVP_MD_CTX *in)
 {
     unsigned char *tmp_buf;
 
-    if (in == NULL || in->digest == NULL) {
-        ERR_raise(ERR_LIB_EVP, EVP_R_INPUT_NOT_INITIALIZED);
+    if (in == NULL) {
+        ERR_raise(ERR_LIB_EVP, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
+    }
+
+    if (in->digest == NULL) {
+        /* copying uninitialized digest context */
+        EVP_MD_CTX_reset(out);
+        if (out->fetched_digest != NULL)
+            EVP_MD_free(out->fetched_digest);
+        *out = *in;
+        return 1;
     }
 
     if (in->digest->prov == NULL

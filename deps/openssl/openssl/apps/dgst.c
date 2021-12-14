@@ -335,7 +335,7 @@ int dgst_main(int argc, char **argv)
         EVP_PKEY_CTX *pctx = NULL;
         int res;
 
-        if (!BIO_get_md_ctx(bmd, &mctx)) {
+        if (BIO_get_md_ctx(bmd, &mctx) <= 0) {
             BIO_printf(bio_err, "Error getting context\n");
             goto end;
         }
@@ -362,7 +362,7 @@ int dgst_main(int argc, char **argv)
     /* we use md as a filter, reading from 'in' */
     else {
         EVP_MD_CTX *mctx = NULL;
-        if (!BIO_get_md_ctx(bmd, &mctx)) {
+        if (BIO_get_md_ctx(bmd, &mctx) <= 0) {
             BIO_printf(bio_err, "Error getting context\n");
             goto end;
         }

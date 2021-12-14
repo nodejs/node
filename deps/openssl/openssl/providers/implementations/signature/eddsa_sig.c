@@ -100,6 +100,14 @@ static int eddsa_digest_signverify_init(void *vpeddsactx, const char *mdname,
         return 0;
     }
 
+    if (edkey == NULL) {
+        if (peddsactx->key != NULL)
+            /* there is nothing to do on reinit */
+            return 1;
+        ERR_raise(ERR_LIB_PROV, PROV_R_NO_KEY_SET);
+        return 0;
+    }
+
     if (!ossl_ecx_key_up_ref(edkey)) {
         ERR_raise(ERR_LIB_PROV, ERR_R_INTERNAL_ERROR);
         return 0;
@@ -124,6 +132,7 @@ static int eddsa_digest_signverify_init(void *vpeddsactx, const char *mdname,
     default:
         /* Should never happen */
         ERR_raise(ERR_LIB_PROV, ERR_R_INTERNAL_ERROR);
+        ossl_ecx_key_free(edkey);
         return 0;
     }
     if (ret && WPACKET_finish(&pkt)) {

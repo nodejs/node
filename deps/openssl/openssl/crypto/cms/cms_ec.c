@@ -47,7 +47,7 @@ static EVP_PKEY *pkey_type2param(int ptype, const void *pval,
         pctx = EVP_PKEY_CTX_new_from_name(libctx, "EC", propq);
         if (pctx == NULL || EVP_PKEY_paramgen_init(pctx) <= 0)
             goto err;
-        if (!OBJ_obj2txt(groupname, sizeof(groupname), poid, 0)
+        if (OBJ_obj2txt(groupname, sizeof(groupname), poid, 0) <= 0
                 || !EVP_PKEY_CTX_set_group_name(pctx, groupname)) {
             ERR_raise(ERR_LIB_CMS, CMS_R_DECODE_ERROR);
             goto err;

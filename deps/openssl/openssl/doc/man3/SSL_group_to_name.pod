@@ -20,7 +20,7 @@ or SSL_get_shared_group().
 =head1 RETURN VALUES
 
 If non-NULL, SSL_group_to_name() returns the TLS group name
-corresponding to the given I<id> as a NULL-terminated string.
+corresponding to the given I<id> as a NUL-terminated string.
 If SSL_group_to_name() returns NULL, an error occurred; possibly no
 corresponding tlsname was registered during provider initialisation.
 

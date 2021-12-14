@@ -20,7 +20,7 @@ i2d_OSSL_CMP_MSG_bio
   int OSSL_CMP_MSG_get_bodytype(const OSSL_CMP_MSG *msg);
   int OSSL_CMP_MSG_update_transactionID(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg);
   OSSL_CRMF_MSG *OSSL_CMP_CTX_setup_CRM(OSSL_CMP_CTX *ctx, int for_KUR, int rid);
-  OSSL_CMP_MSG *OSSL_CMP_MSG_read(const char *file);
+  OSSL_CMP_MSG *OSSL_CMP_MSG_read(const char *file, OSSL_LIB_CTX *libctx, const char *propq);
   int OSSL_CMP_MSG_write(const char *file, const OSSL_CMP_MSG *msg);
   OSSL_CMP_MSG *d2i_OSSL_CMP_MSG_bio(BIO *bio, OSSL_CMP_MSG **msg);
   int i2d_OSSL_CMP_MSG_bio(BIO *bio, const OSSL_CMP_MSG *msg);

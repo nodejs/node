@@ -610,6 +610,12 @@ EOF
       },
     },
 
+    # OpenSSL's declaration of externs with possible export linkage
+    # (really only relevant on Windows)
+    { regexp   => qr/OPENSSL_(?:EXPORT|EXTERN)/,
+      massager => sub { return ("extern"); }
+    },
+
     # Spurious stuff found in the OpenSSL headers
     # Usually, these are just macros that expand to, well, something
     { regexp   => qr/__NDK_FPABI__/,

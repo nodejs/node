@@ -130,7 +130,11 @@ written to I<siglen>.
 
 EVP_DigestSign() signs I<tbslen> bytes of data at I<tbs> and places the
 signature in I<sig> and its length in I<siglen> in a similar way to
-EVP_DigestSignFinal().
+EVP_DigestSignFinal(). In the event of a failure EVP_DigestSign() cannot be
+called again without reinitialising the EVP_MD_CTX. If I<sig> is NULL before the
+call then I<siglen> will be populated with the required size for the I<sig>
+buffer. If I<sig> is non-NULL before the call then I<siglen> should contain the
+length of the I<sig> buffer.
 
 =head1 RETURN VALUES
 
@@ -163,9 +167,10 @@ The call to EVP_DigestSignFinal() internally finalizes a copy of the digest
 context. This means that calls to EVP_DigestSignUpdate() and
 EVP_DigestSignFinal() can be called later to digest and sign additional data.
 
-Since only a copy of the digest context is ever finalized, the context must
-be cleaned up after use by calling EVP_MD_CTX_free() or a memory leak
-will occur.
+EVP_DigestSignInit() and EVP_DigestSignInit_ex() functions can be called
+multiple times on a context and the parameters set by previous calls should be
+preserved if the I<pkey> parameter is NULL. The call then just resets the state
+of the I<ctx>.
 
 The use of EVP_PKEY_get_size() with these functions is discouraged because some
 signature operations may have a signature length which depends on the

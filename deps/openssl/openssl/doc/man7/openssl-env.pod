@@ -74,6 +74,19 @@ See L<SSL_CTX_load_verify_locations(3)>.
 
 Additional arguments for the L<tsget(1)> command.
 
+=item B<OPENSSL_ia32cap>, B<OPENSSL_sparcv9cap>, B<OPENSSL_ppccap>, B<OPENSSL_armcap>, B<OPENSSL_s390xcap>
+
+OpenSSL supports a number of different algorithm implementations for
+various machines and, by default, it determines which to use based on the
+processor capabilities and run time feature enquiry.  These environment
+variables can be used to exert more control over this selection process.
+See L<OPENSSL_ia32cap(3)>, L<OPENSSL_s390xcap(3)>.
+
+=item B<NO_PROXY>, B<HTTPS_PROXY>, B<HTTP_PROXY>
+
+Specify a proxy hostname.
+See L<OSSL_HTTP_parse_url(3)>.
+
 =back
 
 =head1 COPYRIGHT

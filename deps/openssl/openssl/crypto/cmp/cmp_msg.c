@@ -1100,9 +1100,8 @@ OSSL_CMP_MSG *OSSL_CMP_MSG_read(const char *file, OSSL_LIB_CTX *libctx,
         return NULL;
     }
 
-    if ((bio = BIO_new_file(file, "rb")) == NULL)
-        return NULL;
-    if (d2i_OSSL_CMP_MSG_bio(bio, &msg) == NULL) {
+    if ((bio = BIO_new_file(file, "rb")) == NULL
+            || d2i_OSSL_CMP_MSG_bio(bio, &msg) == NULL) {
         OSSL_CMP_MSG_free(msg);
         msg = NULL;
     }

@@ -92,7 +92,7 @@ of I<p>. This value must be saved if domain parameter validation is required.
 
 =item "hindex" (B<OSSL_PKEY_PARAM_FFC_H>) <integer>
 
-For unverifiable generation of the generator I<g> this value is output during 
+For unverifiable generation of the generator I<g> this value is output during
 generation of I<g>. Its value is the first integer larger than one that
 satisfies g = h^j mod p (where g != 1 and "j" is the cofactor).
 

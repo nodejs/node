@@ -26,15 +26,16 @@ $	ENDIF
 $
 $	! Abbrevs
 $	DEAS := DEASSIGN /NOLOG 'P1'
-$	sv   := {- sprintf "%02d%02d", split m|\.|, $config{shlib_version} -}
-$	pz   := {- $config{pointer_size} -}
+$	sv   := {- platform->shlib_version_as_filename(); -}
+$	pz   := {- $target{pointer_size} -}
 $
 $	DEAS OSSL$DATAROOT
 $	DEAS OSSL$INSTROOT
 $	DEAS OSSL$INCLUDE
 $	DEAS OSSL$LIB
 $	DEAS OSSL$SHARE
-$	DEAS OSSL$ENGINES'sv'
+$	DEAS OSSL$ENGINES'sv''pz'
+$	DEAS OSSL$MODULES'pz'
 $	DEAS OSSL$EXE
 $	DEAS OSSL$LIBCRYPTO'pz'
 $	DEAS OSSL$LIBSSL'pz'
@@ -46,7 +47,7 @@ $	DEAS OPENSSL
 $
 $	IF P2 .NES. "NOALIASES"
 $	THEN
-$	    DEAS OSSL$ENGINES
+$	    DEAS OSSL$ENGINES'pz'
 ${- output_off() if $config{no_shared}; "" -}
 $	    DEAS OSSL$LIBCRYPTO_SHR'pz'
 $	    DEAS OSSL$LIBSSL_SHR'pz'

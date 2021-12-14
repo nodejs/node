@@ -55,7 +55,7 @@ An example of the above functions would be the following:
 
 =item 1.
 
-Application sets the async callback and callback data on an SSL connection 
+Application sets the async callback and callback data on an SSL connection
 by calling SSL_set_async_callback().
 
 =item 2.
@@ -121,7 +121,7 @@ SSL_get_async_status() were first added to OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

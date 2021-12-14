@@ -55,7 +55,7 @@ particular the manual pages, can be reported as issues.
 
 The fastest way to get a bug fixed is to fix it yourself ;-). If you are
 experienced in programming and know how to fix the bug, you can open a
-pull request. The details are covered in the [Contributing](#contributing) section.
+pull request. The details are covered in the [Contributing][contributing] section.
 
 Don't hesitate to open a pull request, even if it's only a small change
 like a grammatical or typographical error in the documentation.
@@ -89,3 +89,5 @@ anymore, the searchable archive may still contain useful information.
 [openssl-announce]:  https://mta.openssl.org/mailman/listinfo/openssl-announce
 [openssl-project]:   https://mta.openssl.org/mailman/listinfo/openssl-project
 [openssl-dev]:       https://mta.openssl.org/mailman/listinfo/openssl-dev
+[github-issues]:     https://github.com/openssl/openssl/issues/new/choose
+[contributing]:      https://github.com/openssl/openssl/blob/master/CONTRIBUTING.md

@@ -9,6 +9,7 @@ $SHA3_GOAL=../../libdefault.a ../../libfips.a
 $BLAKE2_GOAL=../../libdefault.a
 $SM3_GOAL=../../libdefault.a
 $MD5_GOAL=../../libdefault.a
+$NULL_GOAL=../../libdefault.a
 
 $MD2_GOAL=../../liblegacy.a
 $MD4_GOAL=../../liblegacy.a
@@ -21,6 +22,8 @@ SOURCE[$COMMON_GOAL]=digestcommon.c
 
 SOURCE[$SHA2_GOAL]=sha2_prov.c
 SOURCE[$SHA3_GOAL]=sha3_prov.c
+
+SOURCE[$NULL_GOAL]=null_prov.c
 
 IF[{- !$disabled{blake2} -}]
   SOURCE[$BLAKE2_GOAL]=blake2_prov.c blake2b_prov.c blake2s_prov.c

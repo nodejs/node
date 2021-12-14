@@ -12,9 +12,9 @@ OpenSSL configuration cleanup functions
  void CONF_modules_finish(void);
  void CONF_modules_unload(int all);
 
-Deprecated since OpenSSL 1.1.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 1.1.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  void CONF_modules_free(void);
 
@@ -48,7 +48,7 @@ For more information see L<OPENSSL_init_crypto(3)>.
 
 =head1 COPYRIGHT
 
-Copyright 2004-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2004-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

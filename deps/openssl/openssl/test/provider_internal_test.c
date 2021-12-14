@@ -31,7 +31,7 @@ static int test_provider(OSSL_PROVIDER *prov, const char *expected_greeting)
         && TEST_ptr(greeting = greeting_request[0].data)
         && TEST_size_t_gt(greeting_request[0].data_size, 0)
         && TEST_str_eq(greeting, expected_greeting)
-        && TEST_true(ossl_provider_deactivate(prov));
+        && TEST_true(ossl_provider_deactivate(prov, 1));
 
     TEST_info("Got this greeting: %s\n", greeting);
     ossl_provider_free(prov);

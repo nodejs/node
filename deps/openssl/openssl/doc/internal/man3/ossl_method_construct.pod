@@ -13,21 +13,20 @@ OSSL_METHOD_CONSTRUCT_METHOD, ossl_method_construct
      /* Get a temporary store */
      void *(*get_tmp_store)(void *data);
      /* Get an already existing method from a store */
-     void *(*get)(void *store, void *data);
+     void *(*get)(void *store, const OSSL_PROVIDER *prov, void *data);
      /* Store a method in a store */
-     int (*put)(void *store, void *method,
-                const OSSL_PROVIDER *prov, const char *name,
-                const char *propdef, void *data);
+     int (*put)(void *store, void *method, const OSSL_PROVIDER *prov,
+                const char *name, const char *propdef, void *data);
      /* Construct a new method */
-     void *(*construct)(const char *name, const OSSL_DISPATCH *fns,
-                        OSSL_PROVIDER *prov, void *data);
+     void *(*construct)(const OSSL_ALGORITHM *algodef, OSSL_PROVIDER *prov,
+                        void *data);
      /* Destruct a method */
-     void (*destruct)(void *method);
+     void (*destruct)(void *method, void *data);
  };
  typedef struct ossl_method_construct_method OSSL_METHOD_CONSTRUCT_METHOD;
 
  void *ossl_method_construct(OSSL_LIB_CTX *ctx, int operation_id,
-                             int force_cache,
+                             OSSL_PROVIDER *prov, int force_cache,
                              OSSL_METHOD_CONSTRUCT_METHOD *mcm, void *mcm_data);
 
 
@@ -57,6 +56,9 @@ providers for a dispatch table given an I<operation_id>, and then
 calling the appropriate functions given by the subsystem specific
 method creator through I<mcm> and the data in I<mcm_data> (which is
 passed by ossl_method_construct()).
+If I<prov> is not NULL, only that provider is considered, which is
+useful in the case a method must be found in that particular
+provider.
 
 This function assumes that the subsystem method creator implements
 reference counting and acts accordingly (i.e. it will call the
@@ -72,16 +74,12 @@ function pointers:
 
 =over 4
 
-=item alloc_tmp_store()
+=item get_tmp_store()
 
 Create a temporary method store in the scope of the library context I<ctx>.
 This store is used to temporarily store methods for easier lookup, for
 when the provider doesn't want its dispatch table stored in a longer
 term cache.
-
-=item dealloc_tmp_store()
-
-Remove a temporary store.
 
 =item get()
 
@@ -97,7 +95,10 @@ The method to be looked up should be identified with data found in I<data>
 In other words, the ossl_method_construct() caller is entirely responsible
 for ensuring the necesssary data is made available.
 
-This function is expected to increment the method's reference count.
+Optionally, I<prov> may be given as a search criterion, to narrow down the
+search of a method belonging to just one provider.
+
+This function is expected to increment the resulting method's reference count.
 
 =item put()
 
@@ -109,7 +110,7 @@ NULL is a valid value and means that a subsystem default store
 must be used.
 This default store should be stored in the library context I<libctx>.
 
-The method should be associated with the given I<operation_id>,
+The method should be associated with the given provider I<prov>,
 I<name> and property definition I<propdef> as well as any
 identification data given through I<data> (which is the I<mcm_data>
 that was passed to ossl_construct_method()).

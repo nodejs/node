@@ -623,10 +623,6 @@ sub set_version {
     my $version = shift // '*';
     my $baseversion = shift // '*';
 
-    $version =~ s|-.*||g;
-    # Remove anything past the '+' (i.e. BUILD_METADATA from VERSION.dat)
-    $version =~ s|\+.*||g;
-
     if ($baseversion eq '*') {
         $baseversion = $version;
         if ($baseversion ne '*') {

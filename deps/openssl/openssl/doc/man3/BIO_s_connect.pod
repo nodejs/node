@@ -15,7 +15,7 @@ BIO_set_nbio, BIO_do_connect - connect BIO
 
  const BIO_METHOD *BIO_s_connect(void);
 
- BIO *BIO_new_connect(char *name);
+ BIO *BIO_new_connect(const char *name);
 
  long BIO_set_conn_hostname(BIO *b, char *name);
  long BIO_set_conn_port(BIO *b, char *port);
@@ -141,9 +141,9 @@ BIO_set_nbio(), and BIO_do_connect() are macros.
 BIO_s_connect() returns the connect BIO method.
 
 BIO_set_conn_address(), BIO_set_conn_port(), and BIO_set_conn_ip_family()
-always return 1.
+return 1 or <=0 if an error occurs.
 
-BIO_set_conn_hostname() returns 1 on success and 0 on failure.
+BIO_set_conn_hostname() returns 1 on success and <=0 on failure.
 
 BIO_get_conn_address() returns the address information or NULL if none
 was set.
@@ -156,10 +156,10 @@ BIO_get_conn_ip_family() returns the address family or -1 if none was set.
 BIO_get_conn_port() returns a string representing the connected
 port or NULL if not set.
 
-BIO_set_nbio() always returns 1.
+BIO_set_nbio() returns 1 or <=0 if an error occurs.
 
 BIO_do_connect() returns 1 if the connection was successfully
-established and 0 or -1 if the connection failed.
+established and <=0 if the connection failed.
 
 =head1 EXAMPLES
 

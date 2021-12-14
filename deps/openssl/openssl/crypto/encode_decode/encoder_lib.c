@@ -92,7 +92,7 @@ int OSSL_ENCODER_to_fp(OSSL_ENCODER_CTX *ctx, FILE *fp)
 int OSSL_ENCODER_to_data(OSSL_ENCODER_CTX *ctx, unsigned char **pdata,
                          size_t *pdata_len)
 {
-    BIO *out = BIO_new(BIO_s_mem());
+    BIO *out;
     BUF_MEM *buf = NULL;
     int ret = 0;
 
@@ -101,7 +101,10 @@ int OSSL_ENCODER_to_data(OSSL_ENCODER_CTX *ctx, unsigned char **pdata,
         return 0;
     }
 
-    if (OSSL_ENCODER_to_bio(ctx, out)
+    out = BIO_new(BIO_s_mem());
+
+    if (out != NULL
+        && OSSL_ENCODER_to_bio(ctx, out)
         && BIO_get_mem_ptr(out, &buf) > 0) {
         ret = 1; /* Hope for the best. A too small buffer will clear this */
 

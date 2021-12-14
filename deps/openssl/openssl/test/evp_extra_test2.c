@@ -20,9 +20,7 @@
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/provider.h>
-#ifndef OPENSSL_NO_DEPRECATED_3_0
-# include <openssl/rsa.h>
-#endif
+#include <openssl/rsa.h>
 #include <openssl/core_names.h>
 #include "testutil.h"
 #include "internal/nelem.h"
@@ -818,6 +816,59 @@ static int test_pkey_export(void)
     return ret;
 }
 
+static int test_rsa_pss_sign(void)
+{
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
+    int ret = 0;
+    const unsigned char *pdata = keydata[0].kder;
+    const char *mdname = "SHA2-256";
+    OSSL_PARAM sig_params[3];
+    unsigned char mdbuf[256 / 8] = { 0 };
+    int padding = RSA_PKCS1_PSS_PADDING;
+    unsigned char *sig = NULL;
+    size_t sig_len = 0;
+
+    sig_params[0] = OSSL_PARAM_construct_int(OSSL_PKEY_PARAM_PAD_MODE,
+                                             &padding);
+    sig_params[1] = OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_DIGEST,
+                                                     (char *)mdname, 0);
+    sig_params[2] = OSSL_PARAM_construct_end();
+
+    ret = TEST_ptr(pkey = d2i_AutoPrivateKey_ex(NULL, &pdata, keydata[0].size,
+                                                mainctx, NULL))
+          && TEST_ptr(pctx = EVP_PKEY_CTX_new_from_pkey(mainctx, pkey, NULL))
+          && TEST_int_gt(EVP_PKEY_sign_init_ex(pctx, sig_params), 0)
+          && TEST_int_gt(EVP_PKEY_sign(pctx, NULL, &sig_len, mdbuf,
+                                       sizeof(mdbuf)), 0)
+          && TEST_int_gt(sig_len, 0)
+          && TEST_ptr(sig = OPENSSL_malloc(sig_len))
+          && TEST_int_gt(EVP_PKEY_sign(pctx, sig, &sig_len, mdbuf,
+                                       sizeof(mdbuf)), 0);
+
+    EVP_PKEY_CTX_free(pctx);
+    OPENSSL_free(sig);
+    EVP_PKEY_free(pkey);
+
+    return ret;
+}
+
+static int test_evp_md_ctx_copy(void)
+{
+    EVP_MD_CTX *mdctx = NULL;
+    EVP_MD_CTX *copyctx = NULL;
+    int ret;
+
+    /* test copying freshly initialized context */
+    ret = TEST_ptr(mdctx = EVP_MD_CTX_new())
+          && TEST_ptr(copyctx = EVP_MD_CTX_new())
+          && TEST_true(EVP_MD_CTX_copy_ex(copyctx, mdctx));
+
+    EVP_MD_CTX_free(mdctx);
+    EVP_MD_CTX_free(copyctx);
+    return ret;
+}
+
 int setup_tests(void)
 {
     if (!test_get_libctx(&mainctx, &nullprov, NULL, NULL, NULL)) {
@@ -843,6 +894,8 @@ int setup_tests(void)
     ADD_TEST(test_pkcs8key_nid_bio);
 #endif
     ADD_ALL_TESTS(test_PEM_read_bio_negative, OSSL_NELEM(keydata));
+    ADD_TEST(test_rsa_pss_sign);
+    ADD_TEST(test_evp_md_ctx_copy);
     return 1;
 }
 

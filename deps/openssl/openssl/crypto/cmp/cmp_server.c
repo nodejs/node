@@ -457,6 +457,9 @@ OSSL_CMP_MSG *OSSL_CMP_SRV_process_request(OSSL_CMP_SRV_CTX *srv_ctx,
     }
     ctx = srv_ctx->ctx;
     backup_secret = ctx->secretValue;
+    req_type = OSSL_CMP_MSG_get_bodytype(req);
+    ossl_cmp_log1(DEBUG, ctx,
+                  "received %s", ossl_cmp_bodytype_to_string(req_type));
 
     /*
      * Some things need to be done already before validating the message in
@@ -469,7 +472,6 @@ OSSL_CMP_MSG *OSSL_CMP_SRV_process_request(OSSL_CMP_SRV_CTX *srv_ctx,
     if (!OSSL_CMP_CTX_set1_recipient(ctx, hdr->sender->d.directoryName))
         goto err;
 
-    req_type = OSSL_CMP_MSG_get_bodytype(req);
     switch (req_type) {
     case OSSL_CMP_PKIBODY_IR:
     case OSSL_CMP_PKIBODY_CR:
@@ -503,8 +505,6 @@ OSSL_CMP_MSG *OSSL_CMP_SRV_process_request(OSSL_CMP_SRV_CTX *srv_ctx,
 #endif
         }
     }
-    ossl_cmp_log1(DEBUG, ctx,
-                  "received %s", ossl_cmp_bodytype_to_string(req_type));
 
     res = ossl_cmp_msg_check_update(ctx, req, unprotected_exception,
                                     srv_ctx->acceptUnprotected);

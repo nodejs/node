@@ -41,7 +41,8 @@ property names like
 
 A I<property> is a I<name=value> pair.
 A I<property definition> is a sequence of comma separated properties.
-There can be any number of properties in a definition.
+There can be any number of properties in a definition, however each name must
+be unique.
 For example: "" defines an empty property definition (i.e., no restriction);
 "my.foo=bar" defines a property named I<my.foo> which has a string value I<bar>
 and "iteration.count=3" defines a property named I<iteration.count> which
@@ -68,6 +69,7 @@ Matching such clauses is not a requirement, but any additional optional
 match counts in favor of the algorithm.
 More details about that in the B<Lookups> section.
 A I<property query> is a sequence of comma separated property query clauses.
+It is an error if a property name appears in more than one query clause.
 The full syntax for property queries appears below, but the available syntactic
 features are:
 
@@ -144,7 +146,7 @@ setting.
 
 The lexical syntax in EBNF is given by:
 
- Definition     ::= PropertyName ( '=' Value )? 
+ Definition     ::= PropertyName ( '=' Value )?
                         ( ',' PropertyName ( '=' Value )? )*
  Query          ::= PropertyQuery ( ',' PropertyQuery )*
  PropertyQuery  ::= '-' PropertyName
@@ -162,7 +164,7 @@ Properties were added in OpenSSL 3.0
 
 =head1 COPYRIGHT
 
-Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -169,16 +169,16 @@ BIO_set_bind_mode(), BIO_get_bind_mode() and BIO_do_accept() are macros.
 BIO_do_accept(),
 BIO_set_accept_name(), BIO_set_accept_port(), BIO_set_nbio_accept(),
 BIO_set_accept_bios(), BIO_set_accept_ip_family(), and BIO_set_bind_mode()
-return 1 for success and 0 or -1 for failure.
+return 1 for success and <=0 for failure.
 
 BIO_get_accept_name() returns the accept name or NULL on error.
 BIO_get_peer_name() returns the peer name or NULL on error.
 
 BIO_get_accept_port() returns the accept port as a string or NULL on error.
 BIO_get_peer_port() returns the peer port as a string or NULL on error.
-BIO_get_accept_ip_family() returns the IP family or -1 on error.
+BIO_get_accept_ip_family() returns the IP family or <=0 on error.
 
-BIO_get_bind_mode() returns the set of B<BIO_BIND> flags, or -1 on failure.
+BIO_get_bind_mode() returns the set of B<BIO_BIND> flags, or <=0 on failure.
 
 BIO_new_accept() returns a BIO or NULL on error.
 
