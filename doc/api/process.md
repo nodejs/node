@@ -1817,6 +1817,44 @@ a code.
 Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
 previous setting of `process.exitCode`.
 
+## `process.getActiveResourcesInfo()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {string\[]}
+
+The `process.getActiveResourcesInfo()` method returns an array of strings
+containing the types of the active resources that are currently keeping the
+event loop alive.
+
+```mjs
+import { getActiveResourcesInfo } from 'process';
+import { setTimeout } from 'timers';
+
+console.log('Before:', getActiveResourcesInfo());
+setTimeout(() => {}, 1000);
+console.log('After:', getActiveResourcesInfo());
+// Prints:
+//   Before: [ 'CloseReq', 'TTYWrap', 'TTYWrap', 'TTYWrap' ]
+//   After: [ 'CloseReq', 'TTYWrap', 'TTYWrap', 'TTYWrap', 'Timeout' ]
+```
+
+```cjs
+const { getActiveResourcesInfo } = require('process');
+const { setTimeout } = require('timers');
+
+console.log('Before:', getActiveResourcesInfo());
+setTimeout(() => {}, 1000);
+console.log('After:', getActiveResourcesInfo());
+// Prints:
+//   Before: [ 'TTYWrap', 'TTYWrap', 'TTYWrap' ]
+//   After: [ 'TTYWrap', 'TTYWrap', 'TTYWrap', 'Timeout' ]
+```
+
 ## `process.getegid()`
 
 <!-- YAML
