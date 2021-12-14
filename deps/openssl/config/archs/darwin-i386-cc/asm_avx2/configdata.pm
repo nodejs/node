@@ -111,8 +111,8 @@ our %config = (
   sourcedir => ".",
   target => "darwin-i386-cc",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1l",
-  version_num => "0x101010cfL",
+  version => "1.1.1m",
+  version_num => "0x101010dfL",
 );
 
 our %target = (
@@ -1273,6 +1273,7 @@ our %unified_info = (
                 ],
             "test/ec_internal_test" =>
                 [
+                    "apps/libapps.a",
                     "libcrypto.a",
                     "test/libtestutil.a",
                 ],
