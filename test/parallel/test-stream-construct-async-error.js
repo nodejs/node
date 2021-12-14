@@ -33,6 +33,7 @@ const assert = require('assert');
     async _destroy(err, cb) {
       // eslint-disable-next-line no-restricted-syntax
       await setTimeout(common.platformTimeout(1));
+      cb(err);
     }
   }
 
