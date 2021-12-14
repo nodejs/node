@@ -154,7 +154,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.0.0+quic",
+    "full_version" => "3.0.1+quic",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -205,10 +205,10 @@ our %config = (
     ],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-asm no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-ktls no-loadereng no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
-    "patch" => "0",
-    "perl_archname" => "x86_64-linux-thread-multi",
+    "patch" => "1",
+    "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
-    "perl_version" => "5.32.1",
+    "perl_version" => "5.30.0",
     "perlargv" => [
         "no-comp",
         "no-shared",
@@ -258,11 +258,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned int",
-    "release_date" => "7 sep 2021",
+    "release_date" => "14 Dec 2021",
     "shlib_version" => "81.3",
     "sourcedir" => ".",
     "target" => "darwin-i386-cc",
-    "version" => "3.0.0"
+    "version" => "3.0.1"
 );
 our %target = (
     "AR" => "ar",
@@ -1369,6 +1369,9 @@ our %unified_info = (
             "test/provider_internal_test" => {
                 "noinst" => "1"
             },
+            "test/provider_pkey_test" => {
+                "noinst" => "1"
+            },
             "test/provider_status_test" => {
                 "noinst" => "1"
             },
@@ -1376,6 +1379,9 @@ our %unified_info = (
                 "noinst" => "1"
             },
             "test/rand_status_test" => {
+                "noinst" => "1"
+            },
+            "test/rand_test" => {
                 "noinst" => "1"
             },
             "test/rc2test" => {
@@ -2661,8 +2667,8 @@ our %unified_info = (
         "doc/html/man3/EVP_RAND.html" => [
             "doc/man3/EVP_RAND.pod"
         ],
-        "doc/html/man3/EVP_SIGNATURE_free.html" => [
-            "doc/man3/EVP_SIGNATURE_free.pod"
+        "doc/html/man3/EVP_SIGNATURE.html" => [
+            "doc/man3/EVP_SIGNATURE.pod"
         ],
         "doc/html/man3/EVP_SealInit.html" => [
             "doc/man3/EVP_SealInit.pod"
@@ -4998,8 +5004,8 @@ our %unified_info = (
         "doc/man/man3/EVP_RAND.3" => [
             "doc/man3/EVP_RAND.pod"
         ],
-        "doc/man/man3/EVP_SIGNATURE_free.3" => [
-            "doc/man3/EVP_SIGNATURE_free.pod"
+        "doc/man/man3/EVP_SIGNATURE.3" => [
+            "doc/man3/EVP_SIGNATURE.pod"
         ],
         "doc/man/man3/EVP_SealInit.3" => [
             "doc/man3/EVP_SealInit.pod"
@@ -7700,6 +7706,10 @@ our %unified_info = (
             "libcrypto.a",
             "test/libtestutil.a"
         ],
+        "test/provider_pkey_test" => [
+            "libcrypto",
+            "test/libtestutil.a"
+        ],
         "test/provider_status_test" => [
             "libcrypto.a",
             "test/libtestutil.a"
@@ -7709,6 +7719,10 @@ our %unified_info = (
             "test/libtestutil.a"
         ],
         "test/rand_status_test" => [
+            "libcrypto",
+            "test/libtestutil.a"
+        ],
+        "test/rand_test" => [
             "libcrypto",
             "test/libtestutil.a"
         ],
@@ -9756,6 +9770,7 @@ our %unified_info = (
                 "providers/implementations/digests/libdefault-lib-blake2s_prov.o",
                 "providers/implementations/digests/libdefault-lib-md5_prov.o",
                 "providers/implementations/digests/libdefault-lib-md5_sha1_prov.o",
+                "providers/implementations/digests/libdefault-lib-null_prov.o",
                 "providers/implementations/digests/libdefault-lib-sha2_prov.o",
                 "providers/implementations/digests/libdefault-lib-sha3_prov.o",
                 "providers/implementations/digests/libdefault-lib-sm3_prov.o",
@@ -11518,8 +11533,8 @@ our %unified_info = (
         "doc/html/man3/EVP_RAND.html" => [
             "doc/man3/EVP_RAND.pod"
         ],
-        "doc/html/man3/EVP_SIGNATURE_free.html" => [
-            "doc/man3/EVP_SIGNATURE_free.pod"
+        "doc/html/man3/EVP_SIGNATURE.html" => [
+            "doc/man3/EVP_SIGNATURE.pod"
         ],
         "doc/html/man3/EVP_SealInit.html" => [
             "doc/man3/EVP_SealInit.pod"
@@ -13855,8 +13870,8 @@ our %unified_info = (
         "doc/man/man3/EVP_RAND.3" => [
             "doc/man3/EVP_RAND.pod"
         ],
-        "doc/man/man3/EVP_SIGNATURE_free.3" => [
-            "doc/man3/EVP_SIGNATURE_free.pod"
+        "doc/man/man3/EVP_SIGNATURE.3" => [
+            "doc/man3/EVP_SIGNATURE.pod"
         ],
         "doc/man/man3/EVP_SealInit.3" => [
             "doc/man3/EVP_SealInit.pod"
@@ -16232,7 +16247,7 @@ our %unified_info = (
             "doc/html/man3/EVP_PKEY_verify.html",
             "doc/html/man3/EVP_PKEY_verify_recover.html",
             "doc/html/man3/EVP_RAND.html",
-            "doc/html/man3/EVP_SIGNATURE_free.html",
+            "doc/html/man3/EVP_SIGNATURE.html",
             "doc/html/man3/EVP_SealInit.html",
             "doc/html/man3/EVP_SignInit.html",
             "doc/html/man3/EVP_VerifyInit.html",
@@ -18645,6 +18660,10 @@ our %unified_info = (
             "apps/include",
             "."
         ],
+        "test/provider_pkey_test" => [
+            "include",
+            "apps/include"
+        ],
         "test/provider_status_test" => [
             "include",
             "apps/include"
@@ -18655,6 +18674,10 @@ our %unified_info = (
             "."
         ],
         "test/rand_status_test" => [
+            "include",
+            "apps/include"
+        ],
+        "test/rand_test" => [
             "include",
             "apps/include"
         ],
@@ -19149,7 +19172,7 @@ our %unified_info = (
             "doc/man/man3/EVP_PKEY_verify.3",
             "doc/man/man3/EVP_PKEY_verify_recover.3",
             "doc/man/man3/EVP_RAND.3",
-            "doc/man/man3/EVP_SIGNATURE_free.3",
+            "doc/man/man3/EVP_SIGNATURE.3",
             "doc/man/man3/EVP_SealInit.3",
             "doc/man/man3/EVP_SignInit.3",
             "doc/man/man3/EVP_VerifyInit.3",
@@ -19866,9 +19889,11 @@ our %unified_info = (
         "test/provfetchtest",
         "test/provider_fallback_test",
         "test/provider_internal_test",
+        "test/provider_pkey_test",
         "test/provider_status_test",
         "test/provider_test",
         "test/rand_status_test",
+        "test/rand_test",
         "test/rc2test",
         "test/rc4test",
         "test/rc5test",
@@ -24315,6 +24340,9 @@ our %unified_info = (
         "providers/implementations/digests/libdefault-lib-md5_sha1_prov.o" => [
             "providers/implementations/digests/md5_sha1_prov.c"
         ],
+        "providers/implementations/digests/libdefault-lib-null_prov.o" => [
+            "providers/implementations/digests/null_prov.c"
+        ],
         "providers/implementations/digests/libdefault-lib-sha2_prov.o" => [
             "providers/implementations/digests/sha2_prov.c"
         ],
@@ -24735,6 +24763,7 @@ our %unified_info = (
             "providers/implementations/digests/libdefault-lib-blake2s_prov.o",
             "providers/implementations/digests/libdefault-lib-md5_prov.o",
             "providers/implementations/digests/libdefault-lib-md5_sha1_prov.o",
+            "providers/implementations/digests/libdefault-lib-null_prov.o",
             "providers/implementations/digests/libdefault-lib-sha2_prov.o",
             "providers/implementations/digests/libdefault-lib-sha3_prov.o",
             "providers/implementations/digests/libdefault-lib-sm3_prov.o",
@@ -26462,6 +26491,16 @@ our %unified_info = (
         "test/provider_internal_test-bin-provider_internal_test.o" => [
             "test/provider_internal_test.c"
         ],
+        "test/provider_pkey_test" => [
+            "test/provider_pkey_test-bin-fake_rsaprov.o",
+            "test/provider_pkey_test-bin-provider_pkey_test.o"
+        ],
+        "test/provider_pkey_test-bin-fake_rsaprov.o" => [
+            "test/fake_rsaprov.c"
+        ],
+        "test/provider_pkey_test-bin-provider_pkey_test.o" => [
+            "test/provider_pkey_test.c"
+        ],
         "test/provider_status_test" => [
             "test/provider_status_test-bin-provider_status_test.o"
         ],
@@ -26483,6 +26522,12 @@ our %unified_info = (
         ],
         "test/rand_status_test-bin-rand_status_test.o" => [
             "test/rand_status_test.c"
+        ],
+        "test/rand_test" => [
+            "test/rand_test-bin-rand_test.o"
+        ],
+        "test/rand_test-bin-rand_test.o" => [
+            "test/rand_test.c"
         ],
         "test/rc2test" => [
             "test/rc2test-bin-rc2test.o"
@@ -26996,8 +27041,8 @@ unless (caller) {
     use File::Copy;
     use Pod::Usage;
 
-    use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/util/perl';
-    use OpenSSL::fallback '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/external/perl/MODULES.txt';
+    use lib '/node/deps/openssl/openssl/util/perl';
+    use OpenSSL::fallback '/node/deps/openssl/openssl/external/perl/MODULES.txt';
 
     my $here = dirname($0);
 
@@ -27024,7 +27069,7 @@ unless (caller) {
             );
 
         use lib '.';
-        use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/Configurations';
+        use lib '/node/deps/openssl/openssl/Configurations';
         use gentemplate;
 
         print 'Creating ',$buildfile_template,"\n";
@@ -27041,8 +27086,8 @@ unless (caller) {
 
         my $prepend = <<'_____';
 use File::Spec::Functions;
-use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/util/perl';
-use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/Configurations';
+use lib '/node/deps/openssl/openssl/util/perl';
+use lib '/node/deps/openssl/openssl/Configurations';
 use lib '.';
 use platform;
 _____
