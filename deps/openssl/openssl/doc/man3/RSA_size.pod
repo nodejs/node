@@ -10,9 +10,9 @@ RSA_size, RSA_bits, RSA_security_bits - get RSA modulus size or security bits
 
  int RSA_bits(const RSA *rsa);
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  int RSA_size(const RSA *rsa);
 

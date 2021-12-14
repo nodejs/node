@@ -91,10 +91,10 @@ if B<ret> is NULL.
 BN_bn2bin() returns the length of the big-endian number placed at B<to>.
 BN_bin2bn() returns the B<BIGNUM>, NULL on error.
 
-BN_bn2binpad() returns the number of bytes written or -1 if the supplied
+BN_bn2binpad(), BN_bn2lebinpad(), and BN_bn2nativepad() return the number of bytes written or -1 if the supplied
 buffer is too small.
 
-BN_bn2hex() and BN_bn2dec() return a null-terminated string, or NULL
+BN_bn2hex() and BN_bn2dec() return a NUL-terminated string, or NULL
 on error. BN_hex2bn() and BN_dec2bn() return the number of characters
 used in parsing, or 0 on error, in which
 case no new B<BIGNUM> will be created.
@@ -114,7 +114,7 @@ L<BN_num_bytes(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

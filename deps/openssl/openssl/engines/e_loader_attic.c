@@ -1354,8 +1354,8 @@ static OSSL_STORE_INFO *file_try_read_msblob(BIO *bp, int *matchcount)
 
         if (BIO_buffer_peek(bp, peekbuf, sizeof(peekbuf)) <= 0)
             return 0;
-        if (!ossl_do_blob_header(&p, sizeof(peekbuf), &magic, &bitlen,
-                                 &isdss, &ispub))
+        if (ossl_do_blob_header(&p, sizeof(peekbuf), &magic, &bitlen,
+                                 &isdss, &ispub) <= 0)
             return 0;
     }
 

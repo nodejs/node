@@ -194,7 +194,7 @@ int dhparam_main(int argc, char **argv)
                     "Generating %s parameters, %d bit long %sprime\n",
                     alg, num, dsaparam ? "" : "safe ");
 
-        if (!EVP_PKEY_paramgen_init(ctx)) {
+        if (EVP_PKEY_paramgen_init(ctx) <= 0) {
             BIO_printf(bio_err,
                         "Error, unable to initialise %s parameters\n",
                         alg);
@@ -383,8 +383,8 @@ static EVP_PKEY *dsa_to_dh(EVP_PKEY *dh)
 
     ctx = EVP_PKEY_CTX_new_from_name(NULL, "DHX", NULL);
     if (ctx == NULL
-            || !EVP_PKEY_fromdata_init(ctx)
-            || !EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEY_PARAMETERS, params)) {
+            || EVP_PKEY_fromdata_init(ctx) <= 0
+            || EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEY_PARAMETERS, params) <= 0) {
         BIO_printf(bio_err, "Error, failed to set DH parameters\n");
         goto err;
     }

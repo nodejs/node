@@ -38,6 +38,7 @@
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
 #include <openssl/pem.h>
+#include <crypto/evp.h>
 
 #include "e_ossltest_err.c"
 
@@ -247,21 +248,39 @@ static int ossltest_ciphers(ENGINE *, const EVP_CIPHER **,
                             const int **, int);
 
 static int ossltest_cipher_nids[] = {
-    NID_aes_128_cbc, NID_aes_128_gcm, 0
+    NID_aes_128_cbc, NID_aes_128_gcm,
+    NID_aes_128_cbc_hmac_sha1, 0
 };
 
 /* AES128 */
 
-int ossltest_aes128_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
-                             const unsigned char *iv, int enc);
-int ossltest_aes128_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-                               const unsigned char *in, size_t inl);
-int ossltest_aes128_gcm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
-                             const unsigned char *iv, int enc);
-int ossltest_aes128_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-                               const unsigned char *in, size_t inl);
+static int ossltest_aes128_init_key(EVP_CIPHER_CTX *ctx,
+                                    const unsigned char *key,
+                                    const unsigned char *iv, int enc);
+static int ossltest_aes128_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
+                                      const unsigned char *in, size_t inl);
+static int ossltest_aes128_gcm_init_key(EVP_CIPHER_CTX *ctx,
+                                        const unsigned char *key,
+                                        const unsigned char *iv, int enc);
+static int ossltest_aes128_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
+                                      const unsigned char *in, size_t inl);
 static int ossltest_aes128_gcm_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
                                     void *ptr);
+static int ossltest_aes128_cbc_hmac_sha1_init_key(EVP_CIPHER_CTX *ctx,
+                                                  const unsigned char *key,
+                                                  const unsigned char *iv,
+                                                  int enc);
+static int ossltest_aes128_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx,
+                                                unsigned char *out,
+                                                const unsigned char *in,
+                                                size_t inl);
+static int ossltest_aes128_cbc_hmac_sha1_ctrl(EVP_CIPHER_CTX *ctx, int type,
+                                              int arg, void *ptr);
+
+typedef struct {
+    size_t payload_length;      /* AAD length in decrypt case */
+    unsigned int tls_ver;
+} EVP_AES_HMAC_SHA1;
 
 static EVP_CIPHER *_hidden_aes_128_cbc = NULL;
 static const EVP_CIPHER *ossltest_aes_128_cbc(void)
@@ -285,6 +304,7 @@ static const EVP_CIPHER *ossltest_aes_128_cbc(void)
     }
     return _hidden_aes_128_cbc;
 }
+
 static EVP_CIPHER *_hidden_aes_128_gcm = NULL;
 
 #define AES_GCM_FLAGS   (EVP_CIPH_FLAG_DEFAULT_ASN1 \
@@ -315,11 +335,45 @@ static const EVP_CIPHER *ossltest_aes_128_gcm(void)
     return _hidden_aes_128_gcm;
 }
 
+static EVP_CIPHER *_hidden_aes_128_cbc_hmac_sha1 = NULL;
+
+static const EVP_CIPHER *ossltest_aes_128_cbc_hmac_sha1(void)
+{
+    if (_hidden_aes_128_cbc_hmac_sha1 == NULL
+        && ((_hidden_aes_128_cbc_hmac_sha1
+             = EVP_CIPHER_meth_new(NID_aes_128_cbc_hmac_sha1,
+                                   16 /* block size */,
+                                   16 /* key len */)) == NULL
+            || !EVP_CIPHER_meth_set_iv_length(_hidden_aes_128_cbc_hmac_sha1,16)
+            || !EVP_CIPHER_meth_set_flags(_hidden_aes_128_cbc_hmac_sha1,
+                   EVP_CIPH_CBC_MODE | EVP_CIPH_FLAG_DEFAULT_ASN1 |
+                   EVP_CIPH_FLAG_AEAD_CIPHER)
+            || !EVP_CIPHER_meth_set_init(_hidden_aes_128_cbc_hmac_sha1,
+                   ossltest_aes128_cbc_hmac_sha1_init_key)
+            || !EVP_CIPHER_meth_set_do_cipher(_hidden_aes_128_cbc_hmac_sha1,
+                   ossltest_aes128_cbc_hmac_sha1_cipher)
+            || !EVP_CIPHER_meth_set_ctrl(_hidden_aes_128_cbc_hmac_sha1,
+                                         ossltest_aes128_cbc_hmac_sha1_ctrl)
+            || !EVP_CIPHER_meth_set_set_asn1_params(_hidden_aes_128_cbc_hmac_sha1,
+                   EVP_CIPH_FLAG_DEFAULT_ASN1 ? NULL : EVP_CIPHER_set_asn1_iv)
+            || !EVP_CIPHER_meth_set_get_asn1_params(_hidden_aes_128_cbc_hmac_sha1,
+                   EVP_CIPH_FLAG_DEFAULT_ASN1 ? NULL : EVP_CIPHER_get_asn1_iv)
+            || !EVP_CIPHER_meth_set_impl_ctx_size(_hidden_aes_128_cbc_hmac_sha1,
+                   sizeof(EVP_AES_HMAC_SHA1)))) {
+        EVP_CIPHER_meth_free(_hidden_aes_128_cbc_hmac_sha1);
+        _hidden_aes_128_cbc_hmac_sha1 = NULL;
+    }
+    return _hidden_aes_128_cbc_hmac_sha1;
+}
+
 static void destroy_ciphers(void)
 {
     EVP_CIPHER_meth_free(_hidden_aes_128_cbc);
     EVP_CIPHER_meth_free(_hidden_aes_128_gcm);
+    EVP_CIPHER_meth_free(_hidden_aes_128_cbc_hmac_sha1);
     _hidden_aes_128_cbc = NULL;
+    _hidden_aes_128_gcm = NULL;
+    _hidden_aes_128_cbc_hmac_sha1 = NULL;
 }
 
 /* Key loading */
@@ -490,6 +544,9 @@ static int ossltest_ciphers(ENGINE *e, const EVP_CIPHER **cipher,
     case NID_aes_128_gcm:
         *cipher = ossltest_aes_128_gcm();
         break;
+    case NID_aes_128_cbc_hmac_sha1:
+        *cipher = ossltest_aes_128_cbc_hmac_sha1();
+        break;
     default:
         ok = 0;
         *cipher = NULL;
@@ -634,14 +691,15 @@ static int digest_sha512_final(EVP_MD_CTX *ctx, unsigned char *md)
  * AES128 Implementation
  */
 
-int ossltest_aes128_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
-                             const unsigned char *iv, int enc)
+static int ossltest_aes128_init_key(EVP_CIPHER_CTX *ctx,
+                                    const unsigned char *key,
+                                    const unsigned char *iv, int enc)
 {
     return EVP_CIPHER_meth_get_init(EVP_aes_128_cbc()) (ctx, key, iv, enc);
 }
 
-int ossltest_aes128_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-                               const unsigned char *in, size_t inl)
+static int ossltest_aes128_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
+                                      const unsigned char *in, size_t inl)
 {
     unsigned char *tmpbuf;
     int ret;
@@ -667,15 +725,15 @@ int ossltest_aes128_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     return ret;
 }
 
-int ossltest_aes128_gcm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
-                             const unsigned char *iv, int enc)
+static int ossltest_aes128_gcm_init_key(EVP_CIPHER_CTX *ctx,
+                                        const unsigned char *key,
+                                        const unsigned char *iv, int enc)
 {
     return EVP_CIPHER_meth_get_init(EVP_aes_128_gcm()) (ctx, key, iv, enc);
 }
 
-
-int ossltest_aes128_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-                               const unsigned char *in, size_t inl)
+static int ossltest_aes128_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
+                                      const unsigned char *in, size_t inl)
 {
     unsigned char *tmpbuf = OPENSSL_malloc(inl);
 
@@ -718,6 +776,128 @@ static int ossltest_aes128_gcm_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
     }
 
     return 1;
+}
+
+#define NO_PAYLOAD_LENGTH       ((size_t)-1)
+# define data(ctx) ((EVP_AES_HMAC_SHA1 *)EVP_CIPHER_CTX_get_cipher_data(ctx))
+
+static int ossltest_aes128_cbc_hmac_sha1_init_key(EVP_CIPHER_CTX *ctx,
+                                                  const unsigned char *inkey,
+                                                  const unsigned char *iv,
+                                                  int enc)
+{
+    EVP_AES_HMAC_SHA1 *key = data(ctx);
+    key->payload_length = NO_PAYLOAD_LENGTH;
+    return 1;
+}
+
+static int ossltest_aes128_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx,
+                                                unsigned char *out,
+                                                const unsigned char *in,
+                                                size_t len)
+{
+    EVP_AES_HMAC_SHA1 *key = data(ctx);
+    unsigned int l;
+    size_t plen = key->payload_length;
+
+    key->payload_length = NO_PAYLOAD_LENGTH;
+
+    if (len % AES_BLOCK_SIZE)
+        return 0;
+
+    if (EVP_CIPHER_CTX_is_encrypting(ctx)) {
+        if (plen == NO_PAYLOAD_LENGTH)
+            plen = len;
+        else if (len !=
+                 ((plen + SHA_DIGEST_LENGTH +
+                   AES_BLOCK_SIZE) & -AES_BLOCK_SIZE))
+            return 0;
+
+        memmove(out, in, plen);
+
+        if (plen != len) {      /* "TLS" mode of operation */
+            /* calculate HMAC and append it to payload */
+            fill_known_data(out + plen, SHA_DIGEST_LENGTH);
+
+            /* pad the payload|hmac */
+            plen += SHA_DIGEST_LENGTH;
+            for (l = len - plen - 1; plen < len; plen++)
+                out[plen] = l;
+        }
+    } else {
+        /* decrypt HMAC|padding at once */
+        memmove(out, in, len);
+
+        if (plen != NO_PAYLOAD_LENGTH) { /* "TLS" mode of operation */
+            unsigned int maxpad, pad;
+
+            if (key->tls_ver >= TLS1_1_VERSION) {
+                if (len < (AES_BLOCK_SIZE + SHA_DIGEST_LENGTH + 1))
+                    return 0;
+
+                /* omit explicit iv */
+                in += AES_BLOCK_SIZE;
+                out += AES_BLOCK_SIZE;
+                len -= AES_BLOCK_SIZE;
+            } else if (len < (SHA_DIGEST_LENGTH + 1))
+                return 0;
+
+            /* figure out payload length */
+            pad = out[len - 1];
+            maxpad = len - (SHA_DIGEST_LENGTH + 1);
+            if (pad > maxpad)
+                return 0;
+            for (plen = len - pad - 1; plen < len; plen++)
+                if (out[plen] != pad)
+                    return 0;
+        }
+    }
+
+    return 1;
+}
+
+static int ossltest_aes128_cbc_hmac_sha1_ctrl(EVP_CIPHER_CTX *ctx, int type,
+                                              int arg, void *ptr)
+{
+    EVP_AES_HMAC_SHA1 *key = data(ctx);
+
+    switch (type) {
+    case EVP_CTRL_AEAD_SET_MAC_KEY:
+        return 1;
+
+    case EVP_CTRL_AEAD_TLS1_AAD:
+        {
+            unsigned char *p = ptr;
+            unsigned int len;
+
+            if (arg != EVP_AEAD_TLS1_AAD_LEN)
+                return -1;
+
+            len = p[arg - 2] << 8 | p[arg - 1];
+            key->tls_ver = p[arg - 4] << 8 | p[arg - 3];
+
+            if (EVP_CIPHER_CTX_is_encrypting(ctx)) {
+                key->payload_length = len;
+                if (key->tls_ver >= TLS1_1_VERSION) {
+                    if (len < AES_BLOCK_SIZE)
+                        return 0;
+                    len -= AES_BLOCK_SIZE;
+                    p[arg - 2] = len >> 8;
+                    p[arg - 1] = len;
+                }
+
+                return (int)(((len + SHA_DIGEST_LENGTH +
+                               AES_BLOCK_SIZE) & -AES_BLOCK_SIZE)
+                             - len);
+            } else {
+                key->payload_length = arg;
+
+                return SHA_DIGEST_LENGTH;
+            }
+        }
+    default:
+        return -1;
+    }
 }
 
 static int ossltest_rand_bytes(unsigned char *buf, int num)

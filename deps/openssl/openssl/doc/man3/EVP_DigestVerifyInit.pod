@@ -57,7 +57,7 @@ EVP_MD_CTX is freed). If the EVP_PKEY_CTX to be used is created by
 EVP_DigestVerifyInit_ex then it will use the B<OSSL_LIB_CTX> specified
 in I<libctx> and the property query string specified in I<props>.
 
-No B<EVP_PKEY_CTX> will be created by EVP_DigestSignInit_ex() if the
+No B<EVP_PKEY_CTX> will be created by EVP_DigestVerifyInit_ex() if the
 passed B<ctx> has already been assigned one via L<EVP_MD_CTX_set_pkey_ctx(3)>.
 See also L<SM2(7)>.
 
@@ -156,9 +156,10 @@ The call to EVP_DigestVerifyFinal() internally finalizes a copy of the digest
 context. This means that EVP_VerifyUpdate() and EVP_VerifyFinal() can
 be called later to digest and verify additional data.
 
-Since only a copy of the digest context is ever finalized, the context must
-be cleaned up after use by calling EVP_MD_CTX_free() or a memory leak
-will occur.
+EVP_DigestVerifyInit() and EVP_DigestVerifyInit_ex() functions can be called
+multiple times on a context and the parameters set by previous calls should be
+preserved if the I<pkey> parameter is NULL. The call then just resets the state
+of the I<ctx>.
 
 =head1 SEE ALSO
 

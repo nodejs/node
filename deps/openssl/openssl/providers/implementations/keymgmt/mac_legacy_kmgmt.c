@@ -508,6 +508,7 @@ static void *mac_gen(void *genctx, OSSL_CALLBACK *cb, void *cbarg)
      * of this can be removed and we will only support the EVP_KDF APIs.
      */
     if (!ossl_prov_cipher_copy(&key->cipher, &gctx->cipher)) {
+        ossl_mac_key_free(key);
         ERR_raise(ERR_LIB_PROV, ERR_R_INTERNAL_ERROR);
         return NULL;
     }

@@ -16,7 +16,7 @@ Requirements
    See <http://valgrind.org/info/platforms.html>
 2. Valgrind installed on the platform
    See <http://valgrind.org/downloads/current.html>
-3. OpensSSL compiled
+3. OpenSSL compiled
    See [INSTALL.md](INSTALL.md)
 
 Running Tests

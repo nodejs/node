@@ -62,7 +62,7 @@ IF[{- !$disabled{tests} -}]
           context_internal_test aesgcmtest params_test evp_pkey_dparams_test \
           keymgmt_internal_test hexstr_test provider_status_test defltfips_test \
           bio_readbuffer_test user_property_test pkcs7_test upcallstest \
-          provfetchtest prov_config_test
+          provfetchtest prov_config_test rand_test
 
   IF[{- !$disabled{'deprecated-3.0'} -}]
     PROGRAMS{noinst}=enginetest
@@ -83,6 +83,10 @@ IF[{- !$disabled{tests} -}]
   SOURCE[sanitytest]=sanitytest.c
   INCLUDE[sanitytest]=../include ../apps/include
   DEPEND[sanitytest]=../libcrypto libtestutil.a
+
+  SOURCE[rand_test]=rand_test.c
+  INCLUDE[rand_test]=../include ../apps/include
+  DEPEND[rand_test]=../libcrypto libtestutil.a
 
   SOURCE[rsa_complex]=rsa_complex.c
   INCLUDE[rsa_complex]=../include ../apps/include
@@ -839,6 +843,11 @@ IF[{- !$disabled{tests} -}]
   SOURCE[provider_fallback_test]=provider_fallback_test.c
   INCLUDE[provider_fallback_test]=../include ../apps/include
   DEPEND[provider_fallback_test]=../libcrypto libtestutil.a
+
+  PROGRAMS{noinst}=provider_pkey_test
+  SOURCE[provider_pkey_test]=provider_pkey_test.c fake_rsaprov.c
+  INCLUDE[provider_pkey_test]=../include ../apps/include
+  DEPEND[provider_pkey_test]=../libcrypto libtestutil.a
 
   PROGRAMS{noinst}=params_test
   SOURCE[params_test]=params_test.c

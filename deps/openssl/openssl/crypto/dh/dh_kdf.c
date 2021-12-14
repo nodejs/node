@@ -70,7 +70,7 @@ int DH_KDF_X9_42(unsigned char *out, size_t outlen,
     const OSSL_PROVIDER *prov = EVP_MD_get0_provider(md);
     OSSL_LIB_CTX *libctx = ossl_provider_libctx(prov);
 
-    if (!OBJ_obj2txt(key_alg, sizeof(key_alg), key_oid, 0))
+    if (OBJ_obj2txt(key_alg, sizeof(key_alg), key_oid, 0) <= 0)
         return 0;
 
     return ossl_dh_kdf_X9_42_asn1(out, outlen, Z, Zlen, key_alg,

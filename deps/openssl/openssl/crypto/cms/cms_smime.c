@@ -608,6 +608,8 @@ CMS_ContentInfo *CMS_sign_receipt(CMS_SignerInfo *si,
 
     /* Set embedded content */
     pos = CMS_get0_content(cms);
+    if (pos == NULL)
+        goto err;
     *pos = os;
 
     r = 1;

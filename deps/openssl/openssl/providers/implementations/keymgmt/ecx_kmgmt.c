@@ -153,24 +153,39 @@ static int ecx_match(const void *keydata1, const void *keydata2, int selection)
 
     if ((selection & OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS) != 0)
         ok = ok && key1->type == key2->type;
-    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
-        if ((key1->privkey == NULL && key2->privkey != NULL)
-                || (key1->privkey != NULL && key2->privkey == NULL)
-                || key1->type != key2->type)
-            ok = 0;
-        else
-            ok = ok && (key1->privkey == NULL /* implies key2->privkey == NULL */
-                        || CRYPTO_memcmp(key1->privkey, key2->privkey,
-                                         key1->keylen) == 0);
-    }
-    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
-        if (key1->haspubkey != key2->haspubkey
-                || key1->type != key2->type)
-            ok = 0;
-        else
-            ok = ok && (key1->haspubkey == 0 /* implies key2->haspubkey == 0 */
-                        || CRYPTO_memcmp(key1->pubkey, key2->pubkey,
-                                         key1->keylen) == 0);
+    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
+        int key_checked = 0;
+
+        if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
+            const unsigned char *pa = key1->haspubkey ? key1->pubkey : NULL;
+            const unsigned char *pb = key2->haspubkey ? key2->pubkey : NULL;
+            size_t pal = key1->keylen;
+            size_t pbl = key2->keylen;
+
+            if (pa != NULL && pb != NULL) {
+                ok = ok
+                    && key1->type == key2->type
+                    && pal == pbl
+                    && CRYPTO_memcmp(pa, pb, pal) == 0;
+                key_checked = 1;
+            }
+        }
+        if (!key_checked
+            && (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
+            const unsigned char *pa = key1->privkey;
+            const unsigned char *pb = key2->privkey;
+            size_t pal = key1->keylen;
+            size_t pbl = key2->keylen;
+
+            if (pa != NULL && pb != NULL) {
+                ok = ok
+                    && key1->type == key2->type
+                    && pal == pbl
+                    && CRYPTO_memcmp(pa, pb, pal) == 0;
+                key_checked = 1;
+            }
+        }
+        ok = ok && key_checked;
     }
     return ok;
 }

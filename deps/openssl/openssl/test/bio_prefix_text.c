@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -211,7 +211,7 @@ static int setup(void)
                            progname, idx, amount - 1);
                 return 0;
             }
-            if (!BIO_set_indent(chain[idx], (long)indent)) {
+            if (BIO_set_indent(chain[idx], (long)indent) <= 0) {
                 BIO_printf(bio_err, "%s: failed setting indentation: %s",
                            progname, arg);
                 return 0;
@@ -242,7 +242,7 @@ static int setup(void)
                            progname, idx, amount - 1);
                 return 0;
             }
-            if (!BIO_set_prefix(chain[idx], colon)) {
+            if (BIO_set_prefix(chain[idx], colon) <= 0) {
                 BIO_printf(bio_err, "%s: failed setting prefix: %s",
                            progname, arg);
                 return 0;

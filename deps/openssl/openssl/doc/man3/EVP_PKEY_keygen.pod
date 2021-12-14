@@ -51,8 +51,8 @@ key generation function itself.
 The key algorithm context must be created using L<EVP_PKEY_CTX_new(3)> or
 variants thereof, see that manual for details.
 
-EVP_PKEY_keygen_init() initializes a public key algorithm context using key
-I<pkey> for a key generation operation.
+EVP_PKEY_keygen_init() initializes a public key algorithm context I<ctx>
+for a key generation operation.
 
 EVP_PKEY_paramgen_init() is similar to EVP_PKEY_keygen_init() except key
 parameters are generated.

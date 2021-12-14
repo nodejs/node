@@ -88,7 +88,7 @@ static int get_ulong_via_BN(const OSSL_PARAM *p, unsigned long *goal)
     int ret = 1;                 /* Ever so hopeful */
 
     if (!TEST_true(OSSL_PARAM_get_BN(p, &n))
-        || !TEST_true(BN_bn2nativepad(n, (unsigned char *)goal, sizeof(*goal))))
+        || !TEST_int_ge(BN_bn2nativepad(n, (unsigned char *)goal, sizeof(*goal)), 0))
         ret = 0;
     BN_free(n);
     return ret;

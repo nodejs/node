@@ -829,12 +829,14 @@ static SSL_SESSION *read_session(const char *filename)
 
 static int write_session(const char *filename, SSL_SESSION *sess)
 {
-    BIO *f = BIO_new_file(filename, "w");
+    BIO *f;
 
     if (sess == NULL) {
         BIO_printf(bio_err, "No session information\n");
         return 0;
     }
+
+    f = BIO_new_file(filename, "w");
     if (f == NULL) {
         BIO_printf(bio_err, "Can't open session file %s\n", filename);
         ERR_print_errors(bio_err);
@@ -1894,9 +1896,9 @@ int doit_localhost(SSL *s_ssl, SSL *c_ssl, int family, long count,
     BIO_snprintf(addr_str, sizeof(addr_str), ":%s", BIO_get_accept_port(acpt));
 
     client = BIO_new_connect(addr_str);
-    BIO_set_conn_ip_family(client, family);
     if (!client)
         goto err;
+    BIO_set_conn_ip_family(client, family);
 
     if (BIO_set_nbio(client, 1) <= 0)
         goto err;

@@ -12,12 +12,12 @@ use warnings;
 
 use File::Spec;
 use File::Basename;
-use OpenSSL::Test qw/:DEFAULT with srctop_file/;
+use OpenSSL::Test qw/:DEFAULT with srctop_file bldtop_file/;
 use OpenSSL::Test::Utils;
 
 setup("test_dgst");
 
-plan tests => 9;
+plan tests => 10;
 
 sub tsignverify {
     my $testtext = shift;
@@ -101,6 +101,25 @@ SKIP: {
                     srctop_file("test","tested448.pem"),
                     srctop_file("test","tested448pub.pem"));
     };
+}
+
+SKIP: {
+    skip "dgst with engine is not supported by this OpenSSL build", 1
+        if disabled("engine") || disabled("dynamic-engine");
+
+    subtest "SHA1 generation by engine with `dgst` CLI" => sub {
+        plan tests => 1;
+
+        my $testdata = srctop_file('test', 'data.bin');
+        # intentionally using -engine twice, please do not remove the duplicate line
+        my @macdata = run(app(['openssl', 'dgst', '-sha1',
+                               '-engine', $^O eq 'linux' ? bldtop_file("engines", "ossltest.so") : "ossltest",
+                               '-engine', $^O eq 'linux' ? bldtop_file("engines", "ossltest.so") : "ossltest",
+                               $testdata]), capture => 1);
+        chomp(@macdata);
+        my $expected = qr/SHA1\(\Q$testdata\E\)= 000102030405060708090a0b0c0d0e0f10111213/;
+        ok($macdata[0] =~ $expected, "SHA1: Check HASH value is as expected ($macdata[0]) vs ($expected)");
+    }
 }
 
 subtest "HMAC generation with `dgst` CLI" => sub {

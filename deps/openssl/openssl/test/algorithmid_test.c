@@ -48,7 +48,7 @@ static int test_spki_aid(X509_PUBKEY *pubkey, const char *filename)
         goto end;
 
     X509_ALGOR_get0(&oid, NULL, NULL, alg);
-    if (!TEST_true(OBJ_obj2txt(name, sizeof(name), oid, 0)))
+    if (!TEST_int_gt(OBJ_obj2txt(name, sizeof(name), oid, 0), 0))
         goto end;
 
     /*

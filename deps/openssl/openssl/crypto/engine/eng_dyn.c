@@ -484,7 +484,9 @@ static int dynamic_load(ENGINE *e, dynamic_data_ctx *ctx)
     engine_set_all_null(e);
 
     /* Try to bind the ENGINE onto our own ENGINE structure */
-    if (!ctx->bind_engine(e, ctx->engine_id, &fns)) {
+    if (!engine_add_dynamic_id(e, (ENGINE_DYNAMIC_ID)ctx->bind_engine, 1)
+            || !ctx->bind_engine(e, ctx->engine_id, &fns)) {
+        engine_remove_dynamic_id(e, 1);
         ctx->bind_engine = NULL;
         ctx->v_check = NULL;
         DSO_free(ctx->dynamic_dso);

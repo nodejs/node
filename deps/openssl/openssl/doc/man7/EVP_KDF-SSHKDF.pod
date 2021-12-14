@@ -121,7 +121,7 @@ This example derives an 8 byte IV using SHA-256 with a 1K "key" and appropriate
                                           key, (size_t)1024);
  *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SSHKDF_XCGHASH,
                                           xcghash, (size_t)32);
- *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT,
+ *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SSHKDF_SESSION_ID,
                                           session_id, (size_t)32);
  *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_SSHKDF_TYPE,
                                          &type, sizeof(type));

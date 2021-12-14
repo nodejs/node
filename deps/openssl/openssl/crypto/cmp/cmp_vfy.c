@@ -27,11 +27,13 @@ static int verify_signature(const OSSL_CMP_CTX *cmp_ctx,
 {
     OSSL_CMP_PROTECTEDPART prot_part;
     EVP_PKEY *pubkey = NULL;
-    BIO *bio = BIO_new(BIO_s_mem()); /* may be NULL */
+    BIO *bio;
     int res = 0;
 
     if (!ossl_assert(cmp_ctx != NULL && msg != NULL && cert != NULL))
         return 0;
+
+    bio = BIO_new(BIO_s_mem()); /* may be NULL */
 
     /* verify that keyUsage, if present, contains digitalSignature */
     if (!cmp_ctx->ignore_keyusage

@@ -1,7 +1,7 @@
 $	! OpenSSL utilities
 $	!
 $
-$	v    := {- sprintf "%02d%02d", split(/\./, $config{version}) -}
+$	v    := {- sprintf "%02d", split(/\./, $config{version}) -}
 $
 $	OPENSSL'v'	:== $OSSL$EXE:OPENSSL'v'
 $	OPENSSL		:== $OSSL$EXE:OPENSSL'v'

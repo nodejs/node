@@ -15,9 +15,9 @@ SSL_CTX_set_tlsext_ticket_key_cb
                unsigned char iv[EVP_MAX_IV_LENGTH],
                EVP_CIPHER_CTX *ctx, EVP_MAC_CTX *hctx, int enc));
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following function has been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  int SSL_CTX_set_tlsext_ticket_key_cb(SSL_CTX sslctx,
      int (*cb)(SSL *s, unsigned char key_name[16],
@@ -145,7 +145,7 @@ enable an attacker to obtain the session keys.
 
 =head1 RETURN VALUES
 
-returns 0 to indicate the callback function was set.
+Returns 1 to indicate the callback function was set and 0 otherwise.
 
 =head1 EXAMPLES
 

@@ -999,7 +999,7 @@ EVP_MD *EVP_MD_CTX_get1_md(EVP_MD_CTX *ctx)
     if (ctx == NULL)
         return NULL;
     md = (EVP_MD *)ctx->reqdigest;
-    if (!EVP_MD_up_ref(md))
+    if (md == NULL || !EVP_MD_up_ref(md))
         return NULL;
     return md;
 }

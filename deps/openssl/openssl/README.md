@@ -4,27 +4,28 @@ What This Is
 This is a fork of [OpenSSL](https://www.openssl.org) to enable QUIC. In addition
 to the website, the official source distribution is at
 <https://github.com/openssl/openssl>. The OpenSSL `README` can be found at
-[README-OpenSSL.md](README-OpenSSL.md).
+[README-OpenSSL.md](https://github.com/quictls/openssl/blob/openssl-3.0.1%2Bquic/README-OpenSSL.md)
 
-This fork adds API that can be used by QUIC implementations for connection
+This fork adds APIs that can be used by QUIC implementations for connection
 handshakes. Quoting the IETF Working group
 [charter](https://datatracker.ietf.org/wg/quic/about/), QUIC is a "UDP-based,
 stream-multiplexing, encrypted transport protocol." If you don't need QUIC, you
 should use the official OpenSSL distributions.
 
-This API's here are used by Microsoft's
+The APIs here are used by Microsoft's
 [MsQuic](https://github.com/microsoft/msquic) and Google's
 [Chromium QUIC](https://chromium.googlesource.com/chromium/src/+/master/net/quic/)
 
 We are not in competition with OpenSSL project. We informed them of
 our plans to fork the code before we went public. We do not speak for the
 OpenSSL project, and can only point to a
-[blog post](https://www.openssl.org/blog/blog/2020/02/17/QUIC-and-OpenSSL/) that
-provides their view of QUIC support.
+[blog post](https://www.openssl.org/blog/blog/2020/02/17/QUIC-and-OpenSSL/) and
+[openssl-project email](https://github.com/quictls/openssl/discussions/54)
+that provides their view of QUIC support.
 
 As stated in their blog post, the OpenSSL team is focused on their 3.0 release
-which is still in alpha, and does not intend to add QUIC functionality to 1.1.x.
-There is a community need for a QUIC capable TLS library. This fork is intended
+(released 2021-09-07), and does not intend to add QUIC functionality to 1.1.x.
+There is a community need for a QUIC-capable TLS library. This fork is intended
 as stopgap solution to enable higher level frameworks and runtimes to use QUIC
 with the proven and reliable TLS functionality from OpenSSL. This fork will be
 maintained until OpenSSL officially provides reasonable support for QUIC
@@ -42,8 +43,8 @@ What about branches?
 
 We don't want to conflict with OpenSSL branch names. Our current plan is to append
 `+quic`. Release tags are likely to be the QUIC branch with `-releaseX` appended.
-For example, the OpenSSL tag `openssl-3.0.0-alpha12` would have a branch named
-`openssl-3.0.0-alpha12+quic` and a release tag of `openssl-3.0.0-alpha12+quic-release1`
+For example, the OpenSSL tag `openssl-3.0.0` would have a branch named
+`openssl-3.0.0+quic` and a release tag of `openssl-3.0.0+quic-release1`.
 
 How are you keeping current with OpenSSL?
 -----------------------------------------
@@ -65,13 +66,13 @@ What about library names?
 
 Library names will be the same, but will use a different version number. The version
 numbers for the current OpenSSL libraries are `1.1` (for the 1.1.0 and 1.1.1 branches)
-and `3` (for the to-be-3.0 branch). We will be prefixing 81 (ASCII for 'Q') to
+and `3` (for the 3.0 branch). We will be prefixing `81` (ASCII for 'Q') to
 the version numbers to generate a unique version number.
 
-- libcrypto.so.81.3 vs libcrypto.so.3
-- libcrypto.so.81.1.1 vs libcrypto.so.1.1
-- libssl.so.81.3 vs libssl.so.3
-- libssl.so.81.1.1 vs libsslo.so.1.1
+- `libcrypto.so.81.3` vs `libcrypto.so.3`
+- `libcrypto.so.81.1.1` vs `libcrypto.so.1.1`
+- `libssl.so.81.3` vs `libssl.so.3`
+- `libssl.so.81.1.1` vs `libssl.so.1.1`
 
 The SONAME of these libraries are all different, guaranteeing the correct library
 will be used.

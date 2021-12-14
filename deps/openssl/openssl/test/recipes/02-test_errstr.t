@@ -139,7 +139,7 @@ sub match_opensslerr_reason {
     $reason =~ s|\R$||;
     $reason = ( split_error($reason) )[3];
 
-    return match_any($reason, $errcode, @strings);
+    return match_any($reason, $errcode_hex, @strings);
 }
 
 sub match_syserr_reason {

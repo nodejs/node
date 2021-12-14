@@ -27,6 +27,7 @@ void tls_engine_finish(ENGINE *e)
 
 const EVP_CIPHER *tls_get_cipher_from_engine(int nid)
 {
+    const EVP_CIPHER *ret = NULL;
 #ifndef OPENSSL_NO_ENGINE
     ENGINE *eng;
 
@@ -36,15 +37,16 @@ const EVP_CIPHER *tls_get_cipher_from_engine(int nid)
      */
     eng = ENGINE_get_cipher_engine(nid);
     if (eng != NULL) {
+        ret = ENGINE_get_cipher(eng, nid);
         ENGINE_finish(eng);
-        return EVP_get_cipherbynid(nid);
     }
 #endif
-    return NULL;
+    return ret;
 }
 
 const EVP_MD *tls_get_digest_from_engine(int nid)
 {
+    const EVP_MD *ret = NULL;
 #ifndef OPENSSL_NO_ENGINE
     ENGINE *eng;
 
@@ -54,11 +56,11 @@ const EVP_MD *tls_get_digest_from_engine(int nid)
      */
     eng = ENGINE_get_digest_engine(nid);
     if (eng != NULL) {
+        ret = ENGINE_get_digest(eng, nid);
         ENGINE_finish(eng);
-        return EVP_get_digestbynid(nid);
     }
 #endif
-    return NULL;
+    return ret;
 }
 
 #ifndef OPENSSL_NO_ENGINE
