@@ -55,6 +55,7 @@ static const ERR_STRING_DATA HTTP_str_reasons[] = {
     "response line too long"},
     {ERR_PACK(ERR_LIB_HTTP, 0, HTTP_R_RESPONSE_PARSE_ERROR),
     "response parse error"},
+    {ERR_PACK(ERR_LIB_HTTP, 0, HTTP_R_RETRY_TIMEOUT), "retry timeout"},
     {ERR_PACK(ERR_LIB_HTTP, 0, HTTP_R_SERVER_CANCELED_CONNECTION),
     "server canceled connection"},
     {ERR_PACK(ERR_LIB_HTTP, 0, HTTP_R_SOCK_NOT_SUPPORTED),

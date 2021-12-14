@@ -5,7 +5,7 @@ IF[{- !$disabled{asm} -}]
   $AESASM_x86=aes-586.s
   $AESDEF_x86=AES_ASM
   $AESASM_x86_sse2=vpaes-x86.s aesni-x86.s
-  $AESDEF_x86_sse2=VPAES_ASM
+  $AESDEF_x86_sse2=VPAES_ASM OPENSSL_IA32_SSE2
 
   $AESASM_x86_64=\
         aes-x86_64.s vpaes-x86_64.s bsaes-x86_64.s aesni-x86_64.s \

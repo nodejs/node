@@ -91,6 +91,7 @@ static int sshkdf_set_membuf(unsigned char **dst, size_t *dst_len,
 {
     OPENSSL_clear_free(*dst, *dst_len);
     *dst = NULL;
+    *dst_len = 0;
     return OSSL_PARAM_get_octet_string(p, (void **)dst, 0, dst_len);
 }
 

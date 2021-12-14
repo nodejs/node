@@ -70,11 +70,23 @@ int ossl_ecx_key_fromdata(ECX_KEY *ecx, const OSSL_PARAM params[],
     if (param_pub_key == NULL && param_priv_key == NULL)
         return 0;
 
-    if (param_priv_key != NULL
-        && !OSSL_PARAM_get_octet_string(param_priv_key,
-                                        (void **)&ecx->privkey, ecx->keylen,
-                                        &privkeylen))
-        return 0;
+    if (param_priv_key != NULL) {
+        if (!OSSL_PARAM_get_octet_string(param_priv_key,
+                                         (void **)&ecx->privkey, ecx->keylen,
+                                         &privkeylen))
+            return 0;
+        if (privkeylen != ecx->keylen) {
+            /*
+             * Invalid key length. We will clear what we've received now. We
+             * can't leave it to ossl_ecx_key_free() because that will call
+             * OPENSSL_secure_clear_free() and assume the correct key length
+             */
+            OPENSSL_secure_clear_free(ecx->privkey, privkeylen);
+            ecx->privkey = NULL;
+            return 0;
+        }
+    }
+
 
     pubkey = ecx->pubkey;
     if (param_pub_key != NULL
@@ -83,8 +95,7 @@ int ossl_ecx_key_fromdata(ECX_KEY *ecx, const OSSL_PARAM params[],
                                          sizeof(ecx->pubkey), &pubkeylen))
         return 0;
 
-    if ((param_pub_key != NULL && pubkeylen != ecx->keylen)
-        || (param_priv_key != NULL && privkeylen != ecx->keylen))
+    if ((param_pub_key != NULL && pubkeylen != ecx->keylen))
         return 0;
 
     if (param_pub_key == NULL && !ossl_ecx_public_from_private(ecx))

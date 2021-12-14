@@ -204,6 +204,12 @@ int OSSL_PARAM_BLD_push_BN_pad(OSSL_PARAM_BLD *bld, const char *key,
     OSSL_PARAM_BLD_DEF *pd;
 
     if (bn != NULL) {
+        if (BN_is_negative(bn)) {
+            ERR_raise_data(ERR_LIB_CRYPTO, ERR_R_UNSUPPORTED,
+                           "Negative big numbers are unsupported for OSSL_PARAM");
+            return 0;
+        }
+
         n = BN_num_bytes(bn);
         if (n < 0) {
             ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_ZERO_LENGTH_NUMBER);

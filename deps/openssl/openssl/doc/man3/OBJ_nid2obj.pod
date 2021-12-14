@@ -37,9 +37,9 @@ OBJ_dup, OBJ_txt2obj, OBJ_obj2txt, OBJ_create, OBJ_cleanup, OBJ_add_sigid
 
  int OBJ_add_sigid(int signid, int dig_id, int pkey_id);
 
-Deprecated since OpenSSL 1.1.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following function has been deprecated since OpenSSL 1.1.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  void OBJ_cleanup(void);
 
@@ -71,12 +71,14 @@ as well as numerical forms. If I<no_name> is 1 only the numerical form
 is acceptable.
 
 OBJ_obj2txt() converts the B<ASN1_OBJECT> I<a> into a textual representation.
-The representation is written as a null terminated string to I<buf>
+Unless I<buf> is NULL,
+the representation is written as a NUL-terminated string to I<buf>, where
 at most I<buf_len> bytes are written, truncating the result if necessary.
-The total amount of space required is returned. If I<no_name> is 0 then
-if the object has a long or short name then that will be used, otherwise
-the numerical form will be used. If I<no_name> is 1 then the numerical
-form will always be used.
+In any case it returns the total string length, excluding the NUL character,
+required for non-truncated representation, or -1 on error.
+If I<no_name> is 0 then if the object has a long or short name
+then that will be used, otherwise the numerical form will be used.
+If I<no_name> is 1 then the numerical form will always be used.
 
 i2t_ASN1_OBJECT() is the same as OBJ_obj2txt() with the I<no_name> set to zero.
 
@@ -152,6 +154,11 @@ a NID or B<NID_undef> on error.
 
 OBJ_add_sigid() returns 1 on success or 0 on error.
 
+i2t_ASN1_OBJECT() an OBJ_obj2txt() return -1 on error.
+On success, they return the length of the string written to I<buf> if I<buf> is
+not NULL and I<buf_len> is big enough, otherwise the total string length.
+Note that this does not count the trailing NUL character.
+
 =head1 EXAMPLES
 
 Create an object for B<commonName>:
@@ -173,13 +180,6 @@ Create a new object directly:
  obj = OBJ_txt2obj("1.2.3.4", 1);
 
 =head1 BUGS
-
-OBJ_obj2txt() is awkward and messy to use: it doesn't follow the
-convention of other OpenSSL functions where the buffer can be set
-to B<NULL> to determine the amount of data that should be written.
-Instead I<buf> must point to a valid buffer and I<buf_len> should
-be set to a positive value. A buffer length of 80 should be more
-than enough to handle any OID encountered in practice.
 
 Neither OBJ_create() nor OBJ_add_sigid() do any locking and are thus not
 thread safe.  Moreover, none of the other functions should be called while

@@ -178,7 +178,10 @@ where a comparison function has been specified, I<sk> is sorted and
 B<sk_I<TYPE>_find>() returns the index of a matching element or B<-1> if there
 is no match. Note that, in this case the comparison function will usually
 compare the values pointed to rather than the pointers themselves and
-the order of elements in I<sk> can change.
+the order of elements in I<sk> can change. Note that because the stack may be
+sorted as the result of a B<sk_I<TYPE>_find>() call, if a lock is being used to
+synchronise access to the stack across multiple threads, then that lock must be
+a "write" lock.
 
 B<sk_I<TYPE>_find_ex>() operates like B<sk_I<TYPE>_find>() except when a
 comparison function has been specified and no matching element is found.

@@ -60,10 +60,10 @@ BIO_set_fd() and BIO_get_fd() are implemented as macros.
 
 BIO_s_fd() returns the file descriptor BIO method.
 
-BIO_set_fd() always returns 1.
+BIO_set_fd() returns 1 on success or <=0 for failure.
 
 BIO_get_fd() returns the file descriptor or -1 if the BIO has not
-been initialized.
+been initialized. It also returns zero and negative values if other error occurs.
 
 BIO_new_fd() returns the newly allocated BIO or NULL is an error
 occurred.

@@ -126,12 +126,12 @@ This is the canonical list.
  Function Call                ---------------------------------------------- Current State -----------------------------------------------
                               start   newed    initialised   updated     finaled   initialised   updated    initialised   updated    freed
                                                                                     decryption  decryption   encryption  encryption
- EVP_CIPHER_CTX_new           newed           
+ EVP_CIPHER_CTX_new           newed
  EVP_CipherInit                    initialised initialised initialised initialised initialised initialised  initialised initialised
  EVP_DecryptInit                   initialised initialised initialised initialised initialised initialised  initialised initialised
-                                    decryption  decryption  decryption  decryption  decryption  decryption  decryption  decryption  
+                                    decryption  decryption  decryption  decryption  decryption  decryption  decryption  decryption
  EVP_EncryptInit                   initialised initialised initialised initialised initialised initialised  initialised initialised
-                                    encryption  encryption  encryption  encryption  encryption  encryption  encryption  encryption  
+                                    encryption  encryption  encryption  encryption  encryption  encryption  encryption  encryption
  EVP_CipherUpdate                                updated     updated
  EVP_DecryptUpdate                                                                   updated     updated
                                                                                     decryption  decryption

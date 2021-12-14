@@ -213,6 +213,17 @@ EVP_KEYMGMT *evp_keymgmt_fetch_by_number(OSSL_LIB_CTX *ctx, int name_id,
                                        (void (*)(void *))EVP_KEYMGMT_free);
 }
 
+EVP_KEYMGMT *evp_keymgmt_fetch_from_prov(OSSL_PROVIDER *prov,
+                                         const char *name,
+                                         const char *properties)
+{
+    return evp_generic_fetch_from_prov(prov, OSSL_OP_KEYMGMT,
+                                       name, properties,
+                                       keymgmt_from_algorithm,
+                                       (int (*)(void *))EVP_KEYMGMT_up_ref,
+                                       (void (*)(void *))EVP_KEYMGMT_free);
+}
+
 EVP_KEYMGMT *EVP_KEYMGMT_fetch(OSSL_LIB_CTX *ctx, const char *algorithm,
                                const char *properties)
 {

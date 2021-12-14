@@ -19,20 +19,20 @@ BN_pseudo_rand_range
                      unsigned int strength, BN_CTX *ctx);
  int BN_priv_rand(BIGNUM *rnd, int bits, int top, int bottom);
 
- int BN_rand_range_ex(BIGNUM *rnd, BIGNUM *range, unsigned int strength,
+ int BN_rand_range_ex(BIGNUM *rnd, const BIGNUM *range, unsigned int strength,
                       BN_CTX *ctx);
- int BN_rand_range(BIGNUM *rnd, BIGNUM *range);
+ int BN_rand_range(BIGNUM *rnd, const BIGNUM *range);
 
- int BN_priv_rand_range_ex(BIGNUM *rnd, BIGNUM *range, unsigned int strength,
+ int BN_priv_rand_range_ex(BIGNUM *rnd, const BIGNUM *range, unsigned int strength,
                            BN_CTX *ctx);
- int BN_priv_rand_range(BIGNUM *rnd, BIGNUM *range);
+ int BN_priv_rand_range(BIGNUM *rnd, const BIGNUM *range);
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-OPENSSL_API_COMPAT with a suitable version value, see
-openssl_user_macros(7):
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  int BN_pseudo_rand(BIGNUM *rnd, int bits, int top, int bottom);
- int BN_pseudo_rand_range(BIGNUM *rnd, BIGNUM *range);
+ int BN_pseudo_rand_range(BIGNUM *rnd, const BIGNUM *range);
 
 =head1 DESCRIPTION
 
@@ -53,7 +53,7 @@ the number will be set to 1, so that the product of two such random
 numbers will always have 2*I<bits> length.
 If I<bottom> is B<BN_RAND_BOTTOM_ODD>, the number will be odd; if it
 is B<BN_RAND_BOTTOM_ANY> it can be odd or even.
-If I<bits> is 1 then I<top> cannot also be B<BN_RAND_FLG_TOPTWO>.
+If I<bits> is 1 then I<top> cannot also be B<BN_RAND_TOP_TWO>.
 
 BN_rand() is the same as BN_rand_ex() except that the default library context
 is always used.

@@ -91,7 +91,7 @@ and a destructor to an index.
  }
 
  /*
-  * Include a reference to this in the methods table in context.c 
+  * Include a reference to this in the methods table in context.c
   * OSSL_LIB_CTX_FOO_INDEX should be added to internal/cryptlib.h
   * Priorities can be OSSL_LIB_CTX_METHOD_DEFAULT_PRIORITY,
   * OSSL_LIB_CTX_METHOD_PRIORITY_1, OSSL_LIB_CTX_METHOD_PRIORITY_2, etc.

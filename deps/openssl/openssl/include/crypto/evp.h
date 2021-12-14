@@ -38,6 +38,7 @@ struct evp_pkey_ctx_st {
     OSSL_LIB_CTX *libctx;
     char *propquery;
     const char *keytype;
+    /* If |pkey| below is set, this field is always a reference to its keymgmt */
     EVP_KEYMGMT *keymgmt;
 
     union {
@@ -794,6 +795,8 @@ void *evp_keymgmt_util_gen(EVP_PKEY *target, EVP_KEYMGMT *keymgmt,
 int evp_keymgmt_util_get_deflt_digest_name(EVP_KEYMGMT *keymgmt,
                                            void *keydata,
                                            char *mdname, size_t mdname_sz);
+const char *evp_keymgmt_util_query_operation_name(EVP_KEYMGMT *keymgmt,
+                                                  int op_id);
 
 /*
  * KEYMGMT provider interface functions

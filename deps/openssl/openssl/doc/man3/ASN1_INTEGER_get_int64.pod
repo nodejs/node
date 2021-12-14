@@ -14,7 +14,7 @@ ASN1_INTEGER_get_int64, ASN1_INTEGER_get, ASN1_INTEGER_set_int64, ASN1_INTEGER_s
  long ASN1_INTEGER_get(const ASN1_INTEGER *a);
 
  int ASN1_INTEGER_set_int64(ASN1_INTEGER *a, int64_t r);
- int ASN1_INTEGER_set(const ASN1_INTEGER *a, long v);
+ int ASN1_INTEGER_set(ASN1_INTEGER *a, long v);
 
  int ASN1_INTEGER_get_uint64(uint64_t *pr, const ASN1_INTEGER *a);
  int ASN1_INTEGER_set_uint64(ASN1_INTEGER *a, uint64_t r);
@@ -28,8 +28,8 @@ ASN1_INTEGER_get_int64, ASN1_INTEGER_get, ASN1_INTEGER_set_int64, ASN1_INTEGER_s
  int ASN1_ENUMERATED_set_int64(ASN1_ENUMERATED *a, int64_t r);
  int ASN1_ENUMERATED_set(ASN1_ENUMERATED *a, long v);
 
- ASN1_ENUMERATED *BN_to_ASN1_ENUMERATED(BIGNUM *bn, ASN1_ENUMERATED *ai);
- BIGNUM *ASN1_ENUMERATED_to_BN(ASN1_ENUMERATED *ai, BIGNUM *bn);
+ ASN1_ENUMERATED *BN_to_ASN1_ENUMERATED(const BIGNUM *bn, ASN1_ENUMERATED *ai);
+ BIGNUM *ASN1_ENUMERATED_to_BN(const ASN1_ENUMERATED *ai, BIGNUM *bn);
 
 =head1 DESCRIPTION
 
@@ -123,7 +123,7 @@ were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

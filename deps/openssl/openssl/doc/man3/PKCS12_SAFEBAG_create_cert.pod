@@ -3,7 +3,7 @@
 =head1 NAME
 
 PKCS12_SAFEBAG_create_cert, PKCS12_SAFEBAG_create_crl,
-PKCS12_SAFEBAG_create_secret, PKCS12_SAFEBAG_create0_p8inf, 
+PKCS12_SAFEBAG_create_secret, PKCS12_SAFEBAG_create0_p8inf,
 PKCS12_SAFEBAG_create0_pkcs8, PKCS12_SAFEBAG_create_pkcs8_encrypt,
 PKCS12_SAFEBAG_create_pkcs8_encrypt_ex - Create PKCS#12 safeBag objects
 
@@ -52,7 +52,7 @@ containing the supplied PKCS8 structure.
 PKCS12_SAFEBAG_create0_pkcs8() creates a new B<PKCS12_SAFEBAG> of type
 B<NID_pkcs8ShroudedKeyBag> containing the supplied PKCS8 structure.
 
-PKCS12_SAFEBAG_create_pkcs8_encrypt() creates a new B<PKCS12_SAFEBAG> of type 
+PKCS12_SAFEBAG_create_pkcs8_encrypt() creates a new B<PKCS12_SAFEBAG> of type
 B<NID_pkcs8ShroudedKeyBag> by encrypting the supplied PKCS8 I<p8inf>.
 If I<pbe_nid> is 0, a default encryption algorithm is used. I<pass> is the
 passphrase and I<iter> is the iteration count. If I<iter> is zero then a default

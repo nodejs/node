@@ -145,11 +145,12 @@ int custom_ext_parse(SSL *s, unsigned int context, unsigned int ext_type,
     }
 
     /*
-     * Extensions received in the ClientHello are marked with the
-     * SSL_EXT_FLAG_RECEIVED. This is so we know to add the equivalent
-     * extensions in the ServerHello/EncryptedExtensions message
+     * Extensions received in the ClientHello or CertificateRequest are marked
+     * with the SSL_EXT_FLAG_RECEIVED. This is so we know to add the equivalent
+     * extensions in the response messages
      */
-    if ((context & SSL_EXT_CLIENT_HELLO) != 0)
+    if ((context & (SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_CERTIFICATE_REQUEST))
+            != 0)
         meth->ext_flags |= SSL_EXT_FLAG_RECEIVED;
 
     /* If no parse function set return success */
@@ -191,7 +192,7 @@ int custom_ext_add(SSL *s, int context, WPACKET *pkt, X509 *x, size_t chainidx,
                         | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
                         | SSL_EXT_TLS1_3_CERTIFICATE
                         | SSL_EXT_TLS1_3_HELLO_RETRY_REQUEST)) != 0) {
-            /* Only send extensions present in ClientHello. */
+            /* Only send extensions present in ClientHello/CertificateRequest */
             if (!(meth->ext_flags & SSL_EXT_FLAG_RECEIVED))
                 continue;
         }

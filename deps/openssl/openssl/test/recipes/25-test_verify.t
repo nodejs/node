@@ -29,7 +29,7 @@ sub verify {
     run(app([@args]));
 }
 
-plan tests => 159;
+plan tests => 160;
 
 # Canonical success
 ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"]),
@@ -336,6 +336,9 @@ ok(verify("alt3-cert", "", ["root-cert"], ["ncca1-cert", "ncca3-cert"], ),
 
 ok(verify("goodcn1-cert", "", ["root-cert"], ["ncca1-cert"], ),
    "Name Constraints CNs permitted");
+
+ok(verify("goodcn2-cert", "", ["root-cert"], ["ncca1-cert"], ),
+   "Name Constraints CNs permitted - no SAN extension");
 
 ok(!verify("badcn1-cert", "", ["root-cert"], ["ncca1-cert"], ),
    "Name Constraints CNs not permitted");

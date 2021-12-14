@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -17,8 +17,12 @@ setup("test_dane");
 plan skip_all => "test_dane uses ec which is not supported by this OpenSSL build"
     if disabled("ec");
 
-plan tests => 1;                # The number of tests being performed
+plan tests => 2;                # The number of tests being performed
 
 ok(run(test(["danetest", "example.com",
              srctop_file("test", "danetest.pem"),
              srctop_file("test", "danetest.in")])), "dane tests");
+
+ok(run(test(["danetest", "server.example",
+             srctop_file("test", "certs", "cross-root.pem"),
+             srctop_file("test", "dane-cross.in")])), "dane cross CA test");

@@ -10,15 +10,15 @@ ASN1_item_d2i_fp_ex, ASN1_item_d2i_fp, ASN1_item_i2d_mem_bio
 
  #include <openssl/asn1.h>
 
- ASN1_VALUE *ASN1_item_d2i_ex(ASN1_VALUE **val, const unsigned char **in,
+ ASN1_VALUE *ASN1_item_d2i_ex(ASN1_VALUE **pval, const unsigned char **in,
                               long len, const ASN1_ITEM *it,
                               OSSL_LIB_CTX *libctx, const char *propq);
- ASN1_VALUE *ASN1_item_d2i(ASN1_VALUE **val, const unsigned char **in,
+ ASN1_VALUE *ASN1_item_d2i(ASN1_VALUE **pval, const unsigned char **in,
                            long len, const ASN1_ITEM *it);
 
- void *ASN1_item_d2i_bio_ex(const ASN1_ITEM *it, BIO *in, void *pval,
+ void *ASN1_item_d2i_bio_ex(const ASN1_ITEM *it, BIO *in, void *x,
                             OSSL_LIB_CTX *libctx, const char *propq);
- void *ASN1_item_d2i_bio(const ASN1_ITEM *it, BIO *in, void *pval);
+ void *ASN1_item_d2i_bio(const ASN1_ITEM *it, BIO *in, void *x);
 
  void *ASN1_item_d2i_fp_ex(const ASN1_ITEM *it, FILE *in, void *x,
                            OSSL_LIB_CTX *libctx, const char *propq);

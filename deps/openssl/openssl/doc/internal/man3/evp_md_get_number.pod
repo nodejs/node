@@ -10,7 +10,7 @@ ossl_store_loader_get_number - EVP get internal identification numbers
 
 =head1 SYNOPSIS
 
- #include <crypto/evp.h>
+ #include "crypto/evp.h"
 
  int evp_asym_cipher_get_number(const EVP_ASYM_CIPHER *cipher);
  int evp_cipher_get_number(const EVP_CIPHER *e);

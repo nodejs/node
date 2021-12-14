@@ -287,7 +287,7 @@ int BN_generate_dsa_nonce(BIGNUM *out, const BIGNUM *range,
         goto err;
     }
     for (done = 0; done < num_k_bytes;) {
-        if (!RAND_priv_bytes_ex(libctx, random_bytes, sizeof(random_bytes), 0))
+        if (RAND_priv_bytes_ex(libctx, random_bytes, sizeof(random_bytes), 0) <= 0)
             goto err;
 
         if (!EVP_DigestInit_ex(mdctx, md, NULL)

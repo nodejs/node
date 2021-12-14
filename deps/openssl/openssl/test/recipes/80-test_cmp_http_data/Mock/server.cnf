@@ -12,3 +12,5 @@ srv_trusted = signer_root.crt
 rsp_cert = signer_only.crt
 rsp_capubs = signer_root.crt
 rsp_extracerts = signer_issuing.crt
+
+verbosity = 7

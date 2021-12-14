@@ -168,14 +168,17 @@ static void setup_trace_category(int category)
 {
     BIO *channel;
     tracedata *trace_data;
+    BIO *bio = NULL;
 
     if (OSSL_trace_enabled(category))
         return;
 
-    channel = BIO_push(BIO_new(BIO_f_prefix()), dup_bio_err(FORMAT_TEXT));
+    bio = BIO_new(BIO_f_prefix());
+    channel = BIO_push(bio, dup_bio_err(FORMAT_TEXT));
     trace_data = OPENSSL_zalloc(sizeof(*trace_data));
 
     if (trace_data == NULL
+        || bio == NULL
         || (trace_data->bio = channel) == NULL
         || OSSL_trace_set_callback(category, internal_trace_cb,
                                    trace_data) == 0
@@ -395,6 +398,7 @@ static int do_cmd(LHASH_OF(FUNCTION) *prog, int argc, char *argv[])
 
     if (argc <= 0 || argv[0] == NULL)
         return 0;
+    memset(&f, 0, sizeof(f));
     f.name = argv[0];
     fp = lh_FUNCTION_retrieve(prog, &f);
     if (fp == NULL) {

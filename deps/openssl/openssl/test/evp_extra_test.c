@@ -30,6 +30,7 @@
 #include <openssl/aes.h>
 #include <openssl/decoder.h>
 #include <openssl/rsa.h>
+#include <openssl/engine.h>
 #include "testutil.h"
 #include "internal/nelem.h"
 #include "internal/sizes.h"
@@ -599,6 +600,14 @@ static EVP_PKEY *load_example_dsa_key(void)
 }
 #endif
 
+#ifndef OPENSSL_NO_EC
+static EVP_PKEY *load_example_ec_key(void)
+{
+    return load_example_key("EC", kExampleECKeyDER,
+                            sizeof(kExampleECKeyDER));
+}
+#endif
+
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 # ifndef OPENSSL_NO_DH
 static EVP_PKEY *load_example_dh_key(void)
@@ -609,12 +618,6 @@ static EVP_PKEY *load_example_dh_key(void)
 # endif
 
 # ifndef OPENSSL_NO_EC
-static EVP_PKEY *load_example_ec_key(void)
-{
-    return load_example_key("EC", kExampleECKeyDER,
-                            sizeof(kExampleECKeyDER));
-}
-
 static EVP_PKEY *load_example_ed25519_key(void)
 {
     return load_example_key("ED25519", kExampleED25519KeyDER,
@@ -676,26 +679,56 @@ err:
 }
 
 #if !defined(OPENSSL_NO_DH) || !defined(OPENSSL_NO_DSA) || !defined(OPENSSL_NO_EC)
-static int test_fromdata(char *keytype, OSSL_PARAM *params)
+static EVP_PKEY *make_key_fromdata(char *keytype, OSSL_PARAM *params)
 {
     EVP_PKEY_CTX *pctx = NULL;
-    EVP_PKEY *pkey = NULL;
-    int testresult = 0;
+    EVP_PKEY *tmp_pkey = NULL, *pkey = NULL;
 
     if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(testctx, keytype, testpropq)))
         goto err;
     if (!TEST_int_gt(EVP_PKEY_fromdata_init(pctx), 0)
-        || !TEST_int_gt(EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_KEYPAIR,
+        || !TEST_int_gt(EVP_PKEY_fromdata(pctx, &tmp_pkey, EVP_PKEY_KEYPAIR,
                                           params), 0))
         goto err;
 
-    if (!TEST_ptr(pkey))
+    if (!TEST_ptr(tmp_pkey))
         goto err;
+
+    pkey = tmp_pkey;
+    tmp_pkey = NULL;
+ err:
+    EVP_PKEY_free(tmp_pkey);
+    EVP_PKEY_CTX_free(pctx);
+    return pkey;
+}
+
+static int test_selection(EVP_PKEY *pkey, int selection)
+{
+    int testresult = 0;
+    int ret;
+    BIO *bio = BIO_new(BIO_s_mem());
+
+    ret = PEM_write_bio_PUBKEY(bio, pkey);
+    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
+        if (!TEST_true(ret))
+            goto err;
+    } else {
+        if (!TEST_false(ret))
+            goto err;
+    }
+    ret = PEM_write_bio_PrivateKey_ex(bio, pkey, NULL, NULL, 0, NULL, NULL,
+                                      testctx, NULL);
+    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
+        if (!TEST_true(ret))
+            goto err;
+    } else {
+        if (!TEST_false(ret))
+            goto err;
+    }
 
     testresult = 1;
  err:
-    EVP_PKEY_free(pkey);
-    EVP_PKEY_CTX_free(pctx);
+    BIO_free(bio);
 
     return testresult;
 }
@@ -710,6 +743,10 @@ static int test_EVP_PKEY_ffc_priv_pub(char *keytype)
 {
     OSSL_PARAM_BLD *bld = NULL;
     OSSL_PARAM *params = NULL;
+    EVP_PKEY *just_params = NULL;
+    EVP_PKEY *params_and_priv = NULL;
+    EVP_PKEY *params_and_pub = NULL;
+    EVP_PKEY *params_and_keypair = NULL;
     BIGNUM *p = NULL, *q = NULL, *g = NULL, *pub = NULL, *priv = NULL;
     int ret = 0;
 
@@ -730,14 +767,18 @@ static int test_EVP_PKEY_ffc_priv_pub(char *keytype)
         || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q))
         || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g)))
         goto err;
-    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld))
+        || !TEST_ptr(just_params = make_key_fromdata(keytype, params)))
         goto err;
 
-    if (!test_fromdata(keytype, params))
-        goto err;
     OSSL_PARAM_free(params);
-    params = NULL;
     OSSL_PARAM_BLD_free(bld);
+    params = NULL;
+    bld = NULL;
+
+    if (!test_selection(just_params, OSSL_KEYMGMT_SELECT_ALL_PARAMETERS)
+        || test_selection(just_params, OSSL_KEYMGMT_SELECT_KEYPAIR))
+        goto err;
 
     /* Test priv and !pub */
     if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
@@ -747,14 +788,18 @@ static int test_EVP_PKEY_ffc_priv_pub(char *keytype)
         || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY,
                                              priv)))
         goto err;
-    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld))
+        || !TEST_ptr(params_and_priv = make_key_fromdata(keytype, params)))
         goto err;
 
-    if (!test_fromdata(keytype, params))
-        goto err;
     OSSL_PARAM_free(params);
-    params = NULL;
     OSSL_PARAM_BLD_free(bld);
+    params = NULL;
+    bld = NULL;
+
+    if (!test_selection(params_and_priv, OSSL_KEYMGMT_SELECT_PRIVATE_KEY)
+        || test_selection(params_and_priv, OSSL_KEYMGMT_SELECT_PUBLIC_KEY))
+        goto err;
 
     /* Test !priv and pub */
     if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
@@ -764,14 +809,18 @@ static int test_EVP_PKEY_ffc_priv_pub(char *keytype)
         || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY,
                                              pub)))
         goto err;
-    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld))
+        || !TEST_ptr(params_and_pub = make_key_fromdata(keytype, params)))
         goto err;
 
-    if (!test_fromdata(keytype, params))
-        goto err;
     OSSL_PARAM_free(params);
-    params = NULL;
     OSSL_PARAM_BLD_free(bld);
+    params = NULL;
+    bld = NULL;
+
+    if (!test_selection(params_and_pub, OSSL_KEYMGMT_SELECT_PUBLIC_KEY)
+        || test_selection(params_and_pub, OSSL_KEYMGMT_SELECT_PRIVATE_KEY))
+        goto err;
 
     /* Test priv and pub */
     if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
@@ -783,16 +832,21 @@ static int test_EVP_PKEY_ffc_priv_pub(char *keytype)
         || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY,
                                              priv)))
         goto err;
-    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld))
+        || !TEST_ptr(params_and_keypair = make_key_fromdata(keytype, params)))
         goto err;
 
-    if (!test_fromdata(keytype, params))
+    if (!test_selection(params_and_keypair, EVP_PKEY_KEYPAIR))
         goto err;
 
     ret = 1;
  err:
     OSSL_PARAM_free(params);
     OSSL_PARAM_BLD_free(bld);
+    EVP_PKEY_free(just_params);
+    EVP_PKEY_free(params_and_priv);
+    EVP_PKEY_free(params_and_pub);
+    EVP_PKEY_free(params_and_keypair);
     BN_free(p);
     BN_free(q);
     BN_free(g);
@@ -826,6 +880,10 @@ static int test_EC_priv_pub(void)
 {
     OSSL_PARAM_BLD *bld = NULL;
     OSSL_PARAM *params = NULL;
+    EVP_PKEY *just_params = NULL;
+    EVP_PKEY *params_and_priv = NULL;
+    EVP_PKEY *params_and_pub = NULL;
+    EVP_PKEY *params_and_keypair = NULL;
     BIGNUM *priv = NULL;
     int ret = 0;
 
@@ -842,14 +900,18 @@ static int test_EC_priv_pub(void)
                                                       OSSL_PKEY_PARAM_GROUP_NAME,
                                                       "P-256", 0)))
         goto err;
-    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld))
+        || !TEST_ptr(just_params = make_key_fromdata("EC", params)))
         goto err;
 
-    if (!test_fromdata("EC", params))
-        goto err;
     OSSL_PARAM_free(params);
-    params = NULL;
     OSSL_PARAM_BLD_free(bld);
+    params = NULL;
+    bld = NULL;
+
+    if (!test_selection(just_params, OSSL_KEYMGMT_SELECT_ALL_PARAMETERS)
+        || test_selection(just_params, OSSL_KEYMGMT_SELECT_KEYPAIR))
+        goto err;
 
     /* Test priv and !pub */
     if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
@@ -859,14 +921,24 @@ static int test_EC_priv_pub(void)
         || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY,
                                              priv)))
         goto err;
-    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld))
+        || !TEST_ptr(params_and_priv = make_key_fromdata("EC", params)))
         goto err;
 
-    if (!test_fromdata("EC", params))
-        goto err;
     OSSL_PARAM_free(params);
-    params = NULL;
     OSSL_PARAM_BLD_free(bld);
+    params = NULL;
+    bld = NULL;
+
+    /*
+     * We indicate only parameters here, in spite of having built a key that
+     * has a private part, because the PEM_write_bio_PrivateKey_ex call is
+     * expected to fail because it does not support exporting a private EC
+     * key without a corresponding public key
+     */
+    if (!test_selection(params_and_priv, OSSL_KEYMGMT_SELECT_ALL_PARAMETERS)
+        || test_selection(params_and_priv, OSSL_KEYMGMT_SELECT_PUBLIC_KEY))
+        goto err;
 
     /* Test !priv and pub */
     if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
@@ -877,14 +949,18 @@ static int test_EC_priv_pub(void)
                                                        OSSL_PKEY_PARAM_PUB_KEY,
                                                        ec_pub, sizeof(ec_pub))))
         goto err;
-    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld))
+        || !TEST_ptr(params_and_pub = make_key_fromdata("EC", params)))
         goto err;
 
-    if (!test_fromdata("EC", params))
-        goto err;
     OSSL_PARAM_free(params);
-    params = NULL;
     OSSL_PARAM_BLD_free(bld);
+    params = NULL;
+    bld = NULL;
+
+    if (!test_selection(params_and_pub, OSSL_KEYMGMT_SELECT_PUBLIC_KEY)
+        || test_selection(params_and_pub, OSSL_KEYMGMT_SELECT_PRIVATE_KEY))
+        goto err;
 
     /* Test priv and pub */
     if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
@@ -897,16 +973,35 @@ static int test_EC_priv_pub(void)
         || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY,
                                              priv)))
         goto err;
-    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld)))
+    if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld))
+        || !TEST_ptr(params_and_keypair = make_key_fromdata("EC", params)))
         goto err;
 
-    if (!test_fromdata("EC", params))
+    if (!test_selection(params_and_keypair, EVP_PKEY_KEYPAIR))
+        goto err;
+
+    /* Try key equality */
+    if (!TEST_int_gt(EVP_PKEY_parameters_eq(just_params, just_params), 0)
+        || !TEST_int_gt(EVP_PKEY_parameters_eq(just_params, params_and_pub),
+                        0)
+        || !TEST_int_gt(EVP_PKEY_parameters_eq(just_params, params_and_priv),
+                        0)
+        || !TEST_int_gt(EVP_PKEY_parameters_eq(just_params, params_and_keypair),
+                        0)
+        || !TEST_int_gt(EVP_PKEY_eq(params_and_pub, params_and_pub), 0)
+        || !TEST_int_gt(EVP_PKEY_eq(params_and_priv, params_and_priv), 0)
+        || !TEST_int_gt(EVP_PKEY_eq(params_and_keypair, params_and_pub), 0)
+        || !TEST_int_gt(EVP_PKEY_eq(params_and_keypair, params_and_priv), 0))
         goto err;
 
     ret = 1;
  err:
     OSSL_PARAM_free(params);
     OSSL_PARAM_BLD_free(bld);
+    EVP_PKEY_free(just_params);
+    EVP_PKEY_free(params_and_priv);
+    EVP_PKEY_free(params_and_pub);
+    EVP_PKEY_free(params_and_keypair);
     BN_free(priv);
 
     return ret;
@@ -978,6 +1073,66 @@ static int test_EC_priv_only_legacy(void)
 # endif /* OPENSSL_NO_DEPRECATED_3_0 */
 #endif /* OPENSSL_NO_EC */
 
+static int test_EVP_PKEY_sign(int tst)
+{
+    int ret = 0;
+    EVP_PKEY *pkey = NULL;
+    unsigned char *sig = NULL;
+    size_t sig_len = 0, shortsig_len = 1;
+    EVP_PKEY_CTX *ctx = NULL;
+    unsigned char tbs[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13
+    };
+
+    if (tst == 0 ) {
+        if (!TEST_ptr(pkey = load_example_rsa_key()))
+                goto out;
+    } else if (tst == 1) {
+#ifndef OPENSSL_NO_DSA
+        if (!TEST_ptr(pkey = load_example_dsa_key()))
+                goto out;
+#else
+        ret = 1;
+        goto out;
+#endif
+    } else {
+#ifndef OPENSSL_NO_EC
+        if (!TEST_ptr(pkey = load_example_ec_key()))
+                goto out;
+#else
+        ret = 1;
+        goto out;
+#endif
+    }
+
+    ctx = EVP_PKEY_CTX_new_from_pkey(testctx, pkey, NULL);
+    if (!TEST_ptr(ctx)
+            || !TEST_int_gt(EVP_PKEY_sign_init(ctx), 0)
+            || !TEST_int_gt(EVP_PKEY_sign(ctx, NULL, &sig_len, tbs,
+                                          sizeof(tbs)), 0))
+        goto out;
+    sig = OPENSSL_malloc(sig_len);
+    if (!TEST_ptr(sig)
+            /* Test sending a signature buffer that is too short is rejected */
+            || !TEST_int_le(EVP_PKEY_sign(ctx, sig, &shortsig_len, tbs,
+                                          sizeof(tbs)), 0)
+            || !TEST_int_gt(EVP_PKEY_sign(ctx, sig, &sig_len, tbs, sizeof(tbs)),
+                            0)
+            /* Test the signature round-trips */
+            || !TEST_int_gt(EVP_PKEY_verify_init(ctx), 0)
+            || !TEST_int_gt(EVP_PKEY_verify(ctx, sig, sig_len, tbs, sizeof(tbs)),
+                            0))
+        goto out;
+
+    ret = 1;
+ out:
+    EVP_PKEY_CTX_free(ctx);
+    OPENSSL_free(sig);
+    EVP_PKEY_free(pkey);
+    return ret;
+}
+
 /*
  * n = 0 => test using legacy cipher
  * n = 1 => test using fetched cipher
@@ -1046,24 +1201,37 @@ err:
  * Test 6: Use an MD BIO to do the Update calls instead (RSA)
  * Test 7: Use an MD BIO to do the Update calls instead (DSA)
  * Test 8: Use an MD BIO to do the Update calls instead (HMAC)
+ * Test 9: Use EVP_DigestSign (Implicit fetch digest, RSA, short sig)
+ * Test 10: Use EVP_DigestSign (Implicit fetch digest, DSA, short sig)
+ * Test 11: Use EVP_DigestSign (Implicit fetch digest, HMAC, short sig)
+ * Test 12: Use EVP_DigestSign (Implicit fetch digest, RSA)
+ * Test 13: Use EVP_DigestSign (Implicit fetch digest, DSA)
+ * Test 14: Use EVP_DigestSign (Implicit fetch digest, HMAC)
+ * Test 15-29: Same as above with reinitialization
  */
 static int test_EVP_DigestSignInit(int tst)
 {
     int ret = 0;
     EVP_PKEY *pkey = NULL;
     unsigned char *sig = NULL, *sig2 = NULL;
-    size_t sig_len = 0, sig2_len = 0;
+    size_t sig_len = 0, sig2_len = 0, shortsig_len = 1;
     EVP_MD_CTX *md_ctx = NULL, *md_ctx_verify = NULL;
     EVP_MD_CTX *a_md_ctx = NULL, *a_md_ctx_verify = NULL;
     BIO *mdbio = NULL, *membio = NULL;
     size_t written;
     const EVP_MD *md;
     EVP_MD *mdexp = NULL;
+    int reinit = 0;
 
     if (nullprov != NULL)
         return TEST_skip("Test does not support a non-default library context");
 
-    if (tst >= 6) {
+    if (tst >= 15) {
+        reinit = 1;
+        tst -= 15;
+    }
+
+    if (tst >= 6 && tst <= 8) {
         membio = BIO_new(BIO_s_mem());
         mdbio = BIO_new(BIO_f_md());
         if (!TEST_ptr(membio) || !TEST_ptr(mdbio))
@@ -1077,10 +1245,10 @@ static int test_EVP_DigestSignInit(int tst)
             goto out;
     }
 
-    if (tst == 0 || tst == 3 || tst == 6) {
+    if (tst % 3 == 0) {
         if (!TEST_ptr(pkey = load_example_rsa_key()))
                 goto out;
-    } else if (tst == 1 || tst == 4 || tst == 7) {
+    } else if (tst % 3 == 1) {
 #ifndef OPENSSL_NO_DSA
         if (!TEST_ptr(pkey = load_example_dsa_key()))
                 goto out;
@@ -1101,26 +1269,57 @@ static int test_EVP_DigestSignInit(int tst)
     if (!TEST_true(EVP_DigestSignInit(md_ctx, NULL, md, NULL, pkey)))
         goto out;
 
-    if (tst >= 6) {
+    if (reinit && !TEST_true(EVP_DigestSignInit(md_ctx, NULL, NULL, NULL, NULL)))
+        goto out;
+
+    if (tst >= 6 && tst <= 8) {
         if (!BIO_write_ex(mdbio, kMsg, sizeof(kMsg), &written))
             goto out;
-    } else {
+    } else if (tst < 6) {
         if (!TEST_true(EVP_DigestSignUpdate(md_ctx, kMsg, sizeof(kMsg))))
             goto out;
     }
 
-    /* Determine the size of the signature. */
-    if (!TEST_true(EVP_DigestSignFinal(md_ctx, NULL, &sig_len))
-            || !TEST_ptr(sig = OPENSSL_malloc(sig_len))
-            || !TEST_true(EVP_DigestSignFinal(md_ctx, sig, &sig_len)))
-        goto out;
+    if (tst >= 9) {
+        /* Determine the size of the signature. */
+        if (!TEST_true(EVP_DigestSign(md_ctx, NULL, &sig_len, kMsg,
+                                      sizeof(kMsg)))
+                || !TEST_ptr(sig = OPENSSL_malloc(sig_len)))
+            goto out;
+        if (tst <= 11) {
+            /* Test that supply a short sig buffer fails */
+            if (!TEST_false(EVP_DigestSign(md_ctx, sig, &shortsig_len, kMsg,
+                                           sizeof(kMsg))))
+                goto out;
+            /*
+             * We end here because once EVP_DigestSign() has failed you should
+             * not call it again without re-initing the ctx
+             */
+            ret = 1;
+            goto out;
+        }
+        if (!TEST_true(EVP_DigestSign(md_ctx, sig, &sig_len, kMsg,
+                                      sizeof(kMsg))))
+            goto out;
+    } else {
+        /* Determine the size of the signature. */
+        if (!TEST_true(EVP_DigestSignFinal(md_ctx, NULL, &sig_len))
+                || !TEST_ptr(sig = OPENSSL_malloc(sig_len))
+                /*
+                    * Trying to create a signature with a deliberately short
+                    * buffer should fail.
+                    */
+                || !TEST_false(EVP_DigestSignFinal(md_ctx, sig, &shortsig_len))
+                || !TEST_true(EVP_DigestSignFinal(md_ctx, sig, &sig_len)))
+            goto out;
+    }
 
     /*
      * Ensure that the signature round-trips (Verification isn't supported for
      * HMAC via EVP_DigestVerify*)
      */
-    if (tst != 2 && tst != 5 && tst != 8) {
-        if (tst >= 6) {
+    if (tst % 3 != 2) {
+        if (tst >= 6 && tst <= 8) {
             if (!TEST_int_gt(BIO_reset(mdbio), 0)
                 || !TEST_int_gt(BIO_get_md_ctx(mdbio, &md_ctx_verify), 0))
                 goto out;
@@ -1130,7 +1329,7 @@ static int test_EVP_DigestSignInit(int tst)
                                             NULL, pkey)))
             goto out;
 
-        if (tst >= 6) {
+        if (tst >= 6 && tst <= 8) {
             if (!TEST_true(BIO_write_ex(mdbio, kMsg, sizeof(kMsg), &written)))
                 goto out;
         } else {
@@ -1138,11 +1337,11 @@ static int test_EVP_DigestSignInit(int tst)
                                                   sizeof(kMsg))))
                 goto out;
         }
-        if (!TEST_true(EVP_DigestVerifyFinal(md_ctx_verify, sig, sig_len)))
+        if (!TEST_int_gt(EVP_DigestVerifyFinal(md_ctx_verify, sig, sig_len), 0))
             goto out;
 
         /* Multiple calls to EVP_DigestVerifyFinal should work */
-        if (!TEST_true(EVP_DigestVerifyFinal(md_ctx_verify, sig, sig_len)))
+        if (!TEST_int_gt(EVP_DigestVerifyFinal(md_ctx_verify, sig, sig_len), 0))
             goto out;
     } else {
         /*
@@ -1188,8 +1387,15 @@ static int test_EVP_DigestVerifyInit(void)
 
     if (!TEST_true(EVP_DigestVerifyInit(md_ctx, NULL, EVP_sha256(), NULL, pkey))
             || !TEST_true(EVP_DigestVerifyUpdate(md_ctx, kMsg, sizeof(kMsg)))
-            || !TEST_true(EVP_DigestVerifyFinal(md_ctx, kSignature,
-                                                 sizeof(kSignature))))
+            || !TEST_int_gt(EVP_DigestVerifyFinal(md_ctx, kSignature,
+                                                 sizeof(kSignature)), 0))
+        goto out;
+
+    /* test with reinitialization */
+    if (!TEST_true(EVP_DigestVerifyInit(md_ctx, NULL, NULL, NULL, NULL))
+            || !TEST_true(EVP_DigestVerifyUpdate(md_ctx, kMsg, sizeof(kMsg)))
+            || !TEST_int_gt(EVP_DigestVerifyFinal(md_ctx, kSignature,
+                                                 sizeof(kSignature)), 0))
         goto out;
     ret = 1;
 
@@ -1198,6 +1404,57 @@ static int test_EVP_DigestVerifyInit(void)
     EVP_PKEY_free(pkey);
     return ret;
 }
+
+#ifndef OPENSSL_NO_SIPHASH
+/* test SIPHASH MAC via EVP_PKEY with non-default parameters and reinit */
+static int test_siphash_digestsign(void)
+{
+    unsigned char key[16];
+    unsigned char buf[8], digest[8];
+    unsigned char expected[8] = {
+        0x6d, 0x3e, 0x54, 0xc2, 0x2f, 0xf1, 0xfe, 0xe2
+    };
+    EVP_PKEY *pkey = NULL;
+    EVP_MD_CTX *mdctx = NULL;
+    EVP_PKEY_CTX *ctx = NULL;
+    int ret = 0;
+    size_t len = 8;
+
+    if (nullprov != NULL)
+        return TEST_skip("Test does not support a non-default library context");
+
+    memset(buf, 0, 8);
+    memset(key, 1, 16);
+    if (!TEST_ptr(pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_SIPHASH, NULL,
+                                                      key, 16)))
+        goto out;
+
+    if (!TEST_ptr(mdctx = EVP_MD_CTX_create()))
+        goto out;
+
+    if (!TEST_true(EVP_DigestSignInit(mdctx, &ctx, NULL, NULL, pkey)))
+        goto out;
+    if (!TEST_int_eq(EVP_PKEY_CTX_ctrl(ctx, -1, EVP_PKEY_OP_SIGNCTX,
+                                       EVP_PKEY_CTRL_SET_DIGEST_SIZE,
+                                       8, NULL), 1))
+        goto out;
+    /* reinitialize */
+    if (!TEST_true(EVP_DigestSignInit(mdctx, NULL, NULL, NULL, NULL)))
+        goto out;
+    if (!TEST_true(EVP_DigestSignUpdate(mdctx, buf, 8)))
+        goto out;
+    if (!TEST_true(EVP_DigestSignFinal(mdctx, digest, &len)))
+        goto out;
+    if (!TEST_mem_eq(digest, len, expected, sizeof(expected)))
+        goto out;
+
+    ret = 1;
+ out:
+    EVP_PKEY_free(pkey);
+    EVP_MD_CTX_free(mdctx);
+    return ret;
+}
+#endif
 
 /*
  * Test corner cases of EVP_DigestInit/Update/Final API call behavior.
@@ -1249,6 +1506,35 @@ static int test_EVP_Digest(void)
     EVP_MD_CTX_free(md_ctx);
     EVP_MD_free(sha256);
     EVP_MD_free(shake256);
+    return ret;
+}
+
+static int test_EVP_md_null(void)
+{
+    int ret = 0;
+    EVP_MD_CTX *md_ctx = NULL;
+    const EVP_MD *md_null = EVP_md_null();
+    unsigned char md_value[EVP_MAX_MD_SIZE];
+    unsigned int md_len = sizeof(md_value);
+
+    if (nullprov != NULL)
+        return TEST_skip("Test does not support a non-default library context");
+
+    if (!TEST_ptr(md_null)
+        || !TEST_ptr(md_ctx = EVP_MD_CTX_new()))
+        goto out;
+
+    if (!TEST_true(EVP_DigestInit_ex(md_ctx, md_null, NULL))
+        || !TEST_true(EVP_DigestUpdate(md_ctx, "test", 4))
+        || !TEST_true(EVP_DigestFinal_ex(md_ctx, md_value, &md_len)))
+        goto out;
+
+    if (!TEST_uint_eq(md_len, 0))
+        goto out;
+
+    ret = 1;
+ out:
+    EVP_MD_CTX_free(md_ctx);
     return ret;
 }
 
@@ -1473,7 +1759,7 @@ static int test_EC_keygen_with_enc(int idx)
 
     /* Create key parameters */
     if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(testctx, "EC", NULL))
-        || !TEST_true(EVP_PKEY_paramgen_init(pctx))
+        || !TEST_int_gt(EVP_PKEY_paramgen_init(pctx), 0)
         || !TEST_true(EVP_PKEY_CTX_set_group_name(pctx, "P-256"))
         || !TEST_true(EVP_PKEY_CTX_set_ec_param_enc(pctx, enc))
         || !TEST_true(EVP_PKEY_paramgen(pctx, &params))
@@ -1482,7 +1768,7 @@ static int test_EC_keygen_with_enc(int idx)
 
     /* Create key */
     if (!TEST_ptr(kctx = EVP_PKEY_CTX_new_from_pkey(testctx, params, NULL))
-        || !TEST_true(EVP_PKEY_keygen_init(kctx))
+        || !TEST_int_gt(EVP_PKEY_keygen_init(kctx), 0)
         || !TEST_true(EVP_PKEY_keygen(kctx, &key))
         || !TEST_ptr(key))
         goto done;
@@ -1564,7 +1850,7 @@ static int test_EVP_SM2_verify(void)
     if (!TEST_true(EVP_DigestVerifyUpdate(mctx, msg, strlen(msg))))
         goto done;
 
-    if (!TEST_true(EVP_DigestVerifyFinal(mctx, signature, sizeof(signature))))
+    if (!TEST_int_gt(EVP_DigestVerifyFinal(mctx, signature, sizeof(signature)), 0))
         goto done;
     rc = 1;
 
@@ -1622,7 +1908,7 @@ static int test_EVP_SM2(void)
                                                     pkeyparams, testpropq)))
         goto done;
 
-    if (!TEST_true(EVP_PKEY_keygen_init(kctx)))
+    if (!TEST_int_gt(EVP_PKEY_keygen_init(kctx), 0))
         goto done;
 
     if (!TEST_true(EVP_PKEY_keygen(kctx, &pkey)))
@@ -1674,7 +1960,7 @@ static int test_EVP_SM2(void)
     if (!TEST_true(EVP_DigestVerifyUpdate(md_ctx_verify, kMsg, sizeof(kMsg))))
         goto done;
 
-    if (!TEST_true(EVP_DigestVerifyFinal(md_ctx_verify, sig, sig_len)))
+    if (!TEST_int_gt(EVP_DigestVerifyFinal(md_ctx_verify, sig, sig_len), 0))
         goto done;
 
     /* now check encryption/decryption */
@@ -1718,8 +2004,8 @@ static int test_EVP_SM2(void)
         if (!TEST_true(EVP_PKEY_CTX_set_params(cctx, sparams)))
             goto done;
 
-        if (!TEST_true(EVP_PKEY_decrypt(cctx, plaintext, &ptext_len, ciphertext,
-                                        ctext_len)))
+        if (!TEST_int_gt(EVP_PKEY_decrypt(cctx, plaintext, &ptext_len, ciphertext,
+                                        ctext_len), 0))
             goto done;
 
         if (!TEST_true(EVP_PKEY_CTX_get_params(cctx, gparams)))
@@ -1805,7 +2091,7 @@ static int test_set_get_raw_keys_int(int tst, int pub, int uselibctx)
     int ret = 0;
     unsigned char buf[80];
     unsigned char *in;
-    size_t inlen, len = 0;
+    size_t inlen, len = 0, shortlen = 1;
     EVP_PKEY *pkey;
 
     /* Check if this algorithm supports public keys */
@@ -1855,8 +2141,20 @@ static int test_set_get_raw_keys_int(int tst, int pub, int uselibctx)
             || !TEST_int_eq(EVP_PKEY_eq(pkey, pkey), 1)
             || (!pub && !TEST_true(EVP_PKEY_get_raw_private_key(pkey, NULL, &len)))
             || (pub && !TEST_true(EVP_PKEY_get_raw_public_key(pkey, NULL, &len)))
-            || !TEST_true(len == inlen)
-            || (!pub && !TEST_true(EVP_PKEY_get_raw_private_key(pkey, buf, &len)))
+            || !TEST_true(len == inlen))
+        goto done;
+    if (tst != 1) {
+        /*
+         * Test that supplying a buffer that is too small fails. Doesn't apply
+         * to HMAC with a zero length key
+         */
+        if ((!pub && !TEST_false(EVP_PKEY_get_raw_private_key(pkey, buf,
+                                                                 &shortlen)))
+                || (pub && !TEST_false(EVP_PKEY_get_raw_public_key(pkey, buf,
+                                                                   &shortlen))))
+            goto done;
+    }
+    if ((!pub && !TEST_true(EVP_PKEY_get_raw_private_key(pkey, buf, &len)))
             || (pub && !TEST_true(EVP_PKEY_get_raw_public_key(pkey, buf, &len)))
             || !TEST_mem_eq(in, inlen, buf, len))
         goto done;
@@ -1961,7 +2259,7 @@ static int get_cmac_val(EVP_PKEY *pkey, unsigned char *mac)
 {
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     const char msg[] = "Hello World";
-    size_t maclen;
+    size_t maclen = AES_BLOCK_SIZE;
     int ret = 1;
 
     if (!TEST_ptr(mdctx)
@@ -2169,7 +2467,7 @@ static int test_X509_PUBKEY_dup(void)
 
     if (!TEST_ptr(X509_PUBKEY_get0(xq))
             || !TEST_ptr(X509_PUBKEY_get0(xp))
-            || !TEST_ptr_eq(X509_PUBKEY_get0(xq), X509_PUBKEY_get0(xp)))
+            || !TEST_ptr_ne(X509_PUBKEY_get0(xq), X509_PUBKEY_get0(xp)))
         goto done;
 
     X509_PUBKEY_free(xq);
@@ -2984,7 +3282,7 @@ static int test_ecpub(int idx)
 
     ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
     if (!TEST_ptr(ctx)
-        || !TEST_true(EVP_PKEY_keygen_init(ctx))
+        || !TEST_int_gt(EVP_PKEY_keygen_init(ctx), 0)
         || !TEST_true(EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid))
         || !TEST_true(EVP_PKEY_keygen(ctx, &pkey)))
         goto done;
@@ -3038,7 +3336,7 @@ static int test_EVP_rsa_pss_with_keygen_bits(void)
     md = EVP_MD_fetch(testctx, "sha256", testpropq);
     ret = TEST_ptr(md)
         && TEST_ptr((ctx = EVP_PKEY_CTX_new_from_name(testctx, "RSA", testpropq)))
-        && TEST_true(EVP_PKEY_keygen_init(ctx))
+        && TEST_int_gt(EVP_PKEY_keygen_init(ctx), 0)
         && TEST_int_gt(EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 512), 0)
         && TEST_true(EVP_PKEY_CTX_set_rsa_pss_keygen_md(ctx, md))
         && TEST_true(EVP_PKEY_keygen(ctx, &pkey));
@@ -3046,6 +3344,32 @@ static int test_EVP_rsa_pss_with_keygen_bits(void)
     EVP_MD_free(md);
     EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(ctx);
+    return ret;
+}
+
+static int test_EVP_rsa_pss_set_saltlen(void)
+{
+    int ret = 0;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    EVP_MD *sha256 = NULL;
+    EVP_MD_CTX *sha256_ctx = NULL;
+    int saltlen = 9999; /* buggy EVP_PKEY_CTX_get_rsa_pss_saltlen() didn't update this */
+    const int test_value = 32;
+
+    ret = TEST_ptr(pkey = load_example_rsa_key())
+        && TEST_ptr(sha256 = EVP_MD_fetch(testctx, "sha256", NULL))
+        && TEST_ptr(sha256_ctx = EVP_MD_CTX_new())
+        && TEST_true(EVP_DigestSignInit(sha256_ctx, &pkey_ctx, sha256, NULL, pkey))
+        && TEST_true(EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING))
+        && TEST_true(EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, test_value))
+        && TEST_true(EVP_PKEY_CTX_get_rsa_pss_saltlen(pkey_ctx, &saltlen))
+        && TEST_int_eq(saltlen, test_value);
+
+    EVP_MD_CTX_free(sha256_ctx);
+    EVP_PKEY_free(pkey);
+    EVP_MD_free(sha256);
+
     return ret;
 }
 
@@ -3854,7 +4178,170 @@ static int test_evp_md_cipher_meth(void)
 
     return testresult;
 }
+
+# ifndef OPENSSL_NO_DYNAMIC_ENGINE
+/* Test we can create a signature keys with an associated ENGINE */
+static int test_signatures_with_engine(int tst)
+{
+    ENGINE *e;
+    const char *engine_id = "dasync";
+    EVP_PKEY *pkey = NULL;
+    const unsigned char badcmackey[] = { 0x00, 0x01 };
+    const unsigned char cmackey[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f
+    };
+    const unsigned char ed25519key[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+    const unsigned char msg[] = { 0x00, 0x01, 0x02, 0x03 };
+    int testresult = 0;
+    EVP_MD_CTX *ctx = NULL;
+    unsigned char *mac = NULL;
+    size_t maclen = 0;
+    int ret;
+
+#  ifdef OPENSSL_NO_CMAC
+    /* Skip CMAC tests in a no-cmac build */
+    if (tst <= 1)
+        return 1;
+#  endif
+
+    if (!TEST_ptr(e = ENGINE_by_id(engine_id)))
+        return 0;
+
+    if (!TEST_true(ENGINE_init(e))) {
+        ENGINE_free(e);
+        return 0;
+    }
+
+    switch (tst) {
+    case 0:
+        pkey = EVP_PKEY_new_CMAC_key(e, cmackey, sizeof(cmackey),
+                                     EVP_aes_128_cbc());
+        break;
+    case 1:
+        pkey = EVP_PKEY_new_CMAC_key(e, badcmackey, sizeof(badcmackey),
+                                     EVP_aes_128_cbc());
+        break;
+    case 2:
+        pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, e, ed25519key,
+                                            sizeof(ed25519key));
+        break;
+    default:
+        TEST_error("Invalid test case");
+        goto err;
+    }
+    if (!TEST_ptr(pkey))
+        goto err;
+
+    if (!TEST_ptr(ctx = EVP_MD_CTX_new()))
+        goto err;
+
+    ret = EVP_DigestSignInit(ctx, NULL, tst == 2 ? NULL : EVP_sha256(), NULL,
+                             pkey);
+    if (tst == 0) {
+        if (!TEST_true(ret))
+            goto err;
+
+        if (!TEST_true(EVP_DigestSignUpdate(ctx, msg, sizeof(msg)))
+                || !TEST_true(EVP_DigestSignFinal(ctx, NULL, &maclen)))
+            goto err;
+
+        if (!TEST_ptr(mac = OPENSSL_malloc(maclen)))
+            goto err;
+
+        if (!TEST_true(EVP_DigestSignFinal(ctx, mac, &maclen)))
+            goto err;
+    } else {
+        /* We used a bad key. We expect a failure here */
+        if (!TEST_false(ret))
+            goto err;
+    }
+
+    testresult = 1;
+ err:
+    EVP_MD_CTX_free(ctx);
+    OPENSSL_free(mac);
+    EVP_PKEY_free(pkey);
+    ENGINE_finish(e);
+    ENGINE_free(e);
+
+    return testresult;
+}
+
+static int test_cipher_with_engine(void)
+{
+    ENGINE *e;
+    const char *engine_id = "dasync";
+    const unsigned char keyiv[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f
+    };
+    const unsigned char msg[] = { 0x00, 0x01, 0x02, 0x03 };
+    int testresult = 0;
+    EVP_CIPHER_CTX *ctx = NULL, *ctx2 = NULL;
+    unsigned char buf[AES_BLOCK_SIZE];
+    int len = 0;
+
+    if (!TEST_ptr(e = ENGINE_by_id(engine_id)))
+        return 0;
+
+    if (!TEST_true(ENGINE_init(e))) {
+        ENGINE_free(e);
+        return 0;
+    }
+
+    if (!TEST_ptr(ctx = EVP_CIPHER_CTX_new())
+            || !TEST_ptr(ctx2 = EVP_CIPHER_CTX_new()))
+        goto err;
+
+    if (!TEST_true(EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), e, keyiv, keyiv)))
+        goto err;
+
+    /* Copy the ctx, and complete the operation with the new ctx */
+    if (!TEST_true(EVP_CIPHER_CTX_copy(ctx2, ctx)))
+        goto err;
+
+    if (!TEST_true(EVP_EncryptUpdate(ctx2, buf, &len, msg, sizeof(msg)))
+            || !TEST_true(EVP_EncryptFinal_ex(ctx2, buf + len, &len)))
+        goto err;
+
+    testresult = 1;
+ err:
+    EVP_CIPHER_CTX_free(ctx);
+    EVP_CIPHER_CTX_free(ctx2);
+    ENGINE_finish(e);
+    ENGINE_free(e);
+
+    return testresult;
+}
+# endif /* OPENSSL_NO_DYNAMIC_ENGINE */
 #endif /* OPENSSL_NO_DEPRECATED_3_0 */
+
+static int ecxnids[] = {
+    NID_X25519,
+    NID_X448,
+    NID_ED25519,
+    NID_ED448
+};
+
+/* Test that creating ECX keys with a short private key fails as expected */
+static int test_ecx_short_keys(int tst)
+{
+    unsigned char ecxkeydata = 1;
+    EVP_PKEY *pkey;
+
+
+    pkey = EVP_PKEY_new_raw_private_key(ecxnids[tst], NULL, &ecxkeydata, 1);
+    if (!TEST_ptr_null(pkey)) {
+        EVP_PKEY_free(pkey);
+        return 0;
+    }
+    return 1;
+}
 
 typedef enum OPTION_choice {
     OPT_ERR = -1,
@@ -3897,9 +4384,14 @@ int setup_tests(void)
     }
 
     ADD_TEST(test_EVP_set_default_properties);
-    ADD_ALL_TESTS(test_EVP_DigestSignInit, 9);
+    ADD_ALL_TESTS(test_EVP_DigestSignInit, 30);
     ADD_TEST(test_EVP_DigestVerifyInit);
+#ifndef OPENSSL_NO_SIPHASH
+    ADD_TEST(test_siphash_digestsign);
+#endif
     ADD_TEST(test_EVP_Digest);
+    ADD_TEST(test_EVP_md_null);
+    ADD_ALL_TESTS(test_EVP_PKEY_sign, 3);
     ADD_ALL_TESTS(test_EVP_Enveloped, 2);
     ADD_ALL_TESTS(test_d2i_AutoPrivateKey, OSSL_NELEM(keydata));
     ADD_TEST(test_privatekey_to_pkcs8);
@@ -3966,6 +4458,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_evp_iv_des, 6);
 #endif
     ADD_TEST(test_EVP_rsa_pss_with_keygen_bits);
+    ADD_TEST(test_EVP_rsa_pss_set_saltlen);
 #ifndef OPENSSL_NO_EC
     ADD_ALL_TESTS(test_ecpub, OSSL_NELEM(ecpub_nids));
 #endif
@@ -3980,7 +4473,21 @@ int setup_tests(void)
 #ifndef OPENSSL_NO_DEPRECATED_3_0
     ADD_ALL_TESTS(test_custom_pmeth, 12);
     ADD_TEST(test_evp_md_cipher_meth);
+
+# ifndef OPENSSL_NO_DYNAMIC_ENGINE
+    /* Tests only support the default libctx */
+    if (testctx == NULL) {
+#  ifndef OPENSSL_NO_EC
+        ADD_ALL_TESTS(test_signatures_with_engine, 3);
+#  else
+        ADD_ALL_TESTS(test_signatures_with_engine, 2);
+#  endif
+        ADD_TEST(test_cipher_with_engine);
+    }
+# endif
 #endif
+
+    ADD_ALL_TESTS(test_ecx_short_keys, OSSL_NELEM(ecxnids));
 
     return 1;
 }

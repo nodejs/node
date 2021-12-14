@@ -551,40 +551,64 @@ static int test_case(int i)
  */
 
 static const OSSL_PARAM params_from_text[] = {
+    /* Fixed size buffer */
     OSSL_PARAM_int32("int", NULL),
     OSSL_PARAM_DEFN("short", OSSL_PARAM_INTEGER, NULL, sizeof(int16_t)),
     OSSL_PARAM_DEFN("ushort", OSSL_PARAM_UNSIGNED_INTEGER, NULL, sizeof(uint16_t)),
+    /* Arbitrary size buffer.  Make sure the result fits in a long */
+    OSSL_PARAM_DEFN("num", OSSL_PARAM_INTEGER, NULL, 0),
+    OSSL_PARAM_DEFN("unum", OSSL_PARAM_UNSIGNED_INTEGER, NULL, 0),
     OSSL_PARAM_END,
 };
 
 struct int_from_text_test_st {
     const char *argname;
     const char *strval;
-    long int intval;
-    int res;
+    long int expected_intval;
+    int expected_res;
+    size_t expected_bufsize;
 };
 
 static struct int_from_text_test_st int_from_text_test_cases[] = {
-    { "int",               "",          0, 0 },
-    { "int",              "0",          0, 1 },
-    { "int",            "101",        101, 1 },
-    { "int",           "-102",       -102, 1 },
-    { "int",            "12A",         12, 1 }, /* incomplete */
-    { "int",          "0x12B",      0x12B, 1 },
-    { "hexint",         "12C",      0x12C, 1 },
-    { "hexint",       "0x12D",          0, 1 }, /* zero */
+    { "int",               "",          0, 0, 0 },
+    { "int",              "0",          0, 1, 4 },
+    { "int",            "101",        101, 1, 4 },
+    { "int",           "-102",       -102, 1, 4 },
+    { "int",            "12A",         12, 1, 4 }, /* incomplete */
+    { "int",          "0x12B",      0x12B, 1, 4 },
+    { "hexint",         "12C",      0x12C, 1, 4 },
+    { "hexint",       "0x12D",          0, 1, 4 }, /* zero */
     /* test check of the target buffer size */
-    { "int",     "0x7fffffff",  INT32_MAX, 1 },
-    { "int",     "2147483647",  INT32_MAX, 1 },
-    { "int",     "2147483648",          0, 0 }, /* too small buffer */
-    { "int",    "-2147483648",  INT32_MIN, 1 },
-    { "int",    "-2147483649",          0, 0 }, /* too small buffer */
-    { "short",       "0x7fff",  INT16_MAX, 1 },
-    { "short",        "32767",  INT16_MAX, 1 },
-    { "short",        "32768",          0, 0 }, /* too small buffer */
-    { "ushort",      "0xffff", UINT16_MAX, 1 },
-    { "ushort",       "65535", UINT16_MAX, 1 },
-    { "ushort",       "65536",          0, 0 }, /* too small buffer */
+    { "int",     "0x7fffffff",  INT32_MAX, 1, 4 },
+    { "int",     "2147483647",  INT32_MAX, 1, 4 },
+    { "int",     "2147483648",          0, 0, 0 }, /* too small buffer */
+    { "int",    "-2147483648",  INT32_MIN, 1, 4 },
+    { "int",    "-2147483649",          0, 0, 4 }, /* too small buffer */
+    { "short",       "0x7fff",  INT16_MAX, 1, 2 },
+    { "short",        "32767",  INT16_MAX, 1, 2 },
+    { "short",        "32768",          0, 0, 0 }, /* too small buffer */
+    { "ushort",      "0xffff", UINT16_MAX, 1, 2 },
+    { "ushort",       "65535", UINT16_MAX, 1, 2 },
+    { "ushort",       "65536",          0, 0, 0 }, /* too small buffer */
+    /* test check of sign extension in arbitrary size results */
+    { "num",              "0",          0, 1, 1 },
+    { "num",              "0",          0, 1, 1 },
+    { "num",           "0xff",       0xff, 1, 2 }, /* sign extension */
+    { "num",          "-0xff",      -0xff, 1, 2 }, /* sign extension */
+    { "num",           "0x7f",       0x7f, 1, 1 }, /* no sign extension */
+    { "num",          "-0x7f",      -0x7f, 1, 1 }, /* no sign extension */
+    { "num",           "0x80",       0x80, 1, 2 }, /* sign extension */
+    { "num",          "-0x80",      -0x80, 1, 1 }, /* no sign extension */
+    { "num",           "0x81",       0x81, 1, 2 }, /* sign extension */
+    { "num",          "-0x81",      -0x81, 1, 2 }, /* sign extension */
+    { "unum",          "0xff",       0xff, 1, 1 },
+    { "unum",         "-0xff",      -0xff, 0, 0 }, /* invalid neg number */
+    { "unum",          "0x7f",       0x7f, 1, 1 },
+    { "unum",         "-0x7f",      -0x7f, 0, 0 }, /* invalid neg number */
+    { "unum",          "0x80",       0x80, 1, 1 },
+    { "unum",         "-0x80",      -0x80, 0, 0 }, /* invalid neg number */
+    { "unum",          "0x81",       0x81, 1, 1 },
+    { "unum",         "-0x81",      -0x81, 0, 0 }, /* invalid neg number */
 };
 
 static int check_int_from_text(const struct int_from_text_test_st a)
@@ -595,21 +619,40 @@ static int check_int_from_text(const struct int_from_text_test_st a)
 
     if (!OSSL_PARAM_allocate_from_text(&param, params_from_text,
                                        a.argname, a.strval, 0, NULL)) {
-        if (a.res)
-            TEST_error("errant %s param \"%s\"", a.argname, a.strval);
-        return !a.res;
+        if (a.expected_res)
+            TEST_error("unexpected OSSL_PARAM_allocate_from_text() return for %s \"%s\"",
+                       a.argname, a.strval);
+        return !a.expected_res;
     }
 
+    /* For data size zero, OSSL_PARAM_get_long() may crash */
+    if (param.data_size == 0) {
+        OPENSSL_free(param.data);
+        TEST_error("unexpected zero size for %s \"%s\"",
+                   a.argname, a.strval);
+        return 0;
+    }
     res = OSSL_PARAM_get_long(&param, &val);
     OPENSSL_free(param.data);
 
-    if (res ^ a.res || val != a.intval) {
-        TEST_error("errant %s \"%s\" %li != %li",
-                   a.argname, a.strval, a.intval, val);
+    if (res ^ a.expected_res) {
+        TEST_error("unexpected OSSL_PARAM_get_long() return for %s \"%s\": "
+                   "%d != %d", a.argname, a.strval, a.expected_res, res);
+        return 0;
+    }
+    if (val != a.expected_intval) {
+        TEST_error("unexpected result for %s \"%s\":  %li != %li",
+                   a.argname, a.strval, a.expected_intval, val);
+        return 0;
+    }
+    if (param.data_size != a.expected_bufsize) {
+        TEST_error("unexpected size for %s \"%s\":  %d != %d",
+                   a.argname, a.strval,
+                   (int)a.expected_bufsize, (int)param.data_size);
         return 0;
     }
 
-    return a.res;
+    return a.expected_res;
 }
 
 static int test_allocate_from_text(int i)

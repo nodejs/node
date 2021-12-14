@@ -22,10 +22,10 @@ PUNYCODE encoding introduced in RFCs 3490-3492 is widely used for
 representation of host names in ASCII-only format. Some specifications,
 such as RFC 8398, require comparison of host names encoded in UTF-8 charset.
 
-ossl_a2ulabel() decodes NULL-terminated hostname from PUNYCODE to UTF-8,
+ossl_a2ulabel() decodes NUL-terminated hostname from PUNYCODE to UTF-8,
 using a provided buffer for output.
 
-ossl_a2ucompare() accepts two NULL-terminated hostnames, decodes the 1st
+ossl_a2ucompare() accepts two NUL-terminated hostnames, decodes the 1st
 from PUNYCODE to UTF-8 and compares it with the 2nd one as is.
 
 ossl_punycode_decode() decodes one label (one dot-separated part) from
@@ -49,7 +49,7 @@ The functions described here were all added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

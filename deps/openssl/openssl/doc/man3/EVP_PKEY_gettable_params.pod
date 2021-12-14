@@ -52,11 +52,15 @@ buffer I<str> of maximum size I<max_buf_sz> associated with a name of
 I<key_name>.  The maximum size must be large enough to accomodate the string
 value including a terminating NUL byte, or this function will fail.
 If I<out_len> is not NULL, I<*out_len> is set to the length of the string
-not including the terminating NUL byte.
+not including the terminating NUL byte. The required buffer size not including
+the terminating NUL byte can be obtained from I<*out_len> by calling the
+function with I<str> set to NULL.
 
 EVP_PKEY_get_octet_string_param() get a key I<pkey>'s octet string value into a
 buffer I<buf> of maximum size I<max_buf_sz> associated with a name of I<key_name>.
 If I<out_len> is not NULL, I<*out_len> is set to the length of the contents.
+The required buffer size can be obtained from I<*out_len> by calling the
+function with I<buf> set to NULL.
 
 =head1 NOTES
 

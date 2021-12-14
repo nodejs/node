@@ -10,32 +10,32 @@ DHparams_print, DHparams_print_fp - print cryptographic parameters
 
  #include <openssl/rsa.h>
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
- int RSA_print(BIO *bp, RSA *x, int offset);
- int RSA_print_fp(FILE *fp, RSA *x, int offset);
+ int RSA_print(BIO *bp, const RSA *x, int offset);
+ int RSA_print_fp(FILE *fp, const RSA *x, int offset);
 
  #include <openssl/dsa.h>
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
- int DSAparams_print(BIO *bp, DSA *x);
- int DSAparams_print_fp(FILE *fp, DSA *x);
- int DSA_print(BIO *bp, DSA *x, int offset);
- int DSA_print_fp(FILE *fp, DSA *x, int offset);
+ int DSAparams_print(BIO *bp, const DSA *x);
+ int DSAparams_print_fp(FILE *fp, const DSA *x);
+ int DSA_print(BIO *bp, const DSA *x, int offset);
+ int DSA_print_fp(FILE *fp, const DSA *x, int offset);
 
  #include <openssl/dh.h>
 
-Deprecated since OpenSSL 3.0, can be hidden entirely by defining
-B<OPENSSL_API_COMPAT> with a suitable version value, see
-L<openssl_user_macros(7)>:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  int DHparams_print(BIO *bp, DH *x);
- int DHparams_print_fp(FILE *fp, DH *x);
+ int DHparams_print_fp(FILE *fp, const DH *x);
 
 =head1 DESCRIPTION
 
@@ -50,7 +50,10 @@ The output lines are indented by B<offset> spaces.
 
 =head1 RETURN VALUES
 
-These functions return 1 on success, 0 on error.
+DSAparams_print(), DSAparams_print_fp(), DSA_print(), and DSA_print_fp()
+return 1 for success and 0 or a negative value for failure.
+
+DHparams_print() and DHparams_print_fp() return 1 on success, 0 on error.
 
 =head1 SEE ALSO
 
@@ -64,7 +67,7 @@ All of these functions were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -8,7 +8,9 @@ EC_GFp_simple_method, EC_GFp_mont_method, EC_GFp_nist_method, EC_GFp_nistp224_me
 
  #include <openssl/ec.h>
 
-Deprecated since OpenSSL 3.0:
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
 
  const EC_METHOD *EC_GFp_simple_method(void);
  const EC_METHOD *EC_GFp_mont_method(void);
@@ -71,7 +73,7 @@ were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2013-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -46,7 +46,7 @@ static int fbytes(unsigned char *buf, size_t num, ossl_unused const char *name,
         || !TEST_true(BN_hex2bn(&tmp, numbers[fbytes_counter]))
         /* tmp might need leading zeros so pad it out */
         || !TEST_int_le(BN_num_bytes(tmp), num)
-        || !TEST_true(BN_bn2binpad(tmp, buf, num)))
+        || !TEST_int_gt(BN_bn2binpad(tmp, buf, num), 0))
         goto err;
 
     fbytes_counter = (fbytes_counter + 1) % OSSL_NELEM(numbers);

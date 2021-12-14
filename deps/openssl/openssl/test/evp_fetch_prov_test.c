@@ -220,11 +220,11 @@ static int test_explicit_EVP_MD_fetch_by_X509_ALGOR(int idx)
     X509_ALGOR_get0(&obj, NULL, NULL, algor);
     switch (idx) {
     case 0:
-        if (!TEST_true(OBJ_obj2txt(id, sizeof(id), obj, 0)))
+        if (!TEST_int_gt(OBJ_obj2txt(id, sizeof(id), obj, 0), 0))
             goto end;
         break;
     case 1:
-        if (!TEST_true(OBJ_obj2txt(id, sizeof(id), obj, 1)))
+        if (!TEST_int_gt(OBJ_obj2txt(id, sizeof(id), obj, 1), 0))
             goto end;
         break;
     }
@@ -336,11 +336,11 @@ static int test_explicit_EVP_CIPHER_fetch_by_X509_ALGOR(int idx)
     X509_ALGOR_get0(&obj, NULL, NULL, algor);
     switch (idx) {
     case 0:
-        if (!TEST_true(OBJ_obj2txt(id, sizeof(id), obj, 0)))
+        if (!TEST_int_gt(OBJ_obj2txt(id, sizeof(id), obj, 0), 0))
             goto end;
         break;
     case 1:
-        if (!TEST_true(OBJ_obj2txt(id, sizeof(id), obj, 1)))
+        if (!TEST_int_gt(OBJ_obj2txt(id, sizeof(id), obj, 1), 0))
             goto end;
         break;
     }
