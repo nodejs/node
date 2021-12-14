@@ -106,5 +106,31 @@ const { kStateSymbol } = require('internal/dgram');
                 false, 'tcp_wrap: not unrefed on close')));
 }
 
+// timers
+{
+  strictEqual(process.getActiveResourcesInfo().filter(
+    (type) => type === 'Timeout').length, 0);
+  const timeout = setTimeout(() => {}, 500);
+  strictEqual(process.getActiveResourcesInfo().filter(
+    (type) => type === 'Timeout').length, 1);
+  timeout.unref();
+  strictEqual(process.getActiveResourcesInfo().filter(
+    (type) => type === 'Timeout').length, 0);
+  timeout.ref();
+  strictEqual(process.getActiveResourcesInfo().filter(
+    (type) => type === 'Timeout').length, 1);
+
+  strictEqual(process.getActiveResourcesInfo().filter(
+    (type) => type === 'Immediate').length, 0);
+  const immediate = setImmediate(() => {});
+  strictEqual(process.getActiveResourcesInfo().filter(
+    (type) => type === 'Immediate').length, 1);
+  immediate.unref();
+  strictEqual(process.getActiveResourcesInfo().filter(
+    (type) => type === 'Immediate').length, 0);
+  immediate.ref();
+  strictEqual(process.getActiveResourcesInfo().filter(
+    (type) => type === 'Immediate').length, 1);
+}
 
 // See also test/pseudo-tty/test-handle-wrap-isrefed-tty.js
