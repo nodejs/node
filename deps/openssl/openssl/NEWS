@@ -5,6 +5,10 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1l and OpenSSL 1.1.1m [14 Dec 2021]
+
+      o None
+
   Major changes between OpenSSL 1.1.1k and OpenSSL 1.1.1l [24 Aug 2021]
 
       o Fixed an SM2 Decryption Buffer Overflow (CVE-2021-3711)

@@ -7,6 +7,26 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.1.1l and 1.1.1m [14 Dec 2021]
+
+  *) Avoid loading of a dynamic engine twice.
+
+     [Bernd Edlinger]
+
+  *) Fixed building on Debian with kfreebsd kernels
+
+     [Mattias Ellert]
+
+  *) Prioritise DANE TLSA issuer certs over peer certs
+
+     [Viktor Dukhovni]
+
+  *) Fixed random API for MacOS prior to 10.12
+
+     These MacOS versions don't support the CommonCrypto APIs
+
+     [Lenny Primak]
+
  Changes between 1.1.1k and 1.1.1l [24 Aug 2021]
 
   *) Fixed an SM2 Decryption Buffer Overflow.

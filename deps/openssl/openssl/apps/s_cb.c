@@ -819,7 +819,9 @@ int generate_stateless_cookie_callback(SSL *ssl, unsigned char *cookie,
 {
     unsigned int temp;
     int res = generate_cookie_callback(ssl, cookie, &temp);
-    *cookie_len = temp;
+
+    if (res != 0)
+        *cookie_len = temp;
     return res;
 }
 

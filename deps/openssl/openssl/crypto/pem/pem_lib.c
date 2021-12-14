@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -899,17 +899,12 @@ err:
 int PEM_read_bio_ex(BIO *bp, char **name_out, char **header,
                     unsigned char **data, long *len_out, unsigned int flags)
 {
-    EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
+    EVP_ENCODE_CTX *ctx = NULL;
     const BIO_METHOD *bmeth;
     BIO *headerB = NULL, *dataB = NULL;
     char *name = NULL;
     int len, taillen, headerlen, ret = 0;
     BUF_MEM * buf_mem;
-
-    if (ctx == NULL) {
-        PEMerr(PEM_F_PEM_READ_BIO_EX, ERR_R_MALLOC_FAILURE);
-        return 0;
-    }
 
     *len_out = 0;
     *name_out = *header = NULL;
@@ -933,9 +928,20 @@ int PEM_read_bio_ex(BIO *bp, char **name_out, char **header,
     if (!get_header_and_data(bp, &headerB, &dataB, name, flags))
         goto end;
 
-    EVP_DecodeInit(ctx);
     BIO_get_mem_ptr(dataB, &buf_mem);
     len = buf_mem->length;
+
+    /* There was no data in the PEM file */
+    if (len == 0)
+        goto end;
+
+    ctx = EVP_ENCODE_CTX_new();
+    if (ctx == NULL) {
+        PEMerr(PEM_F_PEM_READ_BIO_EX, ERR_R_MALLOC_FAILURE);
+        goto end;
+    }
+
+    EVP_DecodeInit(ctx);
     if (EVP_DecodeUpdate(ctx, (unsigned char*)buf_mem->data, &len,
                          (unsigned char*)buf_mem->data, len) < 0
             || EVP_DecodeFinal(ctx, (unsigned char*)&(buf_mem->data[len]),
@@ -946,9 +952,6 @@ int PEM_read_bio_ex(BIO *bp, char **name_out, char **header,
     len += taillen;
     buf_mem->length = len;
 
-    /* There was no data in the PEM file; avoid malloc(0). */
-    if (len == 0)
-        goto end;
     headerlen = BIO_get_mem_data(headerB, NULL);
     *header = pem_malloc(headerlen + 1, flags);
     *data = pem_malloc(len, flags);

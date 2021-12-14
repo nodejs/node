@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -212,10 +212,15 @@ static int pkey_set_type(EVP_PKEY *pkey, ENGINE *e, int type, const char *str,
     }
     if (pkey) {
         pkey->ameth = ameth;
-        pkey->engine = e;
-
         pkey->type = pkey->ameth->pkey_id;
         pkey->save_type = type;
+# ifndef OPENSSL_NO_ENGINE
+        if (eptr == NULL && e != NULL && !ENGINE_init(e)) {
+            EVPerr(EVP_F_PKEY_SET_TYPE, EVP_R_INITIALIZATION_ERROR);
+            return 0;
+        }
+# endif
+        pkey->engine = e;
     }
     return 1;
 }
@@ -520,7 +525,7 @@ int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey, EC_KEY *key)
 
 EC_KEY *EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey)
 {
-    if (pkey->type != EVP_PKEY_EC) {
+    if (EVP_PKEY_base_id(pkey) != EVP_PKEY_EC) {
         EVPerr(EVP_F_EVP_PKEY_GET0_EC_KEY, EVP_R_EXPECTING_A_EC_KEY);
         return NULL;
     }

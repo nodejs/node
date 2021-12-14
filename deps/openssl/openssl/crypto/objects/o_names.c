@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -67,8 +67,14 @@ static CRYPTO_ONCE init = CRYPTO_ONCE_STATIC_INIT;
 DEFINE_RUN_ONCE_STATIC(o_names_init)
 {
     CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_DISABLE);
-    names_lh = lh_OBJ_NAME_new(obj_name_hash, obj_name_cmp);
+    names_lh = NULL;
     obj_lock = CRYPTO_THREAD_lock_new();
+    if (obj_lock != NULL)
+        names_lh = lh_OBJ_NAME_new(obj_name_hash, obj_name_cmp);
+    if (names_lh == NULL) {
+        CRYPTO_THREAD_lock_free(obj_lock);
+        obj_lock = NULL;
+    }
     CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ENABLE);
     return names_lh != NULL && obj_lock != NULL;
 }
@@ -217,10 +223,8 @@ int OBJ_NAME_add(const char *name, int type, const char *data)
     type &= ~OBJ_NAME_ALIAS;
 
     onp = OPENSSL_malloc(sizeof(*onp));
-    if (onp == NULL) {
-        /* ERROR */
-        goto unlock;
-    }
+    if (onp == NULL)
+        return 0;
 
     onp->name = name;
     onp->alias = alias;

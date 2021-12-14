@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # -*- mode: Perl -*-
-# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -37,12 +37,12 @@ foreach my $libname (@libnames) {
         *OSTDOUT = *STDOUT;
         open STDERR, ">", devnull();
         open STDOUT, ">", devnull();
-        my @nm_lines = map { s|\R$||; $_ } `nm -Pg $shlibpath 2> /dev/null`;
+        my @nm_lines = map { s|\R$||; $_ } `nm -DPg $shlibpath 2> /dev/null`;
         close STDERR;
         close STDOUT;
         *STDERR = *OSTDERR;
         *STDOUT = *OSTDOUT;
-        skip "Can't run 'nm -Pg $shlibpath' => $?...  ignoring", 2
+        skip "Can't run 'nm -DPg $shlibpath' => $?...  ignoring", 2
             unless $? == 0;
 
         my $bldtop = bldtop_dir();
@@ -57,7 +57,17 @@ foreach my $libname (@libnames) {
         note "Number of lines in \@def_lines before massaging: ", scalar @def_lines;
 
         # Massage the nm output to only contain defined symbols
-        @nm_lines = sort map { s| .*||; $_ } grep(m|.* [BCDST] .*|, @nm_lines);
+        @nm_lines =
+            sort
+            map {
+                # Drop the first space and everything following it
+                s| .*||;
+                # Drop OpenSSL dynamic version information if there is any
+                s|\@\@OPENSSL_[0-9._]+[a-z]?$||;
+                # Return the result
+                $_
+            }
+            grep(m|.* [BCDST] .*|, @nm_lines);
 
         # Massage the mkdef.pl output to only contain global symbols
         # The output we got is in Unix .map format, which has a global

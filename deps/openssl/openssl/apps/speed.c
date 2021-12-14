@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -1590,6 +1590,10 @@ int speed_main(int argc, char **argv)
         case OPT_MULTI:
 #ifndef NO_FORK
             multi = atoi(opt_arg());
+            if (multi >= INT_MAX / (int)sizeof(int)) {
+                BIO_printf(bio_err, "%s: multi argument too large\n", prog);
+                return 0;
+            }
 #endif
             break;
         case OPT_ASYNCJOBS:
@@ -3490,7 +3494,7 @@ static int do_multi(int multi, int size_num)
             close(fd[1]);
             mr = 1;
             usertime = 0;
-            free(fds);
+            OPENSSL_free(fds);
             return 0;
         }
         printf("Forked child %d\n", n);
@@ -3603,7 +3607,7 @@ static int do_multi(int multi, int size_num)
 
         fclose(f);
     }
-    free(fds);
+    OPENSSL_free(fds);
     return 1;
 }
 #endif

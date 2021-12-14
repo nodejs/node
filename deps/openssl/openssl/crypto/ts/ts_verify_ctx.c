@@ -70,6 +70,7 @@ STACK_OF(X509) *TS_VERIFY_CTS_set_certs(TS_VERIFY_CTX *ctx,
 unsigned char *TS_VERIFY_CTX_set_imprint(TS_VERIFY_CTX *ctx,
                                          unsigned char *hexstr, long len)
 {
+    OPENSSL_free(ctx->imprint);
     ctx->imprint = hexstr;
     ctx->imprint_len = len;
     return ctx->imprint;

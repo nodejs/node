@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2014 Cryptography Research, Inc.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -62,7 +62,7 @@ mask_t gf_eq(const gf x, const gf y);
 mask_t gf_lobit(const gf x);
 mask_t gf_hibit(const gf x);
 
-void gf_serialize(uint8_t *serial, const gf x, int with_highbit);
+void gf_serialize(uint8_t serial[SER_BYTES], const gf x, int with_highbit);
 mask_t gf_deserialize(gf x, const uint8_t serial[SER_BYTES], int with_hibit,
                       uint8_t hi_nmask);
 

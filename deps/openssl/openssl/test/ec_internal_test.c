@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -283,6 +283,47 @@ static int decoded_flag_test(void)
     return testresult;
 }
 
+static
+int ecpkparams_i2d2i_test(int n)
+{
+    EC_GROUP *g1 = NULL, *g2 = NULL;
+    FILE *fp = NULL;
+    int nid = curves[n].nid;
+    int testresult = 0;
+
+    /* create group */
+    if (!TEST_ptr(g1 = EC_GROUP_new_by_curve_name(nid)))
+        goto end;
+
+    /* encode params to file */
+    if (!TEST_ptr(fp = fopen("params.der", "wb"))
+            || !TEST_true(i2d_ECPKParameters_fp(fp, g1)))
+        goto end;
+
+    /* flush and close file */
+    if (!TEST_int_eq(fclose(fp), 0)) {
+        fp = NULL;
+        goto end;
+    }
+    fp = NULL;
+
+    /* decode params from file */
+    if (!TEST_ptr(fp = fopen("params.der", "rb"))
+            || !TEST_ptr(g2 = d2i_ECPKParameters_fp(fp, NULL)))
+        goto end;
+
+    testresult = 1; /* PASS */
+
+end:
+    if (fp != NULL)
+        fclose(fp);
+
+    EC_GROUP_free(g1);
+    EC_GROUP_free(g2);
+
+    return testresult;
+}
+
 int setup_tests(void)
 {
     crv_len = EC_get_builtin_curves(NULL, 0);
@@ -297,6 +338,8 @@ int setup_tests(void)
 #endif
     ADD_ALL_TESTS(field_tests_default, crv_len);
     ADD_TEST(decoded_flag_test);
+    ADD_ALL_TESTS(ecpkparams_i2d2i_test, crv_len);
+
     return 1;
 }
 

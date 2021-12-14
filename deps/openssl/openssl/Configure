@@ -1304,16 +1304,19 @@ if ($disabled{"dynamic-engine"}) {
 
 unless ($disabled{asan}) {
     push @{$config{cflags}}, "-fsanitize=address";
+    push @{$config{cxxflags}}, "-fsanitize=address" if $config{CXX};
 }
 
 unless ($disabled{ubsan}) {
     # -DPEDANTIC or -fnosanitize=alignment may also be required on some
     # platforms.
     push @{$config{cflags}}, "-fsanitize=undefined", "-fno-sanitize-recover=all";
+    push @{$config{cxxflags}}, "-fsanitize=undefined", "-fno-sanitize-recover=all" if $config{CXX};
 }
 
 unless ($disabled{msan}) {
   push @{$config{cflags}}, "-fsanitize=memory";
+  push @{$config{cxxflags}}, "-fsanitize=memory" if $config{CXX};
 }
 
 unless ($disabled{"fuzz-libfuzzer"} && $disabled{"fuzz-afl"}

@@ -380,18 +380,20 @@ B<EVP_CTRL_AEAD_SET_TAG>.
 
 =item EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, taglen, tag)
 
-Sets the expected tag to C<taglen> bytes from C<tag>.
-The tag length can only be set before specifying an IV.
+When decrypting, this call sets the expected tag to C<taglen> bytes from C<tag>.
 C<taglen> must be between 1 and 16 inclusive.
+The tag must be set prior to any call to EVP_DecryptFinal() or
+EVP_DecryptFinal_ex().
 
 For GCM, this call is only valid when decrypting data.
 
 For OCB, this call is valid when decrypting data to set the expected tag,
-and before encryption to set the desired tag length.
+and when encrypting to set the desired tag length.
 
-In OCB mode, calling this before encryption with C<tag> set to C<NULL> sets the
-tag length.  If this is not called prior to encryption, a default tag length is
-used.
+In OCB mode, calling this when encrypting with C<tag> set to C<NULL> sets the
+tag length. The tag length can only be set before specifying an IV. If this is
+not called prior to setting the IV during encryption, then a default tag length
+is used.
 
 For OCB AES, the default tag length is 16 (i.e. 128 bits).  It is also the
 maximum tag length for OCB.
@@ -659,7 +661,7 @@ EVP_CIPHER_CTX_reset().
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

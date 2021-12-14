@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -793,12 +793,15 @@ int EC_GROUP_get_pentanomial_basis(const EC_GROUP *, unsigned int *k1,
 EC_GROUP *d2i_ECPKParameters(EC_GROUP **, const unsigned char **in, long len);
 int i2d_ECPKParameters(const EC_GROUP *, unsigned char **out);
 
-# define d2i_ECPKParameters_bio(bp,x) ASN1_d2i_bio_of(EC_GROUP,NULL,d2i_ECPKParameters,bp,x)
-# define i2d_ECPKParameters_bio(bp,x) ASN1_i2d_bio_of_const(EC_GROUP,i2d_ECPKParameters,bp,x)
-# define d2i_ECPKParameters_fp(fp,x) (EC_GROUP *)ASN1_d2i_fp(NULL, \
-                (char *(*)())d2i_ECPKParameters,(fp),(unsigned char **)(x))
-# define i2d_ECPKParameters_fp(fp,x) ASN1_i2d_fp(i2d_ECPKParameters,(fp), \
-                (unsigned char *)(x))
+# define d2i_ECPKParameters_bio(bp,x) \
+    ASN1_d2i_bio_of(EC_GROUP, NULL, d2i_ECPKParameters, bp, x)
+# define i2d_ECPKParameters_bio(bp,x) \
+    ASN1_i2d_bio_of_const(EC_GROUP, i2d_ECPKParameters, bp, x)
+# define d2i_ECPKParameters_fp(fp,x) \
+    (EC_GROUP *)ASN1_d2i_fp(NULL, (d2i_of_void *)d2i_ECPKParameters, (fp), \
+                            (void **)(x))
+# define i2d_ECPKParameters_fp(fp,x) \
+    ASN1_i2d_fp((i2d_of_void *)i2d_ECPKParameters, (fp), (void *)(x))
 
 int ECPKParameters_print(BIO *bp, const EC_GROUP *x, int off);
 # ifndef OPENSSL_NO_STDIO

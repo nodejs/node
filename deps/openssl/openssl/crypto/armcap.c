@@ -106,20 +106,23 @@ static unsigned long getauxval(unsigned long key)
  * ARM puts the feature bits for Crypto Extensions in AT_HWCAP2, whereas
  * AArch64 used AT_HWCAP.
  */
+# ifndef AT_HWCAP
+#  define AT_HWCAP               16
+# endif
+# ifndef AT_HWCAP2
+#  define AT_HWCAP2              26
+# endif
 # if defined(__arm__) || defined (__arm)
-#  define HWCAP                  16
-                                  /* AT_HWCAP */
+#  define HWCAP                  AT_HWCAP
 #  define HWCAP_NEON             (1 << 12)
 
-#  define HWCAP_CE               26
-                                  /* AT_HWCAP2 */
+#  define HWCAP_CE               AT_HWCAP2
 #  define HWCAP_CE_AES           (1 << 0)
 #  define HWCAP_CE_PMULL         (1 << 1)
 #  define HWCAP_CE_SHA1          (1 << 2)
 #  define HWCAP_CE_SHA256        (1 << 3)
 # elif defined(__aarch64__)
-#  define HWCAP                  16
-                                  /* AT_HWCAP */
+#  define HWCAP                  AT_HWCAP
 #  define HWCAP_NEON             (1 << 1)
 
 #  define HWCAP_CE               HWCAP

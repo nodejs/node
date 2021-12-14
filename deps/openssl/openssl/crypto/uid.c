@@ -17,7 +17,7 @@ int OPENSSL_issetugid(void)
     return 0;
 }
 
-#elif defined(__OpenBSD__) || (defined(__FreeBSD__) && __FreeBSD__ > 2) || defined(__DragonFly__)
+#elif defined(__OpenBSD__) || (defined(__FreeBSD__) && __FreeBSD__ > 2) || defined(__DragonFly__) || (defined(__GLIBC__) && defined(__FreeBSD_kernel__))
 
 # include OPENSSL_UNISTD
 
