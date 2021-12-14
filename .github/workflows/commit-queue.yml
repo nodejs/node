@@ -46,27 +46,6 @@ jobs:
           echo "OWNER=${{ github.repository_owner }}" >> $GITHUB_ENV
           echo "DEFAULT_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
 
-      - name: Get Pull Requests
-        uses: octokit/graphql-action@v2.x
-        id: get_mergable_pull_requests
-        with:
-          query: |
-            query release($owner:String!,$repo:String!, $base_ref:String!) {
-              repository(owner:$owner, name:$repo) {
-                pullRequests(baseRefName: $base_ref, labels: ["commit-queue"], states: OPEN, last: 100) {
-                  nodes {
-                    number
-                  }
-                }
-              }
-            }
-          owner: ${{ env.OWNER }}
-          repo: ${{ env.REPOSITORY }}
-          # Commit queue is only enabled for the default branch on the repository
-          base_ref: ${{ env.DEFAULT_BRANCH }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Configure node-core-utils
         run: |
           ncu-config set branch ${DEFAULT_BRANCH}
@@ -77,7 +56,13 @@ jobs:
           ncu-config set repo "${REPOSITORY}"
           ncu-config set owner "${OWNER}"
 
-      - name: Start the commit queue
-        run: ./tools/actions/commit-queue.sh ${OWNER} ${REPOSITORY} $(echo '${{ steps.get_mergable_pull_requests.outputs.data }}' | jq '.repository.pullRequests.nodes | map(.number) | .[]')
+      - name: Start the Commit Queue
+        run: |
+          PRs=$(gh pr list \
+                  --base ${{ env.DEFAULT_BRANCH }} \
+                  --label 'commit-queue' \
+                  --json number --jq 'map(.number) | .[]' \
+                  --limit 100)
+          ./tools/actions/commit-queue.sh ${{ env.OWNER }} ${{ env.REPOSITORY }} "$PRs"
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}

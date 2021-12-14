@@ -12,12 +12,9 @@ jobs:
     steps:
       - name: Post stalled comment
         env:
-          COMMENTS_URL: ${{ github.event.issue.comments_url || github.event.pull_request.comments_url }}
-        run: |
-          curl -X POST $COMMENTS_URL \
-          -H "Content-Type: application/json" \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          --data '{ "body": "This issue/PR was marked as stalled, it will be automatically closed in 30 days. If it should remain open, please leave a comment explaining why it should remain open." }'
+          NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment "$NUMBER" --repo ${{ github.repository }} --body "This issue/PR was marked as stalled, it will be automatically closed in 30 days. If it should remain open, please leave a comment explaining why it should remain open."
 
   fastTrack:
     if: github.repository == 'nodejs/node' && github.event_name == 'pull_request_target' && github.event.label.name == 'fast-track'
