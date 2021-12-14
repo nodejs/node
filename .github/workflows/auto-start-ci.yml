@@ -28,40 +28,17 @@ jobs:
       - name: Install node-core-utils
         run: npm install -g node-core-utils
 
-      - name: Set variables
-        run: |
-          echo "REPOSITORY=$(echo ${{ github.repository }} | cut -d/ -f2)" >> $GITHUB_ENV
-          echo "OWNER=${{ github.repository_owner }}" >> $GITHUB_ENV
-
-      # Get Pull Requests
-      - name: Get Pull Requests
-        uses: octokit/graphql-action@v2.x
-        id: get_prs_for_ci
-        with:
-          query: |
-            query prs($owner:String!, $repo:String!) {
-              repository(owner:$owner, name:$repo) {
-                pullRequests(labels: ["request-ci"], states: OPEN, last: 100) {
-                  nodes {
-                    number
-                  }
-                }
-              }
-            }
-          owner: ${{ env.OWNER }}
-          repo: ${{ env.REPOSITORY }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Setup node-core-utils
         run: |
           ncu-config set username ${{ secrets.JENKINS_USER }}
           ncu-config set token none
           ncu-config set jenkins_token ${{ secrets.JENKINS_TOKEN }}
-          ncu-config set owner ${{ env.OWNER }}
-          ncu-config set repo ${{ env.REPOSITORY }}
+          ncu-config set owner "${{ github.repository_owner }}"
+          ncu-config set repo "$(echo ${{ github.repository }} | cut -d/ -f2)"
 
-      - name: Start CI
-        run: ./tools/actions/start-ci.sh $(echo '${{ steps.get_prs_for_ci.outputs.data }}' | jq '.repository.pullRequests.nodes | map(.number) | .[]')
+      - name: Start the CI
+        run: |
+          PRs=$(gh pr list --label 'request-ci' --json number --jq 'map(.number) | .[]' --limit 100)
+          ./tools/actions/start-ci.sh "$PRs"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
