@@ -113,8 +113,8 @@ our %config = (
   sourcedir => ".",
   target => "VC-WIN64-ARM",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1l",
-  version_num => "0x101010cfL",
+  version => "1.1.1m",
+  version_num => "0x101010dfL",
 );
 
 our %target = (
@@ -128,7 +128,7 @@ our %target = (
   LDFLAGS => "/nologo /debug",
   MT => "mt",
   MTFLAGS => "-nologo",
-  RANLIB => "CODE(0x5586a69f6160)",
+  RANLIB => "CODE(0x5610762514e0)",
   RC => "rc",
   _conf_fname_int => [ "Configurations/00-base-templates.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/50-win-onecore.conf", "Configurations/shared-info.pl" ],
   aes_asm_src => "aes_core.c aes_cbc.c",
@@ -1295,6 +1295,7 @@ our %unified_info = (
                 ],
             "test/ec_internal_test" =>
                 [
+                    "apps/libapps.a",
                     "libcrypto.a",
                     "test/libtestutil.a",
                 ],
