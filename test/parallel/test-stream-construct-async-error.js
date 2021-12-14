@@ -46,9 +46,10 @@ const assert = require('assert');
 
 {
   class Foo extends Duplex {
-    async _construct() {
+    async _construct(cb) {
       // eslint-disable-next-line no-restricted-syntax
       await setTimeout(common.platformTimeout(1));
+      cb();
     }
 
     _write = common.mustCall((chunk, encoding, cb) => {
@@ -88,9 +89,10 @@ const assert = require('assert');
       cb();
     });
 
-    async _final() {
+    async _final(cb) {
       // eslint-disable-next-line no-restricted-syntax
       await setTimeout(common.platformTimeout(1));
+      cb();
     }
   }
 
