@@ -29,7 +29,18 @@ connect({
     servername: 'agent1',
     secureContext: tls.createSecureContext({
       ca: keys.agent1.ca,
+      ciphers: null,
+      clientCertEngine: null,
+      crl: null,
+      dhparam: null,
+      passphrase: null,
       pfx: null,
+      privateKeyIdentifier: null,
+      privateKeyEngine: null,
+      sessionIdContext: null,
+      sessionTimeout: null,
+      sigalgs: null,
+      ticketKeys: null,
     }),
   },
   server: {
