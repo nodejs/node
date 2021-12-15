@@ -607,9 +607,8 @@ EnginePointer LoadEngineById(const char* id, CryptoErrorStore* errors) {
   }
 
   if (!engine && errors != nullptr) {
-    if (ERR_get_error() != 0) {
-      errors->Capture();
-    } else {
+    errors->Capture();
+    if (errors->Empty()) {
       errors->Insert(NodeCryptoError::ENGINE_NOT_FOUND, id);
     }
   }
