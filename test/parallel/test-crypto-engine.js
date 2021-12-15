@@ -44,10 +44,13 @@ crypto.setEngine('dynamic', crypto.constants.ENGINE_METHOD_RSA);
     fs.accessSync(enginePath);
 
     crypto.setEngine(enginePath);
-    crypto.setEngine(enginePath);
+    // OpenSSL 3.0.1 and 1.1.1m now throw errors if an engine is loaded again
+    // with a duplicate absolute path.
+    // TODO(richardlau): figure out why this fails on macOS but not Linux.
+    // crypto.setEngine(enginePath);
 
-    crypto.setEngine(enginePath, crypto.constants.ENGINE_METHOD_RSA);
-    crypto.setEngine(enginePath, crypto.constants.ENGINE_METHOD_RSA);
+    // crypto.setEngine(enginePath, crypto.constants.ENGINE_METHOD_RSA);
+    // crypto.setEngine(enginePath, crypto.constants.ENGINE_METHOD_RSA);
 
     process.env.OPENSSL_ENGINES = execDir;
 
