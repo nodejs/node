@@ -1008,7 +1008,7 @@
       ['OS=="mac"', {
         'defines': [
           'V8_HAVE_TARGET_OS',
-          'V8_TARGET_OS_MACOSX',
+          'V8_TARGET_OS_MACOS',
         ]
       }],
       ['OS=="win"', {
