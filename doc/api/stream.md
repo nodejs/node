@@ -2282,6 +2282,19 @@ added: v17.3.0
 
 Returns whether the stream has encountered an error.
 
+### `stream.isReadable(stream)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `stream` {Readable|Duplex|ReadableStream}
+* Returns: {boolean}
+
+Returns whether the stream is readable.
+
 ### `stream.Readable.toWeb(streamReadable)`
 
 <!-- YAML
