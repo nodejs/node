@@ -5,21 +5,15 @@
 # 3. PRs touching any code with a codeowner must be signed off by at least one
 #    person on the code owner team.
 
-# tsc & commcomm
+# tsc
 
 /.github/CODEOWNERS @nodejs/tsc
 /GOVERNANCE.md @nodejs/tsc
 /onboarding.md @nodejs/tsc
-/CODE_OF_CONDUCT.md @nodejs/tsc @nodejs/community-committee
-/CONTRIBUTING.md @nodejs/tsc @nodejs/community-committee
-/LICENSE @nodejs/tsc @nodejs/community-committee
-/doc/guides/contributing/code-of-conduct.md @nodejs/tsc @nodejs/community-committee
-# TODO(mmarchini): the bot doens't have a notion of precedence, that might
-# change when move the codeowners code to an Action, at which point we can
-# uncomment the line below
-# /doc/guides/contributing/*.md @nodejs/tsc
-/doc/guides/contributing/issues.md @nodejs/tsc
-/doc/guides/contributing/pull-requests.md @nodejs/tsc
+/CODE_OF_CONDUCT.md @nodejs/tsc
+/CONTRIBUTING.md @nodejs/tsc
+/LICENSE @nodejs/tsc
+/doc/guides/contributing/*.md @nodejs/tsc
 /doc/guides/collaborator-guide.md @nodejs/tsc
 /doc/guides/offboarding.md @nodejs/tsc
 
