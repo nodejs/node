@@ -1,22 +1,35 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 
-// case 2 using *AndReturn calls (dual behaviors)
 const asyncLocalStorage = new AsyncLocalStorage();
+let callbackToken = {};
+let awaitToken = {};
 
 let i = 0;
-process.setUncaughtExceptionCaptureCallback((err) => {
-  ++i;
+const exceptionHandler = common.mustCall(
+  (err) => {
+    ++i;
   assert.strictEqual(err.message, 'err2');
-  assert.strictEqual(asyncLocalStorage.getStore().get('hello'), 'node');
-});
+  assert.strictEqual(asyncLocalStorage.getStore(), callbackToken);
+  }, 1);
+process.setUncaughtExceptionCaptureCallback(exceptionHandler);
+
+const rejectionHandler = common.mustCall((err) => {
+  assert.strictEqual(err.message, 'err3');
+  assert.strictEqual(asyncLocalStorage.getStore(), awaitToken);
+}, 1);
+process.on('unhandledRejection', rejectionHandler);
+
+async function awaitTest() {
+  await null;
+  throw new Error('err3');
+}
+asyncLocalStorage.run(awaitToken, awaitTest);
 
 try {
-  asyncLocalStorage.run(new Map(), () => {
-    const store = asyncLocalStorage.getStore();
-    store.set('hello', 'node');
+  asyncLocalStorage.run(callbackToken, () => {
     setTimeout(() => {
       process.nextTick(() => {
         assert.strictEqual(i, 1);
