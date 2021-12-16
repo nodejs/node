@@ -84,7 +84,7 @@
         '<(SHARED_INTERMEDIATE_DIR)/src/node_protocol.json',
       ],
       'action': [
-        'python',
+        '<(python)',
         'tools/inspector_protocol/convert_protocol_to_json.py',
         '<@(_inputs)',
         '<@(_outputs)',
@@ -102,7 +102,7 @@
       ],
       'process_outputs_as_sources': 1,
       'action': [
-        'python',
+        '<(python)',
         'tools/inspector_protocol/code_generator.py',
         '--jinja_dir', '<@(protocol_tool_path)',
         '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/',
@@ -120,7 +120,7 @@
         '<(SHARED_INTERMEDIATE_DIR)/concatenated_protocol.json',
       ],
       'action': [
-        'python',
+        '<(python)',
         'tools/inspector_protocol/concatenate_protocols.py',
         '<@(_inputs)',
         '<@(_outputs)',
@@ -136,7 +136,7 @@
       ],
       'process_outputs_as_sources': 1,
       'action': [
-        'python',
+        '<(python)',
         'tools/compress_json.py',
         '<@(_inputs)',
         '<@(_outputs)',
