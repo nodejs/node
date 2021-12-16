@@ -4,15 +4,15 @@ const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 
 const asyncLocalStorage = new AsyncLocalStorage();
-let callbackToken = {};
-let awaitToken = {};
+const callbackToken = {};
+const awaitToken = {};
 
 let i = 0;
 const exceptionHandler = common.mustCall(
   (err) => {
     ++i;
-  assert.strictEqual(err.message, 'err2');
-  assert.strictEqual(asyncLocalStorage.getStore(), callbackToken);
+    assert.strictEqual(err.message, 'err2');
+    assert.strictEqual(asyncLocalStorage.getStore(), callbackToken);
   }, 1);
 process.setUncaughtExceptionCaptureCallback(exceptionHandler);
 
