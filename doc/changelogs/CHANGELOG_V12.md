@@ -83,7 +83,7 @@
 
 <a id="12.22.8"></a>
 
-## 2012-12-16, Version 12.22.8 'Erbium' (LTS), @richardlau
+## 2021-12-16, Version 12.22.8 'Erbium' (LTS), @richardlau
 
 ### Notable Changes
 
