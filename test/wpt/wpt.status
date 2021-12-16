@@ -7,12 +7,18 @@ prefix wpt
 [true] # This section applies to all platforms
 
 [$system==win32]
+# https://github.com/nodejs/node/issues/40449
+test-user-timing: PASS,FLAKY
 
 [$system==linux]
 
 [$system==macos]
+# https://github.com/nodejs/node/issues/40449
+test-user-timing: PASS,FLAKY
 
 [$arch==arm || $arch==arm64]
+# https://github.com/nodejs/node/issues/40449
+test-user-timing: PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 
