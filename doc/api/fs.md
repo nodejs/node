@@ -91,7 +91,7 @@ unlink('/tmp/hello', (err) => {
 
 The callback-based versions of the `fs` module APIs are preferable over
 the use of the promise APIs when maximal performance (both in terms of
-execution time and memory allocation are required).
+execution time and memory allocation) is required.
 
 ## Synchronous example
 
