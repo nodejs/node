@@ -5,6 +5,8 @@ prefix wpt
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+# https://github.com/nodejs/node/issues/40449
+test-user-timing: PASS,FLAKY
 
 [$system==win32]
 
