@@ -11,6 +11,8 @@ prefix parallel
 test-timers-immediate-queue: PASS,FLAKY
 # https://github.com/nodejs/node/issues/23277
 test-worker-memory: PASS,FLAKY
+# https://github.com/nodejs/node/issues/41206
+test-crypto-keygen: PASS,FLAKY
 
 [$system==linux]
 # https://github.com/nodejs/node/issues/39368
