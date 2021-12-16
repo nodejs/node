@@ -251,9 +251,8 @@ And on Windows:
 > vcbuild test
 ```
 
-(This code might take more than an hour to execute on a PC, want to run a part
-of tests quickly or for more details see the [running tests][] section of
-Building guide.)
+Running all tests takes a long time (typically an hour or more). To run a subset of the
+test suite, see the [running tests][] section of the Building guide.
 
 ### Step 7: Push
 
