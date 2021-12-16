@@ -1576,16 +1576,15 @@ class Source {
 
 {
   const stream = new ReadableStream({
-    start(controller) {
+    pull: common.mustCall((controller) => {
       controller.error(new Error());
-    },
-    pull: common.mustNotCall(),
+    }),
   });
 
   const reader = stream.getReader();
   (async () => {
     isErrored(stream, false);
-    await reader.read();
+    await reader.read().catch(common.mustCall());
     isErrored(stream, true);
   })().then(common.mustCall());
 }
