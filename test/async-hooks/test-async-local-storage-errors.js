@@ -8,17 +8,30 @@ const callbackToken = {};
 const awaitToken = {};
 
 let i = 0;
-const exceptionHandler = common.mustCall(
-  (err) => {
-    ++i;
-    assert.strictEqual(err.message, 'err2');
-    assert.strictEqual(asyncLocalStorage.getStore(), callbackToken);
-  }, 1);
+let underlyingExceptionHandler = common.mustCall(function(err) {
+  ++i;
+  assert.strictEqual(err.message, 'err2');
+  assert.strictEqual(asyncLocalStorage.getStore(), callbackToken);
+
+  // re-entrant check
+  Promise.reject(new Error('err4'));
+  underlyingExceptionHandler = common.mustCall(
+    function(err) {
+      assert.strictEqual(err.message, 'err4');
+      assert.strictEqual(asyncLocalStorage.getStore(), callbackToken);
+    }, 1);
+}, 1);
+
+const exceptionHandler = common.mustCall(function(...args) {
+  return underlyingExceptionHandler.call(this, ...args);
+}, 2);
+
 process.setUncaughtExceptionCaptureCallback(exceptionHandler);
 
 const rejectionHandler = common.mustCall((err) => {
   assert.strictEqual(err.message, 'err3');
   assert.strictEqual(asyncLocalStorage.getStore(), awaitToken);
+  process.off('unhandledRejection', rejectionHandler);
 }, 1);
 process.on('unhandledRejection', rejectionHandler);
 
