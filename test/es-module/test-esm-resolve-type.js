@@ -184,12 +184,15 @@ try {
   testDualPackageWithJsMainScriptAndModuleType();
 
   // TestParameters are ModuleName, mainRequireScript, mainImportScript,
-  // mainPackageType, subdirPkgJsonType, expectedResolvedFormat
+  // mainPackageType, subdirPkgJsonType, expectedResolvedFormat, mainSuffix
   [ [ 'mjs-mod-mod', 'index.js', 'index.mjs', 'module', 'module', 'module'],
     [ 'mjs-com-com', 'idx.js', 'idx.mjs', 'commonjs', 'commonjs', 'module'],
     [ 'mjs-mod-com', 'index.js', 'imp.mjs', 'module', 'commonjs', 'module'],
     [ 'js-com-com', 'index.js', 'imp.js', 'commonjs', 'commonjs', 'commonjs'],
     [ 'js-com-mod', 'index.js', 'imp.js', 'commonjs', 'module', 'module'],
+    [ 'qmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '?k=v'],
+    [ 'hmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '#Key'],
+    [ 'qhmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '?k=v#h'],
     [ 'ts-mod-com', 'index.js', 'imp.ts', 'module', 'commonjs', undefined],
   ].forEach((testVariant) => {
     const [
@@ -198,7 +201,8 @@ try {
       mainImportScript,
       mainPackageType,
       subdirPackageType,
-      expectedResolvedFormat ] = testVariant;
+      expectedResolvedFormat,
+      mainSuffix ] = testVariant;
 
     const mDir = rel(`node_modules/${moduleName}`);
     const subDir = rel(`node_modules/${moduleName}/subdir`);
@@ -211,13 +215,14 @@ try {
     createDir(mDir);
     createDir(subDir);
 
+    const mainScript = mainImportScript + (mainSuffix ?? '');
     const mainPkgJsonContent = {
       type: mainPackageType,
       main: `./subdir/${mainRequireScript}`,
       exports: {
         '.': {
           'require': `./subdir/${mainRequireScript}`,
-          'import': `./subdir/${mainImportScript}`
+          'import': `./subdir/${mainScript}`
         },
         './package.json': './package.json',
       }
