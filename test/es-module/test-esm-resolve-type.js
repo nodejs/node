@@ -181,69 +181,49 @@ try {
     assert.ok(resolveResult.url.includes('my-dual-package/es/index.js'));
   }
 
-  function testDualPackageWithMjsMainScriptAndCJSType() {
+  testDualPackageWithJsMainScriptAndModuleType();
 
-    // Additional test for following scenario
-    /**
-     * this creates following directory structure:
-     *
-     * ./node_modules:
-     *   |-> dual-mjs-pjson
-     *       |-> subdir
-     *           |-> index.mjs [3]
-     *           |-> package.json [2]
-     *           |-> index.js
-     *       |->package.json [1]
-     *
-     * [1] - main package.json of the package
-     *     - it contains:
-     *             - type: 'commonjs'
-     *             - main: 'subdir/index.js'
-     *             - conditional exports for 'require' (subdir/index.js) and
-     *                                       'import' (subdir/index.mjs)
-     * [2] - package.json add-on for the import case
-     *     - it only contains:
-     *             - type: 'commonjs'
-     * [3] - main script for the `import` case
-     *
-     * in case the package is consumed as an ESM by importing it:
-     *    import * as my-package from 'dual-mjs-pjson'
-     * it will cause the resolve method to return:
-     *  {
-     *     url: '<base_path>/node_modules/dual-mjs-pjson/subdir/index.mjs',
-     *     format: 'module'
-     *  }
-     *
-     *  following testcase ensures that resolve works correctly in this case
-     *  returning the information as specified above. Source for 'url' value
-     *  is [1], source for 'format' value is the file extension of [3]
-     */
-    const moduleName = 'dual-mjs-pjson';
+  // TestParameters are ModuleName, mainRequireScript, mainImportScript,
+  // mainPackageType, subdirPkgJsonType, expectedResolvedFormat
+  [ [ 'mjs-mod-mod', 'index.js', 'index.mjs', 'module', 'module', 'module'],
+    [ 'mjs-com-com', 'idx.js', 'idx.mjs', 'commonjs', 'commonjs', 'module'],
+    [ 'mjs-mod-com', 'index.js', 'imp.mjs', 'module', 'commonjs', 'module'],
+    [ 'js-com-com', 'index.js', 'imp.js', 'commonjs', 'commonjs', 'commonjs'],
+    [ 'js-com-mod', 'index.js', 'imp.js', 'commonjs', 'module', 'module'],
+    [ 'ts-mod-com', 'index.js', 'imp.ts', 'module', 'commonjs', undefined],
+  ].forEach((testVariant) => {
+    const [
+      moduleName,
+      mainRequireScript,
+      mainImportScript,
+      mainPackageType,
+      subdirPackageType,
+      expectedResolvedFormat ] = testVariant;
 
     const mDir = rel(`node_modules/${moduleName}`);
     const subDir = rel(`node_modules/${moduleName}/subdir`);
     const pkg = rel(`node_modules/${moduleName}/package.json`);
     const subdirPkg = rel(`node_modules/${moduleName}/subdir/package.json`);
-    const esScript = rel(`node_modules/${moduleName}/subdir/index.mjs`);
-    const cjsScript = rel(`node_modules/${moduleName}/subdir/index.js`);
+    const esScript = rel(`node_modules/${moduleName}/subdir/${mainImportScript}`);
+    const cjsScript = rel(`node_modules/${moduleName}/subdir/${mainRequireScript}`);
 
     createDir(nmDir);
     createDir(mDir);
     createDir(subDir);
 
     const mainPkgJsonContent = {
-      type: 'commonjs',
-      main: 'lib/index.js',
+      type: mainPackageType,
+      main: `./subdir/${mainRequireScript}`,
       exports: {
         '.': {
-          'require': './subdir/index.js',
-          'import': './subdir/index.mjs'
+          'require': `./subdir/${mainRequireScript}`,
+          'import': `./subdir/${mainImportScript}`
         },
         './package.json': './package.json',
       }
     };
     const subdirPkgJsonContent = {
-      type: 'commonjs'
+      type: `${subdirPackageType}`
     };
 
     fs.writeFileSync(pkg, JSON.stringify(mainPkgJsonContent));
@@ -257,12 +237,9 @@ try {
 
     // test the resolve
     const resolveResult = resolve(`${moduleName}`);
-    assert.strictEqual(resolveResult.format, 'module');
-    assert.ok(resolveResult.url.includes(`${moduleName}/subdir/index.mjs`));
-  }
-
-  testDualPackageWithJsMainScriptAndModuleType();
-  testDualPackageWithMjsMainScriptAndCJSType();
+    assert.strictEqual(resolveResult.format, expectedResolvedFormat);
+    assert.ok(resolveResult.url.includes(`${moduleName}/subdir/${mainImportScript}`));
+  });
 
 } finally {
   process.chdir(previousCwd);
