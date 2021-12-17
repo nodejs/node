@@ -33,7 +33,8 @@ release.
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V17.md#17.2.0">17.2.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V17.md#17.3.0">17.3.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V17.md#17.2.0">17.2.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V17.md#17.1.0">17.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V17.md#17.0.1">17.0.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V17.md#17.0.0">17.0.0</a><br/>
