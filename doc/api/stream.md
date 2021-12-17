@@ -2174,7 +2174,7 @@ Returns whether the stream has been read from or cancelled.
 ### `stream.isErrored(stream)`
 
 <!-- YAML
-added: REPLACEME
+added: v17.3.0
 -->
 
 > Stability: 1 - Experimental
