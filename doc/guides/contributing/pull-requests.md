@@ -251,7 +251,9 @@ And on Windows:
 > vcbuild test
 ```
 
-(See the [running tests][] section of Building guide for more details.)
+For some configurations, running all tests might take a long time (an hour or
+more). To run a subset of the test suite, see the [running tests][] section of
+the Building guide.
 
 ### Step 7: Push
 
