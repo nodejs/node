@@ -107,7 +107,7 @@ Returns a new already aborted `AbortSignal`.
 #### Static method: `AbortSignal.timeout(delay)`
 
 <!-- YAML
-added: REPLACEME
+added: v17.3.0
 -->
 
 * `delay` {number} The number of milliseconds to wait before triggering
@@ -194,7 +194,7 @@ console.log(ac.signal.reason);  // Error('boom!');
 #### `abortSignal.throwIfAborted()`
 
 <!-- YAML
-added: REPLACEME
+added: v17.3.0
 -->
 
 If `abortSignal.aborted` is `true`, throws `abortSignal.reason`.
