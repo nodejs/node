@@ -566,7 +566,7 @@ use in Node.js but not the browser:
       "import": "./feature-node.mjs",
       "require": "./feature-node.cjs"
     },
-    "default": "./feature.mjs",
+    "default": "./feature.mjs"
   }
 }
 ```
