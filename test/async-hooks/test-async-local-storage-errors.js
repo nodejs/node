@@ -22,6 +22,18 @@ const rejectionHandler = common.mustCall((err) => {
 }, 1);
 process.on('unhandledRejection', rejectionHandler);
 
+const exceptionMonitor = common.mustCall((err, origin) => {
+  if (err.message === 'err2') {
+    assert.strictEqual(origin, 'uncaughtException');
+    assert.strictEqual(asyncLocalStorage.getStore(), callbackToken);
+  }
+  if (err.message === 'err3') {
+    assert.strictEqual(origin, 'unhandledRejection');
+    assert.strictEqual(asyncLocalStorage.getStore(), awaitToken);
+  }
+}, 2);
+process.on('uncaughtExceptionMonitor', exceptionMonitor);
+
 async function awaitTest() {
   await null;
   throw new Error('err3');
