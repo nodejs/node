@@ -393,7 +393,7 @@ added: v0.5.0
 changes:
   - version:
       - REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/38862
+    pr-url: https://github.com/nodejs/node/pull/41225
     description: The `modulePath` parameter can be a WHATWG `URL` object using
                  `file:` protocol.
   - version:
