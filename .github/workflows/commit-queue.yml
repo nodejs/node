@@ -17,8 +17,27 @@ env:
   NODE_VERSION: lts/*
 
 jobs:
-  commitQueue:
+  get_mergeable_prs:
     if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-latest
+    outputs:
+      numbers: ${{ steps.get_mergeable_prs.outputs.numbers }}
+    steps:
+      - name: Get Pull Requests
+        id: get_mergeable_prs
+        run: >
+          gh pr list \
+                  --repo ${{ github.repository }} \
+                  --base ${{ github.ref_name }} \
+                  --label 'commit-queue' \
+                  --json 'number' \
+                  -t '::set-output name=numbers::{{ range . }}{{ .number }} {{ end }}' \
+                  --limit 100
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  commitQueue:
+    needs: get_mergeable_prs
+    if: needs.get_mergeable_prs.outputs.numbers != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -44,11 +63,10 @@ jobs:
         run: |
           echo "REPOSITORY=$(echo ${{ github.repository }} | cut -d/ -f2)" >> $GITHUB_ENV
           echo "OWNER=${{ github.repository_owner }}" >> $GITHUB_ENV
-          echo "DEFAULT_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
 
       - name: Configure node-core-utils
         run: |
-          ncu-config set branch ${DEFAULT_BRANCH}
+          ncu-config set branch ${GITHUB_REF_NAME}
           ncu-config set upstream origin
           ncu-config set username "${{ secrets.GH_USER_NAME }}"
           ncu-config set token "${{ secrets.GH_USER_TOKEN }}"
@@ -57,12 +75,6 @@ jobs:
           ncu-config set owner "${OWNER}"
 
       - name: Start the Commit Queue
-        run: |
-          PRs=$(gh pr list \
-                  --base ${{ env.DEFAULT_BRANCH }} \
-                  --label 'commit-queue' \
-                  --json number --jq 'map(.number) | .[]' \
-                  --limit 100)
-          ./tools/actions/commit-queue.sh ${{ env.OWNER }} ${{ env.REPOSITORY }} "$PRs"
+        run: ./tools/actions/commit-queue.sh ${{ env.OWNER }} ${{ env.REPOSITORY }} "${{ needs.get_mergeable_prs.outputs.numbers }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
