@@ -12,8 +12,26 @@ env:
   NODE_VERSION: lts/*
 
 jobs:
-  startCI:
+  get_prs_for_ci:
     if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-latest
+    outputs:
+      numbers: ${{ steps.get_prs_for_ci.outputs.numbers }}
+    steps:
+      - name: Get Pull Requests
+        id: get_prs_for_ci
+        run: >
+          gh pr list \
+                  --repo ${{ github.repository }} \
+                  --label 'request-ci' \
+                  --json 'number' \
+                  -t '::set-output name=numbers::{{ range . }}{{ .number }} {{ end }}' \
+                  --limit 100
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  startCI:
+    needs: get_prs_for_ci
+    if: needs.get_prs_for_ci.outputs.numbers != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -37,8 +55,6 @@ jobs:
           ncu-config set repo "$(echo ${{ github.repository }} | cut -d/ -f2)"
 
       - name: Start the CI
-        run: |
-          PRs=$(gh pr list --label 'request-ci' --json number --jq 'map(.number) | .[]' --limit 100)
-          ./tools/actions/start-ci.sh "$PRs"
+        run: ./tools/actions/start-ci.sh "${{ needs.get_prs_for_ci.outputs.numbers }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
