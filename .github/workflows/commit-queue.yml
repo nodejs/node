@@ -75,6 +75,6 @@ jobs:
           ncu-config set owner "${OWNER}"
 
       - name: Start the Commit Queue
-        run: ./tools/actions/commit-queue.sh ${{ env.OWNER }} ${{ env.REPOSITORY }} "${{ needs.get_mergeable_prs.outputs.numbers }}"
+        run: ./tools/actions/commit-queue.sh ${{ env.OWNER }} ${{ env.REPOSITORY }} ${{ needs.get_mergeable_prs.outputs.numbers }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
