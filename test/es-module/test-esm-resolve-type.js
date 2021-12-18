@@ -49,12 +49,14 @@ try {
   /**
    * create a test module and try to resolve it by module name.
    * check the result is as expected
+   *
+   * for test-module-ne: everything .js that is not 'module' is 'commonjs'
    */
 
   [ [ 'test-module-mainjs', 'js', 'module', 'module'],
     [ 'test-module-mainmjs', 'mjs', 'module', 'module'],
     [ 'test-module-cjs', 'js', 'commonjs', 'commonjs'],
-    [ 'test-module-ne', 'js', undefined, undefined],
+    [ 'test-module-ne', 'js', undefined, 'commonjs'],
   ].forEach((testVariant) => {
     const [ moduleName,
             moduleExtenstion,
@@ -102,7 +104,7 @@ try {
     // Create a dummy dual package
     //
     /**
-     * this creates following directory structure:
+     * this creates the following directory structure:
      *
      * ./node_modules:
      *   |-> my-dual-package
@@ -113,17 +115,7 @@ try {
      *           |-> index.js
      *       |->package.json [1]
      *
-     * [1] - main package.json of the package
-     *     - it contains:
-     *             - type: 'commonjs'
-     *             - main: 'lib/mainfile.js'
-     *             - conditional exports for 'require' (lib/index.js) and
-     *                                       'import' (es/index.js)
-     * [2] - package.json add-on for the import case
-     *     - it only contains:
-     *             - type: 'module'
-     *
-     * in case the package is consumed as an ESM by importing it:
+     * in case the package is imported:
      *    import * as my-package from 'my-dual-package'
      * it will cause the resolve method to return:
      *  {
@@ -168,11 +160,13 @@ try {
 
     fs.writeFileSync(pkg, JSON.stringify(mainPkgJsonContent));
     fs.writeFileSync(esmPkg, JSON.stringify(esmPkgJsonContent));
-    fs.writeFileSync(esScript,
-                     'export function esm-resolve-tester() {return 42}');
-    fs.writeFileSync(cjsScript,
-                     `module.exports = { 
-                        esm-resolve-tester: () => {return 42}}`
+    fs.writeFileSync(
+      esScript,
+      'export function esm-resolve-tester() {return 42}'
+    );
+    fs.writeFileSync(
+      cjsScript,
+      'module.exports = {esm-resolve-tester: () => {return 42}}'
     );
 
     // test the resolve
@@ -185,7 +179,8 @@ try {
 
   // TestParameters are ModuleName, mainRequireScript, mainImportScript,
   // mainPackageType, subdirPkgJsonType, expectedResolvedFormat, mainSuffix
-  [ [ 'mjs-mod-mod', 'index.js', 'index.mjs', 'module', 'module', 'module'],
+  [
+    [ 'mjs-mod-mod', 'index.js', 'index.mjs', 'module', 'module', 'module'],
     [ 'mjs-com-com', 'idx.js', 'idx.mjs', 'commonjs', 'commonjs', 'module'],
     [ 'mjs-mod-com', 'index.js', 'imp.mjs', 'module', 'commonjs', 'module'],
     [ 'js-com-com', 'index.js', 'imp.js', 'commonjs', 'commonjs', 'commonjs'],
@@ -202,7 +197,7 @@ try {
       mainPackageType,
       subdirPackageType,
       expectedResolvedFormat,
-      mainSuffix ] = testVariant;
+      mainSuffix = '' ] = testVariant;
 
     const mDir = rel(`node_modules/${moduleName}`);
     const subDir = rel(`node_modules/${moduleName}/subdir`);
@@ -215,14 +210,13 @@ try {
     createDir(mDir);
     createDir(subDir);
 
-    const mainScript = mainImportScript + (mainSuffix ?? '');
     const mainPkgJsonContent = {
       type: mainPackageType,
       main: `./subdir/${mainRequireScript}`,
       exports: {
         '.': {
-          'require': `./subdir/${mainRequireScript}`,
-          'import': `./subdir/${mainScript}`
+          'require': `./subdir/${mainRequireScript}${mainSuffix}`,
+          'import': `./subdir/${mainImportScript}${mainSuffix}`
         },
         './package.json': './package.json',
       }
@@ -233,17 +227,19 @@ try {
 
     fs.writeFileSync(pkg, JSON.stringify(mainPkgJsonContent));
     fs.writeFileSync(subdirPkg, JSON.stringify(subdirPkgJsonContent));
-    fs.writeFileSync(esScript,
-                     'export function esm-resolve-tester() {return 42}');
-    fs.writeFileSync(cjsScript,
-                     `module.exports = { 
-                      esm-resolve-tester: () => {return 42}}`
+    fs.writeFileSync(
+      esScript,
+      'export function esm-resolve-tester() {return 42}'
+    );
+    fs.writeFileSync(
+      cjsScript,
+      'module.exports = {esm-resolve-tester: () => {return 42}}'
     );
 
     // test the resolve
     const resolveResult = resolve(`${moduleName}`);
     assert.strictEqual(resolveResult.format, expectedResolvedFormat);
-    assert.ok(resolveResult.url.includes(`${moduleName}/subdir/${mainImportScript}`));
+    assert.ok(resolveResult.url.endsWith(`${moduleName}/subdir/${mainImportScript}${mainSuffix}`));
   });
 
 } finally {
