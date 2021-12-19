@@ -117,7 +117,8 @@ const allowableCommentNode = new Set([
   'Property',
   'ObjectProperty',
   'ClassProperty',
-  'PropertyDefinition'
+  'PropertyDefinition',
+  'ExportDefaultDeclaration'
 ]);
 
 /**
