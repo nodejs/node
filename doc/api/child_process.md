@@ -392,6 +392,11 @@ controller.abort();
 added: v0.5.0
 changes:
   - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41225
+    description: The `modulePath` parameter can be a WHATWG `URL` object using
+                 `file:` protocol.
+  - version:
       - v16.4.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38862
@@ -425,7 +430,7 @@ changes:
     description: The `stdio` option is supported now.
 -->
 
-* `modulePath` {string} The module to run in the child.
+* `modulePath` {string|URL} The module to run in the child.
 * `args` {string\[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
