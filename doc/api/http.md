@@ -2996,7 +2996,7 @@ added:
 * {number}
 
 Read-only property specifying the maximum allowed size of HTTP headers in bytes.
-Defaults to 8 KB. Configurable using the [`--max-http-header-size`][] CLI
+Defaults to 16 KB. Configurable using the [`--max-http-header-size`][] CLI
 option.
 
 This can be overridden for servers and client requests by passing the
