@@ -255,6 +255,7 @@ module.exports = new LazyLoadingRuleMap(Object.entries({
     "prefer-exponentiation-operator": () => require("./prefer-exponentiation-operator"),
     "prefer-named-capture-group": () => require("./prefer-named-capture-group"),
     "prefer-numeric-literals": () => require("./prefer-numeric-literals"),
+    "prefer-object-has-own": () => require("./prefer-object-has-own"),
     "prefer-object-spread": () => require("./prefer-object-spread"),
     "prefer-promise-reject-errors": () => require("./prefer-promise-reject-errors"),
     "prefer-reflect": () => require("./prefer-reflect"),
