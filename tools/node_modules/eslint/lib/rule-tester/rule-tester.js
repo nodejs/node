@@ -216,6 +216,9 @@ function freezeDeeply(x) {
  * @returns {string} The sanitized text.
  */
 function sanitize(text) {
+    if (typeof text !== "string") {
+        return "";
+    }
     return text.replace(
         /[\u0000-\u0009\u000b-\u001a]/gu, // eslint-disable-line no-control-regex -- Escaping controls
         c => `\\u${c.codePointAt(0).toString(16).padStart(4, "0")}`
@@ -691,6 +694,13 @@ class RuleTester {
          * @private
          */
         function testValidTemplate(item) {
+            const code = typeof item === "object" ? item.code : item;
+
+            assert.ok(typeof code === "string", "Test case must specify a string value for 'code'");
+            if (item.name) {
+                assert.ok(typeof item.name === "string", "Optional test case property 'name' must be a string");
+            }
+
             const result = runRuleForItem(item);
             const messages = result.messages;
 
@@ -731,6 +741,10 @@ class RuleTester {
          * @private
          */
         function testInvalidTemplate(item) {
+            assert.ok(typeof item.code === "string", "Test case must specify a string value for 'code'");
+            if (item.name) {
+                assert.ok(typeof item.name === "string", "Optional test case property 'name' must be a string");
+            }
             assert.ok(item.errors || item.errors === 0,
                 `Did not specify errors for an invalid test of ${ruleName}`);
 

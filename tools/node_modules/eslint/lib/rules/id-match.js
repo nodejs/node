@@ -67,6 +67,8 @@ module.exports = {
             onlyDeclarations = !!options.onlyDeclarations,
             ignoreDestructuring = !!options.ignoreDestructuring;
 
+        let globalScope;
+
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
@@ -76,6 +78,19 @@ module.exports = {
         const ALLOWED_PARENT_TYPES = new Set(["CallExpression", "NewExpression"]);
         const DECLARATION_TYPES = new Set(["FunctionDeclaration", "VariableDeclarator"]);
         const IMPORT_TYPES = new Set(["ImportSpecifier", "ImportNamespaceSpecifier", "ImportDefaultSpecifier"]);
+
+        /**
+         * Checks whether the given node represents a reference to a global variable that is not declared in the source code.
+         * These identifiers will be allowed, as it is assumed that user has no control over the names of external global variables.
+         * @param {ASTNode} node `Identifier` node to check.
+         * @returns {boolean} `true` if the node is a reference to a global variable.
+         */
+        function isReferenceToGlobalVariable(node) {
+            const variable = globalScope.set.get(node.name);
+
+            return variable && variable.defs.length === 0 &&
+                variable.references.some(ref => ref.identifier === node);
+        }
 
         /**
          * Checks if a string matches the provided pattern
@@ -155,10 +170,18 @@ module.exports = {
 
         return {
 
+            Program() {
+                globalScope = context.getScope();
+            },
+
             Identifier(node) {
                 const name = node.name,
                     parent = node.parent,
                     effectiveParent = (parent.type === "MemberExpression") ? parent.parent : parent;
+
+                if (isReferenceToGlobalVariable(node)) {
+                    return;
+                }
 
                 if (parent.type === "MemberExpression") {
 
