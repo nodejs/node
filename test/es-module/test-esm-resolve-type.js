@@ -145,11 +145,11 @@ try {
 
     const mainPkgJsonContent = {
       type: 'commonjs',
-      main: 'lib/index.js',
       exports: {
         '.': {
           'require': './lib/index.js',
-          'import': './es/index.js'
+          'import': './es/index.js',
+          'default': './lib/index.js'
         },
         './package.json': './package.json',
       }
@@ -212,11 +212,11 @@ try {
 
     const mainPkgJsonContent = {
       type: mainPackageType,
-      main: `./subdir/${mainRequireScript}`,
       exports: {
         '.': {
           'require': `./subdir/${mainRequireScript}${mainSuffix}`,
-          'import': `./subdir/${mainImportScript}${mainSuffix}`
+          'import': `./subdir/${mainImportScript}${mainSuffix}`,
+          'default': `./subdir/${mainRequireScript}${mainSuffix}`
         },
         './package.json': './package.json',
       }
