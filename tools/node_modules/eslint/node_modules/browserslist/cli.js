@@ -39,6 +39,7 @@ if (isArg('--help') || isArg('-h')) {
 } else if (isArg('--version') || isArg('-v')) {
   process.stdout.write('browserslist ' + pkg.version + '\n')
 } else if (isArg('--update-db')) {
+  /* c8 ignore next 3 */
   updateDb(function (str) {
     process.stdout.write(str)
   })
@@ -76,8 +77,10 @@ if (isArg('--help') || isArg('-h')) {
     } else if (name === '--json') {
       mode = 'json'
     } else if (name === '--mobile-to-desktop') {
+      /* c8 ignore next */
       opts.mobileToDesktop = true
     } else if (name === '--ignore-unknown-versions') {
+      /* c8 ignore next */
       opts.ignoreUnknownVersions = true
     } else {
       error('Unknown arguments ' + args[i] + '.\n\n' + USAGE)
@@ -90,9 +93,9 @@ if (isArg('--help') || isArg('-h')) {
   } catch (e) {
     if (e.name === 'BrowserslistError') {
       error(e.message)
-    } else {
+    } else /* c8 ignore start */ {
       throw e
-    }
+    } /* c8 ignore end */
   }
 
   var coverage
