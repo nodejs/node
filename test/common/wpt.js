@@ -58,7 +58,7 @@ class ResourceLoader {
    * @param {string} from the path of the file loading this resource,
    *                      relative to thw WPT folder.
    * @param {string} url the url of the resource being loaded.
-   * @param {boolean} asPromise if true, return the resource in a
+   * @param {boolean} asFetch if true, return the resource in a
    *                            pseudo-Response object.
    */
   read(from, url, asFetch = true) {
