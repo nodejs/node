@@ -313,6 +313,7 @@ module.exports = {
       { blankLine: 'always', prev: 'function', next: 'function' },
     ],
     'prefer-const': ['error', { ignoreReadBeforeAssign: true }],
+    'prefer-object-has-own': 'error',
     'quotes': ['error', 'single', { avoidEscape: true }],
     'quote-props': ['error', 'consistent'],
     'rest-spread-spacing': 'error',
