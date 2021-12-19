@@ -59,7 +59,7 @@ class ResourceLoader {
    *                      relative to thw WPT folder.
    * @param {string} url the url of the resource being loaded.
    * @param {boolean} asFetch if true, return the resource in a
-   *                            pseudo-Response object.
+   *                          pseudo-Response object.
    */
   read(from, url, asFetch = true) {
     const file = this.toRealFilePath(from, url);
