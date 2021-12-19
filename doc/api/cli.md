@@ -1225,7 +1225,8 @@ occurs. One of the following modes can be chosen:
 
 * `throw`: Emit [`unhandledRejection`][]. If this hook is not set, raise the
   unhandled rejection as an uncaught exception. This is the default.
-* `strict`: Raise the unhandled rejection as an uncaught exception.
+* `strict`: Raise the unhandled rejection as an uncaught exception. If the
+  exception is handled, [`unhandledRejection`][] is emitted.
 * `warn`: Always trigger a warning, no matter if the [`unhandledRejection`][]
   hook is set or not but do not print the deprecation warning.
 * `warn-with-error-code`: Emit [`unhandledRejection`][]. If this hook is not
