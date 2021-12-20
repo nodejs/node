@@ -91,7 +91,7 @@ class Benchmark {
         process.exit(1);
       }
       const [, key, value] = match;
-      if (Object.prototype.hasOwnProperty.call(configs, key)) {
+      if (Object.hasOwn(configs, key)) {
         if (!cliOptions[key])
           cliOptions[key] = [];
         cliOptions[key].push(
