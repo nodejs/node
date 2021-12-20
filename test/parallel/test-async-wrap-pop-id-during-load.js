@@ -18,9 +18,8 @@ const ret = spawnSync(
   ['--unhandled-rejections=none', '--stack_size=150', __filename, 'async'],
   { maxBuffer: Infinity }
 );
-const stdout = ret.stdout.toString('utf8', 0, 2048);
 assert.strictEqual(ret.status, 0,
-                   `EXIT CODE: ${ret.status}, STDERR:\n${ret.stderr}, STDOUT:\n${stdout}`);
+                   `EXIT CODE: ${ret.status}, STDERR:\n${ret.stderr}`);
 const stderr = ret.stderr.toString('utf8', 0, 2048);
 assert.doesNotMatch(stderr, /async.*hook/i);
 assert.ok(stderr.includes('Maximum call stack size exceeded'), stderr);
