@@ -72,7 +72,7 @@ function fakeMap() {
     get(key) { return m[`$${key}`]; },
     set(key, val) { m[`$${key}`] = val; },
     get size() { return Object.keys(m).length; },
-    has(key) { return Object.prototype.hasOwnProperty.call(m, `$${key}`); }
+    has(key) { return Object.hasOwn(m, `$${key}`); }
   };
 }
 
