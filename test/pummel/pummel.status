@@ -16,6 +16,10 @@ test-crypto-timing-safe-equal-benchmarks: PASS,FLAKY
 
 [$system==macos]
 
+[($arch==arm || $arch==arm64) && $mode==debug]
+# https://github.com/nodejs/node/issues/41204
+test-worker-take-heapsnapshot: PASS, FLAKY
+
 [$arch==arm || $arch==arm64]
 
 [$system==solaris] # Also applies to SmartOS
