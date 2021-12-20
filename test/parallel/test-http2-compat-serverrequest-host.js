@@ -36,8 +36,8 @@ server.listen(0, common.mustCall(function() {
       assert.strictEqual(rawHeaders[position + 1], value);
     }
 
-    assert(!Object.hasOwnProperty.call(headers, ':authority'));
-    assert(!Object.hasOwnProperty.call(rawHeaders, ':authority'));
+    assert(!Object.hasOwn(headers, ':authority'));
+    assert(!Object.hasOwn(rawHeaders, ':authority'));
 
     response.on('finish', common.mustCall(function() {
       server.close();
