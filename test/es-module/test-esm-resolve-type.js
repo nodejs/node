@@ -183,6 +183,7 @@ try {
     [ 'mjs-mod-mod', 'index.js', 'index.mjs', 'module', 'module', 'module'],
     [ 'mjs-com-com', 'idx.js', 'idx.mjs', 'commonjs', 'commonjs', 'module'],
     [ 'mjs-mod-com', 'index.js', 'imp.mjs', 'module', 'commonjs', 'module'],
+    [ 'cjs-mod-mod', 'index.cjs', 'imp.cjs', 'module', 'module', 'commonjs'],
     [ 'js-com-com', 'index.js', 'imp.js', 'commonjs', 'commonjs', 'commonjs'],
     [ 'js-com-mod', 'index.js', 'imp.js', 'commonjs', 'module', 'module'],
     [ 'qmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '?k=v'],
