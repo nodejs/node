@@ -24,5 +24,3 @@ assert.strictEqual(ret.status, 0,
 const stderr = ret.stderr.toString('utf8', 0, 2048);
 assert.doesNotMatch(stderr, /async.*hook/i);
 assert.ok(stderr.includes('Maximum call stack size exceeded'), stderr);
-
-console.error(stdout, stderr);

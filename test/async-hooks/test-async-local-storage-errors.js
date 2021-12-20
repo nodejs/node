@@ -5,18 +5,21 @@ const { AsyncLocalStorage } = require('async_hooks');
 const vm = require('vm');
 
 // err1 is emitted sync as a control - no events
-// err2 is emitted after a timeout - uncaughtExceptionMonitor + uncaughtException
+// err2 is emitted after a timeout - uncaughtExceptionMonitor
+//                                 + uncaughtException
 // err3 is emitted after some awaits -  unhandledRejection
 // err4 is emitted during handling err3 - uncaughtExceptionMonitor
-// err5 is emitted after err4 from a VM lacking hooks - unhandledRejection + uncaughtException
+// err5 is emitted after err4 from a VM lacking hooks - unhandledRejection
+//                                                    + uncaughtException
 
 const asyncLocalStorage = new AsyncLocalStorage();
-const callbackToken = {callbackToken:true};
-const awaitToken = {awaitToken:true};
+const callbackToken = { callbackToken: true };
+const awaitToken = { awaitToken: true };
 
 let i = 0;
 
-// redefining the uncaughtExceptionHandler is a bit odd, so we just do this so we can track total invocations
+// Redefining the uncaughtExceptionHandler is a bit odd, so we just do this
+// so we can track total invocations
 let underlyingExceptionHandler;
 const exceptionHandler = common.mustCall(function(...args) {
   return underlyingExceptionHandler.call(this, ...args);
@@ -31,7 +34,7 @@ const exceptionMonitor = common.mustCall((err, origin) => {
     assert.strictEqual(origin, 'unhandledRejection');
     assert.strictEqual(asyncLocalStorage.getStore(), awaitToken);
   } else {
-    assert.fail('unknown error ' + err)
+    assert.fail('unknown error ' + err);
   }
 }, 2);
 process.on('uncaughtExceptionMonitor', exceptionMonitor);
@@ -67,7 +70,7 @@ function fireErr3() {
     assert.strictEqual(err.message, 'err3');
     assert.strictEqual(asyncLocalStorage.getStore(), awaitToken);
     process.off('unhandledRejection', rejectionHandler3);
-    
+
     fireErr4();
   }, 1);
   process.on('unhandledRejection', rejectionHandler3);
@@ -78,7 +81,7 @@ function fireErr3() {
   asyncLocalStorage.run(awaitToken, awaitTest);
 }
 
-let uncaughtExceptionHandler4 = common.mustCall(
+const uncaughtExceptionHandler4 = common.mustCall(
   function(err) {
     assert.strictEqual(err.message, 'err4');
     assert.strictEqual(asyncLocalStorage.getStore(), awaitToken);
@@ -104,8 +107,8 @@ function fireErr5() {
     async function main() {
       await null;
       Promise.resolve().then(() => {
-        throw new Error("err5")
-      })
+        throw new Error('err5');
+      });
     }
     main();
   })})()`);
