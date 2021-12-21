@@ -67,9 +67,11 @@ specifically `argv` and `execArgv` options.
 added:
   - v15.12.0
   - v14.18.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41272
+    description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * `key` {any} Any arbitrary, cloneable JavaScript value that can be used as a
   {Map} key.
@@ -295,9 +297,11 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
 added:
   - v15.12.0
   - v14.18.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41272
+    description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * `key` {any} Any arbitrary, cloneable JavaScript value that can be used as a
   {Map} key.
