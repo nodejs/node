@@ -363,6 +363,7 @@ module.exports = {
     BigInt: 'readable',
     BigInt64Array: 'readable',
     BigUint64Array: 'readable',
+    Blob: 'readable',
     DOMException: 'readable',
     Event: 'readable',
     EventTarget: 'readable',
