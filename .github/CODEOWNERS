@@ -84,7 +84,7 @@
 /lib/internal/bootstrap/loaders.js @nodejs/modules
 /src/module_wrap* @nodejs/modules @nodejs/vm
 
-# N-API
+# Node-API
 
 /src/node_api* @nodejs/node-api
 /src/js_native_api* @nodejs/node-api
