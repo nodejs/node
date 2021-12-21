@@ -4542,6 +4542,7 @@ snippet:
 function AddTwo(num) {
   return num + 2;
 }
+global.AddTwo = AddTwo;
 ```
 
 Then, the above function can be invoked from a native add-on using the
