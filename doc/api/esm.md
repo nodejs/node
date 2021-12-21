@@ -833,7 +833,7 @@ its own `require` using  `module.createRequire()`.
    }} utilities Things that preload code might find useful
  * @returns {string} Code to run before application startup
  */
-export function globalPreload() {
+export function globalPreload(utilities) {
   return `\
 globalThis.someInjectedProperty = 42;
 console.log('I just set some globals!');
