@@ -456,9 +456,11 @@ Additionally, the [`buf.values()`][], [`buf.keys()`][], and
 added:
   - v15.7.0
   - v14.18.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 A [`Blob`][] encapsulates immutable, raw data that can be safely shared across
 multiple worker threads.
