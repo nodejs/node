@@ -109,6 +109,10 @@
       }],
       ['OS=="linux"', {
         'node_section_ordering_info%': ''
+      }],
+      ['OS == "zos"', {
+        # use ICU data file on z/OS
+        'icu_use_data_file_flag%': 1
       }]
     ],
   },
@@ -200,7 +204,11 @@
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
           }],
-          ['OS!="mac" and OS!="win"', {
+          ['OS=="zos"', {
+            # increase performance, number from experimentation
+            'cflags': [ '-qINLINE=::150:100000' ]
+          }],
+          ['OS!="mac" and OS!="win" and OS!="zos"', {
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
           ['OS=="linux"', {
@@ -327,7 +335,7 @@
       [ 'target_arch=="arm64"', {
         'msvs_configuration_platform': 'arm64',
       }],
-      ['asan == 1 and OS != "mac"', {
+      ['asan == 1 and OS != "mac" and OS != "zos"', {
         'cflags+': [
           '-fno-omit-frame-pointer',
           '-fsanitize=address',
@@ -419,7 +427,7 @@
             'cflags': [ '-m64', '-mminimal-toc' ],
             'ldflags': [ '-m64' ],
           }],
-          [ 'target_arch=="s390x"', {
+          [ 'target_arch=="s390x" and OS=="linux"', {
             'cflags': [ '-m64', '-march=z196' ],
             'ldflags': [ '-m64', '-march=z196' ],
           }],
@@ -564,6 +572,48 @@
       ['node_shared_openssl!="true" and openssl_no_asm==1', {
         'defines': [
           'OPENSSL_NO_ASM',
+        ],
+      }],
+      ['OS == "zos"', {
+        'defines': [
+          '_XOPEN_SOURCE_EXTENDED',
+          '_XOPEN_SOURCE=600',
+          '_UNIX03_THREADS',
+          '_UNIX03_WITHDRAWN',
+          '_UNIX03_SOURCE',
+          '_OPEN_SYS_SOCK_IPV6',
+          '_OPEN_SYS_FILE_EXT=1',
+          '_POSIX_SOURCE',
+          '_OPEN_SYS',
+          '_OPEN_SYS_IF_EXT',
+          '_OPEN_SYS_SOCK_IPV6',
+          '_OPEN_MSGQ_EXT',
+          '_LARGE_TIME_API',
+          '_ALL_SOURCE',
+          '_AE_BIMODAL=1',
+          '__IBMCPP_TR1__',
+          'NODE_PLATFORM="os390"',
+          'PATH_MAX=1024',
+          '_ENHANCED_ASCII_EXT=0xFFFFFFFF',
+          '_Export=extern',
+          '__static_assert=static_assert',
+        ],
+        'cflags': [
+          '-q64',
+          '-Wc,DLL',
+          '-Wa,GOFF',
+          '-qARCH=10',
+          '-qASCII',
+          '-qTUNE=12',
+          '-qENUM=INT',
+          '-qEXPORTALL',
+          '-qASM',
+        ],
+        'cflags_cc': [
+          '-qxclang=-std=c++14',
+        ],
+        'ldflags': [
+          '-q64',
         ],
       }],
     ],
