@@ -665,9 +665,15 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   delete falsyCause1.stack;
   const falsyCause2 = new Error(undefined, { cause: null });
   falsyCause2.stack = '';
+  const undefinedCause = new Error('', { cause: undefined });
+  undefinedCause.stack = '';
 
   assert.strictEqual(util.inspect(falsyCause1), '[Error] { [cause]: false }');
   assert.strictEqual(util.inspect(falsyCause2), '[Error] { [cause]: null }');
+  assert.strictEqual(
+    util.inspect(undefinedCause),
+    '[Error] { [cause]: undefined }'
+  );
 }
 
 {
