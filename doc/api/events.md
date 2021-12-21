@@ -741,7 +741,7 @@ added:
  - v12.16.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/41267
     description: No longer experimental.
 -->
 
@@ -1030,7 +1030,7 @@ added:
  - v12.16.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/41267
     description: No longer experimental.
 -->
 
@@ -1046,7 +1046,7 @@ added:
   - v12.16.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/41267
     description: No longer experimental.
 -->
 
