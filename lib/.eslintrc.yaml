@@ -51,6 +51,8 @@ rules:
       # disabled with --without-intl build flag.
     - name: Intl
       message: "Use `const { Intl } = globalThis;` instead of the global."
+    - name: BroadcastChannel
+      message: "Use `const { BroadcastChannel } = require('internal/worker/io');` instead of the global."
     - name: MessageChannel
       message: "Use `const { MessageChannel } = require('internal/worker/io');` instead of the global."
     - name: MessageEvent

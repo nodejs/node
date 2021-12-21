@@ -368,6 +368,7 @@ module.exports = {
     Event: 'readable',
     EventTarget: 'readable',
     MessageChannel: 'readable',
+    BroadcastChannel: 'readable',
     MessageEvent: 'readable',
     MessagePort: 'readable',
     TextEncoder: 'readable',
