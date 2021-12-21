@@ -22,9 +22,13 @@ const cause5 = new Error('Object cause', {
            '    at Module._compile (node:internal/modules/cjs/loader:827:30)'
   }
 });
+const cause6 = new Error('undefined cause', {
+  cause: undefined
+});
 
 console.log(cause4);
 console.log(cause5);
+console.log(cause6);
 
 process.nextTick(() => {
   const error = new RangeError('New Stack Frames', { cause: cause2 });

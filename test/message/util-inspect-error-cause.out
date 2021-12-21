@@ -23,6 +23,16 @@ Error: Object cause
       '    at Module._compile (node:internal/modules/cjs/loader:827:30)'
   }
 }
+Error: undefined cause
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at * {
+  [cause]: undefined
+}
 RangeError: New Stack Frames
     at *
 *[90m    at *[39m {
