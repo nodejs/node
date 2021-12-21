@@ -199,6 +199,16 @@ added: v17.3.0
 
 If `abortSignal.aborted` is `true`, throws `abortSignal.reason`.
 
+## Class: `Blob`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+See {Blob}.
+
 ## Class: `Buffer`
 
 <!-- YAML
