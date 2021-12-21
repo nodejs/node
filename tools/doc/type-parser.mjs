@@ -228,6 +228,10 @@ const customTypesMap = {
 
   'URL': 'url.html#the-whatwg-url-api',
   'URLSearchParams': 'url.html#class-urlsearchparams',
+  'URLPattern': 'url.html#class-urlpattern',
+  'URLPatternInit': 'url.html#object-urlpatterninit',
+  'URLPatternResult': 'url.html#object-urlpatternresult',
+  'URLPatternComponentResult': 'url.html#object-urlpatterncomponentresult',
 
   'vm.Module': 'vm.html#class-vmmodule',
   'vm.Script': 'vm.html#class-vmscript',

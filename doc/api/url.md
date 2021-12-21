@@ -1277,6 +1277,180 @@ console.log(urlToHttpOptions(myUrl));
 */
 ```
 
+## URLPattern
+
+The `URLPattern` is a Web Platform API for matching URLs against a pattern
+syntax.
+
+### Class: `URLPattern`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `new URLPattern([input[, baseURL]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {string|URLPatternInit}
+* `baseURL` {string}
+
+Create a new `URLPattern`.
+
+#### `urlPattern.exec([input[, baseURL]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {string|URLPatternInit}
+* `baseURL` {string}
+* Returns: {URLPatternResult|null}
+
+Executes this `URLPattern` against the given `input`, returning an
+{URLPatternResult} that contains each of the matching components if
+the pattern matches the input, or `null` if the pattern does not match.
+
+#### `urlPattern.hash`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} The pattern string the pattern will use to match a URLs
+  hash fragment component.
+
+#### `urlPattern.hostname`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} The pattern string the pattern will use to match a URLs
+  hostname component.
+
+#### `urlPattern.password`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} The pattern string the pattern will use to match a URLs
+  password component.
+
+#### `urlPattern.pathname`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} The pattern string the pattern will use to match a URLs
+  pathname component.
+
+#### `urlPattern.port`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} The pattern string the pattern will use to match a URLs
+  port component.
+
+#### `urlPattern.protocol`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} The pattern string the pattern will use to match a URLs
+  protocol scheme component.
+
+#### `urlPattern.search`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} The pattern string the pattern will use to match a URLs
+  querystring component.
+
+#### `urlPattern.test([input[, baseURL]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {string|URLPatternInit}
+* `baseURL` {string}
+* Returns: {boolean}
+
+Returns `true` if the `input` matches this `URLPattern`.
+
+#### `urlPattern.username`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} The pattern string the pattern will use to match a URLs
+  username component.
+
+### Object: `URLPatternInit`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A `URLPatternInit` is a regular JavaScript object with zero or more of the
+following property attributes that provide patterns for each of the individual
+URL components:
+
+* `protocol` {string}
+* `username` {string}
+* `password` {string}
+* `hostname` {string}
+* `port` {string}
+* `pathname` {string}
+* `search` {string}
+* `hash` {string}
+* `baseURL` {string}
+
+### Object: `URLPatternResult`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A `URLPatternResult` object is returned by the `urlPattern.exec()` method and
+provides details on the matching components of the `input`.
+
+* `inputs` {string[]|URLPatternInit[]}
+* `protocol` {URLPatternComponentResult}
+* `username` {URLPatternComponentResult}
+* `password` {URLPatternComponentResult}
+* `hostname` {URLPatternComponentResult}
+* `port` {URLPatternComponentResult}
+* `pathname` {URLPatternComponentResult}
+* `search` {URLPatternComponentResult}
+* `hash` {URLPatternComponentResult}
+
+### Object: `URLPatternComponentResult`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A `URLPatternComponentResult` is a regular JavaScript object that contains
+matching information for an individual URL component.
+
+* `input` {string} The input string that was matched against.
+* `groups` {Object} A JavaScript object containing one or more
+  key and value pairs detailing the relevant matches for the component.
+  The specific keys will depend on the structure the `URLPattern` and
+  the matching input. Keys and values will always be strings.
+
 ## Legacy URL API
 
 <!-- YAML
