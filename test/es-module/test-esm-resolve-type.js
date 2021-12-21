@@ -35,10 +35,11 @@ try {
    * ensure that resolving by full path does not return the format
    * with the defaultResolver
    */
-  [ [ '/es-modules/package-type-module/index.js', undefined ],
-    [ '/es-modules/package-type-commonjs/index.js', undefined ],
-    [ '/es-modules/package-without-type/index.js', undefined ],
-    [ '/es-modules/package-without-pjson/index.js', undefined ],
+  [
+    [ '/es-modules/package-type-module/index.js', 'module' ],
+    [ '/es-modules/package-type-commonjs/index.js', 'commonjs' ],
+    [ '/es-modules/package-without-type/index.js', 'commonjs' ],
+    [ '/es-modules/package-without-pjson/index.js', 'commonjs' ],
   ].forEach((testVariant) => {
     const [ testScript, expectedType ] = testVariant;
     const resolvedPath = path.resolve(fixtures.path(testScript));
