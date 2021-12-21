@@ -229,6 +229,14 @@ added: v16.0.0
 
 Global alias for [`buffer.atob()`][].
 
+## `BroadcastChannel`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+See {BroadcastChannel}.
+
 ## `btoa(data)`
 
 <!-- YAML
