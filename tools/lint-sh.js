@@ -166,11 +166,11 @@ if (
   const entryPoint = resolve(process.argv[2]);
   const stats = statSync(entryPoint, { throwIfNoEntry: false });
 
-  function onError(e) {
+  const onError = (e) => {
     console.log(USAGE_STR);
     console.error(e);
     process.exitCode = 1;
-  }
+  };
   if (stats?.isDirectory()) {
     SPAWN_OPTIONS.cwd = entryPoint;
     checkFiles(...findScriptFilesRecursively(entryPoint)).catch(onError);
