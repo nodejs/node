@@ -56,6 +56,7 @@ struct napi_env__ {
       : isolate(context->GetIsolate()),
         context_persistent(isolate, context) {
     CHECK_EQ(isolate, context->GetIsolate());
+    napi_clear_last_error(this);
   }
   virtual ~napi_env__() {
     // First we must finalize those references that have `napi_finalizer`
