@@ -56,6 +56,12 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
   CHECK_NOT_NULL(env);
   env->PushAsyncCallbackScope();
 
+  // Skip costly pushing/popping if we pass zeroes as async context
+  if (async_context_.async_id == 0) {
+    pushed_ids_ = false;
+    return;
+  }
+
   if (!env->can_call_into_js()) {
     failed_ = true;
     return;
