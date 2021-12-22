@@ -324,8 +324,6 @@ For information about the governance of the Node.js project, see
   **Daniele Belardi** <<dwon.dnl@gmail.com>> (he/him)
 * [edsadr](https://github.com/edsadr) -
   **Adrian Estrada** <<edsadr@gmail.com>> (he/him)
-* [eugeneo](https://github.com/eugeneo) -
-  **Eugene Ostroukhov** <<eostroukhov@google.com>>
 * [evanlucas](https://github.com/evanlucas) -
   **Evan Lucas** <<evanlucas@me.com>> (he/him)
 * [fhinkel](https://github.com/fhinkel) -
@@ -424,8 +422,6 @@ For information about the governance of the Node.js project, see
   **Ujjwal Sharma** <<ryzokuken@disroot.org>> (he/him)
 * [santigimeno](https://github.com/santigimeno) -
   **Santiago Gimeno** <<santiago.gimeno@gmail.com>>
-* [seishun](https://github.com/seishun) -
-  **Nikolai Vavilov** <<vvnicholas@gmail.com>>
 * [shisama](https://github.com/shisama) -
   **Masashi Hirano** <<shisama07@gmail.com>> (he/him)
 * [srl295](https://github.com/srl295) -
@@ -496,6 +492,8 @@ For information about the governance of the Node.js project, see
   **Robert Jefe Lindstaedt** <<robert.lindstaedt@gmail.com>>
 * [estliberitas](https://github.com/estliberitas) -
   **Alexander Makarenko** <<estliberitas@gmail.com>>
+* [eugeneo](https://github.com/eugeneo) -
+  **Eugene Ostroukhov** <<eostroukhov@google.com>>
 * [firedfox](https://github.com/firedfox) -
   **Daniel Wang** <<wangyang0123@gmail.com>>
 * [Fishrock123](https://github.com/Fishrock123) -
@@ -598,6 +596,8 @@ For information about the governance of the Node.js project, see
   **Sam Roberts** <<vieuxtech@gmail.com>>
 * [sebdeckers](https://github.com/sebdeckers) -
   **Sebastiaan Deckers** <<sebdeckers83@gmail.com>>
+* [seishun](https://github.com/seishun) -
+  **Nikolai Vavilov** <<vvnicholas@gmail.com>>
 * [shigeki](https://github.com/shigeki) -
   **Shigeki Ohtsu** <<ohtsu@ohtsu.org>> (he/him)
 * [silverwind](https://github.com/silverwind) -
