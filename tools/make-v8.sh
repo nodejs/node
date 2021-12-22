@@ -17,7 +17,7 @@ if [ "$ARCH" = "s390x" ] || [ "$ARCH" = "ppc64le" ]; then
   fi
   # set paths manually for now to use locally installed gn
   export BUILD_TOOLS=/home/iojs/build-tools
-  export LD_LIBRARY_PATH=$BUILD_TOOLS:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH="$BUILD_TOOLS:$LD_LIBRARY_PATH"
   # Avoid linking to ccache symbolic links as ccache decides which
   # binary to run based on the name of the link (we always name them gcc/g++).
   # shellcheck disable=SC2154
@@ -28,7 +28,7 @@ if [ "$ARCH" = "s390x" ] || [ "$ARCH" = "ppc64le" ]; then
   rm -f "$BUILD_TOOLS/gcc"
   ln -s "$CXX_PATH" "$BUILD_TOOLS/g++"
   ln -s "$CC_PATH" "$BUILD_TOOLS/gcc"
-  export PATH=$BUILD_TOOLS:$PATH
+  export PATH="$BUILD_TOOLS:$PATH"
 
   g++ --version
   gcc --version
