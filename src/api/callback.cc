@@ -80,10 +80,10 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
 
   pushed_ids_ = true;
 
-  if (asyncContext.async_id != 0 && !skip_hooks_) {
+  if (!skip_hooks_) {
     // No need to check a return value because the application will exit if
     // an exception occurs.
-    AsyncWrap::EmitBefore(env, asyncContext.async_id);
+    AsyncWrap::EmitBefore(env, async_context_.async_id);
   }
 }
 
