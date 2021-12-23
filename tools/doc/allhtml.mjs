@@ -38,7 +38,7 @@ for (const link of toc.match(/<a.*?>/g)) {
     .replace(/[\s\S]*?id="toc"[^>]*>\s*<\w+>.*?<\/\w+>\s*(<ul>\s*)?/, '')
     // Prefix TOC links with current module name
     .replace(/<a href="#(?!DEP[0-9]{4})([^"]+)"/g, (match, anchor) => {
-      return `<a href="#${moduleName}_${anchor}"`;
+      return `<a href="#all_${moduleName}_${anchor}"`;
     });
 
   apicontent += '<section>' + data.slice(match.index + match[0].length)
@@ -46,24 +46,24 @@ for (const link of toc.match(/<a.*?>/g)) {
     // Prefix all in-page anchor marks with module name
     .replace(/<a class="mark" href="#([^"]+)" id="([^"]+)"/g, (match, anchor, id) => {
       if (anchor !== id) throw new Error(`Mark does not match: ${anchor} should match ${id}`);
-      return `<a class="mark" href="#${moduleName}_${anchor}" id="${moduleName}_${anchor}"`;
+      return `<a class="mark" href="#all_${moduleName}_${anchor}" id="all_${moduleName}_${anchor}"`;
     })
     // Prefix all in-page links with current module name
     .replace(/<a href="#(?!DEP[0-9]{4})([^"]+)"/g, (match, anchor) => {
-      return `<a href="#${moduleName}_${anchor}"`;
+      return `<a href="#all_${moduleName}_${anchor}"`;
     })
     // Update footnote id attributes on anchors
     .replace(/<a href="([^"]+)" id="(user-content-fn[^"]+)"/g, (match, href, id) => {
-      return `<a href="${href}" id="${moduleName}_${id}"`;
+      return `<a href="${href}" id="all_${moduleName}_${id}"`;
     })
     // Update footnote id attributes on list items
-    .replace(/<(\S+) id="(user-content-fn-\d+)"/g, (match, tagName, id) => {
-      return `<${tagName} id="${moduleName}_${id}"`;
+    .replace(/<(\S+) id="(user-content-fn[^"]+)"/g, (match, tagName, id) => {
+      return `<${tagName} id="all_${moduleName}_${id}"`;
     })
     // Prefix all links to other docs modules with those module names
     .replace(/<a href="((\w[^#"]*)\.html)#/g, (match, href, linkModule) => {
       if (!htmlFiles.includes(href)) return match;
-      return `<a href="#${linkModule}_`;
+      return `<a href="#all_${linkModule}_`;
     })
     .trim() + '\n';
 
