@@ -47,10 +47,10 @@ e.listeners('bar');
 e.on('foo', assert.ok);
 fl = e.listeners('foo');
 
-assert(Array.isArray(e._events.foo));
-assert.strictEqual(e._events.foo.length, 2);
-assert.strictEqual(e._events.foo[0], assert.fail);
-assert.strictEqual(e._events.foo[1], assert.ok);
+const arr = Array.from(e._events.foo);
+assert.strictEqual(arr.length, 2);
+assert.strictEqual(arr[0], assert.fail);
+assert.strictEqual(arr[1], assert.ok);
 
 assert(Array.isArray(fl));
 assert.strictEqual(fl.length, 2);

@@ -7,7 +7,9 @@ const { connect } = require('net');
 // cause an error.
 
 const server = createServer(common.mustCall((req, res) => {
-  req.client._events.close.forEach((fn) => { fn.bind(req)(); });
+  for (const fn of req.client._events.close) {
+    fn.apply(req);
+  }
 }));
 
 server.unref();
