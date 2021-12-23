@@ -49,7 +49,7 @@ const authors = await runGitCommand(
 // Get all approving reviewers of landed commits during the time period.
 const approvingReviewers = await runGitCommand(
   `git log --since="${SINCE}" | egrep "^    Reviewed-By: "`,
-  (line) => /^    Reviewed-By: ([^<]+)/.exec(line)[1].trim()
+  (line) => /^ {4}Reviewed-By: ([^<]+)/.exec(line)[1].trim()
 );
 
 async function getCollaboratorsFromReadme() {
@@ -72,7 +72,7 @@ async function getCollaboratorsFromReadme() {
       foundCollaboratorHeading = true;
     }
     if (line.startsWith('  **') && isCollaborator) {
-      const [, name, email] = /^  \*\*([^*]+)\*\* <<(.+)>>/.exec(line);
+      const [, name, email] = /^ {2}\*\*([^*]+)\*\* <<(.+)>>/.exec(line);
       const mailmap = await runGitCommand(
         `git check-mailmap '${name} <${email}>'`
       );
@@ -136,7 +136,7 @@ async function moveCollaboratorToEmeritus(peopleToMove) {
       if (line.startsWith('* ')) {
         collaboratorFirstLine = line;
       } else if (line.startsWith('  **')) {
-        const [, name, email] = /^  \*\*([^*]+)\*\* <<(.+)>>/.exec(line);
+        const [, name, email] = /^ {2}\*\*([^*]+)\*\* <<(.+)>>/.exec(line);
         if (peopleToMove.some((entry) => {
           return entry.name === name && entry.email === email;
         })) {
