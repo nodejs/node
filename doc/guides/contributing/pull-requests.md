@@ -309,17 +309,6 @@ $ git push --force-with-lease origin my-branch
 to delete history in `git`. Before you use it, make sure you understand the
 risks. If in doubt, you can always ask for guidance in the pull request.
 
-If you happen to make a mistake in any of your commits, do not worry. You can
-amend the last commit (for example if you want to change the commit log).
-
-```text
-$ git add any/changed/files
-$ git commit --amend
-$ git push --force-with-lease origin my-branch
-```
-
-Amend your last commit just to fix some minor mistake you may have noticed before any reviewing, though. To make the reviewing process simpler, when some changes are requested it's preferable to add a new commit.
-
 There are a number of more advanced mechanisms for managing commits using
 `git rebase` that can be used, but are beyond the scope of this guide.
 
