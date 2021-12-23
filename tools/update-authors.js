@@ -39,25 +39,13 @@ const mailmap = new CaseIndifferentMap();
     line = line.trim();
     if (line.startsWith('#') || line === '') continue;
 
-    let match;
-    // Replaced Name <original@example.com>
-    if (match = line.match(/^([^<]+)\s+(<[^>]+>)$/)) {
-      mailmap.set(match[2].toLowerCase(), {
-        author: match[1], email: match[2]
-      });
-    // <replaced@example.com> <original@example.com>
-    } else if (match = line.match(/^<([^>]+)>\s+(<[^>]+>)$/)) {
-      mailmap.set(match[2].toLowerCase(), { email: match[1] });
-    // Replaced Name <replaced@example.com> <original@example.com>
-    } else if (match = line.match(/^([^<]+)\s+(<[^>]+>)\s+(<[^>]+>)$/)) {
-      mailmap.set(match[3].toLowerCase(), {
-        author: match[1], email: match[2]
-      });
-    // Replaced Name <replaced@example.com> Original Name <original@example.com>
-    } else if (match =
-        line.match(/^([^<]+)\s+(<[^>]+>)\s+([^<]+)\s+(<[^>]+>)$/)) {
-      mailmap.set(match[3] + '\0' + match[4].toLowerCase(), {
-        author: match[1], email: match[2]
+    const match = line.match(/^(?:([^<]+)\s+)?(?:(<[^>]+>)\s+)?(?:([^<]+)\s+)?(<[^>]+>)$/);
+    if (match) {
+      const [, replaceName, replaceEmail, originalName, originalEmail] = match;
+      const key = originalName ? `${originalName}\0${originalEmail.toLocaleLowerCase()}` : originalEmail.toLowerCase();
+      mailmap.set(key, {
+        author: replaceName || originalName,
+        email: replaceEmail || originalEmail,
       });
     } else {
       console.warn('Unknown .mailmap format:', line);
@@ -73,8 +61,8 @@ const previousAuthors = new CaseIndifferentMap();
     line = line.trim();
     if (line.startsWith('#') || line === '') continue;
 
-    let match;
-    if (match = line.match(/^([^<]+)\s+(<[^>]+>)$/)) {
+    const match = line.match(/^([^<]+)\s+(<[^>]+>)$/);
+    if (match) {
       const name = match[1];
       const email = match[2];
       if (previousAuthors.has(name)) {
