@@ -5213,7 +5213,7 @@ added: REPLACEME
 
 * Type: {SubtleCrypto}
 
-A convenient alias for `crypto.webcrypto.subtle`.
+A convenient alias for [`crypto.webcrypto.subtle`][].
 
 ### `crypto.timingSafeEqual(a, b)`
 
@@ -5930,6 +5930,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.randomFill()`]: #cryptorandomfillbuffer-offset-size-callback
 [`crypto.scrypt()`]: #cryptoscryptpassword-salt-keylen-options-callback
 [`crypto.webcrypto.getRandomValues()`]: webcrypto.md#cryptogetrandomvaluestypedarray
+[`crypto.webcrypto.subtle`]: webcrypto.md#class-subtlecrypto
 [`decipher.final()`]: #decipherfinaloutputencoding
 [`decipher.update()`]: #decipherupdatedata-inputencoding-outputencoding
 [`diffieHellman.setPublicKey()`]: #diffiehellmansetpublickeypublickey-encoding
