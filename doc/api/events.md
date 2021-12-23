@@ -1165,6 +1165,89 @@ const emitter = new EventEmitter();
 setMaxListeners(5, target, emitter);
 ```
 
+## Class: `events.EventEmitterAsyncResource extends EventEmitter`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Integrates `EventEmitter` with {AsyncResource} for `EventEmitter`s that
+require manual async tracking. Specifically, all events emitted by instances
+of `events.EventEmitterAsyncResource` will run within its [async context][].
+
+```js
+const { EventEmitterAsyncResource } = require('events');
+const { notStrictEqual, strictEqual } = require('assert');
+const { executionAsyncId } = require('async_hooks');
+
+// Async tracking tooling will identify this as 'Q'.
+const ee1 = new EventEmitterAsyncResource({ name: 'Q' });
+
+// 'foo' listeners will run in the EventEmitters async context.
+ee1.on('foo', () => {
+  strictEqual(executionAsyncId(), ee1.asyncId);
+  strictEqual(triggerAsyncId(), ee1.triggerAsyncId);
+});
+
+const ee2 = new EventEmitter();
+
+// 'foo' listeners on ordinary EventEmitters that do not track async
+// context, however, run in the same async context as the emit().
+ee2.on('foo', () => {
+  notStrictEqual(executionAsyncId(), ee2.asyncId);
+  notStrictEqual(triggerAsyncId(), ee2.triggerAsyncId);
+});
+
+Promise.resolve().then(() => {
+  ee1.emit('foo');
+  ee2.emit('foo');
+});
+```
+
+The `EventEmitterAsyncResource` class has the same methods and takes the
+same options as `EventEmitter` and `AsyncResource` themselves.
+
+### `new events.EventEmitterAsyncResource(options)`
+
+* `options` {Object}
+  * `captureRejections` {boolean} It enables
+    [automatic capturing of promise rejection][capturerejections].
+    **Default:** `false`.
+  * `name` {string} The type of async event. **Default::**
+    [`new.target.name`][].
+  * `triggerAsyncId` {number} The ID of the execution context that created this
+    async event. **Default:** `executionAsyncId()`.
+  * `requireManualDestroy` {boolean} If set to `true`, disables `emitDestroy`
+    when the object is garbage collected. This usually does not need to be set
+    (even if `emitDestroy` is called manually), unless the resource's `asyncId`
+    is retrieved and the sensitive API's `emitDestroy` is called with it.
+    When set to `false`, the `emitDestroy` call on garbage collection
+    will only take place if there is at least one active `destroy` hook.
+    **Default:** `false`.
+
+### `eventemitterasyncresource.asyncId`
+
+* Type: {number} The unique `asyncId` assigned to the resource.
+
+### `eventemitterasyncresource.asyncResource`
+
+* Type: The underlying {AsyncResource}.
+
+The returned `AsyncResource` object has an additional `eventEmitter` property
+that provides a reference to this `EventEmitterAsyncResource`.
+
+### `eventemitterasyncresource.emitDestroy()`
+
+Call all `destroy` hooks. This should only ever be called once. An error will
+be thrown if it is called more than once. This **must** be manually called. If
+the resource is left to be collected by the GC then the `destroy` hooks will
+never be called.
+
+### `eventemitterasyncresource.triggerAsyncId`
+
+* Type: {number} The same `triggerAsyncId` that is passed to the
+  `AsyncResource` constructor.
+
 <a id="event-target-and-event-api"></a>
 
 ## `EventTarget` and `Event` API
@@ -1705,7 +1788,9 @@ to the `EventTarget`.
 [`events.defaultMaxListeners`]: #eventsdefaultmaxlisteners
 [`fs.ReadStream`]: fs.md#class-fsreadstream
 [`net.Server`]: net.md#class-netserver
+[`new.target.name`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target
 [`process.on('warning')`]: process.md#event-warning
+[async context]: async_context.md
 [capturerejections]: #capture-rejections-of-promises
 [error]: #error-events
 [rejection]: #emittersymbolfornodejsrejectionerr-eventname-args
