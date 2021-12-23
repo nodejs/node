@@ -308,6 +308,8 @@ $ git push --force-with-lease origin my-branch
 **Important:** The `git push --force-with-lease` command is one of the few ways
 to delete history in `git`. Before you use it, make sure you understand the
 risks. If in doubt, you can always ask for guidance in the pull request.
+Force-pushing also complicates the review process, as it won't allow reviewers
+to get a quick glance on what have changed.
 
 There are a number of more advanced mechanisms for managing commits using
 `git rebase` that can be used, but are beyond the scope of this guide.
