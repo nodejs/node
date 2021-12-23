@@ -40,7 +40,7 @@ for (const link of toc.match(/<a.*?>/g)) {
   );
 
   for (const property in data) {
-    if (results.hasOwnProperty(property)) {
+    if (Object.hasOwn(results, property)) {
       data[property].forEach((mod) => {
         mod.source = data.source;
       });
