@@ -17,7 +17,7 @@ for pr in "$@"; do
     # Do we need to reset?
     gh pr edit "$pr" --add-label "$REQUEST_CI_FAILED_LABEL"
 
-    jq -n --arg content "<details><summary>Couldn't start CI</summary><pre>$(cat output)</pre></details>" > output.json
+    jq -n --arg content "<details><summary>Couldn't start CI</summary><pre>$(cat output || true)</pre></details>" > output.json
 
     gh pr comment "$pr" --body-file output.json
 
