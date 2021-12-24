@@ -292,6 +292,11 @@
             '<(V8_ROOT)/src/builtins/riscv64/builtins-riscv64.cc',
           ],
         }],        
+        ['v8_target_arch=="loong64" or v8_target_arch=="loong64"', {
+          'sources': [
+            '<(V8_ROOT)/src/builtins/loong64/builtins-loong64.cc',
+          ],
+        }],        
         ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/mips64/builtins-mips64.cc',
@@ -647,6 +652,11 @@
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
             ],
           }],
+          ['v8_target_arch=="loong64"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"loong64\\".*?sources \\+= ")',
+            ],
+          }],
         ],
       },
     },  # v8_internal_headers
@@ -875,6 +885,11 @@
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
           ],
         }],        
+        ['v8_target_arch=="loong64"', {
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"loong64\\".*?sources \\+= ")',
+          ],
+        }],        
         ['OS=="win"', {
           'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
           'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
@@ -940,7 +955,7 @@
         }],
         # Platforms that don't have Compare-And-Swap (CAS) support need to link atomic library
         # to implement atomic memory access
-        ['v8_current_cpu in ["mips", "mipsel", "mips64", "mips64el", "ppc", "arm", "riscv64"]', {
+        ['v8_current_cpu in ["mips", "mipsel", "mips64", "mips64el", "ppc", "arm", "riscv64", "loong64"]', {
           'link_settings': {
             'libraries': ['-latomic', ],
           },
@@ -1609,6 +1624,11 @@
               ['_toolset == "host" and host_arch == "riscv64" or _toolset == "target" and target_arch=="riscv64"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/riscv64/push_registers_asm.cc',
+                ],
+              }],
+              ['_toolset == "host" and host_arch == "loong64" or _toolset == "target" and target_arch=="loong64"', {
+                'sources': [
+                  '<(V8_ROOT)/src/heap/base/asm/loong64/push_registers_asm.cc',
                 ],
               }],
             ]
