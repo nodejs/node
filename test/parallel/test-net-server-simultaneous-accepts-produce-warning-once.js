@@ -1,6 +1,6 @@
 'use strict';
 
-const { expectWarning } = require('../common');
+const { expectWarning, mustCall, mustNotCall } = require('../common');
 const net = require('net');
 
 expectWarning(
@@ -8,5 +8,8 @@ expectWarning(
   'net._setSimultaneousAccepts() is deprecated and will be removed.',
   'DEP0121');
 
+process.on('warning', mustCall(() => {
+  process.on('warning', mustNotCall());
+}));
 net._setSimultaneousAccepts();
 net._setSimultaneousAccepts();
