@@ -236,7 +236,7 @@ class AsyncWrap : public BaseObject {
   bool init_hook_ran_ = false;
   // Because the values may be Reset(), cannot be made const.
   double async_id_ = kInvalidAsyncId;
-  double trigger_async_id_;
+  double trigger_async_id_ = kInvalidAsyncId;
 };
 
 }  // namespace node
