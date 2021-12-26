@@ -74,7 +74,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
     CHECK_EQ(Environment::GetCurrent(isolate), env);
   }
 
-  env->isolate()->SetIdle(false);
+  isolate->SetIdle(false);
 
   env->async_hooks()->push_async_context(
     async_context_.async_id, async_context_.trigger_async_id, object);
