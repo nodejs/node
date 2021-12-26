@@ -10,18 +10,19 @@ const { isRequireCall, isString } = require('./rules-utils.js');
 // Rule Definition
 //------------------------------------------------------------------------------
 
+const secondLevelTypes = [
+  'FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression',
+  'ClassBody', 'MethodDefinition',
+];
 
 function isTopLevel(node) {
-  do {
-    if (node.type === 'FunctionDeclaration' ||
-        node.type === 'FunctionExpression' ||
-        node.type === 'ArrowFunctionExpression' ||
-        node.type === 'ClassBody' ||
-        node.type === 'MethodDefinition') {
-      return false;
+  while (!secondLevelTypes.includes(node.type)) {
+    node = node.parent;
+    if (!node) {
+      return true;
     }
-  } while (node = node.parent);
-  return true;
+  }
+  return false;
 }
 
 module.exports = (context) => {
