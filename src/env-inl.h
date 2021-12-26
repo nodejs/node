@@ -94,7 +94,7 @@ v8::Local<v8::Array> AsyncHooks::js_execution_async_resources() {
 
 v8::Local<v8::Object> AsyncHooks::native_execution_async_resource(size_t i) {
   if (i >= native_execution_async_resources_.size()) return {};
-  return PersistentToLocal::Strong(native_execution_async_resources_[i]);
+  return native_execution_async_resources_[i];
 }
 
 inline void AsyncHooks::SetJSPromiseHooks(v8::Local<v8::Function> init,
@@ -159,7 +159,8 @@ inline void AsyncHooks::push_async_context(double async_id,
   // these JS resource objects alive longer than necessary.
   if (!resource.IsEmpty()) {
     native_execution_async_resources_.resize(offset + 1);
-    native_execution_async_resources_[offset].Reset(env()->isolate(), resource);
+    // Caveat: This is a v8::Local<> assignment, we do not keep a v8::Global<>!
+    native_execution_async_resources_[offset] = resource;
   }
 }
 
