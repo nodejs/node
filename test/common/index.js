@@ -549,7 +549,11 @@ function _expectWarning(name, expected, code) {
     expected.forEach(([_, code]) => assert(code, expected));
   }
   return mustCall((warning) => {
-    const [ message, code ] = expected.shift();
+    const expectedProperties = expected.shift();
+    if (!expectedProperties) {
+      assert.fail(`Unexpected extra warning received: ${warning}`);
+    }
+    const [ message, code ] = expectedProperties;
     assert.strictEqual(warning.name, name);
     if (typeof message === 'string') {
       assert.strictEqual(warning.message, message);
