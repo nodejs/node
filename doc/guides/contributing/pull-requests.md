@@ -348,7 +348,7 @@ your pull request waiting longer than you expect, see the
 
 When a collaborator lands your pull request, they will post
 a comment to the pull request page mentioning the commit(s) it
-landed as. GitHub may show the pull request as `Closed` at this
+landed as. GitHub might show the pull request as `Closed` at this
 point, but don't worry. If you look at the branch you raised your
 pull request against, you should see a commit with your name on it.
 Congratulations and thanks for your contribution!
