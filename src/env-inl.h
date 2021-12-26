@@ -154,9 +154,7 @@ inline void AsyncHooks::push_async_context(double async_id,
 #endif
 
   // When this call comes from JS (as a way of increasing the stack size),
-  // `resource` will be empty, because JS caches these values anyway, and
-  // we should avoid creating strong global references that might keep
-  // these JS resource objects alive longer than necessary.
+  // `resource` will be empty, because JS caches these values anyway.
   if (!resource.IsEmpty()) {
     native_execution_async_resources_.resize(offset + 1);
     // Caveat: This is a v8::Local<> assignment, we do not keep a v8::Global<>!
