@@ -1196,6 +1196,21 @@ void AsyncHooks::grow_async_ids_stack() {
       async_ids_stack_.GetJSArray()).Check();
 }
 
+void AsyncHooks::FailWithCorruptedAsyncStack(double expected_async_id) {
+  fprintf(stderr,
+          "Error: async hook stack has become corrupted ("
+          "actual: %.f, expected: %.f)\n",
+          async_id_fields_.GetValue(kExecutionAsyncId),
+          expected_async_id);
+  DumpBacktrace(stderr);
+  fflush(stderr);
+  if (!env()->abort_on_uncaught_exception())
+    exit(1);
+  fprintf(stderr, "\n");
+  fflush(stderr);
+  ABORT_NO_BACKTRACE();
+}
+
 void Environment::Exit(int exit_code) {
   if (options()->trace_exit) {
     HandleScope handle_scope(isolate());

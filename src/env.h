@@ -774,6 +774,8 @@ class AsyncHooks : public MemoryRetainer {
   friend class Environment;  // So we can call the constructor.
   explicit AsyncHooks(v8::Isolate* isolate, const SerializeInfo* info);
 
+  [[noreturn]] void FailWithCorruptedAsyncStack(double expected_async_id);
+
   // Stores the ids of the current execution context stack.
   AliasedFloat64Array async_ids_stack_;
   // Attached to a Uint32Array that tracks the number of active hooks for
