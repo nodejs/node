@@ -1096,20 +1096,29 @@ void AsyncHooks::Deserialize(Local<Context> context) {
   async_ids_stack_.Deserialize(context);
   fields_.Deserialize(context);
   async_id_fields_.Deserialize(context);
-  if (info_->js_execution_async_resources != 0) {
-    Local<Array> arr = context->GetDataFromSnapshotOnce<Array>(
-                                  info_->js_execution_async_resources)
-                              .ToLocalChecked();
-    js_execution_async_resources_.Reset(context->GetIsolate(), arr);
-  }
 
-  native_execution_async_resources_.resize(
-      info_->native_execution_async_resources.size());
+  Local<Array> js_execution_async_resources;
+  if (info_->js_execution_async_resources != 0) {
+    js_execution_async_resources =
+        context->GetDataFromSnapshotOnce<Array>(
+            info_->js_execution_async_resources).ToLocalChecked();
+  } else {
+    js_execution_async_resources = Array::New(context->GetIsolate());
+  }
+  js_execution_async_resources_.Reset(
+      context->GetIsolate(), js_execution_async_resources);
+
+  // The native_execution_async_resources_ field requires v8::Local<> instances
+  // for async calls whose resources were on the stack as JS objects when they
+  // were entered. We cannot recreate this here; however, storing these values
+  // on the JS equivalent gives the same result, so we do that instead.
   for (size_t i = 0; i < info_->native_execution_async_resources.size(); ++i) {
+    if (info_->native_execution_async_resources[i] == SIZE_MAX)
+      continue;
     Local<Object> obj = context->GetDataFromSnapshotOnce<Object>(
                                    info_->native_execution_async_resources[i])
                                .ToLocalChecked();
-    native_execution_async_resources_[i].Reset(context->GetIsolate(), obj);
+    js_execution_async_resources->Set(context, i, obj).Check();
   }
   info_ = nullptr;
 }
@@ -1155,9 +1164,11 @@ AsyncHooks::SerializeInfo AsyncHooks::Serialize(Local<Context> context,
   info.native_execution_async_resources.resize(
       native_execution_async_resources_.size());
   for (size_t i = 0; i < native_execution_async_resources_.size(); i++) {
-    info.native_execution_async_resources[i] = creator->AddData(
-        context,
-        native_execution_async_resources_[i].Get(context->GetIsolate()));
+    info.native_execution_async_resources[i] =
+        native_execution_async_resources_[i].IsEmpty() ? SIZE_MAX :
+            creator->AddData(
+                context,
+                native_execution_async_resources_[i]);
   }
   CHECK_EQ(contexts_.size(), 1);
   CHECK_EQ(contexts_[0], env()->context());
