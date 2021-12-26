@@ -719,8 +719,11 @@ class AsyncHooks : public MemoryRetainer {
   inline void no_force_checks();
   inline Environment* env();
 
+  // NB: This call does not take (co-)ownership of `execution_async_resource`.
+  // The lifetime of the `v8::Local<>` pointee must last until
+  // `pop_async_context()` or `clear_async_id_stack()` are called.
   inline void push_async_context(double async_id, double trigger_async_id,
-      v8::Local<v8::Object> execution_async_resource_);
+      v8::Local<v8::Object> execution_async_resource);
   inline bool pop_async_context(double async_id);
   inline void clear_async_id_stack();  // Used in fatal exceptions.
 
@@ -782,7 +785,7 @@ class AsyncHooks : public MemoryRetainer {
   void grow_async_ids_stack();
 
   v8::Global<v8::Array> js_execution_async_resources_;
-  std::vector<v8::Global<v8::Object>> native_execution_async_resources_;
+  std::vector<v8::Local<v8::Object>> native_execution_async_resources_;
 
   // Non-empty during deserialization
   const SerializeInfo* info_ = nullptr;
