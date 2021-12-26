@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <stdlib.h>
 #include <assert.h>
 #include <js_native_api.h>
@@ -47,6 +48,41 @@ static napi_value CreateSymbol(napi_env env, napi_callback_info info) {
     
     NODE_API_CALL(env, napi_create_symbol(env, args[0], &result_symbol));
     return result_symbol;
+}
+
+static napi_value CreateSymbolFor(napi_env env, napi_callback_info info) {
+    
+    size_t argc = 1;
+    napi_value args[1];
+    
+    char description[256];
+    size_t description_length;
+    
+    NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL,NULL));
+    NODE_API_ASSERT(env, argc == 1, "Expect one argument only (symbol description)");
+
+    NODE_API_CALL(env, napi_get_value_string_utf8(env, args[0], description, sizeof(description), &description_length));
+    NODE_API_ASSERT(env, description_length <= 255, "Cannot accommodate descriptions longer than 255 bytes");
+    
+    napi_value result_symbol;
+    
+    NODE_API_CALL(env, node_api_symbol_for(env,
+                                           description,
+                                           description_length,
+                                           &result_symbol));
+    return result_symbol;
+}
+
+static napi_value CreateSymbolForEmptyString(napi_env env, napi_callback_info info) {
+  napi_value result_symbol;
+  NODE_API_CALL(env, node_api_symbol_for(env, NULL, 0, &result_symbol));
+  return result_symbol;
+}
+
+static napi_value CreateSymbolForIncorrectLength(napi_env env, napi_callback_info info) {
+  napi_value result_symbol;
+  NODE_API_CALL(env, node_api_symbol_for(env, NULL, 5, &result_symbol));
+  return result_symbol;
 }
 
 static napi_value
@@ -190,6 +226,9 @@ napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NODE_API_PROPERTY("checkExternal", CheckExternal),
     DECLARE_NODE_API_PROPERTY("createReference", CreateReference),
     DECLARE_NODE_API_PROPERTY("createSymbol", CreateSymbol),
+    DECLARE_NODE_API_PROPERTY("createSymbolFor", CreateSymbolFor),
+    DECLARE_NODE_API_PROPERTY("createSymbolForEmptyString", CreateSymbolForEmptyString),
+    DECLARE_NODE_API_PROPERTY("createSymbolForIncorrectLength", CreateSymbolForIncorrectLength),
     DECLARE_NODE_API_PROPERTY("deleteReference", DeleteReference),
     DECLARE_NODE_API_PROPERTY("incrementRefcount", IncrementRefcount),
     DECLARE_NODE_API_PROPERTY("decrementRefcount", DecrementRefcount),

@@ -1662,6 +1662,27 @@ napi_status napi_create_symbol(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status node_api_symbol_for(napi_env env,
+                                const char* utf8description,
+                                size_t length,
+                                napi_value* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, result);
+
+  napi_value js_description_string;
+  STATUS_CALL(napi_create_string_utf8(env,
+                                      utf8description,
+                                      length,
+                                      &js_description_string));
+  v8::Local<v8::String> description_string =
+    v8impl::V8LocalValueFromJsValue(js_description_string).As<v8::String>();
+
+  *result = v8impl::JsValueFromV8LocalValue(
+    v8::Symbol::For(env->isolate, description_string));
+
+  return napi_clear_last_error(env);
+}
+
 static inline napi_status set_error_code(napi_env env,
                                          v8::Local<v8::Value> error,
                                          napi_value code,
