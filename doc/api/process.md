@@ -337,7 +337,7 @@ changes:
   rejection or from an synchronous error. Can either be `'uncaughtException'` or
   `'unhandledRejection'`. The latter is only used in conjunction with the
   [`--unhandled-rejections`][] flag set to `strict` or `throw` and
-  an unhandled rejection.
+  an unhandled rejection, or when the entry point is an ES module.
 
 The `'uncaughtException'` event is emitted when an uncaught JavaScript
 exception bubbles all the way back to the event loop. By default, Node.js
@@ -365,6 +365,8 @@ setTimeout(() => {
 }, 500);
 
 // Intentionally cause an exception, but don't catch it.
+// Because the exception happens when evaluating an ES module, this is
+// undistinguishable from a Promise rejection, and will be reported as such.
 nonexistentFunc();
 console.log('This will not run.');
 ```
@@ -433,7 +435,7 @@ added:
   rejection or from synchronous errors. Can either be `'uncaughtException'` or
   `'unhandledRejection'`. The latter is only used in conjunction with the
   [`--unhandled-rejections`][] flag set to `strict` or `throw` and
-  an unhandled rejection.
+  an unhandled rejection, or when the entry point is an ES module.
 
 The `'uncaughtExceptionMonitor'` event is emitted before an
 `'uncaughtException'` event is emitted or a hook installed via
@@ -451,6 +453,8 @@ process.on('uncaughtExceptionMonitor', (err, origin) => {
 });
 
 // Intentionally cause an exception, but don't catch it.
+// Because the exception happens when evaluating an ES module, this is
+// undistinguishable from a Promise rejection, and will be reported as such.
 nonexistentFunc();
 // Still crashes Node.js
 ```
@@ -503,7 +507,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 somePromise.then((res) => {
   return reportToUser(JSON.pasre(res)); // Note the typo (`pasre`)
-}); // No `.catch()` or `.then()`
+}); // No `.catch()` or `.then()` or `await`.
 ```
 
 ```cjs
@@ -531,7 +535,7 @@ function SomeResource() {
 }
 
 const resource = new SomeResource();
-// no .catch or .then on resource.loaded for at least a turn
+// no await, .catch, or .then on resource.loaded for at least a turn
 ```
 
 ```cjs
