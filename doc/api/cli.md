@@ -1262,6 +1262,9 @@ occurs. One of the following modes can be chosen:
   set, trigger a warning, and set the process exit code to 1.
 * `none`: Silence all warnings.
 
+If a rejection happen in the ES module static loading phase, it will always raise
+it as an uncaught exception.
+
 ### `--use-bundled-ca`, `--use-openssl-ca`
 
 <!-- YAML
