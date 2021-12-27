@@ -73,10 +73,14 @@ function processContent(content) {
   }
   // `++level` to convert the string to a number and increment it.
   content = content.replace(/(?<=<\/?h)[1-5](?=[^<>]*>)/g, (level) => ++level);
-  // Wrap h3 tags in section tags.
+  // Wrap h3 tags in section tags unless they are immediately preceded by a
+  // section tag. The latter happens when GFM footnotes are generated. We don't
+  // want to add another section tag to the footnotes section at the end of the
+  // document because that will result in an empty section element. While not an
+  // HTML error, it's enough for validator.w3.org to print a warning.
   let firstTime = true;
   return content
-    .replace(/<h3/g, (heading) => {
+    .replace(/(?<!<section [^>]+>)<h3/g, (heading) => {
       if (firstTime) {
         firstTime = false;
         return '<section>' + heading;
