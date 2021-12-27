@@ -104,7 +104,10 @@ Metadata::Versions::Versions() {
 #endif
 
 #ifdef __GLIBC__
-  glibcCompiler = __GLIBC__ + "." + __GLIBC_MINOR__;
+  glibcCompiler =
+      NODE_STRINGIFY(__GLIBC__)
+      "."
+      NODE_STRINGIFY(__GLIBC_MINOR__);
 #endif /* __GLIBC__ */
 
 #ifndef _WIN32
