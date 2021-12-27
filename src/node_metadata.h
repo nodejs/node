@@ -45,6 +45,18 @@ namespace node {
 #define NODE_VERSIONS_KEY_CRYPTO(V)
 #endif
 
+#ifdef __GLIBC__
+#define NODE_VERSIONS_KEY_GLIBC_COMPILER(V) V(glibcCompiler)
+#else
+#define NODE_VERSIONS_KEY_GLIBC_COMPILER(V)
+#endif /* __GLIBC__ */
+
+#ifndef _WIN32
+#define NODE_VERSIONS_KEY_GLIBC_RUNTIME(V) V(glibcRuntime)
+#else
+#define NODE_VERSIONS_KEY_GLIBC_RUNTIME(V)
+#endif /* _WIN32 */
+
 #ifdef NODE_HAVE_I18N_SUPPORT
 #define NODE_VERSIONS_KEY_INTL(V)                                              \
   V(cldr)                                                                      \
@@ -66,6 +78,8 @@ namespace node {
 #define NODE_VERSIONS_KEYS(V)                                                  \
   NODE_VERSIONS_KEYS_BASE(V)                                                   \
   NODE_VERSIONS_KEY_CRYPTO(V)                                                  \
+  NODE_VERSIONS_KEY_GLIBC_COMPILER(V)                                          \
+  NODE_VERSIONS_KEY_GLIBC_RUNTIME(V)                                           \
   NODE_VERSIONS_KEY_INTL(V)                                                    \
   NODE_VERSIONS_KEY_QUIC(V)
 

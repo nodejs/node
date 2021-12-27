@@ -21,6 +21,10 @@
 #include <nghttp3/version.h>
 #endif
 
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
+#include <gnu/libc-version.h>  /* gnu_get_libc_version() */
+#endif
+
 #ifdef NODE_HAVE_I18N_SUPPORT
 #include <unicode/timezone.h>
 #include <unicode/ulocdata.h>
@@ -98,6 +102,21 @@ Metadata::Versions::Versions() {
 #if HAVE_OPENSSL
   openssl = GetOpenSSLVersion();
 #endif
+
+#ifdef __GLIBC__
+  glibcCompiler = __GLIBC__ + "." + __GLIBC_MINOR__;
+#endif /* __GLIBC__ */
+
+#ifndef _WIN32
+#ifdef RTLD_DEFAULT
+  const char* (*libc_version)();
+  *(reinterpret_cast<void**>(&libc_version)) =
+      dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
+  if (libc_version != nullptr) {
+    glibcRuntime = (*libc_version)();
+  }
+#endif /* RTLD_DEFAULT */
+#endif /* _WIN32 */
 
 #ifdef NODE_HAVE_I18N_SUPPORT
   icu = U_ICU_VERSION;
