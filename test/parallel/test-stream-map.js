@@ -54,14 +54,14 @@ const { setTimeout } = require('timers/promises');
     await setTimeout(100, { signal });
   }, { signal: ac.signal, concurrency: 2 });
   // pump
-  (async () => {
+  assert.rejects(async () => {
     for await (const item of stream) {
       // nope
       console.log(item);
     }
-  })().catch(common.mustCall((e) => {
-    assert.strictEqual(e.name, 'AbortError');
-  }));
+  }, {
+    name: 'AbortError',
+  }).then(common.mustCall());
 
   setImmediate(() => {
     ac.abort();

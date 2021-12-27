@@ -1777,7 +1777,7 @@ const dnsResults = await Readable.from([
   'www.linuxfoundation.org',
 ]).map((domain) => resolver.resolve4(domain), { concurrency: 2 });
 for await (const result of dnsResults) {
-  console.log(result); // Kogs the DNS result of resolver.resolve4.
+  console.log(result); // Logs the DNS result of resolver.resolve4.
 }
 ```
 
