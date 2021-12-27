@@ -48,7 +48,7 @@ if (isMainThread) {
 ```
 
 The above example spawns a Worker thread for each `parseJSAsync()` call. In
-actual practice, use a pool of Workers for these kinds of tasks. Otherwise, the
+practice, use a pool of Workers for these kinds of tasks. Otherwise, the
 overhead of creating Workers would likely exceed their benefit.
 
 When implementing a worker pool, use the [`AsyncResource`][] API to inform
