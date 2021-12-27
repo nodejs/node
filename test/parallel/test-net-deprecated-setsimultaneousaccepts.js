@@ -1,8 +1,7 @@
 // Flags: --no-warnings
 'use strict';
 
-// This test checks that `_setSimultaneousAccepts` emit DEP0121 warning.
-// Ref test-net-server-simultaneous-accepts-produce-warning-once.js
+// Test that DEP0121 is emitted on the first call of _setSimultaneousAccepts().
 
 const {
   expectWarning
