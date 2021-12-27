@@ -173,8 +173,6 @@ myEmitter.emit('error', new Error('whoops!'));
 
 ## Capture rejections of promises
 
-> Stability: 1 - captureRejections is experimental.
-
 Using `async` functions with event handlers is problematic, because it
 can lead to an unhandled rejection in case of a thrown exception:
 
@@ -741,9 +739,11 @@ emitter.emit('log');
 added:
  - v13.4.0
  - v12.16.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41267
+    description: No longer experimental.
 -->
-
-> Stability: 1 - captureRejections is experimental.
 
 * `err` Error
 * `eventName` {string|symbol}
@@ -1027,9 +1027,11 @@ foo().then(() => console.log('done'));
 added:
  - v13.4.0
  - v12.16.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41267
+    description: No longer experimental.
 -->
-
-> Stability: 1 - captureRejections is experimental.
 
 Value: {boolean}
 
@@ -1039,11 +1041,13 @@ Change the default `captureRejections` option on all new `EventEmitter` objects.
 
 <!-- YAML
 added:
- - v13.4.0
- - v12.16.0
+  - v13.4.0
+  - v12.16.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41267
+    description: No longer experimental.
 -->
-
-> Stability: 1 - captureRejections is experimental.
 
 Value: `Symbol.for('nodejs.rejection')`
 
