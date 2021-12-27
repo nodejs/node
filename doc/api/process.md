@@ -455,8 +455,6 @@ process.on('uncaughtExceptionMonitor', (err, origin) => {
 });
 
 // Intentionally cause an exception, but don't catch it.
-// Because the exception happens when evaluating an ES module, this is
-// undistinguishable from a Promise rejection, and will be reported as such.
 nonexistentFunc();
 // Still crashes Node.js
 ```
@@ -509,7 +507,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 somePromise.then((res) => {
   return reportToUser(JSON.pasre(res)); // Note the typo (`pasre`)
-}); // No `.catch()` or `.then()` or `await`.
+}); // No `.catch()` or `.then()`
 ```
 
 ```cjs
@@ -537,7 +535,7 @@ function SomeResource() {
 }
 
 const resource = new SomeResource();
-// No await, .catch, or .then on resource.loaded for at least a turn.
+// no .catch or .then on resource.loaded for at least a turn
 ```
 
 ```cjs
