@@ -11296,7 +11296,14 @@ const gfmTableFromMarkdown = {
 };
 function enterTable(token) {
   const align = token._align;
-  this.enter({type: 'table', align, children: []}, token);
+  this.enter(
+    {
+      type: 'table',
+      align: align.map((d) => (d === 'none' ? null : d)),
+      children: []
+    },
+    token
+  );
   this.setData('inTable', true);
 }
 function exitTable(token) {
