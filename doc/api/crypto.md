@@ -4051,6 +4051,17 @@ const {
 console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ```
 
+### `crypto.getRandomValues(typedArray)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `typedArray` {Buffer|TypedArray|DataView|ArrayBuffer}
+* Returns: {Buffer|TypedArray|DataView|ArrayBuffer} Returns `typedArray`.
+
+A convenient alias for [`crypto.webcrypto.getRandomValues()`][].
+
 ### `crypto.hkdf(digest, ikm, salt, info, keylen, callback)`
 
 <!-- YAML
@@ -5230,6 +5241,16 @@ additional properties can be passed:
 
 If the `callback` function is provided this function uses libuv's threadpool.
 
+### `crypto.subtle`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {SubtleCrypto}
+
+A convenient alias for [`crypto.webcrypto.subtle`][].
+
 ### `crypto.timingSafeEqual(a, b)`
 
 <!-- YAML
@@ -5945,6 +5966,8 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.randomBytes()`]: #cryptorandombytessize-callback
 [`crypto.randomFill()`]: #cryptorandomfillbuffer-offset-size-callback
 [`crypto.scrypt()`]: #cryptoscryptpassword-salt-keylen-options-callback
+[`crypto.webcrypto.getRandomValues()`]: webcrypto.md#cryptogetrandomvaluestypedarray
+[`crypto.webcrypto.subtle`]: webcrypto.md#class-subtlecrypto
 [`decipher.final()`]: #decipherfinaloutputencoding
 [`decipher.update()`]: #decipherupdatedata-inputencoding-outputencoding
 [`diffieHellman.setPublicKey()`]: #diffiehellmansetpublickeypublickey-encoding
