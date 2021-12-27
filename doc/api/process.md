@@ -337,8 +337,8 @@ changes:
   rejection or from an synchronous error. Can either be `'uncaughtException'` or
   `'unhandledRejection'`. The latter is only used in conjunction with the
   [`--unhandled-rejections`][] flag set to `strict` or `throw` and
-  an unhandled rejection, or when a rejection happens in the ES module static
-  loading phase.
+  an unhandled rejection, or when a rejection happens during the ES module
+  static loading phase.
 
 The `'uncaughtException'` event is emitted when an uncaught JavaScript
 exception bubbles all the way back to the event loop. By default, Node.js
@@ -436,8 +436,8 @@ added:
   rejection or from synchronous errors. Can either be `'uncaughtException'` or
   `'unhandledRejection'`. The latter is only used in conjunction with the
   [`--unhandled-rejections`][] flag set to `strict` or `throw` and
-  an unhandled rejection, or when a rejection happens in the ES module static
-  loading phase.
+  an unhandled rejection, or when a rejection happens during the ES module
+  static loading phase.
 
 The `'uncaughtExceptionMonitor'` event is emitted before an
 `'uncaughtException'` event is emitted or a hook installed via
