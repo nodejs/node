@@ -363,12 +363,11 @@ added: v11.12.0
 
 Enable experimental frozen intrinsics like `Array` and `Object`.
 
-Support is currently only provided for the root context and no guarantees are
-currently provided that `global.Array` is indeed the default intrinsic
-reference. Code may break under this flag.
+Only the root context is supported. There is no guarantee that
+`globalThis.Array` is indeed the default intrinsic reference. Code may break
+under this flag.
 
-`--require` runs prior to freezing intrinsics in order to allow polyfills to
-be added.
+To allow polyfills to be added, `--require` runs before freezing intrinsics.
 
 ### `--heapsnapshot-near-heap-limit=max_count`
 
