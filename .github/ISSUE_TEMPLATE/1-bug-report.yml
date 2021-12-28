@@ -9,7 +9,7 @@ body:
         This issue tracker is for bugs and issues found within Node.js core.
         If you require more general support please file an issue on our help repo. https://github.com/nodejs/help
 
-        Please fill in as much of the form below as you're able.
+        Please fill in as much of the following form as you're able.
   - type: input
     attributes:
       label: Version
