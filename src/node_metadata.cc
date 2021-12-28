@@ -21,10 +21,6 @@
 #include <nghttp3/version.h>
 #endif
 
-#if defined(__GLIBC__) && !defined(__UCLIBC__)
-#include <gnu/libc-version.h>  /* gnu_get_libc_version() */
-#endif
-
 #ifdef NODE_HAVE_I18N_SUPPORT
 #include <unicode/timezone.h>
 #include <unicode/ulocdata.h>
