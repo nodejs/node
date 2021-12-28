@@ -335,10 +335,11 @@ changes:
 * `err` {Error} The uncaught exception.
 * `origin` {string} Indicates if the exception originates from an unhandled
   rejection or from an synchronous error. Can either be `'uncaughtException'` or
-  `'unhandledRejection'`. The latter is only used in conjunction with the
-  [`--unhandled-rejections`][] flag set to `strict` or `throw` and
-  an unhandled rejection, or when a rejection happens during the ES module
-  static loading phase.
+  `'unhandledRejection'`. The latter is used when in an exception happens in a
+  `Promise` based async context (or if a `Promise` is rejected) and
+  [`--unhandled-rejections`][] flag set to `strict` or `throw` (which is the
+  default) and the rejection is not handled, or when a rejection happens during
+  the command line entry point's ES module static loading phase.
 
 The `'uncaughtException'` event is emitted when an uncaught JavaScript
 exception bubbles all the way back to the event loop. By default, Node.js
@@ -366,8 +367,6 @@ setTimeout(() => {
 }, 500);
 
 // Intentionally cause an exception, but don't catch it.
-// Because the exception happens when evaluating an ES module, this is
-// undistinguishable from a Promise rejection, and will be reported as such.
 nonexistentFunc();
 console.log('This will not run.');
 ```
@@ -434,10 +433,11 @@ added:
 * `err` {Error} The uncaught exception.
 * `origin` {string} Indicates if the exception originates from an unhandled
   rejection or from synchronous errors. Can either be `'uncaughtException'` or
-  `'unhandledRejection'`. The latter is only used in conjunction with the
-  [`--unhandled-rejections`][] flag set to `strict` or `throw` and
-  an unhandled rejection, or when a rejection happens during the ES module
-  static loading phase.
+  `'unhandledRejection'`. The latter is used when in an exception happens in a
+  `Promise` based async context (or if a `Promise` is rejected) and
+  [`--unhandled-rejections`][] flag set to `strict` or `throw` (which is the
+  default) and the rejection is not handled, or when a rejection happens during
+  the command line entry point's ES module static loading phase.
 
 The `'uncaughtExceptionMonitor'` event is emitted before an
 `'uncaughtException'` event is emitted or a hook installed via
