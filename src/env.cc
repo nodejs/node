@@ -1113,6 +1113,8 @@ void AsyncHooks::Deserialize(Local<Context> context) {
   // were entered. We cannot recreate this here; however, storing these values
   // on the JS equivalent gives the same result, so we do that instead.
   for (size_t i = 0; i < info_->native_execution_async_resources.size(); ++i) {
+    if (info_->native_execution_async_resources[i] == SIZE_MAX)
+      continue;
     Local<Object> obj = context->GetDataFromSnapshotOnce<Object>(
                                    info_->native_execution_async_resources[i])
                                .ToLocalChecked();
@@ -1162,9 +1164,11 @@ AsyncHooks::SerializeInfo AsyncHooks::Serialize(Local<Context> context,
   info.native_execution_async_resources.resize(
       native_execution_async_resources_.size());
   for (size_t i = 0; i < native_execution_async_resources_.size(); i++) {
-    info.native_execution_async_resources[i] = creator->AddData(
-        context,
-        native_execution_async_resources_[i]);
+    info.native_execution_async_resources[i] =
+        native_execution_async_resources_[i].IsEmpty() ? SIZE_MAX :
+            creator->AddData(
+                context,
+                native_execution_async_resources_[i]);
   }
   CHECK_EQ(contexts_.size(), 1);
   CHECK_EQ(contexts_[0], env()->context());
