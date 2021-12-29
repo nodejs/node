@@ -42,8 +42,7 @@ if (format === 'csv') {
   const filename = benchmarks[i];
   const child = fork(
     path.resolve(__dirname, filename),
-    cli.test ? ['--test'] : [],
-    cli.optional.set
+    cli.test ? ['--test'] : cli.optional.set
   );
 
   if (format !== 'csv') {
