@@ -182,7 +182,48 @@ Diam in arcu cursus euismod quis viverra nibh.
   assert.ok(percentage <= THRESHOLD, `Failed: ${totalTimeNewWay} isn't lesser than ${THRESHOLD}% of ${totalTimeOldWay}. Actual percentage: ${percentage.toFixed(2)}%`);
 }
 
+async function testSlowStreamForLeaks() {
+  const message = 'a\nb\nc\n';
+  const DELAY = 1;
+  const REPETITIONS = 100;
+  const warningCallback = common.mustNotCall();
+  process.on('warning', warningCallback);
+
+  function getStream() {
+    const readable = Readable({
+      objectMode: true,
+    });
+    readable._read = () => {};
+    let i = REPETITIONS;
+    function schedule() {
+      setTimeout(() => {
+        i--;
+        if (i < 0) {
+          readable.push(null);
+        } else {
+          readable.push(message);
+          schedule();
+        }
+      }, DELAY);
+    }
+    schedule();
+    return readable;
+  }
+  const iterable = readline.createInterface({
+    input: getStream(),
+  });
+
+  let lines = 0;
+  for await (const {} of iterable) {
+    lines++;
+  }
+
+  assert.strictEqual(lines, 3 * REPETITIONS);
+  process.off('warning', warningCallback);
+}
+
 testSimple()
   .then(testMutual)
   .then(testPerformance)
+  .then(testSlowStreamForLeaks)
   .then(common.mustCall());
