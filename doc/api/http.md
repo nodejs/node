@@ -3059,7 +3059,7 @@ changes:
     * `undefined` (default): use [`http.globalAgent`][] for this host and port.
     * `Agent` object: explicitly use the passed in `Agent`.
     * `false`: causes a new `Agent` with default values to be used.
-  * `auth` {string} Basic authentication i.e. `'user:password'` to compute an
+  * `auth` {string} Basic authentication (`'user:password'`) to compute an
     Authorization header.
   * `createConnection` {Function} A function that produces a socket/stream to
     use for the request when the `agent` option is not used. This can be used to
@@ -3085,8 +3085,8 @@ changes:
   * `localPort` {number} Local port to connect from.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
   * `maxHeaderSize` {number} Optionally overrides the value of
-    [`--max-http-header-size`][] for responses received from the server, i.e.
-    the maximum length of response headers in bytes.
+    [`--max-http-header-size`][] (the maximum length of response headers in
+    bytes) for responses received from the server.
     **Default:** 16384 (16 KB).
   * `method` {string} A string specifying the HTTP request method. **Default:**
     `'GET'`.
@@ -3099,8 +3099,8 @@ changes:
   * `protocol` {string} Protocol to use. **Default:** `'http:'`.
   * `setHost` {boolean}: Specifies whether or not to automatically add the
     `Host` header. Defaults to `true`.
-  * `socketPath` {string} Unix Domain Socket (cannot be used if one of `host`
-    or `port` is specified, those specify a TCP Socket).
+  * `socketPath` {string} Unix domain socket. Cannot be used if one of `host`
+    or `port` is specified, as those specify a TCP Socket.
   * `timeout` {number}: A number specifying the socket timeout in milliseconds.
     This will set the timeout before the socket is connected.
   * `signal` {AbortSignal}: An AbortSignal that may be used to abort an ongoing
