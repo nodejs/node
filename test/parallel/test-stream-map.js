@@ -95,7 +95,7 @@ const { setTimeout } = require('timers/promises');
     for await (const _ of Readable.from([1]).map((x) => x, {
       concurrency: 'Foo'
     }));
-  }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+  }, /ERR_OUT_OF_RANGE/).then(common.mustCall());
   assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars
     for await (const _ of Readable.from([1]).map((x) => x, 1));
