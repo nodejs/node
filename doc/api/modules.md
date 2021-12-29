@@ -379,7 +379,9 @@ required filename with the added extensions: `.js`, `.json`, and finally
 
 `.json` files are parsed as JSON text files, `.node` files are interpreted as
 compiled addon modules loaded with `process.dlopen()`. Files using any other
-extension (or no extension at all) are parsed as JavaScript text files.
+extension (or no extension at all) are parsed as JavaScript text files. Refer to
+the [Determining module system][] section to understand what parse goal will be
+used.
 
 A required module prefixed with `'/'` is an absolute path to the file. For
 example, `require('/home/marco/foo.js')` will load the file at
@@ -1036,6 +1038,7 @@ This section was moved to
   * <a id="modules_sourcemap_payload" href="module.html#sourcemappayload">`sourceMap.payload`</a>
   * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#sourcemapfindentrylinenumber-columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
 
+[Determining module system]: packages.md#determining-module-system
 [ECMAScript Modules]: esm.md
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
