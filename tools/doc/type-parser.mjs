@@ -213,7 +213,7 @@ const customTypesMap = {
   'Readable': 'stream.html#class-streamreadable',
   'stream.Transform': 'stream.html#class-streamtransform',
   'Transform': 'stream.html#class-streamtransform',
-  'stream.Writable': 'stream.html#class-streamwritable',,
+  'stream.Writable': 'stream.html#class-streamwritable',
   'Writable': 'stream.html#class-streamwritable',
 
   'Immediate': 'timers.html#class-immediate',
