@@ -12,10 +12,6 @@ DEFAULT_BRANCH=master
 COMMIT_QUEUE_LABEL="commit-queue"
 COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 
-mergeUrl() {
-  echo "repos/${OWNER}/${REPOSITORY}/pulls/${1}/merge"
-}
-
 commit_queue_failed() {
   pr=$1
 
@@ -91,7 +87,7 @@ for pr in "$@"; do
       --arg head "$(grep 'Fetched commits as' output | cut -d. -f3 | xargs git rev-parse)" \
       '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' > output.json
     cat output.json
-    if ! gh api -X PUT "$(mergeUrl "$pr")" --input output.json > output; then
+    if ! gh api -X PUT "repos/${OWNER}/${REPOSITORY}/pulls/${pr}/merge" --input output.json > output; then
       commit_queue_failed "$pr"
       continue
     fi
