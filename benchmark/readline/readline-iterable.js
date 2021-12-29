@@ -39,8 +39,8 @@ async function main({ n }) {
     input: getLoremIpsumStream(n),
   });
 
-  for await (const line of iterable) {
+  for await (const {} of iterable) {
     lineCount++;
   }
-  bench.end(n);
+  bench.end(lineCount);
 }
