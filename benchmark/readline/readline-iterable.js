@@ -4,7 +4,7 @@ const readline = require('readline');
 const { Readable } = require('stream');
 
 const bench = common.createBenchmark(main, {
-  n: [1e6],
+  n: [1e1, 1e2, 1e3, 1e4, 1e5, 1e6],
 });
 
 const loremIpsum = `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
