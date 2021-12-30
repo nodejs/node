@@ -72,7 +72,9 @@ for pr in "$@"; do
   fi
 
   if [ -z "$MULTIPLE_COMMIT_POLICY" ]; then
-    commits="$(git rev-parse $UPSTREAM/$DEFAULT_BRANCH)...$(git rev-parse HEAD)"
+    start_sha=$(git rev-parse $UPSTREAM/$DEFAULT_BRANCH)
+    end_sha=$(git rev-parse HEAD)
+    commits="${start_sha}...${end_sha}"
 
     if ! git push $UPSTREAM $DEFAULT_BRANCH >> output 2>&1; then
       commit_queue_failed "$pr"
