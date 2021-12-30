@@ -9,7 +9,7 @@ const child = spawn(execPath, [
   '--throw-deprecation',
   '--experimental-loader',
   path('/es-module-loaders/hooks-obsolete.mjs'),
-  path('/print-error-message.js')
+  path('/print-error-message.js'),
 ]);
 
 let stderr = '';
@@ -18,7 +18,7 @@ child.stderr.on('data', (data) => {
   stderr += data;
 });
 child.on('close', () => {
-  stderr = stderr.toString()
+  stderr = stderr.toString();
   ok(stderr.includes(
     'DeprecationWarning: Obsolete loader hook(s) supplied and will be ' +
     'ignored: dynamicInstantiate, getFormat, getSource, transformSource'
