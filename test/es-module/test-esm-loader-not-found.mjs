@@ -16,7 +16,6 @@ child.stderr.on('data', (data) => {
   stderr += data;
 });
 child.on('close', () => {
-  stderr = stderr.toString();
   ok(stderr.includes(
     'Error [ERR_MODULE_NOT_FOUND]: Cannot find package \'i-dont-exist\' ' +
     'imported from'

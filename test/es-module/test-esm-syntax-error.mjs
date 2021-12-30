@@ -14,7 +14,7 @@ child.stderr.on('data', (data) => {
   stderr += data;
 });
 child.on('close', () => {
-  ok(stderr.toString().includes(
+  ok(stderr.includes(
     'SyntaxError: Malformed arrow function parameter list'
   ));
 });

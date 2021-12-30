@@ -28,6 +28,6 @@ import { execPath } from 'process';
     stderr += data;
   });
   child.on('close', () => {
-    ok(stderr.toString().includes(expected));
+    ok(stderr.includes(expected));
   });
 });

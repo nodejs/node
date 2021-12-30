@@ -15,7 +15,7 @@ child.stderr.on('data', (data) => {
   stderr += data;
 });
 child.on('close', () => {
-  ok(stderr.toString().includes(
+  ok(stderr.includes(
     'SyntaxError: The requested module \'../experimental.json\' ' +
     'does not provide an export named \'ofLife\''
   ));

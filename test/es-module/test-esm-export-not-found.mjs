@@ -28,7 +28,7 @@ const importStatementMultiline = `import {
     stderr += data;
   });
   child.on('close', () => {
-    ok(stderr.toString().includes(
+    ok(stderr.includes(
       'SyntaxError: The requested module \'./module-named-exports.mjs\' ' +
       'does not provide an export named \'notfound\''
     ));
