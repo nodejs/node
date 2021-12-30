@@ -63,6 +63,17 @@ module.exports = class Square {
 
 The module system is implemented in the `require('module')` module.
 
+## Enabling
+
+<!-- type=misc -->
+
+Node.js treats JavaScript code as CommonJS modules by default.
+Authors can tell Node.js to treat JavaScript code as CommonJS modules
+via the `.cjs` file extension, the `package.json` [`"type"`][] field, or the
+`--input-type` flag. See
+[Determining module system](packages.md#determining-module-system) for more
+details.
+
 ## Accessing the main module
 
 <!-- type=misc -->
@@ -133,10 +144,13 @@ relative, and based on the real path of the files making the calls to
 
 ## The `.mjs` extension
 
-It is not possible to `require()` files that have the `.mjs` extension.
-Attempting to do so will throw [an error][]. The `.mjs` extension is
-reserved for [ECMAScript Modules][] which cannot be loaded via `require()`.
-See [ECMAScript Modules][] for more details.
+Due to the synchronous nature of `require()`, it is not possible to use it to
+load ECMAScript module files. Attempting to do so will throw a
+[`ERR_REQUIRE_ESM`][] error. Use [`import()`][] instead.
+
+The `.mjs` extension is reserved for [ECMAScript Modules][] which cannot be
+loaded via `require()`. See [Determining module system][] section for more info
+regarding which files are parsed as ECMAScript modules.
 
 ## All together...
 
@@ -1042,16 +1056,18 @@ This section was moved to
 [ECMAScript Modules]: esm.md
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
+[`"type"`]: packages.md#type
+[`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
 [`Error`]: errors.md#class-error
 [`__dirname`]: #__dirname
 [`__filename`]: #__filename
+[`import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [`module.children`]: #modulechildren
 [`module.id`]: #moduleid
 [`module` object]: #the-module-object
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
 [`require.main`]: #requiremain
-[an error]: errors.md#err_require_esm
 [exports shortcut]: #exports-shortcut
 [module resolution]: #all-together
 [native addons]: addons.md
