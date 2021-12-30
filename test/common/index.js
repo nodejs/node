@@ -51,6 +51,11 @@ const noop = () => {};
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
+const hasOpenSSL3 = hasCrypto &&
+    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 805306368;
+
+const hasQuic = hasCrypto && !!process.config.variables.openssl_quic;
+
 // Check for flags. Skip this for workers (both, the `cluster` module and
 // `worker_threads`) and child processes.
 // If the binary was built without-ssl then the crypto flags are
@@ -714,6 +719,8 @@ const common = {
   getTTYfd,
   hasIntl,
   hasCrypto,
+  hasOpenSSL3,
+  hasQuic,
   hasMultiLocalhost,
   invalidArgTypeHelper,
   isAIX,
