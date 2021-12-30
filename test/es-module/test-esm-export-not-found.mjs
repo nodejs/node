@@ -1,14 +1,26 @@
 import '../common/index.mjs';
-import { path } from '../common/fixtures.mjs';
+import { fixturesDir } from '../common/fixtures.mjs';
 import { ok } from 'assert';
 import { spawn } from 'child_process';
+import { join } from 'path';
 import { execPath } from 'process';
 
-[
-  path('/es-module-loaders/syntax-error-import.mjs'),
-  path('/es-module-loaders/syntax-error-import-multiline.mjs'),
-].forEach((entry) => {
-  const child = spawn(execPath, [entry]);
+const importStatement =
+  'import { foo, notfound } from \'./module-named-exports.mjs\';';
+const importStatementMultiline = `import {
+  foo,
+  notfound
+} from './module-named-exports.mjs';
+`;
+
+[importStatement, importStatementMultiline].forEach((input) => {
+  const child = spawn(execPath, [
+    '--input-type=module',
+    '--eval',
+    input,
+  ], {
+    cwd: join(fixturesDir, 'es-module-loaders')
+  });
 
   let stderr = '';
   child.stderr.setEncoding('utf8');
