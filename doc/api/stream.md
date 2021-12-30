@@ -1781,6 +1781,55 @@ for await (const result of dnsResults) {
 }
 ```
 
+### `readable.filter(fn[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `fn` {Function|AsyncFunction} a function to filter items from stream.
+  * `data` {any} a chunk of data from the stream.
+  * `options` {Object}
+    * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
+      abort the `fn` call early.
+* `options` {Object}
+  * `concurrency` {number} the maximal concurrent invocation of `fn` to call
+    on the stream at once. **Default:** `1`.
+  * `signal` {AbortSignal} allows destroying the stream if the signal is
+    aborted.
+* Returns: {Readable} a stream filtered with the predicate `fn`.
+
+This method allows filtering the stream. For each item in the stream the `fn`
+function will be called and if it returns a truthy value, the item will be
+passed to the result stream. If the `fn` function returns a promise - that
+promise will be `await`ed.
+
+```mjs
+import { Readable } from 'stream';
+import { Resolver } from 'dns/promises';
+
+// With a synchronous predicate.
+for await (const item of Readable.from([1, 2, 3, 4]).filter((x) => x > 2)) {
+  console.log(item); // 3, 4
+}
+// With an asynchronous predicate, making at most 2 queries at a time.
+const resolver = new Resolver();
+const dnsResults = await Readable.from([
+  'nodejs.org',
+  'openjsf.org',
+  'www.linuxfoundation.org',
+]).filter(async (domain) => {
+  const { address } = await resolver.resolve4(domain, { ttl: true });
+  return address.ttl > 60;
+}, { concurrency: 2 });
+for await (const result of dnsResults) {
+  // Logs domains with more than 60 seconds on the resolved dns record.
+  console.log(result);
+}
+```
+
 ### Duplex and transform streams
 
 #### Class: `stream.Duplex`
