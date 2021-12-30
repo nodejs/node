@@ -122,7 +122,8 @@ v8::MaybeLocal<v8::Object> ECPointToBuffer(
 
 v8::MaybeLocal<v8::Object> X509ToObject(
     Environment* env,
-    X509* cert);
+    X509* cert,
+    bool names_as_string = false);
 
 }  // namespace crypto
 }  // namespace node
