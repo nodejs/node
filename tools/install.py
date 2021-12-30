@@ -188,6 +188,7 @@ def headers(action):
       'deps/v8/include/v8-exception.h',
       'deps/v8/include/v8-extension.h',
       'deps/v8/include/v8-external.h',
+      'deps/v8/include/v8-fast-api-calls.h',
       'deps/v8/include/v8-forward.h',
       'deps/v8/include/v8-function-callback.h',
       'deps/v8/include/v8-function.h',
