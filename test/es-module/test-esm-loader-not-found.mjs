@@ -16,9 +16,10 @@ child.stderr.on('data', (data) => {
   stderr += data;
 });
 child.on('close', () => {
-  ok(stderr.includes(
-    'Error [ERR_MODULE_NOT_FOUND]: Cannot find package \'i-dont-exist\' ' +
-    'imported from'
-  ));
+  // Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'i-dont-exist'
+  // imported from
+  ok(stderr.includes('ERR_MODULE_NOT_FOUND'));
+  ok(stderr.includes('\'i-dont-exist\''));
+
   ok(!stderr.includes('Bad command or file name'));
 });

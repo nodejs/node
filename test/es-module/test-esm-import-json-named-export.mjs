@@ -15,8 +15,9 @@ child.stderr.on('data', (data) => {
   stderr += data;
 });
 child.on('close', () => {
-  ok(stderr.includes(
-    'SyntaxError: The requested module \'../experimental.json\' ' +
-    'does not provide an export named \'ofLife\''
-  ));
+  // SyntaxError: The requested module '../experimental.json'
+  // does not provide an export named 'ofLife'
+  ok(stderr.includes('SyntaxError:'));
+  ok(stderr.includes('\'../experimental.json\''));
+  ok(stderr.includes('\'ofLife\''));
 });

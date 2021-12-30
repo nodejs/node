@@ -28,9 +28,11 @@ const importStatementMultiline = `import {
     stderr += data;
   });
   child.on('close', () => {
-    ok(stderr.includes(
-      'SyntaxError: The requested module \'./module-named-exports.mjs\' ' +
-      'does not provide an export named \'notfound\''
-    ));
+    // SyntaxError: The requested module './module-named-exports.mjs'
+    // does not provide an export named 'notfound'
+    ok(stderr.includes('SyntaxError:'));
+    // The quotes ensure that the path starts with ./ and not ../
+    ok(stderr.includes('\'./module-named-exports.mjs\''));
+    ok(stderr.includes('notfound'));
   });
 });

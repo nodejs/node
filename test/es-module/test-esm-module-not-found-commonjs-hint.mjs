@@ -7,11 +7,12 @@ import { execPath } from 'process';
 [
   {
     input: 'import "./print-error-message"',
-    expected: 'Did you mean to import ../print-error-message.js?'
+    // Did you mean to import ../print-error-message.js?
+    expected: ' ../print-error-message.js?'
   },
   {
     input: 'import obj from "some_module/obj"',
-    expected: 'Did you mean to import some_module/obj.js?'
+    expected: ' some_module/obj.js?'
   },
 ].forEach(({ input, expected }) => {
   const child = spawn(execPath, [
