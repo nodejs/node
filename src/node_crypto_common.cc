@@ -5,6 +5,7 @@
 #include "node_crypto_common.h"
 #include "node.h"
 #include "node_internals.h"
+#include "node_revert.h"
 #include "node_url.h"
 #include "string_bytes.h"
 #include "v8.h"
@@ -481,6 +482,44 @@ void AddFingerprintDigest(
   }
 }
 
+// deprecated, only used for security revert
+bool SafeX509ExtPrint(const BIOPointer& out, X509_EXTENSION* ext) {
+  const X509V3_EXT_METHOD* method = X509V3_EXT_get(ext);
+
+  if (method != X509V3_EXT_get_nid(NID_subject_alt_name))
+    return false;
+
+  GENERAL_NAMES* names = static_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(ext));
+  if (names == nullptr)
+    return false;
+
+  for (int i = 0; i < sk_GENERAL_NAME_num(names); i++) {
+    GENERAL_NAME* gen = sk_GENERAL_NAME_value(names, i);
+
+    if (i != 0)
+      BIO_write(out.get(), ", ", 2);
+
+    if (gen->type == GEN_DNS) {
+      ASN1_IA5STRING* name = gen->d.dNSName;
+
+      BIO_write(out.get(), "DNS:", 4);
+      BIO_write(out.get(), name->data, name->length);
+    } else {
+      STACK_OF(CONF_VALUE)* nval = i2v_GENERAL_NAME(
+          const_cast<X509V3_EXT_METHOD*>(method), gen, nullptr);
+      if (nval == nullptr) {
+        sk_GENERAL_NAME_pop_free(names, GENERAL_NAME_free);
+        return false;
+      }
+      X509V3_EXT_val_prn(out.get(), nval, 0, 0);
+      sk_CONF_VALUE_pop_free(nval, X509V3_conf_free);
+    }
+  }
+  sk_GENERAL_NAME_pop_free(names, GENERAL_NAME_free);
+
+  return true;
+}
+
 static inline bool IsSafeAltName(const char* name, size_t length, bool utf8) {
   for (size_t i = 0; i < length; i++) {
     char c = name[i];
@@ -705,6 +744,10 @@ bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext) {
   const X509V3_EXT_METHOD* method = X509V3_EXT_get(ext);
   CHECK(method == X509V3_EXT_get_nid(NID_subject_alt_name));
 
+  if (IsReverted(SECURITY_REVERT_CVE_2021_44532)) {
+    return  SafeX509ExtPrint(out, ext);
+  }
+
   GENERAL_NAMES* names = static_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(ext));
   if (names == nullptr)
     return false;
@@ -729,6 +772,10 @@ bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext) {
 bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext) {
   const X509V3_EXT_METHOD* method = X509V3_EXT_get(ext);
   CHECK(method == X509V3_EXT_get_nid(NID_info_access));
+
+  if (IsReverted(SECURITY_REVERT_CVE_2021_44532)) {
+    return (X509V3_EXT_print(out.get(), ext, 0, 0) == 1);
+  }
 
   AUTHORITY_INFO_ACCESS* descs =
       static_cast<AUTHORITY_INFO_ACCESS*>(X509V3_EXT_d2i(ext));
