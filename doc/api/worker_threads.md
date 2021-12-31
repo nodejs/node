@@ -47,7 +47,7 @@ if (isMainThread) {
 }
 ```
 
-The above example spawns a Worker thread for each `parse()` call. In actual
+The above example spawns a Worker thread for each `parseJSAsync()` call. In
 practice, use a pool of Workers for these kinds of tasks. Otherwise, the
 overhead of creating Workers would likely exceed their benefit.
 
