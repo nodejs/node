@@ -72,17 +72,17 @@ Fork the project [on GitHub](https://github.com/nodejs/node) and clone your fork
 locally.
 
 ```text
-$ git clone git@github.com:username/node.git
-$ cd node
-$ git remote add upstream https://github.com/nodejs/node.git
-$ git fetch upstream
+git clone git@github.com:username/node.git
+cd node
+git remote add upstream https://github.com/nodejs/node.git
+git fetch upstream
 ```
 
 Configure `git` so that it knows who you are:
 
 ```text
-$ git config user.name "J. Random User"
-$ git config user.email "j.random.user@example.com"
+git config user.name "J. Random User"
+git config user.email "j.random.user@example.com"
 ```
 
 You can use any name/email address you prefer here. We only use the
@@ -98,10 +98,10 @@ make sure this local email is also added to your
 
 As a best practice to keep your development environment as organized as
 possible, create local branches to work within. These should also be created
-directly off of the `master` branch.
+directly off of the upstream default branch.
 
 ```text
-$ git checkout -b my-branch -t upstream/master
+git checkout -b my-branch -t upstream/HEAD
 ```
 
 ## The process of making changes
@@ -149,8 +149,8 @@ commits any single pull request may have, and many contributors find it easier
 to review changes that are split across multiple commits.
 
 ```text
-$ git add my/changed/files
-$ git commit
+git add my/changed/files
+git commit
 ```
 
 Multiple commits often get squashed when they are landed. See the
@@ -219,12 +219,11 @@ to use `git rebase` (not `git merge`) to synchronize your work with the main
 repository.
 
 ```text
-$ git fetch upstream
-$ git rebase upstream/master
+git fetch upstream HEAD
+git rebase FETCH_HEAD
 ```
 
-This ensures that your working branch has the latest changes from `nodejs/node`
-master.
+This ensures that your working branch has the latest changes from `nodejs/node`.
 
 ### Step 6: Test
 
@@ -242,7 +241,7 @@ Before submitting your changes in a pull request, always run the full Node.js
 test suite. To run the tests (including code linting) on Unix / macOS:
 
 ```text
-$ ./configure && make -j4 test
+./configure && make -j4 test
 ```
 
 And on Windows:
@@ -262,7 +261,7 @@ begin the process of opening a pull request by pushing your working branch to
 your fork on GitHub.
 
 ```text
-$ git push origin my-branch
+git push origin my-branch
 ```
 
 ### Step 8: Opening the pull request
@@ -291,18 +290,18 @@ branch, add a new commit with those changes, and push those to your fork.
 GitHub will automatically update the pull request.
 
 ```text
-$ git add my/changed/files
-$ git commit
-$ git push origin my-branch
+git add my/changed/files
+git commit
+git push origin my-branch
 ```
 
-It is also frequently necessary to synchronize your pull request with other
-changes that have landed in `master` by using `git rebase`:
+If a git conflict arises, it is necessary to synchronize your branch with other
+changes that have landed upstream by using `git rebase`:
 
 ```text
-$ git fetch --all
-$ git rebase upstream/master
-$ git push --force-with-lease origin my-branch
+git fetch upstream HEAD
+git rebase FETCH_HEAD
+git push --force-with-lease origin my-branch
 ```
 
 **Important:** The `git push --force-with-lease` command is one of the few ways
@@ -349,10 +348,10 @@ your pull request waiting longer than you expect, see the
 
 When a collaborator lands your pull request, they will post
 a comment to the pull request page mentioning the commit(s) it
-landed as. GitHub often shows the pull request as `Closed` at this
+landed as. GitHub might show the pull request as `Closed` at this
 point, but don't worry. If you look at the branch you raised your
-pull request against (probably `master`), you should see a commit with
-your name on it. Congratulations and thanks for your contribution!
+pull request against, you should see a commit with your name on it.
+Congratulations and thanks for your contribution!
 
 ## Reviewing pull requests
 
@@ -535,7 +534,7 @@ For the size of "one logical change",
 [0b5191f](https://github.com/nodejs/node/commit/0b5191f15d0f311c804d542b67e2e922d98834f8)
 can be a good example. It touches the implementation, the documentation,
 and the tests, but is still one logical change. All tests should always pass
-when each individual commit lands on the master branch.
+when each individual commit lands on one of the `nodejs/node` branches.
 
 ### Getting approvals for your pull request
 
