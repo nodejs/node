@@ -1,12 +1,11 @@
 import '../common/index.mjs';
-import { path } from '../common/fixtures.mjs';
 import { ok } from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
 
 const child = spawn(execPath, [
   '--experimental-json-modules',
-  path('/es-modules/import-json-named-export.mjs'),
+  './test/fixtures/es-modules/import-json-named-export.mjs',
 ]);
 
 let stderr = '';
