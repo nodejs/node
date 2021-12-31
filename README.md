@@ -310,8 +310,6 @@ For information about the governance of the Node.js project, see
   **Daniel Bevenius** <<daniel.bevenius@gmail.com>> (he/him)
 * [danielleadams](https://github.com/danielleadams) -
   **Danielle Adams** <<adamzdanielle@gmail.com>> (she/her)
-* [davisjam](https://github.com/davisjam) -
-  **Jamie Davis** <<davisjam@vt.edu>> (he/him)
 * [DerekNonGeneric](https://github.com/DerekNonGeneric) -
   **Derek Lewis** <<DerekNonGeneric@inf.is>> (he/him)
 * [devnexen](https://github.com/devnexen) -
@@ -486,6 +484,8 @@ For information about the governance of the Node.js project, see
   **Claudio Rodriguez** <<cjrodr@yahoo.com>>
 * [DavidCai1993](https://github.com/DavidCai1993) -
   **David Cai** <<davidcai1993@yahoo.com>> (he/him)
+* [davisjam](https://github.com/davisjam) -
+  **Jamie Davis** <<davisjam@vt.edu>> (he/him)
 * [digitalinfinity](https://github.com/digitalinfinity) -
   **Hitesh Kanwathirtha** <<digitalinfinity@gmail.com>> (he/him)
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
