@@ -17,8 +17,11 @@ child.stderr.on('data', (data) => {
   stderr += data;
 });
 child.on('close', () => {
-  ok(stderr.includes(
-    'DeprecationWarning: Obsolete loader hook(s) supplied and will be ' +
-    'ignored: dynamicInstantiate, getFormat, getSource, transformSource'
-  ) || console.error(stderr));
+  // DeprecationWarning: Obsolete loader hook(s) supplied and will be ignored:
+  // dynamicInstantiate, getFormat, getSource, transformSource
+  ok(stderr.includes('DeprecationWarning:') || console.error(stderr));
+  ok(stderr.includes('dynamicInstantiate') || console.error(stderr));
+  ok(stderr.includes('getFormat') || console.error(stderr));
+  ok(stderr.includes('getSource') || console.error(stderr));
+  ok(stderr.includes('transformSource') || console.error(stderr));
 });
