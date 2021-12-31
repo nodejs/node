@@ -16,6 +16,6 @@ child.stderr.on('data', (data) => {
   stderr += data;
 });
 child.on('close', () => {
-  ok(stderr.includes('SyntaxError:'));
-  ok(!stderr.includes('Bad command or file name'));
+  ok(stderr.includes('SyntaxError:') || console.error(stderr));
+  ok(!stderr.includes('Bad command or file name') || console.error(stderr));
 });

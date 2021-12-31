@@ -21,5 +21,5 @@ child.on('close', () => {
   ok(stderr.includes(
     'DeprecationWarning: Obsolete loader hook(s) supplied and will be ' +
     'ignored: dynamicInstantiate, getFormat, getSource, transformSource'
-  ));
+  ) || console.error(stderr));
 });
