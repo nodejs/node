@@ -843,7 +843,7 @@ def pkg_config(pkg):
     except OSError as e:
       if e.errno != errno.ENOENT: raise e  # Unexpected error.
       return (None, None, None, None)  # No pkg-config/pkgconf installed.
-    retval += [val]
+    retval.append(val)
     args = ['--silence-errors']
   return tuple(retval)
 
