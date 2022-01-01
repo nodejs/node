@@ -22,6 +22,13 @@ async function runTests() {
   test_reference.deleteReference();
 
   (() => {
+    const symbol = test_reference.createToStringTagSymbol();
+    test_reference.createReference(symbol, 0);
+    assert.strictEqual(test_reference.referenceValue, symbol);
+  })();
+  test_reference.deleteReference();
+
+  (() => {
     const value = test_reference.createExternal();
     assert.strictEqual(test_reference.finalizeCount, 0);
     assert.strictEqual(typeof value, 'object');

@@ -35,12 +35,10 @@ assert.ok(!propertyNames.includes('readwriteAccessor2'));
 assert.ok(!propertyNames.includes('readonlyAccessor1'));
 assert.ok(!propertyNames.includes('readonlyAccessor2'));
 
-// Validate property created with symbol
-const start = 'Symbol('.length;
-const end = start + 'NameKeySymbol'.length;
-const symbolDescription =
-    String(Object.getOwnPropertySymbols(test_object)[0]).slice(start, end);
-assert.strictEqual(symbolDescription, 'NameKeySymbol');
+// Validate properties created with symbol
+const propertySymbols = Object.getOwnPropertySymbols(test_object);
+assert.strictEqual(String(propertySymbols[0]), 'Symbol(NameKeySymbol)');
+assert.strictEqual(String(propertySymbols[1]), 'Symbol(Symbol.toStringTag)');
 
 // The napi_writable attribute should be ignored for accessors.
 const readwriteAccessor1Descriptor =

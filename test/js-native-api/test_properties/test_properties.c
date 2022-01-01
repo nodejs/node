@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <js_native_api.h>
 #include "../common.h"
 
@@ -77,6 +78,10 @@ napi_value Init(napi_env env, napi_value exports) {
   NODE_API_CALL(env,
       napi_create_symbol(env, symbol_description, &name_symbol));
 
+  napi_value to_string_tag_symbol;
+  NODE_API_CALL(env,
+      napi_get_symbol_to_string_tag(env, &to_string_tag_symbol));
+
   napi_property_descriptor properties[] = {
     { "echo", 0, Echo, 0, 0, 0, napi_enumerable, 0 },
     { "readwriteValue", 0, 0, 0, 0, number, napi_enumerable | napi_writable, 0 },
@@ -84,6 +89,7 @@ napi_value Init(napi_env env, napi_value exports) {
     { "hiddenValue", 0, 0, 0, 0, number, napi_default, 0},
     { NULL, name_value, 0, 0, 0, number, napi_enumerable, 0},
     { NULL, name_symbol, 0, 0, 0, number, napi_enumerable, 0},
+    { NULL, to_string_tag_symbol, 0, 0, 0, number, napi_enumerable, 0},
     { "readwriteAccessor1", 0, 0, GetValue, SetValue, 0, napi_default, 0},
     { "readwriteAccessor2", 0, 0, GetValue, SetValue, 0, napi_writable, 0},
     { "readonlyAccessor1", 0, 0, GetValue, NULL, 0, napi_default, 0},

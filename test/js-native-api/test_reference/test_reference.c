@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <stdlib.h>
 #include <assert.h>
 #include <js_native_api.h>
@@ -46,6 +47,12 @@ static napi_value CreateSymbol(napi_env env, napi_callback_info info) {
     napi_value result_symbol;
     
     NODE_API_CALL(env, napi_create_symbol(env, args[0], &result_symbol));
+    return result_symbol;
+}
+
+static napi_value CreateToStringTagSymbol(napi_env env, napi_callback_info info) {
+    napi_value result_symbol;
+    NODE_API_CALL(env, napi_get_symbol_to_string_tag(env, &result_symbol));
     return result_symbol;
 }
 
@@ -190,6 +197,7 @@ napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NODE_API_PROPERTY("checkExternal", CheckExternal),
     DECLARE_NODE_API_PROPERTY("createReference", CreateReference),
     DECLARE_NODE_API_PROPERTY("createSymbol", CreateSymbol),
+    DECLARE_NODE_API_PROPERTY("createToStringTagSymbol", CreateToStringTagSymbol),
     DECLARE_NODE_API_PROPERTY("deleteReference", DeleteReference),
     DECLARE_NODE_API_PROPERTY("incrementRefcount", IncrementRefcount),
     DECLARE_NODE_API_PROPERTY("decrementRefcount", DecrementRefcount),

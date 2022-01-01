@@ -1662,6 +1662,17 @@ napi_status napi_create_symbol(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status napi_get_symbol_to_string_tag(napi_env env,
+                                          napi_value* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, result);
+
+  *result = v8impl::JsValueFromV8LocalValue(
+      v8::Symbol::GetToStringTag(env->isolate));
+
+  return napi_clear_last_error(env);
+}
+
 static inline napi_status set_error_code(napi_env env,
                                          v8::Local<v8::Value> error,
                                          napi_value code,

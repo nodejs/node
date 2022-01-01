@@ -93,6 +93,10 @@ NAPI_EXTERN napi_status napi_create_string_utf16(napi_env env,
 NAPI_EXTERN napi_status napi_create_symbol(napi_env env,
                                            napi_value description,
                                            napi_value* result);
+#ifdef NAPI_EXPERIMENTAL
+NAPI_EXTERN napi_status napi_get_symbol_to_string_tag(napi_env env,
+                                                      napi_value* result);
+#endif  // NAPI_EXPERIMENTAL
 NAPI_EXTERN napi_status napi_create_function(napi_env env,
                                              const char* utf8name,
                                              size_t length,

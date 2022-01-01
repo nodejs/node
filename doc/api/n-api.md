@@ -2492,6 +2492,30 @@ This API creates a JavaScript `symbol` value from a UTF8-encoded C string.
 The JavaScript `symbol` type is described in [Section 19.4][]
 of the ECMAScript Language Specification.
 
+#### `napi_get_symbol_to_string_tag`
+
+<!-- YAML
+added: REPLACEME
+napiVersion: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status napi_get_symbol_to_string_tag(napi_env env,
+                                          napi_value* result)
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[out] result`: A `napi_value` representing a JavaScript `symbol`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API returns the JavaScript well-known symbol, `Symbol.toStringTag`.
+
+The JavaScript `symbol` type is described in [Section 19.4][]
+of the ECMAScript Language Specification.
+
 #### `napi_create_typedarray`
 
 <!-- YAML

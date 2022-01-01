@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <js_native_api.h>
 #include "../common.h"
 
@@ -23,10 +24,17 @@ static napi_value New(napi_env env, napi_callback_info info) {
   return symbol;
 }
 
+static napi_value ToStringTag(napi_env env, napi_callback_info info) {
+  napi_value symbol;
+  NODE_API_CALL(env, napi_get_symbol_to_string_tag(env, &symbol));
+  return symbol;
+}
+
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
     DECLARE_NODE_API_PROPERTY("New", New),
+    DECLARE_NODE_API_PROPERTY("ToStringTag", ToStringTag),
   };
 
   NODE_API_CALL(env, napi_define_properties(
