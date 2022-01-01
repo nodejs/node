@@ -1643,7 +1643,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
   env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
                                               initial_heap_limit);
 
-  heap::WriteSnapshot(env->isolate(), filename.c_str());
+  heap::WriteSnapshot(env, filename.c_str());
   env->heap_limit_snapshot_taken_ += 1;
 
   // Don't take more snapshots than the number specified by
