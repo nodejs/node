@@ -211,6 +211,17 @@ module.exports = {
                         }
                     }
 
+                // For https://github.com/eslint/eslint/issues/15123
+                } else if (
+                    parent.type === "Property" &&
+                    parent.parent.type === "ObjectExpression" &&
+                    parent.key === node &&
+                    !parent.computed
+                ) {
+                    if (checkProperties && isInvalid(name)) {
+                        report(node);
+                    }
+
                 /*
                  * Properties have their own rules, and
                  * AssignmentPattern nodes can be treated like Properties:
