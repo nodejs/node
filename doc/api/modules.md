@@ -70,9 +70,7 @@ The module system is implemented in the `require('module')` module.
 Node.js treats JavaScript code as CommonJS modules by default.
 Authors can tell Node.js to treat JavaScript code as CommonJS modules
 via the `.cjs` file extension, the `package.json` [`"type"`][] field, or the
-`--input-type` flag. See
-[Determining module system](packages.md#determining-module-system) for more
-details.
+[`--input-type`][] flag. See [Determining module system][] for more details.
 
 ## Accessing the main module
 
@@ -1059,6 +1057,7 @@ This section was moved to
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
 [`"type"`]: packages.md#type
+[`--input-type`]: cli.md#--input-typetype
 [`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
 [`Error`]: errors.md#class-error
 [`__dirname`]: #__dirname
