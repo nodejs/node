@@ -1,6 +1,6 @@
 {
   "name": "@babel/helper-validator-identifier",
-  "version": "7.15.7",
+  "version": "7.16.7",
   "description": "Validate identifier/keywords name",
   "repository": {
     "type": "git",
@@ -12,7 +12,10 @@
     "access": "public"
   },
   "main": "./lib/index.js",
-  "exports": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
   "devDependencies": {
     "@unicode/unicode-14.0.0": "^1.2.1",
     "charcodes": "^0.2.0"

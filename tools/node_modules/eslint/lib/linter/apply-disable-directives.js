@@ -43,7 +43,7 @@ function groupByParentComment(directives) {
  * Creates removal details for a set of directives within the same comment.
  * @param {Directive[]} directives Unused directives to be removed.
  * @param {Token} commentToken The backing Comment token.
- * @returns {{ description, fix, position }[]} Details for later creation of output Problems.
+ * @returns {{ description, fix, unprocessedDirective }[]} Details for later creation of output Problems.
  */
 function createIndividualDirectivesRemoval(directives, commentToken) {
 
@@ -138,7 +138,7 @@ function createIndividualDirectivesRemoval(directives, commentToken) {
                 ],
                 text: ""
             },
-            position: directive.unprocessedDirective
+            unprocessedDirective: directive.unprocessedDirective
         };
     });
 }
@@ -147,7 +147,7 @@ function createIndividualDirectivesRemoval(directives, commentToken) {
  * Creates a description of deleting an entire unused disable comment.
  * @param {Directive[]} directives Unused directives to be removed.
  * @param {Token} commentToken The backing Comment token.
- * @returns {{ description, fix, position }} Details for later creation of an output Problem.
+ * @returns {{ description, fix, unprocessedDirective }} Details for later creation of an output Problem.
  */
 function createCommentRemoval(directives, commentToken) {
     const { range } = commentToken;
@@ -161,14 +161,14 @@ function createCommentRemoval(directives, commentToken) {
             range,
             text: " "
         },
-        position: directives[0].unprocessedDirective
+        unprocessedDirective: directives[0].unprocessedDirective
     };
 }
 
 /**
  * Parses details from directives to create output Problems.
  * @param {Directive[]} allDirectives Unused directives to be removed.
- * @returns {{ description, fix, position }[]} Details for later creation of output Problems.
+ * @returns {{ description, fix, unprocessedDirective }[]} Details for later creation of output Problems.
  */
 function processUnusedDisableDirectives(allDirectives) {
     const directiveGroups = groupByParentComment(allDirectives);
@@ -261,17 +261,21 @@ function applyDirectives(options) {
     const processed = processUnusedDisableDirectives(unusedDisableDirectivesToReport);
 
     const unusedDisableDirectives = processed
-        .map(({ description, fix, position }) => ({
-            ruleId: null,
-            message: description
-                ? `Unused eslint-disable directive (no problems were reported from ${description}).`
-                : "Unused eslint-disable directive (no problems were reported).",
-            line: position.line,
-            column: position.column,
-            severity: options.reportUnusedDisableDirectives === "warn" ? 1 : 2,
-            nodeType: null,
-            ...options.disableFixes ? {} : { fix }
-        }));
+        .map(({ description, fix, unprocessedDirective }) => {
+            const { parentComment, type, line, column } = unprocessedDirective;
+
+            return {
+                ruleId: null,
+                message: description
+                    ? `Unused eslint-disable directive (no problems were reported from ${description}).`
+                    : "Unused eslint-disable directive (no problems were reported).",
+                line: type === "disable-next-line" ? parentComment.commentToken.loc.start.line : line,
+                column: type === "disable-next-line" ? parentComment.commentToken.loc.start.column + 1 : column,
+                severity: options.reportUnusedDisableDirectives === "warn" ? 1 : 2,
+                nodeType: null,
+                ...options.disableFixes ? {} : { fix }
+            };
+        });
 
     return { problems, unusedDisableDirectives };
 }

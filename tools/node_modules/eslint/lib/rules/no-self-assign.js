@@ -174,7 +174,7 @@ module.exports = {
 
         return {
             AssignmentExpression(node) {
-                if (node.operator === "=") {
+                if (["=", "&&=", "||=", "??="].includes(node.operator)) {
                     eachSelfAssignment(node.left, node.right, props, report);
                 }
             }
