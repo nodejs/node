@@ -14,12 +14,6 @@ import shutil
 import bz2
 import io
 
-# Fallback to find_executable from distutils.spawn is a stopgap for
-# supporting V8 builds, which do not yet support Python 3.
-try:
-  from shutil import which
-except ImportError:
-  from distutils.spawn import find_executable as which
 from distutils.version import StrictVersion
 
 # If not run from node/, cd to node/.
@@ -1864,7 +1858,7 @@ def make_bin_override():
   # sys.executable. This directory will be prefixed to the PATH, so that
   # other tools that shell out to `python` will use the appropriate python
 
-  which_python = which('python')
+  which_python = shutil.which('python')
   if (which_python and
       os.path.realpath(which_python) == os.path.realpath(sys.executable)):
     return
