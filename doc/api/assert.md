@@ -1149,7 +1149,7 @@ changes:
                  Legacy.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
-    description: NaN is now treated as being identical if sides are
+    description: NaN is now treated as being identical if both sides are
                  NaN.
 -->
 
