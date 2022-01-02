@@ -133,10 +133,13 @@ relative, and based on the real path of the files making the calls to
 
 ## The `.mjs` extension
 
-It is not possible to `require()` files that have the `.mjs` extension.
-Attempting to do so will throw [an error][]. The `.mjs` extension is
-reserved for [ECMAScript Modules][] which cannot be loaded via `require()`.
-See [ECMAScript Modules][] for more details.
+Due to the synchronous nature of `require()`, it is not possible to use it to
+load ECMAScript module files. Attempting to do so will throw a
+[`ERR_REQUIRE_ESM`][] error. Use [`import()`][] instead.
+
+The `.mjs` extension is reserved for [ECMAScript Modules][] which cannot be
+loaded via `require()`. See [Determining module system][] section for more info
+regarding which files are parsed as ECMAScript modules.
 
 ## All together...
 
@@ -373,11 +376,15 @@ correctly within an application.
 
 If the exact filename is not found, then Node.js will attempt to load the
 required filename with the added extensions: `.js`, `.json`, and finally
-`.node`.
+`.node`. When loading a file that has a different extension (e.g. `.cjs`), its
+full name must be passed to `require()`, including its file extension (e.g.
+`require('./file.cjs')`).
 
-`.js` files are interpreted as JavaScript text files, and `.json` files are
-parsed as JSON text files. `.node` files are interpreted as compiled addon
-modules loaded with `process.dlopen()`.
+`.json` files are parsed as JSON text files, `.node` files are interpreted as
+compiled addon modules loaded with `process.dlopen()`. Files using any other
+extension (or no extension at all) are parsed as JavaScript text files. Refer to
+the [Determining module system][] section to understand what parse goal will be
+used.
 
 A required module prefixed with `'/'` is an absolute path to the file. For
 example, `require('/home/marco/foo.js')` will load the file at
@@ -1032,19 +1039,21 @@ This section was moved to
   * <a id="modules_sourcemap_payload" href="module.html#sourcemappayload">`sourceMap.payload`</a>
   * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#sourcemapfindentrylinenumber-columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
 
+[Determining module system]: packages.md#determining-module-system
 [ECMAScript Modules]: esm.md
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
+[`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
 [`Error`]: errors.md#class-error
 [`__dirname`]: #__dirname
 [`__filename`]: #__filename
+[`import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [`module.children`]: #modulechildren
 [`module.id`]: #moduleid
 [`module` object]: #the-module-object
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
 [`require.main`]: #requiremain
-[an error]: errors.md#err_require_esm
 [exports shortcut]: #exports-shortcut
 [module resolution]: #all-together
 [native addons]: addons.md
