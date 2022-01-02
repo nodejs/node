@@ -104,7 +104,7 @@ more on color support in terminal environments, read the tty
 
 ## Legacy assertion mode
 
-Legacy assertion mode uses the [Abstract Equality Comparison][] (`==`) in:
+Legacy assertion mode uses the `==` operator in:
 
 * [`assert.deepEqual()`][]
 * [`assert.equal()`][]
@@ -1166,7 +1166,7 @@ An alias of [`assert.strictEqual()`][].
 > Stability: 3 - Legacy: Use [`assert.strictEqual()`][] instead.
 
 Tests shallow, coercive equality between the `actual` and `expected` parameters
-using the [Abstract Equality Comparison][] (`==`). `NaN` is specially handled
+using the `==` operator. `NaN` is specially handled
 and treated as being identical if both sides are `NaN`.
 
 ```mjs
@@ -1684,8 +1684,8 @@ An alias of [`assert.notStrictEqual()`][].
 
 > Stability: 3 - Legacy: Use [`assert.notStrictEqual()`][] instead.
 
-Tests shallow, coercive inequality with the [Abstract Equality Comparison][]
-(`!=`). `NaN` is specially handled and treated as being identical in case both
+Tests shallow, coercive inequality with the
+`!=`. `NaN` is specially handled and treated as being identical in case both
 sides are `NaN`.
 
 ```mjs
@@ -2445,7 +2445,6 @@ assert.throws(throwingFirst, /Second$/);
 Due to the confusing error-prone notation, avoid a string as the second
 argument.
 
-[Abstract Equality Comparison]: https://262.ecma-international.org/#sec-abstract-equality-comparison
 [Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
 [SameValue Comparison]: https://tc39.github.io/ecma262/#sec-samevalue
