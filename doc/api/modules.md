@@ -442,7 +442,7 @@ Error: Cannot find module 'some-library'
 
 In all three above cases, an `import('./some-library')` call would result in a
 [`ERR_UNSUPPORTED_DIR_IMPORT`][] error. Using package [subpath exports][] or
-[subpath imports][] can provide the same containment organisation benefits as
+[subpath imports][] can provide the same containment organization benefits as
 folders as modules, and work for both `require` and `import`.
 
 ## Loading from `node_modules` folders
