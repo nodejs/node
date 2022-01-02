@@ -2480,4 +2480,3 @@ argument.
 [`tracker.verify()`]: #trackerverify
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
-[strict assertion mode]: #strict-assertion-mode
