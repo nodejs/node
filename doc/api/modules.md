@@ -61,7 +61,18 @@ module.exports = class Square {
 };
 ```
 
-The module system is implemented in the `require('module')` module.
+The CommonJS module system is implemented in the [`module` core module][].
+
+## Enabling
+
+<!-- type=misc -->
+
+Node.js has two module systems: CommonJS modules and [ECMAScript modules][].
+
+Authors can tell Node.js to use the ECMAScript modules loader
+via the `.mjs` file extension, the `package.json` [`"type"`][] field, or the
+[`--input-type`][] flag. Outside of those cases, Node.js will use the CommonJS
+module loader. See [Determining module system][] for more details.
 
 ## Accessing the main module
 
@@ -1047,6 +1058,8 @@ This section was moved to
 [ECMAScript Modules]: esm.md
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
+[`"type"`]: packages.md#type
+[`--input-type`]: cli.md#--input-typetype
 [`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
 [`Error`]: errors.md#class-error
 [`__dirname`]: #__dirname
@@ -1054,6 +1067,7 @@ This section was moved to
 [`import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [`module.children`]: #modulechildren
 [`module.id`]: #moduleid
+[`module` core module]: module.md
 [`module` object]: #the-module-object
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath

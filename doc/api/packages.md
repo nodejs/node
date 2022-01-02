@@ -51,12 +51,13 @@ along with a reference for the [`package.json`][] fields defined by Node.js.
 ## Determining module system
 
 Node.js will treat the following as [ES modules][] when passed to `node` as the
-initial input, or when referenced by `import` statements within ES module code:
+initial input, or when referenced by `import` statements or `import()`
+expressions:
 
-* Files ending in `.mjs`.
+* Files whose name ends in `.mjs`.
 
-* Files ending in `.js` when the nearest parent `package.json` file contains a
-  top-level [`"type"`][] field with a value of `"module"`.
+* Files whose name ends in `.js` when the nearest parent `package.json` file
+  contains a top-level [`"type"`][] field with a value of `"module"`.
 
 * Strings passed in as an argument to `--eval`, or piped to `node` via `STDIN`,
   with the flag `--input-type=module`.
@@ -67,12 +68,12 @@ field, or string input without the flag `--input-type`. This behavior is to
 preserve backward compatibility. However, now that Node.js supports both
 CommonJS and ES modules, it is best to be explicit whenever possible. Node.js
 will treat the following as CommonJS when passed to `node` as the initial input,
-or when referenced by `import` statements within ES module code:
+or when referenced by `import` statements or `import()` expressions:
 
-* Files ending in `.cjs`.
+* Files whose name ends in `.cjs`.
 
-* Files ending in `.js` when the nearest parent `package.json` file contains a
-  top-level field [`"type"`][] with a value of `"commonjs"`.
+* Files whose name ends in `.js` when the nearest parent `package.json` file
+  contains a top-level field [`"type"`][] with a value of `"commonjs"`.
 
 * Strings passed in as an argument to `--eval` or `--print`, or piped to `node`
   via `STDIN`, with the flag `--input-type=commonjs`.
@@ -82,6 +83,23 @@ all sources are CommonJS. Being explicit about the `type` of the package will
 future-proof the package in case the default type of Node.js ever changes, and
 it will also make things easier for build tools and loaders to determine how the
 files in the package should be interpreted.
+
+Node.js will refuse to load the following when passed to `node` as the
+initial input and the nearest parent `package.json` file contains a top-level
+[`"type"`][] field with a value of `"module"`:
+
+* Files whose name doesn't end in `.js`, `.mjs`, `.cjs`, or `.wasm`.
+
+Passing to `node` as the initial input when the nearest parent `package.json`
+file contains a top-level [`"type"`][] field with a value of `"commonjs"`, or
+when referenced by `require()` calls:
+
+* Files whose name ends in `.node` are interpreted as
+  compiled addon modules loaded with `process.dlopen()`.
+
+* Files whose name ends in `.json` are parsed as JSON text files.
+
+* Any other files will be treated as a [CommonJS][] module.
 
 ### `package.json` and file extensions
 
