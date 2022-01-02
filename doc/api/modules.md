@@ -406,8 +406,8 @@ If the given path does not exist, `require()` will throw an [`Error`][] with its
 
 <!--type=misc-->
 
-It is convenient to organize programs and libraries into self-contained
-directories, and then provide a single entry point to those directories.
+> Stability: 3 - Legacy: Use [subpath exports][] or [subpath imports][] instead.
+
 There are three ways in which a folder may be passed to `require()` as
 an argument.
 
@@ -424,8 +424,6 @@ If this was in a folder at `./some-library`, then
 `require('./some-library')` would attempt to load
 `./some-library/lib/some-library.js`.
 
-This is the extent of the awareness of `package.json` files within Node.js.
-
 If there is no [`package.json`][] file present in the directory, or if the
 [`"main"`][] entry is missing or cannot be resolved, then Node.js
 will attempt to load an `index.js` or `index.node` file out of that
@@ -441,6 +439,11 @@ with the default error:
 ```console
 Error: Cannot find module 'some-library'
 ```
+
+In all three above cases, an `import('./some-library')` call would result in a
+[`ERR_UNSUPPORTED_DIR_IMPORT`][] error. Using package [subpath exports][] or
+[subpath imports][] can provide the same containment organisation benefits as
+folders as modules, and work for both `require` and `import`.
 
 ## Loading from `node_modules` folders
 
@@ -1048,6 +1051,7 @@ This section was moved to
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
 [`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
+[`ERR_UNSUPPORTED_DIR_IMPORT`]: errors.md#err_unsupported_dir_import
 [`Error`]: errors.md#class-error
 [`__dirname`]: #__dirname
 [`__filename`]: #__filename
@@ -1061,3 +1065,5 @@ This section was moved to
 [exports shortcut]: #exports-shortcut
 [module resolution]: #all-together
 [native addons]: addons.md
+[subpath exports]: packages.md#subpath-exports
+[subpath imports]: packages.md#subpath-imports
