@@ -379,7 +379,7 @@ correctly within an application.
 If the exact filename is not found, then Node.js will attempt to load the
 required filename with the added extensions: `.js`, `.json`, and finally
 `.node`. When loading a file that has a different extension (e.g. `.cjs`), its
-full name must be included, including its file extension (e.g.
+full name must be passed to `require()`, including its file extension (e.g.
 `require('./file.cjs')`).
 
 `.json` files are parsed as JSON text files, `.node` files are interpreted as
