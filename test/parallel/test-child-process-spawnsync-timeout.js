@@ -37,7 +37,7 @@ switch (process.argv[2]) {
       process.exit(1);
     }, SLEEP);
     break;
-  default:
+  default: {
     const start = Date.now();
     const ret = spawnSync(process.execPath, [__filename, 'child'],
                           { timeout: TIMER });
@@ -47,4 +47,5 @@ switch (process.argv[2]) {
     assert(end < SLEEP);
     assert(ret.status > 128 || ret.signal);
     break;
+  }
 }

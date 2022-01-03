@@ -236,7 +236,7 @@ function writeDNSPacket(parsed) {
         rdLengthBuf[0] = 16;
         buffers.push(writeIPv6(rr.address));
         break;
-      case 'TXT':
+      case 'TXT': {
         const total = rr.entries.map((s) => s.length).reduce((a, b) => a + b);
         // Total length of all strings + 1 byte each for their lengths.
         rdLengthBuf[0] = rr.entries.length + total;
@@ -245,6 +245,7 @@ function writeDNSPacket(parsed) {
           buffers.push(Buffer.from(txt));
         }
         break;
+      }
       case 'MX':
         rdLengthBuf[0] = 2;
         buffers.push(new Uint16Array([rr.priority]));

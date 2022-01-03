@@ -41,7 +41,7 @@ const cookies = [
 
 const s = http.createServer(common.mustCall((req, res) => {
   switch (test) {
-    case 'headers':
+    case 'headers': {
       // Check that header-related functions work before setting any headers
       const headers = res.getHeaders();
       const exoticObj = Object.create(null);
@@ -141,7 +141,7 @@ const s = http.createServer(common.mustCall((req, res) => {
       assert.strictEqual(res.hasHeader('X-TEST-HEADER2'), false);
       assert.strictEqual(res.hasHeader('X-Test-Header2'), false);
       break;
-
+    }
     case 'contentLength':
       res.setHeader('content-length', content.length);
       assert.strictEqual(res.getHeader('Content-Length'), content.length);
