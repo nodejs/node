@@ -75,9 +75,7 @@ For a file `foo.js`, this will be `true` if run via `node foo.js`, but
 `false` if run by `require('./foo')`.
 
 When the entry point is not a CommonJS module, `require.main` is `undefined`,
-and the main module is out of reach. You can try to make assumptions based on
-`process.cwd()` and `process.argv[1]` values to figure out the entry point of
-the current application.
+and the main module is out of reach.
 
 ## Package manager tips
 
