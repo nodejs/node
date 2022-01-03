@@ -6,5 +6,5 @@ if (!process.env.HAS_STARTED_WORKER) {
   new Worker(new URL(import.meta.url));
   await new Promise(() => {});
 } else {
-  process.exit()
+  process.exit();
 }
