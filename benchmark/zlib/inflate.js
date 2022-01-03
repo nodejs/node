@@ -16,7 +16,7 @@ function main({ n, method, inputLen }) {
   let i = 0;
   switch (method) {
     // Performs `n` single inflate operations
-    case 'inflate':
+    case 'inflate': {
       const inflate = zlib.inflate;
       bench.start();
       (function next(err, result) {
@@ -25,14 +25,16 @@ function main({ n, method, inputLen }) {
         inflate(chunk, next);
       })();
       break;
+    }
     // Performs `n` single inflateSync operations
-    case 'inflateSync':
+    case 'inflateSync': {
       const inflateSync = zlib.inflateSync;
       bench.start();
       for (; i < n; ++i)
         inflateSync(chunk);
       bench.end(n);
       break;
+    }
     default:
       throw new Error('Unsupported inflate method');
   }

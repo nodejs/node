@@ -14,13 +14,14 @@ switch (arg) {
     new async_hooks.AsyncResource(`${arg}_type`);
     return;
 
-  case 'test_callback':
+  case 'test_callback': {
     initHooks({
       onbefore: common.mustCall(() => { throw new Error(arg); })
     }).enable();
     const resource = new async_hooks.AsyncResource(`${arg}_type`);
     resource.runInAsyncScope(() => {});
     return;
+  }
 
   case 'test_callback_abort':
     initHooks({
