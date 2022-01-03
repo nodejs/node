@@ -35,10 +35,11 @@ function test(res, code, key, value) {
 
 const server = http.createServer((req, res) => {
   switch (count++) {
-    case 0:
+    case 0: {
       const loc = url.parse(req.url, true).query.lang;
       test(res, 302, 'Location', `/foo?lang=${loc}`);
       break;
+    }
     case 1:
       test(res, 200, 'foo', x);
       break;
