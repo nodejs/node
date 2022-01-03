@@ -77,7 +77,7 @@ function test(keyPath, certPath, check, next) {
     serverStdoutBuffer += s;
     console.log(state);
     switch (state) {
-      case 'WAIT-ACCEPT':
+      case 'WAIT-ACCEPT': {
         const matches = serverStdoutBuffer.match(/ACCEPT .*?:(\d+)/);
         if (matches) {
           const port = matches[1];
@@ -85,7 +85,7 @@ function test(keyPath, certPath, check, next) {
           startClient(port);
         }
         break;
-
+      }
       case 'WAIT-HELLO':
         if (/hello/.test(serverStdoutBuffer)) {
 

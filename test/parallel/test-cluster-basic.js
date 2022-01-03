@@ -126,7 +126,7 @@ if (cluster.isWorker) {
           assert.strictEqual(arguments.length, 2);
           break;
 
-        case 'listening':
+        case 'listening': {
           assert.strictEqual(arguments.length, 1);
           assert.strictEqual(Object.keys(arguments[0]).length, 4);
           assert.strictEqual(arguments[0].address, '127.0.0.1');
@@ -138,7 +138,7 @@ if (cluster.isWorker) {
           assert(port >= 1);
           assert(port <= 65535);
           break;
-
+        }
         default:
           assert.strictEqual(arguments.length, 0);
           break;

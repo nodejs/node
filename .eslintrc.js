@@ -175,6 +175,7 @@ module.exports = {
     }],
     'new-parens': 'error',
     'no-async-promise-executor': 'error',
+    'no-case-declarations': 'error',
     'no-class-assign': 'error',
     'no-confusing-arrow': 'error',
     'no-const-assign': 'error',
