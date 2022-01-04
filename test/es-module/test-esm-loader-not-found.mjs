@@ -1,6 +1,6 @@
 import '../common/index.mjs';
 import { fileURL } from '../common/fixtures.mjs';
-import { ok } from 'assert';
+import { match, ok } from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
 
@@ -18,8 +18,8 @@ child.stderr.on('data', (data) => {
 child.on('close', () => {
   // Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'i-dont-exist'
   // imported from
-  ok(stderr.includes('ERR_MODULE_NOT_FOUND') || console.error(stderr));
-  ok(stderr.includes('\'i-dont-exist\'') || console.error(stderr));
+  match(stderr, /ERR_MODULE_NOT_FOUND/);
+  match(stderr, /'i-dont-exist'/);
 
-  ok(!stderr.includes('Bad command or file name') || console.error(stderr));
+  ok(!stderr.includes('Bad command or file name'));
 });

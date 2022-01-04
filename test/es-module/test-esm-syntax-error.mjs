@@ -1,6 +1,6 @@
 import '../common/index.mjs';
 import { path } from '../common/fixtures.mjs';
-import { ok } from 'assert';
+import { match } from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
 
@@ -14,5 +14,5 @@ child.stderr.on('data', (data) => {
   stderr += data;
 });
 child.on('close', () => {
-  ok(stderr.includes('SyntaxError:') || console.error(stderr));
+  match(stderr, /SyntaxError:/);
 });

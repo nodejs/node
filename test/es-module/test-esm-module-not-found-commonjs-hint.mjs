@@ -1,6 +1,6 @@
 import '../common/index.mjs';
 import { fixturesDir } from '../common/fixtures.mjs';
-import { ok } from 'assert';
+import { match } from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
 
@@ -8,11 +8,11 @@ import { execPath } from 'process';
   {
     input: 'import "./print-error-message"',
     // Did you mean to import ../print-error-message.js?
-    expected: ' ../print-error-message.js?'
+    expected: / \.\.\/print-error-message\.js\?/,
   },
   {
     input: 'import obj from "some_module/obj"',
-    expected: ' some_module/obj.js?'
+    expected: / some_module\/obj\.js\?/,
   },
 ].forEach(({ input, expected }) => {
   const child = spawn(execPath, [
@@ -29,6 +29,6 @@ import { execPath } from 'process';
     stderr += data;
   });
   child.on('close', () => {
-    ok(stderr.includes(expected) || console.error(stderr));
+    match(stderr, expected);
   });
 });

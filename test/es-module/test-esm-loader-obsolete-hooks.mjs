@@ -1,6 +1,6 @@
 import '../common/index.mjs';
 import { fileURL, path } from '../common/fixtures.mjs';
-import { ok } from 'assert';
+import { match } from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
 
@@ -20,9 +20,9 @@ child.stderr.on('data', (data) => {
 child.on('close', () => {
   // DeprecationWarning: Obsolete loader hook(s) supplied and will be ignored:
   // dynamicInstantiate, getFormat, getSource, transformSource
-  ok(stderr.includes('DeprecationWarning:') || console.error(stderr));
-  ok(stderr.includes('dynamicInstantiate') || console.error(stderr));
-  ok(stderr.includes('getFormat') || console.error(stderr));
-  ok(stderr.includes('getSource') || console.error(stderr));
-  ok(stderr.includes('transformSource') || console.error(stderr));
+  match(stderr, /DeprecationWarning:/);
+  match(stderr, /dynamicInstantiate/);
+  match(stderr, /getFormat/);
+  match(stderr, /getSource/);
+  match(stderr, /transformSource/);
 });
