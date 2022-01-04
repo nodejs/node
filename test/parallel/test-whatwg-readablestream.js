@@ -91,22 +91,22 @@ const {
   r1.cancel().finally(common.mustCall(() => {
     const controllerState = r1[kState].controller[kState];
 
-    assert.deepEqual(controllerState.pullAlgorithm, undefined)
-    assert.deepEqual(controllerState.cancelAlgorithm, undefined)
-    assert.deepEqual(controllerState.sizeAlgorithm, undefined)
+    assert.strictEqual(controllerState.pullAlgorithm, undefined);
+    assert.strictEqual(controllerState.cancelAlgorithm, undefined);
+    assert.strictEqual(controllerState.sizeAlgorithm, undefined);
   })).catch(() => {});
 
   const r2 = new ReadableStream({
     cancel() {
-      throw Error('Cancel Error');
+      throw new Error('Cancel Error');
     }
   });
   r2.cancel().finally(common.mustCall(() => {
     const controllerState = r2[kState].controller[kState];
 
-    assert.deepEqual(controllerState.pullAlgorithm, undefined)
-    assert.deepEqual(controllerState.cancelAlgorithm, undefined)
-    assert.deepEqual(controllerState.sizeAlgorithm, undefined)
+    assert.strictEqual(controllerState.pullAlgorithm, undefined);
+    assert.strictEqual(controllerState.cancelAlgorithm, undefined);
+    assert.strictEqual(controllerState.sizeAlgorithm, undefined);
   })).catch(() => {});
 }
 
