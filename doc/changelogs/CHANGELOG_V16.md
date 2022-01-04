@@ -8,11 +8,11 @@
 <th>Current</th>
 </tr>
 <tr>
-<td>
+<td valign="top">
 <a href="#16.13.1">16.13.1</a><br/>
 <a href="#16.13.0">16.13.0</a><br/>
 </td>
-<td>
+<td valign="top">
 <a href="#16.12.0">16.12.0</a><br/>
 <a href="#16.11.1">16.11.1</a><br/>
 <a href="#16.11.0">16.11.0</a><br/>
