@@ -81,6 +81,34 @@ console.log('This message is displayed first.');
 // Process exit event with code: 0
 ```
 
+### Event: `'codeGenerationFromString'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'codeGenerationFromString'` event is emitted when a call is made to `eval(str)`
+or `new Function(str)`.
+
+The event handler callback will be invoked with the argument passed to `eval` or the
+`Function` constructor.
+
+The call to `eval` or `new Function` will happen after the event is emitted.
+
+```js
+process.on('codeGenerationFromString', (code) => {
+  console.log(`Generating code from string '${code}'`);
+});
+const item = { foo: 0 };
+eval('item.foo++');
+```
+
+will log
+
+```text
+Generating code from string 'item.foo++'
+```
+
 ### Event: `'disconnect'`
 
 <!-- YAML

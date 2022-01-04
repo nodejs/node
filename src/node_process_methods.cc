@@ -35,6 +35,7 @@ typedef int mode_t;
 
 namespace node {
 
+using errors::TryCatchScope;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::CFunction;
@@ -446,6 +447,57 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   env->Exit(code);
 }
 
+static void CodeGenerationFromStringsAllowed(
+                      const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+  bool value = context->IsCodeGenerationFromStringsAllowed();
+  args.GetReturnValue().Set(value);
+}
+
+static v8::ModifyCodeGenerationFromStringsResult CodeGenCallback(
+    Local<Context> context,
+    Local<Value> source,
+    bool is_code_like) {
+  Environment* env = Environment::GetCurrent(context);
+  TryCatchScope try_catch(env);
+
+  ProcessEmit(env, "codeGenerationFromString", source);
+
+  // V8 does not expect this callback to have a scheduled exceptions once it
+  // returns, so we print them out in a best effort to do something about it
+  // without failing silently and without crashing the process.
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    Isolate* isolate = env->isolate();
+    fprintf(stderr, "Exception in codeGenerationFromString event callback:\n");
+    PrintCaughtException(isolate, env->context(), try_catch);
+  }
+
+  // returning {true, val} where val.IsEmpty() makes v8
+  // use the orignal value passed to `eval` which does not impact
+  // calls as `eval({})`
+  return {true, v8::MaybeLocal<v8::String>()};
+}
+
+static void SetEmitCodeGenFromStringEvent(
+      const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = env->context();
+
+  CHECK(args[0]->IsBoolean());
+
+  bool val = args[0]->BooleanValue(args.GetIsolate());
+  if (val) {
+    context->AllowCodeGenerationFromStrings(false);
+    isolate->SetModifyCodeGenerationFromStringsCallback(CodeGenCallback);
+  } else {
+    // This is enough to disable the handler. V8 will not call it anymore
+    // until set back to false
+    context->AllowCodeGenerationFromStrings(true);
+  }
+}
+
 namespace process {
 
 constexpr FastStringKey BindingData::type_name;
@@ -587,6 +639,10 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "reallyExit", ReallyExit);
   env->SetMethodNoSideEffect(target, "uptime", Uptime);
   env->SetMethod(target, "patchProcessObject", PatchProcessObject);
+  env->SetMethod(target, "codeGenerationFromStringsAllowed",
+                 CodeGenerationFromStringsAllowed);
+  env->SetMethod(target, "setEmitCodeGenFromStringEvent",
+                 SetEmitCodeGenFromStringEvent);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -616,6 +672,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ReallyExit);
   registry->Register(Uptime);
   registry->Register(PatchProcessObject);
+  registry->Register(CodeGenerationFromStringsAllowed);
+  registry->Register(SetEmitCodeGenFromStringEvent);
 }
 
 }  // namespace process
