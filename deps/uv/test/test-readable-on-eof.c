@@ -35,7 +35,7 @@ static int close_cb_called;
 
 static void write_cb(uv_write_t* req, int status) {
   write_cb_called++;
-  ASSERT(status == 0);
+  ASSERT_EQ(status, 0);
 }
 
 static void alloc_cb(uv_handle_t* handle,
@@ -51,12 +51,20 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 static void read_cb(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf) {
-  read_cb_called++;
+  int r;
 
-  ASSERT(nread == UV_EOF);
-  ASSERT(0 == uv_is_readable(handle));
+  ASSERT_EQ(nread, UV_EOF);
+  ASSERT_EQ(uv_is_readable(handle), 1);
+  ASSERT_EQ(uv_is_writable(handle), 1);
 
-  uv_close((uv_handle_t*) handle, close_cb);
+  if (++read_cb_called == 3) {
+      uv_close((uv_handle_t*) handle, close_cb);
+      ASSERT_EQ(uv_is_readable(handle), 0);
+      ASSERT_EQ(uv_is_writable(handle), 0);
+  } else {
+      r = uv_read_start((uv_stream_t*) &tcp_client, alloc_cb, read_cb);
+      ASSERT_EQ(r, 0);
+  }
 }
 
 static void connect_cb(uv_connect_t* req, int status) {
@@ -64,10 +72,9 @@ static void connect_cb(uv_connect_t* req, int status) {
   uv_buf_t close_me;
 
   connect_cb_called++;
-  ASSERT(status == 0);
+  ASSERT_EQ(status, 0);
 
-  r = uv_read_start((uv_stream_t*) &tcp_client, alloc_cb, read_cb);
-  ASSERT(r == 0);
+  read_cb((uv_stream_t*) &tcp_client, UV_EOF, NULL);
 
   close_me = uv_buf_init(close_me_cmd, sizeof(close_me_cmd));
 
@@ -77,26 +84,27 @@ static void connect_cb(uv_connect_t* req, int status) {
                1,
                write_cb);
 
-  ASSERT(r == 0);
+  ASSERT_EQ(r, 0);
 }
 
-TEST_IMPL(not_readable_on_eof) {
+TEST_IMPL(readable_on_eof) {
   struct sockaddr_in sa;
-  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &sa));
-  ASSERT(0 == uv_loop_init(&loop));
-  ASSERT(0 == uv_tcp_init(&loop, &tcp_client));
+  ASSERT_EQ(uv_ip4_addr("127.0.0.1", TEST_PORT, &sa), 0);
+  ASSERT_EQ(uv_loop_init(&loop), 0);
+  ASSERT_EQ(uv_tcp_init(&loop, &tcp_client), 0);
 
-  ASSERT(0 == uv_tcp_connect(&connect_req,
-                             &tcp_client,
-                             (const struct sockaddr*) &sa,
-                             connect_cb));
+  ASSERT_EQ(uv_tcp_connect(&connect_req,
+                           &tcp_client,
+                           (const struct sockaddr*) &sa,
+                           connect_cb),
+            0);
 
-  ASSERT(0 == uv_run(&loop, UV_RUN_DEFAULT));
+  ASSERT_EQ(uv_run(&loop, UV_RUN_DEFAULT), 0);
 
-  ASSERT(connect_cb_called == 1);
-  ASSERT(read_cb_called == 1);
-  ASSERT(write_cb_called == 1);
-  ASSERT(close_cb_called == 1);
+  ASSERT_EQ(connect_cb_called, 1);
+  ASSERT_EQ(read_cb_called, 3);
+  ASSERT_EQ(write_cb_called, 1);
+  ASSERT_EQ(close_cb_called, 1);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
