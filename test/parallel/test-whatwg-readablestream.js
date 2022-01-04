@@ -81,6 +81,36 @@ const {
 }
 
 {
+  // Throw error and return rejected promise in `cancel()` method
+  // would execute same cleanup code
+  const r1 = new ReadableStream({
+    cancel: () => {
+      return Promise.reject('Cancel Error');
+    },
+  });
+  r1.cancel().finally(common.mustCall(() => {
+    const controllerState = r1[kState].controller[kState];
+
+    assert.deepEqual(controllerState.pullAlgorithm, undefined)
+    assert.deepEqual(controllerState.cancelAlgorithm, undefined)
+    assert.deepEqual(controllerState.sizeAlgorithm, undefined)
+  })).catch(() => {});
+
+  const r2 = new ReadableStream({
+    cancel() {
+      throw Error('Cancel Error');
+    }
+  });
+  r2.cancel().finally(common.mustCall(() => {
+    const controllerState = r2[kState].controller[kState];
+
+    assert.deepEqual(controllerState.pullAlgorithm, undefined)
+    assert.deepEqual(controllerState.cancelAlgorithm, undefined)
+    assert.deepEqual(controllerState.sizeAlgorithm, undefined)
+  })).catch(() => {});
+}
+
+{
   const source = {
     start: common.mustCall((controller) => {
       assert(controller instanceof ReadableStreamDefaultController);
