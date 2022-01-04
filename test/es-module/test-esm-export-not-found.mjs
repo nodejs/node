@@ -1,8 +1,7 @@
 import '../common/index.mjs';
-import { fixturesDir } from '../common/fixtures.mjs';
+import { path } from '../common/fixtures.mjs';
 import { ok } from 'assert';
 import { spawn } from 'child_process';
-import { join } from 'path';
 import { execPath } from 'process';
 
 const importStatement =
@@ -19,7 +18,7 @@ const importStatementMultiline = `import {
     '--eval',
     input,
   ], {
-    cwd: join(fixturesDir, 'es-module-loaders')
+    cwd: path('es-module-loaders'),
   });
 
   let stderr = '';

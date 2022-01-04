@@ -1,4 +1,5 @@
 import '../common/index.mjs';
+import { fileURL, path } from '../common/fixtures.mjs';
 import { ok } from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
@@ -7,8 +8,8 @@ const child = spawn(execPath, [
   '--no-warnings',
   '--throw-deprecation',
   '--experimental-loader',
-  './test/fixtures/es-module-loaders/hooks-obsolete.mjs',
-  './test/fixtures/print-error-message.js',
+  fileURL('es-module-loaders', 'hooks-obsolete.mjs').href,
+  path('print-error-message.js'),
 ]);
 
 let stderr = '';

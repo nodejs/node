@@ -1,4 +1,5 @@
 import '../common/index.mjs';
+import { fileURL } from '../common/fixtures.mjs';
 import { ok } from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
@@ -6,7 +7,7 @@ import { execPath } from 'process';
 const child = spawn(execPath, [
   '--experimental-loader',
   'i-dont-exist',
-  './test/fixtures/print-error-message.js',
+  fileURL('print-error-message.js').href,
 ]);
 
 let stderr = '';

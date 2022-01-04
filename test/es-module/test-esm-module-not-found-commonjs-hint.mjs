@@ -20,7 +20,7 @@ import { execPath } from 'process';
     '--eval',
     input,
   ], {
-    cwd: fixturesDir
+    cwd: fixturesDir,
   });
 
   let stderr = '';
