@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path$1 from 'path';
 import { fileURLToPath, pathToFileURL, URL as URL$1 } from 'url';
-import process$1 from 'process';
-import process$2 from 'node:process';
+import proc from 'process';
+import process$1 from 'node:process';
 import os from 'node:os';
 import tty from 'node:tty';
 
@@ -266,13 +266,15 @@ class VFileMessage extends Error {
     this.message = typeof reason === 'object' ? reason.message : reason;
     this.stack = typeof reason === 'object' ? reason.stack : '';
     this.reason = this.message;
+    this.fatal;
     this.line = position.start.line;
     this.column = position.start.column;
     this.source = parts[0];
     this.ruleId = parts[1];
     this.position = position;
+    this.actual;
+    this.expected;
     this.file;
-    this.fatal;
     this.url;
     this.note;
   }
@@ -288,8 +290,6 @@ VFileMessage.prototype.line = null;
 VFileMessage.prototype.source = null;
 VFileMessage.prototype.ruleId = null;
 VFileMessage.prototype.position = null;
-
-const proc = process$1;
 
 function isUrl(fileURLOrPath) {
   return (
@@ -20815,13 +20815,13 @@ function compare(a, b, property) {
   return String(a[property] || '').localeCompare(b[property] || '')
 }
 
-function hasFlag(flag, argv = process$2.argv) {
+function hasFlag(flag, argv = process$1.argv) {
 	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
 	const position = argv.indexOf(prefix + flag);
 	const terminatorPosition = argv.indexOf('--');
 	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
 }
-const {env} = process$2;
+const {env} = process$1;
 let flagForceColor;
 if (
 	hasFlag('no-color')
@@ -20886,7 +20886,7 @@ function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
 	if (env.TERM === 'dumb') {
 		return min;
 	}
-	if (process$2.platform === 'win32') {
+	if (process$1.platform === 'win32') {
 		const osRelease = os.release().split('.');
 		if (
 			Number(osRelease[0]) >= 10
