@@ -1,4 +1,4 @@
-# Command-line options
+# Command-line API
 
 <!--introduced_in=v5.9.1-->
 
@@ -11,15 +11,39 @@ To view this documentation as a manual page in a terminal, run `man node`.
 
 ## Synopsis
 
-`node [options] [V8 options] [script.js | -e "script" | -] [--] [arguments]`
+`node [options] [V8 options] [<program-entry-point> | -e "script" | -] [--] [arguments]`
 
-`node inspect [script.js | -e "script" | <host>:<port>] …`
+`node inspect [<program-entry-point> | -e "script" | <host>:<port>] …`
 
 `node --v8-options`
 
 Execute without arguments to start the [REPL][].
 
 For more info about `node inspect`, see the [debugger][] documentation.
+
+## Program entry point
+
+The program entry point is a specifier-like string. That string is first passed
+through `path.resolve()` and the [CommonJS][] modules loader. If no
+corresponding module, an error is thrown.
+
+If a module is found, its path will be passed to ECMAScript Module loader if:
+
+* The file has a `.mjs` extension,
+* Or the file nearest parent `package.json` file
+  contains a top-level [`"type"`][] field with a value of `"module"`,
+* Or if the program was started with a command-line flag that forces the entry
+  point to be loaded with ECMAScript Module loader.
+
+Otherwise the file is loaded using the CommonJS modules loader. See
+[File modules][] section for more details.
+
+### ECMAScript modules loader entry point caveat
+
+When loading the program entry point using [ECMAScript Module loader][], the `node`
+command will accept as input only files with `.js`, `.mjs`, or `.cjs`
+extensions; and with `.wasm` extensions when
+[`--experimental-wasm-modules`][] is enabled.
 
 ## Options
 
@@ -1928,15 +1952,19 @@ $ node --max-old-space-size=1536 index.js
 ```
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
+[CommonJS]: modules.md
 [ECMAScript Module loader]: esm.md#loaders
+[File modules]: modules.md#file-modules
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [Source Map]: https://sourcemaps.info/spec.html
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
+[`"type"`]: packages.md#type
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
+[`--experimental-wasm-modules`]: #--experimental-wasm-modules
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--openssl-config`]: #--openssl-configfile
 [`--redirect-warnings`]: #--redirect-warningsfile

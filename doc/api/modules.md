@@ -69,10 +69,26 @@ The CommonJS module system is implemented in the [`module` core module][].
 
 Node.js has two module systems: CommonJS modules and [ECMAScript modules][].
 
-Authors can tell Node.js to use the ECMAScript modules loader
-via the `.mjs` file extension, the `package.json` [`"type"`][] field, or the
-[`--input-type`][] flag. Outside of those cases, Node.js will use the CommonJS
-module loader. See [Determining module system][] for more details.
+By default, Node.js will treat the following as CommonJS modules:
+
+* Files with a `.cjs` extension;
+
+* Files with a `.js` extension when the nearest parent `package.json` file
+  contains a top-level field [`"type"`][] with a value of `"commonjs"`.
+
+* Files with a `.js` extension when the nearest parent `package.json` file
+  doesn't contain a top-level field [`"type"`][].
+
+* Files with an extension that is not `.mjs`, `.cjs`, `.json`, `.node`, or `.js`
+  (when the nearest parent `package.json` file contains a top-level field
+  [`"type"`][] with a value of `"module"`, those files will be recognized as
+  CommonJS modules only if they are being `require`d, not when used as the
+  command-line entry point of the program).
+
+See [Determining module system][] for more details.
+
+Calling `require()` always use the CommonJS loader, calling `import()` always
+use the [ECMAScript modules][] loader.
 
 ## Accessing the main module
 
@@ -1059,7 +1075,6 @@ This section was moved to
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
 [`"type"`]: packages.md#type
-[`--input-type`]: cli.md#--input-typetype
 [`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
 [`Error`]: errors.md#class-error
 [`__dirname`]: #__dirname
