@@ -629,8 +629,8 @@ node b.mjs # works
 To customize the default module resolution, loader hooks can optionally be
 provided via a `--experimental-loader ./loader-name.mjs` argument to Node.js.
 
-When hooks are used they only apply to ES module loading and not to any
-CommonJS modules loaded.
+When hooks are used they apply to the entry point and all `import` calls. They
+won't apply to `require` calls; those still follow [CommonJS][] rules.
 
 ### Hooks
 
