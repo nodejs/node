@@ -833,7 +833,7 @@ def pkg_config(pkg):
   otherwise (None, None, None, None)"""
   pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
   args = []  # Print pkg-config warnings on first round.
-  retval = ()
+  retval = []
   for flag in ['--libs-only-l', '--cflags-only-I',
                '--libs-only-L', '--modversion']:
     args += [flag]
@@ -848,9 +848,9 @@ def pkg_config(pkg):
     except OSError as e:
       if e.errno != errno.ENOENT: raise e  # Unexpected error.
       return (None, None, None, None)  # No pkg-config/pkgconf installed.
-    retval += (val,)
+    retval.append(val)
     args = ['--silence-errors']
-  return retval
+  return tuple(retval)
 
 
 def try_check_compiler(cc, lang):
