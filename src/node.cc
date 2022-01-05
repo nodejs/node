@@ -360,7 +360,16 @@ MaybeLocal<Value> Environment::BootstrapNode() {
       this, "internal/bootstrap/node", &node_params, &node_args);
 
   if (result.IsEmpty()) {
-    return scope.EscapeMaybe(result);
+    return MaybeLocal<Value>();
+  }
+
+  if (!no_browser_globals()) {
+    result = ExecuteBootstrapper(
+        this, "internal/bootstrap/browser", &node_params, &node_args);
+
+    if (result.IsEmpty()) {
+      return MaybeLocal<Value>();
+    }
   }
 
   // TODO(joyeecheung): skip these in the snapshot building for workers.
@@ -371,7 +380,7 @@ MaybeLocal<Value> Environment::BootstrapNode() {
       ExecuteBootstrapper(this, thread_switch_id, &node_params, &node_args);
 
   if (result.IsEmpty()) {
-    return scope.EscapeMaybe(result);
+    return MaybeLocal<Value>();
   }
 
   auto process_state_switch_id =
@@ -382,7 +391,7 @@ MaybeLocal<Value> Environment::BootstrapNode() {
       this, process_state_switch_id, &node_params, &node_args);
 
   if (result.IsEmpty()) {
-    return scope.EscapeMaybe(result);
+    return MaybeLocal<Value>();
   }
 
   Local<String> env_string = FIXED_ONE_BYTE_STRING(isolate_, "env");

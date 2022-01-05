@@ -1212,6 +1212,7 @@ class Environment : public MemoryRetainer {
   inline bool tracks_unmanaged_fds() const;
   inline bool hide_console_windows() const;
   inline bool no_global_search_paths() const;
+  inline bool no_browser_globals() const;
   inline uint64_t thread_id() const;
   inline worker::Worker* worker_context() const;
   Environment* worker_parent_env() const;

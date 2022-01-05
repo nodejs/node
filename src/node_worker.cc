@@ -574,6 +574,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     worker->environment_flags_ |= EnvironmentFlags::kNoNativeAddons;
   if (env->no_global_search_paths())
     worker->environment_flags_ |= EnvironmentFlags::kNoGlobalSearchPaths;
+  if (env->no_browser_globals())
+    worker->environment_flags_ |= EnvironmentFlags::kNoBrowserGlobals;
 }
 
 void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
