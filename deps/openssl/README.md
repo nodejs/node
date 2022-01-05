@@ -76,4 +76,4 @@ Please refer [config/opensslconf_asm.h](config/opensslconf_asm.h) for details.
 
 ### Upgrading OpenSSL
 
-Please refer to [maintaining-openssl](../../doc/guides/maintaining-openssl.md).
+Please refer to [maintaining-openssl](../../doc/contributing/maintaining-openssl.md).
