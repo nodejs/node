@@ -39,6 +39,8 @@ body:
     attributes:
       label: What do you see instead?
       description: If possible please provide textual output instead of screenshots.
+    validations:
+      required: true
   - type: textarea
     attributes:
       label: Additional information
