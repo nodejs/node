@@ -129,11 +129,13 @@ static int StartDebugSignalHandler() {
     // receiving the signal would terminate the process.
     return -err;
   }
+#ifndef __Fuchsia__
   RegisterSignalHandler(SIGUSR1, StartIoThreadWakeup);
   // Unblock SIGUSR1.  A pending SIGUSR1 signal will now be delivered.
   sigemptyset(&sigmask);
   sigaddset(&sigmask, SIGUSR1);
   CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sigmask, nullptr));
+#endif
   return 0;
 }
 #endif  // __POSIX__
