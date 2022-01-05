@@ -1024,7 +1024,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 }
 ```
 
-[C++ coding style]: ../doc/guides/cpp-style-guide.md
+[C++ coding style]: ../doc/contributing/cpp-style-guide.md
 [Callback scopes]: #callback-scopes
 [JavaScript value handles]: #js-handles
 [N-API]: https://nodejs.org/api/n-api.html

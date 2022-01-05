@@ -62,5 +62,5 @@ Commit the changes with a message like
 ```text
 deps: update c-ares to x.y.z
 
-Updated as described in doc/guides/maintaining-c-ares.md.
+Updated as described in doc/contributing/maintaining-c-ares.md.
 ```

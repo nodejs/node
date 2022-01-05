@@ -403,5 +403,5 @@ even `try` and `catch` **will** break.
 [Run Time Type Information]: https://en.wikipedia.org/wiki/Run-time_type_information
 [aliased_buffer.h]: https://github.com/nodejs/node/blob/HEAD/src/aliased_buffer.h#L12
 [cppref_auto_ptr]: https://en.cppreference.com/w/cpp/memory/auto_ptr
-[errors]: https://github.com/nodejs/node/blob/HEAD/doc/guides/using-internal-errors.md
+[errors]: https://github.com/nodejs/node/blob/HEAD/doc/contributing/using-internal-errors.md
 [without C++ exception handling]: https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_exceptions.html#intro.using.exception.no

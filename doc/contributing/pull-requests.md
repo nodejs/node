@@ -137,8 +137,8 @@ added: REPLACEME
 ```
 
 For contributing C++ code, you may want to look at the
-[C++ Style Guide](../cpp-style-guide.md), as well as the
-[README of `src/`](../../../src/README.md) for an overview of Node.js
+[C++ Style Guide](cpp-style-guide.md), as well as the
+[README of `src/`](../../src/README.md) for an overview of Node.js
 C++ internals.
 
 ### Step 4: Commit
@@ -586,16 +586,16 @@ You can find the full list of supported subsystems in the
 [nodejs/core-validate-commit][] repository.
 More than one subsystem may be valid for any particular issue or pull request.
 
-[Building guide]: ../../../BUILDING.md
+[Building guide]: ../../BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
-[Onboarding guide]: ../../../onboarding.md
+[Onboarding guide]: ../../onboarding.md
 [approved]: #getting-approvals-for-your-pull-request
-[benchmark results]: ../writing-and-running-benchmarks.md
-[collaborator guide]: ../collaborator-guide.md
-[guide for writing tests in Node.js]: ../writing-tests.md
+[benchmark results]: writing-and-running-benchmarks.md
+[collaborator guide]: collaborator-guide.md
+[guide for writing tests in Node.js]: writing-tests.md
 [hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
 [nodejs/core-validate-commit]: https://github.com/nodejs/core-validate-commit/blob/main/lib/rules/subsystem.js
 [pull request template]: https://raw.githubusercontent.com/nodejs/node/HEAD/.github/PULL_REQUEST_TEMPLATE.md
-[running tests]: ../../../BUILDING.md#running-tests
+[running tests]: ../../BUILDING.md#running-tests

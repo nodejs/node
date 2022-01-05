@@ -997,14 +997,14 @@ endif
 .PHONY: release-only
 release-only: check-xz
 	@if [ "$(DISTTYPE)" = "release" ] && `grep -q REPLACEME doc/api/*.md`; then \
-		echo 'Please update REPLACEME tags in the following doc/api/*.md files (See doc/guides/releases.md):\n' ; \
+		echo 'Please update REPLACEME tags in the following doc/api/*.md files (See doc/contributing/releases.md):\n' ; \
 		REPLACEMES="$(shell grep -l REPLACEME doc/api/*.md)" ; \
 		echo "$$REPLACEMES\n" | tr " " "\n" ; \
 		exit 1 ; \
 	fi
 	@if [ "$(DISTTYPE)" = "release" ] && \
 		`grep -q DEP...X doc/api/deprecations.md`; then \
-		echo 'Please update DEP...X in doc/api/deprecations.md (See doc/guides/releases.md)' ; \
+		echo 'Please update DEP...X in doc/api/deprecations.md (See doc/contributing/releases.md)' ; \
 		exit 1 ; \
 	fi
 	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \

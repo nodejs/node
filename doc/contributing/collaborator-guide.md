@@ -408,7 +408,7 @@ For pull requests introducing new core modules:
 Node-API provides an ABI-stable API guaranteed for future Node.js versions.
 Node-API additions call for unusual care and scrutiny. If a change adds to
 `node_api.h`, `js_native_api.h`, `node_api_types.h`, or `js_native_api_types.h`,
-consult [the relevant guide](https://github.com/nodejs/node/blob/HEAD/doc/guides/adding-new-napi-api.md).
+consult [the relevant guide](https://github.com/nodejs/node/blob/HEAD/doc/contributing/adding-new-napi-api.md).
 
 ### Deprecations
 
@@ -558,7 +558,7 @@ $ git checkout master
 ```
 
 Update the tree (assumes your repository is set up as detailed in
-[CONTRIBUTING.md](./contributing/pull-requests.md#step-1-fork)):
+[CONTRIBUTING.md](./pull-requests.md#step-1-fork)):
 
 ```text
 $ git fetch upstream
@@ -925,7 +925,7 @@ need to be attached anymore, as only important bugfixes will be included.
 [`--throw-deprecation`]: ../api/cli.md#--throw-deprecation
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [backporting guide]: backporting-to-release-lines.md
-[commit message guidelines]: contributing/pull-requests.md#commit-message-guidelines
+[commit message guidelines]: pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
 [commit-queue.md]: ./commit-queue.md
 [git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
