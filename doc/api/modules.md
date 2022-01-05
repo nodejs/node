@@ -74,9 +74,8 @@ run directly by testing `require.main === module`.
 For a file `foo.js`, this will be `true` if run via `node foo.js`, but
 `false` if run by `require('./foo')`.
 
-Because `module` provides a `filename` property (normally equivalent to
-`__filename`), the entry point of the current application can be obtained
-by checking `require.main.filename`.
+When the entry point is not a CommonJS module, `require.main` is `undefined`,
+and the main module is out of reach.
 
 ## Package manager tips
 
@@ -716,10 +715,11 @@ extensions gets slower with each registered extension.
 added: v0.1.17
 -->
 
-* {module}
+* {module | undefined}
 
 The `Module` object representing the entry script loaded when the Node.js
-process launched.
+process launched, or `undefined` if the entry point of the program is not a
+CommonJS module.
 See ["Accessing the main module"](#accessing-the-main-module).
 
 In `entry.js` script:
