@@ -882,6 +882,15 @@ inline bool Environment::no_global_search_paths() const {
          !options_->global_search_paths;
 }
 
+inline bool Environment::no_browser_globals() const {
+  // configure --no-browser-globals
+#ifdef NODE_NO_BROWSER_GLOBALS
+  return true;
+#else
+  return flags_ & EnvironmentFlags::kNoBrowserGlobals;
+#endif
+}
+
 bool Environment::filehandle_close_warning() const {
   return emit_filehandle_warning_;
 }

@@ -703,7 +703,8 @@ parser.add_argument('--no-browser-globals',
     dest='no_browser_globals',
     default=None,
     help='do not export browser globals like setTimeout, console, etc. ' +
-         '(This mode is not officially supported for regular applications)')
+         '(This mode is deprecated and not officially supported for regular ' +
+         'applications)')
 
 parser.add_argument('--without-inspector',
     action='store_true',
