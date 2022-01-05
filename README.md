@@ -635,7 +635,7 @@ For information about the governance of the Node.js project, see
 
 <!--lint enable prohibited-strings-->
 
-Collaborators follow the [Collaborator Guide](./doc/guides/collaborator-guide.md) in
+Collaborators follow the [Collaborator Guide](./doc/contributing/collaborator-guide.md) in
 maintaining the Node.js project.
 
 ### Triagers
@@ -741,6 +741,6 @@ license text.
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Website]: https://nodejs.org/
 [OpenJS Foundation]: https://openjsf.org/
-[Strategic initiatives]: doc/guides/strategic-initiatives.md
-[Technical values and prioritization]: doc/guides/technical-values.md
+[Strategic initiatives]: doc/contributing/strategic-initiatives.md
+[Technical values and prioritization]: doc/contributing/technical-values.md
 [Working Groups]: https://github.com/nodejs/TSC/blob/HEAD/WORKING_GROUPS.md
