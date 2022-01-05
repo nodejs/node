@@ -104,7 +104,7 @@ more on color support in terminal environments, read the tty
 
 ## Legacy assertion mode
 
-Legacy assertion mode uses the [Abstract Equality Comparison][] in:
+Legacy assertion mode uses the `==` operator in:
 
 * [`assert.deepEqual()`][]
 * [`assert.equal()`][]
@@ -121,13 +121,11 @@ import assert from 'assert';
 const assert = require('assert');
 ```
 
-Whenever possible, use the [strict assertion mode][] instead. Otherwise, the
-[Abstract Equality Comparison][] may cause surprising results. This is
-especially true for [`assert.deepEqual()`][], where the comparison rules are
-lax:
+Legacy assertion mode may have surprising results, especially when using
+[`assert.deepEqual()`][]:
 
 ```cjs
-// WARNING: This does not throw an AssertionError!
+// WARNING: This does not throw an AssertionError in legacy assertion mode!
 assert.deepEqual(/a/gi, new Date());
 ```
 
@@ -471,7 +469,7 @@ changes:
                  Legacy.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
-    description: NaN is now treated as being identical in case both sides are
+    description: NaN is now treated as being identical if both sides are
                  NaN.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/25008
@@ -521,8 +519,8 @@ are also recursively evaluated by the following rules.
 
 ### Comparison details
 
-* Primitive values are compared with the [Abstract Equality Comparison][]
-  ( `==` ) with the exception of `NaN`. It is treated as being identical in case
+* Primitive values are compared with the `==` operator,
+  with the exception of `NaN`. It is treated as being identical in case
   both sides are `NaN`.
 * [Type tags][Object.prototype.toString()] of objects should be the same.
 * Only [enumerable "own" properties][] are considered.
@@ -539,8 +537,7 @@ are also recursively evaluated by the following rules.
 * [`WeakMap`][] and [`WeakSet`][] comparison does not rely on their values.
 
 The following example does not throw an [`AssertionError`][] because the
-primitives are considered equal by the [Abstract Equality Comparison][]
-( `==` ).
+primitives are compared using the `==` operator.
 
 ```mjs
 import assert from 'assert';
@@ -1138,7 +1135,7 @@ changes:
                  Legacy.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
-    description: NaN is now treated as being identical in case both sides are
+    description: NaN is now treated as being identical if both sides are
                  NaN.
 -->
 
@@ -1155,8 +1152,8 @@ An alias of [`assert.strictEqual()`][].
 > Stability: 3 - Legacy: Use [`assert.strictEqual()`][] instead.
 
 Tests shallow, coercive equality between the `actual` and `expected` parameters
-using the [Abstract Equality Comparison][] ( `==` ). `NaN` is special handled
-and treated as being identical in case both sides are `NaN`.
+using the `==` operator. `NaN` is specially handled
+and treated as being identical if both sides are `NaN`.
 
 ```mjs
 import assert from 'assert';
@@ -1471,7 +1468,7 @@ changes:
                  Legacy.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
-    description: NaN is now treated as being identical in case both sides are
+    description: NaN is now treated as being identical if both sides are
                  NaN.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
@@ -1653,7 +1650,7 @@ changes:
                  Legacy.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
-    description: NaN is now treated as being identical in case both sides are
+    description: NaN is now treated as being identical if both sides are
                  NaN.
 -->
 
@@ -1669,8 +1666,8 @@ An alias of [`assert.notStrictEqual()`][].
 
 > Stability: 3 - Legacy: Use [`assert.notStrictEqual()`][] instead.
 
-Tests shallow, coercive inequality with the [Abstract Equality Comparison][]
-(`!=` ). `NaN` is special handled and treated as being identical in case both
+Tests shallow, coercive inequality with the
+`!=` operator. `NaN` is specially handled and treated as being identical if
 sides are `NaN`.
 
 ```mjs
@@ -2430,7 +2427,6 @@ assert.throws(throwingFirst, /Second$/);
 Due to the confusing error-prone notation, avoid a string as the second
 argument.
 
-[Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
 [Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
 [SameValue Comparison]: https://tc39.github.io/ecma262/#sec-samevalue
@@ -2466,4 +2462,3 @@ argument.
 [`tracker.verify()`]: #trackerverify
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
-[strict assertion mode]: #strict-assertion-mode
