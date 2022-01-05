@@ -202,7 +202,7 @@ When cherry-picking commits, if there are simple conflicts you can resolve
 them. Otherwise, add the `backport-requested-vN.x` label to the original PR
 and post a comment stating that it does not land cleanly and will require a
 backport PR. You can refer the owner of the PR to the "[Backporting to Release
-Lines](https://github.com/nodejs/node/blob/HEAD/doc/guides/backporting-to-release-lines.md)" guide.
+Lines](https://github.com/nodejs/node/blob/HEAD/doc/contributing/backporting-to-release-lines.md)" guide.
 
 If commits were cherry-picked in this step, check that the test still pass.
 
