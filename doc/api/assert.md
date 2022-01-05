@@ -1685,7 +1685,7 @@ An alias of [`assert.notStrictEqual()`][].
 > Stability: 3 - Legacy: Use [`assert.notStrictEqual()`][] instead.
 
 Tests shallow, coercive inequality with the [`!=` operator][]. `NaN` is
-specially handled and treated as being identical if sides are `NaN`.
+specially handled and treated as being identical if both sides are `NaN`.
 
 ```mjs
 import assert from 'assert';
