@@ -32,5 +32,5 @@ Commit the changes with a message like
 ```text
 deps: update zlib to upstream d7f3ca9
 
-Updated as described in doc/guides/maintaining-zlib.md.
+Updated as described in doc/contributing/maintaining-zlib.md.
 ```

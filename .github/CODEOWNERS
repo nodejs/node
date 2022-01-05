@@ -13,9 +13,7 @@
 /CODE_OF_CONDUCT.md @nodejs/tsc
 /CONTRIBUTING.md @nodejs/tsc
 /LICENSE @nodejs/tsc
-/doc/guides/contributing/*.md @nodejs/tsc
-/doc/guides/collaborator-guide.md @nodejs/tsc
-/doc/guides/offboarding.md @nodejs/tsc
+/doc/contributing/*.md @nodejs/tsc
 
 # streams
 
@@ -88,7 +86,7 @@
 
 /src/node_api* @nodejs/node-api
 /src/js_native_api* @nodejs/node-api
-/doc/guides/adding-new-napi-api.md @nodejs/node-api
+/doc/contributing/adding-new-napi-api.md @nodejs/node-api
 /doc/api/n-api.md @nodejs/node-api
 
 # gyp
