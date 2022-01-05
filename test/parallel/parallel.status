@@ -7,6 +7,10 @@ prefix parallel
 [true] # This section applies to all platforms
 # https://github.com/nodejs/node/issues/41123
 test-repl-sigint-nested-eval: PASS, FLAKY
+# Skip tests until --no-concurrent-array-buffer-sweeping is supported
+# by the V8 version used in Node.
+test-memory-usage: SKIP
+test-zlib-unused-weak: SKIP
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/24497
