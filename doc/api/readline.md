@@ -1349,6 +1349,12 @@ const { createInterface } = require('readline');
     <td></td>
   </tr>
   <tr>
+    <td><kbd>Ctrl</kbd>+<kbd>-</kbd></td>
+    <td>Undo previous change</td>
+    <td>Any keystroke emits key code <code>0x1F</code> would do this action.</td>
+    <td></td>
+  </tr>
+  <tr>
     <td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td>
     <td>Moves running process into background. Type
     <code>fg</code> and press <kbd>Enter</kbd>
