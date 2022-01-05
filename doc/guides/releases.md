@@ -326,7 +326,13 @@ grep REPLACEME doc/api/*.md
 and substitute this node version with
 
 ```console
-sed -i "s/REPLACEME/$VERSION/g" doc/api/*.md` or `perl -pi -e "s/REPLACEME/$VERSION/g" doc/api/*.md
+sed -i "s/REPLACEME/$VERSION/g" doc/api/*.md
+```
+
+or
+
+```console
+perl -pi -e "s/REPLACEME/$VERSION/g" doc/api/*.md
 ```
 
 `$VERSION` should be prefixed with a `v`.
