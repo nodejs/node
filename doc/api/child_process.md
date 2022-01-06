@@ -37,7 +37,7 @@ option if the output will not be consumed.
 
 The command lookup is performed using the `options.env.PATH` environment
 variable if `env` is in the `options` object. Otherwise, `process.env.PATH` is
-used. If `options.env` is set, but without `PATH`, lookup on UNIX is performed
+used. If `options.env` is set without `PATH`, lookup on UNIX is performed
 on a default search path search of `/usr/bin:/bin` (see execvpe/execvp), on Windows
 the current processes environment variable `PATH` is used.
 
