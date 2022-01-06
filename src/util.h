@@ -32,13 +32,14 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <functional>  // std::function
-#include <limits>
-#include <set>
-#include <string>
 #include <array>
+#include <limits>
+#include <memory>
+#include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #ifdef __GNUC__
 #define MUST_USE_RESULT __attribute__((warn_unused_result))
