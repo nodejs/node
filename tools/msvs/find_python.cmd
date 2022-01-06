@@ -49,7 +49,6 @@ echo Python found in %p%\python.exe
 endlocal ^
   & set "pt=%p%" ^
   & set "need_path_ext=%need_path%"
-set "VCBUILD_PYTHON_LOCATION=%pt%\python.exe"
 if %need_path_ext%==1 set "PATH=%pt%;%PATH%"
 set "pt="
 set "need_path_ext="
