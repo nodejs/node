@@ -1,6 +1,6 @@
-import '../common/index.mjs';
+import { mustCall } from '../common/index.mjs';
 import { fileURL, path } from '../common/fixtures.mjs';
-import { match } from 'assert';
+import { match, notStrictEqual } from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
 
@@ -17,7 +17,9 @@ child.stderr.setEncoding('utf8');
 child.stderr.on('data', (data) => {
   stderr += data;
 });
-child.on('close', () => {
+child.on('close', mustCall((code, _signal) => {
+  notStrictEqual(code, 0);
+
   // DeprecationWarning: Obsolete loader hook(s) supplied and will be ignored:
   // dynamicInstantiate, getFormat, getSource, transformSource
   match(stderr, /DeprecationWarning:/);
@@ -25,4 +27,4 @@ child.on('close', () => {
   match(stderr, /getFormat/);
   match(stderr, /getSource/);
   match(stderr, /transformSource/);
-});
+}));

@@ -1,6 +1,6 @@
-import '../common/index.mjs';
+import { mustCall } from '../common/index.mjs';
 import { path } from '../common/fixtures.mjs';
-import { match } from 'assert';
+import { match, notStrictEqual } from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
 
@@ -13,6 +13,7 @@ child.stderr.setEncoding('utf8');
 child.stderr.on('data', (data) => {
   stderr += data;
 });
-child.on('close', () => {
+child.on('close', mustCall((code, _signal) => {
+  notStrictEqual(code, 0);
   match(stderr, /SyntaxError:/);
-});
+}));

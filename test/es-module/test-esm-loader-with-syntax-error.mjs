@@ -1,6 +1,6 @@
-import '../common/index.mjs';
+import { mustCall } from '../common/index.mjs';
 import { fileURL, path } from '../common/fixtures.mjs';
-import { match, ok } from 'assert';
+import { match, ok, notStrictEqual } from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
 
@@ -15,8 +15,10 @@ child.stderr.setEncoding('utf8');
 child.stderr.on('data', (data) => {
   stderr += data;
 });
-child.on('close', () => {
+child.on('close', mustCall((code, _signal) => {
+  notStrictEqual(code, 0);
+
   match(stderr, /SyntaxError:/);
 
   ok(!stderr.includes('Bad command or file name'));
-});
+}));

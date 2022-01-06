@@ -1,6 +1,6 @@
-import '../common/index.mjs';
+import { mustCall } from '../common/index.mjs';
 import { path } from '../common/fixtures.mjs';
-import { match } from 'assert';
+import { match, notStrictEqual } from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
 
@@ -26,12 +26,14 @@ const importStatementMultiline = `import {
   child.stderr.on('data', (data) => {
     stderr += data;
   });
-  child.on('close', () => {
+  child.on('close', mustCall((code, _signal) => {
+    notStrictEqual(code, 0);
+
     // SyntaxError: The requested module './module-named-exports.mjs'
     // does not provide an export named 'notfound'
     match(stderr, /SyntaxError:/);
     // The quotes ensure that the path starts with ./ and not ../
     match(stderr, /'\.\/module-named-exports\.mjs'/);
     match(stderr, /notfound/);
-  });
+  }));
 });
