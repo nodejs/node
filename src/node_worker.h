@@ -80,7 +80,7 @@ class Worker : public AsyncWrap {
 
   MultiIsolatePlatform* platform_;
   v8::Isolate* isolate_ = nullptr;
-  uv_thread_t tid_;
+  uv_thread_t tid_ = 0;
 
   std::unique_ptr<InspectorParentHandle> inspector_parent_handle_;
 
