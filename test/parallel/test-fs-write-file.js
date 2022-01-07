@@ -100,8 +100,5 @@ fs.open(filename4, 'w+', common.mustSucceed((fd) => {
   // Test read-only mode
   const filename = join(tmpdir.path, 'test6.txt');
   fs.writeFileSync(filename, '');
-
-  // TODO: Correct the error type
-  const expectedError = common.isWindows ? /EPERM/ : /EBADF/;
-  fs.writeFile(filename, s, { flag: 'r' }, common.expectsError(expectedError));
+  fs.writeFile(filename, s, { flag: 'r' }, common.expectsError(/EBADF/));
 }

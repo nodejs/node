@@ -380,7 +380,7 @@ static void timer_cb_file(uv_timer_t* handle) {
 
 static void timer_cb_touch(uv_timer_t* timer) {
   uv_close((uv_handle_t*)timer, NULL);
-  touch_file("watch_file");
+  touch_file((char*) timer->data);
   timer_cb_touch_called++;
 }
 
@@ -674,9 +674,6 @@ TEST_IMPL(fs_event_watch_file_twice) {
 #if defined(NO_FS_EVENTS)
   RETURN_SKIP(NO_FS_EVENTS);
 #endif
-#if defined(__ASAN__)
-  RETURN_SKIP("Test does not currently work in ASAN");
-#endif
   const char path[] = "test/fixtures/empty_file";
   uv_fs_event_t watchers[2];
   uv_timer_t timer;
@@ -730,6 +727,7 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   r = uv_timer_init(loop, &timer);
   ASSERT(r == 0);
 
+  timer.data = "watch_file";
   r = uv_timer_start(&timer, timer_cb_touch, 1100, 0);
   ASSERT(r == 0);
 
@@ -1171,6 +1169,52 @@ TEST_IMPL(fs_event_watch_invalid_path) {
   r = uv_fs_event_start(&fs_event, fs_event_cb_file, "", 0);
   ASSERT(r != 0);
   ASSERT(uv_is_active((uv_handle_t*) &fs_event) == 0);
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+static int fs_event_cb_stop_calls;
+
+static void fs_event_cb_stop(uv_fs_event_t* handle, const char* path,
+                             int events, int status) {
+  uv_fs_event_stop(handle);
+  fs_event_cb_stop_calls++;
+}
+
+TEST_IMPL(fs_event_stop_in_cb) {
+  uv_fs_event_t fs;
+  uv_timer_t timer;
+  char path[] = "fs_event_stop_in_cb.txt";
+
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
+
+  remove(path);
+  create_file(path);
+
+  ASSERT_EQ(0, uv_fs_event_init(uv_default_loop(), &fs));
+  ASSERT_EQ(0, uv_fs_event_start(&fs, fs_event_cb_stop, path, 0));
+
+  /* Note: timer_cb_touch() closes the handle. */
+  timer.data = path;
+  ASSERT_EQ(0, uv_timer_init(uv_default_loop(), &timer));
+  ASSERT_EQ(0, uv_timer_start(&timer, timer_cb_touch, 100, 0));
+
+  ASSERT_EQ(0, fs_event_cb_stop_calls);
+  ASSERT_EQ(0, timer_cb_touch_called);
+
+  ASSERT_EQ(0, uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+
+  ASSERT_EQ(1, fs_event_cb_stop_calls);
+  ASSERT_EQ(1, timer_cb_touch_called);
+
+  uv_close((uv_handle_t*) &fs, NULL);
+  ASSERT_EQ(0, uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT_EQ(1, fs_event_cb_stop_calls);
+
+  remove(path);
+
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
