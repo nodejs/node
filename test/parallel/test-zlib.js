@@ -69,7 +69,7 @@ if (!process.env.PUMMEL) {
   strategy = [0];
 }
 
-let testFiles = ['person.jpg', 'elipses.txt', 'empty.txt'];
+let testFiles = ['person.jpg', 'ellipses.txt', 'empty.txt'];
 
 if (process.env.FAST) {
   zlibPairs = [[zlib.Gzip, zlib.Unzip]];
