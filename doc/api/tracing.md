@@ -80,6 +80,17 @@ string that supports `${rotation}` and `${pid}`:
 node --trace-event-categories v8 --trace-event-file-pattern '${pid}-${rotation}.log' server.js
 ```
 
+To guarantee that the log file is properly generated after signal events like
+`SIGINT`, `SIGTERM`, or `SIGBREAK`, make sure to have the appropriate handlers
+in your code, such as:
+
+```js
+process.on('SIGINT', function onSigint() {
+  console.info('Received SIGINT.');
+  process.exit();
+});
+```
+
 The tracing system uses the same time source
 as the one used by `process.hrtime()`.
 However the trace-event timestamps are expressed in microseconds,
