@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 
-const SINCE = +process.argv[2] || '3 months ago';
+const SINCE = process.argv[2] || '3 months ago';
 
 async function runGitCommand(cmd, options = {}) {
   const childProcess = cp.spawn('/bin/sh', ['-c', cmd], {
