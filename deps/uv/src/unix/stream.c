@@ -1010,7 +1010,6 @@ uv_handle_type uv__handle_type(int fd) {
 static void uv__stream_eof(uv_stream_t* stream, const uv_buf_t* buf) {
   stream->flags |= UV_HANDLE_READ_EOF;
   stream->flags &= ~UV_HANDLE_READING;
-  stream->flags &= ~UV_HANDLE_READABLE;
   uv__io_stop(stream->loop, &stream->io_watcher, POLLIN);
   uv__handle_stop(stream);
   uv__stream_osx_interrupt_select(stream);
@@ -1550,15 +1549,12 @@ int uv__read_start(uv_stream_t* stream,
   assert(stream->type == UV_TCP || stream->type == UV_NAMED_PIPE ||
       stream->type == UV_TTY);
 
-  /* The UV_HANDLE_READING flag is irrelevant of the state of the tcp - it just
-   * expresses the desired state of the user.
-   */
+  /* The UV_HANDLE_READING flag is irrelevant of the state of the stream - it
+   * just expresses the desired state of the user. */
   stream->flags |= UV_HANDLE_READING;
+  stream->flags &= ~UV_HANDLE_READ_EOF;
 
   /* TODO: try to do the read inline? */
-  /* TODO: keep track of tcp state. If we've gotten a EOF then we should
-   * not start the IO watcher.
-   */
   assert(uv__stream_fd(stream) >= 0);
   assert(alloc_cb);
 

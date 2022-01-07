@@ -103,7 +103,7 @@ static UINT __stdcall uv__thread_start(void* arg) {
   uv__free(ctx_p);
 
   uv_once(&uv__current_thread_init_guard, uv__init_current_thread_key);
-  uv_key_set(&uv__current_thread_key, (void*) ctx.self);
+  uv_key_set(&uv__current_thread_key, ctx.self);
 
   ctx.entry(ctx.arg);
 
@@ -183,7 +183,18 @@ int uv_thread_create_ex(uv_thread_t* tid,
 
 uv_thread_t uv_thread_self(void) {
   uv_once(&uv__current_thread_init_guard, uv__init_current_thread_key);
-  return (uv_thread_t) uv_key_get(&uv__current_thread_key);
+  uv_thread_t key = uv_key_get(&uv__current_thread_key);
+  if (key == NULL) {
+      /* If the thread wasn't started by uv_thread_create (such as the main
+       * thread), we assign an id to it now. */
+      if (!DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
+                           GetCurrentProcess(), &key, 0,
+                           FALSE, DUPLICATE_SAME_ACCESS)) {
+          uv_fatal_error(GetLastError(), "DuplicateHandle");
+      }
+      uv_key_set(&uv__current_thread_key, key);
+  }
+  return key;
 }
 
 

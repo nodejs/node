@@ -84,6 +84,7 @@ static void pinger_on_close(uv_handle_t* handle) {
 
 static void pinger_after_write(uv_write_t* req, int status) {
   ASSERT_EQ(status, 0);
+  free(req->data);
   free(req);
 }
 
@@ -110,6 +111,7 @@ static void pinger_write_ping(pinger_t* pinger) {
 
   req = malloc(sizeof(*req));
   ASSERT_NOT_NULL(req);
+  req->data = NULL;
   ASSERT_EQ(0, uv_write(req, stream, bufs, nbufs, pinger_after_write));
 
   puts("PING");
@@ -185,6 +187,7 @@ static void ponger_read_cb(uv_stream_t* stream,
   writebuf = uv_buf_init(buf->base, nread);
   req = malloc(sizeof(*req));
   ASSERT_NOT_NULL(req);
+  req->data = buf->base;
   ASSERT_EQ(0, uv_write(req, stream, &writebuf, 1, pinger_after_write));
 }
 

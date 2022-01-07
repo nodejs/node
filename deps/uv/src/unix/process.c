@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <errno.h>
+#include <signal.h>
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -216,12 +217,31 @@ static void uv__process_child_init(const uv_process_options_t* options,
                                    int stdio_count,
                                    int (*pipes)[2],
                                    int error_fd) {
-  sigset_t set;
+  sigset_t signewset;
   int close_fd;
   int use_fd;
-  int err;
   int fd;
   int n;
+
+  /* Reset signal disposition first. Use a hard-coded limit because NSIG is not
+   * fixed on Linux: it's either 32, 34 or 64, depending on whether RT signals
+   * are enabled. We are not allowed to touch RT signal handlers, glibc uses
+   * them internally.
+   */
+  for (n = 1; n < 32; n += 1) {
+    if (n == SIGKILL || n == SIGSTOP)
+      continue;  /* Can't be changed. */
+
+#if defined(__HAIKU__)
+    if (n == SIGKILLTHR)
+      continue;  /* Can't be changed. */
+#endif
+
+    if (SIG_ERR != signal(n, SIG_DFL))
+      continue;
+
+    uv__write_errno(error_fd);
+  }
 
   if (options->flags & UV_PROCESS_DETACHED)
     setsid();
@@ -304,32 +324,10 @@ static void uv__process_child_init(const uv_process_options_t* options,
     environ = options->env;
   }
 
-  /* Reset signal disposition.  Use a hard-coded limit because NSIG
-   * is not fixed on Linux: it's either 32, 34 or 64, depending on
-   * whether RT signals are enabled.  We are not allowed to touch
-   * RT signal handlers, glibc uses them internally.
-   */
-  for (n = 1; n < 32; n += 1) {
-    if (n == SIGKILL || n == SIGSTOP)
-      continue;  /* Can't be changed. */
-
-#if defined(__HAIKU__)
-    if (n == SIGKILLTHR)
-      continue;  /* Can't be changed. */
-#endif
-
-    if (SIG_ERR != signal(n, SIG_DFL))
-      continue;
-
-    uv__write_errno(error_fd);
-  }
-
-  /* Reset signal mask. */
-  sigemptyset(&set);
-  err = pthread_sigmask(SIG_SETMASK, &set, NULL);
-
-  if (err != 0)
-    uv__write_errno(error_fd);
+  /* Reset signal mask just before exec. */
+  sigemptyset(&signewset);
+  if (sigprocmask(SIG_SETMASK, &signewset, NULL) != 0)
+    abort();
 
 #ifdef __MVS__
   execvpe(options->file, options->args, environ);
@@ -338,6 +336,7 @@ static void uv__process_child_init(const uv_process_options_t* options,
 #endif
 
   uv__write_errno(error_fd);
+  abort();
 }
 #endif
 
@@ -349,6 +348,8 @@ int uv_spawn(uv_loop_t* loop,
   /* fork is marked __WATCHOS_PROHIBITED __TVOS_PROHIBITED. */
   return UV_ENOSYS;
 #else
+  sigset_t signewset;
+  sigset_t sigoldset;
   int signal_pipe[2] = { -1, -1 };
   int pipes_storage[8][2];
   int (*pipes)[2];
@@ -423,24 +424,40 @@ int uv_spawn(uv_loop_t* loop,
 
   /* Acquire write lock to prevent opening new fds in worker threads */
   uv_rwlock_wrlock(&loop->cloexec_lock);
-  pid = fork();
 
-  if (pid == -1) {
-    err = UV__ERR(errno);
-    uv_rwlock_wrunlock(&loop->cloexec_lock);
-    uv__close(signal_pipe[0]);
-    uv__close(signal_pipe[1]);
-    goto error;
-  }
-
-  if (pid == 0) {
-    uv__process_child_init(options, stdio_count, pipes, signal_pipe[1]);
+  /* Start the child with most signals blocked, to avoid any issues before we
+   * can reset them, but allow program failures to exit (and not hang). */
+  sigfillset(&signewset);
+  sigdelset(&signewset, SIGKILL);
+  sigdelset(&signewset, SIGSTOP);
+  sigdelset(&signewset, SIGTRAP);
+  sigdelset(&signewset, SIGSEGV);
+  sigdelset(&signewset, SIGBUS);
+  sigdelset(&signewset, SIGILL);
+  sigdelset(&signewset, SIGSYS);
+  sigdelset(&signewset, SIGABRT);
+  if (pthread_sigmask(SIG_BLOCK, &signewset, &sigoldset) != 0)
     abort();
-  }
+
+  pid = fork();
+  if (pid == -1)
+    err = UV__ERR(errno);
+
+  if (pid == 0)
+    uv__process_child_init(options, stdio_count, pipes, signal_pipe[1]);
+
+  if (pthread_sigmask(SIG_SETMASK, &sigoldset, NULL) != 0)
+    abort();
 
   /* Release lock in parent process */
   uv_rwlock_wrunlock(&loop->cloexec_lock);
+
   uv__close(signal_pipe[1]);
+
+  if (pid == -1) {
+    uv__close(signal_pipe[0]);
+    goto error;
+  }
 
   process->status = 0;
   exec_errorno = 0;

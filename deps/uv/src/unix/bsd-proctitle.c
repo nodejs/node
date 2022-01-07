@@ -38,9 +38,7 @@ static void init_process_title_mutex_once(void) {
 
 
 void uv__process_title_cleanup(void) {
-  /* TODO(bnoordhuis) uv_mutex_destroy(&process_title_mutex)
-   * and reset process_title_mutex_once?
-   */
+  uv_mutex_destroy(&process_title_mutex);
 }
 
 

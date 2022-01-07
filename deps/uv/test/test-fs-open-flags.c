@@ -276,21 +276,21 @@ static void fs_open_flags(int add_flags) {
   /* r */
   flags = add_flags | UV_FS_O_RDONLY;
   openFail(absent_file, UV_ENOENT);
-  writeFail(empty_file, UV_EPERM);
+  writeFail(empty_file, UV_EBADF);
   readExpect(empty_file, "", 0);
-  writeFail(dummy_file, UV_EPERM);
+  writeFail(dummy_file, UV_EBADF);
   readExpect(dummy_file, "a", 1);
-  writeFail(empty_dir, UV_EPERM);
+  writeFail(empty_dir, UV_EBADF);
   readFail(empty_dir, UV_EISDIR);
 
   /* rs */
   flags = add_flags | UV_FS_O_RDONLY | UV_FS_O_SYNC;
   openFail(absent_file, UV_ENOENT);
-  writeFail(empty_file, UV_EPERM);
+  writeFail(empty_file, UV_EBADF);
   readExpect(empty_file, "", 0);
-  writeFail(dummy_file, UV_EPERM);
+  writeFail(dummy_file, UV_EBADF);
   readExpect(dummy_file, "a", 1);
-  writeFail(empty_dir, UV_EPERM);
+  writeFail(empty_dir, UV_EBADF);
   readFail(empty_dir, UV_EISDIR);
 
   /* r+ */
@@ -316,18 +316,18 @@ static void fs_open_flags(int add_flags) {
   /* w */
   flags = add_flags | UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY;
   writeExpect(absent_file, "bc", 2);
-  readFail(absent_file, UV_EPERM);
+  readFail(absent_file, UV_EBADF);
   writeExpect(empty_file, "bc", 2);
-  readFail(empty_file, UV_EPERM);
+  readFail(empty_file, UV_EBADF);
   writeExpect(dummy_file, "bc", 2);
-  readFail(dummy_file, UV_EPERM);
+  readFail(dummy_file, UV_EBADF);
   openFail(empty_dir, UV_EISDIR);
 
   /* wx */
   flags = add_flags | UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY |
     UV_FS_O_EXCL;
   writeExpect(absent_file, "bc", 2);
-  readFail(absent_file, UV_EPERM);
+  readFail(absent_file, UV_EBADF);
   openFail(empty_file, UV_EEXIST);
   openFail(dummy_file, UV_EEXIST);
   openFail(empty_dir, UV_EEXIST);
@@ -354,19 +354,19 @@ static void fs_open_flags(int add_flags) {
   /* a */
   flags = add_flags | UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_WRONLY;
   writeExpect(absent_file, "bc", 2);
-  readFail(absent_file, UV_EPERM);
+  readFail(absent_file, UV_EBADF);
   writeExpect(empty_file, "bc", 2);
-  readFail(empty_file, UV_EPERM);
+  readFail(empty_file, UV_EBADF);
   writeExpect(dummy_file, "abc", 3);
-  readFail(dummy_file, UV_EPERM);
+  readFail(dummy_file, UV_EBADF);
   writeFail(empty_dir, UV_EISDIR);
-  readFail(empty_dir, UV_EPERM);
+  readFail(empty_dir, UV_EBADF);
 
   /* ax */
   flags = add_flags | UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_WRONLY |
     UV_FS_O_EXCL;
   writeExpect(absent_file, "bc", 2);
-  readFail(absent_file, UV_EPERM);
+  readFail(absent_file, UV_EBADF);
   openFail(empty_file, UV_EEXIST);
   openFail(dummy_file, UV_EEXIST);
   openFail(empty_dir, UV_EEXIST);
@@ -375,13 +375,13 @@ static void fs_open_flags(int add_flags) {
   flags = add_flags | UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_WRONLY |
     UV_FS_O_SYNC;
   writeExpect(absent_file, "bc", 2);
-  readFail(absent_file, UV_EPERM);
+  readFail(absent_file, UV_EBADF);
   writeExpect(empty_file, "bc", 2);
-  readFail(empty_file, UV_EPERM);
+  readFail(empty_file, UV_EBADF);
   writeExpect(dummy_file, "abc", 3);
-  readFail(dummy_file, UV_EPERM);
+  readFail(dummy_file, UV_EBADF);
   writeFail(empty_dir, UV_EISDIR);
-  readFail(empty_dir, UV_EPERM);
+  readFail(empty_dir, UV_EBADF);
 
   /* a+ */
   flags = add_flags | UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_RDWR;
