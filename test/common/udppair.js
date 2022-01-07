@@ -16,7 +16,7 @@ class FakeUDPWrap extends EventEmitter {
     this._handle.onwrite =
       (wrap, buffers, addr) => this._write(wrap, buffers, addr);
     this._handle.getsockname = (obj) => {
-      Object.assign(obj, { address: '127.0.0.1', family: 'IPv4', port: 1337 });
+      Object.assign(obj, { address: '127.0.0.1', family: 4, port: 1337 });
       return 0;
     };
 
@@ -72,8 +72,8 @@ class FakeUDPWrap extends EventEmitter {
 
     let familyInt;
     switch (family) {
-      case 'IPv4': familyInt = 4; break;
-      case 'IPv6': familyInt = 6; break;
+      case 4: familyInt = 4; break;
+      case 6: familyInt = 6; break;
       default: throw new Error('bad family');
     }
 
