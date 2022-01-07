@@ -21,6 +21,7 @@ information described.
     the date in the slug so that it will move to the top of the blog list.)
   * [ ] pre-release: _**LINK TO PR**_
   * [ ] post-release: _**LINK TO PR**_
+    * List vulnerabilities in order of descending severity
     * Ask the HackerOne reporter if they would like to be credited on the
       security release blog page:
       ```text
