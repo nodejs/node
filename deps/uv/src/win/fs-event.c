@@ -574,10 +574,10 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
     handle->cb(handle, NULL, 0, uv_translate_sys_error(err));
   }
 
-  if (!(handle->flags & UV_HANDLE_CLOSING)) {
-    uv_fs_event_queue_readdirchanges(loop, handle);
-  } else {
+  if (handle->flags & UV_HANDLE_CLOSING) {
     uv_want_endgame(loop, (uv_handle_t*)handle);
+  } else if (uv__is_active(handle)) {
+    uv_fs_event_queue_readdirchanges(loop, handle);
   }
 }
 
