@@ -87,8 +87,8 @@ By default, Node.js will treat the following as CommonJS modules:
 
 See [Determining module system][] for more details.
 
-Calling `require()` always use the CommonJS loader, calling `import()` always
-use the [ECMAScript modules][] loader.
+Calling `require()` always use the CommonJS module loader, calling `import()`
+always use the ECMAScript module loader.
 
 ## Accessing the main module
 

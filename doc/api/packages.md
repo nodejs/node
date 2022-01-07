@@ -54,7 +54,7 @@ Node.js will treat the following as [ES modules][] when passed to `node` as the
 initial input, or when referenced by `import` statements or `import()`
 expressions:
 
-* Files with a `.mjs` extension.
+* Files with an `.mjs` extension.
 
 * Files with a `.js` extension when the nearest parent `package.json` file
   contains a top-level [`"type"`][] field with a value of `"module"`.

@@ -23,24 +23,26 @@ For more info about `node inspect`, see the [debugger][] documentation.
 
 ## Program entry point
 
-The program entry point is a specifier-like string. That string is first passed
-through `path.resolve()` and the [CommonJS][] modules loader. If no
-corresponding module, an error is thrown.
+The program entry point is a specifier-like string. If the string is not an
+absolute path, it's resolved as a relative path from the current working
+directory. That path is then resolved by [CommonJS][] module loader. If no
+corresponding file is found, an error is thrown.
 
-If a module is found, its path will be passed to ECMAScript Module loader if:
+If a file is found, its path will be passed to [ECMAScript module loader][]
+under any of the following conditions:
 
-* The file has a `.mjs` extension,
-* Or the file nearest parent `package.json` file
-  contains a top-level [`"type"`][] field with a value of `"module"`,
-* Or if the program was started with a command-line flag that forces the entry
-  point to be loaded with ECMAScript Module loader.
+* The file has an `.mjs` extension.
+* The file nearest parent `package.json` file
+  contains a top-level [`"type"`][] field with a value of `"module"`.
+* If the program was started with a command-line flag that forces the entry
+  point to be loaded with ECMAScript module loader.
 
-Otherwise the file is loaded using the CommonJS modules loader. See
-[File modules][] section for more details.
+Otherwise the file is loaded using the CommonJS module loader. See
+[File modules][] for more details.
 
 ### ECMAScript modules loader entry point caveat
 
-When loading the program entry point using [ECMAScript Module loader][], the `node`
+When loading the program entry point using [ECMAScript module loader][], the `node`
 command will accept as input only files with `.js`, `.mjs`, or `.cjs`
 extensions; and with `.wasm` extensions when
 [`--experimental-wasm-modules`][] is enabled.
@@ -301,8 +303,8 @@ Enable experimental JSON support for the ES Module loader.
 added: v9.0.0
 -->
 
-Specify the `module` of a custom experimental [ECMAScript Module loader][].
-`module` may be either a path to a file, or an ECMAScript Module name.
+Specify the `module` of a custom experimental [ECMAScript module loader][].
+`module` may be any string accepted as an [`import` specifier][].
 
 ### `--experimental-policy`
 
@@ -1953,7 +1955,7 @@ $ node --max-old-space-size=1536 index.js
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [CommonJS]: modules.md
-[ECMAScript Module loader]: esm.md#loaders
+[ECMAScript module loader]: esm.md#loaders
 [File modules]: modules.md#file-modules
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [REPL]: repl.md
@@ -1977,6 +1979,7 @@ $ node --max-old-space-size=1536 index.js
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
+[`import` specifier]: esm.md#import-specifiers
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
