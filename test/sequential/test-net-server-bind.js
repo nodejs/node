@@ -24,7 +24,7 @@ const net = require('net');
     const address = server.address();
     assert.strictEqual(address.port, common.PORT);
 
-    if (address.family === 'IPv6')
+    if (address.family === 6)
       assert.strictEqual(server._connectionKey, `6::::${address.port}`);
     else
       assert.strictEqual(server._connectionKey, `4:0.0.0.0:${address.port}`);

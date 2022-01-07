@@ -26,7 +26,7 @@ const net = require('net');
 
 // Test on IPv4 Server
 {
-  const family = 'IPv4';
+  const family = 4;
   const server = net.createServer();
 
   server.on('error', common.mustNotCall());
@@ -46,7 +46,7 @@ if (!common.hasIPv6) {
   return;
 }
 
-const family6 = 'IPv6';
+const family6 = 6;
 const anycast6 = '::';
 
 // Test on IPv6 Server

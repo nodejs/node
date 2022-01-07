@@ -49,7 +49,7 @@ const TMPL = (tail) => `${NOW} - ${tail}`;
 const interfaceAddress = ((networkInterfaces) => {
   for (const name in networkInterfaces) {
     for (const localInterface of networkInterfaces[name]) {
-      if (!localInterface.internal && localInterface.family === FAM) {
+      if (!localInterface.internal && `IPv${localInterface.family}` === FAM) {
         let interfaceAddress = localInterface.address;
         // On Windows, IPv6 would need: `%${localInterface.scopeid}`
         if (FAM === 'IPv6')

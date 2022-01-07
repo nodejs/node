@@ -28,7 +28,7 @@ get_sourceAddress: for (const name in networkInterfaces) {
   const interfaces = networkInterfaces[name];
   for (let i = 0; i < interfaces.length; i++) {
     const localInterface = interfaces[i];
-    if (!localInterface.internal && localInterface.family === 'IPv6') {
+    if (!localInterface.internal && localInterface.family === 6) {
       sourceAddress = localInterface.address;
       break get_sourceAddress;
     }

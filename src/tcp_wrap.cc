@@ -380,7 +380,7 @@ MaybeLocal<Object> AddressToJS(Environment* env,
               OneByteString(env->isolate(), ip)).Check();
     info->Set(env->context(),
               env->family_string(),
-              env->ipv6_string()).Check();
+              Integer::New(env->isolate(), 6)).Check();
     info->Set(env->context(),
               env->port_string(),
               Integer::New(env->isolate(), port)).Check();
@@ -395,7 +395,7 @@ MaybeLocal<Object> AddressToJS(Environment* env,
               OneByteString(env->isolate(), ip)).Check();
     info->Set(env->context(),
               env->family_string(),
-              env->ipv4_string()).Check();
+              Integer::New(env->isolate(), 4)).Check();
     info->Set(env->context(),
               env->port_string(),
               Integer::New(env->isolate(), port)).Check();

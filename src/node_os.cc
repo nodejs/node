@@ -174,7 +174,8 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   char ip[INET6_ADDRSTRLEN];
   char netmask[INET6_ADDRSTRLEN];
   std::array<char, 18> mac;
-  Local<String> name, family;
+  Local<String> name;
+  Local<Integer> family;
 
   int err = uv_interface_addresses(&interfaces, &count);
 
@@ -214,14 +215,14 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     if (interfaces[i].address.address4.sin_family == AF_INET) {
       uv_ip4_name(&interfaces[i].address.address4, ip, sizeof(ip));
       uv_ip4_name(&interfaces[i].netmask.netmask4, netmask, sizeof(netmask));
-      family = env->ipv4_string();
+      family = Integer::New(env->isolate(), 4);
     } else if (interfaces[i].address.address4.sin_family == AF_INET6) {
       uv_ip6_name(&interfaces[i].address.address6, ip, sizeof(ip));
       uv_ip6_name(&interfaces[i].netmask.netmask6, netmask, sizeof(netmask));
-      family = env->ipv6_string();
+      family = Integer::New(env->isolate(), 6);
     } else {
       strncpy(ip, "<unknown sa family>", INET6_ADDRSTRLEN);
-      family = env->unknown_string();
+      family = Integer::New(env->isolate(), 0);
     }
 
     result.emplace_back(name);

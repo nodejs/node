@@ -35,7 +35,7 @@ const dgram = require('dgram');
     assert.strictEqual(typeof address.port, 'number');
     assert.ok(isFinite(address.port));
     assert.ok(address.port > 0);
-    assert.strictEqual(address.family, 'IPv4');
+    assert.strictEqual(address.family, 4);
     socket.close();
   }));
 
@@ -59,7 +59,7 @@ if (common.hasIPv6) {
     assert.strictEqual(typeof address.port, 'number');
     assert.ok(isFinite(address.port));
     assert.ok(address.port > 0);
-    assert.strictEqual(address.family, 'IPv6');
+    assert.strictEqual(address.family, 6);
     socket.close();
   }));
 
