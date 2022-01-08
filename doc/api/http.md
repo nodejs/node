@@ -3099,7 +3099,7 @@ changes:
   * `setHost` {boolean}: Specifies whether or not to automatically add the
     `Host` header. **Default:** `true`.
   * `socketPath` {string} Unix domain socket. Cannot be used if one of `host`
-    or `port` is specified, as those specify a TCP Socket.
+    or `port` is specified, as those specify a TCP socket.
   * `timeout` {number}: A number specifying the socket timeout in milliseconds.
     This will set the timeout before the socket is connected.
   * `signal` {AbortSignal}: An `AbortSignal` that may be used to abort an
