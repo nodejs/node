@@ -690,7 +690,7 @@ are recursively evaluated also by the following rules.
   [`Object.is()`][].
 * [Type tags][Object.prototype.toString()] of objects should be the same.
 * [`[[Prototype]]`][prototype-spec] of objects are compared using
-  the [Strict Equality Comparison][].
+  the [`===` operator][].
 * Only [enumerable "own" properties][] are considered.
 * [`Error`][] names and messages are always compared, even if these are not
   enumerable properties.
@@ -2447,8 +2447,8 @@ argument.
 [Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
 [SameValue Comparison]: https://tc39.github.io/ecma262/#sec-samevalue
-[Strict Equality Comparison]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
 [`!=` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Inequality
+[`===` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Strict_equality
 [`==` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Equality
 [`AssertionError`]: #class-assertassertionerror
 [`CallTracker`]: #class-assertcalltracker
