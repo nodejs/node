@@ -3091,20 +3091,19 @@ changes:
   * `method` {string} A string specifying the HTTP request method. **Default:**
     `'GET'`.
   * `path` {string} Request path. Should include query string if any.
-    E.G. `'/index.html?page=12'`. An exception is thrown when the request path
-    contains illegal characters. Currently, only spaces are rejected but that
-    may change in the future. **Default:** `'/'`.
+    An exception is thrown when the request path contains spaces. **Default:**
+    `'/'`.
   * `port` {number} Port of remote server. **Default:** `defaultPort` if set,
     else `80`.
   * `protocol` {string} Protocol to use. **Default:** `'http:'`.
   * `setHost` {boolean}: Specifies whether or not to automatically add the
-    `Host` header. Defaults to `true`.
+    `Host` header. **Default:** `true`.
   * `socketPath` {string} Unix domain socket. Cannot be used if one of `host`
     or `port` is specified, as those specify a TCP Socket.
   * `timeout` {number}: A number specifying the socket timeout in milliseconds.
     This will set the timeout before the socket is connected.
-  * `signal` {AbortSignal}: An AbortSignal that may be used to abort an ongoing
-    request.
+  * `signal` {AbortSignal}: An `AbortSignal` that may be used to abort an
+    ongoing request.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
 
