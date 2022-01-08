@@ -38,7 +38,7 @@ under any of the following conditions:
   point to be loaded with ECMAScript module loader.
 
 Otherwise, the file is loaded using the CommonJS module loader. See
-[File modules][] for more details.
+[Modules loaders][] for more details.
 
 ### ECMAScript modules loader entry point caveat
 
@@ -1956,7 +1956,7 @@ $ node --max-old-space-size=1536 index.js
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [CommonJS]: modules.md
 [ECMAScript module loader]: esm.md#loaders
-[File modules]: modules.md#file-modules
+[Modules loaders]: packages.md#modules-loaders
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage

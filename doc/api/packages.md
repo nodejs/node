@@ -85,6 +85,41 @@ future-proof the package in case the default type of Node.js ever changes, and
 it will also make things easier for build tools and loaders to determine how the
 files in the package should be interpreted.
 
+### Modules loaders
+
+Node.js has two system for resolving a specifier and load modules.
+
+There is the CommonJS module loader:
+
+* It is fully synchronous.
+* It is monkey patchable.
+* When resolving a specifier, if no exact match is found, it will try to add
+  extensions (`.js`, `.json`, and finally `.node`).
+* It supports [folders as modules][].
+* It treats `.json` as JSON text files.
+* `.node` files are interpreted as compiled addon modules loaded with
+  `process.dlopen()`.
+* It treats files that do not have `.json` or `.node` extension as JavaScript
+  text files.
+* It cannot be used to load ECMAScript modules. Attempting to do so will result
+  in a [`ERR_REQUIRE_ESM`][] error.
+* It can be accessed using `require` function.
+
+There is the ECMAScript module loader:
+
+* It is Asynchronous.
+* It is not monkey patchable, can be customized using [loader hooks][].
+* No extension searching, the specifier must point to the exact URL of the file.
+* It does not support folders as modules.
+* Import assertion are needed to load JSON modules (behind
+  `--experimental-json-modules` flag).
+* It only accepts `.js`, `.mjs`, and `.cjs` extensions for JavaScript text
+  files.
+* It can be used to load (JavaScript) CommonJS modules. It passes the module
+  content through the `es-module-lexer` to assess what are its exports, convert
+  its URL to an absolute path and load it using the CommonJS module loader.
+* It can be accessed using `import`.
+
 ### `package.json` and file extensions
 
 Within a package, the [`package.json`][] [`"type"`][] field defines how
@@ -1235,9 +1270,12 @@ This field defines [subpath imports][] for the current package.
 [`--conditions` / `-C` flag]: #resolving-user-conditions
 [`--no-addons` flag]: cli.md#--no-addons
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
+[`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
 [`esm`]: https://github.com/standard-things/esm#readme
 [`package.json`]: #nodejs-packagejson-field-definitions
 [entry points]: #package-entry-points
+[folders as modules]: modules.md#folders-as-modules
+[loader hooks]: esm.md#loaders
 [self-reference]: #self-referencing-a-package-using-its-name
 [subpath exports]: #subpath-exports
 [subpath imports]: #subpath-imports
