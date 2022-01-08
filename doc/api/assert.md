@@ -104,7 +104,7 @@ more on color support in terminal environments, read the tty
 
 ## Legacy assertion mode
 
-Legacy assertion mode uses the `==` operator in:
+Legacy assertion mode uses the [`==` operator][] in:
 
 * [`assert.deepEqual()`][]
 * [`assert.equal()`][]
@@ -521,7 +521,7 @@ are also recursively evaluated by the following rules.
 
 ### Comparison details
 
-* Primitive values are compared with the `==` operator,
+* Primitive values are compared with the [`==` operator][],
   with the exception of `NaN`. It is treated as being identical in case
   both sides are `NaN`.
 * [Type tags][Object.prototype.toString()] of objects should be the same.
@@ -539,7 +539,7 @@ are also recursively evaluated by the following rules.
 * [`WeakMap`][] and [`WeakSet`][] comparison does not rely on their values.
 
 The following example does not throw an [`AssertionError`][] because the
-primitives are compared using the `==` operator.
+primitives are compared using the [`==` operator][].
 
 ```mjs
 import assert from 'assert';
@@ -1156,7 +1156,7 @@ An alias of [`assert.strictEqual()`][].
 > Stability: 3 - Legacy: Use [`assert.strictEqual()`][] instead.
 
 Tests shallow, coercive equality between the `actual` and `expected` parameters
-using the `==` operator. `NaN` is specially handled
+using the [`==` operator][]. `NaN` is specially handled
 and treated as being identical if both sides are `NaN`.
 
 ```mjs
@@ -1674,9 +1674,8 @@ An alias of [`assert.notStrictEqual()`][].
 
 > Stability: 3 - Legacy: Use [`assert.notStrictEqual()`][] instead.
 
-Tests shallow, coercive inequality with the
-`!=` operator. `NaN` is specially handled and treated as being identical if
-sides are `NaN`.
+Tests shallow, coercive inequality with the [`!=` operator][]. `NaN` is
+specially handled and treated as being identical if both sides are `NaN`.
 
 ```mjs
 import assert from 'assert';
@@ -2439,6 +2438,8 @@ argument.
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
 [SameValue Comparison]: https://tc39.github.io/ecma262/#sec-samevalue
 [Strict Equality Comparison]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
+[`!=` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Inequality
+[`==` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Equality
 [`AssertionError`]: #class-assertassertionerror
 [`CallTracker`]: #class-assertcalltracker
 [`Class`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
