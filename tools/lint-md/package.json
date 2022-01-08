@@ -9,14 +9,14 @@
     "remark-parse": "^10.0.1",
     "remark-preset-lint-node": "^3.3.0",
     "remark-stringify": "^10.0.2",
-    "to-vfile": "^7.2.2",
+    "to-vfile": "^7.2.3",
     "unified": "^10.1.1",
     "vfile-reporter": "^7.0.3"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^21.0.1",
-    "@rollup/plugin-node-resolve": "^13.1.2",
-    "rollup": "^2.62.0",
+    "@rollup/plugin-node-resolve": "^13.1.3",
+    "rollup": "^2.64.0",
     "rollup-plugin-cleanup": "^3.2.1"
   }
 }
