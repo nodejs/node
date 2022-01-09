@@ -103,12 +103,13 @@ fs.writeFileSync(new URL('./all.html', source), all, 'utf8');
 // Validate all hrefs have a target.
 const ids = new Set();
 const idRe = / id="([^"]+)"/g;
-let match;
-while (match = idRe.exec(all)) {
+const idMatches = all.matchAll(idRe);
+for (const match of idMatches) {
   ids.add(match[1]);
 }
 
 const hrefRe = / href="#([^"]+)"/g;
-while (match = hrefRe.exec(all)) {
+const hrefMatches = all.matchAll(hrefRe);
+for (const match of hrefMatches) {
   if (!ids.has(match[1])) throw new Error(`link not found: ${match[1]}`);
 }
