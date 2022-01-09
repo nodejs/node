@@ -179,6 +179,7 @@ module.exports = {
     'no-class-assign': 'error',
     'no-confusing-arrow': 'error',
     'no-const-assign': 'error',
+    'no-constant-condition': ['error', { checkLoops: false }],
     'no-constructor-return': 'error',
     'no-control-regex': 'error',
     'no-debugger': 'error',
