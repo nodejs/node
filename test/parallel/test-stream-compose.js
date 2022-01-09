@@ -234,7 +234,7 @@ const assert = require('assert');
         callback(null, chunk);
       })
     }),
-    async function*(source) {
+    async function*(source) { // eslint-disable-line require-yield
       let tmp = '';
       for await (const chunk of source) {
         tmp += chunk;
