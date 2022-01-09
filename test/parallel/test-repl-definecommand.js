@@ -35,7 +35,7 @@ r.defineCommand('say2', function() {
 });
 
 inputStream.write('.help\n');
-assert.match(output, /\n\.say1     help for say1\n/);
+assert.match(output, /\n\.say1 {5}help for say1\n/);
 assert.match(output, /\n\.say2\n/);
 inputStream.write('.say1 node developer\n');
 assert.ok(output.startsWith('hello node developer\n'),

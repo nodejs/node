@@ -1247,7 +1247,7 @@ assert.throws(
     assert.deepStrictEqual(Array(100).fill(1), 'foobar');
   } catch (err) {
     threw = true;
-    assert.match(inspect(err), /actual: \[Array],\n  expected: 'foobar',/);
+    assert.match(inspect(err), /actual: \[Array],\n {2}expected: 'foobar',/);
   }
   assert(threw);
 }
