@@ -434,7 +434,7 @@ assert.strictEqual(
 
 // Array with extra properties.
 {
-  const arr = [1, 2, 3, , ];
+  const arr = [1, 2, 3, , ]; // eslint-disable-line no-sparse-arrays
   arr.foo = 'bar';
   assert.strictEqual(util.inspect(arr),
                      "[ 1, 2, 3, <1 empty item>, foo: 'bar' ]");
@@ -2142,6 +2142,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [function() {}, '[Function (anonymous)]'],
   [() => {}, '[Function (anonymous)]'],
   [[1, 2], '[ 1, 2 ]'],
+  // eslint-disable-next-line no-sparse-arrays
   [[, , 5, , , , ], '[ <2 empty items>, 5, <3 empty items> ]'],
   [{ a: 5 }, '{ a: 5 }'],
   [new Set([1, 2]), 'Set(2) { 1, 2 }'],

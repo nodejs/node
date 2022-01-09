@@ -567,8 +567,10 @@ assertNotDeepOrStrict(
 
 // Handle sparse arrays.
 {
+  /* eslint-disable no-sparse-arrays */
   assertDeepAndStrictEqual([1, , , 3], [1, , , 3]);
   assertNotDeepOrStrict([1, , , 3], [1, , , 3, , , ]);
+  /* eslint-enable no-sparse-arrays */
   const a = new Array(3);
   const b = new Array(3);
   a[2] = true;
