@@ -3187,6 +3187,7 @@ assert.strictEqual(
   util.inspect.defaultOptions.numericSeparator = true;
 
   assert.strictEqual(
+    // eslint-disable-next-line no-loss-of-precision
     util.inspect(1234567891234567891234),
     '1.234567891234568e+21'
   );

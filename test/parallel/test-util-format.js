@@ -85,6 +85,7 @@ assert.strictEqual(
 
   assert.strictEqual(
     util.format(
+      // eslint-disable-next-line no-loss-of-precision
       '%d %s %i', 118059162071741130342, 118059162071741130342, 123_123_123),
     '118_059_162_071_741_140_000 118_059_162_071_741_140_000 123_123_123'
   );
