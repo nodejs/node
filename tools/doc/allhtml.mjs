@@ -101,12 +101,8 @@ all = all.slice(0, apiStart.index + apiStart[0].length) +
 fs.writeFileSync(new URL('./all.html', source), all, 'utf8');
 
 // Validate all hrefs have a target.
-const ids = new Set();
 const idRe = / id="([^"]+)"/g;
-const idMatches = all.matchAll(idRe);
-for (const match of idMatches) {
-  ids.add(match[1]);
-}
+const ids = new Set([...all.matchAll(idRe)].map((match) => match[1]));
 
 const hrefRe = / href="#([^"]+)"/g;
 const hrefMatches = all.matchAll(hrefRe);
