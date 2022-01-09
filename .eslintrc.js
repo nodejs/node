@@ -275,6 +275,7 @@ module.exports = {
     'no-self-compare': 'error',
     'no-setter-return': 'error',
     'no-shadow-restricted-names': 'error',
+    'no-sparse-arrays': 'error',
     'no-tabs': 'error',
     'no-template-curly-in-string': 'error',
     'no-this-before-super': 'error',

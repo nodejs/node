@@ -409,8 +409,10 @@ notUtilIsDeepStrict(
 }
 
 // Handle sparse arrays
+/* eslint-disable no-sparse-arrays */
 utilIsDeepStrict([1, , , 3], [1, , , 3]);
 notUtilIsDeepStrict([1, , , 3], [1, , , 3, , , ]);
+/* eslint-enable no-sparse-arrays */
 
 // Handle different error messages
 {
