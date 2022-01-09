@@ -80,14 +80,13 @@ class Worker : public AsyncWrap {
 
   MultiIsolatePlatform* platform_;
   v8::Isolate* isolate_ = nullptr;
-  uv_thread_t tid_;
+  std::optional<uv_thread_t> tid_;  // Set while the thread is running
 
   std::unique_ptr<InspectorParentHandle> inspector_parent_handle_;
 
   // This mutex protects access to all variables listed below it.
   mutable Mutex mutex_;
 
-  bool thread_joined_ = true;
   const char* custom_error_ = nullptr;
   std::string custom_error_str_;
   int exit_code_ = 0;
