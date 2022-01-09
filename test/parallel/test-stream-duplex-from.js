@@ -134,7 +134,7 @@ const { Duplex, Readable, Writable, pipeline } = require('stream');
       }
       yield rest;
     }),
-    async function * (source) {
+    async function * (source) { // eslint-disable-line require-yield
       let ret = '';
       for await (const x of source) {
         ret += x;

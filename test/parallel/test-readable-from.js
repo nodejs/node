@@ -126,7 +126,7 @@ async function toReadableOnDataNonObject() {
 }
 
 async function destroysTheStreamWhenThrowing() {
-  async function* generate() {
+  async function* generate() { // eslint-disable-line require-yield
     throw new Error('kaboom');
   }
 

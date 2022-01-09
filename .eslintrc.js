@@ -320,6 +320,7 @@ module.exports = {
     'quotes': ['error', 'single', { avoidEscape: true }],
     'quote-props': ['error', 'consistent'],
     'rest-spread-spacing': 'error',
+    'require-yield': 'error',
     'semi': 'error',
     'semi-spacing': 'error',
     'space-before-blocks': ['error', 'always'],
