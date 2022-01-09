@@ -44,7 +44,7 @@ function launchTarget(...args) {
     .then(() => {
       assert.match(
         cli.output,
-        /> 3   \+\+x;/,
+        /> 3 {3}\+\+x;/,
         'marks the 3rd line');
     })
     .then(() => cleanup())
