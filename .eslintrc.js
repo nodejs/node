@@ -201,6 +201,7 @@ module.exports = {
     'no-invalid-regexp': 'error',
     'no-irregular-whitespace': 'error',
     'no-lonely-if': 'error',
+    'no-loss-of-precision': 'error',
     'no-misleading-character-class': 'error',
     'no-mixed-requires': 'error',
     'no-mixed-spaces-and-tabs': 'error',
