@@ -260,10 +260,11 @@ if (inactive.length) {
   });
   console.log(`DETAILS_FOR_COMMIT_BODY=${commitDetails.join(' ')}`);
 
-  // Using console.warn() to avoid messing with find-inactive-tsc which consumes
-  // stdout.
-  console.warn('Generating new README.md file...');
-  const newReadmeText = await moveTscToEmeritus(inactive);
-  fs.writeFileSync(new URL('../README.md', import.meta.url), newReadmeText);
-  console.warn('Updated README.md generated. Please commit these changes.');
+  if (process.env.GITHUB_ACTIONS) {
+    // Using console.warn() to avoid messing with find-inactive-tsc which
+    // consumes stdout.
+    console.warn('Generating new README.md file...');
+    const newReadmeText = await moveTscToEmeritus(inactive);
+    fs.writeFileSync(new URL('../README.md', import.meta.url), newReadmeText);
+  }
 }
