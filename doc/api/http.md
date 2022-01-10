@@ -2664,7 +2664,7 @@ If there were no previous value for the header, this is equivalent of calling
 
 Depending of the value of `options.uniqueHeaders` when the client request or the
 server were created, this will end up in the header being sent multiple times or
-a single time with values joined using `, `.
+a single time with values joined using `; `.
 
 ### `outgoingMessage.connection`
 

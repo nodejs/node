@@ -16,21 +16,21 @@ const server = createServer(
       'X-Req-a', 'fff',
       'X-Req-a', 'ggg',
       'X-Req-a', 'hhh',
-      'X-Req-b', 'iii, jjj, kkk, lll',
+      'X-Req-b', 'iii; jjj; kkk; lll',
       'Host', host,
       'Transfer-Encoding', 'chunked',
     ]);
     assert.deepStrictEqual(req.headers, {
       'connection': 'close',
       'x-req-a': 'eee, fff, ggg, hhh',
-      'x-req-b': 'iii, jjj, kkk, lll',
+      'x-req-b': 'iii; jjj; kkk; lll',
       host,
       'transfer-encoding': 'chunked'
     });
     assert.deepStrictEqual(req.headersDistinct, {
       'connection': ['close'],
       'x-req-a': ['eee', 'fff', 'ggg', 'hhh'],
-      'x-req-b': ['iii, jjj, kkk, lll'],
+      'x-req-b': ['iii; jjj; kkk; lll'],
       'host': [host],
       'transfer-encoding': ['chunked']
     });
@@ -39,14 +39,14 @@ const server = createServer(
       assert.deepStrictEqual(req.rawTrailers, [
         'x-req-x', 'xxx',
         'x-req-x', 'yyy',
-        'X-req-Y', 'zzz, www',
+        'X-req-Y', 'zzz; www',
       ]);
       assert.deepStrictEqual(
-        req.trailers, { 'x-req-x': 'xxx, yyy', 'x-req-y': 'zzz, www' }
+        req.trailers, { 'x-req-x': 'xxx, yyy', 'x-req-y': 'zzz; www' }
       );
       assert.deepStrictEqual(
         req.trailersDistinct,
-        { 'x-req-x': ['xxx', 'yyy'], 'x-req-y': ['zzz, www'] }
+        { 'x-req-x': ['xxx', 'yyy'], 'x-req-y': ['zzz; www'] }
       );
 
       res.setHeader('X-Res-a', 'AAA');
@@ -114,27 +114,27 @@ server.listen(0, common.mustCall(() => {
       'X-Res-a', 'AAA',
       'X-Res-a', 'BBB',
       'X-Res-a', 'CCC',
-      'X-Res-b', 'DDD, EEE, FFF, GGG',
+      'X-Res-b', 'DDD; EEE; FFF; GGG',
       'Connection', 'close',
       'x-res-c', 'HHH',
       'x-res-c', 'III',
-      'x-res-d', 'JJJ, KKK, LLL',
+      'x-res-d', 'JJJ; KKK; LLL',
       'Transfer-Encoding', 'chunked',
     ]);
     assert.deepStrictEqual(res.headers, {
       'x-res-a': 'AAA, BBB, CCC',
-      'x-res-b': 'DDD, EEE, FFF, GGG',
+      'x-res-b': 'DDD; EEE; FFF; GGG',
       'connection': 'close',
       'x-res-c': 'HHH, III',
-      'x-res-d': 'JJJ, KKK, LLL',
+      'x-res-d': 'JJJ; KKK; LLL',
       'transfer-encoding': 'chunked'
     });
     assert.deepStrictEqual(res.headersDistinct, {
       'x-res-a': [ 'AAA', 'BBB', 'CCC' ],
-      'x-res-b': [ 'DDD, EEE, FFF, GGG' ],
+      'x-res-b': [ 'DDD; EEE; FFF; GGG' ],
       'connection': [ 'close' ],
       'x-res-c': [ 'HHH', 'III' ],
-      'x-res-d': [ 'JJJ, KKK, LLL' ],
+      'x-res-d': [ 'JJJ; KKK; LLL' ],
       'transfer-encoding': [ 'chunked' ]
     });
 
@@ -142,15 +142,15 @@ server.listen(0, common.mustCall(() => {
       assert.deepStrictEqual(res.rawTrailers, [
         'x-res-x', 'XXX',
         'x-res-x', 'YYY',
-        'X-Res-Y', 'ZZZ, WWW',
+        'X-Res-Y', 'ZZZ; WWW',
       ]);
       assert.deepStrictEqual(
         res.trailers,
-        { 'x-res-x': 'XXX, YYY', 'x-res-y': 'ZZZ, WWW' }
+        { 'x-res-x': 'XXX, YYY', 'x-res-y': 'ZZZ; WWW' }
       );
       assert.deepStrictEqual(
         res.trailersDistinct,
-        { 'x-res-x': ['XXX', 'YYY'], 'x-res-y': ['ZZZ, WWW'] }
+        { 'x-res-x': ['XXX', 'YYY'], 'x-res-y': ['ZZZ; WWW'] }
       );
       server.close();
     });
