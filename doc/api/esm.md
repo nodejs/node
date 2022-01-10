@@ -548,14 +548,16 @@ would provide the exports interface for the instantiation of `module.wasm`.
 
 ## Top-level `await`
 
+<!--
+added: v14.8.0
+-->
+
 > Stability: 1 - Experimental
 
-The `await` keyword may be used in the top level (outside of async functions)
-within modules as per the [ECMAScript Top-Level `await` proposal][].
+The `await` keyword may be used in the top level body of an ECMAScript module.
 
 Assuming an `a.mjs` with
 
-<!-- eslint-skip -->
 ```js
 export const five = await Promise.resolve(5);
 ```
@@ -570,6 +572,23 @@ console.log(five); // Logs `5`
 
 ```bash
 node b.mjs # works
+```
+
+If a top level `await` expression never resolves, the `node` process will exit
+with a `13` [status code][].
+
+```js
+import { spawn } from 'child_process';
+import { execPath } from 'process';
+
+spawn(execPath, [
+  '--input-type=module',
+  '--eval',
+  // Never-resolving Promise:
+  'await new Promise(() => {})',
+]).once('exit', (code) => {
+  console.log(code); // Logs `13`
+});
 ```
 
 <i id="esm_experimental_loaders"></i>
@@ -1344,7 +1363,6 @@ success!
 [Conditional exports]: packages.md#packages_conditional_exports
 [Core modules]: modules.md#modules_core_modules
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
-[ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [Node.js Module Resolution Algorithm]: #esm_resolver_algorithm_specification
 [Terminology]: #esm_terminology
@@ -1372,6 +1390,7 @@ success!
 [cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/1.2.2
 [custom https loader]: #esm_https_loader
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
+[status code]: process.md#process_exit_codes
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [transpiler loader example]: #esm_transpiler_loader
 [url.pathToFileURL]: url.md#url_url_pathtofileurl_path
