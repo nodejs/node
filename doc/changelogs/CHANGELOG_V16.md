@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#16.13.2">16.13.2</a><br/>
 <a href="#16.13.1">16.13.1</a><br/>
 <a href="#16.13.0">16.13.0</a><br/>
 </td>
@@ -53,6 +54,57 @@
   * [0.10.x](CHANGELOG\_V010.md)
   * [io.js](CHANGELOG\_IOJS.md)
   * [Archive](CHANGELOG\_ARCHIVE.md)
+
+<a id="16.13.2"></a>
+
+## 2022-01-10, Version 16.13.2 'Gallium' (LTS), @danielleadams
+
+This is a security release.
+
+### Notable changes
+
+#### Improper handling of URI Subject Alternative Names (Medium)(CVE-2021-44531)
+
+Accepting arbitrary Subject Alternative Name (SAN) types, unless a PKI is specifically defined to use a particular SAN type, can result in bypassing name-constrained intermediates. Node.js was accepting URI SAN types, which PKIs are often not defined to use. Additionally, when a protocol allows URI SANs, Node.js did not match the URI correctly.
+
+Versions of Node.js with the fix for this disable the URI SAN type when checking a certificate against a hostname. This behavior can be reverted through the `--security-revert` command-line option.
+
+More details will be available at [CVE-2021-44531](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44531) after publication.
+
+#### Certificate Verification Bypass via String Injection (Medium)(CVE-2021-44532)
+
+Node.js converts SANs (Subject Alternative Names) to a string format. It uses this string to check peer certificates against hostnames when validating connections. The string format was subject to an injection vulnerability when name constraints were used within a certificate chain, allowing the bypass of these name constraints.
+
+Versions of Node.js with the fix for this escape SANs containing the problematic characters in order to prevent the injection. This behavior can be reverted through the `--security-revert` command-line option.
+
+More details will be available at [CVE-2021-44532](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44532) after publication.
+
+#### Incorrect handling of certificate subject and issuer fields (Medium)(CVE-2021-44533)
+
+Node.js did not handle multi-value Relative Distinguished Names correctly. Attackers could craft certificate subjects containing a single-value Relative Distinguished Name that would be interpreted as a multi-value Relative Distinguished Name, for example, in order to inject a Common Name that would allow bypassing the certificate subject verification.
+
+Affected versions of Node.js do not accept multi-value Relative Distinguished Names and are thus not vulnerable to such attacks themselves. However, third-party code that uses node's ambiguous presentation of certificate subjects may be vulnerable.
+
+More details will be available at [CVE-2021-44533](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44533) after publication.
+
+#### Prototype pollution via `console.table` properties (Low)(CVE-2022-21824)
+
+Due to the formatting logic of the `console.table()` function it was not safe to allow user controlled input to be passed to the `properties` parameter while simultaneously passing a plain object with at least one property as the first parameter, which could be `__proto__`. The prototype pollution has very limited control, in that it only allows an empty string to be assigned numerical keys of the object prototype.
+
+Versions of Node.js with the fix for this use a null protoype for the object these properties are being assigned to.
+
+More details will be available at [CVE-2022-21824](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-21824) after publication.
+
+Thanks to Patrik Oldsberg (rugvip) for reporting this vulnerability.
+
+### Commits
+
+* [[`8dd4ca4537`](https://github.com/nodejs/node/commit/8dd4ca4537)] - **console**: fix prototype pollution via console.table (Tobias Nießen) [nodejs-private/node-private#307](https://github.com/nodejs-private/node-private/pull/307)
+* [[`e52882da4c`](https://github.com/nodejs/node/commit/e52882da4c)] - **crypto,tls**: implement safe x509 GeneralName format (Tobias Nießen) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* [[`9a0a189b0b`](https://github.com/nodejs/node/commit/9a0a189b0b)] - **src**: add cve reverts and associated tests (Michael Dawson) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* [[`4a262d42bc`](https://github.com/nodejs/node/commit/4a262d42bc)] - **src**: remove unused x509 functions (Tobias Nießen) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* [[`965536fe3d`](https://github.com/nodejs/node/commit/965536fe3d)] - **tls**: fix handling of x509 subject and issuer (Tobias Nießen) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* [[`a2cbfa95ff`](https://github.com/nodejs/node/commit/a2cbfa95ff)] - **tls**: drop support for URI alternative names (Tobias Nießen) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
 
 <a id="16.13.1"></a>
 
