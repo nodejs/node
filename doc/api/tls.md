@@ -1146,7 +1146,7 @@ certificate.
 
 * `raw` {Buffer} The DER encoded X.509 certificate data.
 * `subject` {Object} The certificate subject, described in terms of
-  Country (`C:`), StateOrProvince (`ST`), Locality (`L`), Organization (`O`),
+  Country (`C`), StateOrProvince (`ST`), Locality (`L`), Organization (`O`),
   OrganizationalUnit (`OU`), and CommonName (`CN`). The CommonName is typically
   a DNS name with TLS certificates. Example:
   `{C: 'UK', ST: 'BC', L: 'Metro', O: 'Node Fans', OU: 'Docs', CN: 'example.com'}`.
