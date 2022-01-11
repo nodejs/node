@@ -13,6 +13,7 @@ const { getRandomValues } = require('crypto').webcrypto;
   undefined, null, '', 1, {}, [],
   new Float32Array(1),
   new Float64Array(1),
+  new DataView(new ArrayBuffer(1)),
 ].forEach((i) => {
   assert.throws(
     () => getRandomValues(i),
@@ -32,6 +33,7 @@ const intTypedConstructors = [
   Uint8Array,
   Uint16Array,
   Uint32Array,
+  Uint8ClampedArray,
   BigInt64Array,
   BigUint64Array,
 ];
@@ -47,7 +49,7 @@ for (const ctor of intTypedConstructors) {
 {
   const buf = new Uint16Array(10);
   const before = Buffer.from(buf).toString('hex');
-  getRandomValues(new DataView(buf.buffer));
+  getRandomValues(buf);
   const after = Buffer.from(buf).toString('hex');
   assert.notStrictEqual(before, after);
 }
