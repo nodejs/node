@@ -48,8 +48,8 @@ if (!workerData && process.argv[2] !== 'child') {
     {
       code: 'ERR_INVALID_OBJECT_DEFINE_PROPERTY',
       name: 'TypeError',
-      message: 'Must set all attributes with true to \'value\' ' +
-               'in \'process.env\''
+      message: '\'process.env\' only accepts a configurable, ' +
+          'writable, and enumerable data descriptor'
     }
   );
 

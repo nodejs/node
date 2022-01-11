@@ -11,8 +11,9 @@ assert.throws(
   {
     code: 'ERR_INVALID_OBJECT_DEFINE_PROPERTY',
     name: 'TypeError',
-    message: 'Must set all attributes with true to \'value\' ' +
-             'in \'process.env\''
+    message: '\'process.env\' only accepts a ' +
+        'configurable, writable,' +
+        ' and enumerable data descriptor'
   }
 );
 
@@ -32,8 +33,8 @@ assert.throws(
   {
     code: 'ERR_INVALID_OBJECT_DEFINE_PROPERTY',
     name: 'TypeError',
-    message: 'Cannot set attributes other than \'value\' ' +
-             'for properties in \'process.env\''
+    message: '\'process.env\' does not accept an' +
+        'accessor(getter/setter) descriptor'
   }
 );
 
@@ -49,8 +50,9 @@ attributes.forEach((attribute) => {
     {
       code: 'ERR_INVALID_OBJECT_DEFINE_PROPERTY',
       name: 'TypeError',
-      message: 'Cannot set attributes other than \'value\' ' +
-               'for properties in \'process.env\''
+      message: '\'process.env\' only accepts a ' +
+          'configurable, writable,' +
+          ' and enumerable data descriptor'
     }
   );
 });

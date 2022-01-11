@@ -1920,7 +1920,8 @@ The imported module string is an invalid URL, package name, or package subpath
 specifier.
 
 <a id="ERR_INVALID_OBJECT_DEFINE_PROPERTY"></a>
-### ERR_INVALID_OBJECT_DEFINE_PROPERTY
+
+### ERR\_INVALID\_OBJECT\_DEFINE\_PROPERTY
 
 An error occurred while setting an invalid attribute on the property of
 an object.

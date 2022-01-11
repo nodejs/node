@@ -401,20 +401,32 @@ static void EnvDefiner(Local<Name> property,
                        const PropertyDescriptor& desc,
                        const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
-  if (desc.has_value() && !desc.configurable() && !desc.enumerable() &&
-      !desc.writable()) {
+  if (desc.has_value()) {
+    if (!desc.has_writable() ||
+        !desc.has_enumerable() ||
+        !desc.has_configurable()) {
+      THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                               "'process.env' only accepts a "
+                                               "configurable, writable,"
+                                               " and enumerable data descriptor");
+    } else if (!desc.configurable() || !desc.enumerable() || !desc.writable()) {
+      THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                               "'process.env' only accepts a "
+                                               "configurable, writable,"
+                                               " and enumerable data descriptor");
+    } else {
+      return EnvSetter(property, desc.value(), info);
+    }
+  } else if (desc.has_get() || desc.has_set()) {
+    // we don't accept a getter/setter in 'process.env'
     THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
-                             "Must set all attributes with true to 'value'"
-                             " in 'process.env'");
-  } else if (desc.has_get() || desc.has_set() ||
-             (desc.has_configurable() && !desc.configurable()) ||
-             (desc.has_enumerable() && !desc.enumerable()) ||
-             (desc.has_writable() && !desc.writable())) {
-    THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
-                             "Cannot set attributes other than 'value'"
-                             " for properties in 'process.env'");
+                             "'process.env' does not accept an"
+                                             "accessor(getter/setter) descriptor");
   } else {
-    EnvSetter(property, desc.value(), info);
+    THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                             "'process.env' only accepts a "
+                                             "configurable, writable,"
+                                             " and enumerable data descriptor");
   }
 }
 
