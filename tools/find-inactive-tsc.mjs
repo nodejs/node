@@ -211,7 +211,9 @@ async function moveTscToEmeritus(peopleToMove) {
 // only been on the TSC for a week and therefore hasn't attended any meetings.
 const tscMembersAtEnd = await getTscFromReadme();
 
-await runGitCommand(`git checkout 'HEAD@{${SINCE}}' -- README.md`);
+const startCommit =
+  await runGitCommand(`git rev-list -1 --before '${SINCE}' origin/HEAD`);
+await runGitCommand(`git checkout ${startCommit} -- README.md`);
 const tscMembersAtStart = await getTscFromReadme();
 await runGitCommand('git reset HEAD README.md');
 await runGitCommand('git checkout -- README.md');
