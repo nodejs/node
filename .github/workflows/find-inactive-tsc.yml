@@ -19,6 +19,7 @@ jobs:
       - name: Checkout the repo
         uses: actions/checkout@v2
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Clone nodejs/TSC repository
