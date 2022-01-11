@@ -1035,17 +1035,26 @@ static MaybeLocal<Value> GetX509NameObject(Environment* env, X509* cert) {
     // change here without breaking things. Note that this creates nested data
     // structures, yet still does not allow representing Distinguished Names
     // accurately.
-    if (result->HasOwnProperty(env->context(), v8_name).ToChecked()) {
-      Local<Value> accum =
-          result->Get(env->context(), v8_name).ToLocalChecked();
+    bool multiple;
+    if (!result->HasOwnProperty(env->context(), v8_name).To(&multiple)) {
+      return MaybeLocal<Value>();
+    } else if (multiple) {
+      Local<Value> accum;
+      if (!result->Get(env->context(), v8_name).ToLocal(&accum)) {
+        return MaybeLocal<Value>();
+      }
       if (!accum->IsArray()) {
         accum = Array::New(env->isolate(), &accum, 1);
-        result->Set(env->context(), v8_name, accum).Check();
+        if (result->Set(env->context(), v8_name, accum).IsNothing()) {
+          return MaybeLocal<Value>();
+        }
       }
       Local<Array> array = accum.As<Array>();
-      array->Set(env->context(), array->Length(), v8_value).Check();
-    } else {
-      result->Set(env->context(), v8_name, v8_value).Check();
+      if (array->Set(env->context(), array->Length(), v8_value).IsNothing()) {
+        return MaybeLocal<Value>();
+      }
+    } else if (result->Set(env->context(), v8_name, v8_value).IsNothing()) {
+      return MaybeLocal<Value>();
     }
   }
 
