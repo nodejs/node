@@ -78,7 +78,7 @@ class ResourceLoader {
 }
 
 class StatusRule {
-  constructor(key, value, pattern = undefined) {
+  constructor(key, value, pattern) {
     this.key = key;
     this.requires = value.requires || [];
     this.fail = value.fail;
