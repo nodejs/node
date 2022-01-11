@@ -2031,8 +2031,8 @@ if options.compile_commands_json:
 if bin_override is not None:
   gyp_args += ['-Dpython=' + sys.executable]
 
-# pass the leftover positional arguments to GYP
-gyp_args += args
+# pass the leftover non-whitespace positional arguments to GYP
+gyp_args += [arg for arg in args if not str.isspace(arg)]
 
 if warn.warned and not options.verbose:
   warn('warnings were emitted in the configure phase')
