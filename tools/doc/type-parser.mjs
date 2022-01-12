@@ -16,7 +16,10 @@ const jsGlobalTypes = [
   'AggregateError', 'Array', 'ArrayBuffer', 'DataView', 'Date', 'Error',
   'EvalError', 'Function', 'Map', 'Object', 'Promise', 'RangeError',
   'ReferenceError', 'RegExp', 'Set', 'SharedArrayBuffer', 'SyntaxError',
-  'TypeError', 'TypedArray', 'URIError', 'Uint8Array',
+  'TypeError', 'TypedArray', 'URIError', 'Int8Array', 'Uint8Array',
+  'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array',
+  'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array',
+  'BigUint64Array',
 ];
 
 const customTypesMap = {
