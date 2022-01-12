@@ -5275,6 +5275,8 @@ would allow an attacker to guess one of the values. This is suitable for
 comparing HMAC digests or secret values like authentication cookies or
 [capability urls](https://www.w3.org/TR/capability-urls/).
 
+Throws an error if 'a' and 'b' are not equal length.
+
 `a` and `b` must both be `Buffer`s, `TypedArray`s, or `DataView`s, and they
 must have the same byte length.
 
