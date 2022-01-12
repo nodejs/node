@@ -308,21 +308,26 @@ class HeapSnapshotStream : public AsyncWrap,
   HeapSnapshotPointer snapshot_;
 };
 
-inline void TakeSnapshot(Isolate* isolate, v8::OutputStream* out) {
+inline void TakeSnapshot(Environment* env, v8::OutputStream* out) {
   HeapSnapshotPointer snapshot {
-      isolate->GetHeapProfiler()->TakeHeapSnapshot() };
+      env->isolate()->GetHeapProfiler()->TakeHeapSnapshot() };
   snapshot->Serialize(out, HeapSnapshot::kJSON);
 }
 
 }  // namespace
 
-bool WriteSnapshot(Isolate* isolate, const char* filename) {
+bool WriteSnapshot(Environment* env, const char* filename) {
   FILE* fp = fopen(filename, "w");
-  if (fp == nullptr)
+  if (fp == nullptr) {
+    env->ThrowErrnoException(errno, "open");
     return false;
+  }
   FileOutputStream stream(fp);
-  TakeSnapshot(isolate, &stream);
-  fclose(fp);
+  TakeSnapshot(env, &stream);
+  if (fclose(fp) == EOF) {
+    env->ThrowErrnoException(errno, "close");
+    return false;
+  }
   return true;
 }
 
@@ -374,7 +379,7 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
 
   if (filename_v->IsUndefined()) {
     DiagnosticFilename name(env, "Heap", "heapsnapshot");
-    if (!WriteSnapshot(isolate, *name))
+    if (!WriteSnapshot(env, *name))
       return;
     if (String::NewFromUtf8(isolate, *name).ToLocal(&filename_v)) {
       args.GetReturnValue().Set(filename_v);
@@ -384,7 +389,7 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(isolate, filename_v);
   CHECK_NOT_NULL(*path);
-  if (!WriteSnapshot(isolate, *path))
+  if (!WriteSnapshot(env, *path))
     return;
   return args.GetReturnValue().Set(filename_v);
 }
