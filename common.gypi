@@ -621,6 +621,8 @@
         'ldflags': [
           '-q64',
         ],
+        # for addons due to v8config.h include of "zos-base.h":
+        'include_dirs':  ['$(ZOSLIB_INCLUDES)'],
       }],
     ],
   }
