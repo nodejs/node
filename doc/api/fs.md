@@ -738,9 +738,11 @@ added: v10.0.0
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
-checks to be performed. Check [File access constants][] for possible values
-of `mode`. It is possible to create a mask consisting of the bitwise OR of
-two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
+checks to be performed. `mode` should be either the value `fs.constants.F_OK`
+or a mask consisting of the bitwise OR of any of `fs.constants.R_OK`,
+`fs.constants.W_OK`, and `fs.constants.X_OK` (e.g.
+`fs.constants.W_OK | fs.constants.R_OK`). Check [File access constants][] for
+possible values of `mode`.
 
 If the accessibility check is successful, the promise is resolved with no
 value. If any of the accessibility checks fail, the promise is rejected
@@ -1616,9 +1618,11 @@ changes:
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
-checks to be performed. Check [File access constants][] for possible values
-of `mode`. It is possible to create a mask consisting of the bitwise OR of
-two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
+checks to be performed. `mode` should be either the value `fs.constants.F_OK`
+or a mask consisting of the bitwise OR of any of `fs.constants.R_OK`,
+`fs.constants.W_OK`, and `fs.constants.X_OK` (e.g.
+`fs.constants.W_OK | fs.constants.R_OK`). Check [File access constants][] for
+possible values of `mode`.
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
@@ -1645,14 +1649,9 @@ access(file, constants.W_OK, (err) => {
   console.log(`${file} ${err ? 'is not writable' : 'is writable'}`);
 });
 
-// Check if the file exists in the current directory, and if it is writable.
-access(file, constants.F_OK | constants.W_OK, (err) => {
-  if (err) {
-    console.error(
-      `${file} ${err.code === 'ENOENT' ? 'does not exist' : 'is read-only'}`);
-  } else {
-    console.log(`${file} exists, and it is writable`);
-  }
+// Check if the file is readable and writable.
+access(file, constants.R_OK | constants.W_OK, (err) => {
+  console.log(`${file} ${err ? 'is not' : 'is'} readable and writable`);
 });
 ```
 
@@ -4459,10 +4458,11 @@ changes:
 
 Synchronously tests a user's permissions for the file or directory specified
 by `path`. The `mode` argument is an optional integer that specifies the
-accessibility checks to be performed. Check [File access constants][] for
-possible values of `mode`. It is possible to create a mask consisting of
-the bitwise OR of two or more values
-(e.g. `fs.constants.W_OK | fs.constants.R_OK`).
+accessibility checks to be performed. `mode` should be either the value
+`fs.constants.F_OK` or a mask consisting of the bitwise OR of any of
+`fs.constants.R_OK`, `fs.constants.W_OK`, and `fs.constants.X_OK` (e.g.
+`fs.constants.W_OK | fs.constants.R_OK`). Check [File access constants][] for
+possible values of `mode`.
 
 If any of the accessibility checks fail, an `Error` will be thrown. Otherwise,
 the method will return `undefined`.
@@ -6579,7 +6579,8 @@ open('/path/to/my/file', O_RDWR | O_CREAT | O_EXCL, (err, fd) => {
 
 ##### File access constants
 
-The following constants are meant for use with [`fs.access()`][].
+The following constants are meant for use as the `mode` parameter passed to
+[`fsPromises.access()`][], [`fs.access()`][], and [`fs.accessSync()`][].
 
 <table>
   <tr>
@@ -7258,6 +7259,7 @@ the file contents.
 [`event ports`]: https://illumos.org/man/port_create
 [`filehandle.writeFile()`]: #filehandlewritefiledata-options
 [`fs.access()`]: #fsaccesspath-mode-callback
+[`fs.accessSync()`]: #fsaccesssyncpath-mode
 [`fs.chmod()`]: #fschmodpath-mode-callback
 [`fs.chown()`]: #fschownpath-uid-gid-callback
 [`fs.copyFile()`]: #fscopyfilesrc-dest-mode-callback
@@ -7292,6 +7294,7 @@ the file contents.
 [`fs.write(fd, string...)`]: #fswritefd-string-position-encoding-callback
 [`fs.writeFile()`]: #fswritefilefile-data-options-callback
 [`fs.writev()`]: #fswritevfd-buffers-position-callback
+[`fsPromises.access()`]: #fspromisesaccesspath-mode
 [`fsPromises.open()`]: #fspromisesopenpath-flags-mode
 [`fsPromises.opendir()`]: #fspromisesopendirpath-options
 [`fsPromises.rm()`]: #fspromisesrmpath-options
