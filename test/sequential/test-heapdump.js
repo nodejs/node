@@ -24,6 +24,19 @@ process.chdir(tmpdir.path);
   fs.accessSync(heapdump);
 }
 
+{
+  const readonlyFile = 'ro';
+  fs.writeFileSync(readonlyFile, Buffer.alloc(0), { mode: 0o444 });
+  assert.throws(() => {
+    writeHeapSnapshot(readonlyFile);
+  }, (e) => {
+    assert.ok(e, 'writeHeapSnapshot should error');
+    assert.strictEqual(e.code, 'EACCES');
+    assert.strictEqual(e.syscall, 'open');
+    return true;
+  });
+}
+
 [1, true, {}, [], null, Infinity, NaN].forEach((i) => {
   assert.throws(() => writeHeapSnapshot(i), {
     code: 'ERR_INVALID_ARG_TYPE',

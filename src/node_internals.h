@@ -379,7 +379,7 @@ class DiagnosticFilename {
 };
 
 namespace heap {
-bool WriteSnapshot(v8::Isolate* isolate, const char* filename);
+bool WriteSnapshot(Environment* env, const char* filename);
 }
 
 class TraceEventScope {
