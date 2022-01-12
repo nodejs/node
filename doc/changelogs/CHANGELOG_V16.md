@@ -99,12 +99,12 @@ Thanks to Patrik Oldsberg (rugvip) for reporting this vulnerability.
 
 ### Commits
 
-* [[`8dd4ca4537`](https://github.com/nodejs/node/commit/8dd4ca4537)] - **console**: fix prototype pollution via console.table (Tobias Nießen) [nodejs-private/node-private#307](https://github.com/nodejs-private/node-private/pull/307)
-* [[`e52882da4c`](https://github.com/nodejs/node/commit/e52882da4c)] - **crypto,tls**: implement safe x509 GeneralName format (Tobias Nießen) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
-* [[`9a0a189b0b`](https://github.com/nodejs/node/commit/9a0a189b0b)] - **src**: add cve reverts and associated tests (Michael Dawson) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
-* [[`4a262d42bc`](https://github.com/nodejs/node/commit/4a262d42bc)] - **src**: remove unused x509 functions (Tobias Nießen) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
-* [[`965536fe3d`](https://github.com/nodejs/node/commit/965536fe3d)] - **tls**: fix handling of x509 subject and issuer (Tobias Nießen) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
-* [[`a2cbfa95ff`](https://github.com/nodejs/node/commit/a2cbfa95ff)] - **tls**: drop support for URI alternative names (Tobias Nießen) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* \[[`8dd4ca4537`](https://github.com/nodejs/node/commit/8dd4ca4537)] - **console**: fix prototype pollution via console.table (Tobias Nießen) [nodejs-private/node-private#307](https://github.com/nodejs-private/node-private/pull/307)
+* \[[`e52882da4c`](https://github.com/nodejs/node/commit/e52882da4c)] - **crypto,tls**: implement safe x509 GeneralName format (Tobias Nießen) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* \[[`9a0a189b0b`](https://github.com/nodejs/node/commit/9a0a189b0b)] - **src**: add cve reverts and associated tests (Michael Dawson) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* \[[`4a262d42bc`](https://github.com/nodejs/node/commit/4a262d42bc)] - **src**: remove unused x509 functions (Tobias Nießen) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* \[[`965536fe3d`](https://github.com/nodejs/node/commit/965536fe3d)] - **tls**: fix handling of x509 subject and issuer (Tobias Nießen) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
+* \[[`a2cbfa95ff`](https://github.com/nodejs/node/commit/a2cbfa95ff)] - **tls**: drop support for URI alternative names (Tobias Nießen) [nodejs-private/node-private#300](https://github.com/nodejs-private/node-private/pull/300)
 
 <a id="16.13.1"></a>
 
