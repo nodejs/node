@@ -5317,7 +5317,8 @@ comparing HMAC digests or secret values like authentication cookies or
 [capability urls](https://www.w3.org/TR/capability-urls/).
 
 `a` and `b` must both be `Buffer`s, `TypedArray`s, or `DataView`s, and they
-must have the same byte length.
+must have the same byte length. An error is thrown if `a` and `b` have
+different byte lengths.
 
 If at least one of `a` and `b` is a `TypedArray` with more than one byte per
 entry, such as `Uint16Array`, the result will be computed using the platform
