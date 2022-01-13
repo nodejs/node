@@ -103,7 +103,8 @@ There is the CommonJS module loader:
 * It treats all files that lack `.json` or `.node` extensions as JavaScript
   text files.
 * It cannot be used to load ECMAScript modules. Attempting to do so will result
-  in a [`ERR_REQUIRE_ESM`][] error.
+  in a [`ERR_REQUIRE_ESM`][] error. When used to load a JavaScript text file
+  that is not an ECMAScript module, it loads it as a CommonJS module.
 
 There is the ECMAScript module loader:
 
