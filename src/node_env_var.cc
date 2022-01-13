@@ -408,12 +408,16 @@ static void EnvDefiner(Local<Name> property,
       THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
                                                "'process.env' only accepts a "
                                                "configurable, writable,"
-                                               " and enumerable data descriptor");
-    } else if (!desc.configurable() || !desc.enumerable() || !desc.writable()) {
+                                               " and enumerable "
+                                               "data descriptor");
+    } else if (!desc.configurable() ||
+               !desc.enumerable() ||
+               !desc.writable()) {
       THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
                                                "'process.env' only accepts a "
                                                "configurable, writable,"
-                                               " and enumerable data descriptor");
+                                               " and enumerable "
+                                               "data descriptor");
     } else {
       return EnvSetter(property, desc.value(), info);
     }
@@ -421,12 +425,14 @@ static void EnvDefiner(Local<Name> property,
     // we don't accept a getter/setter in 'process.env'
     THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
                              "'process.env' does not accept an"
-                                             "accessor(getter/setter) descriptor");
+                                             "accessor(getter/setter)"
+                                             " descriptor");
   } else {
     THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
                                              "'process.env' only accepts a "
                                              "configurable, writable,"
-                                             " and enumerable data descriptor");
+                                             " and enumerable "
+                                             "data descriptor");
   }
 }
 
