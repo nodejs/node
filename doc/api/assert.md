@@ -678,8 +678,7 @@ are recursively evaluated also by the following rules.
 
 ### Comparison details
 
-* Primitive values are compared using the [SameValue Comparison][], used by
-  [`Object.is()`][].
+* Primitive values are compared using [`Object.is()`][].
 * [Type tags][Object.prototype.toString()] of objects should be the same.
 * [`[[Prototype]]`][prototype-spec] of objects are compared using
   the [`===` operator][].
@@ -731,7 +730,7 @@ assert.deepStrictEqual(date, fakeDate);
 // - Date {}
 
 assert.deepStrictEqual(NaN, NaN);
-// OK, because of the SameValue comparison
+// OK because Object.is(NaN, NaN) is true.
 
 // Different unwrapped numbers:
 assert.deepStrictEqual(new Number(1), new Number(2));
@@ -747,7 +746,7 @@ assert.deepStrictEqual(new String('foo'), Object('foo'));
 assert.deepStrictEqual(-0, -0);
 // OK
 
-// Different zeros using the SameValue Comparison:
+// Different zeros:
 assert.deepStrictEqual(0, -0);
 // AssertionError: Expected inputs to be strictly deep-equal:
 // + actual - expected
@@ -823,7 +822,7 @@ assert.deepStrictEqual(date, fakeDate);
 // - Date {}
 
 assert.deepStrictEqual(NaN, NaN);
-// OK, because of the SameValue comparison
+// OK because Object.is(NaN, NaN) is true.
 
 // Different unwrapped numbers:
 assert.deepStrictEqual(new Number(1), new Number(2));
@@ -839,7 +838,7 @@ assert.deepStrictEqual(new String('foo'), Object('foo'));
 assert.deepStrictEqual(-0, -0);
 // OK
 
-// Different zeros using the SameValue Comparison:
+// Different zeros:
 assert.deepStrictEqual(0, -0);
 // AssertionError: Expected inputs to be strictly deep-equal:
 // + actual - expected
@@ -1724,7 +1723,7 @@ changes:
 * `message` {string|Error}
 
 Tests strict inequality between the `actual` and `expected` parameters as
-determined by the [SameValue Comparison][].
+determined by [`Object.is()`][].
 
 ```mjs
 import assert from 'assert/strict';
@@ -2016,7 +2015,7 @@ changes:
 * `message` {string|Error}
 
 Tests strict equality between the `actual` and `expected` parameters as
-determined by the [SameValue Comparison][].
+determined by [`Object.is()`][].
 
 ```mjs
 import assert from 'assert/strict';
@@ -2436,7 +2435,6 @@ argument.
 
 [Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
-[SameValue Comparison]: https://tc39.github.io/ecma262/#sec-samevalue
 [`!=` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Inequality
 [`===` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Strict_equality
 [`==` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Equality
