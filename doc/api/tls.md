@@ -17,7 +17,7 @@ const tls = require('tls');
 ## TLS/SSL concepts
 
 The TLS/SSL is a public/private key infrastructure (PKI). For most common
-cases, each client and server must have a _private key_.
+cases, each server must have a _private key_.
 
 Private keys can be generated in multiple ways. The example below illustrates
 use of the OpenSSL command-line interface to generate a 2048-bit RSA private
