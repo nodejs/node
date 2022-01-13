@@ -1396,12 +1396,12 @@ _internal_, _conditions_)
 
 > 1. Let _scopeURL_ be _url_.
 > 2. While _scopeURL_ is not the file system root,
->    1. Set _scopeURL_ to the parent URL of _scopeURL_.
->    2. If _scopeURL_ ends in a _"node\_modules"_ path segment, return **null**.
->    3. Let _pjsonURL_ be the resolution of _"package.json"_ within
->       _packageURL_.
->    4. if the file at _pjsonURL_ exists, then
->       1. Return _scopeURL_.
+>    1. If _scopeURL_ ends in a _"node\_modules"_ path segment, return **null**.
+>    2. Let _pjsonURL_ be the resolution of _"package.json"_ within
+>       _scopeURL_.
+>    3. if the file at _pjsonURL_ exists, then
+>       1. Return _scopeURL_.  
+>    4. Otherwise, set _scopeURL_ to the parent URL of _scopeURL_.
 > 3. Return **null**.
 
 **READ\_PACKAGE\_JSON**(_packageURL_)
