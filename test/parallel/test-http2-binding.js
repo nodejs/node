@@ -107,7 +107,7 @@ const expectedHeaderNames = {
   HTTP2_HEADER_ACCEPT_LANGUAGE: 'accept-language',
   HTTP2_HEADER_ACCEPT_RANGES: 'accept-ranges',
   HTTP2_HEADER_ACCEPT: 'accept',
-  HTTP2_HEADER_ACCESS_CONTROL_ALLOW_CREDENTIALS: 'access-control-allow-credentials', // eslint-disable-line max-len
+  HTTP2_HEADER_ACCESS_CONTROL_ALLOW_CREDENTIALS: 'access-control-allow-credentials',
   HTTP2_HEADER_ACCESS_CONTROL_ALLOW_HEADERS: 'access-control-allow-headers',
   HTTP2_HEADER_ACCESS_CONTROL_ALLOW_METHODS: 'access-control-allow-methods',
   HTTP2_HEADER_ACCESS_CONTROL_ALLOW_ORIGIN: 'access-control-allow-origin',

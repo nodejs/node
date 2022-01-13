@@ -2689,7 +2689,7 @@ assert.strictEqual(
 
   expected = [
     '[',
-    /* eslint-disable max-len */
+
     '   \u001b[33m0\u001b[39m,  \u001b[33m1\u001b[39m,  \u001b[33m2\u001b[39m,  \u001b[33m3\u001b[39m,',
     '   \u001b[33m4\u001b[39m,  \u001b[33m5\u001b[39m,  \u001b[33m6\u001b[39m,  \u001b[33m7\u001b[39m,',
     '   \u001b[33m8\u001b[39m,  \u001b[33m9\u001b[39m, \u001b[33m10\u001b[39m, \u001b[33m11\u001b[39m,',
@@ -3146,7 +3146,7 @@ assert.strictEqual(
     '[GeneratorFunction: generator] {\n' +
     '  [length]: 0,\n' +
     "  [name]: 'generator',\n" +
-    "  [prototype]: Object [Generator] { [Symbol(Symbol.toStringTag)]: 'Generator' },\n" + // eslint-disable-line max-len
+    "  [prototype]: Object [Generator] { [Symbol(Symbol.toStringTag)]: 'Generator' },\n" +
     "  [Symbol(Symbol.toStringTag)]: 'GeneratorFunction'\n" +
     '}'
   );
