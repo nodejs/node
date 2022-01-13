@@ -83,6 +83,8 @@
 	"node:querystring": [">= 14.18 && < 15", ">= 16"],
 	"readline": true,
 	"node:readline": [">= 14.18 && < 15", ">= 16"],
+	"readline/promises": ">= 17",
+	"node:readline/promises": ">= 17",
 	"repl": true,
 	"node:repl": [">= 14.18 && < 15", ">= 16"],
 	"smalloc": ">= 0.11.5 && < 3",

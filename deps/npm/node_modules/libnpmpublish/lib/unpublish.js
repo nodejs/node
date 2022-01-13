@@ -31,8 +31,9 @@ const unpublish = async (spec, opts) => {
 
     // if missing specific version,
     // assumed unpublished
-    if (!versionData && !rawSpecs && !noVersions)
+    if (!versionData && !rawSpecs && !noVersions) {
       return true
+    }
 
     // unpublish all versions of a package:
     // - no specs supplied "npm unpublish foo"
@@ -54,8 +55,9 @@ const unpublish = async (spec, opts) => {
 
       // deleting dist tags associated to version
       Object.keys(pkg['dist-tags']).forEach(tag => {
-        if (pkg['dist-tags'][tag] === version)
+        if (pkg['dist-tags'][tag] === version) {
           delete pkg['dist-tags'][tag]
+        }
       })
 
       if (latestVer === version) {
@@ -89,8 +91,9 @@ const unpublish = async (spec, opts) => {
       return true
     }
   } catch (err) {
-    if (err.code !== 'E404')
+    if (err.code !== 'E404') {
       throw err
+    }
 
     return true
   }

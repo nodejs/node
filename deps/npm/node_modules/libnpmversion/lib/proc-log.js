@@ -9,7 +9,7 @@ const LEVELS = [
   'http',
   'silly',
   'pause',
-  'resume'
+  'resume',
 ]
 
 const log = level => (...args) => process.emit('log', level, ...args)
