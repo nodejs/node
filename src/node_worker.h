@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <optional>
 #include <unordered_map>
 #include "node_messaging.h"
 #include "uv.h"
