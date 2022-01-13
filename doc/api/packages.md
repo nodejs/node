@@ -92,6 +92,7 @@ Node.js has two systems for resolving a specifier and loading modules.
 There is the CommonJS module loader:
 
 * It is fully synchronous.
+* It is responsible for handling `require()` calls.
 * It is monkey patchable.
 * When resolving a specifier, if no exact match is found, it will try to add
   extensions (`.js`, `.json`, and finally `.node`).
@@ -103,14 +104,16 @@ There is the CommonJS module loader:
   text files.
 * It cannot be used to load ECMAScript modules. Attempting to do so will result
   in a [`ERR_REQUIRE_ESM`][] error.
-* It can be accessed using `require` function.
 
 There is the ECMAScript module loader:
 
-* It is Asynchronous.
+* It is asynchronous.
+* It is responsible for handling `import` statements and `import()` expressions.
 * It is not monkey patchable, can be customized using [loader hooks][].
-* No extension searching, the specifier must point to the exact URL of the file.
-* It does not support folders as modules.
+* No extension searching, a file extension must be provided when the specifier
+  is a relative or absolute file URL.
+* It does not support folders as modules, directory indexes (e.g.
+  `'./startup/index.js'`) must be fully specified.
 * It can load JSON modules, but an import assertion is required (behind
   `--experimental-json-modules` flag).
 * It accepts only `.js`, `.mjs`, and `.cjs` extensions for JavaScript text
@@ -120,7 +123,6 @@ There is the ECMAScript module loader:
   which are available if they can be determined through static analysis.
   Imported CommonJS modules have their URLs converted to absolute
   paths and are then loaded via the CommonJS module loader.
-* It is responsible for handling `import` statements and `import()` expressions.
 
 ### `package.json` and file extensions
 
