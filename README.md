@@ -378,8 +378,6 @@ For information about the governance of the Node.js project, see
   **Denys Otrishko** <<shishugi@gmail.com>> (he/him)
 * [Lxxyx](https://github.com/Lxxyx) -
   **Zijian Liu** <<lxxyxzj@gmail.com>> (he/him)
-* [mafintosh](https://github.com/mafintosh) -
-  **Mathias Buus** <<mathiasbuus@gmail.com>> (he/him)
 * [mcollina](https://github.com/mcollina) -
   **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
 * [mhdawson](https://github.com/mhdawson) -
@@ -542,6 +540,8 @@ For information about the governance of the Node.js project, see
   **Aleksey Smolenchuk** <<lxe@lxe.co>>
 * [maclover7](https://github.com/maclover7) -
   **Jon Moss** <<me@jonathanmoss.me>> (he/him)
+* [mafintosh](https://github.com/mafintosh) -
+  **Mathias Buus** <<mathiasbuus@gmail.com>> (he/him)
 * [matthewloring](https://github.com/matthewloring) -
   **Matthew Loring** <<mattloring@google.com>>
 * [micnic](https://github.com/micnic) -
