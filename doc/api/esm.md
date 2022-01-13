@@ -1399,7 +1399,7 @@ _internal_, _conditions_)
 >    1. Set _scopeURL_ to the parent URL of _scopeURL_.
 >    2. If _scopeURL_ ends in a _"node\_modules"_ path segment, return **null**.
 >    3. Let _pjsonURL_ be the resolution of _"package.json"_ within
->       _packageURL_.
+>       _scopeURL_.
 >    4. if the file at _pjsonURL_ exists, then
 >       1. Return _scopeURL_.
 > 3. Return **null**.
