@@ -87,7 +87,7 @@ files in the package should be interpreted.
 
 ### Modules loaders
 
-Node.js has two system for resolving a specifier and load modules.
+Node.js has two systems for resolving a specifier and loading modules.
 
 There is the CommonJS module loader:
 
@@ -99,7 +99,7 @@ There is the CommonJS module loader:
 * It treats `.json` as JSON text files.
 * `.node` files are interpreted as compiled addon modules loaded with
   `process.dlopen()`.
-* It treats files that do not have `.json` or `.node` extension as JavaScript
+* It treats all files that lack `.json` or `.node` extensions as JavaScript
   text files.
 * It cannot be used to load ECMAScript modules. Attempting to do so will result
   in a [`ERR_REQUIRE_ESM`][] error.
@@ -111,14 +111,16 @@ There is the ECMAScript module loader:
 * It is not monkey patchable, can be customized using [loader hooks][].
 * No extension searching, the specifier must point to the exact URL of the file.
 * It does not support folders as modules.
-* Import assertion are needed to load JSON modules (behind
+* It can load JSON modules, but an import assertion is required (behind
   `--experimental-json-modules` flag).
-* It only accepts `.js`, `.mjs`, and `.cjs` extensions for JavaScript text
+* It accepts only `.js`, `.mjs`, and `.cjs` extensions for JavaScript text
   files.
-* It can be used to load (JavaScript) CommonJS modules. It passes the module
-  content through the `es-module-lexer` to assess what are its exports, convert
-  its URL to an absolute path and load it using the CommonJS module loader.
-* It can be accessed using `import`.
+* It can be used to load JavaScript CommonJS modules. Such modules
+  are passed through the `es-module-lexer` to try to identify named exports,
+  which are available if they can be determined through static analysis.
+  Imported CommonJS modules have their URLs converted to absolute
+  paths and are then loaded via the CommonJS module loader.
+* It is responsible for handling `import` statements and `import()` expressions.
 
 ### `package.json` and file extensions
 
