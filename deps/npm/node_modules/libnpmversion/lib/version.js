@@ -19,7 +19,7 @@ module.exports = async (newversion, opts) => {
     ignoreScripts,
     preid,
     pkg,
-    log
+    log,
   } = opts
 
   const { valid, clean, inc } = semver
@@ -38,7 +38,7 @@ module.exports = async (newversion, opts) => {
   if (!newV) {
     throw Object.assign(new Error('Invalid version: ' + newversion), {
       current,
-      requested: newversion
+      requested: newversion,
     })
   }
 
@@ -46,7 +46,7 @@ module.exports = async (newversion, opts) => {
     throw Object.assign(new Error('Version not changed'), {
       current,
       requested: newversion,
-      newVersion: newV
+      newVersion: newV,
     })
   }
 
@@ -67,8 +67,8 @@ module.exports = async (newversion, opts) => {
       banner: log.level !== 'silent',
       env: {
         npm_old_version: current,
-        npm_new_version: newV
-      }
+        npm_new_version: newV,
+      },
     })
   }
 
@@ -101,8 +101,8 @@ module.exports = async (newversion, opts) => {
       banner: log.level !== 'silent',
       env: {
         npm_old_version: current,
-        npm_new_version: newV
-      }
+        npm_new_version: newV,
+      },
     })
   }
 
@@ -115,7 +115,9 @@ module.exports = async (newversion, opts) => {
     }
     await commit(newV, opts)
     await tag(newV, opts)
-  } else { log.verbose('version', 'Not tagging: not in a git repo or no git cmd') }
+  } else {
+    log.verbose('version', 'Not tagging: not in a git repo or no git cmd')
+  }
 
   if (!ignoreScripts) {
     await runScript({
@@ -126,8 +128,8 @@ module.exports = async (newversion, opts) => {
       banner: log.level !== 'silent',
       env: {
         npm_old_version: current,
-        npm_new_version: newV
-      }
+        npm_new_version: newV,
+      },
     })
   }
 

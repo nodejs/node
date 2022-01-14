@@ -1,8 +1,8 @@
 const pacote = require('pacote')
 
-const formatDiff = require('./lib/format-diff.js')
-const getTarball = require('./lib/tarball.js')
-const untar = require('./lib/untar.js')
+const formatDiff = require('./format-diff.js')
+const getTarball = require('./tarball.js')
+const untar = require('./untar.js')
 
 // TODO: we test this condition in the diff command
 // so this error probably doesnt need to be here. Or

@@ -1085,18 +1085,29 @@ class Shrinkwrap {
     return lock
   }
 
-  save (options = {}) {
+  toJSON () {
     if (!this.data) {
-      throw new Error('run load() before saving data')
+      throw new Error('run load() before getting or setting data')
     }
 
+    return this.commit()
+  }
+
+  toString (options = {}) {
+    const data = this.toJSON()
     const { format = true } = options
     const defaultIndent = this.indent || 2
     const indent = format === true ? defaultIndent
       : format || 0
     const eol = format ? this.newline || '\n' : ''
-    const data = this.commit()
-    const json = stringify(data, swKeyOrder, indent).replace(/\n/g, eol)
+    return stringify(data, swKeyOrder, indent).replace(/\n/g, eol)
+  }
+
+  save (options = {}) {
+    if (!this.data) {
+      throw new Error('run load() before saving data')
+    }
+    const json = this.toString(options)
     return Promise.all([
       writeFile(this.filename, json).catch(er => {
         if (this.hiddenLockfile) {

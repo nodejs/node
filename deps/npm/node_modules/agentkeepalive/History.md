@@ -1,4 +1,13 @@
 
+4.2.0 / 2021-12-31
+==================
+
+**fixes**
+  * [[`f418c67`](http://github.com/node-modules/agentkeepalive/commit/f418c67a63c061c7261592d4553bc455e0b0d306)] - fix: change `freeSocketTimeout` default value to 4000 (#102) (fengmk2 <<fengmk2@gmail.com>>)
+
+**others**
+  * [[`bc2a1ce`](http://github.com/node-modules/agentkeepalive/commit/bc2a1cea0884b4d18b0d244bf00006d9107963df)] - doc(readme): making `timeout`'s default clear (#100) (Aaron <<aaronarinder@gmail.com>>)
+
 4.1.4 / 2021-02-05
 ==================
 

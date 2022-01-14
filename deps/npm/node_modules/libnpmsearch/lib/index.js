@@ -16,7 +16,7 @@ function searchStream (query, opts = {}) {
     popularity: 0.98,
     maintenance: 0.5,
     ...opts.opts, // this is to support the cli's --searchopts parameter
-    ...opts
+    ...opts,
   }
 
   switch (opts.sortBy) {
@@ -54,7 +54,7 @@ function searchStream (query, opts = {}) {
         from: opts.from,
         quality: opts.quality,
         popularity: opts.popularity,
-        maintenance: opts.maintenance
+        maintenance: opts.maintenance,
       },
       mapJSON: (obj) => {
         if (obj.package.date) {
@@ -65,7 +65,7 @@ function searchStream (query, opts = {}) {
         } else {
           return obj.package
         }
-      }
+      },
     }
   )
 }

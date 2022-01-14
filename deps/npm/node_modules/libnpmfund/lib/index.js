@@ -15,11 +15,13 @@ function normalizeFunding (funding) {
 // Is the value of a `funding` property of a `package.json`
 // a valid type+url for `npm fund` to display?
 function isValidFunding (funding) {
-  if (!funding)
+  if (!funding) {
     return false
+  }
 
-  if (Array.isArray(funding))
+  if (Array.isArray(funding)) {
     return funding.every(f => !Array.isArray(f) && isValidFunding(f))
+  }
 
   try {
     var parsed = new URL(funding.url || funding)
@@ -30,8 +32,9 @@ function isValidFunding (funding) {
   if (
     parsed.protocol !== 'https:' &&
     parsed.protocol !== 'http:'
-  )
+  ) {
     return false
+  }
 
   return Boolean(parsed.host)
 }
@@ -53,8 +56,9 @@ function readTree (tree, opts) {
 
   function tracked (name, version) {
     const key = String(name) + String(version)
-    if (seen.has(key))
+    if (seen.has(key)) {
       return true
+    }
 
     seen.add(key)
   }
@@ -89,30 +93,36 @@ function readTree (tree, opts) {
 
   function getFundingDependencies (tree) {
     const edges = tree && tree.edgesOut && tree.edgesOut.values()
-    if (!edges)
+    if (!edges) {
       return empty()
+    }
 
     const directDepsWithFunding = Array.from(edges).map(edge => {
-      if (!edge || !edge.to)
+      if (!edge || !edge.to) {
         return empty()
+      }
 
       const node = edge.to.target || edge.to
-      if (!node.package)
+      if (!node.package) {
         return empty()
+      }
 
-      if (filterSet && filterSet.size > 0 && !filterSet.has(node))
+      if (filterSet && filterSet.size > 0 && !filterSet.has(node)) {
         return empty()
+      }
 
       const { name, funding, version } = node.package
 
       // avoids duplicated items within the funding tree
-      if (tracked(name, version))
+      if (tracked(name, version)) {
         return empty()
+      }
 
       const fundingItem = {}
 
-      if (version)
+      if (version) {
         fundingItem.version = version
+      }
 
       attachFundingInfo(fundingItem, funding)
 
@@ -126,8 +136,9 @@ function readTree (tree, opts) {
       (res, { node, fundingItem }, i) => {
         if (!fundingItem ||
           fundingItem.length === 0 ||
-          !node)
+          !node) {
           return res
+        }
 
         // recurse
         const transitiveDependencies = node.edgesOut &&
@@ -136,17 +147,18 @@ function readTree (tree, opts) {
 
         // if we're only counting items there's no need
         // to add all the data to the resulting object
-        if (countOnly)
+        if (countOnly) {
           return null
+        }
 
         if (hasDependencies(transitiveDependencies)) {
           fundingItem.dependencies =
             retrieveDependencies(transitiveDependencies)
         }
 
-        if (isValidFunding(fundingItem.funding))
+        if (isValidFunding(fundingItem.funding)) {
           res[node.package.name] = fundingItem
-        else if (hasDependencies(fundingItem.dependencies)) {
+        } else if (hasDependencies(fundingItem.dependencies)) {
           res[_trailingDependencies] =
             Object.assign(
               empty(),
@@ -170,11 +182,13 @@ function readTree (tree, opts) {
       (tree && tree.name)
     result.name = name || (tree && tree.path)
 
-    if (tree && tree.package && tree.package.version)
+    if (tree && tree.package && tree.package.version) {
       result.version = tree.package.version
+    }
 
-    if (tree && tree.package && tree.package.funding)
+    if (tree && tree.package && tree.package.funding) {
       result.funding = normalizeFunding(tree.package.funding)
+    }
 
     result.dependencies = retrieveDependencies(treeDependencies)
   }

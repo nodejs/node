@@ -16,7 +16,7 @@ module.exports = async (newversion, opts = {}) => {
     scriptShell = undefined,
     preid = null,
     log = proclog,
-    message = 'v%s'
+    message = 'v%s',
   } = opts
 
   const pkg = opts.pkg || await readJson(path + '/package.json')
@@ -36,6 +36,6 @@ module.exports = async (newversion, opts = {}) => {
     preid,
     pkg,
     log,
-    message
+    message,
   })
 }

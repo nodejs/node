@@ -18,7 +18,7 @@ cmd.add = (name, endpoint, secret, opts = {}) => {
   return fetch.json('/-/npm/v1/hooks/hook', {
     ...opts,
     method: 'POST',
-    body: { type, name, endpoint, secret }
+    body: { type, name, endpoint, secret },
   })
 }
 
@@ -26,7 +26,7 @@ cmd.rm = (id, opts = {}) => {
   validate('SO', [id, opts])
   return fetch.json(`/-/npm/v1/hooks/hook/${eu(id)}`, {
     ...opts,
-    method: 'DELETE'
+    method: 'DELETE',
   }).catch(err => {
     if (err.code === 'E404') {
       return null
@@ -41,7 +41,7 @@ cmd.update = (id, endpoint, secret, opts = {}) => {
   return fetch.json(`/-/npm/v1/hooks/hook/${eu(id)}`, {
     ...opts,
     method: 'PUT',
-    body: {endpoint, secret}
+    body: { endpoint, secret },
   })
 }
 
@@ -64,7 +64,7 @@ cmd.ls.stream = (opts = {}) => {
     query: {
       package: pkg,
       limit,
-      offset
-    }
+      offset,
+    },
   })
 }
