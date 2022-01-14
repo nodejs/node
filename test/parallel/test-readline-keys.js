@@ -249,7 +249,6 @@ addTest('\x1b[A\x1b[B\x1b[2A\x1b[2B', [
 ]);
 
 // `rxvt` keys with modifiers.
-
 addTest('\x1b[20~\x1b[2$\x1b[2^\x1b[3$\x1b[3^\x1b[5$\x1b[5^\x1b[6$\x1b[6^\x1b[7$\x1b[7^\x1b[8$\x1b[8^', [
   { name: 'f9', sequence: '\x1b[20~', code: '[20~' },
   { name: 'insert', sequence: '\x1b[2$', code: '[2$', shift: true },
