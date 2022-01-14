@@ -591,7 +591,7 @@ would provide the exports interface for the instantiation of `module.wasm`.
 
 ## Top-level `await`
 
-<!--
+<!-- YAML
 added: v14.8.0
 -->
 
