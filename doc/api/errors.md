@@ -1921,7 +1921,7 @@ specifier.
 
 <a id="ERR_INVALID_OBJECT_DEFINE_PROPERTY"></a>
 
-### ERR\_INVALID\_OBJECT\_DEFINE\_PROPERTY
+### `ERR_INVALID_OBJECT_DEFINE_PROPERTY`
 
 An error occurred while setting an invalid attribute on the property of
 an object.
