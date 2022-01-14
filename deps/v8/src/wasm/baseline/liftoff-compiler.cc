@@ -316,6 +316,13 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
   return;
 #endif
 
+#if V8_TARGET_ARCH_ARM
+  // Allow bailout for missing ARMv7 support.
+  if (!CpuFeatures::IsSupported(ARMv7) && reason == kUnsupportedArchitecture) {
+    return;
+  }
+#endif
+
 #define LIST_FEATURE(name, ...) kFeature_##name,
   constexpr WasmFeatures kExperimentalFeatures{
       FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(LIST_FEATURE)};
