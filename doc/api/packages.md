@@ -94,9 +94,10 @@ There is the CommonJS module loader:
 * It is fully synchronous.
 * It is responsible for handling `require()` calls.
 * It is monkey patchable.
-* When resolving a specifier, if no exact match is found, it will try to add
-  extensions (`.js`, `.json`, and finally `.node`).
 * It supports [folders as modules][].
+* When resolving a specifier, if no exact match is found, it will try to add
+  extensions (`.js`, `.json`, and finally `.node`) and then attempt to resolve
+  [folders as modules][].
 * It treats `.json` as JSON text files.
 * `.node` files are interpreted as compiled addon modules loaded with
   `process.dlopen()`.
@@ -112,10 +113,10 @@ There is the ECMAScript module loader:
 * It is asynchronous.
 * It is responsible for handling `import` statements and `import()` expressions.
 * It is not monkey patchable, can be customized using [loader hooks][].
-* It does no extension searching. A file extension must be provided
-  when the specifier is a relative or absolute file URL.
 * It does not support folders as modules, directory indexes (e.g.
   `'./startup/index.js'`) must be fully specified.
+* It does no extension searching. A file extension must be provided
+  when the specifier is a relative or absolute file URL.
 * It can load JSON modules, but an import assertion is required (behind
   `--experimental-json-modules` flag).
 * It accepts only `.js`, `.mjs`, and `.cjs` extensions for JavaScript text
