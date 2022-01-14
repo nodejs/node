@@ -357,7 +357,7 @@ added: v15.0.0
 <!--lint disable maximum-line-length remark-lint-->
 
 * `typedArray` {Buffer|Int8Array|Uint8Array|Uint8ClampedArray|Int16Array|Uint16Array|Int32Array|Uint32Array|BigInt64Array|BigUint64Array}
-* Returns: {Buffer|Int8Array|Uint8Array|Uint8ClampedArray|Int16Array|Uint16Array|Int32Array|Uint32Array|BigInt64Array|BigUint64Array} Returns `typedArray`.
+* Returns: {Buffer|Int8Array|Uint8Array|Uint8ClampedArray|Int16Array|Uint16Array|Int32Array|Uint32Array|BigInt64Array|BigUint64Array}
 
 <!--lint enable maximum-line-length remark-lint-->
 
