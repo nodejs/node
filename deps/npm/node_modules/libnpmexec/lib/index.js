@@ -59,8 +59,9 @@ const exec = async (opts) => {
   })
 
   // nothing to maybe install, skip the arborist dance
-  if (!call && !args.length && !packages.length)
+  if (!call && !args.length && !packages.length) {
     return await _run()
+  }
 
   const needPackageCommandSwap = args.length && !packages.length
   // if there's an argument and no package has been explicitly asked for
@@ -79,8 +80,9 @@ const exec = async (opts) => {
       binExists = true
     }
 
-    if (binExists)
+    if (binExists) {
       return await _run()
+    }
 
     packages.push(args[0])
   }
@@ -109,8 +111,9 @@ const exec = async (opts) => {
     })
   }))
 
-  if (needPackageCommandSwap)
+  if (needPackageCommandSwap) {
     args[0] = getBinFromManifest(manis[0])
+  }
 
   // figure out whether we need to install stuff, or if local is fine
   const localArb = new Arborist({
@@ -150,8 +153,9 @@ const exec = async (opts) => {
     if (add.length) {
       if (!yes) {
         // set -n to always say no
-        if (yes === false)
+        if (yes === false) {
           throw new Error('canceled')
+        }
 
         if (noTTY() || ciDetect()) {
           log.warn('exec', `The following package${
@@ -165,11 +169,13 @@ const exec = async (opts) => {
           const prompt = `Need to install the following packages:\n${
           addList
         }Ok to proceed? `
-          if (typeof log.clearProgress === 'function')
+          if (typeof log.clearProgress === 'function') {
             log.clearProgress()
+          }
           const confirm = await read({ prompt, default: 'y' })
-          if (confirm.trim().toLowerCase().charAt(0) !== 'y')
+          if (confirm.trim().toLowerCase().charAt(0) !== 'y') {
             throw new Error('canceled')
+          }
         }
       }
       await arb.reify({

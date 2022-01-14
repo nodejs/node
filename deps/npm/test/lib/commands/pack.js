@@ -136,6 +136,9 @@ t.test('workspaces', async t => {
     },
     config: {
       workspaces: true,
+      // TODO: this is a workaround for npm run test-all
+      // somehow leaking include-workspace-root
+      'include-workspace-root': false,
     },
   })
 

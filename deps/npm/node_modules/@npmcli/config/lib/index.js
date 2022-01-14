@@ -401,6 +401,20 @@ class Config {
     }
   }
 
+  // Returns true if the value is coming directly from the source defined
+  // in default definitions, if the current value for the key config is
+  // coming from any other different source, returns false
+  isDefault (key) {
+    const [defaultType, ...types] = [...confTypes]
+    const defaultData = this.data.get(defaultType).data
+
+    return hasOwnProperty(defaultData, key)
+      && types.every(type => {
+        const typeData = this.data.get(type).data
+        return !hasOwnProperty(typeData, key)
+      })
+  }
+
   invalidHandler (k, val, type, source, where) {
     this.log.warn(
       'invalid config',

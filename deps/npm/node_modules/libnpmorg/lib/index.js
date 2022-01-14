@@ -22,7 +22,7 @@ cmd.set = (org, user, role, opts = {}) => {
   return fetch.json(`/-/org/${eu(org)}/user`, {
     ...opts,
     method: 'PUT',
-    body: { user, role }
+    body: { user, role },
   }).then(ret => Object.assign(new MembershipDetail(), ret))
 }
 
@@ -34,7 +34,7 @@ cmd.rm = (org, user, opts = {}) => {
     ...opts,
     method: 'DELETE',
     body: { user },
-    ignoreBody: true
+    ignoreBody: true,
   }).then(() => null)
 }
 
@@ -59,6 +59,6 @@ cmd.ls.stream = (org, opts = {}) => {
     ...opts,
     mapJSON: (value, [key]) => {
       return [key, value]
-    }
+    },
   })
 }

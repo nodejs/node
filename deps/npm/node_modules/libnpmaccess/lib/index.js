@@ -36,7 +36,7 @@ function setAccess (spec, access, opts = {}) {
       ...opts,
       method: 'POST',
       body: { access },
-      spec
+      spec,
     }).then(() => true)
   })
 }
@@ -47,7 +47,9 @@ cmd.grant = (spec, entity, permissions, opts = {}) => {
     const { scope, team } = splitEntity(entity)
     validate('OSSSO', [spec, scope, team, permissions, opts])
     if (permissions !== 'read-write' && permissions !== 'read-only') {
-      throw new Error('`permissions` must be `read-write` or `read-only`. Got `' + permissions + '` instead')
+      throw new Error(
+        '`permissions` must be `read-write` or `read-only`. Got `'
+        + permissions + '` instead')
     }
     const uri = `/-/team/${eu(scope)}/${eu(team)}/package`
     return npmFetch(uri, {
@@ -56,7 +58,7 @@ cmd.grant = (spec, entity, permissions, opts = {}) => {
       body: { package: spec.name, permissions },
       scope,
       spec,
-      ignoreBody: true
+      ignoreBody: true,
     })
       .then(() => true)
   })
@@ -74,7 +76,7 @@ cmd.revoke = (spec, entity, opts = {}) => {
       body: { package: spec.name },
       scope,
       spec,
-      ignoreBody: true
+      ignoreBody: true,
     })
       .then(() => true)
   })
@@ -106,7 +108,7 @@ cmd.lsPackages.stream = (entity, opts = {}) => {
   const nextOpts = {
     ...opts,
     query: { format: 'cli' },
-    mapJSON
+    mapJSON,
   }
   const ret = new Minipass({ objectMode: true })
   npmFetch.json.stream(uri, '*', nextOpts)
@@ -153,7 +155,7 @@ cmd.lsCollaborators.stream = (spec, user, opts) => {
   return npmFetch.json.stream(uri, '*', {
     ...opts,
     query: { format: 'cli', user: user || undefined },
-    mapJSON
+    mapJSON,
   })
 }
 
@@ -169,7 +171,7 @@ function setRequires2fa (spec, required, opts = {}) {
       method: 'POST',
       body: { publish_requires_tfa: required },
       spec,
-      ignoreBody: true
+      ignoreBody: true,
     }).then(() => true)
   })
 }

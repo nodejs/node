@@ -23,14 +23,14 @@ async function pack (spec = 'file:.', opts = {}) {
       path: spec.fetchSpec,
       stdio: 'inherit',
       pkg: manifest,
-      banner
+      banner,
     })
   }
 
   // packs tarball
   const tarball = await pacote.tarball(manifest._resolved, {
     ...opts,
-    integrity: manifest._integrity
+    integrity: manifest._integrity,
   })
 
   if (spec.type === 'directory') {
@@ -45,8 +45,8 @@ async function pack (spec = 'file:.', opts = {}) {
       env: {
         npm_package_from: tarball.from,
         npm_package_resolved: tarball.resolved,
-        npm_package_integrity: tarball.integrity
-      }
+        npm_package_integrity: tarball.integrity,
+      },
     })
   }
 

@@ -47,8 +47,9 @@ Remove the 'private' field from the package.json to publish it.`),
       ignoreBody: true,
     })
   } catch (err) {
-    if (err.code !== 'E409')
+    if (err.code !== 'E409') {
       throw err
+    }
     // if E409, we attempt exactly ONE retry, to protect us
     // against malicious activity like trying to publish
     // a bunch of new versions of a package at the same time
@@ -73,8 +74,9 @@ const patchManifest = (_manifest, opts) => {
   const manifest = { ..._manifest }
 
   manifest._nodeVersion = process.versions.node
-  if (npmVersion)
+  if (npmVersion) {
     manifest._npmVersion = npmVersion
+  }
 
   fixer.fixNameField(manifest, { strict: true, allowLegacyCase: true })
   const version = semver.clean(manifest.version)
