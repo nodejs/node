@@ -198,6 +198,8 @@ assert.throws(() => new Blob({}), {
   const b = new Blob();
   assert.strictEqual(inspect(b, { depth: null }),
                      'Blob { size: 0, type: \'\' }');
+  assert.strictEqual(inspect(b, { depth: 1 }),
+                     'Blob { size: 0, type: \'\' }');
   assert.strictEqual(inspect(b, { depth: -1 }), '[Blob]');
 }
 
@@ -228,7 +230,35 @@ assert.throws(() => new Blob({}), {
       code: 'ERR_INVALID_ARG_VALUE',
     });
   });
+
+  assert.throws(() => new Blob([new Uint8Array(0xffffffff), [1]]), {
+    code: 'ERR_BUFFER_TOO_LARGE',
+  });
 }
+
+{
+  assert.throws(() => Reflect.get(Blob.prototype, 'type', {}), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.throws(() => Reflect.get(Blob.prototype, 'size', {}), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.throws(() => Blob.prototype.slice(Blob.prototype, 0, 1), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.throws(() => Blob.prototype.stream.call(), {
+    code: 'ERR_INVALID_THIS',
+  });
+}
+
+(async () => {
+  assert.rejects(async () => Blob.prototype.arrayBuffer.call(), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.rejects(async () => Blob.prototype.text.call(), {
+    code: 'ERR_INVALID_THIS',
+  });
+})().then(common.mustCall());
 
 (async () => {
   const blob = new Blob([
