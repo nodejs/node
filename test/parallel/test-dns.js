@@ -274,6 +274,7 @@ dns.lookup('', {
   await dnsPromises.lookup('', {
     hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
   });
+  await dnsPromises.lookup('', { verbatim: true });
 })().then(common.mustCall());
 
 {
