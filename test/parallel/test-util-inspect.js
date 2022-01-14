@@ -3231,4 +3231,9 @@ assert.strictEqual(
     util.inspect(123456789.12345678, { numericSeparator: true }),
     '123_456_789.123_456_78'
   );
+
+  assert.strictEqual(
+    util.inspect(-123456789.12345678, { numericSeparator: true }),
+    '-123_456_789.123_456_78'
+  );
 }
