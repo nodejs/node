@@ -118,7 +118,9 @@ async function getVotingRecords(tscMembers, votes) {
       await fs.promises.readFile(path.join('.tmp', vote), 'utf8')
     );
     for (const member in voteData.votes) {
-      votingRecords[member]++;
+      if (tscMembers.includes(member)) {
+        votingRecords[member]++;
+      }
     }
   }
   return votingRecords;
