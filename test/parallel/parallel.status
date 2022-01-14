@@ -31,6 +31,9 @@ test-util-inspect: SKIP
 # Temporarily skip for crrev.com/c/3106647
 test-repl: SKIP
 
+# Skip a test which prevents updating the ValueSerialier format
+test-v8-serdes: SKIP
+
 test-v8-stats: SKIP
 
 [$system==win32]
