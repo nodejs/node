@@ -66,5 +66,9 @@
   "WebCryptoAPI": {
     "commit": "cdd0f03df41b222aed098fbbb11c6a3cc500a86b",
     "path": "WebCryptoAPI"
+  },
+  "webidl/ecmascript-binding/es-exceptions": {
+    "commit": "a370aad338d6ed743abb4d2c6ae84a7f1058558c",
+    "path": "webidl/ecmascript-binding/es-exceptions"
   }
 }

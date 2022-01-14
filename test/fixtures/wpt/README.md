@@ -27,6 +27,7 @@ Last update:
 - url: https://github.com/web-platform-tests/wpt/tree/77d54aa9e0/url
 - user-timing: https://github.com/web-platform-tests/wpt/tree/df24fb604e/user-timing
 - WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/cdd0f03df4/WebCryptoAPI
+- webidl/ecmascript-binding/es-exceptions: https://github.com/web-platform-tests/wpt/tree/a370aad338/webidl/ecmascript-binding/es-exceptions
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-wpt
