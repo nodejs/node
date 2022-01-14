@@ -102,17 +102,18 @@ There is the CommonJS module loader:
   `process.dlopen()`.
 * It treats all files that lack `.json` or `.node` extensions as JavaScript
   text files.
-* It cannot be used to load ECMAScript modules. Attempting to do so will result
-  in a [`ERR_REQUIRE_ESM`][] error. When used to load a JavaScript text file
-  that is not an ECMAScript module, it loads it as a CommonJS module.
+* It cannot be used to load ECMAScript modules (although it is possible to
+  [load ECMASCript modules from CommonJS modules][]). When used to load a
+  JavaScript text file that is not an ECMAScript module, it loads it as a
+  CommonJS module.
 
 There is the ECMAScript module loader:
 
 * It is asynchronous.
 * It is responsible for handling `import` statements and `import()` expressions.
 * It is not monkey patchable, can be customized using [loader hooks][].
-* No extension searching, a file extension must be provided when the specifier
-  is a relative or absolute file URL.
+* It does no extension searching. A file extension must be provided
+  when the specifier is a relative or absolute file URL.
 * It does not support folders as modules, directory indexes (e.g.
   `'./startup/index.js'`) must be fully specified.
 * It can load JSON modules, but an import assertion is required (behind
@@ -1275,11 +1276,11 @@ This field defines [subpath imports][] for the current package.
 [`--conditions` / `-C` flag]: #resolving-user-conditions
 [`--no-addons` flag]: cli.md#--no-addons
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
-[`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
 [`esm`]: https://github.com/standard-things/esm#readme
 [`package.json`]: #nodejs-packagejson-field-definitions
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
+[load ECMASCript modules from CommonJS modules]: modules.md#the-mjs-extension
 [loader hooks]: esm.md#loaders
 [self-reference]: #self-referencing-a-package-using-its-name
 [subpath exports]: #subpath-exports
