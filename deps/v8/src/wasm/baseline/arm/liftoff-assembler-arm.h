@@ -442,7 +442,7 @@ inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
 
 int LiftoffAssembler::PrepareStackFrame() {
   if (!CpuFeatures::IsSupported(ARMv7)) {
-    bailout(kUnsupportedArchitecture, "Armv6 not supported");
+    bailout(kUnsupportedArchitecture, "Liftoff needs ARMv7");
     return 0;
   }
   uint32_t offset = static_cast<uint32_t>(pc_offset());
