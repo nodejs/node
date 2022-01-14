@@ -5,7 +5,7 @@
 * [Pull Requests](#pull-requests)
 * [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin)
 
-## [Code of Conduct](./doc/contributin/code-of-conduct.md)
+## [Code of Conduct](./doc/contributing/code-of-conduct.md)
 
 The Node.js project has a
 [Code of Conduct](https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md)
