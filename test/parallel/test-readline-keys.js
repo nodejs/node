@@ -136,7 +136,6 @@ addTest('a\x1baA\x1bA', [
 ]);
 
 // xterm/gnome ESC [ letter (with modifiers)
-
 addTest('\x1b[2P\x1b[3P\x1b[4P\x1b[5P\x1b[6P\x1b[7P\x1b[8P\x1b[3Q\x1b[8Q\x1b[3R\x1b[8R\x1b[3S\x1b[8S', [
   { name: 'f1', sequence: '\x1b[2P', code: '[P', shift: true, meta: false, ctrl: false },
   { name: 'f1', sequence: '\x1b[3P', code: '[P', shift: false, meta: true, ctrl: false },
