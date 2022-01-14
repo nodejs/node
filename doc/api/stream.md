@@ -1256,9 +1256,9 @@ added: v0.9.4
 * `size` {number} Optional argument to specify how much data to read.
 * Returns: {string|Buffer|null|any}
 
-The `readable.read()` method pulls some data out of the internal buffer and
-returns it. If no data available to be read, `null` is returned. By default,
-the data will be returned as a `Buffer` object unless an encoding has been
+The `readable.read()` method reads data out of the internal buffer and
+returns it. If no data is available to be read, `null` is returned. By default,
+the data is returned as a `Buffer` object unless an encoding has been
 specified using the `readable.setEncoding()` method or the stream is operating
 in object mode.
 
