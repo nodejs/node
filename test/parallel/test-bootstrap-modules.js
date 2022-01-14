@@ -67,6 +67,7 @@ const expectedModules = new Set([
   'NativeModule internal/modules/esm/resolve',
   'NativeModule internal/modules/esm/transform_source',
   'NativeModule internal/modules/esm/translators',
+  'NativeModule internal/modules/esm/handle_process_exit',
   'NativeModule internal/process/esm_loader',
   'NativeModule internal/options',
   'NativeModule internal/priority_queue',
