@@ -15,7 +15,7 @@ cmd.create = (entity, opts = {}) => {
       ...opts,
       method: 'PUT',
       scope,
-      body: { name: team, description: opts.description }
+      body: { name: team, description: opts.description },
     })
   })
 }
@@ -27,7 +27,7 @@ cmd.destroy = (entity, opts = {}) => {
   return npmFetch.json(uri, {
     ...opts,
     method: 'DELETE',
-    scope
+    scope,
   })
 }
 
@@ -39,7 +39,7 @@ cmd.add = (user, entity, opts = {}) => {
     ...opts,
     method: 'PUT',
     scope,
-    body: { user }
+    body: { user },
   })
 }
 
@@ -51,7 +51,7 @@ cmd.rm = (user, entity, opts = {}) => {
     ...opts,
     method: 'DELETE',
     scope,
-    body: { user }
+    body: { user },
   })
 }
 
@@ -62,7 +62,7 @@ cmd.lsTeams.stream = (scope, opts = {}) => {
   const uri = `/-/org/${eu(scope)}/team`
   return npmFetch.json.stream(uri, '.*', {
     ...opts,
-    query: { format: 'cli' }
+    query: { format: 'cli' },
   })
 }
 
@@ -74,7 +74,7 @@ cmd.lsUsers.stream = (entity, opts = {}) => {
   const uri = `/-/team/${eu(scope)}/${eu(team)}/user`
   return npmFetch.json.stream(uri, '.*', {
     ...opts,
-    query: { format: 'cli' }
+    query: { format: 'cli' },
   })
 }
 

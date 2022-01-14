@@ -41,16 +41,18 @@ const run = async ({
     },
   }
 
-  if (log && log.disableProgress)
+  if (log && log.disableProgress) {
     log.disableProgress()
+  }
 
   try {
     if (script === scriptShell) {
       const isTTY = !noTTY()
 
       if (isTTY) {
-        if (ciDetect())
+        if (ciDetect()) {
           return log.warn('exec', 'Interactive mode disabled in CI environment')
+        }
 
         locationMsg = locationMsg || ` at location:\n${colorize.dim(runPath)}`
 
@@ -78,8 +80,9 @@ const run = async ({
       stdio: 'inherit',
     })
   } finally {
-    if (log && log.enableProgress)
+    if (log && log.enableProgress) {
       log.enableProgress()
+    }
   }
 }
 

@@ -3,12 +3,14 @@ const manifestMissing = ({ tree, manifest }) => {
   // true means we need to install it
   const child = tree.children.get(manifest.name)
   // if no child, we have to load it
-  if (!child)
+  if (!child) {
     return true
+  }
 
   // if no version/tag specified, allow whatever's there
-  if (manifest._from === `${manifest.name}@`)
+  if (manifest._from === `${manifest.name}@`) {
     return false
+  }
 
   // otherwise the version has to match what we WOULD get
   return child.version !== manifest.version
