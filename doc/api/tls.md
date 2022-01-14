@@ -89,9 +89,6 @@ the character "E" appended to the traditional abbreviations):
 * [ECDHE][]: An ephemeral version of the Elliptic Curve Diffie-Hellman
   key-agreement protocol.
 
-Ephemeral methods may have some performance drawbacks, because key generation
-is expensive.
-
 To use perfect forward secrecy using `DHE` with the `tls` module, it is required
 to generate Diffie-Hellman parameters and specify them with the `dhparam`
 option to [`tls.createSecureContext()`][]. The following illustrates the use of
