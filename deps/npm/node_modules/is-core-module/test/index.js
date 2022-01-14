@@ -6,7 +6,7 @@ var semver = require('semver');
 var isCore = require('../');
 var data = require('../core.json');
 
-var supportsNodePrefix = semver.satisfies(process.versions.node, '>= 16', { includePrerelease: true });
+var supportsNodePrefix = semver.satisfies(process.versions.node, '^14.18 || >= 16', { includePrerelease: true });
 
 test('core modules', function (t) {
 	t.test('isCore()', function (st) {

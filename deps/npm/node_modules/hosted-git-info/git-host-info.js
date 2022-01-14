@@ -139,6 +139,36 @@ gitHosts.gist = Object.assign({}, defaults, {
   }
 })
 
+gitHosts.sourcehut = Object.assign({}, defaults, {
+  protocols: ['git+ssh:', 'https:'],
+  domain: 'git.sr.ht',
+  treepath: 'tree',
+  browsefiletemplate: ({ domain, user, project, committish, treepath, path, fragment, hashformat }) => `https://${domain}/${user}/${project}/${treepath}/${maybeEncode(committish || 'main')}/${path}${maybeJoin('#', hashformat(fragment || ''))}`,
+  filetemplate: ({ domain, user, project, committish, path }) => `https://${domain}/${user}/${project}/blob/${maybeEncode(committish) || 'main'}/${path}`,
+  httpstemplate: ({ domain, user, project, committish }) => `https://${domain}/${user}/${project}.git${maybeJoin('#', committish)}`,
+  tarballtemplate: ({ domain, user, project, committish }) => `https://${domain}/${user}/${project}/archive/${maybeEncode(committish) || 'main'}.tar.gz`,
+  bugstemplate: ({ domain, user, project }) => `https://todo.sr.ht/${user}/${project}`,
+  docstemplate: ({ domain, user, project, treepath, committish }) => `https://${domain}/${user}/${project}${maybeJoin('/', treepath, '/', maybeEncode(committish))}#readme`,
+  extract: (url) => {
+    let [, user, project, aux] = url.pathname.split('/', 4)
+
+    // tarball url
+    if (['archive'].includes(aux)) {
+      return
+    }
+
+    if (project && project.endsWith('.git')) {
+      project = project.slice(0, -4)
+    }
+
+    if (!user || !project) {
+      return
+    }
+
+    return { user, project, committish: url.hash.slice(1) }
+  }
+})
+
 const names = Object.keys(gitHosts)
 gitHosts.byShortcut = {}
 gitHosts.byDomain = {}

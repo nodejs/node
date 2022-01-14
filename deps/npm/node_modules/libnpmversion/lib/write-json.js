@@ -7,7 +7,7 @@ const kNewline = Symbol.for('newline')
 module.exports = async (path, pkg) => {
   const {
     [kIndent]: indent = 2,
-    [kNewline]: newline = '\n'
+    [kNewline]: newline = '\n',
   } = pkg
   delete pkg._id
   const raw = JSON.stringify(pkg, null, indent) + '\n'

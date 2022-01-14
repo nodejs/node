@@ -13,11 +13,13 @@ const localFileExists = async (dir, binName, root = '/') => {
   for (const path of walkUp(resolve(dir))) {
     const binDir = resolve(path, 'node_modules', '.bin')
 
-    if (await fileExists(resolve(binDir, binName)))
+    if (await fileExists(resolve(binDir, binName))) {
       return binDir
+    }
 
-    if (path.toLowerCase() === root)
+    if (path.toLowerCase() === root) {
       return false
+    }
   }
 
   return false
