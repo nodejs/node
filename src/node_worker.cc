@@ -376,10 +376,10 @@ bool Worker::CreateEnvMessagePort(Environment* env) {
 }
 
 void Worker::JoinThread() {
-  if (thread_joined_)
+  if (!tid_.has_value())
     return;
-  CHECK_EQ(uv_thread_join(&tid_), 0);
-  thread_joined_ = true;
+  CHECK_EQ(uv_thread_join(&tid_.value()), 0);
+  tid_.reset();
 
   env()->remove_sub_worker_context(this);
 
@@ -406,7 +406,7 @@ void Worker::JoinThread() {
     MakeCallback(env()->onexit_string(), arraysize(args), args);
   }
 
-  // If we get here, the !thread_joined_ condition at the top of the function
+  // If we get here, the tid_.has_value() condition at the top of the function
   // implies that the thread was running. In that case, its final action will
   // be to schedule a callback on the parent thread which will delete this
   // object, so there's nothing more to do here.
@@ -417,7 +417,7 @@ Worker::~Worker() {
 
   CHECK(stopped_);
   CHECK_NULL(env_);
-  CHECK(thread_joined_);
+  CHECK(!tid_.has_value());
 
   Debug(this, "Worker %llu destroyed", thread_id_.id);
 }
@@ -600,7 +600,9 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
   uv_thread_options_t thread_options;
   thread_options.flags = UV_THREAD_HAS_STACK_SIZE;
   thread_options.stack_size = w->stack_size_;
-  int ret = uv_thread_create_ex(&w->tid_, &thread_options, [](void* arg) {
+
+  uv_thread_t* tid = &w->tid_.emplace();  // Create uv_thread_t instance
+  int ret = uv_thread_create_ex(tid, &thread_options, [](void* arg) {
     // XXX: This could become a std::unique_ptr, but that makes at least
     // gcc 6.3 detect undefined behaviour when there shouldn't be any.
     // gcc 7+ handles this well.
@@ -627,7 +629,6 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
     // The object now owns the created thread and should not be garbage
     // collected until that finishes.
     w->ClearWeak();
-    w->thread_joined_ = false;
 
     if (w->has_ref_)
       w->env()->add_refs(1);
@@ -635,6 +636,7 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
     w->env()->add_sub_worker_context(w);
   } else {
     w->stopped_ = true;
+    w->tid_.reset();
 
     char err_buf[128];
     uv_err_name_r(ret, err_buf, sizeof(err_buf));
@@ -657,7 +659,7 @@ void Worker::StopThread(const FunctionCallbackInfo<Value>& args) {
 void Worker::Ref(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-  if (!w->has_ref_ && !w->thread_joined_) {
+  if (!w->has_ref_ && w->tid_.has_value()) {
     w->has_ref_ = true;
     w->env()->add_refs(1);
   }
@@ -666,7 +668,7 @@ void Worker::Ref(const FunctionCallbackInfo<Value>& args) {
 void Worker::Unref(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-  if (w->has_ref_ && !w->thread_joined_) {
+  if (w->has_ref_ && w->tid_.has_value()) {
     w->has_ref_ = false;
     w->env()->add_refs(-1);
   }
