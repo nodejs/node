@@ -48,7 +48,7 @@ async function generateAesKey(length = 256) {
 }
 ```
 
-#### Elliptic curve key pairs
+#### ECDSA key pairs
 
 ```js
 const { subtle } = require('crypto').webcrypto;
@@ -66,7 +66,7 @@ async function generateEcKey(namedCurve = 'P-521') {
 }
 ```
 
-#### ED25519/ED448/X25519/X448 Elliptic curve key pairs
+#### ED25519/ED448/X25519/X448 key pairs
 
 ```js
 const { subtle } = require('crypto').webcrypto;
