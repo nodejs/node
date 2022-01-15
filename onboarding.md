@@ -205,7 +205,7 @@ needs to be pointed out separately during the onboarding.
 * Example:
   <https://github.com/nodejs/node/commit/b58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8>
   * For raw commit message:
-    `git show --format=%Bb58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8`
+    `git show --format=%B b58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
 * Add the `Fixes: <collaborator-nomination-issue-url>` to the commit message
