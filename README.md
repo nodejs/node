@@ -188,6 +188,8 @@ For information about the governance of the Node.js project, see
   **Joyee Cheung** <<joyeec9h3@gmail.com>> (she/her)
 * [mcollina](https://github.com/mcollina) -
   **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
+* [Mesteery](https://github.com/Mesteery) -
+  **Mestery** <<mestery@protonmail.com>> (he/him)
 * [mhdawson](https://github.com/mhdawson) -
   **Michael Dawson** <<midawson@redhat.com>> (he/him)
 * [mmarchini](https://github.com/mmarchini) -
