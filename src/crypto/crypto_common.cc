@@ -773,11 +773,10 @@ static bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
 #endif
     }
   } else if (gen->type == GEN_RID) {
-    // TODO(tniessen): unlike OpenSSL's default implementation, never print the
-    // OID as text and instead always print its numeric representation, which is
-    // backward compatible in practice and more future proof (see OBJ_obj2txt).
+    // Unlike OpenSSL's default implementation, never print the OID as text and
+    // instead always print its numeric representation.
     char oline[256];
-    i2t_ASN1_OBJECT(oline, sizeof(oline), gen->d.rid);
+    OBJ_obj2txt(oline, sizeof(oline), gen->d.rid, true);
     BIO_printf(out.get(), "Registered ID:%s", oline);
   } else if (gen->type == GEN_OTHERNAME) {
     // TODO(tniessen): the format that is used here is based on OpenSSL's
