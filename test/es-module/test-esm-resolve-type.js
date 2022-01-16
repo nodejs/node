@@ -38,13 +38,28 @@ try {
   [
     [ '/es-modules/package-type-module/index.js', 'module' ],
     [ '/es-modules/package-type-commonjs/index.js', 'commonjs' ],
+    // "commonjs" is the default type, so it is assumed when there is no "type"
+    // or specific file extension (`.cjs` or `.mjs`)
+    // It happens to be "correct" here:
+    [ '/es-modules/packages-with-bin/no-type-but-commonjs/bin/foo', 'commonjs'],
+    // It happens to be "wrong" here:
+    [ '/es-modules/packages-with-bin/no-type-but-module/bin/foo', 'commonjs' ],
+    [ '/es-modules/packages-with-bin/type-commonjs/bin/foo', 'commonjs' ],
+    [ '/es-modules/packages-with-bin/type-module/bin/foo', 'module' ],
     [ '/es-modules/package-without-type/index.js', 'commonjs' ],
     [ '/es-modules/package-without-pjson/index.js', 'commonjs' ],
-  ].forEach((testVariant) => {
-    const [ testScript, expectedType ] = testVariant;
+  ].forEach(([ testScript, expectedType ]) => {
     const resolvedPath = path.resolve(fixtures.path(testScript));
     const resolveResult = resolve(url.pathToFileURL(resolvedPath));
-    assert.strictEqual(resolveResult.format, expectedType);
+    assert.strictEqual(
+      resolveResult.format,
+      expectedType,
+      new assert.AssertionError({
+        actual: resolveResult?.format,
+        expected: expectedType,
+        message: `Expectation failed for "${testScript}"`
+      })
+    );
   });
 
   /**

@@ -5,13 +5,11 @@ const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
 const assert = require('assert');
 
-// In a "type": "module" package scope, files with unknown extensions or no
-// extensions should throw; both when used as a main entry point and also when
-// referenced via `import`.
+// In a "type": "module" package scope, files with unknown extensions should
+// throw; both when used as a main entry point and also when referenced via
+// `import`.
 
 [
-  '/es-modules/package-type-module/noext-esm',
-  '/es-modules/package-type-module/imports-noext.mjs',
   '/es-modules/package-type-module/extension.unknown',
   '/es-modules/package-type-module/imports-unknownext.mjs',
 ].forEach((fixturePath) => {

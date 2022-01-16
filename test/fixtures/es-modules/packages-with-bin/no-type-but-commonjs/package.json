@@ -1,0 +1,4 @@
+{
+  "bin": "./bin/foo",
+  "name": "bin-without-type"
+}
