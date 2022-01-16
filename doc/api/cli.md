@@ -31,11 +31,12 @@ corresponding file is found, an error is thrown.
 If a file is found, its path will be passed to the [ECMAScript module loader][]
 under any of the following conditions:
 
+* The program was started with a command-line flag that forces the entry
+  point to be loaded with ECMAScript module loader.
 * The file has an `.mjs` extension.
+* The file does not have a `.cjs` extension.
 * The file nearest parent `package.json` file
   contains a top-level [`"type"`][] field with a value of `"module"`.
-* If the program was started with a command-line flag that forces the entry
-  point to be loaded with ECMAScript module loader.
 
 Otherwise, the file is loaded using the CommonJS module loader. See
 [Modules loaders][] for more details.
