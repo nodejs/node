@@ -34,9 +34,9 @@ under any of the following conditions:
 * The program was started with a command-line flag that forces the entry
   point to be loaded with ECMAScript module loader.
 * The file has an `.mjs` extension.
-* The file does not have a `.cjs` extension.
-* The file nearest parent `package.json` file
-  contains a top-level [`"type"`][] field with a value of `"module"`.
+* The file does not have a `.cjs` extension, and the nearest parent
+  `package.json` file contains a top-level [`"type"`][] field with a value of
+  `"module"`.
 
 Otherwise, the file is loaded using the CommonJS module loader. See
 [Modules loaders][] for more details.
