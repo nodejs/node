@@ -81,9 +81,9 @@ const { hasOpenSSL3 } = common;
     hasOpenSSL3 ?
       'DirName:"/C=DE/L=Berlin\\\\/CN=good.example.com"' :
       'DirName:/C=DE/L=Berlin/CN=good.example.com',
-    // TODO(tniessen): even OIDs that are well-known (such as the following,
-    // which is sha256WithRSAEncryption) should be represented numerically only.
-    'Registered ID:sha256WithRSAEncryption',
+    // Even OIDs that are well-known (such as the following, which is
+    // sha256WithRSAEncryption) should be represented numerically only.
+    'Registered ID:1.2.840.113549.1.1.11',
     // This is an OID that will likely never be assigned to anything, thus
     // OpenSSL should not know it.
     'Registered ID:1.3.9999.12.34',
