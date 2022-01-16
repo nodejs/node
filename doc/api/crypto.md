@@ -4060,7 +4060,7 @@ console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ### `crypto.getRandomValues(typedArray)`
 
 <!-- YAML
-added: REPLACEME
+added: v17.4.0
 -->
 
 * `typedArray` {Buffer|TypedArray|DataView|ArrayBuffer}
@@ -5250,7 +5250,7 @@ If the `callback` function is provided this function uses libuv's threadpool.
 ### `crypto.subtle`
 
 <!-- YAML
-added: REPLACEME
+added: v17.4.0
 -->
 
 * Type: {SubtleCrypto}

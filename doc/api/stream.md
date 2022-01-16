@@ -1686,7 +1686,7 @@ showBoth();
 ### `readable.map(fn[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v17.4.0
 -->
 
 > Stability: 1 - Experimental
@@ -1730,7 +1730,7 @@ for await (const result of dnsResults) {
 ### `readable.filter(fn[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v17.4.0
 -->
 
 > Stability: 1 - Experimental
@@ -2280,7 +2280,7 @@ Returns whether the stream has encountered an error.
 ### `stream.isReadable(stream)`
 
 <!-- YAML
-added: REPLACEME
+added: v17.4.0
 -->
 
 > Stability: 1 - Experimental
