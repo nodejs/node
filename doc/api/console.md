@@ -127,6 +127,19 @@ changes:
     [`util.inspect()`][].
   * `groupIndentation` {number} Set group indentation.
     **Default:** `2`.
+  * `highlight` {Object} With this option you can highlight outputs of
+    [`console.warn()`][] and [`console.error()`][]. It's not enabled by default,
+    and only affects when coloring is enabled.
+    * `warn` {Object} Highlight options for [`console.warn()`][].
+      * `bgColor` {string} Background color used for highlighting, must be
+        one of the [`background colors`][] if not omitted.
+      * `indicator` {string} Optional leading string indicates if the output
+        is from [`console.warn()`][].
+    * `error` {Object} Highlight options for [`console.error()`][].
+      * `bgColor` {string} Background color used for highlighting, must be
+        one of the [`background colors`][] if not omitted.
+      * `indicator` {string} Optional leading string indicates if the output
+        is from [`console.error()`][].
 
 Creates a new `Console` with one or two writable stream instances. `stdout` is a
 writable stream to print log or info output. `stderr` is used for warning or
@@ -148,6 +161,25 @@ The global `console` is a special `Console` whose output is sent to
 
 ```js
 new Console({ stdout: process.stdout, stderr: process.stderr });
+```
+
+You can create your own `Console` with highlighting:
+
+```js
+const logger = new Console({
+  stdout: process.stdout,
+  stderr: process.stderr,
+  highlight: {
+    warn: { bgColor: 'bgYellowBright' },
+    error: { bgColor: 'bgRedBright', indicator: '\u274c' },
+  }
+});
+
+logger.warn('Warning!');
+// Will output message 'Warning!' along with bright yellow background.
+logger.error(new Error('Oops!'));
+// Will output message 'Oops!' along with bright red background,
+// and a unicode cross sign in front of the message indicating it is an error.
 ```
 
 ### `console.assert(value[, ...message])`
@@ -589,6 +621,7 @@ This method does not display anything unless used in the inspector. The
 `console.timeStamp()` method adds an event with the label `'label'` to the
 **Timeline** panel of the inspector.
 
+[`background colors`]: util.md#background-colors
 [`console.error()`]: #consoleerrordata-args
 [`console.group()`]: #consolegrouplabel
 [`console.log()`]: #consolelogdata-args
@@ -596,6 +629,7 @@ This method does not display anything unless used in the inspector. The
 [`console.profileEnd()`]: #consoleprofileendlabel
 [`console.time()`]: #consoletimelabel
 [`console.timeEnd()`]: #consoletimeendlabel
+[`console.warn()`]: #consolewarndata-args
 [`process.stderr`]: process.md#processstderr
 [`process.stdout`]: process.md#processstdout
 [`util.format()`]: util.md#utilformatformat-args

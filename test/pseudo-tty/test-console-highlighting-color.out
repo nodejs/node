@@ -1,0 +1,17 @@
+*[43m[W] Error: test*[K
+    at * (*test-console-highlighting-color.js:*)*[K
+*    at *[K
+*    at *[K
+*    at *[K
+*    at *[K
+*    at *[K
+*    at *[K*[49m
+
+*[41m[E] Error: test*[K
+    at * (*test-console-highlighting-color.js:*)*[K
+*    at *[K
+*    at *[K
+*    at *[K
+*    at *[K
+*    at *[K
+*    at *[K*[49m

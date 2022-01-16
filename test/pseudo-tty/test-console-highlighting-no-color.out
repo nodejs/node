@@ -1,0 +1,17 @@
+[W] Error: test
+    at * (*test-console-highlighting-no-color.js:*)
+*    at *
+*    at *
+*    at *
+*    at *
+*    at *
+*    at *
+
+[E] Error: test
+    at * (*test-console-highlighting-no-color.js:*)
+*    at *
+*    at *
+*    at *
+*    at *
+*    at *
+*    at *
