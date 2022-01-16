@@ -19,9 +19,12 @@ const { subtle } = require('crypto').webcrypto;
     length: 256
   }, true, ['sign', 'verify']);
 
+  const enc = new TextEncoder();
+  const message = enc.encode('I love cupcakes');
+
   const digest = await subtle.sign({
     name: 'HMAC'
-  }, key, 'I love cupcakes');
+  }, key, message);
 
 })();
 ```
