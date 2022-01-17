@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -165,7 +171,7 @@ module.exports = {
                 case "ImportSpecifier":
                     return (
                         parent.local === node &&
-                        parent.imported.name === localName
+                        astUtils.getModuleExportName(parent.imported) === localName
                     );
 
                 default:
