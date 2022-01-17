@@ -354,17 +354,14 @@ Provides access to the `SubtleCrypto` API.
 added: v15.0.0
 -->
 
-<!--lint disable maximum-line-length remark-lint-->
-
-* `typedArray` {Buffer|Int8Array|Uint8Array|Uint8ClampedArray|Int16Array|Uint16Array|Int32Array|Uint32Array|BigInt64Array|BigUint64Array}
-* Returns: {Buffer|Int8Array|Uint8Array|Uint8ClampedArray|Int16Array|Uint16Array|Int32Array|Uint32Array|BigInt64Array|BigUint64Array}
-
-<!--lint enable maximum-line-length remark-lint-->
+* `typedArray` {Buffer|TypedArray}
+* Returns: {Buffer|TypedArray}
 
 Generates cryptographically strong random values. The given `typedArray` is
 filled with random values, and a reference to `typedArray` is returned.
 
-The given `typedArray` must be an integer-based instance of {TypedArray}.
+The given `typedArray` must be an integer-based instance of {TypedArray},
+i.e. `Float32Array` and `Float64Array` are not accepted.
 
 An error will be thrown if the given `typedArray` is larger than 65,536 bytes.
 
