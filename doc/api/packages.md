@@ -51,12 +51,13 @@ along with a reference for the [`package.json`][] fields defined by Node.js.
 ## Determining module system
 
 Node.js will treat the following as [ES modules][] when passed to `node` as the
-initial input, or when referenced by `import` statements within ES module code:
+initial input, or when referenced by `import` statements or `import()`
+expressions:
 
-* Files ending in `.mjs`.
+* Files with an `.mjs` extension.
 
-* Files ending in `.js` when the nearest parent `package.json` file contains a
-  top-level [`"type"`][] field with a value of `"module"`.
+* Files with a `.js` extension when the nearest parent `package.json` file
+  contains a top-level [`"type"`][] field with a value of `"module"`.
 
 * Strings passed in as an argument to `--eval`, or piped to `node` via `STDIN`,
   with the flag `--input-type=module`.
@@ -67,12 +68,13 @@ field, or string input without the flag `--input-type`. This behavior is to
 preserve backward compatibility. However, now that Node.js supports both
 CommonJS and ES modules, it is best to be explicit whenever possible. Node.js
 will treat the following as CommonJS when passed to `node` as the initial input,
-or when referenced by `import` statements within ES module code:
+or when referenced by `import` statements, `import()` expressions, or
+`require()` expressions:
 
-* Files ending in `.cjs`.
+* Files with a `.cjs` extension.
 
-* Files ending in `.js` when the nearest parent `package.json` file contains a
-  top-level field [`"type"`][] with a value of `"commonjs"`.
+* Files with a `.js` extension when the nearest parent `package.json` file
+  contains a top-level field [`"type"`][] with a value of `"commonjs"`.
 
 * Strings passed in as an argument to `--eval` or `--print`, or piped to `node`
   via `STDIN`, with the flag `--input-type=commonjs`.
@@ -82,6 +84,48 @@ all sources are CommonJS. Being explicit about the `type` of the package will
 future-proof the package in case the default type of Node.js ever changes, and
 it will also make things easier for build tools and loaders to determine how the
 files in the package should be interpreted.
+
+### Modules loaders
+
+Node.js has two systems for resolving a specifier and loading modules.
+
+There is the CommonJS module loader:
+
+* It is fully synchronous.
+* It is responsible for handling `require()` calls.
+* It is monkey patchable.
+* It supports [folders as modules][].
+* When resolving a specifier, if no exact match is found, it will try to add
+  extensions (`.js`, `.json`, and finally `.node`) and then attempt to resolve
+  [folders as modules][].
+* It treats `.json` as JSON text files.
+* `.node` files are interpreted as compiled addon modules loaded with
+  `process.dlopen()`.
+* It treats all files that lack `.json` or `.node` extensions as JavaScript
+  text files.
+* It cannot be used to load ECMAScript modules (although it is possible to
+  [load ECMASCript modules from CommonJS modules][]). When used to load a
+  JavaScript text file that is not an ECMAScript module, it loads it as a
+  CommonJS module.
+
+There is the ECMAScript module loader:
+
+* It is asynchronous.
+* It is responsible for handling `import` statements and `import()` expressions.
+* It is not monkey patchable, can be customized using [loader hooks][].
+* It does not support folders as modules, directory indexes (e.g.
+  `'./startup/index.js'`) must be fully specified.
+* It does no extension searching. A file extension must be provided
+  when the specifier is a relative or absolute file URL.
+* It can load JSON modules, but an import assertion is required (behind
+  `--experimental-json-modules` flag).
+* It accepts only `.js`, `.mjs`, and `.cjs` extensions for JavaScript text
+  files.
+* It can be used to load JavaScript CommonJS modules. Such modules
+  are passed through the `es-module-lexer` to try to identify named exports,
+  which are available if they can be determined through static analysis.
+  Imported CommonJS modules have their URLs converted to absolute
+  paths and are then loaded via the CommonJS module loader.
 
 ### `package.json` and file extensions
 
@@ -1236,6 +1280,9 @@ This field defines [subpath imports][] for the current package.
 [`esm`]: https://github.com/standard-things/esm#readme
 [`package.json`]: #nodejs-packagejson-field-definitions
 [entry points]: #package-entry-points
+[folders as modules]: modules.md#folders-as-modules
+[load ECMASCript modules from CommonJS modules]: modules.md#the-mjs-extension
+[loader hooks]: esm.md#loaders
 [self-reference]: #self-referencing-a-package-using-its-name
 [subpath exports]: #subpath-exports
 [subpath imports]: #subpath-imports
