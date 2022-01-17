@@ -699,7 +699,7 @@ void Assembler::next(Label* L, bool is_internal) {
   if (link == kEndOfChain) {
     L->Unuse();
   } else {
-    DCHECK_GT(link, 0);
+    DCHECK_GE(link, 0);
     DEBUG_PRINTF("next: %p to %p (%d)\n", L,
                  reinterpret_cast<Instr*>(buffer_start_ + link), link);
     L->link_to(link);
