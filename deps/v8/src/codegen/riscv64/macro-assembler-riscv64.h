@@ -151,6 +151,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Branch(Label* target);
   void Branch(int32_t target);
+  void BranchLong(Label* L);
   void Branch(Label* target, Condition cond, Register r1, const Operand& r2,
               Label::Distance near_jump = Label::kFar);
   void Branch(int32_t target, Condition cond, Register r1, const Operand& r2,
@@ -945,7 +946,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                 Register rs, const Operand& rt);
   bool BranchAndLinkShortCheck(int32_t offset, Label* L, Condition cond,
                                Register rs, const Operand& rt);
-  void BranchLong(Label* L);
   void BranchAndLinkLong(Label* L);
 
   template <typename F_TYPE>

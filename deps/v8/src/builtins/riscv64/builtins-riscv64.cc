@@ -1160,9 +1160,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // store the bytecode offset.
     if (FLAG_debug_code) {
       UseScratchRegisterScope temps(masm);
-      Register type = temps.Acquire();
-      __ GetObjectType(feedback_vector, type, type);
-      __ Assert(eq, AbortReason::kExpectedFeedbackVector, type,
+      Register invocation_count = temps.Acquire();
+      __ GetObjectType(feedback_vector, invocation_count, invocation_count);
+      __ Assert(eq, AbortReason::kExpectedFeedbackVector, invocation_count,
                 Operand(FEEDBACK_VECTOR_TYPE));
     }
     // Our stack is currently aligned. We have have to push something along with
@@ -1171,8 +1171,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // TODO(v8:11429,leszeks): Consider guaranteeing that this call leaves
     // `undefined` in the accumulator register, to skip the load in the baseline
     // code.
-    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
-    __ Push(feedback_vector, kInterpreterAccumulatorRegister);
+    __ Push(feedback_vector);
   }
 
   Label call_stack_guard;
@@ -1203,7 +1202,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
     // Drop the frame created by the baseline call.
-    __ Pop(fp, ra);
+    __ Pop(ra, fp);
     MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
                                                  feedback_vector);
     __ Trap();
@@ -1212,14 +1211,13 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ bind(&call_stack_guard);
   {
     ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
-    Register new_target = descriptor.GetRegisterParameter(
-        BaselineOutOfLinePrologueDescriptor::kJavaScriptCallNewTarget);
-
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
     // Save incoming new target or generator
-    __ Push(zero_reg, new_target);
-    __ CallRuntime(Runtime::kStackGuard);
-    __ Pop(new_target, zero_reg);
+    __ Push(kJavaScriptCallNewTargetRegister);
+    __ SmiTag(frame_size);
+    __ Push(frame_size);
+    __ CallRuntime(Runtime::kStackGuardWithGap);
+    __ Pop(kJavaScriptCallNewTargetRegister);
   }
   __ Ret();
   temps.Exclude(kScratchReg.bit() | kScratchReg2.bit());
@@ -1466,31 +1464,25 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&is_baseline);
   {
     // Load the feedback vector from the closure.
-    __ Ld(feedback_vector,
-          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-    __ Ld(feedback_vector,
-          FieldMemOperand(feedback_vector, Cell::kValueOffset));
+    __ LoadTaggedPointerField(
+        feedback_vector,
+        FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+    __ LoadTaggedPointerField(
+        feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
 
     Label install_baseline_code;
     // Check if feedback vector is valid. If not, call prepare for baseline to
     // allocate it.
-    __ Ld(scratch, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
-    __ Lh(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+    __ LoadTaggedPointerField(
+        scratch, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
+    __ Lhu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
     __ Branch(&install_baseline_code, ne, scratch,
               Operand(FEEDBACK_VECTOR_TYPE));
 
-    // Read off the optimization state in the feedback vector.
-    // TODO(v8:11429): Is this worth doing here? Baseline code will check it
-    // anyway...
-    __ Ld(optimization_state,
-          FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-
-    // Check if there is optimized code or a optimization marker that needes to
-    // be processed.
-    __ And(
-        scratch, optimization_state,
-        Operand(FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask));
-    __ Branch(&has_optimized_code_or_marker, ne, scratch, Operand(zero_reg));
+    // Check for an optimization marker.
+    LoadOptimizationStateAndJumpIfNeedsProcessing(
+        masm, optimization_state, feedback_vector,
+        &has_optimized_code_or_marker);
 
     // Load the baseline code into the closure.
     __ LoadTaggedPointerField(
@@ -2713,6 +2705,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was put in t0 by the jump table trampoline.
   // Convert to Smi for the runtime call
@@ -2786,6 +2779,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
   }
   __ Ret();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
                                SaveFPRegsMode save_doubles, ArgvMode argv_mode,
@@ -3640,7 +3634,6 @@ namespace {
 void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
                                          bool next_bytecode,
                                          bool is_osr = false) {
-  __ Push(zero_reg, kInterpreterAccumulatorRegister);
   Label start;
   __ bind(&start);
 
@@ -3667,7 +3660,6 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ Branch(&start_with_baseline, eq, scratch, Operand(BASELINE_DATA_TYPE));
 
     // Start with bytecode as there is no baseline code.
-    __ Pop(zero_reg, kInterpreterAccumulatorRegister);
     Builtin builtin_id = next_bytecode
                              ? Builtin::kInterpreterEnterAtNextBytecode
                              : Builtin::kInterpreterEnterAtBytecode;
@@ -3701,7 +3693,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   UseScratchRegisterScope temps(masm);
   Register type = temps.Acquire();
   __ GetObjectType(feedback_vector, type, type);
-  __ Branch(&install_baseline_code, eq, type, Operand(FEEDBACK_VECTOR_TYPE));
+  __ Branch(&install_baseline_code, ne, type, Operand(FEEDBACK_VECTOR_TYPE));
   // Save BytecodeOffset from the stack frame.
   __ SmiUntag(kInterpreterBytecodeOffsetRegister,
               MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
@@ -3711,7 +3703,6 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   feedback_vector = no_reg;
 
   // Compute baseline pc for bytecode offset.
-  __ Push(zero_reg, kInterpreterAccumulatorRegister);
   ExternalReference get_baseline_pc_extref;
   if (next_bytecode || is_osr) {
     get_baseline_pc_extref =
@@ -3744,6 +3735,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   // Get bytecode array from the stack frame.
   __ Ld(kInterpreterBytecodeArrayRegister,
         MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ Push(kInterpreterAccumulatorRegister);
   {
     Register arg_reg_1 = a0;
     Register arg_reg_2 = a1;
@@ -3755,13 +3747,15 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ CallCFunction(get_baseline_pc, 3, 0);
   }
   __ Add64(code_obj, code_obj, kReturnRegister0);
-  __ Pop(kInterpreterAccumulatorRegister, zero_reg);
+  __ Pop(kInterpreterAccumulatorRegister);
 
   if (is_osr) {
     // Reset the OSR loop nesting depth to disarm back edges.
     // TODO(pthier): Separate baseline Sparkplug from TF arming and don't disarm
     // Sparkplug here.
-    __ Sd(zero_reg, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+    __ Ld(kInterpreterBytecodeArrayRegister,
+          MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+    __ Sh(zero_reg, FieldMemOperand(kInterpreterBytecodeArrayRegister,
                                     BytecodeArray::kOsrLoopNestingLevelOffset));
     Generate_OSREntry(masm, code_obj,
                       Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -3786,8 +3780,10 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ bind(&install_baseline_code);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(kInterpreterAccumulatorRegister);
     __ Push(closure);
     __ CallRuntime(Runtime::kInstallBaselineCode, 1);
+    __ Pop(kInterpreterAccumulatorRegister);
   }
   // Retry from the start after installing baseline code.
   __ Branch(&start);
