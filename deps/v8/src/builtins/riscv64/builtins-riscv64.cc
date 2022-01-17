@@ -3642,7 +3642,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ Ld(closure, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
 
   // Get the Code object from the shared function info.
-  Register code_obj = a4;
+  Register code_obj = s1;
   __ LoadTaggedPointerField(
       code_obj,
       FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
