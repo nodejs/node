@@ -438,6 +438,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   DCHECK(is_int32(imm64));
   int32_t Hi20 = (((int32_t)imm64 + 0x800) >> 12);
   int32_t Lo12 = (int32_t)imm64 << 20 >> 20;
+  __ BlockTrampolinePoolFor(2);
   __ auipc(temp, Hi20);  // Read PC + Hi20 into t6
   __ addi(temp, temp, Lo12);  // jump PC + Hi20 + Lo12
 
