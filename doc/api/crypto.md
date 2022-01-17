@@ -2542,23 +2542,25 @@ does not contain any DNS names. This behavior is consistent with [RFC 2818][]
 If the `'subject'` option is set to `'never'`, the certificate subject is never
 considered, even if the certificate contains no subject alternative names.
 
-### `x509.checkIP(ip[, options])`
+### `x509.checkIP(ip)`
 
 <!-- YAML
 added: v15.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41571
+    description: The `options` argument has been removed since it had no effect.
 -->
 
 * `ip` {string}
-* `options` {Object}
-  * `subject` {string} `'always'` or `'never'`. **Default:** `'always'`.
-  * `wildcards` {boolean} **Default:** `true`.
-  * `partialWildcards` {boolean} **Default:** `true`.
-  * `multiLabelWildcards` {boolean} **Default:** `false`.
-  * `singleLabelSubdomains` {boolean} **Default:** `false`.
 * Returns: {string|undefined} Returns `ip` if the certificate matches,
   `undefined` if it does not.
 
 Checks whether the certificate matches the given IP address (IPv4 or IPv6).
+
+Only [RFC 5280][] `iPAddress` subject alternative names are considered, and they
+must match the given `ip` address exactly. Other subject alternative names as
+well as the subject field of the certificate are ignored.
 
 ### `x509.checkIssued(otherCert)`
 
@@ -5976,6 +5978,7 @@ See the [list of SSL OP Flags][] for details.
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
 [RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
 [RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
+[RFC 5280]: https://www.rfc-editor.org/rfc/rfc5280.txt
 [Web Crypto API documentation]: webcrypto.md
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
