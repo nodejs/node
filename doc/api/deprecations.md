@@ -1,6 +1,7 @@
 # Deprecated APIs
 
 <!--introduced_in=v7.7.0-->
+
 <!-- type=misc -->
 
 Node.js APIs might be deprecated for any of the following reasons:
@@ -22,7 +23,7 @@ with [`--pending-deprecation`][] flag (or its alternative,
 `NODE_PENDING_DEPRECATION=1` environment variable), similarly to Runtime
 deprecations below. Documentation-only deprecations that support that flag
 are explicitly labeled as such in the
-[list of Deprecated APIs](#deprecations_list_of_deprecated_apis).
+[list of Deprecated APIs](#list-of-deprecated-apis).
 
 A Runtime deprecation will, by default, generate a process warning that will
 be printed to `stderr` the first time the deprecated API is used. When the
@@ -41,6 +42,7 @@ However, the deprecation identifier will not be modified.
 ## List of deprecated APIs
 
 ### DEP0001: `http.OutgoingMessage.prototype.flush`
+
 <!-- YAML
 changes:
   - version: v14.0.0
@@ -62,6 +64,7 @@ Type: End-of-Life
 `OutgoingMessage.prototype.flushHeaders()` instead.
 
 ### DEP0002: `require('_linklist')`
+
 <!-- YAML
 changes:
   - version: v8.0.0
@@ -80,6 +83,7 @@ Type: End-of-Life
 The `_linklist` module is deprecated. Please use a userland alternative.
 
 ### DEP0003: `_writableState.buffer`
+
 <!-- YAML
 changes:
   - version: v14.0.0
@@ -101,6 +105,7 @@ The `_writableState.buffer` has been removed. Use `_writableState.getBuffer()`
 instead.
 
 ### DEP0004: `CryptoStream.prototype.readyState`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -121,6 +126,7 @@ Type: End-of-Life
 The `CryptoStream.prototype.readyState` property was removed.
 
 ### DEP0005: `Buffer()` constructor
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -143,11 +149,11 @@ As an alternative, use one of the following methods of constructing `Buffer`
 objects:
 
 * [`Buffer.alloc(size[, fill[, encoding]])`][alloc]: Create a `Buffer` with
-  *initialized* memory.
+  _initialized_ memory.
 * [`Buffer.allocUnsafe(size)`][alloc_unsafe_size]: Create a `Buffer` with
-  *uninitialized* memory.
-* [`Buffer.allocUnsafeSlow(size)`][]: Create a `Buffer` with *uninitialized*
-   memory.
+  _uninitialized_ memory.
+* [`Buffer.allocUnsafeSlow(size)`][]: Create a `Buffer` with _uninitialized_
+  memory.
 * [`Buffer.from(array)`][]: Create a `Buffer` with a copy of `array`
 * [`Buffer.from(arrayBuffer[, byteOffset[, length]])`][from_arraybuffer] -
   Create a `Buffer` that wraps the given `arrayBuffer`.
@@ -161,6 +167,7 @@ Without `--pending-deprecation`, runtime warnings occur only for code not in
 warning results no matter where the `Buffer()` usage occurs.
 
 ### DEP0006: `child_process` `options.customFds`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -173,7 +180,7 @@ changes:
     description: A deprecation code has been assigned.
   - version: v0.11.14
     description: Runtime deprecation.
-  - version: v0.5.11
+  - version: v0.5.10
     description: Documentation-only deprecation.
 -->
 
@@ -184,6 +191,7 @@ methods, the `options.customFds` option is deprecated. The `options.stdio`
 option should be used instead.
 
 ### DEP0007: Replace `cluster` `worker.suicide` with `worker.exitedAfterDisconnect`
+
 <!-- YAML
 changes:
   - version: v9.0.0
@@ -210,6 +218,7 @@ provide an indication of how and why the `Worker` instance exited. In Node.js
 precisely describe the actual semantics and was unnecessarily emotion-laden.
 
 ### DEP0008: `require('constants')`
+
 <!-- YAML
 changes:
   - version: v6.12.0
@@ -228,6 +237,7 @@ to the `constants` property exposed by the relevant module. For instance,
 `require('fs').constants` and `require('os').constants`.
 
 ### DEP0009: `crypto.pbkdf2` without digest
+
 <!-- YAML
 changes:
   - version: v14.0.0
@@ -262,6 +272,7 @@ is `undefined`.
 Now, however, passing either `undefined` or `null` will throw a `TypeError`.
 
 ### DEP0010: `crypto.createCredentials`
+
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -283,6 +294,7 @@ The `crypto.createCredentials()` API was removed. Please use
 [`tls.createSecureContext()`][] instead.
 
 ### DEP0011: `crypto.Credentials`
+
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -304,6 +316,7 @@ The `crypto.Credentials` class was removed. Please use [`tls.SecureContext`][]
 instead.
 
 ### DEP0012: `Domain.dispose`
+
 <!-- YAML
 changes:
   - version: v9.0.0
@@ -325,6 +338,7 @@ Type: End-of-Life
 explicitly via error event handlers set on the domain instead.
 
 ### DEP0013: `fs` asynchronous function without callback
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -341,6 +355,7 @@ Calling an asynchronous function without a callback throws a `TypeError`
 in Node.js 10.0.0 onwards. See <https://github.com/nodejs/node/pull/12562>.
 
 ### DEP0014: `fs.read` legacy String interface
+
 <!-- YAML
 changes:
   - version: v8.0.0
@@ -365,6 +380,7 @@ The [`fs.read()`][] legacy `String` interface is deprecated. Use the `Buffer`
 API as mentioned in the documentation instead.
 
 ### DEP0015: `fs.readSync` legacy String interface
+
 <!-- YAML
 changes:
   - version: v8.0.0
@@ -389,6 +405,7 @@ The [`fs.readSync()`][] legacy `String` interface is deprecated. Use the
 `Buffer` API as mentioned in the documentation instead.
 
 ### DEP0016: `GLOBAL`/`root`
+
 <!-- YAML
 changes:
   - version: v14.0.0
@@ -408,6 +425,7 @@ The `GLOBAL` and `root` aliases for the `global` property were deprecated
 in Node.js 6.0.0 and have since been removed.
 
 ### DEP0017: `Intl.v8BreakIterator`
+
 <!-- YAML
 changes:
   - version: v9.0.0
@@ -424,6 +442,7 @@ Type: End-of-Life
 See [`Intl.Segmenter`](https://github.com/tc39/proposal-intl-segmenter).
 
 ### DEP0018: Unhandled promise rejections
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -442,6 +461,7 @@ code. To change the way Node.js treats unhandled rejections, use the
 [`--unhandled-rejections`][] command-line option.
 
 ### DEP0019: `require('.')` resolved outside directory
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -463,6 +483,7 @@ In certain cases, `require('.')` could resolve outside the package directory.
 This behavior has been removed.
 
 ### DEP0020: `Server.connections`
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -484,6 +505,7 @@ The `Server.connections` property was deprecated in Node.js v0.9.7 and has
 been removed. Please use the [`Server.getConnections()`][] method instead.
 
 ### DEP0021: `Server.listenFD`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -505,6 +527,7 @@ The `Server.listenFD()` method was deprecated and removed. Please use
 [`Server.listen({fd: <number>})`][] instead.
 
 ### DEP0022: `os.tmpDir()`
+
 <!-- YAML
 changes:
   - version: v14.0.0
@@ -521,6 +544,7 @@ The `os.tmpDir()` API was deprecated in Node.js 7.0.0 and has since been
 removed. Please use [`os.tmpdir()`][] instead.
 
 ### DEP0023: `os.getNetworkInterfaces()`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -542,6 +566,7 @@ The `os.getNetworkInterfaces()` method is deprecated. Please use the
 [`os.networkInterfaces()`][] method instead.
 
 ### DEP0024: `REPLServer.prototype.convertToContext()`
+
 <!-- YAML
 changes:
   - version: v9.0.0
@@ -557,6 +582,7 @@ Type: End-of-Life
 The `REPLServer.prototype.convertToContext()` API has been removed.
 
 ### DEP0025: `require('sys')`
+
 <!-- YAML
 changes:
   - version:
@@ -574,6 +600,7 @@ Type: Runtime
 The `sys` module is deprecated. Please use the [`util`][] module instead.
 
 ### DEP0026: `util.print()`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -594,6 +621,7 @@ Type: End-of-Life
 `util.print()` has been removed. Please use [`console.log()`][] instead.
 
 ### DEP0027: `util.puts()`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -614,6 +642,7 @@ Type: End-of-Life
 `util.puts()` has been removed. Please use [`console.log()`][] instead.
 
 ### DEP0028: `util.debug()`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -634,6 +663,7 @@ Type: End-of-Life
 `util.debug()` has been removed. Please use [`console.error()`][] instead.
 
 ### DEP0029: `util.error()`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -654,6 +684,7 @@ Type: End-of-Life
 `util.error()` has been removed. Please use [`console.error()`][] instead.
 
 ### DEP0030: `SlowBuffer`
+
 <!-- YAML
 changes:
   - version: v6.12.0
@@ -670,6 +701,7 @@ The [`SlowBuffer`][] class is deprecated. Please use
 [`Buffer.allocUnsafeSlow(size)`][] instead.
 
 ### DEP0031: `ecdh.setPublicKey()`
+
 <!-- YAML
 changes:
   - version: v6.12.0
@@ -686,6 +718,7 @@ The [`ecdh.setPublicKey()`][] method is now deprecated as its inclusion in the
 API is not useful.
 
 ### DEP0032: `domain` module
+
 <!-- YAML
 changes:
   - version:
@@ -703,6 +736,7 @@ Type: Documentation-only
 The [`domain`][] module is deprecated and should not be used.
 
 ### DEP0033: `EventEmitter.listenerCount()`
+
 <!-- YAML
 changes:
   - version:
@@ -717,10 +751,11 @@ changes:
 
 Type: Documentation-only
 
-The [`EventEmitter.listenerCount(emitter, eventName)`][] API is
+The [`events.listenerCount(emitter, eventName)`][] API is
 deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
 
 ### DEP0034: `fs.exists(path, callback)`
+
 <!-- YAML
 changes:
   - version:
@@ -739,6 +774,7 @@ The [`fs.exists(path, callback)`][] API is deprecated. Please use
 [`fs.stat()`][] or [`fs.access()`][] instead.
 
 ### DEP0035: `fs.lchmod(path, mode, callback)`
+
 <!-- YAML
 changes:
   - version:
@@ -755,6 +791,7 @@ Type: Documentation-only
 The [`fs.lchmod(path, mode, callback)`][] API is deprecated.
 
 ### DEP0036: `fs.lchmodSync(path, mode)`
+
 <!-- YAML
 changes:
   - version:
@@ -771,6 +808,7 @@ Type: Documentation-only
 The [`fs.lchmodSync(path, mode)`][] API is deprecated.
 
 ### DEP0037: `fs.lchown(path, uid, gid, callback)`
+
 <!-- YAML
 changes:
   - version: v10.6.0
@@ -792,6 +830,7 @@ deprecation was revoked because the requisite supporting APIs were added in
 libuv.
 
 ### DEP0038: `fs.lchownSync(path, uid, gid)`
+
 <!-- YAML
 changes:
   - version: v10.6.0
@@ -812,6 +851,7 @@ The [`fs.lchownSync(path, uid, gid)`][] API was deprecated. The deprecation was
 revoked because the requisite supporting APIs were added in libuv.
 
 ### DEP0039: `require.extensions`
+
 <!-- YAML
 changes:
   - version:
@@ -829,19 +869,24 @@ Type: Documentation-only
 The [`require.extensions`][] property is deprecated.
 
 ### DEP0040: `punycode` module
+
 <!-- YAML
 changes:
+  - version: v16.6.0
+    pr-url: https://github.com/nodejs/node/pull/38444
+    description: Added support for `--pending-deprecation`.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7941
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Documentation-only (supports [`--pending-deprecation`][])
 
 The [`punycode`][] module is deprecated. Please use a userland alternative
 instead.
 
 ### DEP0041: `NODE_REPL_HISTORY_FILE` environment variable
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -863,6 +908,7 @@ The `NODE_REPL_HISTORY_FILE` environment variable was removed. Please use
 `NODE_REPL_HISTORY` instead.
 
 ### DEP0042: `tls.CryptoStream`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -884,6 +930,7 @@ The [`tls.CryptoStream`][] class was removed. Please use
 [`tls.TLSSocket`][] instead.
 
 ### DEP0043: `tls.SecurePair`
+
 <!-- YAML
 changes:
   - version: v8.0.0
@@ -911,6 +958,7 @@ The [`tls.SecurePair`][] class is deprecated. Please use
 [`tls.TLSSocket`][] instead.
 
 ### DEP0044: `util.isArray()`
+
 <!-- YAML
 changes:
   - version:
@@ -931,6 +979,7 @@ The [`util.isArray()`][] API is deprecated. Please use `Array.isArray()`
 instead.
 
 ### DEP0045: `util.isBoolean()`
+
 <!-- YAML
 changes:
   - version:
@@ -950,6 +999,7 @@ Type: Documentation-only
 The [`util.isBoolean()`][] API is deprecated.
 
 ### DEP0046: `util.isBuffer()`
+
 <!-- YAML
 changes:
   - version:
@@ -970,6 +1020,7 @@ The [`util.isBuffer()`][] API is deprecated. Please use
 [`Buffer.isBuffer()`][] instead.
 
 ### DEP0047: `util.isDate()`
+
 <!-- YAML
 changes:
   - version:
@@ -989,6 +1040,7 @@ Type: Documentation-only
 The [`util.isDate()`][] API is deprecated.
 
 ### DEP0048: `util.isError()`
+
 <!-- YAML
 changes:
   - version:
@@ -1008,6 +1060,7 @@ Type: Documentation-only
 The [`util.isError()`][] API is deprecated.
 
 ### DEP0049: `util.isFunction()`
+
 <!-- YAML
 changes:
   - version:
@@ -1027,6 +1080,7 @@ Type: Documentation-only
 The [`util.isFunction()`][] API is deprecated.
 
 ### DEP0050: `util.isNull()`
+
 <!-- YAML
 changes:
   - version:
@@ -1046,6 +1100,7 @@ Type: Documentation-only
 The [`util.isNull()`][] API is deprecated.
 
 ### DEP0051: `util.isNullOrUndefined()`
+
 <!-- YAML
 changes:
   - version:
@@ -1065,6 +1120,7 @@ Type: Documentation-only
 The [`util.isNullOrUndefined()`][] API is deprecated.
 
 ### DEP0052: `util.isNumber()`
+
 <!-- YAML
 changes:
   - version:
@@ -1084,6 +1140,7 @@ Type: Documentation-only
 The [`util.isNumber()`][] API is deprecated.
 
 ### DEP0053: `util.isObject()`
+
 <!-- YAML
 changes:
   - version:
@@ -1103,6 +1160,7 @@ Type: Documentation-only
 The [`util.isObject()`][] API is deprecated.
 
 ### DEP0054: `util.isPrimitive()`
+
 <!-- YAML
 changes:
   - version:
@@ -1122,6 +1180,7 @@ Type: Documentation-only
 The [`util.isPrimitive()`][] API is deprecated.
 
 ### DEP0055: `util.isRegExp()`
+
 <!-- YAML
 changes:
   - version:
@@ -1141,6 +1200,7 @@ Type: Documentation-only
 The [`util.isRegExp()`][] API is deprecated.
 
 ### DEP0056: `util.isString()`
+
 <!-- YAML
 changes:
   - version:
@@ -1160,6 +1220,7 @@ Type: Documentation-only
 The [`util.isString()`][] API is deprecated.
 
 ### DEP0057: `util.isSymbol()`
+
 <!-- YAML
 changes:
   - version:
@@ -1179,6 +1240,7 @@ Type: Documentation-only
 The [`util.isSymbol()`][] API is deprecated.
 
 ### DEP0058: `util.isUndefined()`
+
 <!-- YAML
 changes:
   - version:
@@ -1198,6 +1260,7 @@ Type: Documentation-only
 The [`util.isUndefined()`][] API is deprecated.
 
 ### DEP0059: `util.log()`
+
 <!-- YAML
 changes:
   - version: v6.12.0
@@ -1213,6 +1276,7 @@ Type: Documentation-only
 The [`util.log()`][] API is deprecated.
 
 ### DEP0060: `util._extend()`
+
 <!-- YAML
 changes:
   - version: v6.12.0
@@ -1228,6 +1292,7 @@ Type: Documentation-only
 The [`util._extend()`][] API is deprecated.
 
 ### DEP0061: `fs.SyncWriteStream`
+
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -1248,6 +1313,7 @@ API and has been removed. No alternative API is available. Please use a userland
 alternative.
 
 ### DEP0062: `node --debug`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -1265,6 +1331,7 @@ of V8 5.8. It is replaced by Inspector which is activated with `--inspect`
 instead.
 
 ### DEP0063: `ServerResponse.prototype.writeHeader()`
+
 <!-- YAML
 changes:
   - version: v8.0.0
@@ -1281,6 +1348,7 @@ The `ServerResponse.prototype.writeHeader()` method was never documented as an
 officially supported API.
 
 ### DEP0064: `tls.createSecurePair()`
+
 <!-- YAML
 changes:
   - version: v8.0.0
@@ -1308,6 +1376,7 @@ The `tls.createSecurePair()` API was deprecated in documentation in Node.js
 0.11.3. Users should use `tls.Socket` instead.
 
 ### DEP0065: `repl.REPL_MODE_MAGIC` and `NODE_REPL_MODE=magic`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1330,6 +1399,7 @@ The `NODE_REPL_MODE` environment variable is used to set the underlying
 removed. Please use `sloppy` instead.
 
 ### DEP0066: `OutgoingMessage.prototype._headers, OutgoingMessage.prototype._headerNames`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -1347,6 +1417,7 @@ The `http` module `OutgoingMessage.prototype._headers` and
 the public methods (e.g. `OutgoingMessage.prototype.getHeader()`,
 `OutgoingMessage.prototype.getHeaders()`,
 `OutgoingMessage.prototype.getHeaderNames()`,
+`OutgoingMessage.prototype.getRawHeaderNames()`,
 `OutgoingMessage.prototype.hasHeader()`,
 `OutgoingMessage.prototype.removeHeader()`,
 `OutgoingMessage.prototype.setHeader()`) for working with outgoing headers.
@@ -1356,6 +1427,7 @@ The `OutgoingMessage.prototype._headers` and
 officially supported properties.
 
 ### DEP0067: `OutgoingMessage.prototype._renderHeaders`
+
 <!-- YAML
 changes:
   - version: v8.0.0
@@ -1372,6 +1444,7 @@ The `OutgoingMessage.prototype._renderHeaders` property was never documented as
 an officially supported API.
 
 ### DEP0068: `node debug`
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -1388,6 +1461,7 @@ Type: End-of-Life
 a V8-inspector based CLI debugger available through `node inspect`.
 
 ### DEP0069: `vm.runInDebugContext(string)`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1408,6 +1482,7 @@ DebugContext has been removed in V8 and is not available in Node.js 10+.
 DebugContext was an experimental API.
 
 ### DEP0070: `async_hooks.currentId()`
+
 <!-- YAML
 changes:
   - version: v9.0.0
@@ -1426,6 +1501,7 @@ clarity.
 This change was made while `async_hooks` was an experimental API.
 
 ### DEP0071: `async_hooks.triggerId()`
+
 <!-- YAML
 changes:
   - version: v9.0.0
@@ -1444,6 +1520,7 @@ clarity.
 This change was made while `async_hooks` was an experimental API.
 
 ### DEP0072: `async_hooks.AsyncResource.triggerId()`
+
 <!-- YAML
 changes:
   - version: v9.0.0
@@ -1462,6 +1539,7 @@ Type: End-of-Life
 This change was made while `async_hooks` was an experimental API.
 
 ### DEP0073: Several internal properties of `net.Server`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1481,6 +1559,7 @@ As the original API was undocumented and not generally useful for non-internal
 code, no replacement API is provided.
 
 ### DEP0074: `REPLServer.bufferedCommand`
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -1497,6 +1576,7 @@ The `REPLServer.bufferedCommand` property was deprecated in favor of
 [`REPLServer.clearBufferedCommand()`][].
 
 ### DEP0075: `REPLServer.parseREPLKeyword()`
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -1512,8 +1592,12 @@ Type: End-of-Life
 `REPLServer.parseREPLKeyword()` was removed from userland visibility.
 
 ### DEP0076: `tls.parseCertString()`
+
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41479
+    description: End-of-Life.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/14249
     description: Runtime deprecation.
@@ -1522,27 +1606,18 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-`tls.parseCertString()` is a trivial parsing helper that was made public by
-mistake. This function can usually be replaced with:
+`tls.parseCertString()` was a trivial parsing helper that was made public by
+mistake. While it was supposed to parse certificate subject and issuer strings,
+it never handled multi-value Relative Distinguished Names correctly.
 
-```js
-const querystring = require('querystring');
-querystring.parse(str, '\n', '=');
-```
-
-This function is not completely equivalent to `querystring.parse()`. One
-difference is that `querystring.parse()` does url decoding:
-
-```console
-> querystring.parse('%E5%A5%BD=1', '\n', '=');
-{ '好': '1' }
-> tls.parseCertString('%E5%A5%BD=1');
-{ '%E5%A5%BD': '1' }
-```
+Earlier versions of this document suggested using `querystring.parse()` as an
+alternative to `tls.parseCertString()`. However, `querystring.parse()` also does
+not handle all certificate subjects correctly and should not be used.
 
 ### DEP0077: `Module._debug()`
+
 <!-- YAML
 changes:
   - version: v9.0.0
@@ -1558,6 +1633,7 @@ The `Module._debug()` function was never documented as an officially
 supported API.
 
 ### DEP0078: `REPLServer.turnOffEditorMode()`
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -1573,6 +1649,7 @@ Type: End-of-Life
 `REPLServer.turnOffEditorMode()` was removed from userland visibility.
 
 ### DEP0079: Custom inspection function on objects via `.inspect()`
+
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -1594,6 +1671,7 @@ instead. For backward compatibility with Node.js prior to version 6.4.0, both
 can be specified.
 
 ### DEP0080: `path._makeLong()`
+
 <!-- YAML
 changes:
   - version: v9.0.0
@@ -1608,6 +1686,7 @@ userland modules have found it useful. The internal API is deprecated
 and replaced with an identical, public `path.toNamespacedPath()` method.
 
 ### DEP0081: `fs.truncate()` using a file descriptor
+
 <!-- YAML
 changes:
   - version: v9.0.0
@@ -1622,6 +1701,7 @@ deprecated. Please use `fs.ftruncate()` or `fs.ftruncateSync()` to work with
 file descriptors.
 
 ### DEP0082: `REPLServer.prototype.memory()`
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -1638,6 +1718,7 @@ Type: End-of-Life
 the `REPLServer` itself. Do not use this function.
 
 ### DEP0083: Disabling ECDH by setting `ecdhCurve` to `false`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1656,6 +1737,7 @@ deprecated in preparation for migrating to OpenSSL 1.1.0 and consistency with
 the client and is now unsupported. Use the `ciphers` parameter instead.
 
 ### DEP0084: requiring bundled internal dependencies
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -1695,6 +1777,7 @@ manager, as it is published on the npm registry under the same name. No source
 code modification is necessary if that is done.
 
 ### DEP0085: AsyncHooks sensitive API
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1714,6 +1797,7 @@ Use the `AsyncResource` API instead. See
 <https://github.com/nodejs/node/issues/15572>.
 
 ### DEP0086: Remove `runInAsyncIdScope`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1732,6 +1816,7 @@ Type: End-of-Life
 cause a lot of issues. See <https://github.com/nodejs/node/issues/14328>.
 
 ### DEP0089: `require('assert')`
+
 <!-- YAML
 changes:
   - version: v12.8.0
@@ -1751,6 +1836,7 @@ loose equality checks. The deprecation was revoked because use of the `assert`
 module is not discouraged, and the deprecation caused developer confusion.
 
 ### DEP0090: Invalid GCM authentication tag lengths
+
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -1770,6 +1856,7 @@ bits are allowed. Authentication tags of other lengths are invalid per
 [NIST SP 800-38D][].
 
 ### DEP0091: `crypto.DEFAULT_ENCODING`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1782,6 +1869,7 @@ Type: Runtime
 The [`crypto.DEFAULT_ENCODING`][] property is deprecated.
 
 ### DEP0092: Top-level `this` bound to `module.exports`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1795,7 +1883,8 @@ Assigning properties to the top-level `this` as an alternative
 to `module.exports` is deprecated. Developers should use `exports`
 or `module.exports` instead.
 
-### DEP0093: `crypto.fips` is deprecated and replaced.
+### DEP0093: `crypto.fips` is deprecated and replaced
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1808,7 +1897,8 @@ Type: Documentation-only
 The [`crypto.fips`][] property is deprecated. Please use `crypto.setFips()`
 and `crypto.getFips()` instead.
 
-### DEP0094: Using `assert.fail()` with more than one argument.
+### DEP0094: Using `assert.fail()` with more than one argument
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1823,6 +1913,7 @@ Using `assert.fail()` with more than one argument is deprecated. Use
 method.
 
 ### DEP0095: `timers.enroll()`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1836,6 +1927,7 @@ Type: Runtime
 [`setTimeout()`][] or [`setInterval()`][] instead.
 
 ### DEP0096: `timers.unenroll()`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1849,6 +1941,7 @@ Type: Runtime
 [`clearTimeout()`][] or [`clearInterval()`][] instead.
 
 ### DEP0097: `MakeCallback` with `domain` property
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1863,6 +1956,7 @@ should start using the `async_context` variant of `MakeCallback` or
 `CallbackScope`, or the high-level `AsyncResource` class.
 
 ### DEP0098: AsyncHooks embedder `AsyncResource.emitBefore` and `AsyncResource.emitAfter` APIs
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -1887,6 +1981,7 @@ safer, and more convenient, alternative. See
 <https://github.com/nodejs/node/pull/18513>.
 
 ### DEP0099: Async context-unaware `node::MakeCallback` C++ APIs
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1901,6 +1996,7 @@ deprecated. Please use the versions of the API that accept an `async_context`
 parameter.
 
 ### DEP0100: `process.assert()`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1917,6 +2013,7 @@ Type: Runtime
 This was never a documented feature.
 
 ### DEP0101: `--with-lttng`
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1928,7 +2025,8 @@ Type: End-of-Life
 
 The `--with-lttng` compile-time option has been removed.
 
-### DEP0102: Using `noAssert` in `Buffer#(read|write)` operations.
+### DEP0102: Using `noAssert` in `Buffer#(read|write)` operations
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1943,6 +2041,7 @@ to be verified, no matter if it is set to true or not. Skipping the verification
 could lead to hard to find errors and crashes.
 
 ### DEP0103: `process.binding('util').is[...]` typechecks
+
 <!-- YAML
 changes:
   - version: v10.9.0
@@ -1962,6 +2061,7 @@ This deprecation has been superseded by the deprecation of the
 `process.binding()` API ([DEP0111](#DEP0111)).
 
 ### DEP0104: `process.env` string coercion
+
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1978,6 +2078,7 @@ result in a thrown error. Please convert the property to a string before
 assigning it to `process.env`.
 
 ### DEP0105: `decipher.finaltol`
+
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -1995,6 +2096,7 @@ Type: End-of-Life
 [`decipher.final()`][] instead.
 
 ### DEP0106: `crypto.createCipher` and `crypto.createDecipher`
+
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -2015,6 +2117,7 @@ initialization vectors. It is recommended to derive a key using
 [`Cipher`][] and [`Decipher`][] objects respectively.
 
 ### DEP0107: `tls.convertNPNProtocols()`
+
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -2031,6 +2134,7 @@ This was an undocumented helper function not intended for use outside Node.js
 core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.
 
 ### DEP0108: `zlib.bytesRead`
+
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -2049,14 +2153,18 @@ read by the engine, but is inconsistent with other streams in Node.js that
 expose values under these names.
 
 ### DEP0109: `http`, `https`, and `tls` support for invalid URLs
+
 <!-- YAML
 changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/36853
+    description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/20270
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Some previously supported (but strictly invalid) URLs were accepted through the
 [`http.request()`][], [`http.get()`][], [`https.request()`][],
@@ -2066,6 +2174,7 @@ URL parser that requires strictly valid URLs. Passing an invalid URL is
 deprecated and support will be removed in the future.
 
 ### DEP0110: `vm.Script` cached data
+
 <!-- YAML
 changes:
   - version: v10.6.0
@@ -2079,6 +2188,7 @@ The `produceCachedData` option is deprecated. Use
 [`script.createCachedData()`][] instead.
 
 ### DEP0111: `process.binding()`
+
 <!-- YAML
 changes:
   - version: v11.12.0
@@ -2094,6 +2204,7 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 `process.binding()` is for use by Node.js internal code only.
 
 ### DEP0112: `dgram` private APIs
+
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -2111,6 +2222,7 @@ accessed outside of Node.js core: `Socket.prototype._handle`,
 `dgram._createSocketHandle()`.
 
 ### DEP0113: `Cipher.setAuthTag()`, `Decipher.getAuthTag()`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -2127,6 +2239,7 @@ Type: End-of-Life
 were never documented and would throw when called.
 
 ### DEP0114: `crypto._toBuf()`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -2167,20 +2280,27 @@ deprecated along with the undocumented aliases `crypto.prng()` and
 future release.
 
 ### DEP0116: Legacy URL API
+
 <!-- YAML
 changes:
+  - version:
+      - v15.13.0
+      - v14.17.0
+    pr-url: https://github.com/nodejs/node/pull/37784
+    description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22715
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Deprecation revoked
 
 The [Legacy URL API][] is deprecated. This includes [`url.format()`][],
 [`url.parse()`][], [`url.resolve()`][], and the [legacy `urlObject`][]. Please
 use the [WHATWG URL API][] instead.
 
 ### DEP0117: Native crypto handles
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -2200,6 +2320,7 @@ The `_handle` property has been removed because improper use of the native
 object can lead to crashing the application.
 
 ### DEP0118: `dns.lookup()` support for a falsy host name
+
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -2215,6 +2336,7 @@ This behavior is undocumented and is thought to be unused in real world apps.
 It will become an error in future versions of Node.js.
 
 ### DEP0119: `process.binding('uv').errname()` private API
+
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -2228,6 +2350,7 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 [`util.getSystemErrorName()`][] instead.
 
 ### DEP0120: Windows Performance Counter support
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -2247,6 +2370,7 @@ undocumented `COUNTER_NET_SERVER_CONNECTION()`,
 `COUNTER_HTTP_CLIENT_RESPONSE()` functions have been deprecated.
 
 ### DEP0121: `net._setSimultaneousAccepts()`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -2263,6 +2387,7 @@ is being removed. See discussion here:
 <https://github.com/nodejs/node/issues/18391>
 
 ### DEP0122: `tls` `Server.prototype.setOptions()`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -2275,6 +2400,7 @@ Type: Runtime
 Please use `Server.prototype.setSecureContext()` instead.
 
 ### DEP0123: setting the TLS ServerName to an IP address
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -2288,6 +2414,7 @@ Setting the TLS ServerName to an IP address is not permitted by
 [RFC 6066][]. This will be ignored in a future version.
 
 ### DEP0124: using `REPLServer.rli`
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -2303,6 +2430,7 @@ Type: End-of-Life
 This property is a reference to the instance itself.
 
 ### DEP0125: `require('_stream_wrap')`
+
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -2315,6 +2443,7 @@ Type: Runtime
 The `_stream_wrap` module is deprecated.
 
 ### DEP0126: `timers.active()`
+
 <!-- YAML
 changes:
   - version: v11.14.0
@@ -2330,6 +2459,7 @@ If re-referencing the timeout is necessary, [`timeout.ref()`][] can be used
 with no performance impact since Node.js 10.
 
 ### DEP0127: `timers._unrefActive()`
+
 <!-- YAML
 changes:
   - version: v11.14.0
@@ -2345,14 +2475,18 @@ If unreferencing the timeout is necessary, [`timeout.unref()`][] can be used
 with no performance impact since Node.js 10.
 
 ### DEP0128: modules with an invalid `main` entry and an `index.js` file
+
 <!-- YAML
 changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37204
+    description: Runtime deprecation.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26823
     description: Documentation-only.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 Modules that have an invalid `main` entry (e.g., `./does-not-exist.js`) and
 also have an `index.js` file in the top level directory will resolve the
@@ -2360,6 +2494,7 @@ also have an `index.js` file in the top level directory will resolve the
 Node.js versions.
 
 ### DEP0129: `ChildProcess._channel`
+
 <!-- YAML
 changes:
   - version: v13.0.0
@@ -2377,8 +2512,12 @@ similar functions is not intended for public use. Use `ChildProcess.channel`
 instead.
 
 ### DEP0130: `Module.createRequireFromPath()`
+
 <!-- YAML
 changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37201
+    description: End-of-life.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27951
     description: Runtime deprecation.
@@ -2387,17 +2526,20 @@ changes:
     description: Documentation-only.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Module.createRequireFromPath() is deprecated. Please use
-[`module.createRequire()`][] instead.
+Use [`module.createRequire()`][] instead.
 
 ### DEP0131: Legacy HTTP parser
+
 <!-- YAML
 changes:
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/29589
     description: This feature has been removed.
+  - version: v12.22.0
+    pr-url: https://github.com/nodejs/node/pull/37603
+    description: Runtime deprecation.
   - version: v12.3.0
     pr-url: https://github.com/nodejs/node/pull/27498
     description: Documentation-only.
@@ -2411,6 +2553,7 @@ is deprecated and has been removed in v13.0.0. Prior to v13.0.0, the
 legacy parser.
 
 ### DEP0132: `worker.terminate()` with callback
+
 <!-- YAML
 changes:
   - version: v12.5.0
@@ -2424,6 +2567,7 @@ Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 `Promise` instead, or a listener to the worker’s `'exit'` event.
 
 ### DEP0133: `http` `connection`
+
 <!-- YAML
 changes:
   - version: v12.12.0
@@ -2437,18 +2581,21 @@ Prefer [`response.socket`][] over [`response.connection`][] and
 [`request.socket`][] over [`request.connection`][].
 
 ### DEP0134: `process._tickCallback`
+
 <!-- YAML
 changes:
   - version: v12.12.0
     pr-url: https://github.com/nodejs/node/pull/29781
     description: Documentation-only deprecation.
 -->
+
 Type: Documentation-only (supports [`--pending-deprecation`][])
 
 The `process._tickCallback` property was never documented as
 an officially supported API.
 
 ### DEP0135: `WriteStream.open()` and `ReadStream.open()` are internal
+
 <!-- YAML
 changes:
   - version: v13.0.0
@@ -2464,6 +2611,7 @@ opened through their corresponding factory methods [`fs.createWriteStream()`][]
 and [`fs.createReadStream()`][]) or by passing a file descriptor in options.
 
 ### DEP0136: `http` `finished`
+
 <!-- YAML
 changes:
   - version:
@@ -2480,12 +2628,13 @@ called, not whether `'finish'` has been emitted and the underlying data
 is flushed.
 
 Use [`response.writableFinished`][] or [`response.writableEnded`][]
-accordingly instead to avoid the ambigiuty.
+accordingly instead to avoid the ambiguity.
 
-To maintain existing behaviour `response.finished` should be replaced with
+To maintain existing behavior `response.finished` should be replaced with
 `response.writableEnded`.
 
 ### DEP0137: Closing fs.FileHandle on garbage collection
+
 <!-- YAML
 changes:
   - version: v14.0.0
@@ -2516,6 +2665,7 @@ async function openAndClose() {
 ```
 
 ### DEP0138: `process.mainModule`
+
 <!-- YAML
 changes:
   - version: v14.0.0
@@ -2533,6 +2683,7 @@ It is deprecated in favor of [`require.main`][], because it serves the same
 purpose and is only available on CommonJS environment.
 
 ### DEP0139: `process.umask()` with no arguments
+
 <!-- YAML
 changes:
   - version:
@@ -2550,6 +2701,7 @@ potential security vulnerability. There is no safe, cross-platform alternative
 API.
 
 ### DEP0140: Use `request.destroy()` instead of `request.abort()`
+
 <!-- YAML
 changes:
   - version:
@@ -2564,6 +2716,7 @@ Type: Documentation-only
 Use [`request.destroy()`][] instead of [`request.abort()`][].
 
 ### DEP0141: `repl.inputStream` and `repl.outputStream`
+
 <!-- YAML
 changes:
   - version: v14.3.0
@@ -2577,6 +2730,7 @@ The `repl` module exported the input and output stream twice. Use `.input`
 instead of `.inputStream` and `.output` instead of `.outputStream`.
 
 ### DEP0142: `repl._builtinLibs`
+
 <!-- YAML
 changes:
   - version: v14.3.0
@@ -2591,17 +2745,20 @@ native modules. It was incomplete so far and instead it's better to rely upon
 `require('module').builtinModules`.
 
 ### DEP0143: `Transform._transformState`
+
 <!-- YAML
 changes:
   - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33126
     description: Runtime deprecation.
 -->
+
 Type: Runtime
 `Transform._transformState` will be removed in future versions where it is
 no longer required due to simplification of the implementation.
 
 ### DEP0144: `module.parent`
+
 <!-- YAML
 changes:
   - version:
@@ -2636,6 +2793,7 @@ const moduleParents = Object.values(require.cache)
 ```
 
 ### DEP0145: `socket.bufferSize`
+
 <!-- YAML
 changes:
   - version: v14.6.0
@@ -2648,6 +2806,7 @@ Type: Documentation-only
 [`socket.bufferSize`][] is just an alias for [`writable.writableLength`][].
 
 ### DEP0146: `new crypto.Certificate()`
+
 <!-- YAML
 changes:
   - version: v14.9.0
@@ -2661,11 +2820,15 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 [static methods of `crypto.Certificate()`][] instead.
 
 ### DEP0147: `fs.rmdir(path, { recursive: true })`
+
 <!-- YAML
 changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37302
+    description: Runtime deprecation.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35562
-    description: Runtime deprecation.
+    description: Runtime deprecation for permissive behavior.
   - version: v14.14.0
     pr-url: https://github.com/nodejs/node/pull/35579
     description: Documentation-only deprecation.
@@ -2673,157 +2836,343 @@ changes:
 
 Type: Runtime
 
-In future versions of Node.js, `fs.rmdir(path, { recursive: true })` will throw
-if `path` does not exist or is a file.
-Use `fs.rm(path, { recursive: true, force: true })` instead.
+In future versions of Node.js, `recursive` option will be ignored for
+`fs.rmdir`, `fs.rmdirSync`, and `fs.promises.rmdir`.
+
+Use `fs.rm(path, { recursive: true, force: true })`,
+`fs.rmSync(path, { recursive: true, force: true })` or
+`fs.promises.rm(path, { recursive: true, force: true })` instead.
 
 ### DEP0148: Folder mappings in `"exports"` (trailing `"/"`)
+
 <!-- YAML
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/35746
+  - version: v17.0.0
+    pr-url: https://github.com/nodejs/node/pull/40121
+    description: End-of-Life.
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37215
     description: Runtime deprecation.
+  - version: v15.1.0
+    pr-url: https://github.com/nodejs/node/pull/35747
+    description: Runtime deprecation for self-referencing imports.
   - version: v14.13.0
     pr-url: https://github.com/nodejs/node/pull/34718
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime (supports [`--pending-deprecation`][])
+Type: Runtime
 
-Prior to [subpath patterns][] support, it was possible to define
-[subpath folder mappings][] in the [subpath exports][] or
-[subpath imports][] fields using a trailing `"/"`.
+Using a trailing `"/"` to define subpath folder mappings in the
+[subpath exports][] or [subpath imports][] fields is deprecated. Use
+[subpath patterns][] instead.
 
-Without `--pending-deprecation`, runtime warnings occur only for exports
-resolutions not in `node_modules`. This means there will not be deprecation
-warnings for `"exports"` in dependencies. With `--pending-deprecation`, a
-runtime warning results no matter where the `"exports"` usage occurs.
+### DEP0149: `http.IncomingMessage#connection`
 
-[Legacy URL API]: url.md#url_legacy_url_api
+<!-- YAML
+changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/33768
+    description: Documentation-only deprecation.
+ -->
+
+Type: Documentation-only.
+
+Prefer [`message.socket`][] over [`message.connection`][].
+
+### DEP0150: Changing the value of `process.config`
+
+<!-- YAML
+changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/36902
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `process.config` property is intended to provide access to configuration
+settings set when the Node.js binary was compiled. However, the property has
+been mutable by user code making it impossible to rely on. The ability to
+change the value has been deprecated and will be disabled in the future.
+
+### DEP0151: Main index lookup and extension searching
+
+<!-- YAML
+changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37206
+    description: Runtime deprecation.
+  - version:
+      - v15.8.0
+      - v14.18.0
+    pr-url: https://github.com/nodejs/node/pull/36918
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
+-->
+
+Type: Runtime
+
+Previously, `index.js` and extension searching lookups would apply to
+`import 'pkg'` main entry point resolution, even when resolving ES modules.
+
+With this deprecation, all ES module main entry point resolutions require
+an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
+
+### DEP0152: Extension PerformanceEntry properties
+
+<!-- YAML
+changes:
+  - version: v16.0.0
+    pr-url: https://github.com/nodejs/node/pull/37136
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `'gc'`, `'http2'`, and `'http'` {PerformanceEntry} object types have
+additional properties assigned to them that provide additional information.
+These properties are now available within the standard `detail` property
+of the `PerformanceEntry` object. The existing accessors have been
+deprecated and should no longer be used.
+
+### DEP0153: `dns.lookup` and `dnsPromises.lookup` options type coercion
+
+<!-- YAML
+changes:
+  - version: v17.0.0
+    pr-url: https://github.com/nodejs/node/pull/39793
+    description: Runtime deprecation.
+  - version: v16.8.0
+    pr-url: https://github.com/nodejs/node/pull/38906
+    description: Documentation-only deprecation.
+-->
+
+Type: Runtime
+
+Using a non-nullish non-integer value for `family` option, a non-nullish
+non-number value for `hints` option, a non-nullish non-boolean value for `all`
+option, or a non-nullish non-boolean value for `verbatim` option in
+[`dns.lookup()`][] and [`dnsPromises.lookup()`][] is deprecated.
+
+### DEP0154: RSA-PSS generate key pair options
+
+<!-- YAML
+changes:
+  - version: v16.10.0
+    pr-url: https://github.com/nodejs/node/pull/39927
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+The `'hash'` and `'mgf1Hash'` options are replaced with `'hashAlgorithm'`
+and `'mgf1HashAlgorithm'`.
+
+### DEP0155: Trailing slashes in pattern specifier resolutions
+
+<!-- YAML
+changes:
+  - version: v17.0.0
+    pr-url: https://github.com/nodejs/node/pull/40117
+    description: Runtime deprecation.
+  - version: v16.10.0
+    pr-url: https://github.com/nodejs/node/pull/40039
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
+-->
+
+Type: Runtime
+
+The remapping of specifiers ending in `"/"` like `import 'pkg/x/'` is deprecated
+for package `"exports"` and `"imports"` pattern resolutions.
+
+### DEP0156: `.aborted` property and `'abort'`, `'aborted'` event in `http`
+
+<!-- YAML
+changes:
+  - version:
+    - v17.0.0
+    - v16.12.0
+    pr-url: https://github.com/nodejs/node/pull/36670
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Move to {Stream} API instead, as the [`http.ClientRequest`][],
+[`http.ServerResponse`][], and [`http.IncomingMessage`][] are all stream-based.
+Check `stream.destroyed` instead of the `.aborted` property, and listen for
+`'close'` instead of `'abort'`, `'aborted'` event.
+
+The `.aborted` property and `'abort'` event are only useful for detecting
+`.abort()` calls. For closing a request early, use the Stream
+`.destroy([error])` then check the `.destroyed` property and `'close'` event
+should have the same effect. The receiving end should also check the
+[`readable.readableEnded`][] value on [`http.IncomingMessage`][] to get whether
+it was an aborted or graceful destroy.
+
+### DEP0157: Thenable support in streams
+
+<!-- YAML
+changes:
+  - version: v17.2.0
+    pr-url: https://github.com/nodejs/node/pull/40860
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+An undocumented feature of Node.js streams was to support thenables in
+implementation methods. This is now deprecated, use callbacks instead and avoid
+use of async function for streams implementation methods.
+
+This feature caused users to encounter unexpected problems where the user
+implements the function in callback style but uses e.g. an async method which
+would cause an error since mixing promise and callback semantics is not valid.
+
+```js
+const w = new Writable({
+  async final(callback) {
+    await someOp();
+    callback();
+  }
+});
+```
+
+[Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
-[WHATWG URL API]: url.md#url_the_whatwg_url_api
-[`--pending-deprecation`]: cli.md#cli_pending_deprecation
-[`--throw-deprecation`]: cli.md#cli_throw_deprecation
-[`--unhandled-rejections`]: cli.md#cli_unhandled_rejections_mode
-[`Buffer.allocUnsafeSlow(size)`]: buffer.md#buffer_static_method_buffer_allocunsafeslow_size
-[`Buffer.from(array)`]: buffer.md#buffer_static_method_buffer_from_array
-[`Buffer.from(buffer)`]: buffer.md#buffer_static_method_buffer_from_buffer
-[`Buffer.isBuffer()`]: buffer.md#buffer_static_method_buffer_isbuffer_obj
-[`Cipher`]: crypto.md#crypto_class_cipher
-[`Decipher`]: crypto.md#crypto_class_decipher
-[`EventEmitter.listenerCount(emitter, eventName)`]: events.md#events_eventemitter_listenercount_emitter_eventname
-[`REPLServer.clearBufferedCommand()`]: repl.md#repl_replserver_clearbufferedcommand
-[`ReadStream.open()`]: fs.md#fs_class_fs_readstream
-[`Server.getConnections()`]: net.md#net_server_getconnections_callback
-[`Server.listen({fd: <number>})`]: net.md#net_server_listen_handle_backlog_callback
-[`SlowBuffer`]: buffer.md#buffer_class_slowbuffer
-[`WriteStream.open()`]: fs.md#fs_class_fs_writestream
+[WHATWG URL API]: url.md#the-whatwg-url-api
+[`"exports"` or `"main"` entry]: packages.md#main-entry-point-export
+[`--pending-deprecation`]: cli.md#--pending-deprecation
+[`--throw-deprecation`]: cli.md#--throw-deprecation
+[`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
+[`Buffer.allocUnsafeSlow(size)`]: buffer.md#static-method-bufferallocunsafeslowsize
+[`Buffer.from(array)`]: buffer.md#static-method-bufferfromarray
+[`Buffer.from(buffer)`]: buffer.md#static-method-bufferfrombuffer
+[`Buffer.isBuffer()`]: buffer.md#static-method-bufferisbufferobj
+[`Cipher`]: crypto.md#class-cipher
+[`Decipher`]: crypto.md#class-decipher
+[`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
+[`ReadStream.open()`]: fs.md#class-fsreadstream
+[`Server.getConnections()`]: net.md#servergetconnectionscallback
+[`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
+[`SlowBuffer`]: buffer.md#class-slowbuffer
+[`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert`]: assert.md
-[`asyncResource.runInAsyncScope()`]: async_hooks.md#async_hooks_asyncresource_runinasyncscope_fn_thisarg_args
+[`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
 [`child_process`]: child_process.md
-[`clearInterval()`]: timers.md#timers_clearinterval_timeout
-[`clearTimeout()`]: timers.md#timers_cleartimeout_timeout
-[`console.error()`]: console.md#console_console_error_data_args
-[`console.log()`]: console.md#console_console_log_data_args
-[`crypto.Certificate()` constructor]: crypto.md#crypto_legacy_api
-[`crypto.DEFAULT_ENCODING`]: crypto.md#crypto_crypto_default_encoding
-[`crypto.createCipher()`]: crypto.md#crypto_crypto_createcipher_algorithm_password_options
-[`crypto.createCipheriv()`]: crypto.md#crypto_crypto_createcipheriv_algorithm_key_iv_options
-[`crypto.createDecipher()`]: crypto.md#crypto_crypto_createdecipher_algorithm_password_options
-[`crypto.createDecipheriv()`]: crypto.md#crypto_crypto_createdecipheriv_algorithm_key_iv_options
-[`crypto.fips`]: crypto.md#crypto_crypto_fips
-[`crypto.pbkdf2()`]: crypto.md#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
-[`crypto.randomBytes()`]: crypto.md#crypto_crypto_randombytes_size_callback
-[`crypto.scrypt()`]: crypto.md#crypto_crypto_scrypt_password_salt_keylen_options_callback
-[`decipher.final()`]: crypto.md#crypto_decipher_final_outputencoding
-[`decipher.setAuthTag()`]: crypto.md#crypto_decipher_setauthtag_buffer_encoding
+[`clearInterval()`]: timers.md#clearintervaltimeout
+[`clearTimeout()`]: timers.md#cleartimeouttimeout
+[`console.error()`]: console.md#consoleerrordata-args
+[`console.log()`]: console.md#consolelogdata-args
+[`crypto.Certificate()` constructor]: crypto.md#legacy-api
+[`crypto.DEFAULT_ENCODING`]: crypto.md#cryptodefault_encoding
+[`crypto.createCipher()`]: crypto.md#cryptocreatecipheralgorithm-password-options
+[`crypto.createCipheriv()`]: crypto.md#cryptocreatecipherivalgorithm-key-iv-options
+[`crypto.createDecipher()`]: crypto.md#cryptocreatedecipheralgorithm-password-options
+[`crypto.createDecipheriv()`]: crypto.md#cryptocreatedecipherivalgorithm-key-iv-options
+[`crypto.fips`]: crypto.md#cryptofips
+[`crypto.pbkdf2()`]: crypto.md#cryptopbkdf2password-salt-iterations-keylen-digest-callback
+[`crypto.randomBytes()`]: crypto.md#cryptorandombytessize-callback
+[`crypto.scrypt()`]: crypto.md#cryptoscryptpassword-salt-keylen-options-callback
+[`decipher.final()`]: crypto.md#decipherfinaloutputencoding
+[`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
+[`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
+[`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`domain`]: domain.md
-[`ecdh.setPublicKey()`]: crypto.md#crypto_ecdh_setpublickey_publickey_encoding
-[`emitter.listenerCount(eventName)`]: events.md#events_emitter_listenercount_eventname
-[`fs.FileHandle`]: fs.md#fs_class_filehandle
-[`fs.access()`]: fs.md#fs_fs_access_path_mode_callback
-[`fs.createReadStream()`]: fs.md#fs_fs_createreadstream_path_options
-[`fs.createWriteStream()`]: fs.md#fs_fs_createwritestream_path_options
-[`fs.exists(path, callback)`]: fs.md#fs_fs_exists_path_callback
-[`fs.lchmod(path, mode, callback)`]: fs.md#fs_fs_lchmod_path_mode_callback
-[`fs.lchmodSync(path, mode)`]: fs.md#fs_fs_lchmodsync_path_mode
-[`fs.lchown(path, uid, gid, callback)`]: fs.md#fs_fs_lchown_path_uid_gid_callback
-[`fs.lchownSync(path, uid, gid)`]: fs.md#fs_fs_lchownsync_path_uid_gid
-[`fs.read()`]: fs.md#fs_fs_read_fd_buffer_offset_length_position_callback
-[`fs.readSync()`]: fs.md#fs_fs_readsync_fd_buffer_offset_length_position
-[`fs.stat()`]: fs.md#fs_fs_stat_path_options_callback
-[`http.get()`]: http.md#http_http_get_options_callback
-[`http.request()`]: http.md#http_http_request_options_callback
-[`https.get()`]: https.md#https_https_get_options_callback
-[`https.request()`]: https.md#https_https_request_options_callback
-[`module.createRequire()`]: module.md#module_module_createrequire_filename
-[`os.networkInterfaces()`]: os.md#os_os_networkinterfaces
-[`os.tmpdir()`]: os.md#os_os_tmpdir
-[`process.env`]: process.md#process_process_env
-[`process.mainModule`]: process.md#process_process_mainmodule
+[`ecdh.setPublicKey()`]: crypto.md#ecdhsetpublickeypublickey-encoding
+[`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname
+[`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitter-eventname
+[`fs.FileHandle`]: fs.md#class-filehandle
+[`fs.access()`]: fs.md#fsaccesspath-mode-callback
+[`fs.createReadStream()`]: fs.md#fscreatereadstreampath-options
+[`fs.createWriteStream()`]: fs.md#fscreatewritestreampath-options
+[`fs.exists(path, callback)`]: fs.md#fsexistspath-callback
+[`fs.lchmod(path, mode, callback)`]: fs.md#fslchmodpath-mode-callback
+[`fs.lchmodSync(path, mode)`]: fs.md#fslchmodsyncpath-mode
+[`fs.lchown(path, uid, gid, callback)`]: fs.md#fslchownpath-uid-gid-callback
+[`fs.lchownSync(path, uid, gid)`]: fs.md#fslchownsyncpath-uid-gid
+[`fs.read()`]: fs.md#fsreadfd-buffer-offset-length-position-callback
+[`fs.readSync()`]: fs.md#fsreadsyncfd-buffer-offset-length-position
+[`fs.stat()`]: fs.md#fsstatpath-options-callback
+[`http.ClientRequest`]: http.md#class-httpclientrequest
+[`http.IncomingMessage`]: http.md#class-httpincomingmessage
+[`http.ServerResponse`]: http.md#class-httpserverresponse
+[`http.get()`]: http.md#httpgetoptions-callback
+[`http.request()`]: http.md#httprequestoptions-callback
+[`https.get()`]: https.md#httpsgetoptions-callback
+[`https.request()`]: https.md#httpsrequestoptions-callback
+[`message.connection`]: http.md#messageconnection
+[`message.socket`]: http.md#messagesocket
+[`module.createRequire()`]: module.md#modulecreaterequirefilename
+[`os.networkInterfaces()`]: os.md#osnetworkinterfaces
+[`os.tmpdir()`]: os.md#ostmpdir
+[`process.env`]: process.md#processenv
+[`process.mainModule`]: process.md#processmainmodule
 [`punycode`]: punycode.md
-[`request.abort()`]: http.md#http_request_abort
-[`request.connection`]: http.md#http_request_connection
-[`request.destroy()`]: http.md#http_request_destroy_error
-[`request.socket`]: http.md#http_request_socket
-[`require.extensions`]: modules.md#modules_require_extensions
-[`require.main`]: modules.md#modules_accessing_the_main_module
-[`response.connection`]: http.md#http_response_connection
-[`response.end()`]: http.md#http_response_end_data_encoding_callback
-[`response.finished`]: http.md#http_response_finished
-[`response.socket`]: http.md#http_response_socket
-[`response.writableEnded`]: http.md#http_response_writableended
-[`response.writableFinished`]: http.md#http_response_writablefinished
-[`script.createCachedData()`]: vm.md#vm_script_createcacheddata
-[`setInterval()`]: timers.md#timers_setinterval_callback_delay_args
-[`setTimeout()`]: timers.md#timers_settimeout_callback_delay_args
-[`socket.bufferSize`]: net.md#net_socket_buffersize
-[`timeout.ref()`]: timers.md#timers_timeout_ref
-[`timeout.refresh()`]: timers.md#timers_timeout_refresh
-[`timeout.unref()`]: timers.md#timers_timeout_unref
-[`tls.CryptoStream`]: tls.md#tls_class_tls_cryptostream
-[`tls.SecureContext`]: tls.md#tls_tls_createsecurecontext_options
-[`tls.SecurePair`]: tls.md#tls_class_tls_securepair
-[`tls.TLSSocket`]: tls.md#tls_class_tls_tlssocket
-[`tls.checkServerIdentity()`]: tls.md#tls_tls_checkserveridentity_hostname_cert
-[`tls.createSecureContext()`]: tls.md#tls_tls_createsecurecontext_options
-[`url.format()`]: url.md#url_url_format_urlobject
-[`url.parse()`]: url.md#url_url_parse_urlstring_parsequerystring_slashesdenotehost
-[`url.resolve()`]: url.md#url_url_resolve_from_to
-[`util._extend()`]: util.md#util_util_extend_target_source
-[`util.getSystemErrorName()`]: util.md#util_util_getsystemerrorname_err
-[`util.inspect()`]: util.md#util_util_inspect_object_options
-[`util.inspect.custom`]: util.md#util_util_inspect_custom
-[`util.isArray()`]: util.md#util_util_isarray_object
-[`util.isBoolean()`]: util.md#util_util_isboolean_object
-[`util.isBuffer()`]: util.md#util_util_isbuffer_object
-[`util.isDate()`]: util.md#util_util_isdate_object
-[`util.isError()`]: util.md#util_util_iserror_object
-[`util.isFunction()`]: util.md#util_util_isfunction_object
-[`util.isNull()`]: util.md#util_util_isnull_object
-[`util.isNullOrUndefined()`]: util.md#util_util_isnullorundefined_object
-[`util.isNumber()`]: util.md#util_util_isnumber_object
-[`util.isObject()`]: util.md#util_util_isobject_object
-[`util.isPrimitive()`]: util.md#util_util_isprimitive_object
-[`util.isRegExp()`]: util.md#util_util_isregexp_object
-[`util.isString()`]: util.md#util_util_isstring_object
-[`util.isSymbol()`]: util.md#util_util_issymbol_object
-[`util.isUndefined()`]: util.md#util_util_isundefined_object
-[`util.log()`]: util.md#util_util_log_string
-[`util.types`]: util.md#util_util_types
+[`readable.readableEnded`]: stream.md#readablereadableended
+[`request.abort()`]: http.md#requestabort
+[`request.connection`]: http.md#requestconnection
+[`request.destroy()`]: http.md#requestdestroyerror
+[`request.socket`]: http.md#requestsocket
+[`require.extensions`]: modules.md#requireextensions
+[`require.main`]: modules.md#accessing-the-main-module
+[`response.connection`]: http.md#responseconnection
+[`response.end()`]: http.md#responseenddata-encoding-callback
+[`response.finished`]: http.md#responsefinished
+[`response.socket`]: http.md#responsesocket
+[`response.writableEnded`]: http.md#responsewritableended
+[`response.writableFinished`]: http.md#responsewritablefinished
+[`script.createCachedData()`]: vm.md#scriptcreatecacheddata
+[`setInterval()`]: timers.md#setintervalcallback-delay-args
+[`setTimeout()`]: timers.md#settimeoutcallback-delay-args
+[`socket.bufferSize`]: net.md#socketbuffersize
+[`timeout.ref()`]: timers.md#timeoutref
+[`timeout.refresh()`]: timers.md#timeoutrefresh
+[`timeout.unref()`]: timers.md#timeoutunref
+[`tls.CryptoStream`]: tls.md#class-tlscryptostream
+[`tls.SecureContext`]: tls.md#tlscreatesecurecontextoptions
+[`tls.SecurePair`]: tls.md#class-tlssecurepair
+[`tls.TLSSocket`]: tls.md#class-tlstlssocket
+[`tls.checkServerIdentity()`]: tls.md#tlscheckserveridentityhostname-cert
+[`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
+[`url.format()`]: url.md#urlformaturlobject
+[`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost
+[`url.resolve()`]: url.md#urlresolvefrom-to
+[`util._extend()`]: util.md#util_extendtarget-source
+[`util.getSystemErrorName()`]: util.md#utilgetsystemerrornameerr
+[`util.inspect()`]: util.md#utilinspectobject-options
+[`util.inspect.custom`]: util.md#utilinspectcustom
+[`util.isArray()`]: util.md#utilisarrayobject
+[`util.isBoolean()`]: util.md#utilisbooleanobject
+[`util.isBuffer()`]: util.md#utilisbufferobject
+[`util.isDate()`]: util.md#utilisdateobject
+[`util.isError()`]: util.md#utiliserrorobject
+[`util.isFunction()`]: util.md#utilisfunctionobject
+[`util.isNull()`]: util.md#utilisnullobject
+[`util.isNullOrUndefined()`]: util.md#utilisnullorundefinedobject
+[`util.isNumber()`]: util.md#utilisnumberobject
+[`util.isObject()`]: util.md#utilisobjectobject
+[`util.isPrimitive()`]: util.md#utilisprimitiveobject
+[`util.isRegExp()`]: util.md#utilisregexpobject
+[`util.isString()`]: util.md#utilisstringobject
+[`util.isSymbol()`]: util.md#utilissymbolobject
+[`util.isUndefined()`]: util.md#utilisundefinedobject
+[`util.log()`]: util.md#utillogstring
+[`util.types`]: util.md#utiltypes
 [`util`]: util.md
-[`worker.exitedAfterDisconnect`]: cluster.md#cluster_worker_exitedafterdisconnect
-[`worker.terminate()`]: worker_threads.md#worker_threads_worker_terminate
-[`writable.writableLength`]: stream.md#stream_writable_writablelength
-[`zlib.bytesWritten`]: zlib.md#zlib_zlib_byteswritten
-[alloc]: buffer.md#buffer_static_method_buffer_alloc_size_fill_encoding
-[alloc_unsafe_size]: buffer.md#buffer_static_method_buffer_allocunsafe_size
-[from_arraybuffer]: buffer.md#buffer_static_method_buffer_from_arraybuffer_byteoffset_length
-[from_string_encoding]: buffer.md#buffer_static_method_buffer_from_string_encoding
-[legacy `urlObject`]: url.md#url_legacy_urlobject
-[static methods of `crypto.Certificate()`]: crypto.md#crypto_class_certificate
-[subpath exports]: #packages_subpath_exports
-[subpath folder mappings]: #packages_subpath_folder_mappings
-[subpath imports]: #packages_subpath_imports
-[subpath patterns]: #packages_subpath_patterns
+[`worker.exitedAfterDisconnect`]: cluster.md#workerexitedafterdisconnect
+[`worker.terminate()`]: worker_threads.md#workerterminate
+[`writable.writableLength`]: stream.md#writablewritablelength
+[`zlib.bytesWritten`]: zlib.md#zlibbyteswritten
+[alloc]: buffer.md#static-method-bufferallocsize-fill-encoding
+[alloc_unsafe_size]: buffer.md#static-method-bufferallocunsafesize
+[from_arraybuffer]: buffer.md#static-method-bufferfromarraybuffer-byteoffset-length
+[from_string_encoding]: buffer.md#static-method-bufferfromstring-encoding
+[legacy `urlObject`]: url.md#legacy-urlobject
+[static methods of `crypto.Certificate()`]: crypto.md#class-certificate
+[subpath exports]: packages.md#subpath-exports
+[subpath imports]: packages.md#subpath-imports
+[subpath patterns]: packages.md#subpath-patterns

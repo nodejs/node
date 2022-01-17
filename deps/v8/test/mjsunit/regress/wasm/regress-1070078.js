@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-simd
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addMemory(16, 32, false);
@@ -23,14 +23,14 @@ builder.addFunction(undefined, 0 /* sig */).addBodyWithEnd([
   kSimdPrefix, kExprI8x16Splat,  // i8x16.splat
   kExprI32Const, 0x19,  // i32.const
   kSimdPrefix, kExprI8x16Splat,  // i8x16.splat
-  kSimdPrefix, kExprS8x16Shuffle,
+  kSimdPrefix, kExprI8x16Shuffle,
   0x00, 0x00, 0x17, 0x00, 0x04, 0x04, 0x04, 0x04,
-  0x04, 0x10, 0x01, 0x00, 0x04, 0x04, 0x04, 0x04,  // s8x16.shuffle
-  kSimdPrefix, kExprS8x16Shuffle,
+  0x04, 0x10, 0x01, 0x00, 0x04, 0x04, 0x04, 0x04,  // i8x16.shuffle
+  kSimdPrefix, kExprI8x16Shuffle,
   0x04, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // s8x16.shuffle
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // i8x16.shuffle
   kSimdPrefix, kExprI8x16LeU,  // i8x16.le_u
-  kSimdPrefix, kExprV8x16AnyTrue,  // v8x16.any_true
+  kSimdPrefix, kExprV128AnyTrue,  // v128.any_true
   kExprMemoryGrow, 0x00,  // memory.grow
   kExprDrop,
   kExprEnd,  // end @233

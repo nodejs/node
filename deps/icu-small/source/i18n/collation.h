@@ -250,7 +250,7 @@ public:
          * Tag for a lead surrogate code unit.
          * Optional optimization for UTF-16 string processing.
          * Bits 31..10: Unused, 0.
-         *       9.. 8: =0: All associated supplementary code points are unassigned-implict.
+         *       9.. 8: =0: All associated supplementary code points are unassigned-implicit.
          *              =1: All associated supplementary code points fall back to the base data.
          *              else: (Normally 2) Look up the data for the supplementary code point.
          */
@@ -356,7 +356,7 @@ public:
     }
 
     /**
-     * @return TRUE if the ce32 yields one or more CEs without further data lookups
+     * @return true if the ce32 yields one or more CEs without further data lookups
      */
     static UBool isSelfContainedCE32(uint32_t ce32) {
         return !isSpecialCE32(ce32) ||

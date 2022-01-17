@@ -15,7 +15,8 @@ namespace crypto {
 static const unsigned int kNoDsaSignature = static_cast<unsigned int>(-1);
 
 enum DSASigEnc {
-  kSigEncDER, kSigEncP1363
+  kSigEncDER,
+  kSigEncP1363
 };
 
 class SignBase : public BaseObject {
@@ -48,14 +49,15 @@ class SignBase : public BaseObject {
 class Sign : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   struct SignResult {
     Error error;
-    AllocatedBuffer signature;
+    std::unique_ptr<v8::BackingStore> signature;
 
     explicit SignResult(
         Error err,
-        AllocatedBuffer&& sig = AllocatedBuffer())
+        std::unique_ptr<v8::BackingStore>&& sig = nullptr)
       : error(err), signature(std::move(sig)) {}
   };
 
@@ -79,6 +81,7 @@ class Sign : public SignBase {
 class Verify : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   Error VerifyFinal(const ManagedEVPPKey& key,
                     const ByteSource& sig,
@@ -110,13 +113,14 @@ struct SignConfiguration final : public MemoryRetainer {
 
   CryptoJobMode job_mode;
   Mode mode;
-  std::shared_ptr<KeyObjectData> key;
+  ManagedEVPPKey key;
   ByteSource data;
   ByteSource signature;
   const EVP_MD* digest = nullptr;
   int flags = SignConfiguration::kHasNone;
   int padding = 0;
   int salt_length = 0;
+  DSASigEnc dsa_encoding = kSigEncDER;
 
   SignConfiguration() = default;
 
@@ -125,8 +129,8 @@ struct SignConfiguration final : public MemoryRetainer {
   SignConfiguration& operator=(SignConfiguration&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(SignConfiguration);
-  SET_SELF_SIZE(SignConfiguration);
+  SET_MEMORY_INFO_NAME(SignConfiguration)
+  SET_SELF_SIZE(SignConfiguration)
 };
 
 struct SignTraits final {

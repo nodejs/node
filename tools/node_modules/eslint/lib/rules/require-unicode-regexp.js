@@ -20,13 +20,13 @@ const {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce the use of `u` flag on RegExp",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/require-unicode-regexp"
         },

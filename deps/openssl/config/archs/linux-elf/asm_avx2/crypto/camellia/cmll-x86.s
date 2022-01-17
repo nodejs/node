@@ -4,6 +4,7 @@
 .align	16
 Camellia_EncryptBlock_Rounds:
 .L_Camellia_EncryptBlock_Rounds_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -58,6 +59,7 @@ Camellia_EncryptBlock_Rounds:
 .align	16
 Camellia_EncryptBlock:
 .L_Camellia_EncryptBlock_begin:
+.byte	243,15,30,251
 	movl	$128,%eax
 	subl	4(%esp),%eax
 	movl	$3,%eax
@@ -70,6 +72,7 @@ Camellia_EncryptBlock:
 .align	16
 Camellia_encrypt:
 .L_Camellia_encrypt_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -122,6 +125,7 @@ Camellia_encrypt:
 .type	_x86_Camellia_encrypt,@function
 .align	16
 _x86_Camellia_encrypt:
+.byte	243,15,30,251
 	xorl	(%edi),%eax
 	xorl	4(%edi),%ebx
 	xorl	8(%edi),%ecx
@@ -352,6 +356,7 @@ _x86_Camellia_encrypt:
 .align	16
 Camellia_DecryptBlock_Rounds:
 .L_Camellia_DecryptBlock_Rounds_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -406,6 +411,7 @@ Camellia_DecryptBlock_Rounds:
 .align	16
 Camellia_DecryptBlock:
 .L_Camellia_DecryptBlock_begin:
+.byte	243,15,30,251
 	movl	$128,%eax
 	subl	4(%esp),%eax
 	movl	$3,%eax
@@ -418,6 +424,7 @@ Camellia_DecryptBlock:
 .align	16
 Camellia_decrypt:
 .L_Camellia_decrypt_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -470,6 +477,7 @@ Camellia_decrypt:
 .type	_x86_Camellia_decrypt,@function
 .align	16
 _x86_Camellia_decrypt:
+.byte	243,15,30,251
 	xorl	(%edi),%eax
 	xorl	4(%edi),%ebx
 	xorl	8(%edi),%ecx
@@ -700,6 +708,7 @@ _x86_Camellia_decrypt:
 .align	16
 Camellia_Ekeygen:
 .L_Camellia_Ekeygen_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -1541,6 +1550,7 @@ Camellia_Ekeygen:
 .align	16
 Camellia_set_key:
 .L_Camellia_set_key_begin:
+.byte	243,15,30,251
 	pushl	%ebx
 	movl	8(%esp),%ecx
 	movl	12(%esp),%ebx
@@ -2093,6 +2103,7 @@ Camellia_set_key:
 .align	16
 Camellia_cbc_encrypt:
 .L_Camellia_cbc_encrypt_begin:
+.byte	243,15,30,251
 	pushl	%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -2372,3 +2383,20 @@ Camellia_cbc_encrypt:
 .byte	67,97,109,101,108,108,105,97,32,102,111,114,32,120,56,54
 .byte	32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115
 .byte	115,108,46,111,114,103,62,0
+
+	.section ".note.gnu.property", "a"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz "GNU"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:

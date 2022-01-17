@@ -8,13 +8,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "enforce comparing `typeof` expressions against valid strings",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/valid-typeof"
         },

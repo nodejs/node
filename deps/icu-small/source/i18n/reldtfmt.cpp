@@ -135,7 +135,7 @@ RelativeDateFormat* RelativeDateFormat::clone() const {
     return new RelativeDateFormat(*this);
 }
 
-UBool RelativeDateFormat::operator==(const Format& other) const {
+bool RelativeDateFormat::operator==(const Format& other) const {
     if(DateFormat::operator==(other)) {
         // The DateFormat::operator== check for fCapitalizationContext equality above
         //   is sufficient to check equality of all derived context-related data.
@@ -146,7 +146,7 @@ UBool RelativeDateFormat::operator==(const Format& other) const {
                 fTimePattern==that->fTimePattern   &&
                 fLocale==that->fLocale );
     }
-    return FALSE;
+    return false;
 }
 
 static const UChar APOSTROPHE = (UChar)0x0027;
@@ -154,11 +154,11 @@ static const UChar APOSTROPHE = (UChar)0x0027;
 UnicodeString& RelativeDateFormat::format(  Calendar& cal,
                                 UnicodeString& appendTo,
                                 FieldPosition& pos) const {
-
+                                
     UErrorCode status = U_ZERO_ERROR;
     UnicodeString relativeDayString;
     UDisplayContext capitalizationContext = getContext(UDISPCTX_TYPE_CAPITALIZATION, status);
-
+    
     // calculate the difference, in days, between 'cal' and now.
     int dayDiff = dayDifference(cal, status);
 
@@ -170,7 +170,7 @@ UnicodeString& RelativeDateFormat::format(  Calendar& cal,
         relativeDayString.setTo(theString, len);
     }
 
-    if ( relativeDayString.length() > 0 && !fDatePattern.isEmpty() &&
+    if ( relativeDayString.length() > 0 && !fDatePattern.isEmpty() && 
          (fTimePattern.isEmpty() || fCombinedFormat == NULL || fCombinedHasDateAtStart)) {
 #if !UCONFIG_NO_BREAK_ITERATION
         // capitalize relativeDayString according to context for relative, set formatter no context
@@ -221,8 +221,8 @@ UnicodeString& RelativeDateFormat::format(  Calendar& cal,
 
 
 UnicodeString&
-RelativeDateFormat::format(const Formattable& obj,
-                         UnicodeString& appendTo,
+RelativeDateFormat::format(const Formattable& obj, 
+                         UnicodeString& appendTo, 
                          FieldPosition& pos,
                          UErrorCode& status) const
 {
@@ -258,7 +258,7 @@ void RelativeDateFormat::parse( const UnicodeString& text,
                 cal.setTime(Calendar::getNow(),status);
                 cal.add(UCAL_DATE,fDates[n].offset, status);
 
-                if(U_FAILURE(status)) {
+                if(U_FAILURE(status)) { 
                     // failure in setting calendar field, set offset to beginning of rel day string
                     pos.setErrorIndex(startIndex);
                 } else {
@@ -289,7 +289,7 @@ void RelativeDateFormat::parse( const UnicodeString& text,
                 // Set the calendar to now+offset
                 tempCal->setTime(Calendar::getNow(),status);
                 tempCal->add(UCAL_DATE,fDates[n].offset, status);
-                if(U_FAILURE(status)) {
+                if(U_FAILURE(status)) { 
                     pos.setErrorIndex(startIndex);
                     delete tempCal;
                     return;
@@ -334,7 +334,7 @@ UDate
 RelativeDateFormat::parse( const UnicodeString& text,
                          ParsePosition& pos) const {
     // redefined here because the other parse() function hides this function's
-    // cunterpart on DateFormat
+    // counterpart on DateFormat
     return DateFormat::parse(text, pos);
 }
 
@@ -485,7 +485,7 @@ struct RelDateFmtDataSink : public ResourceSink {
   virtual ~RelDateFmtDataSink();
 
   virtual void put(const char *key, ResourceValue &value,
-                   UBool /*noFallback*/, UErrorCode &errorCode) {
+                   UBool /*noFallback*/, UErrorCode &errorCode) override {
       ResourceTable relDayTable = value.getTable(errorCode);
       int32_t n = 0;
       int32_t len = 0;
@@ -582,7 +582,7 @@ int32_t RelativeDateFormat::dayDifference(Calendar &cal, UErrorCode &status) {
     nowCal->setTime(Calendar::getNow(), status);
 
     // For the day difference, we are interested in the difference in the (modified) julian day number
-    // which is midnight to midnight.  Using fieldDifference() is NOT correct here, because
+    // which is midnight to midnight.  Using fieldDifference() is NOT correct here, because 
     // 6pm Jan 4th  to 10am Jan 5th should be considered "tomorrow".
     int32_t dayDiff = cal.get(UCAL_JULIAN_DAY, status) - nowCal->get(UCAL_JULIAN_DAY, status);
 

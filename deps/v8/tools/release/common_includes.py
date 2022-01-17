@@ -214,13 +214,13 @@ class VCInterface(object):
   def GetBranches(self):
     raise NotImplementedError()
 
-  def MasterBranch(self):
+  def MainBranch(self):
     raise NotImplementedError()
 
   def CandidateBranch(self):
     raise NotImplementedError()
 
-  def RemoteMasterBranch(self):
+  def RemoteMainBranch(self):
     raise NotImplementedError()
 
   def RemoteCandidateBranch(self):
@@ -258,14 +258,14 @@ class GitInterface(VCInterface):
     # Remove 'branch-heads/' prefix.
     return map(lambda s: s[13:], branches)
 
-  def MasterBranch(self):
-    return "master"
+  def MainBranch(self):
+    return "main"
 
   def CandidateBranch(self):
     return "candidates"
 
-  def RemoteMasterBranch(self):
-    return "origin/master"
+  def RemoteMainBranch(self):
+    return "origin/main"
 
   def RemoteCandidateBranch(self):
     return "origin/candidates"
@@ -275,7 +275,7 @@ class GitInterface(VCInterface):
     # want.
     if name.startswith('refs/'):
       return name
-    if name in ["candidates", "master"]:
+    if name in ["candidates", "main"]:
       return "refs/remotes/origin/%s" % name
     try:
       # Check if branch is in heads.
@@ -474,8 +474,8 @@ class Step(GitRecipesMixin):
     if not self.GitIsWorkdirClean():  # pragma: no cover
       self.Die("Workspace is not clean. Please commit or undo your changes.")
 
-    # Checkout master in case the script was left on a work branch.
-    self.GitCheckout('origin/master')
+    # Checkout main in case the script was left on a work branch.
+    self.GitCheckout('origin/main')
 
     # Fetch unfetched revisions.
     self.vc.Fetch()
@@ -485,7 +485,7 @@ class Step(GitRecipesMixin):
     self.DeleteBranch(self._config["BRANCHNAME"])
 
   def CommonCleanup(self):
-    self.GitCheckout('origin/master')
+    self.GitCheckout('origin/main')
     self.GitDeleteBranch(self._config["BRANCHNAME"])
 
     # Clean up all temporary files.
@@ -605,13 +605,13 @@ class Step(GitRecipesMixin):
     if match:
       # Legacy: In the old process there's one level of indirection. The
       # version is on the candidates branch and points to the real release
-      # base on master through the commit message.
+      # base on main through the commit message.
       return match.group("git_rev")
     match = PUSH_MSG_NEW_RE.match(title)
     if match:
-      # This is a new-style v8 version branched from master. The commit
+      # This is a new-style v8 version branched from main. The commit
       # "latest_hash" is the version-file change. Its parent is the release
-      # base on master.
+      # base on main.
       return self.GitLog(n=1, format="%H", git_hash="%s^" % latest_hash)
 
     self.Die("Unknown latest release: %s" % latest_hash)
@@ -689,7 +689,7 @@ class UploadStep(Step):
 
     self.GitUpload(reviewer, self._options.force_upload,
                    bypass_hooks=self._options.bypass_upload_hooks,
-                   cc=self._options.cc, tbr_reviewer=tbr_reviewer)
+                   tbr_reviewer=tbr_reviewer)
 
 
 def MakeStep(step_class=Step, number=0, state=None, config=None,

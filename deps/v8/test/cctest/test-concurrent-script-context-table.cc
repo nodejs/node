@@ -9,6 +9,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "src/objects/contexts.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -28,28 +29,25 @@ class ScriptContextTableAccessUsedThread final : public v8::base::Thread {
       Handle<ScriptContextTable> script_context_table)
       : v8::base::Thread(
             base::Thread::Options("ScriptContextTableAccessUsedThread")),
-        isolate_(isolate),
         heap_(heap),
         sema_started_(sema_started),
         ph_(std::move(ph)),
         script_context_table_(script_context_table) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_, std::move(ph_));
+    LocalHeap local_heap(heap_, ThreadKind::kBackground, std::move(ph_));
+    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 
     sema_started_->Signal();
 
-    for (int i = 0; i < script_context_table_->synchronized_used(); ++i) {
+    for (int i = 0; i < script_context_table_->used(kAcquireLoad); ++i) {
       Context context = script_context_table_->get_context(i);
       CHECK(context.IsScriptContext());
     }
-
-    CHECK(!ph_);
-    ph_ = local_heap.DetachPersistentHandles();
   }
 
-  Isolate* isolate_;
+ private:
   Heap* heap_;
   base::Semaphore* sema_started_;
   std::unique_ptr<PersistentHandles> ph_;
@@ -64,14 +62,14 @@ class AccessScriptContextTableThread final : public v8::base::Thread {
                                  Handle<NativeContext> native_context)
       : v8::base::Thread(
             base::Thread::Options("AccessScriptContextTableThread")),
-        isolate_(isolate),
         heap_(heap),
         sema_started_(sema_started),
         ph_(std::move(ph)),
         native_context_(native_context) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_, std::move(ph_));
+    LocalHeap local_heap(heap_, ThreadKind::kBackground, std::move(ph_));
+    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 
     sema_started_->Signal();
@@ -87,12 +85,9 @@ class AccessScriptContextTableThread final : public v8::base::Thread {
                               &local_heap);
       CHECK(!context.is_null());
     }
-
-    CHECK(!ph_);
-    ph_ = local_heap.DetachPersistentHandles();
   }
 
-  Isolate* isolate_;
+ private:
   Heap* heap_;
   base::Semaphore* sema_started_;
   std::unique_ptr<PersistentHandles> ph_;
@@ -189,10 +184,10 @@ TEST(ScriptContextTable_AccessScriptContextTable) {
   sema_started.Wait();
 
   for (; initialized_entries < 1000; ++initialized_entries) {
-    Handle<Context> context =
+    Handle<Context> new_context =
         factory->NewScriptContext(native_context, scope_info);
     script_context_table =
-        ScriptContextTable::Extend(script_context_table, context);
+        ScriptContextTable::Extend(script_context_table, new_context);
     native_context->synchronized_set_script_context_table(
         *script_context_table);
     // Update with relaxed semantics to not introduce ordering constraints.

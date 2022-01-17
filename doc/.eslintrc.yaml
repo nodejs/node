@@ -1,13 +1,14 @@
 ## Docs-specific linter rules
 
 rules:
-  # ease some restrictions in doc examples
+  # Ease some restrictions in doc examples
   no-restricted-properties: off
   no-undef: off
+  no-unused-expressions: off
   no-unused-vars: off
   symbol-description: off
 
-  # add new ECMAScript features gradually
+  # Add new ECMAScript features gradually
   no-var: error
   prefer-const: error
   prefer-rest-params: error

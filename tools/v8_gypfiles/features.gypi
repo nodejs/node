@@ -62,6 +62,12 @@
       }, {
         'is_component_build': 0,
       }],
+      ['OS == "win" or OS == "mac"', {
+        # Sets -DSYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
+        'v8_enable_system_instrumentation': 1,
+      }, {
+        'v8_enable_system_instrumentation': 0,
+      }],
     ],
     'is_debug%': 0,
 
@@ -72,11 +78,6 @@
 
     # Sets -DV8_ENABLE_FUTURE.
     'v8_enable_future%': 0,
-
-    # Lite mode disables a number of performance optimizations to reduce memory
-    # at the cost of performance.
-    # Sets --DV8_LITE_MODE.
-    'v8_enable_lite_mode%': 0,
 
     # Sets -DVERIFY_HEAP.
     'v8_enable_verify_heap%': 0,
@@ -101,6 +102,9 @@
 
     # Sets -dENABLE_GDB_JIT_INTERFACE.
     'v8_enable_gdbjit%': 0,
+
+    # Sets -dENABLE_HUGEPAGE
+    'v8_enable_hugepage%': 0,
 
     # Currently set for node by common.gypi, avoiding default because of gyp file bug.
     # Should be turned on only for debugging.
@@ -128,9 +132,6 @@
     'v8_enable_pointer_compression%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
 
-    # Reverse JS arguments order in the stack (sets -dV8_REVERSE_JSARGS).
-    'v8_enable_reverse_jsargs%': 0,
-
     # Sets -dOBJECT_PRINT.
     'v8_enable_object_print%': 0,
 
@@ -146,7 +147,14 @@
     # Sets -dV8_TRACE_FEEDBACK_UPDATES.
     'v8_enable_trace_feedback_updates%': 0,
 
-    # Sets -dV8_CONCURRENT_MARKING
+    # Sets -dV8_ATOMIC_OBJECT_FIELD_WRITES and turns all field write operations
+    # into relaxed atomic operations.
+    'v8_enable_atomic_object_field_writes%': 1,
+
+    # Sets -dV8_ATOMIC_MARKING_STATE
+    'v8_enable_atomic_marking_state%': 1,
+
+    # Has no effect in Node.js. Here for completeness with V8's config.
     'v8_enable_concurrent_marking%': 1,
 
     # Enables various testing features.
@@ -170,13 +178,6 @@
 
     # Controls the threshold for on-heap/off-heap Typed Arrays.
     'v8_typed_array_max_size_in_heap%': 64,
-
-    # Temporary flag to allow embedders to update their microtasks scopes
-    # while rolling in a new version of V8.
-    'v8_check_microtasks_scopes_consistency%': 0,
-
-    # Enable mitigations for executing untrusted code.
-    'v8_untrusted_code_mitigations%': 1,
 
     # Enable minor mark compact.
     'v8_enable_minor_mc%': 1,
@@ -220,11 +221,38 @@
     # Requires use_rtti = true
     'v8_enable_precise_zone_stats%': 0,
 
+    # Experimental feature for tracking constness of properties in non-global
+    # dictionaries. Enabling this also always keeps prototypes in dict mode,
+    # meaning that they are not switched to fast mode.
+    # Sets -DV8_DICT_PROPERTY_CONST_TRACKING
+    'v8_dict_property_const_tracking%': 0,
+
+    # Enable allocation folding globally (sets -dV8_ALLOCATION_FOLDING).
+    # When it's disabled, the --turbo-allocation-folding runtime flag will be ignored.
+    'v8_enable_allocation_folding%': 1,
+
+    # Enable global allocation site tracking.
+    'v8_allocation_site_tracking%': 1,
+
     # Variables from v8.gni
 
     # Enable ECMAScript Internationalization API. Enabling this feature will
     # add a dependency on the ICU library.
     'v8_enable_i18n_support%': 1,
+
+    # Lite mode disables a number of performance optimizations to reduce memory
+    # at the cost of performance.
+    # Sets --DV8_LITE_MODE.
+    'v8_enable_lite_mode%': 0,
+
+    # Include support for WebAssembly. If disabled, the 'WebAssembly' global
+    # will not be available, and embedder APIs to generate WebAssembly modules
+    # will fail.
+    'v8_enable_webassembly%': 1,
+
+    # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
+    # depending on platform.
+    'v8_advanced_bigint_algorithms%': 1
   },
 
   'target_defaults': {
@@ -250,11 +278,17 @@
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
       }],
+      ['v8_enable_hugepage==1', {
+        'defines': ['ENABLE_HUGEPAGE',],
+      }],
       ['v8_enable_minor_mc==1', {
         'defines': ['ENABLE_MINOR_MC',],
       }],
       ['v8_enable_pointer_compression==1', {
-        'defines': ['V8_COMPRESS_POINTERS',],
+        'defines': [
+          'V8_COMPRESS_POINTERS',
+          'V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE',
+        ],
       }],
       ['v8_enable_pointer_compression==1 or v8_enable_31bit_smis_on_64bit_arch==1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],
@@ -300,9 +334,6 @@
       },{
         'defines!': ['V8_IMMINENT_DEPRECATION_WARNINGS',],
       }],
-      ['v8_enable_reverse_jsargs==1', {
-        'defines': ['V8_REVERSE_JSARGS',],
-      }],
       ['v8_enable_i18n_support==1', {
         'defines': ['V8_INTL_SUPPORT',],
       }],
@@ -322,14 +353,14 @@
       ['v8_enable_third_party_heap==1', {
         'defines': ['V8_ENABLE_THIRD_PARTY_HEAP',],
       }],
-      ['v8_enable_concurrent_marking==1', {
-        'defines': ['V8_CONCURRENT_MARKING',],
+      ['v8_enable_atomic_object_field_writes==1', {
+        'defines': ['V8_ATOMIC_OBJECT_FIELD_WRITES',],
+      }],
+      ['v8_enable_atomic_marking_state==1', {
+        'defines': ['V8_ATOMIC_MARKING_STATE',],
       }],
       ['v8_enable_lazy_source_positions==1', {
         'defines': ['V8_ENABLE_LAZY_SOURCE_POSITIONS',],
-      }],
-      ['v8_check_microtasks_scopes_consistency==1', {
-        'defines': ['V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY',],
       }],
       ['v8_use_siphash==1', {
         'defines': ['V8_USE_SIPHASH',],
@@ -339,9 +370,6 @@
       }],
       ['v8_enable_verify_csa==1', {
         'defines': ['ENABLE_VERIFY_CSA',],
-      }],
-      ['v8_untrusted_code_mitigations==0', {
-        'defines': ['DISABLE_UNTRUSTED_CODE_MITIGATIONS',],
       }],
       ['v8_use_perfetto==1', {
         'defines': ['V8_USE_PERFETTO',],
@@ -360,6 +388,24 @@
       }],
       ['v8_enable_precise_zone_stats==1', {
         'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],
+      }],
+      ['v8_enable_system_instrumentation==1', {
+        'defines': ['V8_ENABLE_SYSTEM_INSTRUMENTATION',],
+      }],
+      ['v8_enable_webassembly==1', {
+        'defines': ['V8_ENABLE_WEBASSEMBLY',],
+      }],
+      ['v8_dict_property_const_tracking==1', {
+        'defines': ['V8_DICT_PROPERTY_CONST_TRACKING',],
+      }],
+      ['v8_enable_allocation_folding==1', {
+        'defines': ['V8_ALLOCATION_FOLDING',],
+      }],
+      ['v8_allocation_site_tracking==1', {
+        'defines': ['V8_ALLOCATION_SITE_TRACKING',],
+      }],
+      ['v8_advanced_bigint_algorithms==1', {
+        'defines': ['V8_ADVANCED_BIGINT_ALGORITHMS',],
       }],
     ],  # conditions
     'defines': [

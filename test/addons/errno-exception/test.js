@@ -12,4 +12,4 @@ const err = binding.errno();
 assert.strictEqual(err.syscall, 'syscall');
 assert.strictEqual(err.errno, 10);
 assert.strictEqual(err.path, 'päth');
-assert.ok(/^Error:\s\w+, some error msg 'päth'$/.test(err.toString()));
+assert.match(err.toString(), /^Error:\s\w+, some error msg 'päth'$/);

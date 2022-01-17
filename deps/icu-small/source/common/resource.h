@@ -60,7 +60,7 @@ public:
     /**
      * @param i Array item index.
      * @param value Output-only, receives the value of the i'th item.
-     * @return TRUE if i is non-negative and less than getSize().
+     * @return true if i is non-negative and less than getSize().
      */
     UBool getValue(int32_t i, ResourceValue &value) const;
 
@@ -97,14 +97,14 @@ public:
      * @param i Table item index.
      * @param key Output-only, receives the key of the i'th item.
      * @param value Output-only, receives the value of the i'th item.
-     * @return TRUE if i is non-negative and less than getSize().
+     * @return true if i is non-negative and less than getSize().
      */
     UBool getKeyAndValue(int32_t i, const char *&key, ResourceValue &value) const;
 
     /**
      * @param key Key string to find in the table.
      * @param value Output-only, receives the value of the item with that key.
-     * @return TRUE if the table contains the key.
+     * @return true if the table contains the key.
      */
     UBool findValue(const char *key, ResourceValue &value) const;
 
@@ -141,7 +141,7 @@ public:
     inline UnicodeString getUnicodeString(UErrorCode &errorCode) const {
         int32_t len = 0;
         const UChar *r = getString(len, errorCode);
-        return UnicodeString(TRUE, r, len);
+        return UnicodeString(true, r, len);
     }
 
     /**
@@ -152,7 +152,7 @@ public:
     inline UnicodeString getAliasUnicodeString(UErrorCode &errorCode) const {
         int32_t len = 0;
         const UChar *r = getAliasString(len, errorCode);
-        return UnicodeString(TRUE, r, len);
+        return UnicodeString(true, r, len);
     }
 
     /**
@@ -199,7 +199,7 @@ public:
      * CLDR no-fallback data values of (three empty-set symbols)=={2205, 2205, 2205}
      * when enumerating tables with fallback from the specific resource bundle to root.
      *
-     * @return TRUE if this is a no-inheritance marker string
+     * @return true if this is a no-inheritance marker string
      */
     virtual UBool isNoInheritanceMarker() const = 0;
 
@@ -274,8 +274,10 @@ public:
      *
      * @param key The key string of the enumeration-start resource.
      *     Empty if the enumeration starts at the top level of the bundle.
-     * @param value Call getArray() or getTable() as appropriate.
-     *     Then reuse for output values from Array and Table getters.
+     * @param value Call getArray() or getTable() as appropriate. Then reuse for
+     *     output values from Array and Table getters. Note: ResourceTable and
+     *     ResourceArray instances must outlive the ResourceValue instance for
+     *     ResourceTracer to be happy.
      * @param noFallback true if the bundle has no parent;
      *     that is, its top-level table has the nofallback attribute,
      *     or it is the root bundle of a locale tree.

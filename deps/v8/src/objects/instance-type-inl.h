@@ -5,9 +5,10 @@
 #ifndef V8_OBJECTS_INSTANCE_TYPE_INL_H_
 #define V8_OBJECTS_INSTANCE_TYPE_INL_H_
 
+#include "src/base/bounds.h"
+#include "src/execution/isolate-utils-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/map-inl.h"
-#include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -31,14 +32,14 @@ struct InstanceRangeChecker {
 template <InstanceType upper_limit>
 struct InstanceRangeChecker<FIRST_TYPE, upper_limit> {
   static constexpr bool Check(InstanceType value) {
-    CONSTEXPR_DCHECK(FIRST_TYPE <= value);
+    DCHECK_LE(FIRST_TYPE, value);
     return value <= upper_limit;
   }
 };
 template <InstanceType lower_limit>
 struct InstanceRangeChecker<lower_limit, LAST_TYPE> {
   static constexpr bool Check(InstanceType value) {
-    CONSTEXPR_DCHECK(LAST_TYPE >= value);
+    DCHECK_GE(LAST_TYPE, value);
     return value >= lower_limit;
   }
 };
@@ -64,6 +65,10 @@ V8_INLINE bool IsInternalizedString(InstanceType instance_type) {
 V8_INLINE bool IsExternalString(InstanceType instance_type) {
   return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
          kExternalStringTag;
+}
+
+V8_INLINE bool IsThinString(InstanceType instance_type) {
+  return (instance_type & kStringRepresentationMask) == kThinStringTag;
 }
 
 }  // namespace InstanceTypeChecker

@@ -4,11 +4,11 @@
 
 #include <memory>
 
-#include "include/v8.h"
-
+#include "include/v8-isolate.h"
 #include "src/codegen/code-desc.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/heap-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -60,7 +60,8 @@ TEST(Factory_CodeBuilder) {
   HandleScope scope(isolate);
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = kMaxRegularHeapObjectSize + 1;
+  const int instruction_size =
+      isolate->heap()->MaxRegularHeapObjectSize(AllocationType::kCode) + 1;
   std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
 
   CodeDesc desc;

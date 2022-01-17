@@ -29,7 +29,7 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   static constexpr int kMaxGeneralRegisters = 32;
   static constexpr int kMaxFPRegisters = 32;
   static constexpr int kMaxRegisters =
-      Max(kMaxFPRegisters, kMaxGeneralRegisters);
+      std::max(kMaxFPRegisters, kMaxGeneralRegisters);
 
   // Default RegisterConfigurations for the target architecture.
   static const RegisterConfiguration* Default();
@@ -57,6 +57,9 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   int num_allocatable_float_registers() const {
     return num_allocatable_float_registers_;
   }
+  // Caution: this value depends on the current cpu and may change between
+  // build and runtime. At the time of writing, the only architecture with a
+  // variable allocatable double register set is Arm.
   int num_allocatable_double_registers() const {
     return num_allocatable_double_registers_;
   }

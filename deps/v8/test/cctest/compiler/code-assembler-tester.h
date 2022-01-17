@@ -18,12 +18,17 @@ namespace compiler {
 
 class CodeAssemblerTester {
  public:
-  // Test generating code for a stub. Assumes VoidDescriptor call interface.
-  explicit CodeAssemblerTester(Isolate* isolate, const char* name = "test")
+  CodeAssemblerTester(Isolate* isolate,
+                      const CallInterfaceDescriptor& descriptor,
+                      const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
         scope_(isolate),
-        state_(isolate, &zone_, VoidDescriptor{}, CodeKind::STUB, name,
-               PoisoningMitigationLevel::kDontPoison) {}
+        state_(isolate, &zone_, descriptor, CodeKind::FOR_TESTING, name,
+               Builtin::kNoBuiltinId) {}
+
+  // Test generating code for a stub. Assumes VoidDescriptor call interface.
+  explicit CodeAssemblerTester(Isolate* isolate, const char* name = "test")
+      : CodeAssemblerTester(isolate, VoidDescriptor{}, name) {}
 
   // Test generating code for a JS function (e.g. builtins).
   CodeAssemblerTester(Isolate* isolate, int parameter_count,
@@ -31,22 +36,18 @@ class CodeAssemblerTester {
                       const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
         scope_(isolate),
-        state_(isolate, &zone_, parameter_count, kind, name,
-               PoisoningMitigationLevel::kDontPoison) {}
+        state_(isolate, &zone_, parameter_count, kind, name) {}
 
   CodeAssemblerTester(Isolate* isolate, CodeKind kind,
                       const char* name = "test")
-      : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
-        scope_(isolate),
-        state_(isolate, &zone_, 0, kind, name,
-               PoisoningMitigationLevel::kDontPoison) {}
+      : CodeAssemblerTester(isolate, 0, kind, name) {}
 
   CodeAssemblerTester(Isolate* isolate, CallDescriptor* call_descriptor,
                       const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
         scope_(isolate),
-        state_(isolate, &zone_, call_descriptor, CodeKind::STUB, name,
-               PoisoningMitigationLevel::kDontPoison, Builtins::kNoBuiltinId) {}
+        state_(isolate, &zone_, call_descriptor, CodeKind::FOR_TESTING, name,
+               Builtin::kNoBuiltinId) {}
 
   CodeAssemblerState* state() { return &state_; }
 

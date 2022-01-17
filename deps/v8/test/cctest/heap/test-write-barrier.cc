@@ -5,6 +5,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/spaces.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
@@ -15,6 +16,7 @@ namespace internal {
 namespace heap {
 
 HEAP_TEST(WriteBarrier_Marking) {
+  if (!FLAG_incremental_marking) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -22,6 +24,7 @@ HEAP_TEST(WriteBarrier_Marking) {
   MarkCompactCollector* collector = isolate->heap()->mark_compact_collector();
   HandleScope outer(isolate);
   Handle<FixedArray> objects = factory->NewFixedArray(3);
+  v8::Global<Value> global_objects(CcTest::isolate(), Utils::ToLocal(objects));
   {
     // Make sure that these objects are not immediately reachable from
     // the roots to prevent them being marked grey at the start of marking.
@@ -54,6 +57,7 @@ HEAP_TEST(WriteBarrier_Marking) {
 }
 
 HEAP_TEST(WriteBarrier_MarkingExtension) {
+  if (!FLAG_incremental_marking) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -74,7 +78,11 @@ HEAP_TEST(WriteBarrier_MarkingExtension) {
   CHECK(collector->marking_state()->IsWhite(host));
   CHECK(!extension->IsMarked());
   WriteBarrier::Marking(host, extension);
+  // Concurrent marking barrier should mark this object.
   CHECK_EQ(V8_CONCURRENT_MARKING_BOOL, extension->IsMarked());
+  // Keep object alive using the global handle.
+  v8::Global<ArrayBuffer> global_host(CcTest::isolate(),
+                                      Utils::ToLocal(handle(host, isolate)));
   heap::SimulateIncrementalMarking(CcTest::heap(), true);
   CHECK(collector->marking_state()->IsBlack(host));
   CHECK(extension->IsMarked());

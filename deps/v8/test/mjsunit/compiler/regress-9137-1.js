@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --opt
-// Flags: --no-flush-bytecode --no-stress-flush-bytecode
+// Flags: --no-flush-bytecode --no-stress-flush-code
 
 function changeMap(obj) {
   obj.blub = 42;

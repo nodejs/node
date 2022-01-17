@@ -24,7 +24,7 @@ for (let i = 0; i < 50; i++) {
     Buffer.allocUnsafe(20),
     SlowBuffer(20),
     Buffer(20),
-    new SlowBuffer(20)
+    new SlowBuffer(20),
   ];
   for (const buf of bufs) {
     assert(isZeroFilled(buf));

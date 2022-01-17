@@ -23,7 +23,7 @@ import re
 import sys
 
 # TODO(clemensb): Extend to tests.
-DEFAULT_INPUT = ['base', 'src']
+DEFAULT_INPUT = ['base', 'include', 'src']
 DEFAULT_GN_FILE = 'BUILD.gn'
 MY_DIR = os.path.dirname(os.path.realpath(__file__))
 V8_DIR = os.path.dirname(MY_DIR)
@@ -31,6 +31,10 @@ OUT_DIR = os.path.join(V8_DIR, 'check-header-includes')
 AUTO_EXCLUDE = [
   # flag-definitions.h needs a mode set for being included.
   'src/flags/flag-definitions.h',
+  # recorder.h should only be included conditionally.
+  'src/libplatform/tracing/recorder.h',
+  # trap-handler-simulator.h can only be included in simulator builds.
+  'src/trap-handler/trap-handler-simulator.h',
 ]
 AUTO_EXCLUDE_PATTERNS = [
   'src/base/atomicops_internals_.*',
@@ -40,7 +44,7 @@ AUTO_EXCLUDE_PATTERNS = [
   # platform-specific headers
   '\\b{}\\b'.format(p) for p in
     ('win', 'win32', 'ia32', 'x64', 'arm', 'arm64', 'mips', 'mips64', 's390',
-     'ppc')]
+     'ppc', 'riscv64', 'loong64')]
 
 args = None
 def parse_args():

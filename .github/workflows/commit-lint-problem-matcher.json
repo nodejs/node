@@ -1,0 +1,13 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "core-validate-commit",
+      "pattern": [
+        {
+          "regexp": "^not ok \\d+ (.*)$",
+          "message": 1
+        }
+      ]
+    }
+  ]
+}

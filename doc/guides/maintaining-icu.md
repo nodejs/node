@@ -33,30 +33,29 @@ $ node -p process.versions
 }
 ```
 
-### Time Zone Data
+### Time zone data
 
 Time zone data files are updated independently of ICU CLDR data.  ICU and its
 main data files do not need to be upgraded in order to apply time zone data file
 fixes.
 
-The [IANA tzdata](https://www.iana.org/time-zones) project releases new versions
-and announces them on the [`tz-announce`](https://mm.icann.org/pipermail/tz-announce/)
-mailing list.
+The [IANA tzdata][tz] project releases new versions and announces them on the
+[`tz-announce`](https://mm.icann.org/pipermail/tz-announce/) mailing list.
 
 The Unicode project takes new releases and publishes
-[updated time zone data files](https://github.com/unicode-org/icu-data/tree/master/tzdata/icunew)
+[updated time zone data files](https://github.com/unicode-org/icu-data/tree/HEAD/tzdata/icunew)
 in the icu/icu-data repository.
 
 All modern versions of Node.js use the version 44 ABI of the time zone data
 files.
 
-#### Example: Updating the ICU `.dat` File
+#### Example: updating the ICU `.dat` file
 
 * Decompress `deps/icu/source/data/in/icudt##l.dat.bz2`, where `##` is
   the ICU major version number.
 * Clone the icu/icu-data repository and copy the latest `tzdata` release `le`
   files into the `source/data/in` directory.
-* Follow the upstream [ICU instructions](http://userguide.icu-project.org/datetime/timezone)
+* Follow the upstream [ICU instructions](https://unicode-org.github.io/icu/userguide/datetime/timezone/)
   to patch the ICU `.dat` file:
   > `for i in zoneinfo64.res windowsZones.res timezoneTypes.res metaZones.res;
   > do icupkg -a $i icudt*l.dat`
@@ -68,7 +67,7 @@ files.
 * Build, test, verifying `process.versions.tz` matches the desired version.
 * Create a new minor version release.
 
-## Release Schedule
+## Release schedule
 
 ICU typically has >1 release a year, particularly coinciding with a major
 release of [Unicode][]. The current release schedule is available on the [ICU][]
@@ -97,7 +96,7 @@ Node.js is built.
 ## How to upgrade ICU
 
 * Make sure your Node.js workspace is clean (`git status`
-should be sufficient).
+  should be sufficient).
 * Configure Node.js with the specific [ICU version](http://site.icu-project.org/download)
   you want to upgrade to, for example:
 
@@ -114,7 +113,7 @@ make
 * If there are ICU version-specific changes needed, you may need to make changes
   in `tools/icu/icu-generic.gyp` or add patch files to `tools/icu/patches`.
   * Specifically, look for the lists in `sources!` in the `tools/icu/icu-generic.gyp` for
-  files to exclude.
+    files to exclude.
 
 * Verify the Node.js build works:
 
@@ -158,10 +157,9 @@ process.versions.icu;
 new Intl.DateTimeFormat('es', { month: 'long' }).format(new Date(9E8));
 ```
 
-(This should print your updated ICU version number, and also `January` again.)
+(This should print your updated ICU version number, and also `enero` again.)
 
-You are ready to check in the updated `deps/icu-small`. This is a big commit,
-so make this a separate commit from the smaller changes.
+You are ready to check in (`git add`) the updated `deps/icu-small`.
 
 > :warning: Do not modify any source code in `deps/icu-small` !
 > See section below about floating patches to ICU.
@@ -175,8 +173,8 @@ tools/license-builder.sh
 ```
 
 * Update the URL and hash for the full ICU file in `tools/icu/current_ver.dep`.
-It should match the ICU URL used in the first step.  When this is done, the
-following should build with small ICU.
+  It should match the ICU URL used in the first step.  When this is done, the
+  following should build with small ICU.
 
 ```bash
 # clean up
@@ -186,13 +184,8 @@ make
 make test-ci
 ```
 
-* commit the change to `tools/icu/current_ver.dep` and `LICENSE` files.
-
-  * Note: To simplify review, I often will “pre-land” this patch, meaning that
-  I run the patch through `curl -L https://github.com/nodejs/node/pull/xxx.patch
-  | git am -3 --whitespace=fix` per the collaborator’s guide… and then push that
-  patched branch into my PR's branch. This reduces the whitespace changes that
-  show up in the PR, since the final land will eliminate those anyway.
+* Commit the change to the `deps/icu-small`, `tools/icu/current_ver.dep`
+  and `LICENSE` files.
 
 ## Floating patches to ICU
 
@@ -237,7 +230,7 @@ You should see a message such as:
 INFO: Using floating patch "tools/icu/patches/63/source/tools/toolutil/pkg_genc.cpp" from "tools/icu"
 ```
 
-### Clean Up
+### Clean up
 
 Any patches older than the minimum version given in `tools/icu/icu_versions.json`
 ought to be deleted, because they will never be used.
@@ -249,20 +242,20 @@ patch to ICU is required.  Though it seems expedient to simply change a file in
 `deps/icu-small`, this is not the right approach for the following reasons:
 
 1. **Repeatability.** Given the complexity of merging in a new ICU version,
-following the steps above in the prior section of this document ought to be
-repeatable without concern for overriding a patch.
+   following the steps above in the prior section of this document ought to be
+   repeatable without concern for overriding a patch.
 
 2. **Verifiability.** Given the number of files modified in an ICU PR,
-a floating patch could easily be missed or dropped altogether next time
-something is landed.
+   a floating patch could easily be missed or dropped altogether next time
+   something is landed.
 
 3. **Compatibility.** There are a number of ways that ICU can be loaded into
-Node.js (see the top level README.md). Only modifying `icu-small` would cause
-the patch not to be landed in case the user specifies the ICU source code
-another way.
+   Node.js (see the top level README.md). Only modifying `icu-small` would cause
+   the patch not to be landed in case the user specifies the ICU source code
+   another way.
 
-[CLDR]: https://unicode.org/cldr
+[CLDR]: http://cldr.unicode.org/
 [Ecma402]: https://github.com/tc39/ecma402
-[ICU]: http://icu-project.org
-[Unicode]: https://unicode.org
+[ICU]: http://site.icu-project.org/
+[Unicode]: https://home.unicode.org/
 [tz]: https://www.iana.org/time-zones

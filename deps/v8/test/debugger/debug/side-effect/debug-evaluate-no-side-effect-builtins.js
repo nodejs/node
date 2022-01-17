@@ -45,6 +45,8 @@ function listener(event, exec_state, event_data, data) {
     success(false, `Object.isFrozen({})`);
     success(false, `Object.isSealed({})`);
     success([1, 2], `Object.values({a:1, b:2})`);
+    success(["a", 1, "b", 2], `Object.entries({a:1, b:2}).flat()`);
+    success(["a", "b"], `Object.keys({a:1, b:2})`);
 
     fail(`Object.assign({}, {})`);
     fail(`Object.defineProperties({}, [{p:{value:3}}])`);
@@ -119,7 +121,7 @@ function listener(event, exec_state, event_data, data) {
     success(true, `!!typed_array.buffer`);
     success(0, `typed_array.byteOffset`);
     success(3, `typed_array.byteLength`);
-    fail(`Uint8Array.of(1, 2)`);
+    success({0: 1, 1: 2}, `Uint8Array.of(1, 2)`);
     function_param = [
       "forEach", "every", "some", "reduce", "reduceRight", "find", "filter",
       "map", "findIndex"

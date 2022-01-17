@@ -1,5 +1,3 @@
-'use strict'
-
 // XXX these output classes should not live in here forever.  it'd be good to
 // split them out, perhaps to libnpmsearch
 
@@ -36,6 +34,7 @@ class JSONOutputStream extends Minipass {
     } else {
       super.write('\n,\n')
     }
+
     try {
       return super.write(JSON.stringify(obj))
     } catch (er) {
@@ -44,7 +43,8 @@ class JSONOutputStream extends Minipass {
   }
 
   end () {
-    super.write(this._didFirst ? ']\n' : '\n]\n')
+    super.write(this._didFirst ? ']\n' : '\n[]\n')
+    super.end()
   }
 }
 
@@ -89,14 +89,15 @@ function prettify (data, num, opts) {
         author: { minWidth: 15, maxWidth: 15 },
         date: { maxWidth: 11 },
         version: { minWidth: 8, maxWidth: 8 },
-        keywords: { maxWidth: Infinity }
-      }
+        keywords: { maxWidth: Infinity },
+      },
     }
   )
   output = trimToMaxWidth(output)
   if (opts.color) {
     output = highlightSearchTerms(output, opts.args)
   }
+
   return output
 }
 
@@ -111,7 +112,7 @@ function addColorMarker (str, arg, i) {
   if (arg.charAt(0) === '/') {
     return str.replace(
       new RegExp(arg.substr(1, arg.length - 2), 'gi'),
-      function (bit) { return markStart + bit + markEnd }
+      bit => markStart + bit + markEnd
     )
   }
 
@@ -146,7 +147,9 @@ function getMaxWidth () {
     var stdout = process.stdout
     cols = !tty.isatty(stdout.fd) ? Infinity : process.stdout.getWindowSize()[0]
     cols = (cols === 0) ? Infinity : cols
-  } catch (ex) { cols = Infinity }
+  } catch (ex) {
+    cols = Infinity
+  }
   return cols
 }
 
@@ -184,6 +187,6 @@ function normalizePackage (data, opts) {
             .split('T').join(' ')
             .replace(/:[0-9]{2}\.[0-9]{3}Z$/, ''))
             .slice(0, -5)) ||
-          'prehistoric'
+          'prehistoric',
   }
 }

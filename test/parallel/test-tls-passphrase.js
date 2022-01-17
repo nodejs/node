@@ -223,7 +223,8 @@ server.listen(0, common.mustCall(function() {
   }, onSecureConnect());
 })).unref();
 
-const errMessagePassword = /bad decrypt/;
+const errMessagePassword = common.hasOpenSSL3 ?
+  /Error: error:1400006B:UI routines::processing error/ : /bad decrypt/;
 
 // Missing passphrase
 assert.throws(function() {

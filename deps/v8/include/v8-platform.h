@@ -175,9 +175,14 @@ class JobDelegate {
    * Returns a task_id unique among threads currently running this job, such
    * that GetTaskId() < worker count. To achieve this, the same task_id may be
    * reused by a different thread after a worker_task returns.
-   * TODO(etiennep): Make pure virtual once custom embedders implement it.
    */
-  virtual uint8_t GetTaskId() { return 0; }
+  virtual uint8_t GetTaskId() = 0;
+
+  /**
+   * Returns true if the current task is called from the thread currently
+   * running JobHandle::Join().
+   */
+  virtual bool IsJoiningThread() const = 0;
 };
 
 /**
@@ -210,17 +215,34 @@ class JobHandle {
    */
   virtual void Cancel() = 0;
 
-  /**
-   * Returns true if there's no work pending and no worker running.
-   * TODO(etiennep): Make pure virtual once custom embedders implement it.
+  /*
+   * Forces all existing workers to yield ASAP but doesn’t wait for them.
+   * Warning, this is dangerous if the Job's callback is bound to or has access
+   * to state which may be deleted after this call.
    */
-  virtual bool IsCompleted() { return true; }
+  virtual void CancelAndDetach() = 0;
+
+  /**
+   * Returns true if there's any work pending or any worker running.
+   */
+  virtual bool IsActive() = 0;
 
   /**
    * Returns true if associated with a Job and other methods may be called.
-   * Returns false after Join() or Cancel() was called.
+   * Returns false after Join() or Cancel() was called. This may return true
+   * even if no workers are running and IsCompleted() returns true
    */
-  virtual bool IsRunning() = 0;
+  virtual bool IsValid() = 0;
+
+  /**
+   * Returns true if job priority can be changed.
+   */
+  virtual bool UpdatePriorityEnabled() const { return false; }
+
+  /**
+   *  Update this Job's priority.
+   */
+  virtual void UpdatePriority(TaskPriority new_priority) {}
 };
 
 /**
@@ -233,23 +255,13 @@ class JobTask {
   virtual void Run(JobDelegate* delegate) = 0;
 
   /**
-   * Controls the maximum number of threads calling Run() concurrently. Run() is
-   * only invoked if the number of threads previously running Run() was less
-   * than the value returned. Since GetMaxConcurrency() is a leaf function, it
-   * must not call back any JobHandle methods.
+   * Controls the maximum number of threads calling Run() concurrently, given
+   * the number of threads currently assigned to this job and executing Run().
+   * Run() is only invoked if the number of threads previously running Run() was
+   * less than the value returned. Since GetMaxConcurrency() is a leaf function,
+   * it must not call back any JobHandle methods.
    */
-  virtual size_t GetMaxConcurrency() const = 0;
-
-  /*
-   * Meant to replace the version above, given the number of threads currently
-   * assigned to this job and executing Run(). This is useful when the result
-   * must include local work items not visible globaly by other workers.
-   * TODO(etiennep): Replace the version above by this once custom embedders are
-   * migrated.
-   */
-  size_t GetMaxConcurrency(size_t worker_count) const {
-    return GetMaxConcurrency();
-  }
+  virtual size_t GetMaxConcurrency(size_t worker_count) const = 0;
 };
 
 /**
@@ -382,9 +394,14 @@ class PageAllocator {
     kNoAccess,
     kRead,
     kReadWrite,
-    // TODO(hpayer): Remove this flag. Memory should never be rwx.
     kReadWriteExecute,
-    kReadExecute
+    kReadExecute,
+    // Set this when reserving memory that will later require kReadWriteExecute
+    // permissions. The resulting behavior is platform-specific, currently
+    // this is used to set the MAP_JIT flag on Apple Silicon.
+    // TODO(jkummerow): Remove this when Wasm has a platform-independent
+    // w^x implementation.
+    kNoAccessWillJitLater
   };
 
   /**
@@ -413,9 +430,27 @@ class PageAllocator {
   /**
    * Frees memory in the given [address, address + size) range. address and size
    * should be operating system page-aligned. The next write to this
-   * memory area brings the memory transparently back.
+   * memory area brings the memory transparently back. This should be treated as
+   * a hint to the OS that the pages are no longer needed. It does not guarantee
+   * that the pages will be discarded immediately or at all.
    */
   virtual bool DiscardSystemPages(void* address, size_t size) { return true; }
+
+  /**
+   * Decommits any wired memory pages in the given range, allowing the OS to
+   * reclaim them, and marks the region as inacessible (kNoAccess). The address
+   * range stays reserved and can be accessed again later by changing its
+   * permissions. However, in that case the memory content is guaranteed to be
+   * zero-initialized again. The memory must have been previously allocated by a
+   * call to AllocatePages. Returns true on success, false otherwise.
+   */
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  // Implementing this API is required when the virtual memory cage is enabled.
+  virtual bool DecommitPages(void* address, size_t size) = 0;
+#else
+  // Otherwise, it is optional for now.
+  virtual bool DecommitPages(void* address, size_t size) { return false; }
+#endif
 
   /**
    * INTERNAL ONLY: This interface has not been stabilised and may change
@@ -482,6 +517,18 @@ class PageAllocator {
 };
 
 /**
+ * V8 Allocator used for allocating zone backings.
+ */
+class ZoneBackingAllocator {
+ public:
+  using MallocFn = void* (*)(size_t);
+  using FreeFn = void (*)(void*);
+
+  virtual MallocFn GetMallocFn() const { return ::malloc; }
+  virtual FreeFn GetFreeFn() const { return ::free; }
+};
+
+/**
  * V8 Platform abstraction layer.
  *
  * The embedder has to provide an implementation of this interface before
@@ -497,6 +544,14 @@ class Platform {
   virtual PageAllocator* GetPageAllocator() {
     // TODO(bbudge) Make this abstract after all embedders implement this.
     return nullptr;
+  }
+
+  /**
+   * Allows the embedder to specify a custom allocator used for zones.
+   */
+  virtual ZoneBackingAllocator* GetZoneBackingAllocator() {
+    static ZoneBackingAllocator default_allocator;
+    return &default_allocator;
   }
 
   /**

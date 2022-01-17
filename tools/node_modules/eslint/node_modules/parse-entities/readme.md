@@ -8,15 +8,15 @@
 Parse HTML character references: fast, spec-compliant, positional
 information.
 
-## Installation
+## Install
 
 [npm][]:
 
-```bash
+```sh
 npm install parse-entities
 ```
 
-## Usage
+## Use
 
 ```js
 var decode = require('parse-entities')

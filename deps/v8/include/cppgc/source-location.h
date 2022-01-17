@@ -5,6 +5,7 @@
 #ifndef INCLUDE_CPPGC_SOURCE_LOCATION_H_
 #define INCLUDE_CPPGC_SOURCE_LOCATION_H_
 
+#include <cstddef>
 #include <string>
 
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -25,7 +26,7 @@ namespace cppgc {
 
 /**
  * Encapsulates source location information. Mimics C++20's
- * std::source_location.
+ * `std::source_location`.
  */
 class V8_EXPORT SourceLocation final {
  public:

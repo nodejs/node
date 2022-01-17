@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-threads
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 const kSequenceLength = 8192;
 const kNumberOfWorkers = 4;
@@ -46,20 +46,20 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
         kExprI32Mul,
         kExprLocalSet, kArgSeqenceLength,
         // Outer block so we have something to jump for return.
-        ...[kExprBlock, kWasmStmt,
+        ...[kExprBlock, kWasmVoid,
             // Set counter to 0.
             kExprI32Const, 0,
             kExprLocalSet, kLocalCurrentOffset,
             // Outer loop until maxcount.
-            ...[kExprLoop, kWasmStmt,
+            ...[kExprLoop, kWasmVoid,
                 // Find the next value to wait for.
-                ...[kExprLoop, kWasmStmt,
+                ...[kExprLoop, kWasmVoid,
                     // Check end of sequence.
                     kExprLocalGet, kLocalCurrentOffset,
                     kExprLocalGet, kArgSeqenceLength,
                     kExprI32Eq,
                     kExprBrIf, 2, // return
-                    ...[kExprBlock, kWasmStmt,
+                    ...[kExprBlock, kWasmVoid,
                         // Load next value.
                         kExprLocalGet, kArgSequencePtr,
                         kExprLocalGet, kLocalCurrentOffset,
@@ -100,7 +100,7 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
                 loadMemOpcode, 0, 0,
                 kExprLocalSet, kLocalNextValue,
                 // Hammer on memory until value found.
-                ...[kExprLoop, kWasmStmt,
+                ...[kExprLoop, kWasmVoid,
                     // Load address.
                     kExprLocalGet, kArgMemoryCell,
                     // Load expected value.
@@ -131,9 +131,7 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
     builder.addFunction(functionName, makeSig([kWasmI32, kWasmI32, kWasmI32,
             kWasmI32, kWasmI32
         ], []))
-        .addLocals({
-            i32_count: 1, i64_count: 2
-        })
+        .addLocals(kWasmI32, 1).addLocals(kWasmI64, 2)
         .addBody(body)
         .exportAs(functionName);
 }

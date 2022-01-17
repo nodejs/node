@@ -31,9 +31,9 @@ function checkStack(stack) {
   // displays the line of code (`var foo bar;`) that is causing a problem.
   // ChakraCore does not display the line of code but includes `;` in the phrase
   // `Expected ';' `.
-  assert.ok(/;/g.test(stack));
+  assert.match(stack, /;/g);
   // Test that it's a multiline string.
-  assert.ok(/\n/g.test(stack));
+  assert.match(stack, /\n/g);
 }
 let err;
 const badSyntaxPath =
@@ -56,7 +56,7 @@ checkStack(err.stack);
 // Verify that the stack is only decorated once for uncaught exceptions.
 const args = [
   '-e',
-  `require('${badSyntaxPath}')`
+  `require('${badSyntaxPath}')`,
 ];
 const result = spawnSync(process.argv[0], args, { encoding: 'utf8' });
 checkStack(result.stderr);

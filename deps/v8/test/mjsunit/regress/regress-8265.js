@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --random-seed=1
-
 for (let i = 0; i < 54; ++i) Math.random();
 let sum = 0;
 for (let i = 0; i < 10; ++i)

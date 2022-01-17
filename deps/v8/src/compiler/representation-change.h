@@ -16,7 +16,7 @@ namespace compiler {
 // Foward declarations.
 class TypeCache;
 
-enum IdentifyZeros { kIdentifyZeros, kDistinguishZeros };
+enum IdentifyZeros : uint8_t { kIdentifyZeros, kDistinguishZeros };
 
 class Truncation final {
  public:
@@ -180,10 +180,10 @@ class UseInfo {
   static UseInfo TruncatingWord32() {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32());
   }
-  static UseInfo TruncatingWord64() {
-    return UseInfo(MachineRepresentation::kWord64, Truncation::Word64());
-  }
   static UseInfo CheckedBigIntTruncatingWord64(const FeedbackSource& feedback) {
+    // Note that Trunction::Word64() can safely use kIdentifyZero, because
+    // TypeCheckKind::kBigInt will make sure we deopt for anything other than
+    // type BigInt anyway.
     return UseInfo(MachineRepresentation::kWord64, Truncation::Word64(),
                    TypeCheckKind::kBigInt, feedback);
   }
@@ -400,7 +400,8 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
                                     Node* use_node);
   Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
   Node* InsertTruncateInt64ToInt32(Node* node);
-  Node* InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason);
+  Node* InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason,
+                                 const FeedbackSource& feedback = {});
 
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;

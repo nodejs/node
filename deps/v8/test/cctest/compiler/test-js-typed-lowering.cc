@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-heap-copy-reducer.h"
@@ -37,7 +38,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         common(main_zone()),
         graph(main_zone()),
         typer(&js_heap_broker, Typer::kNoFlags, &graph, &tick_counter),
-        context_node(nullptr) {
+        context_node(nullptr),
+        deps(&js_heap_broker, main_zone()) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
     graph.SetEnd(graph.NewNode(common.End(1), graph.start()));
     typer.Run();
@@ -56,6 +58,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   Graph graph;
   Typer typer;
   Node* context_node;
+  CompilationDependencies deps;
 
   Node* Parameter(Type t, int32_t index = 0) {
     Node* n = graph.NewNode(common.Parameter(index), graph.start());
@@ -81,8 +84,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         graph.NewNode(common.StateValues(0, SparseInputMask::Dense()));
 
     Node* state_node = graph.NewNode(
-        common.FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
-                          nullptr),
+        common.FrameState(BytecodeOffset::None(),
+                          OutputFrameStateCombine::Ignore(), nullptr),
         parameters, locals, stack, context, UndefinedConstant(), graph.start());
 
     return state_node;
@@ -93,8 +96,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     CHECK(!heap_copy_reducer.Reduce(node).Changed());
     JSGraph jsgraph(main_isolate(), &graph, &common, &javascript, &simplified,
                     &machine);
-    // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(main_zone(), &graph, &tick_counter);
+    GraphReducer graph_reducer(main_zone(), &graph, &tick_counter,
+                               &js_heap_broker);
     JSTypedLowering reducer(&graph_reducer, &jsgraph, &js_heap_broker,
                             main_zone());
     Reduction reduction = reducer.Reduce(node);
@@ -762,8 +765,8 @@ TEST(RemoveToNumberEffects) {
     if (effect_use != nullptr) {
       R.CheckEffectInput(R.start(), effect_use);
       // Check that value uses of ToNumber() do not go to start().
-      for (int i = 0; i < effect_use->op()->ValueInputCount(); i++) {
-        CHECK_NE(R.start(), effect_use->InputAt(i));
+      for (int j = 0; j < effect_use->op()->ValueInputCount(); j++) {
+        CHECK_NE(R.start(), effect_use->InputAt(j));
       }
     }
   }
@@ -840,8 +843,8 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
       const Operator* op = strict ? R->javascript.StrictEqual(feedback_source)
                                   : R->javascript.Equal(feedback_source);
       Node* eq = R->Binop(op, p0, p1);
-      Node* r = R->reduce(eq);
-      R->CheckBinop(expected, r);
+      Node* reduced = R->reduce(eq);
+      R->CheckBinop(expected, reduced);
     }
   }
 }

@@ -16,4 +16,9 @@ IF EXIST "%ProgramFiles(x86)%\NASM\nasm.exe" (
   EXIT /B 0
 )
 
+if EXIST "%LOCALAPPDATA%\bin\NASM\nasm.exe" (
+  SET "Path=%Path%;%LOCALAPPDATA%\bin\NASM"
+  EXIT /B 0
+)
+
 EXIT /B 1

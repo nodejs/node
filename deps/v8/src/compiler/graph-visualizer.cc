@@ -8,6 +8,8 @@
 #include <sstream>
 #include <string>
 
+#include "src/base/platform/wrappers.h"
+#include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/all-nodes.h"
@@ -27,7 +29,6 @@
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -110,14 +111,13 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
     }
     os << "\"";
     {
-      DisallowHeapAllocation no_allocation;
+      DisallowGarbageCollection no_gc;
       start = shared->StartPosition();
       end = shared->EndPosition();
       os << ", \"sourceText\": \"";
       int len = shared->EndPosition() - start;
-      SubStringRange source(String::cast(script->source()), no_allocation,
-                            start, len);
-      for (const auto& c : source) {
+      SubStringRange source(String::cast(script->source()), no_gc, start, len);
+      for (auto c : source) {
         os << AsEscapedUC16ForJSON(c);
       }
       os << "\"";
@@ -173,7 +173,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
   JsonPrintFunctionSource(os, -1,
                           info->shared_info().is_null()
                               ? std::unique_ptr<char[]>(new char[1]{0})
-                              : info->shared_info()->DebugName().ToCString(),
+                              : info->shared_info()->DebugNameCStr(),
                           script, isolate, info->shared_info(), true);
   const auto& inlined = info->inlined_functions();
   SourceIdAssigner id_assigner(info->inlined_functions().size());
@@ -181,7 +181,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
     os << ", ";
     Handle<SharedFunctionInfo> shared = inlined[id].shared_info;
     const int source_id = id_assigner.GetIdFor(shared);
-    JsonPrintFunctionSource(os, source_id, shared->DebugName().ToCString(),
+    JsonPrintFunctionSource(os, source_id, shared->DebugNameCStr(),
                             handle(Script::cast(shared->script()), isolate),
                             isolate, shared, true);
   }
@@ -201,7 +201,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* optional_base_dir,
                                                  const char* phase,
                                                  const char* suffix) {
-  EmbeddedVector<char, 256> filename(0);
+  base::EmbeddedVector<char, 256> filename(0);
   std::unique_ptr<char[]> debug_name = info->GetDebugName();
   int optimization_id = info->IsOptimizing() ? info->optimization_id() : 0;
   if (strlen(debug_name.get()) > 0) {
@@ -213,7 +213,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   } else {
     SNPrintF(filename, "turbo-none-%i", optimization_id);
   }
-  EmbeddedVector<char, 256> source_file(0);
+  base::EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
   if (FLAG_trace_file_names && info->has_shared_info() &&
       info->shared_info()->script().IsScript()) {
@@ -230,8 +230,10 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   }
   std::replace(filename.begin(), filename.begin() + filename.length(), ' ',
                '_');
+  std::replace(filename.begin(), filename.begin() + filename.length(), ':',
+               '-');
 
-  EmbeddedVector<char, 256> base_dir;
+  base::EmbeddedVector<char, 256> base_dir;
   if (optional_base_dir != nullptr) {
     SNPrintF(base_dir, "%s%c", optional_base_dir,
              base::OS::DirectorySeparator());
@@ -239,7 +241,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
     base_dir[0] = '\0';
   }
 
-  EmbeddedVector<char, 256> full_filename;
+  base::EmbeddedVector<char, 256> full_filename;
   if (phase == nullptr && !source_available) {
     SNPrintF(full_filename, "%s%s.%s", base_dir.begin(), filename.begin(),
              suffix);
@@ -277,6 +279,8 @@ class JSONGraphNodeWriter {
         positions_(positions),
         origins_(origins),
         first_node_(true) {}
+  JSONGraphNodeWriter(const JSONGraphNodeWriter&) = delete;
+  JSONGraphNodeWriter& operator=(const JSONGraphNodeWriter&) = delete;
 
   void Print() {
     for (Node* const node : all_.reachable) PrintNode(node);
@@ -349,8 +353,6 @@ class JSONGraphNodeWriter {
   const SourcePositionTable* positions_;
   const NodeOriginTable* origins_;
   bool first_node_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSONGraphNodeWriter);
 };
 
 
@@ -358,6 +360,8 @@ class JSONGraphEdgeWriter {
  public:
   JSONGraphEdgeWriter(std::ostream& os, Zone* zone, const Graph* graph)
       : os_(os), all_(zone, graph, false), first_edge_(true) {}
+  JSONGraphEdgeWriter(const JSONGraphEdgeWriter&) = delete;
+  JSONGraphEdgeWriter& operator=(const JSONGraphEdgeWriter&) = delete;
 
   void Print() {
     for (Node* const node : all_.reachable) PrintEdges(node);
@@ -400,8 +404,6 @@ class JSONGraphEdgeWriter {
   std::ostream& os_;
   AllNodes all_;
   bool first_edge_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSONGraphEdgeWriter);
 };
 
 std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
@@ -419,7 +421,9 @@ std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
 
 class GraphC1Visualizer {
  public:
-  GraphC1Visualizer(std::ostream& os, Zone* zone);  // NOLINT
+  GraphC1Visualizer(std::ostream& os, Zone* zone);
+  GraphC1Visualizer(const GraphC1Visualizer&) = delete;
+  GraphC1Visualizer& operator=(const GraphC1Visualizer&) = delete;
 
   void PrintCompilation(const OptimizedCompilationInfo* info);
   void PrintSchedule(const char* phase, const Schedule* schedule,
@@ -470,8 +474,6 @@ class GraphC1Visualizer {
   std::ostream& os_;
   int indent_;
   Zone* zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(GraphC1Visualizer);
 };
 
 
@@ -774,10 +776,7 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
       }
     }
 
-    // The toplevel range might be a splinter. Pre-resolve those here so that
-    // they have a proper parent.
     const TopLevelLiveRange* parent = range->TopLevel();
-    if (parent->IsSplinter()) parent = parent->splintered_from();
     os_ << " " << parent->vreg() << ":" << parent->relative_id();
 
     // TODO(herhut) Find something useful to print for the hint field
@@ -1133,8 +1132,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
           os << ",\"tooltip\": \"MUST_HAVE_SLOT\"";
           break;
         }
-        case UnallocatedOperand::SAME_AS_FIRST_INPUT: {
-          os << ",\"tooltip\": \"SAME_AS_FIRST_INPUT\"";
+        case UnallocatedOperand::SAME_AS_INPUT: {
+          os << ",\"tooltip\": \"SAME_AS_INPUT: " << unalloc->input_index()
+             << "\"";
           break;
         }
         case UnallocatedOperand::REGISTER_OR_SLOT: {
@@ -1165,11 +1165,16 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
       os << "\"type\": \"immediate\", ";
       const ImmediateOperand* imm = ImmediateOperand::cast(op);
       switch (imm->type()) {
-        case ImmediateOperand::INLINE: {
-          os << "\"text\": \"#" << imm->inline_value() << "\"";
+        case ImmediateOperand::INLINE_INT32: {
+          os << "\"text\": \"#" << imm->inline_int32_value() << "\"";
           break;
         }
-        case ImmediateOperand::INDEXED: {
+        case ImmediateOperand::INLINE_INT64: {
+          os << "\"text\": \"#" << imm->inline_int64_value() << "\"";
+          break;
+        }
+        case ImmediateOperand::INDEXED_RPO:
+        case ImmediateOperand::INDEXED_IMM: {
           int index = imm->indexed_value();
           os << "\"text\": \"imm:" << index << "\",";
           os << "\"tooltip\": \"";

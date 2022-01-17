@@ -31,7 +31,7 @@ function promiseRetry(fn, options) {
                         err = err.retried;
                     }
 
-                    throw errcode('Retrying', 'EPROMISERETRY', { retried: err });
+                    throw errcode(new Error('Retrying'), 'EPROMISERETRY', { retried: err });
                 }, number);
             })
             .then(resolve, function (err) {

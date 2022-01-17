@@ -4,17 +4,19 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "stream_base.h"
-#include "allocated_buffer.h"
 
 namespace node {
 
 class StreamPipe : public AsyncWrap {
  public:
-  StreamPipe(StreamBase* source, StreamBase* sink, v8::Local<v8::Object> obj);
   ~StreamPipe() override;
 
   void Unpipe(bool is_in_deletion = false);
 
+  // TODO(RaisinTen): Just like MessagePort, add the following overload:
+  // static StreamPipe* New(StreamBase* source, StreamBase* sink,
+  //                        v8::Local<v8::Object> obj);
+  // so that we can indicate if there is a pending exception/termination.
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unpipe(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -26,6 +28,8 @@ class StreamPipe : public AsyncWrap {
   SET_SELF_SIZE(StreamPipe)
 
  private:
+  StreamPipe(StreamBase* source, StreamBase* sink, v8::Local<v8::Object> obj);
+
   inline StreamBase* source();
   inline StreamBase* sink();
 
@@ -43,7 +47,7 @@ class StreamPipe : public AsyncWrap {
   // `OnStreamWantsWrite()` support.
   size_t wanted_data_ = 0;
 
-  void ProcessData(size_t nread, AllocatedBuffer&& buf);
+  void ProcessData(size_t nread, std::unique_ptr<v8::BackingStore> bs);
 
   class ReadableListener : public StreamListener {
    public:
@@ -68,6 +72,6 @@ class StreamPipe : public AsyncWrap {
 
 }  // namespace node
 
-#endif
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STREAM_PIPE_H_

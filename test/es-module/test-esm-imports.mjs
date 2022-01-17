@@ -20,6 +20,8 @@ const { requireImport, importImport } = importer;
     ['#external', { default: 'asdf' }],
     // External subpath imports
     ['#external/subpath/asdf.js', { default: 'asdf' }],
+    // Trailing pattern imports
+    ['#subpath/asdf.asdf', { default: 'test' }],
   ]);
 
   for (const [validSpecifier, expected] of internalImports) {
@@ -32,8 +34,6 @@ const { requireImport, importImport } = importer;
   }
 
   const invalidImportTargets = new Set([
-    // External subpath import without trailing slash
-    ['#external/invalidsubpath/x', '#external/invalidsubpath/'],
     // Target steps below the package base
     ['#belowbase', '#belowbase'],
     // Target is a URL
@@ -53,13 +53,15 @@ const { requireImport, importImport } = importer;
     // Backtracking below the package base
     ['#subpath/sub/../../../belowbase', 'request is not a valid subpath'],
     // Percent-encoded slash errors
-    ['#external/subpath/x%2Fy', 'must not include encoded "/"'],
+    ['#external/subpath/x%2Fy', 'must not include encoded "/" or "\\"'],
+    ['#external/subpath/x%5Cy', 'must not include encoded "/" or "\\"'],
     // Target must have a name
     ['#', '#'],
     // Initial slash target must have a leading name
     ['#/initialslash', '#/initialslash'],
     // Percent-encoded target paths
-    ['#percent', 'must not include encoded "/"'],
+    ['#encodedslash', 'must not include encoded "/" or "\\"'],
+    ['#encodedbackslash', 'must not include encoded "/" or "\\"'],
   ]);
 
   for (const [specifier, expected] of invalidImportSpecifiers) {
@@ -71,6 +73,8 @@ const { requireImport, importImport } = importer;
   }
 
   const undefinedImports = new Set([
+    // EOL subpaths
+    '#external/invalidsubpath/x',
     // Missing import
     '#missing',
     // Explicit null import

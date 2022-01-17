@@ -12,10 +12,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 5
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
   /*   45 S> */ B(TestNull),
   /*   63 S> */ B(Return),
 ]
@@ -31,10 +31,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 4
 bytecodes: [
   /*   42 S> */ B(LdaUndefined),
-                B(Star), R(0),
+                B(Star0),
   /*   53 S> */ B(TestUndefined),
   /*   76 S> */ B(Return),
 ]
@@ -50,10 +50,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 5
 bytecodes: [
   /*   42 S> */ B(LdaUndefined),
-                B(Star), R(0),
+                B(Star0),
   /*   53 S> */ B(TestUndefined),
   /*   70 E> */ B(LogicalNot),
   /*   76 S> */ B(Return),
@@ -70,10 +70,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(2),
-                B(Star), R(0),
+                B(Star0),
   /*   45 S> */ B(TestUndetectable),
   /*   54 E> */ B(LogicalNot),
   /*   62 S> */ B(Return),
@@ -90,10 +90,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 4
 bytecodes: [
   /*   42 S> */ B(LdaUndefined),
-                B(Star), R(0),
+                B(Star0),
   /*   53 S> */ B(TestUndetectable),
   /*   75 S> */ B(Return),
 ]
@@ -109,10 +109,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 11
 bytecodes: [
   /*   42 S> */ B(LdaUndefined),
-                B(Star), R(0),
+                B(Star0),
   /*   53 S> */ B(JumpIfNotUndefined), U8(6),
                 B(LdaSmi), I8(1),
                 B(Jump), U8(4),
@@ -131,10 +131,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 12
 bytecodes: [
   /*   42 S> */ B(LdaZero),
-                B(Star), R(0),
+                B(Star0),
   /*   45 S> */ B(TestUndetectable),
                 B(JumpIfFalse), U8(6),
                 B(LdaSmi), I8(1),
@@ -154,10 +154,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 11
 bytecodes: [
   /*   42 S> */ B(LdaZero),
-                B(Star), R(0),
+                B(Star0),
   /*   45 S> */ B(JumpIfUndefined), U8(6),
                 B(LdaSmi), I8(1),
                 B(Jump), U8(4),
@@ -176,10 +176,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 11
 bytecodes: [
   /*   42 S> */ B(LdaZero),
-                B(Star), R(0),
+                B(Star0),
   /*   45 S> */ B(JumpIfNotNull), U8(6),
                 B(LdaSmi), I8(1),
                 B(Jump), U8(4),
@@ -202,10 +202,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 10
 bytecodes: [
   /*   42 S> */ B(LdaZero),
-                B(Star), R(0),
+                B(Star0),
   /*   45 S> */ B(JumpIfNotNull), U8(5),
   /*   65 S> */ B(LdaSmi), I8(1),
   /*   74 S> */ B(Return),
@@ -226,10 +226,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 10
 bytecodes: [
   /*   42 S> */ B(LdaZero),
-                B(Star), R(0),
+                B(Star0),
   /*   45 S> */ B(TestUndetectable),
                 B(JumpIfTrue), U8(5),
   /*   69 S> */ B(LdaSmi), I8(1),
@@ -252,18 +252,18 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 21
+bytecode array length: 18
 bytecodes: [
   /*   42 S> */ B(LdaUndefined),
-                B(Star), R(0),
+                B(Star0),
   /*   61 S> */ B(LdaZero),
-                B(Star), R(1),
+                B(Star1),
   /*   73 S> */ B(Ldar), R(0),
-                B(JumpIfUndefined), U8(11),
+                B(JumpIfUndefined), U8(10),
   /*   92 S> */ B(Ldar), R(1),
                 B(Inc), U8(0),
-                B(Star), R(1),
-  /*   64 E> */ B(JumpLoop), U8(10), I8(0),
+                B(Star1),
+  /*   64 E> */ B(JumpLoop), U8(9), I8(0),
                 B(LdaUndefined),
   /*   99 S> */ B(Return),
 ]

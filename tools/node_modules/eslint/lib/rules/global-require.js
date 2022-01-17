@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule for disallowing require() outside of the top-level module context
  * @author Jamund Ferguson
+ * @deprecated in ESLint v7.0.0
  */
 
 "use strict";
@@ -47,6 +48,7 @@ function isShadowed(scope, node) {
     return reference && reference.resolved && reference.resolved.defs.length > 0;
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         deprecated: true,
@@ -57,7 +59,6 @@ module.exports = {
 
         docs: {
             description: "require `require()` calls to be placed at top-level module scope",
-            category: "Node.js and CommonJS",
             recommended: false,
             url: "https://eslint.org/docs/rules/global-require"
         },

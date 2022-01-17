@@ -126,7 +126,7 @@ class IncrementalStringBuilder {
     if (encoding_ == String::ONE_BYTE_ENCODING) {
       Append<uint8_t, uint8_t>(c);
     } else {
-      Append<uint8_t, uc16>(c);
+      Append<uint8_t, base::uc16>(c);
     }
   }
 
@@ -135,22 +135,22 @@ class IncrementalStringBuilder {
     if (encoding_ == String::ONE_BYTE_ENCODING) {
       while (*u != '\0') Append<uint8_t, uint8_t>(*(u++));
     } else {
-      while (*u != '\0') Append<uint8_t, uc16>(*(u++));
+      while (*u != '\0') Append<uint8_t, base::uc16>(*(u++));
     }
   }
 
-  V8_INLINE void AppendCString(const uc16* s) {
+  V8_INLINE void AppendCString(const base::uc16* s) {
     if (encoding_ == String::ONE_BYTE_ENCODING) {
-      while (*s != '\0') Append<uc16, uint8_t>(*(s++));
+      while (*s != '\0') Append<base::uc16, uint8_t>(*(s++));
     } else {
-      while (*s != '\0') Append<uc16, uc16>(*(s++));
+      while (*s != '\0') Append<base::uc16, base::uc16>(*(s++));
     }
   }
 
   V8_INLINE void AppendInt(int i) {
     char buffer[kIntToCStringBufferSize];
     const char* str =
-        IntToCString(i, Vector<char>(buffer, kIntToCStringBufferSize));
+        IntToCString(i, base::Vector<char>(buffer, kIntToCStringBufferSize));
     AppendCString(str);
   }
 
@@ -191,7 +191,7 @@ class IncrementalStringBuilder {
   class NoExtend {
    public:
     NoExtend(Handle<String> string, int offset,
-             const DisallowHeapAllocation& no_gc) {
+             const DisallowGarbageCollection& no_gc) {
       DCHECK(string->IsSeqOneByteString() || string->IsSeqTwoByteString());
       if (sizeof(DestChar) == 1) {
         start_ = reinterpret_cast<DestChar*>(
@@ -214,7 +214,7 @@ class IncrementalStringBuilder {
    private:
     DestChar* start_;
     DestChar* cursor_;
-    DISALLOW_HEAP_ALLOCATION(no_gc_)
+    DISALLOW_GARBAGE_COLLECTION(no_gc_)
   };
 
   template <typename DestChar>
@@ -241,7 +241,7 @@ class IncrementalStringBuilder {
   class NoExtendBuilder : public NoExtend<DestChar> {
    public:
     NoExtendBuilder(IncrementalStringBuilder* builder, int required_length,
-                    const DisallowHeapAllocation& no_gc)
+                    const DisallowGarbageCollection& no_gc)
         : NoExtend<DestChar>(builder->current_part(), builder->current_index_,
                              no_gc),
           builder_(builder) {
@@ -262,13 +262,13 @@ class IncrementalStringBuilder {
   V8_INLINE Handle<String> accumulator() { return accumulator_; }
 
   V8_INLINE void set_accumulator(Handle<String> string) {
-    *accumulator_.location() = string->ptr();
+    accumulator_.PatchValue(*string);
   }
 
   V8_INLINE Handle<String> current_part() { return current_part_; }
 
   V8_INLINE void set_current_part(Handle<String> string) {
-    *current_part_.location() = string->ptr();
+    current_part_.PatchValue(*string);
   }
 
   // Add the current part to the accumulator.

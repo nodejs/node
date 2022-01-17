@@ -4,70 +4,10 @@
 
 #include 'src/builtins/builtins-string-gen.h'
 
-namespace string {
 extern macro ReplaceSymbolConstant(): Symbol;
 
 extern macro StringBuiltinsAssembler::GetSubstitution(
     implicit context: Context)(String, Smi, Smi, String): String;
-
-extern builtin
-StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
-
-macro TryFastAbstractStringIndexOf(implicit context: Context)(
-    string: String, searchString: String, fromIndex: Smi): Smi labels Slow {
-  const stringLen = string.length_uintptr;
-  const searchLen = searchString.length_uintptr;
-  const directString = Cast<DirectString>(string) otherwise Slow;
-  const directSearchStr = Cast<DirectString>(searchString) otherwise Slow;
-  const fromIndexUint = Unsigned(SmiUntag(fromIndex));
-
-  for (let i: uintptr = fromIndexUint; i < stringLen; i++) {
-    let j = i;
-    let k: uintptr = 0;
-    while (j < stringLen && k < searchLen &&
-           StringCharCodeAt(directString, j) ==
-               StringCharCodeAt(directSearchStr, k)) {
-      j++;
-      k++;
-    }
-    if (k == searchLen) {
-      return SmiTag(Signed(i));
-    }
-  }
-  return -1;
-}
-
-macro AbstractStringIndexOf(implicit context: Context)(
-    string: String, searchString: String, fromIndex: Smi): Smi {
-  // Special case the empty string.
-  const searchStringLength = searchString.length_intptr;
-  const stringLength = string.length_intptr;
-  if (searchStringLength == 0 && SmiUntag(fromIndex) <= stringLength) {
-    return fromIndex;
-  }
-
-  // Don't bother to search if the searchString would go past the end
-  // of the string. This is actually necessary because of runtime
-  // checks.
-  if (SmiUntag(fromIndex) + searchStringLength > stringLength) {
-    return -1;
-  }
-
-  try {
-    return TryFastAbstractStringIndexOf(string, searchString, fromIndex)
-        otherwise Slow;
-  } label Slow {
-    for (let i: intptr = SmiUntag(fromIndex);
-         i + searchStringLength <= stringLength; i++) {
-      if (StringCompareSequence(
-              context, string, searchString, Convert<Number>(SmiTag(i))) ==
-          True) {
-        return SmiTag(i);
-      }
-    }
-    return -1;
-  }
-}
 
 transitioning macro
 ThrowIfNotGlobal(implicit context: Context)(searchValue: JSAny): void {
@@ -216,5 +156,4 @@ transitioning javascript builtin StringPrototypeReplaceAll(
 
   // 16. Return result.
   return result;
-}
 }

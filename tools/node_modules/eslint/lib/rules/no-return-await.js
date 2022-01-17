@@ -10,13 +10,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow unnecessary `return await`",
-            category: "Best Practices",
 
             recommended: false,
 

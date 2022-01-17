@@ -146,8 +146,8 @@ static void generate_accept_string(const std::string& client_key,
   static const char ws_magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
   std::string input(client_key + ws_magic);
   char hash[SHA_DIGEST_LENGTH];
-  SHA1(reinterpret_cast<const unsigned char*>(&input[0]), input.size(),
-       reinterpret_cast<unsigned char*>(hash));
+  USE(SHA1(reinterpret_cast<const unsigned char*>(&input[0]), input.size(),
+       reinterpret_cast<unsigned char*>(hash)));
   node::base64_encode(hash, sizeof(hash), *buffer, sizeof(*buffer));
 }
 
@@ -318,7 +318,7 @@ class WsHandler : public ProtocolHandler {
   WsHandler(InspectorSocket* inspector, TcpHolder::Pointer tcp)
             : ProtocolHandler(inspector, std::move(tcp)),
               OnCloseSent(&WsHandler::WaitForCloseReply),
-              OnCloseRecieved(&WsHandler::CloseFrameReceived),
+              OnCloseReceived(&WsHandler::CloseFrameReceived),
               dispose_(false) { }
 
   void AcceptUpgrade(const std::string& accept_key) override { }
@@ -369,7 +369,7 @@ class WsHandler : public ProtocolHandler {
   }
 
   void WaitForCloseReply() {
-    OnCloseRecieved = &WsHandler::OnEof;
+    OnCloseReceived = &WsHandler::OnEof;
   }
 
   void SendClose() {
@@ -396,7 +396,7 @@ class WsHandler : public ProtocolHandler {
       OnEof();
       bytes_consumed = 0;
     } else if (r == FRAME_CLOSE) {
-      (this->*OnCloseRecieved)();
+      (this->*OnCloseReceived)();
       bytes_consumed = 0;
     } else if (r == FRAME_OK) {
       delegate()->OnWsFrame(output);
@@ -406,7 +406,7 @@ class WsHandler : public ProtocolHandler {
 
 
   Callback OnCloseSent;
-  Callback OnCloseRecieved;
+  Callback OnCloseReceived;
   bool dispose_;
 };
 
@@ -580,8 +580,7 @@ class HttpHandler : public ProtocolHandler {
   bool IsAllowedHost(const std::string& host_with_port) const {
     std::string host = TrimPort(host_with_port);
     return host.empty() || IsIPAddress(host)
-           || node::StringEqualNoCase(host.data(), "localhost")
-           || node::StringEqualNoCase(host.data(), "localhost6");
+           || node::StringEqualNoCase(host.data(), "localhost");
   }
 
   bool parsing_value_;

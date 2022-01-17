@@ -17,8 +17,6 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
-bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(SSE4_1); }
-
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
 
@@ -37,10 +35,21 @@ void Assembler::emitw(uint16_t x) {
   pc_ += sizeof(uint16_t);
 }
 
+// TODO(ishell): Rename accordingly once RUNTIME_ENTRY is renamed.
 void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsRuntimeEntry(rmode));
+  DCHECK_NE(options().code_range_start, 0);
   RecordRelocInfo(rmode);
-  emitl(static_cast<uint32_t>(entry - options().code_range_start));
+  uint32_t offset = static_cast<uint32_t>(entry - options().code_range_start);
+  if (IsOnHeap()) {
+    saved_offsets_for_runtime_entries_.emplace_back(pc_offset(), offset);
+    emitl(relative_target_offset(entry, reinterpret_cast<Address>(pc_)));
+    // We must ensure that `emitl` is not growing the assembler buffer
+    // and falling back to off-heap compilation.
+    DCHECK(IsOnHeap());
+  } else {
+    emitl(offset);
+  }
 }
 
 void Assembler::emit(Immediate x) {
@@ -53,6 +62,14 @@ void Assembler::emit(Immediate x) {
 void Assembler::emit(Immediate64 x) {
   if (!RelocInfo::IsNone(x.rmode_)) {
     RecordRelocInfo(x.rmode_);
+    if (x.rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT && IsOnHeap()) {
+      int offset = pc_offset();
+      Handle<HeapObject> object(reinterpret_cast<Address*>(x.value_));
+      saved_handles_for_raw_object_ptr_.emplace_back(offset, x.value_);
+      emitq(static_cast<uint64_t>(object->ptr()));
+      DCHECK(EmbeddedObjectMatches(offset, object));
+      return;
+    }
   }
   emitq(static_cast<uint64_t>(x.value_));
 }
@@ -234,11 +251,16 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK(is_int32(target - pc - 4));
-  WriteUnalignedValue(pc, static_cast<int32_t>(target - pc - 4));
+  WriteUnalignedValue(pc, relative_target_offset(target, pc));
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, sizeof(int32_t));
   }
+}
+
+int32_t Assembler::relative_target_offset(Address target, Address pc) {
+  Address offset = target - pc - 4;
+  DCHECK(is_int32(offset));
+  return static_cast<int32_t>(offset);
 }
 
 void Assembler::deserialization_set_target_internal_reference_at(
@@ -316,17 +338,19 @@ HeapObject RelocInfo::target_object() {
         host_.ptr(), ReadUnalignedValue<Tagged_t>(pc_)));
     return HeapObject::cast(o);
   }
+  DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));
   return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
 }
 
-HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
+HeapObject RelocInfo::target_object_no_host(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Tagged_t compressed = ReadUnalignedValue<Tagged_t>(pc_);
     DCHECK(!HAS_SMI_TAG(compressed));
-    Object obj(DecompressTaggedPointer(isolate, compressed));
+    Object obj(DecompressTaggedPointer(cage_base, compressed));
     return HeapObject::cast(obj);
   }
+  DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));
   return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
 }
 
@@ -338,6 +362,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
     if (IsCompressedEmbeddedObject(rmode_)) {
       return origin->compressed_embedded_object_handle_at(pc_);
     }
+    DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));
     return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
   }
 }
@@ -375,6 +400,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     Tagged_t tagged = CompressTagged(target.ptr());
     WriteUnalignedValue(pc_, tagged);
   } else {
+    DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));
     WriteUnalignedValue(pc_, target.ptr());
   }
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {

@@ -4,10 +4,12 @@
 
 #include "src/execution/v8threads.h"
 
+#include "include/v8-locker.h"
 #include "src/api/api.h"
 #include "src/debug/debug.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/stack-guard.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/visitors.h"
 #include "src/regexp/regexp-stack.h"
@@ -18,7 +20,7 @@ namespace {
 
 // Track whether this V8 instance has ever called v8::Locker. This allows the
 // API code to verify that the lock is always held when V8 is being entered.
-base::Atomic32 g_locker_was_ever_used_ = 0;
+base::AtomicWord g_locker_was_ever_used_ = 0;
 
 }  // namespace
 
@@ -51,8 +53,12 @@ bool Locker::IsLocked(v8::Isolate* isolate) {
   return internal_isolate->thread_manager()->IsLockedByCurrentThread();
 }
 
-bool Locker::IsActive() {
-  return !!base::Relaxed_Load(&g_locker_was_ever_used_);
+// static
+bool Locker::IsActive() { return WasEverUsed(); }
+
+// static
+bool Locker::WasEverUsed() {
+  return base::Relaxed_Load(&g_locker_was_ever_used_) != 0;
 }
 
 Locker::~Locker() {
@@ -128,8 +134,10 @@ bool ThreadManager::RestoreThread() {
   from = isolate_->handle_scope_implementer()->RestoreThread(from);
   from = isolate_->RestoreThread(from);
   from = Relocatable::RestoreState(isolate_, from);
-  from = isolate_->debug()->RestoreDebug(from);
+  // Stack guard should be restored before Debug, etc. since Debug etc. might
+  // depend on a correct stack guard.
   from = isolate_->stack_guard()->RestoreStackGuard(from);
+  from = isolate_->debug()->RestoreDebug(from);
   from = isolate_->regexp_stack()->RestoreStack(from);
   from = isolate_->bootstrapper()->RestoreState(from);
   per_thread->set_thread_state(nullptr);
@@ -262,8 +270,8 @@ void ThreadManager::EagerlyArchiveThread() {
   to = isolate_->handle_scope_implementer()->ArchiveThread(to);
   to = isolate_->ArchiveThread(to);
   to = Relocatable::ArchiveState(isolate_, to);
-  to = isolate_->debug()->ArchiveDebug(to);
   to = isolate_->stack_guard()->ArchiveStackGuard(to);
+  to = isolate_->debug()->ArchiveDebug(to);
   to = isolate_->regexp_stack()->ArchiveStack(to);
   to = isolate_->bootstrapper()->ArchiveState(to);
   lazily_archived_thread_ = ThreadId::Invalid();
@@ -296,6 +304,8 @@ void ThreadManager::Iterate(RootVisitor* v) {
     data = HandleScopeImplementer::Iterate(v, data);
     data = isolate_->Iterate(v, data);
     data = Relocatable::Iterate(v, data);
+    data = StackGuard::Iterate(v, data);
+    data = Debug::Iterate(v, data);
   }
 }
 

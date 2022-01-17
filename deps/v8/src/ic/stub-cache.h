@@ -102,6 +102,8 @@ class V8_EXPORT_PRIVATE StubCache {
 
   // The constructor is made public only for the purposes of testing.
   explicit StubCache(Isolate* isolate);
+  StubCache(const StubCache&) = delete;
+  StubCache& operator=(const StubCache&) = delete;
 
  private:
   // The stub cache has a primary and secondary level.  The two levels have
@@ -142,8 +144,6 @@ class V8_EXPORT_PRIVATE StubCache {
 
   friend class Isolate;
   friend class SCTableReference;
-
-  DISALLOW_COPY_AND_ASSIGN(StubCache);
 };
 }  // namespace internal
 }  // namespace v8

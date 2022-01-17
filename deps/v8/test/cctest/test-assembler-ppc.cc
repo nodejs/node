@@ -61,7 +61,7 @@ TEST(0) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -97,7 +97,7 @@ TEST(1) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -145,7 +145,7 @@ TEST(2) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -214,7 +214,7 @@ TEST(3) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   code->Print();
 #endif
@@ -327,7 +327,7 @@ TEST(4) {
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -387,7 +387,7 @@ TEST(5) {
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -422,7 +422,7 @@ TEST(6) {
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -497,7 +497,7 @@ static void TestRoundingMode(VCVTTypes types,
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -684,7 +684,7 @@ TEST(8) {
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -799,7 +799,7 @@ TEST(9) {
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -910,7 +910,7 @@ TEST(10) {
     assm.GetCode(isolate, &desc);
     Object code = isolate->heap()->CreateCode(
         desc,
-        CodeKind::STUB,
+        CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
@@ -1007,7 +1007,7 @@ TEST(11) {
   assm.GetCode(isolate, &desc);
   Object code = isolate->heap()->CreateCode(
       desc,
-      CodeKind::STUB,
+      CodeKind::FOR_TESTING,
       Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef DEBUG
@@ -1037,6 +1037,51 @@ TEST(12) {
   __ nop();
 }
 #endif
+
+TEST(WordSizedVectorInstructions) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(AssemblerOptions{});
+  // Testing word sized vector operations.
+  __ li(r0, Operand(5));  // v0 = {5, 5, 5, 5}
+  __ mtvsrd(v0, r0);
+  __ vspltw(v0, v0, Operand(1));
+
+  // Integer
+  __ vadduwm(v1, v0, v0);   // v1 = {10, 10, 10, 10}
+  __ vmuluwm(v2, v0, v1);   // v2 = {50, 50, 50, 50}
+  __ vsubuhm(v3, v2, v0);   // v3 = {45, 45, 45, 45}
+  __ vslw(v4, v2, v0);      // v4 = {1600, 1600, 1600, 1600}
+  __ vsrw(v5, v2, v0);      // v5 = {1, 1, 1, 1}
+  __ vmaxsw(v4, v5, v4);    // v4 = unchanged
+  __ vcmpgtuw(v5, v2, v3);  // v5 = all 1s
+  __ vand(v4, v4, v5);      // v4 = unchanged
+  // FP
+  __ xvcvsxwsp(v1, v1);    // v1 = Converted to SP
+  __ xvcvsxwsp(v4, v4);    // v4 = Converted to SP
+  __ xvdivsp(v4, v4, v1);  // v4 = {160, 160, 160, 160}
+  // Integer
+  __ xvcvspuxws(v4, v4);  // v4 = Converted to Int
+  __ vor(v0, v4, v3);     // v0 = {173, 173, 173, 173}
+
+  __ vupkhsw(v0, v0);  // v0 = {173, 173}
+  __ mfvsrd(r3, v0);
+  __ blr();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F_iiiii>::FromCode(*code);
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIdPTR "\n", res);
+  CHECK_EQ(173, static_cast<int>(res));
+}
 
 #undef __
 

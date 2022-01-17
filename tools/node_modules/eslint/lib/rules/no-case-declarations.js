@@ -8,13 +8,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow lexical declarations in case clauses",
-            category: "Best Practices",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-case-declarations"
         },

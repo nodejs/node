@@ -26,6 +26,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <locale>
 #include "util.h"
 
 // These are defined by <sys/byteorder.h> or <netinet/in.h> on some systems.
@@ -62,6 +63,14 @@
   (((x) & 0x000000000000FF00ull) << 40) |                                     \
   (((x) & 0x00000000000000FFull) << 56)
 #endif
+
+#define CHAR_TEST(bits, name, expr)                                           \
+  template <typename T>                                                       \
+  bool name(const T ch) {                                                     \
+    static_assert(sizeof(ch) >= (bits) / 8,                                   \
+                  "Character must be wider than " #bits " bits");             \
+    return (expr);                                                            \
+  }
 
 namespace node {
 
@@ -274,7 +283,7 @@ void SwapBytes64(char* data, size_t nbytes) {
 }
 
 char ToLower(char c) {
-  return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+  return std::tolower(c, std::locale::classic());
 }
 
 std::string ToLower(const std::string& in) {
@@ -285,7 +294,7 @@ std::string ToLower(const std::string& in) {
 }
 
 char ToUpper(char c) {
-  return c >= 'a' && c <= 'z' ? (c - 'a') + 'A' : c;
+  return std::toupper(c, std::locale::classic());
 }
 
 std::string ToUpper(const std::string& in) {

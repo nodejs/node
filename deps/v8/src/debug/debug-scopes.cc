@@ -35,8 +35,10 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   }
   context_ = Handle<Context>::cast(frame_inspector->GetContext());
 
+#if V8_ENABLE_WEBASSEMBLY
   // We should not instantiate a ScopeIterator for wasm frames.
   DCHECK_NE(Script::TYPE_WASM, frame_inspector->GetScript()->type());
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   TryParseAndRetrieveScopes(strategy);
 }
@@ -47,7 +49,7 @@ Handle<Object> ScopeIterator::GetFunctionDebugName() const {
   if (!function_.is_null()) return JSFunction::GetDebugName(function_);
 
   if (!context_->IsNativeContext()) {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     ScopeInfo closure_info = context_->closure_context().scope_info();
     Handle<String> debug_name(closure_info.FunctionDebugName(), isolate_);
     if (debug_name->length() > 0) return debug_name;
@@ -190,7 +192,13 @@ class ScopeChainRetriever {
     // functions that have the same end position.
     const bool position_fits_end =
         closure_scope_ ? position_ < end : position_ <= end;
-    return start < position_ && position_fits_end;
+    // While we're evaluating a class, the calling function will have a class
+    // context on the stack with a range that starts at Token::CLASS, and the
+    // source position will also point to Token::CLASS.  To identify the
+    // matching scope we include start in the accepted range for class scopes.
+    const bool position_fits_start =
+        scope->is_class_scope() ? start <= position_ : start < position_;
+    return position_fits_start && position_fits_end;
   }
 };
 
@@ -257,6 +265,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
     // Retrieve it from shared function info.
     flags.set_outer_language_mode(shared_info->language_mode());
   } else if (scope_info->scope_type() == MODULE_SCOPE) {
+    DCHECK(script->origin_options().IsModule());
     DCHECK(flags.is_module());
   } else {
     DCHECK(scope_info->scope_type() == SCRIPT_SCOPE ||
@@ -723,7 +732,7 @@ void ScopeIterator::VisitScriptScope(const Visitor& visitor) const {
 
   // Skip the first script since that just declares 'this'.
   for (int context_index = 1;
-       context_index < script_contexts->synchronized_used(); context_index++) {
+       context_index < script_contexts->used(kAcquireLoad); context_index++) {
     Handle<Context> context = ScriptContextTable::GetContext(
         isolate_, script_contexts, context_index);
     Handle<ScopeInfo> scope_info(context->scope_info(), isolate_);
@@ -739,8 +748,7 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
   if (VisitContextLocals(visitor, scope_info, context_, ScopeTypeModule))
     return;
 
-  int count_index = scope_info->ModuleVariableCountIndex();
-  int module_variable_count = Smi::cast(scope_info->get(count_index)).value();
+  int module_variable_count = scope_info->ModuleVariableCount();
 
   Handle<SourceTextModule> module(context_->module(), isolate_);
 
@@ -817,7 +825,6 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
     switch (var->location()) {
       case VariableLocation::LOOKUP:
         UNREACHABLE();
-        break;
 
       case VariableLocation::REPL_GLOBAL:
         // REPL declared variables are ignored for now.
@@ -1049,14 +1056,9 @@ bool ScopeIterator::SetContextExtensionValue(Handle<String> variable_name,
 
 bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
                                             Handle<Object> new_value) {
-  DisallowHeapAllocation no_gc;
-  VariableMode mode;
-  InitializationFlag flag;
-  MaybeAssignedFlag maybe_assigned_flag;
-  IsStaticFlag is_static_flag;
-  int slot_index =
-      ScopeInfo::ContextSlotIndex(context_->scope_info(), *variable_name, &mode,
-                                  &flag, &maybe_assigned_flag, &is_static_flag);
+  VariableLookupResult lookup_result;
+  int slot_index = ScopeInfo::ContextSlotIndex(context_->scope_info(),
+                                               *variable_name, &lookup_result);
   if (slot_index < 0) return false;
 
   context_->set(slot_index, *new_value);
@@ -1065,7 +1067,7 @@ bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
 
 bool ScopeIterator::SetModuleVariableValue(Handle<String> variable_name,
                                            Handle<Object> new_value) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int cell_index;
   VariableMode mode;
   InitializationFlag init_flag;
@@ -1089,7 +1091,7 @@ bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
   Handle<ScriptContextTable> script_contexts(
       context_->global_object().native_context().script_context_table(),
       isolate_);
-  ScriptContextTable::LookupResult lookup_result;
+  VariableLookupResult lookup_result;
   if (ScriptContextTable::Lookup(isolate_, *script_contexts, *variable_name,
                                  &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(

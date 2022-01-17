@@ -19,13 +19,13 @@ contents of the memory regions pointed to by B<a> and B<b>.
 
 =head1 RETURN VALUES
 
-CRYPTO_memcmp() returns 0 if the memory regions are equal and non-zero
+CRYPTO_memcmp() returns 0 if the memory regions are equal and nonzero
 otherwise.
 
 =head1 NOTES
 
 Unlike memcmp(2), this function cannot be used to order the two memory regions
-as the return value when they differ is undefined, other than being non-zero.
+as the return value when they differ is undefined, other than being nonzero.
 
 =head1 COPYRIGHT
 

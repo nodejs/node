@@ -4,7 +4,7 @@
 
 #include "debug-helper-internal.h"
 #include "src/common/ptr-compr-inl.h"
-#include "torque-generated/class-debug-readers-tq.h"
+#include "torque-generated/class-debug-readers.h"
 
 namespace i = v8::internal;
 
@@ -14,7 +14,7 @@ namespace debug_helper_internal {
 
 bool IsPointerCompressed(uintptr_t address) {
 #if COMPRESS_POINTERS_BOOL
-  return address < i::kPtrComprHeapReservationSize;
+  return address < i::kPtrComprCageReservationSize;
 #else
   return false;
 #endif

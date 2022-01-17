@@ -106,7 +106,7 @@ void  Formattable::init() {
     fType = kLong;
     fDecimalStr = NULL;
     fDecimalQuantity = NULL;
-    fBogus.setToBogus();
+    fBogus.setToBogus(); 
 }
 
 // -------------------------------------
@@ -177,7 +177,7 @@ Formattable::Formattable(const UnicodeString& stringToCopy)
 
 // -------------------------------------
 // Creates a formattable object with a UnicodeString* value.
-// (adopting symantics)
+// (adopting semantics)
 
 Formattable::Formattable(UnicodeString* stringToAdopt)
 {
@@ -275,18 +275,18 @@ Formattable::operator=(const Formattable& source)
 
 // -------------------------------------
 
-UBool
+bool
 Formattable::operator==(const Formattable& that) const
 {
     int32_t i;
 
-    if (this == &that) return TRUE;
+    if (this == &that) return true;
 
-    // Returns FALSE if the data types are different.
-    if (fType != that.fType) return FALSE;
+    // Returns false if the data types are different.
+    if (fType != that.fType) return false;
 
     // Compares the actual data values.
-    UBool equal = TRUE;
+    bool equal = true;
     switch (fType) {
     case kDate:
         equal = (fValue.fDate == that.fValue.fDate);
@@ -303,20 +303,20 @@ Formattable::operator==(const Formattable& that) const
         break;
     case kArray:
         if (fValue.fArrayAndCount.fCount != that.fValue.fArrayAndCount.fCount) {
-            equal = FALSE;
+            equal = false;
             break;
         }
         // Checks each element for equality.
         for (i=0; i<fValue.fArrayAndCount.fCount; ++i) {
             if (fValue.fArrayAndCount.fArray[i] != that.fValue.fArrayAndCount.fArray[i]) {
-                equal = FALSE;
+                equal = false;
                 break;
             }
         }
         break;
     case kObject:
         if (fValue.fObject == NULL || that.fValue.fObject == NULL) {
-            equal = FALSE;
+            equal = false;
         } else {
             equal = objectEquals(fValue.fObject, that.fValue.fObject);
         }
@@ -369,7 +369,7 @@ Formattable::clone() const {
 }
 
 // -------------------------------------
-// Gets the data type of this Formattable object.
+// Gets the data type of this Formattable object. 
 Formattable::Type
 Formattable::getType() const
 {
@@ -396,9 +396,9 @@ Formattable::getLong(UErrorCode& status) const
     if (U_FAILURE(status)) {
         return 0;
     }
-
+        
     switch (fType) {
-    case Formattable::kLong:
+    case Formattable::kLong: 
         return (int32_t)fValue.fInt64;
     case Formattable::kInt64:
         if (fValue.fInt64 > INT32_MAX) {
@@ -450,10 +450,10 @@ Formattable::getInt64(UErrorCode& status) const
     if (U_FAILURE(status)) {
         return 0;
     }
-
+        
     switch (fType) {
-    case Formattable::kLong:
-    case Formattable::kInt64:
+    case Formattable::kLong: 
+    case Formattable::kInt64: 
         return fValue.fInt64;
     case Formattable::kDouble:
         if (fValue.fDouble > (double)U_INT64_MAX) {
@@ -472,7 +472,7 @@ Formattable::getInt64(UErrorCode& status) const
             }
         } else {
             return (int64_t)fValue.fDouble;
-        }
+        } 
     case Formattable::kObject:
         if (fValue.fObject == NULL) {
             status = U_MEMORY_ALLOCATION_ERROR;
@@ -496,9 +496,9 @@ Formattable::getDouble(UErrorCode& status) const
     if (U_FAILURE(status)) {
         return 0;
     }
-
+        
     switch (fType) {
-    case Formattable::kLong:
+    case Formattable::kLong: 
     case Formattable::kInt64: // loses precision
         return (double)fValue.fInt64;
     case Formattable::kDouble:
@@ -623,8 +623,8 @@ Formattable::adoptObject(UObject* objectToAdopt) {
 }
 
 // -------------------------------------
-UnicodeString&
-Formattable::getString(UnicodeString& result, UErrorCode& status) const
+UnicodeString& 
+Formattable::getString(UnicodeString& result, UErrorCode& status) const 
 {
     if (fType != kString) {
         setError(status, U_INVALID_FORMAT_ERROR);
@@ -640,8 +640,8 @@ Formattable::getString(UnicodeString& result, UErrorCode& status) const
 }
 
 // -------------------------------------
-const UnicodeString&
-Formattable::getString(UErrorCode& status) const
+const UnicodeString& 
+Formattable::getString(UErrorCode& status) const 
 {
     if (fType != kString) {
         setError(status, U_INVALID_FORMAT_ERROR);
@@ -655,30 +655,30 @@ Formattable::getString(UErrorCode& status) const
 }
 
 // -------------------------------------
-UnicodeString&
-Formattable::getString(UErrorCode& status)
+UnicodeString& 
+Formattable::getString(UErrorCode& status) 
 {
     if (fType != kString) {
         setError(status, U_INVALID_FORMAT_ERROR);
         return *getBogus();
     }
     if (fValue.fString == NULL) {
-	setError(status, U_MEMORY_ALLOCATION_ERROR);
-	return *getBogus();
+    	setError(status, U_MEMORY_ALLOCATION_ERROR);
+    	return *getBogus();
     }
     return *fValue.fString;
 }
 
 // -------------------------------------
-const Formattable*
-Formattable::getArray(int32_t& count, UErrorCode& status) const
+const Formattable* 
+Formattable::getArray(int32_t& count, UErrorCode& status) const 
 {
     if (fType != kArray) {
         setError(status, U_INVALID_FORMAT_ERROR);
         count = 0;
         return NULL;
     }
-    count = fValue.fArrayAndCount.fCount;
+    count = fValue.fArrayAndCount.fCount; 
     return fValue.fArrayAndCount.fArray;
 }
 
@@ -686,7 +686,7 @@ Formattable::getArray(int32_t& count, UErrorCode& status) const
 // Gets the bogus string, ensures mondo bogosity.
 
 UnicodeString*
-Formattable::getBogus() const
+Formattable::getBogus() const 
 {
     return (UnicodeString*)&fBogus; /* cast away const :-( */
 }
@@ -845,7 +845,7 @@ FormattableStreamer::streamOut(ostream& stream, const Formattable& obj)
 
     UnicodeString buffer;
     switch(obj.getType()) {
-        case Formattable::kDate :
+        case Formattable::kDate : 
             // Creates a DateFormat instance for formatting the
             // Date instance.
             if (defDateFormat == 0) {
@@ -895,7 +895,7 @@ U_NAMESPACE_END
 
 U_NAMESPACE_USE
 
-U_DRAFT UFormattable* U_EXPORT2
+U_CAPI UFormattable* U_EXPORT2
 ufmt_open(UErrorCode *status) {
   if( U_FAILURE(*status) ) {
     return NULL;
@@ -908,14 +908,14 @@ ufmt_open(UErrorCode *status) {
   return fmt;
 }
 
-U_DRAFT void U_EXPORT2
+U_CAPI void U_EXPORT2
 ufmt_close(UFormattable *fmt) {
   Formattable *obj = Formattable::fromUFormattable(fmt);
 
   delete obj;
 }
 
-U_INTERNAL UFormattableType U_EXPORT2
+U_CAPI UFormattableType U_EXPORT2
 ufmt_getType(const UFormattable *fmt, UErrorCode *status) {
   if(U_FAILURE(*status)) {
     return (UFormattableType)UFMT_COUNT;
@@ -925,27 +925,27 @@ ufmt_getType(const UFormattable *fmt, UErrorCode *status) {
 }
 
 
-U_INTERNAL UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 ufmt_isNumeric(const UFormattable *fmt) {
   const Formattable *obj = Formattable::fromUFormattable(fmt);
   return obj->isNumeric();
 }
 
-U_DRAFT UDate U_EXPORT2
+U_CAPI UDate U_EXPORT2
 ufmt_getDate(const UFormattable *fmt, UErrorCode *status) {
   const Formattable *obj = Formattable::fromUFormattable(fmt);
 
   return obj->getDate(*status);
 }
 
-U_DRAFT double U_EXPORT2
+U_CAPI double U_EXPORT2
 ufmt_getDouble(UFormattable *fmt, UErrorCode *status) {
   Formattable *obj = Formattable::fromUFormattable(fmt);
 
   return obj->getDouble(*status);
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ufmt_getLong(UFormattable *fmt, UErrorCode *status) {
   Formattable *obj = Formattable::fromUFormattable(fmt);
 
@@ -953,7 +953,7 @@ ufmt_getLong(UFormattable *fmt, UErrorCode *status) {
 }
 
 
-U_DRAFT const void *U_EXPORT2
+U_CAPI const void *U_EXPORT2
 ufmt_getObject(const UFormattable *fmt, UErrorCode *status) {
   const Formattable *obj = Formattable::fromUFormattable(fmt);
 
@@ -966,7 +966,7 @@ ufmt_getObject(const UFormattable *fmt, UErrorCode *status) {
   return ret;
 }
 
-U_DRAFT const UChar* U_EXPORT2
+U_CAPI const UChar* U_EXPORT2
 ufmt_getUChars(UFormattable *fmt, int32_t *len, UErrorCode *status) {
   Formattable *obj = Formattable::fromUFormattable(fmt);
 
@@ -986,7 +986,7 @@ ufmt_getUChars(UFormattable *fmt, int32_t *len, UErrorCode *status) {
   return str.getTerminatedBuffer();
 }
 
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ufmt_getArrayLength(const UFormattable* fmt, UErrorCode *status) {
   const Formattable *obj = Formattable::fromUFormattable(fmt);
 
@@ -995,7 +995,7 @@ ufmt_getArrayLength(const UFormattable* fmt, UErrorCode *status) {
   return count;
 }
 
-U_DRAFT UFormattable * U_EXPORT2
+U_CAPI UFormattable * U_EXPORT2
 ufmt_getArrayItemByIndex(UFormattable* fmt, int32_t n, UErrorCode *status) {
   Formattable *obj = Formattable::fromUFormattable(fmt);
   int32_t count;
@@ -1010,7 +1010,7 @@ ufmt_getArrayItemByIndex(UFormattable* fmt, int32_t n, UErrorCode *status) {
   }
 }
 
-U_DRAFT const char * U_EXPORT2
+U_CAPI const char * U_EXPORT2
 ufmt_getDecNumChars(UFormattable *fmt, int32_t *len, UErrorCode *status) {
   if(U_FAILURE(*status)) {
     return "";
@@ -1031,7 +1031,7 @@ ufmt_getDecNumChars(UFormattable *fmt, int32_t *len, UErrorCode *status) {
   }
 }
 
-U_DRAFT int64_t U_EXPORT2
+U_CAPI int64_t U_EXPORT2
 ufmt_getInt64(UFormattable *fmt, UErrorCode *status) {
   Formattable *obj = Formattable::fromUFormattable(fmt);
   return obj->getInt64(*status);

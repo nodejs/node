@@ -1,4 +1,5 @@
 # Punycode
+
 <!-- YAML
 deprecated: v7.0.0
 -->
@@ -9,10 +10,12 @@ deprecated: v7.0.0
 
 <!-- source_link=lib/punycode.js -->
 
-**The version of the punycode module bundled in Node.js is being deprecated**.
+**The version of the punycode module bundled in Node.js is being deprecated.**
 In a future major version of Node.js this module will be removed. Users
 currently depending on the `punycode` module should switch to using the
-userland-provided [Punycode.js][] module instead.
+userland-provided [Punycode.js][] module instead. For punycode-based URL
+encoding, see [`url.domainToASCII`][] or, more generally, the
+[WHATWG URL API][].
 
 The `punycode` module is a bundled version of the [Punycode.js][] module. It
 can be accessed using:
@@ -37,6 +40,7 @@ made available to developers as a convenience. Fixes or other modifications to
 the module must be directed to the [Punycode.js][] project.
 
 ## `punycode.decode(string)`
+
 <!-- YAML
 added: v0.5.1
 -->
@@ -52,6 +56,7 @@ punycode.decode('--dqo34k'); // '☃-⌘'
 ```
 
 ## `punycode.encode(string)`
+
 <!-- YAML
 added: v0.5.1
 -->
@@ -67,6 +72,7 @@ punycode.encode('☃-⌘'); // '--dqo34k'
 ```
 
 ## `punycode.toASCII(domain)`
+
 <!-- YAML
 added: v0.6.1
 -->
@@ -86,6 +92,7 @@ punycode.toASCII('example.com'); // 'example.com'
 ```
 
 ## `punycode.toUnicode(domain)`
+
 <!-- YAML
 added: v0.6.1
 -->
@@ -104,11 +111,13 @@ punycode.toUnicode('example.com');       // 'example.com'
 ```
 
 ## `punycode.ucs2`
+
 <!-- YAML
 added: v0.7.0
 -->
 
 ### `punycode.ucs2.decode(string)`
+
 <!-- YAML
 added: v0.7.0
 -->
@@ -125,11 +134,12 @@ punycode.ucs2.decode('\uD834\uDF06'); // [0x1D306]
 ```
 
 ### `punycode.ucs2.encode(codePoints)`
+
 <!-- YAML
 added: v0.7.0
 -->
 
-* `codePoints` {integer[]}
+* `codePoints` {integer\[]}
 
 The `punycode.ucs2.encode()` method returns a string based on an array of
 numeric code point values.
@@ -140,6 +150,7 @@ punycode.ucs2.encode([0x1D306]); // '\uD834\uDF06'
 ```
 
 ## `punycode.version`
+
 <!-- YAML
 added: v0.6.1
 -->
@@ -150,3 +161,5 @@ Returns a string identifying the current [Punycode.js][] version number.
 
 [Punycode]: https://tools.ietf.org/html/rfc3492
 [Punycode.js]: https://github.com/bestiejs/punycode.js
+[WHATWG URL API]: url.md#the-whatwg-url-api
+[`url.domainToASCII`]: url.md#urldomaintoasciidomain

@@ -5,11 +5,13 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "unicode/measunit.h"
 #include "unicode/numberformatter.h"
 #include "number_utypes.h"
 #include "util.h"
 #include "number_decimalquantity.h"
 #include "number_decnum.h"
+#include "numrange_impl.h"
 
 U_NAMESPACE_BEGIN
 namespace number {
@@ -32,6 +34,16 @@ void FormattedNumber::getAllFieldPositionsImpl(FieldPositionIteratorHandler& fpi
     fData->getAllFieldPositions(fpih, status);
 }
 
+MeasureUnit FormattedNumber::getOutputUnit(UErrorCode& status) const {
+    UPRV_FORMATTED_VALUE_METHOD_GUARD(MeasureUnit())
+    return fData->outputUnit;
+}
+
+const char *FormattedNumber::getGender(UErrorCode &status) const {
+    UPRV_FORMATTED_VALUE_METHOD_GUARD("")
+    return fData->gender;
+}
+
 void FormattedNumber::getDecimalQuantity(impl::DecimalQuantity& output, UErrorCode& status) const {
     UPRV_FORMATTED_VALUE_METHOD_GUARD(UPRV_NOARG)
     output = fData->quantity;
@@ -39,6 +51,32 @@ void FormattedNumber::getDecimalQuantity(impl::DecimalQuantity& output, UErrorCo
 
 
 impl::UFormattedNumberData::~UFormattedNumberData() = default;
+
+
+UPRV_FORMATTED_VALUE_SUBCLASS_AUTO_IMPL(FormattedNumberRange)
+
+#define UPRV_NOARG
+
+void FormattedNumberRange::getDecimalNumbers(ByteSink& sink1, ByteSink& sink2, UErrorCode& status) const {
+    UPRV_FORMATTED_VALUE_METHOD_GUARD(UPRV_NOARG)
+    impl::DecNum decnum1;
+    impl::DecNum decnum2;
+    fData->quantity1.toDecNum(decnum1, status).toString(sink1, status);
+    fData->quantity2.toDecNum(decnum2, status).toString(sink2, status);
+}
+
+UNumberRangeIdentityResult FormattedNumberRange::getIdentityResult(UErrorCode& status) const {
+    UPRV_FORMATTED_VALUE_METHOD_GUARD(UNUM_IDENTITY_RESULT_NOT_EQUAL)
+    return fData->identityResult;
+}
+
+const impl::UFormattedNumberRangeData* FormattedNumberRange::getData(UErrorCode& status) const {
+    UPRV_FORMATTED_VALUE_METHOD_GUARD(nullptr)
+    return fData;
+}
+
+
+impl::UFormattedNumberRangeData::~UFormattedNumberRangeData() = default;
 
 
 } // namespace number

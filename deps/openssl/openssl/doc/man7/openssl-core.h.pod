@@ -1,0 +1,132 @@
+=pod
+
+=head1 NAME
+
+openssl/core.h - OpenSSL Core types
+
+=head1 SYNOPSIS
+
+ #include <openssl/core.h>
+
+=head1 DESCRIPTION
+
+The F<< <openssl/core.h> >> header defines a number of public types that
+are used to communicate between the OpenSSL libraries and
+implementation providers.
+These types are designed to minimise the need for intimate knowledge
+of internal structures between the OpenSSL libraries and the providers.
+
+The types are:
+
+=over 4
+
+=item B<OSSL_DISPATCH>
+
+This type is a tuple of function identity and function pointer.
+Arrays of this type are passed between the OpenSSL libraries and the
+providers to describe what functionality one side provides to the
+other.
+Arrays of this type must be terminated with a tuple having function
+identity zero and function pointer NULL.
+
+The available function identities and corresponding function
+signatures are defined in L<openssl-core_dispatch.h(7)>.
+
+Any function identity not recognised by the recipient of this type
+will be ignored.
+This ensures that providers built with one OpenSSL version in mind
+will work together with any other OpenSSL version that supports this
+mechanism.
+
+=item B<OSSL_ITEM>
+
+This type is a tuple of integer and pointer.
+It's a generic type used as a generic descriptor, its exact meaning
+being defined by how it's used.
+Arrays of this type are passed between the OpenSSL libraries and the
+providers, and must be terminated with a tuple where the integer is
+zero and the pointer NULL.
+
+=item B<OSSL_ALGORITHM>
+
+This type is a tuple of an algorithm name (string), a property
+definition (string) and a dispatch table (array of B<OSSL_DISPATCH>).
+Arrays of this type are passed on demand from the providers to the
+OpenSSL libraries to describe what algorithms the providers provide
+implementations of, and with what properties.
+Arrays of this type must be terminated with a tuple having function
+identity zero and function pointer NULL.
+
+The algorithm names and property definitions are defined by the
+providers.
+
+The OpenSSL libraries use the first of the algorithm names as the main
+or canonical name, on a per algorithm implementation basis.
+
+=item B<OSSL_PARAM>
+
+This type is a structure that allows passing arbitrary object data
+between two parties that have no or very little shared knowledge about
+their respective internal structures for that object.
+It's normally passed in arrays, where the array is terminated with an
+element where all fields are zero (for non-pointers) or NULL (for
+pointers).
+
+These arrays can be used to set parameters for some object, to request
+parameters, and to describe parameters.
+
+B<OSSL_PARAM> is further described in L<OSSL_PARAM(3)>
+
+=item B<OSSL_CALLBACK>
+
+This is a function type for a generic feedback callback function:
+
+    typedef int (OSSL_CALLBACK)(const OSSL_PARAM params[], void *arg);
+
+A function that takes a pointer of this type should also take a
+pointer to caller data.  When calling this callback, the function is
+expected to build an B<OSSL_PARAM> array of data it wants or is
+expected to pass back, and pass that as I<params>, as well as
+the caller data pointer it received, as I<arg>.
+
+=item B<OSSL_PASSPHRASE_CALLBACK>
+
+This is a function type for a generic pass phrase callback function:
+
+    typedef int (OSSL_PASSPHRASE_CALLBACK)(char *pass, size_t pass_size,
+                                           size_t *pass_len,
+                                           const OSSL_PARAM params[],
+                                           void *arg);
+
+This callback can be used to prompt the user for a passphrase.  When
+calling it, a buffer to store the pass phrase needs to be given with
+I<pass>, and its size with I<pass_size>.  The length of the prompted
+pass phrase will be given back in I<*pass_len>.
+
+Additional parameters can be passed with the B<OSSL_PARAM> array
+I<params>.
+
+A function that takes a pointer of this type should also take a
+pointer to caller data, which should be passed as I<arg> to this
+callback.
+
+=back
+
+=head1 SEE ALSO
+
+L<openssl-core_dispatch.h(7)>
+
+=head1 HISTORY
+
+The types described here were added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

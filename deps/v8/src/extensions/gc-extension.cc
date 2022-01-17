@@ -4,7 +4,11 @@
 
 #include "src/extensions/gc-extension.h"
 
-#include "include/v8.h"
+#include "include/v8-isolate.h"
+#include "include/v8-object.h"
+#include "include/v8-persistent-handle.h"
+#include "include/v8-primitive.h"
+#include "include/v8-template.h"
 #include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap.h"
@@ -82,7 +86,7 @@ void InvokeGC(v8::Isolate* isolate, v8::Isolate::GarbageCollectionType type,
                            kGCCallbackFlagForced);
       break;
     case v8::Isolate::GarbageCollectionType::kFullGarbageCollection:
-      heap->SetEmbedderStackStateForNextFinalizaton(embedder_stack_state);
+      heap->SetEmbedderStackStateForNextFinalization(embedder_stack_state);
       heap->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
                                      i::GarbageCollectionReason::kTesting,
                                      kGCCallbackFlagForced);
@@ -101,6 +105,8 @@ class AsyncGC final : public CancelableTask {
         ctx_(isolate, isolate->GetCurrentContext()),
         resolver_(isolate, resolver),
         type_(type) {}
+  AsyncGC(const AsyncGC&) = delete;
+  AsyncGC& operator=(const AsyncGC&) = delete;
 
   void RunInternal() final {
     v8::HandleScope scope(isolate_);
@@ -116,8 +122,6 @@ class AsyncGC final : public CancelableTask {
   v8::Persistent<v8::Context> ctx_;
   v8::Persistent<v8::Promise::Resolver> resolver_;
   v8::Isolate::GarbageCollectionType type_;
-
-  DISALLOW_COPY_AND_ASSIGN(AsyncGC);
 };
 
 }  // namespace

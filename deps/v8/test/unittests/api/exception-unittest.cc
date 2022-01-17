@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-persistent-handle.h"
 #include "src/flags/flags.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -12,7 +16,7 @@ namespace {
 
 using APIExceptionTest = TestWithIsolate;
 
-class ScopedExposeGc {
+class V8_NODISCARD ScopedExposeGc {
  public:
   ScopedExposeGc() : was_exposed_(i::FLAG_expose_gc) {
     i::FLAG_expose_gc = true;

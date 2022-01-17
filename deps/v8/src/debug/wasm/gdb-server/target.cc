@@ -37,7 +37,7 @@ Target::Target(GdbServer* gdb_server)
 void Target::InitQueryPropertyMap() {
   // Request LLDB to send packets up to 4000 bytes for bulk transfers.
   query_properties_["Supported"] =
-      "PacketSize=1000;vContSupported-;qXfer:libraries:read+;";
+      "PacketSize=1000;vContSupported-;qXfer:libraries:read+;wasm+;";
 
   query_properties_["Attached"] = "1";
 
@@ -486,7 +486,7 @@ Target::ErrorCode Target::ProcessQueryPacket(const Packet* pkt_in,
   std::string tmp = "Xfer:libraries:read";
   if (!strncmp(str, tmp.data(), tmp.length())) {
     std::vector<GdbServer::WasmModuleInfo> modules =
-        gdb_server_->GetLoadedModules();
+        gdb_server_->GetLoadedModules(true);
     std::string result("l<library-list>");
     for (const auto& module : modules) {
       wasm_addr_t address(module.module_id, 0);
@@ -583,23 +583,44 @@ Target::ErrorCode Target::ProcessQueryPacket(const Packet* pkt_in,
     return ErrorCode::BadFormat;
   }
 
-  // Read Wasm memory.
-  // IN : $qWasmMem:frame_index;addr;len
+  // Read Wasm Memory.
+  // IN : $qWasmMem:module_id;addr;len
   // OUT: $xx..xx
   if (toks[0] == "WasmMem") {
     if (toks.size() == 4) {
-      uint32_t frame_index =
-          static_cast<uint32_t>(strtol(toks[1].data(), nullptr, 10));
-      uint32_t address =
-          static_cast<uint32_t>(strtol(toks[2].data(), nullptr, 16));
-      uint32_t length =
-          static_cast<uint32_t>(strtol(toks[3].data(), nullptr, 16));
+      uint32_t module_id = strtoul(toks[1].data(), nullptr, 10);
+      uint32_t address = strtoul(toks[2].data(), nullptr, 16);
+      uint32_t length = strtoul(toks[3].data(), nullptr, 16);
       if (length > Transport::kBufSize / 2) {
         return ErrorCode::BadArgs;
       }
       uint8_t buff[Transport::kBufSize];
       uint32_t read =
-          gdb_server_->GetWasmMemory(frame_index, address, buff, length);
+          gdb_server_->GetWasmMemory(module_id, address, buff, length);
+      if (read > 0) {
+        pkt_out->AddBlock(buff, read);
+        return ErrorCode::None;
+      } else {
+        return ErrorCode::Failed;
+      }
+    }
+    return ErrorCode::BadFormat;
+  }
+
+  // Read Wasm Data.
+  // IN : $qWasmData:module_id;addr;len
+  // OUT: $xx..xx
+  if (toks[0] == "WasmData") {
+    if (toks.size() == 4) {
+      uint32_t module_id = strtoul(toks[1].data(), nullptr, 10);
+      uint32_t address = strtoul(toks[2].data(), nullptr, 16);
+      uint32_t length = strtoul(toks[3].data(), nullptr, 16);
+      if (length > Transport::kBufSize / 2) {
+        return ErrorCode::BadArgs;
+      }
+      uint8_t buff[Transport::kBufSize];
+      uint32_t read =
+          gdb_server_->GetWasmData(module_id, address, buff, length);
       if (read > 0) {
         pkt_out->AddBlock(buff, read);
         return ErrorCode::None;
@@ -640,6 +661,10 @@ void Target::SetStopReply(Packet* pkt_out) const {
   // Adds 'thread:<tid>;' pair. Note that a terminating ';' is required.
   pkt_out->AddString("thread:");
   pkt_out->AddNumberSep(kThreadId, ';');
+
+  // If the loaded modules have changed since the last stop packet, signals
+  // that.
+  if (gdb_server_->HasModuleListChanged()) pkt_out->AddString("library:;");
 }
 
 void Target::SetStatus(Status status, int8_t signal,

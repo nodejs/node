@@ -38,7 +38,7 @@ namespace impl {
 
 // Exported as U_I18N_API because it is a public member field of exported DecimalFormatProperties
 // Using this wrapper is rather unfortunate, but is needed on Windows platforms in order to allow
-// for DLL-exporting an fully specified template instantiation.
+// for DLL-exporting a fully specified template instantiation.
 class U_I18N_API CurrencyPluralInfoWrapper {
 public:
     LocalPointer<CurrencyPluralInfo> fPtr;
@@ -52,7 +52,8 @@ public:
     }
 
     CurrencyPluralInfoWrapper& operator=(const CurrencyPluralInfoWrapper& other) {
-        if (!other.fPtr.isNull()) {
+        if (this != &other &&  // self-assignment: no-op
+                !other.fPtr.isNull()) {
             fPtr.adoptInstead(new CurrencyPluralInfo(*other.fPtr));
         }
         return *this;
@@ -104,6 +105,7 @@ struct U_I18N_API DecimalFormatProperties : public UMemory {
     bool decimalPatternMatchRequired;
     bool decimalSeparatorAlwaysShown;
     bool exponentSignAlwaysShown;
+    bool currencyAsDecimal;
     bool formatFailIfMoreThanMaxDigits; // ICU4C-only
     int32_t formatWidth;
     int32_t groupingSize;

@@ -35,6 +35,9 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
 
   ~DefaultPlatform() override;
 
+  DefaultPlatform(const DefaultPlatform&) = delete;
+  DefaultPlatform& operator=(const DefaultPlatform&) = delete;
+
   void EnsureBackgroundTaskRunnerInitialized();
 
   bool PumpMessageLoop(
@@ -80,7 +83,6 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   std::unique_ptr<PageAllocator> page_allocator_;
 
   TimeFunction time_function_for_testing_ = nullptr;
-  DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);
 };
 
 }  // namespace platform

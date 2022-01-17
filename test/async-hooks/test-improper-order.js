@@ -53,11 +53,11 @@ if (process.argv[2] === 'child') {
 
   child.on('close', common.mustCall((code) => {
     assert.strictEqual(code, 1);
-    assert.ok(heartbeatMsg.test(outData.toString()),
-              'did not crash until we reached offending line of code ' +
-              `(found ${outData})`);
-    assert.ok(corruptedMsg.test(errData.toString()),
-              'printed error contains corrupted message ' +
-              `(found ${errData})`);
+    assert.match(outData.toString(), heartbeatMsg,
+                 'did not crash until we reached offending line of code ' +
+                 `(found ${outData})`);
+    assert.match(errData.toString(), corruptedMsg,
+                 'printed error contains corrupted message ' +
+                 `(found ${errData})`);
   }));
 }

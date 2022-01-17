@@ -7,6 +7,11 @@ const rm = require('./rm.js')
 const verify = require('./verify.js')
 const { clearMemoized } = require('./lib/memoization.js')
 const tmp = require('./lib/util/tmp.js')
+const index = require('./lib/entry-index.js')
+
+module.exports.index = {}
+module.exports.index.compact = index.compact
+module.exports.index.insert = index.insert
 
 module.exports.ls = ls
 module.exports.ls.stream = ls.stream

@@ -11,14 +11,14 @@ namespace internal {
 
 // ES #sec-isfinite-number
 TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Label return_true(this), return_false(this);
 
   // We might need to loop once for ToNumber conversion.
   TVARIABLE(Object, var_num);
   Label loop(this, &var_num);
-  var_num = CAST(Parameter(Descriptor::kNumber));
+  var_num = Parameter<Object>(Descriptor::kNumber);
   Goto(&loop);
   BIND(&loop);
   {
@@ -46,7 +46,7 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
     {
       // Need to convert {num_heap_object} to a Number first.
       var_num =
-          CallBuiltin(Builtins::kNonNumberToNumber, context, num_heap_object);
+          CallBuiltin(Builtin::kNonNumberToNumber, context, num_heap_object);
       Goto(&loop);
     }
   }
@@ -60,14 +60,14 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
 
 // ES6 #sec-isnan-number
 TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Label return_true(this), return_false(this);
 
   // We might need to loop once for ToNumber conversion.
   TVARIABLE(Object, var_num);
   Label loop(this, &var_num);
-  var_num = CAST(Parameter(Descriptor::kNumber));
+  var_num = Parameter<Object>(Descriptor::kNumber);
   Goto(&loop);
   BIND(&loop);
   {
@@ -94,7 +94,7 @@ TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
     {
       // Need to convert {num_heap_object} to a Number first.
       var_num =
-          CallBuiltin(Builtins::kNonNumberToNumber, context, num_heap_object);
+          CallBuiltin(Builtin::kNonNumberToNumber, context, num_heap_object);
       Goto(&loop);
     }
   }

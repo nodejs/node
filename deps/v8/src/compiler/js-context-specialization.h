@@ -44,6 +44,8 @@ class V8_EXPORT_PRIVATE JSContextSpecialization final : public AdvancedReducer {
         outer_(outer),
         closure_(closure),
         broker_(broker) {}
+  JSContextSpecialization(const JSContextSpecialization&) = delete;
+  JSContextSpecialization& operator=(const JSContextSpecialization&) = delete;
 
   const char* reducer_name() const override {
     return "JSContextSpecialization";
@@ -72,8 +74,6 @@ class V8_EXPORT_PRIVATE JSContextSpecialization final : public AdvancedReducer {
   Maybe<OuterContext> outer_;
   MaybeHandle<JSFunction> closure_;
   JSHeapBroker* const broker_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSContextSpecialization);
 };
 
 }  // namespace compiler

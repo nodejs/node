@@ -213,7 +213,7 @@ Win32NumberFormat::Win32NumberFormat(const Locale &locale, UBool currency, UErro
         // Note: In the previous code, it would look up the LCID for the locale, and if
         // the locale was not recognized then it would get an LCID of 0, which is a
         // synonym for LOCALE_USER_DEFAULT on Windows.
-        // If the above method fails, then fWindowsLocaleName will remain as nullptr, and
+        // If the above method fails, then fWindowsLocaleName will remain as nullptr, and 
         // then we will pass nullptr to API GetLocaleInfoEx, which is the same as passing
         // LOCALE_USER_DEFAULT.
 
@@ -268,6 +268,7 @@ Win32NumberFormat::~Win32NumberFormat()
 
 Win32NumberFormat &Win32NumberFormat::operator=(const Win32NumberFormat &other)
 {
+    if (this == &other) { return *this; }  // self-assignment: no-op
     NumberFormat::operator=(other);
 
     this->fCurrency          = other.fCurrency;
@@ -275,7 +276,7 @@ Win32NumberFormat &Win32NumberFormat::operator=(const Win32NumberFormat &other)
     this->fLCID              = other.fLCID;
     this->fFractionDigitsSet = other.fFractionDigitsSet;
     this->fWindowsLocaleName = other.fWindowsLocaleName == NULL ? NULL : new UnicodeString(*other.fWindowsLocaleName);
-
+    
     const wchar_t *localeName = nullptr;
 
     if (fWindowsLocaleName != nullptr)

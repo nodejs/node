@@ -21,12 +21,13 @@
 
 #include "tcp_wrap.h"
 
+#include "connect_wrap.h"
 #include "connection_wrap.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
-#include "connect_wrap.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
@@ -74,8 +75,6 @@ void TCPWrap::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  Local<String> tcpString = FIXED_ONE_BYTE_STRING(env->isolate(), "TCP");
-  t->SetClassName(tcpString);
   t->InstanceTemplate()->SetInternalFieldCount(StreamBase::kInternalFieldCount);
 
   // Init properties
@@ -103,21 +102,14 @@ void TCPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "setSimultaneousAccepts", SetSimultaneousAccepts);
 #endif
 
-  target->Set(env->context(),
-              tcpString,
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "TCP", t);
   env->set_tcp_constructor_template(t);
 
   // Create FunctionTemplate for TCPConnectWrap.
   Local<FunctionTemplate> cwt =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
   cwt->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  Local<String> wrapString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap");
-  cwt->SetClassName(wrapString);
-  target->Set(env->context(),
-              wrapString,
-              cwt->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "TCPConnectWrap", cwt);
 
   // Define constants
   Local<Object> constants = Object::New(env->isolate());
@@ -129,6 +121,23 @@ void TCPWrap::Initialize(Local<Object> target,
               constants).Check();
 }
 
+void TCPWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(Open);
+  registry->Register(Bind);
+  registry->Register(Listen);
+  registry->Register(Connect);
+  registry->Register(Bind6);
+  registry->Register(Connect6);
+
+  registry->Register(GetSockOrPeerName<TCPWrap, uv_tcp_getsockname>);
+  registry->Register(GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
+  registry->Register(SetNoDelay);
+  registry->Register(SetKeepAlive);
+#ifdef _WIN32
+  registry->Register(SetSimultaneousAccepts);
+#endif
+}
 
 void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
   // This constructor should not be exposed to public javascript.
@@ -402,3 +411,5 @@ Local<Object> AddressToJS(Environment* env,
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(tcp_wrap, node::TCPWrap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(tcp_wrap,
+                               node::TCPWrap::RegisterExternalReferences)

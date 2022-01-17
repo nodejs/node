@@ -15,6 +15,7 @@
 #include "number_formatimpl.h"
 #include "formatted_string_builder.h"
 #include "formattedval_impl.h"
+#include "pluralranges.h"
 
 U_NAMESPACE_BEGIN namespace number {
 namespace impl {
@@ -40,36 +41,6 @@ public:
 };
 
 
-class StandardPluralRanges : public UMemory {
-  public:
-    void initialize(const Locale& locale, UErrorCode& status);
-    StandardPlural::Form resolve(StandardPlural::Form first, StandardPlural::Form second) const;
-
-    /** Used for data loading. */
-    void addPluralRange(
-        StandardPlural::Form first,
-        StandardPlural::Form second,
-        StandardPlural::Form result);
-
-    /** Used for data loading. */
-    void setCapacity(int32_t length);
-
-  private:
-    struct StandardPluralRangeTriple {
-        StandardPlural::Form first;
-        StandardPlural::Form second;
-        StandardPlural::Form result;
-    };
-
-    // TODO: An array is simple here, but it results in linear lookup time.
-    // Certain locales have 20-30 entries in this list.
-    // Consider changing to a smarter data structure.
-    typedef MaybeStackArray<StandardPluralRangeTriple, 3> PluralRangeTriples;
-    PluralRangeTriples fTriples;
-    int32_t fTriplesLen = 0;
-};
-
-
 class NumberRangeFormatterImpl : public UMemory {
   public:
     NumberRangeFormatterImpl(const RangeMacroProps& macros, UErrorCode& status);
@@ -85,7 +56,7 @@ class NumberRangeFormatterImpl : public UMemory {
     UNumberRangeIdentityFallback fIdentityFallback;
 
     SimpleFormatter fRangeFormatter;
-    SimpleModifier fApproximatelyModifier;
+    NumberFormatterImpl fApproximatelyFormatter;
 
     StandardPluralRanges fPluralRanges;
 
@@ -103,6 +74,11 @@ class NumberRangeFormatterImpl : public UMemory {
 
     const Modifier& resolveModifierPlurals(const Modifier& first, const Modifier& second) const;
 };
+
+
+/** Helper function used in upluralrules.cpp */
+const UFormattedNumberRangeData* validateUFormattedNumberRange(
+    const UFormattedNumberRange* uresult, UErrorCode& status);
 
 
 } // namespace impl

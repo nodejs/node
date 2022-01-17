@@ -116,20 +116,20 @@ public:
      * were constructed from identical source patterns using the same #URegexpFlag
      * settings.
      * @param that a RegexPattern object to compare with "this".
-     * @return TRUE if the objects are equivalent.
+     * @return true if the objects are equivalent.
      * @stable ICU 2.4
      */
-    UBool           operator==(const RegexPattern& that) const;
+    bool            operator==(const RegexPattern& that) const;
 
     /**
      * Comparison operator.  Two RegexPattern objects are considered equal if they
      * were constructed from identical source patterns using the same #URegexpFlag
      * settings.
      * @param that a RegexPattern object to compare with "this".
-     * @return TRUE if the objects are different.
+     * @return true if the objects are different.
      * @stable ICU 2.4
      */
-    inline UBool    operator!=(const RegexPattern& that) const {return ! operator ==(that);}
+    inline bool     operator!=(const RegexPattern& that) const {return ! operator ==(that);}
 
     /**
      * Assignment operator.  After assignment, this RegexPattern will behave identically
@@ -346,7 +346,7 @@ public:
     */
     virtual RegexMatcher *matcher(const UnicodeString &input,
         UErrorCode          &status) const;
-
+        
 private:
     /**
      * Cause a compilation error if an application accidentally attempts to
@@ -426,8 +426,8 @@ public:
     * @stable ICU 2.4
     */
     virtual UnicodeString pattern() const;
-
-
+    
+    
    /**
     * Returns the regular expression from which this pattern was compiled. This method will work
     * even if the pattern was compiled from a UnicodeString.
@@ -484,9 +484,9 @@ public:
      *
      * If the delimiter pattern includes capture groups, the captured text will
      * also appear in the destination array of output strings, interspersed
-     * with the fields.  This is similar to Perl, but differs from Java,
+     * with the fields.  This is similar to Perl, but differs from Java, 
      * which ignores the presence of capture groups in the pattern.
-     *
+     * 
      * Trailing empty fields will always be returned, assuming sufficient
      * destination capacity.  This differs from the default behavior for Java
      * and Perl where trailing empty fields are not returned.
@@ -528,9 +528,9 @@ public:
      *
      * If the delimiter pattern includes capture groups, the captured text will
      * also appear in the destination array of output strings, interspersed
-     * with the fields.  This is similar to Perl, but differs from Java,
+     * with the fields.  This is similar to Perl, but differs from Java, 
      * which ignores the presence of capture groups in the pattern.
-     *
+     * 
      * Trailing empty fields will always be returned, assuming sufficient
      * destination capacity.  This differs from the default behavior for Java
      * and Perl where trailing empty fields are not returned.
@@ -554,7 +554,7 @@ public:
      *                of fields, the trailing part of the input string, including any
      *                field delimiters, is placed in the last destination string.
      * @param status  A reference to a UErrorCode to receive any errors.
-     * @return        The number of destination strings used.
+     * @return        The number of destination strings used.  
      *
      * @stable ICU 4.6
      */
@@ -569,7 +569,7 @@ public:
      *
      * @stable ICU 2.4
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -601,7 +601,7 @@ private:
                                    //   >= this value.  For some patterns, this calculated
                                    //   value may be less than the true shortest
                                    //   possible match.
-
+    
     int32_t         fFrameSize;    // Size of a state stack frame in the
                                    //   execution engine.
 
@@ -764,20 +764,20 @@ public:
    /**
     *   Attempts to match the entire input region against the pattern.
     *    @param   status     A reference to a UErrorCode to receive any errors.
-    *    @return TRUE if there is a match
+    *    @return true if there is a match
     *    @stable ICU 2.4
     */
     virtual UBool matches(UErrorCode &status);
 
 
    /**
-    *   Resets the matcher, then attempts to match the input beginning
+    *   Resets the matcher, then attempts to match the input beginning 
     *   at the specified startIndex, and extending to the end of the input.
     *   The input region is reset to include the entire input string.
     *   A successful match must extend to the end of the input.
     *    @param   startIndex The input string (native) index at which to begin matching.
     *    @param   status     A reference to a UErrorCode to receive any errors.
-    *    @return TRUE if there is a match
+    *    @return true if there is a match
     *    @stable ICU 2.8
     */
     virtual UBool matches(int64_t startIndex, UErrorCode &status);
@@ -785,7 +785,7 @@ public:
 
    /**
     *   Attempts to match the input string, starting from the beginning of the region,
-    *   against the pattern.  Like the matches() method, this function
+    *   against the pattern.  Like the matches() method, this function 
     *   always starts at the beginning of the input region;
     *   unlike that function, it does not require that the entire region be matched.
     *
@@ -793,7 +793,7 @@ public:
     *   end(), and group() functions.
     *
     *    @param   status     A reference to a UErrorCode to receive any errors.
-    *    @return  TRUE if there is a match at the start of the input string.
+    *    @return  true if there is a match at the start of the input string.
     *    @stable ICU 2.4
     */
     virtual UBool lookingAt(UErrorCode &status);
@@ -809,7 +809,7 @@ public:
     *
     *    @param   startIndex The input string (native) index at which to begin matching.
     *    @param   status     A reference to a UErrorCode to receive any errors.
-    *    @return  TRUE if there is a match.
+    *    @return  true if there is a match.
     *    @stable ICU 2.8
     */
     virtual UBool lookingAt(int64_t startIndex, UErrorCode &status);
@@ -824,7 +824,7 @@ public:
     *  Note that if the input string is changed by the application,
     *     use find(startPos, status) instead of find(), because the saved starting
     *     position may not be valid with the altered input string.
-    *  @return  TRUE if a match is found.
+    *  @return  true if a match is found.
     *  @stable ICU 2.4
     */
     virtual UBool find();
@@ -841,7 +841,7 @@ public:
     *  use find(startPos, status) instead of find(), because the saved starting
     *  position may not be valid with the altered input string.
     *  @param   status  A reference to a UErrorCode to receive any errors.
-    *  @return  TRUE if a match is found.
+    *  @return  true if a match is found.
     * @stable ICU 55
     */
     virtual UBool find(UErrorCode &status);
@@ -852,7 +852,7 @@ public:
     *
     *   @param   start     The (native) index in the input string to begin the search.
     *   @param   status    A reference to a UErrorCode to receive any errors.
-    *   @return  TRUE if a match is found.
+    *   @return  true if a match is found.
     *   @stable ICU 2.4
     */
     virtual UBool find(int64_t start, UErrorCode &status);
@@ -911,7 +911,7 @@ public:
     *
     *   @stable ICU 4.6
     */
-    virtual UText *group(UText *dest, int64_t &group_len, UErrorCode &status) const;
+    virtual UText *group(UText *dest, int64_t &group_len, UErrorCode &status) const; 
 
    /**
     *   Returns a shallow clone of the entire live input string with the UText current native index
@@ -1123,14 +1123,14 @@ public:
     *  without changing any other aspect of the matching state.
     *  The new and previous text strings must have the same content.
     *
-    *  This function is intended for use in environments where ICU is operating on
+    *  This function is intended for use in environments where ICU is operating on 
     *  strings that may move around in memory.  It provides a mechanism for notifying
     *  ICU that the string has been relocated, and providing a new UText to access the
     *  string in its new position.
     *
     *  Note that the regular expression implementation never copies the underlying text
-    *  of a string being matched, but always operates directly on the original text
-    *  provided by the user. Refreshing simply drops the references to the old text
+    *  of a string being matched, but always operates directly on the original text 
+    *  provided by the user. Refreshing simply drops the references to the old text 
     *  and replaces them with references to the new.
     *
     *  Caution:  this function is normally used only by very specialized,
@@ -1140,7 +1140,7 @@ public:
     * @param input      The new (moved) text string.
     * @param status     Receives errors detected by this function.
     *
-    * @stable ICU 4.8
+    * @stable ICU 4.8 
     */
     virtual RegexMatcher &refreshInputText(UText *input, UErrorCode &status);
 
@@ -1168,7 +1168,7 @@ public:
     *   @stable ICU 2.4
     */
     virtual const UnicodeString &input() const;
-
+    
    /**
     *   Returns the input string being matched.  This is the live input text; it should not be
     *   altered or deleted. This method will work even if the input was originally supplied as
@@ -1178,7 +1178,7 @@ public:
     *   @stable ICU 4.6
     */
     virtual UText *inputText() const;
-
+    
    /**
     *   Returns the input string being matched, either by copying it into the provided
     *   UText parameter or by returning a shallow clone of the live input. Note that copying
@@ -1190,7 +1190,7 @@ public:
     *   @stable ICU 4.6
     */
     virtual UText *getInput(UText *dest, UErrorCode &status) const;
-
+    
 
    /** Sets the limits of this matcher's region.
      * The region is the part of the input string that will be searched to find a match.
@@ -1212,14 +1212,14 @@ public:
      */
      virtual RegexMatcher &region(int64_t start, int64_t limit, UErrorCode &status);
 
-   /**
+   /** 
      * Identical to region(start, limit, status) but also allows a start position without
      *  resetting the region state.
      * @param regionStart The region start
      * @param regionLimit the limit of the region
      * @param startIndex  The (native) index within the region bounds at which to begin searches.
      * @param status A reference to a UErrorCode to receive any errors.
-     *                If startIndex is not within the specified region bounds,
+     *                If startIndex is not within the specified region bounds, 
      *                U_INDEX_OUTOFBOUNDS_ERROR is returned.
      * @stable ICU 4.6
      */
@@ -1271,7 +1271,7 @@ public:
       * See useTransparentBounds for a description of transparent and opaque bounds.
       * By default, a matcher uses opaque region boundaries.
       *
-      * @return TRUE if this matcher is using opaque bounds, false if it is not.
+      * @return true if this matcher is using opaque bounds, false if it is not.
       * @stable ICU 4.0
       */
       virtual UBool hasTransparentBounds() const;
@@ -1290,20 +1290,20 @@ public:
       *
       * By default, a matcher uses opaque bounds.
       *
-      * @param   b TRUE for transparent bounds; FALSE for opaque bounds
+      * @param   b true for transparent bounds; false for opaque bounds
       * @return  This Matcher;
       * @stable ICU 4.0
       **/
       virtual RegexMatcher &useTransparentBounds(UBool b);
 
-
+     
     /**
       * Return true if this matcher is using anchoring bounds.
       * By default, matchers use anchoring region bounds.
       *
-      * @return TRUE if this matcher is using anchoring bounds.
+      * @return true if this matcher is using anchoring bounds.
       * @stable ICU 4.0
-      */
+      */    
       virtual UBool hasAnchoringBounds() const;
 
 
@@ -1315,7 +1315,7 @@ public:
       *
       * Anchoring Bounds are the default for regions.
       *
-      * @param b TRUE if to enable anchoring bounds; FALSE to disable them.
+      * @param b true if to enable anchoring bounds; false to disable them.
       * @return  This Matcher
       * @stable ICU 4.0
       */
@@ -1323,26 +1323,26 @@ public:
 
 
     /**
-      * Return TRUE if the most recent matching operation attempted to access
+      * Return true if the most recent matching operation attempted to access
       *  additional input beyond the available input text.
       *  In this case, additional input text could change the results of the match.
       *
       *  hitEnd() is defined for both successful and unsuccessful matches.
-      *  In either case hitEnd() will return TRUE if if the end of the text was
+      *  In either case hitEnd() will return true if if the end of the text was
       *  reached at any point during the matching process.
       *
-      *  @return  TRUE if the most recent match hit the end of input
+      *  @return  true if the most recent match hit the end of input
       *  @stable ICU 4.0
       */
       virtual UBool hitEnd() const;
 
     /**
-      * Return TRUE the most recent match succeeded and additional input could cause
+      * Return true the most recent match succeeded and additional input could cause
       * it to fail. If this method returns false and a match was found, then more input
       * might change the match but the match won't be lost. If a match was not found,
       * then requireEnd has no meaning.
       *
-      * @return TRUE if more input could cause the most recent match to no longer match.
+      * @return true if more input could cause the most recent match to no longer match.
       * @stable ICU 4.0
       */
       virtual UBool requireEnd() const;
@@ -1396,7 +1396,7 @@ public:
     *    @stable ICU 4.6
     */
     virtual UText *replaceAll(UText *replacement, UText *dest, UErrorCode &status);
-
+    
 
    /**
     * Replaces the first substring of the input that matches
@@ -1419,7 +1419,7 @@ public:
     *    @stable ICU 2.4
     */
     virtual UnicodeString replaceFirst(const UnicodeString &replacement, UErrorCode &status);
-
+    
 
    /**
     * Replaces the first substring of the input that matches
@@ -1446,8 +1446,8 @@ public:
     *    @stable ICU 4.6
     */
     virtual UText *replaceFirst(UText *replacement, UText *dest, UErrorCode &status);
-
-
+    
+    
    /**
     *   Implements a replace operation intended to be used as part of an
     *   incremental find-and-replace.
@@ -1477,8 +1477,8 @@ public:
     */
     virtual RegexMatcher &appendReplacement(UnicodeString &dest,
         const UnicodeString &replacement, UErrorCode &status);
-
-
+    
+    
    /**
     *   Implements a replace operation intended to be used as part of an
     *   incremental find-and-replace.
@@ -1595,10 +1595,10 @@ public:
         UText           *dest[],
         int32_t          destCapacity,
         UErrorCode       &status);
-
+    
   /**
     *   Set a processing time limit for match operations with this Matcher.
-    *
+    *  
     *   Some patterns, when matching certain strings, can run in exponential time.
     *   For practical purposes, the match operation may appear to be in an
     *   infinite loop.
@@ -1649,7 +1649,7 @@ public:
     *  @stable ICU 4.0
     */
     virtual void setStackLimit(int32_t  limit, UErrorCode &status);
-
+    
   /**
     *  Get the size of the heap storage available for use by the back tracking stack.
     *
@@ -1681,7 +1681,7 @@ public:
   /**
     *  Get the callback function for this URegularExpression.
     *
-    *    @param   callback    Out parameter, receives a pointer to the user-supplied
+    *    @param   callback    Out parameter, receives a pointer to the user-supplied 
     *                         callback function.
     *    @param   context     Out parameter, receives the user context pointer that
     *                         was set when uregex_setMatchCallback() was called.
@@ -1714,7 +1714,7 @@ public:
   /**
     *  Get the find progress callback function for this URegularExpression.
     *
-    *    @param   callback    Out parameter, receives a pointer to the user-supplied
+    *    @param   callback    Out parameter, receives a pointer to the user-supplied 
     *                         callback function.
     *    @param   context     Out parameter, receives the user context pointer that
     *                         was set when uregex_setFindProgressCallback() was called.
@@ -1746,7 +1746,7 @@ public:
      *
      * @stable ICU 2.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
 private:
     // Constructors and other object boilerplate are private.
@@ -1781,11 +1781,11 @@ private:
     inline REStackFrame *StateSave(REStackFrame *fp, int64_t savePatIdx, UErrorCode &status);
     void                 IncrementTime(UErrorCode &status);
 
-    // Call user find callback function, if set. Return TRUE if operation should be interrupted.
+    // Call user find callback function, if set. Return true if operation should be interrupted.
     inline UBool         findProgressInterrupt(int64_t matchIndex, UErrorCode &status);
-
+    
     int64_t              appendGroup(int32_t groupNum, UText *dest, UErrorCode &status) const;
-
+    
     UBool                findUsingChunk(UErrorCode &status);
     void                 MatchChunkAt(int32_t startIdx, UBool toEnd, UErrorCode &status);
     UBool                isChunkWordBoundary(int32_t pos);
@@ -1800,13 +1800,13 @@ private:
                                            //   Only created if the pattern contains backreferences.
     int64_t              fInputLength;     // Full length of the input text.
     int32_t              fFrameSize;       // The size of a frame in the backtrack stack.
-
+    
     int64_t              fRegionStart;     // Start of the input region, default = 0.
     int64_t              fRegionLimit;     // End of input region, default to input.length.
-
+    
     int64_t              fAnchorStart;     // Region bounds for anchoring operations (^ or $).
     int64_t              fAnchorLimit;     //   See useAnchoringBounds
-
+    
     int64_t              fLookStart;       // Region bounds for look-ahead/behind and
     int64_t              fLookLimit;       //   and other boundary tests.  See
                                            //   useTransparentBounds
@@ -1828,7 +1828,7 @@ private:
                                            //   or -1 if there was no previous match.
     int64_t              fAppendPosition;  // First position after the end of the previous
                                            //   appendReplacement().  As described by the
-                                           //   JavaDoc for Java Matcher, where it is called
+                                           //   JavaDoc for Java Matcher, where it is called 
                                            //   "append position"
     UBool                fHitEnd;          // True if the last match touched the end of input.
     UBool                fRequireEnd;      // True if the last match required end-of-input
@@ -1844,7 +1844,7 @@ private:
 
     int32_t             fTimeLimit;        // Max time (in arbitrary steps) to let the
                                            //   match engine run.  Zero for unlimited.
-
+    
     int32_t             fTime;             // Match time, accumulates while matching.
     int32_t             fTickCounter;      // Low bits counter for time.  Counts down StateSaves.
                                            //   Kept separately from fTime to keep as much

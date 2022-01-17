@@ -39,8 +39,8 @@ struct PBKDF2Config final : public MemoryRetainer {
   PBKDF2Config& operator=(PBKDF2Config&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(PBKDF2Config);
-  SET_SELF_SIZE(PBKDF2Config);
+  SET_MEMORY_INFO_NAME(PBKDF2Config)
+  SET_SELF_SIZE(PBKDF2Config)
 };
 
 struct PBKDF2Traits final {

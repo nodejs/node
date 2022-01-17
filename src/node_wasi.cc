@@ -279,7 +279,8 @@ void WASI::ArgsGet(const FunctionCallbackInfo<Value>& args) {
 
   if (err == UVWASI_ESUCCESS) {
     for (size_t i = 0; i < wasi->uvw_.argc; i++) {
-      uint32_t offset = argv_buf_offset + (argv[i] - argv[0]);
+      uint32_t offset =
+          static_cast<uint32_t>(argv_buf_offset + (argv[i] - argv[0]));
       uvwasi_serdes_write_uint32_t(memory,
                                    argv_offset +
                                    (i * UVWASI_SERDES_SIZE_uint32_t),
@@ -410,7 +411,8 @@ void WASI::EnvironGet(const FunctionCallbackInfo<Value>& args) {
 
   if (err == UVWASI_ESUCCESS) {
     for (size_t i = 0; i < wasi->uvw_.envc; i++) {
-      uint32_t offset = environ_buf_offset + (environment[i] - environment[0]);
+      uint32_t offset = static_cast<uint32_t>(
+          environ_buf_offset + (environment[i] - environment[0]));
 
       uvwasi_serdes_write_uint32_t(memory,
                                    environ_offset +
@@ -1676,9 +1678,7 @@ static void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> tmpl = env->NewFunctionTemplate(WASI::New);
-  auto wasi_wrap_string = FIXED_ONE_BYTE_STRING(env->isolate(), "WASI");
   tmpl->InstanceTemplate()->SetInternalFieldCount(WASI::kInternalFieldCount);
-  tmpl->SetClassName(wasi_wrap_string);
   tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(tmpl, "args_get", WASI::ArgsGet);
@@ -1731,9 +1731,7 @@ static void Initialize(Local<Object> target,
 
   env->SetInstanceMethod(tmpl, "_setMemory", WASI::_SetMemory);
 
-  target->Set(env->context(),
-              wasi_wrap_string,
-              tmpl->GetFunction(context).ToLocalChecked()).ToChecked();
+  env->SetConstructorFunction(target, "WASI", tmpl);
 }
 
 

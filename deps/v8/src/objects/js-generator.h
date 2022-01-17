@@ -17,6 +17,8 @@ namespace internal {
 // Forward declarations.
 class JSPromise;
 
+#include "torque-generated/src/objects/js-generator-tq.inc"
+
 class JSGeneratorObject
     : public TorqueGeneratedJSGeneratorObject<JSGeneratorObject, JSObject> {
  public:

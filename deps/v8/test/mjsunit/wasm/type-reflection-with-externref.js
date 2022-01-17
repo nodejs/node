@@ -4,17 +4,17 @@
 
 // Flags: --experimental-wasm-type-reflection --experimental-wasm-reftypes
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestTableType() {
   let table = new WebAssembly.Table({initial: 1, element: "externref"});
-  let type = WebAssembly.Table.type(table);
+  let type = table.type();
   assertEquals(1, type.minimum);
   assertEquals("externref", type.element);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   table = new WebAssembly.Table({initial: 2, maximum: 15, element: "externref"});
-  type = WebAssembly.Table.type(table);
+  type = table.type();
   assertEquals(2, type.minimum);
   assertEquals(15, type.maximum);
   assertEquals("externref", type.element);
@@ -23,19 +23,19 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestGlobalType() {
   let global = new WebAssembly.Global({value: "externref", mutable: true});
-  let type = WebAssembly.Global.type(global);
+  let type = global.type();
   assertEquals("externref", type.value);
   assertEquals(true, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   global = new WebAssembly.Global({value: "externref"});
-  type = WebAssembly.Global.type(global);
+  type = global.type();
   assertEquals("externref", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   global = new WebAssembly.Global({value: "anyfunc"});
-  type = WebAssembly.Global.type(global);
+  type = global.type();
   assertEquals("anyfunc", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);

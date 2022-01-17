@@ -17,6 +17,7 @@ namespace crypto {
 class Hmac : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Hmac)
@@ -54,8 +55,8 @@ struct HmacConfig final : public MemoryRetainer {
   HmacConfig& operator=(HmacConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(HmacConfig);
-  SET_SELF_SIZE(HmacConfig);
+  SET_MEMORY_INFO_NAME(HmacConfig)
+  SET_SELF_SIZE(HmacConfig)
 };
 
 struct HmacTraits final {

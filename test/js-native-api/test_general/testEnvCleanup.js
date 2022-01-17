@@ -30,7 +30,7 @@ if (process.argv[2] === 'child') {
   // Make sure that only the latest attached version of a re-wrapped item's
   // finalizer gets called at env cleanup.
   module.exports['first wrap'] =
-    test_general.envCleanupWrap({}, finalizerMessages['first wrap']),
+    test_general.envCleanupWrap({}, finalizerMessages['first wrap']);
   test_general.removeWrap(module.exports['first wrap']);
   test_general.envCleanupWrap(module.exports['first wrap'],
                               finalizerMessages['second wrap']);

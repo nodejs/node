@@ -20,6 +20,7 @@
 #include "charstr.h"
 #include "number_utils.h"
 #include "uassert.h"
+#include "util.h"
 
 using namespace icu;
 using namespace icu::number;
@@ -272,6 +273,9 @@ double DecimalQuantity::getPluralOperand(PluralOperand operand) const {
             return fractionCountWithoutTrailingZeros();
         case PLURAL_OPERAND_E:
             return static_cast<double>(getExponent());
+        case PLURAL_OPERAND_C:
+            // Plural operand `c` is currently an alias for `e`.
+            return static_cast<double>(getExponent());
         default:
             return std::abs(toDouble());
     }
@@ -283,6 +287,11 @@ int32_t DecimalQuantity::getExponent() const {
 
 void DecimalQuantity::adjustExponent(int delta) {
     exponent = exponent + delta;
+}
+
+void DecimalQuantity::resetExponent() {
+    adjustMagnitude(exponent);
+    exponent = 0;
 }
 
 bool DecimalQuantity::hasIntegerValue() const {
@@ -530,7 +539,11 @@ void DecimalQuantity::_setToDecNum(const DecNum& decnum, UErrorCode& status) {
     if (decnum.isNegative()) {
         flags |= NEGATIVE_FLAG;
     }
-    if (!decnum.isZero()) {
+    if (decnum.isNaN()) {
+        flags |= NAN_FLAG;
+    } else if (decnum.isInfinity()) {
+        flags |= INFINITY_FLAG;
+    } else if (!decnum.isZero()) {
         readDecNumberToBcd(decnum);
         compact();
     }
@@ -626,19 +639,24 @@ double DecimalQuantity::toDouble() const {
             &count);
 }
 
-void DecimalQuantity::toDecNum(DecNum& output, UErrorCode& status) const {
+DecNum& DecimalQuantity::toDecNum(DecNum& output, UErrorCode& status) const {
     // Special handling for zero
     if (precision == 0) {
         output.setTo("0", status);
+        return output;
     }
 
     // Use the BCD constructor. We need to do a little bit of work to convert, though.
     // The decNumber constructor expects most-significant first, but we store least-significant first.
-    MaybeStackArray<uint8_t, 20> ubcd(precision);
+    MaybeStackArray<uint8_t, 20> ubcd(precision, status);
+    if (U_FAILURE(status)) {
+        return output;
+    }
     for (int32_t m = 0; m < precision; m++) {
         ubcd[precision - m - 1] = static_cast<uint8_t>(getDigitPos(m));
     }
     output.setTo(ubcd.getAlias(), precision, scale, isNegative(), status);
+    return output;
 }
 
 void DecimalQuantity::truncate() {
@@ -814,6 +832,7 @@ void DecimalQuantity::roundToMagnitude(int32_t magnitude, RoundingMode roundingM
 
         // Perform truncation
         if (position >= precision) {
+            U_ASSERT(trailingDigit == 0);
             setBcdToZero();
             scale = magnitude;
         } else {
@@ -831,6 +850,10 @@ void DecimalQuantity::roundToMagnitude(int32_t magnitude, RoundingMode roundingM
                 // do not return: use the bubbling logic below
             } else {
                 setDigitPos(0, 5);
+                // If the quantity was set to 0, we may need to restore a digit.
+                if (precision == 0) {
+                    precision = 1;
+                }
                 // compact not necessary: digit at position 0 is nonzero
                 return;
             }
@@ -908,7 +931,7 @@ UnicodeString DecimalQuantity::toPlainString() const {
     }
     if (lower > rReqPos) {
         lower = rReqPos;
-    }
+    }    
     int32_t p = upper;
     if (p < 0) {
         sb.append(u'0');
@@ -1004,13 +1027,8 @@ void DecimalQuantity::shiftLeft(int32_t numDigits) {
     }
     if (usingBytes) {
         ensureCapacity(precision + numDigits);
-        int i = precision + numDigits - 1;
-        for (; i >= numDigits; i--) {
-            fBCD.bcdBytes.ptr[i] = fBCD.bcdBytes.ptr[i - numDigits];
-        }
-        for (; i >= 0; i--) {
-            fBCD.bcdBytes.ptr[i] = 0;
-        }
+        uprv_memmove(fBCD.bcdBytes.ptr + numDigits, fBCD.bcdBytes.ptr, precision);
+        uprv_memset(fBCD.bcdBytes.ptr, 0, numDigits);
     } else {
         fBCD.bcdLong <<= (numDigits * 4);
     }
@@ -1324,7 +1342,11 @@ bool DecimalQuantity::operator==(const DecimalQuantity& other) const {
 }
 
 UnicodeString DecimalQuantity::toString() const {
-    MaybeStackArray<char, 30> digits(precision + 1);
+    UErrorCode localStatus = U_ZERO_ERROR;
+    MaybeStackArray<char, 30> digits(precision + 1, localStatus);
+    if (U_FAILURE(localStatus)) {
+        return ICU_Utility::makeBogusString();
+    }
     for (int32_t i = 0; i < precision; i++) {
         digits[i] = getDigitPos(precision - i - 1) + '0';
     }

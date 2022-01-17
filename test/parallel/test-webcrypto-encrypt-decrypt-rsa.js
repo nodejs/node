@@ -23,19 +23,18 @@ async function importVectorKey(
     subtle.importKey(
       'spki', publicKeyBuffer, { name, hash }, false, publicUsages),
     subtle.importKey(
-      'pkcs8', privateKeyBuffer, { name, hash }, false, privateUsages)
+      'pkcs8', privateKeyBuffer, { name, hash }, false, privateUsages),
   ]);
 
   return { publicKey, privateKey };
 }
 
-async function testDecryption({
-  ciphertext,
-  algorithm,
-  plaintext,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer }) {
+async function testDecryption({ ciphertext,
+                                algorithm,
+                                plaintext,
+                                hash,
+                                publicKeyBuffer,
+                                privateKeyBuffer }) {
   if (ciphertext === undefined)
     return;
 
@@ -108,12 +107,11 @@ async function testEncryption(
     encodedPlaintext);
 }
 
-async function testEncryptionLongPlaintext({
-  algorithm,
-  plaintext,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer }) {
+async function testEncryptionLongPlaintext({ algorithm,
+                                             plaintext,
+                                             hash,
+                                             publicKeyBuffer,
+                                             privateKeyBuffer }) {
   const {
     publicKey,
   } = await importVectorKey(
@@ -133,12 +131,11 @@ async function testEncryptionLongPlaintext({
     });
 }
 
-async function testEncryptionWrongKey({
-  algorithm,
-  plaintext,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer }) {
+async function testEncryptionWrongKey({ algorithm,
+                                        plaintext,
+                                        hash,
+                                        publicKeyBuffer,
+                                        privateKeyBuffer }) {
   const {
     privateKey,
   } = await importVectorKey(
@@ -154,12 +151,11 @@ async function testEncryptionWrongKey({
     });
 }
 
-async function testEncryptionBadUsage({
-  algorithm,
-  plaintext,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer }) {
+async function testEncryptionBadUsage({ algorithm,
+                                        plaintext,
+                                        hash,
+                                        publicKeyBuffer,
+                                        privateKeyBuffer }) {
   const {
     publicKey,
   } = await importVectorKey(
@@ -175,12 +171,11 @@ async function testEncryptionBadUsage({
     });
 }
 
-async function testDecryptionWrongKey({
-  ciphertext,
-  algorithm,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer }) {
+async function testDecryptionWrongKey({ ciphertext,
+                                        algorithm,
+                                        hash,
+                                        publicKeyBuffer,
+                                        privateKeyBuffer }) {
   if (ciphertext === undefined)
     return;
 
@@ -200,12 +195,11 @@ async function testDecryptionWrongKey({
     });
 }
 
-async function testDecryptionBadUsage({
-  ciphertext,
-  algorithm,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer }) {
+async function testDecryptionBadUsage({ ciphertext,
+                                        algorithm,
+                                        hash,
+                                        publicKeyBuffer,
+                                        privateKeyBuffer }) {
   if (ciphertext === undefined)
     return;
 

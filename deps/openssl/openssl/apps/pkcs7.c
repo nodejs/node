@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -21,15 +21,24 @@
 #include <openssl/pem.h>
 
 typedef enum OPTION_choice {
-    OPT_ERR = -1, OPT_EOF = 0, OPT_HELP,
+    OPT_COMMON,
     OPT_INFORM, OPT_OUTFORM, OPT_IN, OPT_OUT, OPT_NOOUT,
-    OPT_TEXT, OPT_PRINT, OPT_PRINT_CERTS, OPT_ENGINE
+    OPT_TEXT, OPT_PRINT, OPT_PRINT_CERTS, OPT_ENGINE,
+    OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS pkcs7_options[] = {
+    OPT_SECTION("General"),
     {"help", OPT_HELP, '-', "Display this summary"},
-    {"inform", OPT_INFORM, 'F', "Input format - DER or PEM"},
+#ifndef OPENSSL_NO_ENGINE
+    {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
+#endif
+
+    OPT_SECTION("Input"),
     {"in", OPT_IN, '<', "Input file"},
+    {"inform", OPT_INFORM, 'F', "Input format - DER or PEM"},
+
+    OPT_SECTION("Output"),
     {"outform", OPT_OUTFORM, 'F', "Output format - DER or PEM"},
     {"out", OPT_OUT, '>', "Output file"},
     {"noout", OPT_NOOUT, '-', "Don't output encoded data"},
@@ -37,21 +46,21 @@ const OPTIONS pkcs7_options[] = {
     {"print", OPT_PRINT, '-', "Print out all fields of the PKCS7 structure"},
     {"print_certs", OPT_PRINT_CERTS, '-',
      "Print_certs  print any certs or crl in the input"},
-#ifndef OPENSSL_NO_ENGINE
-    {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
-#endif
+
+    OPT_PROV_OPTIONS,
     {NULL}
 };
 
 int pkcs7_main(int argc, char **argv)
 {
     ENGINE *e = NULL;
-    PKCS7 *p7 = NULL;
+    PKCS7 *p7 = NULL, *p7i;
     BIO *in = NULL, *out = NULL;
     int informat = FORMAT_PEM, outformat = FORMAT_PEM;
     char *infile = NULL, *outfile = NULL, *prog;
     int i, print_certs = 0, text = 0, noout = 0, p7_print = 0, ret = 1;
     OPTION_CHOICE o;
+    OSSL_LIB_CTX *libctx = app_get0_libctx();
 
     prog = opt_init(argc, argv, pkcs7_options);
     while ((o = opt_next()) != OPT_EOF) {
@@ -94,8 +103,14 @@ int pkcs7_main(int argc, char **argv)
         case OPT_ENGINE:
             e = setup_engine(opt_arg(), 0);
             break;
+        case OPT_PROV_CASES:
+            if (!opt_provider(o))
+                goto end;
+            break;
         }
     }
+
+    /* No extra arguments. */
     argc = opt_num_rest();
     if (argc != 0)
         goto opthelp;
@@ -104,11 +119,18 @@ int pkcs7_main(int argc, char **argv)
     if (in == NULL)
         goto end;
 
-    if (informat == FORMAT_ASN1)
-        p7 = d2i_PKCS7_bio(in, NULL);
-    else
-        p7 = PEM_read_bio_PKCS7(in, NULL, NULL, NULL);
+    p7 = PKCS7_new_ex(libctx, app_get0_propq());
     if (p7 == NULL) {
+        BIO_printf(bio_err, "unable to allocate PKCS7 object\n");
+        ERR_print_errors(bio_err);
+        goto end;
+    }
+
+    if (informat == FORMAT_ASN1)
+        p7i = d2i_PKCS7_bio(in, &p7);
+    else
+        p7i = PEM_read_bio_PKCS7(in, &p7, NULL, NULL);
+    if (p7i == NULL) {
         BIO_printf(bio_err, "unable to load PKCS7 object\n");
         ERR_print_errors(bio_err);
         goto end;

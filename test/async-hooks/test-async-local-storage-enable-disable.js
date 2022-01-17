@@ -24,8 +24,8 @@ asyncLocalStorage.run(new Map(), () => {
 
     process.nextTick(() => {
       assert.strictEqual(asyncLocalStorage.getStore(), undefined);
-      asyncLocalStorage.run(new Map(), () => {
-        assert.notStrictEqual(asyncLocalStorage.getStore(), undefined);
+      asyncLocalStorage.run(new Map().set('bar', 'foo'), () => {
+        assert.strictEqual(asyncLocalStorage.getStore().get('bar'), 'foo');
       });
     });
   });

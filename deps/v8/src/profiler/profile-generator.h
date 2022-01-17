@@ -31,11 +31,14 @@ struct TickSample;
 class V8_EXPORT_PRIVATE SourcePositionTable : public Malloced {
  public:
   SourcePositionTable() = default;
+  SourcePositionTable(const SourcePositionTable&) = delete;
+  SourcePositionTable& operator=(const SourcePositionTable&) = delete;
 
   void SetPosition(int pc_offset, int line, int inlining_id);
   int GetSourceLineNumber(int pc_offset) const;
   int GetInliningId(int pc_offset) const;
 
+  size_t Size() const;
   void print() const;
 
  private:
@@ -51,20 +54,31 @@ class V8_EXPORT_PRIVATE SourcePositionTable : public Malloced {
   // the pc offset, so that we can save space and look up items using binary
   // search.
   std::vector<SourcePositionTuple> pc_offsets_to_lines_;
-  DISALLOW_COPY_AND_ASSIGN(SourcePositionTable);
 };
 
 struct CodeEntryAndLineNumber;
 
 class CodeEntry {
  public:
-  // CodeEntry doesn't own name strings, just references them.
+  enum class CodeType { JS, WASM, OTHER };
+
+  // CodeEntry may reference strings (|name|, |resource_name|) managed by a
+  // StringsStorage instance. These must be freed via ReleaseStrings.
   inline CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
                    const char* resource_name = CodeEntry::kEmptyResourceName,
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
                    int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
                    std::unique_ptr<SourcePositionTable> line_info = nullptr,
-                   bool is_shared_cross_origin = false);
+                   bool is_shared_cross_origin = false,
+                   CodeType code_type = CodeType::JS);
+  CodeEntry(const CodeEntry&) = delete;
+  CodeEntry& operator=(const CodeEntry&) = delete;
+  ~CodeEntry() {
+    // No alive handles should be associated with the CodeEntry at time of
+    // destruction.
+    DCHECK(!heap_object_location_);
+    DCHECK_EQ(ref_count_, 0UL);
+  }
 
   const char* name() const { return name_; }
   const char* resource_name() const { return resource_name_; }
@@ -85,6 +99,7 @@ class CodeEntry {
   void set_deopt_info(const char* deopt_reason, int deopt_id,
                       std::vector<CpuProfileDeoptFrame> inlined_frames);
 
+  size_t EstimatedSize() const;
   CpuProfileDeoptInfo GetDeoptInfo();
   bool has_deopt_info() const {
     return rare_data_ && rare_data_->deopt_id_ != kNoDeoptimizationId;
@@ -95,19 +110,37 @@ class CodeEntry {
     rare_data_->deopt_reason_ = kNoDeoptReason;
     rare_data_->deopt_id_ = kNoDeoptimizationId;
   }
-  void mark_used() { bit_field_ = UsedField::update(bit_field_, true); }
-  bool used() const { return UsedField::decode(bit_field_); }
+
+  const char* code_type_string() const {
+    switch (CodeTypeField::decode(bit_field_)) {
+      case CodeType::JS:
+        return "JS";
+      case CodeType::WASM:
+        return "wasm";
+      case CodeType::OTHER:
+        return "other";
+    }
+  }
+
+  // Returns the start address of the instruction segment represented by this
+  // CodeEntry. Used as a key in the containing CodeMap.
+  Address instruction_start() const { return instruction_start_; }
+  void set_instruction_start(Address address) { instruction_start_ = address; }
+
+  Address** heap_object_location_address() { return &heap_object_location_; }
 
   void FillFunctionInfo(SharedFunctionInfo shared);
 
-  void SetBuiltinId(Builtins::Name id);
-  Builtins::Name builtin_id() const {
-    return BuiltinIdField::decode(bit_field_);
-  }
+  void SetBuiltinId(Builtin id);
+  Builtin builtin() const { return BuiltinField::decode(bit_field_); }
 
   bool is_shared_cross_origin() const {
     return SharedCrossOriginField::decode(bit_field_);
   }
+
+  // Returns whether or not the lifetime of this CodeEntry is reference
+  // counted, and managed by a CodeMap.
+  bool is_ref_counted() const { return RefCountedField::decode(bit_field_); }
 
   uint32_t GetHash() const;
   bool IsSameFunctionAs(const CodeEntry* entry) const;
@@ -115,20 +148,16 @@ class CodeEntry {
   int GetSourceLine(int pc_offset) const;
 
   struct Equals {
-    bool operator()(const std::unique_ptr<CodeEntry>& lhs,
-                    const std::unique_ptr<CodeEntry>& rhs) const {
-      return lhs.get()->IsSameFunctionAs(rhs.get());
+    bool operator()(const CodeEntry* lhs, const CodeEntry* rhs) const {
+      return lhs->IsSameFunctionAs(rhs);
     }
   };
   struct Hasher {
-    std::size_t operator()(const std::unique_ptr<CodeEntry>& e) const {
-      return e->GetHash();
-    }
+    std::size_t operator()(CodeEntry* e) const { return e->GetHash(); }
   };
 
   void SetInlineStacks(
-      std::unordered_set<std::unique_ptr<CodeEntry>, Hasher, Equals>
-          inline_entries,
+      std::unordered_set<CodeEntry*, Hasher, Equals> inline_entries,
       std::unordered_map<int, std::vector<CodeEntryAndLineNumber>>
           inline_stacks);
   const std::vector<CodeEntryAndLineNumber>* GetInlineStack(
@@ -138,79 +167,75 @@ class CodeEntry {
     return TagField::decode(bit_field_);
   }
 
-  static const char* const kWasmResourceNamePrefix;
   V8_EXPORT_PRIVATE static const char* const kEmptyResourceName;
   static const char* const kEmptyBailoutReason;
   static const char* const kNoDeoptReason;
 
   V8_EXPORT_PRIVATE static const char* const kProgramEntryName;
   V8_EXPORT_PRIVATE static const char* const kIdleEntryName;
-  static const char* const kGarbageCollectorEntryName;
+  V8_EXPORT_PRIVATE static const char* const kGarbageCollectorEntryName;
   // Used to represent frames for which we have no reliable way to
   // detect function.
   V8_EXPORT_PRIVATE static const char* const kUnresolvedFunctionName;
   V8_EXPORT_PRIVATE static const char* const kRootEntryName;
 
-  V8_INLINE static CodeEntry* program_entry() {
-    return kProgramEntry.Pointer();
-  }
-  V8_INLINE static CodeEntry* idle_entry() { return kIdleEntry.Pointer(); }
-  V8_INLINE static CodeEntry* gc_entry() { return kGCEntry.Pointer(); }
-  V8_INLINE static CodeEntry* unresolved_entry() {
-    return kUnresolvedEntry.Pointer();
-  }
-  V8_INLINE static CodeEntry* root_entry() { return kRootEntry.Pointer(); }
+  V8_EXPORT_PRIVATE static CodeEntry* program_entry();
+  V8_EXPORT_PRIVATE static CodeEntry* idle_entry();
+  V8_EXPORT_PRIVATE static CodeEntry* gc_entry();
+  V8_EXPORT_PRIVATE static CodeEntry* unresolved_entry();
+  V8_EXPORT_PRIVATE static CodeEntry* root_entry();
+
+  // Releases strings owned by this CodeEntry, which may be allocated in the
+  // provided StringsStorage instance. This instance is not stored directly
+  // with the CodeEntry in order to reduce memory footprint.
+  // Called before every destruction.
+  void ReleaseStrings(StringsStorage& strings);
 
   void print() const;
 
  private:
+  friend class CodeEntryStorage;
+
   struct RareData {
     const char* deopt_reason_ = kNoDeoptReason;
     const char* bailout_reason_ = kEmptyBailoutReason;
     int deopt_id_ = kNoDeoptimizationId;
     std::unordered_map<int, std::vector<CodeEntryAndLineNumber>> inline_stacks_;
-    std::unordered_set<std::unique_ptr<CodeEntry>, Hasher, Equals>
-        inline_entries_;
+    std::unordered_set<CodeEntry*, Hasher, Equals> inline_entries_;
     std::vector<CpuProfileDeoptFrame> deopt_inlined_frames_;
   };
 
   RareData* EnsureRareData();
 
-  struct V8_EXPORT_PRIVATE ProgramEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct V8_EXPORT_PRIVATE IdleEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct V8_EXPORT_PRIVATE GCEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct V8_EXPORT_PRIVATE UnresolvedEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct V8_EXPORT_PRIVATE RootEntryCreateTrait {
-    static CodeEntry* Create();
-  };
+  void mark_ref_counted() {
+    bit_field_ = RefCountedField::update(bit_field_, true);
+    ref_count_ = 1;
+  }
 
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, ProgramEntryCreateTrait>::type kProgramEntry;
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, IdleEntryCreateTrait>::type kIdleEntry;
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, GCEntryCreateTrait>::type kGCEntry;
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, UnresolvedEntryCreateTrait>::type kUnresolvedEntry;
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, RootEntryCreateTrait>::type kRootEntry;
+  size_t AddRef() {
+    DCHECK(is_ref_counted());
+    DCHECK_LT(ref_count_, std::numeric_limits<size_t>::max());
+    ref_count_++;
+    return ref_count_;
+  }
+
+  size_t DecRef() {
+    DCHECK(is_ref_counted());
+    DCHECK_GT(ref_count_, 0UL);
+    ref_count_--;
+    return ref_count_;
+  }
 
   using TagField = base::BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
-  using BuiltinIdField = base::BitField<Builtins::Name, 8, 22>;
-  static_assert(Builtins::builtin_count <= BuiltinIdField::kNumValues,
+  using BuiltinField = base::BitField<Builtin, 8, 20>;
+  static_assert(Builtins::kBuiltinCount <= BuiltinField::kNumValues,
                 "builtin_count exceeds size of bitfield");
-  using UsedField = base::BitField<bool, 30, 1>;
+  using RefCountedField = base::BitField<bool, 28, 1>;
+  using CodeTypeField = base::BitField<CodeType, 29, 2>;
   using SharedCrossOriginField = base::BitField<bool, 31, 1>;
 
-  uint32_t bit_field_;
+  std::uint32_t bit_field_;
+  std::atomic<std::size_t> ref_count_ = {0};
   const char* name_;
   const char* resource_name_;
   int line_number_;
@@ -219,8 +244,8 @@ class CodeEntry {
   int position_;
   std::unique_ptr<SourcePositionTable> line_info_;
   std::unique_ptr<RareData> rare_data_;
-
-  DISALLOW_COPY_AND_ASSIGN(CodeEntry);
+  Address instruction_start_ = kNullAddress;
+  Address* heap_object_location_ = nullptr;
 };
 
 struct CodeEntryAndLineNumber {
@@ -228,26 +253,22 @@ struct CodeEntryAndLineNumber {
   int line_number;
 };
 
-struct ProfileStackFrame {
-  CodeEntryAndLineNumber entry;
-  Address native_context;
-  bool filterable;  // If true, the frame should be filtered by context (if a
-                    // filter is present).
-};
-
-typedef std::vector<ProfileStackFrame> ProfileStackTrace;
+using ProfileStackTrace = std::vector<CodeEntryAndLineNumber>;
 
 // Filters stack frames from sources other than a target native context.
 class ContextFilter {
  public:
-  explicit ContextFilter(Address native_context_address)
+  explicit ContextFilter(Address native_context_address = kNullAddress)
       : native_context_address_(native_context_address) {}
-
-  // Returns true if the stack frame passes a context check.
-  bool Accept(const ProfileStackFrame&);
 
   // Invoked when a native context has changed address.
   void OnMoveEvent(Address from_address, Address to_address);
+
+  bool Accept(Address native_context_address) const {
+    if (native_context_address_ == kNullAddress) return true;
+    return (native_context_address & ~kHeapObjectTag) ==
+           native_context_address_;
+  }
 
   // Update the context's tracked address based on VM-thread events.
   void set_native_context_address(Address address) {
@@ -265,6 +286,9 @@ class V8_EXPORT_PRIVATE ProfileNode {
  public:
   inline ProfileNode(ProfileTree* tree, CodeEntry* entry, ProfileNode* parent,
                      int line_number = 0);
+  ~ProfileNode();
+  ProfileNode(const ProfileNode&) = delete;
+  ProfileNode& operator=(const ProfileNode&) = delete;
 
   ProfileNode* FindChild(
       CodeEntry* entry,
@@ -324,14 +348,16 @@ class V8_EXPORT_PRIVATE ProfileNode {
   std::unordered_map<int, int> line_ticks_;
 
   std::vector<CpuProfileDeoptInfo> deopt_infos_;
-
-  DISALLOW_COPY_AND_ASSIGN(ProfileNode);
 };
+
+class CodeEntryStorage;
 
 class V8_EXPORT_PRIVATE ProfileTree {
  public:
-  explicit ProfileTree(Isolate* isolate);
+  explicit ProfileTree(Isolate* isolate, CodeEntryStorage* storage = nullptr);
   ~ProfileTree();
+  ProfileTree(const ProfileTree&) = delete;
+  ProfileTree& operator=(const ProfileTree&) = delete;
 
   using ProfilingMode = v8::CpuProfilingMode;
 
@@ -343,14 +369,11 @@ class V8_EXPORT_PRIVATE ProfileTree {
       const ProfileStackTrace& path,
       int src_line = v8::CpuProfileNode::kNoLineNumberInfo,
       bool update_stats = true,
-      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers,
-      ContextFilter* context_filter = nullptr);
+      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers);
   ProfileNode* root() const { return root_; }
   unsigned next_node_id() { return next_node_id_++; }
 
-  void Print() {
-    root_->Print(0);
-  }
+  void Print() const { root_->Print(0); }
 
   Isolate* isolate() const { return isolate_; }
 
@@ -360,6 +383,8 @@ class V8_EXPORT_PRIVATE ProfileTree {
     return std::move(pending_nodes_);
   }
 
+  CodeEntryStorage* code_entries() { return code_entries_; }
+
  private:
   template <typename Callback>
   void TraverseDepthFirst(Callback* callback);
@@ -367,10 +392,9 @@ class V8_EXPORT_PRIVATE ProfileTree {
   std::vector<const ProfileNode*> pending_nodes_;
 
   unsigned next_node_id_;
-  ProfileNode* root_;
   Isolate* isolate_;
-
-  DISALLOW_COPY_AND_ASSIGN(ProfileTree);
+  CodeEntryStorage* const code_entries_;
+  ProfileNode* root_;
 };
 
 class CpuProfiler;
@@ -383,8 +407,11 @@ class CpuProfile {
     int line;
   };
 
-  V8_EXPORT_PRIVATE CpuProfile(CpuProfiler* profiler, const char* title,
-                               CpuProfilingOptions options);
+  V8_EXPORT_PRIVATE CpuProfile(
+      CpuProfiler* profiler, const char* title, CpuProfilingOptions options,
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
+  CpuProfile(const CpuProfile&) = delete;
+  CpuProfile& operator=(const CpuProfile&) = delete;
 
   // Checks whether or not the given TickSample should be (sub)sampled, given
   // the sampling interval of the profiler that recorded it (in microseconds).
@@ -408,18 +435,19 @@ class CpuProfile {
   base::TimeTicks start_time() const { return start_time_; }
   base::TimeTicks end_time() const { return end_time_; }
   CpuProfiler* cpu_profiler() const { return profiler_; }
-  ContextFilter* context_filter() const { return context_filter_.get(); }
+  ContextFilter& context_filter() { return context_filter_; }
 
   void UpdateTicksScale();
 
-  V8_EXPORT_PRIVATE void Print();
+  V8_EXPORT_PRIVATE void Print() const;
 
  private:
   void StreamPendingTraceEvents();
 
   const char* title_;
   const CpuProfilingOptions options_;
-  std::unique_ptr<ContextFilter> context_filter_;
+  std::unique_ptr<DiscardedSamplesDelegate> delegate_;
+  ContextFilter context_filter_;
   base::TimeTicks start_time_;
   base::TimeTicks end_time_;
   std::deque<SampleInfo> samples_;
@@ -432,52 +460,85 @@ class CpuProfile {
   base::TimeDelta next_sample_delta_;
 
   static std::atomic<uint32_t> last_id_;
+};
 
-  DISALLOW_COPY_AND_ASSIGN(CpuProfile);
+class CpuProfileMaxSamplesCallbackTask : public v8::Task {
+ public:
+  CpuProfileMaxSamplesCallbackTask(
+      std::unique_ptr<DiscardedSamplesDelegate> delegate)
+      : delegate_(std::move(delegate)) {}
+
+  void Run() override { delegate_->Notify(); }
+
+ private:
+  std::unique_ptr<DiscardedSamplesDelegate> delegate_;
 };
 
 class V8_EXPORT_PRIVATE CodeMap {
  public:
-  CodeMap();
+  explicit CodeMap(CodeEntryStorage& storage);
   ~CodeMap();
+  CodeMap(const CodeMap&) = delete;
+  CodeMap& operator=(const CodeMap&) = delete;
 
+  // Adds the given CodeEntry to the CodeMap. The CodeMap takes ownership of
+  // the CodeEntry.
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
+  // Attempts to remove the given CodeEntry from the CodeMap.
+  // Returns true iff the entry was found and removed.
+  bool RemoveCode(CodeEntry*);
+  void ClearCodesInRange(Address start, Address end);
   CodeEntry* FindEntry(Address addr, Address* out_instruction_start = nullptr);
   void Print();
+  size_t size() const { return code_map_.size(); }
+
+  size_t GetEstimatedMemoryUsage() const;
+
+  CodeEntryStorage& code_entries() { return code_entries_; }
+
+  void Clear();
 
  private:
   struct CodeEntryMapInfo {
-    unsigned index;
+    CodeEntry* entry;
     unsigned size;
   };
 
-  union CodeEntrySlotInfo {
-    CodeEntry* entry;
-    unsigned next_free_slot;
-  };
+  std::multimap<Address, CodeEntryMapInfo> code_map_;
+  CodeEntryStorage& code_entries_;
+};
 
-  static constexpr unsigned kNoFreeSlot = std::numeric_limits<unsigned>::max();
+// Manages the lifetime of CodeEntry objects, and stores shared resources
+// between them.
+class V8_EXPORT_PRIVATE CodeEntryStorage {
+ public:
+  template <typename... Args>
+  static CodeEntry* Create(Args&&... args) {
+    CodeEntry* const entry = new CodeEntry(std::forward<Args>(args)...);
+    entry->mark_ref_counted();
+    return entry;
+  }
 
-  void ClearCodesInRange(Address start, Address end);
-  unsigned AddCodeEntry(Address start, CodeEntry*);
-  void DeleteCodeEntry(unsigned index);
+  void AddRef(CodeEntry*);
+  void DecRef(CodeEntry*);
 
-  CodeEntry* entry(unsigned index) { return code_entries_[index].entry; }
+  StringsStorage& strings() { return function_and_resource_names_; }
 
-  std::deque<CodeEntrySlotInfo> code_entries_;
-  std::map<Address, CodeEntryMapInfo> code_map_;
-  unsigned free_list_head_ = kNoFreeSlot;
-
-  DISALLOW_COPY_AND_ASSIGN(CodeMap);
+ private:
+  StringsStorage function_and_resource_names_;
 };
 
 class V8_EXPORT_PRIVATE CpuProfilesCollection {
  public:
   explicit CpuProfilesCollection(Isolate* isolate);
+  CpuProfilesCollection(const CpuProfilesCollection&) = delete;
+  CpuProfilesCollection& operator=(const CpuProfilesCollection&) = delete;
 
   void set_cpu_profiler(CpuProfiler* profiler) { profiler_ = profiler; }
-  bool StartProfiling(const char* title, CpuProfilingOptions options = {});
+  CpuProfilingStatus StartProfiling(
+      const char* title, CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
   CpuProfile* StopProfiling(const char* title);
   std::vector<std::unique_ptr<CpuProfile>>* profiles() {
@@ -496,7 +557,8 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   void AddPathToCurrentProfiles(base::TimeTicks timestamp,
                                 const ProfileStackTrace& path, int src_line,
                                 bool update_stats,
-                                base::TimeDelta sampling_interval);
+                                base::TimeDelta sampling_interval,
+                                Address native_context_address = kNullAddress);
 
   // Called from profile generator thread.
   void UpdateNativeContextAddressForCurrentProfiles(Address from, Address to);
@@ -512,32 +574,6 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   // Accessed by VM thread and profile generator thread.
   std::vector<std::unique_ptr<CpuProfile>> current_profiles_;
   base::Semaphore current_profiles_semaphore_;
-
-  DISALLOW_COPY_AND_ASSIGN(CpuProfilesCollection);
-};
-
-class V8_EXPORT_PRIVATE ProfileGenerator {
- public:
-  explicit ProfileGenerator(CpuProfilesCollection* profiles, CodeMap* code_map);
-
-  // Use the CodeMap to turn the raw addresses recorded in the sample into
-  // code/function names. The symbolized stack is added to the relevant
-  // profiles in the CpuProfilesCollection.
-  void SymbolizeTickSample(const TickSample& sample);
-
-  void UpdateNativeContextAddress(Address from, Address to);
-
-  CodeMap* code_map() { return code_map_; }
-
- private:
-  CodeEntry* FindEntry(Address address,
-                       Address* out_instruction_start = nullptr);
-  CodeEntry* EntryForVMState(StateTag tag);
-
-  CpuProfilesCollection* profiles_;
-  CodeMap* const code_map_;
-
-  DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);
 };
 
 }  // namespace internal

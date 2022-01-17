@@ -6,7 +6,11 @@
 
 #include <map>
 #include <string>
-#include "include/v8.h"
+
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-template.h"
+#include "include/v8-unwinder.h"
 #include "src/flags/flags.h"
 #include "test/cctest/cctest.h"
 
@@ -23,10 +27,10 @@ class Sample {
   const_iterator end() const { return &data_[data_.length()]; }
 
   int size() const { return data_.length(); }
-  v8::internal::Vector<void*>& data() { return data_; }
+  v8::base::Vector<void*>& data() { return data_; }
 
  private:
-  v8::internal::EmbeddedVector<void*, kFramesLimit> data_;
+  v8::base::EmbeddedVector<void*, kFramesLimit> data_;
 };
 
 
@@ -45,7 +49,7 @@ class SamplingTestHelper {
     instance_ = this;
     v8::HandleScope scope(isolate_);
     v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
-    global->Set(v8_str("CollectSample"),
+    global->Set(isolate_, "CollectSample",
                 v8::FunctionTemplate::New(isolate_, CollectSample));
     LocalContext env(isolate_, nullptr, global);
     isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
@@ -141,7 +145,6 @@ SamplingTestHelper* SamplingTestHelper::instance_;
 
 }  // namespace
 
-
 // A JavaScript function which takes stack depth
 // (minimum value 2) as an argument.
 // When at the bottom of the recursion,
@@ -153,18 +156,15 @@ static const char* test_function =
     "  else return func(depth - 1);"
     "}";
 
-
 TEST(StackDepthIsConsistent) {
   SamplingTestHelper helper(std::string(test_function) + "func(8);");
   CHECK_EQ(8, helper.sample().size());
 }
 
-
 TEST(StackDepthDoesNotExceedMaxValue) {
   SamplingTestHelper helper(std::string(test_function) + "func(300);");
   CHECK_EQ(Sample::kFramesLimit, helper.sample().size());
 }
-
 
 // The captured sample should have three pc values.
 // They should fall in the range where the compiled code resides.

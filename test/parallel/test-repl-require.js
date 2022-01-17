@@ -33,8 +33,8 @@ const repl = require('repl');
   });
 
   process.on('exit', function() {
-    assert.strictEqual(/Cannot find module/.test(answer), false);
-    assert.strictEqual(/Error/.test(answer), false);
+    assert.doesNotMatch(answer, /Cannot find module/);
+    assert.doesNotMatch(answer, /Error/);
     assert.strictEqual(answer, '\'eye catcher\'\n\'perhaps I work\'\n');
   });
 }
@@ -63,9 +63,9 @@ const repl = require('repl');
   });
 
   process.on('exit', function() {
-    assert.strictEqual(/Uncaught Error: Cannot find module '\.\/bar'/.test(answer), true);
+    assert.match(answer, /Uncaught Error: Cannot find module '\.\/bar'/);
 
-    assert.strictEqual(/code: 'MODULE_NOT_FOUND'/.test(answer), true);
-    assert.strictEqual(/requireStack: \[ '<repl>' \]/.test(answer), true);
+    assert.match(answer, /code: 'MODULE_NOT_FOUND'/);
+    assert.match(answer, /requireStack: \[ '<repl>' \]/);
   });
 }

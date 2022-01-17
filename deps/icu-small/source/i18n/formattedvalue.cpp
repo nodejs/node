@@ -49,7 +49,7 @@ UBool ConstrainedFieldPosition::matchesField(int32_t category, int32_t field) co
     case UCFPOS_CONSTRAINT_FIELD:
         return fCategory == category && fField == field;
     default:
-        UPRV_UNREACHABLE;
+        UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -193,7 +193,7 @@ ucfpos_close(UConstrainedFieldPosition* ptr) {
 }
 
 
-U_DRAFT const UChar* U_EXPORT2
+U_CAPI const UChar* U_EXPORT2
 ufmtval_getString(
         const UFormattedValue* ufmtval,
         int32_t* pLength,
@@ -209,11 +209,13 @@ ufmtval_getString(
     if (pLength != nullptr) {
         *pLength = readOnlyAlias.length();
     }
+    // Note: this line triggers -Wreturn-local-addr, but it is safe because toTempString is
+    // defined to return memory owned by the ufmtval argument.
     return readOnlyAlias.getBuffer();
 }
 
 
-U_DRAFT UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 ufmtval_nextPosition(
         const UFormattedValue* ufmtval,
         UConstrainedFieldPosition* ucfpos,

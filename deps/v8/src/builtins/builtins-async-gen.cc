@@ -13,8 +13,6 @@
 namespace v8 {
 namespace internal {
 
-using compiler::Node;
-
 namespace {
 // Describe fields of Context associated with the AsyncIterator unwrap closure.
 class ValueUnwrapContext {
@@ -32,17 +30,10 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
     TNode<Oddball> is_predicted_as_caught) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
 
-  static const int kWrappedPromiseOffset =
+  static const int kClosureContextSize =
       FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
-  static const int kResolveClosureOffset =
-      kWrappedPromiseOffset + JSPromise::kSizeWithEmbedderFields;
-  static const int kRejectClosureOffset =
-      kResolveClosureOffset + JSFunction::kSizeWithoutPrototype;
-  static const int kTotalSize =
-      kRejectClosureOffset + JSFunction::kSizeWithoutPrototype;
-
-  TNode<HeapObject> base = AllocateInNewSpace(kTotalSize);
-  TNode<Context> closure_context = UncheckedCast<Context>(base);
+  TNode<Context> closure_context =
+      UncheckedCast<Context>(AllocateInNewSpace(kClosureContextSize));
   {
     // Initialize the await context, storing the {generator} as extension.
     TNode<Map> map = CAST(
@@ -64,20 +55,20 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
   // Let promiseCapability be ! NewPromiseCapability(%Promise%).
   const TNode<JSFunction> promise_fun =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
-  CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
+  CSA_DCHECK(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
   const TNode<Map> promise_map = CAST(
       LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset));
   // Assert that the JSPromise map has an instance size is
   // JSPromise::kSizeWithEmbedderFields.
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              IntPtrEqual(LoadMapInstanceSizeInWords(promise_map),
                          IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
                                         kTaggedSize)));
   TNode<JSPromise> promise;
   {
-    // Initialize Promise
+    // Allocate and initialize Promise
     TNode<HeapObject> wrapped_value =
-        InnerAllocate(base, kWrappedPromiseOffset);
+        AllocateInNewSpace(JSPromise::kSizeWithEmbedderFields);
     StoreMapNoWriteBarrier(wrapped_value, promise_map);
     StoreObjectFieldRoot(wrapped_value, JSPromise::kPropertiesOrHashOffset,
                          RootIndex::kEmptyFixedArray);
@@ -87,36 +78,31 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
     PromiseInit(promise);
   }
 
-  // Initialize resolve handler
-  TNode<HeapObject> on_resolve = InnerAllocate(base, kResolveClosureOffset);
+  // Allocate and initialize resolve handler
+  TNode<HeapObject> on_resolve =
+      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
   InitializeNativeClosure(closure_context, native_context, on_resolve,
                           on_resolve_sfi);
 
-  // Initialize reject handler
-  TNode<HeapObject> on_reject = InnerAllocate(base, kRejectClosureOffset);
+  // Allocate and initialize reject handler
+  TNode<HeapObject> on_reject =
+      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
   InitializeNativeClosure(closure_context, native_context, on_reject,
                           on_reject_sfi);
 
   TVARIABLE(HeapObject, var_throwaway, UndefinedConstant());
 
-  // Deal with PromiseHooks and debug support in the runtime. This
-  // also allocates the throwaway promise, which is only needed in
-  // case of PromiseHooks or debugging.
-  Label if_debugging(this, Label::kDeferred), do_resolve_promise(this);
-  Branch(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
-         &if_debugging, &do_resolve_promise);
-  BIND(&if_debugging);
-  var_throwaway =
-      CAST(CallRuntime(Runtime::kAwaitPromisesInitOld, context, value, promise,
-                       outer_promise, on_reject, is_predicted_as_caught));
-  Goto(&do_resolve_promise);
-  BIND(&do_resolve_promise);
+  RunContextPromiseHookInit(context, promise, outer_promise);
+
+  InitAwaitPromise(Runtime::kAwaitPromisesInitOld, context, value, promise,
+                   outer_promise, on_reject, is_predicted_as_caught,
+                   &var_throwaway);
 
   // Perform ! Call(promiseCapability.[[Resolve]], undefined, « promise »).
-  CallBuiltin(Builtins::kResolvePromise, context, promise, value);
+  CallBuiltin(Builtin::kResolvePromise, context, promise, value);
 
-  return CallBuiltin(Builtins::kPerformPromiseThen, context, promise,
-                     on_resolve, on_reject, var_throwaway.value());
+  return CallBuiltin(Builtin::kPerformPromiseThen, context, promise, on_resolve,
+                     on_reject, var_throwaway.value());
 }
 
 TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
@@ -127,19 +113,14 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
     TNode<Oddball> is_predicted_as_caught) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
 
-  static const int kResolveClosureOffset =
-      FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
-  static const int kRejectClosureOffset =
-      kResolveClosureOffset + JSFunction::kSizeWithoutPrototype;
-  static const int kTotalSize =
-      kRejectClosureOffset + JSFunction::kSizeWithoutPrototype;
-
   // 2. Let promise be ? PromiseResolve(« promise »).
   // We skip this step, because promise is already guaranteed to be a
   // JSPRomise at this point.
 
-  TNode<HeapObject> base = AllocateInNewSpace(kTotalSize);
-  TNode<Context> closure_context = UncheckedCast<Context>(base);
+  static const int kClosureContextSize =
+      FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
+  TNode<Context> closure_context =
+      UncheckedCast<Context>(AllocateInNewSpace(kClosureContextSize));
   {
     // Initialize the await context, storing the {generator} as extension.
     TNode<Map> map = CAST(
@@ -158,33 +139,60 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
                                       generator);
   }
 
-  // Initialize resolve handler
-  TNode<HeapObject> on_resolve = InnerAllocate(base, kResolveClosureOffset);
+  // Allocate and initialize resolve handler
+  TNode<HeapObject> on_resolve =
+      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
   InitializeNativeClosure(closure_context, native_context, on_resolve,
                           on_resolve_sfi);
 
-  // Initialize reject handler
-  TNode<HeapObject> on_reject = InnerAllocate(base, kRejectClosureOffset);
+  // Allocate and initialize reject handler
+  TNode<HeapObject> on_reject =
+      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
   InitializeNativeClosure(closure_context, native_context, on_reject,
                           on_reject_sfi);
 
   TVARIABLE(HeapObject, var_throwaway, UndefinedConstant());
 
+  InitAwaitPromise(Runtime::kAwaitPromisesInit, context, promise, promise,
+                   outer_promise, on_reject, is_predicted_as_caught,
+                   &var_throwaway);
+
+  return CallBuiltin(Builtin::kPerformPromiseThen, native_context, promise,
+                     on_resolve, on_reject, var_throwaway.value());
+}
+
+void AsyncBuiltinsAssembler::InitAwaitPromise(
+    Runtime::FunctionId id, TNode<Context> context, TNode<Object> value,
+    TNode<Object> promise, TNode<Object> outer_promise,
+    TNode<HeapObject> on_reject, TNode<Oddball> is_predicted_as_caught,
+    TVariable<HeapObject>* var_throwaway) {
   // Deal with PromiseHooks and debug support in the runtime. This
   // also allocates the throwaway promise, which is only needed in
   // case of PromiseHooks or debugging.
-  Label if_debugging(this, Label::kDeferred), do_perform_promise_then(this);
-  Branch(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
-         &if_debugging, &do_perform_promise_then);
+  Label if_debugging(this, Label::kDeferred),
+      if_promise_hook(this, Label::kDeferred),
+      not_debugging(this),
+      do_nothing(this);
+  TNode<Uint32T> promiseHookFlags = PromiseHookFlags();
+  Branch(IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
+      promiseHookFlags), &if_debugging, &not_debugging);
   BIND(&if_debugging);
-  var_throwaway =
-      CAST(CallRuntime(Runtime::kAwaitPromisesInit, context, promise, promise,
+  *var_throwaway =
+      CAST(CallRuntime(id, context, value, promise,
                        outer_promise, on_reject, is_predicted_as_caught));
-  Goto(&do_perform_promise_then);
-  BIND(&do_perform_promise_then);
+  Goto(&do_nothing);
+  BIND(&not_debugging);
 
-  return CallBuiltin(Builtins::kPerformPromiseThen, native_context, promise,
-                     on_resolve, on_reject, var_throwaway.value());
+  // This call to NewJSPromise is to keep behaviour parity with what happens
+  // in Runtime::kAwaitPromisesInit above if native hooks are set. It will
+  // create a throwaway promise that will trigger an init event and will get
+  // passed into Builtin::kPerformPromiseThen below.
+  Branch(IsContextPromiseHookEnabled(promiseHookFlags), &if_promise_hook,
+         &do_nothing);
+  BIND(&if_promise_hook);
+  *var_throwaway = NewJSPromise(context, promise);
+  Goto(&do_nothing);
+  BIND(&do_nothing);
 }
 
 TNode<Object> AsyncBuiltinsAssembler::Await(
@@ -251,7 +259,7 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   // Ensure that we don't have to initialize prototype_or_initial_map field of
   // JSFunction.
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              IntPtrEqual(LoadMapInstanceSizeInWords(function_map),
                          IntPtrConstant(JSFunction::kSizeWithoutPrototype /
                                         kTaggedSize)));
@@ -269,14 +277,15 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
   StoreObjectFieldNoWriteBarrier(function, JSFunction::kContextOffset, context);
 
   // For the native closures that are initialized here (for `await`)
-  // we know that their SharedFunctionInfo::function_data() slot
+  // we know that their SharedFunctionInfo::function_data(kAcquireLoad) slot
   // contains a builtin index (as Smi), so there's no need to use
   // CodeStubAssembler::GetSharedFunctionInfoCode() helper here,
   // which almost doubles the size of `await` builtins (unnecessarily).
   TNode<Smi> builtin_id = LoadObjectField<Smi>(
       shared_info, SharedFunctionInfo::kFunctionDataOffset);
   TNode<Code> code = LoadBuiltin(builtin_id);
-  StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeOffset, code);
+  StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeOffset,
+                                 ToCodeT(code));
 }
 
 TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(
@@ -293,7 +302,7 @@ TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(
 
 TNode<Context> AsyncBuiltinsAssembler::AllocateAsyncIteratorValueUnwrapContext(
     TNode<NativeContext> native_context, TNode<Oddball> done) {
-  CSA_ASSERT(this, IsBoolean(done));
+  CSA_DCHECK(this, IsBoolean(done));
 
   TNode<Context> context = AllocateSyntheticFunctionContext(
       native_context, ValueUnwrapContext::kLength);
@@ -303,15 +312,15 @@ TNode<Context> AsyncBuiltinsAssembler::AllocateAsyncIteratorValueUnwrapContext(
 }
 
 TF_BUILTIN(AsyncIteratorValueUnwrap, AsyncBuiltinsAssembler) {
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   const TNode<Object> done =
       LoadContextElement(context, ValueUnwrapContext::kDoneSlot);
-  CSA_ASSERT(this, IsBoolean(CAST(done)));
+  CSA_DCHECK(this, IsBoolean(CAST(done)));
 
   const TNode<Object> unwrapped_value =
-      CallBuiltin(Builtins::kCreateIterResultObject, context, value, done);
+      CallBuiltin(Builtin::kCreateIterResultObject, context, value, done);
 
   Return(unwrapped_value);
 }

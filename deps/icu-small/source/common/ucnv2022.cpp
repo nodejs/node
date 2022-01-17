@@ -527,7 +527,7 @@ _ISO2022Open(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
                     ucnv_loadSharedData("ksc_5601", &stackPieces, &stackArgs, errorCode);
             }
 
-            /* set the function pointers to appropriate funtions */
+            /* set the function pointers to appropriate functions */
             cnv->sharedData=(UConverterSharedData*)(&_ISO2022JPData);
             uprv_strcpy(myConverterData->locale,"ja");
 
@@ -578,7 +578,7 @@ _ISO2022Open(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
                 setInitialStateToUnicodeKR(cnv, myConverterData);
                 setInitialStateFromUnicodeKR(cnv, myConverterData);
 
-                /* set the function pointers to appropriate funtions */
+                /* set the function pointers to appropriate functions */
                 cnv->sharedData=(UConverterSharedData*)&_ISO2022KRData;
                 uprv_strcpy(myConverterData->locale,"ko");
             }
@@ -605,7 +605,7 @@ _ISO2022Open(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
                 ucnv_loadSharedData("cns-11643-1992", &stackPieces, &stackArgs, errorCode);
 
 
-            /* set the function pointers to appropriate funtions */
+            /* set the function pointers to appropriate functions */
             cnv->sharedData=(UConverterSharedData*)&_ISO2022CNData;
             uprv_strcpy(myConverterData->locale,"cn");
 
@@ -820,7 +820,7 @@ getKey_2022(char c,int32_t* key,int32_t* offset){
     return INVALID_2022;
 }
 
-/*runs through a state machine to determine the escape sequence - codepage correspondance
+/*runs through a state machine to determine the escape sequence - codepage correspondence
  */
 static void
 changeState_2022(UConverter* _this,
@@ -1232,7 +1232,7 @@ _2022FromGR94DBCS(uint32_t value) {
 /*
  * This method does the reverse of _2022FromGR94DBCS(). Given the 2022 code point, it returns the
  * 2 byte value that is in the range A1..FE for each byte. Otherwise it returns the 2022 code point
- * unchanged.
+ * unchanged. 
  */
 static inline uint32_t
 _2022ToGR94DBCS(uint32_t value) {
@@ -1424,7 +1424,7 @@ toUnicodeCallback(UConverter *cnv,
 *          KSC5601 : alias to ibm-949 mapping table
 *          GB2312 : alias to ibm-1386 mapping table
 *          ISO-8859-1 : Algorithmic implemented as LATIN1 case
-*          ISO-8859-7 : alisas to ibm-9409 mapping table
+*          ISO-8859-7 : alias to ibm-9409 mapping table
 */
 
 /* preference order of JP charsets */
@@ -2147,7 +2147,7 @@ escape:
                     changeState_2022(args->converter,&(mySource),
                         mySourceLimit, ISO_2022_JP,err);
 
-                    /* If in ISO-2022-JP only and we successully completed an escape sequence, but previous segment was empty, create an error */
+                    /* If in ISO-2022-JP only and we successfully completed an escape sequence, but previous segment was empty, create an error */
                     if(myData->version==0 && myData->key==0 && U_SUCCESS(*err) && myData->isEmptySegment) {
                         *err = U_ILLEGAL_ESCAPE_SEQUENCE;
                         args->converter->toUCallbackReason = UCNV_IRREGULAR;
@@ -2324,7 +2324,7 @@ endloop:
 /***************************************************************
 *   Rules for ISO-2022-KR encoding
 *   i) The KSC5601 designator sequence should appear only once in a file,
-*      at the begining of a line before any KSC5601 characters. This usually
+*      at the beginning of a line before any KSC5601 characters. This usually
 *      means that it appears by itself on the first line of the file
 *  ii) There are only 2 shifting sequences SO to shift into double byte mode
 *      and SI to shift into single byte mode
@@ -2849,21 +2849,21 @@ getTrailByte:
 *       SS2 is a Chinese character as defined in CNS
 *       11643-plane-2, until another SS2designation
 *       appears
-*       (Meaning <ESC>N must preceed every 2 byte
+*       (Meaning <ESC>N must precede every 2 byte
 *        sequence.)
 *
 *      ESC $ + I       Indicates the immediate two bytes following SS3
 *       is a Chinese character as defined in CNS
 *       11643-plane-3, until another SS3designation
 *       appears
-*       (Meaning <ESC>O must preceed every 2 byte
+*       (Meaning <ESC>O must precede every 2 byte
 *        sequence.)
 *
 *      ESC $ + J       Indicates the immediate two bytes following SS3
 *       is a Chinese character as defined in CNS
 *       11643-plane-4, until another SS3designation
 *       appears
-*       (In English: <ESC>O must preceed every 2 byte
+*       (In English: <ESC>O must precede every 2 byte
 *        sequence.)
 *
 *      ESC $ + K       Indicates the immediate two bytes following SS3

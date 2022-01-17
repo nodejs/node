@@ -17,8 +17,8 @@ const astUtils = require("./utils/ast-utils");
 /**
  * Checks whether an operator is commutative and has an operator assignment
  * shorthand form.
- * @param   {string}  operator Operator to check.
- * @returns {boolean}          True if the operator is commutative and has a
+ * @param {string} operator Operator to check.
+ * @returns {boolean} True if the operator is commutative and has a
  *     shorthand form.
  */
 function isCommutativeOperatorWithShorthand(operator) {
@@ -28,8 +28,8 @@ function isCommutativeOperatorWithShorthand(operator) {
 /**
  * Checks whether an operator is not commutative and has an operator assignment
  * shorthand form.
- * @param   {string}  operator Operator to check.
- * @returns {boolean}          True if the operator is not commutative and has
+ * @param {string} operator Operator to check.
+ * @returns {boolean} True if the operator is not commutative and has
  *     a shorthand form.
  */
 function isNonCommutativeOperatorWithShorthand(operator) {
@@ -57,13 +57,13 @@ function canBeFixed(node) {
     );
 }
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "require or disallow assignment operator shorthand where possible",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/operator-assignment"
         },
@@ -76,8 +76,8 @@ module.exports = {
 
         fixable: "code",
         messages: {
-            replaced: "Assignment can be replaced with operator assignment.",
-            unexpected: "Unexpected operator assignment shorthand."
+            replaced: "Assignment (=) can be replaced with operator assignment ({{operator}}=).",
+            unexpected: "Unexpected operator assignment ({{operator}}=) shorthand."
         }
     },
 
@@ -96,7 +96,7 @@ module.exports = {
 
         /**
          * Ensures that an assignment uses the shorthand form where possible.
-         * @param   {ASTNode} node An AssignmentExpression node.
+         * @param {ASTNode} node An AssignmentExpression node.
          * @returns {void}
          */
         function verify(node) {
@@ -113,6 +113,7 @@ module.exports = {
                     context.report({
                         node,
                         messageId: "replaced",
+                        data: { operator },
                         fix(fixer) {
                             if (canBeFixed(left) && canBeFixed(expr.left)) {
                                 const equalsToken = getOperatorToken(node);
@@ -139,7 +140,8 @@ module.exports = {
                      */
                     context.report({
                         node,
-                        messageId: "replaced"
+                        messageId: "replaced",
+                        data: { operator }
                     });
                 }
             }
@@ -147,7 +149,7 @@ module.exports = {
 
         /**
          * Warns if an assignment expression uses operator assignment shorthand.
-         * @param   {ASTNode} node An AssignmentExpression node.
+         * @param {ASTNode} node An AssignmentExpression node.
          * @returns {void}
          */
         function prohibit(node) {
@@ -155,6 +157,7 @@ module.exports = {
                 context.report({
                     node,
                     messageId: "unexpected",
+                    data: { operator: node.operator },
                     fix(fixer) {
                         if (canBeFixed(node.left)) {
                             const firstToken = sourceCode.getFirstToken(node);

@@ -32,7 +32,7 @@ static uv_tcp_t client;
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
@@ -65,7 +65,7 @@ static void start_server(void) {
 
 
 static void connect_cb(uv_connect_t* req, int status) {
-  ASSERT(req != NULL);
+  ASSERT_NOT_NULL(req);
   ASSERT(status == 0);
   free(req);
   uv_close((uv_handle_t*)&client, close_cb);
@@ -79,7 +79,7 @@ static void client_connect(void) {
   int r;
 
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
-  ASSERT(connect_req != NULL);
+  ASSERT_NOT_NULL(connect_req);
 
   r = uv_tcp_init(uv_default_loop(), &client);
   ASSERT(r == 0);

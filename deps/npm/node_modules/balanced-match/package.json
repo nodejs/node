@@ -1,7 +1,7 @@
 {
   "name": "balanced-match",
   "description": "Match balanced character pairs, like \"{\" and \"}\"",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "repository": {
     "type": "git",
     "url": "git://github.com/juliangruber/balanced-match.git"
@@ -9,10 +9,9 @@
   "homepage": "https://github.com/juliangruber/balanced-match",
   "main": "index.js",
   "scripts": {
-    "test": "make test",
-    "bench": "make bench"
+    "test": "tape test/test.js",
+    "bench": "matcha test/bench.js"
   },
-  "dependencies": {},
   "devDependencies": {
     "matcha": "^0.7.0",
     "tape": "^4.6.0"

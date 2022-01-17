@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include "include/cppgc/internal/gc-info.h"
+#include "src/base/build_config.h"
 
 namespace cppgc {
 namespace internal {
@@ -20,6 +21,9 @@ constexpr size_t kKB = 1024;
 constexpr size_t kMB = kKB * 1024;
 constexpr size_t kGB = kMB * 1024;
 
+// AccessMode used for choosing between atomic and non-atomic accesses.
+enum class AccessMode : uint8_t { kNonAtomic, kAtomic };
+
 // See 6.7.6 (http://eel.is/c++draft/basic.align) for alignment restrictions. We
 // do not fully support all alignment restrictions (following
 // alignof(std​::​max_­align_­t)) but limit to alignof(double).
@@ -27,9 +31,11 @@ constexpr size_t kGB = kMB * 1024;
 // This means that any scalar type with stricter alignment requirements (in
 // practice: long double) cannot be used unrestricted in garbage-collected
 // objects.
-//
-// Note: We use the same allocation granularity on 32-bit and 64-bit systems.
+#if defined(V8_TARGET_ARCH_64_BIT)
 constexpr size_t kAllocationGranularity = 8;
+#else   // !V8_TARGET_ARCH_64_BIT
+constexpr size_t kAllocationGranularity = 4;
+#endif  // !V8_TARGET_ARCH_64_BIT
 constexpr size_t kAllocationMask = kAllocationGranularity - 1;
 
 constexpr size_t kPageSizeLog2 = 17;

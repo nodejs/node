@@ -15,13 +15,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow the use of `console`",
-            category: "Possible Errors",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-console"
         },

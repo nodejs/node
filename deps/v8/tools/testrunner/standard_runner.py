@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 # Adds testrunner to the path hence it has to be imported at the beggining.
-from . import base_runner
+import testrunner.base_runner as base_runner
 
 from testrunner.local import utils
 from testrunner.local.variants import ALL_VARIANTS
@@ -25,10 +25,9 @@ from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.seed import SeedProc
+from testrunner.testproc.sequence import SequenceProc
 from testrunner.testproc.variant import VariantProc
 
-
-ARCH_GUESS = utils.DefaultArch()
 
 VARIANTS = ['default']
 
@@ -48,7 +47,7 @@ VARIANT_ALIASES = {
   'exhaustive': MORE_VARIANTS + VARIANTS,
   # Additional variants, run on a subset of bots.
   'extra': ['nooptimization', 'future', 'no_wasm_traps', 'turboprop',
-            'instruction_scheduling'],
+            'instruction_scheduling', 'always_sparkplug'],
 }
 
 # Extra flags passed to all tests using the standard test runner.
@@ -58,7 +57,7 @@ GC_STRESS_FLAGS = ['--gc-interval=500', '--stress-compaction',
                    '--concurrent-recompilation-queue-length=64',
                    '--concurrent-recompilation-delay=500',
                    '--concurrent-recompilation',
-                   '--stress-flush-bytecode',
+                   '--stress-flush-code', '--flush-bytecode',
                    '--wasm-code-gc', '--stress-wasm-code-gc']
 
 RANDOM_GC_STRESS_FLAGS = ['--random-gc-interval=5000',
@@ -109,11 +108,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                       help='Regard pass|fail tests (run|skip|dontcare)')
     parser.add_option('--quickcheck', default=False, action='store_true',
                       help=('Quick check mode (skip slow tests)'))
-    parser.add_option('--dont-skip-slow-simulator-tests',
-                      help='Don\'t skip more slow tests when using a'
-                      ' simulator.',
-                      default=False, action='store_true',
-                      dest='dont_skip_simulator_slow_tests')
 
     # Stress modes
     parser.add_option('--gc-stress',
@@ -129,6 +123,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                            'generation.')
 
     # Extra features.
+    parser.add_option('--max-heavy-tests', default=1, type='int',
+                      help='Maximum number of heavy tests run in parallel')
     parser.add_option('--time', help='Print timing information after running',
                       default=False, action='store_true')
 
@@ -136,13 +132,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     parser.add_option('--cfi-vptr',
                       help='Run tests with UBSAN cfi_vptr option.',
                       default=False, action='store_true')
-    parser.add_option('--infra-staging', help='Use new test runner features',
-                      dest='infra_staging', default=None,
-                      action='store_true')
-    parser.add_option('--no-infra-staging',
-                      help='Opt out of new test runner features',
-                      dest='infra_staging', default=None,
-                      action='store_false')
     parser.add_option('--no-sorting', '--nosorting',
                       help='Don\'t sort tests according to duration of last'
                       ' run.',
@@ -282,21 +271,16 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     variables = (
         super(StandardTestRunner, self)._get_statusfile_variables(options))
 
-    simulator_run = (
-      not options.dont_skip_simulator_slow_tests and
-      self.build_config.arch in [
-        'arm64', 'arm', 'mipsel', 'mips', 'mips64', 'mips64el', 'ppc',
-        'ppc64', 's390', 's390x'] and
-      bool(ARCH_GUESS) and
-      self.build_config.arch != ARCH_GUESS)
-
     variables.update({
       'gc_stress': options.gc_stress or options.random_gc_stress,
       'gc_fuzzer': options.random_gc_stress,
       'novfp3': options.novfp3,
-      'simulator_run': simulator_run,
     })
     return variables
+
+  def _create_sequence_proc(self, options):
+    """Create processor for sequencing heavy tests on swarming."""
+    return SequenceProc(options.max_heavy_tests) if options.swarming else None
 
   def _do_execute(self, tests, args, options):
     jobs = options.j
@@ -322,6 +306,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       self._create_predictable_filter(),
       self._create_shard_proc(options),
       self._create_seed_proc(options),
+      self._create_sequence_proc(options),
       sigproc,
     ] + indicators + [
       results,

@@ -19,12 +19,21 @@
 #include <ostream>
 
 #if V8_OS_WIN
+#include <windows.h>
+
+// This has to come after windows.h.
+#include <mmsystem.h>  // For timeGetTime().
+
 #include "src/base/lazy-instance.h"
 #include "src/base/win32-headers.h"
 #endif
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+
+#if V8_OS_STARBOARD
+#include "starboard/time.h"
+#endif
 
 namespace {
 
@@ -65,19 +74,22 @@ int64_t ComputeThreadTicks() {
 V8_INLINE int64_t ClockNow(clockid_t clk_id) {
 #if (defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0) || \
   defined(V8_OS_BSD) || defined(V8_OS_ANDROID)
-// On AIX clock_gettime for CLOCK_THREAD_CPUTIME_ID outputs time with
-// resolution of 10ms. thread_cputime API provides the time in ns
 #if defined(V8_OS_AIX)
-  thread_cputime_t tc;
+  // On AIX clock_gettime for CLOCK_THREAD_CPUTIME_ID outputs time with
+  // resolution of 10ms. thread_cputime API provides the time in ns.
   if (clk_id == CLOCK_THREAD_CPUTIME_ID) {
 #if defined(__PASE__)  // CLOCK_THREAD_CPUTIME_ID clock not supported on IBMi
     return 0;
-#endif
+#else
+    thread_cputime_t tc;
     if (thread_cputime(-1, &tc) != 0) {
       UNREACHABLE();
     }
+    return (tc.stime / v8::base::Time::kNanosecondsPerMicrosecond)
+           + (tc.utime / v8::base::Time::kNanosecondsPerMicrosecond);
+#endif  // defined(__PASE__)
   }
-#endif
+#endif  // defined(V8_OS_AIX)
   struct timespec ts;
   if (clock_gettime(clk_id, &ts) != 0) {
     UNREACHABLE();
@@ -90,15 +102,7 @@ V8_INLINE int64_t ClockNow(clockid_t clk_id) {
       1;
   CHECK_GT(kSecondsLimit, ts.tv_sec);
   int64_t result = int64_t{ts.tv_sec} * v8::base::Time::kMicrosecondsPerSecond;
-#if defined(V8_OS_AIX)
-  if (clk_id == CLOCK_THREAD_CPUTIME_ID) {
-    result += (tc.stime / v8::base::Time::kNanosecondsPerMicrosecond);
-  } else {
-    result += (ts.tv_nsec / v8::base::Time::kNanosecondsPerMicrosecond);
-  }
-#else
   result += (ts.tv_nsec / v8::base::Time::kNanosecondsPerMicrosecond);
-#endif
   return result;
 #else  // Monotonic clock not supported.
   return 0;
@@ -449,7 +453,13 @@ struct timeval Time::ToTimeval() const {
   return tv;
 }
 
-#endif  // V8_OS_WIN
+#elif V8_OS_STARBOARD
+
+Time Time::Now() { return Time(SbTimeToPosix(SbTimeGetNow())); }
+
+Time Time::NowFromSystemTime() { return Now(); }
+
+#endif  // V8_OS_STARBOARD
 
 // static
 TimeTicks TimeTicks::HighResolutionNow() {
@@ -717,6 +727,8 @@ TimeTicks TimeTicks::Now() {
   ticks = (gethrtime() / Time::kNanosecondsPerMicrosecond);
 #elif V8_OS_POSIX
   ticks = ClockNow(CLOCK_MONOTONIC);
+#elif V8_OS_STARBOARD
+  ticks = SbTimeGetMonotonicNow();
 #else
 #error platform does not implement TimeTicks::HighResolutionNow.
 #endif  // V8_OS_MACOSX
@@ -740,7 +752,18 @@ bool TimeTicks::IsHighResolution() {
 
 
 bool ThreadTicks::IsSupported() {
-#if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
+#if V8_OS_STARBOARD
+#if SB_API_VERSION >= 12
+  return SbTimeIsTimeThreadNowSupported();
+#elif SB_HAS(TIME_THREAD_NOW)
+  return true;
+#else
+  return false;
+#endif
+#elif defined(__PASE__)
+  // Thread CPU time accounting is unavailable in PASE
+  return false;
+#elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     defined(V8_OS_MACOSX) || defined(V8_OS_ANDROID) || defined(V8_OS_SOLARIS)
   return true;
 #elif defined(V8_OS_WIN)
@@ -752,7 +775,17 @@ bool ThreadTicks::IsSupported() {
 
 
 ThreadTicks ThreadTicks::Now() {
-#if V8_OS_MACOSX
+#if V8_OS_STARBOARD
+#if SB_API_VERSION >= 12
+  if (SbTimeIsTimeThreadNowSupported())
+    return ThreadTicks(SbTimeGetMonotonicThreadNow());
+  UNREACHABLE();
+#elif SB_HAS(TIME_THREAD_NOW)
+  return ThreadTicks(SbTimeGetMonotonicThreadNow());
+#else
+  UNREACHABLE();
+#endif
+#elif V8_OS_MACOSX
   return ThreadTicks(ComputeThreadTicks());
 #elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
   defined(V8_OS_ANDROID)

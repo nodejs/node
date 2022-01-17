@@ -188,7 +188,7 @@ enum {
  * int32_t indexes[_NORM_INDEX_TOP];            -- _NORM_INDEX_TOP=32, see enum in this file
  *
  * UTrie normTrie;                              -- size in bytes=indexes[_NORM_INDEX_TRIE_SIZE]
- *
+ * 
  * uint16_t extraData[extraDataTop];            -- extraDataTop=indexes[_NORM_INDEX_UCHAR_COUNT]
  *                                                 extraData[0] contains the number of units for
  *                                                 FC_NFKC_Closure (formatVersion>=2.1)
@@ -418,7 +418,7 @@ enum {
  * The same bit is used for NFC and NFKC; (c) differs for them.
  * As usual, we build the "not skippable" flags so that unassigned
  * code points get a 0 bit.
- * This bit is only valid after (a)..(e) test FALSE; test NFD_NO before (f) as well.
+ * This bit is only valid after (a)..(e) test false; test NFD_NO before (f) as well.
  * Test Hangul LV syllables entirely in code.
  *
  *

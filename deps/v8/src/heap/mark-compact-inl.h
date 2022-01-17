@@ -67,21 +67,24 @@ void MarkCompactCollector::RecordSlot(HeapObject object, ObjectSlot slot,
 
 void MarkCompactCollector::RecordSlot(HeapObject object, HeapObjectSlot slot,
                                       HeapObject target) {
-  BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(target);
   MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
-  if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>() &&
-      !source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
-    RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(source_page,
-                                                          slot.address());
+  if (!source_page->ShouldSkipEvacuationSlotRecording()) {
+    RecordSlot(source_page, slot, target);
   }
 }
 
 void MarkCompactCollector::RecordSlot(MemoryChunk* source_page,
                                       HeapObjectSlot slot, HeapObject target) {
   BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(target);
-  if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>()) {
-    RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(source_page,
-                                                          slot.address());
+  if (target_page->IsEvacuationCandidate()) {
+    if (V8_EXTERNAL_CODE_SPACE_BOOL &&
+        target_page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+      RememberedSet<OLD_TO_CODE>::Insert<AccessMode::ATOMIC>(source_page,
+                                                             slot.address());
+    } else {
+      RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(source_page,
+                                                            slot.address());
+    }
   }
 }
 
@@ -124,20 +127,9 @@ void MainMarkingVisitor<MarkingState>::RecordRelocSlot(Code host,
   MarkCompactCollector::RecordRelocSlot(host, rinfo, target);
 }
 
-template <typename MarkingState>
-void MainMarkingVisitor<MarkingState>::MarkDescriptorArrayFromWriteBarrier(
-    HeapObject host, DescriptorArray descriptors,
-    int number_of_own_descriptors) {
-  // This is necessary because the Scavenger records slots only for the
-  // promoted black objects and the marking visitor of DescriptorArray skips
-  // the descriptors marked by the visitor.VisitDescriptors() below.
-  this->MarkDescriptorArrayBlack(host, descriptors);
-  this->VisitDescriptors(descriptors, number_of_own_descriptors);
-}
-
 template <LiveObjectIterationMode mode>
-LiveObjectRange<mode>::iterator::iterator(MemoryChunk* chunk, Bitmap* bitmap,
-                                          Address start)
+LiveObjectRange<mode>::iterator::iterator(const MemoryChunk* chunk,
+                                          Bitmap* bitmap, Address start)
     : chunk_(chunk),
       one_word_filler_map_(
           ReadOnlyRoots(chunk->heap()).one_pointer_filler_map()),
@@ -171,6 +163,7 @@ operator++(int) {
 
 template <LiveObjectIterationMode mode>
 void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
+  PtrComprCageBase cage_base(chunk_->heap()->isolate());
   while (!it_.Done()) {
     HeapObject object;
     int size = 0;
@@ -206,9 +199,10 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         // make sure that we skip all set bits in the black area until the
         // object ends.
         HeapObject black_object = HeapObject::FromAddress(addr);
-        Object map_object = ObjectSlot(addr).Acquire_Load();
-        CHECK(map_object.IsMap());
+        Object map_object = black_object.map(cage_base, kAcquireLoad);
+        CHECK(map_object.IsMap(cage_base));
         map = Map::cast(map_object);
+        DCHECK(map.IsMap(cage_base));
         size = black_object.SizeFromMap(map);
         CHECK_LE(addr + size, chunk_->area_end());
         Address end = addr + size - kTaggedSize;
@@ -236,10 +230,11 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
           object = black_object;
         }
       } else if ((mode == kGreyObjects || mode == kAllLiveObjects)) {
-        Object map_object = ObjectSlot(addr).Acquire_Load();
-        CHECK(map_object.IsMap());
-        map = Map::cast(map_object);
         object = HeapObject::FromAddress(addr);
+        Object map_object = object.map(cage_base, kAcquireLoad);
+        CHECK(map_object.IsMap(cage_base));
+        map = Map::cast(map_object);
+        DCHECK(map.IsMap(cage_base));
         size = object.SizeFromMap(map);
         CHECK_LE(addr + size, chunk_->area_end());
       }

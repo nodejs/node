@@ -23,7 +23,8 @@ const resultMap = new Map([
   ['binary', Buffer.from([102, 111, 111, 0, 0, 0, 0, 0, 0])],
   ['utf16le', Buffer.from([102, 0, 111, 0, 111, 0, 0, 0, 0])],
   ['base64', Buffer.from([102, 111, 111, 0, 0, 0, 0, 0, 0])],
-  ['hex', Buffer.from([102, 111, 111, 0, 0, 0, 0, 0, 0])]
+  ['base64url', Buffer.from([102, 111, 111, 0, 0, 0, 0, 0, 0])],
+  ['hex', Buffer.from([102, 111, 111, 0, 0, 0, 0, 0, 0])],
 ]);
 
 // utf8, ucs2, ascii, latin1, utf16le
@@ -44,7 +45,7 @@ encodings
   });
 
 // base64
-['base64', 'BASE64'].forEach((encoding) => {
+['base64', 'BASE64', 'base64url', 'BASE64URL'].forEach((encoding) => {
   const buf = Buffer.alloc(9);
   const len = Buffer.byteLength('Zm9v', encoding);
 

@@ -37,7 +37,7 @@ const options = {
 
 for (const { mod, createServer } of [
   { mod: http, createServer: http.createServer },
-  { mod: https, createServer: https.createServer.bind(null, options) }
+  { mod: https, createServer: https.createServer.bind(null, options) },
 ]) {
   const server = createServer(common.mustCall((req, res) => {
     assert.strictEqual(req.headers.host, hostExpect);

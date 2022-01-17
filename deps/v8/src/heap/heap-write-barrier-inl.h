@@ -23,6 +23,8 @@ namespace internal {
 
 // Defined in heap.cc.
 V8_EXPORT_PRIVATE bool Heap_PageFlagsAreConsistent(HeapObject object);
+V8_EXPORT_PRIVATE bool Heap_ValueMightRequireGenerationalWriteBarrier(
+    HeapObject value);
 V8_EXPORT_PRIVATE void Heap_GenerationalBarrierSlow(HeapObject object,
                                                     Address slot,
                                                     HeapObject value);
@@ -135,11 +137,16 @@ inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
 }
 
 inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
+                                Code value) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
+  DCHECK(!Heap_ValueMightRequireGenerationalWriteBarrier(value));
+}
+
+inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
                                 HeapObject value) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   DCHECK(!HasWeakHeapObjectTag(*slot));
-  heap_internals::GenerationalBarrierInternal(object, slot.address(),
-                                              HeapObject::cast(value));
+  heap_internals::GenerationalBarrierInternal(object, slot.address(), value);
 }
 
 inline void GenerationalEphemeronKeyBarrier(EphemeronHashTable table,
@@ -171,7 +178,7 @@ inline void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
 }
 
 inline WriteBarrierMode GetWriteBarrierModeForObject(
-    HeapObject object, const DisallowHeapAllocation* promise) {
+    HeapObject object, const DisallowGarbageCollection* promise) {
   if (FLAG_disable_write_barriers) return SKIP_WRITE_BARRIER;
   DCHECK(Heap_PageFlagsAreConsistent(object));
   heap_internals::MemoryChunk* chunk =
@@ -191,6 +198,7 @@ inline bool ObjectInYoungGeneration(Object object) {
 }
 
 inline bool IsReadOnlyHeapObject(HeapObject object) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return ReadOnlyHeap::Contains(object);
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   return chunk->InReadOnlySpace();
@@ -238,11 +246,11 @@ void WriteBarrier::Marking(JSArrayBuffer host,
   MarkingSlow(*heap, host, extension);
 }
 
-void WriteBarrier::Marking(Map host, DescriptorArray descriptor_array,
+void WriteBarrier::Marking(DescriptorArray descriptor_array,
                            int number_of_own_descriptors) {
-  auto heap = GetHeapIfMarking(host);
+  auto heap = GetHeapIfMarking(descriptor_array);
   if (!heap) return;
-  MarkingSlow(*heap, host, descriptor_array, number_of_own_descriptors);
+  MarkingSlow(*heap, descriptor_array, number_of_own_descriptors);
 }
 
 }  // namespace internal

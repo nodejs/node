@@ -29,6 +29,10 @@ EVP_PKEY_meth_remove
 
  #include <openssl/evp.h>
 
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
  typedef struct evp_pkey_method_st EVP_PKEY_METHOD;
 
  EVP_PKEY_METHOD *EVP_PKEY_meth_new(int id, int flags);
@@ -42,7 +46,7 @@ EVP_PKEY_meth_remove
                              int (*init) (EVP_PKEY_CTX *ctx));
  void EVP_PKEY_meth_set_copy(EVP_PKEY_METHOD *pmeth,
                              int (*copy) (EVP_PKEY_CTX *dst,
-                                          EVP_PKEY_CTX *src));
+                                          const EVP_PKEY_CTX *src));
  void EVP_PKEY_meth_set_cleanup(EVP_PKEY_METHOD *pmeth,
                                 void (*cleanup) (EVP_PKEY_CTX *ctx));
  void EVP_PKEY_meth_set_paramgen(EVP_PKEY_METHOD *pmeth,
@@ -216,13 +220,13 @@ EVP_PKEY_meth_remove
                              int (**pctrl_str) (EVP_PKEY_CTX *ctx,
                                                 const char *type,
                                                 const char *value));
- void EVP_PKEY_meth_get_digestsign(EVP_PKEY_METHOD *pmeth,
+ void EVP_PKEY_meth_get_digestsign(const EVP_PKEY_METHOD *pmeth,
                                    int (**digestsign) (EVP_MD_CTX *ctx,
                                                        unsigned char *sig,
                                                        size_t *siglen,
                                                        const unsigned char *tbs,
                                                        size_t tbslen));
- void EVP_PKEY_meth_get_digestverify(EVP_PKEY_METHOD *pmeth,
+ void EVP_PKEY_meth_get_digestverify(const EVP_PKEY_METHOD *pmeth,
                                      int (**digestverify) (EVP_MD_CTX *ctx,
                                                            const unsigned char *sig,
                                                            size_t siglen,
@@ -234,11 +238,14 @@ EVP_PKEY_meth_remove
                                      int (**pcheck) (EVP_PKEY *pkey));
  void EVP_PKEY_meth_get_param_check(const EVP_PKEY_METHOD *pmeth,
                                     int (**pcheck) (EVP_PKEY *pkey));
- void EVP_PKEY_meth_get_digest_custom(EVP_PKEY_METHOD *pmeth,
+ void EVP_PKEY_meth_get_digest_custom(const EVP_PKEY_METHOD *pmeth,
                                      int (**pdigest_custom) (EVP_PKEY_CTX *ctx,
                                                              EVP_MD_CTX *mctx));
 
 =head1 DESCRIPTION
+
+All of the functions described on this page are deprecated.
+Applications should instead use the OSSL_PROVIDER APIs.
 
 B<EVP_PKEY_METHOD> is a structure which holds a set of methods for a
 specific public key cryptographic algorithm. Those methods are usually
@@ -259,7 +266,7 @@ The methods are the underlying implementations of a particular public key
 algorithm present by the B<EVP_PKEY_CTX> object.
 
  int (*init) (EVP_PKEY_CTX *ctx);
- int (*copy) (EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src);
+ int (*copy) (EVP_PKEY_CTX *dst, const EVP_PKEY_CTX *src);
  void (*cleanup) (EVP_PKEY_CTX *ctx);
 
 The init() method is called to initialize algorithm-specific data when a new
@@ -440,11 +447,18 @@ All EVP_PKEY_meth_set and EVP_PKEY_meth_get functions have no return
 values. For the 'get' functions, function pointers are returned by
 arguments.
 
+=head1 HISTORY
+
+All of these functions were deprecated in OpenSSL 3.0.
+
+The signature of the I<copy> functional argument of EVP_PKEY_meth_set_copy()
+has changed in OpenSSL 3.0 so its I<src> parameter is now constified.
+
 =head1 COPYRIGHT
 
-Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

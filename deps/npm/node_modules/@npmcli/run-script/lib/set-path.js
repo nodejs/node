@@ -1,6 +1,8 @@
 const {resolve, dirname} = require('path')
 const isWindows = require('./is-windows.js')
-const nodeGypPath = resolve(__dirname, 'node-gyp-bin')
+// the path here is relative, even though it does not need to be
+// in order to make the posix tests pass in windows
+const nodeGypPath = resolve(__dirname, '../lib/node-gyp-bin')
 
 // Windows typically calls its PATH environ 'Path', but this is not
 // guaranteed, nor is it guaranteed to be the only one.  Merge them

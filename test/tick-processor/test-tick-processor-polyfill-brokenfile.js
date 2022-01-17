@@ -4,9 +4,6 @@ const { isCPPSymbolsNotMapped } = require('./util');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-if (!common.enoughTestCpu)
-  common.skip('test is CPU-intensive');
-
 if (isCPPSymbolsNotMapped) {
   common.skip('C++ symbols are not mapped for this OS.');
 }
@@ -37,7 +34,7 @@ const proc = spawn(process.execPath, [
   '--no_logfile_per_isolate',
   '--logfile=-',
   '--prof',
-  '-pe', code
+  '-pe', code,
 ], {
   stdio: ['ignore', 'pipe', 'inherit']
 });
@@ -53,10 +50,10 @@ function runPolyfill(content) {
   const child = spawnSync(
     `${process.execPath}`,
     [
-      '--prof-process', LOG_FILE
+      '--prof-process', LOG_FILE,
     ]);
-  assert(WARN_REG_EXP.test(child.stderr.toString()));
-  assert(WARN_DETAIL_REG_EXP.test(child.stderr.toString()));
+  assert.match(child.stderr.toString(), WARN_REG_EXP);
+  assert.match(child.stderr.toString(), WARN_DETAIL_REG_EXP);
   assert.strictEqual(child.status, 0);
 }
 

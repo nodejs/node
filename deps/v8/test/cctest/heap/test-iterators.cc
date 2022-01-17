@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8.h"
+#include "include/v8-object.h"
 #include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/combined-heap.h"
@@ -75,7 +75,7 @@ TEST(HeapObjectIterator) {
 
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    CHECK(!ReadOnlyHeap::Contains(obj));
+    CHECK_IMPLIES(!FLAG_enable_third_party_heap, !ReadOnlyHeap::Contains(obj));
     CHECK(CcTest::heap()->Contains(obj));
     if (sample_object == obj) seen_sample_object = true;
   }

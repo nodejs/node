@@ -51,17 +51,6 @@
         [ 'OS=="win"', {
           'sources': [ '<(V8_ROOT)/src/d8/d8-windows.cc', ]
         }],
-        [ 'component!="shared_library"', {
-          'conditions': [
-            [ 'v8_postmortem_support==1', {
-              'xcode_settings': {
-                'OTHER_LDFLAGS': [
-                   '-Wl,-force_load,<(PRODUCT_DIR)/libv8_base.a'
-                ],
-              },
-            }],
-          ],
-        }],
         ['v8_enable_i18n_support==1', {
           'dependencies': [
             '<(icu_gyp_path):icui18n',

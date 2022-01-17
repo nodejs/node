@@ -2,26 +2,39 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace string {
-macro TryFastStringCompareSequence(
-    string: String, searchStr: String, start: uintptr,
-    searchLength: uintptr): Boolean labels Slow {
-  const directString = Cast<DirectString>(string) otherwise Slow;
-  const directSearchStr = Cast<DirectString>(searchStr) otherwise Slow;
+// TODO(turbofan): This could be replaced with a fast C-call to
+// CompareCharsUnsigned.
+macro IsSubstringAt<A: type, B: type>(
+    string: ConstSlice<A>, searchStr: ConstSlice<B>, start: intptr): bool {
+  const subslice =
+      Subslice(string, start, searchStr.length) otherwise return false;
+  let stringIterator = subslice.Iterator();
+  let searchIterator = searchStr.Iterator();
 
-  let searchIndex: uintptr = 0;
-  let stringIndex: uintptr = start;
-
-  while (searchIndex < searchLength) {
-    if (StringCharCodeAt(directSearchStr, searchIndex) !=
-        StringCharCodeAt(directString, stringIndex)) {
-      return False;
+  while (true) {
+    const searchChar = searchIterator.Next() otherwise return true;
+    const stringChar = stringIterator.Next() otherwise unreachable;
+    if (searchChar != stringChar) {
+      return false;
     }
-
-    searchIndex++;
-    stringIndex++;
   }
-  return True;
+  VerifiedUnreachable();
+}
+
+struct IsSubstringAtFunctor {
+  start: intptr;
+}
+// Ideally, this would be a method of IsSubstringAtFunctor, but currently
+// methods don't support templates.
+macro Call<A: type, B: type>(
+    self: IsSubstringAtFunctor, string: ConstSlice<A>,
+    searchStr: ConstSlice<B>): bool {
+  return IsSubstringAt(string, searchStr, self.start);
+}
+
+macro IsSubstringAt(string: String, searchStr: String, start: intptr): bool {
+  return TwoStringsToSlices<bool>(
+      string, searchStr, IsSubstringAtFunctor{start: start});
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.endswith
@@ -58,23 +71,14 @@ transitioning javascript builtin StringPrototypeEndsWith(
   const searchLength: uintptr = searchStr.length_uintptr;
 
   // 10. Let start be end - searchLength.
-  const start: uintptr = end - searchLength;
+  const start = Signed(end - searchLength);
 
   // 11. If start is less than 0, return false.
-  if (Signed(start) < 0) return False;
+  if (start < 0) return False;
 
   // 12. If the sequence of code units of S starting at start of length
   // searchLength is the same as the full code unit sequence of searchStr,
   // return true.
   // 13. Otherwise, return false.
-  try {
-    // Fast Path: If both strings are direct and relevant indices are Smis.
-    return TryFastStringCompareSequence(string, searchStr, start, searchLength)
-        otherwise Slow;
-  } label Slow {
-    // Slow Path: If either of the string is indirect, bail into runtime.
-    return StringCompareSequence(
-        context, string, searchStr, Convert<Number>(start));
-  }
-}
+  return Convert<Boolean>(IsSubstringAt(string, searchStr, start));
 }

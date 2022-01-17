@@ -43,7 +43,7 @@
  */
 
 /**
- * Return the ICU data directory.
+ * Return the ICU data directory. 
  * The data directory is where common format ICU data files (.dat files)
  *   are loaded from.  Note that normal use of the built-in ICU
  *   facilities does not require loading of an external data file;
@@ -56,21 +56,21 @@
  *    If a data directory was specified at ICU build time
  *      <code>
  * \code
- *        #define ICU_DATA_DIR "path"
+ *        #define ICU_DATA_DIR "path" 
  * \endcode
  * </code> use that,
  *    otherwise no data directory is available.
  *
  * @return the data directory, or an empty string ("") if no data directory has
  *         been specified.
- *
+ *   
  * @stable ICU 2.0
  */
-U_STABLE const char* U_EXPORT2 u_getDataDirectory(void);
+U_CAPI const char* U_EXPORT2 u_getDataDirectory(void);
 
 
-/**
- * Set the ICU data directory.
+/** 
+ * Set the ICU data directory. 
  * The data directory is where common format ICU data files (.dat files)
  *   are loaded from.  Note that normal use of the built-in ICU
  *   facilities does not require loading of an external data file;
@@ -88,7 +88,7 @@ U_STABLE const char* U_EXPORT2 u_getDataDirectory(void);
  * @see u_init
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2 u_setDataDirectory(const char *directory);
+U_CAPI void U_EXPORT2 u_setDataDirectory(const char *directory);
 
 #ifndef U_HIDE_INTERNAL_API
 /**
@@ -98,8 +98,8 @@ U_STABLE void U_EXPORT2 u_setDataDirectory(const char *directory);
   *
   * @return the time zone data override directory.
   * @internal
-  */
-U_INTERNAL const char * U_EXPORT2 u_getTimeZoneFilesDirectory(UErrorCode *status);
+  */ 
+U_CAPI const char * U_EXPORT2 u_getTimeZoneFilesDirectory(UErrorCode *status);
 
 /**
   * Set the time zone files override directory.
@@ -109,7 +109,7 @@ U_INTERNAL const char * U_EXPORT2 u_getTimeZoneFilesDirectory(UErrorCode *status
   *   will access the time zone data.
   * @internal
   */
-U_INTERNAL void U_EXPORT2 u_setTimeZoneFilesDirectory(const char *path, UErrorCode *status);
+U_CAPI void U_EXPORT2 u_setTimeZoneFilesDirectory(const char *path, UErrorCode *status);
 #endif  /* U_HIDE_INTERNAL_API */
 
 
@@ -155,7 +155,7 @@ U_INTERNAL void U_EXPORT2 u_setTimeZoneFilesDirectory(const char *path, UErrorCo
  * @see U_CHARSET_FAMILY
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 u_charsToUChars(const char *cs, UChar *us, int32_t length);
 
 /**
@@ -177,7 +177,7 @@ u_charsToUChars(const char *cs, UChar *us, int32_t length);
  * @see U_CHARSET_FAMILY
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 u_UCharsToChars(const UChar *us, char *cs, int32_t length);
 
 #endif

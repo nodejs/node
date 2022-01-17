@@ -1,7 +1,10 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const url = require('url');
+
+if (!common.hasIntl)
+  common.skip('missing Intl');
 
 // Formatting tests to verify that it'll format slightly wonky content to a
 // valid URL.
@@ -147,6 +150,12 @@ const formatTests = {
     protocol: 'coap',
     host: '[fedc:ba98:7654:3210:fedc:ba98:7654:3210]:61616',
     pathname: '/s/stopButton'
+  },
+  'http://[::]/': {
+    href: 'http://[::]/',
+    protocol: 'http:',
+    hostname: '[::]',
+    pathname: '/'
   },
 
   // Encode context-specific delimiters in path and query, but do not touch

@@ -81,12 +81,22 @@ function negate(f) {
 }
 
 /**
+ * Checks if the given token is a PunctuatorToken with the given value
+ * @param {Token} token - The token to check.
+ * @param {string} value - The value to check.
+ * @returns {boolean} `true` if the token is a PunctuatorToken with the given value.
+ */
+function isPunctuatorTokenWithValue(token, value) {
+    return token.type === "Punctuator" && token.value === value
+}
+
+/**
  * Checks if the given token is an arrow token or not.
  * @param {Token} token - The token to check.
  * @returns {boolean} `true` if the token is an arrow token.
  */
 function isArrowToken(token) {
-    return token.value === "=>" && token.type === "Punctuator"
+    return isPunctuatorTokenWithValue(token, "=>")
 }
 
 /**
@@ -95,7 +105,7 @@ function isArrowToken(token) {
  * @returns {boolean} `true` if the token is a comma token.
  */
 function isCommaToken(token) {
-    return token.value === "," && token.type === "Punctuator"
+    return isPunctuatorTokenWithValue(token, ",")
 }
 
 /**
@@ -104,7 +114,7 @@ function isCommaToken(token) {
  * @returns {boolean} `true` if the token is a semicolon token.
  */
 function isSemicolonToken(token) {
-    return token.value === ";" && token.type === "Punctuator"
+    return isPunctuatorTokenWithValue(token, ";")
 }
 
 /**
@@ -113,7 +123,7 @@ function isSemicolonToken(token) {
  * @returns {boolean} `true` if the token is a colon token.
  */
 function isColonToken(token) {
-    return token.value === ":" && token.type === "Punctuator"
+    return isPunctuatorTokenWithValue(token, ":")
 }
 
 /**
@@ -122,7 +132,7 @@ function isColonToken(token) {
  * @returns {boolean} `true` if the token is an opening parenthesis token.
  */
 function isOpeningParenToken(token) {
-    return token.value === "(" && token.type === "Punctuator"
+    return isPunctuatorTokenWithValue(token, "(")
 }
 
 /**
@@ -131,7 +141,7 @@ function isOpeningParenToken(token) {
  * @returns {boolean} `true` if the token is a closing parenthesis token.
  */
 function isClosingParenToken(token) {
-    return token.value === ")" && token.type === "Punctuator"
+    return isPunctuatorTokenWithValue(token, ")")
 }
 
 /**
@@ -140,7 +150,7 @@ function isClosingParenToken(token) {
  * @returns {boolean} `true` if the token is an opening square bracket token.
  */
 function isOpeningBracketToken(token) {
-    return token.value === "[" && token.type === "Punctuator"
+    return isPunctuatorTokenWithValue(token, "[")
 }
 
 /**
@@ -149,7 +159,7 @@ function isOpeningBracketToken(token) {
  * @returns {boolean} `true` if the token is a closing square bracket token.
  */
 function isClosingBracketToken(token) {
-    return token.value === "]" && token.type === "Punctuator"
+    return isPunctuatorTokenWithValue(token, "]")
 }
 
 /**
@@ -158,7 +168,7 @@ function isClosingBracketToken(token) {
  * @returns {boolean} `true` if the token is an opening brace token.
  */
 function isOpeningBraceToken(token) {
-    return token.value === "{" && token.type === "Punctuator"
+    return isPunctuatorTokenWithValue(token, "{")
 }
 
 /**
@@ -167,7 +177,7 @@ function isOpeningBraceToken(token) {
  * @returns {boolean} `true` if the token is a closing brace token.
  */
 function isClosingBraceToken(token) {
-    return token.value === "}" && token.type === "Punctuator"
+    return isPunctuatorTokenWithValue(token, "}")
 }
 
 /**
@@ -176,11 +186,7 @@ function isClosingBraceToken(token) {
  * @returns {boolean} `true` if the token is a comment token.
  */
 function isCommentToken(token) {
-    return (
-        token.type === "Line" ||
-        token.type === "Block" ||
-        token.type === "Shebang"
-    )
+    return ["Block", "Line", "Shebang"].includes(token.type)
 }
 
 const isNotArrowToken = negate(isArrowToken);
@@ -225,7 +231,8 @@ function getFunctionHeadLocation(node, sourceCode) {
         end = arrowToken.loc.end;
     } else if (
         parent.type === "Property" ||
-        parent.type === "MethodDefinition"
+        parent.type === "MethodDefinition" ||
+        parent.type === "PropertyDefinition"
     ) {
         start = parent.loc.start;
         end = getOpeningParenOfParams(node, sourceCode).loc.start;
@@ -235,12 +242,12 @@ function getFunctionHeadLocation(node, sourceCode) {
     }
 
     return {
-        start: Object.assign({}, start),
-        end: Object.assign({}, end),
+        start: { ...start },
+        end: { ...end },
     }
 }
 
-/* globals BigInt, globalThis, global, self, window */
+/* globals globalThis, global, self, window */
 
 const globalObject =
     typeof globalThis !== "undefined"
@@ -301,7 +308,7 @@ const builtinNames = Object.freeze(
         "unescape",
         "WeakMap",
         "WeakSet",
-    ])
+    ]),
 );
 const callAllowed = new Set(
     [
@@ -319,8 +326,8 @@ const callAllowed = new Set(
         isNaN,
         isPrototypeOf,
         ...Object.getOwnPropertyNames(Math)
-            .map(k => Math[k])
-            .filter(f => typeof f === "function"),
+            .map((k) => Math[k])
+            .filter((f) => typeof f === "function"),
         Number,
         Number.isFinite,
         Number.isNaN,
@@ -341,11 +348,10 @@ const callAllowed = new Set(
         String.fromCharCode,
         String.fromCodePoint,
         String.raw,
-        Symbol,
         Symbol.for,
         Symbol.keyFor,
         unescape,
-    ].filter(f => typeof f === "function")
+    ].filter((f) => typeof f === "function"),
 );
 const callPassThrough = new Set([
     Object.freeze,
@@ -490,6 +496,9 @@ const operations = Object.freeze({
 
         if (args != null) {
             if (calleeNode.type === "MemberExpression") {
+                if (calleeNode.property.type === "PrivateIdentifier") {
+                    return null
+                }
                 const object = getStaticValueR(calleeNode.object, initialScope);
                 if (object != null) {
                     if (
@@ -498,9 +507,10 @@ const operations = Object.freeze({
                     ) {
                         return { value: undefined, optional: true }
                     }
-                    const property = calleeNode.computed
-                        ? getStaticValueR(calleeNode.property, initialScope)
-                        : { value: calleeNode.property.name };
+                    const property = getStaticPropertyNameValue(
+                        calleeNode,
+                        initialScope,
+                    );
 
                     if (property != null) {
                         const receiver = object.value;
@@ -607,14 +617,15 @@ const operations = Object.freeze({
     },
 
     MemberExpression(node, initialScope) {
+        if (node.property.type === "PrivateIdentifier") {
+            return null
+        }
         const object = getStaticValueR(node.object, initialScope);
         if (object != null) {
             if (object.value == null && (object.optional || node.optional)) {
                 return { value: undefined, optional: true }
             }
-            const property = node.computed
-                ? getStaticValueR(node.property, initialScope)
-                : { value: node.property.name };
+            const property = getStaticPropertyNameValue(node, initialScope);
 
             if (property != null && !isGetter(object.value, property.value)) {
                 return { value: object.value[property.value] }
@@ -653,9 +664,10 @@ const operations = Object.freeze({
                 if (propertyNode.kind !== "init") {
                     return null
                 }
-                const key = propertyNode.computed
-                    ? getStaticValueR(propertyNode.key, initialScope)
-                    : { value: propertyNode.key.name };
+                const key = getStaticPropertyNameValue(
+                    propertyNode,
+                    initialScope,
+                );
                 const value = getStaticValueR(propertyNode.value, initialScope);
                 if (key == null || value == null) {
                     return null
@@ -667,7 +679,7 @@ const operations = Object.freeze({
             ) {
                 const argument = getStaticValueR(
                     propertyNode.argument,
-                    initialScope
+                    initialScope,
                 );
                 if (argument == null) {
                     return null
@@ -690,13 +702,13 @@ const operations = Object.freeze({
         const tag = getStaticValueR(node.tag, initialScope);
         const expressions = getElementValues(
             node.quasi.expressions,
-            initialScope
+            initialScope,
         );
 
         if (tag != null && expressions != null) {
             const func = tag.value;
-            const strings = node.quasi.quasis.map(q => q.value.cooked);
-            strings.raw = node.quasi.quasis.map(q => q.value.raw);
+            const strings = node.quasi.quasis.map((q) => q.value.cooked);
+            strings.raw = node.quasi.quasis.map((q) => q.value.raw);
 
             if (func === String.raw) {
                 return { value: func(strings, ...expressions) }
@@ -764,6 +776,33 @@ function getStaticValueR(node, initialScope) {
 }
 
 /**
+ * Get the static value of property name from a MemberExpression node or a Property node.
+ * @param {Node} node The node to get.
+ * @param {Scope} [initialScope] The scope to start finding variable. Optional. If the node is a computed property node and this scope was given, this checks the computed property name by the `getStringIfConstant` function with the scope, and returns the value of it.
+ * @returns {{value:any}|{value:undefined,optional?:true}|null} The static value of the property name of the node, or `null`.
+ */
+function getStaticPropertyNameValue(node, initialScope) {
+    const nameNode = node.type === "Property" ? node.key : node.property;
+
+    if (node.computed) {
+        return getStaticValueR(nameNode, initialScope)
+    }
+
+    if (nameNode.type === "Identifier") {
+        return { value: nameNode.name }
+    }
+
+    if (nameNode.type === "Literal") {
+        if (nameNode.bigint) {
+            return { value: nameNode.bigint }
+        }
+        return { value: String(nameNode.value) }
+    }
+
+    return null
+}
+
+/**
  * Get the value of a given node if it's a static value.
  * @param {Node} node The node to get.
  * @param {Scope} [initialScope] The scope to start finding variable. Optional. If this scope was given, this tries to resolve identifier references which are in the given node as much as possible.
@@ -810,15 +849,22 @@ function getPropertyName(node, initialScope) {
             if (node.computed) {
                 return getStringIfConstant(node.property, initialScope)
             }
+            if (node.property.type === "PrivateIdentifier") {
+                return null
+            }
             return node.property.name
 
         case "Property":
         case "MethodDefinition":
+        case "PropertyDefinition":
             if (node.computed) {
                 return getStringIfConstant(node.key, initialScope)
             }
             if (node.key.type === "Literal") {
                 return String(node.key.value)
+            }
+            if (node.key.type === "PrivateIdentifier") {
+                return null
             }
             return node.key.name
 
@@ -831,14 +877,27 @@ function getPropertyName(node, initialScope) {
 /**
  * Get the name and kind of the given function node.
  * @param {ASTNode} node - The function node to get.
+ * @param {SourceCode} [sourceCode] The source code object to get the code of computed property keys.
  * @returns {string} The name and kind of the function node.
  */
-function getFunctionNameWithKind(node) {
+// eslint-disable-next-line complexity
+function getFunctionNameWithKind(node, sourceCode) {
     const parent = node.parent;
     const tokens = [];
+    const isObjectMethod = parent.type === "Property" && parent.value === node;
+    const isClassMethod =
+        parent.type === "MethodDefinition" && parent.value === node;
+    const isClassFieldMethod =
+        parent.type === "PropertyDefinition" && parent.value === node;
 
-    if (parent.type === "MethodDefinition" && parent.static) {
-        tokens.push("static");
+    // Modifiers.
+    if (isClassMethod || isClassFieldMethod) {
+        if (parent.static) {
+            tokens.push("static");
+        }
+        if (parent.key.type === "PrivateIdentifier") {
+            tokens.push("private");
+        }
     }
     if (node.async) {
         tokens.push("async");
@@ -847,12 +906,8 @@ function getFunctionNameWithKind(node) {
         tokens.push("generator");
     }
 
-    if (node.type === "ArrowFunctionExpression") {
-        tokens.push("arrow", "function");
-    } else if (
-        parent.type === "Property" ||
-        parent.type === "MethodDefinition"
-    ) {
+    // Kinds.
+    if (isObjectMethod || isClassMethod) {
         if (parent.kind === "constructor") {
             return "constructor"
         }
@@ -863,35 +918,45 @@ function getFunctionNameWithKind(node) {
         } else {
             tokens.push("method");
         }
+    } else if (isClassFieldMethod) {
+        tokens.push("method");
     } else {
+        if (node.type === "ArrowFunctionExpression") {
+            tokens.push("arrow");
+        }
         tokens.push("function");
     }
 
-    if (node.id) {
+    // Names.
+    if (isObjectMethod || isClassMethod || isClassFieldMethod) {
+        if (parent.key.type === "PrivateIdentifier") {
+            tokens.push(`#${parent.key.name}`);
+        } else {
+            const name = getPropertyName(parent);
+            if (name) {
+                tokens.push(`'${name}'`);
+            } else if (sourceCode) {
+                const keyText = sourceCode.getText(parent.key);
+                if (!keyText.includes("\n")) {
+                    tokens.push(`[${keyText}]`);
+                }
+            }
+        }
+    } else if (node.id) {
         tokens.push(`'${node.id.name}'`);
-    } else {
-        const name = getPropertyName(parent);
-
-        if (name) {
-            tokens.push(`'${name}'`);
-        }
-    }
-
-    if (node.type === "ArrowFunctionExpression") {
-        if (
-            parent.type === "VariableDeclarator" &&
-            parent.id &&
-            parent.id.type === "Identifier"
-        ) {
-            tokens.push(`'${parent.id.name}'`);
-        }
-        if (
-            parent.type === "AssignmentExpression" &&
-            parent.left &&
-            parent.left.type === "Identifier"
-        ) {
-            tokens.push(`'${parent.left.name}'`);
-        }
+    } else if (
+        parent.type === "VariableDeclarator" &&
+        parent.id &&
+        parent.id.type === "Identifier"
+    ) {
+        tokens.push(`'${parent.id.name}'`);
+    } else if (
+        (parent.type === "AssignmentExpression" ||
+            parent.type === "AssignmentPattern") &&
+        parent.left &&
+        parent.left.type === "Identifier"
+    ) {
+        tokens.push(`'${parent.left.name}'`);
     }
 
     return tokens.join(" ")
@@ -917,7 +982,7 @@ const typeConversionBinaryOps = Object.freeze(
         "^",
         "&",
         "in",
-    ])
+    ]),
 );
 const typeConversionUnaryOps = Object.freeze(new Set(["-", "+", "!", "~"]));
 
@@ -1032,6 +1097,16 @@ const visitor = Object.freeze(
             }
             return this.$visitChildren(node, options, visitorKeys)
         },
+        PropertyDefinition(node, options, visitorKeys) {
+            if (
+                options.considerImplicitTypeConversion &&
+                node.computed &&
+                node.key.type !== "Literal"
+            ) {
+                return true
+            }
+            return this.$visitChildren(node, options, visitorKeys)
+        },
         UnaryExpression(node, options, visitorKeys) {
             if (node.operator === "delete") {
                 return true
@@ -1051,7 +1126,7 @@ const visitor = Object.freeze(
         YieldExpression() {
             return true
         },
-    })
+    }),
 );
 
 /**
@@ -1067,12 +1142,12 @@ const visitor = Object.freeze(
 function hasSideEffect(
     node,
     sourceCode,
-    { considerGetters = false, considerImplicitTypeConversion = false } = {}
+    { considerGetters = false, considerImplicitTypeConversion = false } = {},
 ) {
     return visitor.$visit(
         node,
         { considerGetters, considerImplicitTypeConversion },
-        sourceCode.visitorKeys || evk.KEYS
+        sourceCode.visitorKeys || evk.KEYS,
     )
 }
 
@@ -1092,7 +1167,7 @@ function getParentSyntaxParen(node, sourceCode) {
             if (parent.arguments.length === 1 && parent.arguments[0] === node) {
                 return sourceCode.getTokenAfter(
                     parent.callee,
-                    isOpeningParenToken
+                    isOpeningParenToken,
                 )
             }
             return null
@@ -1101,7 +1176,7 @@ function getParentSyntaxParen(node, sourceCode) {
             if (parent.test === node) {
                 return sourceCode.getTokenAfter(
                     parent.body,
-                    isOpeningParenToken
+                    isOpeningParenToken,
                 )
             }
             return null
@@ -1152,7 +1227,7 @@ function getParentSyntaxParen(node, sourceCode) {
 function isParenthesized(
     timesOrNode,
     nodeOrSourceCode,
-    optionalSourceCode
+    optionalSourceCode,
 ) {
     let times, node, sourceCode, maybeLeftParen, maybeRightParen;
     if (typeof timesOrNode === "number") {
@@ -1168,7 +1243,11 @@ function isParenthesized(
         sourceCode = nodeOrSourceCode;
     }
 
-    if (node == null) {
+    if (
+        node == null ||
+        // `CatchClause.param` can't be parenthesized, example `try {} catch (error) {}`
+        (node.parent.type === "CatchClause" && node.parent.param === node)
+    ) {
         return false
     }
 
@@ -1368,7 +1447,7 @@ function isModifiedGlobal(variable) {
     return (
         variable == null ||
         variable.defs.length !== 0 ||
-        variable.references.some(r => r.isWrite())
+        variable.references.some((r) => r.isWrite())
     )
 }
 
@@ -1412,7 +1491,7 @@ class ReferenceTracker {
         {
             mode = "strict",
             globalObjectNames = ["global", "globalThis", "self", "window"],
-        } = {}
+        } = {},
     ) {
         this.variableStack = [];
         this.globalScope = globalScope;
@@ -1439,7 +1518,7 @@ class ReferenceTracker {
                 variable,
                 path,
                 nextTraceMap,
-                true
+                true,
             );
         }
 
@@ -1455,7 +1534,7 @@ class ReferenceTracker {
                 variable,
                 path,
                 traceMap,
-                false
+                false,
             );
         }
     }
@@ -1532,11 +1611,8 @@ class ReferenceTracker {
                         esm
                             ? nextTraceMap
                             : this.mode === "legacy"
-                            ? Object.assign(
-                                  { default: nextTraceMap },
-                                  nextTraceMap
-                              )
-                            : { default: nextTraceMap }
+                            ? { default: nextTraceMap, ...nextTraceMap }
+                            : { default: nextTraceMap },
                     );
 
                     if (esm) {
@@ -1622,7 +1698,7 @@ class ReferenceTracker {
                 yield* this._iteratePropertyReferences(
                     parent,
                     path,
-                    nextTraceMap
+                    nextTraceMap,
                 );
             }
             return
@@ -1679,7 +1755,7 @@ class ReferenceTracker {
                     variable,
                     path,
                     traceMap,
-                    false
+                    false,
                 );
             }
             return
@@ -1705,7 +1781,7 @@ class ReferenceTracker {
                 yield* this._iterateLhsReferences(
                     property.value,
                     nextPath,
-                    nextTraceMap
+                    nextTraceMap,
                 );
             }
             return
@@ -1748,7 +1824,7 @@ class ReferenceTracker {
                 findVariable(this.globalScope, specifierNode.local),
                 path,
                 nextTraceMap,
-                false
+                false,
             );
 
             return
@@ -1759,7 +1835,7 @@ class ReferenceTracker {
                 findVariable(this.globalScope, specifierNode.local),
                 path,
                 traceMap,
-                false
+                false,
             );
             return
         }

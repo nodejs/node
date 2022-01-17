@@ -36,12 +36,12 @@ public:
     void parseRules(UnicodeString& rules, UErrorCode& status);
     void setNonNumericalRule(NFRule *rule);
     void setBestFractionRule(int32_t originalIndex, NFRule *newRule, UBool rememberRule);
-    void makeIntoFractionRuleSet() { fIsFractionRuleSet = TRUE; }
+    void makeIntoFractionRuleSet() { fIsFractionRuleSet = true; }
 
     ~NFRuleSet();
 
-    UBool operator==(const NFRuleSet& rhs) const;
-    UBool operator!=(const NFRuleSet& rhs) const { return !operator==(rhs); }
+    bool operator==(const NFRuleSet& rhs) const;
+    bool operator!=(const NFRuleSet& rhs) const { return !operator==(rhs); }
 
     UBool isPublic() const { return fIsPublic; }
 
@@ -66,7 +66,7 @@ private:
     const NFRule * findNormalRule(int64_t number) const;
     const NFRule * findDoubleRule(double number) const;
     const NFRule * findFractionRuleSetRule(double number) const;
-
+    
     friend class NFSubstitution;
 
 private:
@@ -93,11 +93,11 @@ int64_t util64_fromDouble(double d);
 uint64_t util64_pow(uint32_t radix, uint16_t exponent);
 
 // convert n to digit string in buffer, return length of string
-uint32_t util64_tou(int64_t n, UChar* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = FALSE);
+uint32_t util64_tou(int64_t n, UChar* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = false);
 
 #ifdef RBNF_DEBUG
 int64_t util64_utoi(const UChar* str, uint32_t radix = 10);
-uint32_t util64_toa(int64_t n, char* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = FALSE);
+uint32_t util64_toa(int64_t n, char* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = false);
 int64_t util64_atoi(const char* str, uint32_t radix);
 #endif
 

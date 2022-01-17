@@ -17,7 +17,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segments.h"
-#include "src/objects/managed.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "unicode/brkiter.h"
 
@@ -46,15 +46,23 @@ MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
   Handle<Managed<icu::BreakIterator>> managed_break_iterator =
       Managed<icu::BreakIterator>::FromRawPtr(isolate, 0, break_iterator);
 
+  icu::UnicodeString* string = new icu::UnicodeString();
+  break_iterator->getText().getText(*string);
+  Handle<Managed<icu::UnicodeString>> unicode_string =
+      Managed<icu::UnicodeString>::FromRawPtr(isolate, 0, string);
+
+  break_iterator->setText(*string);
+
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Handle<JSSegmentIterator> segment_iterator =
       Handle<JSSegmentIterator>::cast(result);
 
   segment_iterator->set_flags(0);
   segment_iterator->set_granularity(granularity);
   segment_iterator->set_icu_break_iterator(*managed_break_iterator);
+  segment_iterator->set_unicode_string(*unicode_string);
 
   return segment_iterator;
 }

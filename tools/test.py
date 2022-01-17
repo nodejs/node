@@ -375,7 +375,10 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
       if output.diagnostic:
         self.severity = 'ok'
-        self.traceback = output.diagnostic
+        if isinstance(output.diagnostic, list):
+          self.traceback = '\n'.join(output.diagnostic)
+        else:
+          self.traceback = output.diagnostic
 
 
     duration = output.test.duration
@@ -574,7 +577,7 @@ class TestCase(object):
     full_command = self.context.processor(command)
     output = Execute(full_command,
                      self.context,
-                     self.context.GetTimeout(self.mode),
+                     self.context.GetTimeout(self.mode, self.config.section),
                      env,
                      disable_core_files = self.disable_core_files)
     return TestOutput(self,
@@ -893,8 +896,7 @@ class LiteralTestSuite(TestSuite):
 
 
 TIMEOUT_SCALEFACTOR = {
-    'armv6' : { 'debug' : 12, 'release' : 3 },  # The ARM buildbots are slow.
-    'arm'   : { 'debug' :  8, 'release' : 2 },
+    'arm'   : { 'debug' :  8, 'release' : 2 }, # The ARM buildbots are slow.
     'ia32'  : { 'debug' :  4, 'release' : 1 },
     'ppc'   : { 'debug' :  4, 'release' : 1 },
     's390'  : { 'debug' :  4, 'release' : 1 } }
@@ -940,8 +942,11 @@ class Context(object):
 
     return name
 
-  def GetTimeout(self, mode):
-    return self.timeout * TIMEOUT_SCALEFACTOR[ARCH_GUESS or 'ia32'][mode]
+  def GetTimeout(self, mode, section=''):
+    timeout = self.timeout * TIMEOUT_SCALEFACTOR[ARCH_GUESS or 'ia32'][mode]
+    if section == 'pummel' or section == 'benchmark':
+      timeout = timeout * 6
+    return timeout
 
 def RunTestCases(cases_to_run, progress, tasks, flaky_tests_mode):
   progress = PROGRESS_INDICATORS[progress](cases_to_run, flaky_tests_mode)
@@ -1357,9 +1362,9 @@ def BuildOptions():
       default="")
   result.add_option("--warn-unused", help="Report unused rules",
       default=False, action="store_true")
-  result.add_option("-j", help="The number of parallel tasks to run",
-      default=1, type="int")
-  result.add_option("-J", help="Run tasks in parallel on all cores",
+  result.add_option("-j", help="The number of parallel tasks to run, 0=use number of cores",
+      default=0, type="int")
+  result.add_option("-J", help="For legacy compatibility, has no effect",
       default=False, action="store_true")
   result.add_option("--time", help="Print timing information after running",
       default=False, action="store_true")
@@ -1418,11 +1423,16 @@ def ProcessOptions(options):
     if options.run[0] >= options.run[1]:
       print("The test group to run (n) must be smaller than number of groups (m).")
       return False
-  if options.J:
+  if options.j == 0:
     # inherit JOBS from environment if provided. some virtualised systems
     # tends to exaggerate the number of available cpus/cores.
     cores = os.environ.get('JOBS')
     options.j = int(cores) if cores is not None else multiprocessing.cpu_count()
+  elif options.J:
+    # If someone uses -j and legacy -J, let them know that we will be respecting
+    # -j and ignoring -J, which is the opposite of what we used to do before -J
+    # became a legacy no-op.
+    print('Warning: Legacy -J option is ignored. Using the -j option.')
   if options.flaky_tests not in [RUN, SKIP, DONTCARE]:
     print("Unknown flaky-tests mode %s" % options.flaky_tests)
     return False

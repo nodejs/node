@@ -36,7 +36,7 @@ if (cluster.isWorker) {
   });
 
   assert.strictEqual(result, true);
-} else if (cluster.isMaster) {
+} else if (cluster.isPrimary) {
 
   const checks = {
     using: false,

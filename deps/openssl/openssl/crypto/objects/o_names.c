@@ -1,7 +1,7 @@
 /*
- * Copyright 1998-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -66,10 +66,14 @@ static int obj_name_cmp(const OBJ_NAME *a, const OBJ_NAME *b);
 static CRYPTO_ONCE init = CRYPTO_ONCE_STATIC_INIT;
 DEFINE_RUN_ONCE_STATIC(o_names_init)
 {
-    CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_DISABLE);
-    names_lh = lh_OBJ_NAME_new(obj_name_hash, obj_name_cmp);
+    names_lh = NULL;
     obj_lock = CRYPTO_THREAD_lock_new();
-    CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ENABLE);
+    if (obj_lock != NULL)
+        names_lh = lh_OBJ_NAME_new(obj_name_hash, obj_name_cmp);
+    if (names_lh == NULL) {
+        CRYPTO_THREAD_lock_free(obj_lock);
+        obj_lock = NULL;
+    }
     return names_lh != NULL && obj_lock != NULL;
 }
 
@@ -88,13 +92,11 @@ int OBJ_NAME_new_index(unsigned long (*hash_func) (const char *),
     if (!OBJ_NAME_init())
         return 0;
 
-    CRYPTO_THREAD_write_lock(obj_lock);
+    if (!CRYPTO_THREAD_write_lock(obj_lock))
+        return 0;
 
-    if (name_funcs_stack == NULL) {
-        CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_DISABLE);
+    if (name_funcs_stack == NULL)
         name_funcs_stack = sk_NAME_FUNCS_new_null();
-        CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ENABLE);
-    }
     if (name_funcs_stack == NULL) {
         /* ERROR */
         goto out;
@@ -102,23 +104,18 @@ int OBJ_NAME_new_index(unsigned long (*hash_func) (const char *),
     ret = names_type_num;
     names_type_num++;
     for (i = sk_NAME_FUNCS_num(name_funcs_stack); i < names_type_num; i++) {
-        CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_DISABLE);
         name_funcs = OPENSSL_zalloc(sizeof(*name_funcs));
-        CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ENABLE);
         if (name_funcs == NULL) {
-            OBJerr(OBJ_F_OBJ_NAME_NEW_INDEX, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_OBJ, ERR_R_MALLOC_FAILURE);
             ret = 0;
             goto out;
         }
-        name_funcs->hash_func = openssl_lh_strcasehash;
+        name_funcs->hash_func = ossl_lh_strcasehash;
         name_funcs->cmp_func = obj_strcasecmp;
-        CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_DISABLE);
-
         push = sk_NAME_FUNCS_push(name_funcs_stack, name_funcs);
-        CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ENABLE);
 
         if (!push) {
-            OBJerr(OBJ_F_OBJ_NAME_NEW_INDEX, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_OBJ, ERR_R_MALLOC_FAILURE);
             OPENSSL_free(name_funcs);
             ret = 0;
             goto out;
@@ -163,7 +160,7 @@ static unsigned long obj_name_hash(const OBJ_NAME *a)
             sk_NAME_FUNCS_value(name_funcs_stack,
                                 a->type)->hash_func(a->name);
     } else {
-        ret = openssl_lh_strcasehash(a->name);
+        ret = ossl_lh_strcasehash(a->name);
     }
     ret ^= a->type;
     return ret;
@@ -179,7 +176,8 @@ const char *OBJ_NAME_get(const char *name, int type)
         return NULL;
     if (!OBJ_NAME_init())
         return NULL;
-    CRYPTO_THREAD_read_lock(obj_lock);
+    if (!CRYPTO_THREAD_read_lock(obj_lock))
+        return NULL;
 
     alias = type & OBJ_NAME_ALIAS;
     type &= ~OBJ_NAME_ALIAS;
@@ -217,17 +215,18 @@ int OBJ_NAME_add(const char *name, int type, const char *data)
     type &= ~OBJ_NAME_ALIAS;
 
     onp = OPENSSL_malloc(sizeof(*onp));
-    if (onp == NULL) {
-        /* ERROR */
-        goto unlock;
-    }
+    if (onp == NULL)
+        return 0;
 
     onp->name = name;
     onp->alias = alias;
     onp->type = type;
     onp->data = data;
 
-    CRYPTO_THREAD_write_lock(obj_lock);
+    if (!CRYPTO_THREAD_write_lock(obj_lock)) {
+        OPENSSL_free(onp);
+        return 0;
+    }
 
     ret = lh_OBJ_NAME_insert(names_lh, onp);
     if (ret != NULL) {
@@ -266,7 +265,8 @@ int OBJ_NAME_remove(const char *name, int type)
     if (!OBJ_NAME_init())
         return 0;
 
-    CRYPTO_THREAD_write_lock(obj_lock);
+    if (!CRYPTO_THREAD_write_lock(obj_lock))
+        return 0;
 
     type &= ~OBJ_NAME_ALIAS;
     on.name = name;

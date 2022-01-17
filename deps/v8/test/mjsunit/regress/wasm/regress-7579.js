@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 // Generate function 1 (out of 2).
@@ -49,7 +49,7 @@ assertEquals(1, instance.exports.main());
 
 const builder2 = new WasmModuleBuilder();
 sig0 = makeSig([], [kWasmI32]);
-builder2.addFunction(undefined, sig0).addLocals({i64_count: 1}).addBody([
+builder2.addFunction(undefined, sig0).addLocals(kWasmI64, 1).addBody([
   kExprLoop, kWasmI32,     // loop i32
   kExprLocalGet, 0,        // get_local 3
   kExprF32SConvertI64,     // f32.sconvert/i64

@@ -10,7 +10,7 @@ const domain = require('domain');
 const d = new domain.Domain();
 
 const values = [
-  42, null, undefined, false, () => {}, 'string', Symbol('foo')
+  42, null, undefined, false, () => {}, 'string', Symbol('foo'),
 ];
 
 d.on('error', common.mustCall((err) => {

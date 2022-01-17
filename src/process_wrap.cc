@@ -54,18 +54,13 @@ class ProcessWrap : public HandleWrap {
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(
         ProcessWrap::kInternalFieldCount);
-    Local<String> processString =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "Process");
-    constructor->SetClassName(processString);
 
     constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
     env->SetProtoMethod(constructor, "spawn", Spawn);
     env->SetProtoMethod(constructor, "kill", Kill);
 
-    target->Set(env->context(),
-                processString,
-                constructor->GetFunction(context).ToLocalChecked()).Check();
+    env->SetConstructorFunction(target, "Process", constructor);
   }
 
   SET_NO_MEMORY_INFO()
@@ -124,6 +119,11 @@ class ProcessWrap : public HandleWrap {
       } else if (type->StrictEquals(env->pipe_string())) {
         options->stdio[i].flags = static_cast<uv_stdio_flags>(
             UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE);
+        options->stdio[i].data.stream = StreamForWrap(env, stdio);
+      } else if (type->StrictEquals(env->overlapped_string())) {
+        options->stdio[i].flags = static_cast<uv_stdio_flags>(
+            UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE |
+            UV_OVERLAPPED_PIPE);
         options->stdio[i].data.stream = StreamForWrap(env, stdio);
       } else if (type->StrictEquals(env->wrap_string())) {
         options->stdio[i].flags = UV_INHERIT_STREAM;
@@ -186,7 +186,7 @@ class ProcessWrap : public HandleWrap {
     Local<Value> argv_v =
         js_options->Get(context, env->args_string()).ToLocalChecked();
     if (!argv_v.IsEmpty() && argv_v->IsArray()) {
-      Local<Array> js_argv = Local<Array>::Cast(argv_v);
+      Local<Array> js_argv = argv_v.As<Array>();
       int argc = js_argv->Length();
       CHECK_GT(argc + 1, 0);  // Check for overflow.
 
@@ -214,7 +214,7 @@ class ProcessWrap : public HandleWrap {
     Local<Value> env_v =
         js_options->Get(context, env->env_pairs_string()).ToLocalChecked();
     if (!env_v.IsEmpty() && env_v->IsArray()) {
-      Local<Array> env_opt = Local<Array>::Cast(env_v);
+      Local<Array> env_opt = env_v.As<Array>();
       int envc = env_opt->Length();
       CHECK_GT(envc + 1, 0);  // Check for overflow.
       options.env = new char*[envc + 1];  // Heap allocated to detect errors.
@@ -236,6 +236,10 @@ class ProcessWrap : public HandleWrap {
 
     if (hide_v->IsTrue()) {
       options.flags |= UV_PROCESS_WINDOWS_HIDE;
+    }
+
+    if (env->hide_console_windows()) {
+      options.flags |= UV_PROCESS_WINDOWS_HIDE_CONSOLE;
     }
 
     // options.windows_verbatim_arguments

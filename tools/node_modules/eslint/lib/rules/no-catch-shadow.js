@@ -16,13 +16,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow `catch` clause parameters from shadowing variables in the outer scope",
-            category: "Variables",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-catch-shadow"
         },

@@ -49,12 +49,12 @@ static const int32_t LIMITS[UCAL_FIELD_COUNT][4] = {
 //-------------------------------------------------------------------------
 
 CECalendar::CECalendar(const Locale& aLocale, UErrorCode& success)
-:   Calendar(TimeZone::createDefault(), aLocale, success)
+:   Calendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, success)
 {
     setTimeInMillis(getNow(), success);
 }
 
-CECalendar::CECalendar (const CECalendar& other)
+CECalendar::CECalendar (const CECalendar& other) 
 :   Calendar(other)
 {
 }

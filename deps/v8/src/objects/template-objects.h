@@ -7,12 +7,15 @@
 
 #include "src/objects/fixed-array.h"
 #include "src/objects/struct.h"
+#include "src/objects/torque-defined-classes.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/template-objects-tq.inc"
 
 // CachedTemplateObject is a tuple used to cache a TemplateObject that has been
 // created. All the CachedTemplateObject's for a given SharedFunctionInfo form a

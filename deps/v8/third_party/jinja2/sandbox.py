@@ -137,7 +137,7 @@ class _MagicFormatMapping(Mapping):
 def inspect_format_method(callable):
     if not isinstance(callable, (types.MethodType,
                                  types.BuiltinMethodType)) or \
-       callable.__name__ != 'format':
+       callable.__name__ not in ('format', 'format_map'):
         return None
     obj = callable.__self__
     if isinstance(obj, string_types):
@@ -402,7 +402,7 @@ class SandboxedEnvironment(Environment):
             obj.__class__.__name__
         ), name=attribute, obj=obj, exc=SecurityError)
 
-    def format_string(self, s, args, kwargs):
+    def format_string(self, s, args, kwargs, format_func=None):
         """If a format call is detected, then this is routed through this
         method so that our safety sandbox can be used for it.
         """
@@ -410,6 +410,17 @@ class SandboxedEnvironment(Environment):
             formatter = SandboxedEscapeFormatter(self, s.escape)
         else:
             formatter = SandboxedFormatter(self)
+
+        if format_func is not None and format_func.__name__ == 'format_map':
+            if len(args) != 1 or kwargs:
+                raise TypeError(
+                    'format_map() takes exactly one argument %d given'
+                    % (len(args) + (kwargs is not None))
+                )
+
+            kwargs = args[0]
+            args = None
+
         kwargs = _MagicFormatMapping(args, kwargs)
         rv = formatter.vformat(s, args, kwargs)
         return type(s)(rv)
@@ -418,7 +429,7 @@ class SandboxedEnvironment(Environment):
         """Call an object from sandboxed code."""
         fmt = inspect_format_method(__obj)
         if fmt is not None:
-            return __self.format_string(fmt, args, kwargs)
+            return __self.format_string(fmt, args, kwargs, __obj)
 
         # the double prefixes are to avoid double keyword argument
         # errors when proxying the call.

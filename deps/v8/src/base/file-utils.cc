@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 
 namespace v8 {
 namespace base {

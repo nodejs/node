@@ -29,7 +29,7 @@ enum class StepResult {
 
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
-  enum State : uint8_t { STOPPED, SWEEPING, MARKING, COMPLETE };
+  enum State : uint8_t { STOPPED, MARKING, COMPLETE };
 
   enum CompletionAction { GC_VIA_STACK_GUARD, NO_GC_VIA_STACK_GUARD };
 
@@ -39,7 +39,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   using AtomicMarkingState = MarkCompactCollector::AtomicMarkingState;
   using NonAtomicMarkingState = MarkCompactCollector::NonAtomicMarkingState;
 
-  class PauseBlackAllocationScope {
+  class V8_NODISCARD PauseBlackAllocationScope {
    public:
     explicit PauseBlackAllocationScope(IncrementalMarking* marking)
         : marking_(marking), paused_(false) {
@@ -75,13 +75,13 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
 #ifndef DEBUG
   static constexpr size_t kV8ActivationThreshold = 8 * MB;
-  static constexpr size_t kGlobalActivationThreshold = 16 * MB;
+  static constexpr size_t kEmbedderActivationThreshold = 8 * MB;
 #else
   static constexpr size_t kV8ActivationThreshold = 0;
-  static constexpr size_t kGlobalActivationThreshold = 0;
+  static constexpr size_t kEmbedderActivationThreshold = 0;
 #endif
 
-#ifdef V8_CONCURRENT_MARKING
+#ifdef V8_ATOMIC_MARKING_STATE
   static const AccessMode kAtomicity = AccessMode::ATOMIC;
 #else
   static const AccessMode kAtomicity = AccessMode::NON_ATOMIC;
@@ -116,8 +116,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   inline bool IsStopped() const { return state() == STOPPED; }
 
-  inline bool IsSweeping() const { return state() == SWEEPING; }
-
   inline bool IsMarking() const { return state() >= MARKING; }
 
   inline bool IsMarkingIncomplete() const { return state() == MARKING; }
@@ -146,7 +144,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void FinalizeIncrementally();
 
   void UpdateMarkingWorklistAfterScavenge();
-  void UpdateWeakReferencesAfterScavenge();
   void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
 
   void Hurry();
@@ -188,6 +185,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // unsafe layout change. This is a part of synchronization protocol with
   // the concurrent marker.
   void MarkBlackAndVisitObjectDueToLayoutChange(HeapObject obj);
+
+  void MarkBlackAndRevisitObject(Code code);
 
   void MarkBlackBackground(HeapObject obj, int object_size);
 
@@ -250,6 +249,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
   // increase chances of reusing of map transition tree in future.
   void RetainMaps();
+
+  void PublishWriteBarrierWorklists();
 
   // Updates scheduled_bytes_to_mark_ to ensure marking progress based on
   // time.

@@ -4,7 +4,7 @@
 
 // Flags: --wasm-lazy-compilation
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function ExportedFunctionsImportedOrder() {
   print(arguments.callee.name);
@@ -33,7 +33,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
         kExprCallIndirect, 0, kTableZero
       ])
       .exportFunc();
-    builder.addElementSegment(0, 0, false, [0, 1, 1, 0]);
+    builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [0, 1, 1, 0]);
 
     return builder.instantiate({q: {f2: i1.exports.f2, f1: i1.exports.f1}});
   })();

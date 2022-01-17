@@ -13,33 +13,28 @@
 namespace v8 {
 namespace internal {
 
-inline const Isolate* GetIsolateForPtrComprFromOnHeapAddress(Address address) {
-#ifdef V8_COMPRESS_POINTERS
-  return Isolate::FromRoot(GetIsolateRoot(address));
-#else
-  return nullptr;
-#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+
+// Aliases for GetPtrComprCageBase when
+// V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE. Each Isolate has its own cage, whose
+// base address is also the Isolate root.
+V8_INLINE constexpr Address GetIsolateRootAddress(Address on_heap_addr) {
+  return GetPtrComprCageBaseAddress(on_heap_addr);
 }
 
-inline const Isolate* GetIsolateForPtrCompr(HeapObject object) {
-  return GetIsolateForPtrComprFromOnHeapAddress(object.ptr());
+V8_INLINE Address GetIsolateRootAddress(PtrComprCageBase cage_base) {
+  return cage_base.address();
 }
 
-inline const Isolate* GetIsolateForPtrCompr(const Isolate* isolate) {
-#ifdef V8_COMPRESS_POINTERS
-  return isolate;
 #else
-  return nullptr;
-#endif  // V8_COMPRESS_POINTERS
+
+V8_INLINE Address GetIsolateRootAddress(Address on_heap_addr) { UNREACHABLE(); }
+
+V8_INLINE Address GetIsolateRootAddress(PtrComprCageBase cage_base) {
+  UNREACHABLE();
 }
 
-inline const Isolate* GetIsolateForPtrCompr(const LocalIsolate* isolate) {
-#ifdef V8_COMPRESS_POINTERS
-  return isolate->GetIsolateForPtrCompr();
-#else
-  return nullptr;
-#endif  // V8_COMPRESS_POINTERS
-}
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
 
 V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
   // Avoid using the below GetIsolateFromWritableObject because we want to be
@@ -47,34 +42,36 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
 
 #if defined V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object)->heap();
-#elif defined V8_COMPRESS_POINTERS
-  Isolate* isolate = Isolate::FromRoot(GetIsolateRoot(object.ptr()));
+#elif defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+  Isolate* isolate =
+      Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr()));
   DCHECK_NOT_NULL(isolate);
   return isolate->heap();
 #else
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   return chunk->GetHeap();
-#endif  // V8_COMPRESS_POINTERS || V8_ENABLE_THIRD_PARTY_HEAP
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE, V8_ENABLE_THIRD_PARTY_HEAP
 }
 
 V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object);
-#elif defined V8_COMPRESS_POINTERS
-  Isolate* isolate = Isolate::FromRoot(GetIsolateRoot(object.ptr()));
+#elif defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+  Isolate* isolate =
+      Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr()));
   DCHECK_NOT_NULL(isolate);
   return isolate;
 #else
   return Isolate::FromHeap(GetHeapFromWritableObject(object));
-#endif  // V8_COMPRESS_POINTERS, V8_ENABLE_THIRD_PARTY_HEAP
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE, V8_ENABLE_THIRD_PARTY_HEAP
 }
 
 V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   *isolate = Heap::GetIsolateFromWritableObject(object);
   return true;
-#elif defined V8_COMPRESS_POINTERS
+#elif defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
   *isolate = GetIsolateFromWritableObject(object);
   return true;
 #else
@@ -86,7 +83,18 @@ V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
   }
   *isolate = Isolate::FromHeap(chunk->GetHeap());
   return true;
-#endif  // V8_COMPRESS_POINTERS, V8_ENABLE_THIRD_PARTY_HEAP
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE, V8_ENABLE_THIRD_PARTY_HEAP
+}
+
+// Use this function instead of Internals::GetIsolateForHeapSandbox for internal
+// code, as this function is fully inlinable.
+V8_INLINE static Isolate* GetIsolateForHeapSandbox(HeapObject object) {
+#ifdef V8_HEAP_SANDBOX
+  return GetIsolateFromWritableObject(object);
+#else
+  // Not used in non-sandbox mode.
+  return nullptr;
+#endif
 }
 
 }  // namespace internal

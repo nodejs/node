@@ -15,7 +15,7 @@ var bp1, bp2;
 function listener(event, exec_state, event_data, data) {
   if (event == Debug.DebugEvent.Break) {
     if (step_count > 0) {
-      exec_state.prepareStep(Debug.StepAction.StepIn);
+      exec_state.prepareStep(Debug.StepAction.StepInto);
       step_count--;
     } else {
       result = exec_state.frame().evaluate("i").value();

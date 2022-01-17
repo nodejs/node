@@ -8,7 +8,7 @@ const repl = require('repl');
 
 common.skipIfInspectorDisabled();
 
-// Flags: --expose-internals --experimental-repl-await
+// Flags: --expose-internals
 
 const PROMPT = 'await repl > ';
 
@@ -81,7 +81,7 @@ async function ordinaryTests() {
   // https://cs.chromium.org/chromium/src/third_party/WebKit/LayoutTests/http/tests/devtools/console/console-top-level-await.js?rcl=5d0ea979f0ba87655b7ef0e03b58fa3c04986ba6
   putIn.run([
     'function foo(x) { return x; }',
-    'function koo() { return Promise.resolve(4); }'
+    'function koo() { return Promise.resolve(4); }',
   ]);
   const testCases = [
     ['await Promise.resolve(0)', '0'],
@@ -139,9 +139,49 @@ async function ordinaryTests() {
        '1',
        '2',
        '3',
-       'undefined'
-     ]
-    ]
+       'undefined',
+     ],
+    ],
+    ['await Promise..resolve()',
+     [
+       'await Promise..resolve()\r',
+       'Uncaught SyntaxError: ',
+       'await Promise..resolve()',
+       '              ^',
+       '',
+       'Unexpected token \'.\'',
+     ],
+    ],
+    ['for (const x of [1,2,3]) {\nawait x\n}', [
+      'for (const x of [1,2,3]) {\r',
+      '... await x\r',
+      '... }\r',
+      'undefined',
+    ]],
+    ['for (const x of [1,2,3]) {\nawait x;\n}', [
+      'for (const x of [1,2,3]) {\r',
+      '... await x;\r',
+      '... }\r',
+      'undefined',
+    ]],
+    ['for await (const x of [1,2,3]) {\nconsole.log(x)\n}', [
+      'for await (const x of [1,2,3]) {\r',
+      '... console.log(x)\r',
+      '... }\r',
+      '1',
+      '2',
+      '3',
+      'undefined',
+    ]],
+    ['for await (const x of [1,2,3]) {\nconsole.log(x);\n}', [
+      'for await (const x of [1,2,3]) {\r',
+      '... console.log(x);\r',
+      '... }\r',
+      '1',
+      '2',
+      '3',
+      'undefined',
+    ]],
   ];
 
   for (const [input, expected = [`${input}\r`], options = {}] of testCases) {
@@ -164,24 +204,20 @@ async function ordinaryTests() {
 }
 
 async function ctrlCTest() {
-  putIn.run([
-    `const timeout = (msecs) => new Promise((resolve) => {
-       setTimeout(resolve, msecs).unref();
-     });`
-  ]);
-
   console.log('Testing Ctrl+C');
-  assert.deepStrictEqual(await runAndWait([
-    'await timeout(100000)',
-    { ctrl: true, name: 'c' }
-  ]), [
-    'await timeout(100000)\r',
+  const output = await runAndWait([
+    'await new Promise(() => {})',
+    { ctrl: true, name: 'c' },
+  ]);
+  assert.deepStrictEqual(output.slice(0, 3), [
+    'await new Promise(() => {})\r',
     'Uncaught:',
-    '[Error [ERR_SCRIPT_EXECUTION_INTERRUPTED]: ' +
-      'Script execution was interrupted by `SIGINT`] {',
-    "  code: 'ERR_SCRIPT_EXECUTION_INTERRUPTED'",
+    'Error [ERR_SCRIPT_EXECUTION_INTERRUPTED]: ' +
+      'Script execution was interrupted by `SIGINT`',
+  ]);
+  assert.deepStrictEqual(output.slice(-2), [
     '}',
-    PROMPT
+    PROMPT,
   ]);
 }
 
@@ -190,4 +226,4 @@ async function main() {
   await ctrlCTest();
 }
 
-main();
+main().then(common.mustCall());

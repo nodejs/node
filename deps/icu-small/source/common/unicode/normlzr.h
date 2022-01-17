@@ -16,10 +16,10 @@
 #if U_SHOW_CPLUSPLUS_API
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Unicode Normalization
  */
-
+ 
 #if !UCONFIG_NO_NORMALIZATION
 
 #include "unicode/chariter.h"
@@ -234,7 +234,7 @@ public:
    *
    * @param source    the string to be composed.
    * @param compat    Perform compatibility decomposition before composition.
-   *                  If this argument is <code>FALSE</code>, only canonical
+   *                  If this argument is <code>false</code>, only canonical
    *                  decomposition will be performed.
    * @param options   the optional features to be enabled (0 for no options)
    * @param result    The composed string (on output).
@@ -256,7 +256,7 @@ public:
    *
    * @param source    the string to be decomposed.
    * @param compat    Perform compatibility decomposition.
-   *                  If this argument is <code>FALSE</code>, only canonical
+   *                  If this argument is <code>false</code>, only canonical
    *                  decomposition will be performed.
    * @param options   the optional features to be enabled (0 for no options)
    * @param result    The decomposed string (on output).
@@ -315,7 +315,7 @@ public:
    * never a "maybe".
    * For NFD, NFKD, and FCD, both functions work exactly the same.
    * For NFC and NFKC where quickCheck may return "maybe", this function will
-   * perform further tests to arrive at a TRUE/FALSE result.
+   * perform further tests to arrive at a true/false result.
    *
    * @param src        String that is to be tested if it is in a normalization format.
    * @param mode       Which normalization form to test for.
@@ -577,24 +577,24 @@ public:
   int32_t            endIndex(void) const;
 
   /**
-   * Returns TRUE when both iterators refer to the same character in the same
+   * Returns true when both iterators refer to the same character in the same
    * input text.
    *
    * @param that a Normalizer object to compare this one to
    * @return comparison result
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
-  UBool        operator==(const Normalizer& that) const;
+  bool         operator==(const Normalizer& that) const;
 
   /**
-   * Returns FALSE when both iterators refer to the same character in the same
+   * Returns false when both iterators refer to the same character in the same
    * input text.
    *
    * @param that a Normalizer object to compare this one to
    * @return comparison result
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
-  inline UBool        operator!=(const Normalizer& that) const;
+  inline bool         operator!=(const Normalizer& that) const;
 
   /**
    * Returns a pointer to a new Normalizer that is a clone of this one.
@@ -655,8 +655,8 @@ public:
    * It is possible to specify multiple options that are all turned on or off.
    *
    * @param   option  the option(s) whose value is/are to be set.
-   * @param   value   the new setting for the option.  Use <code>TRUE</code> to
-   *                  turn the option(s) on and <code>FALSE</code> to turn it/them off.
+   * @param   value   the new setting for the option.  Use <code>true</code> to
+   *                  turn the option(s) on and <code>false</code> to turn it/them off.
    *
    * @see #getOption
    * @deprecated ICU 56 Use Normalizer2 instead.
@@ -666,11 +666,11 @@ public:
 
   /**
    * Determine whether an option is turned on or off.
-   * If multiple options are specified, then the result is TRUE if any
+   * If multiple options are specified, then the result is true if any
    * of them are set.
    * <p>
    * @param option the option(s) that are to be checked
-   * @return TRUE if any of the option(s) are set
+   * @return true if any of the option(s) are set
    * @see #setOption
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
@@ -732,7 +732,7 @@ public:
    * @return a UClassID for the actual class.
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
-  virtual UClassID getDynamicClassID() const;
+  virtual UClassID getDynamicClassID() const override;
 #endif  // U_FORCE_HIDE_DEPRECATED_API
 
 private:
@@ -777,7 +777,7 @@ private:
 //-------------------------------------------------------------------------
 
 #ifndef U_HIDE_DEPRECATED_API
-inline UBool
+inline bool
 Normalizer::operator!= (const Normalizer& other) const
 { return ! operator==(other); }
 

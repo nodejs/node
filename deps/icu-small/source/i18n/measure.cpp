@@ -23,7 +23,7 @@ U_NAMESPACE_BEGIN
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(Measure)
 
-Measure::Measure() {}
+Measure::Measure() : unit(nullptr) {}
 
 Measure::Measure(const Formattable& _number, MeasureUnit* adoptedUnit,
                  UErrorCode& ec) :
@@ -35,7 +35,7 @@ Measure::Measure(const Formattable& _number, MeasureUnit* adoptedUnit,
 }
 
 Measure::Measure(const Measure& other) :
-    UObject(other), unit(0) {
+    UObject(other), unit(nullptr) {
     *this = other;
 }
 
@@ -43,7 +43,11 @@ Measure& Measure::operator=(const Measure& other) {
     if (this != &other) {
         delete unit;
         number = other.number;
-        unit = other.unit->clone();
+        if (other.unit != nullptr) {
+            unit = other.unit->clone();
+        } else {
+            unit = nullptr;
+        }
     }
     return *this;
 }
@@ -56,12 +60,12 @@ Measure::~Measure() {
     delete unit;
 }
 
-UBool Measure::operator==(const UObject& other) const {
+bool Measure::operator==(const UObject& other) const {
     if (this == &other) {  // Same object, equal
-        return TRUE;
+        return true;
     }
     if (typeid(*this) != typeid(other)) { // Different types, not equal
-        return FALSE;
+        return false;
     }
     const Measure &m = static_cast<const Measure&>(other);
     return number == m.number &&

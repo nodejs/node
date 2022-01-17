@@ -265,7 +265,7 @@ typedef enum UMessagePatternArgType UMessagePatternArgType;
 
 /**
  * \def UMSGPAT_ARG_TYPE_HAS_PLURAL_STYLE
- * Returns TRUE if the argument type has a plural style part sequence and semantics,
+ * Returns true if the argument type has a plural style part sequence and semantics,
  * for example UMSGPAT_ARG_TYPE_PLURAL and UMSGPAT_ARG_TYPE_SELECTORDINAL.
  * @stable ICU 50
  */
@@ -523,17 +523,17 @@ public:
 
     /**
      * @param other another object to compare with.
-     * @return TRUE if this object is equivalent to the other one.
+     * @return true if this object is equivalent to the other one.
      * @stable ICU 4.8
      */
-    UBool operator==(const MessagePattern &other) const;
+    bool operator==(const MessagePattern &other) const;
 
     /**
      * @param other another object to compare with.
-     * @return FALSE if this object is equivalent to the other one.
+     * @return false if this object is equivalent to the other one.
      * @stable ICU 4.8
      */
-    inline UBool operator!=(const MessagePattern &other) const {
+    inline bool operator!=(const MessagePattern &other) const {
         return !operator==(other);
     }
 
@@ -564,7 +564,7 @@ public:
 
     /**
      * Does the parsed pattern have named arguments like {first_name}?
-     * @return TRUE if the parsed pattern has at least one named argument.
+     * @return true if the parsed pattern has at least one named argument.
      * @stable ICU 4.8
      */
     UBool hasNamedArguments() const {
@@ -573,7 +573,7 @@ public:
 
     /**
      * Does the parsed pattern have numbered arguments like {2}?
-     * @return TRUE if the parsed pattern has at least one numbered argument.
+     * @return true if the parsed pattern has at least one numbered argument.
      * @stable ICU 4.8
      */
     UBool hasNumberedArguments() const {
@@ -664,7 +664,7 @@ public:
      * Compares the part's substring with the input string s.
      * @param part a part of this MessagePattern.
      * @param s a string.
-     * @return TRUE if getSubstring(part).equals(s).
+     * @return true if getSubstring(part).equals(s).
      * @stable ICU 4.8
      */
     UBool partSubstringMatches(const Part &part, const UnicodeString &s) const {
@@ -785,7 +785,7 @@ public:
          * Indicates whether the Part type has a numeric value.
          * If so, then that numeric value can be retrieved via MessagePattern.getNumericValue().
          * @param type The Part type to be tested.
-         * @return TRUE if the Part type has a numeric value.
+         * @return true if the Part type has a numeric value.
          * @stable ICU 4.8
          */
         static UBool hasNumericValue(UMessagePatternPartType type) {
@@ -794,17 +794,17 @@ public:
 
         /**
          * @param other another object to compare with.
-         * @return TRUE if this object is equivalent to the other one.
+         * @return true if this object is equivalent to the other one.
          * @stable ICU 4.8
          */
-        UBool operator==(const Part &other) const;
+        bool operator==(const Part &other) const;
 
         /**
          * @param other another object to compare with.
-         * @return FALSE if this object is equivalent to the other one.
+         * @return false if this object is equivalent to the other one.
          * @stable ICU 4.8
          */
-        inline UBool operator!=(const Part &other) const {
+        inline bool operator!=(const Part &other) const {
             return !operator==(other);
         }
 
@@ -869,7 +869,7 @@ private:
      * Parses a number from the specified message substring.
      * @param start start index into the message string
      * @param limit limit index into the message string, must be start<limit
-     * @param allowInfinity TRUE if U+221E is allowed (for ChoiceFormat)
+     * @param allowInfinity true if U+221E is allowed (for ChoiceFormat)
      * @param parseError
      * @param errorCode
      */
@@ -900,13 +900,13 @@ private:
     UBool isOrdinal(int32_t index);
 
     /**
-     * @return TRUE if we are inside a MessageFormat (sub-)pattern,
+     * @return true if we are inside a MessageFormat (sub-)pattern,
      *         as opposed to inside a top-level choice/plural/select pattern.
      */
     UBool inMessageFormatPattern(int32_t nestingLevel);
 
     /**
-     * @return TRUE if we are in a MessageFormat sub-pattern
+     * @return true if we are in a MessageFormat sub-pattern
      *         of a top-level ChoiceFormat pattern.
      */
     UBool inTopLevelChoiceMessage(int32_t nestingLevel, UMessagePatternArgType parentType);

@@ -1,6 +1,6 @@
-@ Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
+@ Copyright 2012-2021 The OpenSSL Project Authors. All Rights Reserved.
 @
-@ Licensed under the OpenSSL license (the "License").  You may not use
+@ Licensed under the Apache License 2.0 (the "License").  You may not use
 @ this file except in compliance with the License.  You can obtain a copy
 @ in the file LICENSE in the source distribution or at
 @ https://www.openssl.org/source/license.html
@@ -49,6 +49,8 @@
 @ April-August 2013
 @ Add CBC, CTR and XTS subroutines and adapt for kernel use; courtesy of Ard.
 
+@ $output is the last argument if it looks like a file (it has an extension)
+@ $flavour is the first argument if it doesn't look like a file
 #ifndef __KERNEL__
 # include "arm_arch.h"
 
@@ -73,7 +75,6 @@
 .arch	armv7-a
 .fpu	neon
 
-.text
 .syntax	unified 	@ ARMv7-capable assembler is expected to handle this
 #if defined(__thumb2__) && !defined(__APPLE__)
 .thumb
@@ -81,6 +82,8 @@
 .code	32
 # undef __thumb2__
 #endif
+
+.text
 
 .type	_bsaes_decrypt8,%function
 .align	4
@@ -1070,18 +1073,18 @@ _bsaes_key_convert:
 
 
 
-.globl	bsaes_cbc_encrypt
-.type	bsaes_cbc_encrypt,%function
+.globl	ossl_bsaes_cbc_encrypt
+.type	ossl_bsaes_cbc_encrypt,%function
 .align	5
-bsaes_cbc_encrypt:
+ossl_bsaes_cbc_encrypt:
 #ifndef	__KERNEL__
 	cmp	r2, #128
 #ifndef	__thumb__
 	blo	AES_cbc_encrypt
 #else
-	bhs	1f
+	bhs	.Lcbc_do_bsaes
 	b	AES_cbc_encrypt
-1:
+.Lcbc_do_bsaes:
 #endif
 #endif
 
@@ -1335,12 +1338,12 @@ bsaes_cbc_encrypt:
 	vst1.8	{q15}, [r8]		@ return IV
 	VFP_ABI_POP
 	ldmia	sp!, {r4,r5,r6,r7,r8,r9,r10, pc}
-.size	bsaes_cbc_encrypt,.-bsaes_cbc_encrypt
+.size	ossl_bsaes_cbc_encrypt,.-ossl_bsaes_cbc_encrypt
 
-.globl	bsaes_ctr32_encrypt_blocks
-.type	bsaes_ctr32_encrypt_blocks,%function
+.globl	ossl_bsaes_ctr32_encrypt_blocks
+.type	ossl_bsaes_ctr32_encrypt_blocks,%function
 .align	5
-bsaes_ctr32_encrypt_blocks:
+ossl_bsaes_ctr32_encrypt_blocks:
 	cmp	r2, #8			@ use plain AES for
 	blo	.Lctr_enc_short			@ small sizes
 
@@ -1563,11 +1566,11 @@ bsaes_ctr32_encrypt_blocks:
 	vstmia	sp!, {q0,q1}
 
 	ldmia	sp!, {r4,r5,r6,r7,r8, pc}
-.size	bsaes_ctr32_encrypt_blocks,.-bsaes_ctr32_encrypt_blocks
-.globl	bsaes_xts_encrypt
-.type	bsaes_xts_encrypt,%function
+.size	ossl_bsaes_ctr32_encrypt_blocks,.-ossl_bsaes_ctr32_encrypt_blocks
+.globl	ossl_bsaes_xts_encrypt
+.type	ossl_bsaes_xts_encrypt,%function
 .align	4
-bsaes_xts_encrypt:
+ossl_bsaes_xts_encrypt:
 	mov	ip, sp
 	stmdb	sp!, {r4,r5,r6,r7,r8,r9,r10, lr}		@ 0x20
 	VFP_ABI_PUSH
@@ -2042,12 +2045,12 @@ bsaes_xts_encrypt:
 	VFP_ABI_POP
 	ldmia	sp!, {r4,r5,r6,r7,r8,r9,r10, pc}	@ return
 
-.size	bsaes_xts_encrypt,.-bsaes_xts_encrypt
+.size	ossl_bsaes_xts_encrypt,.-ossl_bsaes_xts_encrypt
 
-.globl	bsaes_xts_decrypt
-.type	bsaes_xts_decrypt,%function
+.globl	ossl_bsaes_xts_decrypt
+.type	ossl_bsaes_xts_decrypt,%function
 .align	4
-bsaes_xts_decrypt:
+ossl_bsaes_xts_decrypt:
 	mov	ip, sp
 	stmdb	sp!, {r4,r5,r6,r7,r8,r9,r10, lr}		@ 0x20
 	VFP_ABI_PUSH
@@ -2553,5 +2556,5 @@ bsaes_xts_decrypt:
 	VFP_ABI_POP
 	ldmia	sp!, {r4,r5,r6,r7,r8,r9,r10, pc}	@ return
 
-.size	bsaes_xts_decrypt,.-bsaes_xts_decrypt
+.size	ossl_bsaes_xts_decrypt,.-ossl_bsaes_xts_decrypt
 #endif

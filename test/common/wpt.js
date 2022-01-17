@@ -1,4 +1,3 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 
 const assert = require('assert');
@@ -9,7 +8,7 @@ const path = require('path');
 const { inspect } = require('util');
 const { Worker } = require('worker_threads');
 
-// https://github.com/web-platform-tests/wpt/blob/master/resources/testharness.js
+// https://github.com/web-platform-tests/wpt/blob/HEAD/resources/testharness.js
 // TODO: get rid of this half-baked harness in favor of the one
 // pulled from WPT
 const harnessMock = {
@@ -59,8 +58,8 @@ class ResourceLoader {
    * @param {string} from the path of the file loading this resource,
    *                      relative to thw WPT folder.
    * @param {string} url the url of the resource being loaded.
-   * @param {boolean} asPromise if true, return the resource in a
-   *                            pseudo-Response object.
+   * @param {boolean} asFetch if true, return the resource in a
+   *                          pseudo-Response object.
    */
   read(from, url, asFetch = true) {
     const file = this.toRealFilePath(from, url);
@@ -118,7 +117,8 @@ class StatusRuleSet {
       if (key.includes('*')) {
         this.patternMatch.push(new StatusRule(key, rules[key], key));
       } else {
-        this.exactMatch[key] = new StatusRule(key, rules[key]);
+        const normalizedPath = path.normalize(key);
+        this.exactMatch[normalizedPath] = new StatusRule(key, rules[key]);
       }
     }
   }
@@ -288,6 +288,7 @@ class WPTRunner {
     this.resource = new ResourceLoader(path);
 
     this.flags = [];
+    this.dummyGlobalThisScript = null;
     this.initScript = null;
 
     this.status = new StatusLoader(path);
@@ -298,7 +299,10 @@ class WPTRunner {
 
     this.results = {};
     this.inProgress = new Set();
+    this.workers = new Map();
     this.unexpectedFailures = [];
+
+    this.scriptsModifier = null;
   }
 
   /**
@@ -315,6 +319,51 @@ class WPTRunner {
    */
   setInitScript(script) {
     this.initScript = script;
+  }
+
+  /**
+   * Set the scripts modifier for each script.
+   * @param {(meta: { code: string, filename: string }) => void} modifier
+   */
+  setScriptModifier(modifier) {
+    this.scriptsModifier = modifier;
+  }
+
+  get fullInitScript() {
+    if (this.initScript === null && this.dummyGlobalThisScript === null) {
+      return null;
+    }
+
+    if (this.initScript === null) {
+      return this.dummyGlobalThisScript;
+    } else if (this.dummyGlobalThisScript === null) {
+      return this.initScript;
+    }
+
+    return `${this.dummyGlobalThisScript}\n\n//===\n${this.initScript}`;
+  }
+
+  /**
+   * Pretend the runner is run in `name`'s environment (globalThis).
+   * @param {'Window'} name
+   * @see {@link https://github.com/nodejs/node/blob/24673ace8ae196bd1c6d4676507d6e8c94cf0b90/test/fixtures/wpt/resources/idlharness.js#L654-L671}
+   */
+  pretendGlobalThisAs(name) {
+    switch (name) {
+      case 'Window': {
+        this.dummyGlobalThisScript =
+          'global.Window = Object.getPrototypeOf(globalThis).constructor;';
+        break;
+      }
+
+      // TODO(XadillaX): implement `ServiceWorkerGlobalScope`,
+      // `DedicateWorkerGlobalScope`, etc.
+      //
+      // e.g. `ServiceWorkerGlobalScope` should implement dummy
+      // `addEventListener` and so on.
+
+      default: throw new Error(`Invalid globalThis type ${name}.`);
+    }
   }
 
   // TODO(joyeecheung): work with the upstream to port more tests in .html
@@ -348,26 +397,30 @@ class WPTRunner {
       // Scripts specified with the `// META: script=` header
       if (meta.script) {
         for (const script of meta.script) {
-          scriptsToRun.push({
+          const obj = {
             filename: this.resource.toRealFilePath(relativePath, script),
             code: this.resource.read(relativePath, script, false)
-          });
+          };
+          this.scriptsModifier?.(obj);
+          scriptsToRun.push(obj);
         }
       }
       // The actual test
-      scriptsToRun.push({
+      const obj = {
         code: content,
         filename: absolutePath
-      });
+      };
+      this.scriptsModifier?.(obj);
+      scriptsToRun.push(obj);
 
       const workerPath = path.join(__dirname, 'wpt/worker.js');
       const worker = new Worker(workerPath, {
         execArgv: this.flags,
         workerData: {
-          filename: testFileName,
+          testRelativePath: relativePath,
           wptRunner: __filename,
           wptPath: this.path,
-          initScript: this.initScript,
+          initScript: this.fullInitScript,
           harness: {
             code: fs.readFileSync(harnessPath, 'utf8'),
             filename: harnessPath,
@@ -375,6 +428,7 @@ class WPTRunner {
           scriptsToRun,
         },
       });
+      this.workers.set(testFileName, worker);
 
       worker.on('message', (message) => {
         switch (message.type) {
@@ -388,6 +442,11 @@ class WPTRunner {
       });
 
       worker.on('error', (err) => {
+        if (!this.inProgress.has(testFileName)) {
+          // The test is already finished. Ignore errors that occur after it.
+          // This can happen normally, for example in timers tests.
+          return;
+        }
         this.fail(
           testFileName,
           {
@@ -495,6 +554,9 @@ class WPTRunner {
       this.resultCallback(filename, { status: 2, name: 'Unknown' });
     }
     this.inProgress.delete(filename);
+    // Always force termination of the worker. Some tests allocate resources
+    // that would otherwise keep it alive.
+    this.workers.get(filename).terminate();
   }
 
   addTestResult(filename, item) {

@@ -11,6 +11,7 @@ class CaseIndifferentMap {
   _map = new Map();
 
   get(key) { return this._map.get(key.toLowerCase()); }
+  has(key) { return this._map.has(key.toLowerCase()); }
   set(key, value) { return this._map.set(key.toLowerCase(), value); }
 }
 
@@ -38,26 +39,40 @@ const mailmap = new CaseIndifferentMap();
     line = line.trim();
     if (line.startsWith('#') || line === '') continue;
 
-    let match;
-    // Replaced Name <original@example.com>
-    if (match = line.match(/^([^<]+)\s+(<[^>]+>)$/)) {
-      mailmap.set(match[2], { author: match[1] });
-    // <replaced@example.com> <original@example.com>
-    } else if (match = line.match(/^<([^>]+)>\s+(<[^>]+>)$/)) {
-      mailmap.set(match[2], { email: match[1] });
-    // Replaced Name <replaced@example.com> <original@example.com>
-    } else if (match = line.match(/^([^<]+)\s+(<[^>]+>)\s+(<[^>]+>)$/)) {
-      mailmap.set(match[3], {
-        author: match[1], email: match[2]
-      });
-    // Replaced Name <replaced@example.com> Original Name <original@example.com>
-    } else if (match =
-        line.match(/^([^<]+)\s+(<[^>]+>)\s+([^<]+)\s+(<[^>]+>)$/)) {
-      mailmap.set(match[3] + '\0' + match[4], {
-        author: match[1], email: match[2]
+    const match = line.match(/^(?:([^<]+)\s+)?(?:(<[^>]+>)\s+)?(?:([^<]+)\s+)?(<[^>]+>)$/);
+    if (match) {
+      const [, replaceName, replaceEmail, originalName, originalEmail] = match;
+      const key = originalName ? `${originalName}\0${originalEmail.toLocaleLowerCase()}` : originalEmail.toLowerCase();
+      mailmap.set(key, {
+        author: replaceName || originalName,
+        email: replaceEmail || originalEmail,
       });
     } else {
       console.warn('Unknown .mailmap format:', line);
+    }
+  }
+}
+
+const previousAuthors = new CaseIndifferentMap();
+{
+  const lines = fs.readFileSync(path.resolve(__dirname, '../', 'AUTHORS'),
+                                { encoding: 'utf8' }).split('\n');
+  for (let line of lines) {
+    line = line.trim();
+    if (line.startsWith('#') || line === '') continue;
+
+    const match = line.match(/^([^<]+)\s+(<[^>]+>)$/);
+    if (match) {
+      const name = match[1];
+      const email = match[2];
+      if (previousAuthors.has(name)) {
+        const emails = previousAuthors.get(name);
+        emails.push(email);
+      } else {
+        previousAuthors.set(name, [email]);
+      }
+    } else {
+      console.warn('Unknown AUTHORS format:', line);
     }
   }
 }
@@ -75,20 +90,25 @@ rl.on('line', (line) => {
   if (!match) return;
 
   let { author, email } = match.groups;
+  const emailLower = email.toLowerCase();
 
-  const replacement = mailmap.get(author + '\0' + email) || mailmap.get(email);
+  const replacement =
+    mailmap.get(author + '\0' + emailLower) || mailmap.get(emailLower);
   if (replacement) {
     ({ author, email } = { author, email, ...replacement });
   }
 
-  if (seen.has(email) ||
-      /@chromium\.org/.test(email) ||
-      email === '<erik.corry@gmail.com>') {
+  if (seen.has(email)) {
     return;
   }
 
   seen.add(email);
   output.write(`${author} ${email}\n`);
+  const duplicate = previousAuthors.get(author);
+  if (duplicate && !duplicate.includes(email)) {
+    console.warn('Author name already in AUTHORS file. Possible duplicate:');
+    console.warn(`  ${author} ${email}`);
+  }
 });
 
 rl.on('close', () => {

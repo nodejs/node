@@ -1,6 +1,6 @@
 // © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-/*
+/*  
 **********************************************************************
 *   Copyright (C) 2002-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
@@ -134,7 +134,7 @@ morebytes:
                 ch -= offsetsFromUTF8[inBytes];
 
                 /* Normal valid byte when the loop has not prematurely terminated (i < inBytes) */
-                if (ch <= MAXIMUM_UCS2)
+                if (ch <= MAXIMUM_UCS2) 
                 {
                     /* fits in 16 bits */
                     *(myTarget++) = (UChar) ch;
@@ -250,7 +250,7 @@ morebytes:
                 ch -= offsetsFromUTF8[inBytes];
 
                 /* Normal valid byte when the loop has not prematurely terminated (i < inBytes) */
-                if (ch <= MAXIMUM_UCS2)
+                if (ch <= MAXIMUM_UCS2) 
                 {
                     /* fits in 16 bits */
                     *(myTarget++) = (UChar) ch;
@@ -640,7 +640,7 @@ static UChar32 U_CALLCONV ucnv_getNextUChar_UTF8(UConverterToUnicodeArgs *args,
     cnv->toULength = i;
     *err = U_ILLEGAL_CHAR_FOUND;
     return 0xffff;
-}
+} 
 U_CDECL_END
 
 /* UTF-8-from-UTF-8 conversion functions ------------------------------------ */
@@ -707,9 +707,9 @@ ucnv_UTF8FromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
 
         // Do not go back into the bytes that will be read for finishing a partial
         // sequence from the previous buffer.
-        int32_t length=count-toULimit;
+        int32_t length=count-toULength;
         U8_TRUNCATE_IF_INCOMPLETE(source, 0, length);
-        count=toULimit+length;
+        count=toULength+length;
     }
 
     if(c!=0) {

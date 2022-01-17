@@ -49,7 +49,7 @@ BENCHMARK_IMPL(million_timers) {
   int i;
 
   timers = malloc(NUM_TIMERS * sizeof(timers[0]));
-  ASSERT(timers != NULL);
+  ASSERT_NOT_NULL(timers);
 
   loop = uv_default_loop();
   timeout = 0;

@@ -6,6 +6,7 @@
       "require": "./requirebranch.js"
     },
     "#subpath/*": "./sub/*",
+    "#subpath/*.asdf": "./test.js",
     "#external": "pkgexports/valid-cjs",
     "#external/subpath/*": "pkgexports/sub/*",
     "#external/invalidsubpath/": "pkgexports/sub",
@@ -21,10 +22,11 @@
       },
       "default": "./test.js"
     },
-    "#subpath/nullshadow/": [null],
+    "#subpath/nullshadow/*": [null],
     "#": "./test.js",
     "#/initialslash": "./test.js",
     "#notfound": "./notfound.js",
-    "#percent": "./..%2F/x.js"
+    "#encodedslash": "./..%2F/x.js",
+    "#encodedbackslash": "./..%5C/x.js"
   }
 }

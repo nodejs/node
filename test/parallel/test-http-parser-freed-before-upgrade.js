@@ -12,7 +12,7 @@ server.on('upgrade', common.mustCall((request, socket) => {
     'HTTP/1.1 101 Switching Protocols',
     'Connection: Upgrade',
     'Upgrade: WebSocket',
-    '\r\n'
+    '\r\n',
   ].join('\r\n'));
 }));
 

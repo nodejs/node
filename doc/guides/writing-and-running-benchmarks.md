@@ -1,17 +1,19 @@
-# How to Write and Run Benchmarks in Node.js Core
+# How to write and run benchmarks in Node.js core
 
-## Table of Contents
+## Table of contents
 
 * [Prerequisites](#prerequisites)
-  * [HTTP Benchmark Requirements](#http-benchmark-requirements)
-  * [Benchmark Analysis Requirements](#benchmark-analysis-requirements)
+  * [HTTP benchmark requirements](#http-benchmark-requirements)
+  * [HTTPS benchmark requirements](#https-benchmark-requirements)
+  * [HTTP/2 benchmark requirements](#http2-benchmark-requirements)
+  * [Benchmark analysis requirements](#benchmark-analysis-requirements)
 * [Running benchmarks](#running-benchmarks)
   * [Running individual benchmarks](#running-individual-benchmarks)
   * [Running all benchmarks](#running-all-benchmarks)
   * [Filtering benchmarks](#filtering-benchmarks)
   * [Comparing Node.js versions](#comparing-nodejs-versions)
   * [Comparing parameters](#comparing-parameters)
-  * [Running Benchmarks on the CI](#running-benchmarks-on-the-ci)
+  * [Running benchmarks on the CI](#running-benchmarks-on-the-ci)
 * [Creating a benchmark](#creating-a-benchmark)
   * [Basics of a benchmark](#basics-of-a-benchmark)
   * [Creating an HTTP benchmark](#creating-an-http-benchmark)
@@ -22,7 +24,7 @@ Basic Unix tools are required for some benchmarks.
 [Git for Windows][git-for-windows] includes Git Bash and the necessary tools,
 which need to be included in the global Windows `PATH`.
 
-### HTTP Benchmark Requirements
+### HTTP benchmark requirements
 
 Most of the HTTP benchmarks require a benchmarker to be installed. This can be
 either [`wrk`][wrk] or [`autocannon`][autocannon].
@@ -43,18 +45,32 @@ benchmarker to be used should be specified by providing it as an argument:
 
 `node benchmark/http/simple.js benchmarker=autocannon`
 
-#### HTTP/2 Benchmark Requirements
+#### HTTPS benchmark requirements
+
+To run the `https` benchmarks, one of `autocannon` or `wrk` benchmarkers must
+be used.
+
+`node benchmark/https/simple.js benchmarker=autocannon`
+
+#### HTTP/2 benchmark requirements
 
 To run the `http2` benchmarks, the `h2load` benchmarker must be used. The
 `h2load` tool is a component of the `nghttp2` project and may be installed
 from [nghttp2.org][] or built from source.
 
-`node benchmark/http2/simple.js benchmarker=autocannon`
+`node benchmark/http2/simple.js benchmarker=h2load`
 
-### Benchmark Analysis Requirements
+### Benchmark analysis requirements
 
-To analyze the results, `R` should be installed. Use one of the available
-package managers or download it from <https://www.r-project.org/>.
+To analyze the results statistically, you can use either the
+[node-benchmark-compare][] tool or the R script `benchmark/compare.R`.
+
+[node-benchmark-compare][] is a Node.js script that can be installed with
+`npm install -g node-benchmark-compare`.
+
+To draw comparison plots when analyzing the results, `R` must be installed.
+Use one of the available package managers or download it from
+<https://www.r-project.org/>.
 
 The R packages `ggplot2` and `plyr` are also used and can be installed using
 the R REPL.
@@ -65,11 +81,8 @@ install.packages("ggplot2")
 install.packages("plyr")
 ```
 
-In the event that a message is reported stating that a CRAN mirror must be
-selected first, specify a mirror by adding in the repo parameter.
-
-If we used the "<http://cran.us.r-project.org>" mirror, it could look something
-like this:
+If a message states that a CRAN mirror must be selected first, specify a mirror
+with the `repo` parameter.
 
 ```r
 install.packages("ggplot2", repo="http://cran.us.r-project.org")
@@ -266,9 +279,9 @@ The `compare.js` tool will then produce a csv file with the benchmark results.
 $ node benchmark/compare.js --old ./node-master --new ./node-pr-5134 string_decoder > compare-pr-5134.csv
 ```
 
-*Tips: there are some useful options of `benchmark/compare.js`. For example,
+_Tips: there are some useful options of `benchmark/compare.js`. For example,
 if you want to compare the benchmark of a single script instead of a whole
-module, you can use the `--filter` option:*
+module, you can use the `--filter` option:_
 
 ```console
   --new      ./new-node-binary  new node binary (required)
@@ -279,10 +292,11 @@ module, you can use the `--filter` option:*
   --no-progress                 don't show benchmark progress indicator
 ```
 
-For analysing the benchmark results use the `compare.R` tool.
+For analysing the benchmark results, use [node-benchmark-compare][] or the R
+script `benchmark/compare.R`.
 
 ```console
-$ cat compare-pr-5134.csv | Rscript benchmark/compare.R
+$ node-benchmark-compare compare-pr-5134.csv # or cat compare-pr-5134.csv | Rscript benchmark/compare.R
 
                                                                                              confidence improvement accuracy (*)    (**)   (***)
  string_decoder/string-decoder.js n=2500000 chunkLen=16 inLen=128 encoding='ascii'                  ***     -3.76 %       ±1.36%  ±1.82%  ±2.40%
@@ -309,17 +323,18 @@ consider at least two stars (`**`) as the threshold, in that case the risk
 is 1%. If three stars (`***`) is considered the risk is 0.1%. However this
 may require more runs to obtain (can be set with `--runs`).
 
-_For the statistically minded, the R script performs an [independent/unpaired
+_For the statistically minded, the script performs an [independent/unpaired
 2-group t-test][t-test], with the null hypothesis that the performance is the
 same for both versions. The confidence field will show a star if the p-value
 is less than `0.05`._
 
-The `compare.R` tool can also produce a box plot by using the `--plot filename`
-option. In this case there are 48 different benchmark combinations, and there
-may be a need to filter the csv file. This can be done while benchmarking
-using the `--set` parameter (e.g. `--set encoding=ascii`) or by filtering
-results afterwards using tools such as `sed` or `grep`. In the `sed` case be
-sure to keep the first line since that contains the header information.
+The `compare.R` tool can additionally produce a box plot by using the
+`--plot filename` option. In this case there are 48 different benchmark
+combinations, and there may be a need to filter the csv file. This can be done
+while benchmarking using the `--set` parameter (e.g. `--set encoding=ascii`) or
+by filtering results afterwards using tools such as `sed` or `grep`. In the
+`sed` case be sure to keep the first line since that contains the header
+information.
 
 ```console
 $ cat compare-pr-5134.csv | sed '1p;/encoding='"'"ascii"'"'/!d' | Rscript benchmark/compare.R --plot compare-plot.png
@@ -414,9 +429,9 @@ chunkLen     encoding      rate confidence.interval
 
 ![compare tool boxplot](doc_img/scatter-plot.png)
 
-### Running Benchmarks on the CI
+### Running benchmarks on the CI
 
-To see the performance impact of a Pull Request by running benchmarks on
+To see the performance impact of a pull request by running benchmarks on
 the CI, check out [How to: Running core benchmarks on Node.js CI][benchmark-ci].
 
 ## Creating a benchmark
@@ -551,8 +566,9 @@ Supported options keys are:
   benchmarker
 
 [autocannon]: https://github.com/mcollina/autocannon
-[benchmark-ci]: https://github.com/nodejs/benchmarking/blob/master/docs/core_benchmarks.md
+[benchmark-ci]: https://github.com/nodejs/benchmarking/blob/HEAD/docs/core_benchmarks.md
 [git-for-windows]: https://git-scm.com/download/win
 [nghttp2.org]: https://nghttp2.org
+[node-benchmark-compare]: https://github.com/targos/node-benchmark-compare
 [t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances
 [wrk]: https://github.com/wg/wrk

@@ -115,7 +115,7 @@ NFRule::makeRules(UnicodeString& description,
     // we know we're making at least one rule, so go ahead and
     // new it up and initialize its basevalue and divisor
     // (this also strips the rule descriptor, if any, off the
-    // descripton string)
+    // description string)
     NFRule* rule1 = new NFRule(rbnf, description, status);
     /* test for NULL */
     if (rule1 == 0) {
@@ -153,7 +153,7 @@ NFRule::makeRules(UnicodeString& description,
         if ((rule1->baseValue > 0
             && (rule1->baseValue % util64_pow(rule1->radix, rule1->exponent)) == 0)
             || rule1->getType() == kImproperFractionRule
-            || rule1->getType() == kMasterRule) {
+            || rule1->getType() == kDefaultRule) {
 
             // if it passes that test, new up the second rule.  If the
             // rule set both rules will belong to is a fraction rule
@@ -181,9 +181,9 @@ NFRule::makeRules(UnicodeString& description,
             }
 
             // if the description began with "x.0" and contains bracketed
-            // text, it describes both the master rule and the
+            // text, it describes both the default rule and the
             // improper fraction rule
-            else if (rule1->getType() == kMasterRule) {
+            else if (rule1->getType() == kDefaultRule) {
                 rule2->baseValue = rule1->baseValue;
                 rule1->setType(kImproperFractionRule);
             }
@@ -193,7 +193,7 @@ NFRule::makeRules(UnicodeString& description,
             rule2->radix = rule1->radix;
             rule2->exponent = rule1->exponent;
 
-            // rule2's rule text omits the stuff in brackets: initalize
+            // rule2's rule text omits the stuff in brackets: initialize
             // its rule text and substitutions accordingly
             sbuf.append(description, 0, brack1);
             if (brack2 + 1 < description.length()) {
@@ -376,7 +376,7 @@ NFRule::parseRuleDescriptor(UnicodeString& description, UErrorCode& status)
                 decimalPoint = descriptor.charAt(1);
             }
             else if (firstChar == gX && lastChar == gZero) {
-                setBaseValue(kMasterRule, status);
+                setBaseValue(kDefaultRule, status);
                 decimalPoint = descriptor.charAt(1);
             }
             else if (descriptor.compare(gNaN, 3) == 0) {
@@ -631,7 +631,7 @@ util_equalSubstitutions(const NFSubstitution* sub1, const NFSubstitution* sub2)
 * @param that The rule to compare this one against
 * @return True is the two rules are functionally equivalent
 */
-UBool
+bool
 NFRule::operator==(const NFRule& rhs) const
 {
     return baseValue == rhs.baseValue
@@ -663,7 +663,7 @@ NFRule::_appendRuleText(UnicodeString& result) const
     case kNegativeNumberRule: result.append(gMinusX, 2); break;
     case kImproperFractionRule: result.append(gX).append(decimalPoint == 0 ? gDot : decimalPoint).append(gX); break;
     case kProperFractionRule: result.append(gZero).append(decimalPoint == 0 ? gDot : decimalPoint).append(gX); break;
-    case kMasterRule: result.append(gX).append(decimalPoint == 0 ? gDot : decimalPoint).append(gZero); break;
+    case kDefaultRule: result.append(gX).append(decimalPoint == 0 ? gDot : decimalPoint).append(gZero); break;
     case kInfinityRule: result.append(gInf, 3); break;
     case kNaNRule: result.append(gNaN, 3); break;
     default:
@@ -1107,14 +1107,14 @@ NFRule::stripPrefix(UnicodeString& text, const UnicodeString& prefix, ParsePosit
 {
     // if the prefix text is empty, dump out without doing anything
     if (prefix.length() != 0) {
-	UErrorCode status = U_ZERO_ERROR;
+    	UErrorCode status = U_ZERO_ERROR;
         // use prefixLength() to match the beginning of
         // "text" against "prefix".  This function returns the
         // number of characters from "text" that matched (or 0 if
         // we didn't match the whole prefix)
         int32_t pfl = prefixLength(text, prefix, status);
         if (U_FAILURE(status)) { // Memory allocation error.
-		return;
+        	return;
         }
         if (pfl != 0) {
             // if we got a successful match, update the parse position
@@ -1170,9 +1170,9 @@ NFRule::matchToDelimiter(const UnicodeString& text,
     // use "sub"'s doParse() method to match the text before the
     // instance of "delimiter" we just found.
     if (!allIgnorable(delimiter, status)) {
-	if (U_FAILURE(status)) { //Memory allocation error.
-		return 0;
-	}
+    	if (U_FAILURE(status)) { //Memory allocation error.
+    		return 0;
+    	}
         ParsePosition tempPP;
         Formattable result;
 
@@ -1297,6 +1297,10 @@ NFRule::prefixLength(const UnicodeString& str, const UnicodeString& prefix, UErr
 #if !UCONFIG_NO_COLLATION
     // go through all this grief if we're in lenient-parse mode
     if (formatter->isLenient()) {
+        // Check if non-lenient rule finds the text before call lenient parsing
+        if (str.startsWith(prefix)) {
+            return prefix.length();
+        }
         // get the formatter's collator and use it to create two
         // collation element iterators, one over the target string
         // and another over the prefix (right now, we'll throw an
@@ -1505,9 +1509,15 @@ NFRule::findText(const UnicodeString& str,
         return str.indexOf(key, startingAt);
     }
     else {
-        // but if lenient parsing is turned ON, we've got some work
-        // ahead of us
-        return findTextLenient(str, key, startingAt, length);
+        // Check if non-lenient rule finds the text before call lenient parsing
+        *length = key.length();
+        int32_t pos = str.indexOf(key, startingAt);
+        if(pos >= 0) {
+            return pos;
+        } else {
+            // but if lenient parsing is turned ON, we've got some work ahead of us
+            return findTextLenient(str, key, startingAt, length);
+        }
     }
 }
 
@@ -1523,7 +1533,7 @@ NFRule::findTextLenient(const UnicodeString& str,
     // in JDK 1.2, CollationElementIterator provides us with an
     // API to map between character offsets and collation elements
     // and we can do this by marching through the string comparing
-    // collation elements.  We can't do that in JDK 1.1.  Insted,
+    // collation elements.  We can't do that in JDK 1.1.  Instead,
     // we have to go through this horrible slow mess:
     int32_t p = startingAt;
     int32_t keyLen = 0;

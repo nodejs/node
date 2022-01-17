@@ -33,7 +33,7 @@ if (cluster.isWorker) {
   net.createServer((socket) => {
     socket.end('echo');
   }).listen(0, '127.0.0.1');
-} else if (cluster.isMaster) {
+} else if (cluster.isPrimary) {
   const servers = 2;
   const serverPorts = new Set();
 

@@ -9,7 +9,7 @@ const Pipeline = require('minipass-pipeline')
 
 const putOpts = (opts) => ({
   algorithms: ['sha512'],
-  ...opts
+  ...opts,
 })
 
 module.exports = putData
@@ -21,9 +21,9 @@ function putData (cache, key, data, opts = {}) {
     return index
       .insert(cache, key, res.integrity, { ...opts, size: res.size })
       .then((entry) => {
-        if (memoize) {
+        if (memoize)
           memo.put(cache, entry, data, opts)
-        }
+
         return res.integrity
       })
   })
@@ -67,17 +67,16 @@ function putStream (cache, key, opts = {}) {
       return index
         .insert(cache, key, integrity, { ...opts, size })
         .then((entry) => {
-          if (memoize && memoData) {
+          if (memoize && memoData)
             memo.put(cache, entry, memoData, opts)
-          }
-          if (integrity) {
+
+          if (integrity)
             pipeline.emit('integrity', integrity)
-          }
-          if (size) {
+
+          if (size)
             pipeline.emit('size', size)
-          }
         })
-    }
+    },
   }))
 
   return pipeline

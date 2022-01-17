@@ -17,20 +17,20 @@ execFile(node, normal, function(er, stdout, stderr) {
   // Show Process Warnings
   assert.strictEqual(er, null);
   assert.strictEqual(stdout, '');
-  assert(warningMessage.test(stderr));
+  assert.match(stderr, warningMessage);
 });
 
 execFile(node, noWarn, function(er, stdout, stderr) {
   // Hide Process Warnings
   assert.strictEqual(er, null);
   assert.strictEqual(stdout, '');
-  assert(!warningMessage.test(stderr));
+  assert.doesNotMatch(stderr, warningMessage);
 });
 
 execFile(node, traceWarn, function(er, stdout, stderr) {
   // Show Warning Trace
   assert.strictEqual(er, null);
   assert.strictEqual(stdout, '');
-  assert(warningMessage.test(stderr));
-  assert(/at Object\.<anonymous>\s\(.+warnings\.js:3:9\)/.test(stderr));
+  assert.match(stderr, warningMessage);
+  assert.match(stderr, /at Object\.<anonymous>\s\(.+warnings\.js:3:9\)/);
 });

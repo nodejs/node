@@ -132,7 +132,6 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
 
   // We should not have branches in the middle of a block.
   DCHECK_NE(instr->flags_mode(), kFlags_branch);
-  DCHECK_NE(instr->flags_mode(), kFlags_branch_and_poison);
 
   if (IsFixedRegisterParameter(instr)) {
     if (last_live_in_reg_marker_ != nullptr) {
@@ -168,12 +167,16 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
         last_side_effect_instr_->AddSuccessor(new_node);
       }
       pending_loads_.push_back(new_node);
-    } else if (instr->IsDeoptimizeCall() || instr->IsTrap()) {
+    } else if (instr->IsDeoptimizeCall() || CanTrap(instr)) {
       // Ensure that deopts or traps are not reordered with respect to
       // side-effect instructions.
       if (last_side_effect_instr_ != nullptr) {
         last_side_effect_instr_->AddSuccessor(new_node);
       }
+    }
+
+    // Update last deoptimization or trap point.
+    if (instr->IsDeoptimizeCall() || CanTrap(instr)) {
       last_deopt_or_trap_ = new_node;
     }
 
@@ -298,18 +301,14 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       // effects.
       return kIsLoadOperation;
 
-    case kArchWordPoisonOnSpeculation:
-      // While poisoning operations have no side effect, they must not be
-      // reordered relative to branches.
-      return kHasSideEffect;
-
     case kArchPrepareCallCFunction:
     case kArchPrepareTailCall:
-    case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject:
     case kArchTailCallAddress:
+#if V8_ENABLE_WEBASSEMBLY
     case kArchTailCallWasm:
-    case kArchAbortCSAAssert:
+#endif  // V8_ENABLE_WEBASSEMBLY
+    case kArchAbortCSADcheck:
       return kHasSideEffect;
 
     case kArchDebugBreak:
@@ -322,7 +321,9 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchCallCFunction:
     case kArchCallCodeObject:
     case kArchCallJSFunction:
+#if V8_ENABLE_WEBASSEMBLY
     case kArchCallWasmFunction:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case kArchCallBuiltinPointer:
       // Calls can cause GC and GC may relocate objects. If a pure instruction
       // operates on a tagged pointer that was cast to a word then it may be
@@ -331,55 +332,56 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       return kIsBarrier;
 
     case kArchStoreWithWriteBarrier:
+    case kArchAtomicStoreWithWriteBarrier:
       return kHasSideEffect;
 
-    case kWord32AtomicLoadInt8:
-    case kWord32AtomicLoadUint8:
-    case kWord32AtomicLoadInt16:
-    case kWord32AtomicLoadUint16:
-    case kWord32AtomicLoadWord32:
+    case kAtomicLoadInt8:
+    case kAtomicLoadUint8:
+    case kAtomicLoadInt16:
+    case kAtomicLoadUint16:
+    case kAtomicLoadWord32:
       return kIsLoadOperation;
 
-    case kWord32AtomicStoreWord8:
-    case kWord32AtomicStoreWord16:
-    case kWord32AtomicStoreWord32:
+    case kAtomicStoreWord8:
+    case kAtomicStoreWord16:
+    case kAtomicStoreWord32:
       return kHasSideEffect;
 
-    case kWord32AtomicExchangeInt8:
-    case kWord32AtomicExchangeUint8:
-    case kWord32AtomicExchangeInt16:
-    case kWord32AtomicExchangeUint16:
-    case kWord32AtomicExchangeWord32:
-    case kWord32AtomicCompareExchangeInt8:
-    case kWord32AtomicCompareExchangeUint8:
-    case kWord32AtomicCompareExchangeInt16:
-    case kWord32AtomicCompareExchangeUint16:
-    case kWord32AtomicCompareExchangeWord32:
-    case kWord32AtomicAddInt8:
-    case kWord32AtomicAddUint8:
-    case kWord32AtomicAddInt16:
-    case kWord32AtomicAddUint16:
-    case kWord32AtomicAddWord32:
-    case kWord32AtomicSubInt8:
-    case kWord32AtomicSubUint8:
-    case kWord32AtomicSubInt16:
-    case kWord32AtomicSubUint16:
-    case kWord32AtomicSubWord32:
-    case kWord32AtomicAndInt8:
-    case kWord32AtomicAndUint8:
-    case kWord32AtomicAndInt16:
-    case kWord32AtomicAndUint16:
-    case kWord32AtomicAndWord32:
-    case kWord32AtomicOrInt8:
-    case kWord32AtomicOrUint8:
-    case kWord32AtomicOrInt16:
-    case kWord32AtomicOrUint16:
-    case kWord32AtomicOrWord32:
-    case kWord32AtomicXorInt8:
-    case kWord32AtomicXorUint8:
-    case kWord32AtomicXorInt16:
-    case kWord32AtomicXorUint16:
-    case kWord32AtomicXorWord32:
+    case kAtomicExchangeInt8:
+    case kAtomicExchangeUint8:
+    case kAtomicExchangeInt16:
+    case kAtomicExchangeUint16:
+    case kAtomicExchangeWord32:
+    case kAtomicCompareExchangeInt8:
+    case kAtomicCompareExchangeUint8:
+    case kAtomicCompareExchangeInt16:
+    case kAtomicCompareExchangeUint16:
+    case kAtomicCompareExchangeWord32:
+    case kAtomicAddInt8:
+    case kAtomicAddUint8:
+    case kAtomicAddInt16:
+    case kAtomicAddUint16:
+    case kAtomicAddWord32:
+    case kAtomicSubInt8:
+    case kAtomicSubUint8:
+    case kAtomicSubInt16:
+    case kAtomicSubUint16:
+    case kAtomicSubWord32:
+    case kAtomicAndInt8:
+    case kAtomicAndUint8:
+    case kAtomicAndInt16:
+    case kAtomicAndUint16:
+    case kAtomicAndWord32:
+    case kAtomicOrInt8:
+    case kAtomicOrUint8:
+    case kAtomicOrInt16:
+    case kAtomicOrUint16:
+    case kAtomicOrWord32:
+    case kAtomicXorInt8:
+    case kAtomicXorUint8:
+    case kAtomicXorInt16:
+    case kAtomicXorUint16:
+    case kAtomicXorWord32:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

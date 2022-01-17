@@ -12,7 +12,7 @@ team` command and its various subcommands.
 ## Example
 
 ```javascript
-const access = require('libnpmteam')
+const team = require('libnpmteam')
 
 // List all teams for the @npm org.
 console.log(await team.lsTeams('npm'))

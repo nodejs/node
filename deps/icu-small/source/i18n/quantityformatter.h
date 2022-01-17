@@ -36,10 +36,10 @@ class FormattedStringBuilder;
  * There must be a pattern for the "other" variant.
  * Then use the format() method.
  * <p>
- * Concurrent calls only to const methods on a QuantityFormatter object are
+ * Concurrent calls only to const methods on a QuantityFormatter object are 
  * safe, but concurrent const and non-const method calls on a QuantityFormatter
  * object are not safe and require synchronization.
- *
+ * 
  */
 class U_I18N_API QuantityFormatter : public UMemory {
 public:
@@ -74,18 +74,18 @@ public:
      * @param variant "zero", "one", "two", "few", "many", "other"
      * @param rawPattern the pattern for the variant e.g "{0} meters"
      * @param status any error returned here.
-     * @return TRUE on success; FALSE if status was set to a non zero error.
+     * @return true on success; false if status was set to a non zero error.
      */
     UBool addIfAbsent(const char *variant, const UnicodeString &rawPattern, UErrorCode &status);
 
     /**
-     * returns TRUE if this object has at least the "other" variant.
+     * returns true if this object has at least the "other" variant.
      */
     UBool isValid() const;
 
     /**
      * Gets the pattern formatter that would be used for a particular variant.
-     * If isValid() returns TRUE, this method is guaranteed to return a
+     * If isValid() returns true, this method is guaranteed to return a
      * non-NULL value.
      */
     const SimpleFormatter *getByVariant(const char *variant) const;
@@ -94,7 +94,7 @@ public:
      * Formats a number with this object appending the result to appendTo.
      * At least the "other" variant must be added to this object for this
      * method to work.
-     *
+     * 
      * @param number the single number.
      * @param fmt formats the number
      * @param rules computes the plural variant to use.
@@ -112,7 +112,7 @@ public:
 
     /**
      * Selects the standard plural form for the number/formatter/rules.
-     * TODO(13591): Remove this method.
+     * Used in MeasureFormat for backwards compatibility with NumberFormat.
      */
     static StandardPlural::Form selectPlural(
             const Formattable &number,

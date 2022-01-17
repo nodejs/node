@@ -236,6 +236,17 @@ class V8_EXPORT_PRIVATE DateCache {
   base::TimezoneCache* tz_cache_;
 };
 
+// Routines shared between Date and Temporal
+
+// ES6 section 20.3.1.14 MakeDate (day, time)
+double MakeDate(double day, double time);
+
+// ES6 section 20.3.1.13 MakeDay (year, month, date)
+double MakeDay(double year, double month, double date);
+
+// ES6 section 20.3.1.12 MakeTime (hour, min, sec, ms)
+double MakeTime(double hour, double min, double sec, double ms);
+
 }  // namespace internal
 }  // namespace v8
 

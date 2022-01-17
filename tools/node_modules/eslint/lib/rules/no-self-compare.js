@@ -10,13 +10,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow comparisons where both sides are exactly the same",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-self-compare"
         },

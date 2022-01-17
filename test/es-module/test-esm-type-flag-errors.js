@@ -29,8 +29,8 @@ try {
 } catch (e) {
   assert.strictEqual(e.name, 'Error');
   assert.strictEqual(e.code, 'ERR_REQUIRE_ESM');
-  assert(e.toString().match(/Must use import to load ES Module/g));
-  assert(e.message.match(/Must use import to load ES Module/g));
+  assert(e.toString().match(/require\(\) of ES Module/g));
+  assert(e.message.match(/require\(\) of ES Module/g));
 }
 
 function expect(opt = '', inputFile, want, wantsError = false) {

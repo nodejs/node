@@ -19,8 +19,8 @@ def abspath(*args):
   return os.path.abspath(path)
 
 def load_config():
-  s = open('config.gypi').read()
-  return ast.literal_eval(s)
+  with open('config.gypi') as f:
+    return ast.literal_eval(f.read())
 
 def try_unlink(path):
   try:
@@ -79,8 +79,8 @@ def uninstall(paths, dst):
   for path in paths:
     try_remove(path, dst)
 
-def npm_files(action):
-  target_path = 'lib/node_modules/npm/'
+def package_files(action, name, bins):
+  target_path = 'lib/node_modules/' + name + '/'
 
   # don't install npm if the target path is a symlink, it probably means
   # that a dev version of npm is installed there
@@ -88,28 +88,37 @@ def npm_files(action):
 
   # npm has a *lot* of files and it'd be a pain to maintain a fixed list here
   # so we walk its source directory instead...
-  for dirname, subdirs, basenames in os.walk('deps/npm', topdown=True):
+  root = 'deps/' + name
+  for dirname, subdirs, basenames in os.walk(root, topdown=True):
     subdirs[:] = [subdir for subdir in subdirs if subdir != 'test']
     paths = [os.path.join(dirname, basename) for basename in basenames]
-    action(paths, target_path + dirname[9:] + '/')
+    action(paths, target_path + dirname[len(root) + 1:] + '/')
 
-  # create/remove symlink
-  link_path = abspath(install_path, 'bin/npm')
-  if action == uninstall:
-    action([link_path], 'bin/npm')
-  elif action == install:
-    try_symlink('../lib/node_modules/npm/bin/npm-cli.js', link_path)
-  else:
-    assert 0  # unhandled action type
+  # create/remove symlinks
+  for bin_name, bin_target in bins.items():
+    link_path = abspath(install_path, 'bin/' + bin_name)
+    if action == uninstall:
+      action([link_path], 'bin/' + bin_name)
+    elif action == install:
+      try_symlink('../lib/node_modules/' + name + '/' + bin_target, link_path)
+    else:
+      assert 0  # unhandled action type
 
-  # create/remove symlink
-  link_path = abspath(install_path, 'bin/npx')
-  if action == uninstall:
-    action([link_path], 'bin/npx')
-  elif action == install:
-    try_symlink('../lib/node_modules/npm/bin/npx-cli.js', link_path)
-  else:
-    assert 0 # unhandled action type
+def npm_files(action):
+  package_files(action, 'npm', {
+    'npm': 'bin/npm-cli.js',
+    'npx': 'bin/npx-cli.js',
+  })
+
+def corepack_files(action):
+  package_files(action, 'corepack', {
+    'corepack': 'dist/corepack.js',
+#   Not the default just yet:
+#   'yarn': 'dist/yarn.js',
+#   'yarnpkg': 'dist/yarn.js',
+#   'pnpm': 'dist/pnpm.js',
+#   'pnpx': 'dist/pnpx.js',
+  })
 
 def subdir_files(path, dest, action):
   ret = {}
@@ -152,17 +161,71 @@ def files(action):
   else:
     action(['doc/node.1'], 'share/man/man1/')
 
-  if 'true' == variables.get('node_install_npm'): npm_files(action)
+  if 'true' == variables.get('node_install_npm'):
+    npm_files(action)
+
+  if 'true' == variables.get('node_install_corepack'):
+    corepack_files(action)
 
   headers(action)
 
 def headers(action):
-  def ignore_inspector_headers(files_arg, dest):
-    inspector_headers = [
-      'deps/v8/include/v8-inspector.h',
-      'deps/v8/include/v8-inspector-protocol.h'
+  def wanted_v8_headers(files_arg, dest):
+    v8_headers = [
+      'deps/v8/include/cppgc/common.h',
+      'deps/v8/include/libplatform/libplatform.h',
+      'deps/v8/include/libplatform/libplatform-export.h',
+      'deps/v8/include/libplatform/v8-tracing.h',
+      'deps/v8/include/v8.h',
+      'deps/v8/include/v8-array-buffer.h',
+      'deps/v8/include/v8-callbacks.h',
+      'deps/v8/include/v8-container.h',
+      'deps/v8/include/v8-context.h',
+      'deps/v8/include/v8-data.h',
+      'deps/v8/include/v8-date.h',
+      'deps/v8/include/v8-debug.h',
+      'deps/v8/include/v8-embedder-heap.h',
+      'deps/v8/include/v8-exception.h',
+      'deps/v8/include/v8-extension.h',
+      'deps/v8/include/v8-external.h',
+      'deps/v8/include/v8-forward.h',
+      'deps/v8/include/v8-function-callback.h',
+      'deps/v8/include/v8-function.h',
+      'deps/v8/include/v8-initialization.h',
+      'deps/v8/include/v8-internal.h',
+      'deps/v8/include/v8-isolate.h',
+      'deps/v8/include/v8-json.h',
+      'deps/v8/include/v8-local-handle.h',
+      'deps/v8/include/v8-locker.h',
+      'deps/v8/include/v8-maybe.h',
+      'deps/v8/include/v8-memory-span.h',
+      'deps/v8/include/v8-message.h',
+      'deps/v8/include/v8-microtask-queue.h',
+      'deps/v8/include/v8-microtask.h',
+      'deps/v8/include/v8-object.h',
+      'deps/v8/include/v8-persistent-handle.h',
+      'deps/v8/include/v8-platform.h',
+      'deps/v8/include/v8-primitive-object.h',
+      'deps/v8/include/v8-primitive.h',
+      'deps/v8/include/v8-profiler.h',
+      'deps/v8/include/v8-promise.h',
+      'deps/v8/include/v8-proxy.h',
+      'deps/v8/include/v8-regexp.h',
+      'deps/v8/include/v8-script.h',
+      'deps/v8/include/v8-snapshot.h',
+      'deps/v8/include/v8-statistics.h',
+      'deps/v8/include/v8-template.h',
+      'deps/v8/include/v8-traced-handle.h',
+      'deps/v8/include/v8-typed-array.h',
+      'deps/v8/include/v8-unwinder.h',
+      'deps/v8/include/v8-value-serializer.h',
+      'deps/v8/include/v8-value.h',
+      'deps/v8/include/v8-version.h',
+      'deps/v8/include/v8-wasm.h',
+      'deps/v8/include/v8-weak-callback-info.h',
+      'deps/v8/include/v8config.h',
     ]
-    files_arg = [name for name in files_arg if name not in inspector_headers]
+    files_arg = [name for name in files_arg if name in v8_headers]
     action(files_arg, dest)
 
   action([
@@ -182,7 +245,7 @@ def headers(action):
   if sys.platform.startswith('aix'):
     action(['out/Release/node.exp'], 'include/node/')
 
-  subdir_files('deps/v8/include', 'include/node/', ignore_inspector_headers)
+  subdir_files('deps/v8/include', 'include/node/', wanted_v8_headers)
 
   if 'false' == variables.get('node_shared_libuv'):
     subdir_files('deps/uv/include', 'include/node/', action)
@@ -223,11 +286,19 @@ def run(args):
   cmd = args[1] if len(args) > 1 else 'install'
 
   if os.environ.get('HEADERS_ONLY'):
-    if cmd == 'install': return headers(install)
-    if cmd == 'uninstall': return headers(uninstall)
+    if cmd == 'install':
+      headers(install)
+      return
+    if cmd == 'uninstall':
+      headers(uninstall)
+      return
   else:
-    if cmd == 'install': return files(install)
-    if cmd == 'uninstall': return files(uninstall)
+    if cmd == 'install':
+      files(install)
+      return
+    if cmd == 'uninstall':
+      files(uninstall)
+      return
 
   raise RuntimeError('Bad command: %s\n' % cmd)
 

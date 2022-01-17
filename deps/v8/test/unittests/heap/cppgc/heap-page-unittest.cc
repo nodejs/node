@@ -24,8 +24,8 @@ namespace {
 class PageTest : public testing::TestWithHeap {
  public:
   RawHeap& GetRawHeap() { return Heap::From(GetHeap())->raw_heap(); }
-  PageBackend* GetPageBackend() {
-    return Heap::From(GetHeap())->page_backend();
+  PageBackend& GetPageBackend() {
+    return *Heap::From(GetHeap())->page_backend();
   }
 };
 
@@ -54,39 +54,39 @@ TEST_F(PageTest, PredefinedSpaces) {
   RawHeap& heap = GetRawHeap();
   {
     auto* gced = MakeGarbageCollected<GCed<1>>(GetAllocationHandle());
-    BaseSpace* space = NormalPage::FromPayload(gced)->space();
-    EXPECT_EQ(heap.Space(SpaceType::kNormal1), space);
-    EXPECT_EQ(0u, space->index());
-    EXPECT_FALSE(space->is_large());
+    BaseSpace& space = NormalPage::FromPayload(gced)->space();
+    EXPECT_EQ(heap.Space(SpaceType::kNormal1), &space);
+    EXPECT_EQ(0u, space.index());
+    EXPECT_FALSE(space.is_large());
   }
   {
     auto* gced = MakeGarbageCollected<GCed<32>>(GetAllocationHandle());
-    BaseSpace* space = NormalPage::FromPayload(gced)->space();
-    EXPECT_EQ(heap.Space(SpaceType::kNormal2), space);
-    EXPECT_EQ(1u, space->index());
-    EXPECT_FALSE(space->is_large());
+    BaseSpace& space = NormalPage::FromPayload(gced)->space();
+    EXPECT_EQ(heap.Space(SpaceType::kNormal2), &space);
+    EXPECT_EQ(1u, space.index());
+    EXPECT_FALSE(space.is_large());
   }
   {
     auto* gced = MakeGarbageCollected<GCed<64>>(GetAllocationHandle());
-    BaseSpace* space = NormalPage::FromPayload(gced)->space();
-    EXPECT_EQ(heap.Space(SpaceType::kNormal3), space);
-    EXPECT_EQ(2u, space->index());
-    EXPECT_FALSE(space->is_large());
+    BaseSpace& space = NormalPage::FromPayload(gced)->space();
+    EXPECT_EQ(heap.Space(SpaceType::kNormal3), &space);
+    EXPECT_EQ(2u, space.index());
+    EXPECT_FALSE(space.is_large());
   }
   {
     auto* gced = MakeGarbageCollected<GCed<128>>(GetAllocationHandle());
-    BaseSpace* space = NormalPage::FromPayload(gced)->space();
-    EXPECT_EQ(heap.Space(SpaceType::kNormal4), space);
-    EXPECT_EQ(3u, space->index());
-    EXPECT_FALSE(space->is_large());
+    BaseSpace& space = NormalPage::FromPayload(gced)->space();
+    EXPECT_EQ(heap.Space(SpaceType::kNormal4), &space);
+    EXPECT_EQ(3u, space.index());
+    EXPECT_FALSE(space.is_large());
   }
   {
     auto* gced = MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
         GetAllocationHandle());
-    BaseSpace* space = NormalPage::FromPayload(gced)->space();
-    EXPECT_EQ(heap.Space(SpaceType::kLarge), space);
-    EXPECT_EQ(4u, space->index());
-    EXPECT_TRUE(space->is_large());
+    BaseSpace& space = NormalPage::FromPayload(gced)->space();
+    EXPECT_EQ(heap.Space(SpaceType::kLarge), &space);
+    EXPECT_EQ(4u, space.index());
+    EXPECT_TRUE(space.is_large());
   }
 }
 
@@ -112,7 +112,7 @@ TEST_F(PageTest, NormalPageIndexing) {
   size_t page_n = 0;
   for (const BasePage* page : *space) {
     EXPECT_FALSE(page->is_large());
-    EXPECT_EQ(space, page->space());
+    EXPECT_EQ(space, &page->space());
     ++page_n;
   }
   EXPECT_EQ(page_n, space->size());
@@ -161,8 +161,8 @@ TEST_F(PageTest, HeapObjectHeaderOnBasePageIndexing) {
   size_t num = 0;
   for (const HeapObjectHeader& header : *page) {
     EXPECT_EQ(reinterpret_cast<Address>(persistents[num].Get()),
-              header.Payload());
-    size += header.GetSize();
+              header.ObjectStart());
+    size += header.AllocatedSize();
     ++num;
   }
   EXPECT_EQ(num, persistents.size());
@@ -180,7 +180,7 @@ TEST_F(PageTest, HeapObjectHeaderOnLargePageIndexing) {
   EXPECT_EQ(expected_payload_size, page->PayloadSize());
 
   const HeapObjectHeader* header = page->ObjectHeader();
-  EXPECT_EQ(reinterpret_cast<Address>(gced), header->Payload());
+  EXPECT_EQ(reinterpret_cast<Address>(gced), header->ObjectStart());
 }
 
 TEST_F(PageTest, NormalPageCreationDestruction) {
@@ -188,19 +188,19 @@ TEST_F(PageTest, NormalPageCreationDestruction) {
   const PageBackend* backend = Heap::From(GetHeap())->page_backend();
   auto* space = static_cast<NormalPageSpace*>(
       heap.Space(RawHeap::RegularSpaceType::kNormal1));
-  auto* page = NormalPage::Create(GetPageBackend(), space);
+  auto* page = NormalPage::Create(GetPageBackend(), *space);
   EXPECT_NE(nullptr, backend->Lookup(page->PayloadStart()));
 
   space->AddPage(page);
   EXPECT_NE(space->end(), std::find(space->begin(), space->end(), page));
 
   space->free_list().Add({page->PayloadStart(), page->PayloadSize()});
-  EXPECT_TRUE(
-      space->free_list().Contains({page->PayloadStart(), page->PayloadSize()}));
+  EXPECT_TRUE(space->free_list().ContainsForTesting(
+      {page->PayloadStart(), page->PayloadSize()}));
 
   space->free_list().Clear();
-  EXPECT_FALSE(
-      space->free_list().Contains({page->PayloadStart(), page->PayloadSize()}));
+  EXPECT_FALSE(space->free_list().ContainsForTesting(
+      {page->PayloadStart(), page->PayloadSize()}));
   space->RemovePage(page);
   EXPECT_EQ(space->end(), std::find(space->begin(), space->end(), page));
   NormalPage::Destroy(page);
@@ -213,7 +213,7 @@ TEST_F(PageTest, LargePageCreationDestruction) {
   const PageBackend* backend = Heap::From(GetHeap())->page_backend();
   auto* space = static_cast<LargePageSpace*>(
       heap.Space(RawHeap::RegularSpaceType::kLarge));
-  auto* page = LargePage::Create(GetPageBackend(), space, kObjectSize);
+  auto* page = LargePage::Create(GetPageBackend(), *space, kObjectSize);
   EXPECT_NE(nullptr, backend->Lookup(page->PayloadStart()));
 
   space->AddPage(page);
@@ -231,14 +231,14 @@ TEST_F(PageTest, UnsweptPageDestruction) {
   {
     auto* space = static_cast<NormalPageSpace*>(
         heap.Space(RawHeap::RegularSpaceType::kNormal1));
-    auto* page = NormalPage::Create(GetPageBackend(), space);
+    auto* page = NormalPage::Create(GetPageBackend(), *space);
     space->AddPage(page);
     EXPECT_DEATH_IF_SUPPORTED(NormalPage::Destroy(page), "");
   }
   {
     auto* space = static_cast<LargePageSpace*>(
         heap.Space(RawHeap::RegularSpaceType::kLarge));
-    auto* page = LargePage::Create(GetPageBackend(), space,
+    auto* page = LargePage::Create(GetPageBackend(), *space,
                                    2 * kLargeObjectSizeThreshold);
     space->AddPage(page);
     EXPECT_DEATH_IF_SUPPORTED(LargePage::Destroy(page), "");
@@ -253,7 +253,7 @@ TEST_F(PageTest, UnsweptPageDestruction) {
 TEST_F(PageTest, ObjectHeaderFromInnerAddress) {
   {
     auto* object = MakeGarbageCollected<GCed<64>>(GetAllocationHandle());
-    const HeapObjectHeader& expected = HeapObjectHeader::FromPayload(object);
+    const HeapObjectHeader& expected = HeapObjectHeader::FromObject(object);
 
     for (auto* inner_ptr = reinterpret_cast<ConstAddress>(object);
          inner_ptr < reinterpret_cast<ConstAddress>(object + 1); ++inner_ptr) {
@@ -266,7 +266,7 @@ TEST_F(PageTest, ObjectHeaderFromInnerAddress) {
   {
     auto* object = MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
         GetAllocationHandle());
-    const HeapObjectHeader& expected = HeapObjectHeader::FromPayload(object);
+    const HeapObjectHeader& expected = HeapObjectHeader::FromObject(object);
 
     const HeapObjectHeader& hoh =
         BasePage::FromPayload(object)->ObjectHeaderFromInnerAddress(

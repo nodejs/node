@@ -1,35 +1,73 @@
-
-tools/gcmole/gcmole-test.cc:27:10: warning: Possibly dead variable.
+tools/gcmole/gcmole-test.cc:30:10: warning: Possibly dead variable.
   return obj;
          ^
-tools/gcmole/gcmole-test.cc:45:3: warning: Possible problem with evaluation order.
+tools/gcmole/gcmole-test.cc:48:3: warning: Possible problem with evaluation order.
   TwoArgumentsFunction(*CauseGC(obj1, isolate), *CauseGC(obj2, isolate));
   ^
-tools/gcmole/gcmole-test.cc:57:3: warning: Possible problem with evaluation order.
+tools/gcmole/gcmole-test.cc:60:3: warning: Possible problem with evaluation order.
   TwoSizeTArgumentsFunction(sizeof(*CauseGC(obj1, isolate)),
   ^
-tools/gcmole/gcmole-test.cc:82:7: warning: Possible problem with evaluation order.
+tools/gcmole/gcmole-test.cc:85:7: warning: Possible problem with evaluation order.
   so->Method(*CauseGC(obj1, isolate));
       ^
-tools/gcmole/gcmole-test.cc:84:7: warning: Possible problem with evaluation order.
+tools/gcmole/gcmole-test.cc:87:7: warning: Possible problem with evaluation order.
   so->Method(CauseGCRaw(*obj1, isolate));
       ^
-tools/gcmole/gcmole-test.cc:128:14: warning: Possible problem with evaluation order.
+tools/gcmole/gcmole-test.cc:131:14: warning: Possible problem with evaluation order.
   so_handle->Method(*derived.VirtualCauseGC(obj1, isolate));
              ^
-tools/gcmole/gcmole-test.cc:130:14: warning: Possible problem with evaluation order.
+tools/gcmole/gcmole-test.cc:133:14: warning: Possible problem with evaluation order.
   so_handle->Method(*base->VirtualCauseGC(obj1, isolate));
              ^
-tools/gcmole/gcmole-test.cc:151:14: warning: Possible problem with evaluation order.
+tools/gcmole/gcmole-test.cc:154:14: warning: Possible problem with evaluation order.
   so_handle->Method(*SomeClass::StaticCauseGC(obj1, isolate));
              ^
-tools/gcmole/gcmole-test.cc:161:3: warning: Possibly dead variable.
+tools/gcmole/gcmole-test.cc:164:3: warning: Possibly dead variable.
   raw_obj.Print();
   ^
-tools/gcmole/gcmole-test.cc:193:3: warning: Possibly dead variable.
+tools/gcmole/gcmole-test.cc:172:3: warning: Possibly dead variable.
   raw_obj.Print();
   ^
-tools/gcmole/gcmole-test.cc:216:3: warning: Possibly dead variable.
+tools/gcmole/gcmole-test.cc:198:3: warning: Possibly dead variable.
   raw_obj.Print();
   ^
-11 warnings generated.
+tools/gcmole/gcmole-test.cc:224:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:235:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:242:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:252:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:262:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:265:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:271:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:287:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:295:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:302:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:319:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:338:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:349:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+24 warnings generated.

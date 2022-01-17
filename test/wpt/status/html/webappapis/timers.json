@@ -1,1 +1,5 @@
-{}
+{
+  "negative-settimeout.any.js": {
+    "fail": "unreliable in Node.js; Refs: https://github.com/nodejs/node/issues/37672"
+  }
+}

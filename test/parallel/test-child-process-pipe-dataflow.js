@@ -3,7 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const spawn = require('child_process').spawn;
 const tmpdir = require('../common/tmpdir');
 
@@ -22,12 +21,13 @@ const MB = KB * KB;
   const file = path.resolve(tmpdir.path, 'data.txt');
   const buf = Buffer.alloc(MB).fill('x');
 
-  // Most OS commands that deal with data, attach special
-  // meanings to new line - for example, line buffering.
-  // So cut the buffer into lines at some points, forcing
-  // data flow to be split in the stream.
+  // Most OS commands that deal with data, attach special meanings to new line -
+  // for example, line buffering. So cut the buffer into lines at some points,
+  // forcing data flow to be split in the stream. Do not use os.EOL for \n as
+  // that is 2 characters on Windows and is sometimes converted to 1 character
+  // which causes the test to fail.
   for (let i = 1; i < KB; i++)
-    buf.write(os.EOL, i * KB);
+    buf.write('\n', i * KB);
   fs.writeFileSync(file, buf.toString());
 
   cat = spawn('cat', [file]);
@@ -61,8 +61,13 @@ const MB = KB * KB;
     }));
   });
 
+  let wcBuf = '';
   wc.stdout.on('data', common.mustCall((data) => {
-    // Grep always adds one extra byte at the end.
-    assert.strictEqual(data.toString().trim(), (MB + 1).toString());
+    wcBuf += data;
   }));
+
+  process.on('exit', () => {
+    // Grep always adds one extra byte at the end.
+    assert.strictEqual(wcBuf.trim(), (MB + 1).toString());
+  });
 }

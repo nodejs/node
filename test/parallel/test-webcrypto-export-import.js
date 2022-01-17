@@ -9,23 +9,74 @@ const assert = require('assert');
 const { subtle, getRandomValues } = require('crypto').webcrypto;
 
 {
-  const keyData = getRandomValues(new Uint8Array(32));
-  [1, null, undefined, {}, []].forEach((format) => {
-    assert.rejects(
-      subtle.importKey(format, keyData, {}, false, ['wrapKey']), {
+  async function test() {
+    const keyData = getRandomValues(new Uint8Array(32));
+    await Promise.all([1, null, undefined, {}, []].map((format) =>
+      assert.rejects(
+        subtle.importKey(format, keyData, {}, false, ['wrapKey']), {
+          code: 'ERR_INVALID_ARG_TYPE'
+        })
+    ));
+    await assert.rejects(
+      subtle.importKey('not valid', keyData, {}, false, ['wrapKey']), {
+        code: 'ERR_INVALID_ARG_VALUE'
+      });
+    await Promise.all([1, null, undefined, {}, []].map((keyData) =>
+      assert.rejects(
+        subtle.importKey('raw', keyData, {}, false, ['deriveBits']), {
+          code: 'ERR_INVALID_ARG_TYPE'
+        })
+    ));
+    await assert.rejects(
+      subtle.importKey('raw', keyData, {
+        name: 'HMAC'
+      }, false, ['sign', 'verify']), {
+        code: 'ERR_MISSING_OPTION'
+      });
+    await assert.rejects(
+      subtle.importKey('raw', keyData, {
+        name: 'HMAC',
+        hash: 'SHA-256'
+      }, false, ['deriveBits']), {
+        name: 'SyntaxError',
+        message: 'Unsupported key usage for an HMAC key'
+      });
+    await assert.rejects(
+      subtle.importKey('node.keyObject', '', {
+        name: 'HMAC',
+        hash: 'SHA-256'
+      }, false, ['sign', 'verify']), {
         code: 'ERR_INVALID_ARG_TYPE'
       });
-  });
-  assert.rejects(
-    subtle.importKey('not valid', keyData, {}, false, ['wrapKey']), {
-      code: 'ERR_INVALID_ARG_VALUE'
-    });
-  [1, null, undefined, {}, []].forEach((keyData) => {
-    assert.rejects(
-      subtle.importKey('raw', keyData, {}, false, ['deriveBits']), {
-        code: 'ERR_INVALID_ARG_TYPE'
+    await assert.rejects(
+      subtle.importKey('raw', keyData, {
+        name: 'HMAC',
+        hash: 'SHA-256',
+        length: 0
+      }, false, ['sign', 'verify']), {
+        name: 'DataError',
+        message: 'Zero-length key is not supported'
       });
-  });
+    await assert.rejects(
+      subtle.importKey('raw', keyData, {
+        name: 'HMAC',
+        hash: 'SHA-256',
+        length: 1
+      }, false, ['sign', 'verify']), {
+        name: 'DataError',
+        message: 'Invalid key length'
+      });
+    await assert.rejects(
+      subtle.importKey('jwk', null, {
+        name: 'HMAC',
+        hash: 'SHA-256',
+      }, false, ['sign', 'verify']), {
+        name: 'DataError',
+        message: 'Invalid JWK keyData'
+      });
+  }
+
+  test().then(common.mustCall());
 }
 
 // Import/Export HMAC Secret Key
@@ -102,12 +153,12 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       spki,
       pkcs8,
       publicJwk,
-      privateJwk
+      privateJwk,
     ] = await Promise.all([
       subtle.exportKey('spki', publicKey),
       subtle.exportKey('pkcs8', privateKey),
       subtle.exportKey('jwk', publicKey),
-      subtle.exportKey('jwk', privateKey)
+      subtle.exportKey('jwk', privateKey),
     ]);
 
     assert(spki);
@@ -119,7 +170,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       importedSpkiPublicKey,
       importedPkcs8PrivateKey,
       importedJwkPublicKey,
-      importedJwkPrivateKey
+      importedJwkPrivateKey,
     ] = await Promise.all([
       subtle.importKey('spki', spki, {
         name: 'RSA-PSS',
@@ -160,12 +211,12 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       spki,
       pkcs8,
       publicJwk,
-      privateJwk
+      privateJwk,
     ] = await Promise.all([
       subtle.exportKey('spki', publicKey),
       subtle.exportKey('pkcs8', privateKey),
       subtle.exportKey('jwk', publicKey),
-      subtle.exportKey('jwk', privateKey)
+      subtle.exportKey('jwk', privateKey),
     ]);
 
     assert(spki);
@@ -177,7 +228,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       importedSpkiPublicKey,
       importedPkcs8PrivateKey,
       importedJwkPublicKey,
-      importedJwkPrivateKey
+      importedJwkPrivateKey,
     ] = await Promise.all([
       subtle.importKey('spki', spki, {
         name: 'ECDSA',

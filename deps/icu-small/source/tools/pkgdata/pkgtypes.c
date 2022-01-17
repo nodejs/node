@@ -17,6 +17,7 @@
 *  common types for pkgdata
 */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "unicode/utypes.h"
@@ -294,9 +295,9 @@ UBool  pkg_listContains(CharList *l, const char *str)
 {
   for(;l;l=l->next){
     if(!uprv_strcmp(l->str, str)) {
-      return TRUE;
+      return true;
     }
   }
 
-  return FALSE;
+  return false;
 }

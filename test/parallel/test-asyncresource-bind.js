@@ -33,3 +33,19 @@ setImmediate(() => {
   assert.strictEqual(asyncResource.asyncId(), fn2());
   assert.notStrictEqual(asyncId, fn2());
 });
+
+const foo = {};
+const fn3 = asyncResource.bind(common.mustCall(function() {
+  assert.strictEqual(this, foo);
+}), foo);
+fn3();
+
+const fn4 = asyncResource.bind(common.mustCall(function() {
+  assert.strictEqual(this, asyncResource);
+}));
+fn4();
+
+const fn5 = asyncResource.bind(common.mustCall(function() {
+  assert.strictEqual(this, false);
+}), false);
+fn5();

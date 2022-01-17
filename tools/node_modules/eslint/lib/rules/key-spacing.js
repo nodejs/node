@@ -133,13 +133,13 @@ function initOptions(toOptions, fromOptions) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "enforce consistent spacing between keys and values in object literal properties",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/key-spacing"
         },
@@ -428,19 +428,7 @@ module.exports = {
          * @returns {void}
          */
         function report(property, side, whitespace, expected, mode) {
-            const diff = whitespace.length - expected,
-                nextColon = getNextColon(property.key),
-                tokenBeforeColon = sourceCode.getTokenBefore(nextColon, { includeComments: true }),
-                tokenAfterColon = sourceCode.getTokenAfter(nextColon, { includeComments: true }),
-                isKeySide = side === "key",
-                isExtra = diff > 0,
-                diffAbs = Math.abs(diff),
-                spaces = Array(diffAbs + 1).join(" ");
-
-            const locStart = isKeySide ? tokenBeforeColon.loc.end : nextColon.loc.start;
-            const locEnd = isKeySide ? nextColon.loc.start : tokenAfterColon.loc.start;
-            const missingLoc = isKeySide ? tokenBeforeColon.loc : tokenAfterColon.loc;
-            const loc = isExtra ? { start: locStart, end: locEnd } : missingLoc;
+            const diff = whitespace.length - expected;
 
             if ((
                 diff && mode === "strict" ||
@@ -448,6 +436,19 @@ module.exports = {
                 diff > 0 && !expected && mode === "minimum") &&
                 !(expected && containsLineTerminator(whitespace))
             ) {
+                const nextColon = getNextColon(property.key),
+                    tokenBeforeColon = sourceCode.getTokenBefore(nextColon, { includeComments: true }),
+                    tokenAfterColon = sourceCode.getTokenAfter(nextColon, { includeComments: true }),
+                    isKeySide = side === "key",
+                    isExtra = diff > 0,
+                    diffAbs = Math.abs(diff),
+                    spaces = Array(diffAbs + 1).join(" ");
+
+                const locStart = isKeySide ? tokenBeforeColon.loc.end : nextColon.loc.start;
+                const locEnd = isKeySide ? nextColon.loc.start : tokenAfterColon.loc.start;
+                const missingLoc = isKeySide ? tokenBeforeColon.loc : tokenAfterColon.loc;
+                const loc = isExtra ? { start: locStart, end: locEnd } : missingLoc;
+
                 let fix;
 
                 if (isExtra) {
@@ -531,8 +532,8 @@ module.exports = {
 
         /**
          * Creates groups of properties.
-         * @param  {ASTNode} node ObjectExpression node being evaluated.
-         * @returns {Array.<ASTNode[]>} Groups of property AST node lists.
+         * @param {ASTNode} node ObjectExpression node being evaluated.
+         * @returns {Array<ASTNode[]>} Groups of property AST node lists.
          */
         function createGroups(node) {
             if (node.properties.length === 1) {
@@ -600,7 +601,7 @@ module.exports = {
 
         /**
          * Verifies spacing of property conforms to specified options.
-         * @param  {ASTNode} node Property node being evaluated.
+         * @param {ASTNode} node Property node being evaluated.
          * @param {Object} lineOptions Configured singleLine or multiLine options
          * @returns {void}
          */
@@ -629,7 +630,7 @@ module.exports = {
 
         /**
          * Verifies vertical alignment, taking into account groups of properties.
-         * @param  {ASTNode} node ObjectExpression node being evaluated.
+         * @param {ASTNode} node ObjectExpression node being evaluated.
          * @returns {void}
          */
         function verifyAlignment(node) {

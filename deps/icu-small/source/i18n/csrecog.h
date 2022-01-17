@@ -32,19 +32,19 @@ class CharsetRecognizer : public UMemory
      * @return the charset name.
      */
     virtual const char *getName() const = 0;
-
+    
     /**
      * Get the ISO language code for this charset.
      * @return the language code, or <code>null</code> if the language cannot be determined.
      */
     virtual const char *getLanguage() const;
-
+        
     /*
      * Try the given input text against this Charset, and fill in the results object
      * with the quality of the match plus other information related to the match.
      *
-     * Return TRUE if the the input bytes are a potential match, and
-     * FALSE if the input data is not compatible with, or illegal in this charset.
+     * Return true if the the input bytes are a potential match, and
+     * false if the input data is not compatible with, or illegal in this charset.
      */
     virtual UBool match(InputText *textIn, CharsetMatch *results) const = 0;
 

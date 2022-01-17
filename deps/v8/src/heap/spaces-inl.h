@@ -15,7 +15,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
-#include "src/objects/code-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -139,18 +138,17 @@ AllocationResult LocalAllocationBuffer::AllocateRawAligned(
     int size_in_bytes, AllocationAlignment alignment) {
   Address current_top = allocation_info_.top();
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
-
-  Address new_top = current_top + filler_size + size_in_bytes;
-  if (new_top > allocation_info_.limit()) return AllocationResult::Retry();
-
-  allocation_info_.set_top(new_top);
+  int aligned_size = filler_size + size_in_bytes;
+  if (!allocation_info_.CanIncrementTop(aligned_size)) {
+    return AllocationResult::Retry(NEW_SPACE);
+  }
+  HeapObject object =
+      HeapObject::FromAddress(allocation_info_.IncrementTop(aligned_size));
   if (filler_size > 0) {
-    return Heap::PrecedeWithFiller(ReadOnlyRoots(heap_),
-                                   HeapObject::FromAddress(current_top),
-                                   filler_size);
+    return Heap::PrecedeWithFiller(ReadOnlyRoots(heap_), object, filler_size);
   }
 
-  return AllocationResult(HeapObject::FromAddress(current_top));
+  return AllocationResult(object);
 }
 
 LocalAllocationBuffer LocalAllocationBuffer::FromResult(Heap* heap,
@@ -165,23 +163,14 @@ LocalAllocationBuffer LocalAllocationBuffer::FromResult(Heap* heap,
   return LocalAllocationBuffer(heap, LinearAllocationArea(top, top + size));
 }
 
-
 bool LocalAllocationBuffer::TryMerge(LocalAllocationBuffer* other) {
-  if (allocation_info_.top() == other->allocation_info_.limit()) {
-    allocation_info_.set_top(other->allocation_info_.top());
-    other->allocation_info_.Reset(kNullAddress, kNullAddress);
-    return true;
-  }
-  return false;
+  return allocation_info_.MergeIfAdjacent(other->allocation_info_);
 }
 
 bool LocalAllocationBuffer::TryFreeLast(HeapObject object, int object_size) {
   if (IsValid()) {
     const Address object_address = object.address();
-    if ((allocation_info_.top() - object_size) == object_address) {
-      allocation_info_.set_top(object_address);
-      return true;
-    }
+    return allocation_info_.DecrementTopIfAdjacent(object_address, object_size);
   }
   return false;
 }

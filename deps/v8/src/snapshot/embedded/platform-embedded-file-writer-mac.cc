@@ -4,6 +4,8 @@
 
 #include "src/snapshot/embedded/platform-embedded-file-writer-mac.h"
 
+#include "src/objects/code.h"
+
 namespace v8 {
 namespace internal {
 
@@ -58,10 +60,18 @@ void PlatformEmbeddedFileWriterMac::DeclareSymbolGlobal(const char* name) {
 }
 
 void PlatformEmbeddedFileWriterMac::AlignToCodeAlignment() {
+#if V8_TARGET_ARCH_X64
+  // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
+  STATIC_ASSERT(64 >= kCodeAlignment);
+  fprintf(fp_, ".balign 64\n");
+#else
+  STATIC_ASSERT(32 >= kCodeAlignment);
   fprintf(fp_, ".balign 32\n");
+#endif
 }
 
 void PlatformEmbeddedFileWriterMac::AlignToDataAlignment() {
+  STATIC_ASSERT(8 >= Code::kMetadataAlignment);
   fprintf(fp_, ".balign 8\n");
 }
 
@@ -81,6 +91,10 @@ void PlatformEmbeddedFileWriterMac::SourceInfo(int fileid, const char* filename,
 // TODO(mmarchini): investigate emitting size annotations for OS X
 void PlatformEmbeddedFileWriterMac::DeclareFunctionBegin(const char* name,
                                                          uint32_t size) {
+  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
+    DeclareSymbolGlobal(name);
+  }
+
   DeclareLabel(name);
 
   // TODO(mvstanton): Investigate the proper incantations to mark the label as

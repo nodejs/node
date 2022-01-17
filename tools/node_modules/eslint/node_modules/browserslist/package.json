@@ -1,0 +1,36 @@
+{
+  "name": "browserslist",
+  "version": "4.19.1",
+  "description": "Share target browsers between different front-end tools, like Autoprefixer, Stylelint and babel-env-preset",
+  "keywords": [
+    "caniuse",
+    "browsers",
+    "target"
+  ],
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/browserslist"
+  },
+  "author": "Andrey Sitnik <andrey@sitnik.ru>",
+  "license": "MIT",
+  "repository": "browserslist/browserslist",
+  "dependencies": {
+    "caniuse-lite": "^1.0.30001286",
+    "electron-to-chromium": "^1.4.17",
+    "escalade": "^3.1.1",
+    "node-releases": "^2.0.1",
+    "picocolors": "^1.0.0"
+  },
+  "engines": {
+    "node": "^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7"
+  },
+  "packageManager": "pnpm@6.23.6",
+  "bin": {
+    "browserslist": "cli.js"
+  },
+  "types": "./index.d.ts",
+  "browser": {
+    "./node.js": "./browser.js",
+    "path": false
+  }
+}

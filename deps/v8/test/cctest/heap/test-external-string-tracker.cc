@@ -130,6 +130,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact) {
 }
 
 TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
+  if (FLAG_single_generation) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;

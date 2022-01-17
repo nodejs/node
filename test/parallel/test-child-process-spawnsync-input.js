@@ -35,7 +35,7 @@ const msgErrBuf = Buffer.from(`${msgErr}\n`);
 
 const args = [
   '-e',
-  `console.log("${msgOut}"); console.error("${msgErr}");`
+  `console.log("${msgOut}"); console.error("${msgErr}");`,
 ];
 
 let ret;

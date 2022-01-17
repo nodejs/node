@@ -33,14 +33,17 @@ const fn = path.join(tmpdir.path, 'write.txt');
 const fn2 = path.join(tmpdir.path, 'write2.txt');
 const fn3 = path.join(tmpdir.path, 'write3.txt');
 const fn4 = path.join(tmpdir.path, 'write4.txt');
+const fn5 = path.join(tmpdir.path, 'write5.txt');
 const expected = 'ümlaut.';
 const constants = fs.constants;
 
-/* eslint-disable no-undef */
-common.allowGlobals(externalizeString, isOneByteString, x);
+const { externalizeString, isOneByteString } = global;
+
+// Account for extra globals exposed by --expose_externalize_string.
+common.allowGlobals(externalizeString, isOneByteString, global.x);
 
 {
-  const expected = 'ümlaut eins';  // Must be a unique string.
+  const expected = 'ümlaut sechzig';  // Must be a unique string.
   externalizeString(expected);
   assert.strictEqual(isOneByteString(expected), true);
   const fd = fs.openSync(fn, 'w');
@@ -50,7 +53,7 @@ common.allowGlobals(externalizeString, isOneByteString, x);
 }
 
 {
-  const expected = 'ümlaut zwei';  // Must be a unique string.
+  const expected = 'ümlaut neunzig';  // Must be a unique string.
   externalizeString(expected);
   assert.strictEqual(isOneByteString(expected), true);
   const fd = fs.openSync(fn, 'w');
@@ -60,7 +63,7 @@ common.allowGlobals(externalizeString, isOneByteString, x);
 }
 
 {
-  const expected = '中文 1';  // Must be a unique string.
+  const expected = 'Zhōngwén 1';  // Must be a unique string.
   externalizeString(expected);
   assert.strictEqual(isOneByteString(expected), false);
   const fd = fs.openSync(fn, 'w');
@@ -70,7 +73,7 @@ common.allowGlobals(externalizeString, isOneByteString, x);
 }
 
 {
-  const expected = '中文 2';  // Must be a unique string.
+  const expected = 'Zhōngwén 2';  // Must be a unique string.
   externalizeString(expected);
   assert.strictEqual(isOneByteString(expected), false);
   const fd = fs.openSync(fn, 'w');
@@ -78,7 +81,6 @@ common.allowGlobals(externalizeString, isOneByteString, x);
   fs.closeSync(fd);
   assert.strictEqual(fs.readFileSync(fn, 'utf8'), expected);
 }
-/* eslint-enable no-undef */
 
 fs.open(fn, 'w', 0o644, common.mustSucceed((fd) => {
   const done = common.mustSucceed((written) => {
@@ -169,3 +171,31 @@ fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
     }
   );
 });
+
+{
+  // Regression test for https://github.com/nodejs/node/issues/38168
+  const fd = fs.openSync(fn5, 'w');
+
+  assert.throws(
+    () => fs.writeSync(fd, 'abc', 0, 'hex'),
+    {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /'encoding' is invalid for data of length 3/
+    }
+  );
+
+  assert.throws(
+    () => fs.writeSync(fd, 'abc', 0, 'hex', common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /'encoding' is invalid for data of length 3/
+    }
+  );
+
+  assert.strictEqual(fs.writeSync(fd, 'abcd', 0, 'hex'), 2);
+
+  fs.write(fd, 'abcd', 0, 'hex', common.mustSucceed((written) => {
+    assert.strictEqual(written, 2);
+    fs.closeSync(fd);
+  }));
+}

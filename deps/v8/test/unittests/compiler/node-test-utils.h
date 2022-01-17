@@ -21,7 +21,7 @@ template <typename T>
 class Handle;
 class HeapObject;
 class Type;
-enum TypeofMode : int;
+enum class TypeofMode;
 
 namespace compiler {
 
@@ -58,6 +58,8 @@ Matcher<Node*> IsLoop(const Matcher<Node*>& control0_matcher,
 Matcher<Node*> IsLoop(const Matcher<Node*>& control0_matcher,
                       const Matcher<Node*>& control1_matcher,
                       const Matcher<Node*>& control2_matcher);
+Matcher<Node*> IsLoopExitValue(const Matcher<MachineRepresentation> rep_matcher,
+                               const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfSuccess(const Matcher<Node*>& control_matcher);
@@ -326,11 +328,6 @@ Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                       const Matcher<Node*>& index_matcher,
                       const Matcher<Node*>& effect_matcher,
                       const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsPoisonedLoad(const Matcher<LoadRepresentation>& rep_matcher,
-                              const Matcher<Node*>& base_matcher,
-                              const Matcher<Node*>& index_matcher,
-                              const Matcher<Node*>& effect_matcher,
-                              const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsUnalignedLoad(const Matcher<LoadRepresentation>& rep_matcher,
                                const Matcher<Node*>& base_matcher,
                                const Matcher<Node*>& index_matcher,
@@ -341,6 +338,9 @@ Matcher<Node*> IsLoadFromObject(const Matcher<LoadRepresentation>& rep_matcher,
                                 const Matcher<Node*>& index_matcher,
                                 const Matcher<Node*>& effect_matcher,
                                 const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsLoadImmutable(const Matcher<LoadRepresentation>& rep_matcher,
+                               const Matcher<Node*>& base_matcher,
+                               const Matcher<Node*>& index_matcher);
 Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
                        const Matcher<Node*>& base_matcher,
                        const Matcher<Node*>& index_matcher,
@@ -352,6 +352,12 @@ Matcher<Node*> IsUnalignedStore(
     const Matcher<Node*>& base_matcher, const Matcher<Node*>& index_matcher,
     const Matcher<Node*>& value_matcher, const Matcher<Node*>& effect_matcher,
     const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsStoreToObject(const Matcher<ObjectAccess>& rep_matcher,
+                               const Matcher<Node*>& base_matcher,
+                               const Matcher<Node*>& index_matcher,
+                               const Matcher<Node*>& value_matcher,
+                               const Matcher<Node*>& effect_matcher,
+                               const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsStackSlot(const Matcher<StackSlotRepresentation>& rep_matcher);
 Matcher<Node*> IsWord32Popcnt(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsWord32And(const Matcher<Node*>& lhs_matcher,
@@ -475,7 +481,6 @@ Matcher<Node*> IsNumberToBoolean(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher);
-Matcher<Node*> IsSpeculationPoison();
 Matcher<Node*> IsLoadFramePointer();
 Matcher<Node*> IsLoadParentFramePointer();
 Matcher<Node*> IsPlainPrimitiveToNumber(const Matcher<Node*>& input_matcher);

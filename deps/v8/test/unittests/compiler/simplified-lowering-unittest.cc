@@ -47,9 +47,10 @@ class SimplifiedLoweringTest : public GraphTest {
       typer.Run();
     }
 
-    SimplifiedLowering lowering(
-        jsgraph(), broker(), zone(), source_positions(), node_origins(),
-        PoisoningMitigationLevel::kDontPoison, tick_counter());
+    Linkage* linkage = zone()->New<Linkage>(Linkage::GetJSCallDescriptor(
+        zone(), false, num_parameters_ + 1, CallDescriptor::kCanUseRoots));
+    SimplifiedLowering lowering(jsgraph(), broker(), zone(), source_positions(),
+                                node_origins(), tick_counter(), linkage);
     lowering.LowerAllNodes();
   }
 

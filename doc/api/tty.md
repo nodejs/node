@@ -17,7 +17,7 @@ const tty = require('tty');
 When Node.js detects that it is being run with a text terminal ("TTY")
 attached, [`process.stdin`][] will, by default, be initialized as an instance of
 `tty.ReadStream` and both [`process.stdout`][] and [`process.stderr`][] will, by
-default be instances of `tty.WriteStream`. The preferred method of determining
+default, be instances of `tty.WriteStream`. The preferred method of determining
 whether Node.js is being run within a TTY context is to check that the value of
 the `process.stdout.isTTY` property is `true`:
 
@@ -33,6 +33,7 @@ manually create instances of the `tty.ReadStream` and `tty.WriteStream`
 classes.
 
 ## Class: `tty.ReadStream`
+
 <!-- YAML
 added: v0.5.8
 -->
@@ -44,6 +45,7 @@ Represents the readable side of a TTY. In normal circumstances
 process and there should be no reason to create additional instances.
 
 ### `readStream.isRaw`
+
 <!-- YAML
 added: v0.7.7
 -->
@@ -52,6 +54,7 @@ A `boolean` that is `true` if the TTY is currently configured to operate as a
 raw device. Defaults to `false`.
 
 ### `readStream.isTTY`
+
 <!-- YAML
 added: v0.5.8
 -->
@@ -59,6 +62,7 @@ added: v0.5.8
 A `boolean` that is always `true` for `tty.ReadStream` instances.
 
 ### `readStream.setRawMode(mode)`
+
 <!-- YAML
 added: v0.7.7
 -->
@@ -73,10 +77,12 @@ Allows configuration of `tty.ReadStream` so that it operates as a raw device.
 
 When in raw mode, input is always available character-by-character, not
 including modifiers. Additionally, all special processing of characters by the
-terminal is disabled, including echoing input characters.
-<kbd>Ctrl</kbd>+<kbd>C</kbd> will no longer cause a `SIGINT` when in this mode.
+terminal is disabled, including echoing input
+characters. <kbd>Ctrl</kbd>+<kbd>C</kbd> will no longer cause a `SIGINT` when
+in this mode.
 
 ## Class: `tty.WriteStream`
+
 <!-- YAML
 added: v0.5.8
 -->
@@ -89,6 +95,7 @@ Represents the writable side of a TTY. In normal circumstances,
 should be no reason to create additional instances.
 
 ### Event: `'resize'`
+
 <!-- YAML
 added: v0.7.7
 -->
@@ -105,6 +112,7 @@ process.stdout.on('resize', () => {
 ```
 
 ### `writeStream.clearLine(dir[, callback])`
+
 <!-- YAML
 added: v0.7.7
 changes:
@@ -126,6 +134,7 @@ changes:
 direction identified by `dir`.
 
 ### `writeStream.clearScreenDown([callback])`
+
 <!-- YAML
 added: v0.7.7
 changes:
@@ -143,6 +152,7 @@ changes:
 cursor down.
 
 ### `writeStream.columns`
+
 <!-- YAML
 added: v0.7.7
 -->
@@ -151,6 +161,7 @@ A `number` specifying the number of columns the TTY currently has. This property
 is updated whenever the `'resize'` event is emitted.
 
 ### `writeStream.cursorTo(x[, y][, callback])`
+
 <!-- YAML
 added: v0.7.7
 changes:
@@ -170,6 +181,7 @@ changes:
 position.
 
 ### `writeStream.getColorDepth([env])`
+
 <!-- YAML
 added: v9.9.0
 -->
@@ -184,8 +196,7 @@ Returns:
 * `1` for 2,
 * `4` for 16,
 * `8` for 256,
-* `24` for 16,777,216
-colors supported.
+* `24` for 16,777,216 colors supported.
 
 Use this to determine what colors the terminal supports. Due to the nature of
 colors in terminals it is possible to either have false positives or false
@@ -205,18 +216,20 @@ Disabling color support is also possible by using the `NO_COLOR` and
 `NODE_DISABLE_COLORS` environment variables.
 
 ### `writeStream.getWindowSize()`
+
 <!-- YAML
 added: v0.7.7
 -->
 
-* Returns: {number[]}
+* Returns: {number\[]}
 
-`writeStream.getWindowSize()` returns the size of the [TTY](tty.md)
+`writeStream.getWindowSize()` returns the size of the TTY
 corresponding to this `WriteStream`. The array is of the type
 `[numColumns, numRows]` where `numColumns` and `numRows` represent the number
-of columns and rows in the corresponding [TTY](tty.md).
+of columns and rows in the corresponding TTY.
 
 ### `writeStream.hasColors([count][, env])`
+
 <!-- YAML
 added:
  - v11.13.0
@@ -248,6 +261,7 @@ process.stdout.hasColors(2 ** 24, { TMUX: '1' });
 ```
 
 ### `writeStream.isTTY`
+
 <!-- YAML
 added: v0.5.8
 -->
@@ -255,6 +269,7 @@ added: v0.5.8
 A `boolean` that is always `true`.
 
 ### `writeStream.moveCursor(dx, dy[, callback])`
+
 <!-- YAML
 added: v0.7.7
 changes:
@@ -270,10 +285,11 @@ changes:
   for the `'drain'` event to be emitted before continuing to write additional
   data; otherwise `true`.
 
-`writeStream.moveCursor()` moves this `WriteStream`'s cursor *relative* to its
+`writeStream.moveCursor()` moves this `WriteStream`'s cursor _relative_ to its
 current position.
 
 ### `writeStream.rows`
+
 <!-- YAML
 added: v0.7.7
 -->
@@ -282,6 +298,7 @@ A `number` specifying the number of rows the TTY currently has. This property
 is updated whenever the `'resize'` event is emitted.
 
 ## `tty.isatty(fd)`
+
 <!-- YAML
 added: v0.5.8
 -->
@@ -293,7 +310,7 @@ The `tty.isatty()` method returns `true` if the given `fd` is associated with
 a TTY and `false` if it is not, including whenever `fd` is not a non-negative
 integer.
 
-[`process.stderr`]: process.md#process_process_stderr
-[`process.stdin`]: process.md#process_process_stdin
-[`process.stdout`]: process.md#process_process_stdout
-[`writeStream.getColorDepth()`]: #tty_writestream_getcolordepth_env
+[`process.stderr`]: process.md#processstderr
+[`process.stdin`]: process.md#processstdin
+[`process.stdout`]: process.md#processstdout
+[`writeStream.getColorDepth()`]: #writestreamgetcolordepthenv

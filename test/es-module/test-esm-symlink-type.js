@@ -40,7 +40,7 @@ const symlinks = [
     target: fixtures.path('es-modules/package-without-type/index.js'),
     prints: 'package-without-type',
     errorsWithPreserveSymlinksMain: false
-  }
+  },
 ];
 
 symlinks.forEach((symlink) => {
@@ -49,7 +49,7 @@ symlinks.forEach((symlink) => {
 
   const flags = [
     '',
-    '--preserve-symlinks-main'
+    '--preserve-symlinks-main',
   ];
   flags.forEach((nodeOptions) => {
     const opts = {

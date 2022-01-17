@@ -13,13 +13,18 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/heap-number-tq.inc"
+
 // The HeapNumber class describes heap allocated numbers that cannot be
 // represented in a Smi (small integer).
 class HeapNumber
     : public TorqueGeneratedHeapNumber<HeapNumber, PrimitiveHeapObject> {
  public:
-  inline uint64_t value_as_bits() const;
-  inline void set_value_as_bits(uint64_t bits);
+  // Since the value is read from the compiler, and it can't be done
+  // atomically, we signal both to TSAN and ourselves that this is a
+  // relaxed load and store.
+  inline uint64_t value_as_bits(RelaxedLoadTag) const;
+  inline void set_value_as_bits(uint64_t bits, RelaxedStoreTag);
 
   inline int get_exponent();
   inline int get_sign();

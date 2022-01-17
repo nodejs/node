@@ -87,6 +87,22 @@ public:
      * The caller must uprv_free() the result.
      */
     char *cloneData(UErrorCode &errorCode) const;
+    /**
+     * Copies the contents of the string into dest.
+     * Checks if there is enough space in dest, extracts the entire string if possible,
+     * and NUL-terminates dest if possible.
+     *
+     * If the string fits into dest but cannot be NUL-terminated (length()==capacity),
+     * then the error code is set to U_STRING_NOT_TERMINATED_WARNING.
+     * If the string itself does not fit into dest (length()>capacity),
+     * then the error code is set to U_BUFFER_OVERFLOW_ERROR.
+     *
+     * @param dest Destination string buffer.
+     * @param capacity Size of the dest buffer (number of chars).
+     * @param errorCode ICU error code.
+     * @return length()
+     */
+    int32_t extract(char *dest, int32_t capacity, UErrorCode &errorCode) const;
 
     bool operator==(StringPiece other) const {
         return len == other.length() && (len == 0 || uprv_memcmp(data(), other.data(), len) == 0);
@@ -111,6 +127,9 @@ public:
         return append(s.data(), s.length(), errorCode);
     }
     CharString &append(const char *s, int32_t sLength, UErrorCode &status);
+
+    CharString &appendNumber(int32_t number, UErrorCode &status);
+
     /**
      * Returns a writable buffer for appending and writes the buffer's capacity to
      * resultCapacity. Guarantees resultCapacity>=minCapacity if U_SUCCESS().
@@ -141,13 +160,13 @@ public:
 
     /**
      * Appends a filename/path part, e.g., a directory name.
-     * First appends a U_FILE_SEP_CHAR if necessary.
+     * First appends a U_FILE_SEP_CHAR or U_FILE_ALT_SEP_CHAR if necessary.
      * Does nothing if s is empty.
      */
     CharString &appendPathPart(StringPiece s, UErrorCode &errorCode);
 
     /**
-     * Appends a U_FILE_SEP_CHAR if this string is not empty
+     * Appends a U_FILE_SEP_CHAR or U_FILE_ALT_SEP_CHAR if this string is not empty
      * and does not already end with a U_FILE_SEP_CHAR or U_FILE_ALT_SEP_CHAR.
      */
     CharString &ensureEndsWithFileSeparator(UErrorCode &errorCode);
@@ -160,6 +179,12 @@ private:
 
     CharString(const CharString &other); // forbid copying of this class
     CharString &operator=(const CharString &other); // forbid copying of this class
+
+    /**
+     * Returns U_FILE_ALT_SEP_CHAR if found in string, and U_FILE_SEP_CHAR is not found.
+     * Otherwise returns U_FILE_SEP_CHAR.
+     */
+    char getDirSepChar() const;
 };
 
 U_NAMESPACE_END

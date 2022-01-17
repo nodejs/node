@@ -1,6 +1,7 @@
 /**
  * @fileoverview Disallow string concatenation when using __dirname and __filename
  * @author Nicholas C. Zakas
+ * @deprecated in ESLint v7.0.0
  */
 "use strict";
 
@@ -8,6 +9,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         deprecated: true,
@@ -18,7 +20,6 @@ module.exports = {
 
         docs: {
             description: "disallow string concatenation with `__dirname` and `__filename`",
-            category: "Node.js and CommonJS",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-path-concat"
         },

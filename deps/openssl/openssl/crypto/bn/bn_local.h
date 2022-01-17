@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -22,18 +22,25 @@
 # endif
 
 # include "crypto/bn.h"
+# include "internal/cryptlib.h"
+# include "internal/numbers.h"
 
 /*
  * These preprocessor symbols control various aspects of the bignum headers
  * and library code. They're not defined by any "normal" configuration, as
- * they are intended for development and testing purposes. NB: defining all
- * three can be useful for debugging application code as well as openssl
+ * they are intended for development and testing purposes. NB: defining
+ * them can be useful for debugging application code as well as openssl
  * itself. BN_DEBUG - turn on various debugging alterations to the bignum
- * code BN_DEBUG_RAND - uses random poisoning of unused words to trip up
- * mismanagement of bignum internals. You must also define BN_DEBUG.
+ * code BN_RAND_DEBUG - uses random poisoning of unused words to trip up
+ * mismanagement of bignum internals. Enable BN_RAND_DEBUG is known to
+ * break some of the OpenSSL tests.
  */
-/* #define BN_DEBUG */
-/* #define BN_DEBUG_RAND */
+# if defined(BN_RAND_DEBUG) && !defined(BN_DEBUG)
+#  define BN_DEBUG
+# endif
+# if defined(BN_RAND_DEBUG)
+#  include <openssl/rand.h>
+# endif
 
 # ifndef OPENSSL_SMALL_FOOTPRINT
 #  define BN_MUL_COMBA
@@ -125,7 +132,7 @@
  *   bn_check_top() is as before.
  * - if BN_DEBUG *is* defined;
  *   - bn_check_top() tries to pollute unused words even if the bignum 'top' is
- *     consistent. (ed: only if BN_DEBUG_RAND is defined)
+ *     consistent. (ed: only if BN_RAND_DEBUG is defined)
  *   - bn_fix_top() maps to bn_check_top() rather than "fixing" anything.
  * The idea is to have debug builds flag up inconsistent bignums when they
  * occur. If that occurs in a bn_fix_top(), we examine the code in question; if
@@ -151,7 +158,7 @@
  * all operations manipulating the bit in question in non-BN_DEBUG build.
  */
 #  define BN_FLG_FIXED_TOP 0x10000
-#  ifdef BN_DEBUG_RAND
+#  ifdef BN_RAND_DEBUG
 #   define bn_pollute(a) \
         do { \
             const BIGNUM *_bnum1 = (a); \
@@ -162,7 +169,7 @@
                  * wouldn't be constructed with top!=dmax. */ \
                 BN_ULONG *_not_const; \
                 memcpy(&_not_const, &_bnum1->d, sizeof(_not_const)); \
-                RAND_bytes(&_tmp_char, 1); /* Debug only - safe to ignore error return */\
+                (void)RAND_bytes(&_tmp_char, 1); /* Debug only - safe to ignore error return */\
                 memset(_not_const + _bnum1->top, _tmp_char, \
                        sizeof(*_not_const) * (_bnum1->dmax - _bnum1->top)); \
             } \
@@ -374,9 +381,9 @@ struct bn_gencb_st {
  */
 #  if defined(__SIZEOF_INT128__) && __SIZEOF_INT128__==16 && \
       (defined(SIXTY_FOUR_BIT) || defined(SIXTY_FOUR_BIT_LONG))
-#   define BN_UMULT_HIGH(a,b)          (((__uint128_t)(a)*(b))>>64)
+#   define BN_UMULT_HIGH(a,b)          (((uint128_t)(a)*(b))>>64)
 #   define BN_UMULT_LOHI(low,high,a,b) ({       \
-        __uint128_t ret=(__uint128_t)(a)*(b);   \
+        uint128_t ret=(uint128_t)(a)*(b);   \
         (high)=ret>>64; (low)=ret;      })
 #  elif defined(__alpha) && (defined(SIXTY_FOUR_BIT_LONG) || defined(SIXTY_FOUR_BIT))
 #   if defined(__DECC)
@@ -449,7 +456,7 @@ unsigned __int64 _umul128(unsigned __int64 a, unsigned __int64 b,
 #  endif                        /* cpu */
 # endif                         /* OPENSSL_NO_ASM */
 
-# ifdef BN_DEBUG_RAND
+# ifdef BN_RAND_DEBUG
 #  define bn_clear_top2max(a) \
         { \
         int      ind = (a)->dmax - (a)->top; \
@@ -664,5 +671,8 @@ static ossl_inline BIGNUM *bn_expand(BIGNUM *a, int bits)
 
     return bn_expand2((a),(bits+BN_BITS2-1)/BN_BITS2);
 }
+
+int ossl_bn_check_prime(const BIGNUM *w, int checks, BN_CTX *ctx,
+                        int do_trial_division, BN_GENCB *cb);
 
 #endif

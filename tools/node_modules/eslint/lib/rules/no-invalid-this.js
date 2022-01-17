@@ -15,13 +15,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow `this` keywords outside of classes or class-like objects",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-invalid-this"
         },
@@ -128,6 +128,14 @@ module.exports = {
             "FunctionDeclaration:exit": exitFunction,
             FunctionExpression: enterFunction,
             "FunctionExpression:exit": exitFunction,
+
+            // Field initializers are implicit functions.
+            "PropertyDefinition > *.value": enterFunction,
+            "PropertyDefinition > *.value:exit": exitFunction,
+
+            // Class static blocks are implicit functions.
+            StaticBlock: enterFunction,
+            "StaticBlock:exit": exitFunction,
 
             // Reports if `this` of the current context is invalid.
             ThisExpression(node) {

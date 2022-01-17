@@ -5,6 +5,7 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 #define V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 
+#include "src/common/assert-scope.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/references.h"
 
@@ -22,60 +23,19 @@ class SerializerDeserializer : public RootVisitor {
   static void Iterate(Isolate* isolate, RootVisitor* visitor);
 
  protected:
-  class HotObjectsList {
-   public:
-    HotObjectsList() = default;
-
-    void Add(HeapObject object) {
-      DCHECK(!AllowHeapAllocation::IsAllowed());
-      circular_queue_[index_] = object;
-      index_ = (index_ + 1) & kSizeMask;
-    }
-
-    HeapObject Get(int index) {
-      DCHECK(!AllowHeapAllocation::IsAllowed());
-      DCHECK(!circular_queue_[index].is_null());
-      return circular_queue_[index];
-    }
-
-    static const int kNotFound = -1;
-
-    int Find(HeapObject object) {
-      DCHECK(!AllowHeapAllocation::IsAllowed());
-      for (int i = 0; i < kSize; i++) {
-        if (circular_queue_[i] == object) return i;
-      }
-      return kNotFound;
-    }
-
-    static const int kSize = 8;
-
-   private:
-    STATIC_ASSERT(base::bits::IsPowerOfTwo(kSize));
-    static const int kSizeMask = kSize - 1;
-    HeapObject circular_queue_[kSize];
-    int index_ = 0;
-
-    DISALLOW_COPY_AND_ASSIGN(HotObjectsList);
-  };
-
   static bool CanBeDeferred(HeapObject o);
 
-  void RestoreExternalReferenceRedirectors(
-      Isolate* isolate, const std::vector<AccessorInfo>& accessor_infos);
-  void RestoreExternalReferenceRedirectors(
-      Isolate* isolate, const std::vector<CallHandlerInfo>& call_handler_infos);
-
-  static const int kNumberOfPreallocatedSpaces =
-      static_cast<int>(SnapshotSpace::kNumberOfPreallocatedSpaces);
-
-  static const int kNumberOfSpaces =
-      static_cast<int>(SnapshotSpace::kNumberOfSpaces);
+  void RestoreExternalReferenceRedirector(Isolate* isolate,
+                                          Handle<AccessorInfo> accessor_info);
+  void RestoreExternalReferenceRedirector(
+      Isolate* isolate, Handle<CallHandlerInfo> call_handler_info);
 
 // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
-  V(0x06) V(0x07) V(0x0e) V(0x0f)                                 \
-  /* Free range 0x28..0x2f */                                     \
+  /* Free range 0x1c..0x1f */                                     \
+  V(0x1c) V(0x1d) V(0x1e) V(0x1f)                                 \
+  /* Free range 0x20..0x2f */                                     \
+  V(0x20) V(0x21) V(0x22) V(0x23) V(0x24) V(0x25) V(0x26) V(0x27) \
   V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f) \
   /* Free range 0x30..0x3f */                                     \
   V(0x30) V(0x31) V(0x32) V(0x33) V(0x34) V(0x35) V(0x36) V(0x37) \
@@ -105,41 +65,32 @@ class SerializerDeserializer : public RootVisitor {
   // The static assert below will trigger when the number of preallocated spaces
   // changed. If that happens, update the kNewObject and kBackref bytecode
   // ranges in the comments below.
-  STATIC_ASSERT(6 == kNumberOfSpaces);
-  static const int kSpaceMask = 7;
-  STATIC_ASSERT(kNumberOfSpaces <= kSpaceMask + 1);
+  STATIC_ASSERT(4 == kNumberOfSnapshotSpaces);
 
   // First 32 root array items.
-  static const int kNumberOfRootArrayConstants = 0x20;
-  static const int kRootArrayConstantsMask = 0x1f;
+  static const int kRootArrayConstantsCount = 0x20;
 
   // 32 common raw data lengths.
-  static const int kNumberOfFixedRawData = 0x20;
-
+  static const int kFixedRawDataCount = 0x20;
   // 16 repeats lengths.
-  static const int kNumberOfFixedRepeat = 0x10;
+  static const int kFixedRepeatCount = 0x10;
 
   // 8 hot (recently seen or back-referenced) objects with optional skip.
-  static const int kNumberOfHotObjects = 8;
-  STATIC_ASSERT(kNumberOfHotObjects == HotObjectsList::kSize);
-  static const int kHotObjectMask = 0x07;
+  static const int kHotObjectCount = 8;
 
-  enum Bytecode {
+  enum Bytecode : byte {
     //
-    // ---------- byte code range 0x00..0x0f ----------
+    // ---------- byte code range 0x00..0x1b ----------
     //
 
-    // 0x00..0x05  Allocate new object, in specified space.
+    // 0x00..0x03  Allocate new object, in specified space.
     kNewObject = 0x00,
-    // 0x08..0x0d  Reference to previous object from specified space.
-    kBackref = 0x08,
-
-    //
-    // ---------- byte code range 0x10..0x27 ----------
-    //
-
+    // Reference to previously allocated object.
+    kBackref = 0x04,
+    // Reference to an object in the read only heap.
+    kReadOnlyHeapRef,
     // Object in the startup object cache.
-    kStartupObjectCache = 0x10,
+    kStartupObjectCache,
     // Root array item.
     kRootArray,
     // Object provided in the attached list.
@@ -148,18 +99,12 @@ class SerializerDeserializer : public RootVisitor {
     kReadOnlyObjectCache,
     // Do nothing, used for padding.
     kNop,
-    // Move to next reserved chunk.
-    kNextChunk,
-    // Deferring object content.
-    kDeferred,
-    // 3 alignment prefixes 0x17..0x19
-    kAlignmentPrefix = 0x17,
     // A tag emitted at strategic points in the snapshot to delineate sections.
     // If the deserializer does not find these at the expected moments then it
     // is an indication that the snapshot and the VM do not fit together.
     // Examine the build process for architecture, version or configuration
     // mismatches.
-    kSynchronize = 0x1a,
+    kSynchronize,
     // Repeats of variable length.
     kVariableRepeat,
     // Used for embedder-allocated backing stores for TypedArrays.
@@ -167,7 +112,6 @@ class SerializerDeserializer : public RootVisitor {
     // Used for embedder-provided serialization data for embedder fields.
     kEmbedderFieldsData,
     // Raw data of variable length.
-    kVariableRawCode,
     kVariableRawData,
     // Used to encode external references provided through the API.
     kApiReference,
@@ -186,6 +130,22 @@ class SerializerDeserializer : public RootVisitor {
     kWeakPrefix,
     // Encodes an off-heap instruction stream target.
     kOffHeapTarget,
+    // Registers the current slot as a "pending" forward reference, to be later
+    // filled by a corresponding resolution bytecode.
+    kRegisterPendingForwardRef,
+    // Resolves an existing "pending" forward reference to point to the current
+    // object.
+    kResolvePendingForwardRef,
+    // Special construction bytecode for the metamap. In theory we could re-use
+    // forward-references for this, but then the forward reference would be
+    // registered during object map deserialization, before the object is
+    // allocated, so there wouldn't be a allocated object whose map field we can
+    // register as the pending field. We could either hack around this, or
+    // simply introduce this new bytecode.
+    kNewMetaMap,
+    // Special construction bytecode for Code object bodies, which have a more
+    // complex deserialization ordering and RelocInfo processing.
+    kCodeBody,
 
     //
     // ---------- byte code range 0x40..0x7f ----------
@@ -196,7 +156,6 @@ class SerializerDeserializer : public RootVisitor {
 
     // 0x60..0x7f
     kFixedRawData = 0x60,
-    kFixedRawDataStart = kFixedRawData - 1,
 
     //
     // ---------- byte code range 0x80..0x9f ----------
@@ -209,49 +168,95 @@ class SerializerDeserializer : public RootVisitor {
     kHotObject = 0x90,
   };
 
+  // Helper class for encoding and decoding a value into and from a bytecode.
+  //
+  // The value is encoded by allocating an entire bytecode range, and encoding
+  // the value as an index in that range, starting at kMinValue; thus the range
+  // of values
+  //   [kMinValue, kMinValue + 1, ... , kMaxValue]
+  // is encoded as
+  //   [kBytecode, kBytecode + 1, ... , kBytecode + (N - 1)]
+  // where N is the number of values, i.e. kMaxValue - kMinValue + 1.
+  template <Bytecode kBytecode, int kMinValue, int kMaxValue,
+            typename TValue = int>
+  struct BytecodeValueEncoder {
+    STATIC_ASSERT((kBytecode + kMaxValue - kMinValue) <= kMaxUInt8);
+
+    static constexpr bool IsEncodable(TValue value) {
+      return base::IsInRange(static_cast<int>(value), kMinValue, kMaxValue);
+    }
+
+    static constexpr byte Encode(TValue value) {
+      DCHECK(IsEncodable(value));
+      return static_cast<byte>(kBytecode + static_cast<int>(value) - kMinValue);
+    }
+
+    static constexpr TValue Decode(byte bytecode) {
+      DCHECK(base::IsInRange(bytecode, Encode(static_cast<TValue>(kMinValue)),
+                             Encode(static_cast<TValue>(kMaxValue))));
+      return static_cast<TValue>(bytecode - kBytecode + kMinValue);
+    }
+  };
+
+  template <Bytecode bytecode>
+  using SpaceEncoder =
+      BytecodeValueEncoder<bytecode, 0, kNumberOfSnapshotSpaces - 1,
+                           SnapshotSpace>;
+
+  using NewObject = SpaceEncoder<kNewObject>;
+
   //
   // Some other constants.
   //
-  static const SnapshotSpace kAnyOldSpace = SnapshotSpace::kNumberOfSpaces;
 
   // Sentinel after a new object to indicate that double alignment is needed.
   static const int kDoubleAlignmentSentinel = 0;
 
+  // Raw data size encoding helpers.
+  static const int kFirstEncodableFixedRawDataSize = 1;
+  static const int kLastEncodableFixedRawDataSize =
+      kFirstEncodableFixedRawDataSize + kFixedRawDataCount - 1;
+
+  using FixedRawDataWithSize =
+      BytecodeValueEncoder<kFixedRawData, kFirstEncodableFixedRawDataSize,
+                           kLastEncodableFixedRawDataSize>;
+
   // Repeat count encoding helpers.
   static const int kFirstEncodableRepeatCount = 2;
   static const int kLastEncodableFixedRepeatCount =
-      kFirstEncodableRepeatCount + kNumberOfFixedRepeat - 1;
+      kFirstEncodableRepeatCount + kFixedRepeatCount - 1;
   static const int kFirstEncodableVariableRepeatCount =
       kLastEncodableFixedRepeatCount + 1;
 
-  // Encodes repeat count into a fixed repeat bytecode.
-  static int EncodeFixedRepeat(int repeat_count) {
-    DCHECK(base::IsInRange(repeat_count, kFirstEncodableRepeatCount,
-                           kLastEncodableFixedRepeatCount));
-    return kFixedRepeat + repeat_count - kFirstEncodableRepeatCount;
-  }
+  using FixedRepeatWithCount =
+      BytecodeValueEncoder<kFixedRepeat, kFirstEncodableRepeatCount,
+                           kLastEncodableFixedRepeatCount>;
 
-  // Decodes repeat count from a fixed repeat bytecode.
-  static int DecodeFixedRepeatCount(int bytecode) {
-    DCHECK(base::IsInRange(bytecode, kFixedRepeat + 0,
-                           kFixedRepeat + kNumberOfFixedRepeat));
-    return bytecode - kFixedRepeat + kFirstEncodableRepeatCount;
-  }
+  // Encodes/decodes repeat count into a serialized variable repeat count
+  // value.
+  struct VariableRepeatCount {
+    static constexpr bool IsEncodable(int repeat_count) {
+      return repeat_count >= kFirstEncodableVariableRepeatCount;
+    }
 
-  // Encodes repeat count into a serialized variable repeat count value.
-  static int EncodeVariableRepeatCount(int repeat_count) {
-    DCHECK_LE(kFirstEncodableVariableRepeatCount, repeat_count);
-    return repeat_count - kFirstEncodableVariableRepeatCount;
-  }
+    static constexpr int Encode(int repeat_count) {
+      DCHECK(IsEncodable(repeat_count));
+      return repeat_count - kFirstEncodableVariableRepeatCount;
+    }
 
-  // Decodes repeat count from a serialized variable repeat count value.
-  static int DecodeVariableRepeatCount(int value) {
-    DCHECK_LE(0, value);
-    return value + kFirstEncodableVariableRepeatCount;
-  }
+    static constexpr int Decode(int value) {
+      return value + kFirstEncodableVariableRepeatCount;
+    }
+  };
 
-  // ---------- member variable ----------
-  HotObjectsList hot_objects_;
+  using RootArrayConstant =
+      BytecodeValueEncoder<kRootArrayConstants, 0, kRootArrayConstantsCount - 1,
+                           RootIndex>;
+  using HotObject = BytecodeValueEncoder<kHotObject, 0, kHotObjectCount - 1>;
+
+  // This backing store reference value represents nullptr values during
+  // serialization/deserialization.
+  static const uint32_t kNullRefSentinel = 0;
 };
 
 }  // namespace internal

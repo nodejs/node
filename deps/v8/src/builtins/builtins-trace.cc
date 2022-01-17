@@ -9,9 +9,11 @@
 #include "src/json/json-stringifier.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
+#include "src/tracing/traced-value.h"
 
 #if defined(V8_USE_PERFETTO)
 #include "protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
+#include "src/base/platform/wrappers.h"
 #endif
 
 namespace v8 {
@@ -39,7 +41,7 @@ class MaybeUtf8 {
         // Why copy? Well, the trace event mechanism requires null-terminated
         // strings, the bytes we get from SeqOneByteString are not. buf_ is
         // guaranteed to be null terminated.
-        DisallowHeapAllocation no_gc;
+        DisallowGarbageCollection no_gc;
         memcpy(buf_, Handle<SeqOneByteString>::cast(string)->GetChars(no_gc),
                len);
       }
@@ -121,7 +123,7 @@ BUILTIN(IsTraceCategoryEnabled) {
   return isolate->heap()->ToBoolean(enabled);
 }
 
-// Builtins::kTrace(phase, category, name, id, data) : bool
+// Builtin::kTrace(phase, category, name, id, data) : bool
 BUILTIN(Trace) {
   HandleScope handle_scope(isolate);
 

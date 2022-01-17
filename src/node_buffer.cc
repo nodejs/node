@@ -22,6 +22,7 @@
 #include "node_buffer.h"
 #include "allocated_buffer-inl.h"
 #include "node.h"
+#include "node_blob.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
@@ -66,6 +67,7 @@ using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
+using v8::SharedArrayBuffer;
 using v8::String;
 using v8::Uint32;
 using v8::Uint32Array;
@@ -302,28 +304,36 @@ MaybeLocal<Object> New(Isolate* isolate,
   if (!StringBytes::Size(isolate, string, enc).To(&length))
     return Local<Object>();
   size_t actual = 0;
-  char* data = nullptr;
+  std::unique_ptr<BackingStore> store;
 
   if (length > 0) {
-    data = UncheckedMalloc(length);
+    store = ArrayBuffer::NewBackingStore(isolate, length);
 
-    if (data == nullptr) {
+    if (UNLIKELY(!store)) {
       THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
       return Local<Object>();
     }
 
-    actual = StringBytes::Write(isolate, data, length, string, enc);
+    actual = StringBytes::Write(
+        isolate,
+        static_cast<char*>(store->Data()),
+        length,
+        string,
+        enc);
     CHECK(actual <= length);
 
-    if (actual == 0) {
-      free(data);
-      data = nullptr;
-    } else if (actual < length) {
-      data = node::Realloc(data, actual);
+    if (LIKELY(actual > 0)) {
+      if (actual < length)
+        store = BackingStore::Reallocate(isolate, std::move(store), actual);
+      Local<ArrayBuffer> buf = ArrayBuffer::New(isolate, std::move(store));
+      Local<Object> obj;
+      if (UNLIKELY(!New(isolate, buf, 0, actual).ToLocal(&obj)))
+        return MaybeLocal<Object>();
+      return scope.Escape(obj);
     }
   }
 
-  return scope.EscapeMaybe(New(isolate, data, actual));
+  return scope.EscapeMaybe(New(isolate, 0));
 }
 
 
@@ -342,16 +352,31 @@ MaybeLocal<Object> New(Isolate* isolate, size_t length) {
 
 
 MaybeLocal<Object> New(Environment* env, size_t length) {
-  EscapableHandleScope scope(env->isolate());
+  Isolate* isolate(env->isolate());
+  EscapableHandleScope scope(isolate);
 
   // V8 currently only allows a maximum Typed Array index of max Smi.
   if (length > kMaxLength) {
-    env->isolate()->ThrowException(ERR_BUFFER_TOO_LARGE(env->isolate()));
+    isolate->ThrowException(ERR_BUFFER_TOO_LARGE(isolate));
     return Local<Object>();
   }
 
-  return scope.EscapeMaybe(
-      AllocatedBuffer::AllocateManaged(env, length).ToBuffer());
+  Local<ArrayBuffer> ab;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    std::unique_ptr<BackingStore> bs =
+        ArrayBuffer::NewBackingStore(isolate, length);
+
+    CHECK(bs);
+
+    ab = ArrayBuffer::New(isolate, std::move(bs));
+  }
+
+  MaybeLocal<Object> obj =
+      New(env, ab, 0, ab->ByteLength())
+          .FromMaybe(Local<Uint8Array>());
+
+  return scope.EscapeMaybe(obj);
 }
 
 
@@ -370,20 +395,33 @@ MaybeLocal<Object> Copy(Isolate* isolate, const char* data, size_t length) {
 
 
 MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
-  EscapableHandleScope scope(env->isolate());
+  Isolate* isolate(env->isolate());
+  EscapableHandleScope scope(isolate);
 
   // V8 currently only allows a maximum Typed Array index of max Smi.
   if (length > kMaxLength) {
-    env->isolate()->ThrowException(ERR_BUFFER_TOO_LARGE(env->isolate()));
+    isolate->ThrowException(ERR_BUFFER_TOO_LARGE(isolate));
     return Local<Object>();
   }
 
-  AllocatedBuffer ret = AllocatedBuffer::AllocateManaged(env, length);
-  if (length > 0) {
-    memcpy(ret.data(), data, length);
+  Local<ArrayBuffer> ab;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    std::unique_ptr<BackingStore> bs =
+        ArrayBuffer::NewBackingStore(isolate, length);
+
+    CHECK(bs);
+
+    memcpy(bs->Data(), data, length);
+
+    ab = ArrayBuffer::New(isolate, std::move(bs));
   }
 
-  return scope.EscapeMaybe(ret.ToBuffer());
+  MaybeLocal<Object> obj =
+      New(env, ab, 0, ab->ByteLength())
+          .FromMaybe(Local<Uint8Array>());
+
+  return scope.EscapeMaybe(obj);
 }
 
 
@@ -456,7 +494,12 @@ MaybeLocal<Object> New(Environment* env,
                        size_t length) {
   if (length > 0) {
     CHECK_NOT_NULL(data);
-    CHECK(length <= kMaxLength);
+    // V8 currently only allows a maximum Typed Array index of max Smi.
+    if (length > kMaxLength) {
+      Isolate* isolate(env->isolate());
+      isolate->ThrowException(ERR_BUFFER_TOO_LARGE(isolate));
+      return Local<Object>();
+    }
   }
 
   auto free_callback = [](char* data, void* hint) { free(data); };
@@ -496,18 +539,19 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   size_t length = end - start;
 
   Local<Value> error;
-  MaybeLocal<Value> ret =
+  MaybeLocal<Value> maybe_ret =
       StringBytes::Encode(isolate,
                           buffer.data() + start,
                           length,
                           encoding,
                           &error);
-  if (ret.IsEmpty()) {
+  Local<Value> ret;
+  if (!maybe_ret.ToLocal(&ret)) {
     CHECK(!error.IsEmpty());
     isolate->ThrowException(error);
     return;
   }
-  args.GetReturnValue().Set(ret.ToLocalChecked());
+  args.GetReturnValue().Set(ret);
 }
 
 
@@ -557,7 +601,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_BUFFER_ARG(args[0], ts_obj);
 
-  size_t start;
+  size_t start = 0;
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &start));
   size_t end;
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[3], 0, &end));
@@ -619,7 +663,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
                                     nullptr);
   }
 
- start_fill:
+start_fill:
 
   if (str_length >= fill_length)
     return;
@@ -658,8 +702,8 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> str = args[0]->ToString(env->context()).ToLocalChecked();
 
-  size_t offset;
-  size_t max_length;
+  size_t offset = 0;
+  size_t max_length = 0;
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[1], 0, &offset));
   if (offset > ts_obj_length) {
@@ -1066,13 +1110,25 @@ static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> str = args[0].As<String>();
   size_t length = str->Utf8Length(isolate);
-  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, length);
-  str->WriteUtf8(isolate,
-                 buf.data(),
-                 -1,  // We are certain that `data` is sufficiently large
-                 nullptr,
-                 String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
-  auto array = Uint8Array::New(buf.ToArrayBuffer(), 0, length);
+
+  Local<ArrayBuffer> ab;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    std::unique_ptr<BackingStore> bs =
+        ArrayBuffer::NewBackingStore(isolate, length);
+
+    CHECK(bs);
+
+    str->WriteUtf8(isolate,
+                   static_cast<char*>(bs->Data()),
+                   -1,  // We are certain that `data` is sufficiently large
+                   nullptr,
+                   String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
+
+    ab = ArrayBuffer::New(isolate, std::move(bs));
+  }
+
+  auto array = Uint8Array::New(ab, 0, length);
   args.GetReturnValue().Set(array);
 }
 
@@ -1148,6 +1204,60 @@ void GetZeroFillToggle(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Uint32Array::New(ab, 0, 1));
 }
 
+void DetachArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (args[0]->IsArrayBuffer()) {
+    Local<ArrayBuffer> buf = args[0].As<ArrayBuffer>();
+    if (buf->IsDetachable()) {
+      std::shared_ptr<BackingStore> store = buf->GetBackingStore();
+      buf->Detach();
+      args.GetReturnValue().Set(ArrayBuffer::New(env->isolate(), store));
+    }
+  }
+}
+
+void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  // args[0] == Destination ArrayBuffer
+  // args[1] == Destination ArrayBuffer Offset
+  // args[2] == Source ArrayBuffer
+  // args[3] == Source ArrayBuffer Offset
+  // args[4] == bytesToCopy
+
+  CHECK(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer());
+  CHECK(args[1]->IsUint32());
+  CHECK(args[2]->IsArrayBuffer() || args[2]->IsSharedArrayBuffer());
+  CHECK(args[3]->IsUint32());
+  CHECK(args[4]->IsUint32());
+
+  std::shared_ptr<BackingStore> destination;
+  std::shared_ptr<BackingStore> source;
+
+  if (args[0]->IsArrayBuffer()) {
+    destination = args[0].As<ArrayBuffer>()->GetBackingStore();
+  } else if (args[0]->IsSharedArrayBuffer()) {
+    destination = args[0].As<SharedArrayBuffer>()->GetBackingStore();
+  }
+
+  if (args[2]->IsArrayBuffer()) {
+    source = args[2].As<ArrayBuffer>()->GetBackingStore();
+  } else if (args[0]->IsSharedArrayBuffer()) {
+    source = args[2].As<SharedArrayBuffer>()->GetBackingStore();
+  }
+
+  uint32_t destination_offset = args[1].As<Uint32>()->Value();
+  uint32_t source_offset = args[3].As<Uint32>()->Value();
+  size_t bytes_to_copy = args[4].As<Uint32>()->Value();
+
+  CHECK_GE(destination->ByteLength() - destination_offset, bytes_to_copy);
+  CHECK_GE(source->ByteLength() - source_offset, bytes_to_copy);
+
+  uint8_t* dest =
+      static_cast<uint8_t*>(destination->Data()) + destination_offset;
+  uint8_t* src =
+      static_cast<uint8_t*>(source->Data()) + source_offset;
+  memcpy(dest, src, bytes_to_copy);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -1166,6 +1276,9 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "indexOfNumber", IndexOfNumber);
   env->SetMethodNoSideEffect(target, "indexOfString", IndexOfString);
 
+  env->SetMethod(target, "detachArrayBuffer", DetachArrayBuffer);
+  env->SetMethod(target, "copyArrayBuffer", CopyArrayBuffer);
+
   env->SetMethod(target, "swap16", Swap16);
   env->SetMethod(target, "swap32", Swap32);
   env->SetMethod(target, "swap64", Swap64);
@@ -1183,6 +1296,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethodNoSideEffect(target, "asciiSlice", StringSlice<ASCII>);
   env->SetMethodNoSideEffect(target, "base64Slice", StringSlice<BASE64>);
+  env->SetMethodNoSideEffect(target, "base64urlSlice", StringSlice<BASE64URL>);
   env->SetMethodNoSideEffect(target, "latin1Slice", StringSlice<LATIN1>);
   env->SetMethodNoSideEffect(target, "hexSlice", StringSlice<HEX>);
   env->SetMethodNoSideEffect(target, "ucs2Slice", StringSlice<UCS2>);
@@ -1190,6 +1304,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "asciiWrite", StringWrite<ASCII>);
   env->SetMethod(target, "base64Write", StringWrite<BASE64>);
+  env->SetMethod(target, "base64urlWrite", StringWrite<BASE64URL>);
   env->SetMethod(target, "latin1Write", StringWrite<LATIN1>);
   env->SetMethod(target, "hexWrite", StringWrite<HEX>);
   env->SetMethod(target, "ucs2Write", StringWrite<UCS2>);
@@ -1222,6 +1337,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(StringSlice<ASCII>);
   registry->Register(StringSlice<BASE64>);
+  registry->Register(StringSlice<BASE64URL>);
   registry->Register(StringSlice<LATIN1>);
   registry->Register(StringSlice<HEX>);
   registry->Register(StringSlice<UCS2>);
@@ -1229,11 +1345,15 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(StringWrite<ASCII>);
   registry->Register(StringWrite<BASE64>);
+  registry->Register(StringWrite<BASE64URL>);
   registry->Register(StringWrite<LATIN1>);
   registry->Register(StringWrite<HEX>);
   registry->Register(StringWrite<UCS2>);
   registry->Register(StringWrite<UTF8>);
   registry->Register(GetZeroFillToggle);
+
+  registry->Register(DetachArrayBuffer);
+  registry->Register(CopyArrayBuffer);
 }
 
 }  // namespace Buffer

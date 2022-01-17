@@ -10,7 +10,6 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-const lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -70,6 +69,24 @@ function normalizeOptionValue(value) {
 }
 
 /**
+ * Checks if a value is an object.
+ * @param {any} value The value to check
+ * @returns {boolean} `true` if the value is an object, otherwise `false`
+ */
+function isObject(value) {
+    return typeof value === "object" && value !== null;
+}
+
+/**
+ * Checks if an option is a node-specific option
+ * @param {any} option The option to check
+ * @returns {boolean} `true` if the option is node-specific, otherwise `false`
+ */
+function isNodeSpecificOption(option) {
+    return isObject(option) || typeof option === "string";
+}
+
+/**
  * Normalizes a given option value.
  * @param {string|Object|undefined} options An option value to parse.
  * @returns {{
@@ -80,9 +97,7 @@ function normalizeOptionValue(value) {
  * }} Normalized option object.
  */
 function normalizeOptions(options) {
-    const isNodeSpecificOption = lodash.overSome([lodash.isPlainObject, lodash.isString]);
-
-    if (lodash.isPlainObject(options) && lodash.some(options, isNodeSpecificOption)) {
+    if (isObject(options) && Object.values(options).some(isNodeSpecificOption)) {
         return {
             ObjectExpression: normalizeOptionValue(options.ObjectExpression),
             ObjectPattern: normalizeOptionValue(options.ObjectPattern),
@@ -129,13 +144,13 @@ function areLineBreaksRequired(node, options, first, last) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
-            description: "enforce consistent line breaks inside braces",
-            category: "Stylistic Issues",
+            description: "enforce consistent line breaks after opening and before closing braces",
             recommended: false,
             url: "https://eslint.org/docs/rules/object-curly-newline"
         },

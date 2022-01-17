@@ -15,16 +15,40 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const validParent = new Set(["Program", "ExportNamedDeclaration", "ExportDefaultDeclaration"]);
+const validParent = new Set(["Program", "StaticBlock", "ExportNamedDeclaration", "ExportDefaultDeclaration"]);
 const validBlockStatementParent = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
 
+/**
+ * Finds the nearest enclosing context where this rule allows declarations and returns its description.
+ * @param {ASTNode} node Node to search from.
+ * @returns {string} Description. One of "program", "function body", "class static block body".
+ */
+function getAllowedBodyDescription(node) {
+    let { parent } = node;
+
+    while (parent) {
+
+        if (parent.type === "StaticBlock") {
+            return "class static block body";
+        }
+
+        if (astUtils.isFunction(parent)) {
+            return "function body";
+        }
+
+        ({ parent } = parent);
+    }
+
+    return "program";
+}
+
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow variable or `function` declarations in nested blocks",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-inner-declarations"
         },
@@ -60,14 +84,12 @@ module.exports = {
                 return;
             }
 
-            const upperFunction = astUtils.getUpperFunction(parent);
-
             context.report({
                 node,
                 messageId: "moveDeclToRoot",
                 data: {
                     type: (node.type === "FunctionDeclaration" ? "function" : "variable"),
-                    body: (upperFunction === null ? "program" : "function body")
+                    body: getAllowedBodyDescription(node)
                 }
             });
         }

@@ -3,9 +3,8 @@
 // found in the LICENSE file.
 
 @abstract
-@generateCppClass
 extern class Name extends PrimitiveHeapObject {
-  hash_field: NameHash;
+  raw_hash_field: NameHash;
 }
 
 bitfield struct NameHash extends uint32 {
@@ -28,7 +27,6 @@ bitfield struct SymbolFlags extends uint32 {
   is_private_brand: bool: 1 bit;
 }
 
-@generateCppClass
 extern class Symbol extends Name {
   flags: SymbolFlags;
   description: String|Undefined;
@@ -66,7 +64,7 @@ const kArrayIndexLengthBitsShift: uint32 =
     kNofHashBitFields + kArrayIndexValueBits;
 
 macro TenToThe(exponent: uint32): uint32 {
-  assert(exponent <= 9);
+  dcheck(exponent <= 9);
   let answer: int32 = 1;
   for (let i: int32 = 0; i < Signed(exponent); i++) {
     answer = answer * 10;
@@ -76,14 +74,14 @@ macro TenToThe(exponent: uint32): uint32 {
 
 macro MakeArrayIndexHash(value: uint32, length: uint32): NameHash {
   // This is in sync with StringHasher::MakeArrayIndexHash.
-  assert(length <= kMaxArrayIndexSize);
+  dcheck(length <= kMaxArrayIndexSize);
   const one: uint32 = 1;
-  assert(TenToThe(kMaxCachedArrayIndexLength) < (one << kArrayIndexValueBits));
+  dcheck(TenToThe(kMaxCachedArrayIndexLength) < (one << kArrayIndexValueBits));
   let hash: uint32 = value;
   hash = (hash << kArrayIndexValueBitsShift) |
       (length << kArrayIndexLengthBitsShift);
-  assert((hash & kIsNotIntegerIndexMask) == 0);
-  assert(
+  dcheck((hash & kIsNotIntegerIndexMask) == 0);
+  dcheck(
       (length <= kMaxCachedArrayIndexLength) == ContainsCachedArrayIndex(hash));
   return %RawDownCast<NameHash>(hash);
 }

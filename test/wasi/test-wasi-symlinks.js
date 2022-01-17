@@ -14,7 +14,8 @@ if (process.argv[2] === 'wasi-child') {
     args: [],
     env: process.env,
     preopens: {
-      '/sandbox': process.argv[4]
+      '/sandbox': process.argv[4],
+      '/tmp': process.argv[5]
     }
   });
   const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
@@ -45,9 +46,11 @@ if (process.argv[2] === 'wasi-child') {
   const escapingSymlink = path.join(sandboxedDir, 'outside.txt');
   const loopSymlink1 = path.join(sandboxedDir, 'loop1');
   const loopSymlink2 = path.join(sandboxedDir, 'loop2');
+  const sandboxedTmp = path.join(tmpdir.path, 'tmp');
 
   fs.mkdirSync(sandbox);
   fs.mkdirSync(sandboxedDir);
+  fs.mkdirSync(sandboxedTmp);
   fs.writeFileSync(sandboxedFile, 'hello from input.txt', 'utf8');
   fs.writeFileSync(externalFile, 'this should be inaccessible', 'utf8');
   fs.symlinkSync(path.join('.', 'input.txt'), sandboxedSymlink, 'file');
@@ -65,7 +68,8 @@ if (process.argv[2] === 'wasi-child') {
       __filename,
       'wasi-child',
       options.test,
-      sandbox
+      sandbox,
+      sandboxedTmp,
     ], opts);
     console.log(child.stderr.toString());
     assert.strictEqual(child.status, 0);
@@ -75,6 +79,7 @@ if (process.argv[2] === 'wasi-child') {
 
   runWASI({ test: 'create_symlink', stdout: 'hello from input.txt' });
   runWASI({ test: 'follow_symlink', stdout: 'hello from input.txt' });
+  runWASI({ test: 'link' });
   runWASI({ test: 'symlink_escape' });
   runWASI({ test: 'symlink_loop' });
 }

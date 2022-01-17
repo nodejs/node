@@ -9,13 +9,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow `new` operators with the `String`, `Number`, and `Boolean` objects",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-new-wrappers"
         },

@@ -5,9 +5,11 @@
 #include <memory>
 
 #include "include/v8-inspector.h"
-#include "include/v8.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/string-util.h"
+#include "src/inspector/v8-inspector-impl.h"
 #include "test/cctest/cctest.h"
 
 using v8_inspector::StringBuffer;
@@ -167,4 +169,39 @@ TEST(BinaryBase64RoundTrip) {
   for (size_t i = 0; i < values.size(); ++i) {
     CHECK_EQ(values[i], roundtrip_binary.data()[i]);
   }
+}
+
+TEST(NoInterruptOnGetAssociatedData) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<v8_inspector::V8InspectorImpl> inspector(
+      new v8_inspector::V8InspectorImpl(isolate, &default_client));
+
+  v8::Local<v8::Context> context = env->GetIsolate()->GetCurrentContext();
+  v8::Local<v8::Value> error = v8::Exception::Error(v8_str("custom error"));
+  v8::Local<v8::Name> key = v8_str("key");
+  v8::Local<v8::Value> value = v8_str("value");
+  inspector->associateExceptionData(context, error, key, value);
+
+  struct InterruptRecorder {
+    static void handler(v8::Isolate* isolate, void* data) {
+      reinterpret_cast<InterruptRecorder*>(data)->WasInvoked = true;
+    }
+
+    bool WasInvoked = false;
+  } recorder;
+
+  isolate->RequestInterrupt(&InterruptRecorder::handler, &recorder);
+
+  v8::Local<v8::Object> data =
+      inspector->getAssociatedExceptionData(error).ToLocalChecked();
+  CHECK(!recorder.WasInvoked);
+
+  CHECK_EQ(data->Get(context, key).ToLocalChecked(), value);
+
+  CompileRun("0");
+  CHECK(recorder.WasInvoked);
 }

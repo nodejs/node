@@ -7,7 +7,6 @@
 
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
-#include "torque-generated/class-definitions-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -15,12 +14,13 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/struct-tq.inc"
+
 // An abstract superclass, a marker class really, for simple structure classes.
 // It doesn't carry any functionality but allows struct classes to be
 // identified in the type system.
 class Struct : public TorqueGeneratedStruct<Struct, HeapObject> {
  public:
-  inline void InitializeBody(int object_size);
   void BriefPrintDetails(std::ostream& os);
   STATIC_ASSERT(kHeaderSize == HeapObject::kHeaderSize);
 
@@ -47,6 +47,16 @@ class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
 
   inline Object get(AccessorComponent component);
   inline void set(AccessorComponent component, Object value);
+  inline void set(AccessorComponent component, Object value,
+                  ReleaseStoreTag tag);
+
+  using TorqueGeneratedAccessorPair::getter;
+  using TorqueGeneratedAccessorPair::set_getter;
+  DECL_RELEASE_ACQUIRE_ACCESSORS(getter, Object)
+
+  using TorqueGeneratedAccessorPair::set_setter;
+  using TorqueGeneratedAccessorPair::setter;
+  DECL_RELEASE_ACQUIRE_ACCESSORS(setter, Object)
 
   // Note: Returns undefined if the component is not set.
   static Handle<Object> GetComponent(Isolate* isolate,
@@ -59,9 +69,6 @@ class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
 
   inline bool Equals(Object getter_value, Object setter_value);
 
-  // Dispatched behavior.
-  DECL_PRINTER(AccessorPair)
-
   TQ_OBJECT_CONSTRUCTORS(AccessorPair)
 };
 
@@ -69,7 +76,6 @@ class ClassPositions
     : public TorqueGeneratedClassPositions<ClassPositions, Struct> {
  public:
   // Dispatched behavior.
-  DECL_PRINTER(ClassPositions)
   void BriefPrintDetails(std::ostream& os);
 
   TQ_OBJECT_CONSTRUCTORS(ClassPositions)

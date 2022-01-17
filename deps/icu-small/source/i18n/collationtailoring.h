@@ -50,7 +50,7 @@ struct U_I18N_API CollationTailoring : public SharedObject {
     virtual ~CollationTailoring();
 
     /**
-     * Returns TRUE if the constructor could not initialize properly.
+     * Returns true if the constructor could not initialize properly.
      */
     UBool isBogus() { return settings == NULL; }
 

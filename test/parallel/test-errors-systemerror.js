@@ -9,7 +9,7 @@ assert.throws(
   () => { new SystemError(); },
   {
     name: 'TypeError',
-    message: 'Cannot read property \'match\' of undefined'
+    message: 'String.prototype.match called on null or undefined'
   }
 );
 

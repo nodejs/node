@@ -59,7 +59,7 @@ server.listen(0, common.mustCall(function() {
   }, common.mustCall((response) => {
     response.on('end', common.mustCall(() => {
       assert.strictEqual(agent.sockets[name].length, 1);
-      assert(!agent.requests.hasOwnProperty(name));
+      assert(!(name in agent.requests));
       server.close();
     }));
     response.resume();
@@ -67,6 +67,6 @@ server.listen(0, common.mustCall(function() {
 }));
 
 process.on('exit', () => {
-  assert(!agent.sockets.hasOwnProperty(name));
-  assert(!agent.requests.hasOwnProperty(name));
+  assert(!(name in agent.sockets));
+  assert(!(name in agent.requests));
 });

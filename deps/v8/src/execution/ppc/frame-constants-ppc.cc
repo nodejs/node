@@ -20,7 +20,7 @@ Register JavaScriptFrame::constant_pool_pointer_register() {
   return kConstantPoolRegister;
 }
 
-int InterpreterFrameConstants::RegisterStackSlotCount(int register_count) {
+int UnoptimizedFrameConstants::RegisterStackSlotCount(int register_count) {
   return register_count;
 }
 

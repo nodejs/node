@@ -81,7 +81,7 @@
 #include <float.h>
 
 #ifndef U_COMMON_IMPLEMENTATION
-#error U_COMMON_IMPLEMENTATION not set - must be set for all ICU source files in common/ - see http://userguide.icu-project.org/howtouseicu
+#error U_COMMON_IMPLEMENTATION not set - must be set for all ICU source files in common/ - see https://unicode-org.github.io/icu/userguide/howtouseicu
 #endif
 
 
@@ -118,10 +118,14 @@
 #       ifndef _XPG4_2
 #           define _XPG4_2
 #       endif
+#   elif U_PLATFORM == U_PF_ANDROID
+#       include <sys/system_properties.h>
+#       include <dlfcn.h>
 #   endif
 #elif U_PLATFORM == U_PF_QNX
 #   include <sys/neutrino.h>
 #endif
+
 
 /*
  * Only include langinfo.h if we have a way to get the codeset. If we later
@@ -723,12 +727,21 @@ static char *gTimeZoneBufferPtr = NULL;
 
 #if !U_PLATFORM_USES_ONLY_WIN32_API
 #define isNonDigit(ch) (ch < '0' || '9' < ch)
+#define isDigit(ch) ('0' <= ch && ch <= '9')
 static UBool isValidOlsonID(const char *id) {
     int32_t idx = 0;
+    int32_t idxMax = 0;
 
     /* Determine if this is something like Iceland (Olson ID)
     or AST4ADT (non-Olson ID) */
     while (id[idx] && isNonDigit(id[idx]) && id[idx] != ',') {
+        idx++;
+    }
+
+    /* Allow at maximum 2 numbers at the end of the id to support zone id's
+    like GMT+11. */
+    idxMax = idx + 2;
+    while (id[idx] && isDigit(id[idx]) && idx < idxMax) {
         idx++;
     }
 
@@ -914,7 +927,7 @@ static UBool compareBinaryFiles(const char* defaultTZFileName, const char* TZFil
         if (sizeFile != tzInfo->defaultTZFileSize) {
             result = FALSE;
         } else {
-            /* Store the data from the files in seperate buffers and
+            /* Store the data from the files in separate buffers and
              * compare each byte to determine equality.
              */
             if (tzInfo->defaultTZBuffer == NULL) {
@@ -1043,9 +1056,53 @@ static char* searchForTZFile(const char* path, DefaultTZInfo* tzInfo) {
 }
 #endif
 
+#if U_PLATFORM == U_PF_ANDROID
+typedef int(system_property_read_callback)(const prop_info* info,
+                                           void (*callback)(void* cookie,
+                                                            const char* name,
+                                                            const char* value,
+                                                            uint32_t serial),
+                                           void* cookie);
+typedef int(system_property_get)(const char*, char*);
+
+static char gAndroidTimeZone[PROP_VALUE_MAX] = { '\0' };
+
+static void u_property_read(void* cookie, const char* name, const char* value,
+                            uint32_t serial) {
+    uprv_strcpy((char* )cookie, value);
+}
+#endif
+
 U_CAPI void U_EXPORT2
-uprv_tzname_clear_cache()
+uprv_tzname_clear_cache(void)
 {
+#if U_PLATFORM == U_PF_ANDROID
+    /* Android's timezone is stored in system property. */
+    gAndroidTimeZone[0] = '\0';
+    void* libc = dlopen("libc.so", RTLD_NOLOAD);
+    if (libc) {
+        /* Android API 26+ has new API to get system property and old API
+         * (__system_property_get) is deprecated */
+        system_property_read_callback* property_read_callback =
+            (system_property_read_callback*)dlsym(
+                libc, "__system_property_read_callback");
+        if (property_read_callback) {
+            const prop_info* info =
+                __system_property_find("persist.sys.timezone");
+            if (info) {
+                property_read_callback(info, &u_property_read, gAndroidTimeZone);
+            }
+        } else {
+            system_property_get* property_get =
+                (system_property_get*)dlsym(libc, "__system_property_get");
+            if (property_get) {
+                property_get("persist.sys.timezone", gAndroidTimeZone);
+            }
+        }
+        dlclose(libc);
+    }
+#endif
+
 #if defined(CHECK_LOCALTIME_LINK) && !defined(DEBUG_SKIP_LOCALTIME_LINK)
     gTimeZoneBufferPtr = NULL;
 #endif
@@ -1084,10 +1141,14 @@ uprv_tzname(int n)
 
 /* This code can be temporarily disabled to test tzname resolution later on. */
 #ifndef DEBUG_TZNAME
+#if U_PLATFORM == U_PF_ANDROID
+    tzid = gAndroidTimeZone;
+#else
     tzid = getenv("TZ");
+#endif
     if (tzid != NULL && isValidOlsonID(tzid)
 #if U_PLATFORM == U_PF_SOLARIS
-    /* When TZ equals localtime on Solaris, check the /etc/localtime file. */
+    /* Don't misinterpret TZ "localtime" on Solaris as a time zone name. */
         && uprv_strcmp(tzid, TZ_ENV_CHECK) != 0
 #endif
     ) {
@@ -1309,7 +1370,7 @@ uprv_pathIsAbsolute(const char *path)
 
 /* Backup setting of ICU_DATA_DIR_PREFIX_ENV_VAR
    (needed for some Darwin ICU build environments) */
-#if U_PLATFORM_IS_DARWIN_BASED && TARGET_OS_SIMULATOR
+#if U_PLATFORM_IS_DARWIN_BASED && defined(TARGET_OS_SIMULATOR) && TARGET_OS_SIMULATOR
 # if !defined(ICU_DATA_DIR_PREFIX_ENV_VAR)
 #  define ICU_DATA_DIR_PREFIX_ENV_VAR "IPHONE_SIMULATOR_ROOT"
 # endif
@@ -2299,7 +2360,7 @@ u_getVersion(UVersionInfo versionArray) {
 #include <dlfcn.h>
 #endif /* HAVE_DLFCN_H */
 
-U_INTERNAL void * U_EXPORT2
+U_CAPI void * U_EXPORT2
 uprv_dl_open(const char *libName, UErrorCode *status) {
   void *ret = NULL;
   if(U_FAILURE(*status)) return ret;
@@ -2313,13 +2374,13 @@ uprv_dl_open(const char *libName, UErrorCode *status) {
   return ret;
 }
 
-U_INTERNAL void U_EXPORT2
+U_CAPI void U_EXPORT2
 uprv_dl_close(void *lib, UErrorCode *status) {
   if(U_FAILURE(*status)) return;
   dlclose(lib);
 }
 
-U_INTERNAL UVoidFunction* U_EXPORT2
+U_CAPI UVoidFunction* U_EXPORT2
 uprv_dlsym_func(void *lib, const char* sym, UErrorCode *status) {
   union {
       UVoidFunction *fp;
@@ -2342,7 +2403,7 @@ uprv_dlsym_func(void *lib, const char* sym, UErrorCode *status) {
 /* Windows API implementation. */
 // Note: UWP does not expose/allow these APIs, so the UWP version gets the null implementation. */
 
-U_INTERNAL void * U_EXPORT2
+U_CAPI void * U_EXPORT2
 uprv_dl_open(const char *libName, UErrorCode *status) {
   HMODULE lib = NULL;
 
@@ -2357,7 +2418,7 @@ uprv_dl_open(const char *libName, UErrorCode *status) {
   return (void*)lib;
 }
 
-U_INTERNAL void U_EXPORT2
+U_CAPI void U_EXPORT2
 uprv_dl_close(void *lib, UErrorCode *status) {
   HMODULE handle = (HMODULE)lib;
   if(U_FAILURE(*status)) return;
@@ -2367,7 +2428,7 @@ uprv_dl_close(void *lib, UErrorCode *status) {
   return;
 }
 
-U_INTERNAL UVoidFunction* U_EXPORT2
+U_CAPI UVoidFunction* U_EXPORT2
 uprv_dlsym_func(void *lib, const char* sym, UErrorCode *status) {
   HMODULE handle = (HMODULE)lib;
   UVoidFunction* addr = NULL;
@@ -2392,7 +2453,7 @@ uprv_dlsym_func(void *lib, const char* sym, UErrorCode *status) {
 
 /* No dynamic loading, null (nonexistent) implementation. */
 
-U_INTERNAL void * U_EXPORT2
+U_CAPI void * U_EXPORT2
 uprv_dl_open(const char *libName, UErrorCode *status) {
     (void)libName;
     if(U_FAILURE(*status)) return NULL;
@@ -2400,7 +2461,7 @@ uprv_dl_open(const char *libName, UErrorCode *status) {
     return NULL;
 }
 
-U_INTERNAL void U_EXPORT2
+U_CAPI void U_EXPORT2
 uprv_dl_close(void *lib, UErrorCode *status) {
     (void)lib;
     if(U_FAILURE(*status)) return;
@@ -2408,7 +2469,7 @@ uprv_dl_close(void *lib, UErrorCode *status) {
     return;
 }
 
-U_INTERNAL UVoidFunction* U_EXPORT2
+U_CAPI UVoidFunction* U_EXPORT2
 uprv_dlsym_func(void *lib, const char* sym, UErrorCode *status) {
   (void)lib;
   (void)sym;

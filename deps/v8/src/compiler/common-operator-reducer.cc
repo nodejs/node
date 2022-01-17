@@ -8,10 +8,11 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {
@@ -20,18 +21,17 @@ namespace compiler {
 namespace {
 
 Decision DecideCondition(JSHeapBroker* broker, Node* const cond) {
-  switch (cond->opcode()) {
-    case IrOpcode::kFoldConstant: {
-      return DecideCondition(broker, cond->InputAt(1));
-    }
+  Node* unwrapped = SkipValueIdentities(cond);
+  switch (unwrapped->opcode()) {
     case IrOpcode::kInt32Constant: {
-      Int32Matcher mcond(cond);
-      return mcond.Value() ? Decision::kTrue : Decision::kFalse;
+      Int32Matcher m(unwrapped);
+      return m.ResolvedValue() ? Decision::kTrue : Decision::kFalse;
     }
     case IrOpcode::kHeapConstant: {
-      HeapObjectMatcher mcond(cond);
-      return mcond.Ref(broker).BooleanValue() ? Decision::kTrue
-                                              : Decision::kFalse;
+      HeapObjectMatcher m(unwrapped);
+      base::Optional<bool> maybe_result = m.Ref(broker).TryGetBooleanValue();
+      if (!maybe_result.has_value()) return Decision::kUnknown;
+      return *maybe_result ? Decision::kTrue : Decision::kFalse;
     }
     default:
       return Decision::kUnknown;
@@ -56,7 +56,7 @@ CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
 }
 
 Reduction CommonOperatorReducer::Reduce(Node* node) {
-  DisallowHeapAccess no_heap_access;
+  DisallowHeapAccessIf no_heap_access(broker() == nullptr);
   switch (node->opcode()) {
     case IrOpcode::kBranch:
       return ReduceBranch(node);
@@ -77,6 +77,9 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
       return ReduceSwitch(node);
     case IrOpcode::kStaticAssert:
       return ReduceStaticAssert(node);
+    case IrOpcode::kTrapIf:
+    case IrOpcode::kTrapUnless:
+      return ReduceTrapConditional(node);
     default:
       break;
   }
@@ -436,7 +439,7 @@ Reduction CommonOperatorReducer::ReduceSwitch(Node* node) {
   // non-matching cases as dead code (same for an unused IfDefault), because the
   // Switch itself will be marked as dead code.
   Int32Matcher mswitched(switched_value);
-  if (mswitched.HasValue()) {
+  if (mswitched.HasResolvedValue()) {
     bool matched = false;
 
     size_t const projection_count = node->op()->ControlOutputCount();
@@ -447,7 +450,7 @@ Reduction CommonOperatorReducer::ReduceSwitch(Node* node) {
       Node* if_value = projections[i];
       DCHECK_EQ(IrOpcode::kIfValue, if_value->opcode());
       const IfValueParameters& p = IfValueParametersOf(if_value->op());
-      if (p.value() == mswitched.Value()) {
+      if (p.value() == mswitched.ResolvedValue()) {
         matched = true;
         Replace(if_value, control);
         break;
@@ -472,6 +475,30 @@ Reduction CommonOperatorReducer::ReduceStaticAssert(Node* node) {
     return Changed(node);
   } else {
     return NoChange();
+  }
+}
+
+Reduction CommonOperatorReducer::ReduceTrapConditional(Node* trap) {
+  DCHECK(trap->opcode() == IrOpcode::kTrapIf ||
+         trap->opcode() == IrOpcode::kTrapUnless);
+  bool trapping_condition = trap->opcode() == IrOpcode::kTrapIf;
+  Node* const cond = trap->InputAt(0);
+  Decision decision = DecideCondition(broker(), cond);
+
+  if (decision == Decision::kUnknown) {
+    return NoChange();
+  } else if ((decision == Decision::kTrue) == trapping_condition) {
+    // This will always trap. Mark its outputs as dead and connect it to
+    // graph()->end().
+    ReplaceWithValue(trap, dead(), dead(), dead());
+    Node* effect = NodeProperties::GetEffectInput(trap);
+    Node* control = graph()->NewNode(common()->Throw(), effect, trap);
+    NodeProperties::MergeControlToEnd(graph(), common(), control);
+    Revisit(graph()->end());
+    return Changed(trap);
+  } else {
+    // This will not trap, remove it.
+    return Replace(NodeProperties::GetControlInput(trap));
   }
 }
 

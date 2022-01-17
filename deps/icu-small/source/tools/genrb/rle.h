@@ -62,7 +62,7 @@ usArrayToRLEString(const uint16_t* src,int32_t srcLen,uint16_t* buffer, int32_t 
  * Construct an array of bytes from a run-length encoded string.
  */
 int32_t
-rleStringToByteArray(uint16_t* src, int32_t srcLen, uint8_t* target, int32_t tgtLen, UErrorCode* status);
+rleStringToByteArray(uint16_t* src, int32_t srcLen, uint8_t* target, int32_t tgtLen, UErrorCode* status); 
 /**
  * Construct an array of shorts from a run-length encoded string.
  */

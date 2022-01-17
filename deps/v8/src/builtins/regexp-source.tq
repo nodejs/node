@@ -21,7 +21,6 @@ transitioning javascript builtin RegExpPrototypeSourceGetter(
     const methodName: constexpr string = 'RegExp.prototype.source';
     ThrowTypeError(MessageTemplate::kRegExpNonRegExp, methodName);
   }
-  IncrementUseCounter(context, SmiConstant(kRegExpPrototypeSourceGetter));
   return '(?:)';
 }
 }

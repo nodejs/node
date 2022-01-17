@@ -2,13 +2,15 @@
 
 const common = require('../common');
 
+// Manually converted from https://github.com/web-platform-tests/wpt/blob/master/dom/events/AddEventListenerOptions-passive.html
+// in order to define the `document` ourselves
+
 const {
   fail,
   ok,
   strictEqual
 } = require('assert');
 
-// Manually ported from WPT AddEventListenerOptions-passive.html
 {
   const document = new EventTarget();
   let supportsPassive = false;

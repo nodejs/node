@@ -10,6 +10,8 @@ SyntaxError: Strict mode code may not include a with statement
     at [eval]-wrapper:*:*
     at evalScript (node:internal/process/execution:*:*)
     at node:internal/main/eval_string:*:*
+
+Node.js *
 42
 42
 [eval]:1
@@ -25,6 +27,8 @@ Error: hello
     at evalScript (node:internal/process/execution:*:*)
     at node:internal/main/eval_string:*:*
 
+Node.js *
+
 [eval]:1
 throw new Error("hello")
 ^
@@ -37,6 +41,8 @@ Error: hello
     at [eval]-wrapper:*:*
     at evalScript (node:internal/process/execution:*:*)
     at node:internal/main/eval_string:*:*
+
+Node.js *
 100
 [eval]:1
 var x = 100; y = x;
@@ -51,15 +57,21 @@ ReferenceError: y is not defined
     at evalScript (node:internal/process/execution:*:*)
     at node:internal/main/eval_string:*:*
 
-[eval]:1
-var ______________________________________________; throw 10
-                                                    ^
-10
-(Use `* --trace-uncaught ...` to show where the exception was thrown)
+Node.js *
 
 [eval]:1
 var ______________________________________________; throw 10
                                                     ^
 10
 (Use `* --trace-uncaught ...` to show where the exception was thrown)
+
+Node.js *
+
+[eval]:1
+var ______________________________________________; throw 10
+                                                    ^
+10
+(Use `* --trace-uncaught ...` to show where the exception was thrown)
+
+Node.js *
 done

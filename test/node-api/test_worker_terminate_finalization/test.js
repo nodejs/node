@@ -1,11 +1,9 @@
 'use strict';
 const common = require('../../common');
 
-// TODO(addaleax): Run this test once it stops failing under ASAN/valgrind.
 // Refs: https://github.com/nodejs/node/issues/34731
 // Refs: https://github.com/nodejs/node/pull/35777
 // Refs: https://github.com/nodejs/node/issues/35778
-common.skip('Reference management in N-API leaks memory');
 
 const { Worker, isMainThread } = require('worker_threads');
 

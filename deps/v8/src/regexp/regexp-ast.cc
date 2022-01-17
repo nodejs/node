@@ -219,7 +219,7 @@ void* RegExpUnparser::VisitAssertion(RegExpAssertion* that, void* data) {
 
 void* RegExpUnparser::VisitAtom(RegExpAtom* that, void* data) {
   os_ << "'";
-  Vector<const uc16> chardata = that->data();
+  base::Vector<const base::uc16> chardata = that->data();
   for (int i = 0; i < chardata.length(); i++) {
     os_ << AsUC16(chardata[i]);
   }
@@ -293,13 +293,11 @@ void* RegExpUnparser::VisitEmpty(RegExpEmpty* that, void* data) {
   return nullptr;
 }
 
-
-std::ostream& RegExpTree::Print(std::ostream& os, Zone* zone) {  // NOLINT
+std::ostream& RegExpTree::Print(std::ostream& os, Zone* zone) {
   RegExpUnparser unparser(os, zone);
   Accept(&unparser, nullptr);
   return os;
 }
-
 
 RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
     : alternatives_(alternatives) {
@@ -309,8 +307,8 @@ RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
   max_match_ = first_alternative->max_match();
   for (int i = 1; i < alternatives->length(); i++) {
     RegExpTree* alternative = alternatives->at(i);
-    min_match_ = Min(min_match_, alternative->min_match());
-    max_match_ = Max(max_match_, alternative->max_match());
+    min_match_ = std::min(min_match_, alternative->min_match());
+    max_match_ = std::max(max_match_, alternative->max_match());
   }
 }
 

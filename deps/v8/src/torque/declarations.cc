@@ -214,6 +214,7 @@ Macro* Declarations::DeclareMacro(
     macro = CreateTorqueMacro(name, name, accessible_from_csa, signature, body,
                               is_user_defined);
   }
+
   Declare(name, macro);
   if (op) {
     if (TryLookupMacro(*op, signature.GetExplicitTypes())) {
@@ -276,11 +277,12 @@ RuntimeFunction* Declarations::DeclareRuntimeFunction(
                            new RuntimeFunction(name, signature))));
 }
 
-void Declarations::DeclareExternConstant(Identifier* name, const Type* type,
-                                         std::string value) {
+ExternConstant* Declarations::DeclareExternConstant(Identifier* name,
+                                                    const Type* type,
+                                                    std::string value) {
   CheckAlreadyDeclared<Value>(name->value, "constant");
-  Declare(name->value, std::unique_ptr<ExternConstant>(
-                           new ExternConstant(name, type, value)));
+  return Declare(name->value, std::unique_ptr<ExternConstant>(
+                                  new ExternConstant(name, type, value)));
 }
 
 NamespaceConstant* Declarations::DeclareNamespaceConstant(Identifier* name,

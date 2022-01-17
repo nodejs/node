@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
@@ -74,13 +75,21 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
     // Line and column are 1-based in v8::StackFrame, just as in ExceptionInfo.
     CHECK_EQ(excInfos[frameNr].line_nr, frame->GetLineNumber());
     CHECK_EQ(excInfos[frameNr].column, frame->GetColumn());
+    v8::Local<v8::String> scriptSource = frame->GetScriptSource();
+    if (frame->IsWasm()) {
+      CHECK(scriptSource.IsEmpty());
+    } else {
+      CHECK(scriptSource->IsString());
+    }
   }
 
-  CheckComputeLocation(i_isolate, exc, excInfos[0]);
+  CheckComputeLocation(i_isolate, exc, excInfos[0],
+                       stack->GetFrame(v8_isolate, 0));
 }
 
 void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
-                          const ExceptionInfo& topLocation) {
+                          const ExceptionInfo& topLocation,
+                          const v8::Local<v8::StackFrame> stackFrame) {
   MessageLocation loc;
   CHECK(i_isolate->ComputeLocationFromStackTrace(&loc, exc));
   printf("loc start: %d, end: %d\n", loc.start_pos(), loc.end_pos());
@@ -97,6 +106,13 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   //               whether Script::PositionInfo.column should be the offset
   //               relative to the module or relative to the function.
   // CHECK_EQ(topLocation.column - 1, message->GetColumnNumber());
+  String scriptSource = message->GetSource();
+  CHECK(scriptSource.IsString());
+  if (stackFrame->IsWasm()) {
+    CHECK_EQ(scriptSource.length(), 0);
+  } else {
+    CHECK_GT(scriptSource.length(), 0);
+  }
 }
 
 #undef CHECK_CSTREQ
@@ -157,8 +173,8 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   // Create a WasmRunner with stack checks and traps enabled.
   WasmRunner<int> r(execution_tier, nullptr, "main", kRuntimeExceptionSupport);
 
-  std::vector<byte> code(1, kExprUnreachable);
-  r.Build(code.data(), code.data() + code.size());
+  std::vector<byte> trap_code(1, kExprUnreachable);
+  r.Build(trap_code.data(), trap_code.data() + trap_code.size());
 
   WasmFunctionCompiler& f = r.NewFunction<int>("call_main");
   BUILD(f, WASM_CALL_FUNCTION0(0));
@@ -196,11 +212,11 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   Handle<FixedArray> stack_trace_object =
       isolate->GetDetailedStackTrace(Handle<JSObject>::cast(exception));
   CHECK(!stack_trace_object.is_null());
-  Handle<StackTraceFrame> stack_frame = Handle<StackTraceFrame>::cast(
-      handle(stack_trace_object->get(0), isolate));
+  Handle<StackFrameInfo> stack_frame(
+      StackFrameInfo::cast(stack_trace_object->get(0)), isolate);
 
   MaybeHandle<String> maybe_stack_trace_str =
-      SerializeStackTraceFrame(isolate, stack_frame);
+      SerializeStackFrameInfo(isolate, stack_frame);
   CHECK(!maybe_stack_trace_str.is_null());
   Handle<String> stack_trace_str = maybe_stack_trace_str.ToHandleChecked();
 
@@ -219,9 +235,9 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     WasmRunner<int> r(execution_tier, nullptr, "main",
                       kRuntimeExceptionSupport);
 
-    std::vector<byte> code(unreachable_pos + 1, kExprNop);
-    code[unreachable_pos] = kExprUnreachable;
-    r.Build(code.data(), code.data() + code.size());
+    std::vector<byte> trap_code(unreachable_pos + 1, kExprNop);
+    trap_code[unreachable_pos] = kExprUnreachable;
+    r.Build(trap_code.data(), trap_code.data() + trap_code.size());
 
     uint32_t wasm_index_1 = r.function()->func_index;
 

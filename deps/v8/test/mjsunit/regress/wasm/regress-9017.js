@@ -11,12 +11,12 @@
 // stack, and trying to access past that area, even into memory that was
 // intentionally reserved for this thread's stack, will crash the program.
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 
 var func_idx = builder.addFunction('helper', kSig_i_v)
-    .addLocals({i32_count: 1})
+    .addLocals(kWasmI32, 1)
     .addBody([
         kExprI32Const, 0x01,
     ]).index;

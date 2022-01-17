@@ -15,13 +15,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow multiline strings",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-multi-str"
         },

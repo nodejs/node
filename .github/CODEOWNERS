@@ -5,24 +5,17 @@
 # 3. PRs touching any code with a codeowner must be signed off by at least one
 #    person on the code owner team.
 
-# tsc & commcomm
+# tsc
 
 /.github/CODEOWNERS @nodejs/tsc
 /GOVERNANCE.md @nodejs/tsc
 /onboarding.md @nodejs/tsc
-/CODE_OF_CONDUCT.md @nodejs/tsc @nodejs/community-committee
-/CONTRIBUTING.md @nodejs/tsc @nodejs/community-committee
-/LICENSE @nodejs/tsc @nodejs/community-committee
-/doc/guides/contributing/code-of-conduct.md @nodejs/tsc @nodejs/community-committee
-# TODO(mmarchini): the bot doens't have a notion of precedence, that might
-# change when move the codeowners code to an Action, at which point we can
-# uncomment the line below
-# /doc/guides/contributing/*.md @nodejs/tsc
-/doc/guides/contributing/issues.md @nodejs/tsc
-/doc/guides/contributing/pull-requests.md @nodejs/tsc
+/CODE_OF_CONDUCT.md @nodejs/tsc
+/CONTRIBUTING.md @nodejs/tsc
+/LICENSE @nodejs/tsc
+/doc/guides/contributing/*.md @nodejs/tsc
 /doc/guides/collaborator-guide.md @nodejs/tsc
 /doc/guides/offboarding.md @nodejs/tsc
-/doc/guides/onboarding-extras.md @nodejs/tsc
 
 # streams
 
@@ -39,7 +32,7 @@
 /doc/api/net.md @nodejs/net
 /lib/dgram.js @nodejs/net
 /lib/dns.js @nodejs/net
-/lib/net.js @nodejs/net @nodejs/quic
+/lib/net.js @nodejs/net
 /lib/internal/dgram.js @nodejs/net
 /lib/internal/dns/* @nodejs/net
 /lib/internal/net.js @nodejs/net
@@ -55,11 +48,11 @@
 # tls/crypto
 
 /lib/internal/crypto/* @nodejs/crypto
-/lib/internal/tls.js @nodejs/crypto @nodejs/net
+/lib/internal/tls/* @nodejs/crypto @nodejs/net
 /lib/crypto.js @nodejs/crypto
 /lib/tls.js @nodejs/crypto @nodejs/net
 /src/node_crypto* @nodejs/crypto
-/src/crypto/* @nodejs/crypto @nodejs/quic
+/src/crypto/* @nodejs/crypto
 
 # http
 
@@ -68,7 +61,7 @@
 /lib/_http_* @nodejs/http @nodejs/net
 /lib/http.js @nodejs/http @nodejs/net
 /lib/https.js @nodejs/crypto @nodejs/net @nodejs/http
-/src/node_http_common* @nodejs/http @nodejs/http2 @nodejs/quic @nodejs/net
+/src/node_http_common* @nodejs/http @nodejs/http2 @nodejs/net
 /src/node_http_parser.cc @nodejs/http @nodejs/net
 
 # http2
@@ -79,15 +72,6 @@
 /lib/internal/http2/* @nodejs/http2 @nodejs/net
 /src/node_http2* @nodejs/http2 @nodejs/net
 /src/node_mem* @nodejs/http2
-
-# quic
-
-/deps/ngtcp2/ @nodejs/quic
-/deps/nghttp3/ @nodejs/quic
-/doc/api/quic.md @nodejs/quic
-/lib/internal/quic/ @nodejs/quic
-/src/node_bob* @nodejs/quic
-/src/quic/ @nodejs/quic
 
 # modules
 
@@ -100,12 +84,18 @@
 /lib/internal/bootstrap/loaders.js @nodejs/modules
 /src/module_wrap* @nodejs/modules @nodejs/vm
 
-# N-API
+# Node-API
 
-/src/node_api* @nodejs/n-api
-/src/js_native_api* @nodejs/n-api
-/doc/guides/adding-new-napi-api.md @nodejs/n-api
-/doc/api/n-api.md @nodejs/n-api
+/src/node_api* @nodejs/node-api
+/src/js_native_api* @nodejs/node-api
+/doc/guides/adding-new-napi-api.md @nodejs/node-api
+/doc/api/n-api.md @nodejs/node-api
+
+# gyp
+
+*.gyp @nodejs/gyp
+*.gypi @nodejs/gyp
+/tools/gyp/**/* @nodejs/gyp
 
 # WASI
 /deps/uvwasi/ @nodejs/wasi
@@ -124,3 +114,12 @@
 /lib/internal/bootstrap/* @nodejs/startup
 /tools/code_cache/* @nodejs/startup
 /tools/snapshot/* @nodejs/startup
+
+# V8
+/deps/v8/* @nodejs/v8-update
+/tools/v8_gypfiles/* @nodejs/v8-update
+
+# Actions
+
+/.github/workflows/* @nodejs/actions
+/tools/actions/* @nodejs/actions

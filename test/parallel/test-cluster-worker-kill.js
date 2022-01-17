@@ -22,7 +22,7 @@
 'use strict';
 // test-cluster-worker-kill.js
 // verifies that, when a child process is killed (we use SIGKILL)
-// - the parent receives the proper events in the proper order, no duplicates
+// - the primary receives the proper events in the proper order, no duplicates
 // - the exitCode and signalCode are correct in the 'exit' event
 // - the worker.exitedAfterDisconnect flag, and worker.state are correct
 // - the worker process actually goes away
@@ -38,7 +38,7 @@ if (cluster.isWorker) {
   server.once('listening', common.mustCall(() => { }));
   server.listen(0, '127.0.0.1');
 
-} else if (cluster.isMaster) {
+} else if (cluster.isPrimary) {
 
   const KILL_SIGNAL = 'SIGKILL';
   const expected_results = {

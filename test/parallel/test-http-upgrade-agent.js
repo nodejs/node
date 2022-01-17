@@ -61,7 +61,12 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
   const req = http.request(options);
   req.end();
 
+  req.on('socket', common.mustCall(function() {
+    assert.strictEqual(req.agent.totalSocketCount, 1);
+  }));
+
   req.on('upgrade', common.mustCall(function(res, socket, upgradeHead) {
+    assert.strictEqual(req.agent.totalSocketCount, 0);
     let recvData = upgradeHead;
     socket.on('data', function(d) {
       recvData += d;
@@ -71,14 +76,13 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
       assert.strictEqual(recvData.toString(), 'nurtzo');
     }));
 
-    console.log(res.headers);
     const expectedHeaders = { 'hello': 'world',
                               'connection': 'upgrade',
                               'upgrade': 'websocket' };
     assert.deepStrictEqual(expectedHeaders, res.headers);
 
     // Make sure this request got removed from the pool.
-    assert(!http.globalAgent.sockets.hasOwnProperty(name));
+    assert(!(name in req.agent.sockets));
 
     req.on('close', common.mustCall(function() {
       socket.end();

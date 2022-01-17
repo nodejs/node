@@ -25,15 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <include/v8.h>
-
-#include <include/libplatform/libplatform.h>
-
 #include <assert.h>
 #include <fcntl.h>
+#include <include/libplatform/libplatform.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-initialization.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-script.h"
+#include "include/v8-template.h"
 
 /**
  * This sample program shows how to implement a simple javascript shell
@@ -147,20 +152,17 @@ void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // the argument into a JavaScript string.
 void Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
-    args.GetIsolate()->ThrowException(
-        v8::String::NewFromUtf8Literal(args.GetIsolate(), "Bad parameters"));
+    args.GetIsolate()->ThrowError("Bad parameters");
     return;
   }
   v8::String::Utf8Value file(args.GetIsolate(), args[0]);
   if (*file == NULL) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(), "Error loading file"));
+    args.GetIsolate()->ThrowError("Error loading file");
     return;
   }
   v8::Local<v8::String> source;
   if (!ReadFile(args.GetIsolate(), *file).ToLocal(&source)) {
-    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-        args.GetIsolate(), "Error loading file"));
+    args.GetIsolate()->ThrowError("Error loading file");
     return;
   }
 
@@ -175,19 +177,16 @@ void Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::HandleScope handle_scope(args.GetIsolate());
     v8::String::Utf8Value file(args.GetIsolate(), args[i]);
     if (*file == NULL) {
-      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-          args.GetIsolate(), "Error loading file"));
+      args.GetIsolate()->ThrowError("Error loading file");
       return;
     }
     v8::Local<v8::String> source;
     if (!ReadFile(args.GetIsolate(), *file).ToLocal(&source)) {
-      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-          args.GetIsolate(), "Error loading file"));
+      args.GetIsolate()->ThrowError("Error loading file");
       return;
     }
     if (!ExecuteString(args.GetIsolate(), source, args[i], false, false)) {
-      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
-          args.GetIsolate(), "Error executing file"));
+      args.GetIsolate()->ThrowError("Error executing file");
       return;
     }
   }
@@ -314,7 +313,7 @@ bool ExecuteString(v8::Isolate* isolate, v8::Local<v8::String> source,
                    bool report_exceptions) {
   v8::HandleScope handle_scope(isolate);
   v8::TryCatch try_catch(isolate);
-  v8::ScriptOrigin origin(name);
+  v8::ScriptOrigin origin(isolate, name);
   v8::Local<v8::Context> context(isolate->GetCurrentContext());
   v8::Local<v8::Script> script;
   if (!v8::Script::Compile(context, source, &origin).ToLocal(&script)) {
@@ -380,10 +379,10 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
     v8::Local<v8::Value> stack_trace_string;
     if (try_catch->StackTrace(context).ToLocal(&stack_trace_string) &&
         stack_trace_string->IsString() &&
-        v8::Local<v8::String>::Cast(stack_trace_string)->Length() > 0) {
+        stack_trace_string.As<v8::String>()->Length() > 0) {
       v8::String::Utf8Value stack_trace(isolate, stack_trace_string);
-      const char* stack_trace_string = ToCString(stack_trace);
-      fprintf(stderr, "%s\n", stack_trace_string);
+      const char* err = ToCString(stack_trace);
+      fprintf(stderr, "%s\n", err);
     }
   }
 }

@@ -30,7 +30,6 @@ using NodeId = uint32_t;
 class MemoryOptimizer final {
  public:
   MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
-                  PoisoningMitigationLevel poisoning_level,
                   MemoryLowering::AllocationFolding allocation_folding,
                   const char* function_debug_name, TickCounter* tick_counter);
   ~MemoryOptimizer() = default;
@@ -67,6 +66,8 @@ class MemoryOptimizer final {
   void EnqueueMerge(Node*, int, AllocationState const*);
   void EnqueueUses(Node*, AllocationState const*);
   void EnqueueUse(Node*, int, AllocationState const*);
+
+  void ReplaceUsesAndKillNode(Node* node, Node* replacement);
 
   // Returns true if the AllocationType of the current AllocateRaw node that we
   // are visiting needs to be updated to kOld, due to propagation of tenuring

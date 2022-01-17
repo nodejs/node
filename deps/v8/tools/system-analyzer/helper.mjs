@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-const KB = 1024;
-const MB = KB * KB;
-const GB = MB * KB;
-const kMillis2Seconds = 1 / 1000;
+export const KB = 1024;
+export const MB = KB * KB;
+export const GB = MB * KB;
+export const kMicro2Milli = 1 / 1000;
 
-function formatBytes(bytes) {
+export function formatBytes(bytes) {
   const units = ['B', 'KiB', 'MiB', 'GiB'];
   const divisor = 1024;
   let index = 0;
@@ -18,172 +18,90 @@ function formatBytes(bytes) {
   return bytes.toFixed(2) + units[index];
 }
 
-function formatSeconds(millis) {
-  return (millis * kMillis2Seconds).toFixed(2) + 's';
+export function formatMicroSeconds(micro) {
+  return (micro * kMicro2Milli).toFixed(1) + 'ms';
 }
 
-function defineCustomElement(path, generator) {
-  let name = path.substring(path.lastIndexOf("/") + 1, path.length);
-  path = path + '-template.html';
-  fetch(path)
-      .then(stream => stream.text())
-      .then(
-          templateText => customElements.define(name, generator(templateText)));
+export function formatDurationMicros(micros, secondsDigits = 3) {
+  return formatDurationMillis(micros * kMicro2Milli, secondsDigits);
 }
 
-// DOM Helpers
-function removeAllChildren(node) {
-  let range = document.createRange();
-  range.selectNodeContents(node);
-  range.deleteContents();
-}
-
-function $(id) {
-  return document.querySelector(id)
-}
-
-class CSSColor {
-  static getColor(name) {
-    const style = getComputedStyle(document.body);
-    return style.getPropertyValue(`--${name}`);
-  }
-  static get backgroundColor() {
-    return CSSColor.getColor('backgroud-color');
-  }
-  static get surfaceColor() {
-    return CSSColor.getColor('surface-color');
-  }
-  static get primaryColor() {
-    return CSSColor.getColor('primary-color');
-  }
-  static get secondaryColor() {
-    return CSSColor.getColor('secondary-color');
-  }
-  static get onSurfaceColor() {
-    return CSSColor.getColor('on-surface-color');
-  }
-  static get onBackgroundColor() {
-    return CSSColor.getColor('on-background-color');
-  }
-  static get onPrimaryColor() {
-    return CSSColor.getColor('on-primary-color');
-  }
-  static get onSecondaryColor() {
-    return CSSColor.getColor('on-secondary-color');
-  }
-  static get defaultColor() {
-    return CSSColor.getColor('default-color');
-  }
-  static get errorColor() {
-    return CSSColor.getColor('error-color');
-  }
-  static get mapBackgroundColor() {
-    return CSSColor.getColor('map-background-color');
-  }
-  static get timelineBackgroundColor() {
-    return CSSColor.getColor('timeline-background-color');
-  }
-  static get red() {
-    return CSSColor.getColor('red');
-  }
-  static get green() {
-    return CSSColor.getColor('green');
-  }
-  static get yellow() {
-    return CSSColor.getColor('yellow');
-  }
-  static get blue() {
-    return CSSColor.getColor('blue');
-  }
-  static get orange() {
-    return CSSColor.getColor('orange');
-  }
-  static get violet() {
-    return CSSColor.getColor('violet');
-  }
-
-}
-
-function transitionTypeToColor(type) {
-  switch (type) {
-    case 'new':
-      return CSSColor.green;
-    case 'Normalize':
-      return CSSColor.violet;
-    case 'SlowToFast':
-      return CSSColor.orange;
-    case 'InitialMap':
-      return CSSColor.yellow;
-    case 'Transition':
-      return CSSColor.primaryColor;
-    case 'ReplaceDescriptors':
-      return CSSColor.red;
-    case 'LoadGlobalIC':
-      return CSSColor.green;
-    case 'StoreInArrayLiteralIC':
-      return CSSColor.violet;
-    case 'StoreIC':
-      return CSSColor.orange;
-    case 'KeyedLoadIC':
-      return CSSColor.red;
-    case 'KeyedStoreIC':
-      return CSSColor.primaryColor;
-  }
-  return CSSColor.primaryColor;
-}
-
-
-
-function div(classes) {
-  let node = document.createElement('div');
-  if (classes !== void 0) {
-    if (typeof classes === 'string') {
-      node.classList.add(classes);
-    } else {
-      classes.forEach(cls => node.classList.add(cls));
+export function formatDurationMillis(millis, secondsDigits = 3) {
+  if (millis < 1000) {
+    if (millis < 1) {
+      return (millis / kMicro2Milli).toFixed(1) + 'ns';
     }
+    return millis.toFixed(2) + 'ms';
   }
-  return node;
+  let seconds = millis / 1000;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  seconds = seconds % 60;
+  let buffer = ''
+  if (hours > 0) buffer += hours + 'h ';
+  if (hours > 0 || minutes > 0) buffer += minutes + 'm ';
+  buffer += seconds.toFixed(secondsDigits) + 's'
+  return buffer;
 }
 
-class V8CustomElement extends HTMLElement {
-  constructor(templateText) {
-    super();
-    const shadowRoot = this.attachShadow({mode: 'open'});
-    shadowRoot.innerHTML = templateText;
-  }
-  $(id) {
-    return this.shadowRoot.querySelector(id);
+export function delay(time) {
+  return new Promise(resolver => setTimeout(resolver, time));
+}
+
+export function defer() {
+  let resolve_func, reject_func;
+  const p = new Promise((resolve, reject) => {
+    resolve_func = resolve;
+    reject_func = resolve;
+  });
+  p.resolve = resolve_func;
+  p.reject = reject_func;
+  return p;
+}
+
+export class Group {
+  constructor(key, id, parentTotal, entries) {
+    this.key = key;
+    this.id = id;
+    this.entries = entries;
+    this.length = entries.length;
+    this.parentTotal = parentTotal;
   }
 
-  querySelectorAll(query) {
-    return this.shadowRoot.querySelectorAll(query);
+  get percent() {
+    return this.length / this.parentTotal * 100;
   }
 
-  div(classes) {return div(classes)}
-
-  table(className) {
-    let node = document.createElement('table')
-    if (className) node.classList.add(className)
-    return node;
+  add() {
+    this.length++;
   }
 
-  td(textOrNode) {
-    let node = document.createElement('td');
-    if (typeof textOrNode === 'object') {
-      node.appendChild(textOrNode);
-    } else {
-      node.innerText = textOrNode;
+  addEntry(entry) {
+    this.length++;
+    this.entries.push(entry);
+  }
+}
+
+export function groupBy(array, keyFunction, collect = false) {
+  if (array.length === 0) return [];
+  if (keyFunction === undefined) keyFunction = each => each;
+  const keyToGroup = new Map();
+  const groups = [];
+  const sharedEmptyArray = [];
+  let id = 0;
+  // This is performance critical, resorting to for-loop
+  for (let each of array) {
+    const key = keyFunction(each);
+    let group = keyToGroup.get(key);
+    if (group !== undefined) {
+      collect ? group.addEntry(each) : group.add();
+      continue;
     }
-    return node;
+    let entries = collect ? [each] : sharedEmptyArray;
+    group = new Group(key, id++, array.length, entries);
+    groups.push(group);
+    keyToGroup.set(key, group);
   }
-
-  tr(){
-    return document.createElement('tr');
-  }
-
-  removeAllChildren(node) { return removeAllChildren(node); }
+  // Sort by count
+  return groups.sort((a, b) => b.count - a.count);
 }
-
-export {defineCustomElement, V8CustomElement, removeAllChildren,
-   $, div, transitionTypeToColor, CSSColor};

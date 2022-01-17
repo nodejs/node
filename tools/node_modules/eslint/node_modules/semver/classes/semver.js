@@ -2,15 +2,12 @@ const debug = require('../internal/debug')
 const { MAX_LENGTH, MAX_SAFE_INTEGER } = require('../internal/constants')
 const { re, t } = require('../internal/re')
 
+const parseOptions = require('../internal/parse-options')
 const { compareIdentifiers } = require('../internal/identifiers')
 class SemVer {
   constructor (version, options) {
-    if (!options || typeof options !== 'object') {
-      options = {
-        loose: !!options,
-        includePrerelease: false
-      }
-    }
+    options = parseOptions(options)
+
     if (version instanceof SemVer) {
       if (version.loose === !!options.loose &&
           version.includePrerelease === !!options.includePrerelease) {

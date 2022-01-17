@@ -19,7 +19,6 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Local;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 
@@ -179,7 +178,7 @@ void JSStream::ReadBuffer(const FunctionCallbackInfo<Value>& args) {
 
     memcpy(buf.base, data, avail);
     data += avail;
-    len -= avail;
+    len -= static_cast<int>(avail);
     wrap->EmitRead(avail, buf);
   }
 }
@@ -200,9 +199,6 @@ void JSStream::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  Local<String> jsStreamString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "JSStream");
-  t->SetClassName(jsStreamString);
   t->InstanceTemplate()
     ->SetInternalFieldCount(StreamBase::kInternalFieldCount);
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
@@ -213,9 +209,7 @@ void JSStream::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "emitEOF", EmitEOF);
 
   StreamBase::AddMethods(env, t);
-  target->Set(env->context(),
-              jsStreamString,
-              t->GetFunction(context).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "JSStream", t);
 }
 
 }  // namespace node

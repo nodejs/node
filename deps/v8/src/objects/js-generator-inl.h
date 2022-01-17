@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-generator-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSGeneratorObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncFunctionObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncGeneratorObject)

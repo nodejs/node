@@ -5,7 +5,12 @@
 // Flags: --allow-natives-syntax --opt --no-always-opt
 
 function f(x) {
-  %TurbofanStaticAssert(x.foo === 42);
+  if (!%IsDictPropertyConstTrackingEnabled()) {
+    // TODO(v8:11457) If v8_dict_property_const_tracking is enabled, then the
+    // prototype of |x| in |main| is a dictionary mode object, and we cannot
+    // inline the storing of x.foo, yet.
+    %TurbofanStaticAssert(x.foo === 42);
+  }
   return %IsBeingInterpreted();
 }
 
@@ -15,6 +20,7 @@ function main(b, ret) {
   if (b) return ret;
 
   x.foo = 42;
+  out = x;  // Prevent x's new map from dying too early.
   return f(y);
 }
 
@@ -31,5 +37,5 @@ assertTrue(main(true, true));
 assertTrue(main(true, true));
 assertTrue(main(false, true));
 assertTrue(main(false, true));
-%OptimizeFunctionOnNextCall(main);
+%OptimizeFunctionForTopTier(main);
 assertFalse(main(false));

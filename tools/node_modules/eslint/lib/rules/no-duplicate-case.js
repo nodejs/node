@@ -16,13 +16,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow duplicate case labels",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-duplicate-case"
         },

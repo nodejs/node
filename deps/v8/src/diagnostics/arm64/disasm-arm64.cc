@@ -7,9 +7,14 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <bitset>
+
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/arm64/utils-arm64.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
@@ -20,7 +25,7 @@ namespace internal {
 
 DisassemblingDecoder::DisassemblingDecoder() {
   buffer_size_ = 256;
-  buffer_ = reinterpret_cast<char*>(malloc(buffer_size_));
+  buffer_ = reinterpret_cast<char*>(base::Malloc(buffer_size_));
   buffer_pos_ = 0;
   own_buffer_ = true;
 }
@@ -34,7 +39,7 @@ DisassemblingDecoder::DisassemblingDecoder(char* text_buffer, int buffer_size) {
 
 DisassemblingDecoder::~DisassemblingDecoder() {
   if (own_buffer_) {
-    free(buffer_);
+    base::Free(buffer_);
   }
 }
 
@@ -3949,7 +3954,6 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
         }
         default: {
           UNIMPLEMENTED();
-          return 0;
         }
       }
     }
@@ -3992,7 +3996,6 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             return 0;
           }
           UNIMPLEMENTED();
-          return 0;
         }
         case 'L': {  // IVLSLane[0123] - suffix indicates access size shift.
           AppendToOutput("%d", instr->NEONLSIndex(format[8] - '0'));
@@ -4037,12 +4040,10 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             return static_cast<int>(strlen("IVMIShiftAmt2"));
           } else {
             UNIMPLEMENTED();
-            return 0;
           }
         }
         default: {
           UNIMPLEMENTED();
-          return 0;
         }
       }
     }
@@ -4315,7 +4316,7 @@ void PrintDisassembler::ProcessOutput(Instruction* instr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
@@ -4331,18 +4332,16 @@ const char* NameConverter::NameOfCPURegister(int reg) const {
   if (ureg == v8::internal::kZeroRegCode) {
     return "xzr";
   }
-  v8::internal::SNPrintF(tmp_buffer_, "x%u", ureg);
+  v8::base::SNPrintF(tmp_buffer_, "x%u", ureg);
   return tmp_buffer_.begin();
 }
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
   UNREACHABLE();  // ARM64 does not have the concept of a byte register
-  return "nobytereg";
 }
 
 const char* NameConverter::NameOfXMMRegister(int reg) const {
   UNREACHABLE();  // ARM64 does not have any XMM registers
-  return "noxmmreg";
 }
 
 const char* NameConverter::NameInCode(byte* addr) const {
@@ -4355,21 +4354,21 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 class BufferDisassembler : public v8::internal::DisassemblingDecoder {
  public:
-  explicit BufferDisassembler(v8::internal::Vector<char> out_buffer)
+  explicit BufferDisassembler(v8::base::Vector<char> out_buffer)
       : out_buffer_(out_buffer) {}
 
   ~BufferDisassembler() {}
 
   virtual void ProcessOutput(v8::internal::Instruction* instr) {
-    v8::internal::SNPrintF(out_buffer_, "%08" PRIx32 "       %s",
-                           instr->InstructionBits(), GetOutput());
+    v8::base::SNPrintF(out_buffer_, "%08" PRIx32 "       %s",
+                       instr->InstructionBits(), GetOutput());
   }
 
  private:
-  v8::internal::Vector<char> out_buffer_;
+  v8::base::Vector<char> out_buffer_;
 };
 
-int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
                                     byte* instr) {
   USE(converter_);  // avoid unused field warning
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;

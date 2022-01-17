@@ -14,33 +14,71 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+thread_local MarkingBarrier* current_marking_barrier = nullptr;
+}  // namespace
+
+MarkingBarrier* WriteBarrier::CurrentMarkingBarrier(Heap* heap) {
+  return current_marking_barrier ? current_marking_barrier
+                                 : heap->marking_barrier();
+}
+
+void WriteBarrier::SetForThread(MarkingBarrier* marking_barrier) {
+  DCHECK_NULL(current_marking_barrier);
+  current_marking_barrier = marking_barrier;
+}
+
+void WriteBarrier::ClearForThread(MarkingBarrier* marking_barrier) {
+  DCHECK_EQ(current_marking_barrier, marking_barrier);
+  current_marking_barrier = nullptr;
+}
+
 void WriteBarrier::MarkingSlow(Heap* heap, HeapObject host, HeapObjectSlot slot,
                                HeapObject value) {
-  heap->marking_barrier()->Write(host, slot, value);
+  MarkingBarrier* marking_barrier = current_marking_barrier
+                                        ? current_marking_barrier
+                                        : heap->marking_barrier();
+  marking_barrier->Write(host, slot, value);
 }
 
 void WriteBarrier::MarkingSlow(Heap* heap, Code host, RelocInfo* reloc_info,
                                HeapObject value) {
-  heap->marking_barrier()->Write(host, reloc_info, value);
+  MarkingBarrier* marking_barrier = current_marking_barrier
+                                        ? current_marking_barrier
+                                        : heap->marking_barrier();
+  marking_barrier->Write(host, reloc_info, value);
 }
 
 void WriteBarrier::MarkingSlow(Heap* heap, JSArrayBuffer host,
                                ArrayBufferExtension* extension) {
-  heap->marking_barrier()->Write(host, extension);
+  MarkingBarrier* marking_barrier = current_marking_barrier
+                                        ? current_marking_barrier
+                                        : heap->marking_barrier();
+  marking_barrier->Write(host, extension);
 }
 
-void WriteBarrier::MarkingSlow(Heap* heap, Map host,
-                               DescriptorArray descriptor_array,
+void WriteBarrier::MarkingSlow(Heap* heap, DescriptorArray descriptor_array,
                                int number_of_own_descriptors) {
-  heap->marking_barrier()->Write(host, descriptor_array,
-                                 number_of_own_descriptors);
+  MarkingBarrier* marking_barrier = current_marking_barrier
+                                        ? current_marking_barrier
+                                        : heap->marking_barrier();
+  marking_barrier->Write(descriptor_array, number_of_own_descriptors);
 }
 
 int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
   HeapObject host = HeapObject::cast(Object(raw_host));
   MaybeObjectSlot slot(raw_slot);
-  WriteBarrier::Marking(host, slot, *slot);
-  // Called by RecordWriteCodeStubAssembler, which doesnt accept void type
+  Address value = (*slot).ptr();
+#ifdef V8_MAP_PACKING
+  if (slot.address() == host.address()) {
+    // Clear metadata bits and fix object tag.
+    value = (value & ~Internals::kMapWordMetadataMask &
+             ~Internals::kMapWordXorMask) |
+            (uint64_t)kHeapObjectTag;
+  }
+#endif
+  WriteBarrier::Marking(host, slot, MaybeObject(value));
+  // Called by WriteBarrierCodeStubAssembler, which doesnt accept void type
   return 0;
 }
 

@@ -1,4 +1,6 @@
 Tests remove breakpoint from wasm scripts.
+
+Running test: Test
 Calling instantiate function.
 Waiting for wasm scripts to be parsed.
 Ignoring script with url v8://test/instantiate
@@ -10,8 +12,7 @@ Setting breakpoint on line 3 of wasm function
     scriptId : <scriptId>
 }
 paused No 1
-Script wasm://wasm/7d022e0e byte offset 39: Wasm opcode 0x6b
+Script wasm://wasm/7d022e0e byte offset 39: Wasm opcode 0x6b (kExprI32Sub)
 Remove breakpoint
 Debugger.resume
 exports.main returned!
-Finished!

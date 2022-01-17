@@ -46,12 +46,6 @@ const { getSystemErrorName } = require('util');
     delete providers.MESSAGEPORT;
     delete providers.WORKER;
     // TODO(danbev): Test for these
-    delete providers.QUICCLIENTSESSION;
-    delete providers.QUICSERVERSESSION;
-    delete providers.QUICSENDWRAP;
-    delete providers.QUICSOCKET;
-    delete providers.QUICSTREAM;
-    delete providers.QLOGSTREAM;
     delete providers.JSUDPWRAP;
     if (!common.isMainThread)
       delete providers.INSPECTORJSBINDING;
@@ -69,6 +63,9 @@ const { getSystemErrorName } = require('util');
     delete providers.ELDHISTOGRAM;
     delete providers.SIGINTWATCHDOG;
     delete providers.WORKERHEAPSNAPSHOT;
+    delete providers.FIXEDSIZEBLOBCOPY;
+    delete providers.RANDOMPRIMEREQUEST;
+    delete providers.CHECKPRIMEREQUEST;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)

@@ -1,0 +1,17 @@
+#############################################################################
+# UBSan ignorelist.
+
+# Bug 8735: PropertyCallbackInfo<void> vs PropertyCallbackInfo<T>.
+fun:*v8*internal*PropertyCallbackArguments*CallAccessorSetter*
+fun:*v8*internal*PropertyCallbackArguments*BasicCallNamedGetterCallback*
+fun:*v8*internal*InvokeAccessorGetterCallback*
+
+# Bug 8735: WeakCallbackInfo<void> vs. WeakCallbackInfo<T>.
+fun:*v8*internal*GlobalHandles*PendingPhantomCallback*Invoke*
+fun:*v8*internal*GlobalHandles*Node*PostGarbageCollectionProcessing*
+
+# Simulators casting C++ functions to a generic signature.
+fun:*v8*internal*UnsafeDirectApiCall*
+fun:*v8*internal*UnsafeDirectGetterCall*
+fun:*v8*internal*UnsafeGenericFunctionCall*
+fun:*v8*internal*UnsafeProfilingApiCall*

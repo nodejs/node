@@ -29,7 +29,7 @@ struct uvwasi_fd_table_t {
 };
 
 uvwasi_errno_t uvwasi_fd_table_init(struct uvwasi_s* uvwasi,
-                                    struct uvwasi_options_s* options);
+                                    const struct uvwasi_options_s* options);
 void uvwasi_fd_table_free(struct uvwasi_s* uvwasi,
                           struct uvwasi_fd_table_t* table);
 uvwasi_errno_t uvwasi_fd_table_insert(struct uvwasi_s* uvwasi,

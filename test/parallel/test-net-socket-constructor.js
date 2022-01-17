@@ -26,7 +26,7 @@ function test(sock, readable, writable) {
   assert.strictEqual(socket.writable, writable);
 }
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   test(undefined, true, true);
 
   const server = net.createServer(common.mustCall((socket) => {
@@ -48,7 +48,7 @@ if (cluster.isMaster) {
     test(socket, true, true);
   }));
 
-  cluster.setupMaster({
+  cluster.setupPrimary({
     stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe', 'pipe', 'pipe']
   });
 

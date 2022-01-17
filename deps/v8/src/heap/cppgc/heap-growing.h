@@ -34,13 +34,17 @@ class V8_EXPORT_PRIVATE HeapGrowing final {
       kPageSize * RawHeap::kNumberOfRegularSpaces;
 
   HeapGrowing(GarbageCollector*, StatsCollector*,
-              cppgc::Heap::ResourceConstraints);
+              cppgc::Heap::ResourceConstraints, cppgc::Heap::MarkingType,
+              cppgc::Heap::SweepingType);
   ~HeapGrowing();
 
   HeapGrowing(const HeapGrowing&) = delete;
   HeapGrowing& operator=(const HeapGrowing&) = delete;
 
-  size_t limit() const;
+  size_t limit_for_atomic_gc() const;
+  size_t limit_for_incremental_gc() const;
+
+  void DisableForTesting();
 
  private:
   class HeapGrowingImpl;

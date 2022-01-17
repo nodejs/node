@@ -8,9 +8,13 @@
 #include <string.h>
 
 #include <algorithm>
+#include <unordered_set>
 
+#include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 
 #if defined(USE_SYSTEM_MINIZIP)
@@ -36,9 +40,9 @@ typedef struct {
 } WIN32FILE_IOWIN;
 
 // This function is derived from third_party/minizip/iowin32.c.
-// Its only difference is that it treats the char* as UTF8 and
+// Its only difference is that it treats the filename as UTF-8 and
 // uses the Unicode version of CreateFile.
-void* ZipOpenFunc(void *opaque, const char* filename, int mode) {
+void* ZipOpenFunc(void* opaque, const void* filename, int mode) {
   DWORD desired_access = 0, creation_disposition = 0;
   DWORD share_mode = 0, flags_and_attributes = 0;
   HANDLE file = 0;
@@ -56,10 +60,11 @@ void* ZipOpenFunc(void *opaque, const char* filename, int mode) {
     creation_disposition = CREATE_ALWAYS;
   }
 
-  base::string16 filename16 = base::UTF8ToUTF16(filename);
-  if ((filename != NULL) && (desired_access != 0)) {
-    file = CreateFile(filename16.c_str(), desired_access, share_mode,
-        NULL, creation_disposition, flags_and_attributes, NULL);
+  if (filename != nullptr && desired_access != 0) {
+    file = CreateFileW(
+        base::UTF8ToWide(static_cast<const char*>(filename)).c_str(),
+        desired_access, share_mode, nullptr, creation_disposition,
+        flags_and_attributes, nullptr);
   }
 
   if (file == INVALID_HANDLE_VALUE)
@@ -79,11 +84,11 @@ void* ZipOpenFunc(void *opaque, const char* filename, int mode) {
 }
 #endif
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 // Callback function for zlib that opens a file stream from a file descriptor.
 // Since we do not own the file descriptor, dup it so that we can fdopen/fclose
 // a file stream.
-void* FdOpenFileFunc(void* opaque, const char* filename, int mode) {
+void* FdOpenFileFunc(void* opaque, const void* filename, int mode) {
   FILE* file = NULL;
   const char* mode_fopen = NULL;
 
@@ -105,15 +110,15 @@ void* FdOpenFileFunc(void* opaque, const char* filename, int mode) {
 
 int FdCloseFileFunc(void* opaque, void* stream) {
   fclose(static_cast<FILE*>(stream));
-  free(opaque); // malloc'ed in FillFdOpenFileFunc()
+  free(opaque);  // malloc'ed in FillFdOpenFileFunc()
   return 0;
 }
 
 // Fills |pzlib_filecunc_def| appropriately to handle the zip file
 // referred to by |fd|.
-void FillFdOpenFileFunc(zlib_filefunc_def* pzlib_filefunc_def, int fd) {
-  fill_fopen_filefunc(pzlib_filefunc_def);
-  pzlib_filefunc_def->zopen_file = FdOpenFileFunc;
+void FillFdOpenFileFunc(zlib_filefunc64_def* pzlib_filefunc_def, int fd) {
+  fill_fopen64_filefunc(pzlib_filefunc_def);
+  pzlib_filefunc_def->zopen64_file = FdOpenFileFunc;
   pzlib_filefunc_def->zclose_file = FdCloseFileFunc;
   int* ptr_fd = static_cast<int*>(malloc(sizeof(fd)));
   *ptr_fd = fd;
@@ -124,7 +129,7 @@ void FillFdOpenFileFunc(zlib_filefunc_def* pzlib_filefunc_def, int fd) {
 #if defined(OS_WIN)
 // Callback function for zlib that opens a file stream from a Windows handle.
 // Does not take ownership of the handle.
-void* HandleOpenFileFunc(void* opaque, const char* filename, int mode) {
+void* HandleOpenFileFunc(void* opaque, const void* /*filename*/, int mode) {
   WIN32FILE_IOWIN file_ret;
   file_ret.hf = static_cast<HANDLE>(opaque);
   file_ret.error = 0;
@@ -138,7 +143,7 @@ void* HandleOpenFileFunc(void* opaque, const char* filename, int mode) {
 }
 
 int HandleCloseFileFunc(void* opaque, void* stream) {
-  free(stream); // malloc'ed in HandleOpenFileFunc()
+  free(stream);  // malloc'ed in HandleOpenFileFunc()
   return 0;
 }
 #endif
@@ -148,8 +153,8 @@ int HandleCloseFileFunc(void* opaque, void* stream) {
 // expect their opaque parameters refer to this struct.
 struct ZipBuffer {
   const char* data;  // weak
-  size_t length;
-  size_t offset;
+  ZPOS64_T length;
+  ZPOS64_T offset;
 };
 
 // Opens the specified file. When this function returns a non-NULL pointer, zlib
@@ -158,7 +163,7 @@ struct ZipBuffer {
 // given opaque parameter and returns it because this parameter stores all
 // information needed for uncompressing data. (This function does not support
 // writing compressed data and it returns NULL for this case.)
-void* OpenZipBuffer(void* opaque, const char* /*filename*/, int mode) {
+void* OpenZipBuffer(void* opaque, const void* /*filename*/, int mode) {
   if ((mode & ZLIB_FILEFUNC_MODE_READWRITEFILTER) != ZLIB_FILEFUNC_MODE_READ) {
     NOTREACHED();
     return NULL;
@@ -175,10 +180,11 @@ void* OpenZipBuffer(void* opaque, const char* /*filename*/, int mode) {
 uLong ReadZipBuffer(void* opaque, void* /*stream*/, void* buf, uLong size) {
   ZipBuffer* buffer = static_cast<ZipBuffer*>(opaque);
   DCHECK_LE(buffer->offset, buffer->length);
-  size_t remaining_bytes = buffer->length - buffer->offset;
+  ZPOS64_T remaining_bytes = buffer->length - buffer->offset;
   if (!buffer || !buffer->data || !remaining_bytes)
     return 0;
-  size = std::min(size, static_cast<uLong>(remaining_bytes));
+  if (size > remaining_bytes)
+    size = remaining_bytes;
   memcpy(buf, &buffer->data[buffer->offset], size);
   buffer->offset += size;
   return size;
@@ -195,21 +201,23 @@ uLong WriteZipBuffer(void* /*opaque*/,
 }
 
 // Returns the offset from the beginning of the data.
-long GetOffsetOfZipBuffer(void* opaque, void* /*stream*/) {
+ZPOS64_T GetOffsetOfZipBuffer(void* opaque, void* /*stream*/) {
   ZipBuffer* buffer = static_cast<ZipBuffer*>(opaque);
   if (!buffer)
     return -1;
-  return static_cast<long>(buffer->offset);
+  return buffer->offset;
 }
 
 // Moves the current offset to the specified position.
-long SeekZipBuffer(void* opaque, void* /*stream*/, uLong offset, int origin) {
+long SeekZipBuffer(void* opaque,
+                   void* /*stream*/,
+                   ZPOS64_T offset,
+                   int origin) {
   ZipBuffer* buffer = static_cast<ZipBuffer*>(opaque);
   if (!buffer)
     return -1;
   if (origin == ZLIB_FILEFUNC_SEEK_CUR) {
-    buffer->offset = std::min(buffer->offset + static_cast<size_t>(offset),
-                              buffer->length);
+    buffer->offset = std::min(buffer->offset + offset, buffer->length);
     return 0;
   }
   if (origin == ZLIB_FILEFUNC_SEEK_END) {
@@ -217,7 +225,7 @@ long SeekZipBuffer(void* opaque, void* /*stream*/, uLong offset, int origin) {
     return 0;
   }
   if (origin == ZLIB_FILEFUNC_SEEK_SET) {
-    buffer->offset = std::min(buffer->length, static_cast<size_t>(offset));
+    buffer->offset = std::min(buffer->length, offset);
     return 0;
   }
   NOTREACHED();
@@ -243,7 +251,7 @@ int GetErrorOfZipBuffer(void* /*opaque*/, void* /*stream*/) {
 // Returns a zip_fileinfo struct with the time represented by |file_time|.
 zip_fileinfo TimeToZipFileInfo(const base::Time& file_time) {
   base::Time::Exploded file_time_parts;
-  file_time.LocalExplode(&file_time_parts);
+  file_time.UTCExplode(&file_time_parts);
 
   zip_fileinfo zip_info = {};
   if (file_time_parts.year >= 1980) {
@@ -268,33 +276,33 @@ namespace zip {
 namespace internal {
 
 unzFile OpenForUnzipping(const std::string& file_name_utf8) {
-  zlib_filefunc_def* zip_func_ptrs = NULL;
+  zlib_filefunc64_def* zip_func_ptrs = nullptr;
 #if defined(OS_WIN)
-  zlib_filefunc_def zip_funcs;
-  fill_win32_filefunc(&zip_funcs);
-  zip_funcs.zopen_file = ZipOpenFunc;
+  zlib_filefunc64_def zip_funcs;
+  fill_win32_filefunc64(&zip_funcs);
+  zip_funcs.zopen64_file = ZipOpenFunc;
   zip_func_ptrs = &zip_funcs;
 #endif
-  return unzOpen2(file_name_utf8.c_str(), zip_func_ptrs);
+  return unzOpen2_64(file_name_utf8.c_str(), zip_func_ptrs);
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 unzFile OpenFdForUnzipping(int zip_fd) {
-  zlib_filefunc_def zip_funcs;
+  zlib_filefunc64_def zip_funcs;
   FillFdOpenFileFunc(&zip_funcs, zip_fd);
   // Passing dummy "fd" filename to zlib.
-  return unzOpen2("fd", &zip_funcs);
+  return unzOpen2_64("fd", &zip_funcs);
 }
 #endif
 
 #if defined(OS_WIN)
 unzFile OpenHandleForUnzipping(HANDLE zip_handle) {
-  zlib_filefunc_def zip_funcs;
-  fill_win32_filefunc(&zip_funcs);
-  zip_funcs.zopen_file = HandleOpenFileFunc;
+  zlib_filefunc64_def zip_funcs;
+  fill_win32_filefunc64(&zip_funcs);
+  zip_funcs.zopen64_file = HandleOpenFileFunc;
   zip_funcs.zclose_file = HandleCloseFileFunc;
   zip_funcs.opaque = zip_handle;
-  return unzOpen2("fd", &zip_funcs);
+  return unzOpen2_64("fd", &zip_funcs);
 }
 #endif
 
@@ -310,71 +318,151 @@ unzFile PrepareMemoryForUnzipping(const std::string& data) {
   buffer->length = data.length();
   buffer->offset = 0;
 
-  zlib_filefunc_def zip_functions;
-  zip_functions.zopen_file = OpenZipBuffer;
+  zlib_filefunc64_def zip_functions;
+  zip_functions.zopen64_file = OpenZipBuffer;
   zip_functions.zread_file = ReadZipBuffer;
   zip_functions.zwrite_file = WriteZipBuffer;
-  zip_functions.ztell_file = GetOffsetOfZipBuffer;
-  zip_functions.zseek_file = SeekZipBuffer;
+  zip_functions.ztell64_file = GetOffsetOfZipBuffer;
+  zip_functions.zseek64_file = SeekZipBuffer;
   zip_functions.zclose_file = CloseZipBuffer;
   zip_functions.zerror_file = GetErrorOfZipBuffer;
-  zip_functions.opaque = static_cast<void*>(buffer);
-  return unzOpen2(NULL, &zip_functions);
+  zip_functions.opaque = buffer;
+  return unzOpen2_64(nullptr, &zip_functions);
 }
 
 zipFile OpenForZipping(const std::string& file_name_utf8, int append_flag) {
-  zlib_filefunc_def* zip_func_ptrs = NULL;
+  zlib_filefunc64_def* zip_func_ptrs = nullptr;
 #if defined(OS_WIN)
-  zlib_filefunc_def zip_funcs;
-  fill_win32_filefunc(&zip_funcs);
-  zip_funcs.zopen_file = ZipOpenFunc;
+  zlib_filefunc64_def zip_funcs;
+  fill_win32_filefunc64(&zip_funcs);
+  zip_funcs.zopen64_file = ZipOpenFunc;
   zip_func_ptrs = &zip_funcs;
 #endif
-  return zipOpen2(file_name_utf8.c_str(),
-                  append_flag,
-                  NULL,  // global comment
-                  zip_func_ptrs);
+  return zipOpen2_64(file_name_utf8.c_str(), append_flag, nullptr,
+                     zip_func_ptrs);
 }
 
 #if defined(OS_POSIX)
 zipFile OpenFdForZipping(int zip_fd, int append_flag) {
-  zlib_filefunc_def zip_funcs;
+  zlib_filefunc64_def zip_funcs;
   FillFdOpenFileFunc(&zip_funcs, zip_fd);
   // Passing dummy "fd" filename to zlib.
-  return zipOpen2("fd", append_flag, NULL, &zip_funcs);
+  return zipOpen2_64("fd", append_flag, nullptr, &zip_funcs);
 }
 #endif
 
 bool ZipOpenNewFileInZip(zipFile zip_file,
                          const std::string& str_path,
-                         base::Time last_modified_time) {
+                         base::Time last_modified_time,
+                         Compression compression) {
   // Section 4.4.4 http://www.pkware.com/documents/casestudies/APPNOTE.TXT
   // Setting the Language encoding flag so the file is told to be in utf-8.
   const uLong LANGUAGE_ENCODING_FLAG = 0x1 << 11;
 
-  zip_fileinfo file_info = TimeToZipFileInfo(last_modified_time);
-  if (ZIP_OK != zipOpenNewFileInZip4(zip_file,          // file
-                                     str_path.c_str(),  // filename
-                                     &file_info,        // zip_fileinfo
-                                     NULL,              // extrafield_local,
-                                     0u,                // size_extrafield_local
-                                     NULL,              // extrafield_global
-                                     0u,          // size_extrafield_global
-                                     NULL,        // comment
-                                     Z_DEFLATED,  // method
-                                     Z_DEFAULT_COMPRESSION,  // level
-                                     0,                      // raw
-                                     -MAX_WBITS,             // windowBits
-                                     DEF_MEM_LEVEL,          // memLevel
-                                     Z_DEFAULT_STRATEGY,     // strategy
-                                     NULL,                   // password
-                                     0,                      // crcForCrypting
-                                     0,                      // versionMadeBy
-                                     LANGUAGE_ENCODING_FLAG)) {  // flagBase
-    DLOG(ERROR) << "Could not open zip file entry " << str_path;
+  const zip_fileinfo file_info = TimeToZipFileInfo(last_modified_time);
+  const int err = zipOpenNewFileInZip4_64(
+      /*file=*/zip_file,
+      /*filename=*/str_path.c_str(),
+      /*zip_fileinfo=*/&file_info,
+      /*extrafield_local=*/nullptr,
+      /*size_extrafield_local=*/0u,
+      /*extrafield_global=*/nullptr,
+      /*size_extrafield_global=*/0u,
+      /*comment=*/nullptr,
+      /*method=*/compression,
+      /*level=*/Z_DEFAULT_COMPRESSION,
+      /*raw=*/0,
+      /*windowBits=*/-MAX_WBITS,
+      /*memLevel=*/DEF_MEM_LEVEL,
+      /*strategy=*/Z_DEFAULT_STRATEGY,
+      /*password=*/nullptr,
+      /*crcForCrypting=*/0,
+      /*versionMadeBy=*/0,
+      /*flagBase=*/LANGUAGE_ENCODING_FLAG,
+      /*zip64=*/1);
+
+  if (err != ZIP_OK) {
+    DLOG(ERROR) << "Cannot open ZIP file entry '" << str_path
+                << "': zipOpenNewFileInZip4_64 returned " << err;
     return false;
   }
+
   return true;
+}
+
+Compression GetCompressionMethod(const base::FilePath& path) {
+  // Get the filename extension in lower case.
+  const base::FilePath::StringType ext =
+      base::ToLowerASCII(path.FinalExtension());
+
+  if (ext.empty())
+    return kDeflated;
+
+  using StringPiece = base::FilePath::StringPieceType;
+
+  // Skip the leading dot.
+  StringPiece ext_without_dot = ext;
+  DCHECK_EQ(ext_without_dot.front(), FILE_PATH_LITERAL('.'));
+  ext_without_dot.remove_prefix(1);
+
+  // Well known filename extensions of files that a likely to be already
+  // compressed. The extensions are in lower case without the leading dot.
+  static const base::NoDestructor<
+      std::unordered_set<StringPiece, base::StringPieceHashImpl<StringPiece>>>
+      exts(std::initializer_list<StringPiece>{
+          FILE_PATH_LITERAL("3g2"),   //
+          FILE_PATH_LITERAL("3gp"),   //
+          FILE_PATH_LITERAL("7z"),    //
+          FILE_PATH_LITERAL("7zip"),  //
+          FILE_PATH_LITERAL("aac"),   //
+          FILE_PATH_LITERAL("avi"),   //
+          FILE_PATH_LITERAL("bz"),    //
+          FILE_PATH_LITERAL("bz2"),   //
+          FILE_PATH_LITERAL("crx"),   //
+          FILE_PATH_LITERAL("gif"),   //
+          FILE_PATH_LITERAL("gz"),    //
+          FILE_PATH_LITERAL("jar"),   //
+          FILE_PATH_LITERAL("jpeg"),  //
+          FILE_PATH_LITERAL("jpg"),   //
+          FILE_PATH_LITERAL("lz"),    //
+          FILE_PATH_LITERAL("m2v"),   //
+          FILE_PATH_LITERAL("m4p"),   //
+          FILE_PATH_LITERAL("m4v"),   //
+          FILE_PATH_LITERAL("mng"),   //
+          FILE_PATH_LITERAL("mov"),   //
+          FILE_PATH_LITERAL("mp2"),   //
+          FILE_PATH_LITERAL("mp3"),   //
+          FILE_PATH_LITERAL("mp4"),   //
+          FILE_PATH_LITERAL("mpe"),   //
+          FILE_PATH_LITERAL("mpeg"),  //
+          FILE_PATH_LITERAL("mpg"),   //
+          FILE_PATH_LITERAL("mpv"),   //
+          FILE_PATH_LITERAL("ogg"),   //
+          FILE_PATH_LITERAL("ogv"),   //
+          FILE_PATH_LITERAL("png"),   //
+          FILE_PATH_LITERAL("qt"),    //
+          FILE_PATH_LITERAL("rar"),   //
+          FILE_PATH_LITERAL("taz"),   //
+          FILE_PATH_LITERAL("tb2"),   //
+          FILE_PATH_LITERAL("tbz"),   //
+          FILE_PATH_LITERAL("tbz2"),  //
+          FILE_PATH_LITERAL("tgz"),   //
+          FILE_PATH_LITERAL("tlz"),   //
+          FILE_PATH_LITERAL("tz"),    //
+          FILE_PATH_LITERAL("tz2"),   //
+          FILE_PATH_LITERAL("vob"),   //
+          FILE_PATH_LITERAL("webm"),  //
+          FILE_PATH_LITERAL("wma"),   //
+          FILE_PATH_LITERAL("wmv"),   //
+          FILE_PATH_LITERAL("xz"),    //
+          FILE_PATH_LITERAL("z"),     //
+          FILE_PATH_LITERAL("zip"),   //
+      });
+
+  if (exts->count(ext_without_dot))
+    return kStored;
+
+  return kDeflated;
 }
 
 }  // namespace internal

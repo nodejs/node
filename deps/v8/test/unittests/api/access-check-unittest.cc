@@ -2,7 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
+#include "include/v8-script.h"
+#include "include/v8-template.h"
+#include "src/debug/debug.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -176,48 +183,6 @@ TEST_F(AccessRegressionTest,
 
   ASSERT_EQ(getter_c1->native_context(), *Utils::OpenHandle(*context1));
   ASSERT_EQ(getter_c2->native_context(), *Utils::OpenHandle(*context2));
-}
-
-namespace {
-bool failed_access_check_callback_called;
-
-class AccessCheckTestConsoleDelegate : public debug::ConsoleDelegate {
- public:
-  void Log(const debug::ConsoleCallArguments& args,
-           const debug::ConsoleContext& context) {
-    FAIL();
-  }
-};
-
-}  // namespace
-
-// Ensure that {console.log} does an access check for its arguments.
-TEST_F(AccessCheckTest, ConsoleLog) {
-  isolate()->SetFailedAccessCheckCallbackFunction(
-      [](v8::Local<v8::Object> host, v8::AccessType type,
-         v8::Local<v8::Value> data) {
-        failed_access_check_callback_called = true;
-      });
-  AccessCheckTestConsoleDelegate console{};
-  debug::SetConsoleDelegate(isolate(), &console);
-
-  Local<ObjectTemplate> object_template = ObjectTemplate::New(isolate());
-  object_template->SetAccessCheckCallback(AccessCheck);
-
-  Local<Context> context1 = Context::New(isolate(), nullptr);
-  Local<Context> context2 = Context::New(isolate(), nullptr);
-
-  Local<Object> object1 =
-      object_template->NewInstance(context1).ToLocalChecked();
-  EXPECT_TRUE(context2->Global()
-                  ->Set(context2, v8_str("object_from_context1"), object1)
-                  .IsJust());
-
-  Context::Scope context_scope(context2);
-  failed_access_check_callback_called = false;
-  CompileRun(isolate(), "console.log(object_from_context1);").ToLocalChecked();
-
-  ASSERT_TRUE(failed_access_check_callback_called);
 }
 
 }  // namespace v8

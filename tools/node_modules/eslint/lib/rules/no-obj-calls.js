@@ -37,13 +37,13 @@ function getReportNodeName(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow calling global object properties as functions",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-obj-calls"
         },

@@ -1,11 +1,17 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * DES low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
 
 #include <stdio.h>
 #include "internal/cryptlib.h"
@@ -16,6 +22,7 @@
 # include <openssl/objects.h>
 # include "crypto/evp.h"
 # include <openssl/des.h>
+# include "evp_local.h"
 
 static int desx_cbc_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                              const unsigned char *iv, int enc);
@@ -34,6 +41,7 @@ static const EVP_CIPHER d_xcbc_cipher = {
     NID_desx_cbc,
     8, 24, 8,
     EVP_CIPH_CBC_MODE,
+    EVP_ORIG_GLOBAL,
     desx_cbc_init_key,
     desx_cbc_cipher,
     NULL,
@@ -66,18 +74,18 @@ static int desx_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     while (inl >= EVP_MAXCHUNK) {
         DES_xcbc_encrypt(in, out, (long)EVP_MAXCHUNK, &data(ctx)->ks,
-                         (DES_cblock *)EVP_CIPHER_CTX_iv_noconst(ctx),
+                         (DES_cblock *)ctx->iv,
                          &data(ctx)->inw, &data(ctx)->outw,
-                         EVP_CIPHER_CTX_encrypting(ctx));
+                         EVP_CIPHER_CTX_is_encrypting(ctx));
         inl -= EVP_MAXCHUNK;
         in += EVP_MAXCHUNK;
         out += EVP_MAXCHUNK;
     }
     if (inl)
         DES_xcbc_encrypt(in, out, (long)inl, &data(ctx)->ks,
-                         (DES_cblock *)EVP_CIPHER_CTX_iv_noconst(ctx),
+                         (DES_cblock *)ctx->iv,
                          &data(ctx)->inw, &data(ctx)->outw,
-                         EVP_CIPHER_CTX_encrypting(ctx));
+                         EVP_CIPHER_CTX_is_encrypting(ctx));
     return 1;
 }
 #endif

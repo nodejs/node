@@ -44,7 +44,7 @@
 #include "uassert.h"
 #ifndef DOUBLE_CONVERSION_ASSERT
 #define DOUBLE_CONVERSION_ASSERT(condition)         \
-    U_ASSERT(condition);
+    U_ASSERT(condition)
 #endif
 #ifndef DOUBLE_CONVERSION_UNIMPLEMENTED
 #define DOUBLE_CONVERSION_UNIMPLEMENTED() (abort())
@@ -118,7 +118,8 @@ int main(int argc, char** argv) {
     defined(__ARMEL__) || defined(__avr32__) || defined(_M_ARM) || defined(_M_ARM64) || \
     defined(__hppa__) || defined(__ia64__) || \
     defined(__mips__) || \
-    defined(__nios2__) || \
+    defined(__loongarch__) || \
+    defined(__nios2__) || defined(__ghs) || \
     defined(__powerpc__) || defined(__ppc__) || defined(__ppc64__) || \
     defined(_POWER) || defined(_ARCH_PPC) || defined(_ARCH_PPC64) || \
     defined(__sparc__) || defined(__sparc) || defined(__s390__) || \

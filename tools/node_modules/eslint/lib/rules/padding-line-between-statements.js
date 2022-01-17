@@ -425,13 +425,13 @@ const StatementTypes = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "require or disallow padding lines between statements",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/padding-line-between-statements"
         },
@@ -619,9 +619,11 @@ module.exports = {
             Program: enterScope,
             BlockStatement: enterScope,
             SwitchStatement: enterScope,
+            StaticBlock: enterScope,
             "Program:exit": exitScope,
             "BlockStatement:exit": exitScope,
             "SwitchStatement:exit": exitScope,
+            "StaticBlock:exit": exitScope,
 
             ":statement": verify,
 

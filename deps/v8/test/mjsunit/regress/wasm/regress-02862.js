@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --random-seed=1557792826 --expose-gc --invoke-weak-callbacks --omit-quit --gc-interval=469 --validate-asm
+// Flags:  --expose-gc --invoke-weak-callbacks --omit-quit --gc-interval=469 --validate-asm
 
 function nop() {}
 var __v_42 = {};

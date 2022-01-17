@@ -1,4 +1,4 @@
-# Using the internal/errors.js Module
+# Using the internal/errors.js module
 
 ## What is internal/errors.js
 
@@ -66,6 +66,7 @@ classes by providing additional arguments. The other ones will be exposed as
 properties of the main class:
 
 <!-- eslint-disable no-unreachable -->
+
 ```js
 E('EXAMPLE_KEY', 'Error message', TypeError, RangeError);
 

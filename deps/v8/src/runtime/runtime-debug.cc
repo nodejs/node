@@ -12,16 +12,18 @@
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/interpreter/bytecode-array-accessor.h"
+#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
@@ -29,7 +31,11 @@
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
 #include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -56,13 +62,6 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
                             handle(it.frame()->function(), isolate));
   }
 
-  // If we are dropping frames, there is no need to get a return value or
-  // bytecode, since we will be restarting execution at a different frame.
-  if (isolate->debug()->will_restart()) {
-    return MakePair(ReadOnlyRoots(isolate).undefined_value(),
-                    Smi::FromInt(static_cast<uint8_t>(Bytecode::kIllegal)));
-  }
-
   // Return the handler from the original bytecode array.
   DCHECK(it.frame()->is_interpreted());
   InterpretedFrame* interpreted_frame =
@@ -77,7 +76,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   // Make sure to only access these objects after the side effect check, as the
   // check can allocate on failure.
   SharedFunctionInfo shared = interpreted_frame->function().shared();
-  BytecodeArray bytecode_array = shared.GetBytecodeArray();
+  BytecodeArray bytecode_array = shared.GetBytecodeArray(isolate);
   int bytecode_offset = interpreted_frame->GetBytecodeOffset();
   Bytecode bytecode = Bytecodes::FromByte(bytecode_array.get(bytecode_offset));
 
@@ -152,11 +151,11 @@ RUNTIME_FUNCTION(Runtime_ScheduleBreak) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+
 template <class IteratorType>
-static MaybeHandle<JSArray> GetIteratorInternalProperties(
-    Isolate* isolate, Handle<IteratorType> object) {
-  Factory* factory = isolate->factory();
-  Handle<IteratorType> iterator = Handle<IteratorType>::cast(object);
+static Handle<ArrayList> AddIteratorInternalProperties(
+    Isolate* isolate, Handle<ArrayList> result, Handle<IteratorType> iterator) {
   const char* kind = nullptr;
   switch (iterator->map().instance_type()) {
     case JS_MAP_KEY_ITERATOR_TYPE:
@@ -174,58 +173,63 @@ static MaybeHandle<JSArray> GetIteratorInternalProperties(
       UNREACHABLE();
   }
 
-  Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
-  Handle<String> has_more =
-      factory->NewStringFromAsciiChecked("[[IteratorHasMore]]");
-  result->set(0, *has_more);
-  result->set(1, isolate->heap()->ToBoolean(iterator->HasMore()));
-
-  Handle<String> index =
-      factory->NewStringFromAsciiChecked("[[IteratorIndex]]");
-  result->set(2, *index);
-  result->set(3, iterator->index());
-
-  Handle<String> iterator_kind =
-      factory->NewStringFromAsciiChecked("[[IteratorKind]]");
-  result->set(4, *iterator_kind);
-  Handle<String> kind_str = factory->NewStringFromAsciiChecked(kind);
-  result->set(5, *kind_str);
-  return factory->NewJSArrayWithElements(result);
+  result = ArrayList::Add(
+      isolate, result,
+      isolate->factory()->NewStringFromAsciiChecked("[[IteratorHasMore]]"),
+      isolate->factory()->ToBoolean(iterator->HasMore()));
+  result = ArrayList::Add(
+      isolate, result,
+      isolate->factory()->NewStringFromAsciiChecked("[[IteratorIndex]]"),
+      handle(iterator->index(), isolate));
+  result = ArrayList::Add(
+      isolate, result,
+      isolate->factory()->NewStringFromAsciiChecked("[[IteratorKind]]"),
+      isolate->factory()->NewStringFromAsciiChecked(kind));
+  return result;
 }
 
+}  // namespace
 
 MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
                                                     Handle<Object> object) {
-  Factory* factory = isolate->factory();
+  auto result = ArrayList::New(isolate, 8 * 2);
+  if (object->IsJSObject()) {
+    PrototypeIterator iter(isolate, Handle<JSObject>::cast(object),
+                           kStartAtReceiver);
+    if (iter.HasAccess()) {
+      iter.Advance();
+      Handle<Object> prototype = PrototypeIterator::GetCurrent(iter);
+      if (!prototype->IsNull(isolate)) {
+        result = ArrayList::Add(
+            isolate, result,
+            isolate->factory()->NewStringFromStaticChars("[[Prototype]]"),
+            prototype);
+      }
+    }
+  }
   if (object->IsJSBoundFunction()) {
     Handle<JSBoundFunction> function = Handle<JSBoundFunction>::cast(object);
 
-    Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
-    Handle<String> target =
-        factory->NewStringFromAsciiChecked("[[TargetFunction]]");
-    result->set(0, *target);
-    result->set(1, function->bound_target_function());
-
-    Handle<String> bound_this =
-        factory->NewStringFromAsciiChecked("[[BoundThis]]");
-    result->set(2, *bound_this);
-    result->set(3, function->bound_this());
-
-    Handle<String> bound_args =
-        factory->NewStringFromAsciiChecked("[[BoundArgs]]");
-    result->set(4, *bound_args);
-    Handle<FixedArray> bound_arguments =
-        factory->CopyFixedArray(handle(function->bound_arguments(), isolate));
-    Handle<JSArray> arguments_array =
-        factory->NewJSArrayWithElements(bound_arguments);
-    result->set(5, *arguments_array);
-    return factory->NewJSArrayWithElements(result);
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[TargetFunction]]"),
+        handle(function->bound_target_function(), isolate));
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[BoundThis]]"),
+        handle(function->bound_this(), isolate));
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[BoundArgs]]"),
+        isolate->factory()->NewJSArrayWithElements(
+            isolate->factory()->CopyFixedArray(
+                handle(function->bound_arguments(), isolate))));
   } else if (object->IsJSMapIterator()) {
     Handle<JSMapIterator> iterator = Handle<JSMapIterator>::cast(object);
-    return GetIteratorInternalProperties(isolate, iterator);
+    result = AddIteratorInternalProperties(isolate, result, iterator);
   } else if (object->IsJSSetIterator()) {
     Handle<JSSetIterator> iterator = Handle<JSSetIterator>::cast(object);
-    return GetIteratorInternalProperties(isolate, iterator);
+    result = AddIteratorInternalProperties(isolate, result, iterator);
   } else if (object->IsJSGeneratorObject()) {
     Handle<JSGeneratorObject> generator =
         Handle<JSGeneratorObject>::cast(object);
@@ -239,82 +243,133 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
       DCHECK(generator->is_suspended());
     }
 
-    Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
-    Handle<String> generator_status =
-        factory->NewStringFromAsciiChecked("[[GeneratorState]]");
-    result->set(0, *generator_status);
-    Handle<String> status_str = factory->NewStringFromAsciiChecked(status);
-    result->set(1, *status_str);
-
-    Handle<String> function =
-        factory->NewStringFromAsciiChecked("[[GeneratorFunction]]");
-    result->set(2, *function);
-    result->set(3, generator->function());
-
-    Handle<String> receiver =
-        factory->NewStringFromAsciiChecked("[[GeneratorReceiver]]");
-    result->set(4, *receiver);
-    result->set(5, generator->receiver());
-    return factory->NewJSArrayWithElements(result);
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[GeneratorState]]"),
+        isolate->factory()->NewStringFromAsciiChecked(status));
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[GeneratorFunction]]"),
+        handle(generator->function(), isolate));
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[GeneratorReceiver]]"),
+        handle(generator->receiver(), isolate));
   } else if (object->IsJSPromise()) {
     Handle<JSPromise> promise = Handle<JSPromise>::cast(object);
-    const char* status = JSPromise::Status(promise->status());
-    Handle<FixedArray> result = factory->NewFixedArray(2 * 2);
-    Handle<String> promise_status =
-        factory->NewStringFromAsciiChecked("[[PromiseState]]");
-    result->set(0, *promise_status);
-    Handle<String> status_str = factory->NewStringFromAsciiChecked(status);
-    result->set(1, *status_str);
 
-    Handle<Object> value_obj(promise->status() == Promise::kPending
-                                 ? ReadOnlyRoots(isolate).undefined_value()
-                                 : promise->result(),
-                             isolate);
-    Handle<String> promise_value =
-        factory->NewStringFromAsciiChecked("[[PromiseResult]]");
-    result->set(2, *promise_value);
-    result->set(3, *value_obj);
-    return factory->NewJSArrayWithElements(result);
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[PromiseState]]"),
+        isolate->factory()->NewStringFromAsciiChecked(
+            JSPromise::Status(promise->status())));
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[PromiseResult]]"),
+        promise->status() == Promise::kPending
+            ? isolate->factory()->undefined_value()
+            : handle(promise->result(), isolate));
   } else if (object->IsJSProxy()) {
     Handle<JSProxy> js_proxy = Handle<JSProxy>::cast(object);
-    Handle<FixedArray> result = factory->NewFixedArray(3 * 2);
 
-    Handle<String> handler_str =
-        factory->NewStringFromAsciiChecked("[[Handler]]");
-    result->set(0, *handler_str);
-    result->set(1, js_proxy->handler());
-
-    Handle<String> target_str =
-        factory->NewStringFromAsciiChecked("[[Target]]");
-    result->set(2, *target_str);
-    result->set(3, js_proxy->target());
-
-    Handle<String> is_revoked_str =
-        factory->NewStringFromAsciiChecked("[[IsRevoked]]");
-    result->set(4, *is_revoked_str);
-    result->set(5, isolate->heap()->ToBoolean(js_proxy->IsRevoked()));
-    return factory->NewJSArrayWithElements(result);
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[Handler]]"),
+        handle(js_proxy->handler(), isolate));
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[Target]]"),
+        handle(js_proxy->target(), isolate));
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[IsRevoked]]"),
+        isolate->factory()->ToBoolean(js_proxy->IsRevoked()));
   } else if (object->IsJSPrimitiveWrapper()) {
     Handle<JSPrimitiveWrapper> js_value =
         Handle<JSPrimitiveWrapper>::cast(object);
 
-    Handle<FixedArray> result = factory->NewFixedArray(2);
-    Handle<String> primitive_value =
-        factory->NewStringFromAsciiChecked("[[PrimitiveValue]]");
-    result->set(0, *primitive_value);
-    result->set(1, js_value->value());
-    return factory->NewJSArrayWithElements(result);
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[PrimitiveValue]]"),
+        handle(js_value->value(), isolate));
   } else if (object->IsJSArrayBuffer()) {
     Handle<JSArrayBuffer> js_array_buffer = Handle<JSArrayBuffer>::cast(object);
-    Handle<FixedArray> result = factory->NewFixedArray(1 * 2);
-
-    Handle<String> is_detached_str =
-        factory->NewStringFromAsciiChecked("[[IsDetached]]");
-    result->set(0, *is_detached_str);
-    result->set(1, isolate->heap()->ToBoolean(js_array_buffer->was_detached()));
-    return factory->NewJSArrayWithElements(result);
+    if (js_array_buffer->was_detached()) {
+      // Mark a detached JSArrayBuffer and such and don't even try to
+      // create views for it, since the TypedArray constructors will
+      // throw a TypeError when the underlying buffer is detached.
+      result = ArrayList::Add(
+          isolate, result,
+          isolate->factory()->NewStringFromAsciiChecked("[[IsDetached]]"),
+          isolate->factory()->true_value());
+    } else {
+      const size_t byte_length = js_array_buffer->byte_length();
+      static const ExternalArrayType kTypes[] = {
+          kExternalInt8Array,
+          kExternalUint8Array,
+          kExternalInt16Array,
+          kExternalInt32Array,
+      };
+      for (auto type : kTypes) {
+        switch (type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                           \
+  case kExternal##Type##Array: {                                            \
+    if ((byte_length % sizeof(ctype)) != 0) continue;                       \
+    result = ArrayList::Add(                                                \
+        isolate, result,                                                    \
+        isolate->factory()->NewStringFromStaticChars("[[" #Type "Array]]"), \
+        isolate->factory()->NewJSTypedArray(kExternal##Type##Array,         \
+                                            js_array_buffer, 0,             \
+                                            byte_length / sizeof(ctype)));  \
+    break;                                                                  \
   }
-  return factory->NewJSArray(0);
+          TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+        default:
+          UNREACHABLE();
+        }
+      }
+      result =
+          ArrayList::Add(isolate, result,
+                         isolate->factory()->NewStringFromAsciiChecked(
+                             "[[ArrayBufferByteLength]]"),
+                         isolate->factory()->NewNumberFromSize(byte_length));
+
+      auto backing_store = js_array_buffer->GetBackingStore();
+      Handle<Object> array_buffer_data =
+          backing_store
+              ? isolate->factory()->NewNumberFromUint(backing_store->id())
+              : isolate->factory()->null_value();
+      result = ArrayList::Add(
+          isolate, result,
+          isolate->factory()->NewStringFromAsciiChecked("[[ArrayBufferData]]"),
+          array_buffer_data);
+
+      Handle<Symbol> memory_symbol =
+          isolate->factory()->array_buffer_wasm_memory_symbol();
+      Handle<Object> memory_object =
+          JSObject::GetDataProperty(js_array_buffer, memory_symbol);
+      if (!memory_object->IsUndefined(isolate)) {
+        result = ArrayList::Add(isolate, result,
+                                isolate->factory()->NewStringFromAsciiChecked(
+                                    "[[WebAssemblyMemory]]"),
+                                memory_object);
+      }
+    }
+#if V8_ENABLE_WEBASSEMBLY
+  } else if (object->IsWasmInstanceObject()) {
+    result = AddWasmInstanceObjectInternalProperties(
+        isolate, result, Handle<WasmInstanceObject>::cast(object));
+  } else if (object->IsWasmModuleObject()) {
+    result = AddWasmModuleObjectInternalProperties(
+        isolate, result, Handle<WasmModuleObject>::cast(object));
+  } else if (object->IsWasmTableObject()) {
+    result = AddWasmTableObjectInternalProperties(
+        isolate, result, Handle<WasmTableObject>::cast(object));
+#endif  // V8_ENABLE_WEBASSEMBLY
+  }
+  return isolate->factory()->NewJSArrayWithElements(
+      ArrayList::Elements(isolate, result), PACKED_ELEMENTS);
 }
 
 RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
@@ -486,27 +541,17 @@ RUNTIME_FUNCTION(Runtime_CollectGarbage) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-
-// Gets the current heap usage.
-RUNTIME_FUNCTION(Runtime_GetHeapUsage) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  int usage = static_cast<int>(isolate->heap()->SizeOfObjects());
-  if (!Smi::IsValid(usage)) {
-    return *isolate->factory()->NewNumberFromInt(usage);
-  }
-  return Smi::FromInt(usage);
-}
-
 namespace {
 
 int ScriptLinePosition(Handle<Script> script, int line) {
   if (line < 0) return -1;
 
+#if V8_ENABLE_WEBASSEMBLY
   if (script->type() == Script::TYPE_WASM) {
     // Wasm positions are relative to the start of the module.
     return 0;
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Script::InitLineEnds(script->GetIsolate(), script);
 
@@ -543,11 +588,16 @@ Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
     return isolate->factory()->null_value();
   }
 
-  Handle<String> source = handle(String::cast(script->source()), isolate);
-  Handle<String> sourceText = script->type() == Script::TYPE_WASM
-                                  ? isolate->factory()->empty_string()
-                                  : isolate->factory()->NewSubString(
-                                        source, info.line_start, info.line_end);
+#if V8_ENABLE_WEBASSEMBLY
+  const bool is_wasm_script = script->type() == Script::TYPE_WASM;
+#else
+  const bool is_wasm_script = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+  Handle<String> sourceText =
+      is_wasm_script ? isolate->factory()->empty_string()
+                     : isolate->factory()->NewSubString(
+                           handle(String::cast(script->source()), isolate),
+                           info.line_start, info.line_end);
 
   Handle<JSObject> jsinfo =
       isolate->factory()->NewJSObject(isolate->object_function());
@@ -634,8 +684,9 @@ RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
   if (isolate->debug()->needs_check_on_function_call()) {
     // Ensure that the callee will perform debug check on function call too.
-    Deoptimizer::DeoptimizeFunction(*fun);
-    if (isolate->debug()->last_step_action() >= StepIn ||
+    Handle<SharedFunctionInfo> shared(fun->shared(), isolate);
+    isolate->debug()->DeoptimizeFunction(shared);
+    if (isolate->debug()->last_step_action() >= StepInto ||
         isolate->debug()->break_on_next_function_call()) {
       DCHECK_EQ(isolate->debug_execution_mode(), DebugInfo::kBreakpoints);
       isolate->debug()->PrepareStepIn(fun);
@@ -818,22 +869,9 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
     case v8::debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR:
       return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
           "LiveEdit failed: BLOCKED_BY_RUNNING_GENERATOR"));
-    case v8::debug::LiveEditResult::BLOCKED_BY_FUNCTION_ABOVE_BREAK_FRAME:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: BLOCKED_BY_FUNCTION_ABOVE_BREAK_FRAME"));
-    case v8::debug::LiveEditResult::
-        BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME"));
     case v8::debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION:
       return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
           "LiveEdit failed: BLOCKED_BY_ACTIVE_FUNCTION"));
-    case v8::debug::LiveEditResult::BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME"));
-    case v8::debug::LiveEditResult::FRAME_RESTART_IS_NOT_SUPPORTED:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: FRAME_RESTART_IS_NOT_SUPPORTED"));
     case v8::debug::LiveEditResult::OK:
       return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -847,7 +885,7 @@ RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {
   // Used only by the test/memory/Memory.json benchmark. This creates a snapshot
   // blob and outputs various statistics around it.
 
-  DCHECK(FLAG_profile_deserialization);
+  DCHECK(FLAG_profile_deserialization && FLAG_serialization_statistics);
 
   DisableEmbeddedBlobRefcounting();
 
@@ -857,9 +895,9 @@ RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {
 
   // Track the embedded blob size as well.
   {
-    i::EmbeddedData d = i::EmbeddedData::FromBlob();
+    i::EmbeddedData d = i::EmbeddedData::FromBlob(isolate);
     PrintF("Embedded blob is %d bytes\n",
-           static_cast<int>(d.code_size() + d.metadata_size()));
+           static_cast<int>(d.code_size() + d.data_size()));
   }
 
   FreeCurrentEmbeddedBlob();

@@ -47,7 +47,10 @@ class TestSignatures {
         sig_v_iii(0, 3, kIntTypes4),
         sig_v_e(0, 1, kExternRefTypes4),
         sig_v_c(0, 1, kFuncTypes4),
+        sig_v_d(0, 1, kDoubleTypes4),
         sig_s_i(1, 1, kSimd128IntTypes4),
+        sig_s_s(1, 1, kSimd128Types4),
+        sig_s_ss(1, 2, kSimd128Types4),
         sig_ii_v(2, 0, kIntTypes4),
         sig_iii_v(3, 0, kIntTypes4) {
     // I used C++ and you won't believe what happened next....
@@ -62,6 +65,7 @@ class TestSignatures {
     for (int i = 1; i < 4; i++) kIntDoubleTypes4[i] = kWasmF64;
     for (int i = 1; i < 4; i++) kIntExternRefTypes4[i] = kWasmExternRef;
     for (int i = 1; i < 4; i++) kIntFuncRefTypes4[i] = kWasmFuncRef;
+    for (int i = 0; i < 4; i++) kSimd128Types4[i] = kWasmS128;
     for (int i = 1; i < 4; i++) kIntSimd128Types4[i] = kWasmS128;
     for (int i = 0; i < 4; i++) kSimd128IntTypes4[i] = kWasmS128;
     kIntLongTypes4[0] = kWasmI32;
@@ -108,14 +112,17 @@ class TestSignatures {
   FunctionSig* v_iii() { return &sig_v_iii; }
   FunctionSig* v_e() { return &sig_v_e; }
   FunctionSig* v_c() { return &sig_v_c; }
+  FunctionSig* v_d() { return &sig_v_d; }
   FunctionSig* s_i() { return &sig_s_i; }
+  FunctionSig* s_s() { return &sig_s_s; }
+  FunctionSig* s_ss() { return &sig_s_ss; }
 
   FunctionSig* ii_v() { return &sig_ii_v; }
   FunctionSig* iii_v() { return &sig_iii_v; }
 
   FunctionSig* many(Zone* zone, ValueType ret, ValueType param, int count) {
-    FunctionSig::Builder builder(zone, ret == kWasmStmt ? 0 : 1, count);
-    if (ret != kWasmStmt) builder.AddReturn(ret);
+    FunctionSig::Builder builder(zone, ret == kWasmVoid ? 0 : 1, count);
+    if (ret != kWasmVoid) builder.AddReturn(ret);
     for (int i = 0; i < count; i++) {
       builder.AddParam(param);
     }
@@ -134,6 +141,7 @@ class TestSignatures {
   ValueType kIntDoubleTypes4[4];
   ValueType kIntExternRefTypes4[4];
   ValueType kIntFuncRefTypes4[4];
+  ValueType kSimd128Types4[4];
   ValueType kIntSimd128Types4[4];
   ValueType kSimd128IntTypes4[4];
 
@@ -172,7 +180,10 @@ class TestSignatures {
   FunctionSig sig_v_iii;
   FunctionSig sig_v_e;
   FunctionSig sig_v_c;
+  FunctionSig sig_v_d;
   FunctionSig sig_s_i;
+  FunctionSig sig_s_s;
+  FunctionSig sig_s_ss;
 
   FunctionSig sig_ii_v;
   FunctionSig sig_iii_v;

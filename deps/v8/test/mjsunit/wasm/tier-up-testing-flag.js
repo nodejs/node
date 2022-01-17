@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --liftoff --no-future --no-wasm-tier-up
+// Flags: --allow-natives-syntax --liftoff --no-wasm-tier-up
 // Compile functions 0 and 2 with Turbofan, the rest with Liftoff:
 // Flags: --wasm-tier-mask-for-testing=5
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const num_functions = 5;
 

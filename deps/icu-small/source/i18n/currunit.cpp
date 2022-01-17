@@ -118,7 +118,7 @@ CurrencyUnit* CurrencyUnit::clone() const {
 
 CurrencyUnit::~CurrencyUnit() {
 }
-
+    
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(CurrencyUnit)
 
 U_NAMESPACE_END

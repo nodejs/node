@@ -1,7 +1,8 @@
 Test wasm global names
+
+Running test: test
 Waiting for wasm script to be parsed.
 Setting breakpoint in wasm.
 Running main.
 Paused in debugger.
-   globals: {"module_name.imported_global", "exported_global", "global2"}
-Finished.
+   globals: {"$module_name.imported_global", "$exported_global", "$global2"}

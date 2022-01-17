@@ -1,7 +1,7 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -25,7 +25,7 @@ int BIO_get_new_index(void)
     int newval;
 
     if (!RUN_ONCE(&bio_type_init, do_bio_type_init)) {
-        BIOerr(BIO_F_BIO_GET_NEW_INDEX, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BIO, ERR_R_MALLOC_FAILURE);
         return -1;
     }
     if (!CRYPTO_UP_REF(&bio_count, &newval, bio_type_lock))
@@ -40,7 +40,7 @@ BIO_METHOD *BIO_meth_new(int type, const char *name)
     if (biom == NULL
             || (biom->name = OPENSSL_strdup(name)) == NULL) {
         OPENSSL_free(biom);
-        BIOerr(BIO_F_BIO_METH_NEW, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BIO, ERR_R_MALLOC_FAILURE);
         return NULL;
     }
     biom->type = type;

@@ -6,7 +6,7 @@
 // Liftoff code.
 // Flags: --allow-natives-syntax --throws --wasm-tier-up
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 let kTableSize = 3;
 
 var builder = new WasmModuleBuilder();

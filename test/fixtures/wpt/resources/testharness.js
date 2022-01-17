@@ -1,21 +1,11 @@
 /*global self*/
 /*jshint latedef: nofunc*/
-/*
-Distributed under both the W3C Test Suite License [1] and the W3C
-3-clause BSD License [2]. To contribute to a W3C Test Suite, see the
-policies and contribution forms [3].
-
-[1] http://www.w3.org/Consortium/Legal/2008/04-testsuite-license
-[2] http://www.w3.org/Consortium/Legal/2008/03-bsd-license
-[3] http://www.w3.org/2004/10/27-testcases
-*/
 
 /* Documentation: https://web-platform-tests.org/writing-tests/testharness-api.html
  * (../docs/_writing-tests/testharness-api.md) */
 
 (function (global_scope)
 {
-    var debug = false;
     // default timeout is 10 seconds, test can override if needed
     var settings = {
         output:true,
@@ -24,7 +14,8 @@ policies and contribution forms [3].
             "long":60000
         },
         test_timeout:null,
-        message_events: ["start", "test_state", "result", "completion"]
+        message_events: ["start", "test_state", "result", "completion"],
+        debug: false,
     };
 
     var xhtml_ns = "http://www.w3.org/1999/xhtml";
@@ -87,14 +78,15 @@ policies and contribution forms [3].
                                              test: test.structured_clone()});
                      }],
             completion: [add_completion_callback, remove_completion_callback,
-                         function (tests, harness_status) {
+                         function (tests, harness_status, asserts) {
                              var cloned_tests = map(tests, function(test) {
                                  return test.structured_clone();
                              });
                              this_obj._dispatch("completion_callback", [tests, harness_status],
                                                 {type: "complete",
                                                  tests: cloned_tests,
-                                                 status: harness_status.structured_clone()});
+                                                 status: harness_status.structured_clone(),
+                                                 asserts: asserts.map(assert => assert.structured_clone())});
                          }]
         }
 
@@ -131,11 +123,7 @@ policies and contribution forms [3].
                         if (has_selector) {
                             try {
                                 w[selector].apply(undefined, callback_args);
-                            } catch (e) {
-                                if (debug) {
-                                    throw e;
-                                }
-                            }
+                            } catch (e) {}
                         }
                     }
                     if (supports_post_message(w) && w !== self) {
@@ -192,8 +180,8 @@ policies and contribution forms [3].
             this_obj.output_handler.show_status();
         });
 
-        add_completion_callback(function (tests, harness_status) {
-            this_obj.output_handler.show_results(tests, harness_status);
+        add_completion_callback(function (tests, harness_status, asserts_run) {
+            this_obj.output_handler.show_results(tests, harness_status, asserts_run);
         });
         this.setup_messages(settings.message_events);
     };
@@ -314,14 +302,15 @@ policies and contribution forms [3].
                     });
                 });
         add_completion_callback(
-                function(tests, harness_status) {
+                function(tests, harness_status, asserts) {
                     this_obj._dispatch({
                         type: "complete",
                         tests: map(tests,
                             function(test) {
                                 return test.structured_clone();
                             }),
-                        status: harness_status.structured_clone()
+                        status: harness_status.structured_clone(),
+                        asserts: asserts.map(assert => assert.structured_clone()),
                     });
                 });
     };
@@ -500,11 +489,7 @@ policies and contribution forms [3].
             return new DedicatedWorkerTestEnvironment();
         }
 
-        if (!('location' in global_scope)) {
-            return new ShellTestEnvironment();
-        }
-
-        throw new Error("Unsupported test environment");
+        return new ShellTestEnvironment();
     }
 
     var test_environment = create_test_environment();
@@ -520,6 +505,43 @@ policies and contribution forms [3].
             Object.prototype.toString.call(worker) == '[object ServiceWorker]';
     }
 
+    var seen_func_name = Object.create(null);
+
+    function get_test_name(func, name)
+    {
+        if (name) {
+            return name;
+        }
+
+        if (func) {
+            var func_code = func.toString();
+
+            // Try and match with brackets, but fallback to matching without
+            var arrow = func_code.match(/^\(\)\s*=>\s*(?:{(.*)}\s*|(.*))$/);
+
+            // Check for JS line separators
+            if (arrow !== null && !/[\u000A\u000D\u2028\u2029]/.test(func_code)) {
+                var trimmed = (arrow[1] !== undefined ? arrow[1] : arrow[2]).trim();
+                // drop trailing ; if there's no earlier ones
+                trimmed = trimmed.replace(/^([^;]*)(;\s*)+$/, "$1");
+
+                if (trimmed) {
+                    let name = trimmed;
+                    if (seen_func_name[trimmed]) {
+                        // This subtest name already exists, so add a suffix.
+                        name += " " + seen_func_name[trimmed];
+                    } else {
+                        seen_func_name[trimmed] = 0;
+                    }
+                    seen_func_name[trimmed] += 1;
+                    return name;
+                }
+            }
+        }
+
+        return test_environment.next_default_test_name();
+    }
+
     /*
      * API functions
      */
@@ -530,17 +552,18 @@ policies and contribution forms [3].
             tests.status.message = '`test` invoked after `promise_setup`';
             tests.complete();
         }
-        var test_name = name ? name : test_environment.next_default_test_name();
+        var test_name = get_test_name(func, name);
         var test_obj = new Test(test_name, properties);
         var value = test_obj.step(func, test_obj, test_obj);
 
         if (value !== undefined) {
-            var msg = "Test named \"" + test_name +
-                "\" inappropriately returned a value";
+            var msg = 'Test named "' + test_name +
+                '" passed a function to `test` that returned a value.';
 
             try {
-                if (value && value.hasOwnProperty("then")) {
-                    msg += ", consider using `promise_test` instead";
+                if (value && typeof value.then === 'function') {
+                    msg += ' Consider using `promise_test` instead when ' +
+                        'using Promises or async/await.';
                 }
             } catch (err) {}
 
@@ -565,10 +588,33 @@ policies and contribution forms [3].
             name = func;
             func = null;
         }
-        var test_name = name ? name : test_environment.next_default_test_name();
+        var test_name = get_test_name(func, name);
         var test_obj = new Test(test_name, properties);
         if (func) {
-            test_obj.step(func, test_obj, test_obj);
+            var value = test_obj.step(func, test_obj, test_obj);
+
+            // Test authors sometimes return values to async_test, expecting us
+            // to handle the value somehow. Make doing so a harness error to be
+            // clear this is invalid, and point authors to promise_test if it
+            // may be appropriate.
+            //
+            // Note that we only perform this check on the initial function
+            // passed to async_test, not on any later steps - we haven't seen a
+            // consistent problem with those (and it's harder to check).
+            if (value !== undefined) {
+                var msg = 'Test named "' + test_name +
+                    '" passed a function to `async_test` that returned a value.';
+
+                try {
+                    if (value && typeof value.then === 'function') {
+                        msg += ' Consider using `promise_test` instead when ' +
+                            'using Promises or async/await.';
+                    }
+                } catch (err) {}
+
+                tests.set_status(tests.status.ERROR, msg);
+                tests.complete();
+            }
         }
         return test_obj;
     }
@@ -579,7 +625,7 @@ policies and contribution forms [3].
             name = func;
             func = null;
         }
-        var test_name = name ? name : test_environment.next_default_test_name();
+        var test_name = get_test_name(func, name);
         var test = new Test(test_name, properties);
         test._is_promise_test = true;
 
@@ -1126,19 +1172,53 @@ policies and contribution forms [3].
      * Assertions
      */
 
+    function expose_assert(f, name) {
+        function assert_wrapper(...args) {
+            let status = Test.statuses.TIMEOUT;
+            let stack = null;
+            try {
+                if (settings.debug) {
+                    console.debug("ASSERT", name, tests.current_test && tests.current_test.name, args);
+                }
+                if (tests.output) {
+                    tests.set_assert(name, args);
+                }
+                const rv = f.apply(undefined, args);
+                status = Test.statuses.PASS;
+                return rv;
+            } catch(e) {
+                if (e instanceof AssertionError) {
+                    status = Test.statuses.FAIL;
+                    stack = e.stack;
+                 } else {
+                    status = Test.statuses.ERROR;
+                 }
+                throw e;
+            } finally {
+                if (tests.output && !stack) {
+                    stack = get_stack();
+                }
+                if (tests.output) {
+                    tests.set_assert_status(status, stack);
+                }
+            }
+        }
+        expose(assert_wrapper, name);
+    }
+
     function assert_true(actual, description)
     {
         assert(actual === true, "assert_true", description,
                                 "expected true got ${actual}", {actual:actual});
     }
-    expose(assert_true, "assert_true");
+    expose_assert(assert_true, "assert_true");
 
     function assert_false(actual, description)
     {
         assert(actual === false, "assert_false", description,
                                  "expected false got ${actual}", {actual:actual});
     }
-    expose(assert_false, "assert_false");
+    expose_assert(assert_false, "assert_false");
 
     function same_value(x, y) {
         if (y !== y) {
@@ -1168,7 +1248,7 @@ policies and contribution forms [3].
                                              "expected ${expected} but got ${actual}",
                                              {expected:expected, actual:actual});
     }
-    expose(assert_equals, "assert_equals");
+    expose_assert(assert_equals, "assert_equals");
 
     function assert_not_equals(actual, expected, description)
     {
@@ -1180,7 +1260,7 @@ policies and contribution forms [3].
                                               "got disallowed value ${actual}",
                                               {actual:actual});
     }
-    expose(assert_not_equals, "assert_not_equals");
+    expose_assert(assert_not_equals, "assert_not_equals");
 
     function assert_in_array(actual, expected, description)
     {
@@ -1188,7 +1268,7 @@ policies and contribution forms [3].
                                                "value ${actual} not in array ${expected}",
                                                {actual:actual, expected:expected});
     }
-    expose(assert_in_array, "assert_in_array");
+    expose_assert(assert_in_array, "assert_in_array");
 
     // This function was deprecated in July of 2015.
     // See https://github.com/web-platform-tests/wpt/issues/2033
@@ -1226,7 +1306,7 @@ policies and contribution forms [3].
          }
          check_equal(actual, expected, []);
     }
-    expose(assert_object_equals, "assert_object_equals");
+    expose_assert(assert_object_equals, "assert_object_equals");
 
     function assert_array_equals(actual, expected, description)
     {
@@ -1283,7 +1363,7 @@ policies and contribution forms [3].
                     arrayExpected:shorten_array(expected, i), arrayActual:shorten_array(actual, i)});
         }
     }
-    expose(assert_array_equals, "assert_array_equals");
+    expose_assert(assert_array_equals, "assert_array_equals");
 
     function assert_array_approx_equals(actual, expected, epsilon, description)
     {
@@ -1311,7 +1391,7 @@ policies and contribution forms [3].
                    {i:i, expected:expected[i], actual:actual[i], epsilon:epsilon});
         }
     }
-    expose(assert_array_approx_equals, "assert_array_approx_equals");
+    expose_assert(assert_array_approx_equals, "assert_array_approx_equals");
 
     function assert_approx_equals(actual, expected, epsilon, description)
     {
@@ -1323,12 +1403,18 @@ policies and contribution forms [3].
                "expected a number but got a ${type_actual}",
                {type_actual:typeof actual});
 
-        assert(Math.abs(actual - expected) <= epsilon,
-               "assert_approx_equals", description,
-               "expected ${expected} +/- ${epsilon} but got ${actual}",
-               {expected:expected, actual:actual, epsilon:epsilon});
+        // The epsilon math below does not place nice with NaN and Infinity
+        // But in this case Infinity = Infinity and NaN = NaN
+        if (isFinite(actual) || isFinite(expected)) {
+            assert(Math.abs(actual - expected) <= epsilon,
+                   "assert_approx_equals", description,
+                   "expected ${expected} +/- ${epsilon} but got ${actual}",
+                   {expected:expected, actual:actual, epsilon:epsilon});
+        } else {
+            assert_equals(actual, expected);
+        }
     }
-    expose(assert_approx_equals, "assert_approx_equals");
+    expose_assert(assert_approx_equals, "assert_approx_equals");
 
     function assert_less_than(actual, expected, description)
     {
@@ -1345,7 +1431,7 @@ policies and contribution forms [3].
                "expected a number less than ${expected} but got ${actual}",
                {expected:expected, actual:actual});
     }
-    expose(assert_less_than, "assert_less_than");
+    expose_assert(assert_less_than, "assert_less_than");
 
     function assert_greater_than(actual, expected, description)
     {
@@ -1362,7 +1448,7 @@ policies and contribution forms [3].
                "expected a number greater than ${expected} but got ${actual}",
                {expected:expected, actual:actual});
     }
-    expose(assert_greater_than, "assert_greater_than");
+    expose_assert(assert_greater_than, "assert_greater_than");
 
     function assert_between_exclusive(actual, lower, upper, description)
     {
@@ -1380,7 +1466,7 @@ policies and contribution forms [3].
                "and less than ${upper} but got ${actual}",
                {lower:lower, upper:upper, actual:actual});
     }
-    expose(assert_between_exclusive, "assert_between_exclusive");
+    expose_assert(assert_between_exclusive, "assert_between_exclusive");
 
     function assert_less_than_equal(actual, expected, description)
     {
@@ -1397,7 +1483,7 @@ policies and contribution forms [3].
                "expected a number less than or equal to ${expected} but got ${actual}",
                {expected:expected, actual:actual});
     }
-    expose(assert_less_than_equal, "assert_less_than_equal");
+    expose_assert(assert_less_than_equal, "assert_less_than_equal");
 
     function assert_greater_than_equal(actual, expected, description)
     {
@@ -1414,7 +1500,7 @@ policies and contribution forms [3].
                "expected a number greater than or equal to ${expected} but got ${actual}",
                {expected:expected, actual:actual});
     }
-    expose(assert_greater_than_equal, "assert_greater_than_equal");
+    expose_assert(assert_greater_than_equal, "assert_greater_than_equal");
 
     function assert_between_inclusive(actual, lower, upper, description)
     {
@@ -1432,7 +1518,7 @@ policies and contribution forms [3].
                "and less than or equal to ${upper} but got ${actual}",
                {lower:lower, upper:upper, actual:actual});
     }
-    expose(assert_between_inclusive, "assert_between_inclusive");
+    expose_assert(assert_between_inclusive, "assert_between_inclusive");
 
     function assert_regexp_match(actual, expected, description) {
         /*
@@ -1443,7 +1529,7 @@ policies and contribution forms [3].
                "expected ${expected} but got ${actual}",
                {expected:expected, actual:actual});
     }
-    expose(assert_regexp_match, "assert_regexp_match");
+    expose_assert(assert_regexp_match, "assert_regexp_match");
 
     function assert_class_string(object, class_string, description) {
         var actual = {}.toString.call(object);
@@ -1452,27 +1538,27 @@ policies and contribution forms [3].
                                              "expected ${expected} but got ${actual}",
                                              {expected:expected, actual:actual});
     }
-    expose(assert_class_string, "assert_class_string");
-
+    expose_assert(assert_class_string, "assert_class_string");
 
     function assert_own_property(object, property_name, description) {
         assert(object.hasOwnProperty(property_name),
                "assert_own_property", description,
                "expected property ${p} missing", {p:property_name});
     }
-    expose(assert_own_property, "assert_own_property");
+    expose_assert(assert_own_property, "assert_own_property");
 
     function assert_not_own_property(object, property_name, description) {
         assert(!object.hasOwnProperty(property_name),
                "assert_not_own_property", description,
                "unexpected property ${p} is found on object", {p:property_name});
     }
-    expose(assert_not_own_property, "assert_not_own_property");
+    expose_assert(assert_not_own_property, "assert_not_own_property");
 
     function _assert_inherits(name) {
         return function (object, property_name, description)
         {
-            assert(typeof object === "object" || typeof object === "function" ||
+            assert((typeof object === "object" && object !== null) ||
+                   typeof object === "function" ||
                    // Or has [[IsHTMLDDA]] slot
                    String(object) === "[object HTMLAllCollection]",
                    name, description,
@@ -1493,8 +1579,8 @@ policies and contribution forms [3].
                    {p:property_name});
         };
     }
-    expose(_assert_inherits("assert_inherits"), "assert_inherits");
-    expose(_assert_inherits("assert_idl_attribute"), "assert_idl_attribute");
+    expose_assert(_assert_inherits("assert_inherits"), "assert_inherits");
+    expose_assert(_assert_inherits("assert_idl_attribute"), "assert_idl_attribute");
 
     function assert_readonly(object, property_name, description)
     {
@@ -1511,7 +1597,7 @@ policies and contribution forms [3].
              object[property_name] = initial_value;
          }
     }
-    expose(assert_readonly, "assert_readonly");
+    expose_assert(assert_readonly, "assert_readonly");
 
     /**
      * Assert a JS Error with the expected constructor is thrown.
@@ -1525,7 +1611,7 @@ policies and contribution forms [3].
         assert_throws_js_impl(constructor, func, description,
                               "assert_throws_js");
     }
-    expose(assert_throws_js, "assert_throws_js");
+    expose_assert(assert_throws_js, "assert_throws_js");
 
     /**
      * Like assert_throws_js but allows specifying the assertion type
@@ -1623,7 +1709,7 @@ policies and contribution forms [3].
         }
         assert_throws_dom_impl(type, func, description, "assert_throws_dom", constructor)
     }
-    expose(assert_throws_dom, "assert_throws_dom");
+    expose_assert(assert_throws_dom, "assert_throws_dom");
 
     /**
      * Similar to assert_throws_dom but allows specifying the assertion type
@@ -1786,7 +1872,7 @@ policies and contribution forms [3].
         assert_throws_exactly_impl(exception, func, description,
                                    "assert_throws_exactly");
     }
-    expose(assert_throws_exactly, "assert_throws_exactly");
+    expose_assert(assert_throws_exactly, "assert_throws_exactly");
 
     /**
      * Like assert_throws_exactly but allows specifying the assertion type
@@ -1814,7 +1900,7 @@ policies and contribution forms [3].
          assert(false, "assert_unreached", description,
                 "Reached unreachable code");
     }
-    expose(assert_unreached, "assert_unreached");
+    expose_assert(assert_unreached, "assert_unreached");
 
     function assert_any(assert_func, actual, expected_array)
     {
@@ -1835,6 +1921,9 @@ policies and contribution forms [3].
             throw new AssertionError(errors.join("\n\n"));
         }
     }
+    // FIXME: assert_any cannot use expose_assert, because assert_wrapper does
+    // not support nested assert calls (e.g. to assert_func). We need to
+    // support bypassing assert_wrapper for the inner asserts here.
     expose(assert_any, "assert_any");
 
     /**
@@ -1852,7 +1941,7 @@ policies and contribution forms [3].
     function assert_implements(condition, description) {
         assert(!!condition, "assert_implements", description);
     }
-    expose(assert_implements, "assert_implements")
+    expose_assert(assert_implements, "assert_implements")
 
     /**
      * Assert that an optional feature is implemented, based on a 'truthy' condition.
@@ -1872,7 +1961,7 @@ policies and contribution forms [3].
             throw new OptionalFeatureUnsupportedError(description);
         }
     }
-    expose(assert_implements_optional, "assert_implements_optional")
+    expose_assert(assert_implements_optional, "assert_implements_optional")
 
     function Test(name, properties)
     {
@@ -1932,6 +2021,18 @@ policies and contribution forms [3].
         COMPLETE:4
     };
 
+    Test.prototype.status_formats = {
+        0: "Pass",
+        1: "Fail",
+        2: "Timeout",
+        3: "Not Run",
+        4: "Optional Feature Unsupported",
+    }
+
+    Test.prototype.format_status = function() {
+        return this.status_formats[this.status];
+    }
+
     Test.prototype.structured_clone = function()
     {
         if (!this._structured_clone) {
@@ -1956,11 +2057,16 @@ policies and contribution forms [3].
         if (this.phase > this.phases.STARTED) {
             return;
         }
+
+        if (settings.debug && this.phase !== this.phases.STARTED) {
+            console.log("TEST START", this.name);
+        }
         this.phase = this.phases.STARTED;
         //If we don't get a result before the harness times out that will be a test timeout
         this.set_status(this.TIMEOUT, "Test timed out");
 
         tests.started = true;
+        tests.current_test = this;
         tests.notify_test_state(this);
 
         if (this.timeout_id === null) {
@@ -1971,6 +2077,10 @@ policies and contribution forms [3].
 
         if (arguments.length === 1) {
             this_obj = this;
+        }
+
+        if (settings.debug) {
+            console.debug("TEST STEP", this.name);
         }
 
         try {
@@ -1986,6 +2096,8 @@ policies and contribution forms [3].
             this.set_status(status, message, stack);
             this.phase = this.phases.HAS_RESULT;
             this.done();
+        } finally {
+            this.current_test = null;
         }
     };
 
@@ -2203,6 +2315,12 @@ policies and contribution forms [3].
             clearTimeout(this.timeout_id);
         }
 
+        if (settings.debug) {
+            console.log("TEST DONE",
+                        this.status,
+                        this.name,)
+        }
+
         this.cleanup();
     };
 
@@ -2402,6 +2520,10 @@ policies and contribution forms [3].
                 });
     }
 
+    RemoteTest.prototype.format_status = function() {
+        return Test.prototype.status_formats[this.status];
+    }
+
     /*
      * A RemoteContext listens for test events from a remote test context, such
      * as another window or a worker. These events are then used to construct
@@ -2510,6 +2632,16 @@ policies and contribution forms [3].
             tests.set_status(data.status.status, data.status.message, data.status.sack);
         }
 
+        for (let assert of data.asserts) {
+            var record = new AssertRecord();
+            record.assert_name = assert.assert_name;
+            record.args = assert.args;
+            record.test = assert.test != null ? this.tests[assert.test.index] : null;
+            record.status = assert.status;
+            record.stack = assert.stack;
+            tests.asserts_run.push(record);
+        }
+
         this.message_target.removeEventListener("message", this.message_handler);
         this.running = false;
 
@@ -2559,6 +2691,14 @@ policies and contribution forms [3].
 
     TestsStatus.prototype = merge({}, TestsStatus.statuses);
 
+    TestsStatus.prototype.formats = {
+        0: "OK",
+        1: "Error",
+        2: "Timeout",
+        3: "Optional Feature Unsupported"
+    }
+
+
     TestsStatus.prototype.structured_clone = function()
     {
         if (!this._structured_clone) {
@@ -2572,6 +2712,27 @@ policies and contribution forms [3].
         }
         return this._structured_clone;
     };
+
+    TestsStatus.prototype.format_status = function() {
+        return this.formats[this.status];
+    }
+
+    function AssertRecord(test, assert_name, args = []) {
+        this.assert_name = assert_name;
+        this.test = test;
+        // Avoid keeping complex objects alive
+        this.args = args.map(x => format_value(x).replace(/\n/g, " "));
+        this.status = null;
+    }
+
+    AssertRecord.prototype.structured_clone = function() {
+        return {
+            assert_name: this.assert_name,
+            test: this.test ? this.test.structured_clone() : null,
+            args: this.args,
+            status: this.status,
+        }
+    }
 
     function Tests()
     {
@@ -2611,6 +2772,18 @@ policies and contribution forms [3].
 
         this.hide_test_state = false;
         this.pending_remotes = [];
+
+        this.current_test = null;
+        this.asserts_run = [];
+
+        // Track whether output is enabled, and thus whether or not we should
+        // track asserts.
+        //
+        // On workers we don't get properties set from testharnessreport.js, so
+        // we don't know whether or not to track asserts. To avoid the
+        // resulting performance hit, we assume we are not meant to. This means
+        // that assert tracking does not function on workers.
+        this.output = settings.output && 'document' in global_scope;
 
         this.status = new TestsStatus();
 
@@ -2659,6 +2832,10 @@ policies and contribution forms [3].
                     }
                 } else if (p == "hide_test_state") {
                     this.hide_test_state = value;
+                } else if (p == "output") {
+                    this.output = value;
+                } else if (p === "debug") {
+                    settings.debug = value;
                 }
             }
         }
@@ -2683,7 +2860,7 @@ policies and contribution forms [3].
         this.wait_for_finish = true;
         this.file_is_test = true;
         // Create the test, which will add it to the list of tests
-        async_test();
+        tests.current_test = async_test();
     };
 
     Tests.prototype.set_status = function(status, message, stack)
@@ -2847,6 +3024,16 @@ policies and contribution forms [3].
                   all_complete);
     };
 
+    Tests.prototype.set_assert = function(assert_name, args) {
+        this.asserts_run.push(new AssertRecord(this.current_test, assert_name, args))
+    }
+
+    Tests.prototype.set_assert_status = function(status, stack) {
+        let assert_record = this.asserts_run[this.asserts_run.length - 1];
+        assert_record.status = status;
+        assert_record.stack = stack;
+    }
+
     /**
      * Update the harness status to reflect an unrecoverable harness error that
      * should cancel all further testing. Update all previously-defined tests
@@ -2889,22 +3076,16 @@ policies and contribution forms [3].
     }
 
     function sanitize_unpaired_surrogates(str) {
-        return str.replace(/([\ud800-\udbff])(?![\udc00-\udfff])/g,
-                           function(_, unpaired)
-                           {
-                               return code_unit_str(unpaired);
-                           })
-                  // This replacement is intentionally implemented without an
-                  // ES2018 negative lookbehind assertion to support runtimes
-                  // which do not yet implement that language feature.
-                  .replace(/(^|[^\ud800-\udbff])([\udc00-\udfff])/g,
-                           function(_, previous, unpaired) {
-                              if (/[\udc00-\udfff]/.test(previous)) {
-                                  previous = code_unit_str(previous);
-                              }
-
-                              return previous + code_unit_str(unpaired);
-                           });
+        return str.replace(
+            /([\ud800-\udbff]+)(?![\udc00-\udfff])|(^|[^\ud800-\udbff])([\udc00-\udfff]+)/g,
+            function(_, low, prefix, high) {
+                var output = prefix || "";  // prefix may be undefined
+                var string = low || high;  // only one of these alternates can match
+                for (var i = 0; i < string.length; i++) {
+                    output += code_unit_str(string[i]);
+                }
+                return output;
+            });
     }
 
     function sanitize_all_unpaired_surrogates(tests) {
@@ -2950,7 +3131,7 @@ policies and contribution forms [3].
         forEach (this.all_done_callbacks,
                  function(callback)
                  {
-                     callback(this_obj.tests, this_obj.status);
+                     callback(this_obj.tests, this_obj.status, this_obj.asserts_run);
                  });
     };
 
@@ -3176,7 +3357,7 @@ policies and contribution forms [3].
         }
     };
 
-    Output.prototype.show_results = function (tests, harness_status) {
+    Output.prototype.show_results = function (tests, harness_status, asserts_run) {
         if (this.phase >= this.COMPLETE) {
             return;
         }
@@ -3205,23 +3386,10 @@ policies and contribution forms [3].
             heads[0].appendChild(stylesheet);
         }
 
-        var status_text_harness = {};
-        status_text_harness[harness_status.OK] = "OK";
-        status_text_harness[harness_status.ERROR] = "Error";
-        status_text_harness[harness_status.TIMEOUT] = "Timeout";
-        status_text_harness[harness_status.PRECONDITION_FAILED] = "Optional Feature Unsupported";
-
-        var status_text = {};
-        status_text[Test.prototype.PASS] = "Pass";
-        status_text[Test.prototype.FAIL] = "Fail";
-        status_text[Test.prototype.TIMEOUT] = "Timeout";
-        status_text[Test.prototype.NOTRUN] = "Not Run";
-        status_text[Test.prototype.PRECONDITION_FAILED] = "Optional Feature Unsupported";
-
         var status_number = {};
         forEach(tests,
                 function(test) {
-                    var status = status_text[test.status];
+                    var status = test.format_status();
                     if (status_number.hasOwnProperty(status)) {
                         status_number[status] += 1;
                     } else {
@@ -3238,8 +3406,7 @@ policies and contribution forms [3].
                                 ["h2", {}, "Summary"],
                                 function()
                                 {
-
-                                    var status = status_text_harness[harness_status.status];
+                                    var status = harness_status.format_status();
                                     var rv = [["section", {},
                                                ["p", {},
                                                 "Harness status: ",
@@ -3261,13 +3428,14 @@ policies and contribution forms [3].
                                 function() {
                                     var rv = [["div", {}]];
                                     var i = 0;
-                                    while (status_text.hasOwnProperty(i)) {
-                                        if (status_number.hasOwnProperty(status_text[i])) {
-                                            var status = status_text[i];
-                                            rv[0].push(["div", {"class":status_class(status)},
+                                    while (Test.prototype.status_formats.hasOwnProperty(i)) {
+                                        if (status_number.hasOwnProperty(Test.prototype.status_formats[i])) {
+                                            var status = Test.prototype.status_formats[i];
+                                            rv[0].push(["div", {},
                                                         ["label", {},
                                                          ["input", {type:"checkbox", checked:"checked"}],
-                                                         status_number[status] + " " + status]]);
+                                                         status_number[status] + " ",
+                                                         ["span", {"class":status_class(status)}, status]]]);
                                         }
                                         i++;
                                     }
@@ -3287,13 +3455,13 @@ policies and contribution forms [3].
                                      e.preventDefault();
                                      return;
                                  }
-                                 var result_class = element.parentNode.getAttribute("class");
+                                 var result_class = element.querySelector("span[class]").getAttribute("class");
                                  var style_element = output_document.querySelector("style#hide-" + result_class);
                                  var input_element = element.querySelector("input");
                                  if (!style_element && !input_element.checked) {
                                      style_element = output_document.createElementNS(xhtml_ns, "style");
                                      style_element.id = "hide-" + result_class;
-                                     style_element.textContent = "table#results > tbody > tr."+result_class+"{display:none}";
+                                     style_element.textContent = "table#results > tbody > tr.overall-"+result_class+"{display:none}";
                                      output_document.body.appendChild(style_element);
                                  } else if (style_element && input_element.checked) {
                                      style_element.parentNode.removeChild(style_element);
@@ -3334,6 +3502,52 @@ policies and contribution forms [3].
             return '';
         }
 
+        var asserts_run_by_test = new Map();
+        asserts_run.forEach(assert => {
+            if (!asserts_run_by_test.has(assert.test)) {
+                asserts_run_by_test.set(assert.test, []);
+            }
+            asserts_run_by_test.get(assert.test).push(assert);
+        });
+
+        function get_asserts_output(test) {
+            var asserts = asserts_run_by_test.get(test);
+            if (!asserts) {
+                return "No asserts ran";
+            }
+            rv = "<table>";
+            rv += asserts.map(assert => {
+                var output_fn = "<strong>" + escape_html(assert.assert_name) + "</strong>(";
+                var prefix_len = output_fn.length;
+                var output_args = assert.args;
+                var output_len = output_args.reduce((prev, current) => prev+current, prefix_len);
+                if (output_len[output_len.length - 1] > 50) {
+                    output_args = output_args.map((x, i) =>
+                    (i > 0 ? "  ".repeat(prefix_len) : "" )+ x + (i < output_args.length - 1 ? ",\n" : ""));
+                } else {
+                    output_args = output_args.map((x, i) => x + (i < output_args.length - 1 ? ", " : ""));
+                }
+                output_fn += escape_html(output_args.join(""));
+                output_fn += ')';
+                var output_location;
+                if (assert.stack) {
+                    output_location = assert.stack.split("\n", 1)[0].replace(/@?\w+:\/\/[^ "\/]+(?::\d+)?/g, " ");
+                }
+                return "<tr class='overall-" +
+                    status_class(Test.prototype.status_formats[assert.status]) + "'>" +
+                    "<td class='" +
+                    status_class(Test.prototype.status_formats[assert.status]) + "'>" +
+                    Test.prototype.status_formats[assert.status] + "</td>" +
+                    "<td><pre>" +
+                    output_fn +
+                    (output_location ? "\n" + escape_html(output_location) : "") +
+                    "</pre></td></tr>";
+            }
+            ).join("\n");
+            rv += "</table>";
+            return rv;
+        }
+
         log.appendChild(document.createElementNS(xhtml_ns, "section"));
         var assertions = has_assertions();
         var html = "<h2>Details</h2><table id='results' " + (assertions ? "class='assertions'" : "" ) + ">" +
@@ -3342,19 +3556,26 @@ policies and contribution forms [3].
             "<th>Message</th></tr></thead>" +
             "<tbody>";
         for (var i = 0; i < tests.length; i++) {
-            html += '<tr class="' +
-                escape_html(status_class(status_text[tests[i].status])) +
-                '"><td>' +
-                escape_html(status_text[tests[i].status]) +
+            var test = tests[i];
+            html += '<tr class="overall-' +
+                status_class(test.format_status()) +
+                '">' +
+                '<td class="' +
+                status_class(test.format_status()) +
+                '">' +
+                test.format_status() +
                 "</td><td>" +
-                escape_html(tests[i].name) +
+                escape_html(test.name) +
                 "</td><td>" +
-                (assertions ? escape_html(get_assertion(tests[i])) + "</td><td>" : "") +
-                escape_html(tests[i].message ? tests[i].message : " ") +
+                (assertions ? escape_html(get_assertion(test)) + "</td><td>" : "") +
+                escape_html(test.message ? tests[i].message : " ") +
                 (tests[i].stack ? "<pre>" +
                  escape_html(tests[i].stack) +
-                 "</pre>": "") +
-                "</td></tr>";
+                 "</pre>": "");
+            if (!(test instanceof RemoteTest)) {
+                 html += "<details><summary>Asserts run</summary>" + get_asserts_output(test) + "</details>"
+            }
+            html += "</td></tr>";
         }
         html += "</tbody></table>";
         try {
@@ -3545,14 +3766,17 @@ policies and contribution forms [3].
 
     function AssertionError(message)
     {
+        if (typeof message == "string") {
+            message = sanitize_unpaired_surrogates(message);
+        }
         this.message = message;
-        this.stack = this.get_stack();
+        this.stack = get_stack();
     }
     expose(AssertionError, "AssertionError");
 
     AssertionError.prototype = Object.create(Error.prototype);
 
-    AssertionError.prototype.get_stack = function() {
+    const get_stack = function() {
         var stack = new Error().stack;
         // IE11 does not initialize 'Error.stack' until the object is thrown.
         if (!stack) {
@@ -3773,7 +3997,7 @@ policies and contribution forms [3].
     function get_title()
     {
         if ('document' in global_scope) {
-            //Don't use document.title to work around an Opera bug in XHTML documents
+            //Don't use document.title to work around an Opera/Presto bug in XHTML documents
             var title = document.getElementsByTagName("title")[0];
             if (title && title.firstChild && title.firstChild.data) {
                 return title.firstChild.data;
@@ -3916,54 +4140,62 @@ table#results {\
     width:100%;\
 }\
 \
-table#results th:first-child,\
-table#results td:first-child {\
+table#results > thead > tr > th:first-child,\
+table#results > tbody > tr > td:first-child {\
     width:8em;\
 }\
 \
-table#results th:last-child,\
-table#results td:last-child {\
+table#results > thead > tr > th:last-child,\
+table#results > thead > tr > td:last-child {\
     width:50%;\
 }\
 \
-table#results.assertions th:last-child,\
-table#results.assertions td:last-child {\
+table#results.assertions > thead > tr > th:last-child,\
+table#results.assertions > tbody > tr > td:last-child {\
     width:35%;\
 }\
 \
-table#results th {\
+table#results > thead > > tr > th {\
     padding:0;\
     padding-bottom:0.5em;\
     border-bottom:medium solid black;\
 }\
 \
-table#results td {\
+table#results > tbody > tr> td {\
     padding:1em;\
     padding-bottom:0.5em;\
     border-bottom:thin solid black;\
 }\
 \
-tr.pass > td:first-child {\
+.pass {\
     color:green;\
 }\
 \
-tr.fail > td:first-child {\
+.fail {\
     color:red;\
 }\
 \
-tr.timeout > td:first-child {\
+tr.timeout {\
     color:red;\
 }\
 \
-tr.notrun > td:first-child {\
+tr.notrun {\
     color:blue;\
 }\
 \
-tr.optionalunsupported > td:first-child {\
+tr.optionalunsupported {\
     color:blue;\
 }\
 \
-.pass > td:first-child, .fail > td:first-child, .timeout > td:first-child, .notrun > td:first-child, .optionalunsupported > td:first-child {\
+.ok {\
+    color:green;\
+}\
+\
+.error {\
+    color:red;\
+}\
+\
+.pass, .fail, .timeout, .notrun, .optionalunsupported .ok, .timeout, .error {\
     font-variant:small-caps;\
 }\
 \
@@ -3979,22 +4211,6 @@ table#results span.expected {\
 table#results span.actual {\
     font-family:DejaVu Sans Mono, Bitstream Vera Sans Mono, Monospace;\
     white-space:pre;\
-}\
-\
-span.ok {\
-    color:green;\
-}\
-\
-tr.error {\
-    color:red;\
-}\
-\
-span.timeout {\
-    color:red;\
-}\
-\
-span.ok, span.timeout, span.error {\
-    font-variant:small-caps;\
 }\
 ";
 

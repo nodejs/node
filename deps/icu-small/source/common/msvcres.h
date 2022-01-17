@@ -11,15 +11,15 @@
 //
 
 /*
-These are defined before unicode/uversion.h in order to prevent
-STLPort's broken stddef.h from being used when rc.exe parses this file.
+These are defined before unicode/uversion.h in order to prevent 
+STLPort's broken stddef.h from being used when rc.exe parses this file. 
 */
 #define _STLP_OUTERMOST_HEADER_ID 0
 #define _STLP_WINCE 1
 
 #include "unicode/uversion.h"
 
-#define ICU_WEBSITE "http://icu-project.org"
+#define ICU_WEBSITE "https://icu.unicode.org/"
 #define ICU_COMPANY "The ICU Project"
 #define ICU_PRODUCT_PREFIX "ICU"
 #define ICU_PRODUCT "International Components for Unicode"

@@ -48,6 +48,7 @@ class TTYTestCase(test.TestCase):
     self.config = config
     self.arch = arch
     self.mode = mode
+    self.parallel = True
 
   def IgnoreLine(self, str_arg):
     """Ignore empty lines and valgrind output."""
@@ -70,7 +71,7 @@ class TTYTestCase(test.TestCase):
     raw_lines = (output.stdout + output.stderr).split('\n')
     outlines = [ s.rstrip() for s in raw_lines if not self.IgnoreLine(s) ]
     if len(outlines) != len(patterns):
-      print("length differs.")
+      print(" length differs.")
       print("expect=%d" % len(patterns))
       print("actual=%d" % len(outlines))
       print("patterns:")
@@ -82,7 +83,7 @@ class TTYTestCase(test.TestCase):
       return True
     for i in range(len(patterns)):
       if not re.match(patterns[i], outlines[i]):
-        print("match failed")
+        print(" match failed")
         print("line=%d" % i)
         print("expect=%s" % patterns[i])
         print("actual=%s" % outlines[i])

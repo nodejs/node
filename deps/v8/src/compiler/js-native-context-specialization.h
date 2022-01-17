@@ -6,6 +6,7 @@
 #define V8_COMPILER_JS_NATIVE_CONTEXT_SPECIALIZATION_H_
 
 #include "src/base/flags.h"
+#include "src/base/optional.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -16,7 +17,6 @@ namespace internal {
 
 // Forward declarations.
 class Factory;
-class FeedbackNexus;
 class JSGlobalObject;
 class JSGlobalProxy;
 class StringConstantBase;
@@ -54,6 +54,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                 JSHeapBroker* broker, Flags flags,
                                 CompilationDependencies* dependencies,
                                 Zone* zone, Zone* shared_zone);
+  JSNativeContextSpecialization(const JSNativeContextSpecialization&) = delete;
+  JSNativeContextSpecialization& operator=(
+      const JSNativeContextSpecialization&) = delete;
 
   const char* reducer_name() const override {
     return "JSNativeContextSpecialization";
@@ -81,6 +84,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSLoadGlobal(Node* node);
   Reduction ReduceJSStoreGlobal(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
+  Reduction ReduceJSLoadNamedFromSuper(Node* node);
   Reduction ReduceJSGetIterator(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
   Reduction ReduceJSHasProperty(Node* node);
@@ -92,7 +96,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSToObject(Node* node);
 
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
-                                ElementAccessFeedback const& processed);
+                                ElementAccessFeedback const& feedback);
   // In the case of non-keyed (named) accesses, pass the name as {static_name}
   // and use {nullptr} for {key} (load/store modes are irrelevant).
   Reduction ReducePropertyAccess(Node* node, Node* key,
@@ -100,18 +104,17 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                  Node* value, FeedbackSource const& source,
                                  AccessMode access_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
-                              NamedAccessFeedback const& processed,
+                              NamedAccessFeedback const& feedback,
                               AccessMode access_mode, Node* key = nullptr);
   Reduction ReduceMinimorphicPropertyAccess(
       Node* node, Node* value,
       MinimorphicLoadPropertyAccessFeedback const& feedback,
       FeedbackSource const& source);
-  Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
-                               NameRef const& name, AccessMode access_mode,
-                               Node* key = nullptr);
-  Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
-                               NameRef const& name, AccessMode access_mode,
-                               Node* key, PropertyCellRef const& property_cell);
+  Reduction ReduceGlobalAccess(Node* node, Node* lookup_start_object,
+                               Node* receiver, Node* value, NameRef const& name,
+                               AccessMode access_mode, Node* key,
+                               PropertyCellRef const& property_cell,
+                               Node* effect = nullptr);
   Reduction ReduceElementLoadFromHeapConstant(Node* node, Node* key,
                                               AccessMode access_mode,
                                               KeyedAccessLoadMode load_mode);
@@ -123,7 +126,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
 
   Reduction ReduceJSLoadPropertyWithEnumeratedKey(Node* node);
 
-  const StringConstantBase* CreateDelayedStringConstant(Node* node);
+  base::Optional<const StringConstantBase*> CreateDelayedStringConstant(
+      Node* node);
 
   // A triple of nodes that represents a continuation.
   class ValueEffectControl final {
@@ -143,19 +147,17 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
     Node* control_;
   };
 
-  // Construct the appropriate subgraph for property access.
-  ValueEffectControl BuildPropertyAccess(Node* receiver, Node* value,
-                                         Node* context, Node* frame_state,
-                                         Node* effect, Node* control,
-                                         NameRef const& name,
-                                         ZoneVector<Node*>* if_exceptions,
-                                         PropertyAccessInfo const& access_info,
-                                         AccessMode access_mode);
-  ValueEffectControl BuildPropertyLoad(Node* receiver, Node* context,
-                                       Node* frame_state, Node* effect,
-                                       Node* control, NameRef const& name,
-                                       ZoneVector<Node*>* if_exceptions,
-                                       PropertyAccessInfo const& access_info);
+  // Construct the appropriate subgraph for property access. Return {} if the
+  // property access couldn't be built.
+  base::Optional<ValueEffectControl> BuildPropertyAccess(
+      Node* lookup_start_object, Node* receiver, Node* value, Node* context,
+      Node* frame_state, Node* effect, Node* control, NameRef const& name,
+      ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info,
+      AccessMode access_mode);
+  base::Optional<ValueEffectControl> BuildPropertyLoad(
+      Node* lookup_start_object, Node* receiver, Node* context,
+      Node* frame_state, Node* effect, Node* control, NameRef const& name,
+      ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info);
 
   ValueEffectControl BuildPropertyStore(Node* receiver, Node* value,
                                         Node* context, Node* frame_state,
@@ -169,9 +171,10 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                        PropertyAccessInfo const& access_info);
 
   // Helpers for accessor inlining.
-  Node* InlinePropertyGetterCall(Node* receiver, Node* context,
-                                 Node* frame_state, Node** effect,
-                                 Node** control,
+  Node* InlinePropertyGetterCall(Node* receiver,
+                                 ConvertReceiverMode receiver_mode,
+                                 Node* context, Node* frame_state,
+                                 Node** effect, Node** control,
                                  ZoneVector<Node*>* if_exceptions,
                                  PropertyAccessInfo const& access_info);
   void InlinePropertySetterCall(Node* receiver, Node* value, Node* context,
@@ -181,7 +184,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                 PropertyAccessInfo const& access_info);
   Node* InlineApiCall(Node* receiver, Node* holder, Node* frame_state,
                       Node* value, Node** effect, Node** control,
-                      SharedFunctionInfoRef const& shared_info,
                       FunctionTemplateInfoRef const& function_template_info);
 
   // Construct the appropriate subgraph for element access.
@@ -208,22 +210,20 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
   // code dependencies and might use the array protector cell.
-  bool CanTreatHoleAsUndefined(ZoneVector<Handle<Map>> const& receiver_maps);
+  bool CanTreatHoleAsUndefined(ZoneVector<MapRef> const& receiver_maps);
 
-  void RemoveImpossibleReceiverMaps(
-      Node* receiver, ZoneVector<Handle<Map>>* receiver_maps) const;
+  void RemoveImpossibleMaps(Node* object, ZoneVector<MapRef>* maps) const;
 
   ElementAccessFeedback const& TryRefineElementAccessFeedback(
       ElementAccessFeedback const& feedback, Node* receiver,
-      Node* effect) const;
+      Effect effect) const;
 
-  // Try to infer maps for the given {receiver} at the current {effect}.
-  bool InferReceiverMaps(Node* receiver, Node* effect,
-                         ZoneVector<Handle<Map>>* receiver_maps) const;
+  // Try to infer maps for the given {object} at the current {effect}.
+  bool InferMaps(Node* object, Effect effect, ZoneVector<MapRef>* maps) const;
 
-  // Try to infer a root map for the {receiver} independent of the current
-  // program location.
-  base::Optional<MapRef> InferReceiverRootMap(Node* receiver) const;
+  // Try to infer a root map for the {object} independent of the current program
+  // location.
+  base::Optional<MapRef> InferRootMap(Node* object) const;
 
   // Checks if we know at compile time that the {receiver} either definitely
   // has the {prototype} in it's prototype chain, or the {receiver} definitely
@@ -234,7 +234,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
     kMayBeInPrototypeChain
   };
   InferHasInPrototypeChainResult InferHasInPrototypeChain(
-      Node* receiver, Node* effect, HeapObjectRef const& prototype);
+      Node* receiver, Effect effect, HeapObjectRef const& prototype);
+
+  Node* BuildLoadPrototypeFromObject(Node* object, Node* effect, Node* control);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -254,7 +256,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
   Zone* shared_zone() const { return shared_zone_; }
-  bool should_disallow_heap_access() const;
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
@@ -265,8 +266,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Zone* const zone_;
   Zone* const shared_zone_;
   TypeCache const* type_cache_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSNativeContextSpecialization);
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSNativeContextSpecialization::Flags)

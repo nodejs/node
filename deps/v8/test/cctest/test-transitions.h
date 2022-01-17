@@ -13,7 +13,7 @@ namespace internal {
 class TestTransitionsAccessor : public TransitionsAccessor {
  public:
   TestTransitionsAccessor(Isolate* isolate, Map map,
-                          DisallowHeapAllocation* no_gc)
+                          DisallowGarbageCollection* no_gc)
       : TransitionsAccessor(isolate, map, no_gc) {}
   TestTransitionsAccessor(Isolate* isolate, Handle<Map> map)
       : TransitionsAccessor(isolate, map) {}
@@ -27,6 +27,8 @@ class TestTransitionsAccessor : public TransitionsAccessor {
   }
 
   int Capacity() { return TransitionsAccessor::Capacity(); }
+
+  TransitionArray transitions() { return TransitionsAccessor::transitions(); }
 };
 
 }  // namespace internal

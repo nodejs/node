@@ -8,7 +8,7 @@ const MAX_AGE = 3 * 60 * 1000
 const MEMOIZED = new LRU({
   max: MAX_SIZE,
   maxAge: MAX_AGE,
-  length: (entry, key) => key.startsWith('key:') ? entry.data.length : entry.length
+  length: (entry, key) => key.startsWith('key:') ? entry.data.length : entry.length,
 })
 
 module.exports.clearMemoized = clearMemoized
@@ -62,13 +62,12 @@ class ObjProxy {
 }
 
 function pickMem (opts) {
-  if (!opts || !opts.memoize) {
+  if (!opts || !opts.memoize)
     return MEMOIZED
-  } else if (opts.memoize.get && opts.memoize.set) {
+  else if (opts.memoize.get && opts.memoize.set)
     return opts.memoize
-  } else if (typeof opts.memoize === 'object') {
+  else if (typeof opts.memoize === 'object')
     return new ObjProxy(opts.memoize)
-  } else {
+  else
     return MEMOIZED
-  }
 }

@@ -119,7 +119,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
         return;
     }
 
-    // Accomodate the longest possible name
+    // Accommodate the longest possible name
     ++maxLen; // allow for temporary trailing space
     char* cbuf = (char*) uprv_malloc(maxLen);
     if (cbuf == NULL) {
@@ -220,7 +220,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
                 openPos = -1; // close off candidate
                 continue; // *** reprocess char32At(cursor)
             }
-
+            
             // Check if c is a legal char.  We assume here that
             // legal.contains(OPEN_DELIM) is FALSE, so when we abort a
             // name, we don't have to go back to openPos+1.
@@ -232,7 +232,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
                     mode = 0;
                 }
             }
-
+            
             // Invalid character
             else {
                 --cursor; // Backup and reprocess this character
@@ -244,7 +244,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
 
         cursor += U16_LENGTH(c);
     }
-
+        
     offsets.contextLimit += limit - offsets.limit;
     offsets.limit = limit;
     // In incremental mode, only advance the cursor up to the last

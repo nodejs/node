@@ -1,0 +1,5 @@
+{
+  "structured-clone.any.js": {
+    "skip": "Missing File API"
+  }
+}

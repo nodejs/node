@@ -20,7 +20,7 @@ U_NAMESPACE_BEGIN
 /**
  * \file
  * \brief C++ API: Abstract operations for localized strings.
- *
+ * 
  * This file contains declarations for classes that deal with formatted strings. A number
  * of APIs throughout ICU use these classes for expressing their localized output.
  */
@@ -65,7 +65,7 @@ class U_I18N_API ConstrainedFieldPosition : public UMemory {
 
     /**
      * Sets a constraint on the field category.
-     *
+     * 
      * When this instance of ConstrainedFieldPosition is passed to FormattedValue#nextPosition,
      * positions are skipped unless they have the given category.
      *
@@ -89,7 +89,7 @@ class U_I18N_API ConstrainedFieldPosition : public UMemory {
 
     /**
      * Sets a constraint on the category and field.
-     *
+     * 
      * When this instance of ConstrainedFieldPosition is passed to FormattedValue#nextPosition,
      * positions are skipped unless they have the given category and field.
      *
@@ -116,7 +116,7 @@ class U_I18N_API ConstrainedFieldPosition : public UMemory {
      * Gets the field category for the current position.
      *
      * The return value is well-defined only after
-     * FormattedValue#nextPosition returns TRUE.
+     * FormattedValue#nextPosition returns true.
      *
      * @return The field category saved in the instance.
      * @stable ICU 64
@@ -129,7 +129,7 @@ class U_I18N_API ConstrainedFieldPosition : public UMemory {
      * Gets the field for the current position.
      *
      * The return value is well-defined only after
-     * FormattedValue#nextPosition returns TRUE.
+     * FormattedValue#nextPosition returns true.
      *
      * @return The field saved in the instance.
      * @stable ICU 64
@@ -141,7 +141,7 @@ class U_I18N_API ConstrainedFieldPosition : public UMemory {
     /**
      * Gets the INCLUSIVE start index for the current position.
      *
-     * The return value is well-defined only after FormattedValue#nextPosition returns TRUE.
+     * The return value is well-defined only after FormattedValue#nextPosition returns true.
      *
      * @return The start index saved in the instance.
      * @stable ICU 64
@@ -153,7 +153,7 @@ class U_I18N_API ConstrainedFieldPosition : public UMemory {
     /**
      * Gets the EXCLUSIVE end index stored for the current position.
      *
-     * The return value is well-defined only after FormattedValue#nextPosition returns TRUE.
+     * The return value is well-defined only after FormattedValue#nextPosition returns true.
      *
      * @return The end index saved in the instance.
      * @stable ICU 64
@@ -301,8 +301,8 @@ class U_I18N_API FormattedValue /* not : public UObject because this is an inter
      *         see ConstrainedFieldPosition#constrainCategory
      *         and ConstrainedFieldPosition#constrainField.
      * @param status Set if an error occurs.
-     * @return TRUE if a new occurrence of the field was found;
-     *         FALSE otherwise or if an error was set.
+     * @return true if a new occurrence of the field was found;
+     *         false otherwise or if an error was set.
      *
      * @stable ICU 64
      */

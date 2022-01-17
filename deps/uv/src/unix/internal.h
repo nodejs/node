@@ -62,6 +62,17 @@
 # include <AvailabilityMacros.h>
 #endif
 
+/*
+ * Define common detection for active Thread Sanitizer
+ * - clang uses __has_feature(thread_sanitizer)
+ * - gcc-7+ uses __SANITIZE_THREAD__
+ */
+#if defined(__has_feature)
+# if __has_feature(thread_sanitizer)
+#  define __SANITIZE_THREAD__ 1
+# endif
+#endif
+
 #if defined(PATH_MAX)
 # define UV__PATH_MAX PATH_MAX
 #else
@@ -165,9 +176,11 @@ struct uv__stream_queued_fds_s {
     defined(__NetBSD__)
 #define uv__cloexec uv__cloexec_ioctl
 #define uv__nonblock uv__nonblock_ioctl
+#define UV__NONBLOCK_IS_IOCTL 1
 #else
 #define uv__cloexec uv__cloexec_fcntl
 #define uv__nonblock uv__nonblock_fcntl
+#define UV__NONBLOCK_IS_IOCTL 0
 #endif
 
 /* On Linux, uv__nonblock_fcntl() and uv__nonblock_ioctl() do not commute
@@ -246,6 +259,7 @@ int uv__signal_loop_fork(uv_loop_t* loop);
 /* platform specific */
 uint64_t uv__hrtime(uv_clocktype_t type);
 int uv__kqueue_init(uv_loop_t* loop);
+int uv__epoll_init(uv_loop_t* loop);
 int uv__platform_loop_init(uv_loop_t* loop);
 void uv__platform_loop_delete(uv_loop_t* loop);
 void uv__platform_invalidate_fd(uv_loop_t* loop, int fd);
@@ -261,6 +275,7 @@ void uv__prepare_close(uv_prepare_t* handle);
 void uv__process_close(uv_process_t* handle);
 void uv__stream_close(uv_stream_t* handle);
 void uv__tcp_close(uv_tcp_t* handle);
+size_t uv__thread_stack_size(void);
 void uv__udp_close(uv_udp_t* handle);
 void uv__udp_finish_close(uv_udp_t* handle);
 uv_handle_type uv__handle_type(int fd);
@@ -281,12 +296,6 @@ int uv___stream_fd(const uv_stream_t* handle);
 #else
 #define uv__stream_fd(handle) ((handle)->io_watcher.fd)
 #endif /* defined(__APPLE__) */
-
-#ifdef O_NONBLOCK
-# define UV__F_NONBLOCK O_NONBLOCK
-#else
-# define UV__F_NONBLOCK 1
-#endif
 
 int uv__make_pipe(int fds[2], int flags);
 
@@ -327,7 +336,8 @@ int uv__getsockpeername(const uv_handle_t* handle,
 
 #if defined(__linux__)            ||                                      \
     defined(__FreeBSD__)          ||                                      \
-    defined(__FreeBSD_kernel__)
+    defined(__FreeBSD_kernel__)   ||                                       \
+    defined(__DragonFly__)
 #define HAVE_MMSG 1
 struct uv__mmsghdr {
   struct msghdr msg_hdr;
@@ -338,6 +348,12 @@ int uv__recvmmsg(int fd, struct uv__mmsghdr* mmsg, unsigned int vlen);
 int uv__sendmmsg(int fd, struct uv__mmsghdr* mmsg, unsigned int vlen);
 #else
 #define HAVE_MMSG 0
+#endif
+
+#if defined(__sun)
+#if !defined(_POSIX_VERSION) || _POSIX_VERSION < 200809L
+size_t strnlen(const char* s, size_t maxlen);
+#endif
 #endif
 
 

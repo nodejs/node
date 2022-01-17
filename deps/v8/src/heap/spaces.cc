@@ -11,6 +11,7 @@
 #include "src/base/bits.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/macros.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
@@ -31,7 +32,6 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/sanitizer/msan.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/ostreams.h"
 
@@ -44,6 +44,9 @@ namespace internal {
 // in order to figure out if it's a cleared weak reference or not.
 STATIC_ASSERT(kClearedWeakHeapObjectLower32 > 0);
 STATIC_ASSERT(kClearedWeakHeapObjectLower32 < Page::kHeaderSize);
+
+// static
+constexpr Page::MainThreadFlags Page::kCopyOnFlipFlagsMask;
 
 void Page::AllocateFreeListCategories() {
   DCHECK_NULL(categories_);
@@ -82,7 +85,7 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   DCHECK(old_page->InNewSpace());
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
-  old_page->SetFlags(0, static_cast<uintptr_t>(~0));
+  old_page->ClearFlags(Page::kAllFlagsMask);
   Page* new_page = old_space->InitializePage(old_page);
   old_space->AddPage(new_page);
   return new_page;
@@ -246,9 +249,15 @@ void Space::RemoveAllocationObserver(AllocationObserver* observer) {
   allocation_counter_.RemoveAllocationObserver(observer);
 }
 
-void Space::PauseAllocationObservers() { allocation_counter_.Pause(); }
+void Space::PauseAllocationObservers() {
+  allocation_observers_paused_depth_++;
+  if (allocation_observers_paused_depth_ == 1) allocation_counter_.Pause();
+}
 
-void Space::ResumeAllocationObservers() { allocation_counter_.Resume(); }
+void Space::ResumeAllocationObservers() {
+  allocation_observers_paused_depth_--;
+  if (allocation_observers_paused_depth_ == 0) allocation_counter_.Resume();
+}
 
 Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
                                           size_t min_size) {
@@ -269,8 +278,8 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
         RoundSizeDownToObjectAlignment(static_cast<int>(step - 1));
     // Use uint64_t to avoid overflow on 32-bit
     uint64_t step_end =
-        static_cast<uint64_t>(start) + Max(min_size, rounded_step);
-    uint64_t new_end = Min(step_end, static_cast<uint64_t>(end));
+        static_cast<uint64_t>(start) + std::max(min_size, rounded_step);
+    uint64_t new_end = std::min(step_end, static_cast<uint64_t>(end));
     return static_cast<Address>(new_end);
   } else {
     // The entire node can be used as the linear allocation area.
@@ -379,7 +388,7 @@ void SpaceWithLinearArea::AdvanceAllocationObservers() {
 }
 
 void SpaceWithLinearArea::MarkLabStartInitialized() {
-  allocation_info_.MoveStartToTop();
+  allocation_info_.ResetStart();
   if (identity() == NEW_SPACE) {
     heap()->new_space()->MoveOriginalTopForward();
 
@@ -419,7 +428,8 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
     // Ensure that there is a valid object
     if (identity() == CODE_SPACE) {
       MemoryChunk* chunk = MemoryChunk::FromAddress(soon_object);
-      heap()->UnprotectAndRegisterMemoryChunk(chunk);
+      heap()->UnprotectAndRegisterMemoryChunk(
+          chunk, UnprotectMemoryOrigin::kMainThread);
     }
     heap_->CreateFillerObjectAt(soon_object, static_cast<int>(size_in_bytes),
                                 ClearRecordedSlots::kNo);

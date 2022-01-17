@@ -8,13 +8,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce consistent naming when capturing the current execution context",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/consistent-this"
         },
@@ -47,7 +47,7 @@ module.exports = {
          * Reports that a variable declarator or assignment expression is assigning
          * a non-'this' value to the specified alias.
          * @param {ASTNode} node The assigning node.
-         * @param {string}  name the name of the alias that was incorrectly used.
+         * @param {string} name the name of the alias that was incorrectly used.
          * @returns {void}
          */
         function reportBadAssignment(node, name) {

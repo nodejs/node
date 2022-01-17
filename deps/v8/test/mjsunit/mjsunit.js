@@ -132,9 +132,7 @@ var assertInstanceof;
 // Assert that this code is never executed (i.e., always fails if executed).
 var assertUnreachable;
 
-// Assert that the function code is (not) optimized.  If "no sync" is passed
-// as second argument, we do not wait for the concurrent optimization thread to
-// finish when polling for optimization status.
+// Assert that the function code is (not) optimized.
 // Only works with --allow-natives-syntax.
 var assertOptimized;
 var assertUnoptimized;
@@ -175,6 +173,9 @@ var V8OptimizationStatus = {
   kTopmostFrameIsTurboFanned: 1 << 11,
   kLiteMode: 1 << 12,
   kMarkedForDeoptimization: 1 << 13,
+  kBaseline: 1 << 14,
+  kTopmostFrameIsInterpreted: 1 << 15,
+  kTopmostFrameIsBaseline: 1 << 16,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.
@@ -188,6 +189,12 @@ var isAlwaysOptimize;
 
 // Returns true if given function in interpreted.
 var isInterpreted;
+
+// Returns true if given function in baseline.
+var isBaseline;
+
+// Returns true if given function in unoptimized (interpreted or baseline).
+var isUnoptimized;
 
 // Returns true if given function is optimized.
 var isOptimized;
@@ -648,22 +655,21 @@ var prettyPrinted;
 
   var OptimizationStatusImpl = undefined;
 
-  var OptimizationStatus = function(fun, sync_opt) {
+  var OptimizationStatus = function(fun) {
     if (OptimizationStatusImpl === undefined) {
       try {
         OptimizationStatusImpl = new Function(
-            "fun", "sync", "return %GetOptimizationStatus(fun, sync);");
+            "fun", "return %GetOptimizationStatus(fun);");
       } catch (e) {
         throw new Error("natives syntax not allowed");
       }
     }
-    return OptimizationStatusImpl(fun, sync_opt);
+    return OptimizationStatusImpl(fun);
   }
 
   assertUnoptimized = function assertUnoptimized(
-      fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
-    if (sync_opt === undefined) sync_opt = "";
-    var opt_status = OptimizationStatus(fun, sync_opt);
+      fun, name_opt, skip_if_maybe_deopted = true) {
+    var opt_status = OptimizationStatus(fun);
     // Tests that use assertUnoptimized() do not make sense if --always-opt
     // option is provided. Such tests must add --no-always-opt to flags comment.
     assertFalse((opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0,
@@ -676,13 +682,13 @@ var prettyPrinted;
       // to stress test the deoptimizer.
       return;
     }
-    assertFalse((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
+    var is_optimized = (opt_status & V8OptimizationStatus.kOptimized) !== 0;
+    assertFalse(is_optimized, name_opt);
   }
 
   assertOptimized = function assertOptimized(
-      fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
-    if (sync_opt === undefined) sync_opt = "";
-    var opt_status = OptimizationStatus(fun, sync_opt);
+      fun, name_opt, skip_if_maybe_deopted = true) {
+    var opt_status = OptimizationStatus(fun);
     // Tests that use assertOptimized() do not make sense for Lite mode where
     // optimization is always disabled, explicitly exit the test with a warning.
     if (opt_status & V8OptimizationStatus.kLiteMode) {
@@ -729,6 +735,18 @@ var prettyPrinted;
                "not a function");
     return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
            (opt_status & V8OptimizationStatus.kInterpreted) !== 0;
+  }
+
+  isBaseline = function isBaseline(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
+           (opt_status & V8OptimizationStatus.kBaseline) !== 0;
+  }
+
+  isUnoptimized = function isUnoptimized(fun) {
+    return isInterpreted(fun) || isBaseline(fun);
   }
 
   isOptimized = function isOptimized(fun) {

@@ -8,6 +8,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "src/objects/transitions-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -34,18 +35,18 @@ class ConcurrentSearchThread : public v8::base::Thread {
         result_map_(result_map) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_, std::move(ph_));
+    LocalHeap local_heap(heap_, ThreadKind::kBackground, std::move(ph_));
+    UnparkedScope scope(&local_heap);
 
     background_thread_started_->Signal();
 
     CHECK_EQ(TransitionsAccessor(CcTest::i_isolate(), map_, true)
                  .SearchTransition(*name_, kData, NONE),
              result_map_ ? **result_map_ : Map());
-
-    CHECK(!ph_);
-    ph_ = local_heap.DetachPersistentHandles();
   }
 
+  // protected instead of private due to having a subclass.
+ protected:
   Heap* heap_;
   base::Semaphore* background_thread_started_;
   std::unique_ptr<PersistentHandles> ph_;
@@ -70,7 +71,8 @@ class ConcurrentSearchOnOutdatedAccessorThread final
         main_thread_finished_(main_thread_finished) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_, std::move(ph_));
+    LocalHeap local_heap(heap_, ThreadKind::kBackground, std::move(ph_));
+    UnparkedScope scope(&local_heap);
 
     TransitionsAccessor accessor(CcTest::i_isolate(), map_, true);
     background_thread_started_->Signal();

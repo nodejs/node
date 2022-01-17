@@ -42,6 +42,8 @@ STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
 STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
               Simd128Register::kNumRegisters);
 
+// Callers on architectures other than Arm expect this to be be constant
+// between build and runtime. Avoid adding variability on other platforms.
 static int get_num_allocatable_double_registers() {
   return
 #if V8_TARGET_ARCH_IA32
@@ -58,11 +60,15 @@ static int get_num_allocatable_double_registers() {
       kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_MIPS64
       kMaxAllocatableDoubleRegisterCount;
+#elif V8_TARGET_ARCH_LOONG64
+      kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_PPC
       kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_PPC64
       kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_S390
+      kMaxAllocatableDoubleRegisterCount;
+#elif V8_TARGET_ARCH_RISCV64
       kMaxAllocatableDoubleRegisterCount;
 #else
 #error Unsupported target architecture.
@@ -71,6 +77,8 @@ static int get_num_allocatable_double_registers() {
 
 #undef REGISTER_COUNT
 
+// Callers on architectures other than Arm expect this to be be constant
+// between build and runtime. Avoid adding variability on other platforms.
 static const int* get_allocatable_double_codes() {
   return
 #if V8_TARGET_ARCH_ARM
@@ -95,42 +103,6 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(ArchDefaultRegisterConfiguration,
                                 GetDefaultRegisterConfiguration)
-
-// Allocatable registers with the masking register removed.
-class ArchDefaultPoisoningRegisterConfiguration : public RegisterConfiguration {
- public:
-  ArchDefaultPoisoningRegisterConfiguration()
-      : RegisterConfiguration(
-            Register::kNumRegisters, DoubleRegister::kNumRegisters,
-            kMaxAllocatableGeneralRegisterCount - 1,
-            get_num_allocatable_double_registers(),
-            InitializeGeneralRegisterCodes(), get_allocatable_double_codes(),
-            kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE) {
-  }
-
- private:
-  static const int* InitializeGeneralRegisterCodes() {
-    int filtered_index = 0;
-    for (int i = 0; i < kMaxAllocatableGeneralRegisterCount; ++i) {
-      if (kAllocatableGeneralCodes[i] != kSpeculationPoisonRegister.code()) {
-        allocatable_general_codes_[filtered_index] =
-            kAllocatableGeneralCodes[i];
-        filtered_index++;
-      }
-    }
-    DCHECK_EQ(filtered_index, kMaxAllocatableGeneralRegisterCount - 1);
-    return allocatable_general_codes_;
-  }
-
-  static int
-      allocatable_general_codes_[kMaxAllocatableGeneralRegisterCount - 1];
-};
-
-int ArchDefaultPoisoningRegisterConfiguration::allocatable_general_codes_
-    [kMaxAllocatableGeneralRegisterCount - 1];
-
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(ArchDefaultPoisoningRegisterConfiguration,
-                                GetDefaultPoisoningRegisterConfiguration)
 
 // RestrictedRegisterConfiguration uses the subset of allocatable general
 // registers the architecture support, which results into generating assembly
@@ -176,10 +148,6 @@ class RestrictedRegisterConfiguration : public RegisterConfiguration {
 
 const RegisterConfiguration* RegisterConfiguration::Default() {
   return GetDefaultRegisterConfiguration();
-}
-
-const RegisterConfiguration* RegisterConfiguration::Poisoning() {
-  return GetDefaultPoisoningRegisterConfiguration();
 }
 
 const RegisterConfiguration* RegisterConfiguration::RestrictGeneralRegisters(

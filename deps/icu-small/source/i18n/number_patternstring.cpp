@@ -50,7 +50,7 @@ PatternParser::parseToExistingProperties(const UnicodeString& pattern, DecimalFo
 char16_t ParsedPatternInfo::charAt(int32_t flags, int32_t index) const {
     const Endpoints& endpoints = getEndpoints(flags);
     if (index < 0 || index >= endpoints.end - endpoints.start) {
-        UPRV_UNREACHABLE;
+        UPRV_UNREACHABLE_EXIT;
     }
     return pattern.charAt(endpoints.start + index);
 }
@@ -115,6 +115,10 @@ bool ParsedPatternInfo::hasBody() const {
     return positive.integerTotal > 0;
 }
 
+bool ParsedPatternInfo::currencyAsDecimal() const {
+    return positive.hasCurrencyDecimal;
+}
+
 /////////////////////////////////////////////////////
 /// BEGIN RECURSIVE DESCENT PARSER IMPLEMENTATION ///
 /////////////////////////////////////////////////////
@@ -127,8 +131,20 @@ UChar32 ParsedPatternInfo::ParserState::peek() {
     }
 }
 
+UChar32 ParsedPatternInfo::ParserState::peek2() {
+    if (offset == pattern.length()) {
+        return -1;
+    }
+    int32_t cp1 = pattern.char32At(offset);
+    int32_t offset2 = offset + U16_LENGTH(cp1);
+    if (offset2 == pattern.length()) {
+        return -1;
+    }
+    return pattern.char32At(offset2);
+}
+
 UChar32 ParsedPatternInfo::ParserState::next() {
-    int codePoint = peek();
+    int32_t codePoint = peek();
     offset += U16_LENGTH(codePoint);
     return codePoint;
 }
@@ -284,6 +300,35 @@ void ParsedPatternInfo::consumeFormat(UErrorCode& status) {
         state.next(); // consume the decimal point
         currentSubpattern->hasDecimal = true;
         currentSubpattern->widthExceptAffixes += 1;
+        consumeFractionFormat(status);
+        if (U_FAILURE(status)) { return; }
+    } else if (state.peek() == u'¤') {
+        // Check if currency is a decimal separator
+        switch (state.peek2()) {
+            case u'#':
+            case u'0':
+            case u'1':
+            case u'2':
+            case u'3':
+            case u'4':
+            case u'5':
+            case u'6':
+            case u'7':
+            case u'8':
+            case u'9':
+                break;
+            default:
+                // Currency symbol followed by a non-numeric character;
+                // treat as a normal affix.
+                return;
+        }
+        // Currency symbol is followed by a numeric character;
+        // treat as a decimal separator.
+        currentSubpattern->hasCurrencySign = true;
+        currentSubpattern->hasCurrencyDecimal = true;
+        currentSubpattern->hasDecimal = true;
+        currentSubpattern->widthExceptAffixes += 1;
+        state.next(); // consume the symbol
         consumeFractionFormat(status);
         if (U_FAILURE(status)) { return; }
     }
@@ -565,6 +610,9 @@ PatternParser::patternInfoToProperties(DecimalFormatProperties& properties, Pars
         properties.decimalSeparatorAlwaysShown = false;
     }
 
+    // Persist the currency as decimal separator
+    properties.currencyAsDecimal = positive.hasCurrencyDecimal;
+
     // Scientific notation settings
     if (positive.exponentZeros > 0) {
         properties.exponentSignAlwaysShown = positive.exponentHasPlusSign;
@@ -750,7 +798,11 @@ UnicodeString PatternStringUtils::propertiesToPatternString(const DecimalFormatP
         }
         // Decimal separator
         if (magnitude == 0 && (alwaysShowDecimal || mN < 0)) {
-            sb.append(u'.');
+            if (properties.currencyAsDecimal) {
+                sb.append(u'¤');
+            } else {
+                sb.append(u'.');
+            }
         }
         if (!useGrouping) {
             continue;
@@ -820,7 +872,7 @@ UnicodeString PatternStringUtils::propertiesToPatternString(const DecimalFormatP
         // Copy the positive digit format into the negative.
         // This is optional; the pattern is the same as if '#' were appended here instead.
         // NOTE: It is not safe to append the UnicodeString to itself, so we need to copy.
-        // See http://bugs.icu-project.org/trac/ticket/13707
+        // See https://unicode-org.atlassian.net/browse/ICU-13707
         UnicodeString copy(sb);
         sb.append(copy, afterPrefixPos, beforeSuffixPos - afterPrefixPos);
         sb.append(affixProvider.get().getString(AffixPatternProvider::AFFIX_NEG_SUFFIX));
@@ -869,6 +921,7 @@ PatternStringUtils::convertLocalized(const UnicodeString& input, const DecimalFo
     UnicodeString table[LEN][2];
     int standIdx = toLocalized ? 0 : 1;
     int localIdx = toLocalized ? 1 : 0;
+    // TODO: Add approximately sign here?
     table[0][standIdx] = u"%";
     table[0][localIdx] = symbols.getConstSymbol(DecimalFormatSymbols::kPercentSymbol);
     table[1][standIdx] = u"‰";
@@ -1001,6 +1054,7 @@ PatternStringUtils::convertLocalized(const UnicodeString& input, const DecimalFo
 
 void PatternStringUtils::patternInfoToStringBuilder(const AffixPatternProvider& patternInfo, bool isPrefix,
                                                     PatternSignType patternSignType,
+                                                    bool approximately,
                                                     StandardPlural::Form plural,
                                                     bool perMilleReplacesPercent, UnicodeString& output) {
 
@@ -1012,7 +1066,7 @@ void PatternStringUtils::patternInfoToStringBuilder(const AffixPatternProvider& 
     // (If not, we will use the positive subpattern.)
     bool useNegativeAffixPattern = patternInfo.hasNegativeSubpattern()
         && (patternSignType == PATTERN_SIGN_TYPE_NEG
-            || (patternInfo.negativeHasMinusSign() && plusReplacesMinusSign));
+            || (patternInfo.negativeHasMinusSign() && (plusReplacesMinusSign || approximately)));
 
     // Resolve the flags for the affix pattern.
     int flags = 0;
@@ -1034,10 +1088,24 @@ void PatternStringUtils::patternInfoToStringBuilder(const AffixPatternProvider& 
     } else if (patternSignType == PATTERN_SIGN_TYPE_NEG) {
         prependSign = true;
     } else {
-        prependSign = plusReplacesMinusSign;
+        prependSign = plusReplacesMinusSign || approximately;
     }
 
-    // Compute the length of the affix pattern.
+    // What symbols should take the place of the sign placeholder?
+    const char16_t* signSymbols = u"-";
+    if (approximately) {
+        if (plusReplacesMinusSign) {
+            signSymbols = u"~+";
+        } else if (patternSignType == PATTERN_SIGN_TYPE_NEG) {
+            signSymbols = u"~-";
+        } else {
+            signSymbols = u"~";
+        }
+    } else if (plusReplacesMinusSign) {
+        signSymbols = u"+";
+    }
+
+    // Compute the number of tokens in the affix pattern (signSymbols is considered one token).
     int length = patternInfo.length(flags) + (prependSign ? 1 : 0);
 
     // Finally, set the result into the StringBuilder.
@@ -1051,8 +1119,13 @@ void PatternStringUtils::patternInfoToStringBuilder(const AffixPatternProvider& 
         } else {
             candidate = patternInfo.charAt(flags, index);
         }
-        if (plusReplacesMinusSign && candidate == u'-') {
-            candidate = u'+';
+        if (candidate == u'-') {
+            if (u_strlen(signSymbols) == 1) {
+                candidate = signSymbols[0];
+            } else {
+                output.append(signSymbols[0]);
+                candidate = signSymbols[1];
+            }
         }
         if (perMilleReplacesPercent && candidate == u'%') {
             candidate = u'‰';
@@ -1106,6 +1179,20 @@ PatternSignType PatternStringUtils::resolveSignDisplay(UNumberSignDisplay signDi
             }
             break;
 
+        case UNUM_SIGN_NEGATIVE:
+        case UNUM_SIGN_ACCOUNTING_NEGATIVE:
+            switch (signum) {
+                case SIGNUM_NEG:
+                    return PATTERN_SIGN_TYPE_NEG;
+                case SIGNUM_NEG_ZERO:
+                case SIGNUM_POS_ZERO:
+                case SIGNUM_POS:
+                    return PATTERN_SIGN_TYPE_POS;
+                default:
+                    break;
+            }
+            break;
+
         case UNUM_SIGN_NEVER:
             return PATTERN_SIGN_TYPE_POS;
 
@@ -1113,7 +1200,7 @@ PatternSignType PatternStringUtils::resolveSignDisplay(UNumberSignDisplay signDi
             break;
     }
 
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
     return PATTERN_SIGN_TYPE_POS;
 }
 

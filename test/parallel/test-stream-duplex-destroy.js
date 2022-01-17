@@ -125,7 +125,7 @@ const assert = require('assert');
   duplex.removeListener('end', fail);
   duplex.removeListener('finish', fail);
   duplex.on('end', common.mustNotCall());
-  duplex.on('finish', common.mustCall());
+  duplex.on('finish', common.mustNotCall());
   assert.strictEqual(duplex.destroyed, true);
 }
 
@@ -237,4 +237,21 @@ const assert = require('assert');
     });
   });
   duplex.on('close', common.mustCall());
+}
+{
+  // Check abort signal
+  const controller = new AbortController();
+  const { signal } = controller;
+  const duplex = new Duplex({
+    write(chunk, enc, cb) { cb(); },
+    read() {},
+    signal,
+  });
+  let count = 0;
+  duplex.on('error', common.mustCall((e) => {
+    assert.strictEqual(count++, 0); // Ensure not called twice
+    assert.strictEqual(e.name, 'AbortError');
+  }));
+  duplex.on('close', common.mustCall());
+  controller.abort();
 }

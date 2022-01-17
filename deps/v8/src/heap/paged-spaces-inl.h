@@ -9,7 +9,6 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/paged-spaces.h"
-#include "src/objects/code-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
 
@@ -79,13 +78,9 @@ size_t PagedSpace::RelinkFreeListCategories(Page* page) {
   return added;
 }
 
-bool PagedSpace::TryFreeLast(HeapObject object, int object_size) {
+bool PagedSpace::TryFreeLast(Address object_address, int object_size) {
   if (allocation_info_.top() != kNullAddress) {
-    const Address object_address = object.address();
-    if ((allocation_info_.top() - object_size) == object_address) {
-      allocation_info_.set_top(object_address);
-      return true;
-    }
+    return allocation_info_.DecrementTopIfAdjacent(object_address, object_size);
   }
   return false;
 }
@@ -98,14 +93,11 @@ bool PagedSpace::EnsureLabMain(int size_in_bytes, AllocationOrigin origin) {
 }
 
 AllocationResult PagedSpace::AllocateFastUnaligned(int size_in_bytes) {
-  Address current_top = allocation_info_.top();
-  Address new_top = current_top + size_in_bytes;
-  if (new_top > allocation_info_.limit())
+  if (!allocation_info_.CanIncrementTop(size_in_bytes)) {
     return AllocationResult::Retry(identity());
-  DCHECK_LE(new_top, allocation_info_.limit());
-  allocation_info_.set_top(new_top);
-
-  return AllocationResult(HeapObject::FromAddress(current_top));
+  }
+  return AllocationResult(
+      HeapObject::FromAddress(allocation_info_.IncrementTop(size_in_bytes)));
 }
 
 AllocationResult PagedSpace::AllocateFastAligned(
@@ -113,24 +105,22 @@ AllocationResult PagedSpace::AllocateFastAligned(
     AllocationAlignment alignment) {
   Address current_top = allocation_info_.top();
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
-
-  Address new_top = current_top + filler_size + size_in_bytes;
-  if (new_top > allocation_info_.limit())
+  int aligned_size = filler_size + size_in_bytes;
+  if (!allocation_info_.CanIncrementTop(aligned_size)) {
     return AllocationResult::Retry(identity());
-
-  allocation_info_.set_top(new_top);
-  if (aligned_size_in_bytes)
-    *aligned_size_in_bytes = filler_size + size_in_bytes;
-  if (filler_size > 0) {
-    Heap::PrecedeWithFiller(ReadOnlyRoots(heap()),
-                            HeapObject::FromAddress(current_top), filler_size);
   }
-
-  return AllocationResult(HeapObject::FromAddress(current_top + filler_size));
+  HeapObject obj =
+      HeapObject::FromAddress(allocation_info_.IncrementTop(aligned_size));
+  if (aligned_size_in_bytes) *aligned_size_in_bytes = aligned_size;
+  if (filler_size > 0) {
+    obj = Heap::PrecedeWithFiller(ReadOnlyRoots(heap()), obj, filler_size);
+  }
+  return AllocationResult(obj);
 }
 
 AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes,
                                                   AllocationOrigin origin) {
+  DCHECK(!FLAG_enable_third_party_heap);
   if (!EnsureLabMain(size_in_bytes, origin)) {
     return AllocationResult::Retry(identity());
   }
@@ -153,6 +143,7 @@ AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes,
 AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin) {
+  DCHECK(!FLAG_enable_third_party_heap);
   DCHECK_EQ(identity(), OLD_SPACE);
   int allocation_size = size_in_bytes;
   // We don't know exactly how much filler we need to align until space is
@@ -182,6 +173,7 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
 AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
                                          AllocationAlignment alignment,
                                          AllocationOrigin origin) {
+  DCHECK(!FLAG_enable_third_party_heap);
   AllocationResult result;
 
   if (alignment != kWordAligned) {

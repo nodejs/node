@@ -7,4 +7,5 @@
 Array.prototype.__defineGetter__('map', function(){});
 Array.prototype.__defineGetter__('map', function(){});
 Array.prototype.__defineGetter__('map', function(){});
-assertTrue(%HasFastProperties(Array.prototype));
+assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+             %HasFastProperties(Array.prototype));

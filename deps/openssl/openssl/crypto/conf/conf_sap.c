@@ -1,7 +1,7 @@
 /*
- * Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -11,11 +11,12 @@
 #include <openssl/crypto.h>
 #include "internal/cryptlib.h"
 #include "internal/conf.h"
+#include "conf_local.h"
 #include <openssl/x509.h>
 #include <openssl/asn1.h>
 #include <openssl/engine.h>
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__BORLANDC__)
 # define strdup _strdup
 #endif
 
@@ -27,7 +28,7 @@
 
 static int openssl_configured = 0;
 
-#if OPENSSL_API_COMPAT < 0x10100000L
+#ifndef OPENSSL_NO_DEPRECATED_1_1_0
 void OPENSSL_config(const char *appname)
 {
     OPENSSL_INIT_SETTINGS settings;
@@ -40,7 +41,7 @@ void OPENSSL_config(const char *appname)
 }
 #endif
 
-int openssl_config_int(const OPENSSL_INIT_SETTINGS *settings)
+int ossl_config_int(const OPENSSL_INIT_SETTINGS *settings)
 {
     int ret = 0;
     const char *filename;
@@ -55,16 +56,10 @@ int openssl_config_int(const OPENSSL_INIT_SETTINGS *settings)
     flags = settings ? settings->flags : DEFAULT_CONF_MFLAGS;
 
 #ifdef OPENSSL_INIT_DEBUG
-    fprintf(stderr, "OPENSSL_INIT: openssl_config_int(%s, %s, %lu)\n",
+    fprintf(stderr, "OPENSSL_INIT: ossl_config_int(%s, %s, %lu)\n",
             filename, appname, flags);
 #endif
 
-    OPENSSL_load_builtin_modules();
-#ifndef OPENSSL_NO_ENGINE
-    /* Need to load ENGINEs */
-    ENGINE_load_builtin_engines();
-#endif
-    ERR_clear_error();
 #ifndef OPENSSL_SYS_UEFI
     ret = CONF_modules_load_file(filename, appname, flags);
 #endif
@@ -72,7 +67,7 @@ int openssl_config_int(const OPENSSL_INIT_SETTINGS *settings)
     return ret;
 }
 
-void openssl_no_config_int(void)
+void ossl_no_config_int(void)
 {
     openssl_configured = 1;
 }

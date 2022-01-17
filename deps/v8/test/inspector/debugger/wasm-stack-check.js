@@ -35,26 +35,27 @@ function instantiate(bytes, imports) {
   return new WebAssembly.Instance(module, imports);
 }
 
-(async function pauseAndStep() {
-  await Protocol.Debugger.enable();
-  InspectorTest.log('Instantiate');
-  const instantiate_code = `var instance = (${instantiate})(${JSON.stringify(module_bytes)}, {'imports': {'pause': () => { %ScheduleBreak() } }});`;
-  WasmInspectorTest.evalWithUrl(instantiate_code, 'instantiate');
-  InspectorTest.log('Wait for script');
-  const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
-  InspectorTest.log('Got wasm script: ' + wasmScript.url);
+InspectorTest.runAsyncTestSuite([
+  async function testPauseAndStep() {
+    await Protocol.Runtime.enable();
+    await Protocol.Debugger.enable();
+    InspectorTest.log('Instantiate');
+    const instantiate_code = `var instance = (${instantiate})(${JSON.stringify(module_bytes)}, {'imports': {'pause': () => { %ScheduleBreak() } }});`;
+    WasmInspectorTest.evalWithUrl(instantiate_code, 'instantiate');
+    InspectorTest.log('Wait for script');
+    const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
+    InspectorTest.log('Got wasm script: ' + wasmScript.url);
 
-  InspectorTest.log('Run');
-  Protocol.Runtime.evaluate({expression: 'instance.exports.main()'});
-  InspectorTest.log('Expecting to pause at ' + (f.body_offset - 1));
-  await waitForPauseAndStep('stepInto');
-  await waitForPauseAndStep('stepInto');
-  await waitForPauseAndStep('stepInto');
-  await waitForPauseAndStep('stepInto');
-  await waitForPauseAndStep('resume');
-  InspectorTest.log('Finished!');
-  InspectorTest.completeTest();
-})();
+    InspectorTest.log('Run');
+    Protocol.Runtime.evaluate({expression: 'instance.exports.main()'});
+    InspectorTest.log('Expecting to pause at ' + (f.body_offset - 1));
+    await waitForPauseAndStep('stepInto');
+    await waitForPauseAndStep('stepInto');
+    await waitForPauseAndStep('stepInto');
+    await waitForPauseAndStep('stepInto');
+    await waitForPauseAndStep('resume');
+  }
+]);
 
 async function waitForPauseAndStep(stepAction) {
   const msg = await Protocol.Debugger.oncePaused();
@@ -68,10 +69,18 @@ async function inspect(frame) {
   // Inspect only the top wasm frame.
   for (var scope of frame.scopeChain) {
     if (scope.type == 'module') continue;
-    var scope_properties =
-        await Protocol.Runtime.getProperties({objectId: scope.object.objectId});
-    let str = scope_properties.result.result.map(
-        elem => WasmInspectorTest.getWasmValue(elem.value)).join(', ');
+    var { objectId } = scope.object;
+    if (scope.type == 'wasm-expression-stack') {
+      objectId = (await Protocol.Runtime.callFunctionOn({
+        functionDeclaration: 'function() { return this.stack }',
+        objectId
+      })).result.result.objectId;
+    }
+    var properties =
+        await Protocol.Runtime.getProperties({objectId});
+    let str = (await Promise.all(properties.result.result.map(
+                   elem => WasmInspectorTest.getWasmValue(elem.value))))
+                  .join(', ');
     line.push(`${scope.type}: [${str}]`);
   }
   InspectorTest.log(line.join('; '));

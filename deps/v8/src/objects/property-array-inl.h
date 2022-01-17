@@ -18,28 +18,30 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(PropertyArray, HeapObject)
-CAST_ACCESSOR(PropertyArray)
+#include "torque-generated/src/objects/property-array-tq-inl.inc"
+
+TQ_OBJECT_CONSTRUCTORS_IMPL(PropertyArray)
 
 SMI_ACCESSORS(PropertyArray, length_and_hash, kLengthAndHashOffset)
-SYNCHRONIZED_SMI_ACCESSORS(PropertyArray, length_and_hash, kLengthAndHashOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(PropertyArray, length_and_hash,
+                              kLengthAndHashOffset)
 
 Object PropertyArray::get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return get(isolate, index);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index);
 }
 
-Object PropertyArray::get(const Isolate* isolate, int index) const {
+Object PropertyArray::get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(this->length()));
-  return TaggedField<Object>::Relaxed_Load(isolate, *this,
+            static_cast<unsigned>(this->length(kAcquireLoad)));
+  return TaggedField<Object>::Relaxed_Load(cage_base, *this,
                                            OffsetOfElementAt(index));
 }
 
 void PropertyArray::set(int index, Object value) {
   DCHECK(IsPropertyArray());
   DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(this->length()));
+            static_cast<unsigned>(this->length(kAcquireLoad)));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
   WRITE_BARRIER(*this, offset, value);
@@ -47,7 +49,7 @@ void PropertyArray::set(int index, Object value) {
 
 void PropertyArray::set(int index, Object value, WriteBarrierMode mode) {
   DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(this->length()));
+            static_cast<unsigned>(this->length(kAcquireLoad)));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
@@ -64,8 +66,8 @@ void PropertyArray::initialize_length(int len) {
   set_length_and_hash(len);
 }
 
-int PropertyArray::synchronized_length() const {
-  return LengthField::decode(synchronized_length_and_hash());
+int PropertyArray::length(AcquireLoadTag) const {
+  return LengthField::decode(length_and_hash(kAcquireLoad));
 }
 
 int PropertyArray::Hash() const { return HashField::decode(length_and_hash()); }
@@ -73,14 +75,14 @@ int PropertyArray::Hash() const { return HashField::decode(length_and_hash()); }
 void PropertyArray::SetHash(int hash) {
   int value = length_and_hash();
   value = HashField::update(value, hash);
-  set_length_and_hash(value);
+  set_length_and_hash(value, kReleaseStore);
 }
 
 void PropertyArray::CopyElements(Isolate* isolate, int dst_index,
                                  PropertyArray src, int src_index, int len,
                                  WriteBarrierMode mode) {
   if (len == 0) return;
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   ObjectSlot dst_slot(data_start() + dst_index);
   ObjectSlot src_slot(src.data_start() + src_index);

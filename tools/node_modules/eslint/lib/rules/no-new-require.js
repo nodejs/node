@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to disallow use of new operator with the `require` function
  * @author Wil Moore III
+ * @deprecated in ESLint v7.0.0
  */
 
 "use strict";
@@ -9,6 +10,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         deprecated: true,
@@ -19,7 +21,6 @@ module.exports = {
 
         docs: {
             description: "disallow `new` operators with calls to `require`",
-            category: "Node.js and CommonJS",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-new-require"
         },

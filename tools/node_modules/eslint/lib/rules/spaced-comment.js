@@ -4,7 +4,7 @@
  */
 "use strict";
 
-const lodash = require("lodash");
+const escapeRegExp = require("escape-string-regexp");
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
@@ -17,7 +17,7 @@ const astUtils = require("./utils/ast-utils");
  * @returns {string} An escaped string.
  */
 function escape(s) {
-    return `(?:${lodash.escapeRegExp(s)})`;
+    return `(?:${escapeRegExp(s)})`;
 }
 
 /**
@@ -146,13 +146,13 @@ function createNeverStylePattern(markers) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce consistent spacing after the `//` or `/*` in a comment",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/spaced-comment"
         },

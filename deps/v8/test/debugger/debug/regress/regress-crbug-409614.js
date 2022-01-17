@@ -17,7 +17,7 @@ function listener(event, exec_state, event_data, data) {
     if (exec_state.frame(0).sourceLineText().indexOf("Break") <0) {
       error_count++;
     }
-    exec_state.prepareStep(Debug.StepAction.StepIn);
+    exec_state.prepareStep(Debug.StepAction.StepInto);
     f();  // We should not break in this call of f().
   } catch (e) {
     print(e + e.stack);

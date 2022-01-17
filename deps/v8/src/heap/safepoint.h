@@ -18,14 +18,20 @@ class Heap;
 class LocalHeap;
 class RootVisitor;
 
-// Used to bring all background threads with heap access to a safepoint such
-// that e.g. a garbage collection can be performed.
+// Used to bring all threads with heap access to a safepoint such that e.g. a
+// garbage collection can be performed.
 class GlobalSafepoint {
  public:
   explicit GlobalSafepoint(Heap* heap);
 
-  // Enter the safepoint from a thread
-  void EnterFromThread(LocalHeap* local_heap);
+  // Wait until unpark operation is safe again
+  void WaitInUnpark();
+
+  // Enter the safepoint from a running thread
+  void WaitInSafepoint();
+
+  // Running thread reached a safepoint by parking itself.
+  void NotifyPark();
 
   V8_EXPORT_PRIVATE bool ContainsLocalHeap(LocalHeap* local_heap);
   V8_EXPORT_PRIVATE bool ContainsAnyLocalHeap();
@@ -43,31 +49,66 @@ class GlobalSafepoint {
     }
   }
 
-  // Use these methods now instead of the more intrusive SafepointScope
-  void Start();
-  void End();
-
   bool IsActive() { return active_safepoint_scopes_ > 0; }
 
  private:
   class Barrier {
     base::Mutex mutex_;
-    base::ConditionVariable cond_;
+    base::ConditionVariable cv_resume_;
+    base::ConditionVariable cv_stopped_;
     bool armed_;
 
+    int stopped_ = 0;
+
+    bool IsArmed() { return armed_; }
+
    public:
-    Barrier() : armed_(false) {}
+    Barrier() : armed_(false), stopped_(0) {}
 
     void Arm();
     void Disarm();
-    void Wait();
+    void WaitUntilRunningThreadsInSafepoint(int running);
+
+    void WaitInSafepoint();
+    void WaitInUnpark();
+    void NotifyPark();
   };
 
-  void EnterSafepointScope();
-  void LeaveSafepointScope();
+  enum class StopMainThread { kYes, kNo };
 
-  void AddLocalHeap(LocalHeap* local_heap);
-  void RemoveLocalHeap(LocalHeap* local_heap);
+  void EnterSafepointScope(StopMainThread stop_main_thread);
+  void LeaveSafepointScope(StopMainThread stop_main_thread);
+
+  template <typename Callback>
+  void AddLocalHeap(LocalHeap* local_heap, Callback callback) {
+    // Safepoint holds this lock in order to stop threads from starting or
+    // stopping.
+    base::MutexGuard guard(&local_heaps_mutex_);
+
+    // Additional code protected from safepoint
+    callback();
+
+    // Add list to doubly-linked list
+    if (local_heaps_head_) local_heaps_head_->prev_ = local_heap;
+    local_heap->prev_ = nullptr;
+    local_heap->next_ = local_heaps_head_;
+    local_heaps_head_ = local_heap;
+  }
+
+  template <typename Callback>
+  void RemoveLocalHeap(LocalHeap* local_heap, Callback callback) {
+    base::MutexGuard guard(&local_heaps_mutex_);
+
+    // Additional code protected from safepoint
+    callback();
+
+    // Remove list from doubly-linked list
+    if (local_heap->next_) local_heap->next_->prev_ = local_heap->prev_;
+    if (local_heap->prev_)
+      local_heap->prev_->next_ = local_heap->next_;
+    else
+      local_heaps_head_ = local_heap->next_;
+  }
 
   Barrier barrier_;
   Heap* heap_;
@@ -77,14 +118,13 @@ class GlobalSafepoint {
 
   int active_safepoint_scopes_;
 
-  LocalHeap* local_heap_of_this_thread_;
-
-  friend class SafepointScope;
+  friend class Heap;
   friend class LocalHeap;
   friend class PersistentHandles;
+  friend class SafepointScope;
 };
 
-class SafepointScope {
+class V8_NODISCARD SafepointScope {
  public:
   V8_EXPORT_PRIVATE explicit SafepointScope(Heap* heap);
   V8_EXPORT_PRIVATE ~SafepointScope();

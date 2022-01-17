@@ -22,6 +22,8 @@ class V8SchemaAgentImpl : public protocol::Schema::Backend {
   V8SchemaAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
                     protocol::DictionaryValue* state);
   ~V8SchemaAgentImpl() override;
+  V8SchemaAgentImpl(const V8SchemaAgentImpl&) = delete;
+  V8SchemaAgentImpl& operator=(const V8SchemaAgentImpl&) = delete;
 
   Response getDomains(
       std::unique_ptr<protocol::Array<protocol::Schema::Domain>>*) override;
@@ -29,8 +31,6 @@ class V8SchemaAgentImpl : public protocol::Schema::Backend {
  private:
   V8InspectorSessionImpl* m_session;
   protocol::Schema::Frontend m_frontend;
-
-  DISALLOW_COPY_AND_ASSIGN(V8SchemaAgentImpl);
 };
 
 }  // namespace v8_inspector

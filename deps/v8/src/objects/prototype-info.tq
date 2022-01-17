@@ -6,7 +6,6 @@ bitfield struct PrototypeInfoFlags extends uint31 {
   should_be_fast: bool: 1 bit;
 }
 
-@generateCppClass
 extern class PrototypeInfo extends Struct {
   // [module_namespace]: A backpointer to JSModuleNamespace from its
   // PrototypeInfo (or undefined). This field is only used for JSModuleNamespace

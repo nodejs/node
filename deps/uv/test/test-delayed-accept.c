@@ -37,7 +37,7 @@ static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
 
   free(handle);
 
@@ -50,8 +50,8 @@ static void do_accept(uv_timer_t* timer_handle) {
   uv_tcp_t* accepted_handle = (uv_tcp_t*)malloc(sizeof *accepted_handle);
   int r;
 
-  ASSERT(timer_handle != NULL);
-  ASSERT(accepted_handle != NULL);
+  ASSERT_NOT_NULL(timer_handle);
+  ASSERT_NOT_NULL(accepted_handle);
 
   r = uv_tcp_init(uv_default_loop(), accepted_handle);
   ASSERT(r == 0);
@@ -82,7 +82,7 @@ static void connection_cb(uv_stream_t* tcp, int status) {
   ASSERT(status == 0);
 
   timer_handle = (uv_timer_t*)malloc(sizeof *timer_handle);
-  ASSERT(timer_handle != NULL);
+  ASSERT_NOT_NULL(timer_handle);
 
   /* Accept the client after 1 second */
   r = uv_timer_init(uv_default_loop(), timer_handle);
@@ -103,7 +103,7 @@ static void start_server(void) {
   int r;
 
   ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
-  ASSERT(server != NULL);
+  ASSERT_NOT_NULL(server);
 
   r = uv_tcp_init(uv_default_loop(), server);
   ASSERT(r == 0);
@@ -125,7 +125,7 @@ static void read_cb(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
   if (nread >= 0) {
     ASSERT(nread == 0);
   } else {
-    ASSERT(tcp != NULL);
+    ASSERT_NOT_NULL(tcp);
     ASSERT(nread == UV_EOF);
     uv_close((uv_handle_t*)tcp, close_cb);
   }
@@ -135,7 +135,7 @@ static void read_cb(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
 static void connect_cb(uv_connect_t* req, int status) {
   int r;
 
-  ASSERT(req != NULL);
+  ASSERT_NOT_NULL(req);
   ASSERT(status == 0);
 
   /* Not that the server will send anything, but otherwise we'll never know
@@ -156,8 +156,8 @@ static void client_connect(void) {
   int r;
 
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
-  ASSERT(client != NULL);
-  ASSERT(connect_req != NULL);
+  ASSERT_NOT_NULL(client);
+  ASSERT_NOT_NULL(connect_req);
 
   r = uv_tcp_init(uv_default_loop(), client);
   ASSERT(r == 0);

@@ -38,7 +38,7 @@ public:
 
     void IgnoreBytes(int32_t numIgnore) { ignore_ = numIgnore; }
 
-    virtual void Append(const char *bytes, int32_t n);
+    virtual void Append(const char *bytes, int32_t n) override;
     void Append(uint32_t b) {
         if (ignore_ > 0) {
             --ignore_;
@@ -52,7 +52,7 @@ public:
     virtual char *GetAppendBuffer(int32_t min_capacity,
                                   int32_t desired_capacity_hint,
                                   char *scratch, int32_t scratch_capacity,
-                                  int32_t *result_capacity);
+                                  int32_t *result_capacity) override;
     int32_t NumberOfBytesAppended() const { return appended_; }
 
     /**
@@ -65,7 +65,7 @@ public:
     }
 
     UBool Overflowed() const { return appended_ > capacity_; }
-    /** @return FALSE if memory allocation failed */
+    /** @return false if memory allocation failed */
     UBool IsOk() const { return buffer_ != NULL; }
 
 protected:
@@ -94,8 +94,8 @@ public:
         virtual ~LevelCallback();
         /**
          * @param level The next level about to be written to the ByteSink.
-         * @return TRUE if the level is to be written
-         *         (the base class implementation always returns TRUE)
+         * @return true if the level is to be written
+         *         (the base class implementation always returns true)
          */
         virtual UBool needToWrite(Collation::Level level);
     };
@@ -103,7 +103,7 @@ public:
     /**
      * Writes the sort key bytes for minLevel up to the iterator data's strength.
      * Optionally writes the case level.
-     * Stops writing levels when callback.needToWrite(level) returns FALSE.
+     * Stops writing levels when callback.needToWrite(level) returns false.
      * Separates levels with the LEVEL_SEPARATOR_BYTE
      * but does not write a TERMINATOR_BYTE.
      */

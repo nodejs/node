@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Uses gon, from https://github.com/mitchellh/gon, to notarize a generated node-<version>.pkg file
 # with Apple for installation on macOS Catalina and later as validated by Gatekeeper.
@@ -8,18 +8,16 @@ set -e
 gon_version="0.2.2"
 gon_exe="${HOME}/.gon/gon_${gon_version}"
 
-__dirname="$(CDPATH= cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 pkgid="$1"
 
-if [ "X${pkgid}" == "X" ]; then
-  echo "Usage: $0 <pkgid>"
+[ -z "$pkgid" ] && \
+  echo "Usage: $0 <pkgid>" \
   exit 1
-fi
 
-if [ "X$NOTARIZATION_ID" == "X" ]; then
-  echo "No NOTARIZATION_ID environment var. Skipping notarization."
+# shellcheck disable=SC2154
+[ -z "$NOTARIZATION_ID" ] && \
+  echo "No NOTARIZATION_ID environment var. Skipping notarization." \
   exit 0
-fi
 
 set -x
 

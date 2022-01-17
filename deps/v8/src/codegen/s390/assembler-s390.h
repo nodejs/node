@@ -241,6 +241,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
+  // This function is called when on-heap-compilation invariants are
+  // invalidated. For instance, when the assembler buffer grows or a GC happens
+  // between Code object allocation and Code object finalization.
+  void FixOnHeapReferences(bool update_embedded_objects = true);
+
+  // This function is called when we fallback from on-heap to off-heap
+  // compilation and patch on-heap references to handles.
+  void FixOnHeapReferencesToHandles();
+
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
 
@@ -402,6 +411,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   S390_RRE_OPCODE_LIST(DECLARE_S390_RRE_INSTRUCTIONS)
   // Special format
   void lzdr(DoubleRegister r1) { rre_format(LZDR, r1.code(), 0); }
+  void lzer(DoubleRegister r1) { rre_format(LZER, r1.code(), 0); }
 #undef DECLARE_S390_RRE_INSTRUCTIONS
 
 #define DECLARE_S390_RX_INSTRUCTIONS(name, op_name, op_value)            \
@@ -532,7 +542,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
 #define DECLARE_S390_RS_SHIFT_FORMAT(name, opcode)                             \
   void name(Register r1, Register r2, const Operand& opnd = Operand::Zero()) { \
-    DCHECK(r2 != r0);                                                          \
     rs_format(opcode, r1.code(), r0.code(), r2.code(), opnd.immediate());      \
   }                                                                            \
   void name(Register r1, const Operand& opnd) {                                \
@@ -676,15 +685,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   S390_RRF_E_OPCODE_LIST(DECLARE_S390_RRF_E_INSTRUCTIONS)
 #undef DECLARE_S390_RRF_E_INSTRUCTIONS
-
-  enum FIDBRA_FLAGS {
-    FIDBRA_CURRENT_ROUNDING_MODE = 0,
-    FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0 = 1,
-    // ...
-    FIDBRA_ROUND_TOWARD_0 = 5,
-    FIDBRA_ROUND_TOWARD_POS_INF = 6,
-    FIDBRA_ROUND_TOWARD_NEG_INF = 7
-  };
 
   inline void rsi_format(Opcode op, int f1, int f2, int f3) {
     DCHECK(is_uint8(op));
@@ -956,17 +956,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // Conditional Branch Instruction - Generates either BRC / BRCL
-  void branchOnCond(Condition c, int branch_offset, bool is_bound = false);
+  void branchOnCond(Condition c, int branch_offset, bool is_bound = false,
+                    bool force_long_branch = false);
 
   // Helpers for conditional branch to Label
-  void b(Condition cond, Label* l, Label::Distance dist = Label::kFar) {
+  void b(Condition cond, Label* l, Label::Distance dist = Label::kFar,
+         bool force_long_branch = false) {
     branchOnCond(cond, branch_offset(l),
-                 l->is_bound() || (dist == Label::kNear));
+                 l->is_bound() || (dist == Label::kNear), force_long_branch);
   }
 
   void bc_short(Condition cond, Label* l, Label::Distance dist = Label::kFar) {
     b(cond, l, Label::kNear);
   }
+  void bc_long(Condition cond, Label* l) { b(cond, l, Label::kFar, true); }
   // Helpers for conditional branch to Label
   void beq(Label* l, Label::Distance dist = Label::kFar) { b(eq, l, dist); }
   void bne(Label* l, Label::Distance dist = Label::kFar) { b(ne, l, dist); }
@@ -1061,6 +1064,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
+  void LoopHeaderAlign() { CodeTargetAlign(); }
 
   void breakpoint(bool do_print) {
     if (do_print) {
@@ -1310,15 +1314,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
-                         int id);
+  void RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
+                         SourcePosition position, int id);
 
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data);
-  void dq(uint64_t data);
-  void dp(uintptr_t data);
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // Read/patch instructions
   SixByteInstr instr_at(int pos) {
@@ -1364,6 +1368,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  public:
   byte* buffer_pos() const { return buffer_start_; }
 
+
+  // Code generation
+  // The relocation writer's position is at least kGap bytes below the end of
+  // the generated instructions. This is so that multi-instruction sequences do
+  // not have to check for overflow. The same is true for writes of large
+  // relocation info entries.
+  static constexpr int kGap = 32;
+  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
+
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
@@ -1380,14 +1393,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
-
-  // Code generation
-  // The relocation writer's position is at least kGap bytes below the end of
-  // the generated instructions. This is so that multi-instruction sequences do
-  // not have to check for overflow. The same is true for writes of large
-  // relocation info entries.
-  static constexpr int kGap = 32;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
@@ -1485,7 +1490,7 @@ class EnsureSpace {
   explicit EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 };
 
-class V8_EXPORT_PRIVATE UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler);
   ~UseScratchRegisterScope();

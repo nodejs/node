@@ -11,8 +11,7 @@
 <br>
 <br>
 
-[![Build Status](https://travis-ci.com/sindresorhus/type-fest.svg?branch=master)](https://travis-ci.com/sindresorhus/type-fest)
-[![](https://img.shields.io/badge/unicorn-approved-ff69b4.svg)](https://www.youtube.com/watch?v=9auOCbH5Ns4)
+[![](https://img.shields.io/badge/unicorn-approved-ff69b4.svg)](https://giphy.com/gifs/illustration-rainbow-unicorn-26AHG5KGFxSkUWw1i)
 <!-- Commented out until they actually show anything
 [![npm dependents](https://badgen.net/npm/dependents/type-fest)](https://www.npmjs.com/package/type-fest?activeTab=dependents) [![npm downloads](https://badgen.net/npm/dt/type-fest)](https://www.npmjs.com/package/type-fest)
 -->
@@ -23,15 +22,13 @@ Either add this package as a dependency or copy-paste the needed types. No credi
 
 PR welcome for additional commonly needed types and docs improvements. Read the [contributing guidelines](.github/contributing.md) first.
 
-
 ## Install
 
 ```
 $ npm install type-fest
 ```
 
-*Requires TypeScript >=3.2*
-
+*Requires TypeScript >=3.4*
 
 ## Usage
 
@@ -46,7 +43,6 @@ type Foo = {
 type FooWithoutRainbow = Except<Foo, 'rainbow'>;
 //=> {unicorn: string}
 ```
-
 
 ## API
 
@@ -69,7 +65,7 @@ Click the type names for complete docs.
 - [`Merge`](source/merge.d.ts) - Merge two types into a new type. Keys of the second type overrides keys of the first type.
 - [`MergeExclusive`](source/merge-exclusive.d.ts) - Create a type that has mutually exclusive keys.
 - [`RequireAtLeastOne`](source/require-at-least-one.d.ts) - Create a type that requires at least one of the given keys.
-- [`RequireExactlyOne`](source/require-one.d.ts) - Create a type that requires exactly a single key of the given keys and disallows more.
+- [`RequireExactlyOne`](source/require-exactly-one.d.ts) - Create a type that requires exactly a single key of the given keys and disallows more.
 - [`PartialDeep`](source/partial-deep.d.ts) - Create a deeply optional version of another type. Use [`Partial<T>`](https://github.com/Microsoft/TypeScript/blob/2961bc3fc0ea1117d4e53bc8e97fa76119bc33e3/src/lib/es5.d.ts#L1401-L1406) if you only need one level deep.
 - [`ReadonlyDeep`](source/readonly-deep.d.ts) - Create a deeply immutable version of an `object`/`Map`/`Set`/`Array` type. Use [`Readonly<T>`](https://github.com/Microsoft/TypeScript/blob/2961bc3fc0ea1117d4e53bc8e97fa76119bc33e3/src/lib/es5.d.ts#L1415-L1420) if you only need one level deep.
 - [`LiteralUnion`](source/literal-union.d.ts) - Create a union type by combining primitive types and literal types without sacrificing auto-completion in IDEs for the literal type part of the union. Workaround for [Microsoft/TypeScript#29729](https://github.com/Microsoft/TypeScript/issues/29729).
@@ -77,11 +73,35 @@ Click the type names for complete docs.
 - [`Opaque`](source/opaque.d.ts) - Create an [opaque type](https://codemix.com/opaque-types-in-javascript/).
 - [`SetOptional`](source/set-optional.d.ts) - Create a type that makes the given keys optional.
 - [`SetRequired`](source/set-required.d.ts) - Create a type that makes the given keys required.
+- [`ValueOf`](source/value-of.d.ts) - Create a union of the given object's values, and optionally specify which keys to get the values from.
+- [`PromiseValue`](source/promise-value.d.ts) - Returns the type that is wrapped inside a `Promise`.
+- [`AsyncReturnType`](source/async-return-type.d.ts) - Unwrap the return type of a function that returns a `Promise`.
+- [`ConditionalKeys`](source/conditional-keys.d.ts) - Extract keys from a shape where values extend the given `Condition` type.
+- [`ConditionalPick`](source/conditional-pick.d.ts) - Like `Pick` except it selects properties from a shape where the values extend the given `Condition` type.
+- [`ConditionalExcept`](source/conditional-except.d.ts) - Like `Omit` except it removes properties from a shape where the values extend the given `Condition` type.
+- [`UnionToIntersection`](source/union-to-intersection.d.ts) - Convert a union type to an intersection type.
+- [`Stringified`](source/stringified.d.ts) - Create a type with the keys of the given type changed to `string` type.
+- [`FixedLengthArray`](source/fixed-length-array.d.ts) - Create a type that represents an array of the given type and length.
+- [`IterableElement`](source/iterable-element.d.ts) - Get the element type of an `Iterable`/`AsyncIterable`. For example, an array or a generator.
+- [`Entry`](source/entry.d.ts) - Create a type that represents the type of an entry of a collection.
+- [`Entries`](source/entries.d.ts) - Create a type that represents the type of the entries of a collection.
+- [`SetReturnType`](source/set-return-type.d.ts) - Create a function type with a return type of your choice and the same parameters as the given function type.
+- [`Asyncify`](source/asyncify.d.ts) - Create an async version of the given function type.
+
+### Template literal types
+
+*Note:* These require [TypeScript 4.1 or newer](https://devblogs.microsoft.com/typescript/announcing-typescript-4-1/#template-literal-types).
+
+- [`CamelCase`](ts41/camel-case.d.ts) – Convert a string literal to camel-case (`fooBar`).
+- [`KebabCase`](ts41/kebab-case.d.ts) – Convert a string literal to kebab-case (`foo-bar`).
+- [`PascalCase`](ts41/pascal-case.d.ts) – Converts a string literal to pascal-case (`FooBar`)
+- [`SnakeCase`](ts41/snake-case.d.ts) – Convert a string literal to snake-case (`foo_bar`).
+- [`DelimiterCase`](ts41/delimiter-case.d.ts) – Convert a string literal to a custom string delimiter casing.
 
 ### Miscellaneous
 
 - [`PackageJson`](source/package-json.d.ts) - Type for [npm's `package.json` file](https://docs.npmjs.com/creating-a-package-json-file).
-
+- [`TsConfigJson`](source/tsconfig-json.d.ts) - Type for [TypeScript's `tsconfig.json` file](https://www.typescriptlang.org/docs/handbook/tsconfig-json.html) (TypeScript 3.7).
 
 ## Declined types
 
@@ -89,7 +109,8 @@ Click the type names for complete docs.
 
 - [`Diff` and `Spread`](https://github.com/sindresorhus/type-fest/pull/7) - The PR author didn't provide any real-world use-cases and the PR went stale. If you think this type is useful, provide some real-world use-cases and we might reconsider.
 - [`Dictionary`](https://github.com/sindresorhus/type-fest/issues/33) - You only save a few characters (`Dictionary<number>` vs `Record<string, number>`) from [`Record`](https://github.com/Microsoft/TypeScript/blob/2961bc3fc0ea1117d4e53bc8e97fa76119bc33e3/src/lib/es5.d.ts#L1429-L1434), which is more flexible and well-known. Also, you shouldn't use an object as a dictionary. We have `Map` in JavaScript now.
-
+- [`SubType`](https://github.com/sindresorhus/type-fest/issues/22) - The type is powerful, but lacks good use-cases and is prone to misuse.
+- [`ExtractProperties` and `ExtractMethods`](https://github.com/sindresorhus/type-fest/pull/4) - The types violate the single responsibility principle. Instead, refine your types into more granular type hierarchies.
 
 ## Tips
 
@@ -103,7 +124,7 @@ There are many advanced types most users don't know about.
 			Example
 	</summary>
 
-	[Playground](https://typescript-play.js.org/?target=6#code/KYOwrgtgBAMg9gcxsAbsANlA3gKClAeQDMiAaPKAEWACMwFz8BRAJxbhcagDEBDAF17ocAXxw4AliH7AWRXgGNgUAHJwAJsADCcEEQkJsFXgAcTK3hGAAuKAGd+LKQgDcFEx363wEGrLf46IjIaOi28EioGG5iOArovHZ2qhrAAIJmAEJgEuiaLEb4Jk4oAsoKuvoIYCwCErq2apo6egZQALyF+FCm5pY2UABETelmg1xFnrYAzAAM8xNQQZGh4cFR6AB0xEQUIm4UFa0IABRHVbYACrws-BJCADwjLVUAfACUXfhEHFBnug4oABrYAATygcCIhBoACtgAp+JsQaC7P9ju9Prhut0joCwCZ1GUAGpCMDKTrnAwAbWRPWSyMhKWalQMAF0Dtj8BIoSd8YSZCT0GSOu1OmAQJp9CBgOpPkc7uBgBzOfwABYSOybSnVWp3XQ0sF04FgxnPFkIVkdKB84mkpUUfCxbEsYD8GogKBqjUBKBiWIAen9UGut3u6CeqReBlePXQQQA7skwMl+HAoMU4CgJJoISB0ODeOmbvwIVC1cAcIGmdpzVApDI5IpgJscNL49WMiZsrl8id3lrzScsD0zBYrLZBgAVOCUOCdwa+95uIA)
+	[Playground](https://www.typescriptlang.org/play/#code/JYOwLgpgTgZghgYwgAgHIHsAmEDC6QzADmyA3gLABQyycADnanALYQBcyAzmFKEQNxUaddFDAcQAV2YAjaIMoBfKlQQAbOJ05osEAIIMAQpOBrsUMkOR1eANziRkCfISKSoD4Pg4ZseAsTIALyW1DS0DEysHADkvvoMMQA0VsKi4sgAzAAMuVaKClY2wPaOknSYDrguADwA0sgQAB6QIJjaANYQAJ7oMDp+LsQAfAAUXd0cdUnI9mo+uv6uANp1ALoAlKHhyGAAFsCcAHTOAW4eYF4gyxNrwbNwago0ypRWp66jH8QcAApwYmAjxq8SWIy2FDCNDA3ToKFBQyIdR69wmfQG1TOhShyBgomQX3w3GQE2Q6IA8jIAFYQBBgI4TTiEs5bTQYsFInrLTbbHZOIlgZDlSqQABqj0kKBC3yINx6a2xfOQwH6o2FVXFaklwSCIUkbQghBAEEwENSfNOlykEGefNe5uhB2O6sgS3GPRmLogmslG1tLxUOKgEDA7hAuydtteryAA)
 
 	```ts
 	interface NodeConfig {
@@ -117,6 +138,10 @@ There are many advanced types most users don't know about.
 					port: 3000
 			};
 
+			private updateConfig<Key extends keyof NodeConfig>(key: Key, value: NodeConfig[Key]) {
+					this.configuration[key] = value;
+			}
+
 			config(config: Partial<NodeConfig>) {
 					type NodeConfigKey = keyof NodeConfig;
 
@@ -127,7 +152,7 @@ There are many advanced types most users don't know about.
 									continue;
 							}
 
-							this.configuration[key] = updateValue;
+							this.updateConfig(key, updateValue);
 					}
 
 					return this;
@@ -609,18 +634,16 @@ There are many advanced types most users don't know about.
 
 You can find some examples in the [TypeScript docs](https://www.typescriptlang.org/docs/handbook/advanced-types.html#predefined-conditional-types).
 
-
 ## Maintainers
 
 - [Sindre Sorhus](https://github.com/sindresorhus)
 - [Jarek Radosz](https://github.com/CvX)
 - [Dimitri Benin](https://github.com/BendingBender)
-
+- [Pelle Wessman](https://github.com/voxpelli)
 
 ## License
 
 (MIT OR CC0-1.0)
-
 
 ---
 

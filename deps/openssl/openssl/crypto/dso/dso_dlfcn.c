@@ -1,7 +1,7 @@
 /*
- * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -30,7 +30,7 @@
 #  if defined(__SCO_VERSION__) || defined(_SCO_ELF) || \
      (defined(__osf__) && !defined(RTLD_NEXT))     || \
      (defined(__OpenBSD__) && !defined(RTLD_SELF)) || \
-        defined(__ANDROID__)
+     defined(__ANDROID__) || defined(__TANDEM)
 #   undef HAVE_DLINFO
 #  endif
 # endif
@@ -102,7 +102,7 @@ static int dlfcn_load(DSO *dso)
     int saveerrno = get_last_sys_error();
 
     if (filename == NULL) {
-        DSOerr(DSO_F_DLFCN_LOAD, DSO_R_NO_FILENAME);
+        ERR_raise(ERR_LIB_DSO, DSO_R_NO_FILENAME);
         goto err;
     }
 # ifdef RTLD_GLOBAL
@@ -115,8 +115,8 @@ static int dlfcn_load(DSO *dso)
 # endif
     ptr = dlopen(filename, flags);
     if (ptr == NULL) {
-        DSOerr(DSO_F_DLFCN_LOAD, DSO_R_LOAD_FAILED);
-        ERR_add_error_data(4, "filename(", filename, "): ", dlerror());
+        ERR_raise_data(ERR_LIB_DSO, DSO_R_LOAD_FAILED,
+                       "filename(%s): %s", filename, dlerror());
         goto err;
     }
     /*
@@ -125,7 +125,7 @@ static int dlfcn_load(DSO *dso)
      */
     set_sys_error(saveerrno);
     if (!sk_void_push(dso->meth_data, (char *)ptr)) {
-        DSOerr(DSO_F_DLFCN_LOAD, DSO_R_STACK_ERROR);
+        ERR_raise(ERR_LIB_DSO, DSO_R_STACK_ERROR);
         goto err;
     }
     /* Success */
@@ -143,14 +143,14 @@ static int dlfcn_unload(DSO *dso)
 {
     void *ptr;
     if (dso == NULL) {
-        DSOerr(DSO_F_DLFCN_UNLOAD, ERR_R_PASSED_NULL_PARAMETER);
+        ERR_raise(ERR_LIB_DSO, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
     if (sk_void_num(dso->meth_data) < 1)
         return 1;
     ptr = sk_void_pop(dso->meth_data);
     if (ptr == NULL) {
-        DSOerr(DSO_F_DLFCN_UNLOAD, DSO_R_NULL_HANDLE);
+        ERR_raise(ERR_LIB_DSO, DSO_R_NULL_HANDLE);
         /*
          * Should push the value back onto the stack in case of a retry.
          */
@@ -171,22 +171,22 @@ static DSO_FUNC_TYPE dlfcn_bind_func(DSO *dso, const char *symname)
     } u;
 
     if ((dso == NULL) || (symname == NULL)) {
-        DSOerr(DSO_F_DLFCN_BIND_FUNC, ERR_R_PASSED_NULL_PARAMETER);
+        ERR_raise(ERR_LIB_DSO, ERR_R_PASSED_NULL_PARAMETER);
         return NULL;
     }
     if (sk_void_num(dso->meth_data) < 1) {
-        DSOerr(DSO_F_DLFCN_BIND_FUNC, DSO_R_STACK_ERROR);
+        ERR_raise(ERR_LIB_DSO, DSO_R_STACK_ERROR);
         return NULL;
     }
     ptr = sk_void_value(dso->meth_data, sk_void_num(dso->meth_data) - 1);
     if (ptr == NULL) {
-        DSOerr(DSO_F_DLFCN_BIND_FUNC, DSO_R_NULL_HANDLE);
+        ERR_raise(ERR_LIB_DSO, DSO_R_NULL_HANDLE);
         return NULL;
     }
     u.dlret = dlsym(ptr, symname);
     if (u.dlret == NULL) {
-        DSOerr(DSO_F_DLFCN_BIND_FUNC, DSO_R_SYM_FAILURE);
-        ERR_add_error_data(4, "symname(", symname, "): ", dlerror());
+        ERR_raise_data(ERR_LIB_DSO, DSO_R_SYM_FAILURE,
+                       "symname(%s): %s", symname, dlerror());
         return NULL;
     }
     return u.sym;
@@ -198,7 +198,7 @@ static char *dlfcn_merger(DSO *dso, const char *filespec1,
     char *merged;
 
     if (!filespec1 && !filespec2) {
-        DSOerr(DSO_F_DLFCN_MERGER, ERR_R_PASSED_NULL_PARAMETER);
+        ERR_raise(ERR_LIB_DSO, ERR_R_PASSED_NULL_PARAMETER);
         return NULL;
     }
     /*
@@ -208,7 +208,7 @@ static char *dlfcn_merger(DSO *dso, const char *filespec1,
     if (!filespec2 || (filespec1 != NULL && filespec1[0] == '/')) {
         merged = OPENSSL_strdup(filespec1);
         if (merged == NULL) {
-            DSOerr(DSO_F_DLFCN_MERGER, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
             return NULL;
         }
     }
@@ -218,7 +218,7 @@ static char *dlfcn_merger(DSO *dso, const char *filespec1,
     else if (!filespec1) {
         merged = OPENSSL_strdup(filespec2);
         if (merged == NULL) {
-            DSOerr(DSO_F_DLFCN_MERGER, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
             return NULL;
         }
     } else {
@@ -240,7 +240,7 @@ static char *dlfcn_merger(DSO *dso, const char *filespec1,
         }
         merged = OPENSSL_malloc(len + 2);
         if (merged == NULL) {
-            DSOerr(DSO_F_DLFCN_MERGER, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
             return NULL;
         }
         strcpy(merged, filespec2);
@@ -266,7 +266,7 @@ static char *dlfcn_name_converter(DSO *dso, const char *filename)
     }
     translated = OPENSSL_malloc(rsize);
     if (translated == NULL) {
-        DSOerr(DSO_F_DLFCN_NAME_CONVERTER, DSO_R_NAME_TRANSLATION_FAILED);
+        ERR_raise(ERR_LIB_DSO, DSO_R_NAME_TRANSLATION_FAILED);
         return NULL;
     }
     if (transform) {

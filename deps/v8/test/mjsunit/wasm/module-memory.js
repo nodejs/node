@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --expose-gc --stress-compaction --allow-natives-syntax
+// Flags: --expose-wasm --expose-gc --stress-compaction --allow-natives-syntax --wasm-loop-unrolling
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var kMemSize = 65536;
 
@@ -17,12 +17,12 @@ function genModule(memory) {
     .addBody([
       // main body: while(i) { if(mem[i]) return -1; i -= 4; } return 0;
       // TODO(titzer): this manual bytecode has a copy of test-run-wasm.cc
-      /**/ kExprLoop, kWasmStmt,           // --
+      /**/ kExprLoop, kWasmVoid,           // --
       /*  */ kExprLocalGet, 0,             // --
-      /*  */ kExprIf, kWasmStmt,           // --
+      /*  */ kExprIf, kWasmVoid,           // --
       /*    */ kExprLocalGet, 0,           // --
       /*    */ kExprI32LoadMem, 0, 0,      // --
-      /*    */ kExprIf, kWasmStmt,         // --
+      /*    */ kExprIf, kWasmVoid,         // --
       /*      */ kExprI32Const, 127,       // --
       /*      */ kExprReturn,              // --
       /*      */ kExprEnd,                 // --
@@ -166,29 +166,3 @@ function testOOBThrows() {
 }
 
 testOOBThrows();
-
-function testAddressSpaceLimit() {
-  // 1TiB + 4 GiB, see wasm-memory.h
-  const kMaxAddressSpace = 1 * 1024 * 1024 * 1024 * 1024
-                         + 4 * 1024 * 1024 * 1024;
-  const kAddressSpacePerMemory = 10 * 1024 * 1024 * 1024;
-
-  let last_memory;
-  try {
-    let memories = [];
-    let address_space = 0;
-    while (address_space <= kMaxAddressSpace + 1) {
-      last_memory = new WebAssembly.Memory({initial: 1})
-      memories.push(last_memory);
-      address_space += kAddressSpacePerMemory;
-    }
-  } catch (e) {
-    assertTrue(e instanceof RangeError);
-    return;
-  }
-  assertUnreachable("should have reached the address space limit");
-}
-
-if(%IsWasmTrapHandlerEnabled()) {
-  testAddressSpaceLimit();
-}

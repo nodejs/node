@@ -25,16 +25,59 @@
 #include <stdlib.h>
 
 
+static int connect_cb_called = 0;
 static int close_cb_called = 0;
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
 
-TEST_IMPL(tcp_bind_error_addrinuse) {
+static void connect_cb(uv_connect_t* req, int status) {
+  ASSERT(status == UV_EADDRINUSE);
+  uv_close((uv_handle_t*) req->handle, close_cb);
+  connect_cb_called++;
+}
+
+
+TEST_IMPL(tcp_bind_error_addrinuse_connect) {
+  struct sockaddr_in addr;
+  int addrlen;
+  uv_connect_t req;
+  uv_tcp_t conn;
+
+  /* 127.0.0.1:<TEST_PORT> is already taken by tcp4_echo_server running in
+   * another process. uv_tcp_bind() and uv_tcp_connect() should still succeed
+   * (greatest common denominator across platforms) but the connect callback
+   * should receive an UV_EADDRINUSE error.
+   */
+  ASSERT(0 == uv_tcp_init(uv_default_loop(), &conn));
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+  ASSERT(0 == uv_tcp_bind(&conn, (const struct sockaddr*) &addr, 0));
+
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT + 1, &addr));
+  ASSERT(0 == uv_tcp_connect(&req,
+                             &conn,
+                             (const struct sockaddr*) &addr,
+                             connect_cb));
+
+  addrlen = sizeof(addr);
+  ASSERT(UV_EADDRINUSE == uv_tcp_getsockname(&conn,
+                                             (struct sockaddr*) &addr,
+                                             &addrlen));
+
+  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT(connect_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(tcp_bind_error_addrinuse_listen) {
   struct sockaddr_in addr;
   uv_tcp_t server1, server2;
   int r;
@@ -240,7 +283,9 @@ TEST_IMPL(tcp_bind_writable_flags) {
   ASSERT(r == UV_EPIPE);
   r = uv_shutdown(&shutdown_req, (uv_stream_t*) &server, NULL);
   ASSERT(r == UV_ENOTCONN);
-  r = uv_read_start((uv_stream_t*) &server, NULL, NULL);
+  r = uv_read_start((uv_stream_t*) &server,
+                    (uv_alloc_cb) abort,
+                    (uv_read_cb) abort);
   ASSERT(r == UV_ENOTCONN);
 
   uv_close((uv_handle_t*)&server, close_cb);

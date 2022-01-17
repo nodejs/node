@@ -125,6 +125,8 @@ class V8_PLATFORM_EXPORT TraceWriter {
   static TraceWriter* CreateJSONTraceWriter(std::ostream& stream,
                                             const std::string& tag);
 
+  static TraceWriter* CreateSystemInstrumentationTraceWriter();
+
  private:
   // Disallow copy and assign
   TraceWriter(const TraceWriter&) = delete;

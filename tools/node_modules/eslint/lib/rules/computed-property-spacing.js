@@ -10,13 +10,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "enforce consistent spacing inside computed property brackets",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/computed-property-spacing"
         },
@@ -195,7 +195,8 @@ module.exports = {
         };
 
         if (enforceForClassMembers) {
-            listeners.MethodDefinition = checkSpacing("key");
+            listeners.MethodDefinition =
+                listeners.PropertyDefinition = listeners.Property;
         }
 
         return listeners;

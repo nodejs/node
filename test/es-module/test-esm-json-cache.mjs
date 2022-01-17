@@ -3,14 +3,14 @@ import '../common/index.mjs';
 
 import { strictEqual, deepStrictEqual } from 'assert';
 
-import { createRequireFromPath as createRequire } from 'module';
-import { fileURLToPath as fromURL } from 'url';
+import { createRequire } from 'module';
 
 import mod from '../fixtures/es-modules/json-cache/mod.cjs';
 import another from '../fixtures/es-modules/json-cache/another.cjs';
-import test from '../fixtures/es-modules/json-cache/test.json';
+import test from '../fixtures/es-modules/json-cache/test.json' assert
+  { type: 'json' };
 
-const require = createRequire(fromURL(import.meta.url));
+const require = createRequire(import.meta.url);
 
 const modCjs = require('../fixtures/es-modules/json-cache/mod.cjs');
 const anotherCjs = require('../fixtures/es-modules/json-cache/another.cjs');

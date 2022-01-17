@@ -17,7 +17,7 @@
 // functions available in a new version of N-API that is not yet ported in all
 // LTS versions, they can set NAPI_VERSION knowing that they have specifically
 // depended on that version.
-#define NAPI_VERSION 7
+#define NAPI_VERSION 8
 #endif
 #endif
 
@@ -111,6 +111,12 @@ NAPI_EXTERN napi_status napi_create_range_error(napi_env env,
                                                 napi_value code,
                                                 napi_value msg,
                                                 napi_value* result);
+#ifdef NAPI_EXPERIMENTAL
+NAPI_EXTERN napi_status node_api_create_syntax_error(napi_env env,
+                                                     napi_value code,
+                                                     napi_value msg,
+                                                     napi_value* result);
+#endif  // NAPI_EXPERIMENTAL
 
 // Methods to get the native napi_value from Primitive type
 NAPI_EXTERN napi_status napi_typeof(napi_env env,
@@ -370,6 +376,11 @@ NAPI_EXTERN napi_status napi_throw_type_error(napi_env env,
 NAPI_EXTERN napi_status napi_throw_range_error(napi_env env,
                                          const char* code,
                                          const char* msg);
+#ifdef NAPI_EXPERIMENTAL
+NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
+                                                    const char* code,
+                                                    const char* msg);
+#endif  // NAPI_EXPERIMENTAL
 NAPI_EXTERN napi_status napi_is_error(napi_env env,
                                       napi_value value,
                                       bool* result);
@@ -539,7 +550,7 @@ NAPI_EXTERN napi_status napi_is_detached_arraybuffer(napi_env env,
                                                      bool* result);
 #endif  // NAPI_VERSION >= 7
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 8
 // Type tagging
 NAPI_EXTERN napi_status napi_type_tag_object(napi_env env,
                                              napi_value value,
@@ -554,7 +565,7 @@ NAPI_EXTERN napi_status napi_object_freeze(napi_env env,
                                            napi_value object);
 NAPI_EXTERN napi_status napi_object_seal(napi_env env,
                                          napi_value object);
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_VERSION >= 8
 
 EXTERN_C_END
 

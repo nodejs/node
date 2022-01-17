@@ -214,6 +214,20 @@ namespace node {
 class IsolateData;
 class Environment;
 
+namespace ProcessFlags {
+enum Flags : uint64_t {
+  kNoFlags = 0,
+  // Enable stdio inheritance, which is disabled by default.
+  kEnableStdioInheritance = 1 << 0,
+  // Disable reading the NODE_OPTIONS environment variable.
+  kDisableNodeOptionsEnv = 1 << 1,
+  // Do not parse CLI options.
+  kDisableCLIOptions = 1 << 2,
+  // Do not initialize ICU.
+  kNoICU = 1 << 3,
+};
+}  // namespace ProcessFlags
+
 // TODO(addaleax): Officially deprecate this and replace it with something
 // better suited for a public embedder API.
 NODE_EXTERN int Start(int argc, char* argv[]);
@@ -222,21 +236,20 @@ NODE_EXTERN int Start(int argc, char* argv[]);
 // in the loop and / or actively executing JavaScript code).
 NODE_EXTERN int Stop(Environment* env);
 
-// It is recommended to use InitializeNodeWithArgs() instead as an embedder.
-// Init() calls InitializeNodeWithArgs() and exits the process with the exit
-// code returned from it.
-NODE_DEPRECATED("Use InitializeNodeWithArgs() instead",
-    NODE_EXTERN void Init(int* argc,
-                          const char** argv,
-                          int* exec_argc,
-                          const char*** exec_argv));
 // Set up per-process state needed to run Node.js. This will consume arguments
 // from argv, fill exec_argv, and possibly add errors resulting from parsing
 // the arguments to `errors`. The return value is a suggested exit code for the
 // program; If it is 0, then initializing Node.js succeeded.
-NODE_EXTERN int InitializeNodeWithArgs(std::vector<std::string>* argv,
-                                       std::vector<std::string>* exec_argv,
-                                       std::vector<std::string>* errors);
+NODE_EXTERN int InitializeNodeWithArgs(
+    std::vector<std::string>* argv,
+    std::vector<std::string>* exec_argv,
+    std::vector<std::string>* errors);
+// TODO(zcbenz): Turn above overloaded version into below's default argument.
+NODE_EXTERN int InitializeNodeWithArgs(
+    std::vector<std::string>* argv,
+    std::vector<std::string>* exec_argv,
+    std::vector<std::string>* errors,
+    ProcessFlags::Flags flags);
 
 enum OptionEnvvarSettings {
   kAllowedInEnvironment,
@@ -318,13 +331,15 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
 
   static std::unique_ptr<MultiIsolatePlatform> Create(
       int thread_pool_size,
-      v8::TracingController* tracing_controller = nullptr);
+      v8::TracingController* tracing_controller = nullptr,
+      v8::PageAllocator* page_allocator = nullptr);
 };
 
 enum IsolateSettingsFlags {
   MESSAGE_LISTENER_WITH_ERROR_LEVEL = 1 << 0,
   DETAILED_SOURCE_POSITIONS_FOR_PROFILING = 1 << 1,
-  SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK = 1 << 2
+  SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK = 1 << 2,
+  SHOULD_NOT_SET_PREPARE_STACK_TRACE_CALLBACK = 1 << 3
 };
 
 struct IsolateSettings {
@@ -358,10 +373,8 @@ NODE_EXTERN void SetIsolateUpForNode(v8::Isolate* isolate);
 // Isolate::Allocate(), MultiIsolatePlatform::RegisterIsolate(),
 // Isolate::Initialize(), and SetIsolateUpForNode().
 NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
-                                    struct uv_loop_s* event_loop);
-NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
                                     struct uv_loop_s* event_loop,
-                                    MultiIsolatePlatform* platform);
+                                    MultiIsolatePlatform* platform = nullptr);
 NODE_EXTERN v8::Isolate* NewIsolate(
     std::shared_ptr<ArrayBufferAllocator> allocator,
     struct uv_loop_s* event_loop,
@@ -375,7 +388,7 @@ NODE_EXTERN v8::Local<v8::Context> NewContext(
 
 // Runs Node.js-specific tweaks on an already constructed context
 // Return value indicates success of operation
-NODE_EXTERN bool InitializeContext(v8::Local<v8::Context> context);
+NODE_EXTERN v8::Maybe<bool> InitializeContext(v8::Local<v8::Context> context);
 
 // If `platform` is passed, it will be used to register new Worker instances.
 // It can be `nullptr`, in which case creating new Workers inside of
@@ -411,7 +424,24 @@ enum Flags : uint64_t {
   kNoRegisterESMLoader = 1 << 3,
   // Set this flag to make Node.js track "raw" file descriptors, i.e. managed
   // by fs.open() and fs.close(), and close them during FreeEnvironment().
-  kTrackUnmanagedFds = 1 << 4
+  kTrackUnmanagedFds = 1 << 4,
+  // Set this flag to force hiding console windows when spawning child
+  // processes. This is usually used when embedding Node.js in GUI programs on
+  // Windows.
+  kHideConsoleWindows = 1 << 5,
+  // Set this flag to disable loading native addons via `process.dlopen`.
+  // This environment flag is especially important for worker threads
+  // so that a worker thread can't load a native addon even if `execArgv`
+  // is overwritten and `--no-addons` is not specified but was specified
+  // for this Environment instance.
+  kNoNativeAddons = 1 << 6,
+  // Set this flag to disable searching modules from global paths like
+  // $HOME/.node_modules and $NODE_PATH. This is used by standalone apps that
+  // do not expect to have their behaviors changed because of globally
+  // installed modules.
+  kNoGlobalSearchPaths = 1 << 7,
+  // Do not export browser globals like setTimeout, console, etc.
+  kNoBrowserGlobals = 1 << 8,
 };
 }  // namespace EnvironmentFlags
 
@@ -422,14 +452,6 @@ struct InspectorParentHandle {
 // TODO(addaleax): Maybe move per-Environment options parsing here.
 // Returns nullptr when the Environment cannot be created e.g. there are
 // pending JavaScript exceptions.
-// It is recommended to use the second variant taking a flags argument.
-NODE_DEPRECATED("Use overload taking a flags argument",
-    NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
-                                               v8::Local<v8::Context> context,
-                                               int argc,
-                                               const char* const* argv,
-                                               int exec_argc,
-                                               const char* const* exec_argv));
 NODE_EXTERN Environment* CreateEnvironment(
     IsolateData* isolate_data,
     v8::Local<v8::Context> context,
@@ -459,18 +481,12 @@ struct StartExecutionCallbackInfo {
 using StartExecutionCallback =
     std::function<v8::MaybeLocal<v8::Value>(const StartExecutionCallbackInfo&)>;
 
-NODE_DEPRECATED("Use variants returning MaybeLocal<> instead",
-    NODE_EXTERN void LoadEnvironment(Environment* env));
-// The `InspectorParentHandle` arguments here are ignored and not used.
-// For passing `InspectorParentHandle`, use `CreateEnvironment()`.
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
-    StartExecutionCallback cb,
-    std::unique_ptr<InspectorParentHandle> ignored_donotuse_removeme = {});
+    StartExecutionCallback cb);
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
-    const char* main_script_source_utf8,
-    std::unique_ptr<InspectorParentHandle> ignored_donotuse_removeme = {});
+    const char* main_script_source_utf8);
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // Set a callback that is called when process.exit() is called from JS,
@@ -487,6 +503,8 @@ NODE_EXTERN void DefaultProcessExitHandler(Environment* env, int exit_code);
 
 // This may return nullptr if context is not associated with a Node instance.
 NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);
+NODE_EXTERN IsolateData* GetEnvironmentIsolateData(Environment* env);
+NODE_EXTERN ArrayBufferAllocator* GetArrayBufferAllocator(IsolateData* data);
 
 NODE_EXTERN void OnFatalError(const char* location, const char* message);
 NODE_EXTERN void PromiseRejectCallback(v8::PromiseRejectMessage message);
@@ -498,25 +516,17 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> PrepareStackTraceCallback(
     v8::Local<v8::Value> exception,
     v8::Local<v8::Array> trace);
 
-// This returns the MultiIsolatePlatform used in the main thread of Node.js.
-// If NODE_USE_V8_PLATFORM has not been defined when Node.js was built,
-// it returns nullptr.
-NODE_DEPRECATED("Use GetMultiIsolatePlatform(env) instead",
-    NODE_EXTERN MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform());
 // This returns the MultiIsolatePlatform used for an Environment or IsolateData
 // instance, if one exists.
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(Environment* env);
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env);
 
-// Legacy variants of MultiIsolatePlatform::Create().
-NODE_DEPRECATED("Use variant taking a v8::TracingController* pointer instead",
+NODE_DEPRECATED("Use MultiIsolatePlatform::Create() instead",
     NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
         int thread_pool_size,
-        node::tracing::TracingController* tracing_controller));
-NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    v8::TracingController* tracing_controller);
-NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform);
+        v8::TracingController* tracing_controller));
+NODE_DEPRECATED("Use MultiIsolatePlatform::Create() instead",
+    NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform));
 
 // Get/set the currently active tracing controller. Using CreatePlatform()
 // will implicitly set this by default. This is global and should be initialized
@@ -920,16 +930,6 @@ NODE_EXTERN void AddLinkedBinding(Environment* env,
                                   addon_context_register_func fn,
                                   void* priv);
 
-/* Called after the event loop exits but before the VM is disposed.
- * Callbacks are run in reverse order of registration, i.e. newest first.
- *
- * You should always use the three-argument variant (or, for addons,
- * AddEnvironmentCleanupHook) in order to avoid relying on global state.
- */
-NODE_DEPRECATED(
-    "Use the three-argument variant of AtExit() or AddEnvironmentCleanupHook()",
-    NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = nullptr));
-
 /* Registers a callback with the passed-in Environment instance. The callback
  * is called after the event loop exits, but before the VM is disposed.
  * Callbacks are run in reverse order of registration, i.e. newest first.
@@ -937,12 +937,6 @@ NODE_DEPRECATED(
 NODE_EXTERN void AtExit(Environment* env,
                         void (*cb)(void* arg),
                         void* arg);
-NODE_DEPRECATED(
-    "Use the three-argument variant of AtExit() or AddEnvironmentCleanupHook()",
-    inline void AtExit(Environment* env,
-                       void (*cb)(void* arg)) {
-      AtExit(env, cb, nullptr);
-    })
 
 typedef double async_id;
 struct async_context {
@@ -970,12 +964,26 @@ struct ACHHandle;
 struct NODE_EXTERN DeleteACHHandle { void operator()(ACHHandle*) const; };
 typedef std::unique_ptr<ACHHandle, DeleteACHHandle> AsyncCleanupHookHandle;
 
-NODE_EXTERN AsyncCleanupHookHandle AddEnvironmentCleanupHook(
+/* This function is not intended to be used externally, it exists to aid in
+ * keeping ABI compatibility between Node and Electron. */
+NODE_EXTERN ACHHandle* AddEnvironmentCleanupHookInternal(
     v8::Isolate* isolate,
     void (*fun)(void* arg, void (*cb)(void*), void* cbarg),
     void* arg);
+inline AsyncCleanupHookHandle AddEnvironmentCleanupHook(
+    v8::Isolate* isolate,
+    void (*fun)(void* arg, void (*cb)(void*), void* cbarg),
+    void* arg) {
+  return AsyncCleanupHookHandle(AddEnvironmentCleanupHookInternal(isolate, fun,
+      arg));
+}
 
-NODE_EXTERN void RemoveEnvironmentCleanupHook(AsyncCleanupHookHandle holder);
+/* This function is not intended to be used externally, it exists to aid in
+ * keeping ABI compatibility between Node and Electron. */
+NODE_EXTERN void RemoveEnvironmentCleanupHookInternal(ACHHandle* holder);
+inline void RemoveEnvironmentCleanupHook(AsyncCleanupHookHandle holder) {
+  RemoveEnvironmentCleanupHookInternal(holder.get());
+}
 
 /* Returns the id of the current execution context. If the return value is
  * zero then no execution has been set. This will happen if the user handles
@@ -1033,6 +1041,9 @@ class InternalCallbackScope;
 class NODE_EXTERN CallbackScope {
  public:
   CallbackScope(v8::Isolate* isolate,
+                v8::Local<v8::Object> resource,
+                async_context asyncContext);
+  CallbackScope(Environment* env,
                 v8::Local<v8::Object> resource,
                 async_context asyncContext);
   ~CallbackScope();

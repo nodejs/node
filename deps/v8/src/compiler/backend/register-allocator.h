@@ -175,11 +175,7 @@ class LifetimePosition final {
 
 std::ostream& operator<<(std::ostream& os, const LifetimePosition pos);
 
-enum class RegisterAllocationFlag : unsigned {
-  kTurboControlFlowAwareAllocation = 1 << 0,
-  kTurboPreprocessRanges = 1 << 1,
-  kTraceAllocation = 1 << 2
-};
+enum class RegisterAllocationFlag : unsigned { kTraceAllocation = 1 << 0 };
 
 using RegisterAllocationFlags = base::Flags<RegisterAllocationFlag>;
 
@@ -189,6 +185,10 @@ class TopLevelLiveRange;
 
 class TopTierRegisterAllocationData final : public RegisterAllocationData {
  public:
+  TopTierRegisterAllocationData(const TopTierRegisterAllocationData&) = delete;
+  TopTierRegisterAllocationData& operator=(
+      const TopTierRegisterAllocationData&) = delete;
+
   static const TopTierRegisterAllocationData* cast(
       const RegisterAllocationData* data) {
     DCHECK_EQ(data->type(), Type::kTopTier);
@@ -209,14 +209,6 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   // Encodes whether a spill happens in deferred code (kSpillDeferred) or
   // regular code (kSpillAtDefinition).
   enum SpillMode { kSpillAtDefinition, kSpillDeferred };
-
-  bool is_turbo_control_flow_aware_allocation() const {
-    return flags_ & RegisterAllocationFlag::kTurboControlFlowAwareAllocation;
-  }
-
-  bool is_turbo_preprocess_ranges() const {
-    return flags_ & RegisterAllocationFlag::kTurboPreprocessRanges;
-  }
 
   bool is_trace_alloc() {
     return flags_ & RegisterAllocationFlag::kTraceAllocation;
@@ -313,7 +305,6 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   TopLevelLiveRange* GetOrCreateLiveRangeFor(int index);
   // Creates a new live range.
   TopLevelLiveRange* NewLiveRange(int index, MachineRepresentation rep);
-  TopLevelLiveRange* NextLiveRange(MachineRepresentation rep);
 
   SpillRange* AssignSpillRangeToLiveRange(TopLevelLiveRange* range,
                                           SpillMode spill_mode);
@@ -359,9 +350,11 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
 
   TickCounter* tick_counter() { return tick_counter_; }
 
- private:
-  int GetNextLiveRangeId();
+  ZoneMap<TopLevelLiveRange*, AllocatedOperand*>& slot_for_const_range() {
+    return slot_for_const_range_;
+  }
 
+ private:
   Zone* const allocation_zone_;
   Frame* const frame_;
   InstructionSequence* const code_;
@@ -386,8 +379,7 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   ZoneVector<ZoneVector<LiveRange*>> spill_state_;
   RegisterAllocationFlags flags_;
   TickCounter* const tick_counter_;
-
-  DISALLOW_COPY_AND_ASSIGN(TopTierRegisterAllocationData);
+  ZoneMap<TopLevelLiveRange*, AllocatedOperand*> slot_for_const_range_;
 };
 
 // Representation of the non-empty interval [start,end[.
@@ -397,6 +389,8 @@ class UseInterval final : public ZoneObject {
       : start_(start), end_(end), next_(nullptr) {
     DCHECK(start < end);
   }
+  UseInterval(const UseInterval&) = delete;
+  UseInterval& operator=(const UseInterval&) = delete;
 
   LifetimePosition start() const { return start_; }
   void set_start(LifetimePosition start) { start_ = start; }
@@ -443,8 +437,6 @@ class UseInterval final : public ZoneObject {
   LifetimePosition start_;
   LifetimePosition end_;
   UseInterval* next_;
-
-  DISALLOW_COPY_AND_ASSIGN(UseInterval);
 };
 
 enum class UsePositionType : uint8_t {
@@ -468,6 +460,8 @@ class V8_EXPORT_PRIVATE UsePosition final
  public:
   UsePosition(LifetimePosition pos, InstructionOperand* operand, void* hint,
               UsePositionHintType hint_type);
+  UsePosition(const UsePosition&) = delete;
+  UsePosition& operator=(const UsePosition&) = delete;
 
   InstructionOperand* operand() const { return operand_; }
   bool HasOperand() const { return operand_ != nullptr; }
@@ -519,8 +513,6 @@ class V8_EXPORT_PRIVATE UsePosition final
   UsePosition* next_;
   LifetimePosition const pos_;
   uint32_t flags_;
-
-  DISALLOW_COPY_AND_ASSIGN(UsePosition);
 };
 
 class SpillRange;
@@ -532,6 +524,9 @@ class LiveRangeBundle;
 // intervals over the instruction ordering.
 class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
  public:
+  LiveRange(const LiveRange&) = delete;
+  LiveRange& operator=(const LiveRange&) = delete;
+
   UseInterval* first_interval() const { return first_interval_; }
   UsePosition* first_pos() const { return first_pos_; }
   TopLevelLiveRange* TopLevel() { return top_level_; }
@@ -615,7 +610,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   // Can this live range be spilled at this position.
   bool CanBeSpilled(LifetimePosition pos) const;
 
-  // Splitting primitive used by both splitting and splintering members.
+  // Splitting primitive used by splitting members.
   // Performs the split, but does not link the resulting ranges.
   // The given position must follow the start of the range.
   // All uses following the given position will be moved from this
@@ -708,7 +703,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   using ControlFlowRegisterHint = base::BitField<uint8_t, 22, 6>;
   // Bits 28-31 are used by TopLevelLiveRange.
 
-  // Unique among children and splinters of the same virtual register.
+  // Unique among children of the same virtual register.
   int relative_id_;
   uint32_t bits_;
   UseInterval* last_interval_;
@@ -720,15 +715,11 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   mutable UseInterval* current_interval_;
   // This is used as a cache, it doesn't affect correctness.
   mutable UsePosition* last_processed_use_;
-  // Cache the last position splintering stopped at.
-  mutable UsePosition* splitting_pointer_;
   // This is used as a cache in BuildLiveRanges and during register allocation.
   UsePosition* current_hint_position_;
   LiveRangeBundle* bundle_ = nullptr;
   // Next interval start, relative to the current linear scan position.
   LifetimePosition next_start_;
-
-  DISALLOW_COPY_AND_ASSIGN(LiveRange);
 };
 
 struct LiveRangeOrdering {
@@ -738,7 +729,7 @@ struct LiveRangeOrdering {
 };
 class LiveRangeBundle : public ZoneObject {
  public:
-  void MergeSpillRanges();
+  void MergeSpillRangesAndClear();
 
   int id() { return id_; }
 
@@ -793,7 +784,11 @@ class LiveRangeBundle : public ZoneObject {
       : ranges_(zone), uses_(zone), id_(id) {}
 
   bool TryAddRange(LiveRange* range);
-  bool TryMerge(LiveRangeBundle* other, bool trace_alloc);
+
+  // If merging is possible, merge either {lhs} into {rhs} or {rhs} into
+  // {lhs}, clear the source and return the result. Otherwise return nullptr.
+  static LiveRangeBundle* TryMerge(LiveRangeBundle* lhs, LiveRangeBundle* rhs,
+                                   bool trace_alloc);
 
   ZoneSet<LiveRange*, LiveRangeOrdering> ranges_;
   ZoneSet<Range, RangeOrdering> uses_;
@@ -804,6 +799,9 @@ class LiveRangeBundle : public ZoneObject {
 class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
  public:
   explicit TopLevelLiveRange(int vreg, MachineRepresentation rep);
+  TopLevelLiveRange(const TopLevelLiveRange&) = delete;
+  TopLevelLiveRange& operator=(const TopLevelLiveRange&) = delete;
+
   int spill_start_index() const { return spill_start_index_; }
 
   bool IsFixed() const { return vreg_ < 0; }
@@ -839,7 +837,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     bits_ = HasSlotUseField::update(bits_, SlotUseKind::kNoSlotUse);
   }
   void register_slot_use(SlotUseKind value) {
-    bits_ = HasSlotUseField::update(bits_, Max(slot_use_kind(), value));
+    bits_ = HasSlotUseField::update(bits_, std::max(slot_use_kind(), value));
   }
   SlotUseKind slot_use_kind() const { return HasSlotUseField::decode(bits_); }
 
@@ -852,16 +850,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
   // Shorten the most recently added interval by setting a new start.
   void ShortenTo(LifetimePosition start, bool trace_alloc);
-
-  // Detaches between start and end, and attributes the resulting range to
-  // result.
-  // The current range is pointed to as "splintered_from". No parent/child
-  // relationship is established between this and result.
-  void Splinter(LifetimePosition start, LifetimePosition end, Zone* zone);
-
-  // Assuming other was splintered from this range, embeds other and its
-  // children as part of the children sequence of this range.
-  void Merge(TopLevelLiveRange* other, Zone* zone);
 
   // Spill range management.
   void SetSpillRange(SpillRange* spill_range);
@@ -919,7 +907,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
                            InstructionOperand* operand);
   void SetSpillOperand(InstructionOperand* operand);
   void SetSpillStartIndex(int start) {
-    spill_start_index_ = Min(start, spill_start_index_);
+    spill_start_index_ = std::min(start, spill_start_index_);
   }
 
   // Omits any moves from spill_move_insertion_locations_ that can be skipped.
@@ -963,18 +951,11 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     }
   }
 
-  TopLevelLiveRange* splintered_from() const { return splintered_from_; }
-  bool IsSplinter() const { return splintered_from_ != nullptr; }
   bool MayRequireSpillRange() const {
-    DCHECK(!IsSplinter());
     return !HasSpillOperand() && spill_range_ == nullptr;
   }
   void UpdateSpillRangePostMerge(TopLevelLiveRange* merged);
   int vreg() const { return vreg_; }
-
-#if DEBUG
-  int debug_virt_reg() const;
-#endif
 
   void Verify() const;
   void VerifyChildrenInOrder() const;
@@ -985,19 +966,13 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   // if you call it with a non-decreasing sequence of positions.
   LiveRange* GetChildCovers(LifetimePosition pos);
 
-  int GetNextChildId() {
-    return IsSplinter() ? splintered_from()->GetNextChildId()
-                        : ++last_child_id_;
-  }
+  int GetNextChildId() { return ++last_child_id_; }
 
   int GetMaxChildCount() const { return last_child_id_ + 1; }
 
   bool IsSpilledOnlyInDeferredBlocks(
       const TopTierRegisterAllocationData* data) const {
-    if (data->is_turbo_control_flow_aware_allocation()) {
-      return spill_type() == SpillType::kDeferredSpillRange;
-    }
-    return spilled_in_deferred_blocks_;
+    return spill_type() == SpillType::kDeferredSpillRange;
   }
 
   struct SpillMoveInsertionList;
@@ -1006,17 +981,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
       const TopTierRegisterAllocationData* data) const {
     DCHECK(!IsSpilledOnlyInDeferredBlocks(data));
     return spill_move_insertion_locations_;
-  }
-  TopLevelLiveRange* splinter() const { return splinter_; }
-  void SetSplinter(TopLevelLiveRange* splinter) {
-    DCHECK_NULL(splinter_);
-    DCHECK_NOT_NULL(splinter);
-
-    splinter_ = splinter;
-    splinter->relative_id_ = GetNextChildId();
-    splinter->set_spill_type(spill_type());
-    splinter->SetSplinteredFrom(this);
-    if (bundle_ != nullptr) splinter->set_bundle(bundle_);
   }
 
   void MarkHasPreassignedSlot() { has_preassigned_slot_ = true; }
@@ -1056,7 +1020,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
  private:
   friend class LiveRange;
-  void SetSplinteredFrom(TopLevelLiveRange* splinter_parent);
 
   // If spill type is kSpillRange, then this value indicates whether we've
   // chosen to spill at the definition or at some later points.
@@ -1076,7 +1039,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
   int vreg_;
   int last_child_id_;
-  TopLevelLiveRange* splintered_from_;
   union {
     // Correct value determined by spill_type()
     InstructionOperand* spill_operand_;
@@ -1096,9 +1058,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   int spill_start_index_;
   UsePosition* last_pos_;
   LiveRange* last_child_covers_;
-  TopLevelLiveRange* splinter_;
-
-  DISALLOW_COPY_AND_ASSIGN(TopLevelLiveRange);
 };
 
 struct PrintableLiveRange {
@@ -1113,6 +1072,8 @@ class SpillRange final : public ZoneObject {
  public:
   static const int kUnassignedSlot = -1;
   SpillRange(TopLevelLiveRange* range, Zone* zone);
+  SpillRange(const SpillRange&) = delete;
+  SpillRange& operator=(const SpillRange&) = delete;
 
   UseInterval* interval() const { return use_interval_; }
 
@@ -1147,8 +1108,6 @@ class SpillRange final : public ZoneObject {
   LifetimePosition end_position_;
   int assigned_slot_;
   int byte_width_;
-
-  DISALLOW_COPY_AND_ASSIGN(SpillRange);
 };
 
 class LiveRangeBound {
@@ -1157,6 +1116,8 @@ class LiveRangeBound {
       : range_(range), start_(range->Start()), end_(range->End()), skip_(skip) {
     DCHECK(!range->IsEmpty());
   }
+  LiveRangeBound(const LiveRangeBound&) = delete;
+  LiveRangeBound& operator=(const LiveRangeBound&) = delete;
 
   bool CanCover(LifetimePosition position) {
     return start_ <= position && position < end_;
@@ -1166,9 +1127,6 @@ class LiveRangeBound {
   const LifetimePosition start_;
   const LifetimePosition end_;
   const bool skip_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(LiveRangeBound);
 };
 
 struct FindResult {
@@ -1179,6 +1137,9 @@ struct FindResult {
 class LiveRangeBoundArray {
  public:
   LiveRangeBoundArray() : length_(0), start_(nullptr) {}
+  LiveRangeBoundArray(const LiveRangeBoundArray&) = delete;
+  LiveRangeBoundArray& operator=(const LiveRangeBoundArray&) = delete;
+
   bool ShouldInitialize() { return start_ == nullptr; }
   void Initialize(Zone* zone, TopLevelLiveRange* range);
   LiveRangeBound* Find(const LifetimePosition position) const;
@@ -1191,14 +1152,15 @@ class LiveRangeBoundArray {
  private:
   size_t length_;
   LiveRangeBound* start_;
-
-  DISALLOW_COPY_AND_ASSIGN(LiveRangeBoundArray);
 };
 
 class LiveRangeFinder {
  public:
   explicit LiveRangeFinder(const TopTierRegisterAllocationData* data,
                            Zone* zone);
+  LiveRangeFinder(const LiveRangeFinder&) = delete;
+  LiveRangeFinder& operator=(const LiveRangeFinder&) = delete;
+
   LiveRangeBoundArray* ArrayFor(int operand_index);
 
  private:
@@ -1206,13 +1168,13 @@ class LiveRangeFinder {
   const int bounds_length_;
   LiveRangeBoundArray* const bounds_;
   Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(LiveRangeFinder);
 };
 
 class ConstraintBuilder final : public ZoneObject {
  public:
   explicit ConstraintBuilder(TopTierRegisterAllocationData* data);
+  ConstraintBuilder(const ConstraintBuilder&) = delete;
+  ConstraintBuilder& operator=(const ConstraintBuilder&) = delete;
 
   // Phase 1 : insert moves to account for fixed register operands.
   void MeetRegisterConstraints();
@@ -1236,14 +1198,14 @@ class ConstraintBuilder final : public ZoneObject {
   void ResolvePhis(const InstructionBlock* block);
 
   TopTierRegisterAllocationData* const data_;
-
-  DISALLOW_COPY_AND_ASSIGN(ConstraintBuilder);
 };
 
 class LiveRangeBuilder final : public ZoneObject {
  public:
   explicit LiveRangeBuilder(TopTierRegisterAllocationData* data,
                             Zone* local_zone);
+  LiveRangeBuilder(const LiveRangeBuilder&) = delete;
+  LiveRangeBuilder& operator=(const LiveRangeBuilder&) = delete;
 
   // Phase 3: compute liveness of all virtual register.
   void BuildLiveRanges();
@@ -1310,16 +1272,11 @@ class LiveRangeBuilder final : public ZoneObject {
         spill_mode);
   }
   SpillMode SpillModeForBlock(const InstructionBlock* block) const {
-    if (data()->is_turbo_control_flow_aware_allocation()) {
-      return block->IsDeferred() ? SpillMode::kSpillDeferred
-                                 : SpillMode::kSpillAtDefinition;
-    }
-    return SpillMode::kSpillAtDefinition;
+    return block->IsDeferred() ? SpillMode::kSpillDeferred
+                               : SpillMode::kSpillAtDefinition;
   }
   TopTierRegisterAllocationData* const data_;
   ZoneMap<InstructionOperand*, UsePosition*> phi_hints_;
-
-  DISALLOW_COPY_AND_ASSIGN(LiveRangeBuilder);
 };
 
 class BundleBuilder final : public ZoneObject {
@@ -1338,6 +1295,8 @@ class BundleBuilder final : public ZoneObject {
 class RegisterAllocator : public ZoneObject {
  public:
   RegisterAllocator(TopTierRegisterAllocationData* data, RegisterKind kind);
+  RegisterAllocator(const RegisterAllocator&) = delete;
+  RegisterAllocator& operator=(const RegisterAllocator&) = delete;
 
  protected:
   using SpillMode = TopTierRegisterAllocationData::SpillMode;
@@ -1406,14 +1365,14 @@ class RegisterAllocator : public ZoneObject {
 
  private:
   bool no_combining_;
-
-  DISALLOW_COPY_AND_ASSIGN(RegisterAllocator);
 };
 
 class LinearScanAllocator final : public RegisterAllocator {
  public:
   LinearScanAllocator(TopTierRegisterAllocationData* data, RegisterKind kind,
                       Zone* local_zone);
+  LinearScanAllocator(const LinearScanAllocator&) = delete;
+  LinearScanAllocator& operator=(const LinearScanAllocator&) = delete;
 
   // Phase 4: compute register assignments.
   void AllocateRegisters();
@@ -1518,18 +1477,17 @@ class LinearScanAllocator final : public RegisterAllocator {
   bool TryReuseSpillForPhi(TopLevelLiveRange* range);
   int PickRegisterThatIsAvailableLongest(
       LiveRange* current, int hint_reg,
-      const Vector<LifetimePosition>& free_until_pos);
+      const base::Vector<LifetimePosition>& free_until_pos);
   bool TryAllocateFreeReg(LiveRange* range,
-                          const Vector<LifetimePosition>& free_until_pos);
-  bool TryAllocatePreferredReg(LiveRange* range,
-                               const Vector<LifetimePosition>& free_until_pos);
+                          const base::Vector<LifetimePosition>& free_until_pos);
+  bool TryAllocatePreferredReg(
+      LiveRange* range, const base::Vector<LifetimePosition>& free_until_pos);
   void GetFPRegisterSet(MachineRepresentation rep, int* num_regs,
                         int* num_codes, const int** codes) const;
   void FindFreeRegistersForRange(LiveRange* range,
-                                 Vector<LifetimePosition> free_until_pos);
+                                 base::Vector<LifetimePosition> free_until_pos);
   void ProcessCurrentRange(LiveRange* current, SpillMode spill_mode);
   void AllocateBlockedReg(LiveRange* range, SpillMode spill_mode);
-  bool TrySplitAndSpillSplinter(LiveRange* range);
 
   // Spill the given life range after position pos.
   void SpillAfter(LiveRange* range, LifetimePosition pos, SpillMode spill_mode);
@@ -1561,13 +1519,13 @@ class LinearScanAllocator final : public RegisterAllocator {
 #ifdef DEBUG
   LifetimePosition allocation_finger_;
 #endif
-
-  DISALLOW_COPY_AND_ASSIGN(LinearScanAllocator);
 };
 
 class OperandAssigner final : public ZoneObject {
  public:
   explicit OperandAssigner(TopTierRegisterAllocationData* data);
+  OperandAssigner(const OperandAssigner&) = delete;
+  OperandAssigner& operator=(const OperandAssigner&) = delete;
 
   // Phase 5: final decision on spilling mode.
   void DecideSpillingMode();
@@ -1582,13 +1540,13 @@ class OperandAssigner final : public ZoneObject {
   TopTierRegisterAllocationData* data() const { return data_; }
 
   TopTierRegisterAllocationData* const data_;
-
-  DISALLOW_COPY_AND_ASSIGN(OperandAssigner);
 };
 
 class ReferenceMapPopulator final : public ZoneObject {
  public:
   explicit ReferenceMapPopulator(TopTierRegisterAllocationData* data);
+  ReferenceMapPopulator(const ReferenceMapPopulator&) = delete;
+  ReferenceMapPopulator& operator=(const ReferenceMapPopulator&) = delete;
 
   // Phase 10: compute values for pointer maps.
   void PopulateReferenceMaps();
@@ -1599,8 +1557,6 @@ class ReferenceMapPopulator final : public ZoneObject {
   bool SafePointsAreInOrder() const;
 
   TopTierRegisterAllocationData* const data_;
-
-  DISALLOW_COPY_AND_ASSIGN(ReferenceMapPopulator);
 };
 
 class LiveRangeBoundArray;
@@ -1614,6 +1570,8 @@ class LiveRangeBoundArray;
 class LiveRangeConnector final : public ZoneObject {
  public:
   explicit LiveRangeConnector(TopTierRegisterAllocationData* data);
+  LiveRangeConnector(const LiveRangeConnector&) = delete;
+  LiveRangeConnector& operator=(const LiveRangeConnector&) = delete;
 
   // Phase 8: reconnect split ranges with moves, when the control flow
   // between the ranges is trivial (no branches).
@@ -1642,8 +1600,6 @@ class LiveRangeConnector final : public ZoneObject {
                                     Zone* temp_zone);
 
   TopTierRegisterAllocationData* const data_;
-
-  DISALLOW_COPY_AND_ASSIGN(LiveRangeConnector);
 };
 
 }  // namespace compiler

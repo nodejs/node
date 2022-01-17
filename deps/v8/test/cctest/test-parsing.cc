@@ -31,16 +31,18 @@
 
 #include <memory>
 
-#include "src/init/v8.h"
-
+#include "include/v8-initialization.h"
+#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/base/enum-set.h"
+#include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
@@ -51,7 +53,6 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
 #include "test/cctest/unicode-helpers.h"
@@ -978,10 +979,10 @@ void TestScanRegExp(const char* re_source, const char* expected) {
       scanner.CurrentSymbol(&ast_value_factory);
   ast_value_factory.Internalize(CcTest::i_isolate());
   i::Handle<i::String> val = current_symbol->string();
-  i::DisallowHeapAllocation no_alloc;
+  i::DisallowGarbageCollection no_alloc;
   i::String::FlatContent content = val->GetFlatContent(no_alloc);
   CHECK(content.IsOneByte());
-  i::Vector<const uint8_t> actual = content.ToOneByteVector();
+  base::Vector<const uint8_t> actual = content.ToOneByteVector();
   for (int i = 0; i < actual.length(); i++) {
     CHECK_NE('\0', expected[i]);
     CHECK_EQ(expected[i], actual[i]);
@@ -1118,11 +1119,11 @@ TEST(ScopeUsesArgumentsSuperThis) {
       int kProgramByteSize = static_cast<int>(strlen(surroundings[j].prefix) +
                                               strlen(surroundings[j].suffix) +
                                               strlen(source_data[i].body));
-      i::ScopedVector<char> program(kProgramByteSize + 1);
-      i::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
-                  source_data[i].body, surroundings[j].suffix);
+      base::ScopedVector<char> program(kProgramByteSize + 1);
+      base::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
+                     source_data[i].body, surroundings[j].suffix);
       i::Handle<i::String> source =
-          factory->NewStringFromUtf8(i::CStrVector(program.begin()))
+          factory->NewStringFromUtf8(base::CStrVector(program.begin()))
               .ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
       i::UnoptimizedCompileState compile_state(isolate);
@@ -1153,12 +1154,12 @@ TEST(ScopeUsesArgumentsSuperThis) {
         CHECK_NOT_NULL(scope->AsDeclarationScope()->arguments());
       }
       if (IsClassConstructor(scope->AsDeclarationScope()->function_kind())) {
-        CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0 ||
-                     (source_data[i].expected & EVAL) != 0,
-                 scope->AsDeclarationScope()->NeedsHomeObject());
+        CHECK_IMPLIES((source_data[i].expected & SUPER_PROPERTY) != 0 ||
+                          (source_data[i].expected & EVAL) != 0,
+                      scope->GetHomeObjectScope()->needs_home_object());
       } else {
-        CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
-                 scope->AsDeclarationScope()->NeedsHomeObject());
+        CHECK_IMPLIES((source_data[i].expected & SUPER_PROPERTY) != 0,
+                      scope->GetHomeObjectScope()->needs_home_object());
       }
       if ((source_data[i].expected & THIS) != 0) {
         // Currently the is_used() flag is conservative; all variables in a
@@ -1185,7 +1186,7 @@ static void CheckParsesToNumber(const char* source) {
   full_source += "; }";
 
   i::Handle<i::String> source_code =
-      factory->NewStringFromUtf8(i::CStrVector(full_source.c_str()))
+      factory->NewStringFromUtf8(base::CStrVector(full_source.c_str()))
           .ToHandleChecked();
 
   i::Handle<i::Script> script = factory->NewScript(source_code);
@@ -1491,15 +1492,13 @@ TEST(ScopePositions) {
     int kSuffixByteLen = static_cast<int>(strlen(source_data[i].outer_suffix));
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
-    i::ScopedVector<char> program(kProgramByteSize + 1);
-    i::SNPrintF(program, "%s%s%s",
-                         source_data[i].outer_prefix,
-                         source_data[i].inner_source,
-                         source_data[i].outer_suffix);
+    base::ScopedVector<char> program(kProgramByteSize + 1);
+    base::SNPrintF(program, "%s%s%s", source_data[i].outer_prefix,
+                   source_data[i].inner_source, source_data[i].outer_suffix);
 
     // Parse program source.
     i::Handle<i::String> source =
-        factory->NewStringFromUtf8(i::CStrVector(program.begin()))
+        factory->NewStringFromUtf8(base::CStrVector(program.begin()))
             .ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
@@ -1550,7 +1549,7 @@ TEST(DiscardFunctionBody) {
   for (int i = 0; discard_sources[i]; i++) {
     const char* source = discard_sources[i];
     i::Handle<i::String> source_code =
-        factory->NewStringFromUtf8(i::CStrVector(source)).ToHandleChecked();
+        factory->NewStringFromUtf8(base::CStrVector(source)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source_code);
     i::UnoptimizedCompileState compile_state(isolate);
     i::UnoptimizedCompileFlags flags =
@@ -1619,10 +1618,6 @@ const char* ReadString(unsigned* start) {
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
-  kAllowHarmonyPrivateMethods,
-  kAllowHarmonyDynamicImport,
-  kAllowHarmonyImportMeta,
-  kAllowHarmonyLogicalAssignment,
 };
 
 enum ParserSyncTestResult {
@@ -1633,24 +1628,11 @@ enum ParserSyncTestResult {
 
 void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.contains(kAllowNatives);
-  i::FLAG_harmony_private_methods = flags.contains(kAllowHarmonyPrivateMethods);
-  i::FLAG_harmony_dynamic_import = flags.contains(kAllowHarmonyDynamicImport);
-  i::FLAG_harmony_import_meta = flags.contains(kAllowHarmonyImportMeta);
-  i::FLAG_harmony_logical_assignment =
-      flags.contains(kAllowHarmonyLogicalAssignment);
 }
 
 void SetParserFlags(i::UnoptimizedCompileFlags* compile_flags,
                     base::EnumSet<ParserFlag> flags) {
   compile_flags->set_allow_natives_syntax(flags.contains(kAllowNatives));
-  compile_flags->set_allow_harmony_private_methods(
-      flags.contains(kAllowHarmonyPrivateMethods));
-  compile_flags->set_allow_harmony_dynamic_import(
-      flags.contains(kAllowHarmonyDynamicImport));
-  compile_flags->set_allow_harmony_import_meta(
-      flags.contains(kAllowHarmonyImportMeta));
-  compile_flags->set_allow_harmony_logical_assignment(
-      flags.contains(kAllowHarmonyLogicalAssignment));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
@@ -1663,7 +1645,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::UnoptimizedCompileState compile_state(isolate);
   i::UnoptimizedCompileFlags compile_flags =
       i::UnoptimizedCompileFlags::ForToplevelCompile(
-          isolate, true, LanguageMode::kSloppy, REPLMode::kNo);
+          isolate, true, LanguageMode::kSloppy, REPLMode::kNo,
+          ScriptType::kClassic, FLAG_lazy);
   SetParserFlags(&compile_flags, flags);
   compile_flags.set_is_module(is_module);
 
@@ -1785,7 +1768,7 @@ void TestParserSync(const char* source, const ParserFlag* varying_flags,
   i::Handle<i::String> str =
       CcTest::i_isolate()
           ->factory()
-          ->NewStringFromUtf8(Vector<const char>(source, strlen(source)))
+          ->NewStringFromUtf8(base::Vector<const char>(source, strlen(source)))
           .ToHandleChecked();
   for (int bits = 0; bits < (1 << varying_flags_length); bits++) {
     base::EnumSet<ParserFlag> flags;
@@ -1859,13 +1842,10 @@ TEST(ParserSync) {
                            static_cast<int>(strlen("label: for (;;) {  }"));
 
         // Plug the source code pieces together.
-        i::ScopedVector<char> program(kProgramSize + 1);
-        int length = i::SNPrintF(program,
-            "label: for (;;) { %s%s%s%s }",
-            context_data[i][0],
-            statement_data[j],
-            termination_data[k],
-            context_data[i][1]);
+        base::ScopedVector<char> program(kProgramSize + 1);
+        int length = base::SNPrintF(program, "label: for (;;) { %s%s%s%s }",
+                                    context_data[i][0], statement_data[j],
+                                    termination_data[k], context_data[i][1]);
         CHECK_EQ(length, kProgramSize);
         TestParserSync(program.begin(), nullptr, 0);
       }
@@ -1959,12 +1939,9 @@ void RunParserSyncTest(
       int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
 
       // Plug the source code pieces together.
-      i::ScopedVector<char> program(kProgramSize + 1);
-      int length = i::SNPrintF(program,
-                               "%s%s%s",
-                               context_data[i][0],
-                               statement_data[j],
-                               context_data[i][1]);
+      base::ScopedVector<char> program(kProgramSize + 1);
+      int length = base::SNPrintF(program, "%s%s%s", context_data[i][0],
+                                  statement_data[j], context_data[i][1]);
       PrintF("%s\n", program.begin());
       CHECK_EQ(length, kProgramSize);
       TestParserSync(program.begin(), flags, flags_len, result,
@@ -3358,8 +3335,8 @@ TEST(SerializationOfMaybeAssignmentFlag) {
       "};"
       "h();";
 
-  i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
-  i::SNPrintF(program, "%s", src);
+  base::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
+  base::SNPrintF(program, "%s", src);
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
@@ -3408,8 +3385,8 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
       "  }"
       "f(0);";
 
-  i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
-  i::SNPrintF(program, "%s", src);
+  base::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
+  base::SNPrintF(program, "%s", src);
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
@@ -3564,10 +3541,10 @@ TEST(InnerAssignment) {
         int inner_len = Utf8LengthHelper(inner);
 
         int len = prefix_len + outer_len + midfix_len + inner_len + suffix_len;
-        i::ScopedVector<char> program(len + 1);
+        base::ScopedVector<char> program(len + 1);
 
-        i::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
-                    suffix);
+        base::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
+                       suffix);
 
         UnoptimizedCompileState compile_state(isolate);
         std::unique_ptr<i::ParseInfo> info;
@@ -3687,9 +3664,9 @@ TEST(MaybeAssignedParameters) {
     bool assigned = tests[i].arg_assigned;
     const char* source = tests[i].source;
     for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
-      i::ScopedVector<char> program(Utf8LengthHelper(source) +
-                                    Utf8LengthHelper(suffix) + 1);
-      i::SNPrintF(program, "%s%s", source, suffix);
+      base::ScopedVector<char> program(Utf8LengthHelper(source) +
+                                       Utf8LengthHelper(suffix) + 1);
+      base::SNPrintF(program, "%s%s", source, suffix);
       std::unique_ptr<i::ParseInfo> info;
       printf("%s\n", program.begin());
       v8::Local<v8::Value> v = CompileRun(program.begin());
@@ -4340,6 +4317,7 @@ TEST(MaybeAssignedTopLevel) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace {
 
 i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
@@ -4382,7 +4360,6 @@ TEST(AsmModuleFlag) {
   CHECK(s->IsAsmModule() && s->AsDeclarationScope()->is_asm_module());
 }
 
-
 TEST(UseAsmUseCount) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
@@ -4395,7 +4372,7 @@ TEST(UseAsmUseCount) {
              "function bar() { \"use asm\"; var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kUseAsm]);
 }
-
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST(StrictModeUseCount) {
   i::Isolate* isolate = CcTest::i_isolate();
@@ -4420,6 +4397,7 @@ TEST(SloppyModeUseCount) {
   global_use_counts = use_counts;
   // Force eager parsing (preparser doesn't update use counts).
   i::FLAG_lazy = false;
+  i::FLAG_lazy_streaming = false;
   CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
   CompileRun("function bar() { var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
@@ -4433,8 +4411,8 @@ TEST(BothModesUseCount) {
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  // Force eager parsing (preparser doesn't update use counts).
   i::FLAG_lazy = false;
+  i::FLAG_lazy_streaming = false;
   CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
   CompileRun("function bar() { 'use strict'; var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
@@ -4862,23 +4840,37 @@ TEST(ImportExpressionSuccess) {
 
   // clang-format on
 
-  // We ignore test error messages because the error message from the
-  // parser/preparser is different for the same data depending on the
-  // context.
-  // For example, a top level "import(" is parsed as an
-  // import declaration. The parser parses the import token correctly
-  // and then shows an "Unexpected token '('" error message. The
-  // preparser does not understand the import keyword (this test is
-  // run without kAllowHarmonyDynamicImport flag), so this results in
-  // an "Unexpected token 'import'" error.
-  RunParserSyncTest(context_data, data, kError);
-  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
-                          nullptr, 0, true, true);
-  static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
-  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
-                    arraysize(flags));
-  RunModuleParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
-                          arraysize(flags));
+  RunParserSyncTest(context_data, data, kSuccess);
+  RunModuleParserSyncTest(context_data, data, kSuccess);
+}
+
+TEST(ImportExpressionWithImportAssertionSuccess) {
+  i::FLAG_harmony_import_assertions = true;
+
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {nullptr, nullptr}
+  };
+
+  const char* data[] = {
+    "import(x,)",
+    "import(x,1)",
+    "import(x,y)",
+    "import(x,y,)",
+    "import(x, { 'a': 'b' })",
+    "import(x, { a: 'b', 'c': 'd' },)",
+    "import(x, { 'a': { b: 'c' }, 'd': 'e' },)",
+    "import(x,import(y))",
+    "import(x,y=z)",
+    "import(x,[y, z])",
+    "import(x,undefined)",
+    nullptr
+  };
+
+  // clang-format on
+  RunParserSyncTest(context_data, data, kSuccess);
+  RunModuleParserSyncTest(context_data, data, kSuccess);
 }
 
 TEST(ImportExpressionErrors) {
@@ -4924,13 +4916,6 @@ TEST(ImportExpressionErrors) {
 
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
-    // We ignore the error messages for the reason explained in the
-    // ImportExpressionSuccess test.
-    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
-                            nullptr, 0, true, true);
-    static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
-    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                      arraysize(flags));
 
     // We ignore test error messages because the error message from
     // the parser/preparser is different for the same data depending
@@ -4939,8 +4924,8 @@ TEST(ImportExpressionErrors) {
     // correctly and then shows an "Unexpected end of input" error
     // message because of the '{'. The preparser shows an "Unexpected
     // token '{'" because it's not a valid token in a CallExpression.
-    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                            arraysize(flags), nullptr, 0, true, true);
+    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
+                            nullptr, 0, true, true);
   }
 
   {
@@ -4959,12 +4944,6 @@ TEST(ImportExpressionErrors) {
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
     RunModuleParserSyncTest(context_data, data, kError);
-
-    static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
-    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                      arraysize(flags));
-    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                            arraysize(flags));
   }
 
   // Import statements as arrow function params and destructuring targets.
@@ -4992,12 +4971,206 @@ TEST(ImportExpressionErrors) {
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
     RunModuleParserSyncTest(context_data, data, kError);
+  }
+}
 
-    static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
-    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                      arraysize(flags));
-    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                            arraysize(flags));
+TEST(ImportExpressionWithImportAssertionErrors) {
+  {
+    i::FLAG_harmony_import_assertions = true;
+
+    // clang-format off
+    const char* context_data[][2] = {
+      {"", ""},
+      {"var ", ""},
+      {"let ", ""},
+      {"new ", ""},
+      {nullptr, nullptr}
+    };
+
+    const char* data[] = {
+      "import(x,,)",
+      "import(x))",
+      "import(x,))",
+      "import(x,())",
+      "import(x,y,,)",
+      "import(x,y,z)",
+      "import(x,y",
+      "import(x,y,",
+      "import(x,y(",
+      nullptr
+    };
+
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError);
+    RunModuleParserSyncTest(context_data, data, kError);
+  }
+
+  {
+    // clang-format off
+    const char* context_data[][2] = {
+      {"var ", ""},
+      {"let ", ""},
+      {nullptr, nullptr}
+    };
+
+    const char* data[] = {
+      "import('x',y)",
+      nullptr
+    };
+
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError);
+    RunModuleParserSyncTest(context_data, data, kError);
+  }
+
+  // Import statements as arrow function params and destructuring targets.
+  {
+    // clang-format off
+    const char* context_data[][2] = {
+      {"(", ") => {}"},
+      {"(a, ", ") => {}"},
+      {"(1, ", ") => {}"},
+      {"let f = ", " => {}"},
+      {"[", "] = [1];"},
+      {"{", "} = {'a': 1};"},
+      {nullptr, nullptr}
+    };
+
+    const char* data[] = {
+      "import(foo,y)",
+      "import(1,y)",
+      "import(y=x,z)",
+      "import(import(x),y)",
+      "import(x,y).then()",
+      nullptr
+    };
+
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError);
+    RunModuleParserSyncTest(context_data, data, kError);
+  }
+}
+
+TEST(BasicImportAssertionParsing) {
+  // clang-format off
+  const char* kSources[] = {
+    "import { a as b } from 'm.js' assert { };",
+    "import n from 'n.js' assert { };",
+    "export { a as b } from 'm.js' assert { };",
+    "export * from 'm.js' assert { };",
+    "import 'm.js' assert { };",
+    "import * as foo from 'bar.js' assert { };",
+
+    "import { a as b } from 'm.js' assert { a: 'b' };",
+    "import { a as b } from 'm.js' assert { c: 'd' };",
+    "import { a as b } from 'm.js' assert { 'c': 'd' };",
+    "import { a as b } from 'm.js' assert { a: 'b', 'c': 'd', e: 'f' };",
+    "import { a as b } from 'm.js' assert { 'c': 'd', };",
+    "import n from 'n.js' assert { 'c': 'd' };",
+    "export { a as b } from 'm.js' assert { 'c': 'd' };",
+    "export * from 'm.js' assert { 'c': 'd' };",
+    "import 'm.js' assert { 'c': 'd' };",
+    "import * as foo from 'bar.js' assert { 'c': 'd' };",
+
+    "import { a as b } from 'm.js' assert { \nc: 'd'};",
+    "import { a as b } from 'm.js' assert { c:\n 'd'};",
+    "import { a as b } from 'm.js' assert { c:'d'\n};",
+  };
+  // clang-format on
+
+  i::FLAG_harmony_import_assertions = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  for (unsigned i = 0; i < arraysize(kSources); ++i) {
+    i::Handle<i::String> source =
+        factory->NewStringFromAsciiChecked(kSources[i]);
+
+    // Show that parsing as a module works
+    {
+      i::Handle<i::Script> script = factory->NewScript(source);
+      i::UnoptimizedCompileState compile_state(isolate);
+      i::UnoptimizedCompileFlags flags =
+          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+      flags.set_is_module(true);
+      i::ParseInfo info(isolate, flags, &compile_state);
+      CHECK_PARSE_PROGRAM(&info, script, isolate);
+    }
+
+    // And that parsing a script does not.
+    {
+      i::UnoptimizedCompileState compile_state(isolate);
+      i::Handle<i::Script> script = factory->NewScript(source);
+      i::UnoptimizedCompileFlags flags =
+          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+      i::ParseInfo info(isolate, flags, &compile_state);
+      CHECK(!i::parsing::ParseProgram(&info, script, isolate,
+                                      parsing::ReportStatisticsMode::kYes));
+      CHECK(info.pending_error_handler()->has_pending_error());
+    }
+  }
+}
+
+TEST(ImportAssertionParsingErrors) {
+  // clang-format off
+  const char* kErrorSources[] = {
+    "import { a } from 'm.js' assert {;",
+    "import { a } from 'm.js' assert };",
+    "import { a } from 'm.js' , assert { };",
+    "import { a } from 'm.js' assert , { };",
+    "import { a } from 'm.js' assert { , };",
+    "import { a } from 'm.js' assert { b };",
+    "import { a } from 'm.js' assert { 'b' };",
+    "import { a } from 'm.js' assert { for };",
+    "import { a } from 'm.js' assert { assert };",
+    "export { a } assert { };",
+    "export * assert { };",
+
+    "import 'm.js'\n assert { };",
+    "import 'm.js' \nassert { };",
+    "import { a } from 'm.js'\n assert { };",
+    "export * from 'm.js'\n assert { };",
+
+    "import { a } from 'm.js' assert { 1: 2 };",
+    "import { a } from 'm.js' assert { b: c };",
+    "import { a } from 'm.js' assert { 'b': c };",
+    "import { a } from 'm.js' assert { , b: c };",
+    "import { a } from 'm.js' assert { a: 'b', a: 'c' };",
+    "import { a } from 'm.js' assert { a: 'b', 'a': 'c' };",
+  };
+  // clang-format on
+
+  i::FLAG_harmony_import_assertions = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
+    i::Handle<i::String> source =
+        factory->NewStringFromAsciiChecked(kErrorSources[i]);
+
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::UnoptimizedCompileState compile_state(isolate);
+    i::UnoptimizedCompileFlags flags =
+        i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+    flags.set_is_module(true);
+    i::ParseInfo info(isolate, flags, &compile_state);
+    CHECK(!i::parsing::ParseProgram(&info, script, isolate,
+                                    parsing::ReportStatisticsMode::kYes));
+    CHECK(info.pending_error_handler()->has_pending_error());
   }
 }
 
@@ -5610,11 +5783,7 @@ TEST(PrivateMethodsNoErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods, arraysize(private_methods));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(PrivateMethodsAndFieldsNoErrors) {
@@ -5668,13 +5837,7 @@ TEST(PrivateMethodsAndFieldsNoErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods_and_fields[] = {
-      kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods_and_fields,
-                    arraysize(private_methods_and_fields));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(PrivateMethodsErrors) {
@@ -5743,10 +5906,6 @@ TEST(PrivateMethodsErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_methods, arraysize(private_methods));
 }
 
 // Test that private members parse in class bodies nested in object literals
@@ -5769,9 +5928,7 @@ TEST(PrivateMembersNestedInObjectLiteralsNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods, arraysize(private_methods));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 // Test that private members parse in class bodies nested in classes
@@ -5796,9 +5953,7 @@ TEST(PrivateMembersInNestedClassNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods, arraysize(private_methods));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 // Test that private members do not parse outside class bodies
@@ -5828,10 +5983,6 @@ TEST(PrivateMembersInNonClassErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_methods, arraysize(private_methods));
 }
 
 // Test that nested private members parse
@@ -5854,9 +6005,7 @@ TEST(PrivateMembersNestedNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods, arraysize(private_methods));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 // Test that acessing undeclared private members result in early errors
@@ -5877,10 +6026,6 @@ TEST(PrivateMembersEarlyErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_methods, arraysize(private_methods));
 }
 
 // Test that acessing wrong kind private members do not error early.
@@ -5945,9 +6090,7 @@ TEST(PrivateMembersWrongAccessNoEarlyErrors) {
   };
   // clang-format on
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods, arraysize(private_methods));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(PrivateStaticClassMethodsAndAccessorsNoErrors) {
@@ -5970,11 +6113,7 @@ TEST(PrivateStaticClassMethodsAndAccessorsNoErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods, arraysize(private_methods));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(PrivateStaticClassMethodsAndAccessorsDuplicateErrors) {
@@ -6008,10 +6147,6 @@ TEST(PrivateStaticClassMethodsAndAccessorsDuplicateErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_methods, arraysize(private_methods));
 }
 
 TEST(PrivateClassFieldsNoErrors) {
@@ -6192,15 +6327,9 @@ TEST(PrivateClassFieldsErrors) {
     "#constructor = function() {}",
 
     "# a = 0",
-    "#a() { }",
-    "get #a() { }",
     "#get a() { }",
-    "set #a() { }",
     "#set a() { }",
-    "*#a() { }",
     "#*a() { }",
-    "async #a() { }",
-    "async *#a() { }",
     "async #*a() { }",
 
     "#0 = 0;",
@@ -7023,6 +7152,16 @@ TEST(ForOfExpressionError) {
   RunParserSyncTest(context_data, data, kError);
 }
 
+TEST(ForOfAsync) {
+  const char* context_data[][2] = {{"", ""},
+                                   {"'use strict';", ""},
+                                   {"function foo(){ 'use strict';", "}"},
+                                   {nullptr, nullptr}};
+
+  const char* data[] = {"for(\\u0061sync of []) {}", nullptr};
+
+  RunParserSyncTest(context_data, data, kSuccess);
+}
 
 TEST(InvalidUnicodeEscapes) {
   const char* context_data[][2] = {
@@ -7539,7 +7678,6 @@ TEST(NamespaceExportParsing) {
   };
   // clang-format on
 
-  i::FLAG_harmony_namespace_exports = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
 
@@ -7996,21 +8134,21 @@ TEST(ModuleParsingInternals) {
 
   CHECK_EQ(5u, descriptor->module_requests().size());
   for (const auto& elem : descriptor->module_requests()) {
-    if (elem.first->IsOneByteEqualTo("m.js")) {
-      CHECK_EQ(0, elem.second.index);
-      CHECK_EQ(51, elem.second.position);
-    } else if (elem.first->IsOneByteEqualTo("n.js")) {
-      CHECK_EQ(1, elem.second.index);
-      CHECK_EQ(72, elem.second.position);
-    } else if (elem.first->IsOneByteEqualTo("p.js")) {
-      CHECK_EQ(2, elem.second.index);
-      CHECK_EQ(123, elem.second.position);
-    } else if (elem.first->IsOneByteEqualTo("q.js")) {
-      CHECK_EQ(3, elem.second.index);
-      CHECK_EQ(249, elem.second.position);
-    } else if (elem.first->IsOneByteEqualTo("bar.js")) {
-      CHECK_EQ(4, elem.second.index);
-      CHECK_EQ(370, elem.second.position);
+    if (elem->specifier()->IsOneByteEqualTo("m.js")) {
+      CHECK_EQ(0, elem->index());
+      CHECK_EQ(51, elem->position());
+    } else if (elem->specifier()->IsOneByteEqualTo("n.js")) {
+      CHECK_EQ(1, elem->index());
+      CHECK_EQ(72, elem->position());
+    } else if (elem->specifier()->IsOneByteEqualTo("p.js")) {
+      CHECK_EQ(2, elem->index());
+      CHECK_EQ(123, elem->position());
+    } else if (elem->specifier()->IsOneByteEqualTo("q.js")) {
+      CHECK_EQ(3, elem->index());
+      CHECK_EQ(249, elem->position());
+    } else if (elem->specifier()->IsOneByteEqualTo("bar.js")) {
+      CHECK_EQ(4, elem->index());
+      CHECK_EQ(370, elem->position());
     } else {
       UNREACHABLE();
     }
@@ -8086,6 +8224,465 @@ TEST(ModuleParsingInternals) {
   CheckEntry(entry, nullptr, "aa", "aa", 0);
 }
 
+TEST(ModuleParsingInternalsWithImportAssertions) {
+  i::FLAG_harmony_import_assertions = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  static const char kSource[] =
+      "import { q as z } from 'm.js';"
+      "import { q as z2 } from 'm.js' assert { foo: 'bar'};"
+      "import { q as z3 } from 'm.js' assert { foo2: 'bar'};"
+      "import { q as z4 } from 'm.js' assert { foo: 'bar2'};"
+      "import { q as z5 } from 'm.js' assert { foo: 'bar', foo2: 'bar'};"
+      "import { q as z6 } from 'n.js' assert { foo: 'bar'};"
+      "import 'm.js' assert { foo: 'bar'};"
+      "export * from 'm.js' assert { foo: 'bar', foo2: 'bar'};";
+  i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
+  i::Handle<i::Script> script = factory->NewScript(source);
+  i::UnoptimizedCompileState compile_state(isolate);
+  i::UnoptimizedCompileFlags flags =
+      i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_is_module(true);
+  i::ParseInfo info(isolate, flags, &compile_state);
+  CHECK_PARSE_PROGRAM(&info, script, isolate);
+
+  i::FunctionLiteral* func = info.literal();
+  i::ModuleScope* module_scope = func->scope()->AsModuleScope();
+  CHECK(module_scope->is_module_scope());
+
+  i::SourceTextModuleDescriptor* descriptor = module_scope->module();
+  CHECK_NOT_NULL(descriptor);
+
+  const i::AstRawString* foo_string =
+      info.ast_value_factory()->GetOneByteString("foo");
+  const i::AstRawString* foo2_string =
+      info.ast_value_factory()->GetOneByteString("foo2");
+  CHECK_EQ(6u, descriptor->module_requests().size());
+  for (const auto& elem : descriptor->module_requests()) {
+    if (elem->index() == 0) {
+      CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
+      CHECK_EQ(0, elem->import_assertions()->size());
+      CHECK_EQ(23, elem->position());
+    } else if (elem->index() == 1) {
+      CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
+      CHECK_EQ(1, elem->import_assertions()->size());
+      CHECK_EQ(54, elem->position());
+      CHECK(elem->import_assertions()
+                ->at(foo_string)
+                .first->IsOneByteEqualTo("bar"));
+      CHECK_EQ(70, elem->import_assertions()->at(foo_string).second.beg_pos);
+    } else if (elem->index() == 2) {
+      CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
+      CHECK_EQ(1, elem->import_assertions()->size());
+      CHECK_EQ(106, elem->position());
+      CHECK(elem->import_assertions()
+                ->at(foo2_string)
+                .first->IsOneByteEqualTo("bar"));
+      CHECK_EQ(122, elem->import_assertions()->at(foo2_string).second.beg_pos);
+    } else if (elem->index() == 3) {
+      CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
+      CHECK_EQ(1, elem->import_assertions()->size());
+      CHECK_EQ(159, elem->position());
+      CHECK(elem->import_assertions()
+                ->at(foo_string)
+                .first->IsOneByteEqualTo("bar2"));
+      CHECK_EQ(175, elem->import_assertions()->at(foo_string).second.beg_pos);
+    } else if (elem->index() == 4) {
+      CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
+      CHECK_EQ(2, elem->import_assertions()->size());
+      CHECK_EQ(212, elem->position());
+      CHECK(elem->import_assertions()
+                ->at(foo_string)
+                .first->IsOneByteEqualTo("bar"));
+      CHECK_EQ(228, elem->import_assertions()->at(foo_string).second.beg_pos);
+      CHECK(elem->import_assertions()
+                ->at(foo2_string)
+                .first->IsOneByteEqualTo("bar"));
+      CHECK_EQ(240, elem->import_assertions()->at(foo2_string).second.beg_pos);
+    } else if (elem->index() == 5) {
+      CHECK(elem->specifier()->IsOneByteEqualTo("n.js"));
+      CHECK_EQ(1, elem->import_assertions()->size());
+      CHECK_EQ(277, elem->position());
+      CHECK(elem->import_assertions()
+                ->at(foo_string)
+                .first->IsOneByteEqualTo("bar"));
+      CHECK_EQ(293, elem->import_assertions()->at(foo_string).second.beg_pos);
+    } else {
+      UNREACHABLE();
+    }
+  }
+}
+
+TEST(ModuleParsingModuleRequestOrdering) {
+  i::FLAG_harmony_import_assertions = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  static const char kSource[] =
+      "import 'foo' assert { };"
+      "import 'baaaaaar' assert { };"
+      "import 'aa' assert { };"
+      "import 'a' assert { a: 'b' };"
+      "import 'b' assert { };"
+      "import 'd' assert { a: 'b' };"
+      "import 'c' assert { };"
+      "import 'f' assert { };"
+      "import 'f' assert { a: 'b'};"
+      "import 'g' assert { a: 'b' };"
+      "import 'g' assert { };"
+      "import 'h' assert { a: 'd' };"
+      "import 'h' assert { b: 'c' };"
+      "import 'i' assert { b: 'c' };"
+      "import 'i' assert { a: 'd' };"
+      "import 'j' assert { a: 'b' };"
+      "import 'j' assert { a: 'c' };"
+      "import 'k' assert { a: 'c' };"
+      "import 'k' assert { a: 'b' };"
+      "import 'l' assert { a: 'b', e: 'f' };"
+      "import 'l' assert { a: 'c', d: 'g' };"
+      "import 'm' assert { a: 'c', d: 'g' };"
+      "import 'm' assert { a: 'b', e: 'f' };"
+      "import 'n' assert { 'd': '' };"
+      "import 'n' assert { 'a': 'b' };"
+      "import 'o' assert { 'a': 'b' };"
+      "import 'o' assert { 'd': '' };"
+      "import 'p' assert { 'z': 'c' };"
+      "import 'p' assert { 'a': 'c', 'b': 'c' };";
+  i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
+  i::Handle<i::Script> script = factory->NewScript(source);
+  i::UnoptimizedCompileState compile_state(isolate);
+  i::UnoptimizedCompileFlags flags =
+      i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_is_module(true);
+  i::ParseInfo info(isolate, flags, &compile_state);
+  CHECK_PARSE_PROGRAM(&info, script, isolate);
+
+  i::FunctionLiteral* func = info.literal();
+  i::ModuleScope* module_scope = func->scope()->AsModuleScope();
+  CHECK(module_scope->is_module_scope());
+
+  i::SourceTextModuleDescriptor* descriptor = module_scope->module();
+  CHECK_NOT_NULL(descriptor);
+
+  const i::AstRawString* a_string =
+      info.ast_value_factory()->GetOneByteString("a");
+  const i::AstRawString* b_string =
+      info.ast_value_factory()->GetOneByteString("b");
+  const i::AstRawString* d_string =
+      info.ast_value_factory()->GetOneByteString("d");
+  const i::AstRawString* e_string =
+      info.ast_value_factory()->GetOneByteString("e");
+  const i::AstRawString* z_string =
+      info.ast_value_factory()->GetOneByteString("z");
+  CHECK_EQ(29u, descriptor->module_requests().size());
+  auto request_iterator = descriptor->module_requests().cbegin();
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("a"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("aa"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("b"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("baaaaaar"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("c"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("d"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("f"));
+  CHECK_EQ(0, (*request_iterator)->import_assertions()->size());
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("f"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("foo"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("g"));
+  CHECK_EQ(0, (*request_iterator)->import_assertions()->size());
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("g"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("h"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("d"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("h"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(b_string)
+            .first->IsOneByteEqualTo("c"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("i"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("d"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("i"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(b_string)
+            .first->IsOneByteEqualTo("c"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("j"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("b"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("j"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("c"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("k"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("b"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("k"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("c"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("l"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("b"));
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(e_string)
+            .first->IsOneByteEqualTo("f"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("l"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("c"));
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(d_string)
+            .first->IsOneByteEqualTo("g"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("m"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("b"));
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(e_string)
+            .first->IsOneByteEqualTo("f"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("m"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("c"));
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(d_string)
+            .first->IsOneByteEqualTo("g"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("n"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("b"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("n"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(d_string)
+            .first->IsOneByteEqualTo(""));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("o"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("b"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("o"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(d_string)
+            .first->IsOneByteEqualTo(""));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("p"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(a_string)
+            .first->IsOneByteEqualTo("c"));
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(b_string)
+            .first->IsOneByteEqualTo("c"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("p"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(z_string)
+            .first->IsOneByteEqualTo("c"));
+}
+
+TEST(ModuleParsingImportAssertionKeySorting) {
+  i::FLAG_harmony_import_assertions = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  static const char kSource[] =
+      "import 'a' assert { 'b':'z', 'a': 'c' };"
+      "import 'b' assert { 'aaaaaa': 'c', 'b': 'z' };"
+      "import 'c' assert { '': 'c', 'b': 'z' };"
+      "import 'd' assert { 'aabbbb': 'c', 'aaabbb': 'z' };"
+      // zzzz\u0005 is a one-byte string, yyyy\u0100 is a two-byte string.
+      "import 'e' assert { 'zzzz\\u0005': 'second', 'yyyy\\u0100': 'first' };"
+      // Both keys are two-byte strings.
+      "import 'f' assert { 'xxxx\\u0005\\u0101': 'first', "
+      "'xxxx\\u0100\\u0101': 'second' };";
+  i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
+  i::Handle<i::Script> script = factory->NewScript(source);
+  i::UnoptimizedCompileState compile_state(isolate);
+  i::UnoptimizedCompileFlags flags =
+      i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_is_module(true);
+  i::ParseInfo info(isolate, flags, &compile_state);
+  CHECK_PARSE_PROGRAM(&info, script, isolate);
+
+  i::FunctionLiteral* func = info.literal();
+  i::ModuleScope* module_scope = func->scope()->AsModuleScope();
+  CHECK(module_scope->is_module_scope());
+
+  i::SourceTextModuleDescriptor* descriptor = module_scope->module();
+  CHECK_NOT_NULL(descriptor);
+
+  CHECK_EQ(6u, descriptor->module_requests().size());
+  auto request_iterator = descriptor->module_requests().cbegin();
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("a"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  auto assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("a"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
+  ++assertion_iterator;
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("b"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("b"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("aaaaaa"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
+  ++assertion_iterator;
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("b"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("c"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
+  CHECK(assertion_iterator->first->IsOneByteEqualTo(""));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
+  ++assertion_iterator;
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("b"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("d"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("aaabbb"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
+  ++assertion_iterator;
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("aabbbb"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("e"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("first"));
+  ++assertion_iterator;
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("second"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("f"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("first"));
+  ++assertion_iterator;
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("second"));
+}
 
 TEST(DuplicateProtoError) {
   const char* context_data[][2] = {
@@ -9448,23 +10045,12 @@ TEST(ImportMetaSuccess) {
 
   // clang-format on
 
-  // Making sure the same *wouldn't* parse without the flags
-  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
-                          nullptr, 0, true, true);
-
-  static const ParserFlag flags[] = {
-      kAllowHarmonyImportMeta, kAllowHarmonyDynamicImport,
-  };
   // 2.1.1 Static Semantics: Early Errors
   // ImportMeta
   // * It is an early Syntax Error if Module is not the syntactic goal symbol.
-  RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                    arraysize(flags));
-  // Making sure the same wouldn't parse without the flags either
   RunParserSyncTest(context_data, data, kError);
 
-  RunModuleParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
-                          arraysize(flags));
+  RunModuleParserSyncTest(context_data, data, kSuccess);
 }
 
 TEST(ImportMetaFailure) {
@@ -9490,18 +10076,8 @@ TEST(ImportMetaFailure) {
 
   // clang-format on
 
-  static const ParserFlag flags[] = {
-      kAllowHarmonyImportMeta, kAllowHarmonyDynamicImport,
-  };
-
-  RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                    arraysize(flags));
-  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                          arraysize(flags));
-
-  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
-                          nullptr, 0, true, true);
   RunParserSyncTest(context_data, data, kError);
+  RunModuleParserSyncTest(context_data, data, kError);
 }
 
 TEST(ConstSloppy) {
@@ -10909,11 +11485,11 @@ TEST(NoPessimisticContextAllocation) {
       int len = prefix_len + inner_function_len + params_len + source_len +
                 suffix_len;
 
-      i::ScopedVector<char> program(len + 1);
-      i::SNPrintF(program, "%s", prefix);
-      i::SNPrintF(program + prefix_len, inner_function, inners[i].params,
-                  inners[i].source);
-      i::SNPrintF(
+      base::ScopedVector<char> program(len + 1);
+      base::SNPrintF(program, "%s", prefix);
+      base::SNPrintF(program + prefix_len, inner_function, inners[i].params,
+                     inners[i].source);
+      base::SNPrintF(
           program + prefix_len + inner_function_len + params_len + source_len,
           "%s", suffix);
 
@@ -11482,7 +12058,7 @@ TEST(LexicalLoopVariable) {
   auto TestProgram = [isolate](const char* program, TestCB test) {
     i::Factory* const factory = isolate->factory();
     i::Handle<i::String> source =
-        factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
+        factory->NewStringFromUtf8(base::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state(isolate);
     i::UnoptimizedCompileFlags flags =
@@ -11825,9 +12401,7 @@ TEST(LogicalAssignmentDestructuringErrors) {
   };
   // clang-format on
 
-  static const ParserFlag flags[] = {kAllowHarmonyLogicalAssignment};
-  RunParserSyncTest(context_data, error_data, kError, nullptr, 0, flags,
-                    arraysize(flags));
+  RunParserSyncTest(context_data, error_data, kError);
 }
 
 }  // namespace test_parsing

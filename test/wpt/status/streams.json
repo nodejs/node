@@ -1,0 +1,11 @@
+{
+  "queuing-strategies-size-function-per-global.window.js": {
+    "skip": "Browser-specific test"
+  },
+  "transferable/deserialize-error.window.js": {
+    "skip": "Browser-specific test"
+  },
+  "readable-byte-streams/bad-buffers-and-views.any.js": {
+    "fail": "TODO: implement detached ArrayBuffer support"
+  }
+}

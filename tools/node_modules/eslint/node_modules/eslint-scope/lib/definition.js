@@ -21,18 +21,17 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
   THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-"use strict";
 
-const Variable = require("./variable");
+import Variable from "./variable.js";
 
 /**
- * @class Definition
+ * @constructor Definition
  */
 class Definition {
     constructor(type, name, node, parent, index, kind) {
 
         /**
-         * @member {String} Definition#type - type of the occurrence (e.g. "Parameter", "Variable", ...).
+         * @member {string} Definition#type - type of the occurrence (e.g. "Parameter", "Variable", ...).
          */
         this.type = type;
 
@@ -52,19 +51,19 @@ class Definition {
         this.parent = parent;
 
         /**
-         * @member {Number?} Definition#index - the index in the declaration statement.
+         * @member {number?} Definition#index - the index in the declaration statement.
          */
         this.index = index;
 
         /**
-         * @member {String?} Definition#kind - the kind of the declaration statement.
+         * @member {string?} Definition#kind - the kind of the declaration statement.
          */
         this.kind = kind;
     }
 }
 
 /**
- * @class ParameterDefinition
+ * @constructor ParameterDefinition
  */
 class ParameterDefinition extends Definition {
     constructor(name, node, index, rest) {
@@ -78,7 +77,7 @@ class ParameterDefinition extends Definition {
     }
 }
 
-module.exports = {
+export {
     ParameterDefinition,
     Definition
 };

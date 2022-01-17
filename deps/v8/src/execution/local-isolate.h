@@ -6,6 +6,7 @@
 #define V8_EXECUTION_LOCAL_ISOLATE_H_
 
 #include "src/base/macros.h"
+#include "src/execution/shared-mutex-guard-if-off-thread.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/handles.h"
 #include "src/handles/local-handles.h"
@@ -14,10 +15,16 @@
 #include "src/heap/local-heap.h"
 
 namespace v8 {
+
+namespace bigint {
+class Processor;
+}
+
 namespace internal {
 
 class Isolate;
 class LocalLogger;
+class RuntimeCallStats;
 
 // HiddenLocalFactory parallels Isolate's HiddenFactory
 class V8_EXPORT_PRIVATE HiddenLocalFactory : private LocalFactory {
@@ -36,7 +43,8 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
  public:
   using HandleScopeType = LocalHandleScope;
 
-  explicit LocalIsolate(Isolate* isolate);
+  explicit LocalIsolate(Isolate* isolate, ThreadKind kind,
+                        RuntimeCallStats* runtime_call_stats = nullptr);
   ~LocalIsolate();
 
   // Kinda sketchy.
@@ -45,24 +53,31 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
                                            OFFSET_OF(LocalIsolate, heap_));
   }
 
+  bool is_main_thread() { return heap()->is_main_thread(); }
+
   LocalHeap* heap() { return &heap_; }
 
-  inline Address isolate_root() const;
-  inline ReadOnlyHeap* read_only_heap();
-  inline Object root(RootIndex index);
+  inline Address cage_base() const;
+  inline Address code_cage_base() const;
+  inline ReadOnlyHeap* read_only_heap() const;
+  inline Object root(RootIndex index) const;
+  inline Handle<Object> root_handle(RootIndex index) const;
 
-  StringTable* string_table() { return isolate_->string_table(); }
-
-  const Isolate* GetIsolateForPtrCompr() const { return isolate_; }
+  StringTable* string_table() const { return isolate_->string_table(); }
+  base::SharedMutex* internalized_string_access() {
+    return isolate_->internalized_string_access();
+  }
 
   v8::internal::LocalFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
     // undefined behavior (as static_cast cannot cast across private bases).
-    // NOLINTNEXTLINE (google-readability-casting)
-    return (v8::internal::LocalFactory*)this;  // NOLINT(readability/casting)
+    return (v8::internal::LocalFactory*)this;
   }
 
   bool has_pending_exception() const { return false; }
+
+  void RegisterDeserializerStarted();
+  void RegisterDeserializerFinished();
 
   template <typename T>
   Handle<T> Throw(Handle<Object> exception) {
@@ -77,22 +92,65 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   int GetNextUniqueSharedFunctionInfoId();
 #endif  // V8_SFI_HAS_UNIQUE_ID
 
-  bool is_collecting_type_profile();
+  bool is_collecting_type_profile() const;
 
-  LocalLogger* logger() { return logger_.get(); }
-  ThreadId thread_id() { return thread_id_; }
+  LocalLogger* logger() const { return logger_.get(); }
+  ThreadId thread_id() const { return thread_id_; }
+  Address stack_limit() const { return stack_limit_; }
+  RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
+  bigint::Processor* bigint_processor() {
+    if (!bigint_processor_) InitializeBigIntProcessor();
+    return bigint_processor_;
+  }
+
+  bool is_main_thread() const { return heap_.is_main_thread(); }
+
+  // AsIsolate is only allowed on the main-thread.
+  Isolate* AsIsolate() {
+    DCHECK(is_main_thread());
+    DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
+    return isolate_;
+  }
+  LocalIsolate* AsLocalIsolate() { return this; }
+
+  Object* pending_message_address() {
+    return isolate_->pending_message_address();
+  }
 
  private:
   friend class v8::internal::LocalFactory;
+
+  void InitializeBigIntProcessor();
 
   LocalHeap heap_;
 
   // TODO(leszeks): Extract out the fields of the Isolate we want and store
   // those instead of the whole thing.
-  Isolate* isolate_;
+  Isolate* const isolate_;
 
   std::unique_ptr<LocalLogger> logger_;
-  ThreadId thread_id_;
+  ThreadId const thread_id_;
+  Address const stack_limit_;
+
+  RuntimeCallStats* runtime_call_stats_;
+  bigint::Processor* bigint_processor_{nullptr};
+};
+
+template <base::MutexSharedType kIsShared>
+class V8_NODISCARD SharedMutexGuardIfOffThread<LocalIsolate, kIsShared> final {
+ public:
+  SharedMutexGuardIfOffThread(base::SharedMutex* mutex, LocalIsolate* isolate) {
+    DCHECK_NOT_NULL(mutex);
+    DCHECK_NOT_NULL(isolate);
+    if (!isolate->is_main_thread()) mutex_guard_.emplace(mutex);
+  }
+
+  SharedMutexGuardIfOffThread(const SharedMutexGuardIfOffThread&) = delete;
+  SharedMutexGuardIfOffThread& operator=(const SharedMutexGuardIfOffThread&) =
+      delete;
+
+ private:
+  base::Optional<base::SharedMutexGuard<kIsShared>> mutex_guard_;
 };
 
 }  // namespace internal

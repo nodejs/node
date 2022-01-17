@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function testCallImport(func, check) {
   var builder = new WasmModuleBuilder();

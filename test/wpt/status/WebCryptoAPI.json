@@ -1,0 +1,90 @@
+{
+  "derive_bits_keys/ecdh_bits.https.any.js": {
+    "fail": "Derived correct bits expected true got false"
+  },
+  "derive_bits_keys/hkdf.https.any.js": {
+    "fail": "location is not defined"
+  },
+  "derive_bits_keys/pbkdf2.https.any.js": {
+    "fail": "location is not defined"
+  },
+  "digest/digest.https.any.js": {
+    "fail": "Expected NotSupportedError but got TypeError"
+  },
+  "encrypt_decrypt/aes_cbc.https.any.js": {
+    "fail": "Expected OperationError but got Error"
+  },
+  "encrypt_decrypt/rsa_oaep.https.any.js": {
+    "fail": "Expected OperationError but got Error"
+  },
+  "generateKey/failures_AES-CBC.https.any.js": {
+    "fail": "Expected OperationError but got TypeError"
+  },
+  "generateKey/failures_AES-CTR.https.any.js": {
+    "fail": "Expected OperationError but got TypeError"
+  },
+  "generateKey/failures_AES-GCM.https.any.js": {
+    "fail": "Expected OperationError but got TypeError"
+  },
+  "generateKey/failures_AES-KW.https.any.js": {
+    "fail": "Expected OperationError but got TypeError"
+  },
+  "generateKey/failures_ECDH.https.any.js": {
+    "fail": "Expected NotSupportedError but got TypeError"
+  },
+  "generateKey/failures_ECDSA.https.any.js": {
+    "fail": "Expected NotSupportedError but got TypeError"
+  },
+  "generateKey/failures_HMAC.https.any.js": {
+    "fail": "Operation succeeded, but should not have Reached unreachable code"
+  },
+  "generateKey/failures_RSA-OAEP.https.any.js": {
+    "fail": "Operation succeeded, but should not have Reached unreachable code"
+  },
+  "generateKey/failures_RSA-PSS.https.any.js": {
+    "fail": "Operation succeeded, but should not have Reached unreachable code"
+  },
+  "generateKey/failures_RSASSA-PKCS1-v1_5.https.any.js": {
+    "fail": "Operation succeeded, but should not have Reached unreachable code"
+  },
+  "generateKey/successes_AES-CBC.https.any.js": {
+    "fail": "location is not defined"
+  },
+  "generateKey/successes_AES-CTR.https.any.js": {
+    "fail": "location is not defined"
+  },
+  "generateKey/successes_AES-GCM.https.any.js": {
+    "fail": "location is not defined"
+  },
+  "generateKey/successes_AES-KW.https.any.js": {
+    "fail": "location is not defined"
+  },
+  "generateKey/successes_ECDH.https.any.js": {
+    "fail": "location is not defined"
+  },
+  "generateKey/successes_ECDSA.https.any.js": {
+    "fail": "location is not defined"
+  },
+  "generateKey/successes_HMAC.https.any.js": {
+    "fail": "location is not defined"
+  },
+  "generateKey/successes_RSA-OAEP.https.any.js": {
+    "fail": "location is not defined"
+  },
+  "generateKey/successes_RSA-PSS.https.any.js": {
+    "fail": "location is not defined"
+  },
+  "generateKey/successes_RSASSA-PKCS1-v1_5.https.any.js": {
+    "fail": "location is not defined"
+  },
+  "getRandomValues.any.js": {
+    "fail": "The data argument must be an integer-type TypedArray"
+  },
+  "historical.any.js": {
+    "fail": "expected (undefined) undefined but got..."
+  },
+  "idlharness.https.any.js": {
+    "fail": "Various non-IDL-compliant things"
+  }
+}
+

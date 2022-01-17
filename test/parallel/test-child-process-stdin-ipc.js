@@ -27,7 +27,7 @@ const spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'child') {
   // Just reference stdin, it should start it
-  process.stdin;
+  process.stdin; // eslint-disable-line no-unused-expressions
   return;
 }
 

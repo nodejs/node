@@ -1,8 +1,9 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if ((!common.hasCrypto) || (!common.hasIntl)) {
+  common.skip('ESLint tests require crypto and Intl');
+}
 
 common.skipIfEslintMissing();
 
@@ -21,7 +22,7 @@ new RuleTester({
     'foo((err) => assert.ifError(err))',
     'foo(function(err) { assert.ifError(err) })',
     'foo(assert.ifError)',
-    'common.mustCall((err) => err)'
+    'common.mustCall((err) => err)',
   ],
   invalid: [
     {
@@ -47,6 +48,6 @@ new RuleTester({
     {
       code: 'common.mustCall(function(e) {{ assert.ifError(e); }})',
       errors: [{ message: msg2 }]
-    }
+    },
   ]
 });

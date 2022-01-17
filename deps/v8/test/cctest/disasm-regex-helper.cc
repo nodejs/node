@@ -4,6 +4,7 @@
 
 #include "test/cctest/disasm-regex-helper.h"
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/objects/objects-inl.h"
@@ -23,7 +24,7 @@ std::string DisassembleFunction(const char* function) {
   Address end = f->code().raw_instruction_end();
   Isolate* isolate = CcTest::i_isolate();
   std::ostringstream os;
-  Disassembler::Decode(isolate, &os, reinterpret_cast<byte*>(begin),
+  Disassembler::Decode(isolate, os, reinterpret_cast<byte*>(begin),
                        reinterpret_cast<byte*>(end),
                        CodeReference(handle(f->code(), isolate)));
   return os.str();

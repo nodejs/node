@@ -1,6 +1,6 @@
 {
   "name": "semver",
-  "version": "7.3.2",
+  "version": "7.3.5",
   "description": "The semantic version parser used by npm.",
   "main": "index.js",
   "scripts": {
@@ -16,7 +16,7 @@
   "license": "ISC",
   "repository": "https://github.com/npm/node-semver",
   "bin": {
-    "semver": "./bin/semver.js"
+    "semver": "bin/semver.js"
   },
   "files": [
     "bin/**/*.js",
@@ -34,5 +34,8 @@
   },
   "engines": {
     "node": ">=10"
+  },
+  "dependencies": {
+    "lru-cache": "^6.0.0"
   }
 }

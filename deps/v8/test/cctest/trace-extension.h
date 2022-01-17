@@ -28,10 +28,14 @@
 #ifndef V8_TEST_CCTEST_TRACE_EXTENSION_H_
 #define V8_TEST_CCTEST_TRACE_EXTENSION_H_
 
-#include "include/v8.h"
+#include "include/v8-extension.h"
 #include "src/common/globals.h"
 
 namespace v8 {
+
+template <typename T>
+class FunctionCallbackInfo;
+
 namespace internal {
 
 struct TickSample;

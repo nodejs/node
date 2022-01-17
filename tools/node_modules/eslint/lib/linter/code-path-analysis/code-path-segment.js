@@ -33,7 +33,6 @@ function isReachable(segment) {
  */
 class CodePathSegment {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {string} id An identifier.
      * @param {CodePathSegment[]} allPrevSegments An array of the previous segments.

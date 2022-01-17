@@ -25,15 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/init/v8.h"
-#include "test/cctest/cctest.h"
-
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/builtins/accessors.h"
 #include "src/heap/heap-inl.h"
+#include "src/init/v8.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
+#include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -85,10 +85,9 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
 
   // Code space.
   heap::SimulateFullSpace(heap->code_space());
-  size = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal).Size();
+  size = CcTest::i_isolate()->builtins()->code(Builtin::kIllegal).Size();
   obj =
-      heap->AllocateRaw(size, AllocationType::kCode, AllocationOrigin::kRuntime,
-                        AllocationAlignment::kCodeAligned)
+      heap->AllocateRaw(size, AllocationType::kCode, AllocationOrigin::kRuntime)
           .ToObjectChecked();
   heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
   return CcTest::i_isolate()->factory()->true_value();
@@ -96,6 +95,8 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
 
 
 HEAP_TEST(StressHandles) {
+  // For TestAllocateAfterFailures.
+  FLAG_stress_concurrent_allocation = false;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
@@ -128,16 +129,20 @@ Handle<AccessorInfo> TestAccessorInfo(
 
 
 TEST(StressJS) {
+  // For TestAllocateAfterFailures in TestGetter.
+  FLAG_stress_concurrent_allocation = false;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
 
-  NewFunctionArgs args = NewFunctionArgs::ForBuiltin(
-      factory->function_string(), isolate->sloppy_function_map(),
-      Builtins::kEmptyFunction);
-  Handle<JSFunction> function = factory->NewFunction(args);
+  Handle<NativeContext> context(isolate->native_context());
+  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
+      factory->function_string(), Builtin::kEmptyFunction);
+  info->set_language_mode(LanguageMode::kStrict);
+  Handle<JSFunction> function =
+      Factory::JSFunctionBuilder{isolate, info, context}.Build();
   CHECK(!function->shared().construct_as_builtin());
 
   // Force the creation of an initial map.
@@ -145,8 +150,8 @@ TEST(StressJS) {
 
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map(), isolate);
-  Handle<DescriptorArray> instance_descriptors(map->instance_descriptors(),
-                                               isolate);
+  Handle<DescriptorArray> instance_descriptors(
+      map->instance_descriptors(isolate), isolate);
   CHECK_EQ(0, instance_descriptors->number_of_descriptors());
 
   PropertyAttributes attrs = NONE;

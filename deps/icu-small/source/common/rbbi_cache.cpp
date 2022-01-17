@@ -74,7 +74,7 @@ UBool RuleBasedBreakIterator::DictionaryCache::following(int32_t fromPos, int32_
             return TRUE;
         }
     }
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 
@@ -114,7 +114,7 @@ UBool RuleBasedBreakIterator::DictionaryCache::preceding(int32_t fromPos, int32_
             return TRUE;
         }
     }
-    UPRV_UNREACHABLE;
+    UPRV_UNREACHABLE_EXIT;
 }
 
 void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPos, int32_t endPos,
@@ -142,13 +142,15 @@ void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPo
 
     utext_setNativeIndex(text, rangeStart);
     UChar32     c = utext_current32(text);
-    category = UTRIE2_GET16(fBI->fData->fTrie, c);
+    category = ucptrie_get(fBI->fData->fTrie, c);
+    uint32_t dictStart = fBI->fData->fForwardTable->fDictCategoriesStart;
 
     while(U_SUCCESS(status)) {
-        while((current = (int32_t)UTEXT_GETNATIVEINDEX(text)) < rangeEnd && (category & 0x4000) == 0) {
+        while((current = (int32_t)UTEXT_GETNATIVEINDEX(text)) < rangeEnd
+                && (category < dictStart)) {
             utext_next32(text);           // TODO: cleaner loop structure.
             c = utext_current32(text);
-            category = UTRIE2_GET16(fBI->fData->fTrie, c);
+            category = ucptrie_get(fBI->fData->fTrie, c);
         }
         if (current >= rangeEnd) {
             break;
@@ -161,12 +163,12 @@ void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPo
         // Ask the language object if there are any breaks. It will add them to the cache and
         // leave the text pointer on the other side of its range, ready to search for the next one.
         if (lbe != NULL) {
-            foundBreakCount += lbe->findBreaks(text, rangeStart, rangeEnd, fBreaks);
+            foundBreakCount += lbe->findBreaks(text, rangeStart, rangeEnd, fBreaks, status);
         }
 
         // Reload the loop variables for the next go-round
         c = utext_current32(text);
-        category = UTRIE2_GET16(fBI->fData->fTrie, c);
+        category = ucptrie_get(fBI->fData->fTrie, c);
     }
 
     // If we found breaks, ensure that the first and last entries are
@@ -199,7 +201,7 @@ void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPo
 
 
 /*
- *   BreakCache implemetation
+ *   BreakCache implementation
  */
 
 RuleBasedBreakIterator::BreakCache::BreakCache(RuleBasedBreakIterator *bi, UErrorCode &status) :
@@ -256,7 +258,7 @@ void RuleBasedBreakIterator::BreakCache::preceding(int32_t startPos, UErrorCode 
             previous(status);
         } else {
             // seek() leaves the BreakCache positioned at the preceding boundary
-            //        if the requested position is between two bounaries.
+            //        if the requested position is between two boundaries.
             // current() pushes the BreakCache position out to the BreakIterator itself.
             U_ASSERT(startPos > fTextIdx);
             current();
@@ -384,7 +386,7 @@ UBool RuleBasedBreakIterator::BreakCache::populateNear(int32_t position, UErrorC
         // Add following position(s) to the cache.
         while (fBoundaries[fEndBufIdx] < position) {
             if (!populateFollowing()) {
-                UPRV_UNREACHABLE;
+                UPRV_UNREACHABLE_EXIT;
             }
         }
         fBufIdx = fEndBufIdx;                      // Set iterator position to the end of the buffer.

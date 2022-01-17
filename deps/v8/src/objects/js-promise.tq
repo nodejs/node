@@ -6,18 +6,18 @@ bitfield struct JSPromiseFlags extends uint31 {
   status: PromiseState: 2 bit;
   has_handler: bool: 1 bit;
   handled_hint: bool: 1 bit;
+  is_silent: bool: 1 bit;
   async_task_id: int32: 22 bit;
 }
 
-@generateCppClass
 extern class JSPromise extends JSObject {
   macro Status(): PromiseState {
     return this.flags.status;
   }
 
   macro SetStatus(status: constexpr PromiseState): void {
-    assert(this.Status() == PromiseState::kPending);
-    assert(status != PromiseState::kPending);
+    dcheck(this.Status() == PromiseState::kPending);
+    dcheck(status != PromiseState::kPending);
 
     this.flags.status = status;
   }
@@ -35,3 +35,7 @@ extern class JSPromise extends JSObject {
   reactions_or_result: Zero|PromiseReaction|JSAny;
   flags: SmiTagged<JSPromiseFlags>;
 }
+
+@doNotGenerateCast
+extern class JSPromiseConstructor extends JSFunction
+    generates 'TNode<JSFunction>';

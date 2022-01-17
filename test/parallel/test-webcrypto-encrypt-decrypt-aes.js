@@ -6,9 +6,12 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { getRandomValues, subtle } = require('crypto').webcrypto;
 
 async function testEncrypt({ keyBuffer, algorithm, plaintext, result }) {
+  // Using a copy of plaintext to prevent tampering of the original
+  plaintext = Buffer.from(plaintext);
+
   const key = await subtle.importKey(
     'raw',
     keyBuffer,
@@ -23,8 +26,10 @@ async function testEncrypt({ keyBuffer, algorithm, plaintext, result }) {
     Buffer.from(output).toString('hex'),
     Buffer.from(result).toString('hex'));
 
-  const check = await subtle.decrypt(algorithm, key, output);
-  output[0] = 255 - output[0];
+  // Converting the returned ArrayBuffer into a Buffer right away,
+  // so that the next line works
+  const check = Buffer.from(await subtle.decrypt(algorithm, key, output));
+  check[0] = 255 - check[0];
 
   assert.strictEqual(
     Buffer.from(check).toString('hex'),
@@ -194,5 +199,43 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
     });
 
     await Promise.all(variations);
+  })().then(common.mustCall());
+}
+
+{
+  (async function() {
+    const secretKey = await subtle.generateKey(
+      {
+        name: 'AES-GCM',
+        length: 256,
+      },
+      false,
+      ['encrypt', 'decrypt'],
+    );
+
+    const iv = getRandomValues(new Uint8Array(12));
+    const aad = getRandomValues(new Uint8Array(32));
+
+    const encrypted = await subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv,
+        additionalData: aad,
+        tagLength: 128
+      },
+      secretKey,
+      getRandomValues(new Uint8Array(32))
+    );
+
+    await subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv,
+        additionalData: aad,
+        tagLength: 128,
+      },
+      secretKey,
+      new Uint8Array(encrypted),
+    );
   })().then(common.mustCall());
 }

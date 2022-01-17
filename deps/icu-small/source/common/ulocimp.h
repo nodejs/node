@@ -13,6 +13,8 @@
 #include "unicode/bytestream.h"
 #include "unicode/uloc.h"
 
+#include "charstr.h"
+
 /**
  * Create an iterator over the specified keywords list
  * @param keywordList double-null terminated list. Will be copied.
@@ -38,51 +40,64 @@ uloc_getTableStringWithFallback(
     int32_t *pLength,
     UErrorCode *pErrorCode);
 
-/*returns TRUE if a is an ID separator FALSE otherwise*/
+/*returns true if a is an ID separator false otherwise*/
 #define _isIDSeparator(a) (a == '_' || a == '-')
 
-U_CFUNC const char*
+U_CFUNC const char* 
 uloc_getCurrentCountryID(const char* oldID);
 
-U_CFUNC const char*
+U_CFUNC const char* 
 uloc_getCurrentLanguageID(const char* oldID);
 
-U_CFUNC int32_t
+U_CFUNC void
+ulocimp_getKeywords(const char *localeID,
+             char prev,
+             icu::ByteSink& sink,
+             UBool valuesToo,
+             UErrorCode *status);
+
+icu::CharString U_EXPORT2
 ulocimp_getLanguage(const char *localeID,
-                    char *language, int32_t languageCapacity,
-                    const char **pEnd);
+                    const char **pEnd,
+                    UErrorCode &status);
 
-U_CFUNC int32_t
+icu::CharString U_EXPORT2
 ulocimp_getScript(const char *localeID,
-                   char *script, int32_t scriptCapacity,
-                   const char **pEnd);
+                  const char **pEnd,
+                  UErrorCode &status);
 
-U_CFUNC int32_t
+icu::CharString U_EXPORT2
 ulocimp_getCountry(const char *localeID,
-                   char *country, int32_t countryCapacity,
-                   const char **pEnd);
+                   const char **pEnd,
+                   UErrorCode &status);
 
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ulocimp_getName(const char* localeID,
                 icu::ByteSink& sink,
                 UErrorCode* err);
 
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ulocimp_getBaseName(const char* localeID,
                     icu::ByteSink& sink,
                     UErrorCode* err);
 
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ulocimp_canonicalize(const char* localeID,
                      icu::ByteSink& sink,
                      UErrorCode* err);
 
+U_CAPI void U_EXPORT2
+ulocimp_getKeywordValue(const char* localeID,
+                        const char* keywordName,
+                        icu::ByteSink& sink,
+                        UErrorCode* status);
+
 /**
  * Writes a well-formed language tag for this locale ID.
  *
- * **Note**: When `strict` is FALSE, any locale fields which do not satisfy the
+ * **Note**: When `strict` is false, any locale fields which do not satisfy the
  * BCP47 syntax requirement will be omitted from the result.  When `strict` is
- * TRUE, this function sets U_ILLEGAL_ARGUMENT_ERROR to the `err` if any locale
+ * true, this function sets U_ILLEGAL_ARGUMENT_ERROR to the `err` if any locale
  * fields do not satisfy the BCP47 syntax requirement.
  *
  * @param localeID  the input locale ID
@@ -96,7 +111,7 @@ ulocimp_canonicalize(const char* localeID,
  *
  * @internal ICU 64
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ulocimp_toLanguageTag(const char* localeID,
                       icu::ByteSink& sink,
                       UBool strict,
@@ -107,13 +122,17 @@ ulocimp_toLanguageTag(const char* localeID,
  * If the specified language tag contains any ill-formed subtags,
  * the first such subtag and all following subtags are ignored.
  * <p>
- * This implements the 'Language-Tag' production of BCP47, and so
- * supports grandfathered (regular and irregular) as well as private
- * use language tags.  Private use tags are represented as 'x-whatever',
- * and grandfathered tags are converted to their canonical replacements
- * where they exist.  Note that a few grandfathered tags have no modern
- * replacement, these will be converted using the fallback described in
+ * This implements the 'Language-Tag' production of BCP 47, and so
+ * supports legacy language tags (marked as “Type: grandfathered” in BCP 47)
+ * (regular and irregular) as well as private use language tags.
+ *
+ * Private use tags are represented as 'x-whatever',
+ * and legacy tags are converted to their canonical replacements where they exist.
+ *
+ * Note that a few legacy tags have no modern replacement;
+ * these will be converted using the fallback described in
  * the first paragraph, so some information might be lost.
+ *
  * @param langtag   the input BCP47 language tag.
  * @param tagLen    the length of langtag, or -1 to call uprv_strlen().
  * @param sink      the output sink receiving a locale ID for the
@@ -135,19 +154,19 @@ ulocimp_forLanguageTag(const char* langtag,
  * Get the region to use for supplemental data lookup. Uses
  * (1) any region specified by locale tag "rg"; if none then
  * (2) any unicode_region_tag in the locale ID; if none then
- * (3) if inferRegion is TRUE, the region suggested by
+ * (3) if inferRegion is true, the region suggested by
  * getLikelySubtags on the localeID.
  * If no region is found, returns length 0.
- *
+ * 
  * @param localeID
  *     The complete locale ID (with keywords) from which
  *     to get the region to use for supplemental data.
  * @param inferRegion
- *     If TRUE, will try to infer region from localeID if
+ *     If true, will try to infer region from localeID if
  *     no other region is found.
  * @param region
  *     Buffer in which to put the region ID found; should
- *     have a capacity at least ULOC_COUNTRY_CAPACITY.
+ *     have a capacity at least ULOC_COUNTRY_CAPACITY. 
  * @param regionCapacity
  *     The actual capacity of the region buffer.
  * @param status
@@ -189,7 +208,7 @@ ulocimp_getRegionForSupplementalData(const char *localeID, UBool inferRegion,
  * or the localeId is not well-formed, the error code is U_ILLEGAL_ARGUMENT_ERROR.
  * @internal ICU 64
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ulocimp_addLikelySubtags(const char* localeID,
                          icu::ByteSink& sink,
                          UErrorCode* err);
@@ -223,7 +242,7 @@ ulocimp_addLikelySubtags(const char* localeID,
  * or the localeId is not well-formed, the error code is U_ILLEGAL_ARGUMENT_ERROR.
  * @internal ICU 64
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ulocimp_minimizeSubtags(const char* localeID,
                         icu::ByteSink& sink,
                         UErrorCode* err);
@@ -267,6 +286,9 @@ ultag_isUnicodeLocaleType(const char* s, int32_t len);
 U_CFUNC UBool
 ultag_isVariantSubtags(const char* s, int32_t len);
 
+U_CAPI const char * U_EXPORT2
+ultag_getTKeyStart(const char *localeID);
+
 U_CFUNC const char*
 ulocimp_toBcpKey(const char* key);
 
@@ -278,5 +300,79 @@ ulocimp_toBcpType(const char* key, const char* type, UBool* isKnownKey, UBool* i
 
 U_CFUNC const char*
 ulocimp_toLegacyType(const char* key, const char* type, UBool* isKnownKey, UBool* isSpecialType);
+
+/* Function for testing purpose */
+U_CAPI const char* const* ulocimp_getKnownCanonicalizedLocaleForTest(int32_t* length);
+
+// Return true if the value is already canonicalized.
+U_CAPI bool ulocimp_isCanonicalizedLocaleForTest(const char* localeName);
+
+/**
+ * A utility class for handling locale IDs that may be longer than ULOC_FULLNAME_CAPACITY.
+ * This encompasses all of the logic to allocate a temporary locale ID buffer on the stack,
+ * and then, if it's not big enough, reallocate it on the heap and try again.
+ *
+ * You use it like this:
+ * UErrorCode err = U_ZERO_ERROR;
+ *
+ * PreflightingLocaleIDBuffer tempBuffer;
+ * do {
+ *     tempBuffer.requestedCapacity = uloc_doSomething(localeID, tempBuffer.getBuffer(), tempBuffer.getCapacity(), &err);
+ * } while (tempBuffer.needToTryAgain(&err));
+ * if (U_SUCCESS(err)) {
+ *     uloc_doSomethingWithTheResult(tempBuffer.getBuffer());
+ * }
+ */
+class PreflightingLocaleIDBuffer {
+private:
+    char stackBuffer[ULOC_FULLNAME_CAPACITY];
+    char* heapBuffer = nullptr;
+    int32_t capacity = ULOC_FULLNAME_CAPACITY;
+    
+public:
+    int32_t requestedCapacity = ULOC_FULLNAME_CAPACITY;
+
+    // No heap allocation. Use only on the stack.
+    static void* U_EXPORT2 operator new(size_t) U_NOEXCEPT = delete;
+    static void* U_EXPORT2 operator new[](size_t) U_NOEXCEPT = delete;
+#if U_HAVE_PLACEMENT_NEW
+    static void* U_EXPORT2 operator new(size_t, void*) U_NOEXCEPT = delete;
+#endif
+
+    PreflightingLocaleIDBuffer() {}
+    
+    ~PreflightingLocaleIDBuffer() { uprv_free(heapBuffer); }
+    
+    char* getBuffer() {
+        if (heapBuffer == nullptr) {
+            return stackBuffer;
+        } else {
+            return heapBuffer;
+        }
+    }
+    
+    int32_t getCapacity() {
+        return capacity;
+    }
+    
+    bool needToTryAgain(UErrorCode* err) {
+        if (heapBuffer != nullptr) {
+            return false;
+        }
+    
+        if (*err == U_BUFFER_OVERFLOW_ERROR || *err == U_STRING_NOT_TERMINATED_WARNING) {
+            int32_t newCapacity = requestedCapacity + 2;    // one for the terminating null, one just for paranoia
+            heapBuffer = static_cast<char*>(uprv_malloc(newCapacity));
+            if (heapBuffer == nullptr) {
+                *err = U_MEMORY_ALLOCATION_ERROR;
+            } else {
+                *err = U_ZERO_ERROR;
+                capacity = newCapacity;
+            }
+            return U_SUCCESS(*err);
+        }
+        return false;
+    }
+};
 
 #endif

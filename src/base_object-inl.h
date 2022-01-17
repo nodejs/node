@@ -83,7 +83,8 @@ v8::Local<v8::Object> BaseObject::object() const {
 v8::Local<v8::Object> BaseObject::object(v8::Isolate* isolate) const {
   v8::Local<v8::Object> handle = object();
 
-  DCHECK_EQ(handle->CreationContext()->GetIsolate(), isolate);
+  DCHECK_EQ(handle->GetCreationContext().ToLocalChecked()->GetIsolate(),
+            isolate);
   DCHECK_EQ(env()->isolate(), isolate);
 
   return handle;
@@ -147,15 +148,17 @@ bool BaseObject::IsWeakOrDetached() const {
   return pd->wants_weak_jsobj || pd->is_detached;
 }
 
+void BaseObject::LazilyInitializedJSTemplateConstructor(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  DCHECK(args.IsConstructCall());
+  DCHECK_GT(args.This()->InternalFieldCount(), 0);
+  args.This()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
+}
+
 v8::Local<v8::FunctionTemplate>
 BaseObject::MakeLazilyInitializedJSTemplate(Environment* env) {
-  auto constructor = [](const v8::FunctionCallbackInfo<v8::Value>& args) {
-    DCHECK(args.IsConstructCall());
-    DCHECK_GT(args.This()->InternalFieldCount(), 0);
-    args.This()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
-  };
-
-  v8::Local<v8::FunctionTemplate> t = env->NewFunctionTemplate(constructor);
+  v8::Local<v8::FunctionTemplate> t =
+      env->NewFunctionTemplate(LazilyInitializedJSTemplateConstructor);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
   t->InstanceTemplate()->SetInternalFieldCount(
       BaseObject::kInternalFieldCount);
@@ -200,7 +203,7 @@ void BaseObject::decrease_refcount() {
   unsigned int new_refcount = --metadata->strong_ptr_count;
   if (new_refcount == 0) {
     if (metadata->is_detached) {
-      delete this;
+      OnGCCollect();
     } else if (metadata->wants_weak_jsobj && !persistent_handle_.IsEmpty()) {
       MakeWeak();
     }

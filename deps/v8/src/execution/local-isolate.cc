@@ -4,6 +4,7 @@
 
 #include "src/execution/local-isolate.h"
 
+#include "src/bigint/bigint.h"
 #include "src/execution/isolate.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/handles-inl.h"
@@ -12,14 +13,28 @@
 namespace v8 {
 namespace internal {
 
-LocalIsolate::LocalIsolate(Isolate* isolate)
+LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind,
+                           RuntimeCallStats* runtime_call_stats)
     : HiddenLocalFactory(isolate),
-      heap_(isolate->heap()),
+      heap_(isolate->heap(), kind),
       isolate_(isolate),
       logger_(new LocalLogger(isolate)),
-      thread_id_(ThreadId::Current()) {}
+      thread_id_(ThreadId::Current()),
+      stack_limit_(kind == ThreadKind::kMain
+                       ? isolate->stack_guard()->real_climit()
+                       : GetCurrentStackPosition() - FLAG_stack_size * KB),
+      runtime_call_stats_(runtime_call_stats) {}
 
-LocalIsolate::~LocalIsolate() = default;
+LocalIsolate::~LocalIsolate() {
+  if (bigint_processor_) bigint_processor_->Destroy();
+}
+
+void LocalIsolate::RegisterDeserializerStarted() {
+  return isolate_->RegisterDeserializerStarted();
+}
+void LocalIsolate::RegisterDeserializerFinished() {
+  return isolate_->RegisterDeserializerFinished();
+}
 
 int LocalIsolate::GetNextScriptId() { return isolate_->GetNextScriptId(); }
 
@@ -29,9 +44,20 @@ int LocalIsolate::GetNextUniqueSharedFunctionInfoId() {
 }
 #endif  // V8_SFI_HAS_UNIQUE_ID
 
-bool LocalIsolate::is_collecting_type_profile() {
+bool LocalIsolate::is_collecting_type_profile() const {
   // TODO(leszeks): Figure out if it makes sense to check this asynchronously.
   return isolate_->is_collecting_type_profile();
+}
+
+// Used for lazy initialization, based on an assumption that most
+// LocalIsolates won't be used to parse any BigInt literals.
+void LocalIsolate::InitializeBigIntProcessor() {
+  bigint_processor_ = bigint::Processor::New(new bigint::Platform());
+}
+
+// static
+bool StackLimitCheck::HasOverflowed(LocalIsolate* local_isolate) {
+  return GetCurrentStackPosition() < local_isolate->stack_limit();
 }
 
 }  // namespace internal

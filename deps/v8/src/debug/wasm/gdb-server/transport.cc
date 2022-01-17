@@ -3,7 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/debug/wasm/gdb-server/transport.h"
+
 #include <fcntl.h>
+
+#include "src/base/platform/wrappers.h"
 
 #ifndef SD_BOTH
 #define SD_BOTH 2

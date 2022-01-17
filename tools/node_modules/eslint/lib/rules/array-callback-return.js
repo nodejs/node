@@ -133,13 +133,13 @@ function getArrayMethodName(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "enforce `return` statements in callbacks of array methods",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/array-callback-return"
         },

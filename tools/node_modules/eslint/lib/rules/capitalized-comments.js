@@ -99,13 +99,13 @@ function createRegExpForIgnorePatterns(normalizedOptions) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce or disallow capitalization of the first letter of a comment",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/capitalized-comments"
         },

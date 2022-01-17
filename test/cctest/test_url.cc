@@ -44,6 +44,11 @@ TEST_F(URLTest, Simple2) {
   EXPECT_EQ(simple.fragment(), "fragment");
 }
 
+TEST_F(URLTest, ForbiddenHostCodePoint) {
+  URL error("https://exa|mple.org:81/a/b/c?query#fragment");
+  EXPECT_TRUE(error.flags() & URL_FLAGS_FAILED);
+}
+
 TEST_F(URLTest, NoBase1) {
   URL error("123noscheme");
   EXPECT_TRUE(error.flags() & URL_FLAGS_FAILED);
@@ -79,6 +84,52 @@ TEST_F(URLTest, Base3) {
   EXPECT_EQ(simple.protocol(), "http:");
   EXPECT_EQ(simple.host(), "example.org");
   EXPECT_EQ(simple.path(), "/baz");
+}
+
+TEST_F(URLTest, Base4) {
+  const char* input = "\\x";
+  const char* base = "http://example.org/foo/bar";
+
+  URL simple(input, strlen(input), base, strlen(base));
+
+  EXPECT_FALSE(simple.flags() & URL_FLAGS_FAILED);
+  EXPECT_EQ(simple.protocol(), "http:");
+  EXPECT_EQ(simple.host(), "example.org");
+  EXPECT_EQ(simple.path(), "/x");
+}
+
+TEST_F(URLTest, Base5) {
+  const char* input = "/x";
+  const char* base = "http://example.org/foo/bar";
+
+  URL simple(input, strlen(input), base, strlen(base));
+
+  EXPECT_FALSE(simple.flags() & URL_FLAGS_FAILED);
+  EXPECT_EQ(simple.protocol(), "http:");
+  EXPECT_EQ(simple.host(), "example.org");
+  EXPECT_EQ(simple.path(), "/x");
+}
+
+TEST_F(URLTest, Base6) {
+  const char* input = "\\\\x";
+  const char* base = "http://example.org/foo/bar";
+
+  URL simple(input, strlen(input), base, strlen(base));
+
+  EXPECT_FALSE(simple.flags() & URL_FLAGS_FAILED);
+  EXPECT_EQ(simple.protocol(), "http:");
+  EXPECT_EQ(simple.host(), "x");
+}
+
+TEST_F(URLTest, Base7) {
+  const char* input = "//x";
+  const char* base = "http://example.org/foo/bar";
+
+  URL simple(input, strlen(input), base, strlen(base));
+
+  EXPECT_FALSE(simple.flags() & URL_FLAGS_FAILED);
+  EXPECT_EQ(simple.protocol(), "http:");
+  EXPECT_EQ(simple.host(), "x");
 }
 
 TEST_F(URLTest, TruncatedAfterProtocol) {
@@ -137,25 +188,31 @@ TEST_F(URLTest, FromFilePath) {
   file_url = URL::FromFilePath("C:\\Program Files\\");
   EXPECT_EQ("file:", file_url.protocol());
   EXPECT_EQ("//C:/Program%20Files/", file_url.path());
+  EXPECT_EQ("file:///C:/Program%20Files/", file_url.href());
 
   file_url = URL::FromFilePath("C:\\a\\b\\c");
   EXPECT_EQ("file:", file_url.protocol());
   EXPECT_EQ("//C:/a/b/c", file_url.path());
+  EXPECT_EQ("file:///C:/a/b/c", file_url.href());
 
   file_url = URL::FromFilePath("b:\\a\\%%.js");
   EXPECT_EQ("file:", file_url.protocol());
   EXPECT_EQ("//b:/a/%25%25.js", file_url.path());
+  EXPECT_EQ("file:///b:/a/%25%25.js", file_url.href());
 #else
   file_url = URL::FromFilePath("/");
   EXPECT_EQ("file:", file_url.protocol());
   EXPECT_EQ("//", file_url.path());
+  EXPECT_EQ("file:///", file_url.href());
 
   file_url = URL::FromFilePath("/a/b/c");
   EXPECT_EQ("file:", file_url.protocol());
   EXPECT_EQ("//a/b/c", file_url.path());
+  EXPECT_EQ("file:///a/b/c", file_url.href());
 
   file_url = URL::FromFilePath("/a/%%.js");
   EXPECT_EQ("file:", file_url.protocol());
   EXPECT_EQ("//a/%25%25.js", file_url.path());
+  EXPECT_EQ("file:///a/%25%25.js", file_url.href());
 #endif
 }

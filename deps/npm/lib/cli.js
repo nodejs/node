@@ -1,23 +1,27 @@
 // Separated out for easier unit testing
-module.exports = (process) => {
+module.exports = async process => {
+  // set it here so that regardless of what happens later, we don't
+  // leak any private CLI configs to other programs
   process.title = 'npm'
 
-  const {
-    checkForBrokenNode,
-    checkForUnsupportedNode
-  } = require('../lib/utils/unsupported.js')
-
+  // We used to differentiate between known broken and unsupported
+  // versions of node and attempt to only log unsupported but still run.
+  // After we dropped node 10 support, we can use new features
+  // (like static, private, etc) which will only give vague syntax errors,
+  // so now both broken and unsupported use console, but only broken
+  // will process.exit. It is important to now perform *both* of these
+  // checks as early as possible so the user gets the error message.
+  const { checkForBrokenNode, checkForUnsupportedNode } = require('./utils/unsupported.js')
   checkForBrokenNode()
-
-  const log = require('npmlog')
-  // pause it here so it can unpause when we've loaded the configs
-  // and know what loglevel we should be printing.
-  log.pause()
-
   checkForUnsupportedNode()
 
-  const npm = require('../lib/npm.js')
-  const errorHandler = require('../lib/utils/error-handler.js')
+  const exitHandler = require('./utils/exit-handler.js')
+  process.on('uncaughtException', exitHandler)
+  process.on('unhandledRejection', exitHandler)
+
+  const Npm = require('./npm.js')
+  const npm = new Npm()
+  exitHandler.setNpm(npm)
 
   // if npm is called as "npmg" or "npm_g", then
   // run in global mode.
@@ -25,39 +29,51 @@ module.exports = (process) => {
     process.argv.splice(1, 1, 'npm', '-g')
   }
 
-  log.verbose('cli', process.argv)
+  const log = require('./utils/log-shim.js')
+  const replaceInfo = require('./utils/replace-info.js')
+  log.verbose('cli', replaceInfo(process.argv))
 
   log.info('using', 'npm@%s', npm.version)
   log.info('using', 'node@%s', process.version)
 
-  process.on('uncaughtException', errorHandler)
-  process.on('unhandledRejection', errorHandler)
+  const updateNotifier = require('./utils/update-notifier.js')
 
+  let cmd
   // now actually fire up npm and run the command.
   // this is how to use npm programmatically:
-  const updateNotifier = require('../lib/utils/update-notifier.js')
-  npm.load(async er => {
-    if (er) return errorHandler(er)
+  try {
+    await npm.load()
     if (npm.config.get('version', 'cli')) {
-      console.log(npm.version)
-      return errorHandler.exit(0)
+      npm.output(npm.version)
+      return exitHandler()
     }
 
+    // npm --versions=cli
     if (npm.config.get('versions', 'cli')) {
       npm.argv = ['version']
       npm.config.set('usage', false, 'cli')
     }
 
-    npm.updateNotification = await updateNotifier(npm)
+    updateNotifier(npm)
 
-    const cmd = npm.argv.shift()
-    const impl = npm.commands[cmd]
-    if (impl) {
-      impl(npm.argv, errorHandler)
-    } else {
-      npm.config.set('usage', false)
-      npm.argv.unshift(cmd)
-      npm.commands.help(npm.argv, errorHandler)
+    cmd = npm.argv.shift()
+    if (!cmd) {
+      npm.output(await npm.usage)
+      process.exitCode = 1
+      return exitHandler()
     }
-  })
+
+    await npm.exec(cmd, npm.argv)
+    return exitHandler()
+  } catch (err) {
+    if (err.code === 'EUNKNOWNCOMMAND') {
+      const didYouMean = require('./utils/did-you-mean.js')
+      const suggestions = await didYouMean(npm, npm.localPrefix, cmd)
+      npm.output(`Unknown command: "${cmd}"${suggestions}\n`)
+      npm.output('To see a list of supported npm commands, run:\n  npm help')
+      process.exitCode = 1
+      return exitHandler()
+    }
+    return exitHandler(err)
+  }
 }

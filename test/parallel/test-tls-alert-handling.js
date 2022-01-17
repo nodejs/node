@@ -33,7 +33,7 @@ let iter = 0;
 const errorHandler = common.mustCall((err) => {
   assert.strictEqual(err.code, 'ERR_SSL_WRONG_VERSION_NUMBER');
   assert.strictEqual(err.library, 'SSL routines');
-  assert.strictEqual(err.function, 'ssl3_get_record');
+  if (!common.hasOpenSSL3) assert.strictEqual(err.function, 'ssl3_get_record');
   assert.strictEqual(err.reason, 'wrong version number');
   errorReceived = true;
   if (canCloseServer())
@@ -89,7 +89,8 @@ function sendBADTLSRecord() {
   client.on('error', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION');
     assert.strictEqual(err.library, 'SSL routines');
-    assert.strictEqual(err.function, 'ssl3_read_bytes');
+    if (!common.hasOpenSSL3)
+      assert.strictEqual(err.function, 'ssl3_read_bytes');
     assert.strictEqual(err.reason, 'tlsv1 alert protocol version');
   }));
 }

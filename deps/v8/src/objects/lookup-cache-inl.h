@@ -6,8 +6,8 @@
 #define V8_OBJECTS_LOOKUP_CACHE_INL_H_
 
 #include "src/objects/lookup-cache.h"
-
-#include "src/objects/objects-inl.h"
+#include "src/objects/map.h"
+#include "src/objects/name-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -17,7 +17,7 @@ int DescriptorLookupCache::Hash(Map source, Name name) {
   DCHECK(name.IsUniqueName());
   // Uses only lower 32 bits if pointers are larger.
   uint32_t source_hash = static_cast<uint32_t>(source.ptr()) >> kTaggedSizeLog2;
-  uint32_t name_hash = name.hash_field();
+  uint32_t name_hash = name.hash();
   return (source_hash ^ name_hash) % kLength;
 }
 

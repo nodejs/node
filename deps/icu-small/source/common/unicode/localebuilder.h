@@ -1,5 +1,5 @@
 // © 2018 and later: Unicode, Inc. and others.
-// License & terms of use: http://www.unicode.org/copyright.html#License
+// License & terms of use: http://www.unicode.org/copyright.html
 #ifndef __LOCALEBUILDER_H__
 #define __LOCALEBUILDER_H__
 
@@ -90,18 +90,17 @@ public:
     LocaleBuilder& setLocale(const Locale& locale);
 
     /**
-     * Resets the LocaleBuilder to match the provided
-     * [Unicode Locale Identifier](http://www.unicode.org/reports/tr35/tr35.html#unicode_locale_id) .
-     * Discards the existing state. the empty string cause the builder to be
-     * reset, like {@link #clear}.  Grandfathered tags are converted to their
-     * canonical form before being processed.  Otherwise, the <code>language
-     * tag</code> must be well-formed, or else the build() method will later
-     * report an U_ILLEGAL_ARGUMENT_ERROR.
+     * Resets the LocaleBuilder to match the provided IETF BCP 47 language tag.
+     * Discards the existing state.
+     * The empty string causes the builder to be reset, like {@link #clear}.
+     * Legacy language tags (marked as “Type: grandfathered” in BCP 47)
+     * are converted to their canonical form before being processed.
+     * Otherwise, the <code>language tag</code> must be well-formed,
+     * or else the build() method will later report an U_ILLEGAL_ARGUMENT_ERROR.
      *
      * <p>This method clears the internal UErrorCode.
      *
-     * @param tag the language tag, defined as
-     *   [unicode_locale_id](http://www.unicode.org/reports/tr35/tr35.html#unicode_locale_id).
+     * @param tag the language tag, defined as IETF BCP 47 language tag.
      * @return This builder.
      * @stable ICU 64
      */
@@ -278,18 +277,16 @@ public:
      */
     Locale build(UErrorCode& status);
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Sets the UErrorCode if an error occurred while recording sets.
      * Preserves older error codes in the outErrorCode.
      * @param outErrorCode Set to an error code that occurred while setting subtags.
      *                  Unchanged if there is no such error or if outErrorCode
      *                  already contained an error.
-     * @return TRUE if U_FAILURE(outErrorCode)
-     * @draft ICU 65
+     * @return true if U_FAILURE(outErrorCode)
+     * @stable ICU 65
      */
     UBool copyErrorTo(UErrorCode &outErrorCode) const;
-#endif  /* U_HIDE_DRAFT_API */
 
 private:
     friend class LocaleMatcher::Result;

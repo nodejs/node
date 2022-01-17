@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/code-serializer.h"
@@ -16,7 +17,6 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-serialization.h"
-
 #include "test/cctest/cctest.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
@@ -41,9 +41,9 @@ class WasmSerializationTest {
     TestSignatures sigs;
 
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
-    byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add, kExprEnd};
+    byte code[] = {WASM_LOCAL_GET(0), kExprI32Const, 1, kExprI32Add, kExprEnd};
     f->EmitCode(code, sizeof(code));
-    builder->AddExport(CStrVector(kFunctionName), f);
+    builder->AddExport(base::CStrVector(kFunctionName), f);
 
     builder->WriteTo(buffer);
   }
@@ -61,19 +61,11 @@ class WasmSerializationTest {
     memset(const_cast<uint8_t*>(wire_bytes_.data()), 0, wire_bytes_.size() / 2);
   }
 
-  void InvalidateNumFunctions() {
-    Address num_functions_slot =
-        reinterpret_cast<Address>(serialized_bytes_.data()) +
-        WasmSerializer::kHeaderSize;
-    CHECK_EQ(1, base::ReadUnalignedValue<uint32_t>(num_functions_slot));
-    base::WriteUnalignedValue<uint32_t>(num_functions_slot, 0);
-  }
-
   MaybeHandle<WasmModuleObject> Deserialize(
-      Vector<const char> source_url = {}) {
+      base::Vector<const char> source_url = {}) {
     return DeserializeNativeModule(CcTest::i_isolate(),
-                                   VectorOf(serialized_bytes_),
-                                   VectorOf(wire_bytes_), source_url);
+                                   base::VectorOf(serialized_bytes_),
+                                   base::VectorOf(wire_bytes_), source_url);
   }
 
   void DeserializeAndRun() {
@@ -81,8 +73,8 @@ class WasmSerializationTest {
     Handle<WasmModuleObject> module_object;
     CHECK(Deserialize().ToHandle(&module_object));
     {
-      DisallowHeapAllocation assume_no_gc;
-      Vector<const byte> deserialized_module_wire_bytes =
+      DisallowGarbageCollection assume_no_gc;
+      base::Vector<const byte> deserialized_module_wire_bytes =
           module_object->native_module()->wire_bytes();
       CHECK_EQ(deserialized_module_wire_bytes.size(), wire_bytes_.size());
       CHECK_EQ(memcmp(deserialized_module_wire_bytes.begin(),
@@ -90,8 +82,7 @@ class WasmSerializationTest {
                0);
     }
     Handle<WasmInstanceObject> instance =
-        CcTest::i_isolate()
-            ->wasm_engine()
+        GetWasmEngine()
             ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
                               Handle<JSReceiver>::null(),
                               MaybeHandle<JSArrayBuffer>())
@@ -139,7 +130,7 @@ class WasmSerializationTest {
 
       auto enabled_features = WasmFeatures::FromIsolate(serialization_isolate);
       MaybeHandle<WasmModuleObject> maybe_module_object =
-          serialization_isolate->wasm_engine()->SyncCompile(
+          GetWasmEngine()->SyncCompile(
               serialization_isolate, enabled_features, &thrower,
               ModuleWireBytes(buffer.begin(), buffer.end()));
       Handle<WasmModuleObject> module_object =
@@ -212,9 +203,9 @@ TEST(DeserializeWithSourceUrl) {
     HandleScope scope(CcTest::i_isolate());
     const std::string url = "http://example.com/example.wasm";
     Handle<WasmModuleObject> module_object;
-    CHECK(test.Deserialize(VectorOf(url)).ToHandle(&module_object));
-    String source_url = String::cast(module_object->script().source_url());
-    CHECK_EQ(url, source_url.ToCString().get());
+    CHECK(test.Deserialize(base::VectorOf(url)).ToHandle(&module_object));
+    String url_str = String::cast(module_object->script().name());
+    CHECK_EQ(url, url_str.ToCString().get());
   }
   test.CollectGarbage();
 }
@@ -234,16 +225,6 @@ TEST(DeserializeNoSerializedData) {
   {
     HandleScope scope(CcTest::i_isolate());
     test.ClearSerializedData();
-    CHECK(test.Deserialize().is_null());
-  }
-  test.CollectGarbage();
-}
-
-TEST(DeserializeInvalidNumFunctions) {
-  WasmSerializationTest test;
-  {
-    HandleScope scope(CcTest::i_isolate());
-    test.InvalidateNumFunctions();
     CHECK(test.Deserialize().is_null());
   }
   test.CollectGarbage();
@@ -275,7 +256,6 @@ TEST(BlockWasmCodeGenAtDeserialization) {
 }
 
 UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
-  i::wasm::WasmEngine::InitializeOncePerProcess();
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -296,7 +276,7 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
     ErrorThrower thrower(from_i_isolate, "TestCompiledWasmModulesTransfer");
     auto enabled_features = WasmFeatures::FromIsolate(from_i_isolate);
     MaybeHandle<WasmModuleObject> maybe_module_object =
-        from_i_isolate->wasm_engine()->SyncCompile(
+        GetWasmEngine()->SyncCompile(
             from_i_isolate, enabled_features, &thrower,
             ModuleWireBytes(buffer.begin(), buffer.end()));
     Handle<WasmModuleObject> module_object =
@@ -341,9 +321,10 @@ TEST(TierDownAfterDeserialization) {
   CHECK_EQ(1, native_module->module()->functions.size());
   WasmCodeRefScope code_ref_scope;
   auto* turbofan_code = native_module->GetCode(0);
+  CHECK_NOT_NULL(turbofan_code);
   CHECK_EQ(ExecutionTier::kTurbofan, turbofan_code->tier());
 
-  isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);
+  GetWasmEngine()->TierDownAllModulesPerIsolate(isolate);
 
   auto* liftoff_code = native_module->GetCode(0);
   CHECK_EQ(ExecutionTier::kLiftoff, liftoff_code->tier());

@@ -1,11 +1,10 @@
-// Flags: --expose-internals --no-warnings
+// Flags: --expose-internals --no-warnings --expose-gc
 'use strict';
 
 const common = require('../common');
 const {
-  Event,
-  EventTarget,
-  defineEventHandler
+  defineEventHandler,
+  kWeakHandler,
 } = require('internal/event_target');
 
 const {
@@ -17,7 +16,7 @@ const {
 
 const { once } = require('events');
 
-const { promisify } = require('util');
+const { promisify, inspect } = require('util');
 const delay = promisify(setTimeout);
 
 // The globals are defined.
@@ -61,7 +60,6 @@ let asyncTest = Promise.resolve();
     'foo',
     1,
     false,
-    function() {},
   ].forEach((i) => (
     throws(() => new Event('foo', i), {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -165,6 +163,52 @@ let asyncTest = Promise.resolve();
 }
 
 {
+  // Same event dispatched multiple times.
+  const event = new Event('foo');
+  const eventTarget1 = new EventTarget();
+  const eventTarget2 = new EventTarget();
+
+  eventTarget1.addEventListener('foo', common.mustCall((event) => {
+    strictEqual(event.eventPhase, Event.AT_TARGET);
+    strictEqual(event.target, eventTarget1);
+    deepStrictEqual(event.composedPath(), [eventTarget1]);
+  }));
+
+  eventTarget2.addEventListener('foo', common.mustCall((event) => {
+    strictEqual(event.eventPhase, Event.AT_TARGET);
+    strictEqual(event.target, eventTarget2);
+    deepStrictEqual(event.composedPath(), [eventTarget2]);
+  }));
+
+  eventTarget1.dispatchEvent(event);
+  strictEqual(event.eventPhase, Event.NONE);
+  strictEqual(event.target, eventTarget1);
+  deepStrictEqual(event.composedPath(), []);
+
+
+  eventTarget2.dispatchEvent(event);
+  strictEqual(event.eventPhase, Event.NONE);
+  strictEqual(event.target, eventTarget2);
+  deepStrictEqual(event.composedPath(), []);
+}
+{
+  // Same event dispatched multiple times, without listeners added.
+  const event = new Event('foo');
+  const eventTarget1 = new EventTarget();
+  const eventTarget2 = new EventTarget();
+
+  eventTarget1.dispatchEvent(event);
+  strictEqual(event.eventPhase, Event.NONE);
+  strictEqual(event.target, eventTarget1);
+  deepStrictEqual(event.composedPath(), []);
+
+  eventTarget2.dispatchEvent(event);
+  strictEqual(event.eventPhase, Event.NONE);
+  strictEqual(event.target, eventTarget2);
+  deepStrictEqual(event.composedPath(), []);
+}
+
+{
   const eventTarget = new EventTarget();
   const event = new Event('foo', { cancelable: true });
   eventTarget.addEventListener('foo', (event) => event.preventDefault());
@@ -180,14 +224,25 @@ let asyncTest = Promise.resolve();
 }
 
 {
-  const uncaughtException = common.mustCall((err, event) => {
+  // The `options` argument can be `null`.
+  const eventTarget = new EventTarget();
+  const event = new Event('foo');
+  const fn = common.mustCall((event) => strictEqual(event.type, 'foo'));
+  eventTarget.addEventListener('foo', fn, null);
+  eventTarget.dispatchEvent(event);
+}
+
+{
+  const uncaughtException = common.mustCall((err, origin) => {
     strictEqual(err.message, 'boom');
-    strictEqual(event.type, 'foo');
+    strictEqual(origin, 'uncaughtException');
   }, 4);
 
-  // Whether or not the handler function is async or not, errors
-  // are routed to uncaughtException
-  process.on('error', uncaughtException);
+  // Make sure that we no longer call 'error' on error.
+  process.on('error', common.mustNotCall());
+  // Don't call rejection even for async handlers.
+  process.on('unhandledRejection', common.mustNotCall());
+  process.on('uncaughtException', uncaughtException);
 
   const eventTarget = new EventTarget();
 
@@ -233,7 +288,7 @@ let asyncTest = Promise.resolve();
     {},  // No type event
     undefined,
     1,
-    false
+    false,
   ].forEach((i) => {
     throws(() => target.dispatchEvent(i), {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -254,14 +309,7 @@ let asyncTest = Promise.resolve();
     'foo',
     1,
     {},  // No handleEvent function
-    false
-  ].forEach((i) => throws(() => target.addEventListener('foo', i), err(i)));
-
-  [
-    'foo',
-    1,
-    {},  // No handleEvent function
-    false
+    false,
   ].forEach((i) => throws(() => target.addEventListener('foo', i), err(i)));
 }
 
@@ -405,7 +453,7 @@ let asyncTest = Promise.resolve();
     undefined,
     false,
     Symbol(),
-    /a/
+    /a/,
   ].forEach((i) => {
     throws(() => target.dispatchEvent.call(i, event), {
       code: 'ERR_INVALID_THIS'
@@ -414,6 +462,7 @@ let asyncTest = Promise.resolve();
 }
 
 {
+  // Event Statics
   strictEqual(Event.NONE, 0);
   strictEqual(Event.CAPTURING_PHASE, 1);
   strictEqual(Event.AT_TARGET, 2);
@@ -424,6 +473,8 @@ let asyncTest = Promise.resolve();
     strictEqual(e.eventPhase, Event.AT_TARGET);
   }), { once: true });
   target.dispatchEvent(new Event('foo'));
+  // Event is a function
+  strictEqual(Event.length, 1);
 }
 
 {
@@ -477,5 +528,121 @@ let asyncTest = Promise.resolve();
     throws(() => eventTarget.addEventListener('foo', 'hello'), TypeError);
     throws(() => eventTarget.addEventListener('foo', false), TypeError);
     throws(() => eventTarget.addEventListener('foo', Symbol()), TypeError);
+  });
+}
+{
+  const eventTarget = new EventTarget();
+  const event = new Event('foo');
+  eventTarget.dispatchEvent(event);
+  strictEqual(event.target, eventTarget);
+}
+{
+  // Event target exported keys
+  const eventTarget = new EventTarget();
+  deepStrictEqual(Object.keys(eventTarget), []);
+  deepStrictEqual(Object.getOwnPropertyNames(eventTarget), []);
+  const parentKeys = Object.keys(Object.getPrototypeOf(eventTarget)).sort();
+  const keys = ['addEventListener', 'dispatchEvent', 'removeEventListener'];
+  deepStrictEqual(parentKeys, keys);
+}
+{
+  // Subclassing
+  class SubTarget extends EventTarget {}
+  const target = new SubTarget();
+  target.addEventListener('foo', common.mustCall());
+  target.dispatchEvent(new Event('foo'));
+}
+{
+  // Test event order
+  const target = new EventTarget();
+  let state = 0;
+  target.addEventListener('foo', common.mustCall(() => {
+    strictEqual(state, 0);
+    state++;
+  }));
+  target.addEventListener('foo', common.mustCall(() => {
+    strictEqual(state, 1);
+  }));
+  target.dispatchEvent(new Event('foo'));
+}
+{
+  const target = new EventTarget();
+  defineEventHandler(target, 'foo');
+  const descriptor = Object.getOwnPropertyDescriptor(target, 'onfoo');
+  strictEqual(descriptor.configurable, true);
+  strictEqual(descriptor.enumerable, true);
+}
+{
+  const target = new EventTarget();
+  defineEventHandler(target, 'foo');
+  const output = [];
+  target.addEventListener('foo', () => output.push(1));
+  target.onfoo = common.mustNotCall();
+  target.addEventListener('foo', () => output.push(3));
+  target.onfoo = () => output.push(2);
+  target.addEventListener('foo', () => output.push(4));
+  target.dispatchEvent(new Event('foo'));
+  deepStrictEqual(output, [1, 2, 3, 4]);
+}
+{
+  const et = new EventTarget();
+  const listener = common.mustNotCall();
+  et.addEventListener('foo', common.mustCall((e) => {
+    et.removeEventListener('foo', listener);
+  }));
+  et.addEventListener('foo', listener);
+  et.dispatchEvent(new Event('foo'));
+}
+
+{
+  const ev = new Event('test');
+  const evConstructorName = inspect(ev, {
+    depth: -1
+  });
+  strictEqual(evConstructorName, 'Event');
+
+  const inspectResult = inspect(ev, {
+    depth: 1
+  });
+  ok(inspectResult.includes('Event'));
+}
+
+{
+  const et = new EventTarget();
+  const inspectResult = inspect(et, {
+    depth: 1
+  });
+  ok(inspectResult.includes('EventTarget'));
+}
+
+{
+  const ev = new Event('test');
+  strictEqual(ev.constructor.name, 'Event');
+
+  const et = new EventTarget();
+  strictEqual(et.constructor.name, 'EventTarget');
+}
+{
+  // Weak event handlers work
+  const et = new EventTarget();
+  const listener = common.mustCall();
+  et.addEventListener('foo', listener, { [kWeakHandler]: et });
+  et.dispatchEvent(new Event('foo'));
+}
+{
+  // Weak event handlers can be removed and weakness is not part of the key
+  const et = new EventTarget();
+  const listener = common.mustNotCall();
+  et.addEventListener('foo', listener, { [kWeakHandler]: et });
+  et.removeEventListener('foo', listener);
+  et.dispatchEvent(new Event('foo'));
+}
+{
+  // Test listeners are held weakly
+  const et = new EventTarget();
+  et.addEventListener('foo', common.mustNotCall(), { [kWeakHandler]: {} });
+  setImmediate(() => {
+    global.gc();
+    et.dispatchEvent(new Event('foo'));
   });
 }

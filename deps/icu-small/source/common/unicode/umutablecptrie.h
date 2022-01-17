@@ -9,10 +9,13 @@
 
 #include "unicode/utypes.h"
 
-#include "unicode/localpointer.h"
 #include "unicode/ucpmap.h"
 #include "unicode/ucptrie.h"
 #include "unicode/utf8.h"
+
+#if U_SHOW_CPLUSPLUS_API
+#include "unicode/localpointer.h"
+#endif   // U_SHOW_CPLUSPLUS_API
 
 U_CDECL_BEGIN
 
@@ -28,7 +31,7 @@ U_CDECL_BEGIN
 /**
  * Mutable Unicode code point trie.
  * Fast map from Unicode code points (U+0000..U+10FFFF) to 32-bit integer values.
- * For details see http://site.icu-project.org/design/struct/utrie
+ * For details see https://icu.unicode.org/design/struct/utrie
  *
  * Setting values (especially ranges) and lookup is fast.
  * The mutable trie is only somewhat space-efficient.

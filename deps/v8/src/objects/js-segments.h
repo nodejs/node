@@ -27,6 +27,8 @@ class UnicodeString;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-segments-tq.inc"
+
 class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
  public:
   // ecma402 #sec-createsegmentsobject
@@ -35,7 +37,7 @@ class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
 
   // ecma402 #sec-%segmentsprototype%.containing
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Containing(
-      Isolate* isolate, Handle<JSSegments> segments_holder, int32_t index);
+      Isolate* isolate, Handle<JSSegments> segments_holder, double n);
 
   // ecma402 #sec-createsegmentdataobject
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CreateSegmentDataObject(

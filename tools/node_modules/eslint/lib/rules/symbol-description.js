@@ -16,13 +16,13 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "require symbol descriptions",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/symbol-description"
         },

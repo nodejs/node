@@ -53,11 +53,11 @@ struct pass_value_or_ref {
 };
 
 // Uses expression SFINAE to detect whether using operator<< would work.
-template <typename T, typename = void>
+template <typename T, typename TStream = std::ostream, typename = void>
 struct has_output_operator : std::false_type {};
-template <typename T>
-struct has_output_operator<T, decltype(void(std::declval<std::ostream&>()
-                                            << std::declval<T>()))>
+template <typename T, typename TStream>
+struct has_output_operator<
+    T, TStream, decltype(void(std::declval<TStream&>() << std::declval<T>()))>
     : std::true_type {};
 
 // Fold all arguments from left to right with a given function.
@@ -97,6 +97,15 @@ struct make_void {
 // Used for SFINAE based on type errors.
 template <class... Ts>
 using void_t = typename make_void<Ts...>::type;
+
+// Corresponds to C++17's std::conjunction
+template <class...>
+struct conjunction : std::true_type {};
+template <class B>
+struct conjunction<B> : B {};
+template <class B, class... Bn>
+struct conjunction<B, Bn...>
+    : std::conditional_t<bool(B::value), conjunction<Bn...>, B> {};
 
 }  // namespace base
 }  // namespace v8

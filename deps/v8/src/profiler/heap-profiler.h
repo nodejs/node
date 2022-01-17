@@ -28,10 +28,13 @@ class HeapProfiler : public HeapObjectAllocationTracker {
  public:
   explicit HeapProfiler(Heap* heap);
   ~HeapProfiler() override;
+  HeapProfiler(const HeapProfiler&) = delete;
+  HeapProfiler& operator=(const HeapProfiler&) = delete;
 
   HeapSnapshot* TakeSnapshot(v8::ActivityControl* control,
                              v8::HeapProfiler::ObjectNameResolver* resolver,
-                             bool treat_global_objects_as_roots);
+                             bool treat_global_objects_as_roots,
+                             bool capture_numeric_value);
 
   bool StartSamplingHeapProfiler(uint64_t sample_interval, int stack_depth,
                                  v8::HeapProfiler::SamplingFlags);
@@ -72,6 +75,14 @@ class HeapProfiler : public HeapObjectAllocationTracker {
     return !build_embedder_graph_callbacks_.empty();
   }
 
+  void SetGetDetachednessCallback(
+      v8::HeapProfiler::GetDetachednessCallback callback, void* data);
+  bool HasGetDetachednessCallback() const {
+    return get_detachedness_callback_.first != nullptr;
+  }
+  v8::EmbedderGraph::Node::Detachedness GetDetachedness(
+      const v8::Local<v8::Value> v8_value, uint16_t class_id);
+
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
 
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
@@ -99,8 +110,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
   std::vector<std::pair<v8::HeapProfiler::BuildEmbedderGraphCallback, void*>>
       build_embedder_graph_callbacks_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapProfiler);
+  std::pair<v8::HeapProfiler::GetDetachednessCallback, void*>
+      get_detachedness_callback_;
 };
 
 }  // namespace internal

@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_OBJECT_LIST_MACROS_H_
 #define V8_OBJECTS_OBJECT_LIST_MACROS_H_
 
-#include "torque-generated/instance-types-tq.h"
+#include "torque-generated/instance-types.h"
 
 namespace v8 {
 namespace internal {
@@ -34,7 +34,6 @@ class JSPromise;
 class JSProxy;
 class JSProxyRevocableResult;
 class KeyAccumulator;
-class LayoutDescriptor;
 class LookupIterator;
 class FieldType;
 class Module;
@@ -71,7 +70,6 @@ template <typename T>
 class ZoneForwardList;
 
 #define OBJECT_TYPE_LIST(V) \
-  V(LayoutDescriptor)       \
   V(Primitive)              \
   V(Number)                 \
   V(Numeric)
@@ -98,13 +96,11 @@ class ZoneForwardList;
   V(CompilationCacheTable)                     \
   V(ConsString)                                \
   V(Constructor)                               \
-  V(Context)                                   \
   V(CoverageInfo)                              \
   V(ClosureFeedbackCellArray)                  \
   V(DataHandler)                               \
   V(DeoptimizationData)                        \
   V(DependentCode)                             \
-  V(DescriptorArray)                           \
   V(EmbedderDataArray)                         \
   V(EphemeronHashTable)                        \
   V(ExternalOneByteString)                     \
@@ -119,7 +115,6 @@ class ZoneForwardList;
   V(FixedArrayExact)                           \
   V(FixedDoubleArray)                          \
   V(Foreign)                                   \
-  V(FrameArray)                                \
   V(FreeSpace)                                 \
   V(Function)                                  \
   V(GlobalDictionary)                          \
@@ -171,6 +166,7 @@ class ZoneForwardList;
   V(LoadHandler)                               \
   V(Map)                                       \
   V(MapCache)                                  \
+  V(MegaDomHandler)                            \
   V(Module)                                    \
   V(Microtask)                                 \
   V(Name)                                      \
@@ -181,7 +177,6 @@ class ZoneForwardList;
   V(NumberWrapper)                             \
   V(ObjectHashSet)                             \
   V(ObjectHashTable)                           \
-  V(Oddball)                                   \
   V(OrderedHashMap)                            \
   V(OrderedHashSet)                            \
   V(OrderedNameDictionary)                     \
@@ -198,7 +193,6 @@ class ZoneForwardList;
   V(SeqOneByteString)                          \
   V(SeqString)                                 \
   V(SeqTwoByteString)                          \
-  V(SharedFunctionInfo)                        \
   V(SimpleNumberDictionary)                    \
   V(SlicedString)                              \
   V(SmallOrderedHashMap)                       \
@@ -211,6 +205,7 @@ class ZoneForwardList;
   V(StringSet)                                 \
   V(StringWrapper)                             \
   V(Struct)                                    \
+  V(SwissNameDictionary)                       \
   V(Symbol)                                    \
   V(SymbolWrapper)                             \
   V(SyntheticModule)                           \
@@ -218,21 +213,24 @@ class ZoneForwardList;
   V(TemplateList)                              \
   V(ThinString)                                \
   V(TransitionArray)                           \
-  V(UncompiledData)                            \
-  V(UncompiledDataWithPreparseData)            \
-  V(UncompiledDataWithoutPreparseData)         \
   V(Undetectable)                              \
   V(UniqueName)                                \
-  V(WasmArray)                                 \
-  V(WasmExceptionObject)                       \
-  V(WasmExceptionPackage)                      \
-  V(WasmGlobalObject)                          \
-  V(WasmInstanceObject)                        \
-  V(WasmMemoryObject)                          \
-  V(WasmModuleObject)                          \
-  V(WasmStruct)                                \
-  V(WasmTypeInfo)                              \
-  V(WasmTableObject)                           \
+  IF_WASM(V, WasmArray)                        \
+  IF_WASM(V, WasmCapiFunctionData)             \
+  IF_WASM(V, WasmTagObject)                    \
+  IF_WASM(V, WasmExceptionPackage)             \
+  IF_WASM(V, WasmExportedFunctionData)         \
+  IF_WASM(V, WasmFunctionData)                 \
+  IF_WASM(V, WasmGlobalObject)                 \
+  IF_WASM(V, WasmInstanceObject)               \
+  IF_WASM(V, WasmJSFunctionData)               \
+  IF_WASM(V, WasmMemoryObject)                 \
+  IF_WASM(V, WasmModuleObject)                 \
+  IF_WASM(V, WasmObject)                       \
+  IF_WASM(V, WasmStruct)                       \
+  IF_WASM(V, WasmTypeInfo)                     \
+  IF_WASM(V, WasmTableObject)                  \
+  IF_WASM(V, WasmValueObject)                  \
   V(WeakFixedArray)                            \
   V(WeakArrayList)                             \
   V(WeakCell)                                  \
@@ -272,6 +270,11 @@ class ZoneForwardList;
   V(FreeSpaceOrFiller)                       \
   V(FunctionContext)                         \
   V(JSApiObject)                             \
+  V(JSClassConstructor)                      \
+  V(JSLastDummyApiObject)                    \
+  V(JSPromiseConstructor)                    \
+  V(JSArrayConstructor)                      \
+  V(JSRegExpConstructor)                     \
   V(JSMapKeyIterator)                        \
   V(JSMapKeyValueIterator)                   \
   V(JSMapValueIterator)                      \
@@ -281,7 +284,30 @@ class ZoneForwardList;
   V(ModuleContext)                           \
   V(NonNullForeign)                          \
   V(ScriptContext)                           \
-  V(WithContext)
+  V(WithContext)                             \
+  V(JSPrototype)                             \
+  V(JSObjectPrototype)                       \
+  V(JSRegExpPrototype)                       \
+  V(JSPromisePrototype)                      \
+  V(JSSetPrototype)                          \
+  V(JSIteratorPrototype)                     \
+  V(JSArrayIteratorPrototype)                \
+  V(JSMapIteratorPrototype)                  \
+  V(JSTypedArrayPrototype)                   \
+  V(JSSetIteratorPrototype)                  \
+  V(JSStringIteratorPrototype)               \
+  V(TypedArrayConstructor)                   \
+  V(Uint8TypedArrayConstructor)              \
+  V(Int8TypedArrayConstructor)               \
+  V(Uint16TypedArrayConstructor)             \
+  V(Int16TypedArrayConstructor)              \
+  V(Uint32TypedArrayConstructor)             \
+  V(Int32TypedArrayConstructor)              \
+  V(Float32TypedArrayConstructor)            \
+  V(Float64TypedArrayConstructor)            \
+  V(Uint8ClampedTypedArrayConstructor)       \
+  V(Biguint64TypedArrayConstructor)          \
+  V(Bigint64TypedArrayConstructor)
 
 #define HEAP_OBJECT_TYPE_LIST(V)    \
   HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \

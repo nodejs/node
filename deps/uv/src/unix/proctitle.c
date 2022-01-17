@@ -84,10 +84,7 @@ char** uv_setup_args(int argc, char** argv) {
   }
   new_argv[i] = NULL;
 
-  /* argv is not adjacent on z/os, we use just argv[0] on that platform. */
-#ifndef __MVS__
   pt.cap = argv[i - 1] + size - argv[0];
-#endif
 
   args_mem = new_argv;
   process_title = pt;
@@ -119,6 +116,7 @@ int uv_set_process_title(const char* title) {
   memcpy(pt->str, title, len);
   memset(pt->str + len, '\0', pt->cap - len);
   pt->len = len;
+  uv__set_process_title(pt->str);
 
   uv_mutex_unlock(&process_title_mutex);
 

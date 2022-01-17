@@ -22,7 +22,7 @@ namespace trap_handler {
 // protected memory access instructions and an offset to a landing pad to handle
 // faults on that instruction.
 struct CodeProtectionInfo {
-  Address base;
+  uintptr_t base;
   size_t size;
   size_t num_protected_instructions;
   ProtectedInstructionData instructions[1];
@@ -35,8 +35,6 @@ class MetadataLock {
   MetadataLock();
   ~MetadataLock();
 
-  // We'd normally use DISALLOW_COPY_AND_ASSIGN, but we're avoiding a dependency
-  // on base/macros.h
   MetadataLock(const MetadataLock&) = delete;
   void operator=(const MetadataLock&) = delete;
 };

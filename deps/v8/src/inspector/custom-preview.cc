@@ -5,6 +5,11 @@
 #include "src/inspector/custom-preview.h"
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "include/v8-container.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
+#include "include/v8-json.h"
+#include "include/v8-microtask-queue.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
@@ -249,7 +254,11 @@ void generateCustomPreview(int sessionId, const String16& groupName,
                            v8::Local<v8::Object> object,
                            v8::MaybeLocal<v8::Value> maybeConfig, int maxDepth,
                            std::unique_ptr<CustomPreview>* preview) {
-  v8::Local<v8::Context> context = object->CreationContext();
+  v8::Local<v8::Context> context;
+  if (!object->GetCreationContext().ToLocal(&context)) {
+    return;
+  }
+
   v8::Isolate* isolate = context->GetIsolate();
   v8::MicrotasksScope microtasksScope(isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);

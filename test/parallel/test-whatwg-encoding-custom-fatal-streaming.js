@@ -13,7 +13,7 @@ if (!common.hasIntl)
   [
     { encoding: 'utf-8', sequence: [0xC0] },
     { encoding: 'utf-16le', sequence: [0x00] },
-    { encoding: 'utf-16be', sequence: [0x00] }
+    { encoding: 'utf-16be', sequence: [0x00] },
   ].forEach((testCase) => {
     const data = new Uint8Array([testCase.sequence]);
     assert.throws(

@@ -396,6 +396,13 @@ TEST(DisasmIa320) {
     __ cvtsd2ss(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ movq(xmm0, Operand(edx, 4));
 
+    __ movhlps(xmm0, xmm1);
+    __ movlps(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ movlps(Operand(ebx, ecx, times_4, 10000), xmm0);
+    __ movhps(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ movhps(Operand(ebx, ecx, times_4, 10000), xmm0);
+    __ unpcklps(xmm0, xmm1);
+
     // logic operation
     __ andps(xmm0, xmm1);
     __ andps(xmm0, Operand(ebx, ecx, times_4, 10000));
@@ -461,15 +468,21 @@ TEST(DisasmIa320) {
     __ cvtss2sd(xmm1, xmm0);
     __ cvtdq2ps(xmm1, xmm0);
     __ cvtdq2ps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ cvtdq2pd(xmm1, xmm0);
+    __ cvtps2pd(xmm1, xmm0);
+    __ cvtpd2ps(xmm1, xmm0);
     __ cvttps2dq(xmm1, xmm0);
     __ cvttps2dq(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ cvttpd2dq(xmm1, xmm0);
     __ movsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ movsd(Operand(ebx, ecx, times_4, 10000), xmm1);
     // 128 bit move instructions.
     __ movdqa(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ movdqa(Operand(ebx, ecx, times_4, 10000), xmm0);
+    __ movdqa(xmm1, xmm0);
     __ movdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ movdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
+    __ movdqu(xmm1, xmm0);
 
     __ movapd(xmm0, xmm1);
     __ movapd(xmm0, Operand(edx, 4));
@@ -480,20 +493,6 @@ TEST(DisasmIa320) {
     __ movd(eax, xmm1);
     __ movd(Operand(ebx, ecx, times_4, 10000), xmm1);
 
-    __ addsd(xmm1, xmm0);
-    __ addsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-    __ mulsd(xmm1, xmm0);
-    __ mulsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-    __ subsd(xmm1, xmm0);
-    __ subsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-    __ divsd(xmm1, xmm0);
-    __ divsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-    __ minsd(xmm1, xmm0);
-    __ minsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-    __ maxsd(xmm1, xmm0);
-    __ maxsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-    __ sqrtsd(xmm1, xmm0);
-    __ sqrtsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
     __ cmpltsd(xmm0, xmm1);
 
@@ -547,6 +546,7 @@ TEST(DisasmIa320) {
     __ pinsrw(xmm5, edx, 5);
     __ pinsrw(xmm5, Operand(edx, 4), 5);
 
+    __ movmskpd(edx, xmm5);
     __ movmskps(edx, xmm5);
     __ pmovmskb(edx, xmm5);
 
@@ -555,6 +555,7 @@ TEST(DisasmIa320) {
   __ instruction(xmm5, Operand(edx, 4));
 
     SSE2_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
+    SSE2_INSTRUCTION_LIST_SD(EMIT_SSE2_INSTR)
 #undef EMIT_SSE2_INSTR
   }
 
@@ -585,6 +586,7 @@ TEST(DisasmIa320) {
       __ haddps(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ movddup(xmm1, Operand(eax, 5));
       __ movddup(xmm1, xmm2);
+      __ movshdup(xmm1, xmm2);
     }
   }
 
@@ -621,31 +623,27 @@ TEST(DisasmIa320) {
       __ pinsrd(xmm1, Operand(edx, 4), 0);
       __ extractps(eax, xmm1, 0);
 
+      __ blendvps(xmm3, xmm1);
+      __ blendvpd(xmm3, xmm1);
+      __ pblendvb(xmm3, xmm1);
+
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
       SSE4_RM_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
     }
   }
 #undef EMIT_SSE34_INSTR
 
+  {
+    if (CpuFeatures::IsSupported(SSE4_2)) {
+      CpuFeatureScope scope(&assm, SSE4_2);
+      __ pcmpgtq(xmm0, xmm1);
+    }
+  }
+
   // AVX instruction
   {
     if (CpuFeatures::IsSupported(AVX)) {
       CpuFeatureScope scope(&assm, AVX);
-      __ vaddsd(xmm0, xmm1, xmm2);
-      __ vaddsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ vmulsd(xmm0, xmm1, xmm2);
-      __ vmulsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ vsubsd(xmm0, xmm1, xmm2);
-      __ vsubsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ vdivsd(xmm0, xmm1, xmm2);
-      __ vdivsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ vminsd(xmm0, xmm1, xmm2);
-      __ vminsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ vmaxsd(xmm0, xmm1, xmm2);
-      __ vmaxsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ vsqrtsd(xmm0, xmm1, xmm2);
-      __ vsqrtsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-
       __ vaddss(xmm0, xmm1, xmm2);
       __ vaddss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmulss(xmm0, xmm1, xmm2);
@@ -660,6 +658,10 @@ TEST(DisasmIa320) {
       __ vmaxss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vsqrtss(xmm0, xmm1, xmm2);
       __ vsqrtss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vucomisd(xmm0, xmm1);
+      __ vucomisd(xmm0, Operand(ebx, ecx, times_4, 10000));
+      __ vucomiss(xmm0, xmm1);
+      __ vucomiss(xmm0, Operand(ebx, ecx, times_4, 10000));
 
       __ vandps(xmm0, xmm1, xmm2);
       __ vandps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
@@ -687,6 +689,8 @@ TEST(DisasmIa320) {
       __ vsqrtps(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vrsqrtps(xmm1, xmm0);
       __ vrsqrtps(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmovups(xmm0, xmm1);
+      __ vmovups(xmm0, Operand(edx, 4));
       __ vmovaps(xmm0, xmm1);
       __ vmovapd(xmm0, xmm1);
       __ vmovapd(xmm0, Operand(ebx, ecx, times_4, 10000));
@@ -695,6 +699,12 @@ TEST(DisasmIa320) {
       __ vshufps(xmm0, xmm1, Operand(edx, 4), 3);
       __ vhaddps(xmm0, xmm1, xmm2);
       __ vhaddps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+
+      __ vmovhlps(xmm0, xmm1, xmm2);
+      __ vmovlps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmovlps(Operand(ebx, ecx, times_4, 10000), xmm0);
+      __ vmovhps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmovhps(Operand(ebx, ecx, times_4, 10000), xmm0);
 
       __ vcmpeqps(xmm5, xmm4, xmm1);
       __ vcmpeqps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
@@ -706,6 +716,8 @@ TEST(DisasmIa320) {
       __ vcmpunordps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
       __ vcmpneqps(xmm5, xmm4, xmm1);
       __ vcmpneqps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
+      __ vcmpgeps(xmm5, xmm4, xmm1);
+      __ vcmpgeps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
 
       __ vandpd(xmm0, xmm1, xmm2);
       __ vandpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
@@ -773,14 +785,34 @@ TEST(DisasmIa320) {
       __ vpinsrd(xmm0, xmm1, eax, 0);
       __ vpinsrd(xmm0, xmm1, Operand(edx, 4), 0);
 
+      __ vblendvps(xmm3, xmm1, xmm4, xmm6);
+      __ vblendvpd(xmm3, xmm1, xmm4, xmm6);
+      __ vpblendvb(xmm3, xmm1, xmm4, xmm6);
+
       __ vcvtdq2ps(xmm1, xmm0);
       __ vcvtdq2ps(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vcvtdq2pd(xmm1, xmm0);
+      __ vcvtps2pd(xmm1, xmm0);
+      __ vcvtpd2ps(xmm1, xmm0);
       __ vcvttps2dq(xmm1, xmm0);
       __ vcvttps2dq(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vcvttpd2dq(xmm1, xmm0);
+
+      __ vcvtsd2ss(xmm2, xmm3, Operand(ebx, ecx, times_4, 10000));
+      __ vcvtsd2ss(xmm2, xmm3, xmm6);
+      __ vcvtss2sd(xmm2, xmm3, Operand(ebx, ecx, times_1, 10000));
+      __ vcvtss2sd(xmm2, xmm3, xmm6);
+      __ vcvttsd2si(eax, Operand(ebx, ecx, times_4, 10000));
+      __ vcvttsd2si(ebx, xmm6);
+      __ vcvttss2si(eax, Operand(ebx, ecx, times_4, 10000));
+      __ vcvttss2si(ebx, xmm6);
 
       __ vmovddup(xmm1, xmm2);
       __ vmovddup(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmovshdup(xmm1, xmm2);
       __ vbroadcastss(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmovdqa(xmm0, Operand(ebx, ecx, times_4, 10000));
+      __ vmovdqa(xmm0, xmm7);
       __ vmovdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ vmovdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
       __ vmovd(xmm0, edi);
@@ -788,14 +820,21 @@ TEST(DisasmIa320) {
       __ vmovd(eax, xmm1);
       __ vmovd(Operand(ebx, ecx, times_4, 10000), xmm1);
 
+      __ vmovmskpd(edx, xmm5);
       __ vmovmskps(edx, xmm5);
       __ vpmovmskb(ebx, xmm1);
+
+      __ vpcmpgtq(xmm0, xmm1, xmm2);
+
+      __ vroundsd(xmm0, xmm3, xmm2, kRoundDown);
+      __ vroundss(xmm0, xmm3, xmm2, kRoundDown);
 
 #define EMIT_SSE2_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
   __ v##instruction(xmm7, xmm5, xmm1);                                \
   __ v##instruction(xmm7, xmm5, Operand(edx, 4));
 
       SSE2_INSTRUCTION_LIST(EMIT_SSE2_AVXINSTR)
+      SSE2_INSTRUCTION_LIST_SD(EMIT_SSE2_AVXINSTR)
 #undef EMIT_SSE2_AVXINSTR
 
 #define EMIT_SSE34_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
@@ -815,6 +854,18 @@ TEST(DisasmIa320) {
       SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSE4_RM_AVXINSTR)
       SSE4_RM_INSTRUCTION_LIST(EMIT_SSE4_RM_AVXINSTR)
 #undef EMIT_SSE4_RM_AVXINSTR
+    }
+  }
+
+  // AVX2 instructions.
+  {
+    if (CpuFeatures::IsSupported(AVX2)) {
+      CpuFeatureScope scope(&assm, AVX2);
+#define EMIT_AVX2_BROADCAST(instruction, notUsed1, notUsed2, notUsed3, \
+                            notUsed4)                                  \
+  __ instruction(xmm0, xmm1);                                          \
+  __ instruction(xmm0, Operand(ebx, ecx, times_4, 10000));
+      AVX2_BROADCAST_LIST(EMIT_AVX2_BROADCAST)
     }
   }
 
@@ -987,7 +1038,7 @@ TEST(DisasmIa320) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   USE(code);
 #ifdef OBJECT_PRINT
   StdoutStream os;

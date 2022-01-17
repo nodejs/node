@@ -9,12 +9,15 @@
 #include <string>
 #include <vector>
 
+#include "include/v8-local-handle.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/objects.h"
 
 namespace v8 {
 
 class Isolate;
+class Script;
+class Module;
 
 namespace internal {
 
@@ -33,7 +36,6 @@ class BytecodeExpectationsPrinter final {
         wrap_(true),
         top_level_(false),
         print_callee_(false),
-        oneshot_opt_(false),
         test_function_name_(kDefaultTopFunctionName) {}
 
   void PrintExpectation(std::ostream* stream, const std::string& snippet) const;
@@ -49,9 +51,6 @@ class BytecodeExpectationsPrinter final {
 
   void set_print_callee(bool print_callee) { print_callee_ = print_callee; }
   bool print_callee() { return print_callee_; }
-
-  void set_oneshot_opt(bool oneshot_opt) { oneshot_opt_ = oneshot_opt; }
-  bool oneshot_opt() { return oneshot_opt_; }
 
   void set_test_function_name(const std::string& test_function_name) {
     test_function_name_ = test_function_name;
@@ -110,7 +109,6 @@ class BytecodeExpectationsPrinter final {
   bool wrap_;
   bool top_level_;
   bool print_callee_;
-  bool oneshot_opt_;
   std::string test_function_name_;
 
   static const char* const kDefaultTopFunctionName;

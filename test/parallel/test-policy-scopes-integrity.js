@@ -4,6 +4,7 @@
 const common = require('../common');
 
 if (!common.hasCrypto) common.skip('missing crypto');
+common.requireNoPackageJSONAbove();
 
 const Manifest = require('internal/policy/manifest').Manifest;
 const assert = require('assert');
@@ -18,7 +19,7 @@ const assert = require('assert');
     'file:///root/dir1',
     'file:///root/dir1/',
     'file:///root/dir1/dir2',
-    'file:///root/dir1/dir2/'
+    'file:///root/dir1/dir2/',
   ];
 
   {

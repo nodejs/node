@@ -29,12 +29,14 @@
 
 #include <memory>
 
-#include "src/init/v8.h"
-
+#include "include/v8-extension.h"
+#include "include/v8-function.h"
+#include "include/v8-locker.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/utils.h"
@@ -54,13 +56,15 @@ class DeoptimizeCodeThread : public v8::base::Thread {
   void Run() override {
     v8::Locker locker(isolate_);
     isolate_->Enter();
-    v8::HandleScope handle_scope(isolate_);
-    v8::Local<v8::Context> context =
-        v8::Local<v8::Context>::New(isolate_, context_);
-    v8::Context::Scope context_scope(context);
-    // This code triggers deoptimization of some function that will be
-    // used in a different thread.
-    CompileRun(source_);
+    {
+      v8::HandleScope handle_scope(isolate_);
+      v8::Local<v8::Context> context =
+          v8::Local<v8::Context>::New(isolate_, context_);
+      v8::Context::Scope context_scope(context);
+      // This code triggers deoptimization of some function that will be
+      // used in a different thread.
+      CompileRun(source_);
+    }
     isolate_->Exit();
   }
 
@@ -363,6 +367,8 @@ class JoinableThread {
   }
 
   virtual ~JoinableThread() = default;
+  JoinableThread(const JoinableThread&) = delete;
+  JoinableThread& operator=(const JoinableThread&) = delete;
 
   void Start() { CHECK(thread_.Start()); }
 
@@ -394,8 +400,6 @@ class JoinableThread {
   ThreadWithSemaphore thread_;
 
   friend class ThreadWithSemaphore;
-
-  DISALLOW_COPY_AND_ASSIGN(JoinableThread);
 };
 
 

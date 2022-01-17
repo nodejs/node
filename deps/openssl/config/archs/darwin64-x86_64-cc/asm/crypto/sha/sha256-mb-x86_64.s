@@ -30,28 +30,36 @@ L$body:
 L$oop_grande:
 	movl	%edx,280(%rsp)
 	xorl	%edx,%edx
+
 	movq	0(%rsi),%r8
+
 	movl	8(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,0(%rbx)
 	cmovleq	%rbp,%r8
+
 	movq	16(%rsi),%r9
+
 	movl	24(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,4(%rbx)
 	cmovleq	%rbp,%r9
+
 	movq	32(%rsi),%r10
+
 	movl	40(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,8(%rbx)
 	cmovleq	%rbp,%r10
+
 	movq	48(%rsi),%r11
+
 	movl	56(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
@@ -2654,14 +2662,18 @@ L$body_shaext:
 L$oop_grande_shaext:
 	movl	%edx,280(%rsp)
 	xorl	%edx,%edx
+
 	movq	0(%rsi),%r8
+
 	movl	8(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,0(%rbx)
 	cmovleq	%rsp,%r8
+
 	movq	16(%rsi),%r9
+
 	movl	24(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
@@ -3156,28 +3168,36 @@ L$body_avx:
 L$oop_grande_avx:
 	movl	%edx,280(%rsp)
 	xorl	%edx,%edx
+
 	movq	0(%rsi),%r8
+
 	movl	8(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,0(%rbx)
 	cmovleq	%rbp,%r8
+
 	movq	16(%rsi),%r9
+
 	movl	24(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,4(%rbx)
 	cmovleq	%rbp,%r9
+
 	movq	32(%rsi),%r10
+
 	movl	40(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,8(%rbx)
 	cmovleq	%rbp,%r10
+
 	movq	48(%rsi),%r11
+
 	movl	56(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
@@ -5419,56 +5439,72 @@ L$oop_grande_avx2:
 	movl	%edx,552(%rsp)
 	xorl	%edx,%edx
 	leaq	512(%rsp),%rbx
+
 	movq	0(%rsi),%r12
+
 	movl	8(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,0(%rbx)
 	cmovleq	%rbp,%r12
+
 	movq	16(%rsi),%r13
+
 	movl	24(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,4(%rbx)
 	cmovleq	%rbp,%r13
+
 	movq	32(%rsi),%r14
+
 	movl	40(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,8(%rbx)
 	cmovleq	%rbp,%r14
+
 	movq	48(%rsi),%r15
+
 	movl	56(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,12(%rbx)
 	cmovleq	%rbp,%r15
+
 	movq	64(%rsi),%r8
+
 	movl	72(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,16(%rbx)
 	cmovleq	%rbp,%r8
+
 	movq	80(%rsi),%r9
+
 	movl	88(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,20(%rbx)
 	cmovleq	%rbp,%r9
+
 	movq	96(%rsi),%r10
+
 	movl	104(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx
 	testl	%ecx,%ecx
 	movl	%ecx,24(%rbx)
 	cmovleq	%rbp,%r10
+
 	movq	112(%rsi),%r11
+
 	movl	120(%rsi),%ecx
 	cmpl	%edx,%ecx
 	cmovgl	%ecx,%edx

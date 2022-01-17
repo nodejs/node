@@ -1,6 +1,7 @@
 # About this documentation
 
 <!--introduced_in=v0.10.0-->
+
 <!-- type=misc -->
 
 Welcome to the official API reference documentation for Node.js!
@@ -37,13 +38,26 @@ The stability indices are as follows:
 > Stability: 2 - Stable. Compatibility with the npm ecosystem is a high
 > priority.
 
+<!-- separator -->
+
+> Stability: 3 - Legacy. The feature is no longer recommended for use. While it
+> likely will not be removed, and is still covered by semantic-versioning
+> guarantees, use of the feature should be avoided.
+
 Use caution when making use of Experimental features, particularly within
 modules. Users may not be aware that experimental features are being used.
 Bugs or behavior changes may surprise users when Experimental API
 modifications occur. To avoid surprises, use of an Experimental feature may need
 a command-line flag. Experimental features may also emit a [warning][].
 
+## Stability overview
+
+<!-- STABILITY_OVERVIEW_SLOT_BEGIN -->
+
+<!-- STABILITY_OVERVIEW_SLOT_END -->
+
 ## JSON output
+
 <!-- YAML
 added: v0.6.12
 -->
@@ -61,6 +75,6 @@ be unavoidable.
 
 [Semantic Versioning]: https://semver.org/
 [V8 JavaScript engine]: https://v8.dev/
-[the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
+[the contributing guide]: https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md
 [the issue tracker]: https://github.com/nodejs/node/issues/new
-[warning]: process.md#process_event_warning
+[warning]: process.md#event-warning

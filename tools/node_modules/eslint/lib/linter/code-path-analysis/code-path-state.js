@@ -219,7 +219,6 @@ function finalizeTestSegmentsOfFor(context, choiceContext, head) {
  */
 class CodePathState {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {IdGenerator} idGenerator An id generator to generate id for code
      *   path segments.
@@ -360,6 +359,7 @@ class CodePathState {
 
     /**
      * Pops the last choice context and finalizes it.
+     * @throws {Error} (Unreachable.)
      * @returns {ChoiceContext} The popped context.
      */
     popChoiceContext() {
@@ -450,6 +450,7 @@ class CodePathState {
     /**
      * Makes a code path segment of the right-hand operand of a logical
      * expression.
+     * @throws {Error} (Unreachable.)
      * @returns {void}
      */
     makeLogicalRight() {
@@ -965,6 +966,7 @@ class CodePathState {
      *   `WhileStatement`, `DoWhileStatement`, `ForStatement`, `ForInStatement`,
      *   and `ForStatement`.
      * @param {string|null} label A label of the node which was triggered.
+     * @throws {Error} (Unreachable - unknown type.)
      * @returns {void}
      */
     pushLoopContext(type, label) {
@@ -1036,6 +1038,7 @@ class CodePathState {
 
     /**
      * Pops the last context of a loop statement and finalizes it.
+     * @throws {Error} (Unreachable - unknown type.)
      * @returns {void}
      */
     popLoopContext() {

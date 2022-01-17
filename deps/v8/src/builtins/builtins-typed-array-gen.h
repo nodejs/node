@@ -49,11 +49,21 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                          TNode<Object> obj,
                                          const char* method_name);
 
+  TNode<UintPtrT> ValidateTypedArrayAndGetLength(TNode<Context> context,
+                                                 TNode<Object> obj,
+                                                 const char* method_name);
+
   void CallCMemmove(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
                     TNode<UintPtrT> byte_length);
 
+  void CallCRelaxedMemmove(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
+                           TNode<UintPtrT> byte_length);
+
   void CallCMemcpy(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
                    TNode<UintPtrT> byte_length);
+
+  void CallCRelaxedMemcpy(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
+                          TNode<UintPtrT> byte_length);
 
   void CallCMemset(TNode<RawPtrT> dest_ptr, TNode<IntPtrT> value,
                    TNode<UintPtrT> length);
@@ -94,6 +104,11 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                           TNode<Object> value,
                                           ElementsKind elements_kind,
                                           Label* if_detached);
+  template <typename TValue>
+  void StoreJSTypedArrayElementFromPreparedValue(
+      TNode<Context> context, TNode<JSTypedArray> typed_array,
+      TNode<UintPtrT> index_node, TNode<TValue> value,
+      ElementsKind elements_kind, Label* if_detached);
 };
 
 }  // namespace internal

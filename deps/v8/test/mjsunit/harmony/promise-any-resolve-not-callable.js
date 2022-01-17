@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-promise-any
+// Flags: --allow-natives-syntax
 
-load('test/mjsunit/test-async.js');
+d8.file.execute('test/mjsunit/test-async.js');
 
 // Promise.any should call IteratorClose if Promise.resolve is not callable.
 

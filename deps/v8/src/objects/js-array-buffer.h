@@ -5,9 +5,10 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_H_
 
+#include "include/v8-typed-array.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-objects.h"
-#include "torque-generated/bit-fields-tq.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,6 +17,8 @@ namespace v8 {
 namespace internal {
 
 class ArrayBufferExtension;
+
+#include "torque-generated/src/objects/js-array-buffer-tq.inc"
 
 class JSArrayBuffer
     : public TorqueGeneratedJSArrayBuffer<JSArrayBuffer, JSObject> {
@@ -35,7 +38,7 @@ class JSArrayBuffer
 
   // [backing_store]: backing memory for this array
   DECL_GETTER(backing_store, void*)
-  inline void set_backing_store(Isolate* isolate, void* value);
+  inline void set_backing_store(void* value);
 
   // [extension]: extension object used for GC
   DECL_PRIMITIVE_ACCESSORS(extension, ArrayBufferExtension*)
@@ -69,13 +72,18 @@ class JSArrayBuffer
   // [is_asmjs_memory]: true => this buffer was once used as asm.js memory.
   DECL_BOOLEAN_ACCESSORS(is_asmjs_memory)
 
-  // [is_shared]: tells whether this is an ArrayBuffer or a SharedArrayBuffer.
+  // [is_shared]: true if this is a SharedArrayBuffer or a
+  // GrowableSharedArrayBuffer.
   DECL_BOOLEAN_ACCESSORS(is_shared)
+
+  // [is_resizable]: true if this is a ResizableArrayBuffer or a
+  // GrowableSharedArrayBuffer.
+  DECL_BOOLEAN_ACCESSORS(is_resizable)
 
   // Initializes the fields of the ArrayBuffer. The provided backing_store can
   // be nullptr. If it is not nullptr, then the function registers it with
   // src/heap/array-buffer-tracker.h.
-  V8_EXPORT_PRIVATE void Setup(SharedFlag shared,
+  V8_EXPORT_PRIVATE void Setup(SharedFlag shared, ResizableFlag resizable,
                                std::shared_ptr<BackingStore> backing_store);
 
   // Attaches the backing store to an already constructed empty ArrayBuffer.
@@ -96,7 +104,9 @@ class JSArrayBuffer
   // Get a reference to backing store of this array buffer, if there is a
   // backing store. Returns nullptr if there is no backing store (e.g. detached
   // or a zero-length array buffer).
-  std::shared_ptr<BackingStore> GetBackingStore();
+  std::shared_ptr<BackingStore> GetBackingStore() const;
+
+  size_t GetByteLength() const;
 
   // Allocates an ArrayBufferExtension for this array buffer, unless it is
   // already associated with an extension.
@@ -152,55 +162,36 @@ class JSArrayBuffer
 // extension-object. The GC periodically iterates all extensions concurrently
 // and frees unmarked ones.
 // https://docs.google.com/document/d/1-ZrLdlFX1nXT3z-FAgLbKal1gI8Auiaya_My-a0UJ28/edit
-class ArrayBufferExtension : public Malloced {
-  enum class GcState : uint8_t { Dead = 0, Copied, Promoted };
-
-  std::atomic<bool> marked_;
-  std::atomic<GcState> young_gc_state_;
-  std::shared_ptr<BackingStore> backing_store_;
-  ArrayBufferExtension* next_;
-  std::size_t accounting_length_;
-
-  GcState young_gc_state() {
-    return young_gc_state_.load(std::memory_order_relaxed);
-  }
-
-  void set_young_gc_state(GcState value) {
-    young_gc_state_.store(value, std::memory_order_relaxed);
-  }
-
+class ArrayBufferExtension final : public Malloced {
  public:
-  ArrayBufferExtension()
-      : marked_(false),
-        young_gc_state_(GcState::Dead),
-        backing_store_(std::shared_ptr<BackingStore>()),
-        next_(nullptr),
-        accounting_length_(0) {}
+  ArrayBufferExtension() : backing_store_(std::shared_ptr<BackingStore>()) {}
   explicit ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store)
-      : marked_(false),
-        young_gc_state_(GcState::Dead),
-        backing_store_(backing_store),
-        next_(nullptr),
-        accounting_length_(0) {}
+      : backing_store_(backing_store) {}
 
   void Mark() { marked_.store(true, std::memory_order_relaxed); }
   void Unmark() { marked_.store(false, std::memory_order_relaxed); }
-  bool IsMarked() { return marked_.load(std::memory_order_relaxed); }
+  bool IsMarked() const { return marked_.load(std::memory_order_relaxed); }
 
   void YoungMark() { set_young_gc_state(GcState::Copied); }
   void YoungMarkPromoted() { set_young_gc_state(GcState::Promoted); }
   void YoungUnmark() { set_young_gc_state(GcState::Dead); }
-  bool IsYoungMarked() { return young_gc_state() != GcState::Dead; }
+  bool IsYoungMarked() const { return young_gc_state() != GcState::Dead; }
 
-  bool IsYoungPromoted() { return young_gc_state() == GcState::Promoted; }
+  bool IsYoungPromoted() const { return young_gc_state() == GcState::Promoted; }
 
   std::shared_ptr<BackingStore> backing_store() { return backing_store_; }
   BackingStore* backing_store_raw() { return backing_store_.get(); }
 
-  size_t accounting_length() { return accounting_length_; }
+  size_t accounting_length() const {
+    return accounting_length_.load(std::memory_order_relaxed);
+  }
 
   void set_accounting_length(size_t accounting_length) {
-    accounting_length_ = accounting_length;
+    accounting_length_.store(accounting_length, std::memory_order_relaxed);
+  }
+
+  size_t ClearAccountingLength() {
+    return accounting_length_.exchange(0, std::memory_order_relaxed);
   }
 
   std::shared_ptr<BackingStore> RemoveBackingStore() {
@@ -213,8 +204,25 @@ class ArrayBufferExtension : public Malloced {
 
   void reset_backing_store() { backing_store_.reset(); }
 
-  ArrayBufferExtension* next() { return next_; }
+  ArrayBufferExtension* next() const { return next_; }
   void set_next(ArrayBufferExtension* extension) { next_ = extension; }
+
+ private:
+  enum class GcState : uint8_t { Dead = 0, Copied, Promoted };
+
+  std::atomic<bool> marked_{false};
+  std::atomic<GcState> young_gc_state_{GcState::Dead};
+  std::shared_ptr<BackingStore> backing_store_;
+  ArrayBufferExtension* next_ = nullptr;
+  std::atomic<size_t> accounting_length_{0};
+
+  GcState young_gc_state() const {
+    return young_gc_state_.load(std::memory_order_relaxed);
+  }
+
+  void set_young_gc_state(GcState value) {
+    young_gc_state_.store(value, std::memory_order_relaxed);
+  }
 };
 
 class JSArrayBufferView
@@ -245,8 +253,14 @@ class JSTypedArray
   // eventually.
   static constexpr size_t kMaxLength = v8::TypedArray::kMaxLength;
 
+  // Bit positions for [bit_field].
+  DEFINE_TORQUE_GENERATED_JS_TYPED_ARRAY_FLAGS()
+
   // [length]: length of typed array in elements.
-  DECL_PRIMITIVE_ACCESSORS(length, size_t)
+  DECL_PRIMITIVE_GETTER(length, size_t)
+
+  DECL_GETTER(base_pointer, Object)
+  DECL_ACQUIRE_GETTER(base_pointer, Object)
 
   // ES6 9.4.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
@@ -254,9 +268,13 @@ class JSTypedArray
       PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
   ExternalArrayType type();
-  V8_EXPORT_PRIVATE size_t element_size();
+  V8_EXPORT_PRIVATE size_t element_size() const;
 
   V8_EXPORT_PRIVATE Handle<JSArrayBuffer> GetBuffer();
+
+  // The `DataPtr` is `base_ptr + external_pointer`, and `base_ptr` is nullptr
+  // for off-heap typed arrays.
+  static constexpr bool kOffHeapDataPtrEqualsExternalPointer = true;
 
   // Use with care: returns raw pointer into heap.
   inline void* DataPtr();
@@ -267,6 +285,16 @@ class JSTypedArray
 
   // Whether the buffer's backing store is on-heap or off-heap.
   inline bool is_on_heap() const;
+  inline bool is_on_heap(AcquireLoadTag tag) const;
+
+  DECL_BOOLEAN_ACCESSORS(is_length_tracking)
+  DECL_BOOLEAN_ACCESSORS(is_backed_by_rab)
+  inline bool IsVariableLength() const;
+  inline size_t GetLengthOrOutOfBounds(bool& out_of_bounds) const;
+  inline size_t GetLength() const;
+
+  static size_t LengthTrackingGsabBackedTypedArrayLength(Isolate* isolate,
+                                                         Address raw_array);
 
   // Note: this is a pointer compression specific optimization.
   // Normally, on-heap typed arrays contain HeapObject value in |base_pointer|
@@ -278,7 +306,7 @@ class JSTypedArray
   // as Tagged_t value and an |external_pointer| value.
   // For full-pointer mode the compensation value is zero.
   static inline Address ExternalPointerCompensationForOnHeapArray(
-      const Isolate* isolate);
+      PtrComprCageBase cage_base);
 
   //
   // Serializer/deserializer support.
@@ -320,10 +348,21 @@ class JSTypedArray
 #endif
 
  private:
+  template <typename IsolateT>
   friend class Deserializer;
+  friend class Factory;
 
-  // [external_pointer]: TODO(v8:4153)
+  DECL_PRIMITIVE_SETTER(length, size_t)
+  // Reads the "length" field, doesn't assert the TypedArray is not RAB / GSAB
+  // backed.
+  inline size_t LengthUnchecked() const;
+
   DECL_GETTER(external_pointer, Address)
+  DECL_GETTER(external_pointer_raw, ExternalPointer_t)
+
+  DECL_SETTER(base_pointer, Object)
+  DECL_RELEASE_SETTER(base_pointer, Object)
+
   inline void set_external_pointer(Isolate* isolate, Address value);
 
   TQ_OBJECT_CONSTRUCTORS(JSTypedArray)

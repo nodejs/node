@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_MODULE_DECODER_H_
 #define V8_WASM_MODULE_DECODER_H_
 
@@ -50,15 +54,18 @@ struct AsmJsOffsets {
 };
 using AsmJsOffsetsResult = Result<AsmJsOffsets>;
 
-class LocalName {
+// The class names "NameAssoc", "NameMap", and "IndirectNameMap" match
+// the terms used by the spec:
+// https://webassembly.github.io/spec/core/bikeshed/index.html#name-section%E2%91%A0
+class NameAssoc {
  public:
-  LocalName(int index, WireBytesRef name) : index_(index), name_(name) {}
+  NameAssoc(int index, WireBytesRef name) : index_(index), name_(name) {}
 
   int index() const { return index_; }
   WireBytesRef name() const { return name_; }
 
   struct IndexLess {
-    bool operator()(const LocalName& a, const LocalName& b) const {
+    bool operator()(const NameAssoc& a, const NameAssoc& b) const {
       return a.index() < b.index();
     }
   };
@@ -68,62 +75,71 @@ class LocalName {
   WireBytesRef name_;
 };
 
-class LocalNamesPerFunction {
+class NameMap {
  public:
-  // For performance reasons, {LocalNamesPerFunction} should not be copied.
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(LocalNamesPerFunction);
+  // For performance reasons, {NameMap} should not be copied.
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(NameMap);
 
-  LocalNamesPerFunction(int function_index, std::vector<LocalName> names)
-      : function_index_(function_index), names_(std::move(names)) {
+  explicit NameMap(std::vector<NameAssoc> names) : names_(std::move(names)) {
     DCHECK(
-        std::is_sorted(names_.begin(), names_.end(), LocalName::IndexLess{}));
+        std::is_sorted(names_.begin(), names_.end(), NameAssoc::IndexLess{}));
   }
 
-  int function_index() const { return function_index_; }
-
-  WireBytesRef GetName(int local_index) {
-    auto it =
-        std::lower_bound(names_.begin(), names_.end(),
-                         LocalName{local_index, {}}, LocalName::IndexLess{});
+  WireBytesRef GetName(int index) {
+    auto it = std::lower_bound(names_.begin(), names_.end(),
+                               NameAssoc{index, {}}, NameAssoc::IndexLess{});
     if (it == names_.end()) return {};
-    if (it->index() != local_index) return {};
+    if (it->index() != index) return {};
     return it->name();
   }
 
-  struct FunctionIndexLess {
-    bool operator()(const LocalNamesPerFunction& a,
-                    const LocalNamesPerFunction& b) const {
-      return a.function_index() < b.function_index();
+ private:
+  std::vector<NameAssoc> names_;
+};
+
+class IndirectNameMapEntry : public NameMap {
+ public:
+  // For performance reasons, {IndirectNameMapEntry} should not be copied.
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(IndirectNameMapEntry);
+
+  IndirectNameMapEntry(int index, std::vector<NameAssoc> names)
+      : NameMap(std::move(names)), index_(index) {}
+
+  int index() const { return index_; }
+
+  struct IndexLess {
+    bool operator()(const IndirectNameMapEntry& a,
+                    const IndirectNameMapEntry& b) const {
+      return a.index() < b.index();
     }
   };
 
  private:
-  int function_index_;
-  std::vector<LocalName> names_;
+  int index_;
 };
 
-class LocalNames {
+class IndirectNameMap {
  public:
-  // For performance reasons, {LocalNames} should not be copied.
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(LocalNames);
+  // For performance reasons, {IndirectNameMap} should not be copied.
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(IndirectNameMap);
 
-  explicit LocalNames(std::vector<LocalNamesPerFunction> functions)
+  explicit IndirectNameMap(std::vector<IndirectNameMapEntry> functions)
       : functions_(std::move(functions)) {
     DCHECK(std::is_sorted(functions_.begin(), functions_.end(),
-                          LocalNamesPerFunction::FunctionIndexLess{}));
+                          IndirectNameMapEntry::IndexLess{}));
   }
 
   WireBytesRef GetName(int function_index, int local_index) {
     auto it = std::lower_bound(functions_.begin(), functions_.end(),
-                               LocalNamesPerFunction{function_index, {}},
-                               LocalNamesPerFunction::FunctionIndexLess{});
+                               IndirectNameMapEntry{function_index, {}},
+                               IndirectNameMapEntry::IndexLess{});
     if (it == functions_.end()) return {};
-    if (it->function_index() != function_index) return {};
+    if (it->index() != function_index) return {};
     return it->GetName(local_index);
   }
 
  private:
-  std::vector<LocalNamesPerFunction> functions_;
+  std::vector<IndirectNameMapEntry> functions_;
 };
 
 enum class DecodingMethod {
@@ -155,8 +171,9 @@ V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunctionForTesting(
     const WasmModule* module, const byte* function_start,
     const byte* function_end, Counters* counters);
 
-V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(
-    const WasmFeatures& enabled, const byte* start, const byte* end);
+V8_EXPORT_PRIVATE WireBytesRef
+DecodeWasmInitExprForTesting(const WasmFeatures& enabled, const byte* start,
+                             const byte* end, ValueType expected);
 
 struct CustomSectionOffset {
   WireBytesRef section;
@@ -169,28 +186,23 @@ V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
 
 // Extracts the mapping from wasm byte offset to asm.js source position per
 // function.
-AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets);
+AsmJsOffsetsResult DecodeAsmJsOffsets(
+    base::Vector<const uint8_t> encoded_offsets);
 
-// Decode the function names from the name section and also look at export
-// table. Returns the result as an unordered map. Only names with valid utf8
-// encoding are stored and conflicts are resolved by choosing the last name
-// read.
+// Decode the function names from the name section. Returns the result as an
+// unordered map. Only names with valid utf8 encoding are stored and conflicts
+// are resolved by choosing the last name read.
 void DecodeFunctionNames(const byte* module_start, const byte* module_end,
-                         std::unordered_map<uint32_t, WireBytesRef>* names,
-                         const Vector<const WasmExport> export_table);
+                         std::unordered_map<uint32_t, WireBytesRef>* names);
 
-// Decode the global or memory names from import table and export table. Returns
-// the result as an unordered map.
-void GenerateNamesFromImportsAndExports(
-    ImportExportKindCode kind, const Vector<const WasmImport> import_table,
-    const Vector<const WasmExport> export_table,
-    std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>* names);
-
-// Decode the local names assignment from the name section.
+// Decode the requested subsection of the name section.
 // The result will be empty if no name section is present. On encountering an
 // error in the name section, returns all information decoded up to the first
 // error.
-LocalNames DecodeLocalNames(Vector<const uint8_t> module_bytes);
+NameMap DecodeNameMap(base::Vector<const uint8_t> module_bytes,
+                      uint8_t name_section_kind);
+IndirectNameMap DecodeIndirectNameMap(base::Vector<const uint8_t> module_bytes,
+                                      uint8_t name_section_kind);
 
 class ModuleDecoderImpl;
 
@@ -205,12 +217,15 @@ class ModuleDecoder {
                      AccountingAllocator* allocator,
                      ModuleOrigin origin = ModuleOrigin::kWasmOrigin);
 
-  void DecodeModuleHeader(Vector<const uint8_t> bytes, uint32_t offset);
+  void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint32_t offset);
 
-  void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,
-                     uint32_t offset, bool verify_functions = true);
+  void DecodeSection(SectionCode section_code,
+                     base::Vector<const uint8_t> bytes, uint32_t offset,
+                     bool verify_functions = true);
 
-  bool CheckFunctionsCount(uint32_t functions_count, uint32_t offset);
+  void StartCodeSection();
+
+  bool CheckFunctionsCount(uint32_t functions_count, uint32_t error_offset);
 
   void DecodeFunctionBody(uint32_t index, uint32_t size, uint32_t offset,
                           bool verify_functions = true);
@@ -220,6 +235,7 @@ class ModuleDecoder {
   void set_code_section(uint32_t offset, uint32_t size);
 
   const std::shared_ptr<WasmModule>& shared_module() const;
+
   WasmModule* module() const { return shared_module().get(); }
 
   bool ok();
@@ -230,7 +246,7 @@ class ModuleDecoder {
   // the identifier string of the unknown section.
   // The return value is the number of bytes that were consumed.
   static size_t IdentifyUnknownSection(ModuleDecoder* decoder,
-                                       Vector<const uint8_t> bytes,
+                                       base::Vector<const uint8_t> bytes,
                                        uint32_t offset, SectionCode* result);
 
  private:

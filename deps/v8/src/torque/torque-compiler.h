@@ -7,6 +7,7 @@
 
 #include "src/torque/ast.h"
 #include "src/torque/contextual.h"
+#include "src/torque/kythe-data.h"
 #include "src/torque/server-data.h"
 #include "src/torque/source-positions.h"
 #include "src/torque/utils.h"
@@ -19,9 +20,10 @@ struct TorqueCompilerOptions {
   std::string output_directory = "";
   std::string v8_root = "";
   bool collect_language_server_data = false;
+  bool collect_kythe_data = false;
 
-  // assert(...) are only generated for debug builds. The provide
-  // language server support for statements inside asserts, this flag
+  // dcheck(...) are only generated for debug builds. To provide
+  // language server support for statements inside dchecks, this flag
   // can force generate them.
   bool force_assert_statements = false;
 
@@ -30,6 +32,12 @@ struct TorqueCompilerOptions {
   // architectures. Note that this does not needed in Chromium/V8 land, since we
   // always build with the same bit width as the target architecture.
   bool force_32bit_output = false;
+
+  // Adds extra comments in output that show Torque intermediate representation.
+  bool annotate_ir = false;
+
+  // Strips the v8-root in case the source path contains it as a prefix.
+  bool strip_v8_root = false;
 };
 
 struct TorqueCompilerResult {
@@ -46,10 +54,18 @@ struct TorqueCompilerResult {
   std::vector<TorqueMessage> messages;
 };
 
+struct TorqueCompilationUnit {
+  std::string source_file_path;
+  std::string file_content;
+};
+
 V8_EXPORT_PRIVATE TorqueCompilerResult
 CompileTorque(const std::string& source, TorqueCompilerOptions options);
 TorqueCompilerResult CompileTorque(std::vector<std::string> files,
                                    TorqueCompilerOptions options);
+V8_EXPORT_PRIVATE TorqueCompilerResult CompileTorqueForKythe(
+    std::vector<TorqueCompilationUnit> units, TorqueCompilerOptions options,
+    KytheConsumer* kythe_consumer);
 
 }  // namespace torque
 }  // namespace internal

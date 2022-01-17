@@ -53,7 +53,7 @@ def _QuoteWin32CommandLineArgs(args):
     return new_args
 
 
-class Writer(object):
+class Writer:
     """Visual Studio XML user user file writer."""
 
     def __init__(self, user_file_path, version, name):
@@ -93,7 +93,7 @@ class Writer(object):
         abs_command = _FindCommandInPath(command[0])
 
         if environment and isinstance(environment, dict):
-            env_list = ['%s="%s"' % (key, val) for (key, val) in environment.items()]
+            env_list = [f'{key}="{val}"' for (key, val) in environment.items()]
             environment = " ".join(env_list)
         else:
             environment = ""

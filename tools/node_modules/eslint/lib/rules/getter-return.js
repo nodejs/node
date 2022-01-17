@@ -29,13 +29,13 @@ function isReachable(segment) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "enforce `return` statements in getters",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/getter-return"
         },

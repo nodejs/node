@@ -139,7 +139,7 @@ UNINITIALIZED_HEAP_TEST(Regress658718) {
     v8::Context::New(isolate)->Enter();
     Heap* heap = i_isolate->heap();
     heap->delay_sweeper_tasks_for_testing_ = true;
-    heap->new_space()->Grow();
+    GrowNewSpace(heap);
     {
       v8::HandleScope inner_handle_scope(isolate);
       std::vector<Handle<FixedArray>> handles;

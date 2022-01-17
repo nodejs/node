@@ -4,7 +4,6 @@
 
 #include "test/unittests/test-helpers.h"
 
-#include "include/v8.h"
 #include "src/api/api.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
@@ -39,7 +38,7 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
           isolate->factory()->NewStringFromAsciiChecked("f"),
-          Builtins::kCompileLazy);
+          Builtin::kCompileLazy);
   int function_literal_id = 1;
   shared->set_function_literal_id(function_literal_id);
   // Ensure that the function can be compiled lazily.

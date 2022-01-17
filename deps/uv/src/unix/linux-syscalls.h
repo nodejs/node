@@ -22,9 +22,6 @@
 #ifndef UV_LINUX_SYSCALL_H_
 #define UV_LINUX_SYSCALL_H_
 
-#undef  _GNU_SOURCE
-#define _GNU_SOURCE
-
 #include <stdint.h>
 #include <signal.h>
 #include <sys/types.h>
@@ -66,9 +63,9 @@ ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, int64_t offset)
 int uv__dup3(int oldfd, int newfd, int flags);
 ssize_t
 uv__fs_copy_file_range(int fd_in,
-                       ssize_t* off_in,
+                       off_t* off_in,
                        int fd_out,
-                       ssize_t* off_out,
+                       off_t* off_out,
                        size_t len,
                        unsigned int flags);
 int uv__statx(int dirfd,

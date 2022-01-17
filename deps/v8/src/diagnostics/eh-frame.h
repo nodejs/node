@@ -72,13 +72,15 @@ class V8_EXPORT_PRIVATE EhFrameConstants final
 class V8_EXPORT_PRIVATE EhFrameWriter {
  public:
   explicit EhFrameWriter(Zone* zone);
+  EhFrameWriter(const EhFrameWriter&) = delete;
+  EhFrameWriter& operator=(const EhFrameWriter&) = delete;
 
   // The empty frame is a hack to trigger fp-based unwinding in Linux perf
   // compiled with libunwind support when processing DWARF-based call graphs.
   //
   // It is effectively a valid eh_frame_hdr with an empty look up table.
   //
-  static void WriteEmptyEhFrame(std::ostream& stream);  // NOLINT
+  static void WriteEmptyEhFrame(std::ostream& stream);
 
   // Write the CIE and FDE header. Call it before any other method.
   void Initialize();
@@ -206,8 +208,6 @@ class V8_EXPORT_PRIVATE EhFrameWriter {
   Register base_register_;
   int base_offset_;
   ZoneVector<byte> eh_frame_buffer_;
-
-  DISALLOW_COPY_AND_ASSIGN(EhFrameWriter);
 };
 
 class V8_EXPORT_PRIVATE EhFrameIterator {
@@ -290,19 +290,19 @@ class EhFrameDisassembler final {
       : start_(start), end_(end) {
     DCHECK_LT(start, end);
   }
+  EhFrameDisassembler(const EhFrameDisassembler&) = delete;
+  EhFrameDisassembler& operator=(const EhFrameDisassembler&) = delete;
 
-  void DisassembleToStream(std::ostream& stream);  // NOLINT
+  void DisassembleToStream(std::ostream& stream);
 
  private:
-  static void DumpDwarfDirectives(std::ostream& stream,  // NOLINT
-                                  const byte* start, const byte* end);
+  static void DumpDwarfDirectives(std::ostream& stream, const byte* start,
+                                  const byte* end);
 
   static const char* DwarfRegisterCodeToString(int code);
 
   const byte* start_;
   const byte* end_;
-
-  DISALLOW_COPY_AND_ASSIGN(EhFrameDisassembler);
 };
 
 #endif

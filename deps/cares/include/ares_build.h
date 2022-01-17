@@ -2,7 +2,7 @@
 #define __CARES_BUILD_H
 
 
-/* Copyright (C) 2009 - 2013 by Daniel Stenberg et al
+/* Copyright (C) 2009 - 2021 by Daniel Stenberg et al
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose and without fee is hereby granted, provided
@@ -42,7 +42,7 @@
  *
  * If you think that something actually needs to be changed, adjusted
  * or fixed in this file, then, report it on the c-ares development
- * mailing list: http://cool.haxx.se/mailman/listinfo/c-ares/
+ * mailing list: http://lists.haxx.se/listinfo/c-ares/
  *
  * Try to keep one section per platform, compiler and architecture,
  * otherwise, if an existing section is reused for a different one and

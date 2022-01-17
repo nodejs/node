@@ -6,6 +6,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/type-traits.h"
+#include "src/base/platform/mutex.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
@@ -44,23 +45,54 @@ class GarbageCollectedTestWithHeap
 }  // namespace
 
 TEST(GarbageCollectedTest, GarbageCollectedTrait) {
-  STATIC_ASSERT(!IsGarbageCollectedType<int>::value);
-  STATIC_ASSERT(!IsGarbageCollectedType<NotGCed>::value);
-  STATIC_ASSERT(IsGarbageCollectedType<GCed>::value);
-  STATIC_ASSERT(IsGarbageCollectedType<Mixin>::value);
-  STATIC_ASSERT(IsGarbageCollectedType<GCedWithMixin>::value);
-  STATIC_ASSERT(IsGarbageCollectedType<MergedMixins>::value);
-  STATIC_ASSERT(IsGarbageCollectedType<GCWithMergedMixins>::value);
+  STATIC_ASSERT(!IsGarbageCollectedTypeV<int>);
+  STATIC_ASSERT(!IsGarbageCollectedTypeV<NotGCed>);
+  STATIC_ASSERT(IsGarbageCollectedTypeV<GCed>);
+  STATIC_ASSERT(!IsGarbageCollectedTypeV<Mixin>);
+  STATIC_ASSERT(IsGarbageCollectedTypeV<GCedWithMixin>);
+  STATIC_ASSERT(!IsGarbageCollectedTypeV<MergedMixins>);
+  STATIC_ASSERT(IsGarbageCollectedTypeV<GCWithMergedMixins>);
 }
 
 TEST(GarbageCollectedTest, GarbageCollectedMixinTrait) {
-  STATIC_ASSERT(!IsGarbageCollectedMixinType<int>::value);
-  STATIC_ASSERT(!IsGarbageCollectedMixinType<GCed>::value);
-  STATIC_ASSERT(!IsGarbageCollectedMixinType<NotGCed>::value);
-  STATIC_ASSERT(IsGarbageCollectedMixinType<Mixin>::value);
-  STATIC_ASSERT(IsGarbageCollectedMixinType<GCedWithMixin>::value);
-  STATIC_ASSERT(IsGarbageCollectedMixinType<MergedMixins>::value);
-  STATIC_ASSERT(IsGarbageCollectedMixinType<GCWithMergedMixins>::value);
+  STATIC_ASSERT(!IsGarbageCollectedMixinTypeV<int>);
+  STATIC_ASSERT(!IsGarbageCollectedMixinTypeV<GCed>);
+  STATIC_ASSERT(!IsGarbageCollectedMixinTypeV<NotGCed>);
+  STATIC_ASSERT(IsGarbageCollectedMixinTypeV<Mixin>);
+  STATIC_ASSERT(!IsGarbageCollectedMixinTypeV<GCedWithMixin>);
+  STATIC_ASSERT(IsGarbageCollectedMixinTypeV<MergedMixins>);
+  STATIC_ASSERT(!IsGarbageCollectedMixinTypeV<GCWithMergedMixins>);
+}
+
+TEST(GarbageCollectedTest, GarbageCollectedOrMixinTrait) {
+  STATIC_ASSERT(!IsGarbageCollectedOrMixinTypeV<int>);
+  STATIC_ASSERT(IsGarbageCollectedOrMixinTypeV<GCed>);
+  STATIC_ASSERT(!IsGarbageCollectedOrMixinTypeV<NotGCed>);
+  STATIC_ASSERT(IsGarbageCollectedOrMixinTypeV<Mixin>);
+  STATIC_ASSERT(IsGarbageCollectedOrMixinTypeV<GCedWithMixin>);
+  STATIC_ASSERT(IsGarbageCollectedOrMixinTypeV<MergedMixins>);
+  STATIC_ASSERT(IsGarbageCollectedOrMixinTypeV<GCWithMergedMixins>);
+}
+
+TEST(GarbageCollectedTest, GarbageCollectedWithMixinTrait) {
+  STATIC_ASSERT(!IsGarbageCollectedWithMixinTypeV<int>);
+  STATIC_ASSERT(!IsGarbageCollectedWithMixinTypeV<GCed>);
+  STATIC_ASSERT(!IsGarbageCollectedWithMixinTypeV<NotGCed>);
+  STATIC_ASSERT(!IsGarbageCollectedWithMixinTypeV<Mixin>);
+  STATIC_ASSERT(IsGarbageCollectedWithMixinTypeV<GCedWithMixin>);
+  STATIC_ASSERT(!IsGarbageCollectedWithMixinTypeV<MergedMixins>);
+  STATIC_ASSERT(IsGarbageCollectedWithMixinTypeV<GCWithMergedMixins>);
+}
+
+namespace {
+
+class ForwardDeclaredType;
+
+}  // namespace
+
+TEST(GarbageCollectedTest, CompleteTypeTrait) {
+  STATIC_ASSERT(IsCompleteV<GCed>);
+  STATIC_ASSERT(!IsCompleteV<ForwardDeclaredType>);
 }
 
 TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCurrentAddress) {
@@ -103,7 +135,7 @@ struct PostConstructionCallbackTrait<
     internal::GCedWithPostConstructionCallback> {
   static void Call(internal::GCedWithPostConstructionCallback* object) {
     EXPECT_FALSE(
-        internal::HeapObjectHeader::FromPayload(object).IsInConstruction());
+        internal::HeapObjectHeader::FromObject(object).IsInConstruction());
     internal::GCedWithPostConstructionCallback::cb_callcount++;
   }
 };
@@ -116,7 +148,7 @@ struct PostConstructionCallbackTrait<
   static void Call(
       internal::GCedWithMixinWithPostConstructionCallback* object) {
     EXPECT_FALSE(
-        internal::HeapObjectHeader::FromPayload(object).IsInConstruction());
+        internal::HeapObjectHeader::FromObject(object).IsInConstruction());
     internal::GCedWithMixinWithPostConstructionCallback::cb_callcount++;
   }
 };
@@ -134,6 +166,86 @@ TEST_F(GarbageCollectedTestWithHeap, PostConstructionCallbackForMixin) {
   MakeGarbageCollected<GCedWithMixinWithPostConstructionCallback>(
       GetAllocationHandle());
   EXPECT_EQ(1u, MixinWithPostConstructionCallback::cb_callcount);
+}
+
+namespace {
+
+int GetDummyValue() {
+  static v8::base::Mutex mutex;
+  static int ret = 43;
+  // Global lock access to avoid reordering.
+  v8::base::MutexGuard guard(&mutex);
+  return ret;
+}
+
+class CheckObjectInConstructionBeforeInitializerList final
+    : public GarbageCollected<CheckObjectInConstructionBeforeInitializerList> {
+ public:
+  CheckObjectInConstructionBeforeInitializerList()
+      : in_construction_before_initializer_list_(
+            HeapObjectHeader::FromObject(this).IsInConstruction()),
+        unused_int_(GetDummyValue()) {
+    EXPECT_TRUE(in_construction_before_initializer_list_);
+    EXPECT_TRUE(HeapObjectHeader::FromObject(this).IsInConstruction());
+  }
+
+  void Trace(Visitor*) const {}
+
+ private:
+  bool in_construction_before_initializer_list_;
+  int unused_int_;
+};
+
+class CheckMixinInConstructionBeforeInitializerList
+    : public GarbageCollectedMixin {
+ public:
+  explicit CheckMixinInConstructionBeforeInitializerList(void* payload_start)
+      : in_construction_before_initializer_list_(
+            HeapObjectHeader::FromObject(payload_start).IsInConstruction()),
+        unused_int_(GetDummyValue()) {
+    EXPECT_TRUE(in_construction_before_initializer_list_);
+    EXPECT_TRUE(HeapObjectHeader::FromObject(payload_start).IsInConstruction());
+  }
+
+  void Trace(Visitor*) const override {}
+
+ private:
+  bool in_construction_before_initializer_list_;
+  int unused_int_;
+};
+
+class UnmanagedMixinForcingVTable {
+ protected:
+  virtual void ForceVTable() {}
+};
+
+class CheckGCedWithMixinInConstructionBeforeInitializerList
+    : public GarbageCollected<
+          CheckGCedWithMixinInConstructionBeforeInitializerList>,
+      public UnmanagedMixinForcingVTable,
+      public CheckMixinInConstructionBeforeInitializerList {
+ public:
+  CheckGCedWithMixinInConstructionBeforeInitializerList()
+      : CheckMixinInConstructionBeforeInitializerList(this) {
+    // Ensure that compiler indeed generated an inner object.
+    CHECK_NE(
+        this,
+        static_cast<void*>(
+            static_cast<CheckMixinInConstructionBeforeInitializerList*>(this)));
+  }
+};
+
+}  // namespace
+
+TEST_F(GarbageCollectedTestWithHeap, GarbageCollectedInConstructionDuringCtor) {
+  MakeGarbageCollected<CheckObjectInConstructionBeforeInitializerList>(
+      GetAllocationHandle());
+}
+
+TEST_F(GarbageCollectedTestWithHeap,
+       GarbageCollectedMixinInConstructionDuringCtor) {
+  MakeGarbageCollected<CheckGCedWithMixinInConstructionBeforeInitializerList>(
+      GetAllocationHandle());
 }
 
 }  // namespace internal

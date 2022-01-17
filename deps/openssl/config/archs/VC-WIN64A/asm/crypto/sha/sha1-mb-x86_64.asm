@@ -54,28 +54,36 @@ $L$body:
 $L$oop_grande:
 	mov	DWORD[280+rsp],edx
 	xor	edx,edx
+
 	mov	r8,QWORD[rsi]
+
 	mov	ecx,DWORD[8+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[rbx],ecx
 	cmovle	r8,rbp
+
 	mov	r9,QWORD[16+rsi]
+
 	mov	ecx,DWORD[24+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[4+rbx],ecx
 	cmovle	r9,rbp
+
 	mov	r10,QWORD[32+rsi]
+
 	mov	ecx,DWORD[40+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[8+rbx],ecx
 	cmovle	r10,rbp
+
 	mov	r11,QWORD[48+rsi]
+
 	mov	ecx,DWORD[56+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
@@ -2642,14 +2650,18 @@ $L$body_shaext:
 $L$oop_grande_shaext:
 	mov	DWORD[280+rsp],edx
 	xor	edx,edx
+
 	mov	r8,QWORD[rsi]
+
 	mov	ecx,DWORD[8+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[rbx],ecx
 	cmovle	r8,rsp
+
 	mov	r9,QWORD[16+rsi]
+
 	mov	ecx,DWORD[24+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
@@ -3057,28 +3069,36 @@ $L$body_avx:
 $L$oop_grande_avx:
 	mov	DWORD[280+rsp],edx
 	xor	edx,edx
+
 	mov	r8,QWORD[rsi]
+
 	mov	ecx,DWORD[8+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[rbx],ecx
 	cmovle	r8,rbp
+
 	mov	r9,QWORD[16+rsi]
+
 	mov	ecx,DWORD[24+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[4+rbx],ecx
 	cmovle	r9,rbp
+
 	mov	r10,QWORD[32+rsi]
+
 	mov	ecx,DWORD[40+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[8+rbx],ecx
 	cmovle	r10,rbp
+
 	mov	r11,QWORD[48+rsi]
+
 	mov	ecx,DWORD[56+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
@@ -5174,56 +5194,72 @@ $L$oop_grande_avx2:
 	mov	DWORD[552+rsp],edx
 	xor	edx,edx
 	lea	rbx,[512+rsp]
+
 	mov	r12,QWORD[rsi]
+
 	mov	ecx,DWORD[8+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[rbx],ecx
 	cmovle	r12,rbp
+
 	mov	r13,QWORD[16+rsi]
+
 	mov	ecx,DWORD[24+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[4+rbx],ecx
 	cmovle	r13,rbp
+
 	mov	r14,QWORD[32+rsi]
+
 	mov	ecx,DWORD[40+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[8+rbx],ecx
 	cmovle	r14,rbp
+
 	mov	r15,QWORD[48+rsi]
+
 	mov	ecx,DWORD[56+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[12+rbx],ecx
 	cmovle	r15,rbp
+
 	mov	r8,QWORD[64+rsi]
+
 	mov	ecx,DWORD[72+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[16+rbx],ecx
 	cmovle	r8,rbp
+
 	mov	r9,QWORD[80+rsi]
+
 	mov	ecx,DWORD[88+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[20+rbx],ecx
 	cmovle	r9,rbp
+
 	mov	r10,QWORD[96+rsi]
+
 	mov	ecx,DWORD[104+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[24+rbx],ecx
 	cmovle	r10,rbp
+
 	mov	r11,QWORD[112+rsi]
+
 	mov	ecx,DWORD[120+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx

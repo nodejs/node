@@ -85,10 +85,12 @@ class OperandGenerator {
                                      GetVReg(node)));
   }
 
+  InstructionOperand DefineSameAsInput(Node* node, int input_index) {
+    return Define(node, UnallocatedOperand(GetVReg(node), input_index));
+  }
+
   InstructionOperand DefineSameAsFirst(Node* node) {
-    return Define(node,
-                  UnallocatedOperand(UnallocatedOperand::SAME_AS_FIRST_INPUT,
-                                     GetVReg(node)));
+    return DefineSameAsInput(node, 0);
   }
 
   InstructionOperand DefineAsFixed(Node* node, Register reg) {
@@ -177,6 +179,16 @@ class OperandGenerator {
                                         GetVReg(node)));
   }
 
+  enum class RegisterUseKind { kUseRegister, kUseUniqueRegister };
+  InstructionOperand UseRegister(Node* node, RegisterUseKind unique_reg) {
+    if (V8_LIKELY(unique_reg == RegisterUseKind::kUseRegister)) {
+      return UseRegister(node);
+    } else {
+      DCHECK_EQ(unique_reg, RegisterUseKind::kUseUniqueRegister);
+      return UseUniqueRegister(node);
+    }
+  }
+
   InstructionOperand UseFixed(Node* node, Register reg) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,
                                         reg.code(), GetVReg(node)));
@@ -224,7 +236,7 @@ class OperandGenerator {
   int AllocateVirtualRegister() { return sequence()->NextVirtualRegister(); }
 
   InstructionOperand DefineSameAsFirstForVreg(int vreg) {
-    return UnallocatedOperand(UnallocatedOperand::SAME_AS_FIRST_INPUT, vreg);
+    return UnallocatedOperand(UnallocatedOperand::SAME_AS_INPUT, vreg);
   }
 
   InstructionOperand DefineAsRegistertForVreg(int vreg) {

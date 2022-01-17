@@ -19,7 +19,7 @@
  * \file
  * \brief C++ API: Defines macros for interval format implementation
  */
-
+ 
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/unistr.h"
@@ -64,11 +64,13 @@
 #define LOW_Z             ((UChar)0x007A)
 
 #define CAP_A             ((UChar)0x0041)
+#define CAP_B             ((UChar)0x0042)
 #define CAP_C             ((UChar)0x0043)
 #define CAP_D             ((UChar)0x0044)
 #define CAP_E             ((UChar)0x0045)
 #define CAP_F             ((UChar)0x0046)
 #define CAP_G             ((UChar)0x0047)
+#define CAP_J             ((UChar)0x004A)
 #define CAP_H             ((UChar)0x0048)
 #define CAP_K             ((UChar)0x004B)
 #define CAP_L             ((UChar)0x004C)
@@ -93,5 +95,5 @@
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
-#endif
+#endif 
 //eof

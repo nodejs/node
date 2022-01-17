@@ -1,4 +1,4 @@
-# Node.js src/crypto Documentation
+# Node.js `src/crypto` documentation
 
 Welcome. You've found your way to the Node.js native crypto subsystem.
 
@@ -31,26 +31,26 @@ throughout the rest of the code.
 The rest of the files are structured by their function, as detailed in the
 following table:
 
-| File (*.h/*.cc)      | Description |
-| -------------------- | ----------- |
-| `crypto_aes`         | AES Cipher support. |
-| `crypto_cipher`      | General Encryption/Decryption utilities. |
+| File (\*.h/\*.cc)    | Description                                                                |
+| -------------------- | -------------------------------------------------------------------------- |
+| `crypto_aes`         | AES Cipher support.                                                        |
+| `crypto_cipher`      | General Encryption/Decryption utilities.                                   |
 | `crypto_clienthello` | TLS/SSL client hello parser implementation. Used during SSL/TLS handshake. |
-| `crypto_context`     | Implementation of the `SecureContext` object. |
-| `crypto_dh`          | Diffie-Hellman Key Agreement implementation. |
-| `crypto_dsa`         | DSA (Digital Signature) Key Generation functions. |
-| `crypto_ecdh`        | Elliptic-Curve Diffie-Hellman Key Agreement implementation. |
-| `crypto_hash`        | Basic hash (e.g. SHA-256) functions. |
-| `crypto_hkdf`        | HKDF (Key derivation) implementation. |
-| `crypto_hmac`        | HMAC implementations. |
-| `crypto_keys`        | Utilities for using and generating secret, private, and public keys. |
-| `crypto_pbkdf2`      | PBKDF2 key / bit generation implementation. |
-| `crypto_rsa`         | RSA Key Generation functions. |
-| `crypto_scrypt`      | Scrypt key / bit generation implementation. |
-| `crypto_sig`         | General digital signature and verification utilities. |
-| `crypto_spkac`       | Netscape SPKAC certificate utilities. |
-| `crypto_ssl`         | Implementation of the `SSLWrap` object. |
-| `crypto_timing`      | Implementation of the TimingSafeEqual. |
+| `crypto_context`     | Implementation of the `SecureContext` object.                              |
+| `crypto_dh`          | Diffie-Hellman Key Agreement implementation.                               |
+| `crypto_dsa`         | DSA (Digital Signature) Key Generation functions.                          |
+| `crypto_ec`          | Elliptic-curve cryptography implementation.                                |
+| `crypto_hash`        | Basic hash (e.g. SHA-256) functions.                                       |
+| `crypto_hkdf`        | HKDF (Key derivation) implementation.                                      |
+| `crypto_hmac`        | HMAC implementations.                                                      |
+| `crypto_keys`        | Utilities for using and generating secret, private, and public keys.       |
+| `crypto_pbkdf2`      | PBKDF2 key / bit generation implementation.                                |
+| `crypto_rsa`         | RSA Key Generation functions.                                              |
+| `crypto_scrypt`      | Scrypt key / bit generation implementation.                                |
+| `crypto_sig`         | General digital signature and verification utilities.                      |
+| `crypto_spkac`       | Netscape SPKAC certificate utilities.                                      |
+| `crypto_ssl`         | Implementation of the `SSLWrap` object.                                    |
+| `crypto_timing`      | Implementation of the TimingSafeEqual.                                     |
 
 When new crypto protocols are added, they will be added into their own
 `crypto_` `*.h` and `*.cc` files.
@@ -64,7 +64,7 @@ instead.)
 This section aims to explain some of the utilities that have been
 provided to make working with the OpenSSL APIs a bit easier.
 
-### Pointer Types
+### Pointer types
 
 Most of the key OpenSSL types need to be explicitly freed when they are
 no longer needed. Failure to do so introduces memory leaks. To make this
@@ -98,7 +98,7 @@ Examples of these being used are pervasive through the `src/crypto` code.
 
 ### `ByteSource`
 
-The `ByteSource` class is a helper utility representing a *read-only* byte
+The `ByteSource` class is a helper utility representing a _read-only_ byte
 array. Instances can either wrap external ("foreign") data sources, such as
 an `ArrayBuffer` (`v8::BackingStore`) or allocated data. If allocated data
 is used, then the allocation is freed automatically when the `ByteSource` is
@@ -119,11 +119,11 @@ specific to `src/crypto`. It is used extensively within `src/crypto` to hold
 allocated data that is intended to be output in response to various
 crypto functions (generated hash values, or ciphertext, for instance).
 
-*Currently, we are working to transition away from using `AllocatedBuffer`
+_Currently, we are working to transition away from using `AllocatedBuffer`
 to directly using the `v8::BackingStore` API. This will take some time.
-New uses of `AllocatedBuffer` should be avoided if possible.*
+New uses of `AllocatedBuffer` should be avoided if possible._
 
-### Key Objects
+### Key objects
 
 Most crypto operations involve the use of keys -- cryptographic inputs
 that protect data. There are three general types of keys:
@@ -272,9 +272,9 @@ These can be called from within the C++ code as functions,
 like `THROW_ERR_CRYPTO_INVALID_IV(env)`. These methods
 should be used to throw JavaScript errors when necessary.
 
-## Crypto API Patterns
+## Crypto API patterns
 
-### Operation Mode
+### Operation mode
 
 All crypto functions in Node.js operate in one of three
 modes:

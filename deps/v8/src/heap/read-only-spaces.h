@@ -20,9 +20,9 @@
 namespace v8 {
 namespace internal {
 
-class ReadOnlyDeserializer;
 class MemoryAllocator;
 class ReadOnlyHeap;
+class SnapshotData;
 
 class ReadOnlyPage : public BasicMemoryChunk {
  public:
@@ -35,10 +35,11 @@ class ReadOnlyPage : public BasicMemoryChunk {
   // Returns the address for a given offset in this page.
   Address OffsetToAddress(size_t offset) const {
     Address address_in_page = address() + offset;
-    if (V8_SHARED_RO_HEAP_BOOL && COMPRESS_POINTERS_BOOL) {
-      // Pointer compression with share ReadOnlyPages means that the area_start
-      // and area_end cannot be defined since they are stored within the pages
-      // which can be mapped at multiple memory addresses.
+    if (V8_SHARED_RO_HEAP_BOOL && COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL) {
+      // Pointer compression with a per-Isolate cage and shared ReadOnlyPages
+      // means that the area_start and area_end cannot be defined since they are
+      // stored within the pages which can be mapped at multiple memory
+      // addresses.
       DCHECK_LT(offset, size());
     } else {
       DCHECK_GE(address_in_page, area_start());
@@ -100,8 +101,9 @@ class ReadOnlyArtifacts {
   void set_read_only_heap(std::unique_ptr<ReadOnlyHeap> read_only_heap);
   ReadOnlyHeap* read_only_heap() const { return read_only_heap_.get(); }
 
-  void InitializeChecksum(ReadOnlyDeserializer* des);
-  void VerifyChecksum(ReadOnlyDeserializer* des, bool read_only_heap_created);
+  void InitializeChecksum(SnapshotData* read_only_snapshot_data);
+  void VerifyChecksum(SnapshotData* read_only_snapshot_data,
+                      bool read_only_heap_created);
 
  protected:
   ReadOnlyArtifacts() = default;
@@ -130,6 +132,9 @@ class SingleCopyReadOnlyArtifacts : public ReadOnlyArtifacts {
                   const AllocationStats& stats) override;
   void ReinstallReadOnlySpace(Isolate* isolate) override;
   void VerifyHeapAndSpaceRelationships(Isolate* isolate) override;
+
+ private:
+  v8::PageAllocator* page_allocator_ = nullptr;
 };
 
 // -----------------------------------------------------------------------------

@@ -4,13 +4,10 @@ require('../common');
 const assert = require('assert');
 const path = require('path');
 
-const { createRequire, createRequireFromPath } = require('module');
+const { createRequire } = require('module');
 
 const p = path.resolve(__dirname, '..', 'fixtures', 'fake.js');
 const u = new URL(`file://${p}`);
-
-const req = createRequireFromPath(p);
-assert.strictEqual(req('./baz'), 'perhaps I work');
 
 const reqToo = createRequire(u);
 assert.deepStrictEqual(reqToo('./experimental'), { ofLife: 42 });

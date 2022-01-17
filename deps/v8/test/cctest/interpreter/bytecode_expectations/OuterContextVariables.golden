@@ -20,10 +20,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 11
 bytecodes: [
   /*  102 S> */ B(LdaImmutableContextSlot), R(context), U8(2), U8(1),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaImmutableCurrentContextSlot), U8(2),
   /*  118 E> */ B(Mul), R(0), U8(0),
   /*  129 S> */ B(Return),

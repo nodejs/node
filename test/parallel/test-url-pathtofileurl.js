@@ -90,7 +90,7 @@ const url = require('url');
       // Rocket emoji (non-BMP code point)
       { path: 'C:\\🚀', expected: 'file:///C:/%F0%9F%9A%80' },
       // UNC path (see https://docs.microsoft.com/en-us/archive/blogs/ie/file-uris-in-windows)
-      { path: '\\\\nas\\My Docs\\File.doc', expected: 'file://nas/My%20Docs/File.doc' }
+      { path: '\\\\nas\\My Docs\\File.doc', expected: 'file://nas/My%20Docs/File.doc' },
     ];
   } else {
     testCases = [

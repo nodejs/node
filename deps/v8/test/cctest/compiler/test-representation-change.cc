@@ -48,26 +48,26 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   // TODO(titzer): use ValueChecker / ValueUtil
   void CheckInt32Constant(Node* n, int32_t expected) {
     Int32Matcher m(n);
-    CHECK(m.HasValue());
-    CHECK_EQ(expected, m.Value());
+    CHECK(m.HasResolvedValue());
+    CHECK_EQ(expected, m.ResolvedValue());
   }
 
   void CheckInt64Constant(Node* n, int64_t expected) {
     Int64Matcher m(n);
-    CHECK(m.HasValue());
-    CHECK_EQ(expected, m.Value());
+    CHECK(m.HasResolvedValue());
+    CHECK_EQ(expected, m.ResolvedValue());
   }
 
   void CheckUint32Constant(Node* n, uint32_t expected) {
     Uint32Matcher m(n);
-    CHECK(m.HasValue());
-    CHECK_EQ(static_cast<int>(expected), static_cast<int>(m.Value()));
+    CHECK(m.HasResolvedValue());
+    CHECK_EQ(static_cast<int>(expected), static_cast<int>(m.ResolvedValue()));
   }
 
   void CheckFloat64Constant(Node* n, double expected) {
     Float64Matcher m(n);
-    CHECK(m.HasValue());
-    CHECK_DOUBLE_EQ(expected, m.Value());
+    CHECK(m.HasResolvedValue());
+    CHECK_DOUBLE_EQ(expected, m.ResolvedValue());
   }
 
   void CheckFloat32Constant(Node* n, float expected) {
@@ -78,15 +78,15 @@ class RepresentationChangerTester : public HandleAndZoneScope,
 
   void CheckHeapConstant(Node* n, HeapObject expected) {
     HeapObjectMatcher m(n);
-    CHECK(m.HasValue());
-    CHECK_EQ(expected, *m.Value());
+    CHECK(m.HasResolvedValue());
+    CHECK_EQ(expected, *m.ResolvedValue());
   }
 
   void CheckNumberConstant(Node* n, double expected) {
     NumberMatcher m(n);
     CHECK_EQ(IrOpcode::kNumberConstant, n->opcode());
-    CHECK(m.HasValue());
-    CHECK_DOUBLE_EQ(expected, m.Value());
+    CHECK(m.HasResolvedValue());
+    CHECK_DOUBLE_EQ(expected, m.ResolvedValue());
   }
 
   Node* Parameter(int index = 0) {
@@ -413,9 +413,11 @@ TEST(Word64) {
   CheckChange(IrOpcode::kChangeFloat64ToInt64, MachineRepresentation::kFloat64,
               TypeCache::Get()->kSafeInteger, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeFloat64ToInt64, MachineRepresentation::kFloat64,
-              TypeCache::Get()->kInt64, MachineRepresentation::kWord64);
+              TypeCache::Get()->kDoubleRepresentableInt64,
+              MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeFloat64ToUint64, MachineRepresentation::kFloat64,
-              TypeCache::Get()->kUint64, MachineRepresentation::kWord64);
+              TypeCache::Get()->kDoubleRepresentableUint64,
+              MachineRepresentation::kWord64);
   CheckChange(
       IrOpcode::kCheckedFloat64ToInt64, MachineRepresentation::kFloat64,
       Type::Number(), MachineRepresentation::kWord64,
@@ -438,11 +440,13 @@ TEST(Word64) {
                   MachineRepresentation::kWord64);
   CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
                   IrOpcode::kChangeFloat64ToInt64,
-                  MachineRepresentation::kFloat32, TypeCache::Get()->kInt64,
+                  MachineRepresentation::kFloat32,
+                  TypeCache::Get()->kDoubleRepresentableInt64,
                   MachineRepresentation::kWord64);
   CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
                   IrOpcode::kChangeFloat64ToUint64,
-                  MachineRepresentation::kFloat32, TypeCache::Get()->kUint64,
+                  MachineRepresentation::kFloat32,
+                  TypeCache::Get()->kDoubleRepresentableUint64,
                   MachineRepresentation::kWord64);
   CheckTwoChanges(
       IrOpcode::kChangeFloat32ToFloat64, IrOpcode::kCheckedFloat64ToInt64,
@@ -462,7 +466,8 @@ TEST(Word64) {
   CheckChange(IrOpcode::kChangeTaggedToInt64, MachineRepresentation::kTagged,
               TypeCache::Get()->kSafeInteger, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeTaggedToInt64, MachineRepresentation::kTagged,
-              TypeCache::Get()->kInt64, MachineRepresentation::kWord64);
+              TypeCache::Get()->kDoubleRepresentableInt64,
+              MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeTaggedSignedToInt64,
               MachineRepresentation::kTaggedSigned, Type::SignedSmall(),
               MachineRepresentation::kWord64);

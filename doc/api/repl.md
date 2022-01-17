@@ -45,8 +45,8 @@ The following special commands are supported by all REPL instances:
   `> .save ./file/to/save.js`
 * `.load`: Load a file into the current REPL session.
   `> .load ./file/to/load.js`
-* `.editor`: Enter editor mode (<kbd>Ctrl</kbd>+<kbd>D</kbd> to finish,
-  <kbd>Ctrl</kbd>+<kbd>C</kbd> to cancel).
+* `.editor`: Enter editor mode (<kbd>Ctrl</kbd>+<kbd>D</kbd> to
+  finish, <kbd>Ctrl</kbd>+<kbd>C</kbd> to cancel).
 
 ```console
 > .editor
@@ -69,8 +69,8 @@ The following key combinations in the REPL have these special effects:
   When pressed twice on a blank line, has the same effect as the `.exit`
   command.
 * <kbd>Ctrl</kbd>+<kbd>D</kbd>: Has the same effect as the `.exit` command.
-* <kbd>Tab</kbd>: When pressed on a blank line, displays global and local (scope)
-  variables. When pressed while entering other input, displays relevant
+* <kbd>Tab</kbd>: When pressed on a blank line, displays global and local
+  (scope) variables. When pressed while entering other input, displays relevant
   autocompletion options.
 
 For key bindings related to the reverse-i-search, see [`reverse-i-search`][].
@@ -148,6 +148,7 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 ```
 
 #### Global uncaught exceptions
+
 <!-- YAML
 changes:
   - version: v12.3.0
@@ -163,32 +164,24 @@ This use of the [`domain`][] module in the REPL has these side effects:
 
 * Uncaught exceptions only emit the [`'uncaughtException'`][] event in the
   standalone REPL. Adding a listener for this event in a REPL within
-  another Node.js program throws [`ERR_INVALID_REPL_INPUT`][].
+  another Node.js program results in [`ERR_INVALID_REPL_INPUT`][].
+
+  ```js
+  const r = repl.start();
+
+  r.write('process.on("uncaughtException", () => console.log("Foobar"));\n');
+  // Output stream includes:
+  //   TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
+  //   cannot be used in the REPL
+
+  r.close();
+  ```
+
 * Trying to use [`process.setUncaughtExceptionCaptureCallback()`][] throws
   an [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`][] error.
 
-As standalone program:
-
-```js
-process.on('uncaughtException', () => console.log('Uncaught'));
-
-throw new Error('foobar');
-// Uncaught
-```
-
-When used in another application:
-
-```js
-process.on('uncaughtException', () => console.log('Uncaught'));
-// TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
-// cannot be used in the REPL
-
-throw new Error('foobar');
-// Thrown:
-// Error: foobar
-```
-
 #### Assignment of the `_` (underscore) variable
+
 <!-- YAML
 changes:
   - version: v9.8.0
@@ -226,8 +219,7 @@ Error: foo
 
 #### `await` keyword
 
-With the [`--experimental-repl-await`][] command-line option specified,
-experimental support for the `await` keyword is enabled.
+Support for the `await` keyword is enabled at the top level.
 
 ```console
 > await Promise.resolve(123)
@@ -242,7 +234,27 @@ undefined
 undefined
 ```
 
+One known limitation of using the `await` keyword in the REPL is that
+it will invalidate the lexical scoping of the `const` and `let`
+keywords.
+
+For example:
+
+```console
+> const m = await Promise.resolve(123)
+undefined
+> m
+123
+> const m = await Promise.resolve(234)
+undefined
+> m
+234
+```
+
+[`--no-experimental-repl-await`][] shall disable top-level await in REPL.
+
 ### Reverse-i-search
+
 <!-- YAML
 added:
  - v13.6.0
@@ -250,15 +262,14 @@ added:
 -->
 
 The REPL supports bi-directional reverse-i-search similar to [ZSH][]. It is
-triggered with <kbd>Ctrl</kbd>+<kbd>R</kbd> to search backward and
-<kbd>Ctrl</kbd>+<kbd>S</kbd> to search
-forwards.
+triggered with <kbd>Ctrl</kbd>+<kbd>R</kbd> to search backward
+and <kbd>Ctrl</kbd>+<kbd>S</kbd> to search forwards.
 
-Duplicated history entires will be skipped.
+Duplicated history entries will be skipped.
 
 Entries are accepted as soon as any key is pressed that doesn't correspond
-with the reverse search. Cancelling is possible by pressing <kbd>Esc</kbd> or
-<kbd>Ctrl</kbd>+<kbd>C</kbd>.
+with the reverse search. Cancelling is possible by pressing <kbd>Esc</kbd>
+or <kbd>Ctrl</kbd>+<kbd>C</kbd>.
 
 Changing the direction immediately searches for the next entry in the expected
 direction from the current position on.
@@ -358,6 +369,7 @@ function myWriter(output) {
 ```
 
 ## Class: `REPLServer`
+
 <!-- YAML
 added: v0.1.91
 -->
@@ -378,6 +390,7 @@ const secondInstance = new repl.REPLServer(options);
 ```
 
 ### Event: `'exit'`
+
 <!-- YAML
 added: v0.7.7
 -->
@@ -397,12 +410,13 @@ replServer.on('exit', () => {
 ```
 
 ### Event: `'reset'`
+
 <!-- YAML
 added: v0.11.0
 -->
 
 The `'reset'` event is emitted when the REPL's context is reset. This occurs
-whenever the `.clear` command is received as input *unless* the REPL is using
+whenever the `.clear` command is received as input _unless_ the REPL is using
 the default evaluator and the `repl.REPLServer` instance was created with the
 `useGlobal` option set to `true`. The listener callback will be called with a
 reference to the `context` object as the only argument.
@@ -442,11 +456,12 @@ Clearing context...
 ```
 
 ### `replServer.defineCommand(keyword, cmd)`
+
 <!-- YAML
 added: v0.3.0
 -->
 
-* `keyword` {string} The command keyword (*without* a leading `.` character).
+* `keyword` {string} The command keyword (_without_ a leading `.` character).
 * `cmd` {Object|Function} The function to invoke when the command is processed.
 
 The `replServer.defineCommand()` method is used to add new `.`-prefixed commands
@@ -488,6 +503,7 @@ Goodbye!
 ```
 
 ### `replServer.displayPrompt([preserveCursor])`
+
 <!-- YAML
 added: v0.1.91
 -->
@@ -508,6 +524,7 @@ within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
 ### `replServer.clearBufferedCommand()`
+
 <!-- YAML
 added: v9.0.0
 -->
@@ -518,6 +535,7 @@ called from within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
 ### `replServer.parseREPLKeyword(keyword[, rest])`
+
 <!-- YAML
 added: v0.8.9
 deprecated: v9.0.0
@@ -533,6 +551,7 @@ An internal method used to parse and execute `REPLServer` keywords.
 Returns `true` if `keyword` is a valid keyword, otherwise `false`.
 
 ### `replServer.setupHistory(historyPath, callback)`
+
 <!-- YAML
 added: v11.10.0
 -->
@@ -549,15 +568,17 @@ programmatically. Use this method to initialize a history log file when working
 with REPL instances programmatically.
 
 ## `repl.builtinModules`
+
 <!-- YAML
 added: v14.5.0
 -->
 
-* {string[]}
+* {string\[]}
 
 A list of the names of all Node.js modules, e.g., `'http'`.
 
 ## `repl.start([options])`
+
 <!-- YAML
 added: v0.1.91
 changes:
@@ -602,16 +623,16 @@ changes:
     color support on the `output` stream if the REPL instance's `terminal` value
     is `true`.
   * `useGlobal` {boolean} If `true`, specifies that the default evaluation
-     function will use the JavaScript `global` as the context as opposed to
-     creating a new separate context for the REPL instance. The node CLI REPL
-     sets this value to `true`. **Default:** `false`.
+    function will use the JavaScript `global` as the context as opposed to
+    creating a new separate context for the REPL instance. The node CLI REPL
+    sets this value to `true`. **Default:** `false`.
   * `ignoreUndefined` {boolean} If `true`, specifies that the default writer
-     will not output the return value of a command if it evaluates to
-     `undefined`. **Default:** `false`.
+    will not output the return value of a command if it evaluates to
+    `undefined`. **Default:** `false`.
   * `writer` {Function} The function to invoke to format the output of each
-     command before writing to `output`. **Default:** [`util.inspect()`][].
+    command before writing to `output`. **Default:** [`util.inspect()`][].
   * `completer` {Function} An optional function used for custom Tab auto
-     completion. See [`readline.InterfaceCompleter`][] for an example.
+    completion. See [`readline.InterfaceCompleter`][] for an example.
   * `replMode` {symbol} A flag that specifies whether the default evaluator
     executes all JavaScript commands in strict mode or default (sloppy) mode.
     Acceptable values are:
@@ -753,18 +774,18 @@ a `net.Server` and `net.Socket` instance, see:
 For an example of running a REPL instance over [`curl(1)`][], see:
 <https://gist.github.com/TooTallNate/2053342>.
 
-[TTY keybindings]: readline.md#readline_tty_keybindings
+[TTY keybindings]: readline.md#tty-keybindings
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
-[`'uncaughtException'`]: process.md#process_event_uncaughtexception
-[`--experimental-repl-await`]: cli.md#cli_experimental_repl_await
-[`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.md#errors_err_domain_cannot_set_uncaught_exception_capture
-[`ERR_INVALID_REPL_INPUT`]: errors.md#errors_err_invalid_repl_input
+[`'uncaughtException'`]: process.md#event-uncaughtexception
+[`--no-experimental-repl-await`]: cli.md#--no-experimental-repl-await
+[`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.md#err_domain_cannot_set_uncaught_exception_capture
+[`ERR_INVALID_REPL_INPUT`]: errors.md#err_invalid_repl_input
 [`curl(1)`]: https://curl.haxx.se/docs/manpage.html
 [`domain`]: domain.md
-[`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
-[`readline.InterfaceCompleter`]: readline.md#readline_use_of_the_completer_function
-[`repl.ReplServer`]: #repl_class_replserver
-[`repl.start()`]: #repl_repl_start_options
-[`reverse-i-search`]: #repl_reverse_i_search
-[`util.inspect()`]: util.md#util_util_inspect_object_options
+[`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
+[`readline.InterfaceCompleter`]: readline.md#use-of-the-completer-function
+[`repl.ReplServer`]: #class-replserver
+[`repl.start()`]: #replstartoptions
+[`reverse-i-search`]: #reverse-i-search
+[`util.inspect()`]: util.md#utilinspectobject-options
 [stream]: stream.md

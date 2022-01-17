@@ -32,8 +32,6 @@
 #endif
 #include <sys/un.h>
 
-#define UV__UDP_DGRAM_MAXSIZE (64 * 1024)
-
 #if defined(IPV6_JOIN_GROUP) && !defined(IPV6_ADD_MEMBERSHIP)
 # define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
 #endif
@@ -377,8 +375,11 @@ write_queue_drain:
     return;
   }
 
+  /* Safety: npkts known to be >0 below. Hence cast from ssize_t
+   * to size_t safe.
+   */
   for (i = 0, q = QUEUE_HEAD(&handle->write_queue);
-       i < pkts && q != &handle->write_queue;
+       i < (size_t)npkts && q != &handle->write_queue;
        ++i, q = QUEUE_HEAD(&handle->write_queue)) {
     assert(q != NULL);
     req = QUEUE_DATA(q, uv_udp_send_t, queue);
@@ -504,6 +505,28 @@ static int uv__set_reuse(int fd) {
   return 0;
 }
 
+/*
+ * The Linux kernel suppresses some ICMP error messages by default for UDP
+ * sockets. Setting IP_RECVERR/IPV6_RECVERR on the socket enables full ICMP
+ * error reporting, hopefully resulting in faster failover to working name
+ * servers.
+ */
+static int uv__set_recverr(int fd, sa_family_t ss_family) {
+#if defined(__linux__)
+  int yes;
+
+  yes = 1;
+  if (ss_family == AF_INET) {
+    if (setsockopt(fd, IPPROTO_IP, IP_RECVERR, &yes, sizeof(yes)))
+      return UV__ERR(errno);
+  } else if (ss_family == AF_INET6) {
+    if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVERR, &yes, sizeof(yes)))
+       return UV__ERR(errno);
+  }
+#endif
+  return 0;
+}
+
 
 int uv__udp_bind(uv_udp_t* handle,
                  const struct sockaddr* addr,
@@ -514,7 +537,7 @@ int uv__udp_bind(uv_udp_t* handle,
   int fd;
 
   /* Check for bad flags. */
-  if (flags & ~(UV_UDP_IPV6ONLY | UV_UDP_REUSEADDR))
+  if (flags & ~(UV_UDP_IPV6ONLY | UV_UDP_REUSEADDR | UV_UDP_LINUX_RECVERR))
     return UV_EINVAL;
 
   /* Cannot set IPv6-only mode on non-IPv6 socket. */
@@ -528,6 +551,12 @@ int uv__udp_bind(uv_udp_t* handle,
       return err;
     fd = err;
     handle->io_watcher.fd = fd;
+  }
+
+  if (flags & UV_UDP_LINUX_RECVERR) {
+    err = uv__set_recverr(fd, addr->sa_family);
+    if (err)
+      return err;
   }
 
   if (flags & UV_UDP_REUSEADDR) {
@@ -625,27 +654,70 @@ int uv__udp_connect(uv_udp_t* handle,
   return 0;
 }
 
-
+/* From https://pubs.opengroup.org/onlinepubs/9699919799/functions/connect.html
+ * Any of uv supported UNIXs kernel should be standardized, but the kernel 
+ * implementation logic not same, let's use pseudocode to explain the udp
+ * disconnect behaviors:
+ * 
+ * Predefined stubs for pseudocode:
+ *   1. sodisconnect: The function to perform the real udp disconnect
+ *   2. pru_connect: The function to perform the real udp connect
+ *   3. so: The kernel object match with socket fd
+ *   4. addr: The sockaddr parameter from user space
+ * 
+ * BSDs:
+ *   if(sodisconnect(so) == 0) { // udp disconnect succeed
+ *     if (addr->sa_len != so->addr->sa_len) return EINVAL;
+ *     if (addr->sa_family != so->addr->sa_family) return EAFNOSUPPORT;
+ *     pru_connect(so);
+ *   }
+ *   else return EISCONN;
+ *
+ * z/OS (same with Windows):
+ *   if(addr->sa_len < so->addr->sa_len) return EINVAL;
+ *   if (addr->sa_family == AF_UNSPEC) sodisconnect(so);
+ *
+ * AIX:
+ *   if(addr->sa_len != sizeof(struct sockaddr)) return EINVAL; // ignore ip proto version
+ *   if (addr->sa_family == AF_UNSPEC) sodisconnect(so);
+ *
+ * Linux,Others:
+ *   if(addr->sa_len < sizeof(struct sockaddr)) return EINVAL;
+ *   if (addr->sa_family == AF_UNSPEC) sodisconnect(so);
+ */
 int uv__udp_disconnect(uv_udp_t* handle) {
     int r;
+#if defined(__MVS__)
+    struct sockaddr_storage addr;
+#else
     struct sockaddr addr;
+#endif
 
     memset(&addr, 0, sizeof(addr));
-
+    
+#if defined(__MVS__)
+    addr.ss_family = AF_UNSPEC;
+#else
     addr.sa_family = AF_UNSPEC;
-
+#endif
+    
     do {
       errno = 0;
-      r = connect(handle->io_watcher.fd, &addr, sizeof(addr));
+      r = connect(handle->io_watcher.fd, (struct sockaddr*) &addr, sizeof(addr));
     } while (r == -1 && errno == EINTR);
 
-    if (r == -1 && errno != EAFNOSUPPORT)
+    if (r == -1) {
+#if defined(BSD)  /* The macro BSD is from sys/param.h */
+      if (errno != EAFNOSUPPORT && errno != EINVAL)
+        return UV__ERR(errno);
+#else
       return UV__ERR(errno);
+#endif
+    }
 
     handle->flags &= ~UV_HANDLE_UDP_CONNECTED;
     return 0;
 }
-
 
 int uv__udp_send(uv_udp_send_t* req,
                  uv_udp_t* handle,
@@ -854,7 +926,7 @@ static int uv__udp_set_membership6(uv_udp_t* handle,
 #if !defined(__OpenBSD__) &&                                        \
     !defined(__NetBSD__) &&                                         \
     !defined(__ANDROID__) &&                                        \
-    !defined(__DragonFly__) &                                       \
+    !defined(__DragonFly__) &&                                      \
     !defined(__QNX__)
 static int uv__udp_set_source_membership4(uv_udp_t* handle,
                                           const struct sockaddr_in* multicast_addr,

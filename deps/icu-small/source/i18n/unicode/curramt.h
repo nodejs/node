@@ -23,10 +23,10 @@
 #include "unicode/currunit.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Currency Amount Object.
  */
-
+ 
 U_NAMESPACE_BEGIN
 
 /**
@@ -41,7 +41,7 @@ class U_I18N_API CurrencyAmount: public Measure {
     /**
      * Construct an object with the given numeric amount and the given
      * ISO currency code.
-     * @param amount a numeric object; amount.isNumeric() must be TRUE
+     * @param amount a numeric object; amount.isNumeric() must be true
      * @param isoCode the 3-letter ISO 4217 currency code; must not be
      * NULL and must have length 3
      * @param ec input-output error code. If the amount or the isoCode
@@ -69,7 +69,7 @@ class U_I18N_API CurrencyAmount: public Measure {
      * @stable ICU 3.0
      */
     CurrencyAmount(const CurrencyAmount& other);
-
+ 
     /**
      * Assignment operator
      * @stable ICU 3.0
@@ -81,14 +81,14 @@ class U_I18N_API CurrencyAmount: public Measure {
      * have the same class as returned by getDynamicClassID().
      * @stable ICU 3.0
      */
-    virtual CurrencyAmount* clone() const;
+    virtual CurrencyAmount* clone() const override;
 
     /**
      * Destructor
      * @stable ICU 3.0
      */
     virtual ~CurrencyAmount();
-
+    
     /**
      * Returns a unique class ID for this object POLYMORPHICALLY.
      * This method implements a simple form of RTTI used by ICU.
@@ -97,7 +97,7 @@ class U_I18N_API CurrencyAmount: public Measure {
      * different class IDs.
      * @stable ICU 3.0
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * Returns the class ID for this class. This is used to compare to

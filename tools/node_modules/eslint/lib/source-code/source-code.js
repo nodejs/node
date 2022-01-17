@@ -12,8 +12,7 @@ const
     { isCommentToken } = require("eslint-utils"),
     TokenStore = require("./token-store"),
     astUtils = require("../shared/ast-utils"),
-    Traverser = require("../shared/traverser"),
-    lodash = require("lodash");
+    Traverser = require("../shared/traverser");
 
 //------------------------------------------------------------------------------
 // Private
@@ -144,10 +143,12 @@ function isSpaceBetween(sourceCode, first, second, checkInsideOfJSXText) {
 // Public Interface
 //------------------------------------------------------------------------------
 
+/**
+ * Represents parsed source code.
+ */
 class SourceCode extends TokenStore {
 
     /**
-     * Represents parsed source code.
      * @param {string|Object} textOrConfig The source code text or config object.
      * @param {string} textOrConfig.text The source code text.
      * @param {ASTNode} textOrConfig.ast The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
@@ -176,20 +177,20 @@ class SourceCode extends TokenStore {
 
         /**
          * The flag to indicate that the source code has Unicode BOM.
-         * @type boolean
+         * @type {boolean}
          */
         this.hasBOM = (text.charCodeAt(0) === 0xFEFF);
 
         /**
          * The original text source code.
          * BOM was stripped from this text.
-         * @type string
+         * @type {string}
          */
         this.text = (this.hasBOM ? text.slice(1) : text);
 
         /**
          * The parsed AST for the source code.
-         * @type ASTNode
+         * @type {ASTNode}
          */
         this.ast = ast;
 
@@ -224,7 +225,7 @@ class SourceCode extends TokenStore {
         /**
          * The source code split into lines according to ECMA-262 specification.
          * This is done to avoid each rule needing to do so separately.
-         * @type string[]
+         * @type {string[]}
          */
         this.lines = [];
         this.lineStartIndices = [0];
@@ -350,7 +351,7 @@ class SourceCode extends TokenStore {
             let currentToken = this.getTokenBefore(node, { includeComments: true });
 
             while (currentToken && isCommentToken(currentToken)) {
-                if (node.parent && (currentToken.start < node.parent.start)) {
+                if (node.parent && node.parent.type !== "Program" && (currentToken.start < node.parent.start)) {
                     break;
                 }
                 comments.leading.push(currentToken);
@@ -362,7 +363,7 @@ class SourceCode extends TokenStore {
             currentToken = this.getTokenAfter(node, { includeComments: true });
 
             while (currentToken && isCommentToken(currentToken)) {
-                if (node.parent && (currentToken.end > node.parent.end)) {
+                if (node.parent && node.parent.type !== "Program" && (currentToken.end > node.parent.end)) {
                     break;
                 }
                 comments.trailing.push(currentToken);
@@ -507,6 +508,7 @@ class SourceCode extends TokenStore {
     /**
      * Converts a source text index into a (line, column) pair.
      * @param {number} index The index of a character in a file
+     * @throws {TypeError} If non-numeric index or index out of range.
      * @returns {Object} A {line, column} location object with a 0-indexed column
      * @public
      */
@@ -531,10 +533,12 @@ class SourceCode extends TokenStore {
         }
 
         /*
-         * To figure out which line rangeIndex is on, determine the last index at which rangeIndex could
-         * be inserted into lineIndices to keep the list sorted.
+         * To figure out which line index is on, determine the last place at which index could
+         * be inserted into lineStartIndices to keep the list sorted.
          */
-        const lineNumber = lodash.sortedLastIndex(this.lineStartIndices, index);
+        const lineNumber = index >= this.lineStartIndices[this.lineStartIndices.length - 1]
+            ? this.lineStartIndices.length
+            : this.lineStartIndices.findIndex(el => index < el);
 
         return { line: lineNumber, column: index - this.lineStartIndices[lineNumber - 1] };
     }
@@ -544,6 +548,9 @@ class SourceCode extends TokenStore {
      * @param {Object} loc A line/column location
      * @param {number} loc.line The line number of the location (1-indexed)
      * @param {number} loc.column The column number of the location (0-indexed)
+     * @throws {TypeError|RangeError} If `loc` is not an object with a numeric
+     *   `line` and `column`, if the `line` is less than or equal to zero or
+     *   the line or column is out of the expected range.
      * @returns {number} The range index of the location in the file.
      * @public
      */

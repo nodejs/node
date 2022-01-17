@@ -31,6 +31,7 @@
 namespace node {
 
 class Environment;
+class ExternalReferenceRegistry;
 
 class LibuvStreamWrap : public HandleWrap, public StreamBase {
  public:
@@ -38,7 +39,7 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
                          void* priv);
-
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   int GetFD() override;
   bool IsAlive() override;
   bool IsClosing() override;
@@ -104,6 +105,8 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
 
   // Callbacks for libuv
   void OnUvAlloc(size_t suggested_size, uv_buf_t* buf);
+  // TODO(RaisinTen): Update the return type to a Maybe, so that we can indicate
+  // if there is a pending exception/termination.
   void OnUvRead(ssize_t nread, const uv_buf_t* buf);
 
   static void AfterUvWrite(uv_write_t* req, int status);

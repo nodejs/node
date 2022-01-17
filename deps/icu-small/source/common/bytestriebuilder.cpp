@@ -343,13 +343,13 @@ BytesTrieBuilder::BTLinearMatchNode::BTLinearMatchNode(const char *bytes, int32_
         static_cast<uint32_t>(hash)*37u + static_cast<uint32_t>(ustr_hashCharsN(bytes, len)));
 }
 
-UBool
+bool
 BytesTrieBuilder::BTLinearMatchNode::operator==(const Node &other) const {
     if(this==&other) {
-        return TRUE;
+        return true;
     }
     if(!LinearMatchNode::operator==(other)) {
-        return FALSE;
+        return false;
     }
     const BTLinearMatchNode &o=(const BTLinearMatchNode &)other;
     return 0==uprv_memcmp(s, o.s, length);
@@ -474,31 +474,39 @@ BytesTrieBuilder::writeDeltaTo(int32_t jumpTarget) {
     U_ASSERT(i>=0);
     if(i<=BytesTrie::kMaxOneByteDelta) {
         return write(i);
+    } else {
+        char intBytes[5];
+        return write(intBytes, internalEncodeDelta(i, intBytes));
     }
-    char intBytes[5];
-    int32_t length;
+}
+
+int32_t
+BytesTrieBuilder::internalEncodeDelta(int32_t i, char intBytes[]) {
+    U_ASSERT(i>=0);
+    if(i<=BytesTrie::kMaxOneByteDelta) {
+        intBytes[0]=(char)i;
+        return 1;
+    }
+    int32_t length=1;
     if(i<=BytesTrie::kMaxTwoByteDelta) {
         intBytes[0]=(char)(BytesTrie::kMinTwoByteDeltaLead+(i>>8));
-        length=1;
     } else {
         if(i<=BytesTrie::kMaxThreeByteDelta) {
             intBytes[0]=(char)(BytesTrie::kMinThreeByteDeltaLead+(i>>16));
-            length=2;
         } else {
             if(i<=0xffffff) {
                 intBytes[0]=(char)BytesTrie::kFourByteDeltaLead;
-                length=3;
             } else {
                 intBytes[0]=(char)BytesTrie::kFiveByteDeltaLead;
                 intBytes[1]=(char)(i>>24);
-                length=4;
+                length=2;
             }
-            intBytes[1]=(char)(i>>16);
+            intBytes[length++]=(char)(i>>16);
         }
-        intBytes[1]=(char)(i>>8);
+        intBytes[length++]=(char)(i>>8);
     }
     intBytes[length++]=(char)i;
-    return write(intBytes, length);
+    return length;
 }
 
 U_NAMESPACE_END

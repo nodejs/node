@@ -9,13 +9,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "require `var` declarations be placed at the top of their containing scope",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/vars-on-top"
         },
@@ -32,8 +32,8 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
-        // eslint-disable-next-line jsdoc/require-description
         /**
+         * Has AST suggesting a directive.
          * @param {ASTNode} node any node
          * @returns {boolean} whether the given node structurally represents a directive
          */
@@ -78,10 +78,12 @@ module.exports = {
             const l = statements.length;
             let i = 0;
 
-            // skip over directives
-            for (; i < l; ++i) {
-                if (!looksLikeDirective(statements[i]) && !looksLikeImport(statements[i])) {
-                    break;
+            // Skip over directives and imports. Static blocks don't have either.
+            if (node.parent.type !== "StaticBlock") {
+                for (; i < l; ++i) {
+                    if (!looksLikeDirective(statements[i]) && !looksLikeImport(statements[i])) {
+                        break;
+                    }
                 }
             }
 
@@ -112,16 +114,27 @@ module.exports = {
         /**
          * Checks whether variable is on top at functional block scope level
          * @param {ASTNode} node The node to check
-         * @param {ASTNode} parent Parent of the node
-         * @param {ASTNode} grandParent Parent of the node's parent
          * @returns {void}
          */
-        function blockScopeVarCheck(node, parent, grandParent) {
-            if (!(/Function/u.test(grandParent.type) &&
-                    parent.type === "BlockStatement" &&
-                    isVarOnTop(node, parent.body))) {
-                context.report({ node, messageId: "top" });
+        function blockScopeVarCheck(node) {
+            const { parent } = node;
+
+            if (
+                parent.type === "BlockStatement" &&
+                /Function/u.test(parent.parent.type) &&
+                isVarOnTop(node, parent.body)
+            ) {
+                return;
             }
+
+            if (
+                parent.type === "StaticBlock" &&
+                isVarOnTop(node, parent.body)
+            ) {
+                return;
+            }
+
+            context.report({ node, messageId: "top" });
         }
 
         //--------------------------------------------------------------------------
@@ -135,7 +148,7 @@ module.exports = {
                 } else if (node.parent.type === "Program") {
                     globalVarCheck(node, node.parent);
                 } else {
-                    blockScopeVarCheck(node, node.parent, node.parent.parent);
+                    blockScopeVarCheck(node);
                 }
             }
         };

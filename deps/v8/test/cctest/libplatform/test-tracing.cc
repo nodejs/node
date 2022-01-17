@@ -60,6 +60,9 @@ TEST(TestTraceObject) {
 
 class ConvertableToTraceFormatMock : public v8::ConvertableToTraceFormat {
  public:
+  ConvertableToTraceFormatMock(const ConvertableToTraceFormatMock&) = delete;
+  ConvertableToTraceFormatMock& operator=(const ConvertableToTraceFormatMock&) =
+      delete;
   explicit ConvertableToTraceFormatMock(int value) : value_(value) {}
   void AppendAsTraceFormat(std::string* out) const override {
     *out += "[" + std::to_string(value_) + "," + std::to_string(value_) + "]";
@@ -67,8 +70,6 @@ class ConvertableToTraceFormatMock : public v8::ConvertableToTraceFormat {
 
  private:
   int value_;
-
-  DISALLOW_COPY_AND_ASSIGN(ConvertableToTraceFormatMock);
 };
 
 class MockTraceWriter : public TraceWriter {
@@ -477,8 +478,7 @@ class TraceWritingThread : public base::Thread {
         tracing_controller_(tracing_controller) {}
 
   void Run() override {
-    running_.store(true);
-    while (running_.load()) {
+    while (!stopped_.load()) {
       TRACE_EVENT0("v8", "v8.Test");
       tracing_controller_->AddTraceEvent('A', nullptr, "v8", "", 1, 1, 0,
                                          nullptr, nullptr, nullptr, nullptr, 0);
@@ -488,10 +488,10 @@ class TraceWritingThread : public base::Thread {
     }
   }
 
-  void Stop() { running_.store(false); }
+  void Stop() { stopped_.store(true); }
 
  private:
-  std::atomic_bool running_{false};
+  std::atomic_bool stopped_{false};
   v8::platform::tracing::TracingController* tracing_controller_;
 };
 
@@ -857,10 +857,11 @@ TEST(JsonIntegrationTest) {
   std::vector<std::string> all_args;
   GetJSONStrings(&all_args, json, "\"args\"", "{", "}");
 
-  CHECK_EQ("\"1\":1e+100", all_args[0]);
-  CHECK_EQ("\"2\":\"NaN\"", all_args[1]);
-  CHECK_EQ("\"3\":\"Infinity\"", all_args[2]);
-  CHECK_EQ("\"4\":\"-Infinity\"", all_args[3]);
+  // Ignore the first metadata event.
+  CHECK_EQ("\"1\":1e+100", all_args[1]);
+  CHECK_EQ("\"2\":\"NaN\"", all_args[2]);
+  CHECK_EQ("\"3\":\"Infinity\"", all_args[3]);
+  CHECK_EQ("\"4\":\"-Infinity\"", all_args[4]);
 }
 
 #endif  // V8_USE_PERFETTO

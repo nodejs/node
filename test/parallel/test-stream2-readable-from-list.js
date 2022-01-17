@@ -23,7 +23,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const fromList = require('_stream_readable')._fromList;
+const fromList = require('stream').Readable._fromList;
 const BufferList = require('internal/streams/buffer_list');
 const util = require('util');
 

@@ -113,6 +113,8 @@ std::string Status::Message() const {
       return "BINDINGS: string8 value expected";
     case Error::BINDINGS_BINARY_VALUE_EXPECTED:
       return "BINDINGS: binary value expected";
+    case Error::BINDINGS_DICTIONARY_VALUE_EXPECTED:
+      return "BINDINGS: dictionary value expected";
   }
   // Some compilers can't figure out that we can't get here.
   return "INVALID ERROR CODE";

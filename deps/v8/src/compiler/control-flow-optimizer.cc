@@ -79,8 +79,8 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
   if (cond->opcode() != IrOpcode::kWord32Equal) return false;
   Int32BinopMatcher m(cond);
   Node* index = m.left().node();
-  if (!m.right().HasValue()) return false;
-  int32_t value = m.right().Value();
+  if (!m.right().HasResolvedValue()) return false;
+  int32_t value = m.right().ResolvedValue();
   ZoneSet<int32_t> values(zone());
   values.insert(value);
 
@@ -104,8 +104,8 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
     if (cond1->opcode() != IrOpcode::kWord32Equal) break;
     Int32BinopMatcher m1(cond1);
     if (m1.left().node() != index) break;
-    if (!m1.right().HasValue()) break;
-    int32_t value1 = m1.right().Value();
+    if (!m1.right().HasResolvedValue()) break;
+    int32_t value1 = m1.right().ResolvedValue();
     if (values.find(value1) != values.end()) break;
     DCHECK_NE(value, value1);
 

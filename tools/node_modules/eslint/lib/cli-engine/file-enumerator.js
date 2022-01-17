@@ -38,10 +38,15 @@ const fs = require("fs");
 const path = require("path");
 const getGlobParent = require("glob-parent");
 const isGlob = require("is-glob");
-const { escapeRegExp } = require("lodash");
+const escapeRegExp = require("escape-string-regexp");
 const { Minimatch } = require("minimatch");
-const { IgnorePattern } = require("./config-array");
-const { CascadingConfigArrayFactory } = require("./cascading-config-array-factory");
+
+const {
+    Legacy: {
+        IgnorePattern,
+        CascadingConfigArrayFactory
+    }
+} = require("@eslint/eslintrc");
 const debug = require("debug")("eslint:file-enumerator");
 
 //------------------------------------------------------------------------------
@@ -55,7 +60,7 @@ const IGNORED_SILENTLY = 1;
 const IGNORED = 2;
 
 // For VSCode intellisense
-/** @typedef {ReturnType<CascadingConfigArrayFactory["getConfigArrayForFile"]>} ConfigArray */
+/** @typedef {ReturnType<CascadingConfigArrayFactory.getConfigArrayForFile>} ConfigArray */
 
 /**
  * @typedef {Object} FileEnumeratorOptions
@@ -109,6 +114,7 @@ function isGlobPattern(pattern) {
 /**
  * Get stats of a given path.
  * @param {string} filePath The path to target file.
+ * @throws {Error} As may be thrown by `fs.statSync`.
  * @returns {fs.Stats|null} The stats.
  * @private
  */
@@ -127,6 +133,7 @@ function statSafeSync(filePath) {
 /**
  * Get filenames in a given path to a directory.
  * @param {string} directoryPath The path to target directory.
+ * @throws {Error} As may be thrown by `fs.readdirSync`.
  * @returns {import("fs").Dirent[]} The filenames.
  * @private
  */
@@ -168,7 +175,6 @@ function createExtensionRegExp(extensions) {
  */
 class NoFilesFoundError extends Error {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {string} pattern The glob pattern which was not found.
      * @param {boolean} globDisabled If `true` then the pattern was a glob pattern, but glob was disabled.
@@ -185,7 +191,6 @@ class NoFilesFoundError extends Error {
  */
 class AllFilesIgnoredError extends Error {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {string} pattern The glob pattern which was not found.
      */
@@ -208,7 +213,11 @@ class FileEnumerator {
      */
     constructor({
         cwd = process.cwd(),
-        configArrayFactory = new CascadingConfigArrayFactory({ cwd }),
+        configArrayFactory = new CascadingConfigArrayFactory({
+            cwd,
+            eslintRecommendedPath: path.resolve(__dirname, "../../conf/eslint-recommended.js"),
+            eslintAllPath: path.resolve(__dirname, "../../conf/eslint-all.js")
+        }),
         extensions = null,
         globInputPaths = true,
         errorOnUnmatchedPattern = true,
@@ -261,6 +270,7 @@ class FileEnumerator {
     /**
      * Iterate files which are matched by given glob patterns.
      * @param {string|string[]} patternOrPatterns The glob patterns to iterate files.
+     * @throws {NoFilesFoundError|AllFilesIgnoredError} On an unmatched pattern.
      * @returns {IterableIterator<FileAndConfig>} The found files.
      */
     *iterateFiles(patternOrPatterns) {
@@ -424,9 +434,14 @@ class FileEnumerator {
         // Enumerate the files of this directory.
         for (const entry of readdirSafeSync(directoryPath)) {
             const filePath = path.join(directoryPath, entry.name);
+            const fileInfo = entry.isSymbolicLink() ? statSafeSync(filePath) : entry;
+
+            if (!fileInfo) {
+                continue;
+            }
 
             // Check if the file is matched.
-            if (entry.isFile()) {
+            if (fileInfo.isFile()) {
                 if (!config) {
                     config = configArrayFactory.getConfigArrayForFile(
                         filePath,
@@ -462,7 +477,7 @@ class FileEnumerator {
                 }
 
             // Dive into the sub directory.
-            } else if (options.recursive && entry.isDirectory()) {
+            } else if (options.recursive && fileInfo.isDirectory()) {
                 if (!config) {
                     config = configArrayFactory.getConfigArrayForFile(
                         filePath,

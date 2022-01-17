@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 async function assertCompiles(buffer) {
   var module = await WebAssembly.compile(buffer);
@@ -67,7 +67,7 @@ assertPromiseResult(async function badFunctionInTheMiddle() {
   await assertCompileError(
       buffer,
       'Compiling function #10:\"bad\" failed: ' +
-          'expected 1 elements on the stack for fallthru to @1, found 0 @+94');
+          'expected 1 elements on the stack for fallthru, found 0 @+94');
 }());
 
 assertPromiseResult(async function importWithoutCode() {

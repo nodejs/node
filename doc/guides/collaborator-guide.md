@@ -1,4 +1,4 @@
-# Node.js Collaborator Guide
+# Node.js collaborator guide
 
 ## Contents
 
@@ -7,13 +7,14 @@
   * [Closing issues and pull requests](#closing-issues-and-pull-requests)
   * [Author ready pull requests](#author-ready-pull-requests)
   * [Handling own pull requests](#handling-own-pull-requests)
+  * [Security issues](#managing-security-issues)
 * [Accepting modifications](#accepting-modifications)
   * [Code reviews](#code-reviews)
   * [Consensus seeking](#consensus-seeking)
   * [Waiting for approvals](#waiting-for-approvals)
   * [Testing and CI](#testing-and-ci)
-    * [Useful CI jobs](#useful-ci-jobs)
-    * [Starting a CI job](#starting-a-ci-job)
+    * [Useful Jenkins CI jobs](#useful-jenkins-ci-jobs)
+    * [Starting a Jenkins CI job](#starting-a-jenkins-ci-job)
   * [Internal vs. public API](#internal-vs-public-api)
   * [Breaking changes](#breaking-changes)
     * [Breaking changes and deprecations](#breaking-changes-and-deprecations)
@@ -21,28 +22,29 @@
     * [Unintended breaking changes](#unintended-breaking-changes)
       * [Reverting commits](#reverting-commits)
   * [Introducing new modules](#introducing-new-modules)
-  * [Additions to N-API](#additions-to-n-api)
+  * [Additions to Node-API](#additions-to-n-api)
   * [Deprecations](#deprecations)
   * [Involving the TSC](#involving-the-tsc)
 * [Landing pull requests](#landing-pull-requests)
+  * [Using the commit queue GitHub labels](#using-the-commit-queue-github-labels)
   * [Using `git-node`](#using-git-node)
   * [Technical HOWTO](#technical-howto)
   * [Troubleshooting](#troubleshooting)
   * [I made a mistake](#i-made-a-mistake)
-  * [Long term support](#long-term-support)
+  * [Long Term Support](#long-term-support)
     * [What is LTS?](#what-is-lts)
     * [How are LTS branches managed?](#how-are-lts-branches-managed)
     * [How can I help?](#how-can-i-help)
 * [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker)
 
-This document explains how Collaborators manage the Node.js project.
+This document explains how collaborators manage the Node.js project.
 Collaborators should understand the
 [guidelines for new contributors](../../CONTRIBUTING.md) and the
 [project governance model](../../GOVERNANCE.md).
 
 ## Issues and pull requests
 
-Mind these guidelines, the opinions of other Collaborators, and guidance of the
+Mind these guidelines, the opinions of other collaborators, and guidance of the
 [TSC][]. Notify other qualified parties for more input on an issue or a pull
 request. See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
@@ -70,7 +72,7 @@ issues and pull requests can always be re-opened if necessary.
 A pull request is _author ready_ when:
 
 * There is a CI run in progress or completed.
-* There is at least one Collaborator approval.
+* There is at least one collaborator approval.
 * There are no outstanding review comments.
 
 Please always add the `author ready` label to the pull request in that case.
@@ -82,33 +84,55 @@ When you open a pull request, [start a CI](#testing-and-ci) right away. Later,
 after new code changes or rebasing, start a new CI.
 
 As soon as the pull request is ready to land, please do so. This allows other
-Collaborators to focus on other pull requests. If your pull request is not ready
+collaborators to focus on other pull requests. If your pull request is not ready
 to land but is [author ready](#author-ready-pull-requests), add the
 `author ready` label. If you wish to land the pull request yourself, use the
 "assign yourself" link to self-assign it.
 
+### Managing security issues
+
+Use the process outlined in [SECURITY.md][] to report security
+issues. If a user opens a security issue in the public repository:
+
+* Ask the user to submit a report through HackerOne as outlined in
+  [SECURITY.md][].
+* Move the issue to the private repository called
+  [premature-disclosures](https://github.com/nodejs/premature-disclosures).
+* For any related pull requests, create an associated issue in the
+  `premature-disclosures` repository.  Add a copy of the patch for the
+  pull request to the issue. Add screenshots of discussion from the pull request
+  to the issue.
+* [Open a ticket with GitHub](https://support.github.com/contact) to delete the
+  pull request using Node.js (team) as the account organization.
+* Open a new issue in the public repository with the title `FYI - pull request
+  deleted #YYYY`. Include an explanation for the user:
+  > FYI @xxxx we asked GitHub to delete your pull request while we work on
+  > releases in private.
+* Email `tsc@iojs.org` with links to the issues in the
+  `premature-disclosures` repository.
+
 ## Accepting modifications
 
 Contributors propose modifications to Node.js using GitHub pull requests. This
-includes modifications proposed by TSC members and other Collaborators. A pull
+includes modifications proposed by TSC members and other collaborators. A pull
 request must pass code review and CI before landing into the codebase.
 
 ### Code reviews
 
-At least two Collaborators must approve a pull request before the pull request
-lands. One Collaborator approval is enough if the pull request has been open
+At least two collaborators must approve a pull request before the pull request
+lands. One collaborator approval is enough if the pull request has been open
 for more than seven days.
 
-Approving a pull request indicates that the Collaborator accepts responsibility
+Approving a pull request indicates that the collaborator accepts responsibility
 for the change.
 
-Approval must be from Collaborators who are not authors of the change.
+Approval must be from collaborators who are not authors of the change.
 
 In some cases, it might be necessary to summon a GitHub team to a pull request
 for review by @-mention.
 See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
-If you are the first Collaborator to approve a pull request that has no CI yet,
+If you are the first collaborator to approve a pull request that has no CI yet,
 please [start one](#testing-and-ci). Please also start a new CI if the
 pull request creator pushed new code since the last CI run.
 
@@ -124,21 +148,21 @@ requirements. If a pull request meets all requirements except the
 
 #### Objections
 
-**Collaborators can object to a pull request by using the "Request
-Changes" GitHub feature**. Dissent comments alone don't constitute an
-objection. **Any PR objection must include a clear reason for that objection,
-and the objector must remain responsive for further discussion towards
-consensus about the direction of the pull request**. Providing a set of
-actionable steps alongside the objection is recommended.
+Collaborators can object to a pull request by using the "Request
+Changes" GitHub feature. Dissent comments alone don't constitute an
+objection. Any pull request objection must include a clear reason for that
+objection, and the objector must remain responsive for further discussion
+towards consensus about the direction of the pull request. Where possible,
+provide a set of actionable steps alongside the objection.
 
 If the objection is not clear to others, another collaborator can ask an
 objecting collaborator to explain their objection or to provide actionable
-steps to resolve the objection. **If the objector is unresponsive for seven
-days after a collaborator asks for clarification, another collaborator can
-dismiss the objection**.
+steps to resolve the objection. If the objector is unresponsive for seven
+days after a collaborator asks for clarification, a collaborator may
+dismiss the objection.
 
-**Pull requests with outstanding objections must remain open until all
-objections are satisfied**. If reaching consensus is not possible, a
+Pull requests with outstanding objections must remain open until all
+objections are satisfied. If reaching consensus is not possible, a
 collaborator can escalate the issue to the TSC by pinging `@nodejs/tsc` and
 adding the `tsc-agenda` label to the issue.
 
@@ -150,7 +174,7 @@ adding the `tsc-agenda` label to the issue.
 
 ### Waiting for approvals
 
-Before landing pull requests, allow 48 hours for input from other Collaborators.
+Before landing pull requests, allow 48 hours for input from other collaborators.
 Certain types of pull requests can be fast-tracked and can land after a shorter
 delay. For example:
 
@@ -161,15 +185,15 @@ delay. For example:
   * Regressions that break the workflow (red CI or broken compilation).
   * Regressions that happen right before a release, or reported soon after.
 
-To propose fast-tracking a pull request, apply the `fast-track` label. Then add
-a comment that Collaborators can upvote.
+To propose fast-tracking a pull request, apply the `fast-track` label. Then a
+GitHub Actions workflow will add a comment that collaborators can upvote.
 
 If someone disagrees with the fast-tracking request, remove the label. Do not
 fast-track the pull request in that case.
 
-The pull request can be fast-tracked if two Collaborators approve the
+The pull request can be fast-tracked if two collaborators approve the
 fast-tracking request. To land, the pull request itself still needs two
-Collaborator approvals and a passing CI.
+collaborator approvals and a passing CI.
 
 Collaborators can request fast-tracking of pull requests they did not author.
 In that case only, the request itself is also one fast-track approval. Upvote
@@ -180,46 +204,81 @@ the comment anyway to avoid any doubt.
 All fixes must have a test case which demonstrates the defect. The test should
 fail before the change, and pass after the change.
 
-All pull requests must pass continuous integration tests. Code changes must pass
-on [project CI server](https://ci.nodejs.org/). Pull requests that only change
-documentation and comments can use GitHub Actions results.
+Do not land any pull requests without the necessary passing CI runs.
+A passing (green) GitHub Actions CI result is required. A passing (green or
+yellow) [Jenkins CI](https://ci.nodejs.org/) is also required if the pull
+request contains changes that will affect the `node` binary. This is because
+GitHub Actions CI does not cover all the environments supported by Node.js.
 
-Do not land any pull requests without a passing (green or yellow) CI run.
-For documentation-only changes, GitHub Actions CI is sufficient.
-For all other code changes, Jenkins CI must pass as well. If there are
-Jenkins CI failures unrelated to the change in the pull request, try "Resume
-Build". It is in the left navigation of the relevant `node-test-pull-request`
-job. It will preserve all the green results from the current job but re-run
-everything else. Start a fresh CI if more than seven days have elapsed since
-the original failing CI as the compiled binaries for the Windows and ARM
-platforms are only kept for seven days.
+<details>
+<summary>Changes that affect the `node` binary</summary>
 
-#### Useful CI jobs
+Changes in the following folders (except comment-only changes) are guaranteed to
+affect the `node` binary:
+
+* `deps/`
+* `lib/`
+* `src/`
+* `test/`
+* `tools/code_cache/`
+* `tools/gyp/`
+* `tools/icu/`
+* `tools/inspector-protocol/`
+* `tools/msvs/`
+* `tools/snapshot/`
+* `tools/v8_gypfiles/`
+
+There are some other files that touch the build chain. Changes in the following
+files also qualify as affecting the `node` binary:
+
+* `tools/*.py`
+* `tools/build-addons.js`
+* `*.gyp`
+* `*.gypi`
+* `configure`
+* `configure.py`
+* `Makefile`
+* `vcbuilt.bat`
+
+</details>
+
+If there are GitHub Actions CI failures unrelated to the change in the pull
+request, try the "🔄 Re-run all jobs" button, on the right-hand side of the
+"Checks" tab.
+
+If there are Jenkins CI failures unrelated to the change in the pull request,
+try "Resume Build". It is in the left navigation of the relevant
+`node-test-pull-request` job. It will preserve all the green results from the
+current job but re-run everything else. Start a fresh CI if more than seven days
+have elapsed since the original failing CI as the compiled binaries for the
+Windows and ARM platforms are only kept for seven days.
+
+#### Useful Jenkins CI jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
-is the CI job to test pull requests. It runs the `build-ci` and `test-ci`
-targets on all supported platforms.
+  is the CI job to test pull requests. It runs the `build-ci` and `test-ci`
+  targets on all supported platforms.
 
 * [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
-uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run
-`npm install && npm test` on a large selection of common modules. This is
-useful to check whether a change will cause breakage in the ecosystem.
+  uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run
+  `npm install && npm test` on a large selection of common modules. This is
+  useful to check whether a change will cause breakage in the ecosystem.
 
 * [`node-stress-single-test`](https://ci.nodejs.org/job/node-stress-single-test/)
-can run a group of tests over and over on a specific platform. Use it to check
-that the tests are reliable.
+  can run a group of tests over and over on a specific platform. Use it to check
+  that the tests are reliable.
 
 * [`node-test-commit-v8-linux`](https://ci.nodejs.org/job/node-test-commit-v8-linux/)
-runs the standard V8 tests. Run it when updating V8 in Node.js or floating new
-patches on V8.
+  runs the standard V8 tests. Run it when updating V8 in Node.js or floating new
+  patches on V8.
 
 * [`node-test-commit-custom-suites-freestyle`](https://ci.nodejs.org/job/node-test-commit-custom-suites-freestyle/)
-enables customization of test suites and parameters. It can execute test suites
-not used in other CI test runs (such as tests in the `internet` or `pummel`
-directories). It can also make sure tests pass when provided with a flag not
-used in other CI test runs (such as `--worker`).
+  enables customization of test suites and parameters. It can execute test
+  suites not used in other CI test runs (such as tests in the `internet` or
+  `pummel` directories). It can also make sure tests pass when provided with a
+  flag not used in other CI test runs (such as `--worker`).
 
-#### Starting a CI job
+#### Starting a Jenkins CI job
 
 From the CI Job page, click "Build with Parameters" on the left side.
 
@@ -227,13 +286,13 @@ You generally need to enter only one or both of the following options
 in the form:
 
 * `GIT_REMOTE_REF`: Change to the remote portion of git refspec.
-To specify the branch this way, `refs/heads/BRANCH` is used
-(e.g. for `master` -> `refs/heads/master`).
-For pull requests, it will look like `refs/pull/PR_NUMBER/head`
-(e.g. for PR#42 -> `refs/pull/42/head`).
+  To specify the branch this way, `refs/heads/BRANCH` is used
+  (e.g. for `master` -> `refs/heads/master`).
+  For pull requests, it will look like `refs/pull/PR_NUMBER/head`
+  (e.g. for pull request #42 -> `refs/pull/42/head`).
 * `REBASE_ONTO`: Change that to `origin/master` so the pull request gets rebased
-onto master. This can especially be important for pull requests that have been
-open a while.
+  onto master. This can especially be important for pull requests that have been
+  open a while.
 
 Look at the list of jobs on the left hand side under "Build History" and copy
 the link to the one you started (which will be the one on top, but click
@@ -314,7 +373,7 @@ providing a Public API in such cases.
 #### Unintended breaking changes
 
 Sometimes, a change intended to be non-breaking turns out to be a breaking
-change. If such a change lands on the master branch, a Collaborator can revert
+change. If such a change lands on the master branch, a collaborator can revert
 it. As an alternative to reverting, the TSC can apply the semver-major label
 after-the-fact.
 
@@ -344,12 +403,12 @@ For pull requests introducing new core modules:
 * Land with a [Stability Index][] of Experimental. The module must remain
   Experimental until a semver-major release.
 
-### Additions to N-API
+### Additions to Node-API
 
-N-API provides an ABI-stable API guaranteed for future Node.js versions. N-API
-additions call for unusual care and scrutiny. If a change adds to `node_api.h`,
-`js_native_api.h`, `node_api_types.h`, or `js_native_api_types.h`, consult [the relevant
-guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md).
+Node-API provides an ABI-stable API guaranteed for future Node.js versions.
+Node-API additions call for unusual care and scrutiny. If a change adds to
+`node_api.h`, `js_native_api.h`, `node_api_types.h`, or `js_native_api_types.h`,
+consult [the relevant guide](https://github.com/nodejs/node/blob/HEAD/doc/guides/adding-new-napi-api.md).
 
 ### Deprecations
 
@@ -416,7 +475,7 @@ Do this if a pull request or issue:
 * Is labeled `semver-major`, or
 * Has a significant impact on the codebase, or
 * Is controversial, or
-* Is at an impasse among Collaborators who are participating in the discussion.
+* Is at an impasse among collaborators who are participating in the discussion.
 
 @-mention the `@nodejs/tsc` GitHub team if you want to elevate an issue to the
 [TSC][]. Do not use the GitHub UI on the right-hand side to assign to
@@ -430,20 +489,20 @@ The TSC serves as the final arbiter where required.
    who wish to land their own pull requests will self-assign them. Sometimes, an
    author will delegate to someone else. If in doubt, ask the assignee whether
    it is okay to land.
-1. Never use GitHub's green ["Merge Pull Request"][] button. Reasons for not
+2. Never use GitHub's green ["Merge pull request"][] button. Reasons for not
    using the web interface button:
    * The "Create a merge commit" method will add an unnecessary merge commit.
    * The "Squash and merge" method will add metadata (the pull request #) to the
      commit title. If more than one author contributes to the pull request,
      squashing only keeps one author.
    * The "Rebase and merge" method has no way of adding metadata to the commit.
-1. Make sure CI is complete and green. If the CI is not green, check for
+3. Make sure CI is complete and green. If the CI is not green, check for
    unreliable tests and infrastructure failures. If there are not corresponding
    issues in the [node][unreliable tests] or
    [build](https://github.com/nodejs/build/issues) repositories, open new
    issues. Run a new CI any time someone pushes new code to the pull request.
-1. Check that the commit message adheres to [commit message guidelines][].
-1. Add all necessary [metadata](#metadata) to commit messages before landing. If
+4. Check that the commit message adheres to [commit message guidelines][].
+5. Add all necessary [metadata](#metadata) to commit messages before landing. If
    you are unsure exactly how to format the commit messages, use the commit log
    as a reference. See [this commit][commit-example] as an example.
 
@@ -453,6 +512,10 @@ settings are to their liking.
 
 All commits should be self-contained, meaning every commit should pass all
 tests. This makes it much easier when bisecting to find a breaking change.
+
+### Using the commit queue GitHub labels
+
+See the [commit queue guide][commit-queue.md].
 
 ### Using `git-node`
 
@@ -494,7 +557,7 @@ Checkout proper target branch:
 $ git checkout master
 ```
 
-Update the tree (assumes your repo is set up as detailed in
+Update the tree (assumes your repository is set up as detailed in
 [CONTRIBUTING.md](./contributing/pull-requests.md#step-1-fork)):
 
 ```text
@@ -601,7 +664,7 @@ for that commit. This is an opportunity to fix commit messages.
     issue. A commit message can include more than one `Fixes:` lines.
   * Optional: One or more `Refs:` lines referencing a URL for any relevant
     background.
-  * Required: A `Reviewed-By: Name <email>` line for each Collaborator who
+  * Required: A `Reviewed-By: Name <email>` line for each collaborator who
     reviewed the change.
     * Useful for @mentions / contact list if something goes wrong in the
       pull request.
@@ -611,17 +674,17 @@ Other changes might have landed on master since the successful CI run. As a
 precaution, run tests (`make -j4 test` or `vcbuild test`).
 
 Confirm that the commit message format is correct using
-[core-validate-commit](https://github.com/evanlucas/core-validate-commit).
+[core-validate-commit](https://github.com/nodejs/core-validate-commit).
 
 ```text
 $ git rev-list upstream/master...HEAD | xargs core-validate-commit
 ```
 
 Optional: For your own commits, force push the amended commit to the pull
-request branch. If your branch name is `bugfix`, then: `git push
---force-with-lease origin master:bugfix`. Don't close the pull request.
-It will close after you push it upstream. It will have the purple merged
-status rather than the red closed status. If you close the pull request
+request branch. If your branch name is `bugfix`, then:
+`git push --force-with-lease origin master:bugfix`. Don't close the pull
+request. It will close after you push it upstream. It will have the purple
+merged status rather than the red closed status. If you close the pull request
 before GitHub adjusts its status, it will show up as a 0 commit pull
 request with no changed files. The order of operations is important.
 If you push upstream before you push to your branch, GitHub will close
@@ -668,7 +731,6 @@ git push upstream master
 ### I made a mistake
 
 * Ping a TSC member.
-* `#node-dev` on freenode.
 * With `git`, there's a way to override remote trees by force pushing
   (`git push -f`). This is generally forbidden as it creates conflicts in other
   people's forks. It is permissible for simpler slip-ups such as typos in commit
@@ -677,9 +739,8 @@ git push upstream master
   10-minute period passes, consider the commit final.
   * Use `--force-with-lease` to reduce the chance of overwriting someone else's
     change.
-  * Post to `#node-dev` (IRC) if you force push.
 
-### Long term support
+### Long Term Support
 
 #### What is LTS?
 
@@ -695,10 +756,10 @@ Each LTS release has a corresponding branch (v10.x, v8.x, etc.). Each also has a
 corresponding staging branch (v10.x-staging, v8.x-staging, etc.).
 
 Commits that land on master are cherry-picked to each staging branch as
-appropriate. If a change applies only to the LTS branch, open the PR against the
-*staging* branch. Commits from the staging branch land on the LTS branch only
-when a release is being prepared. They can land on the LTS branch in a different
-order than they were in staging.
+appropriate. If a change applies only to the LTS branch, open the pull request
+against the _staging_ branch. Commits from the staging branch land on the LTS
+branch only when a release is being prepared. They might land on the LTS branch
+in a different order than they do in staging.
 
 Only members of @nodejs/backporters should land commits onto LTS staging
 branches.
@@ -715,11 +776,11 @@ There are several LTS-related labels:
   branches. For example, `lts-watch-v10.x` would be for a change
   to consider for the `v10.x-staging` branch.
 
-* `land-on-` are for pull requests that should land in a future v*.x
+* `land-on-` are for pull requests that should land in a future v\*.x
   release. For example, `land-on-v10.x` would be for a change to land in Node.js
   10.x.
 
-Any Collaborator can attach these labels to any pull request/issue. As commits
+Any collaborator can attach these labels to any pull request/issue. As commits
 land on the staging branches, the backporter removes the `lts-watch-` label.
 Likewise, as commits land in an LTS release, the releaser removes the `land-on-`
 label.
@@ -729,54 +790,135 @@ might impact an LTS release.
 
 ## Who to CC in the issue tracker
 
-| Subsystem                                | Maintainers                                                           |
-| ---                                      | ---                                                                   |
-| `benchmark/*`                            | @nodejs/benchmarking, @mscdex                                         |
-| `doc/*`, `*.md`                          | @nodejs/documentation                                                 |
-| `lib/assert`                             | @nodejs/assert                                                        |
-| `lib/async_hooks`                        | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
-| `lib/buffer`                             | @nodejs/buffer                                                        |
-| `lib/child_process`                      | @nodejs/child\_process                                                |
-| `lib/cluster`                            | @nodejs/cluster                                                       |
-| `lib/{crypto,tls,https}`                 | @nodejs/crypto                                                        |
-| `lib/dgram`                              | @nodejs/dgram                                                         |
-| `lib/domains`                            | @nodejs/domains                                                       |
-| `lib/fs`, `src/{fs,file}`                | @nodejs/fs                                                            |
-| `lib/{_}http{*}`                         | @nodejs/http                                                          |
-| `lib/inspector.js`, `src/inspector_*`    | @nodejs/v8-inspector                                                  |
-| `lib/internal/bootstrap/*`               | @nodejs/process                                                       |
-| `lib/internal/url`, `src/node_url`       | @nodejs/url                                                           |
-| `lib/net`                                | @bnoordhuis, @indutny, @nodejs/streams                                |
-| `lib/repl`                               | @nodejs/repl                                                          |
-| `lib/{_}stream{*}`                       | @nodejs/streams                                                       |
-| `lib/timers`                             | @nodejs/timers                                                        |
-| `lib/util`                               | @nodejs/util                                                          |
-| `lib/zlib`                               | @nodejs/zlib                                                          |
-| `src/async_wrap.*`                       | @nodejs/async\_hooks                                                  |
-| `src/node_api.*`                         | @nodejs/n-api                                                         |
-| `src/node_crypto.*`                      | @nodejs/crypto                                                        |
-| `test/*`                                 | @nodejs/testing                                                       |
-| `tools/node_modules/eslint`, `.eslintrc` | @nodejs/linting                                                       |
-| build                                    | @nodejs/build                                                         |
-| `src/module_wrap.*`, `lib/internal/modules/*`, `lib/internal/vm/module.js` | @nodejs/modules                     |
-| GYP                                      | @nodejs/gyp                                                           |
-| performance                              | @nodejs/performance                                                   |
-| platform specific                        | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows}     |
-| python code                              | @nodejs/python                                                        |
-| upgrading c-ares                         | @rvagg                                                                |
-| upgrading http-parser                    | @nodejs/http, @nodejs/http2                                           |
-| upgrading libuv                          | @nodejs/libuv                                                         |
-| upgrading npm                            | @nodejs/npm                                                           |
-| upgrading V8                             | @nodejs/V8, @nodejs/post-mortem                                       |
-| Embedded use or delivery of Node.js      | @nodejs/delivery-channels                                             |
+| Subsystem                                                                  | Maintainers                                                           |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `benchmark/*`                                                              | @nodejs/benchmarking, @mscdex                                         |
+| `doc/*`, `*.md`                                                            | @nodejs/documentation                                                 |
+| `lib/assert`                                                               | @nodejs/assert                                                        |
+| `lib/async_hooks`                                                          | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
+| `lib/buffer`                                                               | @nodejs/buffer                                                        |
+| `lib/child_process`                                                        | @nodejs/child\_process                                                |
+| `lib/cluster`                                                              | @nodejs/cluster                                                       |
+| `lib/{crypto,tls,https}`                                                   | @nodejs/crypto                                                        |
+| `lib/dgram`                                                                | @nodejs/dgram                                                         |
+| `lib/domains`                                                              | @nodejs/domains                                                       |
+| `lib/fs`, `src/{fs,file}`                                                  | @nodejs/fs                                                            |
+| `lib/{_}http{*}`                                                           | @nodejs/http                                                          |
+| `lib/inspector.js`, `src/inspector_*`                                      | @nodejs/v8-inspector                                                  |
+| `lib/internal/bootstrap/*`                                                 | @nodejs/process                                                       |
+| `lib/internal/url`, `src/node_url`                                         | @nodejs/url                                                           |
+| `lib/net`                                                                  | @bnoordhuis, @indutny, @nodejs/streams                                |
+| `lib/repl`                                                                 | @nodejs/repl                                                          |
+| `lib/{_}stream{*}`                                                         | @nodejs/streams                                                       |
+| `lib/timers`                                                               | @nodejs/timers                                                        |
+| `lib/util`                                                                 | @nodejs/util                                                          |
+| `lib/zlib`                                                                 | @nodejs/zlib                                                          |
+| `src/async_wrap.*`                                                         | @nodejs/async\_hooks                                                  |
+| `src/node_api.*`                                                           | @nodejs/node-api                                                      |
+| `src/node_crypto.*`                                                        | @nodejs/crypto                                                        |
+| `test/*`                                                                   | @nodejs/testing                                                       |
+| `tools/node_modules/eslint`, `.eslintrc`                                   | @nodejs/linting                                                       |
+| build                                                                      | @nodejs/build                                                         |
+| `src/module_wrap.*`, `lib/internal/modules/*`, `lib/internal/vm/module.js` | @nodejs/modules                                                       |
+| GYP                                                                        | @nodejs/gyp                                                           |
+| performance                                                                | @nodejs/performance                                                   |
+| platform specific                                                          | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows}     |
+| python code                                                                | @nodejs/python                                                        |
+| upgrading c-ares                                                           | @rvagg                                                                |
+| upgrading http-parser                                                      | @nodejs/http, @nodejs/http2                                           |
+| upgrading libuv                                                            | @nodejs/libuv                                                         |
+| upgrading npm                                                              | @nodejs/npm                                                           |
+| upgrading V8                                                               | @nodejs/V8, @nodejs/post-mortem                                       |
+| Embedded use or delivery of Node.js                                        | @nodejs/delivery-channels                                             |
 
 When things need extra attention, are controversial, or `semver-major`:
 @nodejs/tsc
 
 If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 
-["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
+## Labels
+
+### General labels
+
+* `confirmed-bug`: Bugs you have verified
+* `discuss`: Things that need larger discussion
+* `feature request`: Any issue that requests a new feature
+* `good first issue`: Issues suitable for newcomers to fix
+* `meta`: Governance, policies, procedures, etc.
+* `tsc-agenda`: Open issues and pull requests with this label will be added to
+  the Technical Steering Committee meeting agenda
+
+***
+
+* `author-ready` - A pull request is _author ready_ when:
+  * There is a CI run in progress or completed.
+  * There is at least one collaborator approval (or two TSC approvals for
+    semver-major pull requests).
+  * There are no outstanding review comments.
+
+Please always add the `author ready` label to pull requests that qualify.
+Please always remove it again as soon as the conditions are not met anymore,
+such as if the CI run fails or a new outstanding review comment is posted.
+
+***
+
+* `semver-{minor,major}`
+  * be conservative – that is, if a change has the remote _chance_ of breaking
+    something, go for semver-major
+  * when adding a semver label, add a comment explaining why you're adding it
+  * minor vs. patch: roughly: "does it add a new method / does it add a new
+    section to the docs"
+  * major vs. everything else: run last versions tests against this version, if
+    they pass, **probably** minor or patch
+
+### LTS/version labels
+
+We use labels to keep track of which branches a commit should land on:
+
+* `dont-land-on-v?.x`
+  * For changes that do not apply to a certain release line
+  * Also used when the work of backporting a change outweighs the benefits
+* `land-on-v?.x`
+  * Used by releasers to mark a pull request as scheduled for inclusion in an
+    LTS release
+  * Applied to the original pull request for clean cherry-picks, to the backport
+    pull request otherwise
+* `backport-requested-v?.x`
+  * Used to indicate that a pull request needs a manual backport to a branch in
+    order to land the changes on that branch
+  * Typically applied by a releaser when the pull request does not apply cleanly
+    or it breaks the tests after applying
+  * Will be replaced by either `dont-land-on-v?.x` or `backported-to-v?.x`
+* `backported-to-v?.x`
+  * Applied to pull requests for which a backport pull request has been merged
+* `lts-watch-v?.x`
+  * Applied to pull requests which the Release working group should consider
+    including in an LTS release
+  * Does not indicate that any specific action will be taken, but can be
+    effective as messaging to non-collaborators
+* `release-agenda`
+  * For things that need discussion by the Release working group
+  * (for example semver-minor changes that need or should go into an LTS
+    release)
+* `v?.x`
+  * Automatically applied to changes that do not target `master` but rather the
+    `v?.x-staging` branch
+
+Once a release line enters maintenance mode, the corresponding labels do not
+need to be attached anymore, as only important bugfixes will be included.
+
+### Other labels
+
+* Operating system labels
+  * `macos`, `windows`, `smartos`, `aix`
+  * No `linux` label because it is the implied default
+* Architecture labels
+  * `arm`, `mips`, `s390`, `ppc`
+  * No `x86{_64}` label because it is the implied default
+
+["Merge pull request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
 [Deprecation]: https://en.wikipedia.org/wiki/Deprecation
+[SECURITY.md]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
 [Stability Index]: ../api/documentation.md#stability-index
 [TSC]: https://github.com/nodejs/TSC
 [`--pending-deprecation`]: ../api/cli.md#--pending-deprecation
@@ -785,9 +927,10 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 [backporting guide]: backporting-to-release-lines.md
 [commit message guidelines]: contributing/pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
+[commit-queue.md]: ./commit-queue.md
 [git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
-[git-node]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
-[git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-metadata
+[git-node]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
+[git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-metadata
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues

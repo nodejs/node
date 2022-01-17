@@ -16,15 +16,16 @@ extern transitioning builtin
 FunctionPrototypeBind(implicit context: Context)(
     JSFunction, JSAny, int32): JSAny;
 
-const kLengthDescriptorIndex:
-    constexpr int32 generates 'JSFunction::kLengthDescriptorIndex';
-const kNameDescriptorIndex:
-    constexpr int32 generates 'JSFunction::kNameDescriptorIndex';
+const kLengthDescriptorIndex: constexpr int32
+    generates 'JSFunctionOrBoundFunction::kLengthDescriptorIndex';
+const kNameDescriptorIndex: constexpr int32
+    generates 'JSFunctionOrBoundFunction::kNameDescriptorIndex';
 const kMinDescriptorsForFastBind:
     constexpr int31 generates 'JSFunction::kMinDescriptorsForFastBind';
 
 macro CheckAccessor(implicit context: Context)(
-    array: DescriptorArray, index: constexpr int32, name: Name) labels Slow {
+    array: DescriptorArray, index: constexpr int32,
+    name: Name): void labels Slow {
   const descriptor: DescriptorEntry = array.descriptors[index];
   const key: Name|Undefined = descriptor.key;
   if (!TaggedEqual(key, name)) goto Slow;
@@ -38,7 +39,7 @@ transitioning javascript builtin
 FastFunctionPrototypeBind(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
     target: JSFunction)(...arguments): JSAny {
-  const argc: intptr = arguments.length;
+  const argc: intptr = arguments.actual_count;
   try {
     typeswitch (receiver) {
       case (fn: JSFunction|JSBoundFunction): {

@@ -29,9 +29,13 @@
 #include <memory>
 #include <sstream>
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-initialization.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
+#include "src/base/strings.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/init/v8.h"
@@ -50,32 +54,35 @@
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/common/wasm/flag-utils.h"
+#include "test/common/flag-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace test_regexp {
 
 static bool CheckParse(const char* input) {
-  v8::HandleScope scope(CcTest::isolate());
-  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
-  RegExpCompileData result;
-  return v8::internal::RegExpParser::ParseRegExp(
-      CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result);
-}
+  Isolate* isolate = CcTest::i_isolate();
 
+  v8::HandleScope scope(CcTest::isolate());
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
+  RegExpCompileData result;
+  return RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, {},
+                                                 &result);
+}
 
 static void CheckParseEq(const char* input, const char* expected,
                          bool unicode = false) {
+  Isolate* isolate = CcTest::i_isolate();
+
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
   RegExpCompileData result;
-  JSRegExp::Flags flags = JSRegExp::kNone;
-  if (unicode) flags |= JSRegExp::kUnicode;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), &zone,
-                                                &reader, flags, &result));
+  RegExpFlags flags;
+  if (unicode) flags |= RegExpFlag::kUnicode;
+  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, flags,
+                                                &result));
   CHECK_NOT_NULL(result.tree);
   CHECK(result.error == RegExpError::kNone);
   std::ostringstream os;
@@ -86,14 +93,15 @@ static void CheckParseEq(const char* input, const char* expected,
   CHECK_EQ(0, strcmp(expected, os.str().c_str()));
 }
 
-
 static bool CheckSimple(const char* input) {
+  Isolate* isolate = CcTest::i_isolate();
+
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
   RegExpCompileData result;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(
-      CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
+  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, {},
+                                                &result));
   CHECK_NOT_NULL(result.tree);
   CHECK(result.error == RegExpError::kNone);
   return result.simple;
@@ -104,29 +112,30 @@ struct MinMaxPair {
   int max_match;
 };
 
-
 static MinMaxPair CheckMinMaxMatch(const char* input) {
+  Isolate* isolate = CcTest::i_isolate();
+
   v8::HandleScope scope(CcTest::isolate());
-  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
   RegExpCompileData result;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(
-      CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
+  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, {},
+                                                &result));
   CHECK_NOT_NULL(result.tree);
   CHECK(result.error == RegExpError::kNone);
   int min_match = result.tree->min_match();
   int max_match = result.tree->max_match();
-  MinMaxPair pair = { min_match, max_match };
+  MinMaxPair pair = {min_match, max_match};
   return pair;
 }
 
-
 #define CHECK_PARSE_ERROR(input) CHECK(!CheckParse(input))
 #define CHECK_SIMPLE(input, simple) CHECK_EQ(simple, CheckSimple(input));
-#define CHECK_MIN_MAX(input, min, max)                                         \
-  { MinMaxPair min_max = CheckMinMaxMatch(input);                              \
-    CHECK_EQ(min, min_max.min_match);                                          \
-    CHECK_EQ(max, min_max.max_match);                                          \
+#define CHECK_MIN_MAX(input, min, max)            \
+  {                                               \
+    MinMaxPair min_max = CheckMinMaxMatch(input); \
+    CHECK_EQ(min, min_max.min_match);             \
+    CHECK_EQ(max, min_max.max_match);             \
   }
 
 TEST(RegExpParser) {
@@ -422,17 +431,16 @@ static void ExpectError(const char* input, const char* expected,
 
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(isolate->allocator(), ZONE_NAME);
-  FlatStringReader reader(isolate, CStrVector(input));
+  Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
   RegExpCompileData result;
-  JSRegExp::Flags flags = JSRegExp::kNone;
-  if (unicode) flags |= JSRegExp::kUnicode;
-  CHECK(!v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
+  RegExpFlags flags;
+  if (unicode) flags |= RegExpFlag::kUnicode;
+  CHECK(!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, flags,
                                                  &result));
   CHECK_NULL(result.tree);
   CHECK(result.error != RegExpError::kNone);
   CHECK_EQ(0, strcmp(expected, RegExpErrorString(result.error)));
 }
-
 
 TEST(Errors) {
   const char* kEndBackslash = "\\ at end of pattern";
@@ -477,40 +485,32 @@ TEST(Errors) {
   ExpectError("\\ka", kInvalidNamedReference, true);
 }
 
+static bool IsDigit(base::uc32 c) { return ('0' <= c && c <= '9'); }
 
-static bool IsDigit(uc16 c) {
-  return ('0' <= c && c <= '9');
-}
+static bool NotDigit(base::uc32 c) { return !IsDigit(c); }
 
-
-static bool NotDigit(uc16 c) {
-  return !IsDigit(c);
-}
-
-
-static bool IsWhiteSpaceOrLineTerminator(uc16 c) {
+static bool IsWhiteSpaceOrLineTerminator(base::uc32 c) {
   // According to ECMA 5.1, 15.10.2.12 the CharacterClassEscape \s includes
   // WhiteSpace (7.2) and LineTerminator (7.3) values.
   return v8::internal::IsWhiteSpaceOrLineTerminator(c);
 }
 
-
-static bool NotWhiteSpaceNorLineTermiantor(uc16 c) {
+static bool NotWhiteSpaceNorLineTermiantor(base::uc32 c) {
   return !IsWhiteSpaceOrLineTerminator(c);
 }
 
+static bool NotWord(base::uc32 c) { return !IsRegExpWord(c); }
 
-static bool NotWord(uc16 c) {
-  return !IsRegExpWord(c);
+static bool NotLineTerminator(base::uc32 c) {
+  return !unibrow::IsLineTerminator(c);
 }
 
-
-static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
+static void TestCharacterClassEscapes(base::uc32 c, bool(pred)(base::uc32 c)) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   ZoneList<CharacterRange>* ranges =
       zone.New<ZoneList<CharacterRange>>(2, &zone);
   CharacterRange::AddClassEscape(c, ranges, &zone);
-  for (uc32 i = 0; i < (1 << 16); i++) {
+  for (base::uc32 i = 0; i < (1 << 16); i++) {
     bool in_class = false;
     for (int j = 0; !in_class && j < ranges->length(); j++) {
       CharacterRange& range = ranges->at(j);
@@ -520,9 +520,8 @@ static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
   }
 }
 
-
 TEST(CharacterClassEscapes) {
-  TestCharacterClassEscapes('.', IsRegExpNewline);
+  TestCharacterClassEscapes('.', NotLineTerminator);
   TestCharacterClassEscapes('d', IsDigit);
   TestCharacterClassEscapes('D', NotDigit);
   TestCharacterClassEscapes('s', IsWhiteSpaceOrLineTerminator);
@@ -531,29 +530,29 @@ TEST(CharacterClassEscapes) {
   TestCharacterClassEscapes('W', NotWord);
 }
 
-
 static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
                            bool is_one_byte, Zone* zone) {
   Isolate* isolate = CcTest::i_isolate();
-  FlatStringReader reader(isolate, CStrVector(input));
+  Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
   RegExpCompileData compile_data;
   compile_data.compilation_target = RegExpCompilationTarget::kNative;
-  JSRegExp::Flags flags = JSRegExp::kNone;
-  if (multiline) flags = JSRegExp::kMultiline;
-  if (unicode) flags = JSRegExp::kUnicode;
-  if (!v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), zone,
-                                               &reader, flags, &compile_data))
+  RegExpFlags flags;
+  if (multiline) flags |= RegExpFlag::kMultiline;
+  if (unicode) flags |= RegExpFlag::kUnicode;
+  if (!RegExpParser::ParseRegExpFromHeapString(isolate, zone, str, flags,
+                                               &compile_data)) {
     return nullptr;
+  }
   Handle<String> pattern = isolate->factory()
-                               ->NewStringFromUtf8(CStrVector(input))
+                               ->NewStringFromUtf8(base::CStrVector(input))
                                .ToHandleChecked();
-  Handle<String> sample_subject =
-      isolate->factory()->NewStringFromUtf8(CStrVector("")).ToHandleChecked();
+  Handle<String> sample_subject = isolate->factory()
+                                      ->NewStringFromUtf8(base::CStrVector(""))
+                                      .ToHandleChecked();
   RegExp::CompileForTesting(isolate, zone, &compile_data, flags, pattern,
                             sample_subject, is_one_byte);
   return compile_data.node;
 }
-
 
 static void Execute(const char* input, bool multiline, bool unicode,
                     bool is_one_byte, bool dot_output = false) {
@@ -613,20 +612,20 @@ using ArchRegExpMacroAssembler = RegExpMacroAssemblerPPC;
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
 #elif V8_TARGET_ARCH_MIPS64
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
-#elif V8_TARGET_ARCH_X87
-using ArchRegExpMacroAssembler = RegExpMacroAssemblerX87;
+#elif V8_TARGET_ARCH_LOONG64
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerLOONG64;
+#elif V8_TARGET_ARCH_RISCV64
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerRISCV;
 #endif
 
 class ContextInitializer {
  public:
   ContextInitializer()
-      : scope_(CcTest::isolate()),
-        env_(v8::Context::New(CcTest::isolate())) {
+      : scope_(CcTest::isolate()), env_(v8::Context::New(CcTest::isolate())) {
     env_->Enter();
   }
-  ~ContextInitializer() {
-    env_->Exit();
-  }
+  ~ContextInitializer() { env_->Exit(); }
+
  private:
   v8::HandleScope scope_;
   v8::Local<v8::Context> env_;
@@ -642,11 +641,10 @@ static Handle<JSRegExp> CreateJSRegExp(Handle<String> source, Handle<Code> code,
   Handle<JSRegExp> regexp =
       Handle<JSRegExp>::cast(factory->NewJSObject(constructor));
 
-  factory->SetRegExpIrregexpData(regexp, source, JSRegExp::kNone, 0,
+  factory->SetRegExpIrregexpData(regexp, source, {}, 0,
                                  JSRegExp::kNoBacktrackLimit);
-  regexp->SetDataAt(is_unicode ? JSRegExp::kIrregexpUC16CodeIndex
-                               : JSRegExp::kIrregexpLatin1CodeIndex,
-                    *code);
+  const bool is_latin1 = !is_unicode;
+  regexp->set_code(is_latin1, code);
 
   return regexp;
 }
@@ -694,7 +692,6 @@ TEST(MacroAssemblerNativeSuccess) {
   CHECK_EQ(-1, captures[2]);
   CHECK_EQ(-1, captures[3]);
 }
-
 
 TEST(MacroAssemblerNativeSimple) {
   v8::V8::Initialize();
@@ -754,7 +751,6 @@ TEST(MacroAssemblerNativeSimple) {
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
 
-
 TEST(MacroAssemblerNativeSimpleUC16) {
   v8::V8::Initialize();
   ContextInitializer initializer;
@@ -790,10 +786,12 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   Handle<JSRegExp> regexp = CreateJSRegExp(source, code, true);
 
   int captures[4] = {42, 37, 87, 117};
-  const uc16 input_data[6] = {'f', 'o', 'o', 'f', 'o',
-                              static_cast<uc16>(0x2603)};
-  Handle<String> input = factory->NewStringFromTwoByte(
-      Vector<const uc16>(input_data, 6)).ToHandleChecked();
+  const base::uc16 input_data[6] = {'f', 'o', 'o',
+                                    'f', 'o', static_cast<base::uc16>(0x2603)};
+  Handle<String> input =
+      factory
+          ->NewStringFromTwoByte(base::Vector<const base::uc16>(input_data, 6))
+          .ToHandleChecked();
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -806,10 +804,12 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   CHECK_EQ(-1, captures[2]);
   CHECK_EQ(-1, captures[3]);
 
-  const uc16 input_data2[9] = {'b', 'a', 'r', 'b', 'a', 'r', 'b', 'a',
-                               static_cast<uc16>(0x2603)};
-  input = factory->NewStringFromTwoByte(
-      Vector<const uc16>(input_data2, 9)).ToHandleChecked();
+  const base::uc16 input_data2[9] = {
+      'b', 'a', 'r', 'b', 'a', 'r', 'b', 'a', static_cast<base::uc16>(0x2603)};
+  input =
+      factory
+          ->NewStringFromTwoByte(base::Vector<const base::uc16>(input_data2, 9))
+          .ToHandleChecked();
   seq_input = Handle<SeqTwoByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
 
@@ -818,7 +818,6 @@ TEST(MacroAssemblerNativeSimpleUC16) {
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
-
 
 TEST(MacroAssemblerNativeBacktrack) {
   v8::V8::Initialize();
@@ -855,7 +854,6 @@ TEST(MacroAssemblerNativeBacktrack) {
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
-
 
 TEST(MacroAssemblerNativeBackReferenceLATIN1) {
   v8::V8::Initialize();
@@ -902,7 +900,6 @@ TEST(MacroAssemblerNativeBackReferenceLATIN1) {
   CHECK_EQ(-1, output[3]);
 }
 
-
 TEST(MacroAssemblerNativeBackReferenceUC16) {
   v8::V8::Initialize();
   ContextInitializer initializer;
@@ -933,9 +930,11 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   Handle<Code> code = Handle<Code>::cast(code_object);
   Handle<JSRegExp> regexp = CreateJSRegExp(source, code, true);
 
-  const uc16 input_data[6] = {'f', 0x2028, 'o', 'o', 'f', 0x2028};
-  Handle<String> input = factory->NewStringFromTwoByte(
-      Vector<const uc16>(input_data, 6)).ToHandleChecked();
+  const base::uc16 input_data[6] = {'f', 0x2028, 'o', 'o', 'f', 0x2028};
+  Handle<String> input =
+      factory
+          ->NewStringFromTwoByte(base::Vector<const base::uc16>(input_data, 6))
+          .ToHandleChecked();
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -949,8 +948,6 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   CHECK_EQ(6, output[2]);
   CHECK_EQ(-1, output[3]);
 }
-
-
 
 TEST(MacroAssemblernativeAtStart) {
   v8::V8::Initialize();
@@ -1002,7 +999,6 @@ TEST(MacroAssemblernativeAtStart) {
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
 }
-
 
 TEST(MacroAssemblerNativeBackRefNoCase) {
   v8::V8::Initialize();
@@ -1057,8 +1053,6 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
   CHECK_EQ(3, output[3]);
 }
 
-
-
 TEST(MacroAssemblerNativeRegisters) {
   v8::V8::Initialize();
   ContextInitializer initializer;
@@ -1069,8 +1063,8 @@ TEST(MacroAssemblerNativeRegisters) {
   ArchRegExpMacroAssembler m(isolate, &zone, NativeRegExpMacroAssembler::LATIN1,
                              6);
 
-  uc16 foo_chars[3] = {'f', 'o', 'o'};
-  Vector<const uc16> foo(foo_chars, 3);
+  base::uc16 foo_chars[3] = {'f', 'o', 'o'};
+  base::Vector<const base::uc16> foo(foo_chars, 3);
 
   enum registers { out1, out2, out3, out4, out5, out6, sp, loop_cnt };
   Label fail;
@@ -1156,7 +1150,6 @@ TEST(MacroAssemblerNativeRegisters) {
   CHECK_EQ(-1, output[5]);
 }
 
-
 TEST(MacroAssemblerStackOverflow) {
   v8::V8::Initialize();
   ContextInitializer initializer;
@@ -1190,7 +1183,6 @@ TEST(MacroAssemblerStackOverflow) {
   CHECK(isolate->has_pending_exception());
   isolate->clear_pending_exception();
 }
-
 
 TEST(MacroAssemblerNativeLotsOfRegisters) {
   v8::V8::Initialize();
@@ -1280,9 +1272,10 @@ TEST(MacroAssembler) {
   int captures[5];
   std::memset(captures, 0, sizeof(captures));
 
-  const uc16 str1[] = {'f', 'o', 'o', 'b', 'a', 'r'};
-  Handle<String> f1_16 = factory->NewStringFromTwoByte(
-      Vector<const uc16>(str1, 6)).ToHandleChecked();
+  const base::uc16 str1[] = {'f', 'o', 'o', 'b', 'a', 'r'};
+  Handle<String> f1_16 =
+      factory->NewStringFromTwoByte(base::Vector<const base::uc16>(str1, 6))
+          .ToHandleChecked();
 
   CHECK_EQ(IrregexpInterpreter::SUCCESS,
            IrregexpInterpreter::MatchInternal(
@@ -1294,9 +1287,10 @@ TEST(MacroAssembler) {
   CHECK_EQ(2, captures[3]);
   CHECK_EQ(84, captures[4]);
 
-  const uc16 str2[] = {'b', 'a', 'r', 'f', 'o', 'o'};
-  Handle<String> f2_16 = factory->NewStringFromTwoByte(
-      Vector<const uc16>(str2, 6)).ToHandleChecked();
+  const base::uc16 str2[] = {'b', 'a', 'r', 'f', 'o', 'o'};
+  Handle<String> f2_16 =
+      factory->NewStringFromTwoByte(base::Vector<const base::uc16>(str2, 6))
+          .ToHandleChecked();
 
   std::memset(captures, 0, sizeof(captures));
   CHECK_EQ(IrregexpInterpreter::FAILURE,
@@ -1312,7 +1306,7 @@ TEST(MacroAssembler) {
 }
 
 #ifndef V8_INTL_SUPPORT
-static uc32 canonicalize(uc32 c) {
+static base::uc32 canonicalize(base::uc32 c) {
   unibrow::uchar canon[unibrow::Ecma262Canonicalize::kMaxWidth];
   int count = unibrow::Ecma262Canonicalize::Convert(c, '\0', canon, nullptr);
   if (count == 0) {
@@ -1334,25 +1328,23 @@ TEST(LatinCanonicalize) {
     CHECK_EQ(upper, uncanon[0]);
     CHECK_EQ(lower, uncanon[1]);
   }
-  for (uc32 c = 128; c < (1 << 21); c++)
-    CHECK_GE(canonicalize(c), 128);
+  for (base::uc32 c = 128; c < (1 << 21); c++) CHECK_GE(canonicalize(c), 128);
   unibrow::Mapping<unibrow::ToUppercase> to_upper;
   // Canonicalization is only defined for the Basic Multilingual Plane.
-  for (uc32 c = 0; c < (1 << 16); c++) {
+  for (base::uc32 c = 0; c < (1 << 16); c++) {
     unibrow::uchar upper[unibrow::ToUppercase::kMaxWidth];
     int length = to_upper.get(c, '\0', upper);
     if (length == 0) {
       length = 1;
       upper[0] = c;
     }
-    uc32 u = upper[0];
-    if (length > 1 || (c >= 128 && u < 128))
-      u = c;
+    base::uc32 u = upper[0];
+    if (length > 1 || (c >= 128 && u < 128)) u = c;
     CHECK_EQ(u, canonicalize(c));
   }
 }
 
-static uc32 CanonRangeEnd(uc32 c) {
+static base::uc32 CanonRangeEnd(base::uc32 c) {
   unibrow::uchar canon[unibrow::CanonicalizationRange::kMaxWidth];
   int count = unibrow::CanonicalizationRange::Convert(c, '\0', canon, nullptr);
   if (count == 0) {
@@ -1363,7 +1355,6 @@ static uc32 CanonRangeEnd(uc32 c) {
   }
 }
 
-
 TEST(RangeCanonicalization) {
   // Check that we arrive at the same result when using the basic
   // range canonicalization primitives as when using immediate
@@ -1371,7 +1362,7 @@ TEST(RangeCanonicalization) {
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> un_canonicalize;
   int block_start = 0;
   while (block_start <= 0xFFFF) {
-    uc32 block_end = CanonRangeEnd(block_start);
+    base::uc32 block_end = CanonRangeEnd(block_start);
     unsigned block_length = block_end - block_start + 1;
     if (block_length > 1) {
       unibrow::uchar first[unibrow::Ecma262UnCanonicalize::kMaxWidth];
@@ -1391,7 +1382,6 @@ TEST(RangeCanonicalization) {
   }
 }
 
-
 TEST(UncanonicalizeEquivalence) {
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> un_canonicalize;
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
@@ -1410,7 +1400,7 @@ TEST(UncanonicalizeEquivalence) {
 #endif
 
 static void TestRangeCaseIndependence(Isolate* isolate, CharacterRange input,
-                                      Vector<CharacterRange> expected) {
+                                      base::Vector<CharacterRange> expected) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   int count = expected.length();
   ZoneList<CharacterRange>* list =
@@ -1425,15 +1415,13 @@ static void TestRangeCaseIndependence(Isolate* isolate, CharacterRange input,
   }
 }
 
-
 static void TestSimpleRangeCaseIndependence(Isolate* isolate,
                                             CharacterRange input,
                                             CharacterRange expected) {
-  EmbeddedVector<CharacterRange, 1> vector;
+  base::EmbeddedVector<CharacterRange, 1> vector;
   vector[0] = expected;
   TestRangeCaseIndependence(isolate, input, vector);
 }
-
 
 TEST(CharacterRangeCaseIndependence) {
   Isolate* isolate = CcTest::i_isolate();
@@ -1472,13 +1460,12 @@ TEST(CharacterRangeCaseIndependence) {
 #endif  // !V8_INTL_SUPPORT
 }
 
-static bool InClass(uc32 c,
+static bool InClass(base::uc32 c,
                     const UnicodeRangeSplitter::CharacterRangeVector* ranges) {
   if (ranges == nullptr) return false;
   for (size_t i = 0; i < ranges->size(); i++) {
     CharacterRange range = ranges->at(i);
-    if (range.from() <= c && c <= range.to())
-      return true;
+    if (range.from() <= c && c <= range.to()) return true;
   }
   return false;
 }
@@ -1489,42 +1476,41 @@ TEST(UnicodeRangeSplitter) {
   base->Add(CharacterRange::Everything(), &zone);
   UnicodeRangeSplitter splitter(base);
   // BMP
-  for (uc32 c = 0; c < 0xD800; c++) {
+  for (base::uc32 c = 0; c < 0xD800; c++) {
     CHECK(InClass(c, splitter.bmp()));
     CHECK(!InClass(c, splitter.lead_surrogates()));
     CHECK(!InClass(c, splitter.trail_surrogates()));
     CHECK(!InClass(c, splitter.non_bmp()));
   }
   // Lead surrogates
-  for (uc32 c = 0xD800; c < 0xDBFF; c++) {
+  for (base::uc32 c = 0xD800; c < 0xDBFF; c++) {
     CHECK(!InClass(c, splitter.bmp()));
     CHECK(InClass(c, splitter.lead_surrogates()));
     CHECK(!InClass(c, splitter.trail_surrogates()));
     CHECK(!InClass(c, splitter.non_bmp()));
   }
   // Trail surrogates
-  for (uc32 c = 0xDC00; c < 0xDFFF; c++) {
+  for (base::uc32 c = 0xDC00; c < 0xDFFF; c++) {
     CHECK(!InClass(c, splitter.bmp()));
     CHECK(!InClass(c, splitter.lead_surrogates()));
     CHECK(InClass(c, splitter.trail_surrogates()));
     CHECK(!InClass(c, splitter.non_bmp()));
   }
   // BMP
-  for (uc32 c = 0xE000; c < 0xFFFF; c++) {
+  for (base::uc32 c = 0xE000; c < 0xFFFF; c++) {
     CHECK(InClass(c, splitter.bmp()));
     CHECK(!InClass(c, splitter.lead_surrogates()));
     CHECK(!InClass(c, splitter.trail_surrogates()));
     CHECK(!InClass(c, splitter.non_bmp()));
   }
   // Non-BMP
-  for (uc32 c = 0x10000; c < 0x10FFFF; c++) {
+  for (base::uc32 c = 0x10000; c < 0x10FFFF; c++) {
     CHECK(!InClass(c, splitter.bmp()));
     CHECK(!InClass(c, splitter.lead_surrogates()));
     CHECK(!InClass(c, splitter.trail_surrogates()));
     CHECK(InClass(c, splitter.non_bmp()));
   }
 }
-
 
 TEST(CanonicalizeCharacterSets) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
@@ -1584,7 +1570,6 @@ TEST(CanonicalizeCharacterSets) {
   CHECK_EQ(10, list->at(0).from());
   CHECK_EQ(30, list->at(0).to());
 }
-
 
 TEST(CharacterRangeMerge) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
@@ -1672,11 +1657,7 @@ TEST(CharacterRangeMerge) {
   ZoneList<CharacterRange> both(4, &zone);
 }
 
-
-TEST(Graph) {
-  Execute("\\b\\w+\\b", false, true, true);
-}
-
+TEST(Graph) { Execute("\\b\\w+\\b", false, true, true); }
 
 namespace {
 
@@ -1686,7 +1667,7 @@ void MockUseCounterCallback(v8::Isolate* isolate,
                             v8::Isolate::UseCounterFeature feature) {
   ++global_use_counts[feature];
 }
-}
+}  // namespace
 
 // Test that ES2015+ RegExp compatibility fixes are in place, that they
 // are not overly broad, and the appropriate UseCounters are incremented
@@ -2350,18 +2331,62 @@ TEST(UnicodePropertyEscapeCodeSize) {
 
   static constexpr int kMaxSize = 200 * KB;
   static constexpr bool kIsNotLatin1 = false;
-  Object maybe_code = re->Code(kIsNotLatin1);
-  Object maybe_bytecode = re->Bytecode(kIsNotLatin1);
+  Object maybe_code = re->code(kIsNotLatin1);
+  Object maybe_bytecode = re->bytecode(kIsNotLatin1);
   if (maybe_bytecode.IsByteArray()) {
     // On x64, excessive inlining produced >250KB.
     CHECK_LT(ByteArray::cast(maybe_bytecode).Size(), kMaxSize);
-  } else if (maybe_code.IsCode()) {
+  } else if (maybe_code.IsCodeT()) {
     // On x64, excessive inlining produced >360KB.
-    CHECK_LT(Code::cast(maybe_code).Size(), kMaxSize);
-    CHECK_EQ(Code::cast(maybe_code).kind(), CodeKind::REGEXP);
+    CHECK_LT(FromCodeT(CodeT::cast(maybe_code)).Size(), kMaxSize);
+    CHECK_EQ(FromCodeT(CodeT::cast(maybe_code)).kind(), CodeKind::REGEXP);
   } else {
     UNREACHABLE();
   }
+}
+
+namespace {
+
+struct RegExpExecData {
+  i::Isolate* isolate;
+  i::Handle<i::JSRegExp> regexp;
+  i::Handle<i::String> subject;
+};
+
+i::Handle<i::Object> RegExpExec(const RegExpExecData* d) {
+  return i::RegExp::Exec(d->isolate, d->regexp, d->subject, 0,
+                         d->isolate->regexp_last_match_info())
+      .ToHandleChecked();
+}
+
+void ReenterRegExp(v8::Isolate* isolate, void* data) {
+  RegExpExecData* d = static_cast<RegExpExecData*>(data);
+  i::Handle<i::Object> result = RegExpExec(d);
+  CHECK(result->IsNull());
+}
+
+}  // namespace
+
+// Tests reentrant irregexp calls.
+TEST(RegExpInterruptReentrantExecution) {
+  CHECK(!i::FLAG_jitless);
+  i::FLAG_regexp_tier_up = false;  // Enter irregexp, not the interpreter.
+
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  RegExpExecData d;
+  d.isolate = reinterpret_cast<i::Isolate*>(isolate);
+  d.regexp = v8::Utils::OpenHandle(
+      *v8::RegExp::New(context.local(), v8_str("(a*)*x"), v8::RegExp::kNone)
+           .ToLocalChecked());
+  d.subject = v8::Utils::OpenHandle(*v8_str("aaaa"));
+
+  isolate->RequestInterrupt(&ReenterRegExp, &d);
+
+  i::Handle<i::Object> result = RegExpExec(&d);
+  CHECK(result->IsNull());
 }
 
 #undef CHECK_PARSE_ERROR

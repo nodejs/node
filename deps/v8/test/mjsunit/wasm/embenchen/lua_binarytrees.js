@@ -1,5 +1,5 @@
 // Modified embenchen to direct to asm-wasm.
-// Flags: --validate-asm --allow-natives-syntax
+// Flags: --validate-asm --allow-natives-syntax --wasm-loop-unrolling
 
 var EXPECTED_OUTPUT =
   'stretch tree of depth 10\t check: -1\n' +

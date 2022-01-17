@@ -43,18 +43,17 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   enum Flag {
     kNoFlags = 0u,
     kBailoutOnUninitialized = 1u << 0,
+    kInlineJSToWasmCalls = 1u << 1,
   };
   using Flags = base::Flags<Flag>;
 
   JSCallReducer(Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker,
-                Zone* temp_zone, Flags flags,
-                CompilationDependencies* dependencies)
+                Zone* temp_zone, Flags flags)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
         broker_(broker),
         temp_zone_(temp_zone),
-        flags_(flags),
-        dependencies_(dependencies) {}
+        flags_(flags) {}
 
   const char* reducer_name() const override { return "JSCallReducer"; }
 
@@ -64,10 +63,21 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   // and does a final attempt to reduce the nodes in the waitlist.
   void Finalize() final;
 
+  // JSCallReducer outsources much work to a graph assembler.
+  void RevisitForGraphAssembler(Node* node) { Revisit(node); }
+  Zone* ZoneForGraphAssembler() const { return temp_zone(); }
+  JSGraph* JSGraphForGraphAssembler() const { return jsgraph(); }
+
+  bool has_wasm_calls() const { return has_wasm_calls_; }
+
+  CompilationDependencies* dependencies() const;
+
  private:
   Reduction ReduceBooleanConstructor(Node* node);
   Reduction ReduceCallApiFunction(Node* node,
                                   const SharedFunctionInfoRef& shared);
+  Reduction ReduceCallWasmFunction(Node* node,
+                                   const SharedFunctionInfoRef& shared);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeBind(Node* node);
   Reduction ReduceFunctionPrototypeCall(Node* node);
@@ -113,10 +123,15 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceFastArrayIteratorNext(InstanceType type, Node* node,
                                         IterationKind kind);
 
+  Reduction ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
+      Node* node, Node* arguments_list, int arraylike_or_spread_index,
+      CallFrequency const& frequency, FeedbackSource const& feedback,
+      SpeculationMode speculation_mode, CallFeedbackRelation feedback_relation);
   Reduction ReduceCallOrConstructWithArrayLikeOrSpread(
-      Node* node, int arraylike_or_spread_index, CallFrequency const& frequency,
-      FeedbackSource const& feedback, SpeculationMode speculation_mode,
-      CallFeedbackRelation feedback_relation);
+      Node* node, int argument_count, int arraylike_or_spread_index,
+      CallFrequency const& frequency, FeedbackSource const& feedback_source,
+      SpeculationMode speculation_mode, CallFeedbackRelation feedback_relation,
+      Node* target, Effect effect, Control control);
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSConstructWithArrayLike(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
@@ -221,6 +236,15 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   bool IsBuiltinOrApiFunction(JSFunctionRef target_ref) const;
 
+  // Check whether an array has the expected length. Returns the new effect.
+  Node* CheckArrayLength(Node* array, ElementsKind elements_kind,
+                         uint32_t array_length,
+                         const FeedbackSource& feedback_source, Effect effect,
+                         Control control);
+
+  // Check whether the given new target value is a constructor function.
+  void CheckIfConstructor(Node* call);
+
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   JSHeapBroker* broker() const { return broker_; }
@@ -232,15 +256,17 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
   Flags flags() const { return flags_; }
-  CompilationDependencies* dependencies() const { return dependencies_; }
-  bool should_disallow_heap_access() const;
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
   Zone* const temp_zone_;
   Flags const flags_;
-  CompilationDependencies* const dependencies_;
   std::set<Node*> waitlist_;
+
+  // For preventing infinite recursion via ReduceJSCallWithArrayLikeOrSpread.
+  std::unordered_set<Node*> generated_calls_with_array_like_or_spread_;
+
+  bool has_wasm_calls_ = false;
 };
 
 }  // namespace compiler

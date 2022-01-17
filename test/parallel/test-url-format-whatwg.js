@@ -6,18 +6,17 @@ if (!common.hasIntl)
 
 const assert = require('assert');
 const url = require('url');
-const URL = url.URL;
 
-const myURL = new URL('http://xn--lck1c3crb1723bpq4a.com/a?a=b#c');
+const myURL = new URL('http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c');
 
 assert.strictEqual(
   url.format(myURL),
-  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 assert.strictEqual(
   url.format(myURL, {}),
-  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 {
@@ -38,81 +37,106 @@ assert.strictEqual(
 // Any truthy value will be treated as true.
 
 assert.strictEqual(
+  url.format(myURL, { auth: false }),
+  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+);
+
+assert.strictEqual(
+  url.format(myURL, { auth: '' }),
+  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+);
+
+assert.strictEqual(
+  url.format(myURL, { auth: 0 }),
+  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+);
+
+assert.strictEqual(
+  url.format(myURL, { auth: 1 }),
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+);
+
+assert.strictEqual(
+  url.format(myURL, { auth: {} }),
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+);
+
+assert.strictEqual(
   url.format(myURL, { fragment: false }),
-  'http://xn--lck1c3crb1723bpq4a.com/a?a=b'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b'
 );
 
 assert.strictEqual(
   url.format(myURL, { fragment: '' }),
-  'http://xn--lck1c3crb1723bpq4a.com/a?a=b'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b'
 );
 
 assert.strictEqual(
   url.format(myURL, { fragment: 0 }),
-  'http://xn--lck1c3crb1723bpq4a.com/a?a=b'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b'
 );
 
 assert.strictEqual(
   url.format(myURL, { fragment: 1 }),
-  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 assert.strictEqual(
   url.format(myURL, { fragment: {} }),
-  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 assert.strictEqual(
   url.format(myURL, { search: false }),
-  'http://xn--lck1c3crb1723bpq4a.com/a#c'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a#c'
 );
 
 assert.strictEqual(
   url.format(myURL, { search: '' }),
-  'http://xn--lck1c3crb1723bpq4a.com/a#c'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a#c'
 );
 
 assert.strictEqual(
   url.format(myURL, { search: 0 }),
-  'http://xn--lck1c3crb1723bpq4a.com/a#c'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a#c'
 );
 
 assert.strictEqual(
   url.format(myURL, { search: 1 }),
-  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 assert.strictEqual(
   url.format(myURL, { search: {} }),
-  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 assert.strictEqual(
   url.format(myURL, { unicode: true }),
-  'http://理容ナカムラ.com/a?a=b#c'
+  'http://user:pass@理容ナカムラ.com/a?a=b#c'
 );
 
 assert.strictEqual(
   url.format(myURL, { unicode: 1 }),
-  'http://理容ナカムラ.com/a?a=b#c'
+  'http://user:pass@理容ナカムラ.com/a?a=b#c'
 );
 
 assert.strictEqual(
   url.format(myURL, { unicode: {} }),
-  'http://理容ナカムラ.com/a?a=b#c'
+  'http://user:pass@理容ナカムラ.com/a?a=b#c'
 );
 
 assert.strictEqual(
   url.format(myURL, { unicode: false }),
-  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 assert.strictEqual(
   url.format(myURL, { unicode: 0 }),
-  'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
+  'http://user:pass@xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
 assert.strictEqual(
-  url.format(new URL('http://xn--0zwm56d.com:8080/path'), { unicode: true }),
-  'http://测试.com:8080/path'
+  url.format(new URL('http://user:pass@xn--0zwm56d.com:8080/path'), { unicode: true }),
+  'http://user:pass@测试.com:8080/path'
 );

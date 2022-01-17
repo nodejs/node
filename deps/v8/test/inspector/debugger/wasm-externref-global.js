@@ -9,8 +9,8 @@ utils.load('test/inspector/wasm-inspector-test.js');
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Test wasm scope information with externref globals');
 
-(async function() {
-  try {
+InspectorTest.runAsyncTestSuite([
+  async function test() {
     let builder = new WasmModuleBuilder();
     builder.addImportedGlobal('m', 'global', kWasmExternRef, false);
     let func = builder.addFunction('func', kSig_v_v)
@@ -67,18 +67,15 @@ let {session, contextGroup, Protocol} =
         if (prop.name != 'globals') continue;
         let subProps = (await Protocol.Runtime.getProperties({
                             objectId: prop.value.objectId
+                          })).result.result[0];
+        let subsubProps = (await Protocol.Runtime.getProperties({
+                            objectId: subProps.value.objectId
                           })).result.result;
         let values =
-            subProps.map((value) => `"${value.name}": ${value.value.value}`)
+            subsubProps.map((value) => `"${value.name}": ${value.value.value}`)
                 .join(', ');
-        InspectorTest.log(`   ${prop.name}: {${values}}`);
+        InspectorTest.log(`   ${prop.name}: {"name": ${subProps.name}, ${values}}`);
       }
     }
-
-    InspectorTest.log('Finished.');
-  } catch (exc) {
-    InspectorTest.log(`Failed with exception: ${exc}.`);
-  } finally {
-    InspectorTest.completeTest();
   }
-})();
+]);

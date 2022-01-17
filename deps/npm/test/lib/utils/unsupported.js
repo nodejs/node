@@ -1,5 +1,6 @@
-const test = require('tap').test
+const t = require('tap')
 const unsupported = require('../../../lib/utils/unsupported.js')
+const mockGlobals = require('../../fixtures/mock-globals.js')
 
 const versions = [
   //          broken unsupported
@@ -27,81 +28,75 @@ const versions = [
   ['v7.2.3', false, true],
   ['v8.4.0', false, true],
   ['v9.3.0', false, true],
-  ['v10.0.0-0', false, false],
-  ['v11.0.0-0', false, false],
-  ['v12.0.0-0', false, false],
-  ['v13.0.0-0', false, false]
+  ['v10.0.0-0', false, true],
+  ['v11.0.0-0', false, true],
+  ['v12.0.0-0', false, true],
+  ['v12.13.0-0', false, false],
+  ['v13.0.0-0', false, true],
+  ['v14.0.0-0', false, true],
+  ['v14.15.0-0', false, false],
+  ['v15.0.0-0', false, true],
+  ['v16.0.0-0', false, false],
 ]
 
-test('versions', function (t) {
+t.test('versions', function (t) {
   t.plan(versions.length * 2)
   versions.forEach(function (verinfo) {
     const version = verinfo[0]
     const broken = verinfo[1]
     const unsupp = verinfo[2]
     const nodejs = unsupported.checkVersion(version)
-    t.is(nodejs.broken, broken, version + ' ' + (broken ? '' : 'not ') + 'broken')
-    t.is(nodejs.unsupported, unsupp, version + ' ' + (unsupp ? 'unsupported' : 'supported'))
+    t.equal(nodejs.broken, broken, version + ' ' + (broken ? '' : 'not ') + 'broken')
+    t.equal(nodejs.unsupported, unsupp, version + ' ' + (unsupp ? 'unsupported' : 'supported'))
   })
-  t.done()
+  t.end()
 })
 
-test('checkForBrokenNode', t => {
+t.test('checkForBrokenNode', t => {
   // run it once to not fail
   unsupported.checkForBrokenNode()
 
-  const { exit } = process
-  const { error } = console
-  const versionPropDesc = Object.getOwnPropertyDescriptor(process, 'version')
-
-  t.teardown(() => {
-    process.exit = exit
-    Object.defineProperty(process, 'version', versionPropDesc)
-    console.error = error
-  })
-
-  // then make it a thing that fails
-  process.exit = code => {
-    t.equal(code, 1)
-    t.strictSame(logs, expectLogs)
-    t.end()
-  }
-  Object.defineProperty(process, 'version', { value: '1.2.3', configurable: true })
   const logs = []
   const expectLogs = [
     'ERROR: npm is known not to run on Node.js 1.2.3',
     "You'll need to upgrade to a newer Node.js version in order to use this",
-    'version of npm. You can find the latest version at https://nodejs.org/'
+    'version of npm. You can find the latest version at https://nodejs.org/',
   ]
-  console.error = msg => logs.push(msg)
+
+  // then make it a thing that fails
+  mockGlobals(t, {
+    'console.error': msg => logs.push(msg),
+    'process.version': '1.2.3',
+    'process.exit': (code) => {
+      t.equal(code, 1)
+      t.strictSame(logs, expectLogs)
+      t.end()
+    },
+  })
+
   unsupported.checkForBrokenNode()
 })
 
-test('checkForUnsupportedNode', t => {
-  const npmlog = require('npmlog')
-  const { warn } = npmlog
-  const versionPropDesc = Object.getOwnPropertyDescriptor(process, 'version')
-
-  t.teardown(() => {
-    Object.defineProperty(process, 'version', versionPropDesc)
-    npmlog.warn = warn
-  })
+t.test('checkForUnsupportedNode', t => {
+  // run it once to not fail or warn
+  unsupported.checkForUnsupportedNode()
 
   const logs = []
   const expectLogs = [
     'npm does not support Node.js 8.0.0',
     'You should probably upgrade to a newer version of node as we',
     "can't make any promises that npm will work with this version.",
-    'You can find the latest version at https://nodejs.org/'
+    'You can find the latest version at https://nodejs.org/',
   ]
-  npmlog.warn = (section, msg) => logs.push(msg)
-
-  // run it once to not fail or warn
-  unsupported.checkForUnsupportedNode()
 
   // then make it a thing that fails
-  Object.defineProperty(process, 'version', { value: '8.0.0' })
+  mockGlobals(t, {
+    'console.error': msg => logs.push(msg),
+    'process.version': '8.0.0',
+  })
+
   unsupported.checkForUnsupportedNode()
+
   t.strictSame(logs, expectLogs)
   t.end()
 })

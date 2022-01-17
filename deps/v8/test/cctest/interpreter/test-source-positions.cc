@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/v8.h"
-
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/compiler/pipeline.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
+#include "src/init/v8.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/objects-inl.h"
@@ -166,13 +166,14 @@ Handle<BytecodeArray> OptimizedBytecodeSourcePositionTester::MakeBytecode(
   SetOptimizationFlags(optimization_bitmap);
   CompileRun(script.c_str());
 
-  Local<Function> api_function = Local<Function>::Cast(
+  Local<Function> api_function =
       CcTest::global()
           ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("test_function"))
-          .ToLocalChecked());
+          .ToLocalChecked()
+          .As<Function>();
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
-  return handle(function->shared().GetBytecodeArray(), isolate_);
+  return handle(function->shared().GetBytecodeArray(isolate_), isolate_);
 }
 
 void OptimizedBytecodeSourcePositionTester::SetOptimizationFlags(

@@ -22,6 +22,8 @@ BASE_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FOOZZIE = os.path.join(BASE_PATH, 'workdir', 'app_dir', 'v8_foozzie.py')
 TEST_CASES = os.path.join(BASE_PATH, 'workdir', 'output')
 
+assert os.path.exists(FOOZZIE)
+
 # Output pattern from foozzie.py when it finds a failure.
 FAILURE_RE = re.compile(
     r'# V8 correctness failure.'

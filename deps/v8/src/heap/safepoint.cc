@@ -4,11 +4,17 @@
 
 #include "src/heap/safepoint.h"
 
+#include <atomic>
+
+#include "src/base/logging.h"
+#include "src/handles/handles.h"
 #include "src/handles/local-handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
+#include "src/logging/counters-scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -16,123 +22,147 @@ namespace internal {
 GlobalSafepoint::GlobalSafepoint(Heap* heap)
     : heap_(heap), local_heaps_head_(nullptr), active_safepoint_scopes_(0) {}
 
-void GlobalSafepoint::Start() { EnterSafepointScope(); }
-
-void GlobalSafepoint::End() { LeaveSafepointScope(); }
-
-void GlobalSafepoint::EnterSafepointScope() {
-  if (!FLAG_local_heaps) return;
+void GlobalSafepoint::EnterSafepointScope(StopMainThread stop_main_thread) {
+  // Safepoints need to be initiated on the main thread.
+  DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
+  DCHECK_NULL(LocalHeap::Current());
 
   if (++active_safepoint_scopes_ > 1) return;
 
-  TimedHistogramScope timer(heap_->isolate()->counters()->time_to_safepoint());
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::STOP_THE_WORLD);
+  TimedHistogramScope timer(
+      heap_->isolate()->counters()->gc_time_to_safepoint());
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::TIME_TO_SAFEPOINT);
 
   local_heaps_mutex_.Lock();
-  local_heap_of_this_thread_ = LocalHeap::Current();
 
   barrier_.Arm();
 
-  for (LocalHeap* current = local_heaps_head_; current;
-       current = current->next_) {
-    if (current == local_heap_of_this_thread_) {
+  int running = 0;
+
+  for (LocalHeap* local_heap = local_heaps_head_; local_heap;
+       local_heap = local_heap->next_) {
+    if (local_heap->is_main_thread() &&
+        stop_main_thread == StopMainThread::kNo) {
       continue;
     }
-    current->RequestSafepoint();
+
+    LocalHeap::ThreadState expected = local_heap->state_relaxed();
+
+    while (true) {
+      CHECK(expected == LocalHeap::kParked || expected == LocalHeap::kRunning);
+      LocalHeap::ThreadState new_state =
+          expected == LocalHeap::kParked ? LocalHeap::kParkedSafepointRequested
+                                         : LocalHeap::kSafepointRequested;
+
+      if (local_heap->state_.compare_exchange_strong(expected, new_state)) {
+        if (expected == LocalHeap::kRunning) {
+          running++;
+        } else {
+          CHECK_EQ(expected, LocalHeap::kParked);
+        }
+        break;
+      }
+    }
   }
 
-  for (LocalHeap* current = local_heaps_head_; current;
-       current = current->next_) {
-    if (current == local_heap_of_this_thread_) {
-      continue;
-    }
-    current->state_mutex_.Lock();
-
-    while (current->state_ == LocalHeap::ThreadState::Running) {
-      current->state_change_.Wait(&current->state_mutex_);
-    }
-  }
+  barrier_.WaitUntilRunningThreadsInSafepoint(running);
 }
 
-void GlobalSafepoint::LeaveSafepointScope() {
-  if (!FLAG_local_heaps) return;
+void GlobalSafepoint::LeaveSafepointScope(StopMainThread stop_main_thread) {
+  // Safepoints need to be initiated on the main thread.
+  DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
+  DCHECK_NULL(LocalHeap::Current());
 
   DCHECK_GT(active_safepoint_scopes_, 0);
   if (--active_safepoint_scopes_ > 0) return;
 
-  DCHECK_EQ(local_heap_of_this_thread_, LocalHeap::Current());
-
-  for (LocalHeap* current = local_heaps_head_; current;
-       current = current->next_) {
-    if (current == local_heap_of_this_thread_) {
+  for (LocalHeap* local_heap = local_heaps_head_; local_heap;
+       local_heap = local_heap->next_) {
+    if (local_heap->is_main_thread() &&
+        stop_main_thread == StopMainThread::kNo) {
       continue;
     }
-    current->state_mutex_.Unlock();
+
+    // We transition both ParkedSafepointRequested and Safepoint states to
+    // Parked. While this is probably intuitive for ParkedSafepointRequested,
+    // this might be surprising for Safepoint though. SafepointSlowPath() will
+    // later unpark that thread again. Going through Parked means that a
+    // background thread doesn't need to be waked up before the main thread can
+    // start the next safepoint.
+
+    LocalHeap::ThreadState old_state =
+        local_heap->state_.exchange(LocalHeap::kParked);
+    CHECK(old_state == LocalHeap::kParkedSafepointRequested ||
+          old_state == LocalHeap::kSafepoint);
   }
 
   barrier_.Disarm();
 
-  local_heap_of_this_thread_ = nullptr;
   local_heaps_mutex_.Unlock();
 }
 
-void GlobalSafepoint::EnterFromThread(LocalHeap* local_heap) {
-  {
-    base::MutexGuard guard(&local_heap->state_mutex_);
-    DCHECK_EQ(local_heap->state_, LocalHeap::ThreadState::Running);
-    local_heap->state_ = LocalHeap::ThreadState::Safepoint;
-    local_heap->state_change_.NotifyAll();
-  }
+void GlobalSafepoint::WaitInSafepoint() { barrier_.WaitInSafepoint(); }
 
-  barrier_.Wait();
+void GlobalSafepoint::WaitInUnpark() { barrier_.WaitInUnpark(); }
 
-  {
-    base::MutexGuard guard(&local_heap->state_mutex_);
-    local_heap->state_ = LocalHeap::ThreadState::Running;
-  }
-}
+void GlobalSafepoint::NotifyPark() { barrier_.NotifyPark(); }
 
 void GlobalSafepoint::Barrier::Arm() {
   base::MutexGuard guard(&mutex_);
-  CHECK(!armed_);
+  DCHECK(!IsArmed());
   armed_ = true;
+  stopped_ = 0;
 }
 
 void GlobalSafepoint::Barrier::Disarm() {
   base::MutexGuard guard(&mutex_);
-  CHECK(armed_);
+  DCHECK(IsArmed());
   armed_ = false;
-  cond_.NotifyAll();
+  stopped_ = 0;
+  cv_resume_.NotifyAll();
 }
 
-void GlobalSafepoint::Barrier::Wait() {
+void GlobalSafepoint::Barrier::WaitUntilRunningThreadsInSafepoint(int running) {
   base::MutexGuard guard(&mutex_);
-  while (armed_) {
-    cond_.Wait(&mutex_);
+  DCHECK(IsArmed());
+  while (stopped_ < running) {
+    cv_stopped_.Wait(&mutex_);
+  }
+  DCHECK_EQ(stopped_, running);
+}
+
+void GlobalSafepoint::Barrier::NotifyPark() {
+  base::MutexGuard guard(&mutex_);
+  CHECK(IsArmed());
+  stopped_++;
+  cv_stopped_.NotifyOne();
+}
+
+void GlobalSafepoint::Barrier::WaitInSafepoint() {
+  base::MutexGuard guard(&mutex_);
+  CHECK(IsArmed());
+  stopped_++;
+  cv_stopped_.NotifyOne();
+
+  while (IsArmed()) {
+    cv_resume_.Wait(&mutex_);
+  }
+}
+
+void GlobalSafepoint::Barrier::WaitInUnpark() {
+  base::MutexGuard guard(&mutex_);
+
+  while (IsArmed()) {
+    cv_resume_.Wait(&mutex_);
   }
 }
 
 SafepointScope::SafepointScope(Heap* heap) : safepoint_(heap->safepoint()) {
-  safepoint_->EnterSafepointScope();
+  safepoint_->EnterSafepointScope(GlobalSafepoint::StopMainThread::kNo);
 }
 
-SafepointScope::~SafepointScope() { safepoint_->LeaveSafepointScope(); }
-
-void GlobalSafepoint::AddLocalHeap(LocalHeap* local_heap) {
-  base::MutexGuard guard(&local_heaps_mutex_);
-  if (local_heaps_head_) local_heaps_head_->prev_ = local_heap;
-  local_heap->prev_ = nullptr;
-  local_heap->next_ = local_heaps_head_;
-  local_heaps_head_ = local_heap;
-}
-
-void GlobalSafepoint::RemoveLocalHeap(LocalHeap* local_heap) {
-  base::MutexGuard guard(&local_heaps_mutex_);
-  if (local_heap->next_) local_heap->next_->prev_ = local_heap->prev_;
-  if (local_heap->prev_)
-    local_heap->prev_->next_ = local_heap->next_;
-  else
-    local_heaps_head_ = local_heap->next_;
+SafepointScope::~SafepointScope() {
+  safepoint_->LeaveSafepointScope(GlobalSafepoint::StopMainThread::kNo);
 }
 
 bool GlobalSafepoint::ContainsLocalHeap(LocalHeap* local_heap) {

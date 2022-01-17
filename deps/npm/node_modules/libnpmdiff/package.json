@@ -1,0 +1,63 @@
+{
+  "name": "libnpmdiff",
+  "version": "3.0.0",
+  "description": "The registry diff",
+  "repository": "https://github.com/npm/libnpmdiff",
+  "main": "lib/index.js",
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16"
+  },
+  "keywords": [
+    "npm",
+    "npmcli",
+    "libnpm",
+    "cli",
+    "diff"
+  ],
+  "author": "GitHub Inc.",
+  "contributors": [
+    {
+      "name": "Ruy Adorno",
+      "url": "https://ruyadorno.com",
+      "twitter": "ruyadorno"
+    }
+  ],
+  "license": "ISC",
+  "scripts": {
+    "eslint": "eslint",
+    "lint": "eslint '**/*.js'",
+    "lintfix": "npm run lint -- --fix",
+    "test": "tap",
+    "posttest": "npm run lint",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "postlint": "npm-template-check"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "devDependencies": {
+    "@npmcli/template-oss": "^2.4.2",
+    "eslint": "^8.1.0",
+    "tap": "^15.0.9"
+  },
+  "dependencies": {
+    "@npmcli/disparity-colors": "^1.0.1",
+    "@npmcli/installed-package-contents": "^1.0.7",
+    "binary-extensions": "^2.2.0",
+    "diff": "^5.0.0",
+    "minimatch": "^3.0.4",
+    "npm-package-arg": "^8.1.4",
+    "pacote": "^12.0.0",
+    "tar": "^6.1.0"
+  },
+  "templateOSS": {
+    "version": "2.4.3"
+  }
+}

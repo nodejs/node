@@ -5,10 +5,8 @@
 #ifndef V8_REGEXP_REGEXP_AST_H_
 #define V8_REGEXP_REGEXP_AST_H_
 
-#include "src/objects/js-regexp.h"
-#include "src/objects/objects.h"
-#include "src/objects/string.h"
-#include "src/utils/utils.h"
+#include "src/base/strings.h"
+#include "src/regexp/regexp-flags.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-list.h"
 #include "src/zone/zone.h"
@@ -59,7 +57,7 @@ class Interval {
     else if (from_ == kNone)
       return that;
     else
-      return Interval(Min(from_, that.from_), Max(to_, that.to_));
+      return Interval(std::min(from_, that.from_), std::max(to_, that.to_));
   }
 
   bool Contains(int value) { return (from_ <= value) && (value <= to_); }
@@ -91,17 +89,18 @@ class CharacterRange {
   V8_EXPORT_PRIVATE static void AddClassEscape(
       char type, ZoneList<CharacterRange>* ranges,
       bool add_unicode_case_equivalents, Zone* zone);
-  static Vector<const int> GetWordBounds();
-  static inline CharacterRange Singleton(uc32 value) {
+  static base::Vector<const int> GetWordBounds();
+  static inline CharacterRange Singleton(base::uc32 value) {
     return CharacterRange(value, value);
   }
-  static inline CharacterRange Range(uc32 from, uc32 to) {
-    DCHECK(0 <= from && to <= String::kMaxCodePoint);
+  static constexpr int kMaxCodePoint = 0x10ffff;
+  static inline CharacterRange Range(base::uc32 from, base::uc32 to) {
+    DCHECK(0 <= from && to <= kMaxCodePoint);
     DCHECK(static_cast<uint32_t>(from) <= static_cast<uint32_t>(to));
     return CharacterRange(from, to);
   }
   static inline CharacterRange Everything() {
-    return CharacterRange(0, String::kMaxCodePoint);
+    return CharacterRange(0, kMaxCodePoint);
   }
   static inline ZoneList<CharacterRange>* List(Zone* zone,
                                                CharacterRange range) {
@@ -110,13 +109,13 @@ class CharacterRange {
     list->Add(range, zone);
     return list;
   }
-  bool Contains(uc32 i) { return from_ <= i && i <= to_; }
-  uc32 from() const { return from_; }
-  void set_from(uc32 value) { from_ = value; }
-  uc32 to() const { return to_; }
-  void set_to(uc32 value) { to_ = value; }
+  bool Contains(base::uc32 i) { return from_ <= i && i <= to_; }
+  base::uc32 from() const { return from_; }
+  void set_from(base::uc32 value) { from_ = value; }
+  base::uc32 to() const { return to_; }
+  void set_to(base::uc32 value) { to_ = value; }
   bool is_valid() { return from_ <= to_; }
-  bool IsEverything(uc32 max) { return from_ == 0 && to_ >= max; }
+  bool IsEverything(base::uc32 max) { return from_ == 0 && to_ >= max; }
   bool IsSingleton() { return (from_ == to_); }
   V8_EXPORT_PRIVATE static void AddCaseEquivalents(
       Isolate* isolate, Zone* zone, ZoneList<CharacterRange>* ranges,
@@ -136,21 +135,21 @@ class CharacterRange {
   static const int kPayloadMask = (1 << 24) - 1;
 
  private:
-  CharacterRange(uc32 from, uc32 to) : from_(from), to_(to) {}
+  CharacterRange(base::uc32 from, base::uc32 to) : from_(from), to_(to) {}
 
-  uc32 from_;
-  uc32 to_;
+  base::uc32 from_;
+  base::uc32 to_;
 };
 
 class CharacterSet final {
  public:
-  explicit CharacterSet(uc16 standard_set_type)
+  explicit CharacterSet(base::uc16 standard_set_type)
       : ranges_(nullptr), standard_set_type_(standard_set_type) {}
   explicit CharacterSet(ZoneList<CharacterRange>* ranges)
       : ranges_(ranges), standard_set_type_(0) {}
   ZoneList<CharacterRange>* ranges(Zone* zone);
-  uc16 standard_set_type() const { return standard_set_type_; }
-  void set_standard_set_type(uc16 special_set_type) {
+  base::uc16 standard_set_type() const { return standard_set_type_; }
+  void set_standard_set_type(base::uc16 special_set_type) {
     standard_set_type_ = special_set_type;
   }
   bool is_standard() { return standard_set_type_ != 0; }
@@ -160,7 +159,7 @@ class CharacterSet final {
   ZoneList<CharacterRange>* ranges_;
   // If non-zero, the value represents a standard set (e.g., all whitespace
   // characters) without having to expand the ranges.
-  uc16 standard_set_type_;
+  base::uc16 standard_set_type_;
 };
 
 class TextElement final {
@@ -214,8 +213,7 @@ class RegExpTree : public ZoneObject {
   // expression.
   virtual Interval CaptureRegisters() { return Interval::Empty(); }
   virtual void AppendToText(RegExpText* text, Zone* zone);
-  V8_EXPORT_PRIVATE std::ostream& Print(std::ostream& os,
-                                        Zone* zone);  // NOLINT
+  V8_EXPORT_PRIVATE std::ostream& Print(std::ostream& os, Zone* zone);
 #define MAKE_ASTYPE(Name)           \
   virtual RegExp##Name* As##Name(); \
   virtual bool Is##Name();
@@ -280,8 +278,7 @@ class RegExpAssertion final : public RegExpTree {
     NON_BOUNDARY = 5,
     LAST_TYPE = NON_BOUNDARY,
   };
-  RegExpAssertion(AssertionType type, JSRegExp::Flags flags)
-      : assertion_type_(type), flags_(flags) {}
+  explicit RegExpAssertion(AssertionType type) : assertion_type_(type) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpAssertion* AsAssertion() override;
@@ -291,11 +288,9 @@ class RegExpAssertion final : public RegExpTree {
   int min_match() override { return 0; }
   int max_match() override { return 0; }
   AssertionType assertion_type() const { return assertion_type_; }
-  JSRegExp::Flags flags() const { return flags_; }
 
  private:
   const AssertionType assertion_type_;
-  const JSRegExp::Flags flags_;
 };
 
 
@@ -312,21 +307,17 @@ class RegExpCharacterClass final : public RegExpTree {
   using CharacterClassFlags = base::Flags<Flag>;
 
   RegExpCharacterClass(
-      Zone* zone, ZoneList<CharacterRange>* ranges, JSRegExp::Flags flags,
+      Zone* zone, ZoneList<CharacterRange>* ranges,
       CharacterClassFlags character_class_flags = CharacterClassFlags())
-      : set_(ranges),
-        flags_(flags),
-        character_class_flags_(character_class_flags) {
+      : set_(ranges), character_class_flags_(character_class_flags) {
     // Convert the empty set of ranges to the negated Everything() range.
     if (ranges->is_empty()) {
       ranges->Add(CharacterRange::Everything(), zone);
       character_class_flags_ ^= NEGATED;
     }
   }
-  RegExpCharacterClass(uc16 type, JSRegExp::Flags flags)
-      : set_(type),
-        flags_(flags),
-        character_class_flags_(CharacterClassFlags()) {}
+  explicit RegExpCharacterClass(base::uc16 type)
+      : set_(type), character_class_flags_(CharacterClassFlags()) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpCharacterClass* AsCharacterClass() override;
@@ -353,25 +344,22 @@ class RegExpCharacterClass final : public RegExpTree {
   // D : non-ASCII digit
   // . : non-newline
   // * : All characters, for advancing unanchored regexp
-  uc16 standard_type() const { return set_.standard_set_type(); }
+  base::uc16 standard_type() const { return set_.standard_set_type(); }
   ZoneList<CharacterRange>* ranges(Zone* zone) { return set_.ranges(zone); }
   bool is_negated() const { return (character_class_flags_ & NEGATED) != 0; }
-  JSRegExp::Flags flags() const { return flags_; }
   bool contains_split_surrogate() const {
     return (character_class_flags_ & CONTAINS_SPLIT_SURROGATE) != 0;
   }
 
  private:
   CharacterSet set_;
-  const JSRegExp::Flags flags_;
   CharacterClassFlags character_class_flags_;
 };
 
 
 class RegExpAtom final : public RegExpTree {
  public:
-  explicit RegExpAtom(Vector<const uc16> data, JSRegExp::Flags flags)
-      : data_(data), flags_(flags) {}
+  explicit RegExpAtom(base::Vector<const base::uc16> data) : data_(data) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpAtom* AsAtom() override;
@@ -380,14 +368,11 @@ class RegExpAtom final : public RegExpTree {
   int min_match() override { return data_.length(); }
   int max_match() override { return data_.length(); }
   void AppendToText(RegExpText* text, Zone* zone) override;
-  Vector<const uc16> data() { return data_; }
+  base::Vector<const base::uc16> data() { return data_; }
   int length() { return data_.length(); }
-  JSRegExp::Flags flags() const { return flags_; }
-  bool ignore_case() const { return (flags_ & JSRegExp::kIgnoreCase) != 0; }
 
  private:
-  Vector<const uc16> data_;
-  const JSRegExp::Flags flags_;
+  base::Vector<const base::uc16> data_;
 };
 
 
@@ -443,11 +428,12 @@ class RegExpQuantifier final : public RegExpTree {
   bool IsQuantifier() override;
   int min_match() override { return min_match_; }
   int max_match() override { return max_match_; }
-  int min() { return min_; }
-  int max() { return max_; }
-  bool is_possessive() { return quantifier_type_ == POSSESSIVE; }
+  int min() const { return min_; }
+  int max() const { return max_; }
+  QuantifierType quantifier_type() const { return quantifier_type_; }
+  bool is_possessive() const { return quantifier_type_ == POSSESSIVE; }
   bool is_non_greedy() { return quantifier_type_ == NON_GREEDY; }
-  bool is_greedy() { return quantifier_type_ == GREEDY; }
+  bool is_greedy() const { return quantifier_type_ == GREEDY; }
   RegExpTree* body() { return body_; }
 
  private:
@@ -486,8 +472,8 @@ class RegExpCapture final : public RegExpTree {
     max_match_ = body->max_match();
   }
   int index() const { return index_; }
-  const ZoneVector<uc16>* name() const { return name_; }
-  void set_name(const ZoneVector<uc16>* name) { name_ = name; }
+  const ZoneVector<base::uc16>* name() const { return name_; }
+  void set_name(const ZoneVector<base::uc16>* name) { name_ = name; }
   static int StartRegister(int index) { return index * 2; }
   static int EndRegister(int index) { return index * 2 + 1; }
 
@@ -496,7 +482,7 @@ class RegExpCapture final : public RegExpTree {
   int index_;
   int min_match_;
   int max_match_;
-  const ZoneVector<uc16>* name_;
+  const ZoneVector<base::uc16>* name_;
 };
 
 class RegExpGroup final : public RegExpTree {
@@ -578,9 +564,9 @@ class RegExpLookaround final : public RegExpTree {
 
 class RegExpBackReference final : public RegExpTree {
  public:
-  explicit RegExpBackReference(JSRegExp::Flags flags)
+  explicit RegExpBackReference(RegExpFlags flags)
       : capture_(nullptr), name_(nullptr), flags_(flags) {}
-  RegExpBackReference(RegExpCapture* capture, JSRegExp::Flags flags)
+  RegExpBackReference(RegExpCapture* capture, RegExpFlags flags)
       : capture_(capture), name_(nullptr), flags_(flags) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
@@ -593,13 +579,13 @@ class RegExpBackReference final : public RegExpTree {
   int index() { return capture_->index(); }
   RegExpCapture* capture() { return capture_; }
   void set_capture(RegExpCapture* capture) { capture_ = capture; }
-  const ZoneVector<uc16>* name() const { return name_; }
-  void set_name(const ZoneVector<uc16>* name) { name_ = name; }
+  const ZoneVector<base::uc16>* name() const { return name_; }
+  void set_name(const ZoneVector<base::uc16>* name) { name_ = name; }
 
  private:
   RegExpCapture* capture_;
-  const ZoneVector<uc16>* name_;
-  const JSRegExp::Flags flags_;
+  const ZoneVector<base::uc16>* name_;
+  const RegExpFlags flags_;
 };
 
 

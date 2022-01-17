@@ -107,80 +107,6 @@
           'sources': [
             '<@(icu_src_i18n)'
           ],
-          ## if your compiler can dead-strip, these exclusions will
-          ## make ZERO difference to binary size.
-          ## Made ICU-specific for future-proofing.
-          'conditions': [
-            [ 'icu_ver_major == 55', { 'sources!': [
-              # alphabetic index
-              '<(icu_path)/source/i18n/alphaindex.cpp',
-              # BOCSU
-              # misc
-              '<(icu_path)/source/i18n/regexcmp.cpp',
-              '<(icu_path)/source/i18n/regexcmp.h',
-              '<(icu_path)/source/i18n/regexcst.h',
-              '<(icu_path)/source/i18n/regeximp.cpp',
-              '<(icu_path)/source/i18n/regeximp.h',
-              '<(icu_path)/source/i18n/regexst.cpp',
-              '<(icu_path)/source/i18n/regexst.h',
-              '<(icu_path)/source/i18n/regextxt.cpp',
-              '<(icu_path)/source/i18n/regextxt.h',
-              '<(icu_path)/source/i18n/region.cpp',
-              '<(icu_path)/source/i18n/region_impl.h',
-              '<(icu_path)/source/i18n/reldatefmt.cpp',
-              '<(icu_path)/source/i18n/reldatefmt.h'
-              '<(icu_path)/source/i18n/scientificformathelper.cpp',
-              '<(icu_path)/source/i18n/tmunit.cpp',
-              '<(icu_path)/source/i18n/tmutamt.cpp',
-              '<(icu_path)/source/i18n/tmutfmt.cpp',
-              '<(icu_path)/source/i18n/uregex.cpp',
-              '<(icu_path)/source/i18n/uregexc.cpp',
-              '<(icu_path)/source/i18n/uregion.cpp',
-              '<(icu_path)/source/i18n/uspoof.cpp',
-              '<(icu_path)/source/i18n/uspoof_build.cpp',
-              '<(icu_path)/source/i18n/uspoof_conf.cpp',
-              '<(icu_path)/source/i18n/uspoof_conf.h',
-              '<(icu_path)/source/i18n/uspoof_impl.cpp',
-              '<(icu_path)/source/i18n/uspoof_impl.h',
-              '<(icu_path)/source/i18n/uspoof_wsconf.cpp',
-              '<(icu_path)/source/i18n/uspoof_wsconf.h',
-            ]}],
-            [ 'icu_ver_major == 57', { 'sources!': [
-
-              # alphabetic index
-              '<(icu_path)/source/i18n/alphaindex.cpp',
-              # BOCSU
-              # misc
-              '<(icu_path)/source/i18n/regexcmp.cpp',
-              '<(icu_path)/source/i18n/regexcmp.h',
-              '<(icu_path)/source/i18n/regexcst.h',
-              '<(icu_path)/source/i18n/regeximp.cpp',
-              '<(icu_path)/source/i18n/regeximp.h',
-              '<(icu_path)/source/i18n/regexst.cpp',
-              '<(icu_path)/source/i18n/regexst.h',
-              '<(icu_path)/source/i18n/regextxt.cpp',
-              '<(icu_path)/source/i18n/regextxt.h',
-              '<(icu_path)/source/i18n/region.cpp',
-              '<(icu_path)/source/i18n/region_impl.h',
-              '<(icu_path)/source/i18n/reldatefmt.cpp',
-              '<(icu_path)/source/i18n/reldatefmt.h'
-              '<(icu_path)/source/i18n/scientificformathelper.cpp',
-              '<(icu_path)/source/i18n/tmunit.cpp',
-              '<(icu_path)/source/i18n/tmutamt.cpp',
-              '<(icu_path)/source/i18n/tmutfmt.cpp',
-              '<(icu_path)/source/i18n/uregex.cpp',
-              '<(icu_path)/source/i18n/uregexc.cpp',
-              '<(icu_path)/source/i18n/uregion.cpp',
-              '<(icu_path)/source/i18n/uspoof.cpp',
-              '<(icu_path)/source/i18n/uspoof_build.cpp',
-              '<(icu_path)/source/i18n/uspoof_conf.cpp',
-              '<(icu_path)/source/i18n/uspoof_conf.h',
-              '<(icu_path)/source/i18n/uspoof_impl.cpp',
-              '<(icu_path)/source/i18n/uspoof_impl.h',
-              '<(icu_path)/source/i18n/uspoof_wsconf.cpp',
-              '<(icu_path)/source/i18n/uspoof_wsconf.h',
-            ]}],
-            ],
           'include_dirs': [
             '<(icu_path)/source/i18n',
           ],
@@ -241,7 +167,7 @@
                   'msvs_quote_cmd': 0,
                   'inputs': [ '<(icu_data_in)', 'icu_small.json' ],
                   'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
-                  'action': [ 'python',
+                  'action': [ '<(python)',
                               'icutrim.py',
                               '-P', '<(PRODUCT_DIR)/.', # '.' suffix is a workaround against GYP assumptions :(
                               '-D', '<(icu_data_in)',
@@ -326,7 +252,7 @@
                   'action_name': 'icutrim',
                   'inputs': [ '<(icu_data_in)', 'icu_small.json' ],
                   'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
-                  'action': [ 'python',
+                  'action': [ '<(python)',
                               'icutrim.py',
                               '-P', '<(PRODUCT_DIR)',
                               '-D', '<(icu_data_in)',
@@ -410,35 +336,6 @@
           ## make ZERO difference to binary size.
           ## Made ICU-specific for future-proofing.
       'conditions': [
-        [ 'icu_ver_major == 55', { 'sources!': [
-
-          # bidi- not needed (yet!)
-          '<(icu_path)/source/common/ubidi.c',
-          '<(icu_path)/source/common/ubidiimp.h',
-          '<(icu_path)/source/common/ubidiln.c',
-          '<(icu_path)/source/common/ubidiwrt.c',
-          #'<(icu_path)/source/common/ubidi_props.c',
-          #'<(icu_path)/source/common/ubidi_props.h',
-          #'<(icu_path)/source/common/ubidi_props_data.h',
-          # and the callers
-          '<(icu_path)/source/common/ushape.cpp',
-        ]}],
-        [ 'icu_ver_major == 57', { 'sources!': [
-          # work around http://bugs.icu-project.org/trac/ticket/12451
-          # (benign afterwards)
-          '<(icu_path)/source/common/cstr.cpp',
-
-          # bidi- not needed (yet!)
-          '<(icu_path)/source/common/ubidi.c',
-          '<(icu_path)/source/common/ubidiimp.h',
-          '<(icu_path)/source/common/ubidiln.c',
-          '<(icu_path)/source/common/ubidiwrt.c',
-          #'<(icu_path)/source/common/ubidi_props.c',
-          #'<(icu_path)/source/common/ubidi_props.h',
-          #'<(icu_path)/source/common/ubidi_props_data.h',
-          # and the callers
-          '<(icu_path)/source/common/ushape.cpp',
-        ]}],
         [ 'OS == "solaris"', { 'defines': [
           '_XOPEN_SOURCE_EXTENDED=0',
         ]}],

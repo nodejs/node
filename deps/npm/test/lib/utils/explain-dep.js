@@ -1,9 +1,16 @@
+const { resolve } = require('path')
 const t = require('tap')
-const requireInject = require('require-inject')
-const npm = {}
-const { explainNode, printNode } = requireInject('../../../lib/utils/explain-dep.js', {
-  '../../../lib/npm.js': npm
-})
+const { explainNode, printNode } = require('../../../lib/utils/explain-dep.js')
+const testdir = t.testdirName
+
+const redactCwd = (path) => {
+  const normalizePath = p => p
+    .replace(/\\+/g, '/')
+    .replace(/\r\n/g, '\n')
+  return normalizePath(path)
+    .replace(new RegExp(normalizePath(process.cwd()), 'g'), '{CWD}')
+}
+t.cleanSnapshot = (str) => redactCwd(str)
 
 const cases = {
   prodDep: {
@@ -16,10 +23,10 @@ const cases = {
         name: 'prod-dep',
         spec: '1.x',
         from: {
-          location: '/path/to/project'
-        }
-      }
-    ]
+          location: '/path/to/project',
+        },
+      },
+    ],
   },
 
   deepDev: {
@@ -51,16 +58,16 @@ const cases = {
                     name: 'topdev',
                     spec: '4.x',
                     from: {
-                      location: '/path/to/project'
-                    }
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      }
-    ]
+                      location: '/path/to/project',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ],
   },
 
   optional: {
@@ -74,10 +81,10 @@ const cases = {
         name: 'optdep',
         spec: '1.0.0',
         from: {
-          location: '/path/to/project'
-        }
-      }
-    ]
+          location: '/path/to/project',
+        },
+      },
+    ],
   },
 
   peer: {
@@ -91,10 +98,28 @@ const cases = {
         name: 'peer',
         spec: '1.0.0',
         from: {
-          location: '/path/to/project'
-        }
-      }
-    ]
+          location: '/path/to/project',
+        },
+      },
+    ],
+  },
+
+  bundled: {
+    name: 'bundle-of-joy',
+    version: '1.0.0',
+    location: 'node_modules/bundle-of-joy',
+    bundled: true,
+    dependents: [
+      {
+        type: 'prod',
+        name: 'prod-dep',
+        spec: '1.x',
+        bundled: true,
+        from: {
+          location: '/path/to/project',
+        },
+      },
+    ],
   },
 
   extraneous: {
@@ -102,8 +127,8 @@ const cases = {
     version: '1337.420.69-lol',
     location: 'node_modules/extra-neos',
     dependents: [],
-    extraneous: true
-  }
+    extraneous: true,
+  },
 }
 
 cases.manyDeps = {
@@ -114,31 +139,39 @@ cases.manyDeps = {
       type: 'prod',
       name: 'manydep',
       spec: '1.0.0',
-      from: cases.prodDep
+      from: cases.prodDep,
     },
     {
       type: 'optional',
       name: 'manydep',
       spec: '1.x',
-      from: cases.optional
+      from: cases.optional,
     },
     {
       type: 'prod',
       name: 'manydep',
       spec: '1.0.x',
-      from: cases.extraneous
+      from: cases.extraneous,
     },
     {
       type: 'dev',
       name: 'manydep',
       spec: '*',
-      from: cases.deepDev
+      from: cases.deepDev,
     },
     {
       type: 'peer',
       name: 'manydep',
       spec: '>1.0.0-beta <1.0.1',
-      from: cases.peer
+      from: cases.peer,
+    },
+    {
+      type: 'prod',
+      name: 'manydep',
+      spec: '>1.0.0-beta <1.0.1',
+      from: {
+        location: '/path/to/project',
+      },
     },
     {
       type: 'prod',
@@ -148,9 +181,9 @@ cases.manyDeps = {
         name: 'a package with a pretty long name',
         version: '1.2.3',
         dependents: {
-          location: '/path/to/project'
-        }
-      }
+          location: '/path/to/project',
+        },
+      },
     },
     {
       type: 'prod',
@@ -160,9 +193,9 @@ cases.manyDeps = {
         name: 'another package with a pretty long name',
         version: '1.2.3',
         dependents: {
-          location: '/path/to/project'
-        }
-      }
+          location: '/path/to/project',
+        },
+      },
     },
     {
       type: 'prod',
@@ -172,17 +205,39 @@ cases.manyDeps = {
         name: 'yet another a package with a pretty long name',
         version: '1.2.3',
         dependents: {
-          location: '/path/to/project'
-        }
-      }
+          location: '/path/to/project',
+        },
+      },
     },
-  ]
+  ],
 }
 
+cases.workspaces = {
+  name: 'a',
+  version: '1.0.0',
+  location: 'a',
+  isWorkspace: true,
+  dependents: [],
+  linksIn: [
+    {
+      name: 'a',
+      version: '1.0.0',
+      location: 'node_modules/a',
+      isWorkspace: true,
+      dependents: [
+        {
+          type: 'workspace',
+          name: 'a',
+          spec: `file:${resolve(testdir, 'ws-project', 'a')}`,
+          from: { location: resolve(testdir, 'ws-project') },
+        },
+      ],
+    },
+  ],
+}
 
 for (const [name, expl] of Object.entries(cases)) {
   t.test(name, t => {
-    npm.color = true
     t.matchSnapshot(printNode(expl, true), 'print color')
     t.matchSnapshot(printNode(expl, false), 'print nocolor')
     t.matchSnapshot(explainNode(expl, Infinity, true), 'explain color deep')

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --random-seed=891196975 --expose-gc --allow-natives-syntax
+// Flags: --expose-gc --allow-natives-syntax
 // Flags: --gc-interval=207 --stress-compaction --validate-asm
 // Flags: --opt --no-always-opt
 //
@@ -264,7 +264,7 @@ var __v_11 = this;
 var __v_12 = {};
 var __v_13 = {};
 try {
-    load("test/mjsunit/wasm/wasm-module-__v_1.js");
+    d8.file.execute("test/mjsunit/wasm/wasm-module-__v_1.js");
     __v_2 = 0x10000;
 } catch (e) {
     print("Caught: " + e);

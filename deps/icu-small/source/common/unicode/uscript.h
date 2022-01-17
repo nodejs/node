@@ -484,6 +484,17 @@ typedef enum UScriptCode {
       /** @stable ICU 66 */
       USCRIPT_YEZIDI                        = 192,/* Yezi */
 
+      /** @stable ICU 70 */
+      USCRIPT_CYPRO_MINOAN                  = 193,/* Cpmn */
+      /** @stable ICU 70 */
+      USCRIPT_OLD_UYGHUR                    = 194,/* Ougr */
+      /** @stable ICU 70 */
+      USCRIPT_TANGSA                        = 195,/* Tnsa */
+      /** @stable ICU 70 */
+      USCRIPT_TOTO                          = 196,/* Toto */
+      /** @stable ICU 70 */
+      USCRIPT_VITHKUQI                      = 197,/* Vith */
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UScriptCode value.
@@ -491,7 +502,7 @@ typedef enum UScriptCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    USCRIPT_CODE_LIMIT    = 193
+    USCRIPT_CODE_LIMIT    = 198
 #endif  // U_HIDE_DEPRECATED_API
 } UScriptCode;
 
@@ -514,7 +525,7 @@ typedef enum UScriptCode {
  * @return The number of script codes filled in the buffer passed in
  * @stable ICU 2.4
  */
-U_STABLE int32_t  U_EXPORT2
+U_CAPI int32_t  U_EXPORT2
 uscript_getCode(const char* nameOrAbbrOrLocale,UScriptCode* fillIn,int32_t capacity,UErrorCode *err);
 
 /**
@@ -527,7 +538,7 @@ uscript_getCode(const char* nameOrAbbrOrLocale,UScriptCode* fillIn,int32_t capac
  * or NULL if scriptCode is invalid
  * @stable ICU 2.4
  */
-U_STABLE const char*  U_EXPORT2
+U_CAPI const char*  U_EXPORT2
 uscript_getName(UScriptCode scriptCode);
 
 /**
@@ -539,7 +550,7 @@ uscript_getName(UScriptCode scriptCode);
  * @return short script name (4-letter code), or NULL if scriptCode is invalid
  * @stable ICU 2.4
  */
-U_STABLE const char*  U_EXPORT2
+U_CAPI const char*  U_EXPORT2
 uscript_getShortName(UScriptCode scriptCode);
 
 /**
@@ -550,7 +561,7 @@ uscript_getShortName(UScriptCode scriptCode);
  * @return The UScriptCode, or 0 if codepoint is invalid
  * @stable ICU 2.4
  */
-U_STABLE UScriptCode  U_EXPORT2
+U_CAPI UScriptCode  U_EXPORT2
 uscript_getScript(UChar32 codepoint, UErrorCode *err);
 
 /**
@@ -562,10 +573,10 @@ uscript_getScript(UChar32 codepoint, UErrorCode *err);
  * For more information, see UAX #24: http://www.unicode.org/reports/tr24/.
  * @param c code point
  * @param sc script code
- * @return TRUE if sc is in Script_Extensions(c)
+ * @return true if sc is in Script_Extensions(c)
  * @stable ICU 49
  */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uscript_hasScript(UChar32 c, UScriptCode sc);
 
 /**
@@ -597,7 +608,7 @@ uscript_hasScript(UChar32 c, UScriptCode sc);
  *         written to scripts unless U_BUFFER_OVERFLOW_ERROR indicates insufficient capacity
  * @stable ICU 49
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uscript_getScriptExtensions(UChar32 c,
                             UScriptCode *scripts, int32_t capacity,
                             UErrorCode *errorCode);
@@ -636,7 +647,7 @@ typedef enum UScriptUsage {
  * @return the string length, even if U_BUFFER_OVERFLOW_ERROR
  * @stable ICU 51
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uscript_getSampleString(UScriptCode script, UChar *dest, int32_t capacity, UErrorCode *pErrorCode);
 
 #if U_SHOW_CPLUSPLUS_API
@@ -668,41 +679,41 @@ uscript_getSampleUnicodeString(UScriptCode script);
  * @see UScriptUsage
  * @stable ICU 51
  */
-U_STABLE UScriptUsage U_EXPORT2
+U_CAPI UScriptUsage U_EXPORT2
 uscript_getUsage(UScriptCode script);
 
 /**
- * Returns TRUE if the script is written right-to-left.
+ * Returns true if the script is written right-to-left.
  * For example, Arab and Hebr.
  *
  * @param script script code
- * @return TRUE if the script is right-to-left
+ * @return true if the script is right-to-left
  * @stable ICU 51
  */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uscript_isRightToLeft(UScriptCode script);
 
 /**
- * Returns TRUE if the script allows line breaks between letters (excluding hyphenation).
+ * Returns true if the script allows line breaks between letters (excluding hyphenation).
  * Such a script typically requires dictionary-based line breaking.
  * For example, Hani and Thai.
  *
  * @param script script code
- * @return TRUE if the script allows line breaks between letters
+ * @return true if the script allows line breaks between letters
  * @stable ICU 51
  */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uscript_breaksBetweenLetters(UScriptCode script);
 
 /**
- * Returns TRUE if in modern (or most recent) usage of the script case distinctions are customary.
+ * Returns true if in modern (or most recent) usage of the script case distinctions are customary.
  * For example, Latn and Cyrl.
  *
  * @param script script code
- * @return TRUE if the script is cased
+ * @return true if the script is cased
  * @stable ICU 51
  */
-U_STABLE UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 uscript_isCased(UScriptCode script);
 
 #endif

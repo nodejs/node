@@ -1,7 +1,7 @@
 /*
- * Copyright 1998-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 {
     const char *hostport = HOSTPORT;
     const char *CAfile = CAFILE;
-    char *hostname;
+    const char *hostname;
     char *cp;
     BIO *out = NULL;
     char buf[1024 * 10], *p;
@@ -42,10 +42,6 @@ int main(int argc, char *argv[])
         hostport = argv[1];
     if (argc > 2)
         CAfile = argv[2];
-
-    hostname = OPENSSL_strdup(hostport);
-    if ((cp = strchr(hostname, ':')) != NULL)
-        *cp = 0;
 
 #ifdef WATT32
     dbug_init();
@@ -62,9 +58,6 @@ int main(int argc, char *argv[])
     ssl = SSL_new(ssl_ctx);
     SSL_set_connect_state(ssl);
 
-    /* Enable peername verification */
-    if (SSL_set1_host(ssl, hostname) <= 0)
-        goto err;
 
     /* Use it inside an SSL BIO */
     ssl_bio = BIO_new(BIO_f_ssl());
@@ -73,6 +66,12 @@ int main(int argc, char *argv[])
     /* Lets use a connect BIO under the SSL BIO */
     out = BIO_new(BIO_s_connect());
     BIO_set_conn_hostname(out, hostport);
+
+    /* The BIO has parsed the host:port and even IPv6 literals in [] */
+    hostname = BIO_get_conn_hostname(out);
+    if (!hostname || SSL_set1_host(ssl, hostname) <= 0)
+        goto err;
+
     BIO_set_nbio(out, 1);
     out = BIO_push(ssl_bio, out);
 

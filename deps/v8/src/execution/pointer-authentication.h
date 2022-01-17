@@ -5,7 +5,7 @@
 #ifndef V8_EXECUTION_POINTER_AUTHENTICATION_H_
 #define V8_EXECUTION_POINTER_AUTHENTICATION_H_
 
-#include "include/v8.h"
+#include "include/v8-internal.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 
@@ -27,10 +27,6 @@ class PointerAuthentication : public AllStatic {
   // When CFI is not enabled, return {pc} unmodified.
   V8_INLINE static Address StripPAC(Address pc);
 
-  // When CFI is enabled, sign {pc} using {sp} and return the signed value.
-  // When CFI is not enabled, return {pc} unmodified.
-  V8_INLINE static Address SignPCWithSP(Address pc, Address sp);
-
   // When CFI is enabled, authenticate the address stored in {pc_address} and
   // replace it with {new_pc}, after signing it. {offset_from_sp} is the offset
   // between {pc_address} and the pointer used as a context for signing.
@@ -38,12 +34,10 @@ class PointerAuthentication : public AllStatic {
   V8_INLINE static void ReplacePC(Address* pc_address, Address new_pc,
                                   int offset_from_sp);
 
-  // When CFI is enabled, authenticate the address stored in {pc_address} based
-  // on {old_context} and replace it with the same address signed with
-  // {new_context} instead.
-  // When CFI is not enabled, do nothing.
-  V8_INLINE static void ReplaceContext(Address* pc_address, Address old_context,
-                                       Address new_context);
+  // When CFI is enabled, sign {pc} using {sp}, check the address and return the
+  // signed value. When CFI is not enabled, return {pc} unmodified. This method
+  // only applies in the deoptimizer.
+  V8_INLINE static Address SignAndCheckPC(Address pc, Address sp);
 };
 
 }  // namespace internal

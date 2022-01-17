@@ -1,6 +1,6 @@
 {
   "name": "err-code",
-  "version": "1.1.2",
+  "version": "2.0.3",
   "description": "Create an error with a code",
   "main": "index.js",
   "scripts": {
@@ -26,9 +26,9 @@
   "license": "MIT",
   "devDependencies": {
     "@satazor/eslint-config": "^3.0.0",
-    "browserify": "^14.0.0",
-    "eslint": "^3.0.0",
+    "browserify": "^16.5.1",
+    "eslint": "^7.2.0",
     "expect.js": "^0.3.1",
-    "mocha": "^3.0.2"
+    "mocha": "^8.0.1"
   }
 }

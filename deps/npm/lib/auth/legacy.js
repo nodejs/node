@@ -1,32 +1,22 @@
-'use strict'
-
-const log = require('npmlog')
 const profile = require('npm-profile')
-
+const log = require('../utils/log-shim')
 const openUrl = require('../utils/open-url.js')
 const read = require('../utils/read-user-info.js')
 
-// TODO: refactor lib/utils/open-url and its usages
-const openerPromise = (url) => new Promise((resolve, reject) => {
-  openUrl(url, 'to complete your login please visit', (er) => er ? reject(er) : resolve())
-})
-
 const loginPrompter = async (creds) => {
-  const opts = { log: log }
-
-  creds.username = await read.username('Username:', creds.username, opts)
+  creds.username = await read.username('Username:', creds.username)
   creds.password = await read.password('Password:', creds.password)
-  creds.email = await read.email('Email: (this IS public) ', creds.email, opts)
+  creds.email = await read.email('Email: (this IS public) ', creds.email)
 
   return creds
 }
 
-const login = async (opts) => {
+const login = async (npm, opts) => {
   let res
 
   const requestOTP = async () => {
     const otp = await read.otp(
-      'Enter one-time password from your authenticator app: '
+      'Enter one-time password: '
     )
 
     return profile.loginCouch(
@@ -57,6 +47,7 @@ const login = async (opts) => {
     return newUser
   }
 
+  const openerPromise = (url) => openUrl(npm, url, 'to complete your login please visit')
   try {
     res = await profile.login(openerPromise, loginPrompter, opts)
   } catch (err) {
@@ -94,7 +85,7 @@ const login = async (opts) => {
 
   return {
     message,
-    newCreds
+    newCreds,
   }
 }
 

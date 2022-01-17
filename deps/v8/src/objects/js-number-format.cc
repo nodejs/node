@@ -14,7 +14,9 @@
 #include "src/execution/isolate.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-number-format-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/currunit.h"
 #include "unicode/decimfmt.h"
 #include "unicode/locid.h"
@@ -173,27 +175,11 @@ std::map<const std::string, icu::MeasureUnit> CreateUnitMap() {
   int32_t total = icu::MeasureUnit::getAvailable(nullptr, 0, status);
   CHECK(U_FAILURE(status));
   status = U_ZERO_ERROR;
-  // See the list in ecma402 #sec-issanctionedsimpleunitidentifier
-  std::set<std::string> sanctioned(
-      {"acre",       "bit",        "byte",
-       "celsius",    "centimeter", "day",
-       "degree",     "fahrenheit", "fluid-ounce",
-       "foot",       "gallon",     "gigabit",
-       "gigabyte",   "gram",       "hectare",
-       "hour",       "inch",       "kilobit",
-       "kilobyte",   "kilogram",   "kilometer",
-       "liter",      "megabit",    "megabyte",
-       "meter",      "mile",       "mile-scandinavian",
-       "millimeter", "milliliter", "millisecond",
-       "minute",     "month",      "ounce",
-       "percent",    "petabyte",   "pound",
-       "second",     "stone",      "terabit",
-       "terabyte",   "week",       "yard",
-       "year"});
   std::vector<icu::MeasureUnit> units(total);
   total = icu::MeasureUnit::getAvailable(units.data(), total, status);
   CHECK(U_SUCCESS(status));
   std::map<const std::string, icu::MeasureUnit> map;
+  std::set<std::string> sanctioned(Intl::SanctionedSimpleUnits());
   for (auto it = units.begin(); it != units.end(); ++it) {
     // Need to skip none/percent
     if (sanctioned.count(it->getSubtype()) > 0 &&
@@ -389,17 +375,17 @@ Handle<String> CurrencySignString(Isolate* isolate,
 Handle<String> UnitDisplayString(Isolate* isolate,
                                  const icu::UnicodeString& skeleton) {
   // Ex: skeleton as
-  // "measure-unit/length-meter .### rounding-mode-half-up unit-width-full-name"
+  // "unit/length-meter .### rounding-mode-half-up unit-width-full-name"
   if (skeleton.indexOf("unit-width-full-name") >= 0) {
     return ReadOnlyRoots(isolate).long_string_handle();
   }
   // Ex: skeleton as
-  // "measure-unit/length-meter .### rounding-mode-half-up unit-width-narrow".
+  // "unit/length-meter .### rounding-mode-half-up unit-width-narrow".
   if (skeleton.indexOf("unit-width-narrow") >= 0) {
     return ReadOnlyRoots(isolate).narrow_string_handle();
   }
   // Ex: skeleton as
-  // "measure-unit/length-foot .### rounding-mode-half-up"
+  // "unit/length-foot .### rounding-mode-half-up"
   return ReadOnlyRoots(isolate).short_string_handle();
 }
 
@@ -422,7 +408,7 @@ Notation NotationFromSkeleton(const icu::UnicodeString& skeleton) {
     return Notation::COMPACT;
   }
   // Ex: skeleton as
-  // "measure-unit/length-foot .### rounding-mode-half-up"
+  // "unit/length-foot .### rounding-mode-half-up"
   return Notation::STANDARD;
 }
 
@@ -562,14 +548,14 @@ namespace {
 
 // Ex: percent .### rounding-mode-half-up
 // Special case for "percent"
-// Ex: "measure-unit/length-kilometer per-measure-unit/duration-hour .###
-// rounding-mode-half-up" should return "kilometer-per-unit".
-// Ex: "measure-unit/duration-year .### rounding-mode-half-up" should return
+// Ex: "unit/milliliter-per-acre .### rounding-mode-half-up"
+// should return "milliliter-per-acre".
+// Ex: "unit/year .### rounding-mode-half-up" should return
 // "year".
 std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
   std::string str;
   str = skeleton.toUTF8String<std::string>(str);
-  std::string search("measure-unit/");
+  std::string search("unit/");
   size_t begin = str.find(search);
   if (begin == str.npos) {
     // Special case for "percent".
@@ -578,64 +564,44 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
     }
     return "";
   }
-  // Skip the type (ex: "length").
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                     b
-  begin = str.find("-", begin + search.size());
+  // Ex:
+  // "unit/acre .### rounding-mode-half-up"
+  //       b
+  // Ex:
+  // "unit/milliliter-per-acre .### rounding-mode-half-up"
+  //       b
+  begin += search.size();
   if (begin == str.npos) {
     return "";
   }
-  begin++;  // Skip the '-'.
   // Find the end of the subtype.
   size_t end = str.find(" ", begin);
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      b        e
-  if (end == str.npos) {
-    end = str.size();
-    return str.substr(begin, end - begin);
-  }
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      b        e
-  //                      [result ]
-  std::string result = str.substr(begin, end - begin);
-  begin = end + 1;
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      [result ]eb
-  std::string search_per("per-measure-unit/");
-  begin = str.find(search_per, begin);
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      [result ]e                 b
-  if (begin == str.npos) {
-    return result;
-  }
-  // Skip the type (ex: "duration").
-  begin = str.find("-", begin + search_per.size());
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      [result ]e                         b
-  if (begin == str.npos) {
-    return result;
-  }
-  begin++;  // Skip the '-'.
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      [result ]e                          b
-  end = str.find(" ", begin);
+  // Ex:
+  // "unit/acre .### rounding-mode-half-up"
+  //       b   e
+  // Ex:
+  // "unit/milliliter-per-acre .### rounding-mode-half-up"
+  //       b                  e
   if (end == str.npos) {
     end = str.size();
   }
-  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
-  //                      [result ]                           b   e
-  return result + "-per-" + str.substr(begin, end - begin);
+  return str.substr(begin, end - begin);
 }
 
 Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
   if (skeleton.indexOf("currency/") >= 0) {
     return Style::CURRENCY;
   }
-  if (skeleton.indexOf("measure-unit/") >= 0) {
-    if (skeleton.indexOf("scale/100") >= 0 &&
-        skeleton.indexOf("measure-unit/concentr-percent") >= 0) {
+  if (skeleton.indexOf("percent") >= 0) {
+    // percent precision-integer rounding-mode-half-up scale/100
+    if (skeleton.indexOf("scale/100") >= 0) {
       return Style::PERCENT;
+    } else {
+      return Style::UNIT;
     }
+  }
+  // Before ICU68: "measure-unit/", since ICU68 "unit/"
+  if (skeleton.indexOf("unit/") >= 0) {
     return Style::UNIT;
   }
   return Style::DECIMAL;
@@ -849,20 +815,11 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
-  // 2. If options is undefined, then
-  if (options_obj->IsUndefined(isolate)) {
-    // 2. a. Let options be ObjectCreate(null).
-    options_obj = isolate->factory()->NewJSObjectWithNullProto();
-  } else {
-    // 3. Else
-    // 3. a. Let options be ? ToObject(options).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
-                               Object::ToObject(isolate, options_obj, service),
-                               JSNumberFormat);
-  }
-
-  // At this point, options_obj can either be a JSObject or a JSProxy only.
-  Handle<JSReceiver> options = Handle<JSReceiver>::cast(options_obj);
+  // 2. Set options to ? CoerceOptionsToObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, CoerceOptionsToObject(isolate, options_obj, service),
+      JSNumberFormat);
 
   // 4. Let opt be a new Record.
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string", «
@@ -943,7 +900,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 3. Let style be ? GetOption(options, "style", "string",  « "decimal",
   // "percent", "currency", "unit" », "decimal").
 
-  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
+  Maybe<Style> maybe_style = GetStringOption<Style>(
       isolate, options, "style", service,
       {"decimal", "percent", "currency", "unit"},
       {Style::DECIMAL, Style::PERCENT, Style::CURRENCY, Style::UNIT},
@@ -957,7 +914,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // undefined).
   std::unique_ptr<char[]> currency_cstr;
   const std::vector<const char*> empty_values = {};
-  Maybe<bool> found_currency = Intl::GetStringOption(
+  Maybe<bool> found_currency = GetStringOption(
       isolate, options, "currency", empty_values, service, &currency_cstr);
   MAYBE_RETURN(found_currency, MaybeHandle<JSNumberFormat>());
 
@@ -987,7 +944,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 8. Let currencyDisplay be ? GetOption(options, "currencyDisplay",
   // "string", « "code",  "symbol", "name", "narrowSymbol" », "symbol").
   Maybe<CurrencyDisplay> maybe_currency_display =
-      Intl::GetStringOption<CurrencyDisplay>(
+      GetStringOption<CurrencyDisplay>(
           isolate, options, "currencyDisplay", service,
           {"code", "symbol", "name", "narrowSymbol"},
           {CurrencyDisplay::CODE, CurrencyDisplay::SYMBOL,
@@ -999,7 +956,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   CurrencySign currency_sign = CurrencySign::STANDARD;
   // 9. Let currencySign be ? GetOption(options, "currencySign", "string", «
   // "standard",  "accounting" », "standard").
-  Maybe<CurrencySign> maybe_currency_sign = Intl::GetStringOption<CurrencySign>(
+  Maybe<CurrencySign> maybe_currency_sign = GetStringOption<CurrencySign>(
       isolate, options, "currencySign", service, {"standard", "accounting"},
       {CurrencySign::STANDARD, CurrencySign::ACCOUNTING},
       CurrencySign::STANDARD);
@@ -1009,8 +966,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 10. Let unit be ? GetOption(options, "unit", "string", undefined,
   // undefined).
   std::unique_ptr<char[]> unit_cstr;
-  Maybe<bool> found_unit = Intl::GetStringOption(
-      isolate, options, "unit", empty_values, service, &unit_cstr);
+  Maybe<bool> found_unit = GetStringOption(isolate, options, "unit",
+                                           empty_values, service, &unit_cstr);
   MAYBE_RETURN(found_unit, MaybeHandle<JSNumberFormat>());
 
   std::pair<icu::MeasureUnit, icu::MeasureUnit> unit_pair;
@@ -1045,7 +1002,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
 
   // 13. Let unitDisplay be ? GetOption(options, "unitDisplay", "string", «
   // "short", "narrow", "long" »,  "short").
-  Maybe<UnitDisplay> maybe_unit_display = Intl::GetStringOption<UnitDisplay>(
+  Maybe<UnitDisplay> maybe_unit_display = GetStringOption<UnitDisplay>(
       isolate, options, "unitDisplay", service, {"short", "narrow", "long"},
       {UnitDisplay::SHORT, UnitDisplay::NARROW, UnitDisplay::LONG},
       UnitDisplay::SHORT);
@@ -1141,7 +1098,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   Notation notation = Notation::STANDARD;
   // 25. Let notation be ? GetOption(options, "notation", "string", «
   // "standard", "scientific",  "engineering", "compact" », "standard").
-  Maybe<Notation> maybe_notation = Intl::GetStringOption<Notation>(
+  Maybe<Notation> maybe_notation = GetStringOption<Notation>(
       isolate, options, "notation", service,
       {"standard", "scientific", "engineering", "compact"},
       {Notation::STANDARD, Notation::SCIENTIFIC, Notation::ENGINEERING,
@@ -1163,10 +1120,9 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
 
   // 28. Let compactDisplay be ? GetOption(options, "compactDisplay",
   // "string", « "short", "long" »,  "short").
-  Maybe<CompactDisplay> maybe_compact_display =
-      Intl::GetStringOption<CompactDisplay>(
-          isolate, options, "compactDisplay", service, {"short", "long"},
-          {CompactDisplay::SHORT, CompactDisplay::LONG}, CompactDisplay::SHORT);
+  Maybe<CompactDisplay> maybe_compact_display = GetStringOption<CompactDisplay>(
+      isolate, options, "compactDisplay", service, {"short", "long"},
+      {CompactDisplay::SHORT, CompactDisplay::LONG}, CompactDisplay::SHORT);
   MAYBE_RETURN(maybe_compact_display, MaybeHandle<JSNumberFormat>());
   CompactDisplay compact_display = maybe_compact_display.FromJust();
 
@@ -1180,8 +1136,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 30. Let useGrouping be ? GetOption(options, "useGrouping", "boolean",
   // undefined, true).
   bool use_grouping = true;
-  Maybe<bool> found_use_grouping = Intl::GetBoolOption(
-      isolate, options, "useGrouping", service, &use_grouping);
+  Maybe<bool> found_use_grouping =
+      GetBoolOption(isolate, options, "useGrouping", service, &use_grouping);
   MAYBE_RETURN(found_use_grouping, MaybeHandle<JSNumberFormat>());
   // 31. Set numberFormat.[[UseGrouping]] to useGrouping.
   if (!use_grouping) {
@@ -1191,7 +1147,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
 
   // 32. Let signDisplay be ? GetOption(options, "signDisplay", "string", «
   // "auto", "never", "always",  "exceptZero" », "auto").
-  Maybe<SignDisplay> maybe_sign_display = Intl::GetStringOption<SignDisplay>(
+  Maybe<SignDisplay> maybe_sign_display = GetStringOption<SignDisplay>(
       isolate, options, "signDisplay", service,
       {"auto", "never", "always", "exceptZero"},
       {SignDisplay::AUTO, SignDisplay::NEVER, SignDisplay::ALWAYS,
@@ -1233,7 +1189,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSNumberFormat> number_format = Handle<JSNumberFormat>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   number_format->set_locale(*locale_str);
 
   number_format->set_icu_number_formatter(*managed_number_formatter);

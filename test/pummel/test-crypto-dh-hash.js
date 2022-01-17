@@ -21,8 +21,14 @@
 
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto)
+
+if (!common.hasCrypto) {
   common.skip('node compiled without OpenSSL.');
+}
+
+if (process.config.variables.arm_version === '7') {
+  common.skip('Too slow for armv7 bots');
+}
 
 const assert = require('assert');
 const crypto = require('crypto');

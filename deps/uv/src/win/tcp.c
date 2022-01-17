@@ -236,12 +236,7 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
-
-    if (!(handle->flags & UV_HANDLE_TCP_SOCKET_CLOSED)) {
-      closesocket(handle->socket);
-      handle->socket = INVALID_SOCKET;
-      handle->flags |= UV_HANDLE_TCP_SOCKET_CLOSED;
-    }
+    assert(handle->socket == INVALID_SOCKET);
 
     if (!(handle->flags & UV_HANDLE_CONNECTION) && handle->tcp.serv.accept_reqs) {
       if (handle->flags & UV_HANDLE_EMULATE_IOCP) {
@@ -599,6 +594,7 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
     }
   }
 
+  /* If this flag is set, we already made this listen call in xfer. */
   if (!(handle->flags & UV_HANDLE_SHARED_TCP_SOCKET) &&
       listen(handle->socket, backlog) == SOCKET_ERROR) {
     return WSAGetLastError();
@@ -769,7 +765,7 @@ static int uv__is_loopback(const struct sockaddr_storage* storage) {
 }
 
 // Check if Windows version is 10.0.16299 or later
-static int uv__is_fast_loopback_fail_supported() {
+static int uv__is_fast_loopback_fail_supported(void) {
   OSVERSIONINFOW os_info;
   if (!pRtlGetVersion)
     return 0;
@@ -800,9 +796,8 @@ static int uv_tcp_try_connect(uv_connect_t* req,
   if (err)
     return err;
 
-  if (handle->delayed_error) {
-    return handle->delayed_error;
-  }
+  if (handle->delayed_error != 0)
+    goto out;
 
   if (!(handle->flags & UV_HANDLE_BOUND)) {
     if (addrlen == sizeof(uv_addr_ip4_any_)) {
@@ -815,8 +810,8 @@ static int uv_tcp_try_connect(uv_connect_t* req,
     err = uv_tcp_try_bind(handle, bind_addr, addrlen, 0);
     if (err)
       return err;
-    if (handle->delayed_error)
-      return handle->delayed_error;
+    if (handle->delayed_error != 0)
+      goto out;
   }
 
   if (!handle->tcp.conn.func_connectex) {
@@ -844,10 +839,20 @@ static int uv_tcp_try_connect(uv_connect_t* req,
              NULL);
   }
 
+out:
+
   UV_REQ_INIT(req, UV_CONNECT);
   req->handle = (uv_stream_t*) handle;
   req->cb = cb;
   memset(&req->u.io.overlapped, 0, sizeof(req->u.io.overlapped));
+
+  if (handle->delayed_error != 0) {
+    /* Process the req without IOCP. */
+    handle->reqs_pending++;
+    REGISTER_HANDLE_REQ(loop, handle, req);
+    uv_insert_pending_req(loop, (uv_req_t*)req);
+    return 0;
+  }
 
   success = handle->tcp.conn.func_connectex(handle->socket,
                                             (const struct sockaddr*) &converted,
@@ -1015,6 +1020,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
          */
         err = WSAECONNRESET;
       }
+      handle->flags &= ~(UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
 
       handle->read_cb((uv_stream_t*)handle,
                       uv_translate_sys_error(err),
@@ -1038,7 +1044,6 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
           handle->flags &= ~UV_HANDLE_READING;
           DECREASE_ACTIVE_COUNT(loop, handle);
         }
-        handle->flags &= ~UV_HANDLE_READABLE;
 
         buf.base = 0;
         buf.len = 0;
@@ -1075,7 +1080,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
           }
         } else {
           /* Connection closed */
-          handle->flags &= ~(UV_HANDLE_READING | UV_HANDLE_READABLE);
+          handle->flags &= ~UV_HANDLE_READING;
           DECREASE_ACTIVE_COUNT(loop, handle);
 
           handle->read_cb((uv_stream_t*)handle, UV_EOF, &buf);
@@ -1096,6 +1101,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
              * Unix. */
             err = WSAECONNRESET;
           }
+          handle->flags &= ~(UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
 
           handle->read_cb((uv_stream_t*)handle,
                           uv_translate_sys_error(err),
@@ -1149,9 +1155,14 @@ void uv_process_tcp_write_req(uv_loop_t* loop, uv_tcp_t* handle,
   }
 
   handle->stream.conn.write_reqs_pending--;
-  if (handle->stream.conn.shutdown_req != NULL &&
-      handle->stream.conn.write_reqs_pending == 0) {
-    uv_want_endgame(loop, (uv_handle_t*)handle);
+  if (handle->stream.conn.write_reqs_pending == 0) {
+    if (handle->flags & UV_HANDLE_CLOSING) {
+      closesocket(handle->socket);
+      handle->socket = INVALID_SOCKET;
+    }
+    if (handle->stream.conn.shutdown_req != NULL) {
+      uv_want_endgame(loop, (uv_handle_t*)handle);
+    }
   }
 
   DECREASE_PENDING_REQ_COUNT(handle);
@@ -1215,7 +1226,14 @@ void uv_process_tcp_connect_req(uv_loop_t* loop, uv_tcp_t* handle,
   UNREGISTER_HANDLE_REQ(loop, handle, req);
 
   err = 0;
-  if (REQ_SUCCESS(req)) {
+  if (handle->delayed_error) {
+    /* To smooth over the differences between unixes errors that
+     * were reported synchronously on the first connect can be delayed
+     * until the next tick--which is now.
+     */
+    err = handle->delayed_error;
+    handle->delayed_error = 0;
+  } else if (REQ_SUCCESS(req)) {
     if (handle->flags & UV_HANDLE_CLOSING) {
       /* use UV_ECANCELED for consistency with Unix */
       err = ERROR_OPERATION_ABORTED;
@@ -1320,7 +1338,7 @@ int uv_tcp_nodelay(uv_tcp_t* handle, int enable) {
   if (handle->socket != INVALID_SOCKET) {
     err = uv__tcp_nodelay(handle, handle->socket, enable);
     if (err)
-      return err;
+      return uv_translate_sys_error(err);
   }
 
   if (enable) {
@@ -1339,7 +1357,7 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay) {
   if (handle->socket != INVALID_SOCKET) {
     err = uv__tcp_keepalive(handle, handle->socket, enable, delay);
     if (err)
-      return err;
+      return uv_translate_sys_error(err);
   }
 
   if (enable) {
@@ -1386,9 +1404,24 @@ int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
 }
 
 
-static int uv_tcp_try_cancel_io(uv_tcp_t* tcp) {
-  SOCKET socket = tcp->socket;
+static void uv_tcp_try_cancel_reqs(uv_tcp_t* tcp) {
+  SOCKET socket;
   int non_ifs_lsp;
+  int reading;
+  int writing;
+
+  socket = tcp->socket;
+  reading = tcp->flags & UV_HANDLE_READING;
+  writing = tcp->stream.conn.write_reqs_pending > 0;
+  if (!reading && !writing)
+    return;
+
+  /* TODO: in libuv v2, keep explicit track of write_reqs, so we can cancel
+   * them each explicitly with CancelIoEx (like unix). */
+  if (reading)
+    CancelIoEx((HANDLE) socket, &tcp->read_req.u.io.overlapped);
+  if (writing)
+    CancelIo((HANDLE) socket);
 
   /* Check if we have any non-IFS LSPs stacked on top of TCP */
   non_ifs_lsp = (tcp->flags & UV_HANDLE_IPV6) ? uv_tcp_non_ifs_lsp_ipv6 :
@@ -1408,71 +1441,41 @@ static int uv_tcp_try_cancel_io(uv_tcp_t* tcp) {
                  NULL,
                  NULL) != 0) {
       /* Failed. We can't do CancelIo. */
-      return -1;
+      return;
     }
   }
 
   assert(socket != 0 && socket != INVALID_SOCKET);
 
-  if (!CancelIo((HANDLE) socket)) {
-    return GetLastError();
+  if (socket != tcp->socket) {
+    if (reading)
+      CancelIoEx((HANDLE) socket, &tcp->read_req.u.io.overlapped);
+    if (writing)
+      CancelIo((HANDLE) socket);
   }
-
-  /* It worked. */
-  return 0;
 }
 
 
 void uv_tcp_close(uv_loop_t* loop, uv_tcp_t* tcp) {
-  int close_socket = 1;
-
-  if (tcp->flags & UV_HANDLE_READ_PENDING) {
-    /* In order for winsock to do a graceful close there must not be any any
-     * pending reads, or the socket must be shut down for writing */
-    if (!(tcp->flags & UV_HANDLE_SHARED_TCP_SOCKET)) {
-      /* Just do shutdown on non-shared sockets, which ensures graceful close. */
-      shutdown(tcp->socket, SD_SEND);
-
-    } else if (uv_tcp_try_cancel_io(tcp) == 0) {
-      /* In case of a shared socket, we try to cancel all outstanding I/O,. If
-       * that works, don't close the socket yet - wait for the read req to
-       * return and close the socket in uv_tcp_endgame. */
-      close_socket = 0;
-
-    } else {
-      /* When cancelling isn't possible - which could happen when an LSP is
-       * present on an old Windows version, we will have to close the socket
-       * with a read pending. That is not nice because trailing sent bytes may
-       * not make it to the other side. */
+  if (tcp->flags & UV_HANDLE_CONNECTION) {
+    uv_tcp_try_cancel_reqs(tcp);
+    if (tcp->flags & UV_HANDLE_READING) {
+      uv_read_stop((uv_stream_t*) tcp);
     }
-
-  } else if ((tcp->flags & UV_HANDLE_SHARED_TCP_SOCKET) &&
-             tcp->tcp.serv.accept_reqs != NULL) {
-    /* Under normal circumstances closesocket() will ensure that all pending
-     * accept reqs are canceled. However, when the socket is shared the
-     * presence of another reference to the socket in another process will keep
-     * the accept reqs going, so we have to ensure that these are canceled. */
-    if (uv_tcp_try_cancel_io(tcp) != 0) {
-      /* When cancellation is not possible, there is another option: we can
-       * close the incoming sockets, which will also cancel the accept
-       * operations. However this is not cool because we might inadvertently
-       * close a socket that just accepted a new connection, which will cause
-       * the connection to be aborted. */
+  } else {
+    if (tcp->tcp.serv.accept_reqs != NULL) {
+      /* First close the incoming sockets to cancel the accept operations before
+       * we free their resources. */
       unsigned int i;
       for (i = 0; i < uv_simultaneous_server_accepts; i++) {
         uv_tcp_accept_t* req = &tcp->tcp.serv.accept_reqs[i];
-        if (req->accept_socket != INVALID_SOCKET &&
-            !HasOverlappedIoCompleted(&req->u.io.overlapped)) {
+        if (req->accept_socket != INVALID_SOCKET) {
           closesocket(req->accept_socket);
           req->accept_socket = INVALID_SOCKET;
         }
       }
     }
-  }
-
-  if (tcp->flags & UV_HANDLE_READING) {
-    tcp->flags &= ~UV_HANDLE_READING;
-    DECREASE_ACTIVE_COUNT(loop, tcp);
+    assert(!(tcp->flags & UV_HANDLE_READING));
   }
 
   if (tcp->flags & UV_HANDLE_LISTENING) {
@@ -1480,10 +1483,15 @@ void uv_tcp_close(uv_loop_t* loop, uv_tcp_t* tcp) {
     DECREASE_ACTIVE_COUNT(loop, tcp);
   }
 
-  if (close_socket) {
+  /* If any overlapped req failed to cancel, calling `closesocket` now would
+   * cause Win32 to send an RST packet. Try to avoid that for writes, if
+   * possibly applicable, by waiting to process the completion notifications
+   * first (which typically should be cancellations). There's not much we can
+   * do about canceled reads, which also will generate an RST packet. */
+  if (!(tcp->flags & UV_HANDLE_CONNECTION) ||
+      tcp->stream.conn.write_reqs_pending == 0) {
     closesocket(tcp->socket);
     tcp->socket = INVALID_SOCKET;
-    tcp->flags |= UV_HANDLE_TCP_SOCKET_CLOSED;
   }
 
   tcp->flags &= ~(UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
@@ -1570,4 +1578,119 @@ int uv__tcp_connect(uv_connect_t* req,
     return uv_translate_sys_error(err);
 
   return 0;
+}
+
+#ifndef WSA_FLAG_NO_HANDLE_INHERIT
+/* Added in Windows 7 SP1. Specify this to avoid race conditions, */
+/* but also manually clear the inherit flag in case this failed. */
+#define WSA_FLAG_NO_HANDLE_INHERIT 0x80
+#endif
+
+int uv_socketpair(int type, int protocol, uv_os_sock_t fds[2], int flags0, int flags1) {
+  SOCKET server = INVALID_SOCKET;
+  SOCKET client0 = INVALID_SOCKET;
+  SOCKET client1 = INVALID_SOCKET;
+  SOCKADDR_IN name;
+  LPFN_ACCEPTEX func_acceptex;
+  WSAOVERLAPPED overlap;
+  char accept_buffer[sizeof(struct sockaddr_storage) * 2 + 32];
+  int namelen;
+  int err;
+  DWORD bytes;
+  DWORD flags;
+  DWORD client0_flags = WSA_FLAG_NO_HANDLE_INHERIT;
+  DWORD client1_flags = WSA_FLAG_NO_HANDLE_INHERIT;
+
+  if (flags0 & UV_NONBLOCK_PIPE)
+      client0_flags |= WSA_FLAG_OVERLAPPED;
+  if (flags1 & UV_NONBLOCK_PIPE)
+      client1_flags |= WSA_FLAG_OVERLAPPED;
+
+  server = WSASocketW(AF_INET, type, protocol, NULL, 0,
+                      WSA_FLAG_OVERLAPPED | WSA_FLAG_NO_HANDLE_INHERIT);
+  if (server == INVALID_SOCKET)
+    goto wsaerror;
+  if (!SetHandleInformation((HANDLE) server, HANDLE_FLAG_INHERIT, 0))
+    goto error;
+  name.sin_family = AF_INET;
+  name.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  name.sin_port = 0;
+  if (bind(server, (SOCKADDR*) &name, sizeof(name)) != 0)
+    goto wsaerror;
+  if (listen(server, 1) != 0)
+    goto wsaerror;
+  namelen = sizeof(name);
+  if (getsockname(server, (SOCKADDR*) &name, &namelen) != 0)
+    goto wsaerror;
+  client0 = WSASocketW(AF_INET, type, protocol, NULL, 0, client0_flags);
+  if (client0 == INVALID_SOCKET)
+    goto wsaerror;
+  if (!SetHandleInformation((HANDLE) client0, HANDLE_FLAG_INHERIT, 0))
+    goto error;
+  if (connect(client0, (SOCKADDR*) &name, sizeof(name)) != 0)
+    goto wsaerror;
+  client1 = WSASocketW(AF_INET, type, protocol, NULL, 0, client1_flags);
+  if (client1 == INVALID_SOCKET)
+    goto wsaerror;
+  if (!SetHandleInformation((HANDLE) client1, HANDLE_FLAG_INHERIT, 0))
+    goto error;
+  if (!uv_get_acceptex_function(server, &func_acceptex)) {
+    err = WSAEAFNOSUPPORT;
+    goto cleanup;
+  }
+  memset(&overlap, 0, sizeof(overlap));
+  if (!func_acceptex(server,
+                     client1,
+                     accept_buffer,
+                     0,
+                     sizeof(struct sockaddr_storage),
+                     sizeof(struct sockaddr_storage),
+                     &bytes,
+                     &overlap)) {
+    err = WSAGetLastError();
+    if (err == ERROR_IO_PENDING) {
+      /* Result should complete immediately, since we already called connect,
+       * but empirically, we sometimes have to poll the kernel a couple times
+       * until it notices that. */
+      while (!WSAGetOverlappedResult(client1, &overlap, &bytes, FALSE, &flags)) {
+        err = WSAGetLastError();
+        if (err != WSA_IO_INCOMPLETE)
+          goto cleanup;
+        SwitchToThread();
+      }
+    }
+    else {
+      goto cleanup;
+    }
+  }
+  if (setsockopt(client1, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+                  (char*) &server, sizeof(server)) != 0) {
+    goto wsaerror;
+  }
+
+  closesocket(server);
+
+  fds[0] = client0;
+  fds[1] = client1;
+
+  return 0;
+
+ wsaerror:
+    err = WSAGetLastError();
+    goto cleanup;
+
+ error:
+    err = GetLastError();
+    goto cleanup;
+
+ cleanup:
+    if (server != INVALID_SOCKET)
+      closesocket(server);
+    if (client0 != INVALID_SOCKET)
+      closesocket(client0);
+    if (client1 != INVALID_SOCKET)
+      closesocket(client1);
+
+    assert(err);
+    return uv_translate_sys_error(err);
 }

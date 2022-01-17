@@ -40,5 +40,5 @@ setTimeout(() => {
   const len = process.listenerCount('uncaughtException');
   process.removeAllListeners('uncaughtException');
   assert.strictEqual(len, 0);
-  assert(/ERR_INVALID_REPL_INPUT.*(?!Type)RangeError: abc/s.test(accum));
+  assert.match(accum, /ERR_INVALID_REPL_INPUT.*(?!Type)RangeError: abc/s);
 }, 2);

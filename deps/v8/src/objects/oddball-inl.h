@@ -10,13 +10,14 @@
 #include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/string-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/oddball-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Oddball)
 
@@ -35,7 +36,7 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
 }
 
 DEF_GETTER(HeapObject, IsBoolean, bool) {
-  return IsOddball(isolate) &&
+  return IsOddball(cage_base) &&
          ((Oddball::cast(*this).kind() & Oddball::kNotBooleanMask) == 0);
 }
 

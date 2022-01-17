@@ -39,6 +39,8 @@ class V8_BASE_EXPORT RegionAllocator final {
   };
 
   RegionAllocator(Address address, size_t size, size_t page_size);
+  RegionAllocator(const RegionAllocator&) = delete;
+  RegionAllocator& operator=(const RegionAllocator&) = delete;
   ~RegionAllocator();
 
   // Allocates region of |size| (must be |page_size|-aligned). Returns
@@ -58,6 +60,11 @@ class V8_BASE_EXPORT RegionAllocator final {
   // memory into.
   bool AllocateRegionAt(Address requested_address, size_t size,
                         RegionState region_state = RegionState::kAllocated);
+
+  // Allocates a region of |size| aligned to |alignment|. The size and alignment
+  // must be a multiple of |page_size|. Returns the address of the region on
+  // success or kAllocationFailure.
+  Address AllocateAlignedRegion(size_t size, size_t alignment);
 
   // Frees region at given |address|, returns the size of the region.
   // There must be a used region starting at given address otherwise nothing
@@ -176,8 +183,6 @@ class V8_BASE_EXPORT RegionAllocator final {
   FRIEND_TEST(RegionAllocatorTest, Contains);
   FRIEND_TEST(RegionAllocatorTest, FindRegion);
   FRIEND_TEST(RegionAllocatorTest, Fragmentation);
-
-  DISALLOW_COPY_AND_ASSIGN(RegionAllocator);
 };
 
 }  // namespace base

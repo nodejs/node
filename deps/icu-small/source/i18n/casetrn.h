@@ -58,7 +58,7 @@ public:
      * Transliterator API.
      * @return a copy of the object.
      */
-    virtual CaseMapTransliterator* clone() const = 0;
+    virtual CaseMapTransliterator* clone() const override = 0;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
@@ -81,8 +81,8 @@ protected:
      *                    pos.contextLimit.  Otherwise, assume the text is complete.
      */
     virtual void handleTransliterate(Replaceable& text,
-                                     UTransPosition& offsets,
-                                     UBool isIncremental) const;
+                                     UTransPosition& offsets, 
+                                     UBool isIncremental) const override;
 
     UCaseMapFull *fMap;
 

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/files/file_path.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "third_party/zlib/google/zip.h"
 
@@ -28,61 +29,115 @@ namespace internal {
 // performance reasons as these calls may be expensive when IPC based).
 // This class is so far internal and only used by zip.cc, but could be made
 // public if needed.
+//
+// All methods returning a bool return true on success and false on error.
 class ZipWriter {
  public:
-// Creates a writer that will write a ZIP file to |zip_file_fd|/|zip_file|
-// and which entries (specifies with AddEntries) are relative to |root_dir|.
+// Creates a writer that will write a ZIP file to |zip_file_fd| or |zip_file|
+// and which entries are relative to |file_accessor|'s source directory.
 // All file reads are performed using |file_accessor|.
 #if defined(OS_POSIX)
   static std::unique_ptr<ZipWriter> CreateWithFd(int zip_file_fd,
-                                                 const base::FilePath& root_dir,
                                                  FileAccessor* file_accessor);
 #endif
+
   static std::unique_ptr<ZipWriter> Create(const base::FilePath& zip_file,
-                                           const base::FilePath& root_dir,
                                            FileAccessor* file_accessor);
+
+  ZipWriter(const ZipWriter&) = delete;
+  ZipWriter& operator=(const ZipWriter&) = delete;
+
   ~ZipWriter();
 
-  // Writes the files at |paths| to the ZIP file and closes this Zip file.
-  // Note that the the FilePaths must be relative to |root_dir| specified in the
-  // Create method.
-  // Returns true if all entries were written successfuly.
-  bool WriteEntries(const std::vector<base::FilePath>& paths);
+  // Sets the optional progress callback. The callback is called once for each
+  // time |period|. The final callback is always called when the ZIP operation
+  // completes.
+  void SetProgressCallback(ProgressCallback callback, base::TimeDelta period) {
+    progress_callback_ = std::move(callback);
+    progress_period_ = std::move(period);
+  }
 
- private:
-  ZipWriter(zipFile zip_file,
-            const base::FilePath& root_dir,
-            FileAccessor* file_accessor);
+  // Sets the recursive flag, indicating whether the contents of subdirectories
+  // should be included.
+  void SetRecursive(bool b) { recursive_ = b; }
 
-  // Writes the pending entries to the ZIP file if there are at least
-  // |kMaxPendingEntriesCount| of them. If |force| is true, all pending entries
-  // are written regardless of how many there are.
-  // Returns false if writing an entry fails, true if no entry was written or
-  // there was no error writing entries.
-  bool FlushEntriesIfNeeded(bool force);
+  // Sets the filter callback.
+  void SetFilterCallback(FilterCallback callback) {
+    filter_callback_ = std::move(callback);
+  }
 
-  // Adds the files at |paths| to the ZIP file. These FilePaths must be relative
-  // to |root_dir| specified in the Create method.
-  bool AddEntries(const std::vector<base::FilePath>& paths);
+  // Adds the contents of a directory. If the recursive flag is set, the
+  // contents of subdirectories are also added.
+  bool AddDirectoryContents(const base::FilePath& path);
+
+  // Adds the entries at |paths| to the ZIP file. These can be a mixed bag of
+  // files and directories. If the recursive flag is set, the contents of
+  // subdirectories is also added.
+  bool AddMixedEntries(Paths paths);
 
   // Closes the ZIP file.
-  // Returns true if successful, false otherwise (typically if an entry failed
-  // to be written).
   bool Close();
 
-  // The entries that have been added but not yet written to the ZIP file.
-  std::vector<base::FilePath> pending_entries_;
+ private:
+  // Takes ownership of |zip_file|.
+  ZipWriter(zipFile zip_file, FileAccessor* file_accessor);
+
+  // Regularly called during processing to check whether zipping should continue
+  // or should be cancelled.
+  bool ShouldContinue();
+
+  // Adds file content to currently open file entry.
+  bool AddFileContent(const base::FilePath& path, base::File file);
+
+  // Adds a file entry (including file contents).
+  bool AddFileEntry(const base::FilePath& path, base::File file);
+
+  // Adds file entries. All the paths should be existing files.
+  bool AddFileEntries(Paths paths);
+
+  // Adds a directory entry. If the recursive flag is set, the contents of this
+  // directory are also added.
+  bool AddDirectoryEntry(const base::FilePath& path);
+
+  // Adds directory entries. All the paths should be existing directories. If
+  // the recursive flag is set, the contents of these directories are also
+  // added.
+  bool AddDirectoryEntries(Paths paths);
+
+  // Opens a file or directory entry.
+  bool OpenNewFileEntry(const base::FilePath& path,
+                        bool is_directory,
+                        base::Time last_modified);
+
+  // Closes the currently open entry.
+  bool CloseNewFileEntry();
+
+  // Filters entries.
+  void Filter(std::vector<base::FilePath>* paths);
 
   // The actual zip file.
   zipFile zip_file_;
 
-  // Path to the directory entry paths are relative to.
-  base::FilePath root_dir_;
-
   // Abstraction over file access methods used to read files.
-  FileAccessor* file_accessor_;
+  FileAccessor* const file_accessor_;
 
-  DISALLOW_COPY_AND_ASSIGN(ZipWriter);
+  // Progress stats.
+  Progress progress_;
+
+  // Optional progress callback.
+  ProgressCallback progress_callback_;
+
+  // Optional progress reporting period.
+  base::TimeDelta progress_period_;
+
+  // Next time to report progress.
+  base::TimeTicks next_progress_report_time_ = base::TimeTicks::Now();
+
+  // Filter used to exclude files from the ZIP file.
+  FilterCallback filter_callback_;
+
+  // Should recursively add directories?
+  bool recursive_ = false;
 };
 
 }  // namespace internal

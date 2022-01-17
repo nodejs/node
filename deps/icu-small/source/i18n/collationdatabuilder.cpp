@@ -131,18 +131,18 @@ public:
 
     int32_t fetchCEs(const UnicodeString &str, int32_t start, int64_t ces[], int32_t cesLength);
 
-    virtual void resetToOffset(int32_t newOffset);
-    virtual int32_t getOffset() const;
+    virtual void resetToOffset(int32_t newOffset) override;
+    virtual int32_t getOffset() const override;
 
-    virtual UChar32 nextCodePoint(UErrorCode &errorCode);
-    virtual UChar32 previousCodePoint(UErrorCode &errorCode);
+    virtual UChar32 nextCodePoint(UErrorCode &errorCode) override;
+    virtual UChar32 previousCodePoint(UErrorCode &errorCode) override;
 
 protected:
-    virtual void forwardNumCodePoints(int32_t num, UErrorCode &errorCode);
-    virtual void backwardNumCodePoints(int32_t num, UErrorCode &errorCode);
+    virtual void forwardNumCodePoints(int32_t num, UErrorCode &errorCode) override;
+    virtual void backwardNumCodePoints(int32_t num, UErrorCode &errorCode) override;
 
-    virtual uint32_t getDataCE32(UChar32 c) const;
-    virtual uint32_t getCE32FromBuilderData(uint32_t ce32, UErrorCode &errorCode);
+    virtual uint32_t getDataCE32(UChar32 c) const override;
+    virtual uint32_t getCE32FromBuilderData(uint32_t ce32, UErrorCode &errorCode) override;
 
     CollationDataBuilder &builder;
     CollationData builderData;
@@ -255,12 +255,18 @@ DataBuilderCollationIterator::getDataCE32(UChar32 c) const {
 
 uint32_t
 DataBuilderCollationIterator::getCE32FromBuilderData(uint32_t ce32, UErrorCode &errorCode) {
+    if (U_FAILURE(errorCode)) { return 0; }
     U_ASSERT(Collation::hasCE32Tag(ce32, Collation::BUILDER_DATA_TAG));
     if((ce32 & CollationDataBuilder::IS_BUILDER_JAMO_CE32) != 0) {
         UChar32 jamo = Collation::indexFromCE32(ce32);
         return utrie2_get32(builder.trie, jamo);
     } else {
         ConditionalCE32 *cond = builder.getConditionalCE32ForCE32(ce32);
+        if (cond == nullptr) {
+            errorCode = U_INTERNAL_PROGRAM_ERROR;
+            // TODO: ICU-21531 figure out why this happens.
+            return 0;
+        }
         if(cond->builtCE32 == Collation::NO_CE32) {
             // Build the context-sensitive mappings into their runtime form and cache the result.
             cond->builtCE32 = builder.buildContext(cond, errorCode);
@@ -502,7 +508,7 @@ CollationDataBuilder::addCE32(uint32_t ce32, UErrorCode &errorCode) {
     for(int32_t i = 0; i < length; ++i) {
         if(ce32 == (uint32_t)ce32s.elementAti(i)) { return i; }
     }
-    ce32s.addElement((int32_t)ce32, errorCode);
+    ce32s.addElement((int32_t)ce32, errorCode);  
     return length;
 }
 
@@ -521,7 +527,7 @@ CollationDataBuilder::addConditionalCE32(const UnicodeString &context, uint32_t 
         errorCode = U_MEMORY_ALLOCATION_ERROR;
         return -1;
     }
-    conditionalCE32s.addElement(cond, errorCode);
+    conditionalCE32s.addElementX(cond, errorCode);
     return index;
 }
 
@@ -852,7 +858,7 @@ CollationDataBuilder::copyFromBaseCE32(UChar32 c, uint32_t ce32, UBool withConte
         ce32 = encodeOneCE(Collation::unassignedCEFromCodePoint(c), errorCode);
         break;
     default:
-        UPRV_UNREACHABLE;  // require ce32 == base->getFinalCE32(ce32)
+        UPRV_UNREACHABLE_EXIT;  // require ce32 == base->getFinalCE32(ce32)
     }
     return ce32;
 }

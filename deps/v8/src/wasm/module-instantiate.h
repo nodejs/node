@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_MODULE_INSTANTIATE_H_
 #define V8_WASM_MODULE_INSTANTIATE_H_
 
@@ -16,6 +20,7 @@ namespace internal {
 class Isolate;
 class JSArrayBuffer;
 class JSReceiver;
+class WasmInitExpr;
 class WasmModuleObject;
 class WasmInstanceObject;
 
@@ -36,6 +41,9 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 bool LoadElemSegment(Isolate* isolate, Handle<WasmInstanceObject> instance,
                      uint32_t table_index, uint32_t segment_index, uint32_t dst,
                      uint32_t src, uint32_t count) V8_WARN_UNUSED_RESULT;
+
+uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
+                            const WasmInitExpr& expr);
 
 }  // namespace wasm
 }  // namespace internal

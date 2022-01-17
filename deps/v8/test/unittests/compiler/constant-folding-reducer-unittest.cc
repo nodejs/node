@@ -74,8 +74,7 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
                     &machine);
-    // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph(), tick_counter());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter(), broker());
     ConstantFoldingReducer reducer(&graph_reducer, &jsgraph, broker());
     return reducer.Reduce(node);
   }

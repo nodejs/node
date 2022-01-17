@@ -34,22 +34,30 @@ void CodeDisableOptEventRecord::UpdateCodeMap(CodeMap* code_map) {
 
 void CodeDeoptEventRecord::UpdateCodeMap(CodeMap* code_map) {
   CodeEntry* entry = code_map->FindEntry(instruction_start);
-  if (entry == nullptr) return;
-  std::vector<CpuProfileDeoptFrame> frames_vector(
-      deopt_frames, deopt_frames + deopt_frame_count);
-  entry->set_deopt_info(deopt_reason, deopt_id, std::move(frames_vector));
+  if (entry != nullptr) {
+    std::vector<CpuProfileDeoptFrame> frames_vector(
+        deopt_frames, deopt_frames + deopt_frame_count);
+    entry->set_deopt_info(deopt_reason, deopt_id, std::move(frames_vector));
+  }
   delete[] deopt_frames;
 }
 
 
 void ReportBuiltinEventRecord::UpdateCodeMap(CodeMap* code_map) {
   CodeEntry* entry = code_map->FindEntry(instruction_start);
-  if (!entry) {
-    // Code objects for builtins should already have been added to the map but
-    // some of them have been filtered out by CpuProfiler.
+  if (entry) {
+    entry->SetBuiltinId(builtin);
     return;
   }
-  entry->SetBuiltinId(builtin_id);
+#if V8_ENABLE_WEBASSEMBLY
+  if (builtin == Builtin::kGenericJSToWasmWrapper) {
+    // Make sure to add the generic js-to-wasm wrapper builtin, because that
+    // one is supposed to show up in profiles.
+    entry = code_map->code_entries().Create(CodeEventListener::BUILTIN_TAG,
+                                            Builtins::name(builtin));
+    code_map->AddCode(instruction_start, entry, instruction_size);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 TickSample* SamplingEventsProcessor::StartTickSample() {
@@ -58,6 +66,11 @@ TickSample* SamplingEventsProcessor::StartTickSample() {
   TickSampleEventRecord* evt =
       new (address) TickSampleEventRecord(last_code_event_id_);
   return &evt->sample;
+}
+
+void CodeDeleteEventRecord::UpdateCodeMap(CodeMap* code_map) {
+  bool removed = code_map->RemoveCode(entry);
+  CHECK(removed);
 }
 
 void SamplingEventsProcessor::FinishTickSample() {

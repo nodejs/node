@@ -86,8 +86,11 @@ TEST(LanguageServerMessage, GotoDefinition) {
   SourceId definition_id = SourceFileMap::AddSource("file://base.tq");
 
   LanguageServerData::Scope server_data_scope;
-  LanguageServerData::AddDefinition({test_id, {1, 0}, {1, 10}},
-                                    {definition_id, {4, 1}, {4, 5}});
+  LanguageServerData::AddDefinition(
+      {test_id, LineAndColumn::WithUnknownOffset(1, 0),
+       LineAndColumn::WithUnknownOffset(1, 10)},
+      {definition_id, LineAndColumn::WithUnknownOffset(4, 1),
+       LineAndColumn::WithUnknownOffset(4, 5)});
 
   // First, check a unknown definition. The result must be null.
   GotoDefinitionRequest request;
@@ -171,8 +174,10 @@ TEST(LanguageServerMessage, LintErrorSendsDiagnostics) {
 
   // No compilation errors but two lint warnings.
   {
-    SourcePosition pos1{test_id, {0, 0}, {0, 1}};
-    SourcePosition pos2{test_id, {1, 0}, {1, 1}};
+    SourcePosition pos1{test_id, LineAndColumn::WithUnknownOffset(0, 0),
+                        LineAndColumn::WithUnknownOffset(0, 1)};
+    SourcePosition pos2{test_id, LineAndColumn::WithUnknownOffset(1, 0),
+                        LineAndColumn::WithUnknownOffset(1, 1)};
     Lint("lint error 1").Position(pos1);
     Lint("lint error 2").Position(pos2);
   }

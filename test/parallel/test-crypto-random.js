@@ -32,8 +32,8 @@ const cryptop = require('crypto').webcrypto;
 const { kMaxLength } = require('buffer');
 const { inspect } = require('util');
 
-const kMaxUint32 = Math.pow(2, 32) - 1;
-const kMaxPossibleLength = Math.min(kMaxLength, kMaxUint32);
+const kMaxInt32 = 2 ** 31 - 1;
+const kMaxPossibleLength = Math.min(kMaxLength, kMaxInt32);
 
 common.expectWarning('DeprecationWarning',
                      'crypto.pseudoRandomBytes is deprecated.', 'DEP0115');
@@ -51,7 +51,7 @@ common.expectWarning('DeprecationWarning',
       assert.throws(() => f(value, common.mustNotCall()), errObj);
     });
 
-    [-1, NaN, 2 ** 32].forEach((value) => {
+    [-1, NaN, 2 ** 32, 2 ** 31].forEach((value) => {
       const errObj = {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
@@ -93,7 +93,7 @@ common.expectWarning('DeprecationWarning',
     new Uint32Array(10),
     new Float32Array(10),
     new Float64Array(10),
-    new DataView(new ArrayBuffer(10))
+    new DataView(new ArrayBuffer(10)),
   ].forEach((buf) => {
     const before = Buffer.from(buf.buffer).toString('hex');
     crypto.randomFillSync(buf);
@@ -117,7 +117,7 @@ common.expectWarning('DeprecationWarning',
 {
   [
     new ArrayBuffer(10),
-    new SharedArrayBuffer(10)
+    new SharedArrayBuffer(10),
   ].forEach((buf) => {
     const before = Buffer.from(buf).toString('hex');
     crypto.randomFillSync(buf);
@@ -150,7 +150,7 @@ common.expectWarning('DeprecationWarning',
     new Uint32Array(10),
     new Float32Array(10),
     new Float64Array(10),
-    new DataView(new ArrayBuffer(10))
+    new DataView(new ArrayBuffer(10)),
   ].forEach((buf) => {
     const before = Buffer.from(buf.buffer).toString('hex');
     crypto.randomFill(buf, common.mustSucceed((buf) => {
@@ -163,7 +163,7 @@ common.expectWarning('DeprecationWarning',
 {
   [
     new ArrayBuffer(10),
-    new SharedArrayBuffer(10)
+    new SharedArrayBuffer(10),
   ].forEach((buf) => {
     const before = Buffer.from(buf).toString('hex');
     crypto.randomFill(buf, common.mustSucceed((buf) => {
@@ -223,7 +223,7 @@ common.expectWarning('DeprecationWarning',
 {
   [
     Buffer.alloc(10),
-    new Uint8Array(new Array(10).fill(0))
+    new Uint8Array(new Array(10).fill(0)),
   ].forEach((buf) => {
     const len = Buffer.byteLength(buf);
     assert.strictEqual(len, 10, `Expected byteLength of 10, got ${len}`);
@@ -524,4 +524,11 @@ assert.throws(
     };
     assert.throws(() => crypto.randomInt(0, 1, i), cbError);
   });
+}
+
+{
+  // Verify that it doesn't throw or abort
+  crypto.randomFill(new Uint16Array(10), 0, common.mustSucceed());
+  crypto.randomFill(new Uint32Array(10), 0, common.mustSucceed());
+  crypto.randomFill(new Uint32Array(10), 0, 1, common.mustSucceed());
 }

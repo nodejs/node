@@ -13,7 +13,6 @@
 #include "src/codegen/code-stub-assembler.h"
 #include "src/compiler/code-assembler.h"
 #include "src/utils/utils.h"
-#include "torque-generated/csa-types-tq.h"
-#include "torque-generated/field-offsets-tq.h"
+#include "torque-generated/csa-types.h"
 
 #endif  // V8_BUILTINS_TORQUE_CSA_HEADER_INCLUDES_H_

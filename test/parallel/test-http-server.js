@@ -49,6 +49,8 @@ const server = http.createServer(function(req, res) {
   res.id = request_number;
   req.id = request_number++;
 
+  assert.strictEqual(res.req, req);
+
   if (req.id === 0) {
     assert.strictEqual(req.method, 'GET');
     assert.strictEqual(url.parse(req.url).pathname, '/hello');
@@ -129,10 +131,10 @@ process.on('exit', function() {
   assert.strictEqual(requests_sent, 4);
 
   const hello = new RegExp('/hello');
-  assert.ok(hello.test(server_response));
+  assert.match(server_response, hello);
 
   const quit = new RegExp('/quit');
-  assert.ok(quit.test(server_response));
+  assert.match(server_response, quit);
 
   assert.strictEqual(client_got_eof, true);
 });

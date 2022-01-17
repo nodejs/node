@@ -9,7 +9,7 @@ const node = process.execPath;
 // Test both sets of arguments that check syntax
 const syntaxArgs = [
   '-c',
-  '--check'
+  '--check',
 ];
 
 // Should not execute code piped from stdin with --check.

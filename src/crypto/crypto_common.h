@@ -9,15 +9,9 @@
 #include <openssl/x509v3.h>
 
 #include <string>
-#include <unordered_map>
 
 namespace node {
 namespace crypto {
-// OPENSSL_free is a macro, so we need a wrapper function.
-struct OpenSSLBufferDeleter {
-  void operator()(char* pointer) const { OPENSSL_free(pointer); }
-};
-using OpenSSLBuffer = std::unique_ptr<char[], OpenSSLBufferDeleter>;
 
 struct StackOfX509Deleter {
   void operator()(STACK_OF(X509)* p) const { sk_X509_pop_free(p, X509_free); }
@@ -60,11 +54,6 @@ bool SetTLSSession(
 SSLSessionPointer GetTLSSession(v8::Local<v8::Value> val);
 
 SSLSessionPointer GetTLSSession(const unsigned char* buf, size_t length);
-
-std::unordered_multimap<std::string, std::string>
-GetCertificateAltNames(X509* cert);
-
-std::string GetCertificateCN(X509* cert);
 
 long VerifyPeerCertificate(  // NOLINT(runtime/int)
     const SSLPointer& ssl,
@@ -127,6 +116,51 @@ v8::MaybeLocal<v8::Object> ECPointToBuffer(
 
 v8::MaybeLocal<v8::Object> X509ToObject(
     Environment* env,
+    X509* cert,
+    bool names_as_string = false);
+
+v8::MaybeLocal<v8::Value> GetValidTo(
+    Environment* env,
+    X509* cert,
+    const BIOPointer& bio);
+
+v8::MaybeLocal<v8::Value> GetValidFrom(
+    Environment* env,
+    X509* cert,
+    const BIOPointer& bio);
+
+v8::MaybeLocal<v8::Value> GetFingerprintDigest(
+    Environment* env,
+    const EVP_MD* method,
+    X509* cert);
+
+v8::MaybeLocal<v8::Value> GetKeyUsage(Environment* env, X509* cert);
+
+v8::MaybeLocal<v8::Value> GetSerialNumber(Environment* env, X509* cert);
+
+v8::MaybeLocal<v8::Object> GetRawDERCertificate(Environment* env, X509* cert);
+
+v8::Local<v8::Value> ToV8Value(Environment* env, const BIOPointer& bio);
+bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext);
+
+v8::MaybeLocal<v8::Value> GetSubject(
+    Environment* env,
+    const BIOPointer& bio,
+    X509* cert);
+
+v8::MaybeLocal<v8::Value> GetIssuerString(
+    Environment* env,
+    const BIOPointer& bio,
+    X509* cert);
+
+v8::MaybeLocal<v8::Value> GetSubjectAltNameString(
+    Environment* env,
+    const BIOPointer& bio,
+    X509* cert);
+
+v8::MaybeLocal<v8::Value> GetInfoAccessString(
+    Environment* env,
+    const BIOPointer& bio,
     X509* cert);
 
 }  // namespace crypto

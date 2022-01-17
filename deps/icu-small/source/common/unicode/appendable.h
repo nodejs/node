@@ -45,7 +45,7 @@ class UnicodeString;
  *
  * The methods do not take UErrorCode parameters.
  * If an error occurs (e.g., out-of-memory),
- * in addition to returning FALSE from failing operations,
+ * in addition to returning false from failing operations,
  * the implementation must prevent unexpected behavior (e.g., crashes)
  * from further calls and should make the error condition available separately
  * (e.g., store a UErrorCode, make/keep a UnicodeString bogus).
@@ -62,7 +62,7 @@ public:
     /**
      * Appends a 16-bit code unit.
      * @param c code unit
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
     virtual UBool appendCodeUnit(char16_t c) = 0;
@@ -71,7 +71,7 @@ public:
      * Appends a code point.
      * The default implementation calls appendCodeUnit(char16_t) once or twice.
      * @param c code point 0..0x10ffff
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
     virtual UBool appendCodePoint(UChar32 c);
@@ -81,7 +81,7 @@ public:
      * The default implementation calls appendCodeUnit(char16_t) for each code unit.
      * @param s string, must not be NULL if length!=0
      * @param length string length, or -1 if NUL-terminated
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
     virtual UBool appendString(const char16_t *s, int32_t length);
@@ -90,9 +90,9 @@ public:
      * Tells the object that the caller is going to append roughly
      * appendCapacity char16_ts. A subclass might use this to pre-allocate
      * a larger buffer if necessary.
-     * The default implementation does nothing. (It always returns TRUE.)
+     * The default implementation does nothing. (It always returns true.)
      * @param appendCapacity estimated number of char16_ts that will be appended
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
     virtual UBool reserveAppendCapacity(int32_t appendCapacity);
@@ -171,36 +171,36 @@ public:
     /**
      * Appends a 16-bit code unit to the string.
      * @param c code unit
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
-    virtual UBool appendCodeUnit(char16_t c);
+    virtual UBool appendCodeUnit(char16_t c) override;
 
     /**
      * Appends a code point to the string.
      * @param c code point 0..0x10ffff
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
-    virtual UBool appendCodePoint(UChar32 c);
+    virtual UBool appendCodePoint(UChar32 c) override;
 
     /**
      * Appends a string to the UnicodeString.
      * @param s string, must not be NULL if length!=0
      * @param length string length, or -1 if NUL-terminated
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
-    virtual UBool appendString(const char16_t *s, int32_t length);
+    virtual UBool appendString(const char16_t *s, int32_t length) override;
 
     /**
      * Tells the UnicodeString that the caller is going to append roughly
      * appendCapacity char16_ts.
      * @param appendCapacity estimated number of char16_ts that will be appended
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
-    virtual UBool reserveAppendCapacity(int32_t appendCapacity);
+    virtual UBool reserveAppendCapacity(int32_t appendCapacity) override;
 
     /**
      * Returns a writable buffer for appending and writes the buffer's capacity to
@@ -226,7 +226,7 @@ public:
     virtual char16_t *getAppendBuffer(int32_t minCapacity,
                                    int32_t desiredCapacityHint,
                                    char16_t *scratch, int32_t scratchCapacity,
-                                   int32_t *resultCapacity);
+                                   int32_t *resultCapacity) override;
 
 private:
     UnicodeString &str;

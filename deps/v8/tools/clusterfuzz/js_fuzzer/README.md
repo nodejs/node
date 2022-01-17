@@ -14,8 +14,11 @@ contained binary) out of this.
 You need to intall nodejs and npm. Run `npm install` in this directory.
 
 ## Fuzzing DB
-This fuzzer requires a fuzzing DB. To build one, get the latest web_tests.zip
-from `gs://clusterfuzz-data/web_tests.zip` and run:
+This fuzzer requires a fuzzing DB. To build one, get the latest `web_tests.zip`
+from [gs://clusterfuzz-data/web_tests.zip](
+https://storage.cloud.google.com/clusterfuzz-data/web_tests.zip) and unzip it
+(note https://crbug.com/v8/10891 for making this data publicly available).
+Then run:
 
 ```bash
 $ mkdir db
@@ -90,7 +93,7 @@ $ workdir/output
 
 The `app_dir` folder can be a symlink or should contain the bundled
 version of `d8` with all files required for execution.
-The copy the packaged `ochang_js_fuzzer` executable and the `db` folder
+Copy the packaged `ochang_js_fuzzer` executable and the `db` folder
 to the `fuzzer` directory or use a symlink.
 The `input` directory is the root folder of the corpus, i.e. pointing
 to the unzipped data of `gs://clusterfuzz-data/web_tests.zip`.

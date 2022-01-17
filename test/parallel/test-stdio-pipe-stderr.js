@@ -4,7 +4,7 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const join = require('path').join;
-const spawn = require('child_process').spawnSync;
+const { spawnSync } = require('child_process');
 
 // Test that invoking node with require, and piping stderr to file,
 // does not result in exception,
@@ -21,7 +21,7 @@ const stream = fs.createWriteStream(stderrOutputPath);
 fs.writeFileSync(fakeModulePath, '', 'utf8');
 
 stream.on('open', () => {
-  spawn(process.execPath, {
+  spawnSync(process.execPath, {
     input: `require("${fakeModulePath.replace(/\\/g, '/')}")`,
     stdio: ['pipe', 'pipe', stream]
   });

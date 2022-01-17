@@ -10,20 +10,19 @@ const { subtle } = require('crypto').webcrypto;
 
 const vectors = require('../fixtures/crypto/ecdsa')();
 
-async function testVerify({
-  name,
-  hash,
-  namedCurve,
-  publicKeyBuffer,
-  privateKeyBuffer,
-  signature,
-  plaintext }) {
+async function testVerify({ name,
+                            hash,
+                            namedCurve,
+                            publicKeyBuffer,
+                            privateKeyBuffer,
+                            signature,
+                            plaintext }) {
   const [
     publicKey,
     noVerifyPublicKey,
     privateKey,
     hmacKey,
-    rsaKeys
+    rsaKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -55,7 +54,7 @@ async function testVerify({
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
   ]);
 
   assert(await subtle.verify({ name, hash }, publicKey, signature, plaintext));
@@ -128,14 +127,13 @@ async function testVerify({
     });
 }
 
-async function testSign({
-  name,
-  hash,
-  namedCurve,
-  publicKeyBuffer,
-  privateKeyBuffer,
-  signature,
-  plaintext }) {
+async function testSign({ name,
+                          hash,
+                          namedCurve,
+                          publicKeyBuffer,
+                          privateKeyBuffer,
+                          signature,
+                          plaintext }) {
   const [
     publicKey,
     noSignPrivateKey,
@@ -173,7 +171,7 @@ async function testSign({
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
   ]);
 
   {

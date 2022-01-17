@@ -13,7 +13,7 @@ const types = [
   {},
   [],
   null,
-  new Date()
+  new Date(),
 ];
 
 server.on('stream', common.mustCall((stream) => {

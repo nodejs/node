@@ -2,7 +2,7 @@
   "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
   "name": "glob",
   "description": "a little globber",
-  "version": "7.1.6",
+  "version": "7.2.0",
   "repository": {
     "type": "git",
     "url": "git://github.com/isaacs/node-glob.git"
@@ -25,15 +25,21 @@
     "path-is-absolute": "^1.0.0"
   },
   "devDependencies": {
+    "memfs": "^3.2.0",
     "mkdirp": "0",
     "rimraf": "^2.2.8",
-    "tap": "^12.0.1",
+    "tap": "^15.0.6",
     "tick": "0.0.6"
+  },
+  "tap": {
+    "before": "test/00-setup.js",
+    "after": "test/zz-cleanup.js",
+    "jobs": 1
   },
   "scripts": {
     "prepublish": "npm run benchclean",
     "profclean": "rm -f v8.log profile.txt",
-    "test": "tap test/*.js --cov",
+    "test": "tap",
     "test-regen": "npm run profclean && TEST_REGEN=1 node test/00-setup.js",
     "bench": "bash benchmark.sh",
     "prof": "bash prof.sh && cat profile.txt",

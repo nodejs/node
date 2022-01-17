@@ -1,6 +1,7 @@
 /**
  * @fileoverview Validates JSDoc comments are syntactically correct
  * @author Nicholas C. Zakas
+ * @deprecated in ESLint v5.10.0
  */
 "use strict";
 
@@ -14,13 +15,13 @@ const doctrine = require("doctrine");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce valid JSDoc comments",
-            category: "Possible Errors",
             recommended: false,
             url: "https://eslint.org/docs/rules/valid-jsdoc"
         },

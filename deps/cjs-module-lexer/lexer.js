@@ -11,6 +11,7 @@ let openTokenDepth,
   starExportMap,
   lastStarExportSpecifier,
   _exports,
+  unsafeGetters,
   reexports;
 
 function resetState () {
@@ -27,6 +28,7 @@ function resetState () {
   lastStarExportSpecifier = null;
 
   _exports = new Set();
+  unsafeGetters = new Set();
   reexports = new Set();
 }
 
@@ -35,9 +37,7 @@ const Import = 0;
 const ExportAssign = 1;
 const ExportStar = 2;
 
-const strictReserved = new Set(['implements', 'interface', 'let', 'package', 'private', 'protected', 'public', 'static', 'yield', 'enum']);
-
-module.exports = function parseCJS (source, name = '@') {
+function parseCJS (source, name = '@') {
   resetState();
   try {
     parseSource(source);
@@ -47,14 +47,39 @@ module.exports = function parseCJS (source, name = '@') {
     e.loc = pos;
     throw e;
   }
-  const result = { exports: [..._exports], reexports: [...reexports] };
+  const result = { exports: [..._exports].filter(expt => expt !== undefined && !unsafeGetters.has(expt)), reexports: [...reexports].filter(reexpt => reexpt !== undefined) };
   resetState();
   return result;
 }
 
-function addExport (name) {
-  if (!strictReserved.has(name))
-    _exports.add(name);
+function decode (str) {
+  if (str[0] === '"' || str[0] === '\'') {
+    try {
+      const decoded = (0, eval)(str);
+      // Filter to exclude non-matching UTF-16 surrogate strings
+      for (let i = 0; i < decoded.length; i++) {
+        const surrogatePrefix = decoded.charCodeAt(i) & 0xFC00;
+        if (surrogatePrefix < 0xD800) {
+          // Not a surrogate
+          continue;
+        }
+        else if (surrogatePrefix === 0xD800) {
+          // Validate surrogate pair
+          if ((decoded.charCodeAt(++i) & 0xFC00) !== 0xDC00)
+            return;
+        }
+        else {
+          // Out-of-range surrogate code (above 0xD800)
+          return;
+        }
+      }
+      return decoded;
+    }
+    catch {}
+  }
+  else {
+    return str;
+  }
 }
 
 function parseSource (cjsSource) {
@@ -95,7 +120,18 @@ function parseSource (cjsSource) {
           lastTokenPos = pos;
           continue;
         case 95/*_*/:
-          if (source.startsWith('_export', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
+          if (source.startsWith('interopRequireWildcard', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
+            const startPos = pos;
+            pos += 23;
+            if (source.charCodeAt(pos) === 40/*(*/) {
+              pos++;
+              openTokenPosStack[openTokenDepth++] = lastTokenPos;
+              if (tryParseRequire(Import) && keywordStart(startPos)) {
+                tryBacktrackAddStarExportBinding(startPos - 1);
+              }
+            }
+          }
+          else if (source.startsWith('_export', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
             pos += 8;
             if (source.startsWith('Star', pos))
               pos += 4;
@@ -160,10 +196,8 @@ function parseSource (cjsSource) {
         // TODO: <!-- XML comment support
         break;
       case 39/*'*/:
-        singleQuoteString();
-        break;
       case 34/*"*/:
-        doubleQuoteString();
+        stringLiteral(ch);
         break;
       case 47/*/*/: {
         const next_ch = source.charCodeAt(pos + 1);
@@ -252,6 +286,48 @@ function tryBacktrackAddStarExportBinding (bPos) {
   }
 }
 
+// `Object.` `prototype.`? hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)`
+function tryParseObjectHasOwnProperty (it_id) {
+  ch = commentWhitespace();
+  if (ch !== 79/*O*/ || !source.startsWith('bject', pos + 1)) return false;
+  pos += 6;
+  ch = commentWhitespace();
+  if (ch !== 46/*.*/) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (ch === 112/*p*/) {
+    if (!source.startsWith('rototype', pos + 1)) return false;
+    pos += 9;
+    ch = commentWhitespace();
+    if (ch !== 46/*.*/) return false;
+    pos++;
+    ch = commentWhitespace();
+  }
+  if (ch !== 104/*h*/ || !source.startsWith('asOwnProperty', pos + 1)) return false;
+  pos += 14;
+  ch = commentWhitespace();
+  if (ch !== 46/*.*/) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (ch !== 99/*c*/ || !source.startsWith('all', pos + 1)) return false;
+  pos += 4;
+  ch = commentWhitespace();
+  if (ch !== 40/*(*/) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (!identifier()) return false;
+  ch = commentWhitespace();
+  if (ch !== 44/*,*/) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (!source.startsWith(it_id, pos)) return false;
+  pos += it_id.length;
+  ch = commentWhitespace();
+  if (ch !== 41/*)*/) return false;
+  pos++;
+  return true;
+}
+
 function tryParseObjectDefineOrKeys (keys) {
   pos += 6;
   let revertPos = pos - 1;
@@ -260,30 +336,122 @@ function tryParseObjectDefineOrKeys (keys) {
     pos++;
     ch = commentWhitespace();
     if (ch === 100/*d*/ && source.startsWith('efineProperty', pos + 1)) {
-      pos += 14;
-      revertPos = pos - 1;
-      ch = commentWhitespace();
-      if (ch !== 40/*(*/) {
-        pos = revertPos;
-        return;
-      }
-      pos++;
-      ch = commentWhitespace();
-      if (readExportsOrModuleDotExports(ch)) {
+      let expt;
+      while (true) {
+        pos += 14;
+        revertPos = pos - 1;
         ch = commentWhitespace();
-        if (ch === 44/*,*/) {
+        if (ch !== 40/*(*/) break;
+        pos++;
+        ch = commentWhitespace();
+        if (!readExportsOrModuleDotExports(ch)) break;
+        ch = commentWhitespace();
+        if (ch !== 44/*,*/) break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch !== 39/*'*/ && ch !== 34/*"*/) break;
+        const exportPos = pos;
+        stringLiteral(ch);
+        expt = source.slice(exportPos, ++pos);
+        ch = commentWhitespace();
+        if (ch !== 44/*,*/) break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch !== 123/*{*/) break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch === 101/*e*/) {
+          if (!source.startsWith('numerable', pos + 1)) break;
+          pos += 10;
+          ch = commentWhitespace();
+          if (ch !== 58/*:*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch === 39/*'*/ || ch === 34/*"*/) {
-            const exportPos = ++pos;
-            if (identifier() && source.charCodeAt(pos) === ch) {
-              // revert for "("
-              const expt = source.slice(exportPos, pos);
-              if (expt === '__esModule')
-                addExport(expt);
-            }
-          }
+          if (ch !== 116/*t*/ || !source.startsWith('rue', pos + 1)) break;
+          pos += 4;
+          ch = commentWhitespace();
+          if (ch !== 44) break;
+          pos++;
+          ch = commentWhitespace();
         }
+        if (ch === 118/*v*/) {
+          if (!source.startsWith('alue', pos + 1)) break;
+          pos += 5;
+          ch = commentWhitespace();
+          if (ch !== 58/*:*/) break;
+          _exports.add(decode(expt));
+          pos = revertPos;
+          return;
+        }
+        else if (ch === 103/*g*/) {
+          if (!source.startsWith('et', pos + 1)) break;
+          pos += 3;
+          ch = commentWhitespace();
+          if (ch === 58/*:*/) {
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 102/*f*/) break;
+            if (!source.startsWith('unction', pos + 1)) break;
+            pos += 8;
+            let lastPos = pos;
+            ch = commentWhitespace();
+            if (ch !== 40 && (lastPos === pos || !identifier())) break;
+            ch = commentWhitespace();
+          }
+          if (ch !== 40/*(*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 41/*)*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 123/*{*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 114/*r*/) break;
+          if (!source.startsWith('eturn', pos + 1)) break;
+          pos += 6;
+          ch = commentWhitespace();
+          if (!identifier()) break;
+          ch = commentWhitespace();
+          if (ch === 46/*.*/) {
+            pos++;
+            commentWhitespace();
+            if (!identifier()) break;
+            ch = commentWhitespace();
+          }
+          else if (ch === 91/*[*/) {
+            pos++;
+            ch = commentWhitespace();
+            if (ch === 39/*'*/ || ch === 34/*"*/) stringLiteral(ch);
+            else break;
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 93/*]*/) break;
+            pos++;
+            ch = commentWhitespace();
+          }
+          if (ch === 59/*;*/) {
+            pos++;
+            ch = commentWhitespace();
+          }
+          if (ch !== 125/*}*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch === 44/*,*/) {
+            pos++;
+            ch = commentWhitespace();
+          }
+          if (ch !== 125/*}*/) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 41/*)*/) break;
+          _exports.add(decode(expt));
+          return;
+        }
+        break;
+      }
+      if (expt) {
+        unsafeGetters.add(decode(expt));
       }
     }
     else if (keys && ch === 107/*k*/ && source.startsWith('eys', pos + 1)) {
@@ -376,8 +544,94 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch === 59/*;*/)
             pos++;
           ch = commentWhitespace();
+
+          // `if (`
+          if (ch === 105/*i*/ && source.charCodeAt(pos + 1) === 102/*f*/) {
+            let inIf = true;
+            pos += 2;
+            ch = commentWhitespace();
+            if (ch !== 40/*(*/) break;
+            pos++;
+            const ifInnerPos = pos;
+            // `Object.prototype.hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)) return` `;`?
+            if (tryParseObjectHasOwnProperty(it_id)) {
+              ch = commentWhitespace();
+              if (ch !== 41/*)*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
+              pos += 6;
+              ch = commentWhitespace();
+              if (ch === 59/*;*/)
+                pos++;
+              ch = commentWhitespace();
+              // match next if
+              if (ch === 105/*i*/ && source.charCodeAt(pos + 1) === 102/*f*/) {
+                pos += 2;
+                ch = commentWhitespace();
+                if (ch !== 40/*(*/) break;
+                pos++;
+              }
+              else {
+                inIf = false;
+              }
+            }
+            else {
+              pos = ifInnerPos;
+            }
+
+            // IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`?
+            if (inIf) {
+              if (!source.startsWith(it_id, pos)) break;
+              pos += it_id.length;
+              ch = commentWhitespace();
+              if (ch !== 105/*i*/ || !source.startsWith('n ', pos + 1)) break;
+              pos += 3;
+              ch = commentWhitespace();
+              if (!readExportsOrModuleDotExports(ch)) break;
+              ch = commentWhitespace();
+              if (ch !== 38/*&*/ || source.charCodeAt(pos + 1) !== 38/*&*/) break;
+              pos += 2;
+              ch = commentWhitespace();
+              if (!readExportsOrModuleDotExports(ch)) break;
+              ch = commentWhitespace();
+              if (ch !== 91/*[*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (!source.startsWith(it_id, pos)) break;
+              pos += it_id.length;
+              ch = commentWhitespace();
+              if (ch !== 93/*]*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 61/*=*/ || !source.startsWith('==', pos + 1)) break;
+              pos += 3;
+              ch = commentWhitespace();
+              if (!source.startsWith(id, pos)) break;
+              pos += id.length;
+              ch = commentWhitespace();
+              if (ch !== 91/*[*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (!source.startsWith(it_id, pos)) break;
+              pos += it_id.length;
+              ch = commentWhitespace();
+              if (ch !== 93/*]*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 41/*)*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
+              pos += 6;
+              ch = commentWhitespace();
+              if (ch === 59/*;*/)
+                pos++;
+              ch = commentWhitespace();
+            }
+          }
         }
-        // `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) `)`
+        // `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) (`&& !` IDENTIFIER `.hasOwnProperty(` IDENTIFIER$2 `)`  )? `)`
         else if (ch === 33/*!*/) {
           if (!source.startsWith('==', pos + 1)) break;
           pos += 3;
@@ -390,66 +644,41 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== quot) break;
           pos += 1;
           ch = commentWhitespace();
+          if (ch === 38/*&*/) {
+            if (source.charCodeAt(pos + 1) !== 38/*&*/) break;
+            pos += 2;
+            ch = commentWhitespace();
+            if (ch !== 33/*!*/) break;
+            pos += 1;
+            ch = commentWhitespace();
+            if (ch === 79/*O*/ && source.startsWith('bject', pos + 1) && source[pos + 6] === '.') {
+              if (!tryParseObjectHasOwnProperty(it_id)) break;
+            }
+            else if (identifier()) {
+              ch = commentWhitespace();
+              if (ch !== 46/*.*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 104/*h*/ || !source.startsWith('asOwnProperty', pos + 1)) break;
+              pos += 14;
+              ch = commentWhitespace();
+              if (ch !== 40/*(*/) break;
+              pos += 1;
+              ch = commentWhitespace();
+              if (!source.startsWith(it_id, pos)) break;
+              pos += it_id.length;
+              ch = commentWhitespace();
+              if (ch !== 41/*)*/) break;
+              pos += 1;
+            }
+            else break;
+            ch = commentWhitespace();
+          }
           if (ch !== 41/*)*/) break;
           pos += 1;
           ch = commentWhitespace();
         }
         else break;
-
-        // `if (` IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`?
-        if (ch === 105/*i*/ && source.charCodeAt(pos + 1) === 102/*f*/) {
-          pos += 2;
-          ch = commentWhitespace();
-          if (ch !== 40/*(*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (!source.startsWith(it_id, pos)) break;
-          pos += it_id.length;
-          ch = commentWhitespace();
-          if (ch !== 105/*i*/ || !source.startsWith('n ', pos + 1)) break;
-          pos += 3;
-          ch = commentWhitespace();
-          if (!readExportsOrModuleDotExports(ch)) break;
-          ch = commentWhitespace();
-          if (ch !== 38/*&*/ || source.charCodeAt(pos + 1) !== 38/*&*/) break;
-          pos += 2;
-          ch = commentWhitespace();
-          if (!readExportsOrModuleDotExports(ch)) break;
-          ch = commentWhitespace();
-          if (ch !== 91/*[*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (!source.startsWith(it_id, pos)) break;
-          pos += it_id.length;
-          ch = commentWhitespace();
-          if (ch !== 93/*]*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 61/*=*/ || !source.startsWith('==', pos + 1)) break;
-          pos += 3;
-          ch = commentWhitespace();
-          if (!source.startsWith(id, pos)) break;
-          pos += id.length;
-          ch = commentWhitespace();
-          if (ch !== 91/*[*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (!source.startsWith(it_id, pos)) break;
-          pos += it_id.length;
-          ch = commentWhitespace();
-          if (ch !== 93/*]*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 41/*)*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
-          pos += 6;
-          ch = commentWhitespace();
-          if (ch === 59/*;*/)
-            pos++;
-          ch = commentWhitespace();
-        }
 
         // EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] =` IDENTIFIER$1 `[` IDENTIFIER$2 `]`
         if (readExportsOrModuleDotExports(ch)) {
@@ -526,12 +755,17 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 103/*g*/ || !source.startsWith('et', pos + 1)) break;
           pos += 3;
           ch = commentWhitespace();
-          if (ch !== 58/*:*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 102/*f*/ || !source.startsWith('unction', pos + 1)) break;
-          pos += 8;
-          ch = commentWhitespace();
+          if (ch === 58/*:*/) {
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 102/*f*/) break;
+            if (!source.startsWith('unction', pos + 1)) break;
+            pos += 8;
+            let lastPos = pos;
+            ch = commentWhitespace();
+            if (ch !== 40 && (lastPos === pos || !identifier())) break;
+            ch = commentWhitespace();
+          }
           if (ch !== 40/*(*/) break;
           pos++;
           ch = commentWhitespace();
@@ -563,6 +797,10 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 125/*}*/) break;
           pos++;
           ch = commentWhitespace();
+          if (ch === 44/*,*/) {
+            pos++;
+            ch = commentWhitespace();
+          }
           if (ch !== 125/*}*/) break;
           pos++;
           ch = commentWhitespace();
@@ -583,7 +821,7 @@ function tryParseObjectDefineOrKeys (keys) {
 
         const starExportSpecifier = starExportMap[id];
         if (starExportSpecifier) {
-          reexports.add(starExportSpecifier);
+          reexports.add(decode(starExportSpecifier));
           pos = revertPos;
           return;
         }
@@ -645,7 +883,7 @@ function tryParseExportsDotAssign (assign) {
         const endPos = pos;
         ch = commentWhitespace();
         if (ch === 61/*=*/) {
-          addExport(source.slice(startPos, endPos));
+          _exports.add(decode(source.slice(startPos, endPos)));
           return;
         }
       }
@@ -656,19 +894,15 @@ function tryParseExportsDotAssign (assign) {
       pos++;
       ch = commentWhitespace();
       if (ch === 39/*'*/ || ch === 34/*"*/) {
-        pos++;
         const startPos = pos;
-        if (identifier() && source.charCodeAt(pos) === ch) {
-          const endPos = pos++;
-          ch = commentWhitespace();
-          if (ch !== 93/*]*/)
-            break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 61/*=*/)
-            break;
-          addExport(source.slice(startPos, endPos));
-        }
+        stringLiteral(ch);
+        const endPos = ++pos;
+        ch = commentWhitespace();
+        if (ch !== 93/*]*/) break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch !== 61/*=*/) break;
+        _exports.add(decode(source.slice(startPos, endPos)));
       }
       break;
     }
@@ -703,39 +937,21 @@ function tryParseRequire (requireType) {
     if (ch === 40/*(*/) {
       pos++;
       ch = commentWhitespace();
-      const reexportStart = pos + 1;
-      if (ch === 39/*'*/) {
-        singleQuoteString();
-        const reexportEnd = pos++;
+      const reexportStart = pos;
+      if (ch === 39/*'*/ || ch === 34/*"*/) {
+        stringLiteral(ch);
+        const reexportEnd = ++pos;
         ch = commentWhitespace();
         if (ch === 41/*)*/) {
           switch (requireType) {
             case ExportAssign:
-              reexports.add(source.slice(reexportStart, reexportEnd));
+              reexports.add(decode(source.slice(reexportStart, reexportEnd)));
               return true;
             case ExportStar:
-              reexports.add(source.slice(reexportStart, reexportEnd));
+              reexports.add(decode(source.slice(reexportStart, reexportEnd)));
               return true;
             default:
-              lastStarExportSpecifier = source.slice(reexportStart, reexportEnd);
-              return true;
-          }
-        }
-      }
-      else if (ch === 34/*"*/) {
-        doubleQuoteString();
-        const reexportEnd = pos++;
-        ch = commentWhitespace();
-        if (ch === 41/*)*/) {
-          switch (requireType) {
-            case ExportAssign:
-              reexports.add(source.slice(reexportStart, reexportEnd));
-              return true;
-            case ExportStar:
-              reexports.add(source.slice(reexportStart, reexportEnd));
-              return true;
-            default:
-              lastStarExportSpecifier = source.slice(reexportStart, reexportEnd);
+              lastStarExportSpecifier = decode(source.slice(reexportStart, reexportEnd));
               return true;
           }
         }
@@ -764,7 +980,7 @@ function tryParseLiteralExports () {
         }
         ch = source.charCodeAt(pos);
       }
-      addExport(source.slice(startPos, endPos));
+      _exports.add(decode(source.slice(startPos, endPos)));
     }
     else if (ch === 46/*.*/ && source.startsWith('..', pos + 1)) {
       pos += 3;
@@ -778,21 +994,20 @@ function tryParseLiteralExports () {
       ch = commentWhitespace();
     }
     else if (ch === 39/*'*/ || ch === 34/*"*/) {
-      const startPos = ++pos;
-      if (identifier() && source.charCodeAt(pos) === ch) {
-        const endPos = pos++;
+      const startPos = pos;
+      stringLiteral(ch);
+      const endPos = ++pos;
+      ch = commentWhitespace();
+      if (ch === 58/*:*/) {
+        pos++;
         ch = commentWhitespace();
-        if (ch === 58/*:*/) {
-          pos++;
-          ch = commentWhitespace();
-          // nothing more complex than identifier expressions for now
-          if (!identifier()) {
-            pos = revertPos;
-            return;
-          }
-          ch = source.charCodeAt(pos);
-          addExport(source.slice(startPos, endPos));
+        // nothing more complex than identifier expressions for now
+        if (!identifier()) {
+          pos = revertPos;
+          return;
         }
+        ch = source.charCodeAt(pos);
+        _exports.add(decode(source.slice(startPos, endPos)));
       }
     }
     else {
@@ -812,7 +1027,7 @@ function tryParseLiteralExports () {
 
 // --- Extracted from AcornJS ---
 //(https://github.com/acornjs/acorn/blob/master/acorn/src/identifier.js#L23
-// 
+//
 // MIT License
 
 // Copyright (C) 2012-2018 by various contributors (see AUTHORS)
@@ -946,8 +1161,7 @@ function throwIfImportStatement () {
     // import.meta
     case 46/*.*/:
       throw new Error('Unexpected import.meta in CJS module.');
-      return;
-    
+
     default:
       // no space after "import" -> not an import keyword
       if (pos === startPos + 6)
@@ -1031,26 +1245,10 @@ function lineComment () {
   }
 }
 
-function singleQuoteString () {
+function stringLiteral (quote) {
   while (pos++ < end) {
     let ch = source.charCodeAt(pos);
-    if (ch === 39/*'*/)
-      return;
-    if (ch === 92/*\*/) {
-      ch = source.charCodeAt(++pos);
-      if (ch === 13/*\r*/ && source.charCodeAt(pos + 1) === 10/*\n*/)
-        pos++;
-    }
-    else if (isBr(ch))
-      break;
-  }
-  throw new Error('Unterminated string.');
-}
-
-function doubleQuoteString () {
-  while (pos++ < end) {
-    let ch = source.charCodeAt(pos);
-    if (ch === 34/*"*/)
+    if (ch === quote)
       return;
     if (ch === 92/*\*/) {
       ch = source.charCodeAt(++pos);
@@ -1116,7 +1314,7 @@ function readPrecedingKeyword (pos, match) {
 }
 
 function readPrecedingKeyword1 (pos, ch) {
-  return source.charCodeAt(pos) === ch && (pos === 0 || isBrOrWsOrPunctuatorNotDot(source.charCodeAt(pos - 1)));  
+  return source.charCodeAt(pos) === ch && (pos === 0 || isBrOrWsOrPunctuatorNotDot(source.charCodeAt(pos - 1)));
 }
 
 // Detects one of case, debugger, delete, do, else, in, instanceof, new,
@@ -1187,7 +1385,7 @@ function isExpressionKeyword (pos) {
           // throw
           return readPrecedingKeyword(pos - 2, 'thr');
         default:
-          return false; 
+          return false;
       }
   }
   return false;
@@ -1233,3 +1431,8 @@ function isExpressionTerminator (curPos) {
   }
   return false;
 }
+
+const initPromise = Promise.resolve();
+
+module.exports.init = () => initPromise;
+module.exports.parse = parseCJS;

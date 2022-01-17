@@ -69,12 +69,13 @@ const expectedWarnings = common.hasFipsCrypto ?
     ['Use Cipheriv for counter mode of aes-256-ccm'],
     ['Use Cipheriv for counter mode of aes-256-ccm'],
     ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm']
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-128-ccm'],
   ];
 
 const expectedDeprecationWarnings = [
   ['crypto.DEFAULT_ENCODING is deprecated.', 'DEP0091'],
-  ['crypto.createCipher is deprecated.', 'DEP0106']
+  ['crypto.createCipher is deprecated.', 'DEP0106'],
 ];
 
 common.expectWarning({
@@ -311,7 +312,7 @@ for (const test of TEST_CASES) {
   decipher.setAuthTag(Buffer.from('445352d3ff85cf94', 'hex'));
   const text = Buffer.concat([
     decipher.update('3a2a3647', 'hex'),
-    decipher.final()
+    decipher.final(),
   ]);
   assert.strictEqual(text.toString('utf8'), 'node');
 }
@@ -612,7 +613,7 @@ for (const test of TEST_CASES) {
     // Decryption should still work.
     const plaintext = Buffer.concat([
       decipher.update(ciphertext),
-      decipher.final()
+      decipher.final(),
     ]);
     assert(plain.equals(plaintext));
   }
@@ -663,5 +664,26 @@ for (const test of TEST_CASES) {
     ), errMessages.length, `iv length ${ivLength} was not rejected`);
 
     function H(length) { return '00'.repeat(length); }
+  }
+}
+
+{
+  // CCM cipher without data should not crash, see https://github.com/nodejs/node/issues/38035.
+  const algo = 'aes-128-ccm';
+  const key = Buffer.alloc(16);
+  const iv = Buffer.alloc(12);
+  const opts = { authTagLength: 10 };
+
+  for (const cipher of [
+    crypto.createCipher(algo, 'foo', opts),
+    crypto.createCipheriv(algo, key, iv, opts),
+  ]) {
+    assert.throws(() => {
+      cipher.final();
+    }, common.hasOpenSSL3 ? {
+      code: 'ERR_OSSL_TAG_NOT_SET'
+    } : {
+      message: /Unsupported state/
+    });
   }
 }

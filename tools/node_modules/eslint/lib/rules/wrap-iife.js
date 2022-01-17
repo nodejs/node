@@ -37,13 +37,13 @@ function isCalleeOfNewExpression(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "require parentheses around immediate `function` invocations",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/wrap-iife"
         },

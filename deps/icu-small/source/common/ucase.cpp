@@ -351,7 +351,7 @@ strcmpMax(const UChar *s, int32_t length, const UChar *t, int32_t max) {
     if(max==0 || *t==0) {
         return 0; /* equal to length of both strings */
     } else {
-        return -max; /* return lengh difference */
+        return -max; /* return length difference */
     }
 }
 
@@ -681,7 +681,7 @@ ucase_isCaseSensitive(UChar32 c) {
  *   - In [CoreProps], C has one of the properties Uppercase, or Lowercase
  *   - Given D = NFD(C), then it is not the case that:
  *     D = UCD_lower(D) = UCD_upper(D) = UCD_title(D)
- *     (This third criterium does not add any characters to the list
+ *     (This third criterion does not add any characters to the list
  *      for Unicode 3.2. Ignored.)
  *
  * D2. A character C is defined to be case-ignorable
@@ -690,7 +690,7 @@ ucase_isCaseSensitive(UChar32 c) {
  *   - The general category of C is
  *     Nonspacing Mark (Mn), or Enclosing Mark (Me), or Format Control (Cf), or
  *     Letter Modifier (Lm), or Symbol Modifier (Sk)
- *   - C is one of the following characters
+ *   - C is one of the following characters 
  *     U+0027 APOSTROPHE
  *     U+00AD SOFT HYPHEN (SHY)
  *     U+2019 RIGHT SINGLE QUOTATION MARK
@@ -707,6 +707,7 @@ ucase_isCaseSensitive(UChar32 c) {
 #define is_r(c) ((c)=='r' || (c)=='R')
 #define is_t(c) ((c)=='t' || (c)=='T')
 #define is_u(c) ((c)=='u' || (c)=='U')
+#define is_y(c) ((c)=='y' || (c)=='Y')
 #define is_z(c) ((c)=='z' || (c)=='Z')
 
 /* separator? */
@@ -804,6 +805,18 @@ ucase_getCaseLocale(const char *locale) {
                     return UCASE_LOC_DUTCH;
                 }
             }
+        } else if(c=='h') {
+            /* hy or hye? *not* hyw */
+            c=*locale++;
+            if(is_y(c)) {
+                c=*locale++;
+                if(is_e(c)) {
+                    c=*locale;
+                }
+                if(is_sep(c)) {
+                    return UCASE_LOC_ARMENIAN;
+                }
+            }
         }
     } else {
         // uppercase c
@@ -866,6 +879,18 @@ ucase_getCaseLocale(const char *locale) {
                 }
                 if(is_sep(c)) {
                     return UCASE_LOC_DUTCH;
+                }
+            }
+        } else if(c=='H') {
+            /* hy or hye? *not* hyw */
+            c=*locale++;
+            if(is_y(c)) {
+                c=*locale++;
+                if(is_e(c)) {
+                    c=*locale;
+                }
+                if(is_sep(c)) {
+                    return UCASE_LOC_ARMENIAN;
                 }
             }
         }
@@ -1229,6 +1254,17 @@ toUpperOrTitle(UChar32 c,
                  */
                 *pString=nullptr;
                 return 0; /* remove the dot (continue without output) */
+            } else if(c==0x0587) {
+                // See ICU-13416:
+                // և ligature ech-yiwn
+                // uppercases to ԵՒ=ech+yiwn by default and in Western Armenian,
+                // but to ԵՎ=ech+vew in Eastern Armenian.
+                if(loc==UCASE_LOC_ARMENIAN) {
+                    *pString=upperNotTitle ? u"ԵՎ" : u"Եվ";
+                } else {
+                    *pString=upperNotTitle ? u"ԵՒ" : u"Եւ";
+                }
+                return 2;
             } else {
                 /* no known conditional special case mapping, use a normal mapping */
             }
@@ -1506,7 +1542,7 @@ U_CAPI UChar32 U_EXPORT2
 u_tolower(UChar32 c) {
     return ucase_tolower(c);
 }
-
+    
 /* Transforms the Unicode character to its upper case equivalent.*/
 U_CAPI UChar32 U_EXPORT2
 u_toupper(UChar32 c) {

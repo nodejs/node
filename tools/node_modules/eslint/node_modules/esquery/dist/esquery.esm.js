@@ -66,7 +66,7 @@ function _unsupportedIterableToArray(o, minLen) {
   if (typeof o === "string") return _arrayLikeToArray(o, minLen);
   var n = Object.prototype.toString.call(o).slice(8, -1);
   if (n === "Object" && o.constructor) n = o.constructor.name;
-  if (n === "Map" || n === "Set") return Array.from(n);
+  if (n === "Map" || n === "Set") return Array.from(o);
   if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
 }
 
@@ -84,6 +84,63 @@ function _nonIterableSpread() {
 
 function _nonIterableRest() {
   throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+}
+
+function _createForOfIteratorHelper(o, allowArrayLike) {
+  var it;
+
+  if (typeof Symbol === "undefined" || o[Symbol.iterator] == null) {
+    if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") {
+      if (it) o = it;
+      var i = 0;
+
+      var F = function () {};
+
+      return {
+        s: F,
+        n: function () {
+          if (i >= o.length) return {
+            done: true
+          };
+          return {
+            done: false,
+            value: o[i++]
+          };
+        },
+        e: function (e) {
+          throw e;
+        },
+        f: F
+      };
+    }
+
+    throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
+
+  var normalCompletion = true,
+      didErr = false,
+      err;
+  return {
+    s: function () {
+      it = o[Symbol.iterator]();
+    },
+    n: function () {
+      var step = it.next();
+      normalCompletion = step.done;
+      return step;
+    },
+    e: function (e) {
+      didErr = true;
+      err = e;
+    },
+    f: function () {
+      try {
+        if (!normalCompletion && it.return != null) it.return();
+      } finally {
+        if (didErr) throw err;
+      }
+    }
+  };
 }
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
@@ -182,6 +239,7 @@ var estraverse = createCommonjsModule(function (module, exports) {
       BreakStatement: 'BreakStatement',
       CallExpression: 'CallExpression',
       CatchClause: 'CatchClause',
+      ChainExpression: 'ChainExpression',
       ClassBody: 'ClassBody',
       ClassDeclaration: 'ClassDeclaration',
       ClassExpression: 'ClassExpression',
@@ -260,6 +318,7 @@ var estraverse = createCommonjsModule(function (module, exports) {
       BreakStatement: ['label'],
       CallExpression: ['callee', 'arguments'],
       CatchClause: ['param', 'body'],
+      ChainExpression: ['expression'],
       ClassBody: ['body'],
       ClassDeclaration: ['id', 'superClass', 'body'],
       ClassExpression: ['id', 'superClass', 'body'],
@@ -1126,7 +1185,10 @@ var parser = createCommonjsModule(function (module) {
           peg$c41 = peg$classExpectation([">", "<"], false, false),
           peg$c42 = ".",
           peg$c43 = peg$literalExpectation(".", false),
-          peg$c44 = function peg$c44(name, op, value) {
+          peg$c44 = function peg$c44(a, as) {
+        return [].concat.apply([a], as).join('');
+      },
+          peg$c45 = function peg$c45(name, op, value) {
         return {
           type: 'attribute',
           name: name,
@@ -1134,35 +1196,35 @@ var parser = createCommonjsModule(function (module) {
           value: value
         };
       },
-          peg$c45 = function peg$c45(name) {
+          peg$c46 = function peg$c46(name) {
         return {
           type: 'attribute',
           name: name
         };
       },
-          peg$c46 = "\"",
-          peg$c47 = peg$literalExpectation("\"", false),
-          peg$c48 = /^[^\\"]/,
-          peg$c49 = peg$classExpectation(["\\", "\""], true, false),
-          peg$c50 = "\\",
-          peg$c51 = peg$literalExpectation("\\", false),
-          peg$c52 = peg$anyExpectation(),
-          peg$c53 = function peg$c53(a, b) {
+          peg$c47 = "\"",
+          peg$c48 = peg$literalExpectation("\"", false),
+          peg$c49 = /^[^\\"]/,
+          peg$c50 = peg$classExpectation(["\\", "\""], true, false),
+          peg$c51 = "\\",
+          peg$c52 = peg$literalExpectation("\\", false),
+          peg$c53 = peg$anyExpectation(),
+          peg$c54 = function peg$c54(a, b) {
         return a + b;
       },
-          peg$c54 = function peg$c54(d) {
+          peg$c55 = function peg$c55(d) {
         return {
           type: 'literal',
           value: strUnescape(d.join(''))
         };
       },
-          peg$c55 = "'",
-          peg$c56 = peg$literalExpectation("'", false),
-          peg$c57 = /^[^\\']/,
-          peg$c58 = peg$classExpectation(["\\", "'"], true, false),
-          peg$c59 = /^[0-9]/,
-          peg$c60 = peg$classExpectation([["0", "9"]], false, false),
-          peg$c61 = function peg$c61(a, b) {
+          peg$c56 = "'",
+          peg$c57 = peg$literalExpectation("'", false),
+          peg$c58 = /^[^\\']/,
+          peg$c59 = peg$classExpectation(["\\", "'"], true, false),
+          peg$c60 = /^[0-9]/,
+          peg$c61 = peg$classExpectation([["0", "9"]], false, false),
+          peg$c62 = function peg$c62(a, b) {
         // Can use `a.flat().join('')` once supported
         var leadingDecimals = a ? [].concat.apply([], a).join('') : '';
         return {
@@ -1170,37 +1232,37 @@ var parser = createCommonjsModule(function (module) {
           value: parseFloat(leadingDecimals + b.join(''))
         };
       },
-          peg$c62 = function peg$c62(i) {
+          peg$c63 = function peg$c63(i) {
         return {
           type: 'literal',
           value: i
         };
       },
-          peg$c63 = "type(",
-          peg$c64 = peg$literalExpectation("type(", false),
-          peg$c65 = /^[^ )]/,
-          peg$c66 = peg$classExpectation([" ", ")"], true, false),
-          peg$c67 = ")",
-          peg$c68 = peg$literalExpectation(")", false),
-          peg$c69 = function peg$c69(t) {
+          peg$c64 = "type(",
+          peg$c65 = peg$literalExpectation("type(", false),
+          peg$c66 = /^[^ )]/,
+          peg$c67 = peg$classExpectation([" ", ")"], true, false),
+          peg$c68 = ")",
+          peg$c69 = peg$literalExpectation(")", false),
+          peg$c70 = function peg$c70(t) {
         return {
           type: 'type',
           value: t.join('')
         };
       },
-          peg$c70 = /^[imsu]/,
-          peg$c71 = peg$classExpectation(["i", "m", "s", "u"], false, false),
-          peg$c72 = "/",
-          peg$c73 = peg$literalExpectation("/", false),
-          peg$c74 = /^[^\/]/,
-          peg$c75 = peg$classExpectation(["/"], true, false),
-          peg$c76 = function peg$c76(d, flgs) {
+          peg$c71 = /^[imsu]/,
+          peg$c72 = peg$classExpectation(["i", "m", "s", "u"], false, false),
+          peg$c73 = "/",
+          peg$c74 = peg$literalExpectation("/", false),
+          peg$c75 = /^[^\/]/,
+          peg$c76 = peg$classExpectation(["/"], true, false),
+          peg$c77 = function peg$c77(d, flgs) {
         return {
           type: 'regexp',
           value: new RegExp(d.join(''), flgs ? flgs.join('') : '')
         };
       },
-          peg$c77 = function peg$c77(i, is) {
+          peg$c78 = function peg$c78(i, is) {
         return {
           type: 'field',
           name: is.reduce(function (memo, p) {
@@ -1208,63 +1270,63 @@ var parser = createCommonjsModule(function (module) {
           }, i)
         };
       },
-          peg$c78 = ":not(",
-          peg$c79 = peg$literalExpectation(":not(", false),
-          peg$c80 = function peg$c80(ss) {
+          peg$c79 = ":not(",
+          peg$c80 = peg$literalExpectation(":not(", false),
+          peg$c81 = function peg$c81(ss) {
         return {
           type: 'not',
           selectors: ss
         };
       },
-          peg$c81 = ":matches(",
-          peg$c82 = peg$literalExpectation(":matches(", false),
-          peg$c83 = function peg$c83(ss) {
+          peg$c82 = ":matches(",
+          peg$c83 = peg$literalExpectation(":matches(", false),
+          peg$c84 = function peg$c84(ss) {
         return {
           type: 'matches',
           selectors: ss
         };
       },
-          peg$c84 = ":has(",
-          peg$c85 = peg$literalExpectation(":has(", false),
-          peg$c86 = function peg$c86(ss) {
+          peg$c85 = ":has(",
+          peg$c86 = peg$literalExpectation(":has(", false),
+          peg$c87 = function peg$c87(ss) {
         return {
           type: 'has',
           selectors: ss
         };
       },
-          peg$c87 = ":first-child",
-          peg$c88 = peg$literalExpectation(":first-child", false),
-          peg$c89 = function peg$c89() {
+          peg$c88 = ":first-child",
+          peg$c89 = peg$literalExpectation(":first-child", false),
+          peg$c90 = function peg$c90() {
         return nth(1);
       },
-          peg$c90 = ":last-child",
-          peg$c91 = peg$literalExpectation(":last-child", false),
-          peg$c92 = function peg$c92() {
+          peg$c91 = ":last-child",
+          peg$c92 = peg$literalExpectation(":last-child", false),
+          peg$c93 = function peg$c93() {
         return nthLast(1);
       },
-          peg$c93 = ":nth-child(",
-          peg$c94 = peg$literalExpectation(":nth-child(", false),
-          peg$c95 = function peg$c95(n) {
+          peg$c94 = ":nth-child(",
+          peg$c95 = peg$literalExpectation(":nth-child(", false),
+          peg$c96 = function peg$c96(n) {
         return nth(parseInt(n.join(''), 10));
       },
-          peg$c96 = ":nth-last-child(",
-          peg$c97 = peg$literalExpectation(":nth-last-child(", false),
-          peg$c98 = function peg$c98(n) {
+          peg$c97 = ":nth-last-child(",
+          peg$c98 = peg$literalExpectation(":nth-last-child(", false),
+          peg$c99 = function peg$c99(n) {
         return nthLast(parseInt(n.join(''), 10));
       },
-          peg$c99 = ":",
-          peg$c100 = peg$literalExpectation(":", false),
-          peg$c101 = "statement",
-          peg$c102 = peg$literalExpectation("statement", true),
-          peg$c103 = "expression",
-          peg$c104 = peg$literalExpectation("expression", true),
-          peg$c105 = "declaration",
-          peg$c106 = peg$literalExpectation("declaration", true),
-          peg$c107 = "function",
-          peg$c108 = peg$literalExpectation("function", true),
-          peg$c109 = "pattern",
-          peg$c110 = peg$literalExpectation("pattern", true),
-          peg$c111 = function peg$c111(c) {
+          peg$c100 = ":",
+          peg$c101 = peg$literalExpectation(":", false),
+          peg$c102 = "statement",
+          peg$c103 = peg$literalExpectation("statement", true),
+          peg$c104 = "expression",
+          peg$c105 = peg$literalExpectation("expression", true),
+          peg$c106 = "declaration",
+          peg$c107 = peg$literalExpectation("declaration", true),
+          peg$c108 = "function",
+          peg$c109 = peg$literalExpectation("function", true),
+          peg$c110 = "pattern",
+          peg$c111 = peg$literalExpectation("pattern", true),
+          peg$c112 = function peg$c112(c) {
         return {
           type: 'class',
           name: c
@@ -2295,7 +2357,7 @@ var parser = createCommonjsModule(function (module) {
       }
 
       function peg$parseattrName() {
-        var s0, s1, s2;
+        var s0, s1, s2, s3, s4, s5;
         var key = peg$currPos * 30 + 13,
             cached = peg$resultsCache[key];
 
@@ -2305,49 +2367,81 @@ var parser = createCommonjsModule(function (module) {
         }
 
         s0 = peg$currPos;
-        s1 = [];
-        s2 = peg$parseidentifierName();
+        s1 = peg$parseidentifierName();
 
-        if (s2 === peg$FAILED) {
+        if (s1 !== peg$FAILED) {
+          s2 = [];
+          s3 = peg$currPos;
+
           if (input.charCodeAt(peg$currPos) === 46) {
-            s2 = peg$c42;
+            s4 = peg$c42;
             peg$currPos++;
           } else {
-            s2 = peg$FAILED;
+            s4 = peg$FAILED;
 
             {
               peg$fail(peg$c43);
             }
           }
-        }
 
-        if (s2 !== peg$FAILED) {
-          while (s2 !== peg$FAILED) {
-            s1.push(s2);
-            s2 = peg$parseidentifierName();
+          if (s4 !== peg$FAILED) {
+            s5 = peg$parseidentifierName();
 
-            if (s2 === peg$FAILED) {
-              if (input.charCodeAt(peg$currPos) === 46) {
-                s2 = peg$c42;
-                peg$currPos++;
-              } else {
-                s2 = peg$FAILED;
+            if (s5 !== peg$FAILED) {
+              s4 = [s4, s5];
+              s3 = s4;
+            } else {
+              peg$currPos = s3;
+              s3 = peg$FAILED;
+            }
+          } else {
+            peg$currPos = s3;
+            s3 = peg$FAILED;
+          }
 
-                {
-                  peg$fail(peg$c43);
-                }
+          while (s3 !== peg$FAILED) {
+            s2.push(s3);
+            s3 = peg$currPos;
+
+            if (input.charCodeAt(peg$currPos) === 46) {
+              s4 = peg$c42;
+              peg$currPos++;
+            } else {
+              s4 = peg$FAILED;
+
+              {
+                peg$fail(peg$c43);
               }
             }
+
+            if (s4 !== peg$FAILED) {
+              s5 = peg$parseidentifierName();
+
+              if (s5 !== peg$FAILED) {
+                s4 = [s4, s5];
+                s3 = s4;
+              } else {
+                peg$currPos = s3;
+                s3 = peg$FAILED;
+              }
+            } else {
+              peg$currPos = s3;
+              s3 = peg$FAILED;
+            }
+          }
+
+          if (s2 !== peg$FAILED) {
+            s1 = peg$c44(s1, s2);
+            s0 = s1;
+          } else {
+            peg$currPos = s0;
+            s0 = peg$FAILED;
           }
         } else {
-          s1 = peg$FAILED;
+          peg$currPos = s0;
+          s0 = peg$FAILED;
         }
 
-        if (s1 !== peg$FAILED) {
-          s1 = peg$c6(s1);
-        }
-
-        s0 = s1;
         peg$resultsCache[key] = {
           nextPos: peg$currPos,
           result: s0
@@ -2385,7 +2479,7 @@ var parser = createCommonjsModule(function (module) {
                 }
 
                 if (s5 !== peg$FAILED) {
-                  s1 = peg$c44(s1, s3, s5);
+                  s1 = peg$c45(s1, s3, s5);
                   s0 = s1;
                 } else {
                   peg$currPos = s0;
@@ -2433,7 +2527,7 @@ var parser = createCommonjsModule(function (module) {
                   }
 
                   if (s5 !== peg$FAILED) {
-                    s1 = peg$c44(s1, s3, s5);
+                    s1 = peg$c45(s1, s3, s5);
                     s0 = s1;
                   } else {
                     peg$currPos = s0;
@@ -2461,7 +2555,7 @@ var parser = createCommonjsModule(function (module) {
             s1 = peg$parseattrName();
 
             if (s1 !== peg$FAILED) {
-              s1 = peg$c45(s1);
+              s1 = peg$c46(s1);
             }
 
             s0 = s1;
@@ -2488,27 +2582,27 @@ var parser = createCommonjsModule(function (module) {
         s0 = peg$currPos;
 
         if (input.charCodeAt(peg$currPos) === 34) {
-          s1 = peg$c46;
+          s1 = peg$c47;
           peg$currPos++;
         } else {
           s1 = peg$FAILED;
 
           {
-            peg$fail(peg$c47);
+            peg$fail(peg$c48);
           }
         }
 
         if (s1 !== peg$FAILED) {
           s2 = [];
 
-          if (peg$c48.test(input.charAt(peg$currPos))) {
+          if (peg$c49.test(input.charAt(peg$currPos))) {
             s3 = input.charAt(peg$currPos);
             peg$currPos++;
           } else {
             s3 = peg$FAILED;
 
             {
-              peg$fail(peg$c49);
+              peg$fail(peg$c50);
             }
           }
 
@@ -2516,13 +2610,13 @@ var parser = createCommonjsModule(function (module) {
             s3 = peg$currPos;
 
             if (input.charCodeAt(peg$currPos) === 92) {
-              s4 = peg$c50;
+              s4 = peg$c51;
               peg$currPos++;
             } else {
               s4 = peg$FAILED;
 
               {
-                peg$fail(peg$c51);
+                peg$fail(peg$c52);
               }
             }
 
@@ -2534,12 +2628,12 @@ var parser = createCommonjsModule(function (module) {
                 s5 = peg$FAILED;
 
                 {
-                  peg$fail(peg$c52);
+                  peg$fail(peg$c53);
                 }
               }
 
               if (s5 !== peg$FAILED) {
-                s4 = peg$c53(s4, s5);
+                s4 = peg$c54(s4, s5);
                 s3 = s4;
               } else {
                 peg$currPos = s3;
@@ -2554,14 +2648,14 @@ var parser = createCommonjsModule(function (module) {
           while (s3 !== peg$FAILED) {
             s2.push(s3);
 
-            if (peg$c48.test(input.charAt(peg$currPos))) {
+            if (peg$c49.test(input.charAt(peg$currPos))) {
               s3 = input.charAt(peg$currPos);
               peg$currPos++;
             } else {
               s3 = peg$FAILED;
 
               {
-                peg$fail(peg$c49);
+                peg$fail(peg$c50);
               }
             }
 
@@ -2569,13 +2663,13 @@ var parser = createCommonjsModule(function (module) {
               s3 = peg$currPos;
 
               if (input.charCodeAt(peg$currPos) === 92) {
-                s4 = peg$c50;
+                s4 = peg$c51;
                 peg$currPos++;
               } else {
                 s4 = peg$FAILED;
 
                 {
-                  peg$fail(peg$c51);
+                  peg$fail(peg$c52);
                 }
               }
 
@@ -2587,12 +2681,12 @@ var parser = createCommonjsModule(function (module) {
                   s5 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c52);
+                    peg$fail(peg$c53);
                   }
                 }
 
                 if (s5 !== peg$FAILED) {
-                  s4 = peg$c53(s4, s5);
+                  s4 = peg$c54(s4, s5);
                   s3 = s4;
                 } else {
                   peg$currPos = s3;
@@ -2607,18 +2701,18 @@ var parser = createCommonjsModule(function (module) {
 
           if (s2 !== peg$FAILED) {
             if (input.charCodeAt(peg$currPos) === 34) {
-              s3 = peg$c46;
+              s3 = peg$c47;
               peg$currPos++;
             } else {
               s3 = peg$FAILED;
 
               {
-                peg$fail(peg$c47);
+                peg$fail(peg$c48);
               }
             }
 
             if (s3 !== peg$FAILED) {
-              s1 = peg$c54(s2);
+              s1 = peg$c55(s2);
               s0 = s1;
             } else {
               peg$currPos = s0;
@@ -2637,27 +2731,27 @@ var parser = createCommonjsModule(function (module) {
           s0 = peg$currPos;
 
           if (input.charCodeAt(peg$currPos) === 39) {
-            s1 = peg$c55;
+            s1 = peg$c56;
             peg$currPos++;
           } else {
             s1 = peg$FAILED;
 
             {
-              peg$fail(peg$c56);
+              peg$fail(peg$c57);
             }
           }
 
           if (s1 !== peg$FAILED) {
             s2 = [];
 
-            if (peg$c57.test(input.charAt(peg$currPos))) {
+            if (peg$c58.test(input.charAt(peg$currPos))) {
               s3 = input.charAt(peg$currPos);
               peg$currPos++;
             } else {
               s3 = peg$FAILED;
 
               {
-                peg$fail(peg$c58);
+                peg$fail(peg$c59);
               }
             }
 
@@ -2665,13 +2759,13 @@ var parser = createCommonjsModule(function (module) {
               s3 = peg$currPos;
 
               if (input.charCodeAt(peg$currPos) === 92) {
-                s4 = peg$c50;
+                s4 = peg$c51;
                 peg$currPos++;
               } else {
                 s4 = peg$FAILED;
 
                 {
-                  peg$fail(peg$c51);
+                  peg$fail(peg$c52);
                 }
               }
 
@@ -2683,12 +2777,12 @@ var parser = createCommonjsModule(function (module) {
                   s5 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c52);
+                    peg$fail(peg$c53);
                   }
                 }
 
                 if (s5 !== peg$FAILED) {
-                  s4 = peg$c53(s4, s5);
+                  s4 = peg$c54(s4, s5);
                   s3 = s4;
                 } else {
                   peg$currPos = s3;
@@ -2703,14 +2797,14 @@ var parser = createCommonjsModule(function (module) {
             while (s3 !== peg$FAILED) {
               s2.push(s3);
 
-              if (peg$c57.test(input.charAt(peg$currPos))) {
+              if (peg$c58.test(input.charAt(peg$currPos))) {
                 s3 = input.charAt(peg$currPos);
                 peg$currPos++;
               } else {
                 s3 = peg$FAILED;
 
                 {
-                  peg$fail(peg$c58);
+                  peg$fail(peg$c59);
                 }
               }
 
@@ -2718,13 +2812,13 @@ var parser = createCommonjsModule(function (module) {
                 s3 = peg$currPos;
 
                 if (input.charCodeAt(peg$currPos) === 92) {
-                  s4 = peg$c50;
+                  s4 = peg$c51;
                   peg$currPos++;
                 } else {
                   s4 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c51);
+                    peg$fail(peg$c52);
                   }
                 }
 
@@ -2736,12 +2830,12 @@ var parser = createCommonjsModule(function (module) {
                     s5 = peg$FAILED;
 
                     {
-                      peg$fail(peg$c52);
+                      peg$fail(peg$c53);
                     }
                   }
 
                   if (s5 !== peg$FAILED) {
-                    s4 = peg$c53(s4, s5);
+                    s4 = peg$c54(s4, s5);
                     s3 = s4;
                   } else {
                     peg$currPos = s3;
@@ -2756,18 +2850,18 @@ var parser = createCommonjsModule(function (module) {
 
             if (s2 !== peg$FAILED) {
               if (input.charCodeAt(peg$currPos) === 39) {
-                s3 = peg$c55;
+                s3 = peg$c56;
                 peg$currPos++;
               } else {
                 s3 = peg$FAILED;
 
                 {
-                  peg$fail(peg$c56);
+                  peg$fail(peg$c57);
                 }
               }
 
               if (s3 !== peg$FAILED) {
-                s1 = peg$c54(s2);
+                s1 = peg$c55(s2);
                 s0 = s1;
               } else {
                 peg$currPos = s0;
@@ -2804,28 +2898,28 @@ var parser = createCommonjsModule(function (module) {
         s1 = peg$currPos;
         s2 = [];
 
-        if (peg$c59.test(input.charAt(peg$currPos))) {
+        if (peg$c60.test(input.charAt(peg$currPos))) {
           s3 = input.charAt(peg$currPos);
           peg$currPos++;
         } else {
           s3 = peg$FAILED;
 
           {
-            peg$fail(peg$c60);
+            peg$fail(peg$c61);
           }
         }
 
         while (s3 !== peg$FAILED) {
           s2.push(s3);
 
-          if (peg$c59.test(input.charAt(peg$currPos))) {
+          if (peg$c60.test(input.charAt(peg$currPos))) {
             s3 = input.charAt(peg$currPos);
             peg$currPos++;
           } else {
             s3 = peg$FAILED;
 
             {
-              peg$fail(peg$c60);
+              peg$fail(peg$c61);
             }
           }
         }
@@ -2861,14 +2955,14 @@ var parser = createCommonjsModule(function (module) {
         if (s1 !== peg$FAILED) {
           s2 = [];
 
-          if (peg$c59.test(input.charAt(peg$currPos))) {
+          if (peg$c60.test(input.charAt(peg$currPos))) {
             s3 = input.charAt(peg$currPos);
             peg$currPos++;
           } else {
             s3 = peg$FAILED;
 
             {
-              peg$fail(peg$c60);
+              peg$fail(peg$c61);
             }
           }
 
@@ -2876,14 +2970,14 @@ var parser = createCommonjsModule(function (module) {
             while (s3 !== peg$FAILED) {
               s2.push(s3);
 
-              if (peg$c59.test(input.charAt(peg$currPos))) {
+              if (peg$c60.test(input.charAt(peg$currPos))) {
                 s3 = input.charAt(peg$currPos);
                 peg$currPos++;
               } else {
                 s3 = peg$FAILED;
 
                 {
-                  peg$fail(peg$c60);
+                  peg$fail(peg$c61);
                 }
               }
             }
@@ -2892,7 +2986,7 @@ var parser = createCommonjsModule(function (module) {
           }
 
           if (s2 !== peg$FAILED) {
-            s1 = peg$c61(s1, s2);
+            s1 = peg$c62(s1, s2);
             s0 = s1;
           } else {
             peg$currPos = s0;
@@ -2924,7 +3018,7 @@ var parser = createCommonjsModule(function (module) {
         s1 = peg$parseidentifierName();
 
         if (s1 !== peg$FAILED) {
-          s1 = peg$c62(s1);
+          s1 = peg$c63(s1);
         }
 
         s0 = s1;
@@ -2947,14 +3041,14 @@ var parser = createCommonjsModule(function (module) {
 
         s0 = peg$currPos;
 
-        if (input.substr(peg$currPos, 5) === peg$c63) {
-          s1 = peg$c63;
+        if (input.substr(peg$currPos, 5) === peg$c64) {
+          s1 = peg$c64;
           peg$currPos += 5;
         } else {
           s1 = peg$FAILED;
 
           {
-            peg$fail(peg$c64);
+            peg$fail(peg$c65);
           }
         }
 
@@ -2964,14 +3058,14 @@ var parser = createCommonjsModule(function (module) {
           if (s2 !== peg$FAILED) {
             s3 = [];
 
-            if (peg$c65.test(input.charAt(peg$currPos))) {
+            if (peg$c66.test(input.charAt(peg$currPos))) {
               s4 = input.charAt(peg$currPos);
               peg$currPos++;
             } else {
               s4 = peg$FAILED;
 
               {
-                peg$fail(peg$c66);
+                peg$fail(peg$c67);
               }
             }
 
@@ -2979,14 +3073,14 @@ var parser = createCommonjsModule(function (module) {
               while (s4 !== peg$FAILED) {
                 s3.push(s4);
 
-                if (peg$c65.test(input.charAt(peg$currPos))) {
+                if (peg$c66.test(input.charAt(peg$currPos))) {
                   s4 = input.charAt(peg$currPos);
                   peg$currPos++;
                 } else {
                   s4 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c66);
+                    peg$fail(peg$c67);
                   }
                 }
               }
@@ -2999,18 +3093,18 @@ var parser = createCommonjsModule(function (module) {
 
               if (s4 !== peg$FAILED) {
                 if (input.charCodeAt(peg$currPos) === 41) {
-                  s5 = peg$c67;
+                  s5 = peg$c68;
                   peg$currPos++;
                 } else {
                   s5 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c68);
+                    peg$fail(peg$c69);
                   }
                 }
 
                 if (s5 !== peg$FAILED) {
-                  s1 = peg$c69(s3);
+                  s1 = peg$c70(s3);
                   s0 = s1;
                 } else {
                   peg$currPos = s0;
@@ -3052,14 +3146,14 @@ var parser = createCommonjsModule(function (module) {
 
         s0 = [];
 
-        if (peg$c70.test(input.charAt(peg$currPos))) {
+        if (peg$c71.test(input.charAt(peg$currPos))) {
           s1 = input.charAt(peg$currPos);
           peg$currPos++;
         } else {
           s1 = peg$FAILED;
 
           {
-            peg$fail(peg$c71);
+            peg$fail(peg$c72);
           }
         }
 
@@ -3067,14 +3161,14 @@ var parser = createCommonjsModule(function (module) {
           while (s1 !== peg$FAILED) {
             s0.push(s1);
 
-            if (peg$c70.test(input.charAt(peg$currPos))) {
+            if (peg$c71.test(input.charAt(peg$currPos))) {
               s1 = input.charAt(peg$currPos);
               peg$currPos++;
             } else {
               s1 = peg$FAILED;
 
               {
-                peg$fail(peg$c71);
+                peg$fail(peg$c72);
               }
             }
           }
@@ -3102,27 +3196,27 @@ var parser = createCommonjsModule(function (module) {
         s0 = peg$currPos;
 
         if (input.charCodeAt(peg$currPos) === 47) {
-          s1 = peg$c72;
+          s1 = peg$c73;
           peg$currPos++;
         } else {
           s1 = peg$FAILED;
 
           {
-            peg$fail(peg$c73);
+            peg$fail(peg$c74);
           }
         }
 
         if (s1 !== peg$FAILED) {
           s2 = [];
 
-          if (peg$c74.test(input.charAt(peg$currPos))) {
+          if (peg$c75.test(input.charAt(peg$currPos))) {
             s3 = input.charAt(peg$currPos);
             peg$currPos++;
           } else {
             s3 = peg$FAILED;
 
             {
-              peg$fail(peg$c75);
+              peg$fail(peg$c76);
             }
           }
 
@@ -3130,14 +3224,14 @@ var parser = createCommonjsModule(function (module) {
             while (s3 !== peg$FAILED) {
               s2.push(s3);
 
-              if (peg$c74.test(input.charAt(peg$currPos))) {
+              if (peg$c75.test(input.charAt(peg$currPos))) {
                 s3 = input.charAt(peg$currPos);
                 peg$currPos++;
               } else {
                 s3 = peg$FAILED;
 
                 {
-                  peg$fail(peg$c75);
+                  peg$fail(peg$c76);
                 }
               }
             }
@@ -3147,13 +3241,13 @@ var parser = createCommonjsModule(function (module) {
 
           if (s2 !== peg$FAILED) {
             if (input.charCodeAt(peg$currPos) === 47) {
-              s3 = peg$c72;
+              s3 = peg$c73;
               peg$currPos++;
             } else {
               s3 = peg$FAILED;
 
               {
-                peg$fail(peg$c73);
+                peg$fail(peg$c74);
               }
             }
 
@@ -3165,7 +3259,7 @@ var parser = createCommonjsModule(function (module) {
               }
 
               if (s4 !== peg$FAILED) {
-                s1 = peg$c76(s2, s4);
+                s1 = peg$c77(s2, s4);
                 s0 = s1;
               } else {
                 peg$currPos = s0;
@@ -3279,7 +3373,7 @@ var parser = createCommonjsModule(function (module) {
             }
 
             if (s3 !== peg$FAILED) {
-              s1 = peg$c77(s2, s3);
+              s1 = peg$c78(s2, s3);
               s0 = s1;
             } else {
               peg$currPos = s0;
@@ -3313,14 +3407,14 @@ var parser = createCommonjsModule(function (module) {
 
         s0 = peg$currPos;
 
-        if (input.substr(peg$currPos, 5) === peg$c78) {
-          s1 = peg$c78;
+        if (input.substr(peg$currPos, 5) === peg$c79) {
+          s1 = peg$c79;
           peg$currPos += 5;
         } else {
           s1 = peg$FAILED;
 
           {
-            peg$fail(peg$c79);
+            peg$fail(peg$c80);
           }
         }
 
@@ -3335,18 +3429,18 @@ var parser = createCommonjsModule(function (module) {
 
               if (s4 !== peg$FAILED) {
                 if (input.charCodeAt(peg$currPos) === 41) {
-                  s5 = peg$c67;
+                  s5 = peg$c68;
                   peg$currPos++;
                 } else {
                   s5 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c68);
+                    peg$fail(peg$c69);
                   }
                 }
 
                 if (s5 !== peg$FAILED) {
-                  s1 = peg$c80(s3);
+                  s1 = peg$c81(s3);
                   s0 = s1;
                 } else {
                   peg$currPos = s0;
@@ -3388,14 +3482,14 @@ var parser = createCommonjsModule(function (module) {
 
         s0 = peg$currPos;
 
-        if (input.substr(peg$currPos, 9) === peg$c81) {
-          s1 = peg$c81;
+        if (input.substr(peg$currPos, 9) === peg$c82) {
+          s1 = peg$c82;
           peg$currPos += 9;
         } else {
           s1 = peg$FAILED;
 
           {
-            peg$fail(peg$c82);
+            peg$fail(peg$c83);
           }
         }
 
@@ -3410,18 +3504,18 @@ var parser = createCommonjsModule(function (module) {
 
               if (s4 !== peg$FAILED) {
                 if (input.charCodeAt(peg$currPos) === 41) {
-                  s5 = peg$c67;
+                  s5 = peg$c68;
                   peg$currPos++;
                 } else {
                   s5 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c68);
+                    peg$fail(peg$c69);
                   }
                 }
 
                 if (s5 !== peg$FAILED) {
-                  s1 = peg$c83(s3);
+                  s1 = peg$c84(s3);
                   s0 = s1;
                 } else {
                   peg$currPos = s0;
@@ -3463,14 +3557,14 @@ var parser = createCommonjsModule(function (module) {
 
         s0 = peg$currPos;
 
-        if (input.substr(peg$currPos, 5) === peg$c84) {
-          s1 = peg$c84;
+        if (input.substr(peg$currPos, 5) === peg$c85) {
+          s1 = peg$c85;
           peg$currPos += 5;
         } else {
           s1 = peg$FAILED;
 
           {
-            peg$fail(peg$c85);
+            peg$fail(peg$c86);
           }
         }
 
@@ -3485,18 +3579,18 @@ var parser = createCommonjsModule(function (module) {
 
               if (s4 !== peg$FAILED) {
                 if (input.charCodeAt(peg$currPos) === 41) {
-                  s5 = peg$c67;
+                  s5 = peg$c68;
                   peg$currPos++;
                 } else {
                   s5 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c68);
+                    peg$fail(peg$c69);
                   }
                 }
 
                 if (s5 !== peg$FAILED) {
-                  s1 = peg$c86(s3);
+                  s1 = peg$c87(s3);
                   s0 = s1;
                 } else {
                   peg$currPos = s0;
@@ -3538,19 +3632,19 @@ var parser = createCommonjsModule(function (module) {
 
         s0 = peg$currPos;
 
-        if (input.substr(peg$currPos, 12) === peg$c87) {
-          s1 = peg$c87;
+        if (input.substr(peg$currPos, 12) === peg$c88) {
+          s1 = peg$c88;
           peg$currPos += 12;
         } else {
           s1 = peg$FAILED;
 
           {
-            peg$fail(peg$c88);
+            peg$fail(peg$c89);
           }
         }
 
         if (s1 !== peg$FAILED) {
-          s1 = peg$c89();
+          s1 = peg$c90();
         }
 
         s0 = s1;
@@ -3573,19 +3667,19 @@ var parser = createCommonjsModule(function (module) {
 
         s0 = peg$currPos;
 
-        if (input.substr(peg$currPos, 11) === peg$c90) {
-          s1 = peg$c90;
+        if (input.substr(peg$currPos, 11) === peg$c91) {
+          s1 = peg$c91;
           peg$currPos += 11;
         } else {
           s1 = peg$FAILED;
 
           {
-            peg$fail(peg$c91);
+            peg$fail(peg$c92);
           }
         }
 
         if (s1 !== peg$FAILED) {
-          s1 = peg$c92();
+          s1 = peg$c93();
         }
 
         s0 = s1;
@@ -3608,14 +3702,14 @@ var parser = createCommonjsModule(function (module) {
 
         s0 = peg$currPos;
 
-        if (input.substr(peg$currPos, 11) === peg$c93) {
-          s1 = peg$c93;
+        if (input.substr(peg$currPos, 11) === peg$c94) {
+          s1 = peg$c94;
           peg$currPos += 11;
         } else {
           s1 = peg$FAILED;
 
           {
-            peg$fail(peg$c94);
+            peg$fail(peg$c95);
           }
         }
 
@@ -3625,14 +3719,14 @@ var parser = createCommonjsModule(function (module) {
           if (s2 !== peg$FAILED) {
             s3 = [];
 
-            if (peg$c59.test(input.charAt(peg$currPos))) {
+            if (peg$c60.test(input.charAt(peg$currPos))) {
               s4 = input.charAt(peg$currPos);
               peg$currPos++;
             } else {
               s4 = peg$FAILED;
 
               {
-                peg$fail(peg$c60);
+                peg$fail(peg$c61);
               }
             }
 
@@ -3640,14 +3734,14 @@ var parser = createCommonjsModule(function (module) {
               while (s4 !== peg$FAILED) {
                 s3.push(s4);
 
-                if (peg$c59.test(input.charAt(peg$currPos))) {
+                if (peg$c60.test(input.charAt(peg$currPos))) {
                   s4 = input.charAt(peg$currPos);
                   peg$currPos++;
                 } else {
                   s4 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c60);
+                    peg$fail(peg$c61);
                   }
                 }
               }
@@ -3660,18 +3754,18 @@ var parser = createCommonjsModule(function (module) {
 
               if (s4 !== peg$FAILED) {
                 if (input.charCodeAt(peg$currPos) === 41) {
-                  s5 = peg$c67;
+                  s5 = peg$c68;
                   peg$currPos++;
                 } else {
                   s5 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c68);
+                    peg$fail(peg$c69);
                   }
                 }
 
                 if (s5 !== peg$FAILED) {
-                  s1 = peg$c95(s3);
+                  s1 = peg$c96(s3);
                   s0 = s1;
                 } else {
                   peg$currPos = s0;
@@ -3713,14 +3807,14 @@ var parser = createCommonjsModule(function (module) {
 
         s0 = peg$currPos;
 
-        if (input.substr(peg$currPos, 16) === peg$c96) {
-          s1 = peg$c96;
+        if (input.substr(peg$currPos, 16) === peg$c97) {
+          s1 = peg$c97;
           peg$currPos += 16;
         } else {
           s1 = peg$FAILED;
 
           {
-            peg$fail(peg$c97);
+            peg$fail(peg$c98);
           }
         }
 
@@ -3730,14 +3824,14 @@ var parser = createCommonjsModule(function (module) {
           if (s2 !== peg$FAILED) {
             s3 = [];
 
-            if (peg$c59.test(input.charAt(peg$currPos))) {
+            if (peg$c60.test(input.charAt(peg$currPos))) {
               s4 = input.charAt(peg$currPos);
               peg$currPos++;
             } else {
               s4 = peg$FAILED;
 
               {
-                peg$fail(peg$c60);
+                peg$fail(peg$c61);
               }
             }
 
@@ -3745,14 +3839,14 @@ var parser = createCommonjsModule(function (module) {
               while (s4 !== peg$FAILED) {
                 s3.push(s4);
 
-                if (peg$c59.test(input.charAt(peg$currPos))) {
+                if (peg$c60.test(input.charAt(peg$currPos))) {
                   s4 = input.charAt(peg$currPos);
                   peg$currPos++;
                 } else {
                   s4 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c60);
+                    peg$fail(peg$c61);
                   }
                 }
               }
@@ -3765,18 +3859,18 @@ var parser = createCommonjsModule(function (module) {
 
               if (s4 !== peg$FAILED) {
                 if (input.charCodeAt(peg$currPos) === 41) {
-                  s5 = peg$c67;
+                  s5 = peg$c68;
                   peg$currPos++;
                 } else {
                   s5 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c68);
+                    peg$fail(peg$c69);
                   }
                 }
 
                 if (s5 !== peg$FAILED) {
-                  s1 = peg$c98(s3);
+                  s1 = peg$c99(s3);
                   s0 = s1;
                 } else {
                   peg$currPos = s0;
@@ -3819,73 +3913,73 @@ var parser = createCommonjsModule(function (module) {
         s0 = peg$currPos;
 
         if (input.charCodeAt(peg$currPos) === 58) {
-          s1 = peg$c99;
+          s1 = peg$c100;
           peg$currPos++;
         } else {
           s1 = peg$FAILED;
 
           {
-            peg$fail(peg$c100);
+            peg$fail(peg$c101);
           }
         }
 
         if (s1 !== peg$FAILED) {
-          if (input.substr(peg$currPos, 9).toLowerCase() === peg$c101) {
+          if (input.substr(peg$currPos, 9).toLowerCase() === peg$c102) {
             s2 = input.substr(peg$currPos, 9);
             peg$currPos += 9;
           } else {
             s2 = peg$FAILED;
 
             {
-              peg$fail(peg$c102);
+              peg$fail(peg$c103);
             }
           }
 
           if (s2 === peg$FAILED) {
-            if (input.substr(peg$currPos, 10).toLowerCase() === peg$c103) {
+            if (input.substr(peg$currPos, 10).toLowerCase() === peg$c104) {
               s2 = input.substr(peg$currPos, 10);
               peg$currPos += 10;
             } else {
               s2 = peg$FAILED;
 
               {
-                peg$fail(peg$c104);
+                peg$fail(peg$c105);
               }
             }
 
             if (s2 === peg$FAILED) {
-              if (input.substr(peg$currPos, 11).toLowerCase() === peg$c105) {
+              if (input.substr(peg$currPos, 11).toLowerCase() === peg$c106) {
                 s2 = input.substr(peg$currPos, 11);
                 peg$currPos += 11;
               } else {
                 s2 = peg$FAILED;
 
                 {
-                  peg$fail(peg$c106);
+                  peg$fail(peg$c107);
                 }
               }
 
               if (s2 === peg$FAILED) {
-                if (input.substr(peg$currPos, 8).toLowerCase() === peg$c107) {
+                if (input.substr(peg$currPos, 8).toLowerCase() === peg$c108) {
                   s2 = input.substr(peg$currPos, 8);
                   peg$currPos += 8;
                 } else {
                   s2 = peg$FAILED;
 
                   {
-                    peg$fail(peg$c108);
+                    peg$fail(peg$c109);
                   }
                 }
 
                 if (s2 === peg$FAILED) {
-                  if (input.substr(peg$currPos, 7).toLowerCase() === peg$c109) {
+                  if (input.substr(peg$currPos, 7).toLowerCase() === peg$c110) {
                     s2 = input.substr(peg$currPos, 7);
                     peg$currPos += 7;
                   } else {
                     s2 = peg$FAILED;
 
                     {
-                      peg$fail(peg$c110);
+                      peg$fail(peg$c111);
                     }
                   }
                 }
@@ -3894,7 +3988,7 @@ var parser = createCommonjsModule(function (module) {
           }
 
           if (s2 !== peg$FAILED) {
-            s1 = peg$c111(s2);
+            s1 = peg$c112(s2);
             s0 = s1;
           } else {
             peg$currPos = s0;
@@ -4020,12 +4114,23 @@ var RIGHT_SIDE = 'RIGHT_SIDE';
 function getPath(obj, key) {
   var keys = key.split('.');
 
-  for (var i = 0; i < keys.length; i++) {
-    if (obj == null) {
-      return obj;
-    }
+  var _iterator = _createForOfIteratorHelper(keys),
+      _step;
 
-    obj = obj[keys[i]];
+  try {
+    for (_iterator.s(); !(_step = _iterator.n()).done;) {
+      var _key = _step.value;
+
+      if (obj == null) {
+        return obj;
+      }
+
+      obj = obj[_key];
+    }
+  } catch (err) {
+    _iterator.e(err);
+  } finally {
+    _iterator.f();
   }
 
   return obj;
@@ -4053,10 +4158,21 @@ function inPath(node, ancestor, path) {
   var remainingPath = path.slice(1);
 
   if (Array.isArray(field)) {
-    for (var i = 0, l = field.length; i < l; ++i) {
-      if (inPath(node, field[i], remainingPath)) {
-        return true;
+    var _iterator2 = _createForOfIteratorHelper(field),
+        _step2;
+
+    try {
+      for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+        var component = _step2.value;
+
+        if (inPath(node, component, remainingPath)) {
+          return true;
+        }
       }
+    } catch (err) {
+      _iterator2.e(err);
+    } finally {
+      _iterator2.f();
     }
 
     return false;
@@ -4065,18 +4181,31 @@ function inPath(node, ancestor, path) {
   }
 }
 /**
+ * @callback TraverseOptionFallback
+ * @param {external:AST} node The given node.
+ * @returns {string[]} An array of visitor keys for the given node.
+ */
+
+/**
+ * @typedef {object} ESQueryOptions
+ * @property { { [nodeType: string]: string[] } } [visitorKeys] By passing `visitorKeys` mapping, we can extend the properties of the nodes that traverse the node.
+ * @property {TraverseOptionFallback} [fallback] By passing `fallback` option, we can control the properties of traversing nodes when encountering unknown nodes.
+ */
+
+/**
  * Given a `node` and its ancestors, determine if `node` is matched
  * by `selector`.
  * @param {?external:AST} node
  * @param {?SelectorAST} selector
  * @param {external:AST[]} [ancestry=[]]
+ * @param {ESQueryOptions} [options]
  * @throws {Error} Unknowns (operator, class name, selector type, or
  * selector value type)
  * @returns {boolean}
  */
 
 
-function matches(node, selector, ancestry) {
+function matches(node, selector, ancestry, options) {
   if (!selector) {
     return true;
   }
@@ -4104,28 +4233,61 @@ function matches(node, selector, ancestry) {
       }
 
     case 'matches':
-      for (var i = 0, l = selector.selectors.length; i < l; ++i) {
-        if (matches(node, selector.selectors[i], ancestry)) {
-          return true;
+      var _iterator3 = _createForOfIteratorHelper(selector.selectors),
+          _step3;
+
+      try {
+        for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
+          var sel = _step3.value;
+
+          if (matches(node, sel, ancestry, options)) {
+            return true;
+          }
         }
+      } catch (err) {
+        _iterator3.e(err);
+      } finally {
+        _iterator3.f();
       }
 
       return false;
 
     case 'compound':
-      for (var _i = 0, _l = selector.selectors.length; _i < _l; ++_i) {
-        if (!matches(node, selector.selectors[_i], ancestry)) {
-          return false;
+      var _iterator4 = _createForOfIteratorHelper(selector.selectors),
+          _step4;
+
+      try {
+        for (_iterator4.s(); !(_step4 = _iterator4.n()).done;) {
+          var _sel = _step4.value;
+
+          if (!matches(node, _sel, ancestry, options)) {
+            return false;
+          }
         }
+      } catch (err) {
+        _iterator4.e(err);
+      } finally {
+        _iterator4.f();
       }
 
       return true;
 
     case 'not':
-      for (var _i2 = 0, _l2 = selector.selectors.length; _i2 < _l2; ++_i2) {
-        if (matches(node, selector.selectors[_i2], ancestry)) {
-          return false;
+      var _iterator5 = _createForOfIteratorHelper(selector.selectors),
+          _step5;
+
+      try {
+        for (_iterator5.s(); !(_step5 = _iterator5.n()).done;) {
+          var _sel2 = _step5.value;
+
+          if (matches(node, _sel2, ancestry, options)) {
+            return false;
+          }
         }
+      } catch (err) {
+        _iterator5.e(err);
+      } finally {
+        _iterator5.f();
       }
 
       return true;
@@ -4135,27 +4297,38 @@ function matches(node, selector, ancestry) {
         var _ret = function () {
           var collector = [];
 
-          var _loop = function _loop(_i3, _l3) {
-            var a = [];
-            estraverse.traverse(node, {
-              enter: function enter(node, parent) {
-                if (parent != null) {
-                  a.unshift(parent);
-                }
+          var _iterator6 = _createForOfIteratorHelper(selector.selectors),
+              _step6;
 
-                if (matches(node, selector.selectors[_i3], a)) {
-                  collector.push(node);
-                }
-              },
-              leave: function leave() {
-                a.shift();
-              },
-              fallback: 'iteration'
-            });
-          };
+          try {
+            var _loop = function _loop() {
+              var sel = _step6.value;
+              var a = [];
+              estraverse.traverse(node, {
+                enter: function enter(node, parent) {
+                  if (parent != null) {
+                    a.unshift(parent);
+                  }
 
-          for (var _i3 = 0, _l3 = selector.selectors.length; _i3 < _l3; ++_i3) {
-            _loop(_i3);
+                  if (matches(node, sel, a, options)) {
+                    collector.push(node);
+                  }
+                },
+                leave: function leave() {
+                  a.shift();
+                },
+                keys: options && options.visitorKeys,
+                fallback: options && options.fallback || 'iteration'
+              });
+            };
+
+            for (_iterator6.s(); !(_step6 = _iterator6.n()).done;) {
+              _loop();
+            }
+          } catch (err) {
+            _iterator6.e(err);
+          } finally {
+            _iterator6.f();
           }
 
           return {
@@ -4167,16 +4340,16 @@ function matches(node, selector, ancestry) {
       }
 
     case 'child':
-      if (matches(node, selector.right, ancestry)) {
-        return matches(ancestry[0], selector.left, ancestry.slice(1));
+      if (matches(node, selector.right, ancestry, options)) {
+        return matches(ancestry[0], selector.left, ancestry.slice(1), options);
       }
 
       return false;
 
     case 'descendant':
-      if (matches(node, selector.right, ancestry)) {
-        for (var _i4 = 0, _l4 = ancestry.length; _i4 < _l4; ++_i4) {
-          if (matches(ancestry[_i4], selector.left, ancestry.slice(_i4 + 1))) {
+      if (matches(node, selector.right, ancestry, options)) {
+        for (var i = 0, l = ancestry.length; i < l; ++i) {
+          if (matches(ancestry[i], selector.left, ancestry.slice(i + 1), options)) {
             return true;
           }
         }
@@ -4237,20 +4410,20 @@ function matches(node, selector, ancestry) {
       }
 
     case 'sibling':
-      return matches(node, selector.right, ancestry) && sibling(node, selector.left, ancestry, LEFT_SIDE) || selector.left.subject && matches(node, selector.left, ancestry) && sibling(node, selector.right, ancestry, RIGHT_SIDE);
+      return matches(node, selector.right, ancestry, options) && sibling(node, selector.left, ancestry, LEFT_SIDE, options) || selector.left.subject && matches(node, selector.left, ancestry, options) && sibling(node, selector.right, ancestry, RIGHT_SIDE, options);
 
     case 'adjacent':
-      return matches(node, selector.right, ancestry) && adjacent(node, selector.left, ancestry, LEFT_SIDE) || selector.right.subject && matches(node, selector.left, ancestry) && adjacent(node, selector.right, ancestry, RIGHT_SIDE);
+      return matches(node, selector.right, ancestry, options) && adjacent(node, selector.left, ancestry, LEFT_SIDE, options) || selector.right.subject && matches(node, selector.left, ancestry, options) && adjacent(node, selector.right, ancestry, RIGHT_SIDE, options);
 
     case 'nth-child':
-      return matches(node, selector.right, ancestry) && nthChild(node, ancestry, function () {
+      return matches(node, selector.right, ancestry, options) && nthChild(node, ancestry, function () {
         return selector.index.value - 1;
-      });
+      }, options);
 
     case 'nth-last-child':
-      return matches(node, selector.right, ancestry) && nthChild(node, ancestry, function (length) {
+      return matches(node, selector.right, ancestry, options) && nthChild(node, ancestry, function (length) {
         return length - selector.index.value;
-      });
+      }, options);
 
     case 'class':
       switch (selector.name.toLowerCase()) {
@@ -4278,17 +4451,56 @@ function matches(node, selector, ancestry) {
   throw new Error("Unknown selector type: ".concat(selector.type));
 }
 /**
+ * Get visitor keys of a given node.
+ * @param {external:AST} node The AST node to get keys.
+ * @param {ESQueryOptions|undefined} options
+ * @returns {string[]} Visitor keys of the node.
+ */
+
+
+function getVisitorKeys(node, options) {
+  var nodeType = node.type;
+
+  if (options && options.visitorKeys && options.visitorKeys[nodeType]) {
+    return options.visitorKeys[nodeType];
+  }
+
+  if (estraverse.VisitorKeys[nodeType]) {
+    return estraverse.VisitorKeys[nodeType];
+  }
+
+  if (options && typeof options.fallback === 'function') {
+    return options.fallback(node);
+  } // 'iteration' fallback
+
+
+  return Object.keys(node).filter(function (key) {
+    return key !== 'type';
+  });
+}
+/**
+ * Check whether the given value is an ASTNode or not.
+ * @param {any} node The value to check.
+ * @returns {boolean} `true` if the value is an ASTNode.
+ */
+
+
+function isNode(node) {
+  return node !== null && _typeof(node) === 'object' && typeof node.type === 'string';
+}
+/**
  * Determines if the given node has a sibling that matches the
  * given selector.
  * @param {external:AST} node
  * @param {SelectorSequenceAST} selector
  * @param {external:AST[]} ancestry
  * @param {Side} side
+ * @param {ESQueryOptions|undefined} options
  * @returns {boolean}
  */
 
 
-function sibling(node, selector, ancestry, side) {
+function sibling(node, selector, ancestry, side, options) {
   var _ancestry = _slicedToArray(ancestry, 1),
       parent = _ancestry[0];
 
@@ -4296,35 +4508,45 @@ function sibling(node, selector, ancestry, side) {
     return false;
   }
 
-  var keys = estraverse.VisitorKeys[parent.type];
+  var keys = getVisitorKeys(parent, options);
 
-  for (var i = 0, l = keys.length; i < l; ++i) {
-    var listProp = parent[keys[i]];
+  var _iterator7 = _createForOfIteratorHelper(keys),
+      _step7;
 
-    if (Array.isArray(listProp)) {
-      var startIndex = listProp.indexOf(node);
+  try {
+    for (_iterator7.s(); !(_step7 = _iterator7.n()).done;) {
+      var key = _step7.value;
+      var listProp = parent[key];
 
-      if (startIndex < 0) {
-        continue;
-      }
+      if (Array.isArray(listProp)) {
+        var startIndex = listProp.indexOf(node);
 
-      var lowerBound = void 0,
-          upperBound = void 0;
+        if (startIndex < 0) {
+          continue;
+        }
 
-      if (side === LEFT_SIDE) {
-        lowerBound = 0;
-        upperBound = startIndex;
-      } else {
-        lowerBound = startIndex + 1;
-        upperBound = listProp.length;
-      }
+        var lowerBound = void 0,
+            upperBound = void 0;
 
-      for (var k = lowerBound; k < upperBound; ++k) {
-        if (matches(listProp[k], selector, ancestry)) {
-          return true;
+        if (side === LEFT_SIDE) {
+          lowerBound = 0;
+          upperBound = startIndex;
+        } else {
+          lowerBound = startIndex + 1;
+          upperBound = listProp.length;
+        }
+
+        for (var k = lowerBound; k < upperBound; ++k) {
+          if (isNode(listProp[k]) && matches(listProp[k], selector, ancestry, options)) {
+            return true;
+          }
         }
       }
     }
+  } catch (err) {
+    _iterator7.e(err);
+  } finally {
+    _iterator7.f();
   }
 
   return false;
@@ -4336,11 +4558,12 @@ function sibling(node, selector, ancestry, side) {
  * @param {SelectorSequenceAST} selector
  * @param {external:AST[]} ancestry
  * @param {Side} side
+ * @param {ESQueryOptions|undefined} options
  * @returns {boolean}
  */
 
 
-function adjacent(node, selector, ancestry, side) {
+function adjacent(node, selector, ancestry, side, options) {
   var _ancestry2 = _slicedToArray(ancestry, 1),
       parent = _ancestry2[0];
 
@@ -4348,26 +4571,36 @@ function adjacent(node, selector, ancestry, side) {
     return false;
   }
 
-  var keys = estraverse.VisitorKeys[parent.type];
+  var keys = getVisitorKeys(parent, options);
 
-  for (var i = 0, l = keys.length; i < l; ++i) {
-    var listProp = parent[keys[i]];
+  var _iterator8 = _createForOfIteratorHelper(keys),
+      _step8;
 
-    if (Array.isArray(listProp)) {
-      var idx = listProp.indexOf(node);
+  try {
+    for (_iterator8.s(); !(_step8 = _iterator8.n()).done;) {
+      var key = _step8.value;
+      var listProp = parent[key];
 
-      if (idx < 0) {
-        continue;
-      }
+      if (Array.isArray(listProp)) {
+        var idx = listProp.indexOf(node);
 
-      if (side === LEFT_SIDE && idx > 0 && matches(listProp[idx - 1], selector, ancestry)) {
-        return true;
-      }
+        if (idx < 0) {
+          continue;
+        }
 
-      if (side === RIGHT_SIDE && idx < listProp.length - 1 && matches(listProp[idx + 1], selector, ancestry)) {
-        return true;
+        if (side === LEFT_SIDE && idx > 0 && isNode(listProp[idx - 1]) && matches(listProp[idx - 1], selector, ancestry, options)) {
+          return true;
+        }
+
+        if (side === RIGHT_SIDE && idx < listProp.length - 1 && isNode(listProp[idx + 1]) && matches(listProp[idx + 1], selector, ancestry, options)) {
+          return true;
+        }
       }
     }
+  } catch (err) {
+    _iterator8.e(err);
+  } finally {
+    _iterator8.f();
   }
 
   return false;
@@ -4384,11 +4617,12 @@ function adjacent(node, selector, ancestry, side) {
  * @param {external:AST} node
  * @param {external:AST[]} ancestry
  * @param {IndexFunction} idxFn
+ * @param {ESQueryOptions|undefined} options
  * @returns {boolean}
  */
 
 
-function nthChild(node, ancestry, idxFn) {
+function nthChild(node, ancestry, idxFn, options) {
   var _ancestry3 = _slicedToArray(ancestry, 1),
       parent = _ancestry3[0];
 
@@ -4396,18 +4630,28 @@ function nthChild(node, ancestry, idxFn) {
     return false;
   }
 
-  var keys = estraverse.VisitorKeys[parent.type];
+  var keys = getVisitorKeys(parent, options);
 
-  for (var i = 0, l = keys.length; i < l; ++i) {
-    var listProp = parent[keys[i]];
+  var _iterator9 = _createForOfIteratorHelper(keys),
+      _step9;
 
-    if (Array.isArray(listProp)) {
-      var idx = listProp.indexOf(node);
+  try {
+    for (_iterator9.s(); !(_step9 = _iterator9.n()).done;) {
+      var key = _step9.value;
+      var listProp = parent[key];
 
-      if (idx >= 0 && idx === idxFn(listProp.length)) {
-        return true;
+      if (Array.isArray(listProp)) {
+        var idx = listProp.indexOf(node);
+
+        if (idx >= 0 && idx === idxFn(listProp.length)) {
+          return true;
+        }
       }
     }
+  } catch (err) {
+    _iterator9.e(err);
+  } finally {
+    _iterator9.f();
   }
 
   return false;
@@ -4432,8 +4676,8 @@ function subjects(selector, ancestor) {
 
   var results = selector.subject ? [ancestor] : [];
 
-  for (var _i5 = 0, _Object$entries = _objectEntries(selector); _i5 < _Object$entries.length; _i5++) {
-    var _Object$entries$_i = _slicedToArray(_Object$entries[_i5], 2),
+  for (var _i = 0, _Object$entries = _objectEntries(selector); _i < _Object$entries.length; _i++) {
+    var _Object$entries$_i = _slicedToArray(_Object$entries[_i], 2),
         p = _Object$entries$_i[0],
         sel = _Object$entries$_i[1];
 
@@ -4455,11 +4699,12 @@ function subjects(selector, ancestor) {
  * @param {external:AST} ast
  * @param {?SelectorAST} selector
  * @param {TraverseVisitor} visitor
+ * @param {ESQueryOptions} [options]
  * @returns {external:AST[]}
  */
 
 
-function traverse(ast, selector, visitor) {
+function traverse(ast, selector, visitor, options) {
   if (!selector) {
     return;
   }
@@ -4472,17 +4717,17 @@ function traverse(ast, selector, visitor) {
         ancestry.unshift(parent);
       }
 
-      if (matches(node, selector, ancestry)) {
+      if (matches(node, selector, ancestry, options)) {
         if (altSubjects.length) {
           for (var i = 0, l = altSubjects.length; i < l; ++i) {
-            if (matches(node, altSubjects[i], ancestry)) {
+            if (matches(node, altSubjects[i], ancestry, options)) {
               visitor(node, parent, ancestry);
             }
 
             for (var k = 0, m = ancestry.length; k < m; ++k) {
               var succeedingAncestry = ancestry.slice(k + 1);
 
-              if (matches(ancestry[k], altSubjects[i], succeedingAncestry)) {
+              if (matches(ancestry[k], altSubjects[i], succeedingAncestry, options)) {
                 visitor(ancestry[k], parent, succeedingAncestry);
               }
             }
@@ -4495,7 +4740,8 @@ function traverse(ast, selector, visitor) {
     leave: function leave() {
       ancestry.shift();
     },
-    fallback: 'iteration'
+    keys: options && options.visitorKeys,
+    fallback: options && options.fallback || 'iteration'
   });
 }
 /**
@@ -4503,15 +4749,16 @@ function traverse(ast, selector, visitor) {
  * match the selector.
  * @param {external:AST} ast
  * @param {?SelectorAST} selector
+ * @param {ESQueryOptions} [options]
  * @returns {external:AST[]}
  */
 
 
-function match(ast, selector) {
+function match(ast, selector, options) {
   var results = [];
   traverse(ast, selector, function (node) {
     results.push(node);
-  });
+  }, options);
   return results;
 }
 /**
@@ -4528,12 +4775,13 @@ function parse(selector) {
  * Query the code AST using the selector string.
  * @param {external:AST} ast
  * @param {string} selector
+ * @param {ESQueryOptions} [options]
  * @returns {external:AST[]}
  */
 
 
-function query(ast, selector) {
-  return match(ast, parse(selector));
+function query(ast, selector, options) {
+  return match(ast, parse(selector), options);
 }
 
 query.parse = parse;

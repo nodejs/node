@@ -6,13 +6,13 @@ section	.text code align=64
 
 ALIGN	16
 
-global	md5_block_asm_data_order
+global	ossl_md5_block_asm_data_order
 
-md5_block_asm_data_order:
+ossl_md5_block_asm_data_order:
 	mov	QWORD[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD[16+rsp],rsi
 	mov	rax,rsp
-$L$SEH_begin_md5_block_asm_data_order:
+$L$SEH_begin_ossl_md5_block_asm_data_order:
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
@@ -691,7 +691,7 @@ $L$epilogue:
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
 
-$L$SEH_end_md5_block_asm_data_order:
+$L$SEH_end_ossl_md5_block_asm_data_order:
 EXTERN	__imp_RtlVirtualUnwind
 
 ALIGN	16
@@ -775,12 +775,12 @@ $L$in_prologue:
 
 section	.pdata rdata align=4
 ALIGN	4
-	DD	$L$SEH_begin_md5_block_asm_data_order wrt ..imagebase
-	DD	$L$SEH_end_md5_block_asm_data_order wrt ..imagebase
-	DD	$L$SEH_info_md5_block_asm_data_order wrt ..imagebase
+	DD	$L$SEH_begin_ossl_md5_block_asm_data_order wrt ..imagebase
+	DD	$L$SEH_end_ossl_md5_block_asm_data_order wrt ..imagebase
+	DD	$L$SEH_info_ossl_md5_block_asm_data_order wrt ..imagebase
 
 section	.xdata rdata align=8
 ALIGN	8
-$L$SEH_info_md5_block_asm_data_order:
+$L$SEH_info_ossl_md5_block_asm_data_order:
 DB	9,0,0,0
 	DD	se_handler wrt ..imagebase

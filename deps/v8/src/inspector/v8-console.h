@@ -5,10 +5,15 @@
 #ifndef V8_INSPECTOR_V8_CONSOLE_H_
 #define V8_INSPECTOR_V8_CONSOLE_H_
 
+#include "include/v8-array-buffer.h"
+#include "include/v8-external.h"
+#include "include/v8-local-handle.h"
 #include "src/base/macros.h"
-
-#include "include/v8.h"
 #include "src/debug/interface-types.h"
+
+namespace v8 {
+class Set;
+}  // namespace v8
 
 namespace v8_inspector {
 
@@ -24,12 +29,14 @@ class V8Console : public v8::debug::ConsoleDelegate {
   void installMemoryGetter(v8::Local<v8::Context> context,
                            v8::Local<v8::Object> console);
 
-  class CommandLineAPIScope {
+  class V8_NODISCARD CommandLineAPIScope {
    public:
     CommandLineAPIScope(v8::Local<v8::Context>,
                         v8::Local<v8::Object> commandLineAPI,
                         v8::Local<v8::Object> global);
     ~CommandLineAPIScope();
+    CommandLineAPIScope(const CommandLineAPIScope&) = delete;
+    CommandLineAPIScope& operator=(const CommandLineAPIScope&) = delete;
 
    private:
     static void accessorGetterCallback(
@@ -43,8 +50,6 @@ class V8Console : public v8::debug::ConsoleDelegate {
     v8::Local<v8::Object> m_global;
     v8::Local<v8::Set> m_installedMethods;
     v8::Local<v8::ArrayBuffer> m_thisReference;
-
-    DISALLOW_COPY_AND_ASSIGN(CommandLineAPIScope);
   };
 
   explicit V8Console(V8InspectorImpl* inspector);

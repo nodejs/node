@@ -36,6 +36,8 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
         jsgraph_(jsgraph),
         zone_(zone) {}
   ~CsaLoadElimination() final = default;
+  CsaLoadElimination(const CsaLoadElimination&) = delete;
+  CsaLoadElimination& operator=(const CsaLoadElimination&) = delete;
 
   const char* reducer_name() const override { return "CsaLoadElimination"; }
 
@@ -59,28 +61,74 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
     MachineRepresentation representation = MachineRepresentation::kNone;
   };
 
+  // Design doc: https://bit.ly/36MfD6Y
   class AbstractState final : public ZoneObject {
    public:
-    explicit AbstractState(Zone* zone) : field_infos_(zone) {}
+    explicit AbstractState(Zone* zone)
+        : zone_(zone),
+          fresh_entries_(zone, InnerMap(zone)),
+          constant_entries_(zone, InnerMap(zone)),
+          arbitrary_entries_(zone, InnerMap(zone)),
+          fresh_unknown_entries_(zone, InnerMap(zone)),
+          constant_unknown_entries_(zone, InnerMap(zone)),
+          arbitrary_unknown_entries_(zone, InnerMap(zone)) {}
 
     bool Equals(AbstractState const* that) const {
-      return field_infos_ == that->field_infos_;
+      return fresh_entries_ == that->fresh_entries_ &&
+             constant_entries_ == that->constant_entries_ &&
+             arbitrary_entries_ == that->arbitrary_entries_ &&
+             fresh_unknown_entries_ == that->fresh_unknown_entries_ &&
+             constant_unknown_entries_ == that->constant_unknown_entries_ &&
+             arbitrary_unknown_entries_ == that->arbitrary_unknown_entries_;
     }
-    void Merge(AbstractState const* that, Zone* zone);
+    void IntersectWith(AbstractState const* that);
 
     AbstractState const* KillField(Node* object, Node* offset,
-                                   MachineRepresentation repr,
-                                   Zone* zone) const;
-    AbstractState const* AddField(Node* object, Node* offset, FieldInfo info,
-                                  Zone* zone) const;
+                                   MachineRepresentation repr) const;
+    AbstractState const* AddField(Node* object, Node* offset, Node* value,
+                                  MachineRepresentation repr) const;
     FieldInfo Lookup(Node* object, Node* offset) const;
 
     void Print() const;
 
    private:
-    using Field = std::pair<Node*, Node*>;
-    using FieldInfos = PersistentMap<Field, FieldInfo>;
-    FieldInfos field_infos_;
+    Zone* zone_;
+    using InnerMap = PersistentMap<Node*, FieldInfo>;
+    template <typename OuterKey>
+    using OuterMap = PersistentMap<OuterKey, InnerMap>;
+
+    // offset -> object -> info
+    using ConstantOffsetInfos = OuterMap<uint32_t>;
+    ConstantOffsetInfos fresh_entries_;
+    ConstantOffsetInfos constant_entries_;
+    ConstantOffsetInfos arbitrary_entries_;
+
+    // object -> offset -> info
+    using UnknownOffsetInfos = OuterMap<Node*>;
+    UnknownOffsetInfos fresh_unknown_entries_;
+    UnknownOffsetInfos constant_unknown_entries_;
+    UnknownOffsetInfos arbitrary_unknown_entries_;
+
+    // Update {map} so that {map.Get(outer_key).Get(inner_key)} returns {info}.
+    template <typename OuterKey>
+    static void Update(OuterMap<OuterKey>& map, OuterKey outer_key,
+                       Node* inner_key, FieldInfo info) {
+      InnerMap map_copy(map.Get(outer_key));
+      map_copy.Set(inner_key, info);
+      map.Set(outer_key, map_copy);
+    }
+
+    // Kill all elements in {infos} which may alias with offset.
+    static void KillOffset(ConstantOffsetInfos& infos, uint32_t offset,
+                           MachineRepresentation repr, Zone* zone);
+    void KillOffsetInFresh(Node* object, uint32_t offset,
+                           MachineRepresentation repr);
+
+    template <typename OuterKey>
+    static void IntersectWith(OuterMap<OuterKey>& to,
+                              const OuterMap<OuterKey>& from);
+    static void Print(const ConstantOffsetInfos& infos);
+    static void Print(const UnknownOffsetInfos& infos);
   };
 
   Reduction ReduceLoadFromObject(Node* node, ObjectAccess const& access);
@@ -95,8 +143,11 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
 
   AbstractState const* ComputeLoopState(Node* node,
                                         AbstractState const* state) const;
+  Node* TruncateAndExtend(Node* node, MachineRepresentation from,
+                          MachineType to);
 
   CommonOperatorBuilder* common() const;
+  MachineOperatorBuilder* machine() const;
   Isolate* isolate() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -107,8 +158,6 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
   NodeAuxData<AbstractState const*> node_states_;
   JSGraph* const jsgraph_;
   Zone* zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(CsaLoadElimination);
 };
 
 }  // namespace compiler

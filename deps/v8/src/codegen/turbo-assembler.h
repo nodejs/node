@@ -17,6 +17,12 @@ namespace internal {
 
 // Common base class for platform-specific TurboAssemblers containing
 // platform-independent bits.
+// You will encounter two subclasses, TurboAssembler (derives from
+// TurboAssemblerBase), and MacroAssembler (derives from TurboAssembler). The
+// main difference is that MacroAssembler is allowed to access the isolate, and
+// TurboAssembler accesses the isolate in a very limited way. TurboAssembler
+// contains all the functionality that is used by Turbofan, and does not expect
+// to be running on the main thread.
 class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
  public:
   // Constructors are declared public to inherit them in derived classes
@@ -47,31 +53,18 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   bool should_abort_hard() const { return hard_abort_; }
   void set_abort_hard(bool v) { hard_abort_ = v; }
 
-  void set_builtin_index(int i) { maybe_builtin_index_ = i; }
+  void set_builtin(Builtin builtin) { maybe_builtin_ = builtin; }
 
   void set_has_frame(bool v) { has_frame_ = v; }
   bool has_frame() const { return has_frame_; }
-
-  virtual void Jump(const ExternalReference& reference) = 0;
-
-  // Calls the builtin given by the Smi in |builtin|. If builtins are embedded,
-  // the trampoline Code object on the heap is not used.
-  virtual void CallBuiltinByIndex(Register builtin_index) = 0;
-
-  // Calls/jumps to the given Code object. If builtins are embedded, the
-  // trampoline Code object on the heap is not used.
-  virtual void CallCodeObject(Register code_object) = 0;
-  virtual void JumpCodeObject(Register code_object) = 0;
-
-  // Loads the given Code object's entry point into the destination register.
-  virtual void LoadCodeObjectEntry(Register destination,
-                                   Register code_object) = 0;
 
   // Loads the given constant or external reference without embedding its direct
   // pointer. The produced code is isolate-independent.
   void IndirectLoadConstant(Register destination, Handle<HeapObject> object);
   void IndirectLoadExternalReference(Register destination,
                                      ExternalReference reference);
+
+  Address BuiltinEntry(Builtin builtin);
 
   virtual void LoadFromConstantsTable(Register destination,
                                       int constant_index) = 0;
@@ -85,11 +78,8 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
 
   virtual void LoadRoot(Register destination, RootIndex index) = 0;
 
-  virtual void Trap() = 0;
-  virtual void DebugBreak() = 0;
-
   static int32_t RootRegisterOffsetForRootIndex(RootIndex root_index);
-  static int32_t RootRegisterOffsetForBuiltinIndex(int builtin_index);
+  static int32_t RootRegisterOffsetForBuiltin(Builtin builtin);
 
   // Returns the root-relative offset to reference.address().
   static intptr_t RootRegisterOffsetForExternalReference(
@@ -105,15 +95,31 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   static bool IsAddressableThroughRootRegister(
       Isolate* isolate, const ExternalReference& reference);
 
-#ifdef V8_TARGET_OS_WIN
+#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOSX)
   // Minimum page size. We must touch memory once per page when expanding the
   // stack, to avoid access violations.
   static constexpr int kStackPageSize = 4 * KB;
 #endif
 
- protected:
-  void RecordCommentForOffHeapTrampoline(int builtin_index);
+  V8_INLINE std::string CommentForOffHeapTrampoline(const char* prefix,
+                                                    Builtin builtin) {
+    if (!FLAG_code_comments) return "";
+    std::ostringstream str;
+    str << "Inlined  Trampoline for " << prefix << " to "
+        << Builtins::name(builtin);
+    return str.str();
+  }
 
+  V8_INLINE void RecordCommentForOffHeapTrampoline(Builtin builtin) {
+    if (!FLAG_code_comments) return;
+    std::ostringstream str;
+    str << "[ Inlined Trampoline to " << Builtins::name(builtin);
+    RecordComment(str.str().c_str());
+  }
+
+  enum class RecordWriteCallMode { kDefault, kWasm };
+
+ protected:
   Isolate* const isolate_ = nullptr;
 
   // This handle will be patched with the code object on installation.
@@ -129,17 +135,18 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   bool hard_abort_ = false;
 
   // May be set while generating builtins.
-  int maybe_builtin_index_ = Builtins::kNoBuiltinId;
+  Builtin maybe_builtin_ = Builtin::kNoBuiltinId;
 
   bool has_frame_ = false;
+
+  int comment_depth_ = 0;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TurboAssemblerBase);
 };
 
-// Avoids emitting calls to the {Builtins::kAbort} builtin when emitting debug
-// code during the lifetime of this scope object. For disabling debug code
-// entirely use the {DontEmitDebugCodeScope} instead.
-class HardAbortScope {
+// Avoids emitting calls to the {Builtin::kAbort} builtin when emitting
+// debug code during the lifetime of this scope object.
+class V8_NODISCARD HardAbortScope {
  public:
   explicit HardAbortScope(TurboAssemblerBase* assembler)
       : assembler_(assembler), old_value_(assembler->should_abort_hard()) {
@@ -151,27 +158,6 @@ class HardAbortScope {
   TurboAssemblerBase* assembler_;
   bool old_value_;
 };
-
-#ifdef DEBUG
-struct CountIfValidRegisterFunctor {
-  template <typename RegType>
-  constexpr int operator()(int count, RegType reg) const {
-    return count + (reg.is_valid() ? 1 : 0);
-  }
-};
-
-template <typename RegType, typename... RegTypes,
-          // All arguments must be either Register or DoubleRegister.
-          typename = typename std::enable_if<
-              base::is_same<Register, RegType, RegTypes...>::value ||
-              base::is_same<DoubleRegister, RegType, RegTypes...>::value>::type>
-inline bool AreAliased(RegType first_reg, RegTypes... regs) {
-  int num_different_regs = NumRegs(RegType::ListOf(first_reg, regs...));
-  int num_given_regs =
-      base::fold(CountIfValidRegisterFunctor{}, 0, first_reg, regs...);
-  return num_different_regs < num_given_regs;
-}
-#endif
 
 }  // namespace internal
 }  // namespace v8

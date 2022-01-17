@@ -6,6 +6,7 @@
 #define V8_OBJECTS_DICTIONARY_H_
 
 #include "src/base/export-template.h"
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/property-array.h"
@@ -17,6 +18,13 @@
 
 namespace v8 {
 namespace internal {
+
+#ifdef V8_ENABLE_SWISS_NAME_DICTIONARY
+class SwissNameDictionary;
+using PropertyDictionary = SwissNameDictionary;
+#else
+using PropertyDictionary = NameDictionary;
+#endif
 
 template <typename T>
 class Handle;
@@ -30,9 +38,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
 
  public:
   using Key = typename Shape::Key;
-  // Returns the value at entry.
   inline Object ValueAt(InternalIndex entry);
-  inline Object ValueAt(const Isolate* isolate, InternalIndex entry);
+  inline Object ValueAt(PtrComprCageBase cage_base, InternalIndex entry);
+  // Returns {} if we would be reading out of the bounds of the object.
+  inline base::Optional<Object> TryValueAt(InternalIndex entry);
 
   // Set the value for entry.
   inline void ValueAtPut(InternalIndex entry, Object value);
@@ -42,6 +51,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
 
   // Set the details for entry.
   inline void DetailsAtPut(InternalIndex entry, PropertyDetails value);
+
+  static const bool kIsOrderedDictionaryType = false;
 
   // Delete a property from the dictionary.
   V8_WARN_UNUSED_RESULT static Handle<Derived> DeleteEntry(
@@ -55,28 +66,26 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
 
   int NumberOfEnumerableProperties();
 
-#ifdef OBJECT_PRINT
-  // For our gdb macros, we should perhaps change these in the future.
-  void Print();
-
-  void Print(std::ostream& os);  // NOLINT
-#endif
   // Returns the key (slow).
   Object SlowReverseLookup(Object value);
 
-  // Sets the entry to (key, value) pair.
   inline void ClearEntry(InternalIndex entry);
+
+  // Sets the entry to (key, value) pair.
   inline void SetEntry(InternalIndex entry, Object key, Object value,
                        PropertyDetails details);
 
   // Garbage collection support.
   inline ObjectSlot RawFieldOfValueAt(InternalIndex entry);
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
-      LocalIsolate* isolate, Handle<Derived> dictionary, Key key,
+      IsolateT* isolate, Handle<Derived> dictionary, Key key,
       Handle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
+
+  static Handle<Derived> ShallowCopy(Isolate* isolate,
+                                     Handle<Derived> dictionary);
 
  protected:
   // Generic at put operation.
@@ -135,16 +144,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   inline int Hash() const;
 
   // Creates a new dictionary.
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> New(
-      LocalIsolate* isolate, int at_least_space_for,
+      IsolateT* isolate, int at_least_space_for,
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
-
-  // Collect the keys into the given KeyAccumulator, in ascending chronological
-  // order of property creation.
-  V8_WARN_UNUSED_RESULT static ExceptionStatus CollectKeysTo(
-      Handle<Derived> dictionary, KeyAccumulator* keys);
 
   // Allocate the next enumeration index. Possibly updates all enumeration
   // indices in the table.
@@ -157,16 +161,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   static Handle<FixedArray> IterationIndices(Isolate* isolate,
                                              Handle<Derived> dictionary);
 
-  // Copies enumerable keys to preallocated fixed array.
-  // Does not throw for uninitialized exports in module namespace objects, so
-  // this has to be checked separately.
-  static void CopyEnumKeysTo(Isolate* isolate, Handle<Derived> dictionary,
-                             Handle<FixedArray> storage, KeyCollectionMode mode,
-                             KeyAccumulator* accumulator);
-
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   V8_WARN_UNUSED_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
-      LocalIsolate* isolate, Handle<Derived> dictionary, Key key,
+      IsolateT* isolate, Handle<Derived> dictionary, Key key,
       Handle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
 
@@ -191,13 +188,14 @@ class V8_EXPORT_PRIVATE NameDictionary
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
   DECL_CAST(NameDictionary)
+  DECL_PRINTER(NameDictionary)
 
   static const int kEntryValueIndex = 1;
   static const int kEntryDetailsIndex = 2;
   static const int kInitialCapacity = 2;
 
   inline Name NameAt(InternalIndex entry);
-  inline Name NameAt(const Isolate* isolate, InternalIndex entry);
+  inline Name NameAt(PtrComprCageBase cage_base, InternalIndex entry);
 
   inline void set_hash(int hash);
   inline int hash() const;
@@ -232,17 +230,21 @@ class V8_EXPORT_PRIVATE GlobalDictionary
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
   DECL_CAST(GlobalDictionary)
+  DECL_PRINTER(GlobalDictionary)
 
   inline Object ValueAt(InternalIndex entry);
-  inline Object ValueAt(const Isolate* isolate, InternalIndex entry);
+  inline Object ValueAt(PtrComprCageBase cage_base, InternalIndex entry);
   inline PropertyCell CellAt(InternalIndex entry);
-  inline PropertyCell CellAt(const Isolate* isolate, InternalIndex entry);
+  inline PropertyCell CellAt(PtrComprCageBase cage_base, InternalIndex entry);
   inline void SetEntry(InternalIndex entry, Object key, Object value,
                        PropertyDetails details);
   inline void ClearEntry(InternalIndex entry);
   inline Name NameAt(InternalIndex entry);
-  inline Name NameAt(const Isolate* isolate, InternalIndex entry);
+  inline Name NameAt(PtrComprCageBase cage_base, InternalIndex entry);
   inline void ValueAtPut(InternalIndex entry, Object value);
+
+  base::Optional<PropertyCell> TryFindPropertyCellForConcurrentLookupIterator(
+      Isolate* isolate, Handle<Name> name, RelaxedLoadTag tag);
 
   OBJECT_CONSTRUCTORS(
       GlobalDictionary,
@@ -359,6 +361,22 @@ class NumberDictionary
 
   OBJECT_CONSTRUCTORS(NumberDictionary,
                       Dictionary<NumberDictionary, NumberDictionaryShape>);
+};
+
+// The comparator is passed two indices |a| and |b|, and it returns < 0 when the
+// property at index |a| comes before the property at index |b| in the
+// enumeration order.
+template <typename Dictionary>
+struct EnumIndexComparator {
+  explicit EnumIndexComparator(Dictionary dict) : dict(dict) {}
+  bool operator()(Tagged_t a, Tagged_t b) {
+    PropertyDetails da(
+        dict.DetailsAt(InternalIndex(Smi(static_cast<Address>(a)).value())));
+    PropertyDetails db(
+        dict.DetailsAt(InternalIndex(Smi(static_cast<Address>(b)).value())));
+    return da.dictionary_index() < db.dictionary_index();
+  }
+  Dictionary dict;
 };
 
 }  // namespace internal

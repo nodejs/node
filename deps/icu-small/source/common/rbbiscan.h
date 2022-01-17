@@ -34,7 +34,7 @@ class   RBBISymbolTable;
 //--------------------------------------------------------------------------------
 //
 //  class RBBIRuleScanner does the lowest level, character-at-a-time
-//                        scanning of break iterator rules.
+//                        scanning of break iterator rules.  
 //
 //                        The output of the scanner is parse trees for
 //                        the rule expressions and a list of all Unicode Sets
@@ -54,7 +54,7 @@ public:
     struct RBBIRuleChar {
         UChar32             fChar;
         UBool               fEscaped;
-        RBBIRuleChar() : fChar(0), fEscaped(FALSE) {}
+        RBBIRuleChar() : fChar(0), fEscaped(false) {}
     };
 
     RBBIRuleScanner(RBBIRuleBuilder  *rb);
@@ -144,7 +144,7 @@ private:
 
     UnicodeSet                     fRuleSets[10];    // Unicode Sets that are needed during
                                                      //  the scanning of RBBI rules.  The
-                                                     //  indicies for these are assigned by the
+                                                     //  indices for these are assigned by the
                                                      //  perl script that builds the state tables.
                                                      //  See rbbirpt.h.
 

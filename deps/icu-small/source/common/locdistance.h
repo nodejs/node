@@ -1,5 +1,5 @@
 // © 2019 and later: Unicode, Inc. and others.
-// License & terms of use: http://www.unicode.org/copyright.html#License
+// License & terms of use: http://www.unicode.org/copyright.html
 
 // locdistance.h
 // created: 2019may08 Markus W. Scherer
@@ -37,6 +37,10 @@ public:
     static double getDistanceDouble(int32_t indexAndDistance) {
         double shiftedDistance = getShiftedDistance(indexAndDistance);
         return shiftedDistance / (1 << DISTANCE_SHIFT);
+    }
+
+    static int32_t getDistanceFloor(int32_t indexAndDistance) {
+        return (indexAndDistance & DISTANCE_MASK) >> DISTANCE_SHIFT;
     }
 
     static int32_t getIndex(int32_t indexAndDistance) {
@@ -78,10 +82,6 @@ private:
     static constexpr int32_t DISTANCE_MASK = 0x3ff;
     // tic constexpr int32_t MAX_INDEX = 0x1fffff;  // avoids sign bit
     static constexpr int32_t INDEX_NEG_1 = 0xfffffc00;
-
-    static int32_t getDistanceFloor(int32_t indexAndDistance) {
-        return (indexAndDistance & DISTANCE_MASK) >> DISTANCE_SHIFT;
-    }
 
     LocaleDistance(const LocaleDistanceData &data, const XLikelySubtags &likely);
     LocaleDistance(const LocaleDistance &other) = delete;

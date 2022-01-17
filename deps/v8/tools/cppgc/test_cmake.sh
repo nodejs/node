@@ -50,7 +50,7 @@ cmake -GNinja $rootdir || fail "Failed to execute cmake"
 
 # Build all targets.
 ninja cppgc || fail "Failed to build cppgc"
-ninja cppgc_sample || fail "Failed to build sample"
+ninja cppgc_hello_world || fail "Failed to build sample"
 ninja cppgc_unittests || fail "Failed to build unittests"
 
 # Run unittests.

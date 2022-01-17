@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-reftypes --expose-gc
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestDefaultValue() {
   print(arguments.callee.name);
@@ -249,7 +249,7 @@ function dummy_func() {
   }
 
   TestGlobal(null);
-  assertThrows(() => TestGlobal(undefined), TypeError);
+  TestGlobal(undefined);
   TestGlobal(1663);
   TestGlobal("testmyglobal");
   TestGlobal({ a: 11 });
@@ -546,12 +546,13 @@ function dummy_func() {
 (function TestRefFuncGlobalInit() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  const g_func = builder.addGlobal(kWasmAnyFunc, true);
   const f_func = builder.addFunction('get_anyfunc_global', kSig_a_v)
-                     .addBody([kExprGlobalGet, g_func.index])
-                     .exportAs('get_anyfunc_global');
   builder.addDeclarativeElementSegment([f_func.index]);
-  g_func.function_index = f_func.index;
+  const g_func = builder.addGlobal(kWasmAnyFunc, true,
+    WasmInitExpr.RefFunc(f_func.index));
+  // Doing this here to break the cyclic dependency with g_func.
+  f_func.addBody([kExprGlobalGet, g_func.index])
+    .exportAs('get_anyfunc_global');
 
   const instance = builder.instantiate();
   assertEquals(
@@ -565,11 +566,11 @@ function dummy_func() {
   const sig_index = builder.addType(kSig_i_v);
   const import_wasm = builder.addImport('m', 'wasm', sig_index);
   const import_js = builder.addImport('m', 'js', sig_index);
-  const g_wasm = builder.addGlobal(kWasmAnyFunc, true);
-  const g_js = builder.addGlobal(kWasmAnyFunc, true);
+  const g_wasm = builder.addGlobal(kWasmAnyFunc, true,
+                                   WasmInitExpr.RefFunc(import_wasm));
+  const g_js = builder.addGlobal(kWasmAnyFunc, true,
+                                 WasmInitExpr.RefFunc(import_js));
   builder.addDeclarativeElementSegment([import_wasm, import_js]);
-  g_wasm.function_index = import_wasm;
-  g_js.function_index = import_js;
   builder.addFunction('get_global_wasm', kSig_a_v)
       .addBody([kExprGlobalGet, g_wasm.index])
       .exportFunc();
@@ -593,4 +594,26 @@ function dummy_func() {
 
   assertSame(expected_wasm, instance.exports.get_global_wasm());
   assertSame(expected_val, instance.exports.get_global_js()());
+})();
+
+(function TestSetGlobalWriteBarrier() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  const global = builder.addGlobal(kWasmExternRef, true).index;
+  builder.addFunction("set_global", kSig_v_r)
+    .addBody([kExprLocalGet, 0, kExprGlobalSet, global])
+    .exportFunc();
+  builder.addFunction("get_global", kSig_r_v)
+    .addBody([kExprGlobalGet, global])
+    .exportFunc();
+
+  const instance = builder.instantiate();
+  // Trigger GC twice to make sure the instance is moved to mature space.
+  gc();
+  gc();
+  const test_value = { hello: 'world' };
+  instance.exports.set_global(test_value);
+  // Run another GC to test if the writebarrier existed.
+  gc();
+  assertSame(test_value, instance.exports.get_global());
 })();

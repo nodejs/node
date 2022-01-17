@@ -22,29 +22,36 @@ if (nodeTiming.loopStart === -1) {
                          { idle: 0, active: 0, utilization: 0 });
 }
 
+const nodeTimingProps = ['name', 'entryType', 'startTime', 'duration',
+                         'nodeStart', 'v8Start', 'environment', 'loopStart',
+                         'loopExit', 'bootstrapComplete', 'idleTime'];
+for (const p of nodeTimingProps)
+  assert.ok(typeof JSON.parse(JSON.stringify(nodeTiming))[p] ===
+    typeof nodeTiming[p]);
+
 setTimeout(mustCall(function r() {
-  const t = Date.now();
   const elu1 = eventLoopUtilization();
 
   // Force idle time to accumulate before allowing test to continue.
   if (elu1.idle <= 0)
     return setTimeout(mustCall(r), 5);
 
+  const t = Date.now();
   while (Date.now() - t < SPIN_DUR) { }
 
-  const elu2 = eventLoopUtilization();
-  const elu3 = eventLoopUtilization(elu1);
-  const elu4 = eventLoopUtilization(elu2, elu1);
+  const elu2 = eventLoopUtilization(elu1);
+  const elu3 = eventLoopUtilization();
+  const elu4 = eventLoopUtilization(elu3, elu1);
 
-  assert.strictEqual(elu3.idle, 0);
+  assert.strictEqual(elu2.idle, 0);
   assert.strictEqual(elu4.idle, 0);
-  assert.strictEqual(elu3.utilization, 1);
+  assert.strictEqual(elu2.utilization, 1);
   assert.strictEqual(elu4.utilization, 1);
-  assert.strictEqual(elu2.active - elu1.active, elu4.active);
-  assert.ok(elu3.active > SPIN_DUR - 10, `${elu3.active} <= ${SPIN_DUR - 10}`);
+  assert.strictEqual(elu3.active - elu1.active, elu4.active);
+  assert.ok(elu2.active > SPIN_DUR - 10, `${elu2.active} <= ${SPIN_DUR - 10}`);
+  assert.ok(elu2.active < elu4.active, `${elu2.active} >= ${elu4.active}`);
+  assert.ok(elu3.active > elu2.active, `${elu3.active} <= ${elu2.active}`);
   assert.ok(elu3.active > elu4.active, `${elu3.active} <= ${elu4.active}`);
-  assert.ok(elu2.active > elu3.active, `${elu2.active} <= ${elu3.active}`);
-  assert.ok(elu2.active > elu4.active, `${elu2.active} <= ${elu4.active}`);
 
   setTimeout(mustCall(runIdleTimeTest), TIMEOUT);
 }), 5);

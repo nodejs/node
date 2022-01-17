@@ -4,6 +4,7 @@
 
 #include "src/json/json-stringifier.h"
 
+#include "src/base/strings.h"
 #include "src/common/message-template.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
@@ -91,7 +92,7 @@ class JsonStringifier {
 
   template <typename SrcChar, typename DestChar>
   V8_INLINE static void SerializeStringUnchecked_(
-      Vector<const SrcChar> src,
+      base::Vector<const SrcChar> src,
       IncrementalStringBuilder::NoExtend<DestChar>* dest);
 
   template <typename SrcChar, typename DestChar>
@@ -127,7 +128,7 @@ class JsonStringifier {
   Handle<String> tojson_string_;
   Handle<FixedArray> property_list_;
   Handle<JSReceiver> replacer_function_;
-  uc16* gap_;
+  base::uc16* gap_;
   int indent_;
 
   using KeyObject = std::pair<Handle<Object>, Handle<Object>>;
@@ -303,7 +304,7 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
     Handle<String> gap_string = Handle<String>::cast(gap);
     if (gap_string->length() > 0) {
       int gap_length = std::min(gap_string->length(), 10);
-      gap_ = NewArray<uc16>(gap_length + 1);
+      gap_ = NewArray<base::uc16>(gap_length + 1);
       String::WriteToFlat(*gap_string, gap_, 0, gap_length);
       for (int i = 0; i < gap_length; i++) {
         if (gap_[i] > String::kMaxOneByteCharCode) {
@@ -314,10 +315,10 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
       gap_[gap_length] = '\0';
     }
   } else if (gap->IsNumber()) {
-    int num_value = DoubleToInt32(gap->Number());
-    if (num_value > 0) {
-      int gap_length = std::min(num_value, 10);
-      gap_ = NewArray<uc16>(gap_length + 1);
+    double value = std::min(gap->Number(), 10.0);
+    if (value > 0) {
+      int gap_length = DoubleToInt32(value);
+      gap_ = NewArray<base::uc16>(gap_length + 1);
       for (int i = 0; i < gap_length; i++) gap_[i] = ' ';
       gap_[gap_length] = '\0';
     }
@@ -381,10 +382,10 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
   }
 
   {
-    DisallowHeapAllocation no_allocation;
+    DisallowGarbageCollection no_gc;
     for (size_t i = 0; i < stack_.size(); ++i) {
       if (*stack_[i].second == *object) {
-        AllowHeapAllocation allow_to_return_error;
+        AllowGarbageCollection allow_to_return_error;
         Handle<String> circle_description =
             ConstructCircularStructureErrorMessage(key, i);
         Handle<Object> error = factory()->NewTypeError(
@@ -462,7 +463,7 @@ class CircularStructureMessageBuilder {
   void AppendSmi(Smi smi) {
     static const int kBufferSize = 100;
     char chars[kBufferSize];
-    Vector<char> buffer(chars, kBufferSize);
+    base::Vector<char> buffer(chars, kBufferSize);
     builder_.AppendCString(IntToCString(smi.value(), buffer));
   }
 
@@ -620,7 +621,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
 JsonStringifier::Result JsonStringifier::SerializeSmi(Smi object) {
   static const int kBufferSize = 100;
   char chars[kBufferSize];
-  Vector<char> buffer(chars, kBufferSize);
+  base::Vector<char> buffer(chars, kBufferSize);
   builder_.AppendCString(IntToCString(object.value(), buffer));
   return SUCCESS;
 }
@@ -632,7 +633,7 @@ JsonStringifier::Result JsonStringifier::SerializeDouble(double number) {
   }
   static const int kBufferSize = 100;
   char chars[kBufferSize];
-  Vector<char> buffer(chars, kBufferSize);
+  base::Vector<char> buffer(chars, kBufferSize);
   builder_.AppendCString(DoubleToCString(number, buffer));
   return SUCCESS;
 }
@@ -772,14 +773,17 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     Indent();
     bool comma = false;
     for (InternalIndex i : map->IterateOwnDescriptors()) {
-      Handle<Name> name(map->instance_descriptors().GetKey(i), isolate_);
+      Handle<Name> name(map->instance_descriptors(isolate_).GetKey(i),
+                        isolate_);
       // TODO(rossberg): Should this throw?
       if (!name->IsString()) continue;
       Handle<String> key = Handle<String>::cast(name);
-      PropertyDetails details = map->instance_descriptors().GetDetails(i);
+      PropertyDetails details =
+          map->instance_descriptors(isolate_).GetDetails(i);
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
-      if (details.location() == kField && *map == object->map()) {
+      if (details.location() == PropertyLocation::kField &&
+          *map == object->map()) {
         DCHECK_EQ(kData, details.kind());
         FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
         property = JSObject::FastPropertyAt(object, details.representation(),
@@ -873,10 +877,10 @@ JsonStringifier::Result JsonStringifier::SerializeJSProxy(
 
 template <typename SrcChar, typename DestChar>
 void JsonStringifier::SerializeStringUnchecked_(
-    Vector<const SrcChar> src,
+    base::Vector<const SrcChar> src,
     IncrementalStringBuilder::NoExtend<DestChar>* dest) {
-  // Assert that uc16 character is not truncated down to 8 bit.
-  // The <uc16, char> version of this method must not be called.
+  // Assert that base::uc16 character is not truncated down to 8 bit.
+  // The <base::uc16, char> version of this method must not be called.
   DCHECK(sizeof(DestChar) >= sizeof(SrcChar));
   for (int i = 0; i < src.length(); i++) {
     SrcChar c = src[i];
@@ -934,8 +938,8 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
   // We might be able to fit the whole escaped string in the current string
   // part, or we might need to allocate.
   if (int worst_case_length = builder_.EscapedLengthIfCurrentPartFits(length)) {
-    DisallowHeapAllocation no_gc;
-    Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
+    DisallowGarbageCollection no_gc;
+    base::Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
     IncrementalStringBuilder::NoExtendBuilder<DestChar> no_extend(
         &builder_, worst_case_length, no_gc);
     SerializeStringUnchecked_(vector, &no_extend);
@@ -1034,9 +1038,9 @@ void JsonStringifier::SerializeString(Handle<String> object) {
     }
   } else {
     if (String::IsOneByteRepresentationUnderneath(*object)) {
-      SerializeString_<uint8_t, uc16>(object);
+      SerializeString_<uint8_t, base::uc16>(object);
     } else {
-      SerializeString_<uc16, uc16>(object);
+      SerializeString_<base::uc16, base::uc16>(object);
     }
   }
 }

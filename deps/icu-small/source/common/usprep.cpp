@@ -74,7 +74,7 @@ static const char * const PROFILE_NAMES[] = {
 
 static UBool U_CALLCONV
 isSPrepAcceptable(void * /* context */,
-             const char * /* type */,
+             const char * /* type */, 
              const char * /* name */,
              const UDataInfo *pInfo) {
     if(
@@ -105,7 +105,7 @@ getSPrepFoldingOffset(uint32_t data) {
 }
 
 /* hashes an entry  */
-static int32_t U_CALLCONV
+static int32_t U_CALLCONV 
 hashEntry(const UHashTok parm) {
     UStringPrepKey *b = (UStringPrepKey *)parm.pointer;
     UHashTok namekey, pathkey;
@@ -117,7 +117,7 @@ hashEntry(const UHashTok parm) {
 }
 
 /* compares two entries */
-static UBool U_CALLCONV
+static UBool U_CALLCONV 
 compareEntries(const UHashTok p1, const UHashTok p2) {
     UStringPrepKey *b1 = (UStringPrepKey *)p1.pointer;
     UStringPrepKey *b2 = (UStringPrepKey *)p2.pointer;
@@ -126,16 +126,16 @@ compareEntries(const UHashTok p1, const UHashTok p2) {
     name2.pointer = b2->name;
     path1.pointer = b1->path;
     path2.pointer = b2->path;
-    return ((UBool)(uhash_compareChars(name1, name2) &
+    return ((UBool)(uhash_compareChars(name1, name2) & 
         uhash_compareChars(path1, path2)));
 }
 
-static void
+static void 
 usprep_unload(UStringPrepProfile* data){
     udata_close(data->sprepData);
 }
 
-static int32_t
+static int32_t 
 usprep_internal_flushCache(UBool noRefCount){
     UStringPrepProfile *profile = NULL;
     UStringPrepKey  *key  = NULL;
@@ -159,7 +159,7 @@ usprep_internal_flushCache(UBool noRefCount){
         profile = (UStringPrepProfile *) e->value.pointer;
         key  = (UStringPrepKey *) e->key.pointer;
 
-        if ((noRefCount== FALSE && profile->refCount == 0) ||
+        if ((noRefCount== FALSE && profile->refCount == 0) || 
              noRefCount== TRUE) {
             deletedNum++;
             uhash_removeElement(SHARED_DATA_HASHTABLE, e);
@@ -178,15 +178,15 @@ usprep_internal_flushCache(UBool noRefCount){
             uprv_free(profile);
             uprv_free(key);
         }
-
+       
     }
     umtx_unlock(&usprepMutex);
 
     return deletedNum;
 }
 
-/* Works just like ucnv_flushCache()
-static int32_t
+/* Works just like ucnv_flushCache() 
+static int32_t 
 usprep_flushCache(){
     return usprep_internal_flushCache(FALSE);
 }
@@ -216,18 +216,18 @@ createCache(UErrorCode &status) {
     ucln_common_registerCleanup(UCLN_COMMON_USPREP, usprep_cleanup);
 }
 
-static void
+static void 
 initCache(UErrorCode *status) {
     umtx_initOnce(gSharedDataInitOnce, &createCache, *status);
 }
 
 static UBool U_CALLCONV
-loadData(UStringPrepProfile* profile,
-         const char* path,
-         const char* name,
-         const char* type,
+loadData(UStringPrepProfile* profile, 
+         const char* path, 
+         const char* name, 
+         const char* type, 
          UErrorCode* errorCode) {
-    /* load Unicode SPREP data from file */
+    /* load Unicode SPREP data from file */    
     UTrie _sprepTrie={ 0,0,0,0,0,0,0 };
     UDataMemory *dataMemory;
     const int32_t *p=NULL;
@@ -270,20 +270,20 @@ loadData(UStringPrepProfile* profile,
     umtx_unlock(&usprepMutex);
     /* initialize some variables */
     profile->mappingData=(uint16_t *)((uint8_t *)(p+_SPREP_INDEX_TOP)+profile->indexes[_SPREP_INDEX_TRIE_SIZE]);
-
+    
     u_getUnicodeVersion(normUnicodeVersion);
-    normUniVer = (normUnicodeVersion[0] << 24) + (normUnicodeVersion[1] << 16) +
+    normUniVer = (normUnicodeVersion[0] << 24) + (normUnicodeVersion[1] << 16) + 
                  (normUnicodeVersion[2] << 8 ) + (normUnicodeVersion[3]);
-    sprepUniVer = (dataVersion[0] << 24) + (dataVersion[1] << 16) +
+    sprepUniVer = (dataVersion[0] << 24) + (dataVersion[1] << 16) + 
                   (dataVersion[2] << 8 ) + (dataVersion[3]);
     normCorrVer = profile->indexes[_SPREP_NORM_CORRECTNS_LAST_UNI_VERSION];
-
+    
     if(U_FAILURE(*errorCode)){
         udata_close(dataMemory);
         return FALSE;
     }
-    if( normUniVer < sprepUniVer && /* the Unicode version of SPREP file must be less than the Unicode Vesion of the normalization data */
-        normUniVer < normCorrVer && /* the Unicode version of the NormalizationCorrections.txt file should be less than the Unicode Vesion of the normalization data */
+    if( normUniVer < sprepUniVer && /* the Unicode version of SPREP file must be less than the Unicode Version of the normalization data */
+        normUniVer < normCorrVer && /* the Unicode version of the NormalizationCorrections.txt file should be less than the Unicode Version of the normalization data */
         ((profile->indexes[_SPREP_OPTIONS] & _SPREP_NORMALIZATION_ON) > 0) /* normalization turned on*/
       ){
         *errorCode = U_INVALID_FORMAT_ERROR;
@@ -301,8 +301,8 @@ loadData(UStringPrepProfile* profile,
     return profile->isDataLoaded;
 }
 
-static UStringPrepProfile*
-usprep_getProfile(const char* path,
+static UStringPrepProfile* 
+usprep_getProfile(const char* path, 
                   const char* name,
                   UErrorCode *status){
 
@@ -315,9 +315,9 @@ usprep_getProfile(const char* path,
     }
 
     UStringPrepKey stackKey;
-    /*
-     * const is cast way to save malloc, strcpy and free calls
-     * we use the passed in pointers for fetching the data from the
+    /* 
+     * const is cast way to save malloc, strcpy and free calls 
+     * we use the passed in pointers for fetching the data from the 
      * hash table which is safe
      */
     stackKey.name = (char*) name;
@@ -330,7 +330,7 @@ usprep_getProfile(const char* path,
         profile->refCount++;
     }
     umtx_unlock(&usprepMutex);
-
+    
     if(profile == NULL) {
         /* else load the data and put the data in the cache */
         LocalMemory<UStringPrepProfile> newProfile;
@@ -375,9 +375,9 @@ usprep_getProfile(const char* path,
             if(path != NULL){
                 key->path = keyPath.orphan();
                 uprv_strcpy(key->path, path);
-            }
+            }        
             profile = newProfile.orphan();
-
+    
             /* add the data object to the cache */
             profile->refCount = 1;
             uhash_put(SHARED_DATA_HASHTABLE, key.orphan(), profile, status);
@@ -389,14 +389,14 @@ usprep_getProfile(const char* path,
 }
 
 U_CAPI UStringPrepProfile* U_EXPORT2
-usprep_open(const char* path,
+usprep_open(const char* path, 
             const char* name,
             UErrorCode* status){
 
     if(status == NULL || U_FAILURE(*status)){
         return NULL;
     }
-
+       
     /* initialize the profile struct members */
     return usprep_getProfile(path,name,status);
 }
@@ -427,11 +427,11 @@ usprep_close(UStringPrepProfile* profile){
         profile->refCount--;
     }
     umtx_unlock(&usprepMutex);
-
+    
 }
 
-U_CFUNC void
-uprv_syntaxError(const UChar* rules,
+U_CFUNC void 
+uprv_syntaxError(const UChar* rules, 
                  int32_t pos,
                  int32_t rulesLen,
                  UParseError* parseError){
@@ -439,16 +439,16 @@ uprv_syntaxError(const UChar* rules,
         return;
     }
     parseError->offset = pos;
-    parseError->line = 0 ; // we are not using line numbers
-
+    parseError->line = 0 ; // we are not using line numbers 
+    
     // for pre-context
     int32_t start = (pos < U_PARSE_CONTEXT_LEN)? 0 : (pos - (U_PARSE_CONTEXT_LEN-1));
     int32_t limit = pos;
-
+    
     u_memcpy(parseError->preContext,rules+start,limit-start);
     //null terminate the buffer
     parseError->preContext[limit-start] = 0;
-
+    
     // for post-context; include error rules[pos]
     start = pos;
     limit = start + (U_PARSE_CONTEXT_LEN-1);
@@ -468,8 +468,8 @@ getValues(uint16_t trieWord, int16_t& value, UBool& isIndex){
 
     UStringPrepType type;
     if(trieWord == 0){
-        /*
-         * Initial value stored in the mapping table
+        /* 
+         * Initial value stored in the mapping table 
          * just return USPREP_TYPE_LIMIT .. so that
          * the source codepoint is copied to the destination
          */
@@ -492,7 +492,7 @@ getValues(uint16_t trieWord, int16_t& value, UBool& isIndex){
             value = (int16_t)trieWord;
             value =  (value >> 2);
         }
-
+ 
         if((trieWord>>2) == _SPREP_MAX_INDEX_VALUE){
             type = USPREP_DELETE;
             isIndex =FALSE;
@@ -503,14 +503,14 @@ getValues(uint16_t trieWord, int16_t& value, UBool& isIndex){
 }
 
 // TODO: change to writing to UnicodeString not UChar *
-static int32_t
-usprep_map(  const UStringPrepProfile* profile,
-             const UChar* src, int32_t srcLength,
+static int32_t 
+usprep_map(  const UStringPrepProfile* profile, 
+             const UChar* src, int32_t srcLength, 
              UChar* dest, int32_t destCapacity,
              int32_t options,
              UParseError* parseError,
              UErrorCode* status ){
-
+    
     uint16_t result;
     int32_t destIndex=0;
     int32_t srcIndex;
@@ -527,11 +527,11 @@ usprep_map(  const UStringPrepProfile* profile,
         UChar32 ch;
 
         U16_NEXT(src,srcIndex,srcLength,ch);
-
+        
         result=0;
 
         UTRIE_GET16(&profile->sprepTrie,ch,result);
-
+        
         type = getValues(result, value, isIndex);
 
         // check if the source codepoint is unassigned
@@ -540,9 +540,9 @@ usprep_map(  const UStringPrepProfile* profile,
             uprv_syntaxError(src,srcIndex-U16_LENGTH(ch), srcLength,parseError);
             *status = U_STRINGPREP_UNASSIGNED_ERROR;
             return 0;
-
+            
         }else if(type == USPREP_MAP){
-
+            
             int32_t index, length;
 
             if(isIndex){
@@ -558,7 +558,7 @@ usprep_map(  const UStringPrepProfile* profile,
                     length = 3;
                 }else{
                     length = profile->mappingData[index++];
-
+         
                 }
 
                 /* copy mapping to destination */
@@ -567,7 +567,7 @@ usprep_map(  const UStringPrepProfile* profile,
                         dest[destIndex] = profile->mappingData[index+i];
                     }
                     destIndex++; /* for pre-flighting */
-                }
+                }  
                 continue;
             }else{
                 // subtract the delta to arrive at the code point
@@ -575,7 +575,7 @@ usprep_map(  const UStringPrepProfile* profile,
             }
 
         }else if(type==USPREP_DELETE){
-             // just consume the codepoint and contine
+             // just consume the codepoint and continue
             continue;
         }
         //copy the code point into destination
@@ -591,27 +591,27 @@ usprep_map(  const UStringPrepProfile* profile,
             }
             destIndex +=2;
         }
-
+       
     }
-
+        
     return u_terminateUChars(dest, destCapacity, destIndex, status);
 }
 
 /*
    1) Map -- For each character in the input, check if it has a mapping
-      and, if so, replace it with its mapping.
+      and, if so, replace it with its mapping.  
 
    2) Normalize -- Possibly normalize the result of step 1 using Unicode
-      normalization.
+      normalization. 
 
    3) Prohibit -- Check for any characters that are not allowed in the
-      output.  If any are found, return an error.
+      output.  If any are found, return an error.  
 
    4) Check bidi -- Possibly check for right-to-left characters, and if
       any are found, make sure that the whole string satisfies the
       requirements for bidirectional strings.  If the string does not
       satisfy the requirements for bidirectional strings, return an
-      error.
+      error.  
       [Unicode3.2] defines several bidirectional categories; each character
        has one bidirectional category assigned to it.  For the purposes of
        the requirements below, an "RandALCat character" is a character that
@@ -637,7 +637,7 @@ usprep_map(  const UStringPrepProfile* profile,
 */
 U_CAPI int32_t U_EXPORT2
 usprep_prepare(   const UStringPrepProfile* profile,
-                  const UChar* src, int32_t srcLength,
+                  const UChar* src, int32_t srcLength, 
                   UChar* dest, int32_t destCapacity,
                   int32_t options,
                   UParseError* parseError,
@@ -723,7 +723,7 @@ usprep_prepare(   const UStringPrepProfile* profile,
         UBool isIndex;
         UStringPrepType type = getValues(result, value, isIndex);
 
-        if( type == USPREP_PROHIBITED ||
+        if( type == USPREP_PROHIBITED || 
             ((result < _SPREP_TYPE_THRESHOLD) && (result & 0x01) /* first bit says it the code point is prohibited*/)
            ){
             *status = U_STRINGPREP_PROHIBITED_ERROR;
@@ -755,7 +755,7 @@ usprep_prepare(   const UStringPrepProfile* profile,
         }
 
         //satisfy 3
-        if( rightToLeft == TRUE &&
+        if( rightToLeft == TRUE && 
             !((firstCharDir == U_RIGHT_TO_LEFT || firstCharDir == U_RIGHT_TO_LEFT_ARABIC) &&
               (direction == U_RIGHT_TO_LEFT || direction == U_RIGHT_TO_LEFT_ARABIC))
            ){

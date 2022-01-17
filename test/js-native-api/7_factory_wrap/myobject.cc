@@ -17,7 +17,7 @@ void MyObject::Destructor(napi_env env,
 
 napi_value MyObject::GetFinalizeCount(napi_env env, napi_callback_info info) {
   napi_value result;
-  NAPI_CALL(env, napi_create_int32(env, finalize_count, &result));
+  NODE_API_CALL(env, napi_create_int32(env, finalize_count, &result));
   return result;
 }
 
@@ -26,7 +26,7 @@ napi_ref MyObject::constructor;
 napi_status MyObject::Init(napi_env env) {
   napi_status status;
   napi_property_descriptor properties[] = {
-    DECLARE_NAPI_PROPERTY("plusOne", PlusOne),
+    DECLARE_NODE_API_PROPERTY("plusOne", PlusOne),
   };
 
   napi_value cons;
@@ -44,26 +44,24 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, nullptr));
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, nullptr));
 
   napi_valuetype valuetype;
-  NAPI_CALL(env, napi_typeof(env, args[0], &valuetype));
+  NODE_API_CALL(env, napi_typeof(env, args[0], &valuetype));
 
   MyObject* obj = new MyObject();
 
   if (valuetype == napi_undefined) {
     obj->counter_ = 0;
   } else {
-    NAPI_CALL(env, napi_get_value_uint32(env, args[0], &obj->counter_));
+    NODE_API_CALL(env, napi_get_value_uint32(env, args[0], &obj->counter_));
   }
 
   obj->env_ = env;
-  NAPI_CALL(env, napi_wrap(env,
-                           _this,
-                           obj,
-                           MyObject::Destructor,
-                           nullptr, /* finalize_hint */
-                           &obj->wrapper_));
+  NODE_API_CALL(env,
+      napi_wrap(
+          env, _this, obj, MyObject::Destructor, nullptr /* finalize_hint */,
+          &obj->wrapper_));
 
   return _this;
 }
@@ -88,16 +86,16 @@ napi_status MyObject::NewInstance(napi_env env,
 
 napi_value MyObject::PlusOne(napi_env env, napi_callback_info info) {
   napi_value _this;
-  NAPI_CALL(env,
+  NODE_API_CALL(env,
       napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
 
   MyObject* obj;
-  NAPI_CALL(env, napi_unwrap(env, _this, reinterpret_cast<void**>(&obj)));
+  NODE_API_CALL(env, napi_unwrap(env, _this, reinterpret_cast<void**>(&obj)));
 
   obj->counter_ += 1;
 
   napi_value num;
-  NAPI_CALL(env, napi_create_uint32(env, obj->counter_, &num));
+  NODE_API_CALL(env, napi_create_uint32(env, obj->counter_, &num));
 
   return num;
 }

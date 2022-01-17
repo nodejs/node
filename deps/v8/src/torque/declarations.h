@@ -33,6 +33,15 @@ std::vector<T*> FilterDeclarables(const std::vector<Declarable*> list) {
   return result;
 }
 
+inline std::string UnwrapTNodeTypeName(const std::string& generates) {
+  if (generates.length() < 7 || generates.substr(0, 6) != "TNode<" ||
+      generates.substr(generates.length() - 1, 1) != ">") {
+    ReportError("generated type \"", generates,
+                "\" should be of the form \"TNode<...>\"");
+  }
+  return generates.substr(6, generates.length() - 7);
+}
+
 class Declarations {
  public:
   static std::vector<Declarable*> TryLookup(const QualifiedName& name) {
@@ -123,8 +132,9 @@ class Declarations {
   static RuntimeFunction* DeclareRuntimeFunction(const std::string& name,
                                                  const Signature& signature);
 
-  static void DeclareExternConstant(Identifier* name, const Type* type,
-                                    std::string value);
+  static ExternConstant* DeclareExternConstant(Identifier* name,
+                                               const Type* type,
+                                               std::string value);
   static NamespaceConstant* DeclareNamespaceConstant(Identifier* name,
                                                      const Type* type,
                                                      Expression* body);

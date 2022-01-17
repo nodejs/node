@@ -26,3 +26,12 @@ async_test(function() {
     this.done();
   }, 2000);
 }, 'High resolution time has approximately the right relative magnitude');
+
+test(function() {
+  var didHandle = false;
+  self.performance.addEventListener("testEvent", function() {
+    didHandle = true;
+  }, { once: true} );
+  self.performance.dispatchEvent(new Event("testEvent"));
+  assert_true(didHandle, "Performance extends EventTarget, so event dispatching should work.");
+}, "Performance interface extends EventTarget.");

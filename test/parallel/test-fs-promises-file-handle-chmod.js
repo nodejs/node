@@ -19,7 +19,7 @@ async function validateFilePermission() {
   const fileHandle = await open(filePath, 'w+', 0o444);
   // File created with r--r--r-- 444
   const statsBeforeMod = fs.statSync(filePath);
-  assert.deepStrictEqual(statsBeforeMod.mode & 0o444, 0o444);
+  assert.strictEqual(statsBeforeMod.mode & 0o444, 0o444);
 
   let expectedAccess;
   const newPermissions = 0o765;

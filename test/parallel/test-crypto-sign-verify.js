@@ -63,7 +63,9 @@ const keySize = 2048;
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, { message: 'bye, bye, error stack' });
+  }, { message: common.hasOpenSSL3 ?
+    'error:1C8000A5:Provider routines::illegal or unsupported padding mode' :
+    'bye, bye, error stack' });
 
   delete Object.prototype.opensslErrorStack;
 }
@@ -170,14 +172,14 @@ assert.throws(
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
       crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN,
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
-      0, 16, 32, 64, 128
+      0, 16, 32, 64, 128,
     ];
 
     const verifySaltLengths = [
       crypto.constants.RSA_PSS_SALTLEN_DIGEST,
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
-      0, 16, 32, 64, 128
+      0, 16, 32, 64, 128,
     ];
     const errMessage = /^Error:.*data too large for key size$/;
 
@@ -339,7 +341,10 @@ assert.throws(
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, {
+  }, common.hasOpenSSL3 ? {
+    code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
+    message: /illegal or unsupported padding mode/,
+  } : {
     code: 'ERR_OSSL_RSA_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /illegal or unsupported padding mode/,
     opensslErrorStack: [
@@ -383,7 +388,7 @@ assert.throws(
   });
 
   [
-    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array
+    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array,
   ].forEach((clazz) => {
     // These should all just work
     sign.update(new clazz());
@@ -422,7 +427,7 @@ assert.throws(
   { private: fixtures.readKey('rsa_private_2048.pem', 'ascii'),
     public: fixtures.readKey('rsa_public_2048.pem', 'ascii'),
     algo: 'sha1',
-    sigLen: 256 }
+    sigLen: 256 },
 ].forEach((pair) => {
   const algo = pair.algo;
 
@@ -458,7 +463,7 @@ assert.throws(
   }
 
   [
-    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array
+    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array,
   ].forEach((clazz) => {
     const data = new clazz();
     const sig = crypto.sign(algo, data, pair.private);
@@ -496,7 +501,7 @@ assert.throws(
     [
       crypto.createSign('sha1').update(data).sign(privKey),
       crypto.sign('sha1', data, privKey),
-      crypto.sign('sha1', data, { key: privKey, dsaEncoding: 'der' })
+      crypto.sign('sha1', data, { key: privKey, dsaEncoding: 'der' }),
     ].forEach((sig) => {
       // Signature length variability due to DER encoding
       assert(sig.length >= length + 4 && sig.length <= length + 8);
@@ -521,11 +526,15 @@ assert.throws(
     // Test invalid signature lengths.
     for (const i of [-2, -1, 1, 2, 4, 8]) {
       sig = crypto.randomBytes(length + i);
-      assert.throws(() => {
-        crypto.verify('sha1', data, opts, sig);
-      }, {
-        message: 'Malformed signature'
-      });
+      let result;
+      try {
+        result = crypto.verify('sha1', data, opts, sig);
+      } catch (err) {
+        assert.match(err.message, /asn1 encoding/);
+        assert.strictEqual(err.library, 'asn1 encoding routines');
+        continue;
+      }
+      assert.strictEqual(result, false);
     }
   }
 
@@ -621,4 +630,129 @@ assert.throws(
   exec(cmd, common.mustCall((err, stdout, stderr) => {
     assert(stdout.includes('Verified OK'));
   }));
+}
+
+{
+  // Test RSA-PSS.
+  {
+    // This key pair does not restrict the message digest algorithm or salt
+    // length.
+    const publicPem = fixtures.readKey('rsa_pss_public_2048.pem');
+    const privatePem = fixtures.readKey('rsa_pss_private_2048.pem');
+
+    const publicKey = crypto.createPublicKey(publicPem);
+    const privateKey = crypto.createPrivateKey(privatePem);
+
+    for (const key of [privatePem, privateKey]) {
+      // Any algorithm should work.
+      for (const algo of ['sha1', 'sha256']) {
+        // Any salt length should work.
+        for (const saltLength of [undefined, 8, 10, 12, 16, 18, 20]) {
+          const signature = crypto.sign(algo, 'foo', { key, saltLength });
+
+          for (const pkey of [key, publicKey, publicPem]) {
+            const okay = crypto.verify(
+              algo,
+              'foo',
+              { key: pkey, saltLength },
+              signature
+            );
+
+            assert.ok(okay);
+          }
+        }
+      }
+    }
+  }
+
+  {
+    // This key pair enforces sha256 as the message digest and the MGF1
+    // message digest and a salt length of at least 16 bytes.
+    const publicPem =
+      fixtures.readKey('rsa_pss_public_2048_sha256_sha256_16.pem');
+    const privatePem =
+      fixtures.readKey('rsa_pss_private_2048_sha256_sha256_16.pem');
+
+    const publicKey = crypto.createPublicKey(publicPem);
+    const privateKey = crypto.createPrivateKey(privatePem);
+
+    for (const key of [privatePem, privateKey]) {
+      // Signing with anything other than sha256 should fail.
+      assert.throws(() => {
+        crypto.sign('sha1', 'foo', key);
+      }, /digest not allowed/);
+
+      // Signing with salt lengths less than 16 bytes should fail.
+      for (const saltLength of [8, 10, 12]) {
+        assert.throws(() => {
+          crypto.sign('sha256', 'foo', { key, saltLength });
+        }, /pss saltlen too small/);
+      }
+
+      // Signing with sha256 and appropriate salt lengths should work.
+      for (const saltLength of [undefined, 16, 18, 20]) {
+        const signature = crypto.sign('sha256', 'foo', { key, saltLength });
+
+        for (const pkey of [key, publicKey, publicPem]) {
+          const okay = crypto.verify(
+            'sha256',
+            'foo',
+            { key: pkey, saltLength },
+            signature
+          );
+
+          assert.ok(okay);
+        }
+      }
+    }
+  }
+
+  {
+    // This key enforces sha512 as the message digest and sha256 as the MGF1
+    // message digest.
+    const publicPem =
+      fixtures.readKey('rsa_pss_public_2048_sha512_sha256_20.pem');
+    const privatePem =
+      fixtures.readKey('rsa_pss_private_2048_sha512_sha256_20.pem');
+
+    const publicKey = crypto.createPublicKey(publicPem);
+    const privateKey = crypto.createPrivateKey(privatePem);
+
+    // Node.js usually uses the same hash function for the message and for MGF1.
+    // However, when a different MGF1 message digest algorithm has been
+    // specified as part of the key, it should automatically switch to that.
+    // This behavior is required by sections 3.1 and 3.3 of RFC4055.
+    for (const key of [privatePem, privateKey]) {
+      // sha256 matches the MGF1 hash function and should be used internally,
+      // but it should not be permitted as the main message digest algorithm.
+      for (const algo of ['sha1', 'sha256']) {
+        assert.throws(() => {
+          crypto.sign(algo, 'foo', key);
+        }, /digest not allowed/);
+      }
+
+      // sha512 should produce a valid signature.
+      const signature = crypto.sign('sha512', 'foo', key);
+
+      for (const pkey of [key, publicKey, publicPem]) {
+        const okay = crypto.verify('sha512', 'foo', pkey, signature);
+
+        assert.ok(okay);
+      }
+    }
+  }
+}
+
+// The sign function should not swallow OpenSSL errors.
+// Regression test for https://github.com/nodejs/node/issues/40794.
+{
+  assert.throws(() => {
+    const { privateKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 512
+    });
+    crypto.sign('sha512', 'message', privateKey);
+  }, {
+    code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY',
+    message: /digest too big for rsa key/
+  });
 }

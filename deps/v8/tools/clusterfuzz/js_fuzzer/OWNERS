@@ -5,5 +5,3 @@ file:../../../INFRA_OWNERS
 msarms@chromium.org
 mslekova@chromium.org
 ochang@chromium.org
-
-# COMPONENT: Infra>Client>V8

@@ -37,11 +37,11 @@
 
 #include <utility>
 
-#include "src/init/v8.h"
-
+#include "include/v8-locker.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
@@ -53,6 +53,7 @@ namespace heap {
 
 TEST(Promotion) {
   if (FLAG_single_generation) return;
+  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   {
@@ -74,6 +75,7 @@ TEST(Promotion) {
 
 HEAP_TEST(NoPromotion) {
   if (FLAG_always_promote_young_mc) return;
+  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
   // Page promotion allows pages to be moved to old space even in the case of
   // OOM scenarios.
   FLAG_page_promotion = false;
@@ -169,7 +171,7 @@ HEAP_TEST(MarkCompactCollector) {
   { HandleScope scope(isolate);
     // allocate a garbage
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
-    Handle<JSFunction> function = factory->NewFunctionForTest(func_name);
+    Handle<JSFunction> function = factory->NewFunctionForTesting(func_name);
     Object::SetProperty(isolate, global, func_name, function).Check();
 
     factory->NewJSObject(function);
@@ -247,6 +249,44 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
   for (Handle<FixedArray> object : handles) {
     CHECK_NE(page, Page::FromHeapObject(*object));
   }
+}
+
+HEAP_TEST(ObjectStartBitmap) {
+  if (!FLAG_single_generation || !FLAG_conservative_stack_scanning) return;
+
+#if V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope sc(CcTest::isolate());
+
+  Heap* heap = isolate->heap();
+  heap::SealCurrentObjects(heap);
+
+  auto* factory = isolate->factory();
+  HeapObject obj = *factory->NewStringFromStaticChars("hello");
+  HeapObject obj2 = *factory->NewStringFromStaticChars("world");
+  Page* page = Page::FromAddress(obj.ptr());
+
+  CHECK(page->object_start_bitmap()->CheckBit(obj.address()));
+  CHECK(page->object_start_bitmap()->CheckBit(obj2.address()));
+
+  Address obj_inner_ptr = obj.ptr() + 2;
+  CHECK(page->object_start_bitmap()->FindBasePtr(obj_inner_ptr) ==
+        obj.address());
+
+  Address obj2_inner_ptr = obj2.ptr() + 2;
+  CHECK(page->object_start_bitmap()->FindBasePtr(obj2_inner_ptr) ==
+        obj2.address());
+
+  CcTest::CollectAllGarbage();
+
+  CHECK((obj).IsString());
+  CHECK((obj2).IsString());
+  CHECK(page->object_start_bitmap()->CheckBit(obj.address()));
+  CHECK(page->object_start_bitmap()->CheckBit(obj2.address()));
+
+#endif
 }
 
 // TODO(1600): compaction of map space is temporary removed from GC.
@@ -387,6 +427,8 @@ UNINITIALIZED_TEST(RegressJoinThreadsOnIsolateDeinit) {
 }
 
 TEST(Regress5829) {
+  if (!FLAG_incremental_marking) return;
+  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope sc(CcTest::isolate());

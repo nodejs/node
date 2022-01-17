@@ -98,13 +98,13 @@ const kinds = Object.keys(hasCharacterSequence);
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow characters which are made with multiple code points in character class syntax",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-misleading-character-class"
         },

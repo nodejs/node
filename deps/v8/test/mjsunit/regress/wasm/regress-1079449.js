@@ -4,7 +4,7 @@
 
 // Flags: --wasm-staging
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addMemory(16, 32, false, true);
@@ -16,10 +16,10 @@ const sig = builder.addType(makeSig(
     [kWasmI64]));
 // Generate function 2 (out of 3).
 builder.addFunction(undefined, sig)
-    .addLocals({f32_count: 10})
-    .addLocals({i32_count: 4})
-    .addLocals({f64_count: 1})
-    .addLocals({i32_count: 15})
+    .addLocals(kWasmF32, 10)
+    .addLocals(kWasmI32, 4)
+    .addLocals(kWasmF64, 1)
+    .addLocals(kWasmI32, 15)
     .addBodyWithEnd([
       // signature: v_liliiiiiilll
       // body:

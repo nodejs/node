@@ -8,12 +8,13 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
-#include <ostream>  // NOLINT
+#include <ostream>
 #include <streambuf>
 
 #include "include/v8config.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/strings.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -98,7 +99,7 @@ class StdoutStream : public OFStream {
 };
 #endif
 
-// Wrappers to disambiguate uint16_t and uc16.
+// Wrappers to disambiguate uint16_t and base::uc16.
 struct AsUC16 {
   explicit AsUC16(uint16_t v) : value(v) {}
   uint16_t value;
@@ -158,10 +159,10 @@ struct PrintIteratorRange {
 // Print any collection which can be iterated via std::begin and std::end.
 // {Iterator} is the common type of {std::begin} and {std::end} called on a
 // {const T&}. This function is only instantiable if that type exists.
-template <typename T, typename Iterator = typename std::common_type<
-                          decltype(std::begin(std::declval<const T&>())),
-                          decltype(std::end(std::declval<const T&>()))>::type>
-PrintIteratorRange<Iterator> PrintCollection(const T& collection) {
+template <typename T>
+auto PrintCollection(const T& collection) -> PrintIteratorRange<
+    typename std::common_type<decltype(std::begin(collection)),
+                              decltype(std::end(collection))>::type> {
   return {std::begin(collection), std::end(collection)};
 }
 

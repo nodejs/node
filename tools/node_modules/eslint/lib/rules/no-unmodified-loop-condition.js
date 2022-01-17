@@ -156,13 +156,13 @@ function updateModifiedFlag(conditions, modifiers) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow unmodified loop conditions",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-unmodified-loop-condition"
         },

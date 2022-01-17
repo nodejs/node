@@ -59,7 +59,7 @@ CompoundTransliterator::CompoundTransliterator(
 
 /**
  * Splits an ID of the form "ID;ID;..." into a compound using each
- * of the IDs.
+ * of the IDs. 
  * @param id of above form
  * @param forward if false, does the list in reverse order, and
  * takes the inverse of each ID.
@@ -282,6 +282,7 @@ void CompoundTransliterator::freeTransliterators(void) {
 CompoundTransliterator& CompoundTransliterator::operator=(
                                              const CompoundTransliterator& t)
 {
+    if (this == &t) { return *this; }  // self-assignment: no-op
     Transliterator::operator=(t);
     int32_t i = 0;
     UBool failed = FALSE;
@@ -499,7 +500,7 @@ void CompoundTransliterator::handleTransliterate(Replaceable& text, UTransPositi
      * - start' is the value of start after calling handleKT
      * - limit' is the value of limit after calling handleKT
      */
-
+    
     /**
      * Example: 3 transliterators.  This example illustrates the
      * mechanics we need to implement.  C, S, and L are the contextStart,
@@ -509,25 +510,25 @@ void CompoundTransliterator::handleTransliterate(Replaceable& text, UTransPositi
      * 1. h-u, changes hex to Unicode
      *
      *    4  7  a  d  0      4  7  a
-     *    abc/u0061/u    =>  abca/u
+     *    abc/u0061/u    =>  abca/u    
      *    C  S       L       C   S L   gl=f->a
      *
      * 2. upup, changes "x" to "XX"
      *
      *    4  7  a       4  7  a
-     *    abca/u    =>  abcAA/u
-     *    C  SL         C    S
+     *    abca/u    =>  abcAA/u    
+     *    C  SL         C    S   
      *                       L    gl=a->b
      * 3. u-h, changes Unicode to hex
      *
      *    4  7  a        4  7  a  d  0  3
-     *    abcAA/u    =>  abc/u0041/u0041/u
+     *    abcAA/u    =>  abc/u0041/u0041/u    
      *    C  S L         C              S
      *                                  L   gl=b->15
      * 4. return
      *
      *    4  7  a  d  0  3
-     *    abc/u0041/u0041/u
+     *    abc/u0041/u0041/u    
      *    C S L
      */
 
@@ -545,7 +546,7 @@ void CompoundTransliterator::handleTransliterate(Replaceable& text, UTransPositi
     // compoundStart is the start for the entire compound
     // operation.
     int32_t compoundStart = index.start;
-
+    
     int32_t delta = 0; // delta in length
 
     // Give each transliterator a crack at the run of characters.
@@ -553,14 +554,14 @@ void CompoundTransliterator::handleTransliterate(Replaceable& text, UTransPositi
     for (int32_t i=0; i<count; ++i) {
         index.start = compoundStart; // Reset start
         int32_t limit = index.limit;
-
+        
         if (index.start == index.limit) {
             // Short circuit for empty range
             break;
         }
 
         trans[i]->filteredTransliterate(text, index, incremental);
-
+        
         // In a properly written transliterator, start == limit after
         // handleTransliterate() returns when incremental is false.
         // Catch cases where the subclass doesn't do this, and throw
@@ -575,7 +576,7 @@ void CompoundTransliterator::handleTransliterate(Replaceable& text, UTransPositi
 
         // Cumulative delta for insertions/deletions
         delta += index.limit - limit;
-
+        
         if (incremental) {
             // In the incremental case, only allow subsequent
             // transliterators to modify what has already been

@@ -11,12 +11,15 @@ const http2 = require('http2');
 const { NghttpError } = require('internal/http2/util');
 
 // Creating an http1 server here...
-// NOTE: PRI method is supported by our HTTP parser - thus the response handling
-// function must be called once before error.
-const server = http.createServer(common.mustCall((req, res) => {
-  assert.strictEqual(req.method, 'PRI');
-  res.end();
-}));
+const server = http.createServer(common.mustNotCall(() => {}))
+  .on('clientError', common.mustCall((error, socket) => {
+    assert.strictEqual(error.code, 'HPE_PAUSED_H2_UPGRADE');
+    assert.strictEqual(error.bytesParsed, 24);
+    socket.write('HTTP/1.1 400 No H2 support\r\n\r\n');
+
+    // Don't give client a chance to send a preamble.
+    socket.destroy();
+  }));
 
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);

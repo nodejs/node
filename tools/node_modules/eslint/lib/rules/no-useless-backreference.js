@@ -11,7 +11,6 @@
 
 const { CALL, CONSTRUCT, ReferenceTracker, getStringIfConstant } = require("eslint-utils");
 const { RegExpParser, visitRegExpAST } = require("regexpp");
-const lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -59,14 +58,14 @@ function isNegativeLookaround(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow useless backreferences in regular expressions",
-            category: "Possible Errors",
-            recommended: false,
+            recommended: true,
             url: "https://eslint.org/docs/rules/no-useless-backreference"
         },
 
@@ -137,7 +136,7 @@ module.exports = {
 
                             // the opposite of the previous when the regex is matching backward in a lookbehind context.
                             messageId = "backward";
-                        } else if (lodash.last(groupCut).type === "Alternative") {
+                        } else if (groupCut[groupCut.length - 1].type === "Alternative") {
 
                             // group's and bref's ancestor nodes below the lowest common ancestor are sibling alternatives => they're disjunctive.
                             messageId = "disjunctive";

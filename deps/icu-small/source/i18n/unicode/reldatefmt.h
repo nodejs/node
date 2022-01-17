@@ -175,19 +175,17 @@ typedef enum UDateAbsoluteUnit {
      */
     UDAT_ABSOLUTE_QUARTER,
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Hour
-     * @draft ICU 65
+     * @stable ICU 65
      */
     UDAT_ABSOLUTE_HOUR,
 
     /**
      * Minute
-     * @draft ICU 65
+     * @stable ICU 65
      */
     UDAT_ABSOLUTE_MINUTE,
-#endif // U_HIDE_DRAFT_API
 
 #ifndef U_HIDE_DEPRECATED_API
     /**
@@ -562,7 +560,7 @@ public:
      *
      * This method returns a String. To get more information about the
      * formatting result, use formatNumericToValue().
-     *
+     * 
      * @param offset    The signed offset for the specified unit. This
      *                  will be formatted according to this object's
      *                  NumberFormat object.
@@ -588,7 +586,7 @@ public:
      *
      * This method returns a FormattedRelativeDateTime, which exposes more
      * information than the String returned by formatNumeric().
-     *
+     * 
      * @param offset    The signed offset for the specified unit. This
      *                  will be formatted according to this object's
      *                  NumberFormat object.

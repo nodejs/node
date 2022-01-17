@@ -16,7 +16,7 @@
 *   04/17/97    aliu        Changed DigitCount to int per code review.
 *    07/20/98    stephen        JDK 1.2 sync up. Added scientific support.
 *                            Changed naming conventions to match C++ guidelines
-*                            Derecated Java style constants (eg, INTEGER_FIELD)
+*                            Deprecated Java style constants (eg, INTEGER_FIELD)
 ********************************************************************************
 */
 
@@ -79,7 +79,7 @@ class StringEnumeration;
  *    #include "unicode/unistr.h"
  *    #include "unicode/ustream.h"
  *    using namespace std;
- *
+ *    
  *    int main() {
  *        double myNumber = 7.0;
  *        UnicodeString myString;
@@ -179,7 +179,7 @@ public:
      *
      * <p>
      * For more detail on rounding modes, see:
-     * http://userguide.icu-project.org/formatparse/numbers/rounding-modes
+     * https://unicode-org.github.io/icu/userguide/format_parse/numbers/rounding-modes
      *
      * @stable ICU 2.4
      */
@@ -266,7 +266,7 @@ public:
      * @return clone, or nullptr if an error occurred
      * @stable ICU 2.0
      */
-    virtual NumberFormat* clone() const = 0;
+    virtual NumberFormat* clone() const override = 0;
 
     /**
      * Return true if the given Format objects are semantically equal.
@@ -274,7 +274,7 @@ public:
      * @return    true if the given Format objects are semantically equal.
      * @stable ICU 2.0
      */
-    virtual UBool operator==(const Format& other) const;
+    virtual bool operator==(const Format& other) const override;
 
 
     using Format::format;
@@ -297,7 +297,7 @@ public:
     virtual UnicodeString& format(const Formattable& obj,
                                   UnicodeString& appendTo,
                                   FieldPosition& pos,
-                                  UErrorCode& status) const;
+                                  UErrorCode& status) const override;
 
     /**
      * Format an object to produce a string.  This method handles
@@ -318,7 +318,7 @@ public:
     virtual UnicodeString& format(const Formattable& obj,
                                   UnicodeString& appendTo,
                                   FieldPositionIterator* posIter,
-                                  UErrorCode& status) const;
+                                  UErrorCode& status) const override;
 
     /**
      * Parse a string to produce an object.  This methods handles
@@ -350,7 +350,7 @@ public:
      */
     virtual void parseObject(const UnicodeString& source,
                              Formattable& result,
-                             ParsePosition& parse_pos) const;
+                             ParsePosition& parse_pos) const override;
 
     /**
      * Format a double number. These methods call the NumberFormat
@@ -685,7 +685,7 @@ public:
      * true, the string "1234." would be parsed as the integer value
      * 1234 and parsing would stop at the "." character.  Of course,
      * the exact format accepted by the parse operation is locale
-     * dependant and determined by sub-classes of NumberFormat.
+     * dependent and determined by sub-classes of NumberFormat.
      * @return    true if this format will parse numbers as integers
      *            only.
      * @stable ICU 2.0
@@ -704,8 +704,8 @@ public:
     /**
      * Sets whether lenient parsing should be enabled (it is off by default).
      *
-     * @param enable \c TRUE if lenient parsing should be used,
-     *               \c FALSE otherwise.
+     * @param enable \c true if lenient parsing should be used,
+     *               \c false otherwise.
      * @stable ICU 4.8
      */
     virtual void setLenient(UBool enable);
@@ -713,8 +713,8 @@ public:
     /**
      * Returns whether lenient parsing is enabled (it is off by default).
      *
-     * @return \c TRUE if lenient parsing is enabled,
-     *         \c FALSE otherwise.
+     * @return \c true if lenient parsing is enabled,
+     *         \c false otherwise.
      * @see #setLenient
      * @stable ICU 4.8
      */
@@ -870,7 +870,7 @@ public:
      * NumberFormat::createInstance to avoid undefined behavior.
      * @param key the registry key returned by a previous call to registerFactory
      * @param status the in/out status code, no special meanings are assigned
-     * @return TRUE if the factory for the key was successfully unregistered
+     * @return true if the factory for the key was successfully unregistered
      * @stable ICU 2.6
      */
     static UBool U_EXPORT2 unregister(URegistryKey key, UErrorCode& status);
@@ -1041,7 +1041,7 @@ public:
 
     /**
      * Get the rounding mode. This will always return NumberFormat::ERoundingMode::kRoundUnnecessary
-     * if the subclass does not support rounding.
+     * if the subclass does not support rounding. 
      * @return A rounding mode
      * @stable ICU 60
      */
@@ -1077,7 +1077,7 @@ public:
      * other classes have different class IDs.
      * @stable ICU 2.0
      */
-    virtual UClassID getDynamicClassID(void) const = 0;
+    virtual UClassID getDynamicClassID(void) const override = 0;
 
 protected:
 
@@ -1112,7 +1112,7 @@ protected:
 #ifndef U_HIDE_INTERNAL_API
     /**
      * Creates the specified number format style of the desired locale.
-     * If mustBeDecimalFormat is TRUE, then the returned pointer is
+     * If mustBeDecimalFormat is true, then the returned pointer is
      * either a DecimalFormat or it is NULL.
      * @internal
      */
@@ -1151,7 +1151,7 @@ private:
 
   private:
     UBool      fParseIntegerOnly;
-    UBool      fLenient; // TRUE => lenient parse is enabled
+    UBool      fLenient; // true => lenient parse is enabled
 
     // ISO currency code
     char16_t      fCurrency[4];
@@ -1228,7 +1228,7 @@ public:
     /**
      * @stable ICU 2.6
      */
-    SimpleNumberFormatFactory(const Locale& locale, UBool visible = TRUE);
+    SimpleNumberFormatFactory(const Locale& locale, UBool visible = true);
 
     /**
      * @stable ICU 3.0
@@ -1238,12 +1238,12 @@ public:
     /**
      * @stable ICU 2.6
      */
-    virtual UBool visible(void) const;
+    virtual UBool visible(void) const override;
 
     /**
      * @stable ICU 2.6
      */
-    virtual const UnicodeString * getSupportedIDs(int32_t &count, UErrorCode& status) const;
+    virtual const UnicodeString * getSupportedIDs(int32_t &count, UErrorCode& status) const override;
 };
 #endif /* #if !UCONFIG_NO_SERVICE */
 

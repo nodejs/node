@@ -6,9 +6,11 @@
 
 #include "src/api/api-inl.h"
 #include "src/api/api.h"
+#include "src/base/platform/wrappers.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/objects/script.h"
+#include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-value.h"
 
@@ -53,14 +55,14 @@ Handle<WasmInstanceObject> WasmModuleDebug::GetFirstWasmInstance() {
   return Handle<WasmInstanceObject>::null();
 }
 
-int GetLEB128Size(Vector<const uint8_t> module_bytes, int offset) {
+int GetLEB128Size(base::Vector<const uint8_t> module_bytes, int offset) {
   int index = offset;
   while (module_bytes[index] & 0x80) index++;
   return index + 1 - offset;
 }
 
 int ReturnPc(const NativeModule* native_module, int pc) {
-  Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   uint8_t opcode = wire_bytes[pc];
   switch (opcode) {
     case kExprCallFunction: {
@@ -94,11 +96,12 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
+      case StackFrame::BASELINE:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
         std::vector<FrameSummary> frames;
-        StandardFrame::cast(frame)->Summarize(&frames);
+        CommonFrame::cast(frame)->Summarize(&frames);
         for (size_t i = frames.size(); i-- != 0;) {
           int offset = 0;
           Handle<Script> script;
@@ -152,11 +155,12 @@ std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
+      case StackFrame::BASELINE:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
         std::vector<FrameSummary> frames;
-        StandardFrame::cast(frame)->Summarize(&frames);
+        CommonFrame::cast(frame)->Summarize(&frames);
         const size_t frame_count = frames.size();
         DCHECK_GT(frame_count, 0);
 
@@ -236,10 +240,10 @@ bool WasmModuleDebug::GetWasmLocal(Isolate* isolate, uint32_t frame_index,
                                              isolate);
       wasm::NativeModule* native_module = module_object->native_module();
       DebugInfo* debug_info = native_module->GetDebugInfo();
-      if (static_cast<uint32_t>(debug_info->GetNumLocals(
-              isolate, frame_it.frame()->pc())) > index) {
+      if (static_cast<uint32_t>(
+              debug_info->GetNumLocals(frame_it.frame()->pc())) > index) {
         wasm::WasmValue wasm_value = debug_info->GetLocalValue(
-            index, isolate, frame_it.frame()->pc(), frame_it.frame()->fp(),
+            index, frame_it.frame()->pc(), frame_it.frame()->fp(),
             frame_it.frame()->callee_fp());
         return GetWasmValue(wasm_value, buffer, buffer_size, size);
       }
@@ -269,10 +273,10 @@ bool WasmModuleDebug::GetWasmStackValue(Isolate* isolate, uint32_t frame_index,
                                              isolate);
       wasm::NativeModule* native_module = module_object->native_module();
       DebugInfo* debug_info = native_module->GetDebugInfo();
-      if (static_cast<uint32_t>(debug_info->GetStackDepth(
-              isolate, frame_it.frame()->pc())) > index) {
+      if (static_cast<uint32_t>(
+              debug_info->GetStackDepth(frame_it.frame()->pc())) > index) {
         WasmValue wasm_value = debug_info->GetStackValue(
-            index, isolate, frame_it.frame()->pc(), frame_it.frame()->fp(),
+            index, frame_it.frame()->pc(), frame_it.frame()->fp(),
             frame_it.frame()->callee_fp());
         return GetWasmValue(wasm_value, buffer, buffer_size, size);
       }
@@ -281,14 +285,12 @@ bool WasmModuleDebug::GetWasmStackValue(Isolate* isolate, uint32_t frame_index,
   return false;
 }
 
-// static
-uint32_t WasmModuleDebug::GetWasmMemory(Isolate* isolate, uint32_t frame_index,
-                                        uint32_t offset, uint8_t* buffer,
-                                        uint32_t size) {
+uint32_t WasmModuleDebug::GetWasmMemory(Isolate* isolate, uint32_t offset,
+                                        uint8_t* buffer, uint32_t size) {
   HandleScope handles(isolate);
 
   uint32_t bytes_read = 0;
-  Handle<WasmInstanceObject> instance = GetWasmInstance(isolate, frame_index);
+  Handle<WasmInstanceObject> instance = GetFirstWasmInstance();
   if (!instance.is_null()) {
     uint8_t* mem_start = instance->memory_start();
     size_t mem_size = instance->memory_size();
@@ -298,6 +300,34 @@ uint32_t WasmModuleDebug::GetWasmMemory(Isolate* isolate, uint32_t frame_index,
     } else if (offset < mem_size) {
       bytes_read = static_cast<uint32_t>(mem_size) - offset;
       memcpy(buffer, mem_start + offset, bytes_read);
+    }
+  }
+  return bytes_read;
+}
+
+uint32_t WasmModuleDebug::GetWasmData(Isolate* isolate, uint32_t offset,
+                                      uint8_t* buffer, uint32_t size) {
+  HandleScope handles(isolate);
+
+  uint32_t bytes_read = 0;
+  Handle<WasmInstanceObject> instance = GetFirstWasmInstance();
+  if (!instance.is_null()) {
+    Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+    const wasm::WasmModule* module = module_object->module();
+    if (!module->data_segments.empty()) {
+      const WasmDataSegment& segment = module->data_segments[0];
+      uint32_t data_offset = EvalUint32InitExpr(instance, segment.dest_addr);
+      offset += data_offset;
+
+      uint8_t* mem_start = instance->memory_start();
+      size_t mem_size = instance->memory_size();
+      if (static_cast<uint64_t>(offset) + size <= mem_size) {
+        memcpy(buffer, mem_start + offset, size);
+        bytes_read = size;
+      } else if (offset < mem_size) {
+        bytes_read = static_cast<uint32_t>(mem_size) - offset;
+        memcpy(buffer, mem_start + offset, bytes_read);
+      }
     }
   }
   return bytes_read;
@@ -342,7 +372,7 @@ void WasmModuleDebug::PrepareStep() {
   i::Isolate* isolate = GetIsolate();
   DebugScope debug_scope(isolate->debug());
   debug::PrepareStep(reinterpret_cast<v8::Isolate*>(isolate),
-                     debug::StepAction::StepIn);
+                     debug::StepAction::StepInto);
 }
 
 template <typename T>
@@ -370,10 +400,8 @@ bool WasmModuleDebug::GetWasmValue(const wasm::WasmValue& wasm_value,
     case wasm::kWasmS128.kind():
       return StoreValue(wasm_value.to_s128(), buffer, buffer_size, size);
 
-    case wasm::kWasmStmt.kind():
+    case wasm::kWasmVoid.kind():
     case wasm::kWasmExternRef.kind():
-    case wasm::kWasmFuncRef.kind():
-    case wasm::kWasmExnRef.kind():
     case wasm::kWasmBottom.kind():
     default:
       // Not supported

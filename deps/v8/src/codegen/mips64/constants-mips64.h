@@ -165,6 +165,26 @@ const uint32_t kFCSRFlagMask =
 
 const uint32_t kFCSRExceptionFlagMask = kFCSRFlagMask ^ kFCSRInexactFlagMask;
 
+const uint32_t kFCSRInexactCauseBit = 12;
+const uint32_t kFCSRUnderflowCauseBit = 13;
+const uint32_t kFCSROverflowCauseBit = 14;
+const uint32_t kFCSRDivideByZeroCauseBit = 15;
+const uint32_t kFCSRInvalidOpCauseBit = 16;
+const uint32_t kFCSRUnimplementedOpCauseBit = 17;
+
+const uint32_t kFCSRInexactCauseMask = 1 << kFCSRInexactCauseBit;
+const uint32_t kFCSRUnderflowCauseMask = 1 << kFCSRUnderflowCauseBit;
+const uint32_t kFCSROverflowCauseMask = 1 << kFCSROverflowCauseBit;
+const uint32_t kFCSRDivideByZeroCauseMask = 1 << kFCSRDivideByZeroCauseBit;
+const uint32_t kFCSRInvalidOpCauseMask = 1 << kFCSRInvalidOpCauseBit;
+const uint32_t kFCSRUnimplementedOpCauseMask = 1
+                                               << kFCSRUnimplementedOpCauseBit;
+
+const uint32_t kFCSRCauseMask =
+    kFCSRInexactCauseMask | kFCSRUnderflowCauseMask | kFCSROverflowCauseMask |
+    kFCSRDivideByZeroCauseMask | kFCSRInvalidOpCauseMask |
+    kFCSRUnimplementedOpCauseBit;
+
 // 'pref' instruction hints
 const int32_t kPrefHintLoad = 0;
 const int32_t kPrefHintStore = 1;
@@ -238,6 +258,21 @@ class MSARegisters {
  private:
   static const char* names_[kNumMSARegisters];
   static const RegisterAlias aliases_[];
+};
+
+// MSA sizes.
+enum MSASize { MSA_B = 0x0, MSA_H = 0x1, MSA_W = 0x2, MSA_D = 0x3 };
+
+// MSA data type, top bit set for unsigned data types.
+enum MSADataType {
+  MSAS8 = 0,
+  MSAS16 = 1,
+  MSAS32 = 2,
+  MSAS64 = 3,
+  MSAU8 = 4,
+  MSAU16 = 5,
+  MSAU32 = 6,
+  MSAU64 = 7
 };
 
 // -----------------------------------------------------------------------------

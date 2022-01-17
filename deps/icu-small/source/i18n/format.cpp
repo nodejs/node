@@ -26,7 +26,7 @@
 #include "unicode/utypes.h"
 
 #ifndef U_I18N_IMPLEMENTATION
-#error U_I18N_IMPLEMENTATION not set - must be set for all ICU source files in i18n/ - see http://userguide.icu-project.org/howtouseicu
+#error U_I18N_IMPLEMENTATION not set - must be set for all ICU source files in i18n/ - see https://unicode-org.github.io/icu/userguide/howtouseicu
 #endif
 
 /*
@@ -155,7 +155,7 @@ Format::parseObject(const UnicodeString& source,
 
 // -------------------------------------
 
-UBool
+bool
 Format::operator==(const Format& that) const
 {
     // Subclasses: Call this method and then add more specific checks.
@@ -167,7 +167,7 @@ Format::operator==(const Format& that) const
  * Simple function for initializing a UParseError from a UnicodeString.
  *
  * @param pattern The pattern to copy into the parseError
- * @param pos The position in pattern where the error occured
+ * @param pos The position in pattern where the error occurred
  * @param parseError The UParseError object to fill in
  * @draft ICU 2.4
  */

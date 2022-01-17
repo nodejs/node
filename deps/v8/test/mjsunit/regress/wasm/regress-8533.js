@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --experimental-wasm-threads
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 
 // In  this test we start a worker which enters wasm and stays there in a loop.
@@ -21,7 +21,7 @@ const sync_address = 12;
         // Calling the imported function sets the thread-in-wasm flag of the
         // main thread.
         kExprCallFunction, import_id,  // --
-        kExprLoop, kWasmStmt,          // --
+        kExprLoop, kWasmVoid,          // --
         kExprI32Const, sync_address,   // --
         kExprI32LoadMem, 0, 0,         // --
         kExprI32Eqz,

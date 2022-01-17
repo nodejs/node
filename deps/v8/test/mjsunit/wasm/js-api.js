@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 function assertEq(val, expected) {
   assertSame(expected, val);
@@ -580,7 +580,7 @@ assertTrue(isConstructor(Table));
 assertThrows(
     () => Table(), TypeError, /must be invoked with 'new'/);
 assertThrows(
-    () => new Table(1), TypeError, 'WebAssembly.Module(): Argument 0 must be a table descriptor');
+    () => new Table(1), TypeError, 'WebAssembly.Table(): Argument 0 must be a table descriptor');
 assertThrows(
     () => new Table({initial: 1, element: 1}), TypeError, /must be a WebAssembly reference type/);
 assertThrows(
@@ -698,8 +698,6 @@ assertThrows(
 assertThrows(
     () => set.call({}), TypeError, /Receiver is not a WebAssembly.Table/);
 assertThrows(
-    () => set.call(tbl1, 0), TypeError, /must be null or a WebAssembly function/);
-assertThrows(
     () => set.call(tbl1, undefined), TypeError,
     /must be convertible to a valid number/);
 assertThrows(
@@ -765,7 +763,7 @@ assertThrows(
     () => tbl.grow(-Infinity), TypeError, /must be convertible to a valid number/);
 assertEq(tbl.grow(0), 1);
 assertEq(tbl.length, 1);
-assertEq(tbl.grow(1, 4), 1);
+assertEq(tbl.grow(1, null, 4), 1);
 assertEq(tbl.length, 2);
 assertEq(tbl.length, 2);
 assertThrows(() => tbl.grow(1), Error, /failed to grow table by \d+/);

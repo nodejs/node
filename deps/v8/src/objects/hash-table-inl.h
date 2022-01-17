@@ -71,18 +71,15 @@ void EphemeronHashTable::set_key(int index, Object value,
 }
 
 int HashTableBase::NumberOfElements() const {
-  int offset = OffsetOfElementAt(kNumberOfElementsIndex);
-  return TaggedField<Smi>::load(*this, offset).value();
+  return Smi::cast(get(kNumberOfElementsIndex)).value();
 }
 
 int HashTableBase::NumberOfDeletedElements() const {
-  int offset = OffsetOfElementAt(kNumberOfDeletedElementsIndex);
-  return TaggedField<Smi>::load(*this, offset).value();
+  return Smi::cast(get(kNumberOfDeletedElementsIndex)).value();
 }
 
 int HashTableBase::Capacity() const {
-  int offset = OffsetOfElementAt(kCapacityIndex);
-  return TaggedField<Smi>::load(*this, offset).value();
+  return Smi::cast(get(kCapacityIndex)).value();
 }
 
 InternalIndex::Range HashTableBase::IterateEntries() const {
@@ -110,7 +107,7 @@ int HashTableBase::ComputeCapacity(int at_least_space_for) {
   // Must be kept in sync with CodeStubAssembler::HashTableComputeCapacity().
   int raw_cap = at_least_space_for + (at_least_space_for >> 1);
   int capacity = base::bits::RoundUpToPowerOfTwo32(raw_cap);
-  return Max(capacity, kMinCapacity);
+  return std::max({capacity, kMinCapacity});
 }
 
 void HashTableBase::SetNumberOfElements(int nof) {
@@ -133,28 +130,26 @@ Handle<Map> EphemeronHashTable::GetMap(ReadOnlyRoots roots) {
 }
 
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
-InternalIndex HashTable<Derived, Shape>::FindEntry(LocalIsolate* isolate,
-                                                   Key key) {
+template <typename IsolateT>
+InternalIndex HashTable<Derived, Shape>::FindEntry(IsolateT* isolate, Key key) {
   ReadOnlyRoots roots(isolate);
   return FindEntry(isolate, roots, key, Shape::Hash(roots, key));
 }
 
 // Find entry for key otherwise return kNotFound.
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
-InternalIndex HashTable<Derived, Shape>::FindEntry(const LocalIsolate* isolate,
+InternalIndex HashTable<Derived, Shape>::FindEntry(PtrComprCageBase cage_base,
                                                    ReadOnlyRoots roots, Key key,
                                                    int32_t hash) {
+  DisallowGarbageCollection no_gc;
   uint32_t capacity = Capacity();
   uint32_t count = 1;
   Object undefined = roots.undefined_value();
   Object the_hole = roots.the_hole_value();
-  USE(the_hole);
   // EnsureCapacity will guarantee the hash table is never full.
   for (InternalIndex entry = FirstProbe(hash, capacity);;
        entry = NextProbe(entry, count++, capacity)) {
-    Object element = KeyAt(isolate, entry);
+    Object element = KeyAt(cage_base, entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
     if (element == undefined) return InternalIndex::NotFound();
@@ -180,26 +175,38 @@ bool HashTable<Derived, Shape>::ToKey(ReadOnlyRoots roots, InternalIndex entry,
 }
 
 template <typename Derived, typename Shape>
-bool HashTable<Derived, Shape>::ToKey(const Isolate* isolate,
+bool HashTable<Derived, Shape>::ToKey(PtrComprCageBase cage_base,
                                       InternalIndex entry, Object* out_k) {
-  Object k = KeyAt(isolate, entry);
-  if (!IsKey(GetReadOnlyRoots(isolate), k)) return false;
+  Object k = KeyAt(cage_base, entry);
+  if (!IsKey(GetReadOnlyRoots(cage_base), k)) return false;
   *out_k = Shape::Unwrap(k);
   return true;
 }
 
 template <typename Derived, typename Shape>
 Object HashTable<Derived, Shape>::KeyAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return KeyAt(isolate, entry);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return KeyAt(cage_base, entry);
 }
 
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
-Object HashTable<Derived, Shape>::KeyAt(const LocalIsolate* isolate,
+Object HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
                                         InternalIndex entry) {
-  return get(GetIsolateForPtrCompr(isolate),
-             EntryToIndex(entry) + kEntryKeyIndex);
+  return get(cage_base, EntryToIndex(entry) + kEntryKeyIndex);
+}
+
+template <typename Derived, typename Shape>
+Object HashTable<Derived, Shape>::KeyAt(InternalIndex entry,
+                                        RelaxedLoadTag tag) {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return KeyAt(cage_base, entry, tag);
+}
+
+template <typename Derived, typename Shape>
+Object HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
+                                        InternalIndex entry,
+                                        RelaxedLoadTag tag) {
+  return get(cage_base, EntryToIndex(entry) + kEntryKeyIndex, tag);
 }
 
 template <typename Derived, typename Shape>

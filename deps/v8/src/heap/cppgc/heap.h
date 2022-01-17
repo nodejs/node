@@ -32,13 +32,29 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
   HeapBase& AsBase() { return *this; }
   const HeapBase& AsBase() const { return *this; }
 
-  void CollectGarbage(Config config) final;
+  void CollectGarbage(Config) final;
+  void StartIncrementalGarbageCollection(Config) final;
+  void FinalizeIncrementalGarbageCollectionIfRunning(Config);
 
   size_t epoch() const final { return epoch_; }
 
+  void DisableHeapGrowingForTesting();
+
  private:
+  void StartGarbageCollection(Config);
+  void FinalizeGarbageCollection(Config::StackState);
+
+  void FinalizeIncrementalGarbageCollectionIfNeeded(Config::StackState) final;
+
+  void StartIncrementalGarbageCollectionForTesting() final;
+  void FinalizeIncrementalGarbageCollectionForTesting(EmbedderStackState) final;
+
+  Config config_;
   GCInvoker gc_invoker_;
   HeapGrowing growing_;
+
+  const MarkingType marking_support_;
+  const SweepingType sweeping_support_;
 
   size_t epoch_ = 0;
 };

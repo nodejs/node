@@ -11,13 +11,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "enforce line breaks after each array element",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/array-element-newline"
         },

@@ -1,0 +1,49 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Performance Timeline Level 2 (https://w3c.github.io/performance-timeline/)
+
+partial interface Performance {
+  PerformanceEntryList getEntries ();
+  PerformanceEntryList getEntriesByType (DOMString type);
+  PerformanceEntryList getEntriesByName (DOMString name, optional DOMString type);
+};
+typedef sequence<PerformanceEntry> PerformanceEntryList;
+
+[Exposed=(Window,Worker)]
+interface PerformanceEntry {
+  readonly    attribute DOMString           name;
+  readonly    attribute DOMString           entryType;
+  readonly    attribute DOMHighResTimeStamp startTime;
+  readonly    attribute DOMHighResTimeStamp duration;
+  [Default] object toJSON();
+};
+
+callback PerformanceObserverCallback = undefined (PerformanceObserverEntryList entries,
+                                             PerformanceObserver observer,
+                                             optional PerformanceObserverCallbackOptions options = {});
+[Exposed=(Window,Worker)]
+interface PerformanceObserver {
+  constructor(PerformanceObserverCallback callback);
+  undefined observe (optional PerformanceObserverInit options = {});
+  undefined disconnect ();
+  PerformanceEntryList takeRecords();
+  [SameObject] static readonly attribute FrozenArray<DOMString> supportedEntryTypes;
+};
+
+dictionary PerformanceObserverCallbackOptions {
+  unsigned long long droppedEntriesCount;
+};
+
+dictionary PerformanceObserverInit {
+  sequence<DOMString> entryTypes;
+  DOMString type;
+  boolean buffered;
+};
+
+[Exposed=(Window,Worker)]
+interface PerformanceObserverEntryList {
+  PerformanceEntryList getEntries();
+  PerformanceEntryList getEntriesByType (DOMString type);
+  PerformanceEntryList getEntriesByName (DOMString name, optional DOMString type);
+};

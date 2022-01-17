@@ -5,7 +5,7 @@ const cluster = require('cluster');
 
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   const worker1 = cluster.fork();
   worker1.on('listening', common.mustCall(() => {
     const worker2 = cluster.fork();

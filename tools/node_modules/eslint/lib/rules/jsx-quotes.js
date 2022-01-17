@@ -36,13 +36,13 @@ const QUOTE_SETTINGS = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "enforce the consistent use of either double or single quotes in JSX attributes",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/jsx-quotes"
         },

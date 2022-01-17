@@ -8,6 +8,7 @@ assert.strictEqual(parseEncoding(''), 'UNKNOWN');
 
 assert.strictEqual(parseEncoding('ascii'), 'ASCII');
 assert.strictEqual(parseEncoding('base64'), 'BASE64');
+assert.strictEqual(parseEncoding('base64url'), 'BASE64URL');
 assert.strictEqual(parseEncoding('binary'), 'LATIN1');
 assert.strictEqual(parseEncoding('buffer'), 'BUFFER');
 assert.strictEqual(parseEncoding('hex'), 'HEX');

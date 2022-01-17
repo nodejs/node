@@ -26,7 +26,7 @@ class ProfileDataFromFileInternal : public ProfileDataFromFile {
     hash_has_value_ = true;
   }
 
-  void AddCountToBlock(size_t block_id, uint32_t count) {
+  void AddCountToBlock(size_t block_id, double count) {
     if (block_counts_by_id_.size() <= block_id) {
       // std::vector initializes new data to zero when resizing.
       block_counts_by_id_.resize(block_id + 1);
@@ -67,7 +67,7 @@ EnsureInitProfileData() {
       CHECK(errno == 0 && end != token.c_str());
       std::getline(line_stream, token, ',');
       CHECK(line_stream.eof());
-      uint32_t count = static_cast<uint32_t>(strtoul(token.c_str(), &end, 0));
+      double count = strtod(token.c_str(), &end);
       CHECK(errno == 0 && end != token.c_str());
       ProfileDataFromFileInternal& counters_and_hash =
           (*data.get())[builtin_name];

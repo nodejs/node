@@ -235,12 +235,13 @@ class LeakyObject {
     new (&storage_) T(std::forward<Args>(args)...);
   }
 
+  LeakyObject(const LeakyObject&) = delete;
+  LeakyObject& operator=(const LeakyObject&) = delete;
+
   T* get() { return reinterpret_cast<T*>(&storage_); }
 
  private:
   typename std::aligned_storage<sizeof(T), alignof(T)>::type storage_;
-
-  DISALLOW_COPY_AND_ASSIGN(LeakyObject);
 };
 
 // Define a function which returns a pointer to a lazily initialized and never

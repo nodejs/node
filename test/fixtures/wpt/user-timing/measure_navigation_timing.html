@@ -1,0 +1,205 @@
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>window.performance User Timing clearMeasures() method is working properly with navigation timing
+               attributes</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="https://w3c.github.io/user-timing/#dom-performance-measure"/>
+        <script src="/resources/testharness.js"></script>
+        <script src="/resources/testharnessreport.js"></script>
+        <script src="/common/performance-timeline-utils.js"></script>
+        <script src="resources/webperftestharness.js"></script>
+
+    <script>
+        // test data
+        var startMarkName = "mark_start";
+        var startMarkValue;
+        var endMarkName = "mark_end";
+        var endMarkValue;
+        var measures;
+        var testThreshold = 20;
+
+        // test measures
+        measureTestDelay = 200;
+        var TEST_MEASURES =
+        [
+            {
+                name:                   "measure_nav_start_no_end",
+                startMark:              "navigationStart",
+                endMark:                undefined,
+                exceptionTestMessage:   "window.performance.measure(\"measure_nav_start_no_end\", " +
+                                        "\"navigationStart\") ran without throwing any exceptions.",
+                expectedStartTime:      undefined,
+                expectedDuration:       undefined,
+                entryMatch:             undefined
+            },
+            {
+                name:                   "measure_nav_start_mark_end",
+                startMark:              "navigationStart",
+                endMark:                "mark_end",
+                exceptionTestMessage:   "window.performance.measure(\"measure_nav_start_end\", \"navigationStart\", " +
+                                        "\"mark_end\") ran without throwing any exceptions.",
+                expectedStartTime:      undefined,
+                expectedDuration:       undefined,
+                entryMatch:             undefined
+            },
+            {
+                name:                   "measure_mark_start_nav_end",
+                startMark:              "mark_start",
+                endMark:                "responseEnd",
+                exceptionTestMessage:   "window.performance.measure(\"measure_start_nav_end\", \"mark_start\", " +
+                                        "\"responseEnd\") ran without throwing any exceptions.",
+                expectedStartTime:      undefined,
+                expectedDuration:       undefined,
+                entryMatch:             undefined
+            },
+            {
+                name:                   "measure_nav_start_nav_end",
+                startMark:              "navigationStart",
+                endMark:                "responseEnd",
+                exceptionTestMessage:   "window.performance.measure(\"measure_nav_start_nav_end\", " +
+                                        "\"navigationStart\", \"responseEnd\") ran without throwing any exceptions.",
+                expectedStartTime:      undefined,
+                expectedDuration:       undefined,
+                entryMatch:             undefined
+            }
+        ];
+
+        setup({explicit_done: true});
+
+        test_namespace();
+
+        function onload_test()
+        {
+            // test for existence of User Timing and Performance Timeline interface
+            if (!has_required_interfaces())
+            {
+                test_true(false,
+                          "The User Timing and Performance Timeline interfaces, which are required for this test, " +
+                          "are defined.");
+
+                done();
+            }
+            else
+            {
+                // create the start mark for the test measures
+                window.performance.mark(startMarkName);
+
+                // get the start mark's value
+                startMarkValue = window.performance.getEntriesByName(startMarkName)[0].startTime;
+
+                // create the test end mark using the test delay; this will allow for a significant difference between
+                // the mark values that should be represented in the duration of measures using these marks
+                step_timeout(measure_test_cb, measureTestDelay);
+            }
+        }
+
+        function measure_test_cb()
+        {
+            // create the end mark for the test measures
+            window.performance.mark(endMarkName);
+
+            // get the end mark's value
+            endMarkValue = window.performance.getEntriesByName(endMarkName)[0].startTime;
+
+            // loop through measure scenarios
+            for (var i in TEST_MEASURES)
+            {
+                var scenario = TEST_MEASURES[i];
+
+                if (scenario.startMark != undefined && scenario.endMark == undefined)
+                {
+                    // only startMark is defined, provide startMark and don't provide endMark
+                    window.performance.measure(scenario.name, scenario.startMark);
+
+                    // when startMark is provided to the measure() call, the value of the mark or navigation
+                    // timing attribute whose name is provided is used for the startMark
+                    scenario.expectedStartTime = (timingAttributes.indexOf(scenario.startMark) != -1 ?
+                                                  window.performance.timing[scenario.startMark] -
+                                                  window.performance.timing.navigationStart :
+                                                  startMarkValue);
+
+                    // when endMark isn't provided to the measure() call, a DOMHighResTimeStamp corresponding to
+                    // the current time with a timebase of the navigationStart attribute is used
+                    scenario.expectedDuration = ((new Date()) - window.performance.timing.navigationStart) -
+                                                scenario.expectedStartTime;
+                }
+                else if (scenario.startMark != undefined && scenario.endMark != undefined)
+                {
+                    // both startMark and endMark are defined, provide both parameters
+                    window.performance.measure(scenario.name, scenario.startMark, scenario.endMark);
+
+                    // when startMark is provided to the measure() call, the value of the mark or navigation
+                    // timing attribute whose name is provided is used for the startMark
+                    scenario.expectedStartTime = (timingAttributes.indexOf(scenario.startMark) != -1 ?
+                                                  window.performance.timing[scenario.startMark] -
+                                                  window.performance.timing.navigationStart :
+                                                  startMarkValue);
+
+                    // when endMark is provided to the measure() call, the value of the mark whose name is
+                    // provided is used for the startMark
+                    scenario.expectedDuration = (timingAttributes.indexOf(scenario.endMark) != -1 ?
+                                                 window.performance.timing[scenario.endMark] -
+                                                 window.performance.timing.navigationStart :
+                                                 endMarkValue) - scenario.expectedStartTime;
+                }
+            }
+
+            // test the test measures are returned by getEntriesByName
+            for (var i in TEST_MEASURES)
+            {
+                entries = window.performance.getEntriesByName(TEST_MEASURES[i].name);
+                test_measure(entries[0],
+                            "window.performance.getEntriesByName(\"" + TEST_MEASURES[i].name + "\")[0]",
+                            TEST_MEASURES[i].name,
+                            TEST_MEASURES[i].expectedStartTime,
+                            TEST_MEASURES[i].expectedDuration);
+                TEST_MEASURES[i].entryMatch = entries[0];
+            }
+
+            done();
+        }
+
+        function test_measure(measureEntry, measureEntryCommand, expectedName, expectedStartTime, expectedDuration)
+        {
+            // test name
+            test_true(measureEntry.name == expectedName, measureEntryCommand + ".name == \"" + expectedName + "\"");
+
+            // test startTime; since for a mark, the startTime is always equal to a mark's value or the value of a
+            // navigation timing attribute, the actual startTime should match the expected value exactly
+            test_true(Math.abs(measureEntry.startTime - expectedStartTime) == 0,
+                      measureEntryCommand + ".startTime is correct");
+
+            // test entryType
+            test_true(measureEntry.entryType == "measure", measureEntryCommand + ".entryType == \"measure\"");
+
+            // test duration, allow for an acceptable threshold in the difference between the actual duration and the
+            // expected value for the duration
+            test_true(Math.abs(measureEntry.duration - expectedDuration) <= testThreshold, measureEntryCommand +
+                      ".duration is approximately correct (up to " + testThreshold + "ms difference allowed)");
+        }
+    </script>
+    </head>
+    <body onload="onload_test();">
+        <h1>Description</h1>
+        <p>This test validates that the performance.measure() method is working properly when navigation timing
+           attributes are used in place of mark names. This test creates the following measures to test this method:
+            <ul>
+                <li>"measure_nav_start_no_end": created using a measure() call with a navigation timing attribute
+                    provided as the startMark and nothing provided as the endMark</li>
+                <li>"measure_nav_start_mark_end": created using a measure() call with a navigation timing attribute
+                    provided as the startMark and a mark name provided as the endMark</li>
+                <li>"measure_mark_start_nav_end": created using a measure() call with a mark name provided as the
+                    startMark and a navigation timing attribute provided as the endMark</li>
+                <li>"measure_nav_start_nav_end":created using a measure() call with a navigation timing attribute
+                    provided as both the startMark and endMark</li>
+            </ul>
+           After creating each measure, the existence of these measures is validated by calling
+           performance.getEntriesByName() with each measure name
+        </p>
+
+        <div id="log"></div>
+    </body>
+</html>

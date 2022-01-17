@@ -33,7 +33,7 @@ class RegisterBase {
   static constexpr SubType no_reg() { return SubType{kCode_no_reg}; }
 
   static constexpr SubType from_code(int code) {
-    CONSTEXPR_DCHECK(base::IsInRange(code, 0, kNumRegisters - 1));
+    DCHECK(base::IsInRange(code, 0, kNumRegisters - 1));
     return SubType{code};
   }
 
@@ -45,7 +45,7 @@ class RegisterBase {
   constexpr bool is_valid() const { return reg_code_ != kCode_no_reg; }
 
   constexpr int code() const {
-    CONSTEXPR_DCHECK(is_valid());
+    DCHECK(is_valid());
     return reg_code_;
   }
 
@@ -69,9 +69,6 @@ class RegisterBase {
  private:
   int reg_code_;
 };
-
-// Whether padding is needed for the given stack argument count.
-bool ShouldPadArguments(int argument_count);
 
 template <typename RegType,
           typename = decltype(RegisterName(std::declval<RegType>()))>

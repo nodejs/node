@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -10,6 +10,9 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef __TANDEM
+# include <strings.h> /* strcasecmp */
+#endif
 #include <ctype.h>
 
 #include <openssl/bn.h>
@@ -25,9 +28,8 @@
 #endif
 
 /*
- * Things in boring, not in openssl.  TODO we should add them.
+ * Things in boring, not in openssl.
  */
-#define HAVE_BN_PADDED 0
 #define HAVE_BN_SQRT 0
 
 typedef struct filetest_st {
@@ -305,6 +307,75 @@ static int test_div_recip(void)
     return st;
 }
 
+static struct {
+    int n, divisor, result, remainder;
+} signed_mod_tests[] = {
+    {  10,   3,   3,   1 },
+    { -10,   3,  -3,  -1 },
+    {  10,  -3,  -3,   1 },
+    { -10,  -3,   3,  -1 },
+};
+
+static BIGNUM *set_signed_bn(int value)
+{
+    BIGNUM *bn = BN_new();
+
+    if (bn == NULL)
+        return NULL;
+    if (!BN_set_word(bn, value < 0 ? -value : value)) {
+        BN_free(bn);
+        return NULL;
+    }
+    BN_set_negative(bn, value < 0);
+    return bn;
+}
+
+static int test_signed_mod_replace_ab(int n)
+{
+    BIGNUM *a = NULL, *b = NULL, *c = NULL, *d = NULL;
+    int st = 0;
+
+    if (!TEST_ptr(a = set_signed_bn(signed_mod_tests[n].n))
+            || !TEST_ptr(b = set_signed_bn(signed_mod_tests[n].divisor))
+            || !TEST_ptr(c = set_signed_bn(signed_mod_tests[n].result))
+            || !TEST_ptr(d = set_signed_bn(signed_mod_tests[n].remainder)))
+        goto err;
+
+    if (TEST_true(BN_div(a, b, a, b, ctx))
+            && TEST_BN_eq(a, c)
+            && TEST_BN_eq(b, d))
+        st = 1;
+ err:
+    BN_free(a);
+    BN_free(b);
+    BN_free(c);
+    BN_free(d);
+    return st;
+}
+
+static int test_signed_mod_replace_ba(int n)
+{
+    BIGNUM *a = NULL, *b = NULL, *c = NULL, *d = NULL;
+    int st = 0;
+
+    if (!TEST_ptr(a = set_signed_bn(signed_mod_tests[n].n))
+            || !TEST_ptr(b = set_signed_bn(signed_mod_tests[n].divisor))
+            || !TEST_ptr(c = set_signed_bn(signed_mod_tests[n].result))
+            || !TEST_ptr(d = set_signed_bn(signed_mod_tests[n].remainder)))
+        goto err;
+
+    if (TEST_true(BN_div(b, a, a, b, ctx))
+            && TEST_BN_eq(b, c)
+            && TEST_BN_eq(a, d))
+        st = 1;
+ err:
+    BN_free(a);
+    BN_free(b);
+    BN_free(c);
+    BN_free(d);
+    return st;
+}
+
 static int test_mod(void)
 {
     BIGNUM *a = NULL, *b = NULL, *c = NULL, *d = NULL, *e = NULL;
@@ -326,8 +397,10 @@ static int test_mod(void)
         BN_set_negative(b, rand_neg());
         if (!(TEST_true(BN_mod(c, a, b, ctx))
                 && TEST_true(BN_div(d, e, a, b, ctx))
-                && TEST_true(BN_sub(e, e, c))
-                && TEST_BN_eq_zero(e)))
+                && TEST_BN_eq(e, c)
+                && TEST_true(BN_mul(c, d, b, ctx))
+                && TEST_true(BN_add(d, c, e))
+                && TEST_BN_eq(d, a)))
             goto err;
     }
     st = 1;
@@ -556,6 +629,51 @@ static int test_modexp_mont5(void)
     BN_zero(d);
     if (!TEST_BN_eq(c, d))
         goto err;
+
+    /*
+     * Regression test for overflow bug in bn_sqr_comba4/8 for
+     * mips-linux-gnu and mipsel-linux-gnu 32bit targets.
+     */
+    {
+        static const char *ehex[] = {
+            "95564994a96c45954227b845a1e99cb939d5a1da99ee91acc962396ae999a9ee",
+            "38603790448f2f7694c242a875f0cad0aae658eba085f312d2febbbd128dd2b5",
+            "8f7d1149f03724215d704344d0d62c587ae3c5939cba4b9b5f3dc5e8e911ef9a",
+            "5ce1a5a749a4989d0d8368f6e1f8cdf3a362a6c97fb02047ff152b480a4ad985",
+            "2d45efdf0770542992afca6a0590d52930434bba96017afbc9f99e112950a8b1",
+            "a359473ec376f329bdae6a19f503be6d4be7393c4e43468831234e27e3838680",
+            "b949390d2e416a3f9759e5349ab4c253f6f29f819a6fe4cbfd27ada34903300e",
+            "da021f62839f5878a36f1bc3085375b00fd5fa3e68d316c0fdace87a97558465",
+            NULL};
+        static const char *phex[] = {
+            "f95dc0f980fbd22e90caa5a387cc4a369f3f830d50dd321c40db8c09a7e1a241",
+            "a536e096622d3280c0c1ba849c1f4a79bf490f60006d081e8cf69960189f0d31",
+            "2cd9e17073a3fba7881b21474a13b334116cb2f5dbf3189a6de3515d0840f053",
+            "c776d3982d391b6d04d642dda5cc6d1640174c09875addb70595658f89efb439",
+            "dc6fbd55f903aadd307982d3f659207f265e1ec6271b274521b7a5e28e8fd7a5",
+            "5df089292820477802a43cf5b6b94e999e8c9944ddebb0d0e95a60f88cb7e813",
+            "ba110d20e1024774107dd02949031864923b3cb8c3f7250d6d1287b0a40db6a4",
+            "7bd5a469518eb65aa207ddc47d8c6e5fc8e0c105be8fc1d4b57b2e27540471d5",
+            NULL};
+        static const char *mhex[] = {
+            "fef15d5ce4625f1bccfbba49fc8439c72bf8202af039a2259678941b60bb4a8f",
+            "2987e965d58fd8cf86a856674d519763d0e1211cc9f8596971050d56d9b35db3",
+            "785866cfbca17cfdbed6060be3629d894f924a89fdc1efc624f80d41a22f1900",
+            "9503fcc3824ef62ccb9208430c26f2d8ceb2c63488ec4c07437aa4c96c43dd8b",
+            "9289ed00a712ff66ee195dc71f5e4ead02172b63c543d69baf495f5fd63ba7bc",
+            "c633bd309c016e37736da92129d0b053d4ab28d21ad7d8b6fab2a8bbdc8ee647",
+            "d2fbcf2cf426cf892e6f5639e0252993965dfb73ccd277407014ea784aaa280c",
+            "b7b03972bc8b0baa72360bdb44b82415b86b2f260f877791cd33ba8f2d65229b",
+            NULL};
+
+        if (!TEST_true(parse_bigBN(&e, ehex))
+                || !TEST_true(parse_bigBN(&p, phex))
+                || !TEST_true(parse_bigBN(&m, mhex))
+                || !TEST_true(BN_mod_exp_mont_consttime(d, e, p, m, ctx, NULL))
+                || !TEST_true(BN_mod_exp_simple(a, e, p, m, ctx))
+                || !TEST_BN_eq(a, d))
+            goto err;
+    }
 
     /* Zero input */
     if (!TEST_true(BN_bntest_rand(p, 1024, 0, 0)))
@@ -1097,7 +1215,7 @@ static int file_sum(STANZA *s)
     /*
      * Test that the functions work when |r| and |a| point to the same BIGNUM,
      * or when |r| and |b| point to the same BIGNUM.
-     * TODO: Test where all of |r|, |a|, and |b| point to the same BIGNUM.
+     * There is no test for all of |r|, |a|, and |b| pointint to the same BIGNUM.
      */
     if (!TEST_true(BN_copy(ret, a))
             || !TEST_true(BN_add(ret, ret, b))
@@ -1124,7 +1242,6 @@ static int file_sum(STANZA *s)
      * documented as having. Note that these functions are frequently used
      * when the prerequisites don't hold. In those cases, they are supposed
      * to work as if the prerequisite hold, but we don't test that yet.
-     * TODO: test that.
      */
     if (!BN_is_negative(a) && !BN_is_negative(b) && BN_cmp(a, b) >= 0) {
         if (!TEST_true(BN_uadd(ret, a, b))
@@ -1137,7 +1254,8 @@ static int file_sum(STANZA *s)
         /*
          * Test that the functions work when |r| and |a| point to the same
          * BIGNUM, or when |r| and |b| point to the same BIGNUM.
-         * TODO: Test where all of |r|, |a|, and |b| point to the same BIGNUM.
+         * There is no test for all of |r|, |a|, and |b| pointint to the same
+         * BIGNUM.
          */
         if (!TEST_true(BN_copy(ret, a))
                 || !TEST_true(BN_uadd(ret, ret, b))
@@ -1660,52 +1778,52 @@ static int file_gcd(STANZA *s)
 
 static int test_bn2padded(void)
 {
-#if HAVE_BN_PADDED
     uint8_t zeros[256], out[256], reference[128];
-    BIGNUM *n = BN_new();
+    size_t bytes;
+    BIGNUM *n;
     int st = 0;
 
     /* Test edge case at 0. */
-    if (n == NULL)
+    if (!TEST_ptr((n = BN_new())))
         goto err;
-    if (!TEST_true(BN_bn2bin_padded(NULL, 0, n)))
+    if (!TEST_int_eq(BN_bn2binpad(n, NULL, 0), 0))
         goto err;
     memset(out, -1, sizeof(out));
-    if (!TEST_true(BN_bn2bin_padded(out, sizeof(out)), n))
+    if (!TEST_int_eq(BN_bn2binpad(n, out, sizeof(out)), sizeof(out)))
         goto err;
     memset(zeros, 0, sizeof(zeros));
     if (!TEST_mem_eq(zeros, sizeof(zeros), out, sizeof(out)))
         goto err;
 
     /* Test a random numbers at various byte lengths. */
-    for (size_t bytes = 128 - 7; bytes <= 128; bytes++) {
+    for (bytes = 128 - 7; bytes <= 128; bytes++) {
 # define TOP_BIT_ON 0
 # define BOTTOM_BIT_NOTOUCH 0
         if (!TEST_true(BN_rand(n, bytes * 8, TOP_BIT_ON, BOTTOM_BIT_NOTOUCH)))
             goto err;
-        if (!TEST_int_eq(BN_num_bytes(n),A) bytes
-                || TEST_int_eq(BN_bn2bin(n, reference), bytes))
+        if (!TEST_int_eq(BN_num_bytes(n), bytes)
+                || !TEST_int_eq(BN_bn2bin(n, reference), bytes))
             goto err;
         /* Empty buffer should fail. */
-        if (!TEST_int_eq(BN_bn2bin_padded(NULL, 0, n)), 0)
+        if (!TEST_int_eq(BN_bn2binpad(n, NULL, 0), -1))
             goto err;
         /* One byte short should fail. */
-        if (BN_bn2bin_padded(out, bytes - 1, n))
+        if (!TEST_int_eq(BN_bn2binpad(n, out, bytes - 1), -1))
             goto err;
         /* Exactly right size should encode. */
-        if (!TEST_true(BN_bn2bin_padded(out, bytes, n))
-                || TEST_mem_eq(out, bytes, reference, bytes))
+        if (!TEST_int_eq(BN_bn2binpad(n, out, bytes), bytes)
+                || !TEST_mem_eq(out, bytes, reference, bytes))
             goto err;
         /* Pad up one byte extra. */
-        if (!TEST_true(BN_bn2bin_padded(out, bytes + 1, n))
+        if (!TEST_int_eq(BN_bn2binpad(n, out, bytes + 1), bytes + 1)
                 || !TEST_mem_eq(out + 1, bytes, reference, bytes)
                 || !TEST_mem_eq(out, 1, zeros, 1))
             goto err;
         /* Pad up to 256. */
-        if (!TEST_true(BN_bn2bin_padded(out, sizeof(out)), n)
+        if (!TEST_int_eq(BN_bn2binpad(n, out, sizeof(out)), sizeof(out))
                 || !TEST_mem_eq(out + sizeof(out) - bytes, bytes,
                                 reference, bytes)
-                || !TEST_mem_eq(out, sizseof(out) - bytes,
+                || !TEST_mem_eq(out, sizeof(out) - bytes,
                                 zeros, sizeof(out) - bytes))
             goto err;
     }
@@ -1714,9 +1832,6 @@ static int test_bn2padded(void)
  err:
     BN_free(n);
     return st;
-#else
-    return ctx != NULL;
-#endif
 }
 
 static int test_dec2bn(void)
@@ -1976,6 +2091,86 @@ static int test_rand(void)
  err:
     BN_free(bn);
     return st;
+}
+
+/*
+ * Run some statistical tests to provide a degree confidence that the
+ * BN_rand_range() function works as expected.  The test cases and
+ * critical values are generated by the bn_rand_range script.
+ *
+ * Each individual test is a Chi^2 goodness of fit for a specified number
+ * of samples and range.  The samples are assumed to be independent and
+ * that they are from a discrete uniform distribution.
+ *
+ * Some of these individual tests are expected to fail, the success/failure
+ * of each is an independent Bernoulli trial.  The number of such successes
+ * will form a binomial distribution.  The count of the successes is compared
+ * against a precomputed critical value to determine the overall outcome.
+ */
+struct rand_range_case {
+    unsigned int range;
+    unsigned int iterations;
+    double critical;
+};
+
+#include "bn_rand_range.h"
+
+static int test_rand_range_single(size_t n)
+{
+    const unsigned int range = rand_range_cases[n].range;
+    const unsigned int iterations = rand_range_cases[n].iterations;
+    const double critical = rand_range_cases[n].critical;
+    const double expected = iterations / (double)range;
+    double sum = 0;
+    BIGNUM *rng = NULL, *val = NULL;
+    size_t *counts;
+    unsigned int i, v;
+    int res = 0;
+
+    if (!TEST_ptr(counts = OPENSSL_zalloc(sizeof(*counts) * range))
+        || !TEST_ptr(rng = BN_new())
+        || !TEST_ptr(val = BN_new())
+        || !TEST_true(BN_set_word(rng, range)))
+        goto err;
+    for (i = 0; i < iterations; i++) {
+        if (!TEST_true(BN_rand_range(val, rng))
+            || !TEST_uint_lt(v = (unsigned int)BN_get_word(val), range))
+            goto err;
+        counts[v]++;
+    }
+
+    for (i = 0; i < range; i++) {
+        const double delta = counts[i] - expected;
+        sum += delta * delta;
+    }
+    sum /= expected;
+
+    if (sum > critical) {
+        TEST_info("Chi^2 test negative %.4f > %4.f", sum, critical);
+        TEST_note("test case %zu  range %u  iterations %u", n + 1, range,
+                  iterations);
+        goto err;
+    }
+
+    res = 1;
+err:
+    BN_free(rng);
+    BN_free(val);
+    OPENSSL_free(counts);
+    return res;
+}
+
+static int test_rand_range(void)
+{
+    int n_success = 0;
+    size_t i;
+
+    for (i = 0; i < OSSL_NELEM(rand_range_cases); i++)
+        n_success += test_rand_range_single(i);
+    if (TEST_int_ge(n_success, binomial_critical))
+        return 1;
+    TEST_note("This test is expected to fail by chance 0.01%% of the time.");
+    return 0;
 }
 
 static int test_negzero(void)
@@ -2256,7 +2451,7 @@ static int test_is_prime(int i)
 
     for (trial = 0; trial <= 1; ++trial) {
         if (!TEST_true(BN_set_word(r, primes[i]))
-                || !TEST_int_eq(BN_is_prime_fasttest_ex(r, 1, ctx, trial, NULL),
+                || !TEST_int_eq(BN_check_prime(r, ctx, NULL),
                                 1))
             goto err;
     }
@@ -2280,7 +2475,7 @@ static int test_not_prime(int i)
 
     for (trial = 0; trial <= 1; ++trial) {
         if (!TEST_true(BN_set_word(r, not_primes[i]))
-                || !TEST_false(BN_is_prime_fasttest_ex(r, 1, ctx, trial, NULL)))
+                || !TEST_false(BN_check_prime(r, ctx, NULL)))
             goto err;
     }
 
@@ -2748,10 +2943,43 @@ static int run_file_tests(int i)
     return c == 0;
 }
 
+typedef enum OPTION_choice {
+    OPT_ERR = -1,
+    OPT_EOF = 0,
+    OPT_STOCHASTIC_TESTS,
+    OPT_TEST_ENUM
+} OPTION_CHOICE;
+
+const OPTIONS *test_get_options(void)
+{
+    static const OPTIONS test_options[] = {
+        OPT_TEST_OPTIONS_WITH_EXTRA_USAGE("[file...]\n"),
+        { "stochastic", OPT_STOCHASTIC_TESTS, '-', "Run stochastic tests" },
+        { OPT_HELP_STR, 1, '-',
+          "file\tFile to run tests on. Normal tests are not run\n" },
+        { NULL }
+    };
+    return test_options;
+}
 
 int setup_tests(void)
 {
-    int n = test_get_argument_count();
+    OPTION_CHOICE o;
+    int n, stochastic = 0;
+
+    while ((o = opt_next()) != OPT_EOF) {
+        switch (o) {
+        case OPT_STOCHASTIC_TESTS:
+            stochastic = 1;
+            break;
+        case OPT_TEST_CASES:
+           break;
+        default:
+        case OPT_ERR:
+            return 0;
+        }
+    }
+    n  = test_get_argument_count();
 
     if (!TEST_ptr(ctx = BN_CTX_new()))
         return 0;
@@ -2759,6 +2987,8 @@ int setup_tests(void)
     if (n == 0) {
         ADD_TEST(test_sub);
         ADD_TEST(test_div_recip);
+        ADD_ALL_TESTS(test_signed_mod_replace_ab, OSSL_NELEM(signed_mod_tests));
+        ADD_ALL_TESTS(test_signed_mod_replace_ba, OSSL_NELEM(signed_mod_tests));
         ADD_TEST(test_mod);
         ADD_TEST(test_modexp_mont5);
         ADD_TEST(test_kronecker);
@@ -2792,6 +3022,8 @@ int setup_tests(void)
         ADD_TEST(test_gcd_prime);
         ADD_ALL_TESTS(test_mod_exp, (int)OSSL_NELEM(ModExpTests));
         ADD_ALL_TESTS(test_mod_exp_consttime, (int)OSSL_NELEM(ModExpTests));
+        if (stochastic)
+            ADD_TEST(test_rand_range);
     } else {
         ADD_ALL_TESTS(run_file_tests, n);
     }

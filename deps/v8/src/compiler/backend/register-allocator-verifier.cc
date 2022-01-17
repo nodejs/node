@@ -44,6 +44,18 @@ void VerifyAllocatedGaps(const Instruction* instr, const char* caller_info) {
   }
 }
 
+int GetValue(const ImmediateOperand* imm) {
+  switch (imm->type()) {
+    case ImmediateOperand::INLINE_INT32:
+      return imm->inline_int32_value();
+    case ImmediateOperand::INLINE_INT64:
+      return static_cast<int>(imm->inline_int64_value());
+    case ImmediateOperand::INDEXED_RPO:
+    case ImmediateOperand::INDEXED_IMM:
+      return imm->indexed_value();
+  }
+}
+
 }  // namespace
 
 RegisterAllocatorVerifier::RegisterAllocatorVerifier(
@@ -60,7 +72,7 @@ RegisterAllocatorVerifier::RegisterAllocatorVerifier(
   constraints_.reserve(sequence->instructions().size());
   // TODO(dcarney): model unique constraints.
   // Construct OperandConstraints for all InstructionOperands, eliminating
-  // kSameAsFirst along the way.
+  // kSameAsInput along the way.
   for (const Instruction* instr : sequence->instructions()) {
     // All gaps should be totally unallocated at this point.
     VerifyEmptyGaps(instr);
@@ -78,10 +90,11 @@ RegisterAllocatorVerifier::RegisterAllocatorVerifier(
     }
     for (size_t i = 0; i < instr->OutputCount(); ++i, ++count) {
       BuildConstraint(instr->OutputAt(i), &op_constraints[count]);
-      if (op_constraints[count].type_ == kSameAsFirst) {
-        CHECK_LT(0, instr->InputCount());
-        op_constraints[count].type_ = op_constraints[0].type_;
-        op_constraints[count].value_ = op_constraints[0].value_;
+      if (op_constraints[count].type_ == kSameAsInput) {
+        int input_index = op_constraints[count].value_;
+        CHECK_LT(input_index, instr->InputCount());
+        op_constraints[count].type_ = op_constraints[input_index].type_;
+        op_constraints[count].value_ = op_constraints[input_index].value_;
       }
       VerifyOutput(op_constraints[count]);
     }
@@ -93,7 +106,7 @@ RegisterAllocatorVerifier::RegisterAllocatorVerifier(
 
 void RegisterAllocatorVerifier::VerifyInput(
     const OperandConstraint& constraint) {
-  CHECK_NE(kSameAsFirst, constraint.type_);
+  CHECK_NE(kSameAsInput, constraint.type_);
   if (constraint.type_ != kImmediate) {
     CHECK_NE(InstructionOperand::kInvalidVirtualRegister,
              constraint.virtual_register_);
@@ -102,7 +115,7 @@ void RegisterAllocatorVerifier::VerifyInput(
 
 void RegisterAllocatorVerifier::VerifyTemp(
     const OperandConstraint& constraint) {
-  CHECK_NE(kSameAsFirst, constraint.type_);
+  CHECK_NE(kSameAsInput, constraint.type_);
   CHECK_NE(kImmediate, constraint.type_);
   CHECK_NE(kConstant, constraint.type_);
 }
@@ -151,10 +164,8 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
     constraint->virtual_register_ = constraint->value_;
   } else if (op->IsImmediate()) {
     const ImmediateOperand* imm = ImmediateOperand::cast(op);
-    int value = imm->type() == ImmediateOperand::INLINE ? imm->inline_value()
-                                                        : imm->indexed_value();
     constraint->type_ = kImmediate;
-    constraint->value_ = value;
+    constraint->value_ = GetValue(imm);
   } else {
     CHECK(op->IsUnallocated());
     const UnallocatedOperand* unallocated = UnallocatedOperand::cast(op);
@@ -202,8 +213,9 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
           constraint->value_ =
               ElementSizeLog2Of(sequence()->GetRepresentation(vreg));
           break;
-        case UnallocatedOperand::SAME_AS_FIRST_INPUT:
-          constraint->type_ = kSameAsFirst;
+        case UnallocatedOperand::SAME_AS_INPUT:
+          constraint->type_ = kSameAsInput;
+          constraint->value_ = unallocated->input_index();
           break;
       }
     }
@@ -221,9 +233,7 @@ void RegisterAllocatorVerifier::CheckConstraint(
     case kImmediate: {
       CHECK_WITH_MSG(op->IsImmediate(), caller_info_);
       const ImmediateOperand* imm = ImmediateOperand::cast(op);
-      int value = imm->type() == ImmediateOperand::INLINE
-                      ? imm->inline_value()
-                      : imm->indexed_value();
+      int value = GetValue(imm);
       CHECK_EQ(value, constraint->value_);
       return;
     }
@@ -261,7 +271,7 @@ void RegisterAllocatorVerifier::CheckConstraint(
       CHECK_WITH_MSG(op->IsRegister() || op->IsStackSlot() || op->IsConstant(),
                      caller_info_);
       return;
-    case kSameAsFirst:
+    case kSameAsInput:
       CHECK_WITH_MSG(false, caller_info_);
       return;
   }

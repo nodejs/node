@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <optional>
 #include <unordered_map>
 #include "node_messaging.h"
 #include "uv.h"
@@ -70,7 +71,7 @@ class Worker : public AsyncWrap {
   static void LoopStartTime(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
-  void CreateEnvMessagePort(Environment* env);
+  bool CreateEnvMessagePort(Environment* env);
   static size_t NearHeapLimit(void* data, size_t current_heap_limit,
                               size_t initial_heap_limit);
 
@@ -80,14 +81,13 @@ class Worker : public AsyncWrap {
 
   MultiIsolatePlatform* platform_;
   v8::Isolate* isolate_ = nullptr;
-  uv_thread_t tid_;
+  std::optional<uv_thread_t> tid_;  // Set while the thread is running
 
   std::unique_ptr<InspectorParentHandle> inspector_parent_handle_;
 
   // This mutex protects access to all variables listed below it.
   mutable Mutex mutex_;
 
-  bool thread_joined_ = true;
   const char* custom_error_ = nullptr;
   std::string custom_error_str_;
   int exit_code_ = 0;

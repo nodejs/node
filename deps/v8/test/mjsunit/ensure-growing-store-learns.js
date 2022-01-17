@@ -2,8 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --noverify-heap --noenable-slow-asserts
-// Flags: --opt --no-always-opt
+// Overwrite the value for --noverify-heap and
+// --noenable-slow-asserts, which the test runner already set to true before.
+//  Due to flag contradiction checking, this requires
+// --allow-overwriting-for-next-flag to avoid an error.
+// Flags: --allow-overwriting-for-next-flag --noverify-heap
+// Flags: --allow-overwriting-for-next-flag --noenable-slow-asserts
+// Flags: --allow-natives-syntax --opt --no-always-opt
 
 // --noverify-heap and --noenable-slow-asserts are set because the test is too
 // slow with it on.
@@ -27,7 +32,11 @@
   foo(a, 3);
   assertEquals(a[3], 5.3);
   foo(a, 50000);
-  assertUnoptimized(foo);
+  // TODO(v8:11457) We don't currently support inlining element stores if there
+  // is a dictionary mode prototypes on the prototype chain. Therefore, if
+  // v8_dict_property_const_tracking is enabled, the optimized code only
+  // contains a call to the IC handler and doesn't get deopted.
+  assertEquals(%IsDictPropertyConstTrackingEnabled(), isOptimized(foo));
   assertTrue(%HasDictionaryElements(a));
 
   %PrepareFunctionForOptimization(foo);

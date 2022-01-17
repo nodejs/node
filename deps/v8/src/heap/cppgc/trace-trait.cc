@@ -14,13 +14,13 @@ TraceDescriptor TraceTraitFromInnerAddressImpl::GetTraceDescriptor(
     const void* address) {
   // address is guaranteed to be on a normal page because this is used only for
   // mixins.
+  const BasePage* page = BasePage::FromPayload(address);
+  page->SynchronizedLoad();
   const HeapObjectHeader& header =
-      BasePage::FromPayload(address)
-          ->ObjectHeaderFromInnerAddress<HeapObjectHeader::AccessMode::kAtomic>(
-              address);
-  return {header.Payload(),
+      page->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(address);
+  return {header.ObjectStart(),
           GlobalGCInfoTable::GCInfoFromIndex(
-              header.GetGCInfoIndex<HeapObjectHeader::AccessMode::kAtomic>())
+              header.GetGCInfoIndex<AccessMode::kAtomic>())
               .trace};
 }
 

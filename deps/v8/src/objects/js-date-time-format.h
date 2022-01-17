@@ -16,7 +16,6 @@
 #include "src/execution/isolate.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
-#include "torque-generated/field-offsets-tq.h"
 #include "unicode/uversion.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -30,6 +29,8 @@ class SimpleDateFormat;
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-date-time-format-tq.inc"
 
 class JSDateTimeFormat
     : public TorqueGeneratedJSDateTimeFormat<JSDateTimeFormat, JSObject> {
@@ -58,7 +59,7 @@ class JSDateTimeFormat
   // ecma402/#sec-Intl.DateTimeFormat.prototype.formatToParts
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-      double date_value);
+      double date_value, bool output_source);
 
   // ecma402/#sec-intl.datetimeformat.prototype.formatRange
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatRange(
@@ -80,7 +81,7 @@ class JSDateTimeFormat
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleDateTime(
       Isolate* isolate, Handle<Object> date, Handle<Object> locales,
       Handle<Object> options, RequiredOption required, DefaultsOption defaults,
-      const char* method);
+      const char* method_name);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
@@ -125,6 +126,8 @@ class JSDateTimeFormat
   DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
   DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)
   DECL_ACCESSORS(icu_date_interval_format, Managed<icu::DateIntervalFormat>)
+
+  DECL_BOOLEAN_ACCESSORS(alt_calendar)
 
   DECL_PRINTER(JSDateTimeFormat)
 

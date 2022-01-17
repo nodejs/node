@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function Test1() {
   print("Test1...");
@@ -55,7 +55,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(" --z1--");
   assertTraps(kTrapFuncSigMismatch, () => module.exports.main(2, 12, 33));
   print(" --w1--");
-  assertTraps(kTrapFuncInvalid, () => module.exports.main(3, 12, 33));
+  assertTraps(kTrapTableOutOfBounds, () => module.exports.main(3, 12, 33));
 })();
 
 (function Test2() {
@@ -99,7 +99,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(" --q2--");
   assertTraps(kTrapFuncSigMismatch, () => module.exports.main(3, 12, 33));
   print(" --t2--");
-  assertTraps(kTrapFuncInvalid, () => module.exports.main(4, 12, 33));
+  assertTraps(kTrapTableOutOfBounds, () => module.exports.main(4, 12, 33));
 })();
 
 
@@ -151,7 +151,7 @@ function AddFunctions(builder) {
   assertEquals(35, module.exports.main(2, 1));
   assertEquals(32, module.exports.main(1, 2));
   assertEquals(31, module.exports.main(2, 2));
-  assertTraps(kTrapFuncInvalid, () => module.exports.main(12, 3));
+  assertTraps(kTrapTableOutOfBounds, () => module.exports.main(12, 3));
 })();
 
 (function ConstBaseTest() {
@@ -169,7 +169,8 @@ function AddFunctions(builder) {
       .exportAs("main");
 
     builder.setTableBounds(length, length);
-    builder.addElementSegment(0, base, false, [f.add.index, f.sub.index, f.mul.index]);
+    builder.addActiveElementSegment(0, WasmInitExpr.I32Const(base),
+                                    [f.add.index, f.sub.index, f.mul.index]);
 
     return builder.instantiate();
   }
@@ -187,7 +188,7 @@ function AddFunctions(builder) {
     assertEquals(31, main(2, i + 1));
     assertEquals(33, main(1, i + 2));
     assertEquals(66, main(2, i + 2));
-    assertTraps(kTrapFuncInvalid, () => main(12, 10));
+    assertTraps(kTrapTableOutOfBounds, () => main(12, 10));
   }
 })();
 
@@ -207,7 +208,8 @@ function AddFunctions(builder) {
 
   builder.setTableBounds(10, 10);
   var g = builder.addImportedGlobal("fff", "base", kWasmI32);
-  builder.addElementSegment(0, g, true, [f.mul.index, f.add.index, f.sub.index]);
+  builder.addActiveElementSegment(0, WasmInitExpr.GlobalGet(g),
+                                  [f.mul.index, f.add.index, f.sub.index]);
 
   var module = new WebAssembly.Module(builder.toBuffer());
 
@@ -224,6 +226,6 @@ function AddFunctions(builder) {
     assertEquals(35, main(2, i + 1));
     assertEquals(32, main(1, i + 2));
     assertEquals(31, main(2, i + 2));
-    assertTraps(kTrapFuncInvalid, () => main(12, 10));
+    assertTraps(kTrapTableOutOfBounds, () => main(12, 10));
   }
 })();

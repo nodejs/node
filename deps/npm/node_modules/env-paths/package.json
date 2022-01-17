@@ -1,6 +1,6 @@
 {
 	"name": "env-paths",
-	"version": "2.2.0",
+	"version": "2.2.1",
 	"description": "Get paths for storing things like data, config, cache, etc",
 	"license": "MIT",
 	"repository": "sindresorhus/env-paths",

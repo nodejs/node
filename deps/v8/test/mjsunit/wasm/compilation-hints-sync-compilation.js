@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-compilation-hints
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function testCompileWithBadLazyHint() {
   print(arguments.callee.name);
@@ -33,7 +33,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertThrows(() => builder.toModule(),
     WebAssembly.CompileError,
     "WebAssembly.Module(): Compiling function #0:\"id\" failed: type error " +
-    "in merge[0] (expected i32, got i64) @+56");
+    "in fallthru[0] (expected i32, got i64) @+56");
 })();
 
 (function testCompileEmptyModule() {

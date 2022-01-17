@@ -62,7 +62,6 @@ void nghttp2_stream_init(nghttp2_stream *stream, int32_t stream_id,
                          int32_t weight, int32_t remote_initial_window_size,
                          int32_t local_initial_window_size,
                          void *stream_user_data, nghttp2_mem *mem) {
-  nghttp2_map_entry_init(&stream->map_entry, (key_type)stream_id);
   nghttp2_pq_init(&stream->obq, stream_less, mem);
 
   stream->stream_id = stream_id;

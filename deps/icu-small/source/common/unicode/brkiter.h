@@ -99,7 +99,7 @@ U_NAMESPACE_BEGIN
  * <p>
  * Code snippets illustrating the use of the Break Iterator APIs
  * are available in the ICU User Guide,
- * http://icu-project.org/userguide/boundaryAnalysis.html
+ * https://unicode-org.github.io/icu/userguide/boundaryanalysis/
  * and in the sample program icu/source/samples/break/break.cpp
  *
  */
@@ -124,7 +124,7 @@ public:
      * object, and styles are not considered.
      * @stable ICU 2.0
      */
-    virtual UBool operator==(const BreakIterator&) const = 0;
+    virtual bool operator==(const BreakIterator&) const = 0;
 
     /**
      * Returns the complement of the result of operator==
@@ -132,7 +132,7 @@ public:
      * @return the complement of the result of operator==
      * @stable ICU 2.0
      */
-    UBool operator!=(const BreakIterator& rhs) const { return !operator==(rhs); }
+    bool operator!=(const BreakIterator& rhs) const { return !operator==(rhs); }
 
     /**
      * Return a polymorphic copy of this object.  This is an abstract
@@ -146,7 +146,7 @@ public:
      * will return distinct unequal values.
      * @stable ICU 2.0
      */
-    virtual UClassID getDynamicClassID(void) const = 0;
+    virtual UClassID getDynamicClassID(void) const override = 0;
 
     /**
      * Return a CharacterIterator over the text being analyzed.
@@ -564,7 +564,7 @@ public:
      * BreakIterator::createXXXInstance to avoid undefined behavior.
      * @param key the registry key returned by a previous call to registerInstance
      * @param status the in/out status code, no special meanings are assigned
-     * @return TRUE if the iterator for the key was successfully unregistered
+     * @return true if the iterator for the key was successfully unregistered
      * @stable ICU 2.4
      */
     static UBool U_EXPORT2 unregister(URegistryKey key, UErrorCode& status);
@@ -655,7 +655,7 @@ private:
 
 inline UBool BreakIterator::isBufferClone()
 {
-    return FALSE;
+    return false;
 }
 
 #endif /* U_HIDE_DEPRECATED_API */

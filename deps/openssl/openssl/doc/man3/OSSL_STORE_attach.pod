@@ -1,0 +1,47 @@
+=pod
+
+=head1 NAME
+
+OSSL_STORE_attach - Functions to read objects from a BIO
+
+=head1 SYNOPSIS
+
+ #include <openssl/store.h>
+
+ OSSL_STORE_CTX *OSSL_STORE_attach(BIO *bio, const char *scheme,
+                                   OSSL_LIB_CTX *libctx, const char *propq,
+                                   const UI_METHOD *ui_method, void *ui_data,
+                                   const OSSL_PARAM params[],
+                                   OSSL_STORE_post_process_info_fn post_process,
+                                   void *post_process_data);
+
+=head1 DESCRIPTION
+
+OSSL_STORE_attach() works like L<OSSL_STORE_open(3)>, except it takes a B<BIO>
+I<bio> instead of a I<uri>, along with a I<scheme> to determine what loader
+should be used to process the data. The reference count of the B<BIO> object
+is increased by 1 if the call is successful.
+
+=head1 RETURN VALUES
+
+OSSL_STORE_attach() returns a pointer to a B<OSSL_STORE_CTX> on success, or
+NULL on failure.
+
+=head1 SEE ALSO
+
+L<ossl_store(7)>, L<OSSL_STORE_open(3)>
+
+=head1 HISTORY
+
+OSSL_STORE_attach() was added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

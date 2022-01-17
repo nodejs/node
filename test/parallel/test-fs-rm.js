@@ -5,6 +5,9 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
+const { execSync } = require('child_process');
+
 const { validateRmOptionsSync } = require('internal/fs/utils');
 
 tmpdir.refresh();
@@ -95,6 +98,11 @@ function removeAsync(dir) {
   makeNonEmptyDirectory(2, 10, 2, dir, false);
   removeAsync(dir);
 
+  // Same test using URL instead of a path
+  dir = nextDirPath();
+  makeNonEmptyDirectory(2, 10, 2, dir, false);
+  removeAsync(pathToFileURL(dir));
+
   // Create a flat folder including symlinks
   dir = nextDirPath();
   makeNonEmptyDirectory(1, 10, 2, dir, true);
@@ -154,6 +162,16 @@ function removeAsync(dir) {
     fs.rmSync(filePath, { force: true });
   }
 
+  // Should accept URL
+  const fileURL = pathToFileURL(path.join(tmpdir.path, 'rm-file.txt'));
+  fs.writeFileSync(fileURL, '');
+
+  try {
+    fs.rmSync(fileURL, { recursive: true });
+  } finally {
+    fs.rmSync(fileURL, { force: true });
+  }
+
   // Recursive removal should succeed.
   fs.rmSync(dir, { recursive: true });
 
@@ -167,8 +185,8 @@ function removeAsync(dir) {
   makeNonEmptyDirectory(4, 10, 2, dir, true);
 
   // Removal should fail without the recursive option set to true.
-  assert.rejects(fs.promises.rm(dir), { syscall: 'rm' });
-  assert.rejects(fs.promises.rm(dir, { recursive: false }), {
+  await assert.rejects(fs.promises.rm(dir), { syscall: 'rm' });
+  await assert.rejects(fs.promises.rm(dir, { recursive: false }), {
     syscall: 'rm'
   });
 
@@ -176,10 +194,10 @@ function removeAsync(dir) {
   await fs.promises.rm(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
-  assert.rejects(fs.promises.rm(dir), { syscall: 'stat' });
+  await assert.rejects(fs.promises.rm(dir), { syscall: 'stat' });
 
   // Should fail if target does not exist
-  assert.rejects(fs.promises.rm(
+  await assert.rejects(fs.promises.rm(
     path.join(tmpdir.path, 'noexist.txt'),
     { recursive: true }
   ), {
@@ -189,7 +207,7 @@ function removeAsync(dir) {
   });
 
   // Should not fail if target does not exist and force option is true
-  fs.promises.rm(path.join(tmpdir.path, 'noexist.txt'), { force: true });
+  await fs.promises.rm(path.join(tmpdir.path, 'noexist.txt'), { force: true });
 
   // Should delete file
   const filePath = path.join(tmpdir.path, 'rm-promises-file.txt');
@@ -199,6 +217,16 @@ function removeAsync(dir) {
     await fs.promises.rm(filePath, { recursive: true });
   } finally {
     fs.rmSync(filePath, { force: true });
+  }
+
+  // Should accept URL
+  const fileURL = pathToFileURL(path.join(tmpdir.path, 'rm-promises-file.txt'));
+  fs.writeFileSync(fileURL, '');
+
+  try {
+    await fs.promises.rm(fileURL, { recursive: true });
+  } finally {
+    fs.rmSync(fileURL, { force: true });
   }
 })().then(common.mustCall());
 
@@ -279,4 +307,81 @@ function removeAsync(dir) {
     name: 'RangeError',
     message: /^The value of "options\.maxRetries" is out of range\./
   });
+}
+
+{
+  // IBMi has a different access permission mechanism
+  // This test should not be run as `root`
+  if (!common.isIBMi && (common.isWindows || process.getuid() !== 0)) {
+    function makeDirectoryReadOnly(dir, mode) {
+      let accessErrorCode = 'EACCES';
+      if (common.isWindows) {
+        accessErrorCode = 'EPERM';
+        execSync(`icacls ${dir} /deny "everyone:(OI)(CI)(DE,DC)"`);
+      } else {
+        fs.chmodSync(dir, mode);
+      }
+      return accessErrorCode;
+    }
+
+    function makeDirectoryWritable(dir) {
+      if (fs.existsSync(dir)) {
+        if (common.isWindows) {
+          execSync(`icacls ${dir} /remove:d "everyone"`);
+        } else {
+          fs.chmodSync(dir, 0o777);
+        }
+      }
+    }
+
+    {
+      // Check that deleting a file that cannot be accessed using rmsync throws
+      // https://github.com/nodejs/node/issues/38683
+      const dirname = nextDirPath();
+      const filePath = path.join(dirname, 'text.txt');
+      try {
+        fs.mkdirSync(dirname, { recursive: true });
+        fs.writeFileSync(filePath, 'hello');
+        const code = makeDirectoryReadOnly(dirname, 0o444);
+        assert.throws(() => {
+          fs.rmSync(filePath, { force: true });
+        }, {
+          code,
+          name: 'Error',
+        });
+      } finally {
+        makeDirectoryWritable(dirname);
+      }
+    }
+
+    {
+      // Check endless recursion.
+      // https://github.com/nodejs/node/issues/34580
+      const dirname = nextDirPath();
+      fs.mkdirSync(dirname, { recursive: true });
+      const root = fs.mkdtempSync(path.join(dirname, 'fs-'));
+      const middle = path.join(root, 'middle');
+      fs.mkdirSync(middle);
+      fs.mkdirSync(path.join(middle, 'leaf')); // Make `middle` non-empty
+      try {
+        const code = makeDirectoryReadOnly(middle, 0o555);
+        try {
+          assert.throws(() => {
+            fs.rmSync(root, { recursive: true });
+          }, {
+            code,
+            name: 'Error',
+          });
+        } catch (err) {
+          // Only fail the test if the folder was not deleted.
+          // as in some cases rmSync succesfully deletes read-only folders.
+          if (fs.existsSync(root)) {
+            throw err;
+          }
+        }
+      } finally {
+        makeDirectoryWritable(middle);
+      }
+    }
+  }
 }

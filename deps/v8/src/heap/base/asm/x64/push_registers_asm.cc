@@ -19,7 +19,7 @@
 #ifdef _WIN64
 
 // We maintain 16-byte alignment at calls. There is an 8-byte return address
-// on the stack and we push 72 bytes which maintains 16-byte stack alignment
+// on the stack and we push 232 bytes which maintains 16-byte stack alignment
 // at the call.
 // Source: https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention
 asm(".globl PushAllRegistersAndIterateStack             \n"
@@ -36,6 +36,18 @@ asm(".globl PushAllRegistersAndIterateStack             \n"
     "  push %r13                                        \n"
     "  push %r14                                        \n"
     "  push %r15                                        \n"
+    "  sub $160, %rsp                                   \n"
+    // Use aligned instrs as we are certain that the stack is properly aligned.
+    "  movdqa %xmm6, 144(%rsp)                          \n"
+    "  movdqa %xmm7, 128(%rsp)                          \n"
+    "  movdqa %xmm8, 112(%rsp)                          \n"
+    "  movdqa %xmm9, 96(%rsp)                           \n"
+    "  movdqa %xmm10, 80(%rsp)                          \n"
+    "  movdqa %xmm11, 64(%rsp)                          \n"
+    "  movdqa %xmm12, 48(%rsp)                          \n"
+    "  movdqa %xmm13, 32(%rsp)                          \n"
+    "  movdqa %xmm14, 16(%rsp)                          \n"
+    "  movdqa %xmm15, (%rsp)                            \n"
     // Pass 1st parameter (rcx) unchanged (Stack*).
     // Pass 2nd parameter (rdx) unchanged (StackVisitor*).
     // Save 3rd parameter (r8; IterateStackCallback)
@@ -45,7 +57,7 @@ asm(".globl PushAllRegistersAndIterateStack             \n"
     // Call the callback.
     "  call *%r9                                        \n"
     // Pop the callee-saved registers.
-    "  add $64, %rsp                                    \n"
+    "  add $224, %rsp                                   \n"
     // Restore rbp as it was used as frame pointer.
     "  pop %rbp                                         \n"
     "  ret                                              \n");

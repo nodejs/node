@@ -389,10 +389,10 @@ MessageFormat::operator=(const MessageFormat& that)
     return *this;
 }
 
-UBool
+bool
 MessageFormat::operator==(const Format& rhs) const
 {
-    if (this == &rhs) return TRUE;
+    if (this == &rhs) return true;
 
     MessageFormat& that = (MessageFormat&)rhs;
 
@@ -400,37 +400,37 @@ MessageFormat::operator==(const Format& rhs) const
     if (!Format::operator==(rhs) ||
         msgPattern != that.msgPattern ||
         fLocale != that.fLocale) {
-        return FALSE;
+        return false;
     }
 
     // Compare hashtables.
     if ((customFormatArgStarts == NULL) != (that.customFormatArgStarts == NULL)) {
-        return FALSE;
+        return false;
     }
     if (customFormatArgStarts == NULL) {
-        return TRUE;
+        return true;
     }
 
     UErrorCode ec = U_ZERO_ERROR;
     const int32_t count = uhash_count(customFormatArgStarts);
     const int32_t rhs_count = uhash_count(that.customFormatArgStarts);
     if (count != rhs_count) {
-        return FALSE;
+        return false;
     }
     int32_t idx = 0, rhs_idx = 0, pos = UHASH_FIRST, rhs_pos = UHASH_FIRST;
     for (; idx < count && rhs_idx < rhs_count && U_SUCCESS(ec); ++idx, ++rhs_idx) {
         const UHashElement* cur = uhash_nextElement(customFormatArgStarts, &pos);
         const UHashElement* rhs_cur = uhash_nextElement(that.customFormatArgStarts, &rhs_pos);
         if (cur->key.integer != rhs_cur->key.integer) {
-            return FALSE;
+            return false;
         }
         const Format* format = (const Format*)uhash_iget(cachedFormatters, cur->key.integer);
         const Format* rhs_format = (const Format*)uhash_iget(that.cachedFormatters, rhs_cur->key.integer);
         if (*format != *rhs_format) {
-            return FALSE;
+            return false;
         }
     }
-    return TRUE;
+    return true;
 }
 
 // -------------------------------------
@@ -637,7 +637,7 @@ MessageFormat::adoptFormats(Format** newFormats,
 
 // -------------------------------------
 // Sets the new formats array and updates the array count.
-// This MessageFormat instance maks a copy of the new formats.
+// This MessageFormat instance makes a copy of the new formats.
 
 void
 MessageFormat::setFormats(const Format** newFormats,
@@ -862,7 +862,7 @@ MessageFormat::getFormatNames(UErrorCode& status) {
     fFormatNames->setDeleter(uprv_deleteUObject);
 
     for (int32_t partIndex = 0; (partIndex = nextTopLevelArgStart(partIndex)) >= 0;) {
-        fFormatNames->addElement(new UnicodeString(getArgName(partIndex + 1)), status);
+        fFormatNames->addElementX(new UnicodeString(getArgName(partIndex + 1)), status);
     }
 
     StringEnumeration* nameEnumerator = new FormatNameEnumeration(fFormatNames, status);
@@ -1107,7 +1107,7 @@ void MessageFormat::format(int32_t msgStart, const void *plNumber,
         } else if (argType == UMSGPAT_ARG_TYPE_NONE || (cachedFormatters && uhash_iget(cachedFormatters, i - 2))) {
             // We arrive here if getCachedFormatter returned NULL, but there was actually an element in the hash table.
             // This can only happen if the hash table contained a DummyFormat, so the if statement above is a check
-            // for the hash table containind DummyFormat.
+            // for the hash table containing DummyFormat.
             if (arg->isNumeric()) {
                 const NumberFormat* nf = getDefaultNumberFormat(success);
                 appendTo.formatAndAppend(nf, *arg, success);
@@ -1440,7 +1440,7 @@ MessageFormat::parse(int32_t msgStart,
             argType==UMSGPAT_ARG_TYPE_NONE || (cachedFormatters && uhash_iget(cachedFormatters, i -2))) {
             // We arrive here if getCachedFormatter returned NULL, but there was actually an element in the hash table.
             // This can only happen if the hash table contained a DummyFormat, so the if statement above is a check
-            // for the hash table containind DummyFormat.
+            // for the hash table containing DummyFormat.
 
             // Match as a string.
             // if at end, use longest possible match
@@ -1869,8 +1869,8 @@ UBool MessageFormat::equalFormats(const void* left, const void* right) {
 }
 
 
-UBool MessageFormat::DummyFormat::operator==(const Format&) const {
-    return TRUE;
+bool MessageFormat::DummyFormat::operator==(const Format&) const {
+    return true;
 }
 
 MessageFormat::DummyFormat* MessageFormat::DummyFormat::clone() const {

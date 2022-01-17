@@ -91,6 +91,16 @@ consts_misc = [
     { 'name': 'TaggedSize',             'value': 'kTaggedSize' },
     { 'name': 'TaggedSizeLog2',         'value': 'kTaggedSizeLog2' },
 
+    { 'name': 'CodeKindFieldMask',      'value': 'Code::KindField::kMask' },
+    { 'name': 'CodeKindFieldShift',     'value': 'Code::KindField::kShift' },
+
+    { 'name': 'CodeKindBytecodeHandler',
+      'value': 'static_cast<int>(CodeKind::BYTECODE_HANDLER)' },
+    { 'name': 'CodeKindInterpretedFunction',
+      'value': 'static_cast<int>(CodeKind::INTERPRETED_FUNCTION)' },
+    { 'name': 'CodeKindBaseline',
+      'value': 'static_cast<int>(CodeKind::BASELINE)' },
+
     { 'name': 'OddballFalse',           'value': 'Oddball::kFalse' },
     { 'name': 'OddballTrue',            'value': 'Oddball::kTrue' },
     { 'name': 'OddballTheHole',         'value': 'Oddball::kTheHole' },
@@ -101,6 +111,16 @@ consts_misc = [
     { 'name': 'OddballOther',           'value': 'Oddball::kOther' },
     { 'name': 'OddballException',       'value': 'Oddball::kException' },
 
+    { 'name': 'ContextRegister',        'value': 'kContextRegister.code()' },
+    { 'name': 'ReturnRegister0',        'value': 'kReturnRegister0.code()' },
+    { 'name': 'JSFunctionRegister',     'value': 'kJSFunctionRegister.code()' },
+    { 'name': 'InterpreterBytecodeOffsetRegister',
+      'value': 'kInterpreterBytecodeOffsetRegister.code()' },
+    { 'name': 'InterpreterBytecodeArrayRegister',
+      'value': 'kInterpreterBytecodeArrayRegister.code()' },
+    { 'name': 'RuntimeCallFunctionRegister',
+      'value': 'kRuntimeCallFunctionRegister.code()' },
+
     { 'name': 'prop_kind_Data',
         'value': 'kData' },
     { 'name': 'prop_kind_Accessor',
@@ -108,9 +128,9 @@ consts_misc = [
     { 'name': 'prop_kind_mask',
         'value': 'PropertyDetails::KindField::kMask' },
     { 'name': 'prop_location_Descriptor',
-        'value': 'kDescriptor' },
+        'value': 'static_cast<int>(PropertyLocation::kDescriptor)' },
     { 'name': 'prop_location_Field',
-        'value': 'kField' },
+        'value': 'static_cast<int>(PropertyLocation::kField)' },
     { 'name': 'prop_location_mask',
         'value': 'PropertyDetails::LocationField::kMask' },
     { 'name': 'prop_location_shift',
@@ -179,6 +199,10 @@ consts_misc = [
         'value': 'StandardFrameConstants::kFunctionOffset' },
     { 'name': 'off_fp_args',
         'value': 'StandardFrameConstants::kFixedFrameSizeAboveFp' },
+    { 'name': 'off_fp_bytecode_array',
+        'value': 'UnoptimizedFrameConstants::kBytecodeArrayFromFp' },
+    { 'name': 'off_fp_bytecode_offset',
+        'value': 'UnoptimizedFrameConstants::kBytecodeOffsetOrFeedbackVectorFromFp' },
 
     { 'name': 'scopeinfo_idx_nparams',
         'value': 'ScopeInfo::kParameterCount' },
@@ -240,6 +264,7 @@ extras_accessors = [
     'JSObject, elements, Object, kElementsOffset',
     'JSObject, internal_fields, uintptr_t, kHeaderSize',
     'FixedArray, data, uintptr_t, kHeaderSize',
+    'BytecodeArray, data, uintptr_t, kHeaderSize',
     'JSArrayBuffer, backing_store, uintptr_t, kBackingStoreOffset',
     'JSArrayBuffer, byte_length, size_t, kByteLengthOffset',
     'JSArrayBufferView, byte_length, size_t, kByteLengthOffset',
@@ -249,7 +274,7 @@ extras_accessors = [
     'JSTypedArray, external_pointer, uintptr_t, kExternalPointerOffset',
     'JSTypedArray, length, Object, kLengthOffset',
     'Map, instance_size_in_words, char, kInstanceSizeInWordsOffset',
-    'Map, inobject_properties_start_or_constructor_function_index, char, kInObjectPropertiesStartOrConstructorFunctionIndexOffset',
+    'Map, inobject_properties_start_or_constructor_function_index, char, kInobjectPropertiesStartOrConstructorFunctionIndexOffset',
     'Map, instance_type, uint16_t, kInstanceTypeOffset',
     'Map, bit_field, char, kBitFieldOffset',
     'Map, bit_field2, char, kBitField2Offset',
@@ -263,6 +288,7 @@ extras_accessors = [
     'UncompiledData, inferred_name, String, kInferredNameOffset',
     'UncompiledData, start_position, int32_t, kStartPositionOffset',
     'UncompiledData, end_position, int32_t, kEndPositionOffset',
+    'Script, source, Object, kSourceOffset',
     'Script, name, Object, kNameOffset',
     'Script, line_ends, Object, kLineEndsOffset',
     'SharedFunctionInfo, raw_function_token_offset, int16_t, kFunctionTokenOffsetOffset',
@@ -270,6 +296,7 @@ extras_accessors = [
     'SharedFunctionInfo, flags, int, kFlagsOffset',
     'SharedFunctionInfo, length, uint16_t, kLengthOffset',
     'SlicedString, parent, String, kParentOffset',
+    'Code, flags, uint32_t, kFlagsOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
     'String, length, int32_t, kLengthOffset',
@@ -310,6 +337,7 @@ header = '''
  */
 
 #include "src/init/v8.h"
+#include "src/codegen/register-arch.h"
 #include "src/execution/frames.h"
 #include "src/execution/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/objects/contexts.h"
@@ -325,7 +353,7 @@ extern "C" {
 
 /* stack frame constants */
 #define FRAME_CONST(value, klass)       \
-    int v8dbg_frametype_##klass = StackFrame::value;
+    V8_EXPORT int v8dbg_frametype_##klass = StackFrame::value;
 
 STACK_FRAME_TYPE_LIST(FRAME_CONST)
 
@@ -622,7 +650,7 @@ def load_fields_from_file(filename):
         #
         prefixes = [ 'ACCESSORS', 'ACCESSORS2', 'ACCESSORS_GCSAFE',
                      'SMI_ACCESSORS', 'ACCESSORS_TO_SMI',
-                     'SYNCHRONIZED_ACCESSORS', 'WEAK_ACCESSORS' ];
+                     'RELEASE_ACQUIRE_ACCESSORS', 'WEAK_ACCESSORS' ];
         prefixes += ([ prefix + "_CHECKED" for prefix in prefixes ] +
                      [ prefix + "_CHECKED2" for prefix in prefixes ])
         current = '';
@@ -670,13 +698,18 @@ def load_fields_from_file(filename):
 # Emit a block of constants.
 #
 def emit_set(out, consts):
+        lines = set()  # To remove duplicates.
+
         # Fix up overzealous parses.  This could be done inside the
         # parsers but as there are several, it's easiest to do it here.
         ws = re.compile('\s+')
         for const in consts:
                 name = ws.sub('', const['name'])
                 value = ws.sub('', str(const['value']))  # Can be a number.
-                out.write('int v8dbg_%s = %s;\n' % (name, value))
+                lines.add('V8_EXPORT int v8dbg_%s = %s;\n' % (name, value))
+
+        for line in lines:
+                out.write(line);
         out.write('\n');
 
 #

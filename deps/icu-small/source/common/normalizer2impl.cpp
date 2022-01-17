@@ -86,7 +86,7 @@ UChar32 codePointFromValidUTF8(const uint8_t *cpStart, const uint8_t *cpLimit) {
     case 4:
         return ((c&7)<<18) | ((cpStart[1]&0x3f)<<12) | ((cpStart[2]&0x3f)<<6) | (cpStart[3]&0x3f);
     default:
-        UPRV_UNREACHABLE;  // Should not occur.
+        UPRV_UNREACHABLE_EXIT;  // Should not occur.
     }
 }
 
@@ -731,9 +731,131 @@ UBool Normalizer2Impl::decompose(UChar32 c, uint16_t norm16,
     return buffer.append((const UChar *)mapping+1, length, TRUE, leadCC, trailCC, errorCode);
 }
 
+// Dual functionality:
+// sink != nullptr: normalize
+// sink == nullptr: isNormalized/spanQuickCheckYes
+const uint8_t *
+Normalizer2Impl::decomposeUTF8(uint32_t options,
+                               const uint8_t *src, const uint8_t *limit,
+                               ByteSink *sink, Edits *edits, UErrorCode &errorCode) const {
+    U_ASSERT(limit != nullptr);
+    UnicodeString s16;
+    uint8_t minNoLead = leadByteForCP(minDecompNoCP);
+
+    const uint8_t *prevBoundary = src;
+    // only for quick check
+    uint8_t prevCC = 0;
+
+    for (;;) {
+        // Fast path: Scan over a sequence of characters below the minimum "no" code point,
+        // or with (decompYes && ccc==0) properties.
+        const uint8_t *fastStart = src;
+        const uint8_t *prevSrc;
+        uint16_t norm16 = 0;
+
+        for (;;) {
+            if (src == limit) {
+                if (prevBoundary != limit && sink != nullptr) {
+                    ByteSinkUtil::appendUnchanged(prevBoundary, limit,
+                                                  *sink, options, edits, errorCode);
+                }
+                return src;
+            }
+            if (*src < minNoLead) {
+                ++src;
+            } else {
+                prevSrc = src;
+                UCPTRIE_FAST_U8_NEXT(normTrie, UCPTRIE_16, src, limit, norm16);
+                if (!isMostDecompYesAndZeroCC(norm16)) {
+                    break;
+                }
+            }
+        }
+        // isMostDecompYesAndZeroCC(norm16) is false, that is, norm16>=minYesNo,
+        // and the current character at [prevSrc..src[ is not a common case with cc=0
+        // (MIN_NORMAL_MAYBE_YES or JAMO_VT).
+        // It could still be a maybeYes with cc=0.
+        if (prevSrc != fastStart) {
+            // The fast path looped over yes/0 characters before the current one.
+            if (sink != nullptr &&
+                    !ByteSinkUtil::appendUnchanged(prevBoundary, prevSrc,
+                                                   *sink, options, edits, errorCode)) {
+                break;
+            }
+            prevBoundary = prevSrc;
+            prevCC = 0;
+        }
+
+        // Medium-fast path: Quick check.
+        if (isMaybeOrNonZeroCC(norm16)) {
+            // Does not decompose.
+            uint8_t cc = getCCFromYesOrMaybe(norm16);
+            if (prevCC <= cc || cc == 0) {
+                prevCC = cc;
+                if (cc <= 1) {
+                    if (sink != nullptr &&
+                            !ByteSinkUtil::appendUnchanged(prevBoundary, src,
+                                                           *sink, options, edits, errorCode)) {
+                        break;
+                    }
+                    prevBoundary = src;
+                }
+                continue;
+            }
+        }
+        if (sink == nullptr) {
+            return prevBoundary;  // quick check: "no" or cc out of order
+        }
+
+        // Slow path
+        // Decompose up to and including the current character.
+        if (prevBoundary != prevSrc && norm16HasDecompBoundaryBefore(norm16)) {
+            if (!ByteSinkUtil::appendUnchanged(prevBoundary, prevSrc,
+                                               *sink, options, edits, errorCode)) {
+                break;
+            }
+            prevBoundary = prevSrc;
+        }
+        ReorderingBuffer buffer(*this, s16, errorCode);
+        if (U_FAILURE(errorCode)) {
+            break;
+        }
+        decomposeShort(prevBoundary, src, STOP_AT_LIMIT, FALSE /* onlyContiguous */,
+                       buffer, errorCode);
+        // Decompose until the next boundary.
+        if (buffer.getLastCC() > 1) {
+            src = decomposeShort(src, limit, STOP_AT_DECOMP_BOUNDARY, FALSE /* onlyContiguous */,
+                                 buffer, errorCode);
+        }
+        if (U_FAILURE(errorCode)) {
+            break;
+        }
+        if ((src - prevSrc) > INT32_MAX) {  // guard before buffer.equals()
+            errorCode = U_INDEX_OUTOFBOUNDS_ERROR;
+            break;
+        }
+        // We already know there was a change if the original character decomposed;
+        // otherwise compare.
+        if (isMaybeOrNonZeroCC(norm16) && buffer.equals(prevBoundary, src)) {
+            if (!ByteSinkUtil::appendUnchanged(prevBoundary, src,
+                                               *sink, options, edits, errorCode)) {
+                break;
+            }
+        } else {
+            if (!ByteSinkUtil::appendChange(prevBoundary, src, buffer.getStart(), buffer.length(),
+                                            *sink, edits, errorCode)) {
+                break;
+            }
+        }
+        prevBoundary = src;
+        prevCC = 0;
+    }
+    return src;
+}
+
 const uint8_t *
 Normalizer2Impl::decomposeShort(const uint8_t *src, const uint8_t *limit,
-                                UBool stopAtCompBoundary, UBool onlyContiguous,
+                                StopAt stopAt, UBool onlyContiguous,
                                 ReorderingBuffer &buffer, UErrorCode &errorCode) const {
     if (U_FAILURE(errorCode)) {
         return nullptr;
@@ -746,21 +868,28 @@ Normalizer2Impl::decomposeShort(const uint8_t *src, const uint8_t *limit,
         UChar32 c = U_SENTINEL;
         if (norm16 >= limitNoNo) {
             if (isMaybeOrNonZeroCC(norm16)) {
-                // No boundaries around this character.
+                // No comp boundaries around this character.
+                uint8_t cc = getCCFromYesOrMaybe(norm16);
+                if (cc == 0 && stopAt == STOP_AT_DECOMP_BOUNDARY) {
+                    return prevSrc;
+                }
                 c = codePointFromValidUTF8(prevSrc, src);
-                if (!buffer.append(c, getCCFromYesOrMaybe(norm16), errorCode)) {
+                if (!buffer.append(c, cc, errorCode)) {
                     return nullptr;
+                }
+                if (stopAt == STOP_AT_DECOMP_BOUNDARY && buffer.getLastCC() <= 1) {
+                    return src;
                 }
                 continue;
             }
             // Maps to an isCompYesAndZeroCC.
-            if (stopAtCompBoundary) {
+            if (stopAt != STOP_AT_LIMIT) {
                 return prevSrc;
             }
             c = codePointFromValidUTF8(prevSrc, src);
             c = mapAlgorithmic(c, norm16);
             norm16 = getRawNorm16(c);
-        } else if (stopAtCompBoundary && norm16 < minNoNoCompNoMaybeCC) {
+        } else if (stopAt != STOP_AT_LIMIT && norm16 < minNoNoCompNoMaybeCC) {
             return prevSrc;
         }
         // norm16!=INERT guarantees that [prevSrc, src[ is valid UTF-8.
@@ -768,7 +897,8 @@ Normalizer2Impl::decomposeShort(const uint8_t *src, const uint8_t *limit,
         // its norm16==INERT is normalization-inert,
         // so it gets copied unchanged in the fast path,
         // and we stop the slow path where invalid UTF-8 begins.
-        U_ASSERT(norm16 != INERT);
+        // c >= 0 is the result of an algorithmic mapping.
+        U_ASSERT(c >= 0 || norm16 != INERT);
         if (norm16 < minYesNo) {
             if (c < 0) {
                 c = codePointFromValidUTF8(prevSrc, src);
@@ -798,11 +928,15 @@ Normalizer2Impl::decomposeShort(const uint8_t *src, const uint8_t *limit,
             } else {
                 leadCC = 0;
             }
+            if (leadCC == 0 && stopAt == STOP_AT_DECOMP_BOUNDARY) {
+                return prevSrc;
+            }
             if (!buffer.append((const char16_t *)mapping+1, length, TRUE, leadCC, trailCC, errorCode)) {
                 return nullptr;
             }
         }
-        if (stopAtCompBoundary && norm16HasCompBoundaryAfter(norm16, onlyContiguous)) {
+        if ((stopAt == STOP_AT_COMP_BOUNDARY && norm16HasCompBoundaryAfter(norm16, onlyContiguous)) ||
+                (stopAt == STOP_AT_DECOMP_BOUNDARY && buffer.getLastCC() <= 1)) {
             return src;
         }
     }
@@ -1954,10 +2088,10 @@ Normalizer2Impl::composeUTF8(uint32_t options, UBool onlyContiguous,
             break;
         }
         // We know there is not a boundary here.
-        decomposeShort(prevSrc, src, FALSE /* !stopAtCompBoundary */, onlyContiguous,
+        decomposeShort(prevSrc, src, STOP_AT_LIMIT, onlyContiguous,
                        buffer, errorCode);
         // Decompose until the next boundary.
-        src = decomposeShort(src, limit, TRUE /* stopAtCompBoundary */, onlyContiguous,
+        src = decomposeShort(src, limit, STOP_AT_COMP_BOUNDARY, onlyContiguous,
                              buffer, errorCode);
         if (U_FAILURE(errorCode)) {
             break;
@@ -2370,7 +2504,7 @@ void CanonIterData::addToStartSet(UChar32 origin, UChar32 decompLead, UErrorCode
             UChar32 firstOrigin=(UChar32)(canonValue&CANON_VALUE_MASK);
             canonValue=(canonValue&~CANON_VALUE_MASK)|CANON_HAS_SET|(uint32_t)canonStartSets.size();
             umutablecptrie_set(mutableTrie, decompLead, canonValue, &errorCode);
-            canonStartSets.addElement(set, errorCode);
+            canonStartSets.addElementX(set, errorCode);
             if(firstOrigin!=0) {
                 set->add(firstOrigin);
             }

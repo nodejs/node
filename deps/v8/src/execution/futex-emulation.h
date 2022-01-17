@@ -9,7 +9,7 @@
 
 #include <map>
 
-#include "include/v8.h"
+#include "include/v8-persistent-handle.h"
 #include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
@@ -28,6 +28,8 @@
 // found here: https://github.com/tc39/ecmascript_sharedmem
 
 namespace v8 {
+
+class Promise;
 
 namespace base {
 class TimeDelta;
@@ -65,6 +67,8 @@ class FutexWaitListNode {
                     size_t wait_addr, Handle<JSObject> promise_capability,
                     Isolate* isolate);
   ~FutexWaitListNode();
+  FutexWaitListNode(const FutexWaitListNode&) = delete;
+  FutexWaitListNode& operator=(const FutexWaitListNode&) = delete;
 
   void NotifyWake();
 
@@ -73,15 +77,15 @@ class FutexWaitListNode {
   // Returns false if the cancelling failed, true otherwise.
   bool CancelTimeoutTask();
 
-  class ResetWaitingOnScopeExit {
+  class V8_NODISCARD ResetWaitingOnScopeExit {
    public:
     explicit ResetWaitingOnScopeExit(FutexWaitListNode* node) : node_(node) {}
     ~ResetWaitingOnScopeExit() { node_->waiting_ = false; }
+    ResetWaitingOnScopeExit(const ResetWaitingOnScopeExit&) = delete;
+    ResetWaitingOnScopeExit& operator=(const ResetWaitingOnScopeExit&) = delete;
 
    private:
     FutexWaitListNode* node_;
-
-    DISALLOW_COPY_AND_ASSIGN(ResetWaitingOnScopeExit);
   };
 
  private:
@@ -132,8 +136,6 @@ class FutexWaitListNode {
 
   CancelableTaskManager::Id timeout_task_id_ =
       CancelableTaskManager::kInvalidTaskId;
-
-  DISALLOW_COPY_AND_ASSIGN(FutexWaitListNode);
 };
 
 class FutexEmulation : public AllStatic {

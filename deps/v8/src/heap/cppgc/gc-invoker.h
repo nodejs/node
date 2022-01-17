@@ -34,6 +34,7 @@ class V8_EXPORT_PRIVATE GCInvoker final : public GarbageCollector {
   GCInvoker& operator=(const GCInvoker&) = delete;
 
   void CollectGarbage(GarbageCollector::Config) final;
+  void StartIncrementalGarbageCollection(GarbageCollector::Config) final;
   size_t epoch() const final;
 
  private:

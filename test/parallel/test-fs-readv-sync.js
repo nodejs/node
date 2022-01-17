@@ -19,7 +19,7 @@ fs.writeFileSync(filename, exptectedBuff);
 const allocateEmptyBuffers = (combinedLength) => {
   const bufferArr = [];
   // Allocate two buffers, each half the size of exptectedBuff
-  bufferArr[0] = Buffer.alloc(Math.floor(combinedLength / 2)),
+  bufferArr[0] = Buffer.alloc(Math.floor(combinedLength / 2));
   bufferArr[1] = Buffer.alloc(combinedLength - bufferArr[0].length);
 
   return bufferArr;
@@ -32,10 +32,10 @@ const allocateEmptyBuffers = (combinedLength) => {
   const bufferArr = allocateEmptyBuffers(exptectedBuff.length);
 
   let read = fs.readvSync(fd, [Buffer.from('')], 0);
-  assert.deepStrictEqual(read, 0);
+  assert.strictEqual(read, 0);
 
   read = fs.readvSync(fd, bufferArr, 0);
-  assert.deepStrictEqual(read, expectedLength);
+  assert.strictEqual(read, expectedLength);
 
   fs.closeSync(fd);
 
@@ -49,10 +49,10 @@ const allocateEmptyBuffers = (combinedLength) => {
   const bufferArr = allocateEmptyBuffers(exptectedBuff.length);
 
   let read = fs.readvSync(fd, [Buffer.from('')]);
-  assert.deepStrictEqual(read, 0);
+  assert.strictEqual(read, 0);
 
   read = fs.readvSync(fd, bufferArr);
-  assert.deepStrictEqual(read, expectedLength);
+  assert.strictEqual(read, expectedLength);
 
   fs.closeSync(fd);
 

@@ -21,7 +21,7 @@ const errMessage = /unexpected end of file/;
   { comp: 'gzip', decomp: 'gunzip', decompSync: 'gunzipSync' },
   { comp: 'gzip', decomp: 'unzip', decompSync: 'unzipSync' },
   { comp: 'deflate', decomp: 'inflate', decompSync: 'inflateSync' },
-  { comp: 'deflateRaw', decomp: 'inflateRaw', decompSync: 'inflateRawSync' }
+  { comp: 'deflateRaw', decomp: 'inflateRaw', decompSync: 'inflateRawSync' },
 ].forEach(function(methods) {
   zlib[methods.comp](inputString, function(err, compressed) {
     assert.ifError(err);
@@ -45,7 +45,7 @@ const errMessage = /unexpected end of file/;
 
     // Async truncated input test
     zlib[methods.decomp](truncated, function(err, result) {
-      assert(errMessage.test(err.message));
+      assert.match(err.message, errMessage);
     });
 
     const syncFlushOpt = { finishFlush: zlib.constants.Z_SYNC_FLUSH };

@@ -20,12 +20,15 @@
 #define __USPREP_H__
 
 /**
- * \file
+ * \file 
  * \brief C API: Implements the StringPrep algorithm.
  */
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
 #include "unicode/localpointer.h"
+#endif   // U_SHOW_CPLUSPLUS_API
 
 /**
  *
@@ -35,14 +38,14 @@
  * Unicode Strings are prepared. Each profiles contains tables which describe
  * how a code point should be treated. The tables are broadly classified into
  * <ul>
- *     <li> Unassigned Table: Contains code points that are unassigned
- *          in the Unicode Version supported by StringPrep. Currently
+ *     <li> Unassigned Table: Contains code points that are unassigned 
+ *          in the Unicode Version supported by StringPrep. Currently 
  *          RFC 3454 supports Unicode 3.2. </li>
  *     <li> Prohibited Table: Contains code points that are prohibited from
  *          the output of the StringPrep processing function. </li>
  *     <li> Mapping Table: Contains code points that are deleted from the output or case mapped. </li>
  * </ul>
- *
+ * 
  * The procedure for preparing Unicode strings:
  * <ol>
  *      <li> Map: For each character in the input, check if it has a mapping
@@ -70,17 +73,17 @@
 typedef struct UStringPrepProfile UStringPrepProfile;
 
 
-/**
+/** 
  * Option to prohibit processing of unassigned code points in the input
- *
+ * 
  * @see  usprep_prepare
  * @stable ICU 2.8
  */
 #define USPREP_DEFAULT 0x0000
 
-/**
+/** 
  * Option to allow processing of unassigned code points in the input
- *
+ * 
  * @see  usprep_prepare
  * @stable ICU 2.8
  */
@@ -181,8 +184,8 @@ typedef enum UStringPrepProfileType {
  * @see usprep_close()
  * @stable ICU 2.8
  */
-U_STABLE UStringPrepProfile* U_EXPORT2
-usprep_open(const char* path,
+U_CAPI UStringPrepProfile* U_EXPORT2
+usprep_open(const char* path, 
             const char* fileName,
             UErrorCode* status);
 
@@ -197,7 +200,7 @@ usprep_open(const char* path,
  * @see usprep_close()
  * @stable ICU 4.2
  */
-U_STABLE UStringPrepProfile* U_EXPORT2
+U_CAPI UStringPrepProfile* U_EXPORT2
 usprep_openByType(UStringPrepProfileType type,
 				  UErrorCode* status);
 
@@ -206,7 +209,7 @@ usprep_openByType(UStringPrepProfileType type,
  * @param profile The profile to close
  * @stable ICU 2.8
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 usprep_close(UStringPrepProfile* profile);
 
 #if U_SHOW_CPLUSPLUS_API
@@ -233,7 +236,7 @@ U_NAMESPACE_END
  * checks for prohibited and BiDi characters in the order defined by RFC 3454
  * depending on the options specified in the profile.
  *
- * @param prep          The profile to use
+ * @param prep          The profile to use 
  * @param src           Pointer to UChar buffer containing the string to prepare
  * @param srcLength     Number of characters in the source string
  * @param dest          Pointer to the destination buffer to receive the output
@@ -242,10 +245,10 @@ U_NAMESPACE_END
  *
  *  - USPREP_DEFAULT            Prohibit processing of unassigned code points in the input
  *
- *  - USPREP_ALLOW_UNASSIGNED   Treat the unassigned code points are in the input
+ *  - USPREP_ALLOW_UNASSIGNED   Treat the unassigned code points are in the input 
  *                              as normal Unicode code points.
  *
- * @param parseError        Pointer to UParseError struct to receive information on position
+ * @param parseError        Pointer to UParseError struct to receive information on position 
  *                          of error if an error is encountered. Can be NULL.
  * @param status            ICU in/out error code parameter.
  *                          U_INVALID_CHAR_FOUND if src contains
@@ -257,9 +260,9 @@ U_NAMESPACE_END
  * @stable ICU 2.8
  */
 
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 usprep_prepare(   const UStringPrepProfile* prep,
-                  const UChar* src, int32_t srcLength,
+                  const UChar* src, int32_t srcLength, 
                   UChar* dest, int32_t destCapacity,
                   int32_t options,
                   UParseError* parseError,

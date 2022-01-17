@@ -3,21 +3,31 @@
 =head1 NAME
 
 BIO_get_ex_new_index, BIO_set_ex_data, BIO_get_ex_data,
-ENGINE_get_ex_new_index, ENGINE_set_ex_data, ENGINE_get_ex_data,
-UI_get_ex_new_index, UI_set_ex_data, UI_get_ex_data,
-X509_get_ex_new_index, X509_set_ex_data, X509_get_ex_data,
-X509_STORE_get_ex_new_index, X509_STORE_set_ex_data, X509_STORE_get_ex_data,
-X509_STORE_CTX_get_ex_new_index, X509_STORE_CTX_set_ex_data, X509_STORE_CTX_get_ex_data,
+BIO_set_app_data, BIO_get_app_data,
 DH_get_ex_new_index, DH_set_ex_data, DH_get_ex_data,
 DSA_get_ex_new_index, DSA_set_ex_data, DSA_get_ex_data,
-ECDH_get_ex_new_index, ECDH_set_ex_data, ECDH_get_ex_data,
 EC_KEY_get_ex_new_index, EC_KEY_set_ex_data, EC_KEY_get_ex_data,
-RSA_get_ex_new_index, RSA_set_ex_data, RSA_get_ex_data
+ENGINE_get_ex_new_index, ENGINE_set_ex_data, ENGINE_get_ex_data,
+EVP_PKEY_get_ex_new_index, EVP_PKEY_set_ex_data, EVP_PKEY_get_ex_data,
+RSA_get_ex_new_index, RSA_set_ex_data, RSA_get_ex_data,
+RSA_set_app_data, RSA_get_app_data,
+SSL_get_ex_new_index, SSL_set_ex_data, SSL_get_ex_data,
+SSL_set_app_data, SSL_get_app_data,
+SSL_CTX_get_ex_new_index, SSL_CTX_set_ex_data, SSL_CTX_get_ex_data,
+SSL_CTX_set_app_data, SSL_CTX_get_app_data,
+SSL_SESSION_get_ex_new_index, SSL_SESSION_set_ex_data, SSL_SESSION_get_ex_data,
+SSL_SESSION_set_app_data, SSL_SESSION_get_app_data,
+UI_get_ex_new_index, UI_set_ex_data, UI_get_ex_data,
+UI_set_app_data, UI_get_app_data,
+X509_STORE_CTX_get_ex_new_index, X509_STORE_CTX_set_ex_data, X509_STORE_CTX_get_ex_data,
+X509_STORE_CTX_set_app_data, X509_STORE_CTX_get_app_data,
+X509_STORE_get_ex_new_index, X509_STORE_set_ex_data, X509_STORE_get_ex_data,
+X509_get_ex_new_index, X509_set_ex_data, X509_get_ex_data
 - application-specific data
 
 =head1 SYNOPSIS
 
-=for comment generic
+=for openssl generic
 
  #include <openssl/x509.h>
 
@@ -28,13 +38,49 @@ RSA_get_ex_new_index, RSA_set_ex_data, RSA_get_ex_data
 
  int TYPE_set_ex_data(TYPE *d, int idx, void *arg);
 
- void *TYPE_get_ex_data(TYPE *d, int idx);
+ void *TYPE_get_ex_data(const TYPE *d, int idx);
+
+ #define TYPE_set_app_data(TYPE *d, void *arg)
+ #define TYPE_get_app_data(TYPE *d)
+
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
+ int DH_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+                         CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+ int DH_set_ex_data(DH *type, int idx, void *arg);
+ void *DH_get_ex_data(DH *type, int idx);
+ int DSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+                          CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+ int DSA_set_ex_data(DSA *type, int idx, void *arg);
+ void *DSA_get_ex_data(DSA *type, int idx);
+ int EC_KEY_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+                             CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+ int EC_KEY_set_ex_data(EC_KEY *type, int idx, void *arg);
+ void *EC_KEY_get_ex_data(EC_KEY *type, int idx);
+ int RSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+                          CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+ int RSA_set_ex_data(RSA *type, int idx, void *arg);
+ void *RSA_get_ex_data(RSA *type, int idx);
+ int RSA_set_app_data(RSA *type, void *arg);
+ void *RSA_get_app_data(RSA *type);
+ int ENGINE_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+                             CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+ int ENGINE_set_ex_data(ENGINE *type, int idx, void *arg);
+ void *ENGINE_get_ex_data(ENGINE *type, int idx);
 
 =head1 DESCRIPTION
 
 In the description here, I<TYPE> is used a placeholder
-for any of the OpenSSL datatypes listed in
-L<CRYPTO_get_ex_new_index(3)>.
+for any of the OpenSSL datatypes listed in L<CRYPTO_get_ex_new_index(3)>.
+
+All functions with a I<TYPE> of B<DH>, B<DSA>, B<RSA> and B<EC_KEY> are deprecated.
+Applications should instead use EVP_PKEY_set_ex_data(),
+EVP_PKEY_get_ex_data() and EVP_PKEY_get_ex_new_index().
+
+All functions with a I<TYPE> of B<ENGINE> are deprecated.
+Applications using engines should be replaced by providers.
 
 These functions handle application-specific data for OpenSSL data
 structures.
@@ -48,6 +94,14 @@ an offset into the opaque exdata part of the TYPE object.
 TYPE_get_ex_data() is a function that calls CRYPTO_get_ex_data() with
 an offset into the opaque exdata part of the TYPE object.
 
+For compatibility with previous releases, the exdata index of zero is
+reserved for "application data." There are two convenience functions for
+this.
+TYPE_set_app_data() is a macro that invokes TYPE_set_ex_data() with
+B<idx> set to zero.
+TYPE_get_app_data() is a macro that invokes TYPE_get_ex_data() with
+B<idx> set to zero.
+
 =head1 RETURN VALUES
 
 TYPE_get_ex_new_index() returns a new index on success or -1 on error.
@@ -60,11 +114,20 @@ TYPE_get_ex_data() returns the application data or NULL if an error occurred.
 
 L<CRYPTO_get_ex_new_index(3)>.
 
+=head1 HISTORY
+
+The functions DH_get_ex_new_index(), DH_set_ex_data(), DH_get_ex_data(),
+DSA_get_ex_new_index(), DSA_set_ex_data(), DSA_get_ex_data(),
+EC_KEY_get_ex_new_index(), EC_KEY_set_ex_data(), EC_KEY_get_ex_data(),
+ENGINE_get_ex_new_index(), ENGINE_set_ex_data(), ENGINE_get_ex_data(),
+RSA_get_ex_new_index(), RSA_set_ex_data(), RSA_get_ex_data(),
+RSA_set_app_data() and RSA_get_app_data() were deprecated in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

@@ -21,7 +21,7 @@ const debug = require("debug")("eslint:code-path");
  * @returns {string} Id of the segment.
  */
 /* istanbul ignore next */
-function getId(segment) { // eslint-disable-line jsdoc/require-jsdoc
+function getId(segment) { // eslint-disable-line jsdoc/require-jsdoc -- Ignoring
     return segment.id + (segment.reachable ? "" : "!");
 }
 
@@ -115,7 +115,7 @@ module.exports = {
         const traceMap = Object.create(null);
         const arrows = this.makeDotArrows(codePath, traceMap);
 
-        for (const id in traceMap) { // eslint-disable-line guard-for-in
+        for (const id in traceMap) { // eslint-disable-line guard-for-in -- Want ability to traverse prototype
             const segment = traceMap[id];
 
             text += `${id}[`;

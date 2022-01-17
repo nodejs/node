@@ -8,14 +8,15 @@ X509_check_purpose - Check the purpose of a certificate
 
  #include <openssl/x509v3.h>
 
- int X509_check_purpose(X509 *x, int id, int ca)
+ int X509_check_purpose(X509 *x, int id, int ca);
 
 =head1 DESCRIPTION
 
 This function checks if certificate I<x> was created with the purpose
 represented by I<id>. If I<ca> is nonzero, then certificate I<x> is
 checked to determine if it's a possible CA with various levels of certainty
-possibly returned.
+possibly returned. The certificate I<x> must be a complete certificate
+otherwise the function returns an error.
 
 Below are the potential ID's that can be checked:
 
@@ -29,13 +30,16 @@ Below are the potential ID's that can be checked:
  # define X509_PURPOSE_OCSP_HELPER       8
  # define X509_PURPOSE_TIMESTAMP_SIGN    9
 
+The checks performed take into account the X.509 extensions
+keyUsage, extendedKeyUsage, and basicConstraints.
+
 =head1 RETURN VALUES
 
 For non-CA checks
 
 =over 4
 
-=item -1 an error condition has occured
+=item -1 an error condition has occurred
 
 =item E<32>1 if the certificate was created to perform the purpose represented by I<id>
 
@@ -47,7 +51,7 @@ For CA checks the below integers could be returned with the following meanings:
 
 =over 4
 
-=item -1 an error condition has occured
+=item -1 an error condition has occurred
 
 =item E<32>0 not a CA or does not have the purpose represented by I<id>
 
@@ -66,7 +70,7 @@ For CA checks the below integers could be returned with the following meanings:
 
 =head1 COPYRIGHT
 
-Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
 Licensed under the Apache License 2.0 (the "License"). You may not use this
 file except in compliance with the License. You can obtain a copy in the file
 LICENSE in the source distribution or at L<https://www.openssl.org/source/license.html>.

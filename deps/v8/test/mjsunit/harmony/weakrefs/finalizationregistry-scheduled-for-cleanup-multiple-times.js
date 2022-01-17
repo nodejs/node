@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-weak-refs --expose-gc --noincremental-marking
-// Flags: --no-stress-flush-bytecode
+// Flags: --expose-gc --noincremental-marking
+// Flags: --no-stress-flush-code
 
 let cleanup0_call_count = 0;
 let cleanup0_holdings_count = 0;

@@ -61,7 +61,7 @@ assert(existing.length > 0);
   assert.deepStrictEqual(dns.getServers(), [
     '127.0.0.1',
     '192.168.1.1',
-    '0.0.0.0'
+    '0.0.0.0',
   ]);
 }
 
@@ -75,7 +75,7 @@ assert(existing.length > 0);
     // Check for REDOS issues.
     ':'.repeat(100000),
     '['.repeat(100000),
-    '['.repeat(100000) + ']'.repeat(100000) + 'a'
+    '['.repeat(100000) + ']'.repeat(100000) + 'a',
   ];
   invalidServers.forEach((serv) => {
     assert.throws(
@@ -274,6 +274,7 @@ dns.lookup('', {
   await dnsPromises.lookup('', {
     hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
   });
+  await dnsPromises.lookup('', { verbatim: true });
 })().then(common.mustCall());
 
 {
@@ -336,10 +337,10 @@ assert.throws(() => {
 
 {
   dns.resolveMx('foo.onion', function(err) {
-    assert.deepStrictEqual(err.code, 'ENOTFOUND');
-    assert.deepStrictEqual(err.syscall, 'queryMx');
-    assert.deepStrictEqual(err.hostname, 'foo.onion');
-    assert.deepStrictEqual(err.message, 'queryMx ENOTFOUND foo.onion');
+    assert.strictEqual(err.code, 'ENOTFOUND');
+    assert.strictEqual(err.syscall, 'queryMx');
+    assert.strictEqual(err.hostname, 'foo.onion');
+    assert.strictEqual(err.message, 'queryMx ENOTFOUND foo.onion');
   });
 }
 
@@ -362,18 +363,15 @@ assert.throws(() => {
           expire: 1800,
           minttl: 3333333333
         },
-      ]
-    },
+      ] },
 
     { method: 'resolve4',
       options: { ttl: true },
-      answers: [ { type: 'A', address: '1.2.3.4', ttl: 3333333333 } ]
-    },
+      answers: [ { type: 'A', address: '1.2.3.4', ttl: 3333333333 } ] },
 
     { method: 'resolve6',
       options: { ttl: true },
-      answers: [ { type: 'AAAA', address: '::42', ttl: 3333333333 } ]
-    },
+      answers: [ { type: 'AAAA', address: '::42', ttl: 3333333333 } ] },
 
     { method: 'resolveSoa',
       answers: [
@@ -386,9 +384,8 @@ assert.throws(() => {
           retry: 900,
           expire: 1800,
           minttl: 3333333333
-        }
-      ]
-    },
+        },
+      ] },
   ];
 
   const server = dgram.createSocket('udp4');

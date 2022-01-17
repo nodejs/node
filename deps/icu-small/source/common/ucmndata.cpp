@@ -18,7 +18,7 @@
  *                 contents for locating the individual items by name.
  *
  *                 Two formats for the table of contents are supported, which is
- *                 why there is an abstract inteface involved.
+ *                 why there is an abstract interface involved.
  *
  */
 

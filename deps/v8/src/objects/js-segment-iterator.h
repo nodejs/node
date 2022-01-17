@@ -27,6 +27,8 @@ class UnicodeString;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-segment-iterator-tq.inc"
+
 class JSSegmentIterator
     : public TorqueGeneratedJSSegmentIterator<JSSegmentIterator, JSObject> {
  public:
@@ -43,6 +45,7 @@ class JSSegmentIterator
 
   // SegmentIterator accessors.
   DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
+  DECL_ACCESSORS(unicode_string, Managed<icu::UnicodeString>)
 
   DECL_PRINTER(JSSegmentIterator)
 

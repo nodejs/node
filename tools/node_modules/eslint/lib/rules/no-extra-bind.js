@@ -20,13 +20,13 @@ const SIDE_EFFECT_FREE_NODE_TYPES = new Set(["Literal", "Identifier", "ThisExpre
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow unnecessary calls to `.bind()`",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-extra-bind"
         },

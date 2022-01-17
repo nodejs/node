@@ -121,7 +121,7 @@ class GenerateGnArgs(object):
     add_common_options(list_cmd)
 
     # Default to "gen" unless global help is requested.
-    if not args or args[0] not in subps.choices.keys() + ['-h', '--help']:
+    if not args or args[0] not in list(subps.choices) + ['-h', '--help']:
       args = ['gen'] + args
 
     return self.parser.parse_args(args)
@@ -146,7 +146,7 @@ class GenerateGnArgs(object):
       self._options.builder = self._options.outdir
 
     # Check for builder/config in mb config.
-    if self._options.builder not in self._mbw.masters[self._options.master]:
+    if self._options.builder not in self._mbw.builder_groups[self._options.master]:
       print('%s does not exist in %s for %s' % (
           self._options.builder, CONFIG, self._options.master))
       return 1
@@ -189,18 +189,20 @@ class GenerateGnArgs(object):
     return 0
 
   def cmd_list(self):
-    print('\n'.join(sorted(self._mbw.masters[self._options.master])))
+    print('\n'.join(sorted(self._mbw.builder_groups[self._options.master])))
     return 0
 
   def verbose_print_1(self, text):
-    if self._options.verbosity >= 1:
+    if self._options.verbosity and self._options.verbosity >= 1:
       print('#' * 80)
       print(text)
 
   def verbose_print_2(self, text):
-    if self._options.verbosity >= 2:
+    if self._options.verbosity and self._options.verbosity >= 2:
       indent = ' ' * 2
       for l in text.splitlines():
+        if type(l) == bytes:
+          l = l.decode()
         print(indent + l)
 
   def _call_cmd(self, args):
@@ -292,10 +294,10 @@ class GenerateGnArgs(object):
     self._mbw.ParseArgs(['lookup', '-f', CONFIG])
     self._mbw.ReadConfigFile()
 
-    if not self._options.master in self._mbw.masters:
+    if not self._options.master in self._mbw.builder_groups:
       print('%s not found in %s\n' % (self._options.master, CONFIG))
       print('Choose one of:\n%s\n' % (
-          '\n'.join(sorted(self._mbw.masters.keys()))))
+          '\n'.join(sorted(self._mbw.builder_groups.keys()))))
       return 1
 
     return self._options.func()
@@ -306,7 +308,7 @@ if __name__ == "__main__":
   try:
     sys.exit(gen.main())
   except Exception:
-    if gen._options.verbosity < 2:
+    if not gen._options.verbosity or gen._options.verbosity < 2:
       print ('\nHint: You can raise verbosity (-vv) to see the output of '
              'failed commands.\n')
     raise

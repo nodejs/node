@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/script-details.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
@@ -30,17 +32,16 @@ static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
 static Handle<JSFunction> Compile(const char* source) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<String> source_code = isolate->factory()
-                                   ->NewStringFromUtf8(CStrVector(source))
+                                   ->NewStringFromUtf8(base::CStrVector(source))
                                    .ToHandleChecked();
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
-          isolate, source_code, Compiler::ScriptDetails(),
-          v8::ScriptOriginOptions(), nullptr, nullptr,
+          isolate, source_code, ScriptDetails(),
           v8::ScriptCompiler::kNoCompileOptions,
           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();
-  return isolate->factory()->NewFunctionFromSharedFunctionInfo(
-      shared, isolate->native_context());
+  return Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
+      .Build();
 }
 
 
@@ -49,7 +50,7 @@ TEST(TestLinkageCreate) {
   Handle<JSFunction> function = Compile("a + b");
   Handle<SharedFunctionInfo> shared(function->shared(), handles.main_isolate());
   OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
-                                shared, function, CodeKind::OPTIMIZED_FUNCTION);
+                                shared, function, CodeKind::TURBOFAN);
   auto call_descriptor = Linkage::ComputeIncoming(info.zone(), &info);
   CHECK(call_descriptor);
 }
@@ -67,8 +68,7 @@ TEST(TestLinkageJSFunctionIncoming) {
     Handle<SharedFunctionInfo> shared(function->shared(),
                                       handles.main_isolate());
     OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
-                                  shared, function,
-                                  CodeKind::OPTIMIZED_FUNCTION);
+                                  shared, function, CodeKind::TURBOFAN);
     auto call_descriptor = Linkage::ComputeIncoming(info.zone(), &info);
     CHECK(call_descriptor);
 
@@ -85,7 +85,7 @@ TEST(TestLinkageJSCall) {
   Handle<JSFunction> function = Compile("a + c");
   Handle<SharedFunctionInfo> shared(function->shared(), handles.main_isolate());
   OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
-                                shared, function, CodeKind::OPTIMIZED_FUNCTION);
+                                shared, function, CodeKind::TURBOFAN);
 
   for (int i = 0; i < 32; i++) {
     auto call_descriptor = Linkage::GetJSCallDescriptor(
@@ -108,13 +108,14 @@ TEST(TestLinkageStubCall) {
   // TODO(bbudge) Add tests for FP registers.
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
-  Callable callable = Builtins::CallableFor(isolate, Builtins::kToNumber);
-  OptimizedCompilationInfo info(ArrayVector("test"), &zone, CodeKind::STUB);
+  Callable callable = Builtins::CallableFor(isolate, Builtin::kToNumber);
+  OptimizedCompilationInfo info(base::ArrayVector("test"), &zone,
+                                CodeKind::FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
   CHECK(call_descriptor);
-  CHECK_EQ(0, static_cast<int>(call_descriptor->StackParameterCount()));
+  CHECK_EQ(0, static_cast<int>(call_descriptor->ParameterSlotCount()));
   CHECK_EQ(1, static_cast<int>(call_descriptor->ReturnCount()));
   CHECK_EQ(Operator::kNoProperties, call_descriptor->properties());
   CHECK_EQ(false, call_descriptor->IsJSFunctionCall());
@@ -124,17 +125,19 @@ TEST(TestLinkageStubCall) {
   // TODO(titzer): test linkage creation for outgoing stub calls.
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TEST(TestFPLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable =
-      Builtins::CallableFor(isolate, Builtins::kWasmFloat64ToNumber);
-  OptimizedCompilationInfo info(ArrayVector("test"), &zone, CodeKind::STUB);
+      Builtins::CallableFor(isolate, Builtin::kWasmFloat64ToNumber);
+  OptimizedCompilationInfo info(base::ArrayVector("test"), &zone,
+                                CodeKind::FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
   CHECK(call_descriptor);
-  CHECK_EQ(0, static_cast<int>(call_descriptor->StackParameterCount()));
+  CHECK_EQ(0, static_cast<int>(call_descriptor->ParameterSlotCount()));
   CHECK_EQ(1, static_cast<int>(call_descriptor->ParameterCount()));
   CHECK_EQ(1, static_cast<int>(call_descriptor->ReturnCount()));
   CHECK_EQ(Operator::kNoProperties, call_descriptor->properties());
@@ -147,6 +150,7 @@ TEST(TestFPLinkageStubCall) {
   CHECK_EQ(call_descriptor->GetReturnLocation(0).GetLocation(),
            kReturnRegister0.code());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler
 }  // namespace internal

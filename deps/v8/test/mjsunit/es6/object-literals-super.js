@@ -4,59 +4,6 @@
 
 // Flags: --allow-natives-syntax
 
-
-(function TestHomeObject() {
-  var object = {
-    method() {
-      return super.method();
-    },
-    get getter() {
-      return super.getter;
-    },
-    set setter(v) {
-      super.setter = v;
-    },
-    get accessor() {
-      return super.accessor;
-    },
-    set accessor(v) {
-      super.accessor = v;
-    },
-
-    methodNoSuper() {},
-    get getterNoSuper() {},
-    set setterNoSuper(v) {},
-    get accessorNoSuper() {},
-    set accessorNoSuper(v) {},
-    propertyNoSuper: function() {},
-    propertyWithParenNoSuper: (function() {}),
-    propertyWithParensNoSuper: ((function() {}))
-  };
-
-  assertEquals(object, object.method[%HomeObjectSymbol()]);
-  var desc = Object.getOwnPropertyDescriptor(object, 'getter');
-  assertEquals(object, desc.get[%HomeObjectSymbol()]);
-  desc = Object.getOwnPropertyDescriptor(object, 'setter');
-  assertEquals(object, desc.set[%HomeObjectSymbol()]);
-  desc = Object.getOwnPropertyDescriptor(object, 'accessor');
-  assertEquals(object, desc.get[%HomeObjectSymbol()]);
-  assertEquals(object, desc.set[%HomeObjectSymbol()]);
-
-  assertEquals(undefined, object.methodNoSuper[%HomeObjectSymbol()]);
-  desc = Object.getOwnPropertyDescriptor(object, 'getterNoSuper');
-  assertEquals(undefined, desc.get[%HomeObjectSymbol()]);
-  desc = Object.getOwnPropertyDescriptor(object, 'setterNoSuper');
-  assertEquals(undefined, desc.set[%HomeObjectSymbol()]);
-  desc = Object.getOwnPropertyDescriptor(object, 'accessorNoSuper');
-  assertEquals(undefined, desc.get[%HomeObjectSymbol()]);
-  assertEquals(undefined, desc.set[%HomeObjectSymbol()]);
-  assertEquals(undefined, object.propertyNoSuper[%HomeObjectSymbol()]);
-  assertEquals(undefined, object.propertyWithParenNoSuper[%HomeObjectSymbol()]);
-  assertEquals(undefined,
-               object.propertyWithParensNoSuper[%HomeObjectSymbol()]);
-})();
-
-
 (function TestMethod() {
   var object = {
     __proto__: {

@@ -11,10 +11,10 @@ const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
   assert.strictEqual(stream.aborted, false);
   const insp = util.inspect(stream);
-  assert.ok(/Http2Stream {/.test(insp));
-  assert.ok(/  state:/.test(insp));
-  assert.ok(/  readableState:/.test(insp));
-  assert.ok(/  writableState:/.test(insp));
+  assert.match(insp, /Http2Stream {/);
+  assert.match(insp, / {2}state:/);
+  assert.match(insp, / {2}readableState:/);
+  assert.match(insp, / {2}writableState:/);
   stream.end('ok');
 }));
 server.listen(0, common.mustCall(() => {

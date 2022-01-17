@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const npx = require.resolve('../../bin/npx-cli.js')
 const cli = require.resolve('../../lib/cli.js')
 const npm = require.resolve('../../bin/npm-cli.js')
@@ -7,43 +6,50 @@ const npm = require.resolve('../../bin/npm-cli.js')
 const logs = []
 console.error = (...msg) => logs.push(msg)
 
-t.afterEach(cb => {
-  logs.length = 0
-  cb()
-})
+t.afterEach(() => (logs.length = 0))
 
 t.test('npx foo -> npm exec -- foo', t => {
   process.argv = ['node', npx, 'foo']
-  requireInject(npx, { [cli]: () => {} })
+  t.mock(npx, { [cli]: () => {} })
   t.strictSame(process.argv, ['node', npm, 'exec', '--', 'foo'])
   t.end()
 })
 
 t.test('npx -- foo -> npm exec -- foo', t => {
   process.argv = ['node', npx, '--', 'foo']
-  requireInject(npx, { [cli]: () => {} })
+  t.mock(npx, { [cli]: () => {} })
   t.strictSame(process.argv, ['node', npm, 'exec', '--', 'foo'])
   t.end()
 })
 
 t.test('npx -x y foo -z -> npm exec -x y -- foo -z', t => {
   process.argv = ['node', npx, '-x', 'y', 'foo', '-z']
-  requireInject(npx, { [cli]: () => {} })
+  t.mock(npx, { [cli]: () => {} })
   t.strictSame(process.argv, ['node', npm, 'exec', '-x', 'y', '--', 'foo', '-z'])
   t.end()
 })
 
 t.test('npx --x=y --no-install foo -z -> npm exec --x=y -- foo -z', t => {
   process.argv = ['node', npx, '--x=y', '--no-install', 'foo', '-z']
-  requireInject(npx, { [cli]: () => {} })
+  t.mock(npx, { [cli]: () => {} })
   t.strictSame(process.argv, ['node', npm, 'exec', '--x=y', '--yes=false', '--', 'foo', '-z'])
   t.end()
 })
 
 t.test('transform renamed options into proper values', t => {
   process.argv = ['node', npx, '-y', '--shell=bash', '-p', 'foo', '-c', 'asdf']
-  requireInject(npx, { [cli]: () => {} })
-  t.strictSame(process.argv, ['node', npm, 'exec', '--yes', '--script-shell=bash', '--package', 'foo', '--call', 'asdf'])
+  t.mock(npx, { [cli]: () => {} })
+  t.strictSame(process.argv, [
+    'node',
+    npm,
+    'exec',
+    '--yes',
+    '--script-shell=bash',
+    '--package',
+    'foo',
+    '--call',
+    'asdf',
+  ])
   t.end()
 })
 
@@ -64,7 +70,7 @@ t.test('use a bunch of deprecated switches and options', t => {
     '--shell-auto-fallback',
     '--ignore-existing',
     '-q',
-    'foobar'
+    'foobar',
   ]
 
   const expect = [
@@ -78,18 +84,18 @@ t.test('use a bunch of deprecated switches and options', t => {
     '--loglevel',
     'warn',
     '--',
-    'foobar'
+    'foobar',
   ]
-  requireInject(npx, { [cli]: () => {} })
+  t.mock(npx, { [cli]: () => {} })
   t.strictSame(process.argv, expect)
   t.strictSame(logs, [
-    [ 'npx: the --npm argument has been removed.' ],
-    [ 'npx: the --node-arg argument has been removed.' ],
-    [ 'npx: the --n argument has been removed.' ],
-    [ 'npx: the --always-spawn argument has been removed.' ],
-    [ 'npx: the --shell-auto-fallback argument has been removed.' ],
-    [ 'npx: the --ignore-existing argument has been removed.' ],
-    [ 'See `npm help exec` for more information' ]
+    ['npx: the --npm argument has been removed.'],
+    ['npx: the --node-arg argument has been removed.'],
+    ['npx: the --n argument has been removed.'],
+    ['npx: the --always-spawn argument has been removed.'],
+    ['npx: the --shell-auto-fallback argument has been removed.'],
+    ['npx: the --ignore-existing argument has been removed.'],
+    ['See `npm help exec` for more information'],
   ])
   t.end()
 })

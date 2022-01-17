@@ -10,7 +10,7 @@ const node = process.execPath;
 // Test both sets of arguments that check syntax
 const syntaxArgs = [
   ['-c'],
-  ['--check']
+  ['--check'],
 ];
 
 const notFoundRE = /^Error: Cannot find module/m;
@@ -18,7 +18,7 @@ const notFoundRE = /^Error: Cannot find module/m;
 // test file not found
 [
   'syntax/file_not_found.js',
-  'syntax/file_not_found'
+  'syntax/file_not_found',
 ].forEach(function(file) {
   file = fixtures.path(file);
 
@@ -31,7 +31,7 @@ const notFoundRE = /^Error: Cannot find module/m;
       assert.strictEqual(stdout, '');
 
       // `stderr` should have a module not found error message.
-      assert(notFoundRE.test(stderr), `${notFoundRE} === ${stderr}`);
+      assert.match(stderr, notFoundRE);
 
       assert.strictEqual(err.code, 1,
                          `code ${err.code} !== 1 for error:\n\n${err}`);

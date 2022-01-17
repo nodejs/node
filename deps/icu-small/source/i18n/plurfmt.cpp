@@ -381,13 +381,13 @@ PluralFormat::operator=(const PluralFormat& other) {
     return *this;
 }
 
-UBool
+bool
 PluralFormat::operator==(const Format& other) const {
     if (this == &other) {
-        return TRUE;
+        return true;
     }
     if (!Format::operator==(other)) {
-        return FALSE;
+        return false;
     }
     const PluralFormat& o = (const PluralFormat&)other;
     return
@@ -400,7 +400,7 @@ PluralFormat::operator==(const Format& other) const {
             *pluralRulesWrapper.pluralRules == *o.pluralRulesWrapper.pluralRules);
 }
 
-UBool
+bool
 PluralFormat::operator!=(const Format& other) const {
     return  !operator==(other);
 }
@@ -549,9 +549,15 @@ void PluralFormat::parseType(const UnicodeString& source, const NFRule *rbnfLeni
 
         UnicodeString currArg = pattern.tempSubString(partStart->getLimit(), partLimit->getIndex() - partStart->getLimit());
         if (rbnfLenientScanner != NULL) {
-            // If lenient parsing is turned ON, we've got some time consuming parsing ahead of us.
-            int32_t length = -1;
-            currMatchIndex = rbnfLenientScanner->findTextLenient(source, currArg, startingAt, &length);
+            // Check if non-lenient rule finds the text before call lenient parsing
+            int32_t tempIndex = source.indexOf(currArg, startingAt);
+            if (tempIndex >= 0) {
+                currMatchIndex = tempIndex;
+            } else {
+                // If lenient parsing is turned ON, we've got some time consuming parsing ahead of us.
+                int32_t length = -1;
+                currMatchIndex = rbnfLenientScanner->findTextLenient(source, currArg, startingAt, &length);
+            }
         }
         else {
             currMatchIndex = source.indexOf(currArg, startingAt);

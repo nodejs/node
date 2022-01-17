@@ -1,14 +1,14 @@
 // Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #include <stdlib.h>
 #include <string.h>
 
+#include "include/v8-function.h"
 #include "src/init/v8.h"
-
-#include "test/cctest/cctest.h"
-
 #include "src/tracing/trace-event.h"
+#include "test/cctest/cctest.h"
 
 namespace {
 
@@ -34,6 +34,8 @@ struct MockTraceObject {
 class MockTracingController : public v8::TracingController {
  public:
   MockTracingController() = default;
+  MockTracingController(const MockTracingController&) = delete;
+  MockTracingController& operator=(const MockTracingController&) = delete;
 
   uint64_t AddTraceEvent(
       char phase, const uint8_t* category_enabled_flag, const char* name,
@@ -80,8 +82,6 @@ class MockTracingController : public v8::TracingController {
 
  private:
   std::vector<std::unique_ptr<MockTraceObject>> trace_objects_;
-
-  DISALLOW_COPY_AND_ASSIGN(MockTracingController);
 };
 
 class MockTracingPlatform : public TestPlatform {

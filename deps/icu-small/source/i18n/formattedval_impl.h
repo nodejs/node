@@ -69,6 +69,9 @@ U_NAMESPACE_BEGIN
 
 /**
  * Implementation of FormattedValue using FieldPositionHandler to accept fields.
+ *
+ * TODO(ICU-20897): This class is unused. If it is not needed when fixing ICU-20897,
+ * it should be deleted.
  */
 class FormattedValueFieldPositionIteratorImpl : public UMemory, public FormattedValue {
 public:
@@ -93,7 +96,7 @@ public:
     /**
      * Computes the spans for duplicated values.
      * For example, if the string has fields:
-     *
+     * 
      *     ...aa..[b.cc]..d.[bb.e.c]..a..
      *
      * then the spans will be the bracketed regions.
@@ -113,6 +116,26 @@ private:
     UVector32 fFields;
 };
 
+
+// Internal struct that must be exported for MSVC
+struct U_I18N_API SpanInfo {
+    UFieldCategory category;
+    int32_t spanValue;
+    int32_t start;
+    int32_t length;
+};
+
+// Export an explicit template instantiation of the MaybeStackArray that
+//    is used as a data member of CEBuffer.
+//
+//    When building DLLs for Windows this is required even though
+//    no direct access to the MaybeStackArray leaks out of the i18n library.
+//
+// See digitlst.h, pluralaffix.h, datefmt.h, and others for similar examples.
+//
+#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
+template class U_I18N_API MaybeStackArray<SpanInfo, 8>;
+#endif
 
 /**
  * Implementation of FormattedValue based on FormattedStringBuilder.
@@ -146,13 +169,28 @@ public:
     inline const FormattedStringBuilder& getStringRef() const {
         return fString;
     }
+    void resetString();
+
+    /**
+     * Adds additional metadata used for span fields.
+     *
+     * category: the category to use for the span field.
+     * spanValue: the value of the span field: index of the list item, for example.
+     * start: the start position within the string of the span. -1 if unknown.
+     * length: the length of the span, used to split adjacent fields.
+     */
+    void appendSpanInfo(UFieldCategory category, int32_t spanValue, int32_t start, int32_t length, UErrorCode& status);
+    void prependSpanInfo(UFieldCategory category, int32_t spanValue, int32_t start, int32_t length, UErrorCode& status);
 
 private:
     FormattedStringBuilder fString;
     FormattedStringBuilder::Field fNumericField;
+    MaybeStackArray<SpanInfo, 8> spanIndices;
+    int32_t spanIndicesCount = 0;
 
     bool nextPositionImpl(ConstrainedFieldPosition& cfpos, FormattedStringBuilder::Field numericField, UErrorCode& status) const;
     static bool isIntOrGroup(FormattedStringBuilder::Field field);
+    static bool isTrimmable(FormattedStringBuilder::Field field);
     int32_t trimBack(int32_t limit) const;
     int32_t trimFront(int32_t start) const;
 };
@@ -211,7 +249,7 @@ struct UFormattedValueImpl : public UMemory, public UFormattedValueApiHelper {
         return fData->appendTo(appendable, status); \
     } \
     UBool Name::nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const { \
-        UPRV_FORMATTED_VALUE_METHOD_GUARD(FALSE) \
+        UPRV_FORMATTED_VALUE_METHOD_GUARD(false) \
         return fData->nextPosition(cfpos, status); \
     }
 
@@ -230,7 +268,7 @@ struct UFormattedValueImpl : public UMemory, public UFormattedValueApiHelper {
         } \
         return static_cast<HelperType*>(impl)->exportForC(); \
     } \
-    U_DRAFT const UFormattedValue* U_EXPORT2 \
+    U_CAPI const UFormattedValue* U_EXPORT2 \
     Prefix ## _resultAsValue (const CType* uresult, UErrorCode* ec) { \
         const ImplType* result = HelperType::validate(uresult, *ec); \
         if (U_FAILURE(*ec)) { return nullptr; } \

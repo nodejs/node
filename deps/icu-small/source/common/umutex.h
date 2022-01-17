@@ -37,7 +37,7 @@
 #error U_USER_ATOMICS and U_USER_MUTEX_H are not supported
 #endif
 
-// Export an explicit template instantiation of std::atomic<int32_t>.
+// Export an explicit template instantiation of std::atomic<int32_t>. 
 // When building DLLs for Windows this is required as it is used as a data member of the exported SharedObject class.
 // See digitlst.h, pluralaffix.h, datefmt.h, and others for similar examples.
 //
@@ -262,13 +262,13 @@ private:
  *              the global ICU mutex.  Recursive locks are an error
  *              and may cause a deadlock on some platforms.
  */
-U_INTERNAL void U_EXPORT2 umtx_lock(UMutex* mutex);
+U_CAPI void U_EXPORT2 umtx_lock(UMutex* mutex);
 
 /* Unlock a mutex.
  * @param mutex The given mutex to be unlocked.  Pass NULL to specify
  *              the global ICU mutex.
  */
-U_INTERNAL void U_EXPORT2 umtx_unlock (UMutex* mutex);
+U_CAPI void U_EXPORT2 umtx_unlock (UMutex* mutex);
 
 
 U_NAMESPACE_END

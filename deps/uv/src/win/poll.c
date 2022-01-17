@@ -488,7 +488,8 @@ static int uv__poll_set(uv_poll_t* handle, int events, uv_poll_cb cb) {
 
   assert(handle->type == UV_POLL);
   assert(!(handle->flags & UV_HANDLE_CLOSING));
-  assert((events & ~(UV_READABLE | UV_WRITABLE | UV_DISCONNECT)) == 0);
+  assert((events & ~(UV_READABLE | UV_WRITABLE | UV_DISCONNECT |
+                     UV_PRIORITIZED)) == 0);
 
   handle->events = events;
   handle->poll_cb = cb;

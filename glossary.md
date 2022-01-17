@@ -1,4 +1,4 @@
-You may also need to check <https://chromium.googlesource.com/chromiumos/docs/+/master/glossary.md>.
+You may also need to check <https://chromium.googlesource.com/chromiumos/docs/+/HEAD/glossary.md>.
 
 * LGTM: "Looks good to me", commonly used to approve a code review.
 * PTAL: Please take a look.

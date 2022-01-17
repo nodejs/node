@@ -7,7 +7,7 @@
 #include <node_api.h>
 #include "../../js-native-api/common.h"
 
-#define ARRAY_LENGTH 10
+#define ARRAY_LENGTH 10000
 #define MAX_QUEUE_SIZE 2
 
 static uv_thread_t uv_threads[2];
@@ -72,7 +72,7 @@ static void data_source_thread(void* data) {
   for (index = ARRAY_LENGTH - 1; index > -1 && !queue_was_closing; index--) {
     status = napi_call_threadsafe_function(ts_fn, &ints[index],
         ts_fn_info->block_on_full);
-    if (ts_fn_info->max_queue_size == 0) {
+    if (ts_fn_info->max_queue_size == 0 && (index % 1000 == 0)) {
       // Let's make this thread really busy for 200 ms to give the main thread a
       // chance to abort.
       uint64_t start = uv_hrtime();
@@ -122,22 +122,22 @@ static void data_source_thread(void* data) {
 static void call_js(napi_env env, napi_value cb, void* hint, void* data) {
   if (!(env == NULL || cb == NULL)) {
     napi_value argv, undefined;
-    NAPI_CALL_RETURN_VOID(env, napi_create_int32(env, *(int*)data, &argv));
-    NAPI_CALL_RETURN_VOID(env, napi_get_undefined(env, &undefined));
-    NAPI_CALL_RETURN_VOID(env, napi_call_function(env, undefined, cb, 1, &argv,
+    NODE_API_CALL_RETURN_VOID(env, napi_create_int32(env, *(int*)data, &argv));
+    NODE_API_CALL_RETURN_VOID(env, napi_get_undefined(env, &undefined));
+    NODE_API_CALL_RETURN_VOID(env, napi_call_function(env, undefined, cb, 1, &argv,
         NULL));
   }
 }
 
 static napi_ref alt_ref;
-// Getting the data into JS with the alternative referece
+// Getting the data into JS with the alternative reference
 static void call_ref(napi_env env, napi_value _, void* hint, void* data) {
   if (!(env == NULL || alt_ref == NULL)) {
     napi_value fn, argv, undefined;
-    NAPI_CALL_RETURN_VOID(env, napi_get_reference_value(env, alt_ref, &fn));
-    NAPI_CALL_RETURN_VOID(env, napi_create_int32(env, *(int*)data, &argv));
-    NAPI_CALL_RETURN_VOID(env, napi_get_undefined(env, &undefined));
-    NAPI_CALL_RETURN_VOID(env, napi_call_function(env, undefined, fn, 1, &argv,
+    NODE_API_CALL_RETURN_VOID(env, napi_get_reference_value(env, alt_ref, &fn));
+    NODE_API_CALL_RETURN_VOID(env, napi_create_int32(env, *(int*)data, &argv));
+    NODE_API_CALL_RETURN_VOID(env, napi_get_undefined(env, &undefined));
+    NODE_API_CALL_RETURN_VOID(env, napi_call_function(env, undefined, fn, 1, &argv,
         NULL));
   }
 }
@@ -146,17 +146,17 @@ static void call_ref(napi_env env, napi_value _, void* hint, void* data) {
 static napi_value StopThread(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value argv[2];
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
   napi_valuetype value_type;
-  NAPI_CALL(env, napi_typeof(env, argv[0], &value_type));
-  NAPI_ASSERT(env, value_type == napi_function,
+  NODE_API_CALL(env, napi_typeof(env, argv[0], &value_type));
+  NODE_API_ASSERT(env, value_type == napi_function,
       "StopThread argument is a function");
-  NAPI_ASSERT(env, (ts_fn != NULL), "Existing threadsafe function");
-  NAPI_CALL(env,
+  NODE_API_ASSERT(env, (ts_fn != NULL), "Existing threadsafe function");
+  NODE_API_CALL(env,
       napi_create_reference(env, argv[0], 1, &(ts_info.js_finalize_cb)));
   bool abort;
-  NAPI_CALL(env, napi_get_value_bool(env, argv[1], &abort));
-  NAPI_CALL(env,
+  NODE_API_CALL(env, napi_get_value_bool(env, argv[1], &abort));
+  NODE_API_CALL(env,
       napi_release_threadsafe_function(ts_fn,
           abort ? napi_tsfn_abort : napi_tsfn_release));
   ts_fn = NULL;
@@ -174,15 +174,15 @@ static void join_the_threads(napi_env env, void *data, void *hint) {
     uv_thread_join(&the_threads[1]);
   }
 
-  NAPI_CALL_RETURN_VOID(env,
+  NODE_API_CALL_RETURN_VOID(env,
       napi_get_reference_value(env, the_hint->js_finalize_cb, &js_cb));
-  NAPI_CALL_RETURN_VOID(env, napi_get_undefined(env, &undefined));
-  NAPI_CALL_RETURN_VOID(env,
+  NODE_API_CALL_RETURN_VOID(env, napi_get_undefined(env, &undefined));
+  NODE_API_CALL_RETURN_VOID(env,
       napi_call_function(env, undefined, js_cb, 0, NULL, NULL));
-  NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env,
+  NODE_API_CALL_RETURN_VOID(env, napi_delete_reference(env,
       the_hint->js_finalize_cb));
   if (alt_ref != NULL) {
-    NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, alt_ref));
+    NODE_API_CALL_RETURN_VOID(env, napi_delete_reference(env, alt_ref));
     alt_ref = NULL;
   }
 }
@@ -196,37 +196,39 @@ static napi_value StartThreadInternal(napi_env env,
   size_t argc = 4;
   napi_value argv[4];
 
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
   if (alt_ref_js_cb) {
-    NAPI_CALL(env, napi_create_reference(env, argv[0], 1, &alt_ref));
+    NODE_API_CALL(env, napi_create_reference(env, argv[0], 1, &alt_ref));
     argv[0] = NULL;
   }
 
   ts_info.block_on_full =
       (block_on_full ? napi_tsfn_blocking : napi_tsfn_nonblocking);
 
-  NAPI_ASSERT(env, (ts_fn == NULL), "Existing thread-safe function");
+  NODE_API_ASSERT(env, (ts_fn == NULL), "Existing thread-safe function");
   napi_value async_name;
-  NAPI_CALL(env, napi_create_string_utf8(env, "N-API Thread-safe Function Test",
-      NAPI_AUTO_LENGTH, &async_name));
-  NAPI_CALL(env, napi_get_value_uint32(env, argv[3], &ts_info.max_queue_size));
-  NAPI_CALL(env, napi_create_threadsafe_function(env,
-                                                 argv[0],
-                                                 NULL,
-                                                 async_name,
-                                                 ts_info.max_queue_size,
-                                                 2,
-                                                 uv_threads,
-                                                 join_the_threads,
-                                                 &ts_info,
-                                                 cb,
-                                                 &ts_fn));
+  NODE_API_CALL(env, napi_create_string_utf8(env,
+      "N-API Thread-safe Function Test", NAPI_AUTO_LENGTH, &async_name));
+  NODE_API_CALL(env,
+      napi_get_value_uint32(env, argv[3], &ts_info.max_queue_size));
+  NODE_API_CALL(env, napi_create_threadsafe_function(env,
+                                                     argv[0],
+                                                     NULL,
+                                                     async_name,
+                                                     ts_info.max_queue_size,
+                                                     2,
+                                                     uv_threads,
+                                                     join_the_threads,
+                                                     &ts_info,
+                                                     cb,
+                                                     &ts_fn));
   bool abort;
-  NAPI_CALL(env, napi_get_value_bool(env, argv[1], &abort));
+  NODE_API_CALL(env, napi_get_value_bool(env, argv[1], &abort));
   ts_info.abort = abort ? napi_tsfn_abort : napi_tsfn_release;
-  NAPI_CALL(env, napi_get_value_bool(env, argv[2], &(ts_info.start_secondary)));
+  NODE_API_CALL(env,
+      napi_get_value_bool(env, argv[2], &(ts_info.start_secondary)));
 
-  NAPI_ASSERT(env,
+  NODE_API_ASSERT(env,
       (uv_thread_create(&uv_threads[0], data_source_thread, ts_fn) == 0),
       "Thread creation");
 
@@ -234,14 +236,14 @@ static napi_value StartThreadInternal(napi_env env,
 }
 
 static napi_value Unref(napi_env env, napi_callback_info info) {
-  NAPI_ASSERT(env, ts_fn != NULL, "No existing thread-safe function");
-  NAPI_CALL(env, napi_unref_threadsafe_function(env, ts_fn));
+  NODE_API_ASSERT(env, ts_fn != NULL, "No existing thread-safe function");
+  NODE_API_CALL(env, napi_unref_threadsafe_function(env, ts_fn));
   return NULL;
 }
 
 static napi_value Release(napi_env env, napi_callback_info info) {
-  NAPI_ASSERT(env, ts_fn != NULL, "No existing thread-safe function");
-  NAPI_CALL(env, napi_release_threadsafe_function(ts_fn, napi_tsfn_release));
+  NODE_API_ASSERT(env, ts_fn != NULL, "No existing thread-safe function");
+  NODE_API_CALL(env, napi_release_threadsafe_function(ts_fn, napi_tsfn_release));
   return NULL;
 }
 
@@ -298,16 +300,16 @@ static napi_value Init(napi_env env, napi_value exports) {
       napi_enumerable,
       NULL
     },
-    DECLARE_NAPI_PROPERTY("StartThread", StartThread),
-    DECLARE_NAPI_PROPERTY("StartThreadNoNative", StartThreadNoNative),
-    DECLARE_NAPI_PROPERTY("StartThreadNonblocking", StartThreadNonblocking),
-    DECLARE_NAPI_PROPERTY("StartThreadNoJsFunc", StartThreadNoJsFunc),
-    DECLARE_NAPI_PROPERTY("StopThread", StopThread),
-    DECLARE_NAPI_PROPERTY("Unref", Unref),
-    DECLARE_NAPI_PROPERTY("Release", Release),
+    DECLARE_NODE_API_PROPERTY("StartThread", StartThread),
+    DECLARE_NODE_API_PROPERTY("StartThreadNoNative", StartThreadNoNative),
+    DECLARE_NODE_API_PROPERTY("StartThreadNonblocking", StartThreadNonblocking),
+    DECLARE_NODE_API_PROPERTY("StartThreadNoJsFunc", StartThreadNoJsFunc),
+    DECLARE_NODE_API_PROPERTY("StopThread", StopThread),
+    DECLARE_NODE_API_PROPERTY("Unref", Unref),
+    DECLARE_NODE_API_PROPERTY("Release", Release),
   };
 
-  NAPI_CALL(env, napi_define_properties(env, exports,
+  NODE_API_CALL(env, napi_define_properties(env, exports,
     sizeof(properties)/sizeof(properties[0]), properties));
 
   return exports;

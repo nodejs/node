@@ -78,7 +78,7 @@ Aborting instead of exiting causes a core file to be generated for analysis.
 .It Fl -completion-bash
 Print source-able bash completion script for Node.js.
 .
-.It Fl -conditions Ar string
+.It Fl C , Fl -conditions Ar string
 Use custom conditional exports conditions.
 .Ar string
 .
@@ -137,7 +137,7 @@ Requires Node.js to be built with
 .Sy ./configure --openssl-fips .
 .
 .It Fl -enable-source-maps
-Enable experimental Source Map V3 support for stack traces.
+Enable Source Map V3 support for stack traces.
 .
 .It Fl -experimental-import-meta-resolve
 Enable experimental ES modules support for import.meta.resolve().
@@ -153,10 +153,8 @@ to use as a custom module loader.
 .It Fl -experimental-policy
 Use the specified file as a security policy.
 .
-.It Fl -experimental-repl-await
-Enable experimental top-level
-.Sy await
-keyword support in REPL.
+.It Fl -no-experimental-repl-await
+Disable top-level await keyword support in REPL.
 .
 .It Fl -experimental-specifier-resolution
 Select extension resolution algorithm for ES Modules; either 'explicit' (default) or 'node'.
@@ -266,7 +264,7 @@ This flag is inherited from V8 and is subject to change upstream. It may
 disappear in a non-semver-major release.
 .
 .It Fl -max-http-header-size Ns = Ns Ar size
-Specify the maximum size of HTTP headers in bytes. Defaults to 16KB.
+Specify the maximum size of HTTP headers in bytes. Defaults to 16 KB.
 .
 .It Fl -napi-modules
 This option is a no-op.
@@ -275,9 +273,20 @@ It is kept for compatibility.
 .It Fl -no-deprecation
 Silence deprecation warnings.
 .
+.It Fl -no-extra-info-on-fatal-exception
+Hide extra information on fatal exception that causes exit.
+.
 .It Fl -no-force-async-hooks-checks
 Disable runtime checks for `async_hooks`.
 These will still be enabled dynamically when `async_hooks` is enabled.
+.
+.It Fl -no-addons
+Disable the `node-addons` exports condition as well as disable loading native
+addons. When `--no-addons` is specified, calling `process.dlopen` or requiring
+a native C++ addon will fail and throw an exception.
+.
+.It Fl -no-global-search-paths
+Do not search modules from global paths.
 .
 .It Fl -no-warnings
 Silence all process warnings (including deprecations).
@@ -358,6 +367,13 @@ Enables
 .Sy diagnostic report
 to be generated on un-caught exceptions. Useful when inspecting JavaScript
 stack in conjunction with native stack and other runtime environment data.
+.
+.It Fl -secure-heap Ns = Ns Ar n
+Specify the size of the OpenSSL secure heap. Any value less than 2 disables
+the secure heap. The default is 0. The value must be a power of two.
+.
+.It Fl -secure-heap-min Ns = Ns Ar n
+Specify the minimum allocation from the OpenSSL secure heap. The default is 2. The value must be a power of two.
 .
 .It Fl -throw-deprecation
 Throw errors for deprecations.
@@ -447,7 +463,7 @@ Print stack traces for process warnings (including deprecations).
 .It Fl -track-heap-objects
 Track heap object allocations for heap snapshots.
 .
-.It Fl --unhandled-rejections=mode
+.It Fl -unhandled-rejections=mode
 Define the behavior for unhandled rejections. Can be one of `strict` (raise an error), `warn` (enforce warnings) or `none` (silence warnings).
 .
 .It Fl -use-bundled-ca , Fl -use-openssl-ca
@@ -523,6 +539,26 @@ Print node's version.
 .\" =====================================================================
 .Sh ENVIRONMENT
 .Bl -tag -width 6n
+.It Ev FORCE_COLOR
+Used to enable ANSI colorized output. The value may be one of:
+.Ar 1
+,
+.Ar true
+, or
+.Ar an empty string
+to
+indicate 16-color support,
+.Ar 2
+to indicate 256-color support, or
+.Ar 3
+to indicate 16 million-color support. When used and set to a supported
+value, both the NO_COLOR and NODE_DISABLE_COLORS environment variables
+are ignored. Any other value will result in colorized output being
+disabled.
+.
+.It Ev NO_COLOR
+Alias for NODE_DISABLE_COLORS
+.
 .It Ev NODE_DEBUG Ar modules...
 Comma-separated list of core modules that should print debug information.
 .
@@ -549,6 +585,13 @@ but any errors are otherwise ignored.
 .Pp
 This environment variable is ignored when `node` runs as setuid root or
 has Linux file capabilities set.
+.Pp
+The
+.Ar NODE_EXTRA_CA_CERTS
+environment variable is only read when the Node.js process is first launched.
+Changing the value at runtime using
+.Ar process.env.NODE_EXTRA_CA_CERTS
+has no effect on the current process.
 .
 .It Ev NODE_ICU_DATA Ar file
 Data path for ICU (Intl object) data.
@@ -651,7 +694,7 @@ Node.js is available under the MIT license.
 .Pp
 Node.js also includes external libraries that are available under a variety of licenses.
 See
-.Sy https://github.com/nodejs/node/blob/master/LICENSE
+.Sy https://github.com/nodejs/node/blob/HEAD/LICENSE
 for the full license text.
 .
 .\"======================================================================
@@ -664,19 +707,15 @@ Documentation:
 .Sy https://nodejs.org/api/
 .
 .Pp
-GitHub repository & Issue Tracker:
+GitHub repository and issue tracker:
 .Sy https://github.com/nodejs/node
 .
 .Pp
 IRC (general questions):
-.Sy "chat.freenode.net #node.js"
+.Sy "libera.chat #node.js"
 (unofficial)
-.
-.Pp
-IRC (Node.js core development):
-.Sy "chat.freenode.net #node-dev"
 .
 .\"======================================================================
 .Sh AUTHORS
 Written and maintained by 1000+ contributors:
-.Sy https://github.com/nodejs/node/blob/master/AUTHORS
+.Sy https://github.com/nodejs/node/blob/HEAD/AUTHORS

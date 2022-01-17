@@ -27,13 +27,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow unused variables",
-            category: "Variables",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-unused-vars"
         },
@@ -197,6 +197,17 @@ module.exports = {
         }
 
         /**
+         * Checks whether a node is a sibling of the rest property or not.
+         * @param {ASTNode} node a node to check
+         * @returns {boolean} True if the node is a sibling of the rest property, otherwise false.
+         */
+        function hasRestSibling(node) {
+            return node.type === "Property" &&
+                node.parent.type === "ObjectPattern" &&
+                REST_PROPERTY_TYPE.test(node.parent.properties[node.parent.properties.length - 1].type);
+        }
+
+        /**
          * Determines if a variable has a sibling rest property
          * @param {Variable} variable eslint-scope variable object.
          * @returns {boolean} True if the variable is exported, false if not.
@@ -204,16 +215,10 @@ module.exports = {
          */
         function hasRestSpreadSibling(variable) {
             if (config.ignoreRestSiblings) {
-                return variable.defs.some(def => {
-                    const propertyNode = def.name.parent;
-                    const patternNode = propertyNode.parent;
+                const hasRestSiblingDefinition = variable.defs.some(def => hasRestSibling(def.name.parent));
+                const hasRestSiblingReference = variable.references.some(ref => hasRestSibling(ref.identifier.parent));
 
-                    return (
-                        propertyNode.type === "Property" &&
-                        patternNode.type === "ObjectPattern" &&
-                        REST_PROPERTY_TYPE.test(patternNode.properties[patternNode.properties.length - 1].type)
-                    );
-                });
+                return hasRestSiblingDefinition || hasRestSiblingReference;
             }
 
             return false;
@@ -291,6 +296,31 @@ module.exports = {
         }
 
         /**
+         * Checks whether a given node is unused expression or not.
+         * @param {ASTNode} node The node itself
+         * @returns {boolean} The node is an unused expression.
+         * @private
+         */
+        function isUnusedExpression(node) {
+            const parent = node.parent;
+
+            if (parent.type === "ExpressionStatement") {
+                return true;
+            }
+
+            if (parent.type === "SequenceExpression") {
+                const isLastExpression = parent.expressions[parent.expressions.length - 1] === node;
+
+                if (!isLastExpression) {
+                    return true;
+                }
+                return isUnusedExpression(parent);
+            }
+
+            return false;
+        }
+
+        /**
          * If a given reference is left-hand side of an assignment, this gets
          * the right-hand side node of the assignment.
          *
@@ -308,7 +338,6 @@ module.exports = {
         function getRhsNode(ref, prevRhsNode) {
             const id = ref.identifier;
             const parent = id.parent;
-            const grandparent = parent.parent;
             const refScope = ref.from.variableScope;
             const varScope = ref.resolved.scope.variableScope;
             const canBeUsedLater = refScope !== varScope || astUtils.isInLoop(id);
@@ -322,7 +351,7 @@ module.exports = {
             }
 
             if (parent.type === "AssignmentExpression" &&
-                grandparent.type === "ExpressionStatement" &&
+                isUnusedExpression(parent) &&
                 id === parent.left &&
                 !canBeUsedLater
             ) {
@@ -415,23 +444,28 @@ module.exports = {
         function isReadForItself(ref, rhsNode) {
             const id = ref.identifier;
             const parent = id.parent;
-            const grandparent = parent.parent;
 
             return ref.isRead() && (
 
                 // self update. e.g. `a += 1`, `a++`
-                (// in RHS of an assignment for itself. e.g. `a = a + 1`
-                    ((
-                        parent.type === "AssignmentExpression" &&
-                    grandparent.type === "ExpressionStatement" &&
-                    parent.left === id
-                    ) ||
                 (
-                    parent.type === "UpdateExpression" &&
-                    grandparent.type === "ExpressionStatement"
-                ) || rhsNode &&
-                isInside(id, rhsNode) &&
-                !isInsideOfStorableFunction(id, rhsNode)))
+                    (
+                        parent.type === "AssignmentExpression" &&
+                        parent.left === id &&
+                        isUnusedExpression(parent)
+                    ) ||
+                    (
+                        parent.type === "UpdateExpression" &&
+                        isUnusedExpression(parent)
+                    )
+                ) ||
+
+                // in RHS of an assignment for itself. e.g. `a = a + 1`
+                (
+                    rhsNode &&
+                    isInside(id, rhsNode) &&
+                    !isInsideOfStorableFunction(id, rhsNode)
+                )
             );
         }
 
@@ -619,10 +653,18 @@ module.exports = {
 
                     // Report the first declaration.
                     if (unusedVar.defs.length > 0) {
+
+                        // report last write reference, https://github.com/eslint/eslint/issues/14324
+                        const writeReferences = unusedVar.references.filter(ref => ref.isWrite() && ref.from.variableScope === unusedVar.scope.variableScope);
+
+                        let referenceToReport;
+
+                        if (writeReferences.length > 0) {
+                            referenceToReport = writeReferences[writeReferences.length - 1];
+                        }
+
                         context.report({
-                            node: unusedVar.references.length ? unusedVar.references[
-                                unusedVar.references.length - 1
-                            ].identifier : unusedVar.identifiers[0],
+                            node: referenceToReport ? referenceToReport.identifier : unusedVar.identifiers[0],
                             messageId: "unusedVar",
                             data: unusedVar.references.some(ref => ref.isWrite())
                                 ? getAssignedMessageData(unusedVar)

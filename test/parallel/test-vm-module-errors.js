@@ -6,7 +6,7 @@ const common = require('../common');
 
 const assert = require('assert');
 
-const { SourceTextModule, createContext } = require('vm');
+const { SourceTextModule, createContext, Module } = require('vm');
 
 async function createEmptyLinkedModule() {
   const m = new SourceTextModule('');
@@ -24,7 +24,7 @@ async function checkArgType() {
 
   for (const invalidOptions of [
     0, 1, null, true, 'str', () => {}, { identifier: 0 }, Symbol.iterator,
-    { context: null }, { context: 'hucairz' }, { context: {} }
+    { context: null }, { context: 'hucairz' }, { context: {} },
   ]) {
     assert.throws(() => {
       new SourceTextModule('', invalidOptions);
@@ -35,7 +35,7 @@ async function checkArgType() {
   }
 
   for (const invalidLinker of [
-    0, 1, undefined, null, true, 'str', {}, Symbol.iterator
+    0, 1, undefined, null, true, 'str', {}, Symbol.iterator,
   ]) {
     await assert.rejects(async () => {
       const m = new SourceTextModule('');
@@ -86,7 +86,7 @@ async function checkModuleState() {
 
   assert.throws(() => {
     const m = new SourceTextModule('');
-    m.error;
+    m.error; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_VM_MODULE_STATUS',
     message: 'Module status must be errored'
@@ -95,7 +95,7 @@ async function checkModuleState() {
   await assert.rejects(async () => {
     const m = await createEmptyLinkedModule();
     await m.evaluate();
-    m.error;
+    m.error; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_VM_MODULE_STATUS',
     message: 'Module status must be errored'
@@ -103,7 +103,7 @@ async function checkModuleState() {
 
   assert.throws(() => {
     const m = new SourceTextModule('');
-    m.namespace;
+    m.namespace; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_VM_MODULE_STATUS',
     message: 'Module status must not be unlinked or linking'
@@ -205,6 +205,17 @@ async function checkInvalidOptionForEvaluate() {
       "Received type string ('a-string')",
     code: 'ERR_INVALID_ARG_TYPE'
   });
+
+  {
+    ['link', 'evaluate'].forEach(async (method) => {
+      await assert.rejects(async () => {
+        await Module.prototype[method]();
+      }, {
+        code: 'ERR_VM_MODULE_NOT_MODULE',
+        message: /Provided module is not an instance of Module/
+      });
+    });
+  }
 }
 
 function checkInvalidCachedData() {
@@ -223,6 +234,29 @@ function checkInvalidCachedData() {
   });
 }
 
+function checkGettersErrors() {
+  const expectedError = {
+    code: 'ERR_VM_MODULE_NOT_MODULE',
+    message: /Provided module is not an instance of Module/
+  };
+  const getters = ['identifier', 'context', 'namespace', 'status', 'error'];
+  getters.forEach((getter) => {
+    assert.throws(() => {
+      // eslint-disable-next-line no-unused-expressions
+      Module.prototype[getter];
+    }, expectedError);
+    assert.throws(() => {
+      // eslint-disable-next-line no-unused-expressions
+      SourceTextModule.prototype[getter];
+    }, expectedError);
+  });
+  // `dependencySpecifiers` getter is just part of SourceTextModule
+  assert.throws(() => {
+    // eslint-disable-next-line no-unused-expressions
+    SourceTextModule.prototype.dependencySpecifiers;
+  }, expectedError);
+}
+
 const finished = common.mustCall();
 
 (async function main() {
@@ -232,5 +266,6 @@ const finished = common.mustCall();
   await checkExecution();
   await checkInvalidOptionForEvaluate();
   checkInvalidCachedData();
+  checkGettersErrors();
   finished();
 })().then(common.mustCall());

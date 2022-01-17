@@ -30,6 +30,7 @@ class PlatformEmbeddedFileWriterWin : public PlatformEmbeddedFileWriterBase {
   void DeclareUint32(const char* name, uint32_t value) override;
   void DeclarePointerToSymbol(const char* name, const char* target) override;
 
+  void DeclareSymbolGlobal(const char* name) override;
   void DeclareLabel(const char* name) override;
 
   void SourceInfo(int fileid, const char* filename, int line) override;
@@ -65,7 +66,6 @@ class PlatformEmbeddedFileWriterWin : public PlatformEmbeddedFileWriterBase {
                            const void* unwind_infos) override;
 
  private:
-  void DeclareSymbolGlobal(const char* name);
   const char* DirectiveAsString(DataDirective directive);
 
  private:

@@ -103,42 +103,85 @@ assertDoesNotThrow(() => result = evaluate("class K {};"));
 
 // result = evaluate("toString;");
 
-// Re-declare let as const
-evaluate("let z = 10;");
-assertThrows(() => result = evaluate("const z = 9;"),
-    SyntaxError, "Identifier 'z' has already been declared");
-result = await evaluate("z;");
-assertEquals(10, result);
+// Declare const and get value
+result = await evaluate("const c = 7;");
+result = await evaluate("c;");
+assertEquals(7, result);
+
+// Re-declare in the same script after declaration in another script.
+assertThrows(() => evaluate("let c = 8; let c = 9;"));
+result = await evaluate("c;");
+assertEquals(7, result);
 
 // Re-declare const as const
+result = await evaluate("const c = 8;");
+result = await evaluate("c;");
+assertEquals(8, result);
+
+// Assign to const
+assertThrowsAsync(evaluate("c = 11;"),
+    TypeError, "Assignment to constant variable.");
+result = await evaluate("c;");
+assertEquals(8, result);
+
+await evaluate("const c = 8;");
+
+// Close over const. Inner function is only pre-parsed.
+result = await evaluate("function getter() { return c; }");
+assertEquals(undefined, result);
+result = await evaluate("getter();");
+assertEquals(8, result);
+// Modifies the original c; does not create a new one/shadow.
 result = await evaluate("const c = 10;");
-assertThrows(() => result = evaluate("const c = 11;"),
-    SyntaxError, "Identifier 'c' has already been declared");
+assertEquals(undefined, result);
 result = await evaluate("c;");
 assertEquals(10, result);
+result = await evaluate("getter();");
+assertEquals(10, result);
+
+await evaluate("const c = 10");
+
+// Check store from an inner scope throws error.
+assertThrowsAsync(evaluate("{ let z; c = 11; };"),
+    TypeError, "Assignment to constant variable.");
+result = await evaluate("c;");
+assertEquals(10, result);
+
+// Check re-declare from an inner scope does nothing.
+result = await evaluate("{ let z; const c = 12; } c;");
+assertEquals(10, result);
+
+assertThrowsAsync(evaluate("{ const qq = 10; } qq;"),
+    ReferenceError, "qq is not defined");
 
 // Const vs. const in same script.
 assertThrows(() => result = evaluate("const d = 9; const d = 10;"),
 SyntaxError, "Identifier 'd' has already been declared");
 
-// Close over const
-result = await evaluate("const e = 10; function closure() { return e; }");
-result = await evaluate("e;");
-assertEquals(10, result);
+// Check TDZ; const use before initialization.
+assertThrowsAsync(evaluate("e; const e = 7;"), ReferenceError);
+assertThrowsAsync(evaluate("e;"), ReferenceError);
 
-// Assign to const
-assertThrowsAsync(evaluate("e = 11;"),
-    TypeError, "Assignment to constant variable.");
-result = await evaluate("e;");
-assertEquals(10, result);
-result = await evaluate("closure();");
-assertEquals(10, result);
+result = await evaluate("const e = 8;");
+assertEquals(undefined, result);
+result = await evaluate("e;")
+assertEquals(8, result);
 
-// Assign to const in TDZ
-assertThrowsAsync(evaluate("f; const f = 11;"),
-    ReferenceError, "Cannot access 'f' before initialization");
-assertThrowsAsync(evaluate("f = 12;"),
-    TypeError, "Assignment to constant variable.");
+// f is marked as constant in TDZ
+assertThrowsAsync(evaluate("f = 10; const f = 7;"),
+  TypeError, ("Assignment to constant variable."));
+result = await evaluate("const f = 11;");
+assertEquals(undefined, result);
+// We fixed 'f'!
+result = await evaluate("f;");
+assertEquals(11, result);
+
+// Re-declare let as const
+evaluate("let z = 10;");
+assertThrows(() => result = evaluate("const z = 9;"),
+    SyntaxError, "Identifier 'z' has already been declared");
+result = await evaluate("z;");
+assertEquals(10, result)
 
 // Re-declare const as let
 result = await evaluate("const g = 12;");
@@ -246,6 +289,53 @@ assertEquals(2, result);
 result = await evaluate("typeof k11");
 assertEquals("undefined", result);
 
+// Non-configurable properties of the global object (also created by plain old
+// top-level var declarations) cannot be re-declared as const.
+result = await evaluate(`Object.defineProperty(globalThis, 'k12', {
+  value: 1,
+  configurable: false
+});`);
+result = await evaluate("k12;");
+assertEquals(1, result);
+assertThrows(() => result = evaluate("const k12 = 2;"),
+    SyntaxError, "Identifier 'k12' has already been declared");
+result = await evaluate("k12;");
+assertEquals(1, result);
+
+// ... Except if you do it in the same script.
+result = await evaluate(`Object.defineProperty(globalThis, 'k13', {
+  value: 1,
+  configurable: false
+});
+const k13 = 2;`);
+result = await evaluate("k13;");
+assertEquals(2, result);
+result = await evaluate("globalThis.k13;");
+assertEquals(1, result);
+
+// But if the property is configurable then both versions are allowed.
+result = await evaluate(`Object.defineProperty(globalThis, 'k14', {
+  value: 1,
+  configurable: true
+});`);
+result = await evaluate("k14;");
+assertEquals(1, result);
+result = await evaluate("const k14 = 2;");
+result = await evaluate("k14;");
+assertEquals(2, result);
+result = await evaluate("globalThis.k14;");
+assertEquals(1, result);
+
+result = await evaluate(`Object.defineProperty(globalThis, 'k15', {
+  value: 1,
+  configurable: true
+});
+const k15 = 2;`);
+result = await evaluate("k15;");
+assertEquals(2, result);
+result = await evaluate("globalThis.k15;");
+assertEquals(1, result);
+
 // Test lets with names on the object prototype e.g. toString to make sure
 // it only works for own properties.
 // result = evaluate("let valueOf;");
@@ -306,6 +396,18 @@ evaluate("let l10 = 21;");
 evaluate("let l10 = 42; function fn2() { return l10; }");
 evaluate("let l10 = 'foo';");
 assertEquals("foo", fn2());
+
+// Check that binding and re-declaring a function via const works.
+result = evaluate("const fn3 = function() { return 21; }");
+assertEquals(21, fn3());
+result = evaluate("const fn3 = function() { return 42; }");
+assertEquals(42, fn3());
+
+// Check that lazily parsed functions that bind a REPL-const variable work.
+evaluate("const l11 = 21;");
+evaluate("const l11 = 42; function fn4() { return l11; }");
+evaluate("const l11 = 'foo1';");
+assertEquals("foo1", fn4());
 
 })().catch(e => {
     print(e);

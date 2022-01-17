@@ -11,13 +11,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "enforce consistent comma style",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/comma-style"
         },
@@ -207,8 +207,7 @@ module.exports = {
                      * they are always valid regardless of an undefined item.
                      */
                     if (astUtils.isCommaToken(commaToken)) {
-                        validateCommaItemSpacing(previousItemToken, commaToken,
-                            currentItemToken, reportItem);
+                        validateCommaItemSpacing(previousItemToken, commaToken, currentItemToken, reportItem);
                     }
 
                     if (item) {
@@ -217,6 +216,8 @@ module.exports = {
                         previousItemToken = tokenAfterItem
                             ? sourceCode.getTokenBefore(tokenAfterItem)
                             : sourceCode.ast.tokens[sourceCode.ast.tokens.length - 1];
+                    } else {
+                        previousItemToken = currentItemToken;
                     }
                 });
 

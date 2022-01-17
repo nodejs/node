@@ -2,10 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_C_API_H_
 #define V8_WASM_C_API_H_
 
-#include "include/v8.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "third_party/wasm-api/wasm.hh"

@@ -33,12 +33,9 @@ class V8_EXPORT_PRIVATE BasePage {
   BasePage(const BasePage&) = delete;
   BasePage& operator=(const BasePage&) = delete;
 
-  HeapBase* heap() { return heap_; }
-  const HeapBase* heap() const { return heap_; }
+  HeapBase& heap() const { return heap_; }
 
-  BaseSpace* space() { return space_; }
-  const BaseSpace* space() const { return space_; }
-  void set_space(BaseSpace* space) { space_ = space; }
+  BaseSpace& space() const { return space_; }
 
   bool is_large() const { return type_ == PageType::kLarge; }
 
@@ -47,12 +44,14 @@ class V8_EXPORT_PRIVATE BasePage {
   Address PayloadEnd();
   ConstAddress PayloadEnd() const;
 
+  // Returns the size of live objects on the page at the last GC.
+  // The counter is update after sweeping.
+  size_t AllocatedBytesAtLastGC() const;
+
   // |address| must refer to real object.
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   HeapObjectHeader& ObjectHeaderFromInnerAddress(void* address) const;
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   const HeapObjectHeader& ObjectHeaderFromInnerAddress(
       const void* address) const;
 
@@ -63,14 +62,38 @@ class V8_EXPORT_PRIVATE BasePage {
   const HeapObjectHeader* TryObjectHeaderFromInnerAddress(
       const void* address) const;
 
+  // SynchronizedLoad and SynchronizedStore are used to sync pages after they
+  // are allocated. std::atomic_thread_fence is sufficient in practice but is
+  // not recognized by tsan. Atomic load and store of the |type_| field are
+  // added for tsan builds.
+  void SynchronizedLoad() const {
+#if defined(THREAD_SANITIZER)
+    v8::base::AsAtomicPtr(&type_)->load(std::memory_order_acquire);
+#endif
+  }
+  void SynchronizedStore() {
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+#if defined(THREAD_SANITIZER)
+    v8::base::AsAtomicPtr(&type_)->store(type_, std::memory_order_release);
+#endif
+  }
+
+  void IncrementDiscardedMemory(size_t value) {
+    DCHECK_GE(discarded_memory_ + value, discarded_memory_);
+    discarded_memory_ += value;
+  }
+  void ResetDiscardedMemory() { discarded_memory_ = 0; }
+  size_t discarded_memory() const { return discarded_memory_; }
+
  protected:
-  enum class PageType { kNormal, kLarge };
-  BasePage(HeapBase*, BaseSpace*, PageType);
+  enum class PageType : uint8_t { kNormal, kLarge };
+  BasePage(HeapBase&, BaseSpace&, PageType);
 
  private:
-  HeapBase* heap_;
-  BaseSpace* space_;
+  HeapBase& heap_;
+  BaseSpace& space_;
   PageType type_;
+  size_t discarded_memory_ = 0;
 };
 
 class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
@@ -94,7 +117,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     bool operator!=(IteratorImpl other) const { return !(*this == other); }
 
     IteratorImpl& operator++() {
-      const size_t size = p_->GetSize();
+      const size_t size = p_->AllocatedSize();
       DCHECK_EQ(0, (size & (sizeof(T) - 1)));
       p_ += (size / sizeof(T));
       if (reinterpret_cast<ConstAddress>(p_) == lab_start_) {
@@ -121,7 +144,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   using const_iterator = IteratorImpl<const HeapObjectHeader>;
 
   // Allocates a new page in the detached state.
-  static NormalPage* Create(PageBackend*, NormalPageSpace*);
+  static NormalPage* Create(PageBackend&, NormalPageSpace&);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(NormalPage*);
@@ -156,6 +179,12 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     return (PayloadStart() <= address) && (address < PayloadEnd());
   }
 
+  size_t AllocatedBytesAtLastGC() const { return allocated_bytes_at_last_gc_; }
+
+  void SetAllocatedBytesAtLastGC(size_t bytes) {
+    allocated_bytes_at_last_gc_ = bytes;
+  }
+
   PlatformAwareObjectStartBitmap& object_start_bitmap() {
     return object_start_bitmap_;
   }
@@ -164,16 +193,19 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   }
 
  private:
-  NormalPage(HeapBase* heap, BaseSpace* space);
+  NormalPage(HeapBase& heap, BaseSpace& space);
   ~NormalPage();
 
+  size_t allocated_bytes_at_last_gc_ = 0;
   PlatformAwareObjectStartBitmap object_start_bitmap_;
 };
 
 class V8_EXPORT_PRIVATE LargePage final : public BasePage {
  public:
+  // Returns the allocation size required for a payload of size |size|.
+  static size_t AllocationSize(size_t size);
   // Allocates a new page in the detached state.
-  static LargePage* Create(PageBackend*, LargePageSpace*, size_t);
+  static LargePage* Create(PageBackend&, LargePageSpace&, size_t);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(LargePage*);
@@ -195,13 +227,19 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   ConstAddress PayloadEnd() const;
 
   size_t PayloadSize() const { return payload_size_; }
+  size_t ObjectSize() const {
+    DCHECK_GT(payload_size_, sizeof(HeapObjectHeader));
+    return payload_size_ - sizeof(HeapObjectHeader);
+  }
+
+  size_t AllocatedBytesAtLastGC() const { return ObjectSize(); }
 
   bool PayloadContains(ConstAddress address) const {
     return (PayloadStart() <= address) && (address < PayloadEnd());
   }
 
  private:
-  LargePage(HeapBase* heap, BaseSpace* space, size_t);
+  LargePage(HeapBase& heap, BaseSpace& space, size_t);
   ~LargePage();
 
   size_t payload_size_;
@@ -221,8 +259,7 @@ const BasePage* BasePage::FromPayload(const void* payload) {
       kGuardPageSize);
 }
 
-template <HeapObjectHeader::AccessMode mode =
-              HeapObjectHeader::AccessMode::kNonAtomic>
+template <AccessMode mode = AccessMode::kNonAtomic>
 const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
                                                          const void* address) {
   if (page->is_large()) {
@@ -232,24 +269,30 @@ const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
       NormalPage::From(page)->object_start_bitmap();
   const HeapObjectHeader* header =
       bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
-  DCHECK_LT(address,
-            reinterpret_cast<ConstAddress>(header) +
-                header->GetSize<HeapObjectHeader::AccessMode::kAtomic>());
+  DCHECK_LT(address, reinterpret_cast<ConstAddress>(header) +
+                         header->AllocatedSize<AccessMode::kAtomic>());
   return header;
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(void* address) const {
   return const_cast<HeapObjectHeader&>(
       ObjectHeaderFromInnerAddress<mode>(const_cast<const void*>(address)));
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
     const void* address) const {
+  // This method might be called for |address| found via a Trace method of
+  // another object. If |address| is on a newly allocated page , there will
+  // be no sync between the page allocation and a concurrent marking thread,
+  // resulting in a race with page initialization (specifically with writing
+  // the page |type_| field). This can occur when tracing a Member holding a
+  // reference to a mixin type
+  SynchronizedLoad();
   const HeapObjectHeader* header =
       ObjectHeaderFromInnerAddressImpl<mode>(this, address);
-  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
+  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex<mode>());
   return *header;
 }
 

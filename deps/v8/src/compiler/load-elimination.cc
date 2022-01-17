@@ -1076,13 +1076,15 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
+    case MachineRepresentation::kMapWord:
       if (Node* replacement = state->LookupElement(
               object, index, access.machine_type.representation())) {
         // Make sure we don't resurrect dead {replacement} nodes.
         // Skip lowering if the type of the {replacement} node is not a subtype
         // of the original {node}'s type.
-        // TODO(tebbi): We should insert a {TypeGuard} for the intersection of
-        // these two types here once we properly handle {Type::None} everywhere.
+        // TODO(turbofan): We should insert a {TypeGuard} for the intersection
+        // of these two types here once we properly handle {Type::None}
+        // everywhere.
         if (!replacement->IsDead() && NodeProperties::GetType(replacement)
                                           .Is(NodeProperties::GetType(node))) {
           ReplaceWithValue(node, replacement, effect);
@@ -1130,6 +1132,7 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
+    case MachineRepresentation::kMapWord:
       state = state->AddElement(object, index, new_value,
                                 access.machine_type.representation(), zone());
       break;
@@ -1423,6 +1426,7 @@ LoadElimination::IndexRange LoadElimination::FieldIndexOf(
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
+    case MachineRepresentation::kMapWord:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
       break;

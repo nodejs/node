@@ -8,10 +8,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <algorithm>
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/platform/wrappers.h"
 
 namespace v8 {
 namespace internal {
@@ -251,6 +253,11 @@ inline void MemsetPointer(T** dest, U* value, size_t counter) {
 #endif  // DEBUG
   MemsetPointer(reinterpret_cast<Address*>(dest),
                 reinterpret_cast<Address>(value), counter);
+}
+
+template <typename T>
+inline void MemsetPointer(T** dest, std::nullptr_t, size_t counter) {
+  MemsetPointer(reinterpret_cast<Address*>(dest), Address{0}, counter);
 }
 
 // Copy from 8bit/16bit chars to 8bit/16bit chars. Values are zero-extended if

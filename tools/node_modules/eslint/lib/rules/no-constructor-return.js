@@ -9,13 +9,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow returning value from constructor",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-constructor-return"
         },

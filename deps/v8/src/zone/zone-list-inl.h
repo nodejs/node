@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/utils/memcopy.h"
 #include "src/zone/zone-list.h"
 
@@ -28,7 +29,7 @@ void ZoneList<T>::AddAll(const ZoneList<T>& other, Zone* zone) {
 }
 
 template <typename T>
-void ZoneList<T>::AddAll(const Vector<const T>& other, Zone* zone) {
+void ZoneList<T>::AddAll(const base::Vector<const T>& other, Zone* zone) {
   int length = other.length();
   if (length == 0) return;
 
@@ -79,10 +80,10 @@ void ZoneList<T>::Resize(int new_capacity, Zone* zone) {
 }
 
 template <typename T>
-Vector<T> ZoneList<T>::AddBlock(T value, int count, Zone* zone) {
+base::Vector<T> ZoneList<T>::AddBlock(T value, int count, Zone* zone) {
   int start = length_;
   for (int i = 0; i < count; i++) Add(value, zone);
-  return Vector<T>(&data_[start], count);
+  return base::Vector<T>(&data_[start], count);
 }
 
 template <typename T>

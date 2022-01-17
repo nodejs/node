@@ -29,7 +29,8 @@ const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
 const tls = require('tls');
-const errorMessageRegex =
+const errorMessageRegex = common.hasOpenSSL3 ?
+  /^Error: error:05800074:x509 certificate routines::key values mismatch$/ :
   /^Error: error:0B080074:x509 certificate routines:X509_check_private_key:key values mismatch$/;
 
 const options = {

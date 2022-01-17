@@ -64,9 +64,9 @@ asm(
 #if defined(_AIX)
     // Set up TOC for callee.
     "  ld 2,8(5)                                       \n"
-    // AIX uses function decorators, which means that
+    // AIX uses function descriptors, which means that
     // pointers to functions do not point to code, but
-    //  instead point to metadata about them, hence
+    // instead point to metadata about them, hence
     // need to deterrence.
     "  ld 6,0(6)                                       \n"
 #endif

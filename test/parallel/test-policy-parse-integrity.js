@@ -2,6 +2,7 @@
 
 const common = require('../common');
 if (!common.hasCrypto) common.skip('missing crypto');
+common.requireNoPackageJSONAbove();
 
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
@@ -66,7 +67,7 @@ function test({ shouldFail, integrity, manifest = {} }) {
   const { status } = spawnSync(process.execPath, [
     '--experimental-policy',
     policyFilepath,
-    depFilepath
+    depFilepath,
   ]);
   if (shouldFail) {
     assert.notStrictEqual(status, 0);

@@ -27,7 +27,7 @@ main();
 {
   const child = spawnSync(process.execPath, [
     '-e',
-    main
+    main,
   ], {
     env: { ...process.env }
   });

@@ -14,7 +14,7 @@ ArrayOf(
   const items: Arguments = arguments;
 
   // 3. Let C be the this value.
-  const c: JSAny = receiver;
+  const c: JSAny = HasBuiltinSubclassingFlag() ? receiver : GetArrayFunction();
 
   let a: JSReceiver;
 

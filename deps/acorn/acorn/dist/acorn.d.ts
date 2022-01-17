@@ -12,7 +12,7 @@ declare namespace acorn {
   }
 
   interface Options {
-    ecmaVersion: 3 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 2015 | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 'latest'
+    ecmaVersion: 3 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 2015 | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 'latest'
     sourceType?: 'script' | 'module'
     onInsertedSemicolon?: (lastTokEnd: number, lastTokEndLoc?: Position) => void
     onTrailingComma?: (lastTokEnd: number, lastTokEndLoc?: Position) => void
@@ -20,6 +20,7 @@ declare namespace acorn {
     allowReturnOutsideFunction?: boolean
     allowImportExportEverywhere?: boolean
     allowAwaitOutsideFunction?: boolean
+    allowSuperOutsideMethod?: boolean
     allowHashBang?: boolean
     locations?: boolean
     onToken?: ((token: Token) => any) | Token[]
@@ -88,6 +89,7 @@ declare namespace acorn {
     regexp: TokenType
     string: TokenType
     name: TokenType
+    privateId: TokenType
     eof: TokenType
     bracketL: TokenType
     bracketR: TokenType
@@ -171,6 +173,9 @@ declare namespace acorn {
     p_expr: TokContext
     q_tmpl: TokContext
     f_expr: TokContext
+    f_stat: TokContext
+    f_expr_gen: TokContext
+    f_gen: TokContext
   }
 
   function isIdentifierStart(code: number, astral?: boolean): boolean

@@ -4,6 +4,7 @@
 
 #include "src/regexp/regexp-dotprinter.h"
 
+#include "src/base/strings.h"
 #include "src/regexp/regexp-compiler.h"
 #include "src/utils/ostreams.h"
 
@@ -12,8 +13,6 @@ namespace internal {
 
 // -------------------------------------------------------------------
 // Dot/dotty output
-
-#ifdef DEBUG
 
 class DotPrinterImpl : public NodeVisitor {
  public:
@@ -62,8 +61,7 @@ void DotPrinterImpl::PrintOnFailure(RegExpNode* from, RegExpNode* on_failure) {
 
 class AttributePrinter {
  public:
-  explicit AttributePrinter(std::ostream& os)  // NOLINT
-      : os_(os), first_(true) {}
+  explicit AttributePrinter(std::ostream& os) : os_(os), first_(true) {}
   void PrintSeparator() {
     if (first_) {
       first_ = false;
@@ -131,7 +129,7 @@ void DotPrinterImpl::VisitText(TextNode* that) {
     TextElement elm = that->elements()->at(i);
     switch (elm.text_type()) {
       case TextElement::ATOM: {
-        Vector<const uc16> data = elm.atom()->data();
+        base::Vector<const base::uc16> data = elm.atom()->data();
         for (int i = 0; i < data.length(); i++) {
           os_ << static_cast<char>(data[i]);
         }
@@ -212,9 +210,13 @@ void DotPrinterImpl::VisitAction(ActionNode* that) {
       os_ << "label=\"$" << that->data_.u_position_register.reg
           << ":=$pos\", shape=octagon";
       break;
-    case ActionNode::BEGIN_SUBMATCH:
+    case ActionNode::BEGIN_POSITIVE_SUBMATCH:
       os_ << "label=\"$" << that->data_.u_submatch.current_position_register
-          << ":=$pos,begin\", shape=septagon";
+          << ":=$pos,begin-positive\", shape=septagon";
+      break;
+    case ActionNode::BEGIN_NEGATIVE_SUBMATCH:
+      os_ << "label=\"$" << that->data_.u_submatch.current_position_register
+          << ":=$pos,begin-negative\", shape=septagon";
       break;
     case ActionNode::POSITIVE_SUBMATCH_SUCCESS:
       os_ << "label=\"escape\", shape=septagon";
@@ -239,14 +241,10 @@ void DotPrinterImpl::VisitAction(ActionNode* that) {
   Visit(successor);
 }
 
-#endif  // DEBUG
-
 void DotPrinter::DotPrint(const char* label, RegExpNode* node) {
-#ifdef DEBUG
   StdoutStream os;
   DotPrinterImpl printer(os);
   printer.PrintNode(label, node);
-#endif  // DEBUG
 }
 
 }  // namespace internal

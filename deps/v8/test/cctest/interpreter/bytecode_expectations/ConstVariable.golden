@@ -11,10 +11,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 5
 bytecodes: [
   /*   44 S> */ B(LdaSmi), I8(10),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaUndefined),
   /*   48 S> */ B(Return),
 ]
@@ -29,10 +29,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 4
 bytecodes: [
   /*   44 S> */ B(LdaSmi), I8(10),
-                B(Star), R(0),
+                B(Star0),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
@@ -46,16 +46,16 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 20
+bytecode array length: 17
 bytecodes: [
                 B(LdaTheHole),
-                B(Star), R(0),
+                B(Star0),
   /*   44 S> */ B(LdaSmi), I8(20),
-                B(Star), R(1),
+                B(Star1),
                 B(Ldar), R(0),
   /*   48 E> */ B(ThrowReferenceErrorIfHole), U8(0),
                 B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaUndefined),
   /*   55 S> */ B(Return),
 ]
@@ -71,10 +71,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 12
 bytecodes: [
   /*   44 S> */ B(LdaSmi), I8(10),
-                B(Star), R(0),
+                B(Star0),
   /*   48 S> */ B(LdaSmi), I8(20),
   /*   50 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
                 B(LdaUndefined),

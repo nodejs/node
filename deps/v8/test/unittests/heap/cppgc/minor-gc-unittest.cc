@@ -5,6 +5,7 @@
 #if defined(CPPGC_YOUNG_GENERATION)
 
 #include "include/cppgc/allocation.h"
+#include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/persistent.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap.h"
@@ -88,7 +89,7 @@ TYPED_TEST(MinorGCTestForType, MinorCollection) {
   EXPECT_EQ(1u, TestFixture::DestructedObjects());
 
   {
-    Heap::NoGCScope no_gc_scope_(*Heap::From(this->GetHeap()));
+    subtle::NoGarbageCollectionScope no_gc_scope(*Heap::From(this->GetHeap()));
 
     Type* prev = nullptr;
     for (size_t i = 0; i < 64; ++i) {
@@ -107,9 +108,9 @@ TYPED_TEST(MinorGCTestForType, StickyBits) {
 
   Persistent<Type> p1 = MakeGarbageCollected<Type>(this->GetAllocationHandle());
   TestFixture::CollectMinor();
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(p1.Get()).IsYoung());
+  EXPECT_FALSE(HeapObjectHeader::FromObject(p1.Get()).IsYoung());
   TestFixture::CollectMajor();
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(p1.Get()).IsYoung());
+  EXPECT_FALSE(HeapObjectHeader::FromObject(p1.Get()).IsYoung());
   EXPECT_EQ(0u, TestFixture::DestructedObjects());
 }
 
@@ -119,14 +120,14 @@ TYPED_TEST(MinorGCTestForType, OldObjectIsNotVisited) {
   Persistent<Type> p = MakeGarbageCollected<Type>(this->GetAllocationHandle());
   TestFixture::CollectMinor();
   EXPECT_EQ(0u, TestFixture::DestructedObjects());
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(p.Get()).IsYoung());
+  EXPECT_FALSE(HeapObjectHeader::FromObject(p.Get()).IsYoung());
 
   // Check that the old deleted object won't be visited during minor GC.
   Type* raw = p.Release();
   TestFixture::CollectMinor();
   EXPECT_EQ(0u, TestFixture::DestructedObjects());
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(raw).IsYoung());
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(raw).IsFree());
+  EXPECT_FALSE(HeapObjectHeader::FromObject(raw).IsYoung());
+  EXPECT_FALSE(HeapObjectHeader::FromObject(raw).IsFree());
 
   // Check that the old deleted object will be revisited in major GC.
   TestFixture::CollectMajor();
@@ -138,19 +139,19 @@ void InterGenerationalPointerTest(MinorGCTest* test, cppgc::Heap* heap) {
   Persistent<Type1> old =
       MakeGarbageCollected<Type1>(heap->GetAllocationHandle());
   test->CollectMinor();
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(old.Get()).IsYoung());
+  EXPECT_FALSE(HeapObjectHeader::FromObject(old.Get()).IsYoung());
 
   Type2* young = nullptr;
 
   {
-    Heap::NoGCScope no_gc_scope_(*Heap::From(heap));
+    subtle::NoGarbageCollectionScope no_gc_scope(*Heap::From(heap));
 
     // Allocate young objects.
     for (size_t i = 0; i < 64; ++i) {
       auto* ptr = MakeGarbageCollected<Type2>(heap->GetAllocationHandle());
       ptr->next = young;
       young = ptr;
-      EXPECT_TRUE(HeapObjectHeader::FromPayload(young).IsYoung());
+      EXPECT_TRUE(HeapObjectHeader::FromObject(young).IsYoung());
     }
   }
 
@@ -169,8 +170,8 @@ void InterGenerationalPointerTest(MinorGCTest* test, cppgc::Heap* heap) {
   EXPECT_TRUE(set.empty());
 
   for (size_t i = 0; i < 64; ++i) {
-    EXPECT_FALSE(HeapObjectHeader::FromPayload(young).IsFree());
-    EXPECT_FALSE(HeapObjectHeader::FromPayload(young).IsYoung());
+    EXPECT_FALSE(HeapObjectHeader::FromObject(young).IsFree());
+    EXPECT_FALSE(HeapObjectHeader::FromObject(young).IsYoung());
     young = static_cast<Type2*>(young->next.Get());
   }
 
@@ -200,17 +201,13 @@ TYPED_TEST(MinorGCTestForType, OmitGenerationalBarrierForOnStackObject) {
     Type* ptr = nullptr;
   } stack_object;
 
-  auto* new_object = MakeGarbageCollected<Type>(this->GetAllocationHandle());
-
-  const auto& set = Heap::From(this->GetHeap())->remembered_slots();
-  const size_t set_size_before_barrier = set.size();
-
   // Try issuing generational barrier for on-stack object.
-  stack_object.ptr = new_object;
-  WriteBarrier::MarkingBarrier(reinterpret_cast<void*>(&stack_object.ptr),
-                               new_object);
-
-  EXPECT_EQ(set_size_before_barrier, set.size());
+  stack_object.ptr = MakeGarbageCollected<Type>(this->GetAllocationHandle());
+  subtle::HeapConsistency::WriteBarrierParams params;
+  EXPECT_EQ(subtle::HeapConsistency::WriteBarrierType::kNone,
+            subtle::HeapConsistency::GetWriteBarrierType(
+                reinterpret_cast<void*>(&stack_object.ptr), stack_object.ptr,
+                params));
 }
 
 TYPED_TEST(MinorGCTestForType, OmitGenerationalBarrierForSentinels) {
@@ -220,7 +217,7 @@ TYPED_TEST(MinorGCTestForType, OmitGenerationalBarrierForSentinels) {
       MakeGarbageCollected<Type>(this->GetAllocationHandle());
 
   TestFixture::CollectMinor();
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(old.Get()).IsYoung());
+  EXPECT_FALSE(HeapObjectHeader::FromObject(old.Get()).IsYoung());
 
   const auto& set = Heap::From(this->GetHeap())->remembered_slots();
   const size_t set_size_before_barrier = set.size();

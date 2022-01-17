@@ -5,6 +5,8 @@
 #include "src/compiler/graph-assembler.h"
 
 #include "src/codegen/code-factory.h"
+#include "src/compiler/access-builder.h"
+#include "src/compiler/graph-reducer.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/schedule.h"
 // For TNode types.
@@ -32,6 +34,7 @@ class GraphAssembler::BasicBlockUpdater {
   void AddBranch(Node* branch, BasicBlock* tblock, BasicBlock* fblock);
   void AddGoto(BasicBlock* to);
   void AddGoto(BasicBlock* from, BasicBlock* to);
+  void AddTailCall(Node* node);
 
   void StartBlock(BasicBlock* block);
   BasicBlock* Finalize(BasicBlock* original);
@@ -267,6 +270,18 @@ void GraphAssembler::BasicBlockUpdater::AddGoto(BasicBlock* from,
   current_block_ = nullptr;
 }
 
+void GraphAssembler::BasicBlockUpdater::AddTailCall(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kTailCall);
+  DCHECK_NOT_NULL(current_block_);
+
+  if (state_ == kUnchanged) {
+    CopyForChange();
+  }
+
+  schedule_->AddTailCall(current_block_, node);
+  current_block_ = nullptr;
+}
+
 void GraphAssembler::BasicBlockUpdater::UpdateSuccessors(BasicBlock* block) {
   for (SuccessorInfo succ : saved_successors_) {
     (succ.block->predecessors())[succ.index] = block;
@@ -316,16 +331,36 @@ BasicBlock* GraphAssembler::BasicBlockUpdater::Finalize(BasicBlock* original) {
   return block;
 }
 
-GraphAssembler::GraphAssembler(MachineGraph* mcgraph, Zone* zone,
-                               Schedule* schedule, bool mark_loop_exits)
+class V8_NODISCARD GraphAssembler::BlockInlineReduction {
+ public:
+  explicit BlockInlineReduction(GraphAssembler* gasm) : gasm_(gasm) {
+    DCHECK(!gasm_->inline_reductions_blocked_);
+    gasm_->inline_reductions_blocked_ = true;
+  }
+  ~BlockInlineReduction() {
+    DCHECK(gasm_->inline_reductions_blocked_);
+    gasm_->inline_reductions_blocked_ = false;
+  }
+
+ private:
+  GraphAssembler* gasm_;
+};
+
+GraphAssembler::GraphAssembler(
+    MachineGraph* mcgraph, Zone* zone,
+    base::Optional<NodeChangedCallback> node_changed_callback,
+    Schedule* schedule, bool mark_loop_exits)
     : temp_zone_(zone),
       mcgraph_(mcgraph),
       effect_(nullptr),
       control_(nullptr),
+      node_changed_callback_(node_changed_callback),
       block_updater_(schedule != nullptr
                          ? new BasicBlockUpdater(schedule, mcgraph->graph(),
                                                  mcgraph->common(), zone)
                          : nullptr),
+      inline_reducers_(zone),
+      inline_reductions_blocked_(false),
       loop_headers_(zone),
       mark_loop_exits_(mark_loop_exits) {}
 
@@ -333,6 +368,10 @@ GraphAssembler::~GraphAssembler() { DCHECK_EQ(loop_nesting_level_, 0); }
 
 Node* GraphAssembler::IntPtrConstant(intptr_t value) {
   return AddClonedNode(mcgraph()->IntPtrConstant(value));
+}
+
+Node* GraphAssembler::UintPtrConstant(uintptr_t value) {
+  return AddClonedNode(mcgraph()->UintPtrConstant(value));
 }
 
 Node* GraphAssembler::Int32Constant(int32_t value) {
@@ -378,6 +417,11 @@ TNode<Number> JSGraphAssembler::NumberConstant(double value) {
 
 Node* GraphAssembler::ExternalConstant(ExternalReference ref) {
   return AddClonedNode(mcgraph()->ExternalConstant(ref));
+}
+
+Node* GraphAssembler::Parameter(int index) {
+  return AddNode(
+      graph()->NewNode(common()->Parameter(index), graph()->start()));
 }
 
 Node* JSGraphAssembler::CEntryStubConstant(int result_size) {
@@ -470,6 +514,11 @@ Node* GraphAssembler::Float64RoundTruncate(Node* value) {
       graph()->NewNode(machine()->Float64RoundTruncate().op(), value));
 }
 
+Node* GraphAssembler::TruncateFloat64ToInt64(Node* value, TruncateKind kind) {
+  return AddNode(
+      graph()->NewNode(machine()->TruncateFloat64ToInt64(kind), value));
+}
+
 Node* GraphAssembler::Projection(int index, Node* value) {
   return AddNode(
       graph()->NewNode(common()->Projection(index), value, control()));
@@ -500,6 +549,40 @@ Node* JSGraphAssembler::StoreField(FieldAccess const& access, Node* object,
                                   value, effect(), control()));
 }
 
+#ifdef V8_MAP_PACKING
+TNode<Map> GraphAssembler::UnpackMapWord(Node* map_word) {
+  map_word = BitcastTaggedToWordForTagAndSmiBits(map_word);
+  // TODO(wenyuzhao): Clear header metadata.
+  Node* map = WordXor(map_word, IntPtrConstant(Internals::kMapWordXorMask));
+  return TNode<Map>::UncheckedCast(BitcastWordToTagged(map));
+}
+
+Node* GraphAssembler::PackMapWord(TNode<Map> map) {
+  Node* map_word = BitcastTaggedToWordForTagAndSmiBits(map);
+  Node* packed = WordXor(map_word, IntPtrConstant(Internals::kMapWordXorMask));
+  return BitcastWordToTaggedSigned(packed);
+}
+#endif
+
+TNode<Map> GraphAssembler::LoadMap(Node* object) {
+  Node* map_word = Load(MachineType::TaggedPointer(), object,
+                        HeapObject::kMapOffset - kHeapObjectTag);
+#ifdef V8_MAP_PACKING
+  return UnpackMapWord(map_word);
+#else
+  return TNode<Map>::UncheckedCast(map_word);
+#endif
+}
+
+void GraphAssembler::StoreMap(Node* object, TNode<Map> map) {
+#ifdef V8_MAP_PACKING
+  map = PackMapWord(map);
+#endif
+  StoreRepresentation rep(MachineType::TaggedRepresentation(),
+                          kMapWriteBarrier);
+  Store(rep, object, HeapObject::kMapOffset - kHeapObjectTag, map);
+}
+
 Node* JSGraphAssembler::StoreElement(ElementAccess const& access, Node* object,
                                      Node* index, Node* value) {
   return AddNode(graph()->NewNode(simplified()->StoreElement(access), object,
@@ -525,6 +608,12 @@ TNode<Boolean> JSGraphAssembler::ReferenceEqual(TNode<Object> lhs,
                                                 TNode<Object> rhs) {
   return AddNode<Boolean>(
       graph()->NewNode(simplified()->ReferenceEqual(), lhs, rhs));
+}
+
+TNode<Boolean> JSGraphAssembler::NumberEqual(TNode<Number> lhs,
+                                             TNode<Number> rhs) {
+  return AddNode<Boolean>(
+      graph()->NewNode(simplified()->NumberEqual(), lhs, rhs));
 }
 
 TNode<Number> JSGraphAssembler::NumberMin(TNode<Number> lhs,
@@ -624,7 +713,20 @@ Node* GraphAssembler::DebugBreak() {
       graph()->NewNode(machine()->DebugBreak(), effect(), control()));
 }
 
-Node* GraphAssembler::Unreachable() {
+Node* GraphAssembler::Unreachable(
+    GraphAssemblerLabel<0u>* block_updater_successor) {
+  Node* result = UnreachableWithoutConnectToEnd();
+  if (block_updater_ == nullptr) {
+    ConnectUnreachableToEnd();
+    InitializeEffectControl(nullptr, nullptr);
+  } else {
+    DCHECK_NOT_NULL(block_updater_successor);
+    Goto(block_updater_successor);
+  }
+  return result;
+}
+
+Node* GraphAssembler::UnreachableWithoutConnectToEnd() {
   return AddNode(
       graph()->NewNode(common()->Unreachable(), effect(), control()));
 }
@@ -675,6 +777,18 @@ Node* GraphAssembler::LoadUnaligned(MachineType type, Node* object,
   return AddNode(graph()->NewNode(op, object, offset, effect(), control()));
 }
 
+Node* GraphAssembler::ProtectedStore(MachineRepresentation rep, Node* object,
+                                     Node* offset, Node* value) {
+  return AddNode(graph()->NewNode(machine()->ProtectedStore(rep), object,
+                                  offset, value, effect(), control()));
+}
+
+Node* GraphAssembler::ProtectedLoad(MachineType type, Node* object,
+                                    Node* offset) {
+  return AddNode(graph()->NewNode(machine()->ProtectedLoad(type), object,
+                                  offset, effect(), control()));
+}
+
 Node* GraphAssembler::Retain(Node* buffer) {
   return AddNode(graph()->NewNode(common()->Retain(), buffer, effect()));
 }
@@ -685,9 +799,9 @@ Node* GraphAssembler::UnsafePointerAdd(Node* base, Node* external) {
 }
 
 TNode<Number> JSGraphAssembler::PlainPrimitiveToNumber(TNode<Object> value) {
-  return AddNode<Number>(graph()->NewNode(PlainPrimitiveToNumberOperator(),
-                                          ToNumberBuiltinConstant(), value,
-                                          NoContextConstant(), effect()));
+  return AddNode<Number>(graph()->NewNode(
+      PlainPrimitiveToNumberOperator(), PlainPrimitiveToNumberBuiltinConstant(),
+      value, effect()));
 }
 
 Node* GraphAssembler::BitcastWordToTaggedSigned(Node* value) {
@@ -715,46 +829,48 @@ Node* GraphAssembler::BitcastMaybeObjectToWord(Node* value) {
                                   effect(), control()));
 }
 
-Node* GraphAssembler::Word32PoisonOnSpeculation(Node* value) {
-  return AddNode(graph()->NewNode(machine()->Word32PoisonOnSpeculation(), value,
-                                  effect(), control()));
-}
-
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
                                    FeedbackSource const& feedback,
-                                   Node* condition, Node* frame_state,
-                                   IsSafetyCheck is_safety_check) {
-  return AddNode(
-      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeKind::kEager, reason,
-                                              feedback, is_safety_check),
-                       condition, frame_state, effect(), control()));
+                                   Node* condition, Node* frame_state) {
+  return AddNode(graph()->NewNode(
+      common()->DeoptimizeIf(DeoptimizeKind::kEager, reason, feedback),
+      condition, frame_state, effect(), control()));
 }
 
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason,
                                    FeedbackSource const& feedback,
-                                   Node* condition, Node* frame_state,
-                                   IsSafetyCheck is_safety_check) {
-  return AddNode(graph()->NewNode(
-      common()->DeoptimizeIf(kind, reason, feedback, is_safety_check),
-      condition, frame_state, effect(), control()));
+                                   Node* condition, Node* frame_state) {
+  return AddNode(
+      graph()->NewNode(common()->DeoptimizeIf(kind, reason, feedback),
+                       condition, frame_state, effect(), control()));
 }
 
 Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeKind kind,
                                       DeoptimizeReason reason,
                                       FeedbackSource const& feedback,
-                                      Node* condition, Node* frame_state,
-                                      IsSafetyCheck is_safety_check) {
-  return AddNode(graph()->NewNode(
-      common()->DeoptimizeUnless(kind, reason, feedback, is_safety_check),
-      condition, frame_state, effect(), control()));
+                                      Node* condition, Node* frame_state) {
+  return AddNode(
+      graph()->NewNode(common()->DeoptimizeUnless(kind, reason, feedback),
+                       condition, frame_state, effect(), control()));
 }
 
 Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
                                       FeedbackSource const& feedback,
-                                      Node* condition, Node* frame_state,
-                                      IsSafetyCheck is_safety_check) {
+                                      Node* condition, Node* frame_state) {
   return DeoptimizeIfNot(DeoptimizeKind::kEager, reason, feedback, condition,
-                         frame_state, is_safety_check);
+                         frame_state);
+}
+
+Node* GraphAssembler::DynamicCheckMapsWithDeoptUnless(Node* condition,
+                                                      Node* slot_index,
+                                                      Node* value, Node* map,
+                                                      Node* feedback_vector,
+                                                      FrameState frame_state) {
+  return AddNode(graph()->NewNode(
+      common()->DynamicCheckMapsWithDeoptUnless(
+          frame_state.outer_frame_state()->opcode() == IrOpcode::kFrameState),
+      condition, slot_index, value, map, feedback_vector, frame_state, effect(),
+      control()));
 }
 
 TNode<Object> GraphAssembler::Call(const CallDescriptor* call_descriptor,
@@ -768,6 +884,28 @@ TNode<Object> GraphAssembler::Call(const Operator* op, int inputs_size,
   return AddNode<Object>(graph()->NewNode(op, inputs_size, inputs));
 }
 
+void GraphAssembler::TailCall(const CallDescriptor* call_descriptor,
+                              int inputs_size, Node** inputs) {
+#ifdef DEBUG
+  static constexpr int kTargetEffectControl = 3;
+  DCHECK_EQ(inputs_size,
+            call_descriptor->ParameterCount() + kTargetEffectControl);
+#endif  // DEBUG
+
+  Node* node = AddNode(graph()->NewNode(common()->TailCall(call_descriptor),
+                                        inputs_size, inputs));
+
+  if (block_updater_) block_updater_->AddTailCall(node);
+
+  // Unlike ConnectUnreachableToEnd, the TailCall node terminates a block; to
+  // keep it live, it *must* be connected to End (also in Turboprop schedules).
+  NodeProperties::MergeControlToEnd(graph(), common(), node);
+
+  // Setting effect, control to nullptr effectively terminates the current block
+  // by disallowing the addition of new nodes until a new label has been bound.
+  InitializeEffectControl(nullptr, nullptr);
+}
+
 void GraphAssembler::BranchWithCriticalSafetyCheck(
     Node* condition, GraphAssemblerLabel<0u>* if_true,
     GraphAssemblerLabel<0u>* if_false) {
@@ -776,8 +914,7 @@ void GraphAssembler::BranchWithCriticalSafetyCheck(
     hint = if_false->IsDeferred() ? BranchHint::kTrue : BranchHint::kFalse;
   }
 
-  BranchImpl(condition, if_true, if_false, hint,
-             IsSafetyCheck::kCriticalSafetyCheck);
+  BranchImpl(condition, if_true, if_false, hint);
 }
 
 void GraphAssembler::RecordBranchInBlockUpdater(Node* branch,
@@ -860,10 +997,13 @@ void GraphAssembler::ConnectUnreachableToEnd() {
   // to disconnect them from the graph, so we just leave the unreachable nodes
   // in the schedule.
   // TODO(9684): Add a scheduled dead-code elimination phase to remove all the
-  // subsiquent unreacahble code from the schedule.
+  // subsequent unreachable code from the schedule.
   if (!block_updater_) {
     Node* throw_node = graph()->NewNode(common()->Throw(), effect(), control());
     NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+    if (node_changed_callback_.has_value()) {
+      (*node_changed_callback_)(graph()->end());
+    }
     effect_ = control_ = mcgraph()->Dead();
   }
 }
@@ -879,6 +1019,28 @@ Node* GraphAssembler::AddClonedNode(Node* node) {
 }
 
 Node* GraphAssembler::AddNode(Node* node) {
+  if (!inline_reducers_.empty() && !inline_reductions_blocked_) {
+    // Reducers may add new nodes to the graph using this graph assembler,
+    // however they should never introduce nodes that need further reduction,
+    // so block reduction
+    BlockInlineReduction scope(this);
+    Reduction reduction;
+    for (auto reducer : inline_reducers_) {
+      reduction = reducer->Reduce(node, nullptr);
+      if (reduction.Changed()) break;
+    }
+    if (reduction.Changed()) {
+      Node* replacement = reduction.replacement();
+      if (replacement != node) {
+        // Replace all uses of node and kill the node to make sure we don't
+        // leave dangling dead uses.
+        NodeProperties::ReplaceUses(node, replacement, effect(), control());
+        node->Kill();
+        return replacement;
+      }
+    }
+  }
+
   if (block_updater_) {
     block_updater_->AddNode(node);
   }
@@ -906,7 +1068,8 @@ void GraphAssembler::InitializeEffectControl(Node* effect, Node* control) {
 
 Operator const* JSGraphAssembler::PlainPrimitiveToNumberOperator() {
   if (!to_number_operator_.is_set()) {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtin::kPlainPrimitiveToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),

@@ -64,14 +64,15 @@ class CompactUnicodeString {
         fBuffer[0] = 0;
     }
 
-    CompactUnicodeString(const UnicodeString& text)
-            : fBuffer(text.length() + 1) {
+    CompactUnicodeString(const UnicodeString& text, UErrorCode& status)
+            : fBuffer(text.length() + 1, status) {
+        if (U_FAILURE(status)) { return; }
         uprv_memcpy(fBuffer.getAlias(), text.getBuffer(), sizeof(UChar) * text.length());
         fBuffer[text.length()] = 0;
     }
 
     inline UnicodeString toAliasedUnicodeString() const {
-        return UnicodeString(TRUE, fBuffer.getAlias(), -1);
+        return UnicodeString(true, fBuffer.getAlias(), -1);
     }
 
     bool operator==(const CompactUnicodeString& other) const {

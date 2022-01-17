@@ -8,19 +8,20 @@ const stream = require('stream');
   // Invoke end callback on failure.
   const writable = new stream.Writable();
 
+  const _err = new Error('kaboom');
   writable._write = (chunk, encoding, cb) => {
-    process.nextTick(cb, new Error('kaboom'));
+    process.nextTick(cb, _err);
   };
 
   writable.on('error', common.mustCall((err) => {
-    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(err, _err);
   }));
   writable.write('asd');
   writable.end(common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err, _err);
   }));
   writable.end(common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err, _err);
   }));
 }
 
@@ -45,4 +46,33 @@ const stream = require('stream');
     assert.strictEqual(called, true);
     writable.emit('error', new Error('kaboom'));
   }));
+}
+
+{
+  const w = new stream.Writable({
+    write(chunk, encoding, callback) {
+      setImmediate(callback);
+    },
+    finish(callback) {
+      setImmediate(callback);
+    }
+  });
+  w.end('testing ended state', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
+  }));
+  assert.strictEqual(w.destroyed, false);
+  assert.strictEqual(w.writableEnded, true);
+  w.end(common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
+  }));
+  assert.strictEqual(w.destroyed, false);
+  assert.strictEqual(w.writableEnded, true);
+  w.end('end', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
+  }));
+  assert.strictEqual(w.destroyed, true);
+  w.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
+  }));
+  w.on('finish', common.mustNotCall());
 }

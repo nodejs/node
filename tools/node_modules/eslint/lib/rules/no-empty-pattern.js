@@ -8,13 +8,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow empty destructuring patterns",
-            category: "Best Practices",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-empty-pattern"
         },

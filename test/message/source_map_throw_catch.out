@@ -3,10 +3,8 @@ reachable
     throw Error('an exception');
           ^
 Error: an exception
-    at branch (*typescript-throw.js:20:15)
-        -> *typescript-throw.ts:18:11
-    at Object.<anonymous> (*typescript-throw.js:26:1)
-        -> *typescript-throw.ts:24:1
+    at *typescript-throw.ts:18:11*
+    at *typescript-throw.ts:24:1*
     at Module._compile (node:internal/modules/cjs/loader:*)
     at Object.Module._extensions..js (node:internal/modules/cjs/loader:*)
     at Module.load (node:internal/modules/cjs/loader:*)

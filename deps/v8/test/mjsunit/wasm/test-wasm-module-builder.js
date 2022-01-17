@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --expose-wasm --experimental-wasm-typed-funcref
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 var debug = true;
 
@@ -43,7 +43,7 @@ function instantiate(buffer, ffi) {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction(undefined, kSig_i_i)
-      .addLocals({i32_count: 1})
+      .addLocals(kWasmI32, 1)
       .addBody([kExprLocalGet, 0, kExprLocalSet, 1, kExprLocalGet, 1])
       .exportAs('main');
 
@@ -57,16 +57,15 @@ function instantiate(buffer, ffi) {
   print(arguments.callee.name);
   // TODO(titzer): i64 only works on 64-bit platforms.
   var types = [
-    {locals: {i32_count: 1}, type: kWasmI32},
-    // {locals: {i64_count: 1}, type: kWasmI64},
-    {locals: {f32_count: 1}, type: kWasmF32},
-    {locals: {f64_count: 1}, type: kWasmF64},
+    {count: 1, type: kWasmI32},
+    {count: 1, type: kWasmF32},
+    {count: 1, type: kWasmF64},
   ];
 
   for (p of types) {
     let builder = new WasmModuleBuilder();
     builder.addFunction(undefined, makeSig_r_x(p.type, p.type))
-        .addLocals(p.locals)
+        .addLocals(p.type, p.count)
         .addBody([kExprLocalGet, 0, kExprLocalSet, 1, kExprLocalGet, 1])
         .exportAs('main');
 
@@ -183,4 +182,25 @@ function instantiate(buffer, ffi) {
     let instance = builder.instantiate();
     assertEquals(i, instance.exports.main());
   }
+})();
+
+(function TestBigTypeIndices() {
+  print(arguments.callee.name);
+  // These are all positive type indices (e.g. kI31RefCode and not kWasmI31Ref)
+  // and should be treated as such.
+  let indices = [kI31RefCode, kDataRefCode, 200, 400];
+  let kMaxIndex = 400;
+  let builder = new WasmModuleBuilder();
+  for (let i = 0; i <= kMaxIndex; i++) {
+    builder.addType(kSig_i_i);
+    builder.addFunction(undefined, i)
+           .addBody([kExprLocalGet, 0]);
+    builder.addGlobal(wasmRefType(i), false, WasmInitExpr.RefFunc(i));
+  }
+  for (let i of indices) {
+    builder.addFunction('f_' + i, makeSig([], [wasmRefType(i)]))
+      .addBody([kExprRefFunc, ...wasmSignedLeb(i, 5)])
+      .exportFunc();
+  }
+  builder.instantiate();
 })();

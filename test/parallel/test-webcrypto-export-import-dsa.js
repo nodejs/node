@@ -1,12 +1,14 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const crypto = require('crypto');
+const { subtle } = crypto.webcrypto;
 
 const sizes = [1024];
 
@@ -14,7 +16,7 @@ const hashes = [
   'SHA-1',
   'SHA-256',
   'SHA-384',
-  'SHA-512'
+  'SHA-512',
 ];
 
 const keyData = {
@@ -46,20 +48,6 @@ const keyData = {
       'f26fe27c533587b765e57948439084e76fd6a4fd004f5c78d972cf7f100ec9494a902' +
       '645baca4b4c6f3993041e021c600daa0a9c4cc674c98bb07956374c84ac1c33af8816' +
       '3ea7e2587876', 'hex'),
-    jwk: {
-      kty: 'DSA',
-      y: 'mo32ny_jIYaeIJTjh7wdwrXzv_Ki4jz7pR08EZ-6a0wVpJSF-oEbaVXZHSjJ4uBEWn' +
-         'ndxUJrL-ROAKbJJUx3bxP9ENvJNCYgd7HfcsFryEiBfGH7amB6vmDH0RUoq5vfVd5F' +
-         'SVczoEe9daSLgWbxqj3qtoGiV0pPNRBvDXi2Qdc',
-      p: '1fNapXMOJhZv0-qB-PDusFvRJQ4WS3x2sYC22ulQltE97mlW4Vqa6nzxig33xdwybM' +
-         '7xy_l2NtIvhwt28mB_moZ9snVq7PZVBapI_epfXuVPUIoF2drna_JitMo2YswXa3xi' +
-         'jHvuIHbfB_mmTgQCYw3-5j6vDtZNSLRp_hyaxKE',
-      q: 'sUITImz8-1njoDeeVZx0_4pzg-tMQc7Lbzcytw',
-      g: 'oIZbf4lU565YfI5qieOR6CZXxY8FzNlN5hdI6J4hfvqz2bX6hC68YlJZZpFq0revQi' +
-         'qbJAeBels4K2WBQ0_RoWnHWtTQ44YqP0hOn58qgW-UOo5gYPJv4nxTNYe3ZeV5SEOQ' +
-         'hOdv1qT9AE9ceNlyz38QDslJSpAmRbrKS0xvOZM',
-      x: 'YA2qCpxMxnTJi7B5VjdMhKwcM6-IFj6n4lh4dg',
-    }
   },
 };
 
@@ -123,88 +111,13 @@ async function testImportPkcs8(
   }
 }
 
-async function testImportJwk(
-  { name, publicUsages, privateUsages },
-  size,
-  hash,
-  extractable) {
-
-  const jwk = keyData[size].jwk;
-
-  const [
-    publicKey,
-    privateKey,
-  ] = await Promise.all([
-    subtle.importKey(
-      'jwk',
-      {
-        kty: jwk.kty,
-        y: jwk.y,
-        p: jwk.p,
-        q: jwk.q,
-        g: jwk.g,
-        alg: `NODE-DSA-${hash}`
-      },
-      { name, hash },
-      extractable,
-      publicUsages),
-    subtle.importKey(
-      'jwk',
-      { ...jwk, alg: `NODE-DSA-${hash}` },
-      { name, hash },
-      extractable,
-      privateUsages)
-  ]);
-
-  assert.strictEqual(publicKey.type, 'public');
-  assert.strictEqual(privateKey.type, 'private');
-  assert.strictEqual(publicKey.extractable, extractable);
-  assert.strictEqual(privateKey.extractable, extractable);
-  assert.strictEqual(publicKey.algorithm.name, name);
-  assert.strictEqual(privateKey.algorithm.name, name);
-  assert.strictEqual(publicKey.algorithm.modulusLength, size);
-  assert.strictEqual(privateKey.algorithm.modulusLength, size);
-
-  if (extractable) {
-    const [
-      pubJwk,
-      pvtJwk
-    ] = await Promise.all([
-      subtle.exportKey('jwk', publicKey),
-      subtle.exportKey('jwk', privateKey)
-    ]);
-
-    assert.strictEqual(pubJwk.kty, 'DSA');
-    assert.strictEqual(pvtJwk.kty, 'DSA');
-    assert.strictEqual(pubJwk.y, jwk.y);
-    assert.strictEqual(pvtJwk.y, jwk.y);
-    assert.strictEqual(pubJwk.p, jwk.p);
-    assert.strictEqual(pvtJwk.p, jwk.p);
-    assert.strictEqual(pubJwk.q, jwk.q);
-    assert.strictEqual(pvtJwk.q, jwk.q);
-    assert.strictEqual(pubJwk.g, jwk.g);
-    assert.strictEqual(pvtJwk.g, jwk.g);
-    assert.strictEqual(pvtJwk.x, jwk.x);
-    assert.strictEqual(pubJwk.x, undefined);
-  } else {
-    await assert.rejects(
-      subtle.exportKey('jwk', publicKey), {
-        message: /key is not extractable/
-      });
-    await assert.rejects(
-      subtle.exportKey('jwk', privateKey), {
-        message: /key is not extractable/
-      });
-  }
-}
-
 // combinations to test
 const testVectors = [
   {
     name: 'NODE-DSA',
     privateUsages: ['sign'],
     publicUsages: ['verify']
-  }
+  },
 ];
 
 (async function() {
@@ -215,10 +128,37 @@ const testVectors = [
         testVectors.forEach((vector) => {
           variations.push(testImportSpki(vector, size, hash, extractable));
           variations.push(testImportPkcs8(vector, size, hash, extractable));
-          variations.push(testImportJwk(vector, size, hash, extractable));
         });
       });
     });
   });
   await Promise.all(variations);
 })().then(common.mustCall());
+
+{
+  const ecPublic = crypto.createPublicKey(
+    fixtures.readKey('ec_p256_public.pem'));
+  const ecPrivate = crypto.createPrivateKey(
+    fixtures.readKey('ec_p256_private.pem'));
+
+  assert.rejects(subtle.importKey(
+    'node.keyObject',
+    ecPublic,
+    { name: 'NODE-DSA', hash: 'SHA-256' },
+    true, ['verify']), { message: /Invalid key type/ });
+  assert.rejects(subtle.importKey(
+    'node.keyObject',
+    ecPrivate,
+    { name: 'NODE-DSA', hash: 'SHA-256' },
+    true, ['sign']), { message: /Invalid key type/ });
+  assert.rejects(subtle.importKey(
+    'spki',
+    ecPublic.export({ format: 'der', type: 'spki' }),
+    { name: 'NODE-DSA', hash: 'SHA-256' },
+    true, ['verify']), { message: /Invalid key type/ });
+  assert.rejects(subtle.importKey(
+    'pkcs8',
+    ecPrivate.export({ format: 'der', type: 'pkcs8' }),
+    { name: 'NODE-DSA', hash: 'SHA-256' },
+    true, ['sign']), { message: /Invalid key type/ });
+}

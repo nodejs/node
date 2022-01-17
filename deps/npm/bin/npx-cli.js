@@ -10,25 +10,25 @@ process.argv.splice(2, 0, 'exec')
 const removedSwitches = new Set([
   'always-spawn',
   'ignore-existing',
-  'shell-auto-fallback'
+  'shell-auto-fallback',
 ])
 
 const removedOpts = new Set([
   'npm',
   'node-arg',
-  'n'
+  'n',
 ])
 
 const removed = new Set([
   ...removedSwitches,
-  ...removedOpts
+  ...removedOpts,
 ])
 
-const { types, shorthands } = require('../lib/utils/config.js')
-const npmSwitches = Object.entries(types)
-  .filter(([key, type]) => type === Boolean ||
+const { definitions, shorthands } = require('../lib/utils/config/index.js')
+const npmSwitches = Object.entries(definitions)
+  .filter(([key, { type }]) => type === Boolean ||
     (Array.isArray(type) && type.includes(Boolean)))
-  .map(([key, type]) => key)
+  .map(([key]) => key)
 
 // things that don't take a value
 const switches = new Set([
@@ -40,7 +40,7 @@ const switches = new Set([
   'version',
   'v',
   'help',
-  'h'
+  'h',
 ])
 
 // things that do take a value
@@ -55,7 +55,7 @@ const opts = new Set([
   'shell',
   'npm',
   'node-arg',
-  'n'
+  'n',
 ])
 
 // break out of loop when we find a positional argument or --

@@ -34,7 +34,7 @@ const fd = fs.openSync(filepath, 'w+');
 const offset = 5 * 1024 * 1024 * 1024; // 5GB
 const message = 'Large File';
 
-fs.truncateSync(fd, offset);
+fs.ftruncateSync(fd, offset);
 assert.strictEqual(fs.statSync(filepath).size, offset);
 const writeBuf = Buffer.from(message);
 fs.writeSync(fd, writeBuf, 0, writeBuf.length, offset);

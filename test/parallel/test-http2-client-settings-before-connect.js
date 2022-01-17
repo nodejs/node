@@ -38,7 +38,7 @@ server.listen(0, common.mustCall(() => {
     ['enablePush', 1, TypeError],
     ['enablePush', 0, TypeError],
     ['enablePush', null, TypeError],
-    ['enablePush', {}, TypeError]
+    ['enablePush', {}, TypeError],
   ].forEach(([name, value, errorType]) =>
     assert.throws(
       () => client.settings({ [name]: value }),

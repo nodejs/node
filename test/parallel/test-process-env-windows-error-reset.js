@@ -7,7 +7,7 @@ const assert = require('assert');
 
 {
   process.env.FOO = '';
-  process.env.NONEXISTENT_ENV_VAR;
+  process.env.NONEXISTENT_ENV_VAR; // eslint-disable-line no-unused-expressions
   const foo = process.env.FOO;
 
   assert.strictEqual(foo, '');
@@ -15,7 +15,7 @@ const assert = require('assert');
 
 {
   process.env.FOO = '';
-  process.env.NONEXISTENT_ENV_VAR;
+  process.env.NONEXISTENT_ENV_VAR; // eslint-disable-line no-unused-expressions
   const hasFoo = 'FOO' in process.env;
 
   assert.strictEqual(hasFoo, true);

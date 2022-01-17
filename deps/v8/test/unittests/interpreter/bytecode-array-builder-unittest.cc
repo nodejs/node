@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/interpreter/bytecode-array-builder.h"
+
 #include <limits>
 
-#include "src/init/v8.h"
-
 #include "src/ast/scopes.h"
-#include "src/interpreter/bytecode-array-builder.h"
+#include "src/init/v8.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
@@ -84,14 +84,20 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreAccumulatorInRegister(reg)
       .LoadNull();
 
+  // The above had a lot of Star0, but we must also emit the rest of
+  // the short-star codes.
+  for (int i = 1; i < 16; ++i) {
+    builder.StoreAccumulatorInRegister(Register(i));
+  }
+
   // Emit register-register transfer.
   builder.MoveRegister(reg, other);
   builder.MoveRegister(reg, wide);
 
   FeedbackSlot load_global_slot =
-      feedback_spec.AddLoadGlobalICSlot(NOT_INSIDE_TYPEOF);
+      feedback_spec.AddLoadGlobalICSlot(TypeofMode::kNotInside);
   FeedbackSlot load_global_typeof_slot =
-      feedback_spec.AddLoadGlobalICSlot(INSIDE_TYPEOF);
+      feedback_spec.AddLoadGlobalICSlot(TypeofMode::kInside);
   FeedbackSlot sloppy_store_global_slot =
       feedback_spec.AddStoreGlobalICSlot(LanguageMode::kSloppy);
   FeedbackSlot load_slot = feedback_spec.AddLoadICSlot();
@@ -111,10 +117,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit global load / store operations.
   const AstRawString* name = ast_factory.GetOneByteString("var_name");
-  builder
-      .LoadGlobal(name, load_global_slot.ToInt(), TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(name, load_global_typeof_slot.ToInt(),
-                  TypeofMode::INSIDE_TYPEOF)
+  builder.LoadGlobal(name, load_global_slot.ToInt(), TypeofMode::kNotInside)
+      .LoadGlobal(name, load_global_typeof_slot.ToInt(), TypeofMode::kInside)
       .StoreGlobal(name, sloppy_store_global_slot.ToInt());
 
   // Emit context operations.
@@ -136,12 +140,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, name, load_slot.ToInt())
-      .LoadNamedPropertyNoFeedback(reg, name)
+      .LoadNamedPropertyFromSuper(reg, name, load_slot.ToInt())
       .LoadKeyedProperty(reg, keyed_load_slot.ToInt())
       .StoreNamedProperty(reg, name, sloppy_store_slot.ToInt(),
                           LanguageMode::kSloppy)
-      .StoreNamedPropertyNoFeedback(reg, name, LanguageMode::kStrict)
-      .StoreNamedPropertyNoFeedback(reg, name, LanguageMode::kSloppy)
       .StoreKeyedProperty(reg, reg, sloppy_keyed_store_slot.ToInt(),
                           LanguageMode::kSloppy)
       .StoreNamedProperty(reg, name, strict_store_slot.ToInt(),
@@ -155,8 +157,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.GetIterator(reg, load_slot.ToInt(), call_slot.ToInt());
 
   // Emit load / store lookup slots.
-  builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadLookupSlot(name, TypeofMode::INSIDE_TYPEOF)
+  builder.LoadLookupSlot(name, TypeofMode::kNotInside)
+      .LoadLookupSlot(name, TypeofMode::kInside)
       .StoreLookupSlot(name, LanguageMode::kSloppy, LookupHoistingMode::kNormal)
       .StoreLookupSlot(name, LanguageMode::kSloppy,
                        LookupHoistingMode::kLegacySloppy)
@@ -164,12 +166,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                        LookupHoistingMode::kNormal);
 
   // Emit load / store lookup slots with context fast paths.
-  builder.LoadLookupContextSlot(name, TypeofMode::NOT_INSIDE_TYPEOF, 1, 0)
-      .LoadLookupContextSlot(name, TypeofMode::INSIDE_TYPEOF, 1, 0);
+  builder.LoadLookupContextSlot(name, TypeofMode::kNotInside, 1, 0)
+      .LoadLookupContextSlot(name, TypeofMode::kInside, 1, 0);
 
   // Emit load / store lookup slots with global fast paths.
-  builder.LoadLookupGlobalSlot(name, TypeofMode::NOT_INSIDE_TYPEOF, 1, 0)
-      .LoadLookupGlobalSlot(name, TypeofMode::INSIDE_TYPEOF, 1, 0);
+  builder.LoadLookupGlobalSlot(name, TypeofMode::kNotInside, 1, 0)
+      .LoadLookupGlobalSlot(name, TypeofMode::kInside, 1, 0);
 
   // Emit closure operations.
   builder.CreateClosure(0, 1, static_cast<int>(AllocationType::kYoung));
@@ -201,9 +203,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallUndefinedReceiver(reg, pair, 1)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
-      .CallJSRuntime(Context::OBJECT_CREATE, reg_list)
-      .CallWithSpread(reg, reg_list, 1)
-      .CallNoFeedback(reg, reg_list);
+      .CallJSRuntime(Context::PROMISE_THEN_INDEX, reg_list)
+      .CallWithSpread(reg, reg_list, 1);
 
   // Emit binary operator invocations.
   builder.BinaryOperation(Token::Value::ADD, reg, 1)
@@ -275,6 +276,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit GetSuperConstructor.
   builder.GetSuperConstructor(reg);
+
+  // Constructor check for GetSuperConstructor.
+  builder.ThrowIfNotSuperConstructor(reg);
 
   // Hole checks.
   builder.ThrowReferenceErrorIfHole(name)
@@ -370,8 +374,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreContextSlot(reg, 1024, 0);
 
   // Emit wide load / store lookup slots.
-  builder.LoadLookupSlot(wide_name, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadLookupSlot(wide_name, TypeofMode::INSIDE_TYPEOF)
+  builder.LoadLookupSlot(wide_name, TypeofMode::kNotInside)
+      .LoadLookupSlot(wide_name, TypeofMode::kInside)
       .StoreLookupSlot(wide_name, LanguageMode::kSloppy,
                        LookupHoistingMode::kNormal)
       .StoreLookupSlot(wide_name, LanguageMode::kSloppy,
@@ -414,7 +418,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.SwitchOnGeneratorState(reg, gen_jump_table).Bind(gen_jump_table, 0);
 
   // Intrinsics handled by the interpreter.
-  builder.CallRuntime(Runtime::kInlineIsArray, reg_list);
+  builder.CallRuntime(Runtime::kInlineAsyncFunctionReject, reg_list);
 
   // Emit debugger bytecode.
   builder.Debugger();
@@ -442,7 +446,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Return();
 
   // Generate BytecodeArray.
-  scope.SetScriptScopeInfo(factory->NewScopeInfo(1));
+  Handle<ScopeInfo> scope_info =
+      factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
+  scope_info->set_flags(0);
+  scope_info->set_context_local_count(0);
+  scope_info->set_parameter_count(0);
+  scope.SetScriptScopeInfo(scope_info);
+
   ast_factory.Internalize(isolate());
   Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
   CHECK_EQ(the_array->frame_size(),
@@ -531,11 +541,7 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
 
   Register receiver(builder.Receiver());
   Register param8(builder.Parameter(8));
-#ifdef V8_REVERSE_JSARGS
   CHECK_EQ(receiver.index() - param8.index(), 9);
-#else
-  CHECK_EQ(param8.index() - receiver.index(), 9);
-#endif
 }
 
 TEST_F(BytecodeArrayBuilderTest, Constants) {
@@ -694,8 +700,6 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   BytecodeArrayBuilder builder(zone(), 1, 1);
 
-  Register reg(0);
-
   BytecodeLabel end;
   builder.JumpIfNull(&end);
 
@@ -709,11 +713,11 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
       .JumpLoop(&loop_header, 0, 0)
       .Bind(&after_loop);
   for (int i = 0; i < 42; i++) {
-    BytecodeLabel after_loop;
+    BytecodeLabel also_after_loop;
     // Conditional jump to force the code after the JumpLoop to be live.
-    builder.JumpIfNull(&after_loop)
+    builder.JumpIfNull(&also_after_loop)
         .JumpLoop(&loop_header, 0, 0)
-        .Bind(&after_loop);
+        .Bind(&also_after_loop);
   }
 
   // Add padding to force wide backwards jumps.
@@ -787,7 +791,7 @@ TEST_F(BytecodeArrayBuilderTest, SmallSwitch) {
     int switch_end =
         iterator.current_offset() + iterator.current_bytecode_size();
 
-    for (const auto& entry : iterator.GetJumpTableTargetOffsets()) {
+    for (JumpTableTargetOffset entry : iterator.GetJumpTableTargetOffsets()) {
       CHECK_EQ(entry.case_value, small_jump_table_base + i);
       CHECK_EQ(entry.target_offset, switch_end + i);
 
@@ -835,7 +839,7 @@ TEST_F(BytecodeArrayBuilderTest, WideSwitch) {
     int switch_end =
         iterator.current_offset() + iterator.current_bytecode_size();
 
-    for (const auto& entry : iterator.GetJumpTableTargetOffsets()) {
+    for (JumpTableTargetOffset entry : iterator.GetJumpTableTargetOffsets()) {
       CHECK_EQ(entry.case_value, large_jump_table_base + i);
       CHECK_EQ(entry.target_offset, switch_end + i);
 

@@ -7,6 +7,8 @@
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
+#include "src/ic/handler-configuration.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/smi.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
@@ -51,18 +53,18 @@ TEST(WeakReferencesBasic) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
     CHECK(code->IsCode());
 
-    lh->set_data1(HeapObjectReference::Weak(*code));
+    lh->set_data1(HeapObjectReference::Weak(ToCodeT(*code)));
     HeapObject code_heap_object;
     CHECK(lh->data1()->GetHeapObjectIfWeak(&code_heap_object));
-    CHECK_EQ(*code, code_heap_object);
+    CHECK_EQ(ToCodeT(*code), code_heap_object);
 
     CcTest::CollectAllGarbage();
 
     CHECK(lh->data1()->GetHeapObjectIfWeak(&code_heap_object));
-    CHECK_EQ(*code, code_heap_object);
+    CHECK_EQ(ToCodeT(*code), code_heap_object);
   }  // code will go out of scope.
 
   CcTest::CollectAllGarbage();
@@ -70,6 +72,7 @@ TEST(WeakReferencesBasic) {
 }
 
 TEST(WeakReferencesOldToOld) {
+  if (FLAG_enable_third_party_heap) return;
   // Like WeakReferencesBasic, but the updated weak slot is in the old space,
   // and referring to an old space object.
   ManualGCScope manual_gc_scope;
@@ -313,6 +316,8 @@ TEST(WeakReferenceWriteBarrier) {
   Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
   CHECK(InCorrectGeneration(*lh));
 
+  v8::Global<Value> global_lh(CcTest::isolate(), Utils::ToLocal(lh));
+
   {
     HandleScope inner_scope(isolate);
 
@@ -348,6 +353,8 @@ TEST(EmptyWeakArray) {
 }
 
 TEST(WeakArraysBasic) {
+  if (FLAG_single_generation) return;
+
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -361,7 +368,7 @@ TEST(WeakArraysBasic) {
   CHECK(!array->IsFixedArray());
   CHECK_EQ(array->length(), length);
 
-  if (!FLAG_single_generation) CHECK(Heap::InYoungGeneration(*array));
+  CHECK(Heap::InYoungGeneration(*array));
 
   for (int i = 0; i < length; ++i) {
     HeapObject heap_object;
@@ -417,6 +424,8 @@ TEST(WeakArraysBasic) {
 }
 
 TEST(WeakArrayListBasic) {
+  if (FLAG_single_generation) return;
+
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

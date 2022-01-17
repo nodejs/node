@@ -48,7 +48,7 @@ FreeSpace FreeListCategory::SearchForNodeInList(size_t minimum_size,
   for (FreeSpace cur_node = top(); !cur_node.is_null();
        cur_node = cur_node.next()) {
     DCHECK(Page::FromHeapObject(cur_node)->CanAllocate());
-    size_t size = cur_node.size();
+    size_t size = cur_node.size(kRelaxedLoad);
     if (size >= minimum_size) {
       DCHECK_GE(available_, size);
       UpdateCountersAfterAllocation(size);
@@ -58,7 +58,8 @@ FreeSpace FreeListCategory::SearchForNodeInList(size_t minimum_size,
       if (!prev_non_evac_node.is_null()) {
         MemoryChunk* chunk = MemoryChunk::FromHeapObject(prev_non_evac_node);
         if (chunk->owner_identity() == CODE_SPACE) {
-          chunk->heap()->UnprotectAndRegisterMemoryChunk(chunk);
+          chunk->heap()->UnprotectAndRegisterMemoryChunk(
+              chunk, UnprotectMemoryOrigin::kMaybeOffMainThread);
         }
         prev_non_evac_node.set_next(cur_node.next());
       }
@@ -91,10 +92,10 @@ void FreeListCategory::RepairFreeList(Heap* heap) {
   FreeSpace n = top();
   while (!n.is_null()) {
     ObjectSlot map_slot = n.map_slot();
-    if (map_slot.contains_value(kNullAddress)) {
-      map_slot.store(free_space_map);
+    if (map_slot.contains_map_value(kNullAddress)) {
+      map_slot.store_map(free_space_map);
     } else {
-      DCHECK(map_slot.contains_value(free_space_map.ptr()));
+      DCHECK(map_slot.contains_map_value(free_space_map.ptr()));
     }
     n = n.next();
   }
@@ -418,50 +419,6 @@ FreeSpace FreeListManyCachedOrigin::Allocate(size_t size_in_bytes,
 }
 
 // ------------------------------------------------
-// FreeListMap implementation
-
-FreeListMap::FreeListMap() {
-  // Initializing base (FreeList) fields
-  number_of_categories_ = 1;
-  last_category_ = kOnlyCategory;
-  min_block_size_ = kMinBlockSize;
-  categories_ = new FreeListCategory*[number_of_categories_]();
-
-  Reset();
-}
-
-size_t FreeListMap::GuaranteedAllocatable(size_t maximum_freed) {
-  return maximum_freed;
-}
-
-Page* FreeListMap::GetPageForSize(size_t size_in_bytes) {
-  return GetPageForCategoryType(kOnlyCategory);
-}
-
-FreeListMap::~FreeListMap() { delete[] categories_; }
-
-FreeSpace FreeListMap::Allocate(size_t size_in_bytes, size_t* node_size,
-                                AllocationOrigin origin) {
-  DCHECK_GE(kMaxBlockSize, size_in_bytes);
-
-  // The following DCHECK ensures that maps are allocated one by one (ie,
-  // without folding). This assumption currently holds. However, if it were to
-  // become untrue in the future, you'll get an error here. To fix it, I would
-  // suggest removing the DCHECK, and replacing TryFindNodeIn by
-  // SearchForNodeInList below.
-  DCHECK_EQ(size_in_bytes, Map::kSize);
-
-  FreeSpace node = TryFindNodeIn(kOnlyCategory, size_in_bytes, node_size);
-
-  if (!node.is_null()) {
-    Page::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
-  }
-
-  DCHECK_IMPLIES(node.is_null(), IsEmpty());
-  return node;
-}
-
-// ------------------------------------------------
 // Generic FreeList methods (non alloc/free related)
 
 void FreeList::Reset() {
@@ -548,12 +505,13 @@ size_t FreeListCategory::SumFreeList() {
   while (!cur.is_null()) {
     // We can't use "cur->map()" here because both cur's map and the
     // root can be null during bootstrapping.
-    DCHECK(cur.map_slot().contains_value(Page::FromHeapObject(cur)
-                                             ->heap()
-                                             ->isolate()
-                                             ->root(RootIndex::kFreeSpaceMap)
-                                             .ptr()));
-    sum += cur.relaxed_read_size();
+    DCHECK(
+        cur.map_slot().contains_map_value(Page::FromHeapObject(cur)
+                                              ->heap()
+                                              ->isolate()
+                                              ->root(RootIndex::kFreeSpaceMap)
+                                              .ptr()));
+    sum += cur.size(kRelaxedLoad);
     cur = cur.next();
   }
   return sum;

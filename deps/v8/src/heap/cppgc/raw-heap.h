@@ -47,7 +47,8 @@ class V8_EXPORT_PRIVATE RawHeap final {
   using iterator = Spaces::iterator;
   using const_iterator = Spaces::const_iterator;
 
-  explicit RawHeap(HeapBase* heap, size_t custom_spaces);
+  RawHeap(HeapBase* heap,
+          const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces);
 
   RawHeap(const RawHeap&) = delete;
   RawHeap& operator=(const RawHeap&) = delete;

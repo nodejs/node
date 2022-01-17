@@ -83,3 +83,8 @@ assert.deepStrictEqual(
   const dest = buffer.transcode(new Uint8Array(), 'utf8', 'latin1');
   assert.strictEqual(dest.length, 0);
 }
+
+// Test that it doesn't crash
+{
+  buffer.transcode(new buffer.SlowBuffer(1), 'utf16le', 'ucs2');
+}

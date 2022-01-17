@@ -169,7 +169,9 @@ static WCHAR* search_path_join_test(const WCHAR* dir,
                                     size_t cwd_len) {
   WCHAR *result, *result_pos;
   DWORD attrs;
-  if (dir_len > 2 && dir[0] == L'\\' && dir[1] == L'\\') {
+  if (dir_len > 2 &&
+      ((dir[0] == L'\\' || dir[0] == L'/') &&
+       (dir[1] == L'\\' || dir[1] == L'/'))) {
     /* It's a UNC path so ignore cwd */
     cwd_len = 0;
   } else if (dir_len >= 1 && (dir[0] == L'/' || dir[0] == L'\\')) {
@@ -642,7 +644,7 @@ int env_strncmp(const wchar_t* a, int na, const wchar_t* b) {
   assert(r==nb);
   B[nb] = L'\0';
 
-  while (1) {
+  for (;;) {
     wchar_t AA = *A++;
     wchar_t BB = *B++;
     if (AA < BB) {

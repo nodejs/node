@@ -17,7 +17,9 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-number-format.h"
 #include "src/objects/js-relative-time-format-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/decimfmt.h"
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
@@ -74,25 +76,19 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
-  // 2. If options is undefined, then
+  // 2. Set options to ? CoerceOptionsToObject(options).
   Handle<JSReceiver> options;
-  if (input_options->IsUndefined(isolate)) {
-    // 2. a. Let options be ObjectCreate(null).
-    options = isolate->factory()->NewJSObjectWithNullProto();
-    // 3. Else
-  } else {
-    // 3. a. Let options be ? ToObject(options).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                               Object::ToObject(isolate, input_options),
-                               JSRelativeTimeFormat);
-  }
+  const char* service = "Intl.RelativeTimeFormat";
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, CoerceOptionsToObject(isolate, input_options, service),
+      JSRelativeTimeFormat);
 
   // 4. Let opt be a new Record.
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string", «
   // "lookup", "best fit" », "best fit").
   // 6. Set opt.[[localeMatcher]] to matcher.
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
-      Intl::GetLocaleMatcher(isolate, options, "Intl.RelativeTimeFormat");
+      Intl::GetLocaleMatcher(isolate, options, service);
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSRelativeTimeFormat>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
@@ -100,7 +96,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   //    `"string"`, *undefined*, *undefined*).
   std::unique_ptr<char[]> numbering_system_str = nullptr;
   Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
-      isolate, options, "Intl.RelativeTimeFormat", &numbering_system_str);
+      isolate, options, service, &numbering_system_str);
   // 8. If _numberingSystem_ is not *undefined*, then
   // a. If _numberingSystem_ does not match the
   //    `(3*8alphanum) *("-" (3*8alphanum))` sequence, throw a *RangeError*
@@ -152,10 +148,9 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
 
   // 16. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
-  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
-      isolate, options, "style", "Intl.RelativeTimeFormat",
-      {"long", "short", "narrow"}, {Style::LONG, Style::SHORT, Style::NARROW},
-      Style::LONG);
+  Maybe<Style> maybe_style = GetStringOption<Style>(
+      isolate, options, "style", service, {"long", "short", "narrow"},
+      {Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
   MAYBE_RETURN(maybe_style, MaybeHandle<JSRelativeTimeFormat>());
   Style style_enum = maybe_style.FromJust();
 
@@ -163,9 +158,9 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
 
   // 18. Let numeric be ? GetOption(options, "numeric", "string",
   //                                «"always", "auto"», "always").
-  Maybe<Numeric> maybe_numeric = Intl::GetStringOption<Numeric>(
-      isolate, options, "numeric", "Intl.RelativeTimeFormat",
-      {"always", "auto"}, {Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
+  Maybe<Numeric> maybe_numeric = GetStringOption<Numeric>(
+      isolate, options, "numeric", service, {"always", "auto"},
+      {Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
   MAYBE_RETURN(maybe_numeric, MaybeHandle<JSRelativeTimeFormat>());
   Numeric numeric_enum = maybe_numeric.FromJust();
 
@@ -195,9 +190,12 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
     }
   }
 
-  icu::DecimalFormat* decimal_format =
-      static_cast<icu::DecimalFormat*>(number_format);
-  decimal_format->setMinimumGroupingDigits(-2);
+  if (number_format->getDynamicClassID() ==
+      icu::DecimalFormat::getStaticClassID()) {
+    icu::DecimalFormat* decimal_format =
+        static_cast<icu::DecimalFormat*>(number_format);
+    decimal_format->setMinimumGroupingDigits(-2);
+  }
 
   // Change UDISPCTX_CAPITALIZATION_NONE to other values if
   // ECMA402 later include option to change capitalization.
@@ -224,7 +222,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
       Handle<JSRelativeTimeFormat>::cast(
           isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   relative_time_format_holder->set_flags(0);
   relative_time_format_holder->set_locale(*locale_str);
   relative_time_format_holder->set_numberingSystem(*numbering_system_string);
@@ -345,9 +343,9 @@ template <typename T>
 MaybeHandle<T> FormatCommon(
     Isolate* isolate, Handle<JSRelativeTimeFormat> format,
     Handle<Object> value_obj, Handle<Object> unit_obj, const char* func_name,
-    MaybeHandle<T> (*formatToResult)(Isolate*,
-                                     const icu::FormattedRelativeDateTime&,
-                                     Handle<Object>, Handle<String>)) {
+    const std::function<
+        MaybeHandle<T>(Isolate*, const icu::FormattedRelativeDateTime&,
+                       Handle<Object>, Handle<String>)>& formatToResult) {
   // 3. Let value be ? ToNumber(value).
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,

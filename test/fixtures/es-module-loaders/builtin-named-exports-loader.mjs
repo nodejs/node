@@ -2,7 +2,7 @@ import module from 'module';
 
 const GET_BUILTIN = `$__get_builtin_hole_${Date.now()}`;
 
-export function getGlobalPreloadCode() {
+export function globalPreload() {
   return `Object.defineProperty(globalThis, ${JSON.stringify(GET_BUILTIN)}, {
   value: (builtinName) => {
     return getBuiltin(builtinName);
@@ -13,17 +13,19 @@ export function getGlobalPreloadCode() {
 `;
 }
 
-export function resolve(specifier, context, defaultResolve) {
-  const def = defaultResolve(specifier, context);
+export function resolve(specifier, context, next) {
+  const def = next(specifier, context);
+
   if (def.url.startsWith('node:')) {
     return {
       url: `custom-${def.url}`,
+      importAssertions: context.importAssertions,
     };
   }
   return def;
 }
 
-export function getSource(url, context, defaultGetSource) {
+export function load(url, context, next) {
   if (url.startsWith('custom-node:')) {
     const urlObj = new URL(url);
     return {
@@ -31,14 +33,7 @@ export function getSource(url, context, defaultGetSource) {
       format: 'module',
     };
   }
-  return defaultGetSource(url, context);
-}
-
-export function getFormat(url, context, defaultGetFormat) {
-  if (url.startsWith('custom-node:')) {
-    return { format: 'module' };
-  }
-  return defaultGetFormat(url, context, defaultGetFormat);
+  return next(url, context);
 }
 
 function generateBuiltinModule(builtinName) {

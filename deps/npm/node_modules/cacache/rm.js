@@ -11,9 +11,9 @@ const rmContent = require('./lib/content/rm')
 module.exports = entry
 module.exports.entry = entry
 
-function entry (cache, key) {
+function entry (cache, key, opts) {
   memo.clearMemoized()
-  return index.delete(cache, key)
+  return index.delete(cache, key, opts)
 }
 
 module.exports.content = content

@@ -4,14 +4,14 @@ import { path } from '../common/fixtures.mjs';
 import { strictEqual, ok } from 'assert';
 import { spawn } from 'child_process';
 
-import secret from '../fixtures/experimental.json';
+import secret from '../fixtures/experimental.json' assert { type: 'json' };
 
 strictEqual(secret.ofLife, 42);
 
 // Test warning message
 const child = spawn(process.execPath, [
   '--experimental-json-modules',
-  path('/es-modules/json-modules.mjs')
+  path('/es-modules/json-modules.mjs'),
 ]);
 
 let stderr = '';

@@ -1,22 +1,47 @@
 'use strict';
 
-function createError(msg, code, props) {
-    var err = msg instanceof Error ? msg : new Error(msg);
-    var key;
+function assign(obj, props) {
+    for (const key in props) {
+        Object.defineProperty(obj, key, {
+            value: props[key],
+            enumerable: true,
+            configurable: true,
+        });
+    }
+
+    return obj;
+}
+
+function createError(err, code, props) {
+    if (!err || typeof err === 'string') {
+        throw new TypeError('Please pass an Error to err-code');
+    }
+
+    if (!props) {
+        props = {};
+    }
 
     if (typeof code === 'object') {
         props = code;
-    } else if (code != null) {
-        err.code = code;
+        code = undefined;
     }
 
-    if (props) {
-        for (key in props) {
-            err[key] = props[key];
-        }
+    if (code != null) {
+        props.code = code;
     }
 
-    return err;
+    try {
+        return assign(err, props);
+    } catch (_) {
+        props.message = err.message;
+        props.stack = err.stack;
+
+        const ErrClass = function () {};
+
+        ErrClass.prototype = Object.create(Object.getPrototypeOf(err));
+
+        return assign(new ErrClass(), props);
+    }
 }
 
 module.exports = createError;

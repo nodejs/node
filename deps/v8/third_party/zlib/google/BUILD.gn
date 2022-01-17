@@ -28,10 +28,10 @@ if (build_with_chromium) {
       "compression_utils.h",
     ]
     deps = [
-      ":compression_utils_portable",
       "//base",
       "//third_party/zlib",
     ]
+    public_deps = [ ":compression_utils_portable" ]
   }
 }
 

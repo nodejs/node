@@ -1,5 +1,5 @@
 // © 2019 and later: Unicode, Inc. and others.
-// License & terms of use: http://www.unicode.org/copyright.html#License
+// License & terms of use: http://www.unicode.org/copyright.html
 
 // lsr.cpp
 // created: 2019may08 Markus W. Scherer
@@ -72,7 +72,7 @@ UBool LSR::isEquivalentTo(const LSR &other) const {
         (regionIndex > 0 || uprv_strcmp(region, other.region) == 0);
 }
 
-UBool LSR::operator==(const LSR &other) const {
+bool LSR::operator==(const LSR &other) const {
     return
         uprv_strcmp(language, other.language) == 0 &&
         uprv_strcmp(script, other.script) == 0 &&

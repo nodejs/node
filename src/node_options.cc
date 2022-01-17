@@ -4,9 +4,14 @@
 #include "env-inl.h"
 #include "node_binding.h"
 #include "node_internals.h"
+#if HAVE_OPENSSL
+#include "openssl/opensslv.h"
+#endif
 
 #include <errno.h>
 #include <sstream>
+#include <limits>
+#include <algorithm>
 #include <cstdlib>  // strtoul, errno
 
 using v8::Boolean;
@@ -64,7 +69,22 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
     errors->push_back("either --use-openssl-ca or --use-bundled-ca can be "
                       "used, not both");
   }
-#endif
+
+  // Any value less than 2 disables use of the secure heap.
+  if (secure_heap >= 2) {
+    if ((secure_heap & (secure_heap - 1)) != 0)
+      errors->push_back("--secure-heap must be a power of 2");
+    secure_heap_min =
+        std::min({
+            secure_heap,
+            secure_heap_min,
+            static_cast<int64_t>(std::numeric_limits<int>::max())});
+    secure_heap_min = std::max(static_cast<int64_t>(2), secure_heap_min);
+    if ((secure_heap_min & (secure_heap_min - 1)) != 0)
+      errors->push_back("--secure-heap-min must be a power of 2");
+  }
+#endif  // HAVE_OPENSSL
+
   if (use_largepages != "off" &&
       use_largepages != "on" &&
       use_largepages != "silent") {
@@ -276,13 +296,21 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "additional user conditions for conditional exports and imports",
             &EnvironmentOptions::conditions,
             kAllowedInEnvironment);
+  AddAlias("-C", "--conditions");
   AddOption("--diagnostic-dir",
             "set dir for all output files"
             " (default: current working directory)",
             &EnvironmentOptions::diagnostic_dir,
             kAllowedInEnvironment);
+  AddOption("--dns-result-order",
+            "set default value of verbatim in dns.lookup. Options are "
+            "'ipv4first' (IPv4 addresses are placed before IPv6 addresses) "
+            "'verbatim' (addresses are in the order the DNS resolver "
+            "returned)",
+            &EnvironmentOptions::dns_result_order,
+            kAllowedInEnvironment);
   AddOption("--enable-source-maps",
-            "experimental Source Map V3 support",
+            "Source Map V3 support for stack traces",
             &EnvironmentOptions::enable_source_maps,
             kAllowedInEnvironment);
   AddOption("--experimental-abortcontroller", "",
@@ -325,7 +353,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-repl-await",
             "experimental await keyword support in REPL",
             &EnvironmentOptions::experimental_repl_await,
-            kAllowedInEnvironment);
+            kAllowedInEnvironment,
+            true);
   AddOption("--experimental-vm-modules",
             "experimental ES Module support in vm module",
             &EnvironmentOptions::experimental_vm_modules,
@@ -367,18 +396,31 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvironment);
   AddAlias("--es-module-specifier-resolution",
            "--experimental-specifier-resolution");
-  AddOption("--no-deprecation",
+  AddOption("--deprecation",
             "silence deprecation warnings",
-            &EnvironmentOptions::no_deprecation,
-            kAllowedInEnvironment);
-  AddOption("--no-force-async-hooks-checks",
+            &EnvironmentOptions::deprecation,
+            kAllowedInEnvironment,
+            true);
+  AddOption("--force-async-hooks-checks",
             "disable checks for async_hooks",
-            &EnvironmentOptions::no_force_async_hooks_checks,
-            kAllowedInEnvironment);
-  AddOption("--no-warnings",
+            &EnvironmentOptions::force_async_hooks_checks,
+            kAllowedInEnvironment,
+            true);
+  AddOption("--addons",
+            "disable loading native addons",
+            &EnvironmentOptions::allow_native_addons,
+            kAllowedInEnvironment,
+            true);
+  AddOption("--global-search-paths",
+            "disable global module search paths",
+            &EnvironmentOptions::global_search_paths,
+            kAllowedInEnvironment,
+            true);
+  AddOption("--warnings",
             "silence all process warnings",
-            &EnvironmentOptions::no_warnings,
-            kAllowedInEnvironment);
+            &EnvironmentOptions::warnings,
+            kAllowedInEnvironment,
+            true);
   AddOption("--force-context-aware",
             "disable loading non-context-aware addons",
             &EnvironmentOptions::force_context_aware,
@@ -395,6 +437,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "preserve symbolic links when resolving the main module",
             &EnvironmentOptions::preserve_symlinks_main,
             kAllowedInEnvironment);
+  AddOption("--prof",
+            "Generate V8 profiler output.",
+            V8Option{});
   AddOption("--prof-process",
             "process V8 profiler output generated using --prof",
             &EnvironmentOptions::prof_process);
@@ -480,9 +525,18 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
             kAllowedInEnvironment);
+  AddOption("--extra-info-on-fatal-exception",
+            "hide extra information on fatal exception that causes exit",
+            &EnvironmentOptions::extra_info_on_fatal_exception,
+            kAllowedInEnvironment,
+            true);
   AddOption("--unhandled-rejections",
-            "define unhandled rejections behavior. Options are 'strict' (raise "
-            "an error), 'warn' (enforce warnings) or 'none' (silence warnings)",
+            "define unhandled rejections behavior. Options are 'strict' "
+            "(always raise an error), 'throw' (raise an error unless "
+            "'unhandledRejection' hook is set), 'warn' (log a warning), 'none' "
+            "(silence warnings), 'warn-with-error-code' (log a warning and set "
+            "exit code 1 unless 'unhandledRejection' hook is set). (default: "
+            "throw)",
             &EnvironmentOptions::unhandled_rejections,
             kAllowedInEnvironment);
   AddOption("--verify-base-objects",
@@ -563,9 +617,9 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "track heap object allocations for heap snapshots",
             &PerIsolateOptions::track_heap_objects,
             kAllowedInEnvironment);
-  AddOption("--no-node-snapshot",
+  AddOption("--node-snapshot",
             "",  // It's a debug-only option.
-            &PerIsolateOptions::no_node_snapshot,
+            &PerIsolateOptions::node_snapshot,
             kAllowedInEnvironment);
 
   // Explicitly add some V8 flags to mark them as allowed in NODE_OPTIONS.
@@ -706,7 +760,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
   AddOption("--icu-data-dir",
             "set ICU data load path to dir (overrides NODE_ICU_DATA)"
 #ifndef NODE_HAVE_SMALL_ICU
-            " (note: linked-in ICU data is present)\n"
+            " (note: linked-in ICU data is present)"
 #endif
             ,
             &PerProcessOptions::icu_data_dir,
@@ -747,7 +801,6 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             &PerProcessOptions::ssl_openssl_cert_store);
   Implies("--use-openssl-ca", "[ssl_openssl_cert_store]");
   ImpliesNot("--use-bundled-ca", "[ssl_openssl_cert_store]");
-#if NODE_FIPS_MODE
   AddOption("--enable-fips",
             "enable FIPS crypto at startup",
             &PerProcessOptions::enable_fips_crypto,
@@ -756,8 +809,22 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "force FIPS crypto (cannot be disabled)",
             &PerProcessOptions::force_fips_crypto,
             kAllowedInEnvironment);
-#endif
-#endif
+  AddOption("--secure-heap",
+            "total size of the OpenSSL secure heap",
+            &PerProcessOptions::secure_heap,
+            kAllowedInEnvironment);
+  AddOption("--secure-heap-min",
+            "minimum allocation size from the OpenSSL secure heap",
+            &PerProcessOptions::secure_heap_min,
+            kAllowedInEnvironment);
+#endif  // HAVE_OPENSSL
+#if OPENSSL_VERSION_MAJOR >= 3
+  AddOption("--openssl-legacy-provider",
+            "enable OpenSSL 3.0 legacy provider",
+            &PerProcessOptions::openssl_legacy_provider,
+            kAllowedInEnvironment);
+
+#endif  // OPENSSL_VERSION_MAJOR
   AddOption("--use-largepages",
             "Map the Node.js static code to large pages. Options are "
             "'off' (the default value, meaning do not map), "
@@ -864,7 +931,7 @@ std::string GetBashCompletion() {
 
 // Return a map containing all the options and their metadata as well
 // as the aliases
-void GetOptions(const FunctionCallbackInfo<Value>& args) {
+void GetCLIOptions(const FunctionCallbackInfo<Value>& args) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Environment* env = Environment::GetCurrent(args);
   if (!env->has_run_bootstrapping_code()) {
@@ -890,6 +957,12 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
   });
 
   Local<Map> options = Map::New(isolate);
+  if (options
+          ->SetPrototype(context, env->primordials_safe_map_prototype_object())
+          .IsNothing()) {
+    return;
+  }
+
   for (const auto& item : _ppop_instance.options_) {
     Local<Value> value;
     const auto& option_info = item.second;
@@ -912,12 +985,14 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
                              *_ppop_instance.Lookup<bool>(field, opts));
         break;
       case kInteger:
-        value = Number::New(isolate,
-                            *_ppop_instance.Lookup<int64_t>(field, opts));
+        value = Number::New(
+            isolate,
+            static_cast<double>(*_ppop_instance.Lookup<int64_t>(field, opts)));
         break;
       case kUInteger:
-        value = Number::New(isolate,
-                            *_ppop_instance.Lookup<uint64_t>(field, opts));
+        value = Number::New(
+            isolate,
+            static_cast<double>(*_ppop_instance.Lookup<uint64_t>(field, opts)));
         break;
       case kString:
         if (!ToV8Value(context,
@@ -969,6 +1044,10 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
                    env->type_string(),
                    Integer::New(isolate, static_cast<int>(option_info.type)))
              .FromMaybe(false) ||
+        !info->Set(context,
+                   env->default_is_true_string(),
+                   Boolean::New(isolate, option_info.default_is_true))
+             .FromMaybe(false) ||
         info->Set(context, env->value_string(), value).IsNothing() ||
         options->Set(context, name, info).IsEmpty()) {
       return;
@@ -977,6 +1056,12 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
 
   Local<Value> aliases;
   if (!ToV8Value(context, _ppop_instance.aliases_).ToLocal(&aliases)) return;
+
+  if (aliases.As<Object>()
+          ->SetPrototype(context, env->primordials_safe_map_prototype_object())
+          .IsNothing()) {
+    return;
+  }
 
   Local<Object> ret = Object::New(isolate);
   if (ret->Set(context, env->options_string(), options).IsNothing() ||
@@ -987,13 +1072,38 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
+void GetEmbedderOptions(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!env->has_run_bootstrapping_code()) {
+    // No code because this is an assertion.
+    return env->ThrowError(
+        "Should not query options before bootstrapping is done");
+  }
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = env->context();
+  Local<Object> ret = Object::New(isolate);
+
+  if (ret->Set(context,
+           FIXED_ONE_BYTE_STRING(env->isolate(), "shouldNotRegisterESMLoader"),
+           Boolean::New(isolate, env->should_not_register_esm_loader()))
+      .IsNothing()) return;
+
+  if (ret->Set(context,
+           FIXED_ONE_BYTE_STRING(env->isolate(), "noGlobalSearchPaths"),
+           Boolean::New(isolate, env->no_global_search_paths()))
+      .IsNothing()) return;
+
+  args.GetReturnValue().Set(ret);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  env->SetMethodNoSideEffect(target, "getOptions", GetOptions);
+  env->SetMethodNoSideEffect(target, "getCLIOptions", GetCLIOptions);
+  env->SetMethodNoSideEffect(target, "getEmbedderOptions", GetEmbedderOptions);
 
   Local<Object> env_settings = Object::New(isolate);
   NODE_DEFINE_CONSTANT(env_settings, kAllowedInEnvironment);
@@ -1001,12 +1111,6 @@ void Initialize(Local<Object> target,
   target
       ->Set(
           context, FIXED_ONE_BYTE_STRING(isolate, "envSettings"), env_settings)
-      .Check();
-
-  target
-      ->Set(context,
-            FIXED_ONE_BYTE_STRING(env->isolate(), "shouldNotRegisterESMLoader"),
-            Boolean::New(isolate, env->should_not_register_esm_loader()))
       .Check();
 
   Local<Object> types = Object::New(isolate);

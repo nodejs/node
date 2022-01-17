@@ -35,8 +35,8 @@ void AllocationCounter::AddAllocationObserver(AllocationObserver* observer) {
     next_counter_ = observer_next_counter;
   } else {
     size_t missing_bytes = next_counter_ - current_counter_;
-    next_counter_ =
-        current_counter_ + Min(static_cast<intptr_t>(missing_bytes), step_size);
+    next_counter_ = current_counter_ +
+                    std::min(static_cast<intptr_t>(missing_bytes), step_size);
   }
 }
 
@@ -63,7 +63,7 @@ void AllocationCounter::RemoveAllocationObserver(AllocationObserver* observer) {
     for (AllocationObserverCounter& observer : observers_) {
       size_t left_in_step = observer.next_counter_ - current_counter_;
       DCHECK_GT(left_in_step, 0);
-      step_size = step_size ? Min(step_size, left_in_step) : left_in_step;
+      step_size = step_size ? std::min(step_size, left_in_step) : left_in_step;
     }
 
     next_counter_ = current_counter_ + step_size;
@@ -100,7 +100,7 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
   for (AllocationObserverCounter& aoc : observers_) {
     if (aoc.next_counter_ - current_counter_ <= aligned_object_size) {
       {
-        DisallowHeapAllocation disallow_heap_allocation;
+        DisallowGarbageCollection no_gc;
         aoc.observer_->Step(
             static_cast<int>(current_counter_ - aoc.prev_counter_), soon_object,
             object_size);
@@ -114,7 +114,7 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
     }
 
     size_t left_in_step = aoc.next_counter_ - current_counter_;
-    step_size = step_size ? Min(step_size, left_in_step) : left_in_step;
+    step_size = step_size ? std::min(step_size, left_in_step) : left_in_step;
   }
 
   CHECK(step_run);
@@ -127,7 +127,7 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
         current_counter_ + aligned_object_size + observer_step_size;
 
     DCHECK_NE(step_size, 0);
-    step_size = Min(step_size, aligned_object_size + observer_step_size);
+    step_size = std::min(step_size, aligned_object_size + observer_step_size);
 
     observers_.push_back(aoc);
   }
@@ -146,7 +146,7 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
     step_size = 0;
     for (AllocationObserverCounter& aoc : observers_) {
       size_t left_in_step = aoc.next_counter_ - current_counter_;
-      step_size = step_size ? Min(step_size, left_in_step) : left_in_step;
+      step_size = step_size ? std::min(step_size, left_in_step) : left_in_step;
     }
 
     if (observers_.empty()) {

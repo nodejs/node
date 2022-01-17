@@ -9,7 +9,7 @@ const SPEC_ALGORITHMS = ['sha256', 'sha384', 'sha512']
 // rather than [a-z0-9].
 const BASE64_REGEX = /^[a-z0-9+/]+(?:=?=?)$/i
 const SRI_REGEX = /^([a-z0-9]+)-([^?]+)([?\S*]*)$/
-const STRICT_SRI_REGEX = /^([a-z0-9]+)-([A-Za-z0-9+/=]{44,88})(\?[\x21-\x7E]*)*$/
+const STRICT_SRI_REGEX = /^([a-z0-9]+)-([A-Za-z0-9+/=]{44,88})(\?[\x21-\x7E]*)?$/
 const VCHAR_REGEX = /^[\x21-\x7E]+$/
 
 const defaultOpts = {
@@ -24,7 +24,8 @@ const defaultOpts = {
 
 const ssriOpts = (opts = {}) => ({ ...defaultOpts, ...opts })
 
-const getOptString = options => !options || !options.length ? ''
+const getOptString = options => !options || !options.length
+  ? ''
   : `?${options.join('?')}`
 
 const _onEnd = Symbol('_onEnd')

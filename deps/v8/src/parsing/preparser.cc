@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/parsing/preparser.h"
+
 #include <cmath>
 
 #include "src/base/logging.h"
 #include "src/common/globals.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data.h"
-#include "src/parsing/preparser.h"
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
@@ -272,10 +273,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   DCHECK_NE(FunctionSyntaxKind::kWrapped, function_syntax_kind);
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
-  RuntimeCallTimerScope runtime_timer(
-      runtime_call_stats_,
-      RuntimeCallCounterId::kPreParseWithVariableResolution,
-      RuntimeCallStats::kThreadSpecific);
+  RCS_SCOPE(runtime_call_stats_,
+            RuntimeCallCounterId::kPreParseWithVariableResolution,
+            RuntimeCallStats::kThreadSpecific);
 
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
@@ -347,14 +347,16 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     // reconstructed from the script id and the byte range in the log processor.
     const char* name = "";
     size_t name_byte_length = 0;
+    bool is_one_byte = true;
     const AstRawString* string = function_name.string_;
     if (string != nullptr) {
       name = reinterpret_cast<const char*>(string->raw_data());
       name_byte_length = string->byte_length();
+      is_one_byte = string->is_one_byte();
     }
     logger_->FunctionEvent(
         event_name, flags().script_id(), ms, function_scope->start_position(),
-        function_scope->end_position(), name, name_byte_length);
+        function_scope->end_position(), name, name_byte_length, is_one_byte);
   }
 
   return Expression::Default();

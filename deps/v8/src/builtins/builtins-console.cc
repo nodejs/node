@@ -46,22 +46,6 @@ void ConsoleCall(
   CHECK(!isolate->has_scheduled_exception());
   if (!isolate->console_delegate()) return;
   HandleScope scope(isolate);
-
-  // Access check. The current context has to match the context of all
-  // arguments, otherwise the inspector might leak objects across contexts.
-  Handle<Context> context = handle(isolate->context(), isolate);
-  for (int i = 0; i < args.length(); ++i) {
-    Handle<Object> argument = args.at<Object>(i);
-    if (!argument->IsJSObject()) continue;
-
-    Handle<JSObject> argument_obj = Handle<JSObject>::cast(argument);
-    if (argument->IsAccessCheckNeeded(isolate) &&
-        !isolate->MayAccess(context, argument_obj)) {
-      isolate->ReportFailedAccessCheck(argument_obj);
-      return;
-    }
-  }
-
   debug::ConsoleCallArguments wrapper(args);
   Handle<Object> context_id_obj = JSObject::GetDataProperty(
       args.target(), isolate->factory()->console_context_id_symbol());
@@ -78,7 +62,7 @@ void ConsoleCall(
 }
 
 void LogTimerEvent(Isolate* isolate, BuiltinArguments args,
-                   Logger::StartEnd se) {
+                   v8::LogEventStatus se) {
   if (!isolate->logger()->is_logging()) return;
   HandleScope scope(isolate);
   std::unique_ptr<char[]> name;
@@ -102,38 +86,45 @@ CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_IMPLEMENTATION)
 #undef CONSOLE_BUILTIN_IMPLEMENTATION
 
 BUILTIN(ConsoleTime) {
-  LogTimerEvent(isolate, args, Logger::START);
+  LogTimerEvent(isolate, args, v8::LogEventStatus::kStart);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::Time);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 BUILTIN(ConsoleTimeEnd) {
-  LogTimerEvent(isolate, args, Logger::END);
+  LogTimerEvent(isolate, args, v8::LogEventStatus::kEnd);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::TimeEnd);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 BUILTIN(ConsoleTimeStamp) {
-  LogTimerEvent(isolate, args, Logger::STAMP);
+  LogTimerEvent(isolate, args, v8::LogEventStatus::kStamp);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::TimeStamp);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 namespace {
+
 void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
-                            const char* name, Builtins::Name builtin_id,
-                            int context_id, Handle<Object> context_name) {
+                            const char* name, Builtin builtin, int context_id,
+                            Handle<Object> context_name) {
   Factory* const factory = isolate->factory();
+
+  Handle<NativeContext> context(isolate->native_context());
+  Handle<Map> map = isolate->sloppy_function_without_prototype_map();
 
   Handle<String> name_string =
       Name::ToFunctionName(isolate, factory->InternalizeUtf8String(name))
           .ToHandleChecked();
-  NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
-      name_string, builtin_id, i::LanguageMode::kSloppy);
-  Handle<JSFunction> fun = factory->NewFunction(args);
+  Handle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name_string, builtin);
+  info->set_language_mode(LanguageMode::kSloppy);
+
+  Handle<JSFunction> fun =
+      Factory::JSFunctionBuilder{isolate, info, context}.set_map(map).Build();
 
   fun->shared().set_native(true);
   fun->shared().DontAdaptArguments();
@@ -147,6 +138,7 @@ void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
   }
   JSObject::AddProperty(isolate, target, name_string, fun, NONE);
 }
+
 }  // namespace
 
 BUILTIN(ConsoleContext) {
@@ -154,9 +146,13 @@ BUILTIN(ConsoleContext) {
 
   Factory* const factory = isolate->factory();
   Handle<String> name = factory->InternalizeUtf8String("Context");
-  NewFunctionArgs arguments = NewFunctionArgs::ForFunctionWithoutCode(
-      name, isolate->sloppy_function_map(), LanguageMode::kSloppy);
-  Handle<JSFunction> cons = factory->NewFunction(arguments);
+  Handle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal);
+  info->set_language_mode(LanguageMode::kSloppy);
+
+  Handle<JSFunction> cons =
+      Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
+          .Build();
 
   Handle<JSObject> prototype = factory->NewJSObject(isolate->object_function());
   JSFunction::SetPrototype(cons, prototype);
@@ -166,17 +162,17 @@ BUILTIN(ConsoleContext) {
   int id = isolate->last_console_context_id() + 1;
   isolate->set_last_console_context_id(id);
 
-#define CONSOLE_BUILTIN_SETUP(call, name)                                   \
-  InstallContextFunction(isolate, context, #name, Builtins::kConsole##call, \
-                         id, args.at(1));
+#define CONSOLE_BUILTIN_SETUP(call, name)                                      \
+  InstallContextFunction(isolate, context, #name, Builtin::kConsole##call, id, \
+                         args.at(1));
   CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_SETUP)
 #undef CONSOLE_BUILTIN_SETUP
-  InstallContextFunction(isolate, context, "time", Builtins::kConsoleTime, id,
+  InstallContextFunction(isolate, context, "time", Builtin::kConsoleTime, id,
                          args.at(1));
-  InstallContextFunction(isolate, context, "timeEnd", Builtins::kConsoleTimeEnd,
+  InstallContextFunction(isolate, context, "timeEnd", Builtin::kConsoleTimeEnd,
                          id, args.at(1));
   InstallContextFunction(isolate, context, "timeStamp",
-                         Builtins::kConsoleTimeStamp, id, args.at(1));
+                         Builtin::kConsoleTimeStamp, id, args.at(1));
 
   return *context;
 }

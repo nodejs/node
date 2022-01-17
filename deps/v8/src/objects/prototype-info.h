@@ -8,13 +8,15 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
-#include "torque-generated/bit-fields-tq.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/prototype-info-tq.inc"
 
 // Container for metadata stored on each prototype map.
 class PrototypeInfo
@@ -23,6 +25,9 @@ class PrototypeInfo
   static const int UNREGISTERED = -1;
 
   // [object_create_map]: A field caching the map for Object.create(prototype).
+  DECL_GETTER(object_create_map, MaybeObject)
+  DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(object_create_map)
+
   static inline void SetObjectCreateMap(Handle<PrototypeInfo> info,
                                         Handle<Map> map);
   inline Map ObjectCreateMap();

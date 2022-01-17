@@ -42,6 +42,8 @@ class PrototypeIterator {
                                     WhereToEnd where_to_end = END_AT_NULL);
 
   ~PrototypeIterator() = default;
+  PrototypeIterator(const PrototypeIterator&) = delete;
+  PrototypeIterator& operator=(const PrototypeIterator&) = delete;
 
   inline bool HasAccess() const;
 
@@ -78,8 +80,6 @@ class PrototypeIterator {
   WhereToEnd where_to_end_;
   bool is_at_end_;
   int seen_proxies_;
-
-  DISALLOW_COPY_AND_ASSIGN(PrototypeIterator);
 };
 
 }  // namespace internal

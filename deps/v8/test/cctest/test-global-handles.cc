@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "include/v8-function.h"
+#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
@@ -158,13 +160,13 @@ void TracedGlobalTest(v8::Isolate* isolate,
   NonRootingEmbedderHeapTracer tracer;
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
 
-  TracedGlobalWrapper fp;
-  construct_function(isolate, context, &fp);
-  CHECK(heap::InCorrectGeneration(isolate, fp.handle));
-  modifier_function(&fp);
+  auto fp = std::make_unique<TracedGlobalWrapper>();
+  construct_function(isolate, context, fp.get());
+  CHECK(heap::InCorrectGeneration(isolate, fp->handle));
+  modifier_function(fp.get());
   gc_function();
-  CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !fp.handle.IsEmpty());
-  CHECK_IMPLIES(survives == SurvivalMode::kDies, fp.handle.IsEmpty());
+  CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !fp->handle.IsEmpty());
+  CHECK_IMPLIES(survives == SurvivalMode::kDies, fp->handle.IsEmpty());
 }
 
 void ResurrectingFinalizer(
@@ -388,6 +390,8 @@ TEST(TracedGlobalToUnmodifiedJSApiObjectDiesOnScavenge) {
 }
 
 TEST(TracedGlobalToJSApiObjectWithIdentityHashSurvivesScavenge) {
+  if (FLAG_single_generation) return;
+
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   Isolate* i_isolate = CcTest::i_isolate();
@@ -441,6 +445,7 @@ TEST(WeakHandleToUnmodifiedJSApiObjectSurvivesMarkCompactWhenInHandle) {
 }
 
 TEST(TracedGlobalToJSApiObjectWithModifiedMapSurvivesScavenge) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext context;
@@ -462,6 +467,7 @@ TEST(TracedGlobalToJSApiObjectWithModifiedMapSurvivesScavenge) {
 }
 
 TEST(TracedGlobalTOJsApiObjectWithElementsSurvivesScavenge) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext context;
@@ -498,7 +504,7 @@ TEST(FinalizerOnUnmodifiedJSApiObjectDoesNotCrash) {
                     v8::WeakCallbackType::kFinalizer);
   fp.flag = false;
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     v8::Local<v8::Object> tmp = v8::Local<v8::Object>::New(isolate, fp.handle);
     USE(tmp);
     InvokeScavenge();

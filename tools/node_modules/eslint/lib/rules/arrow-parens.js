@@ -27,13 +27,13 @@ function hasBlockBody(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "require parentheses around arrow function arguments",
-            category: "ECMAScript 6",
             recommended: false,
             url: "https://eslint.org/docs/rules/arrow-parens"
         },

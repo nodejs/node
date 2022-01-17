@@ -14,10 +14,14 @@ try {
   process.cwd()
 } catch (er) {}
 
-var chdir = process.chdir
-process.chdir = function(d) {
-  cwd = null
-  chdir.call(process, d)
+// This check is needed until node.js 12 is required
+if (typeof process.chdir === 'function') {
+  var chdir = process.chdir
+  process.chdir = function (d) {
+    cwd = null
+    chdir.call(process, d)
+  }
+  if (Object.setPrototypeOf) Object.setPrototypeOf(process.chdir, chdir)
 }
 
 module.exports = patch
@@ -132,7 +136,7 @@ function patch (fs) {
     }
 
     // This ensures `util.promisify` works as it does for native `fs.read`.
-    read.__proto__ = fs$read
+    if (Object.setPrototypeOf) Object.setPrototypeOf(read, fs$read)
     return read
   })(fs.read)
 

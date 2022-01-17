@@ -9,13 +9,13 @@ t.equal(hostedFromMani({ repository: 'not hosted anywhere' }), null)
 t.equal(hostedFromMani({ repository: { url: 'not hosted anywhere' } }), null)
 
 t.match(hostedFromMani({
-  repository: 'git+https://github.com/isaacs/abbrev-js'
+  repository: 'git+https://github.com/isaacs/abbrev-js',
 }), hostedGitInfo.fromUrl('git+https://github.com/isaacs/abbrev-js'))
 
 t.match(hostedFromMani({
-  repository: { url: 'git+https://github.com/isaacs/abbrev-js' }
+  repository: { url: 'git+https://github.com/isaacs/abbrev-js' },
 }), hostedGitInfo.fromUrl('https://github.com/isaacs/abbrev-js'))
 
 t.match(hostedFromMani({
-  repository: { url: 'git+ssh://git@github.com/isaacs/abbrev-js' }
+  repository: { url: 'git+ssh://git@github.com/isaacs/abbrev-js' },
 }), hostedGitInfo.fromUrl('ssh://git@github.com/isaacs/abbrev-js'))

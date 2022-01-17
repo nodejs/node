@@ -25,6 +25,7 @@
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
+#include "node_external_reference.h"
 #include "pipe_wrap.h"
 #include "req_wrap-inl.h"
 #include "tcp_wrap.h"
@@ -49,9 +50,12 @@ using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Signature;
-using v8::String;
 using v8::Value;
 
+void IsConstructCallCallback(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+  StreamReq::ResetObject(args.This());
+}
 
 void LibuvStreamWrap::Initialize(Local<Object> target,
                                  Local<Value> unused,
@@ -59,17 +63,9 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
                                  void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  auto is_construct_call_callback =
-      [](const FunctionCallbackInfo<Value>& args) {
-    CHECK(args.IsConstructCall());
-    StreamReq::ResetObject(args.This());
-  };
   Local<FunctionTemplate> sw =
-      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
+      FunctionTemplate::New(env->isolate(), IsConstructCallCallback);
   sw->InstanceTemplate()->SetInternalFieldCount(StreamReq::kInternalFieldCount);
-  Local<String> wrapString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap");
-  sw->SetClassName(wrapString);
 
   // we need to set handle and callback to null,
   // so that those fields are created and functions
@@ -88,22 +84,15 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
 
   sw->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-  target->Set(env->context(),
-              wrapString,
-              sw->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "ShutdownWrap", sw);
   env->set_shutdown_wrap_template(sw->InstanceTemplate());
 
   Local<FunctionTemplate> ww =
-      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
+      FunctionTemplate::New(env->isolate(), IsConstructCallCallback);
   ww->InstanceTemplate()->SetInternalFieldCount(
       StreamReq::kInternalFieldCount);
-  Local<String> writeWrapString =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap");
-  ww->SetClassName(writeWrapString);
   ww->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  target->Set(env->context(),
-              writeWrapString,
-              ww->GetFunction(env->context()).ToLocalChecked()).Check();
+  env->SetConstructorFunction(target, "WriteWrap", ww);
   env->set_write_wrap_template(ww->InstanceTemplate());
 
   NODE_DEFINE_CONSTANT(target, kReadBytesOrError);
@@ -114,6 +103,14 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
               env->stream_base_state().GetJSArray()).Check();
 }
 
+void LibuvStreamWrap::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(IsConstructCallCallback);
+  registry->Register(GetWriteQueueSize);
+  registry->Register(SetBlocking);
+  // TODO(joyee): StreamBase::RegisterExternalReferences() is called somewhere
+  // else but we may want to do it here too and guard it with a static flag.
+}
 
 LibuvStreamWrap::LibuvStreamWrap(Environment* env,
                                  Local<Object> object,
@@ -271,12 +268,12 @@ void LibuvStreamWrap::OnUvRead(ssize_t nread, const uv_buf_t* buf) {
       CHECK_EQ(type, UV_UNKNOWN_HANDLE);
     }
 
-    if (!pending_obj.IsEmpty()) {
-      object()
-          ->Set(env()->context(),
-                env()->pending_handle_string(),
-                pending_obj.ToLocalChecked())
-          .Check();
+    Local<Object> local_pending_obj;
+    if (pending_obj.ToLocal(&local_pending_obj) &&
+          object()->Set(env()->context(),
+                        env()->pending_handle_string(),
+                        local_pending_obj).IsNothing()) {
+      return;
     }
   }
 
@@ -407,3 +404,5 @@ void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(stream_wrap,
                                    node::LibuvStreamWrap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(
+    stream_wrap, node::LibuvStreamWrap::RegisterExternalReferences)

@@ -67,6 +67,7 @@ int main(int argc, char** argv) {
 ```
 
 ### Per-instance state
+
 <!-- YAML
 changes:
   - version: v15.0.0
@@ -159,7 +160,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 ```
 
 [CLI options]: cli.md
-[`process.memoryUsage()`]: process.md#process_process_memoryusage
+[`process.memoryUsage()`]: process.md#processmemoryusage
 [deprecation policy]: deprecations.md
-[embedtest.cc]: https://github.com/nodejs/node/blob/master/test/embedding/embedtest.cc
-[src/node.h]: https://github.com/nodejs/node/blob/master/src/node.h
+[embedtest.cc]: https://github.com/nodejs/node/blob/HEAD/test/embedding/embedtest.cc
+[src/node.h]: https://github.com/nodejs/node/blob/HEAD/src/node.h

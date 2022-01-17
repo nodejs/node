@@ -113,17 +113,23 @@ TEST_F(StringsStorageWithIsolate, Refcounting) {
 
   const char* a = storage.GetCopy("12");
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
 
   const char* b = storage.GetCopy("12");
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
 
   // Ensure that we deduplicate the string.
   CHECK_EQ(a, b);
 
   CHECK(storage.Release(a));
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
+
   CHECK(storage.Release(b));
   CHECK_EQ(storage.GetStringCountForTesting(), 0);
+  CHECK_EQ(0, storage.GetStringSize());
+
 #if !DEBUG
   CHECK(!storage.Release("12"));
 #endif  // !DEBUG
@@ -131,30 +137,42 @@ TEST_F(StringsStorageWithIsolate, Refcounting) {
   // Verify that other constructors refcount as intended.
   const char* c = storage.GetFormatted("%d", 12);
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
 
   const char* d = storage.GetName(12);
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
 
   CHECK_EQ(c, d);
 
   CHECK(storage.Release(c));
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
   CHECK(storage.Release(d));
   CHECK_EQ(storage.GetStringCountForTesting(), 0);
-#if !DEBUG
+  CHECK_EQ(0, storage.GetStringSize());
+
   CHECK(!storage.Release("12"));
-#endif  // !DEBUG
 }
 
 TEST_F(StringsStorageWithIsolate, InvalidRelease) {
   StringsStorage storage;
 
-  // If a refcount becomes invalid, throw in debug builds.
-#ifdef DEBUG
-  ASSERT_DEATH_IF_SUPPORTED(storage.Release("12"), "check failed");
-#else
+  // If we attempt to release a string not being managed by the StringsStorage,
+  // return false.
   CHECK(!storage.Release("12"));
-#endif  // DEBUG
+}
+
+TEST_F(StringsStorageWithIsolate, CopyAndConsShareStorage) {
+  StringsStorage storage;
+
+  Handle<String> str = isolate()->factory()->NewStringFromAsciiChecked("foo");
+
+  const char* copy_str = storage.GetCopy("get foo");
+  const char* cons_str = storage.GetConsName("get ", *str);
+
+  CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(copy_str, cons_str);
 }
 
 }  // namespace internal

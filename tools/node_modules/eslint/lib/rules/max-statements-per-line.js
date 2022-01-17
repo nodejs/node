@@ -14,13 +14,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "enforce a maximum number of statements allowed per line",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/max-statements-per-line"
         },

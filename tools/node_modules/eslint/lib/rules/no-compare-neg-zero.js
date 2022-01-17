@@ -8,13 +8,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "problem",
 
         docs: {
             description: "disallow comparing against -0",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-compare-neg-zero"
         },

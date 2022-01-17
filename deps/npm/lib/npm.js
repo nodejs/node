@@ -1,9 +1,3 @@
-// The order of the code in this file is relevant, because a lot of things
-// require('npm.js'), but also we need to use some of those modules.  So,
-// we define and instantiate the singleton ahead of loading any modules
-// required for its methods.
-
-// these are all dependencies used in the ctor
 const EventEmitter = require('events')
 const { resolve, dirname } = require('path')
 const Config = require('@npmcli/config')
@@ -11,192 +5,319 @@ const Config = require('@npmcli/config')
 // Patch the global fs module here at the app level
 require('graceful-fs').gracefulify(require('fs'))
 
-const procLogListener = require('./utils/proc-log-listener.js')
+const { definitions, flatten, shorthands } = require('./utils/config/index.js')
+const { shellouts } = require('./utils/cmd-list.js')
+const usage = require('./utils/npm-usage.js')
 
-const hasOwnProperty = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key)
+const which = require('which')
 
-// the first time `npm.commands.xyz` is loaded, it gets added
-// to the cmds object, so we don't have to load it again.
-const proxyCmds = (npm) => {
-  const cmds = {}
-  return new Proxy(cmds, {
-    get: (prop, cmd) => {
-      if (hasOwnProperty(cmds, cmd)) {
-        return cmds[cmd]
-      }
-
-      const actual = deref(cmd)
-      if (!actual) {
-        cmds[cmd] = undefined
-        return cmds[cmd]
-      }
-      if (cmds[actual]) {
-        cmds[cmd] = cmds[actual]
-        return cmds[cmd]
-      }
-      cmds[actual] = makeCmd(actual)
-      cmds[cmd] = cmds[actual]
-      return cmds[cmd]
-    }
-  })
-}
-
-const makeCmd = cmd => {
-  const impl = require(`./${cmd}.js`)
-  const fn = (args, cb) => npm[_runCmd](cmd, impl, args, cb)
-  Object.assign(fn, impl)
-  return fn
-}
-
-const { types, defaults, shorthands } = require('./utils/config.js')
+const deref = require('./utils/deref-command.js')
+const LogFile = require('./utils/log-file.js')
+const Timers = require('./utils/timers.js')
+const Display = require('./utils/display.js')
+const log = require('./utils/log-shim')
+const replaceInfo = require('./utils/replace-info.js')
 
 let warnedNonDashArg = false
-const _runCmd = Symbol('_runCmd')
 const _load = Symbol('_load')
-const _flatOptions = Symbol('_flatOptions')
 const _tmpFolder = Symbol('_tmpFolder')
-const npm = module.exports = new class extends EventEmitter {
+const _title = Symbol('_title')
+const pkg = require('../package.json')
+
+class Npm extends EventEmitter {
+  static get version () {
+    return pkg.version
+  }
+
+  #unloaded = false
+  #timers = null
+  #logFile = null
+  #display = null
+
   constructor () {
     super()
-    require('./utils/perf.js')
-    this.modes = {
-      exec: 0o755,
-      file: 0o644,
-      umask: 0o22
-    }
-    this.started = Date.now()
     this.command = null
-    this.commands = proxyCmds(this)
-    procLogListener()
-    process.emit('time', 'npm')
-    this.version = require('../package.json').version
+    this.#logFile = new LogFile()
+    this.#display = new Display()
+    this.#timers = new Timers({
+      start: 'npm',
+      listener: (name, ms) => {
+        const args = ['timing', name, `Completed in ${ms}ms`]
+        this.#logFile.log(...args)
+        this.#display.log(...args)
+      },
+    })
     this.config = new Config({
       npmPath: dirname(__dirname),
-      types,
-      defaults,
-      shorthands
+      definitions,
+      flatten,
+      shorthands,
+      log,
     })
+    this[_title] = process.title
     this.updateNotification = null
+  }
+
+  get version () {
+    return this.constructor.version
+  }
+
+  get shelloutCommands () {
+    return shellouts
   }
 
   deref (c) {
     return deref(c)
   }
 
-  // this will only ever be called with cmd set to the canonical command name
-  [_runCmd] (cmd, impl, args, cb) {
-    if (!this.loaded) {
-      throw new Error(
-        'Call npm.load(cb) before using this command.\n' +
-        'See the README.md or bin/npm-cli.js for example usage.'
-      )
+  // Get an instantiated npm command
+  // npm.command is already taken as the currently running command, a refactor
+  // would be needed to change this
+  async cmd (cmd) {
+    await this.load()
+    const command = this.deref(cmd)
+    if (!command) {
+      throw Object.assign(new Error(`Unknown command ${cmd}`), {
+        code: 'EUNKNOWNCOMMAND',
+      })
     }
+    const Impl = require(`./commands/${command}.js`)
+    const impl = new Impl(this)
+    return impl
+  }
 
+  // Call an npm command
+  async exec (cmd, args) {
+    const command = await this.cmd(cmd)
     process.emit('time', `command:${cmd}`)
-    this.command = cmd
+
+    // since 'test', 'start', 'stop', etc. commands re-enter this function
+    // to call the run-script command, we need to only set it one time.
+    if (!this.command) {
+      process.env.npm_command = command.name
+      this.command = command.name
+    }
 
     // Options are prefixed by a hyphen-minus (-, \u2d).
     // Other dash-type chars look similar but are invalid.
     if (!warnedNonDashArg) {
-      args.filter(arg => /^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg))
+      args
+        .filter(arg => /^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg))
         .forEach(arg => {
           warnedNonDashArg = true
-          log.error('arg', 'Argument starts with non-ascii dash, this is probably invalid:', arg)
+          log.error(
+            'arg',
+            'Argument starts with non-ascii dash, this is probably invalid:',
+            arg
+          )
         })
     }
 
+    const workspacesEnabled = this.config.get('workspaces')
+    const workspacesFilters = this.config.get('workspace')
+    if (workspacesEnabled === false && workspacesFilters.length > 0) {
+      throw new Error('Can not use --no-workspaces and --workspace at the same time')
+    }
+
+    const filterByWorkspaces = workspacesEnabled || workspacesFilters.length > 0
+    // normally this would go in the constructor, but our tests don't
+    // actually use a real npm object so this.npm.config isn't always
+    // populated.  this is the compromise until we can make that a reality
+    // and then move this into the constructor.
+    command.workspaces = this.config.get('workspaces')
+    command.workspacePaths = null
+    // normally this would be evaluated in base-command#setWorkspaces, see
+    // above for explanation
+    command.includeWorkspaceRoot = this.config.get('include-workspace-root')
+
     if (this.config.get('usage')) {
-      console.log(impl.usage)
-      cb()
-    } else {
-      impl(args, er => {
+      this.output(command.usage)
+      return
+    }
+    if (filterByWorkspaces) {
+      if (this.config.get('global')) {
+        throw new Error('Workspaces not supported for global packages')
+      }
+
+      return command.execWorkspaces(args, this.config.get('workspace')).finally(() => {
         process.emit('timeEnd', `command:${cmd}`)
-        cb(er)
+      })
+    } else {
+      return command.exec(args).finally(() => {
+        process.emit('timeEnd', `command:${cmd}`)
       })
     }
   }
 
-  // call with parsed CLI options and a callback when done loading
-  // XXX promisify this and stop taking a callback
-  load (cb) {
-    if (!cb || typeof cb !== 'function') {
-      throw new TypeError('must call as: npm.load(callback)')
-    }
-    this.once('load', cb)
-    if (this.loaded || this.loadErr) {
-      this.emit('load', this.loadErr)
-      return
-    }
-    if (this.loading) {
-      return
-    }
-    this.loading = true
+  async load () {
+    if (!this.loadPromise) {
+      process.emit('time', 'npm:load')
+      this.loadPromise = new Promise((resolve, reject) => {
+        this[_load]()
+          .catch(er => er)
+          .then(er => {
+            this.loadErr = er
+            if (!er && this.config.get('force')) {
+              log.warn('using --force', 'Recommended protections disabled.')
+            }
 
-    process.emit('time', 'npm:load')
-    this.log.pause()
-    return this[_load]().catch(er => er).then((er) => {
-      this.loading = false
-      this.loadErr = er
-      if (!er && this.config.get('force')) {
-        this.log.warn('using --force', 'Recommended protections disabled.')
-      }
-      if (!er && !this[_flatOptions]) {
-        this[_flatOptions] = require('./utils/flat-options.js')(this)
-        process.env.npm_command = this.command
-      }
-      process.emit('timeEnd', 'npm:load')
-      this.emit('load', er)
-    })
+            process.emit('timeEnd', 'npm:load')
+            if (er) {
+              return reject(er)
+            }
+            resolve()
+          })
+      })
+    }
+    return this.loadPromise
   }
 
   get loaded () {
     return this.config.loaded
   }
 
+  // This gets called at the end of the exit handler and
+  // during any tests to cleanup all of our listeners
+  // Everything in here should be synchronous
+  unload () {
+    // Track if we've already unloaded so we dont
+    // write multiple timing files. This is only an
+    // issue in tests right now since we unload
+    // in both tap teardowns and the exit handler
+    if (this.#unloaded) {
+      return
+    }
+    this.#timers.off()
+    this.#display.off()
+    this.#logFile.off()
+    if (this.loaded && this.config.get('timing')) {
+      this.#timers.writeFile({
+        command: process.argv.slice(2),
+        // We used to only ever report a single log file
+        // so to be backwards compatible report the last logfile
+        // XXX: remove this in npm 9 or just keep it forever
+        logfile: this.logFiles[this.logFiles.length - 1],
+        logfiles: this.logFiles,
+        version: this.version,
+      })
+    }
+    this.#unloaded = true
+  }
+
+  get title () {
+    return this[_title]
+  }
+
+  set title (t) {
+    process.title = t
+    this[_title] = t
+  }
+
   async [_load] () {
-    const node = await which(process.argv[0]).catch(er => null)
+    process.emit('time', 'npm:load:whichnode')
+    let node
+    try {
+      node = which.sync(process.argv[0])
+    } catch {
+      // TODO should we throw here?
+    }
+    process.emit('timeEnd', 'npm:load:whichnode')
     if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
       log.verbose('node symlink', node)
       process.execPath = node
+      this.config.execPath = node
     }
-    this.config.execPath = node
 
+    process.emit('time', 'npm:load:configload')
     await this.config.load()
-    this.argv = this.config.parsedArgv.remain
+    process.emit('timeEnd', 'npm:load:configload')
 
-    this.color = setupLog(this.config, this)
+    this.argv = this.config.parsedArgv.remain
+    // note: this MUST be shorter than the actual argv length, because it
+    // uses the same memory, so node will truncate it if it's too long.
+    // if it's a token revocation, then the argv contains a secret, so
+    // don't show that.  (Regrettable historical choice to put it there.)
+    // Any other secrets are configs only, so showing only the positional
+    // args keeps those from being leaked.
+    process.emit('time', 'npm:load:setTitle')
+    const tokrev = deref(this.argv[0]) === 'token' && this.argv[1] === 'revoke'
+    this.title = tokrev
+      ? 'npm token revoke' + (this.argv[2] ? ' ***' : '')
+      : replaceInfo(['npm', ...this.argv].join(' '))
+    process.emit('timeEnd', 'npm:load:setTitle')
+
+    process.emit('time', 'npm:load:display')
+    this.#display.load({
+      // Use logColor since that is based on stderr
+      color: this.logColor,
+      progress: this.flatOptions.progress,
+      timing: this.config.get('timing'),
+      loglevel: this.config.get('loglevel'),
+      unicode: this.config.get('unicode'),
+      heading: this.config.get('heading'),
+    })
+    process.emit('timeEnd', 'npm:load:display')
     process.env.COLOR = this.color ? '1' : '0'
 
-    cleanUpLogFiles(this.cache, this.config.get('logs-max'), log.warn)
+    process.emit('time', 'npm:load:logFile')
+    this.#logFile.load({
+      dir: resolve(this.cache, '_logs'),
+      logsMax: this.config.get('logs-max'),
+    })
+    log.verbose('logfile', this.#logFile.files[0])
+    process.emit('timeEnd', 'npm:load:logFile')
 
-    log.resume()
-    const umask = this.config.get('umask')
-    this.modes = {
-      exec: 0o777 & (~umask),
-      file: 0o666 & (~umask),
-      umask
-    }
+    process.emit('time', 'npm:load:timers')
+    this.#timers.load({
+      dir: this.cache,
+    })
+    process.emit('timeEnd', 'npm:load:timers')
 
+    process.emit('time', 'npm:load:configScope')
     const configScope = this.config.get('scope')
     if (configScope && !/^@/.test(configScope)) {
       this.config.set('scope', `@${configScope}`, this.config.find('scope'))
     }
-    this.projectScope = this.config.get('scope') ||
-      getProjectScope(this.prefix)
-
-    startMetrics()
+    process.emit('timeEnd', 'npm:load:configScope')
   }
 
   get flatOptions () {
-    return this[_flatOptions]
+    const { flat } = this.config
+    if (this.command) {
+      flat.npmCommand = this.command
+    }
+    return flat
+  }
+
+  // color and logColor are a special derived values that takes into
+  // consideration not only the config, but whether or not we are operating
+  // in a tty with the associated output (stdout/stderr)
+  get color () {
+    return this.flatOptions.color
+  }
+
+  get logColor () {
+    return this.flatOptions.logColor
   }
 
   get lockfileVersion () {
     return 2
   }
 
-  get log () {
-    return log
+  get unfinishedTimers () {
+    return this.#timers.unfinished
+  }
+
+  get finishedTimers () {
+    return this.#timers.finished
+  }
+
+  get started () {
+    return this.#timers.started
+  }
+
+  get logFiles () {
+    return this.#logFile.files
   }
 
   get cache () {
@@ -234,7 +355,7 @@ const npm = module.exports = new class extends EventEmitter {
   }
 
   get dir () {
-    return (this.config.get('global')) ? this.globalDir : this.localDir
+    return this.config.get('global') ? this.globalDir : this.localDir
   }
 
   get globalBin () {
@@ -259,6 +380,10 @@ const npm = module.exports = new class extends EventEmitter {
     this[k] = r
   }
 
+  get usage () {
+    return usage(this)
+  }
+
   // XXX add logging to see if we actually use this
   get tmp () {
     if (!this[_tmpFolder]) {
@@ -267,21 +392,13 @@ const npm = module.exports = new class extends EventEmitter {
     }
     return resolve(this.config.get('tmp'), this[_tmpFolder])
   }
-}()
 
-// now load everything required by the class methods
-
-const log = require('npmlog')
-const { promisify } = require('util')
-const startMetrics = require('./utils/metrics.js').start
-
-const which = promisify(require('which'))
-
-const deref = require('./utils/deref-command.js')
-const setupLog = require('./utils/setup-log.js')
-const cleanUpLogFiles = require('./utils/cleanup-log-files.js')
-const getProjectScope = require('./utils/get-project-scope.js')
-
-if (require.main === module) {
-  require('./cli.js')(process)
+  // output to stdout in a progress bar compatible way
+  output (...msg) {
+    log.clearProgress()
+    // eslint-disable-next-line no-console
+    console.log(...msg)
+    log.showProgress()
+  }
 }
+module.exports = Npm

@@ -3,8 +3,9 @@
 =head1 NAME
 
 CRYPTO_EX_new, CRYPTO_EX_free, CRYPTO_EX_dup,
-CRYPTO_free_ex_index, CRYPTO_get_ex_new_index, CRYPTO_set_ex_data,
-CRYPTO_get_ex_data, CRYPTO_free_ex_data, CRYPTO_new_ex_data
+CRYPTO_free_ex_index, CRYPTO_get_ex_new_index,
+CRYPTO_alloc_ex_data, CRYPTO_set_ex_data, CRYPTO_get_ex_data,
+CRYPTO_free_ex_data, CRYPTO_new_ex_data
 - functions supporting application-specific data
 
 =head1 SYNOPSIS
@@ -22,13 +23,16 @@ CRYPTO_get_ex_data, CRYPTO_free_ex_data, CRYPTO_new_ex_data
  typedef void CRYPTO_EX_free(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
                              int idx, long argl, void *argp);
  typedef int CRYPTO_EX_dup(CRYPTO_EX_DATA *to, const CRYPTO_EX_DATA *from,
-                           void *from_d, int idx, long argl, void *argp);
+                           void **from_d, int idx, long argl, void *argp);
 
- int CRYPTO_new_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad)
+ int CRYPTO_new_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad);
+
+ int CRYPTO_alloc_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad,
+                          int idx);
 
  int CRYPTO_set_ex_data(CRYPTO_EX_DATA *r, int idx, void *arg);
 
- void *CRYPTO_get_ex_data(CRYPTO_EX_DATA *r, int idx);
+ void *CRYPTO_get_ex_data(const CRYPTO_EX_DATA *r, int idx);
 
  void CRYPTO_free_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *r);
 
@@ -40,13 +44,12 @@ Several OpenSSL structures can have application-specific data attached to them,
 known as "exdata."
 The specific structures are:
 
-    APP
     BIO
     DH
-    DRBG
     DSA
     EC_KEY
     ENGINE
+    EVP_PKEY
     RSA
     SSL
     SSL_CTX
@@ -57,8 +60,10 @@ The specific structures are:
     X509_STORE
     X509_STORE_CTX
 
-Each is identified by an B<CRYPTO_EX_INDEX_xxx> define in the B<crypto.h>
-header file.  In addition, B<CRYPTO_EX_INDEX_APP> is reserved for
+In addition, the B<APP> name is reserved for use by application code.
+
+Each is identified by an B<CRYPTO_EX_INDEX_xxx> define in the header file
+F<< <openssl/crypto.h> >>.  In addition, B<CRYPTO_EX_INDEX_APP> is reserved for
 applications to use this facility for their own structures.
 
 The API described here is used by OpenSSL to manipulate exdata for specific
@@ -114,7 +119,8 @@ new_func() is called for every defined index. There is no requirement
 that the entire parent, or containing, structure has been set up.
 The new_func() is typically used only to allocate memory to store the
 exdata, and perhaps an "initialized" flag within that memory.
-The exdata value should be set by calling CRYPTO_set_ex_data().
+The exdata value may be allocated later on with CRYPTO_alloc_ex_data(),
+or may be set by calling CRYPTO_set_ex_data().
 
 When a structure is free'd (such as SSL_CTX_free()) then the
 free_func() is called for every defined index.  Again, the state of the
@@ -133,10 +139,8 @@ dup_func() is called when a structure is being copied.  This is only done
 for B<SSL>, B<SSL_SESSION>, B<EC_KEY> objects and B<BIO> chains via
 BIO_dup_chain().  The B<to> and B<from> parameters
 are pointers to the destination and source B<CRYPTO_EX_DATA> structures,
-respectively.  The B<from_d> parameter needs to be cast to a B<void **pptr>
-as the API has currently the wrong signature; that will be changed in a
-future version.  The B<*pptr> is a pointer to the source exdata.
-When the dup_func() returns, the value in B<*pptr> is copied to the
+respectively.  The B<*from_d> parameter is a pointer to the source exdata.
+When the dup_func() returns, the value in B<*from_d> is copied to the
 destination ex_data.  If the pointer contained in B<*pptr> is not modified
 by the dup_func(), then both B<to> and B<from> will point to the same data.
 The B<idx>, B<argl> and B<argp> parameters are as described for the other
@@ -147,19 +151,28 @@ will fail.
 
 CRYPTO_get_ex_new_index() returns a new index or -1 on failure.
 
-CRYPTO_free_ex_index() and
-CRYPTO_set_ex_data() return 1 on success or 0 on failure.
+CRYPTO_free_ex_index(), CRYPTO_alloc_ex_data() and CRYPTO_set_ex_data()
+return 1 on success or 0 on failure.
 
 CRYPTO_get_ex_data() returns the application data or NULL on failure;
 note that NULL may be a valid value.
 
 dup_func() should return 0 for failure and 1 for success.
 
+=head1 HISTORY
+
+CRYPTO_alloc_ex_data() was added in OpenSSL 3.0.
+
+The signature of the dup_func() callback was changed in OpenSSL 3.0 to use the
+type B<void **> for B<from_d>.  Previously this parameter was of type B<void *>.
+
+Support for ENGINE "exdata" was deprecated in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

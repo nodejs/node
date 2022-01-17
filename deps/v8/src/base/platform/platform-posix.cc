@@ -23,12 +23,12 @@
 #include <sys/types.h>
 #if defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__) || \
     defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/sysctl.h>  // NOLINT, for sysctl
+#include <sys/sysctl.h>  // for sysctl
 #endif
 
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
 #define LOG_TAG "v8"
-#include <android/log.h>  // NOLINT
+#include <android/log.h>
 #endif
 
 #include <cmath>
@@ -52,7 +52,7 @@
 #endif
 
 #if V8_OS_LINUX
-#include <sys/prctl.h>  // NOLINT, for prctl
+#include <sys/prctl.h>  // for prctl
 #endif
 
 #if defined(V8_OS_FUCHSIA)
@@ -82,7 +82,7 @@ extern int madvise(caddr_t, size_t, int);
 #endif
 
 #if defined(V8_LIBC_GLIBC)
-extern "C" void* __libc_stack_end;  // NOLINT
+extern "C" void* __libc_stack_end;
 #endif
 
 namespace v8 {
@@ -111,7 +111,7 @@ const int kMmapFd = VM_MAKE_TAG(255);
 const int kMmapFd = -1;
 #endif  // !V8_OS_MACOSX
 
-#if defined(__APPLE__) && V8_TARGET_ARCH_ARM64
+#if defined(V8_TARGET_OS_MACOSX) && V8_HOST_ARCH_ARM64
 // During snapshot generation in cross builds, sysconf() runs on the Intel
 // host and returns host page size, while the snapshot needs to use the
 // target page size.
@@ -125,6 +125,7 @@ const int kMmapFdOffset = 0;
 int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
+    case OS::MemoryPermission::kNoAccessWillJitLater:
       return PROT_NONE;
     case OS::MemoryPermission::kRead:
       return PROT_READ;
@@ -152,6 +153,11 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access,
     flags |= MAP_LAZY;
 #endif  // V8_OS_QNX
   }
+#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
+  if (access == OS::MemoryPermission::kNoAccessWillJitLater) {
+    flags |= MAP_JIT;
+  }
+#endif
   return flags;
 }
 
@@ -161,6 +167,21 @@ void* Allocate(void* hint, size_t size, OS::MemoryPermission access,
   int flags = GetFlagsForMemoryPermission(access, page_type);
   void* result = mmap(hint, size, prot, flags, kMmapFd, kMmapFdOffset);
   if (result == MAP_FAILED) return nullptr;
+#if ENABLE_HUGEPAGE
+  if (result != nullptr && size >= kHugePageSize) {
+    const uintptr_t huge_start =
+        RoundUp(reinterpret_cast<uintptr_t>(result), kHugePageSize);
+    const uintptr_t huge_end =
+        RoundDown(reinterpret_cast<uintptr_t>(result) + size, kHugePageSize);
+    if (huge_end > huge_start) {
+      // Bail out in case the aligned addresses do not provide a block of at
+      // least kHugePageSize size.
+      madvise(reinterpret_cast<void*>(huge_start), huge_end - huge_start,
+              MADV_HUGEPAGE);
+    }
+  }
+#endif
+
   return result;
 }
 
@@ -238,21 +259,18 @@ int OS::ActivationFrameAlignment() {
 
 // static
 size_t OS::AllocatePageSize() {
-#if defined(__APPLE__) && V8_TARGET_ARCH_ARM64
+#if defined(V8_TARGET_OS_MACOSX) && V8_HOST_ARCH_ARM64
   return kAppleArmPageSize;
 #else
-  return static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  static size_t page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  return page_size;
 #endif
 }
 
 // static
 size_t OS::CommitPageSize() {
-#if defined(__APPLE__) && V8_TARGET_ARCH_ARM64
-  static size_t page_size = kAppleArmPageSize;
-#else
-  static size_t page_size = getpagesize();
-#endif
-  return page_size;
+  // Commit and allocate page size are the same on posix.
+  return OS::AllocatePageSize();
 }
 
 // static
@@ -270,9 +288,13 @@ void* OS::GetRandomMmapAddr() {
     MutexGuard guard(rng_mutex.Pointer());
     GetPlatformRandomNumberGenerator()->NextBytes(&raw_addr, sizeof(raw_addr));
   }
-#if defined(__APPLE__) && V8_TARGET_ARCH_ARM64
+#if V8_HOST_ARCH_ARM64
+#if defined(V8_TARGET_OS_MACOSX)
   DCHECK_EQ(1 << 14, AllocatePageSize());
-  raw_addr = RoundDown(raw_addr, 1 << 14);
+#endif
+  // Keep the address page-aligned, AArch64 supports 4K, 16K and 64K
+  // configurations.
+  raw_addr = RoundDown(raw_addr, AllocatePageSize());
 #endif
 #if defined(V8_USE_ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
     defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER)
@@ -312,6 +334,14 @@ void* OS::GetRandomMmapAddr() {
   // to fulfill request.
   raw_addr &= 0x1FFFF000;
 #elif V8_TARGET_ARCH_MIPS64
+  // 42 bits of virtual addressing. Truncate to 40 bits to allow kernel chance
+  // to fulfill request.
+  raw_addr &= uint64_t{0xFFFFFF0000};
+#elif V8_TARGET_ARCH_RISCV64
+  // TODO(RISCV): We need more information from the kernel to correctly mask
+  // this address for RISC-V. https://github.com/v8-riscv/v8/issues/375
+  raw_addr &= uint64_t{0xFFFFFF0000};
+#elif V8_TARGET_ARCH_LOONG64
   // 42 bits of virtual addressing. Truncate to 40 bits to allow kernel chance
   // to fulfill request.
   raw_addr &= uint64_t{0xFFFFFF0000};
@@ -408,6 +438,16 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 
   int prot = GetProtectionFromMemoryPermission(access);
   int ret = mprotect(address, size, prot);
+
+  // MacOS 11.2 on Apple Silicon refuses to switch permissions from
+  // rwx to none. Just use madvise instead.
+#if defined(V8_OS_MACOSX)
+  if (ret != 0 && access == OS::MemoryPermission::kNoAccess) {
+    ret = madvise(address, size, MADV_FREE_REUSABLE);
+    return ret == 0;
+  }
+#endif
+
   if (ret == 0 && access == OS::MemoryPermission::kNoAccess) {
     // This is advisory; ignore errors and continue execution.
     USE(DiscardSystemPages(address, size));
@@ -455,6 +495,20 @@ bool OS::DiscardSystemPages(void* address, size_t size) {
   return ret == 0;
 }
 
+bool OS::DecommitPages(void* address, size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+  // From https://pubs.opengroup.org/onlinepubs/9699919799/functions/mmap.html:
+  // "If a MAP_FIXED request is successful, then any previous mappings [...] for
+  // those whole pages containing any part of the address range [pa,pa+len)
+  // shall be removed, as if by an appropriate call to munmap(), before the new
+  // mapping is established." As a consequence, the memory will be
+  // zero-initialized on next access.
+  void* ptr = mmap(address, size, PROT_NONE,
+                   MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  return ptr == address;
+}
+
 // static
 bool OS::HasLazyCommits() {
 #if V8_OS_AIX || V8_OS_LINUX || V8_OS_MACOSX
@@ -478,7 +532,7 @@ void OS::Sleep(TimeDelta interval) {
 
 void OS::Abort() {
   if (g_hard_abort) {
-    V8_IMMEDIATE_CRASH();
+    IMMEDIATE_CRASH();
   }
   // Redirect to std abort to signal abnormal program termination.
   abort();
@@ -494,6 +548,8 @@ void OS::DebugBreak() {
   asm("break");
 #elif V8_HOST_ARCH_MIPS64
   asm("break");
+#elif V8_HOST_ARCH_LOONG64
+  asm("break 0");
 #elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
   asm("twge 2,2");
 #elif V8_HOST_ARCH_IA32
@@ -503,6 +559,8 @@ void OS::DebugBreak() {
 #elif V8_HOST_ARCH_S390
   // Software breakpoint instruction is 0x0001
   asm volatile(".word 0x0001");
+#elif V8_HOST_ARCH_RISCV64
+  asm("ebreak");
 #else
 #error Unsupported host architecture.
 #endif
@@ -528,25 +586,29 @@ class PosixMemoryMappedFile final : public OS::MemoryMappedFile {
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
                                                  FileMode mode) {
   const char* fopen_mode = (mode == FileMode::kReadOnly) ? "r" : "r+";
-  if (FILE* file = fopen(name, fopen_mode)) {
-    if (fseek(file, 0, SEEK_END) == 0) {
-      long size = ftell(file);  // NOLINT(runtime/int)
-      if (size == 0) return new PosixMemoryMappedFile(file, nullptr, 0);
-      if (size > 0) {
-        int prot = PROT_READ;
-        int flags = MAP_PRIVATE;
-        if (mode == FileMode::kReadWrite) {
-          prot |= PROT_WRITE;
-          flags = MAP_SHARED;
-        }
-        void* const memory =
-            mmap(OS::GetRandomMmapAddr(), size, prot, flags, fileno(file), 0);
-        if (memory != MAP_FAILED) {
-          return new PosixMemoryMappedFile(file, memory, size);
+  struct stat statbuf;
+  // Make sure path exists and is not a directory.
+  if (stat(name, &statbuf) == 0 && !S_ISDIR(statbuf.st_mode)) {
+    if (FILE* file = fopen(name, fopen_mode)) {
+      if (fseek(file, 0, SEEK_END) == 0) {
+        long size = ftell(file);  // NOLINT(runtime/int)
+        if (size == 0) return new PosixMemoryMappedFile(file, nullptr, 0);
+        if (size > 0) {
+          int prot = PROT_READ;
+          int flags = MAP_PRIVATE;
+          if (mode == FileMode::kReadWrite) {
+            prot |= PROT_WRITE;
+            flags = MAP_SHARED;
+          }
+          void* const memory =
+              mmap(OS::GetRandomMmapAddr(), size, prot, flags, fileno(file), 0);
+          if (memory != MAP_FAILED) {
+            return new PosixMemoryMappedFile(file, memory, size);
+          }
         }
       }
+      fclose(file);
     }
-    fclose(file);
   }
   return nullptr;
 }
@@ -675,9 +737,7 @@ FILE* OS::OpenTemporaryFile() {
   return tmpfile();
 }
 
-
-const char* const OS::LogFileOpenMode = "w";
-
+const char* const OS::LogFileOpenMode = "w+";
 
 void OS::Print(const char* format, ...) {
   va_list args;
@@ -915,8 +975,7 @@ static void InitializeTlsBaseOffset() {
   buffer[kBufferSize - 1] = '\0';
   char* period_pos = strchr(buffer, '.');
   *period_pos = '\0';
-  int kernel_version_major =
-      static_cast<int>(strtol(buffer, nullptr, 10));  // NOLINT
+  int kernel_version_major = static_cast<int>(strtol(buffer, nullptr, 10));
   // The constants below are taken from pthreads.s from the XNU kernel
   // sources archive at www.opensource.apple.com.
   if (kernel_version_major < 11) {
@@ -998,7 +1057,7 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
     !defined(V8_OS_SOLARIS)
 
 // static
-void* Stack::GetStackStart() {
+Stack::StackSlot Stack::GetStackStart() {
   pthread_attr_t attr;
   int error = pthread_getattr_np(pthread_self(), &attr);
   if (!error) {
@@ -1009,7 +1068,6 @@ void* Stack::GetStackStart() {
     pthread_attr_destroy(&attr);
     return reinterpret_cast<uint8_t*>(base) + size;
   }
-  pthread_attr_destroy(&attr);
 
 #if defined(V8_LIBC_GLIBC)
   // pthread_getattr_np can fail for the main thread. In this case
@@ -1017,15 +1075,18 @@ void* Stack::GetStackStart() {
   // the start of the stack.
   // See https://code.google.com/p/nativeclient/issues/detail?id=3431.
   return __libc_stack_end;
-#endif  // !defined(V8_LIBC_GLIBC)
+#else
   return nullptr;
+#endif  // !defined(V8_LIBC_GLIBC)
 }
 
 #endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_MACOSX) &&
         // !defined(_AIX) && !defined(V8_OS_SOLARIS)
 
 // static
-void* Stack::GetCurrentStackPosition() { return __builtin_frame_address(0); }
+Stack::StackSlot Stack::GetCurrentStackPosition() {
+  return __builtin_frame_address(0);
+}
 
 #undef LOG_TAG
 #undef MAP_ANONYMOUS

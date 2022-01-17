@@ -191,7 +191,7 @@ static const struct AssemblyType {
         "\t.type   Drodata.rodata,@object\n"
         "\t.size   Drodata.rodata,0\n"
         "\t.globl  %s\n"
-        "\t.align  16\n"
+        "\t.align  16\n" 
         "%s:\n",
 
         ".4byte ","",HEX_0X
@@ -738,8 +738,8 @@ getOutFilename(
         exit(U_ILLEGAL_ARGUMENT_ERROR);
     }
 
-    uprv_strcpy(outFilename, outFilenameBuilder.data());
-    uprv_strcpy(entryName, entryNameBuilder.data());
+    outFilenameBuilder.extract(outFilename, outFilenameCapacity, status);
+    entryNameBuilder.extract(entryName, entryNameCapacity, status);
 }
 
 #ifdef CAN_GENERATE_OBJECTS

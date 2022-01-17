@@ -31,6 +31,8 @@ class V8_EXPORT_PRIVATE Typer {
   Typer(JSHeapBroker* broker, Flags flags, Graph* graph,
         TickCounter* tick_counter);
   ~Typer();
+  Typer(const Typer&) = delete;
+  Typer& operator=(const Typer&) = delete;
 
   void Run();
   // TODO(bmeurer,jarin): Remove this once we have a notion of "roots" on Graph.
@@ -57,8 +59,6 @@ class V8_EXPORT_PRIVATE Typer {
 
   Type singleton_false_;
   Type singleton_true_;
-
-  DISALLOW_COPY_AND_ASSIGN(Typer);
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(Typer::Flags)

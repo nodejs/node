@@ -8,13 +8,14 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/struct.h"
-#include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/arguments-tq.inc"
 
 // Superclass for all objects with instance type {JS_ARGUMENTS_OBJECT_TYPE}
 class JSArgumentsObject
@@ -27,12 +28,10 @@ class JSArgumentsObject
 
 // JSSloppyArgumentsObject is just a JSArgumentsObject with specific initial
 // map. This initial map adds in-object properties for "length" and "callee".
-class JSSloppyArgumentsObject : public JSArgumentsObject {
+class JSSloppyArgumentsObject
+    : public TorqueGeneratedJSSloppyArgumentsObject<JSSloppyArgumentsObject,
+                                                    JSArgumentsObject> {
  public:
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSArgumentsObject::kHeaderSize,
-      TORQUE_GENERATED_JS_SLOPPY_ARGUMENTS_OBJECT_FIELDS)
-
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
   static const int kCalleeIndex = kLengthIndex + 1;
@@ -43,13 +42,10 @@ class JSSloppyArgumentsObject : public JSArgumentsObject {
 
 // JSStrictArgumentsObject is just a JSArgumentsObject with specific initial
 // map. This initial map adds an in-object property for "length".
-class JSStrictArgumentsObject : public JSArgumentsObject {
+class JSStrictArgumentsObject
+    : public TorqueGeneratedJSStrictArgumentsObject<JSStrictArgumentsObject,
+                                                    JSArgumentsObject> {
  public:
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSArgumentsObject::kHeaderSize,
-      TORQUE_GENERATED_JS_STRICT_ARGUMENTS_OBJECT_FIELDS)
-
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
   STATIC_ASSERT(kLengthIndex == JSSloppyArgumentsObject::kLengthIndex);

@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-simd
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestS128InSignatureThrows() {
   print(arguments.callee.name);
@@ -61,5 +61,5 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function TestS128GlobalConstructor() {
-  assertThrows(() => new WebAssembly.Global({value: 'i128'}), TypeError);
+  assertThrows(() => new WebAssembly.Global({value: 'v128'}), TypeError);
 })();

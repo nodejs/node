@@ -12,7 +12,7 @@ extern macro TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsSlice(
 
 macro FastCopy(
     src: typed_array::AttachedJSTypedArray, dest: JSTypedArray, k: uintptr,
-    count: uintptr) labels IfSlow {
+    count: uintptr): void labels IfSlow {
   if (IsForceSlowPath()) goto IfSlow;
 
   const srcKind: ElementsKind = src.elements_kind;
@@ -22,7 +22,10 @@ macro FastCopy(
   // with the src because of custom species constructor. If the types
   // of src and result array are the same and they are not sharing the
   // same buffer, use memmove.
-  if (srcKind != destInfo.kind) goto IfSlow;
+  if (srcKind != destInfo.kind) {
+    // TODO(v8:11111): Enable the fast branch for RAB / GSAB.
+    goto IfSlow;
+  }
   if (dest.buffer == src.buffer) {
     goto IfSlow;
   }
@@ -33,14 +36,19 @@ macro FastCopy(
       otherwise unreachable;
   const srcPtr: RawPtr = src.data_ptr + Convert<intptr>(startOffset);
 
-  assert(countBytes <= dest.byte_length);
-  assert(countBytes <= src.byte_length - startOffset);
+  dcheck(countBytes <= dest.byte_length);
+  dcheck(countBytes <= src.byte_length - startOffset);
 
-  typed_array::CallCMemmove(dest.data_ptr, srcPtr, countBytes);
+  if (IsSharedArrayBuffer(src.buffer)) {
+    // SABs need a relaxed memmove to preserve atomicity.
+    typed_array::CallCRelaxedMemmove(dest.data_ptr, srcPtr, countBytes);
+  } else {
+    typed_array::CallCMemmove(dest.data_ptr, srcPtr, countBytes);
+  }
 }
 
 macro SlowCopy(implicit context: Context)(
-    src: JSTypedArray, dest: JSTypedArray, k: uintptr, final: uintptr) {
+    src: JSTypedArray, dest: JSTypedArray, k: uintptr, final: uintptr): void {
   if (typed_array::IsBigInt64ElementsKind(src.elements_kind) !=
       typed_array::IsBigInt64ElementsKind(dest.elements_kind))
     deferred {
@@ -58,11 +66,10 @@ transitioning javascript builtin TypedArrayPrototypeSlice(
 
   // 1. Let O be the this value.
   // 2. Perform ? ValidateTypedArray(O).
-  const src: JSTypedArray =
-      ValidateTypedArray(context, receiver, kBuiltinNameSlice);
-
   // 3. Let len be O.[[ArrayLength]].
-  const len: uintptr = src.length;
+  const len =
+      ValidateTypedArrayAndGetLength(context, receiver, kBuiltinNameSlice);
+  const src: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
 
   // 4. Let relativeStart be ? ToInteger(start).
   // 5. If relativeStart < 0, let k be max((len + relativeStart), 0);
@@ -76,11 +83,11 @@ transitioning javascript builtin TypedArrayPrototypeSlice(
   // 7. If relativeEnd < 0, let final be max((len + relativeEnd), 0);
   //    else let final be min(relativeEnd, len).
   const end = arguments[1];
-  const final: uintptr =
+  let final: uintptr =
       end != Undefined ? ConvertToRelativeIndex(end, len) : len;
 
   // 8. Let count be max(final - k, 0).
-  const count: uintptr = Unsigned(IntPtrMax(Signed(final - k), 0));
+  let count: uintptr = Unsigned(IntPtrMax(Signed(final - k), 0));
 
   // 9. Let A be ? TypedArraySpeciesCreate(O, « count »).
   const dest: JSTypedArray =
@@ -88,9 +95,19 @@ transitioning javascript builtin TypedArrayPrototypeSlice(
 
   if (count > 0) {
     try {
-      const srcAttached = typed_array::EnsureAttached(src)
-          otherwise IfDetached;
-      FastCopy(srcAttached, dest, k, count) otherwise IfSlow;
+      const newLength =
+          LoadJSTypedArrayLengthAndCheckDetached(src) otherwise IfDetached;
+      // If the backing buffer is a RAB, it's possible that the length has
+      // decreased since the last time we loaded it.
+      if (k >= newLength) {
+        return dest;
+      }
+      if (final > newLength) {
+        final = newLength;
+        count = Unsigned(IntPtrMax(Signed(final - k), 0));
+      }
+      FastCopy(%RawDownCast<AttachedJSTypedArray>(src), dest, k, count)
+          otherwise IfSlow;
     } label IfDetached deferred {
       ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSlice);
     } label IfSlow deferred {

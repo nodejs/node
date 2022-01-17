@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_ISOLATE_H_
 #define V8_EXECUTION_ISOLATE_H_
 
+#include <atomic>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -12,25 +13,29 @@
 #include <unordered_map>
 #include <vector>
 
-#include "include/v8-inspector.h"
+#include "include/v8-context.h"
 #include "include/v8-internal.h"
+#include "include/v8-isolate.h"
 #include "include/v8-metrics.h"
-#include "include/v8.h"
+#include "include/v8-snapshot.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
 #include "src/execution/execution.h"
+#include "src/execution/external-pointer-table.h"
 #include "src/execution/futex-emulation.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/messages.h"
+#include "src/execution/shared-mutex-guard-if-off-thread.h"
 #include "src/execution/stack-guard.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
 #include "src/init/isolate-allocator.h"
+#include "src/init/vm-cage.h"
 #include "src/objects/code.h"
 #include "src/objects/contexts.h"
 #include "src/objects/debug-objects.h"
@@ -45,11 +50,19 @@ class UMemory;
 }  // namespace U_ICU_NAMESPACE
 #endif  // V8_INTL_SUPPORT
 
+namespace v8_inspector {
+class V8Inspector;
+}  // namespace v8_inspector
+
 namespace v8 {
 
 namespace base {
 class RandomNumberGenerator;
 }  // namespace base
+
+namespace bigint {
+class Processor;
+}
 
 namespace debug {
 class ConsoleDelegate;
@@ -69,19 +82,22 @@ class BuiltinsConstantsTableBuilder;
 class CancelableTaskManager;
 class CodeEventDispatcher;
 class CodeTracer;
+class CommonFrame;
 class CompilationCache;
 class CompilationStatistics;
-class CompilerDispatcher;
 class Counters;
 class Debug;
-class DeoptimizerData;
+class Deoptimizer;
 class DescriptorLookupCache;
 class EmbeddedFileWriterInterface;
 class EternalHandles;
 class HandleScopeImplementer;
 class HeapObjectToIndexHashMap;
 class HeapProfiler;
+class GlobalHandles;
 class InnerPointerToCodeCache;
+class LazyCompileDispatcher;
+class LocalIsolate;
 class Logger;
 class MaterializedObjectStore;
 class Microtask;
@@ -90,14 +106,12 @@ class OptimizingCompileDispatcher;
 class PersistentHandles;
 class PersistentHandlesList;
 class ReadOnlyArtifacts;
-class ReadOnlyDeserializer;
 class RegExpStack;
 class RootVisitor;
 class RuntimeProfiler;
 class SetupIsolateDelegate;
 class Simulator;
-class StandardFrame;
-class StartupDeserializer;
+class SnapshotData;
 class StringTable;
 class StubCache;
 class ThreadManager;
@@ -110,17 +124,18 @@ struct ManagedPtrDestructor;
 template <StateTag Tag>
 class VMState;
 
+namespace baseline {
+class BaselineBatchCompiler;
+}  // namespace baseline
+
 namespace interpreter {
 class Interpreter;
 }  // namespace interpreter
 
 namespace compiler {
+class NodeObserver;
 class PerIsolateCompilerCache;
 }  // namespace compiler
-
-namespace wasm {
-class WasmEngine;
-}  // namespace wasm
 
 namespace win64_unwindinfo {
 class BuiltinUnwindInfo;
@@ -370,6 +385,18 @@ class Recorder;
     }                                                                      \
   } while (false)
 
+#define WHILE_WITH_HANDLE_SCOPE(isolate, limit_check, body)                  \
+  do {                                                                       \
+    Isolate* for_with_handle_isolate = isolate;                              \
+    while (limit_check) {                                                    \
+      HandleScope loop_scope(for_with_handle_isolate);                       \
+      for (int for_with_handle_it = 0;                                       \
+           limit_check && for_with_handle_it < 1024; ++for_with_handle_it) { \
+        body                                                                 \
+      }                                                                      \
+    }                                                                        \
+  } while (false)
+
 #define FIELD_ACCESSOR(type, name)                \
   inline void set_##name(type v) { name##_ = v; } \
   inline type name() const { return name##_; }
@@ -401,56 +428,65 @@ V8_EXPORT_PRIVATE void FreeCurrentEmbeddedBlob();
 
 using DebugObjectCache = std::vector<Handle<HeapObject>>;
 
-#define ISOLATE_INIT_LIST(V)                                                   \
-  /* Assembler state. */                                                       \
-  V(FatalErrorCallback, exception_behavior, nullptr)                           \
-  V(OOMErrorCallback, oom_behavior, nullptr)                                   \
-  V(LogEventCallback, event_logger, nullptr)                                   \
-  V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr)  \
-  V(ModifyCodeGenerationFromStringsCallback, modify_code_gen_callback,         \
-    nullptr)                                                                   \
-  V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr)    \
-  V(ExtensionCallback, wasm_module_callback, &NoExtension)                     \
-  V(ExtensionCallback, wasm_instance_callback, &NoExtension)                   \
-  V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                   \
-  V(WasmThreadsEnabledCallback, wasm_threads_enabled_callback, nullptr)        \
-  V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)         \
-  V(WasmSimdEnabledCallback, wasm_simd_enabled_callback, nullptr)              \
-  /* State for Relocatable. */                                                 \
-  V(Relocatable*, relocatable_top, nullptr)                                    \
-  V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)              \
-  V(Object, string_stream_current_security_token, Object())                    \
-  V(const intptr_t*, api_external_references, nullptr)                         \
-  V(AddressToIndexHashMap*, external_reference_map, nullptr)                   \
-  V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                        \
-  V(MicrotaskQueue*, default_microtask_queue, nullptr)                         \
-  V(CompilationStatistics*, turbo_statistics, nullptr)                         \
-  V(CodeTracer*, code_tracer, nullptr)                                         \
-  V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
-  V(PromiseRejectCallback, promise_reject_callback, nullptr)                   \
-  V(const v8::StartupData*, snapshot_blob, nullptr)                            \
-  V(int, code_and_metadata_size, 0)                                            \
-  V(int, bytecode_and_metadata_size, 0)                                        \
-  V(int, external_script_source_size, 0)                                       \
-  /* true if being profiled. Causes collection of extra compile info. */       \
-  V(bool, is_profiling, false)                                                 \
-  /* Number of CPU profilers running on the isolate. */                        \
-  V(size_t, num_cpu_profilers, 0)                                              \
-  /* true if a trace is being formatted through Error.prepareStackTrace. */    \
-  V(bool, formatting_stack_trace, false)                                       \
-  /* Perform side effect checks on function call and API callbacks. */         \
-  V(DebugInfo::ExecutionMode, debug_execution_mode, DebugInfo::kBreakpoints)   \
-  /* Current code coverage mode */                                             \
-  V(debug::CoverageMode, code_coverage_mode, debug::CoverageMode::kBestEffort) \
-  V(debug::TypeProfileMode, type_profile_mode, debug::TypeProfileMode::kNone)  \
-  V(int, last_stack_frame_info_id, 0)                                          \
-  V(int, last_console_context_id, 0)                                           \
-  V(v8_inspector::V8Inspector*, inspector, nullptr)                            \
-  V(bool, next_v8_call_is_safe_for_termination, false)                         \
-  V(bool, only_terminate_in_safe_scope, false)                                 \
-  V(bool, detailed_source_positions_for_profiling, FLAG_detailed_line_info)    \
-  V(int, embedder_wrapper_type_index, -1)                                      \
-  V(int, embedder_wrapper_object_index, -1)
+#define ISOLATE_INIT_LIST(V)                                                  \
+  /* Assembler state. */                                                      \
+  V(FatalErrorCallback, exception_behavior, nullptr)                          \
+  V(OOMErrorCallback, oom_behavior, nullptr)                                  \
+  V(LogEventCallback, event_logger, nullptr)                                  \
+  V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr) \
+  V(ModifyCodeGenerationFromStringsCallback, modify_code_gen_callback,        \
+    nullptr)                                                                  \
+  V(ModifyCodeGenerationFromStringsCallback2, modify_code_gen_callback2,      \
+    nullptr)                                                                  \
+  V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr)   \
+  V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
+  V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
+  V(SharedArrayBufferConstructorEnabledCallback,                              \
+    sharedarraybuffer_constructor_enabled_callback, nullptr)                  \
+  V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                  \
+  V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)        \
+  V(WasmSimdEnabledCallback, wasm_simd_enabled_callback, nullptr)             \
+  V(WasmExceptionsEnabledCallback, wasm_exceptions_enabled_callback, nullptr) \
+  V(WasmDynamicTieringEnabledCallback, wasm_dynamic_tiering_enabled_callback, \
+    nullptr)                                                                  \
+  /* State for Relocatable. */                                                \
+  V(Relocatable*, relocatable_top, nullptr)                                   \
+  V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
+  V(Object, string_stream_current_security_token, Object())                   \
+  V(const intptr_t*, api_external_references, nullptr)                        \
+  V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
+  V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
+  V(MicrotaskQueue*, default_microtask_queue, nullptr)                        \
+  V(CompilationStatistics*, turbo_statistics, nullptr)                        \
+  V(CodeTracer*, code_tracer, nullptr)                                        \
+  V(PromiseRejectCallback, promise_reject_callback, nullptr)                  \
+  V(const v8::StartupData*, snapshot_blob, nullptr)                           \
+  V(int, code_and_metadata_size, 0)                                           \
+  V(int, bytecode_and_metadata_size, 0)                                       \
+  V(int, external_script_source_size, 0)                                      \
+  /* Number of CPU profilers running on the isolate. */                       \
+  V(size_t, num_cpu_profilers, 0)                                             \
+  /* true if a trace is being formatted through Error.prepareStackTrace. */   \
+  V(bool, formatting_stack_trace, false)                                      \
+  /* Perform side effect checks on function call and API callbacks. */        \
+  V(DebugInfo::ExecutionMode, debug_execution_mode, DebugInfo::kBreakpoints)  \
+  V(debug::TypeProfileMode, type_profile_mode, debug::TypeProfileMode::kNone) \
+  V(bool, disable_bytecode_flushing, false)                                   \
+  V(int, last_console_context_id, 0)                                          \
+  V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
+  V(bool, next_v8_call_is_safe_for_termination, false)                        \
+  V(bool, only_terminate_in_safe_scope, false)                                \
+  V(int, embedder_wrapper_type_index, -1)                                     \
+  V(int, embedder_wrapper_object_index, -1)                                   \
+  V(compiler::NodeObserver*, node_observer, nullptr)                          \
+  /* Used in combination with --script-run-delay-once */                      \
+  V(bool, did_run_script_delay, false)                                        \
+  V(bool, javascript_execution_assert, true)                                  \
+  V(bool, javascript_execution_throws, true)                                  \
+  V(bool, javascript_execution_dump, true)                                    \
+  V(bool, deoptimization_assert, true)                                        \
+  V(bool, compilation_assert, true)                                           \
+  V(bool, no_exception_assert, true)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                         \
   inline void set_##name(type v) { thread_local_top()->name##_ = v; } \
@@ -470,6 +506,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   class EntryStackItem;
 
  public:
+  Isolate(const Isolate&) = delete;
+  Isolate& operator=(const Isolate&) = delete;
+
   using HandleScopeType = HandleScope;
   void* operator new(size_t) = delete;
   void operator delete(void*) = delete;
@@ -491,6 +530,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     {
     }
     ~PerIsolateThreadData();
+    PerIsolateThreadData(const PerIsolateThreadData&) = delete;
+    PerIsolateThreadData& operator=(const PerIsolateThreadData&) = delete;
     Isolate* isolate() const { return isolate_; }
     ThreadId thread_id() const { return thread_id_; }
 
@@ -518,16 +559,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     friend class Isolate;
     friend class ThreadDataTable;
     friend class EntryStackItem;
-
-    DISALLOW_COPY_AND_ASSIGN(PerIsolateThreadData);
   };
 
   static void InitializeOncePerProcess();
 
   // Creates Isolate object. Must be used instead of constructing Isolate with
   // new operator.
-  static Isolate* New(
-      IsolateAllocationMode mode = IsolateAllocationMode::kDefault);
+  static Isolate* New();
+
+  // Creates a new shared Isolate object.
+  static Isolate* NewShared(const v8::Isolate::CreateParams& params);
 
   // Deletes Isolate object. Must be used instead of delete operator.
   // Destroys the non-default isolates.
@@ -539,11 +580,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                   ReadOnlyHeap* ro_heap);
   void set_read_only_heap(ReadOnlyHeap* ro_heap) { read_only_heap_ = ro_heap; }
 
-  // Returns allocation mode of this isolate.
-  V8_INLINE IsolateAllocationMode isolate_allocation_mode();
-
   // Page allocator that must be used for allocating V8 heap pages.
-  v8::PageAllocator* page_allocator();
+  v8::PageAllocator* page_allocator() const;
 
   // Returns the PerIsolateThreadData for the current thread (or nullptr if one
   // is not currently set).
@@ -575,8 +613,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool InitializeCounters();  // Returns false if already initialized.
 
   bool InitWithoutSnapshot();
-  bool InitWithSnapshot(ReadOnlyDeserializer* read_only_deserializer,
-                        StartupDeserializer* startup_deserializer);
+  bool InitWithSnapshot(SnapshotData* startup_snapshot_data,
+                        SnapshotData* read_only_snapshot_data, bool can_rehash);
 
   // True if at least one thread Enter'ed this isolate.
   bool IsInUse() { return entry_stack_ != nullptr; }
@@ -617,35 +655,69 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Mutex for serializing access to break control structures.
   base::RecursiveMutex* break_access() { return &break_access_; }
 
-  // Shared mutex for allowing concurrent read/writes to TransitionArrays.
-  base::SharedMutex* transition_array_access() {
-    return &transition_array_access_;
+  // Shared mutex for allowing thread-safe concurrent reads of FeedbackVectors.
+  base::SharedMutex* feedback_vector_access() {
+    return &feedback_vector_access_;
+  }
+
+  // Shared mutex for allowing thread-safe concurrent reads of
+  // InternalizedStrings.
+  base::SharedMutex* internalized_string_access() {
+    return &internalized_string_access_;
+  }
+
+  // Shared mutex for allowing thread-safe concurrent reads of TransitionArrays
+  // of kind kFullTransitionArray.
+  base::SharedMutex* full_transition_array_access() {
+    return &full_transition_array_access_;
+  }
+
+  // Shared mutex for allowing thread-safe concurrent reads of
+  // SharedFunctionInfos.
+  base::SharedMutex* shared_function_info_access() {
+    return &shared_function_info_access_;
+  }
+
+  // Protects (most) map update operations, see also MapUpdater.
+  base::SharedMutex* map_updater_access() { return &map_updater_access_; }
+
+  // Protects JSObject boilerplate migrations (i.e. calls to MigrateInstance on
+  // boilerplate objects; elements kind transitions are *not* protected).
+  // Note this lock interacts with `map_updater_access` as follows
+  //
+  // - boilerplate migrations may trigger map updates.
+  // - if so, `boilerplate_migration_access` is locked before
+  //   `map_updater_access`.
+  // - backgrounds threads must use the same lock order to avoid deadlocks.
+  base::SharedMutex* boilerplate_migration_access() {
+    return &boilerplate_migration_access_;
   }
 
   // The isolate's string table.
-  StringTable* string_table() { return string_table_.get(); }
+  StringTable* string_table() const { return string_table_.get(); }
 
   Address get_address_from_id(IsolateAddressId id);
 
   // Access to top context (where the current function object was created).
-  Context context() { return thread_local_top()->context_; }
+  Context context() const { return thread_local_top()->context_; }
   inline void set_context(Context context);
   Context* context_address() { return &thread_local_top()->context_; }
 
   // Access to current thread id.
-  THREAD_LOCAL_TOP_ACCESSOR(ThreadId, thread_id)
+  inline void set_thread_id(ThreadId id) {
+    thread_local_top()->thread_id_.store(id, std::memory_order_relaxed);
+  }
+  inline ThreadId thread_id() const {
+    return thread_local_top()->thread_id_.load(std::memory_order_relaxed);
+  }
 
-  // Interface to pending exception.
-  inline Object pending_exception();
-  inline void set_pending_exception(Object exception_obj);
-  inline void clear_pending_exception();
+  void InstallConditionalFeatures(Handle<Context> context);
 
-  bool AreWasmThreadsEnabled(Handle<Context> context);
+  bool IsSharedArrayBufferConstructorEnabled(Handle<Context> context);
+
   bool IsWasmSimdEnabled(Handle<Context> context);
-
-  THREAD_LOCAL_TOP_ADDRESS(Object, pending_exception)
-
-  inline bool has_pending_exception();
+  bool AreWasmExceptionsEnabled(Handle<Context> context);
+  bool IsWasmDynamicTieringEnabled();
 
   THREAD_LOCAL_TOP_ADDRESS(Context, pending_handler_context)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_entrypoint)
@@ -658,20 +730,27 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   v8::TryCatch* try_catch_handler() {
     return thread_local_top()->try_catch_handler_;
   }
-  bool* external_caught_exception_address() {
-    return &thread_local_top()->external_caught_exception_;
-  }
+
+  THREAD_LOCAL_TOP_ADDRESS(bool, external_caught_exception)
+
+  // Interface to pending exception.
+  THREAD_LOCAL_TOP_ADDRESS(Object, pending_exception)
+  inline Object pending_exception();
+  inline void set_pending_exception(Object exception_obj);
+  inline void clear_pending_exception();
+  inline bool has_pending_exception();
+
+  THREAD_LOCAL_TOP_ADDRESS(Object, pending_message)
+  inline void clear_pending_message();
+  inline Object pending_message();
+  inline bool has_pending_message();
+  inline void set_pending_message(Object message_obj);
 
   THREAD_LOCAL_TOP_ADDRESS(Object, scheduled_exception)
-
-  inline void clear_pending_message();
-  Address pending_message_obj_address() {
-    return reinterpret_cast<Address>(&thread_local_top()->pending_message_obj_);
-  }
-
   inline Object scheduled_exception();
   inline bool has_scheduled_exception();
   inline void clear_scheduled_exception();
+  inline void set_scheduled_exception(Object exception);
 
   bool IsJavaScriptHandlerOnTop(Object exception);
   bool IsExternalHandlerOnTop(Object exception);
@@ -698,6 +777,27 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline Address* c_function_address() {
     return &thread_local_top()->c_function_;
   }
+
+#if defined(DEBUG) || defined(VERIFY_HEAP)
+  // Count the number of active deserializers, so that the heap verifier knows
+  // whether there is currently an active deserialization happening.
+  //
+  // This is needed as the verifier currently doesn't support verifying objects
+  // which are partially deserialized.
+  //
+  // TODO(leszeks): Make the verifier a bit more deserialization compatible.
+  void RegisterDeserializerStarted() { ++num_active_deserializers_; }
+  void RegisterDeserializerFinished() {
+    CHECK_GE(--num_active_deserializers_, 0);
+  }
+  bool has_active_deserializer() const {
+    return num_active_deserializers_.load(std::memory_order_acquire) > 0;
+  }
+#else
+  void RegisterDeserializerStarted() {}
+  void RegisterDeserializerFinished() {}
+  bool has_active_deserializer() const { UNREACHABLE(); }
+#endif
 
   // Bottom JS entry.
   Address js_entry_sp() { return thread_local_top()->js_entry_sp_; }
@@ -736,7 +836,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Heuristically guess whether a Promise is handled by user catch handler
   bool PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise);
 
-  class ExceptionScope {
+  class V8_NODISCARD ExceptionScope {
    public:
     // Scope currently can only be used for regular exceptions,
     // not termination exception.
@@ -756,7 +856,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       v8::Isolate::AbortOnUncaughtExceptionCallback callback);
 
   enum PrintStackMode { kPrintStackConcise, kPrintStackVerbose };
-  void PrintCurrentStackTrace(FILE* out);
+  void PrintCurrentStackTrace(std::ostream& out);
   void PrintStack(StringStream* accumulator,
                   PrintStackMode mode = kPrintStackVerbose);
   void PrintStack(FILE* out, PrintStackMode mode = kPrintStackVerbose);
@@ -791,17 +891,22 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Exception throwing support. The caller should use the result
   // of Throw() as its return value.
-  Object Throw(Object exception, MessageLocation* location = nullptr);
+  Object Throw(Object exception) { return ThrowInternal(exception, nullptr); }
+  Object ThrowAt(Handle<JSObject> exception, MessageLocation* location);
   Object ThrowIllegalOperation();
 
   template <typename T>
-  V8_WARN_UNUSED_RESULT MaybeHandle<T> Throw(
-      Handle<Object> exception, MessageLocation* location = nullptr) {
-    Throw(*exception, location);
+  V8_WARN_UNUSED_RESULT MaybeHandle<T> Throw(Handle<Object> exception) {
+    Throw(*exception);
     return MaybeHandle<T>();
   }
 
-  void ThrowAt(Handle<JSObject> exception, MessageLocation* location);
+  template <typename T>
+  V8_WARN_UNUSED_RESULT MaybeHandle<T> ThrowAt(Handle<JSObject> exception,
+                                               MessageLocation* location) {
+    ThrowAt(exception, location);
+    return MaybeHandle<T>();
+  }
 
   void FatalProcessOutOfHeapMemory(const char* location) {
     heap()->FatalProcessOutOfMemory(location);
@@ -834,7 +939,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     NOT_CAUGHT,
     CAUGHT_BY_JAVASCRIPT,
     CAUGHT_BY_EXTERNAL,
-    CAUGHT_BY_DESUGARING,
     CAUGHT_BY_PROMISE,
     CAUGHT_BY_ASYNC_AWAIT
   };
@@ -908,6 +1012,17 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   ISOLATE_INIT_LIST(GLOBAL_ACCESSOR)
 #undef GLOBAL_ACCESSOR
 
+  void SetDetailedSourcePositionsForProfiling(bool value) {
+    if (value) {
+      CollectSourcePositionsForAllBytecodeArrays();
+    }
+    detailed_source_positions_for_profiling_ = value;
+  }
+
+  bool detailed_source_positions_for_profiling() const {
+    return detailed_source_positions_for_profiling_;
+  }
+
 #define GLOBAL_ARRAY_ACCESSOR(type, name, length)                \
   inline type* name() {                                          \
     DCHECK(OFFSET_OF(Isolate, name##_) == name##_debug_offset_); \
@@ -944,6 +1059,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
   StackGuard* stack_guard() { return isolate_data()->stack_guard(); }
   Heap* heap() { return &heap_; }
+  const Heap* heap() const { return &heap_; }
   ReadOnlyHeap* read_only_heap() const { return read_only_heap_; }
   static Isolate* FromHeap(Heap* heap) {
     return reinterpret_cast<Isolate*>(reinterpret_cast<Address>(heap) -
@@ -953,6 +1069,27 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   const IsolateData* isolate_data() const { return &isolate_data_; }
   IsolateData* isolate_data() { return &isolate_data_; }
 
+  // When pointer compression is on, this is the base address of the pointer
+  // compression cage, and the kPtrComprCageBaseRegister is set to this
+  // value. When pointer compression is off, this is always kNullAddress.
+  Address cage_base() const {
+    DCHECK_IMPLIES(!COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL &&
+                       !COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL,
+                   isolate_data()->cage_base() == kNullAddress);
+    return isolate_data()->cage_base();
+  }
+
+  Address code_cage_base() const { return cage_base(); }
+
+  // When pointer compression is on, the PtrComprCage used by this
+  // Isolate. Otherwise nullptr.
+  VirtualMemoryCage* GetPtrComprCage() {
+    return isolate_allocator_->GetPtrComprCage();
+  }
+  const VirtualMemoryCage* GetPtrComprCage() const {
+    return isolate_allocator_->GetPtrComprCage();
+  }
+
   // Generated code can embed this address to get access to the isolate-specific
   // data (for example, roots, external references, builtins, etc.).
   // The kRootRegister is set to this value.
@@ -960,7 +1097,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static size_t isolate_root_bias() {
     return OFFSET_OF(Isolate, isolate_data_) + IsolateData::kIsolateRootBias;
   }
-  static Isolate* FromRoot(Address isolate_root) {
+  static Isolate* FromRootAddress(Address isolate_root) {
     return reinterpret_cast<Isolate*>(isolate_root - isolate_root_bias());
   }
 
@@ -979,7 +1116,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                sizeof(IsolateData));
   }
 
-  Object root(RootIndex index) { return Object(roots_table()[index]); }
+  Object root(RootIndex index) const { return Object(roots_table()[index]); }
 
   Handle<Object> root_handle(RootIndex index) {
     return Handle<Object>(&roots_table()[index]);
@@ -991,11 +1128,23 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   Address* builtin_entry_table() { return isolate_data_.builtin_entry_table(); }
-  V8_INLINE Address* builtins_table() { return isolate_data_.builtins(); }
+  V8_INLINE Address* builtin_table() { return isolate_data_.builtin_table(); }
 
-  StubCache* load_stub_cache() { return load_stub_cache_; }
-  StubCache* store_stub_cache() { return store_stub_cache_; }
-  DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
+  bool IsBuiltinTableHandleLocation(Address* handle_location);
+
+  StubCache* load_stub_cache() const { return load_stub_cache_; }
+  StubCache* store_stub_cache() const { return store_stub_cache_; }
+  Deoptimizer* GetAndClearCurrentDeoptimizer() {
+    Deoptimizer* result = current_deoptimizer_;
+    CHECK_NOT_NULL(result);
+    current_deoptimizer_ = nullptr;
+    return result;
+  }
+  void set_current_deoptimizer(Deoptimizer* deoptimizer) {
+    DCHECK_NULL(current_deoptimizer_);
+    DCHECK_NOT_NULL(deoptimizer);
+    current_deoptimizer_ = deoptimizer;
+  }
   bool deoptimizer_lazy_throw() const { return deoptimizer_lazy_throw_; }
   void set_deoptimizer_lazy_throw(bool value) {
     deoptimizer_lazy_throw_ = value;
@@ -1019,32 +1168,36 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         isolate_root_bias());
   }
 
-  MaterializedObjectStore* materialized_object_store() {
+  THREAD_LOCAL_TOP_ADDRESS(Address, thread_in_wasm_flag_address)
+
+  MaterializedObjectStore* materialized_object_store() const {
     return materialized_object_store_;
   }
 
-  DescriptorLookupCache* descriptor_lookup_cache() {
+  DescriptorLookupCache* descriptor_lookup_cache() const {
     return descriptor_lookup_cache_;
   }
 
   HandleScopeData* handle_scope_data() { return &handle_scope_data_; }
 
-  HandleScopeImplementer* handle_scope_implementer() {
+  HandleScopeImplementer* handle_scope_implementer() const {
     DCHECK(handle_scope_implementer_);
     return handle_scope_implementer_;
   }
 
-  UnicodeCache* unicode_cache() { return unicode_cache_; }
+  UnicodeCache* unicode_cache() const { return unicode_cache_; }
 
   InnerPointerToCodeCache* inner_pointer_to_code_cache() {
     return inner_pointer_to_code_cache_;
   }
 
-  GlobalHandles* global_handles() { return global_handles_; }
+  GlobalHandles* global_handles() const { return global_handles_; }
 
-  EternalHandles* eternal_handles() { return eternal_handles_; }
+  EternalHandles* eternal_handles() const { return eternal_handles_; }
 
-  ThreadManager* thread_manager() { return thread_manager_; }
+  ThreadManager* thread_manager() const { return thread_manager_; }
+
+  bigint::Processor* bigint_processor() { return bigint_processor_; }
 
 #ifndef V8_INTL_SUPPORT
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize>* jsregexp_uncanonicalize() {
@@ -1065,16 +1218,30 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Builtins* builtins() { return &builtins_; }
 
-  RegExpStack* regexp_stack() { return regexp_stack_; }
+  RegExpStack* regexp_stack() const { return regexp_stack_; }
 
-  size_t total_regexp_code_generated() { return total_regexp_code_generated_; }
+  size_t total_regexp_code_generated() const {
+    return total_regexp_code_generated_;
+  }
   void IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code);
 
   std::vector<int>* regexp_indices() { return &regexp_indices_; }
 
-  Debug* debug() { return debug_; }
+  Debug* debug() const { return debug_; }
 
-  bool* is_profiling_address() { return &is_profiling_; }
+  void* is_profiling_address() { return &is_profiling_; }
+
+  bool is_profiling() const {
+    return is_profiling_.load(std::memory_order_relaxed);
+  }
+
+  void SetIsProfiling(bool enabled) {
+    if (enabled) {
+      CollectSourcePositionsForAllBytecodeArrays();
+    }
+    is_profiling_.store(enabled, std::memory_order_relaxed);
+  }
+
   CodeEventDispatcher* code_event_dispatcher() const {
     return code_event_dispatcher_.get();
   }
@@ -1087,8 +1254,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   v8::internal::Factory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
     // undefined behavior (as static_cast cannot cast across private bases).
-    // NOLINTNEXTLINE (google-readability-casting)
-    return (v8::internal::Factory*)this;  // NOLINT(readability/casting)
+    return (v8::internal::Factory*)this;
   }
 
   static const int kJSRegexpStaticOffsetsVectorSize = 128;
@@ -1101,7 +1267,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     DCHECK_LT(slot, Internals::kNumIsolateDataSlots);
     isolate_data_.embedder_data_[slot] = data;
   }
-  void* GetData(uint32_t slot) {
+  void* GetData(uint32_t slot) const {
     DCHECK_LT(slot, Internals::kNumIsolateDataSlots);
     return isolate_data_.embedder_data_[slot];
   }
@@ -1114,7 +1280,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return snapshot_blob_ != nullptr && snapshot_blob_->raw_size != 0;
   }
 
-  bool IsDead() { return has_fatal_error_; }
+  bool IsDead() const { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
 
   bool use_optimizer();
@@ -1170,11 +1336,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void MaybeInitializeVectorListFromHeap();
 
-  double time_millis_since_init() {
+  double time_millis_since_init() const {
     return heap_.MonotonicallyIncreasingTimeInMs() - time_millis_at_init_;
   }
 
-  DateCache* date_cache() { return date_cache_; }
+  DateCache* date_cache() const { return date_cache_; }
 
   void set_date_cache(DateCache* date_cache);
 
@@ -1189,16 +1355,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     default_locale_ = locale;
   }
 
-  // enum to access the icu object cache.
   enum class ICUObjectCacheType{
       kDefaultCollator, kDefaultNumberFormat, kDefaultSimpleDateFormat,
       kDefaultSimpleDateFormatForTime, kDefaultSimpleDateFormatForDate};
+  static constexpr int kICUObjectCacheTypeCount = 5;
 
-  icu::UMemory* get_cached_icu_object(ICUObjectCacheType cache_type);
+  icu::UMemory* get_cached_icu_object(ICUObjectCacheType cache_type,
+                                      Handle<Object> locales);
   void set_icu_object_in_cache(ICUObjectCacheType cache_type,
+                               Handle<Object> locales,
                                std::shared_ptr<icu::UMemory> obj);
   void clear_cached_icu_object(ICUObjectCacheType cache_type);
-  void ClearCachedIcuObjects();
+  void clear_cached_icu_objects();
 
 #endif  // V8_INTL_SUPPORT
 
@@ -1222,11 +1390,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // Returns true if array is the initial array prototype in any native context.
-  bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
+  inline bool IsAnyInitialArrayPrototype(JSArray array);
 
   std::unique_ptr<PersistentHandles> NewPersistentHandles();
 
-  PersistentHandlesList* persistent_handles_list() {
+  PersistentHandlesList* persistent_handles_list() const {
     return persistent_handles_list_.get();
   }
 
@@ -1242,6 +1410,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   OptimizingCompileDispatcher* optimizing_compile_dispatcher() {
+    DCHECK_NOT_NULL(optimizing_compile_dispatcher_);
     return optimizing_compile_dispatcher_;
   }
   // Flushes all pending concurrent optimzation jobs from the optimizing
@@ -1284,12 +1453,31 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return id;
   }
 
+  // https://github.com/tc39/proposal-top-level-await/pull/159
+  // TODO(syg): Update to actual spec link once merged.
+  //
+  // According to the spec, modules that depend on async modules (i.e. modules
+  // with top-level await) must be evaluated in order in which their
+  // [[AsyncEvaluating]] flags were set to true. V8 tracks this global total
+  // order with next_module_async_evaluating_ordinal_. Each module that sets its
+  // [[AsyncEvaluating]] to true grabs the next ordinal.
+  unsigned NextModuleAsyncEvaluatingOrdinal() {
+    unsigned ordinal = next_module_async_evaluating_ordinal_++;
+    CHECK_LT(ordinal, kMaxModuleAsyncEvaluatingOrdinal);
+    return ordinal;
+  }
+
+  inline void DidFinishModuleAsyncEvaluation(unsigned ordinal);
+
   void AddNearHeapLimitCallback(v8::NearHeapLimitCallback, void* data);
   void RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
                                    size_t heap_limit);
   void AddCallCompletedCallback(CallCompletedCallback callback);
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
-  void FireCallCompletedCallback(MicrotaskQueue* microtask_queue);
+  void FireCallCompletedCallback(MicrotaskQueue* microtask_queue) {
+    if (!thread_local_top()->CallDepthIsZero()) return;
+    FireCallCompletedCallbackInternal(microtask_queue);
+  }
 
   void AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
   void RemoveBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
@@ -1311,8 +1499,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   int GetNextScriptId();
 
-  int GetNextStackFrameInfoId();
-
 #if V8_SFI_HAS_UNIQUE_ID
   int GetNextUniqueSharedFunctionInfoId() {
     int current_id = next_unique_sfi_id_.load(std::memory_order_relaxed);
@@ -1329,6 +1515,21 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 #endif
 
+  void SetHasContextPromiseHooks(bool context_promise_hook) {
+    promise_hook_flags_ = PromiseHookFields::HasContextPromiseHook::update(
+        promise_hook_flags_, context_promise_hook);
+    PromiseHookStateUpdated();
+  }
+
+  bool HasContextPromiseHooks() const {
+    return PromiseHookFields::HasContextPromiseHook::decode(
+        promise_hook_flags_);
+  }
+
+  Address promise_hook_flags_address() {
+    return reinterpret_cast<Address>(&promise_hook_flags_);
+  }
+
   Address promise_hook_address() {
     return reinterpret_cast<Address>(&promise_hook_);
   }
@@ -1337,13 +1538,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return reinterpret_cast<Address>(&async_event_delegate_);
   }
 
-  Address promise_hook_or_async_event_delegate_address() {
-    return reinterpret_cast<Address>(&promise_hook_or_async_event_delegate_);
-  }
-
-  Address promise_hook_or_debug_is_active_or_async_event_delegate_address() {
-    return reinterpret_cast<Address>(
-        &promise_hook_or_debug_is_active_or_async_event_delegate_);
+  Address javascript_execution_assert_address() {
+    return reinterpret_cast<Address>(&javascript_execution_assert_);
   }
 
   Address handle_scope_implementer_address() {
@@ -1361,12 +1557,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SetPromiseHook(PromiseHook hook);
   void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                       Handle<Object> parent);
+  void RunAllPromiseHooks(PromiseHookType type, Handle<JSPromise> promise,
+                          Handle<Object> parent);
+  void UpdatePromiseHookProtector();
   void PromiseHookStateUpdated();
 
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
 
-  void AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object);
+  // Detach the environment from its outer global object.
+  void DetachGlobal(Handle<Context> env);
 
   std::vector<Object>* startup_object_cache() { return &startup_object_cache_; }
 
@@ -1385,16 +1585,21 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   static const uint8_t* CurrentEmbeddedBlobCode();
   static uint32_t CurrentEmbeddedBlobCodeSize();
-  static const uint8_t* CurrentEmbeddedBlobMetadata();
-  static uint32_t CurrentEmbeddedBlobMetadataSize();
+  static const uint8_t* CurrentEmbeddedBlobData();
+  static uint32_t CurrentEmbeddedBlobDataSize();
   static bool CurrentEmbeddedBlobIsBinaryEmbedded();
 
   // These always return the same result as static methods above, but don't
   // access the global atomic variable (and thus *might be* slightly faster).
   const uint8_t* embedded_blob_code() const;
   uint32_t embedded_blob_code_size() const;
-  const uint8_t* embedded_blob_metadata() const;
-  uint32_t embedded_blob_metadata_size() const;
+  const uint8_t* embedded_blob_data() const;
+  uint32_t embedded_blob_data_size() const;
+
+  // Returns true if short bultin calls optimization is enabled for the Isolate.
+  bool is_short_builtin_calls_enabled() const {
+    return V8_SHORT_BUILTIN_CALLS_BOOL && is_short_builtin_calls_enabled_;
+  }
 
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
     array_buffer_allocator_ = allocator;
@@ -1435,8 +1640,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   AccountingAllocator* allocator() { return allocator_; }
 
-  CompilerDispatcher* compiler_dispatcher() const {
+  LazyCompileDispatcher* lazy_compile_dispatcher() const {
     return compiler_dispatcher_;
+  }
+
+  baseline::BaselineBatchCompiler* baseline_batch_compiler() const {
+    return baseline_batch_compiler_;
   }
 
   bool IsInAnyContext(Object object, uint32_t index);
@@ -1444,9 +1653,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void ClearKeptObjects();
 
   void SetHostImportModuleDynamicallyCallback(
-      HostImportModuleDynamicallyCallback callback);
+      HostImportModuleDynamicallyWithImportAssertionsCallback callback);
   MaybeHandle<JSPromise> RunHostImportModuleDynamicallyCallback(
-      Handle<Script> referrer, Handle<Object> specifier);
+      Handle<Script> referrer, Handle<Object> specifier,
+      MaybeHandle<Object> maybe_import_assertions_argument);
 
   void SetHostInitializeImportMetaObjectCallback(
       HostInitializeImportMetaObjectCallback callback);
@@ -1466,9 +1676,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // annotate the builtin blob with debugging information.
   void PrepareBuiltinSourcePositionMap();
 
+  // Store the position of the labels that will be used in the list of allowed
+  // return addresses.
+  void PrepareBuiltinLabelInfoMap();
+
 #if defined(V8_OS_WIN64)
   void SetBuiltinUnwindData(
-      int builtin_index,
+      Builtin builtin,
       const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info);
 #endif  // V8_OS_WIN64
 
@@ -1489,7 +1703,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   RAILMode rail_mode() { return rail_mode_.load(); }
 
+  void set_code_coverage_mode(debug::CoverageMode coverage_mode) {
+    code_coverage_mode_.store(coverage_mode, std::memory_order_relaxed);
+  }
+  debug::CoverageMode code_coverage_mode() const {
+    return code_coverage_mode_.load(std::memory_order_relaxed);
+  }
+
   double LoadStartTimeMs();
+
+  void UpdateLoadStartTime();
 
   void IsolateInForegroundNotification();
 
@@ -1519,8 +1742,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     elements_deletion_counter_ = value;
   }
 
-  wasm::WasmEngine* wasm_engine() const { return wasm_engine_.get(); }
-  void SetWasmEngine(std::shared_ptr<wasm::WasmEngine> engine);
+#if V8_ENABLE_WEBASSEMBLY
+  void AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope() const {
     return top_backup_incumbent_scope_;
@@ -1551,19 +1775,78 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   MaybeLocal<v8::Context> GetContextFromRecorderContextId(
       v8::metrics::Recorder::ContextId id);
 
+  void UpdateLongTaskStats();
+  v8::metrics::LongTaskStats* GetCurrentLongTaskStats();
+
+  LocalIsolate* main_thread_local_isolate() {
+    return main_thread_local_isolate_.get();
+  }
+
+  Isolate* AsIsolate() { return this; }
+  LocalIsolate* AsLocalIsolate() { return main_thread_local_isolate(); }
+
+  LocalHeap* main_thread_local_heap();
+  LocalHeap* CurrentLocalHeap();
+
+#ifdef V8_HEAP_SANDBOX
+  ExternalPointerTable& external_pointer_table() {
+    return isolate_data_.external_pointer_table_;
+  }
+
+  const ExternalPointerTable& external_pointer_table() const {
+    return isolate_data_.external_pointer_table_;
+  }
+
+  Address external_pointer_table_address() {
+    return reinterpret_cast<Address>(&isolate_data_.external_pointer_table_);
+  }
+#endif
+
+  struct PromiseHookFields {
+    using HasContextPromiseHook = base::BitField<bool, 0, 1>;
+    using HasIsolatePromiseHook = HasContextPromiseHook::Next<bool, 1>;
+    using HasAsyncEventDelegate = HasIsolatePromiseHook::Next<bool, 1>;
+    using IsDebugActive = HasAsyncEventDelegate::Next<bool, 1>;
+  };
+
+  bool is_shared() { return is_shared_; }
+  Isolate* shared_isolate() { return shared_isolate_; }
+
+  void AttachToSharedIsolate(Isolate* shared);
+  void DetachFromSharedIsolate();
+
+  bool HasClientIsolates() const { return client_isolate_head_; }
+
+  template <typename Callback>
+  void IterateClientIsolates(Callback callback) {
+    for (Isolate* current = client_isolate_head_; current;
+         current = current->next_client_isolate_) {
+      callback(current);
+    }
+  }
+
+  base::Mutex* client_isolate_mutex() { return &client_isolate_mutex_; }
+
  private:
-  explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
+  explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
+                   bool is_shared);
   ~Isolate();
 
-  bool Init(ReadOnlyDeserializer* read_only_deserializer,
-            StartupDeserializer* startup_deserializer);
+  bool Init(SnapshotData* startup_snapshot_data,
+            SnapshotData* read_only_snapshot_data, bool can_rehash);
 
   void CheckIsolateLayout();
 
   void InitializeCodeRanges();
   void AddCodeMemoryRange(MemoryRange range);
 
+  // Common method to create an Isolate used by Isolate::New() and
+  // Isolate::NewShared().
+  static Isolate* Allocate(bool is_shared);
+
   static void RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data);
+
+  void FireCallCompletedCallbackInternal(MicrotaskQueue* microtask_queue);
 
   class ThreadDataTable {
    public:
@@ -1598,14 +1881,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
           previous_thread_data(previous_thread_data),
           previous_isolate(previous_isolate),
           previous_item(previous_item) {}
+    EntryStackItem(const EntryStackItem&) = delete;
+    EntryStackItem& operator=(const EntryStackItem&) = delete;
 
     int entry_count;
     PerIsolateThreadData* previous_thread_data;
     Isolate* previous_isolate;
     EntryStackItem* previous_item;
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
 
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
@@ -1635,6 +1917,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
                                            Handle<JSPromise> promise);
 
+  bool HasIsolatePromiseHooks() const {
+    return PromiseHookFields::HasIsolatePromiseHook::decode(
+        promise_hook_flags_);
+  }
+
+  bool HasAsyncEventDelegate() const {
+    return PromiseHookFields::HasAsyncEventDelegate::decode(
+        promise_hook_flags_);
+  }
+
   const char* RAILModeName(RAILMode rail_mode) const {
     switch (rail_mode) {
       case PERFORMANCE_RESPONSE:
@@ -1650,6 +1942,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   void AddCrashKeysForIsolateAndHeapPointers();
+
+  // Returns the Exception sentinel.
+  Object ThrowInternal(Object exception, MessageLocation* location);
+
+  // Methods for appending and removing to/from client isolates list.
+  void AppendAsClientIsolate(Isolate* client);
+  void RemoveAsClientIsolate(Isolate* client);
 
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode
@@ -1672,11 +1971,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   CompilationCache* compilation_cache_ = nullptr;
   std::shared_ptr<Counters> async_counters_;
   base::RecursiveMutex break_access_;
-  base::SharedMutex transition_array_access_;
+  base::SharedMutex feedback_vector_access_;
+  base::SharedMutex internalized_string_access_;
+  base::SharedMutex full_transition_array_access_;
+  base::SharedMutex shared_function_info_access_;
+  base::SharedMutex map_updater_access_;
+  base::SharedMutex boilerplate_migration_access_;
   Logger* logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;
-  DeoptimizerData* deoptimizer_data_ = nullptr;
+  Deoptimizer* current_deoptimizer_ = nullptr;
   bool deoptimizer_lazy_throw_ = false;
   MaterializedObjectStore* materialized_object_store_ = nullptr;
   bool capture_stack_trace_for_uncaught_exceptions_ = false;
@@ -1692,9 +1996,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   GlobalHandles* global_handles_ = nullptr;
   EternalHandles* eternal_handles_ = nullptr;
   ThreadManager* thread_manager_ = nullptr;
+  bigint::Processor* bigint_processor_ = nullptr;
   RuntimeState runtime_state_;
   Builtins builtins_;
   SetupIsolateDelegate* setup_delegate_ = nullptr;
+#if defined(DEBUG) || defined(VERIFY_HEAP)
+  std::atomic<int> num_active_deserializers_;
+#endif
 #ifndef V8_INTL_SUPPORT
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;
@@ -1710,8 +2018,21 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   v8::Isolate::AtomicsWaitCallback atomics_wait_callback_ = nullptr;
   void* atomics_wait_callback_data_ = nullptr;
   PromiseHook promise_hook_ = nullptr;
-  HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_ =
-      nullptr;
+  HostImportModuleDynamicallyWithImportAssertionsCallback
+      host_import_module_dynamically_with_import_assertions_callback_ = nullptr;
+  std::atomic<debug::CoverageMode> code_coverage_mode_{
+      debug::CoverageMode::kBestEffort};
+
+  // Helper function for RunHostImportModuleDynamicallyCallback.
+  // Unpacks import assertions, if present, from the second argument to dynamic
+  // import() and returns them in a FixedArray, sorted by code point order of
+  // the keys, in the form [key1, value1, key2, value2, ...]. Returns an empty
+  // MaybeHandle if an error was thrown.  In this case, the host callback should
+  // not be called and instead the caller should use the pending exception to
+  // reject the import() call's Promise.
+  MaybeHandle<FixedArray> GetImportAssertionsFromArgument(
+      MaybeHandle<Object> maybe_import_assertions_argument);
+
   HostInitializeImportMetaObjectCallback
       host_initialize_import_meta_object_callback_ = nullptr;
   base::Mutex rail_mutex_;
@@ -1720,16 +2041,22 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #ifdef V8_INTL_SUPPORT
   std::string default_locale_;
 
-  struct ICUObjectCacheTypeHash {
-    std::size_t operator()(ICUObjectCacheType a) const {
-      return static_cast<std::size_t>(a);
-    }
-  };
-  std::unordered_map<ICUObjectCacheType, std::shared_ptr<icu::UMemory>,
-                     ICUObjectCacheTypeHash>
-      icu_object_cache_;
+  // The cache stores the most recently accessed {locales,obj} pair for each
+  // cache type.
+  struct ICUObjectCacheEntry {
+    std::string locales;
+    std::shared_ptr<icu::UMemory> obj;
 
+    ICUObjectCacheEntry() = default;
+    ICUObjectCacheEntry(std::string locales, std::shared_ptr<icu::UMemory> obj)
+        : locales(locales), obj(std::move(obj)) {}
+  };
+
+  ICUObjectCacheEntry icu_object_cache_[kICUObjectCacheTypeCount];
 #endif  // V8_INTL_SUPPORT
+
+  // true if being profiled. Causes collection of extra compile info.
+  std::atomic<bool> is_profiling_{false};
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_ = false;
@@ -1740,9 +2067,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_ = false;
 
-  // TODO(ishell): remove
-  // True if ES2015 tail call elimination feature is enabled.
-  bool is_tail_call_elimination_enabled_ = true;
+  // True if short bultin calls optimization is enabled.
+  bool is_short_builtin_calls_enabled_ = false;
 
   // True if the isolate is in background. This flag is used
   // to prioritize between memory usage and latency.
@@ -1774,7 +2100,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // through all compilations (and thus all JSHeapBroker instances).
   Zone* compiler_zone_ = nullptr;
 
-  CompilerDispatcher* compiler_dispatcher_ = nullptr;
+  LazyCompileDispatcher* compiler_dispatcher_ = nullptr;
+  baseline::BaselineBatchCompiler* baseline_batch_compiler_ = nullptr;
 
   using InterruptEntry = std::pair<InterruptCallback, void*>;
   std::queue<InterruptEntry> api_interrupts_queue_;
@@ -1798,6 +2125,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #undef ISOLATE_FIELD_OFFSET
 #endif
 
+  bool detailed_source_positions_for_profiling_;
+
   OptimizingCompileDispatcher* optimizing_compile_dispatcher_ = nullptr;
 
   std::unique_ptr<PersistentHandlesList> persistent_handles_list_;
@@ -1807,6 +2136,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool force_slow_path_ = false;
 
+  bool initialized_ = false;
   bool jitless_ = false;
 
   int next_optimization_id_ = 0;
@@ -1814,6 +2144,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #if V8_SFI_HAS_UNIQUE_ID
   std::atomic<int> next_unique_sfi_id_;
 #endif
+
+  unsigned next_module_async_evaluating_ordinal_;
 
   // Vector of callbacks before a Call starts execution.
   std::vector<BeforeCallEnteredCallback> before_call_entered_callbacks_;
@@ -1830,6 +2162,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       Persistent<v8::Context, v8::CopyablePersistentTraits<v8::Context>>>
       recorder_context_id_map_;
 
+  size_t last_long_task_stats_counter_ = 0;
+  v8::metrics::LongTaskStats long_task_stats_;
+
   std::vector<Object> startup_object_cache_;
 
   // Used during builtins compilation to build the builtins constants table,
@@ -1838,16 +2173,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void InitializeDefaultEmbeddedBlob();
   void CreateAndSetEmbeddedBlob();
+  void MaybeRemapEmbeddedBuiltinsIntoCodeRange();
   void TearDownEmbeddedBlob();
-
   void SetEmbeddedBlob(const uint8_t* code, uint32_t code_size,
-                       const uint8_t* metadata, uint32_t metadata_size);
+                       const uint8_t* data, uint32_t data_size);
   void ClearEmbeddedBlob();
 
   const uint8_t* embedded_blob_code_ = nullptr;
   uint32_t embedded_blob_code_size_ = 0;
-  const uint8_t* embedded_blob_metadata_ = nullptr;
-  uint32_t embedded_blob_metadata_size_ = 0;
+  const uint8_t* embedded_blob_data_ = nullptr;
+  uint32_t embedded_blob_data_size_ = 0;
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_ = nullptr;
   std::shared_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_shared_;
@@ -1859,9 +2194,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   debug::ConsoleDelegate* console_delegate_ = nullptr;
 
   debug::AsyncEventDelegate* async_event_delegate_ = nullptr;
-  bool promise_hook_or_async_event_delegate_ = false;
-  bool promise_hook_or_debug_is_active_or_async_event_delegate_ = false;
+  uint32_t promise_hook_flags_ = 0;
   int async_task_count_ = 0;
+
+  std::unique_ptr<LocalIsolate> main_thread_local_isolate_;
 
   v8::Isolate::AbortOnUncaughtExceptionCallback
       abort_on_uncaught_exception_callback_ = nullptr;
@@ -1874,8 +2210,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   size_t total_regexp_code_generated_ = 0;
 
   size_t elements_deletion_counter_ = 0;
-
-  std::shared_ptr<wasm::WasmEngine> wasm_engine_;
 
   std::unique_ptr<TracingCpuProfilerImpl> tracing_cpu_profiler_;
 
@@ -1892,6 +2226,23 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // know if this is the case, so I'm preserving it for now.
   base::Mutex thread_data_table_mutex_;
   ThreadDataTable thread_data_table_;
+
+  // Set to true if this isolate is used as shared heap.
+  const bool is_shared_;
+
+  // Stores the shared isolate for this client isolate. nullptr for shared
+  // isolates or when no shared isolate is used.
+  Isolate* shared_isolate_ = nullptr;
+
+  // A shared isolate will use these two fields to track all its client
+  // isolates.
+  base::Mutex client_isolate_mutex_;
+  Isolate* client_isolate_head_ = nullptr;
+
+  // Used to form a linked list of all client isolates. Protected by
+  // client_isolate_mutex_.
+  Isolate* prev_client_isolate_ = nullptr;
+  Isolate* next_client_isolate_ = nullptr;
 
   // A signal-safe vector of heap pages containing code. Used with the
   // v8::Unwinder API.
@@ -1910,8 +2261,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   friend class heap::HeapTester;
   friend class TestSerializer;
-
-  DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
 
 #undef FIELD_ACCESSOR
@@ -1940,7 +2289,7 @@ class V8_EXPORT_PRIVATE SaveContext {
   Handle<Context> context() { return context_; }
 
   // Returns true if this save context is below a given JavaScript frame.
-  bool IsBelowFrame(StandardFrame* frame);
+  bool IsBelowFrame(CommonFrame* frame);
 
  private:
   Isolate* const isolate_;
@@ -1957,7 +2306,7 @@ class V8_EXPORT_PRIVATE SaveAndSwitchContext : public SaveContext {
 
 // A scope which sets the given isolate's context to null for its lifetime to
 // ensure that code does not make assumptions on a context being available.
-class NullContextScope : public SaveAndSwitchContext {
+class V8_NODISCARD NullContextScope : public SaveAndSwitchContext {
  public:
   explicit NullContextScope(Isolate* isolate)
       : SaveAndSwitchContext(isolate, Context()) {}
@@ -2006,6 +2355,7 @@ class StackLimitCheck {
     StackGuard* stack_guard = isolate_->stack_guard();
     return GetCurrentStackPosition() < stack_guard->real_climit();
   }
+  static bool HasOverflowed(LocalIsolate* local_isolate);
 
   // Use this to check for interrupt request in C++ code.
   bool InterruptRequested() {
@@ -2020,13 +2370,21 @@ class StackLimitCheck {
   Isolate* isolate_;
 };
 
-#define STACK_CHECK(isolate, result_value) \
-  do {                                     \
-    StackLimitCheck stack_check(isolate);  \
-    if (stack_check.HasOverflowed()) {     \
-      isolate->StackOverflow();            \
-      return result_value;                 \
-    }                                      \
+// This macro may be used in context that disallows JS execution.
+// That is why it checks only for a stack overflow and termination.
+#define STACK_CHECK(isolate, result_value)                   \
+  do {                                                       \
+    StackLimitCheck stack_check(isolate);                    \
+    if (stack_check.InterruptRequested()) {                  \
+      if (stack_check.HasOverflowed()) {                     \
+        isolate->StackOverflow();                            \
+        return result_value;                                 \
+      }                                                      \
+      if (isolate->stack_guard()->HasTerminationRequest()) { \
+        isolate->TerminateExecution();                       \
+        return result_value;                                 \
+      }                                                      \
+    }                                                        \
   } while (false)
 
 class StackTraceFailureMessage {
@@ -2050,6 +2408,20 @@ class StackTraceFailureMessage {
   void* code_objects_[4];
   char js_stack_trace_[kStacktraceBufferSize];
   uintptr_t end_marker_ = kEndMarker;
+};
+
+template <base::MutexSharedType kIsShared>
+class V8_NODISCARD SharedMutexGuardIfOffThread<Isolate, kIsShared> final {
+ public:
+  SharedMutexGuardIfOffThread(base::SharedMutex* mutex, Isolate* isolate) {
+    DCHECK_NOT_NULL(mutex);
+    DCHECK_NOT_NULL(isolate);
+    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  }
+
+  SharedMutexGuardIfOffThread(const SharedMutexGuardIfOffThread&) = delete;
+  SharedMutexGuardIfOffThread& operator=(const SharedMutexGuardIfOffThread&) =
+      delete;
 };
 
 }  // namespace internal

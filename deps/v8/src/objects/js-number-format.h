@@ -32,6 +32,8 @@ class LocalizedNumberFormatter;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-number-format-tq.inc"
+
 class JSNumberFormat
     : public TorqueGeneratedJSNumberFormat<JSNumberFormat, JSObject> {
  public:

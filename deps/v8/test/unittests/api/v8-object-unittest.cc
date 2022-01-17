@@ -2,7 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
+#include "include/v8-template.h"
 #include "src/api/api.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
@@ -77,8 +82,9 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
   Local<Object> object =
       interface_for_receiver->NewInstance(receiver_context).ToLocalChecked();
   object->SetPrototype(caller_context, prototype).ToChecked();
-  EXPECT_EQ(receiver_context, object->CreationContext());
-  EXPECT_EQ(prototype_context, prototype->CreationContext());
+  EXPECT_EQ(receiver_context, object->GetCreationContext().ToLocalChecked());
+  EXPECT_EQ(prototype_context,
+            prototype->GetCreationContext().ToLocalChecked());
 
   EXPECT_EQ(0, call_count);
   object->Get(caller_context, property_key).ToLocalChecked();

@@ -8,7 +8,6 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/numbers/dtoa.h"
 
 namespace v8 {
 namespace internal {
@@ -30,7 +29,7 @@ class JSNativeContextSpecializationTest : public GraphTest {
 
 TEST_F(JSNativeContextSpecializationTest, GetMaxStringLengthOfString) {
   const size_t str_len = 3;
-  const size_t num_len = kBase10MaximalLength + 1;
+  const size_t num_len = kMaxDoubleStringLength;
 
   Node* const str_node = graph()->NewNode(
       common()->HeapConstant(factory()->InternalizeUtf8String("str")));

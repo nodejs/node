@@ -23,6 +23,8 @@ void IsExtraRootCertsFileLoaded(
 
 X509_STORE* NewRootCertStore();
 
+BIOPointer LoadBIO(Environment* env, v8::Local<v8::Value> v);
+
 class SecureContext final : public BaseObject {
  public:
   using GetSessionCb = SSL_SESSION* (*)(SSL*, const unsigned char*, int, int*);
@@ -32,7 +34,12 @@ class SecureContext final : public BaseObject {
 
   ~SecureContext() override;
 
+  static bool HasInstance(Environment* env, const v8::Local<v8::Value>& value);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+  static SecureContext* Create(Environment* env);
 
   SSL_CTX* operator*() const { return ctx_.get(); }
 

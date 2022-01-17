@@ -7,6 +7,7 @@
 // https://tc39.es/ecma262/#sec-promise-jobs
 namespace promise {
 extern macro IsJSPromiseMap(Map): bool;
+extern macro NeedsAnyPromiseHooks(): bool;
 
 // https://tc39.es/ecma262/#sec-promiseresolvethenablejob
 transitioning builtin
@@ -25,7 +26,7 @@ PromiseResolveThenableJob(implicit context: Context)(
   const promiseThen = *NativeContextSlot(ContextSlot::PROMISE_THEN_INDEX);
   const thenableMap = thenable.map;
   if (TaggedEqual(then, promiseThen) && IsJSPromiseMap(thenableMap) &&
-      !IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() &&
+      !NeedsAnyPromiseHooks() &&
       IsPromiseSpeciesLookupChainIntact(nativeContext, thenableMap)) {
     // We know that the {thenable} is a JSPromise, which doesn't require
     // any special treatment and that {then} corresponds to the initial

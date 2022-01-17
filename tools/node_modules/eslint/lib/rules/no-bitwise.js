@@ -20,13 +20,13 @@ const BITWISE_OPERATORS = [
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow bitwise operators",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-bitwise"
         },
@@ -63,7 +63,7 @@ module.exports = {
 
         /**
          * Reports an unexpected use of a bitwise operator.
-         * @param   {ASTNode} node Node which contains the bitwise operator.
+         * @param {ASTNode} node Node which contains the bitwise operator.
          * @returns {void}
          */
         function report(node) {
@@ -72,7 +72,7 @@ module.exports = {
 
         /**
          * Checks if the given node has a bitwise operator.
-         * @param   {ASTNode} node The node to check.
+         * @param {ASTNode} node The node to check.
          * @returns {boolean} Whether or not the node has a bitwise operator.
          */
         function hasBitwiseOperator(node) {
@@ -81,7 +81,7 @@ module.exports = {
 
         /**
          * Checks if exceptions were provided, e.g. `{ allow: ['~', '|'] }`.
-         * @param   {ASTNode} node The node to check.
+         * @param {ASTNode} node The node to check.
          * @returns {boolean} Whether or not the node has a bitwise operator.
          */
         function allowedOperator(node) {
@@ -90,7 +90,7 @@ module.exports = {
 
         /**
          * Checks if the given bitwise operator is used for integer typecasting, i.e. "|0"
-         * @param   {ASTNode} node The node to check.
+         * @param {ASTNode} node The node to check.
          * @returns {boolean} whether the node is used in integer typecasting.
          */
         function isInt32Hint(node) {
@@ -100,7 +100,7 @@ module.exports = {
 
         /**
          * Report if the given node contains a bitwise operator.
-         * @param   {ASTNode} node The node to check.
+         * @param {ASTNode} node The node to check.
          * @returns {void}
          */
         function checkNodeForBitwiseOperator(node) {

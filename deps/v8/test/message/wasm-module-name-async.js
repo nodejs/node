@@ -4,12 +4,12 @@
 
 // Flags: --expose-wasm --no-stress-opt
 
-load('test/mjsunit/mjsunit.js');
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/mjsunit.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 builder.setName('test-module');
-builder.addFunction(undefined, kSig_i_v)
+builder.addFunction('main', kSig_i_v)
     .addBody([kExprUnreachable])
     .exportAs('main');
 let buffer = builder.toBuffer();

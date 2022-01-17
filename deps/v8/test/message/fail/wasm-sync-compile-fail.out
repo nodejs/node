@@ -1,6 +1,6 @@
-*%(basename)s:9: CompileError: WebAssembly.Module(): Compiling function #0:"f" failed: expected 1 elements on the stack for fallthru to @1, found 0 @+24
+*%(basename)s:9: CompileError: WebAssembly.Module(): Compiling function #0:"f" failed: expected 1 elements on the stack for fallthru, found 0 @+24
 new WebAssembly.Module(builder.toBuffer());
 ^
-CompileError: WebAssembly.Module(): Compiling function #0:"f" failed: expected 1 elements on the stack for fallthru to @1, found 0 @+24
+CompileError: WebAssembly.Module(): Compiling function #0:"f" failed: expected 1 elements on the stack for fallthru, found 0 @+24
     at *%(basename)s:9:1
 

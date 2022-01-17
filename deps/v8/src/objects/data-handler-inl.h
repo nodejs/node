@@ -14,12 +14,9 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(DataHandler, Struct)
+#include "torque-generated/src/objects/data-handler-tq-inl.inc"
 
-CAST_ACCESSOR(DataHandler)
-
-ACCESSORS(DataHandler, smi_handler, Object, kSmiHandlerOffset)
-ACCESSORS(DataHandler, validity_cell, Object, kValidityCellOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(DataHandler)
 
 int DataHandler::data_field_count() const {
   return (map().instance_size() - kSizeWithData0) / kTaggedSize;

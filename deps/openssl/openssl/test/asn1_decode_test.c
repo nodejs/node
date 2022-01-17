@@ -1,7 +1,7 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -12,6 +12,7 @@
 
 #include <openssl/rand.h>
 #include <openssl/asn1t.h>
+#include <openssl/obj_mac.h>
 #include "internal/numbers.h"
 #include "testutil.h"
 
@@ -28,7 +29,7 @@ static unsigned char t_invalid_zero[] = {
     0x02, 0x00                   /* INTEGER tag + length */
 };
 
-#if OPENSSL_API_COMPAT < 0x10200000L
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 /* LONG case ************************************************************* */
 
 typedef struct {
@@ -160,14 +161,75 @@ static int test_uint64(void)
     return 1;
 }
 
+typedef struct {
+    ASN1_STRING *invalidDirString;
+} INVALIDTEMPLATE;
+
+ASN1_SEQUENCE(INVALIDTEMPLATE) = {
+    /*
+     * DirectoryString is a CHOICE type so it must use explicit tagging -
+     * but we deliberately use implicit here, which makes this template invalid.
+     */
+    ASN1_IMP(INVALIDTEMPLATE, invalidDirString, DIRECTORYSTRING, 12)
+} static_ASN1_SEQUENCE_END(INVALIDTEMPLATE)
+
+IMPLEMENT_STATIC_ASN1_ENCODE_FUNCTIONS(INVALIDTEMPLATE)
+IMPLEMENT_STATIC_ASN1_ALLOC_FUNCTIONS(INVALIDTEMPLATE)
+
+/* Empty sequence for invalid template test */
+static unsigned char t_invalid_template[] = {
+    0x30, 0x03,                  /* SEQUENCE tag + length */
+    0x0c, 0x01, 0x41             /* UTF8String, length 1, "A" */
+};
+
+static int test_invalid_template(void)
+{
+    const unsigned char *p = t_invalid_template;
+    INVALIDTEMPLATE *tmp = d2i_INVALIDTEMPLATE(NULL, &p,
+                                               sizeof(t_invalid_template));
+
+    /* We expect a NULL pointer return */
+    if (TEST_ptr_null(tmp))
+        return 1;
+
+    INVALIDTEMPLATE_free(tmp);
+    return 0;
+}
+
+static int test_reuse_asn1_object(void)
+{
+    static unsigned char cn_der[] = { 0x06, 0x03, 0x55, 0x04, 0x06 };
+    static unsigned char oid_der[] = {
+        0x06, 0x06, 0x2a, 0x03, 0x04, 0x05, 0x06, 0x07
+    };
+    int ret = 0;
+    ASN1_OBJECT *obj;
+    unsigned char const *p = oid_der;
+
+    /* Create an object that owns dynamically allocated 'sn' and 'ln' fields */
+
+    if (!TEST_ptr(obj = ASN1_OBJECT_create(NID_undef, cn_der, sizeof(cn_der),
+                                           "C", "countryName")))
+        goto err;
+    /* reuse obj - this should not leak sn and ln */
+    if (!TEST_ptr(d2i_ASN1_OBJECT(&obj, &p, sizeof(oid_der))))
+        goto err;
+    ret = 1;
+err:
+    ASN1_OBJECT_free(obj);
+    return ret;
+}
+
 int setup_tests(void)
 {
-#if OPENSSL_API_COMPAT < 0x10200000L
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     ADD_TEST(test_long);
 #endif
     ADD_TEST(test_int32);
     ADD_TEST(test_uint32);
     ADD_TEST(test_int64);
     ADD_TEST(test_uint64);
+    ADD_TEST(test_invalid_template);
+    ADD_TEST(test_reuse_asn1_object);
     return 1;
 }

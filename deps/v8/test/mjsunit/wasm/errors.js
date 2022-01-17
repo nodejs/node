@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --allow-natives-syntax
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function builder() {
   return new WasmModuleBuilder;
@@ -55,7 +55,21 @@ function assertConversionError(bytes, imports, msg) {
 
 (function TestValidationError() {
   print(arguments.callee.name);
+  let error = msg => 'Compiling function #0 failed: ' + msg;
   let f_error = msg => 'Compiling function #0:"f" failed: ' + msg;
+  assertCompileError(
+      (function build() {
+        let b = builder();
+        b.addType(kSig_v_v);
+        // Use explicit section because the builder would automatically emit
+        // e.g. locals declarations.
+        // 1 function with type 0.
+        b.addExplicitSection([kFunctionSectionCode, 2, 1, 0]);
+        // 1 function body with length 0.
+        b.addExplicitSection([kCodeSectionCode, 2, 1, 0]);
+        return b.toBuffer();
+      })(),
+      error('expected local decls count @+22'));
   assertCompileError(
       builder().addFunction('f', kSig_i_v).end().toBuffer(),
       f_error('function body must end with "end" opcode @+24'));
@@ -110,7 +124,8 @@ function import_error(index, module, func, msg) {
   b = builder();
   msg = import_error(
       0, 'foo', 'bar',
-      'global import must be a number or WebAssembly.Global object');
+      'global import must be a number, valid Wasm reference, '
+        + 'or WebAssembly.Global object');
   b.addImportedGlobal('foo', 'bar', kWasmI32);
   assertLinkError(b.toBuffer(), {foo: {}}, msg);
   b = builder();

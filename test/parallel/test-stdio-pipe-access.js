@@ -18,12 +18,13 @@ switch (who) {
                 { 'stdio': 'inherit' });
     }
     break;
-  case 'parent':
+  case 'parent': {
     const middle = spawn(process.argv0,
                          [process.argv[1], 'middle'],
                          { 'stdio': 'pipe' });
     middle.stdout.on('data', () => {});
     break;
+  }
   case 'middle':
     spawn(process.argv0,
           [process.argv[1], 'bottom'],
@@ -32,6 +33,6 @@ switch (who) {
                        process.stderr ] });
     break;
   case 'bottom':
-    process.stdin;
+    process.stdin; // eslint-disable-line no-unused-expressions
     break;
 }

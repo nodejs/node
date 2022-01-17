@@ -5,9 +5,9 @@
 #ifndef V8_DATE_DATEPARSER_H_
 #define V8_DATE_DATEPARSER_H_
 
+#include "src/base/vector.h"
 #include "src/strings/char-predicates.h"
 #include "src/utils/allocation.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -38,7 +38,7 @@ class DateParser : public AllStatic {
   // [7]: UTC offset in seconds, or null value if no timezone specified
   // If parsing fails, return false (content of output array is not defined).
   template <typename Char>
-  static bool Parse(Isolate* isolate, Vector<Char> str, double* output);
+  static bool Parse(Isolate* isolate, base::Vector<Char> str, double* output);
 
  private:
   // Range testing
@@ -57,7 +57,9 @@ class DateParser : public AllStatic {
   template <typename Char>
   class InputReader {
    public:
-    explicit InputReader(Vector<Char> s) : index_(0), buffer_(s) { Next(); }
+    explicit InputReader(base::Vector<Char> s) : index_(0), buffer_(s) {
+      Next();
+    }
 
     int position() { return index_; }
 
@@ -73,6 +75,9 @@ class DateParser : public AllStatic {
     int ReadUnsignedNumeral() {
       int n = 0;
       int i = 0;
+      // First, skip leading zeros
+      while (ch_ == '0') Next();
+      // And then, do the conversion
       while (IsAsciiDigit()) {
         if (i < kMaxSignificantDigits) n = n * 10 + ch_ - '0';
         i++;
@@ -117,7 +122,7 @@ class DateParser : public AllStatic {
 
    private:
     int index_;
-    Vector<Char> buffer_;
+    base::Vector<Char> buffer_;
     uint32_t ch_;
   };
 

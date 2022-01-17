@@ -26,7 +26,7 @@ const server = net.createServer((socket) => {
     HTTPParser.RESPONSE,
     {},
     0,
-    false,
+    0,
     1e3
   );
 

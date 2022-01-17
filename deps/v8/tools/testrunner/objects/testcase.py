@@ -30,10 +30,15 @@ import os
 import re
 import shlex
 
-from ..outproc import base as outproc
-from ..local import command
-from ..local import statusfile
-from ..local import utils
+from testrunner.outproc import base as outproc
+from testrunner.local import command
+from testrunner.local import statusfile
+from testrunner.local import utils
+from testrunner.local.variants import ALL_VARIANT_FLAGS
+from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_VARIANT
+from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE
+from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG
+
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
@@ -42,16 +47,25 @@ FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 RESOURCES_PATTERN = re.compile(r"//\s+Resources:(.*)")
 # Pattern to auto-detect files to push on Android for statements like:
 # load("path/to/file.js")
+# d8.file.execute("path/to/file.js")
 LOAD_PATTERN = re.compile(
-    r"(?:load|readbuffer|read)\((?:'|\")([^'\"]+)(?:'|\")\)")
-# Pattern to auto-detect files to push on Android for statements like:
-# import "path/to/file.js"
-MODULE_RESOURCES_PATTERN_1 = re.compile(
-    r"(?:import|export)(?:\(| )(?:'|\")([^'\"]+)(?:'|\")")
+    r"(?:execute|load|readbuffer|read)\((?:'|\")([^'\"]+)(?:'|\")\)")
 # Pattern to auto-detect files to push on Android for statements like:
 # import foobar from "path/to/file.js"
-MODULE_RESOURCES_PATTERN_2 = re.compile(
-    r"(?:import|export).*from (?:'|\")([^'\"]+)(?:'|\")")
+# import {foo, bar} from "path/to/file.js"
+# export {"foo" as "bar"} from "path/to/file.js"
+MODULE_FROM_RESOURCES_PATTERN = re.compile(
+    r"(?:import|export).*?from\s*\(?['\"]([^'\"]+)['\"]",
+    re.MULTILINE | re.DOTALL)
+# Pattern to detect files to push on Android for statements like:
+# import "path/to/file.js"
+# import("module.mjs").catch()...
+MODULE_IMPORT_RESOURCES_PATTERN = re.compile(
+    r"import\s*\(?['\"]([^'\"]+)['\"]",
+    re.MULTILINE | re.DOTALL)
+# Pattern to detect and strip test262 frontmatter from tests to prevent false
+# positives for MODULE_RESOURCES_PATTERN above.
+TEST262_FRONTMATTER_PATTERN = re.compile(r"/\*---.*?---\*/", re.DOTALL)
 
 TIMEOUT_LONG = "long"
 
@@ -61,6 +75,13 @@ except NameError:
   def cmp(x, y):  # Python 3
     return (x > y) - (x < y)
 
+def read_file_utf8(file):
+  try:                # Python 3
+    with open(file, encoding='utf-8') as f:
+      return f.read()
+  except TypeError:   # Python 2
+    with open(file) as f:
+      return f.read()
 
 class TestCase(object):
   def __init__(self, suite, path, name, test_config):
@@ -84,8 +105,10 @@ class TestCase(object):
 
     # Outcomes
     self._statusfile_outcomes = None
-    self.expected_outcomes = None
+    self._expected_outcomes = None
+    self._checked_flag_contradictions = False
     self._statusfile_flags = None
+    self.expected_failure_reason = None
 
     self._prepare_outcomes()
 
@@ -114,9 +137,9 @@ class TestCase(object):
         return not is_flag(outcome)
 
       outcomes = self.suite.statusfile.get_outcomes(self.name, self.variant)
-      self._statusfile_outcomes = filter(not_flag, outcomes)
-      self._statusfile_flags = filter(is_flag, outcomes)
-    self.expected_outcomes = (
+      self._statusfile_outcomes = list(filter(not_flag, outcomes))
+      self._statusfile_flags = list(filter(is_flag, outcomes))
+    self._expected_outcomes = (
       self._parse_status_file_outcomes(self._statusfile_outcomes))
 
   def _parse_status_file_outcomes(self, outcomes):
@@ -141,14 +164,115 @@ class TestCase(object):
       return outproc.OUTCOMES_FAIL
     return expected_outcomes or outproc.OUTCOMES_PASS
 
+  def allow_timeouts(self):
+    if self.expected_outcomes == outproc.OUTCOMES_PASS:
+      self._expected_outcomes = outproc.OUTCOMES_PASS_OR_TIMEOUT
+    elif self.expected_outcomes == outproc.OUTCOMES_FAIL:
+      self._expected_outcomes = outproc.OUTCOMES_FAIL_OR_TIMEOUT
+    elif statusfile.TIMEOUT not in self.expected_outcomes:
+      self._expected_outcomes = (
+          self.expected_outcomes + [statusfile.TIMEOUT])
+
+  def allow_pass(self):
+    if self.expected_outcomes == outproc.OUTCOMES_TIMEOUT:
+      self._expected_outcomes = outproc.OUTCOMES_PASS_OR_TIMEOUT
+    elif self.expected_outcomes == outproc.OUTCOMES_FAIL:
+      self._expected_outcomes = outproc.OUTCOMES_FAIL_OR_PASS
+    elif statusfile.PASS not in self.expected_outcomes:
+      self._expected_outcomes = (
+          self.expected_outcomes + [statusfile.PASS])
+
+  @property
+  def expected_outcomes(self):
+    def is_flag(maybe_flag):
+      return maybe_flag.startswith("--")  # Best-effort heuristic.
+
+    # Filter to flags, e.g.: ["--foo", "3", "--bar"] -> ["--foo", "--bar"].
+    def filter_flags(normalized_flags):
+      return [f for f in normalized_flags if is_flag(f)];
+
+    def normalize_flag(flag):
+      return flag.replace("_", "-").replace("--no-", "--no")
+
+    def normalize_flags(flags):
+      return [normalize_flag(flag) for flag in filter_flags(flags)]
+
+    # Note this can get it wrong if the flag name starts with the characters
+    # "--no" where "no" is part of the flag name, e.g. "--nobodys-perfect".
+    # In that case the negation "--bodys-perfect" would be returned. This is
+    # a weakness we accept and hope to never run into.
+    def negate_flag(normalized_flag):
+      return ("--" + normalized_flag[4:] if normalized_flag.startswith("--no")
+              else "--no" + normalized_flag[2:])
+
+    def negate_flags(normalized_flags):
+      return [negate_flag(flag) for flag in normalized_flags]
+
+    def has_flag(conflicting_flag, flags):
+      conflicting_flag = normalize_flag(conflicting_flag)
+      if conflicting_flag in flags:
+        return True
+      if conflicting_flag.endswith("*"):
+        return any(flag.startswith(conflicting_flag[:-1]) for flag in flags)
+      return False
+
+    def check_flags(incompatible_flags, actual_flags, rule):
+      for incompatible_flag in incompatible_flags:
+          if has_flag(incompatible_flag, actual_flags):
+            self._statusfile_outcomes = outproc.OUTCOMES_FAIL
+            self._expected_outcomes = outproc.OUTCOMES_FAIL
+            self.expected_failure_reason = ("Rule " + rule + " in " +
+                "tools/testrunner/local/variants.py expected a flag " +
+                "contradiction error with " + incompatible_flag + ".")
+
+    if not self._checked_flag_contradictions:
+      self._checked_flag_contradictions = True
+
+      file_specific_flags = (self._get_source_flags() + self._get_suite_flags()
+                             + self._get_statusfile_flags())
+      file_specific_flags = normalize_flags(file_specific_flags)
+      extra_flags = normalize_flags(self._get_extra_flags())
+
+      # Contradiction: flags contains both a flag --foo and its negation
+      # --no-foo.
+      if self.variant in ALL_VARIANT_FLAGS:
+        for flags in ALL_VARIANT_FLAGS[self.variant]:
+          all_flags = (file_specific_flags + extra_flags
+                       + normalize_flags(flags))
+          check_flags(negate_flags(all_flags), all_flags, "Flag negations")
+
+      # Contradiction: flags specified through the "Flags:" annotation are
+      # incompatible with the variant.
+      if self.variant in INCOMPATIBLE_FLAGS_PER_VARIANT:
+        check_flags(INCOMPATIBLE_FLAGS_PER_VARIANT[self.variant], file_specific_flags,
+                    "INCOMPATIBLE_FLAGS_PER_VARIANT[\""+self.variant+"\"]")
+
+      # Contradiction: flags specified through the "Flags:" annotation are
+      # incompatible with the build.
+      for variable, incompatible_flags in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.items():
+        if self.suite.statusfile.variables[variable]:
+            check_flags(incompatible_flags, file_specific_flags,
+              "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\""+variable+"\"]")
+
+      # Contradiction: flags passed through --extra-flags are incompatible.
+      for extra_flag, incompatible_flags in INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG.items():
+        if has_flag(extra_flag, extra_flags):
+            check_flags(incompatible_flags, file_specific_flags,
+              "INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG[\""+extra_flag+"\"]")
+    return self._expected_outcomes
+
   @property
   def do_skip(self):
     return (statusfile.SKIP in self._statusfile_outcomes and
             not self.suite.test_config.run_skipped)
 
   @property
+  def is_heavy(self):
+    return statusfile.HEAVY in self._statusfile_outcomes
+
+  @property
   def is_slow(self):
-    return statusfile.SLOW in self._statusfile_outcomes
+    return self.is_heavy or statusfile.SLOW in self._statusfile_outcomes
 
   @property
   def is_fail_ok(self):
@@ -183,9 +307,9 @@ class TestCase(object):
     """Gets command parameters and combines them in the following order:
       - files [empty by default]
       - random seed
+      - mode flags (based on chosen mode)
       - extra flags (from command line)
       - user flags (variant/fuzzer flags)
-      - mode flags (based on chosen mode)
       - source flags (from source code) [empty by default]
       - test-suite flags
       - statusfile flags
@@ -196,9 +320,9 @@ class TestCase(object):
     return (
         self._get_files_params() +
         self._get_random_seed_flags() +
+        self._get_mode_flags() +
         self._get_extra_flags() +
         self._get_variant_flags() +
-        self._get_mode_flags() +
         self._get_source_flags() +
         self._get_suite_flags() +
         self._get_statusfile_flags()
@@ -290,8 +414,7 @@ class TestCase(object):
     return self._get_source_path() is not None
 
   def get_source(self):
-    with open(self._get_source_path()) as f:
-      return f.read()
+    return read_file_utf8(self._get_source_path())
 
   def _get_source_path(self):
     return None
@@ -337,24 +460,30 @@ class D8TestCase(TestCase):
     """Returns for a given file a list of absolute paths of files needed by the
     given file.
     """
-    with open(file) as f:
-      source = f.read()
+    source = read_file_utf8(file)
     result = []
     def add_path(path):
       result.append(os.path.abspath(path.replace('/', os.path.sep)))
+    def add_import_path(import_path):
+      add_path(os.path.normpath(
+        os.path.join(os.path.dirname(file), import_path)))
+    def strip_test262_frontmatter(input):
+      return TEST262_FRONTMATTER_PATTERN.sub('', input)
     for match in RESOURCES_PATTERN.finditer(source):
       # There are several resources per line. Relative to base dir.
       for path in match.group(1).strip().split():
         add_path(path)
+    # Strip test262 frontmatter before looking for load() and import/export
+    # statements.
+    source = strip_test262_frontmatter(source)
     for match in LOAD_PATTERN.finditer(source):
       # Files in load statements are relative to base dir.
       add_path(match.group(1))
-    for match in MODULE_RESOURCES_PATTERN_1.finditer(source):
-      # Imported files are relative to the file importing them.
-      add_path(os.path.join(os.path.dirname(file), match.group(1)))
-    for match in MODULE_RESOURCES_PATTERN_2.finditer(source):
-      # Imported files are relative to the file importing them.
-      add_path(os.path.join(os.path.dirname(file), match.group(1)))
+    # Imported files are relative to the file importing them.
+    for match in MODULE_FROM_RESOURCES_PATTERN.finditer(source):
+      add_import_path(match.group(1))
+    for match in MODULE_IMPORT_RESOURCES_PATTERN.finditer(source):
+      add_import_path(match.group(1))
     return result
 
   def _get_resources(self):

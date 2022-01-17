@@ -14,6 +14,14 @@ namespace node {
 
 using errors::TryCatchScope;
 
+using url::table_data::hex;
+using url::table_data::C0_CONTROL_ENCODE_SET;
+using url::table_data::FRAGMENT_ENCODE_SET;
+using url::table_data::PATH_ENCODE_SET;
+using url::table_data::USERINFO_ENCODE_SET;
+using url::table_data::QUERY_ENCODE_SET_NONSPECIAL;
+using url::table_data::QUERY_ENCODE_SET_SPECIAL;
+
 using v8::Array;
 using v8::Context;
 using v8::Function;
@@ -39,14 +47,10 @@ Local<String> Utf8String(Isolate* isolate, const std::string& str) {
 }
 
 namespace url {
-
 namespace {
 
 // https://url.spec.whatwg.org/#eof-code-point
 constexpr char kEOL = -1;
-
-// Used in ToUSVString().
-constexpr char16_t kUnicodeReplacementCharacter = 0xFFFD;
 
 // https://url.spec.whatwg.org/#concept-host
 class URLHost {
@@ -153,14 +157,6 @@ enum url_error_cb_args {
 #undef XX
 };
 
-#define CHAR_TEST(bits, name, expr)                                           \
-  template <typename T>                                                       \
-  bool name(const T ch) {                                              \
-    static_assert(sizeof(ch) >= (bits) / 8,                                   \
-                  "Character must be wider than " #bits " bits");             \
-    return (expr);                                                            \
-  }
-
 #define TWO_CHAR_STRING_TEST(bits, name, expr)                                \
   template <typename T>                                                       \
   bool name(const T ch1, const T ch2) {                                \
@@ -208,7 +204,7 @@ CHAR_TEST(8, IsForbiddenHostCodePoint,
           ch == ' ' || ch == '#' || ch == '%' || ch == '/' ||
           ch == ':' || ch == '?' || ch == '@' || ch == '[' ||
           ch == '<' || ch == '>' || ch == '\\' || ch == ']' ||
-          ch == '^')
+          ch == '^' || ch == '|')
 
 // https://url.spec.whatwg.org/#windows-drive-letter
 TWO_CHAR_STRING_TEST(8, IsWindowsDriveLetter,
@@ -218,456 +214,7 @@ TWO_CHAR_STRING_TEST(8, IsWindowsDriveLetter,
 TWO_CHAR_STRING_TEST(8, IsNormalizedWindowsDriveLetter,
                      (IsASCIIAlpha(ch1) && ch2 == ':'))
 
-// If a UTF-16 character is a low/trailing surrogate.
-CHAR_TEST(16, IsUnicodeTrail, (ch & 0xFC00) == 0xDC00)
-
-// If a UTF-16 character is a surrogate.
-CHAR_TEST(16, IsUnicodeSurrogate, (ch & 0xF800) == 0xD800)
-
-// If a UTF-16 surrogate is a low/trailing one.
-CHAR_TEST(16, IsUnicodeSurrogateTrail, (ch & 0x400) != 0)
-
-#undef CHAR_TEST
 #undef TWO_CHAR_STRING_TEST
-
-const char* hex[256] = {
-  "%00", "%01", "%02", "%03", "%04", "%05", "%06", "%07",
-  "%08", "%09", "%0A", "%0B", "%0C", "%0D", "%0E", "%0F",
-  "%10", "%11", "%12", "%13", "%14", "%15", "%16", "%17",
-  "%18", "%19", "%1A", "%1B", "%1C", "%1D", "%1E", "%1F",
-  "%20", "%21", "%22", "%23", "%24", "%25", "%26", "%27",
-  "%28", "%29", "%2A", "%2B", "%2C", "%2D", "%2E", "%2F",
-  "%30", "%31", "%32", "%33", "%34", "%35", "%36", "%37",
-  "%38", "%39", "%3A", "%3B", "%3C", "%3D", "%3E", "%3F",
-  "%40", "%41", "%42", "%43", "%44", "%45", "%46", "%47",
-  "%48", "%49", "%4A", "%4B", "%4C", "%4D", "%4E", "%4F",
-  "%50", "%51", "%52", "%53", "%54", "%55", "%56", "%57",
-  "%58", "%59", "%5A", "%5B", "%5C", "%5D", "%5E", "%5F",
-  "%60", "%61", "%62", "%63", "%64", "%65", "%66", "%67",
-  "%68", "%69", "%6A", "%6B", "%6C", "%6D", "%6E", "%6F",
-  "%70", "%71", "%72", "%73", "%74", "%75", "%76", "%77",
-  "%78", "%79", "%7A", "%7B", "%7C", "%7D", "%7E", "%7F",
-  "%80", "%81", "%82", "%83", "%84", "%85", "%86", "%87",
-  "%88", "%89", "%8A", "%8B", "%8C", "%8D", "%8E", "%8F",
-  "%90", "%91", "%92", "%93", "%94", "%95", "%96", "%97",
-  "%98", "%99", "%9A", "%9B", "%9C", "%9D", "%9E", "%9F",
-  "%A0", "%A1", "%A2", "%A3", "%A4", "%A5", "%A6", "%A7",
-  "%A8", "%A9", "%AA", "%AB", "%AC", "%AD", "%AE", "%AF",
-  "%B0", "%B1", "%B2", "%B3", "%B4", "%B5", "%B6", "%B7",
-  "%B8", "%B9", "%BA", "%BB", "%BC", "%BD", "%BE", "%BF",
-  "%C0", "%C1", "%C2", "%C3", "%C4", "%C5", "%C6", "%C7",
-  "%C8", "%C9", "%CA", "%CB", "%CC", "%CD", "%CE", "%CF",
-  "%D0", "%D1", "%D2", "%D3", "%D4", "%D5", "%D6", "%D7",
-  "%D8", "%D9", "%DA", "%DB", "%DC", "%DD", "%DE", "%DF",
-  "%E0", "%E1", "%E2", "%E3", "%E4", "%E5", "%E6", "%E7",
-  "%E8", "%E9", "%EA", "%EB", "%EC", "%ED", "%EE", "%EF",
-  "%F0", "%F1", "%F2", "%F3", "%F4", "%F5", "%F6", "%F7",
-  "%F8", "%F9", "%FA", "%FB", "%FC", "%FD", "%FE", "%FF"
-};
-
-const uint8_t C0_CONTROL_ENCODE_SET[32] = {
-  // 00     01     02     03     04     05     06     07
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 08     09     0A     0B     0C     0D     0E     0F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 10     11     12     13     14     15     16     17
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 18     19     1A     1B     1C     1D     1E     1F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 20     21     22     23     24     25     26     27
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 28     29     2A     2B     2C     2D     2E     2F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 30     31     32     33     34     35     36     37
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 38     39     3A     3B     3C     3D     3E     3F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 40     41     42     43     44     45     46     47
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 48     49     4A     4B     4C     4D     4E     4F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 50     51     52     53     54     55     56     57
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 58     59     5A     5B     5C     5D     5E     5F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 60     61     62     63     64     65     66     67
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 68     69     6A     6B     6C     6D     6E     6F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 70     71     72     73     74     75     76     77
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 78     79     7A     7B     7C     7D     7E     7F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
-  // 80     81     82     83     84     85     86     87
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 88     89     8A     8B     8C     8D     8E     8F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 90     91     92     93     94     95     96     97
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 98     99     9A     9B     9C     9D     9E     9F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // A0     A1     A2     A3     A4     A5     A6     A7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // A8     A9     AA     AB     AC     AD     AE     AF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // B0     B1     B2     B3     B4     B5     B6     B7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // B8     B9     BA     BB     BC     BD     BE     BF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // C0     C1     C2     C3     C4     C5     C6     C7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // C8     C9     CA     CB     CC     CD     CE     CF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // D0     D1     D2     D3     D4     D5     D6     D7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // D8     D9     DA     DB     DC     DD     DE     DF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // E0     E1     E2     E3     E4     E5     E6     E7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // E8     E9     EA     EB     EC     ED     EE     EF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // F0     F1     F2     F3     F4     F5     F6     F7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // F8     F9     FA     FB     FC     FD     FE     FF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
-};
-
-const uint8_t FRAGMENT_ENCODE_SET[32] = {
-  // 00     01     02     03     04     05     06     07
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 08     09     0A     0B     0C     0D     0E     0F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 10     11     12     13     14     15     16     17
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 18     19     1A     1B     1C     1D     1E     1F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 20     21     22     23     24     25     26     27
-    0x01 | 0x00 | 0x04 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 28     29     2A     2B     2C     2D     2E     2F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 30     31     32     33     34     35     36     37
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 38     39     3A     3B     3C     3D     3E     3F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x10 | 0x00 | 0x40 | 0x00,
-  // 40     41     42     43     44     45     46     47
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 48     49     4A     4B     4C     4D     4E     4F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 50     51     52     53     54     55     56     57
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 58     59     5A     5B     5C     5D     5E     5F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 60     61     62     63     64     65     66     67
-    0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 68     69     6A     6B     6C     6D     6E     6F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 70     71     72     73     74     75     76     77
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 78     79     7A     7B     7C     7D     7E     7F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
-  // 80     81     82     83     84     85     86     87
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 88     89     8A     8B     8C     8D     8E     8F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 90     91     92     93     94     95     96     97
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 98     99     9A     9B     9C     9D     9E     9F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // A0     A1     A2     A3     A4     A5     A6     A7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // A8     A9     AA     AB     AC     AD     AE     AF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // B0     B1     B2     B3     B4     B5     B6     B7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // B8     B9     BA     BB     BC     BD     BE     BF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // C0     C1     C2     C3     C4     C5     C6     C7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // C8     C9     CA     CB     CC     CD     CE     CF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // D0     D1     D2     D3     D4     D5     D6     D7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // D8     D9     DA     DB     DC     DD     DE     DF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // E0     E1     E2     E3     E4     E5     E6     E7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // E8     E9     EA     EB     EC     ED     EE     EF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // F0     F1     F2     F3     F4     F5     F6     F7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // F8     F9     FA     FB     FC     FD     FE     FF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
-};
-
-
-const uint8_t PATH_ENCODE_SET[32] = {
-  // 00     01     02     03     04     05     06     07
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 08     09     0A     0B     0C     0D     0E     0F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 10     11     12     13     14     15     16     17
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 18     19     1A     1B     1C     1D     1E     1F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 20     21     22     23     24     25     26     27
-    0x01 | 0x00 | 0x04 | 0x08 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 28     29     2A     2B     2C     2D     2E     2F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 30     31     32     33     34     35     36     37
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 38     39     3A     3B     3C     3D     3E     3F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x10 | 0x00 | 0x40 | 0x80,
-  // 40     41     42     43     44     45     46     47
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 48     49     4A     4B     4C     4D     4E     4F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 50     51     52     53     54     55     56     57
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 58     59     5A     5B     5C     5D     5E     5F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 60     61     62     63     64     65     66     67
-    0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 68     69     6A     6B     6C     6D     6E     6F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 70     71     72     73     74     75     76     77
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 78     79     7A     7B     7C     7D     7E     7F
-    0x00 | 0x00 | 0x00 | 0x08 | 0x00 | 0x20 | 0x00 | 0x80,
-  // 80     81     82     83     84     85     86     87
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 88     89     8A     8B     8C     8D     8E     8F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 90     91     92     93     94     95     96     97
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 98     99     9A     9B     9C     9D     9E     9F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // A0     A1     A2     A3     A4     A5     A6     A7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // A8     A9     AA     AB     AC     AD     AE     AF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // B0     B1     B2     B3     B4     B5     B6     B7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // B8     B9     BA     BB     BC     BD     BE     BF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // C0     C1     C2     C3     C4     C5     C6     C7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // C8     C9     CA     CB     CC     CD     CE     CF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // D0     D1     D2     D3     D4     D5     D6     D7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // D8     D9     DA     DB     DC     DD     DE     DF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // E0     E1     E2     E3     E4     E5     E6     E7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // E8     E9     EA     EB     EC     ED     EE     EF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // F0     F1     F2     F3     F4     F5     F6     F7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // F8     F9     FA     FB     FC     FD     FE     FF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
-};
-
-const uint8_t USERINFO_ENCODE_SET[32] = {
-  // 00     01     02     03     04     05     06     07
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 08     09     0A     0B     0C     0D     0E     0F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 10     11     12     13     14     15     16     17
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 18     19     1A     1B     1C     1D     1E     1F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 20     21     22     23     24     25     26     27
-    0x01 | 0x00 | 0x04 | 0x08 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 28     29     2A     2B     2C     2D     2E     2F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
-  // 30     31     32     33     34     35     36     37
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 38     39     3A     3B     3C     3D     3E     3F
-    0x00 | 0x00 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 40     41     42     43     44     45     46     47
-    0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 48     49     4A     4B     4C     4D     4E     4F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 50     51     52     53     54     55     56     57
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 58     59     5A     5B     5C     5D     5E     5F
-    0x00 | 0x00 | 0x00 | 0x08 | 0x10 | 0x20 | 0x40 | 0x00,
-  // 60     61     62     63     64     65     66     67
-    0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 68     69     6A     6B     6C     6D     6E     6F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 70     71     72     73     74     75     76     77
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 78     79     7A     7B     7C     7D     7E     7F
-    0x00 | 0x00 | 0x00 | 0x08 | 0x10 | 0x20 | 0x00 | 0x80,
-  // 80     81     82     83     84     85     86     87
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 88     89     8A     8B     8C     8D     8E     8F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 90     91     92     93     94     95     96     97
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 98     99     9A     9B     9C     9D     9E     9F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // A0     A1     A2     A3     A4     A5     A6     A7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // A8     A9     AA     AB     AC     AD     AE     AF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // B0     B1     B2     B3     B4     B5     B6     B7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // B8     B9     BA     BB     BC     BD     BE     BF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // C0     C1     C2     C3     C4     C5     C6     C7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // C8     C9     CA     CB     CC     CD     CE     CF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // D0     D1     D2     D3     D4     D5     D6     D7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // D8     D9     DA     DB     DC     DD     DE     DF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // E0     E1     E2     E3     E4     E5     E6     E7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // E8     E9     EA     EB     EC     ED     EE     EF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // F0     F1     F2     F3     F4     F5     F6     F7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // F8     F9     FA     FB     FC     FD     FE     FF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
-};
-
-const uint8_t QUERY_ENCODE_SET_NONSPECIAL[32] = {
-  // 00     01     02     03     04     05     06     07
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 08     09     0A     0B     0C     0D     0E     0F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 10     11     12     13     14     15     16     17
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 18     19     1A     1B     1C     1D     1E     1F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 20     21     22     23     24     25     26     27
-    0x01 | 0x00 | 0x04 | 0x08 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 28     29     2A     2B     2C     2D     2E     2F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 30     31     32     33     34     35     36     37
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 38     39     3A     3B     3C     3D     3E     3F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x10 | 0x00 | 0x40 | 0x00,
-  // 40     41     42     43     44     45     46     47
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 48     49     4A     4B     4C     4D     4E     4F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 50     51     52     53     54     55     56     57
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 58     59     5A     5B     5C     5D     5E     5F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 60     61     62     63     64     65     66     67
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 68     69     6A     6B     6C     6D     6E     6F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 70     71     72     73     74     75     76     77
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 78     79     7A     7B     7C     7D     7E     7F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
-  // 80     81     82     83     84     85     86     87
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 88     89     8A     8B     8C     8D     8E     8F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 90     91     92     93     94     95     96     97
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 98     99     9A     9B     9C     9D     9E     9F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // A0     A1     A2     A3     A4     A5     A6     A7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // A8     A9     AA     AB     AC     AD     AE     AF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // B0     B1     B2     B3     B4     B5     B6     B7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // B8     B9     BA     BB     BC     BD     BE     BF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // C0     C1     C2     C3     C4     C5     C6     C7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // C8     C9     CA     CB     CC     CD     CE     CF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // D0     D1     D2     D3     D4     D5     D6     D7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // D8     D9     DA     DB     DC     DD     DE     DF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // E0     E1     E2     E3     E4     E5     E6     E7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // E8     E9     EA     EB     EC     ED     EE     EF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // F0     F1     F2     F3     F4     F5     F6     F7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // F8     F9     FA     FB     FC     FD     FE     FF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
-};
-
-// Same as QUERY_ENCODE_SET_NONSPECIAL, but with 0x27 (') encoded.
-const uint8_t QUERY_ENCODE_SET_SPECIAL[32] = {
-  // 00     01     02     03     04     05     06     07
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 08     09     0A     0B     0C     0D     0E     0F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 10     11     12     13     14     15     16     17
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 18     19     1A     1B     1C     1D     1E     1F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 20     21     22     23     24     25     26     27
-    0x01 | 0x00 | 0x04 | 0x08 | 0x00 | 0x00 | 0x00 | 0x80,
-  // 28     29     2A     2B     2C     2D     2E     2F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 30     31     32     33     34     35     36     37
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 38     39     3A     3B     3C     3D     3E     3F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x10 | 0x00 | 0x40 | 0x00,
-  // 40     41     42     43     44     45     46     47
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 48     49     4A     4B     4C     4D     4E     4F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 50     51     52     53     54     55     56     57
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 58     59     5A     5B     5C     5D     5E     5F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 60     61     62     63     64     65     66     67
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 68     69     6A     6B     6C     6D     6E     6F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 70     71     72     73     74     75     76     77
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-  // 78     79     7A     7B     7C     7D     7E     7F
-    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
-  // 80     81     82     83     84     85     86     87
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 88     89     8A     8B     8C     8D     8E     8F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 90     91     92     93     94     95     96     97
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // 98     99     9A     9B     9C     9D     9E     9F
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // A0     A1     A2     A3     A4     A5     A6     A7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // A8     A9     AA     AB     AC     AD     AE     AF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // B0     B1     B2     B3     B4     B5     B6     B7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // B8     B9     BA     BB     BC     BD     BE     BF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // C0     C1     C2     C3     C4     C5     C6     C7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // C8     C9     CA     CB     CC     CD     CE     CF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // D0     D1     D2     D3     D4     D5     D6     D7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // D8     D9     DA     DB     DC     DD     DE     DF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // E0     E1     E2     E3     E4     E5     E6     E7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // E8     E9     EA     EB     EC     ED     EE     EF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // F0     F1     F2     F3     F4     F5     F6     F7
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-  // F8     F9     FA     FB     FC     FD     FE     FF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
-};
 
 bool BitAt(const uint8_t a[], const uint8_t i) {
   return !!(a[i >> 3] & (1 << (i & 7)));
@@ -676,10 +223,10 @@ bool BitAt(const uint8_t a[], const uint8_t i) {
 // Appends ch to str. If ch position in encode_set is set, the ch will
 // be percent-encoded then appended.
 void AppendOrEscape(std::string* str,
-                           const unsigned char ch,
-                           const uint8_t encode_set[]) {
+                    const unsigned char ch,
+                    const uint8_t encode_set[]) {
   if (BitAt(encode_set, ch))
-    *str += hex[ch];
+    *str += hex + ch * 4;  // "%XX\0" has a length of 4
   else
     *str += ch;
 }
@@ -784,7 +331,7 @@ bool ToASCII(const std::string& input, std::string* output) {
   output->assign(*buf, buf.length());
   return true;
 }
-#else
+#else  // !defined(NODE_HAVE_I18N_SUPPORT)
 // Intentional non-ops if ICU is not present.
 bool ToUnicode(const std::string& input, std::string* output) {
   *output = input;
@@ -795,121 +342,30 @@ bool ToASCII(const std::string& input, std::string* output) {
   *output = input;
   return true;
 }
-#endif
+#endif  // !defined(NODE_HAVE_I18N_SUPPORT)
+
+#define NS_IN6ADDRSZ 16
 
 void URLHost::ParseIPv6Host(const char* input, size_t length) {
   CHECK_EQ(type_, HostType::H_FAILED);
-  unsigned size = arraysize(value_.ipv6);
-  for (unsigned n = 0; n < size; n++)
-    value_.ipv6[n] = 0;
-  uint16_t* piece_pointer = &value_.ipv6[0];
-  uint16_t* const buffer_end = piece_pointer + size;
-  uint16_t* compress_pointer = nullptr;
-  const char* pointer = input;
-  const char* end = pointer + length;
-  unsigned value, len, numbers_seen;
-  char ch = pointer < end ? pointer[0] : kEOL;
-  if (ch == ':') {
-    if (length < 2 || pointer[1] != ':')
-      return;
-    pointer += 2;
-    ch = pointer < end ? pointer[0] : kEOL;
-    piece_pointer++;
-    compress_pointer = piece_pointer;
-  }
-  while (ch != kEOL) {
-    if (piece_pointer >= buffer_end)
-      return;
-    if (ch == ':') {
-      if (compress_pointer != nullptr)
-        return;
-      pointer++;
-      ch = pointer < end ? pointer[0] : kEOL;
-      piece_pointer++;
-      compress_pointer = piece_pointer;
-      continue;
-    }
-    value = 0;
-    len = 0;
-    while (len < 4 && IsASCIIHexDigit(ch)) {
-      value = value * 0x10 + hex2bin(ch);
-      pointer++;
-      ch = pointer < end ? pointer[0] : kEOL;
-      len++;
-    }
-    switch (ch) {
-      case '.':
-        if (len == 0)
-          return;
-        pointer -= len;
-        ch = pointer < end ? pointer[0] : kEOL;
-        if (piece_pointer > buffer_end - 2)
-          return;
-        numbers_seen = 0;
-        while (ch != kEOL) {
-          value = 0xffffffff;
-          if (numbers_seen > 0) {
-            if (ch == '.' && numbers_seen < 4) {
-              pointer++;
-              ch = pointer < end ? pointer[0] : kEOL;
-            } else {
-              return;
-            }
-          }
-          if (!IsASCIIDigit(ch))
-            return;
-          while (IsASCIIDigit(ch)) {
-            unsigned number = ch - '0';
-            if (value == 0xffffffff) {
-              value = number;
-            } else if (value == 0) {
-              return;
-            } else {
-              value = value * 10 + number;
-            }
-            if (value > 255)
-              return;
-            pointer++;
-            ch = pointer < end ? pointer[0] : kEOL;
-          }
-          *piece_pointer = *piece_pointer * 0x100 + value;
-          numbers_seen++;
-          if (numbers_seen == 2 || numbers_seen == 4)
-            piece_pointer++;
-        }
-        if (numbers_seen != 4)
-          return;
-        continue;
-      case ':':
-        pointer++;
-        ch = pointer < end ? pointer[0] : kEOL;
-        if (ch == kEOL)
-          return;
-        break;
-      case kEOL:
-        break;
-      default:
-        return;
-    }
-    *piece_pointer = value;
-    piece_pointer++;
-  }
 
-  if (compress_pointer != nullptr) {
-    unsigned swaps = piece_pointer - compress_pointer;
-    piece_pointer = buffer_end - 1;
-    while (piece_pointer != &value_.ipv6[0] && swaps > 0) {
-      uint16_t temp = *piece_pointer;
-      uint16_t* swap_piece = compress_pointer + swaps - 1;
-      *piece_pointer = *swap_piece;
-      *swap_piece = temp;
-       piece_pointer--;
-       swaps--;
-    }
-  } else if (compress_pointer == nullptr &&
-             piece_pointer != buffer_end) {
+  unsigned char buf[sizeof(struct in6_addr)];
+  MaybeStackBuffer<char> ipv6(length + 1);
+  *(*ipv6 + length) = 0;
+  memset(buf, 0, sizeof(buf));
+  memcpy(*ipv6, input, sizeof(const char) * length);
+
+  int ret = uv_inet_pton(AF_INET6, *ipv6, buf);
+
+  if (ret != 0) {
     return;
   }
+
+  // Ref: https://sourceware.org/git/?p=glibc.git;a=blob;f=resolv/inet_ntop.c;h=c4d38c0f951013e51a4fc6eaa8a9b82e146abe5a;hb=HEAD#l119
+  for (int i = 0; i < NS_IN6ADDRSZ; i += 2) {
+    value_.ipv6[i >> 1] = (buf[i] << 8) | buf[i + 1];
+  }
+
   type_ = HostType::H_IPV6;
 }
 
@@ -963,7 +419,7 @@ void URLHost::ParseIPv4Host(const char* input, size_t length, bool* is_ipv4) {
 
   while (pointer <= end) {
     const char ch = pointer < end ? pointer[0] : kEOL;
-    int remaining = end - pointer - 1;
+    int64_t remaining = end - pointer - 1;
     if (ch == '.' || ch == kEOL) {
       if (++parts > static_cast<int>(arraysize(numbers)))
         return;
@@ -996,10 +452,11 @@ void URLHost::ParseIPv4Host(const char* input, size_t length, bool* is_ipv4) {
   }
 
   type_ = HostType::H_IPV4;
-  val = numbers[parts - 1];
+  val = static_cast<uint32_t>(numbers[parts - 1]);
   for (int n = 0; n < parts - 1; n++) {
     double b = 3 - n;
-    val += numbers[n] * pow(256, b);
+    val +=
+        static_cast<uint32_t>(numbers[n]) * static_cast<uint32_t>(pow(256, b));
   }
 
   value_.ipv4 = val;
@@ -1121,7 +578,6 @@ std::string URLHost::ToString() const {
     case HostType::H_DOMAIN:
     case HostType::H_OPAQUE:
       return value_.domain_or_opaque;
-      break;
     case HostType::H_IPV4: {
       dest.reserve(15);
       uint32_t value = value_.ipv4;
@@ -1429,7 +885,7 @@ void URL::Parse(const char* input,
     const char ch = p < end ? p[0] : kEOL;
     bool special = (url->flags & URL_FLAGS_SPECIAL);
     bool cannot_be_base;
-    const bool special_back_slash = (special && ch == '\\');
+    bool special_back_slash = (special && ch == '\\');
 
     switch (state) {
       case kSchemeStart:
@@ -1477,6 +933,7 @@ void URL::Parse(const char* input,
             url->flags &= ~URL_FLAGS_SPECIAL;
             special = false;
           }
+          special_back_slash = (special && ch == '\\');
           buffer.clear();
           if (has_state_override)
             return;
@@ -1521,6 +978,7 @@ void URL::Parse(const char* input,
             url->flags &= ~URL_FLAGS_SPECIAL;
             special = false;
           }
+          special_back_slash = (special && ch == '\\');
           if (base->flags & URL_FLAGS_HAS_PATH) {
             url->flags |= URL_FLAGS_HAS_PATH;
             url->path = base->path;
@@ -1544,6 +1002,7 @@ void URL::Parse(const char* input,
           url->flags |= URL_FLAGS_SPECIAL;
           special = true;
           state = kFile;
+          special_back_slash = (special && ch == '\\');
           continue;
         }
         break;
@@ -1573,6 +1032,7 @@ void URL::Parse(const char* input,
           url->flags &= ~URL_FLAGS_SPECIAL;
           special = false;
         }
+        special_back_slash = (special && ch == '\\');
         switch (ch) {
           case kEOL:
             if (base->flags & URL_FLAGS_HAS_USERNAME) {
@@ -1761,6 +1221,9 @@ void URL::Parse(const char* input,
             url->flags |= URL_FLAGS_FAILED;
             return;
           }
+          if (state_override == kHostname) {
+            return;
+          }
           url->flags |= URL_FLAGS_HAS_HOST;
           if (!ParseHost(buffer, &url->host, special)) {
             url->flags |= URL_FLAGS_FAILED;
@@ -1768,9 +1231,6 @@ void URL::Parse(const char* input,
           }
           buffer.clear();
           state = kPort;
-          if (state_override == kHostname) {
-            return;
-          }
         } else if (ch == kEOL ||
                    ch == '/' ||
                    ch == '?' ||
@@ -1994,6 +1454,9 @@ void URL::Parse(const char* input,
           if (ch != '/') {
             continue;
           }
+        } else if (has_state_override && !(url->flags & URL_FLAGS_HAS_HOST)) {
+          url->flags |= URL_FLAGS_HAS_PATH;
+          url->path.emplace_back("");
         }
         break;
       case kPath:
@@ -2080,6 +1543,48 @@ void URL::Parse(const char* input,
     p++;
   }
 }  // NOLINT(readability/fn_size)
+
+// https://url.spec.whatwg.org/#url-serializing
+std::string URL::SerializeURL(const struct url_data* url,
+                              bool exclude = false) {
+  std::string output = url->scheme;
+  if (url->flags & URL_FLAGS_HAS_HOST) {
+    output += "//";
+    if (url->flags & URL_FLAGS_HAS_USERNAME ||
+        url->flags & URL_FLAGS_HAS_PASSWORD) {
+      if (url->flags & URL_FLAGS_HAS_USERNAME) {
+        output += url->username;
+      }
+      if (url->flags & URL_FLAGS_HAS_PASSWORD) {
+        output += ":" + url->password;
+      }
+      output += "@";
+    }
+    output += url->host;
+    if (url->port != -1) {
+      output += ":" + std::to_string(url->port);
+    }
+  }
+  if (url->flags & URL_FLAGS_CANNOT_BE_BASE) {
+    output += url->path[0];
+  } else {
+    if (!(url->flags & URL_FLAGS_HAS_HOST) &&
+          url->path.size() > 1 &&
+          url->path[0].empty()) {
+      output += "/.";
+    }
+    for (size_t i = 1; i < url->path.size(); i++) {
+      output += "/" + url->path[i];
+    }
+  }
+  if (url->flags & URL_FLAGS_HAS_QUERY) {
+    output = "?" + url->query;
+  }
+  if (!exclude && url->flags & URL_FLAGS_HAS_FRAGMENT) {
+    output = "#" + url->fragment;
+  }
+  return output;
+}
 
 namespace {
 void SetArgs(Environment* env,
@@ -2209,40 +1714,6 @@ void EncodeAuthSet(const FunctionCallbackInfo<Value>& args) {
       String::NewFromUtf8(env->isolate(), output.c_str()).ToLocalChecked());
 }
 
-void ToUSVString(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 2);
-  CHECK(args[0]->IsString());
-  CHECK(args[1]->IsNumber());
-
-  TwoByteValue value(env->isolate(), args[0]);
-
-  int64_t start = args[1]->IntegerValue(env->context()).FromJust();
-  CHECK_GE(start, 0);
-
-  for (size_t i = start; i < value.length(); i++) {
-    char16_t c = value[i];
-    if (!IsUnicodeSurrogate(c)) {
-      continue;
-    } else if (IsUnicodeSurrogateTrail(c) || i == value.length() - 1) {
-      value[i] = kUnicodeReplacementCharacter;
-    } else {
-      char16_t d = value[i + 1];
-      if (IsUnicodeTrail(d)) {
-        i++;
-      } else {
-        value[i] = kUnicodeReplacementCharacter;
-      }
-    }
-  }
-
-  args.GetReturnValue().Set(
-      String::NewFromTwoByte(env->isolate(),
-                             *value,
-                             NewStringType::kNormal,
-                             value.length()).ToLocalChecked());
-}
-
 void DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_GE(args.Length(), 1);
@@ -2293,7 +1764,6 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "parse", Parse);
   env->SetMethodNoSideEffect(target, "encodeAuth", EncodeAuthSet);
-  env->SetMethodNoSideEffect(target, "toUSVString", ToUSVString);
   env->SetMethodNoSideEffect(target, "domainToASCII", DomainToASCII);
   env->SetMethodNoSideEffect(target, "domainToUnicode", DomainToUnicode);
   env->SetMethod(target, "setURLConstructor", SetURLConstructor);
@@ -2311,7 +1781,6 @@ void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parse);
   registry->Register(EncodeAuthSet);
-  registry->Register(ToUSVString);
   registry->Register(DomainToASCII);
   registry->Register(DomainToUnicode);
   registry->Register(SetURLConstructor);

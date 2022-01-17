@@ -7,7 +7,8 @@ const {
   Transform,
   finished,
   Duplex,
-  PassThrough
+  PassThrough,
+  Stream,
 } = require('stream');
 const assert = require('assert');
 const EE = require('events');
@@ -91,6 +92,83 @@ const http = require('http');
 
   run();
 }
+
+{
+  // Check pre-cancelled
+  const signal = new EventTarget();
+  signal.aborted = true;
+
+  const rs = Readable.from((function* () {})());
+  finished(rs, { signal }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+}
+
+{
+  // Check cancelled before the stream ends sync.
+  const ac = new AbortController();
+  const { signal } = ac;
+
+  const rs = Readable.from((function* () {})());
+  finished(rs, { signal }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+
+  ac.abort();
+}
+
+{
+  // Check cancelled before the stream ends async.
+  const ac = new AbortController();
+  const { signal } = ac;
+
+  const rs = Readable.from((function* () {})());
+  setTimeout(() => ac.abort(), 1);
+  finished(rs, { signal }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+}
+
+{
+  // Check cancelled after doesn't throw.
+  const ac = new AbortController();
+  const { signal } = ac;
+
+  const rs = Readable.from((function* () {
+    yield 5;
+    setImmediate(() => ac.abort());
+  })());
+  rs.resume();
+  finished(rs, { signal }, common.mustSucceed());
+}
+
+{
+  // Promisified abort works
+  const finishedPromise = promisify(finished);
+  async function run() {
+    const ac = new AbortController();
+    const { signal } = ac;
+    const rs = Readable.from((function* () {})());
+    setImmediate(() => ac.abort());
+    await finishedPromise(rs, { signal });
+  }
+
+  assert.rejects(run, { name: 'AbortError' }).then(common.mustCall());
+}
+
+{
+  // Promisified pre-aborted works
+  const finishedPromise = promisify(finished);
+  async function run() {
+    const signal = new EventTarget();
+    signal.aborted = true;
+    const rs = Readable.from((function* () {})());
+    await finishedPromise(rs, { signal });
+  }
+
+  assert.rejects(run, { name: 'AbortError' }).then(common.mustCall());
+}
+
 
 {
   const rs = fs.createReadStream('file-does-not-exist');
@@ -338,7 +416,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   d._writableState = {};
   d._writableState.finished = true;
   finished(d, { readable: false, writable: true }, common.mustCall((err) => {
-    assert.strictEqual(err, undefined);
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
   }));
   d._writableState.errored = true;
   d.emit('close');
@@ -476,19 +554,109 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 }
 
 {
-  const server = http.createServer((req, res) => {
-    res.on('close', () => {
+  const server = http.createServer(common.mustCall((req, res) => {
+    res.on('close', common.mustCall(() => {
       finished(res, common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
     res.end();
-  })
+  }))
   .listen(0, function() {
     http.request({
       method: 'GET',
       port: this.address().port
     }).end()
       .on('response', common.mustCall());
+  });
+}
+
+{
+  const server = http.createServer(common.mustCall((req, res) => {
+    req.on('close', common.mustCall(() => {
+      finished(req, common.mustCall(() => {
+        server.close();
+      }));
+    }));
+    req.destroy();
+  })).listen(0, function() {
+    http.request({
+      method: 'GET',
+      port: this.address().port
+    }).end().on('error', common.mustCall());
+  });
+}
+
+{
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      process.nextTick(callback);
+    }
+  });
+  w.aborted = false;
+  w.end();
+  let closed = false;
+  w.on('finish', () => {
+    assert.strictEqual(closed, false);
+    w.emit('aborted');
+  });
+  w.on('close', common.mustCall(() => {
+    closed = true;
+  }));
+
+  finished(w, common.mustCall(() => {
+    assert.strictEqual(closed, true);
+  }));
+}
+
+{
+  const w = new Writable();
+  const _err = new Error();
+  w.destroy(_err);
+  assert.strictEqual(w.errored, _err);
+  finished(w, common.mustCall((err) => {
+    assert.strictEqual(_err, err);
+    assert.strictEqual(w.closed, true);
+    finished(w, common.mustCall((err) => {
+      assert.strictEqual(_err, err);
+    }));
+  }));
+}
+
+{
+  const w = new Writable();
+  w.destroy();
+  assert.strictEqual(w.errored, null);
+  finished(w, common.mustCall((err) => {
+    assert.strictEqual(w.closed, true);
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+    finished(w, common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+    }));
+  }));
+}
+
+{
+  // Legacy Streams do not inherit from Readable or Writable.
+  // We cannot really assume anything about them, so we cannot close them
+  // automatically.
+  const s = new Stream();
+  finished(s, common.mustNotCall());
+}
+
+{
+  const server = http.createServer(common.mustCall(function(req, res) {
+    fs.createReadStream(__filename).pipe(res);
+    finished(res, common.mustCall(function(err) {
+      assert.strictEqual(err, undefined);
+    }));
+  })).listen(0, function() {
+    http.request(
+      { method: 'GET', port: this.address().port },
+      common.mustCall(function(res) {
+        res.resume();
+        server.close();
+      })
+    ).end();
   });
 }

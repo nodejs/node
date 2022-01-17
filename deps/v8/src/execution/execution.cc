@@ -5,11 +5,16 @@
 #include "src/execution/execution.h"
 
 #include "src/api/api-inl.h"
-#include "src/compiler/wasm-compiler.h"  // Only for static asserts.
+#include "src/debug/debug.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/wasm-compiler.h"  // Only for static asserts.
+#include "src/wasm/wasm-engine.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -181,23 +186,27 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
   for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
     Handle<String> name(scope_info->ContextLocalName(var), isolate);
     VariableMode mode = scope_info->ContextLocalMode(var);
-    ScriptContextTable::LookupResult lookup;
+    VariableLookupResult lookup;
     if (ScriptContextTable::Lookup(isolate, *script_context, *name, &lookup)) {
       if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
         Handle<Context> context = ScriptContextTable::GetContext(
             isolate, script_context, lookup.context_index);
-        // If we are trying to re-declare a REPL-mode let as a let, allow it.
-        if (!(mode == VariableMode::kLet && lookup.mode == VariableMode::kLet &&
+        // If we are trying to re-declare a REPL-mode let as a let or REPL-mode
+        // const as a const, allow it.
+        if (!(((mode == VariableMode::kLet &&
+                lookup.mode == VariableMode::kLet) ||
+               (mode == VariableMode::kConst &&
+                lookup.mode == VariableMode::kConst)) &&
               scope_info->IsReplModeScope() &&
               context->scope_info().IsReplModeScope())) {
           // ES#sec-globaldeclarationinstantiation 5.b:
           // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
           // exception.
           MessageLocation location(script, 0, 1);
-          isolate->ThrowAt(isolate->factory()->NewSyntaxError(
-                               MessageTemplate::kVarRedeclaration, name),
-                           &location);
-          return MaybeHandle<Context>();
+          return isolate->ThrowAt<Context>(
+              isolate->factory()->NewSyntaxError(
+                  MessageTemplate::kVarRedeclaration, name),
+              &location);
         }
       }
     }
@@ -216,10 +225,10 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
         // ES#sec-globaldeclarationinstantiation 5.d:
         // If hasRestrictedGlobal is true, throw a SyntaxError exception.
         MessageLocation location(script, 0, 1);
-        isolate->ThrowAt(isolate->factory()->NewSyntaxError(
-                             MessageTemplate::kVarRedeclaration, name),
-                         &location);
-        return MaybeHandle<Context>();
+        return isolate->ThrowAt<Context>(
+            isolate->factory()->NewSyntaxError(
+                MessageTemplate::kVarRedeclaration, name),
+            &location);
       }
 
       JSGlobalObject::InvalidatePropertyCell(global_object, name);
@@ -240,9 +249,16 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
 
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
                                                  const InvokeParams& params) {
-  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kInvoke);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kInvoke);
   DCHECK(!params.receiver->IsJSGlobalObject());
   DCHECK_LE(params.argc, FixedArray::kMaxLength);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // If we have PKU support for Wasm, ensure that code is currently write
+  // protected for this thread.
+  DCHECK_IMPLIES(wasm::GetWasmCodeManager()->HasMemoryProtectionKeySupport(),
+                 !wasm::GetWasmCodeManager()->MemoryProtectionKeyWritable());
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef USE_SIMULATOR
   // Simulators use separate stacks for C++ and JS. JS stack overflow checks
@@ -338,7 +354,6 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
   // Placeholder for return value.
   Object value;
-
   Handle<Code> code =
       JSEntry(isolate, params.execution_target, params.is_construct);
   {
@@ -364,9 +379,10 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       Address func = params.target->ptr();
       Address recv = params.receiver->ptr();
       Address** argv = reinterpret_cast<Address**>(params.argv);
-      RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
+      RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
       value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
-                                     orig_func, func, recv, params.argc, argv));
+                                     orig_func, func, recv,
+                                     JSParameterCount(params.argc), argv));
     } else {
       DCHECK_EQ(Execution::Target::kRunMicrotasks, params.execution_target);
 
@@ -379,7 +395,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       JSEntryFunction stub_entry =
           JSEntryFunction::FromAddress(isolate, code->InstructionStart());
 
-      RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
+      RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
       value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
                                      params.microtask_queue));
     }
@@ -517,7 +533,8 @@ STATIC_ASSERT(offsetof(StackHandlerMarker, padding) ==
               StackHandlerConstants::kPaddingOffset);
 STATIC_ASSERT(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 
-void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
+#if V8_ENABLE_WEBASSEMBLY
+void Execution::CallWasm(Isolate* isolate, Handle<CodeT> wrapper_code,
                          Address wasm_call_target, Handle<Object> object_ref,
                          Address packed_args) {
   using WasmEntryStub = GeneratedCode<Address(
@@ -547,7 +564,7 @@ void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
   trap_handler::SetThreadInWasm();
 
   {
-    RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
+    RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
     STATIC_ASSERT(compiler::CWasmEntryParameters::kCodeEntry == 0);
     STATIC_ASSERT(compiler::CWasmEntryParameters::kObjectRef == 1);
     STATIC_ASSERT(compiler::CWasmEntryParameters::kArgumentsBuffer == 2);
@@ -570,6 +587,7 @@ void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
   }
   *isolate->c_entry_fp_address() = saved_c_entry_fp;
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace internal
 }  // namespace v8

@@ -33,6 +33,9 @@
 
 {
   'WATCHLIST_DEFINITIONS': {
+    'api': {
+      'filepath': 'include/',
+    },
     'snapshot': {
       'filepath': 'src/snapshot/',
     },
@@ -51,6 +54,9 @@
                   '|test/cctest/interpreter/' \
                   '|test/unittests/interpreter/',
     },
+    'baseline': {
+      'filepath': 'src/baseline/',
+    },
     'feature_shipping_status': {
       'filepath': 'src/flags/flag-definitions.h',
     },
@@ -63,9 +69,6 @@
     'csa': {
       'filepath': 'src/codegen/code-stub-assembler\.(cc|h)$' \
                   '|src/builtins/.*-gen.(cc|h)$',
-    },
-    'ia32': {
-      'filepath': '/ia32/',
     },
     'merges': {
       'filepath': '.',
@@ -87,6 +90,26 @@
     'tracing': {
       'filepath': 'src/tracing/',
     },
+    'ieee754': {
+      'filepath': 'src/base/ieee754\.(cc|h)' \
+                  '|src/base/overflowing-math.h' \
+                  '|LICENSE.fdlibm',
+    },
+    'regexp': {
+      'filepath': 'src/.*regexp',
+    },
+    'bazel': {
+      'filepath': 'BUILD.gn' \
+                  '|BUILD.bazel' \
+                  '|WORKSPACE' \
+                  '|bazel/',
+    },
+    'cppgc': {
+      'filepath': 'src/heap/cppgc/' \
+                  '|src/heap/cppgc-js/' \
+                  '|include/cppgc/' \
+                  '|test/unittests/heap/',
+    },
   },
 
   'WATCHLISTS': {
@@ -102,8 +125,9 @@
     'devtools': [
       'devtools-reviews+v8@chromium.org',
     ],
-    'interpreter': [
-      'rmcilroy@chromium.org',
+    'baseline': [
+      'leszeks+watch@chromium.org',
+      'verwaest+watch@chromium.org',
     ],
     'feature_shipping_status': [
       'hablich@chromium.org',
@@ -132,6 +156,24 @@
       'alph+watch@chromium.org',
       'lpy+v8tracing@chromium.org',
       'fmeawad@chromium.org',
+      'cbruni+watch@chromium.org',
+    ],
+    'ieee754': [
+      'rtoy+watch@chromium.org',
+      'hongchan+watch@chromium.org',
+    ],
+    'regexp': [
+      'jgruber+watch@chromium.org',
+      'pthier+watch@chromium.org',
+    ],
+    'bazel': [
+      'victorgomes+watch@chromium.org',
+    ],
+    'api': [
+      'cbruni+watch@chromium.org',
+    ],
+    'cppgc': [
+      'oilpan-reviews+v8@chromium.org',
     ],
   },
 }

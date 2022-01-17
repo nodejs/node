@@ -32,7 +32,7 @@ The module `circle.js` has exported the functions `area()` and
 by specifying additional properties on the special `exports` object.
 
 Variables local to the module will be private, because the module is wrapped
-in a function by Node.js (see [module wrapper](#modules_the_module_wrapper)).
+in a function by Node.js (see [module wrapper](#the-module-wrapper)).
 In this example, the variable `PI` is private to `circle.js`.
 
 The `module.exports` property can be assigned a new value (such as a function
@@ -61,7 +61,38 @@ module.exports = class Square {
 };
 ```
 
-The module system is implemented in the `require('module')` module.
+The CommonJS module system is implemented in the [`module` core module][].
+
+## Enabling
+
+<!-- type=misc -->
+
+Node.js has two module systems: CommonJS modules and [ECMAScript modules][].
+
+By default, Node.js will treat the following as CommonJS modules:
+
+* Files with a `.cjs` extension;
+
+* Files with a `.js` extension when the nearest parent `package.json` file
+  contains a top-level field [`"type"`][] with a value of `"commonjs"`.
+
+* Files with a `.js` extension when the nearest parent `package.json` file
+  doesn't contain a top-level field [`"type"`][]. Package authors should include
+  the [`"type"`][] field, even in packages where all sources are CommonJS. Being
+  explicit about the `type` of the package will make things easier for build
+  tools and loaders to determine how the files in the package should be
+  interpreted.
+
+* Files with an extension that is not `.mjs`, `.cjs`, `.json`, `.node`, or `.js`
+  (when the nearest parent `package.json` file contains a top-level field
+  [`"type"`][] with a value of `"module"`, those files will be recognized as
+  CommonJS modules only if they are being `require`d, not when used as the
+  command-line entry point of the program).
+
+See [Determining module system][] for more details.
+
+Calling `require()` always use the CommonJS module loader. Calling `import()`
+always use the ECMAScript module loader.
 
 ## Accessing the main module
 
@@ -74,11 +105,10 @@ run directly by testing `require.main === module`.
 For a file `foo.js`, this will be `true` if run via `node foo.js`, but
 `false` if run by `require('./foo')`.
 
-Because `module` provides a `filename` property (normally equivalent to
-`__filename`), the entry point of the current application can be obtained
-by checking `require.main.filename`.
+When the entry point is not a CommonJS module, `require.main` is `undefined`,
+and the main module is out of reach.
 
-## Addenda: Package manager tips
+## Package manager tips
 
 <!-- type=misc -->
 
@@ -99,7 +129,7 @@ package may itself have dependencies, and in some cases, these may even collide
 or form cyclic dependencies.
 
 Because Node.js looks up the `realpath` of any modules it loads (that is, it
-resolves symlinks) and then [looks for their dependencies in `node_modules` folders](#modules_loading_from_node_modules_folders),
+resolves symlinks) and then [looks for their dependencies in `node_modules` folders](#loading-from-node_modules-folders),
 this situation can be resolved with the following architecture:
 
 * `/usr/lib/node/foo/1.2.3/`: Contents of the `foo` package, version 1.2.3.
@@ -131,12 +161,15 @@ variable. Since the module lookups using `node_modules` folders are all
 relative, and based on the real path of the files making the calls to
 `require()`, the packages themselves can be anywhere.
 
-## Addenda: The `.mjs` extension
+## The `.mjs` extension
 
-It is not possible to `require()` files that have the `.mjs` extension.
-Attempting to do so will throw [an error][]. The `.mjs` extension is
-reserved for [ECMAScript Modules][] which cannot be loaded via `require()`.
-See [ECMAScript Modules][] for more details.
+Due to the synchronous nature of `require()`, it is not possible to use it to
+load ECMAScript module files. Attempting to do so will throw a
+[`ERR_REQUIRE_ESM`][] error. Use [`import()`][] instead.
+
+The `.mjs` extension is reserved for [ECMAScript Modules][] which cannot be
+loaded via `require()`. See [Determining module system][] section for more info
+regarding which files are parsed as ECMAScript modules.
 
 ## All together...
 
@@ -148,7 +181,7 @@ the `require.resolve()` function.
 Putting together all of the above, here is the high-level algorithm
 in pseudocode of what `require()` does:
 
-```text
+<pre>
 require(X) from module at path Y
 1. If X is a core module,
    a. return the core module
@@ -197,20 +230,20 @@ LOAD_NODE_MODULES(X, START)
 NODE_MODULES_PATHS(START)
 1. let PARTS = path split(START)
 2. let I = count of PARTS - 1
-3. let DIRS = [GLOBAL_FOLDERS]
+3. let DIRS = []
 4. while I >= 0,
    a. if PARTS[I] = "node_modules" CONTINUE
    b. DIR = path join(PARTS[0 .. I] + "node_modules")
-   c. DIRS = DIRS + DIR
+   c. DIRS = DIR + DIRS
    d. let I = I - 1
-5. return DIRS
+5. return DIRS + GLOBAL_FOLDERS
 
 LOAD_PACKAGE_IMPORTS(X, DIR)
 1. Find the closest package scope SCOPE to DIR.
 2. If no scope was found, return.
 3. If the SCOPE/package.json "imports" is null or undefined, return.
 4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE),
-  ["node", "require"]) defined in the ESM resolver.
+  ["node", "require"]) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
 5. RESOLVE_ESM_MATCH(MATCH).
 
 LOAD_PACKAGE_EXPORTS(X, DIR)
@@ -221,7 +254,7 @@ LOAD_PACKAGE_EXPORTS(X, DIR)
 3. Parse DIR/NAME/package.json, and look for "exports" field.
 4. If "exports" is null or undefined, return.
 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
-   `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
+   `package.json` "exports", ["node", "require"]) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
 6. RESOLVE_ESM_MATCH(MATCH)
 
 LOAD_PACKAGE_SELF(X, DIR)
@@ -231,7 +264,7 @@ LOAD_PACKAGE_SELF(X, DIR)
 4. If the SCOPE/package.json "name" is not the first segment of X, return.
 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
    "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
-   defined in the ESM resolver.
+   <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
 6. RESOLVE_ESM_MATCH(MATCH)
 
 RESOLVE_ESM_MATCH(MATCH)
@@ -244,7 +277,7 @@ RESOLVE_ESM_MATCH(MATCH)
    a. LOAD_AS_FILE(RESOLVED_PATH)
    b. LOAD_AS_DIRECTORY(RESOLVED_PATH)
 5. THROW "not found"
-```
+</pre>
 
 ## Caching
 
@@ -268,7 +301,7 @@ function.
 
 Modules are cached based on their resolved filename. Since modules may resolve
 to a different filename based on the location of the calling module (loading
-from `node_modules` folders), it is not a *guarantee* that `require('foo')` will
+from `node_modules` folders), it is not a _guarantee_ that `require('foo')` will
 always return the exact same object, if it would resolve to different files.
 
 Additionally, on case-insensitive file systems or operating systems, different
@@ -281,6 +314,15 @@ irrespective of whether or not `./foo` and `./FOO` are the same file.
 
 <!--type=misc-->
 
+<!-- YAML
+changes:
+  - version:
+      - v16.0.0
+      - v14.18.0
+    pr-url: https://github.com/nodejs/node/pull/37246
+    description: Added `node:` import support to `require(...)`.
+-->
+
 Node.js has several modules compiled into the binary. These modules are
 described in greater detail elsewhere in this documentation.
 
@@ -290,6 +332,11 @@ The core modules are defined within the Node.js source and are located in the
 Core modules are always preferentially loaded if their identifier is
 passed to `require()`. For instance, `require('http')` will always
 return the built in HTTP module, even if there is a file by that name.
+
+Core modules can also be identified using the `node:` prefix, in which case
+it bypasses the `require` cache. For instance, `require('node:http')` will
+always return the built in HTTP module, even if there is `require.cache` entry
+by that name.
 
 ## Cycles
 
@@ -361,11 +408,15 @@ correctly within an application.
 
 If the exact filename is not found, then Node.js will attempt to load the
 required filename with the added extensions: `.js`, `.json`, and finally
-`.node`.
+`.node`. When loading a file that has a different extension (e.g. `.cjs`), its
+full name must be passed to `require()`, including its file extension (e.g.
+`require('./file.cjs')`).
 
-`.js` files are interpreted as JavaScript text files, and `.json` files are
-parsed as JSON text files. `.node` files are interpreted as compiled addon
-modules loaded with `process.dlopen()`.
+`.json` files are parsed as JSON text files, `.node` files are interpreted as
+compiled addon modules loaded with `process.dlopen()`. Files using any other
+extension (or no extension at all) are parsed as JavaScript text files. Refer to
+the [Determining module system][] section to understand what parse goal will be
+used.
 
 A required module prefixed with `'/'` is an absolute path to the file. For
 example, `require('/home/marco/foo.js')` will load the file at
@@ -426,7 +477,7 @@ Error: Cannot find module 'some-library'
 <!--type=misc-->
 
 If the module identifier passed to `require()` is not a
-[core](#modules_core_modules) module, and does not begin with `'/'`, `'../'`, or
+[core](#core-modules) module, and does not begin with `'/'`, `'../'`, or
 `'./'`, then Node.js starts at the parent directory of the current module, and
 adds `/node_modules`, and attempts to load the module from that location.
 Node.js will not append `node_modules` to a path already ending in
@@ -473,7 +524,7 @@ when people are unaware that `NODE_PATH` must be set. Sometimes a
 module's dependencies change, causing a different version (or even a
 different module) to be loaded as the `NODE_PATH` is searched.
 
-Additionally, Node.js will search in the following list of GLOBAL_FOLDERS:
+Additionally, Node.js will search in the following list of GLOBAL\_FOLDERS:
 
 * 1: `$HOME/.node_modules`
 * 2: `$HOME/.node_libraries`
@@ -503,7 +554,7 @@ wrapper that looks like the following:
 By doing this, Node.js achieves a few things:
 
 * It keeps top-level variables (defined with `var`, `const` or `let`) scoped to
-the module rather than the global object.
+  the module rather than the global object.
 * It helps to provide some global-looking variables that are actually specific
   to the module, such as:
   * The `module` and `exports` objects that the implementor can use to export
@@ -514,6 +565,7 @@ the module rather than the global object.
 ## The module scope
 
 ### `__dirname`
+
 <!-- YAML
 added: v0.1.27
 -->
@@ -535,6 +587,7 @@ console.log(path.dirname(__filename));
 ```
 
 ### `__filename`
+
 <!-- YAML
 added: v0.0.1
 -->
@@ -573,6 +626,7 @@ References to `__filename` within `b.js` will return
 `a.js` will return `/Users/mjr/app/a.js`.
 
 ### `exports`
+
 <!-- YAML
 added: v0.1.12
 -->
@@ -586,6 +640,7 @@ See the section about the [exports shortcut][] for details on when to use
 `exports` and when to use `module.exports`.
 
 ### `module`
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -599,6 +654,7 @@ A reference to the current module, see the section about the
 a module exports and makes available through `require()`.
 
 ### `require(id)`
+
 <!-- YAML
 added: v0.1.13
 -->
@@ -629,6 +685,7 @@ const crypto = require('crypto');
 ```
 
 #### `require.cache`
+
 <!-- YAML
 added: v0.3.0
 -->
@@ -642,10 +699,24 @@ error.
 
 Adding or replacing entries is also possible. This cache is checked before
 native modules and if a name matching a native module is added to the cache,
-no require call is
-going to receive the native module anymore. Use with care!
+only `node:`-prefixed require calls are going to receive the native module.
+Use with care!
+
+<!-- eslint-disable node-core/no-duplicate-requires -->
+
+```js
+const assert = require('assert');
+const realFs = require('fs');
+
+const fakeFs = {};
+require.cache.fs = { exports: fakeFs };
+
+assert.strictEqual(require('fs'), fakeFs);
+assert.strictEqual(require('node:fs'), realFs);
+```
 
 #### `require.extensions`
+
 <!-- YAML
 added: v0.3.0
 deprecated: v0.10.6
@@ -672,15 +743,17 @@ Avoid using `require.extensions`. Use could cause subtle bugs and resolving the
 extensions gets slower with each registered extension.
 
 #### `require.main`
+
 <!-- YAML
 added: v0.1.17
 -->
 
-* {module}
+* {module | undefined}
 
 The `Module` object representing the entry script loaded when the Node.js
-process launched.
-See ["Accessing the main module"](#modules_accessing_the_main_module).
+process launched, or `undefined` if the entry point of the program is not a
+CommonJS module.
+See ["Accessing the main module"](#accessing-the-main-module).
 
 In `entry.js` script:
 
@@ -693,6 +766,7 @@ node entry.js
 ```
 
 <!-- eslint-skip -->
+
 ```js
 Module {
   id: '.',
@@ -709,6 +783,7 @@ Module {
 ```
 
 #### `require.resolve(request[, options])`
+
 <!-- YAML
 added: v0.3.0
 changes:
@@ -719,10 +794,10 @@ changes:
 
 * `request` {string} The module path to resolve.
 * `options` {Object}
-  * `paths` {string[]} Paths to resolve module location from. If present, these
+  * `paths` {string\[]} Paths to resolve module location from. If present, these
     paths are used instead of the default resolution paths, with the exception
-    of [GLOBAL_FOLDERS][] like `$HOME/.node_modules`, which are always
-    included. Each of these paths is used as a starting point for
+    of [GLOBAL\_FOLDERS][GLOBAL_FOLDERS] like `$HOME/.node_modules`, which are
+    always included. Each of these paths is used as a starting point for
     the module resolution algorithm, meaning that the `node_modules` hierarchy
     is checked from this location.
 * Returns: {string}
@@ -733,23 +808,26 @@ but rather than loading the module, just return the resolved filename.
 If the module can not be found, a `MODULE_NOT_FOUND` error is thrown.
 
 ##### `require.resolve.paths(request)`
+
 <!-- YAML
 added: v8.9.0
 -->
 
 * `request` {string} The module path whose lookup paths are being retrieved.
-* Returns: {string[]|null}
+* Returns: {string\[]|null}
 
 Returns an array containing the paths searched during resolution of `request` or
 `null` if the `request` string references a core module, for example `http` or
 `fs`.
 
 ## The `module` object
+
 <!-- YAML
 added: v0.1.16
 -->
 
 <!-- type=var -->
+
 <!-- name=module -->
 
 * {Object}
@@ -760,15 +838,17 @@ also accessible via the `exports` module-global. `module` is not actually
 a global but rather local to each module.
 
 ### `module.children`
+
 <!-- YAML
 added: v0.1.16
 -->
 
-* {module[]}
+* {module\[]}
 
 The module objects required for the first time by this one.
 
 ### `module.exports`
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -823,6 +903,7 @@ console.log(x.a);
 ```
 
 #### `exports` shortcut
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -843,6 +924,7 @@ When the `module.exports` property is being completely replaced by a new
 object, it is common to also reassign `exports`:
 
 <!-- eslint-disable func-name-matching -->
+
 ```js
 module.exports = exports = function Constructor() {
   // ... etc.
@@ -870,6 +952,7 @@ function require(/* ... */) {
 ```
 
 ### `module.filename`
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -879,6 +962,7 @@ added: v0.1.16
 The fully resolved filename of the module.
 
 ### `module.id`
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -888,7 +972,19 @@ added: v0.1.16
 The identifier for the module. Typically this is the fully resolved
 filename.
 
+### `module.isPreloading`
+
+<!-- YAML
+added:
+  - v15.4.0
+  - v14.17.0
+-->
+
+* Type: {boolean} `true` if the module is running during the Node.js preload
+  phase.
+
 ### `module.loaded`
+
 <!-- YAML
 added: v0.1.16
 -->
@@ -899,6 +995,7 @@ Whether or not the module is done loading, or is in the process of
 loading.
 
 ### `module.parent`
+
 <!-- YAML
 added: v0.1.16
 deprecated:
@@ -916,6 +1013,7 @@ entry point of the current process, or `undefined` if the module was loaded by
 something that is not a CommonJS module (E.G.: REPL or `import`).
 
 ### `module.path`
+
 <!-- YAML
 added: v11.14.0
 -->
@@ -926,15 +1024,17 @@ The directory name of the module. This is usually the same as the
 [`path.dirname()`][] of the [`module.id`][].
 
 ### `module.paths`
+
 <!-- YAML
 added: v0.4.0
 -->
 
-* {string[]}
+* {string\[]}
 
 The search paths for the module.
 
 ### `module.require(id)`
+
 <!-- YAML
 added: v0.5.1
 -->
@@ -947,45 +1047,50 @@ The `module.require()` method provides a way to load a module as if
 
 In order to do this, it is necessary to get a reference to the `module` object.
 Since `require()` returns the `module.exports`, and the `module` is typically
-*only* available within a specific module's code, it must be explicitly exported
+_only_ available within a specific module's code, it must be explicitly exported
 in order to be used.
 
 ## The `Module` object
 
 This section was moved to
-[Modules: `module` core module](module.md#module_the_module_object).
+[Modules: `module` core module](module.md#the-module-object).
 
 <!-- Anchors to make sure old links find a target -->
-* <a id="modules_module_builtinmodules" href="module.html#module_module_builtinmodules">`module.builtinModules`</a>
-* <a id="modules_module_createrequire_filename" href="module.html#module_module_createrequire_filename">`module.createRequire(filename)`</a>
-* <a id="modules_module_createrequirefrompath_filename" href="module.html#module_module_createrequirefrompath_filename">`module.createRequireFromPath(filename)`</a>
-* <a id="modules_module_syncbuiltinesmexports" href="module.html#module_module_syncbuiltinesmexports">`module.syncBuiltinESMExports()`</a>
+
+* <a id="modules_module_builtinmodules" href="module.html#modulebuiltinmodules">`module.builtinModules`</a>
+* <a id="modules_module_createrequire_filename" href="module.html#modulecreaterequirefilename">`module.createRequire(filename)`</a>
+* <a id="modules_module_syncbuiltinesmexports" href="module.html#modulesyncbuiltinesmexports">`module.syncBuiltinESMExports()`</a>
 
 ## Source map v3 support
 
 This section was moved to
-[Modules: `module` core module](module.md#module_source_map_v3_support).
+[Modules: `module` core module](module.md#source-map-v3-support).
 
 <!-- Anchors to make sure old links find a target -->
-* <a id="modules_module_findsourcemap_path_error" href="module.html#module_module_findsourcemap_path_error">`module.findSourceMap(path[, error])`</a>
-* <a id="modules_class_module_sourcemap" href="module.html#module_class_module_sourcemap">Class: `module.SourceMap`</a>
-  * <a id="modules_new_sourcemap_payload" href="module.html#module_new_sourcemap_payload">`new SourceMap(payload)`</a>
-  * <a id="modules_sourcemap_payload" href="module.html#module_sourcemap_payload">`sourceMap.payload`</a>
-  * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#module_sourcemap_findentry_linenumber_columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
 
+* <a id="modules_module_findsourcemap_path_error" href="module.html#modulefindsourcemappath">`module.findSourceMap(path)`</a>
+* <a id="modules_class_module_sourcemap" href="module.html#class-modulesourcemap">Class: `module.SourceMap`</a>
+  * <a id="modules_new_sourcemap_payload" href="module.html#new-sourcemappayload">`new SourceMap(payload)`</a>
+  * <a id="modules_sourcemap_payload" href="module.html#sourcemappayload">`sourceMap.payload`</a>
+  * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#sourcemapfindentrylinenumber-columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
+
+[Determining module system]: packages.md#determining-module-system
 [ECMAScript Modules]: esm.md
-[GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
-[`"main"`]: packages.md#packages_main
-[`Error`]: errors.md#errors_class_error
-[`__dirname`]: #modules_dirname
-[`__filename`]: #modules_filename
-[`module` object]: #modules_the_module_object
-[`module.id`]: #modules_module_id
-[`module.children`]: #modules_module_children
-[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
-[`path.dirname()`]: path.md#path_path_dirname_path
-[`require.main`]: #modules_require_main
-[an error]: errors.md#errors_err_require_esm
-[exports shortcut]: #modules_exports_shortcut
-[module resolution]: #modules_all_together
+[GLOBAL_FOLDERS]: #loading-from-the-global-folders
+[`"main"`]: packages.md#main
+[`"type"`]: packages.md#type
+[`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
+[`Error`]: errors.md#class-error
+[`__dirname`]: #__dirname
+[`__filename`]: #__filename
+[`import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
+[`module.children`]: #modulechildren
+[`module.id`]: #moduleid
+[`module` core module]: module.md
+[`module` object]: #the-module-object
+[`package.json`]: packages.md#nodejs-packagejson-field-definitions
+[`path.dirname()`]: path.md#pathdirnamepath
+[`require.main`]: #requiremain
+[exports shortcut]: #exports-shortcut
+[module resolution]: #all-together
 [native addons]: addons.md

@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm --experimental-wasm-reftypes
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 function dummy_func(val) {
   let builder = new WasmModuleBuilder();
@@ -74,7 +74,7 @@ function checkExternRefTable(getter, start, count, value) {
 (function testExternRefTableIsUninitialized() {
   print(arguments.callee.name);
 
-  checkExternRefTable(instance.exports[`get${import_ref}`], 0, size, null);
+  checkExternRefTable(instance.exports[`get${import_ref}`], 0, size, undefined);
   checkExternRefTable(instance.exports[`get${internal_ref}`], 0, size, null);
 })();
 
@@ -102,7 +102,7 @@ function checkExternRefTable(getter, start, count, value) {
       kTrapTableOutOfBounds,
       () => instance.exports[`fill${import_ref}`](start, value, count));
   checkExternRefTable(
-      instance.exports[`get${import_ref}`], start, size - start, null);
+      instance.exports[`get${import_ref}`], start, size - start, undefined);
 
   value = 45;
   assertTraps(

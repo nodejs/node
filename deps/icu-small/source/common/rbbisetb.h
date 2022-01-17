@@ -16,9 +16,10 @@
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
+#include "unicode/ucptrie.h"
+#include "unicode/umutablecptrie.h"
 #include "unicode/uobject.h"
 #include "rbbirb.h"
-#include "utrie2.h"
 #include "uvector.h"
 
 U_NAMESPACE_BEGIN
@@ -40,25 +41,26 @@ U_NAMESPACE_BEGIN
 //
 class RangeDescriptor : public UMemory {
 public:
-    UChar32            fStartChar;      // Start of range, unicode 32 bit value.
-    UChar32            fEndChar;        // End of range, unicode 32 bit value.
-    int32_t            fNum;            // runtime-mapped input value for this range.
-    UVector           *fIncludesSets;   // vector of the the original
-                                        //   Unicode sets that include this range.
-                                        //    (Contains ptrs to uset nodes)
-    RangeDescriptor   *fNext;           // Next RangeDescriptor in the linked list.
+    UChar32            fStartChar {};            // Start of range, unicode 32 bit value.
+    UChar32            fEndChar {};              // End of range, unicode 32 bit value.
+    int32_t            fNum {0};                 // runtime-mapped input value for this range.
+    bool               fIncludesDict {false};    // True if the range includes $dictionary.
+    bool               fFirstInGroup {false};    // True if first range in a group with the same fNum.
+    UVector           *fIncludesSets {nullptr};  // vector of the the original
+                                                 //   Unicode sets that include this range.
+                                                 //    (Contains ptrs to uset nodes)
+    RangeDescriptor   *fNext {nullptr};          // Next RangeDescriptor in the linked list.
 
     RangeDescriptor(UErrorCode &status);
     RangeDescriptor(const RangeDescriptor &other, UErrorCode &status);
     ~RangeDescriptor();
     void split(UChar32 where, UErrorCode &status);   // Spit this range in two at "where", with
                                         //   where appearing in the second (higher) part.
-    void setDictionaryFlag();           // Check whether this range appears as part of
+    bool isDictionaryRange();           // Check whether this range appears as part of
                                         //   the Unicode set named "dictionary"
 
-private:
-    RangeDescriptor(const RangeDescriptor &other); // forbid copying of this class
-    RangeDescriptor &operator=(const RangeDescriptor &other); // forbid copying of this class
+    RangeDescriptor(const RangeDescriptor &other) = delete; // forbid default copying of this class
+    RangeDescriptor &operator=(const RangeDescriptor &other) = delete; // forbid assigning of this class
 };
 
 
@@ -89,6 +91,8 @@ public:
     int32_t  getNumCharCategories() const;   // CharCategories are the same as input symbol set to the
                                              //    runtime state machine, which are the same as
                                              //    columns in the DFA state table
+    int32_t  getDictCategoriesStart() const; // First char category that includes $dictionary, or
+                                             // last category + 1 if there are no dictionary categories.
     int32_t  getTrieSize() /*const*/;        // Size in bytes of the serialized Trie.
     void     serializeTrie(uint8_t *where);  // write out the serialized Trie.
     UChar32  getFirstChar(int32_t  val) const;
@@ -101,8 +105,6 @@ public:
      */
     void     mergeCategories(IntPair categories);
 
-    static constexpr int32_t DICT_BIT = 0x4000;
-
 #ifdef RBBI_DEBUG
     void     printSets();
     void     printRanges();
@@ -114,23 +116,21 @@ public:
 #endif
 
 private:
-    void           numberSets();
-
     RBBIRuleBuilder       *fRB;             // The RBBI Rule Compiler that owns us.
     UErrorCode            *fStatus;
 
     RangeDescriptor       *fRangeList;      // Head of the linked list of RangeDescriptors
 
-    UTrie2                *fTrie;           // The mapping TRIE that is the end result of processing
-    uint32_t               fTrieSize;       //  the Unicode Sets.
+    UMutableCPTrie        *fMutableTrie;    // The mapping TRIE that is the end result of processing
+    UCPTrie               *fTrie;           //  the Unicode Sets.
+    uint32_t               fTrieSize;
 
-    // Groups correspond to character categories -
-    //       groups of ranges that are in the same original UnicodeSets.
-    //       fGroupCount is the index of the last used group.
-    //       fGroupCount+1 is also the number of columns in the RBBI state table being compiled.
-    //       State table column 0 is not used.  Column 1 is for end-of-input.
-    //       column 2 is for group 0.  Funny counting.
+    // Number of range groups, which are groups of ranges that are in the same original UnicodeSets.
     int32_t               fGroupCount;
+
+    // The number of the first dictionary char category.
+    // If there are no Dictionary categories, set to the last category + 1.
+    int32_t               fDictCategoriesStart;
 
     UBool                 fSawBOF;
 

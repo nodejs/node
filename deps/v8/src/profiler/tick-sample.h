@@ -5,7 +5,7 @@
 #ifndef V8_PROFILER_TICK_SAMPLE_H_
 #define V8_PROFILER_TICK_SAMPLE_H_
 
-#include "include/v8.h"
+#include "include/v8-unwinder.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
 
@@ -56,6 +56,13 @@ struct V8_EXPORT TickSample {
    * \param sample_info The sample info is filled up by the function
    *                    provides number of actual captured stack frames and
    *                    the current VM state.
+   * \param out_state Output parameter. If non-nullptr pointer is provided,
+   *                  and the execution is currently in a fast API call,
+   *                  records StateTag::EXTERNAL to it. The caller could then
+   *                  use this as a marker to not take into account the actual
+   *                  VM state recorded in |sample_info|. In the case of fast
+   *                  API calls, the VM state must be EXTERNAL, as the callback
+   *                  is always an external C++ function.
    * \param use_simulator_reg_state When set to true and V8 is running under a
    *                                simulator, the method will use the simulator
    *                                register state rather than the one provided
@@ -69,8 +76,8 @@ struct V8_EXPORT TickSample {
                              RecordCEntryFrame record_c_entry_frame,
                              void** frames, size_t frames_limit,
                              v8::SampleInfo* sample_info,
-                             bool use_simulator_reg_state = true,
-                             void** contexts = nullptr);
+                             StateTag* out_state = nullptr,
+                             bool use_simulator_reg_state = true);
 
   void print() const;
 
@@ -83,8 +90,7 @@ struct V8_EXPORT TickSample {
   static const unsigned kMaxFramesCountLog2 = 8;
   static const unsigned kMaxFramesCount = (1 << kMaxFramesCountLog2) - 1;
   void* stack[kMaxFramesCount];     // Call stack.
-  void* contexts[kMaxFramesCount];  // Stack of associated native contexts.
-  void* top_context = nullptr;      // Address of the incumbent native context.
+  void* context = nullptr;          // Address of the incumbent native context.
   unsigned frames_count : kMaxFramesCountLog2;  // Number of captured frames.
   bool has_external_callback : 1;
   bool update_stats : 1;  // Whether the sample should update aggregated stats.

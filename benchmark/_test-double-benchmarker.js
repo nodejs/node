@@ -1,8 +1,13 @@
 'use strict';
 
 const myModule = process.argv[2];
-if (!['http', 'http2'].includes(myModule)) {
+if (!['http', 'https', 'http2'].includes(myModule)) {
   throw new Error(`Invalid module for benchmark test double: ${myModule}`);
+}
+
+let options;
+if (myModule === 'https') {
+  options = { rejectUnauthorized: false };
 }
 
 const http = require(myModule);
@@ -33,11 +38,15 @@ function request(res, client) {
 }
 
 function run() {
-  if (http.get) { // HTTP
-    http.get(url, request);
+  if (http.get) { // HTTP or HTTPS
+    if (options) {
+      http.get(url, options, request);
+    } else {
+      http.get(url, request);
+    }
   } else { // HTTP/2
     const client = http.connect(url);
-    client.on('error', (e) => { throw e; });
+    client.on('error', () => {});
     request(client.request(), client);
   }
 }

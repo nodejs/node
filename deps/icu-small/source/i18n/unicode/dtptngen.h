@@ -77,6 +77,13 @@ public:
 #ifndef U_HIDE_INTERNAL_API
 
     /**
+     * For ICU use only. Skips loading the standard date/time patterns (which is done via DateFormat).
+     *
+     * @internal
+     */
+    static DateTimePatternGenerator* U_EXPORT2 createInstanceNoStdPat(const Locale& uLocale, UErrorCode& status);
+
+    /**
      * For ICU use only
      *
      * @internal
@@ -113,7 +120,7 @@ public:
       * @return         true if other is semantically equal to this.
       * @stable ICU 3.8
       */
-    UBool operator==(const DateTimePatternGenerator& other) const;
+    bool operator==(const DateTimePatternGenerator& other) const;
 
     /**
      * Return true if another object is semantically unequal to this one.
@@ -122,7 +129,7 @@ public:
      * @return         true if other is semantically unequal to this.
      * @stable ICU 3.8
      */
-    UBool operator!=(const DateTimePatternGenerator& other) const;
+    bool operator!=(const DateTimePatternGenerator& other) const;
 
     /**
      * Utility to return a unique skeleton from a given pattern. For example,
@@ -195,7 +202,7 @@ public:
     /**
      * Adds a pattern to the generator. If the pattern has the same skeleton as
      * an existing pattern, and the override parameter is set, then the previous
-     * value is overriden. Otherwise, the previous value is retained. In either
+     * value is overridden. Otherwise, the previous value is retained. In either
      * case, the conflicting status is set and previous vale is stored in
      * conflicting pattern.
      * <p>
@@ -485,30 +492,28 @@ public:
 
 #if !UCONFIG_NO_FORMATTING
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Get the default hour cycle for a locale. Uses the locale that the
      * DateTimePatternGenerator was initially created with.
-     *
+     * 
      * Cannot be used on an empty DateTimePatternGenerator instance.
-     *
+     * 
      * @param status  Output param set to success/failure code on exit, which
      *                which must not indicate a failure before the function call.
      *                Set to U_UNSUPPORTED_ERROR if used on an empty instance.
      * @return the default hour cycle.
-     * @draft ICU 67
+     * @stable ICU 67
      */
     UDateFormatHourCycle getDefaultHourCycle(UErrorCode& status) const;
-#endif  /* U_HIDE_DRAFT_API */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
-
+    
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      *
      * @stable ICU 3.8
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -526,7 +531,7 @@ private:
     /**
      * Constructor.
      */
-    DateTimePatternGenerator(const Locale& locale, UErrorCode & status);
+    DateTimePatternGenerator(const Locale& locale, UErrorCode & status, UBool skipStdPatterns = false);
 
     /**
      * Copy constructor.
@@ -573,7 +578,7 @@ private:
         // with #13183, no longer need flags for b, B
     };
 
-    void initData(const Locale &locale, UErrorCode &status);
+    void initData(const Locale &locale, UErrorCode &status, UBool skipStdPatterns = false);
     void addCanonicalItems(UErrorCode &status);
     void addICUPatterns(const Locale& locale, UErrorCode& status);
     void hackTimes(const UnicodeString& hackPattern, UErrorCode& status);

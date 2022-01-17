@@ -171,6 +171,65 @@ TEST_F(PrefinalizerTest, PrefinalizerInvocationPreservesOrder) {
 
 namespace {
 
+class LinkedNode final : public GarbageCollected<LinkedNode> {
+ public:
+  explicit LinkedNode(LinkedNode* next) : next_(next) {}
+
+  void Trace(Visitor* visitor) const { visitor->Trace(next_); }
+
+  LinkedNode* next() const { return next_; }
+
+  void RemoveNext() {
+    CHECK(next_);
+    next_ = next_->next_;
+  }
+
+ private:
+  Member<LinkedNode> next_;
+};
+
+class MutatingPrefinalizer final
+    : public GarbageCollected<MutatingPrefinalizer> {
+  CPPGC_USING_PRE_FINALIZER(MutatingPrefinalizer, PreFinalizer);
+
+ public:
+  void PreFinalizer() {
+    // Pre-finalizers are generally used to mutate the object graph. The API
+    // does not allow distinguishing between live and dead objects. It is
+    // generally safe to re-write the dead *or* the live object graph. Adding
+    // a dead object to the live graph must not happen.
+    //
+    // RemoveNext() must not trigger a write barrier. In the case all LinkedNode
+    // objects die at the same time, the graph is mutated with a dead object.
+    // This is only safe when the dead object is added to a dead subgraph.
+    parent_node_->RemoveNext();
+  }
+
+  explicit MutatingPrefinalizer(LinkedNode* parent) : parent_node_(parent) {}
+
+  void Trace(Visitor* visitor) const { visitor->Trace(parent_node_); }
+
+ private:
+  Member<LinkedNode> parent_node_;
+};
+
+}  // namespace
+
+TEST_F(PrefinalizerTest, PrefinalizerCanRewireGraphWithLiveObjects) {
+  Persistent<LinkedNode> root{MakeGarbageCollected<LinkedNode>(
+      GetAllocationHandle(),
+      MakeGarbageCollected<LinkedNode>(
+          GetAllocationHandle(),
+          MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr)))};
+  CHECK(root->next());
+  MakeGarbageCollected<MutatingPrefinalizer>(GetAllocationHandle(), root.Get());
+  PreciseGC();
+}
+
+namespace {
+
+class PrefinalizerDeathTest : public testing::TestWithHeap {};
+
 class AllocatingPrefinalizer : public GarbageCollected<AllocatingPrefinalizer> {
   CPPGC_USING_PRE_FINALIZER(AllocatingPrefinalizer, PreFinalizer);
 
@@ -187,16 +246,128 @@ class AllocatingPrefinalizer : public GarbageCollected<AllocatingPrefinalizer> {
 
 }  // namespace
 
+#ifdef CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
+TEST_F(PrefinalizerTest, PrefinalizerDoesNotFailOnAllcoation) {
+  auto* object = MakeGarbageCollected<AllocatingPrefinalizer>(
+      GetAllocationHandle(), GetHeap());
+  PreciseGC();
+  USE(object);
+}
+#else
 #ifdef DEBUG
-
-TEST_F(PrefinalizerTest, PrefinalizerFailsOnAllcoation) {
+TEST_F(PrefinalizerDeathTest, PrefinalizerFailsOnAllcoation) {
   auto* object = MakeGarbageCollected<AllocatingPrefinalizer>(
       GetAllocationHandle(), GetHeap());
   USE(object);
   EXPECT_DEATH_IF_SUPPORTED(PreciseGC(), "");
 }
-
 #endif  // DEBUG
+#endif  // CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
+
+namespace {
+
+template <template <typename T> class RefType>
+class RessurectingPrefinalizer
+    : public GarbageCollected<RessurectingPrefinalizer<RefType>> {
+  CPPGC_USING_PRE_FINALIZER(RessurectingPrefinalizer, PreFinalizer);
+
+ public:
+  explicit RessurectingPrefinalizer(RefType<GCed>& ref, GCed* obj)
+      : ref_(ref), obj_(obj) {}
+  void Trace(Visitor*) const {}
+  void PreFinalizer() { ref_ = obj_; }
+
+ private:
+  RefType<GCed>& ref_;
+  GCed* obj_;
+};
+
+class GCedHolder : public GarbageCollected<GCedHolder> {
+ public:
+  void Trace(Visitor* v) const { v->Trace(member_); }
+
+  Member<GCed> member_;
+};
+
+}  // namespace
+
+#if V8_ENABLE_CHECKS
+#ifdef CPPGC_VERIFY_HEAP
+
+TEST_F(PrefinalizerDeathTest, PrefinalizerCanRewireGraphWithDeadObjects) {
+  // Prefinalizers are allowed to rewire dead object to dead objects as that
+  // doesn't affect the live object graph.
+  Persistent<LinkedNode> root{MakeGarbageCollected<LinkedNode>(
+      GetAllocationHandle(),
+      MakeGarbageCollected<LinkedNode>(
+          GetAllocationHandle(),
+          MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr)))};
+  CHECK(root->next());
+  MakeGarbageCollected<MutatingPrefinalizer>(GetAllocationHandle(), root.Get());
+  // All LinkedNode objects will die on the following GC. The pre-finalizer may
+  // still operate with them but not add them to a live object.
+  root.Clear();
+  PreciseGC();
+}
+
+TEST_F(PrefinalizerDeathTest, PrefinalizerCantRessurectObjectOnStack) {
+  Persistent<GCed> persistent;
+  MakeGarbageCollected<RessurectingPrefinalizer<Persistent>>(
+      GetAllocationHandle(), persistent,
+      MakeGarbageCollected<GCed>(GetAllocationHandle()));
+  EXPECT_DEATH_IF_SUPPORTED(PreciseGC(), "");
+}
+
+TEST_F(PrefinalizerDeathTest, PrefinalizerCantRessurectObjectOnHeap) {
+  Persistent<GCedHolder> persistent(
+      MakeGarbageCollected<GCedHolder>(GetAllocationHandle()));
+  MakeGarbageCollected<RessurectingPrefinalizer<Member>>(
+      GetAllocationHandle(), persistent->member_,
+      MakeGarbageCollected<GCed>(GetAllocationHandle()));
+  EXPECT_DEATH_IF_SUPPORTED(PreciseGC(), "");
+}
+
+#endif  // CPPGC_VERIFY_HEAP
+#endif  // V8_ENABLE_CHECKS
+
+#ifdef CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
+TEST_F(PrefinalizerTest, AllocatingPrefinalizersInMultipleGCCycles) {
+  auto* object = MakeGarbageCollected<AllocatingPrefinalizer>(
+      GetAllocationHandle(), GetHeap());
+  PreciseGC();
+  auto* other_object = MakeGarbageCollected<AllocatingPrefinalizer>(
+      GetAllocationHandle(), GetHeap());
+  PreciseGC();
+  USE(object);
+  USE(other_object);
+}
+#endif
+
+class GCedBase : public GarbageCollected<GCedBase> {
+  CPPGC_USING_PRE_FINALIZER(GCedBase, PreFinalize);
+
+ public:
+  void Trace(Visitor*) const {}
+  virtual void PreFinalize() { ++prefinalizer_count_; }
+  static size_t prefinalizer_count_;
+};
+size_t GCedBase::prefinalizer_count_ = 0u;
+
+class GCedInherited : public GCedBase {
+ public:
+  void PreFinalize() override { ++prefinalizer_count_; }
+  static size_t prefinalizer_count_;
+};
+size_t GCedInherited::prefinalizer_count_ = 0u;
+
+TEST_F(PrefinalizerTest, VirtualPrefinalizer) {
+  MakeGarbageCollected<GCedInherited>(GetAllocationHandle());
+  GCedBase::prefinalizer_count_ = 0u;
+  GCedInherited::prefinalizer_count_ = 0u;
+  PreciseGC();
+  EXPECT_EQ(0u, GCedBase::prefinalizer_count_);
+  EXPECT_LT(0u, GCedInherited::prefinalizer_count_);
+}
 
 }  // namespace internal
 }  // namespace cppgc

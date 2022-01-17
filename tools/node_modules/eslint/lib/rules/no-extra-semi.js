@@ -16,13 +16,13 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow unnecessary semicolons",
-            category: "Possible Errors",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-extra-semi"
         },
@@ -117,7 +117,7 @@ module.exports = {
              * @param {Node} node A MethodDefinition node of the start point.
              * @returns {void}
              */
-            MethodDefinition(node) {
+            "MethodDefinition, PropertyDefinition, StaticBlock"(node) {
                 checkForPartOfClassBody(sourceCode.getTokenAfter(node));
             }
         };

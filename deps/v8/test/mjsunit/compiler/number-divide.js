@@ -10,6 +10,7 @@
 (function() {
   // We need a separately polluted % with NumberOrOddball feedback.
   function bar(x) { return x / 2; }
+  %EnsureFeedbackVectorForFunction(bar);
   bar(undefined);  // The % feedback is now NumberOrOddball.
 
   // Now just use the gadget above in a way that only after RETYPE
@@ -40,6 +41,7 @@
 (function() {
   // We need a separately polluted % with NumberOrOddball feedback.
   function bar(x) { return x / 2; }
+  %EnsureFeedbackVectorForFunction(bar);
   bar(undefined);  // The % feedback is now NumberOrOddball.
 
   // Now just use the gadget above in a way that only after RETYPE

@@ -52,8 +52,8 @@ struct AESCipherConfig final : public MemoryRetainer {
   AESCipherConfig& operator=(AESCipherConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(AESCipherConfig);
-  SET_SELF_SIZE(AESCipherConfig);
+  SET_MEMORY_INFO_NAME(AESCipherConfig)
+  SET_SELF_SIZE(AESCipherConfig)
 };
 
 struct AESCipherTraits final {
@@ -81,6 +81,7 @@ using AESCryptoJob = CipherJob<AESCipherTraits>;
 
 namespace AES {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace AES
 }  // namespace crypto
 }  // namespace node

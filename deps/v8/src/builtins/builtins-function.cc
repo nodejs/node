@@ -48,7 +48,6 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     builder.AppendCharacter('(');
     builder.AppendCString(token);
     builder.AppendCString(" anonymous(");
-    bool parenthesis_in_arg_string = false;
     if (argc > 1) {
       for (int i = 1; i < argc; ++i) {
         if (i > 1) builder.AppendCharacter(',');
@@ -70,13 +69,13 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     }
     builder.AppendCString("\n})");
     ASSIGN_RETURN_ON_EXCEPTION(isolate, source, builder.Finish(), Object);
+  }
 
-    // The SyntaxError must be thrown after all the (observable) ToString
-    // conversions are done.
-    if (parenthesis_in_arg_string) {
-      THROW_NEW_ERROR(isolate,
-                      NewSyntaxError(MessageTemplate::kParenthesisInArgString),
-                      Object);
+  bool is_code_like = true;
+  for (int i = 0; i < argc; ++i) {
+    if (!args.at(i + 1)->IsCodeLike(isolate)) {
+      is_code_like = false;
+      break;
     }
   }
 
@@ -88,7 +87,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
         isolate, function,
         Compiler::GetFunctionFromString(
             handle(target->native_context(), isolate), source,
-            ONLY_SINGLE_FUNCTION_LITERAL, parameters_end_pos),
+            ONLY_SINGLE_FUNCTION_LITERAL, parameters_end_pos, is_code_like),
         Object);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -119,8 +118,10 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     Handle<Map> map = Map::AsLanguageMode(isolate, initial_map, shared_info);
 
     Handle<Context> context(function->context(), isolate);
-    function = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-        map, shared_info, context, AllocationType::kYoung);
+    function = Factory::JSFunctionBuilder{isolate, shared_info, context}
+                   .set_map(map)
+                   .set_allocation_type(AllocationType::kYoung)
+                   .Build();
   }
   return function;
 }
@@ -194,7 +195,7 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   // Allocate the bound function with the given {this_arg} and {args}.
   Handle<JSReceiver> target = args.at<JSReceiver>(0);
   Handle<Object> this_arg = isolate->factory()->undefined_value();
-  ScopedVector<Handle<Object>> argv(std::max(0, args.length() - 2));
+  base::ScopedVector<Handle<Object>> argv(std::max(0, args.length() - 2));
   if (args.length() > 1) {
     this_arg = args.at(1);
     for (int i = 2; i < args.length(); ++i) {

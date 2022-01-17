@@ -8,7 +8,7 @@ uint32_t free_call_count = 0;
 
 napi_value GetFreeCallCount(napi_env env, napi_callback_info info) {
   napi_value value;
-  NAPI_CALL(env, napi_create_uint32(env, free_call_count, &value));
+  NODE_API_CALL(env, napi_create_uint32(env, free_call_count, &value));
   return value;
 }
 
@@ -19,10 +19,10 @@ static void finalize_cb(napi_env env, void* finalize_data, void* hint) {
 
 NAPI_MODULE_INIT() {
   napi_property_descriptor properties[] = {
-    DECLARE_NAPI_PROPERTY("getFreeCallCount", GetFreeCallCount)
+    DECLARE_NODE_API_PROPERTY("getFreeCallCount", GetFreeCallCount)
   };
 
-  NAPI_CALL(env, napi_define_properties(
+  NODE_API_CALL(env, napi_define_properties(
       env, exports, sizeof(properties) / sizeof(*properties), properties));
 
   // This is a slight variation on the non-N-API test: We create an ArrayBuffer
@@ -32,7 +32,7 @@ NAPI_MODULE_INIT() {
 
   char* data = malloc(sizeof(char));
 
-  NAPI_CALL(env, napi_create_external_arraybuffer(
+  NODE_API_CALL(env, napi_create_external_arraybuffer(
       env,
       data,
       sizeof(char),
@@ -40,7 +40,7 @@ NAPI_MODULE_INIT() {
       NULL,
       &buffer));
 
-  NAPI_CALL(env, napi_set_named_property(env, exports, "buffer", buffer));
+  NODE_API_CALL(env, napi_set_named_property(env, exports, "buffer", buffer));
 
   return exports;
 }

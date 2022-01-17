@@ -29,8 +29,8 @@
 #if U_SHOW_CPLUSPLUS_API
 
 /**
- * \file
- * \brief C++ API: Base class for all formats.
+ * \file 
+ * \brief C++ API: Base class for all formats. 
  */
 
 #if !UCONFIG_NO_FORMATTING
@@ -40,7 +40,7 @@
 #include "unicode/fieldpos.h"
 #include "unicode/fpositer.h"
 #include "unicode/parsepos.h"
-#include "unicode/parseerr.h"
+#include "unicode/parseerr.h" 
 #include "unicode/locid.h"
 
 U_NAMESPACE_BEGIN
@@ -88,7 +88,7 @@ U_NAMESPACE_BEGIN
  * 0xFFFD is returned.
  * <P>
  * If there is no match when parsing, a parse failure UErrorCode is
- * retured for methods which take no ParsePosition.  For the method
+ * returned for methods which take no ParsePosition.  For the method
  * that takes a ParsePosition, the index parameter is left unchanged.
  * <P>
  * <em>User subclasses are not supported.</em> While clients may write
@@ -111,7 +111,7 @@ public:
      *                 Objects of different subclasses are considered unequal.
      * @stable ICU 2.0
      */
-    virtual UBool operator==(const Format& other) const = 0;
+    virtual bool operator==(const Format& other) const = 0;
 
     /**
      * Return true if the given Format objects are not semantically
@@ -120,7 +120,7 @@ public:
      * @return         Return true if the given Format objects are not semantically.
      * @stable ICU 2.0
      */
-    UBool operator!=(const Format& other) const { return !operator==(other); }
+    bool operator!=(const Format& other) const { return !operator==(other); }
 
     /**
      * Clone this object polymorphically.  The caller is responsible
@@ -245,7 +245,7 @@ public:
                      UErrorCode& status) const;
 
     /** Get the locale for this format object. You can choose between valid and actual locale.
-     *  @param type type of the locale we're looking for (valid or actual)
+     *  @param type type of the locale we're looking for (valid or actual) 
      *  @param status error code for the operation
      *  @return the locale
      *  @stable ICU 2.8
@@ -254,7 +254,7 @@ public:
 
 #ifndef U_HIDE_INTERNAL_API
     /** Get the locale for this format object. You can choose between valid and actual locale.
-     *  @param type type of the locale we're looking for (valid or actual)
+     *  @param type type of the locale we're looking for (valid or actual) 
      *  @param status error code for the operation
      *  @return the locale
      *  @internal
@@ -283,12 +283,12 @@ protected:
      */
     Format& operator=(const Format&); // Does nothing; for subclasses
 
-
+       
     /**
      * Simple function for initializing a UParseError from a UnicodeString.
      *
      * @param pattern The pattern to copy into the parseError
-     * @param pos The position in pattern where the error occured
+     * @param pos The position in pattern where the error occurred
      * @param parseError The UParseError object to fill in
      * @stable ICU 2.4
      */

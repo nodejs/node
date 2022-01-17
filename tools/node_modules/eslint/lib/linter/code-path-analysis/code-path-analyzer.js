@@ -30,6 +30,18 @@ function isCaseNode(node) {
 }
 
 /**
+ * Checks if a given node appears as the value of a PropertyDefinition node.
+ * @param {ASTNode} node THe node to check.
+ * @returns {boolean} `true` if the node is a PropertyDefinition value,
+ *      false if not.
+ */
+function isPropertyDefinitionValue(node) {
+    const parent = node.parent;
+
+    return parent && parent.type === "PropertyDefinition" && parent.value === node;
+}
+
+/**
  * Checks whether the given logical operator is taken into account for the code
  * path analysis.
  * @param {string} operator The operator found in the LogicalExpression node
@@ -138,6 +150,7 @@ function isIdentifierReference(node) {
             return parent.id !== node;
 
         case "Property":
+        case "PropertyDefinition":
         case "MethodDefinition":
             return (
                 parent.key !== node ||
@@ -388,29 +401,68 @@ function processCodePathToEnter(analyzer, node) {
     let state = codePath && CodePath.getState(codePath);
     const parent = node.parent;
 
+    /**
+     * Creates a new code path and trigger the onCodePathStart event
+     * based on the currently selected node.
+     * @param {string} origin The reason the code path was started.
+     * @returns {void}
+     */
+    function startCodePath(origin) {
+        if (codePath) {
+
+            // Emits onCodePathSegmentStart events if updated.
+            forwardCurrentToHead(analyzer, node);
+            debug.dumpState(node, state, false);
+        }
+
+        // Create the code path of this scope.
+        codePath = analyzer.codePath = new CodePath({
+            id: analyzer.idGenerator.next(),
+            origin,
+            upper: codePath,
+            onLooped: analyzer.onLooped
+        });
+        state = CodePath.getState(codePath);
+
+        // Emits onCodePathStart events.
+        debug.dump(`onCodePathStart ${codePath.id}`);
+        analyzer.emitter.emit("onCodePathStart", codePath, node);
+    }
+
+    /*
+     * Special case: The right side of class field initializer is considered
+     * to be its own function, so we need to start a new code path in this
+     * case.
+     */
+    if (isPropertyDefinitionValue(node)) {
+        startCodePath("class-field-initializer");
+
+        /*
+         * Intentional fall through because `node` needs to also be
+         * processed by the code below. For example, if we have:
+         *
+         * class Foo {
+         *     a = () => {}
+         * }
+         *
+         * In this case, we also need start a second code path.
+         */
+
+    }
+
     switch (node.type) {
         case "Program":
+            startCodePath("program");
+            break;
+
         case "FunctionDeclaration":
         case "FunctionExpression":
         case "ArrowFunctionExpression":
-            if (codePath) {
+            startCodePath("function");
+            break;
 
-                // Emits onCodePathSegmentStart events if updated.
-                forwardCurrentToHead(analyzer, node);
-                debug.dumpState(node, state, false);
-            }
-
-            // Create the code path of this scope.
-            codePath = analyzer.codePath = new CodePath(
-                analyzer.idGenerator.next(),
-                codePath,
-                analyzer.onLooped
-            );
-            state = CodePath.getState(codePath);
-
-            // Emits onCodePathStart events.
-            debug.dump(`onCodePathStart ${codePath.id}`);
-            analyzer.emitter.emit("onCodePathStart", codePath, node);
+        case "StaticBlock":
+            startCodePath("class-static-block");
             break;
 
         case "ChainExpression":
@@ -503,6 +555,7 @@ function processCodePathToEnter(analyzer, node) {
  * @returns {void}
  */
 function processCodePathToExit(analyzer, node) {
+
     const codePath = analyzer.codePath;
     const state = CodePath.getState(codePath);
     let dontForward = false;
@@ -627,28 +680,39 @@ function processCodePathToExit(analyzer, node) {
  * @returns {void}
  */
 function postprocess(analyzer, node) {
+
+    /**
+     * Ends the code path for the current node.
+     * @returns {void}
+     */
+    function endCodePath() {
+        let codePath = analyzer.codePath;
+
+        // Mark the current path as the final node.
+        CodePath.getState(codePath).makeFinal();
+
+        // Emits onCodePathSegmentEnd event of the current segments.
+        leaveFromCurrentSegment(analyzer, node);
+
+        // Emits onCodePathEnd event of this code path.
+        debug.dump(`onCodePathEnd ${codePath.id}`);
+        analyzer.emitter.emit("onCodePathEnd", codePath, node);
+        debug.dumpDot(codePath);
+
+        codePath = analyzer.codePath = analyzer.codePath.upper;
+        if (codePath) {
+            debug.dumpState(node, CodePath.getState(codePath), true);
+        }
+
+    }
+
     switch (node.type) {
         case "Program":
         case "FunctionDeclaration":
         case "FunctionExpression":
-        case "ArrowFunctionExpression": {
-            let codePath = analyzer.codePath;
-
-            // Mark the current path as the final node.
-            CodePath.getState(codePath).makeFinal();
-
-            // Emits onCodePathSegmentEnd event of the current segments.
-            leaveFromCurrentSegment(analyzer, node);
-
-            // Emits onCodePathEnd event of this code path.
-            debug.dump(`onCodePathEnd ${codePath.id}`);
-            analyzer.emitter.emit("onCodePathEnd", codePath, node);
-            debug.dumpDot(codePath);
-
-            codePath = analyzer.codePath = analyzer.codePath.upper;
-            if (codePath) {
-                debug.dumpState(node, CodePath.getState(codePath), true);
-            }
+        case "ArrowFunctionExpression":
+        case "StaticBlock": {
+            endCodePath();
             break;
         }
 
@@ -662,6 +726,27 @@ function postprocess(analyzer, node) {
         default:
             break;
     }
+
+    /*
+     * Special case: The right side of class field initializer is considered
+     * to be its own function, so we need to end a code path in this
+     * case.
+     *
+     * We need to check after the other checks in order to close the
+     * code paths in the correct order for code like this:
+     *
+     *
+     * class Foo {
+     *     a = () => {}
+     * }
+     *
+     * In this case, The ArrowFunctionExpression code path is closed first
+     * and then we need to close the code path for the PropertyDefinition
+     * value.
+     */
+    if (isPropertyDefinitionValue(node)) {
+        endCodePath();
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -674,7 +759,6 @@ function postprocess(analyzer, node) {
  */
 class CodePathAnalyzer {
 
-    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {EventGenerator} eventGenerator An event generator to wrap.
      */

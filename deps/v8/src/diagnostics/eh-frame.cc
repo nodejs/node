@@ -27,14 +27,12 @@ void EhFrameWriter::WriteInitialStateInCie() { UNIMPLEMENTED(); }
 
 int EhFrameWriter::RegisterToDwarfCode(Register) {
   UNIMPLEMENTED();
-  return -1;
 }
 
 #ifdef ENABLE_DISASSEMBLER
 
 const char* EhFrameDisassembler::DwarfRegisterCodeToString(int) {
   UNIMPLEMENTED();
-  return nullptr;
 }
 
 #endif
@@ -55,7 +53,7 @@ STATIC_CONST_MEMBER_DEFINITION const int EhFrameConstants::kEhFrameHdrSize;
 STATIC_CONST_MEMBER_DEFINITION const uint32_t EhFrameWriter::kInt32Placeholder;
 
 // static
-void EhFrameWriter::WriteEmptyEhFrame(std::ostream& stream) {  // NOLINT
+void EhFrameWriter::WriteEmptyEhFrame(std::ostream& stream) {
   stream.put(EhFrameConstants::kEhFrameHdrVersion);
 
   // .eh_frame pointer encoding specifier.
@@ -466,7 +464,7 @@ int32_t EhFrameIterator::DecodeSLeb128(const byte* encoded, int* encoded_size) {
 
 namespace {
 
-class StreamModifiersScope final {
+class V8_NODISCARD StreamModifiersScope final {
  public:
   explicit StreamModifiersScope(std::ostream* stream)
       : stream_(stream), flags_(stream->flags()) {}
@@ -480,7 +478,7 @@ class StreamModifiersScope final {
 }  // namespace
 
 // static
-void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,  // NOLINT
+void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,
                                               const byte* start,
                                               const byte* end) {
   StreamModifiersScope modifiers_scope(&stream);
@@ -587,12 +585,11 @@ void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,  // NOLINT
         break;
       default:
         UNREACHABLE();
-        return;
     }
   }
 }
 
-void EhFrameDisassembler::DisassembleToStream(std::ostream& stream) {  // NOLINT
+void EhFrameDisassembler::DisassembleToStream(std::ostream& stream) {
   // The encoded CIE size does not include the size field itself.
   const int cie_size =
       base::ReadUnalignedValue<uint32_t>(reinterpret_cast<Address>(start_)) +

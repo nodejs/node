@@ -26,6 +26,8 @@
 #include "unicode/uloc.h"
 #include "unicode/ures.h"
 #include "unicode/ustring.h"
+#include "bytesinkutil.h"
+#include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "putilimp.h"
@@ -296,7 +298,7 @@ static const char _kSeparator[]       = "separator";
 
 static int32_t
 _getStringOrCopyKey(const char *path, const char *locale,
-                    const char *tableKey,
+                    const char *tableKey, 
                     const char* subTableKey,
                     const char *itemKey,
                     const char *substitute,
@@ -314,8 +316,9 @@ _getStringOrCopyKey(const char *path, const char *locale,
             /* see comment about closing rb near "return item;" in _res_getTableStringWithFallback() */
         }
     } else {
+        bool isLanguageCode = (uprv_strncmp(tableKey, _kLanguages, 9) == 0);
         /* Language code should not be a number. If it is, set the error code. */
-        if (!uprv_strncmp(tableKey, "Languages", 9) && uprv_strtol(itemKey, NULL, 10)) {
+        if (isLanguageCode && uprv_strtol(itemKey, NULL, 10)) {
             *pErrorCode = U_MISSING_RESOURCE_ERROR;
         } else {
             /* second-level item, use special fallback */
@@ -325,6 +328,17 @@ _getStringOrCopyKey(const char *path, const char *locale,
                                                itemKey,
                                                &length,
                                                pErrorCode);
+            if (U_FAILURE(*pErrorCode) && isLanguageCode && itemKey != nullptr) {
+                // convert itemKey locale code to canonical form and try again, ICU-20870
+                *pErrorCode = U_ZERO_ERROR;
+                Locale canonKey = Locale::createCanonical(itemKey);
+                s=uloc_getTableStringWithFallback(path, locale,
+                                                    tableKey,
+                                                    subTableKey,
+                                                    canonKey.getName(),
+                                                    &length,
+                                                    pErrorCode);
+            }
         }
     }
 
@@ -406,20 +420,26 @@ uloc_getDisplayScript(const char* locale,
                       UChar *dest, int32_t destCapacity,
                       UErrorCode *pErrorCode)
 {
-	UErrorCode err = U_ZERO_ERROR;
-	int32_t res = _getDisplayNameForComponent(locale, displayLocale, dest, destCapacity,
+    UErrorCode err = U_ZERO_ERROR;
+    int32_t res = _getDisplayNameForComponent(locale, displayLocale, dest, destCapacity,
                 uloc_getScript, _kScriptsStandAlone, &err);
 
-	if ( err == U_USING_DEFAULT_WARNING ) {
+    if (destCapacity == 0 && err == U_BUFFER_OVERFLOW_ERROR) {
+        // For preflight, return the max of the value and the fallback.
+        int32_t fallback_res = _getDisplayNameForComponent(locale, displayLocale, dest, destCapacity,
+                                                           uloc_getScript, _kScripts, pErrorCode);
+        return (fallback_res > res) ? fallback_res : res;
+    }
+    if ( err == U_USING_DEFAULT_WARNING ) {
         return _getDisplayNameForComponent(locale, displayLocale, dest, destCapacity,
-                    uloc_getScript, _kScripts, pErrorCode);
-	} else {
-		*pErrorCode = err;
-		return res;
-	}
+                                           uloc_getScript, _kScripts, pErrorCode);
+    } else {
+        *pErrorCode = err;
+        return res;
+    }
 }
 
-U_INTERNAL int32_t U_EXPORT2
+static int32_t
 uloc_getDisplayScriptInContext(const char* locale,
                       const char* displayLocale,
                       UChar *dest, int32_t destCapacity,
@@ -488,7 +508,7 @@ uloc_getDisplayName(const char *locale,
     const UChar *pattern;
     int32_t patLen = 0;
     int32_t sub0Pos, sub1Pos;
-
+    
     UChar formatOpenParen         = 0x0028; // (
     UChar formatReplaceOpenParen  = 0x005B; // [
     UChar formatCloseParen        = 0x0029; // )
@@ -690,7 +710,7 @@ uloc_getDisplayName(const char *locale,
                     } /* end switch */
 
                     if (len>0) {
-                        /* we addeed a component, so add separator and write it if there's room. */
+                        /* we added a component, so add separator and write it if there's room. */
                         if(len+sepLen<=cap) {
                             const UChar * plimit = p + len;
                             for (; p < plimit; p++) {
@@ -727,7 +747,7 @@ uloc_getDisplayName(const char *locale,
                     int32_t padLen;
                     patPos+=subLen;
                     padLen=(subi==0 ? sub1Pos : patLen)-patPos;
-                    if(length+padLen < destCapacity) {
+                    if(length+padLen <= destCapacity) {
                         p=dest+length;
                         for(int32_t i=0;i<padLen;++i) {
                             *p++=pattern[patPos++];
@@ -785,9 +805,9 @@ uloc_getDisplayKeyword(const char* keyword,
 
     /* pass itemKey=NULL to look for a top-level item */
     return _getStringOrCopyKey(U_ICUDATA_LANG, displayLocale,
-                               _kKeys, NULL,
-                               keyword,
-                               keyword,
+                               _kKeys, NULL, 
+                               keyword, 
+                               keyword,      
                                dest, destCapacity,
                                status);
 
@@ -805,10 +825,6 @@ uloc_getDisplayKeywordValue(   const char* locale,
                                UErrorCode* status){
 
 
-    char keywordValue[ULOC_FULLNAME_CAPACITY*4];
-    int32_t capacity = ULOC_FULLNAME_CAPACITY*4;
-    int32_t keywordValueLen =0;
-
     /* argument checking */
     if(status==NULL || U_FAILURE(*status)) {
         return 0;
@@ -820,13 +836,14 @@ uloc_getDisplayKeywordValue(   const char* locale,
     }
 
     /* get the keyword value */
-    keywordValue[0]=0;
-    keywordValueLen = uloc_getKeywordValue(locale, keyword, keywordValue, capacity, status);
-    if (*status == U_STRING_NOT_TERMINATED_WARNING)
-      *status = U_BUFFER_OVERFLOW_ERROR;
+    CharString keywordValue;
+    {
+        CharStringByteSink sink(&keywordValue);
+        ulocimp_getKeywordValue(locale, keyword, sink, status);
+    }
 
-    /*
-     * if the keyword is equal to currency .. then to get the display name
+    /* 
+     * if the keyword is equal to currency .. then to get the display name 
      * we need to do the fallback ourselves
      */
     if(uprv_stricmp(keyword, _kCurrency)==0){
@@ -839,7 +856,7 @@ uloc_getDisplayKeywordValue(   const char* locale,
         icu::LocalUResourceBundlePointer currencies(
                 ures_getByKey(bundle.getAlias(), _kCurrencies, NULL, status));
         icu::LocalUResourceBundlePointer currency(
-                ures_getByKeyWithFallback(currencies.getAlias(), keywordValue, NULL, status));
+                ures_getByKeyWithFallback(currencies.getAlias(), keywordValue.data(), NULL, status));
 
         dispName = ures_getStringByIndex(currency.getAlias(), UCURRENCY_DISPLAY_NAME_INDEX, &dispNameLen, status);
 
@@ -863,22 +880,22 @@ uloc_getDisplayKeywordValue(   const char* locale,
             }
         }else{
             /* we have not found the display name for the value .. just copy over */
-            if(keywordValueLen <= destCapacity){
-                u_charsToUChars(keywordValue, dest, keywordValueLen);
-                return u_terminateUChars(dest, destCapacity, keywordValueLen, status);
+            if(keywordValue.length() <= destCapacity){
+                u_charsToUChars(keywordValue.data(), dest, keywordValue.length());
+                return u_terminateUChars(dest, destCapacity, keywordValue.length(), status);
             }else{
                  *status = U_BUFFER_OVERFLOW_ERROR;
-                return keywordValueLen;
+                return keywordValue.length();
             }
         }
 
-
+        
     }else{
 
         return _getStringOrCopyKey(U_ICUDATA_LANG, displayLocale,
-                                   _kTypes, keyword,
-                                   keywordValue,
-                                   keywordValue,
+                                   _kTypes, keyword, 
+                                   keywordValue.data(),
+                                   keywordValue.data(),
                                    dest, destCapacity,
                                    status);
     }

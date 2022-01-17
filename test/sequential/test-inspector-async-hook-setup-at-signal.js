@@ -45,7 +45,7 @@ async function setupTimeoutForStackTrace(session) {
   await session.send([
     { 'method': 'Runtime.evaluate',
       'params': { expression: 'setupTimeoutWithBreak()' } },
-    { 'method': 'Debugger.resume' }
+    { 'method': 'Debugger.resume' },
   ]);
 }
 
@@ -69,7 +69,7 @@ async function runTests() {
       'params': { 'maxDepth': 10 } },
     { 'method': 'Debugger.setBlackboxPatterns',
       'params': { 'patterns': [] } },
-    { 'method': 'Runtime.runIfWaitingForDebugger' }
+    { 'method': 'Runtime.runIfWaitingForDebugger' },
   ]);
 
   await waitForInitialSetup(session);

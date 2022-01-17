@@ -45,21 +45,23 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Record the assumption that {map} stays stable.
   void DependOnStableMap(const MapRef& map);
 
-  // Record the assumption that {target_map} can be transitioned to, i.e., that
-  // it does not become deprecated.
-  void DependOnTransition(const MapRef& target_map);
+  // Depend on the fact that accessing property |property_name| from
+  // |receiver_map| yields the constant value |constant|, which is held by
+  // |holder|. Therefore, must be invalidated if |property_name| is added to any
+  // of the objects between receiver and |holder| on the prototype chain, b) any
+  // of the objects on the prototype chain up to |holder| change prototypes, or
+  // c) the value of |property_name| in |holder| changes.
+  // If PropertyKind is kData, |constant| is the value of the property in
+  // question. In case of PropertyKind::kAccessor, |constant| is the accessor
+  // function (i.e., getter or setter) itself, not the overall AccessorPair.
+  void DependOnConstantInDictionaryPrototypeChain(const MapRef& receiver_map,
+                                                  const NameRef& property_name,
+                                                  const ObjectRef& constant,
+                                                  PropertyKind kind);
 
   // Return the pretenure mode of {site} and record the assumption that it does
   // not change.
   AllocationType DependOnPretenureMode(const AllocationSiteRef& site);
-
-  // Record the assumption that the field representation of a field does not
-  // change. The field is identified by the arguments.
-  void DependOnFieldRepresentation(const MapRef& map, InternalIndex descriptor);
-
-  // Record the assumption that the field type of a field does not change. The
-  // field is identified by the arguments.
-  void DependOnFieldType(const MapRef& map, InternalIndex descriptor);
 
   // Return a field's constness and, if kConst, record the assumption that it
   // remains kConst. The field is identified by the arguments.
@@ -91,16 +93,34 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Record the assumption that {site}'s {ElementsKind} doesn't change.
   void DependOnElementsKind(const AllocationSiteRef& site);
 
+  void DependOnOwnConstantElement(const JSObjectRef& holder, uint32_t index,
+                                  const ObjectRef& element);
+
+  // Record the assumption that the {value} read from {holder} at {index} on the
+  // background thread is the correct value for a given property.
+  void DependOnOwnConstantDataProperty(const JSObjectRef& holder,
+                                       const MapRef& map,
+                                       Representation representation,
+                                       FieldIndex index,
+                                       const ObjectRef& value);
+
+  // Record the assumption that the {value} read from {holder} at {index} on the
+  // background thread is the correct value for a given dictionary property.
+  void DependOnOwnConstantDictionaryProperty(const JSObjectRef& holder,
+                                             InternalIndex index,
+                                             const ObjectRef& value);
+
   // For each given map, depend on the stability of (the maps of) all prototypes
   // up to (and including) the {last_prototype}.
-  template <class MapContainer>
   void DependOnStablePrototypeChains(
-      MapContainer const& receiver_maps, WhereToStart start,
+      ZoneVector<MapRef> const& receiver_maps, WhereToStart start,
       base::Optional<JSObjectRef> last_prototype =
           base::Optional<JSObjectRef>());
 
   // Like DependOnElementsKind but also applies to all nested allocation sites.
   void DependOnElementsKinds(const AllocationSiteRef& site);
+
+  void DependOnConsistentJSFunctionView(const JSFunctionRef& function);
 
   // Predict the final instance size for {function}'s initial map and record
   // the assumption that this prediction is correct. In addition, register
@@ -110,22 +130,34 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   SlackTrackingPrediction DependOnInitialMapInstanceSizePrediction(
       const JSFunctionRef& function);
 
-  // The methods below allow for gathering dependencies without actually
-  // recording them. They can be recorded at a later time (or they can be
-  // ignored). For example,
-  //   DependOnTransition(map);
-  // is equivalent to:
-  //   RecordDependency(TransitionDependencyOffTheRecord(map));
+  // Records {dependency} if not null.
   void RecordDependency(CompilationDependency const* dependency);
+
+  // The methods below allow for gathering dependencies without actually
+  // recording them. They can be recorded at a later time via RecordDependency
+  // (or they can be ignored).
+
+  // Gather the assumption that {target_map} can be transitioned to, i.e., that
+  // it does not become deprecated.
   CompilationDependency const* TransitionDependencyOffTheRecord(
       const MapRef& target_map) const;
-  CompilationDependency const* FieldRepresentationDependencyOffTheRecord(
-      const MapRef& map, InternalIndex descriptor) const;
-  CompilationDependency const* FieldTypeDependencyOffTheRecord(
-      const MapRef& map, InternalIndex descriptor) const;
 
-  // Exposed only for testing purposes.
-  bool AreValid() const;
+  // Gather the assumption that the field representation of a field does not
+  // change. The field is identified by the arguments.
+  CompilationDependency const* FieldRepresentationDependencyOffTheRecord(
+      const MapRef& map, InternalIndex descriptor,
+      Representation representation) const;
+
+  // Gather the assumption that the field type of a field does not change. The
+  // field is identified by the arguments.
+  CompilationDependency const* FieldTypeDependencyOffTheRecord(
+      const MapRef& map, InternalIndex descriptor,
+      const ObjectRef& /* Contains a FieldType underneath. */ type) const;
+
+#ifdef DEBUG
+  static bool IsFieldRepresentationDependencyOnMap(
+      const CompilationDependency* dep, const Handle<Map>& receiver_map);
+#endif  // DEBUG
 
  private:
   Zone* const zone_;

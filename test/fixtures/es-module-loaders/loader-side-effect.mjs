@@ -1,5 +1,5 @@
 // Arrow function so it closes over the this-value of the preload scope.
-const globalPreload = () => {
+const globalPreloadSrc = () => {
   /* global getBuiltin */
   const assert = getBuiltin('assert');
   const vm = getBuiltin('vm');
@@ -24,9 +24,9 @@ const implicitGlobalConst = 42 * 42;
   globalThis.explicitGlobalProperty = 42 * 42 * 42;
 }
 
-export function getGlobalPreloadCode() {
+export function globalPreload() {
   return `\
 <!-- assert: inside of script goal -->
-(${globalPreload.toString()})();
+(${globalPreloadSrc.toString()})();
 `;
 }

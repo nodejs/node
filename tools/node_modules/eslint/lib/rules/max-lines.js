@@ -8,20 +8,33 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const lodash = require("lodash");
 const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Creates an array of numbers from `start` up to, but not including, `end`
+ * @param {number} start The start of the range
+ * @param {number} end The end of the range
+ * @returns {number[]} The range of numbers
+ */
+function range(start, end) {
+    return [...Array(end - start).keys()].map(x => x + start);
+}
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce a maximum number of lines per file",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/max-lines"
         },
@@ -119,7 +132,7 @@ module.exports = {
             }
 
             if (start <= end) {
-                return lodash.range(start, end + 1);
+                return range(start, end + 1);
             }
             return [];
         }
@@ -135,7 +148,7 @@ module.exports = {
                  * If file ends with a linebreak, `sourceCode.lines` will have one extra empty line at the end.
                  * That isn't a real line, so we shouldn't count it.
                  */
-                if (lines.length > 1 && lodash.last(lines).text === "") {
+                if (lines.length > 1 && lines[lines.length - 1].text === "") {
                     lines.pop();
                 }
 
@@ -146,12 +159,10 @@ module.exports = {
                 if (skipComments) {
                     const comments = sourceCode.getAllComments();
 
-                    const commentLines = lodash.flatten(
-                        comments.map(comment => getLinesWithoutCode(comment))
-                    );
+                    const commentLines = comments.flatMap(getLinesWithoutCode);
 
                     lines = lines.filter(
-                        l => !lodash.includes(commentLines, l.lineNumber)
+                        l => !commentLines.includes(l.lineNumber)
                     );
                 }
 
@@ -163,7 +174,7 @@ module.exports = {
                         },
                         end: {
                             line: sourceCode.lines.length,
-                            column: lodash.last(sourceCode.lines).length
+                            column: sourceCode.lines[sourceCode.lines.length - 1].length
                         }
                     };
 

@@ -58,7 +58,7 @@ function normalizeOptions(options = {}) {
 
 /**
  * Checks whether any group which includes both given operator exists or not.
- * @param {Array.<string[]>} groups A list of groups to check.
+ * @param {Array<string[]>} groups A list of groups to check.
  * @param {string} left An operator.
  * @param {string} right Another operator.
  * @returns {boolean} `true` if such group existed.
@@ -82,13 +82,13 @@ function getChildNode(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow mixed binary operators",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-mixed-operators"
         },
@@ -117,7 +117,7 @@ module.exports = {
         ],
 
         messages: {
-            unexpectedMixedOperator: "Unexpected mix of '{{leftOperator}}' and '{{rightOperator}}'."
+            unexpectedMixedOperator: "Unexpected mix of '{{leftOperator}}' and '{{rightOperator}}'. Use parentheses to clarify the intended order of operations."
         }
     },
 
@@ -159,17 +159,6 @@ module.exports = {
                 node.operator !== node.parent.operator &&
                 !astUtils.isParenthesised(sourceCode, node)
             );
-        }
-
-        /**
-         * Checks whether the operator of a given node is mixed with a
-         * conditional expression.
-         * @param {ASTNode} node A node to check. This is a conditional
-         *      expression node
-         * @returns {boolean} `true` if the node was mixed.
-         */
-        function isMixedWithConditionalParent(node) {
-            return !astUtils.isParenthesised(sourceCode, node) && !astUtils.isParenthesised(sourceCode, node.test);
         }
 
         /**
@@ -220,19 +209,13 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            if (TARGET_NODE_TYPE.test(node.parent.type)) {
-                if (node.parent.type === "ConditionalExpression" && !shouldIgnore(node) && isMixedWithConditionalParent(node.parent)) {
-                    reportBothOperators(node);
-                } else {
-                    if (TARGET_NODE_TYPE.test(node.parent.type) &&
-                        isMixedWithParent(node) &&
-                        !shouldIgnore(node)
-                    ) {
-                        reportBothOperators(node);
-                    }
-                }
+            if (
+                TARGET_NODE_TYPE.test(node.parent.type) &&
+                isMixedWithParent(node) &&
+                !shouldIgnore(node)
+            ) {
+                reportBothOperators(node);
             }
-
         }
 
         return {

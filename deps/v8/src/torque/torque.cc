@@ -27,14 +27,29 @@ int WrappedMain(int argc, const char** argv) {
 
   for (int i = 1; i < argc; ++i) {
     // Check for options
-    const std::string argument(argv[i]);
+    std::string argument(argv[i]);
     if (argument == "-o") {
       options.output_directory = argv[++i];
     } else if (argument == "-v8-root") {
       options.v8_root = std::string(argv[++i]);
     } else if (argument == "-m32") {
+#ifdef V8_COMPRESS_POINTERS
+      std::cerr << "Pointer compression is incompatible with -m32.\n";
+      base::OS::Abort();
+#else
       options.force_32bit_output = true;
+#endif
+    } else if (argument == "-annotate-ir") {
+      options.annotate_ir = true;
+    } else if (argument == "-strip-v8-root") {
+      options.strip_v8_root = true;
     } else {
+      // Strip the v8-root in case it is a prefix of the file path itself.
+      // This is used when building in Google3.
+      if (options.strip_v8_root &&
+          argument.substr(0, options.v8_root.size()) == options.v8_root) {
+        argument = argument.substr(options.v8_root.size() + 1);
+      }
       // Otherwise it's a .tq file. Remember it for compilation.
       files.emplace_back(std::move(argument));
       if (!StringEndsWith(files.back(), ".tq")) {

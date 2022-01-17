@@ -7,9 +7,11 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/base/platform/platform.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate-inl.h"
+#include "src/heap/safepoint.h"
 #include "src/init/bootstrapper.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/snapshot/context-deserializer.h"
@@ -42,10 +44,12 @@ class SnapshotImpl : public AllStatic {
   static uint32_t ExtractNumContexts(const v8::StartupData* data);
   static uint32_t ExtractContextOffset(const v8::StartupData* data,
                                        uint32_t index);
-  static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
-  static Vector<const byte> ExtractReadOnlyData(const v8::StartupData* data);
-  static Vector<const byte> ExtractContextData(const v8::StartupData* data,
-                                               uint32_t index);
+  static base::Vector<const byte> ExtractStartupData(
+      const v8::StartupData* data);
+  static base::Vector<const byte> ExtractReadOnlyData(
+      const v8::StartupData* data);
+  static base::Vector<const byte> ExtractContextData(
+      const v8::StartupData* data, uint32_t index);
 
   static uint32_t GetHeaderValue(const v8::StartupData* data, uint32_t offset) {
     return base::ReadLittleEndianValue<uint32_t>(
@@ -85,10 +89,11 @@ class SnapshotImpl : public AllStatic {
   static const uint32_t kFirstContextOffsetOffset =
       kReadOnlyOffsetOffset + kUInt32Size;
 
-  static Vector<const byte> ChecksummedContent(const v8::StartupData* data) {
+  static base::Vector<const byte> ChecksummedContent(
+      const v8::StartupData* data) {
     STATIC_ASSERT(kVersionStringOffset == kChecksumOffset + kUInt32Size);
     const uint32_t kChecksumStart = kVersionStringOffset;
-    return Vector<const byte>(
+    return base::Vector<const byte>(
         reinterpret_cast<const byte*>(data->data + kChecksumStart),
         data->raw_size - kChecksumStart);
   }
@@ -105,7 +110,7 @@ class SnapshotImpl : public AllStatic {
 
 }  // namespace
 
-SnapshotData MaybeDecompress(const Vector<const byte>& snapshot_data) {
+SnapshotData MaybeDecompress(const base::Vector<const byte>& snapshot_data) {
 #ifdef V8_SNAPSHOT_COMPRESSION
   return SnapshotCompression::Decompress(snapshot_data);
 #else
@@ -135,33 +140,34 @@ bool Snapshot::VersionIsValid(const v8::StartupData* data) {
   CHECK_LT(
       SnapshotImpl::kVersionStringOffset + SnapshotImpl::kVersionStringLength,
       static_cast<uint32_t>(data->raw_size));
-  Version::GetString(Vector<char>(version, SnapshotImpl::kVersionStringLength));
+  Version::GetString(
+      base::Vector<char>(version, SnapshotImpl::kVersionStringLength));
   return strncmp(version, data->data + SnapshotImpl::kVersionStringOffset,
                  SnapshotImpl::kVersionStringLength) == 0;
 }
 
 bool Snapshot::Initialize(Isolate* isolate) {
   if (!isolate->snapshot_available()) return false;
-  RuntimeCallTimerScope rcs_timer(isolate,
-                                  RuntimeCallCounterId::kDeserializeIsolate);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeIsolate);
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   SnapshotImpl::CheckVersion(blob);
-  CHECK(VerifyChecksum(blob));
-  Vector<const byte> startup_data = SnapshotImpl::ExtractStartupData(blob);
-  Vector<const byte> read_only_data = SnapshotImpl::ExtractReadOnlyData(blob);
+  if (!FLAG_skip_snapshot_checksum) {
+    CHECK(VerifyChecksum(blob));
+  }
+  base::Vector<const byte> startup_data =
+      SnapshotImpl::ExtractStartupData(blob);
+  base::Vector<const byte> read_only_data =
+      SnapshotImpl::ExtractReadOnlyData(blob);
 
   SnapshotData startup_snapshot_data(MaybeDecompress(startup_data));
   SnapshotData read_only_snapshot_data(MaybeDecompress(read_only_data));
 
-  StartupDeserializer startup_deserializer(&startup_snapshot_data);
-  ReadOnlyDeserializer read_only_deserializer(&read_only_snapshot_data);
-  startup_deserializer.SetRehashability(ExtractRehashability(blob));
-  read_only_deserializer.SetRehashability(ExtractRehashability(blob));
-  bool success =
-      isolate->InitWithSnapshot(&read_only_deserializer, &startup_deserializer);
+  bool success = isolate->InitWithSnapshot(&startup_snapshot_data,
+                                           &read_only_snapshot_data,
+                                           ExtractRehashability(blob));
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int bytes = startup_data.length();
@@ -174,14 +180,13 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
-  RuntimeCallTimerScope rcs_timer(isolate,
-                                  RuntimeCallCounterId::kDeserializeContext);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeContext);
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   bool can_rehash = ExtractRehashability(blob);
-  Vector<const byte> context_data = SnapshotImpl::ExtractContextData(
+  base::Vector<const byte> context_data = SnapshotImpl::ExtractContextData(
       blob, static_cast<uint32_t>(context_index));
   SnapshotData snapshot_data(MaybeDecompress(context_data));
 
@@ -209,7 +214,9 @@ void Snapshot::ClearReconstructableDataForSerialization(
   if (clear_recompilable_data) {
     HandleScope scope(isolate);
     std::vector<i::Handle<i::SharedFunctionInfo>> sfis_to_clear;
-    {  // Heap allocation is disallowed within this scope.
+    {
+      // Heap allocation is disallowed within this scope.
+      DisallowGarbageCollection disallow_gc;
       i::HeapObjectIterator it(isolate->heap());
       for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
         if (o.IsSharedFunctionInfo()) {
@@ -232,7 +239,9 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
     // Must happen after heap iteration since SFI::DiscardCompiled may allocate.
     for (i::Handle<i::SharedFunctionInfo> shared : sfis_to_clear) {
-      i::SharedFunctionInfo::DiscardCompiled(isolate, shared);
+      if (shared->CanDiscardCompiled()) {
+        i::SharedFunctionInfo::DiscardCompiled(isolate, shared);
+      }
     }
   }
 
@@ -261,9 +270,14 @@ void Snapshot::ClearReconstructableDataForSerialization(
     }
 #ifdef DEBUG
     if (clear_recompilable_data) {
+#if V8_ENABLE_WEBASSEMBLY
       DCHECK(fun.shared().HasWasmExportedFunctionData() ||
              fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
              fun.shared().HasUncompiledDataWithoutPreparseData());
+#else
+      DCHECK(fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
+             fun.shared().HasUncompiledDataWithoutPreparseData());
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
 #endif  // DEBUG
   }
@@ -280,11 +294,14 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 
   // Test serialization.
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
 
     Snapshot::SerializerFlags flags(
         Snapshot::kAllowUnknownExternalReferencesForTesting |
-        Snapshot::kAllowActiveIsolateForTesting);
+        Snapshot::kAllowActiveIsolateForTesting |
+        (ReadOnlyHeap::IsReadOnlySpaceShared()
+             ? Snapshot::kReconstructReadOnlyObjectCacheForTesting
+             : 0));
     serialized_data = Snapshot::Create(isolate, *default_context, no_gc, flags);
     auto_delete_serialized_data.reset(serialized_data.data);
   }
@@ -315,30 +332,6 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
   Isolate::Delete(new_isolate);
 }
 
-void ProfileDeserialization(
-    const SnapshotData* read_only_snapshot,
-    const SnapshotData* startup_snapshot,
-    const std::vector<SnapshotData*>& context_snapshots) {
-  if (FLAG_profile_deserialization) {
-    int startup_total = 0;
-    PrintF("Deserialization will reserve:\n");
-    for (const auto& reservation : read_only_snapshot->Reservations()) {
-      startup_total += reservation.chunk_size();
-    }
-    for (const auto& reservation : startup_snapshot->Reservations()) {
-      startup_total += reservation.chunk_size();
-    }
-    PrintF("%10d bytes per isolate\n", startup_total);
-    for (size_t i = 0; i < context_snapshots.size(); i++) {
-      int context_total = 0;
-      for (const auto& reservation : context_snapshots[i]->Reservations()) {
-        context_total += reservation.chunk_size();
-      }
-      PrintF("%10d bytes per context #%zu\n", context_total, i);
-    }
-  }
-}
-
 // static
 constexpr Snapshot::SerializerFlags Snapshot::kDefaultSerializerFlags;
 
@@ -347,9 +340,17 @@ v8::StartupData Snapshot::Create(
     Isolate* isolate, std::vector<Context>* contexts,
     const std::vector<SerializeInternalFieldsCallback>&
         embedder_fields_serializers,
-    const DisallowHeapAllocation& no_gc, SerializerFlags flags) {
+    const DisallowGarbageCollection& no_gc, SerializerFlags flags) {
   DCHECK_EQ(contexts->size(), embedder_fields_serializers.size());
   DCHECK_GT(contexts->size(), 0);
+  HandleScope scope(isolate);
+
+  // Enter a safepoint so that the heap is safe to iterate.
+  // TODO(leszeks): This safepoint's scope could be tightened to just string
+  // table iteration, as that iteration relies on there not being any concurrent
+  // threads mutating the string table. But, there's currently no harm in
+  // holding it for the entire snapshot serialization.
+  SafepointScope safepoint(isolate->heap());
 
   ReadOnlySerializer read_only_serializer(isolate, flags);
   read_only_serializer.SerializeReadOnlyRoots();
@@ -365,12 +366,17 @@ v8::StartupData Snapshot::Create(
   // TODO(v8:6593): generalize rehashing, and remove this flag.
   bool can_be_rehashed = true;
 
+  std::vector<int> context_allocation_sizes;
   for (int i = 0; i < num_contexts; i++) {
     ContextSerializer context_serializer(isolate, flags, &startup_serializer,
                                          embedder_fields_serializers[i]);
     context_serializer.Serialize(&contexts->at(i), no_gc);
     can_be_rehashed = can_be_rehashed && context_serializer.can_be_rehashed();
     context_snapshots.push_back(new SnapshotData(&context_serializer));
+    if (FLAG_serialization_statistics) {
+      context_allocation_sizes.push_back(
+          context_serializer.TotalAllocationSize());
+    }
   }
 
   startup_serializer.SerializeWeakReferencesAndDeferred();
@@ -380,6 +386,21 @@ v8::StartupData Snapshot::Create(
 
   read_only_serializer.FinalizeSerialization();
   can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
+
+  if (FLAG_serialization_statistics) {
+    // These prints should match the regexp in test/memory/Memory.json
+    DCHECK_NE(read_only_serializer.TotalAllocationSize(), 0);
+    DCHECK_NE(startup_serializer.TotalAllocationSize(), 0);
+    PrintF("Deserialization will allocate:\n");
+    PrintF("%10d bytes per isolate\n",
+           read_only_serializer.TotalAllocationSize() +
+               startup_serializer.TotalAllocationSize());
+    for (int i = 0; i < num_contexts; i++) {
+      DCHECK_NE(context_allocation_sizes[i], 0);
+      PrintF("%10d bytes per context #%d\n", context_allocation_sizes[i], i);
+    }
+    PrintF("\n");
+  }
 
   SnapshotData read_only_snapshot(&read_only_serializer);
   SnapshotData startup_snapshot(&startup_serializer);
@@ -395,7 +416,7 @@ v8::StartupData Snapshot::Create(
 
 // static
 v8::StartupData Snapshot::Create(Isolate* isolate, Context default_context,
-                                 const DisallowHeapAllocation& no_gc,
+                                 const DisallowGarbageCollection& no_gc,
                                  SerializerFlags flags) {
   std::vector<Context> contexts{default_context};
   std::vector<SerializeInternalFieldsCallback> callbacks{{}};
@@ -445,9 +466,6 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
     total_length += static_cast<uint32_t>(context_snapshot->RawData().length());
   }
 
-  ProfileDeserialization(read_only_snapshot_in, startup_snapshot_in,
-                         context_snapshots_in);
-
   char* data = new char[total_length];
   // Zero out pre-payload data. Part of that is only used for padding.
   memset(data, 0, SnapshotImpl::StartupSnapshotOffset(num_contexts));
@@ -460,8 +478,9 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
   // Write version string into snapshot data.
   memset(data + SnapshotImpl::kVersionStringOffset, 0,
          SnapshotImpl::kVersionStringLength);
-  Version::GetString(Vector<char>(data + SnapshotImpl::kVersionStringOffset,
-                                  SnapshotImpl::kVersionStringLength));
+  Version::GetString(
+      base::Vector<char>(data + SnapshotImpl::kVersionStringOffset,
+                         SnapshotImpl::kVersionStringLength));
 
   // Startup snapshot (isolate-specific data).
   uint32_t payload_offset = startup_snapshot_offset;
@@ -470,10 +489,9 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
   CopyBytes(data + payload_offset,
             reinterpret_cast<const char*>(startup_snapshot->RawData().begin()),
             payload_length);
-  if (FLAG_profile_deserialization) {
-    PrintF("Snapshot blob consists of:\n%10d bytes in %d chunks for startup\n",
-           payload_length,
-           static_cast<uint32_t>(startup_snapshot_in->Reservations().size()));
+  if (FLAG_serialization_statistics) {
+    PrintF("Snapshot blob consists of:\n%10d bytes for startup\n",
+           payload_length);
   }
   payload_offset += payload_length;
 
@@ -485,7 +503,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
       data + payload_offset,
       reinterpret_cast<const char*>(read_only_snapshot->RawData().begin()),
       payload_length);
-  if (FLAG_profile_deserialization) {
+  if (FLAG_serialization_statistics) {
     PrintF("%10d bytes for read-only\n", payload_length);
   }
   payload_offset += payload_length;
@@ -500,14 +518,12 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
         data + payload_offset,
         reinterpret_cast<const char*>(context_snapshot->RawData().begin()),
         payload_length);
-    if (FLAG_profile_deserialization) {
-      PrintF(
-          "%10d bytes in %d chunks for context #%d\n", payload_length,
-          static_cast<uint32_t>(context_snapshots_in[i]->Reservations().size()),
-          i);
+    if (FLAG_serialization_statistics) {
+      PrintF("%10d bytes for context #%d\n", payload_length, i);
     }
     payload_offset += payload_length;
   }
+  if (FLAG_serialization_statistics) PrintF("\n");
 
   DCHECK_EQ(total_length, payload_offset);
   v8::StartupData result = {data, static_cast<int>(total_length)};
@@ -558,18 +574,19 @@ bool Snapshot::ExtractRehashability(const v8::StartupData* data) {
 }
 
 namespace {
-Vector<const byte> ExtractData(const v8::StartupData* snapshot,
-                               uint32_t start_offset, uint32_t end_offset) {
+base::Vector<const byte> ExtractData(const v8::StartupData* snapshot,
+                                     uint32_t start_offset,
+                                     uint32_t end_offset) {
   CHECK_LT(start_offset, end_offset);
   CHECK_LT(end_offset, snapshot->raw_size);
   uint32_t length = end_offset - start_offset;
   const byte* data =
       reinterpret_cast<const byte*>(snapshot->data + start_offset);
-  return Vector<const byte>(data, length);
+  return base::Vector<const byte>(data, length);
 }
 }  // namespace
 
-Vector<const byte> SnapshotImpl::ExtractStartupData(
+base::Vector<const byte> SnapshotImpl::ExtractStartupData(
     const v8::StartupData* data) {
   DCHECK(Snapshot::SnapshotIsValid(data));
 
@@ -578,7 +595,7 @@ Vector<const byte> SnapshotImpl::ExtractStartupData(
                      GetHeaderValue(data, kReadOnlyOffsetOffset));
 }
 
-Vector<const byte> SnapshotImpl::ExtractReadOnlyData(
+base::Vector<const byte> SnapshotImpl::ExtractReadOnlyData(
     const v8::StartupData* data) {
   DCHECK(Snapshot::SnapshotIsValid(data));
 
@@ -586,8 +603,8 @@ Vector<const byte> SnapshotImpl::ExtractReadOnlyData(
                      GetHeaderValue(data, ContextSnapshotOffsetOffset(0)));
 }
 
-Vector<const byte> SnapshotImpl::ExtractContextData(const v8::StartupData* data,
-                                                    uint32_t index) {
+base::Vector<const byte> SnapshotImpl::ExtractContextData(
+    const v8::StartupData* data, uint32_t index) {
   uint32_t num_contexts = ExtractNumContexts(data);
   CHECK_LT(index, num_contexts);
 
@@ -603,7 +620,7 @@ Vector<const byte> SnapshotImpl::ExtractContextData(const v8::StartupData* data,
   const byte* context_data =
       reinterpret_cast<const byte*>(data->data + context_offset);
   uint32_t context_length = next_context_offset - context_offset;
-  return Vector<const byte>(context_data, context_length);
+  return base::Vector<const byte>(context_data, context_length);
 }
 
 void SnapshotImpl::CheckVersion(const v8::StartupData* data) {
@@ -612,7 +629,7 @@ void SnapshotImpl::CheckVersion(const v8::StartupData* data) {
     memset(version, 0, kVersionStringLength);
     CHECK_LT(kVersionStringOffset + kVersionStringLength,
              static_cast<uint32_t>(data->raw_size));
-    Version::GetString(Vector<char>(version, kVersionStringLength));
+    Version::GetString(base::Vector<char>(version, kVersionStringLength));
     FATAL(
         "Version mismatch between V8 binary and snapshot.\n"
         "#   V8 binary version: %.*s\n"
@@ -636,7 +653,7 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
   }
   v8::Local<v8::String> resource_name =
       v8::String::NewFromUtf8(isolate, name).ToLocalChecked();
-  v8::ScriptOrigin origin(resource_name);
+  v8::ScriptOrigin origin(isolate, resource_name);
   v8::ScriptCompiler::Source source(source_string, origin);
   v8::Local<v8::Script> script;
   if (!v8::ScriptCompiler::Compile(context, &source).ToLocal(&script))

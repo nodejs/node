@@ -8,13 +8,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "disallow mixed spaces and tabs for indentation",
-            category: "Stylistic Issues",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-mixed-spaces-and-tabs"
         },

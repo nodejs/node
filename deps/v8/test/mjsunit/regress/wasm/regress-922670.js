@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 const sig = builder.addType(makeSig([kWasmI32], []));
 builder.addFunction(undefined, sig)
-  .addLocals({i64_count: 1})
+  .addLocals(kWasmI64, 1)
   .addBody([
     kExprLoop, kWasmI32,
       kExprLocalGet, 1,

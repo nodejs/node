@@ -10,6 +10,7 @@
 #include "src/execution/arguments.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/logging/runtime-call-stats-scope.h"
 
 namespace v8 {
 namespace internal {
@@ -52,12 +53,7 @@ class BuiltinArguments : public JavaScriptArguments {
 
   static constexpr int kNumExtraArgs = 4;
   static constexpr int kNumExtraArgsWithReceiver = 5;
-
-#ifdef V8_REVERSE_JSARGS
   static constexpr int kArgsOffset = 4;
-#else
-  static constexpr int kArgsOffset = 0;
-#endif
 
   inline Handle<Object> atOrUndefined(Isolate* isolate, int index) const;
   inline Handle<Object> receiver() const;
@@ -83,6 +79,7 @@ class BuiltinArguments : public JavaScriptArguments {
 // through the BuiltinArguments object args.
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
+#ifdef V8_RUNTIME_CALL_STATS
 #define BUILTIN(name)                                                       \
   V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
       BuiltinArguments args, Isolate* isolate);                             \
@@ -90,8 +87,7 @@ class BuiltinArguments : public JavaScriptArguments {
   V8_NOINLINE static Address Builtin_Impl_Stats_##name(                     \
       int args_length, Address* args_object, Isolate* isolate) {            \
     BuiltinArguments args(args_length, args_object);                        \
-    RuntimeCallTimerScope timer(isolate,                                    \
-                                RuntimeCallCounterId::kBuiltin_##name);     \
+    RCS_SCOPE(isolate, RuntimeCallCounterId::kBuiltin_##name);              \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                   \
                  "V8.Builtin_" #name);                                      \
     return CONVERT_OBJECT(Builtin_Impl_##name(args, isolate));              \
@@ -110,6 +106,21 @@ class BuiltinArguments : public JavaScriptArguments {
   V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
       BuiltinArguments args, Isolate* isolate)
 
+#else  // V8_RUNTIME_CALL_STATS
+#define BUILTIN(name)                                                       \
+  V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
+      BuiltinArguments args, Isolate* isolate);                             \
+                                                                            \
+  V8_WARN_UNUSED_RESULT Address Builtin_##name(                             \
+      int args_length, Address* args_object, Isolate* isolate) {            \
+    DCHECK(isolate->context().is_null() || isolate->context().IsContext()); \
+    BuiltinArguments args(args_length, args_object);                        \
+    return CONVERT_OBJECT(Builtin_Impl_##name(args, isolate));              \
+  }                                                                         \
+                                                                            \
+  V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
+      BuiltinArguments args, Isolate* isolate)
+#endif  // V8_RUNTIME_CALL_STATS
 // ----------------------------------------------------------------------------
 
 #define CHECK_RECEIVER(Type, name, method)                                  \

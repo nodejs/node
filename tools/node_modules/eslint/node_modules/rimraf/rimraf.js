@@ -1,24 +1,25 @@
-module.exports = rimraf
-rimraf.sync = rimrafSync
+const assert = require("assert")
+const path = require("path")
+const fs = require("fs")
+let glob = undefined
+try {
+  glob = require("glob")
+} catch (_err) {
+  // treat glob as optional.
+}
 
-var assert = require("assert")
-var path = require("path")
-var fs = require("fs")
-var glob = require("glob")
-var _0666 = parseInt('666', 8)
-
-var defaultGlobOpts = {
+const defaultGlobOpts = {
   nosort: true,
   silent: true
 }
 
 // for EMFILE handling
-var timeout = 0
+let timeout = 0
 
-var isWindows = (process.platform === "win32")
+const isWindows = (process.platform === "win32")
 
-function defaults (options) {
-  var methods = [
+const defaults = options => {
+  const methods = [
     'unlink',
     'chmod',
     'stat',
@@ -26,7 +27,7 @@ function defaults (options) {
     'rmdir',
     'readdir'
   ]
-  methods.forEach(function(m) {
+  methods.forEach(m => {
     options[m] = options[m] || fs[m]
     m = m + 'Sync'
     options[m] = options[m] || fs[m]
@@ -37,11 +38,14 @@ function defaults (options) {
   if (options.glob === false) {
     options.disableGlob = true
   }
+  if (options.disableGlob !== true && glob === undefined) {
+    throw Error('glob dependency not found, set `options.disableGlob = true` if intentional')
+  }
   options.disableGlob = options.disableGlob || false
   options.glob = options.glob || defaultGlobOpts
 }
 
-function rimraf (p, options, cb) {
+const rimraf = (p, options, cb) => {
   if (typeof options === 'function') {
     cb = options
     options = {}
@@ -55,27 +59,17 @@ function rimraf (p, options, cb) {
 
   defaults(options)
 
-  var busyTries = 0
-  var errState = null
-  var n = 0
+  let busyTries = 0
+  let errState = null
+  let n = 0
 
-  if (options.disableGlob || !glob.hasMagic(p))
-    return afterGlob(null, [p])
-
-  options.lstat(p, function (er, stat) {
-    if (!er)
-      return afterGlob(null, [p])
-
-    glob(p, options.glob, afterGlob)
-  })
-
-  function next (er) {
+  const next = (er) => {
     errState = errState || er
     if (--n === 0)
       cb(errState)
   }
 
-  function afterGlob (er, results) {
+  const afterGlob = (er, results) => {
     if (er)
       return cb(er)
 
@@ -83,24 +77,19 @@ function rimraf (p, options, cb) {
     if (n === 0)
       return cb()
 
-    results.forEach(function (p) {
-      rimraf_(p, options, function CB (er) {
+    results.forEach(p => {
+      const CB = (er) => {
         if (er) {
           if ((er.code === "EBUSY" || er.code === "ENOTEMPTY" || er.code === "EPERM") &&
               busyTries < options.maxBusyTries) {
             busyTries ++
-            var time = busyTries * 100
             // try again, with the same exact callback as this one.
-            return setTimeout(function () {
-              rimraf_(p, options, CB)
-            }, time)
+            return setTimeout(() => rimraf_(p, options, CB), busyTries * 100)
           }
 
           // this one won't happen if graceful-fs is used.
           if (er.code === "EMFILE" && timeout < options.emfileWait) {
-            return setTimeout(function () {
-              rimraf_(p, options, CB)
-            }, timeout ++)
+            return setTimeout(() => rimraf_(p, options, CB), timeout ++)
           }
 
           // already gone
@@ -109,9 +98,21 @@ function rimraf (p, options, cb) {
 
         timeout = 0
         next(er)
-      })
+      }
+      rimraf_(p, options, CB)
     })
   }
+
+  if (options.disableGlob || !glob.hasMagic(p))
+    return afterGlob(null, [p])
+
+  options.lstat(p, (er, stat) => {
+    if (!er)
+      return afterGlob(null, [p])
+
+    glob(p, options.glob, afterGlob)
+  })
+
 }
 
 // Two possible strategies.
@@ -125,14 +126,14 @@ function rimraf (p, options, cb) {
 //
 // If anyone ever complains about this, then I guess the strategy could
 // be made configurable somehow.  But until then, YAGNI.
-function rimraf_ (p, options, cb) {
+const rimraf_ = (p, options, cb) => {
   assert(p)
   assert(options)
   assert(typeof cb === 'function')
 
   // sunos lets the root user unlink directories, which is... weird.
   // so we have to lstat here and make sure it's not a dir.
-  options.lstat(p, function (er, st) {
+  options.lstat(p, (er, st) => {
     if (er && er.code === "ENOENT")
       return cb(null)
 
@@ -143,7 +144,7 @@ function rimraf_ (p, options, cb) {
     if (st && st.isDirectory())
       return rmdir(p, options, er, cb)
 
-    options.unlink(p, function (er) {
+    options.unlink(p, er => {
       if (er) {
         if (er.code === "ENOENT")
           return cb(null)
@@ -159,18 +160,16 @@ function rimraf_ (p, options, cb) {
   })
 }
 
-function fixWinEPERM (p, options, er, cb) {
+const fixWinEPERM = (p, options, er, cb) => {
   assert(p)
   assert(options)
   assert(typeof cb === 'function')
-  if (er)
-    assert(er instanceof Error)
 
-  options.chmod(p, _0666, function (er2) {
+  options.chmod(p, 0o666, er2 => {
     if (er2)
       cb(er2.code === "ENOENT" ? null : er)
     else
-      options.stat(p, function(er3, stats) {
+      options.stat(p, (er3, stats) => {
         if (er3)
           cb(er3.code === "ENOENT" ? null : er)
         else if (stats.isDirectory())
@@ -181,14 +180,12 @@ function fixWinEPERM (p, options, er, cb) {
   })
 }
 
-function fixWinEPERMSync (p, options, er) {
+const fixWinEPERMSync = (p, options, er) => {
   assert(p)
   assert(options)
-  if (er)
-    assert(er instanceof Error)
 
   try {
-    options.chmodSync(p, _0666)
+    options.chmodSync(p, 0o666)
   } catch (er2) {
     if (er2.code === "ENOENT")
       return
@@ -196,8 +193,9 @@ function fixWinEPERMSync (p, options, er) {
       throw er
   }
 
+  let stats
   try {
-    var stats = options.statSync(p)
+    stats = options.statSync(p)
   } catch (er3) {
     if (er3.code === "ENOENT")
       return
@@ -211,17 +209,15 @@ function fixWinEPERMSync (p, options, er) {
     options.unlinkSync(p)
 }
 
-function rmdir (p, options, originalEr, cb) {
+const rmdir = (p, options, originalEr, cb) => {
   assert(p)
   assert(options)
-  if (originalEr)
-    assert(originalEr instanceof Error)
   assert(typeof cb === 'function')
 
   // try to rmdir first, and only readdir on ENOTEMPTY or EEXIST (SunOS)
   // if we guessed wrong, and it's not a directory, then
   // raise the original error.
-  options.rmdir(p, function (er) {
+  options.rmdir(p, er => {
     if (er && (er.code === "ENOTEMPTY" || er.code === "EEXIST" || er.code === "EPERM"))
       rmkids(p, options, cb)
     else if (er && er.code === "ENOTDIR")
@@ -231,20 +227,20 @@ function rmdir (p, options, originalEr, cb) {
   })
 }
 
-function rmkids(p, options, cb) {
+const rmkids = (p, options, cb) => {
   assert(p)
   assert(options)
   assert(typeof cb === 'function')
 
-  options.readdir(p, function (er, files) {
+  options.readdir(p, (er, files) => {
     if (er)
       return cb(er)
-    var n = files.length
+    let n = files.length
     if (n === 0)
       return options.rmdir(p, cb)
-    var errState
-    files.forEach(function (f) {
-      rimraf(path.join(p, f), options, function (er) {
+    let errState
+    files.forEach(f => {
+      rimraf(path.join(p, f), options, er => {
         if (errState)
           return
         if (er)
@@ -259,7 +255,7 @@ function rmkids(p, options, cb) {
 // this looks simpler, and is strictly *faster*, but will
 // tie up the JavaScript thread and fail on excessively
 // deep directory trees.
-function rimrafSync (p, options) {
+const rimrafSync = (p, options) => {
   options = options || {}
   defaults(options)
 
@@ -268,7 +264,7 @@ function rimrafSync (p, options) {
   assert(options, 'rimraf: missing options')
   assert.equal(typeof options, 'object', 'rimraf: options should be object')
 
-  var results
+  let results
 
   if (options.disableGlob || !glob.hasMagic(p)) {
     results = [p]
@@ -284,11 +280,12 @@ function rimrafSync (p, options) {
   if (!results.length)
     return
 
-  for (var i = 0; i < results.length; i++) {
-    var p = results[i]
+  for (let i = 0; i < results.length; i++) {
+    const p = results[i]
 
+    let st
     try {
-      var st = options.lstatSync(p)
+      st = options.lstatSync(p)
     } catch (er) {
       if (er.code === "ENOENT")
         return
@@ -317,11 +314,9 @@ function rimrafSync (p, options) {
   }
 }
 
-function rmdirSync (p, options, originalEr) {
+const rmdirSync = (p, options, originalEr) => {
   assert(p)
   assert(options)
-  if (originalEr)
-    assert(originalEr instanceof Error)
 
   try {
     options.rmdirSync(p)
@@ -335,12 +330,10 @@ function rmdirSync (p, options, originalEr) {
   }
 }
 
-function rmkidsSync (p, options) {
+const rmkidsSync = (p, options) => {
   assert(p)
   assert(options)
-  options.readdirSync(p).forEach(function (f) {
-    rimrafSync(path.join(p, f), options)
-  })
+  options.readdirSync(p).forEach(f => rimrafSync(path.join(p, f), options))
 
   // We only end up here once we got ENOTEMPTY at least once, and
   // at this point, we are guaranteed to have removed all the kids.
@@ -348,12 +341,12 @@ function rmkidsSync (p, options) {
   // try really hard to delete stuff on windows, because it has a
   // PROFOUNDLY annoying habit of not closing handles promptly when
   // files are deleted, resulting in spurious ENOTEMPTY errors.
-  var retries = isWindows ? 100 : 1
-  var i = 0
+  const retries = isWindows ? 100 : 1
+  let i = 0
   do {
-    var threw = true
+    let threw = true
     try {
-      var ret = options.rmdirSync(p, options)
+      const ret = options.rmdirSync(p, options)
       threw = false
       return ret
     } finally {
@@ -362,3 +355,6 @@ function rmkidsSync (p, options) {
     }
   } while (true)
 }
+
+module.exports = rimraf
+rimraf.sync = rimrafSync

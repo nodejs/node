@@ -5,6 +5,7 @@
 #include "src/regexp/regexp-macro-assembler.h"
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/label.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/pointer-authentication.h"
 #include "src/execution/simulator.h"
@@ -22,11 +23,16 @@ namespace internal {
 
 RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone)
     : slow_safe_compiler_(false),
+      backtrack_limit_(JSRegExp::kNoBacktrackLimit),
       global_mode_(NOT_GLOBAL),
       isolate_(isolate),
       zone_(zone) {}
 
 RegExpMacroAssembler::~RegExpMacroAssembler() = default;
+
+bool RegExpMacroAssembler::has_backtrack_limit() const {
+  return backtrack_limit_ != JSRegExp::kNoBacktrackLimit;
+}
 
 int RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode(Address byte_offset1,
                                                            Address byte_offset2,
@@ -36,11 +42,11 @@ int RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode(Address byte_offset1,
   // This function is not allowed to cause a garbage collection.
   // A GC might move the calling generated code and invalidate the
   // return address on the stack.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK_EQ(0, byte_length % 2);
   size_t length = byte_length / 2;
-  uc16* substring1 = reinterpret_cast<uc16*>(byte_offset1);
-  uc16* substring2 = reinterpret_cast<uc16*>(byte_offset2);
+  base::uc16* substring1 = reinterpret_cast<base::uc16*>(byte_offset1);
+  base::uc16* substring2 = reinterpret_cast<base::uc16*>(byte_offset2);
 
   for (size_t i = 0; i < length; i++) {
     UChar32 c1 = RegExpCaseFolding::Canonicalize(substring1[i]);
@@ -63,7 +69,7 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUnicode(Address byte_offset1,
   // This function is not allowed to cause a garbage collection.
   // A GC might move the calling generated code and invalidate the
   // return address on the stack.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK_EQ(0, byte_length % 2);
 
 #ifdef V8_INTL_SUPPORT
@@ -73,8 +79,8 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUnicode(Address byte_offset1,
   return uni_str_1.caseCompare(reinterpret_cast<const char16_t*>(byte_offset2),
                                length, U_FOLD_CASE_DEFAULT) == 0;
 #else
-  uc16* substring1 = reinterpret_cast<uc16*>(byte_offset1);
-  uc16* substring2 = reinterpret_cast<uc16*>(byte_offset2);
+  base::uc16* substring1 = reinterpret_cast<base::uc16*>(byte_offset1);
+  base::uc16* substring2 = reinterpret_cast<base::uc16*>(byte_offset2);
   size_t length = byte_length >> 1;
   DCHECK_NOT_NULL(isolate);
   unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
@@ -129,7 +135,7 @@ void RegExpMacroAssembler::LoadCurrentCharacter(int cp_offset,
                            eats_at_least);
 }
 
-bool RegExpMacroAssembler::CheckSpecialCharacterClass(uc16 type,
+bool RegExpMacroAssembler::CheckSpecialCharacterClass(base::uc16 type,
                                                       Label* on_no_match) {
   return false;
 }
@@ -169,7 +175,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     Isolate* isolate, int start_index, RegExp::CallOrigin call_origin,
     Address* return_address, Code re_code, Address* subject,
     const byte** input_start, const byte** input_end) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Address old_pc = PointerAuthentication::AuthenticatePC(return_address, 0);
   DCHECK_LE(re_code.raw_instruction_start(), old_pc);
   DCHECK_LE(old_pc, re_code.raw_instruction_end());
@@ -204,22 +210,25 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject_handle);
   int return_value = 0;
 
-  if (js_has_overflowed) {
-    AllowHeapAllocation yes_gc;
-    isolate->StackOverflow();
-    return_value = EXCEPTION;
-  } else if (check.InterruptRequested()) {
-    AllowHeapAllocation yes_gc;
-    Object result = isolate->stack_guard()->HandleInterrupts();
-    if (result.IsException(isolate)) return_value = EXCEPTION;
-  }
+  {
+    DisableGCMole no_gc_mole;
+    if (js_has_overflowed) {
+      AllowGarbageCollection yes_gc;
+      isolate->StackOverflow();
+      return_value = EXCEPTION;
+    } else if (check.InterruptRequested()) {
+      AllowGarbageCollection yes_gc;
+      Object result = isolate->stack_guard()->HandleInterrupts();
+      if (result.IsException(isolate)) return_value = EXCEPTION;
+    }
 
-  if (*code_handle != re_code) {  // Return address no longer valid
-    // Overwrite the return address on the stack.
-    intptr_t delta = code_handle->address() - re_code.address();
-    Address new_pc = old_pc + delta;
-    // TODO(v8:10026): avoid replacing a signed pointer.
-    PointerAuthentication::ReplacePC(return_address, new_pc, 0);
+    if (*code_handle != re_code) {  // Return address no longer valid
+      // Overwrite the return address on the stack.
+      intptr_t delta = code_handle->address() - re_code.address();
+      Address new_pc = old_pc + delta;
+      // TODO(v8:10026): avoid replacing a signed pointer.
+      PointerAuthentication::ReplacePC(return_address, new_pc, 0);
+    }
   }
 
   // If we continue, we need to update the subject string addresses.
@@ -252,7 +261,7 @@ int NativeRegExpMacroAssembler::Match(Handle<JSRegExp> regexp,
   DCHECK_LE(previous_index, subject->length());
 
   // No allocations before calling the regexp, but we can't use
-  // DisallowHeapAllocation, since regexps might be preempted, and another
+  // DisallowGarbageCollection, since regexps might be preempted, and another
   // thread might do allocation anyway.
 
   String subject_ptr = *subject;
@@ -280,7 +289,7 @@ int NativeRegExpMacroAssembler::Match(Handle<JSRegExp> regexp,
   // String is now either Sequential or External
   int char_size_shift = is_one_byte ? 0 : 1;
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   const byte* input_start =
       subject_ptr.AddressOfCharacterAt(start_offset + slice_offset, no_gc);
   int byte_length = char_length << char_size_shift;
@@ -297,32 +306,29 @@ int NativeRegExpMacroAssembler::Execute(
     String input,  // This needs to be the unpacked (sliced, cons) string.
     int start_offset, const byte* input_start, const byte* input_end,
     int* output, int output_size, Isolate* isolate, JSRegExp regexp) {
-  // Ensure that the minimum stack has been allocated.
   RegExpStackScope stack_scope(isolate);
-  Address stack_base = stack_scope.stack()->stack_base();
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(input);
-  Code code = Code::cast(regexp.Code(is_one_byte));
+  Code code = FromCodeT(CodeT::cast(regexp.code(is_one_byte)));
   RegExp::CallOrigin call_origin = RegExp::CallOrigin::kFromRuntime;
 
-  using RegexpMatcherSig = int(
-      Address input_string, int start_offset,  // NOLINT(readability/casting)
-      const byte* input_start, const byte* input_end, int* output,
-      int output_size, Address stack_base, int call_origin, Isolate* isolate,
-      Address regexp);
+  using RegexpMatcherSig =
+      // NOLINTNEXTLINE(readability/casting)
+      int(Address input_string, int start_offset, const byte* input_start,
+          const byte* input_end, int* output, int output_size, int call_origin,
+          Isolate* isolate, Address regexp);
 
   auto fn = GeneratedCode<RegexpMatcherSig>::FromCode(code);
-  int result =
-      fn.Call(input.ptr(), start_offset, input_start, input_end, output,
-              output_size, stack_base, call_origin, isolate, regexp.ptr());
-  DCHECK(result >= RETRY);
+  int result = fn.Call(input.ptr(), start_offset, input_start, input_end,
+                       output, output_size, call_origin, isolate, regexp.ptr());
+  DCHECK_GE(result, SMALLEST_REGEXP_RESULT);
 
   if (result == EXCEPTION && !isolate->has_pending_exception()) {
     // We detected a stack overflow (on the backtrack stack) in RegExp code,
     // but haven't created the exception yet. Additionally, we allow heap
     // allocation because even though it invalidates {input_start} and
     // {input_end}, we are about to return anyway.
-    AllowHeapAllocation allow_allocation;
+    AllowGarbageCollection allow_allocation;
     isolate->StackOverflow();
   }
   return result;
@@ -374,22 +380,23 @@ const byte NativeRegExpMacroAssembler::word_character_map[] = {
 };
 // clang-format on
 
-Address NativeRegExpMacroAssembler::GrowStack(Address stack_pointer,
-                                              Address* stack_base,
-                                              Isolate* isolate) {
+Address NativeRegExpMacroAssembler::GrowStack(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+
   RegExpStack* regexp_stack = isolate->regexp_stack();
-  size_t size = regexp_stack->stack_capacity();
-  Address old_stack_base = regexp_stack->stack_base();
-  DCHECK(old_stack_base == *stack_base);
-  DCHECK(stack_pointer <= old_stack_base);
-  DCHECK(static_cast<size_t>(old_stack_base - stack_pointer) <= size);
-  Address new_stack_base = regexp_stack->EnsureCapacity(size * 2);
-  if (new_stack_base == kNullAddress) {
-    return kNullAddress;
-  }
-  *stack_base = new_stack_base;
-  intptr_t stack_content_size = old_stack_base - stack_pointer;
-  return new_stack_base - stack_content_size;
+  const size_t old_size = regexp_stack->memory_size();
+
+#ifdef DEBUG
+  const Address old_stack_top = regexp_stack->memory_top();
+  const Address old_stack_pointer = regexp_stack->stack_pointer();
+  CHECK_LE(old_stack_pointer, old_stack_top);
+  CHECK_LE(static_cast<size_t>(old_stack_top - old_stack_pointer), old_size);
+#endif  // DEBUG
+
+  Address new_stack_base = regexp_stack->EnsureCapacity(old_size * 2);
+  if (new_stack_base == kNullAddress) return kNullAddress;
+
+  return regexp_stack->stack_pointer();
 }
 
 }  // namespace internal

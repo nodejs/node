@@ -111,7 +111,7 @@ assert(
   `timingSafeEqual should not leak information from its execution time (t=${t})`
 );
 
-// As a sanity check to make sure the statistical tests are working, run the
+// As a coherence check to make sure the statistical tests are working, run the
 // same benchmarks again, this time with an unsafe comparison function. In this
 // case the t-value should be above the threshold.
 const unsafeCompare = (bufA, bufB) => bufA.equals(bufB);

@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Collect the Callsite objects instead of just a string:
 Error.prepareStackTrace = function(error, frames) {
@@ -23,16 +23,16 @@ function testTrapLocations(instance, expected_stack_length) {
       // function.
       assertTrue(
           e.stack[1].toString().startsWith(function_name), 'stack depth');
-      assertEquals(0, e.stack[0].getLineNumber(), 'wasmFunctionIndex');
+      assertEquals(1, e.stack[0].getLineNumber(), 'wasmFunctionIndex');
       assertEquals(position, e.stack[0].getPosition(), 'position');
     }
   }
 
   // The actual tests:
-  testWasmTrap(0, kTrapDivByZero, 14);
-  testWasmTrap(1, kTrapMemOutOfBounds, 15);
-  testWasmTrap(2, kTrapUnreachable, 28);
-  testWasmTrap(3, kTrapFuncInvalid, 32);
+  testWasmTrap(0, kTrapDivByZero, 73);
+  testWasmTrap(1, kTrapMemOutOfBounds, 74);
+  testWasmTrap(2, kTrapUnreachable, 87);
+  testWasmTrap(3, kTrapTableOutOfBounds, 91);
 }
 
 var builder = new WasmModuleBuilder();
@@ -57,7 +57,7 @@ builder.addFunction("main", kSig_i_i)
             kExprLocalGet, 0,
             kExprI32Const, 2,
           kExprI32LtU,
-        kExprIf, kWasmStmt,
+        kExprIf, kWasmVoid,
         // offset 9
               kExprI32Const, 0x7e /* -2 */,
               kExprLocalGet, 0,
@@ -70,7 +70,7 @@ builder.addFunction("main", kSig_i_i)
             kExprLocalGet, 0,
             kExprI32Const, 2,
           kExprI32Eq,
-        kExprIf, kWasmStmt,
+        kExprIf, kWasmVoid,
           kExprUnreachable,
         kExprEnd,
         // offset 30

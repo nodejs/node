@@ -5,10 +5,14 @@
 #ifndef V8_EXTENSIONS_CPUTRACEMARK_EXTENSION_H_
 #define V8_EXTENSIONS_CPUTRACEMARK_EXTENSION_H_
 
-#include "include/v8.h"
-#include "src/utils/utils.h"
+#include "include/v8-extension.h"
+#include "src/base/strings.h"
 
 namespace v8 {
+
+template <typename T>
+class FunctionCallbackInfo;
+
 namespace internal {
 
 class CpuTraceMarkExtension : public v8::Extension {
@@ -24,8 +28,8 @@ class CpuTraceMarkExtension : public v8::Extension {
   static void Mark(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static const char* BuildSource(char* buf, size_t size, const char* fun_name) {
-    SNPrintF(Vector<char>(buf, static_cast<int>(size)), "native function %s();",
-             fun_name);
+    base::SNPrintF(base::Vector<char>(buf, static_cast<int>(size)),
+                   "native function %s();", fun_name);
     return buf;
   }
 

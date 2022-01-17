@@ -161,3 +161,16 @@ assert.strictEqual(writable.data, '\x1b[2G');
 assert.throws(() => {
   readline.cursorTo(writable, 1, 1, null);
 }, /ERR_INVALID_CALLBACK/);
+
+// Verify that cursorTo() throws if x or y is NaN.
+assert.throws(() => {
+  readline.cursorTo(writable, NaN);
+}, /ERR_INVALID_ARG_VALUE/);
+
+assert.throws(() => {
+  readline.cursorTo(writable, 1, NaN);
+}, /ERR_INVALID_ARG_VALUE/);
+
+assert.throws(() => {
+  readline.cursorTo(writable, NaN, NaN);
+}, /ERR_INVALID_ARG_VALUE/);

@@ -12,8 +12,10 @@ changes can be reviewed and landed via the normal consensus seeking process.
 
 ## Step 1: Run the update script
 
+In the following examples, `x.y.z` should match the npm version to update to.
+
 ```console
-$ ./tools/update-npm.sh
+$ ./tools/update-npm.sh x.y.z
 ```
 
 ## Step 2: Commit new npm
@@ -36,7 +38,7 @@ $ git commit -m "doc: update npm LICENSE using license-builder.sh"
 
 Note: please ensure you are only making the updates that are changed by npm.
 
-## Step 4: Apply Whitespace fix
+## Step 4: Apply whitespace fix
 
 ```console
 $ git rebase --whitespace=fix master

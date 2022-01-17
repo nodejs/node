@@ -1,7 +1,7 @@
 /*
- * Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -13,14 +13,11 @@
  */
 
 #include <openssl/opensslconf.h>
-#if OPENSSL_API_COMPAT >= 0x00908000L
-NON_EMPTY_TRANSLATION_UNIT
-#else
 
-# include <stdio.h>
-# include <time.h>
-# include "internal/cryptlib.h"
-# include "bn_local.h"
+#include <stdio.h>
+#include <time.h>
+#include "internal/cryptlib.h"
+#include "bn_local.h"
 
 BIGNUM *BN_generate_prime(BIGNUM *ret, int bits, int safe,
                           const BIGNUM *add, const BIGNUM *rem,
@@ -52,7 +49,7 @@ int BN_is_prime(const BIGNUM *a, int checks,
 {
     BN_GENCB cb;
     BN_GENCB_set_old(&cb, callback, cb_arg);
-    return BN_is_prime_ex(a, checks, ctx_passed, &cb);
+    return ossl_bn_check_prime(a, checks, ctx_passed, 0, &cb);
 }
 
 int BN_is_prime_fasttest(const BIGNUM *a, int checks,
@@ -62,7 +59,5 @@ int BN_is_prime_fasttest(const BIGNUM *a, int checks,
 {
     BN_GENCB cb;
     BN_GENCB_set_old(&cb, callback, cb_arg);
-    return BN_is_prime_fasttest_ex(a, checks, ctx_passed,
-                                   do_trial_division, &cb);
+    return ossl_bn_check_prime(a, checks, ctx_passed, do_trial_division, &cb);
 }
-#endif

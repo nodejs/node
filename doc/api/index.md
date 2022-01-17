@@ -1,6 +1,6 @@
 <!--
   NB(chrisdickinson): if you move this file, be sure to update
-  tools/doc/html.js to point at the new location.
+  tools/doc/html.mjs to point at the new location.
 -->
 
 <!--introduced_in=v0.10.0-->
@@ -11,18 +11,21 @@
 <hr class="line"/>
 
 * [Assertion testing](assert.md)
+* [Asynchronous context tracking](async_context.md)
 * [Async hooks](async_hooks.md)
 * [Buffer](buffer.md)
 * [C++ addons](addons.md)
-* [C/C++ addons with N-API](n-api.md)
+* [C/C++ addons with Node-API](n-api.md)
 * [C++ embedder API](embedding.md)
 * [Child processes](child_process.md)
 * [Cluster](cluster.md)
 * [Command-line options](cli.md)
 * [Console](console.md)
+* [Corepack](corepack.md)
 * [Crypto](crypto.md)
 * [Debugger](debugger.md)
 * [Deprecated APIs](deprecations.md)
+* [Diagnostics Channel](diagnostics_channel.md)
 * [DNS](dns.md)
 * [Domain](domain.md)
 * [Errors](errors.md)
@@ -46,7 +49,6 @@
 * [Process](process.md)
 * [Punycode](punycode.md)
 * [Query strings](querystring.md)
-* [QUIC](quic.md)
 * [Readline](readline.md)
 * [REPL](repl.md)
 * [Report](report.md)
@@ -63,6 +65,7 @@
 * [VM](vm.md)
 * [WASI](wasi.md)
 * [Web Crypto API](webcrypto.md)
+* [Web Streams API](webstreams.md)
 * [Worker threads](worker_threads.md)
 * [Zlib](zlib.md)
 

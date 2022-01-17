@@ -1,81 +1,52 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
+#include <stdlib.h>
 #include "crypto/cryptlib.h"
 #include "internal/thread_once.h"
 
-/*
- * Each structure type (sometimes called a class), that supports
- * exdata has a stack of callbacks for each instance.
- */
-struct ex_callback_st {
-    long argl;                  /* Arbitrary long */
-    void *argp;                 /* Arbitrary void * */
-    CRYPTO_EX_new *new_func;
-    CRYPTO_EX_free *free_func;
-    CRYPTO_EX_dup *dup_func;
-};
-
-/*
- * The state for each class.  This could just be a typedef, but
- * a structure allows future changes.
- */
-typedef struct ex_callbacks_st {
-    STACK_OF(EX_CALLBACK) *meth;
-} EX_CALLBACKS;
-
-static EX_CALLBACKS ex_data[CRYPTO_EX_INDEX__COUNT];
-
-static CRYPTO_RWLOCK *ex_data_lock = NULL;
-static CRYPTO_ONCE ex_data_init = CRYPTO_ONCE_STATIC_INIT;
-
-DEFINE_RUN_ONCE_STATIC(do_ex_data_init)
+int ossl_do_ex_data_init(OSSL_LIB_CTX *ctx)
 {
-    if (!OPENSSL_init_crypto(0, NULL))
+    OSSL_EX_DATA_GLOBAL *global = ossl_lib_ctx_get_ex_data_global(ctx);
+
+    if (global == NULL)
         return 0;
-    ex_data_lock = CRYPTO_THREAD_lock_new();
-    return ex_data_lock != NULL;
+
+    global->ex_data_lock = CRYPTO_THREAD_lock_new();
+    return global->ex_data_lock != NULL;
 }
 
 /*
  * Return the EX_CALLBACKS from the |ex_data| array that corresponds to
  * a given class.  On success, *holds the lock.*
+ * The |global| parameter is assumed to be non null (checked by the caller).
  */
-static EX_CALLBACKS *get_and_lock(int class_index)
+static EX_CALLBACKS *get_and_lock(OSSL_EX_DATA_GLOBAL *global, int class_index)
 {
     EX_CALLBACKS *ip;
 
     if (class_index < 0 || class_index >= CRYPTO_EX_INDEX__COUNT) {
-        CRYPTOerr(CRYPTO_F_GET_AND_LOCK, ERR_R_PASSED_INVALID_ARGUMENT);
+        ERR_raise(ERR_LIB_CRYPTO, ERR_R_PASSED_INVALID_ARGUMENT);
         return NULL;
     }
 
-    if (!RUN_ONCE(&ex_data_init, do_ex_data_init)) {
-        CRYPTOerr(CRYPTO_F_GET_AND_LOCK, ERR_R_MALLOC_FAILURE);
-        return NULL;
-    }
-
-    if (ex_data_lock == NULL) {
+    if (global->ex_data_lock == NULL) {
         /*
-         * This can happen in normal operation when using CRYPTO_mem_leaks().
-         * The CRYPTO_mem_leaks() function calls OPENSSL_cleanup() which cleans
-         * up the locks. Subsequently the BIO that CRYPTO_mem_leaks() uses gets
-         * freed, which also attempts to free the ex_data. However
-         * CRYPTO_mem_leaks() ensures that the ex_data is freed early (i.e.
-         * before OPENSSL_cleanup() is called), so if we get here we can safely
-         * ignore this operation. We just treat it as an error.
+         * If we get here, someone (who?) cleaned up the lock, so just
+         * treat it as an error.
          */
          return NULL;
     }
 
-    ip = &ex_data[class_index];
-    CRYPTO_THREAD_write_lock(ex_data_lock);
+    if (!CRYPTO_THREAD_write_lock(global->ex_data_lock))
+        return NULL;
+    ip = &global->ex_data[class_index];
     return ip;
 }
 
@@ -90,19 +61,23 @@ static void cleanup_cb(EX_CALLBACK *funcs)
  * called under potential race-conditions anyway (it's for program shutdown
  * after all).
  */
-void crypto_cleanup_all_ex_data_int(void)
+void ossl_crypto_cleanup_all_ex_data_int(OSSL_LIB_CTX *ctx)
 {
     int i;
+    OSSL_EX_DATA_GLOBAL *global = ossl_lib_ctx_get_ex_data_global(ctx);
+
+    if (global == NULL)
+        return;
 
     for (i = 0; i < CRYPTO_EX_INDEX__COUNT; ++i) {
-        EX_CALLBACKS *ip = &ex_data[i];
+        EX_CALLBACKS *ip = &global->ex_data[i];
 
         sk_EX_CALLBACK_pop_free(ip->meth, cleanup_cb);
         ip->meth = NULL;
     }
 
-    CRYPTO_THREAD_lock_free(ex_data_lock);
-    ex_data_lock = NULL;
+    CRYPTO_THREAD_lock_free(global->ex_data_lock);
+    global->ex_data_lock = NULL;
 }
 
 
@@ -121,20 +96,26 @@ static void dummy_free(void *parent, void *ptr, CRYPTO_EX_DATA *ad, int idx,
 }
 
 static int dummy_dup(CRYPTO_EX_DATA *to, const CRYPTO_EX_DATA *from,
-                     void *from_d, int idx,
+                     void **from_d, int idx,
                      long argl, void *argp)
 {
     return 1;
 }
 
-int CRYPTO_free_ex_index(int class_index, int idx)
+int ossl_crypto_free_ex_index_ex(OSSL_LIB_CTX *ctx, int class_index, int idx)
 {
-    EX_CALLBACKS *ip = get_and_lock(class_index);
+    EX_CALLBACKS *ip;
     EX_CALLBACK *a;
     int toret = 0;
+    OSSL_EX_DATA_GLOBAL *global = ossl_lib_ctx_get_ex_data_global(ctx);
 
+    if (global == NULL)
+        return 0;
+
+    ip = get_and_lock(global, class_index);
     if (ip == NULL)
         return 0;
+
     if (idx < 0 || idx >= sk_EX_CALLBACK_num(ip->meth))
         goto err;
     a = sk_EX_CALLBACK_value(ip->meth, idx);
@@ -145,21 +126,34 @@ int CRYPTO_free_ex_index(int class_index, int idx)
     a->free_func = dummy_free;
     toret = 1;
 err:
-    CRYPTO_THREAD_unlock(ex_data_lock);
+    CRYPTO_THREAD_unlock(global->ex_data_lock);
     return toret;
+}
+
+int CRYPTO_free_ex_index(int class_index, int idx)
+{
+    return ossl_crypto_free_ex_index_ex(NULL, class_index, idx);
 }
 
 /*
  * Register a new index.
  */
-int CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
-                            CRYPTO_EX_new *new_func, CRYPTO_EX_dup *dup_func,
-                            CRYPTO_EX_free *free_func)
+int ossl_crypto_get_ex_new_index_ex(OSSL_LIB_CTX *ctx, int class_index,
+                                    long argl, void *argp,
+                                    CRYPTO_EX_new *new_func,
+                                    CRYPTO_EX_dup *dup_func,
+                                    CRYPTO_EX_free *free_func,
+                                    int priority)
 {
     int toret = -1;
     EX_CALLBACK *a;
-    EX_CALLBACKS *ip = get_and_lock(class_index);
+    EX_CALLBACKS *ip;
+    OSSL_EX_DATA_GLOBAL *global = ossl_lib_ctx_get_ex_data_global(ctx);
 
+    if (global == NULL)
+        return -1;
+
+    ip = get_and_lock(global, class_index);
     if (ip == NULL)
         return -1;
 
@@ -169,14 +163,14 @@ int CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
          * "app_data" routines use ex_data index zero.  See RT 3710. */
         if (ip->meth == NULL
             || !sk_EX_CALLBACK_push(ip->meth, NULL)) {
-            CRYPTOerr(CRYPTO_F_CRYPTO_GET_EX_NEW_INDEX, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
             goto err;
         }
     }
 
     a = (EX_CALLBACK *)OPENSSL_malloc(sizeof(*a));
     if (a == NULL) {
-        CRYPTOerr(CRYPTO_F_CRYPTO_GET_EX_NEW_INDEX, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
         goto err;
     }
     a->argl = argl;
@@ -184,9 +178,10 @@ int CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
     a->new_func = new_func;
     a->dup_func = dup_func;
     a->free_func = free_func;
+    a->priority = priority;
 
     if (!sk_EX_CALLBACK_push(ip->meth, NULL)) {
-        CRYPTOerr(CRYPTO_F_CRYPTO_GET_EX_NEW_INDEX, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
         OPENSSL_free(a);
         goto err;
     }
@@ -194,8 +189,16 @@ int CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
     (void)sk_EX_CALLBACK_set(ip->meth, toret, a);
 
  err:
-    CRYPTO_THREAD_unlock(ex_data_lock);
+    CRYPTO_THREAD_unlock(global->ex_data_lock);
     return toret;
+}
+
+int CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
+                            CRYPTO_EX_new *new_func, CRYPTO_EX_dup *dup_func,
+                            CRYPTO_EX_free *free_func)
+{
+    return ossl_crypto_get_ex_new_index_ex(NULL, class_index, argl, argp,
+                                           new_func, dup_func, free_func, 0);
 }
 
 /*
@@ -205,19 +208,25 @@ int CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
  * in the lock, then using them outside the lock. Note this only applies
  * to the global "ex_data" state (ie. class definitions), not 'ad' itself.
  */
-int CRYPTO_new_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad)
+int ossl_crypto_new_ex_data_ex(OSSL_LIB_CTX *ctx, int class_index, void *obj,
+                               CRYPTO_EX_DATA *ad)
 {
     int mx, i;
     void *ptr;
     EX_CALLBACK **storage = NULL;
     EX_CALLBACK *stack[10];
-    EX_CALLBACKS *ip = get_and_lock(class_index);
+    EX_CALLBACKS *ip;
+    OSSL_EX_DATA_GLOBAL *global = ossl_lib_ctx_get_ex_data_global(ctx);
 
+    if (global == NULL)
+        return 0;
+
+    ip = get_and_lock(global, class_index);
     if (ip == NULL)
         return 0;
 
+    ad->ctx = ctx;
     ad->sk = NULL;
-
     mx = sk_EX_CALLBACK_num(ip->meth);
     if (mx > 0) {
         if (mx < (int)OSSL_NELEM(stack))
@@ -228,10 +237,10 @@ int CRYPTO_new_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad)
             for (i = 0; i < mx; i++)
                 storage[i] = sk_EX_CALLBACK_value(ip->meth, i);
     }
-    CRYPTO_THREAD_unlock(ex_data_lock);
+    CRYPTO_THREAD_unlock(global->ex_data_lock);
 
     if (mx > 0 && storage == NULL) {
-        CRYPTOerr(CRYPTO_F_CRYPTO_NEW_EX_DATA, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     for (i = 0; i < mx; i++) {
@@ -244,6 +253,11 @@ int CRYPTO_new_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad)
     if (storage != stack)
         OPENSSL_free(storage);
     return 1;
+}
+
+int CRYPTO_new_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad)
+{
+    return ossl_crypto_new_ex_data_ex(NULL, class_index, obj, ad);
 }
 
 /*
@@ -259,11 +273,19 @@ int CRYPTO_dup_ex_data(int class_index, CRYPTO_EX_DATA *to,
     EX_CALLBACK **storage = NULL;
     EX_CALLBACKS *ip;
     int toret = 0;
+    OSSL_EX_DATA_GLOBAL *global;
 
+    to->ctx = from->ctx;
     if (from->sk == NULL)
         /* Nothing to copy over */
         return 1;
-    if ((ip = get_and_lock(class_index)) == NULL)
+
+    global = ossl_lib_ctx_get_ex_data_global(from->ctx);
+    if (global == NULL)
+        return 0;
+
+    ip = get_and_lock(global, class_index);
+    if (ip == NULL)
         return 0;
 
     mx = sk_EX_CALLBACK_num(ip->meth);
@@ -279,12 +301,12 @@ int CRYPTO_dup_ex_data(int class_index, CRYPTO_EX_DATA *to,
             for (i = 0; i < mx; i++)
                 storage[i] = sk_EX_CALLBACK_value(ip->meth, i);
     }
-    CRYPTO_THREAD_unlock(ex_data_lock);
+    CRYPTO_THREAD_unlock(global->ex_data_lock);
 
     if (mx == 0)
         return 1;
     if (storage == NULL) {
-        CRYPTOerr(CRYPTO_F_CRYPTO_DUP_EX_DATA, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
         return 0;
     }
     /*
@@ -312,6 +334,27 @@ int CRYPTO_dup_ex_data(int class_index, CRYPTO_EX_DATA *to,
     return toret;
 }
 
+struct ex_callback_entry {
+    const EX_CALLBACK *excb;
+    int index;
+};
+
+static int ex_callback_compare(const void *a, const void *b)
+{
+    const struct ex_callback_entry *ap = (const struct ex_callback_entry *)a;
+    const struct ex_callback_entry *bp = (const struct ex_callback_entry *)b;
+
+    if (ap->excb == bp->excb)
+        return 0;
+
+    if (ap->excb == NULL)
+        return 1;
+    if (bp->excb == NULL)
+        return -1;
+    if (ap->excb->priority == bp->excb->priority)
+        return 0;
+    return ap->excb->priority > bp->excb->priority ? -1 : 1;
+}
 
 /*
  * Cleanup a CRYPTO_EX_DATA variable - including calling free() callbacks for
@@ -322,11 +365,16 @@ void CRYPTO_free_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad)
     int mx, i;
     EX_CALLBACKS *ip;
     void *ptr;
-    EX_CALLBACK *f;
-    EX_CALLBACK *stack[10];
-    EX_CALLBACK **storage = NULL;
+    const EX_CALLBACK *f;
+    struct ex_callback_entry stack[10];
+    struct ex_callback_entry *storage = NULL;
+    OSSL_EX_DATA_GLOBAL *global = ossl_lib_ctx_get_ex_data_global(ad->ctx);
 
-    if ((ip = get_and_lock(class_index)) == NULL)
+    if (global == NULL)
+        goto err;
+
+    ip = get_and_lock(global, class_index);
+    if (ip == NULL)
         goto err;
 
     mx = sk_EX_CALLBACK_num(ip->meth);
@@ -336,22 +384,23 @@ void CRYPTO_free_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad)
         else
             storage = OPENSSL_malloc(sizeof(*storage) * mx);
         if (storage != NULL)
-            for (i = 0; i < mx; i++)
-                storage[i] = sk_EX_CALLBACK_value(ip->meth, i);
+            for (i = 0; i < mx; i++) {
+                storage[i].excb = sk_EX_CALLBACK_value(ip->meth, i);
+                storage[i].index = i;
+            }
     }
-    CRYPTO_THREAD_unlock(ex_data_lock);
+    CRYPTO_THREAD_unlock(global->ex_data_lock);
 
-    for (i = 0; i < mx; i++) {
-        if (storage != NULL)
-            f = storage[i];
-        else {
-            CRYPTO_THREAD_write_lock(ex_data_lock);
-            f = sk_EX_CALLBACK_value(ip->meth, i);
-            CRYPTO_THREAD_unlock(ex_data_lock);
-        }
-        if (f != NULL && f->free_func != NULL) {
-            ptr = CRYPTO_get_ex_data(ad, i);
-            f->free_func(obj, ptr, ad, i, f->argl, f->argp);
+    if (storage != NULL) {
+        /* Sort according to priority. High priority first */
+        qsort(storage, mx, sizeof(*storage), ex_callback_compare);
+        for (i = 0; i < mx; i++) {
+            f = storage[i].excb;
+
+            if (f != NULL && f->free_func != NULL) {
+                ptr = CRYPTO_get_ex_data(ad, storage[i].index);
+                f->free_func(obj, ptr, ad, storage[i].index, f->argl, f->argp);
+            }
         }
     }
 
@@ -360,6 +409,53 @@ void CRYPTO_free_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad)
  err:
     sk_void_free(ad->sk);
     ad->sk = NULL;
+    ad->ctx = NULL;
+}
+
+/*
+ * Allocate a given CRYPTO_EX_DATA item using the class specific allocation
+ * function
+ */
+int CRYPTO_alloc_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad,
+                         int idx)
+{
+    void *curval;
+
+    curval = CRYPTO_get_ex_data(ad, idx);
+    /* Already there, no need to allocate */
+    if (curval != NULL)
+        return 1;
+
+    return ossl_crypto_alloc_ex_data_intern(class_index, obj, ad, idx);
+}
+
+int ossl_crypto_alloc_ex_data_intern(int class_index, void *obj,
+                                     CRYPTO_EX_DATA *ad, int idx)
+{
+    EX_CALLBACK *f;
+    EX_CALLBACKS *ip;
+    OSSL_EX_DATA_GLOBAL *global;
+
+    global = ossl_lib_ctx_get_ex_data_global(ad->ctx);
+    if (global == NULL)
+        return 0;
+
+    ip = get_and_lock(global, class_index);
+    if (ip == NULL)
+        return 0;
+    f = sk_EX_CALLBACK_value(ip->meth, idx);
+    CRYPTO_THREAD_unlock(global->ex_data_lock);
+
+    /*
+     * This should end up calling CRYPTO_set_ex_data(), which allocates
+     * everything necessary to support placing the new data in the right spot.
+     */
+    if (f->new_func == NULL)
+        return 0;
+
+    f->new_func(obj, NULL, ad, idx, f->argl, f->argp);
+
+    return 1;
 }
 
 /*
@@ -372,18 +468,22 @@ int CRYPTO_set_ex_data(CRYPTO_EX_DATA *ad, int idx, void *val)
 
     if (ad->sk == NULL) {
         if ((ad->sk = sk_void_new_null()) == NULL) {
-            CRYPTOerr(CRYPTO_F_CRYPTO_SET_EX_DATA, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
             return 0;
         }
     }
 
     for (i = sk_void_num(ad->sk); i <= idx; ++i) {
         if (!sk_void_push(ad->sk, NULL)) {
-            CRYPTOerr(CRYPTO_F_CRYPTO_SET_EX_DATA, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
             return 0;
         }
     }
-    sk_void_set(ad->sk, idx, val);
+    if (sk_void_set(ad->sk, idx, val) != val) {
+        /* Probably the index is out of bounds */
+        ERR_raise(ERR_LIB_CRYPTO, ERR_R_PASSED_INVALID_ARGUMENT);
+        return 0;
+    }
     return 1;
 }
 
@@ -396,4 +496,9 @@ void *CRYPTO_get_ex_data(const CRYPTO_EX_DATA *ad, int idx)
     if (ad->sk == NULL || idx >= sk_void_num(ad->sk))
         return NULL;
     return sk_void_value(ad->sk, idx);
+}
+
+OSSL_LIB_CTX *ossl_crypto_ex_data_get_ossl_lib_ctx(const CRYPTO_EX_DATA *ad)
+{
+    return ad->ctx;
 }

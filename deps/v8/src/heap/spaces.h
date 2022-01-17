@@ -17,6 +17,7 @@
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/free-list.h"
 #include "src/heap/heap.h"
+#include "src/heap/linear-allocation-area.h"
 #include "src/heap/list.h"
 #include "src/heap/memory-chunk.h"
 #include "src/objects/objects.h"
@@ -37,7 +38,6 @@ class FreeList;
 class Isolate;
 class LargeObjectSpace;
 class LargePage;
-class LinearAllocationArea;
 class Page;
 class PagedSpace;
 class SemiSpace;
@@ -101,8 +101,10 @@ class SemiSpace;
 #define DCHECK_OBJECT_SIZE(size) \
   DCHECK((0 < size) && (size <= kMaxRegularHeapObjectSize))
 
-#define DCHECK_CODEOBJECT_SIZE(size, code_space) \
-  DCHECK((0 < size) && (size <= code_space->AreaSize()))
+#define DCHECK_CODEOBJECT_SIZE(size, code_space)                          \
+  DCHECK((0 < size) &&                                                    \
+         (size <= std::min(MemoryChunkLayout::MaxRegularCodeObjectSize(), \
+                           code_space->AreaSize())))
 
 // ----------------------------------------------------------------------------
 // Space is the abstract superclass for all allocation spaces that are not
@@ -118,6 +120,9 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
     external_backing_store_bytes_[ExternalBackingStoreType::kExternalString] =
         0;
   }
+
+  Space(const Space&) = delete;
+  Space& operator=(const Space&) = delete;
 
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
@@ -183,6 +188,8 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 #endif
 
  protected:
+  int allocation_observers_paused_depth_ = 0;
+
   AllocationCounter allocation_counter_;
 
   // The List manages the pages that belong to the given space.
@@ -192,8 +199,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   std::atomic<size_t>* external_backing_store_bytes_;
 
   std::unique_ptr<FreeList> free_list_;
-
-  DISALLOW_COPY_AND_ASSIGN(Space);
 };
 
 STATIC_ASSERT(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);
@@ -206,22 +211,27 @@ STATIC_ASSERT(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);
 //   Page* p = Page::FromAllocationAreaAddress(address);
 class Page : public MemoryChunk {
  public:
-  static const intptr_t kCopyAllFlags = ~0;
-
   // Page flags copied from from-space to to-space when flipping semispaces.
-  static const intptr_t kCopyOnFlipFlagsMask =
-      static_cast<intptr_t>(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
-      static_cast<intptr_t>(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
-      static_cast<intptr_t>(MemoryChunk::INCREMENTAL_MARKING);
+  static constexpr MainThreadFlags kCopyOnFlipFlagsMask =
+      MainThreadFlags(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
+      MainThreadFlags(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
+      MainThreadFlags(MemoryChunk::INCREMENTAL_MARKING);
 
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize[. This only works if the object
   // is in fact in a page.
   static Page* FromAddress(Address addr) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<Page*>(addr & ~kPageAlignmentMask);
   }
   static Page* FromHeapObject(HeapObject o) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<Page*>(o.ptr() & ~kAlignmentMask);
+  }
+
+  static Page* cast(MemoryChunk* chunk) {
+    DCHECK(!chunk->IsLargePage());
+    return static_cast<Page*>(chunk);
   }
 
   // Returns the page containing the address provided. The address can
@@ -229,6 +239,7 @@ class Page : public MemoryChunk {
   // we subtract a hole word. The valid address ranges from
   // [page_addr + area_start_ .. page_addr + kPageSize + kTaggedSize].
   static Page* FromAllocationAreaAddress(Address address) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return Page::FromAddress(address - kTaggedSize);
   }
 
@@ -352,61 +363,6 @@ class PageRange {
 // -----------------------------------------------------------------------------
 // A space has a circular list of pages. The next page can be accessed via
 // Page::next_page() call.
-
-// An abstraction of allocation and relocation pointers in a page-structured
-// space.
-class LinearAllocationArea {
- public:
-  LinearAllocationArea()
-      : start_(kNullAddress), top_(kNullAddress), limit_(kNullAddress) {}
-  LinearAllocationArea(Address top, Address limit)
-      : start_(top), top_(top), limit_(limit) {}
-
-  void Reset(Address top, Address limit) {
-    start_ = top;
-    set_top(top);
-    set_limit(limit);
-  }
-
-  void MoveStartToTop() { start_ = top_; }
-
-  V8_INLINE Address start() const { return start_; }
-
-  V8_INLINE void set_top(Address top) {
-    SLOW_DCHECK(top == kNullAddress || (top & kHeapObjectTagMask) == 0);
-    top_ = top;
-  }
-
-  V8_INLINE Address top() const {
-    SLOW_DCHECK(top_ == kNullAddress || (top_ & kHeapObjectTagMask) == 0);
-    return top_;
-  }
-
-  Address* top_address() { return &top_; }
-
-  V8_INLINE void set_limit(Address limit) { limit_ = limit; }
-
-  V8_INLINE Address limit() const { return limit_; }
-
-  Address* limit_address() { return &limit_; }
-
-#ifdef DEBUG
-  bool VerifyPagedAllocation() {
-    return (Page::FromAllocationAreaAddress(top_) ==
-            Page::FromAllocationAreaAddress(limit_)) &&
-           (top_ <= limit_);
-  }
-#endif
-
- private:
-  // Current allocation top.
-  Address start_;
-  // Current allocation top.
-  Address top_;
-  // Current allocation limit.
-  Address limit_;
-};
-
 
 // LocalAllocationBuffer represents a linear allocation area that is created
 // from a given {AllocationResult} and can be used to allocate memory without

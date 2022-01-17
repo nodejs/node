@@ -19,11 +19,49 @@ namespace internal {
 
 // Other platforms have CSA support, see builtins-sharedarraybuffer-gen.h.
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
-    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X ||    \
+    V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
 
 namespace {
 
-#if V8_CC_GNU
+#if defined(V8_OS_STARBOARD)
+
+template <typename T>
+inline T ExchangeSeqCst(T* p, T value) {
+  UNIMPLEMENTED();
+}
+
+template <typename T>
+inline T CompareExchangeSeqCst(T* p, T oldval, T newval) {
+  UNIMPLEMENTED();
+}
+
+template <typename T>
+inline T AddSeqCst(T* p, T value) {
+  UNIMPLEMENTED();
+}
+
+template <typename T>
+inline T SubSeqCst(T* p, T value) {
+  UNIMPLEMENTED();
+}
+
+template <typename T>
+inline T AndSeqCst(T* p, T value) {
+  UNIMPLEMENTED();
+}
+
+template <typename T>
+inline T OrSeqCst(T* p, T value) {
+  UNIMPLEMENTED();
+}
+
+template <typename T>
+inline T XorSeqCst(T* p, T value) {
+  UNIMPLEMENTED();
+}
+
+#elif V8_CC_GNU
 
 // GCC/Clang helpfully warn us that using 64-bit atomics on 32-bit platforms
 // can be slow. Good to know, but we don't have a choice.
@@ -568,6 +606,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) { UNREACHABLE(); }
 
 #endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
         // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
-
+        // || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
 }  // namespace internal
 }  // namespace v8

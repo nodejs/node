@@ -9,4 +9,3 @@ Error: WebAssembly.compile(): Argument 0 must be a buffer source
     at *%(basename)s:12:9
 
 1 pending unhandled Promise rejection(s) detected.
-

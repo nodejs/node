@@ -12,6 +12,7 @@
 #include "include/cppgc/platform.h"
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/page-allocator.h"
 
 namespace cppgc {
 namespace internal {
@@ -28,6 +29,18 @@ static_assert(v8::base::bits::IsPowerOfTwo(kEntrySize),
               "GCInfoTable entries size must be power of "
               "two");
 
+PageAllocator* GetAllocator(PageAllocator* page_allocator) {
+  if (!page_allocator) {
+    static v8::base::LeakyObject<v8::base::PageAllocator>
+        default_page_allocator;
+    page_allocator = default_page_allocator.get();
+  }
+  // No need to introduce LSAN support for PageAllocator, as `GCInfoTable` is
+  // already a leaky object and the table payload (`GCInfoTable::table_`) should
+  // not refer to dynamically allocated objects.
+  return page_allocator;
+}
+
 }  // namespace
 
 GCInfoTable* GlobalGCInfoTable::global_table_ = nullptr;
@@ -35,10 +48,13 @@ constexpr GCInfoIndex GCInfoTable::kMaxIndex;
 constexpr GCInfoIndex GCInfoTable::kMinIndex;
 constexpr GCInfoIndex GCInfoTable::kInitialWantedLimit;
 
-void GlobalGCInfoTable::Create(PageAllocator* page_allocator) {
-  static v8::base::LeakyObject<GCInfoTable> table(page_allocator);
+// static
+void GlobalGCInfoTable::Initialize(PageAllocator* page_allocator) {
+  static v8::base::LeakyObject<GCInfoTable> table(GetAllocator(page_allocator));
   if (!global_table_) {
     global_table_ = table.get();
+  } else {
+    CHECK_EQ(page_allocator, global_table_->allocator());
   }
 }
 
@@ -110,10 +126,18 @@ void GCInfoTable::CheckMemoryIsZeroed(uintptr_t* base, size_t len) {
 #endif  // DEBUG
 }
 
-GCInfoIndex GCInfoTable::RegisterNewGCInfo(const GCInfo& info) {
+GCInfoIndex GCInfoTable::RegisterNewGCInfo(
+    std::atomic<GCInfoIndex>& registered_index, const GCInfo& info) {
   // Ensuring a new index involves current index adjustment as well as
   // potentially resizing the table. For simplicity we use a lock.
   v8::base::MutexGuard guard(&table_mutex_);
+
+  // Check the registered index again after taking the lock as some other
+  // thread may have registered the info at the same time.
+  GCInfoIndex index = registered_index.load(std::memory_order_relaxed);
+  if (index) {
+    return index;
+  }
 
   if (current_index_ == limit_) {
     Resize();
@@ -122,6 +146,7 @@ GCInfoIndex GCInfoTable::RegisterNewGCInfo(const GCInfo& info) {
   GCInfoIndex new_index = current_index_++;
   CHECK_LT(new_index, GCInfoTable::kMaxIndex);
   table_[new_index] = info;
+  registered_index.store(new_index, std::memory_order_release);
   return new_index;
 }
 

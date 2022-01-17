@@ -25,13 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "include/v8-function.h"
+#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
+#include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-
-#include "src/base/platform/platform.h"
 
 v8::base::Semaphore* semaphore = nullptr;
 
@@ -237,6 +238,14 @@ TEST(TerminateBigIntToString) {
       "terminate();"
       "a.toString();"
       "fail();");
+}
+
+TEST(TerminateBigIntFromString) {
+  TestTerminatingSlowOperation(
+      "var a = '12344567890'.repeat(100000);\n"
+      "terminate();\n"
+      "BigInt(a);\n"
+      "fail();\n");
 }
 
 int call_count = 0;
@@ -872,6 +881,12 @@ class TerminatorSleeperThread : public v8::base::Thread {
 
 TEST(TerminateRegExp) {
   i::FLAG_allow_natives_syntax = true;
+  // We want to be stuck regexp execution, so no fallback to linear-time
+  // engine.
+  // TODO(mbid,v8:10765): Find a way to test interrupt support of the
+  // experimental engine.
+  i::FLAG_enable_experimental_regexp_engine_on_excessive_backtracks = false;
+
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> global = CreateGlobalTemplate(

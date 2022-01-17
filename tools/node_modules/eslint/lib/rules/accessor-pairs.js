@@ -134,13 +134,13 @@ function isPropertyDescriptor(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce getter and setter pairs in objects and classes",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/accessor-pairs"
         },

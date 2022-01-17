@@ -11,11 +11,18 @@ OPENSSL_fork_child
 
  #include <openssl/crypto.h>
 
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
  void OPENSSL_fork_prepare(void);
  void OPENSSL_fork_parent(void);
  void OPENSSL_fork_child(void);
 
 =head1 DESCRIPTION
+
+These methods are currently unused, and as such, no replacement methods are
+required or planned.
 
 OpenSSL has state that should be reset when a process forks. For example,
 the entropy pool used to generate random numbers (and therefore encryption
@@ -53,9 +60,9 @@ These functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

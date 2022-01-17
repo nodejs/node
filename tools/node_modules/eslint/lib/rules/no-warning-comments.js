@@ -5,7 +5,7 @@
 
 "use strict";
 
-const { escapeRegExp } = require("lodash");
+const escapeRegExp = require("escape-string-regexp");
 const astUtils = require("./utils/ast-utils");
 
 const CHAR_LIMIT = 40;
@@ -14,13 +14,13 @@ const CHAR_LIMIT = 40;
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow specified warning terms in comments",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-warning-comments"
         },

@@ -1235,12 +1235,7 @@ class Map(HeapObject):
   def DescriptorsOffset(self):
     return self.TransitionsOrPrototypeInfoOffset() + self.heap.PointerSize()
 
-  def LayoutDescriptorOffset(self):
-    return self.DescriptorsOffset() + self.heap.PointerSize()
-
   def CodeCacheOffset(self):
-    if (self.heap.reader.Is64()):
-      return self.LayoutDescriptorOffset() + self.heap.PointerSize()
     return self.DescriptorsOffset() + self.heap.PointerSize()
 
   def DependentCodeOffset(self):

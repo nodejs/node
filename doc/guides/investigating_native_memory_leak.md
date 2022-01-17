@@ -1,4 +1,4 @@
-# Investigating Memory Leaks with valgrind
+# Investigating memory leaks with valgrind
 
 A Node.js process may run out of memory due to excessive consumption of
 native memory. Native Memory is memory which is not managed by the
@@ -34,6 +34,7 @@ apt-get install valgrind
 ```
 
 ## Invocation
+
 The simplest invocation of valgrind is:
 
 ```console
@@ -92,7 +93,7 @@ operating systems will clean up the memory of the process after the
 shutdown while attempting to free all memory to get a clean
 report may have a negative impact on the code complexity and
 shutdown times. Node.js does a pretty good job only leaving on
-the order of 6KB that are not freed on shutdown.
+the order of 6 KB that are not freed on shutdown.
 
 ## An obvious memory leak
 
@@ -100,8 +101,8 @@ Leaks can be introduced in native addons and the following is a simple
 example leak based on the "Hello world" addon from
 [node-addon-examples](https://github.com/nodejs/node-addon-examples).
 
-In this example, a loop which allocates ~1MB of memory and never frees it
-has been added:
+In this example, a loop which allocates approximately 1 MB of memory and never
+frees it has been added:
 
 ```cpp
 void* malloc_holder = nullptr;
@@ -186,7 +187,7 @@ definitely lost and the question is how to find where that memory was
 allocated. The next step is to rerun as suggested in the
 output with `--leak-check=full`:
 
-``` bash
+```bash
 user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind --leak-check=full node hello.js
 ==4174== Memcheck, a memory error detector
 ==4174== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
@@ -412,19 +413,23 @@ To get additional information with valgrind:
 
 * Check out the Node.js source corresponding to the release that you
   want to debug. For example:
+
 ```console
 git clone https://github.com/nodejs/node.git
 git checkout v12.14.1
 ```
+
 * Compile with debug enabled (for additional info see
-[building a debug build](https://github.com/nodejs/node/blob/v12.14.1/BUILDING.md#building-a-debug-build)).
-For example, on *nix:
+  [building a debug build](https://github.com/nodejs/node/blob/v12.14.1/BUILDING.md#building-a-debug-build)).
+  For example, on \*nix:
+
 ```console
 ./configure --debug
 make -j4
 ```
+
 * Make sure to run with your compiled debug version of Node.js. Having used
- `./configure --debug`, two binaries will have been built when `make` was run.
+  `./configure --debug`, two binaries will have been built when `make` was run.
   You must use the one which is in `out/Debug`.
 
 Running valgrind using the debug build of Node.js shows:
@@ -444,4 +449,4 @@ Running valgrind using the debug build of Node.js shows:
 ```
 
 Now we can see the specific file name and line in the Node.js code which
-caused the allocation (inspector_agent.cc:140).
+caused the allocation (inspector\_agent.cc:140).

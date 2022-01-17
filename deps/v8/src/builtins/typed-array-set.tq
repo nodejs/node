@@ -115,18 +115,6 @@ TypedArrayPrototypeSetArray(implicit context: Context, receiver: JSAny)(
     IfDetached {
   // Steps 9-13 are not observable, do them later.
 
-  // TODO(v8:8906): This ported behaviour is an observable spec violation and
-  // the comment below seems to be outdated. Consider removing this code.
-  try {
-    const _arrayArgNum = Cast<Number>(arrayArg) otherwise NotNumber;
-    // For number as a first argument, throw TypeError instead of silently
-    // ignoring the call, so that users know they did something wrong.
-    // (Consistent with Firefox and Blink/WebKit)
-    ThrowTypeError(MessageTemplate::kInvalidArgument);
-  } label NotNumber {
-    // Proceed to step 14.
-  }
-
   // 14. Let src be ? ToObject(array).
   const src: JSReceiver = ToObject_Inline(context, arrayArg);
 
@@ -267,8 +255,8 @@ TypedArrayPrototypeSetTypedArray(implicit context: Context, receiver: JSAny)(
         otherwise unreachable;
     const dstPtr: RawPtr = target.data_ptr + Convert<intptr>(startOffset);
 
-    assert(countBytes <= target.byte_length - startOffset);
-    assert(countBytes <= typedArray.byte_length);
+    dcheck(countBytes <= target.byte_length - startOffset);
+    dcheck(countBytes <= typedArray.byte_length);
 
     // 29. If srcType is the same as targetType, then
     //   a. NOTE: If srcType and targetType are the same, the transfer must
@@ -281,7 +269,12 @@ TypedArrayPrototypeSetTypedArray(implicit context: Context, receiver: JSAny)(
     //                                  value, true, Unordered).
     //    iii. Set srcByteIndex to srcByteIndex + 1.
     //     iv. Set targetByteIndex to targetByteIndex + 1.
-    CallCMemmove(dstPtr, typedArray.data_ptr, countBytes);
+    if (IsSharedArrayBuffer(target.buffer)) {
+      // SABs need a relaxed memmove to preserve atomicity.
+      CallCRelaxedMemmove(dstPtr, typedArray.data_ptr, countBytes);
+    } else {
+      CallCMemmove(dstPtr, typedArray.data_ptr, countBytes);
+    }
   } label IfSlow deferred {
     // 22. If target.[[ContentType]] is not equal to
     //   typedArray.[[ContentType]], throw a TypeError exception.

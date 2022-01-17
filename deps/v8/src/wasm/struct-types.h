@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #ifndef V8_WASM_STRUCT_TYPES_H_
 #define V8_WASM_STRUCT_TYPES_H_
 
@@ -62,13 +66,15 @@ class StructType : public ZoneObject {
     return field_offsets_[index - 1];
   }
   uint32_t total_fields_size() const {
-    return field_offsets_[field_count() - 1];
+    return field_count() == 0 ? 0 : field_offsets_[field_count() - 1];
   }
 
   void InitializeOffsets() {
+    if (field_count() == 0) return;
     uint32_t offset = field(0).element_size_bytes();
     for (uint32_t i = 1; i < field_count(); i++) {
       uint32_t field_size = field(i).element_size_bytes();
+      // TODO(jkummerow): Don't round up to more than kTaggedSize-alignment.
       offset = RoundUp(offset, field_size);
       field_offsets_[i - 1] = offset;
       offset += field_size;
@@ -102,17 +108,20 @@ class StructType : public ZoneObject {
 
    private:
     const uint32_t field_count_;
-    Zone* zone_;
+    Zone* const zone_;
     uint32_t cursor_;
-    ValueType* buffer_;
-    bool* mutabilities_;
+    ValueType* const buffer_;
+    bool* const mutabilities_;
   };
 
+  static const size_t kMaxFieldOffset =
+      (kV8MaxWasmStructFields - 1) * kMaxValueTypeSize;
+
  private:
-  uint32_t field_count_;
-  uint32_t* field_offsets_;
-  const ValueType* reps_;
-  const bool* mutabilities_;
+  const uint32_t field_count_;
+  uint32_t* const field_offsets_;
+  const ValueType* const reps_;
+  const bool* const mutabilities_;
 };
 
 class ArrayType : public ZoneObject {

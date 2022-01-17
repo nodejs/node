@@ -1,179 +1,164 @@
 const t = require('tap')
 
-let LOAD_ERROR = null
-const npmock = {
-  version: '99.99.99',
-  load: cb => cb(LOAD_ERROR),
-  argv: [],
-  config: {
-    settings: {},
-    get: (k) => npmock.config.settings[k],
-    set: (k, v) => { npmock.config.settings[k] = v },
-  },
-  commands: {}
+const mockGlobals = require('../fixtures/mock-globals.js')
+const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
+
+const cliMock = async (t, mocks) => {
+  let exitHandlerArgs = null
+  let npm = null
+  const exitHandlerMock = (...args) => {
+    exitHandlerArgs = args
+    npm.unload()
+  }
+  exitHandlerMock.setNpm = _npm => npm = _npm
+
+  const { Npm, outputs, logMocks, logs } = await loadMockNpm(t, { mocks, init: false })
+  const cli = t.mock('../../lib/cli.js', {
+    '../../lib/npm.js': Npm,
+    '../../lib/utils/update-notifier.js': async () => null,
+    '../../lib/utils/unsupported.js': {
+      checkForBrokenNode: () => {},
+      checkForUnsupportedNode: () => {},
+    },
+    '../../lib/utils/exit-handler.js': exitHandlerMock,
+    ...logMocks,
+  })
+
+  return {
+    Npm,
+    cli,
+    outputs,
+    exitHandlerCalled: () => exitHandlerArgs,
+    exitHandlerNpm: () => npm,
+    logs,
+  }
 }
 
-const unsupportedMock = {
-  checkForBrokenNode: () => {},
-  checkForUnsupportedNode: () => {}
-}
-
-let errorHandlerCalled = null
-const errorHandlerMock = (...args) => {
-  errorHandlerCalled = args
-}
-let errorHandlerExitCalled = null
-errorHandlerMock.exit = code => {
-  errorHandlerExitCalled = code
-}
-
-const logs = []
-const npmlogMock = {
-  pause: () => logs.push('pause'),
-  verbose: (...msg) => logs.push(['verbose', ...msg]),
-  info: (...msg) => logs.push(['info', ...msg])
-}
-
-const requireInject = require('require-inject')
-const cli = requireInject.installGlobally('../../lib/cli.js', {
-  '../../lib/npm.js': npmock,
-  '../../lib/utils/unsupported.js': unsupportedMock,
-  '../../lib/utils/error-handler.js': errorHandlerMock,
-  npmlog: npmlogMock
+t.afterEach(() => {
+  delete process.exitCode
 })
 
-t.test('print the version, and treat npm_g to npm -g', t => {
-  const { log } = console
-  const consoleLogs = []
-  console.log = (...msg) => consoleLogs.push(msg)
-  const { argv } = process
-  const proc = {
-    argv: ['node', 'npm_g', '-v'],
-    version: '420.69.lol',
-    on: () => {}
-  }
-  process.argv = proc.argv
-  npmock.config.settings.version = true
+t.test('print the version, and treat npm_g as npm -g', async t => {
+  mockGlobals(t, {
+    'process.argv': ['node', 'npm_g', '-v'],
+  })
 
-  cli(proc)
+  const { logs, cli, Npm, outputs, exitHandlerCalled } = await cliMock(t)
+  await cli(process)
 
-  t.strictSame(npmock.argv, [])
-  t.strictSame(proc.argv, [ 'node', 'npm', '-g', '-v' ])
-  t.strictSame(logs, [
-    'pause',
-    [ 'verbose', 'cli', [ 'node', 'npm', '-g', '-v' ] ],
-    [ 'info', 'using', 'npm@%s', '99.99.99' ],
-    [ 'info', 'using', 'node@%s', '420.69.lol' ]
+  t.strictSame(process.argv, ['node', 'npm', '-g', '-v'], 'system process.argv was rewritten')
+  t.strictSame(logs.verbose.filter(([p]) => p !== 'logfile'), [
+    ['cli', process.argv],
   ])
-  t.strictSame(consoleLogs, [ [ '99.99.99' ] ])
-  t.strictSame(errorHandlerExitCalled, 0)
-
-  delete npmock.config.settings.version
-  process.argv = argv
-  console.log = log
-  npmock.argv.length = 0
-  proc.argv.length = 0
-  logs.length = 0
-  consoleLogs.length = 0
-  errorHandlerExitCalled = null
-
-  t.end()
+  t.strictSame(logs.info, [
+    ['using', 'npm@%s', Npm.version],
+    ['using', 'node@%s', process.version],
+  ])
+  t.strictSame(outputs, [[Npm.version]])
+  t.strictSame(exitHandlerCalled(), [])
 })
 
-t.test('calling with --versions calls npm version with no args', t => {
-  const { log } = console
-  const consoleLogs = []
-  console.log = (...msg) => consoleLogs.push(msg)
-  const processArgv = process.argv
-  const proc = {
-    argv: ['node', 'npm', 'install', 'or', 'whatever', '--versions'],
-    on: () => {}
-  }
-  process.argv = proc.argv
-  npmock.config.set('versions', true)
-
-  t.teardown(() => {
-    delete npmock.config.settings.versions
-    process.argv = processArgv
-    console.log = log
-    npmock.argv.length = 0
-    proc.argv.length = 0
-    logs.length = 0
-    consoleLogs.length = 0
-    errorHandlerExitCalled = null
-    delete npmock.commands.version
+t.test('calling with --versions calls npm version with no args', async t => {
+  t.plan(6)
+  mockGlobals(t, {
+    'process.argv': ['node', 'npm', 'install', 'or', 'whatever', '--versions'],
+  })
+  const { logs, cli, Npm, outputs, exitHandlerCalled } = await cliMock(t, {
+    '../../lib/commands/version.js': class Version {
+      async exec (args) {
+        t.strictSame(args, [])
+      }
+    },
   })
 
-  npmock.commands.version = (args, cb) => {
-    t.equal(proc.title, 'npm')
-    t.strictSame(npmock.argv, [])
-    t.strictSame(proc.argv, [ 'node', 'npm', 'install', 'or', 'whatever', '--versions' ])
-    t.strictSame(logs, [
-      'pause',
-      [ 'verbose', 'cli', [ 'node', 'npm', 'install', 'or', 'whatever', '--versions' ] ],
-      [ 'info', 'using', 'npm@%s', '99.99.99' ],
-      [ 'info', 'using', 'node@%s', undefined ]
-    ])
+  await cli(process)
+  t.equal(process.title, 'npm install or whatever')
+  t.strictSame(logs.verbose.filter(([p]) => p !== 'logfile'), [
+    ['cli', process.argv],
+  ])
+  t.strictSame(logs.info, [
+    ['using', 'npm@%s', Npm.version],
+    ['using', 'node@%s', process.version],
+  ])
 
-    t.strictSame(consoleLogs, [])
-    t.strictSame(errorHandlerExitCalled, null)
-
-    t.strictSame(args, [])
-    t.end()
-  }
-
-  cli(proc)
+  t.strictSame(outputs, [])
+  t.strictSame(exitHandlerCalled(), [])
 })
 
-t.test('print usage if -h provided', t => {
-  const { log } = console
-  const consoleLogs = []
-  console.log = (...msg) => consoleLogs.push(msg)
-  const proc = {
-    argv: ['node', 'npm', 'asdf'],
-    on: () => {}
-  }
-  npmock.argv = ['asdf']
-
-  t.teardown(() => {
-    console.log = log
-    npmock.argv.length = 0
-    proc.argv.length = 0
-    logs.length = 0
-    consoleLogs.length = 0
-    errorHandlerExitCalled = null
-    delete npmock.commands.help
+t.test('logged argv is sanitized', async t => {
+  mockGlobals(t, {
+    'process.argv': [
+      'node',
+      'npm',
+      'version',
+      'https://username:password@npmjs.org/test_url_with_a_password',
+    ],
+  })
+  const { logs, cli, Npm } = await cliMock(t, {
+    '../../lib/commands/version.js': class Version {
+      async exec (args) {}
+    },
   })
 
-  npmock.commands.help = (args, cb) => {
-    delete npmock.commands.help
-    t.equal(proc.title, 'npm')
-    t.strictSame(args, ['asdf'])
-    t.strictSame(npmock.argv, ['asdf'])
-    t.strictSame(proc.argv, [ 'node', 'npm', 'asdf' ])
-    t.strictSame(logs, [
-      'pause',
-      [ 'verbose', 'cli', [ 'node', 'npm', 'asdf' ] ],
-      [ 'info', 'using', 'npm@%s', '99.99.99' ],
-      [ 'info', 'using', 'node@%s', undefined ]
-    ])
-    t.strictSame(consoleLogs, [])
-    t.strictSame(errorHandlerExitCalled, null)
-    t.end()
-  }
-
-  cli(proc)
+  await cli(process)
+  t.ok(process.title.startsWith('npm version https://username:***@npmjs.org'))
+  t.strictSame(logs.verbose.filter(([p]) => p !== 'logfile'), [
+    [
+      'cli',
+      ['node', 'npm', 'version', 'https://username:***@npmjs.org/test_url_with_a_password'],
+    ],
+  ])
+  t.strictSame(logs.info, [
+    ['using', 'npm@%s', Npm.version],
+    ['using', 'node@%s', process.version],
+  ])
 })
 
-t.test('load error calls error handler', t => {
-  const er = new Error('poop')
-  LOAD_ERROR = er
-  const proc = {
-    argv: ['node', 'npm', 'asdf'],
-    on: () => {}
-  }
-  cli(proc)
-  t.strictSame(errorHandlerCalled, [er])
-  LOAD_ERROR = null
-  t.end()
+t.test('print usage if no params provided', async t => {
+  mockGlobals(t, {
+    'process.argv': ['node', 'npm'],
+  })
+
+  const { cli, outputs, exitHandlerCalled, exitHandlerNpm } = await cliMock(t)
+  await cli(process)
+  t.match(outputs[0][0], 'Usage:', 'outputs npm usage')
+  t.match(exitHandlerCalled(), [], 'should call exitHandler with no args')
+  t.ok(exitHandlerNpm(), 'exitHandler npm is set')
+  t.match(process.exitCode, 1)
+})
+
+t.test('print usage if non-command param provided', async t => {
+  mockGlobals(t, {
+    'process.argv': ['node', 'npm', 'tset'],
+  })
+
+  const { cli, outputs, exitHandlerCalled, exitHandlerNpm } = await cliMock(t)
+  await cli(process)
+  t.match(outputs[0][0], 'Unknown command: "tset"')
+  t.match(outputs[0][0], 'Did you mean this?')
+  t.match(exitHandlerCalled(), [], 'should call exitHandler with no args')
+  t.ok(exitHandlerNpm(), 'exitHandler npm is set')
+  t.match(process.exitCode, 1)
+})
+
+t.test('load error calls error handler', async t => {
+  mockGlobals(t, {
+    'process.argv': ['node', 'npm', 'asdf'],
+  })
+
+  const err = new Error('test load error')
+  const { cli, exitHandlerCalled } = await cliMock(t, {
+    '../../lib/utils/config/index.js': {
+      definitions: null,
+      flatten: null,
+      shorthands: null,
+    },
+    '@npmcli/config': class BadConfig {
+      async load () {
+        throw err
+      }
+    },
+  })
+  await cli(process)
+  t.strictSame(exitHandlerCalled(), [err])
 })

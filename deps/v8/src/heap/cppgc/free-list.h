@@ -7,6 +7,7 @@
 
 #include <array>
 
+#include "include/cppgc/heap-statistics.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -33,7 +34,9 @@ class V8_EXPORT_PRIVATE FreeList {
   Block Allocate(size_t);
 
   // Adds block to the freelist. The minimal block size is two words.
-  void Add(Block);
+  // Returns the start of the free list payload that will not be accessed by
+  // the free list itself.
+  Address Add(Block);
 
   // Append other freelist into this.
   void Append(FreeList&&);
@@ -43,7 +46,9 @@ class V8_EXPORT_PRIVATE FreeList {
   size_t Size() const;
   bool IsEmpty() const;
 
-  bool Contains(Block) const;
+  void CollectStatistics(HeapStatistics::FreeListStatistics&);
+
+  bool ContainsForTesting(Block) const;
 
  private:
   class Entry;

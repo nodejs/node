@@ -9,6 +9,7 @@ const { connect } = require('net');
 // after server.requestTimeout if the client
 // pauses before start sending the body.
 
+let sendDelayedRequestBody;
 const server = createServer(common.mustCall((req, res) => {
   let body = '';
   req.setEncoding('utf-8');
@@ -22,6 +23,9 @@ const server = createServer(common.mustCall((req, res) => {
     res.write(body);
     res.end();
   });
+
+  assert.strictEqual(typeof sendDelayedRequestBody, 'function');
+  sendDelayedRequestBody();
 }));
 
 // 0 seconds is the default
@@ -44,9 +48,11 @@ server.listen(0, common.mustCall(() => {
   client.write('Connection: close\r\n');
   client.write('\r\n');
 
-  setTimeout(() => {
-    client.write('12345678901234567890\r\n\r\n');
-  }, common.platformTimeout(2000)).unref();
+  sendDelayedRequestBody = common.mustCall(() => {
+    setTimeout(() => {
+      client.write('12345678901234567890\r\n\r\n');
+    }, common.platformTimeout(2000)).unref();
+  });
 
   const errOrEnd = common.mustCall(function(err) {
     console.log(err);

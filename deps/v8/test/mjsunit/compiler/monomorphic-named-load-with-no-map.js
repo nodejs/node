@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --harmony-weak-refs --expose-gc
+// Flags: --allow-natives-syntax --expose-gc
 
 // Helper to convert setTimeout into an awaitable promise.
 function asyncTimeout(timeout) {

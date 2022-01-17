@@ -120,8 +120,9 @@ defineCustomElement('global-timeline', (templateText) =>
 
   getZoneData() {
     const isolate_data = this.data[this.selection.isolate];
-    const zone_names = isolate_data.sorted_zone_names;
     const selected_zones = this.selection.zones;
+    const zone_names = isolate_data.sorted_zone_names.filter(
+        zone_name => selected_zones.has(zone_name));
     const data_kind = this.selection.data_kind;
     const show_totals = this.selection.show_totals;
     const zones_labels = this.getZoneLabels(zone_names);

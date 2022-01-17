@@ -9,13 +9,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "layout",
 
         docs: {
             description: "require parenthesis around regex literals",
-            category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/wrap-regex"
         },

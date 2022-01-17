@@ -16,9 +16,9 @@ namespace crypto {
 struct RandomBytesConfig final : public MemoryRetainer {
   unsigned char* buffer;
   size_t size;
-  SET_NO_MEMORY_INFO();
-  SET_MEMORY_INFO_NAME(RandomBytesConfig);
-  SET_SELF_SIZE(RandomBytesConfig);
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(RandomBytesConfig)
+  SET_SELF_SIZE(RandomBytesConfig)
 };
 
 struct RandomBytesTraits final {
@@ -47,8 +47,82 @@ struct RandomBytesTraits final {
 
 using RandomBytesJob = DeriveBitsJob<RandomBytesTraits>;
 
+struct RandomPrimeConfig final : public MemoryRetainer {
+  BignumPointer prime;
+  BignumPointer rem;
+  BignumPointer add;
+  int bits;
+  bool safe;
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(RandomPrimeConfig)
+  SET_SELF_SIZE(RandomPrimeConfig)
+};
+
+struct RandomPrimeTraits final {
+  using AdditionalParameters = RandomPrimeConfig;
+  static constexpr const char* JobName = "RandomPrimeJob";
+  static constexpr AsyncWrap::ProviderType Provider =
+      AsyncWrap::PROVIDER_RANDOMPRIMEREQUEST;
+
+  static v8::Maybe<bool> AdditionalConfig(
+      CryptoJobMode mode,
+      const v8::FunctionCallbackInfo<v8::Value>& args,
+      unsigned int offset,
+      RandomPrimeConfig* params);
+
+  static bool DeriveBits(
+      Environment* env,
+      const RandomPrimeConfig& params,
+      ByteSource* out_);
+
+  static v8::Maybe<bool> EncodeOutput(
+      Environment* env,
+      const RandomPrimeConfig& params,
+      ByteSource* unused,
+      v8::Local<v8::Value>* result);
+};
+
+using RandomPrimeJob = DeriveBitsJob<RandomPrimeTraits>;
+
+struct CheckPrimeConfig final : public MemoryRetainer {
+  BignumPointer candidate;
+  int checks = 1;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(CheckPrimeConfig)
+  SET_SELF_SIZE(CheckPrimeConfig)
+};
+
+struct CheckPrimeTraits final {
+  using AdditionalParameters = CheckPrimeConfig;
+  static constexpr const char* JobName = "CheckPrimeJob";
+
+  static constexpr AsyncWrap::ProviderType Provider =
+      AsyncWrap::PROVIDER_CHECKPRIMEREQUEST;
+
+  static v8::Maybe<bool> AdditionalConfig(
+      CryptoJobMode mode,
+      const v8::FunctionCallbackInfo<v8::Value>& args,
+      unsigned int offset,
+      CheckPrimeConfig* params);
+
+  static bool DeriveBits(
+      Environment* env,
+      const CheckPrimeConfig& params,
+      ByteSource* out);
+
+  static v8::Maybe<bool> EncodeOutput(
+      Environment* env,
+      const CheckPrimeConfig& params,
+      ByteSource* out,
+      v8::Local<v8::Value>* result);
+};
+
+using CheckPrimeJob = DeriveBitsJob<CheckPrimeTraits>;
+
 namespace Random {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
+void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Random
 }  // namespace crypto
 }  // namespace node

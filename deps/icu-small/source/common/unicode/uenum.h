@@ -20,19 +20,20 @@
 #define __UENUM_H
 
 #include "unicode/utypes.h"
-#include "unicode/localpointer.h"
 
 #if U_SHOW_CPLUSPLUS_API
+#include "unicode/localpointer.h"
+
 U_NAMESPACE_BEGIN
 class StringEnumeration;
 U_NAMESPACE_END
-#endif
+#endif   // U_SHOW_CPLUSPLUS_API
 
 /**
  * \file
- * \brief C API: String Enumeration
+ * \brief C API: String Enumeration 
  */
-
+ 
 /**
  * An enumeration object.
  * For usage in C programs.
@@ -49,7 +50,7 @@ typedef struct UEnumeration UEnumeration;
  * @param en UEnumeration structure pointer
  * @stable ICU 2.2
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uenum_close(UEnumeration* en);
 
 #if U_SHOW_CPLUSPLUS_API
@@ -77,7 +78,7 @@ U_NAMESPACE_END
  * U_ENUM_OUT_OF_SYNC_ERROR.
  * This is a convenience function. It can end up being very
  * expensive as all the items might have to be pre-fetched (depending
- * on the type of data being traversed). Use with caution and only
+ * on the type of data being traversed). Use with caution and only 
  * when necessary.
  * @param en UEnumeration structure pointer
  * @param status error code, can be U_ENUM_OUT_OF_SYNC_ERROR if the
@@ -85,7 +86,7 @@ U_NAMESPACE_END
  * @return number of elements in the iterator
  * @stable ICU 2.2
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uenum_count(UEnumeration* en, UErrorCode* status);
 
 /**
@@ -109,7 +110,7 @@ uenum_count(UEnumeration* en, UErrorCode* status);
  *         traversed, returns NULL.
  * @stable ICU 2.2
  */
-U_STABLE const UChar* U_EXPORT2
+U_CAPI const UChar* U_EXPORT2
 uenum_unext(UEnumeration* en,
             int32_t* resultLength,
             UErrorCode* status);
@@ -142,7 +143,7 @@ uenum_unext(UEnumeration* en,
  *         traversed, returns NULL.
  * @stable ICU 2.2
  */
-U_STABLE const char* U_EXPORT2
+U_CAPI const char* U_EXPORT2
 uenum_next(UEnumeration* en,
            int32_t* resultLength,
            UErrorCode* status);
@@ -153,10 +154,10 @@ uenum_next(UEnumeration* en,
  * to start at the first element.
  * @param en the iterator object
  * @param status the error code, set to U_ENUM_OUT_OF_SYNC_ERROR if
- *               the iterator is out of sync with its service.
+ *               the iterator is out of sync with its service.  
  * @stable ICU 2.2
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uenum_reset(UEnumeration* en, UErrorCode* status);
 
 #if U_SHOW_CPLUSPLUS_API
@@ -170,7 +171,7 @@ uenum_reset(UEnumeration* en, UErrorCode* status);
  * @return a UEnumeration wrapping the adopted StringEnumeration.
  * @stable ICU 4.2
  */
-U_STABLE UEnumeration* U_EXPORT2
+U_CAPI UEnumeration* U_EXPORT2
 uenum_openFromStringEnumeration(icu::StringEnumeration* adopted, UErrorCode* ec);
 
 #endif
@@ -186,7 +187,7 @@ uenum_openFromStringEnumeration(icu::StringEnumeration* adopted, UErrorCode* ec)
  * @see uenum_close
  * @stable ICU 50
  */
-U_STABLE UEnumeration* U_EXPORT2
+U_CAPI UEnumeration* U_EXPORT2
 uenum_openUCharStringsEnumeration(const UChar* const strings[], int32_t count,
                                  UErrorCode* ec);
 
@@ -201,7 +202,7 @@ uenum_openUCharStringsEnumeration(const UChar* const strings[], int32_t count,
  * @see uenum_close
  * @stable ICU 50
  */
-U_STABLE UEnumeration* U_EXPORT2
+U_CAPI UEnumeration* U_EXPORT2
 uenum_openCharStringsEnumeration(const char* const strings[], int32_t count,
                                  UErrorCode* ec);
 

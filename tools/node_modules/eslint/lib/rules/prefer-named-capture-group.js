@@ -27,13 +27,13 @@ const parser = new regexpp.RegExpParser();
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "enforce using named capture group in regular expression",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-named-capture-group"
         },

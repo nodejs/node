@@ -18,11 +18,10 @@ extern class JSFinalizationRegistry extends JSObject {
   flags: SmiTagged<FinalizationRegistryFlags>;
 }
 
-@generateCppClass
 extern class WeakCell extends HeapObject {
   finalization_registry: Undefined|JSFinalizationRegistry;
   target: Undefined|JSReceiver;
-  unregister_token: JSAny;
+  unregister_token: Undefined|JSReceiver;
   holdings: JSAny;
 
   // For storing doubly linked lists of WeakCells in JSFinalizationRegistry's
@@ -40,7 +39,4 @@ extern class WeakCell extends HeapObject {
   key_list_next: Undefined|WeakCell;
 }
 
-@generateCppClass
-extern class JSWeakRef extends JSObject {
-  target: Undefined|JSReceiver;
-}
+extern class JSWeakRef extends JSObject { target: Undefined|JSReceiver; }

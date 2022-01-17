@@ -31,7 +31,7 @@
  * Does the data look like a collation binary?
  * @internal
  */
-U_INTERNAL UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 ucol_looksLikeCollationBinary(const UDataSwapper *ds,
                               const void *inData, int32_t length);
 

@@ -20,7 +20,7 @@
 //
 //  6/20/97      helena        Java class name change.
 //  6/23/97      helena        Added comments to make code more readable.
-//  6/26/98      erm           Canged to use byte arrays instead of UnicodeString
+//  6/26/98      erm           Changed to use byte arrays instead of UnicodeString
 //  7/31/98      erm           hashCode: minimum inc should be 2 not 1,
 //                             Cleaned up operator=
 // 07/12/99      helena        HPUX 11 CC port.
@@ -137,7 +137,7 @@ CollationKey::setToBogus()
     return *this;
 }
 
-UBool
+bool
 CollationKey::operator==(const CollationKey& source) const
 {
     return getLength() == source.getLength() &&
@@ -278,7 +278,7 @@ CollationKey::hashCode() const
 U_NAMESPACE_END
 
 U_CAPI int32_t U_EXPORT2
-ucol_keyHashCode(const uint8_t *key,
+ucol_keyHashCode(const uint8_t *key, 
                        int32_t  length)
 {
     return icu::computeHashCode(key, length);

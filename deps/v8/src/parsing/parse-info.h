@@ -9,7 +9,6 @@
 #include <memory>
 #include <vector>
 
-#include "include/v8.h"
 #include "src/base/bit-field.h"
 #include "src/base/export-template.h"
 #include "src/base/logging.h"
@@ -31,7 +30,7 @@ class AccountingAllocator;
 class AstRawString;
 class AstStringConstants;
 class AstValueFactory;
-class CompilerDispatcher;
+class LazyCompileDispatcher;
 class DeclarationScope;
 class FunctionLiteral;
 class RuntimeCallStats;
@@ -60,14 +59,9 @@ class Zone;
   V(might_always_opt, bool, 1, _)                        \
   V(allow_natives_syntax, bool, 1, _)                    \
   V(allow_lazy_compile, bool, 1, _)                      \
-  V(allow_harmony_dynamic_import, bool, 1, _)            \
-  V(allow_harmony_import_meta, bool, 1, _)               \
-  V(allow_harmony_private_methods, bool, 1, _)           \
-  V(is_oneshot_iife, bool, 1, _)                         \
   V(collect_source_positions, bool, 1, _)                \
   V(allow_harmony_top_level_await, bool, 1, _)           \
-  V(is_repl_mode, bool, 1, _)                            \
-  V(allow_harmony_logical_assignment, bool, 1, _)
+  V(is_repl_mode, bool, 1, _)
 
 class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
  public:
@@ -75,7 +69,8 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
   static UnoptimizedCompileFlags ForToplevelCompile(Isolate* isolate,
                                                     bool is_user_javascript,
                                                     LanguageMode language_mode,
-                                                    REPLMode repl_mode);
+                                                    REPLMode repl_mode,
+                                                    ScriptType type, bool lazy);
 
   // Set-up flags for a compiling a particular function (either a lazy compile
   // or a recompile).
@@ -138,7 +133,8 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
   void SetFlagsForToplevelCompile(bool is_collecting_type_profile,
                                   bool is_user_javascript,
                                   LanguageMode language_mode,
-                                  REPLMode repl_mode);
+                                  REPLMode repl_mode, ScriptType type,
+                                  bool lazy);
   void SetFlagsForFunctionFromScript(Script script);
 
   uint32_t flags_;
@@ -158,8 +154,8 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileState {
 
   class ParallelTasks {
    public:
-    explicit ParallelTasks(CompilerDispatcher* compiler_dispatcher)
-        : dispatcher_(compiler_dispatcher) {
+    explicit ParallelTasks(LazyCompileDispatcher* lazy_compile_dispatcher)
+        : dispatcher_(lazy_compile_dispatcher) {
       DCHECK_NOT_NULL(dispatcher_);
     }
 
@@ -172,10 +168,10 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileState {
     EnqueuedJobsIterator begin() { return enqueued_jobs_.begin(); }
     EnqueuedJobsIterator end() { return enqueued_jobs_.end(); }
 
-    CompilerDispatcher* dispatcher() { return dispatcher_; }
+    LazyCompileDispatcher* dispatcher() { return dispatcher_; }
 
    private:
-    CompilerDispatcher* dispatcher_;
+    LazyCompileDispatcher* dispatcher_;
     std::forward_list<std::pair<FunctionLiteral*, uintptr_t>> enqueued_jobs_;
   };
 
@@ -217,9 +213,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ~ParseInfo();
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<Script> CreateScript(LocalIsolate* isolate, Handle<String> source,
+  Handle<Script> CreateScript(IsolateT* isolate, Handle<String> source,
                               MaybeHandle<FixedArray> maybe_wrapped_arguments,
                               ScriptOriginOptions origin_options,
                               NativesFlag natives = NOT_NATIVES_CODE);
@@ -259,8 +255,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
   // Accessor methods for output flags.
   bool allow_eval_cache() const { return allow_eval_cache_; }
   void set_allow_eval_cache(bool value) { allow_eval_cache_ = value; }
+
+#if V8_ENABLE_WEBASSEMBLY
   bool contains_asm_module() const { return contains_asm_module_; }
   void set_contains_asm_module(bool value) { contains_asm_module_ = value; }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   LanguageMode language_mode() const { return language_mode_; }
   void set_language_mode(LanguageMode value) { language_mode_ = value; }
 
@@ -352,7 +352,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
   bool allow_eval_cache_ : 1;
+#if V8_ENABLE_WEBASSEMBLY
   bool contains_asm_module_ : 1;
+#endif  // V8_ENABLE_WEBASSEMBLY
   LanguageMode language_mode_ : 1;
 };
 

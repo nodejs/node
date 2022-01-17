@@ -4,14 +4,13 @@
 
 #include <tuple>
 
-#include "src/init/v8.h"
-
 #include "src/api/api-inl.h"
 #include "src/base/overflowing-math.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/init/v8.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -1722,18 +1721,20 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
 
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-  BytecodeArrayIterator iterator(bytecode_array);
+  {
+    BytecodeArrayIterator iterator(bytecode_array);
 
-  bool found_16bit_constant_jump = false;
-  while (!iterator.done()) {
-    if (iterator.current_bytecode() == Bytecode::kJumpConstant &&
-        iterator.current_operand_scale() == OperandScale::kDouble) {
-      found_16bit_constant_jump = true;
-      break;
+    bool found_16bit_constant_jump = false;
+    while (!iterator.done()) {
+      if (iterator.current_bytecode() == Bytecode::kJumpConstant &&
+          iterator.current_operand_scale() == OperandScale::kDouble) {
+        found_16bit_constant_jump = true;
+        break;
+      }
+      iterator.Advance();
     }
-    iterator.Advance();
+    CHECK(found_16bit_constant_jump);
   }
-  CHECK(found_16bit_constant_jump);
 
   InterpreterTester tester(isolate, bytecode_array, metadata);
   auto callable = tester.GetCallable<>();
@@ -1766,19 +1767,20 @@ TEST(InterpreterJumpWith32BitOperand) {
 
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+  {
+    BytecodeArrayIterator iterator(bytecode_array);
 
-  BytecodeArrayIterator iterator(bytecode_array);
-
-  bool found_32bit_jump = false;
-  while (!iterator.done()) {
-    if (iterator.current_bytecode() == Bytecode::kJump &&
-        iterator.current_operand_scale() == OperandScale::kQuadruple) {
-      found_32bit_jump = true;
-      break;
+    bool found_32bit_jump = false;
+    while (!iterator.done()) {
+      if (iterator.current_bytecode() == Bytecode::kJump &&
+          iterator.current_operand_scale() == OperandScale::kQuadruple) {
+        found_32bit_jump = true;
+        break;
+      }
+      iterator.Advance();
     }
-    iterator.Advance();
+    CHECK(found_32bit_jump);
   }
-  CHECK(found_32bit_jump);
 
   InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<>();
@@ -2269,7 +2271,7 @@ TEST(InterpreterInstanceOf) {
   Zone* zone = handles.main_zone();
   Factory* factory = isolate->factory();
   Handle<i::String> name = factory->NewStringFromAsciiChecked("cons");
-  Handle<i::JSFunction> func = factory->NewFunctionForTest(name);
+  Handle<i::JSFunction> func = factory->NewFunctionForTesting(name);
   Handle<i::JSObject> instance = factory->NewJSObject(func);
   Handle<i::Object> other = factory->NewNumber(3.3333);
   Handle<i::Object> cases[] = {Handle<i::Object>::cast(instance), other};
@@ -2352,7 +2354,6 @@ TEST(InterpreterUnaryNot) {
     bool expected_value = ((i & 1) == 1);
     BytecodeArrayBuilder builder(zone, 1, 0);
 
-    Register r0(0);
     builder.LoadFalse();
     for (size_t j = 0; j < i; j++) {
       builder.LogicalNot(ToBooleanMode::kAlreadyBoolean);
@@ -2390,7 +2391,6 @@ TEST(InterpreterUnaryNotNonBoolean) {
   for (size_t i = 0; i < arraysize(object_type_tuples); i++) {
     BytecodeArrayBuilder builder(zone, 1, 0);
 
-    Register r0(0);
     LoadLiteralForTest(&builder, object_type_tuples[i].first);
     builder.LogicalNot(ToBooleanMode::kConvertToBoolean).Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -2450,27 +2450,6 @@ TEST(InterpreterCallRuntime) {
 
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(55));
-}
-
-TEST(InterpreterInvokeIntrinsic) {
-  HandleAndZoneScope handles;
-  Isolate* isolate = handles.main_isolate();
-  Zone* zone = handles.main_zone();
-
-  BytecodeArrayBuilder builder(zone, 1, 2);
-
-  builder.LoadLiteral(Smi::FromInt(15))
-      .StoreAccumulatorInRegister(Register(0))
-      .CallRuntime(Runtime::kInlineIsArray, Register(0))
-      .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-
-  InterpreterTester tester(isolate, bytecode_array);
-  auto callable = tester.GetCallable<>();
-
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK(return_val->IsBoolean());
-  CHECK_EQ(return_val->BooleanValue(isolate), false);
 }
 
 TEST(InterpreterFunctionLiteral) {
@@ -5053,6 +5032,9 @@ TEST(InterpreterGenerators) {
 
 #ifndef V8_TARGET_ARCH_ARM
 TEST(InterpreterWithNativeStack) {
+  // "Always sparkplug" messes with this test.
+  if (FLAG_always_sparkplug) return;
+
   i::FLAG_interpreted_frames_native_stack = true;
 
   HandleAndZoneScope handles;
@@ -5084,24 +5066,24 @@ TEST(InterpreterGetBytecodeHandler) {
   Code wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kSingle);
 
-  CHECK_EQ(wide_handler.builtin_index(), Builtins::kWideHandler);
+  CHECK_EQ(wide_handler.builtin_id(), Builtin::kWideHandler);
 
   Code add_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kSingle);
 
-  CHECK_EQ(add_handler.builtin_index(), Builtins::kAddHandler);
+  CHECK_EQ(add_handler.builtin_id(), Builtin::kAddHandler);
 
   // Test that double-width bytecode handlers deserializer correctly, including
   // an illegal bytecode handler since there is no Wide.Wide handler.
   Code wide_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kDouble);
 
-  CHECK_EQ(wide_wide_handler.builtin_index(), Builtins::kIllegalHandler);
+  CHECK_EQ(wide_wide_handler.builtin_id(), Builtin::kIllegalHandler);
 
   Code add_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kDouble);
 
-  CHECK_EQ(add_wide_handler.builtin_index(), Builtins::kAddWideHandler);
+  CHECK_EQ(add_wide_handler.builtin_id(), Builtin::kAddWideHandler);
 }
 
 TEST(InterpreterCollectSourcePositions) {
@@ -5120,7 +5102,7 @@ TEST(InterpreterCollectSourcePositions) {
 
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   Compiler::CollectSourcePositions(isolate, sfi);
@@ -5146,7 +5128,7 @@ TEST(InterpreterCollectSourcePositions_StackOverflow) {
 
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   // Make the stack limit the same as the current position so recompilation
@@ -5186,7 +5168,7 @@ TEST(InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   // This is the bytecode for the top-level iife.
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {
@@ -5224,7 +5206,7 @@ TEST(InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   // This is the bytecode for the top-level iife.
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {
@@ -5282,7 +5264,7 @@ TEST(InterpreterCollectSourcePositions_GenerateStackTrace) {
 
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {

@@ -23,7 +23,7 @@ const socketName = 'A'.repeat(101 - socketDir.length);
 assert.ok(path.resolve(socketDir, socketName).length > 100,
           'absolute socket path should be longer than 100 bytes');
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   // Ensure that the worker exits peacefully.
   tmpdir.refresh();
   process.chdir(tmpdir.path);

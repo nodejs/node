@@ -5,10 +5,13 @@ const child_process = require('child_process');
 const fs = require('fs');
 const stream = require('stream');
 
-if (!common.isLinux)
+if (!common.isLinux) {
   common.skip('The fs watch limit is OS-dependent');
-if (!common.enoughTestCpu)
-  common.skip('This test is resource-intensive');
+}
+
+if (process.config.variables.arm_version === '7') {
+  common.skip('Too slow for armv7 bots');
+}
 
 try {
   // Ensure inotify limit is low enough for the test to actually exercise the
@@ -37,7 +40,7 @@ function spawnProcesses() {
       [ '-e',
         `process.chdir(${JSON.stringify(__dirname)});
         for (const file of fs.readdirSync('.'))
-          fs.watch(file, () => {});`
+          fs.watch(file, () => {});`,
       ], { stdio: ['inherit', 'inherit', 'pipe'] });
     proc.stderr.pipe(gatherStderr);
     processes.push(proc);

@@ -2,7 +2,7 @@
  * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2017, Oracle and/or its affiliates.  All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -531,6 +531,25 @@ static int test_bn_output(int n)
     return 1;
 }
 
+static int test_skip_one(void)
+{
+    return TEST_skip("skip test");
+}
+
+static int test_skip_many(int n)
+{
+    return TEST_skip("skip tests: %d", n);
+}
+
+static int test_skip_null(void)
+{
+    /*
+     * This is not a recommended way of skipping a test, a reason or
+     * description should be included.
+     */
+    return TEST_skip(NULL);
+}
+
 int setup_tests(void)
 {
     ADD_TEST(test_int);
@@ -553,5 +572,8 @@ int setup_tests(void)
     ADD_TEST(test_single_eval);
     ADD_TEST(test_output);
     ADD_ALL_TESTS(test_bn_output, OSSL_NELEM(bn_output_tests));
+    ADD_TEST(test_skip_one);
+    ADD_TEST(test_skip_null);
+    ADD_ALL_TESTS(test_skip_many, 3);
     return 1;
 }

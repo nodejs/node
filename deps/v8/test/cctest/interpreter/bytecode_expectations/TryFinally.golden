@@ -12,25 +12,25 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 45
+bytecode array length: 37
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
                 B(Mov), R(context), R(3),
   /*   51 S> */ B(LdaSmi), I8(2),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaSmi), I8(-1),
-                B(Star), R(2),
-                B(Star), R(1),
-                B(Jump), U8(7),
-                B(Star), R(2),
+                B(Star2),
+                B(Star1),
+                B(Jump), U8(5),
+                B(Star2),
                 B(LdaZero),
-                B(Star), R(1),
+                B(Star1),
                 B(LdaTheHole),
   /*   53 E> */ B(SetPendingMessage),
-                B(Star), R(3),
+                B(Star3),
   /*   70 S> */ B(LdaSmi), I8(3),
-                B(Star), R(0),
+                B(Star0),
                 B(Ldar), R(3),
   /*   72 E> */ B(SetPendingMessage),
                 B(LdaZero),
@@ -44,7 +44,7 @@ bytecodes: [
 constant pool: [
 ]
 handlers: [
-  [7, 11, 19],
+  [6, 9, 15],
 ]
 
 ---
@@ -54,37 +54,37 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 69
+bytecode array length: 58
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
                 B(Mov), R(context), R(3),
                 B(Mov), R(context), R(4),
   /*   51 S> */ B(LdaSmi), I8(2),
-                B(Star), R(0),
-                B(Jump), U8(21),
-                B(Star), R(5),
+                B(Star0),
+                B(Jump), U8(18),
+                B(Star5),
   /*   53 E> */ B(CreateCatchContext), R(5), U8(0),
-                B(Star), R(4),
+                B(Star4),
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Ldar), R(4),
                 B(PushContext), R(5),
   /*   71 S> */ B(LdaSmi), I8(20),
-                B(Star), R(0),
+                B(Star0),
                 B(PopContext), R(5),
                 B(LdaSmi), I8(-1),
-                B(Star), R(2),
-                B(Star), R(1),
-                B(Jump), U8(7),
-                B(Star), R(2),
+                B(Star2),
+                B(Star1),
+                B(Jump), U8(5),
+                B(Star2),
                 B(LdaZero),
-                B(Star), R(1),
+                B(Star1),
                 B(LdaTheHole),
   /*   73 E> */ B(SetPendingMessage),
-                B(Star), R(3),
+                B(Star3),
   /*   90 S> */ B(LdaSmi), I8(3),
-                B(Star), R(0),
+                B(Star0),
                 B(Ldar), R(3),
   /*   92 E> */ B(SetPendingMessage),
                 B(LdaZero),
@@ -99,8 +99,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [7, 35, 43],
-  [10, 14, 16],
+  [6, 30, 36],
+  [9, 12, 14],
 ]
 
 ---
@@ -111,47 +111,47 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 89
+bytecode array length: 76
 bytecodes: [
                 B(Mov), R(context), R(3),
                 B(Mov), R(context), R(4),
                 B(Mov), R(context), R(5),
   /*   55 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
-                B(Jump), U8(21),
-                B(Star), R(6),
+                B(Star0),
+                B(Jump), U8(18),
+                B(Star6),
   /*   57 E> */ B(CreateCatchContext), R(6), U8(0),
-                B(Star), R(5),
+                B(Star5),
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Ldar), R(5),
                 B(PushContext), R(6),
   /*   74 S> */ B(LdaSmi), I8(2),
-                B(Star), R(0),
+                B(Star0),
                 B(PopContext), R(6),
-                B(Jump), U8(21),
-                B(Star), R(5),
+                B(Jump), U8(18),
+                B(Star5),
   /*   76 E> */ B(CreateCatchContext), R(5), U8(1),
-                B(Star), R(4),
+                B(Star4),
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Ldar), R(4),
                 B(PushContext), R(5),
   /*   95 S> */ B(LdaSmi), I8(20),
-                B(Star), R(0),
+                B(Star0),
                 B(PopContext), R(5),
                 B(LdaSmi), I8(-1),
-                B(Star), R(2),
-                B(Star), R(1),
-                B(Jump), U8(7),
-                B(Star), R(2),
+                B(Star2),
+                B(Star1),
+                B(Jump), U8(5),
+                B(Star2),
                 B(LdaZero),
-                B(Star), R(1),
+                B(Star1),
                 B(LdaTheHole),
   /*   97 E> */ B(SetPendingMessage),
-                B(Star), R(3),
+                B(Star3),
   /*  114 S> */ B(LdaSmi), I8(3),
-                B(Star), R(0),
+                B(Star0),
                 B(Ldar), R(3),
   /*  116 E> */ B(SetPendingMessage),
                 B(LdaZero),
@@ -167,8 +167,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [3, 55, 63],
-  [6, 34, 36],
-  [9, 13, 15],
+  [3, 48, 54],
+  [6, 30, 32],
+  [9, 12, 14],
 ]
 

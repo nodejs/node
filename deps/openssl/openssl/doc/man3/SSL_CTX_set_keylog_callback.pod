@@ -29,7 +29,7 @@ The key logging callback is called with two items: the B<ssl> object associated
 with the connection, and B<line>, a string containing the key material in the
 format used by NSS for its B<SSLKEYLOGFILE> debugging output. To recreate that
 file, the key logging callback should log B<line>, followed by a newline.
-B<line> will always be a NULL-terminated string.
+B<line> will always be a NUL-terminated string.
 
 =head1 RETURN VALUES
 
@@ -42,9 +42,9 @@ L<ssl(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

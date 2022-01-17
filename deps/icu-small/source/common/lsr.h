@@ -1,5 +1,5 @@
 // © 2019 and later: Unicode, Inc. and others.
-// License & terms of use: http://www.unicode.org/copyright.html#License
+// License & terms of use: http://www.unicode.org/copyright.html
 
 // lsr.h
 // created: 2019may08 Markus W. Scherer
@@ -65,9 +65,9 @@ struct LSR final : public UMemory {
     static int32_t indexForRegion(const char *region);
 
     UBool isEquivalentTo(const LSR &other) const;
-    UBool operator==(const LSR &other) const;
+    bool operator==(const LSR &other) const;
 
-    inline UBool operator!=(const LSR &other) const {
+    inline bool operator!=(const LSR &other) const {
         return !operator==(other);
     }
 

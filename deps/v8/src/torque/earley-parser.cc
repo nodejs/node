@@ -18,11 +18,12 @@ namespace torque {
 namespace {
 
 struct LineAndColumnTracker {
-  LineAndColumn previous{0, 0};
-  LineAndColumn current{0, 0};
+  LineAndColumn previous{0, 0, 0};
+  LineAndColumn current{0, 0, 0};
 
   void Advance(InputPosition from, InputPosition to) {
     previous = current;
+    current.offset += std::distance(from, to);
     while (from != to) {
       if (*from == '\n') {
         current.line += 1;
@@ -187,7 +188,8 @@ const Item* RunEarleyAlgorithm(
   // Worklist for items at the next position.
   std::vector<Item> future_items;
   CurrentSourcePosition::Scope source_position(
-      SourcePosition{CurrentSourceFile::Get(), {0, 0}, {0, 0}});
+      SourcePosition{CurrentSourceFile::Get(), LineAndColumn::Invalid(),
+                     LineAndColumn::Invalid()});
   std::vector<const Item*> completed_items;
   std::unordered_map<std::pair<size_t, Symbol*>, std::set<const Item*>,
                      base::hash<std::pair<size_t, Symbol*>>>

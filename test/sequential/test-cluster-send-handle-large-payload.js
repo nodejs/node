@@ -7,7 +7,7 @@ const net = require('net');
 
 const payload = 'a'.repeat(800004);
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   const server = net.createServer();
 
   server.on('connection', common.mustCall((socket) => { socket.unref(); }));
@@ -33,7 +33,7 @@ if (cluster.isMaster) {
     assert.strictEqual(payload, received);
     assert(handle instanceof net.Socket);
 
-    // On macOS, the parent process might not receive a message if it is sent
+    // On macOS, the primary process might not receive a message if it is sent
     // to soon, and then subsequent messages are also sometimes not received.
     //
     // (Is this a bug or expected operating system behavior like the way a file

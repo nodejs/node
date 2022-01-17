@@ -4,6 +4,8 @@
 
 #include "src/snapshot/embedded/platform-embedded-file-writer-aix.h"
 
+#include "src/objects/code.h"
+
 namespace v8 {
 namespace internal {
 
@@ -27,7 +29,7 @@ const char* DirectiveAsString(DataDirective directive) {
 }  // namespace
 
 void PlatformEmbeddedFileWriterAIX::SectionText() {
-  fprintf(fp_, ".csect .text[PR]\n");
+  fprintf(fp_, ".csect [GL], 5\n");
 }
 
 void PlatformEmbeddedFileWriterAIX::SectionData() {
@@ -57,14 +59,24 @@ void PlatformEmbeddedFileWriterAIX::DeclarePointerToSymbol(const char* name,
 }
 
 void PlatformEmbeddedFileWriterAIX::DeclareSymbolGlobal(const char* name) {
-  fprintf(fp_, ".globl %s\n", name);
+  // These symbols are not visible outside of the final binary, this allows for
+  // reduced binary size, and less work for the dynamic linker.
+  fprintf(fp_, ".globl %s, hidden\n", name);
 }
 
 void PlatformEmbeddedFileWriterAIX::AlignToCodeAlignment() {
+#if V8_TARGET_ARCH_X64
+  // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
+  STATIC_ASSERT((1 << 6) >= kCodeAlignment);
+  fprintf(fp_, ".align 6\n");
+#else
+  STATIC_ASSERT((1 << 5) >= kCodeAlignment);
   fprintf(fp_, ".align 5\n");
+#endif
 }
 
 void PlatformEmbeddedFileWriterAIX::AlignToDataAlignment() {
+  STATIC_ASSERT((1 << 3) >= Code::kMetadataAlignment);
   fprintf(fp_, ".align 3\n");
 }
 
@@ -73,7 +85,9 @@ void PlatformEmbeddedFileWriterAIX::Comment(const char* string) {
 }
 
 void PlatformEmbeddedFileWriterAIX::DeclareLabel(const char* name) {
-  DeclareSymbolGlobal(name);
+  // .global is required on AIX, if the label is used/referenced in another file
+  // later to be linked.
+  fprintf(fp_, ".globl %s\n", name);
   fprintf(fp_, "%s:\n", name);
 }
 
@@ -86,7 +100,9 @@ void PlatformEmbeddedFileWriterAIX::SourceInfo(int fileid, const char* filename,
 void PlatformEmbeddedFileWriterAIX::DeclareFunctionBegin(const char* name,
                                                          uint32_t size) {
   Newline();
-  DeclareSymbolGlobal(name);
+  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
+    DeclareSymbolGlobal(name);
+  }
   fprintf(fp_, ".csect %s[DS]\n", name);  // function descriptor
   fprintf(fp_, "%s:\n", name);
   fprintf(fp_, ".llong .%s, 0, 0\n", name);

@@ -57,11 +57,11 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
   // TODO(jkummerow): support dictionary properties?
   if (map->is_dictionary_map()) return false;
   Handle<DescriptorArray> descs =
-      Handle<DescriptorArray>(map->instance_descriptors(), isolate);
+      Handle<DescriptorArray>(map->instance_descriptors(isolate), isolate);
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     Handle<Object> value;
-    if (details.location() == kField) {
+    if (details.location() == PropertyLocation::kField) {
       if (details.kind() == kData) {
         value = JSObject::FastPropertyAt(Handle<JSObject>::cast(obj),
                                          details.representation(),
@@ -73,7 +73,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
       }
 
     } else {
-      DCHECK_EQ(kDescriptor, details.location());
+      DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
       if (details.kind() == kData) {
         value = handle(descs->GetStrongValue(i), isolate);
       } else {

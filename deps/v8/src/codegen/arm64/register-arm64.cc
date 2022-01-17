@@ -136,6 +136,10 @@ VectorFormat ScalarFormatFromLaneSize(int laneSize) {
   }
 }
 
+VectorFormat VectorFormatFillQ(int laneSize) {
+  return VectorFormatFillQ(ScalarFormatFromLaneSize(laneSize));
+}
+
 VectorFormat ScalarFormatFromFormat(VectorFormat vform) {
   return ScalarFormatFromLaneSize(LaneSizeInBitsFromFormat(vform));
 }

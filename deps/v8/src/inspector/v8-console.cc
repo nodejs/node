@@ -4,6 +4,11 @@
 
 #include "src/inspector/v8-console.h"
 
+#include "include/v8-container.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
+#include "include/v8-inspector.h"
+#include "include/v8-microtask-queue.h"
 #include "src/base/macros.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
@@ -16,8 +21,6 @@
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
-
-#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -42,6 +45,9 @@ class ConsoleHelper {
         m_inspector(inspector),
         m_contextId(InspectedContext::contextId(m_context)),
         m_groupId(m_inspector->contextGroupId(m_contextId)) {}
+
+  ConsoleHelper(const ConsoleHelper&) = delete;
+  ConsoleHelper& operator=(const ConsoleHelper&) = delete;
 
   int contextId() const { return m_contextId; }
   int groupId() const { return m_groupId; }
@@ -71,6 +77,7 @@ class ConsoleHelper {
   void reportCallWithDefaultArgument(ConsoleAPIType type,
                                      const String16& message) {
     std::vector<v8::Local<v8::Value>> arguments;
+    arguments.reserve(m_info.Length());
     for (int i = 0; i < m_info.Length(); ++i) arguments.push_back(m_info[i]);
     if (!m_info.Length()) arguments.push_back(toV8String(m_isolate, message));
     reportCall(type, arguments);
@@ -156,18 +163,11 @@ class ConsoleHelper {
   V8InspectorImpl* m_inspector = nullptr;
   int m_contextId;
   int m_groupId;
-
-  DISALLOW_COPY_AND_ASSIGN(ConsoleHelper);
 };
-
-void returnDataCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(info.Data());
-}
 
 void createBoundFunctionProperty(
     v8::Local<v8::Context> context, v8::Local<v8::Object> console,
     v8::Local<v8::Value> data, const char* name, v8::FunctionCallback callback,
-    const char* description = nullptr,
     v8::SideEffectType side_effect_type = v8::SideEffectType::kHasSideEffect) {
   v8::Local<v8::String> funcName =
       toV8StringInternalized(context->GetIsolate(), name);
@@ -177,18 +177,6 @@ void createBoundFunctionProperty(
            .ToLocal(&func))
     return;
   func->SetName(funcName);
-  if (description) {
-    v8::Local<v8::String> returnValue =
-        toV8String(context->GetIsolate(), description);
-    v8::Local<v8::Function> toStringFunction;
-    if (v8::Function::New(context, returnDataCallback, returnValue, 0,
-                          v8::ConstructorBehavior::kThrow,
-                          v8::SideEffectType::kHasNoSideEffect)
-            .ToLocal(&toStringFunction))
-      createDataProperty(context, func, toV8StringInternalized(
-                                            context->GetIsolate(), "toString"),
-                         toStringFunction);
-  }
   createDataProperty(context, console, funcName, func);
 }
 
@@ -291,7 +279,7 @@ static String16 identifierFromTitleOrStackTrace(
   String16 identifier;
   if (title.isEmpty()) {
     std::unique_ptr<V8StackTraceImpl> stackTrace =
-        V8StackTraceImpl::capture(inspector->debugger(), helper.groupId(), 1);
+        V8StackTraceImpl::capture(inspector->debugger(), 1);
     if (stackTrace && !stackTrace->isEmpty()) {
       identifier = toString16(stackTrace->topSourceURL()) + ":" +
                    String16::fromInteger(stackTrace->topLineNumber());
@@ -496,11 +484,11 @@ void V8Console::valuesCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   info.GetReturnValue().Set(values);
 }
 
-static void setFunctionBreakpoint(
-    ConsoleHelper& helper,  // NOLINT(runtime/references)
-    int sessionId, v8::Local<v8::Function> function,
-    V8DebuggerAgentImpl::BreakpointSource source,
-    v8::Local<v8::String> condition, bool enable) {
+static void setFunctionBreakpoint(ConsoleHelper& helper, int sessionId,
+                                  v8::Local<v8::Function> function,
+                                  V8DebuggerAgentImpl::BreakpointSource source,
+                                  v8::Local<v8::String> condition,
+                                  bool enable) {
   V8InspectorSessionImpl* session = helper.session(sessionId);
   if (session == nullptr) return;
   if (!session->debuggerAgent()->enabled()) return;
@@ -544,7 +532,7 @@ void V8Console::monitorFunctionCallback(
   v8::Local<v8::Function> function;
   if (!helper.firstArgAsFunction().ToLocal(&function)) return;
   v8::Local<v8::Value> name = function->GetName();
-  if (!name->IsString() || !v8::Local<v8::String>::Cast(name)->Length())
+  if (!name->IsString() || !name.As<v8::String>()->Length())
     name = function->GetInferredName();
   String16 functionName =
       toProtocolStringWithTypeCheck(info.GetIsolate(), name);
@@ -555,8 +543,9 @@ void V8Console::monitorFunctionCallback(
   else
     builder.append(functionName);
   builder.append(
-      " called\" + (arguments.length > 0 ? \" with arguments: \" + "
-      "Array.prototype.join.call(arguments, \", \") : \"\")) && false");
+      " called\" + (typeof arguments !== \"undefined\" && arguments.length > 0 "
+      "? \" with arguments: \" + Array.prototype.join.call(arguments, \", \") "
+      ": \"\")) && false");
   setFunctionBreakpoint(helper, sessionId, function,
                         V8DebuggerAgentImpl::MonitorCommandBreakpointSource,
                         toV8String(info.GetIsolate(), builder.toString()),
@@ -605,8 +594,8 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
     hints->setBoolean("queryObjects", true);
   }
   if (V8InspectorSessionImpl* session = helper.session(sessionId)) {
-    session->runtimeAgent()->inspect(std::move(wrappedObject),
-                                     std::move(hints));
+    session->runtimeAgent()->inspect(std::move(wrappedObject), std::move(hints),
+                                     helper.contextId());
   }
 }
 
@@ -694,80 +683,62 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
   *static_cast<CommandLineAPIData*>(data->GetBackingStore()->Data()) =
       CommandLineAPIData(this, sessionId);
   createBoundFunctionProperty(context, commandLineAPI, data, "dir",
-                              &V8Console::call<&V8Console::Dir>,
-                              "function dir(value) { [Command Line API] }");
+                              &V8Console::call<&V8Console::Dir>);
   createBoundFunctionProperty(context, commandLineAPI, data, "dirxml",
-                              &V8Console::call<&V8Console::DirXml>,
-                              "function dirxml(value) { [Command Line API] }");
+                              &V8Console::call<&V8Console::DirXml>);
   createBoundFunctionProperty(context, commandLineAPI, data, "profile",
-                              &V8Console::call<&V8Console::Profile>,
-                              "function profile(title) { [Command Line API] }");
-  createBoundFunctionProperty(
-      context, commandLineAPI, data, "profileEnd",
-      &V8Console::call<&V8Console::ProfileEnd>,
-      "function profileEnd(title) { [Command Line API] }");
+                              &V8Console::call<&V8Console::Profile>);
+  createBoundFunctionProperty(context, commandLineAPI, data, "profileEnd",
+                              &V8Console::call<&V8Console::ProfileEnd>);
   createBoundFunctionProperty(context, commandLineAPI, data, "clear",
-                              &V8Console::call<&V8Console::Clear>,
-                              "function clear() { [Command Line API] }");
-  createBoundFunctionProperty(
-      context, commandLineAPI, data, "table",
-      &V8Console::call<&V8Console::Table>,
-      "function table(data, [columns]) { [Command Line API] }");
+                              &V8Console::call<&V8Console::Clear>);
+  createBoundFunctionProperty(context, commandLineAPI, data, "table",
+                              &V8Console::call<&V8Console::Table>);
 
   createBoundFunctionProperty(context, commandLineAPI, data, "keys",
                               &V8Console::call<&V8Console::keysCallback>,
-                              "function keys(object) { [Command Line API] }",
                               v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "values",
                               &V8Console::call<&V8Console::valuesCallback>,
-                              "function values(object) { [Command Line API] }",
                               v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "debug",
-      &V8Console::call<&V8Console::debugFunctionCallback>,
-      "function debug(function, condition) { [Command Line API] }");
+      &V8Console::call<&V8Console::debugFunctionCallback>);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "undebug",
-      &V8Console::call<&V8Console::undebugFunctionCallback>,
-      "function undebug(function) { [Command Line API] }");
+      &V8Console::call<&V8Console::undebugFunctionCallback>);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "monitor",
-      &V8Console::call<&V8Console::monitorFunctionCallback>,
-      "function monitor(function) { [Command Line API] }");
+      &V8Console::call<&V8Console::monitorFunctionCallback>);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "unmonitor",
-      &V8Console::call<&V8Console::unmonitorFunctionCallback>,
-      "function unmonitor(function) { [Command Line API] }");
-  createBoundFunctionProperty(
-      context, commandLineAPI, data, "inspect",
-      &V8Console::call<&V8Console::inspectCallback>,
-      "function inspect(object) { [Command Line API] }");
+      &V8Console::call<&V8Console::unmonitorFunctionCallback>);
+  createBoundFunctionProperty(context, commandLineAPI, data, "inspect",
+                              &V8Console::call<&V8Console::inspectCallback>);
   createBoundFunctionProperty(context, commandLineAPI, data, "copy",
-                              &V8Console::call<&V8Console::copyCallback>,
-                              "function copy(value) { [Command Line API] }");
+                              &V8Console::call<&V8Console::copyCallback>);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "queryObjects",
-      &V8Console::call<&V8Console::queryObjectsCallback>,
-      "function queryObjects(constructor) { [Command Line API] }");
+      &V8Console::call<&V8Console::queryObjectsCallback>);
   createBoundFunctionProperty(
       context, commandLineAPI, data, "$_",
-      &V8Console::call<&V8Console::lastEvaluationResultCallback>, nullptr,
+      &V8Console::call<&V8Console::lastEvaluationResultCallback>,
       v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$0",
                               &V8Console::call<&V8Console::inspectedObject0>,
-                              nullptr, v8::SideEffectType::kHasNoSideEffect);
+                              v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$1",
                               &V8Console::call<&V8Console::inspectedObject1>,
-                              nullptr, v8::SideEffectType::kHasNoSideEffect);
+                              v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$2",
                               &V8Console::call<&V8Console::inspectedObject2>,
-                              nullptr, v8::SideEffectType::kHasNoSideEffect);
+                              v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$3",
                               &V8Console::call<&V8Console::inspectedObject3>,
-                              nullptr, v8::SideEffectType::kHasNoSideEffect);
+                              v8::SideEffectType::kHasNoSideEffect);
   createBoundFunctionProperty(context, commandLineAPI, data, "$4",
                               &V8Console::call<&V8Console::inspectedObject4>,
-                              nullptr, v8::SideEffectType::kHasNoSideEffect);
+                              v8::SideEffectType::kHasNoSideEffect);
 
   m_inspector->client()->installAdditionalCommandLineAPI(context,
                                                          commandLineAPI);
@@ -843,7 +814,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
     if (!m_installedMethods->Add(context, name).ToLocal(&m_installedMethods))
       continue;
     if (!m_global
-             ->SetAccessor(context, v8::Local<v8::Name>::Cast(name),
+             ->SetAccessor(context, name.As<v8::Name>(),
                            CommandLineAPIScope::accessorGetterCallback,
                            CommandLineAPIScope::accessorSetterCallback,
                            m_thisReference, v8::DEFAULT, v8::DontEnum,
@@ -868,11 +839,9 @@ V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
     if (!names->Get(m_context, i).ToLocal(&name) || !name->IsName()) continue;
     if (name->IsString()) {
       v8::Local<v8::Value> descriptor;
-      bool success = m_global
-                         ->GetOwnPropertyDescriptor(
-                             m_context, v8::Local<v8::String>::Cast(name))
-                         .ToLocal(&descriptor);
-      DCHECK(success);
+      bool success =
+          m_global->GetOwnPropertyDescriptor(m_context, name.As<v8::String>())
+              .ToLocal(&descriptor);
       USE(success);
     }
   }

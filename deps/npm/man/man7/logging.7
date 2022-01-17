@@ -1,0 +1,74 @@
+.TH "LOGGING" "7" "January 2022" "" ""
+.SH "NAME"
+\fBLogging\fR \- Why, What & How we Log
+.SS Description
+.P
+The \fBnpm\fP CLI has various mechanisms for showing different levels of information back to end\-users for certain commands, configurations & environments\.
+.SS Setting Log Levels
+.SS \fBloglevel\fP
+.P
+\fBloglevel\fP is a global argument/config that can be set to determine the type of information to be displayed\.
+.P
+The default value of \fBloglevel\fP is \fB"notice"\fP but there are several levels/types of logs available, including:
+.RS 0
+.IP \(bu 2
+\fB"silent"\fP
+.IP \(bu 2
+\fB"error"\fP
+.IP \(bu 2
+\fB"warn"\fP
+.IP \(bu 2
+\fB"notice"\fP
+.IP \(bu 2
+\fB"http"\fP
+.IP \(bu 2
+\fB"timing"\fP
+.IP \(bu 2
+\fB"info"\fP
+.IP \(bu 2
+\fB"verbose"\fP
+.IP \(bu 2
+\fB"silly"\fP
+
+.RE
+.P
+All logs pertaining to a level proceeding the current setting will be shown\.
+.P
+All logs are written to a debug log, with the path to that file printed if the execution of a command fails\.
+.SS Aliases
+.P
+The log levels listed above have various corresponding aliases, including:
+.RS 0
+.IP \(bu 2
+\fB\-d\fP: \fB\-\-loglevel info\fP
+.IP \(bu 2
+\fB\-\-dd\fP: \fB\-\-loglevel verbose\fP
+.IP \(bu 2
+\fB\-\-verbose\fP: \fB\-\-loglevel verbose\fP
+.IP \(bu 2
+\fB\-\-ddd\fP: \fB\-\-loglevel silly\fP
+.IP \(bu 2
+\fB\-q\fP: \fB\-\-loglevel warn\fP
+.IP \(bu 2
+\fB\-\-quiet\fP: \fB\-\-loglevel warn\fP
+.IP \(bu 2
+\fB\-s\fP: \fB\-\-loglevel silent\fP
+.IP \(bu 2
+\fB\-\-silent\fP: \fB\-\-loglevel silent\fP
+
+.RE
+.SS \fBforeground\-scripts\fP
+.P
+The \fBnpm\fP CLI began hiding the output of lifecycle scripts for \fBnpm install\fP as of \fBv7\fP\|\. Notably, this means you will not see logs/output from packages that may be using "install scripts" to display information back to you or from your own project's scripts defined in \fBpackage\.json\fP\|\. If you'd like to change this behavior & log this output you can set \fBforeground\-scripts\fP to \fBtrue\fP\|\.
+.SS Registry Response Headers
+.SS \fBnpm\-notice\fP
+.P
+The \fBnpm\fP CLI reads from & logs any \fBnpm\-notice\fP headers that are returned from the configured registry\. This mechanism can be used by third\-party registries to provide useful information when network\-dependent requests occur\.
+.P
+This header is not cached, and will not be logged if the request is served from the cache\.
+.SS See also
+.RS 0
+.IP \(bu 2
+npm help config
+
+.RE

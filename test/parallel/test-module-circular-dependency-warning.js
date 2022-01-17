@@ -11,7 +11,7 @@ common.expectWarning({
     ["Accessing non-existent property 'Symbol(someSymbol)' " +
      'of module exports inside circular dependency'],
     ["Accessing non-existent property 'missingPropModuleExportsB' " +
-     'of module exports inside circular dependency']
+     'of module exports inside circular dependency'],
   ]
 });
 const required = require(fixtures.path('cycles', 'warning-a.js'));

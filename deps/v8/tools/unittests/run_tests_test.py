@@ -177,10 +177,23 @@ class SystemTest(unittest.TestCase):
           'sweet/bananas',
           'sweet/raspberries',
       )
-      self.assertIn('Done running sweet/bananas default: pass', result.stdout, result)
+      self.assertIn('sweet/bananas default: PASS', result.stdout, result)
       # TODO(majeski): Implement for test processors
       # self.assertIn('Total time:', result.stderr, result)
       # self.assertIn('sweet/bananas', result.stderr, result)
+      self.assertEqual(0, result.returncode, result)
+
+  def testPassHeavy(self):
+    """Test running with some tests marked heavy."""
+    with temp_base(baseroot='testroot3') as basedir:
+      result = run_tests(
+          basedir,
+          '--progress=verbose',
+          '--variants=nooptimization',
+          '-j2',
+          'sweet',
+      )
+      self.assertIn('7 tests ran', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
   def testShardedProc(self):
@@ -199,10 +212,8 @@ class SystemTest(unittest.TestCase):
         # One of the shards gets one variant of each test.
         self.assertIn('2 tests ran', result.stdout, result)
         if shard == 1:
-          self.assertIn(
-            'Done running sweet/raspberries default', result.stdout, result)
-          self.assertIn(
-            'Done running sweet/raspberries stress', result.stdout, result)
+          self.assertIn('sweet/raspberries default', result.stdout, result)
+          self.assertIn('sweet/raspberries stress', result.stdout, result)
           self.assertEqual(0, result.returncode, result)
         else:
           self.assertIn(
@@ -227,8 +238,8 @@ class SystemTest(unittest.TestCase):
         )
         # One of the shards gets one variant of each test.
         self.assertIn('Running 2 tests', result.stdout, result)
-        self.assertIn('Done running sweet/bananas', result.stdout, result)
-        self.assertIn('Done running sweet/raspberries', result.stdout, result)
+        self.assertIn('sweet/bananas', result.stdout, result)
+        self.assertIn('sweet/raspberries', result.stdout, result)
         self.assertEqual(0, result.returncode, result)
 
   def testFail(self):
@@ -241,7 +252,7 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=False,
       )
-      self.assertIn('Done running sweet/strawberries default: FAIL', result.stdout, result)
+      self.assertIn('sweet/strawberries default: FAIL', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
   def check_cleaned_json_output(
@@ -289,7 +300,7 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=False,
       )
-      self.assertIn('Done running sweet/strawberries default: FAIL', result.stdout, result)
+      self.assertIn('sweet/strawberries default: FAIL', result.stdout, result)
       # With test processors we don't count reruns as separated failures.
       # TODO(majeski): fix it?
       self.assertIn('1 tests failed', result.stdout, result)
@@ -317,9 +328,10 @@ class SystemTest(unittest.TestCase):
           'sweet',
           infra_staging=False,
       )
-      self.assertIn(
-        'Done running sweet/bananaflakes default: pass', result.stdout, result)
-      self.assertIn('All tests succeeded', result.stdout, result)
+      self.assertIn('sweet/bananaflakes default: FAIL PASS', result.stdout, result)
+      self.assertIn('=== sweet/bananaflakes (flaky) ===', result.stdout, result)
+      self.assertIn('1 tests failed', result.stdout, result)
+      self.assertIn('1 tests were flaky', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
       self.maxDiff = None
       self.check_cleaned_json_output(
@@ -337,7 +349,9 @@ class SystemTest(unittest.TestCase):
           is_msan=True, is_tsan=True, is_ubsan_vptr=True, target_cpu='x86',
           v8_enable_i18n_support=False, v8_target_cpu='x86',
           v8_enable_verify_csa=False, v8_enable_lite_mode=False,
-          v8_enable_pointer_compression=False)
+          v8_enable_pointer_compression=False,
+          v8_enable_pointer_compression_shared_cage=False,
+          v8_enable_virtual_memory_cage=False)
       result = run_tests(
           basedir,
           '--progress=verbose',
@@ -353,6 +367,7 @@ class SystemTest(unittest.TestCase):
           'no_i18n\n'
           'tsan\n'
           'ubsan_vptr\n'
+          'webassembly\n'
           '>>> Running tests for ia32.release')
       self.assertIn(expect_text, result.stdout, result)
       self.assertEqual(0, result.returncode, result)
@@ -489,8 +504,7 @@ class SystemTest(unittest.TestCase):
           infra_staging=False,
       )
       self.assertIn('1 tests ran', result.stdout, result)
-      self.assertIn(
-        'Done running sweet/bananas default: FAIL', result.stdout, result)
+      self.assertIn('sweet/bananas default: FAIL', result.stdout, result)
       self.assertIn('Test had no allocation output', result.stdout, result)
       self.assertIn('--predictable --verify-predictable', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
@@ -620,11 +634,11 @@ class SystemTest(unittest.TestCase):
           'sweet/blackberries',  # FAIL
           'sweet/raspberries',   # should not run
       )
-      self.assertIn('sweet/mangoes default: pass', result.stdout, result)
+      self.assertIn('sweet/mangoes default: PASS', result.stdout, result)
       self.assertIn('sweet/strawberries default: FAIL', result.stdout, result)
       self.assertIn('Too many failures, exiting...', result.stdout, result)
       self.assertIn('sweet/blackberries default: FAIL', result.stdout, result)
-      self.assertNotIn('Done running sweet/raspberries', result.stdout, result)
+      self.assertNotIn('sweet/raspberries', result.stdout, result)
       self.assertIn('2 tests failed', result.stdout, result)
       self.assertIn('3 tests ran', result.stdout, result)
       self.assertEqual(1, result.returncode, result)

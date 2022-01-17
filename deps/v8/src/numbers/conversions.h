@@ -7,8 +7,10 @@
 
 #include "src/base/export-template.h"
 #include "src/base/logging.h"
+#include "src/base/optional.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -69,6 +71,11 @@ inline int32_t DoubleToInt32(double x);
 // This function should match the exact semantics of ECMA-262 9.6.
 inline uint32_t DoubleToUint32(double x);
 
+// These functions have similar semantics as the ones above, but are
+// added for 64-bit integer types.
+inline int64_t DoubleToInt64(double x);
+inline uint64_t DoubleToUint64(double x);
+
 // Enumeration for allowing octals and ignoring junk when converting
 // strings to numbers.
 enum ConversionFlags {
@@ -81,9 +88,9 @@ enum ConversionFlags {
 };
 
 // Converts a string into a double value according to ECMA-262 9.3.1
-double StringToDouble(Vector<const uint8_t> str, int flags,
+double StringToDouble(base::Vector<const uint8_t> str, int flags,
                       double empty_string_val = 0);
-double StringToDouble(Vector<const uc16> str, int flags,
+double StringToDouble(base::Vector<const base::uc16> str, int flags,
                       double empty_string_val = 0);
 // This version expects a zero-terminated character array.
 double V8_EXPORT_PRIVATE StringToDouble(const char* str, int flags,
@@ -100,9 +107,9 @@ MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string);
 //   0x -> hex
 //   0o -> octal
 //   0b -> binary
-template <typename LocalIsolate>
+template <typename IsolateT>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-MaybeHandle<BigInt> BigIntLiteral(LocalIsolate* isolate, const char* string);
+MaybeHandle<BigInt> BigIntLiteral(IsolateT* isolate, const char* string);
 
 const int kDoubleToCStringMinBufferSize = 100;
 
@@ -110,11 +117,11 @@ const int kDoubleToCStringMinBufferSize = 100;
 // The buffer should be large enough for any floating point number.
 // 100 characters is enough.
 V8_EXPORT_PRIVATE const char* DoubleToCString(double value,
-                                              Vector<char> buffer);
+                                              base::Vector<char> buffer);
 
 // Convert an int to a null-terminated string. The returned string is
 // located inside the buffer, but not necessarily at the start.
-V8_EXPORT_PRIVATE const char* IntToCString(int n, Vector<char> buffer);
+V8_EXPORT_PRIVATE const char* IntToCString(int n, base::Vector<char> buffer);
 
 // Additional number to string conversions for the number type.
 // The caller is responsible for calling free on the returned pointer.
@@ -159,6 +166,14 @@ inline uint64_t PositiveNumberToUint64(Object number);
 
 double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
                       double empty_string_val = 0.0);
+
+// String to double helper without heap allocation.
+// Returns base::nullopt if the string is longer than
+// {max_length_for_conversion}. 23 was chosen because any representable double
+// can be represented using a string of length 23.
+V8_EXPORT_PRIVATE base::Optional<double> TryStringToDouble(
+    LocalIsolate* isolate, Handle<String> object,
+    int max_length_for_conversion = 23);
 
 inline bool TryNumberToSize(Object number, size_t* result);
 

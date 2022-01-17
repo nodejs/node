@@ -5,15 +5,18 @@
 #ifndef V8_OBJECTS_JS_PROMISE_H_
 #define V8_OBJECTS_JS_PROMISE_H_
 
+#include "include/v8-promise.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/promise.h"
-#include "torque-generated/bit-fields-tq.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-promise-tq.inc"
 
 // Representation of promise objects in the specification. Our layout of
 // JSPromise differs a bit from the layout in the specification, for example
@@ -39,6 +42,10 @@ class JSPromise : public TorqueGeneratedJSPromise<JSPromise, JSObject> {
   // [handled_hint]: Whether this promise will be handled by a catch
   // block in an async function.
   DECL_BOOLEAN_ACCESSORS(handled_hint)
+
+  // [is_silent]: Whether this promise should cause the debugger to pause when
+  // rejected.
+  DECL_BOOLEAN_ACCESSORS(is_silent)
 
   int async_task_id() const;
   void set_async_task_id(int id);

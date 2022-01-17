@@ -13,7 +13,7 @@ function main({ n, operation }) {
     case 'get':
       bench.start();
       for (let i = 0; i < n; i++) {
-        process.env.PATH;
+        process.env.PATH; // eslint-disable-line no-unused-expressions
       }
       bench.end(n);
       break;
@@ -42,7 +42,7 @@ function main({ n, operation }) {
     case 'query':
       bench.start();
       for (let i = 0; i < n; i++) {
-        'PATH' in process.env;
+        'PATH' in process.env; // eslint-disable-line no-unused-expressions
       }
       bench.end(n);
       break;

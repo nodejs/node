@@ -29,8 +29,8 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
     // undefined, which we interpret as being a caught exception event.
     rejected_promise = isolate->GetPromiseOnStackOnThrow();
   }
-  isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
-                          isolate->factory()->undefined_value());
+  isolate->RunAllPromiseHooks(PromiseHookType::kResolve, promise,
+                              isolate->factory()->undefined_value());
   isolate->debug()->OnPromiseReject(rejected_promise, value);
 
   // Report only if we don't actually have a handler.
@@ -112,15 +112,6 @@ RUNTIME_FUNCTION(Runtime_PromiseStatus) {
   return Smi::FromInt(promise->status());
 }
 
-RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSPromise, promise, 0);
-
-  promise.set_has_handler(true);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -142,7 +133,7 @@ Handle<JSPromise> AwaitPromisesInitCommon(Isolate* isolate,
   // hook for the throwaway promise (passing the {promise} as its
   // parent).
   Handle<JSPromise> throwaway = isolate->factory()->NewJSPromiseWithoutHook();
-  isolate->RunPromiseHook(PromiseHookType::kInit, throwaway, promise);
+  isolate->RunAllPromiseHooks(PromiseHookType::kInit, throwaway, promise);
 
   // On inspector side we capture async stack trace and store it by
   // outer_promise->async_task_id when async function is suspended first time.
@@ -204,7 +195,7 @@ RUNTIME_FUNCTION(Runtime_AwaitPromisesInitOld) {
 
   // Fire the init hook for the wrapper promise (that we created for the
   // {value} previously).
-  isolate->RunPromiseHook(PromiseHookType::kInit, promise, outer_promise);
+  isolate->RunAllPromiseHooks(PromiseHookType::kInit, promise, outer_promise);
   return *AwaitPromisesInitCommon(isolate, value, promise, outer_promise,
                                   reject_handler, is_predicted_as_caught);
 }
@@ -259,26 +250,25 @@ RUNTIME_FUNCTION(Runtime_ResolvePromise) {
 // A helper function to be called when constructing AggregateError objects. This
 // takes care of the Error-related construction, e.g., stack traces.
 RUNTIME_FUNCTION(Runtime_ConstructAggregateErrorHelper) {
-  DCHECK(FLAG_harmony_promise_any);
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, new_target, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, message, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, options, 3);
 
   DCHECK_EQ(*target, *isolate->aggregate_error_function());
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      ErrorUtils::Construct(isolate, target, new_target, message));
+      ErrorUtils::Construct(isolate, target, new_target, message, options));
   return *result;
 }
 
 // A helper function to be called when constructing AggregateError objects. This
 // takes care of the Error-related construction, e.g., stack traces.
 RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
-  DCHECK(FLAG_harmony_promise_any);
   HandleScope scope(isolate);
   DCHECK_GE(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(Smi, message, 0);
@@ -301,6 +291,14 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
     arg2 = args.at<Object>(3);
   }
 
+  Handle<Object> options;
+  if (args.length() >= 5) {
+    CHECK(args[4].IsObject());
+    options = args.at<Object>(4);
+  } else {
+    options = isolate->factory()->undefined_value();
+  }
+
   Handle<Object> message_string = MessageFormatter::Format(
       isolate, MessageTemplate(message->value()), arg0, arg1, arg2);
 
@@ -308,8 +306,8 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       ErrorUtils::Construct(isolate, isolate->aggregate_error_function(),
-                            isolate->aggregate_error_function(),
-                            message_string));
+                            isolate->aggregate_error_function(), message_string,
+                            options));
   return *result;
 }
 

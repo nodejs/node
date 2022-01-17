@@ -21,9 +21,11 @@ EXTRA_FLAGS = [
   (0.1, '--interrupt-budget=100'),
   (0.1, '--liftoff'),
   (0.2, '--no-analyze-environment-liveness'),
-  (0.1, '--no-enable-sse3'),
-  (0.1, '--no-enable-ssse3'),
-  (0.1, '--no-enable-sse4_1'),
+  # TODO(machenbach): Enable when it doesn't collide with crashing on missing
+  # simd features.
+  #(0.1, '--no-enable-sse3'),
+  #(0.1, '--no-enable-ssse3'),
+  #(0.1, '--no-enable-sse4_1'),
   (0.1, '--no-enable-sse4_2'),
   (0.1, '--no-enable-sahf'),
   (0.1, '--no-enable-avx'),
@@ -41,6 +43,8 @@ EXTRA_FLAGS = [
   (0.1, '--regexp-tier-up-ticks=10'),
   (0.1, '--regexp-tier-up-ticks=100'),
   (0.1, '--stress-background-compile'),
+  (0.1, '--stress-concurrent-inlining'),
+  (0.1, '--stress-flush-code'),
   (0.1, '--stress-lazy-source-positions'),
   (0.1, '--stress-wasm-code-gc'),
   (0.1, '--turbo-instruction-scheduling'),
@@ -262,6 +266,10 @@ class CompactionFuzzer(Fuzzer):
     while True:
       yield ['--stress-compaction-random']
 
+class StackSizeFuzzer(Fuzzer):
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      yield ['--stack-size=%d' % rng.randint(54, 983)]
 
 class TaskDelayFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
@@ -319,6 +327,7 @@ FUZZERS = {
   'gc_interval': (GcIntervalAnalyzer, GcIntervalFuzzer),
   'marking': (MarkingAnalyzer, MarkingFuzzer),
   'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
+  'stack': (None, StackSizeFuzzer),
   'threads': (None, ThreadPoolSizeFuzzer),
 }
 

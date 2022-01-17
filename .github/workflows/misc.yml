@@ -2,31 +2,36 @@ name: misc
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - master
+      - main
       - v[0-9]+.x-staging
       - v[0-9]+.x
 
 env:
-  NODE_VERSION: 14.x
+  NODE_VERSION: lts/*
 
 jobs:
   build-docs:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: NODE=$(which node) make doc-only
-      - uses: actions/upload-artifact@v1
+        run: NODE=$(command -v node) make doc-only
+      - uses: actions/upload-artifact@v2
         with:
           name: docs
           path: out/doc
-      - name: Check links
-        run: node tools/doc/checkLinks.js .
+      - name: Test
+        run: NODE=$(command -v node) make test-doc-ci TEST_CI_ARGS="-p actions"

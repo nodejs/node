@@ -24,6 +24,7 @@ function parseOptions(options) {
         boolean: "boolean" in options ? options.boolean : true,
         number: "number" in options ? options.number : true,
         string: "string" in options ? options.string : true,
+        disallowTemplateShorthand: "disallowTemplateShorthand" in options ? options.disallowTemplateShorthand : false,
         allow: options.allow || []
     };
 }
@@ -109,6 +110,20 @@ function getNonNumericOperand(node) {
 }
 
 /**
+ * Checks whether an expression evaluates to a string.
+ * @param {ASTNode} node node that represents the expression to check.
+ * @returns {boolean} Whether or not the expression evaluates to a string.
+ */
+function isStringType(node) {
+    return astUtils.isStringLiteral(node) ||
+        (
+            node.type === "CallExpression" &&
+            node.callee.type === "Identifier" &&
+            node.callee.name === "String"
+        );
+}
+
+/**
  * Checks whether a node is an empty string literal or not.
  * @param {ASTNode} node The node to check.
  * @returns {boolean} Whether or not the passed in node is an
@@ -125,8 +140,8 @@ function isEmptyString(node) {
  */
 function isConcatWithEmptyString(node) {
     return node.operator === "+" && (
-        (isEmptyString(node.left) && !astUtils.isStringLiteral(node.right)) ||
-        (isEmptyString(node.right) && !astUtils.isStringLiteral(node.left))
+        (isEmptyString(node.left) && !isStringType(node.right)) ||
+        (isEmptyString(node.right) && !isStringType(node.left))
     );
 }
 
@@ -152,13 +167,13 @@ function getNonEmptyOperand(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
         type: "suggestion",
 
         docs: {
             description: "disallow shorthand type conversions",
-            category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-implicit-coercion"
         },
@@ -179,6 +194,10 @@ module.exports = {
                 string: {
                     type: "boolean",
                     default: true
+                },
+                disallowTemplateShorthand: {
+                    type: "boolean",
+                    default: false
                 },
                 allow: {
                     type: "array",
@@ -299,6 +318,43 @@ module.exports = {
 
                     report(node, recommendation, true);
                 }
+            },
+
+            TemplateLiteral(node) {
+                if (!options.disallowTemplateShorthand) {
+                    return;
+                }
+
+                // tag`${foo}`
+                if (node.parent.type === "TaggedTemplateExpression") {
+                    return;
+                }
+
+                // `` or `${foo}${bar}`
+                if (node.expressions.length !== 1) {
+                    return;
+                }
+
+
+                //  `prefix${foo}`
+                if (node.quasis[0].value.cooked !== "") {
+                    return;
+                }
+
+                //  `${foo}postfix`
+                if (node.quasis[1].value.cooked !== "") {
+                    return;
+                }
+
+                // if the expression is already a string, then this isn't a coercion
+                if (isStringType(node.expressions[0])) {
+                    return;
+                }
+
+                const code = sourceCode.getText(node.expressions[0]);
+                const recommendation = `String(${code})`;
+
+                report(node, recommendation, true);
             }
         };
     }

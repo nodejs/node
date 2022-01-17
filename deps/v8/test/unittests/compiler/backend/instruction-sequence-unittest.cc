@@ -14,7 +14,7 @@ namespace compiler {
 
 namespace {
 constexpr int kMaxNumAllocatable =
-    Max(Register::kNumRegisters, DoubleRegister::kNumRegisters);
+    std::max(Register::kNumRegisters, DoubleRegister::kNumRegisters);
 static std::array<int, kMaxNumAllocatable> kAllocatableCodes =
     base::make_array<kMaxNumAllocatable>(
         [](size_t i) { return static_cast<int>(i); });
@@ -344,7 +344,7 @@ InstructionOperand* InstructionSequenceTest::ConvertInputs(
 InstructionOperand InstructionSequenceTest::ConvertInputOp(TestOperand op) {
   if (op.type_ == kImmediate) {
     CHECK_EQ(op.vreg_.value_, kNoValue);
-    return ImmediateOperand(ImmediateOperand::INLINE, op.value_);
+    return ImmediateOperand(ImmediateOperand::INLINE_INT32, op.value_);
   }
   CHECK_NE(op.vreg_.value_, kNoValue);
   switch (op.type_) {
@@ -361,6 +361,9 @@ InstructionOperand InstructionSequenceTest::ConvertInputOp(TestOperand op) {
     case kSlot:
       return Unallocated(op, UnallocatedOperand::MUST_HAVE_SLOT,
                          UnallocatedOperand::USED_AT_START);
+    case kDeoptArg:
+      return Unallocated(op, UnallocatedOperand::REGISTER_OR_SLOT,
+                         UnallocatedOperand::USED_AT_END);
     case kFixedRegister: {
       MachineRepresentation rep = GetCanonicalRep(op);
       CHECK(0 <= op.value_ && op.value_ < GetNumRegs(rep));
@@ -391,8 +394,8 @@ InstructionOperand InstructionSequenceTest::ConvertOutputOp(VReg vreg,
   CHECK_EQ(op.vreg_.value_, kNoValue);
   op.vreg_ = vreg;
   switch (op.type_) {
-    case kSameAsFirst:
-      return Unallocated(op, UnallocatedOperand::SAME_AS_FIRST_INPUT);
+    case kSameAsInput:
+      return Unallocated(op, UnallocatedOperand::SAME_AS_INPUT);
     case kRegister:
       return Unallocated(op, UnallocatedOperand::MUST_HAVE_REGISTER);
     case kFixedSlot:

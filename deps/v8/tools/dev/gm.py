@@ -28,6 +28,7 @@ not contain spaces.
 from __future__ import print_function
 import errno
 import os
+import platform
 import re
 import subprocess
 import sys
@@ -36,13 +37,13 @@ USE_PTY = "linux" in sys.platform
 if USE_PTY:
   import pty
 
-BUILD_TARGETS_TEST = ["d8", "cctest", "inspector-test", "unittests",
-                      "wasm_api_tests"]
+BUILD_TARGETS_TEST = ["d8", "bigint_shell", "cctest", "inspector-test",
+                      "unittests", "wasm_api_tests"]
 BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.
 ARCHES = ["ia32", "x64", "arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
-          "s390", "s390x", "android_arm", "android_arm64"]
+          "riscv64", "s390", "s390x", "android_arm", "android_arm64", "loong64"]
 # Arches that get built/run when you don't specify any.
 DEFAULT_ARCHES = ["ia32", "x64", "arm", "arm64"]
 # Modes that this script understands.
@@ -51,7 +52,8 @@ MODES = ["release", "debug", "optdebug"]
 DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
 TARGETS = ["d8", "cctest", "unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
-           "mkgrokdump", "generate-bytecode-expectations", "inspector-test"]
+           "mkgrokdump", "generate-bytecode-expectations", "inspector-test",
+           "bigint_shell"]
 # Build targets that get built when you don't specify any (and specified tests
 # don't imply any other targets).
 DEFAULT_TARGETS = ["d8"]
@@ -62,10 +64,31 @@ DEFAULT_TESTS = ["cctest", "debugger", "intl", "message", "mjsunit",
 # These can be suffixed to any <arch>.<mode> combo, or used standalone,
 # or used as global modifiers (affecting all <arch>.<mode> combos).
 ACTIONS = {
-  "all": {"targets": BUILD_TARGETS_ALL, "tests": []},
-  "tests": {"targets": BUILD_TARGETS_TEST, "tests": []},
-  "check": {"targets": BUILD_TARGETS_TEST, "tests": DEFAULT_TESTS},
-  "checkall": {"targets": BUILD_TARGETS_ALL, "tests": ["ALL"]},
+    "all": {
+        "targets": BUILD_TARGETS_ALL,
+        "tests": [],
+        "clean": False
+    },
+    "tests": {
+        "targets": BUILD_TARGETS_TEST,
+        "tests": [],
+        "clean": False
+    },
+    "check": {
+        "targets": BUILD_TARGETS_TEST,
+        "tests": DEFAULT_TESTS,
+        "clean": False
+    },
+    "checkall": {
+        "targets": BUILD_TARGETS_ALL,
+        "tests": ["ALL"],
+        "clean": False
+    },
+    "clean": {
+        "targets": [],
+        "tests": [],
+        "clean": True
+    },
 }
 
 HELP = """<arch> can be any of: %(arches)s
@@ -81,6 +104,7 @@ HELP = """<arch> can be any of: %(arches)s
        "targets": ", ".join(TARGETS)}
 
 TESTSUITES_TARGETS = {"benchmarks": "d8",
+              "bigint": "bigint_shell",
               "cctest": "cctest",
               "debugger": "d8",
               "fuzzer": "v8_fuzzers",
@@ -98,15 +122,26 @@ TESTSUITES_TARGETS = {"benchmarks": "d8",
 
 OUTDIR = "out"
 
+def _Which(cmd):
+  for path in os.environ["PATH"].split(os.pathsep):
+    if os.path.exists(os.path.join(path, cmd)):
+      return os.path.join(path, cmd)
+  return None
+
 def DetectGoma():
-  home_goma = os.path.expanduser("~/goma")
-  if os.path.exists(home_goma):
-    return home_goma
   if os.environ.get("GOMA_DIR"):
     return os.environ.get("GOMA_DIR")
   if os.environ.get("GOMADIR"):
     return os.environ.get("GOMADIR")
-  return None
+  # There is a copy of goma in depot_tools, but it might not be in use on
+  # this machine.
+  goma = _Which("goma_ctl")
+  if goma is None: return None
+  cipd_bin = os.path.join(os.path.dirname(goma), ".cipd_bin")
+  if not os.path.exists(cipd_bin): return None
+  goma_auth = os.path.expanduser("~/.goma_client_oauth2_config")
+  if not os.path.exists(goma_auth): return None
+  return cipd_bin
 
 GOMADIR = DetectGoma()
 IS_GOMA_MACHINE = GOMADIR is not None
@@ -118,12 +153,12 @@ is_component_build = false
 is_debug = false
 %s
 use_goma = {GOMA}
-goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_disassembler = true
 v8_enable_object_print = true
 v8_enable_verify_heap = true
-""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
+dcheck_always_on = false
+""".replace("{GOMA}", USE_GOMA)
 
 DEBUG_ARGS_TEMPLATE = """\
 is_component_build = true
@@ -131,12 +166,11 @@ is_debug = true
 symbol_level = 2
 %s
 use_goma = {GOMA}
-goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
-""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
+""".replace("{GOMA}", USE_GOMA)
 
 OPTDEBUG_ARGS_TEMPLATE = """\
 is_component_build = true
@@ -144,12 +178,11 @@ is_debug = true
 symbol_level = 1
 %s
 use_goma = {GOMA}
-goma_dir = \"{GOMA_DIR}\"
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_verify_heap = true
 v8_optimized_debug = true
-""".replace("{GOMA}", USE_GOMA).replace("{GOMA_DIR}", str(GOMADIR))
+""".replace("{GOMA}", USE_GOMA)
 
 ARGS_TEMPLATES = {
   "release": RELEASE_ARGS_TEMPLATE,
@@ -160,6 +193,17 @@ ARGS_TEMPLATES = {
 def PrintHelpAndExit():
   print(__doc__)
   print(HELP)
+  sys.exit(0)
+
+def PrintCompletionsAndExit():
+  for a in ARCHES:
+    print("%s" % a)
+    for m in MODES:
+      print("%s" % m)
+      print("%s.%s" % (a, m))
+      for t in TARGETS:
+        print("%s" % t)
+        print("%s.%s.%s" % (a, m, t))
   sys.exit(0)
 
 def _Call(cmd, silent=False):
@@ -195,12 +239,6 @@ def _CallWithOutput(cmd):
     p.wait()
   return p.returncode, "".join(output)
 
-def _Which(cmd):
-  for path in os.environ["PATH"].split(os.pathsep):
-    if os.path.exists(os.path.join(path, cmd)):
-      return os.path.join(path, cmd)
-  return None
-
 def _Write(filename, content):
   print("# echo > %s << EOF\n%sEOF" % (filename, content))
   with open(filename, "w") as f:
@@ -211,6 +249,9 @@ def _Notify(summary, body):
     _Call("notify-send '{}' '{}'".format(summary, body), silent=True)
   else:
     print("{} - {}".format(summary, body))
+
+def _GetMachine():
+  return platform.machine()
 
 def GetPath(arch, mode):
   subdir = "%s.%s" % (arch, mode)
@@ -227,45 +268,76 @@ def PrepareMksnapshotCmdline(orig_cmdline, path):
   return result
 
 class Config(object):
-  def __init__(self, arch, mode, targets, tests=[], testrunner_args=[]):
+  def __init__(self,
+               arch,
+               mode,
+               targets,
+               tests=[],
+               clean=False,
+               testrunner_args=[]):
     self.arch = arch
     self.mode = mode
     self.targets = set(targets)
     self.tests = set(tests)
     self.testrunner_args = testrunner_args
+    self.clean = clean
 
-  def Extend(self, targets, tests=[]):
+  def Extend(self, targets, tests=[], clean=False):
     self.targets.update(targets)
     self.tests.update(tests)
+    self.clean |= clean
 
   def GetTargetCpu(self):
-    if self.arch == "android_arm": return "target_cpu = \"arm\""
-    if self.arch == "android_arm64": return "target_cpu = \"arm64\""
     cpu = "x86"
-    if "64" in self.arch or self.arch == "s390x":
+    if self.arch == "android_arm":
+      cpu = "arm"
+    elif self.arch == "android_arm64":
+      cpu = "arm64"
+    elif self.arch == "arm64" and _GetMachine() in ("aarch64", "arm64"):
+      # arm64 build host:
+      cpu = "arm64"
+    elif self.arch == "arm" and _GetMachine() in ("aarch64", "arm64"):
+      cpu = "arm"
+    elif self.arch == "loong64" and _GetMachine() == "loongarch64":
+      cpu = "loong64"
+    elif self.arch == "mips64el" and _GetMachine() == "mips64":
+      cpu = "mips64el"
+    elif "64" in self.arch or self.arch == "s390x":
+      # Native x64 or simulator build.
       cpu = "x64"
-    return "target_cpu = \"%s\"" % cpu
+    return ["target_cpu = \"%s\"" % cpu]
 
   def GetV8TargetCpu(self):
-    if self.arch == "android_arm": return "\nv8_target_cpu = \"arm\""
-    if self.arch == "android_arm64": return "\nv8_target_cpu = \"arm64\""
-    if self.arch in ("arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
-                     "s390", "s390x"):
-      return "\nv8_target_cpu = \"%s\"" % self.arch
-    return ""
+    if self.arch == "android_arm":
+      v8_cpu = "arm"
+    elif self.arch == "android_arm64":
+      v8_cpu = "arm64"
+    elif self.arch in ("arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
+                       "riscv64", "s390", "s390x", "loong64"):
+      v8_cpu = self.arch
+    else:
+      return []
+    return ["v8_target_cpu = \"%s\"" % v8_cpu]
 
   def GetTargetOS(self):
     if self.arch in ("android_arm", "android_arm64"):
-      return "\ntarget_os = \"android\""
-    return ""
+      return ["target_os = \"android\""]
+    return []
+
+  def GetSpecialCompiler(self):
+    if _GetMachine() in ("aarch64", "mips64", "loongarch64"):
+      # We have no prebuilt Clang for arm64, mips64 or loongarch64 on Linux,
+      # so use the system Clang instead.
+      return ["clang_base_path = \"/usr\"", "clang_use_chrome_plugins = false"]
+    return []
 
   def GetGnArgs(self):
     # Use only substring before first '-' as the actual mode
     mode = re.match("([^-]+)", self.mode).group(1)
     template = ARGS_TEMPLATES[mode]
     arch_specific = (self.GetTargetCpu() + self.GetV8TargetCpu() +
-                     self.GetTargetOS())
-    return template % arch_specific
+                     self.GetTargetOS() + self.GetSpecialCompiler())
+    return template % "\n".join(arch_specific)
 
   def Build(self):
     path = GetPath(self.arch, self.mode)
@@ -279,6 +351,9 @@ class Config(object):
     if not os.path.exists(build_ninja):
       code = _Call("gn gen %s" % path)
       if code != 0: return code
+    elif self.clean:
+      code = _Call("gn clean %s" % path)
+      if code != 0: return code
     targets = " ".join(self.targets)
     # The implementation of mksnapshot failure detection relies on
     # the "pty" module and GDB presence, so skip it on non-Linux.
@@ -291,7 +366,7 @@ class Config(object):
       csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
       match = csa_trap.search(output)
       extra_opt = match.group(1) if match else ""
-      cmdline = re.compile("python ../../tools/run.py ./mksnapshot (.*)")
+      cmdline = re.compile("python3 ../../tools/run.py ./mksnapshot (.*)")
       orig_cmdline = cmdline.search(output).group(1).strip()
       cmdline = PrepareMksnapshotCmdline(orig_cmdline, path) + extra_opt
       _Notify("V8 build requires your attention",
@@ -329,12 +404,12 @@ class ArgumentParser(object):
     self.configs = {}
     self.testrunner_args = []
 
-  def PopulateConfigs(self, arches, modes, targets, tests):
+  def PopulateConfigs(self, arches, modes, targets, tests, clean):
     for a in arches:
       for m in modes:
         path = GetPath(a, m)
         if path not in self.configs:
-          self.configs[path] = Config(a, m, targets, tests,
+          self.configs[path] = Config(a, m, targets, tests, clean,
                   self.testrunner_args)
         else:
           self.configs[path].Extend(targets, tests)
@@ -352,14 +427,17 @@ class ArgumentParser(object):
   def ParseArg(self, argstring):
     if argstring in ("-h", "--help", "help"):
       PrintHelpAndExit()
+    if argstring == "--print-completions":
+      PrintCompletionsAndExit()
     arches = []
     modes = []
     targets = []
     actions = []
     tests = []
+    clean = False
     # Special handling for "mkgrokdump": build it for x64.release.
     if argstring == "mkgrokdump":
-      self.PopulateConfigs(["x64"], ["release"], ["mkgrokdump"], [])
+      self.PopulateConfigs(["x64"], ["release"], ["mkgrokdump"], [], False)
       return
     # Specifying a single unit test looks like "unittests/Foo.Bar", test262
     # tests have names like "S15.4.4.7_A4_T1", don't split these.
@@ -404,12 +482,13 @@ class ArgumentParser(object):
       impact = ACTIONS[action]
       targets += impact["targets"]
       tests += impact["tests"]
+      clean |= impact["clean"]
     # Fill in defaults for things that weren't specified.
     arches = arches or DEFAULT_ARCHES
     modes = modes or DEFAULT_MODES
     targets = targets or DEFAULT_TARGETS
     # Produce configs.
-    self.PopulateConfigs(arches, modes, targets, tests)
+    self.PopulateConfigs(arches, modes, targets, tests, clean)
 
   def ParseArguments(self, argv):
     if len(argv) == 0:
@@ -426,8 +505,8 @@ def Main(argv):
   configs = parser.ParseArguments(argv[1:])
   return_code = 0
   # If we have Goma but it is not running, start it.
-  if (GOMADIR is not None and
-      _Call("ps -e | grep compiler_proxy > /dev/null", silent=True) != 0):
+  if (IS_GOMA_MACHINE and
+      _Call("pgrep -x compiler_proxy > /dev/null", silent=True) != 0):
     _Call("%s/goma_ctl.py ensure_start" % GOMADIR)
   for c in configs:
     return_code += configs[c].Build()

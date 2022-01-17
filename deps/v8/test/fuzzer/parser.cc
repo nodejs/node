@@ -9,7 +9,10 @@
 #include <cctype>
 #include <list>
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
@@ -75,7 +78,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (size > INT_MAX) return 0;
   v8::internal::MaybeHandle<v8::internal::String> source =
       factory->NewStringFromOneByte(
-          v8::internal::Vector<const uint8_t>(data, static_cast<int>(size)));
+          v8::base::Vector<const uint8_t>(data, static_cast<int>(size)));
   if (source.is_null()) return 0;
 
   v8::internal::Handle<v8::internal::Script> script =

@@ -46,7 +46,6 @@ Node* FindDeadInput(Node* node) {
 }  // namespace
 
 Reduction DeadCodeElimination::Reduce(Node* node) {
-  DisallowHeapAccess no_heap_access;
   switch (node->opcode()) {
     case IrOpcode::kEnd:
       return ReduceEnd(node);

@@ -1,5 +1,6 @@
 const util = require('util')
-const {stat} = require('fs').promises
+const fs = require('fs')
+const {stat} = fs.promises || { stat: util.promisify(fs.stat) };
 
 async function isNodeGypPackage(path) {
   return await stat(`${path}/binding.gyp`)
