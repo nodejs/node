@@ -2472,6 +2472,9 @@ added: v15.6.0
 <!-- YAML
 added: v15.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41569
+    description: The subject option can now be set to `'default'`.
   - version: v16.14.1
     pr-url: https://github.com/nodejs/node/pull/41599
     description: The `wildcards`, `partialWildcards`, `multiLabelWildcards`, and
@@ -2481,21 +2484,42 @@ changes:
 
 * `email` {string}
 * `options` {Object}
-  * `subject` {string} `'always'` or `'never'`. **Default:** `'always'`.
+  * `subject` {string} `'default'`, `'always'`, or `'never'`.
+    **Default:** `'always'`.
+  * `wildcards` {boolean} **Default:** `true`.
+  * `partialWildcards` {boolean} **Default:** `true`.
+  * `multiLabelWildcards` {boolean} **Default:** `false`.
+  * `singleLabelSubdomains` {boolean} **Default:** `false`.
 * Returns: {string|undefined} Returns `email` if the certificate matches,
   `undefined` if it does not.
 
 Checks whether the certificate matches the given email address.
 
+If the `'subject'` option is set to `'always'` and if the subject alternative
+name extension either does not exist or does not contain a matching email
+address, the certificate subject is considered.
+
+If the `'subject'` option is set to `'default`', the certificate subject is only
+considered if the subject alternative name extension either does not exist or
+does not contain any email addresses.
+
+If the `'subject'` option is set to `'never'`, the certificate subject is never
+considered, even if the certificate contains no subject alternative names.
+
 ### `x509.checkHost(name[, options])`
 
 <!-- YAML
 added: v15.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41569
+    description: The subject option can now be set to `'default'`.
 -->
 
 * `name` {string}
 * `options` {Object}
-  * `subject` {string} `'always'` or `'never'`. **Default:** `'always'`.
+  * `subject` {string} `'default'`, `'always'`, or `'never'`.
+    **Default:** `'always'`.
   * `wildcards` {boolean} **Default:** `true`.
   * `partialWildcards` {boolean} **Default:** `true`.
   * `multiLabelWildcards` {boolean} **Default:** `false`.
@@ -2510,6 +2534,18 @@ returned. The returned name might be an exact match (e.g., `foo.example.com`)
 or it might contain wildcards (e.g., `*.example.com`). Because host name
 comparisons are case-insensitive, the returned subject name might also differ
 from the given `name` in capitalization.
+
+If the `'subject'` option is set to `'always'` and if the subject alternative
+name extension either does not exist or does not contain a matching DNS name,
+the certificate subject is considered.
+
+If the `'subject'` option is set to `'default'`, the certificate subject is only
+considered if the subject alternative name extension either does not exist or
+does not contain any DNS names. This behavior is consistent with [RFC 2818][]
+("HTTP Over TLS").
+
+If the `'subject'` option is set to `'never'`, the certificate subject is never
+considered, even if the certificate contains no subject alternative names.
 
 ### `x509.checkIP(ip)`
 
@@ -5896,6 +5932,7 @@ See the [list of SSL OP Flags][] for details.
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.1.0/apps/openssl-spkac.html
 [RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
+[RFC 2818]: https://www.rfc-editor.org/rfc/rfc2818.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
