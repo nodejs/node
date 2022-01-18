@@ -304,7 +304,7 @@ async function digest(data, algorithm = 'SHA-512') {
 }
 ```
 
-## Algorithm Matrix
+## Algorithm matrix
 
 The table details the algorithms supported by the Node.js Web Crypto API
 implementation and the APIs supported for each:
@@ -923,7 +923,7 @@ The wrapping algorithms currently supported include:
 * `'AES-GCM'`
 * `'AES-KW'`
 
-## Algorithm Parameters
+## Algorithm parameters
 
 The algorithm parameter objects define the methods and parameters used by
 the various {SubtleCrypto} methods. While described here as "classes", they
