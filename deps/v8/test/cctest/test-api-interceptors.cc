@@ -2271,6 +2271,203 @@ THREADED_TEST(PropertyDefinerCallbackWithSetter) {
 }
 
 namespace {
+std::vector<std::string> definer_calls;
+void LogDefinerCallsAndContinueCallback(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  String::Utf8Value utf8(info.GetIsolate(), name);
+  definer_calls.push_back(*utf8);
+}
+void LogDefinerCallsAndStopCallback(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  String::Utf8Value utf8(info.GetIsolate(), name);
+  definer_calls.push_back(*utf8);
+  info.GetReturnValue().Set(name);
+}
+
+struct StoreOwnICInterceptorConfig {
+  std::string code;
+  std::vector<std::string> intercepted_defines;
+};
+
+std::vector<StoreOwnICInterceptorConfig> configs{
+    {
+        R"(
+          class ClassWithNormalField extends Base {
+            field = (() => {
+              Object.defineProperty(
+                this,
+                'normalField',
+                { writable: true, configurable: true, value: 'initial'}
+              );
+              return 1;
+            })();
+            normalField = 'written';
+            constructor(arg) {
+              super(arg);
+            }
+          }
+          new ClassWithNormalField(obj);
+          stop ? (obj.field === undefined && obj.normalField === undefined)
+            : (obj.field === 1 && obj.normalField === 'written'))",
+        {"normalField", "field", "normalField"},  // intercepted defines
+    },
+    {
+        R"(
+            let setterCalled = false;
+            class ClassWithSetterField extends Base {
+              field = (() => {
+                Object.defineProperty(
+                  this,
+                  'setterField',
+                  { configurable: true, set(val) { setterCalled = true; } }
+                );
+                return 1;
+              })();
+              setterField = 'written';
+              constructor(arg) {
+                super(arg);
+              }
+            }
+            new ClassWithSetterField(obj);
+            !setterCalled &&
+              (stop ? (obj.field === undefined && obj.setterField === undefined)
+                : (obj.field === 1 && obj.setterField === 'written')))",
+        {"setterField", "field", "setterField"},  // intercepted defines
+    },
+    {
+        R"(
+          class ClassWithReadOnlyField extends Base {
+            field = (() => {
+              Object.defineProperty(
+                this,
+                'readOnlyField',
+                { writable: false, configurable: true, value: 'initial'}
+              );
+              return 1;
+            })();
+            readOnlyField = 'written';
+            constructor(arg) {
+              super(arg);
+            }
+          }
+          new ClassWithReadOnlyField(obj);
+          stop ? (obj.field === undefined && obj.readOnlyField === undefined)
+            : (obj.field === 1 && obj.readOnlyField === 'written'))",
+        {"readOnlyField", "field", "readOnlyField"},  // intercepted defines
+    },
+    {
+        R"(
+          class ClassWithNonConfigurableField extends Base {
+            field = (() => {
+              Object.defineProperty(
+                this,
+                'nonConfigurableField',
+                { writable: false, configurable: false, value: 'initial'}
+              );
+              return 1;
+            })();
+            nonConfigurableField = 'configured';
+            constructor(arg) {
+              super(arg);
+            }
+          }
+          let nonConfigurableThrown = false;
+          try { new ClassWithNonConfigurableField(obj); }
+          catch { nonConfigurableThrown = true; }
+          stop ? (!nonConfigurableThrown && obj.field === undefined
+                  && obj.nonConfigurableField === undefined)
+              : (nonConfigurableThrown && obj.field === 1
+                && obj.nonConfigurableField === 'initial'))",
+        // intercepted defines
+        {"nonConfigurableField", "field", "nonConfigurableField"}}
+    // We don't test non-extensible objects here because objects with
+    // interceptors cannot prevent extensions.
+};
+}  // namespace
+
+void CheckPropertyDefinerCallbackInStoreOwnIC(Local<Context> context,
+                                              bool stop) {
+  v8_compile(R"(
+    class Base {
+      constructor(arg) {
+        return arg;
+      }
+    })")
+      ->Run(context)
+      .ToLocalChecked();
+
+  v8_compile(stop ? "var stop = true;" : "var stop = false;")
+      ->Run(context)
+      .ToLocalChecked();
+
+  for (auto& config : configs) {
+    printf("stop = %s, running...\n%s\n", stop ? "true" : "false",
+           config.code.c_str());
+
+    definer_calls.clear();
+
+    // Create the object with interceptors.
+    v8::Local<v8::FunctionTemplate> templ =
+        v8::FunctionTemplate::New(CcTest::isolate());
+    templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+        nullptr, nullptr, nullptr, nullptr, nullptr,
+        stop ? LogDefinerCallsAndStopCallback
+             : LogDefinerCallsAndContinueCallback,
+        nullptr));
+    Local<Object> obj = templ->GetFunction(context)
+                            .ToLocalChecked()
+                            ->NewInstance(context)
+                            .ToLocalChecked();
+    context->Global()->Set(context, v8_str("obj"), obj).FromJust();
+
+    CHECK(v8_compile(config.code.c_str())
+              ->Run(context)
+              .ToLocalChecked()
+              ->IsTrue());
+    for (size_t i = 0; i < definer_calls.size(); ++i) {
+      printf("define %s\n", definer_calls[i].c_str());
+    }
+
+    CHECK_EQ(config.intercepted_defines.size(), definer_calls.size());
+    for (size_t i = 0; i < config.intercepted_defines.size(); ++i) {
+      CHECK_EQ(config.intercepted_defines[i], definer_calls[i]);
+    }
+  }
+}
+
+THREADED_TEST(PropertyDefinerCallbackInStoreOwnIC) {
+  {
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    CheckPropertyDefinerCallbackInStoreOwnIC(env.local(), true);
+  }
+
+  {
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    CheckPropertyDefinerCallbackInStoreOwnIC(env.local(), false);
+  }
+
+  {
+    i::FLAG_lazy_feedback_allocation = false;
+    i::FlagList::EnforceFlagImplications();
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    CheckPropertyDefinerCallbackInStoreOwnIC(env.local(), true);
+  }
+
+  {
+    i::FLAG_lazy_feedback_allocation = false;
+    i::FlagList::EnforceFlagImplications();
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    CheckPropertyDefinerCallbackInStoreOwnIC(env.local(), false);
+  }
+}
+
+namespace {
 void EmptyPropertyDescriptorCallback(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // Do not intercept by not calling info.GetReturnValue().Set().

@@ -35,6 +35,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/megadom-handler.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
 #include "src/objects/struct-inl.h"
 #include "src/runtime/runtime-utils.h"
@@ -1726,6 +1727,69 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
   return StoreIC::Store(global, name, value);
 }
 
+namespace {
+Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
+                                  LookupIterator::State original_state,
+                                  Handle<Object> value,
+                                  Maybe<ShouldThrow> should_throw,
+                                  StoreOrigin store_origin) {
+  // It should not be possible to call DefineOwnDataProperty in a
+  // contextual store (indicated by IsJSGlobalObject()).
+  DCHECK(!it->GetReceiver()->IsJSGlobalObject(it->isolate()));
+
+  // Handle special cases that can't be handled by
+  // DefineOwnPropertyIgnoreAttributes first.
+  switch (it->state()) {
+    case LookupIterator::JSPROXY: {
+      PropertyDescriptor new_desc;
+      new_desc.set_value(value);
+      new_desc.set_writable(true);
+      new_desc.set_enumerable(true);
+      new_desc.set_configurable(true);
+      DCHECK_EQ(original_state, LookupIterator::JSPROXY);
+      // TODO(joyee): this will start the lookup again. Ideally we should
+      // implement something that reuses the existing LookupIterator.
+      return JSProxy::DefineOwnProperty(it->isolate(), it->GetHolder<JSProxy>(),
+                                        it->GetName(), &new_desc, should_throw);
+    }
+    // When lazy feedback is disabled, the original state could be different
+    // while the object is already prepared for TRANSITION.
+    case LookupIterator::TRANSITION: {
+      switch (original_state) {
+        case LookupIterator::JSPROXY:
+        case LookupIterator::TRANSITION:
+        case LookupIterator::DATA:
+        case LookupIterator::INTERCEPTOR:
+        case LookupIterator::ACCESSOR:
+        case LookupIterator::INTEGER_INDEXED_EXOTIC:
+          UNREACHABLE();
+        case LookupIterator::ACCESS_CHECK: {
+          DCHECK(!it->GetHolder<JSObject>()->IsAccessCheckNeeded());
+          V8_FALLTHROUGH;
+        }
+        case LookupIterator::NOT_FOUND:
+          return Object::AddDataProperty(it, value, NONE,
+                                         Nothing<ShouldThrow>(), store_origin);
+      }
+    }
+    case LookupIterator::ACCESS_CHECK:
+    case LookupIterator::NOT_FOUND:
+    case LookupIterator::DATA:
+    case LookupIterator::ACCESSOR:
+    case LookupIterator::INTERCEPTOR:
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
+      break;
+  }
+
+  // We need to restart to handle interceptors properly.
+  it->Restart();
+
+  return JSObject::DefineOwnPropertyIgnoreAttributes(
+      it, value, NONE, should_throw, JSObject::DONT_FORCE_FIELD,
+      JSObject::EnforceDefineSemantics::kDefine);
+}
+}  // namespace
+
 MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    Handle<Object> value,
                                    StoreOrigin store_origin) {
@@ -1737,7 +1801,15 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
         isolate(), object, key,
         IsAnyStoreOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
     DCHECK_IMPLIES(IsStoreOwnIC(), it.IsFound() && it.HolderIsReceiver());
-    MAYBE_RETURN_NULL(Object::SetProperty(&it, value, StoreOrigin::kNamed));
+    // TODO(joyee): IsStoreOwnIC() is used in [[DefineOwnProperty]]
+    // operations during initialization of object literals and class
+    // fields. Rename them or separate them out.
+    if (IsStoreOwnIC()) {
+      MAYBE_RETURN_NULL(
+          JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()));
+    } else {
+      MAYBE_RETURN_NULL(Object::SetProperty(&it, value, StoreOrigin::kNamed));
+    }
     return value;
   }
 
@@ -1785,6 +1857,23 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       use_ic = false;
     }
   }
+
+  // For IsStoreOwnIC(), we can't simply do CreateDataProperty below
+  // because we need to check the attributes before UpdateCaches updates
+  // the state of the LookupIterator.
+  LookupIterator::State original_state = it.state();
+  // We'll defer the check for JSProxy and objects with named interceptors,
+  // because the defineProperty traps need to be called first if they are
+  // present.
+  if (IsStoreOwnIC() && !object->IsJSProxy() &&
+      !Handle<JSObject>::cast(object)->HasNamedInterceptor()) {
+    Maybe<bool> can_define = JSReceiver::CheckIfCanDefine(
+        isolate(), &it, value, Nothing<ShouldThrow>());
+    if (can_define.IsNothing() || !can_define.FromJust()) {
+      return MaybeHandle<Object>();
+    }
+  }
+
   if (use_ic) {
     UpdateCaches(&it, value, store_origin);
   } else if (state() == NO_FEEDBACK) {
@@ -1793,7 +1882,21 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                       : TraceIC("StoreIC", name);
   }
 
-  MAYBE_RETURN_NULL(Object::SetProperty(&it, value, store_origin));
+  // TODO(joyee): IsStoreOwnIC() is true in [[DefineOwnProperty]]
+  // operations during initialization of object literals and class
+  // fields. In both paths, Rename the operations properly to avoid
+  // confusion.
+  // ES #sec-definefield
+  // ES #sec-runtime-semantics-propertydefinitionevaluation
+  if (IsStoreOwnIC()) {
+    // Private property should be defined via DefineOwnIC (as private names) or
+    // stored via other store ICs through private symbols.
+    DCHECK(!name->IsPrivate());
+    MAYBE_RETURN_NULL(DefineOwnDataProperty(
+        &it, original_state, value, Nothing<ShouldThrow>(), store_origin));
+  } else {
+    MAYBE_RETURN_NULL(Object::SetProperty(&it, value, store_origin));
+  }
   return value;
 }
 
@@ -1871,11 +1974,14 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
       // If the interceptor is on the receiver...
       if (lookup->HolderIsReceiverOrHiddenPrototype() && !info.non_masking()) {
-        // ...return a store interceptor Smi handler if there is one...
-        if (!info.setter().IsUndefined(isolate())) {
+        // ...return a store interceptor Smi handler if there is a setter
+        // interceptor and it's not StoreOwnIC (which should call the
+        // definer)...
+        if (!info.setter().IsUndefined(isolate()) && !IsStoreOwnIC()) {
           return MaybeObjectHandle(StoreHandler::StoreInterceptor(isolate()));
         }
-        // ...otherwise return a slow-case Smi handler.
+        // ...otherwise return a slow-case Smi handler, which invokes the
+        // definer for StoreOwnIC.
         return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
 
@@ -2055,6 +2161,14 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       Handle<JSReceiver> receiver =
           Handle<JSReceiver>::cast(lookup->GetReceiver());
       Handle<JSProxy> holder = lookup->GetHolder<JSProxy>();
+
+      // IsStoreOwnIC() is true when we are defining public fields on a Proxy.
+      // In that case use the slow stub to invoke the define trap.
+      if (IsStoreOwnIC()) {
+        TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+      }
+
       return MaybeObjectHandle(StoreHandler::StoreProxy(
           isolate(), lookup_start_object_map(), holder, receiver));
     }
@@ -2766,9 +2880,10 @@ RUNTIME_FUNCTION(Runtime_StoreOwnIC_Slow) {
 
   PropertyKey lookup_key(isolate, key);
   LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
-  MAYBE_RETURN(JSObject::DefineOwnPropertyIgnoreAttributes(
-                   &it, value, NONE, Nothing<ShouldThrow>()),
-               ReadOnlyRoots(isolate).exception());
+
+  MAYBE_RETURN(
+      JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()),
+      ReadOnlyRoots(isolate).exception());
   return *value;
 }
 

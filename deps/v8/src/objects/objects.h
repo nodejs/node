@@ -721,6 +721,13 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
                                         Address value, ExternalPointerTag tag);
 
+  // If the receiver is the JSGlobalObject, the store was contextual. In case
+  // the property did not exist yet on the global object itself, we have to
+  // throw a reference error in strict mode.  In sloppy mode, we continue.
+  // Returns false if the exception was thrown, otherwise true.
+  static bool CheckContextualStoreToJSGlobalObject(
+      LookupIterator* it, Maybe<ShouldThrow> should_throw);
+
  protected:
   inline Address field_address(size_t offset) const {
     return ptr() + offset - kHeapObjectTag;
