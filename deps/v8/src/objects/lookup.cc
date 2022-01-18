@@ -167,7 +167,8 @@ Handle<Map> LookupIterator::GetReceiverMap() const {
 }
 
 bool LookupIterator::HasAccess() const {
-  DCHECK_EQ(ACCESS_CHECK, state_);
+  // TRANSITION is true when being called from StoreOwnIC.
+  DCHECK(state_ == ACCESS_CHECK || state_ == TRANSITION);
   return isolate_->MayAccess(handle(isolate_->context(), isolate_),
                              GetHolder<JSObject>());
 }
