@@ -594,9 +594,9 @@ bool operator==(NumberOperationParameters const&,
 const NumberOperationParameters& NumberOperationParametersOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
-class SpeculativeBigIntAsUintNParameters {
+class SpeculativeBigIntAsNParameters {
  public:
-  SpeculativeBigIntAsUintNParameters(int bits, const FeedbackSource& feedback)
+  SpeculativeBigIntAsNParameters(int bits, const FeedbackSource& feedback)
       : bits_(bits), feedback_(feedback) {
     DCHECK_GE(bits_, 0);
     DCHECK_LE(bits_, 64);
@@ -610,12 +610,12 @@ class SpeculativeBigIntAsUintNParameters {
   FeedbackSource feedback_;
 };
 
-size_t hash_value(SpeculativeBigIntAsUintNParameters const&);
+size_t hash_value(SpeculativeBigIntAsNParameters const&);
 V8_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream&, const SpeculativeBigIntAsUintNParameters&);
-bool operator==(SpeculativeBigIntAsUintNParameters const&,
-                SpeculativeBigIntAsUintNParameters const&);
-const SpeculativeBigIntAsUintNParameters& SpeculativeBigIntAsUintNParametersOf(
+    std::ostream&, const SpeculativeBigIntAsNParameters&);
+bool operator==(SpeculativeBigIntAsNParameters const&,
+                SpeculativeBigIntAsNParameters const&);
+const SpeculativeBigIntAsNParameters& SpeculativeBigIntAsNParametersOf(
     const Operator* op) V8_WARN_UNUSED_RESULT;
 
 int FormalParameterCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
@@ -840,6 +840,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeBigIntAdd(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntSubtract(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntNegate(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntAsIntN(int bits,
+                                          const FeedbackSource& feedback);
   const Operator* SpeculativeBigIntAsUintN(int bits,
                                            const FeedbackSource& feedback);
 
@@ -907,7 +909,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeFloat64ToTaggedPointer();
   const Operator* ChangeTaggedToBit();
   const Operator* ChangeBitToTagged();
-  const Operator* TruncateBigIntToUint64();
+  const Operator* TruncateBigIntToWord64();
+  const Operator* ChangeInt64ToBigInt();
   const Operator* ChangeUint64ToBigInt();
   const Operator* TruncateTaggedToWord32();
   const Operator* TruncateTaggedToFloat64();

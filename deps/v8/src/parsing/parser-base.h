@@ -920,10 +920,16 @@ class ParserBase {
     }
 
     if (scanner()->current_token() == Token::AWAIT && !is_async_function()) {
-      ReportMessageAt(scanner()->location(),
-                      flags().allow_harmony_top_level_await()
-                          ? MessageTemplate::kAwaitNotInAsyncContext
-                          : MessageTemplate::kAwaitNotInAsyncFunction);
+      if (flags().parsing_while_debugging() == ParsingWhileDebugging::kYes) {
+        ReportMessageAt(scanner()->location(),
+                        MessageTemplate::kAwaitNotInDebugEvaluate);
+      } else if (flags().allow_harmony_top_level_await()) {
+        ReportMessageAt(scanner()->location(),
+                        MessageTemplate::kAwaitNotInAsyncContext);
+      } else {
+        ReportMessageAt(scanner()->location(),
+                        MessageTemplate::kAwaitNotInAsyncFunction);
+      }
       return;
     }
 

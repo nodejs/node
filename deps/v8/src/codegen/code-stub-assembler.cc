@@ -1539,6 +1539,32 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(TNode<Object> value,
   }
 }
 
+#ifdef V8_CAGED_POINTERS
+
+TNode<CagedPtrT> CodeStubAssembler::LoadCagedPointerFromObject(
+    TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
+  return LoadObjectField<CagedPtrT>(object, field_offset);
+}
+
+void CodeStubAssembler::StoreCagedPointerToObject(TNode<HeapObject> object,
+                                                  TNode<IntPtrT> offset,
+                                                  TNode<CagedPtrT> pointer) {
+#ifdef DEBUG
+  // Verify pointer points into the cage.
+  TNode<ExternalReference> cage_base_address =
+      ExternalConstant(ExternalReference::virtual_memory_cage_base_address());
+  TNode<ExternalReference> cage_end_address =
+      ExternalConstant(ExternalReference::virtual_memory_cage_end_address());
+  TNode<UintPtrT> cage_base = Load<UintPtrT>(cage_base_address);
+  TNode<UintPtrT> cage_end = Load<UintPtrT>(cage_end_address);
+  CSA_CHECK(this, UintPtrGreaterThanOrEqual(pointer, cage_base));
+  CSA_CHECK(this, UintPtrLessThan(pointer, cage_end));
+#endif
+  StoreObjectFieldNoWriteBarrier<CagedPtrT>(object, offset, pointer);
+}
+
+#endif  // V8_CAGED_POINTERS
+
 TNode<ExternalPointerT> CodeStubAssembler::ChangeUint32ToExternalPointer(
     TNode<Uint32T> value) {
   STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
@@ -14440,6 +14466,19 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   return sfi_code.value();
 }
 
+TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<CodeT> code) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  TNode<CodeDataContainer> cdc = CodeDataContainerFromCodeT(code);
+  return LoadExternalPointerFromObject(
+      cdc, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset),
+      kCodeEntryPointTag);
+#else
+  TNode<IntPtrT> object = BitcastTaggedToWord(code);
+  return ReinterpretCast<RawPtrT>(
+      IntPtrAdd(object, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
+#endif
+}
+
 TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
     TNode<Map> map, TNode<SharedFunctionInfo> shared_info,
     TNode<Context> context) {
@@ -14713,42 +14752,8 @@ TNode<JSArray> CodeStubAssembler::ArrayCreate(TNode<Context> context,
 void CodeStubAssembler::SetPropertyLength(TNode<Context> context,
                                           TNode<Object> array,
                                           TNode<Number> length) {
-  Label fast(this), runtime(this), done(this);
-  // There's no need to set the length, if
-  // 1) the array is a fast JS array and
-  // 2) the new length is equal to the old length.
-  // as the set is not observable. Otherwise fall back to the run-time.
-
-  // 1) Check that the array has fast elements.
-  // TODO(delphick): Consider changing this since it does an an unnecessary
-  // check for SMIs.
-  // TODO(delphick): Also we could hoist this to after the array construction
-  // and copy the args into array in the same way as the Array constructor.
-  BranchIfFastJSArray(array, context, &fast, &runtime);
-
-  BIND(&fast);
-  {
-    TNode<JSArray> fast_array = CAST(array);
-
-    TNode<Smi> length_smi = CAST(length);
-    TNode<Smi> old_length = LoadFastJSArrayLength(fast_array);
-    CSA_DCHECK(this, TaggedIsPositiveSmi(old_length));
-
-    // 2) If the created array's length matches the required length, then
-    //    there's nothing else to do. Otherwise use the runtime to set the
-    //    property as that will insert holes into excess elements or shrink
-    //    the backing store as appropriate.
-    Branch(SmiNotEqual(length_smi, old_length), &runtime, &done);
-  }
-
-  BIND(&runtime);
-  {
-    SetPropertyStrict(context, array, CodeStubAssembler::LengthStringConstant(),
-                      length);
-    Goto(&done);
-  }
-
-  BIND(&done);
+  SetPropertyStrict(context, array, CodeStubAssembler::LengthStringConstant(),
+                    length);
 }
 
 TNode<Smi> CodeStubAssembler::RefillMathRandom(

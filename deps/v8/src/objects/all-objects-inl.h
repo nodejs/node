@@ -46,6 +46,7 @@
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
+#include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup-cache-inl.h"

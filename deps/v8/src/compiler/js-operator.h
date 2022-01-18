@@ -1022,6 +1022,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* StoreProperty(LanguageMode language_mode,
                                 FeedbackSource const& feedback);
+  const Operator* DefineProperty(LanguageMode language_mode,
+                                 FeedbackSource const& feedback);
   const Operator* StoreNamed(LanguageMode language_mode, const NameRef& name,
                              FeedbackSource const& feedback);
 
@@ -1297,6 +1299,26 @@ class JSStorePropertyNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSStorePropertyNode(Node* node) : JSNodeWrapperBase(node) {
     DCHECK_EQ(IrOpcode::kJSStoreProperty, node->opcode());
+  }
+
+  const PropertyAccess& Parameters() const {
+    return PropertyAccessOf(node()->op());
+  }
+
+#define INPUTS(V)              \
+  V(Object, object, 0, Object) \
+  V(Key, key, 1, Object)       \
+  V(Value, value, 2, Object)   \
+  V(FeedbackVector, feedback_vector, 3, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSDefinePropertyNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSDefinePropertyNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    DCHECK_EQ(IrOpcode::kJSDefineProperty, node->opcode());
   }
 
   const PropertyAccess& Parameters() const {

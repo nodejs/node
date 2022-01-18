@@ -628,7 +628,7 @@ class ContextProxy {
  public:
   static Handle<JSObject> Create(WasmFrame* frame) {
     Isolate* isolate = frame->isolate();
-    auto object = isolate->factory()->NewJSObjectWithNullProto();
+    auto object = isolate->factory()->NewSlowJSObjectWithNullProto();
     Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
     JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
     Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
@@ -692,7 +692,7 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
       case debug::ScopeIterator::ScopeTypeModule: {
         Handle<WasmInstanceObject> instance(frame_->wasm_instance(), isolate);
         Handle<JSObject> object =
-            isolate->factory()->NewJSObjectWithNullProto();
+            isolate->factory()->NewSlowJSObjectWithNullProto();
         JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
         Handle<JSObject> module_object(instance->module_object(), isolate);
         JSObject::AddProperty(isolate, object, "module", module_object, FROZEN);
@@ -725,7 +725,7 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
         return Utils::ToLocal(LocalsProxy::Create(frame_));
       }
       case debug::ScopeIterator::ScopeTypeWasmExpressionStack: {
-        auto object = isolate->factory()->NewJSObjectWithNullProto();
+        auto object = isolate->factory()->NewSlowJSObjectWithNullProto();
         auto stack = StackProxy::Create(frame_);
         JSObject::AddProperty(isolate, object, "stack", stack, FROZEN);
         return Utils::ToLocal(object);

@@ -350,12 +350,14 @@ class LiftoffRegList {
 
   constexpr LiftoffRegList() = default;
 
-  Register set(Register reg) { return set(LiftoffRegister(reg)).gp(); }
-  DoubleRegister set(DoubleRegister reg) {
+  constexpr Register set(Register reg) {
+    return set(LiftoffRegister(reg)).gp();
+  }
+  constexpr DoubleRegister set(DoubleRegister reg) {
     return set(LiftoffRegister(reg)).fp();
   }
 
-  LiftoffRegister set(LiftoffRegister reg) {
+  constexpr LiftoffRegister set(LiftoffRegister reg) {
     if (reg.is_pair()) {
       regs_ |= storage_t{1} << reg.low().liftoff_code();
       regs_ |= storage_t{1} << reg.high().liftoff_code();

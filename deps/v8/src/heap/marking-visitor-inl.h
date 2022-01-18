@@ -21,15 +21,6 @@ namespace internal {
 // ===========================================================================
 
 template <typename ConcreteVisitor, typename MarkingState>
-void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMapPointer(
-    HeapObject host) {
-  // Note that we are skipping the recording the slot because map objects
-  // can't move, so this is safe (see ProcessStrongHeapObject for comparison)
-  MarkObject(host, HeapObject::cast(
-                       host.map(ObjectVisitorWithCageBases::cage_base())));
-}
-
-template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkObject(
     HeapObject host, HeapObject object) {
   DCHECK(ReadOnlyHeap::Contains(object) || heap_->Contains(object));
@@ -120,7 +111,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
     Code host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
   HeapObject object =
-      rinfo->target_object_no_host(ObjectVisitorWithCageBases::cage_base());
+      rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
   if (!concrete_visitor()->marking_state()->IsBlackOrGrey(object)) {
     if (host.IsWeakObject(object)) {
       weak_objects_->weak_objects_in_code.Push(task_id_,

@@ -116,7 +116,7 @@ constexpr auto CallTrampolineDescriptor::registers() {
 
 // static
 constexpr auto CallVarargsDescriptor::registers() {
-  // eax : number of arguments (on the stack, not including receiver)
+  // eax : number of arguments (on the stack)
   // edi : the target to call
   // ecx : arguments list length (untagged)
   // On the stack : arguments list (FixedArray)
@@ -134,13 +134,13 @@ constexpr auto CallForwardVarargsDescriptor::registers() {
 // static
 constexpr auto CallFunctionTemplateDescriptor::registers() {
   // edx : function template info
-  // ecx : number of arguments (on the stack, not including receiver)
+  // ecx : number of arguments (on the stack)
   return RegisterArray(edx, ecx);
 }
 
 // static
 constexpr auto CallWithSpreadDescriptor::registers() {
-  // eax : number of arguments (on the stack, not including receiver)
+  // eax : number of arguments (on the stack)
   // edi : the target to call
   // ecx : the object to spread
   return RegisterArray(edi, eax, ecx);
@@ -155,7 +155,7 @@ constexpr auto CallWithArrayLikeDescriptor::registers() {
 
 // static
 constexpr auto ConstructVarargsDescriptor::registers() {
-  // eax : number of arguments (on the stack, not including receiver)
+  // eax : number of arguments (on the stack)
   // edi : the target to call
   // edx : the new target
   // ecx : arguments list length (untagged)
@@ -174,7 +174,7 @@ constexpr auto ConstructForwardVarargsDescriptor::registers() {
 
 // static
 constexpr auto ConstructWithSpreadDescriptor::registers() {
-  // eax : number of arguments (on the stack, not including receiver)
+  // eax : number of arguments (on the stack)
   // edi : the target to call
   // edx : the new target
   // ecx : the object to spread
@@ -239,14 +239,14 @@ constexpr auto InterpreterDispatchDescriptor::registers() {
 
 // static
 constexpr auto InterpreterPushArgsThenCallDescriptor::registers() {
-  return RegisterArray(eax,   // argument count (not including receiver)
+  return RegisterArray(eax,   // argument count
                        ecx,   // address of first argument
                        edi);  // the target callable to be call
 }
 
 // static
 constexpr auto InterpreterPushArgsThenConstructDescriptor::registers() {
-  return RegisterArray(eax,   // argument count (not including receiver)
+  return RegisterArray(eax,   // argument count
                        ecx);  // address of first argument
 }
 

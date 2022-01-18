@@ -10,10 +10,15 @@
 #include "include/cppgc/cross-thread-persistent.h"
 #include "include/cppgc/persistent.h"
 #include "src/base/platform/platform.h"
+#include "src/heap/cppgc/platform.h"
 #include "src/heap/cppgc/process-heap.h"
 
 namespace cppgc {
 namespace internal {
+
+PersistentRegionBase::PersistentRegionBase(
+    const FatalOutOfMemoryHandler& oom_handler)
+    : oom_handler_(oom_handler) {}
 
 PersistentRegionBase::~PersistentRegionBase() { ClearAllUsedNodes(); }
 
@@ -59,7 +64,11 @@ size_t PersistentRegionBase::NodesInUse() const {
 }
 
 void PersistentRegionBase::EnsureNodeSlots() {
-  nodes_.push_back(std::make_unique<PersistentNodeSlots>());
+  auto node_slots = std::make_unique<PersistentNodeSlots>();
+  if (!node_slots.get()) {
+    oom_handler_("Oilpan: PersistentRegionBase::EnsureNodeSlots()");
+  }
+  nodes_.push_back(std::move(node_slots));
   for (auto& node : *nodes_.back()) {
     node.InitializeAsFreeNode(free_list_head_);
     free_list_head_ = &node;
@@ -94,13 +103,14 @@ void PersistentRegionBase::Trace(Visitor* visitor) {
                nodes_.end());
 }
 
-PersistentRegion::PersistentRegion()
-    : creation_thread_id_(v8::base::OS::GetCurrentThreadId()) {
+PersistentRegion::PersistentRegion(const FatalOutOfMemoryHandler& oom_handler)
+    : PersistentRegionBase(oom_handler),
+      creation_thread_id_(v8::base::OS::GetCurrentThreadId()) {
   USE(creation_thread_id_);
 }
 
-void PersistentRegion::CheckIsCreationThread() {
-  DCHECK_EQ(creation_thread_id_, v8::base::OS::GetCurrentThreadId());
+bool PersistentRegion::IsCreationThread() {
+  return creation_thread_id_ == v8::base::OS::GetCurrentThreadId();
 }
 
 PersistentRegionLock::PersistentRegionLock() {
@@ -115,6 +125,10 @@ PersistentRegionLock::~PersistentRegionLock() {
 void PersistentRegionLock::AssertLocked() {
   return g_process_mutex.Pointer()->AssertHeld();
 }
+
+CrossThreadPersistentRegion::CrossThreadPersistentRegion(
+    const FatalOutOfMemoryHandler& oom_handler)
+    : PersistentRegionBase(oom_handler) {}
 
 CrossThreadPersistentRegion::~CrossThreadPersistentRegion() {
   PersistentRegionLock guard;

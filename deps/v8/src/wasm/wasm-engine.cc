@@ -461,15 +461,22 @@ WasmEngine::~WasmEngine() {
 }
 
 bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
-                              const ModuleWireBytes& bytes) {
+                              const ModuleWireBytes& bytes,
+                              std::string* error_message) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
   // TODO(titzer): remove dependency on the isolate.
-  if (bytes.start() == nullptr || bytes.length() == 0) return false;
-  ModuleResult result = DecodeWasmModule(
+  if (bytes.start() == nullptr || bytes.length() == 0) {
+    if (error_message) *error_message = "empty module wire bytes";
+    return false;
+  }
+  auto result = DecodeWasmModule(
       enabled, bytes.start(), bytes.end(), true, kWasmOrigin,
       isolate->counters(), isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
       DecodingMethod::kSync, allocator());
+  if (result.failed() && error_message) {
+    *error_message = result.error().message();
+  }
   return result.ok();
 }
 
@@ -886,6 +893,14 @@ void WasmEngine::DumpAndResetTurboStatistics() {
   compilation_stats_.reset();
 }
 
+void WasmEngine::DumpTurboStatistics() {
+  base::MutexGuard guard(&mutex_);
+  if (compilation_stats_ != nullptr) {
+    StdoutStream os;
+    os << AsPrintableStatistics{*compilation_stats_.get(), false} << std::endl;
+  }
+}
+
 CodeTracer* WasmEngine::GetCodeTracer() {
   base::MutexGuard guard(&mutex_);
   if (code_tracer_ == nullptr) code_tracer_.reset(new CodeTracer(-1));
@@ -1171,10 +1186,13 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
     Isolate* isolate) {
+  TRACE_EVENT1("v8.wasm", "wasm.GetNativeModuleFromCache", "wire_bytes",
+               wire_bytes.size());
   std::shared_ptr<NativeModule> native_module =
       native_module_cache_.MaybeGetNativeModule(origin, wire_bytes);
   bool recompile_module = false;
   if (native_module) {
+    TRACE_EVENT0("v8.wasm", "CacheHit");
     base::MutexGuard guard(&mutex_);
     auto& native_module_info = native_modules_[native_module.get()];
     if (!native_module_info) {
@@ -1221,7 +1239,15 @@ bool WasmEngine::UpdateNativeModuleCache(
 }
 
 bool WasmEngine::GetStreamingCompilationOwnership(size_t prefix_hash) {
-  return native_module_cache_.GetStreamingCompilationOwnership(prefix_hash);
+  TRACE_EVENT0("v8.wasm", "wasm.GetStreamingCompilationOwnership");
+  if (native_module_cache_.GetStreamingCompilationOwnership(prefix_hash)) {
+    return true;
+  }
+  // This is only a marker, not for tracing execution time. There should be a
+  // later "wasm.GetNativeModuleFromCache" event for trying to get the module
+  // from the cache.
+  TRACE_EVENT0("v8.wasm", "CacheHit");
+  return false;
 }
 
 void WasmEngine::StreamingCompilationFailed(size_t prefix_hash) {
@@ -1619,6 +1645,9 @@ WasmCodeManager* GetWasmCodeManager() {
 
 // {max_mem_pages} is declared in wasm-limits.h.
 uint32_t max_mem_pages() {
+  static_assert(
+      kV8MaxWasmMemoryPages * kWasmPageSize <= JSArrayBuffer::kMaxByteLength,
+      "Wasm memories must not be bigger than JSArrayBuffers");
   STATIC_ASSERT(kV8MaxWasmMemoryPages <= kMaxUInt32);
   return std::min(uint32_t{kV8MaxWasmMemoryPages}, FLAG_wasm_max_mem_pages);
 }

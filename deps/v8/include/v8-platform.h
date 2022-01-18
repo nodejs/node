@@ -444,13 +444,7 @@ class PageAllocator {
    * zero-initialized again. The memory must have been previously allocated by a
    * call to AllocatePages. Returns true on success, false otherwise.
    */
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  // Implementing this API is required when the virtual memory cage is enabled.
   virtual bool DecommitPages(void* address, size_t size) = 0;
-#else
-  // Otherwise, it is optional for now.
-  virtual bool DecommitPages(void* address, size_t size) { return false; }
-#endif
 
   /**
    * INTERNAL ONLY: This interface has not been stabilised and may change

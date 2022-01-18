@@ -181,6 +181,12 @@ struct MaybeBoolFlag {
 #define V8_VIRTUAL_MEMORY_CAGE_BOOL false
 #endif
 
+#ifdef V8_CAGED_POINTERS
+#define V8_CAGED_POINTERS_BOOL true
+#else
+#define V8_CAGED_POINTERS_BOOL false
+#endif
+
 // D8's MultiMappedAllocator is only available on Linux, and only if the virtual
 // memory cage is not enabled.
 #if V8_OS_LINUX && !V8_VIRTUAL_MEMORY_CAGE_BOOL
@@ -304,7 +310,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_import_assertions, "harmony import assertions")                    \
   V(harmony_rab_gsab,                                                          \
     "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")                \
-  V(harmony_array_find_last, "harmony array find last helpers")
+  V(harmony_temporal, "Temporal")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
@@ -334,7 +340,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_relative_indexing_methods, "harmony relative indexing methods") \
   V(harmony_error_cause, "harmony error cause property")                    \
   V(harmony_object_has_own, "harmony Object.hasOwn")                        \
-  V(harmony_class_static_blocks, "harmony static initializer blocks")
+  V(harmony_class_static_blocks, "harmony static initializer blocks")       \
+  V(harmony_array_find_last, "harmony array find last helpers")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V)                               \
@@ -519,6 +526,12 @@ DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 DEFINE_WEAK_VALUE_IMPLICATION(future, write_protect_code_memory, false)
 #endif
 
+DEFINE_BOOL_READONLY(dict_property_const_tracking,
+                     V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
+                     "Use const tracking on dictionary properties")
+DEFINE_NEG_IMPLICATION(dict_property_const_tracking, concurrent_inlining)
+DEFINE_NEG_IMPLICATION(dict_property_const_tracking, turboprop)
+
 // Flags for jitless
 DEFINE_BOOL(jitless, V8_LITE_BOOL,
             "Disable runtime allocation of executable memory.")
@@ -542,6 +555,9 @@ DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
 
 DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
+// TODO(tebbi): Support allocating types from background thread.
+DEFINE_NEG_IMPLICATION(assert_types, concurrent_recompilation)
+DEFINE_NEG_IMPLICATION(assert_types, concurrent_inlining)
 
 DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 // Depend on --trace-deopt-verbose for reporting dependency invalidations.
@@ -690,12 +706,26 @@ DEFINE_INT(interrupt_budget_scale_factor_for_top_tier, 20,
 DEFINE_BOOL(sparkplug, ENABLE_SPARKPLUG_BY_DEFAULT,
             "enable Sparkplug baseline compiler")
 DEFINE_BOOL(always_sparkplug, false, "directly tier up to Sparkplug code")
-DEFINE_BOOL(sparkplug_on_heap, false, "compile Sparkplug code directly on heap")
 #if ENABLE_SPARKPLUG
 DEFINE_IMPLICATION(always_sparkplug, sparkplug)
 DEFINE_BOOL(baseline_batch_compilation, true, "batch compile Sparkplug code")
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+// M1 requires W^X.
+DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
+                     "compile Sparkplug code in a background thread")
+#else
+DEFINE_BOOL(concurrent_sparkplug, false,
+            "compile Sparkplug code in a background thread")
+#endif
+#if !MUST_WRITE_PROTECT_CODE_MEMORY
+// TODO(victorgomes): Currently concurrent compilation only works if we assume
+// no write protect in code space.
+DEFINE_NEG_IMPLICATION(concurrent_sparkplug, write_protect_code_memory)
+#endif
 #else
 DEFINE_BOOL(baseline_batch_compilation, false, "batch compile Sparkplug code")
+DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
+                     "compile Sparkplug code in a background thread")
 #endif
 DEFINE_STRING(sparkplug_filter, "*", "filter for Sparkplug baseline compiler")
 DEFINE_BOOL(sparkplug_needs_short_builtins, false,
@@ -706,9 +736,13 @@ DEFINE_INT(baseline_batch_compilation_threshold, 4 * KB,
 DEFINE_BOOL(trace_baseline, false, "trace baseline compilation")
 DEFINE_BOOL(trace_baseline_batch_compilation, false,
             "trace baseline batch compilation")
-
+DEFINE_BOOL(trace_baseline_concurrent_compilation, false,
+            "trace baseline concurrent compilation")
 #undef FLAG
 #define FLAG FLAG_FULL
+
+// Internalize into a shared string table in the shared isolate
+DEFINE_BOOL(shared_string_table, false, "internalize strings into shared table")
 
 #if !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
 DEFINE_BOOL(write_code_using_rwx, true,
@@ -897,6 +931,11 @@ DEFINE_BOOL(turbo_dynamic_map_checks, false,
 DEFINE_BOOL(turbo_compress_translation_arrays, false,
             "compress translation arrays (experimental)")
 DEFINE_BOOL(turbo_inline_js_wasm_calls, false, "inline JS->Wasm calls")
+DEFINE_BOOL(turbo_use_mid_tier_regalloc_for_huge_functions, false,
+            "fall back to the mid-tier register allocator for huge functions "
+            "(experimental)")
+DEFINE_BOOL(turbo_force_mid_tier_regalloc, false,
+            "always use the mid-tier register allocator (for testing)")
 
 DEFINE_BOOL(turbo_optimize_apply, true, "optimize Function.prototype.apply")
 
@@ -955,9 +994,18 @@ DEFINE_BOOL(wasm_tier_up, true,
             "have an effect)")
 DEFINE_BOOL(wasm_dynamic_tiering, false,
             "enable dynamic tier up to the optimizing compiler")
+DEFINE_BOOL(new_wasm_dynamic_tiering, false, "dynamic tier up (new impl)")
+// For dynamic tiering to have an effect, we have to turn off eager tierup.
+// This is handled in module-compiler.cc for --wasm-dynamic-tiering.
+DEFINE_NEG_IMPLICATION(new_wasm_dynamic_tiering, wasm_tier_up)
+DEFINE_INT(wasm_tiering_budget, 1800000,
+           "budget for dynamic tiering (rough approximation of bytes executed")
 DEFINE_INT(
     wasm_caching_threshold, 1000000,
     "the amount of wasm top tier code that triggers the next caching event")
+DEFINE_BOOL(trace_wasm_compilation_times, false,
+            "print how long it took to compile each wasm function")
+DEFINE_INT(wasm_tier_up_filter, -1, "only tier-up function with this index")
 DEFINE_DEBUG_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_interpreter, false,
@@ -1046,6 +1094,19 @@ DEFINE_BOOL(wasm_math_intrinsics, true,
 DEFINE_BOOL(
     wasm_inlining, false,
     "enable inlining of wasm functions into wasm functions (experimental)")
+DEFINE_SIZE_T(
+    wasm_inlining_budget_factor, 100000,
+    "maximum allowed size to inline a function is given by {n / caller size}")
+DEFINE_SIZE_T(wasm_inlining_max_size, 1250,
+              "maximum size of a function that can be inlined, in TF nodes")
+DEFINE_BOOL(wasm_speculative_inlining, false,
+            "enable speculative inlining of call_ref targets (experimental)")
+DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
+DEFINE_BOOL(trace_wasm_speculative_inlining, false,
+            "trace wasm speculative inlining")
+DEFINE_IMPLICATION(wasm_speculative_inlining, experimental_wasm_typed_funcref)
+DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_inlining)
+DEFINE_NEG_IMPLICATION(wasm_speculative_inlining, wasm_tier_up)
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
 DEFINE_BOOL(wasm_fuzzer_gen_test, false,
@@ -1531,6 +1592,9 @@ DEFINE_BOOL(
     trace_side_effect_free_debug_evaluate, false,
     "print debug messages for side-effect-free debug-evaluate for testing")
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
+
+DEFINE_BOOL(experimental_async_stack_tagging_api, false,
+            "enable experimental async stacks tagging API")
 
 // disassembler
 DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
@@ -2148,6 +2212,13 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_pointer_update)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_scavenge)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_array_buffer_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, stress_concurrent_allocation)
+
+// Web snapshots
+// TODO(v8:11525): Remove this flag once proper embedder integration is done.
+DEFINE_BOOL(
+    experimental_web_snapshots, false,
+    "interpret scripts as web snapshots if they start with a magic number")
+DEFINE_NEG_IMPLICATION(experimental_web_snapshots, script_streaming)
 
 #undef FLAG
 

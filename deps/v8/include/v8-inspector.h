@@ -114,7 +114,7 @@ class V8_EXPORT V8StackTrace {
   virtual int topLineNumber() const = 0;
   virtual int topColumnNumber() const = 0;
   virtual int topScriptId() const = 0;
-  V8_DEPRECATE_SOON("Use V8::StackTrace::topScriptId() instead.")
+  V8_DEPRECATED("Use V8::StackTrace::topScriptId() instead.")
   int topScriptIdAsInteger() const { return topScriptId(); }
   virtual StringView topFunctionName() const = 0;
 

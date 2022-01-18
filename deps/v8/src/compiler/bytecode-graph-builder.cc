@@ -2152,6 +2152,40 @@ void BytecodeGraphBuilder::VisitStaKeyedProperty() {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitStaKeyedPropertyAsDefine() {
+  PrepareEagerCheckpoint();
+  Node* value = environment()->LookupAccumulator();
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* key =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+  FeedbackSource source =
+      CreateFeedbackSource(bytecode_iterator().GetIndexOperand(2));
+  LanguageMode language_mode =
+      GetLanguageModeFromSlotKind(broker()->GetFeedbackSlotKind(source));
+
+  const Operator* op = javascript()->DefineProperty(language_mode, source);
+
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedStoreKeyed(op, object, key, value, source.slot);
+  if (lowering.IsExit()) return;
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    STATIC_ASSERT(JSDefinePropertyNode::ObjectIndex() == 0);
+    STATIC_ASSERT(JSDefinePropertyNode::KeyIndex() == 1);
+    STATIC_ASSERT(JSDefinePropertyNode::ValueIndex() == 2);
+    STATIC_ASSERT(JSDefinePropertyNode::FeedbackVectorIndex() == 3);
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+    node = NewNode(op, object, key, value, feedback_vector_node());
+  }
+
+  environment()->RecordAfterState(node, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitLdaModuleVariable() {
   int32_t cell_index = bytecode_iterator().GetImmediateOperand(0);
   uint32_t depth = bytecode_iterator().GetUnsignedImmediateOperand(1);
@@ -4328,9 +4362,9 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       int context_index = exception_handlers_.top().context_register_;
       interpreter::Register context_register(context_index);
       Environment* success_env = environment()->Copy();
-      const Operator* op = common()->IfException();
+      const Operator* if_exception = common()->IfException();
       Node* effect = environment()->GetEffectDependency();
-      Node* on_exception = graph()->NewNode(op, effect, result);
+      Node* on_exception = graph()->NewNode(if_exception, effect, result);
       Node* context = environment()->LookupRegister(context_register);
       environment()->UpdateControlDependency(on_exception);
       environment()->UpdateEffectDependency(on_exception);

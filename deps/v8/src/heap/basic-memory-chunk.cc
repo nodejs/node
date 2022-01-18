@@ -14,12 +14,16 @@ namespace v8 {
 namespace internal {
 
 // Verify write barrier offsets match the the real offsets.
+STATIC_ASSERT(BasicMemoryChunk::Flag::IS_EXECUTABLE ==
+              heap_internals::MemoryChunk::kIsExecutableBit);
 STATIC_ASSERT(BasicMemoryChunk::Flag::INCREMENTAL_MARKING ==
               heap_internals::MemoryChunk::kMarkingBit);
 STATIC_ASSERT(BasicMemoryChunk::Flag::FROM_PAGE ==
               heap_internals::MemoryChunk::kFromPageBit);
 STATIC_ASSERT(BasicMemoryChunk::Flag::TO_PAGE ==
               heap_internals::MemoryChunk::kToPageBit);
+STATIC_ASSERT(BasicMemoryChunk::Flag::READ_ONLY_HEAP ==
+              heap_internals::MemoryChunk::kReadOnlySpaceBit);
 STATIC_ASSERT(BasicMemoryChunk::kFlagsOffset ==
               heap_internals::MemoryChunk::kFlagsOffset);
 STATIC_ASSERT(BasicMemoryChunk::kHeapOffset ==

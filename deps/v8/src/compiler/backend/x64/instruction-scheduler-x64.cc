@@ -126,6 +126,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Pinsrw:
     case kX64Pinsrd:
     case kX64Pinsrq:
+    case kX64Cvttps2dq:
+    case kX64Cvttpd2dq:
+    case kX64I32x4TruncF64x2UZero:
+    case kX64I32x4TruncF32x4U:
     case kX64F64x2Splat:
     case kX64F64x2ExtractLane:
     case kX64F64x2ReplaceLane:
@@ -144,8 +148,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F64x2Le:
     case kX64F64x2Qfma:
     case kX64F64x2Qfms:
-    case kX64F64x2Pmin:
-    case kX64F64x2Pmax:
+    case kX64Minpd:
+    case kX64Maxpd:
     case kX64F64x2Round:
     case kX64F64x2ConvertLowI32x4S:
     case kX64F64x2ConvertLowI32x4U:
@@ -172,8 +176,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F32x4Le:
     case kX64F32x4Qfma:
     case kX64F32x4Qfms:
-    case kX64F32x4Pmin:
-    case kX64F32x4Pmax:
+    case kX64Minps:
+    case kX64Maxps:
     case kX64F32x4Round:
     case kX64F32x4DemoteF64x2Zero:
     case kX64I64x2Splat:
@@ -345,6 +349,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S8x2Reverse:
     case kX64V128AnyTrue:
     case kX64I8x16AllTrue:
+    case kX64Pblendvb:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
                  : kIsLoadOperation | kHasSideEffect;
@@ -391,6 +396,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64MovqDecompressTaggedPointer:
     case kX64MovqDecompressAnyTagged:
     case kX64MovqCompressTagged:
+    case kX64MovqDecodeCagedPointer:
+    case kX64MovqEncodeCagedPointer:
     case kX64Movq:
     case kX64Movsd:
     case kX64Movss:

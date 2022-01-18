@@ -227,6 +227,16 @@ class V8_EXPORT V8 {
    * this returns zero.
    */
   static size_t GetVirtualMemoryCageSizeInBytes();
+
+  /**
+   * Returns whether the virtual memory cage is configured securely.
+   *
+   * If V8 cannot create a proper virtual memory cage, it will fall back to
+   * creating a cage that doesn't have the desired security properties but at
+   * least still allows V8 to function. This API can be used to determine if
+   * such an insecure cage is being used, in which case it will return false.
+   */
+  static bool IsUsingSecureVirtualMemoryCage();
 #endif
 
   /**

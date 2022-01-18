@@ -65,6 +65,8 @@ static_assert((kLiftoffAssemblerFpCacheRegs &
 
 // rbp-8 holds the stack marker, rbp-16 is the instance parameter.
 constexpr int kInstanceOffset = 16;
+constexpr int kFeedbackVectorOffset = 24;  // rbp-24 is the feedback vector.
+constexpr int kTierupBudgetOffset = 32;    // rbp-32 is the feedback vector.
 
 inline Operand GetStackSlot(int offset) { return Operand(rbp, -offset); }
 
@@ -2158,6 +2160,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
   Condition cond = liftoff::ToCondition(liftoff_cond);
   cmpl(lhs, Immediate(imm));
   j(cond, label);
+}
+
+void LiftoffAssembler::emit_i32_subi_jump_negative(Register value,
+                                                   int subtrahend,
+                                                   Label* result_negative) {
+  subl(value, Immediate(subtrahend));
+  j(negative, result_negative);
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {

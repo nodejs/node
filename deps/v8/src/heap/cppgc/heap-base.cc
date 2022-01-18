@@ -13,7 +13,6 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-statistics-collector.h"
 #include "src/heap/cppgc/heap-visitor.h"
-#include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-verifier.h"
 #include "src/heap/cppgc/object-view.h"
 #include "src/heap/cppgc/page-memory.h"
@@ -78,6 +77,10 @@ HeapBase::HeapBase(
       object_allocator_(raw_heap_, *page_backend_, *stats_collector_,
                         *prefinalizer_handler_),
       sweeper_(*this),
+      strong_persistent_region_(*oom_handler_.get()),
+      weak_persistent_region_(*oom_handler_.get()),
+      strong_cross_thread_persistent_region_(*oom_handler_.get()),
+      weak_cross_thread_persistent_region_(*oom_handler_.get()),
       stack_support_(stack_support) {
   stats_collector_->RegisterObserver(
       &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
@@ -97,10 +100,6 @@ size_t HeapBase::ObjectPayloadSize() const {
   return ObjectSizeCounter().GetSize(const_cast<RawHeap&>(raw_heap()));
 }
 
-void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
-  if (marker_) marker_->AdvanceMarkingOnAllocation();
-}
-
 size_t HeapBase::ExecutePreFinalizers() {
 #ifdef CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
   // Allocations in pre finalizers should not trigger another GC.
@@ -112,6 +111,31 @@ size_t HeapBase::ExecutePreFinalizers() {
   prefinalizer_handler_->InvokePreFinalizers();
   return prefinalizer_handler_->ExtractBytesAllocatedInPrefinalizers();
 }
+
+#if defined(CPPGC_YOUNG_GENERATION)
+void HeapBase::ResetRememberedSet() {
+  class AllLABsAreEmpty final : protected HeapVisitor<AllLABsAreEmpty> {
+    friend class HeapVisitor<AllLABsAreEmpty>;
+
+   public:
+    explicit AllLABsAreEmpty(RawHeap& raw_heap) { Traverse(raw_heap); }
+
+    bool value() const { return !some_lab_is_set_; }
+
+   protected:
+    bool VisitNormalPageSpace(NormalPageSpace& space) {
+      some_lab_is_set_ |= space.linear_allocation_buffer().size();
+      return true;
+    }
+
+   private:
+    bool some_lab_is_set_ = false;
+  };
+  DCHECK(AllLABsAreEmpty(raw_heap()).value());
+  caged_heap().local_data().age_table.Reset(&caged_heap().allocator());
+  remembered_slots().clear();
+}
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
 void HeapBase::Terminate() {
   DCHECK(!IsMarking());

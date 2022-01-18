@@ -101,6 +101,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Is this scope the scope of a named function expression?
   V8_EXPORT_PRIVATE bool HasFunctionName() const;
 
+  bool HasContextAllocatedFunctionName() const;
+
   // See SharedFunctionInfo::HasSharedName.
   V8_EXPORT_PRIVATE bool HasSharedFunctionName() const;
 
@@ -187,6 +189,9 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // slot index if scope has a "this" binding, and the binding is
   // context-allocated.  Otherwise returns a value < 0.
   int ReceiverContextSlotIndex() const;
+
+  // Returns the first parameter context slot index.
+  int ParametersStartIndex() const;
 
   // Lookup support for serialized scope info.  Returns the index of the
   // saved class variable in context local slots if scope is a class scope
@@ -285,7 +290,6 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;
   int SavedClassVariableInfoIndex() const;
-  int ReceiverInfoIndex() const;
   int FunctionVariableInfoIndex() const;
   int InferredFunctionNameIndex() const;
   int PositionInfoIndex() const;

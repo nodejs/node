@@ -172,6 +172,8 @@ void RegExpMacroAssemblerTracer::LoadCurrentCharacterImpl(
                                    characters, eats_at_least);
 }
 
+namespace {
+
 class PrintablePrinter {
  public:
   explicit PrintablePrinter(base::uc16 character) : character_(character) {}
@@ -192,6 +194,8 @@ class PrintablePrinter {
   base::uc16 character_;
   char buffer_[4];
 };
+
+}  // namespace
 
 void RegExpMacroAssemblerTracer::CheckCharacterLT(base::uc16 limit,
                                                   Label* on_less) {
@@ -315,6 +319,41 @@ void RegExpMacroAssemblerTracer::CheckCharacterNotInRange(base::uc16 from,
   assembler_->CheckCharacterNotInRange(from, to, on_in_range);
 }
 
+namespace {
+
+void PrintRangeArray(const ZoneList<CharacterRange>* ranges) {
+  for (int i = 0; i < ranges->length(); i++) {
+    base::uc16 from = ranges->at(i).from();
+    base::uc16 to = ranges->at(i).to();
+    PrintablePrinter printable_from(from);
+    PrintablePrinter printable_to(to);
+    PrintF("        [from=0x%04x%s, to=%04x%s],\n", from, *printable_from, to,
+           *printable_to);
+  }
+}
+
+}  // namespace
+
+bool RegExpMacroAssemblerTracer::CheckCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_in_range) {
+  PrintF(
+      " CheckCharacterInRangeArray(\n"
+      "        label[%08x]);\n",
+      LabelToInt(on_in_range));
+  PrintRangeArray(ranges);
+  return assembler_->CheckCharacterInRangeArray(ranges, on_in_range);
+}
+
+bool RegExpMacroAssemblerTracer::CheckCharacterNotInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_not_in_range) {
+  PrintF(
+      " CheckCharacterNotInRangeArray(\n"
+      "        label[%08x]);\n",
+      LabelToInt(on_not_in_range));
+  PrintRangeArray(ranges);
+  return assembler_->CheckCharacterNotInRangeArray(ranges, on_not_in_range);
+}
+
 void RegExpMacroAssemblerTracer::CheckBitInTable(
     Handle<ByteArray> table, Label* on_bit_set) {
   PrintF(" CheckBitInTable(label[%08x] ", LabelToInt(on_bit_set));
@@ -354,12 +393,11 @@ void RegExpMacroAssemblerTracer::CheckPosition(int cp_offset,
 }
 
 bool RegExpMacroAssemblerTracer::CheckSpecialCharacterClass(
-    base::uc16 type, Label* on_no_match) {
+    StandardCharacterSet type, Label* on_no_match) {
   bool supported = assembler_->CheckSpecialCharacterClass(type,
                                                           on_no_match);
   PrintF(" CheckSpecialCharacterClass(type='%c', label[%08x]): %s;\n",
-         type,
-         LabelToInt(on_no_match),
+         static_cast<char>(type), LabelToInt(on_no_match),
          supported ? "true" : "false");
   return supported;
 }

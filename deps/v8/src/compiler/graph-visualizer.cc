@@ -633,21 +633,21 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       Tag states_tag(this, "states");
       Tag locals_tag(this, "locals");
       int total = 0;
-      for (BasicBlock::const_iterator i = current->begin(); i != current->end();
-           ++i) {
-        if ((*i)->opcode() == IrOpcode::kPhi) total++;
+      for (BasicBlock::const_iterator it = current->begin();
+           it != current->end(); ++it) {
+        if ((*it)->opcode() == IrOpcode::kPhi) total++;
       }
       PrintIntProperty("size", total);
       PrintStringProperty("method", "None");
       int index = 0;
-      for (BasicBlock::const_iterator i = current->begin(); i != current->end();
-           ++i) {
-        if ((*i)->opcode() != IrOpcode::kPhi) continue;
+      for (BasicBlock::const_iterator it = current->begin();
+           it != current->end(); ++it) {
+        if ((*it)->opcode() != IrOpcode::kPhi) continue;
         PrintIndent();
         os_ << index << " ";
-        PrintNodeId(*i);
+        PrintNodeId(*it);
         os_ << " [";
-        PrintInputs(*i);
+        PrintInputs(*it);
         os_ << "]\n";
         index++;
       }
@@ -655,9 +655,9 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
 
     {
       Tag HIR_tag(this, "HIR");
-      for (BasicBlock::const_iterator i = current->begin(); i != current->end();
-           ++i) {
-        Node* node = *i;
+      for (BasicBlock::const_iterator it = current->begin();
+           it != current->end(); ++it) {
+        Node* node = *it;
         if (node->opcode() == IrOpcode::kPhi) continue;
         int uses = node->UseCount();
         PrintIndent();
@@ -935,9 +935,9 @@ void PrintScheduledGraph(std::ostream& os, const Schedule* schedule) {
     }
     os << ")" << std::endl;
 
-    for (BasicBlock::const_iterator i = current->begin(); i != current->end();
-         ++i) {
-      Node* node = *i;
+    for (BasicBlock::const_iterator it = current->begin(); it != current->end();
+         ++it) {
+      Node* node = *it;
       PrintScheduledNode(os, indent, node);
       os << std::endl;
     }

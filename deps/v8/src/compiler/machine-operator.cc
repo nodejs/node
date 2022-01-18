@@ -598,7 +598,18 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I32x4AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
   V(I16x8AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
   V(I8x16AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
-  V(I8x16Swizzle, Operator::kNoProperties, 2, 0, 1)
+  V(I8x16RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)              \
+  V(I16x8RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)              \
+  V(I32x4RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)              \
+  V(I64x2RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)              \
+  V(F32x4RelaxedMin, Operator::kNoProperties, 2, 0, 1)                     \
+  V(F32x4RelaxedMax, Operator::kNoProperties, 2, 0, 1)                     \
+  V(F64x2RelaxedMin, Operator::kNoProperties, 2, 0, 1)                     \
+  V(F64x2RelaxedMax, Operator::kNoProperties, 2, 0, 1)                     \
+  V(I32x4RelaxedTruncF32x4S, Operator::kNoProperties, 1, 0, 1)             \
+  V(I32x4RelaxedTruncF32x4U, Operator::kNoProperties, 1, 0, 1)             \
+  V(I32x4RelaxedTruncF64x2SZero, Operator::kNoProperties, 1, 0, 1)         \
+  V(I32x4RelaxedTruncF64x2UZero, Operator::kNoProperties, 1, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
@@ -656,6 +667,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(MapInHeader)             \
   V(AnyTagged)               \
   V(CompressedPointer)       \
+  V(CagedPointer)            \
   V(AnyCompressed)
 
 #define MACHINE_REPRESENTATION_LIST(V) \
@@ -671,6 +683,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(kTaggedPointer)                    \
   V(kTagged)                           \
   V(kCompressedPointer)                \
+  V(kCagedPointer)                     \
   V(kCompressed)
 
 #define LOAD_TRANSFORM_LIST(V) \
@@ -1282,6 +1295,19 @@ struct MachineOperatorGlobalCache {
   STACK_POINTER_GREATER_THAN(CodeStubAssembler)
   STACK_POINTER_GREATER_THAN(Wasm)
 #undef STACK_POINTER_GREATER_THAN
+
+  struct I8x16SwizzleOperator final : public Operator1<bool> {
+    I8x16SwizzleOperator()
+        : Operator1<bool>(IrOpcode::kI8x16Swizzle, Operator::kPure,
+                          "I8x16Swizzle", 2, 0, 0, 1, 0, 0, false) {}
+  };
+  I8x16SwizzleOperator kI8x16Swizzle;
+  struct I8x16RelaxedSwizzleOperator final : public Operator1<bool> {
+    I8x16RelaxedSwizzleOperator()
+        : Operator1<bool>(IrOpcode::kI8x16Swizzle, Operator::kPure,
+                          "I8x16RelaxedSwizzle", 2, 0, 0, 1, 0, 0, true) {}
+  };
+  I8x16RelaxedSwizzleOperator kI8x16RelaxedSwizzle;
 };
 
 struct CommentOperator : public Operator1<const char*> {
@@ -2001,6 +2027,14 @@ const Operator* MachineOperatorBuilder::I8x16Shuffle(
   return zone_->New<Operator1<S128ImmediateParameter>>(
       IrOpcode::kI8x16Shuffle, Operator::kPure, "Shuffle", 2, 0, 0, 1, 0, 0,
       S128ImmediateParameter(shuffle));
+}
+
+const Operator* MachineOperatorBuilder::I8x16Swizzle(bool relaxed) {
+  if (relaxed) {
+    return &cache_.kI8x16RelaxedSwizzle;
+  } else {
+    return &cache_.kI8x16Swizzle;
+  }
 }
 
 StackCheckKind StackCheckKindOf(Operator const* op) {

@@ -61,7 +61,6 @@ struct WasmModule;
   V(WasmFloat64ToNumber)                  \
   V(WasmTaggedToFloat64)                  \
   V(WasmAllocateJSArray)                  \
-  V(WasmAllocatePair)                     \
   V(WasmAtomicNotify)                     \
   V(WasmI32AtomicWait32)                  \
   V(WasmI32AtomicWait64)                  \
@@ -81,11 +80,13 @@ struct WasmModule;
   V(WasmAllocateFixedArray)               \
   V(WasmThrow)                            \
   V(WasmRethrow)                          \
+  V(WasmRethrowExplicitContext)           \
   V(WasmTraceEnter)                       \
   V(WasmTraceExit)                        \
   V(WasmTraceMemory)                      \
   V(BigIntToI32Pair)                      \
   V(BigIntToI64)                          \
+  V(CallRefIC)                            \
   V(DoubleToI)                            \
   V(I32PairToBigInt)                      \
   V(I64ToBigInt)                          \
@@ -117,6 +118,7 @@ struct WasmModule;
   V(WasmAllocateArray_Uninitialized)      \
   V(WasmAllocateArray_InitNull)           \
   V(WasmAllocateArray_InitZero)           \
+  V(WasmArrayCopy)                        \
   V(WasmArrayCopyWithChecks)              \
   V(WasmAllocateRtt)                      \
   V(WasmAllocateFreshRtt)                 \
@@ -502,6 +504,9 @@ class WasmCodeAllocator {
 #if V8_TARGET_ARCH_ARM64
   // ARM64 only supports direct calls within a 128 MB range.
   static constexpr size_t kMaxCodeSpaceSize = 128 * MB;
+#elif V8_TARGET_ARCH_PPC64
+  // branches only takes 26 bits
+  static constexpr size_t kMaxCodeSpaceSize = 32 * MB;
 #else
   // Use 1024 MB limit for code spaces on other platforms. This is smaller than
   // the total allowed code space (kMaxWasmCodeMemory) to avoid unnecessarily
@@ -601,7 +606,8 @@ class WasmCodeAllocator {
 
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64 || \
+    V8_TARGET_ARCH_PPC64
   static constexpr bool kNeedsFarJumpsBetweenCodeSpaces = true;
 #else
   static constexpr bool kNeedsFarJumpsBetweenCodeSpaces = false;

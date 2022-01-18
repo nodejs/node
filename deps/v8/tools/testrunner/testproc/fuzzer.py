@@ -49,6 +49,7 @@ EXTRA_FLAGS = [
   (0.1, '--stress-wasm-code-gc'),
   (0.1, '--turbo-instruction-scheduling'),
   (0.1, '--turbo-stress-instruction-scheduling'),
+  (0.1, '--turbo-force-mid-tier-regalloc'),
 ]
 
 def random_extra_flags(rng):

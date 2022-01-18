@@ -13,7 +13,8 @@ namespace internal {
 class V8_EXPORT_PRIVATE UnifiedHeapMarkingVerifier final
     : public cppgc::internal::MarkingVerifierBase {
  public:
-  explicit UnifiedHeapMarkingVerifier(cppgc::internal::HeapBase&);
+  UnifiedHeapMarkingVerifier(cppgc::internal::HeapBase&,
+                             cppgc::internal::Heap::Config::CollectionType);
   ~UnifiedHeapMarkingVerifier() final = default;
 
  private:

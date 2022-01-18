@@ -40,7 +40,7 @@ constexpr size_t kV8MaxWasmDataSegments = 100000;
 // Also, do not use this limit to validate declared memory, use
 // kSpecMaxMemoryPages for that.
 constexpr size_t kV8MaxWasmMemoryPages = kSystemPointerSize == 4
-                                             ? 32768   // = 2 GiB
+                                             ? 32767   // = 2 GiB
                                              : 65536;  // = 4 GiB
 constexpr size_t kV8MaxWasmStringSize = 100000;
 constexpr size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB

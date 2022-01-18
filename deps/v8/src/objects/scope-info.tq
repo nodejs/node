@@ -122,15 +122,6 @@ extern class ScopeInfo extends HeapObject {
   // the context slot index for the class variable.
   saved_class_variable_info?[flags.has_saved_class_variable_index]: Smi;
 
-  // If the scope binds a "this" value, one slot is reserved to hold the
-  // context or stack slot index for the variable.
-  receiver_info?[
-    flags.receiver_variable ==
-        FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::STACK) ||
-    flags.receiver_variable ==
-        FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::CONTEXT)
-  ]: Smi;
-
   // If the scope belongs to a named function expression this part contains
   // information about the function variable. It always occupies two array
   // slots:  a. The name of the function variable.

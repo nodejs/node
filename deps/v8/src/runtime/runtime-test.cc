@@ -494,6 +494,10 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
   if (!FLAG_opt) return ReadOnlyRoots(isolate).undefined_value();
 
+  if (!function->shared().allows_lazy_compilation()) {
+    return CrashUnlessFuzzing(isolate);
+  }
+
   if (function->shared().optimization_disabled() &&
       function->shared().disable_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
@@ -1417,6 +1421,30 @@ RUNTIME_FUNCTION(Runtime_Is64Bit) {
   DCHECK_EQ(0, args.length());
   return isolate->heap()->ToBoolean(kSystemPointerSize == 8);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+// TODO(thibaudm): Handle this in Suspender.returnPromiseOnSuspend() when
+// the Suspender object is added.
+RUNTIME_FUNCTION(Runtime_WasmReturnPromiseOnSuspend) {
+  CHECK(FLAG_experimental_wasm_stack_switching);
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  SharedFunctionInfo sfi = function->shared();
+  // TODO(thibaudm): Throw an error if this is not a wasm function.
+  CHECK(sfi.HasWasmExportedFunctionData());
+  WasmExportedFunctionData data = sfi.wasm_exported_function_data();
+  int index = data.function_index();
+  Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(data.ref()),
+                                      isolate);
+  auto wrapper =
+      isolate->builtins()->code_handle(Builtin::kWasmReturnPromiseOnSuspend);
+  auto result = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(
+      isolate, instance, index, static_cast<int>(data.sig()->parameter_count()),
+      wrapper));
+  return *result;
+}
+#endif
 
 }  // namespace internal
 }  // namespace v8

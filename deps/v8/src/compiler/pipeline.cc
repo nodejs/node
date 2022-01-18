@@ -96,6 +96,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
+#include "src/compiler/wasm-escape-analysis.h"
 #include "src/compiler/wasm-inlining.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
@@ -1269,14 +1270,14 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
   DCHECK(code->is_optimized_code());
   {
     DisallowGarbageCollection no_gc;
+    PtrComprCageBase cage_base(isolate);
     int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
     for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-      if (code->IsWeakObjectInOptimizedCode(it.rinfo()->target_object())) {
-        Handle<HeapObject> object(HeapObject::cast(it.rinfo()->target_object()),
-                                  isolate);
-        if (object->IsMap()) {
-          maps.push_back(Handle<Map>::cast(object));
+      HeapObject target_object = it.rinfo()->target_object(cage_base);
+      if (code->IsWeakObjectInOptimizedCode(target_object)) {
+        if (target_object.IsMap(cage_base)) {
+          maps.push_back(handle(Map::cast(target_object), isolate));
         }
       }
     }
@@ -1685,28 +1686,6 @@ struct WasmLoopUnrollingPhase {
     }
   }
 };
-
-struct WasmInliningPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(WasmInlining)
-
-  void Run(PipelineData* data, Zone* temp_zone, wasm::CompilationEnv* env,
-           const wasm::WireBytesStorage* wire_bytes) {
-    GraphReducer graph_reducer(
-        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
-        data->jsgraph()->Dead(), data->observe_node_manager());
-    DeadCodeElimination dead(&graph_reducer, data->graph(),
-                             data->mcgraph()->common(), temp_zone);
-    // For now, hard-code inlining the function at index 0.
-    InlineByIndex heuristics({0});
-    WasmInliner inliner(&graph_reducer, env, data->source_positions(),
-                        data->node_origins(), data->mcgraph(), wire_bytes,
-                        &heuristics);
-    AddReducer(data, &graph_reducer, &dead);
-    AddReducer(data, &graph_reducer, &inliner);
-
-    graph_reducer.ReduceGraph();
-  }
-};
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 struct LoopExitEliminationPhase {
@@ -2010,12 +1989,14 @@ struct ScheduledEffectControlLinearizationPhase {
 struct WasmOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmOptimization)
 
-  void Run(PipelineData* data, Zone* temp_zone, bool allow_signalling_nan) {
+  void Run(PipelineData* data, Zone* temp_zone, bool allow_signalling_nan,
+           wasm::CompilationEnv* env, uint32_t function_index,
+           const wasm::WireBytesStorage* wire_bytes) {
     // Run optimizations in two rounds: First one around load elimination and
     // then one around branch elimination. This is because those two
     // optimizations sometimes display quadratic complexity when run together.
     // We only need load elimination for managed objects.
-    if (FLAG_experimental_wasm_gc) {
+    if (FLAG_experimental_wasm_gc || FLAG_wasm_inlining) {
       GraphReducer graph_reducer(temp_zone, data->graph(),
                                  &data->info()->tick_counter(), data->broker(),
                                  data->jsgraph()->Dead(),
@@ -2030,11 +2011,22 @@ struct WasmOptimizationPhase {
       ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
       CsaLoadElimination load_elimination(&graph_reducer, data->jsgraph(),
                                           temp_zone);
+      WasmInliner inliner(&graph_reducer, env, function_index,
+                          data->source_positions(), data->node_origins(),
+                          data->mcgraph(), wire_bytes);
+      WasmEscapeAnalysis escape(&graph_reducer, data->mcgraph());
       AddReducer(data, &graph_reducer, &machine_reducer);
       AddReducer(data, &graph_reducer, &dead_code_elimination);
       AddReducer(data, &graph_reducer, &common_reducer);
       AddReducer(data, &graph_reducer, &value_numbering);
-      AddReducer(data, &graph_reducer, &load_elimination);
+      if (FLAG_experimental_wasm_gc) {
+        AddReducer(data, &graph_reducer, &load_elimination);
+        AddReducer(data, &graph_reducer, &escape);
+      }
+      if (FLAG_wasm_inlining &&
+          !WasmInliner::any_inlining_impossible(data->graph()->NodeCount())) {
+        AddReducer(data, &graph_reducer, &inliner);
+      }
       graph_reducer.ReduceGraph();
     }
     {
@@ -3208,6 +3200,10 @@ void Pipeline::GenerateCodeForWasmFunction(
     const wasm::WasmModule* module, int function_index,
     std::vector<compiler::WasmLoopInfo>* loop_info) {
   auto* wasm_engine = wasm::GetWasmEngine();
+  base::TimeTicks start_time;
+  if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
+    start_time = base::TimeTicks::Now();
+  }
   ZoneStats zone_stats(wasm_engine->allocator());
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
       CreatePipelineStatistics(function_body, module, info, &zone_stats));
@@ -3232,14 +3228,11 @@ void Pipeline::GenerateCodeForWasmFunction(
     pipeline.Run<WasmLoopUnrollingPhase>(loop_info);
     pipeline.RunPrintAndVerify(WasmLoopUnrollingPhase::phase_name(), true);
   }
-  if (FLAG_wasm_inlining) {
-    pipeline.Run<WasmInliningPhase>(env, wire_bytes_storage);
-    pipeline.RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
-  }
   const bool is_asm_js = is_asmjs_module(module);
 
   if (FLAG_wasm_opt || is_asm_js) {
-    pipeline.Run<WasmOptimizationPhase>(is_asm_js);
+    pipeline.Run<WasmOptimizationPhase>(is_asm_js, env, function_index,
+                                        wire_bytes_storage);
     pipeline.RunPrintAndVerify(WasmOptimizationPhase::phase_name(), true);
   } else {
     pipeline.Run<WasmBaseOptimizationPhase>();
@@ -3303,6 +3296,19 @@ void Pipeline::GenerateCodeForWasmFunction(
         << "---------------------------------------------------\n"
         << "Finished compiling method " << data.info()->GetDebugName().get()
         << " using TurboFan" << std::endl;
+  }
+
+  if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
+    base::TimeDelta time = base::TimeTicks::Now() - start_time;
+    int codesize = result->code_desc.body_size();
+    StdoutStream{} << "Compiled function "
+                   << reinterpret_cast<const void*>(module) << "#"
+                   << function_index << " using TurboFan, took "
+                   << time.InMilliseconds() << " ms and "
+                   << zone_stats.GetMaxAllocatedBytes() << " / "
+                   << zone_stats.GetTotalAllocatedBytes()
+                   << " max/total bytes, codesize " << codesize << " name "
+                   << data.info()->GetDebugName().get() << std::endl;
   }
 
   DCHECK(result->succeeded());
@@ -3550,19 +3556,33 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   bool run_verifier = FLAG_turbo_verify_allocation;
 
   // Allocate registers.
+
+  // This limit is chosen somewhat arbitrarily, by looking at a few bigger
+  // WebAssembly programs, and chosing the limit such that functions that take
+  // >100ms in register allocation are switched to mid-tier.
+  static int kTopTierVirtualRegistersLimit = 8192;
+
+  const RegisterConfiguration* config = RegisterConfiguration::Default();
+  std::unique_ptr<const RegisterConfiguration> restricted_config;
+  bool use_mid_tier_register_allocator =
+      FLAG_turbo_force_mid_tier_regalloc ||
+      (FLAG_turboprop_mid_tier_reg_alloc && data->info()->IsTurboprop()) ||
+      (FLAG_turbo_use_mid_tier_regalloc_for_huge_functions &&
+       data->sequence()->VirtualRegisterCount() >
+           kTopTierVirtualRegistersLimit);
+
   if (call_descriptor->HasRestrictedAllocatableRegisters()) {
     RegList registers = call_descriptor->AllocatableRegisters();
     DCHECK_LT(0, NumRegs(registers));
-    std::unique_ptr<const RegisterConfiguration> config;
-    config.reset(RegisterConfiguration::RestrictGeneralRegisters(registers));
-    AllocateRegistersForTopTier(config.get(), call_descriptor, run_verifier);
+    restricted_config.reset(
+        RegisterConfiguration::RestrictGeneralRegisters(registers));
+    config = restricted_config.get();
+    use_mid_tier_register_allocator = false;
+  }
+  if (use_mid_tier_register_allocator) {
+    AllocateRegistersForMidTier(config, call_descriptor, run_verifier);
   } else {
-    const RegisterConfiguration* config = RegisterConfiguration::Default();
-    if (data->info()->IsTurboprop() && FLAG_turboprop_mid_tier_reg_alloc) {
-      AllocateRegistersForMidTier(config, call_descriptor, run_verifier);
-    } else {
-      AllocateRegistersForTopTier(config, call_descriptor, run_verifier);
-    }
+    AllocateRegistersForTopTier(config, call_descriptor, run_verifier);
   }
 
   // Verify the instruction sequence has the same hash in two stages.

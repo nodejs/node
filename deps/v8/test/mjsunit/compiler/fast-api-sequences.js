@@ -148,6 +148,32 @@ for (let i = 0; i < 100; i++) {
 })();
 
 (function () {
+  function float32_test(should_fallback = false) {
+    let typed_array = new Float32Array([1.3, 2.4, 3.5]);
+    return fast_c_api.add_all_float32_typed_array(false /* should_fallback */,
+      typed_array);
+  }
+  if (fast_c_api.supports_fp_params) {
+    ExpectFastCall(float32_test, 7.2);
+  } else {
+    ExpectSlowCall(float32_test, 7.2);
+  }
+})();
+
+(function () {
+  function float64_test(should_fallback = false) {
+    let typed_array = new Float64Array([1.3, 2.4, 3.5]);
+    return fast_c_api.add_all_float64_typed_array(false /* should_fallback */,
+      typed_array);
+  }
+  if (fast_c_api.supports_fp_params) {
+    ExpectFastCall(float64_test, 7.2);
+  } else {
+    ExpectSlowCall(float64_test, 7.2);
+  }
+})();
+
+(function () {
   function detached_typed_array_test(should_fallback = false) {
     let typed_array = new Int32Array([-42, 1, 2, 3]);
     %ArrayBufferDetach(typed_array.buffer);

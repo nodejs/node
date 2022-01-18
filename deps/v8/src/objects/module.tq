@@ -18,3 +18,8 @@ extern class Module extends HeapObject {
 }
 
 extern class JSModuleNamespace extends JSSpecialObject { module: Module; }
+
+extern class ScriptOrModule extends Struct {
+  resource_name: Object;
+  host_defined_options: FixedArray;
+}

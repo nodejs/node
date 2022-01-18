@@ -3038,8 +3038,7 @@ TEST(DebugBreakInWrappedScript) {
   {
     v8::ScriptCompiler::Source script_source(v8_str(source));
     v8::Local<v8::Function> fun =
-        v8::ScriptCompiler::CompileFunctionInContext(
-            env.local(), &script_source, 0, nullptr, 0, nullptr)
+        v8::ScriptCompiler::CompileFunction(env.local(), &script_source)
             .ToLocalChecked();
     v8::Local<v8::Value> result =
         fun->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
@@ -5373,8 +5372,7 @@ TEST(TerminateOnResumeAtException) {
 
     v8::ScriptCompiler::Source script_source(v8_str(source));
     v8::Local<v8::Function> foo =
-        v8::ScriptCompiler::CompileFunctionInContext(
-            env.local(), &script_source, 0, nullptr, 0, nullptr)
+        v8::ScriptCompiler::CompileFunction(env.local(), &script_source)
             .ToLocalChecked();
 
     v8::MaybeLocal<v8::Value> val =
@@ -5620,8 +5618,7 @@ TEST(TerminateOnResumeFromOtherThread) {
 
     v8::ScriptCompiler::Source script_source(v8_str(source));
     v8::Local<v8::Function> foo =
-        v8::ScriptCompiler::CompileFunctionInContext(
-            env.local(), &script_source, 0, nullptr, 0, nullptr)
+        v8::ScriptCompiler::CompileFunction(env.local(), &script_source)
             .ToLocalChecked();
 
     v8::MaybeLocal<v8::Value> val =
@@ -5675,8 +5672,7 @@ TEST(TerminateOnResumeAtInterruptFromOtherThread) {
 
     v8::ScriptCompiler::Source script_source(v8_str(source));
     v8::Local<v8::Function> foo =
-        v8::ScriptCompiler::CompileFunctionInContext(
-            env.local(), &script_source, 0, nullptr, 0, nullptr)
+        v8::ScriptCompiler::CompileFunction(env.local(), &script_source)
             .ToLocalChecked();
 
     CHECK(timeout_thread.Start());

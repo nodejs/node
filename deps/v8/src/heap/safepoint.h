@@ -20,9 +20,9 @@ class RootVisitor;
 
 // Used to bring all threads with heap access to a safepoint such that e.g. a
 // garbage collection can be performed.
-class GlobalSafepoint {
+class IsolateSafepoint final {
  public:
-  explicit GlobalSafepoint(Heap* heap);
+  explicit IsolateSafepoint(Heap* heap);
 
   // Wait until unpark operation is safe again
   void WaitInUnpark();
@@ -42,14 +42,14 @@ class GlobalSafepoint {
   // Iterate local heaps
   template <typename Callback>
   void IterateLocalHeaps(Callback callback) {
-    DCHECK(IsActive());
+    AssertActive();
     for (LocalHeap* current = local_heaps_head_; current;
          current = current->next_) {
       callback(current);
     }
   }
 
-  bool IsActive() { return active_safepoint_scopes_ > 0; }
+  void AssertActive() { local_heaps_mutex_.AssertHeld(); }
 
  private:
   class Barrier {
@@ -130,7 +130,7 @@ class V8_NODISCARD SafepointScope {
   V8_EXPORT_PRIVATE ~SafepointScope();
 
  private:
-  GlobalSafepoint* safepoint_;
+  IsolateSafepoint* safepoint_;
 };
 
 }  // namespace internal

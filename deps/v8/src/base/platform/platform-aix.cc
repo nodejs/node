@@ -129,6 +129,12 @@ void OS::SignalCodeMovingGC() {}
 
 void OS::AdjustSchedulingParams() {}
 
+std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
+    OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
+    size_t alignment) {
+  return {};
+}
+
 // static
 Stack::StackSlot Stack::GetStackStart() {
   // pthread_getthrds_np creates 3 values:

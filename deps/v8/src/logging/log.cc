@@ -1385,6 +1385,30 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
   LogCodeDisassemble(code);
 }
 
+void Logger::FeedbackVectorEvent(FeedbackVector vector, AbstractCode code) {
+  DisallowGarbageCollection no_gc;
+  if (!FLAG_log_code) return;
+  MSG_BUILDER();
+  msg << "feedback-vector" << kNext << Time();
+  msg << kNext << reinterpret_cast<void*>(vector.address()) << kNext
+      << vector.length();
+  msg << kNext << reinterpret_cast<void*>(code.InstructionStart());
+  msg << kNext << vector.optimization_marker();
+  msg << kNext << vector.optimization_tier();
+  msg << kNext << vector.invocation_count();
+  msg << kNext << vector.profiler_ticks() << kNext;
+
+#ifdef OBJECT_PRINT
+  std::ostringstream buffer;
+  vector.FeedbackVectorPrint(buffer);
+  std::string contents = buffer.str();
+  msg.AppendString(contents.c_str(), contents.length());
+#else
+  msg << "object-printing-disabled";
+#endif
+  msg.WriteToLogFile();
+}
+
 // Functions
 // Although, it is possible to extract source and line from
 // the SharedFunctionInfo object, we left it to caller

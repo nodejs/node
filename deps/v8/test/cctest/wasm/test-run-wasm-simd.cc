@@ -86,16 +86,6 @@ T Mul(T a, T b) {
 }
 
 template <typename T>
-T Minimum(T a, T b) {
-  return std::min(a, b);
-}
-
-template <typename T>
-T Maximum(T a, T b) {
-  return std::max(a, b);
-}
-
-template <typename T>
 T UnsignedMinimum(T a, T b) {
   using UnsignedT = typename std::make_unsigned<T>::type;
   return static_cast<UnsignedT>(a) <= static_cast<UnsignedT>(b) ? a : b;
@@ -654,6 +644,80 @@ WASM_SIMD_TEST(I64x2GtS) {
 
 WASM_SIMD_TEST(I64x2GeS) {
   RunI64x2BinOpTest(execution_tier, kExprI64x2GeS, GreaterEqual);
+}
+
+namespace {
+
+template <typename ScalarType>
+void RunICompareOpConstImmTest(TestExecutionTier execution_tier,
+                               WasmOpcode cmp_opcode, WasmOpcode splat_opcode,
+                               ScalarType (*expected_op)(ScalarType,
+                                                         ScalarType)) {
+  for (ScalarType x : compiler::ValueHelper::GetVector<ScalarType>()) {
+    WasmRunner<int32_t, ScalarType> r(execution_tier);
+    // Set up global to hold mask output for left and right cases
+    ScalarType* g1 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
+    ScalarType* g2 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
+    // Build fn to splat test values, perform compare op on both sides, and
+    // write the result.
+    byte value = 0;
+    byte temp = r.AllocateLocal(kWasmS128);
+    uint8_t const_buffer[kSimd128Size];
+    for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
+      WriteLittleEndianValue<ScalarType>(
+          bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
+    }
+    BUILD(r,
+          WASM_LOCAL_SET(temp,
+                         WASM_SIMD_OPN(splat_opcode, WASM_LOCAL_GET(value))),
+          WASM_GLOBAL_SET(
+              0, WASM_SIMD_BINOP(cmp_opcode, WASM_SIMD_CONSTANT(const_buffer),
+                                 WASM_LOCAL_GET(temp))),
+          WASM_GLOBAL_SET(1, WASM_SIMD_BINOP(cmp_opcode, WASM_LOCAL_GET(temp),
+                                             WASM_SIMD_CONSTANT(const_buffer))),
+          WASM_ONE);
+    for (ScalarType y : compiler::ValueHelper::GetVector<ScalarType>()) {
+      r.Call(y);
+      ScalarType expected1 = expected_op(x, y);
+      ScalarType expected2 = expected_op(y, x);
+      for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
+        CHECK_EQ(expected1, LANE(g1, i));
+        CHECK_EQ(expected2, LANE(g2, i));
+      }
+    }
+  }
+}
+
+}  // namespace
+
+WASM_SIMD_TEST(I64x2EqZero) {
+  RunICompareOpConstImmTest<int64_t>(execution_tier, kExprI64x2Eq,
+                                     kExprI64x2Splat, Equal);
+}
+
+WASM_SIMD_TEST(I64x2NeZero) {
+  RunICompareOpConstImmTest<int64_t>(execution_tier, kExprI64x2Ne,
+                                     kExprI64x2Splat, NotEqual);
+}
+
+WASM_SIMD_TEST(I64x2GtZero) {
+  RunICompareOpConstImmTest<int64_t>(execution_tier, kExprI64x2GtS,
+                                     kExprI64x2Splat, Greater);
+}
+
+WASM_SIMD_TEST(I64x2GeZero) {
+  RunICompareOpConstImmTest<int64_t>(execution_tier, kExprI64x2GeS,
+                                     kExprI64x2Splat, GreaterEqual);
+}
+
+WASM_SIMD_TEST(I64x2LtZero) {
+  RunICompareOpConstImmTest<int64_t>(execution_tier, kExprI64x2LtS,
+                                     kExprI64x2Splat, Less);
+}
+
+WASM_SIMD_TEST(I64x2LeZero) {
+  RunICompareOpConstImmTest<int64_t>(execution_tier, kExprI64x2LeS,
+                                     kExprI64x2Splat, LessEqual);
 }
 
 WASM_SIMD_TEST(F64x2Splat) {
@@ -1537,6 +1601,36 @@ WASM_SIMD_TEST(I32x4GeU) {
   RunI32x4BinOpTest(execution_tier, kExprI32x4GeU, UnsignedGreaterEqual);
 }
 
+WASM_SIMD_TEST(I32x4EqZero) {
+  RunICompareOpConstImmTest<int32_t>(execution_tier, kExprI32x4Eq,
+                                     kExprI32x4Splat, Equal);
+}
+
+WASM_SIMD_TEST(I32x4NeZero) {
+  RunICompareOpConstImmTest<int32_t>(execution_tier, kExprI32x4Ne,
+                                     kExprI32x4Splat, NotEqual);
+}
+
+WASM_SIMD_TEST(I32x4GtZero) {
+  RunICompareOpConstImmTest<int32_t>(execution_tier, kExprI32x4GtS,
+                                     kExprI32x4Splat, Greater);
+}
+
+WASM_SIMD_TEST(I32x4GeZero) {
+  RunICompareOpConstImmTest<int32_t>(execution_tier, kExprI32x4GeS,
+                                     kExprI32x4Splat, GreaterEqual);
+}
+
+WASM_SIMD_TEST(I32x4LtZero) {
+  RunICompareOpConstImmTest<int32_t>(execution_tier, kExprI32x4LtS,
+                                     kExprI32x4Splat, Less);
+}
+
+WASM_SIMD_TEST(I32x4LeZero) {
+  RunICompareOpConstImmTest<int32_t>(execution_tier, kExprI32x4LeS,
+                                     kExprI32x4Splat, LessEqual);
+}
+
 WASM_SIMD_TEST(I32x4Shl) {
   RunI32x4ShiftOpTest(execution_tier, kExprI32x4Shl, LogicalShiftLeft);
 }
@@ -1716,6 +1810,36 @@ WASM_SIMD_TEST(I16x8LtU) {
 
 WASM_SIMD_TEST(I16x8LeU) {
   RunI16x8BinOpTest(execution_tier, kExprI16x8LeU, UnsignedLessEqual);
+}
+
+WASM_SIMD_TEST(I16x8EqZero) {
+  RunICompareOpConstImmTest<int16_t>(execution_tier, kExprI16x8Eq,
+                                     kExprI16x8Splat, Equal);
+}
+
+WASM_SIMD_TEST(I16x8NeZero) {
+  RunICompareOpConstImmTest<int16_t>(execution_tier, kExprI16x8Ne,
+                                     kExprI16x8Splat, NotEqual);
+}
+
+WASM_SIMD_TEST(I16x8GtZero) {
+  RunICompareOpConstImmTest<int16_t>(execution_tier, kExprI16x8GtS,
+                                     kExprI16x8Splat, Greater);
+}
+
+WASM_SIMD_TEST(I16x8GeZero) {
+  RunICompareOpConstImmTest<int16_t>(execution_tier, kExprI16x8GeS,
+                                     kExprI16x8Splat, GreaterEqual);
+}
+
+WASM_SIMD_TEST(I16x8LtZero) {
+  RunICompareOpConstImmTest<int16_t>(execution_tier, kExprI16x8LtS,
+                                     kExprI16x8Splat, Less);
+}
+
+WASM_SIMD_TEST(I16x8LeZero) {
+  RunICompareOpConstImmTest<int16_t>(execution_tier, kExprI16x8LeS,
+                                     kExprI16x8Splat, LessEqual);
 }
 
 WASM_SIMD_TEST(I16x8RoundingAverageU) {
@@ -2090,6 +2214,36 @@ WASM_SIMD_TEST(I8x16LtU) {
 
 WASM_SIMD_TEST(I8x16LeU) {
   RunI8x16BinOpTest(execution_tier, kExprI8x16LeU, UnsignedLessEqual);
+}
+
+WASM_SIMD_TEST(I8x16EqZero) {
+  RunICompareOpConstImmTest<int8_t>(execution_tier, kExprI8x16Eq,
+                                    kExprI8x16Splat, Equal);
+}
+
+WASM_SIMD_TEST(I8x16NeZero) {
+  RunICompareOpConstImmTest<int8_t>(execution_tier, kExprI8x16Ne,
+                                    kExprI8x16Splat, NotEqual);
+}
+
+WASM_SIMD_TEST(I8x16GtZero) {
+  RunICompareOpConstImmTest<int8_t>(execution_tier, kExprI8x16GtS,
+                                    kExprI8x16Splat, Greater);
+}
+
+WASM_SIMD_TEST(I8x16GeZero) {
+  RunICompareOpConstImmTest<int8_t>(execution_tier, kExprI8x16GeS,
+                                    kExprI8x16Splat, GreaterEqual);
+}
+
+WASM_SIMD_TEST(I8x16LtZero) {
+  RunICompareOpConstImmTest<int8_t>(execution_tier, kExprI8x16LtS,
+                                    kExprI8x16Splat, Less);
+}
+
+WASM_SIMD_TEST(I8x16LeZero) {
+  RunICompareOpConstImmTest<int8_t>(execution_tier, kExprI8x16LeS,
+                                    kExprI8x16Splat, LessEqual);
 }
 
 WASM_SIMD_TEST(I8x16RoundingAverageU) {

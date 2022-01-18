@@ -703,7 +703,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {
         __ bind(&start_call);
-        __ pcaddi(t7, -4);
+        __ pcaddi(t7, offset >> kInstrSizeLog2);
         __ St_d(t7, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2216,23 +2216,14 @@ void CodeGenerator::AssembleConstructFrame() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmFunctionCall()) {
+      if (call_descriptor->IsWasmFunctionCall() ||
+          call_descriptor->IsWasmImportWrapper() ||
+          call_descriptor->IsWasmCapiFunction()) {
         __ Push(kWasmInstanceRegister);
-      } else if (call_descriptor->IsWasmImportWrapper() ||
-                 call_descriptor->IsWasmCapiFunction()) {
-        // Wasm import wrappers are passed a tuple in the place of the instance.
-        // Unpack the tuple into the instance and the target callable.
-        // This must be done here in the codegen because it cannot be expressed
-        // properly in the graph.
-        __ Ld_d(kJSFunctionRegister,
-                FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
-        __ Ld_d(kWasmInstanceRegister,
-                FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
-        __ Push(kWasmInstanceRegister);
-        if (call_descriptor->IsWasmCapiFunction()) {
-          // Reserve space for saving the PC later.
-          __ Sub_d(sp, sp, Operand(kSystemPointerSize));
-        }
+      }
+      if (call_descriptor->IsWasmCapiFunction()) {
+        // Reserve space for saving the PC later.
+        __ Sub_d(sp, sp, Operand(kSystemPointerSize));
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
     }
@@ -2391,22 +2382,22 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (drop_jsargs) {
     // We must pop all arguments from the stack (including the receiver). This
     // number of arguments is given by max(1 + argc_reg, parameter_count).
-    __ Add_d(t0, t0, Operand(1));  // Also pop the receiver.
+    if (!kJSArgcIncludesReceiver) {
+      __ Add_d(t0, t0, Operand(1));  // Also pop the receiver.
+    }
     if (parameter_slots > 1) {
       __ li(t1, parameter_slots);
       __ slt(t2, t0, t1);
       __ Movn(t0, t1, t2);
     }
-    __ slli_d(t0, t0, kSystemPointerSizeLog2);
-    __ add_d(sp, sp, t0);
+    __ Alsl_d(sp, t0, sp, kSystemPointerSizeLog2);
   } else if (additional_pop_count->IsImmediate()) {
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_slots + additional_count);
   } else {
     Register pop_reg = g.ToRegister(additional_pop_count);
     __ Drop(parameter_slots);
-    __ slli_d(pop_reg, pop_reg, kSystemPointerSizeLog2);
-    __ add_d(sp, sp, pop_reg);
+    __ Alsl_d(sp, pop_reg, sp, kSystemPointerSizeLog2);
   }
   __ Ret();
 }

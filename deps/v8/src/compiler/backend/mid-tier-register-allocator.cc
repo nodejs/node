@@ -2875,8 +2875,8 @@ void MidTierRegisterAllocator::AllocateRegisters(
 
         if (unallocated_output->HasSameAsInputPolicy()) {
           DCHECK_EQ(i, 0);
-          UnallocatedOperand* unallocated_input =
-              UnallocatedOperand::cast(instr->InputAt(0));
+          UnallocatedOperand* unallocated_input = UnallocatedOperand::cast(
+              instr->InputAt(unallocated_output->input_index()));
           VirtualRegisterData& input_vreg_data =
               VirtualRegisterDataFor(unallocated_input->virtual_register());
           DCHECK_EQ(AllocatorFor(output_vreg_data.rep()).kind(),
@@ -3001,9 +3001,11 @@ void MidTierRegisterAllocator::ReserveFixedRegisters(int instr_index) {
     const UnallocatedOperand* operand =
         UnallocatedOperand::cast(instr->OutputAt(i));
     if (operand->HasSameAsInputPolicy()) {
+      DCHECK_EQ(i, 0);
       // Input operand has the register constraints, use it here to reserve the
       // register for the output (it will be reserved for input below).
-      operand = UnallocatedOperand::cast(instr->InputAt(i));
+      operand =
+          UnallocatedOperand::cast(instr->InputAt(operand->input_index()));
     }
     if (IsFixedRegisterPolicy(operand)) {
       VirtualRegisterData& vreg_data =

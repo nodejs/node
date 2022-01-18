@@ -2283,7 +2283,11 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // -----------------------------------
   __ AssertFunction(r1);
 
+  Label class_constructor;
   __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r3, FieldMemOperand(r2, SharedFunctionInfo::kFlagsOffset));
+  __ tst(r3, Operand(SharedFunctionInfo::IsClassConstructorBit::kMask));
+  __ b(ne, &class_constructor);
 
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
@@ -2358,6 +2362,14 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ ldrh(r2,
           FieldMemOperand(r2, SharedFunctionInfo::kFormalParameterCountOffset));
   __ InvokeFunctionCode(r1, no_reg, r2, r0, InvokeType::kJump);
+
+  // The function is a "classConstructor", need to raise an exception.
+  __ bind(&class_constructor);
+  {
+    FrameScope frame(masm, StackFrame::INTERNAL);
+    __ push(r1);
+    __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
+  }
 }
 
 namespace {
@@ -2744,6 +2756,11 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
 void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // TODO(v8:10701): Implement for this platform.
+  __ Trap();
+}
+
+void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
+  // TODO(v8:12191): Implement for this platform.
   __ Trap();
 }
 

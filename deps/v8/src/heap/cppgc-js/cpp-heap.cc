@@ -37,6 +37,7 @@
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/sweeper.h"
+#include "src/heap/cppgc/unmarker.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/marking-worklist.h"
@@ -417,6 +418,10 @@ bool ShouldReduceMemory(CppHeap::TraceFlags flags) {
 void CppHeap::TracePrologue(TraceFlags flags) {
   CHECK(!sweeper_.IsSweepingInProgress());
 
+#if defined(CPPGC_YOUNG_GENERATION)
+  cppgc::internal::SequentialUnmarker unmarker(raw_heap());
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
   current_flags_ = flags;
   const UnifiedHeapMarker::MarkingConfig marking_config{
       UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
@@ -455,6 +460,7 @@ bool CppHeap::AdvanceTracing(double deadline_in_ms) {
       in_atomic_pause_ ? v8::base::TimeDelta::Max()
                        : v8::base::TimeDelta::FromMillisecondsD(deadline_in_ms);
   const size_t marked_bytes_limit = in_atomic_pause_ ? SIZE_MAX : 0;
+  DCHECK_NOT_NULL(marker_);
   // TODO(chromium:1056170): Replace when unified heap transitions to
   // bytes-based deadline.
   marking_done_ =
@@ -499,12 +505,17 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   buffered_allocated_bytes_ = 0;
   const size_t bytes_allocated_in_prefinalizers = ExecutePreFinalizers();
 #if CPPGC_VERIFY_HEAP
-  UnifiedHeapMarkingVerifier verifier(*this);
+  UnifiedHeapMarkingVerifier verifier(
+      *this, cppgc::internal::Heap::Config::CollectionType::kMajor);
   verifier.Run(
       stack_state_of_prev_gc(), stack_end_of_current_gc(),
       stats_collector()->marked_bytes() + bytes_allocated_in_prefinalizers);
 #endif  // CPPGC_VERIFY_HEAP
   USE(bytes_allocated_in_prefinalizers);
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  ResetRememberedSet();
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
   {
     cppgc::subtle::NoGarbageCollectionScope no_gc(*this);

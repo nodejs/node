@@ -39,73 +39,85 @@
   V(maxss, F3, 0F, 5F)
 
 // Keep sorted by last code.
-#define SSE2_INSTRUCTION_LIST(V) \
-  V(andpd, 66, 0F, 54)           \
-  V(andnpd, 66, 0F, 55)          \
-  V(orpd, 66, 0F, 56)            \
-  V(xorpd, 66, 0F, 57)           \
-  V(addpd, 66, 0F, 58)           \
-  V(mulpd, 66, 0F, 59)           \
-  V(subpd, 66, 0F, 5C)           \
-  V(minpd, 66, 0F, 5D)           \
-  V(divpd, 66, 0F, 5E)           \
-  V(maxpd, 66, 0F, 5F)           \
-  V(punpcklbw, 66, 0F, 60)       \
-  V(punpcklwd, 66, 0F, 61)       \
-  V(punpckldq, 66, 0F, 62)       \
-  V(packsswb, 66, 0F, 63)        \
-  V(pcmpgtb, 66, 0F, 64)         \
-  V(pcmpgtw, 66, 0F, 65)         \
-  V(pcmpgtd, 66, 0F, 66)         \
-  V(packuswb, 66, 0F, 67)        \
-  V(punpckhbw, 66, 0F, 68)       \
-  V(punpckhwd, 66, 0F, 69)       \
-  V(punpckhdq, 66, 0F, 6A)       \
-  V(packssdw, 66, 0F, 6B)        \
-  V(punpcklqdq, 66, 0F, 6C)      \
-  V(punpckhqdq, 66, 0F, 6D)      \
-  V(pcmpeqb, 66, 0F, 74)         \
-  V(pcmpeqw, 66, 0F, 75)         \
-  V(pcmpeqd, 66, 0F, 76)         \
-  V(psrlw, 66, 0F, D1)           \
-  V(psrld, 66, 0F, D2)           \
-  V(psrlq, 66, 0F, D3)           \
-  V(paddq, 66, 0F, D4)           \
-  V(pmullw, 66, 0F, D5)          \
-  V(psubusb, 66, 0F, D8)         \
-  V(psubusw, 66, 0F, D9)         \
-  V(pminub, 66, 0F, DA)          \
-  V(pand, 66, 0F, DB)            \
-  V(paddusb, 66, 0F, DC)         \
-  V(paddusw, 66, 0F, DD)         \
-  V(pmaxub, 66, 0F, DE)          \
-  V(pandn, 66, 0F, DF)           \
-  V(pavgb, 66, 0F, E0)           \
-  V(psraw, 66, 0F, E1)           \
-  V(psrad, 66, 0F, E2)           \
-  V(pavgw, 66, 0F, E3)           \
-  V(pmulhuw, 66, 0F, E4)         \
-  V(pmulhw, 66, 0F, E5)          \
-  V(psubsb, 66, 0F, E8)          \
-  V(psubsw, 66, 0F, E9)          \
-  V(pminsw, 66, 0F, EA)          \
-  V(por, 66, 0F, EB)             \
-  V(paddsb, 66, 0F, EC)          \
-  V(paddsw, 66, 0F, ED)          \
-  V(pmaxsw, 66, 0F, EE)          \
-  V(pxor, 66, 0F, EF)            \
-  V(psllw, 66, 0F, F1)           \
-  V(pslld, 66, 0F, F2)           \
-  V(psllq, 66, 0F, F3)           \
-  V(pmuludq, 66, 0F, F4)         \
-  V(pmaddwd, 66, 0F, F5)         \
-  V(psubb, 66, 0F, F8)           \
-  V(psubw, 66, 0F, F9)           \
-  V(psubd, 66, 0F, FA)           \
-  V(psubq, 66, 0F, FB)           \
-  V(paddb, 66, 0F, FC)           \
-  V(paddw, 66, 0F, FD)           \
+// SSE2 Instructions dealing with packed double-precision values.
+#define SSE2_INSTRUCTION_LIST_PD(V) \
+  V(andpd, 66, 0F, 54)              \
+  V(andnpd, 66, 0F, 55)             \
+  V(orpd, 66, 0F, 56)               \
+  V(xorpd, 66, 0F, 57)              \
+  V(addpd, 66, 0F, 58)              \
+  V(mulpd, 66, 0F, 59)              \
+  V(subpd, 66, 0F, 5C)              \
+  V(minpd, 66, 0F, 5D)              \
+  V(divpd, 66, 0F, 5E)              \
+  V(maxpd, 66, 0F, 5F)
+
+// SSE2 Instructions dealing with packed integer values.
+#define SSE2_INSTRUCTION_LIST_PI(V) \
+  V(punpcklbw, 66, 0F, 60)          \
+  V(punpcklwd, 66, 0F, 61)          \
+  V(punpckldq, 66, 0F, 62)          \
+  V(packsswb, 66, 0F, 63)           \
+  V(pcmpgtb, 66, 0F, 64)            \
+  V(pcmpgtw, 66, 0F, 65)            \
+  V(pcmpgtd, 66, 0F, 66)            \
+  V(packuswb, 66, 0F, 67)           \
+  V(punpckhbw, 66, 0F, 68)          \
+  V(punpckhwd, 66, 0F, 69)          \
+  V(punpckhdq, 66, 0F, 6A)          \
+  V(packssdw, 66, 0F, 6B)           \
+  V(punpcklqdq, 66, 0F, 6C)         \
+  V(punpckhqdq, 66, 0F, 6D)         \
+  V(pcmpeqb, 66, 0F, 74)            \
+  V(pcmpeqw, 66, 0F, 75)            \
+  V(pcmpeqd, 66, 0F, 76)            \
+  V(paddq, 66, 0F, D4)              \
+  V(pmullw, 66, 0F, D5)             \
+  V(psubusb, 66, 0F, D8)            \
+  V(psubusw, 66, 0F, D9)            \
+  V(pminub, 66, 0F, DA)             \
+  V(pand, 66, 0F, DB)               \
+  V(paddusb, 66, 0F, DC)            \
+  V(paddusw, 66, 0F, DD)            \
+  V(pmaxub, 66, 0F, DE)             \
+  V(pandn, 66, 0F, DF)              \
+  V(pavgb, 66, 0F, E0)              \
+  V(pavgw, 66, 0F, E3)              \
+  V(pmulhuw, 66, 0F, E4)            \
+  V(pmulhw, 66, 0F, E5)             \
+  V(psubsb, 66, 0F, E8)             \
+  V(psubsw, 66, 0F, E9)             \
+  V(pminsw, 66, 0F, EA)             \
+  V(por, 66, 0F, EB)                \
+  V(paddsb, 66, 0F, EC)             \
+  V(paddsw, 66, 0F, ED)             \
+  V(pmaxsw, 66, 0F, EE)             \
+  V(pxor, 66, 0F, EF)               \
+  V(pmuludq, 66, 0F, F4)            \
+  V(pmaddwd, 66, 0F, F5)            \
+  V(psubb, 66, 0F, F8)              \
+  V(psubw, 66, 0F, F9)              \
+  V(psubd, 66, 0F, FA)              \
+  V(psubq, 66, 0F, FB)              \
+  V(paddb, 66, 0F, FC)              \
+  V(paddw, 66, 0F, FD)              \
   V(paddd, 66, 0F, FE)
+
+// SSE2 shift instructions with XMM register or m128 operand
+#define SSE2_INSTRUCTION_LIST_SHIFT(V) \
+  V(psrlw, 66, 0F, D1)                 \
+  V(psrld, 66, 0F, D2)                 \
+  V(psrlq, 66, 0F, D3)                 \
+  V(psraw, 66, 0F, E1)                 \
+  V(psrad, 66, 0F, E2)                 \
+  V(psllw, 66, 0F, F1)                 \
+  V(pslld, 66, 0F, F2)                 \
+  V(psllq, 66, 0F, F3)
+
+#define SSE2_INSTRUCTION_LIST(V) \
+  SSE2_INSTRUCTION_LIST_PD(V)    \
+  SSE2_INSTRUCTION_LIST_PI(V)    \
+  SSE2_INSTRUCTION_LIST_SHIFT(V)
 
 // SSE2 instructions whose AVX version has two operands.
 #define SSE2_UNOP_INSTRUCTION_LIST(V) \
@@ -186,7 +198,7 @@
 
 #define SSE4_2_INSTRUCTION_LIST(V) V(pcmpgtq, 66, 0F, 38, 37)
 
-// These require AVX2, and we only define the VEX-128 versions.
+// These require AVX2.
 #define AVX2_BROADCAST_LIST(V)    \
   V(vpbroadcastd, 66, 0F, 38, 58) \
   V(vpbroadcastb, 66, 0F, 38, 78) \

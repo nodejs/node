@@ -215,7 +215,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   AsyncTaskToStackTrace m_asyncTaskStacks;
   std::unordered_set<void*> m_recurringTasks;
 
-  int m_maxAsyncCallStacks;
+  size_t m_maxAsyncCallStacks;
   int m_maxAsyncCallStackDepth;
 
   std::vector<void*> m_currentTasks;
@@ -223,7 +223,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::vector<V8StackTraceId> m_currentExternalParent;
 
   void collectOldAsyncStacksIfNeeded();
-  int m_asyncStacksCount = 0;
   // V8Debugger owns all the async stacks, while most of the other references
   // are weak, which allows to collect some stacks when there are too many.
   std::list<std::shared_ptr<AsyncStackTrace>> m_allAsyncStacks;

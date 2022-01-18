@@ -1986,6 +1986,12 @@ void Decoder::DecodeRvvIVV(Instruction* instr) {
         UNREACHABLE();
       }
       break;
+    case RO_V_VNCLIP_WV:
+      Format(instr, "vnclip.wv 'vd, 'vs2, 'vs1");
+      break;
+    case RO_V_VNCLIPU_WV:
+      Format(instr, "vnclipu.wv 'vd, 'vs2, 'vs1");
+      break;
     default:
       UNSUPPORTED_RISCV();
       break;
@@ -2066,6 +2072,12 @@ void Decoder::DecodeRvvIVI(Instruction* instr) {
       } else {
         UNREACHABLE();
       }
+      break;
+    case RO_V_VNCLIP_WI:
+      Format(instr, "vnclip.wi 'vd, 'vs2, 'uimm5");
+      break;
+    case RO_V_VNCLIPU_WI:
+      Format(instr, "vnclipu.wi 'vd, 'vs2, 'uimm5");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -2171,6 +2183,12 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
       break;
     case RO_V_VSRL_VX:
       Format(instr, "vsrl.vx  'vd, 'vs2, 'rs1");
+      break;
+    case RO_V_VNCLIP_WX:
+      Format(instr, "vnclip.wx 'vd, 'vs2, 'rs1");
+      break;
+    case RO_V_VNCLIPU_WX:
+      Format(instr, "vnclipu.wx 'vd, 'vs2, 'rs1");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -2303,6 +2321,37 @@ void Decoder::DecodeRvvFVV(Instruction* instr) {
     case RO_V_VFMUL_VV:
       Format(instr, "vfmul.vv  'vd, 'vs2, 'vs1'vm");
       break;
+    case RO_V_VFMADD_VV:
+      Format(instr, "vfmadd.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFNMADD_VV:
+      Format(instr, "vfnmadd.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFMSUB_VV:
+      Format(instr, "vfmsub.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFNMSUB_VV:
+      Format(instr, "vfnmsub.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFMACC_VV:
+      Format(instr, "vfmacc.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFNMACC_VV:
+      Format(instr, "vfnmacc.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFMSAC_VV:
+      Format(instr, "vfmsac.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFNMSAC_VV:
+      Format(instr, "vfnmsac.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFMV_FS:
+      if (instr->Vs1Value() == 0x0) {
+        Format(instr, "vfmv.f.s  'fd, 'vs2");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
     default:
       UNSUPPORTED_RISCV();
       break;
@@ -2320,6 +2369,33 @@ void Decoder::DecodeRvvFVF(Instruction* instr) {
       break;
     case RO_V_VFSGNJX_VF:
       Format(instr, "vfsgnjn.vf   'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFMV_VF:
+      Format(instr, "vfmv.v.f  'vd, 'fs1");
+      break;
+    case RO_V_VFMADD_VF:
+      Format(instr, "vfmadd.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFNMADD_VF:
+      Format(instr, "vfnmadd.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFMSUB_VF:
+      Format(instr, "vfmsub.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFNMSUB_VF:
+      Format(instr, "vfnmsub.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFMACC_VF:
+      Format(instr, "vfmacc.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFNMACC_VF:
+      Format(instr, "vfnmacc.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFMSAC_VF:
+      Format(instr, "vfmsac.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFNMSAC_VF:
+      Format(instr, "vfnmsac.vf 'vd, 'fs1, 'vs2'vm");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -2345,7 +2421,7 @@ void Decoder::DecodeVType(Instruction* instr) {
       DecodeRvvIVX(instr);
       return;
     case OP_FVF:
-      UNSUPPORTED_RISCV();
+      DecodeRvvFVF(instr);
       return;
     case OP_MVX:
       DecodeRvvMVX(instr);

@@ -18,6 +18,7 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
+#include "test/common/flag-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -7296,6 +7297,18 @@ TEST(Regression738952) {
                   m.TruncateFloat64ToWord32(m.Float64Constant(d))));
   CHECK_EQ(sentinel, m.Call());
 }
+
+#if V8_TARGET_ARCH_64_BIT
+TEST(Regression12330) {
+  FLAG_SCOPE(turbo_force_mid_tier_regalloc);
+
+  RawMachineAssemblerTester<int32_t> m(MachineType::Int64());
+  Node* add = m.Int64SubWithOverflow(m.Int64Constant(0), m.Parameter(0));
+  Node* ovf = m.Projection(1, add);
+  m.Return(ovf);
+  m.GenerateCode();
+}
+#endif  // V8_TARGET_ARCH_64_BIT
 
 }  // namespace compiler
 }  // namespace internal

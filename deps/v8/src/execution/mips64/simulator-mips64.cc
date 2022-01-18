@@ -2207,12 +2207,11 @@ void Simulator::Format(Instruction* instr, const char* format) {
 // 64-bit value. With the code below we assume that all runtime calls return
 // 64 bits of result. If they don't, the v1 result register contains a bogus
 // value, which is fine because it is caller-saved.
-
-using SimulatorRuntimeCall = ObjectPair (*)(int64_t arg0, int64_t arg1,
-                                            int64_t arg2, int64_t arg3,
-                                            int64_t arg4, int64_t arg5,
-                                            int64_t arg6, int64_t arg7,
-                                            int64_t arg8, int64_t arg9);
+using SimulatorRuntimeCall = ObjectPair (*)(
+    int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3, int64_t arg4,
+    int64_t arg5, int64_t arg6, int64_t arg7, int64_t arg8, int64_t arg9,
+    int64_t arg10, int64_t arg11, int64_t arg12, int64_t arg13, int64_t arg14,
+    int64_t arg15, int64_t arg16, int64_t arg17, int64_t arg18, int64_t arg19);
 
 // These prototypes handle the four types of FP calls.
 using SimulatorRuntimeCompareCall = int64_t (*)(double darg0, double darg1);
@@ -2254,7 +2253,17 @@ void Simulator::SoftwareInterrupt() {
     int64_t arg7 = get_register(a7);
     int64_t arg8 = stack_pointer[0];
     int64_t arg9 = stack_pointer[1];
-    STATIC_ASSERT(kMaxCParameters == 10);
+    int64_t arg10 = stack_pointer[2];
+    int64_t arg11 = stack_pointer[3];
+    int64_t arg12 = stack_pointer[4];
+    int64_t arg13 = stack_pointer[5];
+    int64_t arg14 = stack_pointer[6];
+    int64_t arg15 = stack_pointer[7];
+    int64_t arg16 = stack_pointer[8];
+    int64_t arg17 = stack_pointer[9];
+    int64_t arg18 = stack_pointer[10];
+    int64_t arg19 = stack_pointer[11];
+    STATIC_ASSERT(kMaxCParameters == 20);
 
     bool fp_call =
         (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
@@ -2423,12 +2432,17 @@ void Simulator::SoftwareInterrupt() {
             "Call to host function at %p "
             "args %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
             " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
-            " , %08" PRIx64 " , %08" PRIx64 " \n",
+            " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
+            " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
+            " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
+            " \n",
             reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
-            arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+            arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12,
+            arg13, arg14, arg15, arg16, arg17, arg18, arg19);
       }
-      ObjectPair result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+      ObjectPair result = target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
+                                 arg8, arg9, arg10, arg11, arg12, arg13, arg14,
+                                 arg15, arg16, arg17, arg18, arg19);
       set_register(v0, (int64_t)(result.x));
       set_register(v1, (int64_t)(result.y));
     }

@@ -292,6 +292,7 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep) {
       break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kCagedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
       opcode = kS390_LoadWordS32;
       break;
@@ -774,6 +775,7 @@ static void VisitGeneralStore(
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kCagedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
         opcode = kS390_StoreCompressTagged;
         break;

@@ -9,13 +9,14 @@ const kBuiltinNameEvery: constexpr string = '%TypedArray%.prototype.every';
 
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.every
 transitioning macro EveryAllElements(implicit context: Context)(
-    array: typed_array::AttachedJSTypedArray, length: uintptr,
+    attachedArrayAndLength: typed_array::AttachedJSTypedArrayAndLength,
     callbackfn: Callable, thisArg: JSAny): Boolean {
-  let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
+  let witness =
+      typed_array::NewAttachedJSTypedArrayWitness(attachedArrayAndLength.array);
 
   // 5. Let k be 0.
   // 6. Repeat, while k < len
-  for (let k: uintptr = 0; k < length; k++) {
+  for (let k: uintptr = 0; k < attachedArrayAndLength.length; k++) {
     // 6a. Let Pk be ! ToString(𝔽(k)).
     // There is no need to cast ToString to load elements.
 
@@ -59,13 +60,12 @@ TypedArrayPrototypeEvery(
     // 3. Let len be IntegerIndexedObjectLength(O).
     const array: JSTypedArray = Cast<JSTypedArray>(receiver)
         otherwise NotTypedArray;
-    const length = LoadJSTypedArrayLengthAndCheckDetached(array)
+    const attachedArrayAndLength = EnsureAttachedAndReadLength(array)
         otherwise IsDetachedOrOutOfBounds;
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
     const callbackfn = Cast<Callable>(arguments[0]) otherwise NotCallable;
     const thisArg = arguments[1];
-    return EveryAllElements(
-        %RawDownCast<AttachedJSTypedArray>(array), length, callbackfn, thisArg);
+    return EveryAllElements(attachedArrayAndLength, callbackfn, thisArg);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameEvery);
   } label IsDetachedOrOutOfBounds deferred {

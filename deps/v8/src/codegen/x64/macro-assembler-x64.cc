@@ -18,7 +18,6 @@
 #include "src/codegen/string-constants.h"
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/codegen/x64/register-x64.h"
-#include "src/common/external-pointer.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -28,6 +27,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
+#include "src/security/external-pointer.h"
 #include "src/snapshot/snapshot.h"
 
 // Satisfy cpplint check, but don't include platform-specific header. It is
@@ -374,6 +374,43 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     Move(value, kZapValue, RelocInfo::NONE);
     Move(slot_address, kZapValue, RelocInfo::NONE);
   }
+}
+
+void TurboAssembler::EncodeCagedPointer(Register value) {
+  ASM_CODE_COMMENT(this);
+#ifdef V8_CAGED_POINTERS
+  subq(value, kPtrComprCageBaseRegister);
+  shlq(value, Immediate(kCagedPointerShift));
+#else
+  UNREACHABLE();
+#endif
+}
+
+void TurboAssembler::DecodeCagedPointer(Register value) {
+  ASM_CODE_COMMENT(this);
+#ifdef V8_CAGED_POINTERS
+  shrq(value, Immediate(kCagedPointerShift));
+  addq(value, kPtrComprCageBaseRegister);
+#else
+  UNREACHABLE();
+#endif
+}
+
+void TurboAssembler::LoadCagedPointerField(Register destination,
+                                           Operand field_operand) {
+  ASM_CODE_COMMENT(this);
+  movq(destination, field_operand);
+  DecodeCagedPointer(destination);
+}
+
+void TurboAssembler::StoreCagedPointerField(Operand dst_field_operand,
+                                            Register value) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(value, kScratchRegister));
+  DCHECK(!dst_field_operand.AddressUsesRegister(kScratchRegister));
+  movq(kScratchRegister, value);
+  EncodeCagedPointer(kScratchRegister);
+  movq(dst_field_operand, kScratchRegister);
 }
 
 void TurboAssembler::LoadExternalPointerField(
@@ -2044,9 +2081,13 @@ void TurboAssembler::LoadCodeDataContainerEntry(
 void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  LoadTaggedPointerField(
-      destination,
-      FieldOperand(code_data_container_object, CodeDataContainer::kCodeOffset));
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  // Given the fields layout we can read the Code reference as a full word.
+  STATIC_ASSERT(!V8_EXTERNAL_CODE_SPACE_BOOL ||
+                (CodeDataContainer::kCodeCageBaseUpper32BitsOffset ==
+                 CodeDataContainer::kCodeOffset + kTaggedSize));
+  movq(destination, FieldOperand(code_data_container_object,
+                                 CodeDataContainer::kCodeOffset));
 }
 
 void TurboAssembler::CallCodeDataContainerObject(
@@ -2412,6 +2453,19 @@ void MacroAssembler::AssertFunction(Register object) {
                        LAST_JS_FUNCTION_TYPE);
   Pop(object);
   Check(below_equal, AbortReason::kOperandIsNotAFunction);
+}
+
+void MacroAssembler::AssertCallableFunction(Register object) {
+  if (!FLAG_debug_code) return;
+  ASM_CODE_COMMENT(this);
+  testb(object, Immediate(kSmiTagMask));
+  Check(not_equal, AbortReason::kOperandIsASmiAndNotAFunction);
+  Push(object);
+  LoadMap(object, object);
+  CmpInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE,
+                       LAST_CALLABLE_JS_FUNCTION_TYPE);
+  Pop(object);
+  Check(below_equal, AbortReason::kOperandIsNotACallableFunction);
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {

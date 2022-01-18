@@ -429,7 +429,7 @@ void NewSpace::ResetParkedAllocationBuffers() {
 void NewSpace::Flip() { SemiSpace::Swap(&from_space_, &to_space_); }
 
 void NewSpace::Grow() {
-  DCHECK(heap()->safepoint()->IsActive());
+  heap()->safepoint()->AssertActive();
   // Double the semispace size but only up to maximum capacity.
   DCHECK(TotalCapacity() < MaximumCapacity());
   size_t new_capacity = std::min(

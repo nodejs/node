@@ -265,6 +265,10 @@ class ConcurrentMarkingVisitor final
       DCHECK(!HasWeakHeapObjectTag(object));
       if (!object.IsHeapObject()) continue;
       HeapObject heap_object = HeapObject::cast(object);
+      concrete_visitor()->SynchronizePageAccess(heap_object);
+      BasicMemoryChunk* target_page =
+          BasicMemoryChunk::FromHeapObject(heap_object);
+      if (!is_shared_heap_ && target_page->InSharedHeap()) continue;
       MarkObject(host, heap_object);
       RecordSlot(host, slot, heap_object);
     }

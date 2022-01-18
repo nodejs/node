@@ -952,7 +952,10 @@ ExecutionTierPair GetRequestedExecutionTiers(
       Impl(native_module->compilation_state())->dynamic_tiering() ==
       DynamicTiering::kEnabled;
   bool tier_up_enabled = !dynamic_tiering && FLAG_wasm_tier_up;
-  if (module->origin != kWasmOrigin || !tier_up_enabled) {
+  if (module->origin != kWasmOrigin || !tier_up_enabled ||
+      V8_UNLIKELY(FLAG_wasm_tier_up_filter >= 0 &&
+                  func_index !=
+                      static_cast<uint32_t>(FLAG_wasm_tier_up_filter))) {
     result.top_tier = result.baseline_tier;
     return result;
   }
@@ -1134,8 +1137,9 @@ bool IsLazyModule(const WasmModule* module) {
 
 }  // namespace
 
-bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
+bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
                  int func_index) {
+  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
   NativeModule* native_module = module_object->native_module();
   const WasmModule* module = native_module->module();
   auto enabled_features = native_module->enabled_features();
@@ -1197,6 +1201,15 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
     return false;
   }
 
+  // Allocate feedback vector if needed.
+  if (result.feedback_vector_slots > 0) {
+    DCHECK(FLAG_wasm_speculative_inlining);
+    Handle<FixedArray> vector =
+        isolate->factory()->NewFixedArray(result.feedback_vector_slots);
+    instance->feedback_vectors().set(
+        declared_function_index(module, func_index), *vector);
+  }
+
   WasmCodeRefScope code_ref_scope;
   WasmCode* code;
   {
@@ -1228,19 +1241,123 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
   return true;
 }
 
+std::vector<CallSiteFeedback> ProcessTypeFeedback(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index) {
+  int which_vector = declared_function_index(instance->module(), func_index);
+  Object maybe_feedback = instance->feedback_vectors().get(which_vector);
+  if (!maybe_feedback.IsFixedArray()) return {};
+  FixedArray feedback = FixedArray::cast(maybe_feedback);
+  std::vector<CallSiteFeedback> result(feedback.length() / 2);
+  int imported_functions =
+      static_cast<int>(instance->module()->num_imported_functions);
+  for (int i = 0; i < feedback.length(); i += 2) {
+    Object value = feedback.get(i);
+    if (WasmExportedFunction::IsWasmExportedFunction(value)) {
+      // Monomorphic. Mark the target for inlining if it's defined in the
+      // same module.
+      WasmExportedFunction target = WasmExportedFunction::cast(value);
+      if (target.instance() == *instance &&
+          target.function_index() >= imported_functions) {
+        if (FLAG_trace_wasm_speculative_inlining) {
+          PrintF("[Function #%d call_ref #%d inlineable (monomorphic)]\n",
+                 func_index, i / 2);
+        }
+        CallRefData data = CallRefData::cast(feedback.get(i + 1));
+        result[i / 2] = {target.function_index(),
+                         static_cast<int>(data.count())};
+        continue;
+      }
+    } else if (value.IsFixedArray()) {
+      // Polymorphic. Pick a target for inlining if there is one that was
+      // seen for most calls, and matches the requirements of the monomorphic
+      // case.
+      FixedArray polymorphic = FixedArray::cast(value);
+      size_t total_count = 0;
+      for (int j = 0; j < polymorphic.length(); j += 2) {
+        total_count += CallRefData::cast(polymorphic.get(j + 1)).count();
+      }
+      int found_target = -1;
+      int found_count = -1;
+      double best_frequency = 0;
+      for (int j = 0; j < polymorphic.length(); j += 2) {
+        uint32_t this_count = CallRefData::cast(polymorphic.get(j + 1)).count();
+        double frequency = static_cast<double>(this_count) / total_count;
+        if (frequency > best_frequency) best_frequency = frequency;
+        if (frequency < 0.8) continue;
+        Object maybe_target = polymorphic.get(j);
+        if (!WasmExportedFunction::IsWasmExportedFunction(maybe_target)) {
+          continue;
+        }
+        WasmExportedFunction target =
+            WasmExportedFunction::cast(polymorphic.get(j));
+        if (target.instance() != *instance ||
+            target.function_index() < imported_functions) {
+          continue;
+        }
+        found_target = target.function_index();
+        found_count = static_cast<int>(this_count);
+        if (FLAG_trace_wasm_speculative_inlining) {
+          PrintF("[Function #%d call_ref #%d inlineable (polymorphic %f)]\n",
+                 func_index, i / 2, frequency);
+        }
+        break;
+      }
+      if (found_target >= 0) {
+        result[i / 2] = {found_target, found_count};
+        continue;
+      } else if (FLAG_trace_wasm_speculative_inlining) {
+        PrintF("[Function #%d call_ref #%d: best frequency %f]\n", func_index,
+               i / 2, best_frequency);
+      }
+    }
+    // If we fall through to here, then this call isn't eligible for inlining.
+    // Possible reasons: uninitialized or megamorphic feedback; or monomorphic
+    // or polymorphic that didn't meet our requirements.
+    result[i / 2] = {-1, -1};
+  }
+  return result;
+}
+
 void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
-                   int func_index) {
+                   int func_index, Handle<WasmInstanceObject> instance) {
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   WasmCompilationUnit tiering_unit{func_index, ExecutionTier::kTurbofan,
                                    kNoDebugging};
 
-  uint32_t* call_array = native_module->num_liftoff_function_calls_array();
-  int offset =
-      wasm::declared_function_index(native_module->module(), func_index);
+  const WasmModule* module = native_module->module();
+  size_t priority;
+  if (FLAG_new_wasm_dynamic_tiering) {
+    base::MutexGuard mutex_guard(&module->type_feedback.mutex);
+    int saved_priority =
+        module->type_feedback.feedback_for_function[func_index].tierup_priority;
+    saved_priority++;
+    module->type_feedback.feedback_for_function[func_index].tierup_priority =
+        saved_priority;
+    // Continue to creating a compilation unit if this is the first time
+    // we detect this function as hot, and create a new higher-priority unit
+    // if the number of tierup checks is a power of two (at least 4).
+    if (saved_priority > 1 &&
+        (saved_priority < 4 || (saved_priority & (saved_priority - 1)) != 0)) {
+      return;
+    }
+    priority = saved_priority;
+  }
+  if (FLAG_wasm_speculative_inlining) {
+    auto feedback = ProcessTypeFeedback(isolate, instance, func_index);
+    base::MutexGuard mutex_guard(&module->type_feedback.mutex);
+    // TODO(jkummerow): we could have collisions here if two different instances
+    // of the same module schedule tier-ups of the same function at the same
+    // time. If that ever becomes a problem, figure out a solution.
+    module->type_feedback.feedback_for_function[func_index].feedback_vector =
+        std::move(feedback);
+  }
 
-  size_t priority =
-      base::Relaxed_Load(reinterpret_cast<int*>(&call_array[offset]));
+  if (!FLAG_new_wasm_dynamic_tiering) {
+    uint32_t* call_array = native_module->num_liftoff_function_calls_array();
+    int offset = wasm::declared_function_index(module, func_index);
+    priority = base::Relaxed_Load(reinterpret_cast<int*>(&call_array[offset]));
+  }
   compilation_state->AddTopTierPriorityCompilationUnit(tiering_unit, priority);
 }
 
@@ -3640,6 +3757,7 @@ class CompileJSToWasmWrapperJob final : public JobTask {
 
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
                              Handle<FixedArray>* export_wrappers_out) {
+  TRACE_EVENT0("v8.wasm", "wasm.CompileJsToWasmWrappers");
   *export_wrappers_out = isolate->factory()->NewFixedArray(
       MaxNumExportWrappers(module), AllocationType::kOld);
 
@@ -3660,16 +3778,22 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     }
   }
 
-  auto job =
-      std::make_unique<CompileJSToWasmWrapperJob>(&queue, &compilation_units);
-  if (FLAG_wasm_num_compilation_tasks > 0) {
-    auto job_handle = V8::GetCurrentPlatform()->PostJob(
-        TaskPriority::kUserVisible, std::move(job));
+  {
+    // This is nested inside the event above, so the name can be less
+    // descriptive. It's mainly to log the number of wrappers.
+    TRACE_EVENT1("v8.wasm", "wasm.JsToWasmWrapperCompilation", "num_wrappers",
+                 compilation_units.size());
+    auto job =
+        std::make_unique<CompileJSToWasmWrapperJob>(&queue, &compilation_units);
+    if (FLAG_wasm_num_compilation_tasks > 0) {
+      auto job_handle = V8::GetCurrentPlatform()->PostJob(
+          TaskPriority::kUserVisible, std::move(job));
 
-    // Wait for completion, while contributing to the work.
-    job_handle->Join();
-  } else {
-    job->Run(nullptr);
+      // Wait for completion, while contributing to the work.
+      job_handle->Join();
+    } else {
+      job->Run(nullptr);
+    }
   }
 
   // Finalize compilation jobs in the main thread.
