@@ -87,7 +87,7 @@ in your code, such as:
 ```js
 process.on('SIGINT', function onSigint() {
   console.info('Received SIGINT.');
-  process.exit();
+  process.exit(130);  // Or applicable exit code depending on OS and signal
 });
 ```
 
