@@ -162,7 +162,7 @@ void HistogramBase::GetPercentiles(const FunctionCallbackInfo<Value>& args) {
     map->Set(
         env->context(),
         Number::New(env->isolate(), key),
-        Number::New(env->isolate(), static_cast<double>(value))).IsEmpty();
+        Number::New(env->isolate(), static_cast<double>(value)));
   });
 }
 
@@ -177,7 +177,7 @@ void HistogramBase::GetPercentilesBigInt(
     map->Set(
         env->context(),
         Number::New(env->isolate(), key),
-        BigInt::New(env->isolate(), value)).IsEmpty();
+        BigInt::New(env->isolate(), value));
   });
 }
 
@@ -592,7 +592,7 @@ void IntervalHistogram::GetPercentiles(
     map->Set(
         env->context(),
         Number::New(env->isolate(), key),
-        Number::New(env->isolate(), static_cast<double>(value))).IsEmpty();
+        Number::New(env->isolate(), static_cast<double>(value)));
   });
 }
 
@@ -607,7 +607,7 @@ void IntervalHistogram::GetPercentilesBigInt(
     map->Set(
         env->context(),
         Number::New(env->isolate(), key),
-        BigInt::New(env->isolate(), value)).IsEmpty();
+        BigInt::New(env->isolate(), value));
   });
 }
 
