@@ -74,7 +74,7 @@ TEST_F(JsNativeApiV8Test, Reference) {
 
     // We can hardly trigger a non-forced Garbage Collection in a stable way.
     // Here we just invoke the weak callbacks directly.
-    // The persistant handles should be reset in the weak callback in respect
+    // The persistent handles should be reset in the weak callback in respect
     // to the API contract of v8 weak callbacks.
     v8::WeakCallbackInfo<Reference::SecondPassCallParameterRef> data(
         reinterpret_cast<v8::Isolate*>(isolate_),
