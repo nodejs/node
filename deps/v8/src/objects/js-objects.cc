@@ -184,6 +184,27 @@ Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
   }
 }
 
+// static
+Maybe<bool> JSReceiver::CheckIfCanDefine(Isolate* isolate, LookupIterator* it,
+                                         Handle<Object> value,
+                                         Maybe<ShouldThrow> should_throw) {
+  if (it->IsFound()) {
+    Maybe<PropertyAttributes> attributes = GetPropertyAttributes(it);
+    MAYBE_RETURN(attributes, Nothing<bool>());
+    if ((attributes.FromJust() & DONT_DELETE) != 0) {
+      RETURN_FAILURE(
+          isolate, GetShouldThrow(isolate, should_throw),
+          NewTypeError(MessageTemplate::kRedefineDisallowed, it->GetName()));
+    }
+  } else if (!JSObject::IsExtensible(
+                 Handle<JSObject>::cast(it->GetReceiver()))) {
+    RETURN_FAILURE(
+        isolate, GetShouldThrow(isolate, should_throw),
+        NewTypeError(MessageTemplate::kDefineDisallowed, it->GetName()));
+  }
+  return Just(true);
+}
+
 namespace {
 
 bool HasExcludedProperty(
@@ -3365,23 +3386,25 @@ void JSObject::AddProperty(Isolate* isolate, Handle<JSObject> object,
 // hidden prototypes.
 MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-    AccessorInfoHandling handling) {
+    AccessorInfoHandling handling, EnforceDefineSemantics semantics) {
   MAYBE_RETURN_NULL(DefineOwnPropertyIgnoreAttributes(
-      it, value, attributes, Just(ShouldThrow::kThrowOnError), handling));
+      it, value, attributes, Just(ShouldThrow::kThrowOnError), handling,
+      semantics));
   return value;
 }
 
 Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-    Maybe<ShouldThrow> should_throw, AccessorInfoHandling handling) {
+    Maybe<ShouldThrow> should_throw, AccessorInfoHandling handling,
+    EnforceDefineSemantics semantics) {
   it->UpdateProtector();
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
 
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::JSPROXY:
-      case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
+      case LookupIterator::NOT_FOUND:
         UNREACHABLE();
 
       case LookupIterator::ACCESS_CHECK:
@@ -3400,13 +3423,36 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
       // TODO(verwaest): JSProxy afterwards verify the attributes that the
       // JSProxy claims it has, and verifies that they are compatible. If not,
       // they throw. Here we should do the same.
-      case LookupIterator::INTERCEPTOR:
-        if (handling == DONT_FORCE_FIELD) {
-          Maybe<bool> result =
-              JSObject::SetPropertyWithInterceptor(it, should_throw, value);
-          if (result.IsNothing() || result.FromJust()) return result;
+      case LookupIterator::INTERCEPTOR: {
+        Maybe<bool> result = Just(false);
+        if (semantics == EnforceDefineSemantics::kDefine) {
+          PropertyDescriptor descriptor;
+          descriptor.set_configurable((attributes & DONT_DELETE) != 0);
+          descriptor.set_enumerable((attributes & DONT_ENUM) != 0);
+          descriptor.set_writable((attributes & READ_ONLY) != 0);
+          descriptor.set_value(value);
+          result = DefinePropertyWithInterceptorInternal(
+              it, it->GetInterceptor(), should_throw, &descriptor);
+        } else {
+          DCHECK_EQ(semantics, EnforceDefineSemantics::kSet);
+          if (handling == DONT_FORCE_FIELD) {
+            result =
+                JSObject::SetPropertyWithInterceptor(it, should_throw, value);
+          }
+        }
+        if (result.IsNothing() || result.FromJust()) return result;
+
+        if (semantics == EnforceDefineSemantics::kDefine) {
+          it->Restart();
+          Maybe<bool> can_define = JSReceiver::CheckIfCanDefine(
+              it->isolate(), it, value, should_throw);
+          if (can_define.IsNothing() || !can_define.FromJust()) {
+            return can_define;
+          }
+          it->Restart();
         }
         break;
+      }
 
       case LookupIterator::ACCESSOR: {
         Handle<Object> accessors = it->GetAccessors();
@@ -3824,20 +3870,10 @@ Maybe<bool> JSObject::CreateDataProperty(LookupIterator* it,
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
   Isolate* isolate = receiver->GetIsolate();
 
-  if (it->IsFound()) {
-    Maybe<PropertyAttributes> attributes = GetPropertyAttributes(it);
-    MAYBE_RETURN(attributes, Nothing<bool>());
-    if ((attributes.FromJust() & DONT_DELETE) != 0) {
-      RETURN_FAILURE(
-          isolate, GetShouldThrow(isolate, should_throw),
-          NewTypeError(MessageTemplate::kRedefineDisallowed, it->GetName()));
-    }
-  } else {
-    if (!JSObject::IsExtensible(Handle<JSObject>::cast(it->GetReceiver()))) {
-      RETURN_FAILURE(
-          isolate, GetShouldThrow(isolate, should_throw),
-          NewTypeError(MessageTemplate::kDefineDisallowed, it->GetName()));
-    }
+  Maybe<bool> can_define =
+      JSReceiver::CheckIfCanDefine(isolate, it, value, should_throw);
+  if (can_define.IsNothing() || !can_define.FromJust()) {
+    return can_define;
   }
 
   RETURN_ON_EXCEPTION_VALUE(it->isolate(),

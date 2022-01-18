@@ -151,7 +151,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
 
   bool ShouldCheckPrototype() const { return IsKeyedStore(); }
   bool ShouldReconfigureExisting() const { return IsStoreInLiteral(); }
-  bool ShouldCallSetter() const { return IsKeyedStore() || IsKeyedStoreOwn(); }
+  bool ShouldCallSetter() const { return IsKeyedStore(); }
   bool ShouldCheckPrototypeValidity() const {
     // We don't do this for "in-literal" stores, because it is impossible for
     // the target object to be a "prototype".
@@ -1008,20 +1008,28 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   if (!ShouldReconfigureExisting()) {
     BIND(&readonly);
     {
-      LanguageMode language_mode;
-      if (maybe_language_mode.To(&language_mode)) {
-        if (language_mode == LanguageMode::kStrict) {
-          TNode<String> type = Typeof(p->receiver());
-          ThrowTypeError(p->context(), MessageTemplate::kStrictReadOnlyProperty,
-                         name, type, p->receiver());
+      // FIXME(joyee): IsKeyedStoreOwn is actually true from
+      // StaNamedOwnProperty, which implements [[DefineOwnProperty]]
+      // semantics. Rename them.
+      if (IsKeyedDefineOwn() || IsKeyedStoreOwn()) {
+        Goto(slow);
+      } else {
+        LanguageMode language_mode;
+        if (maybe_language_mode.To(&language_mode)) {
+          if (language_mode == LanguageMode::kStrict) {
+            TNode<String> type = Typeof(p->receiver());
+            ThrowTypeError(p->context(),
+                           MessageTemplate::kStrictReadOnlyProperty, name, type,
+                           p->receiver());
+          } else {
+            exit_point->Return(p->value());
+          }
         } else {
+          CallRuntime(Runtime::kThrowTypeErrorIfStrict, p->context(),
+                      SmiConstant(MessageTemplate::kStrictReadOnlyProperty),
+                      name, Typeof(p->receiver()), p->receiver());
           exit_point->Return(p->value());
         }
-      } else {
-        CallRuntime(Runtime::kThrowTypeErrorIfStrict, p->context(),
-                    SmiConstant(MessageTemplate::kStrictReadOnlyProperty), name,
-                    Typeof(p->receiver()), p->receiver());
-        exit_point->Return(p->value());
       }
     }
   }

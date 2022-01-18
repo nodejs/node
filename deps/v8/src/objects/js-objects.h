@@ -160,6 +160,12 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
       PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
+  // Check if a data property can be created on the object. It will fail with
+  // an error when it cannot.
+  V8_WARN_UNUSED_RESULT static Maybe<bool> CheckIfCanDefine(
+      Isolate* isolate, LookupIterator* it, Handle<Object> value,
+      Maybe<ShouldThrow> should_throw);
+
   // ES6 7.3.4 (when passed kDontThrow)
   V8_WARN_UNUSED_RESULT static Maybe<bool> CreateDataProperty(
       Isolate* isolate, Handle<JSReceiver> object, Handle<Name> key,
@@ -399,15 +405,27 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // to the default behavior that calls the setter.
   enum AccessorInfoHandling { FORCE_FIELD, DONT_FORCE_FIELD };
 
+  // Currently DefineOwnPropertyIgnoreAttributes invokes the setter
+  // interceptor and user-defined setters during define operations,
+  // even in places where it makes more sense to invoke the definer
+  // interceptor and not invoke the setter: e.g. both the definer and
+  // the setter interceptors are called in Object.defineProperty().
+  // kDefine allows us to implement the define semantics correctly
+  // in selected locations.
+  // TODO(joyee): see if we can deprecate the old behavior.
+  enum class EnforceDefineSemantics { kSet, kDefine };
+
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-      AccessorInfoHandling handling = DONT_FORCE_FIELD);
+      AccessorInfoHandling handling = DONT_FORCE_FIELD,
+      EnforceDefineSemantics semantics = EnforceDefineSemantics::kSet);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       Maybe<ShouldThrow> should_throw,
-      AccessorInfoHandling handling = DONT_FORCE_FIELD);
+      AccessorInfoHandling handling = DONT_FORCE_FIELD,
+      EnforceDefineSemantics semantics = EnforceDefineSemantics::kSet);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> V8_EXPORT_PRIVATE
   SetOwnPropertyIgnoreAttributes(Handle<JSObject> object, Handle<Name> name,
