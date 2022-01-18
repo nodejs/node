@@ -33,7 +33,7 @@ The following simple example illustrates the basic use of the `readline` module.
 
 ```mjs
 import * as readline from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'process';
+import { stdin as input, stdout as output } from 'node:process';
 
 const rl = readline.createInterface({ input, output });
 
