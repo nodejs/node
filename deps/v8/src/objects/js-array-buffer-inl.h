@@ -5,11 +5,8 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_INL_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_INL_H_
 
-#include "src/common/external-pointer.h"
-#include "src/objects/js-array-buffer.h"
-
-#include "src/common/external-pointer-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
 

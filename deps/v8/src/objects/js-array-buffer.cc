@@ -82,6 +82,7 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
     // invariant that their byte_length field is always 0.
     set_byte_length(0);
   } else {
+    CHECK_LE(backing_store->byte_length(), kMaxByteLength);
     set_byte_length(backing_store->byte_length());
   }
   set_max_byte_length(backing_store->max_byte_length());

@@ -109,6 +109,20 @@ void Builtins::Generate_StoreICBaseline(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateStoreICBaseline();
 }
+void Builtins::Generate_StoreOwnIC(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreOwnIC();
+}
+void Builtins::Generate_StoreOwnICTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreOwnICTrampoline();
+}
+void Builtins::Generate_StoreOwnICBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreOwnICBaseline();
+}
 void Builtins::Generate_KeyedStoreIC(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateKeyedStoreIC();
@@ -122,6 +136,20 @@ void Builtins::Generate_KeyedStoreICBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateKeyedStoreICBaseline();
+}
+void Builtins::Generate_KeyedDefineOwnIC(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedDefineOwnIC();
+}
+void Builtins::Generate_KeyedDefineOwnICTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedDefineOwnICTrampoline();
+}
+void Builtins::Generate_KeyedDefineOwnICBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedDefineOwnICBaseline();
 }
 void Builtins::Generate_StoreInArrayLiteralIC(
     compiler::CodeAssemblerState* state) {

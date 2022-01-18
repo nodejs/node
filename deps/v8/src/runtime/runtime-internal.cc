@@ -10,6 +10,7 @@
 #include "src/baseline/baseline-batch-compiler.h"
 #include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
+#include "src/codegen/compiler.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"

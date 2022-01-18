@@ -31,7 +31,12 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
       cur_end_(kNullAddress),
       space_(space),
       page_range_(space->first_page(), nullptr),
-      current_page_(page_range_.begin()) {
+      current_page_(page_range_.begin())
+#if V8_COMPRESS_POINTERS
+      ,
+      cage_base_(heap->isolate())
+#endif  // V8_COMPRESS_POINTERS
+{
   space_->MakeLinearAllocationAreaIterable();
   heap->mark_compact_collector()->EnsureSweepingCompleted();
 }
@@ -43,7 +48,12 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
       cur_end_(kNullAddress),
       space_(space),
       page_range_(page),
-      current_page_(page_range_.begin()) {
+      current_page_(page_range_.begin())
+#if V8_COMPRESS_POINTERS
+      ,
+      cage_base_(heap->isolate())
+#endif  // V8_COMPRESS_POINTERS
+{
   space_->MakeLinearAllocationAreaIterable();
   heap->mark_compact_collector()->EnsureSweepingCompleted();
 #ifdef DEBUG
@@ -329,6 +339,9 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::ExpandBackground(
   if (page == nullptr) return {};
   base::MutexGuard lock(&space_mutex_);
   AddPage(page);
+  if (identity() == CODE_SPACE || identity() == CODE_LO_SPACE) {
+    heap()->isolate()->AddCodeMemoryChunk(page);
+  }
   Address object_start = page->area_start();
   CHECK_LE(size_in_bytes, page->area_size());
   Free(page->area_start() + size_in_bytes, page->area_size() - size_in_bytes,
@@ -568,8 +581,10 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
     LocalHeap* local_heap, size_t min_size_in_bytes, size_t max_size_in_bytes,
     AllocationAlignment alignment, AllocationOrigin origin) {
   DCHECK(!is_compaction_space());
-  DCHECK(identity() == OLD_SPACE || identity() == MAP_SPACE);
-  DCHECK_EQ(origin, AllocationOrigin::kRuntime);
+  DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
+         identity() == MAP_SPACE);
+  DCHECK(origin == AllocationOrigin::kRuntime ||
+         origin == AllocationOrigin::kGC);
 
   base::Optional<std::pair<Address, size_t>> result =
       TryAllocationFromFreeListBackground(local_heap, min_size_in_bytes,
@@ -639,7 +654,8 @@ PagedSpace::TryAllocationFromFreeListBackground(LocalHeap* local_heap,
                                                 AllocationOrigin origin) {
   base::MutexGuard lock(&space_mutex_);
   DCHECK_LE(min_size_in_bytes, max_size_in_bytes);
-  DCHECK(identity() == OLD_SPACE || identity() == MAP_SPACE);
+  DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
+         identity() == MAP_SPACE);
 
   size_t new_node_size = 0;
   FreeSpace new_node =

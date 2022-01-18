@@ -245,7 +245,7 @@ class RuntimeCallTimer final {
   V(RegExp_Exec)                                           \
   V(RegExp_New)                                            \
   V(ScriptCompiler_Compile)                                \
-  V(ScriptCompiler_CompileFunctionInContext)               \
+  V(ScriptCompiler_CompileFunction)                        \
   V(ScriptCompiler_CompileUnbound)                         \
   V(Script_Run)                                            \
   V(Set_Add)                                               \
@@ -392,6 +392,9 @@ class RuntimeCallTimer final {
   V(CompileBaseline)                           \
   V(CompileBaselinePreVisit)                   \
   V(CompileBaselineVisit)                      \
+  V(CompileBackgroundBaselinePreVisit)         \
+  V(CompileBackgroundBaselineVisit)            \
+  V(CompileBaselineFinalization)               \
   V(CompileCollectSourcePositions)             \
   V(CompileDeserialize)                        \
   V(CompileEnqueueOnDispatcher)                \

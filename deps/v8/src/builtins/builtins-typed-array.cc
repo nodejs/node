@@ -218,7 +218,7 @@ BUILTIN(TypedArrayPrototypeIncludes) {
 
   if (args.length() < 2) return ReadOnlyRoots(isolate).false_value();
 
-  int64_t len = array->length();
+  int64_t len = array->GetLength();
   if (len == 0) return ReadOnlyRoots(isolate).false_value();
 
   int64_t index = 0;

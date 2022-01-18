@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 class MyUint8Array extends Uint8Array {};
+class MyFloat32Array extends Float32Array {};
 class MyBigInt64Array extends BigInt64Array {};
 
 const ctors = [
@@ -17,6 +18,7 @@ const ctors = [
   BigUint64Array,
   BigInt64Array,
   MyUint8Array,
+  MyFloat32Array,
   MyBigInt64Array,
 ];
 
@@ -45,7 +47,11 @@ function WriteToTypedArray(array, index, value) {
 function ToNumbers(array) {
   let result = [];
   for (let item of array) {
-    result.push(Number(item));
+    if (typeof item == 'bigint') {
+      result.push(Number(item));
+    } else {
+      result.push(item);
+    }
   }
   return result;
 }
@@ -91,4 +97,12 @@ function FillHelper(array, n, start, end) {
   } else {
     array.fill(n, start, end);
   }
+}
+
+function IncludesHelper(array, n, fromIndex) {
+  if (typeof n == 'number' &&
+      (array instanceof BigInt64Array || array instanceof BigUint64Array)) {
+    return array.includes(BigInt(n), fromIndex);
+  }
+  return array.includes(n, fromIndex);
 }

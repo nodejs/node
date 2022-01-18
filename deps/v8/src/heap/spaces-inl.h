@@ -145,7 +145,7 @@ AllocationResult LocalAllocationBuffer::AllocateRawAligned(
   HeapObject object =
       HeapObject::FromAddress(allocation_info_.IncrementTop(aligned_size));
   if (filler_size > 0) {
-    return Heap::PrecedeWithFiller(ReadOnlyRoots(heap_), object, filler_size);
+    return heap_->PrecedeWithFiller(object, filler_size);
   }
 
   return AllocationResult(object);

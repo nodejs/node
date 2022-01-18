@@ -9,7 +9,6 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/slots-inl.h"
-#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -39,6 +38,11 @@ void WriteBarrier::MarkingSlow(Heap* heap, HeapObject host, HeapObjectSlot slot,
                                         ? current_marking_barrier
                                         : heap->marking_barrier();
   marking_barrier->Write(host, slot, value);
+}
+
+// static
+void WriteBarrier::MarkingSlowFromGlobalHandle(Heap* heap, HeapObject value) {
+  heap->marking_barrier()->WriteWithoutHost(value);
 }
 
 void WriteBarrier::MarkingSlow(Heap* heap, Code host, RelocInfo* reloc_info,

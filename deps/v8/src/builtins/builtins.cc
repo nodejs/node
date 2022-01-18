@@ -165,18 +165,33 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   UNREACHABLE();
 }
 
-void Builtins::set_code(Builtin builtin, Code code) {
-  DCHECK_EQ(builtin, code.builtin_id());
-  isolate_->heap()->set_builtin(builtin, code);
+FullObjectSlot Builtins::builtin_slot(Builtin builtin) {
+  Address* location = &isolate_->builtin_table()[Builtins::ToInt(builtin)];
+  return FullObjectSlot(location);
 }
 
-Code Builtins::code(Builtin builtin_enum) {
-  return isolate_->heap()->builtin(builtin_enum);
+FullObjectSlot Builtins::builtin_tier0_slot(Builtin builtin) {
+  DCHECK(IsTier0(builtin));
+  Address* location =
+      &isolate_->builtin_tier0_table()[Builtins::ToInt(builtin)];
+  return FullObjectSlot(location);
+}
+
+void Builtins::set_code(Builtin builtin, Code code) {
+  DCHECK_EQ(builtin, code.builtin_id());
+  DCHECK(Internals::HasHeapObjectTag(code.ptr()));
+  // The given builtin may be uninitialized thus we cannot check its type here.
+  isolate_->builtin_table()[Builtins::ToInt(builtin)] = code.ptr();
+}
+
+Code Builtins::code(Builtin builtin) {
+  Address ptr = isolate_->builtin_table()[Builtins::ToInt(builtin)];
+  return Code::cast(Object(ptr));
 }
 
 Handle<Code> Builtins::code_handle(Builtin builtin) {
-  return Handle<Code>(
-      reinterpret_cast<Address*>(isolate_->heap()->builtin_address(builtin)));
+  Address* location = &isolate_->builtin_table()[Builtins::ToInt(builtin)];
+  return Handle<Code>(location);
 }
 
 // static
@@ -272,15 +287,12 @@ bool Builtins::IsBuiltin(const Code code) {
 
 bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
                                Builtin* builtin) const {
-  Heap* heap = isolate_->heap();
-  Address handle_location = maybe_code.address();
-  Address end =
-      heap->builtin_address(static_cast<Builtin>(Builtins::kBuiltinCount));
-  if (handle_location >= end) return false;
-  Address start = heap->builtin_address(static_cast<Builtin>(0));
-  if (handle_location < start) return false;
-  *builtin = FromInt(static_cast<int>(handle_location - start) >>
-                     kSystemPointerSizeLog2);
+  Address* handle_location = maybe_code.location();
+  Address* builtins_table = isolate_->builtin_table();
+  if (handle_location < builtins_table) return false;
+  Address* builtins_table_end = &builtins_table[Builtins::kBuiltinCount];
+  if (handle_location >= builtins_table_end) return false;
+  *builtin = FromInt(static_cast<int>(handle_location - builtins_table));
   return true;
 }
 
@@ -298,8 +310,8 @@ void Builtins::InitializeIsolateDataTables(Isolate* isolate) {
 
   // The entry table.
   for (Builtin i = Builtins::kFirst; i <= Builtins::kLast; ++i) {
-    DCHECK(Builtins::IsBuiltinId(isolate->heap()->builtin(i).builtin_id()));
-    DCHECK(isolate->heap()->builtin(i).is_off_heap_trampoline());
+    DCHECK(Builtins::IsBuiltinId(isolate->builtins()->code(i).builtin_id()));
+    DCHECK(isolate->builtins()->code(i).is_off_heap_trampoline());
     isolate_data->builtin_entry_table()[ToInt(i)] =
         embedded_data.InstructionStartOfBuiltin(i);
   }

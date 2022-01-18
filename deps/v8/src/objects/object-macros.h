@@ -401,16 +401,6 @@
 #define BIT_FIELD_ACCESSORS(holder, field, name, BitField) \
   BIT_FIELD_ACCESSORS2(holder, field, field, name, BitField)
 
-#define INSTANCE_TYPE_CHECKER(type, forinstancetype)    \
-  V8_INLINE bool Is##type(InstanceType instance_type) { \
-    return instance_type == forinstancetype;            \
-  }
-
-#define TYPE_CHECKER(type, ...)                                           \
-  DEF_GETTER(HeapObject, Is##type, bool) {                                \
-    return InstanceTypeChecker::Is##type(map(cage_base).instance_type()); \
-  }
-
 #define RELAXED_INT16_ACCESSORS(holder, name, offset) \
   int16_t holder::name() const {                      \
     return RELAXED_READ_INT16_FIELD(*this, offset);   \
@@ -536,6 +526,10 @@
   } while (false)
 #endif
 
+#define ACQUIRE_READ_INT8_FIELD(p, offset) \
+  static_cast<int8_t>(base::Acquire_Load(  \
+      reinterpret_cast<const base::Atomic8*>(FIELD_ADDR(p, offset))))
+
 #define ACQUIRE_READ_INT32_FIELD(p, offset) \
   static_cast<int32_t>(base::Acquire_Load(  \
       reinterpret_cast<const base::Atomic32*>(FIELD_ADDR(p, offset))))
@@ -577,6 +571,10 @@
   base::Relaxed_Store(                                          \
       reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
       static_cast<base::Atomic32>(value));
+
+#define RELEASE_WRITE_INT8_FIELD(p, offset, value)                             \
+  base::Release_Store(reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset)), \
+                      static_cast<base::Atomic8>(value));
 
 #define RELEASE_WRITE_UINT32_FIELD(p, offset, value)            \
   base::Release_Store(                                          \

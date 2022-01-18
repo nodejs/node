@@ -777,6 +777,21 @@ void MacroAssembler::AssertFunction(Register object, Register scratch) {
   }
 }
 
+void MacroAssembler::AssertCallableFunction(Register object, Register scratch) {
+  if (FLAG_debug_code) {
+    ASM_CODE_COMMENT(this);
+    test(object, Immediate(kSmiTagMask));
+    Check(not_equal, AbortReason::kOperandIsASmiAndNotAFunction);
+    Push(object);
+    LoadMap(object, object);
+    CmpInstanceTypeRange(object, scratch, scratch,
+                         FIRST_CALLABLE_JS_FUNCTION_TYPE,
+                         LAST_CALLABLE_JS_FUNCTION_TYPE);
+    Pop(object);
+    Check(below_equal, AbortReason::kOperandIsNotACallableFunction);
+  }
+}
+
 void MacroAssembler::AssertBoundFunction(Register object) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);

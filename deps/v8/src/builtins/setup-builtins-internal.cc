@@ -226,6 +226,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
       RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
       RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
+  PtrComprCageBase cage_base(isolate);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Code code = builtins->code(builtin);
@@ -242,8 +243,8 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
-        Object object = rinfo->target_object();
-        if (!object.IsCode()) continue;
+        Object object = rinfo->target_object(cage_base);
+        if (!object.IsCode(cage_base)) continue;
         Code target = Code::cast(object);
         if (!target.is_builtin()) continue;
         Code new_target = builtins->code(target.builtin_id());

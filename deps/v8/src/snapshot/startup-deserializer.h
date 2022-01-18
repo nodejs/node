@@ -25,7 +25,6 @@ class StartupDeserializer final : public Deserializer<Isolate> {
   void DeserializeIntoIsolate();
 
  private:
-  void DeserializeStringTable();
   void FlushICache();
   void LogNewMapEvents();
 };

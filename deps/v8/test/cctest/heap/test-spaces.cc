@@ -344,7 +344,7 @@ TEST(OldLargeObjectSpace) {
     {
       AllocationResult allocation = lo->AllocateRaw(lo_size);
       if (allocation.IsRetry()) break;
-      HeapObject ho = HeapObject::cast(allocation.ToObjectChecked());
+      ho = HeapObject::cast(allocation.ToObjectChecked());
       Handle<HeapObject> keep_alive(ho, isolate);
     }
   }

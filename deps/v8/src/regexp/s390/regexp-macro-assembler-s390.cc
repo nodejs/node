@@ -353,10 +353,9 @@ void RegExpMacroAssemblerS390::CheckNotBackReferenceIgnoreCase(
     {
       AllowExternalCallThatCantCauseGC scope(masm_.get());
       ExternalReference function =
-          unicode ? ExternalReference::re_case_insensitive_compare_unicode(
-                        isolate())
-                  : ExternalReference::re_case_insensitive_compare_non_unicode(
-                        isolate());
+          unicode
+              ? ExternalReference::re_case_insensitive_compare_unicode()
+              : ExternalReference::re_case_insensitive_compare_non_unicode();
       __ CallCFunction(function, argument_count);
     }
 
@@ -491,6 +490,41 @@ void RegExpMacroAssemblerS390::CheckCharacterNotInRange(
   BranchOrBacktrack(gt, on_not_in_range);  // Unsigned higher condition.
 }
 
+void RegExpMacroAssemblerS390::CallIsCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges) {
+  static const int kNumArguments = 3;
+  __ PrepareCallCFunction(kNumArguments, r0);
+
+  __ mov(r2, current_character());
+  __ mov(r3, Operand(GetOrAddRangeArray(ranges)));
+  __ mov(r4, Operand(ExternalReference::isolate_address(isolate())));
+
+  {
+    // We have a frame (set up in GetCode), but the assembler doesn't know.
+    FrameScope scope(masm_.get(), StackFrame::MANUAL);
+    __ CallCFunction(ExternalReference::re_is_character_in_range_array(),
+                     kNumArguments);
+  }
+
+  __ mov(code_pointer(), Operand(masm_->CodeObject()));
+}
+
+bool RegExpMacroAssemblerS390::CheckCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  __ CmpS64(r2, Operand::Zero());
+  BranchOrBacktrack(ne, on_in_range);
+  return true;
+}
+
+bool RegExpMacroAssemblerS390::CheckCharacterNotInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_not_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  __ CmpS64(r2, Operand::Zero());
+  BranchOrBacktrack(eq, on_not_in_range);
+  return true;
+}
+
 void RegExpMacroAssemblerS390::CheckBitInTable(Handle<ByteArray> table,
                                                Label* on_bit_set) {
   __ mov(r2, Operand(table));
@@ -505,19 +539,20 @@ void RegExpMacroAssemblerS390::CheckBitInTable(Handle<ByteArray> table,
   BranchOrBacktrack(ne, on_bit_set);
 }
 
-bool RegExpMacroAssemblerS390::CheckSpecialCharacterClass(base::uc16 type,
-                                                          Label* on_no_match) {
+bool RegExpMacroAssemblerS390::CheckSpecialCharacterClass(
+    StandardCharacterSet type, Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check
+  // TODO(jgruber): No custom implementation (yet): s(UC16), S(UC16).
   switch (type) {
-    case 's':
-      // Match space-characters
+    case StandardCharacterSet::kWhitespace:
+      // Match space-characters.
       if (mode_ == LATIN1) {
         // One byte space characters are '\t'..'\r', ' ' and \u00a0.
         Label success;
         __ CmpS64(current_character(), Operand(' '));
         __ beq(&success);
-        // Check range 0x09..0x0D
+        // Check range 0x09..0x0D.
         __ SubS64(r2, current_character(), Operand('\t'));
         __ CmpU64(r2, Operand('\r' - '\t'));
         __ ble(&success);
@@ -528,22 +563,22 @@ bool RegExpMacroAssemblerS390::CheckSpecialCharacterClass(base::uc16 type,
         return true;
       }
       return false;
-    case 'S':
+    case StandardCharacterSet::kNotWhitespace:
       // The emitted code for generic character classes is good enough.
       return false;
-    case 'd':
+    case StandardCharacterSet::kDigit:
       // Match ASCII digits ('0'..'9')
       __ SubS64(r2, current_character(), Operand('0'));
       __ CmpU64(r2, Operand('9' - '0'));
       BranchOrBacktrack(gt, on_no_match);
       return true;
-    case 'D':
+    case StandardCharacterSet::kNotDigit:
       // Match non ASCII-digits
       __ SubS64(r2, current_character(), Operand('0'));
       __ CmpU64(r2, Operand('9' - '0'));
       BranchOrBacktrack(le, on_no_match);
       return true;
-    case '.': {
+    case StandardCharacterSet::kNotLineTerminator: {
       // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
       __ XorP(r2, current_character(), Operand(0x01));
       // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C
@@ -560,7 +595,7 @@ bool RegExpMacroAssemblerS390::CheckSpecialCharacterClass(base::uc16 type,
       }
       return true;
     }
-    case 'n': {
+    case StandardCharacterSet::kLineTerminator: {
       // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
       __ XorP(r2, current_character(), Operand(0x01));
       // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C
@@ -581,29 +616,27 @@ bool RegExpMacroAssemblerS390::CheckSpecialCharacterClass(base::uc16 type,
       }
       return true;
     }
-    case 'w': {
+    case StandardCharacterSet::kWord: {
       if (mode_ != LATIN1) {
         // Table is 1256 entries, so all LATIN1 characters can be tested.
         __ CmpS64(current_character(), Operand('z'));
         BranchOrBacktrack(gt, on_no_match);
       }
-      ExternalReference map =
-          ExternalReference::re_word_character_map(isolate());
+      ExternalReference map = ExternalReference::re_word_character_map();
       __ mov(r2, Operand(map));
       __ LoadU8(r2, MemOperand(r2, current_character()));
       __ CmpU64(r2, Operand::Zero());
       BranchOrBacktrack(eq, on_no_match);
       return true;
     }
-    case 'W': {
+    case StandardCharacterSet::kNotWord: {
       Label done;
       if (mode_ != LATIN1) {
         // Table is 256 entries, so all LATIN characters can be tested.
         __ CmpU64(current_character(), Operand('z'));
         __ bgt(&done);
       }
-      ExternalReference map =
-          ExternalReference::re_word_character_map(isolate());
+      ExternalReference map = ExternalReference::re_word_character_map();
       __ mov(r2, Operand(map));
       __ LoadU8(r2, MemOperand(r2, current_character()));
       __ CmpU64(r2, Operand::Zero());
@@ -613,12 +646,9 @@ bool RegExpMacroAssemblerS390::CheckSpecialCharacterClass(base::uc16 type,
       }
       return true;
     }
-    case '*':
+    case StandardCharacterSet::kEverything:
       // Match any character.
       return true;
-    // No custom implementation (yet): s(UC16), S(UC16).
-    default:
-      return false;
   }
 }
 
@@ -1003,7 +1033,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     static constexpr int kNumArguments = 1;
     __ PrepareCallCFunction(kNumArguments, r2);
     __ mov(r2, Operand(ExternalReference::isolate_address(isolate())));
-    ExternalReference grow_stack = ExternalReference::re_grow_stack(isolate());
+    ExternalReference grow_stack = ExternalReference::re_grow_stack();
     __ CallCFunction(grow_stack, kNumArguments);
     // If nullptr is returned, we have failed to grow the stack, and must exit
     // with a stack-overflow exception.
@@ -1176,7 +1206,7 @@ void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
   // r2 becomes return address pointer.
   __ lay(r2, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
   ExternalReference stack_guard_check =
-      ExternalReference::re_check_stack_guard_state(isolate());
+      ExternalReference::re_check_stack_guard_state();
 
   __ mov(ip, Operand(stack_guard_check));
   __ StoreReturnAddressAndCall(ip);

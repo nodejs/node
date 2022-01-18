@@ -5172,28 +5172,8 @@ void Assembler::RecordConstPool(int size) {
   RecordRelocInfo(RelocInfo::CONST_POOL, static_cast<intptr_t>(size));
 }
 
-void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
-  if (!update_embedded_objects) return;
-  Address base = reinterpret_cast<Address>(buffer_->start());
-  for (auto p : saved_handles_for_raw_object_ptr_) {
-    Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
-    WriteUnalignedValue(base + p.first, *object);
-  }
-}
-
-void Assembler::FixOnHeapReferencesToHandles() {
-  Address base = reinterpret_cast<Address>(buffer_->start());
-  for (auto p : saved_handles_for_raw_object_ptr_) {
-    WriteUnalignedValue(base + p.first, p.second);
-  }
-  saved_handles_for_raw_object_ptr_.clear();
-}
-
 void Assembler::GrowBuffer() {
   DCHECK_EQ(buffer_start_, buffer_->start());
-
-  bool previously_on_heap = buffer_->IsOnHeap();
-  int previous_on_heap_gc_count = OnHeapGCCount();
 
   // Compute new buffer size.
   int old_size = buffer_->size();
@@ -5226,15 +5206,6 @@ void Assembler::GrowBuffer() {
   byte* new_last_pc = reinterpret_cast<byte*>(
       reinterpret_cast<Address>(reloc_info_writer.last_pc()) + pc_delta);
   reloc_info_writer.Reposition(new_reloc_start, new_last_pc);
-
-  // Fix on-heap references.
-  if (previously_on_heap) {
-    if (buffer_->IsOnHeap()) {
-      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
-    } else {
-      FixOnHeapReferencesToHandles();
-    }
-  }
 
   // None of our relocation types are pc relative pointing outside the code
   // buffer nor pc absolute pointing inside the code buffer, so there is no need
@@ -5470,15 +5441,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       instr_at_put(entry.position(),
                    SetLdrRegisterImmediateOffset(instr, delta));
       if (!entry.is_merged()) {
-        if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(entry.rmode())) {
-          int offset = pc_offset();
-          saved_handles_for_raw_object_ptr_.emplace_back(offset, entry.value());
-          Handle<HeapObject> object(reinterpret_cast<Address*>(entry.value()));
-          emit(object->ptr());
-          DCHECK(EmbeddedObjectMatches(offset, object));
-        } else {
-          emit(entry.value());
-        }
+        emit(entry.value());
       }
     }
 

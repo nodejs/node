@@ -127,5 +127,41 @@ InspectorTest.runAsyncTestSuite([
     }
     await Protocol.Debugger.disable();
     await Protocol.Runtime.disable();
-  }
-]);
+  },
+
+  async function testCoincideWithRegularBreakpoint() {
+    await Protocol.Runtime.enable();
+    await Protocol.Debugger.enable();
+    InspectorTest.log('regular breakpoint and instrumentation breakpoint are reported');
+    const instrumentationResult = await Protocol.Debugger.setInstrumentationBreakpoint({
+      instrumentation: 'beforeScriptExecution'
+    });
+    InspectorTest.log(`Set breakpoint: ${instrumentationResult.result.breakpointId}`);
+
+    const { result: { scriptId } } = await Protocol.Runtime.compileScript({
+      expression: 'console.log(3);', sourceURL: 'test.js', persistScript: true });
+    const breakpoinResult = await Protocol.Debugger.setBreakpointByUrl({
+        lineNumber: 0,
+        url: 'test.js',
+        columnNumber: 0
+      });
+      InspectorTest.log(`Set breakpoint: ${breakpoinResult.result.breakpointId}`);
+
+      const runPromise = Protocol.Runtime.runScript({scriptId});
+      {
+        const {params: {reason, hitBreakpoints}} = await Protocol.Debugger.oncePaused();
+        InspectorTest.log(`paused with reason: ${reason} and breakpoints: ${hitBreakpoints}`);
+        await Protocol.Debugger.resume();
+      }
+
+      {
+        const {params: {reason, hitBreakpoints}} = await Protocol.Debugger.oncePaused();
+        InspectorTest.log(`paused with reason: ${reason} and breakpoints: ${hitBreakpoints}`);
+        await Protocol.Debugger.resume();
+      }
+
+      await runPromise;
+      await Protocol.Debugger.disable();
+      await Protocol.Runtime.disable();
+    }]
+    );

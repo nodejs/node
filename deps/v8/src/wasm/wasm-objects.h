@@ -19,6 +19,7 @@
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
+#include "src/wasm/stacks.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/value-type.h"
 
@@ -95,7 +96,7 @@ class V8_EXPORT_PRIVATE IndirectFunctionTableEntry {
 // call imported functions at runtime.
 // Each entry is either:
 //   - Wasm to JS, which has fields
-//      - object = a Tuple2 of the importing instance and the callable
+//      - object = a WasmApiFunctionRef
 //      - target = entrypoint to import wrapper code
 //   - Wasm to Wasm, which has fields
 //      - object = target instance
@@ -111,7 +112,6 @@ class ImportedFunctionEntry {
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(WasmInstanceObject target_instance, Address call_target);
 
-  WasmInstanceObject instance();
   JSReceiver callable();
   Object maybe_callable();
   Object object_ref();
@@ -349,6 +349,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(tags_table, FixedArray)
   DECL_OPTIONAL_ACCESSORS(wasm_external_functions, FixedArray)
   DECL_ACCESSORS(managed_object_maps, FixedArray)
+  DECL_ACCESSORS(feedback_vectors, FixedArray)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(memory_size, size_t)
   DECL_PRIMITIVE_ACCESSORS(isolate_root, Address)
@@ -370,6 +371,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(dropped_elem_segments, byte*)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
   DECL_PRIMITIVE_ACCESSORS(num_liftoff_function_calls_array, uint32_t*)
+  DECL_ACCESSORS(active_continuation, WasmContinuationObject)
   DECL_PRIMITIVE_ACCESSORS(break_on_entry, uint8_t)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
@@ -425,6 +427,8 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kTagsTableOffset, kTaggedSize)                                        \
   V(kWasmExternalFunctionsOffset, kTaggedSize)                            \
   V(kManagedObjectMapsOffset, kTaggedSize)                                \
+  V(kFeedbackVectorsOffset, kTaggedSize)                                  \
+  V(kActiveContinuationOffset, kTaggedSize)                               \
   V(kBreakOnEntryOffset, kUInt8Size)                                      \
   /* More padding to make the header pointer-size aligned */              \
   V(kHeaderPaddingOffset, POINTER_SIZE_PADDING(kHeaderPaddingOffset))     \
@@ -460,7 +464,8 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
       kManagedNativeAllocationsOffset,
       kTagsTableOffset,
       kWasmExternalFunctionsOffset,
-      kManagedObjectMapsOffset};
+      kManagedObjectMapsOffset,
+      kFeedbackVectorsOffset};
 
   const wasm::WasmModule* module();
 
@@ -727,6 +732,17 @@ class WasmExportedFunctionData
   TQ_OBJECT_CONSTRUCTORS(WasmExportedFunctionData)
 };
 
+class WasmApiFunctionRef
+    : public TorqueGeneratedWasmApiFunctionRef<WasmApiFunctionRef, Foreign> {
+ public:
+  // Dispatched behavior.
+  DECL_PRINTER(WasmApiFunctionRef)
+
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(WasmApiFunctionRef)
+};
+
 // Information for a WasmJSFunction which is referenced as the function data of
 // the SharedFunctionInfo underlying the function. For details please see the
 // {SharedFunctionInfo::HasWasmJSFunctionData} predicate.
@@ -955,6 +971,24 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(WasmArray)
+};
+
+class WasmContinuationObject
+    : public TorqueGeneratedWasmContinuationObject<WasmContinuationObject,
+                                                   Struct> {
+ public:
+  static Handle<WasmContinuationObject> New(
+      Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack);
+  static Handle<WasmContinuationObject> New(Isolate* isolate,
+                                            WasmContinuationObject parent);
+
+  DECL_PRINTER(WasmContinuationObject)
+  TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
+
+ private:
+  static Handle<WasmContinuationObject> New(
+      Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
+      HeapObject parent);
 };
 
 #undef DECL_OPTIONAL_ACCESSORS

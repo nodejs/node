@@ -27,14 +27,16 @@ FOR_EACH_REG_EXP_TREE_TYPE(MAKE_TYPE_CASE)
 FOR_EACH_REG_EXP_TREE_TYPE(MAKE_TYPE_CASE)
 #undef MAKE_TYPE_CASE
 
+namespace {
 
-static Interval ListCaptureRegisters(ZoneList<RegExpTree*>* children) {
+Interval ListCaptureRegisters(ZoneList<RegExpTree*>* children) {
   Interval result = Interval::Empty();
   for (int i = 0; i < children->length(); i++)
     result = result.Union(children->at(i)->CaptureRegisters());
   return result;
 }
 
+}  // namespace
 
 Interval RegExpAlternative::CaptureRegisters() {
   return ListCaptureRegisters(nodes());
@@ -130,6 +132,7 @@ bool RegExpCapture::IsAnchoredAtStart() { return body()->IsAnchoredAtStart(); }
 
 bool RegExpCapture::IsAnchoredAtEnd() { return body()->IsAnchoredAtEnd(); }
 
+namespace {
 
 // Convert regular expression trees to a simple sexp representation.
 // This representation should be different from the input grammar
@@ -148,6 +151,7 @@ class RegExpUnparser final : public RegExpVisitor {
   Zone* zone_;
 };
 
+}  // namespace
 
 void* RegExpUnparser::VisitDisjunction(RegExpDisjunction* that, void* data) {
   os_ << "(|";
@@ -312,8 +316,9 @@ RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
   }
 }
 
+namespace {
 
-static int IncreaseBy(int previous, int increase) {
+int IncreaseBy(int previous, int increase) {
   if (RegExpTree::kInfinity - previous < increase) {
     return RegExpTree::kInfinity;
   } else {
@@ -321,6 +326,7 @@ static int IncreaseBy(int previous, int increase) {
   }
 }
 
+}  // namespace
 
 RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
     : nodes_(nodes) {

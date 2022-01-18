@@ -18,7 +18,7 @@ Running test: testObjectPropertiesPreview
         [2] : {
             name : p3
             type : function
-            value : 
+            value :
         }
         [3] : {
             name : p4
@@ -51,12 +51,12 @@ Running test: testArrayPropertiesPreview
         [2] : {
             name : 4
             type : function
-            value : 
+            value :
         }
         [3] : {
             name : nonEntryFunction
             type : function
-            value : 
+            value :
         }
         [4] : {
             name : 5
@@ -141,6 +141,11 @@ Running test: testShortTypedArrayPropertiesPreview
             name : length
             type : number
             value : 3
+        }
+        [7] : {
+            name : Symbol(Symbol.toStringTag)
+            type : string
+            value : Uint8Array
         }
     ]
     subtype : typedarray

@@ -592,25 +592,26 @@ NumberOperationParameters const& NumberOperationParametersOf(
   return OpParameter<NumberOperationParameters>(op);
 }
 
-bool operator==(SpeculativeBigIntAsUintNParameters const& lhs,
-                SpeculativeBigIntAsUintNParameters const& rhs) {
+bool operator==(SpeculativeBigIntAsNParameters const& lhs,
+                SpeculativeBigIntAsNParameters const& rhs) {
   return lhs.bits() == rhs.bits() && lhs.feedback() == rhs.feedback();
 }
 
-size_t hash_value(SpeculativeBigIntAsUintNParameters const& p) {
+size_t hash_value(SpeculativeBigIntAsNParameters const& p) {
   FeedbackSource::Hash feedback_hash;
   return base::hash_combine(p.bits(), feedback_hash(p.feedback()));
 }
 
 std::ostream& operator<<(std::ostream& os,
-                         SpeculativeBigIntAsUintNParameters const& p) {
+                         SpeculativeBigIntAsNParameters const& p) {
   return os << p.bits() << ", " << p.feedback();
 }
 
-SpeculativeBigIntAsUintNParameters const& SpeculativeBigIntAsUintNParametersOf(
+SpeculativeBigIntAsNParameters const& SpeculativeBigIntAsNParametersOf(
     Operator const* op) {
-  DCHECK_EQ(IrOpcode::kSpeculativeBigIntAsUintN, op->opcode());
-  return OpParameter<SpeculativeBigIntAsUintNParameters>(op);
+  DCHECK(op->opcode() == IrOpcode::kSpeculativeBigIntAsUintN ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntAsIntN);
+  return OpParameter<SpeculativeBigIntAsNParameters>(op);
 }
 
 size_t hash_value(AllocateParameters info) {
@@ -780,7 +781,8 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(ChangeUint64ToTagged, Operator::kNoProperties, 1, 0)         \
   V(ChangeTaggedToBit, Operator::kNoProperties, 1, 0)            \
   V(ChangeBitToTagged, Operator::kNoProperties, 1, 0)            \
-  V(TruncateBigIntToUint64, Operator::kNoProperties, 1, 0)       \
+  V(TruncateBigIntToWord64, Operator::kNoProperties, 1, 0)       \
+  V(ChangeInt64ToBigInt, Operator::kNoProperties, 1, 0)          \
   V(ChangeUint64ToBigInt, Operator::kNoProperties, 1, 0)         \
   V(TruncateTaggedToBit, Operator::kNoProperties, 1, 0)          \
   V(TruncateTaggedPointerToBit, Operator::kNoProperties, 1, 0)   \
@@ -1293,14 +1295,24 @@ const Operator* SimplifiedOperatorBuilder::RuntimeAbort(AbortReason reason) {
       static_cast<int>(reason));                // parameter
 }
 
+const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAsIntN(
+    int bits, const FeedbackSource& feedback) {
+  CHECK(0 <= bits && bits <= 64);
+
+  return zone()->New<Operator1<SpeculativeBigIntAsNParameters>>(
+      IrOpcode::kSpeculativeBigIntAsIntN, Operator::kNoProperties,
+      "SpeculativeBigIntAsIntN", 1, 1, 1, 1, 1, 0,
+      SpeculativeBigIntAsNParameters(bits, feedback));
+}
+
 const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAsUintN(
     int bits, const FeedbackSource& feedback) {
   CHECK(0 <= bits && bits <= 64);
 
-  return zone()->New<Operator1<SpeculativeBigIntAsUintNParameters>>(
+  return zone()->New<Operator1<SpeculativeBigIntAsNParameters>>(
       IrOpcode::kSpeculativeBigIntAsUintN, Operator::kNoProperties,
       "SpeculativeBigIntAsUintN", 1, 1, 1, 1, 1, 0,
-      SpeculativeBigIntAsUintNParameters(bits, feedback));
+      SpeculativeBigIntAsNParameters(bits, feedback));
 }
 
 const Operator* SimplifiedOperatorBuilder::UpdateInterruptBudget(int delta) {

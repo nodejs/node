@@ -18,6 +18,7 @@
       'arm64.debug': 'default_debug_arm64',
       'arm64.optdebug': 'default_optdebug_arm64',
       'arm64.release': 'default_release_arm64',
+      'arm64.release.sample': 'release_arm64_sample',
       'ia32.debug': 'default_debug_x86',
       'ia32.optdebug': 'default_optdebug_x86',
       'ia32.release': 'default_release_x86',
@@ -181,8 +182,8 @@
       'V8 Android Arm - builder': 'release_android_arm',
       'V8 Linux - arm - sim': 'release_simulate_arm',
       'V8 Linux - arm - sim - debug': 'debug_simulate_arm',
-      'V8 Linux - arm - sim - lite': 'release_simulate_arm_lite',
-      'V8 Linux - arm - sim - lite - debug': 'debug_simulate_arm_lite',
+      'V8 Linux - arm - sim - lite - builder': 'release_simulate_arm_lite',
+      'V8 Linux - arm - sim - lite - debug builder': 'debug_simulate_arm_lite',
       # Arm64.
       'V8 Android Arm64 - builder': 'release_android_arm64',
       'V8 Android Arm64 - debug builder': 'debug_android_arm64',
@@ -281,6 +282,7 @@
       'v8_mac64_compile_full_dbg_ng': 'full_debug_x64',
       'v8_mac64_asan_rel_ng': 'release_x64_asan_no_lsan',
       'v8_linux_arm_rel_ng': 'release_simulate_arm_trybot',
+      'v8_linux_arm_lite_compile_dbg': 'debug_simulate_arm_lite',
       'v8_linux_arm_lite_rel_ng': 'release_simulate_arm_lite_trybot',
       'v8_linux_arm_dbg_ng': 'debug_simulate_arm',
       'v8_linux_arm_armv8a_rel': 'release_simulate_arm_trybot',
@@ -320,6 +322,8 @@
       'debug', 'simulate_arm64', 'v8_enable_slow_dchecks'],
     'default_release_arm64': [
       'release', 'simulate_arm64'],
+    'release_arm64_sample': [
+      'release', 'arm64', 'sample'],
     'default_debug_mipsel': [
       'debug', 'simulate_mipsel', 'v8_enable_slow_dchecks', 'v8_full_debug'],
     'default_optdebug_mipsel': [

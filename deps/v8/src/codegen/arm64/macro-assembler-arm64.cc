@@ -1551,6 +1551,19 @@ void MacroAssembler::AssertFunction(Register object) {
   Check(ls, AbortReason::kOperandIsNotAFunction);
 }
 
+void MacroAssembler::AssertCallableFunction(Register object) {
+  if (!FLAG_debug_code) return;
+  ASM_CODE_COMMENT(this);
+  AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFunction);
+
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+  LoadMap(temp, object);
+  CompareInstanceTypeRange(temp, temp, FIRST_CALLABLE_JS_FUNCTION_TYPE,
+                           LAST_CALLABLE_JS_FUNCTION_TYPE);
+  Check(ls, AbortReason::kOperandIsNotACallableFunction);
+}
+
 void MacroAssembler::AssertBoundFunction(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
@@ -1843,10 +1856,6 @@ int64_t TurboAssembler::CalculateTargetOffset(Address target,
 void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
                           Condition cond) {
   int64_t offset = CalculateTargetOffset(target, rmode, pc_);
-  if (RelocInfo::IsRuntimeEntry(rmode) && IsOnHeap()) {
-    saved_offsets_for_runtime_entries_.emplace_back(pc_offset(), offset);
-    offset = CalculateTargetOffset(target, RelocInfo::NONE, pc_);
-  }
   JumpHelper(offset, rmode, cond);
 }
 
@@ -1891,10 +1900,6 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode) {
   BlockPoolsScope scope(this);
   if (CanUseNearCallOrJump(rmode)) {
     int64_t offset = CalculateTargetOffset(target, rmode, pc_);
-    if (IsOnHeap() && RelocInfo::IsRuntimeEntry(rmode)) {
-      saved_offsets_for_runtime_entries_.emplace_back(pc_offset(), offset);
-      offset = CalculateTargetOffset(target, RelocInfo::NONE, pc_);
-    }
     DCHECK(IsNearCallOffset(offset));
     near_call(static_cast<int>(offset), rmode);
   } else {
@@ -2099,9 +2104,13 @@ void TurboAssembler::LoadCodeDataContainerEntry(
 void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  LoadTaggedPointerField(destination,
-                         FieldMemOperand(code_data_container_object,
-                                         CodeDataContainer::kCodeOffset));
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  // Given the fields layout we can read the Code reference as a full word.
+  STATIC_ASSERT(!V8_EXTERNAL_CODE_SPACE_BOOL ||
+                (CodeDataContainer::kCodeCageBaseUpper32BitsOffset ==
+                 CodeDataContainer::kCodeOffset + kTaggedSize));
+  Ldr(destination, FieldMemOperand(code_data_container_object,
+                                   CodeDataContainer::kCodeOffset));
 }
 
 void TurboAssembler::CallCodeDataContainerObject(
@@ -3061,6 +3070,43 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
               save_fp, remembered_set_action, SmiCheck::kOmit);
 
   Bind(&done);
+}
+
+void TurboAssembler::EncodeCagedPointer(const Register& value) {
+  ASM_CODE_COMMENT(this);
+#ifdef V8_CAGED_POINTERS
+  Sub(value, value, kPtrComprCageBaseRegister);
+  Mov(value, Operand(value, LSL, kCagedPointerShift));
+#else
+  UNREACHABLE();
+#endif
+}
+
+void TurboAssembler::DecodeCagedPointer(const Register& value) {
+  ASM_CODE_COMMENT(this);
+#ifdef V8_CAGED_POINTERS
+  Add(value, kPtrComprCageBaseRegister,
+      Operand(value, LSR, kCagedPointerShift));
+#else
+  UNREACHABLE();
+#endif
+}
+
+void TurboAssembler::LoadCagedPointerField(const Register& destination,
+                                           const MemOperand& field_operand) {
+  ASM_CODE_COMMENT(this);
+  Ldr(destination, field_operand);
+  DecodeCagedPointer(destination);
+}
+
+void TurboAssembler::StoreCagedPointerField(
+    const Register& value, const MemOperand& dst_field_operand) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Mov(scratch, value);
+  EncodeCagedPointer(scratch);
+  Str(scratch, dst_field_operand);
 }
 
 void TurboAssembler::LoadExternalPointerField(Register destination,

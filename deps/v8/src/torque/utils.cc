@@ -122,10 +122,6 @@ base::Optional<std::string> FileUriDecode(const std::string& uri) {
   return decoded.str();
 }
 
-std::string CurrentPositionAsString() {
-  return PositionAsString(CurrentSourcePosition::Get());
-}
-
 MessageBuilder::MessageBuilder(const std::string& message,
                                TorqueMessage::Kind kind) {
   base::Optional<SourcePosition> position;

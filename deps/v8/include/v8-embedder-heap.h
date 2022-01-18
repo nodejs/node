@@ -127,7 +127,7 @@ class V8_EXPORT EmbedderHeapTracer {
   /**
    * Called by the embedder to notify V8 of an empty execution stack.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "This call only optimized internal caches which V8 is able to figure out "
       "on its own now.")
   void NotifyEmptyEmbedderStack();

@@ -161,6 +161,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Move statistics to Isolate
   void UpdateStatistics(Isolate* isolate, Handle<Script> script);
+  void UpdateStatistics(Handle<Script> script, int* use_counters,
+                        int* preparse_skipped);
   template <typename IsolateT>
   void HandleSourceURLComments(IsolateT* isolate, Handle<Script> script);
 

@@ -138,7 +138,7 @@ HRESULT GetInt32(IDebugHostConstant* object, int* value) {
   RETURN_IF_FAIL(object->GetValue(&variant));
 
   if (variant.vt != VT_I4) return E_FAIL;
-  *value = variant.ullVal;
+  *value = variant.lVal;
   return S_OK;
 }
 

@@ -839,6 +839,14 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kArm64Ldr;
       immediate_mode = kLoadStoreImm64;
       break;
+    case MachineRepresentation::kCagedPointer:
+#ifdef V8_CAGED_POINTERS
+      opcode = kArm64LdrDecodeCagedPointer;
+      immediate_mode = kLoadStoreImm64;
+      break;
+#else
+      UNREACHABLE();
+#endif
     case MachineRepresentation::kSimd128:
       opcode = kArm64LdrQ;
       immediate_mode = kNoImmediate;
@@ -939,6 +947,14 @@ void InstructionSelector::VisitStore(Node* node) {
         immediate_mode =
             COMPRESS_POINTERS_BOOL ? kLoadStoreImm32 : kLoadStoreImm64;
         break;
+      case MachineRepresentation::kCagedPointer:
+#ifdef V8_CAGED_POINTERS
+        opcode = kArm64StrEncodeCagedPointer;
+        immediate_mode = kLoadStoreImm64;
+        break;
+#else
+        UNREACHABLE();
+#endif
       case MachineRepresentation::kWord64:
         opcode = kArm64Str;
         immediate_mode = kLoadStoreImm64;
@@ -3544,14 +3560,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Sub, kArm64FSub, 32)                          \
   V(F32x4Div, kArm64FDiv, 32)                          \
   V(I64x2Sub, kArm64ISub, 64)                          \
-  V(I64x2Eq, kArm64IEq, 64)                            \
-  V(I64x2Ne, kArm64INe, 64)                            \
-  V(I64x2GtS, kArm64IGtS, 64)                          \
-  V(I64x2GeS, kArm64IGeS, 64)                          \
-  V(I32x4Eq, kArm64IEq, 32)                            \
-  V(I32x4Ne, kArm64INe, 32)                            \
-  V(I32x4GtS, kArm64IGtS, 32)                          \
-  V(I32x4GeS, kArm64IGeS, 32)                          \
   V(I32x4GtU, kArm64IGtU, 32)                          \
   V(I32x4GeU, kArm64IGeU, 32)                          \
   V(I32x4MinS, kArm64IMinS, 32)                        \
@@ -3562,10 +3570,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8SubSatS, kArm64ISubSatS, 16)                  \
   V(I16x8AddSatU, kArm64IAddSatU, 16)                  \
   V(I16x8SubSatU, kArm64ISubSatU, 16)                  \
-  V(I16x8Eq, kArm64IEq, 16)                            \
-  V(I16x8Ne, kArm64INe, 16)                            \
-  V(I16x8GtS, kArm64IGtS, 16)                          \
-  V(I16x8GeS, kArm64IGeS, 16)                          \
   V(I16x8GtU, kArm64IGtU, 16)                          \
   V(I16x8GeU, kArm64IGeU, 16)                          \
   V(I16x8RoundingAverageU, kArm64RoundingAverageU, 16) \
@@ -3579,10 +3583,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16SubSatS, kArm64ISubSatS, 8)                   \
   V(I8x16AddSatU, kArm64IAddSatU, 8)                   \
   V(I8x16SubSatU, kArm64ISubSatU, 8)                   \
-  V(I8x16Eq, kArm64IEq, 8)                             \
-  V(I8x16Ne, kArm64INe, 8)                             \
-  V(I8x16GtS, kArm64IGtS, 8)                           \
-  V(I8x16GeS, kArm64IGeS, 8)                           \
   V(I8x16GtU, kArm64IGtU, 8)                           \
   V(I8x16GeU, kArm64IGeU, 8)                           \
   V(I8x16MinS, kArm64IMinS, 8)                         \
@@ -3954,32 +3954,49 @@ bool isSimdZero(Arm64OperandGenerator& g, Node* node) {
 }
 }  // namespace
 
-#define VISIT_SIMD_FCM(Type, CmOp, CmOpposite, LaneSize)                   \
-  void InstructionSelector::Visit##Type##CmOp(Node* node) {                \
-    Arm64OperandGenerator g(this);                                         \
-    Node* left = node->InputAt(0);                                         \
-    Node* right = node->InputAt(1);                                        \
-    if (isSimdZero(g, left)) {                                             \
-      Emit(kArm64F##CmOpposite | LaneSizeField::encode(LaneSize),          \
-           g.DefineAsRegister(node), g.UseRegister(right));                \
-      return;                                                              \
-    } else if (isSimdZero(g, right)) {                                     \
-      Emit(kArm64F##CmOp | LaneSizeField::encode(LaneSize),                \
-           g.DefineAsRegister(node), g.UseRegister(left));                 \
-      return;                                                              \
-    }                                                                      \
-    VisitRRR(this, kArm64F##CmOp | LaneSizeField::encode(LaneSize), node); \
+#define VISIT_SIMD_CM(Type, T, CmOp, CmOpposite, LaneSize)                   \
+  void InstructionSelector::Visit##Type##CmOp(Node* node) {                  \
+    Arm64OperandGenerator g(this);                                           \
+    Node* left = node->InputAt(0);                                           \
+    Node* right = node->InputAt(1);                                          \
+    if (isSimdZero(g, left)) {                                               \
+      Emit(kArm64##T##CmOpposite | LaneSizeField::encode(LaneSize),          \
+           g.DefineAsRegister(node), g.UseRegister(right));                  \
+      return;                                                                \
+    } else if (isSimdZero(g, right)) {                                       \
+      Emit(kArm64##T##CmOp | LaneSizeField::encode(LaneSize),                \
+           g.DefineAsRegister(node), g.UseRegister(left));                   \
+      return;                                                                \
+    }                                                                        \
+    VisitRRR(this, kArm64##T##CmOp | LaneSizeField::encode(LaneSize), node); \
   }
 
-VISIT_SIMD_FCM(F64x2, Eq, Eq, 64)
-VISIT_SIMD_FCM(F64x2, Ne, Ne, 64)
-VISIT_SIMD_FCM(F64x2, Lt, Gt, 64)
-VISIT_SIMD_FCM(F64x2, Le, Ge, 64)
-VISIT_SIMD_FCM(F32x4, Eq, Eq, 32)
-VISIT_SIMD_FCM(F32x4, Ne, Ne, 32)
-VISIT_SIMD_FCM(F32x4, Lt, Gt, 32)
-VISIT_SIMD_FCM(F32x4, Le, Ge, 32)
-#undef VISIT_SIMD_FCM
+VISIT_SIMD_CM(F64x2, F, Eq, Eq, 64)
+VISIT_SIMD_CM(F64x2, F, Ne, Ne, 64)
+VISIT_SIMD_CM(F64x2, F, Lt, Gt, 64)
+VISIT_SIMD_CM(F64x2, F, Le, Ge, 64)
+VISIT_SIMD_CM(F32x4, F, Eq, Eq, 32)
+VISIT_SIMD_CM(F32x4, F, Ne, Ne, 32)
+VISIT_SIMD_CM(F32x4, F, Lt, Gt, 32)
+VISIT_SIMD_CM(F32x4, F, Le, Ge, 32)
+
+VISIT_SIMD_CM(I64x2, I, Eq, Eq, 64)
+VISIT_SIMD_CM(I64x2, I, Ne, Ne, 64)
+VISIT_SIMD_CM(I64x2, I, GtS, LtS, 64)
+VISIT_SIMD_CM(I64x2, I, GeS, LeS, 64)
+VISIT_SIMD_CM(I32x4, I, Eq, Eq, 32)
+VISIT_SIMD_CM(I32x4, I, Ne, Ne, 32)
+VISIT_SIMD_CM(I32x4, I, GtS, LtS, 32)
+VISIT_SIMD_CM(I32x4, I, GeS, LeS, 32)
+VISIT_SIMD_CM(I16x8, I, Eq, Eq, 16)
+VISIT_SIMD_CM(I16x8, I, Ne, Ne, 16)
+VISIT_SIMD_CM(I16x8, I, GtS, LtS, 16)
+VISIT_SIMD_CM(I16x8, I, GeS, LeS, 16)
+VISIT_SIMD_CM(I8x16, I, Eq, Eq, 8)
+VISIT_SIMD_CM(I8x16, I, Ne, Ne, 8)
+VISIT_SIMD_CM(I8x16, I, GtS, LtS, 8)
+VISIT_SIMD_CM(I8x16, I, GeS, LeS, 8)
+#undef VISIT_SIMD_CM
 
 void InstructionSelector::VisitS128Select(Node* node) {
   Arm64OperandGenerator g(this);

@@ -1,29 +1,31 @@
 # -*- coding: utf-8 -*-
-"""
-    jinja2.filters
-    ~~~~~~~~~~~~~~
-
-    Bundled jinja filters.
-
-    :copyright: (c) 2017 by the Jinja Team.
-    :license: BSD, see LICENSE for more details.
-"""
-import re
+"""Built-in template filters used with the ``|`` operator."""
 import math
 import random
+import re
 import warnings
-
-from itertools import groupby, chain
 from collections import namedtuple
-from jinja2.utils import Markup, escape, pformat, urlize, soft_unicode, \
-     unicode_urlencode, htmlsafe_json_dumps
-from jinja2.runtime import Undefined
-from jinja2.exceptions import FilterArgumentError
-from jinja2._compat import imap, string_types, text_type, iteritems, PY2
+from itertools import chain
+from itertools import groupby
 
+from markupsafe import escape
+from markupsafe import Markup
+from markupsafe import soft_unicode
 
-_word_re = re.compile(r'\w+', re.UNICODE)
-_word_beginning_split_re = re.compile(r'([-\s\(\{\[\<]+)', re.UNICODE)
+from ._compat import abc
+from ._compat import imap
+from ._compat import iteritems
+from ._compat import string_types
+from ._compat import text_type
+from .exceptions import FilterArgumentError
+from .runtime import Undefined
+from .utils import htmlsafe_json_dumps
+from .utils import pformat
+from .utils import unicode_urlencode
+from .utils import urlize
+
+_word_re = re.compile(r"\w+", re.UNICODE)
+_word_beginning_split_re = re.compile(r"([-\s\(\{\[\<]+)", re.UNICODE)
 
 
 def contextfilter(f):
@@ -59,22 +61,20 @@ def ignore_case(value):
     return value.lower() if isinstance(value, string_types) else value
 
 
-def make_attrgetter(environment, attribute, postprocess=None):
+def make_attrgetter(environment, attribute, postprocess=None, default=None):
     """Returns a callable that looks up the given attribute from a
     passed object with the rules of the environment.  Dots are allowed
     to access attributes of attributes.  Integer parts in paths are
     looked up as integers.
     """
-    if attribute is None:
-        attribute = []
-    elif isinstance(attribute, string_types):
-        attribute = [int(x) if x.isdigit() else x for x in attribute.split('.')]
-    else:
-        attribute = [attribute]
+    attribute = _prepare_attribute_parts(attribute)
 
     def attrgetter(item):
         for part in attribute:
             item = environment.getitem(item, part)
+
+            if default and isinstance(item, Undefined):
+                item = default
 
         if postprocess is not None:
             item = postprocess(item)
@@ -84,32 +84,84 @@ def make_attrgetter(environment, attribute, postprocess=None):
     return attrgetter
 
 
+def make_multi_attrgetter(environment, attribute, postprocess=None):
+    """Returns a callable that looks up the given comma separated
+    attributes from a passed object with the rules of the environment.
+    Dots are allowed to access attributes of each attribute.  Integer
+    parts in paths are looked up as integers.
+
+    The value returned by the returned callable is a list of extracted
+    attribute values.
+
+    Examples of attribute: "attr1,attr2", "attr1.inner1.0,attr2.inner2.0", etc.
+    """
+    attribute_parts = (
+        attribute.split(",") if isinstance(attribute, string_types) else [attribute]
+    )
+    attribute = [
+        _prepare_attribute_parts(attribute_part) for attribute_part in attribute_parts
+    ]
+
+    def attrgetter(item):
+        items = [None] * len(attribute)
+        for i, attribute_part in enumerate(attribute):
+            item_i = item
+            for part in attribute_part:
+                item_i = environment.getitem(item_i, part)
+
+            if postprocess is not None:
+                item_i = postprocess(item_i)
+
+            items[i] = item_i
+        return items
+
+    return attrgetter
+
+
+def _prepare_attribute_parts(attr):
+    if attr is None:
+        return []
+    elif isinstance(attr, string_types):
+        return [int(x) if x.isdigit() else x for x in attr.split(".")]
+    else:
+        return [attr]
+
+
 def do_forceescape(value):
     """Enforce HTML escaping.  This will probably double escape variables."""
-    if hasattr(value, '__html__'):
+    if hasattr(value, "__html__"):
         value = value.__html__()
     return escape(text_type(value))
 
 
 def do_urlencode(value):
-    """Escape strings for use in URLs (uses UTF-8 encoding).  It accepts both
-    dictionaries and regular strings as well as pairwise iterables.
+    """Quote data for use in a URL path or query using UTF-8.
+
+    Basic wrapper around :func:`urllib.parse.quote` when given a
+    string, or :func:`urllib.parse.urlencode` for a dict or iterable.
+
+    :param value: Data to quote. A string will be quoted directly. A
+        dict or iterable of ``(key, value)`` pairs will be joined as a
+        query string.
+
+    When given a string, "/" is not quoted. HTTP servers treat "/" and
+    "%2F" equivalently in paths. If you need quoted slashes, use the
+    ``|replace("/", "%2F")`` filter.
 
     .. versionadded:: 2.7
     """
-    itemiter = None
-    if isinstance(value, dict):
-        itemiter = iteritems(value)
-    elif not isinstance(value, string_types):
-        try:
-            itemiter = iter(value)
-        except TypeError:
-            pass
-    if itemiter is None:
+    if isinstance(value, string_types) or not isinstance(value, abc.Iterable):
         return unicode_urlencode(value)
-    return u'&'.join(unicode_urlencode(k) + '=' +
-                     unicode_urlencode(v, for_qs=True)
-                     for k, v in itemiter)
+
+    if isinstance(value, dict):
+        items = iteritems(value)
+    else:
+        items = iter(value)
+
+    return u"&".join(
+        "%s=%s" % (unicode_urlencode(k, for_qs=True), unicode_urlencode(v, for_qs=True))
+        for k, v in items
+    )
 
 
 @evalcontextfilter
@@ -132,8 +184,11 @@ def do_replace(eval_ctx, s, old, new, count=None):
         count = -1
     if not eval_ctx.autoescape:
         return text_type(s).replace(text_type(old), text_type(new), count)
-    if hasattr(old, '__html__') or hasattr(new, '__html__') and \
-       not hasattr(s, '__html__'):
+    if (
+        hasattr(old, "__html__")
+        or hasattr(new, "__html__")
+        and not hasattr(s, "__html__")
+    ):
         s = escape(s)
     else:
         s = soft_unicode(s)
@@ -174,13 +229,13 @@ def do_xmlattr(_eval_ctx, d, autospace=True):
     As you can see it automatically prepends a space in front of the item
     if the filter returned something unless the second parameter is false.
     """
-    rv = u' '.join(
+    rv = u" ".join(
         u'%s="%s"' % (escape(key), escape(value))
         for key, value in iteritems(d)
         if value is not None and not isinstance(value, Undefined)
     )
     if autospace and rv:
-        rv = u' ' + rv
+        rv = u" " + rv
     if _eval_ctx.autoescape:
         rv = Markup(rv)
     return rv
@@ -197,39 +252,40 @@ def do_title(s):
     """Return a titlecased version of the value. I.e. words will start with
     uppercase letters, all remaining characters are lowercase.
     """
-    return ''.join(
-        [item[0].upper() + item[1:].lower()
-         for item in _word_beginning_split_re.split(soft_unicode(s))
-         if item])
+    return "".join(
+        [
+            item[0].upper() + item[1:].lower()
+            for item in _word_beginning_split_re.split(soft_unicode(s))
+            if item
+        ]
+    )
 
 
-def do_dictsort(value, case_sensitive=False, by='key', reverse=False):
+def do_dictsort(value, case_sensitive=False, by="key", reverse=False):
     """Sort a dict and yield (key, value) pairs. Because python dicts are
     unsorted you may want to use this function to order them by either
     key or value:
 
     .. sourcecode:: jinja
 
-        {% for item in mydict|dictsort %}
+        {% for key, value in mydict|dictsort %}
             sort the dict by key, case insensitive
 
-        {% for item in mydict|dictsort(reverse=true) %}
+        {% for key, value in mydict|dictsort(reverse=true) %}
             sort the dict by key, case insensitive, reverse order
 
-        {% for item in mydict|dictsort(true) %}
+        {% for key, value in mydict|dictsort(true) %}
             sort the dict by key, case sensitive
 
-        {% for item in mydict|dictsort(false, 'value') %}
+        {% for key, value in mydict|dictsort(false, 'value') %}
             sort the dict by value, case insensitive
     """
-    if by == 'key':
+    if by == "key":
         pos = 0
-    elif by == 'value':
+    elif by == "value":
         pos = 1
     else:
-        raise FilterArgumentError(
-            'You can only sort by either "key" or "value"'
-        )
+        raise FilterArgumentError('You can only sort by either "key" or "value"')
 
     def sort_func(item):
         value = item[pos]
@@ -243,48 +299,62 @@ def do_dictsort(value, case_sensitive=False, by='key', reverse=False):
 
 
 @environmentfilter
-def do_sort(
-    environment, value, reverse=False, case_sensitive=False, attribute=None
-):
-    """Sort an iterable.  Per default it sorts ascending, if you pass it
-    true as first argument it will reverse the sorting.
-
-    If the iterable is made of strings the third parameter can be used to
-    control the case sensitiveness of the comparison which is disabled by
-    default.
+def do_sort(environment, value, reverse=False, case_sensitive=False, attribute=None):
+    """Sort an iterable using Python's :func:`sorted`.
 
     .. sourcecode:: jinja
 
-        {% for item in iterable|sort %}
+        {% for city in cities|sort %}
             ...
         {% endfor %}
 
-    It is also possible to sort by an attribute (for example to sort
-    by the date of an object) by specifying the `attribute` parameter:
+    :param reverse: Sort descending instead of ascending.
+    :param case_sensitive: When sorting strings, sort upper and lower
+        case separately.
+    :param attribute: When sorting objects or dicts, an attribute or
+        key to sort by. Can use dot notation like ``"address.city"``.
+        Can be a list of attributes like ``"age,name"``.
+
+    The sort is stable, it does not change the relative order of
+    elements that compare equal. This makes it is possible to chain
+    sorts on different attributes and ordering.
 
     .. sourcecode:: jinja
 
-        {% for item in iterable|sort(attribute='date') %}
+        {% for user in users|sort(attribute="name")
+            |sort(reverse=true, attribute="age") %}
             ...
         {% endfor %}
+
+    As a shortcut to chaining when the direction is the same for all
+    attributes, pass a comma separate list of attributes.
+
+    .. sourcecode:: jinja
+
+        {% for user users|sort(attribute="age,name") %}
+            ...
+        {% endfor %}
+
+    .. versionchanged:: 2.11.0
+        The ``attribute`` parameter can be a comma separated list of
+        attributes, e.g. ``"age,name"``.
 
     .. versionchanged:: 2.6
-       The `attribute` parameter was added.
+       The ``attribute`` parameter was added.
     """
-    key_func = make_attrgetter(
-        environment, attribute,
-        postprocess=ignore_case if not case_sensitive else None
+    key_func = make_multi_attrgetter(
+        environment, attribute, postprocess=ignore_case if not case_sensitive else None
     )
     return sorted(value, key=key_func, reverse=reverse)
 
 
 @environmentfilter
 def do_unique(environment, value, case_sensitive=False, attribute=None):
-    """Returns a list of unique items from the the given iterable.
+    """Returns a list of unique items from the given iterable.
 
     .. sourcecode:: jinja
 
-        {{ ['foo', 'bar', 'foobar', 'FooBar']|unique }}
+        {{ ['foo', 'bar', 'foobar', 'FooBar']|unique|list }}
             -> ['foo', 'bar', 'foobar']
 
     The unique items are yielded in the same order as their first occurrence in
@@ -294,8 +364,7 @@ def do_unique(environment, value, case_sensitive=False, attribute=None):
     :param attribute: Filter objects with unique values for this attribute.
     """
     getter = make_attrgetter(
-        environment, attribute,
-        postprocess=ignore_case if not case_sensitive else None
+        environment, attribute, postprocess=ignore_case if not case_sensitive else None
     )
     seen = set()
 
@@ -313,11 +382,10 @@ def _min_or_max(environment, value, func, case_sensitive, attribute):
     try:
         first = next(it)
     except StopIteration:
-        return environment.undefined('No aggregated item, sequence was empty.')
+        return environment.undefined("No aggregated item, sequence was empty.")
 
     key_func = make_attrgetter(
-        environment, attribute,
-        ignore_case if not case_sensitive else None
+        environment, attribute, postprocess=ignore_case if not case_sensitive else None
     )
     return func(chain([first], it), key=key_func)
 
@@ -332,7 +400,7 @@ def do_min(environment, value, case_sensitive=False, attribute=None):
             -> 1
 
     :param case_sensitive: Treat upper and lower case strings as distinct.
-    :param attribute: Get the object with the max value of this attribute.
+    :param attribute: Get the object with the min value of this attribute.
     """
     return _min_or_max(environment, value, min, case_sensitive, attribute)
 
@@ -352,7 +420,7 @@ def do_max(environment, value, case_sensitive=False, attribute=None):
     return _min_or_max(environment, value, max, case_sensitive, attribute)
 
 
-def do_default(value, default_value=u'', boolean=False):
+def do_default(value, default_value=u"", boolean=False):
     """If the value is undefined it will return the passed default value,
     otherwise the value of the variable:
 
@@ -368,6 +436,12 @@ def do_default(value, default_value=u'', boolean=False):
     .. sourcecode:: jinja
 
         {{ ''|default('the string was empty', true) }}
+
+    .. versionchanged:: 2.11
+       It's now possible to configure the :class:`~jinja2.Environment` with
+       :class:`~jinja2.ChainableUndefined` to make the `default` filter work
+       on nested elements and attributes that may contain undefined values
+       in the chain without getting an :exc:`~jinja2.UndefinedError`.
     """
     if isinstance(value, Undefined) or (boolean and not value):
         return default_value
@@ -375,7 +449,7 @@ def do_default(value, default_value=u'', boolean=False):
 
 
 @evalcontextfilter
-def do_join(eval_ctx, value, d=u'', attribute=None):
+def do_join(eval_ctx, value, d=u"", attribute=None):
     """Return a string which is the concatenation of the strings in the
     sequence. The separator between elements is an empty string per
     default, you can define it with the optional parameter:
@@ -400,17 +474,17 @@ def do_join(eval_ctx, value, d=u'', attribute=None):
     if attribute is not None:
         value = imap(make_attrgetter(eval_ctx.environment, attribute), value)
 
-    # no automatic escaping?  joining is a lot eaiser then
+    # no automatic escaping?  joining is a lot easier then
     if not eval_ctx.autoescape:
         return text_type(d).join(imap(text_type, value))
 
     # if the delimiter doesn't have an html representation we check
     # if any of the items has.  If yes we do a coercion to Markup
-    if not hasattr(d, '__html__'):
+    if not hasattr(d, "__html__"):
         value = list(value)
         do_escape = False
         for idx, item in enumerate(value):
-            if hasattr(item, '__html__'):
+            if hasattr(item, "__html__"):
                 do_escape = True
             else:
                 value[idx] = text_type(item)
@@ -435,16 +509,25 @@ def do_first(environment, seq):
     try:
         return next(iter(seq))
     except StopIteration:
-        return environment.undefined('No first item, sequence was empty.')
+        return environment.undefined("No first item, sequence was empty.")
 
 
 @environmentfilter
 def do_last(environment, seq):
-    """Return the last item of a sequence."""
+    """
+    Return the last item of a sequence.
+
+    Note: Does not work with generators. You may want to explicitly
+    convert it to a list:
+
+    .. sourcecode:: jinja
+
+        {{ data | selectattr('name', '==', 'Jinja') | list | last }}
+    """
     try:
         return next(iter(reversed(seq)))
     except StopIteration:
-        return environment.undefined('No last item, sequence was empty.')
+        return environment.undefined("No last item, sequence was empty.")
 
 
 @contextfilter
@@ -453,7 +536,7 @@ def do_random(context, seq):
     try:
         return random.choice(seq)
     except IndexError:
-        return context.environment.undefined('No random item, sequence was empty.')
+        return context.environment.undefined("No random item, sequence was empty.")
 
 
 def do_filesizeformat(value, binary=False):
@@ -465,25 +548,25 @@ def do_filesizeformat(value, binary=False):
     bytes = float(value)
     base = binary and 1024 or 1000
     prefixes = [
-        (binary and 'KiB' or 'kB'),
-        (binary and 'MiB' or 'MB'),
-        (binary and 'GiB' or 'GB'),
-        (binary and 'TiB' or 'TB'),
-        (binary and 'PiB' or 'PB'),
-        (binary and 'EiB' or 'EB'),
-        (binary and 'ZiB' or 'ZB'),
-        (binary and 'YiB' or 'YB')
+        (binary and "KiB" or "kB"),
+        (binary and "MiB" or "MB"),
+        (binary and "GiB" or "GB"),
+        (binary and "TiB" or "TB"),
+        (binary and "PiB" or "PB"),
+        (binary and "EiB" or "EB"),
+        (binary and "ZiB" or "ZB"),
+        (binary and "YiB" or "YB"),
     ]
     if bytes == 1:
-        return '1 Byte'
+        return "1 Byte"
     elif bytes < base:
-        return '%d Bytes' % bytes
+        return "%d Bytes" % bytes
     else:
         for i, prefix in enumerate(prefixes):
             unit = base ** (i + 2)
             if bytes < unit:
-                return '%.1f %s' % ((base * bytes / unit), prefix)
-        return '%.1f %s' % ((base * bytes / unit), prefix)
+                return "%.1f %s" % ((base * bytes / unit), prefix)
+        return "%.1f %s" % ((base * bytes / unit), prefix)
 
 
 def do_pprint(value, verbose=False):
@@ -496,8 +579,9 @@ def do_pprint(value, verbose=False):
 
 
 @evalcontextfilter
-def do_urlize(eval_ctx, value, trim_url_limit=None, nofollow=False,
-              target=None, rel=None):
+def do_urlize(
+    eval_ctx, value, trim_url_limit=None, nofollow=False, target=None, rel=None
+):
     """Converts URLs in plain text into clickable links.
 
     If you pass the filter an additional integer it will shorten the urls
@@ -520,22 +604,20 @@ def do_urlize(eval_ctx, value, trim_url_limit=None, nofollow=False,
        The *target* parameter was added.
     """
     policies = eval_ctx.environment.policies
-    rel = set((rel or '').split() or [])
+    rel = set((rel or "").split() or [])
     if nofollow:
-        rel.add('nofollow')
-    rel.update((policies['urlize.rel'] or '').split())
+        rel.add("nofollow")
+    rel.update((policies["urlize.rel"] or "").split())
     if target is None:
-        target = policies['urlize.target']
-    rel = ' '.join(sorted(rel)) or None
+        target = policies["urlize.target"]
+    rel = " ".join(sorted(rel)) or None
     rv = urlize(value, trim_url_limit, rel=rel, target=target)
     if eval_ctx.autoescape:
         rv = Markup(rv)
     return rv
 
 
-def do_indent(
-    s, width=4, first=False, blank=False, indentfirst=None
-):
+def do_indent(s, width=4, first=False, blank=False, indentfirst=None):
     """Return a copy of the string with each line indented by 4 spaces. The
     first line and blank lines are not indented by default.
 
@@ -549,22 +631,31 @@ def do_indent(
         Rename the ``indentfirst`` argument to ``first``.
     """
     if indentfirst is not None:
-        warnings.warn(DeprecationWarning(
-            'The "indentfirst" argument is renamed to "first".'
-        ), stacklevel=2)
+        warnings.warn(
+            "The 'indentfirst' argument is renamed to 'first' and will"
+            " be removed in version 3.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         first = indentfirst
 
-    s += u'\n'  # this quirk is necessary for splitlines method
-    indention = u' ' * width
+    indention = u" " * width
+    newline = u"\n"
+
+    if isinstance(s, Markup):
+        indention = Markup(indention)
+        newline = Markup(newline)
+
+    s += newline  # this quirk is necessary for splitlines method
 
     if blank:
-        rv = (u'\n' + indention).join(s.splitlines())
+        rv = (newline + indention).join(s.splitlines())
     else:
         lines = s.splitlines()
         rv = lines.pop(0)
 
         if lines:
-            rv += u'\n' + u'\n'.join(
+            rv += newline + newline.join(
                 indention + line if line else line for line in lines
             )
 
@@ -575,7 +666,7 @@ def do_indent(
 
 
 @environmentfilter
-def do_truncate(env, s, length=255, killwords=False, end='...', leeway=None):
+def do_truncate(env, s, length=255, killwords=False, end="...", leeway=None):
     """Return a truncated copy of the string. The length is specified
     with the first parameter which defaults to ``255``. If the second
     parameter is ``true`` the filter will cut the text at length. Otherwise
@@ -596,46 +687,81 @@ def do_truncate(env, s, length=255, killwords=False, end='...', leeway=None):
         {{ "foo bar baz qux"|truncate(11, False, '...', 0) }}
             -> "foo bar..."
 
-    The default leeway on newer Jinja2 versions is 5 and was 0 before but
+    The default leeway on newer Jinja versions is 5 and was 0 before but
     can be reconfigured globally.
     """
     if leeway is None:
-        leeway = env.policies['truncate.leeway']
-    assert length >= len(end), 'expected length >= %s, got %s' % (len(end), length)
-    assert leeway >= 0, 'expected leeway >= 0, got %s' % leeway
+        leeway = env.policies["truncate.leeway"]
+    assert length >= len(end), "expected length >= %s, got %s" % (len(end), length)
+    assert leeway >= 0, "expected leeway >= 0, got %s" % leeway
     if len(s) <= length + leeway:
         return s
     if killwords:
-        return s[:length - len(end)] + end
-    result = s[:length - len(end)].rsplit(' ', 1)[0]
+        return s[: length - len(end)] + end
+    result = s[: length - len(end)].rsplit(" ", 1)[0]
     return result + end
 
 
 @environmentfilter
-def do_wordwrap(environment, s, width=79, break_long_words=True,
-                wrapstring=None):
-    """
-    Return a copy of the string passed to the filter wrapped after
-    ``79`` characters.  You can override this default using the first
-    parameter.  If you set the second parameter to `false` Jinja will not
-    split words apart if they are longer than `width`. By default, the newlines
-    will be the default newlines for the environment, but this can be changed
-    using the wrapstring keyword argument.
+def do_wordwrap(
+    environment,
+    s,
+    width=79,
+    break_long_words=True,
+    wrapstring=None,
+    break_on_hyphens=True,
+):
+    """Wrap a string to the given width. Existing newlines are treated
+    as paragraphs to be wrapped separately.
 
-    .. versionadded:: 2.7
-       Added support for the `wrapstring` parameter.
+    :param s: Original text to wrap.
+    :param width: Maximum length of wrapped lines.
+    :param break_long_words: If a word is longer than ``width``, break
+        it across lines.
+    :param break_on_hyphens: If a word contains hyphens, it may be split
+        across lines.
+    :param wrapstring: String to join each wrapped line. Defaults to
+        :attr:`Environment.newline_sequence`.
+
+    .. versionchanged:: 2.11
+        Existing newlines are treated as paragraphs wrapped separately.
+
+    .. versionchanged:: 2.11
+        Added the ``break_on_hyphens`` parameter.
+
+    .. versionchanged:: 2.7
+        Added the ``wrapstring`` parameter.
     """
+
+    import textwrap
+
     if not wrapstring:
         wrapstring = environment.newline_sequence
-    import textwrap
-    return wrapstring.join(textwrap.wrap(s, width=width, expand_tabs=False,
-                                   replace_whitespace=False,
-                                   break_long_words=break_long_words))
+
+    # textwrap.wrap doesn't consider existing newlines when wrapping.
+    # If the string has a newline before width, wrap will still insert
+    # a newline at width, resulting in a short line. Instead, split and
+    # wrap each paragraph individually.
+    return wrapstring.join(
+        [
+            wrapstring.join(
+                textwrap.wrap(
+                    line,
+                    width=width,
+                    expand_tabs=False,
+                    replace_whitespace=False,
+                    break_long_words=break_long_words,
+                    break_on_hyphens=break_on_hyphens,
+                )
+            )
+            for line in s.splitlines()
+        ]
+    )
 
 
 def do_wordcount(s):
     """Count the words in that string."""
-    return len(_word_re.findall(s))
+    return len(_word_re.findall(soft_unicode(s)))
 
 
 def do_int(value, default=0, base=10):
@@ -671,29 +797,40 @@ def do_float(value, default=0.0):
 
 
 def do_format(value, *args, **kwargs):
-    """
-    Apply python string formatting on an object:
+    """Apply the given values to a `printf-style`_ format string, like
+    ``string % values``.
 
     .. sourcecode:: jinja
 
-        {{ "%s - %s"|format("Hello?", "Foo!") }}
-            -> Hello? - Foo!
+        {{ "%s, %s!"|format(greeting, name) }}
+        Hello, World!
+
+    In most cases it should be more convenient and efficient to use the
+    ``%`` operator or :meth:`str.format`.
+
+    .. code-block:: text
+
+        {{ "%s, %s!" % (greeting, name) }}
+        {{ "{}, {}!".format(greeting, name) }}
+
+    .. _printf-style: https://docs.python.org/library/stdtypes.html
+        #printf-style-string-formatting
     """
     if args and kwargs:
-        raise FilterArgumentError('can\'t handle positional and keyword '
-                                  'arguments at the same time')
+        raise FilterArgumentError(
+            "can't handle positional and keyword arguments at the same time"
+        )
     return soft_unicode(value) % (kwargs or args)
 
 
-def do_trim(value):
-    """Strip leading and trailing whitespace."""
-    return soft_unicode(value).strip()
+def do_trim(value, chars=None):
+    """Strip leading and trailing characters, by default whitespace."""
+    return soft_unicode(value).strip(chars)
 
 
 def do_striptags(value):
-    """Strip SGML/XML tags and replace adjacent whitespace by one space.
-    """
-    if hasattr(value, '__html__'):
+    """Strip SGML/XML tags and replace adjacent whitespace by one space."""
+    if hasattr(value, "__html__"):
         value = value.__html__()
     return Markup(text_type(value)).striptags()
 
@@ -705,7 +842,7 @@ def do_slice(value, slices, fill_with=None):
 
     .. sourcecode:: html+jinja
 
-        <div class="columwrapper">
+        <div class="columnwrapper">
           {%- for column in items|slice(3) %}
             <ul class="column-{{ loop.index }}">
             {%- for item in column %}
@@ -765,7 +902,7 @@ def do_batch(value, linecount, fill_with=None):
         yield tmp
 
 
-def do_round(value, precision=0, method='common'):
+def do_round(value, precision=0, method="common"):
     """Round the number to a given precision. The first
     parameter specifies the precision (default is ``0``), the
     second the rounding method:
@@ -791,9 +928,9 @@ def do_round(value, precision=0, method='common'):
         {{ 42.55|round|int }}
             -> 43
     """
-    if not method in ('common', 'ceil', 'floor'):
-        raise FilterArgumentError('method must be common, ceil or floor')
-    if method == 'common':
+    if method not in {"common", "ceil", "floor"}:
+        raise FilterArgumentError("method must be common, ceil or floor")
+    if method == "common":
         return round(value, precision)
     func = getattr(math, method)
     return func(value * (10 ** precision)) / (10 ** precision)
@@ -804,52 +941,51 @@ def do_round(value, precision=0, method='common'):
 # we do not want to accidentally expose an auto generated repr in case
 # people start to print this out in comments or something similar for
 # debugging.
-_GroupTuple = namedtuple('_GroupTuple', ['grouper', 'list'])
+_GroupTuple = namedtuple("_GroupTuple", ["grouper", "list"])
 _GroupTuple.__repr__ = tuple.__repr__
 _GroupTuple.__str__ = tuple.__str__
 
+
 @environmentfilter
 def do_groupby(environment, value, attribute):
-    """Group a sequence of objects by a common attribute.
+    """Group a sequence of objects by an attribute using Python's
+    :func:`itertools.groupby`. The attribute can use dot notation for
+    nested access, like ``"address.city"``. Unlike Python's ``groupby``,
+    the values are sorted first so only one group is returned for each
+    unique value.
 
-    If you for example have a list of dicts or objects that represent persons
-    with `gender`, `first_name` and `last_name` attributes and you want to
-    group all users by genders you can do something like the following
-    snippet:
-
-    .. sourcecode:: html+jinja
-
-        <ul>
-        {% for group in persons|groupby('gender') %}
-            <li>{{ group.grouper }}<ul>
-            {% for person in group.list %}
-                <li>{{ person.first_name }} {{ person.last_name }}</li>
-            {% endfor %}</ul></li>
-        {% endfor %}
-        </ul>
-
-    Additionally it's possible to use tuple unpacking for the grouper and
-    list:
+    For example, a list of ``User`` objects with a ``city`` attribute
+    can be rendered in groups. In this example, ``grouper`` refers to
+    the ``city`` value of the group.
 
     .. sourcecode:: html+jinja
 
-        <ul>
-        {% for grouper, list in persons|groupby('gender') %}
-            ...
-        {% endfor %}
-        </ul>
+        <ul>{% for city, items in users|groupby("city") %}
+          <li>{{ city }}
+            <ul>{% for user in items %}
+              <li>{{ user.name }}
+            {% endfor %}</ul>
+          </li>
+        {% endfor %}</ul>
 
-    As you can see the item we're grouping by is stored in the `grouper`
-    attribute and the `list` contains all the objects that have this grouper
-    in common.
+    ``groupby`` yields namedtuples of ``(grouper, list)``, which
+    can be used instead of the tuple unpacking above. ``grouper`` is the
+    value of the attribute, and ``list`` is the items with that value.
+
+    .. sourcecode:: html+jinja
+
+        <ul>{% for group in users|groupby("city") %}
+          <li>{{ group.grouper }}: {{ group.list|join(", ") }}
+        {% endfor %}</ul>
 
     .. versionchanged:: 2.6
-       It's now possible to use dotted notation to group by the child
-       attribute of another attribute.
+        The attribute supports dot notation for nested access.
     """
     expr = make_attrgetter(environment, attribute)
-    return [_GroupTuple(key, list(values)) for key, values
-            in groupby(sorted(value, key=expr), expr)]
+    return [
+        _GroupTuple(key, list(values))
+        for key, values in groupby(sorted(value, key=expr), expr)
+    ]
 
 
 @environmentfilter
@@ -906,7 +1042,7 @@ def do_reverse(value):
             rv.reverse()
             return rv
         except TypeError:
-            raise FilterArgumentError('argument must be iterable')
+            raise FilterArgumentError("argument must be iterable")
 
 
 @environmentfilter
@@ -927,8 +1063,9 @@ def do_attr(environment, obj, name):
         except AttributeError:
             pass
         else:
-            if environment.sandboxed and not \
-               environment.is_safe_attribute(obj, name, value):
+            if environment.sandboxed and not environment.is_safe_attribute(
+                obj, name, value
+            ):
                 return environment.unsafe_undefined(obj, name)
             return value
     return environment.undefined(obj=obj, name=name)
@@ -947,6 +1084,13 @@ def do_map(*args, **kwargs):
 
         Users on this page: {{ users|map(attribute='username')|join(', ') }}
 
+    You can specify a ``default`` value to use if an object in the list
+    does not have the given attribute.
+
+    .. sourcecode:: jinja
+
+        {{ users|map(attribute="username", default="Anonymous")|join(", ") }}
+
     Alternatively you can let it invoke a filter by passing the name of the
     filter and the arguments afterwards.  A good example would be applying a
     text conversion filter on a sequence:
@@ -954,6 +1098,17 @@ def do_map(*args, **kwargs):
     .. sourcecode:: jinja
 
         Users on this page: {{ titles|map('lower')|join(', ') }}
+
+    Similar to a generator comprehension such as:
+
+    .. code-block:: python
+
+        (u.username for u in users)
+        (u.username or "Anonymous" for u in users)
+        (do_lower(x) for x in titles)
+
+    .. versionchanged:: 2.11.0
+        Added the ``default`` parameter.
 
     .. versionadded:: 2.7
     """
@@ -980,6 +1135,13 @@ def do_select(*args, **kwargs):
         {{ numbers|select("lessthan", 42) }}
         {{ strings|select("equalto", "mystring") }}
 
+    Similar to a generator comprehension such as:
+
+    .. code-block:: python
+
+        (n for n in numbers if test_odd(n))
+        (n for n in numbers if test_divisibleby(n, 3))
+
     .. versionadded:: 2.7
     """
     return select_or_reject(args, kwargs, lambda x: x, False)
@@ -997,6 +1159,12 @@ def do_reject(*args, **kwargs):
     .. sourcecode:: jinja
 
         {{ numbers|reject("odd") }}
+
+    Similar to a generator comprehension such as:
+
+    .. code-block:: python
+
+        (n for n in numbers if not test_odd(n))
 
     .. versionadded:: 2.7
     """
@@ -1019,6 +1187,13 @@ def do_selectattr(*args, **kwargs):
         {{ users|selectattr("is_active") }}
         {{ users|selectattr("email", "none") }}
 
+    Similar to a generator comprehension such as:
+
+    .. code-block:: python
+
+        (u for user in users if user.is_active)
+        (u for user in users if test_none(user.email))
+
     .. versionadded:: 2.7
     """
     return select_or_reject(args, kwargs, lambda x: x, True)
@@ -1037,6 +1212,13 @@ def do_rejectattr(*args, **kwargs):
 
         {{ users|rejectattr("is_active") }}
         {{ users|rejectattr("email", "none") }}
+
+    Similar to a generator comprehension such as:
+
+    .. code-block:: python
+
+        (u for user in users if not user.is_active)
+        (u for user in users if not test_none(user.email))
 
     .. versionadded:: 2.7
     """
@@ -1070,32 +1252,38 @@ def do_tojson(eval_ctx, value, indent=None):
     .. versionadded:: 2.9
     """
     policies = eval_ctx.environment.policies
-    dumper = policies['json.dumps_function']
-    options = policies['json.dumps_kwargs']
+    dumper = policies["json.dumps_function"]
+    options = policies["json.dumps_kwargs"]
     if indent is not None:
         options = dict(options)
-        options['indent'] = indent
+        options["indent"] = indent
     return htmlsafe_json_dumps(value, dumper=dumper, **options)
 
 
 def prepare_map(args, kwargs):
     context = args[0]
     seq = args[1]
+    default = None
 
-    if len(args) == 2 and 'attribute' in kwargs:
-        attribute = kwargs.pop('attribute')
+    if len(args) == 2 and "attribute" in kwargs:
+        attribute = kwargs.pop("attribute")
+        default = kwargs.pop("default", None)
         if kwargs:
-            raise FilterArgumentError('Unexpected keyword argument %r' %
-                next(iter(kwargs)))
-        func = make_attrgetter(context.environment, attribute)
+            raise FilterArgumentError(
+                "Unexpected keyword argument %r" % next(iter(kwargs))
+            )
+        func = make_attrgetter(context.environment, attribute, default=default)
     else:
         try:
             name = args[2]
             args = args[3:]
         except LookupError:
-            raise FilterArgumentError('map requires a filter argument')
-        func = lambda item: context.environment.call_filter(
-            name, item, args, kwargs, context=context)
+            raise FilterArgumentError("map requires a filter argument")
+
+        def func(item):
+            return context.environment.call_filter(
+                name, item, args, kwargs, context=context
+            )
 
     return seq, func
 
@@ -1107,18 +1295,22 @@ def prepare_select_or_reject(args, kwargs, modfunc, lookup_attr):
         try:
             attr = args[2]
         except LookupError:
-            raise FilterArgumentError('Missing parameter for attribute name')
+            raise FilterArgumentError("Missing parameter for attribute name")
         transfunc = make_attrgetter(context.environment, attr)
         off = 1
     else:
         off = 0
-        transfunc = lambda x: x
+
+        def transfunc(x):
+            return x
 
     try:
         name = args[2 + off]
-        args = args[3 + off:]
-        func = lambda item: context.environment.call_test(
-            name, item, args, kwargs)
+        args = args[3 + off :]
+
+        def func(item):
+            return context.environment.call_test(name, item, args, kwargs)
+
     except LookupError:
         func = bool
 
@@ -1134,57 +1326,57 @@ def select_or_reject(args, kwargs, modfunc, lookup_attr):
 
 
 FILTERS = {
-    'abs':                  abs,
-    'attr':                 do_attr,
-    'batch':                do_batch,
-    'capitalize':           do_capitalize,
-    'center':               do_center,
-    'count':                len,
-    'd':                    do_default,
-    'default':              do_default,
-    'dictsort':             do_dictsort,
-    'e':                    escape,
-    'escape':               escape,
-    'filesizeformat':       do_filesizeformat,
-    'first':                do_first,
-    'float':                do_float,
-    'forceescape':          do_forceescape,
-    'format':               do_format,
-    'groupby':              do_groupby,
-    'indent':               do_indent,
-    'int':                  do_int,
-    'join':                 do_join,
-    'last':                 do_last,
-    'length':               len,
-    'list':                 do_list,
-    'lower':                do_lower,
-    'map':                  do_map,
-    'min':                  do_min,
-    'max':                  do_max,
-    'pprint':               do_pprint,
-    'random':               do_random,
-    'reject':               do_reject,
-    'rejectattr':           do_rejectattr,
-    'replace':              do_replace,
-    'reverse':              do_reverse,
-    'round':                do_round,
-    'safe':                 do_mark_safe,
-    'select':               do_select,
-    'selectattr':           do_selectattr,
-    'slice':                do_slice,
-    'sort':                 do_sort,
-    'string':               soft_unicode,
-    'striptags':            do_striptags,
-    'sum':                  do_sum,
-    'title':                do_title,
-    'trim':                 do_trim,
-    'truncate':             do_truncate,
-    'unique':               do_unique,
-    'upper':                do_upper,
-    'urlencode':            do_urlencode,
-    'urlize':               do_urlize,
-    'wordcount':            do_wordcount,
-    'wordwrap':             do_wordwrap,
-    'xmlattr':              do_xmlattr,
-    'tojson':               do_tojson,
+    "abs": abs,
+    "attr": do_attr,
+    "batch": do_batch,
+    "capitalize": do_capitalize,
+    "center": do_center,
+    "count": len,
+    "d": do_default,
+    "default": do_default,
+    "dictsort": do_dictsort,
+    "e": escape,
+    "escape": escape,
+    "filesizeformat": do_filesizeformat,
+    "first": do_first,
+    "float": do_float,
+    "forceescape": do_forceescape,
+    "format": do_format,
+    "groupby": do_groupby,
+    "indent": do_indent,
+    "int": do_int,
+    "join": do_join,
+    "last": do_last,
+    "length": len,
+    "list": do_list,
+    "lower": do_lower,
+    "map": do_map,
+    "min": do_min,
+    "max": do_max,
+    "pprint": do_pprint,
+    "random": do_random,
+    "reject": do_reject,
+    "rejectattr": do_rejectattr,
+    "replace": do_replace,
+    "reverse": do_reverse,
+    "round": do_round,
+    "safe": do_mark_safe,
+    "select": do_select,
+    "selectattr": do_selectattr,
+    "slice": do_slice,
+    "sort": do_sort,
+    "string": soft_unicode,
+    "striptags": do_striptags,
+    "sum": do_sum,
+    "title": do_title,
+    "trim": do_trim,
+    "truncate": do_truncate,
+    "unique": do_unique,
+    "upper": do_upper,
+    "urlencode": do_urlencode,
+    "urlize": do_urlize,
+    "wordcount": do_wordcount,
+    "wordwrap": do_wordwrap,
+    "xmlattr": do_xmlattr,
+    "tojson": do_tojson,
 }

@@ -476,6 +476,7 @@ std::atomic<int> Shell::unhandled_promise_rejections_{0};
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
+Isolate* Shell::shared_isolate = nullptr;
 bool check_d8_flag_contradictions = true;
 ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
@@ -744,6 +745,11 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     data->realm_current_ = data->realm_switch_;
 
     if (options.web_snapshot_config) {
+      const char* web_snapshot_output_file_name = "web.snap";
+      if (options.web_snapshot_output) {
+        web_snapshot_output_file_name = options.web_snapshot_output;
+      }
+
       MaybeLocal<PrimitiveArray> maybe_exports =
           ReadLines(isolate, options.web_snapshot_config);
       Local<PrimitiveArray> exports;
@@ -758,12 +764,17 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       i::WebSnapshotData snapshot_data;
       if (serializer.TakeSnapshot(context, exports, snapshot_data)) {
         DCHECK_NOT_NULL(snapshot_data.buffer);
-        WriteChars("web.snap", snapshot_data.buffer, snapshot_data.buffer_size);
+        WriteChars(web_snapshot_output_file_name, snapshot_data.buffer,
+                   snapshot_data.buffer_size);
       } else {
         CHECK(try_catch.HasCaught());
         ReportException(isolate, &try_catch);
         return false;
       }
+    } else if (options.web_snapshot_output) {
+      isolate->ThrowError(
+          "Web snapshots: --web-snapshot-config is needed when "
+          "--web-snapshot-output is passed");
     }
   }
   Local<Value> result;
@@ -1174,7 +1185,7 @@ void Shell::ModuleResolutionFailureCallback(
 }
 
 MaybeLocal<Promise> Shell::HostImportModuleDynamically(
-    Local<Context> context, Local<ScriptOrModule> referrer,
+    Local<Context> context, Local<ScriptOrModule> script_or_module,
     Local<String> specifier, Local<FixedArray> import_assertions) {
   Isolate* isolate = context->GetIsolate();
 
@@ -1182,9 +1193,9 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
       Promise::Resolver::New(context);
   Local<Promise::Resolver> resolver;
   if (maybe_resolver.ToLocal(&resolver)) {
-    DynamicImportData* data =
-        new DynamicImportData(isolate, referrer->GetResourceName().As<String>(),
-                              specifier, import_assertions, resolver);
+    DynamicImportData* data = new DynamicImportData(
+        isolate, script_or_module->GetResourceName().As<String>(), specifier,
+        import_assertions, resolver);
     PerIsolateData::Get(isolate)->AddDynamicImportData(data);
     isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
     return resolver->GetPromise();
@@ -3284,6 +3295,9 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 
 void Shell::OnExit(v8::Isolate* isolate) {
   isolate->Dispose();
+  if (shared_isolate) {
+    i::Isolate::Delete(reinterpret_cast<i::Isolate*>(shared_isolate));
+  }
 
   if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {
     std::vector<std::pair<std::string, Counter*>> counters(
@@ -3850,6 +3864,7 @@ SourceGroup::IsolateThread::IsolateThread(SourceGroup* group)
 void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  create_params.experimental_attach_to_shared_isolate = Shell::shared_isolate;
   Isolate* isolate = Isolate::New(create_params);
   Shell::SetWaitUntilDone(isolate, false);
   D8Console console(isolate);
@@ -4084,6 +4099,7 @@ void Worker::ProcessMessages() {
 void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  create_params.experimental_attach_to_shared_isolate = Shell::shared_isolate;
   isolate_ = Isolate::New(create_params);
   {
     base::MutexGuard lock_guard(&worker_mutex_);
@@ -4353,6 +4369,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       argv[i] = nullptr;
     } else if (strncmp(argv[i], "--web-snapshot-config=", 22) == 0) {
       options.web_snapshot_config = argv[i] + 22;
+      argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--web-snapshot-output=", 22) == 0) {
+      options.web_snapshot_output = argv[i] + 22;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--experimental-d8-web-snapshot-api") == 0) {
       options.d8_web_snapshot_api = true;
@@ -4973,6 +4992,12 @@ void Shell::WaitForRunningWorkers() {
   allow_new_workers_ = true;
 }
 
+namespace {
+
+bool HasFlagThatRequiresSharedIsolate() { return i::FLAG_shared_string_table; }
+
+}  // namespace
+
 int Shell::Main(int argc, char* argv[]) {
   v8::base::EnsureConsoleOutput();
   if (!SetOptions(argc, argv)) return 1;
@@ -5123,6 +5148,14 @@ int Shell::Main(int argc, char* argv[]) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  if (HasFlagThatRequiresSharedIsolate()) {
+    Isolate::CreateParams shared_create_params;
+    shared_create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+    shared_isolate =
+        reinterpret_cast<Isolate*>(i::Isolate::NewShared(create_params));
+    create_params.experimental_attach_to_shared_isolate = shared_isolate;
+  }
+
   Isolate* isolate = Isolate::New(create_params);
 
   {
@@ -5196,6 +5229,8 @@ int Shell::Main(int argc, char* argv[]) {
         // First run to produce the cache
         Isolate::CreateParams create_params2;
         create_params2.array_buffer_allocator = Shell::array_buffer_allocator;
+        create_params2.experimental_attach_to_shared_isolate =
+            Shell::shared_isolate;
         i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
         Isolate* isolate2 = Isolate::New(create_params2);
         i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.

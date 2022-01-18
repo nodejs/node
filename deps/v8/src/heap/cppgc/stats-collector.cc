@@ -34,7 +34,8 @@ void StatsCollector::UnregisterObserver(AllocationObserver* observer) {
   auto it = std::find(allocation_observers_.begin(),
                       allocation_observers_.end(), observer);
   DCHECK_NE(allocation_observers_.end(), it);
-  allocation_observers_.erase(it);
+  *it = nullptr;
+  allocation_observer_deleted_ = true;
 }
 
 void StatsCollector::NotifyAllocation(size_t bytes) {

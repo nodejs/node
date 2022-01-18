@@ -47,6 +47,16 @@ class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
   // Returns nullptr when the iteration has ended.
   inline HeapObject Next() override;
 
+  // The pointer compression cage base value used for decompression of all
+  // tagged values except references to Code objects.
+  PtrComprCageBase cage_base() const {
+#if V8_COMPRESS_POINTERS
+    return cage_base_;
+#else
+    return PtrComprCageBase{};
+#endif  // V8_COMPRESS_POINTERS
+  }
+
  private:
   // Fast (inlined) path of next().
   inline HeapObject FromCurrentPage();
@@ -60,6 +70,9 @@ class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
   PagedSpace* space_;
   PageRange page_range_;
   PageRange::iterator current_page_;
+#if V8_COMPRESS_POINTERS
+  const PtrComprCageBase cage_base_;
+#endif  // V8_COMPRESS_POINTERS
 };
 
 class V8_EXPORT_PRIVATE PagedSpace

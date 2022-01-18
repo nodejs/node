@@ -69,6 +69,32 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
 
 namespace {
 
+enum class ArgumentsElementType {
+  kRaw,    // Push arguments as they are.
+  kHandle  // Dereference arguments before pushing.
+};
+
+void Generate_PushArguments(MacroAssembler* masm, Register array, Register argc,
+                            Register scratch,
+                            ArgumentsElementType element_type) {
+  DCHECK(!AreAliased(array, argc, scratch));
+  Register counter = scratch;
+  Register value = ip;
+  Label loop, entry;
+  __ mov(counter, argc);
+  __ b(&entry);
+  __ bind(&loop);
+  __ ShiftLeftU64(value, counter, Operand(kSystemPointerSizeLog2));
+  __ LoadU64(value, MemOperand(array, value));
+  if (element_type == ArgumentsElementType::kHandle) {
+    __ LoadU64(value, MemOperand(value));
+  }
+  __ push(value);
+  __ bind(&entry);
+  __ SubS64(counter, counter, Operand(1));
+  __ bge(&loop);
+}
+
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2     : number of arguments
@@ -98,11 +124,14 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // correct position (including any undefined), instead of delaying this to
     // InvokeFunction.
 
-    // Set up pointer to last argument (skip receiver).
+    // Set up pointer to first argument (skip receiver).
     __ la(r6, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
                                  kSystemPointerSize));
     // Copy arguments and receiver to the expression stack.
-    __ PushArray(r6, r2, r1, r0);
+    // r6: Pointer to start of arguments.
+    // r2: Number of arguments.
+    Generate_PushArguments(masm, r6, r2, r1, ArgumentsElementType::kRaw);
+
     // The receiver for the builtin/api call.
     __ PushRoot(RootIndex::kTheHoleValue);
 
@@ -230,7 +259,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ StackOverflowCheck(r2, r7, &stack_overflow);
 
   // Copy arguments and receiver to the expression stack.
-  __ PushArray(r6, r2, r1, r0);
+  // r6: Pointer to start of argument.
+  // r2: Number of arguments.
+  Generate_PushArguments(masm, r6, r2, r1, ArgumentsElementType::kRaw);
 
   // Push implicit receiver.
   __ Push(r8);
@@ -642,6 +673,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // pop the faked function when we return.
   Handle<Code> trampoline_code =
       masm->isolate()->builtins()->code_handle(entry_trampoline);
+  USE(pushed_stack_space);
   DCHECK_EQ(kPushedStackSpace, pushed_stack_space);
   __ Call(trampoline_code, RelocInfo::CODE_TARGET);
 
@@ -758,7 +790,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     __ bind(&enough_stack_space);
 
-    // Copy arguments to the stack in a loop from argv to sp.
+    // Copy arguments to the stack from argv to sp.
     // The arguments are actually placed in reverse order on sp
     // compared to argv (i.e. arg1 is highest memory in sp).
     // r2: argc
@@ -768,24 +800,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // r7: scratch reg to hold scaled argc
     // r8: scratch reg to hold arg handle
     // r9: scratch reg to hold index into argv
-    Label argLoop, argExit;
-
-    __ ShiftLeftU64(r9, r2, Operand(kSystemPointerSizeLog2));
-    __ lay(r9, MemOperand(r6, r9, -kSystemPointerSize));  // point to last arg
-
-    __ ltgr(r7, r2);
-
-    __ beq(&argExit, Label::kNear);
-    __ bind(&argLoop);
-
-    __ LoadU64(r8, MemOperand(r9));  // read next parameter
-    __ LoadU64(r0, MemOperand(r8));  // dereference handle
-    __ Push(r0);
-    __ lay(r9, MemOperand(r9, -kSystemPointerSize));  // r9++;
-    __ SubS64(r7, r7, Operand(1));
-    __ bgt(&argLoop);
-
-    __ bind(&argExit);
+    Generate_PushArguments(masm, r6, r2, r1, ArgumentsElementType::kHandle);
 
     // Push the receiver.
     __ Push(r5);
@@ -1885,6 +1900,46 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
+namespace {
+
+// Allocate new stack space for |count| arguments and shift all existing
+// arguments already on the stack. |pointer_to_new_space_out| points to the
+// first free slot on the stack to copy additional arguments to and
+// |argc_in_out| is updated to include |count|.
+void Generate_AllocateSpaceAndShiftExistingArguments(
+    MacroAssembler* masm, Register count, Register argc_in_out,
+    Register pointer_to_new_space_out, Register scratch1, Register scratch2) {
+  DCHECK(!AreAliased(count, argc_in_out, pointer_to_new_space_out, scratch1,
+                     scratch2));
+  Register old_sp = scratch1;
+  Register new_space = scratch2;
+  __ mov(old_sp, sp);
+  __ ShiftLeftU64(new_space, count, Operand(kSystemPointerSizeLog2));
+  __ AllocateStackSpace(new_space);
+
+  Register end = scratch2;
+  Register value = r1;
+  Register dest = pointer_to_new_space_out;
+  __ mov(dest, sp);
+  __ ShiftLeftU64(r0, argc_in_out, Operand(kSystemPointerSizeLog2));
+  __ AddS64(end, old_sp, r0);
+  Label loop, done;
+  __ bind(&loop);
+  __ CmpS64(old_sp, end);
+  __ bgt(&done);
+  __ LoadU64(value, MemOperand(old_sp));
+  __ lay(old_sp, MemOperand(old_sp, kSystemPointerSize));
+  __ StoreU64(value, MemOperand(dest));
+  __ lay(dest, MemOperand(dest, kSystemPointerSize));
+  __ b(&loop);
+  __ bind(&done);
+
+  // Update total number of arguments.
+  __ AddS64(argc_in_out, argc_in_out, count);
+}
+
+}  // namespace
+
 // static
 // TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
@@ -1926,25 +1981,10 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 
   // Move the arguments already in the stack,
   // including the receiver and the return address.
-  {
-    Label copy, check;
-    Register num = ip, src = r8, dest = r7;
-    __ mov(src, sp);
-    __ ShiftLeftU64(r1, r6, Operand(kSystemPointerSizeLog2));
-    __ SubS64(sp, sp, r1);
-    // Update stack pointer.
-    __ mov(dest, sp);
-    __ ltgr(num, r2);
-    __ b(&check);
-    __ bind(&copy);
-    __ LoadU64(r0, MemOperand(src));
-    __ lay(src, MemOperand(src, kSystemPointerSize));
-    __ StoreU64(r0, MemOperand(dest));
-    __ lay(dest, MemOperand(dest, kSystemPointerSize));
-    __ SubS64(num, num, Operand(1));
-    __ bind(&check);
-    __ b(ge, &copy);
-  }
+  // r6: Number of arguments to make room for.
+  // r2: Number of arguments already on the stack.
+  // r7: Points to first free slot on the stack after arguments were shifted.
+  Generate_AllocateSpaceAndShiftExistingArguments(masm, r6, r2, r7, ip, r8);
 
   // Push arguments onto the stack (thisArgument is already on the stack).
   {
@@ -1965,7 +2005,6 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ lay(r7, MemOperand(r7, kSystemPointerSize));
     __ BranchOnCount(r1, &loop);
     __ bind(&no_args);
-    __ AddS64(r2, r2, r6);
   }
 
   // Tail-call to the actual Call or Construct builtin.
@@ -2035,33 +2074,17 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
     // Move the arguments already in the stack,
     // including the receiver and the return address.
-    {
-      Label copy, check;
-      Register num = r1, src = ip,
-               dest = r4;  // r7 and r10 are context and root.
-      __ mov(src, sp);
-      // Update stack pointer.
-      __ ShiftLeftU64(scratch, r7, Operand(kSystemPointerSizeLog2));
-      __ SubS64(sp, sp, scratch);
-      __ mov(dest, sp);
-      __ ltgr(num, r2);
-      __ b(&check);
-      __ bind(&copy);
-      __ LoadU64(r0, MemOperand(src));
-      __ lay(src, MemOperand(src, kSystemPointerSize));
-      __ StoreU64(r0, MemOperand(dest));
-      __ lay(dest, MemOperand(dest, kSystemPointerSize));
-      __ SubS64(num, num, Operand(1));
-      __ bind(&check);
-      __ b(ge, &copy);
-    }
+    // r7: Number of arguments to make room for.0
+    // r2: Number of arguments already on the stack.
+    // r4: Points to first free slot on the stack after arguments were shifted.
+    Generate_AllocateSpaceAndShiftExistingArguments(masm, r7, r2, r4, scratch,
+                                                    ip);
 
     // Copy arguments from the caller frame.
     // TODO(victorgomes): Consider using forward order as potentially more cache
     // friendly.
     {
       Label loop;
-      __ AddS64(r2, r2, r7);
       __ bind(&loop);
       {
         __ SubS64(r7, r7, Operand(1));
@@ -2091,8 +2114,12 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // -----------------------------------
   __ AssertFunction(r3);
 
+  Label class_constructor;
   __ LoadTaggedPointerField(
       r4, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadU32(r5, FieldMemOperand(r4, SharedFunctionInfo::kFlagsOffset));
+  __ TestBitMask(r5, SharedFunctionInfo::IsClassConstructorBit::kMask, r0);
+  __ bne(&class_constructor);
 
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
@@ -2170,6 +2197,14 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ LoadU16(
       r4, FieldMemOperand(r4, SharedFunctionInfo::kFormalParameterCountOffset));
   __ InvokeFunctionCode(r3, no_reg, r4, r2, InvokeType::kJump);
+
+  // The function is a "classConstructor", need to raise an exception.
+  __ bind(&class_constructor);
+  {
+    FrameAndConstantPoolScope frame(masm, StackFrame::INTERNAL);
+    __ push(r3);
+    __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
+  }
 }
 
 namespace {
@@ -2537,6 +2572,11 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
 void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // TODO(v8:10701): Implement for this platform.
+  __ Trap();
+}
+
+void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
+  // TODO(v8:12191): Implement for this platform.
   __ Trap();
 }
 

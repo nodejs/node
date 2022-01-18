@@ -11,15 +11,24 @@ type ManagedWasmNativeModule extends Foreign
 
 extern class WasmInstanceObject extends JSObject;
 
+// Represents the context of a function that is defined through the JS or C
+// APIs. Corresponds to the WasmInstanceObject passed to a Wasm function
+// reference.
+// The {foreign_address} field inherited from {Foreign} points the IsolateRoots
+// of the defining isolate.
+extern class WasmApiFunctionRef extends Foreign {
+  native_context: NativeContext;
+  callable: JSReceiver|Undefined;
+}
+
 extern class WasmFunctionData extends Foreign {
   // This is the "reference" value that must be passed along in the "instance"
-  // register when calling the given function. It is either the target instance,
-  // or a pair holding the target instance and the callable; currently the
-  // latter is the case when the function being called is defined in JavaScript
-  // or via the C-API.
+  // register when calling the given function. It is either the target instance
+  // (for wasm functions), or a WasmApiFunctionRef object (for functions defined
+  // through the JS or C APIs).
   // For imported functions, this value equals the respective entry in
   // the module's imported_function_refs array.
-  ref: WasmInstanceObject|Tuple2;
+  ref: WasmInstanceObject|WasmApiFunctionRef;
   // Used for calling this function from JavaScript.
   @if(V8_EXTERNAL_CODE_SPACE) wrapper_code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) wrapper_code: Code;
@@ -61,6 +70,13 @@ extern class WasmIndirectFunctionTable extends Struct {
   targets: RawPtr;
   managed_native_allocations: Foreign|Undefined;
   refs: FixedArray;
+}
+
+extern class WasmContinuationObject extends Struct {
+  managed_stack: Foreign;
+  managed_jmpbuf: Foreign;
+  jmpbuf: Foreign;  // Direct access to managed_jmpbuf's underlying pointer.
+  parent: WasmContinuationObject|Undefined;
 }
 
 extern class WasmExceptionTag extends Struct {
@@ -156,4 +172,11 @@ extern class WasmArray extends WasmObject {
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+}
+
+@export
+class CallRefData extends HeapObject {
+  instance: HeapObject;
+  target: RawPtr;
+  count: uint32;
 }

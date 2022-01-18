@@ -81,9 +81,6 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   LazyCompileDispatcher& operator=(const LazyCompileDispatcher&) = delete;
   ~LazyCompileDispatcher();
 
-  // Returns true if the compiler dispatcher is enabled.
-  bool IsEnabled() const;
-
   base::Optional<JobId> Enqueue(const ParseInfo* outer_parse_info,
                                 const AstRawString* function_name,
                                 const FunctionLiteral* function_literal);
@@ -117,6 +114,9 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   FRIEND_TEST(LazyCompilerDispatcherTest, AsyncAbortAllRunningWorkerTask);
   FRIEND_TEST(LazyCompilerDispatcherTest, CompileMultipleOnBackgroundThread);
 
+  // JobTask for PostJob API.
+  class JobTask;
+
   struct Job {
     explicit Job(BackgroundCompileTask* task_arg);
     ~Job();
@@ -141,14 +141,19 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
 
   void WaitForJobIfRunningOnBackground(Job* job);
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
-  void ScheduleMoreWorkerTasksIfNeeded();
   void ScheduleIdleTaskFromAnyThread(const base::MutexGuard&);
-  void DoBackgroundWork();
+  void DoBackgroundWork(JobDelegate* delegate);
   void DoIdleWork(double deadline_in_seconds);
   // Returns iterator to the inserted job.
   JobMap::const_iterator InsertJob(std::unique_ptr<Job> job);
   // Returns iterator following the removed job.
   JobMap::const_iterator RemoveJob(JobMap::const_iterator job);
+
+#ifdef DEBUG
+  void VerifyBackgroundTaskCount(const base::MutexGuard&);
+#else
+  void VerifyBackgroundTaskCount(const base::MutexGuard&) {}
+#endif
 
   Isolate* isolate_;
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
@@ -157,10 +162,12 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   Platform* platform_;
   size_t max_stack_size_;
 
+  std::unique_ptr<JobHandle> job_handle_;
+
   // Copy of FLAG_trace_compiler_dispatcher to allow for access from any thread.
   bool trace_compiler_dispatcher_;
 
-  std::unique_ptr<CancelableTaskManager> task_manager_;
+  std::unique_ptr<CancelableTaskManager> idle_task_manager_;
 
   // Id for next job to be added
   JobId next_job_id_;
@@ -179,14 +186,14 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   // True if an idle task is scheduled to be run.
   bool idle_task_scheduled_;
 
-  // Number of scheduled or running WorkerTask objects.
-  int num_worker_tasks_;
-
   // The set of jobs that can be run on a background thread.
   std::unordered_set<Job*> pending_background_jobs_;
 
   // The set of jobs currently being run on background threads.
   std::unordered_set<Job*> running_background_jobs_;
+
+  // The total number of jobs, pending and running.
+  std::atomic<size_t> num_jobs_for_background_;
 
   // If not nullptr, then the main thread waits for the task processing
   // this job, and blocks on the ConditionVariable main_thread_blocking_signal_.

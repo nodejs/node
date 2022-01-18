@@ -39,7 +39,8 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
       schedule_queue_(zone),
       node_data_(zone),
       tick_counter_(tick_counter),
-      profile_data_(profile_data) {
+      profile_data_(profile_data),
+      common_dominator_cache_(zone) {
   node_data_.reserve(node_count_hint);
   node_data_.resize(graph->NodeCount(), DefaultSchedulerData());
 }
@@ -1169,6 +1170,94 @@ void Scheduler::ComputeSpecialRPONumbering() {
   special_rpo_->ComputeSpecialRPO();
 }
 
+BasicBlock* Scheduler::GetCommonDominatorIfCached(BasicBlock* b1,
+                                                  BasicBlock* b2) {
+  auto entry1 = common_dominator_cache_.find(b1->id().ToInt());
+  if (entry1 == common_dominator_cache_.end()) return nullptr;
+  auto entry2 = entry1->second->find(b2->id().ToInt());
+  if (entry2 == entry1->second->end()) return nullptr;
+  return entry2->second;
+}
+
+BasicBlock* Scheduler::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
+  // A very common fast case:
+  if (b1 == b2) return b1;
+  // Try to find the common dominator by walking, if there is a chance of
+  // finding it quickly.
+  constexpr int kCacheGranularity = 63;
+  STATIC_ASSERT((kCacheGranularity & (kCacheGranularity + 1)) == 0);
+  int depth_difference = b1->dominator_depth() - b2->dominator_depth();
+  if (depth_difference > -kCacheGranularity &&
+      depth_difference < kCacheGranularity) {
+    for (int i = 0; i < kCacheGranularity; i++) {
+      if (b1->dominator_depth() < b2->dominator_depth()) {
+        b2 = b2->dominator();
+      } else {
+        b1 = b1->dominator();
+      }
+      if (b1 == b2) return b1;
+    }
+    // We might fall out of the loop here if the dominator tree has several
+    // deep "parallel" subtrees.
+  }
+  // If it'd be a long walk, take the bus instead (i.e. use the cache).
+  // To keep memory consumption low, there'll be a bus stop every 64 blocks.
+  // First, walk to the nearest bus stop.
+  if (b1->dominator_depth() < b2->dominator_depth()) std::swap(b1, b2);
+  while ((b1->dominator_depth() & kCacheGranularity) != 0) {
+    if (V8_LIKELY(b1->dominator_depth() > b2->dominator_depth())) {
+      b1 = b1->dominator();
+    } else {
+      b2 = b2->dominator();
+    }
+    if (b1 == b2) return b1;
+  }
+  // Then, walk from bus stop to bus stop until we either find a bus (i.e. an
+  // existing cache entry) or the result. Make a list of any empty bus stops
+  // we'd like to populate for next time.
+  constexpr int kMaxNewCacheEntries = 2 * 50;  // Must be even.
+  // This array stores a flattened list of pairs, e.g. if after finding the
+  // {result}, we want to cache [(B11, B12) -> result, (B21, B22) -> result],
+  // then we store [11, 12, 21, 22] here.
+  int new_cache_entries[kMaxNewCacheEntries];
+  // Next free slot in {new_cache_entries}.
+  int new_cache_entries_cursor = 0;
+  while (b1 != b2) {
+    if ((b1->dominator_depth() & kCacheGranularity) == 0) {
+      BasicBlock* maybe_cache_hit = GetCommonDominatorIfCached(b1, b2);
+      if (maybe_cache_hit != nullptr) {
+        b1 = b2 = maybe_cache_hit;
+        break;
+      } else if (new_cache_entries_cursor < kMaxNewCacheEntries) {
+        new_cache_entries[new_cache_entries_cursor++] = b1->id().ToInt();
+        new_cache_entries[new_cache_entries_cursor++] = b2->id().ToInt();
+      }
+    }
+    if (V8_LIKELY(b1->dominator_depth() > b2->dominator_depth())) {
+      b1 = b1->dominator();
+    } else {
+      b2 = b2->dominator();
+    }
+  }
+  // Lastly, create new cache entries we noted down earlier.
+  BasicBlock* result = b1;
+  for (int i = 0; i < new_cache_entries_cursor;) {
+    int id1 = new_cache_entries[i++];
+    int id2 = new_cache_entries[i++];
+    ZoneMap<int, BasicBlock*>* mapping;
+    auto entry = common_dominator_cache_.find(id1);
+    if (entry == common_dominator_cache_.end()) {
+      mapping = zone_->New<ZoneMap<int, BasicBlock*>>(zone_);
+      common_dominator_cache_[id1] = mapping;
+    } else {
+      mapping = entry->second;
+    }
+    // If there was an existing entry, we would have found it earlier.
+    DCHECK_EQ(mapping->find(id2), mapping->end());
+    mapping->insert({id2, result});
+  }
+  return result;
+}
 
 void Scheduler::PropagateImmediateDominators(BasicBlock* block) {
   for (/*nop*/; block != nullptr; block = block->rpo_next()) {
@@ -1180,10 +1269,22 @@ void Scheduler::PropagateImmediateDominators(BasicBlock* block) {
     // For multiple predecessors, walk up the dominator tree until a common
     // dominator is found. Visitation order guarantees that all predecessors
     // except for backwards edges have been visited.
+    // We use a one-element cache for previously-seen dominators. This gets
+    // hit a lot for functions that have long chains of diamonds, and in
+    // those cases turns quadratic into linear complexity.
+    BasicBlock* cache = nullptr;
     for (++pred; pred != end; ++pred) {
       // Don't examine backwards edges.
       if ((*pred)->dominator_depth() < 0) continue;
-      dominator = BasicBlock::GetCommonDominator(dominator, *pred);
+      if ((*pred)->dominator_depth() > 3 &&
+          ((*pred)->dominator()->dominator() == cache ||
+           (*pred)->dominator()->dominator()->dominator() == cache)) {
+        // Nothing to do, the last iteration covered this case.
+        DCHECK_EQ(dominator, BasicBlock::GetCommonDominator(dominator, *pred));
+      } else {
+        dominator = BasicBlock::GetCommonDominator(dominator, *pred);
+      }
+      cache = (*pred)->dominator();
       deferred = deferred & (*pred)->deferred();
     }
     block->set_dominator(dominator);
@@ -1619,7 +1720,7 @@ class ScheduleLateNodeVisitor {
     if (BasicBlock* header_block = block->loop_header()) {
       for (BasicBlock* outgoing_block :
            scheduler_->special_rpo_->GetOutgoingBlocks(header_block)) {
-        if (BasicBlock::GetCommonDominator(block, outgoing_block) != block) {
+        if (scheduler_->GetCommonDominator(block, outgoing_block) != block) {
           return nullptr;
         }
       }
@@ -1637,7 +1738,7 @@ class ScheduleLateNodeVisitor {
                   ? use_block
                   : use_block == nullptr
                         ? block
-                        : BasicBlock::GetCommonDominator(block, use_block);
+                        : scheduler_->GetCommonDominator(block, use_block);
     }
     return block;
   }

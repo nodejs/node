@@ -144,12 +144,15 @@ namespace internal {
   V(_, REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, RegExpBoilerplateDescription,     \
     regexp_boilerplate_description)                                            \
   V(_, SCRIPT_TYPE, Script, script)                                            \
+  V(_, SCRIPT_OR_MODULE_TYPE, ScriptOrModule, script_or_module)                \
   V(_, SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, SourceTextModuleInfoEntry,          \
     module_info_entry)                                                         \
   V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)                \
   V(_, TEMPLATE_OBJECT_DESCRIPTION_TYPE, TemplateObjectDescription,            \
     template_object_description)                                               \
   V(_, TUPLE2_TYPE, Tuple2, tuple2)                                            \
+  IF_WASM(V, _, WASM_CONTINUATION_OBJECT_TYPE, WasmContinuationObject,         \
+          wasm_continuation_object)                                            \
   IF_WASM(V, _, WASM_EXCEPTION_TAG_TYPE, WasmExceptionTag, wasm_exception_tag) \
   IF_WASM(V, _, WASM_INDIRECT_FUNCTION_TABLE_TYPE, WasmIndirectFunctionTable,  \
           wasm_indirect_function_table)

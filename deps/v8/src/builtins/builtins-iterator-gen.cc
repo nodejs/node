@@ -316,6 +316,10 @@ void IteratorBuiltinsAssembler::FastIterableToList(
     TVariable<JSArray>* var_result, Label* slow) {
   Label done(this), check_string(this), check_map(this), check_set(this);
 
+  // Always call the `next()` builtins when the debugger is
+  // active, to ensure we capture side-effects correctly.
+  GotoIf(IsDebugActive(), slow);
+
   GotoIfNot(
       Word32Or(IsFastJSArrayWithNoCustomIteration(context, iterable),
                IsFastJSArrayForReadWithNoCustomIteration(context, iterable)),

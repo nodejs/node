@@ -28,6 +28,10 @@ class BytecodeArray;
 class CodeDataContainer;
 class CodeDesc;
 
+class LocalFactory;
+template <typename Impl>
+class FactoryBase;
+
 namespace interpreter {
 class Register;
 }  // namespace interpreter
@@ -53,6 +57,17 @@ class CodeDataContainer : public HeapObject {
   // Available only when V8_EXTERNAL_CODE_SPACE is defined.
   DECL_GETTER(code, Code)
   DECL_RELAXED_GETTER(code, Code)
+
+  // When V8_EXTERNAL_CODE_SPACE is enabled, Code objects are allocated in
+  // a separate pointer compression cage instead of the cage where all the
+  // other objects are allocated.
+  // This field contains code cage base value which is used for decompressing
+  // the reference to respective Code. Basically, |code_cage_base| and |code|
+  // fields together form a full pointer. The reason why they are split is that
+  // the code field must also support atomic access and the word alignment of
+  // the full value is not guaranteed.
+  inline PtrComprCageBase code_cage_base() const;
+  inline void set_code_cage_base(Address code_cage_base);
 
   // Cached value of code().InstructionStart().
   // Available only when V8_EXTERNAL_CODE_SPACE is defined.
@@ -87,6 +102,8 @@ class CodeDataContainer : public HeapObject {
   V(kCodeOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0) \
   V(kCodePointerFieldsStrongEndOffset, 0)                       \
   /* Raw data fields. */                                        \
+  V(kCodeCageBaseUpper32BitsOffset,                             \
+    V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0)              \
   V(kCodeEntryPointOffset,                                      \
     V8_EXTERNAL_CODE_SPACE_BOOL ? kExternalPointerSize : 0)     \
   V(kKindSpecificFlagsOffset, kInt32Size)                       \
@@ -101,10 +118,12 @@ class CodeDataContainer : public HeapObject {
 
  private:
   DECL_ACCESSORS(raw_code, Object)
-  DECL_RELAXED_ACCESSORS(raw_code, Object)
+  DECL_RELAXED_GETTER(raw_code, Object)
   inline void set_code_entry_point(Isolate* isolate, Address value);
 
   friend Factory;
+  friend FactoryBase<Factory>;
+  friend FactoryBase<LocalFactory>;
 
   OBJECT_CONSTRUCTORS(CodeDataContainer, HeapObject);
 };
@@ -273,8 +292,6 @@ class Code : public HeapObject {
 
   // [relocation_info]: Code relocation information
   DECL_ACCESSORS(relocation_info, ByteArray)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(relocation_info, ByteArray)
-  DECL_ACCESSORS(relocation_info_or_undefined, HeapObject)
 
   // This function should be called only from GC.
   void ClearEmbeddedObjects(Heap* heap);
@@ -307,7 +324,6 @@ class Code : public HeapObject {
 
   // Unchecked accessors to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
-  inline HeapObject synchronized_unchecked_relocation_info_or_undefined() const;
 
   inline int relocation_size() const;
 
@@ -408,6 +424,14 @@ class Code : public HeapObject {
   // out the to-be-overwritten header data for reproducible snapshots.
   inline void WipeOutHeader();
 
+  // When V8_EXTERNAL_CODE_SPACE is enabled, Code objects are allocated in
+  // a separate pointer compression cage instead of the cage where all the
+  // other objects are allocated.
+  // This field contains cage base value which is used for decompressing
+  // the references to non-Code objects (map, deoptimization_data, etc.).
+  inline PtrComprCageBase main_cage_base() const;
+  inline void set_main_cage_base(Address cage_base);
+
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.
   inline void clear_padding();
@@ -445,10 +469,6 @@ class Code : public HeapObject {
   // Migrate code from desc without flushing the instruction cache.
   void CopyFromNoFlush(ByteArray reloc_info, Heap* heap, const CodeDesc& desc);
   void RelocateFromDesc(ByteArray reloc_info, Heap* heap, const CodeDesc& desc);
-
-#ifdef VERIFY_HEAP
-  void VerifyRelocInfo(Isolate* isolate, ByteArray reloc_info);
-#endif
 
   // Copy the RelocInfo portion of |desc| to |dest|. The ByteArray must be
   // exactly the same size as the RelocInfo in |desc|.
@@ -522,6 +542,8 @@ class Code : public HeapObject {
   /* The serializer needs to copy bytes starting from here verbatim. */       \
   /* Objects embedded into code is visited via reloc info. */                 \
   V(kDataStart, 0)                                                            \
+  V(kMainCageBaseUpper32BitsOffset,                                           \
+    V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0)                            \
   V(kInstructionSizeOffset, kIntSize)                                         \
   V(kMetadataSizeOffset, kIntSize)                                            \
   V(kFlagsOffset, kInt32Size)                                                 \
@@ -545,13 +567,15 @@ class Code : public HeapObject {
   // This documents the amount of free space we have in each Code object header
   // due to padding for code alignment.
 #if V8_TARGET_ARCH_ARM64
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 24;
+  static constexpr int kHeaderPaddingSize =
+      V8_EXTERNAL_CODE_SPACE_BOOL ? 8 : (COMPRESS_POINTERS_BOOL ? 12 : 24);
 #elif V8_TARGET_ARCH_MIPS64
   static constexpr int kHeaderPaddingSize = 24;
 #elif V8_TARGET_ARCH_LOONG64
   static constexpr int kHeaderPaddingSize = 24;
 #elif V8_TARGET_ARCH_X64
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 56;
+  static constexpr int kHeaderPaddingSize =
+      V8_EXTERNAL_CODE_SPACE_BOOL ? 8 : (COMPRESS_POINTERS_BOOL ? 12 : 56);
 #elif V8_TARGET_ARCH_ARM
   static constexpr int kHeaderPaddingSize = 12;
 #elif V8_TARGET_ARCH_IA32

@@ -139,15 +139,6 @@ void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
   }
 }
 
-#ifdef VERIFY_HEAP
-void Code::VerifyRelocInfo(Isolate* isolate, ByteArray reloc_info) {
-  const int mode_mask = RelocInfo::PostCodegenRelocationMask();
-  for (RelocIterator it(*this, reloc_info, mode_mask); !it.done(); it.next()) {
-    it.rinfo()->Verify(isolate);
-  }
-}
-#endif
-
 SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
   SafepointTable table(isolate, pc, *this);
   return table.FindEntry(pc);

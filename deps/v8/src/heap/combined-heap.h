@@ -42,11 +42,14 @@ V8_WARN_UNUSED_RESULT inline bool IsValidHeapObject(Heap* heap,
 
 V8_WARN_UNUSED_RESULT inline bool IsValidCodeObject(Heap* heap,
                                                     HeapObject object) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return third_party_heap::Heap::IsValidCodeObject(object);
   }
-  return heap->ContainsCode(object);
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    return heap->ContainsCode(object);
+  } else {
+    return ReadOnlyHeap::Contains(object) || heap->ContainsCode(object);
+  }
 }
 
 }  // namespace internal

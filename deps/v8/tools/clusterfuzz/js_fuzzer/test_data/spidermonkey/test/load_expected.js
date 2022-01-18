@@ -4,7 +4,7 @@
 
 // Original: spidermonkey/shell.js
 console.log('/shell.js');
-if (!ok) throw new Error(`A****tion failed: ${f} did not throw as expected`);
+if (!ok) throw new Error(`*****tion failed: ${f} did not throw as expected`);
 
 // Original: spidermonkey/test/shell.js
 console.log('/test/shell.js');
@@ -17,5 +17,5 @@ console.log('load2.js');
 
 // Original: spidermonkey/test/load.js
 console.log('load.js');
-if (!ok) throw new Error(`A****tion failed: Some text`);
-print("A****tion failed: Some text");
+if (!ok) throw new Error(`*****tion failed: Some text`);
+print("*****tion failed: Some text");
