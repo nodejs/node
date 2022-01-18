@@ -16,7 +16,20 @@ const readline = require('readline');
 
 The following simple example illustrates the basic use of the `readline` module.
 
-```js
+```mjs
+import * as readline from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
+
+const rl = readline.createInterface({ input, output });
+
+const answer = await rl.question('What do you think of Node.js? ');
+
+console.log(`Thank you for your valuable feedback: ${answer}`);
+
+rl.close();
+```
+
+```cjs
 const readline = require('readline');
 
 const rl = readline.createInterface({
