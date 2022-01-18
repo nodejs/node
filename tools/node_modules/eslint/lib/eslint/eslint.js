@@ -79,6 +79,7 @@ const { version } = require("../../package.json");
  * @property {string} filePath The path to the file that was linted.
  * @property {LintMessage[]} messages All of the messages for the result.
  * @property {number} errorCount Number of errors for the result.
+ * @property {number} fatalErrorCount Number of fatal errors for the result.
  * @property {number} warningCount Number of warnings for the result.
  * @property {number} fixableErrorCount Number of fixable errors for the result.
  * @property {number} fixableWarningCount Number of fixable warnings for the result.

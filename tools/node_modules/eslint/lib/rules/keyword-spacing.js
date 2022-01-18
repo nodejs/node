@@ -469,6 +469,7 @@ module.exports = {
                 const asToken = sourceCode.getTokenBefore(node.exported);
 
                 checkSpacingBefore(asToken, PREV_TOKEN_M);
+                checkSpacingAfter(asToken, NEXT_TOKEN_M);
             }
 
             if (node.source) {
@@ -476,6 +477,35 @@ module.exports = {
 
                 checkSpacingBefore(fromToken, PREV_TOKEN_M);
                 checkSpacingAfter(fromToken, NEXT_TOKEN_M);
+            }
+        }
+
+        /**
+         * Reports `as` keyword of a given node if usage of spacing around this
+         * keyword is invalid.
+         * @param {ASTNode} node An `ImportSpecifier` node to check.
+         * @returns {void}
+         */
+        function checkSpacingForImportSpecifier(node) {
+            if (node.imported.range[0] !== node.local.range[0]) {
+                const asToken = sourceCode.getTokenBefore(node.local);
+
+                checkSpacingBefore(asToken, PREV_TOKEN_M);
+            }
+        }
+
+        /**
+         * Reports `as` keyword of a given node if usage of spacing around this
+         * keyword is invalid.
+         * @param {ASTNode} node An `ExportSpecifier` node to check.
+         * @returns {void}
+         */
+        function checkSpacingForExportSpecifier(node) {
+            if (node.local.range[0] !== node.exported.range[0]) {
+                const asToken = sourceCode.getTokenBefore(node.exported);
+
+                checkSpacingBefore(asToken, PREV_TOKEN_M);
+                checkSpacingAfter(asToken, NEXT_TOKEN_M);
             }
         }
 
@@ -588,6 +618,8 @@ module.exports = {
             YieldExpression: checkSpacingBeforeFirstToken,
 
             // Others
+            ImportSpecifier: checkSpacingForImportSpecifier,
+            ExportSpecifier: checkSpacingForExportSpecifier,
             ImportNamespaceSpecifier: checkSpacingForImportNamespaceSpecifier,
             MethodDefinition: checkSpacingForProperty,
             PropertyDefinition: checkSpacingForProperty,
