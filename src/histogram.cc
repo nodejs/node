@@ -159,10 +159,10 @@ void HistogramBase::GetPercentiles(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsMap());
   Local<Map> map = args[0].As<Map>();
   (*histogram)->Percentiles([map, env](double key, int64_t value) {
-    map->Set(
-        env->context(),
-        Number::New(env->isolate(), key),
-        Number::New(env->isolate(), static_cast<double>(value))).IsEmpty();
+    USE(map->Set(
+          env->context(),
+          Number::New(env->isolate(), key),
+          Number::New(env->isolate(), static_cast<double>(value))));
   });
 }
 
@@ -174,10 +174,10 @@ void HistogramBase::GetPercentilesBigInt(
   CHECK(args[0]->IsMap());
   Local<Map> map = args[0].As<Map>();
   (*histogram)->Percentiles([map, env](double key, int64_t value) {
-    map->Set(
-        env->context(),
-        Number::New(env->isolate(), key),
-        BigInt::New(env->isolate(), value)).IsEmpty();
+    USE(map->Set(
+          env->context(),
+          Number::New(env->isolate(), key),
+          BigInt::New(env->isolate(), value)));
   });
 }
 
@@ -589,10 +589,10 @@ void IntervalHistogram::GetPercentiles(
   CHECK(args[0]->IsMap());
   Local<Map> map = args[0].As<Map>();
   (*histogram)->Percentiles([map, env](double key, int64_t value) {
-    map->Set(
-        env->context(),
-        Number::New(env->isolate(), key),
-        Number::New(env->isolate(), static_cast<double>(value))).IsEmpty();
+    USE(map->Set(
+          env->context(),
+          Number::New(env->isolate(), key),
+          Number::New(env->isolate(), static_cast<double>(value))));
   });
 }
 
@@ -604,10 +604,10 @@ void IntervalHistogram::GetPercentilesBigInt(
   CHECK(args[0]->IsMap());
   Local<Map> map = args[0].As<Map>();
   (*histogram)->Percentiles([map, env](double key, int64_t value) {
-    map->Set(
-        env->context(),
-        Number::New(env->isolate(), key),
-        BigInt::New(env->isolate(), value)).IsEmpty();
+    USE(map->Set(
+          env->context(),
+          Number::New(env->isolate(), key),
+          BigInt::New(env->isolate(), value)));
   });
 }
 
