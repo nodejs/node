@@ -830,7 +830,7 @@ PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
 ifeq ($(findstring os/390,$PLATFORM),os/390)
 PLATFORM ?= os390
 endif
-NPMVERSION=v$(shell cat deps/npm/package.json | grep '"version"' | sed 's/^[^:]*: "\([^"]*\)",.*/\1/')
+NPMVERSION=v$(shell cat deps/npm/package.json | grep '^  "version"' | sed 's/^[^:]*: "\([^"]*\)",.*/\1/')
 
 UNAME_M=$(shell uname -m)
 ifeq ($(findstring x86_64,$(UNAME_M)),x86_64)
