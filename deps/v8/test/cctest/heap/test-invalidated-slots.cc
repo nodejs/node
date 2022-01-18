@@ -219,7 +219,7 @@ HEAP_TEST(InvalidatedSlotsRightTrimFixedArray) {
     trimmed->set(i, *evacuated);
   }
   {
-    HandleScope scope(isolate);
+    HandleScope new_scope(isolate);
     Handle<HeapObject> dead = factory->NewFixedArray(1);
     for (int i = 1; i < trimmed->length(); i++) {
       trimmed->set(i, *dead);
@@ -257,7 +257,7 @@ HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
     trimmed->set(i, *evacuated);
   }
   {
-    HandleScope scope(isolate);
+    HandleScope new_scope(isolate);
     Handle<HeapObject> dead = factory->NewFixedArray(1);
     for (int i = 1; i < trimmed->length(); i++) {
       trimmed->set(i, *dead);
@@ -289,7 +289,7 @@ HEAP_TEST(InvalidatedSlotsLeftTrimFixedArray) {
     trimmed->set(i, *evacuated);
   }
   {
-    HandleScope scope(isolate);
+    HandleScope new_scope(isolate);
     Handle<HeapObject> dead = factory->NewFixedArray(1);
     for (int i = 1; i < trimmed->length(); i++) {
       trimmed->set(i, *dead);
@@ -339,7 +339,7 @@ HEAP_TEST(InvalidatedSlotsFastToSlow) {
   Object::SetProperty(isolate, obj, prop_name3, evacuated).Check();
 
   {
-    HandleScope scope(isolate);
+    HandleScope new_scope(isolate);
     Handle<HeapObject> dead = factory->NewFixedArray(1);
     Object::SetProperty(isolate, obj, prop_name1, dead).Check();
     Object::SetProperty(isolate, obj, prop_name2, dead).Check();

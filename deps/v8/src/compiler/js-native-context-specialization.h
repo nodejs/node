@@ -90,6 +90,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSHasProperty(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
   Reduction ReduceJSStoreProperty(Node* node);
+  Reduction ReduceJSDefineProperty(Node* node);
   Reduction ReduceJSStoreNamedOwn(Node* node);
   Reduction ReduceJSStoreDataPropertyInLiteral(Node* node);
   Reduction ReduceJSStoreInArrayLiteral(Node* node);

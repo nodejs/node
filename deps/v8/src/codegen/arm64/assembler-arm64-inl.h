@@ -655,28 +655,22 @@ Address RelocInfo::constant_pool_entry_address() {
   return Assembler::target_pointer_address_at(pc_);
 }
 
-HeapObject RelocInfo::target_object() {
+HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsDataEmbeddedObject(rmode_)) {
     return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
   } else if (IsCompressedEmbeddedObject(rmode_)) {
-    CHECK(!host_.is_null());
-    return HeapObject::cast(Object(DecompressTaggedAny(
-        host_.address(),
-        Assembler::target_compressed_address_at(pc_, constant_pool_))));
+    Tagged_t compressed =
+        Assembler::target_compressed_address_at(pc_, constant_pool_);
+    DCHECK(!HAS_SMI_TAG(compressed));
+    Object obj(DecompressTaggedPointer(cage_base, compressed));
+    // Embedding of compressed Code objects must not happen when external code
+    // space is enabled, because CodeDataContainers must be used instead.
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !obj.IsCode(cage_base));
+    return HeapObject::cast(obj);
   } else {
     return HeapObject::cast(
         Object(Assembler::target_address_at(pc_, constant_pool_)));
-  }
-}
-
-HeapObject RelocInfo::target_object_no_host(PtrComprCageBase cage_base) {
-  if (IsCompressedEmbeddedObject(rmode_)) {
-    return HeapObject::cast(Object(DecompressTaggedAny(
-        cage_base,
-        Assembler::target_compressed_address_at(pc_, constant_pool_))));
-  } else {
-    return target_object();
   }
 }
 

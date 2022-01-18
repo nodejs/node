@@ -81,6 +81,16 @@ T Negate(T a) {
   return -a;
 }
 
+template <typename T>
+T Minimum(T a, T b) {
+  return std::min(a, b);
+}
+
+template <typename T>
+T Maximum(T a, T b) {
+  return std::max(a, b);
+}
+
 #if V8_OS_AIX
 template <typename T>
 bool MightReverseSign(T float_op) {

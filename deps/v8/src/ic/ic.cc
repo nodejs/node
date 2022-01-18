@@ -114,12 +114,12 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   } else if (IsKeyedLoadIC()) {
     KeyedAccessLoadMode mode = nexus()->GetKeyedAccessLoadMode();
     modifier = GetModifier(mode);
-  } else if (IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind())) {
+  } else if (IsKeyedStoreIC() || IsStoreInArrayLiteralIC() || IsDefineOwnIC()) {
     KeyedAccessStoreMode mode = nexus()->GetKeyedAccessStoreMode();
     modifier = GetModifier(mode);
   }
 
-  bool keyed_prefix = is_keyed() && !IsStoreInArrayLiteralICKind(kind());
+  bool keyed_prefix = is_keyed() && !IsStoreInArrayLiteralIC();
 
   if (!(TracingFlags::ic_stats.load(std::memory_order_relaxed) &
         v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
@@ -451,10 +451,11 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
   LookupForRead(&it, IsAnyHas());
 
   if (name->IsPrivate()) {
-    if (!IsAnyHas() && name->IsPrivateName() && !it.IsFound()) {
-      Handle<String> name_string(
-          String::cast(Symbol::cast(*name).description()), isolate());
-      if (name->IsPrivateBrand()) {
+    Handle<Symbol> private_symbol = Handle<Symbol>::cast(name);
+    if (!IsAnyHas() && private_symbol->is_private_name() && !it.IsFound()) {
+      Handle<String> name_string(String::cast(private_symbol->description()),
+                                 isolate());
+      if (private_symbol->is_private_brand()) {
         Handle<String> class_name =
             (name_string->length() == 0)
                 ? isolate()->factory()->anonymous_string()
@@ -830,7 +831,10 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
 }
 
 StubCache* IC::stub_cache() {
+  // HasICs and each of the store own ICs require its own stub cache.
+  // Until we create them, don't allow accessing the load/store stub caches.
   DCHECK(!IsAnyHas());
+  DCHECK(!is_any_store_own());
   if (IsAnyLoad()) {
     return isolate()->load_stub_cache();
   } else {
@@ -841,7 +845,7 @@ StubCache* IC::stub_cache() {
 
 void IC::UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
                                 const MaybeObjectHandle& handler) {
-  if (!IsAnyHas()) {
+  if (!IsAnyHas() && !is_any_store_own()) {
     stub_cache()->Set(*name, *map, *handler);
   }
 }
@@ -1729,7 +1733,10 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
     PropertyKey key(isolate(), name);
-    LookupIterator it(isolate(), object, key);
+    LookupIterator it(
+        isolate(), object, key,
+        IsAnyStoreOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
+    DCHECK_IMPLIES(IsStoreOwnIC(), it.IsFound() && it.HolderIsReceiver());
     MAYBE_RETURN_NULL(Object::SetProperty(&it, value, StoreOrigin::kNamed));
     return value;
   }
@@ -1751,14 +1758,25 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 
   JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
   PropertyKey key(isolate(), name);
-  LookupIterator it(isolate(), object, key);
+  LookupIterator it(
+      isolate(), object, key,
+      IsAnyStoreOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
 
   if (name->IsPrivate()) {
-    if (name->IsPrivateName() && !it.IsFound()) {
+    bool exists = it.IsFound();
+    if (name->IsPrivateName() && exists == IsDefineOwnIC()) {
       Handle<String> name_string(
           String::cast(Symbol::cast(*name).description()), isolate());
-      return TypeError(MessageTemplate::kInvalidPrivateMemberWrite, object,
-                       name_string);
+      if (exists) {
+        MessageTemplate message =
+            name->IsPrivateBrand()
+                ? MessageTemplate::kInvalidPrivateBrandReinitialization
+                : MessageTemplate::kInvalidPrivateFieldReinitialization;
+        return TypeError(message, object, name_string);
+      } else {
+        return TypeError(MessageTemplate::kInvalidPrivateMemberWrite, object,
+                         name_string);
+      }
     }
 
     // IC handling of private fields/symbols stores on JSProxy is not
@@ -1821,6 +1839,13 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 #endif
           return StoreHandler::StoreGlobal(lookup->transition_cell());
         }
+        if (IsDefineOwnIC()) {
+          // Private field can't be deleted from this global object and can't
+          // be overwritten, so install slow handler in order to make store IC
+          // throw if a private name already exists.
+          TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+          return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+        }
 
         Handle<Smi> smi_handler = StoreHandler::StoreGlobalProxy(isolate());
         Handle<Object> handler = StoreHandler::StoreThroughPrototype(
@@ -1833,7 +1858,10 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
                      !lookup_start_object_map()->is_dictionary_map());
 
       DCHECK(lookup->IsCacheableTransition());
-
+      if (IsAnyStoreOwn()) {
+        return StoreHandler::StoreOwnTransition(isolate(),
+                                                lookup->transition_map());
+      }
       return StoreHandler::StoreTransition(isolate(), lookup->transition_map());
     }
 
@@ -2060,7 +2088,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   for (const MapAndHandler& map_and_handler : target_maps_and_handlers) {
     Handle<Map> map = map_and_handler.first;
     if (!map.is_null() && map->instance_type() == JS_PRIMITIVE_WRAPPER_TYPE) {
-      DCHECK(!IsStoreInArrayLiteralICKind(kind()));
+      DCHECK(!IsStoreInArrayLiteralIC());
       set_slow_stub_reason("JSPrimitiveWrapper");
       return;
     }
@@ -2151,13 +2179,13 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
         return;
 
       } else if (map->has_typed_array_or_rab_gsab_typed_array_elements()) {
-        DCHECK(!IsStoreInArrayLiteralICKind(kind()));
+        DCHECK(!IsStoreInArrayLiteralIC());
         external_arrays++;
       }
     }
     if (external_arrays != 0 &&
         external_arrays != target_maps_and_handlers.size()) {
-      DCHECK(!IsStoreInArrayLiteralICKind(kind()));
+      DCHECK(!IsStoreInArrayLiteralIC());
       set_slow_stub_reason(
           "unsupported combination of external and normal arrays");
       return;
@@ -2185,7 +2213,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   DCHECK_IMPLIES(
       !receiver_map->has_dictionary_elements() &&
           receiver_map->MayHaveReadOnlyElementsInPrototypeChain(isolate()),
-      IsStoreInArrayLiteralICKind(kind()));
+      IsStoreInArrayLiteralIC());
 
   if (receiver_map->IsJSProxyMap()) {
     return StoreHandler::StoreProxy(isolate());
@@ -2206,7 +2234,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     if (receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
       return code;
     }
-  } else if (IsStoreInArrayLiteralICKind(kind())) {
+  } else if (IsStoreInArrayLiteralIC()) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), StoreInArrayLiteralIC_SlowStub);
     return StoreHandler::StoreSlow(isolate(), store_mode);
@@ -2218,7 +2246,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     code = StoreHandler::StoreSlow(isolate(), store_mode);
   }
 
-  if (IsStoreInArrayLiteralICKind(kind())) return code;
+  if (is_any_store_own() || IsStoreInArrayLiteralIC()) return code;
   Handle<Object> validity_cell;
   if (!prev_validity_cell.ToHandle(&validity_cell)) {
     validity_cell =
@@ -2338,8 +2366,11 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        Runtime::SetObjectProperty(isolate(), object, key, value,
-                                   StoreOrigin::kMaybeKeyed),
+        IsDefineOwnIC()
+            ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
+                                               StoreOrigin::kMaybeKeyed)
+            : Runtime::SetObjectProperty(isolate(), object, key, value,
+                                         StoreOrigin::kMaybeKeyed),
         Object);
     return result;
   }
@@ -2403,10 +2434,12 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   DCHECK(store_handle.is_null());
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(), store_handle,
-      Runtime::SetObjectProperty(isolate(), object, key, value,
-                                 StoreOrigin::kMaybeKeyed),
+      IsDefineOwnIC()
+          ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
+                                             StoreOrigin::kMaybeKeyed)
+          : Runtime::SetObjectProperty(isolate(), object, key, value,
+                                       StoreOrigin::kMaybeKeyed),
       Object);
-
   if (use_ic) {
     if (!old_receiver_map.is_null()) {
       if (is_arguments) {
@@ -2690,6 +2723,34 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
+RUNTIME_FUNCTION(Runtime_StoreOwnIC_Miss) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<Object> value = args.at(0);
+  Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
+  Handle<Object> receiver = args.at(3);
+  Handle<Name> key = args.at<Name>(4);
+
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+
+  // When there is no feedback vector it is OK to use the StoreOwnNamed
+  // feedback kind. There _should_ be a vector, though.
+  FeedbackSlotKind kind = FeedbackSlotKind::kStoreOwnNamed;
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    kind = vector->GetKind(vector_slot);
+  }
+
+  DCHECK(IsStoreOwnICKind(kind));
+  StoreIC ic(isolate, vector, vector_slot, kind);
+  ic.UpdateState(receiver, key);
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
+}
+
 RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -2801,7 +2862,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
 
   // The elements store stubs miss into this function, but they are shared by
   // different ICs.
-  if (IsKeyedStoreICKind(kind)) {
+  if (IsKeyedStoreICKind(kind) || IsKeyedDefineOwnICKind(kind)) {
     KeyedStoreIC ic(isolate, vector, vector_slot, kind);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
@@ -2814,6 +2875,33 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
     RETURN_RESULT_OR_FAILURE(
         isolate, ic.Store(Handle<JSArray>::cast(receiver), key, value));
   }
+}
+
+RUNTIME_FUNCTION(Runtime_KeyedDefineOwnIC_Miss) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<Object> value = args.at(0);
+  Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
+  Handle<Object> receiver = args.at(3);
+  Handle<Object> key = args.at(4);
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+
+  FeedbackSlotKind kind = FeedbackSlotKind::kDefineOwnKeyed;
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    kind = vector->GetKind(vector_slot);
+    DCHECK(IsDefineOwnICKind(kind));
+  }
+
+  // The elements store stubs miss into this function, but they are shared by
+  // different ICs.
+  KeyedStoreIC ic(isolate, vector, vector_slot, kind);
+  ic.UpdateState(receiver, key);
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Miss) {
@@ -2848,6 +2936,18 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   RETURN_RESULT_OR_FAILURE(
       isolate, Runtime::SetObjectProperty(isolate, object, key, value,
                                           StoreOrigin::kMaybeKeyed));
+}
+
+RUNTIME_FUNCTION(Runtime_KeyedDefineOwnIC_Slow) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<Object> value = args.at(0);
+  Handle<Object> object = args.at(1);
+  Handle<Object> key = args.at(2);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Runtime::DefineObjectOwnProperty(isolate, object, key, value,
+                                                StoreOrigin::kMaybeKeyed));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Slow) {

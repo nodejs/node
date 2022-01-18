@@ -6,6 +6,7 @@
 #define V8_HEAP_CPPGC_OBJECT_VIEW_H_
 
 #include "include/v8config.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 
@@ -20,6 +21,7 @@ class ObjectView final {
 
   V8_INLINE Address Start() const;
   V8_INLINE ConstAddress End() const;
+  template <AccessMode = AccessMode::kNonAtomic>
   V8_INLINE size_t Size() const;
 
  private:
@@ -43,9 +45,10 @@ ConstAddress ObjectView::End() const {
                           : header_.ObjectEnd();
 }
 
+template <AccessMode mode>
 size_t ObjectView::Size() const {
   return is_large_object_ ? LargePage::From(base_page_)->ObjectSize()
-                          : header_.ObjectSize();
+                          : header_.ObjectSize<mode>();
 }
 
 }  // namespace internal

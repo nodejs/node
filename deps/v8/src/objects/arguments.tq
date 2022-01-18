@@ -146,6 +146,10 @@ macro NewParameterMapIterator(
   const flags = context.GetScopeInfo().flags;
   let contextHeaderSize: intptr = ContextSlot::MIN_CONTEXT_SLOTS;
   if (flags.has_context_extension_slot) ++contextHeaderSize;
+  if (flags.receiver_variable ==
+      FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::CONTEXT)) {
+    ++contextHeaderSize;
+  }
   // Copy the parameter slots and the holes in the arguments.
   // We need to fill in mapped_count slots. They index the context,
   // where parameters are stored in reverse order, at

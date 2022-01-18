@@ -211,6 +211,9 @@
   'regress/regress-crbug-941743': [PASS, HEAVY],
   'regress/regress-crbug-1191886': [PASS, HEAVY],
   'wasm/externref-globals': [PASS, HEAVY],
+
+  # Enable when stack-switching supports GC.
+  'wasm/stack-switching': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -424,6 +427,7 @@
   # Desugaring regexp property class relies on ICU. Anything goes as long as we
   # don't crash.
   'harmony/regexp-property-*': [PASS,FAIL],
+  'regress/regress-1262423': [PASS,FAIL],
   'regress/regress-793588': [PASS,FAIL],
 
   # noi18n build cannot parse characters in supplementary plane.
@@ -441,6 +445,9 @@
 
   # noi18n is required for Intl
   'regress/regress-crbug-1052647': [PASS,FAIL],
+
+  # Temporal intl tests won't work in no_i18n
+  'temporal/function-exist': [FAIL],
 }],  # 'no_i18n'
 
 ##############################################################################
@@ -888,6 +895,7 @@
   'regress/wasm/regress-1187831': [SKIP],
   'regress/wasm/regress-1199662': [SKIP],
   'regress/wasm/regress-1231950': [SKIP],
+  'regress/wasm/regress-1264462': [SKIP],
   'regress/regress-1172797': [SKIP],
   'regress/wasm/regress-1179025': [SKIP],
   'wasm/multi-value-simd': [SKIP],
@@ -1067,8 +1075,6 @@
   'baseline/test-osr': [SKIP],
 
   # BUG(v8:11826) Skipped until we remove flakes on NumFuzz.
-  'baseline/flush-only-baseline-code': [SKIP],
-  'baseline/flush-baseline-code': [SKIP],
   'regress/wasm/regress-1231950': [SKIP],
 
   # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
@@ -1153,6 +1159,7 @@
 ['system == aix', {
   # stack overflow
   'regress/regress-crbug-178790': [PASS, ['mode == debug', SKIP]],
+  'regress/regress-1067270': [PASS, ['mode == debug', SKIP]],
   # PASE environment currently ships with no tzdata database
   'tzoffset-transition-new-york-noi18n': [SKIP],
   'tzoffset-seoul-noi18n': [SKIP],
@@ -1367,6 +1374,7 @@
   # Investigate (IsScript).
   'harmony/import-from-compilation-errored': [SKIP],
   'harmony/private-fields-special-object': [SKIP],
+  'regress/regress-676025': [SKIP],
   # Skip, since import errors since they refer to the script via debug symbols
   'harmony/import-from-instantiation-errored': [SKIP],
   # The entire snapshotting code assumes that the snapshot size fits
@@ -1451,6 +1459,7 @@
   'regress/wasm/regress-1237024': [SKIP],
   'regress/wasm/regress-1242300': [SKIP],
   'regress/wasm/regress-1242689': [SKIP],
+  'regress/wasm/regress-1264462': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################
@@ -1639,6 +1648,66 @@
 ['arch != x64', {
   # Tests that include types only supported on x64.
   'compiler/fast-api-sequences-x64': [SKIP],
+  # Stack switching is only supported on x64.
+  'wasm/stack-switching': [SKIP],
 }],  # arch != x64
+
+##############################################################################
+# Skip failing tests in google3
+['variant == google3_noicu or variant == google3_icu', {
+  # timeouts on Google3:
+  'compiler/division-by-constant': [PASS, SLOW],
+  'compiler/expression-trees': [SKIP],
+  'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
+  'math-floor-part1': [SKIP],
+  'compiler/regress-1125145': [SKIP],
+
+  # TODO(victorgomes):
+  'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
+  'wasm/bulk-memory': [SKIP],
+
+  # TODO(b/201757247):
+  'array-constructor-feedback': [FAIL],
+  'const-dict-tracking': [FAIL],
+  'compiler/deopt-pretenure': [FAIL],
+  'compiler/fast-api-sequences-x64': [FAIL],
+  'compiler/native-context-specialization-hole-check': [FAIL],
+  'compiler/test-literal-map-migration': [FAIL],
+  'regress/regress-4121': [FAIL],
+  'regress/regress-trap-allocation-memento': [FAIL],
+}], # variant == google3_nociu or variant == google3_icu
+
+# Specific failures for no_icu builds
+['variant == google3_noicu', {
+  'es6/unicode-regexp-ignore-case': [FAIL],
+  'es7/regexp-ui-word': [FAIL],
+  'harmony/regexp-named-captures': [FAIL],
+  'harmony/regexp-property-binary': [FAIL],
+  'harmony/regexp-property-char-class': [FAIL],
+  'harmony/regexp-property-enumerated': [FAIL],
+  'harmony/regexp-property-exact-match': [FAIL],
+  'harmony/regexp-property-general-category': [FAIL],
+  'harmony/regexp-property-lu-ui0': [FAIL],
+  'harmony/regexp-property-lu-ui1': [FAIL],
+  'harmony/regexp-property-lu-ui2': [FAIL],
+  'harmony/regexp-property-lu-ui3': [FAIL],
+  'harmony/regexp-property-lu-ui4': [FAIL],
+  'harmony/regexp-property-lu-ui5': [FAIL],
+  'harmony/regexp-property-lu-ui6': [FAIL],
+  'harmony/regexp-property-lu-ui7': [FAIL],
+  'harmony/regexp-property-lu-ui8': [FAIL],
+  'harmony/regexp-property-lu-ui9': [FAIL],
+  'harmony/regexp-property-lu-ui': [FAIL],
+  'harmony/regexp-property-script-extensions': [FAIL],
+  'harmony/regexp-property-scripts': [FAIL],
+  'harmony/regexp-property-special': [FAIL],
+  'icu-date-lord-howe': [FAIL],
+  'icu-date-to-string': [FAIL],
+  'regress/regress-5036': [FAIL],
+  'regress/regress-793588': [FAIL],
+  'tzoffset-transition-apia': [FAIL],
+  'tzoffset-transition-lord-howe': [FAIL],
+  'tzoffset-transition-moscow': [FAIL],
+}], # variant == google3_nociu
 
 ]

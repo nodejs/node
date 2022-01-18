@@ -102,8 +102,7 @@ namespace compiler {
   V(OtherNumber,     1u << 4)  \
   V(OtherString,     1u << 5)  \
 
-#define PROPER_BITSET_TYPE_LIST(V) \
-  V(None,                     0u)        \
+#define PROPER_ATOMIC_BITSET_TYPE_LIST(V) \
   V(Negative31,               1u << 6)   \
   V(Null,                     1u << 7)   \
   V(Undefined,                1u << 8)   \
@@ -113,22 +112,29 @@ namespace compiler {
   V(NaN,                      1u << 12)  \
   V(Symbol,                   1u << 13)  \
   V(InternalizedString,       1u << 14)  \
-  V(OtherCallable,            1u << 16)  \
-  V(OtherObject,              1u << 17)  \
-  V(OtherUndetectable,        1u << 18)  \
-  V(CallableProxy,            1u << 19)  \
-  V(OtherProxy,               1u << 20)  \
-  V(Function,                 1u << 21)  \
-  V(BoundFunction,            1u << 22)  \
-  V(Hole,                     1u << 23)  \
-  V(OtherInternal,            1u << 24)  \
-  V(ExternalPointer,          1u << 25)  \
-  V(Array,                    1u << 26)  \
-  V(BigInt,                   1u << 27)  \
+  V(OtherCallable,            1u << 15)  \
+  V(OtherObject,              1u << 16)  \
+  V(OtherUndetectable,        1u << 17)  \
+  V(CallableProxy,            1u << 18)  \
+  V(OtherProxy,               1u << 19)  \
+  V(Function,                 1u << 20)  \
+  V(BoundFunction,            1u << 21)  \
+  V(Hole,                     1u << 22)  \
+  V(OtherInternal,            1u << 23)  \
+  V(ExternalPointer,          1u << 24)  \
+  V(Array,                    1u << 25)  \
+  V(UnsignedBigInt63,         1u << 26)  \
+  V(OtherUnsignedBigInt64,    1u << 27)  \
+  V(NegativeBigInt63,         1u << 28)  \
+  V(OtherBigInt,              1u << 29)  \
   /* TODO(v8:10391): Remove this type once all ExternalPointer usages are */ \
   /* sandbox-ready. */                   \
-  V(SandboxedExternalPointer, 1u << 28)  \
-  \
+  V(SandboxedExternalPointer, 1u << 30)  \
+  V(CagedPointer,             1u << 31)  \
+
+#define PROPER_BITSET_TYPE_LIST(V) \
+  V(None,                     0u) \
+  PROPER_ATOMIC_BITSET_TYPE_LIST(V) \
   V(Signed31,                     kUnsigned30 | kNegative31) \
   V(Signed32,                     kSigned31 | kOtherUnsigned31 | \
                                   kOtherSigned32) \
@@ -147,6 +153,10 @@ namespace compiler {
   V(OrderedNumber,                kPlainNumber | kMinusZero) \
   V(MinusZeroOrNaN,               kMinusZero | kNaN) \
   V(Number,                       kOrderedNumber | kNaN) \
+  V(SignedBigInt64,               kUnsignedBigInt63 | kNegativeBigInt63) \
+  V(UnsignedBigInt64,             kUnsignedBigInt63 | kOtherUnsignedBigInt64) \
+  V(BigInt,                       kSignedBigInt64 | kOtherUnsignedBigInt64 | \
+                                  kOtherBigInt) \
   V(Numeric,                      kNumber | kBigInt) \
   V(String,                       kInternalizedString | kOtherString) \
   V(UniqueName,                   kSymbol | kInternalizedString) \
@@ -192,7 +202,8 @@ namespace compiler {
   V(Unique,                       kBoolean | kUniqueName | kNull | \
                                   kUndefined | kHole | kReceiver) \
   V(Internal,                     kHole | kExternalPointer | \
-                                  kSandboxedExternalPointer | kOtherInternal) \
+                                  kSandboxedExternalPointer | kCagedPointer | \
+                                  kOtherInternal) \
   V(NonInternal,                  kPrimitive | kReceiver) \
   V(NonBigInt,                    kNonBigIntPrimitive | kReceiver) \
   V(NonNumber,                    kBigInt | kUnique | kString | kInternal) \
@@ -409,9 +420,8 @@ class V8_EXPORT_PRIVATE Type {
            (Is(Type::PlainNumber()) && Min() == Max());
   }
 
-  bool CanBeAsserted() const {
-    return IsRange() || (Is(Type::Integral32()) && !IsNone());
-  }
+  bool CanBeAsserted() const { return Is(Type::NonInternal()); }
+  Handle<TurbofanType> AllocateOnHeap(Factory* factory);
 
   const HeapConstantType* AsHeapConstant() const;
   const OtherNumberConstantType* AsOtherNumberConstant() const;

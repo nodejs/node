@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <numeric>
 
+#include "src/base/atomicops.h"
 #include "src/base/build_config.h"
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
@@ -999,10 +1000,15 @@ NativeModule::NativeModule(const WasmFeatures& enabled,
     num_liftoff_function_calls_ =
         std::make_unique<uint32_t[]>(module_->num_declared_functions);
 
-    // Start counter at 4 to avoid runtime calls for smaller numbers.
-    constexpr int kCounterStart = 4;
-    std::fill_n(num_liftoff_function_calls_.get(),
-                module_->num_declared_functions, kCounterStart);
+    if (FLAG_new_wasm_dynamic_tiering) {
+      std::fill_n(num_liftoff_function_calls_.get(),
+                  module_->num_declared_functions, FLAG_wasm_tiering_budget);
+    } else {
+      // Start counter at 4 to avoid runtime calls for smaller numbers.
+      constexpr int kCounterStart = 4;
+      std::fill_n(num_liftoff_function_calls_.get(),
+                  module_->num_declared_functions, kCounterStart);
+    }
   }
   // Even though there cannot be another thread using this object (since we are
   // just constructing it), we need to hold the mutex to fulfill the
@@ -2266,6 +2272,16 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   for (auto& result : results) {
     DCHECK(result.succeeded());
     total_code_space += RoundUp<kCodeAlignment>(result.code_desc.instr_size);
+    if (result.result_tier == ExecutionTier::kLiftoff) {
+      int index = result.func_index;
+      int* slots = &module()->functions[index].feedback_slots;
+#if DEBUG
+      int current_value = base::Relaxed_Load(slots);
+      DCHECK(current_value == 0 ||
+             current_value == result.feedback_vector_slots);
+#endif
+      base::Relaxed_Store(slots, result.feedback_vector_slots);
+    }
   }
   base::Vector<byte> code_space;
   NativeModule::JumpTablesRef jump_tables;

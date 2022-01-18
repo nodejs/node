@@ -4,6 +4,10 @@
 
 // Flags: --allow-natives-syntax
 
+// This test does not work well if we flush the feedback vector, which causes
+// deoptimization.
+// Flags: --no-stress-flush-code --no-flush-bytecode
+
 function O() {}
 O.prototype.f = f;
 O.prototype.g = g;

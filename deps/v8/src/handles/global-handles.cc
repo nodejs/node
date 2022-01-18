@@ -16,6 +16,7 @@
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
@@ -801,6 +802,14 @@ bool GlobalHandles::OnStackTracedNodeSpace::IsOnStack(uintptr_t slot) const {
     return true;
   }
 #endif  // V8_USE_ADDRESS_SANITIZER
+#if defined(__has_feature)
+#if __has_feature(safe_stack)
+  if (reinterpret_cast<uintptr_t>(__builtin___get_unsafe_stack_top()) >= slot &&
+      slot > reinterpret_cast<uintptr_t>(__builtin___get_unsafe_stack_ptr())) {
+    return true;
+  }
+#endif  // __has_feature(safe_stack)
+#endif  // defined(__has_feature)
   return stack_start_ >= slot && slot > base::Stack::GetCurrentStackPosition();
 }
 
@@ -948,16 +957,17 @@ Handle<Object> GlobalHandles::Create(Address value) {
   return Create(Object(value));
 }
 
-Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
-                                           bool has_destructor) {
+Handle<Object> GlobalHandles::CreateTraced(
+    Object value, Address* slot, GlobalHandleDestructionMode destruction_mode,
+    GlobalHandleStoreMode store_mode) {
   return CreateTraced(
-      value, slot, has_destructor,
+      value, slot, destruction_mode, store_mode,
       on_stack_nodes_->IsOnStack(reinterpret_cast<uintptr_t>(slot)));
 }
 
-Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
-                                           bool has_destructor,
-                                           bool is_on_stack) {
+Handle<Object> GlobalHandles::CreateTraced(
+    Object value, Address* slot, GlobalHandleDestructionMode destruction_mode,
+    GlobalHandleStoreMode store_mode, bool is_on_stack) {
   GlobalHandles::TracedNode* result;
   if (is_on_stack) {
     result = on_stack_nodes_->Acquire(value, reinterpret_cast<uintptr_t>(slot));
@@ -967,15 +977,21 @@ Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
       traced_young_nodes_.push_back(result);
       result->set_in_young_list(true);
     }
+    if (store_mode != GlobalHandleStoreMode::kInitializingStore) {
+      WriteBarrier::MarkingFromGlobalHandle(value);
+    }
   }
+  const bool has_destructor =
+      destruction_mode == GlobalHandleDestructionMode::kWithDestructor;
   result->set_has_destructor(has_destructor);
   result->set_parameter(has_destructor ? slot : nullptr);
   return result->handle();
 }
 
-Handle<Object> GlobalHandles::CreateTraced(Address value, Address* slot,
-                                           bool has_destructor) {
-  return CreateTraced(Object(value), slot, has_destructor);
+Handle<Object> GlobalHandles::CreateTraced(
+    Address value, Address* slot, GlobalHandleDestructionMode destruction_mode,
+    GlobalHandleStoreMode store_mode) {
+  return CreateTraced(Object(value), slot, destruction_mode, store_mode);
 }
 
 Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
@@ -1012,7 +1028,10 @@ void GlobalHandles::CopyTracedGlobal(const Address* const* from, Address** to) {
   GlobalHandles* global_handles =
       GlobalHandles::From(const_cast<TracedNode*>(node));
   Handle<Object> o = global_handles->CreateTraced(
-      node->object(), reinterpret_cast<Address*>(to), node->has_destructor());
+      node->object(), reinterpret_cast<Address*>(to),
+      node->has_destructor() ? GlobalHandleDestructionMode::kWithDestructor
+                             : GlobalHandleDestructionMode::kWithoutDestructor,
+      GlobalHandleStoreMode::kAssigningStore);
   SetSlotThreadSafe(to, o.location());
   TracedNode::Verify(global_handles, from);
   TracedNode::Verify(global_handles, to);
@@ -1082,7 +1101,10 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
       DCHECK(global_handles);
       Handle<Object> o = global_handles->CreateTraced(
           from_node->object(), reinterpret_cast<Address*>(to),
-          from_node->has_destructor(), to_on_stack);
+          from_node->has_destructor()
+              ? GlobalHandleDestructionMode::kWithDestructor
+              : GlobalHandleDestructionMode::kWithoutDestructor,
+          GlobalHandleStoreMode::kAssigningStore, to_on_stack);
       SetSlotThreadSafe(to, o.location());
       to_node = TracedNode::FromLocation(*to);
       DCHECK(to_node->markbit());
@@ -1094,6 +1116,9 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
         global_handles = GlobalHandles::From(from_node);
         global_handles->traced_young_nodes_.push_back(to_node);
         to_node->set_in_young_list(true);
+      }
+      if (!to_on_stack) {
+        WriteBarrier::MarkingFromGlobalHandle(to_node->object());
       }
     }
     DestroyTraced(*from);
@@ -1110,6 +1135,7 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
     if (to_node->has_destructor()) {
       to_node->set_parameter(to);
     }
+    WriteBarrier::MarkingFromGlobalHandle(to_node->object());
     SetSlotThreadSafe(from, nullptr);
   }
   TracedNode::Verify(global_handles, to);

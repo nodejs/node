@@ -26,7 +26,6 @@ cc_library(
         "U_ENABLE_RESOURCE_TRACING=0",
         "UNISTR_FROM_STRING_EXPLICIT=",
         "UNISTR_FROM_CHAR_EXPLICIT=",
-        "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE",
     ],
     copts = [
         "-Wno-unused-function",

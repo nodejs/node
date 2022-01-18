@@ -3736,27 +3736,7 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
   }
 }
 
-void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
-  if (!update_embedded_objects) return;
-  for (auto p : saved_handles_for_raw_object_ptr_) {
-    Address address = reinterpret_cast<Address>(buffer_->start() + p.first);
-    Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
-    set_target_value_at(address, object->ptr());
-  }
-}
-
-void Assembler::FixOnHeapReferencesToHandles() {
-  for (auto p : saved_handles_for_raw_object_ptr_) {
-    Address address = reinterpret_cast<Address>(buffer_->start() + p.first);
-    set_target_value_at(address, p.second);
-  }
-  saved_handles_for_raw_object_ptr_.clear();
-}
-
 void Assembler::GrowBuffer() {
-  bool previously_on_heap = buffer_->IsOnHeap();
-  int previous_on_heap_gc_count = OnHeapGCCount();
-
   // Compute new buffer size.
   int old_size = buffer_->size();
   int new_size = std::min(2 * old_size, old_size + 1 * MB);
@@ -3784,7 +3764,7 @@ void Assembler::GrowBuffer() {
   buffer_ = std::move(new_buffer);
   buffer_start_ = new_start;
   pc_ += pc_delta;
-  last_call_pc_ += pc_delta;
+  pc_for_safepoint_ += pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
@@ -3796,15 +3776,6 @@ void Assembler::GrowBuffer() {
     RelocInfo::Mode rmode = it.rinfo()->rmode();
     if (rmode == RelocInfo::INTERNAL_REFERENCE) {
       RelocateInternalReference(rmode, it.rinfo()->pc(), pc_delta);
-    }
-  }
-
-  // Fix on-heap references.
-  if (previously_on_heap) {
-    if (buffer_->IsOnHeap()) {
-      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
-    } else {
-      FixOnHeapReferencesToHandles();
     }
   }
 

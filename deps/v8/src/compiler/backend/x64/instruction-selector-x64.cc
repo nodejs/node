@@ -297,6 +297,13 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kWord64:
       opcode = kX64Movq;
       break;
+    case MachineRepresentation::kCagedPointer:
+#ifdef V8_CAGED_POINTERS
+      opcode = kX64MovqDecodeCagedPointer;
+      break;
+#else
+      UNREACHABLE();
+#endif
     case MachineRepresentation::kSimd128:
       opcode = kX64Movdqu;
       break;
@@ -333,6 +340,12 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       return kX64MovqCompressTagged;
     case MachineRepresentation::kWord64:
       return kX64Movq;
+    case MachineRepresentation::kCagedPointer:
+#ifdef V8_CAGED_POINTERS
+      return kX64MovqEncodeCagedPointer;
+#else
+      UNREACHABLE();
+#endif
     case MachineRepresentation::kSimd128:
       return kX64Movdqu;
     case MachineRepresentation::kNone:  // Fall through.
@@ -3345,7 +3358,7 @@ void InstructionSelector::VisitI64x2ShrS(Node* node) {
 void InstructionSelector::VisitI64x2Mul(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kX64I64x2Mul, g.DefineSameAsFirst(node),
+  Emit(kX64I64x2Mul, g.DefineAsRegister(node),
        g.UseUniqueRegister(node->InputAt(0)),
        g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
@@ -3687,13 +3700,18 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitI8x16Swizzle(Node* node) {
   InstructionCode op = kX64I8x16Swizzle;
 
-  auto m = V128ConstMatcher(node->InputAt(1));
-  if (m.HasResolvedValue()) {
-    // If the indices vector is a const, check if they are in range, or if the
-    // top bit is set, then we can avoid the paddusb in the codegen and simply
-    // emit a pshufb
-    auto imms = m.ResolvedValue().immediate();
-    op |= MiscField::encode(wasm::SimdSwizzle::AllInRangeOrTopBitSet(imms));
+  bool relaxed = OpParameter<bool>(node->op());
+  if (relaxed) {
+    op |= MiscField::encode(true);
+  } else {
+    auto m = V128ConstMatcher(node->InputAt(1));
+    if (m.HasResolvedValue()) {
+      // If the indices vector is a const, check if they are in range, or if the
+      // top bit is set, then we can avoid the paddusb in the codegen and simply
+      // emit a pshufb.
+      auto imms = m.ResolvedValue().immediate();
+      op |= MiscField::encode(wasm::SimdSwizzle::AllInRangeOrTopBitSet(imms));
+    }
   }
 
   X64OperandGenerator g(this);
@@ -3701,38 +3719,105 @@ void InstructionSelector::VisitI8x16Swizzle(Node* node) {
        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
+
+namespace {
+// pblendvb is a correct implementation for all the various relaxed lane select,
+// see https://github.com/WebAssembly/relaxed-simd/issues/17.
+void VisitRelaxedLaneSelect(InstructionSelector* selector, Node* node) {
+  X64OperandGenerator g(selector);
+  // pblendvb copies src2 when mask is set, opposite from Wasm semantics.
+  if (selector->IsSupported(AVX)) {
+    selector->Emit(
+        kX64Pblendvb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(1)),
+        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(2)));
+  } else {
+    // SSE4.1 pblendvb requires xmm0 to hold the mask as an implicit operand.
+    selector->Emit(kX64Pblendvb, g.DefineSameAsFirst(node),
+                   g.UseRegister(node->InputAt(1)),
+                   g.UseRegister(node->InputAt(0)),
+                   g.UseFixed(node->InputAt(2), xmm0));
+  }
+}
+}  // namespace
+
+void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
+  VisitRelaxedLaneSelect(this, node);
+}
+void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
+  VisitRelaxedLaneSelect(this, node);
+}
+void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
+  VisitRelaxedLaneSelect(this, node);
+}
+void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
+  VisitRelaxedLaneSelect(this, node);
+}
 #else
 void InstructionSelector::VisitI8x16Swizzle(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
+  UNREACHABLE();
+}
+void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
+  UNREACHABLE();
+}
+void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
+  UNREACHABLE();
+}
+void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
+  UNREACHABLE();
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
-void VisitPminOrPmax(InstructionSelector* selector, Node* node,
-                     ArchOpcode opcode) {
-  // Due to the way minps/minpd work, we want the dst to be same as the second
-  // input: b = pmin(a, b) directly maps to minps b a.
+// Used for pmin/pmax and relaxed min/max.
+void VisitMinOrMax(InstructionSelector* selector, Node* node, ArchOpcode opcode,
+                   bool flip_inputs) {
   X64OperandGenerator g(selector);
   InstructionOperand dst = selector->IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
-  selector->Emit(opcode, dst, g.UseRegister(node->InputAt(1)),
-                 g.UseRegister(node->InputAt(0)));
+  if (flip_inputs) {
+    // Due to the way minps/minpd work, we want the dst to be same as the second
+    // input: b = pmin(a, b) directly maps to minps b a.
+    selector->Emit(opcode, dst, g.UseRegister(node->InputAt(1)),
+                   g.UseRegister(node->InputAt(0)));
+  } else {
+    selector->Emit(opcode, dst, g.UseRegister(node->InputAt(0)),
+                   g.UseRegister(node->InputAt(1)));
+  }
 }
 }  // namespace
 
 void InstructionSelector::VisitF32x4Pmin(Node* node) {
-  VisitPminOrPmax(this, node, kX64F32x4Pmin);
+  VisitMinOrMax(this, node, kX64Minps, true);
 }
 
 void InstructionSelector::VisitF32x4Pmax(Node* node) {
-  VisitPminOrPmax(this, node, kX64F32x4Pmax);
+  VisitMinOrMax(this, node, kX64Maxps, true);
 }
 
 void InstructionSelector::VisitF64x2Pmin(Node* node) {
-  VisitPminOrPmax(this, node, kX64F64x2Pmin);
+  VisitMinOrMax(this, node, kX64Minpd, true);
 }
 
 void InstructionSelector::VisitF64x2Pmax(Node* node) {
-  VisitPminOrPmax(this, node, kX64F64x2Pmax);
+  VisitMinOrMax(this, node, kX64Maxpd, true);
+}
+
+void InstructionSelector::VisitF32x4RelaxedMin(Node* node) {
+  VisitMinOrMax(this, node, kX64Minps, false);
+}
+
+void InstructionSelector::VisitF32x4RelaxedMax(Node* node) {
+  VisitMinOrMax(this, node, kX64Maxps, false);
+}
+
+void InstructionSelector::VisitF64x2RelaxedMin(Node* node) {
+  VisitMinOrMax(this, node, kX64Minpd, false);
+}
+
+void InstructionSelector::VisitF64x2RelaxedMax(Node* node) {
+  VisitMinOrMax(this, node, kX64Maxpd, false);
 }
 
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
@@ -3798,6 +3883,22 @@ void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
   Emit(kX64I32x4TruncSatF64x2UZero, dst, g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI32x4RelaxedTruncF64x2SZero(Node* node) {
+  VisitFloatUnop(this, node, node->InputAt(0), kX64Cvttpd2dq);
+}
+
+void InstructionSelector::VisitI32x4RelaxedTruncF64x2UZero(Node* node) {
+  VisitFloatUnop(this, node, node->InputAt(0), kX64I32x4TruncF64x2UZero);
+}
+
+void InstructionSelector::VisitI32x4RelaxedTruncF32x4S(Node* node) {
+  VisitFloatUnop(this, node, node->InputAt(0), kX64Cvttps2dq);
+}
+
+void InstructionSelector::VisitI32x4RelaxedTruncF32x4U(Node* node) {
+  VisitFloatUnop(this, node, node->InputAt(0), kX64I32x4TruncF32x4U);
 }
 
 void InstructionSelector::VisitI64x2GtS(Node* node) {

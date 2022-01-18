@@ -711,6 +711,7 @@ class ModuleDecoderImpl : public Decoder {
                                         import->index,  // func_index
                                         0,              // sig_index
                                         {0, 0},         // code
+                                        0,              // feedback slots
                                         true,           // imported
                                         false,          // exported
                                         false});        // declared
@@ -805,6 +806,7 @@ class ModuleDecoderImpl : public Decoder {
                                     func_index,  // func_index
                                     0,           // sig_index
                                     {0, 0},      // code
+                                    0,           // feedback slots
                                     false,       // imported
                                     false,       // exported
                                     false});     // declared
@@ -1924,9 +1926,6 @@ class ModuleDecoderImpl : public Decoder {
     ValueType field = consume_storage_type();
     if (failed()) return nullptr;
     bool mutability = consume_mutability();
-    if (!V8_LIKELY(mutability)) {
-      error(this->pc() - 1, "immutable arrays are not supported yet");
-    }
     return zone->New<ArrayType>(field, mutability);
   }
 

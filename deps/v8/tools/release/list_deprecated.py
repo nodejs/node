@@ -120,7 +120,7 @@ class HeaderFile(object):
             parens = parens - 1
             if parens == 0:
               # Exclude closing ")
-              pos = pos - 2
+              pos = pos - 1
               break
           elif line[pos] == '"' and start == -1:
             start = pos + 1
@@ -132,9 +132,10 @@ class HeaderFile(object):
     if len(deprecated) == 0: return
     for linenumber, commit_datetime, commit_hash, content in deprecated:
       commit_date = commit_datetime.date()
-      file_position = (f"{self.path}:{linenumber}").rjust(40)
-      print(f"   {file_position}\t{commit_date}\t{commit_hash[:8]}"
-            f"\t{self.extract_version(commit_hash)}\t{content}")
+      file_position = (f"{self.path}:{linenumber}").ljust(40)
+      v8_version = self.extract_version(commit_hash)
+      print(f"{file_position}  v{v8_version}  {commit_date}  {commit_hash[:8]}"
+            f"  {content}")
     return len(deprecated)
 
 
@@ -163,11 +164,11 @@ def parse_options(args):
 def main(args):
   options = parse_options(args)
   header_files = HeaderFile.get_api_header_files(options)
-  print("V8_DEPRECATE_SOON:")
+  print("# V8_DEPRECATE_SOON:")
   for header in header_files:
     header.filter_and_print("V8_DEPRECATE_SOON", options)
   print("\n")
-  print("V8_DEPRECATED:")
+  print("# V8_DEPRECATED:")
   for header in header_files:
     header.filter_and_print("V8_DEPRECATED", options)
 

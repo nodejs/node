@@ -205,6 +205,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64INe:
     case kArm64IGtS:
     case kArm64IGeS:
+    case kArm64ILtS:
+    case kArm64ILeS:
     case kArm64I64x2ShrU:
     case kArm64I64x2BitMask:
     case kArm64I32x4SConvertF32x4:
@@ -315,6 +317,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64LdarDecompressTaggedSigned:
     case kArm64LdarDecompressTaggedPointer:
     case kArm64LdarDecompressAnyTagged:
+    case kArm64LdrDecodeCagedPointer:
     case kArm64Peek:
     case kArm64LoadSplat:
     case kArm64LoadLane:
@@ -338,6 +341,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Str:
     case kArm64StrCompressTagged:
     case kArm64StlrCompressTagged:
+    case kArm64StrEncodeCagedPointer:
     case kArm64DmbIsh:
     case kArm64DsbIsb:
     case kArm64StoreLane:

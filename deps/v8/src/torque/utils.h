@@ -110,8 +110,6 @@ bool StartsWithSingleUnderscore(const std::string& str);
 void ReplaceFileContentsIfDifferent(const std::string& file_path,
                                     const std::string& contents);
 
-std::string CurrentPositionAsString();
-
 template <class T>
 class Deduplicator {
  public:

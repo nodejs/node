@@ -24,7 +24,6 @@
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
 #include "src/execution/execution.h"
-#include "src/execution/external-pointer-table.h"
 #include "src/execution/futex-emulation.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/messages.h"
@@ -35,11 +34,12 @@
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
 #include "src/init/isolate-allocator.h"
-#include "src/init/vm-cage.h"
 #include "src/objects/code.h"
 #include "src/objects/contexts.h"
 #include "src/objects/debug-objects.h"
 #include "src/runtime/runtime.h"
+#include "src/security/external-pointer-table.h"
+#include "src/security/vm-cage.h"
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
 
@@ -604,6 +604,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate;
   }
 
+  bool IsCurrent() const { return this == TryGetCurrent(); }
+
   // Usually called by Init(), but can be called early e.g. to allow
   // testing components that require logging but not the whole
   // isolate.
@@ -614,7 +616,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool InitWithoutSnapshot();
   bool InitWithSnapshot(SnapshotData* startup_snapshot_data,
-                        SnapshotData* read_only_snapshot_data, bool can_rehash);
+                        SnapshotData* read_only_snapshot_data,
+                        SnapshotData* shared_heap_snapshot_data,
+                        bool can_rehash);
 
   // True if at least one thread Enter'ed this isolate.
   bool IsInUse() { return entry_stack_ != nullptr; }
@@ -1079,7 +1083,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate_data()->cage_base();
   }
 
-  Address code_cage_base() const { return cage_base(); }
+  // When pointer compression and external code space are on, this is the base
+  // address of the cage where the code space is allocated. Otherwise, it
+  // defaults to cage_base().
+  Address code_cage_base() const {
+#if V8_EXTERNAL_CODE_SPACE
+    return code_cage_base_;
+#else
+    return cage_base();
+#endif  // V8_EXTERNAL_CODE_SPACE
+  }
 
   // When pointer compression is on, the PtrComprCage used by this
   // Isolate. Otherwise nullptr.
@@ -1089,6 +1102,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   const VirtualMemoryCage* GetPtrComprCage() const {
     return isolate_allocator_->GetPtrComprCage();
   }
+  VirtualMemoryCage* GetPtrComprCodeCageForTesting();
 
   // Generated code can embed this address to get access to the isolate-specific
   // data (for example, roots, external references, builtins, etc.).
@@ -1129,6 +1143,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Address* builtin_entry_table() { return isolate_data_.builtin_entry_table(); }
   V8_INLINE Address* builtin_table() { return isolate_data_.builtin_table(); }
+  V8_INLINE Address* builtin_tier0_table() {
+    return isolate_data_.builtin_tier0_table();
+  }
 
   bool IsBuiltinTableHandleLocation(Address* handle_location);
 
@@ -1402,6 +1419,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsDeferredHandle(Address* location);
 #endif  // DEBUG
 
+  baseline::BaselineBatchCompiler* baseline_batch_compiler() {
+    DCHECK_NOT_NULL(baseline_batch_compiler_);
+    return baseline_batch_compiler_;
+  }
+
   bool concurrent_recompilation_enabled() {
     // Thread is only available with flag enabled.
     DCHECK(optimizing_compile_dispatcher_ == nullptr ||
@@ -1494,6 +1516,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
+  void CountUsage(v8::Isolate::UseCounterFeature feature, int count);
 
   static std::string GetTurboCfgFileName(Isolate* isolate);
 
@@ -1570,6 +1593,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::vector<Object>* startup_object_cache() { return &startup_object_cache_; }
 
+  // When there is a shared space (i.e. when this is a client Isolate), the
+  // shared heap object cache holds objects in shared among Isolates. Otherwise
+  // this object cache is per-Isolate like the startup object cache.
+  std::vector<Object>* shared_heap_object_cache() {
+    if (shared_isolate()) return shared_isolate()->shared_heap_object_cache();
+    return &shared_heap_object_cache_;
+  }
+
   bool IsGeneratingEmbeddedBuiltins() const {
     return builtins_constants_table_builder() != nullptr;
   }
@@ -1600,6 +1631,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool is_short_builtin_calls_enabled() const {
     return V8_SHORT_BUILTIN_CALLS_BOOL && is_short_builtin_calls_enabled_;
   }
+
+  // Returns a region from which it's possible to make short calls/jumps to
+  // embedded builtins or empty region if there's no embedded blob.
+  static base::AddressRegion GetShortBuiltinsCallRegion();
 
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
     array_buffer_allocator_ = allocator;
@@ -1641,7 +1676,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   AccountingAllocator* allocator() { return allocator_; }
 
   LazyCompileDispatcher* lazy_compile_dispatcher() const {
-    return compiler_dispatcher_;
+    return lazy_compile_dispatcher_.get();
   }
 
   baseline::BaselineBatchCompiler* baseline_batch_compiler() const {
@@ -1809,11 +1844,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     using IsDebugActive = HasAsyncEventDelegate::Next<bool, 1>;
   };
 
-  bool is_shared() { return is_shared_; }
-  Isolate* shared_isolate() { return shared_isolate_; }
+  bool is_shared() const { return is_shared_; }
+  Isolate* shared_isolate() const {
+    DCHECK(attached_to_shared_isolate_);
+    return shared_isolate_;
+  }
 
-  void AttachToSharedIsolate(Isolate* shared);
-  void DetachFromSharedIsolate();
+  void set_shared_isolate(Isolate* shared_isolate) {
+    DCHECK(shared_isolate->is_shared());
+    DCHECK_NULL(shared_isolate_);
+    DCHECK(!attached_to_shared_isolate_);
+    shared_isolate_ = shared_isolate;
+  }
 
   bool HasClientIsolates() const { return client_isolate_head_; }
 
@@ -1827,13 +1869,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   base::Mutex* client_isolate_mutex() { return &client_isolate_mutex_; }
 
+  bool OwnsStringTable() { return !FLAG_shared_string_table || is_shared(); }
+
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
                    bool is_shared);
   ~Isolate();
 
   bool Init(SnapshotData* startup_snapshot_data,
-            SnapshotData* read_only_snapshot_data, bool can_rehash);
+            SnapshotData* read_only_snapshot_data,
+            SnapshotData* shared_heap_snapshot_data, bool can_rehash);
 
   void CheckIsolateLayout();
 
@@ -1946,6 +1991,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns the Exception sentinel.
   Object ThrowInternal(Object exception, MessageLocation* location);
 
+  // These methods add/remove the isolate to/from the list of clients in the
+  // shared isolate. Isolates in the client list need to participate in a global
+  // safepoint.
+  void AttachToSharedIsolate();
+  void DetachFromSharedIsolate();
+
   // Methods for appending and removing to/from client isolates list.
   void AppendAsClientIsolate(Isolate* client);
   void RemoveAsClientIsolate(Isolate* client);
@@ -1955,11 +2006,15 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // handlers and optimized code).
   IsolateData isolate_data_;
 
+  // Set to true if this isolate is used as shared heap. This field must be set
+  // before Heap is constructed, as Heap's constructor consults it.
+  const bool is_shared_;
+
   std::unique_ptr<IsolateAllocator> isolate_allocator_;
   Heap heap_;
   ReadOnlyHeap* read_only_heap_ = nullptr;
   std::shared_ptr<ReadOnlyArtifacts> artifacts_;
-  std::unique_ptr<StringTable> string_table_;
+  std::shared_ptr<StringTable> string_table_;
 
   const int id_;
   EntryStackItem* entry_stack_ = nullptr;
@@ -2078,6 +2133,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // favor memory over runtime performance.
   bool memory_savings_mode_active_ = false;
 
+#if V8_EXTERNAL_CODE_SPACE
+  // Base address of the pointer compression cage containing external code
+  // space, when external code space is enabled.
+  Address code_cage_base_ = 0;
+#endif
+
   // Time stamp at initialization.
   double time_millis_at_init_ = 0;
 
@@ -2100,7 +2161,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // through all compilations (and thus all JSHeapBroker instances).
   Zone* compiler_zone_ = nullptr;
 
-  LazyCompileDispatcher* compiler_dispatcher_ = nullptr;
+  std::unique_ptr<LazyCompileDispatcher> lazy_compile_dispatcher_;
   baseline::BaselineBatchCompiler* baseline_batch_compiler_ = nullptr;
 
   using InterruptEntry = std::pair<InterruptCallback, void*>;
@@ -2167,6 +2228,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::vector<Object> startup_object_cache_;
 
+  // When sharing data among Isolates (e.g. FLAG_shared_string_table), only the
+  // shared Isolate populates this and client Isolates reference that copy.
+  //
+  // Otherwise this is populated for all Isolates.
+  std::vector<Object> shared_heap_object_cache_;
+
   // Used during builtins compilation to build the builtins constants table,
   // which is stored on the root list prior to serialization.
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder_ = nullptr;
@@ -2227,12 +2294,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   base::Mutex thread_data_table_mutex_;
   ThreadDataTable thread_data_table_;
 
-  // Set to true if this isolate is used as shared heap.
-  const bool is_shared_;
-
   // Stores the shared isolate for this client isolate. nullptr for shared
   // isolates or when no shared isolate is used.
   Isolate* shared_isolate_ = nullptr;
+
+#if DEBUG
+  // Set to true once during isolate initialization right when attaching to the
+  // shared isolate. If there was no shared isolate given it will still be set
+  // to true. After this point invocations of shared_isolate() are valid.
+  bool attached_to_shared_isolate_ = false;
+#endif  // DEBUG
 
   // A shared isolate will use these two fields to track all its client
   // isolates.
@@ -2249,6 +2320,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::atomic<std::vector<MemoryRange>*> code_pages_{nullptr};
   std::vector<MemoryRange> code_pages_buffer1_;
   std::vector<MemoryRange> code_pages_buffer2_;
+  // The mutex only guards adding pages, the retrieval is signal safe.
+  base::Mutex code_pages_mutex_;
 
   // Enables the host application to provide a mechanism for recording a
   // predefined set of data as crash keys to be used in postmortem debugging

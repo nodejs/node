@@ -1343,6 +1343,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     DCHECK(allow_macro_instructions());
     cmlt(vd, vn, imm);
   }
+  void Cmle(const VRegister& vd, const VRegister& vn, int imm) {
+    DCHECK(allow_macro_instructions());
+    cmle(vd, vn, imm);
+  }
 
   inline void Neg(const Register& rd, const Operand& operand);
   inline void Negs(const Register& rd, const Operand& operand);
@@ -1436,6 +1440,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // ---------------------------------------------------------------------------
   // V8 Heap sandbox support
+
+  // Transform a CagedPointer from/to its encoded form, which is used when the
+  // pointer is stored on the heap and ensures that the pointer will always
+  // point into the virtual memory cage.
+  void EncodeCagedPointer(const Register& value);
+  void DecodeCagedPointer(const Register& value);
+
+  // Load and decode a CagedPointer from the heap.
+  void LoadCagedPointerField(const Register& destination,
+                             const MemOperand& field_operand);
+  // Encode and store a CagedPointer to the heap.
+  void StoreCagedPointerField(const Register& value,
+                              const MemOperand& dst_field_operand);
 
   // Loads a field containing off-heap pointer and does necessary decoding
   // if V8 heap sandbox is enabled.
@@ -1617,11 +1634,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                      const Register& ra);
   inline void Umsubl(const Register& rd, const Register& rn, const Register& rm,
                      const Register& ra);
-
-  void Cmle(const VRegister& vd, const VRegister& vn, int imm) {
-    DCHECK(allow_macro_instructions());
-    cmle(vd, vn, imm);
-  }
 
   void Ld1(const VRegister& vt, const MemOperand& src) {
     DCHECK(allow_macro_instructions());
@@ -1857,6 +1869,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
+
+  // Abort execution if argument is not a callable JSFunction, enabled via
+  // --debug-code.
+  void AssertCallableFunction(Register object);
 
   // Abort execution if argument is not a JSGeneratorObject (or subclass),
   // enabled via --debug-code.

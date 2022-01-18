@@ -10,6 +10,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/turbofan-types.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -256,6 +257,16 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
+    case JS_TEMPORAL_CALENDAR_TYPE:
+    case JS_TEMPORAL_DURATION_TYPE:
+    case JS_TEMPORAL_INSTANT_TYPE:
+    case JS_TEMPORAL_PLAIN_DATE_TYPE:
+    case JS_TEMPORAL_PLAIN_DATE_TIME_TYPE:
+    case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
+    case JS_TEMPORAL_PLAIN_TIME_TYPE:
+    case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
+    case JS_TEMPORAL_TIME_ZONE_TYPE:
+    case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_ARRAY_TYPE:
     case WASM_TAG_OBJECT_TYPE:
@@ -1131,6 +1142,41 @@ std::ostream& operator<<(std::ostream& os, Type type) {
   type.PrintTo(os);
   return os;
 }
+
+Handle<TurbofanType> Type::AllocateOnHeap(Factory* factory) {
+  DCHECK(CanBeAsserted());
+  if (IsBitset()) {
+    return factory->NewTurbofanBitsetType(AsBitset(), AllocationType::kYoung);
+  } else if (IsUnion()) {
+    const UnionType* union_type = AsUnion();
+    Handle<TurbofanType> result = union_type->Get(0).AllocateOnHeap(factory);
+    for (int i = 1; i < union_type->Length(); ++i) {
+      result = factory->NewTurbofanUnionType(
+          result, union_type->Get(i).AllocateOnHeap(factory),
+          AllocationType::kYoung);
+    }
+    return result;
+  } else if (IsHeapConstant()) {
+    return factory->NewTurbofanHeapConstantType(AsHeapConstant()->Value(),
+                                                AllocationType::kYoung);
+  } else if (IsOtherNumberConstant()) {
+    return factory->NewTurbofanOtherNumberConstantType(
+        AsOtherNumberConstant()->Value(), AllocationType::kYoung);
+  } else if (IsRange()) {
+    return factory->NewTurbofanRangeType(AsRange()->Min(), AsRange()->Max(),
+                                         AllocationType::kYoung);
+  } else {
+    // Other types are not supported for type assertions.
+    UNREACHABLE();
+  }
+}
+
+#define VERIFY_TORQUE_BITSET_AGREEMENT(Name, _)               \
+  STATIC_ASSERT(static_cast<uint32_t>(BitsetType::k##Name) == \
+                static_cast<uint32_t>(TurbofanTypeBits::k##Name));
+INTERNAL_BITSET_TYPE_LIST(VERIFY_TORQUE_BITSET_AGREEMENT)
+PROPER_ATOMIC_BITSET_TYPE_LIST(VERIFY_TORQUE_BITSET_AGREEMENT)
+#undef VERIFY_TORQUE_BITSET_AGREEMENT
 
 }  // namespace compiler
 }  // namespace internal

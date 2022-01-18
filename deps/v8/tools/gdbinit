@@ -173,6 +173,11 @@ def dcheck_stop_handler(event):
   # overflows can be very slow.
   while frame is not None and count < 7:
     count += 1
+    # If we are in a frame created by gdb (e.g. for `(gdb) call foo()`), gdb
+    # emits a dummy frame between its stack and the program's stack. Abort the
+    # walk if we see this frame.
+    if frame.type() == gdb.DUMMY_FRAME: break
+
     if frame.name() == 'V8_Dcheck':
       frame_message = gdb.lookup_symbol('message', frame.block())[0]
       if frame_message:

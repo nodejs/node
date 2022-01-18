@@ -632,7 +632,7 @@ IGNITION_HANDLER(StaNamedProperty, InterpreterStoreNamedPropertyAssembler) {
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
 IGNITION_HANDLER(StaNamedOwnProperty, InterpreterStoreNamedPropertyAssembler) {
-  Callable ic = CodeFactory::StoreOwnICInOptimizedCode(isolate());
+  Callable ic = Builtins::CallableFor(isolate(), Builtin::kStoreOwnIC);
   StaNamedProperty(ic, NamedPropertyType::kOwn);
 }
 
@@ -656,6 +656,33 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   // restore to the correct value on the outside. Storing the result means we
   // don't need to keep unnecessary state alive across the callstub.
   SetAccumulator(result);
+  Dispatch();
+}
+
+// StaKeyedPropertyAsDefine <object> <key> <slot>
+//
+// Calls the KeyedDefineOwnIC at FeedbackVector slot <slot> for <object> and
+// the key <key> with the value in the accumulator.
+//
+// This is similar to StaKeyedProperty, but avoids checking the prototype chain,
+// and in the case of private names, throws if the private name already exists.
+IGNITION_HANDLER(StaKeyedPropertyAsDefine, InterpreterAssembler) {
+  TNode<Object> object = LoadRegisterAtOperandIndex(0);
+  TNode<Object> name = LoadRegisterAtOperandIndex(1);
+  TNode<Object> value = GetAccumulator();
+  TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(2);
+  TNode<HeapObject> maybe_vector = LoadFeedbackVector();
+  TNode<Context> context = GetContext();
+
+  TVARIABLE(Object, var_result);
+  var_result = CallBuiltin(Builtin::kKeyedDefineOwnIC, context, object, name,
+                           value, slot, maybe_vector);
+  // To avoid special logic in the deoptimizer to re-materialize the value in
+  // the accumulator, we overwrite the accumulator after the IC call. It
+  // doesn't really matter what we write to the accumulator here, since we
+  // restore to the correct value on the outside. Storing the result means we
+  // don't need to keep unnecessary state alive across the callstub.
+  SetAccumulator(var_result.value());
   Dispatch();
 }
 

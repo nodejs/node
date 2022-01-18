@@ -9,7 +9,6 @@
 
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/compressed-slots.h"
-#include "src/objects/heap-object-inl.h"
 #include "src/objects/maybe-object-inl.h"
 
 namespace v8 {
@@ -159,7 +158,7 @@ void CompressedHeapObjectSlot::store(HeapObjectReference value) const {
 
 HeapObject CompressedHeapObjectSlot::ToHeapObject() const {
   Tagged_t value = *location();
-  DCHECK_EQ(value & kHeapObjectTagMask, kHeapObjectTag);
+  DCHECK(HAS_STRONG_HEAP_OBJECT_TAG(value));
   return HeapObject::cast(Object(DecompressTaggedPointer(address(), value)));
 }
 

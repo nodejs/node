@@ -372,10 +372,18 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   JSObject::NormalizeProperties(isolate, ns, CLEAR_INOBJECT_PROPERTIES,
                                 static_cast<int>(names.size()),
                                 "JSModuleNamespace");
+  JSObject::NormalizeElements(ns);
   for (const auto& name : names) {
-    JSObject::SetNormalizedProperty(
-        ns, name, Accessors::MakeModuleNamespaceEntryInfo(isolate, name),
-        PropertyDetails(kAccessor, attr, PropertyCellType::kMutable));
+    uint32_t index = 0;
+    if (name->AsArrayIndex(&index)) {
+      JSObject::SetNormalizedElement(
+          ns, index, Accessors::MakeModuleNamespaceEntryInfo(isolate, name),
+          PropertyDetails(kAccessor, attr, PropertyCellType::kMutable));
+    } else {
+      JSObject::SetNormalizedProperty(
+          ns, name, Accessors::MakeModuleNamespaceEntryInfo(isolate, name),
+          PropertyDetails(kAccessor, attr, PropertyCellType::kMutable));
+    }
   }
   JSObject::PreventExtensions(ns, kThrowOnError).ToChecked();
 

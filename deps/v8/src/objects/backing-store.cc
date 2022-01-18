@@ -9,8 +9,8 @@
 #include "src/base/platform/wrappers.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
-#include "src/init/vm-cage.h"
 #include "src/logging/counters.h"
+#include "src/security/vm-cage.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"

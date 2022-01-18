@@ -17,6 +17,12 @@ load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
 bazel_skylib_workspace()
 
 new_local_repository(
+    name = "config",
+    path = "bazel/config",
+    build_file = "bazel/config/BUILD.bazel",
+)
+
+new_local_repository(
     name = "zlib",
     path = "third_party/zlib",
     build_file = "bazel/BUILD.zlib",

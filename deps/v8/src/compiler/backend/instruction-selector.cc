@@ -2352,6 +2352,30 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitI16x8AllTrue(node);
     case IrOpcode::kI8x16AllTrue:
       return MarkAsWord32(node), VisitI8x16AllTrue(node);
+    case IrOpcode::kI8x16RelaxedLaneSelect:
+      return MarkAsSimd128(node), VisitI8x16RelaxedLaneSelect(node);
+    case IrOpcode::kI16x8RelaxedLaneSelect:
+      return MarkAsSimd128(node), VisitI16x8RelaxedLaneSelect(node);
+    case IrOpcode::kI32x4RelaxedLaneSelect:
+      return MarkAsSimd128(node), VisitI32x4RelaxedLaneSelect(node);
+    case IrOpcode::kI64x2RelaxedLaneSelect:
+      return MarkAsSimd128(node), VisitI64x2RelaxedLaneSelect(node);
+    case IrOpcode::kF32x4RelaxedMin:
+      return MarkAsSimd128(node), VisitF32x4RelaxedMin(node);
+    case IrOpcode::kF32x4RelaxedMax:
+      return MarkAsSimd128(node), VisitF32x4RelaxedMax(node);
+    case IrOpcode::kF64x2RelaxedMin:
+      return MarkAsSimd128(node), VisitF64x2RelaxedMin(node);
+    case IrOpcode::kF64x2RelaxedMax:
+      return MarkAsSimd128(node), VisitF64x2RelaxedMax(node);
+    case IrOpcode::kI32x4RelaxedTruncF64x2SZero:
+      return MarkAsSimd128(node), VisitI32x4RelaxedTruncF64x2SZero(node);
+    case IrOpcode::kI32x4RelaxedTruncF64x2UZero:
+      return MarkAsSimd128(node), VisitI32x4RelaxedTruncF64x2UZero(node);
+    case IrOpcode::kI32x4RelaxedTruncF32x4S:
+      return MarkAsSimd128(node), VisitI32x4RelaxedTruncF32x4S(node);
+    case IrOpcode::kI32x4RelaxedTruncF32x4U:
+      return MarkAsSimd128(node), VisitI32x4RelaxedTruncF32x4U(node);
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
             node->op()->mnemonic(), node->id());
@@ -2764,6 +2788,37 @@ void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
+
+#if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitF32x4RelaxedMin(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF32x4RelaxedMax(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2RelaxedMin(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2RelaxedMax(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI32x4RelaxedTruncF64x2SZero(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4RelaxedTruncF64x2UZero(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4RelaxedTruncF32x4S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4RelaxedTruncF32x4U(Node* node) {
+  UNIMPLEMENTED();
+}
+#endif  // !V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

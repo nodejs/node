@@ -77,11 +77,12 @@ class DiscardingFreeHandler : public FreeHandlerBase {
       : page_allocator_(page_allocator), free_list_(free_list), page_(page) {}
 
   void Free(FreeList::Block block) {
+    const auto unused_range = free_list_.AddReturningUnusedBounds(block);
     const uintptr_t aligned_begin_unused =
-        RoundUp(reinterpret_cast<uintptr_t>(free_list_.Add(block)),
+        RoundUp(reinterpret_cast<uintptr_t>(unused_range.first),
                 page_allocator_.CommitPageSize());
     const uintptr_t aligned_end_unused =
-        RoundDown(reinterpret_cast<uintptr_t>(block.address) + block.size,
+        RoundDown(reinterpret_cast<uintptr_t>(unused_range.second),
                   page_allocator_.CommitPageSize());
     if (aligned_begin_unused < aligned_end_unused) {
       const size_t discarded_size = aligned_end_unused - aligned_begin_unused;

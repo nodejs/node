@@ -808,8 +808,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int const num_parameters = MiscField::decode(instr->opcode());
 #if V8_ENABLE_WEBASSEMBLY
       if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
-        // Put the return address in a stack slot.
+        // Put the current address in a stack slot, and record a safepoint on
+        // the same address. In most architectures, we record the address after
+        // the function call, but this works too as long as the address in the
+        // frame and safepoint table match.
         __ str(pc, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+        // In Arm, the pc points two instructions after the currently executing
+        // instruction: see https://bit.ly/3CD80OA. To line up the safepoint
+        // address with the stored pc, we add a nop here.
+        __ nop();
+        RecordSafepoint(instr->reference_map());
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (instr->InputAt(0)->IsImmediate()) {
@@ -819,11 +827,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters);
       }
-#if V8_ENABLE_WEBASSEMBLY
-      if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
-        RecordSafepoint(instr->reference_map());
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
@@ -3696,23 +3699,14 @@ void CodeGenerator::AssembleConstructFrame() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmFunctionCall()) {
+      if (call_descriptor->IsWasmFunctionCall() ||
+          call_descriptor->IsWasmImportWrapper() ||
+          call_descriptor->IsWasmCapiFunction()) {
         __ Push(kWasmInstanceRegister);
-      } else if (call_descriptor->IsWasmImportWrapper() ||
-                 call_descriptor->IsWasmCapiFunction()) {
-        // Wasm import wrappers are passed a tuple in the place of the instance.
-        // Unpack the tuple into the instance and the target callable.
-        // This must be done here in the codegen because it cannot be expressed
-        // properly in the graph.
-        __ ldr(kJSFunctionRegister,
-               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
-        __ ldr(kWasmInstanceRegister,
-               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
-        __ Push(kWasmInstanceRegister);
-        if (call_descriptor->IsWasmCapiFunction()) {
-          // Reserve space for saving the PC later.
-          __ AllocateStackSpace(kSystemPointerSize);
-        }
+      }
+      if (call_descriptor->IsWasmCapiFunction()) {
+        // Reserve space for saving the PC later.
+        __ AllocateStackSpace(kSystemPointerSize);
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
     }

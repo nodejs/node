@@ -634,15 +634,14 @@ void WasmTableObject::UpdateDispatchTables(
       isolate->counters()->wasm_reloc_size()->Increment(
           wasm_code->reloc_info().length());
     }
-    // There is a cached tuple on the {capi_function}, but it is instance-
-    // independent, so we prefer to allocate a fresh tuple here.
-    Handle<Tuple2> tuple = isolate->factory()->NewTuple2(
-        instance, capi_function, AllocationType::kOld);
     // Note that {SignatureMap::Find} may return {-1} if the signature is
     // not found; it will simply never match any check.
     auto sig_id = instance->module()->signature_map.Find(sig);
     IndirectFunctionTableEntry(instance, table_index, entry_index)
-        .Set(sig_id, wasm_code->instruction_start(), *tuple);
+        .Set(sig_id, wasm_code->instruction_start(),
+             WasmCapiFunctionData::cast(
+                 capi_function->shared().function_data(kAcquireLoad))
+                 .ref());
   }
 }
 
@@ -1153,9 +1152,9 @@ void ImportedFunctionEntry::SetWasmToJs(
             wasm_to_js_wrapper->instructions().begin());
   DCHECK(wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToJsWrapper ||
          wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToCapiWrapper);
-  Handle<Tuple2> tuple =
-      isolate->factory()->NewTuple2(instance_, callable, AllocationType::kOld);
-  instance_->imported_function_refs().set(index_, *tuple);
+  Handle<WasmApiFunctionRef> ref =
+      isolate->factory()->NewWasmApiFunctionRef(callable);
+  instance_->imported_function_refs().set(index_, *ref);
   instance_->imported_function_targets()[index_] =
       wasm_to_js_wrapper->instruction_start();
 }
@@ -1169,28 +1168,16 @@ void ImportedFunctionEntry::SetWasmToWasm(WasmInstanceObject instance,
   instance_->imported_function_targets()[index_] = call_target;
 }
 
-WasmInstanceObject ImportedFunctionEntry::instance() {
-  // The imported reference entry is either a target instance or a tuple
-  // of this instance and the target callable.
-  Object value = object_ref();
-  if (value.IsWasmInstanceObject()) {
-    return WasmInstanceObject::cast(value);
-  }
-  Tuple2 tuple = Tuple2::cast(value);
-  return WasmInstanceObject::cast(tuple.value1());
-}
-
 // Returns an empty Object() if no callable is available, a JSReceiver
 // otherwise.
 Object ImportedFunctionEntry::maybe_callable() {
   Object value = object_ref();
-  if (!value.IsTuple2()) return Object();
-  Tuple2 tuple = Tuple2::cast(value);
-  return JSReceiver::cast(tuple.value2());
+  if (!value.IsWasmApiFunctionRef()) return Object();
+  return JSReceiver::cast(WasmApiFunctionRef::cast(value).callable());
 }
 
 JSReceiver ImportedFunctionEntry::callable() {
-  return JSReceiver::cast(Tuple2::cast(object_ref()).value2());
+  return JSReceiver::cast(WasmApiFunctionRef::cast(object_ref()).callable());
 }
 
 Object ImportedFunctionEntry::object_ref() {
@@ -1311,9 +1298,19 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_hook_on_function_call_address(
       isolate->debug()->hook_on_function_call_address());
   instance->set_managed_object_maps(*isolate->factory()->empty_fixed_array());
+  instance->set_feedback_vectors(*isolate->factory()->empty_fixed_array());
   instance->set_num_liftoff_function_calls_array(
       module_object->native_module()->num_liftoff_function_calls_array());
   instance->set_break_on_entry(module_object->script().break_on_entry());
+
+  if (FLAG_experimental_wasm_stack_switching) {
+    // TODO(thibaudm): If there is already a continuation object for the current
+    // execution context, re-use that instead of creating a new one.
+    std::unique_ptr<wasm::StackMemory> stack(
+        wasm::StackMemory::GetCurrentStackView(isolate));
+    auto continuation = WasmContinuationObject::New(isolate, std::move(stack));
+    instance->set_active_continuation(*continuation);
+  }
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.
@@ -1568,10 +1565,10 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   }
 
   // Update the dispatch table.
-  Handle<Tuple2> tuple =
-      isolate->factory()->NewTuple2(instance, callable, AllocationType::kOld);
+  Handle<WasmApiFunctionRef> ref =
+      isolate->factory()->NewWasmApiFunctionRef(callable);
   IndirectFunctionTableEntry(instance, table_index, entry_index)
-      .Set(sig_id, call_target, *tuple);
+      .Set(sig_id, call_target, *ref);
 }
 
 // static
@@ -1831,6 +1828,42 @@ void DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
   *value = (static_cast<uint64_t>(msb) << 32) | static_cast<uint64_t>(lsb);
 }
 
+// static
+Handle<WasmContinuationObject> WasmContinuationObject::New(
+    Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
+    HeapObject parent) {
+  Handle<WasmContinuationObject> result = Handle<WasmContinuationObject>::cast(
+      isolate->factory()->NewStruct(WASM_CONTINUATION_OBJECT_TYPE));
+  auto jmpbuf = std::make_unique<wasm::JumpBuffer>();
+  jmpbuf->stack_limit = stack->limit();
+  jmpbuf->sp = stack->base();
+  result->set_jmpbuf(
+      *isolate->factory()->NewForeign(reinterpret_cast<Address>(jmpbuf.get())));
+  size_t external_size = stack->owned_size();
+  Handle<Foreign> managed_stack = Managed<wasm::StackMemory>::FromUniquePtr(
+      isolate, external_size, std::move(stack));
+  Handle<Foreign> managed_jmpbuf = Managed<wasm::JumpBuffer>::FromUniquePtr(
+      isolate, sizeof(wasm::JumpBuffer), std::move(jmpbuf));
+  result->set_managed_stack(*managed_stack);
+  result->set_managed_jmpbuf(*managed_jmpbuf);
+  result->set_parent(parent);
+  return result;
+}
+
+// static
+Handle<WasmContinuationObject> WasmContinuationObject::New(
+    Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack) {
+  auto parent = ReadOnlyRoots(isolate).undefined_value();
+  return New(isolate, std::move(stack), parent);
+}
+
+// static
+Handle<WasmContinuationObject> WasmContinuationObject::New(
+    Isolate* isolate, WasmContinuationObject parent) {
+  auto stack = std::unique_ptr<wasm::StackMemory>(wasm::StackMemory::New());
+  return New(isolate, std::move(stack), parent);
+}
+
 #ifdef DEBUG
 
 namespace {
@@ -1889,7 +1922,8 @@ bool WasmExportedFunction::IsWasmExportedFunction(Object object) {
   JSFunction js_function = JSFunction::cast(object);
   Code code = js_function.code();
   if (CodeKind::JS_TO_WASM_FUNCTION != code.kind() &&
-      code.builtin_id() != Builtin::kGenericJSToWasmWrapper) {
+      code.builtin_id() != Builtin::kGenericJSToWasmWrapper &&
+      code.builtin_id() != Builtin::kWasmReturnPromiseOnSuspend) {
     return false;
   }
   DCHECK(js_function.shared().HasWasmExportedFunctionData());
@@ -1943,9 +1977,11 @@ int WasmExportedFunction::function_index() {
 Handle<WasmExportedFunction> WasmExportedFunction::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
     int arity, Handle<Code> export_wrapper) {
-  DCHECK(CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
-         (export_wrapper->is_builtin() &&
-          export_wrapper->builtin_id() == Builtin::kGenericJSToWasmWrapper));
+  DCHECK(
+      CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
+      (export_wrapper->is_builtin() &&
+       (export_wrapper->builtin_id() == Builtin::kGenericJSToWasmWrapper ||
+        export_wrapper->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend)));
   int num_imported_functions = instance->module()->num_imported_functions;
   Handle<Object> ref =
       func_index >= num_imported_functions
@@ -2134,7 +2170,8 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
 
 JSReceiver WasmJSFunction::GetCallable() const {
   return JSReceiver::cast(
-      Tuple2::cast(shared().wasm_js_function_data().ref()).value2());
+      WasmApiFunctionRef::cast(shared().wasm_js_function_data().ref())
+          .callable());
 }
 
 const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {

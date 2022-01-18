@@ -35,7 +35,7 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
   // The buffer passed into OnBytesReceived is owned by the caller.
   void OnBytesReceived(base::Vector<const uint8_t> bytes) override;
 
-  void Finish() override;
+  void Finish(bool can_use_compiled_module) override;
 
   void Abort() override;
 
@@ -258,7 +258,7 @@ size_t AsyncStreamingDecoder::DecodingState::ReadBytes(
   return num_bytes;
 }
 
-void AsyncStreamingDecoder::Finish() {
+void AsyncStreamingDecoder::Finish(bool can_use_compiled_module) {
   TRACE_STREAMING("Finish\n");
   DCHECK(!stream_finished_);
   stream_finished_ = true;
@@ -268,9 +268,12 @@ void AsyncStreamingDecoder::Finish() {
     base::Vector<const uint8_t> wire_bytes =
         base::VectorOf(wire_bytes_for_deserializing_);
     // Try to deserialize the module from wire bytes and module bytes.
-    if (processor_->Deserialize(compiled_module_bytes_, wire_bytes)) return;
+    if (can_use_compiled_module &&
+        processor_->Deserialize(compiled_module_bytes_, wire_bytes))
+      return;
 
-    // Deserialization failed. Restart decoding using |wire_bytes|.
+    // Compiled module bytes are invalidated by can_use_compiled_module = false
+    // or the deserialization failed. Restart decoding using |wire_bytes|.
     compiled_module_bytes_ = {};
     DCHECK(!deserializing());
     OnBytesReceived(wire_bytes);

@@ -1662,6 +1662,10 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     // Patch {node} to an indirect call via CallFunctionForwardVarargs.
+    // It is safe to call CallFunction instead of Call, as we already checked
+    // that the target is a function that is not a class constructor in
+    // JSCallReduer.
+    // TODO(pthier): We shouldn't blindly rely on checks made in another pass.
     Callable callable = CodeFactory::CallFunctionForwardVarargs(isolate());
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
@@ -1722,6 +1726,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
     // Class constructors are callable, but [[Call]] will raise an exception.
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
+    // We need to check here in addition to JSCallReducer for Realms.
+    // TODO(pthier): Consolidate all the class constructor checks.
     if (IsClassConstructor(shared->kind())) return NoChange();
 
     // Check if we need to convert the {receiver}, but bailout if it would
@@ -1816,6 +1822,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     // Patch {node} to an indirect call via the CallFunction builtin.
+    // It is safe to call CallFunction instead of Call, as we already checked
+    // that the target is a function that is not a class constructor.
     Callable callable = CodeFactory::CallFunction(isolate(), convert_mode);
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));

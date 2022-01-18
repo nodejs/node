@@ -8,7 +8,6 @@
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/assert-scope.h"
-#include "src/common/external-pointer.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
@@ -33,9 +32,11 @@
 #include "src/objects/slots.h"
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
+#include "src/security/external-pointer.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/references.h"
 #include "src/snapshot/serializer-deserializer.h"
+#include "src/snapshot/shared-heap-serializer.h"
 #include "src/snapshot/snapshot-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
@@ -343,17 +344,25 @@ uint32_t ComputeRawHashField(IsolateT* isolate, String string) {
 }
 }  // namespace
 
-StringTableInsertionKey::StringTableInsertionKey(Isolate* isolate,
-                                                 Handle<String> string)
+StringTableInsertionKey::StringTableInsertionKey(
+    Isolate* isolate, Handle<String> string,
+    DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
+#ifdef DEBUG
+  deserializing_user_code_ = deserializing_user_code;
+#endif
   DCHECK(string->IsInternalizedString());
 }
 
-StringTableInsertionKey::StringTableInsertionKey(LocalIsolate* isolate,
-                                                 Handle<String> string)
+StringTableInsertionKey::StringTableInsertionKey(
+    LocalIsolate* isolate, Handle<String> string,
+    DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
+#ifdef DEBUG
+  deserializing_user_code_ = deserializing_user_code;
+#endif
   DCHECK(string->IsInternalizedString());
 }
 
@@ -415,7 +424,9 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
       // be dead, try immediately freeing it.
       Handle<String> string = Handle<String>::cast(obj);
 
-      StringTableInsertionKey key(isolate(), string);
+      StringTableInsertionKey key(
+          isolate(), string,
+          DeserializingUserCodeOption::kIsDeserializingUserCode);
       Handle<String> result =
           isolate()->string_table()->LookupKey(isolate(), &key);
 
@@ -451,6 +462,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
              InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
     auto code_data_container = Handle<CodeDataContainer>::cast(obj);
+    code_data_container->set_code_cage_base(isolate()->code_cage_base());
     code_data_container->AllocateExternalPointerEntries(main_thread_isolate());
     code_data_container->UpdateCodeEntryPoint(main_thread_isolate(),
                                               code_data_container->code());
@@ -546,7 +558,7 @@ Handle<HeapObject> Deserializer<IsolateT>::GetBackReferencedObject() {
 
   // We don't allow ThinStrings in backreferences -- if internalization produces
   // a thin string, then it should also update the backref handle.
-  DCHECK(!obj->IsThinString());
+  DCHECK(!obj->IsThinString(isolate()));
 
   hot_objects_.Add(obj);
   DCHECK(!HasWeakHeapObjectTag(*obj));
@@ -562,6 +574,21 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject() {
   return ret;
 }
 
+namespace {
+AllocationType SpaceToAllocation(SnapshotSpace space) {
+  switch (space) {
+    case SnapshotSpace::kCode:
+      return AllocationType::kCode;
+    case SnapshotSpace::kMap:
+      return AllocationType::kMap;
+    case SnapshotSpace::kOld:
+      return AllocationType::kOld;
+    case SnapshotSpace::kReadOnlyHeap:
+      return AllocationType::kReadOnly;
+  }
+}
+}  // namespace
+
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   const int size_in_tagged = source_.GetInt();
@@ -572,6 +599,23 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   // use the kNewMetaMap bytecode.
   DCHECK_NE(source()->Peek(), kRegisterPendingForwardRef);
   Handle<Map> map = Handle<Map>::cast(ReadObject());
+
+  AllocationType allocation = SpaceToAllocation(space);
+
+  // When sharing a string table, all in-place internalizable and internalized
+  // strings internalized strings are allocated in the shared heap.
+  //
+  // TODO(12007): When shipping, add a new SharedOld SnapshotSpace.
+  if (FLAG_shared_string_table) {
+    InstanceType instance_type = map->instance_type();
+    if (InstanceTypeChecker::IsInternalizedString(instance_type) ||
+        String::IsInPlaceInternalizable(instance_type)) {
+      allocation = isolate()
+                       ->factory()
+                       ->RefineAllocationTypeForInPlaceInternalizableString(
+                           allocation, *map);
+    }
+  }
 
   // Filling an object's fields can cause GCs and heap walks, so this object has
   // to be in a 'sufficiently initialised' state by the time the next allocation
@@ -593,7 +637,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   //     - We ensure this is the case by DCHECKing on object allocation that the
   //       previously allocated object has a valid size (see `Allocate`).
   HeapObject raw_obj =
-      Allocate(space, size_in_bytes, HeapObject::RequiredAlignment(*map));
+      Allocate(allocation, size_in_bytes, HeapObject::RequiredAlignment(*map));
   raw_obj.set_map_after_allocation(*map);
   MemsetTagged(raw_obj.RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
@@ -606,8 +650,9 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   }
 
 #ifdef DEBUG
+  PtrComprCageBase cage_base(isolate());
   // We want to make sure that all embedder pointers are initialized to null.
-  if (raw_obj.IsJSObject() && JSObject::cast(raw_obj).IsApiWrapper()) {
+  if (raw_obj.IsJSObject(cage_base) && JSObject::cast(raw_obj).IsApiWrapper()) {
     JSObject js_obj = JSObject::cast(raw_obj);
     for (int i = 0; i < js_obj.GetEmbedderFieldCount(); ++i) {
       void* pointer;
@@ -615,7 +660,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
           main_thread_isolate(), &pointer));
       CHECK_NULL(pointer);
     }
-  } else if (raw_obj.IsEmbedderDataArray()) {
+  } else if (raw_obj.IsEmbedderDataArray(cage_base)) {
     EmbedderDataArray array = EmbedderDataArray::cast(raw_obj);
     EmbedderDataSlot start(array, 0);
     EmbedderDataSlot end(array, array.length());
@@ -634,7 +679,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   PostProcessNewObject(map, obj, space);
 
 #ifdef DEBUG
-  if (obj->IsCode()) {
+  if (obj->IsCode(cage_base)) {
     DCHECK(space == SnapshotSpace::kCode ||
            space == SnapshotSpace::kReadOnlyHeap);
   } else {
@@ -651,7 +696,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap() {
   const int size_in_bytes = Map::kSize;
   const int size_in_tagged = size_in_bytes / kTaggedSize;
 
-  HeapObject raw_obj = Allocate(space, size_in_bytes, kWordAligned);
+  HeapObject raw_obj =
+      Allocate(SpaceToAllocation(space), size_in_bytes, kWordAligned);
   raw_obj.set_map_after_allocation(Map::unchecked_cast(raw_obj));
   MemsetTagged(raw_obj.RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
@@ -925,6 +971,19 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
     }
 
+    // Find an object in the shared heap object cache and write a pointer to it
+    // to the current object.
+    case kSharedHeapObjectCache: {
+      int cache_index = source_.GetInt();
+      // TODO(leszeks): Could we use the address of the
+      // shared_heap_object_cache entry as a Handle backing?
+      HeapObject heap_object = HeapObject::cast(
+          main_thread_isolate()->shared_heap_object_cache()->at(cache_index));
+      DCHECK(
+          SharedHeapSerializer::ShouldBeInSharedHeapObjectCache(heap_object));
+      return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
+    }
+
     // Deserialize a new meta-map and write a pointer to it to the current
     // object.
     case kNewMetaMap: {
@@ -1057,6 +1116,9 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
         DisallowGarbageCollection no_gc;
 
         Code code = Code::cast(*slot_accessor.object());
+        if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+          code.set_main_cage_base(isolate()->cage_base());
+        }
         DeserializerRelocInfoVisitor visitor(this, &preserialized_objects);
         for (RelocIterator it(code, Code::BodyDescriptor::kRelocModeMask);
              !it.done(); it.next()) {
@@ -1191,23 +1253,8 @@ Address Deserializer<IsolateT>::ReadExternalReferenceCase() {
       reference_id);
 }
 
-namespace {
-AllocationType SpaceToType(SnapshotSpace space) {
-  switch (space) {
-    case SnapshotSpace::kCode:
-      return AllocationType::kCode;
-    case SnapshotSpace::kMap:
-      return AllocationType::kMap;
-    case SnapshotSpace::kOld:
-      return AllocationType::kOld;
-    case SnapshotSpace::kReadOnlyHeap:
-      return AllocationType::kReadOnly;
-  }
-}
-}  // namespace
-
 template <typename IsolateT>
-HeapObject Deserializer<IsolateT>::Allocate(SnapshotSpace space, int size,
+HeapObject Deserializer<IsolateT>::Allocate(AllocationType allocation, int size,
                                             AllocationAlignment alignment) {
 #ifdef DEBUG
   if (!previous_allocation_obj_.is_null()) {
@@ -1219,7 +1266,7 @@ HeapObject Deserializer<IsolateT>::Allocate(SnapshotSpace space, int size,
 #endif
 
   HeapObject obj = HeapObject::FromAddress(isolate()->heap()->AllocateRawOrFail(
-      size, SpaceToType(space), AllocationOrigin::kRuntime, alignment));
+      size, allocation, AllocationOrigin::kRuntime, alignment));
 
 #ifdef DEBUG
   previous_allocation_obj_ = handle(obj, isolate());

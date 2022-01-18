@@ -48,6 +48,17 @@ void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
   }
 }
 
+void MarkingBarrier::WriteWithoutHost(HeapObject value) {
+  DCHECK(is_main_thread_barrier_);
+  if (WhiteToGreyAndPush(value)) {
+    incremental_marking_->RestartIfNotMarking();
+
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+      heap_->AddRetainingRoot(Root::kWriteBarrier, value);
+    }
+  }
+}
+
 void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {
   DCHECK(IsCurrentMarkingBarrier());
   if (MarkValue(host, value)) {

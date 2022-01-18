@@ -3265,6 +3265,24 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
       total_preparse_skipped_);
 }
 
+void Parser::UpdateStatistics(Handle<Script> script, int* use_counts,
+                              int* preparse_skipped) {
+  // Move statistics to Isolate.
+  for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
+       ++feature) {
+    if (use_counts_[feature] > 0) {
+      use_counts[feature]++;
+    }
+  }
+  if (scanner_.FoundHtmlComment()) {
+    use_counts[v8::Isolate::kHtmlComment]++;
+    if (script->line_offset() == 0 && script->column_offset() == 0) {
+      use_counts[v8::Isolate::kHtmlCommentInExternalScript]++;
+    }
+  }
+  *preparse_skipped = total_preparse_skipped_;
+}
+
 void Parser::ParseOnBackground(ParseInfo* info, int start_position,
                                int end_position, int function_literal_id) {
   RCS_SCOPE(runtime_call_stats_, RuntimeCallCounterId::kParseBackgroundProgram);

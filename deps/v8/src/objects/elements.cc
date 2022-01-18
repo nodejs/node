@@ -3331,21 +3331,29 @@ class TypedElementsAccessor
       return Just(value->IsUndefined(isolate) && length > start_from);
     }
 
-    if (value->IsUndefined(isolate) && length > typed_array.length()) {
+    bool out_of_bounds = false;
+    size_t new_length = typed_array.GetLengthOrOutOfBounds(out_of_bounds);
+    if (V8_UNLIKELY(out_of_bounds)) {
+      return Just(value->IsUndefined(isolate) && length > start_from);
+    }
+
+    if (value->IsUndefined(isolate) && length > new_length) {
       return Just(true);
     }
 
     // Prototype has no elements, and not searching for the hole --- limit
     // search to backing store length.
-    if (typed_array.length() < length) {
-      length = typed_array.length();
+    if (new_length < length) {
+      length = new_length;
     }
 
     ElementType typed_search_value;
     ElementType* data_ptr =
         reinterpret_cast<ElementType*>(typed_array.DataPtr());
     auto is_shared = typed_array.buffer().is_shared() ? kShared : kUnshared;
-    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
+    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS ||
+        Kind == RAB_GSAB_BIGINT64_ELEMENTS ||
+        Kind == RAB_GSAB_BIGUINT64_ELEMENTS) {
       if (!value->IsBigInt()) return Just(false);
       bool lossless;
       typed_search_value = FromHandle(value, &lossless);
@@ -3355,7 +3363,9 @@ class TypedElementsAccessor
       double search_value = value->Number();
       if (!std::isfinite(search_value)) {
         // Integral types cannot represent +Inf or NaN.
-        if (Kind < FLOAT32_ELEMENTS || Kind > FLOAT64_ELEMENTS) {
+        if (!(Kind == FLOAT32_ELEMENTS || Kind == FLOAT64_ELEMENTS ||
+              Kind == RAB_GSAB_FLOAT32_ELEMENTS ||
+              Kind == RAB_GSAB_FLOAT64_ELEMENTS)) {
           return Just(false);
         }
         if (std::isnan(search_value)) {

@@ -7,7 +7,7 @@ import {Profile} from '../profile.mjs';
 import {RemoteLinuxCppEntriesProvider, RemoteMacOSCppEntriesProvider} from '../tickprocessor.mjs'
 
 import {ApiLogEntry} from './log/api.mjs';
-import {CodeLogEntry, DeoptLogEntry, SharedLibLogEntry} from './log/code.mjs';
+import {CodeLogEntry, DeoptLogEntry, FeedbackVectorEntry, SharedLibLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {Edge, MapLogEntry} from './log/map.mjs';
 import {TickLogEntry} from './log/tick.mjs';
@@ -114,6 +114,13 @@ export class Processor extends LogReader {
           parseString,
         ],
         processor: this.processCodeDisassemble
+      },
+      'feedback-vector': {
+        parsers: [
+          parseInt, parseString, parseInt, parseInt, parseString, parseString,
+          parseInt, parseInt, parseString
+        ],
+        processor: this.processFeedbackVector
       },
       'script-source': {
         parsers: [parseInt, parseString, parseString],
@@ -326,6 +333,21 @@ export class Processor extends LogReader {
     const column = parseInt(
         deoptLocation.substring(colSeparator + 1, deoptLocation.length - 1));
     logEntry.sourcePosition = script.addSourcePosition(line, column, logEntry);
+  }
+
+  processFeedbackVector(
+      timestamp, fbv_address, fbv_length, instructionStart, optimization_marker,
+      optimization_tier, invocation_count, profiler_ticks, fbv_string) {
+    const codeEntry = this._profile.findEntry(instructionStart);
+    if (!codeEntry) {
+      console.warn('Didn\'t find code for FBV', {fbv, instructionStart});
+      return;
+    }
+    const fbv = new FeedbackVectorEntry(
+        timestamp, codeEntry.logEntry, fbv_address, fbv_length,
+        optimization_marker, optimization_tier, invocation_count,
+        profiler_ticks, fbv_string);
+    codeEntry.logEntry.setFeedbackVector(fbv);
   }
 
   processScriptSource(scriptId, url, source) {

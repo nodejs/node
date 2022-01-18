@@ -19,8 +19,10 @@ DOM.defineCustomElement('view/code-panel',
 
   constructor() {
     super(templateText);
+    this._propertiesNode = this.$('#properties');
     this._codeSelectNode = this.$('#codeSelect');
     this._disassemblyNode = this.$('#disassembly');
+    this._feedbackVectorNode = this.$('#feedbackVector');
     this._sourceNode = this.$('#sourceCode');
     this._registerSelector = new RegisterSelector(this._disassemblyNode);
 
@@ -42,8 +44,10 @@ DOM.defineCustomElement('view/code-panel',
 
   set entry(entry) {
     this._entry = entry;
-    if (entry !== undefined) {
-      this.$('#properties').propertyDict = {
+    if (!entry) {
+      this._propertiesNode.propertyDict = {};
+    } else {
+      this._propertiesNode.propertyDict = {
         '__this__': entry,
         functionName: entry.functionName,
         size: formatBytes(entry.size),
@@ -54,19 +58,29 @@ DOM.defineCustomElement('view/code-panel',
         kind: entry.kindName,
         variants: entry.variants.length > 1 ? entry.variants : undefined,
       };
-    } else {
-      this.$('#properties').propertyDict = {};
     }
     this.requestUpdate();
   }
 
   _update() {
     this._updateSelect();
-    this._formatDisassembly();
+    this._updateDisassembly();
+    this._updateFeedbackVector();
     this._sourceNode.innerText = this._entry?.source ?? '';
   }
 
-  _formatDisassembly() {
+  _updateFeedbackVector() {
+    if (!this._entry?.feedbackVector) {
+      this._feedbackVectorNode.propertyDict = {};
+    } else {
+      const dict = this._entry.feedbackVector.toolTipDict;
+      delete dict.title;
+      delete dict.code;
+      this._feedbackVectorNode.propertyDict = dict;
+    }
+  }
+
+  _updateDisassembly() {
     if (!this._entry?.code) {
       this._disassemblyNode.innerText = '';
       return;

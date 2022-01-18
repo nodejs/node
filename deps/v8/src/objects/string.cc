@@ -34,6 +34,7 @@ namespace internal {
 Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
                                    AllocationType allocation) {
   DCHECK_NE(cons->second().length(), 0);
+  DCHECK(!cons->InSharedHeap());
 
   // TurboFan can create cons strings with empty first parts.
   while (cons->first().length() == 0) {
@@ -43,14 +44,17 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     if (cons->second().IsConsString() && !cons->second().IsFlat()) {
       cons = handle(ConsString::cast(cons->second()), isolate);
     } else {
-      return String::Flatten(isolate, handle(cons->second(), isolate));
+      return String::Flatten(isolate, handle(cons->second(), isolate),
+                             allocation);
     }
   }
 
   DCHECK(AllowGarbageCollection::IsAllowed());
   int length = cons->length();
-  allocation =
-      ObjectInYoungGeneration(*cons) ? allocation : AllocationType::kOld;
+  if (allocation != AllocationType::kSharedOld) {
+    allocation =
+        ObjectInYoungGeneration(*cons) ? allocation : AllocationType::kOld;
+  }
   Handle<SeqString> result;
   if (cons->IsOneByteRepresentation()) {
     Handle<SeqOneByteString> flat =
@@ -73,6 +77,31 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
   cons->set_second(ReadOnlyRoots(isolate).empty_string());
   DCHECK(result->IsFlat());
   return result;
+}
+
+Handle<String> String::SlowCopy(Isolate* isolate, Handle<SeqString> source,
+                                AllocationType allocation) {
+  int length = source->length();
+  Handle<String> copy;
+  if (source->IsOneByteRepresentation()) {
+    copy = isolate->factory()
+               ->NewRawOneByteString(length, allocation)
+               .ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    String::FlatContent content = source->GetFlatContent(no_gc);
+    CopyChars(SeqOneByteString::cast(*copy).GetChars(no_gc),
+              content.ToOneByteVector().begin(), length);
+    return copy;
+  } else {
+    copy = isolate->factory()
+               ->NewRawTwoByteString(length, allocation)
+               .ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    String::FlatContent content = source->GetFlatContent(no_gc);
+    CopyChars(SeqTwoByteString::cast(*copy).GetChars(no_gc),
+              content.ToUC16Vector().begin(), length);
+  }
+  return copy;
 }
 
 namespace {
@@ -119,6 +148,10 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   DisallowGarbageCollection no_gc;
   DCHECK_NE(*this, internalized);
   DCHECK(internalized.IsInternalizedString());
+  // TODO(v8:12007): Make this method threadsafe.
+  DCHECK_IMPLIES(
+      InSharedWritableHeap(),
+      ThreadId::Current() == GetIsolateFromWritableObject(*this)->thread_id());
 
   if (this->IsExternalString()) {
     MigrateExternalString(isolate->AsIsolate(), *this, internalized);
@@ -1399,7 +1432,12 @@ uint32_t String::ComputeAndSetHash(
     const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
   // Should only be called if hash code has not yet been computed.
-  DCHECK(!HasHashCode());
+  //
+  // If in-place internalizable strings are shared, there may be calls to
+  // ComputeAndSetHash in parallel. Since only flat strings are in-place
+  // internalizable and their contents do not change, the result hash is the
+  // same. The raw hash field is stored with relaxed ordering.
+  DCHECK_IMPLIES(!FLAG_shared_string_table, !HasHashCode());
 
   // Store the hash code in the object.
   uint64_t seed = HashSeed(GetReadOnlyRoots());

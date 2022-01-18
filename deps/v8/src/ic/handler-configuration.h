@@ -301,6 +301,11 @@ class StoreHandler final : public DataHandler {
                                        PropertyConstness constness,
                                        Representation representation);
 
+  // Create a store transition handler which doesn't check prototype chain.
+  static MaybeObjectHandle StoreOwnTransition(Isolate* isolate,
+                                              Handle<Map> transition_map);
+
+  // Create a store transition handler with prototype chain validity cell check.
   static MaybeObjectHandle StoreTransition(Isolate* isolate,
                                            Handle<Map> transition_map);
 

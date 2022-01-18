@@ -60,6 +60,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/utils/ostreams.h"
+#include "src/web-snapshot/web-snapshot.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 namespace v8 {
@@ -208,8 +209,9 @@ struct ScopedTimer {
 // static
 void Compiler::LogFunctionCompilation(Isolate* isolate,
                                       CodeEventListener::LogEventsAndTags tag,
-                                      Handle<SharedFunctionInfo> shared,
                                       Handle<Script> script,
+                                      Handle<SharedFunctionInfo> shared,
+                                      Handle<FeedbackVector> vector,
                                       Handle<AbstractCode> abstract_code,
                                       CodeKind kind, double time_taken_ms) {
   DCHECK(!abstract_code.is_null());
@@ -234,6 +236,9 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
       Logger::ToNativeByScript(tag, *script);
   PROFILE(isolate, CodeCreateEvent(log_tag, abstract_code, shared, script_name,
                                    line_num, column_num));
+  if (!vector.is_null()) {
+    LOG(isolate, FeedbackVectorEvent(*vector, *abstract_code));
+  }
   if (!FLAG_log_function_events) return;
 
   std::string name;
@@ -362,9 +367,9 @@ void RecordUnoptimizedFunctionCompilation(
                          time_taken_to_finalize.InMillisecondsF();
 
   Handle<Script> script(Script::cast(shared->script()), isolate);
-  Compiler::LogFunctionCompilation(isolate, tag, shared, script, abstract_code,
-                                   CodeKind::INTERPRETED_FUNCTION,
-                                   time_taken_ms);
+  Compiler::LogFunctionCompilation(
+      isolate, tag, script, shared, Handle<FeedbackVector>(), abstract_code,
+      CodeKind::INTERPRETED_FUNCTION, time_taken_ms);
 }
 
 }  // namespace
@@ -498,9 +503,11 @@ void OptimizedCompilationJob::RecordFunctionCompilation(
 
   Handle<Script> script(
       Script::cast(compilation_info()->shared_info()->script()), isolate);
+  Handle<FeedbackVector> feedback_vector(
+      compilation_info()->closure()->feedback_vector(), isolate);
   Compiler::LogFunctionCompilation(
-      isolate, tag, compilation_info()->shared_info(), script, abstract_code,
-      compilation_info()->code_kind(), time_taken_ms);
+      isolate, tag, script, compilation_info()->shared_info(), feedback_vector,
+      abstract_code, compilation_info()->code_kind(), time_taken_ms);
 }
 
 // ----------------------------------------------------------------------------
@@ -1636,6 +1643,7 @@ void BackgroundCompileTask::Run() {
           &isolate, isolate.factory()->empty_string(), kNullMaybeHandle,
           ScriptOriginOptions(false, false, false, info_->flags().is_module()));
 
+      parser_->UpdateStatistics(script, use_counts_, &total_preparse_skipped_);
       parser_->HandleSourceURLComments(&isolate, script);
 
       MaybeHandle<SharedFunctionInfo> maybe_result;
@@ -1849,7 +1857,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
 
   // Check if the compiler dispatcher has shared_info enqueued for compile.
   LazyCompileDispatcher* dispatcher = isolate->lazy_compile_dispatcher();
-  if (dispatcher->IsEnqueued(shared_info)) {
+  if (dispatcher && dispatcher->IsEnqueued(shared_info)) {
     if (!dispatcher->FinishNow(shared_info)) {
       return FailWithPendingException(isolate, script, &parse_info, flag);
     }
@@ -2017,9 +2025,10 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
 
   if (shared->script().IsScript()) {
     Compiler::LogFunctionCompilation(
-        isolate, CodeEventListener::FUNCTION_TAG, shared,
-        handle(Script::cast(shared->script()), isolate),
-        Handle<AbstractCode>::cast(code), CodeKind::BASELINE, time_taken_ms);
+        isolate, CodeEventListener::FUNCTION_TAG,
+        handle(Script::cast(shared->script()), isolate), shared,
+        Handle<FeedbackVector>(), Handle<AbstractCode>::cast(code),
+        CodeKind::BASELINE, time_taken_ms);
   }
   return true;
 }
@@ -2147,7 +2156,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
     Handle<Context> context, LanguageMode language_mode,
     ParseRestriction restriction, int parameters_end_pos,
-    int eval_scope_position, int eval_position) {
+    int eval_scope_position, int eval_position,
+    ParsingWhileDebugging parsing_while_debugging) {
   Isolate* isolate = context->GetIsolate();
   int source_length = source->length();
   isolate->counters()->total_eval_size()->Increment(source_length);
@@ -2190,6 +2200,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
         isolate, true, language_mode, REPLMode::kNo, ScriptType::kClassic,
         FLAG_lazy_eval);
     flags.set_is_eval(true);
+    flags.set_parsing_while_debugging(parsing_while_debugging);
     DCHECK(!flags.is_module());
     flags.set_parse_restriction(restriction);
 
@@ -2854,6 +2865,27 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
+  if (V8_UNLIKELY(
+          i::FLAG_experimental_web_snapshots &&
+          (source->IsExternalOneByteString() || source->IsSeqOneByteString()) &&
+          source_length > 4)) {
+    // Experimental: Treat the script as a web snapshot if it starts with the
+    // magic byte sequence. TODO(v8:11525): Remove this once proper embedder
+    // integration is done.
+    bool magic_matches = true;
+    for (size_t i = 0;
+         i < sizeof(WebSnapshotSerializerDeserializer::kMagicNumber); ++i) {
+      if (source->Get(static_cast<int>(i)) !=
+          WebSnapshotSerializerDeserializer::kMagicNumber[i]) {
+        magic_matches = false;
+        break;
+      }
+    }
+    if (magic_matches) {
+      return Compiler::GetSharedFunctionInfoForWebSnapshot(isolate, source);
+    }
+  }
+
   LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
   CompilationCache* compilation_cache = isolate->compilation_cache();
 
@@ -3150,6 +3182,15 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
       scripts = WeakArrayList::Append(isolate, scripts,
                                       MaybeObjectHandle::Weak(script));
       isolate->heap()->SetRootScriptList(*scripts);
+
+      for (int i = 0;
+           i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount); ++i) {
+        v8::Isolate::UseCounterFeature feature =
+            static_cast<v8::Isolate::UseCounterFeature>(i);
+        isolate->CountUsage(feature, task->use_count(feature));
+      }
+      isolate->counters()->total_preparse_skipped()->Increment(
+          task->total_preparse_skipped());
     } else {
       ParseInfo* parse_info = task->info();
       DCHECK_EQ(parse_info->flags().is_module(), origin_options.IsModule());
@@ -3211,6 +3252,23 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
                "V8.StreamingFinalization.Release");
   streaming_data->Release();
   return maybe_result;
+}
+
+// static
+Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForWebSnapshot(
+    Isolate* isolate, Handle<String> source) {
+  // This script won't hold the functions created from the web snapshot;
+  // reserving space only for the top-level SharedFunctionInfo is enough.
+  Handle<WeakFixedArray> shared_function_infos =
+      isolate->factory()->NewWeakFixedArray(1, AllocationType::kOld);
+  Handle<Script> script = isolate->factory()->NewScript(source);
+  script->set_type(Script::TYPE_WEB_SNAPSHOT);
+  script->set_shared_function_infos(*shared_function_infos);
+
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfoForWebSnapshot();
+  shared->SetScript(isolate->factory()->read_only_roots(), *script, 0, false);
+  return shared;
 }
 
 // static

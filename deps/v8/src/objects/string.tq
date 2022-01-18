@@ -12,6 +12,10 @@ extern class String extends Name {
         Convert<uint16>(this.map.instance_type));
   }
 
+  macro IsNotInternalized(): bool {
+    return this.StringInstanceType().is_not_internalized;
+  }
+
   const length: int32;
 }
 

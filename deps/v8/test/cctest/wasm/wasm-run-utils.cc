@@ -148,6 +148,7 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
                                      index,    // func_index
                                      0,        // sig_index
                                      {0, 0},   // code
+                                     0,        // feedback slots
                                      false,    // imported
                                      false,    // exported
                                      false});  // declared

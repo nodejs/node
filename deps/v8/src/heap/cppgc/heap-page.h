@@ -202,6 +202,15 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
 
 class V8_EXPORT_PRIVATE LargePage final : public BasePage {
  public:
+  static constexpr size_t PageHeaderSize() {
+    // Header should be un-aligned to `kAllocationGranularity` so that adding a
+    // `HeapObjectHeader` gets the user object aligned to
+    // `kGuaranteedObjectAlignment`.
+    return RoundUp<kGuaranteedObjectAlignment>(sizeof(LargePage) +
+                                               sizeof(HeapObjectHeader)) -
+           sizeof(HeapObjectHeader);
+  }
+
   // Returns the allocation size required for a payload of size |size|.
   static size_t AllocationSize(size_t size);
   // Allocates a new page in the detached state.
@@ -239,6 +248,9 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   }
 
  private:
+  static constexpr size_t kGuaranteedObjectAlignment =
+      2 * kAllocationGranularity;
+
   LargePage(HeapBase& heap, BaseSpace& space, size_t);
   ~LargePage();
 

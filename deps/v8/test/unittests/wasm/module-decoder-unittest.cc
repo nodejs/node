@@ -1118,6 +1118,7 @@ TEST_F(WasmModuleVerifyTest, ArrayInitInitExpr) {
               WASM_INIT_EXPR_ARRAY_INIT(0, 3, WASM_I32V(10), WASM_I32V(20),
                                         WASM_I32V(30), WASM_RTT_CANON(0)))};
   EXPECT_VERIFIES(basic);
+
   static const byte basic_nominal[] = {
       SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI16Code, true)),
       SECTION(Global, ENTRY_COUNT(1),  // --
@@ -1125,6 +1126,14 @@ TEST_F(WasmModuleVerifyTest, ArrayInitInitExpr) {
               WASM_INIT_EXPR_ARRAY_INIT_STATIC(0, 3, WASM_I32V(10),
                                                WASM_I32V(20), WASM_I32V(30)))};
   EXPECT_VERIFIES(basic_nominal);
+
+  static const byte basic_immutable[] = {
+      SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI32Code, false)),
+      SECTION(Global, ENTRY_COUNT(1),  // --
+              kRefCode, 0, 0,          // type, mutability
+              WASM_INIT_EXPR_ARRAY_INIT(0, 3, WASM_I32V(10), WASM_I32V(20),
+                                        WASM_I32V(30), WASM_RTT_CANON(0)))};
+  EXPECT_VERIFIES(basic_immutable);
 
   static const byte type_error[] = {
       SECTION(Type, ENTRY_COUNT(2),  // --
@@ -1421,14 +1430,12 @@ TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
               2)};                   // invalid mutability value
   EXPECT_FAILURE_WITH_MSG(invalid_mutability, "invalid mutability");
 
-  static const byte invalid_mutability2[] = {
-      SECTION(Type,
-              ENTRY_COUNT(1),      // --
-              kWasmArrayTypeCode,  // --
-              kI32Code,            // field type
-              0)};                 // immmutability (disallowed in MVP)
-  EXPECT_FAILURE_WITH_MSG(invalid_mutability2,
-                          "immutable arrays are not supported");
+  static const byte immutable[] = {SECTION(Type,
+                                           ENTRY_COUNT(1),      // --
+                                           kWasmArrayTypeCode,  // --
+                                           kI32Code,            // field type
+                                           0)};                 // immmutability
+  EXPECT_VERIFIES(immutable);
 }
 
 TEST_F(WasmModuleVerifyTest, ZeroExceptions) {

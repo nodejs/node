@@ -52,6 +52,10 @@ extern class Map extends HeapObject {
     }
   }
 
+  macro IsUndetectable(): bool {
+    return this.bit_field.is_undetectable;
+  }
+
   instance_size_in_words: uint8;
   inobject_properties_start_or_constructor_function_index: uint8;
   used_or_unused_instance_size_in_words: uint8;

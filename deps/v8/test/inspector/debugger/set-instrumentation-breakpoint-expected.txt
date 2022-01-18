@@ -87,3 +87,10 @@ paused with reason: instrumentation
     sourceMapURL : boo.js
     url : foo.js
 }
+
+Running test: testCoincideWithRegularBreakpoint
+regular breakpoint and instrumentation breakpoint are reported
+Set breakpoint: 8:beforeScriptExecution
+Set breakpoint: 1:0:0:test.js
+paused with reason: instrumentation and breakpoints: 
+paused with reason: other and breakpoints: 1:0:0:test.js

@@ -163,6 +163,8 @@ namespace compiler {
   V(X64MovqDecompressTaggedPointer)                  \
   V(X64MovqDecompressAnyTagged)                      \
   V(X64MovqCompressTagged)                           \
+  V(X64MovqEncodeCagedPointer)                       \
+  V(X64MovqDecodeCagedPointer)                       \
   V(X64BitcastFI)                                    \
   V(X64BitcastDL)                                    \
   V(X64BitcastIF)                                    \
@@ -174,6 +176,10 @@ namespace compiler {
   V(X64Push)                                         \
   V(X64Poke)                                         \
   V(X64Peek)                                         \
+  V(X64Cvttps2dq)                                    \
+  V(X64Cvttpd2dq)                                    \
+  V(X64I32x4TruncF64x2UZero)                         \
+  V(X64I32x4TruncF32x4U)                             \
   V(X64F64x2Splat)                                   \
   V(X64F64x2ExtractLane)                             \
   V(X64F64x2ReplaceLane)                             \
@@ -192,8 +198,8 @@ namespace compiler {
   V(X64F64x2Le)                                      \
   V(X64F64x2Qfma)                                    \
   V(X64F64x2Qfms)                                    \
-  V(X64F64x2Pmin)                                    \
-  V(X64F64x2Pmax)                                    \
+  V(X64Minpd)                                        \
+  V(X64Maxpd)                                        \
   V(X64F64x2Round)                                   \
   V(X64F64x2ConvertLowI32x4S)                        \
   V(X64F64x2ConvertLowI32x4U)                        \
@@ -219,8 +225,8 @@ namespace compiler {
   V(X64F32x4Le)                                      \
   V(X64F32x4Qfma)                                    \
   V(X64F32x4Qfms)                                    \
-  V(X64F32x4Pmin)                                    \
-  V(X64F32x4Pmax)                                    \
+  V(X64Minps)                                        \
+  V(X64Maxps)                                        \
   V(X64F32x4Round)                                   \
   V(X64F32x4DemoteF64x2Zero)                         \
   V(X64I64x2Splat)                                   \
@@ -392,6 +398,7 @@ namespace compiler {
   V(X64I32x4AllTrue)                                 \
   V(X64I16x8AllTrue)                                 \
   V(X64I8x16AllTrue)                                 \
+  V(X64Pblendvb)                                     \
   V(X64Word64AtomicAddUint64)                        \
   V(X64Word64AtomicSubUint64)                        \
   V(X64Word64AtomicAndUint64)                        \
@@ -422,8 +429,8 @@ namespace compiler {
   V(MR8)  /* [%r1 + %r2*8    ] */      \
   V(MR1I) /* [%r1 + %r2*1 + K] */      \
   V(MR2I) /* [%r1 + %r2*2 + K] */      \
-  V(MR4I) /* [%r1 + %r2*3 + K] */      \
-  V(MR8I) /* [%r1 + %r2*4 + K] */      \
+  V(MR4I) /* [%r1 + %r2*4 + K] */      \
+  V(MR8I) /* [%r1 + %r2*8 + K] */      \
   V(M1)   /* [      %r2*1    ] */      \
   V(M2)   /* [      %r2*2    ] */      \
   V(M4)   /* [      %r2*4    ] */      \

@@ -10,14 +10,13 @@ const kBuiltinNameFindLast: constexpr string =
 
 // https://tc39.es/proposal-array-find-from-last/index.html#sec-%typedarray%.prototype.findlast
 transitioning macro FindLastAllElements(implicit context: Context)(
-    array: typed_array::AttachedJSTypedArray, predicate: Callable,
-    thisArg: JSAny): JSAny {
-  let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
-  // 3. Let len be O.[[ArrayLength]].
-  const length: uintptr = witness.Get().length;
+    attachedArrayAndLength: typed_array::AttachedJSTypedArrayAndLength,
+    predicate: Callable, thisArg: JSAny): JSAny {
+  let witness =
+      typed_array::NewAttachedJSTypedArrayWitness(attachedArrayAndLength.array);
   // 5. Let k be len - 1.
   // 6. Repeat, while k ≥ 0
-  for (let k: uintptr = length; k-- > 0;) {
+  for (let k: uintptr = attachedArrayAndLength.length; k-- > 0;) {
     // 6a. Let Pk be ! ToString(𝔽(k)).
     // There is no need to cast ToString to load elements.
 
@@ -25,9 +24,9 @@ transitioning macro FindLastAllElements(implicit context: Context)(
     // kValue must be undefined when the buffer was detached.
     let value: JSAny;
     try {
-      witness.Recheck() otherwise goto IsDetached;
+      witness.RecheckIndex(k) otherwise goto IsDetachedOrOutOfBounds;
       value = witness.Load(k);
-    } label IsDetached deferred {
+    } label IsDetachedOrOutOfBounds deferred {
       value = Undefined;
     }
 
@@ -54,24 +53,25 @@ transitioning macro FindLastAllElements(implicit context: Context)(
 transitioning javascript builtin
 TypedArrayPrototypeFindLast(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
-  // arguments[0] = callback
+  // arguments[0] = predicate
   // arguments[1] = thisArg
   try {
     // 1. Let O be the this value.
+    // 2. Perform ? ValidateTypedArray(O).
+    // 3. Let len be IntegerIndexedObjectLength(O).
     const array: JSTypedArray = Cast<JSTypedArray>(receiver)
         otherwise NotTypedArray;
-    // 2. Perform ? ValidateTypedArray(O).
-    const uarray = typed_array::EnsureAttached(array) otherwise IsDetached;
-
+    const attachedArrayAndLength = EnsureAttachedAndReadLength(array)
+        otherwise IsDetachedOrOutOfBounds;
     // 4. If IsCallable(predicate) is false, throw a TypeError exception.
     const predicate = Cast<Callable>(arguments[0]) otherwise NotCallable;
     const thisArg = arguments[1];
-    return FindLastAllElements(uarray, predicate, thisArg);
+    return FindLastAllElements(attachedArrayAndLength, predicate, thisArg);
   } label NotCallable deferred {
     ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameFindLast);
-  } label IsDetached deferred {
+  } label IsDetachedOrOutOfBounds deferred {
     ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameFindLast);
   }
 }

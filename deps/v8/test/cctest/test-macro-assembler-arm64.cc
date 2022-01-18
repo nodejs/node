@@ -77,15 +77,17 @@ TEST(EmbeddedObj) {
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
 
+  PtrComprCageBase cage_base(isolate);
+
   // Test the user-facing reloc interface.
   const int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsCompressedEmbeddedObject(mode)) {
-      CHECK_EQ(*my_array, it.rinfo()->target_object());
+      CHECK_EQ(*my_array, it.rinfo()->target_object(cage_base));
     } else {
       CHECK(RelocInfo::IsFullEmbeddedObject(mode));
-      CHECK_EQ(*old_array, it.rinfo()->target_object());
+      CHECK_EQ(*old_array, it.rinfo()->target_object(cage_base));
     }
   }
 #endif  // V8_COMPRESS_POINTERS

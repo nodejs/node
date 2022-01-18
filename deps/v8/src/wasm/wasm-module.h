@@ -9,6 +9,7 @@
 #ifndef V8_WASM_WASM_MODULE_H_
 #define V8_WASM_WASM_MODULE_H_
 
+#include <map>
 #include <memory>
 
 #include "src/base/optional.h"
@@ -62,6 +63,10 @@ struct WasmFunction {
   uint32_t func_index;     // index into the function table.
   uint32_t sig_index;      // index into the signature table.
   WireBytesRef code;       // code of this function.
+  // Required number of slots in a feedback vector. Marked {mutable} because
+  // this is computed late (by Liftoff compilation), when the rest of the
+  // {WasmFunction} is typically considered {const}.
+  mutable int feedback_slots;
   bool imported;
   bool exported;
   bool declared;
@@ -257,6 +262,21 @@ struct V8_EXPORT_PRIVATE WasmDebugSymbols {
   WireBytesRef external_url;
 };
 
+struct CallSiteFeedback {
+  int function_index;
+  int absolute_call_frequency;
+};
+struct FunctionTypeFeedback {
+  std::vector<CallSiteFeedback> feedback_vector;
+  std::map<WasmCodePosition, int> positions;
+  int tierup_priority = 0;
+};
+struct TypeFeedbackStorage {
+  std::map<uint32_t, FunctionTypeFeedback> feedback_for_function;
+  // Accesses to {feedback_for_function} are guarded by this mutex.
+  base::Mutex mutex;
+};
+
 struct WasmTable;
 
 // End of a chain of explicit supertypes.
@@ -364,6 +384,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmCompilationHint> compilation_hints;
   BranchHintInfo branch_hints;
   SignatureMap signature_map;  // canonicalizing map for signature indexes.
+  // Entries in this storage are short-lived: when tier-up of a function is
+  // scheduled, an entry is placed; the Turbofan graph builder consumes it.
+  mutable TypeFeedbackStorage type_feedback;
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
   LazilyGeneratedNames lazily_generated_names;

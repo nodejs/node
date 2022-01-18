@@ -465,13 +465,9 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static void SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
                                     Handle<Object> value,
                                     PropertyDetails details);
-  static void SetDictionaryElement(Handle<JSObject> object, uint32_t index,
+  static void SetNormalizedElement(Handle<JSObject> object, uint32_t index,
                                    Handle<Object> value,
-                                   PropertyAttributes attributes);
-  static void SetDictionaryArgumentsElement(Handle<JSObject> object,
-                                            uint32_t index,
-                                            Handle<Object> value,
-                                            PropertyAttributes attributes);
+                                   PropertyDetails details);
 
   static void OptimizeAsPrototype(Handle<JSObject> object,
                                   bool enable_setup_mode = true);

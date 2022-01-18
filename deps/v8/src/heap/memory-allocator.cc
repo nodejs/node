@@ -280,8 +280,15 @@ V8_EXPORT_PRIVATE BasicMemoryChunk* MemoryAllocator::AllocateBasicChunk(
   VirtualMemory reservation;
   Address area_start = kNullAddress;
   Address area_end = kNullAddress;
+#ifdef V8_COMPRESS_POINTERS
+  // When pointer compression is enabled, spaces are expected to be at a
+  // predictable address (see mkgrokdump) so we don't supply a hint and rely on
+  // the deterministic behaviour of the BoundedPageAllocator.
+  void* address_hint = nullptr;
+#else
   void* address_hint =
       AlignedAddress(heap->GetRandomMmapAddr(), MemoryChunk::kAlignment);
+#endif
 
   //
   // MemoryChunk layout:

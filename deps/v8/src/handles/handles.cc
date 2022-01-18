@@ -46,6 +46,9 @@ bool HandleBase::IsDereferenceAllowed() const {
   if (isolate->IsBuiltinTableHandleLocation(location_)) return true;
   if (!AllowHandleDereference::IsAllowed()) return false;
 
+  // Allocations in the shared heap may be dereferenced by multiple threads.
+  if (isolate->is_shared()) return true;
+
   LocalHeap* local_heap = isolate->CurrentLocalHeap();
 
   // Local heap can't access handles when parked

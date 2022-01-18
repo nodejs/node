@@ -148,6 +148,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     int offset() const { return spill_offset_; }
+    void set_offset(int offset) { spill_offset_ = offset; }
 
     Register gp_reg() const { return reg().gp(); }
     DoubleRegister fp_reg() const { return reg().fp(); }
@@ -491,12 +492,16 @@ class LiftoffAssembler : public TurboAssembler {
   // stack, so that we can merge different values on the back-edge.
   void PrepareLoopArgs(int num);
 
-  int NextSpillOffset(ValueKind kind) {
-    int offset = TopSpillOffset() + SlotSizeForType(kind);
+  V8_INLINE static int NextSpillOffset(ValueKind kind, int top_spill_offset) {
+    int offset = top_spill_offset + SlotSizeForType(kind);
     if (NeedsAlignment(kind)) {
       offset = RoundUp(offset, SlotSizeForType(kind));
     }
     return offset;
+  }
+
+  int NextSpillOffset(ValueKind kind) {
+    return NextSpillOffset(kind, TopSpillOffset());
   }
 
   int TopSpillOffset() const {
@@ -1007,6 +1012,8 @@ class LiftoffAssembler : public TurboAssembler {
                              Register lhs, Register rhs = no_reg);
   inline void emit_i32_cond_jumpi(LiftoffCondition, Label*, Register lhs,
                                   int imm);
+  inline void emit_i32_subi_jump_negative(Register value, int subtrahend,
+                                          Label* result_negative);
   // Set {dst} to 1 if condition holds, 0 otherwise.
   inline void emit_i32_eqz(Register dst, Register src);
   inline void emit_i32_set_cond(LiftoffCondition, Register dst, Register lhs,

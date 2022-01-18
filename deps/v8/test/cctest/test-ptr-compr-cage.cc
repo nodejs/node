@@ -45,7 +45,7 @@ UNINITIALIZED_TEST(PtrComprCageCodeRange) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
-  VirtualMemoryCage* cage = i_isolate->GetPtrComprCage();
+  VirtualMemoryCage* cage = i_isolate->GetPtrComprCodeCageForTesting();
   if (i_isolate->RequiresCodeRange()) {
     CHECK(!i_isolate->heap()->code_region().is_empty());
     CHECK(cage->reservation()->InVM(i_isolate->heap()->code_region().begin(),

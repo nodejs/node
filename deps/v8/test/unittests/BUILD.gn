@@ -376,6 +376,7 @@ v8_source_set("unittests_sources") {
     "regress/regress-crbug-938251-unittest.cc",
     "run-all-unittests.cc",
     "runtime/runtime-debug-unittest.cc",
+    "security/virtual-memory-cage-unittest.cc",
     "strings/char-predicates-unittest.cc",
     "strings/unicode-unittest.cc",
     "tasks/background-compile-task-unittest.cc",
@@ -537,5 +538,7 @@ v8_source_set("unittests_sources") {
     # bytecode-utils.h.
     # C4309: 'static_cast': truncation of constant value
     cflags = [ "/wd4309" ]
+
+    sources += [ "avoid-windows-h-includes.cc" ]
   }
 }

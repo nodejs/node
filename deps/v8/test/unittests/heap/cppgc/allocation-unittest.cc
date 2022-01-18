@@ -5,6 +5,7 @@
 #include "include/cppgc/allocation.h"
 
 #include "include/cppgc/visitor.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -128,6 +129,96 @@ TEST_F(CppgcAllocationTest, LargePagesAreZeroedOut) {
       reused_page = true;
   }
   EXPECT_TRUE(reused_page);
+}
+
+namespace {
+
+constexpr size_t kDoubleWord = 2 * sizeof(void*);
+constexpr size_t kWord = sizeof(void*);
+
+class alignas(kDoubleWord) DoubleWordAligned final
+    : public GarbageCollected<DoubleWordAligned> {
+ public:
+  void Trace(Visitor*) const {}
+};
+
+class alignas(kDoubleWord) LargeDoubleWordAligned
+    : public GarbageCollected<LargeDoubleWordAligned> {
+ public:
+  virtual void Trace(cppgc::Visitor*) const {}
+  char array[kLargeObjectSizeThreshold];
+};
+
+template <size_t Size>
+class CustomPadding final : public GarbageCollected<CustomPadding<Size>> {
+ public:
+  void Trace(cppgc::Visitor* visitor) const {}
+  char base_size[128];  // Gets allocated in using RegularSpaceType::kNormal4.
+  char padding[Size];
+};
+
+template <size_t Size>
+class alignas(kDoubleWord) AlignedCustomPadding final
+    : public GarbageCollected<AlignedCustomPadding<Size>> {
+ public:
+  void Trace(cppgc::Visitor* visitor) const {}
+  char base_size[128];  // Gets allocated in using RegularSpaceType::kNormal4.
+  char padding[Size];
+};
+
+}  // namespace
+
+TEST_F(CppgcAllocationTest, DoubleWordAlignedAllocation) {
+  static constexpr size_t kAlignmentMask = kDoubleWord - 1;
+  auto* gced = MakeGarbageCollected<DoubleWordAligned>(GetAllocationHandle());
+  EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(gced) & kAlignmentMask);
+}
+
+TEST_F(CppgcAllocationTest, LargeDoubleWordAlignedAllocation) {
+  static constexpr size_t kAlignmentMask = kDoubleWord - 1;
+  auto* gced =
+      MakeGarbageCollected<LargeDoubleWordAligned>(GetAllocationHandle());
+  EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(gced) & kAlignmentMask);
+}
+
+TEST_F(CppgcAllocationTest, AlignToDoubleWordFromUnaligned) {
+  static constexpr size_t kAlignmentMask = kDoubleWord - 1;
+  auto* padding_object =
+      MakeGarbageCollected<CustomPadding<16>>(GetAllocationHandle());
+  // First allocation is not aligned.
+  ASSERT_EQ(kWord,
+            reinterpret_cast<uintptr_t>(padding_object) & kAlignmentMask);
+  // The end should also not be properly aligned.
+  ASSERT_EQ(kWord, (reinterpret_cast<uintptr_t>(padding_object) +
+                    sizeof(*padding_object)) &
+                       kAlignmentMask);
+  auto* aligned_object =
+      MakeGarbageCollected<AlignedCustomPadding<16>>(GetAllocationHandle());
+  EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(aligned_object) & kAlignmentMask);
+  // Test only yielded a reliable result if objects are adjacent to each other.
+  ASSERT_EQ(reinterpret_cast<uintptr_t>(padding_object) +
+                sizeof(*padding_object) + sizeof(HeapObjectHeader),
+            reinterpret_cast<uintptr_t>(aligned_object));
+}
+
+TEST_F(CppgcAllocationTest, AlignToDoubleWordFromAligned) {
+  static constexpr size_t kAlignmentMask = kDoubleWord - 1;
+  auto* padding_object =
+      MakeGarbageCollected<CustomPadding<kWord>>(GetAllocationHandle());
+  // First allocation is not aligned.
+  ASSERT_EQ(kWord,
+            reinterpret_cast<uintptr_t>(padding_object) & kAlignmentMask);
+  // The end should be properly aligned.
+  ASSERT_EQ(0u, (reinterpret_cast<uintptr_t>(padding_object) +
+                 sizeof(*padding_object)) &
+                    kAlignmentMask);
+  auto* aligned_object =
+      MakeGarbageCollected<AlignedCustomPadding<16>>(GetAllocationHandle());
+  EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(aligned_object) & kAlignmentMask);
+  // Test only yielded a reliable result if objects are adjacent to each other.
+  ASSERT_EQ(reinterpret_cast<uintptr_t>(padding_object) +
+                sizeof(*padding_object) + 2 * sizeof(HeapObjectHeader),
+            reinterpret_cast<uintptr_t>(aligned_object));
 }
 
 }  // namespace internal

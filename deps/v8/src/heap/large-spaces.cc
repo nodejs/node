@@ -161,6 +161,11 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
 
 AllocationResult OldLargeObjectSpace::AllocateRawBackground(
     LocalHeap* local_heap, int object_size) {
+  return AllocateRawBackground(local_heap, object_size, NOT_EXECUTABLE);
+}
+
+AllocationResult OldLargeObjectSpace::AllocateRawBackground(
+    LocalHeap* local_heap, int object_size, Executability executable) {
   DCHECK(!FLAG_enable_third_party_heap);
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
@@ -169,7 +174,7 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
     return AllocationResult::Retry(identity());
   }
 
-  LargePage* page = AllocateLargePage(object_size, NOT_EXECUTABLE);
+  LargePage* page = AllocateLargePage(object_size, executable);
   if (page == nullptr) return AllocationResult::Retry(identity());
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   HeapObject object = page->GetObject();
@@ -211,6 +216,7 @@ size_t LargeObjectSpace::CommittedPhysicalMemory() {
 }
 
 LargePage* CodeLargeObjectSpace::FindPage(Address a) {
+  base::MutexGuard guard(&allocation_mutex_);
   const Address key = BasicMemoryChunk::FromAddress(a)->address();
   auto it = chunk_map_.find(key);
   if (it != chunk_map_.end()) {
@@ -546,6 +552,13 @@ CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)
 AllocationResult CodeLargeObjectSpace::AllocateRaw(int object_size) {
   DCHECK(!FLAG_enable_third_party_heap);
   return OldLargeObjectSpace::AllocateRaw(object_size, EXECUTABLE);
+}
+
+AllocationResult CodeLargeObjectSpace::AllocateRawBackground(
+    LocalHeap* local_heap, int object_size) {
+  DCHECK(!FLAG_enable_third_party_heap);
+  return OldLargeObjectSpace::AllocateRawBackground(local_heap, object_size,
+                                                    EXECUTABLE);
 }
 
 void CodeLargeObjectSpace::AddPage(LargePage* page, size_t object_size) {

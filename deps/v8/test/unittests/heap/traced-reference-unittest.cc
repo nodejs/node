@@ -3,14 +3,18 @@
 // found in the LICENSE file.
 
 #include "include/v8-cppgc.h"
+#include "include/v8-traced-handle.h"
+#include "src/api/api-inl.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/cppgc/visitor.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
-using TracedReferenceTest = TestWithIsolate;
+using TracedReferenceTest = TestWithHeapInternals;
 
 TEST_F(TracedReferenceTest, ResetFromLocal) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
@@ -197,6 +201,151 @@ TEST_F(TracedReferenceTest, TracedReferenceTrace) {
     // visitor and use traits.
     static_cast<cppgc::Visitor&>(visitor).Trace(js_member);
     EXPECT_EQ(1u, visitor.visit_count());
+  }
+}
+
+TEST_F(TracedReferenceTest, NoWriteBarrierOnConstruction) {
+  if (!FLAG_incremental_marking) return;
+
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  {
+    v8::HandleScope handles(v8_isolate());
+    v8::Local<v8::Object> local =
+        v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
+    SimulateIncrementalMarking();
+    MarkCompactCollector::MarkingState state;
+    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    auto ref =
+        std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
+    USE(ref);
+    EXPECT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+  }
+}
+
+TEST_F(TracedReferenceTest, WriteBarrierOnHeapReset) {
+  if (!FLAG_incremental_marking) return;
+
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  {
+    v8::HandleScope handles(v8_isolate());
+    v8::Local<v8::Object> local =
+        v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
+    auto ref = std::make_unique<v8::TracedReference<v8::Object>>();
+    SimulateIncrementalMarking();
+    MarkCompactCollector::MarkingState state;
+    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    ref->Reset(v8_isolate(), local);
+    EXPECT_TRUE(state.IsGrey(HeapObject::cast(*Utils::OpenHandle(*local))));
+  }
+}
+
+TEST_F(TracedReferenceTest, NoWriteBarrierOnStackReset) {
+  if (!FLAG_incremental_marking) return;
+
+  isolate()->global_handles()->SetStackStart(base::Stack::GetStackStart());
+
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  {
+    v8::HandleScope handles(v8_isolate());
+    v8::Local<v8::Object> local =
+        v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
+    v8::TracedReference<v8::Object> ref;
+    SimulateIncrementalMarking();
+    MarkCompactCollector::MarkingState state;
+    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    ref.Reset(v8_isolate(), local);
+    EXPECT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+  }
+}
+
+TEST_F(TracedReferenceTest, WriteBarrierOnHeapCopy) {
+  if (!FLAG_incremental_marking) return;
+
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  {
+    v8::HandleScope handles(v8_isolate());
+    v8::Local<v8::Object> local =
+        v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
+    auto ref_from =
+        std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
+    auto ref_to = std::make_unique<v8::TracedReference<v8::Object>>();
+    SimulateIncrementalMarking();
+    MarkCompactCollector::MarkingState state;
+    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    *ref_to = *ref_from;
+    EXPECT_TRUE(!ref_from->IsEmpty());
+    EXPECT_TRUE(state.IsGrey(HeapObject::cast(*Utils::OpenHandle(*local))));
+  }
+}
+
+TEST_F(TracedReferenceTest, NoWriteBarrierOnStackCopy) {
+  if (!FLAG_incremental_marking) return;
+
+  isolate()->global_handles()->SetStackStart(base::Stack::GetStackStart());
+
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  {
+    v8::HandleScope handles(v8_isolate());
+    v8::Local<v8::Object> local =
+        v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
+    auto ref_from =
+        std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
+    v8::TracedReference<v8::Object> ref_to;
+    SimulateIncrementalMarking();
+    MarkCompactCollector::MarkingState state;
+    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    ref_to = *ref_from;
+    EXPECT_TRUE(!ref_from->IsEmpty());
+    EXPECT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+  }
+}
+
+TEST_F(TracedReferenceTest, WriteBarrierOnMove) {
+  if (!FLAG_incremental_marking) return;
+
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  {
+    v8::HandleScope handles(v8_isolate());
+    v8::Local<v8::Object> local =
+        v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
+    auto ref_from =
+        std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
+    auto ref_to = std::make_unique<v8::TracedReference<v8::Object>>();
+    SimulateIncrementalMarking();
+    MarkCompactCollector::MarkingState state;
+    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    *ref_to = std::move(*ref_from);
+    ASSERT_TRUE(ref_from->IsEmpty());
+    EXPECT_TRUE(state.IsGrey(HeapObject::cast(*Utils::OpenHandle(*local))));
+  }
+}
+
+TEST_F(TracedReferenceTest, NoWriteBarrierOnStackMove) {
+  if (!FLAG_incremental_marking) return;
+
+  isolate()->global_handles()->SetStackStart(base::Stack::GetStackStart());
+
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  {
+    v8::HandleScope handles(v8_isolate());
+    v8::Local<v8::Object> local =
+        v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
+    auto ref_from =
+        std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
+    v8::TracedReference<v8::Object> ref_to;
+    SimulateIncrementalMarking();
+    MarkCompactCollector::MarkingState state;
+    ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    ref_to = std::move(*ref_from);
+    ASSERT_TRUE(ref_from->IsEmpty());
+    EXPECT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 

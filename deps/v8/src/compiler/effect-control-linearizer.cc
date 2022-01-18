@@ -30,6 +30,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/objects/turbofan-types.h"
 
 namespace v8 {
 namespace internal {
@@ -114,8 +115,9 @@ class EffectControlLinearizer {
   Node* LowerCheckedTaggedToFloat64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedPointer(Node* node, Node* frame_state);
+  Node* LowerChangeInt64ToBigInt(Node* node);
   Node* LowerChangeUint64ToBigInt(Node* node);
-  Node* LowerTruncateBigIntToUint64(Node* node);
+  Node* LowerTruncateBigIntToWord64(Node* node);
   Node* LowerChangeTaggedToFloat64(Node* node);
   void TruncateTaggedPointerToBit(Node* node, GraphAssemblerLabel<1>* done);
   Node* LowerTruncateTaggedToBit(Node* node);
@@ -300,6 +302,10 @@ class EffectControlLinearizer {
   Node* BuildStrongReferenceFromWeakReference(Node* value);
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
+
+  // Pass {bitfield} = {digit} = nullptr to construct the canoncial 0n BigInt.
+  Node* BuildAllocateBigInt(Node* bitfield, Node* digit);
+
   void TransitionElementsTo(Node* node, Node* array, ElementsKind from,
                             ElementsKind to);
 
@@ -1076,11 +1082,14 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedTaggedToTaggedPointer:
       result = LowerCheckedTaggedToTaggedPointer(node, frame_state);
       break;
+    case IrOpcode::kChangeInt64ToBigInt:
+      result = LowerChangeInt64ToBigInt(node);
+      break;
     case IrOpcode::kChangeUint64ToBigInt:
       result = LowerChangeUint64ToBigInt(node);
       break;
-    case IrOpcode::kTruncateBigIntToUint64:
-      result = LowerTruncateBigIntToUint64(node);
+    case IrOpcode::kTruncateBigIntToWord64:
+      result = LowerTruncateBigIntToWord64(node);
       break;
     case IrOpcode::kTruncateTaggedToWord32:
       result = LowerTruncateTaggedToWord32(node);
@@ -2942,58 +2951,50 @@ Node* EffectControlLinearizer::LowerCheckBigInt(Node* node, Node* frame_state) {
   return value;
 }
 
-Node* EffectControlLinearizer::LowerChangeUint64ToBigInt(Node* node) {
+Node* EffectControlLinearizer::LowerChangeInt64ToBigInt(Node* node) {
   DCHECK(machine()->Is64());
 
-  Node* value = node->InputAt(0);
-  Node* map = __ HeapConstant(factory()->bigint_map());
-  // BigInts with value 0 must be of size 0 (canonical form).
-  auto if_zerodigits = __ MakeLabel();
-  auto if_onedigit = __ MakeLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
+  Node* value = node->InputAt(0);
 
-  __ GotoIf(__ Word64Equal(value, __ IntPtrConstant(0)), &if_zerodigits);
-  __ Goto(&if_onedigit);
+  // BigInts with value 0 must be of size 0 (canonical form).
+  __ GotoIf(__ Word64Equal(value, __ IntPtrConstant(0)), &done,
+            BuildAllocateBigInt(nullptr, nullptr));
 
-  __ Bind(&if_onedigit);
-  {
-    Node* result = __ Allocate(AllocationType::kYoung,
-                               __ IntPtrConstant(BigInt::SizeFor(1)));
-    const auto bitfield = BigInt::LengthBits::update(0, 1);
-    __ StoreField(AccessBuilder::ForMap(), result, map);
-    __ StoreField(AccessBuilder::ForBigIntBitfield(), result,
-                  __ IntPtrConstant(bitfield));
-    // BigInts have no padding on 64 bit architectures with pointer compression.
-    if (BigInt::HasOptionalPadding()) {
-      __ StoreField(AccessBuilder::ForBigIntOptionalPadding(), result,
-                    __ IntPtrConstant(0));
-    }
-    __ StoreField(AccessBuilder::ForBigIntLeastSignificantDigit64(), result,
-                  value);
-    __ Goto(&done, result);
-  }
+  // Shift sign bit into BigInt's sign bit position.
+  Node* sign =
+      __ Word64Shr(value, __ IntPtrConstant(63 - BigInt::SignBits::kShift));
+  Node* bitfield =
+      __ Word32Or(__ Int32Constant(BigInt::LengthBits::encode(1)), sign);
 
-  __ Bind(&if_zerodigits);
-  {
-    Node* result = __ Allocate(AllocationType::kYoung,
-                               __ IntPtrConstant(BigInt::SizeFor(0)));
-    const auto bitfield = BigInt::LengthBits::update(0, 0);
-    __ StoreField(AccessBuilder::ForMap(), result, map);
-    __ StoreField(AccessBuilder::ForBigIntBitfield(), result,
-                  __ IntPtrConstant(bitfield));
-    // BigInts have no padding on 64 bit architectures with pointer compression.
-    if (BigInt::HasOptionalPadding()) {
-      __ StoreField(AccessBuilder::ForBigIntOptionalPadding(), result,
-                    __ IntPtrConstant(0));
-    }
-    __ Goto(&done, result);
-  }
+  // We use (value XOR (value >>> 63)) - (value >>> 63) to compute the
+  // absolute value, in a branchless fashion.
+  Node* sign_mask = __ Word64Sar(value, __ Int64Constant(63));
+  Node* absolute_value = __ Int64Sub(__ Word64Xor(value, sign_mask), sign_mask);
+  __ Goto(&done, BuildAllocateBigInt(bitfield, absolute_value));
 
   __ Bind(&done);
   return done.PhiAt(0);
 }
 
-Node* EffectControlLinearizer::LowerTruncateBigIntToUint64(Node* node) {
+Node* EffectControlLinearizer::LowerChangeUint64ToBigInt(Node* node) {
+  DCHECK(machine()->Is64());
+
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+  Node* value = node->InputAt(0);
+
+  // BigInts with value 0 must be of size 0 (canonical form).
+  __ GotoIf(__ Word64Equal(value, __ IntPtrConstant(0)), &done,
+            BuildAllocateBigInt(nullptr, nullptr));
+
+  const auto bitfield = BigInt::LengthBits::encode(1);
+  __ Goto(&done, BuildAllocateBigInt(__ Int32Constant(bitfield), value));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerTruncateBigIntToWord64(Node* node) {
   DCHECK(machine()->Is64());
 
   auto done = __ MakeLabel(MachineRepresentation::kWord64);
@@ -3977,8 +3978,8 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
   __ Goto(&loop, receiver, position);
   __ Bind(&loop);
   {
-    Node* receiver = loop.PhiAt(0);
-    Node* position = loop.PhiAt(1);
+    receiver = loop.PhiAt(0);
+    position = loop.PhiAt(1);
     Node* receiver_map = __ LoadField(AccessBuilder::ForMap(), receiver);
     Node* receiver_instance_type =
         __ LoadField(AccessBuilder::ForMapInstanceType(), receiver_map);
@@ -5341,8 +5342,11 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   MachineType return_type = MachineTypeFor(c_signature->ReturnInfo().GetType());
   builder.AddReturn(return_type);
   for (int i = 0; i < c_arg_count; ++i) {
+    CTypeInfo type = c_signature->ArgumentInfo(i);
     MachineType machine_type =
-        MachineTypeFor(c_signature->ArgumentInfo(i).GetType());
+        type.GetSequenceType() == CTypeInfo::SequenceType::kScalar
+            ? MachineTypeFor(type.GetType())
+            : MachineType::AnyTagged();
     builder.AddParam(machine_type);
   }
   if (c_signature->HasOptions()) {
@@ -5431,7 +5435,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
       call_descriptor, c_arg_count + n.FastCallExtraInputCount() + 1, inputs,
       inputs[0], c_signature, c_arg_count, stack_slot);
 
-  Node* fast_call_result;
+  Node* fast_call_result = nullptr;
   switch (c_signature->ReturnInfo().GetType()) {
     case CTypeInfo::Type::kVoid:
       fast_call_result = __ UndefinedConstant();
@@ -5464,16 +5468,21 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
       UNREACHABLE();
   }
 
-  if (!c_signature->HasOptions()) return fast_call_result;
-
-  DCHECK_NOT_NULL(stack_slot);
-  Node* load =
-      __ Load(MachineType::Int32(), stack_slot,
-              static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)));
-
-  Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
   auto merge = __ MakeLabel(MachineRepresentation::kTagged);
-  __ Branch(is_zero, &if_success, &if_error);
+  if (c_signature->HasOptions()) {
+    DCHECK_NOT_NULL(stack_slot);
+    Node* load = __ Load(
+        MachineType::Int32(), stack_slot,
+        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)));
+
+    Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
+    __ Branch(is_zero, &if_success, &if_error);
+  } else {
+    // If c_call_result is nullptr, we didn't execute the fast path, so
+    // we need to follow the slow path.
+    Node* is_zero = __ WordEqual(c_call_result, __ IntPtrConstant(0));
+    __ Branch(is_zero, &if_error, &if_success);
+  }
 
   __ Bind(&if_success);
   __ Goto(&merge, fast_call_result);
@@ -6190,10 +6199,17 @@ Node* EffectControlLinearizer::LowerAssertType(Node* node) {
   Type type = OpParameter<Type>(node->op());
   CHECK(type.CanBeAsserted());
   Node* const input = node->InputAt(0);
-  Node* const min = __ NumberConstant(type.Min());
-  Node* const max = __ NumberConstant(type.Max());
-  CallBuiltin(Builtin::kCheckNumberInRange, node->op()->properties(), input,
-              min, max, __ SmiConstant(node->id()));
+  Node* allocated_type;
+  {
+    DCHECK(isolate()->CurrentLocalHeap()->is_main_thread());
+    base::Optional<UnparkedScope> unparked_scope;
+    if (isolate()->CurrentLocalHeap()->IsParked()) {
+      unparked_scope.emplace(isolate()->main_thread_local_isolate());
+    }
+    allocated_type = __ HeapConstant(type.AllocateOnHeap(factory()));
+  }
+  CallBuiltin(Builtin::kCheckTurbofanType, node->op()->properties(), input,
+              allocated_type, __ SmiConstant(node->id()));
   return input;
 }
 
@@ -6785,6 +6801,34 @@ Node* EffectControlLinearizer::BuildIsClearedWeakReference(Node* maybe_object) {
   return __ Word32Equal(
       TruncateWordToInt32(__ BitcastMaybeObjectToWord(maybe_object)),
       __ Int32Constant(kClearedWeakHeapObjectLower32));
+}
+
+// Pass {bitfield} = {digit} = nullptr to construct the canoncial 0n BigInt.
+Node* EffectControlLinearizer::BuildAllocateBigInt(Node* bitfield,
+                                                   Node* digit) {
+  DCHECK(machine()->Is64());
+  DCHECK_EQ(bitfield == nullptr, digit == nullptr);
+  static constexpr auto zero_bitfield =
+      BigInt::SignBits::update(BigInt::LengthBits::encode(0), 0);
+
+  Node* map = __ HeapConstant(factory()->bigint_map());
+
+  Node* result = __ Allocate(AllocationType::kYoung,
+                             __ IntPtrConstant(BigInt::SizeFor(digit ? 1 : 0)));
+  __ StoreField(AccessBuilder::ForMap(), result, map);
+  __ StoreField(AccessBuilder::ForBigIntBitfield(), result,
+                bitfield ? bitfield : __ Int32Constant(zero_bitfield));
+
+  // BigInts have no padding on 64 bit architectures with pointer compression.
+  if (BigInt::HasOptionalPadding()) {
+    __ StoreField(AccessBuilder::ForBigIntOptionalPadding(), result,
+                  __ IntPtrConstant(0));
+  }
+  if (digit) {
+    __ StoreField(AccessBuilder::ForBigIntLeastSignificantDigit64(), result,
+                  digit);
+  }
+  return result;
 }
 
 #undef __

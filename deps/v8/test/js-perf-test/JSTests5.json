@@ -510,6 +510,17 @@
       ]
     },
     {
+      "name": "ApiAccessors",
+      "path": ["ApiAccessors"],
+      "main": "run.js",
+      "resources": [ "accessor.js" ],
+      "flags": [],
+      "results_regexp": "^%s\\-ApiAccessors\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "nodeType"}
+      ]
+    },
+    {
       "name": "Inspector",
       "path": ["Inspector"],
       "main": "run.js",

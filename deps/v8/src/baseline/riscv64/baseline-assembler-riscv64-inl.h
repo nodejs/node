@@ -503,9 +503,10 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  __ masm()->Add64(params_size, params_size, 1);  // Include the receiver.
-  __ masm()->slli(params_size, params_size, kSystemPointerSizeLog2);
-  __ masm()->Add64(sp, sp, params_size);
+  __ masm()->DropArguments(params_size, MacroAssembler::kCountIsInteger,
+                           kJSArgcIncludesReceiver
+                               ? MacroAssembler::kCountIncludesReceiver
+                               : MacroAssembler::kCountExcludesReceiver);
   __ masm()->Ret();
 }
 

@@ -132,6 +132,7 @@ class OffHeapCompressedObjectSlot
   static constexpr bool kCanBeWeak = false;
 
   OffHeapCompressedObjectSlot() : SlotBase(kNullAddress) {}
+  explicit OffHeapCompressedObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit OffHeapCompressedObjectSlot(const uint32_t* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
 

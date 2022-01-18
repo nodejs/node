@@ -497,3 +497,39 @@ function assertValidAsm(func) {
   var props = Object.getOwnPropertyNames(m);
   assertEquals(["a","b","x","c","d"], props);
 })();
+
+(function TestDuplicateParameterName() {
+  function module1(x, x, heap) {
+    'use asm';
+    return {};
+  }
+  module1({}, {}, new ArrayBuffer(4096));
+  assertFalse(%IsAsmWasmCode(module1));
+
+  function module2(x, ffi, x) {
+    'use asm';
+    return {};
+  }
+  module2({}, {}, new ArrayBuffer(4096));
+  assertFalse(%IsAsmWasmCode(module2));
+
+  function module3(stdlib, x, x) {
+    'use asm';
+    return {};
+  }
+  module3({}, {}, new ArrayBuffer(4096));
+  assertFalse(%IsAsmWasmCode(module3));
+
+  // Regression test for https://crbug.com/1068355.
+  function regress1068355(ffi, ffi, heap) {
+    'use asm';
+    var result = new ffi.Uint8Array(heap);
+    function bar() {}
+    return {f: bar};
+  }
+  let heap = new ArrayBuffer(4096);
+  assertThrows(
+      () => regress1068355({Uint8Array: Uint8Array}, {}, heap), TypeError,
+      /Uint8Array is not a constructor/);
+  assertFalse(%IsAsmWasmCode(regress1068355));
+})();

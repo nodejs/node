@@ -68,7 +68,7 @@ TEST(Weakness) {
   // Keep global reference to the key.
   Handle<Object> key;
   {
-    HandleScope scope(isolate);
+    HandleScope inner_scope(isolate);
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     key = global_handles->Create(*object);
@@ -77,7 +77,7 @@ TEST(Weakness) {
 
   // Put two chained entries into weak map.
   {
-    HandleScope scope(isolate);
+    HandleScope inner_scope(isolate);
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     Handle<Smi> smi(Smi::FromInt(23), isolate);
@@ -122,7 +122,7 @@ TEST(Shrinking) {
 
   // Fill up weak map to trigger capacity change.
   {
-    HandleScope scope(isolate);
+    HandleScope inner_scope(isolate);
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObjectFromMap(map);
@@ -249,7 +249,7 @@ TEST(Regress2060a) {
 
   // Fill up weak map with values on an evacuation candidate.
   {
-    HandleScope scope(isolate);
+    HandleScope inner_scope(isolate);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object =
           factory->NewJSObject(function, AllocationType::kOld);
@@ -320,7 +320,7 @@ TEST(Regress399527) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   {
-    HandleScope scope(isolate);
+    HandleScope inner_scope(isolate);
     isolate->factory()->NewJSWeakMap();
     heap::SimulateIncrementalMarking(heap);
   }
@@ -343,7 +343,7 @@ TEST(WeakMapsWithChainedEntries) {
   v8::Global<v8::Object> g1;
   v8::Global<v8::Object> g2;
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope inner_scope(isolate);
     v8::Local<v8::Object> o1 = v8::Object::New(isolate);
     g1.Reset(isolate, o1);
     g1.SetWeak();

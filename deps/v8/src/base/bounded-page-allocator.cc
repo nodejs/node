@@ -33,16 +33,25 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
   DCHECK(IsAligned(alignment, region_allocator_.page_size()));
   DCHECK(IsAligned(alignment, allocate_page_size_));
 
-  Address address;
-  if (alignment <= allocate_page_size_) {
-    // TODO(ishell): Consider using randomized version here.
-    address = region_allocator_.AllocateRegion(size);
-  } else {
-    // Currently, this should only be necessary when V8_VIRTUAL_MEMORY_CAGE is
-    // enabled, in which case a bounded page allocator is used to allocate WASM
-    // memory buffers, which have a larger alignment.
-    address = region_allocator_.AllocateAlignedRegion(size, alignment);
+  Address address = RegionAllocator::kAllocationFailure;
+
+  Address hint_address = reinterpret_cast<Address>(hint);
+  if (hint_address && IsAligned(hint_address, alignment) &&
+      region_allocator_.contains(hint_address, size)) {
+    if (region_allocator_.AllocateRegionAt(hint_address, size)) {
+      address = hint_address;
+    }
   }
+
+  if (address == RegionAllocator::kAllocationFailure) {
+    if (alignment <= allocate_page_size_) {
+      // TODO(ishell): Consider using randomized version here.
+      address = region_allocator_.AllocateRegion(size);
+    } else {
+      address = region_allocator_.AllocateAlignedRegion(size, alignment);
+    }
+  }
+
   if (address == RegionAllocator::kAllocationFailure) {
     return nullptr;
   }

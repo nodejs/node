@@ -11,6 +11,70 @@
   "resources": ["base.js"],
   "tests": [
     {
+      "name": "ClassFields",
+      "path": ["ClassFields"],
+      "flags": ["--allow-natives-syntax"],
+      "resources": [ "evaluate-class.js", "classes.js" ],
+      "tests": [
+        {
+          "name": "EvaluateClassOpt",
+          "test_flags": [ "evaluate-class", "opt" ],
+          "main": "run.js",
+          "results_regexp": "^%s\\-ClassFields\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "EvaluateSinglePublicFieldClassOpt"},
+            {"name": "EvaluateMultiPublicFieldClassOpt"},
+            {"name": "EvaluateSinglePrivateFieldClassOpt"},
+            {"name": "EvaluateMultiPrivateFieldClassOpt"},
+            {"name": "EvaluateSingleComputedFieldClassOpt"},
+            {"name": "EvaluateMultiComputedFieldClassOpt"}
+          ]
+        },
+        {
+          "name": "EvaluateClassNoOpt",
+          "test_flags": [ "evaluate-class", "noopt" ],
+          "main": "run.js",
+          "results_regexp": "^%s\\-ClassFields\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "EvaluateSinglePublicFieldClassNoOpt"},
+            {"name": "EvaluateMultiPublicFieldClassNoOpt"},
+            {"name": "EvaluateSinglePrivateFieldClassNoOpt"},
+            {"name": "EvaluateMultiPrivateFieldClassNoOpt"},
+            {"name": "EvaluateSingleComputedFieldClassNoOpt"},
+            {"name": "EvaluateMultiComputedFieldClassNoOpt"}
+          ]
+        },
+        {
+          "name": "InitializeClassOpt",
+          "test_flags": [ "initialize-instance", "opt" ],
+          "main": "run.js",
+          "results_regexp": "^%s\\-ClassFields\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "InitializeSinglePublicFieldClassOpt"},
+            {"name": "InitializeMultiPublicFieldClassOpt"},
+            {"name": "InitializeSinglePrivateFieldClassOpt"},
+            {"name": "InitializeMultiPrivateFieldClassOpt"},
+            {"name": "InitializeSingleComputedFieldClassOpt"},
+            {"name": "InitializeMultiComputedFieldClassOpt"}
+          ]
+        },
+        {
+          "name": "InitializeClassNoOpt",
+          "test_flags": [ "initialize-instance", "noopt" ],
+          "main": "run.js",
+          "results_regexp": "^%s\\-ClassFields\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "InitializeSinglePublicFieldClassNoOpt"},
+            {"name": "InitializeMultiPublicFieldClassNoOpt"},
+            {"name": "InitializeSinglePrivateFieldClassNoOpt"},
+            {"name": "InitializeMultiPrivateFieldClassNoOpt"},
+            {"name": "InitializeSingleComputedFieldClassNoOpt"},
+            {"name": "InitializeMultiComputedFieldClassNoOpt"}
+          ]
+        }
+      ]
+    },
+    {
       "name": "ArrayLiteralInitialSpreadSmallDoubleHoley",
       "path": ["ArrayLiteralInitialSpreadSmallDoubleHoley"],
       "main": "run.js",

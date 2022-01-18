@@ -143,6 +143,9 @@ TEST_F(HeapTest, HeapLayout) {
   Address cage_base = i_isolate()->cage_base();
   EXPECT_TRUE(IsAligned(cage_base, size_t{4} * GB));
 
+  Address code_cage_base = i_isolate()->code_cage_base();
+  EXPECT_TRUE(IsAligned(code_cage_base, size_t{4} * GB));
+
 #ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
   Address isolate_root = i_isolate()->isolate_root();
   EXPECT_EQ(cage_base, isolate_root);
@@ -150,6 +153,7 @@ TEST_F(HeapTest, HeapLayout) {
 
   // Check that all memory chunks belong this region.
   base::AddressRegion heap_reservation(cage_base, size_t{4} * GB);
+  base::AddressRegion code_reservation(code_cage_base, size_t{4} * GB);
 
   SafepointScope scope(i_isolate()->heap());
   OldGenerationMemoryChunkIterator iter(i_isolate()->heap());
@@ -159,7 +163,13 @@ TEST_F(HeapTest, HeapLayout) {
 
     Address address = chunk->address();
     size_t size = chunk->area_end() - address;
-    EXPECT_TRUE(heap_reservation.contains(address, size));
+    AllocationSpace owner_id = chunk->owner_identity();
+    if (V8_EXTERNAL_CODE_SPACE_BOOL &&
+        (owner_id == CODE_SPACE || owner_id == CODE_LO_SPACE)) {
+      EXPECT_TRUE(code_reservation.contains(address, size));
+    } else {
+      EXPECT_TRUE(heap_reservation.contains(address, size));
+    }
   }
 }
 #endif  // V8_COMPRESS_POINTERS

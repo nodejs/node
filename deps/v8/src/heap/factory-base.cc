@@ -70,6 +70,24 @@ Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
 }
 
 template <typename Impl>
+Handle<CodeDataContainer> FactoryBase<Impl>::NewCodeDataContainer(
+    int flags, AllocationType allocation) {
+  Map map = read_only_roots().code_data_container_map();
+  int size = map.instance_size();
+  CodeDataContainer data_container = CodeDataContainer::cast(
+      AllocateRawWithImmortalMap(size, allocation, map));
+  DisallowGarbageCollection no_gc;
+  data_container.set_next_code_link(read_only_roots().undefined_value(),
+                                    SKIP_WRITE_BARRIER);
+  data_container.set_kind_specific_flags(flags, kRelaxedStore);
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    impl()->SetExternalCodeSpaceInDataContainer(data_container);
+  }
+  data_container.clear_padding();
+  return handle(data_container, isolate());
+}
+
+template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
                                                     AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();
@@ -228,6 +246,9 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
   DCHECK(source->IsString() || source->IsUndefined());
   // Create and initialize script object.
   ReadOnlyRoots roots = read_only_roots();
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+  Handle<ArrayList> list = NewArrayList(0);
+#endif
   Handle<Script> script = handle(
       NewStructInternal<Script>(SCRIPT_TYPE, AllocationType::kOld), isolate());
   {
@@ -248,6 +269,9 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
                                   SKIP_WRITE_BARRIER);
     raw.set_flags(0);
     raw.set_host_defined_options(roots.empty_fixed_array(), SKIP_WRITE_BARRIER);
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+    raw.set_script_or_modules(*list);
+#endif
   }
 
   if (script_id != Script::kTemporaryScriptId) {
@@ -256,6 +280,15 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
 
   LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
   return script;
+}
+
+template <typename Impl>
+Handle<ArrayList> FactoryBase<Impl>::NewArrayList(int size) {
+  Handle<FixedArray> fixed_array = NewFixedArray(size + ArrayList::kFirstIndex);
+  fixed_array->set_map_no_write_barrier(read_only_roots().array_list_map());
+  Handle<ArrayList> result = Handle<ArrayList>::cast(fixed_array);
+  result->SetLength(0);
+  return result;
 }
 
 template <typename Impl>
@@ -523,6 +556,8 @@ Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
     const base::Vector<const uint8_t>& str, uint32_t raw_hash_field) {
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), raw_hash_field);
+  // No synchronization is needed since the shared string hasn't yet escaped to
+  // script.
   DisallowGarbageCollection no_gc;
   MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
           str.begin(), str.length());
@@ -534,6 +569,8 @@ Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
     const base::Vector<const base::uc16>& str, uint32_t raw_hash_field) {
   Handle<SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(str.length(), raw_hash_field);
+  // No synchronization is needed since the shared string hasn't yet escaped to
+  // script.
   DisallowGarbageCollection no_gc;
   MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
           str.begin(), str.length() * base::kUC16Size);
@@ -550,8 +587,10 @@ MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
   int size = SeqOneByteString::SizeFor(length);
   DCHECK_GE(SeqOneByteString::kMaxSize, size);
 
+  Map map = read_only_roots().one_byte_string_map();
   SeqOneByteString string = SeqOneByteString::cast(AllocateRawWithImmortalMap(
-      size, allocation, read_only_roots().one_byte_string_map()));
+      size, RefineAllocationTypeForInPlaceInternalizableString(allocation, map),
+      map));
   DisallowGarbageCollection no_gc;
   string.set_length(length);
   string.set_raw_hash_field(String::kEmptyHashField);
@@ -569,8 +608,10 @@ MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
   int size = SeqTwoByteString::SizeFor(length);
   DCHECK_GE(SeqTwoByteString::kMaxSize, size);
 
+  Map map = read_only_roots().string_map();
   SeqTwoByteString string = SeqTwoByteString::cast(AllocateRawWithImmortalMap(
-      size, allocation, read_only_roots().string_map()));
+      size, RefineAllocationTypeForInPlaceInternalizableString(allocation, map),
+      map));
   DisallowGarbageCollection no_gc;
   string.set_length(length);
   string.set_raw_hash_field(String::kEmptyHashField);
@@ -773,8 +814,10 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(
   int size = SeqOneByteString::SizeFor(length);
   HeapObject result = AllocateRawWithImmortalMap(
       size,
-      impl()->CanAllocateInReadOnlySpace() ? AllocationType::kReadOnly
-                                           : AllocationType::kOld,
+      RefineAllocationTypeForInPlaceInternalizableString(
+          impl()->CanAllocateInReadOnlySpace() ? AllocationType::kReadOnly
+                                               : AllocationType::kOld,
+          map),
       map);
   SeqOneByteString answer = SeqOneByteString::cast(result);
   DisallowGarbageCollection no_gc;
@@ -793,8 +836,11 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(
 
   Map map = read_only_roots().internalized_string_map();
   int size = SeqTwoByteString::SizeFor(length);
-  SeqTwoByteString answer = SeqTwoByteString::cast(
-      AllocateRawWithImmortalMap(size, AllocationType::kOld, map));
+  SeqTwoByteString answer = SeqTwoByteString::cast(AllocateRawWithImmortalMap(
+      size,
+      RefineAllocationTypeForInPlaceInternalizableString(AllocationType::kOld,
+                                                         map),
+      map));
   DisallowGarbageCollection no_gc;
   answer.set_length(length);
   answer.set_raw_hash_field(raw_hash_field);
@@ -909,6 +955,48 @@ FactoryBase<Impl>::NewFunctionTemplateRareData() {
   function_template_rare_data.set_c_function_overloads(
       *impl()->empty_fixed_array(), SKIP_WRITE_BARRIER);
   return handle(function_template_rare_data, isolate());
+}
+
+template <typename Impl>
+MaybeHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
+    Map from_string_map) {
+  InstanceType instance_type = from_string_map.instance_type();
+  MaybeHandle<Map> map;
+  switch (instance_type) {
+    case STRING_TYPE:
+      map = read_only_roots().internalized_string_map_handle();
+      break;
+    case ONE_BYTE_STRING_TYPE:
+      map = read_only_roots().one_byte_internalized_string_map_handle();
+      break;
+    case EXTERNAL_STRING_TYPE:
+      map = read_only_roots().external_internalized_string_map_handle();
+      break;
+    case EXTERNAL_ONE_BYTE_STRING_TYPE:
+      map =
+          read_only_roots().external_one_byte_internalized_string_map_handle();
+      break;
+    default:
+      break;
+  }
+  DCHECK_EQ(!map.is_null(), String::IsInPlaceInternalizable(instance_type));
+  return map;
+}
+
+template <typename Impl>
+AllocationType
+FactoryBase<Impl>::RefineAllocationTypeForInPlaceInternalizableString(
+    AllocationType allocation, Map string_map) {
+#ifdef DEBUG
+  InstanceType instance_type = string_map.instance_type();
+  DCHECK(InstanceTypeChecker::IsInternalizedString(instance_type) ||
+         String::IsInPlaceInternalizable(instance_type));
+#endif
+  if (FLAG_single_generation && allocation == AllocationType::kYoung) {
+    allocation = AllocationType::kOld;
+  }
+  if (allocation != AllocationType::kOld) return allocation;
+  return impl()->AllocationTypeForInPlaceInternalizableString();
 }
 
 // Instantiate FactoryBase for the two variants we want.

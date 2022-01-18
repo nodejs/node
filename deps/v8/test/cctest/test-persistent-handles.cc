@@ -54,7 +54,7 @@ class PersistentHandlesThread final : public v8::base::Thread {
     sema_started_->Signal();
 
     {
-      ParkedScope scope(&local_heap);
+      ParkedScope parked_scope(&local_heap);
       sema_gc_finished_->Wait();
     }
 

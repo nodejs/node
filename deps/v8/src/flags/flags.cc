@@ -493,6 +493,34 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {
   return os;
 }
 
+namespace {
+
+static std::atomic<uint32_t> flag_hash(0);
+
+void ComputeFlagListHash() {
+  std::ostringstream modified_args_as_string;
+  if (COMPRESS_POINTERS_BOOL) modified_args_as_string << "ptr-compr";
+  if (DEBUG_BOOL) modified_args_as_string << "debug";
+  for (const Flag& flag : flags) {
+    if (flag.IsDefault()) continue;
+    // We want to be able to flip --profile-deserialization without
+    // causing the code cache to get invalidated by this hash.
+    if (flag.PointsTo(&FLAG_profile_deserialization)) continue;
+    // Skip FLAG_random_seed to allow predictable code caching.
+    if (flag.PointsTo(&FLAG_random_seed)) continue;
+    modified_args_as_string << flag;
+  }
+  std::string args(modified_args_as_string.str());
+  // Generate a hash that is not 0.
+  uint32_t hash = static_cast<uint32_t>(base::hash_range(
+                      args.c_str(), args.c_str() + args.length())) |
+                  1;
+  DCHECK_NE(hash, 0);
+  flag_hash.store(hash, std::memory_order_relaxed);
+}
+
+}  // namespace
+
 // Helper function to parse flags: Takes an argument arg and splits it into
 // a flag name and flag value (or nullptr if they are missing). negated is set
 // if the arg started with "-no" or "--no". The buffer may be used to NUL-
@@ -754,6 +782,7 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
 
 // static
 void FlagList::ResetAllFlags() {
+  flag_hash = 0;
   for (size_t i = 0; i < num_flags; ++i) {
     flags[i].Reset();
   }
@@ -792,33 +821,6 @@ void FlagList::PrintValues() {
 
 namespace {
 
-static uint32_t flag_hash = 0;
-
-void ComputeFlagListHash() {
-  std::ostringstream modified_args_as_string;
-  if (COMPRESS_POINTERS_BOOL) {
-    modified_args_as_string << "ptr-compr";
-  }
-  if (DEBUG_BOOL) {
-    modified_args_as_string << "debug";
-  }
-  for (size_t i = 0; i < num_flags; ++i) {
-    Flag* current = &flags[i];
-    if (current->PointsTo(&FLAG_profile_deserialization)) {
-      // We want to be able to flip --profile-deserialization without
-      // causing the code cache to get invalidated by this hash.
-      continue;
-    }
-    if (!current->IsDefault()) {
-      modified_args_as_string << i;
-      modified_args_as_string << *current;
-    }
-  }
-  std::string args(modified_args_as_string.str());
-  flag_hash = static_cast<uint32_t>(
-      base::hash_range(args.c_str(), args.c_str() + args.length()));
-}
-
 template <class A, class B>
 bool TriggerImplication(bool premise, const char* premise_name,
                         A* conclusion_pointer, B value, bool weak_implication) {
@@ -837,6 +839,7 @@ bool TriggerImplication(bool premise, const char* premise_name,
 
 // static
 void FlagList::EnforceFlagImplications() {
+  flag_hash = 0;
   bool changed;
   do {
     changed = false;
@@ -844,10 +847,13 @@ void FlagList::EnforceFlagImplications() {
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
   } while (changed);
-  ComputeFlagListHash();
 }
 
-uint32_t FlagList::Hash() { return flag_hash; }
+// static
+uint32_t FlagList::Hash() {
+  if (flag_hash.load() == 0) ComputeFlagListHash();
+  return flag_hash.load();
+}
 
 #undef FLAG_MODE_DEFINE
 #undef FLAG_MODE_DEFINE_DEFAULTS

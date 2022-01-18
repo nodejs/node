@@ -231,6 +231,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   TORQUE_INSTANCE_CHECKERS_RANGE_ONLY_DECLARED(V)
 
 #define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \
+  V(FreeSpaceOrFiller)                   \
   V(ExternalString)                      \
   V(InternalizedString)
 
@@ -241,7 +242,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 namespace InstanceTypeChecker {
 #define IS_TYPE_FUNCTION_DECL(Type, ...) \
-  V8_INLINE bool Is##Type(InstanceType instance_type);
+  V8_INLINE constexpr bool Is##Type(InstanceType instance_type);
 
 INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
 
@@ -254,8 +255,11 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
 }  // namespace InstanceTypeChecker
 
 // This list must contain only maps that are shared by all objects of their
-// instance type.
-#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                          \
+// instance type AND respective object must not represent a parent class for
+// multiple instance types (e.g. DescriptorArray has a unique map, but it has
+// a subclass StrongDescriptorArray which is included into the "DescriptorArray"
+// range of instance types).
+#define UNIQUE_LEAF_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                     \
   V(_, AccessorInfoMap, accessor_info_map, AccessorInfo)                       \
   V(_, AccessorPairMap, accessor_pair_map, AccessorPair)                       \
   V(_, AllocationMementoMap, allocation_memento_map, AllocationMemento)        \
@@ -263,6 +267,7 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
     ArrayBoilerplateDescription)                                               \
   V(_, BreakPointMap, break_point_map, BreakPoint)                             \
   V(_, BreakPointInfoMap, break_point_info_map, BreakPointInfo)                \
+  V(_, BytecodeArrayMap, bytecode_array_map, BytecodeArray)                    \
   V(_, CachedTemplateObjectMap, cached_template_object_map,                    \
     CachedTemplateObject)                                                      \
   V(_, CellMap, cell_map, Cell)                                                \
@@ -271,14 +276,15 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
   V(_, CodeDataContainerMap, code_data_container_map, CodeDataContainer)       \
   V(_, CoverageInfoMap, coverage_info_map, CoverageInfo)                       \
   V(_, DebugInfoMap, debug_info_map, DebugInfo)                                \
+  V(_, FreeSpaceMap, free_space_map, FreeSpace)                                \
   V(_, FeedbackVectorMap, feedback_vector_map, FeedbackVector)                 \
   V(_, FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArray)          \
   V(_, FunctionTemplateInfoMap, function_template_info_map,                    \
     FunctionTemplateInfo)                                                      \
-  V(_, HeapNumberMap, heap_number_map, HeapNumber)                             \
   V(_, MegaDomHandlerMap, mega_dom_handler_map, MegaDomHandler)                \
   V(_, MetaMap, meta_map, Map)                                                 \
   V(_, PreparseDataMap, preparse_data_map, PreparseData)                       \
+  V(_, PropertyArrayMap, property_array_map, PropertyArray)                    \
   V(_, PrototypeInfoMap, prototype_info_map, PrototypeInfo)                    \
   V(_, SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfo)    \
   V(_, SmallOrderedHashSetMap, small_ordered_hash_set_map,                     \
@@ -290,8 +296,14 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
   V(_, SwissNameDictionaryMap, swiss_name_dictionary_map, SwissNameDictionary) \
   V(_, SymbolMap, symbol_map, Symbol)                                          \
   V(_, TransitionArrayMap, transition_array_map, TransitionArray)              \
-  V(_, Tuple2Map, tuple2_map, Tuple2)                                          \
-  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)                \
+  V(_, Tuple2Map, tuple2_map, Tuple2)
+
+// This list must contain only maps that are shared by all objects of their
+// instance type.
+#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)           \
+  UNIQUE_LEAF_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)            \
+  V(_, HeapNumberMap, heap_number_map, HeapNumber)              \
+  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray) \
   TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
 
 }  // namespace internal

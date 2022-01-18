@@ -679,6 +679,7 @@ void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
       THIS_VARIABLE,
       derived_constructor ? kNeedsInitialization : kCreatedInitialized,
       kNotAssigned);
+  locals_.Add(receiver_);
 }
 
 void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
@@ -2487,10 +2488,10 @@ void Scope::AllocateVariablesRecursively() {
     // Allocate variables for this scope.
     // Parameters must be allocated first, if any.
     if (scope->is_declaration_scope()) {
+      scope->AsDeclarationScope()->AllocateReceiver();
       if (scope->is_function_scope()) {
         scope->AsDeclarationScope()->AllocateParameterLocals();
       }
-      scope->AsDeclarationScope()->AllocateReceiver();
     }
     scope->AllocateNonParameterLocalsAndDeclaredGlobals();
 

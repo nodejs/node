@@ -20,10 +20,10 @@ const kStageDone = 2;
 
 Atomics.store(lock, kStageIndex, kStageInit);
 
-function WaitUntil(expected) {
+function WaitUntil(funcOfValue) {
   while (true) {
     const value = Atomics.load(lock, kStageIndex);
-    if (value === expected) break;
+    if (funcOfValue(value)) break;
   }
 }
 
@@ -49,11 +49,11 @@ const i32a = new Int32Array(
 );
 
 worker.postMessage([i32a.buffer, lock]);
-WaitUntil(kStageRunning);
+WaitUntil(value => value !== kStageInit);
 
 for (let i = 0; i < kIterations; ++i) {
   i32a.sort();
 }
 
-WaitUntil(kStageDone);
+WaitUntil(value => value === kStageDone);
 assertEquals(worker.getMessage(), "done");

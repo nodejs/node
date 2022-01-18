@@ -4482,7 +4482,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
   // Debug::PrepareFunctionForDebugExecution()).
   if (shared.HasBreakInfo()) return NoChange();
 
-  // Raise a TypeError if the {target} is a "classConstructor".
+  // Class constructors are callable, but [[Call]] will raise an exception.
+  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
   if (IsClassConstructor(shared.kind())) {
     NodeProperties::ReplaceValueInputs(node, target);
     NodeProperties::ChangeOp(
@@ -4820,8 +4821,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceDateNow(node);
     case Builtin::kNumberConstructor:
       return ReduceNumberConstructor(node);
+    case Builtin::kBigIntAsIntN:
     case Builtin::kBigIntAsUintN:
-      return ReduceBigIntAsUintN(node);
+      return ReduceBigIntAsN(node, builtin);
     default:
       break;
   }
@@ -4885,10 +4887,47 @@ TNode<Object> JSCallReducerAssembler::ReduceJSCallWithArrayLikeOrSpreadOfEmpty(
       .Value();
 }
 
+namespace {
+
+// Check if the target is a class constructor.
+// We need to check all cases where the target will be typed as Function
+// to prevent later optimizations from using the CallFunction trampoline,
+// skipping the instance type check.
+bool TargetIsClassConstructor(Node* node, JSHeapBroker* broker) {
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  base::Optional<SharedFunctionInfoRef> shared;
+  HeapObjectMatcher m(target);
+  if (m.HasResolvedValue()) {
+    ObjectRef target_ref = m.Ref(broker);
+    if (target_ref.IsJSFunction()) {
+      JSFunctionRef function = target_ref.AsJSFunction();
+      shared = function.shared();
+    }
+  } else if (target->opcode() == IrOpcode::kJSCreateClosure) {
+    CreateClosureParameters const& ccp =
+        JSCreateClosureNode{target}.Parameters();
+    shared = ccp.shared_info(broker);
+  } else if (target->opcode() == IrOpcode::kCheckClosure) {
+    FeedbackCellRef cell = MakeRef(broker, FeedbackCellOf(target->op()));
+    shared = cell.shared_function_info();
+  }
+
+  if (shared.has_value() && IsClassConstructor(shared->kind())) return true;
+
+  return false;
+}
+
+}  // namespace
+
 Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
   JSCallWithArrayLikeNode n(node);
   CallParameters const& p = n.Parameters();
   DCHECK_EQ(p.arity_without_implicit_args(), 1);  // The arraylike object.
+  // Class constructors are callable, but [[Call]] will raise an exception.
+  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
+  if (TargetIsClassConstructor(node, broker())) {
+    return NoChange();
+  }
   return ReduceCallOrConstructWithArrayLikeOrSpread(
       node, n.ArgumentCount(), n.LastArgumentIndex(), p.frequency(),
       p.feedback(), p.speculation_mode(), p.feedback_relation(), n.target(),
@@ -4899,6 +4938,11 @@ Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
   JSCallWithSpreadNode n(node);
   CallParameters const& p = n.Parameters();
   DCHECK_GE(p.arity_without_implicit_args(), 1);  // At least the spread.
+  // Class constructors are callable, but [[Call]] will raise an exception.
+  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
+  if (TargetIsClassConstructor(node, broker())) {
+    return NoChange();
+  }
   return ReduceCallOrConstructWithArrayLikeOrSpread(
       node, n.ArgumentCount(), n.LastArgumentIndex(), p.frequency(),
       p.feedback(), p.speculation_mode(), p.feedback_relation(), n.target(),
@@ -8029,7 +8073,10 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   return Changed(node);
 }
 
-Reduction JSCallReducer::ReduceBigIntAsUintN(Node* node) {
+Reduction JSCallReducer::ReduceBigIntAsN(Node* node, Builtin builtin) {
+  DCHECK(builtin == Builtin::kBigIntAsIntN ||
+         builtin == Builtin::kBigIntAsUintN);
+
   if (!jsgraph()->machine()->Is64()) return NoChange();
 
   JSCallNode n(node);
@@ -8050,8 +8097,11 @@ Reduction JSCallReducer::ReduceBigIntAsUintN(Node* node) {
   if (matcher.IsInteger() && matcher.IsInRange(0, 64)) {
     const int bits_value = static_cast<int>(matcher.ResolvedValue());
     value = effect = graph()->NewNode(
-        simplified()->SpeculativeBigIntAsUintN(bits_value, p.feedback()), value,
-        effect, control);
+        (builtin == Builtin::kBigIntAsIntN
+             ? simplified()->SpeculativeBigIntAsIntN(bits_value, p.feedback())
+             : simplified()->SpeculativeBigIntAsUintN(bits_value,
+                                                      p.feedback())),
+        value, effect, control);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }

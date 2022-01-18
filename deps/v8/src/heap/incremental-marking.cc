@@ -65,13 +65,6 @@ void IncrementalMarking::MarkBlackAndVisitObjectDueToLayoutChange(
   collector_->VisitObject(obj);
 }
 
-void IncrementalMarking::MarkBlackAndRevisitObject(Code code) {
-  TRACE_EVENT0("v8", "V8.GCIncrementalMarkingLayoutChange");
-  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_LAYOUT_CHANGE);
-  marking_state()->WhiteToBlack(code);
-  collector_->RevisitObject(code);
-}
-
 void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {
   MarkBit mark_bit = atomic_marking_state()->MarkBitFrom(obj);
   Marking::MarkBlack<AccessMode::ATOMIC>(mark_bit);

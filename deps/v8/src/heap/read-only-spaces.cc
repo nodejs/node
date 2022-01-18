@@ -642,9 +642,8 @@ HeapObject ReadOnlySpace::TryAllocateLinearlyAligned(
 
   top_ = new_top;
   if (filler_size > 0) {
-    return Heap::PrecedeWithFiller(ReadOnlyRoots(heap()),
-                                   HeapObject::FromAddress(current_top),
-                                   filler_size);
+    return heap()->PrecedeWithFiller(HeapObject::FromAddress(current_top),
+                                     filler_size);
   }
 
   return HeapObject::FromAddress(current_top);

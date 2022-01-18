@@ -1,23 +1,18 @@
 # -*- coding: utf-8 -*-
-"""
-    jinja2.exceptions
-    ~~~~~~~~~~~~~~~~~
-
-    Jinja exceptions.
-
-    :copyright: (c) 2017 by the Jinja Team.
-    :license: BSD, see LICENSE for more details.
-"""
-from jinja2._compat import imap, text_type, PY2, implements_to_string
+from ._compat import imap
+from ._compat import implements_to_string
+from ._compat import PY2
+from ._compat import text_type
 
 
 class TemplateError(Exception):
     """Baseclass for all template errors."""
 
     if PY2:
+
         def __init__(self, message=None):
             if message is not None:
-                message = text_type(message).encode('utf-8')
+                message = text_type(message).encode("utf-8")
             Exception.__init__(self, message)
 
         @property
@@ -25,11 +20,13 @@ class TemplateError(Exception):
             if self.args:
                 message = self.args[0]
                 if message is not None:
-                    return message.decode('utf-8', 'replace')
+                    return message.decode("utf-8", "replace")
 
         def __unicode__(self):
-            return self.message or u''
+            return self.message or u""
+
     else:
+
         def __init__(self, message=None):
             Exception.__init__(self, message)
 
@@ -43,16 +40,28 @@ class TemplateError(Exception):
 
 @implements_to_string
 class TemplateNotFound(IOError, LookupError, TemplateError):
-    """Raised if a template does not exist."""
+    """Raised if a template does not exist.
+
+    .. versionchanged:: 2.11
+        If the given name is :class:`Undefined` and no message was
+        provided, an :exc:`UndefinedError` is raised.
+    """
 
     # looks weird, but removes the warning descriptor that just
     # bogusly warns us about message being deprecated
     message = None
 
     def __init__(self, name, message=None):
-        IOError.__init__(self)
+        IOError.__init__(self, name)
+
         if message is None:
+            from .runtime import Undefined
+
+            if isinstance(name, Undefined):
+                name._fail_with_undefined_error()
+
             message = name
+
         self.message = message
         self.name = name
         self.templates = [name]
@@ -66,13 +75,28 @@ class TemplatesNotFound(TemplateNotFound):
     are selected.  This is a subclass of :class:`TemplateNotFound`
     exception, so just catching the base exception will catch both.
 
+    .. versionchanged:: 2.11
+        If a name in the list of names is :class:`Undefined`, a message
+        about it being undefined is shown rather than the empty string.
+
     .. versionadded:: 2.2
     """
 
     def __init__(self, names=(), message=None):
         if message is None:
-            message = u'none of the templates given were found: ' + \
-                      u', '.join(imap(text_type, names))
+            from .runtime import Undefined
+
+            parts = []
+
+            for name in names:
+                if isinstance(name, Undefined):
+                    parts.append(name._undefined_message)
+                else:
+                    parts.append(name)
+
+            message = u"none of the templates given were found: " + u", ".join(
+                imap(text_type, parts)
+            )
         TemplateNotFound.__init__(self, names and names[-1] or None, message)
         self.templates = list(names)
 
@@ -98,11 +122,11 @@ class TemplateSyntaxError(TemplateError):
             return self.message
 
         # otherwise attach some stuff
-        location = 'line %d' % self.lineno
+        location = "line %d" % self.lineno
         name = self.filename or self.name
         if name:
             location = 'File "%s", %s' % (name, location)
-        lines = [self.message, '  ' + location]
+        lines = [self.message, "  " + location]
 
         # if the source is set, add the line to the output
         if self.source is not None:
@@ -111,9 +135,16 @@ class TemplateSyntaxError(TemplateError):
             except IndexError:
                 line = None
             if line:
-                lines.append('    ' + line.strip())
+                lines.append("    " + line.strip())
 
-        return u'\n'.join(lines)
+        return u"\n".join(lines)
+
+    def __reduce__(self):
+        # https://bugs.python.org/issue1692335 Exceptions that take
+        # multiple required arguments have problems with pickling.
+        # Without this, raises TypeError: __init__() missing 1 required
+        # positional argument: 'lineno'
+        return self.__class__, (self.message, self.lineno, self.name, self.filename)
 
 
 class TemplateAssertionError(TemplateSyntaxError):

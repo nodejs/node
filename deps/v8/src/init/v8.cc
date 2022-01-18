@@ -20,11 +20,11 @@
 #include "src/execution/runtime-profiler.h"
 #include "src/execution/simulator.h"
 #include "src/init/bootstrapper.h"
-#include "src/init/vm-cage.h"
 #include "src/libsampler/sampler.h"
 #include "src/objects/elements.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
+#include "src/security/vm-cage.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/tracing-category-observer.h"
 
@@ -182,6 +182,9 @@ void V8::InitializeOncePerProcessImpl() {
   if (FLAG_random_seed) SetRandomMmapSeed(FLAG_random_seed);
 
   if (FLAG_print_flag_values) FlagList::PrintValues();
+
+  // Initialize the default FlagList::Hash
+  FlagList::Hash();
 
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) TrackEvent::Register();

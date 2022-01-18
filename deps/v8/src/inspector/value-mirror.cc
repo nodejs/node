@@ -1179,6 +1179,43 @@ std::unique_ptr<ValueMirror> createNativeSetter(v8::Local<v8::Context> context,
   return ValueMirror::create(context, function);
 }
 
+bool doesAttributeHaveObservableSideEffectOnGet(v8::Local<v8::Context> context,
+                                                v8::Local<v8::Object> object,
+                                                v8::Local<v8::Name> name) {
+  // TODO(dgozman): we should remove this, annotate more embedder properties as
+  // side-effect free, and call all getters which do not produce side effects.
+  if (!name->IsString()) return false;
+  v8::Isolate* isolate = context->GetIsolate();
+  if (!name.As<v8::String>()->StringEquals(toV8String(isolate, "body"))) {
+    return false;
+  }
+
+  v8::TryCatch tryCatch(isolate);
+  v8::Local<v8::Value> request;
+  if (context->Global()
+          ->GetRealNamedProperty(context, toV8String(isolate, "Request"))
+          .ToLocal(&request)) {
+    if (request->IsObject() &&
+        object->InstanceOf(context, request.As<v8::Object>())
+            .FromMaybe(false)) {
+      return true;
+    }
+  }
+  if (tryCatch.HasCaught()) tryCatch.Reset();
+
+  v8::Local<v8::Value> response;
+  if (context->Global()
+          ->GetRealNamedProperty(context, toV8String(isolate, "Response"))
+          .ToLocal(&response)) {
+    if (response->IsObject() &&
+        object->InstanceOf(context, response.As<v8::Object>())
+            .FromMaybe(false)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // anonymous namespace
 
 ValueMirror::~ValueMirror() = default;
@@ -1294,12 +1331,12 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
           }
           isAccessorProperty = getterMirror || setterMirror;
           if (name != "__proto__" && !getterFunction.IsEmpty() &&
-              getterFunction->ScriptId() == v8::UnboundScript::kNoScriptId) {
+              getterFunction->ScriptId() == v8::UnboundScript::kNoScriptId &&
+              !doesAttributeHaveObservableSideEffectOnGet(context, object,
+                                                          v8Name)) {
             v8::TryCatch tryCatchFunction(isolate);
             v8::Local<v8::Value> value;
-            if (v8::debug::CallFunctionOn(context, getterFunction, object, 0,
-                                          nullptr, true)
-                    .ToLocal(&value)) {
+            if (object->Get(context, v8Name).ToLocal(&value)) {
               if (value->IsPromise() &&
                   value.As<v8::Promise>()->State() == v8::Promise::kRejected) {
                 value.As<v8::Promise>()->MarkAsHandled();

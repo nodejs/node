@@ -30,90 +30,15 @@ enum class InClassEscapeState {
   kNotInClass,
 };
 
-// A BufferedZoneList is an automatically growing list, just like (and backed
-// by) a ZoneList, that is optimized for the case of adding and removing
-// a single element. The last element added is stored outside the backing list,
-// and if no more than one element is ever added, the ZoneList isn't even
-// allocated.
-// Elements must not be nullptr pointers.
-template <typename T, int initial_size>
-class BufferedZoneList {
- public:
-  BufferedZoneList() : list_(nullptr), last_(nullptr) {}
-
-  // Adds element at end of list. This element is buffered and can
-  // be read using last() or removed using RemoveLast until a new Add or until
-  // RemoveLast or GetList has been called.
-  void Add(T* value, Zone* zone) {
-    if (last_ != nullptr) {
-      if (list_ == nullptr) {
-        list_ = zone->New<ZoneList<T*>>(initial_size, zone);
-      }
-      list_->Add(last_, zone);
-    }
-    last_ = value;
-  }
-
-  T* last() {
-    DCHECK(last_ != nullptr);
-    return last_;
-  }
-
-  T* RemoveLast() {
-    DCHECK(last_ != nullptr);
-    T* result = last_;
-    if ((list_ != nullptr) && (list_->length() > 0))
-      last_ = list_->RemoveLast();
-    else
-      last_ = nullptr;
-    return result;
-  }
-
-  T* Get(int i) {
-    DCHECK((0 <= i) && (i < length()));
-    if (list_ == nullptr) {
-      DCHECK_EQ(0, i);
-      return last_;
-    } else {
-      if (i == list_->length()) {
-        DCHECK(last_ != nullptr);
-        return last_;
-      } else {
-        return list_->at(i);
-      }
-    }
-  }
-
-  void Clear() {
-    list_ = nullptr;
-    last_ = nullptr;
-  }
-
-  int length() {
-    int length = (list_ == nullptr) ? 0 : list_->length();
-    return length + ((last_ == nullptr) ? 0 : 1);
-  }
-
-  ZoneList<T*>* GetList(Zone* zone) {
-    if (list_ == nullptr) {
-      list_ = zone->New<ZoneList<T*>>(initial_size, zone);
-    }
-    if (last_ != nullptr) {
-      list_->Add(last_, zone);
-      last_ = nullptr;
-    }
-    return list_;
-  }
-
- private:
-  ZoneList<T*>* list_;
-  T* last_;
-};
-
 // Accumulates RegExp atoms and assertions into lists of terms and alternatives.
-class RegExpBuilder : public ZoneObject {
+class RegExpBuilder {
  public:
-  RegExpBuilder(Zone* zone, RegExpFlags flags);
+  RegExpBuilder(Zone* zone, RegExpFlags flags)
+      : zone_(zone),
+        flags_(flags),
+        terms_(2, zone),
+        text_(2, zone),
+        alternatives_(2, zone) {}
   void AddCharacter(base::uc16 character);
   void AddUnicodeCharacter(base::uc32 character);
   void AddEscapedUnicodeCharacter(base::uc32 character);
@@ -149,15 +74,21 @@ class RegExpBuilder : public ZoneObject {
   bool unicode() const { return IsUnicode(flags_); }
 
   Zone* const zone_;
-  bool pending_empty_;
+  bool pending_empty_ = false;
   const RegExpFlags flags_;
-  ZoneList<base::uc16>* characters_;
-  base::uc16 pending_surrogate_;
-  BufferedZoneList<RegExpTree, 2> terms_;
-  BufferedZoneList<RegExpTree, 2> text_;
-  BufferedZoneList<RegExpTree, 2> alternatives_;
+  ZoneList<base::uc16>* characters_ = nullptr;
+  base::uc16 pending_surrogate_ = kNoPendingSurrogate;
+  ZoneList<RegExpTree*> terms_;
+  ZoneList<RegExpTree*> text_;
+  ZoneList<RegExpTree*> alternatives_;
 #ifdef DEBUG
-  enum {ADD_NONE, ADD_CHAR, ADD_TERM, ADD_ASSERT, ADD_ATOM} last_added_;
+  enum {
+    ADD_NONE,
+    ADD_CHAR,
+    ADD_TERM,
+    ADD_ASSERT,
+    ADD_ATOM
+  } last_added_ = ADD_NONE;
 #define LAST(x) last_added_ = x;
 #else
 #define LAST(x)
@@ -182,7 +113,7 @@ class RegExpParserState : public ZoneObject {
                     const ZoneVector<base::uc16>* capture_name,
                     RegExpFlags flags, Zone* zone)
       : previous_state_(previous_state),
-        builder_(zone->New<RegExpBuilder>(zone, flags)),
+        builder_(zone, flags),
         group_type_(group_type),
         lookaround_type_(lookaround_type),
         disjunction_capture_index_(disjunction_capture_index),
@@ -191,7 +122,7 @@ class RegExpParserState : public ZoneObject {
   RegExpParserState* previous_state() const { return previous_state_; }
   bool IsSubexpression() { return previous_state_ != nullptr; }
   // RegExpBuilder building this regexp's AST.
-  RegExpBuilder* builder() const { return builder_; }
+  RegExpBuilder* builder() { return &builder_; }
   // Type of regexp being parsed (parenthesized group or entire regexp).
   SubexpressionType group_type() const { return group_type_; }
   // Lookahead or Lookbehind.
@@ -234,7 +165,7 @@ class RegExpParserState : public ZoneObject {
   // Linked list implementation of stack of states.
   RegExpParserState* const previous_state_;
   // Builder for the stored disjunction.
-  RegExpBuilder* const builder_;
+  RegExpBuilder builder_;
   // Stored disjunction type (capture, look-ahead or grouping), if any.
   const SubexpressionType group_type_;
   // Stored read direction.
@@ -671,10 +602,12 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
 
         if (builder->dotall()) {
           // Everything.
-          CharacterRange::AddClassEscape('*', ranges, false, zone());
+          CharacterRange::AddClassEscape(StandardCharacterSet::kEverything,
+                                         ranges, false, zone());
         } else {
-          // Everything except \x0A, \x0D, \u2028 and \u2029
-          CharacterRange::AddClassEscape('.', ranges, false, zone());
+          // Everything except \x0A, \x0D, \u2028 and \u2029.
+          CharacterRange::AddClassEscape(
+              StandardCharacterSet::kNotLineTerminator, ranges, false, zone());
         }
 
         RegExpCharacterClass* cc =
@@ -969,8 +902,9 @@ RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
 }
 
 #ifdef DEBUG
-// Currently only used in an DCHECK.
-static bool IsSpecialClassEscape(base::uc32 c) {
+namespace {
+
+bool IsSpecialClassEscape(base::uc32 c) {
   switch (c) {
     case 'd':
     case 'D':
@@ -983,6 +917,8 @@ static bool IsSpecialClassEscape(base::uc32 c) {
       return false;
   }
 }
+
+}  // namespace
 #endif
 
 // In order to know whether an escape is a backreference or not we have to scan
@@ -1950,8 +1886,9 @@ bool RegExpParserImpl<CharT>::TryParseCharacterClassEscape(
     case 'S':
     case 'w':
     case 'W':
-      CharacterRange::AddClassEscape(static_cast<char>(next), ranges,
-                                     add_unicode_case_equivalents, zone);
+      CharacterRange::AddClassEscape(static_cast<StandardCharacterSet>(next),
+                                     ranges, add_unicode_case_equivalents,
+                                     zone);
       Advance(2);
       return true;
     case 'p':
@@ -2067,21 +2004,6 @@ bool RegExpParserImpl<CharT>::Parse(RegExpCompileData* result) {
   return true;
 }
 
-RegExpBuilder::RegExpBuilder(Zone* zone, RegExpFlags flags)
-    : zone_(zone),
-      pending_empty_(false),
-      flags_(flags),
-      characters_(nullptr),
-      pending_surrogate_(kNoPendingSurrogate),
-      terms_(),
-      alternatives_()
-#ifdef DEBUG
-      ,
-      last_added_(ADD_NONE)
-#endif
-{
-}
-
 void RegExpBuilder::AddLeadSurrogate(base::uc16 lead_surrogate) {
   DCHECK(unibrow::Utf16::IsLeadSurrogate(lead_surrogate));
   FlushPendingSurrogate();
@@ -2144,10 +2066,12 @@ void RegExpBuilder::FlushText() {
     terms_.Add(text_.last(), zone());
   } else {
     RegExpText* text = zone()->New<RegExpText>(zone());
-    for (int i = 0; i < num_text; i++) text_.Get(i)->AppendToText(text, zone());
+    for (int i = 0; i < num_text; i++) {
+      text_[i]->AppendToText(text, zone());
+    }
     terms_.Add(text, zone());
   }
-  text_.Clear();
+  text_.Rewind(0);
 }
 
 void RegExpBuilder::AddCharacter(base::uc16 c) {
@@ -2246,10 +2170,11 @@ void RegExpBuilder::FlushTerms() {
   } else if (num_terms == 1) {
     alternative = terms_.last();
   } else {
-    alternative = zone()->New<RegExpAlternative>(terms_.GetList(zone()));
+    alternative = zone()->New<RegExpAlternative>(
+        zone()->New<ZoneList<RegExpTree*>>(terms_, zone()));
   }
   alternatives_.Add(alternative, zone());
-  terms_.Clear();
+  terms_.Rewind(0);
   LAST(ADD_NONE);
 }
 
@@ -2292,7 +2217,8 @@ RegExpTree* RegExpBuilder::ToRegExp() {
   int num_alternatives = alternatives_.length();
   if (num_alternatives == 0) return zone()->New<RegExpEmpty>();
   if (num_alternatives == 1) return alternatives_.last();
-  return zone()->New<RegExpDisjunction>(alternatives_.GetList(zone()));
+  return zone()->New<RegExpDisjunction>(
+      zone()->New<ZoneList<RegExpTree*>>(alternatives_, zone()));
 }
 
 bool RegExpBuilder::AddQuantifierToAtom(
@@ -2403,6 +2329,8 @@ bool RegExpParser::VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
                                       const DisallowGarbageCollection&) {
   return ParseRegExpFromHeapString(isolate, zone, input, flags, result);
 }
+
+#undef LAST
 
 }  // namespace internal
 }  // namespace v8

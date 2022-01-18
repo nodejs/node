@@ -59,10 +59,10 @@ bool TryFindLandingPad(uintptr_t fault_addr, uintptr_t* landing_pad) {
       // ProtectedInstructionData::instr_offset.
       TH_DCHECK(base + offset == fault_addr);
 
-      for (unsigned i = 0; i < data->num_protected_instructions; ++i) {
-        if (data->instructions[i].instr_offset == offset) {
+      for (unsigned j = 0; j < data->num_protected_instructions; ++j) {
+        if (data->instructions[j].instr_offset == offset) {
           // Hurray again, we found the actual instruction.
-          *landing_pad = data->instructions[i].landing_offset + base;
+          *landing_pad = data->instructions[j].landing_offset + base;
 
           gRecoveredTrapCount.store(
               gRecoveredTrapCount.load(std::memory_order_relaxed) + 1,

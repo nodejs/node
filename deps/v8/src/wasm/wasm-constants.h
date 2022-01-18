@@ -161,7 +161,7 @@ constexpr int kAnonymousFuncIndex = -1;
 constexpr uint32_t kGenericWrapperBudget = 1000;
 
 #if V8_TARGET_ARCH_X64
-constexpr int32_t kOSRTargetOffset = 3 * kSystemPointerSize;
+constexpr int32_t kOSRTargetOffset = 5 * kSystemPointerSize;
 #endif
 
 }  // namespace wasm

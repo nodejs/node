@@ -318,7 +318,7 @@ class V8_EXPORT Context : public Data {
      * stack may be allocated separately from the native stack.  See also
      * |TryCatch::JSStackComparableAddressPrivate| for details.
      */
-    V8_DEPRECATE_SOON(
+    V8_DEPRECATED(
         "This is private V8 information that should not be exposed in the API.")
     uintptr_t JSStackComparableAddress() const {
       return JSStackComparableAddressPrivate();

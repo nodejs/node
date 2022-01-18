@@ -9,6 +9,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/base/platform/condition-variable.h"
 #include "src/base/platform/semaphore.h"
 #include "src/codegen/compiler.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
@@ -119,19 +120,111 @@ class LazyCompilerDispatcherTest : public TestWithNativeContext {
 
 namespace {
 
+class DeferredPostJob {
+ public:
+  class DeferredJobHandle final : public JobHandle {
+   public:
+    explicit DeferredJobHandle(DeferredPostJob* owner) : owner_(owner) {
+      owner->deferred_handle_ = this;
+    }
+    ~DeferredJobHandle() final {
+      if (owner_) {
+        owner_->deferred_handle_ = nullptr;
+      }
+    }
+
+    void NotifyConcurrencyIncrease() final {
+      DCHECK(!was_cancelled());
+      if (real_handle()) {
+        real_handle()->NotifyConcurrencyIncrease();
+      }
+      // No need to defer the NotifyConcurrencyIncrease, we'll automatically
+      // check concurrency when posting the job.
+    }
+    void Cancel() final {
+      set_cancelled();
+      if (real_handle()) {
+        real_handle()->Cancel();
+      }
+    }
+    void Join() final { UNREACHABLE(); }
+    void CancelAndDetach() final { UNREACHABLE(); }
+    bool IsActive() final { return real_handle() && real_handle()->IsActive(); }
+    bool IsValid() final { return owner_->HandleIsValid(); }
+
+    void ClearOwner() { owner_ = nullptr; }
+
+   private:
+    JobHandle* real_handle() { return owner_->real_handle_.get(); }
+    bool was_cancelled() { return owner_->was_cancelled_; }
+    void set_cancelled() {
+      DCHECK(!was_cancelled());
+      owner_->was_cancelled_ = true;
+    }
+
+    DeferredPostJob* owner_;
+  };
+
+  ~DeferredPostJob() {
+    if (deferred_handle_) deferred_handle_->ClearOwner();
+  }
+
+  std::unique_ptr<JobHandle> DeferPostJob(TaskPriority priority,
+                                          std::unique_ptr<JobTask> job_task) {
+    DCHECK_NULL(job_task_);
+    job_task_ = std::move(job_task);
+    priority_ = priority;
+    return std::make_unique<DeferredJobHandle>(this);
+  }
+
+  bool IsPending() { return job_task_ != nullptr; }
+
+  void Clear() { job_task_.reset(); }
+
+  void DoRealPostJob(Platform* platform) {
+    real_handle_ = platform->PostJob(priority_, std::move(job_task_));
+    if (was_cancelled_) {
+      real_handle_->Cancel();
+    }
+  }
+
+  void BlockUntilComplete() {
+    // Join the handle pointed to by the deferred handle. This invalidates that
+    // handle, but LazyCompileDispatcher still wants to be able to cancel the
+    // job it posted, so clear the deferred handle to go back to relying on
+    // was_cancelled for validity.
+    real_handle_->Join();
+    real_handle_ = nullptr;
+  }
+
+  bool HandleIsValid() {
+    return !was_cancelled_ && real_handle_ && real_handle_->IsValid();
+  }
+
+ private:
+  std::unique_ptr<JobTask> job_task_;
+  TaskPriority priority_;
+
+  // Non-owning pointer to the handle returned by PostJob. The handle holds
+  // a pointer to this instance, and registers/deregisters itself on
+  // constuction/destruction.
+  DeferredJobHandle* deferred_handle_ = nullptr;
+
+  std::unique_ptr<JobHandle> real_handle_ = nullptr;
+  bool was_cancelled_ = false;
+};
+
 class MockPlatform : public v8::Platform {
  public:
   MockPlatform()
       : time_(0.0),
         time_step_(0.0),
         idle_task_(nullptr),
-        sem_(0),
         tracing_controller_(V8::GetCurrentPlatform()->GetTracingController()) {}
   ~MockPlatform() override {
-    base::MutexGuard lock(&mutex_);
-    EXPECT_TRUE(foreground_tasks_.empty());
-    EXPECT_TRUE(worker_tasks_.empty());
-    EXPECT_TRUE(idle_task_ == nullptr);
+    EXPECT_FALSE(deferred_post_job_.HandleIsValid());
+    base::MutexGuard lock(&idle_task_mutex_);
+    EXPECT_EQ(idle_task_, nullptr);
   }
   MockPlatform(const MockPlatform&) = delete;
   MockPlatform& operator=(const MockPlatform&) = delete;
@@ -144,8 +237,7 @@ class MockPlatform : public v8::Platform {
   }
 
   void CallOnWorkerThread(std::unique_ptr<Task> task) override {
-    base::MutexGuard lock(&mutex_);
-    worker_tasks_.push_back(std::move(task));
+    UNREACHABLE();
   }
 
   void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
@@ -156,8 +248,8 @@ class MockPlatform : public v8::Platform {
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return true; }
 
   std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_state) override {
-    UNREACHABLE();
+      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
+    return deferred_post_job_.DeferPostJob(priority, std::move(job_task));
   }
 
   double MonotonicallyIncreasingTime() override {
@@ -175,127 +267,48 @@ class MockPlatform : public v8::Platform {
 
   void RunIdleTask(double deadline_in_seconds, double time_step) {
     time_step_ = time_step;
-    IdleTask* task;
+    std::unique_ptr<IdleTask> task;
     {
-      base::MutexGuard lock(&mutex_);
-      task = idle_task_;
-      ASSERT_TRUE(idle_task_ != nullptr);
-      idle_task_ = nullptr;
+      base::MutexGuard lock(&idle_task_mutex_);
+      task.swap(idle_task_);
     }
     task->Run(deadline_in_seconds);
-    delete task;
   }
 
   bool IdleTaskPending() {
-    base::MutexGuard lock(&mutex_);
-    return idle_task_;
+    base::MutexGuard lock(&idle_task_mutex_);
+    return idle_task_ != nullptr;
   }
 
-  bool WorkerTasksPending() {
-    base::MutexGuard lock(&mutex_);
-    return !worker_tasks_.empty();
+  bool JobTaskPending() { return deferred_post_job_.IsPending(); }
+
+  void RunJobTasksAndBlock(Platform* platform) {
+    deferred_post_job_.DoRealPostJob(platform);
+    deferred_post_job_.BlockUntilComplete();
   }
 
-  bool ForegroundTasksPending() {
-    base::MutexGuard lock(&mutex_);
-    return !foreground_tasks_.empty();
+  void RunJobTasks(Platform* platform) {
+    deferred_post_job_.DoRealPostJob(platform);
   }
 
-  void RunWorkerTasksAndBlock(Platform* platform) {
-    std::vector<std::unique_ptr<Task>> tasks;
-    {
-      base::MutexGuard lock(&mutex_);
-      tasks.swap(worker_tasks_);
-    }
-    platform->CallOnWorkerThread(
-        std::make_unique<TaskWrapper>(this, std::move(tasks), true));
-    sem_.Wait();
-  }
-
-  void RunWorkerTasks(Platform* platform) {
-    std::vector<std::unique_ptr<Task>> tasks;
-    {
-      base::MutexGuard lock(&mutex_);
-      tasks.swap(worker_tasks_);
-    }
-    platform->CallOnWorkerThread(
-        std::make_unique<TaskWrapper>(this, std::move(tasks), false));
-  }
-
-  void RunForegroundTasks() {
-    std::vector<std::unique_ptr<Task>> tasks;
-    {
-      base::MutexGuard lock(&mutex_);
-      tasks.swap(foreground_tasks_);
-    }
-    for (auto& task : tasks) {
-      task->Run();
-      // Reset |task| before running the next one.
-      task.reset();
-    }
-  }
-
-  void ClearWorkerTasks() {
-    std::vector<std::unique_ptr<Task>> tasks;
-    {
-      base::MutexGuard lock(&mutex_);
-      tasks.swap(worker_tasks_);
-    }
-  }
-
-  void ClearForegroundTasks() {
-    std::vector<std::unique_ptr<Task>> tasks;
-    {
-      base::MutexGuard lock(&mutex_);
-      tasks.swap(foreground_tasks_);
-    }
-  }
+  void ClearJobs() { deferred_post_job_.Clear(); }
 
   void ClearIdleTask() {
-    base::MutexGuard lock(&mutex_);
-    ASSERT_TRUE(idle_task_ != nullptr);
-    delete idle_task_;
-    idle_task_ = nullptr;
+    base::MutexGuard lock(&idle_task_mutex_);
+    CHECK_NOT_NULL(idle_task_);
+    idle_task_.reset();
   }
 
  private:
-  class TaskWrapper : public Task {
-   public:
-    TaskWrapper(MockPlatform* platform,
-                std::vector<std::unique_ptr<Task>> tasks, bool signal)
-        : platform_(platform), tasks_(std::move(tasks)), signal_(signal) {}
-    ~TaskWrapper() override = default;
-    TaskWrapper(const TaskWrapper&) = delete;
-    TaskWrapper& operator=(const TaskWrapper&) = delete;
-
-    void Run() override {
-      for (auto& task : tasks_) {
-        task->Run();
-        // Reset |task| before running the next one.
-        task.reset();
-      }
-      if (signal_) platform_->sem_.Signal();
-    }
-
-   private:
-    MockPlatform* platform_;
-    std::vector<std::unique_ptr<Task>> tasks_;
-    bool signal_;
-  };
-
   class MockForegroundTaskRunner final : public TaskRunner {
    public:
     explicit MockForegroundTaskRunner(MockPlatform* platform)
         : platform_(platform) {}
 
-    void PostTask(std::unique_ptr<v8::Task> task) override {
-      base::MutexGuard lock(&platform_->mutex_);
-      platform_->foreground_tasks_.push_back(std::move(task));
-    }
+    void PostTask(std::unique_ptr<v8::Task> task) override { UNREACHABLE(); }
 
     void PostNonNestableTask(std::unique_ptr<v8::Task> task) override {
-      // The mock platform does not nest tasks.
-      PostTask(std::move(task));
+      UNREACHABLE();
     }
 
     void PostDelayedTask(std::unique_ptr<Task> task,
@@ -305,9 +318,9 @@ class MockPlatform : public v8::Platform {
 
     void PostIdleTask(std::unique_ptr<IdleTask> task) override {
       DCHECK(IdleTasksEnabled());
-      base::MutexGuard lock(&platform_->mutex_);
+      base::MutexGuard lock(&platform_->idle_task_mutex_);
       ASSERT_TRUE(platform_->idle_task_ == nullptr);
-      platform_->idle_task_ = task.release();
+      platform_->idle_task_ = std::move(task);
     }
 
     bool IdleTasksEnabled() override { return true; }
@@ -321,14 +334,14 @@ class MockPlatform : public v8::Platform {
   double time_;
   double time_step_;
 
-  // Protects all *_tasks_.
-  base::Mutex mutex_;
+  // The posted JobTask.
+  DeferredPostJob deferred_post_job_;
 
-  IdleTask* idle_task_;
-  std::vector<std::unique_ptr<Task>> worker_tasks_;
-  std::vector<std::unique_ptr<Task>> foreground_tasks_;
+  // The posted idle task.
+  std::unique_ptr<IdleTask> idle_task_;
 
-  base::Semaphore sem_;
+  // Protects idle_task_.
+  base::Mutex idle_task_mutex_;
 
   v8::TracingController* tracing_controller_;
 };
@@ -366,8 +379,7 @@ TEST_F(LazyCompilerDispatcherTest, IsEnqueued) {
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
 
   ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_TRUE(platform.WorkerTasksPending());
-  platform.ClearWorkerTasks();
+  ASSERT_TRUE(platform.JobTaskPending());
 }
 
 TEST_F(LazyCompilerDispatcherTest, FinishNow) {
@@ -388,7 +400,6 @@ TEST_F(LazyCompilerDispatcherTest, FinishNow) {
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(shared->is_compiled());
 
-  platform.ClearWorkerTasks();
   ASSERT_FALSE(platform.IdleTaskPending());
   dispatcher.AbortAll();
 }
@@ -404,10 +415,10 @@ TEST_F(LazyCompilerDispatcherTest, CompileAndFinalize) {
 
   base::Optional<LazyCompileDispatcher::JobId> job_id =
       EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
-  ASSERT_TRUE(platform.WorkerTasksPending());
+  ASSERT_TRUE(platform.JobTaskPending());
 
   // Run compile steps.
-  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
+  platform.RunJobTasksAndBlock(V8::GetCurrentPlatform());
 
   // Since we haven't yet registered the SFI for the job, it should still be
   // enqueued and waiting.
@@ -423,7 +434,7 @@ TEST_F(LazyCompilerDispatcherTest, CompileAndFinalize) {
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(shared->is_compiled());
-  ASSERT_FALSE(platform.WorkerTasksPending());
+  ASSERT_FALSE(platform.JobTaskPending());
   ASSERT_FALSE(platform.IdleTaskPending());
   dispatcher.AbortAll();
 }
@@ -442,7 +453,7 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskNoIdleTime) {
   dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
 
   // Run compile steps.
-  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
+  platform.RunJobTasksAndBlock(V8::GetCurrentPlatform());
 
   // Job should be ready to finalize.
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
@@ -466,7 +477,7 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskNoIdleTime) {
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_FALSE(platform.WorkerTasksPending());
+  ASSERT_FALSE(platform.JobTaskPending());
   dispatcher.AbortAll();
 }
 
@@ -490,7 +501,7 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskSmallIdleTime) {
   dispatcher.RegisterSharedFunctionInfo(*job_id_2, *shared_2);
 
   // Run compile steps.
-  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
+  platform.RunJobTasksAndBlock(V8::GetCurrentPlatform());
 
   // Both jobs should be ready to finalize.
   ASSERT_EQ(dispatcher.jobs_.size(), 2u);
@@ -516,7 +527,7 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskSmallIdleTime) {
                dispatcher.IsEnqueued(shared_2));
   ASSERT_TRUE(shared_1->is_compiled() && shared_2->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_FALSE(platform.WorkerTasksPending());
+  ASSERT_FALSE(platform.JobTaskPending());
   dispatcher.AbortAll();
 }
 
@@ -541,13 +552,12 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskException) {
   dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
 
   // Run compile steps and finalize.
-  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
+  platform.RunJobTasksAndBlock(V8::GetCurrentPlatform());
   platform.RunIdleTask(1000.0, 0.0);
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(i_isolate()->has_pending_exception());
-  platform.ClearWorkerTasks();
   dispatcher.AbortAll();
 }
 
@@ -570,17 +580,17 @@ TEST_F(LazyCompilerDispatcherTest, FinishNowWithWorkerTask) {
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
   ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
-  ASSERT_TRUE(platform.WorkerTasksPending());
+  ASSERT_TRUE(platform.JobTaskPending());
 
   // This does not block, but races with the FinishNow() call below.
-  platform.RunWorkerTasks(V8::GetCurrentPlatform());
+  platform.RunJobTasks(V8::GetCurrentPlatform());
 
   ASSERT_TRUE(dispatcher.FinishNow(shared));
   // Finishing removes the SFI from the queue.
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(shared->is_compiled());
   if (platform.IdleTaskPending()) platform.ClearIdleTask();
-  ASSERT_FALSE(platform.WorkerTasksPending());
+  ASSERT_FALSE(platform.JobTaskPending());
   dispatcher.AbortAll();
 }
 
@@ -607,7 +617,7 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskMultipleJobs) {
   ASSERT_TRUE(dispatcher.IsEnqueued(shared_2));
 
   // Run compile steps and finalize.
-  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
+  platform.RunJobTasksAndBlock(V8::GetCurrentPlatform());
   platform.RunIdleTask(1000.0, 0.0);
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared_1));
@@ -615,7 +625,7 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskMultipleJobs) {
   ASSERT_TRUE(shared_1->is_compiled());
   ASSERT_TRUE(shared_2->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_FALSE(platform.WorkerTasksPending());
+  ASSERT_FALSE(platform.JobTaskPending());
   dispatcher.AbortAll();
 }
 
@@ -647,7 +657,6 @@ TEST_F(LazyCompilerDispatcherTest, FinishNowException) {
 
   i_isolate()->clear_pending_exception();
   ASSERT_FALSE(platform.IdleTaskPending());
-  platform.ClearWorkerTasks();
   dispatcher.AbortAll();
 }
 
@@ -669,7 +678,7 @@ TEST_F(LazyCompilerDispatcherTest, AbortJobNotStarted) {
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
   ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
-  ASSERT_TRUE(platform.WorkerTasksPending());
+  ASSERT_TRUE(platform.JobTaskPending());
 
   dispatcher.AbortJob(*job_id);
 
@@ -677,7 +686,6 @@ TEST_F(LazyCompilerDispatcherTest, AbortJobNotStarted) {
   ASSERT_FALSE(dispatcher.IsEnqueued(*job_id));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  platform.ClearWorkerTasks();
   dispatcher.AbortAll();
 }
 
@@ -699,7 +707,7 @@ TEST_F(LazyCompilerDispatcherTest, AbortJobAlreadyStarted) {
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
   ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
-  ASSERT_TRUE(platform.WorkerTasksPending());
+  ASSERT_TRUE(platform.JobTaskPending());
 
   // Have dispatcher block on the background thread when running the job.
   {
@@ -708,7 +716,7 @@ TEST_F(LazyCompilerDispatcherTest, AbortJobAlreadyStarted) {
   }
 
   // Start background thread and wait until it is about to run the job.
-  platform.RunWorkerTasks(V8::GetCurrentPlatform());
+  platform.RunJobTasks(V8::GetCurrentPlatform());
   while (dispatcher.block_for_testing_.Value()) {
   }
 
@@ -732,7 +740,7 @@ TEST_F(LazyCompilerDispatcherTest, AbortJobAlreadyStarted) {
   ASSERT_EQ(dispatcher.jobs_.size(), 1u);
   ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
   ASSERT_TRUE(dispatcher.jobs_.begin()->second->aborted);
-  ASSERT_FALSE(platform.WorkerTasksPending());
+  ASSERT_FALSE(platform.JobTaskPending());
   ASSERT_TRUE(platform.IdleTaskPending());
 
   // Runt the pending idle task
@@ -742,7 +750,7 @@ TEST_F(LazyCompilerDispatcherTest, AbortJobAlreadyStarted) {
   ASSERT_FALSE(dispatcher.IsEnqueued(*job_id));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_FALSE(platform.WorkerTasksPending());
+  ASSERT_FALSE(platform.JobTaskPending());
   dispatcher.AbortAll();
 }
 
@@ -835,12 +843,12 @@ TEST_F(LazyCompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
   ASSERT_FALSE(shared_1->is_compiled());
   ASSERT_FALSE(shared_2->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
-  ASSERT_TRUE(platform.WorkerTasksPending());
+  ASSERT_TRUE(platform.JobTaskPending());
 
-  platform.RunWorkerTasksAndBlock(V8::GetCurrentPlatform());
+  platform.RunJobTasksAndBlock(V8::GetCurrentPlatform());
 
   ASSERT_TRUE(platform.IdleTaskPending());
-  ASSERT_FALSE(platform.WorkerTasksPending());
+  ASSERT_FALSE(platform.JobTaskPending());
   ASSERT_EQ(dispatcher.jobs_.size(), 2u);
   ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
   ASSERT_TRUE((++dispatcher.jobs_.begin())->second->has_run);

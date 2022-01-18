@@ -6,6 +6,7 @@
 
 #include "include/v8-cppgc.h"
 #include "src/base/logging.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/gc-tracer.h"
 #include "src/objects/embedder-data-slot.h"
 #include "src/objects/js-objects-inl.h"

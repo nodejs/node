@@ -2778,6 +2778,10 @@ int SharedFunctionInfoRef::context_header_size() const {
   return object()->scope_info().ContextHeaderLength();
 }
 
+int SharedFunctionInfoRef::context_parameters_start() const {
+  return object()->scope_info().ParametersStartIndex();
+}
+
 ScopeInfoRef SharedFunctionInfoRef::scope_info() const {
   return MakeRefAssumeMemoryFence(broker(), object()->scope_info(kAcquireLoad));
 }

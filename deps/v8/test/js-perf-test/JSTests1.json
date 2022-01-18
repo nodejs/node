@@ -157,6 +157,27 @@
             { "name": "AsUint8-128" },
             { "name": "AsUint8-256" }
           ]
+        },
+        {
+          "name": "AsIntN",
+          "main": "run.js",
+          "resources": ["as-int-n.js", "bigint-util.js"],
+          "test_flags": ["as-int-n"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "AsInt64-32" },
+            { "name": "AsInt64-64" },
+            { "name": "AsInt64-128" },
+            { "name": "AsInt64-256" },
+            { "name": "AsInt32-32" },
+            { "name": "AsInt32-64" },
+            { "name": "AsInt32-128" },
+            { "name": "AsInt32-256" },
+            { "name": "AsInt8-32" },
+            { "name": "AsInt8-64" },
+            { "name": "AsInt8-128" },
+            { "name": "AsInt8-256" }
+          ]
         }
       ]
     },

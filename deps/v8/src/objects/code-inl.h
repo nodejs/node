@@ -12,12 +12,9 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/heap-write-barrier-inl.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/code.h"
 #include "src/objects/dictionary.h"
-#include "src/objects/fixed-array.h"
-#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/maybe-object-inl.h"
@@ -186,55 +183,103 @@ INT_ACCESSORS(Code, raw_metadata_size, kMetadataSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
-#define CODE_ACCESSORS(name, type, offset)            \
-  ACCESSORS_CHECKED2(Code, name, type, offset,        \
-                     !ObjectInYoungGeneration(value), \
-                     !ObjectInYoungGeneration(value))
-#define CODE_ACCESSORS_CHECKED(name, type, offset, condition)        \
-  ACCESSORS_CHECKED2(Code, name, type, offset,                       \
-                     !ObjectInYoungGeneration(value) && (condition), \
-                     !ObjectInYoungGeneration(value) && (condition))
-#define RELEASE_ACQUIRE_CODE_ACCESSORS(name, type, offset)            \
-  RELEASE_ACQUIRE_ACCESSORS_CHECKED2(Code, name, type, offset,        \
-                                     !ObjectInYoungGeneration(value), \
-                                     !ObjectInYoungGeneration(value))
+
+// Same as ACCESSORS_CHECKED2 macro but with Code as a host and using
+// main_cage_base() for computing the base.
+#define CODE_ACCESSORS_CHECKED2(name, type, offset, get_condition,  \
+                                set_condition)                      \
+  type Code::name() const {                                         \
+    PtrComprCageBase cage_base = main_cage_base();                  \
+    return Code::name(cage_base);                                   \
+  }                                                                 \
+  type Code::name(PtrComprCageBase cage_base) const {               \
+    type value = TaggedField<type, offset>::load(cage_base, *this); \
+    DCHECK(get_condition);                                          \
+    return value;                                                   \
+  }                                                                 \
+  void Code::set_##name(type value, WriteBarrierMode mode) {        \
+    DCHECK(set_condition);                                          \
+    TaggedField<type, offset>::store(*this, value);                 \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);          \
+  }
+
+// Same as RELEASE_ACQUIRE_ACCESSORS_CHECKED2 macro but with Code as a host and
+// using main_cage_base() for computing the base.
+#define RELEASE_ACQUIRE_CODE_ACCESSORS_CHECKED2(name, type, offset,           \
+                                                get_condition, set_condition) \
+  type Code::name(AcquireLoadTag tag) const {                                 \
+    PtrComprCageBase cage_base = main_cage_base();                            \
+    return Code::name(cage_base, tag);                                        \
+  }                                                                           \
+  type Code::name(PtrComprCageBase cage_base, AcquireLoadTag) const {         \
+    type value = TaggedField<type, offset>::Acquire_Load(cage_base, *this);   \
+    DCHECK(get_condition);                                                    \
+    return value;                                                             \
+  }                                                                           \
+  void Code::set_##name(type value, ReleaseStoreTag, WriteBarrierMode mode) { \
+    DCHECK(set_condition);                                                    \
+    TaggedField<type, offset>::Release_Store(*this, value);                   \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                    \
+  }
+
+#define CODE_ACCESSORS(name, type, offset) \
+  CODE_ACCESSORS_CHECKED2(name, type, offset, true, true)
+
+#define RELEASE_ACQUIRE_CODE_ACCESSORS(name, type, offset)                 \
+  RELEASE_ACQUIRE_CODE_ACCESSORS_CHECKED2(name, type, offset,              \
+                                          !ObjectInYoungGeneration(value), \
+                                          !ObjectInYoungGeneration(value))
 
 CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
-RELEASE_ACQUIRE_CODE_ACCESSORS(relocation_info, ByteArray,
-                               kRelocationInfoOffset)
-CODE_ACCESSORS_CHECKED(relocation_info_or_undefined, HeapObject,
-                       kRelocationInfoOffset,
-                       value.IsUndefined() || value.IsByteArray())
 
-ACCESSORS_CHECKED2(Code, deoptimization_data, FixedArray,
-                   kDeoptimizationDataOrInterpreterDataOffset,
-                   kind() != CodeKind::BASELINE,
-                   kind() != CodeKind::BASELINE &&
-                       !ObjectInYoungGeneration(value))
-ACCESSORS_CHECKED2(Code, bytecode_or_interpreter_data, HeapObject,
-                   kDeoptimizationDataOrInterpreterDataOffset,
-                   kind() == CodeKind::BASELINE,
-                   kind() == CodeKind::BASELINE &&
-                       !ObjectInYoungGeneration(value))
+CODE_ACCESSORS_CHECKED2(deoptimization_data, FixedArray,
+                        kDeoptimizationDataOrInterpreterDataOffset,
+                        kind() != CodeKind::BASELINE,
+                        kind() != CodeKind::BASELINE &&
+                            !ObjectInYoungGeneration(value))
+CODE_ACCESSORS_CHECKED2(bytecode_or_interpreter_data, HeapObject,
+                        kDeoptimizationDataOrInterpreterDataOffset,
+                        kind() == CodeKind::BASELINE,
+                        kind() == CodeKind::BASELINE &&
+                            !ObjectInYoungGeneration(value))
 
-ACCESSORS_CHECKED2(Code, source_position_table, ByteArray, kPositionTableOffset,
-                   kind() != CodeKind::BASELINE,
-                   kind() != CodeKind::BASELINE &&
-                       !ObjectInYoungGeneration(value))
-ACCESSORS_CHECKED2(Code, bytecode_offset_table, ByteArray, kPositionTableOffset,
-                   kind() == CodeKind::BASELINE,
-                   kind() == CodeKind::BASELINE &&
-                       !ObjectInYoungGeneration(value))
+CODE_ACCESSORS_CHECKED2(source_position_table, ByteArray, kPositionTableOffset,
+                        kind() != CodeKind::BASELINE,
+                        kind() != CodeKind::BASELINE &&
+                            !ObjectInYoungGeneration(value))
+CODE_ACCESSORS_CHECKED2(bytecode_offset_table, ByteArray, kPositionTableOffset,
+                        kind() == CodeKind::BASELINE,
+                        kind() == CodeKind::BASELINE &&
+                            !ObjectInYoungGeneration(value))
 
 // Concurrent marker needs to access kind specific flags in code data container.
 RELEASE_ACQUIRE_CODE_ACCESSORS(code_data_container, CodeDataContainer,
                                kCodeDataContainerOffset)
 #undef CODE_ACCESSORS
-#undef CODE_ACCESSORS_CHECKED
+#undef CODE_ACCESSORS_CHECKED2
 #undef RELEASE_ACQUIRE_CODE_ACCESSORS
+#undef RELEASE_ACQUIRE_CODE_ACCESSORS_CHECKED2
+
+PtrComprCageBase Code::main_cage_base() const {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  Address cage_base_hi = ReadField<Tagged_t>(kMainCageBaseUpper32BitsOffset);
+  return PtrComprCageBase(cage_base_hi << 32);
+#else
+  return GetPtrComprCageBase(*this);
+#endif
+}
+
+void Code::set_main_cage_base(Address cage_base) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  Tagged_t cage_base_hi = static_cast<Tagged_t>(cage_base >> 32);
+  WriteField<Tagged_t>(kMainCageBaseUpper32BitsOffset, cage_base_hi);
+#else
+  UNREACHABLE();
+#endif
+}
 
 CodeDataContainer Code::GCSafeCodeDataContainer(AcquireLoadTag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = main_cage_base();
   HeapObject object =
       TaggedField<HeapObject, kCodeDataContainerOffset>::Acquire_Load(cage_base,
                                                                       *this);
@@ -284,6 +329,9 @@ void Code::WipeOutHeader() {
               Smi::FromInt(0));
   WRITE_FIELD(*this, kPositionTableOffset, Smi::FromInt(0));
   WRITE_FIELD(*this, kCodeDataContainerOffset, Smi::FromInt(0));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    set_main_cage_base(kNullAddress);
+  }
 }
 
 void Code::clear_padding() {
@@ -401,15 +449,9 @@ int Code::SizeIncludingMetadata() const {
 }
 
 ByteArray Code::unchecked_relocation_info() const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = main_cage_base();
   return ByteArray::unchecked_cast(
       TaggedField<HeapObject, kRelocationInfoOffset>::load(cage_base, *this));
-}
-
-HeapObject Code::synchronized_unchecked_relocation_info_or_undefined() const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return TaggedField<HeapObject, kRelocationInfoOffset>::Acquire_Load(cage_base,
-                                                                      *this);
 }
 
 byte* Code::relocation_start() const {
@@ -824,25 +866,96 @@ STATIC_ASSERT(FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) ==
               kInt32Size);
 RELAXED_INT32_ACCESSORS(CodeDataContainer, kind_specific_flags,
                         kKindSpecificFlagsOffset)
-ACCESSORS_CHECKED(CodeDataContainer, raw_code, Object, kCodeOffset,
-                  V8_EXTERNAL_CODE_SPACE_BOOL)
-RELAXED_ACCESSORS_CHECKED(CodeDataContainer, raw_code, Object, kCodeOffset,
-                          V8_EXTERNAL_CODE_SPACE_BOOL)
+
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+static_assert(!V8_EXTERNAL_CODE_SPACE_BOOL ||
+                  (CodeDataContainer::kCodeCageBaseUpper32BitsOffset ==
+                   CodeDataContainer::kCodeOffset + kTaggedSize),
+              "CodeDataContainer::code field layout requires updating "
+              "for little endian architectures");
+#elif defined(V8_TARGET_BIG_ENDIAN)
+static_assert(!V8_EXTERNAL_CODE_SPACE_BOOL,
+              "CodeDataContainer::code field layout requires updating "
+              "for big endian architectures");
+#endif
+
+DEF_GETTER(CodeDataContainer, raw_code, Object) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  // Given the fields layout we can write the Code reference as a full word
+  // (see the static asserts above).
+  Address* p = reinterpret_cast<Address*>(address() + kCodeOffset);
+  Object value = Object(*p);
+  return value;
+}
+
+void CodeDataContainer::set_raw_code(Object value, WriteBarrierMode mode) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  // Given the fields layout we can write the Code reference as a full word
+  // (see the static asserts above).
+  Address* p = reinterpret_cast<Address*>(address() + kCodeOffset);
+  *p = value.ptr();
+  CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
+}
+
+Object CodeDataContainer::raw_code(RelaxedLoadTag tag) const {
+  PtrComprCageBase cage_base = code_cage_base();
+  return CodeDataContainer::raw_code(cage_base, tag);
+}
+
+Object CodeDataContainer::raw_code(PtrComprCageBase cage_base,
+                                   RelaxedLoadTag) const {
+  Object value =
+      TaggedField<Object, kCodeOffset>::Relaxed_Load(cage_base, *this);
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  return value;
+}
+
 ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
+
+PtrComprCageBase CodeDataContainer::code_cage_base() const {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  CHECK(!V8_HEAP_SANDBOX_BOOL);
+  Address code_cage_base_hi =
+      ReadField<Tagged_t>(kCodeCageBaseUpper32BitsOffset);
+  return PtrComprCageBase(code_cage_base_hi << 32);
+#else
+  return GetPtrComprCageBase(*this);
+#endif
+}
+
+void CodeDataContainer::set_code_cage_base(Address code_cage_base) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  CHECK(!V8_HEAP_SANDBOX_BOOL);
+  Tagged_t code_cage_base_hi = static_cast<Tagged_t>(code_cage_base >> 32);
+  WriteField<Tagged_t>(kCodeCageBaseUpper32BitsOffset, code_cage_base_hi);
+#else
+  UNREACHABLE();
+#endif
+}
 
 void CodeDataContainer::AllocateExternalPointerEntries(Isolate* isolate) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   InitExternalPointerField(kCodeEntryPointOffset, isolate);
 }
 
-DEF_GETTER(CodeDataContainer, code, Code) {
+Code CodeDataContainer::code() const {
+  PtrComprCageBase cage_base = code_cage_base();
+  return CodeDataContainer::code(cage_base);
+}
+Code CodeDataContainer::code(PtrComprCageBase cage_base) const {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   return Code::cast(raw_code(cage_base));
 }
 
-DEF_RELAXED_GETTER(CodeDataContainer, code, Code) {
+Code CodeDataContainer::code(RelaxedLoadTag tag) const {
+  PtrComprCageBase cage_base = code_cage_base();
+  return CodeDataContainer::code(cage_base, tag);
+}
+
+Code CodeDataContainer::code(PtrComprCageBase cage_base,
+                             RelaxedLoadTag tag) const {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  return Code::cast(raw_code(cage_base, kRelaxedLoad));
+  return Code::cast(raw_code(cage_base, tag));
 }
 
 DEF_GETTER(CodeDataContainer, code_entry_point, Address) {
@@ -938,13 +1051,13 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
 }
 
 int BytecodeArray::osr_loop_nesting_level() const {
-  return ReadField<int8_t>(kOsrLoopNestingLevelOffset);
+  return ACQUIRE_READ_INT8_FIELD(*this, kOsrLoopNestingLevelOffset);
 }
 
 void BytecodeArray::set_osr_loop_nesting_level(int depth) {
   DCHECK(0 <= depth && depth <= AbstractCode::kMaxLoopNestingMarker);
   STATIC_ASSERT(AbstractCode::kMaxLoopNestingMarker < kMaxInt8);
-  WriteField<int8_t>(kOsrLoopNestingLevelOffset, depth);
+  RELEASE_WRITE_INT8_FIELD(*this, kOsrLoopNestingLevelOffset, depth);
 }
 
 BytecodeArray::Age BytecodeArray::bytecode_age() const {

@@ -2377,8 +2377,12 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   StackArgumentsAccessor args(rax);
   __ AssertFunction(rdi);
 
+  Label class_constructor;
   __ LoadTaggedPointerField(
       rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ testl(FieldOperand(rdx, SharedFunctionInfo::kFlagsOffset),
+           Immediate(SharedFunctionInfo::IsClassConstructorBit::kMask));
+  __ j(not_zero, &class_constructor);
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments
   //  -- rdx : the shared function info.
@@ -2463,6 +2467,14 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ movzxwq(
       rbx, FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
   __ InvokeFunctionCode(rdi, no_reg, rbx, rax, InvokeType::kJump);
+
+  // The function is a "classConstructor", need to raise an exception.
+  __ bind(&class_constructor);
+  {
+    FrameScope frame(masm, StackFrame::INTERNAL);
+    __ Push(rdi);
+    __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
+  }
 }
 
 namespace {
@@ -3638,6 +3650,213 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ popq(function_data);
   __ popq(wasm_instance);
   __ jmp(&compile_wrapper_done);
+}
+
+namespace {
+// Helper function for WasmReturnPromiseOnSuspend.
+void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf) {
+  __ movq(rsp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
+  // The stack limit is set separately under the ExecutionAccess lock.
+  // TODO(thibaudm): Reload live registers.
+}
+}  // namespace
+
+void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
+  // Set up the stackframe.
+  __ EnterFrame(StackFrame::JS_TO_WASM);
+
+  // Parameters.
+  Register closure = kJSFunctionRegister;                  // rdi
+  Register param_count = kJavaScriptCallArgCountRegister;  // rax
+  if (kJSArgcIncludesReceiver) {
+    __ decq(param_count);
+  }
+
+  constexpr int kFrameMarkerOffset = -kSystemPointerSize;
+  constexpr int kParamCountOffset = kFrameMarkerOffset - kSystemPointerSize;
+  // The frame marker is not included in the slot count.
+  constexpr int kNumSpillSlots =
+      -(kParamCountOffset - kFrameMarkerOffset) / kSystemPointerSize;
+  __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
+
+  __ movq(MemOperand(rbp, kParamCountOffset), param_count);
+
+  // -------------------------------------------
+  // Get the instance and wasm call target.
+  // -------------------------------------------
+  Register sfi = closure;
+  __ LoadAnyTaggedField(
+      sfi,
+      MemOperand(
+          closure,
+          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+  Register function_data = sfi;
+  __ LoadAnyTaggedField(
+      function_data,
+      FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
+  Register wasm_instance = kWasmInstanceRegister;  // rsi
+  __ LoadAnyTaggedField(
+      wasm_instance,
+      FieldOperand(function_data, WasmExportedFunctionData::kInstanceOffset));
+  sfi = no_reg;
+  closure = no_reg;
+  // live: [rsi, rdi]
+
+  // -------------------------------------------
+  // Save current state in active jmpbuf.
+  // -------------------------------------------
+  Register active_continuation = rax;
+  Register foreign_jmpbuf = rbx;
+  __ LoadAnyTaggedField(
+      active_continuation,
+      FieldOperand(wasm_instance,
+                   WasmInstanceObject::kActiveContinuationOffset));
+  __ LoadAnyTaggedField(
+      foreign_jmpbuf,
+      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
+  Register jmpbuf = rbx;
+  __ LoadExternalPointerField(
+      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, r8);
+  __ movq(MemOperand(jmpbuf, wasm::kJmpBufSpOffset), rsp);
+  Register stack_limit_address = rcx;
+  __ movq(stack_limit_address,
+          FieldOperand(wasm_instance,
+                       WasmInstanceObject::kRealStackLimitAddressOffset));
+  Register stack_limit = rdx;
+  __ movq(stack_limit, MemOperand(stack_limit_address, 0));
+  __ movq(MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset), stack_limit);
+  // TODO(thibaudm): Save live registers.
+  foreign_jmpbuf = no_reg;
+  stack_limit = no_reg;
+  stack_limit_address = no_reg;
+  // live: [rsi, rdi, rax]
+
+  // -------------------------------------------
+  // Allocate a new continuation.
+  // -------------------------------------------
+  __ Push(wasm_instance);
+  __ Push(function_data);
+  __ Push(wasm_instance);
+  __ Move(kContextRegister, Smi::zero());
+  // TODO(thibaudm): Handle GC.
+  __ CallRuntime(Runtime::kWasmAllocateContinuation);
+  __ Pop(function_data);
+  __ Pop(wasm_instance);
+  STATIC_ASSERT(kReturnRegister0 == rax);
+  Register target_continuation = rax;
+  // live: [rsi, rdi, rax]
+
+  // -------------------------------------------
+  // Load target continuation jmpbuf.
+  // -------------------------------------------
+  foreign_jmpbuf = rbx;
+  __ LoadAnyTaggedField(
+      foreign_jmpbuf,
+      FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset));
+  Register target_jmpbuf = rbx;
+  __ LoadExternalPointerField(
+      target_jmpbuf,
+      FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, r8);
+  // Switch stack!
+  LoadJumpBuffer(masm, target_jmpbuf);
+  __ movq(rbp, rsp);  // New stack, there is no frame yet.
+  foreign_jmpbuf = no_reg;
+  target_jmpbuf = no_reg;
+  // live: [rsi, rdi]
+
+  // -------------------------------------------
+  // Load and call target wasm function.
+  // -------------------------------------------
+  // TODO(thibaudm): Handle arguments.
+  // TODO(thibaudm): Handle GC.
+  // Set thread_in_wasm_flag.
+  Register thread_in_wasm_flag_addr = rax;
+  __ movq(
+      thread_in_wasm_flag_addr,
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
+  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
+  Register function_entry = function_data;
+  __ LoadExternalPointerField(
+      function_entry,
+      FieldOperand(function_data,
+                   WasmExportedFunctionData::kForeignAddressOffset),
+      kForeignForeignAddressTag, r8);
+  __ Push(wasm_instance);
+  __ call(function_entry);
+  __ Pop(wasm_instance);
+  // Unset thread_in_wasm_flag.
+  __ movq(
+      thread_in_wasm_flag_addr,
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
+  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
+  thread_in_wasm_flag_addr = no_reg;
+  function_entry = no_reg;
+  function_data = no_reg;
+  // live: [rsi]
+
+  // -------------------------------------------
+  // Reload parent continuation.
+  // -------------------------------------------
+  active_continuation = rbx;
+  __ LoadAnyTaggedField(
+      active_continuation,
+      FieldOperand(wasm_instance,
+                   WasmInstanceObject::kActiveContinuationOffset));
+  Register parent = rdx;
+  __ LoadAnyTaggedField(
+      parent,
+      FieldOperand(active_continuation, WasmContinuationObject::kParentOffset));
+  active_continuation = no_reg;
+  // live: [rsi]
+
+  // -------------------------------------------
+  // Update instance active continuation.
+  // -------------------------------------------
+  Register object = WriteBarrierDescriptor::ObjectRegister();
+  Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
+  DCHECK_EQ(object, rdi);
+  DCHECK((slot_address == rbx || slot_address == r8));
+  // Save reg clobbered by the write barrier.
+  __ movq(rax, parent);
+  __ movq(object, wasm_instance);
+  __ StoreTaggedField(
+      FieldOperand(object, WasmInstanceObject::kActiveContinuationOffset),
+      parent);
+  __ RecordWriteField(object, WasmInstanceObject::kActiveContinuationOffset,
+                      parent, slot_address, SaveFPRegsMode::kIgnore);
+  // Restore reg clobbered by the write barrier.
+  __ movq(parent, rax);
+  foreign_jmpbuf = rax;
+  __ LoadAnyTaggedField(
+      foreign_jmpbuf,
+      FieldOperand(parent, WasmContinuationObject::kJmpbufOffset));
+  jmpbuf = foreign_jmpbuf;
+  __ LoadExternalPointerField(
+      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, r8);
+  // Switch stack!
+  LoadJumpBuffer(masm, jmpbuf);
+  __ leaq(rbp, Operand(rsp, (kNumSpillSlots + 1) * kSystemPointerSize));
+  __ Push(wasm_instance);  // Spill.
+  __ Push(wasm_instance);  // First arg.
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmSyncStackLimit);
+  __ Pop(wasm_instance);
+  parent = no_reg;
+  active_continuation = no_reg;
+  foreign_jmpbuf = no_reg;
+  wasm_instance = no_reg;
+
+  // -------------------------------------------
+  // Epilogue.
+  // -------------------------------------------
+  __ movq(param_count, MemOperand(rbp, kParamCountOffset));
+  __ LeaveFrame(StackFrame::JS_TO_WASM);
+  __ DropArguments(param_count, r8, TurboAssembler::kCountIsInteger,
+                   TurboAssembler::kCountExcludesReceiver);
+  __ ret(0);
 }
 
 void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {

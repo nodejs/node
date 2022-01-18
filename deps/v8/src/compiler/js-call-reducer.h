@@ -216,7 +216,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceNumberParseInt(Node* node);
 
   Reduction ReduceNumberConstructor(Node* node);
-  Reduction ReduceBigIntAsUintN(Node* node);
+  Reduction ReduceBigIntAsN(Node* node, Builtin builtin);
 
   // The pendant to ReplaceWithValue when using GraphAssembler-based reductions.
   Reduction ReplaceWithSubgraph(JSCallReducerAssembler* gasm, Node* subgraph);

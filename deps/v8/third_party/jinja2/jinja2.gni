@@ -1,5 +1,3 @@
-# DO NOT EDIT
-# This is generated from get_jinja2.sh.
 jinja2_sources = [
   "//third_party/jinja2/__init__.py",
   "//third_party/jinja2/_compat.py",

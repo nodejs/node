@@ -6,6 +6,7 @@
 
 #include "src/api/api.h"
 #include "src/asmjs/asm-js.h"
+#include "src/base/atomicops.h"
 #include "src/base/platform/wrappers.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
@@ -65,6 +66,7 @@ class CompileImportWrapperJob final : public JobTask {
   }
 
   void Run(JobDelegate* delegate) override {
+    TRACE_EVENT0("v8.wasm", "wasm.CompileImportWrapperJob.Run");
     while (base::Optional<WasmImportWrapperCache::CacheKey> key =
                queue_->pop()) {
       // TODO(wasm): Batch code publishing, to avoid repeated locking and
@@ -703,6 +705,28 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       CreateMapForType(isolate_, module_, index, instance, maps);
     }
     instance->set_managed_object_maps(*maps);
+  }
+
+  //--------------------------------------------------------------------------
+  // Allocate type feedback vectors for functions.
+  //--------------------------------------------------------------------------
+  if (FLAG_wasm_speculative_inlining) {
+    int num_functions = static_cast<int>(module_->num_declared_functions);
+    Handle<FixedArray> vectors =
+        isolate_->factory()->NewFixedArray(num_functions, AllocationType::kOld);
+    instance->set_feedback_vectors(*vectors);
+    for (int i = 0; i < num_functions; i++) {
+      int func_index = module_->num_imported_functions + i;
+      int slots =
+          base::Relaxed_Load(&module_->functions[func_index].feedback_slots);
+      if (slots == 0) continue;
+      if (FLAG_trace_wasm_speculative_inlining) {
+        PrintF("[Function %d (declared %d): allocating %d feedback slots]\n",
+               func_index, i, slots);
+      }
+      Handle<FixedArray> feedback = isolate_->factory()->NewFixedArray(slots);
+      vectors->set(i, *feedback);
+    }
   }
 
   //--------------------------------------------------------------------------
@@ -1470,6 +1494,8 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
 void InstanceBuilder::CompileImportWrappers(
     Handle<WasmInstanceObject> instance) {
   int num_imports = static_cast<int>(module_->import_table.size());
+  TRACE_EVENT1("v8.wasm", "wasm.CompileImportWrappers", "num_imports",
+               num_imports);
   NativeModule* native_module = instance->module_object().native_module();
   WasmImportWrapperCache::ModificationScope cache_scope(
       native_module->import_wrapper_cache());

@@ -514,13 +514,26 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(F64x2ConvertLowI32x4S, 0xfdfe, s_s)      \
   V(F64x2ConvertLowI32x4U, 0xfdff, s_s)
 
-#define FOREACH_RELAXED_SIMD_OPCODE(V) \
-  V(F32x4Qfma, 0xfdaf, s_sss)          \
-  V(F32x4Qfms, 0xfdb0, s_sss)          \
-  V(F64x2Qfma, 0xfdcf, s_sss)          \
-  V(F64x2Qfms, 0xfdd0, s_sss)          \
-  V(F32x4RecipApprox, 0xfdd2, s_s)     \
-  V(F32x4RecipSqrtApprox, 0xfdd3, s_s)
+#define FOREACH_RELAXED_SIMD_OPCODE(V)        \
+  V(I8x16RelaxedSwizzle, 0xfda2, s_ss)        \
+  V(I8x16RelaxedLaneSelect, 0xfdb2, s_sss)    \
+  V(I16x8RelaxedLaneSelect, 0xfdb3, s_sss)    \
+  V(I32x4RelaxedLaneSelect, 0xfdd2, s_sss)    \
+  V(I64x2RelaxedLaneSelect, 0xfdd3, s_sss)    \
+  V(F32x4Qfma, 0xfdaf, s_sss)                 \
+  V(F32x4Qfms, 0xfdb0, s_sss)                 \
+  V(F64x2Qfma, 0xfdcf, s_sss)                 \
+  V(F64x2Qfms, 0xfdd0, s_sss)                 \
+  V(F32x4RelaxedMin, 0xfdb4, s_ss)            \
+  V(F32x4RelaxedMax, 0xfde2, s_ss)            \
+  V(F64x2RelaxedMin, 0xfdd4, s_ss)            \
+  V(F64x2RelaxedMax, 0xfdee, s_ss)            \
+  V(I32x4RelaxedTruncF32x4S, 0xfda5, s_s)     \
+  V(I32x4RelaxedTruncF32x4U, 0xfda6, s_s)     \
+  V(I32x4RelaxedTruncF64x2SZero, 0xfdc5, s_s) \
+  V(I32x4RelaxedTruncF64x2UZero, 0xfdc6, s_s) \
+  V(F32x4RecipApprox, 0xfdbb, s_s)            \
+  V(F32x4RecipSqrtApprox, 0xfdc2, s_s)
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   V(I8x16ExtractLaneS, 0xfd15, _)                \

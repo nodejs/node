@@ -443,18 +443,18 @@ void Simulator::RunFrom(Instruction* start) {
 // The simulator assumes all runtime calls return two 64-bits values. If they
 // don't, register x1 is clobbered. This is fine because x1 is caller-saved.
 #if defined(V8_OS_WIN)
-using SimulatorRuntimeCall_ReturnPtr = int64_t (*)(int64_t arg0, int64_t arg1,
-                                                   int64_t arg2, int64_t arg3,
-                                                   int64_t arg4, int64_t arg5,
-                                                   int64_t arg6, int64_t arg7,
-                                                   int64_t arg8, int64_t arg9);
+using SimulatorRuntimeCall_ReturnPtr = int64_t (*)(
+    int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3, int64_t arg4,
+    int64_t arg5, int64_t arg6, int64_t arg7, int64_t arg8, int64_t arg9,
+    int64_t arg10, int64_t arg11, int64_t arg12, int64_t arg13, int64_t arg14,
+    int64_t arg15, int64_t arg16, int64_t arg17, int64_t arg18, int64_t arg19);
 #endif
 
-using SimulatorRuntimeCall = ObjectPair (*)(int64_t arg0, int64_t arg1,
-                                            int64_t arg2, int64_t arg3,
-                                            int64_t arg4, int64_t arg5,
-                                            int64_t arg6, int64_t arg7,
-                                            int64_t arg8, int64_t arg9);
+using SimulatorRuntimeCall = ObjectPair (*)(
+    int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3, int64_t arg4,
+    int64_t arg5, int64_t arg6, int64_t arg7, int64_t arg8, int64_t arg9,
+    int64_t arg10, int64_t arg11, int64_t arg12, int64_t arg13, int64_t arg14,
+    int64_t arg15, int64_t arg16, int64_t arg17, int64_t arg18, int64_t arg19);
 
 using SimulatorRuntimeCompareCall = int64_t (*)(double arg1, double arg2);
 using SimulatorRuntimeFPFPCall = double (*)(double arg1, double arg2);
@@ -475,13 +475,17 @@ using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
 // function to {SimulatorRuntimeCall} is undefined behavior; but since
 // the target function can indeed be any function that's exposed via
 // the "fast C call" mechanism, we can't reconstruct its signature here.
-ObjectPair UnsafeGenericFunctionCall(int64_t function, int64_t arg0,
-                                     int64_t arg1, int64_t arg2, int64_t arg3,
-                                     int64_t arg4, int64_t arg5, int64_t arg6,
-                                     int64_t arg7, int64_t arg8, int64_t arg9) {
+ObjectPair UnsafeGenericFunctionCall(
+    int64_t function, int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3,
+    int64_t arg4, int64_t arg5, int64_t arg6, int64_t arg7, int64_t arg8,
+    int64_t arg9, int64_t arg10, int64_t arg11, int64_t arg12, int64_t arg13,
+    int64_t arg14, int64_t arg15, int64_t arg16, int64_t arg17, int64_t arg18,
+    int64_t arg19) {
   SimulatorRuntimeCall target =
       reinterpret_cast<SimulatorRuntimeCall>(function);
-  return target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+  return target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9,
+                arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18,
+                arg19);
 }
 void UnsafeDirectApiCall(int64_t function, int64_t arg0) {
   SimulatorRuntimeDirectApiCall target =
@@ -531,7 +535,17 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
   const int64_t arg7 = xreg(7);
   const int64_t arg8 = stack_pointer[0];
   const int64_t arg9 = stack_pointer[1];
-  STATIC_ASSERT(kMaxCParameters == 10);
+  const int64_t arg10 = stack_pointer[2];
+  const int64_t arg11 = stack_pointer[3];
+  const int64_t arg12 = stack_pointer[4];
+  const int64_t arg13 = stack_pointer[5];
+  const int64_t arg14 = stack_pointer[6];
+  const int64_t arg15 = stack_pointer[7];
+  const int64_t arg16 = stack_pointer[8];
+  const int64_t arg17 = stack_pointer[9];
+  const int64_t arg18 = stack_pointer[10];
+  const int64_t arg19 = stack_pointer[11];
+  STATIC_ASSERT(kMaxCParameters == 20);
 
   switch (redirection->type()) {
     default:
@@ -574,14 +588,26 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
           ", "
           "0x%016" PRIx64 ", 0x%016" PRIx64
           ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
           "0x%016" PRIx64 ", 0x%016" PRIx64,
-          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10,
+          arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19);
 
       SimulatorRuntimeCall_ReturnPtr target =
           reinterpret_cast<SimulatorRuntimeCall_ReturnPtr>(external);
 
-      int64_t result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+      int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
+                              arg8, arg9, arg10, arg11, arg12, arg13, arg14,
+                              arg15, arg16, arg17, arg18, arg19);
       TraceSim("Returned: 0x%16\n", result);
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
@@ -609,10 +635,23 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
           ", "
           "0x%016" PRIx64 ", 0x%016" PRIx64
           ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64
+          ", "
           "0x%016" PRIx64 ", 0x%016" PRIx64,
-          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10,
+          arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19);
+
       ObjectPair result = UnsafeGenericFunctionCall(
-          external, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+          external, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9,
+          arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19);
       TraceSim("Returned: {%p, %p}\n", reinterpret_cast<void*>(result.x),
                reinterpret_cast<void*>(result.y));
 #ifdef DEBUG

@@ -6713,9 +6713,12 @@ EVALUATE(STHRL) {
 }
 
 EVALUATE(LGRL) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LGRL);
+  DECODE_RIL_B_INSTRUCTION(r1, i2);
+  intptr_t offset = i2 * 2;
+  int64_t mem_val = ReadDW(get_pc() + offset);
+  set_register(r1, mem_val);
+  return length;
 }
 
 EVALUATE(STGRL) {

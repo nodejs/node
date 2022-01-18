@@ -13,6 +13,7 @@
 #include "include/v8-callbacks.h"
 #include "include/v8-persistent-handle.h"
 #include "include/v8-profiler.h"
+#include "include/v8-traced-handle.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap.h"
 #include "src/objects/heap-object.h"
@@ -104,11 +105,16 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   template <typename T>
   inline Handle<T> Create(T value);
 
-  Handle<Object> CreateTraced(Object value, Address* slot, bool has_destructor,
+  Handle<Object> CreateTraced(Object value, Address* slot,
+                              GlobalHandleDestructionMode destruction_mode,
+                              GlobalHandleStoreMode store_mode,
                               bool is_on_stack);
-  Handle<Object> CreateTraced(Object value, Address* slot, bool has_destructor);
+  Handle<Object> CreateTraced(Object value, Address* slot,
+                              GlobalHandleDestructionMode destruction_mode,
+                              GlobalHandleStoreMode store_mode);
   Handle<Object> CreateTraced(Address value, Address* slot,
-                              bool has_destructor);
+                              GlobalHandleDestructionMode destruction_mode,
+                              GlobalHandleStoreMode store_mode);
 
   void RecordStats(HeapStats* stats);
 

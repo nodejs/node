@@ -209,13 +209,12 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
         break;
       }
       case wasm::kF32: {
-        float_t value = base::ReadUnalignedValue<float_t>(value_addr_smi.ptr());
+        float value = base::ReadUnalignedValue<float>(value_addr_smi.ptr());
         PrintF(" -> %f\n", value);
         break;
       }
       case wasm::kF64: {
-        double_t value =
-            base::ReadUnalignedValue<double_t>(value_addr_smi.ptr());
+        double value = base::ReadUnalignedValue<double>(value_addr_smi.ptr());
         PrintF(" -> %f\n", value);
         break;
       }

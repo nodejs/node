@@ -27,3 +27,16 @@ new Date().getHours() : ok
 
 Running test: testPromiseReject
 Promise.reject() : throws
+
+Running test: testSpread
+[...someGlobalArray] : ok
+[...someGlobalArray.values()] : ok
+[...someGlobalArrayIterator] : throws
+[...someGlobalMap] : ok
+[...someGlobalMap.keys()] : ok
+[...someGlobalMap.values()] : ok
+[...someGlobalMapKeysIterator] : throws
+[...someGlobalMapValuesIterator] : throws
+[...someGlobalSet] : ok
+[...someGlobalSet.values()] : ok
+[...someGlobalSetIterator] : throws

@@ -777,7 +777,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
                         isolate_);
       // TODO(rossberg): Should this throw?
       if (!name->IsString()) continue;
-      Handle<String> key = Handle<String>::cast(name);
+      Handle<String> key_name = Handle<String>::cast(name);
       PropertyDetails details =
           map->instance_descriptors(isolate_).GetDetails(i);
       if (details.IsDontEnum()) continue;
@@ -791,9 +791,10 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
       } else {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate_, property,
-            Object::GetPropertyOrElement(isolate_, object, key), EXCEPTION);
+            Object::GetPropertyOrElement(isolate_, object, key_name),
+            EXCEPTION);
       }
-      Result result = SerializeProperty(property, comma, key);
+      Result result = SerializeProperty(property, comma, key_name);
       if (!comma && result == SUCCESS) comma = true;
       if (result == EXCEPTION) return result;
     }

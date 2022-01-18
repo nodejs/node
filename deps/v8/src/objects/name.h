@@ -35,6 +35,14 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   inline uint32_t EnsureHash();
   inline uint32_t EnsureHash(const SharedStringAccessGuardIfNeeded&);
 
+  inline uint32_t raw_hash_field() const {
+    return RELAXED_READ_UINT32_FIELD(*this, kRawHashFieldOffset);
+  }
+
+  inline void set_raw_hash_field(uint32_t hash) {
+    RELAXED_WRITE_UINT32_FIELD(*this, kRawHashFieldOffset, hash);
+  }
+
   // Returns a hash value used for the property table (same as Hash()), assumes
   // the hash is already computed.
   inline uint32_t hash() const;

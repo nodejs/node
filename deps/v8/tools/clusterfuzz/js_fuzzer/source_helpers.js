@@ -359,7 +359,7 @@ function removeComments(ast) {
  */
 function cleanAsserts(ast) {
   function replace(string) {
-    return string.replace(/Assert/g, 'A****t');
+    return string.replace(/[Aa]ssert/g, '*****t');
   }
   babelTraverse(ast, {
     StringLiteral(path) {

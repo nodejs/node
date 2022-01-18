@@ -33,6 +33,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
+#include "src/objects/turbofan-types-inl.h"
 #include "src/roots/roots.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"
@@ -58,6 +59,7 @@
 #include "src/objects/js-segmenter-inl.h"
 #include "src/objects/js-segments-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/maybe-object.h"
@@ -123,7 +125,8 @@ void Object::ObjectVerify(Isolate* isolate) {
   } else {
     HeapObject::cast(*this).HeapObjectVerify(isolate);
   }
-  CHECK(!IsConstructor() || IsCallable());
+  PtrComprCageBase cage_base(isolate);
+  CHECK(!IsConstructor(cage_base) || IsCallable(cage_base));
 }
 
 void Object::VerifyPointer(Isolate* isolate, Object p) {
@@ -321,7 +324,8 @@ void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
 void HeapObject::VerifyCodePointer(Isolate* isolate, Object p) {
   CHECK(p.IsHeapObject());
   CHECK(IsValidCodeObject(isolate->heap(), HeapObject::cast(p)));
-  CHECK(HeapObject::cast(p).IsCode());
+  PtrComprCageBase cage_base(isolate);
+  CHECK(HeapObject::cast(p).IsCode(cage_base));
 }
 
 void Symbol::SymbolVerify(Isolate* isolate) {
@@ -603,6 +607,7 @@ void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
 }
 
 void Context::ContextVerify(Isolate* isolate) {
+  if (has_extension()) VerifyExtensionSlot(extension());
   TorqueGeneratedClassVerifiers::ContextVerify(*this, isolate);
   for (int i = 0; i < length(); i++) {
     VerifyObjectField(isolate, OffsetOfElementAt(i));
@@ -1036,23 +1041,20 @@ void Code::CodeVerify(Isolate* isolate) {
   // CodeVerify is called halfway through constructing the trampoline and so not
   // everything is set up.
   // CHECK_EQ(ReadOnlyHeap::Contains(*this), !IsExecutable());
-  HeapObject relocation_info = relocation_info_or_undefined();
-  if (!relocation_info.IsUndefined()) {
-    ByteArray::cast(relocation_info).ObjectVerify(isolate);
-    Address last_gc_pc = kNullAddress;
-    for (RelocIterator it(*this); !it.done(); it.next()) {
-      it.rinfo()->Verify(isolate);
-      // Ensure that GC will not iterate twice over the same pointer.
-      if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
-        CHECK(it.rinfo()->pc() != last_gc_pc);
-        last_gc_pc = it.rinfo()->pc();
-      }
-    }
-  }
-
+  relocation_info().ObjectVerify(isolate);
   CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||
         CodeSize() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));
+  Address last_gc_pc = kNullAddress;
+
+  for (RelocIterator it(*this); !it.done(); it.next()) {
+    it.rinfo()->Verify(isolate);
+    // Ensure that GC will not iterate twice over the same pointer.
+    if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
+      CHECK(it.rinfo()->pc() != last_gc_pc);
+      last_gc_pc = it.rinfo()->pc();
+    }
+  }
 }
 
 void JSArray::JSArrayVerify(Isolate* isolate) {
@@ -1665,10 +1667,12 @@ void WasmValueObject::WasmValueObjectVerify(Isolate* isolate) {
 void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
     Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WasmExportedFunctionDataVerify(*this, isolate);
-  CHECK(wrapper_code().kind() == CodeKind::JS_TO_WASM_FUNCTION ||
-        wrapper_code().kind() == CodeKind::C_WASM_ENTRY ||
-        (wrapper_code().is_builtin() &&
-         wrapper_code().builtin_id() == Builtin::kGenericJSToWasmWrapper));
+  CHECK(
+      wrapper_code().kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+      wrapper_code().kind() == CodeKind::C_WASM_ENTRY ||
+      (wrapper_code().is_builtin() &&
+       (wrapper_code().builtin_id() == Builtin::kGenericJSToWasmWrapper ||
+        wrapper_code().builtin_id() == Builtin::kWasmReturnPromiseOnSuspend)));
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1788,6 +1792,41 @@ void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
     Isolate* isolate) {
   CHECK(c_function_overloads().IsFixedArray() ||
         c_function_overloads().IsUndefined(isolate));
+}
+
+// Helper class for verifying the string table.
+class StringTableVerifier : public RootVisitor {
+ public:
+  explicit StringTableVerifier(Isolate* isolate) : isolate_(isolate) {}
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    UNREACHABLE();
+  }
+  void VisitRootPointers(Root root, const char* description,
+                         OffHeapObjectSlot start,
+                         OffHeapObjectSlot end) override {
+    // Visit all HeapObject pointers in [start, end).
+    for (OffHeapObjectSlot p = start; p < end; ++p) {
+      Object o = p.load(isolate_);
+      DCHECK(!HasWeakHeapObjectTag(o));
+      if (o.IsHeapObject()) {
+        HeapObject object = HeapObject::cast(o);
+        // Check that the string is actually internalized.
+        CHECK(object.IsInternalizedString());
+      }
+    }
+  }
+
+ private:
+  Isolate* isolate_;
+};
+
+void StringTable::VerifyIfOwnedBy(Isolate* isolate) {
+  DCHECK_EQ(isolate->string_table(), this);
+  if (!isolate->OwnsStringTable()) return;
+  StringTableVerifier verifier(isolate);
+  IterateElements(&verifier);
 }
 
 #endif  // VERIFY_HEAP

@@ -158,6 +158,16 @@ class ZoneForwardList;
   V(JSSetIterator)                             \
   V(JSSpecialObject)                           \
   V(JSStringIterator)                          \
+  V(JSTemporalCalendar)                        \
+  V(JSTemporalDuration)                        \
+  V(JSTemporalInstant)                         \
+  V(JSTemporalPlainDate)                       \
+  V(JSTemporalPlainTime)                       \
+  V(JSTemporalPlainDateTime)                   \
+  V(JSTemporalPlainMonthDay)                   \
+  V(JSTemporalPlainYearMonth)                  \
+  V(JSTemporalTimeZone)                        \
+  V(JSTemporalZonedDateTime)                   \
   V(JSTypedArray)                              \
   V(JSWeakCollection)                          \
   V(JSWeakRef)                                 \
@@ -224,6 +234,7 @@ class ZoneForwardList;
   IF_WASM(V, WasmGlobalObject)                 \
   IF_WASM(V, WasmInstanceObject)               \
   IF_WASM(V, WasmJSFunctionData)               \
+  IF_WASM(V, WasmApiFunctionRef)               \
   IF_WASM(V, WasmMemoryObject)                 \
   IF_WASM(V, WasmModuleObject)                 \
   IF_WASM(V, WasmObject)                       \

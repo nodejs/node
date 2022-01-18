@@ -292,7 +292,7 @@ transitioning macro ConstructByArrayBuffer(implicit context: Context)(
       // in the step 12 branch.
       newByteLength = bufferByteLength - offset;
       newLength = elementsInfo.CalculateLength(newByteLength)
-          otherwise IfInvalidOffset;
+          otherwise IfInvalidLength;
 
       // 12. Else,
     } else {

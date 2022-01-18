@@ -387,16 +387,16 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
   HandleScope scope(isolate);
 
-  SerializedCodeData::SanityCheckResult sanity_check_result =
-      SerializedCodeData::CHECK_SUCCESS;
+  SerializedCodeSanityCheckResult sanity_check_result =
+      SerializedCodeSanityCheckResult::kSuccess;
   const SerializedCodeData scd = SerializedCodeData::FromCachedData(
       cached_data, SerializedCodeData::SourceHash(source, origin_options),
       &sanity_check_result);
-  if (sanity_check_result != SerializedCodeData::CHECK_SUCCESS) {
+  if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
     DCHECK(cached_data->rejected());
     isolate->counters()->code_cache_reject_reason()->AddSample(
-        sanity_check_result);
+        static_cast<int>(sanity_check_result));
     return MaybeHandle<SharedFunctionInfo>();
   }
 
@@ -429,12 +429,10 @@ CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
 
   DCHECK(!local_isolate->heap()->HasPersistentHandles());
 
-  SerializedCodeData::SanityCheckResult sanity_check_result =
-      SerializedCodeData::CHECK_SUCCESS;
   const SerializedCodeData scd =
-      SerializedCodeData::FromCachedDataWithoutSource(cached_data,
-                                                      &sanity_check_result);
-  if (sanity_check_result != SerializedCodeData::CHECK_SUCCESS) {
+      SerializedCodeData::FromCachedDataWithoutSource(
+          cached_data, &result.sanity_check_result);
+  if (result.sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     // Exit early but don't report yet, we'll re-check this when finishing on
     // the main thread
     DCHECK(cached_data->rejected());
@@ -461,22 +459,31 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
 
   HandleScope scope(isolate);
 
-  // Check again now that we have the source.
-  SerializedCodeData::SanityCheckResult sanity_check_result =
-      SerializedCodeData::CHECK_SUCCESS;
-  const SerializedCodeData scd = SerializedCodeData::FromCachedData(
-      cached_data, SerializedCodeData::SourceHash(source, origin_options),
-      &sanity_check_result);
-  if (sanity_check_result != SerializedCodeData::CHECK_SUCCESS) {
+  // Do a source sanity check now that we have the source. It's important for
+  // FromPartiallySanityCheckedCachedData call that the sanity_check_result
+  // holds the result of the off-thread sanity check.
+  SerializedCodeSanityCheckResult sanity_check_result =
+      data.sanity_check_result;
+  const SerializedCodeData scd =
+      SerializedCodeData::FromPartiallySanityCheckedCachedData(
+          cached_data, SerializedCodeData::SourceHash(source, origin_options),
+          &sanity_check_result);
+  if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     // The only case where the deserialization result could exist despite a
     // check failure is on a source mismatch, since we can't test for this
     // off-thread.
     DCHECK_IMPLIES(!data.maybe_result.is_null(),
-                   sanity_check_result == SerializedCodeData::SOURCE_MISMATCH);
+                   sanity_check_result ==
+                       SerializedCodeSanityCheckResult::kSourceMismatch);
+    // The only kind of sanity check we can't test for off-thread is a source
+    // mismatch.
+    DCHECK_IMPLIES(sanity_check_result != data.sanity_check_result,
+                   sanity_check_result ==
+                       SerializedCodeSanityCheckResult::kSourceMismatch);
     if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
     DCHECK(cached_data->rejected());
     isolate->counters()->code_cache_reject_reason()->AddSample(
-        sanity_check_result);
+        static_cast<int>(sanity_check_result));
     return MaybeHandle<SharedFunctionInfo>();
   }
 
@@ -554,30 +561,49 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   SetHeaderValue(kChecksumOffset, Checksum(ChecksummedContent()));
 }
 
-SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
+SerializedCodeSanityCheckResult SerializedCodeData::SanityCheck(
     uint32_t expected_source_hash) const {
-  SanityCheckResult result = SanityCheckWithoutSource();
-  if (result != CHECK_SUCCESS) return result;
-  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
-  if (source_hash != expected_source_hash) return SOURCE_MISMATCH;
-  return CHECK_SUCCESS;
+  SerializedCodeSanityCheckResult result = SanityCheckWithoutSource();
+  if (result != SerializedCodeSanityCheckResult::kSuccess) return result;
+  return SanityCheckJustSource(expected_source_hash);
 }
 
-SerializedCodeData::SanityCheckResult
-SerializedCodeData::SanityCheckWithoutSource() const {
-  if (this->size_ < kHeaderSize) return INVALID_HEADER;
+SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
+    uint32_t expected_source_hash) const {
+  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
+  if (source_hash != expected_source_hash) {
+    return SerializedCodeSanityCheckResult::kSourceMismatch;
+  }
+  return SerializedCodeSanityCheckResult::kSuccess;
+}
+
+SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource()
+    const {
+  if (this->size_ < kHeaderSize) {
+    return SerializedCodeSanityCheckResult::kInvalidHeader;
+  }
   uint32_t magic_number = GetMagicNumber();
-  if (magic_number != kMagicNumber) return MAGIC_NUMBER_MISMATCH;
+  if (magic_number != kMagicNumber) {
+    return SerializedCodeSanityCheckResult::kMagicNumberMismatch;
+  }
   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
   uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
   uint32_t c = GetHeaderValue(kChecksumOffset);
-  if (version_hash != Version::Hash()) return VERSION_MISMATCH;
-  if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
+  if (version_hash != Version::Hash()) {
+    return SerializedCodeSanityCheckResult::kVersionMismatch;
+  }
+  if (flags_hash != FlagList::Hash()) {
+    return SerializedCodeSanityCheckResult::kFlagsMismatch;
+  }
   uint32_t max_payload_length = this->size_ - kHeaderSize;
-  if (payload_length > max_payload_length) return LENGTH_MISMATCH;
-  if (Checksum(ChecksummedContent()) != c) return CHECKSUM_MISMATCH;
-  return CHECK_SUCCESS;
+  if (payload_length > max_payload_length) {
+    return SerializedCodeSanityCheckResult::kLengthMismatch;
+  }
+  if (Checksum(ChecksummedContent()) != c) {
+    return SerializedCodeSanityCheckResult::kChecksumMismatch;
+  }
+  return SerializedCodeSanityCheckResult::kSuccess;
 }
 
 uint32_t SerializedCodeData::SourceHash(Handle<String> source,
@@ -614,11 +640,11 @@ SerializedCodeData::SerializedCodeData(AlignedCachedData* data)
 
 SerializedCodeData SerializedCodeData::FromCachedData(
     AlignedCachedData* cached_data, uint32_t expected_source_hash,
-    SanityCheckResult* rejection_result) {
+    SerializedCodeSanityCheckResult* rejection_result) {
   DisallowGarbageCollection no_gc;
   SerializedCodeData scd(cached_data);
   *rejection_result = scd.SanityCheck(expected_source_hash);
-  if (*rejection_result != CHECK_SUCCESS) {
+  if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
     cached_data->Reject();
     return SerializedCodeData(nullptr, 0);
   }
@@ -626,11 +652,40 @@ SerializedCodeData SerializedCodeData::FromCachedData(
 }
 
 SerializedCodeData SerializedCodeData::FromCachedDataWithoutSource(
-    AlignedCachedData* cached_data, SanityCheckResult* rejection_result) {
+    AlignedCachedData* cached_data,
+    SerializedCodeSanityCheckResult* rejection_result) {
   DisallowGarbageCollection no_gc;
   SerializedCodeData scd(cached_data);
   *rejection_result = scd.SanityCheckWithoutSource();
-  if (*rejection_result != CHECK_SUCCESS) {
+  if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
+    cached_data->Reject();
+    return SerializedCodeData(nullptr, 0);
+  }
+  return scd;
+}
+
+SerializedCodeData SerializedCodeData::FromPartiallySanityCheckedCachedData(
+    AlignedCachedData* cached_data, uint32_t expected_source_hash,
+    SerializedCodeSanityCheckResult* rejection_result) {
+  DisallowGarbageCollection no_gc;
+  // The previous call to FromCachedDataWithoutSource may have already rejected
+  // the cached data, so re-use the previous rejection result if it's not a
+  // success.
+  if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
+    // FromCachedDataWithoutSource doesn't check the source, so there can't be
+    // a source mismatch.
+    DCHECK_NE(*rejection_result,
+              SerializedCodeSanityCheckResult::kSourceMismatch);
+    cached_data->Reject();
+    return SerializedCodeData(nullptr, 0);
+  }
+  SerializedCodeData scd(cached_data);
+  *rejection_result = scd.SanityCheckJustSource(expected_source_hash);
+  if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
+    // This check only checks the source, so the only possible failure is a
+    // source mismatch.
+    DCHECK_EQ(*rejection_result,
+              SerializedCodeSanityCheckResult::kSourceMismatch);
     cached_data->Reject();
     return SerializedCodeData(nullptr, 0);
   }

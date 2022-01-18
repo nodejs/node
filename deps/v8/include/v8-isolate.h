@@ -281,6 +281,12 @@ class V8_EXPORT Isolate {
      */
     int embedder_wrapper_type_index = -1;
     int embedder_wrapper_object_index = -1;
+
+    /**
+     * The following parameter is experimental and may change significantly.
+     * This is currently for internal testing.
+     */
+    Isolate* experimental_attach_to_shared_isolate = nullptr;
   };
 
   /**
@@ -584,6 +590,11 @@ class V8_EXPORT Isolate {
    * No checks are performed by this method.
    */
   static Isolate* TryGetCurrent();
+
+  /**
+   * Return true if this isolate is currently active.
+   **/
+  bool IsCurrent() const;
 
   /**
    * Clears the set of objects held strongly by the heap. This set of

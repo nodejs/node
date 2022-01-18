@@ -694,9 +694,8 @@ class AllocateDescriptor
 };
 
 // This descriptor defines the JavaScript calling convention that can be used
-// by stubs: target, new.target, argc (not including the receiver) and context
-// are passed in registers while receiver and the rest of the JS arguments are
-// passed on the stack.
+// by stubs: target, new.target, argc and context are passed in registers while
+// receiver and the rest of the JS arguments are passed on the stack.
 class JSTrampolineDescriptor
     : public StaticJSCallInterfaceDescriptor<JSTrampolineDescriptor> {
  public:

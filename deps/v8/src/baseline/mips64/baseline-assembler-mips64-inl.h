@@ -497,8 +497,11 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  __ masm()->Daddu(params_size, params_size, 1);  // Include the receiver.
-  __ masm()->Dlsa(sp, sp, params_size, kPointerSizeLog2);
+  __ masm()->DropArguments(params_size, TurboAssembler::kCountIsInteger,
+                           kJSArgcIncludesReceiver
+                               ? TurboAssembler::kCountIncludesReceiver
+                               : TurboAssembler::kCountExcludesReceiver);
+
   __ masm()->Ret();
 }
 

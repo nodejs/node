@@ -36,12 +36,10 @@ class WasmGCTester {
         flag_reftypes(&v8::internal::FLAG_experimental_wasm_reftypes, true),
         flag_typedfuns(&v8::internal::FLAG_experimental_wasm_typed_funcref,
                        true),
-        flag_liftoff(
-            &v8::internal::FLAG_liftoff,
-            execution_tier == TestExecutionTier::kTurbofan ? false : true),
-        flag_liftoff_only(
-            &v8::internal::FLAG_liftoff_only,
-            execution_tier == TestExecutionTier::kLiftoff ? true : false),
+        flag_liftoff(&v8::internal::FLAG_liftoff,
+                     execution_tier == TestExecutionTier::kLiftoff),
+        flag_liftoff_only(&v8::internal::FLAG_liftoff_only,
+                          execution_tier == TestExecutionTier::kLiftoff),
         flag_tierup(&v8::internal::FLAG_wasm_tier_up, false),
         zone_(&allocator, ZONE_NAME),
         builder_(&zone_),
@@ -319,8 +317,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
   tester.CheckResult(kSet, -99);
 }
 
-// Test struct.set, ref.as_non_null,
-// struct refs types in globals and if-results.
+// Test struct.get, ref.as_non_null and ref-typed globals.
 WASM_COMPILED_EXEC_TEST(WasmRefAsNonNull) {
   WasmGCTester tester(execution_tier);
   const byte type_index =
@@ -334,21 +331,48 @@ WASM_COMPILED_EXEC_TEST(WasmRefAsNonNull) {
                        WasmInitExpr::RefNullConst(
                            static_cast<HeapType::Representation>(type_index)));
   const byte field_index = 0;
-  const byte kFunc = tester.DefineFunction(
+  const byte kNonNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_GLOBAL_SET(
            global_index,
            WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(55), WASM_I32V(66),
                                     WASM_RTT_CANON(type_index))),
-       WASM_STRUCT_GET(
-           type_index, field_index,
-           WASM_REF_AS_NON_NULL(WASM_IF_ELSE_R(kOptRefType, WASM_I32V(1),
-                                               WASM_GLOBAL_GET(global_index),
-                                               WASM_REF_NULL(type_index)))),
+       WASM_STRUCT_GET(type_index, field_index,
+                       WASM_REF_AS_NON_NULL(WASM_GLOBAL_GET(global_index))),
+       kExprEnd});
+  const byte kNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_GLOBAL_SET(global_index, WASM_REF_NULL(type_index)),
+       WASM_STRUCT_GET(type_index, field_index,
+                       WASM_REF_AS_NON_NULL(WASM_GLOBAL_GET(global_index))),
        kExprEnd});
 
   tester.CompileModule();
-  tester.CheckResult(kFunc, 55);
+  tester.CheckResult(kNonNull, 55);
+  tester.CheckHasThrown(kNull);
+}
+
+WASM_COMPILED_EXEC_TEST(WasmRefAsNonNullSkipCheck) {
+  FlagScope<bool> no_check(&FLAG_experimental_wasm_skip_null_checks, true);
+  WasmGCTester tester(execution_tier);
+  const byte type_index =
+      tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
+  ValueType kRefType = ref(type_index);
+  FunctionSig sig_q_v(1, 0, &kRefType);
+
+  const byte global_index =
+      tester.AddGlobal(optref(type_index), true,
+                       WasmInitExpr::RefNullConst(
+                           static_cast<HeapType::Representation>(type_index)));
+  const byte kFunc = tester.DefineFunction(
+      &sig_q_v, {},
+      {WASM_GLOBAL_SET(global_index, WASM_REF_NULL(type_index)),
+       WASM_REF_AS_NON_NULL(WASM_GLOBAL_GET(global_index)), kExprEnd});
+
+  tester.CompileModule();
+  Handle<Object> result = tester.GetResultObject(kFunc).ToHandleChecked();
+  // Without null checks, ref.as_non_null can actually return null.
+  CHECK(result->IsNull());
 }
 
 WASM_COMPILED_EXEC_TEST(WasmBrOnNull) {
@@ -429,6 +453,105 @@ WASM_COMPILED_EXEC_TEST(WasmBrOnNonNull) {
   tester.CompileModule();
   tester.CheckResult(kTaken, 52);
   tester.CheckResult(kNotTaken, 11);
+}
+
+WASM_COMPILED_EXEC_TEST(RefCast) {
+  WasmGCTester tester(execution_tier);
+
+  const byte supertype_index = tester.DefineStruct({F(kWasmI32, true)});
+  const byte subtype1_index =
+      tester.DefineStruct({F(kWasmI32, true), F(kWasmF32, false)});
+  const byte subtype2_index =
+      tester.DefineStruct({F(kWasmI32, true), F(kWasmI64, false)});
+
+  const byte kTestSuccessful = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(supertype_index, kNullable)},
+      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
+                             subtype1_index,
+                             WASM_RTT_SUB(subtype1_index,
+                                          WASM_RTT_CANON(supertype_index)))),
+       WASM_STRUCT_GET(
+           subtype1_index, 0,
+           WASM_REF_CAST(
+               WASM_LOCAL_GET(0),
+               WASM_RTT_SUB(subtype1_index, WASM_RTT_CANON(supertype_index)))),
+       WASM_END});
+
+  const byte kTestFailed = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(supertype_index, kNullable)},
+      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
+                             subtype1_index,
+                             WASM_RTT_SUB(subtype1_index,
+                                          WASM_RTT_CANON(supertype_index)))),
+       WASM_STRUCT_GET(
+           subtype2_index, 0,
+           WASM_REF_CAST(
+               WASM_LOCAL_GET(0),
+               WASM_RTT_SUB(subtype2_index, WASM_RTT_CANON(supertype_index)))),
+       WASM_END});
+
+  tester.CompileModule();
+  tester.CheckResult(kTestSuccessful, 0);
+  tester.CheckHasThrown(kTestFailed);
+}
+
+WASM_COMPILED_EXEC_TEST(RefCastStatic) {
+  WasmGCTester tester(execution_tier);
+
+  const byte supertype_index =
+      tester.DefineStruct({F(kWasmI32, true)}, kGenericSuperType);
+  const byte subtype1_index = tester.DefineStruct(
+      {F(kWasmI32, true), F(kWasmF32, false)}, supertype_index);
+  const byte subtype2_index = tester.DefineStruct(
+      {F(kWasmI32, true), F(kWasmI64, false)}, supertype_index);
+
+  const byte kTestSuccessful = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(supertype_index, kNullable)},
+      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(subtype1_index)),
+       WASM_STRUCT_GET(subtype1_index, 0,
+                       WASM_REF_CAST_STATIC(WASM_LOCAL_GET(0), subtype1_index)),
+       WASM_END});
+
+  const byte kTestFailed = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(supertype_index, kNullable)},
+      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(subtype1_index)),
+       WASM_STRUCT_GET(subtype2_index, 0,
+                       WASM_REF_CAST_STATIC(WASM_LOCAL_GET(0), subtype2_index)),
+       WASM_END});
+
+  tester.CompileModule();
+  tester.CheckResult(kTestSuccessful, 0);
+  tester.CheckHasThrown(kTestFailed);
+}
+
+WASM_COMPILED_EXEC_TEST(RefCastStaticNoChecks) {
+  FlagScope<bool> scope(&FLAG_experimental_wasm_assume_ref_cast_succeeds, true);
+  WasmGCTester tester(execution_tier);
+
+  const byte supertype_index =
+      tester.DefineStruct({F(kWasmI32, true)}, kGenericSuperType);
+  const byte subtype1_index = tester.DefineStruct(
+      {F(kWasmI32, true), F(kWasmF32, false)}, supertype_index);
+  const byte subtype2_index = tester.DefineStruct(
+      {F(kWasmI32, true), F(kWasmI64, false)}, supertype_index);
+
+  const byte kTestSuccessful = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(supertype_index, kNullable)},
+      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(subtype1_index)),
+       WASM_STRUCT_GET(subtype1_index, 0,
+                       WASM_REF_CAST_STATIC(WASM_LOCAL_GET(0), subtype1_index)),
+       WASM_END});
+
+  const byte kTestFailed = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(supertype_index, kNullable)},
+      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(subtype1_index)),
+       WASM_STRUCT_GET(subtype2_index, 0,
+                       WASM_REF_CAST_STATIC(WASM_LOCAL_GET(0), subtype2_index)),
+       WASM_END});
+
+  tester.CompileModule();
+  tester.CheckResult(kTestSuccessful, 0);
+  tester.CheckResult(kTestFailed, 0);
 }
 
 WASM_COMPILED_EXEC_TEST(BrOnCast) {
@@ -795,6 +918,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
 
   const byte type_index = tester.DefineArray(wasm::kWasmI32, true);
   const byte fp_type_index = tester.DefineArray(wasm::kWasmF64, true);
+  const byte immut_type_index = tester.DefineArray(wasm::kWasmI32, false);
   ValueType kRefTypes[] = {ref(type_index)};
   FunctionSig sig_q_v(1, 0, kRefTypes);
   ValueType kOptRefType = optref(type_index);
@@ -838,6 +962,15 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
                        WASM_I32V(30), WASM_RTT_CANON(type_index)),
        kExprEnd});
 
+  const byte kImmutable = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_ARRAY_GET(
+           immut_type_index,
+           WASM_ARRAY_INIT(immut_type_index, 2, WASM_I32V(42), WASM_I32V(43),
+                           WASM_RTT_CANON(immut_type_index)),
+           WASM_I32V(0)),
+       kExprEnd});
+
   const uint32_t kLongLength = 1u << 16;
   const byte kAllocateLarge = tester.DefineFunction(
       &sig_q_v, {},
@@ -875,6 +1008,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   tester.CheckHasThrown(kGetElem, 3);
   tester.CheckHasThrown(kGetElem, -1);
   tester.CheckResult(kGetLength, 42);
+  tester.CheckResult(kImmutable, 42);
   tester.CheckResult(kTestFpArray, static_cast<int32_t>(result_value));
 
   Handle<Object> h_result = tester.GetResultObject(kAllocate).ToHandleChecked();

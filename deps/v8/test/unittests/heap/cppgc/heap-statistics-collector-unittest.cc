@@ -104,7 +104,7 @@ TEST_F(HeapStatisticsCollectorTest, NonEmptyLargePage) {
   static constexpr size_t used_size = RoundUp<kAllocationGranularity>(
       kLargeObjectSizeThreshold + sizeof(HeapObjectHeader));
   static constexpr size_t committed_size =
-      RoundUp<kAllocationGranularity>(used_size + sizeof(LargePage));
+      RoundUp<kAllocationGranularity>(used_size + LargePage::PageHeaderSize());
   HeapStatistics detailed_stats = Heap::From(GetHeap())->CollectStatistics(
       HeapStatistics::DetailLevel::kDetailed);
   EXPECT_EQ(HeapStatistics::DetailLevel::kDetailed,

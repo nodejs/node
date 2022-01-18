@@ -33,6 +33,7 @@ namespace internal {
 constexpr int KB = 1024;
 constexpr int MB = KB * 1024;
 constexpr int GB = MB * 1024;
+constexpr int64_t TB = static_cast<int64_t>(GB) * 1024;
 
 // Determine whether we are running in a simulated environment.
 // Setting USE_SIMULATOR explicitly from the build script will force
@@ -103,18 +104,21 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
                   kStackLimitSlackForDeoptimizationInBytes <=
               MB);
 
-// Determine whether the short builtin calls optimization is enabled.
-#ifdef V8_SHORT_BUILTIN_CALLS
-#ifndef V8_COMPRESS_POINTERS
-// TODO(11527): Fix this by passing Isolate* to Code::OffHeapInstructionStart()
-// and friends.
-#error Short builtin calls feature requires pointer compression
-#endif
+#if defined(V8_SHORT_BUILTIN_CALLS) && \
+    (!defined(V8_COMPRESS_POINTERS) || defined(V8_EXTERNAL_CODE_SPACE))
+#define V8_ENABLE_NEAR_CODE_RANGE_BOOL true
+#else
+#define V8_ENABLE_NEAR_CODE_RANGE_BOOL false
 #endif
 
 // This constant is used for detecting whether the machine has >= 4GB of
 // physical memory by checking the max old space size.
 const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
+
+// This constant is used for detecting whether code range could be
+// allocated within the +/- 2GB boundary to builtins' embedded blob
+// to use short builtin calls.
+const size_t kShortBuiltinCallsBoundary = size_t{2} * GB;
 
 // Determine whether dict mode prototypes feature is enabled.
 #ifdef V8_ENABLE_SWISS_NAME_DICTIONARY
@@ -759,15 +763,13 @@ struct SlotTraits {
   using TMaybeObjectSlot = CompressedMaybeObjectSlot;
   using THeapObjectSlot = CompressedHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapCompressedObjectSlot;
-  // TODO(v8:11880): switch to OffHeapCompressedObjectSlot.
-  using TCodeObjectSlot = CompressedObjectSlot;
+  using TCodeObjectSlot = OffHeapCompressedObjectSlot;
 #else
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapFullObjectSlot;
-  // TODO(v8:11880): switch to OffHeapFullObjectSlot.
-  using TCodeObjectSlot = FullObjectSlot;
+  using TCodeObjectSlot = OffHeapFullObjectSlot;
 #endif
 };
 
@@ -831,9 +833,8 @@ enum class AllocationType : uint8_t {
   kCode,       // Code object allocated in CODE_SPACE or CODE_LO_SPACE
   kMap,        // Map object allocated in MAP_SPACE
   kReadOnly,   // Object allocated in RO_SPACE
-  kSharedOld,  // Regular object allocated in SHARED_OLD_SPACE or
-               // SHARED_LO_SPACE
-  kSharedMap,  // Map object in SHARED_MAP_SPACE
+  kSharedOld,  // Regular object allocated in OLD_SPACE in the shared heap
+  kSharedMap,  // Map object in MAP_SPACE in the shared heap
 };
 
 inline size_t hash_value(AllocationType kind) {
@@ -919,6 +920,12 @@ enum class REPLMode {
 inline REPLMode construct_repl_mode(bool is_repl_mode) {
   return is_repl_mode ? REPLMode::kYes : REPLMode::kNo;
 }
+
+// Indicates whether a script is parsed during debugging.
+enum class ParsingWhileDebugging {
+  kYes,
+  kNo,
+};
 
 // Flag indicating whether code is built into the VM (one of the natives files).
 enum NativesFlag { NOT_NATIVES_CODE, EXTENSION_CODE, INSPECTOR_CODE };
@@ -1871,6 +1878,15 @@ enum PropertiesEnumerationMode {
   kEnumerationOrder,
   // Order of property addition
   kPropertyAdditionOrder,
+};
+
+enum class StringInternalizationStrategy {
+  // The string must be internalized by first copying.
+  kCopy,
+  // The string can be internalized in-place by changing its map.
+  kInPlace,
+  // The string is already internalized.
+  kAlreadyInternalized
 };
 
 }  // namespace internal

@@ -451,9 +451,9 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
     os << "  ("
        << DeoptimizeReasonToString(static_cast<DeoptimizeReason>(data_)) << ")";
   } else if (rmode_ == FULL_EMBEDDED_OBJECT) {
-    os << "  (" << Brief(target_object()) << ")";
+    os << "  (" << Brief(target_object(isolate)) << ")";
   } else if (rmode_ == COMPRESSED_EMBEDDED_OBJECT) {
-    os << "  (" << Brief(target_object()) << " compressed)";
+    os << "  (" << Brief(target_object(isolate)) << " compressed)";
   } else if (rmode_ == EXTERNAL_REFERENCE) {
     if (isolate) {
       ExternalReferenceEncoder ref_encoder(isolate);
@@ -491,11 +491,11 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
 void RelocInfo::Verify(Isolate* isolate) {
   switch (rmode_) {
     case COMPRESSED_EMBEDDED_OBJECT:
-      Object::VerifyPointer(isolate, target_object());
+      Object::VerifyPointer(isolate, target_object(isolate));
       break;
     case FULL_EMBEDDED_OBJECT:
     case DATA_EMBEDDED_OBJECT:
-      Object::VerifyAnyTagged(isolate, target_object());
+      Object::VerifyAnyTagged(isolate, target_object(isolate));
       break;
     case CODE_TARGET:
     case RELATIVE_CODE_TARGET: {

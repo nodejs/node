@@ -2338,6 +2338,10 @@ class WasmInterpreterInternals {
       BINOP_CASE(F64x2Max, f64x2, float2, 2, JSMax(a, b))
       BINOP_CASE(F64x2Pmin, f64x2, float2, 2, std::min(a, b))
       BINOP_CASE(F64x2Pmax, f64x2, float2, 2, std::max(a, b))
+      BINOP_CASE(F32x4RelaxedMin, f32x4, float4, 4, std::min(a, b))
+      BINOP_CASE(F32x4RelaxedMax, f32x4, float4, 4, std::max(a, b))
+      BINOP_CASE(F64x2RelaxedMin, f64x2, float2, 2, std::min(a, b))
+      BINOP_CASE(F64x2RelaxedMax, f64x2, float2, 2, std::max(a, b))
       BINOP_CASE(F32x4Add, f32x4, float4, 4, a + b)
       BINOP_CASE(F32x4Sub, f32x4, float4, 4, a - b)
       BINOP_CASE(F32x4Mul, f32x4, float4, 4, a * b)
@@ -2660,16 +2664,14 @@ class WasmInterpreterInternals {
                      static_cast<float>(a))
         CONVERT_CASE(F32x4UConvertI32x4, int4, i32x4, float4, 4, 0, uint32_t,
                      static_cast<float>(a))
-        CONVERT_CASE(I32x4SConvertF32x4, float4, f32x4, int4, 4, 0, double,
-                     std::isnan(a) ? 0
-                                   : a<kMinInt ? kMinInt : a> kMaxInt
-                                         ? kMaxInt
-                                         : static_cast<int32_t>(a))
-        CONVERT_CASE(I32x4UConvertF32x4, float4, f32x4, int4, 4, 0, double,
-                     std::isnan(a)
-                         ? 0
-                         : a<0 ? 0 : a> kMaxUInt32 ? kMaxUInt32
-                                                   : static_cast<uint32_t>(a))
+        CONVERT_CASE(I32x4SConvertF32x4, float4, f32x4, int4, 4, 0, float,
+                     base::saturated_cast<int32_t>(a))
+        CONVERT_CASE(I32x4UConvertF32x4, float4, f32x4, int4, 4, 0, float,
+                     base::saturated_cast<uint32_t>(a))
+        CONVERT_CASE(I32x4RelaxedTruncF32x4S, float4, f32x4, int4, 4, 0, float,
+                     base::saturated_cast<int32_t>(a))
+        CONVERT_CASE(I32x4RelaxedTruncF32x4U, float4, f32x4, int4, 4, 0, float,
+                     base::saturated_cast<uint32_t>(a))
         CONVERT_CASE(I64x2SConvertI32x4Low, int4, i32x4, int2, 2, 0, int32_t, a)
         CONVERT_CASE(I64x2SConvertI32x4High, int4, i32x4, int2, 2, 2, int32_t,
                      a)
@@ -2699,6 +2701,10 @@ class WasmInterpreterInternals {
                      base::saturated_cast<int32_t>(a))
         CONVERT_CASE(I32x4TruncSatF64x2UZero, float2, f64x2, int4, 2, 0, double,
                      base::saturated_cast<uint32_t>(a))
+        CONVERT_CASE(I32x4RelaxedTruncF64x2SZero, float2, f64x2, int4, 2, 0,
+                     double, base::saturated_cast<int32_t>(a))
+        CONVERT_CASE(I32x4RelaxedTruncF64x2UZero, float2, f64x2, int4, 2, 0,
+                     double, base::saturated_cast<uint32_t>(a))
         CONVERT_CASE(F32x4DemoteF64x2Zero, float2, f64x2, float4, 2, 0, float,
                      DoubleToFloat32(a))
         CONVERT_CASE(F64x2PromoteLowF32x4, float4, f32x4, float2, 2, 0, float,
@@ -2724,6 +2730,10 @@ class WasmInterpreterInternals {
         PACK_CASE(I8x16SConvertI16x8, int8, i16x8, int16, 16, int8_t)
         PACK_CASE(I8x16UConvertI16x8, int8, i16x8, int16, 16, uint8_t)
 #undef PACK_CASE
+      case kExprI8x16RelaxedLaneSelect:
+      case kExprI16x8RelaxedLaneSelect:
+      case kExprI32x4RelaxedLaneSelect:
+      case kExprI64x2RelaxedLaneSelect:
       case kExprS128Select: {
         int4 bool_val = Pop().to_s128().to_i32x4();
         int4 v2 = Pop().to_s128().to_i32x4();
@@ -2761,6 +2771,7 @@ class WasmInterpreterInternals {
         *len += 16;
         return true;
       }
+      case kExprI8x16RelaxedSwizzle:
       case kExprI8x16Swizzle: {
         int16 v2 = Pop().to_s128().to_i8x16();
         int16 v1 = Pop().to_s128().to_i8x16();
@@ -4219,6 +4230,7 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
                         0,       // func_index
                         0,       // sig_index
                         {0, 0},  // code
+                        0,       // feedback slots
                         false,   // imported
                         false,   // exported
                         false};  // declared

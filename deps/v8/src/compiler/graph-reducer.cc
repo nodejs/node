@@ -75,7 +75,7 @@ void GraphReducer::ReduceNode(Node* node) {
       ReduceTop();
     } else if (!revisit_.empty()) {
       // If the stack becomes empty, revisit any nodes in the revisit queue.
-      Node* const node = revisit_.front();
+      node = revisit_.front();
       revisit_.pop();
       if (state_.Get(node) == State::kRevisit) {
         // state can change while in queue.
@@ -189,7 +189,7 @@ void GraphReducer::ReduceTop() {
     }
 
     // In-place update of {node}, may need to recurse on an input.
-    Node::Inputs node_inputs = node->inputs();
+    node_inputs = node->inputs();
     for (int i = 0; i < node_inputs.count(); ++i) {
       Node* input = node_inputs[i];
       if (input != node && Recurse(input)) {

@@ -604,6 +604,17 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // ---------------------------------------------------------------------------
   // V8 Heap sandbox support
 
+  // Transform a CagedPointer from/to its encoded form, which is used when the
+  // pointer is stored on the heap and ensures that the pointer will always
+  // point into the virtual memory cage.
+  void EncodeCagedPointer(Register value);
+  void DecodeCagedPointer(Register value);
+
+  // Load and decode a CagedPointer from the heap.
+  void LoadCagedPointerField(Register destination, Operand field_operand);
+  // Encode and store a CagedPointer to the heap.
+  void StoreCagedPointerField(Operand dst_field_operand, Register value);
+
   enum class IsolateRootLocation { kInScratchRegister, kInRootRegister };
   // Loads a field containing off-heap pointer and does necessary decoding
   // if V8 heap sandbox is enabled.
@@ -808,6 +819,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
+
+  // Abort execution if argument is not a callable JSFunction, enabled via
+  // --debug-code.
+  void AssertCallableFunction(Register object);
 
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.

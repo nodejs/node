@@ -9,6 +9,7 @@
 #include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/macros.h"
 #include "src/base/logging.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
@@ -43,8 +44,12 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
                   PreFinalizerHandler& prefinalizer_handler);
 
   inline void* AllocateObject(size_t size, GCInfoIndex gcinfo);
+  inline void* AllocateObject(size_t size, AlignVal alignment,
+                              GCInfoIndex gcinfo);
   inline void* AllocateObject(size_t size, GCInfoIndex gcinfo,
                               CustomSpaceIndex space_index);
+  inline void* AllocateObject(size_t size, AlignVal alignment,
+                              GCInfoIndex gcinfo, CustomSpaceIndex space_index);
 
   void ResetLinearAllocationBuffers();
 
@@ -61,9 +66,13 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
 
   inline void* AllocateObjectOnSpace(NormalPageSpace& space, size_t size,
                                      GCInfoIndex gcinfo);
-  void* OutOfLineAllocate(NormalPageSpace&, size_t, GCInfoIndex);
-  void* OutOfLineAllocateImpl(NormalPageSpace&, size_t, GCInfoIndex);
-  void* AllocateFromFreeList(NormalPageSpace&, size_t, GCInfoIndex);
+  inline void* AllocateObjectOnSpace(NormalPageSpace& space, size_t size,
+                                     AlignVal alignment, GCInfoIndex gcinfo);
+  void* OutOfLineAllocate(NormalPageSpace&, size_t, AlignVal, GCInfoIndex);
+  void* OutOfLineAllocateImpl(NormalPageSpace&, size_t, AlignVal, GCInfoIndex);
+
+  void RefillLinearAllocationBuffer(NormalPageSpace&, size_t);
+  bool RefillLinearAllocationBufferFromFreeList(NormalPageSpace&, size_t);
 
   RawHeap& raw_heap_;
   PageBackend& page_backend_;
@@ -81,6 +90,17 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
                                allocation_size, gcinfo);
 }
 
+void* ObjectAllocator::AllocateObject(size_t size, AlignVal alignment,
+                                      GCInfoIndex gcinfo) {
+  DCHECK(!in_disallow_gc_scope());
+  const size_t allocation_size =
+      RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
+  const RawHeap::RegularSpaceType type =
+      GetInitialSpaceIndexForSize(allocation_size);
+  return AllocateObjectOnSpace(NormalPageSpace::From(*raw_heap_.Space(type)),
+                               allocation_size, alignment, gcinfo);
+}
+
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
                                       CustomSpaceIndex space_index) {
   DCHECK(!in_disallow_gc_scope());
@@ -89,6 +109,17 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
   return AllocateObjectOnSpace(
       NormalPageSpace::From(*raw_heap_.CustomSpace(space_index)),
       allocation_size, gcinfo);
+}
+
+void* ObjectAllocator::AllocateObject(size_t size, AlignVal alignment,
+                                      GCInfoIndex gcinfo,
+                                      CustomSpaceIndex space_index) {
+  DCHECK(!in_disallow_gc_scope());
+  const size_t allocation_size =
+      RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
+  return AllocateObjectOnSpace(
+      NormalPageSpace::From(*raw_heap_.CustomSpace(space_index)),
+      allocation_size, alignment, gcinfo);
 }
 
 // static
@@ -105,13 +136,60 @@ RawHeap::RegularSpaceType ObjectAllocator::GetInitialSpaceIndexForSize(
 }
 
 void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
+                                             size_t size, AlignVal alignment,
+                                             GCInfoIndex gcinfo) {
+  // The APIs are set up to support general alignment. Since we want to keep
+  // track of the actual usage there the alignment support currently only covers
+  // double-world alignment (8 bytes on 32bit and 16 bytes on 64bit
+  // architectures). This is enforced on the public API via static_asserts
+  // against alignof(T).
+  STATIC_ASSERT(2 * kAllocationGranularity ==
+                api_constants::kMaxSupportedAlignment);
+  STATIC_ASSERT(kAllocationGranularity == sizeof(HeapObjectHeader));
+  DCHECK_EQ(2 * sizeof(HeapObjectHeader), static_cast<size_t>(alignment));
+  constexpr size_t kAlignment = 2 * kAllocationGranularity;
+  constexpr size_t kAlignmentMask = kAlignment - 1;
+  constexpr size_t kPaddingSize = kAlignment - sizeof(HeapObjectHeader);
+
+  NormalPageSpace::LinearAllocationBuffer& current_lab =
+      space.linear_allocation_buffer();
+  const size_t current_lab_size = current_lab.size();
+  // Case 1: The LAB fits the request and the LAB start is already properly
+  // aligned.
+  bool lab_allocation_will_succeed =
+      current_lab_size >= size &&
+      (reinterpret_cast<uintptr_t>(current_lab.start() +
+                                   sizeof(HeapObjectHeader)) &
+       kAlignmentMask) == 0;
+  // Case 2: The LAB fits an extended request to manually align the second
+  // allocation.
+  if (!lab_allocation_will_succeed &&
+      (current_lab_size >= (size + kPaddingSize))) {
+    void* filler_memory = current_lab.Allocate(kPaddingSize);
+    auto& filler = Filler::CreateAt(filler_memory, kPaddingSize);
+    NormalPage::From(BasePage::FromPayload(&filler))
+        ->object_start_bitmap()
+        .SetBit<AccessMode::kAtomic>(reinterpret_cast<ConstAddress>(&filler));
+    lab_allocation_will_succeed = true;
+  }
+  if (lab_allocation_will_succeed) {
+    void* object = AllocateObjectOnSpace(space, size, gcinfo);
+    DCHECK_NOT_NULL(object);
+    DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(object) & kAlignmentMask);
+    return object;
+  }
+  return OutOfLineAllocate(space, size, alignment, gcinfo);
+}
+
+void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
                                              size_t size, GCInfoIndex gcinfo) {
   DCHECK_LT(0u, gcinfo);
 
   NormalPageSpace::LinearAllocationBuffer& current_lab =
       space.linear_allocation_buffer();
   if (current_lab.size() < size) {
-    return OutOfLineAllocate(space, size, gcinfo);
+    return OutOfLineAllocate(
+        space, size, static_cast<AlignVal>(kAllocationGranularity), gcinfo);
   }
 
   void* raw = current_lab.Allocate(size);

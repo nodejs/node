@@ -354,7 +354,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
 
   HeapEntry* AllocateEntry(HeapThing ptr) override;
   HeapEntry* AllocateEntry(Smi smi) override;
-  int EstimateObjectsCount();
+  uint32_t EstimateObjectsCount();
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
   void CollectGlobalObjectsTags();
   void MakeGlobalObjectTagMap(const SafepointScope& safepoint_scope);
@@ -570,8 +570,8 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   HeapEntriesMap entries_map_;
   SmiEntriesMap smis_map_;
   // Used during snapshot generation.
-  int progress_counter_;
-  int progress_total_;
+  uint32_t progress_counter_;
+  uint32_t progress_total_;
   Heap* heap_;
 };
 

@@ -147,7 +147,7 @@ class CppEntriesProvider {
     } catch (e) {
       if (!response || response.status == 404) {
         // Assume that the local symbol server is not reachable.
-        console.error("Disabling remote symbol loading:", e);
+        console.warn("Disabling remote symbol loading:", e);
         this._isEnabled = false;
         return;
       }

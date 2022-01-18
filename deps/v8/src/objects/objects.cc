@@ -4014,13 +4014,7 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
 
 // static
 Handle<ArrayList> ArrayList::New(Isolate* isolate, int size) {
-  Handle<FixedArray> fixed_array =
-      isolate->factory()->NewFixedArray(size + kFirstIndex);
-  fixed_array->set_map_no_write_barrier(
-      ReadOnlyRoots(isolate).array_list_map());
-  Handle<ArrayList> result = Handle<ArrayList>::cast(fixed_array);
-  result->SetLength(0);
-  return result;
+  return isolate->factory()->NewArrayList(size);
 }
 
 Handle<FixedArray> ArrayList::Elements(Isolate* isolate,

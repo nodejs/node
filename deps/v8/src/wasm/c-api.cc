@@ -1442,8 +1442,9 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
   i::Handle<i::WasmCapiFunction> function = i::WasmCapiFunction::New(
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
       embedder_data, SignatureHelper::Serialize(isolate, data->type.get()));
-  i::Tuple2::cast(function->shared().wasm_capi_function_data().ref())
-      .set_value2(*function);
+  i::WasmApiFunctionRef::cast(
+      function->shared().wasm_capi_function_data().ref())
+      .set_callable(*function);
   auto func = implement<Func>::type::make(store, function);
   return func;
 }
@@ -1679,9 +1680,9 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
       static_cast<int>(instance->module()->num_imported_functions)) {
     object_ref = i::handle(
         instance->imported_function_refs().get(function_index), isolate);
-    if (object_ref->IsTuple2()) {
-      i::JSFunction jsfunc =
-          i::JSFunction::cast(i::Tuple2::cast(*object_ref).value2());
+    if (object_ref->IsWasmApiFunctionRef()) {
+      i::JSFunction jsfunc = i::JSFunction::cast(
+          i::WasmApiFunctionRef::cast(*object_ref).callable());
       i::Object data = jsfunc.shared().function_data(v8::kAcquireLoad);
       if (data.IsWasmCapiFunctionData()) {
         return CallWasmCapiFunction(i::WasmCapiFunctionData::cast(data), args,

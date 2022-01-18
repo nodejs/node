@@ -195,6 +195,18 @@ struct WasmLoopInfo {
 // the wasm decoder from the internal details of TurboFan.
 class WasmGraphBuilder {
  public:
+  // The parameter at index 0 in a wasm function has special meaning:
+  // - For normal wasm functions, it points to the function's instance.
+  // - For Wasm-to-JS and C-API wrappers, it points to a {WasmApiFunctionRef}
+  //   object which represents the function's context.
+  // - For JS-to-Wasm and JS-to-JS wrappers (which are JS functions), it does
+  //   not have a special meaning. In these cases, we need access to an isolate
+  //   at compile time, i.e., {isolate_} needs to be non-null.
+  enum Parameter0Mode {
+    kInstanceMode,
+    kWasmApiFunctionRefMode,
+    kNoSpecialParameterMode
+  };
   enum ReferenceKind : bool {  // --
     kArrayOrStruct = true,
     kFunction = false
@@ -227,7 +239,8 @@ class WasmGraphBuilder {
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
       const wasm::FunctionSig* sig,
       compiler::SourcePositionTable* spt = nullptr)
-      : WasmGraphBuilder(env, zone, mcgraph, sig, spt, nullptr) {}
+      : WasmGraphBuilder(env, zone, mcgraph, sig, spt, kInstanceMode, nullptr) {
+  }
 
   V8_EXPORT_PRIVATE ~WasmGraphBuilder();
 
@@ -528,6 +541,7 @@ class WasmGraphBuilder {
                                      MachineGraph* mcgraph,
                                      const wasm::FunctionSig* sig,
                                      compiler::SourcePositionTable* spt,
+                                     Parameter0Mode parameter_mode,
                                      Isolate* isolate);
 
   Node* NoContextConstant();
@@ -763,7 +777,6 @@ class WasmGraphBuilder {
   SetOncePointer<Node> stack_check_code_node_;
   SetOncePointer<const Operator> stack_check_call_operator_;
 
-  bool use_js_isolate_and_params() const { return isolate_ != nullptr; }
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
 
@@ -772,6 +785,7 @@ class WasmGraphBuilder {
   compiler::WasmDecorator* decorator_ = nullptr;
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
+  Parameter0Mode parameter_mode_;
   Isolate* const isolate_;
   SetOncePointer<Node> instance_node_;
 

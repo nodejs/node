@@ -117,7 +117,7 @@ constexpr auto CallTrampolineDescriptor::registers() {
 
 // static
 constexpr auto CallVarargsDescriptor::registers() {
-  // a0 : number of arguments (on the stack, not including receiver)
+  // a0 : number of arguments (on the stack)
   // a1 : the target to call
   // a4 : arguments list length (untagged)
   // a2 : arguments list (FixedArray)
@@ -135,13 +135,13 @@ constexpr auto CallForwardVarargsDescriptor::registers() {
 // static
 constexpr auto CallFunctionTemplateDescriptor::registers() {
   // a1 : function template info
-  // a0 : number of arguments (on the stack, not including receiver)
+  // a0 : number of arguments (on the stack)
   return RegisterArray(a1, a0);
 }
 
 // static
 constexpr auto CallWithSpreadDescriptor::registers() {
-  // a0 : number of arguments (on the stack, not including receiver)
+  // a0 : number of arguments (on the stack)
   // a1 : the target to call
   // a2 : the object to spread
   return RegisterArray(a1, a0, a2);
@@ -156,7 +156,7 @@ constexpr auto CallWithArrayLikeDescriptor::registers() {
 
 // static
 constexpr auto ConstructVarargsDescriptor::registers() {
-  // a0 : number of arguments (on the stack, not including receiver)
+  // a0 : number of arguments (on the stack)
   // a1 : the target to call
   // a3 : the new target
   // a4 : arguments list length (untagged)
@@ -175,7 +175,7 @@ constexpr auto ConstructForwardVarargsDescriptor::registers() {
 
 // static
 constexpr auto ConstructWithSpreadDescriptor::registers() {
-  // a0 : number of arguments (on the stack, not including receiver)
+  // a0 : number of arguments (on the stack)
   // a1 : the target to call
   // a3 : the new target
   // a2 : the object to spread
@@ -250,7 +250,7 @@ constexpr auto InterpreterPushArgsThenCallDescriptor::registers() {
 
 // static
 constexpr auto InterpreterPushArgsThenConstructDescriptor::registers() {
-  // a0 : argument count (not including receiver)
+  // a0 : argument count
   // a4 : address of the first argument
   // a1 : constructor to call
   // a3 : new target

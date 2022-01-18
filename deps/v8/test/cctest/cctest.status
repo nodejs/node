@@ -136,6 +136,8 @@
   'test-strings/Traverse': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
+
+  'test-intl/StringLocaleCompareFastPath': [['mode != release', SKIP], SLOW, NO_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################
@@ -336,12 +338,6 @@
 }],  # 'arch == arm'
 
 ##############################################################################
-['arch == arm and not simulator_run', {
-  # crbug.com/v8/11134
-  'test-cpu-profiler/MultipleThreadsSingleIsolate': [PASS, ['system != android', SKIP]],
-}],  # 'arch == arm and not simulator_run'
-
-##############################################################################
 ['arch == mipsel or arch == mips', {
   # TODO(mips-team): Improve code-size on large RegExp's.
   'test-heap/TestSizeOfRegExpCode':  [SKIP],
@@ -537,12 +533,6 @@
   'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
   'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
 }],
-
-##############################################################################
-['arch == ppc64 and not simulator_run', {
-  # crbug.com/v8/11134
-  'test-cpu-profiler/MultipleThreadsSingleIsolate': [SKIP],
-}],  # 'arch == ppc64 and not simulator_run'
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
@@ -1251,4 +1241,18 @@
   'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
   'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
 }],
+
+##############################################################################
+['variant == assert_types', {
+  # Type assertions add strong pointers, breaking these test.
+  'test-heap/ObjectsInOptimizedCodeAreWeak': [SKIP],
+  'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [SKIP],
+  'test-heap/NewSpaceObjectsInOptimizedCode': [SKIP],
+  'test-heap/LeakNativeContextViaMapKeyed': [SKIP],
+  'test-heap/CellsInOptimizedCodeAreWeak': [SKIP],
+  # Type assertions only work without concurrent compilation, but this test
+  # always triggers a concurrent compilation.
+  'test-concurrent-shared-function-info/TestConcurrentSharedFunctionInfo': [SKIP],
+}],  # variant == assert_types
+
 ]

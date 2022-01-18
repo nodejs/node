@@ -141,7 +141,7 @@ class RegisteredExtension {
   V(Primitive, Object)                         \
   V(PrimitiveArray, FixedArray)                \
   V(BigInt, BigInt)                            \
-  V(ScriptOrModule, Script)                    \
+  V(ScriptOrModule, ScriptOrModule)            \
   V(FixedArray, FixedArray)                    \
   V(ModuleRequest, ModuleRequest)              \
   IF_WASM(V, WasmMemoryObject, WasmMemoryObject)
@@ -254,8 +254,8 @@ class Utils {
       v8::internal::Handle<v8::internal::FixedArray> obj);
   static inline Local<PrimitiveArray> PrimitiveArrayToLocal(
       v8::internal::Handle<v8::internal::FixedArray> obj);
-  static inline Local<ScriptOrModule> ScriptOrModuleToLocal(
-      v8::internal::Handle<v8::internal::Script> obj);
+  static inline Local<ScriptOrModule> ToLocal(
+      v8::internal::Handle<v8::internal::ScriptOrModule> obj);
 
 #define DECLARE_OPEN_HANDLE(From, To)                              \
   static inline v8::internal::Handle<v8::internal::To> OpenHandle( \

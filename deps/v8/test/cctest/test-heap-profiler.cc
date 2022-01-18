@@ -1556,7 +1556,7 @@ class TestActivityControl : public v8::ActivityControl {
         total_(0),
         abort_count_(abort_count),
         reported_finish_(false) {}
-  ControlOption ReportProgressValue(int done, int total) override {
+  ControlOption ReportProgressValue(uint32_t done, uint32_t total) override {
     done_ = done;
     total_ = total;
     CHECK_LE(done_, total_);

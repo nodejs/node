@@ -1670,16 +1670,6 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
         Li(rd, j.immediate());
       }
     }
-  } else if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(j.rmode())) {
-    BlockGrowBufferScope block_growbuffer(this);
-    int offset = pc_offset();
-    Address address = j.immediate();
-    saved_handles_for_raw_object_ptr_.emplace_back(offset, address);
-    Handle<HeapObject> object(reinterpret_cast<Address*>(address));
-    int64_t immediate = object->ptr();
-    RecordRelocInfo(j.rmode(), immediate);
-    li_ptr(rd, immediate);
-    DCHECK(EmbeddedObjectMatches(offset, object));
   } else if (MustUseReg(j.rmode())) {
     int64_t immediate;
     if (j.IsHeapObjectRequest()) {
@@ -3761,7 +3751,11 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     Sub64(t0, t0, Operand(1));
     Add64(src, src, Operand(kSystemPointerSize));
     Add64(dest, dest, Operand(kSystemPointerSize));
-    Branch(&copy, ge, t0, Operand(zero_reg));
+    if (kJSArgcIncludesReceiver) {
+      Branch(&copy, gt, t0, Operand(zero_reg));
+    } else {
+      Branch(&copy, ge, t0, Operand(zero_reg));
+    }
   }
 
   // Fill remaining expected arguments with undefined values.
@@ -4502,21 +4496,21 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   Branch(not_smi_label, ne, scratch, Operand(zero_reg));
 }
 
-void TurboAssembler::AssertNotSmi(Register object) {
+void TurboAssembler::AssertNotSmi(Register object, AbortReason reason) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     andi(kScratchReg, object, kSmiTagMask);
-    Check(ne, AbortReason::kOperandIsASmi, kScratchReg, Operand(zero_reg));
+    Check(ne, reason, kScratchReg, Operand(zero_reg));
   }
 }
 
-void TurboAssembler::AssertSmi(Register object) {
+void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     andi(kScratchReg, object, kSmiTagMask);
-    Check(eq, AbortReason::kOperandIsASmi, kScratchReg, Operand(zero_reg));
+    Check(eq, reason, kScratchReg, Operand(zero_reg));
   }
 }
 
@@ -4554,6 +4548,22 @@ void MacroAssembler::AssertFunction(Register object) {
           Operand(LAST_JS_FUNCTION_TYPE - FIRST_JS_FUNCTION_TYPE));
     pop(object);
   }
+}
+
+void MacroAssembler::AssertCallableFunction(Register object) {
+  if (!FLAG_debug_code) return;
+  ASM_CODE_COMMENT(this);
+  STATIC_ASSERT(kSmiTag == 0);
+  AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFunction);
+  push(object);
+  LoadMap(object, object);
+  UseScratchRegisterScope temps(this);
+  Register range = temps.Acquire();
+  GetInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE, range);
+  Check(Uless_equal, AbortReason::kOperandIsNotACallableFunction, range,
+        Operand(LAST_CALLABLE_JS_FUNCTION_TYPE -
+                FIRST_CALLABLE_JS_FUNCTION_TYPE));
+  pop(object);
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
@@ -5039,6 +5049,46 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
   Lwu(destination, field_operand);
   Add64(destination, kPtrComprCageBaseRegister, destination);
   RecordComment("]");
+}
+
+void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
+                                   ArgumentsCountMode mode, Register scratch) {
+  switch (type) {
+    case kCountIsInteger: {
+      CalcScaledAddress(sp, sp, count, kPointerSizeLog2);
+      break;
+    }
+    case kCountIsSmi: {
+      STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+      DCHECK_NE(scratch, no_reg);
+      SmiScale(scratch, count, kPointerSizeLog2);
+      Add64(sp, sp, scratch);
+      break;
+    }
+    case kCountIsBytes: {
+      Add64(sp, sp, count);
+      break;
+    }
+  }
+  if (mode == kCountExcludesReceiver) {
+    Add64(sp, sp, kSystemPointerSize);
+  }
+}
+
+void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
+                                                     Register receiver,
+                                                     ArgumentsCountType type,
+                                                     ArgumentsCountMode mode,
+                                                     Register scratch) {
+  DCHECK(!AreAliased(argc, receiver));
+  if (mode == kCountExcludesReceiver) {
+    // Drop arguments without receiver and override old receiver.
+    DropArguments(argc, type, kCountIncludesReceiver, scratch);
+    Sd(receiver, MemOperand(sp));
+  } else {
+    DropArguments(argc, type, mode, scratch);
+    push(receiver);
+  }
 }
 
 }  // namespace internal

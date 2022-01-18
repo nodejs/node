@@ -16,7 +16,6 @@
 #include "src/base/memory.h"
 #include "src/base/numbers/double.h"
 #include "src/builtins/builtins.h"
-#include "src/common/external-pointer-inl.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/handles/handles-inl.h"
@@ -43,6 +42,8 @@
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/templates.h"
+#include "src/security/caged-pointer-inl.h"
+#include "src/security/external-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -70,6 +71,14 @@ DEF_GETTER(HeapObject, IsClassBoilerplate, bool) {
 
 bool Object::IsTaggedIndex() const {
   return IsSmi() && TaggedIndex::IsValid(TaggedIndex(ptr()).value());
+}
+
+bool Object::InSharedHeap() const {
+  return IsHeapObject() && HeapObject::cast(*this).InSharedHeap();
+}
+
+bool Object::InSharedWritableHeap() const {
+  return IsHeapObject() && HeapObject::cast(*this).InSharedWritableHeap();
 }
 
 #define IS_TYPE_FUNCTION_DEF(type_)                                        \
@@ -134,6 +143,15 @@ bool Object::IsPrivateSymbol() const {
 
 bool Object::IsNoSharedNameSentinel() const {
   return *this == SharedFunctionInfo::kNoSharedNameSentinel;
+}
+
+bool HeapObject::InSharedHeap() const {
+  if (IsReadOnlyHeapObject(*this)) return V8_SHARED_RO_HEAP_BOOL;
+  return InSharedWritableHeap();
+}
+
+bool HeapObject::InSharedWritableHeap() const {
+  return BasicMemoryChunk::FromHeapObject(*this)->InSharedHeap();
 }
 
 bool HeapObject::IsNullOrUndefined(Isolate* isolate) const {
@@ -253,11 +271,6 @@ bool Object::IsNumeric() const {
 
 bool Object::IsNumeric(PtrComprCageBase cage_base) const {
   return IsNumber(cage_base) || IsBigInt(cage_base);
-}
-
-DEF_GETTER(HeapObject, IsFreeSpaceOrFiller, bool) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
 
 DEF_GETTER(HeapObject, IsArrayList, bool) {
@@ -622,6 +635,24 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
   return value;
 }
 
+#ifdef V8_CAGED_POINTERS
+Address Object::ReadCagedPointerField(size_t offset,
+                                      PtrComprCageBase cage_base) const {
+  return i::ReadCagedPointerField(field_address(offset), cage_base);
+}
+
+void Object::WriteCagedPointerField(size_t offset, PtrComprCageBase cage_base,
+                                    Address value) {
+  i::WriteCagedPointerField(field_address(offset), cage_base, value);
+}
+
+void Object::WriteCagedPointerField(size_t offset, Isolate* isolate,
+                                    Address value) {
+  i::WriteCagedPointerField(field_address(offset), PtrComprCageBase(isolate),
+                            value);
+}
+#endif  // V8_CAGED_POINTERS
+
 void Object::InitExternalPointerField(size_t offset, Isolate* isolate) {
   i::InitExternalPointerField(field_address(offset), isolate);
 }
@@ -731,7 +762,24 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots(PtrComprCageBase cage_base) const {
 #endif
 }
 
-DEF_GETTER(HeapObject, map, Map) {
+Map HeapObject::map() const {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    // TODO(v8:11880): Ensure that cage friendly version is used for the cases
+    // when this could be a Code object. Replace this with
+    // DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeObject(*this));
+    Isolate* isolate;
+    if (GetIsolateFromHeapObject(*this, &isolate)) {
+      PtrComprCageBase cage_base(isolate);
+      return HeapObject::map(cage_base);
+    }
+    // If the Isolate can't be obtained then the heap object is a read-only
+    // one and therefore not a Code object, so fallback to auto-computing cage
+    // base value.
+  }
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return HeapObject::map(cage_base);
+}
+Map HeapObject::map(PtrComprCageBase cage_base) const {
   return map_word(cage_base, kRelaxedLoad).ToMap();
 }
 
@@ -772,13 +820,22 @@ void HeapObject::set_map(Map value, ReleaseStoreTag tag) {
 }
 
 // Unsafe accessor omitting write barrier.
-void HeapObject::set_map_no_write_barrier(Map value) {
+void HeapObject::set_map_no_write_barrier(Map value, RelaxedStoreTag tag) {
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !value.is_null()) {
     GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
   }
 #endif
-  set_map_word(MapWord::FromMap(value), kRelaxedStore);
+  set_map_word(MapWord::FromMap(value), tag);
+}
+
+void HeapObject::set_map_no_write_barrier(Map value, ReleaseStoreTag tag) {
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap && !value.is_null()) {
+    GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
+  }
+#endif
+  set_map_word(MapWord::FromMap(value), tag);
 }
 
 void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
@@ -798,7 +855,25 @@ ObjectSlot HeapObject::map_slot() const {
   return ObjectSlot(MapField::address(*this));
 }
 
-DEF_RELAXED_GETTER(HeapObject, map_word, MapWord) {
+MapWord HeapObject::map_word(RelaxedLoadTag tag) const {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    // TODO(v8:11880): Ensure that cage friendly version is used for the cases
+    // when this could be a Code object. Replace this with
+    // DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeObject(*this));
+    Isolate* isolate;
+    if (GetIsolateFromHeapObject(*this, &isolate)) {
+      PtrComprCageBase cage_base(isolate);
+      return HeapObject::map_word(cage_base, tag);
+    }
+    // If the Isolate can't be obtained then the heap object is a read-only
+    // one and therefore not a Code object, so fallback to auto-computing cage
+    // base value.
+  }
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return HeapObject::map_word(cage_base, tag);
+}
+MapWord HeapObject::map_word(PtrComprCageBase cage_base,
+                             RelaxedLoadTag tag) const {
   return MapField::Relaxed_Load_Map_Word(cage_base, *this);
 }
 
@@ -806,7 +881,15 @@ void HeapObject::set_map_word(MapWord map_word, RelaxedStoreTag) {
   MapField::Relaxed_Store_Map_Word(*this, map_word);
 }
 
-DEF_ACQUIRE_GETTER(HeapObject, map_word, MapWord) {
+MapWord HeapObject::map_word(AcquireLoadTag tag) const {
+  // This method is never used for Code objects and thus it is fine to use
+  // auto-computed cage base value.
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeObject(*this));
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return HeapObject::map_word(cage_base, tag);
+}
+MapWord HeapObject::map_word(PtrComprCageBase cage_base,
+                             AcquireLoadTag tag) const {
   return MapField::Acquire_Load_No_Unpack(cage_base, *this);
 }
 

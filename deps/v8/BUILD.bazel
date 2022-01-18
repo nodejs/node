@@ -9,111 +9,20 @@ load(
     "v8_build_config",
     "v8_config",
     "v8_custom_config",
-    "v8_raw_flag",
     "v8_flag",
     "v8_int",
-    "v8_string",
     "v8_library",
-    "v8_torque",
     "v8_mksnapshot",
+    "v8_string",
+    "v8_torque",
 )
-
-# =================================================
-# Configuration settings
-# =================================================
+load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression")
 
 config_setting(
     name = "is_debug",
     values = {
         "compilation_mode": "dbg",
     },
-)
-
-config_setting(
-    name = "is_k8",
-    values = {"cpu": "k8"},
-)
-
-config_setting(
-    name = "is_darwin",
-    values = {"cpu": "darwin"},
-)
-
-selects.config_setting_group(
-    name = "is_x64",
-    match_any = [":is_k8", ":is_darwin"],
-)
-
-config_setting(
-    name = "is_arm64",
-    values = {
-        "host_cpu": "k8",
-        "cpu": "arm",
-    },
-)
-
-config_setting(
-    name = "is_ia32",
-    values = {
-        "host_cpu": "k8",
-        "cpu": "x86",
-    },
-)
-
-config_setting(
-    name = "is_arm",
-    values = {
-        "host_cpu": "k8",
-        "cpu": "armeabi-v7a",
-    },
-)
-
-selects.config_setting_group(
-    name = "is_32bits",
-    match_any = [":is_ia32", ":is_arm"],
-)
-
-config_setting(
-    name = "is_linux",
-    constraint_values = ["@platforms//os:linux"],
-)
-
-config_setting(
-    name = "is_android",
-    constraint_values = ["@platforms//os:android"],
-)
-
-config_setting(
-    name = "is_macos",
-    constraint_values = ["@platforms//os:macos"],
-)
-
-selects.config_setting_group(
-    name = "is_posix",
-    match_any = [":is_linux", ":is_android", ":is_macos"],
-)
-
-config_setting(
-    name = "is_linux_x64",
-    constraint_values = ["@platforms//os:linux"],
-    values = {"cpu": "k8"},
-)
-
-config_setting(
-    name = "is_macos_x64",
-    constraint_values = ["@platforms//os:macos"],
-    values = {"cpu": "darwin"},
-)
-
-selects.config_setting_group(
-    name = "is_linux_x64_or_macos_x64",
-    match_any = [":is_linux_x64", ":is_macos_x64"],
-)
-
-config_setting(
-    name = "is_android_x86",
-    constraint_values = ["@platforms//os:android"],
-    values = {"cpu": "x86"},
 )
 
 # =================================================
@@ -165,6 +74,7 @@ config_setting(
 # v8_control_flow_integrity
 # v8_enable_virtual_memory_cage
 # cppgc_enable_caged_heap
+# cppgc_enable_check_assignments_in_prefinalizers
 # cppgc_enable_object_names
 # cppgc_enable_verify_heap
 # cppgc_enable_young_generation
@@ -179,48 +89,147 @@ config_setting(
 # v8_enable_allocation_folding
 # v8_allocation_site_tracking
 
-v8_string(name = "v8_root", default = ".")
+v8_string(
+    name = "v8_root",
+    default = "third_party/v8/HEAD",
+)
 
 v8_flag(name = "v8_android_log_stdout")
+
 v8_flag(name = "v8_annotate_torque_ir")
 
 v8_flag(name = "v8_code_comments")
 
-v8_flag(name = "v8_deprecation_warnings", default = True)
-v8_flag(name = "v8_imminent_deprecation_warnings", default = True)
+v8_flag(
+    name = "v8_deprecation_warnings",
+    default = True,
+)
+
+v8_flag(
+    name = "v8_imminent_deprecation_warnings",
+    default = True,
+)
 
 v8_flag(name = "v8_enable_backtrace")
+
 v8_flag(name = "v8_enable_debug_code")
+
 v8_flag(name = "v8_enable_disassembler")
-v8_flag(name = "v8_enable_handle_zapping", default = True)
+
+v8_flag(
+    name = "v8_enable_handle_zapping",
+    default = True,
+)
+
 v8_flag(name = "v8_enable_hugepage")
+
 v8_flag(name = "v8_enable_fast_mksnapshot")
+
 v8_flag(name = "v8_enable_future")
-v8_flag(name = "v8_enable_i18n_support", default = True)
-v8_flag(name = "v8_enable_lazy_source_positions", default = True)
-v8_flag(name = "v8_enable_minor_mc", default = True)
+
+# NOTE: Transitions are not recommended in library targets:
+# https://groups.google.com/a/google.com/g/c-toolchain-team/c/W4nmWonD0ow/m/rLGyIL4YIQAJ
+# Therefore we create multiple targets with and without ICU, instead of
+# implementing the flag v8_enable_i18n_support.
+
+v8_flag(
+    name = "v8_enable_lazy_source_positions",
+    default = True,
+)
+
+v8_flag(
+    name = "v8_enable_minor_mc",
+    default = True,
+)
+
 v8_flag(name = "v8_enable_object_print")
+
 v8_flag(name = "v8_enable_slow_dchecks")
+
 v8_flag(name = "v8_enable_snapshot_code_comments")
+
 v8_flag(name = "v8_enable_snapshot_native_code_counters")
+
 v8_flag(name = "v8_enable_trace_maps")
+
 v8_flag(name = "v8_enable_v8_checks")
+
 v8_flag(name = "v8_enable_verify_csa")
+
 v8_flag(name = "v8_enable_verify_heap")
+
 v8_flag(name = "v8_enable_verify_predictable")
+
 v8_flag(name = "v8_enable_test_features")
-v8_flag(name = "v8_enable_webassembly", default = True)
 
-v8_int(name = "v8_typed_array_max_size_in_heap", default = 64)
+v8_flag(
+    name = "v8_enable_webassembly",
+    default = True,
+)
 
-# Pointer compression, true by default if x64 or arm64.
-v8_raw_flag(name = "v8_enable_pointer_compression")
+v8_int(
+    name = "v8_typed_array_max_size_in_heap",
+    default = 64,
+)
+
+# We use a string flag to create a 3 value-logic.
+# If no explicit value for v8_enable_pointer_compression, we set it to 'none'.
+v8_string(
+    name = "v8_enable_pointer_compression",
+    default = "none",
+)
+
+# Default setting for v8_enable_pointer_compression.
+config_setting(
+    name = "v8_enable_pointer_compression_is_none",
+    flag_values = {
+        ":v8_enable_pointer_compression": "none",
+    },
+)
+
+# Explicity defined v8_enable_pointer_compression.
+config_setting(
+    name = "v8_enable_pointer_compression_is_true",
+    flag_values = {
+        ":v8_enable_pointer_compression": "True",
+    },
+)
+
+# Default setting for v8_enable_pointer_compression when target is x64.
+selects.config_setting_group(
+    name = "v8_target_x64_default_pointer_compression",
+    match_all = [
+        ":v8_enable_pointer_compression_is_none",
+        "@config//:v8_target_x64",
+    ],
+)
+
+# Default setting for v8_enable_pointer_compression when target is arm64.
+selects.config_setting_group(
+    name = "v8_target_arm64_default_pointer_compression",
+    match_all = [
+        ":v8_enable_pointer_compression_is_none",
+        "@config//:v8_target_arm64",
+    ],
+)
+
+# v8_enable_pointer_compression is valid whenever it is explicitly defined
+# or we have the default settings for targets x64 and arm64.
 selects.config_setting_group(
     name = "is_v8_enable_pointer_compression",
-    match_any = [ ":raw_v8_enable_pointer_compression", ":is_x64", ":is_arm64" ],
+    match_any = [
+        ":v8_enable_pointer_compression_is_true",
+        ":v8_target_x64_default_pointer_compression",
+        ":v8_target_arm64_default_pointer_compression",
+    ],
 )
+
 # Pointer cage, true by default if v8_enable_pointer_compression.
-v8_flag(name = "v8_enable_pointer_compression_shared_cage", default = True)
+v8_flag(
+    name = "v8_enable_pointer_compression_shared_cage",
+    default = True,
+)
+
 # Enable shared cage if v8_enable_pointer_compression
 # and v8_enable_pointer_compression_shared_cage.
 selects.config_setting_group(
@@ -230,6 +239,7 @@ selects.config_setting_group(
         ":is_v8_enable_pointer_compression_shared_cage",
     ],
 )
+
 # Enable isolated cage if v8_enable_pointer_compression and
 # NOT v8_enable_pointer_compression_shared_cage.
 selects.config_setting_group(
@@ -243,7 +253,10 @@ selects.config_setting_group(
 # Enable -rdynamic.
 selects.config_setting_group(
     name = "should_add_rdynamic",
-    match_all = [ ":is_linux", ":is_v8_enable_backtrace" ],
+    match_all = [
+        "@config//:is_linux",
+        ":is_v8_enable_backtrace",
+    ],
 )
 
 v8_custom_config(name = "default")
@@ -260,13 +273,11 @@ v8_config(
         "v8_enable_handle_zapping": "ENABLE_HANDLE_ZAPPING",
         "v8_enable_hugepage": "ENABLE_HUGEPAGE",
         "v8_enable_future": "V8_ENABLE_FUTURE",
-        "v8_enable_i18n_support": "V8_INTL_SUPPORT",
         "v8_enable_lazy_source_positions": "V8_ENABLE_LAZY_SOURCE_POSITIONS",
         "v8_enable_minor_mc": "ENABLE_MINOR_MC",
         "v8_enable_object_print": "OBJECT_PRINT",
         "v8_enable_slow_dchecks": "ENABLE_SLOW_DCHECKS",
-        "v8_enable_snapshot_native_code_counters":
-            "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",
+        "v8_enable_snapshot_native_code_counters": "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",
         "v8_enable_trace_maps": "V8_TRACE_MAPS",
         "v8_enable_v8_checks": "V8_ENABLE_CHECKS",
         "v8_enable_verify_csa": "ENABLE_VERIFY_CSA",
@@ -277,30 +288,37 @@ v8_config(
     defines = [
         "GOOGLE3",
         "CHROMIUM_ZLIB_NO_CHROMECONF",
+        "ENABLE_DEBUGGER_SUPPORT",
         "V8_ADVANCED_BIGINT_ALGORITHMS",
         "V8_CONCURRENT_MARKING",
     ] + select({
-        ":is_debug": [ "DEBUG" ],
-        "//conditions:default": [],
-    }) + select({
-        ":is_ia32": [ "V8_TARGET_ARCH_IA32" ],
-        ":is_x64": [ "V8_TARGET_ARCH_X64" ],
-        ":is_arm": [
-            "V8_TARGET_ARCH_ARM",
-            "CAN_USE_ARMV7_INSTRUCTIONS",
-            "CAN_USE_VFP3_INSTRUCTIONS",
+        ":is_debug": [
+            "DEBUG",
+            "V8_ENABLE_CHECKS",
         ],
-        ":is_arm64": [ "V8_TARGET_ARCH_ARM64" ],
-    }) + select({
-        ":is_android": [
+        "//conditions:default": [],
+    }) + select(
+        {
+            "@config//:v8_target_ia32": ["V8_TARGET_ARCH_IA32"],
+            "@config//:v8_target_x64": ["V8_TARGET_ARCH_X64"],
+            "@config//:v8_target_arm": [
+                "V8_TARGET_ARCH_ARM",
+                "CAN_USE_ARMV7_INSTRUCTIONS",
+                "CAN_USE_VFP3_INSTRUCTIONS",
+            ],
+            "@config//:v8_target_arm64": ["V8_TARGET_ARCH_ARM64"],
+        },
+        no_match_error = "Please specify a target cpu supported by v8",
+    ) + select({
+        "@config//:is_android": [
             "V8_HAVE_TARGET_OS",
             "V8_TARGET_OS_ANDROID",
         ],
-        ":is_linux": [
+        "@config//:is_linux": [
             "V8_HAVE_TARGET_OS",
             "V8_TARGET_OS_LINUX",
         ],
-        ":is_macos": [
+        "@config//:is_macos": [
             "V8_HAVE_TARGET_OS",
             "V8_TARGET_OS_MACOSX",
         ],
@@ -312,10 +330,10 @@ v8_config(
         "//conditions:default": [],
     }) + select({
         ":enable_pointer_compression_shared_cage": [
-            "V8_COMPRESS_POINTERS_IN_SHARED_CAGE"
+            "V8_COMPRESS_POINTERS_IN_SHARED_CAGE",
         ],
         ":enable_pointer_compression_isolated_cage": [
-            "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE"
+            "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE",
         ],
         "//conditions:default": [],
     }) + select({
@@ -326,7 +344,7 @@ v8_config(
         ],
         "//conditions:default": [],
     }),
-    deps = [ ":default" ],
+    deps = [":default"],
 )
 
 # =================================================
@@ -345,8 +363,8 @@ filegroup(
     name = "v8_version_files",
     srcs = [
         "include/v8-value-serializer-version.h",
-        "include/v8-version-string.h",
         "include/v8-version.h",
+        "include/v8-version-string.h",
     ],
 )
 
@@ -361,10 +379,10 @@ filegroup(
         "include/cppgc/ephemeron-pair.h",
         "include/cppgc/explicit-management.h",
         "include/cppgc/garbage-collected.h",
+        "include/cppgc/heap.h",
         "include/cppgc/heap-consistency.h",
         "include/cppgc/heap-state.h",
         "include/cppgc/heap-statistics.h",
-        "include/cppgc/heap.h",
         "include/cppgc/internal/api-constants.h",
         "include/cppgc/internal/atomic-entry-flag.h",
         "include/cppgc/internal/caged-heap-local-data.h",
@@ -391,14 +409,13 @@ filegroup(
         "include/cppgc/trace-trait.h",
         "include/cppgc/type-traits.h",
         "include/cppgc/visitor.h",
-    ]
+    ],
 )
 
 filegroup(
     name = "v8_headers_files",
     srcs = [
-        ":cppgc_headers_files",
-        ":v8_version_files",
+        "include/v8.h",
         "include/v8-array-buffer.h",
         "include/v8-callbacks.h",
         "include/v8-container.h",
@@ -424,12 +441,12 @@ filegroup(
         "include/v8-maybe.h",
         "include/v8-memory-span.h",
         "include/v8-message.h",
-        "include/v8-microtask-queue.h",
         "include/v8-microtask.h",
+        "include/v8-microtask-queue.h",
         "include/v8-object.h",
         "include/v8-persistent-handle.h",
-        "include/v8-primitive-object.h",
         "include/v8-primitive.h",
+        "include/v8-primitive-object.h",
         "include/v8-profiler.h",
         "include/v8-promise.h",
         "include/v8-proxy.h",
@@ -442,11 +459,12 @@ filegroup(
         "include/v8-typed-array.h",
         "include/v8-unwinder.h",
         "include/v8-util.h",
-        "include/v8-value-serializer.h",
         "include/v8-value.h",
+        "include/v8-value-serializer.h",
         "include/v8-wasm.h",
         "include/v8-weak-callback-info.h",
-        "include/v8.h",
+        ":cppgc_headers_files",
+        ":v8_version_files",
     ],
 )
 
@@ -456,7 +474,7 @@ filegroup(
         "src/flags/flag-definitions.h",
         "src/flags/flags.h",
     ] + select({
-        "is_v8_enable_webassembly": [ "src/wasm/wasm-feature-flags.h" ],
+        "is_v8_enable_webassembly": ["src/wasm/wasm-feature-flags.h"],
         "//conditions:default": [],
     }),
 )
@@ -577,7 +595,7 @@ filegroup(
         "src/base/vlq-base64.cc",
         "src/base/vlq-base64.h",
     ] + select({
-        ":is_posix": [
+        "@config//:is_posix": [
             "src/base/platform/platform-posix.cc",
             "src/base/platform/platform-posix.h",
             "src/base/platform/platform-posix-time.cc",
@@ -585,19 +603,20 @@ filegroup(
         ],
         "//conditions:default": [],
     }) + select({
-        ":is_linux": [
+        "@config//:is_linux": [
             "src/base/debug/stack_trace_posix.cc",
             "src/base/platform/platform-linux.cc",
         ],
-        "is_android": [
+        "@config//:is_android": [
             "src/base/debug/stack_trace_android.cc",
             "src/base/platform/platform-linux.cc",
         ],
-        "is_macos": [
+        "@config//:is_macos": [
             "src/base/debug/stack_trace_posix.cc",
             "src/base/platform/platform-macos.cc",
         ],
     }),
+    visibility = ["//visibility:public"],
 )
 
 filegroup(
@@ -642,11 +661,11 @@ filegroup(
 
 filegroup(
     name = "torque_runtime_support_files",
-    srcs =  [ "src/torque/runtime-support.h" ],
+    srcs = ["src/torque/runtime-support.h"],
 )
 
 filegroup(
-    name = "torque_files",
+    name = "noicu/torque_files",
     srcs = [
         "src/builtins/aggregate-error.tq",
         "src/builtins/array-at.tq",
@@ -805,6 +824,7 @@ filegroup(
         "src/objects/js-proxy.tq",
         "src/objects/js-regexp-string-iterator.tq",
         "src/objects/js-regexp.tq",
+        "src/objects/js-temporal-objects.tq",
         "src/objects/js-weak-refs.tq",
         "src/objects/literal-objects.tq",
         "src/objects/map.tq",
@@ -834,6 +854,7 @@ filegroup(
         "src/objects/template-objects.tq",
         "src/objects/templates.tq",
         "src/objects/torque-defined-classes.tq",
+        "src/objects/turbofan-types.tq",
         "test/torque/test-torque.tq",
         "third_party/v8/builtins/array-sort.tq",
     ] + select({
@@ -843,24 +864,27 @@ filegroup(
             "src/wasm/wasm-objects.tq",
         ],
         "//conditions:default": [],
-    }) + select({
-        ":is_v8_enable_i18n_support": [
-            "src/objects/intl-objects.tq",
-            "src/objects/js-break-iterator.tq",
-            "src/objects/js-collator.tq",
-            "src/objects/js-date-time-format.tq",
-            "src/objects/js-display-names.tq",
-            "src/objects/js-list-format.tq",
-            "src/objects/js-locale.tq",
-            "src/objects/js-number-format.tq",
-            "src/objects/js-plural-rules.tq",
-            "src/objects/js-relative-time-format.tq",
-            "src/objects/js-segment-iterator.tq",
-            "src/objects/js-segmenter.tq",
-            "src/objects/js-segments.tq",
-        ],
-        "//conditions:default": [],
-    })
+    }),
+)
+
+filegroup(
+    name = "icu/torque_files",
+    srcs = [
+        "src/objects/intl-objects.tq",
+        "src/objects/js-break-iterator.tq",
+        "src/objects/js-collator.tq",
+        "src/objects/js-date-time-format.tq",
+        "src/objects/js-display-names.tq",
+        "src/objects/js-list-format.tq",
+        "src/objects/js-locale.tq",
+        "src/objects/js-number-format.tq",
+        "src/objects/js-plural-rules.tq",
+        "src/objects/js-relative-time-format.tq",
+        "src/objects/js-segment-iterator.tq",
+        "src/objects/js-segmenter.tq",
+        "src/objects/js-segments.tq",
+        ":noicu/torque_files",
+    ],
 )
 
 filegroup(
@@ -999,6 +1023,7 @@ filegroup(
         "src/builtins/builtins-sharedarraybuffer.cc",
         "src/builtins/builtins-string.cc",
         "src/builtins/builtins-symbol.cc",
+        "src/builtins/builtins-temporal.cc",
         "src/builtins/builtins-trace.cc",
         "src/builtins/builtins-typed-array.cc",
         "src/builtins/builtins-utils-inl.h",
@@ -1085,8 +1110,6 @@ filegroup(
         "src/common/assert-scope.cc",
         "src/common/assert-scope.h",
         "src/common/checks.h",
-        "src/common/external-pointer-inl.h",
-        "src/common/external-pointer.h",
         "src/common/message-template.h",
         "src/common/ptr-compr-inl.h",
         "src/common/ptr-compr.h",
@@ -1159,8 +1182,6 @@ filegroup(
         "src/execution/arguments.h",
         "src/execution/execution.cc",
         "src/execution/execution.h",
-        "src/execution/external-pointer-table.cc",
-        "src/execution/external-pointer-table.h",
         "src/execution/frame-constants.h",
         "src/execution/frames-inl.h",
         "src/execution/frames.cc",
@@ -1404,8 +1425,6 @@ filegroup(
         "src/init/startup-data-util.h",
         "src/init/v8.cc",
         "src/init/v8.h",
-        "src/init/vm-cage.cc",
-        "src/init/vm-cage.h",
         "src/interpreter/block-coverage-builder.h",
         "src/interpreter/bytecode-array-builder.cc",
         "src/interpreter/bytecode-array-builder.h",
@@ -1577,6 +1596,8 @@ filegroup(
         "src/objects/js-regexp-string-iterator.h",
         "src/objects/js-regexp.cc",
         "src/objects/js-regexp.h",
+        "src/objects/js-temporal-objects.h",
+        "src/objects/js-temporal-objects-inl.h",
         "src/objects/js-weak-refs.h",
         "src/objects/js-weak-refs-inl.h",
         "src/objects/keys.cc",
@@ -1708,6 +1729,8 @@ filegroup(
         "src/objects/transitions-inl.h",
         "src/objects/transitions.cc",
         "src/objects/transitions.h",
+        "src/objects/turbofan-types-inl.h",
+        "src/objects/turbofan-types.h",
         "src/objects/type-hints.cc",
         "src/objects/type-hints.h",
         "src/objects/value-serializer.cc",
@@ -1856,6 +1879,14 @@ filegroup(
         "src/runtime/runtime-weak-refs.cc",
         "src/runtime/runtime.cc",
         "src/runtime/runtime.h",
+        "src/security/external-pointer-table.cc",
+        "src/security/vm-cage.cc",
+        "src/security/caged-pointer-inl.h",
+        "src/security/caged-pointer.h",
+        "src/security/external-pointer-inl.h",
+        "src/security/external-pointer-table.h",
+        "src/security/external-pointer.h",
+        "src/security/vm-cage.h",
         "src/base/sanitizer/asan.h",
         "src/base/sanitizer/lsan-page-allocator.cc",
         "src/base/sanitizer/lsan-page-allocator.h",
@@ -1884,9 +1915,16 @@ filegroup(
         "src/snapshot/serializer-deserializer.cc",
         "src/snapshot/serializer-deserializer.h",
         "src/snapshot/serializer.cc",
+        "src/snapshot/serializer-inl.h",
         "src/snapshot/serializer.h",
+        "src/snapshot/shared-heap-deserializer.h",
+        "src/snapshot/shared-heap-deserializer.cc",
+        "src/snapshot/shared-heap-serializer.h",
+        "src/snapshot/shared-heap-serializer.cc",
         "src/snapshot/snapshot-compression.cc",
         "src/snapshot/snapshot-compression.h",
+        "third_party/zlib/google/compression_utils_portable.h",
+        "third_party/zlib/google/compression_utils_portable.cc",
         "src/snapshot/snapshot-data.cc",
         "src/snapshot/snapshot-data.h",
         "src/snapshot/snapshot-source-sink.cc",
@@ -1989,7 +2027,7 @@ filegroup(
         "src/heap/third-party/heap-api.h",
         "src/heap/third-party/heap-api-stub.cc",
     ] + select({
-        ":is_ia32": [
+        "@config//:v8_target_ia32": [
             "src/baseline/ia32/baseline-assembler-ia32-inl.h",
             "src/baseline/ia32/baseline-compiler-ia32-inl.h",
             "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h",
@@ -2015,10 +2053,9 @@ filegroup(
             "src/execution/ia32/frame-constants-ia32.h",
             "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
             "src/regexp/ia32/regexp-macro-assembler-ia32.h",
-            "src/third_party/valgrind/valgrind.h",
             "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
         ],
-        ":is_x64": [
+        "@config//:v8_target_x64": [
             "src/baseline/x64/baseline-assembler-x64-inl.h",
             "src/baseline/x64/baseline-compiler-x64-inl.h",
             "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h",
@@ -2048,10 +2085,9 @@ filegroup(
             "src/execution/x64/frame-constants-x64.h",
             "src/regexp/x64/regexp-macro-assembler-x64.cc",
             "src/regexp/x64/regexp-macro-assembler-x64.h",
-            "src/third_party/valgrind/valgrind.h",
             "src/wasm/baseline/x64/liftoff-assembler-x64.h",
         ],
-        "is_arm": [
+        "@config//:v8_target_arm": [
             "src/baseline/arm/baseline-assembler-arm-inl.h",
             "src/baseline/arm/baseline-compiler-arm-inl.h",
             "src/codegen/arm/assembler-arm-inl.h",
@@ -2082,7 +2118,7 @@ filegroup(
             "src/regexp/arm/regexp-macro-assembler-arm.h",
             "src/wasm/baseline/arm/liftoff-assembler-arm.h",
         ],
-        ":is_arm64": [
+        "@config//:v8_target_arm64": [
             "src/baseline/arm64/baseline-assembler-arm64-inl.h",
             "src/baseline/arm64/baseline-compiler-arm64-inl.h",
             "src/codegen/arm64/assembler-arm64-inl.h",
@@ -2126,9 +2162,16 @@ filegroup(
             "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
         ],
     }) + select({
-        ":is_linux_x64_or_macos_x64": [
+        # Only for x64 builds and for arm64 with x64 host simulator.
+        "@config//:is_x64": [
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        "@config//:v8_arm64_simulator": [
+            "src/trap-handler/trap-handler-simulator.h",
+            "src/trap-handler/handler-outside-simulator.cc",
         ],
         "//conditions:default": [],
     }) + select({
@@ -2143,6 +2186,7 @@ filegroup(
             "src/asmjs/asm-types.h",
             "src/compiler/int64-lowering.h",
             "src/compiler/wasm-compiler.h",
+            "src/compiler/wasm-escape-analysis.h",
             "src/compiler/wasm-inlining.h",
             "src/debug/debug-wasm-objects.cc",
             "src/debug/debug-wasm-objects.h",
@@ -2189,6 +2233,7 @@ filegroup(
             "src/wasm/signature-map.h",
             "src/wasm/simd-shuffle.cc",
             "src/wasm/simd-shuffle.h",
+            "src/wasm/stacks.h",
             "src/wasm/streaming-decoder.cc",
             "src/wasm/streaming-decoder.h",
             "src/wasm/struct-types.h",
@@ -2235,53 +2280,55 @@ filegroup(
             "src/wasm/wasm-value.h",
         ],
         "//conditions:default": [],
-    }) + select({
-        ":is_v8_enable_i18n_support": [
-            "src/builtins/builtins-intl.cc",
-            "src/builtins/builtins-intl-gen.cc",
-            "src/objects/intl-objects.cc",
-            "src/objects/intl-objects.h",
-            "src/objects/js-break-iterator.cc",
-            "src/objects/js-break-iterator.h",
-            "src/objects/js-break-iterator-inl.h",
-            "src/objects/js-collator.cc",
-            "src/objects/js-collator.h",
-            "src/objects/js-collator-inl.h",
-            "src/objects/js-date-time-format.cc",
-            "src/objects/js-date-time-format.h",
-            "src/objects/js-date-time-format-inl.h",
-            "src/objects/js-display-names.cc",
-            "src/objects/js-display-names.h",
-            "src/objects/js-display-names-inl.h",
-            "src/objects/js-list-format.cc",
-            "src/objects/js-list-format.h",
-            "src/objects/js-list-format-inl.h",
-            "src/objects/js-locale.cc",
-            "src/objects/js-locale.h",
-            "src/objects/js-locale-inl.h",
-            "src/objects/js-number-format.cc",
-            "src/objects/js-number-format.h",
-            "src/objects/js-number-format-inl.h",
-            "src/objects/js-plural-rules.cc",
-            "src/objects/js-plural-rules.h",
-            "src/objects/js-plural-rules-inl.h",
-            "src/objects/js-relative-time-format.cc",
-            "src/objects/js-relative-time-format.h",
-            "src/objects/js-relative-time-format-inl.h",
-            "src/objects/js-segmenter.cc",
-            "src/objects/js-segmenter.h",
-            "src/objects/js-segmenter-inl.h",
-            "src/objects/js-segment-iterator.cc",
-            "src/objects/js-segment-iterator.h",
-            "src/objects/js-segment-iterator-inl.h",
-            "src/objects/js-segments.cc",
-            "src/objects/js-segments.h",
-            "src/objects/js-segments-inl.h",
-            "src/runtime/runtime-intl.cc",
-            "src/strings/char-predicates.cc",
-        ],
-        "//conditions:default": [],
     }),
+)
+
+filegroup(
+    name = "icu/v8_base_without_compiler_files",
+    srcs = [
+        "src/builtins/builtins-intl.cc",
+        "src/builtins/builtins-intl-gen.cc",
+        "src/objects/intl-objects.cc",
+        "src/objects/intl-objects.h",
+        "src/objects/js-break-iterator.cc",
+        "src/objects/js-break-iterator.h",
+        "src/objects/js-break-iterator-inl.h",
+        "src/objects/js-collator.cc",
+        "src/objects/js-collator.h",
+        "src/objects/js-collator-inl.h",
+        "src/objects/js-date-time-format.cc",
+        "src/objects/js-date-time-format.h",
+        "src/objects/js-date-time-format-inl.h",
+        "src/objects/js-display-names.cc",
+        "src/objects/js-display-names.h",
+        "src/objects/js-display-names-inl.h",
+        "src/objects/js-list-format.cc",
+        "src/objects/js-list-format.h",
+        "src/objects/js-list-format-inl.h",
+        "src/objects/js-locale.cc",
+        "src/objects/js-locale.h",
+        "src/objects/js-locale-inl.h",
+        "src/objects/js-number-format.cc",
+        "src/objects/js-number-format.h",
+        "src/objects/js-number-format-inl.h",
+        "src/objects/js-plural-rules.cc",
+        "src/objects/js-plural-rules.h",
+        "src/objects/js-plural-rules-inl.h",
+        "src/objects/js-relative-time-format.cc",
+        "src/objects/js-relative-time-format.h",
+        "src/objects/js-relative-time-format-inl.h",
+        "src/objects/js-segment-iterator.cc",
+        "src/objects/js-segment-iterator.h",
+        "src/objects/js-segment-iterator-inl.h",
+        "src/objects/js-segmenter.cc",
+        "src/objects/js-segmenter.h",
+        "src/objects/js-segmenter-inl.h",
+        "src/objects/js-segments.cc",
+        "src/objects/js-segments.h",
+        "src/objects/js-segments-inl.h",
+        "src/runtime/runtime-intl.cc",
+        "src/strings/char-predicates.cc",
+    ],
 )
 
 filegroup(
@@ -2526,13 +2573,12 @@ filegroup(
         ":is_v8_enable_webassembly": [
             "src/compiler/int64-lowering.cc",
             "src/compiler/wasm-compiler.cc",
+            "src/compiler/wasm-escape-analysis.cc",
             "src/compiler/wasm-inlining.cc",
         ],
         "//conditions:default": [],
     }),
 )
-
-
 
 filegroup(
     name = "v8_initializers_files",
@@ -2605,10 +2651,10 @@ filegroup(
         "src/interpreter/interpreter-intrinsics-generator.cc",
         "src/interpreter/interpreter-intrinsics-generator.h",
     ] + select({
-        ":is_ia32": ["src/builtins/ia32/builtins-ia32.cc"],
-        ":is_x64": ["src/builtins/x64/builtins-x64.cc"],
-        ":is_arm" :  ["src/builtins/arm/builtins-arm.cc"],
-        ":is_arm64": ["src/builtins/arm64/builtins-arm64.cc"],
+        "@config//:v8_target_ia32": ["src/builtins/ia32/builtins-ia32.cc"],
+        "@config//:v8_target_x64": ["src/builtins/x64/builtins-x64.cc"],
+        "@config//:v8_target_arm": ["src/builtins/arm/builtins-arm.cc"],
+        "@config//:v8_target_arm64": ["src/builtins/arm64/builtins-arm64.cc"],
     }) + select({
         ":is_v8_enable_webassembly": [
             "src/builtins/builtins-wasm-gen.cc",
@@ -2702,6 +2748,7 @@ filegroup(
         "src/heap/cppgc/task-handle.h",
         "src/heap/cppgc/trace-event.h",
         "src/heap/cppgc/trace-trait.cc",
+        "src/heap/cppgc/unmarker.h",
         "src/heap/cppgc/virtual-memory.cc",
         "src/heap/cppgc/virtual-memory.h",
         "src/heap/cppgc/visitor.cc",
@@ -2720,19 +2767,22 @@ filegroup(
         "src/heap/base/worklist.h",
         "src/heap/cppgc/globals.h",
     ] + select({
-        ":is_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
-        ":is_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
-        ":is_arm" : ["src/heap/base/asm/arm/push_registers_asm.cc"],
-        ":is_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
+        # Note these cannot be v8_target_is_* selects because these contain
+        # inline assembly that runs inside the executable. Since these are
+        # linked directly into mksnapshot, they must use the actual target cpu.
+        "@config//:is_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
+        "@config//:is_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
+        "@config//:is_arm": ["src/heap/base/asm/arm/push_registers_asm.cc"],
+        "@config//:is_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
     }),
 )
 
 filegroup(
     name = "v8_bigint",
     srcs = [
+        "src/bigint/bigint.h",
         "src/bigint/bigint-internal.cc",
         "src/bigint/bigint-internal.h",
-        "src/bigint/bigint.h",
         "src/bigint/bitwise.cc",
         "src/bigint/digit-arithmetic.h",
         "src/bigint/div-barrett.cc",
@@ -2755,6 +2805,7 @@ filegroup(
 filegroup(
     name = "mksnapshot_files",
     srcs = [
+        "src/init/setup-isolate-full.cc",
         "src/snapshot/embedded/embedded-empty.cc",
         "src/snapshot/embedded/embedded-file-writer.cc",
         "src/snapshot/embedded/embedded-file-writer.h",
@@ -2770,8 +2821,7 @@ filegroup(
         "src/snapshot/embedded/platform-embedded-file-writer-win.h",
         "src/snapshot/mksnapshot.cc",
         "src/snapshot/snapshot-empty.cc",
-        "src/init/setup-isolate-full.cc",
-    ]
+    ],
 )
 
 filegroup(
@@ -2803,6 +2853,8 @@ filegroup(
         "src/inspector/v8-debugger.h",
         "src/inspector/v8-debugger-agent-impl.cc",
         "src/inspector/v8-debugger-agent-impl.h",
+        "src/inspector/v8-debugger-id.cc",
+        "src/inspector/v8-debugger-id.h",
         "src/inspector/v8-debugger-script.cc",
         "src/inspector/v8-debugger-script.h",
         "src/inspector/v8-heap-profiler-agent-impl.cc",
@@ -2825,8 +2877,6 @@ filegroup(
         "src/inspector/v8-string-conversions.h",
         "src/inspector/v8-value-utils.cc",
         "src/inspector/v8-value-utils.h",
-        "src/inspector/v8-debugger-id.h",
-        "src/inspector/v8-debugger-id.cc",
         "src/inspector/value-mirror.cc",
         "src/inspector/value-mirror.h",
         ":crdtp_platform_files",
@@ -2848,7 +2898,6 @@ filegroup(
     srcs = [
         "third_party/inspector_protocol/crdtp/cbor.cc",
         "third_party/inspector_protocol/crdtp/cbor.h",
-        "third_party/inspector_protocol/crdtp/maybe.h",
         "third_party/inspector_protocol/crdtp/dispatch.cc",
         "third_party/inspector_protocol/crdtp/dispatch.h",
         "third_party/inspector_protocol/crdtp/error_support.cc",
@@ -2857,11 +2906,12 @@ filegroup(
         "third_party/inspector_protocol/crdtp/find_by_first.h",
         "third_party/inspector_protocol/crdtp/frontend_channel.h",
         "third_party/inspector_protocol/crdtp/glue.h",
-        "third_party/inspector_protocol/crdtp/protocol_core.h",
-        "third_party/inspector_protocol/crdtp/protocol_core.cc",
         "third_party/inspector_protocol/crdtp/json.cc",
         "third_party/inspector_protocol/crdtp/json.h",
+        "third_party/inspector_protocol/crdtp/maybe.h",
         "third_party/inspector_protocol/crdtp/parser_handler.h",
+        "third_party/inspector_protocol/crdtp/protocol_core.cc",
+        "third_party/inspector_protocol/crdtp/protocol_core.h",
         "third_party/inspector_protocol/crdtp/serializable.cc",
         "third_party/inspector_protocol/crdtp/serializable.h",
         "third_party/inspector_protocol/crdtp/serializer_traits.h",
@@ -2873,12 +2923,39 @@ filegroup(
 )
 
 filegroup(
-    name = "snapshot_files",
+    name = "noicu/snapshot_files",
     srcs = [
         "src/init/setup-isolate-deserialize.cc",
-        # TODO(victorgomes): Create a flag to select pregenerated snapshots.
-        ":generated_snapshot_files",
-    ]
+    ] + select({
+        "@config//:v8_target_arm": [
+            "google3/snapshots/arm/noicu/embedded.S",
+            "google3/snapshots/arm/noicu/snapshot.cc",
+        ],
+        "@config//:v8_target_ia32": [
+            "google3/snapshots/ia32/noicu/embedded.S",
+            "google3/snapshots/ia32/noicu/snapshot.cc",
+        ],
+        "@config//:v8_target_arm64": [":noicu/generated_snapshot_files"],
+        "@config//:v8_target_x64": [":noicu/generated_snapshot_files"],
+    }),
+)
+
+filegroup(
+    name = "icu/snapshot_files",
+    srcs = [
+        "src/init/setup-isolate-deserialize.cc",
+    ] + select({
+        "@config//:v8_target_arm": [
+            "google3/snapshots/arm/icu/embedded.S",
+            "google3/snapshots/arm/icu/snapshot.cc",
+        ],
+        "@config//:v8_target_ia32": [
+            "google3/snapshots/ia32/icu/embedded.S",
+            "google3/snapshots/ia32/icu/snapshot.cc",
+        ],
+        "@config//:v8_target_arm64": [":icu/generated_snapshot_files"],
+        "@config//:v8_target_x64": [":icu/generated_snapshot_files"],
+    }),
 )
 
 filegroup(
@@ -2888,7 +2965,7 @@ filegroup(
         "src/wasm/c-api.h",
         "third_party/wasm-api/wasm.h",
         "third_party/wasm-api/wasm.hh",
-    ]
+    ],
 )
 
 # =================================================
@@ -2899,7 +2976,13 @@ filegroup(
 # which needs class-debug-readers and debug-macros.
 v8_torque(
     name = "generated_torque_files",
-    srcs = [":torque_files"],
+    args = select({
+        ":is_v8_annotate_torque_ir": ["-annotate-ir"],
+        "//conditions:default": [],
+    }) + select({
+        "@config//:v8_target_is_32_bits": ["-m32"],
+        "//conditions:default": [],
+    }),
     extras = [
         "bit-fields.h",
         "builtin-definitions.h",
@@ -2922,18 +3005,13 @@ v8_torque(
         "objects-printer.cc",
         "visitor-lists.h",
     ],
-    args = select({
-        ":is_v8_annotate_torque_ir": [ "-annotate-ir" ],
-        "//conditions:default": [],
-    }) + select({
-        ":is_32bits": [ "-m32" ],
-        "//conditions:default": [],
-    }),
+    icu_srcs = [":icu/torque_files"],
+    noicu_srcs = [":noicu/torque_files"],
 )
 
 genrule(
     name = "generated_inspector_files",
-    srcs = [ "include/js_protocol.pdl" ],
+    srcs = ["include/js_protocol.pdl"],
     outs = [
         "include/inspector/Debugger.h",
         "include/inspector/Runtime.h",
@@ -2954,9 +3032,38 @@ genrule(
         "src/inspector/protocol/Schema.cpp",
         "src/inspector/protocol/Schema.h",
     ],
-    message = "Generating inspector files",
     cmd = "bazel/generate-inspector-files.sh $(@D)",
     local = 1,
+    message = "Generating inspector files",
+)
+
+filegroup(
+    name = "v8_common_libshared_files",
+    srcs = [
+        ":torque_runtime_support_files",
+        ":v8_compiler_files",
+        ":v8_initializers_files",
+        ":v8_libplatform_files",
+        ":v8_libsampler_files",
+        ":v8_shared_internal_headers",
+    ],
+)
+
+filegroup(
+    name = "d8_files",
+    srcs = [
+        "src/d8/async-hooks-wrapper.cc",
+        "src/d8/async-hooks-wrapper.h",
+        "src/d8/d8.cc",
+        "src/d8/d8.h",
+        "src/d8/d8-console.cc",
+        "src/d8/d8-console.h",
+        "src/d8/d8-js.cc",
+        "src/d8/d8-platforms.cc",
+        "src/d8/d8-platforms.h",
+        "src/d8/d8-posix.cc",
+        "src/d8/d8-test.cc",
+    ],
 )
 
 genrule(
@@ -2978,75 +3085,126 @@ genrule(
 v8_mksnapshot(
     name = "generated_snapshot_files",
     args = select({
-        ":is_v8_enable_verify_heap": [ "--verify-heap" ],
+        ":is_v8_enable_verify_heap": ["--verify-heap"],
         "//conditions:default": [],
     }) + select({
         ":is_v8_enable_fast_mksnapshot": [
             "--no-turbo-rewrite-far-jumps",
             "--no-turbo-verify-allocation",
-         ],
+        ],
         "//conditions:default": [],
     }) + select({
-        ":is_v8_enable_snapshot_code_comments": [ "--code-comments" ],
+        ":is_v8_enable_snapshot_code_comments": ["--code-comments"],
         "//conditions:default": [],
     }) + select({
         ":is_v8_enable_snapshot_native_code_counters": [
-            "--native-code-counters"
+            "--native-code-counters",
         ],
-        "//conditions:default": [ "--no-native-code-counters" ],
-    })
+        "//conditions:default": ["--no-native-code-counters"],
+    }),
 )
 
 # =================================================
 # Libraries rules
 # =================================================
 
+# NOTE: This allow headers to be accessed without the icu/noicu prefixes.
+cc_library(
+    name = "icu/generated_torque_headers",
+    hdrs = [":icu/generated_torque_files"],
+    strip_include_prefix = "icu",
+)
+
+cc_library(
+    name = "noicu/generated_torque_headers",
+    hdrs = [":noicu/generated_torque_files"],
+    strip_include_prefix = "noicu",
+)
+
 v8_library(
     name = "v8_libbase",
     srcs = [
-        ":v8_shared_internal_headers",
         ":v8_libbase_files",
+        ":v8_shared_internal_headers",
+    ],
+)
+
+cc_library(
+    name = "torque_base_headers",
+    hdrs = [
+        "src/torque/kythe-data.h",
+        "src/torque/torque-compiler.h",
+    ],
+    include_prefix = "third_party/v8",
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "torque_base",
+    srcs = [
+        ":torque_base_files",
+    ],
+    copts = ["-fexceptions"],
+    features = ["-use_header_modules"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":torque_base_headers",
+        ":v8_libbase",
     ],
 )
 
 v8_library(
     name = "v8_libshared",
     srcs = [
-        ":generated_torque_files",
-        ":torque_runtime_support_files",
         ":v8_base_without_compiler_files",
-        ":v8_compiler_files",
-        ":v8_initializers_files",
-        ":v8_libplatform_files",
-        ":v8_libsampler_files",
-        ":v8_shared_internal_headers",
-    ] + select({
-        ":is_v8_enable_i18n_support": [ ":generated_regexp_special_case" ],
-        "//conditions:default": [],
-    }),
+        ":v8_common_libshared_files",
+    ],
+    icu_deps = [
+        ":icu/generated_torque_headers",
+        "@icu",
+    ],
+    icu_srcs = [
+        ":generated_regexp_special_case",
+        ":icu/generated_torque_files",
+        ":icu/v8_base_without_compiler_files",
+    ],
+    noicu_deps = [
+        ":noicu/generated_torque_headers",
+    ],
+    noicu_srcs = [
+        ":noicu/generated_torque_files",
+    ],
     deps = [
         ":v8_libbase",
         "@zlib",
-    ] + select({
-        ":is_v8_enable_i18n_support": [ "@icu" ],
-        "//conditions:default": [],
-    }),
+    ],
 )
 
 v8_library(
     name = "v8",
-    srcs = [
-        ":snapshot_files",
-        ":v8_inspector_files",
-    ],
-    deps = [ ":v8_libshared" ],
+    srcs = [":v8_inspector_files"],
+    icu_deps = [":icu/v8_libshared"],
+    icu_srcs = [":icu/snapshot_files"],
+    noicu_deps = [":noicu/v8_libshared"],
+    noicu_srcs = [":noicu/snapshot_files"],
 )
 
 # TODO(victorgomes): Check if v8_enable_webassembly is true.
 v8_library(
     name = "wee8",
-    srcs = [ ":wee8_files" ],
-    deps = [ ":v8" ],
+    srcs = [":wee8_files"],
+    deps = [":noicu/v8"],
+)
+
+alias(
+    name = "core_lib_noicu",
+    actual = "noicu/v8",
+)
+
+alias(
+    name = "core_lib_icu",
+    actual = "icu/v8",
 )
 
 # =================================================
@@ -3063,57 +3221,66 @@ v8_binary(
         "src/interpreter/bytecodes.cc",
         "src/interpreter/bytecodes.h",
     ],
-    deps = [ "v8_libbase" ],
+    deps = ["v8_libbase"],
 )
 
 v8_binary(
     name = "regexp_special_case_generator",
     srcs = [
-        ":v8_shared_internal_headers",
-        ":v8_libbase_files",
-        "src/regexp/special-case.h",
         "src/regexp/gen-regexp-special-case.cc",
+        "src/regexp/special-case.h",
+        ":v8_libbase_files",
+        ":v8_shared_internal_headers",
     ],
-    deps = [ "@icu" ],
+    defines = [
+        "V8_INTL_SUPPORT",
+        "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC",
+        # src/regexp/regexp-compiler-tonode.cc uses an unsafe ICU method and
+        # access a character implicitly.
+        "UNISTR_FROM_CHAR_EXPLICIT=",
+    ],
+    deps = [
+        "@icu",
+    ],
 )
 
 v8_binary(
     name = "torque",
     srcs = [
-        ":torque_base_files",
         "src/torque/torque.cc",
+        ":torque_base_files",
     ],
-    copts = [ "-fexceptions" ],
-    features = [ "-use_header_modules" ],
-    deps = [ "v8_libbase" ],
+    copts = ["-fexceptions"],
+    features = ["-use_header_modules"],
+    linkopts = select({
+        "@config//:is_android": ["-llog"],
+        "//conditions:default": [],
+    }),
+    deps = ["v8_libbase"],
 )
 
 v8_binary(
     name = "mksnapshot",
-    srcs = [ ":mksnapshot_files" ],
-    deps = [ ":v8_libshared" ],
+    srcs = [":mksnapshot_files"],
+    icu_deps = [":icu/v8_libshared"],
     linkopts = select({
-        "is_android": [ "-llog" ],
+        "@config//:is_android": ["-llog"],
         "//conditions:default": [],
     }),
+    noicu_deps = [":noicu/v8_libshared"],
 )
 
 v8_binary(
     name = "d8",
-    srcs = [
-        "src/d8/async-hooks-wrapper.cc",
-        "src/d8/async-hooks-wrapper.h",
-        "src/d8/d8.cc",
-        "src/d8/d8.h",
-        "src/d8/d8-console.cc",
-        "src/d8/d8-console.h",
-        "src/d8/d8-js.cc",
-        "src/d8/d8-platforms.cc",
-        "src/d8/d8-platforms.h",
-        "src/d8/d8-posix.cc",
-        "src/d8/d8-test.cc",
-    ],
-    deps = [ ":v8" ],
+    srcs = [":d8_files"],
+    icu_deps = [":icu/v8"],
+    noicu_deps = [":noicu/v8"],
+)
+
+# This target forces torque to be compiled without pointer compression.
+v8_binary_non_pointer_compression(
+    name = "torque_non_pointer_compression",
+    binary = "torque",
 )
 
 # =================================================
@@ -3124,9 +3291,9 @@ v8_build_config(
     name = "v8_build_config",
 )
 
-# Runs mjunit with d8.
+# Runs mjsunit with d8.
 py_test(
-    name = "mjsunit",
+    name = "noicu/mjsunit",
     size = "medium",
     srcs = [
         "test/mjsunit/testcfg.py",
@@ -3136,19 +3303,49 @@ py_test(
     args = [
         "--no-sorting",
         "--nopresubmit",
-        # TODO(victorgomes): Create a flag to pass the variant in the cmdline.
-        "--variant=default",
-        "--outdir bazel-bin",
+        "--variant=google3_noicu",
+        "--outdir noicu",
+        "--verbose",
         "mjsunit",
     ],
     data = [
-        ":v8_build_config",
-        ":d8",
+        "//testing/pybase",
+        ":noicu/v8_build_config",
+        ":noicu/d8",
         "test",
     ] + glob(["test/**"]) + glob(["tools/**/*.js"]) + glob(["tools/**/*.mjs"]),
     main = "tools/run-tests.py",
-    # TODO(victorgomes): Move this to PY3.
-    python_version = "PY2",
+    python_version = "PY3",
+    tags = [
+        # Disable sanitizers, as they don't work in general in V8.
+        "nosan",
+    ],
+)
+
+py_test(
+    name = "icu/mjsunit",
+    size = "medium",
+    srcs = [
+        "test/mjsunit/testcfg.py",
+        "tools/predictable_wrapper.py",
+        "tools/run-tests.py",
+    ] + glob(["tools/testrunner/**/*.py"]),
+    args = [
+        "--no-sorting",
+        "--nopresubmit",
+        "--variant=google3_icu",
+        "--outdir icu",
+        "--verbose",
+        "mjsunit",
+    ],
+    data = [
+        "//testing/pybase",
+        ":icu/v8_build_config",
+        ":icu/d8",
+        "test",
+    ] + glob(["test/**"]) + glob(["tools/**/*.js"]) + glob(["tools/**/*.mjs"]),
+    main = "tools/run-tests.py",
+    python_version = "PY3",
     tags = [
         # Disable sanitizers, as they don't work in general in V8.
         "nosan",

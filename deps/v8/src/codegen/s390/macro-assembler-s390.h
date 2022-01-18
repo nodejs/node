@@ -1045,6 +1045,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     lay(sp, MemOperand(sp, -bytes));
   }
 
+  void AllocateStackSpace(Register bytes) { SubS64(sp, sp, bytes); }
+
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
 
@@ -1491,6 +1493,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
+
+  // Abort execution if argument is not a callable JSFunction, enabled via
+  // --debug-code.
+  void AssertCallableFunction(Register object);
 
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.

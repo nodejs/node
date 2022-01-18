@@ -15,7 +15,7 @@ DOM.defineCustomElement('view/script-panel',
                         (templateText) =>
                             class SourcePanel extends CollapsableElement {
   _selectedSourcePositions = [];
-  _sourcePositionsToMarkNodesPromise = Promise.resolve([]);
+  _sourcePositionsToMarkNodesPromise = defer();
   _scripts = [];
   _script;
 
@@ -229,7 +229,7 @@ class SourcePositionIterator {
   }
 
   _done() {
-    return this._index + 1 >= this._entries.length;
+    return this._index >= this._entries.length;
   }
 
   _next() {
@@ -294,6 +294,10 @@ class LineBuilder {
              this._script.source, startLine)) {
       scriptNode.appendChild(
           this._createLineNode(sourcePositionsIterator, lineIndex, line));
+    }
+    if (this._script.sourcePositions.length !=
+        this._sourcePositionToMarkers.size) {
+      console.error('Not all SourcePositions were processed.');
     }
     return scriptNode;
   }

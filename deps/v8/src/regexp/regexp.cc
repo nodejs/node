@@ -154,9 +154,11 @@ bool RegExp::IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp) {
   return RegExpUtils::IsUnmodifiedRegExp(isolate, regexp);
 }
 
+namespace {
+
 // Identifies the sort of regexps where the regexp engine is faster
 // than the code used for atom matches.
-static bool HasFewDifferentCharacters(Handle<String> pattern) {
+bool HasFewDifferentCharacters(Handle<String> pattern) {
   int length = std::min(kMaxLookaheadForBoyerMoore, pattern->length());
   if (length <= kPatternTooShortForBoyerMoore) return false;
   const int kMod = 128;
@@ -175,6 +177,8 @@ static bool HasFewDifferentCharacters(Handle<String> pattern) {
   }
   return true;
 }
+
+}  // namespace
 
 // Generic RegExp methods. Dispatches to implementation specific methods.
 
@@ -332,9 +336,11 @@ void RegExpImpl::AtomCompile(Isolate* isolate, Handle<JSRegExp> re,
       re, pattern, JSRegExp::AsJSRegExpFlags(flags), match_pattern);
 }
 
-static void SetAtomLastCapture(Isolate* isolate,
-                               Handle<RegExpMatchInfo> last_match_info,
-                               String subject, int from, int to) {
+namespace {
+
+void SetAtomLastCapture(Isolate* isolate,
+                        Handle<RegExpMatchInfo> last_match_info, String subject,
+                        int from, int to) {
   SealHandleScope shs(isolate);
   last_match_info->SetNumberOfCaptureRegisters(2);
   last_match_info->SetLastSubject(subject);
@@ -342,6 +348,8 @@ static void SetAtomLastCapture(Isolate* isolate,
   last_match_info->SetCapture(0, from);
   last_match_info->SetCapture(1, to);
 }
+
+}  // namespace
 
 int RegExpImpl::AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
                             Handle<String> subject, int index, int32_t* output,

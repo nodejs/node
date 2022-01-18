@@ -625,8 +625,7 @@ bool NodeProperties::IsFreshObject(Node* node) {
              callee == Builtin::kWasmAllocateArray_InitNull ||
              callee == Builtin::kWasmAllocateArray_InitZero ||
              callee == Builtin::kWasmAllocateStructWithRtt ||
-             callee == Builtin::kWasmAllocateObjectWrapper ||
-             callee == Builtin::kWasmAllocatePair;
+             callee == Builtin::kWasmAllocateObjectWrapper;
     }
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -93,6 +93,12 @@ void OS::AdjustSchedulingParams() {
 #endif
 }
 
+std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
+    OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
+    size_t alignment) {
+  return {};
+}
+
 // static
 Stack::StackSlot Stack::GetStackStart() {
   return pthread_get_stackaddr_np(pthread_self());

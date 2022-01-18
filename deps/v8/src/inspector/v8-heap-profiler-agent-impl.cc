@@ -35,7 +35,7 @@ class HeapSnapshotProgress final : public v8::ActivityControl {
  public:
   explicit HeapSnapshotProgress(protocol::HeapProfiler::Frontend* frontend)
       : m_frontend(frontend) {}
-  ControlOption ReportProgressValue(int done, int total) override {
+  ControlOption ReportProgressValue(uint32_t done, uint32_t total) override {
     m_frontend->reportHeapSnapshotProgress(done, total,
                                            protocol::Maybe<bool>());
     if (done >= total) {

@@ -104,6 +104,8 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSStoreProperty:
       return ReduceJSStoreProperty(node);
+    case IrOpcode::kJSDefineProperty:
+      return ReduceJSDefineProperty(node);
     case IrOpcode::kJSStoreNamedOwn:
       return ReduceJSStoreNamedOwn(node);
     case IrOpcode::kJSStoreDataPropertyInLiteral:
@@ -1095,7 +1097,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
          node->opcode() == IrOpcode::kJSStoreNamedOwn ||
          node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
-         node->opcode() == IrOpcode::kJSLoadNamedFromSuper);
+         node->opcode() == IrOpcode::kJSLoadNamedFromSuper ||
+         node->opcode() == IrOpcode::kJSDefineProperty);
   STATIC_ASSERT(JSLoadNamedNode::ObjectIndex() == 0 &&
                 JSStoreNamedNode::ObjectIndex() == 0 &&
                 JSLoadPropertyNode::ObjectIndex() == 0 &&
@@ -1103,7 +1106,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                 JSStoreNamedOwnNode::ObjectIndex() == 0 &&
                 JSStoreNamedNode::ObjectIndex() == 0 &&
                 JSStoreDataPropertyInLiteralNode::ObjectIndex() == 0 &&
-                JSHasPropertyNode::ObjectIndex() == 0);
+                JSHasPropertyNode::ObjectIndex() == 0 &&
+                JSDefinePropertyNode::ObjectIndex() == 0);
   STATIC_ASSERT(JSLoadNamedFromSuperNode::ReceiverIndex() == 0);
 
   Node* context = NodeProperties::GetContextInput(node);
@@ -1667,7 +1671,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
          node->opcode() == IrOpcode::kJSStoreProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
          node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
-         node->opcode() == IrOpcode::kJSHasProperty);
+         node->opcode() == IrOpcode::kJSHasProperty ||
+         node->opcode() == IrOpcode::kJSDefineProperty);
   STATIC_ASSERT(JSLoadPropertyNode::ObjectIndex() == 0 &&
                 JSStorePropertyNode::ObjectIndex() == 0 &&
                 JSStoreInArrayLiteralNode::ArrayIndex() == 0 &&
@@ -1979,7 +1984,8 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
          node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSStoreNamedOwn ||
-         node->opcode() == IrOpcode::kJSLoadNamedFromSuper);
+         node->opcode() == IrOpcode::kJSLoadNamedFromSuper ||
+         node->opcode() == IrOpcode::kJSDefineProperty);
   DCHECK_GE(node->op()->ControlOutputCount(), 1);
 
   ProcessedFeedback const& feedback =
@@ -2162,6 +2168,15 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, n.key(), base::nullopt, n.value(),
                               FeedbackSource(p.feedback()), AccessMode::kStore);
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSDefineProperty(Node* node) {
+  JSDefinePropertyNode n(node);
+  PropertyAccess const& p = n.Parameters();
+  if (!p.feedback().IsValid()) return NoChange();
+  return ReducePropertyAccess(node, n.key(), base::nullopt, n.value(),
+                              FeedbackSource(p.feedback()),
+                              AccessMode::kDefine);
 }
 
 Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
@@ -2373,6 +2388,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
                                if_exceptions, access_info);
     case AccessMode::kStore:
     case AccessMode::kStoreInLiteral:
+    case AccessMode::kDefine:
       DCHECK_EQ(receiver, lookup_start_object);
       return BuildPropertyStore(receiver, value, context, frame_state, effect,
                                 control, name, if_exceptions, access_info,
@@ -2394,6 +2410,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
   base::Optional<JSObjectRef> holder = access_info.holder();
   if (holder.has_value()) {
     DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
+    DCHECK_NE(AccessMode::kDefine, access_mode);
     dependencies()->DependOnStablePrototypeChains(
         access_info.lookup_start_object_maps(), kStartAtPrototype,
         holder.value());
@@ -2408,7 +2425,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
     DCHECK(access_mode == AccessMode::kStore ||
-           access_mode == AccessMode::kStoreInLiteral);
+           access_mode == AccessMode::kStoreInLiteral ||
+           access_mode == AccessMode::kDefine);
     FieldIndex const field_index = access_info.field_index();
     Type const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
@@ -2538,6 +2556,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kBit:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kCagedPointer:
       case MachineRepresentation::kWord8:
       case MachineRepresentation::kWord16:
       case MachineRepresentation::kWord32:
@@ -2819,6 +2838,7 @@ JSNativeContextSpecialization::BuildElementAccess(
         break;
       }
       case AccessMode::kStoreInLiteral:
+      case AccessMode::kDefine:
         UNREACHABLE();
       case AccessMode::kStore: {
         // Ensure that the {value} is actually a Number or an Oddball,
@@ -3144,7 +3164,8 @@ JSNativeContextSpecialization::BuildElementAccess(
       }
     } else {
       DCHECK(keyed_mode.access_mode() == AccessMode::kStore ||
-             keyed_mode.access_mode() == AccessMode::kStoreInLiteral);
+             keyed_mode.access_mode() == AccessMode::kStoreInLiteral ||
+             keyed_mode.access_mode() == AccessMode::kDefine);
 
       if (IsSmiElementsKind(elements_kind)) {
         value = effect = graph()->NewNode(

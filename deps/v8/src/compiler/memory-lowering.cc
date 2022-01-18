@@ -5,7 +5,6 @@
 #include "src/compiler/memory-lowering.h"
 
 #include "src/codegen/interface-descriptors-inl.h"
-#include "src/common/external-pointer.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
@@ -14,6 +13,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/roots/roots-inl.h"
+#include "src/security/external-pointer.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"
@@ -534,6 +534,8 @@ Reduction MemoryLowering::ReduceStoreField(Node* node,
   DCHECK_IMPLIES(V8_HEAP_SANDBOX_BOOL,
                  !access.type.Is(Type::ExternalPointer()) &&
                      !access.type.Is(Type::SandboxedExternalPointer()));
+  // CagedPointers are not currently stored by optimized code.
+  DCHECK(!access.type.Is(Type::CagedPointer()));
   MachineType machine_type = access.machine_type;
   Node* object = node->InputAt(0);
   Node* value = node->InputAt(1);
