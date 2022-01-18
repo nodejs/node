@@ -977,10 +977,10 @@ class RuleTester {
          * This creates a mocha test suite and pipes all supplied info through
          * one of the templates above.
          */
-        RuleTester.describe(ruleName, () => {
-            RuleTester.describe("valid", () => {
+        this.constructor.describe(ruleName, () => {
+            this.constructor.describe("valid", () => {
                 test.valid.forEach(valid => {
-                    RuleTester[valid.only ? "itOnly" : "it"](
+                    this.constructor[valid.only ? "itOnly" : "it"](
                         sanitize(typeof valid === "object" ? valid.name || valid.code : valid),
                         () => {
                             testValidTemplate(valid);
@@ -989,9 +989,9 @@ class RuleTester {
                 });
             });
 
-            RuleTester.describe("invalid", () => {
+            this.constructor.describe("invalid", () => {
                 test.invalid.forEach(invalid => {
-                    RuleTester[invalid.only ? "itOnly" : "it"](
+                    this.constructor[invalid.only ? "itOnly" : "it"](
                         sanitize(invalid.name || invalid.code),
                         () => {
                             testInvalidTemplate(invalid);

@@ -769,6 +769,25 @@ function getSwitchCaseColonToken(node, sourceCode) {
     return sourceCode.getFirstToken(node, 1);
 }
 
+/**
+ * Gets ESM module export name represented by the given node.
+ * @param {ASTNode} node `Identifier` or string `Literal` node in a position
+ * that represents a module export name:
+ *   - `ImportSpecifier#imported`
+ *   - `ExportSpecifier#local` (if it is a re-export from another module)
+ *   - `ExportSpecifier#exported`
+ *   - `ExportAllDeclaration#exported`
+ * @returns {string} The module export name.
+ */
+function getModuleExportName(node) {
+    if (node.type === "Identifier") {
+        return node.name;
+    }
+
+    // string literal
+    return node.value;
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -1898,5 +1917,6 @@ module.exports = {
     equalLiteralValue,
     isSameReference,
     isLogicalAssignmentOperator,
-    getSwitchCaseColonToken
+    getSwitchCaseColonToken,
+    getModuleExportName
 };

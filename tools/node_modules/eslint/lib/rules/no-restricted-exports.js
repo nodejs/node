@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -44,12 +50,12 @@ module.exports = {
         const restrictedNames = new Set(context.options[0] && context.options[0].restrictedNamedExports);
 
         /**
-         * Checks and reports given exported identifier.
-         * @param {ASTNode} node exported `Identifier` node to check.
+         * Checks and reports given exported name.
+         * @param {ASTNode} node exported `Identifier` or string `Literal` node to check.
          * @returns {void}
          */
         function checkExportedName(node) {
-            const name = node.name;
+            const name = astUtils.getModuleExportName(node);
 
             if (restrictedNames.has(name)) {
                 context.report({
