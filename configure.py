@@ -47,7 +47,8 @@ parser = argparse.ArgumentParser()
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
             'android', 'aix', 'cloudabi')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'mips64el', 'ppc',
-              'ppc64', 'x32','x64', 'x86', 'x86_64', 's390x', 'riscv64')
+              'ppc64', 'x32','x64', 'x86', 'x86_64', 's390x', 'riscv64',
+              'loong64')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
 valid_arm_fpu = ('vfp', 'vfpv3', 'vfpv3-d16', 'neon')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
@@ -1075,6 +1076,7 @@ def host_arch_cc():
     '__x86_64__'  : 'x64',
     '__s390x__'   : 's390x',
     '__riscv'     : 'riscv',
+    '__loongarch64': 'loong64',
   }
 
   rtn = 'ia32' # default

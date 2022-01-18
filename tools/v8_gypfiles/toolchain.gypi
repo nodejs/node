@@ -280,6 +280,11 @@
           'CAN_USE_FPU_INSTRUCTIONS'
         ],
       }],
+      ['v8_target_arch=="loong64"', {
+        'defines': [
+          'V8_TARGET_ARCH_LOONG64',
+        ],
+      }],
       ['v8_target_arch=="s390x"', {
         'defines': [
           'V8_TARGET_ARCH_S390',
