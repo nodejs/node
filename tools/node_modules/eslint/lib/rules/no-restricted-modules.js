@@ -103,7 +103,8 @@ module.exports = {
             return {};
         }
 
-        const ig = ignore().add(restrictedPatterns);
+        // relative paths are supported for this rule
+        const ig = ignore({ allowRelativePaths: true }).add(restrictedPatterns);
 
 
         /**
