@@ -1296,13 +1296,16 @@ void AccessorAssembler::HandleStoreICHandlerCase(
       if (ic_mode == ICMode::kGlobalIC) {
         TailCallRuntime(Runtime::kStoreGlobalIC_Slow, p->context(), p->value(),
                         p->slot(), p->vector(), p->receiver(), p->name());
-      } else if (p->IsStoreOwn()) {
-        TailCallRuntime(Runtime::kStoreDataPropertyInLiteral, p->context(),
-                        p->receiver(), p->name(), p->value());
       } else {
-        TailCallRuntime(p->IsDefineOwn() ? Runtime::kKeyedDefineOwnIC_Slow
-                                         : Runtime::kKeyedStoreIC_Slow,
-                        p->context(), p->value(), p->receiver(), p->name());
+        Runtime::FunctionId id;
+        if (p->IsStoreOwn()) {
+          id = Runtime::kStoreOwnIC_Slow;
+        } else if (p->IsDefineOwn()) {
+          id = Runtime::kKeyedDefineOwnIC_Slow;
+        } else {
+          id = Runtime::kKeyedStoreIC_Slow;
+        }
+        TailCallRuntime(id, p->context(), p->value(), p->receiver(), p->name());
       }
     }
   }

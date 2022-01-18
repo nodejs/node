@@ -638,6 +638,7 @@ namespace internal {
   F(KeyedStoreIC_Miss, 5, 1)                 \
   F(KeyedDefineOwnIC_Miss, 5, 1)             \
   F(StoreInArrayLiteralIC_Miss, 5, 1)        \
+  F(StoreOwnIC_Slow, 3, 1)                   \
   F(KeyedStoreIC_Slow, 3, 1)                 \
   F(KeyedDefineOwnIC_Slow, 3, 1)             \
   F(LoadElementWithInterceptor, 2, 1)        \

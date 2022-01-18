@@ -2751,6 +2751,27 @@ RUNTIME_FUNCTION(Runtime_StoreOwnIC_Miss) {
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
+RUNTIME_FUNCTION(Runtime_StoreOwnIC_Slow) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  Handle<Object> value = args.at(0);
+  Handle<Object> object = args.at(1);
+  Handle<Object> key = args.at(2);
+
+  // Unlike DefineOwn, StoreOwn doesn't handle private fields and is used for
+  // defining data properties in object literals and defining public class
+  // fields.
+  DCHECK(!key->IsSymbol() || !Symbol::cast(*key).is_private_name());
+
+  PropertyKey lookup_key(isolate, key);
+  LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
+  MAYBE_RETURN(JSObject::DefineOwnPropertyIgnoreAttributes(
+                   &it, value, NONE, Nothing<ShouldThrow>()),
+               ReadOnlyRoots(isolate).exception());
+  return *value;
+}
+
 RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
