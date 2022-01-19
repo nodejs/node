@@ -143,6 +143,13 @@ assert.strictEqual(
   '1180591620717411303424n 12345678901234567890123n'
 );
 
+assert.strictEqual(
+  util.formatWithOptions(
+    { numericSeparator: true },
+    '%i %d', 1180591620717411303424n, 12345678901234567890123n),
+  '1_180_591_620_717_411_303_424n 12_345_678_901_234_567_890_123n'
+);
+
 // Float format specifier
 assert.strictEqual(util.format('%f'), '%f');
 assert.strictEqual(util.format('%f', 42.0), '42');
