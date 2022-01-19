@@ -188,7 +188,7 @@ function setup (cb) {
           if (er) return cb(er)
           if (stderr) return cb(new Error('git add . error: ' + stderr))
 
-          exec(git + ' commit -m boot', {cwd: dep}, commit)
+          exec(git + ' commit -m boot --no-gpg-sign', {cwd: dep}, commit)
         }
 
         function commit (er, _, stderr) {
