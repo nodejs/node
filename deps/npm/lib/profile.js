@@ -249,7 +249,7 @@ function enable2fa (args) {
         return pulseTillDone.withPromise(profile.set({tfa: {password, mode: 'disable'}}, conf))
       } else {
         if (conf.auth.otp) return
-        return readUserInfo.otp('Enter one-time password from your authenticator app: ').then((otp) => {
+        return readUserInfo.otp('Enter one-time password: ').then((otp) => {
           conf.auth.otp = otp
         })
       }
@@ -310,7 +310,7 @@ function disable2fa (args) {
     return readUserInfo.password().then((password) => {
       return BB.try(() => {
         if (conf.otp) return
-        return readUserInfo.otp('Enter one-time password from your authenticator: ').then((otp) => {
+        return readUserInfo.otp('Enter one-time password: ').then((otp) => {
           conf = conf.concat({otp})
         })
       }).then(() => {

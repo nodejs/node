@@ -20,7 +20,7 @@ const testModule = {
       version: '1.0.0-a',
       dist: {
         shasum: 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
-        tarball: 'http://registry.npmjs.org/aproba/-/xyzzy-wibble-1.0.0-a.tgz'
+        tarball: 'https://registry.npmjs.org/aproba/-/xyzzy-wibble-1.0.0-a.tgz'
       }
     },
     '1.1.0-a': {
@@ -28,7 +28,7 @@ const testModule = {
       version: '1.1.0-a',
       dist: {
         shasum: 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
-        tarball: 'http://registry.npmjs.org/aproba/-/xyzzy-wibble-1.1.0-a.tgz'
+        tarball: 'https://registry.npmjs.org/aproba/-/xyzzy-wibble-1.1.0-a.tgz'
       }
     },
     '1.2.0-a': {
@@ -36,7 +36,7 @@ const testModule = {
       version: '1.2.0-a',
       dist: {
         shasum: 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
-        tarball: 'http://registry.npmjs.org/aproba/-/xyzzy-wibble-1.2.0-a.tgz'
+        tarball: 'https://registry.npmjs.org/aproba/-/xyzzy-wibble-1.2.0-a.tgz'
       }
     },
     '1.3.0-a': {
@@ -44,7 +44,7 @@ const testModule = {
       version: '1.3.0-a',
       dist: {
         shasum: 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
-        tarball: 'http://registry.npmjs.org/aproba/-/xyzzy-wibble-1.3.0-a.tgz'
+        tarball: 'https://registry.npmjs.org/aproba/-/xyzzy-wibble-1.3.0-a.tgz'
       }
     }
   }

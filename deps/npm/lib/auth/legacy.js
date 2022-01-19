@@ -52,7 +52,7 @@ function login (opts) {
     .catch((err) => {
       if (err.code !== 'EOTP') throw err
       return read.otp(
-        'Enter one-time password from your authenticator app: '
+        'Enter one-time password: '
       ).then(otp => {
         const u = opts.creds.username
         const p = opts.creds.password
