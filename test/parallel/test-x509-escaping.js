@@ -425,7 +425,7 @@ const { hasOpenSSL3 } = common;
   assert.strictEqual(certX509.subjectAltName, 'DNS:evil.example.com');
 
   // The newer X509Certificate API allows customizing this behavior:
-  assert.strictEqual(certX509.checkHost(servername), servername);
+  assert.strictEqual(certX509.checkHost(servername), undefined);
   assert.strictEqual(certX509.checkHost(servername, { subject: 'default' }),
                      undefined);
   assert.strictEqual(certX509.checkHost(servername, { subject: 'always' }),
