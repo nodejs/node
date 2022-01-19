@@ -254,7 +254,7 @@ In particular:
   without copying. This behavior can be surprising, and only exists for legacy
   compatibility. [`TypedArray.prototype.subarray()`][] can be used to achieve
   the behavior of [`Buffer.prototype.slice()`][`buf.slice()`] on both `Buffer`s
-  and other `TypedArray`s.
+  and other `TypedArray`s and should be preferred.
 * [`buf.toString()`][] is incompatible with its `TypedArray` equivalent.
 * A number of methods, e.g. [`buf.indexOf()`][], support additional arguments.
 
@@ -2056,7 +2056,7 @@ If `value` is:
 * a string, `value` is interpreted according to the character encoding in
   `encoding`.
 * a `Buffer` or [`Uint8Array`][], `value` will be used in its entirety.
-  To compare a partial `Buffer`, use [`buf.slice()`][].
+  To compare a partial `Buffer`, use [`buf.subarray`][].
 * a number, `value` will be interpreted as an unsigned 8-bit integer
   value between `0` and `255`.
 
@@ -3389,6 +3389,9 @@ console.log(buf.subarray(-5, -2).toString());
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41596
+    description: The buf.slice() method has been deprecated.
   - version:
     - v7.1.0
     - v6.9.2
@@ -3406,10 +3409,10 @@ changes:
   **Default:** [`buf.length`][].
 * Returns: {Buffer}
 
+> Stability: 0 - Deprecated: Use [`buf.subarray`][] instead.
+
 Returns a new `Buffer` that references the same memory as the original, but
 offset and cropped by the `start` and `end` indices.
-
-This is the same behavior as `buf.subarray()`.
 
 This method is not compatible with the `Uint8Array.prototype.slice()`,
 which is a superclass of `Buffer`. To copy the slice, use
@@ -5371,6 +5374,7 @@ introducing security vulnerabilities into an application.
 [`buf.keys()`]: #bufkeys
 [`buf.length`]: #buflength
 [`buf.slice()`]: #bufslicestart-end
+[`buf.subarray`]: #bufsubarraystart-end
 [`buf.toString()`]: #buftostringencoding-start-end
 [`buf.values()`]: #bufvalues
 [`buffer.constants.MAX_LENGTH`]: #bufferconstantsmax_length

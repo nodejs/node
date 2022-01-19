@@ -3040,6 +3040,22 @@ const w = new Writable({
 });
 ```
 
+### DEP0158: `buffer.slice(start, end)`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41596
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+This method was deprecated because it is not compatible with
+`Uint8Array.prototype.slice()`, which is a superclass of `Buffer`.
+
+Use [`buffer.subarray`][] which does the same thing instead.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3062,6 +3078,7 @@ const w = new Writable({
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert`]: assert.md
 [`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
+[`buffer.subarray`]: buffer.md#bufsubarraystart-end
 [`child_process`]: child_process.md
 [`clearInterval()`]: timers.md#clearintervaltimeout
 [`clearTimeout()`]: timers.md#cleartimeouttimeout
