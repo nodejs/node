@@ -2471,15 +2471,17 @@ added: v15.6.0
 
 <!-- YAML
 added: v15.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41599
+    description: The `wildcards`, `partialWildcards`, `multiLabelWildcards`, and
+                 `singleLabelSubdomains` options have been removed since they
+                 had no effect.
 -->
 
 * `email` {string}
 * `options` {Object}
   * `subject` {string} `'always'` or `'never'`. **Default:** `'always'`.
-  * `wildcards` {boolean} **Default:** `true`.
-  * `partialWildcards` {boolean} **Default:** `true`.
-  * `multiLabelWildcards` {boolean} **Default:** `false`.
-  * `singleLabelSubdomains` {boolean} **Default:** `false`.
 * Returns: {string|undefined} Returns `email` if the certificate matches,
   `undefined` if it does not.
 
