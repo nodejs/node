@@ -215,7 +215,7 @@ Buffer.from('1634', 'hex');
 ```cjs
 const { Buffer } = require('buffer');
 
-Buffer.from('1ag', 'hex');
+Buffer.from('1ag123', 'hex');
 // Prints <Buffer 1a>, data truncated when first non-hexadecimal value
 // ('g') encountered.
 
