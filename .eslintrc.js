@@ -163,7 +163,7 @@ module.exports = {
     'keyword-spacing': 'error',
     'linebreak-style': ['error', 'unix'],
     'max-len': ['error', {
-      code: 80,
+      code: 120,
       ignorePattern: '^// Flags:',
       ignoreRegExpLiterals: true,
       ignoreTemplateLiterals: true,
