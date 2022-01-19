@@ -12,7 +12,7 @@ const slowBuf = new SlowBuffer(1024);
 
 function main({ n, type }) {
   const b = type === 'slow' ? slowBuf : buf;
-  const fn = type === 'subarray' ? 
+  const fn = type === 'subarray' ?
     () => b.subarray(10, 256) :
     () => b.slice(10, 256);
 
