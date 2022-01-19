@@ -2473,6 +2473,9 @@ added: v15.6.0
 added: v15.6.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41600
+    description: The subject option now defaults to `'default'`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41599
     description: The `wildcards`, `partialWildcards`, `multiLabelWildcards`, and
                  `singleLabelSubdomains` options have been removed since they
@@ -2485,19 +2488,19 @@ changes:
 * `email` {string}
 * `options` {Object}
   * `subject` {string} `'default'`, `'always'`, or `'never'`.
-    **Default:** `'always'`.
+    **Default:** `'default'`.
 * Returns: {string|undefined} Returns `email` if the certificate matches,
   `undefined` if it does not.
 
 Checks whether the certificate matches the given email address.
 
+If the `'subject'` option is undefined or set to `'default'`, the certificate
+subject is only considered if the subject alternative name extension either does
+not exist or does not contain any email addresses.
+
 If the `'subject'` option is set to `'always'` and if the subject alternative
 name extension either does not exist or does not contain a matching email
 address, the certificate subject is considered.
-
-If the `'subject'` option is set to `'default'`, the certificate subject is only
-considered if the subject alternative name extension either does not exist or
-does not contain any email addresses.
 
 If the `'subject'` option is set to `'never'`, the certificate subject is never
 considered, even if the certificate contains no subject alternative names.
@@ -2508,6 +2511,9 @@ considered, even if the certificate contains no subject alternative names.
 added: v15.6.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41600
+    description: The subject option now defaults to `'default'`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41569
     description: The subject option can now be set to `'default'`.
 -->
@@ -2515,7 +2521,7 @@ changes:
 * `name` {string}
 * `options` {Object}
   * `subject` {string} `'default'`, `'always'`, or `'never'`.
-    **Default:** `'always'`.
+    **Default:** `'default'`.
   * `wildcards` {boolean} **Default:** `true`.
   * `partialWildcards` {boolean} **Default:** `true`.
   * `multiLabelWildcards` {boolean} **Default:** `false`.
@@ -2531,14 +2537,14 @@ or it might contain wildcards (e.g., `*.example.com`). Because host name
 comparisons are case-insensitive, the returned subject name might also differ
 from the given `name` in capitalization.
 
+If the `'subject'` option is undefined or set to `'default'`, the certificate
+subject is only considered if the subject alternative name extension either does
+not exist or does not contain any DNS names. This behavior is consistent with
+[RFC 2818][] ("HTTP Over TLS").
+
 If the `'subject'` option is set to `'always'` and if the subject alternative
 name extension either does not exist or does not contain a matching DNS name,
 the certificate subject is considered.
-
-If the `'subject'` option is set to `'default'`, the certificate subject is only
-considered if the subject alternative name extension either does not exist or
-does not contain any DNS names. This behavior is consistent with [RFC 2818][]
-("HTTP Over TLS").
 
 If the `'subject'` option is set to `'never'`, the certificate subject is never
 considered, even if the certificate contains no subject alternative names.
