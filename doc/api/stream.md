@@ -1717,7 +1717,7 @@ for await (const item of Readable.from([1, 2, 3, 4]).map((x) => x * 2)) {
 }
 // With an asynchronous mapper, making at most 2 queries at a time.
 const resolver = new Resolver();
-const dnsResults = await Readable.from([
+const dnsResults = Readable.from([
   'nodejs.org',
   'openjsf.org',
   'www.linuxfoundation.org',
@@ -1762,7 +1762,7 @@ for await (const item of Readable.from([1, 2, 3, 4]).filter((x) => x > 2)) {
 }
 // With an asynchronous predicate, making at most 2 queries at a time.
 const resolver = new Resolver();
-const dnsResults = await Readable.from([
+const dnsResults = Readable.from([
   'nodejs.org',
   'openjsf.org',
   'www.linuxfoundation.org',
@@ -1820,7 +1820,7 @@ for await (const item of Readable.from([1, 2, 3, 4]).filter((x) => x > 2)) {
 }
 // With an asynchronous predicate, making at most 2 queries at a time.
 const resolver = new Resolver();
-const dnsResults = await Readable.from([
+const dnsResults = Readable.from([
   'nodejs.org',
   'openjsf.org',
   'www.linuxfoundation.org',
