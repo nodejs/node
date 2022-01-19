@@ -1,5 +1,5 @@
 {
-  "version": "6.14.15",
+  "version": "6.14.16",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -295,6 +295,7 @@
     "preversion": "bash scripts/update-authors.sh && git add AUTHORS && git commit -m \"update AUTHORS\" || true",
     "licenses": "licensee --production --errors-only",
     "tap": "tap -J --timeout 300 --no-esm",
+    "tap:serial": "tap -j1 --timeout 300 --no-esm",
     "tap-cover": "tap -J --nyc-arg=--cache --coverage --timeout 600 --no-esm",
     "lint": "standard",
     "pretest": "npm run lint",

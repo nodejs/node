@@ -1,3 +1,17 @@
+## 6.14.16 (2022-01-19)
+
+### CHORE
+
+* [`0afe4f12f`](https://github.com/npm/cli/commit/0afe4f12f6b69f8fa6d39451b6e684fbef5fe1e2)
+  update one-time password prompt
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### DEPENDENCIES
+
+* [`2c534f801`](https://github.com/npm/cli/commit/2c534f801b87d6b8d6c534d326ca39654e313fe9)
+  `json-schema@0.4.0`
+
+
 ## 6.14.15 (2021-08-23)
 
 ### DEPENDENCIES

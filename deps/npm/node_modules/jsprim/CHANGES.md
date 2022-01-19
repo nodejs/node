@@ -4,6 +4,10 @@
 
 None yet.
 
+## v1.4.2 (2021-11-29)
+
+* #35 Backport json-schema 0.4.0 to version 1.4.x
+
 ## v1.4.1 (2017-08-02)
 
 * #21 Update verror dep
