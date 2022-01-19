@@ -175,8 +175,8 @@ string into a `Buffer` as decoding.
   encoding a `Buffer` to a string, this encoding will omit padding.
 
 * `'hex'`: Encode each byte as two hexadecimal characters. Data truncation
-  may occur when decoding strings that do not exclusively contain valid hexadecimal
-  characters. See below for an example.
+  may occur when decoding strings that do not exclusively contain valid
+  hexadecimal characters. See below for an example.
 
 The following legacy character encodings are also supported:
 
