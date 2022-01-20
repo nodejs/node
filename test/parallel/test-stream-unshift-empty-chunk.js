@@ -41,7 +41,7 @@ let readAll = false;
 const seen = [];
 r.on('readable', () => {
   let chunk;
-  while (chunk = r.read()) {
+  while ((chunk = r.read()) !== null) {
     seen.push(chunk.toString());
     // Simulate only reading a certain amount of the data,
     // and then putting the rest of the chunk back into the
