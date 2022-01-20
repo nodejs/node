@@ -1326,13 +1326,16 @@ The base URL of the npm registry.
 
 #### `save`
 
-* Default: true
+* Default: `true` unless when using `npm update` or `npm dedupe` where it
+  defaults to `false`
 * Type: Boolean
 
-Save installed packages to a package.json file as dependencies.
+Save installed packages to a `package.json` file as dependencies.
 
 When used with the `npm rm` command, removes the dependency from
-package.json.
+`package.json`.
+
+Will also prevent writing to `package-lock.json` if set to `false`.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

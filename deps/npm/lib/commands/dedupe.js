@@ -13,6 +13,7 @@ class Dedupe extends ArboristWorkspaceCmd {
     'legacy-bundling',
     'strict-peer-deps',
     'package-lock',
+    'save',
     'omit',
     'ignore-scripts',
     'audit',
@@ -29,6 +30,12 @@ class Dedupe extends ArboristWorkspaceCmd {
       throw er
     }
 
+    // In the context of `npm dedupe` the save
+    // config value should default to `false`
+    const save = this.npm.config.isDefault('save')
+      ? false
+      : this.npm.config.get('save')
+
     const dryRun = this.npm.config.get('dry-run')
     const where = this.npm.prefix
     const opts = {
@@ -36,6 +43,7 @@ class Dedupe extends ArboristWorkspaceCmd {
       log,
       path: where,
       dryRun,
+      save,
       workspaces: this.workspaceNames,
     }
     const arb = new Arborist(opts)

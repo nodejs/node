@@ -58,6 +58,8 @@ const _bundleUnpacked = Symbol('bundleUnpacked')
 const _bundleMissing = Symbol('bundleMissing')
 const _reifyNode = Symbol.for('reifyNode')
 const _extractOrLink = Symbol('extractOrLink')
+const _updateAll = Symbol.for('updateAll')
+const _updateNames = Symbol.for('updateNames')
 // defined by rebuild mixin
 const _checkBins = Symbol.for('checkBins')
 const _symlink = Symbol('symlink')
@@ -1140,21 +1142,33 @@ module.exports = cls => class Reifier extends cls {
     // for install failures.  Those still end up in the shrinkwrap, so we
     // save it first, then prune out the optional trash, and then return it.
 
-    // support save=false option
-    if (options.save === false || this[_global] || this[_dryRun]) {
+    const save = !(options.save === false)
+
+    // we check for updates in order to make sure we run save ideal tree
+    // even though save=false since we want `npm update` to be able to
+    // write to package-lock files by default
+    const hasUpdates = this[_updateAll] || this[_updateNames].length
+
+    // we're going to completely skip save ideal tree in case of a global or
+    // dry-run install and also if the save option is set to false, EXCEPT for
+    // update since the expected behavior for npm7+ is for update to
+    // NOT save to package.json, we make that exception since we still want
+    // saveIdealTree to be able to write the lockfile by default.
+    const saveIdealTree = !(
+      (!save && !hasUpdates)
+      || this[_global]
+      || this[_dryRun]
+    )
+
+    if (!saveIdealTree) {
       return false
     }
 
     process.emit('time', 'reify:save')
 
     const updatedTrees = new Set()
-
-    // resolvedAdd is the list of user add requests, but with names added
-    // to things like git repos and tarball file/urls.  However, if the
-    // user requested 'foo@', and we have a foo@file:../foo, then we should
-    // end up saving the spec we actually used, not whatever they gave us.
-    if (this[_resolvedAdd].length) {
-      for (const { name, tree: addTree } of this[_resolvedAdd]) {
+    const updateNodes = nodes => {
+      for (const { name, tree: addTree } of nodes) {
         // addTree either the root, or a workspace
         const edge = addTree.edgesOut.get(name)
         const pkg = addTree.package
@@ -1168,7 +1182,7 @@ module.exports = cls => class Reifier extends cls {
         // that we couldn't resolve, this MAY be missing.  if we haven't
         // blown up by now, it's because it was not a problem, though, so
         // just move on.
-        if (!child) {
+        if (!child || !addTree.isTop) {
           continue
         }
 
@@ -1259,6 +1273,63 @@ module.exports = cls => class Reifier extends cls {
       }
     }
 
+    // helper that retrieves an array of nodes that were
+    // potentially updated during the reify process, in order
+    // to limit the number of nodes to check and update, only
+    // select nodes from the inventory that are direct deps
+    // of a given package.json (project root or a workspace)
+    // and in ase of using a list of `names`, restrict nodes
+    // to only names that are found in this list
+    const retrieveUpdatedNodes = names => {
+      const filterDirectDependencies = node =>
+        !node.isRoot && node.resolveParent.isRoot
+        && (!names || names.includes(node.name))
+      const directDeps = this.idealTree.inventory
+        .filter(filterDirectDependencies)
+
+      // traverses the list of direct dependencies and collect all nodes
+      // to be updated, since any of them might have changed during reify
+      const nodes = []
+      for (const node of directDeps) {
+        for (const edgeIn of node.edgesIn) {
+          nodes.push({
+            name: node.name,
+            tree: edgeIn.from.target,
+          })
+        }
+      }
+      return nodes
+    }
+
+    if (save) {
+      // when using update all alongside with save, we'll make
+      // sure to refresh every dependency of the root idealTree
+      if (this[_updateAll]) {
+        const nodes = retrieveUpdatedNodes()
+        updateNodes(nodes)
+      } else {
+        // resolvedAdd is the list of user add requests, but with names added
+        // to things like git repos and tarball file/urls.  However, if the
+        // user requested 'foo@', and we have a foo@file:../foo, then we should
+        // end up saving the spec we actually used, not whatever they gave us.
+        if (this[_resolvedAdd].length) {
+          updateNodes(this[_resolvedAdd])
+        }
+
+        // if updating given dependencies by name, restrict the list of
+        // nodes to check to only those currently in _updateNames
+        if (this[_updateNames].length) {
+          const nodes = retrieveUpdatedNodes(this[_updateNames])
+          updateNodes(nodes)
+        }
+
+        // grab any from explicitRequests that had deps removed
+        for (const { from: tree } of this.explicitRequests) {
+          updatedTrees.add(tree)
+        }
+      }
+    }
+
     // preserve indentation, if possible
     const {
       [Symbol.for('indent')]: indent,
@@ -1291,15 +1362,12 @@ module.exports = cls => class Reifier extends cls {
       await pkgJson.save()
     }
 
-    // grab any from explicitRequests that had deps removed
-    for (const { from: tree } of this.explicitRequests) {
-      updatedTrees.add(tree)
-    }
-
-    for (const tree of updatedTrees) {
-      // refresh the edges so they have the correct specs
-      tree.package = tree.package
-      promises.push(updatePackageJson(tree))
+    if (save) {
+      for (const tree of updatedTrees) {
+        // refresh the edges so they have the correct specs
+        tree.package = tree.package
+        promises.push(updatePackageJson(tree))
+      }
     }
 
     await Promise.all(promises)

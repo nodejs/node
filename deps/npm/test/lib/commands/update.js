@@ -27,7 +27,7 @@ t.afterEach(() => {
 })
 
 t.test('no args', async t => {
-  t.plan(4)
+  t.plan(5)
 
   npm.prefix = '/project/a'
 
@@ -39,6 +39,7 @@ t.test('no args', async t => {
         {
           ...npm.flatOptions,
           path: npm.prefix,
+          save: false,
           workspaces: null,
         },
         'should call arborist contructor with expected args'
@@ -46,7 +47,8 @@ t.test('no args', async t => {
       t.match(log, {}, 'log is passed in')
     }
 
-    reify ({ update }) {
+    reify ({ save, update }) {
+      t.equal(save, false, 'should default to save=false')
       t.equal(update, true, 'should update all deps')
     }
   }
@@ -64,9 +66,10 @@ t.test('no args', async t => {
 })
 
 t.test('with args', async t => {
-  t.plan(4)
+  t.plan(5)
 
   npm.prefix = '/project/a'
+  config.save = true
 
   class Arborist {
     constructor (args) {
@@ -76,6 +79,7 @@ t.test('with args', async t => {
         {
           ...npm.flatOptions,
           path: npm.prefix,
+          save: true,
           workspaces: null,
         },
         'should call arborist contructor with expected args'
@@ -83,7 +87,8 @@ t.test('with args', async t => {
       t.match(log, {}, 'log is passed in')
     }
 
-    reify ({ update }) {
+    reify ({ save, update }) {
+      t.equal(save, true, 'should pass save if manually set')
       t.same(update, ['ipt'], 'should update listed deps')
     }
   }
@@ -140,7 +145,7 @@ t.test('update --global', async t => {
       const { path, log, ...rest } = args
       t.same(
         rest,
-        { ...npm.flatOptions, workspaces: undefined },
+        { ...npm.flatOptions, save: true, workspaces: undefined },
         'should call arborist contructor with expected options'
       )
 

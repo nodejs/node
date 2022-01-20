@@ -1583,14 +1583,18 @@ define('registry', {
 
 define('save', {
   default: true,
+  defaultDescription: `\`true\` unless when using \`npm update\` or
+  \`npm dedupe\` where it defaults to \`false\``,
   usage: '-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer',
   type: Boolean,
   short: 'S',
   description: `
-    Save installed packages to a package.json file as dependencies.
+    Save installed packages to a \`package.json\` file as dependencies.
 
     When used with the \`npm rm\` command, removes the dependency from
-    package.json.
+    \`package.json\`.
+
+    Will also prevent writing to \`package-lock.json\` if set to \`false\`.
   `,
   flatten,
 })

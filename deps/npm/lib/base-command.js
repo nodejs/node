@@ -1,4 +1,7 @@
 // Base class for npm commands
+
+const { relative } = require('path')
+
 const usageUtil = require('./utils/usage.js')
 const ConfigDefinitions = require('./utils/config/definitions.js')
 const getWorkspaces = require('./workspaces/get-workspaces.js')
@@ -78,9 +81,14 @@ class BaseCommand {
       this.includeWorkspaceRoot = false
     }
 
+    const relativeFrom = relative(this.npm.localPrefix, process.cwd()).startsWith('..')
+      ? this.npm.localPrefix
+      : process.cwd()
+
     const ws = await getWorkspaces(filters, {
       path: this.npm.localPrefix,
       includeWorkspaceRoot: this.includeWorkspaceRoot,
+      relativeFrom,
     })
     this.workspaces = ws
     this.workspaceNames = [...ws.keys()]

@@ -2,10 +2,11 @@ const { dirname, relative, join, resolve, basename } = require('path')
 const linkGently = require('./link-gently.js')
 const manTarget = require('./man-target.js')
 
-const linkMans = ({path, pkg, top, force}) => {
-  const target = manTarget({path, top})
-  if (!target || !pkg.man || !Array.isArray(pkg.man) || !pkg.man.length)
+const linkMans = ({ path, pkg, top, force }) => {
+  const target = manTarget({ path, top })
+  if (!target || !pkg.man || !Array.isArray(pkg.man) || !pkg.man.length) {
     return Promise.resolve([])
+  }
 
   // break any links to c:\\blah or /foo/blah or ../blah
   // and filter out duplicates
@@ -44,7 +45,7 @@ const linkMans = ({path, pkg, top, force}) => {
     const to = resolve(target, 'man' + sxn, base)
     const from = relative(dirname(to), absFrom)
 
-    return linkGently({from, to, path, absFrom, force})
+    return linkGently({ from, to, path, absFrom, force })
   }))
 }
 
