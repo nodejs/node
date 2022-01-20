@@ -185,6 +185,7 @@ def headers(action):
       'deps/v8/include/v8-date.h',
       'deps/v8/include/v8-debug.h',
       'deps/v8/include/v8-embedder-heap.h',
+      'deps/v8/include/v8-embedder-state-scope.h',
       'deps/v8/include/v8-exception.h',
       'deps/v8/include/v8-extension.h',
       'deps/v8/include/v8-external.h',
