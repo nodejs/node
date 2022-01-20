@@ -295,7 +295,6 @@ module.exports = {
     'valid-typeof': ['error', { requireStringLiterals: true }],
 
     // ESLint recommended rules that we disable
-    'no-cond-assign': 'off',
     'no-empty': 'off',
     'no-inner-declarations': 'off',
     'no-prototype-builtins': 'off',
