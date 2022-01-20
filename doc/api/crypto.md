@@ -2494,7 +2494,7 @@ If the `'subject'` option is set to `'always'` and if the subject alternative
 name extension either does not exist or does not contain a matching email
 address, the certificate subject is considered.
 
-If the `'subject'` option is set to `'default`', the certificate subject is only
+If the `'subject'` option is set to `'default'`, the certificate subject is only
 considered if the subject alternative name extension either does not exist or
 does not contain any email addresses.
 
