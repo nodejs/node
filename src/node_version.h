@@ -22,12 +22,12 @@
 #ifndef SRC_NODE_VERSION_H_
 #define SRC_NODE_VERSION_H_
 
-#define NODE_MAJOR_VERSION 13
-#define NODE_MINOR_VERSION 7
+#define NODE_MAJOR_VERSION 16
+#define NODE_MINOR_VERSION 13
 #define NODE_PATCH_VERSION 0
 
-#define NODE_VERSION_IS_LTS 0
-#define NODE_VERSION_LTS_CODENAME ""
+#define NODE_VERSION_IS_LTS 1
+#define NODE_VERSION_LTS_CODENAME "Gallium"
 
 #define NODE_VERSION_IS_RELEASE 1
 
@@ -41,35 +41,34 @@
 #endif
 
 #ifndef NODE_TAG
-# if NODE_VERSION_IS_RELEASE
-#  define NODE_TAG ""
-# else
-#  define NODE_TAG "-pre"
-# endif
+#if NODE_VERSION_IS_RELEASE
+#define NODE_TAG ""
+#else
+#define NODE_TAG "-pre"
+#endif
 #else
 // NODE_TAG is passed without quotes when rc.exe is run from msbuild
-# define NODE_EXE_VERSION NODE_STRINGIFY(NODE_MAJOR_VERSION) "." \
-                          NODE_STRINGIFY(NODE_MINOR_VERSION) "." \
-                          NODE_STRINGIFY(NODE_PATCH_VERSION)     \
-                          NODE_STRINGIFY(NODE_TAG)
+#define NODE_EXE_VERSION                                                       \
+  NODE_STRINGIFY(NODE_MAJOR_VERSION)                                           \
+  "." NODE_STRINGIFY(NODE_MINOR_VERSION) "." NODE_STRINGIFY(                   \
+      NODE_PATCH_VERSION) NODE_STRINGIFY(NODE_TAG)
 #endif
 
-# define NODE_VERSION_STRING  NODE_STRINGIFY(NODE_MAJOR_VERSION) "." \
-                              NODE_STRINGIFY(NODE_MINOR_VERSION) "." \
-                              NODE_STRINGIFY(NODE_PATCH_VERSION)     \
-                              NODE_TAG
+#define NODE_VERSION_STRING                                                    \
+  NODE_STRINGIFY(NODE_MAJOR_VERSION)                                           \
+  "." NODE_STRINGIFY(NODE_MINOR_VERSION) "." NODE_STRINGIFY(                   \
+      NODE_PATCH_VERSION) NODE_TAG
 #ifndef NODE_EXE_VERSION
-# define NODE_EXE_VERSION NODE_VERSION_STRING
+#define NODE_EXE_VERSION NODE_VERSION_STRING
 #endif
 
 #define NODE_VERSION "v" NODE_VERSION_STRING
 
-
-#define NODE_VERSION_AT_LEAST(major, minor, patch) \
-  (( (major) < NODE_MAJOR_VERSION) \
-  || ((major) == NODE_MAJOR_VERSION && (minor) < NODE_MINOR_VERSION) \
-  || ((major) == NODE_MAJOR_VERSION && \
-      (minor) == NODE_MINOR_VERSION && (patch) <= NODE_PATCH_VERSION))
+#define NODE_VERSION_AT_LEAST(major, minor, patch)                             \
+  (((major) < NODE_MAJOR_VERSION) ||                                           \
+   ((major) == NODE_MAJOR_VERSION && (minor) < NODE_MINOR_VERSION) ||          \
+   ((major) == NODE_MAJOR_VERSION && (minor) == NODE_MINOR_VERSION &&          \
+    (patch) <= NODE_PATCH_VERSION))
 
 /**
  * Node.js will refuse to load modules that weren't compiled against its own
@@ -84,15 +83,15 @@
  * if it can be made ABI compatible with the previous version.
  *
  * The registry of used NODE_MODULE_VERSION numbers is located at
- *   https://github.com/nodejs/node/blob/master/doc/abi_version_registry.json
+ *   https://github.com/nodejs/node/blob/HEAD/doc/abi_version_registry.json
  * Extenders, embedders and other consumers of Node.js that require ABI
  * version matching should open a pull request to reserve a number in this
  * registry.
  */
-#define NODE_MODULE_VERSION 79
+#define NODE_MODULE_VERSION 93
 
 // The NAPI_VERSION provided by this version of the runtime. This is the version
 // which the Node binary being built supports.
-#define NAPI_VERSION  5
+#define NAPI_VERSION 8
 
 #endif  // SRC_NODE_VERSION_H_
