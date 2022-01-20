@@ -855,7 +855,6 @@ deprecated: v16.0.0
 -->
 
 Deprecated alias for [`cluster.isPrimary`][].
-details.
 
 ## `cluster.isPrimary`
 
