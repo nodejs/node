@@ -98,7 +98,7 @@ t.test('handle getWorkspaces raising an error', async t => {
   })
   class TestCmd extends ArboristCmd {}
   const cmd = new TestCmd()
-  cmd.npm = {}
+  cmd.npm = { localPrefix: t.testdir() }
 
   await t.rejects(
     cmd.execWorkspaces(['foo'], ['a']),

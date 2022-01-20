@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@npmcli/template-oss": "^2.4.2",
-    "bin-links": "^2.2.1",
+    "bin-links": "^3.0.0",
     "tap": "^15.0.6"
   },
   "dependencies": {
