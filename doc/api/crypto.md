@@ -2485,6 +2485,17 @@ added: v15.6.0
 
 Checks whether the certificate matches the given email address.
 
+If the `'subject'` option is set to `'always'` and if the subject alternative
+name extension either does not exist or does not contain a matching email
+address, the certificate subject is considered.
+
+If the `'subject'` option is set to `'default'`, the certificate subject is only
+considered if the subject alternative name extension either does not exist or
+does not contain any email addresses.
+
+If the `'subject'` option is set to `'never'`, the certificate subject is never
+considered, even if the certificate contains no subject alternative names.
+
 ### `x509.checkHost(name[, options])`
 
 <!-- YAML
