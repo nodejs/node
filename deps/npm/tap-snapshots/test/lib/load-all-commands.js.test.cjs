@@ -170,6 +170,7 @@ npm dedupe
 
 Options:
 [--global-style] [--legacy-bundling] [--strict-peer-deps] [--no-package-lock]
+[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
@@ -1061,8 +1062,10 @@ npm update [<pkg>...]
 
 Options:
 [-g|--global] [--global-style] [--legacy-bundling] [--strict-peer-deps]
-[--no-package-lock] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
-[--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+[--no-package-lock]
+[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer]
+[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
+[--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root]
 
