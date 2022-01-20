@@ -68,6 +68,6 @@ int main(int argc, char* argv[]) {
   }
   isolate->Dispose();
 
-  v8::V8::ShutdownPlatform();
+  v8::V8::DisposePlatform();
   return 0;
 }

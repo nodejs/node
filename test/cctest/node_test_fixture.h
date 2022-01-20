@@ -98,7 +98,7 @@ class NodeZeroIsolateTestFixture : public ::testing::Test {
     while (uv_loop_alive(&current_loop)) {
       uv_run(&current_loop, UV_RUN_ONCE);
     }
-    v8::V8::ShutdownPlatform();
+    v8::V8::DisposePlatform();
     CHECK_EQ(0, uv_loop_close(&current_loop));
   }
 

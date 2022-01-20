@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
   int ret = RunNodeInstance(platform.get(), args, exec_args);
 
   V8::Dispose();
-  V8::ShutdownPlatform();
+  V8::DisposePlatform();
   return ret;
 }
 
