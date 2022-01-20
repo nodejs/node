@@ -41,7 +41,7 @@ const _complete = Symbol('complete')
 const _depsSeen = Symbol('depsSeen')
 const _depsQueue = Symbol('depsQueue')
 const _currentDep = Symbol('currentDep')
-const _updateAll = Symbol('updateAll')
+const _updateAll = Symbol.for('updateAll')
 const _mutateTree = Symbol('mutateTree')
 const _flagsSuspect = Symbol.for('flagsSuspect')
 const _workspaces = Symbol.for('workspaces')
@@ -176,7 +176,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
   // public method
   async buildIdealTree (options = {}) {
     if (this.idealTree) {
-      return Promise.resolve(this.idealTree)
+      return this.idealTree
     }
 
     // allow the user to set reify options on the ctor as well.
@@ -194,8 +194,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     process.emit('time', 'idealTree')
 
     if (!options.add && !options.rm && !options.update && this[_global]) {
-      const er = new Error('global requires add, rm, or update option')
-      return Promise.reject(er)
+      throw new Error('global requires add, rm, or update option')
     }
 
     // first get the virtual tree, if possible.  If there's a lockfile, then
@@ -334,6 +333,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
             root.meta.lockfileVersion = defaultLockfileVersion
           }
         }
+        root.meta.inferFormattingOptions(root.package)
         return root
       })
 
@@ -1178,6 +1178,11 @@ This is a one-time fix-up, please be patient...
         // If the edge has an error, there's a problem.
         if (!edge.valid) {
           return true
+        }
+
+        // If the edge is a workspace, and it's valid, leave it alone
+        if (edge.to.isWorkspace) {
+          return false
         }
 
         // user explicitly asked to update this package by name, problem

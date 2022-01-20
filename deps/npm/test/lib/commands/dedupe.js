@@ -38,11 +38,12 @@ t.test('should remove dupes using Arborist', async (t) => {
 })
 
 t.test('should remove dupes using Arborist - no arguments', async (t) => {
-  t.plan(1)
+  t.plan(2)
   const { npm } = await loadMockNpm(t, {
     mocks: {
       '@npmcli/arborist': function (args) {
         t.ok(args.dryRun, 'gets dryRun from config')
+        t.ok(args.save, 'gets user-set save value from config')
         this.dedupe = () => {}
       },
       '../../lib/utils/reify-output.js': () => {},
@@ -50,6 +51,7 @@ t.test('should remove dupes using Arborist - no arguments', async (t) => {
     },
     config: {
       'dry-run': true,
+      save: true,
     },
   })
   await npm.exec('dedupe', [])
