@@ -147,6 +147,8 @@ class MockNpm {
       // for now just set `find` to what config.find should return
       // this works cause `find` is not an existing config entry
       find: (k) => ({ ...realConfig.defaults, ...config })[k],
+      // for now isDefault is going to just return false if a value was defined
+      isDefault: (k) => !Object.prototype.hasOwnProperty.call(config, k),
       get: (k) => ({ ...realConfig.defaults, ...config })[k],
       set: (k, v) => config[k] = v,
       list: [{ ...realConfig.defaults, ...config }],

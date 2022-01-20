@@ -192,6 +192,11 @@ sufficient.</p>
 <p>Note that this operation transforms the dependency tree, but will never
 result in new modules being installed.</p>
 <p>Using <code>npm find-dupes</code> will run the command in <code>--dry-run</code> mode.</p>
+<p>Note that by default <code>npm dedupe</code> will not update the semver values of direct
+dependencies in your project <code>package.json</code>, if you want to also update
+values in <code>package.json</code> you can run: <code>npm dedupe --save</code> (or add the
+<code>save=true</code> option to a <a href="../configuring-npm/npmrc.html">configuration file</a>
+to make that the default behavior).</p>
 <h3 id="configuration">Configuration</h3>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

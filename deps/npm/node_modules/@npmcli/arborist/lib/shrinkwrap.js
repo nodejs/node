@@ -424,6 +424,18 @@ class Shrinkwrap {
       .map(fn => fn && maybeStatFile(fn)))
   }
 
+  inferFormattingOptions (packageJSONData) {
+    // don't use detect-indent, just pick the first line.
+    // if the file starts with {" then we have an indent of '', ie, none
+    // which will default to 2 at save time.
+    const {
+      [Symbol.for('indent')]: indent,
+      [Symbol.for('newline')]: newline,
+    } = packageJSONData
+    this.indent = indent !== undefined ? indent : this.indent
+    this.newline = newline !== undefined ? newline : this.newline
+  }
+
   load () {
     // we don't need to load package-lock.json except for top of tree nodes,
     // only npm-shrinkwrap.json.
@@ -451,15 +463,7 @@ class Shrinkwrap {
 
       return data ? parseJSON(data) : {}
     }).then(async data => {
-      // don't use detect-indent, just pick the first line.
-      // if the file starts with {" then we have an indent of '', ie, none
-      // which will default to 2 at save time.
-      const {
-        [Symbol.for('indent')]: indent,
-        [Symbol.for('newline')]: newline,
-      } = data
-      this.indent = indent !== undefined ? indent : this.indent
-      this.newline = newline !== undefined ? newline : this.newline
+      this.inferFormattingOptions(data)
 
       if (!this.hiddenLockfile || !data.packages) {
         return data

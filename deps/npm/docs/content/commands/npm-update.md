@@ -27,6 +27,12 @@ packages.
 If no package name is specified, all packages in the specified location (global
 or local) will be updated.
 
+Note that by default `npm update` will not update the semver values of direct
+dependencies in your project `package.json`, if you want to also update
+values in `package.json` you can run: `npm update --save` (or add the
+`save=true` option to a [configuration file](/configuring-npm/npmrc)
+to make that the default behavior).
+
 ### Example
 
 For the examples below, assume that the current package is `app` and it depends

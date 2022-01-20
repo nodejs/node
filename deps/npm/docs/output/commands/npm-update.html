@@ -160,6 +160,11 @@ package).</p>
 packages.</p>
 <p>If no package name is specified, all packages in the specified location (global
 or local) will be updated.</p>
+<p>Note that by default <code>npm update</code> will not update the semver values of direct
+dependencies in your project <code>package.json</code>, if you want to also update
+values in <code>package.json</code> you can run: <code>npm update --save</code> (or add the
+<code>save=true</code> option to a <a href="../configuring-npm/npmrc.html">configuration file</a>
+to make that the default behavior).</p>
 <h3 id="example">Example</h3>
 <p>For the examples below, assume that the current package is <code>app</code> and it depends
 on dependencies, <code>dep1</code> (<code>dep2</code>, .. etc.).  The published versions of <code>dep1</code>

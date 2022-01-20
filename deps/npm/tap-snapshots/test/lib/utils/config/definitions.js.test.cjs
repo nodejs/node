@@ -1406,13 +1406,16 @@ The base URL of the npm registry.
 exports[`test/lib/utils/config/definitions.js TAP > config description for save 1`] = `
 #### \`save\`
 
-* Default: true
+* Default: \`true\` unless when using \`npm update\` or \`npm dedupe\` where it
+  defaults to \`false\`
 * Type: Boolean
 
-Save installed packages to a package.json file as dependencies.
+Save installed packages to a \`package.json\` file as dependencies.
 
 When used with the \`npm rm\` command, removes the dependency from
-package.json.
+\`package.json\`.
+
+Will also prevent writing to \`package-lock.json\` if set to \`false\`.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for save-bundle 1`] = `

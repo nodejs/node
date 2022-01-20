@@ -2,7 +2,11 @@ const { promisify } = require('util')
 const { resolve, dirname } = require('path')
 const fs = require('fs')
 const lstat = promisify(fs.lstat)
-const throwNonEnoent = er => { if (er.code !== 'ENOENT') throw er }
+const throwNonEnoent = er => {
+  if (er.code !== 'ENOENT') {
+    throw er
+  }
+}
 
 const cmdShim = require('cmd-shim')
 const readCmdShim = require('read-cmd-shim')
@@ -15,20 +19,20 @@ const fixBin = require('./fix-bin.js')
 // nondeterminism.
 const seen = new Set()
 
-const failEEXIST = ({path, to, from}) =>
+const failEEXIST = ({ path, to, from }) =>
   Promise.reject(Object.assign(new Error('EEXIST: file already exists'), {
     path: to,
     dest: from,
     code: 'EEXIST',
   }))
 
-const handleReadCmdShimError = ({er, from, to}) =>
+const handleReadCmdShimError = ({ er, from, to }) =>
   er.code === 'ENOENT' ? null
-  : er.code === 'ENOTASHIM' ? failEEXIST({from, to})
+  : er.code === 'ENOTASHIM' ? failEEXIST({ from, to })
   : Promise.reject(er)
 
 const SKIP = Symbol('skip - missing or already installed')
-const shimBin = ({path, to, from, absFrom, force}) => {
+const shimBin = ({ path, to, from, absFrom, force }) => {
   const shims = [
     to,
     to + '.cmd',
@@ -36,8 +40,9 @@ const shimBin = ({path, to, from, absFrom, force}) => {
   ]
 
   for (const shim of shims) {
-    if (seen.has(shim))
+    if (seen.has(shim)) {
       return true
+    }
     seen.add(shim)
   }
 
@@ -45,30 +50,29 @@ const shimBin = ({path, to, from, absFrom, force}) => {
     ...shims,
     absFrom,
   ].map(f => lstat(f).catch(throwNonEnoent))).then((stats) => {
-    const [
-      stToBase,
-      stToCmd,
-      stToPs1,
-      stFrom,
-    ] = stats
-    if (!stFrom)
+    const [, , , stFrom] = stats
+    if (!stFrom) {
       return SKIP
+    }
 
-    if (force)
+    if (force) {
       return
+    }
 
     return Promise.all(shims.map((s, i) => [s, stats[i]]).map(([s, st]) => {
-      if (!st)
+      if (!st) {
         return
+      }
       return readCmdShim(s)
         .then(target => {
           target = resolve(dirname(to), target)
-          if (target.indexOf(resolve(path)) !== 0)
-            return failEEXIST({from, to, path})
-        }, er => handleReadCmdShimError({er, from, to}))
+          if (target.indexOf(resolve(path)) !== 0) {
+            return failEEXIST({ from, to, path })
+          }
+        }, er => handleReadCmdShimError({ er, from, to }))
     }))
   })
-  .then(skip => skip !== SKIP && doShim(absFrom, to))
+    .then(skip => skip !== SKIP && doShim(absFrom, to))
 }
 
 const doShim = (absFrom, to) =>

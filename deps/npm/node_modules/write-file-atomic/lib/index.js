@@ -48,10 +48,14 @@ function cleanupOnExit (tmpfile) {
 function serializeActiveFile (absoluteName) {
   return new Promise(resolve => {
     // make a queue if it doesn't already exist
-    if (!activeFiles[absoluteName]) activeFiles[absoluteName] = []
+    if (!activeFiles[absoluteName]) {
+      activeFiles[absoluteName] = []
+    }
 
     activeFiles[absoluteName].push(resolve) // add this job to the queue
-    if (activeFiles[absoluteName].length === 1) resolve() // kick off the first one
+    if (activeFiles[absoluteName].length === 1) {
+      resolve()
+    } // kick off the first one
   })
 }
 
@@ -151,7 +155,9 @@ async function writeFileAsync (filename, data, options = {}) {
     activeFiles[absoluteName].shift() // remove the element added by serializeSameFile
     if (activeFiles[absoluteName].length > 0) {
       activeFiles[absoluteName][0]() // start next job if one is pending
-    } else delete activeFiles[absoluteName]
+    } else {
+      delete activeFiles[absoluteName]
+    }
   }
 }
 
@@ -170,8 +176,11 @@ function writeFile (filename, data, options, callback) {
 }
 
 function writeFileSync (filename, data, options) {
-  if (typeof options === 'string') options = { encoding: options }
-  else if (!options) options = {}
+  if (typeof options === 'string') {
+    options = { encoding: options }
+  } else if (!options) {
+    options = {}
+  }
   try {
     filename = fs.realpathSync(filename)
   } catch (ex) {
