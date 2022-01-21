@@ -175,8 +175,8 @@ string into a `Buffer` as decoding.
   encoding a `Buffer` to a string, this encoding will omit padding.
 
 * `'hex'`: Encode each byte as two hexadecimal characters. Data truncation
-  may occur when decoding strings that do exclusively contain valid hexadecimal
-  characters. See below for an example.
+  may occur when decoding strings that do not exclusively consist of an even
+  number of hexadecimal characters. See below for an example.
 
 The following legacy character encodings are also supported:
 
@@ -201,11 +201,11 @@ The following legacy character encodings are also supported:
 ```mjs
 import { Buffer } from 'buffer';
 
-Buffer.from('1ag', 'hex');
+Buffer.from('1ag123', 'hex');
 // Prints <Buffer 1a>, data truncated when first non-hexadecimal value
 // ('g') encountered.
 
-Buffer.from('1a7g', 'hex');
+Buffer.from('1a7', 'hex');
 // Prints <Buffer 1a>, data truncated when data ends in single digit ('7').
 
 Buffer.from('1634', 'hex');
@@ -215,11 +215,11 @@ Buffer.from('1634', 'hex');
 ```cjs
 const { Buffer } = require('buffer');
 
-Buffer.from('1ag', 'hex');
+Buffer.from('1ag123', 'hex');
 // Prints <Buffer 1a>, data truncated when first non-hexadecimal value
 // ('g') encountered.
 
-Buffer.from('1a7g', 'hex');
+Buffer.from('1a7', 'hex');
 // Prints <Buffer 1a>, data truncated when data ends in single digit ('7').
 
 Buffer.from('1634', 'hex');
