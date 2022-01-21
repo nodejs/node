@@ -231,8 +231,10 @@ assert.throws(() => new Blob({}), {
     });
   });
 
-  assert.throws(() => new Blob([new Uint8Array(0xffffffff), [1]]), {
-    code: 'ERR_BUFFER_TOO_LARGE',
+  const overSizeArray = Array(17).fill(new Uint8Array(0xfffffff));
+
+  assert.throws(() => new Blob(overSizeArray), {
+    code: "ERR_BUFFER_TOO_LARGE",
   });
 }
 
