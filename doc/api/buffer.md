@@ -3427,6 +3427,14 @@ console.log(copiedBuf.toString());
 
 console.log(buf.toString());
 // Prints: buffer
+
+// With buf.slice(), the original buffer is modified.
+const notReallyCopiedBuf = buf.slice();
+notReallyCopiedBuf[0]++;
+console.log(notReallyCopiedBuf.toString());
+// Prints: cuffer
+console.log(buf.toString());
+// Also prints: cuffer (!)
 ```
 
 ```cjs
@@ -3441,6 +3449,14 @@ console.log(copiedBuf.toString());
 
 console.log(buf.toString());
 // Prints: buffer
+
+// With buf.slice(), the original buffer is modified.
+const notReallyCopiedBuf = buf.slice();
+notReallyCopiedBuf[0]++;
+console.log(notReallyCopiedBuf.toString());
+// Prints: cuffer
+console.log(buf.toString());
+// Also prints: cuffer (!)
 ```
 
 ### `buf.swap16()`
