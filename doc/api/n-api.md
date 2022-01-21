@@ -4710,7 +4710,7 @@ napi_status napi_get_cb_info(napi_env env,
 * `[in-out] argc`: Specifies the length of the provided `argv` array and
   receives the actual count of arguments. `argc` can
   optionally be ignored by passing `NULL`.
-* `[out] argv`: Buffer to which the `napi_value` representing the arguments are
+* `[out] argv`: C array of `napi_value`s to which the arguments will be
   copied. If there are more arguments than the provided count, only the
   requested number of arguments are copied. If there are fewer arguments
   provided than claimed, the rest of `argv` is filled with `napi_value` values
