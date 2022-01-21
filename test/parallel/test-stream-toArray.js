@@ -67,7 +67,7 @@ const assert = require('assert');
   }, {
     name: 'AbortError',
   }).then(common.mustCall(() => {
-    // Only stops toArray, does not destory the stream
+    // Only stops toArray, does not destroy the stream
     assert(stream.destroyed, false);
   }));
   ac.abort();
