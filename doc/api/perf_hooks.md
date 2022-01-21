@@ -234,6 +234,8 @@ changes:
 
 * `fn` {Function}
 * `options` {Object}
+  * `ctor` {boolean} When true, the timerified function will used
+    `Reflect.construct()` internally to call the wrapped function.
   * `histogram` {RecordableHistogram} A histogram object created using
     `perf_hooks.createHistogram()` that will record runtime durations in
     nanoseconds.

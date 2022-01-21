@@ -45,7 +45,7 @@ const {
 
 {
   class N {}
-  const n = performance.timerify(N);
+  const n = performance.timerify(N, { ctor: true });
 
   const obs = new PerformanceObserver(common.mustCall((list) => {
     const entries = list.getEntries();
@@ -121,3 +121,9 @@ const {
     });
   });
 })().then(common.mustCall());
+
+{
+  function foo() { return 1; }
+  const tfoo = performance.timerify(foo);
+  assert.strictEqual(tfoo(), 1);
+}
