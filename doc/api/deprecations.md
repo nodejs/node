@@ -3040,6 +3040,22 @@ const w = new Writable({
 });
 ```
 
+### DEP0XXX: `node --preserve-symlinks` and `node --preserve-symlinks-main
+<!-- YAML
+added: REPLACEME
+-->
+
+Type: Documentation-only
+
+Previously `node` supported an altered form of caching and resolution that did
+not use realpathing via `--preserve-symlinks` and `--preserve-symlinks-main`.
+
+This feature caused issues with various expectations around module resolution
+and lacked maintainence sufficient to keep supporting it. Due to this, features
+were developed that did not take it into account and led to these flags having
+inconsistent behavior.
+
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
