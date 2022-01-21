@@ -1314,6 +1314,16 @@ const { createInterface } = require('readline');
     <td></td>
   </tr>
   <tr>
+    <td><kbd>Ctrl</kbd>+<kbd>Y</kbd></td>
+    <td>Yank (Recall) the previously deleted text</td>
+    <td>Only works with text deleted by <kbd>Ctrl</kbd>+<kbd>U</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd></td>
+  </tr>
+  <tr>
+    <td><kbd>Meta</kbd>+<kbd>Y</kbd></td>
+    <td>Cycle among previously deleted lines</td>
+    <td>Only available when the last keystroke is <kbd>Ctrl</kbd>+<kbd>Y</kbd></td>
+  </tr>
+  <tr>
     <td><kbd>Ctrl</kbd>+<kbd>A</kbd></td>
     <td>Go to start of line</td>
     <td></td>
