@@ -1068,7 +1068,7 @@ process.
 A worker is removed from `cluster.workers` after the worker has disconnected
 _and_ exited. The order between these two events cannot be determined in
 advance. However, it is guaranteed that the removal from the `cluster.workers`
-list happens before last `'disconnect'` or `'exit'` event is emitted.
+list happens before the last `'disconnect'` or `'exit'` event is emitted.
 
 ```mjs
 import cluster from 'cluster';
