@@ -816,7 +816,7 @@ Promise.resolve(1729).then(() => {
 ```
 
 ```cjs
-const { createHook, exectionAsyncId, triggerAsyncId } = require('async_hooks');
+const { createHook, executionAsyncId, triggerAsyncId } = require('async_hooks');
 
 createHook({ init() {} }).enable(); // forces PromiseHooks to be enabled.
 Promise.resolve(1729).then(() => {
