@@ -721,6 +721,28 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   rli.close();
 }
 
+// Undo
+{
+  const [rli, fi] = getInterface({ terminal: true, prompt: '' });
+  fi.emit('data', 'the quick brown fox');
+  assertCursorRowsAndCols(rli, 0, 19);
+
+  // Delete right line from the 5th char
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', ',', { ctrl: true, shift: false, name: 'k' });
+  fi.emit('keypress', ',', { ctrl: true, shift: false, name: 'u' });
+  assertCursorRowsAndCols(rli, 0, 0);
+  fi.emit('keypress', ',', { sequence: '\x1F' });
+  assert.strictEqual(rli.line, 'the quick brown');
+  fi.emit('keypress', ',', { sequence: '\x1F' });
+  assert.strictEqual(rli.line, 'the quick brown fox');
+  fi.emit('data', '\n');
+  rli.close();
+}
+
 // Clear the whole screen
 {
   const [rli, fi] = getInterface({ terminal: true, prompt: '' });
