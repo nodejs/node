@@ -6,6 +6,11 @@ const assert = require('assert');
 const net = require('net');
 const cluster = require('cluster');
 
+// Force round-robin scheduling policy
+// as Windows defaults to SCHED_NONE
+// https://nodejs.org/docs/latest/api/cluster.html#clusterschedulingpolicy
+cluster.schedulingPolicy = cluster.SCHED_RR;
+
 // Ensures that the `backlog` is used to create a `net.Server`.
 const kExpectedBacklog = 127;
 if (cluster.isMaster) {
