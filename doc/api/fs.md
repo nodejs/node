@@ -3205,11 +3205,15 @@ changes:
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
+  * `kPerRead` {integer} The number of kb per read, -1 means no limit.
+    **Default:** `512`
 * `callback` {Function}
   * `err` {Error|AggregateError}
   * `data` {string|Buffer}
 
-Asynchronously reads the entire contents of a file.
+Asynchronously reads the entire contents of a file. Use up to 512kb per read
+otherwise to partition reading big files to prevent blocking other threads in
+case the available threads are all in use.
 
 ```mjs
 import { readFile } from 'fs';
