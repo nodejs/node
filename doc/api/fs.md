@@ -3204,8 +3204,8 @@ changes:
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
+  * `kPerRead` {integer} The number of KB per read. Use `-1` for no limit.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
-  * `kPerRead` {integer} The number of kb per read, -1 means no limit.
     **Default:** `512`
 * `callback` {Function}
   * `err` {Error|AggregateError}
