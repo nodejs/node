@@ -140,48 +140,6 @@ class ExternalAssemblerBufferImpl : public AssemblerBuffer {
   const int size_;
 };
 
-class OnHeapAssemblerBuffer : public AssemblerBuffer {
- public:
-  OnHeapAssemblerBuffer(Isolate* isolate, Handle<Code> code, int size,
-                        int gc_count)
-      : isolate_(isolate), code_(code), size_(size), gc_count_(gc_count) {}
-
-  byte* start() const override {
-    return reinterpret_cast<byte*>(code_->raw_instruction_start());
-  }
-
-  int size() const override { return size_; }
-
-  std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
-    DCHECK_LT(size(), new_size);
-    Heap* heap = isolate_->heap();
-    if (Code::SizeFor(new_size) <
-        heap->MaxRegularHeapObjectSize(AllocationType::kCode)) {
-      MaybeHandle<Code> code =
-          isolate_->factory()->NewEmptyCode(CodeKind::BASELINE, new_size);
-      if (!code.is_null()) {
-        return std::make_unique<OnHeapAssemblerBuffer>(
-            isolate_, code.ToHandleChecked(), new_size, heap->gc_count());
-      }
-    }
-    // We fall back to the slow path using the default assembler buffer and
-    // compile the code off the GC heap.
-    return std::make_unique<DefaultAssemblerBuffer>(new_size);
-  }
-
-  bool IsOnHeap() const override { return true; }
-
-  int OnHeapGCCount() const override { return gc_count_; }
-
-  MaybeHandle<Code> code() const override { return code_; }
-
- private:
-  Isolate* isolate_;
-  Handle<Code> code_;
-  const int size_;
-  const int gc_count_;
-};
-
 static thread_local std::aligned_storage_t<sizeof(ExternalAssemblerBufferImpl),
                                            alignof(ExternalAssemblerBufferImpl)>
     tls_singleton_storage;
@@ -218,16 +176,6 @@ std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size) {
   return std::make_unique<DefaultAssemblerBuffer>(size);
 }
 
-std::unique_ptr<AssemblerBuffer> NewOnHeapAssemblerBuffer(Isolate* isolate,
-                                                          int estimated) {
-  int size = std::max(AssemblerBase::kMinimalBufferSize, estimated);
-  MaybeHandle<Code> code =
-      isolate->factory()->NewEmptyCode(CodeKind::BASELINE, size);
-  if (code.is_null()) return {};
-  return std::make_unique<OnHeapAssemblerBuffer>(
-      isolate, code.ToHandleChecked(), size, isolate->heap()->gc_count());
-}
-
 // -----------------------------------------------------------------------------
 // Implementation of AssemblerBase
 
@@ -248,12 +196,6 @@ AssemblerBase::AssemblerBase(const AssemblerOptions& options,
   if (!buffer_) buffer_ = NewAssemblerBuffer(kDefaultBufferSize);
   buffer_start_ = buffer_->start();
   pc_ = buffer_start_;
-  if (IsOnHeap()) {
-    saved_handles_for_raw_object_ptr_.reserve(
-        kSavedHandleForRawObjectsInitialSize);
-    saved_offsets_for_runtime_entries_.reserve(
-        kSavedOffsetForRuntimeEntriesInitialSize);
-  }
 }
 
 AssemblerBase::~AssemblerBase() = default;

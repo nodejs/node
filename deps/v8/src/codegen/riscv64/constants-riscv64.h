@@ -774,6 +774,7 @@ enum Opcode : uint32_t {
   RO_V_VMV_VI = OP_IVI | (VMV_FUNCT6 << kRvvFunct6Shift),
   RO_V_VMV_VV = OP_IVV | (VMV_FUNCT6 << kRvvFunct6Shift),
   RO_V_VMV_VX = OP_IVX | (VMV_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMV_VF = OP_FVF | (VMV_FUNCT6 << kRvvFunct6Shift),
 
   RO_V_VMERGE_VI = RO_V_VMV_VI,
   RO_V_VMERGE_VV = RO_V_VMV_VV,
@@ -848,6 +849,9 @@ enum Opcode : uint32_t {
 
   RO_V_VWXUNARY0 = OP_MVV | (VWXUNARY0_FUNCT6 << kRvvFunct6Shift),
   RO_V_VRXUNARY0 = OP_MVX | (VRXUNARY0_FUNCT6 << kRvvFunct6Shift),
+
+  VWFUNARY0_FUNCT6 = 0b010000,
+  RO_V_VFMV_FS = OP_FVV | (VWFUNARY0_FUNCT6 << kRvvFunct6Shift),
 
   VREDMAXU_FUNCT6 = 0b000110,
   RO_V_VREDMAXU = OP_MVV | (VREDMAXU_FUNCT6 << kRvvFunct6Shift),
@@ -929,6 +933,48 @@ enum Opcode : uint32_t {
   VFSGNJX_FUNCT6 = 0b001010,
   RO_V_VFSGNJX_VV = OP_FVV | (VFSGNJX_FUNCT6 << kRvvFunct6Shift),
   RO_V_VFSGNJX_VF = OP_FVF | (VFSGNJX_FUNCT6 << kRvvFunct6Shift),
+
+  VFMADD_FUNCT6 = 0b101000,
+  RO_V_VFMADD_VV = OP_FVV | (VFMADD_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMADD_VF = OP_FVF | (VFMADD_FUNCT6 << kRvvFunct6Shift),
+
+  VFNMADD_FUNCT6 = 0b101001,
+  RO_V_VFNMADD_VV = OP_FVV | (VFNMADD_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFNMADD_VF = OP_FVF | (VFNMADD_FUNCT6 << kRvvFunct6Shift),
+
+  VFMSUB_FUNCT6 = 0b101010,
+  RO_V_VFMSUB_VV = OP_FVV | (VFMSUB_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMSUB_VF = OP_FVF | (VFMSUB_FUNCT6 << kRvvFunct6Shift),
+
+  VFNMSUB_FUNCT6 = 0b101011,
+  RO_V_VFNMSUB_VV = OP_FVV | (VFNMSUB_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFNMSUB_VF = OP_FVF | (VFNMSUB_FUNCT6 << kRvvFunct6Shift),
+
+  VFMACC_FUNCT6 = 0b101100,
+  RO_V_VFMACC_VV = OP_FVV | (VFMACC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMACC_VF = OP_FVF | (VFMACC_FUNCT6 << kRvvFunct6Shift),
+
+  VFNMACC_FUNCT6 = 0b101101,
+  RO_V_VFNMACC_VV = OP_FVV | (VFNMACC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFNMACC_VF = OP_FVF | (VFNMACC_FUNCT6 << kRvvFunct6Shift),
+
+  VFMSAC_FUNCT6 = 0b101110,
+  RO_V_VFMSAC_VV = OP_FVV | (VFMSAC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFMSAC_VF = OP_FVF | (VFMSAC_FUNCT6 << kRvvFunct6Shift),
+
+  VFNMSAC_FUNCT6 = 0b101111,
+  RO_V_VFNMSAC_VV = OP_FVV | (VFNMSAC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VFNMSAC_VF = OP_FVF | (VFNMSAC_FUNCT6 << kRvvFunct6Shift),
+
+  VNCLIP_FUNCT6 = 0b101111,
+  RO_V_VNCLIP_WV = OP_IVV | (VNCLIP_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VNCLIP_WX = OP_IVX | (VNCLIP_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VNCLIP_WI = OP_IVI | (VNCLIP_FUNCT6 << kRvvFunct6Shift),
+
+  VNCLIPU_FUNCT6 = 0b101110,
+  RO_V_VNCLIPU_WV = OP_IVV | (VNCLIPU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VNCLIPU_WX = OP_IVX | (VNCLIPU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VNCLIPU_WI = OP_IVI | (VNCLIPU_FUNCT6 << kRvvFunct6Shift),
 };
 
 // ----- Emulated conditions.

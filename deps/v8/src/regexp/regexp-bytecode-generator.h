@@ -27,7 +27,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   ~RegExpBytecodeGenerator() override;
   // The byte-code interpreter checks on each push anyway.
   int stack_limit_slack() override { return 1; }
-  bool CanReadUnaligned() override { return false; }
+  bool CanReadUnaligned() const override { return false; }
   void Bind(Label* label) override;
   void AdvanceCurrentPosition(int by) override;  // Signed cp change.
   void PopCurrentPosition() override;
@@ -69,6 +69,21 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
                              Label* on_in_range) override;
   void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
                                 Label* on_not_in_range) override;
+  bool CheckCharacterInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                  Label* on_in_range) override {
+    // Disabled in the interpreter, because 1) there is no constant pool that
+    // could store the ByteArray pointer, 2) bytecode size limits are not as
+    // restrictive as code (e.g. branch distances on arm), 3) bytecode for
+    // large character classes is already quite compact.
+    // TODO(jgruber): Consider using BytecodeArrays (with a constant pool)
+    // instead of plain ByteArrays; then we could implement
+    // CheckCharacterInRangeArray in the interpreter.
+    return false;
+  }
+  bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                     Label* on_not_in_range) override {
+    return false;
+  }
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;

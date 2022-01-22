@@ -13,6 +13,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/safepoint-table.h"
+#include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/vm-state-inl.h"
@@ -717,7 +718,7 @@ void NativeFrame::ComputeCallerState(State* state) const {
 }
 
 Code EntryFrame::unchecked_code() const {
-  return isolate()->heap()->builtin(Builtin::kJSEntry);
+  return isolate()->builtins()->code(Builtin::kJSEntry);
 }
 
 void EntryFrame::ComputeCallerState(State* state) const {
@@ -739,7 +740,7 @@ StackFrame::Type CWasmEntryFrame::GetCallerState(State* state) const {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Code ConstructEntryFrame::unchecked_code() const {
-  return isolate()->heap()->builtin(Builtin::kJSConstructEntry);
+  return isolate()->builtins()->code(Builtin::kJSConstructEntry);
 }
 
 void ExitFrame::ComputeCallerState(State* state) const {
@@ -968,6 +969,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   bool is_wasm = false;
 
 #if V8_ENABLE_WEBASSEMBLY
+  bool has_wasm_feedback_slot = false;
   if (auto* wasm_code = wasm::GetWasmCodeManager()->LookupCode(inner_pointer)) {
     is_wasm = true;
     SafepointTable table(wasm_code);
@@ -978,6 +980,9 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
         wasm_code->kind() != wasm::WasmCode::kWasmToCapiWrapper;
     first_tagged_parameter_slot = wasm_code->first_tagged_parameter_slot();
     num_tagged_parameter_slots = wasm_code->num_tagged_parameter_slots();
+    if (wasm_code->is_liftoff() && FLAG_wasm_speculative_inlining) {
+      has_wasm_feedback_slot = true;
+    }
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1041,6 +1046,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
       case WASM:
       case WASM_COMPILE_LAZY:
         frame_header_size = WasmFrameConstants::kFixedFrameSizeFromFp;
+        if (has_wasm_feedback_slot) frame_header_size += kSystemPointerSize;
         break;
       case WASM_EXIT:
         // The last value in the frame header is the calling PC, which should
@@ -1084,6 +1090,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   DCHECK_GE((stack_slots + kBitsPerByte) / kBitsPerByte,
             safepoint_entry.entry_size());
   int slot_offset = 0;
+  PtrComprCageBase cage_base(isolate());
   for (uint8_t bits : safepoint_entry.iterate_bits()) {
     while (bits) {
       int bit = base::bits::CountTrailingZeros(bits);
@@ -1097,11 +1104,39 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
       // The spill slot may actually contain weak references so we load/store
       // values using spill_slot.location() in order to avoid dealing with
       // FullMaybeObjectSlots here.
-      Tagged_t compressed_value = static_cast<Tagged_t>(*spill_slot.location());
-      if (!HAS_SMI_TAG(compressed_value)) {
-        // We don't need to update smi values.
-        *spill_slot.location() =
-            DecompressTaggedPointer(isolate(), compressed_value);
+      if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+        // When external code space is enabled the spill slot could contain both
+        // Code and non-Code references, which have different cage bases. So
+        // unconditional decompression of the value might corrupt Code pointers.
+        // However, given that
+        // 1) the Code pointers are never compressed by design (because
+        //    otherwise we wouldn't know which cage base to apply for
+        //    decompression, see respective DCHECKs in
+        //    RelocInfo::target_object()),
+        // 2) there's no need to update the upper part of the full pointer
+        //    because if it was there then it'll stay the same,
+        // we can avoid updating upper part of the spill slot if it already
+        // contains full value.
+        // TODO(v8:11880): Remove this special handling by enforcing builtins
+        // to use CodeTs instead of Code objects.
+        Address value = *spill_slot.location();
+        if (!HAS_SMI_TAG(value) && value <= 0xffffffff) {
+          // We don't need to update smi values or full pointers.
+          *spill_slot.location() =
+              DecompressTaggedPointer(cage_base, static_cast<Tagged_t>(value));
+          // Ensure that the spill slot contains correct heap object.
+          DCHECK(HeapObject::cast(Object(*spill_slot.location()))
+                     .map(cage_base)
+                     .IsMap());
+        }
+      } else {
+        Tagged_t compressed_value =
+            static_cast<Tagged_t>(*spill_slot.location());
+        if (!HAS_SMI_TAG(compressed_value)) {
+          // We don't need to update smi values.
+          *spill_slot.location() =
+              DecompressTaggedPointer(cage_base, compressed_value);
+        }
       }
 #endif
       v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);

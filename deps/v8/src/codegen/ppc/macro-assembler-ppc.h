@@ -106,6 +106,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     AddS64(sp, sp, Operand(-bytes), r0);
   }
 
+  void AllocateStackSpace(Register bytes) { sub(sp, sp, bytes); }
+
   // Push a fixed frame, consisting of lr, fp, constant pool.
   void PushCommonFrame(Register marker_reg = no_reg);
 
@@ -1322,6 +1324,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
+
+  // Abort execution if argument is not a callable JSFunction, enabled via
+  // --debug-code.
+  void AssertCallableFunction(Register object);
 
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.

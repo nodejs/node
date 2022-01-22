@@ -83,7 +83,7 @@ TEST(WeakSet_Weakness) {
   // Keep global reference to the key.
   Handle<Object> key;
   {
-    HandleScope scope(isolate);
+    HandleScope inner_scope(isolate);
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     key = global_handles->Create(*object);
@@ -92,7 +92,7 @@ TEST(WeakSet_Weakness) {
 
   // Put entry into weak set.
   {
-    HandleScope scope(isolate);
+    HandleScope inner_scope(isolate);
     Handle<Smi> smi(Smi::FromInt(23), isolate);
     int32_t hash = key->GetOrCreateHash(isolate).value();
     JSWeakCollection::Set(weakset, key, smi, hash);
@@ -133,7 +133,7 @@ TEST(WeakSet_Shrinking) {
 
   // Fill up weak set to trigger capacity change.
   {
-    HandleScope scope(isolate);
+    HandleScope inner_scope(isolate);
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObjectFromMap(map);
@@ -183,7 +183,7 @@ TEST(WeakSet_Regress2060a) {
 
   // Fill up weak set with values on an evacuation candidate.
   {
-    HandleScope scope(isolate);
+    HandleScope inner_scope(isolate);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object =
           factory->NewJSObject(function, AllocationType::kOld);

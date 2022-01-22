@@ -58,6 +58,7 @@
 #include "src/objects/js-segmenter.h"
 #include "src/objects/js-segments.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/module.h"
@@ -183,6 +184,27 @@ Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
   }
 }
 
+// static
+Maybe<bool> JSReceiver::CheckIfCanDefine(Isolate* isolate, LookupIterator* it,
+                                         Handle<Object> value,
+                                         Maybe<ShouldThrow> should_throw) {
+  if (it->IsFound()) {
+    Maybe<PropertyAttributes> attributes = GetPropertyAttributes(it);
+    MAYBE_RETURN(attributes, Nothing<bool>());
+    if ((attributes.FromJust() & DONT_DELETE) != 0) {
+      RETURN_FAILURE(
+          isolate, GetShouldThrow(isolate, should_throw),
+          NewTypeError(MessageTemplate::kRedefineDisallowed, it->GetName()));
+    }
+  } else if (!JSObject::IsExtensible(
+                 Handle<JSObject>::cast(it->GetReceiver()))) {
+    RETURN_FAILURE(
+        isolate, GetShouldThrow(isolate, should_throw),
+        NewTypeError(MessageTemplate::kDefineDisallowed, it->GetName()));
+  }
+  return Just(true);
+}
+
 namespace {
 
 bool HasExcludedProperty(
@@ -228,6 +250,9 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
   if (from->elements() != ReadOnlyRoots(isolate).empty_fixed_array()) {
     return Just(false);
   }
+
+  // We should never try to copy properties from an object itself.
+  CHECK_IMPLIES(!use_set, !target.is_identical_to(from));
 
   Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
                                       isolate);
@@ -496,36 +521,46 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
     }
   }
 
-  LookupIterator it_tag(isolate, receiver,
-                        isolate->factory()->to_string_tag_symbol(), receiver,
-                        LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  Handle<Object> maybe_tag = JSReceiver::GetDataProperty(
-      &it_tag, AllocationPolicy::kAllocationDisallowed);
-  if (maybe_tag->IsString()) {
-    return std::make_pair(MaybeHandle<JSFunction>(),
-                          Handle<String>::cast(maybe_tag));
-  }
+  for (PrototypeIterator it(isolate, receiver, kStartAtReceiver); !it.IsAtEnd();
+       it.AdvanceIgnoringProxies()) {
+    auto current = PrototypeIterator::GetCurrent<JSReceiver>(it);
 
-  PrototypeIterator iter(isolate, receiver);
-  if (iter.IsAtEnd()) {
-    return std::make_pair(MaybeHandle<JSFunction>(),
-                          handle(receiver->class_name(), isolate));
-  }
+    LookupIterator it_to_string_tag(
+        isolate, receiver, isolate->factory()->to_string_tag_symbol(), current,
+        LookupIterator::OWN_SKIP_INTERCEPTOR);
+    auto maybe_to_string_tag = JSReceiver::GetDataProperty(
+        &it_to_string_tag, AllocationPolicy::kAllocationDisallowed);
+    if (maybe_to_string_tag->IsString()) {
+      return std::make_pair(MaybeHandle<JSFunction>(),
+                            Handle<String>::cast(maybe_to_string_tag));
+    }
 
-  Handle<JSReceiver> start = PrototypeIterator::GetCurrent<JSReceiver>(iter);
-  LookupIterator it(isolate, receiver, isolate->factory()->constructor_string(),
-                    start, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  Handle<Object> maybe_constructor =
-      JSReceiver::GetDataProperty(&it, AllocationPolicy::kAllocationDisallowed);
-  if (maybe_constructor->IsJSFunction()) {
-    Handle<JSFunction> constructor =
-        Handle<JSFunction>::cast(maybe_constructor);
-    Handle<String> name =
-        SharedFunctionInfo::DebugName(handle(constructor->shared(), isolate));
+    // Consider the following example:
+    //
+    //   function A() {}
+    //   function B() {}
+    //   B.prototype = new A();
+    //   B.prototype.constructor = B;
+    //
+    // The constructor name for `B.prototype` must yield "A", so we don't take
+    // "constructor" into account for the receiver itself, but only starting
+    // on the prototype chain.
+    if (!receiver.is_identical_to(current)) {
+      LookupIterator it_constructor(
+          isolate, receiver, isolate->factory()->constructor_string(), current,
+          LookupIterator::OWN_SKIP_INTERCEPTOR);
+      auto maybe_constructor = JSReceiver::GetDataProperty(
+          &it_constructor, AllocationPolicy::kAllocationDisallowed);
+      if (maybe_constructor->IsJSFunction()) {
+        auto constructor = Handle<JSFunction>::cast(maybe_constructor);
+        auto name = SharedFunctionInfo::DebugName(
+            handle(constructor->shared(), isolate));
 
-    if (name->length() != 0 &&
-        !name->Equals(ReadOnlyRoots(isolate).Object_string())) {
-      return std::make_pair(constructor, name);
+        if (name->length() != 0 &&
+            !name->Equals(ReadOnlyRoots(isolate).Object_string())) {
+          return std::make_pair(constructor, name);
+        }
+      }
     }
   }
 
@@ -2303,6 +2338,26 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSStringIterator::kHeaderSize;
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
+    case JS_TEMPORAL_CALENDAR_TYPE:
+      return JSTemporalCalendar::kHeaderSize;
+    case JS_TEMPORAL_DURATION_TYPE:
+      return JSTemporalDuration::kHeaderSize;
+    case JS_TEMPORAL_INSTANT_TYPE:
+      return JSTemporalInstant::kHeaderSize;
+    case JS_TEMPORAL_PLAIN_DATE_TYPE:
+      return JSTemporalPlainDate::kHeaderSize;
+    case JS_TEMPORAL_PLAIN_DATE_TIME_TYPE:
+      return JSTemporalPlainDateTime::kHeaderSize;
+    case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
+      return JSTemporalPlainMonthDay::kHeaderSize;
+    case JS_TEMPORAL_PLAIN_TIME_TYPE:
+      return JSTemporalPlainTime::kHeaderSize;
+    case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
+      return JSTemporalPlainYearMonth::kHeaderSize;
+    case JS_TEMPORAL_TIME_ZONE_TYPE:
+      return JSTemporalTimeZone::kHeaderSize;
+    case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
+      return JSTemporalZonedDateTime::kHeaderSize;
 #ifdef V8_INTL_SUPPORT
     case JS_V8_BREAK_ITERATOR_TYPE:
       return JSV8BreakIterator::kHeaderSize;
@@ -2545,6 +2600,20 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
       }
     }
   }
+}
+
+void JSObject::SetNormalizedElement(Handle<JSObject> object, uint32_t index,
+                                    Handle<Object> value,
+                                    PropertyDetails details) {
+  DCHECK_EQ(object->GetElementsKind(), DICTIONARY_ELEMENTS);
+
+  Isolate* isolate = object->GetIsolate();
+
+  Handle<NumberDictionary> dictionary =
+      handle(NumberDictionary::cast(object->elements()), isolate);
+  dictionary =
+      NumberDictionary::Set(isolate, dictionary, index, value, object, details);
+  object->set_elements(*dictionary);
 }
 
 void JSObject::JSObjectShortPrint(StringStream* accumulator) {
@@ -3317,23 +3386,25 @@ void JSObject::AddProperty(Isolate* isolate, Handle<JSObject> object,
 // hidden prototypes.
 MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-    AccessorInfoHandling handling) {
+    AccessorInfoHandling handling, EnforceDefineSemantics semantics) {
   MAYBE_RETURN_NULL(DefineOwnPropertyIgnoreAttributes(
-      it, value, attributes, Just(ShouldThrow::kThrowOnError), handling));
+      it, value, attributes, Just(ShouldThrow::kThrowOnError), handling,
+      semantics));
   return value;
 }
 
 Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-    Maybe<ShouldThrow> should_throw, AccessorInfoHandling handling) {
+    Maybe<ShouldThrow> should_throw, AccessorInfoHandling handling,
+    EnforceDefineSemantics semantics) {
   it->UpdateProtector();
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
 
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::JSPROXY:
-      case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
+      case LookupIterator::NOT_FOUND:
         UNREACHABLE();
 
       case LookupIterator::ACCESS_CHECK:
@@ -3352,13 +3423,36 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
       // TODO(verwaest): JSProxy afterwards verify the attributes that the
       // JSProxy claims it has, and verifies that they are compatible. If not,
       // they throw. Here we should do the same.
-      case LookupIterator::INTERCEPTOR:
-        if (handling == DONT_FORCE_FIELD) {
-          Maybe<bool> result =
-              JSObject::SetPropertyWithInterceptor(it, should_throw, value);
-          if (result.IsNothing() || result.FromJust()) return result;
+      case LookupIterator::INTERCEPTOR: {
+        Maybe<bool> result = Just(false);
+        if (semantics == EnforceDefineSemantics::kDefine) {
+          PropertyDescriptor descriptor;
+          descriptor.set_configurable((attributes & DONT_DELETE) != 0);
+          descriptor.set_enumerable((attributes & DONT_ENUM) != 0);
+          descriptor.set_writable((attributes & READ_ONLY) != 0);
+          descriptor.set_value(value);
+          result = DefinePropertyWithInterceptorInternal(
+              it, it->GetInterceptor(), should_throw, &descriptor);
+        } else {
+          DCHECK_EQ(semantics, EnforceDefineSemantics::kSet);
+          if (handling == DONT_FORCE_FIELD) {
+            result =
+                JSObject::SetPropertyWithInterceptor(it, should_throw, value);
+          }
+        }
+        if (result.IsNothing() || result.FromJust()) return result;
+
+        if (semantics == EnforceDefineSemantics::kDefine) {
+          it->Restart();
+          Maybe<bool> can_define = JSReceiver::CheckIfCanDefine(
+              it->isolate(), it, value, should_throw);
+          if (can_define.IsNothing() || !can_define.FromJust()) {
+            return can_define;
+          }
+          it->Restart();
         }
         break;
+      }
 
       case LookupIterator::ACCESSOR: {
         Handle<Object> accessors = it->GetAccessors();
@@ -3776,20 +3870,10 @@ Maybe<bool> JSObject::CreateDataProperty(LookupIterator* it,
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
   Isolate* isolate = receiver->GetIsolate();
 
-  if (it->IsFound()) {
-    Maybe<PropertyAttributes> attributes = GetPropertyAttributes(it);
-    MAYBE_RETURN(attributes, Nothing<bool>());
-    if ((attributes.FromJust() & DONT_DELETE) != 0) {
-      RETURN_FAILURE(
-          isolate, GetShouldThrow(isolate, should_throw),
-          NewTypeError(MessageTemplate::kRedefineDisallowed, it->GetName()));
-    }
-  } else {
-    if (!JSObject::IsExtensible(Handle<JSObject>::cast(it->GetReceiver()))) {
-      RETURN_FAILURE(
-          isolate, GetShouldThrow(isolate, should_throw),
-          NewTypeError(MessageTemplate::kDefineDisallowed, it->GetName()));
-    }
+  Maybe<bool> can_define =
+      JSReceiver::CheckIfCanDefine(isolate, it, value, should_throw);
+  if (can_define.IsNothing() || !can_define.FromJust()) {
+    return can_define;
   }
 
   RETURN_ON_EXCEPTION_VALUE(it->isolate(),

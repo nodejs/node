@@ -204,6 +204,10 @@ PrintSig PrintReturns(const FunctionSig* sig) {
 }
 std::string ValueTypeToConstantName(ValueType type) {
   switch (type.kind()) {
+    case kI8:
+      return "kWasmI8";
+    case kI16:
+      return "kWasmI16";
     case kI32:
       return "kWasmI32";
     case kI64:
@@ -231,6 +235,24 @@ std::string ValueTypeToConstantName(ValueType type) {
         case HeapType::kBottom:
         default:
           return "wasmOptRefType(" + std::to_string(type.ref_index()) + ")";
+      }
+    case kRef:
+      switch (type.heap_representation()) {
+        case HeapType::kExtern:
+          return "wasmRefType(kWasmExternRef)";
+        case HeapType::kFunc:
+          return "wasmRefType(kWasmFuncRef)";
+        case HeapType::kEq:
+          return "wasmRefType(kWasmEqRef)";
+        case HeapType::kAny:
+          return "wasmRefType(kWasmAnyRef)";
+        case HeapType::kData:
+          return "wasmRefType(kWasmDataRef)";
+        case HeapType::kI31:
+          return "wasmRefType(kWasmI31Ref)";
+        case HeapType::kBottom:
+        default:
+          return "wasmRefType(" + std::to_string(type.ref_index()) + ")";
       }
     default:
       UNREACHABLE();
@@ -344,6 +366,10 @@ void AppendInitExpr(std::ostream& os, ModuleWireBytes wire_bytes,
       os << "RefNull(" << HeapTypeToConstantName(heap_type);
       break;
     }
+    case kExprStructNew:
+      UNIMPLEMENTED();
+    case kExprArrayInit:
+      UNIMPLEMENTED();
     default:
       UNREACHABLE();
   }
@@ -623,11 +649,14 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
     GenerateTestCase(i_isolate, wire_bytes, compiles);
   }
 
-  bool validates =
-      GetWasmEngine()->SyncValidate(i_isolate, enabled_features, wire_bytes);
+  std::string error_message;
+  bool result = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
+                                              wire_bytes, &error_message);
 
-  CHECK_EQ(compiles, validates);
-  CHECK_IMPLIES(require_valid, validates);
+  CHECK_EQ(compiles, result);
+  CHECK_WITH_MSG(
+      !require_valid || result,
+      ("Generated module should validate, but got: " + error_message).c_str());
 
   if (!compiles) return;
 

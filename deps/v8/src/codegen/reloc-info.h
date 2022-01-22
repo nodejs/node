@@ -252,12 +252,9 @@ class RelocInfo {
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
   V8_INLINE Address target_address();
-  V8_INLINE HeapObject target_object();
+  // Cage base value is used for decompressing compressed embedded references.
+  V8_INLINE HeapObject target_object(PtrComprCageBase cage_base);
 
-  // In GC operations, we don't have a host_ pointer. Retrieving a target
-  // for COMPRESSED_EMBEDDED_OBJECT mode requires a pointer compression cage
-  // base value.
-  V8_INLINE HeapObject target_object_no_host(PtrComprCageBase cage_base);
   V8_INLINE Handle<HeapObject> target_object_handle(Assembler* origin);
 
   V8_INLINE void set_target_object(

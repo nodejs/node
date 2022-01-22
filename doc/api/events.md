@@ -740,7 +740,7 @@ added:
  - v13.4.0
  - v12.16.0
 changes:
-  - version: REPLACEME
+  - version: v17.4.0
     pr-url: https://github.com/nodejs/node/pull/41267
     description: No longer experimental.
 -->
@@ -1029,7 +1029,7 @@ added:
  - v13.4.0
  - v12.16.0
 changes:
-  - version: REPLACEME
+  - version: v17.4.0
     pr-url: https://github.com/nodejs/node/pull/41267
     description: No longer experimental.
 -->
@@ -1045,7 +1045,7 @@ added:
   - v13.4.0
   - v12.16.0
 changes:
-  - version: REPLACEME
+  - version: v17.4.0
     pr-url: https://github.com/nodejs/node/pull/41267
     description: No longer experimental.
 -->
@@ -1173,7 +1173,7 @@ setMaxListeners(5, target, emitter);
 ## Class: `events.EventEmitterAsyncResource extends EventEmitter`
 
 <!-- YAML
-added: REPLACEME
+added: v17.4.0
 -->
 
 Integrates `EventEmitter` with {AsyncResource} for `EventEmitter`s that

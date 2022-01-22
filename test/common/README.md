@@ -1031,5 +1031,5 @@ See [the WPT tests README][] for details.
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`hijackstdio.hijackStdErr()`]: #hijackstderrlistener
 [`hijackstdio.hijackStdOut()`]: #hijackstdoutlistener
-[internationalization]: https://github.com/nodejs/node/wiki/Intl
+[internationalization]: ../../doc/api/intl.md
 [the WPT tests README]: ../wpt/README.md

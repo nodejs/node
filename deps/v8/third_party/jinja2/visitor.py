@@ -1,14 +1,8 @@
 # -*- coding: utf-8 -*-
+"""API for traversing the AST nodes. Implemented by the compiler and
+meta introspection.
 """
-    jinja2.visitor
-    ~~~~~~~~~~~~~~
-
-    This module implements a visitor for the nodes.
-
-    :copyright: (c) 2017 by the Jinja Team.
-    :license: BSD.
-"""
-from jinja2.nodes import Node
+from .nodes import Node
 
 
 class NodeVisitor(object):
@@ -28,7 +22,7 @@ class NodeVisitor(object):
         exists for this node.  In that case the generic visit function is
         used instead.
         """
-        method = 'visit_' + node.__class__.__name__
+        method = "visit_" + node.__class__.__name__
         return getattr(self, method, None)
 
     def visit(self, node, *args, **kwargs):

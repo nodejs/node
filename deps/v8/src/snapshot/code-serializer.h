@@ -48,6 +48,17 @@ class V8_EXPORT_PRIVATE AlignedCachedData {
   int length_;
 };
 
+enum class SerializedCodeSanityCheckResult {
+  kSuccess = 0,
+  kMagicNumberMismatch = 1,
+  kVersionMismatch = 2,
+  kSourceMismatch = 3,
+  kFlagsMismatch = 5,
+  kChecksumMismatch = 6,
+  kInvalidHeader = 7,
+  kLengthMismatch = 8
+};
+
 class CodeSerializer : public Serializer {
  public:
   struct OffThreadDeserializeData {
@@ -56,6 +67,7 @@ class CodeSerializer : public Serializer {
     MaybeHandle<SharedFunctionInfo> maybe_result;
     std::vector<Handle<Script>> scripts;
     std::unique_ptr<PersistentHandles> persistent_handles;
+    SerializedCodeSanityCheckResult sanity_check_result;
   };
 
   CodeSerializer(const CodeSerializer&) = delete;
@@ -101,17 +113,6 @@ class CodeSerializer : public Serializer {
 // Wrapper around ScriptData to provide code-serializer-specific functionality.
 class SerializedCodeData : public SerializedData {
  public:
-  enum SanityCheckResult {
-    CHECK_SUCCESS = 0,
-    MAGIC_NUMBER_MISMATCH = 1,
-    VERSION_MISMATCH = 2,
-    SOURCE_MISMATCH = 3,
-    FLAGS_MISMATCH = 5,
-    CHECKSUM_MISMATCH = 6,
-    INVALID_HEADER = 7,
-    LENGTH_MISMATCH = 8
-  };
-
   // The data header consists of uint32_t-sized entries:
   // [0] magic number and (internally provided) external reference count
   // [1] version hash
@@ -129,11 +130,20 @@ class SerializedCodeData : public SerializedData {
   static const uint32_t kHeaderSize = POINTER_SIZE_ALIGN(kUnalignedHeaderSize);
 
   // Used when consuming.
-  static SerializedCodeData FromCachedData(AlignedCachedData* cached_data,
-                                           uint32_t expected_source_hash,
-                                           SanityCheckResult* rejection_result);
+  static SerializedCodeData FromCachedData(
+      AlignedCachedData* cached_data, uint32_t expected_source_hash,
+      SerializedCodeSanityCheckResult* rejection_result);
+  // For cached data which is consumed before the source is available (e.g.
+  // off-thread).
   static SerializedCodeData FromCachedDataWithoutSource(
-      AlignedCachedData* cached_data, SanityCheckResult* rejection_result);
+      AlignedCachedData* cached_data,
+      SerializedCodeSanityCheckResult* rejection_result);
+  // For cached data which was previously already sanity checked by
+  // FromCachedDataWithoutSource. The rejection result from that call should be
+  // passed into this one.
+  static SerializedCodeData FromPartiallySanityCheckedCachedData(
+      AlignedCachedData* cached_data, uint32_t expected_source_hash,
+      SerializedCodeSanityCheckResult* rejection_result);
 
   // Used when producing.
   SerializedCodeData(const std::vector<byte>* payload,
@@ -156,8 +166,11 @@ class SerializedCodeData : public SerializedData {
     return base::Vector<const byte>(data_ + kHeaderSize, size_ - kHeaderSize);
   }
 
-  SanityCheckResult SanityCheck(uint32_t expected_source_hash) const;
-  SanityCheckResult SanityCheckWithoutSource() const;
+  SerializedCodeSanityCheckResult SanityCheck(
+      uint32_t expected_source_hash) const;
+  SerializedCodeSanityCheckResult SanityCheckJustSource(
+      uint32_t expected_source_hash) const;
+  SerializedCodeSanityCheckResult SanityCheckWithoutSource() const;
 };
 
 }  // namespace internal

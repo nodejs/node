@@ -61,7 +61,38 @@ module.exports = class Square {
 };
 ```
 
-The module system is implemented in the `require('module')` module.
+The CommonJS module system is implemented in the [`module` core module][].
+
+## Enabling
+
+<!-- type=misc -->
+
+Node.js has two module systems: CommonJS modules and [ECMAScript modules][].
+
+By default, Node.js will treat the following as CommonJS modules:
+
+* Files with a `.cjs` extension;
+
+* Files with a `.js` extension when the nearest parent `package.json` file
+  contains a top-level field [`"type"`][] with a value of `"commonjs"`.
+
+* Files with a `.js` extension when the nearest parent `package.json` file
+  doesn't contain a top-level field [`"type"`][]. Package authors should include
+  the [`"type"`][] field, even in packages where all sources are CommonJS. Being
+  explicit about the `type` of the package will make things easier for build
+  tools and loaders to determine how the files in the package should be
+  interpreted.
+
+* Files with an extension that is not `.mjs`, `.cjs`, `.json`, `.node`, or `.js`
+  (when the nearest parent `package.json` file contains a top-level field
+  [`"type"`][] with a value of `"module"`, those files will be recognized as
+  CommonJS modules only if they are being `require`d, not when used as the
+  command-line entry point of the program).
+
+See [Determining module system][] for more details.
+
+Calling `require()` always use the CommonJS module loader. Calling `import()`
+always use the ECMAScript module loader.
 
 ## Accessing the main module
 
@@ -405,8 +436,8 @@ If the given path does not exist, `require()` will throw an [`Error`][] with its
 
 <!--type=misc-->
 
-It is convenient to organize programs and libraries into self-contained
-directories, and then provide a single entry point to those directories.
+> Stability: 3 - Legacy: Use [subpath exports][] or [subpath imports][] instead.
+
 There are three ways in which a folder may be passed to `require()` as
 an argument.
 
@@ -423,8 +454,6 @@ If this was in a folder at `./some-library`, then
 `require('./some-library')` would attempt to load
 `./some-library/lib/some-library.js`.
 
-This is the extent of the awareness of `package.json` files within Node.js.
-
 If there is no [`package.json`][] file present in the directory, or if the
 [`"main"`][] entry is missing or cannot be resolved, then Node.js
 will attempt to load an `index.js` or `index.node` file out of that
@@ -440,6 +469,11 @@ with the default error:
 ```console
 Error: Cannot find module 'some-library'
 ```
+
+In all three above cases, an `import('./some-library')` call would result in a
+[`ERR_UNSUPPORTED_DIR_IMPORT`][] error. Using package [subpath exports][] or
+[subpath imports][] can provide the same containment organization benefits as
+folders as modules, and work for both `require` and `import`.
 
 ## Loading from `node_modules` folders
 
@@ -1047,13 +1081,16 @@ This section was moved to
 [ECMAScript Modules]: esm.md
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
+[`"type"`]: packages.md#type
 [`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
+[`ERR_UNSUPPORTED_DIR_IMPORT`]: errors.md#err_unsupported_dir_import
 [`Error`]: errors.md#class-error
 [`__dirname`]: #__dirname
 [`__filename`]: #__filename
 [`import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [`module.children`]: #modulechildren
 [`module.id`]: #moduleid
+[`module` core module]: module.md
 [`module` object]: #the-module-object
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
@@ -1061,3 +1098,5 @@ This section was moved to
 [exports shortcut]: #exports-shortcut
 [module resolution]: #all-together
 [native addons]: addons.md
+[subpath exports]: packages.md#subpath-exports
+[subpath imports]: packages.md#subpath-imports

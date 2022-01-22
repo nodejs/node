@@ -15,6 +15,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/logging/counters.h"
 #include "src/objects/cell.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/megadom-handler.h"
@@ -590,15 +591,16 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
         Comment("indexed string");
         TNode<String> string_holder = CAST(holder);
-        TNode<UintPtrT> index = Unsigned(TryToIntptr(p->name(), miss));
+        TNode<IntPtrT> index = TryToIntptr(p->name(), miss);
         TNode<UintPtrT> length =
             Unsigned(LoadStringLengthAsWord(string_holder));
         GotoIf(UintPtrGreaterThanOrEqual(index, length), &if_oob_string);
-        TNode<Int32T> code = StringCharCodeAt(string_holder, index);
+        TNode<Int32T> code = StringCharCodeAt(string_holder, Unsigned(index));
         TNode<String> result = StringFromSingleCharCode(code);
         Return(result);
 
         BIND(&if_oob_string);
+        GotoIf(IntPtrLessThan(index, IntPtrConstant(0)), miss);
         TNode<BoolT> allow_out_of_bounds =
             IsSetWord<LoadHandler::AllowOutOfBoundsBits>(handler_word);
         GotoIfNot(allow_out_of_bounds, miss);
@@ -1222,6 +1224,10 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         properties, CAST(p->name()), &dictionary_found, &var_name_index, miss);
     BIND(&dictionary_found);
     {
+      if (p->IsDefineOwn()) {
+        // Take slow path to throw if a private name already exists.
+        GotoIf(IsPrivateSymbol(CAST(p->name())), &if_slow);
+      }
       Label if_constant(this), done(this);
       TNode<Uint32T> details =
           LoadDetailsByKeyIndex(properties, var_name_index.value());
@@ -1291,8 +1297,15 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         TailCallRuntime(Runtime::kStoreGlobalIC_Slow, p->context(), p->value(),
                         p->slot(), p->vector(), p->receiver(), p->name());
       } else {
-        TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context(), p->value(),
-                        p->receiver(), p->name());
+        Runtime::FunctionId id;
+        if (p->IsStoreOwn()) {
+          id = Runtime::kStoreOwnIC_Slow;
+        } else if (p->IsDefineOwn()) {
+          id = Runtime::kKeyedDefineOwnIC_Slow;
+        } else {
+          id = Runtime::kKeyedStoreIC_Slow;
+        }
+        TailCallRuntime(id, p->context(), p->value(), p->receiver(), p->name());
       }
     }
   }
@@ -1335,6 +1348,9 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     {
       TNode<PropertyCell> property_cell = CAST(map_or_property_cell);
       ExitPoint direct_exit(this);
+      // StoreGlobalIC_PropertyCellCase doesn't properly handle private names
+      // but they are not expected here anyway.
+      CSA_DCHECK(this, BoolConstant(!p->IsDefineOwn()));
       StoreGlobalIC_PropertyCellCase(property_cell, p->value(), &direct_exit,
                                      miss);
     }
@@ -1342,7 +1358,9 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     {
       TNode<Map> map = CAST(map_or_property_cell);
       HandleStoreICTransitionMapHandlerCase(p, map, miss,
-                                            kCheckPrototypeValidity);
+                                            p->IsAnyStoreOwn()
+                                                ? kDontCheckPrototypeValidity
+                                                : kCheckPrototypeValidity);
       Return(p->value());
     }
   }
@@ -1766,6 +1784,11 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       if (ic_mode == ICMode::kGlobalIC) {
         TailCallRuntime(Runtime::kStoreGlobalIC_Slow, p->context(), p->value(),
                         p->slot(), p->vector(), p->receiver(), p->name());
+      } else if (p->IsAnyStoreOwn()) {
+        // DefineOwnIC and StoreOwnIC shouldn't be using slow proto handlers,
+        // otherwise proper slow function must be called.
+        CSA_DCHECK(this, BoolConstant(!p->IsAnyStoreOwn()));
+        Unreachable();
       } else {
         TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context(), p->value(),
                         p->receiver(), p->name());
@@ -1845,6 +1868,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     BIND(&if_store_global_proxy);
     {
       ExitPoint direct_exit(this);
+      // StoreGlobalIC_PropertyCellCase doesn't properly handle private names
+      // but they are not expected here anyway.
+      CSA_DCHECK(this, BoolConstant(!p->IsDefineOwn()));
       StoreGlobalIC_PropertyCellCase(CAST(holder), p->value(), &direct_exit,
                                      miss);
     }
@@ -2768,14 +2794,17 @@ TNode<IntPtrT> AccessorAssembler::StubCachePrimaryOffset(TNode<Name> name,
   return Signed(result);
 }
 
-TNode<IntPtrT> AccessorAssembler::StubCacheSecondaryOffset(
-    TNode<Name> name, TNode<IntPtrT> seed) {
+TNode<IntPtrT> AccessorAssembler::StubCacheSecondaryOffset(TNode<Name> name,
+                                                           TNode<Map> map) {
   // See v8::internal::StubCache::SecondaryOffset().
 
   // Use the seed from the primary cache in the secondary cache.
   TNode<Int32T> name32 = TruncateIntPtrToInt32(BitcastTaggedToWord(name));
-  TNode<Int32T> hash = Int32Sub(TruncateIntPtrToInt32(seed), name32);
-  hash = Int32Add(hash, Int32Constant(StubCache::kSecondaryMagic));
+  TNode<Int32T> map32 = TruncateIntPtrToInt32(BitcastTaggedToWord(map));
+  // Base the offset on a simple combination of name and map.
+  TNode<Word32T> hash_a = Int32Add(map32, name32);
+  TNode<Word32T> hash_b = Word32Shr(hash_a, StubCache::kSecondaryKeyShift);
+  TNode<Word32T> hash = Int32Add(hash_a, hash_b);
   int32_t mask = (StubCache::kSecondaryTableSize - 1)
                  << StubCache::kCacheIndexShift;
   TNode<UintPtrT> result =
@@ -2845,7 +2874,7 @@ void AccessorAssembler::TryProbeStubCache(StubCache* stub_cache,
   {
     // Probe the secondary table.
     TNode<IntPtrT> secondary_offset =
-        StubCacheSecondaryOffset(name, primary_offset);
+        StubCacheSecondaryOffset(name, lookup_start_object_map);
     TryProbeStubCacheTable(stub_cache, kSecondary, secondary_offset, name,
                            lookup_start_object_map, if_handler, var_handler,
                            &miss);
@@ -3608,14 +3637,18 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
 
   BIND(&no_feedback);
   {
-    TailCallBuiltin(Builtin::kStoreIC_NoFeedback, p->context(), p->receiver(),
-                    p->name(), p->value(), p->slot());
+    auto builtin = p->IsStoreOwn() ? Builtin::kStoreOwnIC_NoFeedback
+                                   : Builtin::kStoreIC_NoFeedback;
+    TailCallBuiltin(builtin, p->context(), p->receiver(), p->name(), p->value(),
+                    p->slot());
   }
 
   BIND(&miss);
   {
-    TailCallRuntime(Runtime::kStoreIC_Miss, p->context(), p->value(), p->slot(),
-                    p->vector(), p->receiver(), p->name());
+    auto runtime =
+        p->IsStoreOwn() ? Runtime::kStoreOwnIC_Miss : Runtime::kStoreIC_Miss;
+    TailCallRuntime(runtime, p->context(), p->value(), p->slot(), p->vector(),
+                    p->receiver(), p->name());
   }
 }
 
@@ -3653,7 +3686,8 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
       StoreICParameters p(
           pp->context(),
           LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX),
-          pp->name(), pp->value(), pp->slot(), pp->vector());
+          pp->name(), pp->value(), pp->slot(), pp->vector(),
+          StoreICMode::kDefault);
 
       HandleStoreICHandlerCase(&p, handler, &miss, ICMode::kGlobalIC);
     }
@@ -3821,6 +3855,80 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
   {
     Comment("KeyedStoreIC_miss");
     TailCallRuntime(Runtime::kKeyedStoreIC_Miss, p->context(), p->value(),
+                    p->slot(), p->vector(), p->receiver(), p->name());
+  }
+}
+
+void AccessorAssembler::KeyedDefineOwnIC(const StoreICParameters* p) {
+  Label miss(this, Label::kDeferred);
+  {
+    TVARIABLE(MaybeObject, var_handler);
+
+    Label if_handler(this, &var_handler),
+        try_polymorphic(this, Label::kDeferred),
+        try_megamorphic(this, Label::kDeferred),
+        no_feedback(this, Label::kDeferred),
+        try_polymorphic_name(this, Label::kDeferred);
+
+    TNode<Map> receiver_map = LoadReceiverMap(p->receiver());
+    GotoIf(IsDeprecatedMap(receiver_map), &miss);
+
+    GotoIf(IsUndefined(p->vector()), &no_feedback);
+
+    // Check monomorphic case.
+    TNode<MaybeObject> feedback =
+        TryMonomorphicCase(p->slot(), CAST(p->vector()), receiver_map,
+                           &if_handler, &var_handler, &try_polymorphic);
+    BIND(&if_handler);
+    {
+      Comment("KeyedDefineOwnIC_if_handler");
+      HandleStoreICHandlerCase(p, var_handler.value(), &miss,
+                               ICMode::kNonGlobalIC, kSupportElements);
+    }
+
+    BIND(&try_polymorphic);
+    TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
+    {
+      // CheckPolymorphic case.
+      Comment("KeyedDefineOwnIC_try_polymorphic");
+      GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)),
+                &try_megamorphic);
+      HandlePolymorphicCase(receiver_map, CAST(strong_feedback), &if_handler,
+                            &var_handler, &miss);
+    }
+
+    BIND(&try_megamorphic);
+    {
+      // Check megamorphic case.
+      Comment("KeyedDefineOwnIC_try_megamorphic");
+      Branch(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()),
+             &no_feedback, &try_polymorphic_name);
+    }
+
+    BIND(&no_feedback);
+    {
+      TailCallBuiltin(Builtin::kKeyedDefineOwnIC_Megamorphic, p->context(),
+                      p->receiver(), p->name(), p->value(), p->slot());
+    }
+
+    BIND(&try_polymorphic_name);
+    {
+      // We might have a name in feedback, and a fixed array in the next slot.
+      Comment("KeyedDefineOwnIC_try_polymorphic_name");
+      GotoIfNot(TaggedEqual(strong_feedback, p->name()), &miss);
+      // If the name comparison succeeded, we know we have a feedback vector
+      // with at least one map/handler pair.
+      TNode<MaybeObject> feedback_element =
+          LoadFeedbackVectorSlot(CAST(p->vector()), p->slot(), kTaggedSize);
+      TNode<WeakFixedArray> array = CAST(feedback_element);
+      HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler,
+                            &miss);
+    }
+  }
+  BIND(&miss);
+  {
+    Comment("KeyedDefineOwnIC_miss");
+    TailCallRuntime(Runtime::kKeyedDefineOwnIC_Miss, p->context(), p->value(),
                     p->slot(), p->vector(), p->receiver(), p->name());
   }
 }
@@ -4298,7 +4406,8 @@ void AccessorAssembler::GenerateStoreGlobalIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, base::nullopt, name, value, slot, vector);
+  StoreICParameters p(context, base::nullopt, name, value, slot, vector,
+                      StoreICMode::kDefault);
   StoreGlobalIC(&p);
 }
 
@@ -4336,7 +4445,8 @@ void AccessorAssembler::GenerateStoreIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, receiver, name, value, slot, vector);
+  StoreICParameters p(context, receiver, name, value, slot, vector,
+                      StoreICMode::kDefault);
   StoreIC(&p);
 }
 
@@ -4368,6 +4478,49 @@ void AccessorAssembler::GenerateStoreICBaseline() {
                   vector);
 }
 
+void AccessorAssembler::GenerateStoreOwnIC() {
+  using Descriptor = StoreWithVectorDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  StoreICParameters p(context, receiver, name, value, slot, vector,
+                      StoreICMode::kStoreOwn);
+  StoreIC(&p);
+}
+
+void AccessorAssembler::GenerateStoreOwnICTrampoline() {
+  using Descriptor = StoreDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
+
+  TailCallBuiltin(Builtin::kStoreOwnIC, context, receiver, name, value, slot,
+                  vector);
+}
+
+void AccessorAssembler::GenerateStoreOwnICBaseline() {
+  using Descriptor = StoreWithVectorDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  TailCallBuiltin(Builtin::kStoreOwnIC, context, receiver, name, value, slot,
+                  vector);
+}
+
 void AccessorAssembler::GenerateKeyedStoreIC() {
   using Descriptor = StoreWithVectorDescriptor;
 
@@ -4378,7 +4531,8 @@ void AccessorAssembler::GenerateKeyedStoreIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, receiver, name, value, slot, vector);
+  StoreICParameters p(context, receiver, name, value, slot, vector,
+                      StoreICMode::kDefault);
   KeyedStoreIC(&p);
 }
 
@@ -4410,6 +4564,49 @@ void AccessorAssembler::GenerateKeyedStoreICBaseline() {
                   vector);
 }
 
+void AccessorAssembler::GenerateKeyedDefineOwnIC() {
+  using Descriptor = StoreWithVectorDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  StoreICParameters p(context, receiver, name, value, slot, vector,
+                      StoreICMode::kDefineOwn);
+  KeyedDefineOwnIC(&p);
+}
+
+void AccessorAssembler::GenerateKeyedDefineOwnICTrampoline() {
+  using Descriptor = StoreDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
+
+  TailCallBuiltin(Builtin::kKeyedDefineOwnIC, context, receiver, name, value,
+                  slot, vector);
+}
+
+void AccessorAssembler::GenerateKeyedDefineOwnICBaseline() {
+  using Descriptor = StoreBaselineDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  TailCallBuiltin(Builtin::kKeyedDefineOwnIC, context, receiver, name, value,
+                  slot, vector);
+}
+
 void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
   using Descriptor = StoreWithVectorDescriptor;
 
@@ -4420,7 +4617,8 @@ void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, array, index, value, slot, vector);
+  StoreICParameters p(context, array, index, value, slot, vector,
+                      StoreICMode::kDefault);
   StoreInArrayLiteralIC(&p);
 }
 

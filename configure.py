@@ -47,7 +47,8 @@ parser = argparse.ArgumentParser()
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
             'android', 'aix', 'cloudabi')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'mips64el', 'ppc',
-              'ppc64', 'x32','x64', 'x86', 'x86_64', 's390x', 'riscv64')
+              'ppc64', 'x32','x64', 'x86', 'x86_64', 's390x', 'riscv64',
+              'loong64')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
 valid_arm_fpu = ('vfp', 'vfpv3', 'vfpv3-d16', 'neon')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
@@ -775,6 +776,13 @@ parser.add_argument('--v8-enable-object-print',
     default=True,
     help='compile V8 with auxiliar functions for native debuggers')
 
+parser.add_argument('--v8-enable-hugepage',
+    action='store_true',
+    dest='v8_enable_hugepage',
+    default=None,
+    help='Enable V8 transparent hugepage support. This feature is only '+
+         'available on Linux platform.')
+
 parser.add_argument('--node-builtin-modules-path',
     action='store',
     dest='node_builtin_modules_path',
@@ -1075,6 +1083,7 @@ def host_arch_cc():
     '__x86_64__'  : 'x64',
     '__s390x__'   : 's390x',
     '__riscv'     : 'riscv',
+    '__loongarch64': 'loong64',
   }
 
   rtn = 'ia32' # default
@@ -1432,7 +1441,9 @@ def configure_v8(o):
     raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
   if options.static_zoslib_gyp:
     o['variables']['static_zoslib_gyp'] = options.static_zoslib_gyp
-
+  if flavor != 'linux' and options.v8_enable_hugepage:
+    raise Exception('--v8-enable-hugepage is supported only on linux.')
+  o['variables']['v8_enable_hugepage'] = 1 if options.v8_enable_hugepage else 0
 
 def configure_openssl(o):
   variables = o['variables']
@@ -2031,8 +2042,8 @@ if options.compile_commands_json:
 if bin_override is not None:
   gyp_args += ['-Dpython=' + sys.executable]
 
-# pass the leftover positional arguments to GYP
-gyp_args += args
+# pass the leftover non-whitespace positional arguments to GYP
+gyp_args += [arg for arg in args if not str.isspace(arg)]
 
 if warn.warned and not options.verbose:
   warn('warnings were emitted in the configure phase')

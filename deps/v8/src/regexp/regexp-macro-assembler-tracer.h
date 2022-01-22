@@ -18,7 +18,9 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   ~RegExpMacroAssemblerTracer() override;
   void AbortedCodeGeneration() override;
   int stack_limit_slack() override { return assembler_->stack_limit_slack(); }
-  bool CanReadUnaligned() override { return assembler_->CanReadUnaligned(); }
+  bool CanReadUnaligned() const override {
+    return assembler_->CanReadUnaligned();
+  }
   void AdvanceCurrentPosition(int by) override;    // Signed cp change.
   void AdvanceRegister(int reg, int by) override;  // r[reg] += by.
   void Backtrack() override;
@@ -46,9 +48,14 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
                              Label* on_in_range) override;
   void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
                                 Label* on_not_in_range) override;
+  bool CheckCharacterInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                  Label* on_in_range) override;
+  bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                     Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialCharacterClass(base::uc16 type, Label* on_no_match) override;
+  bool CheckSpecialCharacterClass(StandardCharacterSet type,
+                                  Label* on_no_match) override;
   void Fail() override;
   Handle<HeapObject> GetCode(Handle<String> source) override;
   void GoTo(Label* label) override;

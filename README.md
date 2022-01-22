@@ -378,10 +378,10 @@ For information about the governance of the Node.js project, see
   **Denys Otrishko** <<shishugi@gmail.com>> (he/him)
 * [Lxxyx](https://github.com/Lxxyx) -
   **Zijian Liu** <<lxxyxzj@gmail.com>> (he/him)
-* [mafintosh](https://github.com/mafintosh) -
-  **Mathias Buus** <<mathiasbuus@gmail.com>> (he/him)
 * [mcollina](https://github.com/mcollina) -
   **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
+* [Mesteery](https://github.com/Mesteery) -
+  **Mestery** <<mestery@protonmail.com>> (he/him)
 * [mhdawson](https://github.com/mhdawson) -
   **Michael Dawson** <<midawson@redhat.com>> (he/him)
 * [miladfarca](https://github.com/miladfarca) -
@@ -542,6 +542,8 @@ For information about the governance of the Node.js project, see
   **Aleksey Smolenchuk** <<lxe@lxe.co>>
 * [maclover7](https://github.com/maclover7) -
   **Jon Moss** <<me@jonathanmoss.me>> (he/him)
+* [mafintosh](https://github.com/mafintosh) -
+  **Mathias Buus** <<mathiasbuus@gmail.com>> (he/him)
 * [matthewloring](https://github.com/matthewloring) -
   **Matthew Loring** <<mattloring@google.com>>
 * [micnic](https://github.com/micnic) -
@@ -633,7 +635,7 @@ For information about the governance of the Node.js project, see
 
 <!--lint enable prohibited-strings-->
 
-Collaborators follow the [Collaborator Guide](./doc/guides/collaborator-guide.md) in
+Collaborators follow the [Collaborator Guide](./doc/contributing/collaborator-guide.md) in
 maintaining the Node.js project.
 
 ### Triagers
@@ -739,6 +741,6 @@ license text.
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Website]: https://nodejs.org/
 [OpenJS Foundation]: https://openjsf.org/
-[Strategic initiatives]: doc/guides/strategic-initiatives.md
-[Technical values and prioritization]: doc/guides/technical-values.md
+[Strategic initiatives]: doc/contributing/strategic-initiatives.md
+[Technical values and prioritization]: doc/contributing/technical-values.md
 [Working Groups]: https://github.com/nodejs/TSC/blob/HEAD/WORKING_GROUPS.md

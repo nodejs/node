@@ -88,8 +88,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   static void LogFunctionCompilation(Isolate* isolate,
                                      CodeEventListener::LogEventsAndTags tag,
-                                     Handle<SharedFunctionInfo> shared,
                                      Handle<Script> script,
+                                     Handle<SharedFunctionInfo> shared,
+                                     Handle<FeedbackVector> feedback_vector,
                                      Handle<AbstractCode> abstract_code,
                                      CodeKind kind, double time_taken_ms);
   // Collect source positions for a function that has already been compiled to
@@ -130,7 +131,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
       Handle<Context> context, LanguageMode language_mode,
       ParseRestriction restriction, int parameters_end_pos,
-      int eval_scope_position, int eval_position);
+      int eval_scope_position, int eval_position,
+      ParsingWhileDebugging parsing_while_debugging =
+          ParsingWhileDebugging::kNo);
 
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.
@@ -206,6 +209,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForStreamedScript(
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details, ScriptStreamingData* streaming_data);
+
+  static Handle<SharedFunctionInfo> GetSharedFunctionInfoForWebSnapshot(
+      Isolate* isolate, Handle<String> source);
 
   // Create a shared function info object for the given function literal
   // node (the code may be lazily compiled).
@@ -525,6 +531,11 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
     return &finalize_unoptimized_compilation_data_;
   }
 
+  int use_count(v8::Isolate::UseCounterFeature feature) const {
+    return use_counts_[static_cast<int>(feature)];
+  }
+  int total_preparse_skipped() const { return total_preparse_skipped_; }
+
   // Jobs which could not be finalized in the background task, and need to be
   // finalized on the main thread.
   DeferredFinalizationJobDataList* jobs_to_retry_finalization_on_main_thread() {
@@ -559,6 +570,8 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   IsCompiledScope is_compiled_scope_;
   FinalizeUnoptimizedCompilationDataList finalize_unoptimized_compilation_data_;
   DeferredFinalizationJobDataList jobs_to_retry_finalization_on_main_thread_;
+  int use_counts_[v8::Isolate::kUseCounterFeatureCount] = {0};
+  int total_preparse_skipped_ = 0;
 
   // Single function data for top-level function compilation.
   int start_position_;

@@ -65,6 +65,16 @@
 //         - JSRegExp
 //         - JSSetIterator
 //         - JSStringIterator
+//         - JSTemporalCalendar
+//         - JSTemporalDuration
+//         - JSTemporalInstant
+//         - JSTemporalPlainDate
+//         - JSTemporalPlainDateTime
+//         - JSTemporalPlainMonthDay
+//         - JSTemporalPlainTime
+//         - JSTemporalPlainYearMonth
+//         - JSTemporalTimeZone
+//         - JSTemporalZonedDateTime
 //         - JSWeakCollection
 //           - JSWeakMap
 //           - JSWeakSet
@@ -275,6 +285,12 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   explicit constexpr Object(Address ptr) : TaggedImpl(ptr) {}
 
   V8_INLINE bool IsTaggedIndex() const;
+
+  // Whether the object is in the RO heap and the RO heap is shared, or in the
+  // writable shared heap.
+  V8_INLINE bool InSharedHeap() const;
+
+  V8_INLINE bool InSharedWritableHeap() const;
 
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
@@ -683,6 +699,18 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   }
 
   //
+  // CagedPointer field accessors.
+  //
+#ifdef V8_CAGED_POINTERS
+  inline Address ReadCagedPointerField(size_t offset,
+                                       PtrComprCageBase cage_base) const;
+  inline void WriteCagedPointerField(size_t offset, PtrComprCageBase cage_base,
+                                     Address value);
+  inline void WriteCagedPointerField(size_t offset, Isolate* isolate,
+                                     Address value);
+#endif  // V8_CAGED_POINTERS
+
+  //
   // ExternalPointer_t field accessors.
   //
   inline void InitExternalPointerField(size_t offset, Isolate* isolate);
@@ -692,6 +720,13 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                           ExternalPointerTag tag) const;
   inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
                                         Address value, ExternalPointerTag tag);
+
+  // If the receiver is the JSGlobalObject, the store was contextual. In case
+  // the property did not exist yet on the global object itself, we have to
+  // throw a reference error in strict mode.  In sloppy mode, we continue.
+  // Returns false if the exception was thrown, otherwise true.
+  static bool CheckContextualStoreToJSGlobalObject(
+      LookupIterator* it, Maybe<ShouldThrow> should_throw);
 
  protected:
   inline Address field_address(size_t offset) const {

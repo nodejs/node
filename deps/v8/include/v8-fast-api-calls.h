@@ -460,12 +460,6 @@ class V8_EXPORT CFunction {
     return ArgUnwrap<F*>::Make(func);
   }
 
-  template <typename F>
-  V8_DEPRECATED("Use CFunctionBuilder instead.")
-  static CFunction MakeWithFallbackSupport(F* func) {
-    return ArgUnwrap<F*>::Make(func);
-  }
-
   CFunction(const void* address, const CFunctionInfo* type_info);
 
  private:
@@ -684,17 +678,19 @@ struct TypeInfoHelper<FastApiCallbackOptions&> {
 #define STATIC_ASSERT_IMPLIES(COND, ASSERTION, MSG) \
   static_assert(((COND) == 0) || (ASSERTION), MSG)
 
+}  // namespace internal
+
 template <typename T, CTypeInfo::Flags... Flags>
-class CTypeInfoBuilder {
+class V8_EXPORT CTypeInfoBuilder {
  public:
   using BaseType = T;
 
   static constexpr CTypeInfo Build() {
     constexpr CTypeInfo::Flags kFlags =
-        MergeFlags(TypeInfoHelper<T>::Flags(), Flags...);
-    constexpr CTypeInfo::Type kType = TypeInfoHelper<T>::Type();
+        MergeFlags(internal::TypeInfoHelper<T>::Flags(), Flags...);
+    constexpr CTypeInfo::Type kType = internal::TypeInfoHelper<T>::Type();
     constexpr CTypeInfo::SequenceType kSequenceType =
-        TypeInfoHelper<T>::SequenceType();
+        internal::TypeInfoHelper<T>::SequenceType();
 
     STATIC_ASSERT_IMPLIES(
         uint8_t(kFlags) & uint8_t(CTypeInfo::Flags::kAllowSharedBit),
@@ -722,8 +718,8 @@ class CTypeInfoBuilder {
         "TypedArrays are only supported from primitive types or void.");
 
     // Return the same type with the merged flags.
-    return CTypeInfo(TypeInfoHelper<T>::Type(),
-                     TypeInfoHelper<T>::SequenceType(), kFlags);
+    return CTypeInfo(internal::TypeInfoHelper<T>::Type(),
+                     internal::TypeInfoHelper<T>::SequenceType(), kFlags);
   }
 
  private:
@@ -735,6 +731,7 @@ class CTypeInfoBuilder {
   static constexpr CTypeInfo::Flags MergeFlags() { return CTypeInfo::Flags(0); }
 };
 
+namespace internal {
 template <typename RetBuilder, typename... ArgBuilders>
 class CFunctionBuilderWithFunction {
  public:
@@ -864,24 +861,28 @@ bool V8_EXPORT V8_WARN_UNUSED_RESULT TryToCopyAndConvertArrayToCppBuffer(
     Local<Array> src, T* dst, uint32_t max_length);
 
 template <>
-bool V8_EXPORT V8_WARN_UNUSED_RESULT TryToCopyAndConvertArrayToCppBuffer<
-    internal::CTypeInfoBuilder<int32_t>::Build().GetId(), int32_t>(
-    Local<Array> src, int32_t* dst, uint32_t max_length);
+bool V8_EXPORT V8_WARN_UNUSED_RESULT
+TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<int32_t>::Build().GetId(),
+                                    int32_t>(Local<Array> src, int32_t* dst,
+                                             uint32_t max_length);
 
 template <>
-bool V8_EXPORT V8_WARN_UNUSED_RESULT TryToCopyAndConvertArrayToCppBuffer<
-    internal::CTypeInfoBuilder<uint32_t>::Build().GetId(), uint32_t>(
-    Local<Array> src, uint32_t* dst, uint32_t max_length);
+bool V8_EXPORT V8_WARN_UNUSED_RESULT
+TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<uint32_t>::Build().GetId(),
+                                    uint32_t>(Local<Array> src, uint32_t* dst,
+                                              uint32_t max_length);
 
 template <>
-bool V8_EXPORT V8_WARN_UNUSED_RESULT TryToCopyAndConvertArrayToCppBuffer<
-    internal::CTypeInfoBuilder<float>::Build().GetId(), float>(
-    Local<Array> src, float* dst, uint32_t max_length);
+bool V8_EXPORT V8_WARN_UNUSED_RESULT
+TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<float>::Build().GetId(),
+                                    float>(Local<Array> src, float* dst,
+                                           uint32_t max_length);
 
 template <>
-bool V8_EXPORT V8_WARN_UNUSED_RESULT TryToCopyAndConvertArrayToCppBuffer<
-    internal::CTypeInfoBuilder<double>::Build().GetId(), double>(
-    Local<Array> src, double* dst, uint32_t max_length);
+bool V8_EXPORT V8_WARN_UNUSED_RESULT
+TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<double>::Build().GetId(),
+                                    double>(Local<Array> src, double* dst,
+                                            uint32_t max_length);
 
 }  // namespace v8
 

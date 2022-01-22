@@ -875,7 +875,7 @@ console.log(`This processor architecture is ${arch}`);
 ```cjs
 const { arch } = require('process');
 
-console.log(`This processor architecture is ${process.arch}`);
+console.log(`This processor architecture is ${arch}`);
 ```
 
 ## `process.argv`

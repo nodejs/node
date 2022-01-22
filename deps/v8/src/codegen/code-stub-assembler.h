@@ -9,7 +9,6 @@
 
 #include "src/base/macros.h"
 #include "src/codegen/bailout-reason.h"
-#include "src/common/external-pointer.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/compiler/code-assembler.h"
@@ -27,6 +26,7 @@
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
+#include "src/security/external-pointer.h"
 #include "torque-generated/exported-macros-assembler.h"
 
 namespace v8 {
@@ -804,7 +804,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Code> FromCodeT(TNode<CodeT> code) {
 #ifdef V8_EXTERNAL_CODE_SPACE
-    return LoadObjectField<Code>(code, CodeDataContainer::kCodeOffset);
+#if V8_TARGET_BIG_ENDIAN
+#error "This code requires updating for big-endian architectures"
+#endif
+    // Given the fields layout we can read the Code reference as a full word.
+    STATIC_ASSERT(CodeDataContainer::kCodeCageBaseUpper32BitsOffset ==
+                  CodeDataContainer::kCodeOffset + kTaggedSize);
+    TNode<Object> o = BitcastWordToTagged(Load<RawPtrT>(
+        code, IntPtrConstant(CodeDataContainer::kCodeOffset - kHeapObjectTag)));
+    return CAST(o);
 #else
     return code;
 #endif
@@ -836,6 +844,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return code;
 #endif
   }
+
+  TNode<RawPtrT> GetCodeEntry(TNode<CodeT> code);
 
   // The following Call wrappers call an object according to the semantics that
   // one finds in the EcmaScript spec, operating on an Callable (e.g. a
@@ -1031,6 +1041,33 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   //
   // Works only with V8_ENABLE_FORCE_SLOW_PATH compile time flag. Nop otherwise.
   void GotoIfForceSlowPath(Label* if_true);
+
+#ifdef V8_CAGED_POINTERS
+
+  //
+  // Caged pointer related functionality.
+  //
+
+  // Load a caged pointer value from an object.
+  TNode<CagedPtrT> LoadCagedPointerFromObject(TNode<HeapObject> object,
+                                              int offset) {
+    return LoadCagedPointerFromObject(object, IntPtrConstant(offset));
+  }
+
+  TNode<CagedPtrT> LoadCagedPointerFromObject(TNode<HeapObject> object,
+                                              TNode<IntPtrT> offset);
+
+  // Stored a caged pointer value to an object.
+  void StoreCagedPointerToObject(TNode<HeapObject> object, int offset,
+                                 TNode<CagedPtrT> pointer) {
+    StoreCagedPointerToObject(object, IntPtrConstant(offset), pointer);
+  }
+
+  void StoreCagedPointerToObject(TNode<HeapObject> object,
+                                 TNode<IntPtrT> offset,
+                                 TNode<CagedPtrT> pointer);
+
+#endif  // V8_CAGED_POINTERS
 
   //
   // ExternalPointerT-related functionality.

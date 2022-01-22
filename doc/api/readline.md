@@ -33,7 +33,7 @@ The following simple example illustrates the basic use of the `readline` module.
 
 ```mjs
 import * as readline from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'process';
+import { stdin as input, stdout as output } from 'node:process';
 
 const rl = readline.createInterface({ input, output });
 
@@ -1314,6 +1314,16 @@ const { createInterface } = require('readline');
     <td></td>
   </tr>
   <tr>
+    <td><kbd>Ctrl</kbd>+<kbd>Y</kbd></td>
+    <td>Yank (Recall) the previously deleted text</td>
+    <td>Only works with text deleted by <kbd>Ctrl</kbd>+<kbd>U</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd></td>
+  </tr>
+  <tr>
+    <td><kbd>Meta</kbd>+<kbd>Y</kbd></td>
+    <td>Cycle among previously deleted lines</td>
+    <td>Only available when the last keystroke is <kbd>Ctrl</kbd>+<kbd>Y</kbd></td>
+  </tr>
+  <tr>
     <td><kbd>Ctrl</kbd>+<kbd>A</kbd></td>
     <td>Go to start of line</td>
     <td></td>
@@ -1346,6 +1356,12 @@ const { createInterface } = require('readline');
   <tr>
     <td><kbd>Ctrl</kbd>+<kbd>P</kbd></td>
     <td>Previous history item</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><kbd>Ctrl</kbd>+<kbd>-</kbd></td>
+    <td>Undo previous change</td>
+    <td>Any keystroke emits key code <code>0x1F</code> would do this action.</td>
     <td></td>
   </tr>
   <tr>

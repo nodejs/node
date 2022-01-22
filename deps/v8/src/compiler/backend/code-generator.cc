@@ -1213,10 +1213,10 @@ DeoptimizationExit* CodeGenerator::BuildTranslation(
   }
   if (immediate_args_count != 0) {
     auto immediate_args = zone()->New<ZoneVector<ImmediateOperand*>>(zone());
-    InstructionOperandIterator iter(
+    InstructionOperandIterator imm_iter(
         instr, frame_state_offset - immediate_args_count - 1);
     for (size_t i = 0; i < immediate_args_count; i++) {
-      immediate_args->emplace_back(ImmediateOperand::cast(iter.Advance()));
+      immediate_args->emplace_back(ImmediateOperand::cast(imm_iter.Advance()));
     }
     exit->set_immediate_args(immediate_args);
   }

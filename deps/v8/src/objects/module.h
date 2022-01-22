@@ -177,6 +177,13 @@ class JSModuleNamespace
   TQ_OBJECT_CONSTRUCTORS(JSModuleNamespace)
 };
 
+class ScriptOrModule
+    : public TorqueGeneratedScriptOrModule<ScriptOrModule, Struct> {
+ public:
+  DECL_PRINTER(ScriptOrModule)
+  TQ_OBJECT_CONSTRUCTORS(ScriptOrModule)
+};
+
 }  // namespace internal
 }  // namespace v8
 

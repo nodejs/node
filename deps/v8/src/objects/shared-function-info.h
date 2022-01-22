@@ -378,7 +378,7 @@ class SharedFunctionInfo
   //  - a DebugInfo which holds the actual script [HasDebugInfo()].
   DECL_RELEASE_ACQUIRE_ACCESSORS(script_or_debug_info, HeapObject)
 
-  inline HeapObject script() const;
+  DECL_GETTER(script, HeapObject)
   inline void set_script(HeapObject script);
 
   // True if the underlying script was parsed and compiled in REPL mode.

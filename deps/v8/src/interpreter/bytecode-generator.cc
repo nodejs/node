@@ -2770,41 +2770,51 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr, Register name) {
 
 void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
   RegisterAllocationScope register_scope(this);
-  RegisterList args = register_allocator()->NewRegisterList(3);
-  Register constructor = args[0], key = args[1], value = args[2];
-  builder()->MoveRegister(builder()->Receiver(), constructor);
+  Register key;
 
   // Private methods are not initialized in BuildClassProperty.
   DCHECK_IMPLIES(property->is_private(),
                  property->kind() == ClassLiteral::Property::FIELD);
 
-  if (property->is_computed_name()) {
-    DCHECK_EQ(property->kind(), ClassLiteral::Property::FIELD);
-    DCHECK(!property->is_private());
-    Variable* var = property->computed_name_var();
-    DCHECK_NOT_NULL(var);
-    // The computed name is already evaluated and stored in a variable at class
-    // definition time.
-    BuildVariableLoad(var, HoleCheckMode::kElided);
-    builder()->StoreAccumulatorInRegister(key);
-  } else if (property->is_private()) {
-    Variable* private_name_var = property->private_name_var();
-    DCHECK_NOT_NULL(private_name_var);
-    BuildVariableLoad(private_name_var, HoleCheckMode::kElided);
-    builder()->StoreAccumulatorInRegister(key);
-  } else {
-    BuildLoadPropertyKey(property, key);
+  bool is_literal_store = property->key()->IsPropertyName() &&
+                          !property->is_computed_name() &&
+                          !property->is_private();
+
+  if (!is_literal_store) {
+    key = register_allocator()->NewRegister();
+    if (property->is_computed_name()) {
+      DCHECK_EQ(property->kind(), ClassLiteral::Property::FIELD);
+      DCHECK(!property->is_private());
+      Variable* var = property->computed_name_var();
+      DCHECK_NOT_NULL(var);
+      // The computed name is already evaluated and stored in a variable at
+      // class definition time.
+      BuildVariableLoad(var, HoleCheckMode::kElided);
+      builder()->StoreAccumulatorInRegister(key);
+    } else if (property->is_private()) {
+      Variable* private_name_var = property->private_name_var();
+      DCHECK_NOT_NULL(private_name_var);
+      BuildVariableLoad(private_name_var, HoleCheckMode::kElided);
+      builder()->StoreAccumulatorInRegister(key);
+    } else {
+      VisitForRegisterValue(property->key(), key);
+    }
   }
 
   builder()->SetExpressionAsStatementPosition(property->value());
-  VisitForRegisterValue(property->value(), value);
+  VisitForAccumulatorValue(property->value());
 
-  Runtime::FunctionId function_id =
-      property->kind() == ClassLiteral::Property::FIELD &&
-              !property->is_private()
-          ? Runtime::kCreateDataProperty
-          : Runtime::kAddPrivateField;
-  builder()->CallRuntime(function_id, args);
+  if (is_literal_store) {
+    FeedbackSlot slot = feedback_spec()->AddStoreOwnICSlot();
+    builder()->StoreNamedOwnProperty(
+        builder()->Receiver(),
+        property->key()->AsLiteral()->AsRawPropertyName(),
+        feedback_index(slot));
+  } else {
+    FeedbackSlot slot = feedback_spec()->AddKeyedDefineOwnICSlot();
+    builder()->DefineKeyedProperty(builder()->Receiver(), key,
+                                   feedback_index(slot));
+  }
 }
 
 void BytecodeGenerator::VisitInitializeClassMembersStatement(
@@ -2844,17 +2854,17 @@ void BytecodeGenerator::BuildInvalidPropertyAccess(MessageTemplate tmpl,
 }
 
 void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver) {
-  RegisterList brand_args = register_allocator()->NewRegisterList(3);
   Variable* brand = info()->scope()->outer_scope()->AsClassScope()->brand();
   int depth = execution_context()->ContextChainDepth(brand->scope());
   ContextScope* class_context = execution_context()->Previous(depth);
 
   BuildVariableLoad(brand, HoleCheckMode::kElided);
+  Register brand_reg = register_allocator()->NewRegister();
+  FeedbackSlot slot = feedback_spec()->AddKeyedDefineOwnICSlot();
   builder()
-      ->StoreAccumulatorInRegister(brand_args[1])
-      .MoveRegister(receiver, brand_args[0])
-      .MoveRegister(class_context->reg(), brand_args[2])
-      .CallRuntime(Runtime::kAddPrivateBrand, brand_args);
+      ->StoreAccumulatorInRegister(brand_reg)
+      .LoadAccumulatorWithRegister(class_context->reg())
+      .DefineKeyedProperty(receiver, brand_reg, feedback_index(slot));
 }
 
 void BytecodeGenerator::BuildInstanceMemberInitialization(Register constructor,
@@ -3016,88 +3026,79 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     BuildCreateObjectLiteral(literal, flags, entry);
   }
 
-  // If we used CloneObject for the first element is spread case, we already
-  // copied accessors. Therefore skip the static initialization and treat all
-  // properties after the spread as dynamic.
-  // TOOD(v8:9888): Use new Define ICs instead of Set ICs in the clone object
-  // spread case.
-  if (!clone_object_spread) {
-    // Store computed values into the literal.
-    AccessorTable<ObjectLiteral::Property> accessor_table(zone());
-    for (; property_index < expr->properties()->length(); property_index++) {
-      ObjectLiteral::Property* property =
-          expr->properties()->at(property_index);
-      if (property->is_computed_name()) break;
-      if (property->IsCompileTimeValue()) continue;
+  // Store computed values into the literal.
+  AccessorTable<ObjectLiteral::Property> accessor_table(zone());
+  for (; property_index < expr->properties()->length(); property_index++) {
+    ObjectLiteral::Property* property = expr->properties()->at(property_index);
+    if (property->is_computed_name()) break;
+    if (!clone_object_spread && property->IsCompileTimeValue()) continue;
 
-      RegisterAllocationScope inner_register_scope(this);
-      Literal* key = property->key()->AsLiteral();
-      switch (property->kind()) {
-        case ObjectLiteral::Property::SPREAD:
-        case ObjectLiteral::Property::CONSTANT:
-          UNREACHABLE();
-        case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-          DCHECK(!property->value()->IsCompileTimeValue());
-          V8_FALLTHROUGH;
-        case ObjectLiteral::Property::COMPUTED: {
-          // It is safe to use [[Put]] here because the boilerplate already
-          // contains computed properties with an uninitialized value.
+    RegisterAllocationScope inner_register_scope(this);
+    Literal* key = property->key()->AsLiteral();
+    switch (property->kind()) {
+      case ObjectLiteral::Property::SPREAD:
+        UNREACHABLE();
+      case ObjectLiteral::Property::CONSTANT:
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        DCHECK(clone_object_spread || !property->value()->IsCompileTimeValue());
+        V8_FALLTHROUGH;
+      case ObjectLiteral::Property::COMPUTED: {
+        // It is safe to use [[Put]] here because the boilerplate already
+        // contains computed properties with an uninitialized value.
+        Register key_reg;
+        if (key->IsStringLiteral()) {
+          DCHECK(key->IsPropertyName());
+        } else {
+          key_reg = register_allocator()->NewRegister();
+          builder()->SetExpressionPosition(property->key());
+          VisitForRegisterValue(property->key(), key_reg);
+        }
+
+        object_literal_context_scope.SetEnteredIf(
+            property->value()->IsConciseMethodDefinition());
+        builder()->SetExpressionPosition(property->value());
+
+        if (property->emit_store()) {
+          VisitForAccumulatorValue(property->value());
           if (key->IsStringLiteral()) {
-            DCHECK(key->IsPropertyName());
-            object_literal_context_scope.SetEnteredIf(
-                property->value()->IsConciseMethodDefinition());
-            if (property->emit_store()) {
-              builder()->SetExpressionPosition(property->value());
-              VisitForAccumulatorValue(property->value());
-              FeedbackSlot slot = feedback_spec()->AddStoreOwnICSlot();
-              builder()->StoreNamedOwnProperty(
-                  literal, key->AsRawPropertyName(), feedback_index(slot));
-            } else {
-              builder()->SetExpressionPosition(property->value());
-              VisitForEffect(property->value());
-            }
+            FeedbackSlot slot = feedback_spec()->AddStoreOwnICSlot();
+            builder()->StoreNamedOwnProperty(literal, key->AsRawPropertyName(),
+                                             feedback_index(slot));
           } else {
-            RegisterList args = register_allocator()->NewRegisterList(3);
-
-            builder()->MoveRegister(literal, args[0]);
-            builder()->SetExpressionPosition(property->key());
-            VisitForRegisterValue(property->key(), args[1]);
-
-            object_literal_context_scope.SetEnteredIf(
-                property->value()->IsConciseMethodDefinition());
-            builder()->SetExpressionPosition(property->value());
-            VisitForRegisterValue(property->value(), args[2]);
-            if (property->emit_store()) {
-              builder()->CallRuntime(Runtime::kSetKeyedProperty, args);
-            }
+            FeedbackSlot slot = feedback_spec()->AddKeyedDefineOwnICSlot();
+            builder()->DefineKeyedProperty(literal, key_reg,
+                                           feedback_index(slot));
           }
-          break;
+        } else {
+          VisitForEffect(property->value());
         }
-        case ObjectLiteral::Property::PROTOTYPE: {
-          // __proto__:null is handled by CreateObjectLiteral.
-          if (property->IsNullPrototype()) break;
-          DCHECK(property->emit_store());
-          DCHECK(!property->NeedsSetFunctionName());
-          RegisterList args = register_allocator()->NewRegisterList(2);
-          builder()->MoveRegister(literal, args[0]);
-          object_literal_context_scope.SetEnteredIf(false);
-          builder()->SetExpressionPosition(property->value());
-          VisitForRegisterValue(property->value(), args[1]);
-          builder()->CallRuntime(Runtime::kInternalSetPrototype, args);
-          break;
-        }
-        case ObjectLiteral::Property::GETTER:
-          if (property->emit_store()) {
-            accessor_table.LookupOrInsert(key)->getter = property;
-          }
-          break;
-        case ObjectLiteral::Property::SETTER:
-          if (property->emit_store()) {
-            accessor_table.LookupOrInsert(key)->setter = property;
-          }
-          break;
+        break;
       }
+      case ObjectLiteral::Property::PROTOTYPE: {
+        // __proto__:null is handled by CreateObjectLiteral.
+        if (property->IsNullPrototype()) break;
+        DCHECK(property->emit_store());
+        DCHECK(!property->NeedsSetFunctionName());
+        RegisterList args = register_allocator()->NewRegisterList(2);
+        builder()->MoveRegister(literal, args[0]);
+        object_literal_context_scope.SetEnteredIf(false);
+        builder()->SetExpressionPosition(property->value());
+        VisitForRegisterValue(property->value(), args[1]);
+        builder()->CallRuntime(Runtime::kInternalSetPrototype, args);
+        break;
+      }
+      case ObjectLiteral::Property::GETTER:
+        if (property->emit_store()) {
+          accessor_table.LookupOrInsert(key)->getter = property;
+        }
+        break;
+      case ObjectLiteral::Property::SETTER:
+        if (property->emit_store()) {
+          accessor_table.LookupOrInsert(key)->setter = property;
+        }
+        break;
     }
+  }
 
     // Define accessors, using only a single call to the runtime for each pair
     // of corresponding getters and setters.
@@ -3114,7 +3115,6 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           .StoreAccumulatorInRegister(args[4])
           .CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, args);
     }
-  }
 
   // Object literals have two parts. The "static" part on the left contains no
   // computed property names, and so we can compute its map ahead of time; see

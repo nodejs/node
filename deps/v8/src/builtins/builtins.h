@@ -276,6 +276,11 @@ class Builtins {
     js_entry_handler_offset_ = offset;
   }
 
+  // Returns given builtin's slot in the main builtin table.
+  FullObjectSlot builtin_slot(Builtin builtin);
+  // Returns given builtin's slot in the tier0 builtin table.
+  FullObjectSlot builtin_tier0_slot(Builtin builtin);
+
  private:
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode);

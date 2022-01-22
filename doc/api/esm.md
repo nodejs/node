@@ -94,12 +94,12 @@ provides interoperability between them and its original module format,
 
 <!-- type=misc -->
 
-Node.js treats JavaScript code as CommonJS modules by default.
-Authors can tell Node.js to treat JavaScript code as ECMAScript modules
+Node.js has two module systems: [CommonJS][] modules and ECMAScript modules.
+
+Authors can tell Node.js to use the ECMAScript modules loader
 via the `.mjs` file extension, the `package.json` [`"type"`][] field, or the
-`--input-type` flag. See
-[Modules: Packages](packages.md#determining-module-system) for more
-details.
+[`--input-type`][] flag. Outside of those cases, Node.js will use the CommonJS
+module loader. See [Determining module system][] for more details.
 
 <!-- Anchors to make sure old links find a target -->
 
@@ -591,7 +591,7 @@ would provide the exports interface for the instantiation of `module.wasm`.
 
 ## Top-level `await`
 
-<!--
+<!-- YAML
 added: v14.8.0
 -->
 
@@ -1399,7 +1399,7 @@ _internal_, _conditions_)
 >    1. Set _scopeURL_ to the parent URL of _scopeURL_.
 >    2. If _scopeURL_ ends in a _"node\_modules"_ path segment, return **null**.
 >    3. Let _pjsonURL_ be the resolution of _"package.json"_ within
->       _packageURL_.
+>       _scopeURL_.
 >    4. if the file at _pjsonURL_ exists, then
 >       1. Return _scopeURL_.
 > 3. Return **null**.
@@ -1443,6 +1443,7 @@ success!
 [CommonJS]: modules.md
 [Conditional exports]: packages.md#conditional-exports
 [Core modules]: modules.md#core-modules
+[Determining module system]: packages.md#determining-module-system
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ES Module Integration Proposal for WebAssembly]: https://github.com/webassembly/esm-integration
 [Import Assertions]: #import-assertions
@@ -1454,6 +1455,7 @@ success!
 [WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
 [`"exports"`]: packages.md#exports
 [`"type"`]: packages.md#type
+[`--input-type`]: cli.md#--input-typetype
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray

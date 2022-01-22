@@ -32,7 +32,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
     buffer_size_ += bytes.size();
   }
 
-  void Finish() override {
+  void Finish(bool can_use_compiled_module) override {
     // We copy all received chunks into one byte buffer.
     auto bytes = std::make_unique<uint8_t[]>(buffer_size_);
     uint8_t* destination = bytes.get();
@@ -43,7 +43,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
     CHECK_EQ(destination - bytes.get(), buffer_size_);
 
     // Check if we can deserialize the module from cache.
-    if (deserializing()) {
+    if (can_use_compiled_module && deserializing()) {
       HandleScope scope(isolate_);
       SaveAndSwitchContext saved_context(isolate_, *context_);
 

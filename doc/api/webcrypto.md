@@ -19,9 +19,12 @@ const { subtle } = require('crypto').webcrypto;
     length: 256
   }, true, ['sign', 'verify']);
 
+  const enc = new TextEncoder();
+  const message = enc.encode('I love cupcakes');
+
   const digest = await subtle.sign({
     name: 'HMAC'
-  }, key, 'I love cupcakes');
+  }, key, message);
 
 })();
 ```
@@ -48,7 +51,7 @@ async function generateAesKey(length = 256) {
 }
 ```
 
-#### Elliptic curve key pairs
+#### ECDSA key pairs
 
 ```js
 const { subtle } = require('crypto').webcrypto;
@@ -66,7 +69,7 @@ async function generateEcKey(namedCurve = 'P-521') {
 }
 ```
 
-#### ED25519/ED448/X25519/X448 Elliptic curve key pairs
+#### ED25519/ED448/X25519/X448 key pairs
 
 ```js
 const { subtle } = require('crypto').webcrypto;
@@ -301,7 +304,7 @@ async function digest(data, algorithm = 'SHA-512') {
 }
 ```
 
-## Algorithm Matrix
+## Algorithm matrix
 
 The table details the algorithms supported by the Node.js Web Crypto API
 implementation and the APIs supported for each:
@@ -354,11 +357,14 @@ Provides access to the `SubtleCrypto` API.
 added: v15.0.0
 -->
 
-* `typedArray` {Buffer|TypedArray|DataView|ArrayBuffer}
-* Returns: {Buffer|TypedArray|DataView|ArrayBuffer} Returns `typedArray`.
+* `typedArray` {Buffer|TypedArray}
+* Returns: {Buffer|TypedArray}
 
 Generates cryptographically strong random values. The given `typedArray` is
 filled with random values, and a reference to `typedArray` is returned.
+
+The given `typedArray` must be an integer-based instance of {TypedArray},
+i.e. `Float32Array` and `Float64Array` are not accepted.
 
 An error will be thrown if the given `typedArray` is larger than 65,536 bytes.
 
@@ -920,7 +926,7 @@ The wrapping algorithms currently supported include:
 * `'AES-GCM'`
 * `'AES-KW'`
 
-## Algorithm Parameters
+## Algorithm parameters
 
 The algorithm parameter objects define the methods and parameters used by
 the various {SubtleCrypto} methods. While described here as "classes", they

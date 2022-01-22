@@ -117,7 +117,7 @@ constexpr auto CallTrampolineDescriptor::registers() {
 
 // static
 constexpr auto CallVarargsDescriptor::registers() {
-  // x0 : number of arguments (on the stack, not including receiver)
+  // x0 : number of arguments (on the stack)
   // x1 : the target to call
   // x4 : arguments list length (untagged)
   // x2 : arguments list (FixedArray)
@@ -135,13 +135,13 @@ constexpr auto CallForwardVarargsDescriptor::registers() {
 // static
 constexpr auto CallFunctionTemplateDescriptor::registers() {
   // x1 : function template info
-  // x2 : number of arguments (on the stack, not including receiver)
+  // x2 : number of arguments (on the stack)
   return RegisterArray(x1, x2);
 }
 
 // static
 constexpr auto CallWithSpreadDescriptor::registers() {
-  // x0 : number of arguments (on the stack, not including receiver)
+  // x0 : number of arguments (on the stack)
   // x1 : the target to call
   // x2 : the object to spread
   return RegisterArray(x1, x0, x2);
@@ -156,7 +156,7 @@ constexpr auto CallWithArrayLikeDescriptor::registers() {
 
 // static
 constexpr auto ConstructVarargsDescriptor::registers() {
-  // x0 : number of arguments (on the stack, not including receiver)
+  // x0 : number of arguments (on the stack)
   // x1 : the target to call
   // x3 : the new target
   // x4 : arguments list length (untagged)
@@ -175,7 +175,7 @@ constexpr auto ConstructForwardVarargsDescriptor::registers() {
 
 // static
 constexpr auto ConstructWithSpreadDescriptor::registers() {
-  // x0 : number of arguments (on the stack, not including receiver)
+  // x0 : number of arguments (on the stack)
   // x1 : the target to call
   // x3 : the new target
   // x2 : the object to spread
@@ -249,7 +249,7 @@ constexpr auto InterpreterDispatchDescriptor::registers() {
 
 // static
 constexpr auto InterpreterPushArgsThenCallDescriptor::registers() {
-  return RegisterArray(x0,   // argument count (not including receiver)
+  return RegisterArray(x0,   // argument count
                        x2,   // address of first argument
                        x1);  // the target callable to be call
 }
@@ -257,7 +257,7 @@ constexpr auto InterpreterPushArgsThenCallDescriptor::registers() {
 // static
 constexpr auto InterpreterPushArgsThenConstructDescriptor::registers() {
   return RegisterArray(
-      x0,   // argument count (not including receiver)
+      x0,   // argument count
       x4,   // address of the first argument
       x1,   // constructor to call
       x3,   // new target

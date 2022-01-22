@@ -96,6 +96,7 @@ class Reducer;
   V(Word64SarShiftOutZeros)               \
   V(Word64Shl)                            \
   V(Word64Shr)                            \
+  V(Word64Xor)                            \
   V(WordAnd)                              \
   V(WordEqual)                            \
   V(WordOr)                               \
@@ -248,9 +249,10 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   // Value creation.
   Node* IntPtrConstant(intptr_t value);
   Node* UintPtrConstant(uintptr_t value);
-  Node* Uint32Constant(uint32_t value);
   Node* Int32Constant(int32_t value);
+  Node* Uint32Constant(uint32_t value);
   Node* Int64Constant(int64_t value);
+  Node* Uint64Constant(uint64_t value);
   Node* UniqueIntPtrConstant(intptr_t value);
   Node* Float64Constant(double value);
   Node* Projection(int index, Node* value);

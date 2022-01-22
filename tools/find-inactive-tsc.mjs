@@ -118,7 +118,9 @@ async function getVotingRecords(tscMembers, votes) {
       await fs.promises.readFile(path.join('.tmp', vote), 'utf8')
     );
     for (const member in voteData.votes) {
-      votingRecords[member]++;
+      if (tscMembers.includes(member)) {
+        votingRecords[member]++;
+      }
     }
   }
   return votingRecords;
@@ -211,7 +213,8 @@ async function moveTscToEmeritus(peopleToMove) {
 // only been on the TSC for a week and therefore hasn't attended any meetings.
 const tscMembersAtEnd = await getTscFromReadme();
 
-await runGitCommand(`git checkout 'HEAD@{${SINCE}}' -- README.md`);
+const startCommit = await runGitCommand(`git rev-list -1 --before '${SINCE}' HEAD`);
+await runGitCommand(`git checkout ${startCommit} -- README.md`);
 const tscMembersAtStart = await getTscFromReadme();
 await runGitCommand('git reset HEAD README.md');
 await runGitCommand('git checkout -- README.md');

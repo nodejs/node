@@ -195,6 +195,7 @@ class BuildConfig(object):
     self.virtual_memory_cage = build_config['v8_enable_virtual_memory_cage']
     self.third_party_heap = build_config['v8_enable_third_party_heap']
     self.webassembly = build_config['v8_enable_webassembly']
+    self.dict_property_const_tracking = build_config['v8_dict_property_const_tracking']
     # Export only for MIPS target
     if self.arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
       self.mips_arch_variant = build_config['mips_arch_variant']
@@ -242,6 +243,8 @@ class BuildConfig(object):
       detected_options.append('third_party_heap')
     if self.webassembly:
       detected_options.append('webassembly')
+    if self.dict_property_const_tracking:
+      detected_options.append('dict_property_const_tracking')
 
     return '\n'.join(detected_options)
 
@@ -737,6 +740,7 @@ class BaseTestRunner(object):
       "pointer_compression": self.build_config.pointer_compression,
       "pointer_compression_shared_cage": self.build_config.pointer_compression_shared_cage,
       "virtual_memory_cage": self.build_config.virtual_memory_cage,
+      "dict_property_const_tracking": self.build_config.dict_property_const_tracking,
     }
 
   def _runner_flags(self):

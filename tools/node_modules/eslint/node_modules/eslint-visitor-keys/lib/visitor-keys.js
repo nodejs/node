@@ -180,6 +180,8 @@ const KEYS = {
         "children",
         "closingFragment"
     ],
+    JSXClosingFragment: [],
+    JSXOpeningFragment: [],
     Literal: [],
     LabeledStatement: [
         "label",

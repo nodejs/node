@@ -24,6 +24,7 @@
 #include "src/objects/synthetic-module.h"
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions.h"
+#include "src/objects/turbofan-types-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects-inl.h"
@@ -641,6 +642,24 @@ class WasmJSFunctionData::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
 
+class WasmApiFunctionRef::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    UNREACHABLE();
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
+                                                        v);
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) { return kSize; }
+};
+
 class WasmExportedFunctionData::BodyDescriptor final
     : public BodyDescriptorBase {
  public:
@@ -828,15 +847,8 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     // GC does not visit data/code in the header and in the body directly.
     IteratePointers(obj, kRelocationInfoOffset, kDataStart, v);
 
-    Code code = Code::cast(obj);
-    HeapObject relocation_info =
-        code.synchronized_unchecked_relocation_info_or_undefined();
-
-    if (!relocation_info.IsUndefined()) {
-      RelocIterator it(code, ByteArray::unchecked_cast(relocation_info),
-                       kRelocModeMask);
-      v->VisitRelocInfo(&it);
-    }
+    RelocIterator it(Code::cast(obj), kRelocModeMask);
+    v->VisitRelocInfo(&it);
   }
 
   template <typename ObjectVisitor>
@@ -1067,6 +1079,9 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case WASM_JS_FUNCTION_DATA_TYPE:
       return Op::template apply<WasmJSFunctionData::BodyDescriptor>(p1, p2, p3,
                                                                     p4);
+    case WASM_API_FUNCTION_REF_TYPE:
+      return Op::template apply<WasmApiFunctionRef::BodyDescriptor>(p1, p2, p3,
+                                                                    p4);
     case WASM_STRUCT_TYPE:
       return Op::template apply<WasmStruct::BodyDescriptor>(p1, p2, p3, p4);
     case WASM_TYPE_INFO_TYPE:
@@ -1112,6 +1127,16 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_STRING_ITERATOR_TYPE:
+    case JS_TEMPORAL_CALENDAR_TYPE:
+    case JS_TEMPORAL_DURATION_TYPE:
+    case JS_TEMPORAL_INSTANT_TYPE:
+    case JS_TEMPORAL_PLAIN_DATE_TYPE:
+    case JS_TEMPORAL_PLAIN_DATE_TIME_TYPE:
+    case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
+    case JS_TEMPORAL_PLAIN_TIME_TYPE:
+    case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
+    case JS_TEMPORAL_TIME_ZONE_TYPE:
+    case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
     case JS_FUNCTION_TYPE:
     case JS_CLASS_CONSTRUCTOR_TYPE:

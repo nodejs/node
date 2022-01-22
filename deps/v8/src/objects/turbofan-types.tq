@@ -1,0 +1,204 @@
+// Copyright 2021 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "src/objects/turbofan-types.h"
+
+@export
+@abstract
+class TurbofanType extends HeapObject {
+}
+
+bitfield struct TurbofanTypeBits extends uint32 {
+  _unused_padding_field_1: bool: 1 bit;
+  other_unsigned31: bool: 1 bit;
+  other_unsigned32: bool: 1 bit;
+  other_signed32: bool: 1 bit;
+  other_number: bool: 1 bit;
+  other_string: bool: 1 bit;
+  negative31: bool: 1 bit;
+  null: bool: 1 bit;
+  undefined: bool: 1 bit;
+  boolean: bool: 1 bit;
+  unsigned30: bool: 1 bit;
+  minus_zero: bool: 1 bit;
+  naN: bool: 1 bit;
+  symbol: bool: 1 bit;
+  internalized_string: bool: 1 bit;
+  other_callable: bool: 1 bit;
+  other_object: bool: 1 bit;
+  other_undetectable: bool: 1 bit;
+  callable_proxy: bool: 1 bit;
+  other_proxy: bool: 1 bit;
+  function: bool: 1 bit;
+  bound_function: bool: 1 bit;
+  hole: bool: 1 bit;
+  other_internal: bool: 1 bit;
+  external_pointer: bool: 1 bit;
+  array: bool: 1 bit;
+  unsigned_big_int_63: bool: 1 bit;
+  other_unsigned_big_int_64: bool: 1 bit;
+  negative_big_int_63: bool: 1 bit;
+  other_big_int: bool: 1 bit;
+  sandboxed_external_pointer: bool: 1 bit;
+  caged_pointer: bool: 1 bit;
+}
+
+@export
+class TurbofanBitsetType extends TurbofanType {
+  bitset: TurbofanTypeBits;
+}
+
+@export
+class TurbofanUnionType extends TurbofanType {
+  type1: TurbofanType;
+  type2: TurbofanType;
+}
+
+@export
+class TurbofanRangeType extends TurbofanType {
+  min: float64;
+  max: float64;
+}
+
+@export
+class TurbofanHeapConstantType extends TurbofanType {
+  constant: HeapObject;
+}
+
+@export
+class TurbofanOtherNumberConstantType extends TurbofanType {
+  constant: float64;
+}
+
+macro IsMinusZero(x: float64): bool {
+  return x == 0 && 1 / x < 0;
+}
+
+macro TestTurbofanBitsetType(value: Object, bitset: TurbofanTypeBits): bool {
+  typeswitch (value) {
+    case (value: Number): {
+      const valueF = Convert<float64>(value);
+      if (IsInteger(value)) {
+        if (IsMinusZero(valueF)) {
+          return bitset.minus_zero;
+        } else if (valueF < Convert<float64>(-0x80000000)) {
+          return bitset.other_number;
+        } else if (valueF < -0x40000000) {
+          return bitset.other_signed32;
+        } else if (valueF < 0) {
+          return bitset.negative31;
+        } else if (valueF < Convert<float64>(0x40000000)) {
+          return bitset.unsigned30;
+        } else if (valueF < 0x80000000) {
+          return bitset.other_unsigned31;
+        } else if (valueF <= 0xffffffff) {
+          return bitset.other_unsigned32;
+        } else {
+          return bitset.other_number;
+        }
+      } else if (Float64IsNaN(valueF)) {
+        return bitset.naN;
+      } else {
+        return bitset.other_number;
+      }
+    }
+    case (Null): {
+      return bitset.null;
+    }
+    case (Undefined): {
+      return bitset.undefined;
+    }
+    case (Boolean): {
+      return bitset.boolean;
+    }
+    case (Symbol): {
+      return bitset.symbol;
+    }
+    case (s: String): {
+      if (s.IsNotInternalized()) {
+        return bitset.other_string;
+      } else {
+        return bitset.internalized_string;
+      }
+    }
+    case (proxy: JSProxy): {
+      return Is<Callable>(proxy) ? bitset.callable_proxy : bitset.other_proxy;
+    }
+    case (JSFunction): {
+      return bitset.function;
+    }
+    case (JSBoundFunction): {
+      return bitset.bound_function;
+    }
+    case (TheHole): {
+      return bitset.hole;
+    }
+    case (JSArray): {
+      return bitset.array;
+    }
+    case (BigInt): {
+      // TODO (tebbi): Distinguish different BigInt types.
+      return bitset.unsigned_big_int_63 | bitset.other_unsigned_big_int_64 |
+          bitset.negative_big_int_63 | bitset.other_big_int;
+    }
+    case (Callable): {
+      return bitset.other_callable;
+    }
+    case (object: JSObject): {
+      if (object.map.IsUndetectable()) {
+        return bitset.other_undetectable;
+      } else {
+        return bitset.other_object;
+      }
+    }
+    case (Object): {
+      return false;
+    }
+  }
+}
+
+builtin TestTurbofanType(implicit context: Context)(
+    value: Object, expectedType: TurbofanType): Boolean {
+  typeswitch (expectedType) {
+    case (t: TurbofanBitsetType): {
+      return Convert<Boolean>(TestTurbofanBitsetType(value, t.bitset));
+    }
+    case (t: TurbofanUnionType): {
+      return Convert<Boolean>(
+          TestTurbofanType(value, t.type1) == True ||
+          TestTurbofanType(value, t.type2) == True);
+    }
+    case (t: TurbofanRangeType): {
+      const value = Cast<Number>(value) otherwise return False;
+      if (!IsIntegerOrSomeInfinity(value)) return False;
+      const valueF = Convert<float64>(value);
+      return Convert<Boolean>(
+          !IsMinusZero(valueF) && t.min <= valueF && valueF <= t.max);
+    }
+    case (t: TurbofanHeapConstantType): {
+      return Convert<Boolean>(TaggedEqual(value, t.constant));
+    }
+    case (t: TurbofanOtherNumberConstantType): {
+      const value =
+          Convert<float64>(Cast<Number>(value) otherwise return False);
+      return Convert<Boolean>(value == t.constant);
+    }
+    case (TurbofanType): {
+      unreachable;
+    }
+  }
+}
+
+builtin CheckTurbofanType(implicit context: Context)(
+    value: Object, expectedType: TurbofanType, nodeId: Smi): Undefined {
+  if (TestTurbofanType(value, expectedType) == True) {
+    return Undefined;
+  }
+
+  Print('Type assertion failed! (value/expectedType/nodeId)');
+  Print(value);
+  Print(expectedType);
+  Print(nodeId);
+  unreachable;
+}

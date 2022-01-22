@@ -111,11 +111,7 @@ base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
   return code_flush_mode;
 }
 
-Isolate* Heap::isolate() {
-  return reinterpret_cast<Isolate*>(
-      reinterpret_cast<intptr_t>(this) -
-      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(16)->heap()) + 16);
-}
+Isolate* Heap::isolate() { return Isolate::FromHeap(this); }
 
 int64_t Heap::external_memory() { return external_memory_.total(); }
 
@@ -325,12 +321,12 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
   Heap* heap = isolate()->heap();
   if (allocation == AllocationType::kYoung &&
       alignment == AllocationAlignment::kWordAligned &&
-      size <= MaxRegularHeapObjectSize(allocation) && !FLAG_single_generation) {
+      size <= MaxRegularHeapObjectSize(allocation) &&
+      V8_LIKELY(!FLAG_single_generation && FLAG_inline_new &&
+                FLAG_gc_interval == -1)) {
     Address* top = heap->NewSpaceAllocationTopAddress();
     Address* limit = heap->NewSpaceAllocationLimitAddress();
-    if ((*limit - *top >= static_cast<unsigned>(size)) &&
-        V8_LIKELY(!FLAG_single_generation && FLAG_inline_new &&
-                  FLAG_gc_interval == 0)) {
+    if (*limit - *top >= static_cast<unsigned>(size)) {
       DCHECK(IsAligned(size, kTaggedSize));
       HeapObject obj = HeapObject::FromAddress(*top);
       *top += size;
@@ -779,6 +775,15 @@ AlwaysAllocateScope::AlwaysAllocateScope(Heap* heap) : heap_(heap) {
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_count_--;
+}
+
+OptionalAlwaysAllocateScope::OptionalAlwaysAllocateScope(Heap* heap)
+    : heap_(heap) {
+  if (heap_) heap_->always_allocate_scope_count_++;
+}
+
+OptionalAlwaysAllocateScope::~OptionalAlwaysAllocateScope() {
+  if (heap_) heap_->always_allocate_scope_count_--;
 }
 
 AlwaysAllocateScopeForTesting::AlwaysAllocateScopeForTesting(Heap* heap)

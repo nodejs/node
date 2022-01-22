@@ -53,6 +53,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
+#include "src/snapshot/shared-heap-serializer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/utils-inl.h"
@@ -255,7 +256,7 @@ class FullMarkingVerifier : public MarkingVerifier {
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
-    HeapObject target_object = rinfo->target_object_no_host(cage_base());
+    HeapObject target_object = rinfo->target_object(cage_base());
     if (!host.IsWeakObject(target_object)) {
       VerifyHeapObjectImpl(target_object);
     }
@@ -266,6 +267,10 @@ class FullMarkingVerifier : public MarkingVerifier {
     if (heap_->IsShared() !=
         BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap())
       return;
+
+    if (heap_->ShouldBeInSharedOldSpace(heap_object)) {
+      CHECK(heap_->SharedHeapContains(heap_object));
+    }
 
     CHECK(marking_state_->IsBlackOrGrey(heap_object));
   }
@@ -340,7 +345,7 @@ void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
   Address current = start;
   while (current < end) {
     HeapObject object = HeapObject::FromAddress(current);
-    if (!object.IsFreeSpaceOrFiller()) object.Iterate(this);
+    if (!object.IsFreeSpaceOrFiller(cage_base())) object.Iterate(this);
     current += object.Size();
   }
 }
@@ -423,7 +428,7 @@ class FullEvacuationVerifier : public EvacuationVerifier {
     VerifyHeapObjectImpl(target);
   }
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    VerifyHeapObjectImpl(rinfo->target_object_no_host(cage_base()));
+    VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
   }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
@@ -1102,7 +1107,7 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     MarkObject(host, target);
   }
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    MarkObject(host, rinfo->target_object_no_host(cage_base()));
+    MarkObject(host, rinfo->target_object(cage_base()));
   }
 
  private:
@@ -1298,8 +1303,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
   inline void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
-    HeapObject object =
-        HeapObject::cast(rinfo->target_object_no_host(cage_base()));
+    HeapObject object = rinfo->target_object(cage_base());
     GenerationalBarrierForCode(host, rinfo, object);
     collector_->RecordRelocSlot(host, rinfo, object);
   }
@@ -1430,6 +1434,10 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       : heap_(heap),
         local_allocator_(local_allocator),
         record_visitor_(record_visitor) {
+    if (FLAG_shared_string_table && heap->isolate()->shared_isolate()) {
+      shared_string_table_ = true;
+      shared_old_allocator_ = heap_->shared_old_allocator_.get();
+    }
     migration_function_ = RawMigrateObject<MigrationMode::kFast>;
   }
 
@@ -1439,9 +1447,19 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     if (FLAG_stress_compaction && AbortCompactionForTesting(object))
       return false;
 #endif  // DEBUG
-    AllocationAlignment alignment = HeapObject::RequiredAlignment(object.map());
-    AllocationResult allocation = local_allocator_->Allocate(
-        target_space, size, AllocationOrigin::kGC, alignment);
+    Map map = object.map();
+    AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
+    AllocationResult allocation;
+    if (ShouldPromoteIntoSharedHeap(map)) {
+      DCHECK_EQ(target_space, OLD_SPACE);
+      DCHECK(Heap::InYoungGeneration(object));
+      DCHECK_NOT_NULL(shared_old_allocator_);
+      allocation = shared_old_allocator_->AllocateRaw(size, alignment,
+                                                      AllocationOrigin::kGC);
+    } else {
+      allocation = local_allocator_->Allocate(target_space, size,
+                                              AllocationOrigin::kGC, alignment);
+    }
     if (allocation.To(target_object)) {
       MigrateObject(*target_object, object, size, target_space);
       if (target_space == CODE_SPACE)
@@ -1449,6 +1467,13 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
             ->GetCodeObjectRegistry()
             ->RegisterNewlyAllocatedCodeObject((*target_object).address());
       return true;
+    }
+    return false;
+  }
+
+  inline bool ShouldPromoteIntoSharedHeap(Map map) {
+    if (shared_string_table_) {
+      return String::IsInPlaceInternalizable(map.instance_type());
     }
     return false;
   }
@@ -1486,9 +1511,11 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
   Heap* heap_;
   EvacuationAllocator* local_allocator_;
+  ConcurrentAllocator* shared_old_allocator_ = nullptr;
   RecordMigratedSlotVisitor* record_visitor_;
   std::vector<MigrationObserver*> observers_;
   MigrateFunction migration_function_;
+  bool shared_string_table_ = false;
 };
 
 class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
@@ -1918,21 +1945,22 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
   size_t objects_processed = 0;
   bool is_per_context_mode = local_marking_worklists()->IsPerContextMode();
   Isolate* isolate = heap()->isolate();
+  PtrComprCageBase cage_base(isolate);
   while (local_marking_worklists()->Pop(&object) ||
          local_marking_worklists()->PopOnHold(&object)) {
     // Left trimming may result in grey or black filler objects on the marking
     // worklist. Ignore these objects.
-    if (object.IsFreeSpaceOrFiller()) {
+    if (object.IsFreeSpaceOrFiller(cage_base)) {
       // Due to copying mark bits and the fact that grey and black have their
       // first bit set, one word fillers are always black.
-      DCHECK_IMPLIES(
-          object.map() == ReadOnlyRoots(heap()).one_pointer_filler_map(),
-          marking_state()->IsBlack(object));
+      DCHECK_IMPLIES(object.map(cage_base) ==
+                         ReadOnlyRoots(isolate).one_pointer_filler_map(),
+                     marking_state()->IsBlack(object));
       // Other fillers may be black or grey depending on the color of the object
       // that was trimmed.
-      DCHECK_IMPLIES(
-          object.map() != ReadOnlyRoots(heap()).one_pointer_filler_map(),
-          marking_state()->IsBlackOrGrey(object));
+      DCHECK_IMPLIES(object.map(cage_base) !=
+                         ReadOnlyRoots(isolate).one_pointer_filler_map(),
+                     marking_state()->IsBlackOrGrey(object));
       continue;
     }
     DCHECK(object.IsHeapObject());
@@ -1942,7 +1970,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
                     kTrackNewlyDiscoveredObjects) {
       AddNewlyDiscovered(object);
     }
-    Map map = object.map(isolate);
+    Map map = object.map(cage_base);
     if (is_per_context_mode) {
       Address context;
       if (native_context_inferrer_.Infer(isolate, map, object, &context)) {
@@ -2183,7 +2211,7 @@ void MarkCompactCollector::MarkLiveObjects() {
 void MarkCompactCollector::ClearNonLiveReferences() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR);
 
-  {
+  if (isolate()->OwnsStringTable()) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_STRING_TABLE);
 
     // Prune the string table removing all strings only pointed to by the
@@ -4033,7 +4061,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
                   slot.address() - CodeDataContainer::kCodeOffset);
               DCHECK(host.IsCodeDataContainer(cage_base));
               return UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(
-                  host, cage_base, code_cage_base, CodeObjectSlot(slot));
+                  host, cage_base, code_cage_base,
+                  CodeObjectSlot(slot.address()));
             },
             SlotSet::FREE_EMPTY_BUCKETS);
         chunk_->ReleaseSlotSet<OLD_TO_CODE>();
@@ -4451,7 +4480,8 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     VerifyHeapObjectImpl(target);
   }
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    VerifyHeapObjectImpl(rinfo->target_object());
+    PtrComprCageBase cage_base = host.main_cage_base();
+    VerifyHeapObjectImpl(rinfo->target_object(cage_base));
   }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
@@ -4525,7 +4555,7 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
     VerifyHeapObjectImpl(target);
   }
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    VerifyHeapObjectImpl(rinfo->target_object_no_host(cage_base()));
+    VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
   }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
@@ -5193,6 +5223,9 @@ class YoungGenerationMarkingJob : public v8::JobTask {
     size_t items = remaining_marking_items_.load(std::memory_order_relaxed);
     size_t num_tasks = std::max((items + 1) / kPagesPerTask,
                                 global_worklist_->GlobalPoolSize());
+    if (!FLAG_parallel_marking) {
+      num_tasks = std::min<size_t>(1, num_tasks);
+    }
     return std::min<size_t>(
         num_tasks, MinorMarkCompactCollector::MarkingWorklist::kMaxNumTasks);
   }
@@ -5316,9 +5349,10 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
 void MinorMarkCompactCollector::DrainMarkingWorklist() {
   MarkingWorklist::View marking_worklist(worklist(), kMainMarker);
+  PtrComprCageBase cage_base(isolate());
   HeapObject object;
   while (marking_worklist.Pop(&object)) {
-    DCHECK(!object.IsFreeSpaceOrFiller());
+    DCHECK(!object.IsFreeSpaceOrFiller(cage_base));
     DCHECK(object.IsHeapObject());
     DCHECK(heap()->Contains(object));
     DCHECK(non_atomic_marking_state()->IsGrey(object));
@@ -5329,6 +5363,7 @@ void MinorMarkCompactCollector::DrainMarkingWorklist() {
 
 void MinorMarkCompactCollector::TraceFragmentation() {
   NewSpace* new_space = heap()->new_space();
+  PtrComprCageBase cage_base(isolate());
   const std::array<size_t, 4> free_size_class_limits = {0, 1024, 2048, 4096};
   size_t free_bytes_of_class[free_size_class_limits.size()] = {0};
   size_t live_bytes = 0;
@@ -5350,7 +5385,7 @@ void MinorMarkCompactCollector::TraceFragmentation() {
           free_bytes_index++;
         }
       }
-      Map map = object.map(kAcquireLoad);
+      Map map = object.map(cage_base, kAcquireLoad);
       int size = object.SizeFromMap(map);
       live_bytes += size;
       free_start = free_end + size;

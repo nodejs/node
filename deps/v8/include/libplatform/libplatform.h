@@ -95,7 +95,7 @@ V8_PLATFORM_EXPORT void RunIdleTasks(v8::Platform* platform,
  * The |platform| has to be created using |NewDefaultPlatform|.
  *
  */
-V8_DEPRECATE_SOON("Access the DefaultPlatform directly")
+V8_DEPRECATED("Access the DefaultPlatform directly")
 V8_PLATFORM_EXPORT void SetTracingController(
     v8::Platform* platform,
     v8::platform::tracing::TracingController* tracing_controller);

@@ -519,7 +519,7 @@ Running test: testRegExp
         objectId : <objectId>
         preview : {
             description : /w+/g
-            overflow : false
+            overflow : true
             properties : [
                 [0] : {
                     name : prop
@@ -530,6 +530,21 @@ Running test: testRegExp
                     name : lastIndex
                     type : number
                     value : 0
+                }
+                [2] : {
+                    name : dotAll
+                    type : boolean
+                    value : false
+                }
+                [3] : {
+                    name : flags
+                    type : string
+                    value : g
+                }
+                [4] : {
+                    name : global
+                    type : boolean
+                    value : true
                 }
             ]
             subtype : regexp
@@ -1209,7 +1224,7 @@ Running test: testWeakMap
                             [0] : {
                                 name : setTimeout
                                 type : function
-                                value : 
+                                value :
                             }
                             [1] : {
                                 name : inspector
@@ -1293,7 +1308,7 @@ Running test: testWeakSet
                             [0] : {
                                 name : setTimeout
                                 type : function
-                                value : 
+                                value :
                             }
                             [1] : {
                                 name : inspector
@@ -1751,7 +1766,7 @@ Running test: testTypedArray
         objectId : <objectId>
         preview : {
             description : Uint8Array(2)
-            overflow : false
+            overflow : true
             properties : [
                 [0] : {
                     name : 0
@@ -2678,7 +2693,7 @@ Running test: testOtherObjects
                     [0] : {
                         name : a
                         type : function
-                        value : 
+                        value :
                     }
                 ]
                 type : object
@@ -2868,12 +2883,12 @@ Running test: testOtherObjects
                     [0] : {
                         name : a1
                         type : function
-                        value : 
+                        value :
                     }
                     [1] : {
                         name : a2
                         type : function
-                        value : 
+                        value :
                     }
                 ]
                 type : object

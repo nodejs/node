@@ -274,6 +274,19 @@ class V8_BASE_EXPORT OS {
 
   static void AdjustSchedulingParams();
 
+  using Address = uintptr_t;
+
+  struct MemoryRange {
+    uintptr_t start = 0;
+    uintptr_t end = 0;
+  };
+
+  // Find gaps between existing virtual memory ranges that have enough space
+  // to place a region with minimum_size within (boundary_start, boundary_end)
+  static std::vector<MemoryRange> GetFreeMemoryRangesWithin(
+      Address boundary_start, Address boundary_end, size_t minimum_size,
+      size_t alignment);
+
   [[noreturn]] static void ExitProcess(int exit_code);
 
  private:

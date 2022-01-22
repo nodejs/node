@@ -1,14 +1,15 @@
 {
   "name": "libnpmdiff",
-  "version": "2.0.4",
+  "version": "3.0.0",
   "description": "The registry diff",
   "repository": "https://github.com/npm/libnpmdiff",
+  "main": "lib/index.js",
   "files": [
-    "index.js",
+    "bin",
     "lib"
   ],
   "engines": {
-    "node": ">=10"
+    "node": "^12.13.0 || ^14.15.0 || >=16"
   },
   "keywords": [
     "npm",
@@ -28,24 +29,21 @@
   "license": "ISC",
   "scripts": {
     "eslint": "eslint",
-    "lint": "npm run eslint -- index.js \"lib/**/*.js\" \"test/*.js\"",
+    "lint": "eslint '**/*.js'",
     "lintfix": "npm run lint -- --fix",
-    "test": "tap test/*.js",
+    "test": "tap",
     "posttest": "npm run lint",
-    "snap": "tap test/*.js",
+    "snap": "tap",
     "preversion": "npm test",
     "postversion": "npm publish",
-    "prepublishOnly": "git push origin --follow-tags"
+    "prepublishOnly": "git push origin --follow-tags",
+    "postlint": "npm-template-check"
   },
   "tap": {
     "check-coverage": true
   },
-  "standard": {
-    "ignore": [
-      "/tap-snapshots/"
-    ]
-  },
   "devDependencies": {
+    "@npmcli/template-oss": "^2.4.2",
     "eslint": "^8.1.0",
     "tap": "^15.0.9"
   },
@@ -58,5 +56,8 @@
     "npm-package-arg": "^8.1.4",
     "pacote": "^12.0.0",
     "tar": "^6.1.0"
+  },
+  "templateOSS": {
+    "version": "2.4.3"
   }
 }

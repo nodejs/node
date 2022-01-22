@@ -155,5 +155,56 @@ void* OS::RemapShared(void* old_address, void* new_address, size_t size) {
   return result;
 }
 
+std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
+    OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
+    size_t alignment) {
+  std::vector<OS::MemoryRange> result = {};
+  // This function assumes that the layout of the file is as follows:
+  // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
+  // and the lines are arranged in increasing order of address.
+  // If we encounter an unexpected situation we abort scanning further entries.
+  FILE* fp = fopen("/proc/self/maps", "r");
+  if (fp == nullptr) return {};
+
+  // Search for the gaps between existing virtual memory (vm) areas. If the gap
+  // contains enough space for the requested-size range that is within the
+  // boundary, push the overlapped memory range to the vector.
+  uintptr_t gap_start = 0, gap_end = 0;
+  // This loop will terminate once the scanning hits an EOF or reaches the gap
+  // at the higher address to the end of boundary.
+  uintptr_t vm_start;
+  uintptr_t vm_end;
+  while (fscanf(fp, "%" V8PRIxPTR "-%" V8PRIxPTR, &vm_start, &vm_end) == 2 &&
+         gap_start < boundary_end) {
+    // Visit the gap at the lower address to this vm.
+    gap_end = vm_start;
+    // Skip the gaps at the lower address to the start of boundary.
+    if (gap_end > boundary_start) {
+      // The available area is the overlap of the gap and boundary. Push
+      // the overlapped memory range to the vector if there is enough space.
+      const uintptr_t overlap_start =
+          RoundUp(std::max(gap_start, boundary_start), alignment);
+      const uintptr_t overlap_end =
+          RoundDown(std::min(gap_end, boundary_end), alignment);
+      if (overlap_start < overlap_end &&
+          overlap_end - overlap_start >= minimum_size) {
+        result.push_back({overlap_start, overlap_end});
+      }
+    }
+    // Continue to visit the next gap.
+    gap_start = vm_end;
+
+    int c;
+    // Skip characters until we reach the end of the line or EOF.
+    do {
+      c = getc(fp);
+    } while ((c != EOF) && (c != '\n'));
+    if (c == EOF) break;
+  }
+
+  fclose(fp);
+  return result;
+}
+
 }  // namespace base
 }  // namespace v8

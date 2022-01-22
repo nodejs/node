@@ -28,9 +28,10 @@ void SetupClientIsolateAndRunCallback(Isolate* shared_isolate,
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator.get();
+  create_params.experimental_attach_to_shared_isolate =
+      reinterpret_cast<v8::Isolate*>(shared_isolate);
   v8::Isolate* client_isolate = v8::Isolate::New(create_params);
   Isolate* i_client_isolate = reinterpret_cast<Isolate*>(client_isolate);
-  i_client_isolate->AttachToSharedIsolate(shared_isolate);
 
   callback(client_isolate, i_client_isolate);
 
@@ -163,7 +164,7 @@ UNINITIALIZED_TEST(SharedCollectionWithoutClients) {
   Isolate::Delete(shared_isolate);
 }
 
-void AllocateInSharedSpace(Isolate* shared_isolate) {
+void AllocateInSharedHeap(Isolate* shared_isolate) {
   SetupClientIsolateAndRunCallback(
       shared_isolate,
       [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
@@ -172,12 +173,12 @@ void AllocateInSharedSpace(Isolate* shared_isolate) {
         const int kKeptAliveArrays = 1000;
 
         for (int i = 0; i < kNumIterations * 100; i++) {
-          HandleScope scope(i_client_isolate);
+          HandleScope new_scope(i_client_isolate);
           Handle<FixedArray> array = i_client_isolate->factory()->NewFixedArray(
               100, AllocationType::kSharedOld);
           if (i < kKeptAliveArrays) {
             // Keep some of those arrays alive across GCs.
-            arrays.push_back(scope.CloseAndEscape(array));
+            arrays.push_back(new_scope.CloseAndEscape(array));
           }
         }
 
@@ -197,7 +198,7 @@ UNINITIALIZED_TEST(SharedCollectionWithOneClient) {
   create_params.array_buffer_allocator = allocator.get();
   Isolate* shared_isolate = Isolate::NewShared(create_params);
 
-  AllocateInSharedSpace(shared_isolate);
+  AllocateInSharedHeap(shared_isolate);
 
   Isolate::Delete(shared_isolate);
 }

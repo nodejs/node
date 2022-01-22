@@ -37,7 +37,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
       result = primary_offset;
     } else {
       CHECK_EQ(StubCache::kSecondary, table);
-      result = m.StubCacheSecondaryOffsetForTesting(name, primary_offset);
+      result = m.StubCacheSecondaryOffsetForTesting(name, map);
     }
     m.Return(m.SmiTag(result));
   }
@@ -83,8 +83,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
         if (table == StubCache::kPrimary) {
           expected_result = primary_offset;
         } else {
-          expected_result =
-              StubCache::SecondaryOffsetForTesting(*name, primary_offset);
+          expected_result = StubCache::SecondaryOffsetForTesting(*name, *map);
         }
       }
       Handle<Object> result = ft.Call(name, map).ToHandleChecked();

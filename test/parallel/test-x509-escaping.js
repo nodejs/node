@@ -81,9 +81,9 @@ const { hasOpenSSL3 } = common;
     hasOpenSSL3 ?
       'DirName:"/C=DE/L=Berlin\\\\/CN=good.example.com"' :
       'DirName:/C=DE/L=Berlin/CN=good.example.com',
-    // TODO(tniessen): even OIDs that are well-known (such as the following,
-    // which is sha256WithRSAEncryption) should be represented numerically only.
-    'Registered ID:sha256WithRSAEncryption',
+    // Even OIDs that are well-known (such as the following, which is
+    // sha256WithRSAEncryption) should be represented numerically only.
+    'Registered ID:1.2.840.113549.1.1.11',
     // This is an OID that will likely never be assigned to anything, thus
     // OpenSSL should not know it.
     'Registered ID:1.3.9999.12.34',
@@ -424,6 +424,15 @@ const { hasOpenSSL3 } = common;
   assert.strictEqual(certX509.subject, `CN=${servername}`);
   assert.strictEqual(certX509.subjectAltName, 'DNS:evil.example.com');
 
+  // The newer X509Certificate API allows customizing this behavior:
+  assert.strictEqual(certX509.checkHost(servername), undefined);
+  assert.strictEqual(certX509.checkHost(servername, { subject: 'default' }),
+                     undefined);
+  assert.strictEqual(certX509.checkHost(servername, { subject: 'always' }),
+                     servername);
+  assert.strictEqual(certX509.checkHost(servername, { subject: 'never' }),
+                     undefined);
+
   // Try connecting to a server that uses the self-signed certificate.
   const server = tls.createServer({ key, cert }, common.mustNotCall());
   server.listen(common.mustCall(() => {
@@ -453,6 +462,15 @@ const { hasOpenSSL3 } = common;
   const certX509 = new X509Certificate(cert);
   assert.strictEqual(certX509.subject, `CN=${servername}`);
   assert.strictEqual(certX509.subjectAltName, 'IP Address:1.2.3.4');
+
+  // The newer X509Certificate API allows customizing this behavior:
+  assert.strictEqual(certX509.checkHost(servername), servername);
+  assert.strictEqual(certX509.checkHost(servername, { subject: 'default' }),
+                     servername);
+  assert.strictEqual(certX509.checkHost(servername, { subject: 'always' }),
+                     servername);
+  assert.strictEqual(certX509.checkHost(servername, { subject: 'never' }),
+                     undefined);
 
   // Connect to a server that uses the self-signed certificate.
   const server = tls.createServer({ key, cert }, common.mustCall((socket) => {

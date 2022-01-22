@@ -2579,14 +2579,8 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
   return Nothing<bool>();
 }
 
-namespace {
-
-// If the receiver is the JSGlobalObject, the store was contextual. In case
-// the property did not exist yet on the global object itself, we have to
-// throw a reference error in strict mode.  In sloppy mode, we continue.
-// Returns false if the exception was thrown, otherwise true.
-bool CheckContextualStoreToJSGlobalObject(LookupIterator* it,
-                                          Maybe<ShouldThrow> should_throw) {
+bool Object::CheckContextualStoreToJSGlobalObject(
+    LookupIterator* it, Maybe<ShouldThrow> should_throw) {
   Isolate* isolate = it->isolate();
 
   if (it->GetReceiver()->IsJSGlobalObject(isolate) &&
@@ -2604,8 +2598,6 @@ bool CheckContextualStoreToJSGlobalObject(LookupIterator* it,
   }
   return true;
 }
-
-}  // namespace
 
 Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
                                 StoreOrigin store_origin,
@@ -4014,13 +4006,7 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
 
 // static
 Handle<ArrayList> ArrayList::New(Isolate* isolate, int size) {
-  Handle<FixedArray> fixed_array =
-      isolate->factory()->NewFixedArray(size + kFirstIndex);
-  fixed_array->set_map_no_write_barrier(
-      ReadOnlyRoots(isolate).array_list_map());
-  Handle<ArrayList> result = Handle<ArrayList>::cast(fixed_array);
-  result->SetLength(0);
-  return result;
+  return isolate->factory()->NewArrayList(size);
 }
 
 Handle<FixedArray> ArrayList::Elements(Isolate* isolate,

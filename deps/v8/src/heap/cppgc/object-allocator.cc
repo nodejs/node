@@ -4,6 +4,7 @@
 
 #include "src/heap/cppgc/object-allocator.h"
 
+#include "include/cppgc/allocation.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/free-list.h"
@@ -22,6 +23,7 @@
 
 namespace cppgc {
 namespace internal {
+
 namespace {
 
 void MarkRangeAsYoung(BasePage* page, Address begin, Address end) {
@@ -115,10 +117,10 @@ ObjectAllocator::ObjectAllocator(RawHeap& heap, PageBackend& page_backend,
       prefinalizer_handler_(prefinalizer_handler) {}
 
 void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace& space, size_t size,
+                                         AlignVal alignment,
                                          GCInfoIndex gcinfo) {
-  void* memory = OutOfLineAllocateImpl(space, size, gcinfo);
+  void* memory = OutOfLineAllocateImpl(space, size, alignment, gcinfo);
   stats_collector_.NotifySafePointForConservativeCollection();
-  raw_heap_.heap()->AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
   if (prefinalizer_handler_.IsInvokingPreFinalizers()) {
     // Objects allocated during pre finalizers should be allocated as black
     // since marking is already done. Atomics are not needed because there is
@@ -133,68 +135,79 @@ void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace& space, size_t size,
 }
 
 void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
-                                             size_t size, GCInfoIndex gcinfo) {
+                                             size_t size, AlignVal alignment,
+                                             GCInfoIndex gcinfo) {
   DCHECK_EQ(0, size & kAllocationMask);
   DCHECK_LE(kFreeListEntrySize, size);
   // Out-of-line allocation allows for checking this is all situations.
   CHECK(!in_disallow_gc_scope());
 
-  // 1. If this allocation is big enough, allocate a large object.
+  // If this allocation is big enough, allocate a large object.
   if (size >= kLargeObjectSizeThreshold) {
     auto& large_space = LargePageSpace::From(
         *raw_heap_.Space(RawHeap::RegularSpaceType::kLarge));
+    // LargePage has a natural alignment that already satisfies
+    // `kMaxSupportedAlignment`.
     return AllocateLargeObject(page_backend_, large_space, stats_collector_,
                                size, gcinfo);
   }
 
-  // 2. Try to allocate from the freelist.
-  if (void* result = AllocateFromFreeList(space, size, gcinfo)) {
-    return result;
+  size_t request_size = size;
+  // Adjust size to be able to accommodate alignment.
+  const size_t dynamic_alignment = static_cast<size_t>(alignment);
+  if (dynamic_alignment != kAllocationGranularity) {
+    CHECK_EQ(2 * sizeof(HeapObjectHeader), dynamic_alignment);
+    request_size += kAllocationGranularity;
   }
 
-  // 3. Lazily sweep pages of this heap until we find a freed area for
-  // this allocation or we finish sweeping all pages of this heap.
+  RefillLinearAllocationBuffer(space, request_size);
+
+  // The allocation must succeed, as we just refilled the LAB.
+  void* result = (dynamic_alignment == kAllocationGranularity)
+                     ? AllocateObjectOnSpace(space, size, gcinfo)
+                     : AllocateObjectOnSpace(space, size, alignment, gcinfo);
+  CHECK(result);
+  return result;
+}
+
+void ObjectAllocator::RefillLinearAllocationBuffer(NormalPageSpace& space,
+                                                   size_t size) {
+  // Try to allocate from the freelist.
+  if (RefillLinearAllocationBufferFromFreeList(space, size)) return;
+
+  // Lazily sweep pages of this heap until we find a freed area for this
+  // allocation or we finish sweeping all pages of this heap.
   Sweeper& sweeper = raw_heap_.heap()->sweeper();
   // TODO(chromium:1056170): Investigate whether this should be a loop which
   // would result in more agressive re-use of memory at the expense of
   // potentially larger allocation time.
   if (sweeper.SweepForAllocationIfRunning(&space, size)) {
-    // Sweeper found a block of at least `size` bytes. Allocation from the free
-    // list may still fail as actual  buckets are not exhaustively searched for
-    // a suitable block. Instead, buckets are tested from larger sizes that are
-    // guaranteed to fit the block to smaller bucket sizes that may only
-    // potentially fit the block. For the bucket that may exactly fit the
-    // allocation of `size` bytes (no overallocation), only the first entry is
-    // checked.
-    if (void* result = AllocateFromFreeList(space, size, gcinfo)) {
-      return result;
-    }
+    // Sweeper found a block of at least `size` bytes. Allocation from the
+    // free list may still fail as actual  buckets are not exhaustively
+    // searched for a suitable block. Instead, buckets are tested from larger
+    // sizes that are guaranteed to fit the block to smaller bucket sizes that
+    // may only potentially fit the block. For the bucket that may exactly fit
+    // the allocation of `size` bytes (no overallocation), only the first
+    // entry is checked.
+    if (RefillLinearAllocationBufferFromFreeList(space, size)) return;
   }
 
-  // 4. Complete sweeping.
   sweeper.FinishIfRunning();
   // TODO(chromium:1056170): Make use of the synchronously freed memory.
 
-  // 5. Add a new page to this heap.
   auto* new_page = NormalPage::Create(page_backend_, space);
   space.AddPage(new_page);
 
-  // 6. Set linear allocation buffer to new page.
+  // Set linear allocation buffer to new page.
   ReplaceLinearAllocationBuffer(space, stats_collector_,
                                 new_page->PayloadStart(),
                                 new_page->PayloadSize());
-
-  // 7. Allocate from it. The allocation must succeed.
-  void* result = AllocateObjectOnSpace(space, size, gcinfo);
-  CHECK(result);
-
-  return result;
 }
 
-void* ObjectAllocator::AllocateFromFreeList(NormalPageSpace& space, size_t size,
-                                            GCInfoIndex gcinfo) {
+bool ObjectAllocator::RefillLinearAllocationBufferFromFreeList(
+    NormalPageSpace& space, size_t size) {
   const FreeList::Block entry = space.free_list().Allocate(size);
-  if (!entry.address) return nullptr;
+  if (!entry.address) return false;
 
   // Assume discarded memory on that page is now zero.
   auto& page = *NormalPage::From(BasePage::FromPayload(entry.address));
@@ -205,8 +218,7 @@ void* ObjectAllocator::AllocateFromFreeList(NormalPageSpace& space, size_t size,
 
   ReplaceLinearAllocationBuffer(
       space, stats_collector_, static_cast<Address>(entry.address), entry.size);
-
-  return AllocateObjectOnSpace(space, size, gcinfo);
+  return true;
 }
 
 void ObjectAllocator::ResetLinearAllocationBuffers() {

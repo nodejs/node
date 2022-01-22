@@ -674,6 +674,77 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   rli.close();
 }
 
+// yank
+{
+  const [rli, fi] = getInterface({ terminal: true, prompt: '' });
+  fi.emit('data', 'the quick brown fox');
+  assertCursorRowsAndCols(rli, 0, 19);
+
+  // Go to the start of the line
+  fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+  // Move forward one char
+  fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+  // Delete the right part
+  fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'delete' });
+  assertCursorRowsAndCols(rli, 0, 1);
+
+  // Yank
+  fi.emit('keypress', '.', { ctrl: true, name: 'y' });
+  assertCursorRowsAndCols(rli, 0, 19);
+
+  rli.on('line', common.mustCall((line) => {
+    assert.strictEqual(line, 'the quick brown fox');
+  }));
+
+  fi.emit('data', '\n');
+  rli.close();
+}
+
+// yank pop
+{
+  const [rli, fi] = getInterface({ terminal: true, prompt: '' });
+  fi.emit('data', 'the quick brown fox');
+  assertCursorRowsAndCols(rli, 0, 19);
+
+  // Go to the start of the line
+  fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+  // Move forward one char
+  fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+  // Delete the right part
+  fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'delete' });
+  assertCursorRowsAndCols(rli, 0, 1);
+  // Yank
+  fi.emit('keypress', '.', { ctrl: true, name: 'y' });
+  assertCursorRowsAndCols(rli, 0, 19);
+
+  // Go to the start of the line
+  fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+  // Move forward four chars
+  fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+  fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+  fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+  fi.emit('keypress', '.', { ctrl: true, name: 'f' });
+  // Delete the right part
+  fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'delete' });
+  assertCursorRowsAndCols(rli, 0, 4);
+  // Go to the start of the line
+  fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+  assertCursorRowsAndCols(rli, 0, 0);
+
+  // Yank: 'quick brown fox|the '
+  fi.emit('keypress', '.', { ctrl: true, name: 'y' });
+  // Yank pop: 'he quick brown fox|the'
+  fi.emit('keypress', '.', { meta: true, name: 'y' });
+  assertCursorRowsAndCols(rli, 0, 18);
+
+  rli.on('line', common.mustCall((line) => {
+    assert.strictEqual(line, 'he quick brown foxthe ');
+  }));
+
+  fi.emit('data', '\n');
+  rli.close();
+}
+
 // Close readline interface
 {
   const [rli, fi] = getInterface({ terminal: true, prompt: '' });
@@ -718,6 +789,28 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   fi.columns = 10;
   fi.emit('data', 't');
   assertCursorRowsAndCols(rli, 4, 3);
+  rli.close();
+}
+
+// Undo
+{
+  const [rli, fi] = getInterface({ terminal: true, prompt: '' });
+  fi.emit('data', 'the quick brown fox');
+  assertCursorRowsAndCols(rli, 0, 19);
+
+  // Delete right line from the 5th char
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', ',', { ctrl: true, shift: false, name: 'k' });
+  fi.emit('keypress', ',', { ctrl: true, shift: false, name: 'u' });
+  assertCursorRowsAndCols(rli, 0, 0);
+  fi.emit('keypress', ',', { sequence: '\x1F' });
+  assert.strictEqual(rli.line, 'the quick brown');
+  fi.emit('keypress', ',', { sequence: '\x1F' });
+  assert.strictEqual(rli.line, 'the quick brown fox');
+  fi.emit('data', '\n');
   rli.close();
 }
 

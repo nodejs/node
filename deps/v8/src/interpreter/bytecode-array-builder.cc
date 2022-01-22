@@ -919,6 +919,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::DefineKeyedProperty(
+    Register object, Register key, int feedback_slot) {
+  // Ensure that the IC uses a strict language mode, as this is the only
+  // supported mode for this use case.
+  DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(
+                FeedbackVector::ToSlot(feedback_slot))),
+            LanguageMode::kStrict);
+  OutputStaKeyedPropertyAsDefine(object, key, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreInArrayLiteral(
     Register array, Register index, int feedback_slot) {
   OutputStaInArrayLiteral(array, index, feedback_slot);

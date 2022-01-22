@@ -360,10 +360,6 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   Handle<Object> object = args.at(0);
 
   if (object->IsJSModuleNamespace()) {
-    if (key.is_element()) {
-      // Namespace objects can't have indexed properties.
-      return ReadOnlyRoots(isolate).false_value();
-    }
     LookupIterator it(isolate, object, key, LookupIterator::OWN);
     PropertyDescriptor desc;
     Maybe<bool> result = JSReceiver::GetOwnPropertyDescriptor(&it, &desc);
@@ -544,6 +540,40 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
                     NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,
                                  name_string, object),
                     Object);
+  }
+
+  MAYBE_RETURN_NULL(
+      Object::SetProperty(&it, value, store_origin, should_throw));
+
+  return value;
+}
+
+MaybeHandle<Object> Runtime::DefineObjectOwnProperty(
+    Isolate* isolate, Handle<Object> object, Handle<Object> key,
+    Handle<Object> value, StoreOrigin store_origin,
+    Maybe<ShouldThrow> should_throw) {
+  if (object->IsNullOrUndefined(isolate)) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kNonObjectPropertyStore, key, object),
+        Object);
+  }
+
+  // Check if the given key is an array index.
+  bool success = false;
+  PropertyKey lookup_key(isolate, key, &success);
+  if (!success) return MaybeHandle<Object>();
+  LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
+
+  if (it.IsFound() && key->IsSymbol() && Symbol::cast(*key).is_private_name()) {
+    Handle<Symbol> private_symbol = Handle<Symbol>::cast(key);
+    Handle<Object> name_string(private_symbol->description(), isolate);
+    DCHECK(name_string->IsString());
+    MessageTemplate message =
+        private_symbol->is_private_brand()
+            ? MessageTemplate::kInvalidPrivateBrandReinitialization
+            : MessageTemplate::kInvalidPrivateFieldReinitialization;
+    THROW_NEW_ERROR(isolate, NewTypeError(message, name_string), Object);
   }
 
   MAYBE_RETURN_NULL(
@@ -820,6 +850,19 @@ RUNTIME_FUNCTION(Runtime_SetKeyedProperty) {
   RETURN_RESULT_OR_FAILURE(
       isolate, Runtime::SetObjectProperty(isolate, object, key, value,
                                           StoreOrigin::kMaybeKeyed));
+}
+
+RUNTIME_FUNCTION(Runtime_DefineObjectOwnProperty) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Runtime::DefineObjectOwnProperty(isolate, object, key, value,
+                                                StoreOrigin::kMaybeKeyed));
 }
 
 RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
@@ -1398,53 +1441,6 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateAccessors) {
   Handle<AccessorPair> pair = isolate->factory()->NewAccessorPair();
   pair->SetComponents(args[0], args[1]);
   return *pair;
-}
-
-RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Symbol, brand, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Context, context, 2);
-  DCHECK(brand->is_private_name());
-
-  LookupIterator it(isolate, receiver, brand, LookupIterator::OWN);
-
-  if (it.IsFound()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidPrivateBrandReinitialization,
-                     brand));
-  }
-
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-  CHECK(Object::AddDataProperty(&it, context, attributes, Just(kDontThrow),
-                                StoreOrigin::kMaybeKeyed)
-            .FromJust());
-  return *receiver;
-}
-
-RUNTIME_FUNCTION(Runtime_AddPrivateField) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, o, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Symbol, key, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  DCHECK(key->is_private_name());
-
-  LookupIterator it(isolate, o, key, LookupIterator::OWN);
-
-  if (it.IsFound()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidPrivateFieldReitialization, key));
-  }
-
-  CHECK(Object::AddDataProperty(&it, value, NONE, Just(kDontThrow),
-                                StoreOrigin::kMaybeKeyed)
-            .FromJust());
-  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // TODO(v8:11330) This is only here while the CSA/Torque implementaton of

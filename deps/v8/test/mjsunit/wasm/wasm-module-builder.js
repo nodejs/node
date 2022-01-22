@@ -1291,7 +1291,6 @@ class WasmStructSubtype extends WasmStruct {
 class WasmArray {
   constructor(type, mutability) {
     this.type = type;
-    if (!mutability) throw new Error("Immutable arrays are not supported yet");
     this.mutability = mutability;
     this.type_form = kWasmArrayTypeForm;
   }

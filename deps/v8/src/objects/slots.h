@@ -269,6 +269,7 @@ class UnalignedSlot : public SlotBase<UnalignedSlot<T>, T, 1> {
 class OffHeapFullObjectSlot : public FullObjectSlot {
  public:
   OffHeapFullObjectSlot() : FullObjectSlot() {}
+  explicit OffHeapFullObjectSlot(Address ptr) : FullObjectSlot(ptr) {}
   explicit OffHeapFullObjectSlot(const Address* ptr) : FullObjectSlot(ptr) {}
 
   inline Object operator*() const = delete;

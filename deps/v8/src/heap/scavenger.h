@@ -154,7 +154,10 @@ class Scavenger {
   SemiSpaceCopyObject(Map map, THeapObjectSlot slot, HeapObject object,
                       int object_size, ObjectFields object_fields);
 
-  template <typename THeapObjectSlot>
+  enum PromotionHeapChoice { kPromoteIntoLocalHeap, kPromoteIntoSharedHeap };
+
+  template <typename THeapObjectSlot,
+            PromotionHeapChoice promotion_heap_choice = kPromoteIntoLocalHeap>
   V8_INLINE CopyAndForwardResult PromoteObject(Map map, THeapObjectSlot slot,
                                                HeapObject object,
                                                int object_size,
@@ -168,7 +171,8 @@ class Scavenger {
                                    ObjectFields object_fields);
 
   // Different cases for object evacuation.
-  template <typename THeapObjectSlot>
+  template <typename THeapObjectSlot,
+            PromotionHeapChoice promotion_heap_choice = kPromoteIntoLocalHeap>
   V8_INLINE SlotCallbackResult
   EvacuateObjectDefault(Map map, THeapObjectSlot slot, HeapObject object,
                         int object_size, ObjectFields object_fields);
@@ -184,6 +188,11 @@ class Scavenger {
                                                       ConsString object,
                                                       int object_size);
 
+  template <typename THeapObjectSlot>
+  inline SlotCallbackResult EvacuateInPlaceInternalizableString(
+      Map map, THeapObjectSlot slot, String string, int object_size,
+      ObjectFields object_fields);
+
   void IterateAndScavengePromotedObject(HeapObject target, Map map, int size);
   void RememberPromotedEphemeron(EphemeronHashTable table, int index);
 
@@ -197,12 +206,14 @@ class Scavenger {
   size_t copied_size_;
   size_t promoted_size_;
   EvacuationAllocator allocator_;
+  ConcurrentAllocator* shared_old_allocator_ = nullptr;
   SurvivingNewLargeObjectsMap surviving_new_large_objects_;
 
   EphemeronRememberedSet ephemeron_remembered_set_;
   const bool is_logging_;
   const bool is_incremental_marking_;
   const bool is_compacting_;
+  const bool shared_string_table_;
 
   friend class IterateAndScavengePromotedObjectsVisitor;
   friend class RootScavengeVisitor;

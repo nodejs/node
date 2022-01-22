@@ -72,6 +72,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSCreateCatchContext:
     case IrOpcode::kJSCreateWithContext:
     case IrOpcode::kJSDebugger:
+    case IrOpcode::kJSDefineProperty:
     case IrOpcode::kJSDeleteProperty:
     case IrOpcode::kJSGeneratorStore:
     case IrOpcode::kJSGetImportMeta:
@@ -204,6 +205,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSStoreNamed:
     case IrOpcode::kJSStoreNamedOwn:
     case IrOpcode::kJSStoreProperty:
+    case IrOpcode::kJSDefineProperty:
 
     // Conversions
     case IrOpcode::kJSToLength:

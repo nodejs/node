@@ -136,7 +136,12 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int VisitWeakCell(Map map, WeakCell object);
 
   // ObjectVisitor overrides.
-  V8_INLINE void VisitMapPointer(HeapObject host) final;
+  void VisitMapPointer(HeapObject host) final {
+    // Note that we are skipping the recording the slot because map objects
+    // can't move, so this is safe (see ProcessStrongHeapObject for comparison)
+    MarkObject(host, HeapObject::cast(
+                         host.map(ObjectVisitorWithCageBases::cage_base())));
+  }
   V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
     VisitPointersImpl(host, p, p + 1);
   }

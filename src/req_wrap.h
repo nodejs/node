@@ -66,7 +66,7 @@ class ReqWrap : public AsyncWrap, public ReqWrapBase {
   // members in memory are predictable. sizeof(req_) depends on the type of T,
   // so req_wrap_queue_ would no longer be at a fixed offset if it came after
   // req_. For more information please refer to
-  // `doc/guides/node-postmortem-support.md`
+  // `doc/contributing/node-postmortem-support.md`
   T req_;
 };
 

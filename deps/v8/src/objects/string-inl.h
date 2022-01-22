@@ -6,8 +6,6 @@
 #define V8_OBJECTS_STRING_INL_H_
 
 #include "src/common/assert-scope.h"
-#include "src/common/external-pointer-inl.h"
-#include "src/common/external-pointer.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
 #include "src/handles/handles-inl.h"
@@ -17,6 +15,8 @@
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-table-inl.h"
 #include "src/objects/string.h"
+#include "src/security/external-pointer-inl.h"
+#include "src/security/external-pointer.h"
 #include "src/strings/string-hasher-inl.h"
 #include "src/utils/utils.h"
 
@@ -605,6 +605,7 @@ const Char* String::GetChars(
 Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
                                AllocationType allocation) {
   if (string->IsConsString()) {
+    DCHECK(!string->InSharedHeap());
     Handle<ConsString> cons = Handle<ConsString>::cast(string);
     if (cons->IsFlat()) {
       string = handle(cons->first(), isolate);
@@ -1259,6 +1260,24 @@ SubStringRange::iterator SubStringRange::begin() {
 
 SubStringRange::iterator SubStringRange::end() {
   return SubStringRange::iterator(string_, first_ + length_, no_gc_);
+}
+
+// static
+bool String::IsInPlaceInternalizable(String string) {
+  return IsInPlaceInternalizable(string.map().instance_type());
+}
+
+// static
+bool String::IsInPlaceInternalizable(InstanceType instance_type) {
+  switch (instance_type) {
+    case STRING_TYPE:
+    case ONE_BYTE_STRING_TYPE:
+    case EXTERNAL_STRING_TYPE:
+    case EXTERNAL_ONE_BYTE_STRING_TYPE:
+      return true;
+    default:
+      return false;
+  }
 }
 
 }  // namespace internal

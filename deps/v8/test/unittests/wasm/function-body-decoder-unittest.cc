@@ -98,6 +98,7 @@ class TestModuleBuilder {
          static_cast<uint32_t>(mod.functions.size()),  // func_index
          sig_index,                                    // sig_index
          {0, 0},                                       // code
+         0,                                            // feedback slots
          false,                                        // import
          false,                                        // export
          declared});                                   // declared
@@ -4130,13 +4131,17 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
 
   byte array_type_index = builder.AddArray(kWasmFuncRef, true);
   byte struct_type_index = builder.AddStruct({F(kWasmI32, false)});
+  byte immutable_array_type_index = builder.AddArray(kWasmI32, false);
 
   ValueType array_type = ValueType::Ref(array_type_index, kNonNullable);
+  ValueType immutable_array_type =
+      ValueType::Ref(immutable_array_type_index, kNonNullable);
   ValueType reps_c_r[] = {kWasmFuncRef, array_type};
   ValueType reps_f_r[] = {kWasmF32, array_type};
   ValueType reps_i_r[] = {kWasmI32, array_type};
   const FunctionSig sig_c_r(1, 1, reps_c_r);
   const FunctionSig sig_v_r(0, 1, &array_type);
+  const FunctionSig sig_v_r2(0, 1, &immutable_array_type);
   const FunctionSig sig_r_v(1, 0, &array_type);
   const FunctionSig sig_f_r(1, 1, reps_f_r);
   const FunctionSig sig_v_cr(0, 2, reps_c_r);
@@ -4259,6 +4264,21 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
   ExpectFailure(&sig_i_r,
                 {WASM_ARRAY_LEN(struct_type_index, WASM_LOCAL_GET(0))},
                 kAppendEnd, "invalid array index: 1");
+
+  // Immutable array.
+  // Allocating and reading is OK:
+  ExpectValidates(
+      sigs.i_v(),
+      {WASM_ARRAY_GET(
+          immutable_array_type_index,
+          WASM_ARRAY_INIT(immutable_array_type_index, 1, WASM_I32V(42),
+                          WASM_RTT_CANON(immutable_array_type_index)),
+          WASM_I32V(0))});
+  // Writing fails:
+  ExpectFailure(&sig_v_r2,
+                {WASM_ARRAY_SET(immutable_array_type_index, WASM_LOCAL_GET(0),
+                                WASM_I32V(0), WASM_I32V(42))},
+                kAppendEnd, "array.set: immediate array type 2 is immutable");
 }
 
 TEST_F(FunctionBodyDecoderTest, PackedFields) {

@@ -130,8 +130,10 @@ RegExpMacroAssemblerARM64::RegExpMacroAssemblerARM64(Isolate* isolate,
   __ Bind(&start_label_);  // And then continue from here.
 }
 
-RegExpMacroAssemblerARM64::~RegExpMacroAssemblerARM64() {
-  // Unuse labels in case we throw away the assembler without calling GetCode.
+RegExpMacroAssemblerARM64::~RegExpMacroAssemblerARM64() = default;
+
+void RegExpMacroAssemblerARM64::AbortedCodeGeneration() {
+  masm_->AbortedCodeGeneration();
   entry_label_.Unuse();
   start_label_.Unuse();
   success_label_.Unuse();
@@ -291,6 +293,18 @@ void RegExpMacroAssemblerARM64::CheckGreedyLoop(Label* on_equal) {
   BranchOrBacktrack(eq, on_equal);
 }
 
+void RegExpMacroAssemblerARM64::PushCachedRegisters() {
+  CPURegList cached_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 7);
+  DCHECK_EQ(kNumCachedRegisters, cached_registers.Count() * 2);
+  __ PushCPURegList(cached_registers);
+}
+
+void RegExpMacroAssemblerARM64::PopCachedRegisters() {
+  CPURegList cached_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 7);
+  DCHECK_EQ(kNumCachedRegisters, cached_registers.Count() * 2);
+  __ PopCPURegList(cached_registers);
+}
+
 void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
@@ -396,10 +410,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     DCHECK(mode_ == UC16);
     int argument_count = 4;
 
-    // The cached registers need to be retained.
-    CPURegList cached_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 7);
-    DCHECK_EQ(kNumCachedRegisters, cached_registers.Count() * 2);
-    __ PushCPURegList(cached_registers);
+    PushCachedRegisters();
 
     // Put arguments into arguments registers.
     // Parameters are
@@ -423,10 +434,9 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     {
       AllowExternalCallThatCantCauseGC scope(masm_.get());
       ExternalReference function =
-          unicode ? ExternalReference::re_case_insensitive_compare_unicode(
-                        isolate())
-                  : ExternalReference::re_case_insensitive_compare_non_unicode(
-                        isolate());
+          unicode
+              ? ExternalReference::re_case_insensitive_compare_unicode()
+              : ExternalReference::re_case_insensitive_compare_non_unicode();
       __ CallCFunction(function, argument_count);
     }
 
@@ -434,7 +444,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     // x0 is one of the registers used as a cache so it must be tested before
     // the cache is restored.
     __ Cmp(x0, 0);
-    __ PopCPURegList(cached_registers);
+    PopCachedRegisters();
     BranchOrBacktrack(eq, on_no_match);
 
     // On success, advance position by length of capture.
@@ -573,6 +583,49 @@ void RegExpMacroAssemblerARM64::CheckCharacterNotInRange(
   CompareAndBranchOrBacktrack(w10, to - from, hi, on_not_in_range);
 }
 
+void RegExpMacroAssemblerARM64::CallIsCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges) {
+  static const int kNumArguments = 3;
+  __ Mov(w0, current_character());
+  __ Mov(x1, GetOrAddRangeArray(ranges));
+  __ Mov(x2, ExternalReference::isolate_address(isolate()));
+
+  {
+    // We have a frame (set up in GetCode), but the assembler doesn't know.
+    FrameScope scope(masm_.get(), StackFrame::MANUAL);
+    __ CallCFunction(ExternalReference::re_is_character_in_range_array(),
+                     kNumArguments);
+  }
+
+  __ Mov(code_pointer(), Operand(masm_->CodeObject()));
+}
+
+bool RegExpMacroAssemblerARM64::CheckCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_in_range) {
+  // Note: due to the arm64 oddity of x0 being a 'cached register',
+  // pushing/popping registers must happen outside of CallIsCharacterInRange
+  // s.t. we can compare the return value to 0 before popping x0.
+  PushCachedRegisters();
+  CallIsCharacterInRangeArray(ranges);
+  __ Cmp(x0, 0);
+  PopCachedRegisters();
+  BranchOrBacktrack(ne, on_in_range);
+  return true;
+}
+
+bool RegExpMacroAssemblerARM64::CheckCharacterNotInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_not_in_range) {
+  // Note: due to the arm64 oddity of x0 being a 'cached register',
+  // pushing/popping registers must happen outside of CallIsCharacterInRange
+  // s.t. we can compare the return value to 0 before popping x0.
+  PushCachedRegisters();
+  CallIsCharacterInRangeArray(ranges);
+  __ Cmp(x0, 0);
+  PopCachedRegisters();
+  BranchOrBacktrack(eq, on_not_in_range);
+  return true;
+}
+
 void RegExpMacroAssemblerARM64::CheckBitInTable(
     Handle<ByteArray> table,
     Label* on_bit_set) {
@@ -587,106 +640,104 @@ void RegExpMacroAssemblerARM64::CheckBitInTable(
   CompareAndBranchOrBacktrack(w11, 0, ne, on_bit_set);
 }
 
-bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(base::uc16 type,
-                                                           Label* on_no_match) {
+bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(
+    StandardCharacterSet type, Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check
+  // TODO(jgruber): No custom implementation (yet): s(UC16), S(UC16).
   switch (type) {
-  case 's':
-    // Match space-characters
-    if (mode_ == LATIN1) {
-      // One byte space characters are '\t'..'\r', ' ' and \u00a0.
-      Label success;
-      // Check for ' ' or 0x00A0.
-      __ Cmp(current_character(), ' ');
-      __ Ccmp(current_character(), 0x00A0, ZFlag, ne);
-      __ B(eq, &success);
-      // Check range 0x09..0x0D.
-      __ Sub(w10, current_character(), '\t');
-      CompareAndBranchOrBacktrack(w10, '\r' - '\t', hi, on_no_match);
-      __ Bind(&success);
+    case StandardCharacterSet::kWhitespace:
+      // Match space-characters.
+      if (mode_ == LATIN1) {
+        // One byte space characters are '\t'..'\r', ' ' and \u00a0.
+        Label success;
+        // Check for ' ' or 0x00A0.
+        __ Cmp(current_character(), ' ');
+        __ Ccmp(current_character(), 0x00A0, ZFlag, ne);
+        __ B(eq, &success);
+        // Check range 0x09..0x0D.
+        __ Sub(w10, current_character(), '\t');
+        CompareAndBranchOrBacktrack(w10, '\r' - '\t', hi, on_no_match);
+        __ Bind(&success);
+        return true;
+      }
+      return false;
+    case StandardCharacterSet::kNotWhitespace:
+      // The emitted code for generic character classes is good enough.
+      return false;
+    case StandardCharacterSet::kDigit:
+      // Match ASCII digits ('0'..'9').
+      __ Sub(w10, current_character(), '0');
+      CompareAndBranchOrBacktrack(w10, '9' - '0', hi, on_no_match);
+      return true;
+    case StandardCharacterSet::kNotDigit:
+      // Match ASCII non-digits.
+      __ Sub(w10, current_character(), '0');
+      CompareAndBranchOrBacktrack(w10, '9' - '0', ls, on_no_match);
+      return true;
+    case StandardCharacterSet::kNotLineTerminator: {
+      // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
+      // Here we emit the conditional branch only once at the end to make branch
+      // prediction more efficient, even though we could branch out of here
+      // as soon as a character matches.
+      __ Cmp(current_character(), 0x0A);
+      __ Ccmp(current_character(), 0x0D, ZFlag, ne);
+      if (mode_ == UC16) {
+        __ Sub(w10, current_character(), 0x2028);
+        // If the Z flag was set we clear the flags to force a branch.
+        __ Ccmp(w10, 0x2029 - 0x2028, NoFlag, ne);
+        // ls -> !((C==1) && (Z==0))
+        BranchOrBacktrack(ls, on_no_match);
+      } else {
+        BranchOrBacktrack(eq, on_no_match);
+      }
       return true;
     }
-    return false;
-  case 'S':
-    // The emitted code for generic character classes is good enough.
-    return false;
-  case 'd':
-    // Match ASCII digits ('0'..'9').
-    __ Sub(w10, current_character(), '0');
-    CompareAndBranchOrBacktrack(w10, '9' - '0', hi, on_no_match);
-    return true;
-  case 'D':
-    // Match ASCII non-digits.
-    __ Sub(w10, current_character(), '0');
-    CompareAndBranchOrBacktrack(w10, '9' - '0', ls, on_no_match);
-    return true;
-  case '.': {
-    // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
-    // Here we emit the conditional branch only once at the end to make branch
-    // prediction more efficient, even though we could branch out of here
-    // as soon as a character matches.
-    __ Cmp(current_character(), 0x0A);
-    __ Ccmp(current_character(), 0x0D, ZFlag, ne);
-    if (mode_ == UC16) {
-      __ Sub(w10, current_character(), 0x2028);
-      // If the Z flag was set we clear the flags to force a branch.
-      __ Ccmp(w10, 0x2029 - 0x2028, NoFlag, ne);
-      // ls -> !((C==1) && (Z==0))
-      BranchOrBacktrack(ls, on_no_match);
-    } else {
-      BranchOrBacktrack(eq, on_no_match);
+    case StandardCharacterSet::kLineTerminator: {
+      // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
+      // We have to check all 4 newline characters before emitting
+      // the conditional branch.
+      __ Cmp(current_character(), 0x0A);
+      __ Ccmp(current_character(), 0x0D, ZFlag, ne);
+      if (mode_ == UC16) {
+        __ Sub(w10, current_character(), 0x2028);
+        // If the Z flag was set we clear the flags to force a fall-through.
+        __ Ccmp(w10, 0x2029 - 0x2028, NoFlag, ne);
+        // hi -> (C==1) && (Z==0)
+        BranchOrBacktrack(hi, on_no_match);
+      } else {
+        BranchOrBacktrack(ne, on_no_match);
+      }
+      return true;
     }
-    return true;
-  }
-  case 'n': {
-    // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
-    // We have to check all 4 newline characters before emitting
-    // the conditional branch.
-    __ Cmp(current_character(), 0x0A);
-    __ Ccmp(current_character(), 0x0D, ZFlag, ne);
-    if (mode_ == UC16) {
-      __ Sub(w10, current_character(), 0x2028);
-      // If the Z flag was set we clear the flags to force a fall-through.
-      __ Ccmp(w10, 0x2029 - 0x2028, NoFlag, ne);
-      // hi -> (C==1) && (Z==0)
-      BranchOrBacktrack(hi, on_no_match);
-    } else {
-      BranchOrBacktrack(ne, on_no_match);
+    case StandardCharacterSet::kWord: {
+      if (mode_ != LATIN1) {
+        // Table is 256 entries, so all Latin1 characters can be tested.
+        CompareAndBranchOrBacktrack(current_character(), 'z', hi, on_no_match);
+      }
+      ExternalReference map = ExternalReference::re_word_character_map();
+      __ Mov(x10, map);
+      __ Ldrb(w10, MemOperand(x10, current_character(), UXTW));
+      CompareAndBranchOrBacktrack(w10, 0, eq, on_no_match);
+      return true;
     }
-    return true;
-  }
-  case 'w': {
-    if (mode_ != LATIN1) {
-      // Table is 256 entries, so all Latin1 characters can be tested.
-      CompareAndBranchOrBacktrack(current_character(), 'z', hi, on_no_match);
+    case StandardCharacterSet::kNotWord: {
+      Label done;
+      if (mode_ != LATIN1) {
+        // Table is 256 entries, so all Latin1 characters can be tested.
+        __ Cmp(current_character(), 'z');
+        __ B(hi, &done);
+      }
+      ExternalReference map = ExternalReference::re_word_character_map();
+      __ Mov(x10, map);
+      __ Ldrb(w10, MemOperand(x10, current_character(), UXTW));
+      CompareAndBranchOrBacktrack(w10, 0, ne, on_no_match);
+      __ Bind(&done);
+      return true;
     }
-    ExternalReference map = ExternalReference::re_word_character_map(isolate());
-    __ Mov(x10, map);
-    __ Ldrb(w10, MemOperand(x10, current_character(), UXTW));
-    CompareAndBranchOrBacktrack(w10, 0, eq, on_no_match);
-    return true;
-  }
-  case 'W': {
-    Label done;
-    if (mode_ != LATIN1) {
-      // Table is 256 entries, so all Latin1 characters can be tested.
-      __ Cmp(current_character(), 'z');
-      __ B(hi, &done);
-    }
-    ExternalReference map = ExternalReference::re_word_character_map(isolate());
-    __ Mov(x10, map);
-    __ Ldrb(w10, MemOperand(x10, current_character(), UXTW));
-    CompareAndBranchOrBacktrack(w10, 0, ne, on_no_match);
-    __ Bind(&done);
-    return true;
-  }
-  case '*':
-    // Match any character.
-    return true;
-  // No custom implementation (yet): s(UC16), S(UC16).
-  default:
-    return false;
+    case StandardCharacterSet::kEverything:
+      // Match any character.
+      return true;
   }
 }
 
@@ -1082,25 +1133,19 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   __ Ret();
 
   Label exit_with_exception;
-  // Registers x0 to x7 are used to store the first captures, they need to be
-  // retained over calls to C++ code.
-  CPURegList cached_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 7);
-  DCHECK_EQ(kNumCachedRegisters, cached_registers.Count() * 2);
-
   if (check_preempt_label_.is_linked()) {
     __ Bind(&check_preempt_label_);
 
     StoreRegExpStackPointerToMemory(backtrack_stackpointer(), x10);
 
     SaveLinkRegister();
-    // The cached registers need to be retained.
-    __ PushCPURegList(cached_registers);
+    PushCachedRegisters();
     CallCheckStackGuardState(x10);
     // Returning from the regexp code restores the stack (sp <- fp)
     // so we don't need to drop the link register from it before exiting.
     __ Cbnz(w0, &return_w0);
     // Reset the cached registers.
-    __ PopCPURegList(cached_registers);
+    PopCachedRegisters();
 
     LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
@@ -1114,13 +1159,11 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
     StoreRegExpStackPointerToMemory(backtrack_stackpointer(), x10);
 
     SaveLinkRegister();
-    // The cached registers need to be retained.
-    __ PushCPURegList(cached_registers);
-    // Call GrowStack(isolate)
+    PushCachedRegisters();
+    // Call GrowStack(isolate).
     static constexpr int kNumArguments = 1;
     __ Mov(x0, ExternalReference::isolate_address(isolate()));
-    __ CallCFunction(ExternalReference::re_grow_stack(isolate()),
-                     kNumArguments);
+    __ CallCFunction(ExternalReference::re_grow_stack(), kNumArguments);
     // If return nullptr, we have failed to grow the stack, and must exit with
     // a stack-overflow exception.  Returning from the regexp code restores the
     // stack (sp <- fp) so we don't need to drop the link register from it
@@ -1128,8 +1171,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
     __ Cbz(w0, &exit_with_exception);
     // Otherwise use return value as new stack pointer.
     __ Mov(backtrack_stackpointer(), x0);
-    // Reset the cached registers.
-    __ PopCPURegList(cached_registers);
+    PopCachedRegisters();
     RestoreLinkRegister();
     __ Ret();
   }
@@ -1445,7 +1487,7 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
 
   DCHECK_EQ(scratch, x10);
   ExternalReference check_stack_guard_state =
-      ExternalReference::re_check_stack_guard_state(isolate());
+      ExternalReference::re_check_stack_guard_state();
   __ Mov(scratch, check_stack_guard_state);
 
   __ CallBuiltin(Builtin::kDirectCEntry);

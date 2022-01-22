@@ -142,6 +142,8 @@ class String : public TorqueGeneratedString<String, Name> {
       return onebyte_start == other.onebyte_start;
     }
 
+    int length() const { return length_; }
+
    private:
     enum State { NON_FLAT, ONE_BYTE, TWO_BYTE };
 
@@ -550,9 +552,16 @@ class String : public TorqueGeneratedString<String, Name> {
                                               Handle<String> string,
                                               bool include_ending_line);
 
+  // Returns true if string can be internalized without copying. In such cases
+  // the string is inserted into the string table and its map is changed to an
+  // internalized equivalent.
+  static inline bool IsInPlaceInternalizable(String string);
+  static inline bool IsInPlaceInternalizable(InstanceType instance_type);
+
  private:
   friend class Name;
   friend class StringTableInsertionKey;
+  friend class SharedStringTableInsertionKey;
   friend class InternalizedStringKey;
 
   // Implementation of the Get() public methods. Do not use directly.
@@ -575,6 +584,9 @@ class String : public TorqueGeneratedString<String, Name> {
 
   V8_EXPORT_PRIVATE static Handle<String> SlowFlatten(
       Isolate* isolate, Handle<ConsString> cons, AllocationType allocation);
+
+  static Handle<String> SlowCopy(Isolate* isolate, Handle<SeqString> source,
+                                 AllocationType allocation);
 
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.

@@ -124,7 +124,8 @@ module.exports = {
          * Checks if a node has a constant truthiness value.
          * @param {ASTNode} node The AST node to check.
          * @param {boolean} inBooleanPosition `false` if checking branch of a condition.
-         *  `true` in all other cases
+         *  `true` in all other cases. When `false`, checks if -- for both string and
+         *  number -- if coerced to that type, the value will be constant.
          * @returns {Bool} true when node's truthiness is constant
          * @private
          */
@@ -138,15 +139,31 @@ module.exports = {
                 case "Literal":
                 case "ArrowFunctionExpression":
                 case "FunctionExpression":
-                case "ObjectExpression":
+                    return true;
                 case "ClassExpression":
+                case "ObjectExpression":
+
+                    /**
+                     * In theory objects like:
+                     *
+                     * `{toString: () => a}`
+                     * `{valueOf: () => a}`
+                     *
+                     * Or a classes like:
+                     *
+                     * `class { static toString() { return a } }`
+                     * `class { static valueOf() { return a } }`
+                     *
+                     * Are not constant verifiably when `inBooleanPosition` is
+                     * false, but it's an edge case we've opted not to handle.
+                     */
                     return true;
                 case "TemplateLiteral":
                     return (inBooleanPosition && node.quasis.some(quasi => quasi.value.cooked.length)) ||
-                        node.expressions.every(exp => isConstant(exp, inBooleanPosition));
+                        node.expressions.every(exp => isConstant(exp, false));
 
                 case "ArrayExpression": {
-                    if (node.parent.type === "BinaryExpression" && node.parent.operator === "+") {
+                    if (!inBooleanPosition) {
                         return node.elements.every(element => isConstant(element, false));
                     }
                     return true;
@@ -196,6 +213,8 @@ module.exports = {
 
                 case "SequenceExpression":
                     return isConstant(node.expressions[node.expressions.length - 1], inBooleanPosition);
+                case "SpreadElement":
+                    return isConstant(node.argument, inBooleanPosition);
 
                 // no default
             }

@@ -354,13 +354,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // ---------------------------------------------------------------------------
   // Code generation.
 
-  // This function is called when on-heap-compilation invariants are
-  // invalidated. For instance, when the assembler buffer grows or a GC happens
-  // between Code object allocation and Code object finalization.
-  void FixOnHeapReferences(bool update_embedded_objects = true);
-  // This function is called when we fallback from on-heap to off-heap
-  // compilation and patch on-heap references to handles.
-  void FixOnHeapReferencesToHandles();
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).
@@ -753,6 +746,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmadc_vx(VRegister vd, Register rs1, VRegister vs2);
   void vmadc_vi(VRegister vd, uint8_t imm5, VRegister vs2);
 
+  void vfmv_vf(VRegister vd, FPURegister fs1, MaskType mask = NoMask);
+  void vfmv_fs(FPURegister fd, VRegister vs2, MaskType mask = NoMask);
+
 #define DEFINE_OPIVV(name, funct6)                           \
   void name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
                  MaskType mask = NoMask);
@@ -779,6 +775,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
 #define DEFINE_OPFVF(name, funct6)                             \
   void name##_vf(VRegister vd, VRegister vs2, FPURegister fs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPFVV_FMA(name, funct6)                       \
+  void name##_vv(VRegister vd, VRegister vs1, VRegister vs2, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPFVF_FMA(name, funct6)                         \
+  void name##_vf(VRegister vd, FPURegister fs1, VRegister vs2, \
                  MaskType mask = NoMask);
 
   DEFINE_OPIVV(vadd, VADD_FUNCT6)
@@ -888,6 +892,32 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_OPFVV(vfsngjx, VFSGNJX_FUNCT6)
   DEFINE_OPFVF(vfsngjx, VFSGNJX_FUNCT6)
 
+  // Vector Single-Width Floating-Point Fused Multiply-Add Instructions
+  DEFINE_OPFVV_FMA(vfmadd, VFMADD_FUNCT6)
+  DEFINE_OPFVF_FMA(vfmadd, VFMADD_FUNCT6)
+  DEFINE_OPFVV_FMA(vfmsub, VFMSUB_FUNCT6)
+  DEFINE_OPFVF_FMA(vfmsub, VFMSUB_FUNCT6)
+  DEFINE_OPFVV_FMA(vfmacc, VFMACC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfmacc, VFMACC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfmsac, VFMSAC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfmsac, VFMSAC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfnmadd, VFNMADD_FUNCT6)
+  DEFINE_OPFVF_FMA(vfnmadd, VFNMADD_FUNCT6)
+  DEFINE_OPFVV_FMA(vfnmsub, VFNMSUB_FUNCT6)
+  DEFINE_OPFVF_FMA(vfnmsub, VFNMSUB_FUNCT6)
+  DEFINE_OPFVV_FMA(vfnmacc, VFNMACC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfnmacc, VFNMACC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfnmsac, VFNMSAC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfnmsac, VFNMSAC_FUNCT6)
+
+  // Vector Narrowing Fixed-Point Clip Instructions
+  DEFINE_OPIVV(vnclip, VNCLIP_FUNCT6)
+  DEFINE_OPIVX(vnclip, VNCLIP_FUNCT6)
+  DEFINE_OPIVI(vnclip, VNCLIP_FUNCT6)
+  DEFINE_OPIVV(vnclipu, VNCLIPU_FUNCT6)
+  DEFINE_OPIVX(vnclipu, VNCLIPU_FUNCT6)
+  DEFINE_OPIVI(vnclipu, VNCLIPU_FUNCT6)
+
 #undef DEFINE_OPIVI
 #undef DEFINE_OPIVV
 #undef DEFINE_OPIVX
@@ -895,6 +925,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #undef DEFINE_OPMVX
 #undef DEFINE_OPFVV
 #undef DEFINE_OPFVF
+#undef DEFINE_OPFVV_FMA
+#undef DEFINE_OPFVF_FMA
 
 #define DEFINE_VFUNARY(name, funct6, vs1)                          \
   void name(VRegister vd, VRegister vs2, MaskType mask = NoMask) { \
@@ -1335,14 +1367,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool is_buffer_growth_blocked() const { return block_buffer_growth_; }
 
-#ifdef DEBUG
-  bool EmbeddedObjectMatches(int pc_offset, Handle<Object> object) {
-    return target_address_at(
-               reinterpret_cast<Address>(buffer_->start() + pc_offset)) ==
-           (IsOnHeap() ? object->ptr() : object.address());
-  }
-#endif
-
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
@@ -1511,6 +1535,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                  VRegister vs2, MaskType mask = NoMask);
   // OPMVV OPFVV
   void GenInstrV(uint8_t funct6, Opcode opcode, Register rd, VRegister vs1,
+                 VRegister vs2, MaskType mask = NoMask);
+  // OPFVV
+  void GenInstrV(uint8_t funct6, Opcode opcode, FPURegister fd, VRegister vs1,
                  VRegister vs2, MaskType mask = NoMask);
 
   // OPIVX OPMVX

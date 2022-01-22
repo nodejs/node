@@ -553,6 +553,19 @@ V8 shared library set USING_V8_SHARED.
 
 #endif  // V8_OS_WIN
 
+// The virtual memory cage is available (i.e. defined) when pointer compression
+// is enabled, but it is only used when V8_VIRTUAL_MEMORY_CAGE is enabled as
+// well. This allows better test coverage of the cage.
+#if defined(V8_COMPRESS_POINTERS)
+#define V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
+#endif
+
+// CagedPointers are currently only used if the heap sandbox is enabled.
+// In the future, they will be enabled when the virtual memory cage is enabled.
+#if defined(V8_HEAP_SANDBOX)
+#define V8_CAGED_POINTERS
+#endif
+
 // clang-format on
 
 #undef V8_HAS_CPP_ATTRIBUTE

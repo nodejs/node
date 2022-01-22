@@ -33,14 +33,14 @@ struct Tests {
   using ValueIterator = Types::ValueVector::iterator;
 
   Isolate* isolate;
-  HandleScope scope;
+  HandleScope tests_scope;
   CanonicalHandleScope canonical;
   Zone zone;
   Types T;
 
   Tests()
       : isolate(CcTest::InitIsolateOnce()),
-        scope(isolate),
+        tests_scope(isolate),
         canonical(isolate),
         zone(isolate->allocator(), ZONE_NAME),
         T(&zone, isolate, isolate->random_number_generator()) {}

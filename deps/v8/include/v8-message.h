@@ -61,7 +61,7 @@ class ScriptOriginOptions {
 class V8_EXPORT ScriptOrigin {
  public:
   #if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
-  V8_DEPRECATE_SOON("Use constructor with primitive C++ types")
+  V8_DEPRECATED("Use constructor with primitive C++ types")
   #endif
   ScriptOrigin(
       Local<Value> resource_name, Local<Integer> resource_line_offset,
@@ -74,7 +74,7 @@ class V8_EXPORT ScriptOrigin {
       Local<Boolean> is_module = Local<Boolean>(),
       Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
   #if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
-  V8_DEPRECATE_SOON("Use constructor that takes an isolate")
+  V8_DEPRECATED("Use constructor that takes an isolate")
   #endif
   explicit ScriptOrigin(
       Local<Value> resource_name, int resource_line_offset = 0,
@@ -103,11 +103,11 @@ class V8_EXPORT ScriptOrigin {
         host_defined_options_(host_defined_options) {}
 
   V8_INLINE Local<Value> ResourceName() const;
-  V8_DEPRECATE_SOON("Use getter with primitive C++ types.")
+  V8_DEPRECATED("Use getter with primitive C++ types.")
   V8_INLINE Local<Integer> ResourceLineOffset() const;
-  V8_DEPRECATE_SOON("Use getter with primitive C++ types.")
+  V8_DEPRECATED("Use getter with primitive C++ types.")
   V8_INLINE Local<Integer> ResourceColumnOffset() const;
-  V8_DEPRECATE_SOON("Use getter with primitive C++ types.")
+  V8_DEPRECATED("Use getter with primitive C++ types.")
   V8_INLINE Local<Integer> ScriptID() const;
   V8_INLINE int LineOffset() const;
   V8_INLINE int ColumnOffset() const;

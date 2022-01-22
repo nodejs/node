@@ -119,6 +119,15 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
     return *this;
   }
 
+  ParsingWhileDebugging parsing_while_debugging() const {
+    return parsing_while_debugging_;
+  }
+  UnoptimizedCompileFlags& set_parsing_while_debugging(
+      ParsingWhileDebugging value) {
+    parsing_while_debugging_ = value;
+    return *this;
+  }
+
  private:
   struct BitFields {
     DEFINE_BIT_FIELDS(FLAG_FIELDS)
@@ -141,6 +150,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
   int script_id_;
   FunctionKind function_kind_;
   FunctionSyntaxKind function_syntax_kind_;
+  ParsingWhileDebugging parsing_while_debugging_;
 };
 
 #undef FLAG_FIELDS

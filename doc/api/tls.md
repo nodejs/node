@@ -17,7 +17,7 @@ const tls = require('tls');
 ## TLS/SSL concepts
 
 The TLS/SSL is a public/private key infrastructure (PKI). For most common
-cases, each client and server must have a _private key_.
+cases, each server must have a _private key_.
 
 Private keys can be generated in multiple ways. The example below illustrates
 use of the OpenSSL command-line interface to generate a 2048-bit RSA private
@@ -89,9 +89,6 @@ the character "E" appended to the traditional abbreviations):
 * [ECDHE][]: An ephemeral version of the Elliptic Curve Diffie-Hellman
   key-agreement protocol.
 
-Ephemeral methods may have some performance drawbacks, because key generation
-is expensive.
-
 To use perfect forward secrecy using `DHE` with the `tls` module, it is required
 to generate Diffie-Hellman parameters and specify them with the `dhparam`
 option to [`tls.createSecureContext()`][]. The following illustrates the use of
@@ -118,7 +115,7 @@ SNI (Server Name Indication) are TLS handshake extensions:
 
 * ALPN: Allows the use of one TLS server for multiple protocols (HTTP, HTTP/2)
 * SNI: Allows the use of one TLS server for multiple hostnames with different
-  SSL certificates.
+  certificates.
 
 ### Pre-shared keys
 
@@ -1146,7 +1143,7 @@ certificate.
 
 * `raw` {Buffer} The DER encoded X.509 certificate data.
 * `subject` {Object} The certificate subject, described in terms of
-  Country (`C:`), StateOrProvince (`ST`), Locality (`L`), Organization (`O`),
+  Country (`C`), StateOrProvince (`ST`), Locality (`L`), Organization (`O`),
   OrganizationalUnit (`OU`), and CommonName (`CN`). The CommonName is typically
   a DNS name with TLS certificates. Example:
   `{C: 'UK', ST: 'BC', L: 'Metro', O: 'Node Fans', OU: 'Docs', CN: 'example.com'}`.

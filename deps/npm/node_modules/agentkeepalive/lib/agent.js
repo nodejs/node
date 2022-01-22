@@ -31,9 +31,10 @@ class Agent extends OriginalAgent {
   constructor(options) {
     options = options || {};
     options.keepAlive = options.keepAlive !== false;
-    // default is keep-alive and 15s free socket timeout
+    // default is keep-alive and 4s free socket timeout
+    // see https://medium.com/ssense-tech/reduce-networking-errors-in-nodejs-23b4eb9f2d83
     if (options.freeSocketTimeout === undefined) {
-      options.freeSocketTimeout = 15000;
+      options.freeSocketTimeout = 4000;
     }
     // Legacy API: keepAliveTimeout should be rename to `freeSocketTimeout`
     if (options.keepAliveTimeout) {
@@ -51,8 +52,8 @@ class Agent extends OriginalAgent {
     // Sets the socket to timeout after timeout milliseconds of inactivity on the socket.
     // By default is double free socket timeout.
     if (options.timeout === undefined) {
-      // make sure socket default inactivity timeout >= 30s
-      options.timeout = Math.max(options.freeSocketTimeout * 2, 30000);
+      // make sure socket default inactivity timeout >= 8s
+      options.timeout = Math.max(options.freeSocketTimeout * 2, 8000);
     }
 
     // support humanize format

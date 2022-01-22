@@ -773,11 +773,10 @@ static bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
 #endif
     }
   } else if (gen->type == GEN_RID) {
-    // TODO(tniessen): unlike OpenSSL's default implementation, never print the
-    // OID as text and instead always print its numeric representation, which is
-    // backward compatible in practice and more future proof (see OBJ_obj2txt).
+    // Unlike OpenSSL's default implementation, never print the OID as text and
+    // instead always print its numeric representation.
     char oline[256];
-    i2t_ASN1_OBJECT(oline, sizeof(oline), gen->d.rid);
+    OBJ_obj2txt(oline, sizeof(oline), gen->d.rid, true);
     BIO_printf(out.get(), "Registered ID:%s", oline);
   } else if (gen->type == GEN_OTHERNAME) {
     // TODO(tniessen): the format that is used here is based on OpenSSL's
@@ -1035,17 +1034,26 @@ static MaybeLocal<Value> GetX509NameObject(Environment* env, X509* cert) {
     // change here without breaking things. Note that this creates nested data
     // structures, yet still does not allow representing Distinguished Names
     // accurately.
-    if (result->HasOwnProperty(env->context(), v8_name).ToChecked()) {
-      Local<Value> accum =
-          result->Get(env->context(), v8_name).ToLocalChecked();
+    bool multiple;
+    if (!result->HasOwnProperty(env->context(), v8_name).To(&multiple)) {
+      return MaybeLocal<Value>();
+    } else if (multiple) {
+      Local<Value> accum;
+      if (!result->Get(env->context(), v8_name).ToLocal(&accum)) {
+        return MaybeLocal<Value>();
+      }
       if (!accum->IsArray()) {
         accum = Array::New(env->isolate(), &accum, 1);
-        result->Set(env->context(), v8_name, accum).Check();
+        if (result->Set(env->context(), v8_name, accum).IsNothing()) {
+          return MaybeLocal<Value>();
+        }
       }
       Local<Array> array = accum.As<Array>();
-      array->Set(env->context(), array->Length(), v8_value).Check();
-    } else {
-      result->Set(env->context(), v8_name, v8_value).Check();
+      if (array->Set(env->context(), array->Length(), v8_value).IsNothing()) {
+        return MaybeLocal<Value>();
+      }
+    } else if (result->Set(env->context(), v8_name, v8_value).IsNothing()) {
+      return MaybeLocal<Value>();
     }
   }
 
