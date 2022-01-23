@@ -792,24 +792,36 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   rli.close();
 }
 
-// Undo
+// Undo & Redo
 {
   const [rli, fi] = getInterface({ terminal: true, prompt: '' });
   fi.emit('data', 'the quick brown fox');
   assertCursorRowsAndCols(rli, 0, 19);
 
-  // Delete right line from the 5th char
+  // Delete the last eight chars
   fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
   fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
   fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
   fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
   fi.emit('keypress', ',', { ctrl: true, shift: false, name: 'k' });
-  fi.emit('keypress', ',', { ctrl: true, shift: false, name: 'u' });
-  assertCursorRowsAndCols(rli, 0, 0);
+
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', '.', { ctrl: true, shift: false, name: 'b' });
+  fi.emit('keypress', ',', { ctrl: true, shift: false, name: 'k' });
+
+  assertCursorRowsAndCols(rli, 0, 11);
+  // Perform undo twice
   fi.emit('keypress', ',', { sequence: '\x1F' });
   assert.strictEqual(rli.line, 'the quick brown');
   fi.emit('keypress', ',', { sequence: '\x1F' });
   assert.strictEqual(rli.line, 'the quick brown fox');
+  // Perform redo twice
+  fi.emit('keypress', ',', { sequence: '\x1E' });
+  assert.strictEqual(rli.line, 'the quick brown');
+  fi.emit('keypress', ',', { sequence: '\x1E' });
+  assert.strictEqual(rli.line, 'the quick b');
   fi.emit('data', '\n');
   rli.close();
 }
