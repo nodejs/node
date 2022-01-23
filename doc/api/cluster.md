@@ -1074,29 +1074,17 @@ list happens before the last `'disconnect'` or `'exit'` event is emitted.
 ```mjs
 import cluster from 'cluster';
 
-// Go through all workers
-function eachWorker(callback) {
-  for (const id in cluster.workers) {
-    callback(cluster.workers[id]);
-  }
-}
-eachWorker((worker) => {
+for (const worker of Object.values(cluster.workers)) {
   worker.send('big announcement to all workers');
-});
+}
 ```
 
 ```cjs
 const cluster = require('cluster');
 
-// Go through all workers
-function eachWorker(callback) {
-  for (const id in cluster.workers) {
-    callback(cluster.workers[id]);
-  }
-}
-eachWorker((worker) => {
+for (const worker of Object.values(cluster.workers)) {
   worker.send('big announcement to all workers');
-});
+}
 ```
 
 Using the worker's unique id is the easiest way to locate the worker.
