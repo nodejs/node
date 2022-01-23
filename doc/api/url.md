@@ -129,7 +129,7 @@ return `true`.
 
 #### `new URL(input[, base])`
 
-* `input` {any} The absolute or relative input URL to parse. If `input`
+* `input` {string} The absolute or relative input URL to parse. If `input`
   is relative, then `base` is required. If `input` is absolute, the `base`
   is ignored. If `input` is not a string, it is [converted to a string][] first.
 * `base` {string|URL} The base URL to resolve against if the `input` is not
