@@ -2,7 +2,7 @@
 
 This is the V8 code cache builder of Node.js. It pre-compiles all the
 JavaScript native modules of Node.js and serializes the code cache (including
-the bytecodes) that will be embeded into the Node.js executable. When a Node.js
+the bytecodes) that will be embedded into the Node.js executable. When a Node.js
 JavaScript native module is `require`d at runtime, Node.js can deserialize from
 the code cache instead of parsing the source code and generating the bytecode
 for it before execution, which should reduce the load time of these JavaScript
