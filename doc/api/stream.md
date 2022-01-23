@@ -1900,12 +1900,10 @@ added: REPLACEME
 * `options` {Object}
   * `signal` {AbortSignal} allows cancelling the toArray operation if the
     signal is aborted.
-* Returns: {Promise} a promise containing an array (if the stream is in
-  object mode) or Buffer with the contents of the stream.
+* Returns: {Promise} a promise containing an array with the contents of the
+  stream.
 
-This method allows easily obtaining the contents of a stream. If the
-stream is in [object mode][object-mode] an array of its contents is returned.
-If the stream is not in object mode a Buffer containing its data is returned.
+This method allows easily obtaining the contents of a stream.
 
 As this method reads the entire stream into memory, it negates the benefits of
 streams. It's intended for interoperability and convenience, not as the primary
