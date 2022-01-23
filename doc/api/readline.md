@@ -658,15 +658,8 @@ a `'resize'` event on the `output` if or when the columns ever change
 ([`process.stdout`][] does this automatically when it is a TTY).
 
 When creating a `readline.Interface` using `stdin` as input, the program
-will not terminate until it receives `EOF` (<kbd>Ctrl</kbd>+<kbd>D</kbd> on
-Linux/macOS, <kbd>Ctrl</kbd>+<kbd>Z</kbd> followed by <kbd>Return</kbd> on
-Windows).
-If you want your application to exit without waiting for user input, you can
-[`unref()`][] the standard input stream:
-
-```js
-process.stdin.unref();
-```
+will not terminate until it receives an [EOF character][]. To exit without
+waiting for user input, call `process.stdin.unref()`.
 
 ### Use of the `completer` function
 
@@ -994,6 +987,7 @@ const { createInterface } = require('readline');
   </tr>
 </table>
 
+[EOF character]: https://en.wikipedia.org/wiki/End-of-file#EOF_character
 [Readable]: stream.md#readable-streams
 [TTY]: tty.md
 [TTY keybindings]: #tty-keybindings
@@ -1005,5 +999,4 @@ const { createInterface } = require('readline');
 [`process.stdin`]: process.md#processstdin
 [`process.stdout`]: process.md#processstdout
 [`rl.close()`]: #rlclose
-[`unref()`]: net.md#socketunref
 [reading files]: #example-read-file-stream-line-by-line
