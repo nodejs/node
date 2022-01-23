@@ -14,7 +14,7 @@ assert.strictEqual(typeof queueMicrotask, 'function');
   assert.throws(common.mustCall(() => {
     queueMicrotask(t);
   }), {
-    code: 'ERR_INVALID_ARG_TYPE',
+    code: 'ERR_INVALID_CALLBACK',
   });
 });
 
