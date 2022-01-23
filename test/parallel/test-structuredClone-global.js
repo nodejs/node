@@ -20,4 +20,4 @@ strictEqual(globalThis.structuredClone, undefined);
 // Restore the value for the known globals check.
 structuredClone = _structuredClone;
 
-throws(() => _structuredClone(), /TypeError/);
+throws(() => _structuredClone(), /ERR_MISSING_ARGS/);
