@@ -18,15 +18,15 @@ function main({ len, n, method, strict }) {
   data.copy(expected);
   data.copy(expectedWrong);
 
-  if (strict) {
-    method = method.replace('eep', 'eepStrict');
-  }
-  const fn = assert[method];
-  const value2 = method.includes('not') ? expectedWrong : expected;
-
-  bench.start();
-  for (let i = 0; i < n; ++i) {
-    fn(actual, value2);
-  }
-  bench.end(n);
+  // if (strict) {
+  //   method = method.replace('eep', 'eepStrict');
+  // }
+  // const fn = assert[method];
+  // const value2 = method.includes('not') ? expectedWrong : expected;
+  //
+  // bench.start();
+  // for (let i = 0; i < n; ++i) {
+  //   fn(actual, value2);
+  // }
+  // bench.end(n);
 }
