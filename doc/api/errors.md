@@ -2225,9 +2225,8 @@ transferable object types has been expanded to cover more types than
 
 ### `ERR_MODULE_NOT_FOUND`
 
-> Stability: 1 - Experimental
-
-An [ES Module][] could not be resolved.
+A module file could not be resolved by the ECMAScript modules loader while
+attempting an `import` operation or when loading the program entry point.
 
 <a id="ERR_MULTIPLE_CALLBACK"></a>
 
@@ -2958,8 +2957,8 @@ changes:
     description: Added `requireStack` property.
 -->
 
-A module file could not be resolved while attempting a [`require()`][] or
-`import` operation.
+A module file could not be resolved by the CommonJS modules loader while
+attempting a [`require()`][] operation or when loading the program entry point.
 
 ## Legacy Node.js error codes
 
