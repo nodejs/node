@@ -16,8 +16,9 @@ const tls = require('tls');
 
 ## TLS/SSL concepts
 
-The TLS/SSL is a public/private key infrastructure (PKI). For most common
-cases, each server must have a _private key_.
+TLS/SSL is a set of protocols that rely on a public key infrastructure (PKI) to
+enable secure communication between a client and a server. For most common
+cases, each server must have a private key.
 
 Private keys can be generated in multiple ways. The example below illustrates
 use of the OpenSSL command-line interface to generate a 2048-bit RSA private
@@ -129,8 +130,8 @@ servers can accommodate both, choosing either of them during the normal cipher
 negotiation step.
 
 TLS-PSK is only a good choice where means exist to securely share a
-key with every connecting machine, so it does not replace PKI
-(Public Key Infrastructure) for the majority of TLS uses.
+key with every connecting machine, so it does not replace the public key
+infrastructure (PKI) for the majority of TLS uses.
 The TLS-PSK implementation in OpenSSL has seen many security flaws in
 recent years, mostly because it is used only by a minority of applications.
 Please consider all alternative solutions before switching to PSK ciphers.
