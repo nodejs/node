@@ -2368,6 +2368,11 @@ const cleanup = finished(rs, (err) => {
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32158
     description: The `pipeline(..., cb)` will wait for the `'close'` event

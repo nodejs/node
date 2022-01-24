@@ -923,6 +923,11 @@ questionExample();
 <!-- YAML
 added: v0.7.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v12.7.0
     pr-url: https://github.com/nodejs/node/pull/28674
     description: The stream's write() callback and return value are exposed.
@@ -946,6 +951,11 @@ in a specified direction identified by `dir`.
 <!-- YAML
 added: v0.7.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v12.7.0
     pr-url: https://github.com/nodejs/node/pull/28641
     description: The stream's write() callback and return value are exposed.
@@ -1095,6 +1105,11 @@ function completer(linePartial, callback) {
 <!-- YAML
 added: v0.7.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v12.7.0
     pr-url: https://github.com/nodejs/node/pull/28674
     description: The stream's write() callback and return value are exposed.
@@ -1116,6 +1131,11 @@ given [TTY][] `stream`.
 <!-- YAML
 added: v0.7.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v12.7.0
     pr-url: https://github.com/nodejs/node/pull/28674
     description: The stream's write() callback and return value are exposed.
