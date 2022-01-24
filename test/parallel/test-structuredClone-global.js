@@ -5,10 +5,12 @@
 require('../common');
 
 const {
-  structuredClone: _structuredClone
+  structuredClone: _structuredClone,
 } = require('internal/structured_clone');
+
 const {
-  strictEqual
+  strictEqual,
+  throws,
 } = require('assert');
 
 strictEqual(globalThis.structuredClone, _structuredClone);
@@ -17,3 +19,5 @@ strictEqual(globalThis.structuredClone, undefined);
 
 // Restore the value for the known globals check.
 structuredClone = _structuredClone;
+
+throws(() => _structuredClone(), /ERR_MISSING_ARGS/);
