@@ -3056,6 +3056,20 @@ This method was deprecated because it is not compatible with
 
 Use [`buffer.subarray`][] which does the same thing instead.
 
+### DEP0159: `ERR_INVALID_CALLBACK`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: End-of-Life.
+-->
+
+Type: End-of-Life
+
+This error code was removed due to adding more confusion to
+the errors used for value type validation.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3

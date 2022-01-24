@@ -1117,7 +1117,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       privateKeyEncoding: { type: 'pkcs1', format: 'pem' }
     }, cb), {
       name: 'TypeError',
-      code: 'ERR_INVALID_CALLBACK'
+      code: 'ERR_INVALID_ARG_TYPE'
     });
   }
 }
@@ -1518,8 +1518,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     },
     {
       name: 'TypeError',
-      code: 'ERR_INVALID_CALLBACK',
-      message: 'Callback must be a function. Received undefined'
+      code: 'ERR_INVALID_ARG_TYPE',
     }
   );
 

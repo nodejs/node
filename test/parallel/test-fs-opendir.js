@@ -38,7 +38,7 @@ const dirconcurrentError = {
 };
 
 const invalidCallbackObj = {
-  code: 'ERR_INVALID_CALLBACK',
+  code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError'
 };
 
@@ -94,7 +94,7 @@ assert.throws(function() {
 
 assert.throws(function() {
   fs.opendir(__filename);
-}, /TypeError \[ERR_INVALID_CALLBACK\]: Callback must be a function/);
+}, /TypeError \[ERR_INVALID_ARG_TYPE\]: The "callback" argument must be of type function/);
 
 fs.opendir(__filename, common.mustCall(function(e) {
   assert.strictEqual(e.code, 'ENOTDIR');
@@ -247,7 +247,7 @@ doConcurrentAsyncAndSyncOps().then(common.mustCall());
 // Check read throw exceptions on invalid callback
 {
   const dir = fs.opendirSync(testDir);
-  assert.throws(() => dir.read('INVALID_CALLBACK'), /ERR_INVALID_CALLBACK/);
+  assert.throws(() => dir.read('INVALID_CALLBACK'), /ERR_INVALID_ARG_TYPE/);
 }
 
 // Check that concurrent read() operations don't do weird things.

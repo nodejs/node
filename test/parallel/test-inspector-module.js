@@ -6,7 +6,6 @@ common.skipIfInspectorDisabled();
 
 const assert = require('assert');
 const { Session } = require('inspector');
-const { inspect } = require('util');
 
 const session = new Session();
 
@@ -52,9 +51,8 @@ session.post('Runtime.evaluate', { expression: '2 + 2' });
   assert.throws(
     () => session.post('test', {}, i),
     {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
     }
   );
 });

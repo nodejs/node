@@ -66,7 +66,7 @@ const tsp = require('timers/promises');
   }, /ERR_MISSING_ARGS/);
   assert.throws(() => {
     pipeline();
-  }, /ERR_INVALID_CALLBACK/);
+  }, /ERR_INVALID_ARG_TYPE/);
 }
 
 {
@@ -560,7 +560,7 @@ const tsp = require('timers/promises');
 
   assert.throws(
     () => pipeline(read, transform, write),
-    { code: 'ERR_INVALID_CALLBACK' }
+    { code: 'ERR_INVALID_ARG_TYPE' }
   );
 }
 

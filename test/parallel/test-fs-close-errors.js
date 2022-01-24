@@ -23,7 +23,7 @@ const fs = require('fs');
   const fd = fs.openSync(__filename, 'r');
 
   const errObj = {
-    code: 'ERR_INVALID_CALLBACK',
+    code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError'
   };
 

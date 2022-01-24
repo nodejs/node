@@ -179,6 +179,11 @@ section if a custom port is used.
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/39987
     description: The `verbatim` options defaults to `true` now.
@@ -282,6 +287,12 @@ The following flags can be passed as hints to [`dns.lookup()`][].
 
 <!-- YAML
 added: v0.11.14
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `address` {string}
@@ -315,6 +326,12 @@ If this method is invoked as its [`util.promisify()`][]ed version, it returns a
 
 <!-- YAML
 added: v0.1.27
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `hostname` {string} Host name to resolve.
@@ -351,6 +368,11 @@ On error, `err` is an [`Error`][] object, where `err.code` is one of the
 <!-- YAML
 added: v0.1.16
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v7.2.0
     pr-url: https://github.com/nodejs/node/pull/9296
     description: This method now supports passing `options`,
@@ -377,6 +399,11 @@ will contain an array of IPv4 addresses (e.g.
 <!-- YAML
 added: v0.1.16
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v7.2.0
     pr-url: https://github.com/nodejs/node/pull/9296
     description: This method now supports passing `options`,
@@ -398,6 +425,15 @@ Uses the DNS protocol to resolve a IPv6 addresses (`AAAA` records) for the
 will contain an array of IPv6 addresses.
 
 ## `dns.resolveAny(hostname, callback)`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
+-->
 
 * `hostname` {string}
 * `callback` {Function}
@@ -451,6 +487,12 @@ queries. It may be better to call individual methods like [`dns.resolve4()`][],
 
 <!-- YAML
 added: v0.3.2
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `hostname` {string}
@@ -469,6 +511,12 @@ will contain an array of canonical name records available for the `hostname`
 added:
   - v15.0.0
   - v14.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `hostname` {string}
@@ -486,6 +534,12 @@ available for the `hostname` (e.g. `[{critical: 0, iodef:
 
 <!-- YAML
 added: v0.1.27
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `hostname` {string}
@@ -502,6 +556,12 @@ property (e.g. `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 
 <!-- YAML
 added: v0.9.12
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `hostname` {string}
@@ -537,6 +597,12 @@ function will contain an array of objects with the following properties:
 
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `hostname` {string}
@@ -553,6 +619,12 @@ contain an array of name server records available for `hostname`
 
 <!-- YAML
 added: v6.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `hostname` {string}
@@ -568,6 +640,12 @@ be an array of strings containing the reply records.
 
 <!-- YAML
 added: v0.11.10
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `hostname` {string}
@@ -605,6 +683,12 @@ be an object with the following properties:
 
 <!-- YAML
 added: v0.1.27
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `hostname` {string}
@@ -636,6 +720,12 @@ be an array of objects with the following properties:
 
 <!-- YAML
 added: v0.1.27
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 <!--lint disable no-undefined-references list-item-bullet-indent-->

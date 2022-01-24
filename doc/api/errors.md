@@ -1833,12 +1833,6 @@ less than -1 should never happen.
 A swap was performed on a `Buffer` but its size was not compatible with the
 operation.
 
-<a id="ERR_INVALID_CALLBACK"></a>
-
-### `ERR_INVALID_CALLBACK`
-
-A callback function was required but was not been provided to a Node.js API.
-
 <a id="ERR_INVALID_CHAR"></a>
 
 ### `ERR_INVALID_CHAR`

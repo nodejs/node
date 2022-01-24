@@ -44,7 +44,7 @@ const {
 });
 
 assert.throws(() => generateKey('aes', { length: 256 }), {
-  code: 'ERR_INVALID_CALLBACK'
+  code: 'ERR_INVALID_ARG_TYPE'
 });
 
 assert.throws(() => generateKey('hmac', { length: -1 }, common.mustNotCall()), {
