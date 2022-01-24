@@ -18,14 +18,11 @@ let apicontent = '';
 
 // Identify files that should be skipped. As files are processed, they
 // are added to this list to prevent dupes.
-const seen = {
-  'all.html': true,
-  'index.html': true
-};
+const seen = new Set(['all.html', 'index.html']);
 
 for (const link of toc.match(/<a.*?>/g)) {
   const href = /href="(.*?)"/.exec(link)[1];
-  if (!htmlFiles.includes(href) || seen[href]) continue;
+  if (!htmlFiles.includes(href) || seen.has(href)) continue;
   const data = fs.readFileSync(new URL(`./${href}`, source), 'utf8');
 
   // Split the doc.
@@ -68,7 +65,7 @@ for (const link of toc.match(/<a.*?>/g)) {
     .trim() + '\n';
 
   // Mark source as seen.
-  seen[href] = true;
+  seen.add(href);
 }
 
 // Replace various mentions of index with all.
