@@ -2118,6 +2118,30 @@ import { Readable } from 'stream';
 await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
 ```
 
+### `readable.asIndexedPairs([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `options` {Object}
+  * `signal` {AbortSignal} allows destroying the stream if the signal is
+    aborted.
+* Returns: {Readable} a stream of indexed pairs.
+
+This method returns a new stream with chunks of the underlying stream paired
+with a counter in the form `[index, chunk]`. The first index value is 0 and it
+increases by 1 for each chunk produced.
+
+```mjs
+import { Readable } from 'stream';
+
+const pairs = await Readable.from(['a', 'b', 'c']).asIndexedPairs().toArray();
+console.log(pairs); // [[0, 'a'], [1, 'b'], [2, 'c']]
+```
+
 ### Duplex and transform streams
 
 #### Class: `stream.Duplex`
