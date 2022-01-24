@@ -172,6 +172,12 @@ event loop is doing.
 
 <!-- YAML
 added: v0.9.1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `callback` {Function} The function to call at the end of this turn of
@@ -197,6 +203,12 @@ This method has a custom variant for promises that is available using
 
 <!-- YAML
 added: v0.0.1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `callback` {Function} The function to call when the timer elapses.
@@ -219,6 +231,12 @@ This method has a custom variant for promises that is available using
 
 <!-- YAML
 added: v0.0.1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `callback` {Function} The function to call when the timer elapses.

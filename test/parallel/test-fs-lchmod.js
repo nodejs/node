@@ -14,9 +14,9 @@ if (!common.isOSX) {
 }
 
 // Check callback
-assert.throws(() => fs.lchmod(f), { code: 'ERR_INVALID_CALLBACK' });
-assert.throws(() => fs.lchmod(), { code: 'ERR_INVALID_CALLBACK' });
-assert.throws(() => fs.lchmod(f, {}), { code: 'ERR_INVALID_CALLBACK' });
+assert.throws(() => fs.lchmod(f), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => fs.lchmod(), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => fs.lchmod(f, {}), { code: 'ERR_INVALID_ARG_TYPE' });
 
 // Check path
 [false, 1, {}, [], null, undefined].forEach((i) => {

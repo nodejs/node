@@ -496,6 +496,12 @@ frames have been acknowledged.
 
 <!-- YAML
 added: v8.9.3
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `payload` {Buffer|TypedArray|DataView} Optional ping payload.
@@ -581,6 +587,12 @@ server.on('connect', (session) => {
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `msecs` {number}
@@ -644,6 +656,12 @@ An object describing the current status of this `Http2Session`.
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `settings` {HTTP/2 Settings Object}
@@ -1166,6 +1184,12 @@ See [`net.Socket.bufferSize`][] for details.
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `code` {number} Unsigned 32-bit integer identifying the error code.
@@ -1311,6 +1335,12 @@ value will be `undefined` after the `Http2Stream` instance is destroyed.
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `msecs` {number}
@@ -1506,6 +1536,12 @@ accepts push streams, `false` otherwise. Settings are the same for every
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `headers` {HTTP/2 Headers Object}
@@ -1985,6 +2021,11 @@ closed, although the server has already stopped allowing new sessions. See
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27558
     description: The default timeout changed from 120s to 0 (no timeout).
@@ -2000,7 +2041,7 @@ on the `Http2Server` after `msecs` milliseconds.
 
 The given callback is registered as a listener on the `'timeout'` event.
 
-In case if `callback` is not a function, a new `ERR_INVALID_CALLBACK`
+In case if `callback` is not a function, a new `ERR_INVALID_ARG_TYPE`
 error will be thrown.
 
 #### `server.timeout`
@@ -2205,6 +2246,12 @@ closed, although the server has already stopped allowing new sessions. See
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `msecs` {number} **Default:** `120000` (2 minutes)
@@ -2217,7 +2264,7 @@ on the `Http2SecureServer` after `msecs` milliseconds.
 
 The given callback is registered as a listener on the `'timeout'` event.
 
-In case if `callback` is not a function, a new `ERR_INVALID_CALLBACK`
+In case if `callback` is not a function, a new `ERR_INVALID_ARG_TYPE`
 error will be thrown.
 
 #### `server.timeout`
@@ -3497,6 +3544,12 @@ See [`response.socket`][].
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `headers` {HTTP/2 Headers Object} An object describing the headers

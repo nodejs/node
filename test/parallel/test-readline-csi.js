@@ -36,7 +36,7 @@ assert.strictEqual(readline.clearScreenDown(writable, common.mustCall()), true);
 // Verify that clearScreenDown() throws on invalid callback.
 assert.throws(() => {
   readline.clearScreenDown(writable, null);
-}, /ERR_INVALID_CALLBACK/);
+}, /ERR_INVALID_ARG_TYPE/);
 
 // Verify that clearScreenDown() does not throw on null or undefined stream.
 assert.strictEqual(readline.clearScreenDown(null, common.mustCall((err) => {
@@ -64,7 +64,7 @@ assert.deepStrictEqual(writable.data, CSI.kClearToLineBeginning);
 // Verify that clearLine() throws on invalid callback.
 assert.throws(() => {
   readline.clearLine(writable, 0, null);
-}, /ERR_INVALID_CALLBACK/);
+}, /ERR_INVALID_ARG_TYPE/);
 
 // Verify that clearLine() does not throw on null or undefined stream.
 assert.strictEqual(readline.clearLine(null, 0), true);
@@ -100,7 +100,7 @@ assert.strictEqual(readline.clearLine(undefined, 0, common.mustCall()), true);
 // Verify that moveCursor() throws on invalid callback.
 assert.throws(() => {
   readline.moveCursor(writable, 1, 1, null);
-}, /ERR_INVALID_CALLBACK/);
+}, /ERR_INVALID_ARG_TYPE/);
 
 // Verify that moveCursor() does not throw on null or undefined stream.
 assert.strictEqual(readline.moveCursor(null, 1, 1), true);
@@ -160,7 +160,7 @@ assert.strictEqual(writable.data, '\x1b[2G');
 // Verify that cursorTo() throws on invalid callback.
 assert.throws(() => {
   readline.cursorTo(writable, 1, 1, null);
-}, /ERR_INVALID_CALLBACK/);
+}, /ERR_INVALID_ARG_TYPE/);
 
 // Verify that cursorTo() throws if x or y is NaN.
 assert.throws(() => {

@@ -46,7 +46,7 @@ const { promises } = fs;
 [false, 1, 'test', {}, [], null, undefined].forEach((i) => {
   assert.throws(() => fs.lchown('not_a_file_that_exists', 1, 1, i), {
     name: 'TypeError',
-    code: 'ERR_INVALID_CALLBACK'
+    code: 'ERR_INVALID_ARG_TYPE'
   });
 });
 

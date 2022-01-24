@@ -3056,6 +3056,22 @@ This method was deprecated because it is not compatible with
 
 Use [`buffer.subarray`][] which does the same thing instead.
 
+### DEP0159: `ERR_INVALID_CALLBACK`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: End-of-Life.
+-->
+
+Type: End-of-Life
+
+This error was removed due to adding more confusion to
+the errors used for value type validation.
+
+Use [`ERR_INVALID_ARG_TYPE`][] instead.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3070,6 +3086,7 @@ Use [`buffer.subarray`][] which does the same thing instead.
 [`Buffer.isBuffer()`]: buffer.md#static-method-bufferisbufferobj
 [`Cipher`]: crypto.md#class-cipher
 [`Decipher`]: crypto.md#class-decipher
+[`ERR_INVALID_ARG_TYPE`]: errors.md#err_invalid_arg_type
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback

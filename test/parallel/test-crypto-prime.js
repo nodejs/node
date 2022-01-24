@@ -37,7 +37,7 @@ const pCheckPrime = promisify(checkPrime);
 
 ['hello', false, 123].forEach((i) => {
   assert.throws(() => generatePrime(80, {}), {
-    code: 'ERR_INVALID_CALLBACK'
+    code: 'ERR_INVALID_ARG_TYPE'
   });
 });
 
