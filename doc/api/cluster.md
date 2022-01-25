@@ -1087,14 +1087,6 @@ for (const worker of Object.values(cluster.workers)) {
 }
 ```
 
-Using the worker's unique id is the easiest way to locate the worker.
-
-```js
-socket.on('data', (id) => {
-  const worker = cluster.workers[id];
-});
-```
-
 [Advanced serialization for `child_process`]: child_process.md#advanced-serialization
 [Child Process module]: child_process.md#child_processforkmodulepath-args-options
 [`.fork()`]: #clusterforkenv
