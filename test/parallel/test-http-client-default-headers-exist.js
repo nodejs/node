@@ -41,7 +41,7 @@ const expectedMethods = Object.keys(expectedHeaders);
 const server = http.createServer(common.mustCall((req, res) => {
   res.end();
 
-  assert(expectedHeaders.hasOwnProperty(req.method),
+  assert(Object.hasOwn(expectedHeaders, req.method),
          `${req.method} was an unexpected method`);
 
   const requestHeaders = Object.keys(req.headers);
