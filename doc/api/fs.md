@@ -3301,8 +3301,8 @@ operation will load on 64 KB of data. For regular files, each read will process
 
 Use up to 512kb per read otherwise to partition reading big files to prevent
 blocking other threads in case the available threads are all in use. If you use
-`options.bPerRead` make sure the value is equal to the nth power of 2 for
-best performance
+`options.bPerRead` make sure the value is equal to the nth power of 2 for best
+performance.
 
 For applications that require as-fast-as-possible reading of file contents, it
 is better to use `fs.read()` directly and for application code to manage
