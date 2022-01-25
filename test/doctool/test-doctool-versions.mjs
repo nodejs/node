@@ -51,7 +51,7 @@ for (const version of versions) {
   assert.strictEqual(parts[parts.length - 1], 'x',
                      `'num' from ${tested} doesn't end in '.x'.`);
   const isEvenRelease = Number.parseInt(parts[expectedLength - 2]) % 2 === 0;
-  const hasLtsProperty = version.hasOwnProperty('lts');
+  const hasLtsProperty = Object.hasOwn(version, 'lts');
   if (hasLtsProperty) {
     // Odd-numbered versions of Node.js are never LTS.
     assert.ok(isEvenRelease, `${tested} should not be an 'lts' release.`);
