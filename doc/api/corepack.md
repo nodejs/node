@@ -1,6 +1,6 @@
 # Corepack
 
-<!-- introduced_in=v16.9.0 -->
+<!-- introduced_in=v14.19.0 -->
 
 <!-- type=misc -->
 

@@ -1108,7 +1108,9 @@ require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
 ### `"packageManager"`
 
 <!-- YAML
-added: v16.9.0
+added:
+  - v16.9.0
+  - v14.19.0
 -->
 
 > Stability: 1 - Experimental
