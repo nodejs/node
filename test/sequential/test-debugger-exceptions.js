@@ -27,8 +27,7 @@ const path = require('path');
     })
     // Making sure it will die by default:
     .then(() => cli.command('c'))
-    // TODO: Remove FATAL ERROR once node doesn't show a FATAL ERROR anymore.
-    .then(() => cli.waitFor(/disconnect|FATAL ERROR/))
+    .then(() => cli.waitFor(/disconnect/))
 
     // Next run: With `breakOnException` it pauses in both places.
     .then(() => cli.stepCommand('r'))
@@ -66,9 +65,7 @@ const path = require('path');
       assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
     })
     .then(() => cli.command('c'))
-    // TODO: Remove FATAL ERROR once node doesn't show a FATAL ERROR anymore
-    .then(() => cli.waitFor(/disconnect|FATAL ERROR/))
-
+    .then(() => cli.waitFor(/disconnect/))
     .then(() => cli.quit())
     .then(null, onFatal);
 }
