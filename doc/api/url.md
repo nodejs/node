@@ -1585,11 +1585,11 @@ changes:
 
 > Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
-* `from` {string} The Base URL being resolved against.
-* `to` {string} The HREF URL being resolved.
+* `from` {string} The base URL to use if `to` is a relative URL.
+* `to` {string} The target URL to resolve.
 
 The `url.resolve()` method resolves a target URL relative to a base URL in a
-manner similar to that of a Web browser resolving an anchor tag HREF.
+manner similar to that of a web browser resolving an anchor tag.
 
 ```js
 const url = require('url');
@@ -1598,7 +1598,7 @@ url.resolve('http://example.com/', '/one');    // 'http://example.com/one'
 url.resolve('http://example.com/one', '/two'); // 'http://example.com/two'
 ```
 
-You can achieve the same result using the WHATWG URL API:
+To achieve the same result using the WHATWG URL API:
 
 ```js
 function resolve(from, to) {
