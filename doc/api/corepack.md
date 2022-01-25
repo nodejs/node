@@ -1,6 +1,6 @@
 # Corepack
 
-<!-- introduced_in=REPLACEME -->
+<!-- introduced_in=v14.19.0 -->
 <!-- type=misc -->
 
 > Stability: 1 - Experimental

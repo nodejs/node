@@ -1051,7 +1051,7 @@ When a package has an [`"exports"`][] field, this will take precedence over the
 
 ### `"packageManager"`
 <!-- YAML
-added: REPLACEME
+added: v14.19.0
 -->
 
 > Stability: 1 - Experimental

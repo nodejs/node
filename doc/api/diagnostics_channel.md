@@ -160,7 +160,7 @@ channel.subscribe((message, name) => {
 added:
  - v14.17.0
 changes:
-  - version: REPLACEME
+  - version: v14.19.0
     pr-url: https://github.com/nodejs/node/pull/40433
     description: Added return value. Added to channels without subscribers.
 -->

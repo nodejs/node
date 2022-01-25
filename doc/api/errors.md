@@ -879,7 +879,7 @@ An unknown Diffie-Hellman group name was given. See
 <a id="ERR_DLOPEN_DISABLED"></a>
 ### `ERR_DLOPEN_DISABLED`
 <!-- YAML
-added: REPLACEME
+added: v14.19.0
 -->
 
 Loading native addons has been disabled using [`--no-addons`][].

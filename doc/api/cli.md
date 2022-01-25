@@ -589,7 +589,7 @@ This option is a no-op. It is kept for compatibility.
 
 ### `--no-addons`
 <!-- YAML
-added: REPLACEME
+added: v14.19.0
 -->
 
 Disable the `node-addons` exports condition as well as disable loading
