@@ -664,7 +664,9 @@ This option is a no-op. It is kept for compatibility.
 ### `--no-addons`
 
 <!-- YAML
-added: v16.10.0
+added:
+  - v16.10.0
+  - v14.19.0
 -->
 
 Disable the `node-addons` exports condition as well as disable loading

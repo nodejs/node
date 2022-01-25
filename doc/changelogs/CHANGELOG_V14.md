@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.19.0">14.19.0</a><br/>
 <a href="#14.18.3">14.18.3</a><br/>
 <a href="#14.18.2">14.18.2</a><br/>
 <a href="#14.18.1">14.18.1</a><br/>
@@ -69,6 +70,71 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.19.0"></a>
+
+## 2022-02-01, Version 14.19.0 'Fermium' (LTS), @richardlau
+
+### Notable Changes
+
+#### Corepack
+
+Node.js now includes Corepack, a script that acts as a bridge between Node.js projects and the package managers they are intended to be used with during development.
+In practical terms, **Corepack will let you use Yarn and pnpm without having to install them** - just like what currently happens with npm, which is shipped in Node.js by default.
+Please head over to the [Corepack documentation page](https://nodejs.org/dist/latest-v14.x/docs/api/corepack.html) for more information on how to use it.
+
+Contributed by Maël Nison - [#39608](https://github.com/nodejs/node/pull/39608)
+
+#### ICU updated
+
+ICU has been updated to 70.1. This updates timezone database to 2021a3, including bringing forward the start for DST for Jordan from March to February.
+
+Contributed by Michaël Zasso - [#40658](https://github.com/nodejs/node/pull/40658)
+
+#### New option to disable loading of native addons
+
+A new command line option `--no-addons` has been added to disallow loading of native addons.
+
+Contributed by Dominic Elm - [#39977](https://github.com/nodejs/node/pull/39977)
+
+#### Updated Root Certificates
+
+Root certificates have been updated to those from Mozilla's Network Security Services 3.71.
+
+Contributed by Richard Lau - [#40280](https://github.com/nodejs/node/pull/40280)
+
+#### Other Notable Changes
+
+* \[[`0d448eaab5`](https://github.com/nodejs/node/commit/0d448eaab5)] - **(SEMVER-MINOR)** **crypto**: make FIPS related options always available (Vít Ondruch) [#36341](https://github.com/nodejs/node/pull/36341)
+* \[[`004eafbebf`](https://github.com/nodejs/node/commit/004eafbebf)] - **(SEMVER-MINOR)** **lib**: add unsubscribe method to non-active DC channels (simon-id) [#40433](https://github.com/nodejs/node/pull/40433)
+* \[[`625be7585d`](https://github.com/nodejs/node/commit/625be7585d)] - **(SEMVER-MINOR)** **lib**: add return value for DC channel.unsubscribe (simon-id) [#40433](https://github.com/nodejs/node/pull/40433)
+* \[[`607bc74eae`](https://github.com/nodejs/node/commit/607bc74eae)] - **(SEMVER-MINOR)** **module**: support pattern trailers (Guy Bedford) [#39635](https://github.com/nodejs/node/pull/39635)
+* \[[`f74fe2a59c`](https://github.com/nodejs/node/commit/f74fe2a59c)] - **(SEMVER-MINOR)** **src**: make napi\_create\_reference accept symbol (JckXia) [#39926](https://github.com/nodejs/node/pull/39926)
+
+### Commits
+
+* \[[`0231ffa501`](https://github.com/nodejs/node/commit/0231ffa501)] - **build**: add `--without-corepack` (Jonah Snider) [#41060](https://github.com/nodejs/node/pull/41060)
+* \[[`5389b8ab05`](https://github.com/nodejs/node/commit/5389b8ab05)] - **crypto**: update root certificates (Richard Lau) [#40280](https://github.com/nodejs/node/pull/40280)
+* \[[`0d448eaab5`](https://github.com/nodejs/node/commit/0d448eaab5)] - **(SEMVER-MINOR)** **crypto**: make FIPS related options always available (Vít Ondruch) [#36341](https://github.com/nodejs/node/pull/36341)
+* \[[`cd20ecc7cb`](https://github.com/nodejs/node/commit/cd20ecc7cb)] - **deps**: upgrade Corepack to 0.10 (Maël Nison) [#40374](https://github.com/nodejs/node/pull/40374)
+* \[[`737df75e17`](https://github.com/nodejs/node/commit/737df75e17)] - **(SEMVER-MINOR)** **deps**: add corepack (Maël Nison) [#39608](https://github.com/nodejs/node/pull/39608)
+* \[[`b85aa5a143`](https://github.com/nodejs/node/commit/b85aa5a143)] - **deps**: upgrade npm to 6.14.16 (Ruy Adorno) [#41603](https://github.com/nodejs/node/pull/41603)
+* \[[`2755d391a5`](https://github.com/nodejs/node/commit/2755d391a5)] - **deps**: update ICU to 70.1 (Michaël Zasso) [#40658](https://github.com/nodejs/node/pull/40658)
+* \[[`3089326d89`](https://github.com/nodejs/node/commit/3089326d89)] - **deps**: update archs files for OpenSSL-1.1.1m (Richard Lau) [#41173](https://github.com/nodejs/node/pull/41173)
+* \[[`59da7c12aa`](https://github.com/nodejs/node/commit/59da7c12aa)] - **deps**: upgrade openssl sources to 1.1.1m (Richard Lau) [#41173](https://github.com/nodejs/node/pull/41173)
+* \[[`cede1f26f6`](https://github.com/nodejs/node/commit/cede1f26f6)] - **deps**: add -fno-strict-aliasing flag to libuv (Daniel Bevenius) [#40631](https://github.com/nodejs/node/pull/40631)
+* \[[`4477da858f`](https://github.com/nodejs/node/commit/4477da858f)] - **doc**: fix corepack grammar for `--force` flag (Steven) [#40762](https://github.com/nodejs/node/pull/40762)
+* \[[`5971d58600`](https://github.com/nodejs/node/commit/5971d58600)] - **doc**: add missing YAML tag in `esm.md` (Antoine du Hamel) [#41516](https://github.com/nodejs/node/pull/41516)
+* \[[`e903798ae1`](https://github.com/nodejs/node/commit/e903798ae1)] - **doc**: add note regarding unfinished TLA (Antoine du Hamel) [#41434](https://github.com/nodejs/node/pull/41434)
+* \[[`a90defebcf`](https://github.com/nodejs/node/commit/a90defebcf)] - **esm**: make `process.exit()` default to exit code 0 (Gang Chen) [#41388](https://github.com/nodejs/node/pull/41388)
+* \[[`fc328f1ab0`](https://github.com/nodejs/node/commit/fc328f1ab0)] - **fs**: nullish coalescing to respect zero positional reads (Omar El-Mihilmy) [#40716](https://github.com/nodejs/node/pull/40716)
+* \[[`004eafbebf`](https://github.com/nodejs/node/commit/004eafbebf)] - **(SEMVER-MINOR)** **lib**: add unsubscribe method to non-active DC channels (simon-id) [#40433](https://github.com/nodejs/node/pull/40433)
+* \[[`625be7585d`](https://github.com/nodejs/node/commit/625be7585d)] - **(SEMVER-MINOR)** **lib**: add return value for DC channel.unsubscribe (simon-id) [#40433](https://github.com/nodejs/node/pull/40433)
+* \[[`2c365961d0`](https://github.com/nodejs/node/commit/2c365961d0)] - **module**: support pattern trailers for imports field (Guy Bedford) [#40041](https://github.com/nodejs/node/pull/40041)
+* \[[`607bc74eae`](https://github.com/nodejs/node/commit/607bc74eae)] - **(SEMVER-MINOR)** **module**: support pattern trailers (Guy Bedford) [#39635](https://github.com/nodejs/node/pull/39635)
+* \[[`f74fe2a59c`](https://github.com/nodejs/node/commit/f74fe2a59c)] - **(SEMVER-MINOR)** **src**: make napi\_create\_reference accept symbol (JckXia) [#39926](https://github.com/nodejs/node/pull/39926)
+* \[[`b050c65885`](https://github.com/nodejs/node/commit/b050c65885)] - **src**: add option to disable loading native addons (Dominic Elm) [#39977](https://github.com/nodejs/node/pull/39977)
+* \[[`c1695ac68a`](https://github.com/nodejs/node/commit/c1695ac68a)] - **tools**: update certdata.txt (Richard Lau) [#40280](https://github.com/nodejs/node/pull/40280)
 
 <a id="14.18.3"></a>
 
