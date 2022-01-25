@@ -7,7 +7,7 @@ const assert = require('assert');
 const vm = require('vm');
 const { Worker, isMainThread } = require('worker_threads');
 
-assert(Object.prototype.hasOwnProperty('__proto__'));
+assert(Object.hasOwn(Object.prototype, '__proto__'));
 
 assert.throws(() => {
   // eslint-disable-next-line no-proto,no-unused-expressions

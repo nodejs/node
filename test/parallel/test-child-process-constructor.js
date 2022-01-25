@@ -78,7 +78,7 @@ child.spawn({
   stdio: 'pipe'
 });
 
-assert.strictEqual(child.hasOwnProperty('pid'), true);
+assert.strictEqual(Object.hasOwn(child, 'pid'), true);
 assert(Number.isInteger(child.pid));
 
 // Try killing with invalid signal

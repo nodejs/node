@@ -131,7 +131,7 @@ if (cluster.isWorker) {
           assert.strictEqual(Object.keys(arguments[0]).length, 4);
           assert.strictEqual(arguments[0].address, '127.0.0.1');
           assert.strictEqual(arguments[0].addressType, 4);
-          assert(arguments[0].hasOwnProperty('fd'));
+          assert(Object.hasOwn(arguments[0], 'fd'));
           assert.strictEqual(arguments[0].fd, undefined);
           const port = arguments[0].port;
           assert(Number.isInteger(port));

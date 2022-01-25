@@ -63,7 +63,7 @@ function primary() {
   // Set up event handlers for every worker. Each worker sends a message when
   // it has received the expected number of packets. After that it disconnects.
   for (const key in cluster.workers) {
-    if (cluster.workers.hasOwnProperty(key))
+    if (Object.hasOwn(cluster.workers, key))
       setupWorker(cluster.workers[key]);
   }
 

@@ -39,7 +39,7 @@ if (process.argv[2] === 'you-are-the-child') {
 
   assert.strictEqual(Object.prototype.hasOwnProperty,
                      process.env.hasOwnProperty);
-  const has = process.env.hasOwnProperty('hasOwnProperty');
+  const has = Object.hasOwn(process.env, 'hasOwnProperty');
   assert.strictEqual(has, false);
 
   process.env.hasOwnProperty = 'asdf';

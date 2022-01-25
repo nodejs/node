@@ -69,7 +69,7 @@ function _validateContent(report, fields = []) {
 
   checkForUnknownFields(report, sections);
   sections.forEach((section) => {
-    assert(report.hasOwnProperty(section));
+    assert(Object.hasOwn(report, section));
     assert(typeof report[section] === 'object' && report[section] !== null);
   });
 
