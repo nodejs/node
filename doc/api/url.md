@@ -131,7 +131,7 @@ return `true`.
 
 * `input` {string} The absolute or relative input URL to parse. If `input`
   is relative, then `base` is required. If `input` is absolute, the `base`
-  is ignored.
+  is ignored. If `input` is not a string, it is [converted to a string][] first.
 * `base` {string|URL} The base URL to resolve against if the `input` is not
   absolute.
 
@@ -1701,6 +1701,7 @@ console.log(myURL.origin);
 [`url.toString()`]: #urltostring
 [`urlSearchParams.entries()`]: #urlsearchparamsentries
 [`urlSearchParams@@iterator()`]: #urlsearchparamssymboliterator
+[converted to a string]: https://tc39.es/ecma262/#sec-tostring
 [examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
 [host name spoofing]: https://hackerone.com/reports/678487
 [legacy `urlObject`]: #legacy-urlobject
