@@ -19,7 +19,7 @@ steps listed in the process as outined in
 The current security stewards are documented in the main Node.js
 [README.md](https://github.com/nodejs/node#security-stewards).
 
-The currently rotation is as follows:
+The current rotation is as follows:
 
 | Company    | Person   | Release Date |
 | ---------- | -------- | ------------ |
