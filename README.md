@@ -741,7 +741,7 @@ releases on a rotation basis as outlined in the
 
 The current set of security release stewards is as follows:
 
-* Data Dog
+* Datadog
   * [bengl](https://github.com/bengl) -
     **Bryan English** <<bryan@bryanenglish.com>> (he/him)
   * [vdeturckheim](https://github.com/vdeturckheim) -
