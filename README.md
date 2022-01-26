@@ -729,6 +729,32 @@ use these keys to verify a downloaded file.
 
 </details>
 
+### Security Release Stewards
+
+When possible the commitment to take slots in the
+security release steward rotation is made by companies in order
+to ensure individuals who act as security stewards have the
+support and recognition from their employer to be able to
+prioritize security releases. Security release stewards manage security
+releases on a rotation basis as outlined in the
+[security release process](./doc/contributing/security-release-process.md).
+
+The current set of security release stewards is as follows:
+
+* Data Dog
+  * [bengl](https://github.com/bengl) -
+    **Bryan English** <<bryan@bryanenglish.com>> (he/him)
+  * [vdeturckheim](https://github.com/vdeturckheim) -
+    **Vladimir de Turckheim** <<vlad2t@hotmail.com>> (he/him)
+* NearForm
+  * [mcollina](https://github.com/mcollina) -
+    **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
+* Red Hat and IBM
+  * [mhdawson](https://github.com/mhdawson) -
+    **Michael Dawson** <<midawson@redhat.com>> (he/him)
+  * [joesepi](https://github.com/joesepi)-
+    **Joe Sepi** <<joesepi@ibm.com>> (he/him)
+
 ## License
 
 Node.js is available under the

@@ -6,6 +6,30 @@ Security Release and used to track progress on the release. It contains _**TEXT
 LIKE THIS**_ which will be replaced during the release process with the
 information described.
 
+## Security release stewards
+
+For each security release a Security steward will take ownership for
+co-ordinating the steps outlined in this process. Security stewards
+are nominated through an issue in the TSC repository and approved
+through the regular TSC concensus process. Once approved they
+are given access to all of the resources needed to carry out the
+steps listed in the process as outined in
+[security steward on/off boarding](security-steward-on-off-boarding.md).
+
+The current security stewards are documented in the main Node.js
+[README.md](https://github.com/nodejs/node#security-stewards).
+
+The currently rotation is as follows:
+
+| Company    | Person   | Release Date |
+| ---------- | -------- | ------------ |
+| NearForm   | Matteo   | Oct 21       |
+| Data Dog   | Bryan    | Jan 22       |
+| RH and IBM | Joe      |              |
+| NearForm   | Matteo   |              |
+| Data Dog   | Vladimir |              |
+| RH and IBM | Michael  |              |
+
 ## Planning
 
 * [ ] Open an [issue](https://github.com/nodejs-private/node-private) titled
