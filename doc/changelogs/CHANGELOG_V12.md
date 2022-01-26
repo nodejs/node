@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.22.10">12.22.10</a><br/>
 <a href="#12.22.9">12.22.9</a><br/>
 <a href="#12.22.8">12.22.8</a><br/>
 <a href="#12.22.7">12.22.7</a><br/>
@@ -81,6 +82,20 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.22.10"></a>
+
+## 2022-02-01, Version 12.22.10 'Erbium' (LTS), @ruyadorno
+
+### Notable changes
+
+* Upgrade npm to 6.14.16
+* Updated ICU time zone data
+
+### Commits
+
+* \[[`33899b435d`](https://github.com/nodejs/node/commit/33899b435d)] - **deps**: upgrade npm to 6.14.16 (Ruy Adorno) [#41601](https://github.com/nodejs/node/pull/41601)
+* \[[`d9237c46ca`](https://github.com/nodejs/node/commit/d9237c46ca)] - **tools**: update tzdata to 2021a4 (Albert Wang) [#41443](https://github.com/nodejs/node/pull/41443)
 
 <a id="12.22.9"></a>
 
