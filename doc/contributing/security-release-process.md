@@ -27,7 +27,7 @@ The current rotation is as follows:
 | Datadog    | Bryan    | Jan 22       |
 | RH and IBM | Joe      |              |
 | NearForm   | Matteo   |              |
-| Data Dog   | Vladimir |              |
+| Datadog   | Vladimir |              |
 | RH and IBM | Michael  |              |
 
 ## Planning
