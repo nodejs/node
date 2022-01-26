@@ -464,7 +464,7 @@ server.listen({
 });
 ```
 
-When `exclusive` is `true` and the underlying handle is shared, it's
+When `exclusive` is `true` and the underlying handle is shared, it is
 possible that several workers query a handle with different backlogs.
 In this case, the first `backlog` passed to the master process will be used.
 
