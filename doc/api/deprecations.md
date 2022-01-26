@@ -3061,6 +3061,24 @@ Type: Documentation-only
 This event was deprecated because it did not work with V8 promise combinators
 which diminished its usefulness.
 
+### DEP0161: `process._getActiveRequests()` and `process._getActiveHandles()`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41587
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The `process._getActiveHandles()` and `process._getActiveRequests()`
+functions are not intended for public use and can be removed in future
+releases.
+
+Use [`process.getActiveResourcesInfo()`][] to get a list of types of active
+resources and not the actual references.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3132,6 +3150,7 @@ which diminished its usefulness.
 [`os.networkInterfaces()`]: os.md#osnetworkinterfaces
 [`os.tmpdir()`]: os.md#ostmpdir
 [`process.env`]: process.md#processenv
+[`process.getActiveResourcesInfo()`]: process.md#processgetactiveresourcesinfo
 [`process.mainModule`]: process.md#processmainmodule
 [`punycode`]: punycode.md
 [`readable.readableEnded`]: stream.md#readablereadableended
