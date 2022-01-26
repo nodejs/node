@@ -1062,7 +1062,7 @@ added: v0.7.0
 
 * {Object}
 
-A hash that stores the active worker objects, keyed by `id` field. Makes it
+A hash that stores the active worker objects, keyed by `id` field. This makes it
 easy to loop through all the workers. It is only available in the primary
 process.
 
