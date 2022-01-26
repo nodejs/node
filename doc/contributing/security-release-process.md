@@ -24,7 +24,7 @@ The current rotation is as follows:
 | Company    | Person   | Release Date |
 | ---------- | -------- | ------------ |
 | NearForm   | Matteo   | Oct 21       |
-| Data Dog   | Bryan    | Jan 22       |
+| Datadog    | Bryan    | Jan 22       |
 | RH and IBM | Joe      |              |
 | NearForm   | Matteo   |              |
 | Data Dog   | Vladimir |              |
