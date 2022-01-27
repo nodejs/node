@@ -729,7 +729,7 @@ use these keys to verify a downloaded file.
 
 </details>
 
-### Security Release Stewards
+### Security release stewards
 
 When possible, the commitment to take slots in the
 security release steward rotation is made by companies in order
