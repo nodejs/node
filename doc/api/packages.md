@@ -1094,8 +1094,7 @@ added: v0.4.0
 ```
 
 The `"main"` field defines the script that is used when the [package directory
-is loaded via `require()`](modules.md#folders-as-modules). Its value
-is a path.
+is loaded](modules.md#folders-as-modules). Its value is a path.
 
 ```cjs
 require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
