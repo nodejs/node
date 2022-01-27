@@ -1032,7 +1032,7 @@ conditional exports for consumers could be to add an export, e.g.
 ## Node.js `package.json` field definitions
 
 This section describes the fields used by the Node.js runtime. Other tools (such
-as [npm](https://docs.npmjs.com/creating-a-package-json-file)) use
+as [npm](https://docs.npmjs.com/cli/v8/configuring-npm/package-json)) use
 additional fields which are ignored by Node.js and not documented here.
 
 The following fields in `package.json` files are used in Node.js:
