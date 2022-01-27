@@ -731,7 +731,7 @@ use these keys to verify a downloaded file.
 
 ### Security Release Stewards
 
-When possible the commitment to take slots in the
+When possible, the commitment to take slots in the
 security release steward rotation is made by companies in order
 to ensure individuals who act as security stewards have the
 support and recognition from their employer to be able to
