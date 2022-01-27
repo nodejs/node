@@ -109,20 +109,11 @@ function oneTo5() {
 
 {
   // Error cases
-  assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const unused of Readable.from([1]).flatMap(1));
-  }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
-  assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of Readable.from([1]).flatMap((x) => x, {
-      concurrency: 'Foo'
-    }));
-  }, /ERR_OUT_OF_RANGE/).then(common.mustCall());
-  assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of Readable.from([1]).flatMap((x) => x, 1));
-  }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+  assert.throws(() => Readable.from([1]).flatMap(1), /ERR_INVALID_ARG_TYPE/);
+  assert.throws(() => Readable.from([1]).flatMap((x) => x, {
+    concurrency: 'Foo'
+  }), /ERR_OUT_OF_RANGE/);
+  assert.throws(() => Readable.from([1]).flatMap((x) => x, 1), /ERR_INVALID_ARG_TYPE/);
 }
 {
   // Test result is a Readable
