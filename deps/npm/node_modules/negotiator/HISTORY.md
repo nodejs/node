@@ -1,3 +1,8 @@
+0.6.3 / 2022-01-22
+==================
+
+  * Revert "Lazy-load modules from main entry point"
+
 0.6.2 / 2019-04-29
 ==================
 

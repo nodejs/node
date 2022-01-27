@@ -212,7 +212,8 @@ module.exports = cls => class ActualLoader extends cls {
     const promises = []
     for (const path of tree.workspaces.values()) {
       if (!this[_cache].has(path)) {
-        const p = this[_loadFSNode]({ path, root: this[_actualTree] })
+        // workspace overrides use the root overrides
+        const p = this[_loadFSNode]({ path, root: this[_actualTree], useRootOverrides: true })
           .then(node => this[_loadFSTree](node))
         promises.push(p)
       }
@@ -240,7 +241,7 @@ module.exports = cls => class ActualLoader extends cls {
     this[_actualTree] = root
   }
 
-  [_loadFSNode] ({ path, parent, real, root, loadOverrides }) {
+  [_loadFSNode] ({ path, parent, real, root, loadOverrides, useRootOverrides }) {
     if (!real) {
       return realpath(path, this[_rpcache], this[_stcache])
         .then(
@@ -250,6 +251,7 @@ module.exports = cls => class ActualLoader extends cls {
             real,
             root,
             loadOverrides,
+            useRootOverrides,
           }),
           // if realpath fails, just provide a dummy error node
           error => new Node({
@@ -289,6 +291,9 @@ module.exports = cls => class ActualLoader extends cls {
           parent,
           root,
           loadOverrides,
+          ...(useRootOverrides && root.overrides
+            ? { overrides: root.overrides.getNodeRule({ name: pkg.name, version: pkg.version }) }
+            : {}),
         })
       })
       .then(node => {

@@ -18,7 +18,7 @@ const url_1 = __importDefault(require("url"));
 const debug_1 = __importDefault(require("debug"));
 const once_1 = __importDefault(require("@tootallnate/once"));
 const agent_base_1 = require("agent-base");
-const debug = debug_1.default('http-proxy-agent');
+const debug = (0, debug_1.default)('http-proxy-agent');
 function isHTTPS(protocol) {
     return typeof protocol === 'string' ? /^https:?$/i.test(protocol) : false;
 }
@@ -86,7 +86,7 @@ class HttpProxyAgent extends agent_base_1.Agent {
             if (parsed.port === '80') {
                 // if port is 80, then we can remove the port so that the
                 // ":80" portion is not on the produced URL
-                delete parsed.port;
+                parsed.port = '';
             }
             // Change the `http.ClientRequest` instance's "path" field
             // to the absolute path of the URL that will be requested.
@@ -136,7 +136,7 @@ class HttpProxyAgent extends agent_base_1.Agent {
             // function throws instead of the `http` request machinery. This is
             // important for i.e. `PacProxyAgent` which determines a failed proxy
             // connection via the `callback()` function throwing.
-            yield once_1.default(socket, 'connect');
+            yield (0, once_1.default)(socket, 'connect');
             return socket;
         });
     }
