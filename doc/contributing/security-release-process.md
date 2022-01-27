@@ -17,7 +17,7 @@ steps listed in the process as outlined in
 [security steward on/off boarding](security-steward-on-off-boarding.md).
 
 The current security stewards are documented in the main Node.js
-[README.md](https://github.com/nodejs/node#security-stewards).
+[README.md](https://github.com/nodejs/node#security-release-stewards).
 
 The current rotation is as follows:
 
