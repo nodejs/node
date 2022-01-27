@@ -739,8 +739,6 @@ prioritize security releases. Security release stewards manage security
 releases on a rotation basis as outlined in the
 [security release process](./doc/contributing/security-release-process.md).
 
-The current set of security release stewards is as follows:
-
 * Datadog
   * [bengl](https://github.com/bengl) -
     **Bryan English** <<bryan@bryanenglish.com>> (he/him)
