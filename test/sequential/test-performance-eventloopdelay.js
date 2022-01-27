@@ -6,7 +6,6 @@ const assert = require('assert');
 const {
   monitorEventLoopDelay
 } = require('perf_hooks');
-const { sleep } = require('internal/util');
 
 {
   const histogram = monitorEventLoopDelay();
@@ -50,12 +49,19 @@ const { sleep } = require('internal/util');
   });
 }
 
+// Can't use `sleep` from internal/util because it doesn't do a busy wait
+// which means we can get 0 values in the histogram sometimes.
+function busySleep(ms) {
+  const target = Date.now() + ms;
+  while (Date.now() < target) {}
+}
+
 {
   const histogram = monitorEventLoopDelay({ resolution: 1 });
   histogram.enable();
   let m = 5;
   function spinAWhile() {
-    sleep(1000);
+    busySleep(1000);
     if (--m > 0) {
       setTimeout(spinAWhile, common.platformTimeout(500));
     } else {
