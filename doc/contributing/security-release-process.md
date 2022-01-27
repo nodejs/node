@@ -19,8 +19,6 @@ steps listed in the process as outlined in
 The current security stewards are documented in the main Node.js
 [README.md](https://github.com/nodejs/node#security-release-stewards).
 
-The current rotation is as follows:
-
 | Company    | Person   | Release Date |
 | ---------- | -------- | ------------ |
 | NearForm   | Matteo   | Oct 21       |
