@@ -231,11 +231,17 @@ assert.throws(() => new Blob({}), {
     });
   });
 
-  const overSizeArray = Array(17).fill(new Uint8Array(0xfffffff));
-
-  assert.throws(() => new Blob(overSizeArray), {
-    code: "ERR_BUFFER_TOO_LARGE",
-  });
+  try {
+    const overSizedArray = [new Uint8Array(0xffffffff), [1]];
+    assert.throws(() => new Blob(overSizedArray), {
+      code: 'ERR_BUFFER_TOO_LARGE',
+    });
+  } catch (e) {
+    if (e.message !== 'Array buffer allocation failed') throw (e);
+    common.skip(
+      'Insufficient memory on this platform for oversized buffer test.'
+    );
+  }
 }
 
 {
