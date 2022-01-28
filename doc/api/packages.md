@@ -1099,8 +1099,8 @@ is a path.
 When a package has an [`"exports"`][] field, this will take precedence over the
 `"main"` field when importing the package by name.
 
-When the value is a directory, [it may only be loaded via
-`require()`](modules.md#folders-as-modules).
+It also defines the script that is used when the [package directory
+is loaded via `require()`](modules.md#folders-as-modules).
 
 ```cjs
 require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
