@@ -98,8 +98,8 @@ const {
 {
   const headers = {
     'abc': 1,
-    ':status': 200,
     ':path': 'abc',
+    ':status': 200,
     'xyz': [1, '2', { toString() { return '3'; } }, 4],
     'foo': [],
     'BAR': [1]
@@ -116,8 +116,8 @@ const {
 {
   const headers = {
     'abc': 1,
-    ':path': 'abc',
     ':status': [200],
+    ':path': 'abc',
     ':authority': [],
     'xyz': [1, 2, 3, 4]
   };
@@ -132,10 +132,10 @@ const {
 {
   const headers = {
     'abc': 1,
-    ':path': 'abc',
+    ':status': 200,
     'xyz': [1, 2, 3, 4],
     '': 1,
-    ':status': 200,
+    ':path': 'abc',
     [Symbol('test')]: 1 // Symbol keys are ignored
   };
 
@@ -150,10 +150,10 @@ const {
   // Only own properties are used
   const base = { 'abc': 1 };
   const headers = Object.create(base);
-  headers[':path'] = 'abc';
+  headers[':status'] = 200;
   headers.xyz = [1, 2, 3, 4];
   headers.foo = [];
-  headers[':status'] = 200;
+  headers[':path'] = 'abc';
 
   assert.deepStrictEqual(
     mapToHeaders(headers),
@@ -191,8 +191,8 @@ const {
 {
   const headers = {
     'abc': 1,
-    ':path': 'abc',
     ':status': [200],
+    ':path': 'abc',
     ':authority': [],
     'xyz': [1, 2, 3, 4],
     [sensitiveHeaders]: ['xyz']
