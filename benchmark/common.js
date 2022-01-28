@@ -38,7 +38,7 @@ class Benchmark {
     this.config = this.queue[0];
 
     process.nextTick(() => {
-      if (process.env.hasOwnProperty('NODE_RUN_BENCHMARK_FN')) {
+      if (Object.hasOwn(process.env, 'NODE_RUN_BENCHMARK_FN')) {
         fn(this.config);
       } else {
         // _run will use fork() to create a new process for each configuration
