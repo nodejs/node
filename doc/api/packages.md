@@ -1093,8 +1093,11 @@ added: v0.4.0
 }
 ```
 
-The `"main"` field defines the script that is used when the [package directory
-is loaded](modules.md#folders-as-modules). Its value is a path.
+The `"main"` field defines the CommonJS or ESM script that is used as the
+package entry point.
+
+When the value is a directory, [it may only be loaded via
+`require()`](modules.md#folders-as-modules).
 
 ```cjs
 require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
