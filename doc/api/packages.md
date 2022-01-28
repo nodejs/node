@@ -1093,8 +1093,11 @@ added: v0.4.0
 }
 ```
 
-The `"main"` field defines the CommonJS or ESM script that is used as the
-package entry point.
+The `"main"` field defines the entry point of a package when
+imported by name via a `node_modules` lookup.  Its value
+is a path.
+When a package has an [`"exports"`][] field, this will take precedence over the
+`"main"` field when importing the package by name.
 
 When the value is a directory, [it may only be loaded via
 `require()`](modules.md#folders-as-modules).
