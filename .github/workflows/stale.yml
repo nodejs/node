@@ -1,0 +1,13 @@
+name: Close stale issues and PRs
+on:
+  schedule:
+    - cron: 30 1 * * *
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v4
+        with:
+          stale-issue-message: This issue has been open for many days with no activity. It will be closed soon. To keep it open, remove the stale label or leave a comment.
+          stale-pr-message: This pull request has been open for many days with no activity. It will be closed soon. To keep it open, remove the stale label or leave a comment.
