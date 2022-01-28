@@ -1009,6 +1009,21 @@ int Http2Session::OnInvalidFrame(nghttp2_session* handle,
   return 0;
 }
 
+// Remove the headers reference.
+// Implicitly calls nghttp2_rcbuf_decref
+void Http2Session::DecrefHeaders(const nghttp2_frame* frame) {
+  int32_t id = GetFrameID(frame);
+  BaseObjectPtr<Http2Stream> stream = FindStream(id);
+
+  if (stream && !stream->is_destroyed() && stream->headers_count() > 0) {
+    Debug(this, "freeing headers for stream %d", id);
+    stream->ClearHeaders();
+    CHECK_EQ(stream->headers_count(), 0);
+    DecrementCurrentSessionMemory(stream->current_headers_length_);
+    stream->current_headers_length_ = 0;
+  }
+}
+
 // If nghttp2 is unable to send a queued up frame, it will call this callback
 // to let us know. If the failure occurred because we are in the process of
 // closing down the session or stream, we go ahead and ignore it. We don't
@@ -1029,6 +1044,11 @@ int Http2Session::OnFrameNotSent(nghttp2_session* handle,
       error_code == NGHTTP2_ERR_STREAM_CLOSED ||
       error_code == NGHTTP2_ERR_STREAM_CLOSING ||
       session->js_fields_->frame_error_listener_count == 0) {
+    // Nghttp2 contains header limit of 65536. When this value is exceeded the
+    // pipeline is stopped and we should remove the current headers reference
+    // to destroy the session completely.
+    // Further information see: https://github.com/nodejs/node/issues/35233
+    session->DecrefHeaders(frame);
     return 0;
   }
 
