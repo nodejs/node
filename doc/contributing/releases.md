@@ -851,7 +851,7 @@ reflect the newly used value. Ensure that the release commit removes the
 `-pre` suffix for the major version being prepared.
 
 It is current TSC policy to bump major version when ABI changes. If you
-see a need to bump `NODE_MODULE_VERSION` outside of a majore release then
+see a need to bump `NODE_MODULE_VERSION` outside of a major release then
 you should consult the TSC. Commits may need to be reverted or a major
 version bump may need to happen.
 
