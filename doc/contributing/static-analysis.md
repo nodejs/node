@@ -11,6 +11,6 @@ Any collaborator can ask to be added to the Node.js coverity project
 by opening an issue in the [build](https://github.com/nodejs/build) repository
 titled `Please add me to coverity`. A member of the build WG with admin
 access will verify that the requestor is an existing collaborator as listed in
-the [colloborators section](https://github.com/nodejs/node#collaborators)
+the [collaborators section](https://github.com/nodejs/node#collaborators)
 on the nodejs/node project repo. Once validated the requestor will added
 to to the coverity project.
