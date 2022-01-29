@@ -197,62 +197,52 @@ function processUnusedDisableDirectives(allDirectives) {
  * for the exported function, except that `reportUnusedDisableDirectives` is not supported
  * (this function always reports unused disable directives).
  * @returns {{problems: Problem[], unusedDisableDirectives: Problem[]}} An object with a list
- * of filtered problems and unused eslint-disable directives
+ * of problems (including suppressed ones) and unused eslint-disable directives
  */
 function applyDirectives(options) {
     const problems = [];
-    let nextDirectiveIndex = 0;
-    let currentGlobalDisableDirective = null;
-    const disabledRuleMap = new Map();
-
-    // enabledRules is only used when there is a current global disable directive.
-    const enabledRules = new Set();
     const usedDisableDirectives = new Set();
 
     for (const problem of options.problems) {
+        let disableDirectivesForProblem = [];
+        let nextDirectiveIndex = 0;
+
         while (
             nextDirectiveIndex < options.directives.length &&
             compareLocations(options.directives[nextDirectiveIndex], problem) <= 0
         ) {
             const directive = options.directives[nextDirectiveIndex++];
 
-            switch (directive.type) {
-                case "disable":
-                    if (directive.ruleId === null) {
-                        currentGlobalDisableDirective = directive;
-                        disabledRuleMap.clear();
-                        enabledRules.clear();
-                    } else if (currentGlobalDisableDirective) {
-                        enabledRules.delete(directive.ruleId);
-                        disabledRuleMap.set(directive.ruleId, directive);
-                    } else {
-                        disabledRuleMap.set(directive.ruleId, directive);
-                    }
-                    break;
+            if (directive.ruleId === null || directive.ruleId === problem.ruleId) {
+                switch (directive.type) {
+                    case "disable":
+                        disableDirectivesForProblem.push(directive);
+                        break;
 
-                case "enable":
-                    if (directive.ruleId === null) {
-                        currentGlobalDisableDirective = null;
-                        disabledRuleMap.clear();
-                    } else if (currentGlobalDisableDirective) {
-                        enabledRules.add(directive.ruleId);
-                        disabledRuleMap.delete(directive.ruleId);
-                    } else {
-                        disabledRuleMap.delete(directive.ruleId);
-                    }
-                    break;
+                    case "enable":
+                        disableDirectivesForProblem = [];
+                        break;
 
-                // no default
+                    // no default
+                }
             }
         }
 
-        if (disabledRuleMap.has(problem.ruleId)) {
-            usedDisableDirectives.add(disabledRuleMap.get(problem.ruleId));
-        } else if (currentGlobalDisableDirective && !enabledRules.has(problem.ruleId)) {
-            usedDisableDirectives.add(currentGlobalDisableDirective);
-        } else {
-            problems.push(problem);
+        if (disableDirectivesForProblem.length > 0) {
+            const suppressions = disableDirectivesForProblem.map(directive => ({
+                kind: "directive",
+                justification: directive.unprocessedDirective.justification
+            }));
+
+            if (problem.suppressions) {
+                problem.suppressions = problem.suppressions.concat(suppressions);
+            } else {
+                problem.suppressions = suppressions;
+                usedDisableDirectives.add(disableDirectivesForProblem[disableDirectivesForProblem.length - 1]);
+            }
         }
+
+        problems.push(problem);
     }
 
     const unusedDisableDirectivesToReport = options.directives
@@ -282,13 +272,14 @@ function applyDirectives(options) {
 
 /**
  * Given a list of directive comments (i.e. metadata about eslint-disable and eslint-enable comments) and a list
- * of reported problems, determines which problems should be reported.
+ * of reported problems, adds the suppression information to the problems.
  * @param {Object} options Information about directives and problems
  * @param {{
  *      type: ("disable"|"enable"|"disable-line"|"disable-next-line"),
  *      ruleId: (string|null),
  *      line: number,
- *      column: number
+ *      column: number,
+ *      justification: string
  * }} options.directives Directive comments found in the file, with one-based columns.
  * Two directive comments can only have the same location if they also have the same type (e.g. a single eslint-disable
  * comment for two different rules is represented as two directives).
@@ -296,8 +287,8 @@ function applyDirectives(options) {
  * A list of problems reported by rules, sorted by increasing location in the file, with one-based columns.
  * @param {"off" | "warn" | "error"} options.reportUnusedDisableDirectives If `"warn"` or `"error"`, adds additional problems for unused directives
  * @param {boolean} options.disableFixes If true, it doesn't make `fix` properties.
- * @returns {{ruleId: (string|null), line: number, column: number}[]}
- * A list of reported problems that were not disabled by the directive comments.
+ * @returns {{ruleId: (string|null), line: number, column: number, suppressions?: {kind: string, justification: string}}[]}
+ * An object with a list of reported problems, the suppressed of which contain the suppression information.
  */
 module.exports = ({ directives, disableFixes, problems, reportUnusedDisableDirectives = "off" }) => {
     const blockDirectives = directives

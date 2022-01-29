@@ -51,6 +51,7 @@ const validFixTypes = new Set(["directive", "problem", "suggestion", "layout"]);
 /** @typedef {import("../shared/types").ConfigData} ConfigData */
 /** @typedef {import("../shared/types").DeprecatedRuleInfo} DeprecatedRuleInfo */
 /** @typedef {import("../shared/types").LintMessage} LintMessage */
+/** @typedef {import("../shared/types").SuppressedLintMessage} SuppressedLintMessage */
 /** @typedef {import("../shared/types").ParserOptions} ParserOptions */
 /** @typedef {import("../shared/types").Plugin} Plugin */
 /** @typedef {import("../shared/types").RuleConf} RuleConf */
@@ -91,6 +92,7 @@ const validFixTypes = new Set(["directive", "problem", "suggestion", "layout"]);
  * @typedef {Object} LintResult
  * @property {string} filePath The path to the file that was linted.
  * @property {LintMessage[]} messages All of the messages for the result.
+ * @property {SuppressedLintMessage[]} suppressedMessages All of the suppressed messages for the result.
  * @property {number} errorCount Number of errors for the result.
  * @property {number} fatalErrorCount Number of fatal errors for the result.
  * @property {number} warningCount Number of warnings for the result.
@@ -263,6 +265,7 @@ function verifyText({
     const result = {
         filePath,
         messages,
+        suppressedMessages: linter.getSuppressedMessages(),
         ...calculateStatsPerFile(messages)
     };
 
@@ -309,6 +312,7 @@ function createIgnoreResult(filePath, baseDir) {
                 message
             }
         ],
+        suppressedMessages: [],
         errorCount: 0,
         fatalErrorCount: 0,
         warningCount: 1,
@@ -683,11 +687,13 @@ class CLIEngine {
 
         results.forEach(result => {
             const filteredMessages = result.messages.filter(isErrorMessage);
+            const filteredSuppressedMessages = result.suppressedMessages.filter(isErrorMessage);
 
             if (filteredMessages.length > 0) {
                 filtered.push({
                     ...result,
                     messages: filteredMessages,
+                    suppressedMessages: filteredSuppressedMessages,
                     errorCount: filteredMessages.length,
                     warningCount: 0,
                     fixableErrorCount: result.fixableErrorCount,

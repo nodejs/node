@@ -32,6 +32,7 @@ const { version } = require("../../package.json");
 /** @typedef {import("../shared/types").DeprecatedRuleInfo} DeprecatedRuleInfo */
 /** @typedef {import("../shared/types").ConfigData} ConfigData */
 /** @typedef {import("../shared/types").LintMessage} LintMessage */
+/** @typedef {import("../shared/types").SuppressedLintMessage} SuppressedLintMessage */
 /** @typedef {import("../shared/types").Plugin} Plugin */
 /** @typedef {import("../shared/types").Rule} Rule */
 
@@ -78,6 +79,7 @@ const { version } = require("../../package.json");
  * @typedef {Object} LintResult
  * @property {string} filePath The path to the file that was linted.
  * @property {LintMessage[]} messages All of the messages for the result.
+ * @property {SuppressedLintMessage[]} suppressedMessages All of the suppressed messages for the result.
  * @property {number} errorCount Number of errors for the result.
  * @property {number} fatalErrorCount Number of fatal errors for the result.
  * @property {number} warningCount Number of warnings for the result.
@@ -524,6 +526,9 @@ class ESLint {
 
         for (const result of results) {
             for (const { ruleId } of result.messages) {
+                resultRuleIds.add(ruleId);
+            }
+            for (const { ruleId } of result.suppressedMessages) {
                 resultRuleIds.add(ruleId);
             }
         }
