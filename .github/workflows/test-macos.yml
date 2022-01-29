@@ -4,10 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
-      - '.mailmap'
+      - .mailmap
       - '**.md'
-      - 'AUTHORS'
-      - 'doc/**'
+      - AUTHORS
+      - doc/**
       - .github/**
       - '!.github/workflows/test-macos.yml'
   push:
@@ -18,10 +18,10 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
-      - '.mailmap'
+      - .mailmap
       - '**.md'
-      - 'AUTHORS'
-      - 'doc/**'
+      - AUTHORS
+      - doc/**
       - .github/**
       - '!.github/workflows/test-macos.yml'
 

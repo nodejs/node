@@ -1,6 +1,6 @@
-name: "\U0001F4D7 Open an issue regarding the Node.js API reference docs"
+name: \U0001F4D7 Open an issue regarding the Node.js API reference docs
 description: Let us know about any problematic API reference documents
-labels: ["doc"]
+labels: [doc]
 body:
   - type: markdown
     attributes:

@@ -3,7 +3,7 @@ on:
   schedule:
     # 00:00:00 every Monday
     # https://crontab.guru/#0_0_*_*_1
-    - cron: "0 0 * * 1"
+    - cron: 0 0 * * 1
   workflow_dispatch:
 
 jobs:
@@ -14,14 +14,14 @@ jobs:
       - uses: actions/checkout@v2
         with:
           persist-credentials: false
-      - run: "./tools/license-builder.sh"  # Run the license builder tool
+      - run: ./tools/license-builder.sh  # Run the license builder tool
       - uses: gr2m/create-or-update-pull-request-action@v1.x  # Create a PR or update the Action's existing PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           author: Node.js GitHub Bot <github-bot@iojs.org>
           branch: actions/license-builder
-          title: "doc: run license-builder"
+          title: 'doc: run license-builder'
           body: >
             License is likely out of date. This is an automatically generated PR by
             the `license-builder.yml` GitHub Action, which runs `license-builder.sh`
