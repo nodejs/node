@@ -95,6 +95,11 @@
                 ['target_arch=="x64"', {
                   'defines': [ 'INFLATE_CHUNK_READ_64LE' ],
                 }],
+                ['OS=="win"', {
+                  'defines': [ 'X86_WINDOWS' ],
+                }, {
+                  'defines': [ 'X86_NOT_WINDOWS' ],
+                }]
               ],
             }],
             ['arm_fpu=="neon"', {
