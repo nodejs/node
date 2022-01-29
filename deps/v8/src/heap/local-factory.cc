@@ -40,7 +40,8 @@ void LocalFactory::AddToScriptList(Handle<Script> shared) {
 
 HeapObject LocalFactory::AllocateRaw(int size, AllocationType allocation,
                                      AllocationAlignment alignment) {
-  DCHECK_EQ(allocation, AllocationType::kOld);
+  DCHECK(allocation == AllocationType::kOld ||
+         allocation == AllocationType::kSharedOld);
   return HeapObject::FromAddress(isolate()->heap()->AllocateRawOrFail(
       size, allocation, AllocationOrigin::kRuntime, alignment));
 }

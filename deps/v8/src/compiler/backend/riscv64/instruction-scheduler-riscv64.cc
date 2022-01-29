@@ -228,7 +228,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI32x4UConvertI16x8Low:
     case kRiscvI32x4Abs:
     case kRiscvI32x4BitMask:
-    case kRiscvI32x4DotI16x8S:
     case kRiscvI8x16Add:
     case kRiscvI8x16AddSatS:
     case kRiscvI8x16AddSatU:
@@ -287,6 +286,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvS128Xor:
     case kRiscvS128Const:
     case kRiscvS128Zero:
+    case kRiscvS128Load32Zero:
+    case kRiscvS128Load64Zero:
     case kRiscvS128AllOnes:
     case kRiscvS16x8InterleaveEven:
     case kRiscvS16x8InterleaveOdd:
@@ -319,7 +320,15 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvS8x4Reverse:
     case kRiscvS8x8Reverse:
     case kRiscvI8x16Shuffle:
-    case kRiscvI8x16Swizzle:
+    case kRiscvVwmul:
+    case kRiscvVwmulu:
+    case kRiscvVmvSx:
+    case kRiscvVcompress:
+    case kRiscvVaddVv:
+    case kRiscvVwadd:
+    case kRiscvVwaddu:
+    case kRiscvVrgather:
+    case kRiscvVslidedown:
     case kRiscvSar32:
     case kRiscvSignExtendByte:
     case kRiscvSignExtendShort:
@@ -361,16 +370,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvUlw:
     case kRiscvUlwu:
     case kRiscvULoadFloat:
-    case kRiscvS128Load8Splat:
-    case kRiscvS128Load16Splat:
-    case kRiscvS128Load32Splat:
-    case kRiscvS128Load64Splat:
-    case kRiscvS128Load8x8S:
-    case kRiscvS128Load8x8U:
-    case kRiscvS128Load16x4S:
-    case kRiscvS128Load16x4U:
-    case kRiscvS128Load32x2S:
-    case kRiscvS128Load32x2U:
+    case kRiscvS128LoadSplat:
+    case kRiscvS128Load64ExtendU:
+    case kRiscvS128Load64ExtendS:
     case kRiscvS128LoadLane:
     case kRiscvWord64AtomicLoadUint64:
     case kRiscvLoadDecompressTaggedSigned:

@@ -7,6 +7,7 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/base/hashmap.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -527,6 +528,7 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
                   ->feedback_vectors_for_profiling_tools()
                   ->IsArrayList());
       DCHECK_EQ(v8::debug::CoverageMode::kBestEffort, coverage_mode);
+      AllowGarbageCollection allow_gc;
       HeapObjectIterator heap_iterator(isolate->heap());
       for (HeapObject current_obj = heap_iterator.Next();
            !current_obj.is_null(); current_obj = heap_iterator.Next()) {

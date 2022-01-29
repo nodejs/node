@@ -99,6 +99,28 @@ config_setting(
     constraint_values = ["@platforms//os:macos"],
 )
 
+config_setting(
+    name = "is_windows",
+    constraint_values = ["@platforms//os:windows"],
+)
+
+selects.config_setting_group(
+    name = "is_64bit",
+    match_any = [
+        ":v8_target_arm64",
+        ":is_x64",
+        ":is_arm64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_windows_64bit",
+    match_all = [
+        ":is_64bit",
+        ":is_windows",
+    ],
+)
+
 selects.config_setting_group(
     name = "is_posix",
     match_any = [
@@ -106,4 +128,47 @@ selects.config_setting_group(
         ":is_android",
         ":is_macos",
     ],
+)
+
+selects.config_setting_group(
+    name = "is_posix_x64",
+    match_all = [
+        ":is_posix",
+        ":is_x64",
+    ]
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_x64",
+    match_all = [":is_posix", ":is_x64"],
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_ia32",
+    match_all = [":is_posix", ":is_ia32"],
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_arm64",
+    match_all = [":is_posix", ":is_arm64"],
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_arm",
+    match_all = [":is_posix", ":is_arm"],
+)
+
+selects.config_setting_group(
+    name = "is_msvc_asm_x64",
+    match_all = [":is_windows", ":is_x64"],
+)
+
+selects.config_setting_group(
+    name = "is_msvc_asm_ia32",
+    match_all = [":is_windows", ":is_ia32"],
+)
+
+selects.config_setting_group(
+    name = "is_msvc_asm_arm64",
+    match_all = [":is_windows", ":is_arm64"],
 )

@@ -56,11 +56,12 @@ namespace {
 
 void PrintHeapObjectHeaderWithoutMap(HeapObject object, std::ostream& os,
                                      const char* id) {
+  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(object);
   os << reinterpret_cast<void*>(object.ptr()) << ": [";
   if (id != nullptr) {
     os << id;
   } else {
-    os << object.map().instance_type();
+    os << object.map(cage_base).instance_type();
   }
   os << "]";
   if (ReadOnlyHeap::Contains(object)) {
@@ -101,11 +102,14 @@ void PrintDictionaryContents(std::ostream& os, T dict) {
 
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {
   PrintHeapObjectHeaderWithoutMap(*this, os, id);
-  if (!IsMap()) os << "\n - map: " << Brief(map());
+  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
+  if (!IsMap(cage_base)) os << "\n - map: " << Brief(map(cage_base));
 }
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
-  InstanceType instance_type = map().instance_type();
+  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
+
+  InstanceType instance_type = map(cage_base).instance_type();
 
   if (instance_type < FIRST_NONSTRING_TYPE) {
     String::cast(*this).StringPrint(os);
@@ -264,6 +268,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case THIN_ONE_BYTE_STRING_TYPE:
     case UNCACHED_EXTERNAL_STRING_TYPE:
     case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
+    case SHARED_STRING_TYPE:
+    case SHARED_ONE_BYTE_STRING_TYPE:
+    case SHARED_THIN_STRING_TYPE:
+    case SHARED_THIN_ONE_BYTE_STRING_TYPE:
     case JS_LAST_DUMMY_API_OBJECT_TYPE:
       // TODO(all): Handle these types too.
       os << "UNKNOWN TYPE " << map().instance_type();
@@ -1847,8 +1855,13 @@ void WasmContinuationObject::WasmContinuationObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmContinuationObject");
   os << "\n - parent: " << parent();
   os << "\n - jmpbuf: " << jmpbuf();
-  os << "\n - managed_stack: " << managed_stack();
-  os << "\n - managed_jmpbuf: " << managed_jmpbuf();
+  os << "\n - stack: " << stack();
+  os << "\n";
+}
+
+void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
+  PrintHeader(os, "WasmSuspenderObject");
+  os << "\n - continuation: " << continuation();
   os << "\n";
 }
 
@@ -1905,8 +1918,7 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
 
 // Never called directly, as WasmFunctionData is an "abstract" class.
 void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
-  os << "\n - target: " << reinterpret_cast<void*>(foreign_address());
-  os << "\n - ref: " << Brief(ref());
+  os << "\n - internal: " << Brief(internal());
   os << "\n - wrapper_code: " << Brief(TorqueGeneratedClass::wrapper_code());
 }
 
@@ -1923,8 +1935,6 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
 void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmJSFunctionData");
   WasmFunctionDataPrint(os);
-  os << "\n - wasm_to_js_wrapper_code: "
-     << Brief(raw_wasm_to_js_wrapper_code());
   os << "\n - serialized_return_count: " << serialized_return_count();
   os << "\n - serialized_parameter_count: " << serialized_parameter_count();
   os << "\n - serialized_signature: " << Brief(serialized_signature());
@@ -1933,9 +1943,18 @@ void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
 
 void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
   PrintHeader(os, "WasmApiFunctionRef");
-  os << "\n - isolate_root: " << reinterpret_cast<void*>(foreign_address());
+  os << "\n - isolate_root: " << reinterpret_cast<void*>(isolate_root());
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - callable: " << Brief(callable());
+  os << "\n";
+}
+
+void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
+  PrintHeader(os, "WasmInternalFunction");
+  os << "\n - call target: " << reinterpret_cast<void*>(foreign_address());
+  os << "\n - ref: " << Brief(ref());
+  os << "\n - external: " << Brief(external());
+  os << "\n - code: " << Brief(code());
   os << "\n";
 }
 
@@ -2793,7 +2812,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 
   if (!isolate->heap()->InSpaceSlow(address, i::CODE_SPACE) &&
       !isolate->heap()->InSpaceSlow(address, i::CODE_LO_SPACE) &&
-      !i::InstructionStream::PcIsOffHeap(isolate, address) &&
+      !i::OffHeapInstructionStream::PcIsOffHeap(isolate, address) &&
       !i::ReadOnlyHeap::Contains(address)) {
     i::PrintF(
         "%p is not within the current isolate's code, read_only or embedded "

@@ -511,6 +511,213 @@ class PageAllocator {
 };
 
 /**
+ * Page permissions.
+ */
+enum class PagePermissions {
+  kNoAccess,
+  kRead,
+  kReadWrite,
+  kReadWriteExecute,
+  kReadExecute,
+};
+
+/**
+ * Class to manage a virtual memory address space.
+ *
+ * This class represents a contiguous region of virtual address space in which
+ * sub-spaces and (private or shared) memory pages can be allocated, freed, and
+ * modified. This interface is meant to eventually replace the PageAllocator
+ * interface, and can be used as an alternative in the meantime.
+ */
+class VirtualAddressSpace {
+ public:
+  using Address = uintptr_t;
+
+  VirtualAddressSpace(size_t page_size, size_t allocation_granularity,
+                      Address base, size_t size)
+      : page_size_(page_size),
+        allocation_granularity_(allocation_granularity),
+        base_(base),
+        size_(size) {}
+
+  virtual ~VirtualAddressSpace() = default;
+
+  /**
+   * The page size used inside this space. Guaranteed to be a power of two.
+   * Used as granularity for all page-related operations except for allocation,
+   * which use the allocation_granularity(), see below.
+   *
+   * \returns the page size in bytes.
+   */
+  size_t page_size() const { return page_size_; }
+
+  /**
+   * The granularity of page allocations and, by extension, of subspace
+   * allocations. This is guaranteed to be a power of two and a multiple of the
+   * page_size(). In practice, this is equal to the page size on most OSes, but
+   * on Windows it is usually 64KB, while the page size is 4KB.
+   *
+   * \returns the allocation granularity in bytes.
+   */
+  size_t allocation_granularity() const { return allocation_granularity_; }
+
+  /**
+   * The base address of the address space managed by this instance.
+   *
+   * \returns the base address of this address space.
+   */
+  Address base() const { return base_; }
+
+  /**
+   * The size of the address space managed by this instance.
+   *
+   * \returns the size of this address space in bytes.
+   */
+  size_t size() const { return size_; }
+
+  /**
+   * Sets the random seed so that GetRandomPageAddress() will generate
+   * repeatable sequences of random addresses.
+   *
+   * \param The seed for the PRNG.
+   */
+  virtual void SetRandomSeed(int64_t seed) = 0;
+
+  /**
+   * Returns a random address inside this address space, suitable for page
+   * allocations hints.
+   *
+   * \returns a random address aligned to allocation_granularity().
+   */
+  virtual Address RandomPageAddress() = 0;
+
+  /**
+   * Allocates private memory pages with the given alignment and permissions.
+   *
+   * \param hint If nonzero, the allocation is attempted to be placed at the
+   * given address first. If that fails, the allocation is attempted to be
+   * placed elsewhere, possibly nearby, but that is not guaranteed. Specifying
+   * zero for the hint always causes this function to choose a random address.
+   *
+   * \param size The size of the allocation in bytes. Must be a multiple of the
+   * allocation_granularity().
+   *
+   * \param alignment The alignment of the allocation in bytes. Must be a
+   * multiple of the allocation_granularity() and should be a power of two.
+   *
+   * \param permissions The page permissions of the newly allocated pages.
+   *
+   * \returns the start address of the allocated pages on success, zero on
+   * failure.
+   */
+  static constexpr Address kNoHint = 0;
+  virtual V8_WARN_UNUSED_RESULT Address
+  AllocatePages(Address hint, size_t size, size_t alignment,
+                PagePermissions permissions) = 0;
+
+  /**
+   * Frees previously allocated pages.
+   *
+   * \param address The start address of the pages to free. This address must
+   * have been obtains from a call to AllocatePages.
+   *
+   * \param size The size in bytes of the region to free. This must match the
+   * size passed to AllocatePages when the pages were allocated.
+   *
+   * \returns true on success, false otherwise.
+   */
+  virtual V8_WARN_UNUSED_RESULT bool FreePages(Address address,
+                                               size_t size) = 0;
+
+  /**
+   * Sets permissions of all allocated pages in the given range.
+   *
+   * \param address The start address of the range. Must be aligned to
+   * page_size().
+   *
+   * \param size The size in bytes of the range. Must be a multiple
+   * of page_size().
+   *
+   * \param permissions The new permissions for the range.
+   *
+   * \returns true on success, false otherwise.
+   */
+  virtual V8_WARN_UNUSED_RESULT bool SetPagePermissions(
+      Address address, size_t size, PagePermissions permissions) = 0;
+
+  /**
+   * Whether this instance can allocate subspaces or not.
+   *
+   * \returns true if subspaces can be allocated, false if not.
+   */
+  virtual bool CanAllocateSubspaces() = 0;
+
+  /*
+   * Allocate a subspace.
+   *
+   * The address space of a subspace stays reserved in the parent space for the
+   * lifetime of the subspace. As such, it is guaranteed that page allocations
+   * on the parent space cannot end up inside a subspace.
+   *
+   * \param hint Hints where the subspace should be allocated. See
+   * AllocatePages() for more details.
+   *
+   * \param size The size in bytes of the subspace. Must be a multiple of the
+   * allocation_granularity().
+   *
+   * \param alignment The alignment of the subspace in bytes. Must be a multiple
+   * of the allocation_granularity() and should be a power of two.
+   *
+   * \param max_permissions The maximum permissions that pages allocated in the
+   * subspace can obtain.
+   *
+   * \returns a new subspace or nullptr on failure.
+   */
+  virtual std::unique_ptr<VirtualAddressSpace> AllocateSubspace(
+      Address hint, size_t size, size_t alignment,
+      PagePermissions max_permissions) = 0;
+
+  //
+  // TODO(v8) maybe refactor the methods below before stabilizing the API. For
+  // example by combining them into some form of page operation method that
+  // takes a command enum as parameter.
+  //
+
+  /**
+   * Frees memory in the given [address, address + size) range. address and
+   * size should be aligned to the page_size(). The next write to this memory
+   * area brings the memory transparently back. This should be treated as a
+   * hint to the OS that the pages are no longer needed. It does not guarantee
+   * that the pages will be discarded immediately or at all.
+   *
+   * \returns true on success, false otherwise. Since this method is only a
+   * hint, a successful invocation does not imply that pages have been removed.
+   */
+  virtual V8_WARN_UNUSED_RESULT bool DiscardSystemPages(Address address,
+                                                        size_t size) {
+    return true;
+  }
+  /**
+   * Decommits any wired memory pages in the given range, allowing the OS to
+   * reclaim them, and marks the region as inacessible (kNoAccess). The address
+   * range stays reserved and can be accessed again later by changing its
+   * permissions. However, in that case the memory content is guaranteed to be
+   * zero-initialized again. The memory must have been previously allocated by a
+   * call to AllocatePages.
+   *
+   * \returns true on success, false otherwise.
+   */
+  virtual V8_WARN_UNUSED_RESULT bool DecommitPages(Address address,
+                                                   size_t size) = 0;
+
+ private:
+  const size_t page_size_;
+  const size_t allocation_granularity_;
+  const Address base_;
+  const size_t size_;
+};
+
+/**
  * V8 Allocator used for allocating zone backings.
  */
 class ZoneBackingAllocator {
@@ -520,6 +727,16 @@ class ZoneBackingAllocator {
 
   virtual MallocFn GetMallocFn() const { return ::malloc; }
   virtual FreeFn GetFreeFn() const { return ::free; }
+};
+
+/**
+ * Observer used by V8 to notify the embedder about entering/leaving sections
+ * with high throughput of malloc/free operations.
+ */
+class HighAllocationThroughputObserver {
+ public:
+  virtual void EnterSection() {}
+  virtual void LeaveSection() {}
 };
 
 /**
@@ -712,6 +929,16 @@ class Platform {
    * but non-critical scenario.
    */
   virtual void DumpWithoutCrashing() {}
+
+  /**
+   * Allows the embedder to observe sections with high throughput allocation
+   * operations.
+   */
+  virtual HighAllocationThroughputObserver*
+  GetHighAllocationThroughputObserver() {
+    static HighAllocationThroughputObserver default_observer;
+    return &default_observer;
+  }
 
  protected:
   /**

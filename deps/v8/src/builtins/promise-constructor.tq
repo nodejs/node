@@ -85,7 +85,7 @@ PromiseConstructor(
   const reject = funcs.reject;
   try {
     Call(context, UnsafeCast<Callable>(executor), Undefined, resolve, reject);
-  } catch (e) {
+  } catch (e, _message) {
     Call(context, reject, Undefined, e);
   }
 

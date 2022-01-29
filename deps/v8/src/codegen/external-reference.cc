@@ -4,6 +4,7 @@
 
 #include "src/codegen/external-reference.h"
 
+#include "include/v8-fast-api-calls.h"
 #include "src/api/api.h"
 #include "src/base/ieee754.h"
 #include "src/codegen/cpu-features.h"
@@ -11,10 +12,11 @@
 #include "src/date/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/encoded-c-signature.h"
 #include "src/execution/isolate-utils.h"
 #include "src/execution/isolate.h"
 #include "src/execution/microtask-queue.h"
-#include "src/execution/simulator-base.h"
+#include "src/execution/simulator.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/ic/stub-cache.h"
@@ -173,8 +175,18 @@ static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
 }
 
 // static
+ExternalReference ExternalReference::Create(ApiFunction* fun, Type type) {
+  return ExternalReference(Redirect(fun->address(), type));
+}
+
+// static
 ExternalReference ExternalReference::Create(
-    ApiFunction* fun, Type type = ExternalReference::BUILTIN_CALL) {
+    Isolate* isolate, ApiFunction* fun, Type type, Address* c_functions,
+    const CFunctionInfo* const* c_signatures, unsigned num_functions) {
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  isolate->simulator_data()->RegisterFunctionsAndSignatures(
+      c_functions, c_signatures, num_functions);
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   return ExternalReference(Redirect(fun->address(), type));
 }
 
@@ -198,16 +210,23 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
   return ExternalReference(isolate);
 }
 
-ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
+ExternalReference ExternalReference::builtins_table(Isolate* isolate) {
   return ExternalReference(isolate->builtin_table());
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+ExternalReference ExternalReference::builtins_code_data_container_table(
+    Isolate* isolate) {
+  return ExternalReference(isolate->builtin_code_data_container_table());
+}
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 ExternalReference ExternalReference::handle_scope_implementer_address(
     Isolate* isolate) {
   return ExternalReference(isolate->handle_scope_implementer_address());
 }
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
+#ifdef V8_CAGED_POINTERS
 ExternalReference ExternalReference::virtual_memory_cage_base_address() {
   return ExternalReference(GetProcessWideVirtualMemoryCage()->base_address());
 }
@@ -215,7 +234,13 @@ ExternalReference ExternalReference::virtual_memory_cage_base_address() {
 ExternalReference ExternalReference::virtual_memory_cage_end_address() {
   return ExternalReference(GetProcessWideVirtualMemoryCage()->end_address());
 }
-#endif
+
+ExternalReference ExternalReference::empty_backing_store_buffer() {
+  return ExternalReference(GetProcessWideVirtualMemoryCage()
+                               ->constants()
+                               .empty_backing_store_buffer_address());
+}
+#endif  // V8_CAGED_POINTERS
 
 #ifdef V8_HEAP_SANDBOX
 ExternalReference ExternalReference::external_pointer_table_address(
@@ -871,8 +896,7 @@ ExternalReference ExternalReference::search_string_raw() {
 FUNCTION_REFERENCE(jsarray_array_join_concat_to_sequential_string,
                    JSArray::ArrayJoinConcatToSequentialString)
 
-FUNCTION_REFERENCE(length_tracking_gsab_backed_typed_array_length,
-                   JSTypedArray::LengthTrackingGsabBackedTypedArrayLength)
+FUNCTION_REFERENCE(gsab_byte_length, JSArrayBuffer::GsabByteLength)
 
 ExternalReference ExternalReference::search_string_raw_one_one() {
   return search_string_raw<const uint8_t, const uint8_t>();
@@ -1001,6 +1025,17 @@ ExternalReference ExternalReference::intl_to_latin1_lower_table() {
   uint8_t* ptr = const_cast<uint8_t*>(Intl::ToLatin1LowerTable());
   return ExternalReference(reinterpret_cast<Address>(ptr));
 }
+
+ExternalReference ExternalReference::intl_ascii_collation_weights_l1() {
+  uint8_t* ptr = const_cast<uint8_t*>(Intl::AsciiCollationWeightsL1());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+
+ExternalReference ExternalReference::intl_ascii_collation_weights_l3() {
+  uint8_t* ptr = const_cast<uint8_t*>(Intl::AsciiCollationWeightsL3());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+
 #endif  // V8_INTL_SUPPORT
 
 // Explicit instantiations for all combinations of 1- and 2-byte strings.

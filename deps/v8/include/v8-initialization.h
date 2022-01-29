@@ -180,7 +180,9 @@ class V8_EXPORT V8 {
    * Clears all references to the v8::Platform. This should be invoked after
    * V8 was disposed.
    */
-  static void ShutdownPlatform();
+  static void DisposePlatform();
+  V8_DEPRECATE_SOON("Use DisposePlatform()")
+  static void ShutdownPlatform() { DisposePlatform(); }
 
 #ifdef V8_VIRTUAL_MEMORY_CAGE
   //

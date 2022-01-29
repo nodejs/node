@@ -63,7 +63,7 @@ class Operand {
  public:
   // Immediate.
   V8_INLINE explicit Operand(int64_t immediate,
-                             RelocInfo::Mode rmode = RelocInfo::NONE)
+                             RelocInfo::Mode rmode = RelocInfo::NO_INFO)
       : rm_(no_reg), rmode_(rmode) {
     value_.immediate = immediate;
   }
@@ -73,7 +73,8 @@ class Operand {
   }
   V8_INLINE explicit Operand(const char* s);
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi value) : rm_(no_reg), rmode_(RelocInfo::NONE) {
+  V8_INLINE explicit Operand(Smi value)
+      : rm_(no_reg), rmode_(RelocInfo::NO_INFO) {
     value_.immediate = static_cast<intptr_t>(value.ptr());
   }
 
@@ -1459,9 +1460,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     dq(data, rmode);
   }
   void dd(Label* label);
@@ -1562,6 +1563,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
+  bool is_trampoline_emitted() const { return trampoline_emitted_; }
+
  protected:
   // Load Scaled Address instructions.
   void lsa(Register rd, Register rt, Register rs, uint8_t sa);
@@ -1617,8 +1620,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   bool has_exception() const { return internal_trampoline_exception_; }
-
-  bool is_trampoline_emitted() const { return trampoline_emitted_; }
 
   // Temporarily block automatic assembly buffer growth.
   void StartBlockGrowBuffer() {

@@ -82,7 +82,8 @@ int DebugStackTraceIterator::GetContextId() const {
 v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
   DCHECK(!Done());
   if (frame_inspector_->IsJavaScript() &&
-      frame_inspector_->GetFunction()->shared().kind() == kArrowFunction) {
+      frame_inspector_->GetFunction()->shared().kind() ==
+          FunctionKind::kArrowFunction) {
     // FrameInspector is not able to get receiver for arrow function.
     // So let's try to fetch it using same logic as is used to retrieve 'this'
     // during DebugEvaluate::Local.

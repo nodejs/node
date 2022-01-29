@@ -119,12 +119,12 @@ Type::bitset Type::BitsetLub() const {
   if (IsUnion()) {
     // Take the representation from the first element, which is always
     // a bitset.
-    int bitset = AsUnion()->Get(0).BitsetLub();
+    bitset lub = AsUnion()->Get(0).BitsetLub();
     for (int i = 0, n = AsUnion()->Length(); i < n; ++i) {
       // Other elements only contribute their semantic part.
-      bitset |= AsUnion()->Get(i).BitsetLub();
+      lub |= AsUnion()->Get(i).BitsetLub();
     }
-    return bitset;
+    return lub;
   }
   if (IsHeapConstant()) return AsHeapConstant()->Lub();
   if (IsOtherNumberConstant()) {
@@ -415,7 +415,7 @@ Type::bitset BitsetType::ExpandInternals(Type::bitset bits) {
 
 Type::bitset BitsetType::Lub(double min, double max) {
   DisallowGarbageCollection no_gc;
-  int lub = kNone;
+  bitset lub = kNone;
   const Boundary* mins = Boundaries();
 
   for (size_t i = 1; i < BoundariesSize(); ++i) {
@@ -431,7 +431,7 @@ Type::bitset BitsetType::NumberBits(bitset bits) { return bits & kPlainNumber; }
 
 Type::bitset BitsetType::Glb(double min, double max) {
   DisallowGarbageCollection no_gc;
-  int glb = kNone;
+  bitset glb = kNone;
   const Boundary* mins = Boundaries();
 
   // If the range does not touch 0, the bound is empty.
@@ -1146,7 +1146,10 @@ std::ostream& operator<<(std::ostream& os, Type type) {
 Handle<TurbofanType> Type::AllocateOnHeap(Factory* factory) {
   DCHECK(CanBeAsserted());
   if (IsBitset()) {
-    return factory->NewTurbofanBitsetType(AsBitset(), AllocationType::kYoung);
+    const bitset bits = AsBitset();
+    uint32_t low = bits & 0xffffffff;
+    uint32_t high = (bits >> 32) & 0xffffffff;
+    return factory->NewTurbofanBitsetType(low, high, AllocationType::kYoung);
   } else if (IsUnion()) {
     const UnionType* union_type = AsUnion();
     Handle<TurbofanType> result = union_type->Get(0).AllocateOnHeap(factory);
@@ -1171,12 +1174,18 @@ Handle<TurbofanType> Type::AllocateOnHeap(Factory* factory) {
   }
 }
 
-#define VERIFY_TORQUE_BITSET_AGREEMENT(Name, _)               \
+#define VERIFY_TORQUE_LOW_BITSET_AGREEMENT(Name, _)           \
   STATIC_ASSERT(static_cast<uint32_t>(BitsetType::k##Name) == \
-                static_cast<uint32_t>(TurbofanTypeBits::k##Name));
-INTERNAL_BITSET_TYPE_LIST(VERIFY_TORQUE_BITSET_AGREEMENT)
-PROPER_ATOMIC_BITSET_TYPE_LIST(VERIFY_TORQUE_BITSET_AGREEMENT)
-#undef VERIFY_TORQUE_BITSET_AGREEMENT
+                static_cast<uint32_t>(TurbofanTypeLowBits::k##Name));
+#define VERIFY_TORQUE_HIGH_BITSET_AGREEMENT(Name, _)                     \
+  STATIC_ASSERT(static_cast<uint32_t>(                                   \
+                    static_cast<uint64_t>(BitsetType::k##Name) >> 32) == \
+                static_cast<uint32_t>(TurbofanTypeHighBits::k##Name));
+INTERNAL_BITSET_TYPE_LIST(VERIFY_TORQUE_LOW_BITSET_AGREEMENT)
+PROPER_ATOMIC_BITSET_TYPE_LOW_LIST(VERIFY_TORQUE_LOW_BITSET_AGREEMENT)
+PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(VERIFY_TORQUE_HIGH_BITSET_AGREEMENT)
+#undef VERIFY_TORQUE_HIGH_BITSET_AGREEMENT
+#undef VERIFY_TORQUE_LOW_BITSET_AGREEMENT
 
 }  // namespace compiler
 }  // namespace internal

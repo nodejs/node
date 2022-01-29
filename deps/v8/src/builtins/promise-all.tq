@@ -139,7 +139,7 @@ transitioning macro PerformPromiseAll<F1: type, F2: type>(
     constructor: Constructor, capability: PromiseCapability,
     promiseResolveFunction: JSAny, createResolveElementFunctor: F1,
     createRejectElementFunctor: F2): JSAny labels
-Reject(Object) {
+Reject(JSAny) {
   const promise = capability.promise;
   const resolve = capability.resolve;
   const reject = capability.reject;
@@ -172,7 +172,7 @@ Reject(Object) {
         // to true.
         // ReturnIfAbrupt(nextValue).
         nextValue = iterator::IteratorValue(next, fastIteratorResultMap);
-      } catch (e) {
+      } catch (e, _message) {
         goto Reject(e);
       }
 
@@ -262,7 +262,7 @@ Reject(Object) {
       // Set index to index + 1.
       index += 1;
     }
-  } catch (e) deferred {
+  } catch (e, _message) deferred {
     iterator::IteratorCloseOnException(iter);
     goto Reject(e);
   } label Done {}
@@ -354,11 +354,9 @@ transitioning macro GeneratePromiseAll<F1: type, F2: type>(
         nativeContext, i, constructor, capability, promiseResolveFunction,
         createResolveElementFunctor, createRejectElementFunctor)
         otherwise Reject;
-  } catch (e) deferred {
+  } catch (e, _message) deferred {
     goto Reject(e);
-  } label Reject(e: Object) deferred {
-    // Exception must be bound to a JS value.
-    const e = UnsafeCast<JSAny>(e);
+  } label Reject(e: JSAny) deferred {
     const reject = UnsafeCast<JSAny>(capability.reject);
     Call(context, reject, Undefined, e);
     return capability.promise;

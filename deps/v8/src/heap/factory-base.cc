@@ -81,7 +81,10 @@ Handle<CodeDataContainer> FactoryBase<Impl>::NewCodeDataContainer(
                                     SKIP_WRITE_BARRIER);
   data_container.set_kind_specific_flags(flags, kRelaxedStore);
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    impl()->SetExternalCodeSpaceInDataContainer(data_container);
+    Isolate* isolate_for_heap_sandbox = impl()->isolate_for_heap_sandbox();
+    data_container.AllocateExternalPointerEntries(isolate_for_heap_sandbox);
+    data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);
+    data_container.set_code_entry_point(isolate_for_heap_sandbox, kNullAddress);
   }
   data_container.clear_padding();
   return handle(data_container, isolate());
@@ -306,6 +309,21 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
 }
 
 template <typename Impl>
+Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
+    Handle<SharedFunctionInfo> other) {
+  Map map = read_only_roots().shared_function_info_map();
+
+  SharedFunctionInfo shared =
+      SharedFunctionInfo::cast(NewWithImmortalMap(map, AllocationType::kOld));
+  DisallowGarbageCollection no_gc;
+
+  shared.CopyFrom(*other);
+  shared.clear_padding();
+
+  return handle(shared, isolate());
+}
+
+template <typename Impl>
 Handle<PreparseData> FactoryBase<Impl>::NewPreparseData(int data_length,
                                                         int children_length) {
   int size = PreparseData::SizeFor(data_length, children_length);
@@ -336,6 +354,29 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
     Handle<PreparseData> preparse_data) {
   return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseData(
       inferred_name, start_position, end_position, preparse_data,
+      AllocationType::kOld);
+}
+
+template <typename Impl>
+Handle<UncompiledDataWithoutPreparseDataWithJob>
+FactoryBase<Impl>::NewUncompiledDataWithoutPreparseDataWithJob(
+    Handle<String> inferred_name, int32_t start_position,
+    int32_t end_position) {
+  return TorqueGeneratedFactory<
+      Impl>::NewUncompiledDataWithoutPreparseDataWithJob(inferred_name,
+                                                         start_position,
+                                                         end_position,
+                                                         kNullAddress,
+                                                         AllocationType::kOld);
+}
+
+template <typename Impl>
+Handle<UncompiledDataWithPreparseDataAndJob>
+FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
+    Handle<String> inferred_name, int32_t start_position, int32_t end_position,
+    Handle<PreparseData> preparse_data) {
+  return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseDataAndJob(
+      inferred_name, start_position, end_position, preparse_data, kNullAddress,
       AllocationType::kOld);
 }
 
@@ -578,19 +619,22 @@ Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
 }
 
 template <typename Impl>
-MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
-    int length, AllocationType allocation) {
+template <typename SeqStringT>
+MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
+    int length, Map map, AllocationType allocation) {
+  DCHECK(SeqStringT::IsCompatibleMap(map, read_only_roots()));
+  DCHECK_IMPLIES(!StringShape(map).IsShared(),
+                 RefineAllocationTypeForInPlaceInternalizableString(
+                     allocation, map) == allocation);
   if (length > String::kMaxLength || length < 0) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqOneByteString);
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqStringT);
   }
   DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
-  int size = SeqOneByteString::SizeFor(length);
-  DCHECK_GE(SeqOneByteString::kMaxSize, size);
+  int size = SeqStringT::SizeFor(length);
+  DCHECK_GE(SeqStringT::kMaxSize, size);
 
-  Map map = read_only_roots().one_byte_string_map();
-  SeqOneByteString string = SeqOneByteString::cast(AllocateRawWithImmortalMap(
-      size, RefineAllocationTypeForInPlaceInternalizableString(allocation, map),
-      map));
+  SeqStringT string =
+      SeqStringT::cast(AllocateRawWithImmortalMap(size, allocation, map));
   DisallowGarbageCollection no_gc;
   string.set_length(length);
   string.set_raw_hash_field(String::kEmptyHashField);
@@ -599,24 +643,37 @@ MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
 }
 
 template <typename Impl>
+MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
+    int length, AllocationType allocation) {
+  Map map = read_only_roots().one_byte_string_map();
+  return NewRawStringWithMap<SeqOneByteString>(
+      length, map,
+      RefineAllocationTypeForInPlaceInternalizableString(allocation, map));
+}
+
+template <typename Impl>
 MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
     int length, AllocationType allocation) {
-  if (length > String::kMaxLength || length < 0) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqTwoByteString);
-  }
-  DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
-  int size = SeqTwoByteString::SizeFor(length);
-  DCHECK_GE(SeqTwoByteString::kMaxSize, size);
-
   Map map = read_only_roots().string_map();
-  SeqTwoByteString string = SeqTwoByteString::cast(AllocateRawWithImmortalMap(
-      size, RefineAllocationTypeForInPlaceInternalizableString(allocation, map),
-      map));
-  DisallowGarbageCollection no_gc;
-  string.set_length(length);
-  string.set_raw_hash_field(String::kEmptyHashField);
-  DCHECK_EQ(size, string.Size());
-  return handle(string, isolate());
+  return NewRawStringWithMap<SeqTwoByteString>(
+      length, map,
+      RefineAllocationTypeForInPlaceInternalizableString(allocation, map));
+}
+
+template <typename Impl>
+MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawSharedOneByteString(
+    int length) {
+  return NewRawStringWithMap<SeqOneByteString>(
+      length, read_only_roots().shared_one_byte_string_map(),
+      AllocationType::kSharedOld);
+}
+
+template <typename Impl>
+MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawSharedTwoByteString(
+    int length) {
+  return NewRawStringWithMap<SeqTwoByteString>(
+      length, read_only_roots().shared_string_map(),
+      AllocationType::kSharedOld);
 }
 
 template <typename Impl>
@@ -964,9 +1021,11 @@ MaybeHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
   MaybeHandle<Map> map;
   switch (instance_type) {
     case STRING_TYPE:
+    case SHARED_STRING_TYPE:
       map = read_only_roots().internalized_string_map_handle();
       break;
     case ONE_BYTE_STRING_TYPE:
+    case SHARED_ONE_BYTE_STRING_TYPE:
       map = read_only_roots().one_byte_internalized_string_map_handle();
       break;
     case EXTERNAL_STRING_TYPE:
@@ -980,6 +1039,25 @@ MaybeHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
       break;
   }
   DCHECK_EQ(!map.is_null(), String::IsInPlaceInternalizable(instance_type));
+  return map;
+}
+
+template <typename Impl>
+Handle<Map> FactoryBase<Impl>::GetStringMigrationSentinelMap(
+    InstanceType from_string_type) {
+  Handle<Map> map;
+  switch (from_string_type) {
+    case SHARED_STRING_TYPE:
+      map = read_only_roots().seq_string_migration_sentinel_map_handle();
+      break;
+    case SHARED_ONE_BYTE_STRING_TYPE:
+      map =
+          read_only_roots().one_byte_seq_string_migration_sentinel_map_handle();
+      break;
+    default:
+      UNREACHABLE();
+  }
+  DCHECK_EQ(map->instance_type(), from_string_type);
   return map;
 }
 

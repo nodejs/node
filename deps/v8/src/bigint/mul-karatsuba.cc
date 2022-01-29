@@ -82,7 +82,7 @@ void KaratsubaSubtractionHelper(RWDigits result, Digits X, Digits Y,
   for (; i < X.len(); i++) {
     result[i] = digit_sub(X[i], borrow, &borrow);
   }
-  DCHECK(borrow == 0);  // NOLINT(readability/check)
+  DCHECK(borrow == 0);
   for (; i < result.len(); i++) result[i] = 0;
 }
 
@@ -160,7 +160,7 @@ void ProcessorImpl::KaratsubaMain(RWDigits Z, Digits X, Digits Y,
     }
   }
   DCHECK(scratch.len() >= 4 * n);
-  DCHECK((n & 1) == 0);  // NOLINT(readability/check)
+  DCHECK((n & 1) == 0);
   int n2 = n >> 1;
   Digits X0(X, 0, n2);
   Digits X1(X, n2, n2);
@@ -178,7 +178,7 @@ void ProcessorImpl::KaratsubaMain(RWDigits Z, Digits X, Digits Y,
   int end = std::min(Z2.len(), P2.len());
   for (int i = 0; i < end; i++) Z2[i] = P2[i];
   for (int i = end; i < n; i++) {
-    DCHECK(P2[i] == 0);  // NOLINT(readability/check)
+    DCHECK(P2[i] == 0);
   }
   // The intermediate result can be one digit too large; the subtraction
   // below will fix this.
@@ -197,7 +197,7 @@ void ProcessorImpl::KaratsubaMain(RWDigits Z, Digits X, Digits Y,
     overflow -= SubAndReturnBorrow(Z + n2, P1);
   }
   // The intermediate result may have been bigger, but the final result fits.
-  DCHECK(overflow == 0);  // NOLINT(readability/check)
+  DCHECK(overflow == 0);
   USE(overflow);
 }
 

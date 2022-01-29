@@ -47,7 +47,13 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::IntPtrZero() {
 
 // If code is a builtin, return the address to the (possibly embedded) builtin
 // code entry, otherwise return the entry of the code object itself.
-TNode<RawPtrT> RegExpBuiltinsAssembler::LoadCodeObjectEntry(TNode<Code> code) {
+TNode<RawPtrT> RegExpBuiltinsAssembler::LoadCodeObjectEntry(TNode<CodeT> code) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    // When external code space is enabled we can load the entry point directly
+    // from the CodeT object.
+    return GetCodeEntry(code);
+  }
+
   TVARIABLE(RawPtrT, var_result);
 
   Label if_code_is_off_heap(this), out(this);
@@ -553,8 +559,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 #endif
 
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
-  // TODO(v8:11880): avoid roundtrips between cdc and code.
-  TNode<Code> code = FromCodeT(CAST(var_code.value()));
+  TNode<CodeT> code = CAST(var_code.value());
 
   Label if_success(this), if_exception(this, Label::kDeferred);
   {
@@ -618,7 +623,6 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     MachineType arg8_type = type_tagged;
     TNode<JSRegExp> arg8 = regexp;
 
-    // TODO(v8:11880): avoid roundtrips between cdc and code.
     TNode<RawPtrT> code_entry = LoadCodeObjectEntry(code);
 
     // AIX uses function descriptors on CFunction calls. code_entry in this case

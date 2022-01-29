@@ -252,7 +252,7 @@ void RelocInfo::WipeOut() {
   }
 }
 
-Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NONE) {}
+Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NO_INFO) {}
 
 void Assembler::UntrackBranch() {
   DCHECK(!trampoline_emitted_);

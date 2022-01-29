@@ -9,7 +9,9 @@
 #include "include/v8-embedder-heap.h"
 #include "include/v8-traced-handle.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 
 namespace v8 {
 namespace internal {
@@ -76,12 +78,19 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   ~LocalEmbedderHeapTracer() {
     if (remote_tracer_) remote_tracer_->isolate_ = nullptr;
+    // CppHeap is not detached from Isolate here. Detaching is done explciitly
+    // on Isolate/Heap/CppHeap destruction.
   }
 
-  bool InUse() const { return remote_tracer_ != nullptr; }
-  EmbedderHeapTracer* remote_tracer() const { return remote_tracer_; }
+  bool InUse() const { return cpp_heap_ || (remote_tracer_ != nullptr); }
+  // This method doesn't take CppHeap into account.
+  EmbedderHeapTracer* remote_tracer() const {
+    DCHECK_NULL(cpp_heap_);
+    return remote_tracer_;
+  }
 
   void SetRemoteTracer(EmbedderHeapTracer* tracer);
+  void SetCppHeap(CppHeap* cpp_heap);
   void TracePrologue(EmbedderHeapTracer::TraceFlags flags);
   void TraceEpilogue();
   void EnterFinalPause();
@@ -124,6 +133,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   WrapperInfo ExtractWrapperInfo(Isolate* isolate, JSObject js_object);
 
   void SetWrapperDescriptor(const WrapperDescriptor& wrapper_descriptor) {
+    DCHECK_NULL(cpp_heap_);
     wrapper_descriptor_ = wrapper_descriptor;
   }
 
@@ -134,6 +144,10 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   }
 
   void NotifyEmptyEmbedderStack();
+
+  EmbedderHeapTracer::EmbedderStackState embedder_stack_state() const {
+    return embedder_stack_state_;
+  }
 
  private:
   static constexpr size_t kEmbedderAllocatedThreshold = 128 * KB;
@@ -150,8 +164,23 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
                              WrapperDescriptor::kUnknownEmbedderId);
   }
 
+  CppHeap* cpp_heap() {
+    DCHECK_NOT_NULL(cpp_heap_);
+    DCHECK_NULL(remote_tracer_);
+    DCHECK_IMPLIES(isolate_, cpp_heap_ == isolate_->heap()->cpp_heap());
+    return cpp_heap_;
+  }
+
+  WrapperDescriptor wrapper_descriptor() {
+    if (cpp_heap_)
+      return cpp_heap()->wrapper_descriptor();
+    else
+      return wrapper_descriptor_;
+  }
+
   Isolate* const isolate_;
   EmbedderHeapTracer* remote_tracer_ = nullptr;
+  CppHeap* cpp_heap_ = nullptr;
   DefaultEmbedderRootsHandler default_embedder_roots_handler_;
 
   EmbedderHeapTracer::EmbedderStackState embedder_stack_state_ =

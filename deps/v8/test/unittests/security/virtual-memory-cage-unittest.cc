@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "src/base/virtual-address-space.h"
 #include "src/security/vm-cage.h"
 #include "test/unittests/test-utils.h"
 
@@ -13,7 +14,7 @@ namespace v8 {
 namespace internal {
 
 TEST(VirtualMemoryCageTest, Initialization) {
-  base::PageAllocator page_allocator;
+  base::VirtualAddressSpace vas;
 
   V8VirtualMemoryCage cage;
 
@@ -22,7 +23,7 @@ TEST(VirtualMemoryCageTest, Initialization) {
   EXPECT_FALSE(cage.is_fake_cage());
   EXPECT_EQ(cage.size(), 0UL);
 
-  EXPECT_TRUE(cage.Initialize(&page_allocator));
+  EXPECT_TRUE(cage.Initialize(&vas));
 
   EXPECT_TRUE(cage.is_initialized());
   EXPECT_NE(cage.base(), 0UL);
@@ -34,11 +35,14 @@ TEST(VirtualMemoryCageTest, Initialization) {
 }
 
 TEST(VirtualMemoryCageTest, InitializationWithSize) {
-  base::PageAllocator page_allocator;
+  base::VirtualAddressSpace vas;
+  // This test only works if virtual memory subspaces can be allocated.
+  if (!vas.CanAllocateSubspaces()) return;
+
   V8VirtualMemoryCage cage;
   size_t size = kVirtualMemoryCageMinimumSize;
   const bool use_guard_regions = false;
-  EXPECT_TRUE(cage.Initialize(&page_allocator, size, use_guard_regions));
+  EXPECT_TRUE(cage.Initialize(&vas, size, use_guard_regions));
 
   EXPECT_TRUE(cage.is_initialized());
   EXPECT_FALSE(cage.is_fake_cage());
@@ -48,14 +52,14 @@ TEST(VirtualMemoryCageTest, InitializationWithSize) {
 }
 
 TEST(VirtualMemoryCageTest, InitializationAsFakeCage) {
-  base::PageAllocator page_allocator;
+  base::VirtualAddressSpace vas;
   V8VirtualMemoryCage cage;
   // Total size of the fake cage.
   size_t size = kVirtualMemoryCageSize;
   // Size of the virtual memory that is actually reserved at the start of the
   // cage.
-  size_t reserved_size = 2 * page_allocator.AllocatePageSize();
-  EXPECT_TRUE(cage.InitializeAsFakeCage(&page_allocator, size, reserved_size));
+  size_t reserved_size = 2 * vas.allocation_granularity();
+  EXPECT_TRUE(cage.InitializeAsFakeCage(&vas, size, reserved_size));
 
   EXPECT_TRUE(cage.is_initialized());
   EXPECT_TRUE(cage.is_fake_cage());
@@ -68,9 +72,9 @@ TEST(VirtualMemoryCageTest, InitializationAsFakeCage) {
 }
 
 TEST(VirtualMemloryCageTest, Contains) {
-  base::PageAllocator page_allocator;
+  base::VirtualAddressSpace vas;
   V8VirtualMemoryCage cage;
-  EXPECT_TRUE(cage.Initialize(&page_allocator));
+  EXPECT_TRUE(cage.Initialize(&vas));
 
   Address base = cage.base();
   size_t size = cage.size();
@@ -99,29 +103,29 @@ void TestCagePageAllocation(V8VirtualMemoryCage& cage) {
   const size_t kAllocatinSizesInPages[] = {1, 1, 2, 3, 5, 8, 13, 21, 34};
   constexpr int kNumAllocations = arraysize(kAllocatinSizesInPages);
 
-  PageAllocator* allocator = cage.page_allocator();
-  size_t page_size = allocator->AllocatePageSize();
-  std::vector<void*> allocations;
+  VirtualAddressSpace* vas = cage.virtual_address_space();
+  size_t allocation_granularity = vas->allocation_granularity();
+  std::vector<Address> allocations;
   for (int i = 0; i < kNumAllocations; i++) {
-    size_t length = page_size * kAllocatinSizesInPages[i];
-    size_t alignment = page_size;
-    void* ptr = allocator->AllocatePages(nullptr, length, alignment,
-                                         PageAllocator::kNoAccess);
-    EXPECT_NE(ptr, nullptr);
+    size_t length = allocation_granularity * kAllocatinSizesInPages[i];
+    size_t alignment = allocation_granularity;
+    Address ptr = vas->AllocatePages(VirtualAddressSpace::kNoHint, length,
+                                     alignment, PagePermissions::kNoAccess);
+    EXPECT_NE(ptr, kNullAddress);
     EXPECT_TRUE(cage.Contains(ptr));
     allocations.push_back(ptr);
   }
 
   for (int i = 0; i < kNumAllocations; i++) {
-    size_t length = page_size * kAllocatinSizesInPages[i];
-    allocator->FreePages(allocations[i], length);
+    size_t length = allocation_granularity * kAllocatinSizesInPages[i];
+    EXPECT_TRUE(vas->FreePages(allocations[i], length));
   }
 }
 
 TEST(VirtualMemoryCageTest, PageAllocation) {
-  base::PageAllocator page_allocator;
+  base::VirtualAddressSpace vas;
   V8VirtualMemoryCage cage;
-  EXPECT_TRUE(cage.Initialize(&page_allocator));
+  EXPECT_TRUE(cage.Initialize(&vas));
 
   TestCagePageAllocation(cage);
 
@@ -129,13 +133,13 @@ TEST(VirtualMemoryCageTest, PageAllocation) {
 }
 
 TEST(VirtualMemoryCageTest, FakeCagePageAllocation) {
-  base::PageAllocator page_allocator;
+  base::VirtualAddressSpace vas;
   V8VirtualMemoryCage cage;
   size_t size = kVirtualMemoryCageSize;
   // Only reserve two pages so the test will allocate memory inside and outside
   // of the reserved region.
-  size_t reserved_size = 2 * page_allocator.AllocatePageSize();
-  EXPECT_TRUE(cage.InitializeAsFakeCage(&page_allocator, size, reserved_size));
+  size_t reserved_size = 2 * vas.allocation_granularity();
+  EXPECT_TRUE(cage.InitializeAsFakeCage(&vas, size, reserved_size));
 
   TestCagePageAllocation(cage);
 

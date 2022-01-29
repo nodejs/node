@@ -88,25 +88,40 @@ v8_config = rule(
 def _default_args():
     return struct(
         deps = [":define_flags"],
-        copts = [
-            "-fPIC",
-            "-Werror",
-            "-Wextra",
-            "-Wno-bitwise-instead-of-logical",
-            "-Wno-builtin-assume-aligned-alignment",
-            "-Wno-unused-parameter",
-            "-Wno-implicit-int-float-conversion",
-            "-Wno-deprecated-copy",
-            "-Wno-non-virtual-dtor",
-            "-std=c++17",
-            "-isystem .",
-        ],
+        defines = select({
+            "@config//:is_windows": [
+                "UNICODE",
+                "_UNICODE",
+                "_CRT_RAND_S",
+                "_WIN32_WINNT=0x0602", # Override bazel default to Windows 8
+            ],
+            "//conditions:default": [],
+        }),
+        copts = select({
+            "@config//:is_posix": [
+                "-fPIC",
+                "-Werror",
+                "-Wextra",
+                "-Wno-bitwise-instead-of-logical",
+                "-Wno-builtin-assume-aligned-alignment",
+                "-Wno-unused-parameter",
+                "-Wno-implicit-int-float-conversion",
+                "-Wno-deprecated-copy",
+                "-Wno-non-virtual-dtor",
+                "-std=c++17",
+                "-isystem .",
+            ],
+            "//conditions:default": [],
+        }),
         includes = ["include"],
-        linkopts = [
-            "-pthread",
-        ] + select({
-            "@config//:is_macos": [],
-            "//conditions:default": ["-Wl,--no-as-needed -ldl"],
+        linkopts = select({
+            "@config//:is_windows": [
+                "Winmm.lib",
+                "DbgHelp.lib",
+                "Advapi32.lib",
+            ],
+            "@config//:is_macos": ["-pthread"],
+            "//conditions:default": ["-Wl,--no-as-needed -ldl -pthread"],
         }) + select({
             ":should_add_rdynamic": ["-rdynamic"],
             "//conditions:default": [],
@@ -184,24 +199,40 @@ def v8_library(
     default = _default_args()
     if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, icu_srcs, icu_deps):
         native.cc_library(
-            name = "noicu/" + name,
+            name = name + "_noicu",
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
             includes = includes + default.includes,
             copts = copts + default.copts,
             linkopts = linkopts + default.linkopts,
             alwayslink = 1,
+            linkstatic = 1,
             **kwargs
         )
+        # Alias target used because of cc_library bug in bazel on windows
+        # https://github.com/bazelbuild/bazel/issues/14237
+        # TODO(victorgomes): Remove alias once bug is fixed
+        native.alias(
+            name = "noicu/" + name,
+            actual = name + "_noicu",
+        )
         native.cc_library(
-            name = "icu/" + name,
+            name = name + "_icu",
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
             includes = includes + default.includes,
             copts = copts + default.copts + ENABLE_I18N_SUPPORT_DEFINES,
             linkopts = linkopts + default.linkopts,
             alwayslink = 1,
+            linkstatic = 1,
             **kwargs
+        )
+        # Alias target used because of cc_library bug in bazel on windows
+        # https://github.com/bazelbuild/bazel/issues/14237
+        # TODO(victorgomes): Remove alias once bug is fixed
+        native.alias(
+            name = "icu/" + name,
+            actual = name + "_icu",
         )
     else:
         native.cc_library(
@@ -212,6 +243,7 @@ def v8_library(
             copts = copts + default.copts,
             linkopts = linkopts + default.linkopts,
             alwayslink = 1,
+            linkstatic = 1,
             **kwargs
         )
 
@@ -297,6 +329,29 @@ def v8_torque(name, noicu_srcs, icu_srcs, args, extras):
         }),
     )
 
+def _v8_target_cpu_transition_impl(settings, attr):
+    mapping = {
+        "haswell": "x64",
+        "k8": "x64",
+        "x86_64": "x64",
+        "darwin_x86_64": "x64",
+        "x86": "ia32",
+        "ppc": "ppc64",
+        "arm64-v8a": "arm64",
+        "arm": "arm64",
+        "armeabi-v7a": "arm32",
+    }
+    v8_target_cpu = mapping[settings["//command_line_option:cpu"]]
+    return {"@config//:v8_target_cpu": v8_target_cpu}
+
+# Set the v8_target_cpu to be the correct architecture given the cpu specified
+# on the command line.
+v8_target_cpu_transition = transition(
+    implementation = _v8_target_cpu_transition_impl,
+    inputs = ["//command_line_option:cpu"],
+    outputs = ["@config//:v8_target_cpu"],
+)
+
 def _mksnapshot(ctx):
     outs = [
         ctx.actions.declare_file(ctx.attr.prefix + "/snapshot.cc"),
@@ -327,8 +382,12 @@ _v8_mksnapshot = rule(
             executable = True,
             cfg = "exec",
         ),
+        "_allowlist_function_transition": attr.label(
+            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
+        ),
         "prefix": attr.string(mandatory = True),
     },
+    cfg = v8_target_cpu_transition,
 )
 
 def v8_mksnapshot(name, args):

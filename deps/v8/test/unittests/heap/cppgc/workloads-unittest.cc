@@ -207,7 +207,7 @@ class ObjectSizeCounter final : private HeapVisitor<ObjectSizeCounter> {
 
  private:
   static size_t ObjectSize(const HeapObjectHeader& header) {
-    return ObjectView(header).Size();
+    return ObjectView<>(header).Size();
   }
 
   bool VisitHeapObjectHeader(HeapObjectHeader& header) {

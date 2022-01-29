@@ -127,8 +127,8 @@ class WasmInliner final : public AdvancedReducer {
   }
 
   // The smallest size in TF nodes any meaningful wasm function can have
-  // (start, instance parameter, end).
-  static constexpr size_t kMinimumFunctionNodeCount = 3;
+  // (start, return, IntConstant(0), end).
+  static constexpr size_t kMinimumFunctionNodeCount = 4;
 
   Reduction ReduceCall(Node* call);
   void InlineCall(Node* call, Node* callee_start, Node* callee_end,

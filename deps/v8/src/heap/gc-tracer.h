@@ -75,8 +75,8 @@ class V8_EXPORT_PRIVATE GCTracer {
       steps = 0;
     }
 
-    double duration;
-    double longest_step;
+    double duration;      // in ms
+    double longest_step;  // in ms
     int steps;
   };
 
@@ -183,10 +183,11 @@ class V8_EXPORT_PRIVATE GCTracer {
     // Bytes marked incrementally for INCREMENTAL_MARK_COMPACTOR
     size_t incremental_marking_bytes;
 
-    // Duration of incremental marking steps for INCREMENTAL_MARK_COMPACTOR.
+    // Duration (in ms) of incremental marking steps for
+    // INCREMENTAL_MARK_COMPACTOR.
     double incremental_marking_duration;
 
-    // Amounts of time spent in different scopes during GC.
+    // Amounts of time (in ms) spent in different scopes during GC.
     double scopes[Scope::NUMBER_OF_SCOPES];
 
     // Holds details for incremental marking scopes.
@@ -421,6 +422,7 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void ReportFullCycleToRecorder();
   void ReportIncrementalMarkingStepToRecorder();
+  void ReportYoungCycleToRecorder();
 
   // Pointer to the heap that owns this tracer.
   Heap* heap_;
@@ -436,8 +438,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   // the last mark compact GC.
   size_t incremental_marking_bytes_;
 
-  // Duration of incremental marking steps since the end of the last mark-
-  // compact event.
+  // Duration (in ms) of incremental marking steps since the end of the last
+  // mark-compact event.
   double incremental_marking_duration_;
 
   double incremental_marking_start_time_;
@@ -460,7 +462,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   size_t old_generation_allocation_counter_bytes_;
   size_t embedder_allocation_counter_bytes_;
 
-  // Accumulated duration and allocated bytes since the last GC.
+  // Accumulated duration (in ms) and allocated bytes since the last GC.
   double allocation_duration_since_gc_;
   size_t new_space_allocation_in_bytes_since_gc_;
   size_t old_generation_allocation_in_bytes_since_gc_;

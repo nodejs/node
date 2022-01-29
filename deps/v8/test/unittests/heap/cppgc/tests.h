@@ -87,8 +87,8 @@ class TestWithHeap : public TestWithPlatform {
   void ConservativeMemoryDiscardingGC() {
     internal::Heap::From(GetHeap())->CollectGarbage(
         {GarbageCollector::Config::CollectionType::kMajor,
-         Heap::StackState::kMayContainHeapPointers, Heap::MarkingType::kAtomic,
-         Heap::SweepingType::kAtomic,
+         Heap::StackState::kMayContainHeapPointers,
+         cppgc::Heap::MarkingType::kAtomic, cppgc::Heap::SweepingType::kAtomic,
          GarbageCollector::Config::FreeMemoryHandling::kDiscardWherePossible});
   }
 
@@ -103,11 +103,7 @@ class TestWithHeap : public TestWithPlatform {
   }
 
   std::unique_ptr<MarkerBase>& GetMarkerRef() {
-    return Heap::From(GetHeap())->marker_;
-  }
-
-  const std::unique_ptr<MarkerBase>& GetMarkerRef() const {
-    return Heap::From(GetHeap())->marker_;
+    return Heap::From(GetHeap())->GetMarkerRefForTesting();
   }
 
   void ResetLinearAllocationBuffers();

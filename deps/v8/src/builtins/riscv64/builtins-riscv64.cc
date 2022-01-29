@@ -194,8 +194,11 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ Lwu(func_info,
            FieldMemOperand(func_info, SharedFunctionInfo::kFlagsOffset));
     __ DecodeField<SharedFunctionInfo::FunctionKindBits>(func_info);
-    __ JumpIfIsInRange(func_info, kDefaultDerivedConstructor,
-                       kDerivedConstructor, &not_create_implicit_receiver);
+    __ JumpIfIsInRange(
+        func_info,
+        static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+        static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
+        &not_create_implicit_receiver);
     Register scratch = func_info;
     Register scratch2 = temps.Acquire();
     // If not derived class constructor: Allocate the new receiver object.
@@ -921,8 +924,8 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
                                           Runtime::FunctionId function_id) {
   ASM_CODE_COMMENT(masm);
   Label no_match;
-  __ Branch(&no_match, ne, actual_marker, Operand(expected_marker),
-            Label::Distance::kNear);
+  __ Branch(&no_match, ne, actual_marker,
+            Operand(static_cast<int>(expected_marker)), Label::Distance::kNear);
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
 }

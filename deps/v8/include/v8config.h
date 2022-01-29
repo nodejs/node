@@ -293,6 +293,8 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
 //                                        supported
 //  V8_HAS_CPP_ATTRIBUTE_NODISCARD      - [[nodiscard]] supported
+//  V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS
+//                                      - [[no_unique_address]] supported
 //  V8_HAS_BUILTIN_BSWAP16              - __builtin_bswap16() supported
 //  V8_HAS_BUILTIN_BSWAP32              - __builtin_bswap32() supported
 //  V8_HAS_BUILTIN_BSWAP64              - __builtin_bswap64() supported
@@ -337,6 +339,8 @@ path. Add it with -I<path> to the command line
     (__has_attribute(warn_unused_result))
 
 # define V8_HAS_CPP_ATTRIBUTE_NODISCARD (V8_HAS_CPP_ATTRIBUTE(nodiscard))
+# define V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS \
+    (V8_HAS_CPP_ATTRIBUTE(no_unique_address))
 
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED (__has_builtin(__builtin_assume_aligned))
 # define V8_HAS_BUILTIN_BSWAP16 (__has_builtin(__builtin_bswap16))
@@ -507,6 +511,27 @@ path. Add it with -I<path> to the command line
 #define V8_NODISCARD /* NOT SUPPORTED */
 #endif
 
+// The no_unique_address attribute allows tail padding in a non-static data
+// member to overlap other members of the enclosing class (and in the special
+// case when the type is empty, permits it to fully overlap other members). The
+// field is laid out as if a base class were encountered at the corresponding
+// point within the class (except that it does not share a vptr with the
+// enclosing object).
+//
+// Apply to a data member like:
+//
+//   class Foo {
+//    V8_NO_UNIQUE_ADDRESS Bar bar_;
+//   };
+//
+// [[no_unique_address]] comes in C++20 but supported in clang with
+// -std >= c++11.
+#if V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS
+#define V8_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#else
+#define V8_NO_UNIQUE_ADDRESS /* NOT SUPPORTED */
+#endif
+
 // Helper macro to define no_sanitize attributes only with clang.
 #if defined(__clang__) && defined(__has_attribute)
 #if __has_attribute(no_sanitize)
@@ -564,6 +589,13 @@ V8 shared library set USING_V8_SHARED.
 // In the future, they will be enabled when the virtual memory cage is enabled.
 #if defined(V8_HEAP_SANDBOX)
 #define V8_CAGED_POINTERS
+#endif
+
+// From C++17 onwards, static constexpr member variables are defined to be
+// "inline", and adding a separate definition for them can trigger deprecation
+// warnings. For C++14 and below, however, these definitions are required.
+#if __cplusplus < 201703L && (!defined(_MSVC_LANG) || _MSVC_LANG < 201703L)
+#define V8_STATIC_CONSTEXPR_VARIABLES_NEED_DEFINITIONS
 #endif
 
 // clang-format on

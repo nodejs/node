@@ -233,7 +233,9 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
   PagePermissionsMap page_permissions_;
 };
 
-#if !V8_OS_FUCHSIA
+// This test is currently incompatible with the VirtualMemoryCage. Enable it
+// once the VirtualMemorySpace interface is stable.
+#if !V8_OS_FUCHSIA && !V8_VIRTUAL_MEMORY_CAGE
 class SequentialUnmapperTest : public TestWithIsolate {
  public:
   SequentialUnmapperTest() = default;
@@ -362,7 +364,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
   tracking_page_allocator()->CheckIsFree(page->address(), page_size);
 #endif  // V8_COMPRESS_POINTERS
 }
-#endif  // !V8_OS_FUCHSIA
+#endif  // !V8_OS_FUCHSIA && !V8_VIRTUAL_MEMORY_CAGE
 
 }  // namespace internal
 }  // namespace v8

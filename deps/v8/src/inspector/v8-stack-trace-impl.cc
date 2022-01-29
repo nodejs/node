@@ -168,16 +168,15 @@ std::unique_ptr<StringBuffer> V8StackTraceId::ToString() {
   return StringBufferFrom(std::move(json));
 }
 
-StackFrame::StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> v8Frame)
-    : m_functionName(
-          toProtocolString(isolate, v8::debug::GetFunctionDebugName(v8Frame))),
-      m_scriptId(v8Frame->GetScriptId()),
-      m_sourceURL(
-          toProtocolString(isolate, v8Frame->GetScriptNameOrSourceURL())),
-      m_lineNumber(v8Frame->GetLineNumber() - 1),
-      m_columnNumber(v8Frame->GetColumn() - 1),
-      m_hasSourceURLComment(v8Frame->GetScriptName() !=
-                            v8Frame->GetScriptNameOrSourceURL()) {
+StackFrame::StackFrame(String16&& functionName, int scriptId,
+                       String16&& sourceURL, int lineNumber, int columnNumber,
+                       bool hasSourceURLComment)
+    : m_functionName(std::move(functionName)),
+      m_scriptId(scriptId),
+      m_sourceURL(std::move(sourceURL)),
+      m_lineNumber(lineNumber),
+      m_columnNumber(columnNumber),
+      m_hasSourceURLComment(hasSourceURLComment) {
   DCHECK_NE(v8::Message::kNoLineNumberInfo, m_lineNumber + 1);
   DCHECK_NE(v8::Message::kNoColumnInfo, m_columnNumber + 1);
 }
@@ -329,11 +328,6 @@ V8StackTraceImpl::buildInspectorObjectImpl(V8Debugger* debugger,
   return buildInspectorObjectCommon(debugger, m_frames, String16(),
                                     m_asyncParent.lock(), m_externalParent,
                                     maxAsyncDepth);
-}
-
-std::unique_ptr<protocol::Runtime::API::StackTrace>
-V8StackTraceImpl::buildInspectorObject() const {
-  return buildInspectorObjectImpl(nullptr);
 }
 
 std::unique_ptr<protocol::Runtime::API::StackTrace>

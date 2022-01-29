@@ -7,12 +7,15 @@
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/cross-thread-persistent.h"
 #include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/internal/persistent-node.h"
 #include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/source-location.h"
 #include "include/cppgc/type-traits.h"
 #include "src/base/logging.h"
+#include "src/base/platform/platform.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/visitor.h"
@@ -110,6 +113,7 @@ class RootVisitor final : public VisitorBase {
 };
 
 class PersistentTest : public testing::TestWithHeap {};
+class PersistentDeathTest : public testing::TestWithHeap {};
 
 }  // namespace
 
@@ -1040,6 +1044,40 @@ TEST_F(PersistentTest, ObjectReclaimedAfterClearedPersistent) {
   PreciseGC();
   EXPECT_EQ(1u, DestructionCounter::destructor_calls_);
   EXPECT_FALSE(weak_finalized);
+}
+
+namespace {
+
+class PersistentAccessOnBackgroundThread : public v8::base::Thread {
+ public:
+  explicit PersistentAccessOnBackgroundThread(GCed* raw_gced)
+      : v8::base::Thread(v8::base::Thread::Options(
+            "PersistentAccessOnBackgroundThread", 2 * kMB)),
+        raw_gced_(raw_gced) {}
+
+  void Run() override {
+    EXPECT_DEATH_IF_SUPPORTED(
+        Persistent<GCed> gced(static_cast<GCed*>(raw_gced_)), "");
+  }
+
+ private:
+  void* raw_gced_;
+};
+
+}  // namespace
+
+TEST_F(PersistentDeathTest, CheckCreationThread) {
+#ifdef DEBUG
+  // In DEBUG mode, every Persistent creation should check whether the handle
+  // is created on the right thread. In release mode, this check is only
+  // performed on slow path allocations.
+  Persistent<GCed> first_persistent_triggers_slow_path(
+      MakeGarbageCollected<GCed>(GetAllocationHandle()));
+#endif  // DEBUG
+  PersistentAccessOnBackgroundThread thread(
+      MakeGarbageCollected<GCed>(GetAllocationHandle()));
+  CHECK(thread.StartSynchronously());
+  thread.Join();
 }
 
 }  // namespace internal

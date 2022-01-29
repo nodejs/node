@@ -68,6 +68,10 @@ struct Progress {
   // Number of directory entries added to the ZIP so far.
   // A directory entry is added before items in it.
   int directories = 0;
+
+  // Number of errors encountered so far (files that cannot be opened,
+  // directories that cannot be listed).
+  int errors = 0;
 };
 
 // Prints Progress to output stream.
@@ -130,6 +134,9 @@ struct ZipParams {
 
   // Should recursively add subdirectory contents?
   bool recursive = false;
+
+  // Should ignore errors when discovering files and zipping them?
+  bool continue_on_error = false;
 };
 
 // Zip files specified into a ZIP archives. The source files and ZIP destination

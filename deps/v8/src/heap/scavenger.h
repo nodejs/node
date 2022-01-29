@@ -6,12 +6,12 @@
 #define V8_HEAP_SCAVENGER_H_
 
 #include "src/base/platform/condition-variable.h"
+#include "src/heap/base/worklist.h"
 #include "src/heap/index-generator.h"
 #include "src/heap/local-allocator.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/parallel-work-item.h"
 #include "src/heap/slot-set.h"
-#include "src/heap/worklist.h"
 
 namespace v8 {
 namespace internal {
@@ -33,7 +33,7 @@ using SurvivingNewLargeObjectMapEntry = std::pair<HeapObject, Map>;
 
 constexpr int kEphemeronTableListSegmentSize = 128;
 using EphemeronTableList =
-    Worklist<EphemeronHashTable, kEphemeronTableListSegmentSize>;
+    ::heap::base::Worklist<EphemeronHashTable, kEphemeronTableListSegmentSize>;
 
 class ScavengerCollector;
 
@@ -47,58 +47,49 @@ class Scavenger {
 
   class PromotionList {
    public:
-    class View {
+    static constexpr size_t kRegularObjectPromotionListSegmentSize = 256;
+    static constexpr size_t kLargeObjectPromotionListSegmentSize = 4;
+
+    using RegularObjectPromotionList =
+        ::heap::base::Worklist<ObjectAndSize,
+                               kRegularObjectPromotionListSegmentSize>;
+    using LargeObjectPromotionList =
+        ::heap::base::Worklist<PromotionListEntry,
+                               kLargeObjectPromotionListSegmentSize>;
+
+    class Local {
      public:
-      View(PromotionList* promotion_list, int task_id)
-          : promotion_list_(promotion_list), task_id_(task_id) {}
+      explicit Local(PromotionList* promotion_list);
 
       inline void PushRegularObject(HeapObject object, int size);
       inline void PushLargeObject(HeapObject object, Map map, int size);
-      inline bool IsEmpty();
-      inline size_t LocalPushSegmentSize();
+      inline size_t LocalPushSegmentSize() const;
       inline bool Pop(struct PromotionListEntry* entry);
-      inline bool IsGlobalPoolEmpty();
-      inline bool ShouldEagerlyProcessPromotionList();
-      inline void FlushToGlobal();
+      inline bool IsGlobalPoolEmpty() const;
+      inline bool ShouldEagerlyProcessPromotionList() const;
+      inline void Publish();
 
      private:
-      PromotionList* promotion_list_;
-      int task_id_;
+      RegularObjectPromotionList::Local regular_object_promotion_list_local_;
+      LargeObjectPromotionList::Local large_object_promotion_list_local_;
     };
 
-    explicit PromotionList(int num_tasks)
-        : regular_object_promotion_list_(num_tasks),
-          large_object_promotion_list_(num_tasks) {}
-
-    inline void PushRegularObject(int task_id, HeapObject object, int size);
-    inline void PushLargeObject(int task_id, HeapObject object, Map map,
-                                int size);
-    inline bool IsEmpty();
-    inline size_t GlobalPoolSize() const;
-    inline size_t LocalPushSegmentSize(int task_id);
-    inline bool Pop(int task_id, struct PromotionListEntry* entry);
-    inline bool IsGlobalPoolEmpty();
-    inline bool ShouldEagerlyProcessPromotionList(int task_id);
-    inline void FlushToGlobal(int task_id);
+    inline bool IsEmpty() const;
+    inline size_t Size() const;
 
    private:
-    static const int kRegularObjectPromotionListSegmentSize = 256;
-    static const int kLargeObjectPromotionListSegmentSize = 4;
-
-    using RegularObjectPromotionList =
-        Worklist<ObjectAndSize, kRegularObjectPromotionListSegmentSize>;
-    using LargeObjectPromotionList =
-        Worklist<PromotionListEntry, kLargeObjectPromotionListSegmentSize>;
-
     RegularObjectPromotionList regular_object_promotion_list_;
     LargeObjectPromotionList large_object_promotion_list_;
   };
 
   static const int kCopiedListSegmentSize = 256;
 
-  using CopiedList = Worklist<ObjectAndSize, kCopiedListSegmentSize>;
+  using CopiedList =
+      ::heap::base::Worklist<ObjectAndSize, kCopiedListSegmentSize>;
+  using EmptyChunksList = ::heap::base::Worklist<MemoryChunk*, 64>;
+
   Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
-            Worklist<MemoryChunk*, 64>* empty_chunks, CopiedList* copied_list,
+            EmptyChunksList* empty_chunks, CopiedList* copied_list,
             PromotionList* promotion_list,
             EphemeronTableList* ephemeron_table_list, int task_id);
 
@@ -112,7 +103,7 @@ class Scavenger {
 
   // Finalize the Scavenger. Needs to be called from the main thread.
   void Finalize();
-  void Flush();
+  void Publish();
 
   void AddEphemeronHashTable(EphemeronHashTable table);
 
@@ -198,10 +189,10 @@ class Scavenger {
 
   ScavengerCollector* const collector_;
   Heap* const heap_;
-  Worklist<MemoryChunk*, 64>::View empty_chunks_;
-  PromotionList::View promotion_list_;
-  CopiedList::View copied_list_;
-  EphemeronTableList::View ephemeron_table_list_;
+  EmptyChunksList::Local empty_chunks_local_;
+  PromotionList::Local promotion_list_local_;
+  CopiedList::Local copied_list_local_;
+  EphemeronTableList::Local ephemeron_table_list_local_;
   Heap::PretenuringFeedbackMap local_pretenuring_feedback_;
   size_t copied_size_;
   size_t promoted_size_;

@@ -254,11 +254,9 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
-  Handle<Code> lazy_builtin_handle = BUILTIN_CODE(isolate(), CompileLazy);
-  // TODO(v8:11880): support embedding of CodeDataContainers.
-  TNode<Code> lazy_builtin = HeapConstant(lazy_builtin_handle);
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset,
-                                 ToCodeT(lazy_builtin));
+  TNode<CodeT> lazy_builtin =
+      HeapConstant(BUILTIN_CODET(isolate(), CompileLazy));
+  StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
   Return(result);
 }
 

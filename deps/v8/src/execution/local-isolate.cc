@@ -27,7 +27,13 @@ LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind,
       runtime_call_stats_(kind == ThreadKind::kMain &&
                                   runtime_call_stats == nullptr
                               ? isolate->counters()->runtime_call_stats()
-                              : runtime_call_stats) {}
+                              : runtime_call_stats)
+#ifdef V8_INTL_SUPPORT
+      ,
+      default_locale_(isolate->DefaultLocale())
+#endif
+{
+}
 
 LocalIsolate::~LocalIsolate() {
   if (bigint_processor_) bigint_processor_->Destroy();
@@ -63,6 +69,16 @@ void LocalIsolate::InitializeBigIntProcessor() {
 bool StackLimitCheck::HasOverflowed(LocalIsolate* local_isolate) {
   return GetCurrentStackPosition() < local_isolate->stack_limit();
 }
+
+#ifdef V8_INTL_SUPPORT
+// WARNING: This might be out-of-sync with the main-thread.
+const std::string& LocalIsolate::DefaultLocale() {
+  const std::string& res =
+      is_main_thread() ? isolate_->DefaultLocale() : default_locale_;
+  DCHECK(!res.empty());
+  return res;
+}
+#endif
 
 }  // namespace internal
 }  // namespace v8

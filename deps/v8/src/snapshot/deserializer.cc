@@ -249,9 +249,9 @@ Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
   isolate->RegisterDeserializerStarted();
 
   // We start the indices here at 1, so that we can distinguish between an
-  // actual index and a nullptr (serialized as kNullRefSentinel) in a
-  // deserialized object requiring fix-up.
-  STATIC_ASSERT(kNullRefSentinel == 0);
+  // actual index and an empty backing store (serialized as
+  // kEmptyBackingStoreRefSentinel) in a deserialized object requiring fix-up.
+  STATIC_ASSERT(kEmptyBackingStoreRefSentinel == 0);
   backing_stores_.push_back({});
 
 #ifdef DEBUG
@@ -395,7 +395,7 @@ template <typename IsolateT>
 void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
                                                   Handle<HeapObject> obj,
                                                   SnapshotSpace space) {
-  DCHECK_EQ(*map, obj->map());
+  DCHECK_EQ(*map, obj->map(isolate_));
   DisallowGarbageCollection no_gc;
   InstanceType instance_type = map->instance_type();
 
@@ -431,6 +431,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
           isolate()->string_table()->LookupKey(isolate(), &key);
 
       if (*result != *string) {
+        DCHECK(!string->IsShared());
         string->MakeThin(isolate(), *result);
         // Mutate the given object handle so that the backreference entry is
         // also updated.
@@ -486,9 +487,9 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (InstanceTypeChecker::IsJSDataView(instance_type)) {
     Handle<JSDataView> data_view = Handle<JSDataView>::cast(obj);
     JSArrayBuffer buffer = JSArrayBuffer::cast(data_view->buffer());
-    void* backing_store = nullptr;
+    void* backing_store = EmptyBackingStoreBuffer();
     uint32_t store_index = buffer.GetBackingStoreRefForDeserialization();
-    if (store_index != kNullRefSentinel) {
+    if (store_index != kEmptyBackingStoreRefSentinel) {
       // The backing store of the JSArrayBuffer has not been correctly restored
       // yet, as that may trigger GC. The backing_store field currently contains
       // a numbered reference to an already deserialized backing store.
@@ -501,28 +502,27 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(obj);
     // Fixup typed array pointers.
     if (typed_array->is_on_heap()) {
-      Address raw_external_pointer = typed_array->external_pointer_raw();
-      typed_array->SetOnHeapDataPtr(
-          main_thread_isolate(), HeapObject::cast(typed_array->base_pointer()),
-          raw_external_pointer);
+      typed_array->AddExternalPointerCompensationForDeserialization(
+          main_thread_isolate());
     } else {
       // Serializer writes backing store ref as a DataPtr() value.
       uint32_t store_index =
           typed_array->GetExternalBackingStoreRefForDeserialization();
       auto backing_store = backing_stores_[store_index];
-      auto start = backing_store
-                       ? reinterpret_cast<byte*>(backing_store->buffer_start())
-                       : nullptr;
+      void* start = backing_store ? backing_store->buffer_start()
+                                  : EmptyBackingStoreBuffer();
       typed_array->SetOffHeapDataPtr(main_thread_isolate(), start,
                                      typed_array->byte_offset());
     }
   } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
     Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(obj);
     // Postpone allocation of backing store to avoid triggering the GC.
-    if (buffer->GetBackingStoreRefForDeserialization() != kNullRefSentinel) {
+    if (buffer->GetBackingStoreRefForDeserialization() !=
+        kEmptyBackingStoreRefSentinel) {
       new_off_heap_array_buffers_.push_back(buffer);
     } else {
-      buffer->set_backing_store(nullptr);
+      buffer->set_backing_store(main_thread_isolate(),
+                                EmptyBackingStoreBuffer());
     }
   } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
     // TODO(mythria): Remove these once we store the default values for these
@@ -697,7 +697,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap() {
   const int size_in_tagged = size_in_bytes / kTaggedSize;
 
   HeapObject raw_obj =
-      Allocate(SpaceToAllocation(space), size_in_bytes, kWordAligned);
+      Allocate(SpaceToAllocation(space), size_in_bytes, kTaggedAligned);
   raw_obj.set_map_after_allocation(Map::unchecked_cast(raw_obj));
   MemsetTagged(raw_obj.RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
@@ -1260,7 +1260,7 @@ HeapObject Deserializer<IsolateT>::Allocate(AllocationType allocation, int size,
   if (!previous_allocation_obj_.is_null()) {
     // Make sure that the previous object is initialized sufficiently to
     // be iterated over by the GC.
-    int object_size = previous_allocation_obj_->Size();
+    int object_size = previous_allocation_obj_->Size(isolate_);
     DCHECK_LE(object_size, previous_allocation_size_);
   }
 #endif

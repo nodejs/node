@@ -174,6 +174,7 @@ class IdentityMap : public IdentityMapBase {
     V* operator*() { return entry(); }
     V* operator->() { return entry(); }
     bool operator!=(const Iterator& other) { return index_ != other.index_; }
+    bool operator==(const Iterator& other) { return index_ == other.index_; }
 
    private:
     Iterator(IdentityMap* map, int index) : map_(map), index_(index) {}

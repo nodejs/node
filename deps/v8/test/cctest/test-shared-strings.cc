@@ -175,9 +175,9 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
 }
 
 UNINITIALIZED_TEST(YoungInternalization) {
+  if (FLAG_single_generation) return;
   if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
-  if (FLAG_single_generation) return;
 
   FLAG_shared_string_table = true;
 
@@ -219,9 +219,9 @@ UNINITIALIZED_TEST(YoungInternalization) {
   // Allocate two young strings with the same contents in isolate2 then intern
   // them. They should be the same as the interned strings from isolate1.
   Handle<String> young_one_byte_seq2 =
-      factory2->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kOld);
+      factory2->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kYoung);
   Handle<String> young_two_byte_seq2 =
-      factory2->NewStringFromTwoByte(two_byte, AllocationType::kOld)
+      factory2->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
           .ToHandleChecked();
   Handle<String> one_byte_intern2 =
       factory2->InternalizeString(young_one_byte_seq2);
@@ -235,10 +235,13 @@ UNINITIALIZED_TEST(YoungInternalization) {
   CHECK_EQ(*two_byte_intern1, *two_byte_intern2);
 }
 
+enum TestHitOrMiss { kTestMiss, kTestHit };
+
 class ConcurrentInternalizationThread final : public v8::base::Thread {
  public:
   ConcurrentInternalizationThread(MultiClientIsolateTest* test,
                                   Handle<FixedArray> shared_strings,
+                                  TestHitOrMiss hit_or_miss,
                                   base::Semaphore* sema_ready,
                                   base::Semaphore* sema_execute_start,
                                   base::Semaphore* sema_execute_complete)
@@ -246,6 +249,7 @@ class ConcurrentInternalizationThread final : public v8::base::Thread {
             base::Thread::Options("ConcurrentInternalizationThread")),
         test_(test),
         shared_strings_(shared_strings),
+        hit_or_miss_(hit_or_miss),
         sema_ready_(sema_ready),
         sema_execute_start_(sema_execute_start),
         sema_execute_complete_(sema_execute_complete) {}
@@ -260,12 +264,22 @@ class ConcurrentInternalizationThread final : public v8::base::Thread {
 
     HandleScope scope(i_isolate);
 
+    Handle<String> manual_thin_actual =
+        factory->InternalizeString(factory->NewStringFromAsciiChecked("TODO"));
+
     for (int i = 0; i < shared_strings_->length(); i++) {
       Handle<String> input_string(String::cast(shared_strings_->get(i)),
                                   i_isolate);
-      CHECK(input_string->InSharedHeap());
-      Handle<String> interned = factory->InternalizeString(input_string);
-      CHECK_EQ(*input_string, *interned);
+      CHECK(input_string->IsShared());
+      if (hit_or_miss_ == kTestMiss) {
+        Handle<String> interned = factory->InternalizeString(input_string);
+        CHECK_EQ(*input_string, *interned);
+      } else {
+        // TODO(v8:12007): Make this branch also test InternalizeString. But
+        // LookupString needs to be made threadsafe first and restart-aware.
+        input_string->MakeThin(i_isolate, *manual_thin_actual);
+        CHECK(input_string->IsThinString());
+      }
     }
 
     sema_execute_complete_->Signal();
@@ -274,12 +288,14 @@ class ConcurrentInternalizationThread final : public v8::base::Thread {
  private:
   MultiClientIsolateTest* test_;
   Handle<FixedArray> shared_strings_;
+  TestHitOrMiss hit_or_miss_;
   base::Semaphore* sema_ready_;
   base::Semaphore* sema_execute_start_;
   base::Semaphore* sema_execute_complete_;
 };
 
-UNINITIALIZED_TEST(ConcurrentInternalization) {
+namespace {
+void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
   if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
 
@@ -298,12 +314,20 @@ UNINITIALIZED_TEST(ConcurrentInternalization) {
   Handle<FixedArray> shared_strings =
       factory->NewFixedArray(kStrings, AllocationType::kSharedOld);
   for (int i = 0; i < kStrings; i++) {
-    char* ascii = new char[i + 2];
-    for (int j = 0; j < i + 1; j++) ascii[j] = 'a';
-    ascii[i + 1] = '\0';
-    Handle<String> string =
-        factory->NewStringFromAsciiChecked(ascii, AllocationType::kOld);
-    CHECK(string->InSharedHeap());
+    char* ascii = new char[i + 3];
+    // Don't make single character strings, which might will end up
+    // deduplicating to an RO string and mess up the string table hit test.
+    for (int j = 0; j < i + 2; j++) ascii[j] = 'a';
+    ascii[i + 2] = '\0';
+    if (hit_or_miss == kTestHit) {
+      // When testing concurrent string table hits, pre-internalize a string of
+      // the same contents so all subsequent internalizations are hits.
+      factory->InternalizeString(factory->NewStringFromAsciiChecked(ascii));
+    }
+    Handle<String> string = String::Share(
+        i_isolate,
+        factory->NewStringFromAsciiChecked(ascii, AllocationType::kOld));
+    CHECK(string->IsShared());
     string->EnsureHash();
     shared_strings->set(i, *string);
     delete[] ascii;
@@ -315,7 +339,7 @@ UNINITIALIZED_TEST(ConcurrentInternalization) {
   std::vector<std::unique_ptr<ConcurrentInternalizationThread>> threads;
   for (int i = 0; i < kThreads; i++) {
     auto thread = std::make_unique<ConcurrentInternalizationThread>(
-        &test, shared_strings, &sema_ready, &sema_execute_start,
+        &test, shared_strings, hit_or_miss, &sema_ready, &sema_execute_start,
         &sema_execute_complete);
     CHECK(thread->Start());
     threads.push_back(std::move(thread));
@@ -327,6 +351,157 @@ UNINITIALIZED_TEST(ConcurrentInternalization) {
 
   for (auto& thread : threads) {
     thread->Join();
+  }
+}
+}  // namespace
+
+UNINITIALIZED_TEST(ConcurrentInternalizationMiss) {
+  TestConcurrentInternalization(kTestMiss);
+}
+
+UNINITIALIZED_TEST(ConcurrentInternalizationHit) {
+  TestConcurrentInternalization(kTestHit);
+}
+
+namespace {
+void CheckSharedStringIsEqualCopy(Handle<String> shared,
+                                  Handle<String> original) {
+  CHECK(shared->IsShared());
+  CHECK(shared->Equals(*original));
+  CHECK_NE(*shared, *original);
+}
+
+Handle<String> ShareAndVerify(Isolate* isolate, Handle<String> string) {
+  Handle<String> shared = String::Share(isolate, string);
+  CHECK(shared->IsShared());
+#ifdef VERIFY_HEAP
+  shared->ObjectVerify(isolate);
+  string->ObjectVerify(isolate);
+#endif  // VERIFY_HEAP
+  return shared;
+}
+}  // namespace
+
+UNINITIALIZED_TEST(StringShare) {
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
+  if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+
+  FLAG_shared_string_table = true;
+
+  MultiClientIsolateTest test;
+  v8::Isolate* isolate = test.NewClientIsolate();
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Factory* factory = i_isolate->factory();
+
+  HandleScope scope(i_isolate);
+
+  // A longer string so that concatenated to itself, the result is >
+  // ConsString::kMinLength.
+  const char raw_one_byte[] =
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit";
+  base::uc16 raw_two_byte[] = {2001, 2002, 2003};
+  base::Vector<const base::uc16> two_byte(raw_two_byte, 3);
+
+  {
+    // Old-generation sequential strings are shared in-place.
+    Handle<String> one_byte_seq =
+        factory->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kOld);
+    Handle<String> two_byte_seq =
+        factory->NewStringFromTwoByte(two_byte, AllocationType::kOld)
+            .ToHandleChecked();
+    CHECK(!one_byte_seq->IsShared());
+    CHECK(!two_byte_seq->IsShared());
+    Handle<String> shared_one_byte = ShareAndVerify(i_isolate, one_byte_seq);
+    Handle<String> shared_two_byte = ShareAndVerify(i_isolate, two_byte_seq);
+    CHECK_EQ(*one_byte_seq, *shared_one_byte);
+    CHECK_EQ(*two_byte_seq, *shared_two_byte);
+  }
+
+  {
+    // Internalized strings are always shared.
+    Handle<String> one_byte_seq =
+        factory->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kOld);
+    Handle<String> two_byte_seq =
+        factory->NewStringFromTwoByte(two_byte, AllocationType::kOld)
+            .ToHandleChecked();
+    CHECK(!one_byte_seq->IsShared());
+    CHECK(!two_byte_seq->IsShared());
+    Handle<String> one_byte_intern = factory->InternalizeString(one_byte_seq);
+    Handle<String> two_byte_intern = factory->InternalizeString(two_byte_seq);
+    CHECK(one_byte_intern->IsShared());
+    CHECK(two_byte_intern->IsShared());
+    Handle<String> shared_one_byte_intern =
+        ShareAndVerify(i_isolate, one_byte_intern);
+    Handle<String> shared_two_byte_intern =
+        ShareAndVerify(i_isolate, two_byte_intern);
+    CHECK_EQ(*one_byte_intern, *shared_one_byte_intern);
+    CHECK_EQ(*two_byte_intern, *shared_two_byte_intern);
+  }
+
+  // All other strings are flattened then copied if the flatten didn't already
+  // create a new copy.
+
+  if (!FLAG_single_generation) {
+    // Young strings
+    Handle<String> young_one_byte_seq = factory->NewStringFromAsciiChecked(
+        raw_one_byte, AllocationType::kYoung);
+    Handle<String> young_two_byte_seq =
+        factory->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
+            .ToHandleChecked();
+    CHECK(Heap::InYoungGeneration(*young_one_byte_seq));
+    CHECK(Heap::InYoungGeneration(*young_two_byte_seq));
+    CHECK(!young_one_byte_seq->IsShared());
+    CHECK(!young_two_byte_seq->IsShared());
+    Handle<String> shared_one_byte =
+        ShareAndVerify(i_isolate, young_one_byte_seq);
+    Handle<String> shared_two_byte =
+        ShareAndVerify(i_isolate, young_two_byte_seq);
+    CheckSharedStringIsEqualCopy(shared_one_byte, young_one_byte_seq);
+    CheckSharedStringIsEqualCopy(shared_two_byte, young_two_byte_seq);
+  }
+
+  {
+    // Thin strings
+    Handle<String> one_byte_seq1 =
+        factory->NewStringFromAsciiChecked(raw_one_byte);
+    Handle<String> one_byte_seq2 =
+        factory->NewStringFromAsciiChecked(raw_one_byte);
+    CHECK(!one_byte_seq1->IsShared());
+    CHECK(!one_byte_seq2->IsShared());
+    factory->InternalizeString(one_byte_seq1);
+    factory->InternalizeString(one_byte_seq2);
+    CHECK(StringShape(*one_byte_seq2).IsThin());
+    Handle<String> shared = ShareAndVerify(i_isolate, one_byte_seq2);
+    CheckSharedStringIsEqualCopy(shared, one_byte_seq2);
+  }
+
+  {
+    // Cons strings
+    Handle<String> one_byte_seq1 =
+        factory->NewStringFromAsciiChecked(raw_one_byte);
+    Handle<String> one_byte_seq2 =
+        factory->NewStringFromAsciiChecked(raw_one_byte);
+    CHECK(!one_byte_seq1->IsShared());
+    CHECK(!one_byte_seq2->IsShared());
+    Handle<String> cons =
+        factory->NewConsString(one_byte_seq1, one_byte_seq2).ToHandleChecked();
+    CHECK(!cons->IsShared());
+    CHECK(cons->IsConsString());
+    Handle<String> shared = ShareAndVerify(i_isolate, cons);
+    CheckSharedStringIsEqualCopy(shared, cons);
+  }
+
+  {
+    // Sliced strings
+    Handle<String> one_byte_seq =
+        factory->NewStringFromAsciiChecked(raw_one_byte);
+    CHECK(!one_byte_seq->IsShared());
+    Handle<String> sliced =
+        factory->NewSubString(one_byte_seq, 1, one_byte_seq->length());
+    CHECK(!sliced->IsShared());
+    CHECK(sliced->IsSlicedString());
+    Handle<String> shared = ShareAndVerify(i_isolate, sliced);
+    CheckSharedStringIsEqualCopy(shared, sliced);
   }
 }
 

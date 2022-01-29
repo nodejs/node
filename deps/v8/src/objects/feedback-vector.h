@@ -747,9 +747,13 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   }
 
   InlineCacheState ic_state() const;
-  bool IsUninitialized() const { return ic_state() == UNINITIALIZED; }
-  bool IsMegamorphic() const { return ic_state() == MEGAMORPHIC; }
-  bool IsGeneric() const { return ic_state() == GENERIC; }
+  bool IsUninitialized() const {
+    return ic_state() == InlineCacheState::UNINITIALIZED;
+  }
+  bool IsMegamorphic() const {
+    return ic_state() == InlineCacheState::MEGAMORPHIC;
+  }
+  bool IsGeneric() const { return ic_state() == InlineCacheState::GENERIC; }
 
   void Print(std::ostream& os);
 
@@ -773,7 +777,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   bool IsCleared() const {
     InlineCacheState state = ic_state();
-    return !FLAG_use_ic || state == UNINITIALIZED;
+    return !FLAG_use_ic || state == InlineCacheState::UNINITIALIZED;
   }
 
   // Clear() returns true if the state of the underlying vector was changed.

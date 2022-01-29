@@ -44,7 +44,6 @@ config_setting(
 # v8_enable_trace_baseline_exec
 # v8_enable_trace_feedback_updates
 # v8_enable_atomic_object_field_writes
-# v8_enable_atomic_marking_state
 # v8_enable_concurrent_marking
 # v8_enable_ignition_dispatch_counting
 # v8_enable_builtins_profiling
@@ -322,6 +321,14 @@ v8_config(
             "V8_HAVE_TARGET_OS",
             "V8_TARGET_OS_MACOSX",
         ],
+        "@config//:is_windows": [
+            "V8_HAVE_TARGET_OS",
+            "V8_TARGET_OS_WIN",
+            "UNICODE",
+            "_UNICODE",
+            "_CRT_RAND_S",
+            "_WIN32_WINNT=0x0602",
+        ],
     }) + select({
         ":is_v8_enable_pointer_compression": [
             "V8_COMPRESS_POINTERS",
@@ -350,6 +357,19 @@ v8_config(
 # =================================================
 # File group rules
 # =================================================
+
+filegroup(
+    name = "public_header_files",
+    srcs = glob(["include/**/*.h"]),
+)
+
+filegroup(
+    name = "public_wasm_c_api_header_files",
+    srcs = [
+        "third_party/wasm-api/wasm.h",
+        "third_party/wasm-api/wasm.hh",
+    ],
+)
 
 filegroup(
     name = "v8_config_headers_files",
@@ -425,6 +445,7 @@ filegroup(
         "include/v8-date.h",
         "include/v8-debug.h",
         "include/v8-embedder-heap.h",
+        "include/v8-embedder-state-scope.h",
         "include/v8-exception.h",
         "include/v8-extension.h",
         "include/v8-external.h",
@@ -520,6 +541,8 @@ filegroup(
         "src/base/debug/stack_trace.h",
         "src/base/division-by-constant.cc",
         "src/base/division-by-constant.h",
+        "src/base/emulated-virtual-address-subspace.cc",
+        "src/base/emulated-virtual-address-subspace.h",
         "src/base/enum-set.h",
         "src/base/export-template.h",
         "src/base/file-utils.cc",
@@ -591,9 +614,14 @@ filegroup(
         "src/base/utils/random-number-generator.cc",
         "src/base/utils/random-number-generator.h",
         "src/base/vector.h",
+        "src/base/virtual-address-space-page-allocator.cc",
+        "src/base/virtual-address-space-page-allocator.h",
+        "src/base/virtual-address-space.cc",
+        "src/base/virtual-address-space.h",
         "src/base/v8-fallthrough.h",
         "src/base/vlq-base64.cc",
         "src/base/vlq-base64.h",
+        "src/base/platform/yield-processor.h",
     ] + select({
         "@config//:is_posix": [
             "src/base/platform/platform-posix.cc",
@@ -614,6 +642,11 @@ filegroup(
         "@config//:is_macos": [
             "src/base/debug/stack_trace_posix.cc",
             "src/base/platform/platform-macos.cc",
+        ],
+        "@config//:is_windows": [
+            "src/base/win32-headers.h",
+            "src/base/debug/stack_trace_win.cc",
+            "src/base/platform/platform-win32.cc",
         ],
     }),
     visibility = ["//visibility:public"],
@@ -1110,6 +1143,7 @@ filegroup(
         "src/common/assert-scope.cc",
         "src/common/assert-scope.h",
         "src/common/checks.h",
+        "src/common/high-allocation-throughput-scope.h",
         "src/common/message-template.h",
         "src/common/ptr-compr-inl.h",
         "src/common/ptr-compr.h",
@@ -1180,6 +1214,10 @@ filegroup(
         "src/execution/arguments-inl.h",
         "src/execution/arguments.cc",
         "src/execution/arguments.h",
+        "src/execution/encoded-c-signature.cc",
+        "src/execution/encoded-c-signature.h",
+        "src/execution/embedder-state.h",
+        "src/execution/embedder-state.cc",
         "src/execution/execution.cc",
         "src/execution/execution.h",
         "src/execution/frame-constants.h",
@@ -1307,6 +1345,8 @@ filegroup(
         "src/heap/heap-controller.cc",
         "src/heap/heap-controller.h",
         "src/heap/heap-inl.h",
+        "src/heap/heap-layout-tracer.cc",
+        "src/heap/heap-layout-tracer.h",
         "src/heap/heap-write-barrier-inl.h",
         "src/heap/heap-write-barrier.cc",
         "src/heap/heap-write-barrier.h",
@@ -1400,7 +1440,6 @@ filegroup(
         "src/heap/sweeper.h",
         "src/heap/weak-object-worklists.cc",
         "src/heap/weak-object-worklists.h",
-        "src/heap/worklist.h",
         "src/ic/call-optimization.cc",
         "src/ic/call-optimization.h",
         "src/ic/handler-configuration-inl.h",
@@ -1890,6 +1929,8 @@ filegroup(
         "src/base/sanitizer/asan.h",
         "src/base/sanitizer/lsan-page-allocator.cc",
         "src/base/sanitizer/lsan-page-allocator.h",
+        "src/base/sanitizer/lsan-virtual-address-space.cc",
+        "src/base/sanitizer/lsan-virtual-address-space.h",
         "src/base/sanitizer/msan.h",
         "src/base/sanitizer/tsan.h",
         "src/snapshot/code-serializer.cc",
@@ -1961,6 +2002,8 @@ filegroup(
         "src/tasks/operations-barrier.h",
         "src/tasks/task-utils.cc",
         "src/tasks/task-utils.h",
+        "src/temporal/temporal-parser.cc",
+        "src/temporal/temporal-parser.h",
         "src/torque/runtime-macro-shims.h",
         "src/third_party/siphash/halfsiphash.cc",
         "src/third_party/siphash/halfsiphash.h",
@@ -2163,7 +2206,7 @@ filegroup(
         ],
     }) + select({
         # Only for x64 builds and for arm64 with x64 host simulator.
-        "@config//:is_x64": [
+        "@config//:is_posix_x64": [
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
@@ -2172,6 +2215,22 @@ filegroup(
         "@config//:v8_arm64_simulator": [
             "src/trap-handler/trap-handler-simulator.h",
             "src/trap-handler/handler-outside-simulator.cc",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        "@config//:is_windows": [
+            "src/trap-handler/handler-inside-win.cc",
+            "src/trap-handler/handler-outside-win.cc",
+            "src/trap-handler/handler-inside-win.h",
+            # Needed on windows to work around https://github.com/bazelbuild/bazel/issues/6337
+            "third_party/zlib/zlib.h",
+            "third_party/zlib/zconf.h",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        "@config//:is_windows_64bit": [
+            "src/diagnostics/unwinding-info-win64.cc",
+            "src/diagnostics/unwinding-info-win64.h",
         ],
         "//conditions:default": [],
     }) + select({
@@ -2717,6 +2776,7 @@ filegroup(
         "src/heap/cppgc/marking-visitor.h",
         "src/heap/cppgc/marking-worklists.cc",
         "src/heap/cppgc/marking-worklists.h",
+        "src/heap/cppgc/memory.cc",
         "src/heap/cppgc/memory.h",
         "src/heap/cppgc/metric-recorder.h",
         "src/heap/cppgc/name-trait.cc",
@@ -2770,10 +2830,13 @@ filegroup(
         # Note these cannot be v8_target_is_* selects because these contain
         # inline assembly that runs inside the executable. Since these are
         # linked directly into mksnapshot, they must use the actual target cpu.
-        "@config//:is_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
-        "@config//:is_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
-        "@config//:is_arm": ["src/heap/base/asm/arm/push_registers_asm.cc"],
-        "@config//:is_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
+        "@config//:is_inline_asm_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
+        "@config//:is_inline_asm_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
+        "@config//:is_inline_asm_arm": ["src/heap/base/asm/arm/push_registers_asm.cc"],
+        "@config//:is_inline_asm_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
+        "@config//:is_msvc_asm_ia32": ["src/heap/base/asm/ia32/push_registers_masm.S"],
+        "@config//:is_msvc_asm_x64": ["src/heap/base/asm/x64/push_registers_masm.S"],
+        "@config//:is_msvc_asm_arm64": ["src/heap/base/asm/arm64/push_registers_masm.S"],
     }),
 )
 
@@ -2968,6 +3031,11 @@ filegroup(
     ],
 )
 
+filegroup(
+    name = "kythe_torque_headers",
+    srcs = glob(["src/torque/*.h"]),
+)
+
 # =================================================
 # Generated files
 # =================================================
@@ -3033,6 +3101,7 @@ genrule(
         "src/inspector/protocol/Schema.h",
     ],
     cmd = "bazel/generate-inspector-files.sh $(@D)",
+    cmd_bat = "bazel\\generate-inspector-files.cmd $(@D)",
     local = 1,
     message = "Generating inspector files",
 )
@@ -3071,6 +3140,7 @@ genrule(
     srcs = [],
     outs = ["builtins-generated/bytecodes-builtins-list.h"],
     cmd = "$(location :bytecode_builtins_list_generator) $@",
+    cmd_bat = "$(location :bytecode_builtins_list_generator) $@",
     tools = [":bytecode_builtins_list_generator"],
 )
 
@@ -3079,6 +3149,7 @@ genrule(
     srcs = [],
     outs = ["src/regexp/special-case.cc"],
     cmd = "$(location :regexp_special_case_generator) $@",
+    cmd_bat = "$(location :regexp_special_case_generator) $@",
     tools = [":regexp_special_case_generator"],
 )
 
@@ -3137,17 +3208,18 @@ cc_library(
     ],
     include_prefix = "third_party/v8",
     includes = ["."],
-    visibility = ["//visibility:public"],
 )
 
 cc_library(
-    name = "torque_base",
+    name = "kythe_torque_base",
     srcs = [
         ":torque_base_files",
     ],
-    copts = ["-fexceptions"],
+    copts = select({
+        "@config//:is_posix": [ "-fexceptions" ],
+        "//conditions:default": [],
+    }),
     features = ["-use_header_modules"],
-    visibility = ["//visibility:public"],
     deps = [
         ":torque_base_headers",
         ":v8_libbase",
@@ -3250,7 +3322,10 @@ v8_binary(
         "src/torque/torque.cc",
         ":torque_base_files",
     ],
-    copts = ["-fexceptions"],
+    copts = select({
+        "@config//:is_posix": [ "-fexceptions" ],
+        "//conditions:default": [],
+    }),
     features = ["-use_header_modules"],
     linkopts = select({
         "@config//:is_android": ["-llog"],
@@ -3267,7 +3342,7 @@ v8_binary(
         "@config//:is_android": ["-llog"],
         "//conditions:default": [],
     }),
-    noicu_deps = [":noicu/v8_libshared"],
+    noicu_deps = [":v8_libshared_noicu"],
 )
 
 v8_binary(
@@ -3281,6 +3356,11 @@ v8_binary(
 v8_binary_non_pointer_compression(
     name = "torque_non_pointer_compression",
     binary = "torque",
+)
+
+alias(
+    name = "v8ci",
+    actual = "icu/v8",
 )
 
 # =================================================

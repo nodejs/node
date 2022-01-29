@@ -12,7 +12,6 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
 #include "src/heap/weak-object-worklists.h"
-#include "src/heap/worklist.h"
 
 namespace v8 {
 namespace internal {
@@ -26,6 +25,23 @@ struct EphemeronMarking {
 template <typename ConcreteState, AccessMode access_mode>
 class MarkingStateBase {
  public:
+  explicit MarkingStateBase(PtrComprCageBase cage_base)
+#if V8_COMPRESS_POINTERS
+      : cage_base_(cage_base)
+#endif
+  {
+  }
+
+  // The pointer compression cage base value used for decompression of all
+  // tagged values except references to Code objects.
+  V8_INLINE PtrComprCageBase cage_base() const {
+#if V8_COMPRESS_POINTERS
+    return cage_base_;
+#else
+    return PtrComprCageBase{};
+#endif  // V8_COMPRESS_POINTERS
+  }
+
   V8_INLINE MarkBit MarkBitFrom(HeapObject obj) {
     return MarkBitFrom(BasicMemoryChunk::FromHeapObject(obj), obj.ptr());
   }
@@ -73,14 +89,23 @@ class MarkingStateBase {
     MarkBit markbit = MarkBitFrom(chunk, obj.address());
     if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
     static_cast<ConcreteState*>(this)->IncrementLiveBytes(
-        MemoryChunk::cast(chunk), obj.Size());
+        MemoryChunk::cast(chunk), obj.Size(cage_base()));
     return true;
+  }
+
+  V8_INLINE bool GreyToBlackUnaccounted(HeapObject obj) {
+    return Marking::GreyToBlack<access_mode>(MarkBitFrom(obj));
   }
 
   void ClearLiveness(MemoryChunk* chunk) {
     static_cast<ConcreteState*>(this)->bitmap(chunk)->Clear();
     static_cast<ConcreteState*>(this)->SetLiveBytes(chunk, 0);
   }
+
+ private:
+#if V8_COMPRESS_POINTERS
+  const PtrComprCageBase cage_base_;
+#endif  // V8_COMPRESS_POINTERS
 };
 
 // The base class for all marking visitors. It implements marking logic with
@@ -101,18 +126,17 @@ class MarkingStateBase {
 template <typename ConcreteVisitor, typename MarkingState>
 class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
  public:
-  MarkingVisitorBase(int task_id,
-                     MarkingWorklists::Local* local_marking_worklists,
-                     WeakObjects* weak_objects, Heap* heap,
-                     unsigned mark_compact_epoch,
+  MarkingVisitorBase(MarkingWorklists::Local* local_marking_worklists,
+                     WeakObjects::Local* local_weak_objects,
+                     //  WeakObjects* weak_objects,
+                     Heap* heap, unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool is_embedder_tracing_enabled,
                      bool should_keep_ages_unchanged)
       : HeapVisitor<int, ConcreteVisitor>(heap),
         local_marking_worklists_(local_marking_worklists),
-        weak_objects_(weak_objects),
+        local_weak_objects_(local_weak_objects),
         heap_(heap),
-        task_id_(task_id),
         mark_compact_epoch_(mark_compact_epoch),
         code_flush_mode_(code_flush_mode),
         is_embedder_tracing_enabled_(is_embedder_tracing_enabled),
@@ -205,9 +229,8 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
 
   MarkingWorklists::Local* const local_marking_worklists_;
-  WeakObjects* const weak_objects_;
+  WeakObjects::Local* const local_weak_objects_;
   Heap* const heap_;
-  const int task_id_;
   const unsigned mark_compact_epoch_;
   const base::EnumSet<CodeFlushMode> code_flush_mode_;
   const bool is_embedder_tracing_enabled_;

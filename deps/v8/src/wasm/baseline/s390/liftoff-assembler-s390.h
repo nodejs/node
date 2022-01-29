@@ -614,6 +614,10 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
       AtomicCmpExchangeU16(ip, result.gp(), tmp1, tmp2, r0, r1);
       b(Condition(4), &doadd);
       LoadU16(result.gp(), result.gp());
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(result.gp(), result.gp());
+      ShiftRightU32(result.gp(), result.gp(), Operand(16));
+#endif
       break;
     }
     case StoreType::kI32Store:
@@ -631,6 +635,9 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
       CmpAndSwap(tmp1, tmp2, MemOperand(ip));
       b(Condition(4), &doadd);
       LoadU32(result.gp(), tmp1);
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(result.gp(), result.gp());
+#endif
       break;
     }
     case StoreType::kI64Store: {
@@ -647,6 +654,9 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
       CmpAndSwap64(tmp1, tmp2, MemOperand(ip));
       b(Condition(4), &doadd);
       mov(result.gp(), tmp1);
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvgr(result.gp(), result.gp());
+#endif
       break;
     }
     default:
@@ -706,6 +716,10 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
       AtomicCmpExchangeU16(ip, result.gp(), tmp1, tmp2, r0, r1);
       b(Condition(4), &do_again);
       LoadU16(result.gp(), result.gp());
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(result.gp(), result.gp());
+      ShiftRightU32(result.gp(), result.gp(), Operand(16));
+#endif
       break;
     }
     case StoreType::kI32Store:
@@ -723,6 +737,9 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
       CmpAndSwap(tmp1, tmp2, MemOperand(ip));
       b(Condition(4), &do_again);
       LoadU32(result.gp(), tmp1);
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(result.gp(), result.gp());
+#endif
       break;
     }
     case StoreType::kI64Store: {
@@ -739,6 +756,9 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
       CmpAndSwap64(tmp1, tmp2, MemOperand(ip));
       b(Condition(4), &do_again);
       mov(result.gp(), tmp1);
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvgr(result.gp(), result.gp());
+#endif
       break;
     }
     default:
@@ -798,6 +818,10 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
       AtomicCmpExchangeU16(ip, result.gp(), tmp1, tmp2, r0, r1);
       b(Condition(4), &do_again);
       LoadU16(result.gp(), result.gp());
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(result.gp(), result.gp());
+      ShiftRightU32(result.gp(), result.gp(), Operand(16));
+#endif
       break;
     }
     case StoreType::kI32Store:
@@ -815,6 +839,9 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
       CmpAndSwap(tmp1, tmp2, MemOperand(ip));
       b(Condition(4), &do_again);
       LoadU32(result.gp(), tmp1);
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(result.gp(), result.gp());
+#endif
       break;
     }
     case StoreType::kI64Store: {
@@ -831,6 +858,9 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
       CmpAndSwap64(tmp1, tmp2, MemOperand(ip));
       b(Condition(4), &do_again);
       mov(result.gp(), tmp1);
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvgr(result.gp(), result.gp());
+#endif
       break;
     }
     default:
@@ -890,6 +920,10 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
       AtomicCmpExchangeU16(ip, result.gp(), tmp1, tmp2, r0, r1);
       b(Condition(4), &do_again);
       LoadU16(result.gp(), result.gp());
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(result.gp(), result.gp());
+      ShiftRightU32(result.gp(), result.gp(), Operand(16));
+#endif
       break;
     }
     case StoreType::kI32Store:
@@ -907,6 +941,9 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
       CmpAndSwap(tmp1, tmp2, MemOperand(ip));
       b(Condition(4), &do_again);
       LoadU32(result.gp(), tmp1);
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(result.gp(), result.gp());
+#endif
       break;
     }
     case StoreType::kI64Store: {
@@ -923,6 +960,9 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
       CmpAndSwap64(tmp1, tmp2, MemOperand(ip));
       b(Condition(4), &do_again);
       mov(result.gp(), tmp1);
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvgr(result.gp(), result.gp());
+#endif
       break;
     }
     default:
@@ -982,6 +1022,10 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
       AtomicCmpExchangeU16(ip, result.gp(), tmp1, tmp2, r0, r1);
       b(Condition(4), &do_again);
       LoadU16(result.gp(), result.gp());
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(result.gp(), result.gp());
+      ShiftRightU32(result.gp(), result.gp(), Operand(16));
+#endif
       break;
     }
     case StoreType::kI32Store:
@@ -999,6 +1043,9 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
       CmpAndSwap(tmp1, tmp2, MemOperand(ip));
       b(Condition(4), &do_again);
       LoadU32(result.gp(), tmp1);
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(result.gp(), result.gp());
+#endif
       break;
     }
     case StoreType::kI64Store: {
@@ -1015,6 +1062,9 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
       CmpAndSwap64(tmp1, tmp2, MemOperand(ip));
       b(Condition(4), &do_again);
       mov(result.gp(), tmp1);
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvgr(result.gp(), result.gp());
+#endif
       break;
     }
     default:
@@ -1135,6 +1185,10 @@ void LiftoffAssembler::AtomicCompareExchange(
 #endif
       AtomicCmpExchangeU16(ip, result.gp(), r2, r3, r0, r1);
       LoadU16(result.gp(), result.gp());
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(result.gp(), result.gp());
+      ShiftRightU32(result.gp(), result.gp(), Operand(16));
+#endif
       Pop(r2, r3);
       break;
     }
@@ -1150,6 +1204,9 @@ void LiftoffAssembler::AtomicCompareExchange(
 #endif
       CmpAndSwap(r2, r3, MemOperand(ip));
       LoadU32(result.gp(), r2);
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvr(result.gp(), result.gp());
+#endif
       Pop(r2, r3);
       break;
     }
@@ -1164,6 +1221,9 @@ void LiftoffAssembler::AtomicCompareExchange(
 #endif
       CmpAndSwap64(r2, r3, MemOperand(ip));
       mov(result.gp(), r2);
+#ifdef V8_TARGET_BIG_ENDIAN
+      lrvgr(result.gp(), result.gp());
+#endif
       Pop(r2, r3);
       break;
     }

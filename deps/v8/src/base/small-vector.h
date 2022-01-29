@@ -11,14 +11,13 @@
 
 #include "src/base/bits.h"
 #include "src/base/macros.h"
-#include "src/base/platform/wrappers.h"
 
 namespace v8 {
 namespace base {
 
 // Minimal SmallVector implementation. Uses inline storage first, switches to
-// malloc when it overflows.
-template <typename T, size_t kSize>
+// dynamic storage when it overflows.
+template <typename T, size_t kSize, typename Allocator = std::allocator<T>>
 class SmallVector {
   // Currently only support trivially copyable and trivially destructible data
   // types, as it uses memcpy to copy elements and never calls destructors.
@@ -28,17 +27,31 @@ class SmallVector {
  public:
   static constexpr size_t kInlineSize = kSize;
 
-  SmallVector() = default;
-  explicit SmallVector(size_t size) { resize_no_init(size); }
-  SmallVector(const SmallVector& other) V8_NOEXCEPT { *this = other; }
-  SmallVector(SmallVector&& other) V8_NOEXCEPT { *this = std::move(other); }
-  SmallVector(std::initializer_list<T> init) {
+  explicit SmallVector(const Allocator& allocator = Allocator())
+      : allocator_(allocator) {}
+  explicit SmallVector(size_t size, const Allocator& allocator = Allocator())
+      : allocator_(allocator) {
+    resize_no_init(size);
+  }
+  SmallVector(const SmallVector& other,
+              const Allocator& allocator = Allocator()) V8_NOEXCEPT
+      : allocator_(allocator) {
+    *this = other;
+  }
+  SmallVector(SmallVector&& other,
+              const Allocator& allocator = Allocator()) V8_NOEXCEPT
+      : allocator_(allocator) {
+    *this = std::move(other);
+  }
+  SmallVector(std::initializer_list<T> init,
+              const Allocator& allocator = Allocator())
+      : allocator_(allocator) {
     resize_no_init(init.size());
     memcpy(begin_, init.begin(), sizeof(T) * init.size());
   }
 
   ~SmallVector() {
-    if (is_big()) base::Free(begin_);
+    if (is_big()) FreeDynamicStorage();
   }
 
   SmallVector& operator=(const SmallVector& other) V8_NOEXCEPT {
@@ -46,8 +59,8 @@ class SmallVector {
     size_t other_size = other.size();
     if (capacity() < other_size) {
       // Create large-enough heap-allocated storage.
-      if (is_big()) base::Free(begin_);
-      begin_ = reinterpret_cast<T*>(base::Malloc(sizeof(T) * other_size));
+      if (is_big()) FreeDynamicStorage();
+      begin_ = AllocateDynamicStorage(other_size);
       end_of_storage_ = begin_ + other_size;
     }
     memcpy(begin_, other.begin_, sizeof(T) * other_size);
@@ -58,11 +71,11 @@ class SmallVector {
   SmallVector& operator=(SmallVector&& other) V8_NOEXCEPT {
     if (this == &other) return *this;
     if (other.is_big()) {
-      if (is_big()) base::Free(begin_);
+      if (is_big()) FreeDynamicStorage();
       begin_ = other.begin_;
       end_ = other.end_;
       end_of_storage_ = other.end_of_storage_;
-      other.reset();
+      other.reset_to_inline_storage();
     } else {
       DCHECK_GE(capacity(), other.size());  // Sanity check.
       size_t other_size = other.size();
@@ -126,17 +139,12 @@ class SmallVector {
     end_ = begin_ + new_size;
   }
 
-  // Clear without freeing any storage.
+  // Clear without reverting back to inline storage.
   void clear() { end_ = begin_; }
 
-  // Clear and go back to inline storage.
-  void reset() {
-    begin_ = inline_storage_begin();
-    end_ = begin_;
-    end_of_storage_ = begin_ + kInlineSize;
-  }
-
  private:
+  V8_NO_UNIQUE_ADDRESS Allocator allocator_;
+
   T* begin_ = inline_storage_begin();
   T* end_ = begin_;
   T* end_of_storage_ = begin_ + kInlineSize;
@@ -152,8 +160,7 @@ class SmallVector {
     size_t in_use = end_ - begin_;
     size_t new_capacity =
         base::bits::RoundUpToPowerOfTwo(std::max(min_capacity, 2 * capacity()));
-    T* new_storage =
-        reinterpret_cast<T*>(base::Malloc(sizeof(T) * new_capacity));
+    T* new_storage = AllocateDynamicStorage(new_capacity);
     if (new_storage == nullptr) {
       // Should be: V8::FatalProcessOutOfMemory, but we don't include V8 from
       // base. The message is intentionally the same as FatalProcessOutOfMemory
@@ -162,11 +169,28 @@ class SmallVector {
       FATAL("Fatal process out of memory: base::SmallVector::Grow");
     }
     memcpy(new_storage, begin_, sizeof(T) * in_use);
-    if (is_big()) base::Free(begin_);
+    if (is_big()) FreeDynamicStorage();
     begin_ = new_storage;
     end_ = new_storage + in_use;
     end_of_storage_ = new_storage + new_capacity;
     return end_;
+  }
+
+  T* AllocateDynamicStorage(size_t number_of_elements) {
+    return allocator_.allocate(number_of_elements);
+  }
+
+  void FreeDynamicStorage() {
+    DCHECK(is_big());
+    allocator_.deallocate(begin_, end_of_storage_ - begin_);
+  }
+
+  // Clear and go back to inline storage. Dynamic storage is *not* freed. For
+  // internal use only.
+  void reset_to_inline_storage() {
+    begin_ = inline_storage_begin();
+    end_ = begin_;
+    end_of_storage_ = begin_ + kInlineSize;
   }
 
   bool is_big() const { return begin_ != inline_storage_begin(); }

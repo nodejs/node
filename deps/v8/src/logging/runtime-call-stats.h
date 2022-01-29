@@ -388,13 +388,13 @@ class RuntimeCallTimer final {
   V(BoundFunctionLengthGetter)                 \
   V(BoundFunctionNameGetter)                   \
   V(CodeGenerationFromStringsCallbacks)        \
-  V(CompileBackgroundCompileTask)              \
-  V(CompileBaseline)                           \
-  V(CompileBaselinePreVisit)                   \
-  V(CompileBaselineVisit)                      \
   V(CompileBackgroundBaselinePreVisit)         \
   V(CompileBackgroundBaselineVisit)            \
+  V(CompileBackgroundCompileTask)              \
+  V(CompileBaseline)                           \
   V(CompileBaselineFinalization)               \
+  V(CompileBaselinePreVisit)                   \
+  V(CompileBaselineVisit)                      \
   V(CompileCollectSourcePositions)             \
   V(CompileDeserialize)                        \
   V(CompileEnqueueOnDispatcher)                \
@@ -469,6 +469,7 @@ class RuntimeCallTimer final {
   V(PrototypeMap_TransitionToDataProperty)     \
   V(PrototypeObject_DeleteProperty)            \
   V(ReconfigureToDataProperty)                 \
+  V(SnapshotDecompress)                        \
   V(StringLengthGetter)                        \
   V(TestCounter1)                              \
   V(TestCounter2)                              \
@@ -476,10 +477,10 @@ class RuntimeCallTimer final {
   V(UpdateProtector)                           \
   V(WebSnapshotDeserialize)                    \
   V(WebSnapshotDeserialize_Arrays)             \
+  V(WebSnapshotDeserialize_Classes)            \
   V(WebSnapshotDeserialize_Contexts)           \
   V(WebSnapshotDeserialize_Exports)            \
   V(WebSnapshotDeserialize_Functions)          \
-  V(WebSnapshotDeserialize_Classes)            \
   V(WebSnapshotDeserialize_Maps)               \
   V(WebSnapshotDeserialize_Objects)            \
   V(WebSnapshotDeserialize_Strings)
@@ -710,6 +711,8 @@ class V8_NODISCARD WorkerThreadRuntimeCallStatsScope final {
 class V8_NODISCARD RuntimeCallTimerScope {
  public:
   inline RuntimeCallTimerScope(Isolate* isolate,
+                               RuntimeCallCounterId counter_id);
+  inline RuntimeCallTimerScope(LocalIsolate* isolate,
                                RuntimeCallCounterId counter_id);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
                                RuntimeCallCounterId counter_id,

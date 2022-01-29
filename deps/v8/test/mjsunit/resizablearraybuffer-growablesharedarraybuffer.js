@@ -8,14 +8,6 @@
 
 d8.file.execute('test/mjsunit/typedarray-helpers.js');
 
-function CreateResizableArrayBuffer(byteLength, maxByteLength) {
-  return new ArrayBuffer(byteLength, {maxByteLength: maxByteLength});
-}
-
-function CreateGrowableSharedArrayBuffer(byteLength, maxByteLength) {
-  return new SharedArrayBuffer(byteLength, {maxByteLength: maxByteLength});
-}
-
 function resizeHelper(ab, value) {
   const return_value = ab.resize(value);
   assertEquals(undefined, return_value);

@@ -17,6 +17,8 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/unoptimized-compilation-info.h"
 #include "src/common/globals.h"
+#include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
+#include "src/heap/parked-scope.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
@@ -1130,10 +1132,12 @@ static bool IsInEagerLiterals(
 #endif  // DEBUG
 
 BytecodeGenerator::BytecodeGenerator(
-    Zone* compile_zone, UnoptimizedCompilationInfo* info,
+    LocalIsolate* local_isolate, Zone* compile_zone,
+    UnoptimizedCompilationInfo* info,
     const AstStringConstants* ast_string_constants,
-    std::vector<FunctionLiteral*>* eager_inner_literals)
-    : zone_(compile_zone),
+    std::vector<FunctionLiteral*>* eager_inner_literals, Handle<Script> script)
+    : local_isolate_(local_isolate),
+      zone_(compile_zone),
       builder_(zone(), info->num_parameters_including_this(),
                info->scope()->num_stack_slots(), info->feedback_vector_spec(),
                info->SourcePositionRecordingMode()),
@@ -1142,6 +1146,7 @@ BytecodeGenerator::BytecodeGenerator(
       closure_scope_(info->scope()),
       current_scope_(info->scope()),
       eager_inner_literals_(eager_inner_literals),
+      script_(script),
       feedback_slot_cache_(zone()->New<FeedbackSlotCache>(zone())),
       top_level_builder_(zone()->New<TopLevelDeclarationsBuilder>()),
       block_coverage_builder_(nullptr),
@@ -1358,10 +1363,6 @@ bool NeedsContextInitialization(DeclarationScope* scope) {
 }  // namespace
 
 void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
-  DisallowGarbageCollection no_gc;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-
   InitializeAstVisitor(stack_limit);
 
   // Initialize the incoming context.
@@ -2132,6 +2133,8 @@ void BytecodeGenerator::BuildTryCatch(
     TryBodyFunc try_body_func, CatchBodyFunc catch_body_func,
     HandlerTable::CatchPrediction catch_prediction,
     TryCatchStatement* stmt_for_coverage) {
+  if (builder()->RemainderOfBlockIsDead()) return;
+
   TryCatchBuilder try_control_builder(
       builder(),
       stmt_for_coverage == nullptr ? nullptr : block_coverage_builder_,
@@ -2162,6 +2165,8 @@ void BytecodeGenerator::BuildTryFinally(
     TryBodyFunc try_body_func, FinallyBodyFunc finally_body_func,
     HandlerTable::CatchPrediction catch_prediction,
     TryFinallyStatement* stmt_for_coverage) {
+  if (builder()->RemainderOfBlockIsDead()) return;
+
   // We can't know whether the finally block will override ("catch") an
   // exception thrown in the try block, so we just adopt the outer prediction.
   TryFinallyBuilder try_control_builder(
@@ -2514,8 +2519,35 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
-  if (eager_inner_literals_ && literal->ShouldEagerCompile()) {
+  // Only parallel compile when there's a script (not the case for source
+  // position collection).
+  if (!script_.is_null() && literal->should_parallel_compile()) {
+    // If we should normally be eagerly compiling this function, we must be here
+    // because of post_parallel_compile_tasks_for_eager_toplevel.
+    DCHECK_IMPLIES(
+        literal->ShouldEagerCompile(),
+        info()->flags().post_parallel_compile_tasks_for_eager_toplevel());
+    // There exists a lazy compile dispatcher.
+    DCHECK(info()->dispatcher());
+    // There exists a cloneable character stream.
+    DCHECK(info()->character_stream()->can_be_cloned_for_parallel_access());
+
+    UnparkedScope scope(local_isolate_);
+    // If there doesn't already exist a SharedFunctionInfo for this function,
+    // then create one and enqueue it. Otherwise, we're reparsing (e.g. for the
+    // debugger, source position collection, call printing, recompile after
+    // flushing, etc.) and don't want to over-compile.
+    Handle<SharedFunctionInfo> shared_info;
+    if (!Script::FindSharedFunctionInfo(script_, local_isolate_, literal)
+             .ToHandle(&shared_info)) {
+      shared_info =
+          Compiler::GetSharedFunctionInfo(literal, script_, local_isolate_);
+      info()->dispatcher()->Enqueue(local_isolate_, shared_info,
+                                    info()->character_stream()->Clone());
+    }
+  } else if (eager_inner_literals_ && literal->ShouldEagerCompile()) {
     DCHECK(!IsInEagerLiterals(literal, *eager_inner_literals_));
+    DCHECK(!literal->should_parallel_compile());
     eager_inner_literals_->push_back(literal);
   }
 }
@@ -2760,8 +2792,14 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr, Register name) {
   CurrentScope current_scope(this, expr->scope());
   DCHECK_NOT_NULL(expr->scope());
   if (expr->scope()->NeedsContext()) {
+    // Make sure to associate the source position for the class
+    // after the block context is created. Otherwise we have a mismatch
+    // between the scope and the context, where we already are in a
+    // block context for the class, but not yet in the class scope.
+    BytecodeSourceInfo source_info = builder()->PopSourcePosition();
     BuildNewLocalBlockContext(expr->scope());
     ContextScope scope(this, expr->scope());
+    builder()->PushSourcePosition(source_info);
     BuildClassLiteral(expr, name);
   } else {
     BuildClassLiteral(expr, name);
@@ -2775,6 +2813,7 @@ void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
   // Private methods are not initialized in BuildClassProperty.
   DCHECK_IMPLIES(property->is_private(),
                  property->kind() == ClassLiteral::Property::FIELD);
+  builder()->SetExpressionPosition(property->key());
 
   bool is_literal_store = property->key()->IsPropertyName() &&
                           !property->is_computed_name() &&
@@ -3835,9 +3874,9 @@ BytecodeGenerator::AssignmentLhsData::NamedSuperProperty(
 // static
 BytecodeGenerator::AssignmentLhsData
 BytecodeGenerator::AssignmentLhsData::PrivateMethodOrAccessor(
-    AssignType type, Property* property) {
-  return AssignmentLhsData(type, property, RegisterList(), Register(),
-                           Register(), nullptr, nullptr);
+    AssignType type, Property* property, Register object, Register key) {
+  return AssignmentLhsData(type, property, RegisterList(), object, key, nullptr,
+                           nullptr);
 }
 // static
 BytecodeGenerator::AssignmentLhsData
@@ -3875,7 +3914,14 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
     case PRIVATE_SETTER_ONLY:
     case PRIVATE_GETTER_AND_SETTER: {
       DCHECK(!property->IsSuperAccess());
-      return AssignmentLhsData::PrivateMethodOrAccessor(assign_type, property);
+      AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
+      Register object = VisitForRegisterValue(property->obj());
+      Register key =
+          assign_type == PRIVATE_GETTER_ONLY || assign_type == PRIVATE_METHOD
+              ? Register()
+              : VisitForRegisterValue(property->key());
+      return AssignmentLhsData::PrivateMethodOrAccessor(assign_type, property,
+                                                        object, key);
     }
     case NAMED_SUPER_PROPERTY: {
       AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
@@ -4431,11 +4477,15 @@ void BytecodeGenerator::BuildAssignment(
       break;
     }
     case PRIVATE_METHOD: {
+      Property* property = lhs_data.expr()->AsProperty();
+      BuildPrivateBrandCheck(property, lhs_data.object());
       BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateMethodWrite,
                                  lhs_data.expr()->AsProperty());
       break;
     }
     case PRIVATE_GETTER_ONLY: {
+      Property* property = lhs_data.expr()->AsProperty();
+      BuildPrivateBrandCheck(property, lhs_data.object());
       BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateSetterAccess,
                                  lhs_data.expr()->AsProperty());
       break;
@@ -4445,11 +4495,8 @@ void BytecodeGenerator::BuildAssignment(
       Register value = register_allocator()->NewRegister();
       builder()->StoreAccumulatorInRegister(value);
       Property* property = lhs_data.expr()->AsProperty();
-      Register object = VisitForRegisterValue(property->obj());
-      Register key = VisitForRegisterValue(property->key());
-      BuildPrivateBrandCheck(property, object,
-                             MessageTemplate::kInvalidPrivateMemberWrite);
-      BuildPrivateSetterAccess(object, key, value);
+      BuildPrivateBrandCheck(property, lhs_data.object());
+      BuildPrivateSetterAccess(lhs_data.object(), lhs_data.key(), value);
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }
@@ -4504,9 +4551,7 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
       // The property access is invalid, but if the brand check fails too, we
       // need to return the error from the brand check.
       Property* property = lhs_data.expr()->AsProperty();
-      Register object = VisitForRegisterValue(property->obj());
-      BuildPrivateBrandCheck(property, object,
-                             MessageTemplate::kInvalidPrivateMemberRead);
+      BuildPrivateBrandCheck(property, lhs_data.object());
       BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateMethodWrite,
                                  lhs_data.expr()->AsProperty());
       break;
@@ -4515,9 +4560,7 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
       // The property access is invalid, but if the brand check fails too, we
       // need to return the error from the brand check.
       Property* property = lhs_data.expr()->AsProperty();
-      Register object = VisitForRegisterValue(property->obj());
-      BuildPrivateBrandCheck(property, object,
-                             MessageTemplate::kInvalidPrivateMemberRead);
+      BuildPrivateBrandCheck(property, lhs_data.object());
       BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateSetterAccess,
                                  lhs_data.expr()->AsProperty());
 
@@ -4527,20 +4570,15 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
       // The property access is invalid, but if the brand check fails too, we
       // need to return the error from the brand check.
       Property* property = lhs_data.expr()->AsProperty();
-      Register object = VisitForRegisterValue(property->obj());
-      BuildPrivateBrandCheck(property, object,
-                             MessageTemplate::kInvalidPrivateMemberRead);
+      BuildPrivateBrandCheck(property, lhs_data.object());
       BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateGetterAccess,
                                  lhs_data.expr()->AsProperty());
       break;
     }
     case PRIVATE_GETTER_AND_SETTER: {
       Property* property = lhs_data.expr()->AsProperty();
-      Register object = VisitForRegisterValue(property->obj());
-      Register key = VisitForRegisterValue(property->key());
-      BuildPrivateBrandCheck(property, object,
-                             MessageTemplate::kInvalidPrivateMemberRead);
-      BuildPrivateGetterAccess(object, key);
+      BuildPrivateBrandCheck(property, lhs_data.object());
+      BuildPrivateGetterAccess(lhs_data.object(), lhs_data.key());
       break;
     }
   }
@@ -5032,6 +5070,7 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
       VisitKeyedSuperPropertyLoad(property, Register::invalid_value());
       break;
     case PRIVATE_SETTER_ONLY: {
+      BuildPrivateBrandCheck(property, obj);
       BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateGetterAccess,
                                  property);
       break;
@@ -5039,14 +5078,12 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
     case PRIVATE_GETTER_ONLY:
     case PRIVATE_GETTER_AND_SETTER: {
       Register key = VisitForRegisterValue(property->key());
-      BuildPrivateBrandCheck(property, obj,
-                             MessageTemplate::kInvalidPrivateMemberRead);
+      BuildPrivateBrandCheck(property, obj);
       BuildPrivateGetterAccess(obj, key);
       break;
     }
     case PRIVATE_METHOD: {
-      BuildPrivateBrandCheck(property, obj,
-                             MessageTemplate::kInvalidPrivateMemberRead);
+      BuildPrivateBrandCheck(property, obj);
       // In the case of private methods, property->key() is the function to be
       // loaded (stored in a context slot), so load this directly.
       VisitForAccumulatorValue(property->key());
@@ -5145,11 +5182,11 @@ void BytecodeGenerator::BuildPrivateMethodIn(Variable* private_name,
 }
 
 void BytecodeGenerator::BuildPrivateBrandCheck(Property* property,
-                                               Register object,
-                                               MessageTemplate tmpl) {
+                                               Register object) {
   Variable* private_name = property->key()->AsVariableProxy()->var();
   DCHECK(IsPrivateMethodOrAccessorVariableMode(private_name->mode()));
   ClassScope* scope = private_name->scope()->AsClassScope();
+  builder()->SetExpressionPosition(property);
   if (private_name->is_static()) {
     // For static private methods, the only valid receiver is the class.
     // Load the class constructor.
@@ -5179,13 +5216,21 @@ void BytecodeGenerator::BuildPrivateBrandCheck(Property* property,
       BytecodeLabel return_check;
       builder()->CompareReference(object).JumpIfTrue(
           ToBooleanMode::kAlreadyBoolean, &return_check);
-      BuildInvalidPropertyAccess(tmpl, property);
+      const AstRawString* name = scope->class_variable()->raw_name();
+      RegisterList args = register_allocator()->NewRegisterList(2);
+      builder()
+          ->LoadLiteral(
+              Smi::FromEnum(MessageTemplate::kInvalidPrivateBrandStatic))
+          .StoreAccumulatorInRegister(args[0])
+          .LoadLiteral(name)
+          .StoreAccumulatorInRegister(args[1])
+          .CallRuntime(Runtime::kNewTypeError, args)
+          .Throw();
       builder()->Bind(&return_check);
     }
   } else {
     BuildVariableLoadForAccumulatorValue(scope->brand(),
                                          HoleCheckMode::kElided);
-    builder()->SetExpressionPosition(property);
     builder()->LoadKeyedProperty(
         object, feedback_index(feedback_spec()->AddKeyedLoadICSlot()));
   }
@@ -5886,16 +5931,22 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     }
     case PRIVATE_METHOD: {
+      object = VisitForRegisterValue(property->obj());
+      BuildPrivateBrandCheck(property, object);
       BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateMethodWrite,
                                  property);
       return;
     }
     case PRIVATE_GETTER_ONLY: {
+      object = VisitForRegisterValue(property->obj());
+      BuildPrivateBrandCheck(property, object);
       BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateSetterAccess,
                                  property);
       return;
     }
     case PRIVATE_SETTER_ONLY: {
+      object = VisitForRegisterValue(property->obj());
+      BuildPrivateBrandCheck(property, object);
       BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateGetterAccess,
                                  property);
       return;
@@ -5903,8 +5954,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
     case PRIVATE_GETTER_AND_SETTER: {
       object = VisitForRegisterValue(property->obj());
       key = VisitForRegisterValue(property->key());
-      BuildPrivateBrandCheck(property, object,
-                             MessageTemplate::kInvalidPrivateMemberRead);
+      BuildPrivateBrandCheck(property, object);
       BuildPrivateGetterAccess(object, key);
       break;
     }

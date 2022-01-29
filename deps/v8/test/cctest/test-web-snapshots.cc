@@ -700,5 +700,95 @@ TEST(FunctionKinds) {
                            kObjectCount);
 }
 
+// Test that concatenating JS code to the snapshot works.
+TEST(Concatenation) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  const char* snapshot_source = "var foo = {a: 1};\n";
+  const char* source_to_append = "var bar = {a: 10};";
+  const char* test_source = "foo.a + bar.a";
+  uint32_t kObjectCount = 1;
+
+  WebSnapshotData snapshot_data;
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Context::Scope context_scope(new_context);
+
+    CompileRun(snapshot_source);
+    v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
+    v8::Local<v8::String> str =
+        v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
+    exports->Set(isolate, 0, str);
+    WebSnapshotSerializer serializer(isolate);
+    CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
+    CHECK(!serializer.has_error());
+    CHECK_NOT_NULL(snapshot_data.buffer);
+    CHECK_EQ(kObjectCount, serializer.object_count());
+  }
+
+  auto buffer_size = snapshot_data.buffer_size + strlen(source_to_append);
+  std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
+  memcpy(buffer.get(), snapshot_data.buffer, snapshot_data.buffer_size);
+  memcpy(buffer.get() + snapshot_data.buffer_size, source_to_append,
+         strlen(source_to_append));
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Context::Scope context_scope(new_context);
+    WebSnapshotDeserializer deserializer(isolate);
+    CHECK(deserializer.UseWebSnapshot(buffer.get(), buffer_size));
+    CHECK(!deserializer.has_error());
+    CHECK_EQ(kObjectCount, deserializer.object_count());
+
+    v8::Local<v8::Number> result = CompileRun(test_source).As<v8::Number>();
+    CHECK_EQ(11, result->Value());
+  }
+}
+
+// Test that errors from invalid concatenated code are handled correctly.
+TEST(ConcatenationErrors) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  const char* snapshot_source = "var foo = {a: 1};\n";
+  const char* source_to_append = "wontparse+[)";
+  uint32_t kObjectCount = 1;
+
+  WebSnapshotData snapshot_data;
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Context::Scope context_scope(new_context);
+
+    CompileRun(snapshot_source);
+    v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
+    v8::Local<v8::String> str =
+        v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
+    exports->Set(isolate, 0, str);
+    WebSnapshotSerializer serializer(isolate);
+    CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
+    CHECK(!serializer.has_error());
+    CHECK_NOT_NULL(snapshot_data.buffer);
+    CHECK_EQ(kObjectCount, serializer.object_count());
+  }
+
+  auto buffer_size = snapshot_data.buffer_size + strlen(source_to_append);
+  std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
+  memcpy(buffer.get(), snapshot_data.buffer, snapshot_data.buffer_size);
+  memcpy(buffer.get() + snapshot_data.buffer_size, source_to_append,
+         strlen(source_to_append));
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Context::Scope context_scope(new_context);
+    WebSnapshotDeserializer deserializer(isolate);
+    CHECK(!deserializer.UseWebSnapshot(buffer.get(), buffer_size));
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

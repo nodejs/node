@@ -9,6 +9,8 @@
 #include "src/flags/flags.h"
 #if ENABLE_SPARKPLUG
 
+#include <algorithm>
+
 #include "src/baseline/baseline-compiler.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/isolate.h"
@@ -56,7 +58,13 @@ class BaselineCompilerTask {
     if (FLAG_print_code) {
       code->Print();
     }
-    shared_function_info_->set_baseline_code(*code, kReleaseStore);
+    // Don't install the code if the bytecode has been flushed or has
+    // already some baseline code installed.
+    if (!shared_function_info_->is_compiled() ||
+        shared_function_info_->HasBaselineCode()) {
+      return;
+    }
+    shared_function_info_->set_baseline_code(ToCodeT(*code), kReleaseStore);
     if (V8_LIKELY(FLAG_use_osr)) {
       // Arm back edges for OSR
       shared_function_info_->GetBytecodeArray(isolate)
@@ -162,8 +170,12 @@ class ConcurrentBaselineCompiler {
 
     void Run(JobDelegate* delegate) override {
       while (!incoming_queue_->IsEmpty() && !delegate->ShouldYield()) {
+        // Since we're going to compile an entire batch, this guarantees that
+        // we only switch back the memory chunks to RX at the end.
+        CodePageCollectionMemoryModificationScope batch_alloc(isolate_->heap());
         std::unique_ptr<BaselineBatchCompilerJob> job;
-        incoming_queue_->Dequeue(&job);
+        if (!incoming_queue_->Dequeue(&job)) break;
+        DCHECK_NOT_NULL(job);
         job->Compile();
         outgoing_queue_->Enqueue(std::move(job));
       }
@@ -171,6 +183,10 @@ class ConcurrentBaselineCompiler {
     }
 
     size_t GetMaxConcurrency(size_t worker_count) const override {
+      size_t max_threads = FLAG_concurrent_sparkplug_max_threads;
+      if (max_threads > 0) {
+        return std::min(max_threads, incoming_queue_->size());
+      }
       return incoming_queue_->size();
     }
 

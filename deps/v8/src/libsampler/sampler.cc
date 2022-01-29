@@ -210,8 +210,8 @@ void SamplerManager::AddSampler(Sampler* sampler) {
     sampler_map_.emplace(thread_id, std::move(samplers));
   } else {
     SamplerList& samplers = it->second;
-    auto it = std::find(samplers.begin(), samplers.end(), sampler);
-    if (it == samplers.end()) samplers.push_back(sampler);
+    auto sampler_it = std::find(samplers.begin(), samplers.end(), sampler);
+    if (sampler_it == samplers.end()) samplers.push_back(sampler);
   }
 }
 

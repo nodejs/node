@@ -333,25 +333,32 @@ class WasmGraphBuilder {
 
   void Trap(wasm::TrapReason reason, wasm::WasmCodePosition position);
 
-  Node* CallDirect(uint32_t index, base::Vector<Node*> args,
-                   base::Vector<Node*> rets, wasm::WasmCodePosition position);
+  // In all six call-related public functions, we pass a signature based on the
+  // real arguments for this call. This signature gets stored in the Call node
+  // and will later help us generate better code if this call gets inlined.
+  Node* CallDirect(uint32_t index, wasm::FunctionSig* real_sig,
+                   base::Vector<Node*> args, base::Vector<Node*> rets,
+                   wasm::WasmCodePosition position);
   Node* CallIndirect(uint32_t table_index, uint32_t sig_index,
-                     base::Vector<Node*> args, base::Vector<Node*> rets,
-                     wasm::WasmCodePosition position);
-  Node* CallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
+                     wasm::FunctionSig* real_sig, base::Vector<Node*> args,
+                     base::Vector<Node*> rets, wasm::WasmCodePosition position);
+  Node* CallRef(const wasm::FunctionSig* real_sig, base::Vector<Node*> args,
                 base::Vector<Node*> rets, CheckForNull null_check,
                 wasm::WasmCodePosition position);
-  void CompareToExternalFunctionAtIndex(Node* func_ref, uint32_t function_index,
-                                        Node** success_control,
-                                        Node** failure_control);
 
-  Node* ReturnCall(uint32_t index, base::Vector<Node*> args,
-                   wasm::WasmCodePosition position);
+  Node* ReturnCall(uint32_t index, const wasm::FunctionSig* real_sig,
+                   base::Vector<Node*> args, wasm::WasmCodePosition position);
   Node* ReturnCallIndirect(uint32_t table_index, uint32_t sig_index,
+                           wasm::FunctionSig* real_sig,
                            base::Vector<Node*> args,
                            wasm::WasmCodePosition position);
-  Node* ReturnCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
-                      CheckForNull null_check, wasm::WasmCodePosition position);
+  Node* ReturnCallRef(const wasm::FunctionSig* real_sig,
+                      base::Vector<Node*> args, CheckForNull null_check,
+                      wasm::WasmCodePosition position);
+
+  void CompareToInternalFunctionAtIndex(Node* func_ref, uint32_t function_index,
+                                        Node** success_control,
+                                        Node** failure_control);
 
   void BrOnNull(Node* ref_object, Node** non_null_node, Node** null_node);
 
@@ -530,11 +537,15 @@ class WasmGraphBuilder {
 
   MachineGraph* mcgraph() { return mcgraph_; }
   Graph* graph();
+  Zone* graph_zone();
 
   void AddBytecodePositionDecorator(NodeOriginTable* node_origins,
                                     wasm::Decoder* decoder);
 
   void RemoveBytecodePositionDecorator();
+
+  static const wasm::FunctionSig* Int64LoweredSig(Zone* zone,
+                                                  const wasm::FunctionSig* sig);
 
  protected:
   V8_EXPORT_PRIVATE WasmGraphBuilder(wasm::CompilationEnv* env, Zone* zone,
@@ -548,6 +559,7 @@ class WasmGraphBuilder {
 
   Node* GetInstance();
   Node* BuildLoadIsolateRoot();
+  Node* UndefinedValue();
 
   // MemBuffer is only called with valid offsets (after bounds checking), so the
   // offset fits in a platform-dependent uintptr_t.
@@ -587,7 +599,8 @@ class WasmGraphBuilder {
                                  Node** ift_sig_ids, Node** ift_targets,
                                  Node** ift_instances);
   Node* BuildIndirectCall(uint32_t table_index, uint32_t sig_index,
-                          base::Vector<Node*> args, base::Vector<Node*> rets,
+                          wasm::FunctionSig* real_sig, base::Vector<Node*> args,
+                          base::Vector<Node*> rets,
                           wasm::WasmCodePosition position,
                           IsReturnCall continuation);
   Node* BuildWasmCall(const wasm::FunctionSig* sig, base::Vector<Node*> args,
@@ -605,9 +618,9 @@ class WasmGraphBuilder {
                         base::Vector<Node*> rets,
                         wasm::WasmCodePosition position, Node* func_index,
                         IsReturnCall continuation);
-  Node* BuildCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
-                     base::Vector<Node*> rets, CheckForNull null_check,
-                     IsReturnCall continuation,
+  Node* BuildCallRef(const wasm::FunctionSig* real_sig,
+                     base::Vector<Node*> args, base::Vector<Node*> rets,
+                     CheckForNull null_check, IsReturnCall continuation,
                      wasm::WasmCodePosition position);
 
   Node* BuildF32CopySign(Node* left, Node* right);
@@ -678,6 +691,8 @@ class WasmGraphBuilder {
   // generates {index > max ? Smi(max) : Smi(index)}
   Node* BuildConvertUint32ToSmiWithSaturation(Node* index, uint32_t maxval);
 
+  Node* IsNull(Node* object);
+
   using BranchBuilder = std::function<void(Node*, BranchHint)>;
   struct Callbacks {
     BranchBuilder succeed_if;
@@ -741,6 +756,8 @@ class WasmGraphBuilder {
 
   Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
                                                Node* iterable, Node* context);
+
+  Node* BuildUnsandboxExternalPointer(Node* external_pointer);
 
   Node* BuildLoadCallTargetFromExportedFunctionData(Node* function_data);
 
@@ -809,9 +826,6 @@ V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
 
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
     Zone* zone, const CallDescriptor* call_descriptor);
-
-V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptorForSimd(
-    Zone* zone, CallDescriptor* call_descriptor);
 
 AssemblerOptions WasmAssemblerOptions();
 AssemblerOptions WasmStubAssemblerOptions();

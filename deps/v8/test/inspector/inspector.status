@@ -97,16 +97,19 @@
 }],  # variant == no_wasm_traps
 
 ##############################################################################
-['arch == ppc or arch == ppc64', {
-  # Liftoff needs to be enabled before running these tests.
-  'debugger/wasm-*': [SKIP],
-}],  # 'arch == ppc or arch == ppc64'
-
-##############################################################################
-['arch == s390 or arch == s390x', {
-  # Liftoff needs to be enabled before running these tests.
-  'debugger/wasm-*': [SKIP],
-}],  # 'arch == s390 or arch == s390x'
+['arch == s390x or arch == ppc64', {
+  # Need simd support on Liftoff
+  'debugger/wasm-scope-info': [SKIP],
+  'debugger/wasm-inspect-many-registers': [SKIP],
+  # endian related issue
+  'debugger/wasm-conditional-breakpoints': [SKIP],
+  'debugger/wasm-evaluate-on-call-frame': [SKIP],
+  'debugger/wasm-set-breakpoint': [SKIP],
+  'debugger/wasm-stack-check': [SKIP],
+  'debugger/wasm-step-after-trap': [SKIP],
+  'debugger/wasm-stepping-no-opcode-merging': [SKIP],
+  'debugger/wasm-stepping-with-source-map': [SKIP],
+}],  # 'arch == s390x or arch == ppc64'
 
 ##############################################################################
 ['no_simd_hardware', {
@@ -121,10 +124,6 @@
   'debugger/wasm-step-after-trap': [SKIP],
 
 }],  # 'arch == riscv64 or arch == loong64'
-
-['arch == riscv64 and variant == stress_incremental_marking', {
-  'debugger/wasm-gc-breakpoints': [SKIP]
-}],  # 'arch == riscv64'
 
 ################################################################################
 ['variant == stress_snapshot', {

@@ -674,5 +674,40 @@ TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
   return result.value();
 }
 
+TNode<Object>
+BinaryOpAssembler::Generate_BitwiseBinaryOpWithSmiOperandAndOptionalFeedback(
+    Operation bitwise_op, TNode<Object> left, TNode<Object> right,
+    const LazyNode<Context>& context, TVariable<Smi>* feedback) {
+  TNode<Smi> right_smi = CAST(right);
+  TVARIABLE(Object, result);
+  TVARIABLE(Smi, var_left_feedback);
+  TVARIABLE(Word32T, var_left_word32);
+  TVARIABLE(BigInt, var_left_bigint);
+  Label do_smi_op(this), if_bigint_mix(this, Label::kDeferred), done(this);
+
+  TaggedToWord32OrBigIntWithFeedback(context(), left, &do_smi_op,
+                                     &var_left_word32, &if_bigint_mix,
+                                     &var_left_bigint, &var_left_feedback);
+  BIND(&do_smi_op);
+  result =
+      BitwiseOp(var_left_word32.value(), SmiToInt32(right_smi), bitwise_op);
+  if (feedback) {
+    TNode<Smi> result_type = SelectSmiConstant(
+        TaggedIsSmi(result.value()), BinaryOperationFeedback::kSignedSmall,
+        BinaryOperationFeedback::kNumber);
+    *feedback = SmiOr(result_type, var_left_feedback.value());
+  }
+  Goto(&done);
+
+  BIND(&if_bigint_mix);
+  if (feedback) {
+    *feedback = var_left_feedback.value();
+  }
+  ThrowTypeError(context(), MessageTemplate::kBigIntMixedTypes);
+
+  BIND(&done);
+  return result.value();
+}
+
 }  // namespace internal
 }  // namespace v8

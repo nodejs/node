@@ -21,7 +21,7 @@ namespace internal {
 class CodeRangeAddressHint {
  public:
   // When near code range is enabled, an address within
-  // kShortBuiltinCallsBoundary to the embedded blob is returned if
+  // kMaxPCRelativeCodeRangeInMB to the embedded blob is returned if
   // there is enough space. Otherwise a random address is returned.
   // When near code range is disabled, returns the most recently freed code
   // range start address for the given size. If there is no such entry, then a

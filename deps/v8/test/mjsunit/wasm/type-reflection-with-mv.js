@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection --expose-gc --experimental-wasm-mv
+// Flags: --experimental-wasm-type-reflection --expose-gc
 
 (function TestFunctionConstructedCoercions() {
   let obj1 = { valueOf: _ => 123.45 };

@@ -355,7 +355,7 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
 
 uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
                                      uint32_t max_size, WasmInitExpr init) {
-  tables_.push_back({type, min_size, max_size, true, std::move(init)});
+  tables_.push_back({type, min_size, max_size, true, init});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
@@ -403,7 +403,7 @@ void WasmModuleBuilder::AddExport(base::Vector<const char> name,
 uint32_t WasmModuleBuilder::AddExportedGlobal(ValueType type, bool mutability,
                                               WasmInitExpr init,
                                               base::Vector<const char> name) {
-  uint32_t index = AddGlobal(type, mutability, std::move(init));
+  uint32_t index = AddGlobal(type, mutability, init);
   AddExport(name, kExternalGlobal, index);
   return index;
 }
@@ -421,7 +421,7 @@ void WasmModuleBuilder::ExportImportedFunction(base::Vector<const char> name,
 
 uint32_t WasmModuleBuilder::AddGlobal(ValueType type, bool mutability,
                                       WasmInitExpr init) {
-  globals_.push_back({type, mutability, std::move(init)});
+  globals_.push_back({type, mutability, init});
   return static_cast<uint32_t>(globals_.size() - 1);
 }
 
@@ -523,7 +523,7 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       STATIC_ASSERT((kExprStructNewWithRtt >> 8) == kGCPrefix);
       STATIC_ASSERT((kExprStructNewDefault >> 8) == kGCPrefix);
       STATIC_ASSERT((kExprStructNewDefaultWithRtt >> 8) == kGCPrefix);
-      for (const WasmInitExpr& operand : init.operands()) {
+      for (const WasmInitExpr& operand : *init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
@@ -551,7 +551,7 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
     case WasmInitExpr::kArrayInitStatic:
       STATIC_ASSERT((kExprArrayInit >> 8) == kGCPrefix);
       STATIC_ASSERT((kExprArrayInitStatic >> 8) == kGCPrefix);
-      for (const WasmInitExpr& operand : init.operands()) {
+      for (const WasmInitExpr& operand : *init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
@@ -559,7 +559,7 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
           init.kind() == WasmInitExpr::kArrayInit ? kExprArrayInit
                                                   : kExprArrayInitStatic));
       buffer->write_u32v(init.immediate().index);
-      buffer->write_u32v(static_cast<uint32_t>(init.operands().size() - 1));
+      buffer->write_u32v(static_cast<uint32_t>(init.operands()->size() - 1));
       break;
     case WasmInitExpr::kRttCanon:
       STATIC_ASSERT((kExprRttCanon >> 8) == kGCPrefix);
@@ -570,7 +570,7 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
     case WasmInitExpr::kRttSub:
     case WasmInitExpr::kRttFreshSub:
       // The operand to rtt.sub must be emitted first.
-      WriteInitializerExpressionWithEnd(buffer, init.operands()[0],
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
                                         kWasmBottom);
       STATIC_ASSERT((kExprRttSub >> 8) == kGCPrefix);
       STATIC_ASSERT((kExprRttFreshSub >> 8) == kGCPrefix);

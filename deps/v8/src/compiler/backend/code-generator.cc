@@ -980,8 +980,9 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
     data->SetSharedFunctionInfo(Smi::zero());
   }
 
-  Handle<FixedArray> literals = isolate()->factory()->NewFixedArray(
-      static_cast<int>(deoptimization_literals_.size()), AllocationType::kOld);
+  Handle<DeoptimizationLiteralArray> literals =
+      isolate()->factory()->NewDeoptimizationLiteralArray(
+          static_cast<int>(deoptimization_literals_.size()));
   for (unsigned i = 0; i < deoptimization_literals_.size(); i++) {
     Handle<Object> object = deoptimization_literals_[i].Reify(isolate());
     CHECK(!object.is_null());

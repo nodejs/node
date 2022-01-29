@@ -13,6 +13,7 @@
 #include "src/execution/v8threads.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/logging/counters.h"
+#include "src/logging/metrics.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/managed-inl.h"
@@ -490,10 +491,13 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   ModuleOrigin origin = language_mode == LanguageMode::kSloppy
                             ? kAsmJsSloppyOrigin
                             : kAsmJsStrictOrigin;
+  // TODO(leszeks): If we want asm.js in UKM, we should figure out a way to pass
+  // the context id in here.
+  v8::metrics::Recorder::ContextId context_id =
+      v8::metrics::Recorder::ContextId::Empty();
   ModuleResult result = DecodeWasmModule(
       WasmFeatures::ForAsmjs(), bytes.start(), bytes.end(), false, origin,
-      isolate->counters(), isolate->metrics_recorder(),
-      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
+      isolate->counters(), isolate->metrics_recorder(), context_id,
       DecodingMethod::kSync, allocator());
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
@@ -510,7 +514,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   Handle<FixedArray> export_wrappers;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, WasmFeatures::ForAsmjs(), thrower, std::move(result).value(),
-      bytes, &export_wrappers, compilation_id);
+      bytes, &export_wrappers, compilation_id, context_id);
   if (!native_module) return {};
 
   return AsmWasmData::New(isolate, std::move(native_module), export_wrappers,
@@ -534,11 +538,12 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     const ModuleWireBytes& bytes) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
-  ModuleResult result = DecodeWasmModule(
-      enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
-      isolate->counters(), isolate->metrics_recorder(),
-      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
-      DecodingMethod::kSync, allocator());
+  v8::metrics::Recorder::ContextId context_id =
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context());
+  ModuleResult result =
+      DecodeWasmModule(enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
+                       isolate->counters(), isolate->metrics_recorder(),
+                       context_id, DecodingMethod::kSync, allocator());
   if (result.failed()) {
     thrower->CompileFailed(result.error());
     return {};
@@ -549,7 +554,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   Handle<FixedArray> export_wrappers;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, enabled, thrower, std::move(result).value(), bytes,
-      &export_wrappers, compilation_id);
+      &export_wrappers, compilation_id, context_id);
   if (!native_module) return {};
 
 #ifdef DEBUG
@@ -1012,6 +1017,12 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   DCHECK_EQ(0, isolates_.count(isolate));
   isolates_.emplace(isolate, std::make_unique<IsolateInfo>(isolate));
 
+  // The isolate might access existing (cached) code without ever compiling any.
+  // In that case, the current thread might still have the default permissions
+  // for the memory protection key (== no access). Thus initialize the
+  // permissions now.
+  GetWasmCodeManager()->InitializeMemoryProtectionKeyPermissionsIfSupported();
+
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
   // bias samples towards apps with high memory pressure. We should switch to
@@ -1167,12 +1178,11 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
   }
 
   // Record memory protection key support.
-  if (FLAG_wasm_memory_protection_keys && !isolate_info->pku_support_sampled) {
+  if (!isolate_info->pku_support_sampled) {
     isolate_info->pku_support_sampled = true;
     auto* histogram =
         isolate->counters()->wasm_memory_protection_keys_support();
-    bool has_mpk =
-        GetWasmCodeManager()->memory_protection_key_ != kNoMemoryProtectionKey;
+    bool has_mpk = GetWasmCodeManager()->HasMemoryProtectionKeySupport();
     histogram->AddSample(has_mpk ? 1 : 0);
   }
 
@@ -1645,9 +1655,6 @@ WasmCodeManager* GetWasmCodeManager() {
 
 // {max_mem_pages} is declared in wasm-limits.h.
 uint32_t max_mem_pages() {
-  static_assert(
-      kV8MaxWasmMemoryPages * kWasmPageSize <= JSArrayBuffer::kMaxByteLength,
-      "Wasm memories must not be bigger than JSArrayBuffers");
   STATIC_ASSERT(kV8MaxWasmMemoryPages <= kMaxUInt32);
   return std::min(uint32_t{kV8MaxWasmMemoryPages}, FLAG_wasm_max_mem_pages);
 }

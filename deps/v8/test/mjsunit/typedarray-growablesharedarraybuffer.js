@@ -9,10 +9,6 @@
 
 d8.file.execute('test/mjsunit/typedarray-helpers.js');
 
-function CreateGrowableSharedArrayBuffer(byteLength, maxByteLength) {
-  return new SharedArrayBuffer(byteLength, {maxByteLength: maxByteLength});
-}
-
 (function TypedArrayPrototype() {
   const gsab = CreateGrowableSharedArrayBuffer(40, 80);
   const sab = new SharedArrayBuffer(80);

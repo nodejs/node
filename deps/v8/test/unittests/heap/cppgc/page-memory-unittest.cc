@@ -121,7 +121,7 @@ TEST(PageMemoryRegionTest, PlatformUsesGuardPages) {
   v8::base::PageAllocator allocator;
 #if defined(V8_HOST_ARCH_PPC64) && !defined(_AIX)
   EXPECT_FALSE(SupportsCommittingGuardPages(allocator));
-#elif defined(V8_HOST_ARCH_ARM64)
+#elif defined(V8_HOST_ARCH_ARM64) || defined(V8_HOST_ARCH_LOONG64)
   if (allocator.CommitPageSize() == 4096) {
     EXPECT_TRUE(SupportsCommittingGuardPages(allocator));
   } else {

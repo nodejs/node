@@ -327,7 +327,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       TurboAssembler::Move(reg.gp(), Immediate(value.to_i32(), rmode));
       break;
     case kI64: {
-      DCHECK(RelocInfo::IsNone(rmode));
+      DCHECK(RelocInfo::IsNoInfo(rmode));
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
       TurboAssembler::Move(reg.low_gp(), Immediate(low_word));

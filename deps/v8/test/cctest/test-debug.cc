@@ -195,9 +195,9 @@ int break_point_hit_count = 0;
 int break_point_hit_count_deoptimize = 0;
 class DebugEventCounter : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(
-      v8::Local<v8::Context>,
-      const std::vector<v8::debug::BreakpointId>&) override {
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
     break_point_hit_count++;
     // Perform a full deoptimization when the specified number of
     // breaks have been hit.
@@ -218,9 +218,9 @@ class DebugEventCounter : public v8::debug::DebugDelegate {
 // Debug event handler which performs a garbage collection.
 class DebugEventBreakPointCollectGarbage : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(
-      v8::Local<v8::Context>,
-      const std::vector<v8::debug::BreakpointId>&) override {
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
     // Perform a garbage collection when break point is hit and continue. Based
     // on the number of break points hit either scavenge or mark compact
     // collector is used.
@@ -239,9 +239,9 @@ class DebugEventBreakPointCollectGarbage : public v8::debug::DebugDelegate {
 // collector to have the heap verified.
 class DebugEventBreak : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(
-      v8::Local<v8::Context>,
-      const std::vector<v8::debug::BreakpointId>&) override {
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
     // Count the number of breaks.
     break_point_hit_count++;
 
@@ -264,9 +264,9 @@ int max_break_point_hit_count = 0;
 bool terminate_after_max_break_point_hit = false;
 class DebugEventBreakMax : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(
-      v8::Local<v8::Context>,
-      const std::vector<v8::debug::BreakpointId>&) override {
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
     v8::Isolate* v8_isolate = CcTest::isolate();
     v8::internal::Isolate* isolate = CcTest::i_isolate();
     if (break_point_hit_count < max_break_point_hit_count) {
@@ -3309,9 +3309,10 @@ static v8::Local<v8::Value> expected_context_data;
 
 class ContextCheckEventListener : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     CheckContext();
   }
   void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
@@ -3824,9 +3825,10 @@ TEST(DebugBreakInForCondition2) {
 
 class DebugBreakInlineListener : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     int expected_frame_count = 4;
     int expected_line_number[] = {1, 4, 7, 13};
 
@@ -3906,9 +3908,10 @@ TEST(Regress131642) {
 
 class DebugBreakStackTraceListener : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     v8::StackTrace::CurrentStackTrace(CcTest::isolate(), 10);
   }
 };
@@ -3946,9 +3949,10 @@ v8::base::Semaphore terminate_fired_semaphore(0);
 
 class DebugBreakTriggerTerminate : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     if (terminate_already_fired_) return;
     terminate_requested_semaphore.Signal();
     // Wait for at most 2 seconds for the terminate request.
@@ -4056,9 +4060,9 @@ class ArchiveRestoreThread : public v8::base::Thread,
     }
   }
 
-  void BreakProgramRequested(
-      v8::Local<v8::Context> context,
-      const std::vector<v8::debug::BreakpointId>&) override {
+  void BreakProgramRequested(v8::Local<v8::Context> context,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
     auto stack_traces = v8::debug::StackTraceIterator::Create(isolate_);
     if (!stack_traces->Done()) {
       v8::debug::Location location = stack_traces->GetSourceLocation();
@@ -4276,9 +4280,10 @@ TEST(BreakLocationIterator) {
 class DebugStepOverFunctionWithCaughtExceptionListener
     : public v8::debug::DebugDelegate {
  public:
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     ++break_point_hit_count;
     if (break_point_hit_count >= 3) return;
     PrepareStep(StepOver);
@@ -4777,9 +4782,10 @@ class SetBreakpointOnScriptCompiled : public v8::debug::DebugDelegate {
     CHECK_EQ(loc.GetColumnNumber(), 10);
   }
 
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     ++break_count_;
     CHECK_EQ(inspector_break_points_hit[0], id_);
   }
@@ -5203,9 +5209,10 @@ class SetTerminateOnResumeDelegate : public v8::debug::DebugDelegate {
   };
   explicit SetTerminateOnResumeDelegate(Options options = kNone)
       : options_(options) {}
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     break_count_++;
     v8::Isolate* isolate = paused_context->GetIsolate();
     v8::debug::SetTerminateOnResume(isolate);
@@ -5580,9 +5587,10 @@ namespace {
 class SemaphoreTriggerOnBreak : public v8::debug::DebugDelegate {
  public:
   SemaphoreTriggerOnBreak() : enter_(0), exit_(0) {}
-  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<v8::debug::BreakpointId>&
-                                 inspector_break_points_hit) override {
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::debug::BreakReasons break_reasons) override {
     break_count_++;
     enter_.Signal();
     exit_.Wait();
@@ -5685,6 +5693,35 @@ TEST(TerminateOnResumeAtInterruptFromOtherThread) {
   // Exiting the TryCatch brought the isolate back to a state where JavaScript
   // can be executed.
   ExpectInt32("1 + 1", 2);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+namespace {
+
+class NoopDelegate : public v8::debug::DebugDelegate {};
+
+}  // namespace
+
+// Tests that the Isolate::Pop/Push leaves an empty stack for `await` when
+// the Debugger is active but the AsyncEventDelegate is not set.
+// Regression test for https://crbug.com/1225905
+TEST(AwaitCleansUpGlobalPromiseStack) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  NoopDelegate delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  v8::debug::SetAsyncEventDelegate(env->GetIsolate(), nullptr);
+
+  v8::Local<v8::String> source = v8_str(
+      "(async () => {\n"
+      "  await Promise.resolve();\n"
+      "})();\n");
+  CompileRun(source);
+
+  CHECK_EQ(CcTest::i_isolate()->thread_local_top()->promise_on_stack_, nullptr);
+
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }

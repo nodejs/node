@@ -9,7 +9,7 @@ extern builtin IterableToListMayPreserveHoles(
     Context, Object, Callable): JSArray;
 
 extern macro TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
-    implicit context: Context)(uintptr): JSArrayBuffer;
+    implicit context: Context)(): JSArrayBuffer;
 extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
 extern macro TypedArrayBuiltinsAssembler::GetDefaultConstructor(
     implicit context: Context)(JSTypedArray): JSFunction;
@@ -93,7 +93,7 @@ transitioning macro TypedArrayInitialize(implicit context: Context)(
 
     if (byteLength > kMaxTypedArrayInHeap) goto AllocateOffHeap;
 
-    const buffer = AllocateEmptyOnHeapBuffer(byteLength);
+    const buffer = AllocateEmptyOnHeapBuffer();
 
     const isOnHeap: constexpr bool = true;
     const isLengthTracking: constexpr bool = false;
@@ -292,7 +292,7 @@ transitioning macro ConstructByArrayBuffer(implicit context: Context)(
       // in the step 12 branch.
       newByteLength = bufferByteLength - offset;
       newLength = elementsInfo.CalculateLength(newByteLength)
-          otherwise IfInvalidLength;
+          otherwise IfInvalidOffset;
 
       // 12. Else,
     } else {
@@ -335,6 +335,7 @@ transitioning macro TypedArrayCreateByLength(implicit context: Context)(
   //    ValidateTypedArray currently returns the array, not the ViewBuffer.
   const newTypedArray: JSTypedArray =
       ValidateTypedArray(context, newTypedArrayObj, methodName);
+  // TODO(v8:11111): bit_field should be initialized to 0.
   newTypedArray.bit_field.is_length_tracking = false;
   newTypedArray.bit_field.is_backed_by_rab = false;
 

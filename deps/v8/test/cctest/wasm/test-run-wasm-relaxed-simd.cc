@@ -34,7 +34,7 @@ namespace test_run_wasm_relaxed_simd {
   void RunWasm_##name##_Impl(TestExecutionTier execution_tier)
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_PPC64
+    V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32
 // Only used for qfma and qfms tests below.
 
 // FMOperation holds the params (a, b, c) for a Multiply-Add or
@@ -112,20 +112,20 @@ static constexpr base::Vector<const FMOperation<T>> qfms_vector() {
 // Fused results only when fma3 feature is enabled, and running on TurboFan or
 // Liftoff (which can fall back to TurboFan if FMA is not implemented).
 bool ExpectFused(TestExecutionTier tier) {
-#ifdef V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   return CpuFeatures::IsSupported(FMA3) &&
          (tier == TestExecutionTier::kTurbofan ||
           tier == TestExecutionTier::kLiftoff);
 #else
   return (tier == TestExecutionTier::kTurbofan ||
           tier == TestExecutionTier::kLiftoff);
-#endif
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
-        // V8_TARGET_ARCH_PPC64
+        // V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_PPC64
+    V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32
 WASM_RELAXED_SIMD_TEST(F32x4Qfma) {
   WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold mask output.
@@ -222,7 +222,7 @@ WASM_RELAXED_SIMD_TEST(F64x2Qfms) {
   }
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
-        // V8_TARGET_ARCH_PPC64
+        // V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32
 
 WASM_RELAXED_SIMD_TEST(F32x4RecipApprox) {
   RunF32x4UnOpTest(execution_tier, kExprF32x4RecipApprox, base::Recip,
@@ -234,29 +234,7 @@ WASM_RELAXED_SIMD_TEST(F32x4RecipSqrtApprox) {
                    false /* !exact */);
 }
 
-#if V8_TARGET_ARCH_X64
-WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
-  // Output is only defined for indices in the range [0,15].
-  WasmRunner<int32_t> r(execution_tier);
-  static const int kElems = kSimd128Size / sizeof(uint8_t);
-  uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  uint8_t* src = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  uint8_t* indices = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  BUILD(r,
-        WASM_GLOBAL_SET(
-            0, WASM_SIMD_BINOP(kExprI8x16RelaxedSwizzle, WASM_GLOBAL_GET(1),
-                               WASM_GLOBAL_GET(2))),
-        WASM_ONE);
-  for (int i = 0; i < kElems; i++) {
-    LANE(src, i) = kElems - i - 1;
-    LANE(indices, i) = kElems - i - 1;
-  }
-  CHECK_EQ(1, r.Call());
-  for (int i = 0; i < kElems; i++) {
-    CHECK_EQ(LANE(dst, i), i);
-  }
-}
-
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 namespace {
 // Helper to convert an array of T into an array of uint8_t to be used a v128
 // constants.
@@ -407,7 +385,29 @@ WASM_RELAXED_SIMD_TEST(I32x4RelaxedTruncF32x4U) {
   IntRelaxedTruncFloatTest<uint32_t, float>(
       execution_tier, kExprI32x4RelaxedTruncF32x4U, kExprF32x4Splat);
 }
-#endif  // V8_TARGET_ARCH_X64
+
+WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
+  // Output is only defined for indices in the range [0,15].
+  WasmRunner<int32_t> r(execution_tier);
+  static const int kElems = kSimd128Size / sizeof(uint8_t);
+  uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* src = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* indices = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  BUILD(r,
+        WASM_GLOBAL_SET(
+            0, WASM_SIMD_BINOP(kExprI8x16RelaxedSwizzle, WASM_GLOBAL_GET(1),
+                               WASM_GLOBAL_GET(2))),
+        WASM_ONE);
+  for (int i = 0; i < kElems; i++) {
+    LANE(src, i) = kElems - i - 1;
+    LANE(indices, i) = kElems - i - 1;
+  }
+  CHECK_EQ(1, r.Call());
+  for (int i = 0; i < kElems; i++) {
+    CHECK_EQ(LANE(dst, i), i);
+  }
+}
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 
 #undef WASM_RELAXED_SIMD_TEST
 }  // namespace test_run_wasm_relaxed_simd

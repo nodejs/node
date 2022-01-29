@@ -45,18 +45,24 @@ struct DynamicImportData;
 class Counter {
  public:
   static const int kMaxNameSize = 64;
-  int32_t* Bind(const char* name, bool histogram);
-  int32_t* ptr() { return &count_; }
-  int32_t count() { return count_; }
-  int32_t sample_total() { return sample_total_; }
-  bool is_histogram() { return is_histogram_; }
+  void Bind(const char* name, bool histogram);
+  // TODO(12482): Return pointer to an atomic.
+  int* ptr() {
+    STATIC_ASSERT(sizeof(int) == sizeof(count_));
+    return reinterpret_cast<int*>(&count_);
+  }
+  int count() const { return count_.load(std::memory_order_relaxed); }
+  int sample_total() const {
+    return sample_total_.load(std::memory_order_relaxed);
+  }
+  bool is_histogram() const { return is_histogram_; }
   void AddSample(int32_t sample);
 
  private:
-  int32_t count_;
-  int32_t sample_total_;
+  std::atomic<int> count_;
+  std::atomic<int> sample_total_;
   bool is_histogram_;
-  uint8_t name_[kMaxNameSize];
+  char name_[kMaxNameSize];
 };
 
 // A set of counters and associated information.  An instance of this
@@ -203,6 +209,16 @@ class Worker : public std::enable_shared_from_this<Worker> {
   friend class ProcessMessageTask;
   friend class TerminateTask;
 
+  enum class State {
+    kReady,
+    kRunning,
+    kTerminating,
+    kTerminated,
+    kTerminatingAndJoining,
+    kTerminatedAndJoined
+  };
+  bool is_running() const;
+
   void ProcessMessage(std::unique_ptr<SerializationData> data);
   void ProcessMessages();
 
@@ -225,7 +241,7 @@ class Worker : public std::enable_shared_from_this<Worker> {
   SerializationDataQueue out_queue_;
   base::Thread* thread_ = nullptr;
   char* script_;
-  std::atomic<bool> running_;
+  std::atomic<State> state_;
   // For signalling that the worker has started.
   base::Semaphore started_semaphore_{0};
 
@@ -393,6 +409,8 @@ class ShellOptions {
   bool test_shell = false;
   DisallowReassignment<bool> expected_to_throw = {"throws", false};
   DisallowReassignment<bool> no_fail = {"no-fail", false};
+  DisallowReassignment<bool> dump_counters = {"dump-counters", false};
+  DisallowReassignment<bool> dump_counters_nvp = {"dump-counters-nvp", false};
   DisallowReassignment<bool> ignore_unhandled_promises = {
       "ignore-unhandled-promises", false};
   DisallowReassignment<bool> mock_arraybuffer_allocator = {
@@ -462,7 +480,7 @@ class Shell : public i::AllStatic {
   enum class CodeType { kFileName, kString, kFunction, kInvalid, kNone };
 
   static bool ExecuteString(Isolate* isolate, Local<String> source,
-                            Local<Value> name, PrintResult print_result,
+                            Local<String> name, PrintResult print_result,
                             ReportExceptions report_exceptions,
                             ProcessMessageQueue process_message_queue);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
@@ -478,7 +496,7 @@ class Shell : public i::AllStatic {
   static int RunMain(Isolate* isolate, bool last_run);
   static int Main(int argc, char* argv[]);
   static void Exit(int exit_code);
-  static void OnExit(Isolate* isolate);
+  static void OnExit(Isolate* isolate, bool dispose);
   static void CollectGarbage(Isolate* isolate);
   static bool EmptyMessageQueues(Isolate* isolate);
   static bool CompleteMessageLoop(Isolate* isolate);
@@ -607,8 +625,9 @@ class Shell : public i::AllStatic {
   static void MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static MaybeLocal<Promise> HostImportModuleDynamically(
-      Local<Context> context, Local<ScriptOrModule> script_or_module,
-      Local<String> specifier, Local<FixedArray> import_assertions);
+      Local<Context> context, Local<Data> host_defined_options,
+      Local<Value> resource_name, Local<String> specifier,
+      Local<FixedArray> import_assertions);
 
   static void ModuleResolutionSuccessCallback(
       const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -668,6 +687,7 @@ class Shell : public i::AllStatic {
   static Global<Function> stringify_function_;
   static const char* stringify_source_;
   static CounterMap* counter_map_;
+  static base::SharedMutex counter_mutex_;
   // We statically allocate a set of local counters to be used if we
   // don't want to store the stats in a memory-mapped file
   static CounterCollection local_counters_;

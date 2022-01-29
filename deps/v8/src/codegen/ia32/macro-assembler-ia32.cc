@@ -326,7 +326,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                     Register exclusion2, Register exclusion3) {
   ASM_CODE_COMMENT(this);
-  // We don't allow a GC during a store buffer overflow so there is no need to
+  // We don't allow a GC in a write barrier slow path so there is no need to
   // store the registers in any particular way, but we do have to store and
   // restore them.
   int bytes = 0;
@@ -1212,7 +1212,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
-void MacroAssembler::JumpToInstructionStream(Address entry) {
+void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
   jmp(entry, RelocInfo::OFF_HEAP_TARGET);
 }
 

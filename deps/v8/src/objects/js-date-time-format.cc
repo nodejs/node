@@ -145,16 +145,14 @@ static std::vector<PatternItem> BuildPatternItems() {
                               kNarrowLongShort2DigitNumeric));
   items.push_back(PatternItem("day", {{"dd", "2-digit"}, {"d", "numeric"}},
                               k2DigitNumeric));
-  if (FLAG_harmony_intl_dateformat_day_period) {
-    items.push_back(PatternItem("dayPeriod",
-                                {{"BBBBB", "narrow"},
-                                 {"bbbbb", "narrow"},
-                                 {"BBBB", "long"},
-                                 {"bbbb", "long"},
-                                 {"B", "short"},
-                                 {"b", "short"}},
-                                kNarrowLongShort));
-  }
+  items.push_back(PatternItem("dayPeriod",
+                              {{"BBBBB", "narrow"},
+                               {"bbbbb", "narrow"},
+                               {"BBBB", "long"},
+                               {"bbbb", "long"},
+                               {"B", "short"},
+                               {"b", "short"}},
+                              kNarrowLongShort));
   items.push_back(PatternItem("hour",
                               {{"HH", "2-digit"},
                                {"H", "numeric"},
@@ -170,7 +168,6 @@ static std::vector<PatternItem> BuildPatternItems() {
   items.push_back(PatternItem("second", {{"ss", "2-digit"}, {"s", "numeric"}},
                               k2DigitNumeric));
 
-  if (FLAG_harmony_intl_more_timezone) {
     const std::vector<const char*> kTimezone = {"long",        "short",
                                                 "longOffset",  "shortOffset",
                                                 "longGeneric", "shortGeneric"};
@@ -182,11 +179,7 @@ static std::vector<PatternItem> BuildPatternItems() {
                                  {"vvvv", "longGeneric"},
                                  {"v", "shortGeneric"}},
                                 kTimezone));
-  } else {
-    items.push_back(PatternItem(
-        "timeZoneName", {{"zzzz", "long"}, {"z", "short"}}, kLongShort));
-  }
-  return items;
+    return items;
 }
 
 class PatternItems {
@@ -929,9 +922,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ToDateTimeOptions(
     // a. For each of the property names "dayPeriod", "hour", "minute",
     // "second", "fractionalSecondDigits", do
     std::vector<Handle<String>> list;
-    if (FLAG_harmony_intl_dateformat_day_period) {
-      list.push_back(factory->dayPeriod_string());
-    }
+    list.push_back(factory->dayPeriod_string());
     list.push_back(factory->hour_string());
     list.push_back(factory->minute_string());
     list.push_back(factory->second_string());
@@ -1081,7 +1072,7 @@ class CalendarCache {
         icu::GregorianCalendar::getStaticClassID()) {
       icu::GregorianCalendar* gc =
           static_cast<icu::GregorianCalendar*>(calendar.get());
-      UErrorCode status = U_ZERO_ERROR;
+      status = U_ZERO_ERROR;
       // The beginning of ECMAScript time, namely -(2**53)
       const double start_of_time = -9007199254740992;
       gc->setGregorianChange(start_of_time, status);
@@ -1726,7 +1717,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
 
   // 29. Let matcher be ? GetOption(options, "formatMatcher", "string", «
   // "basic", "best fit" », "best fit").
-  enum FormatMatcherOption { kBestFit, kBasic };
   // We implement only best fit algorithm, but still need to check
   // if the formatMatcher values are in range.
   // c. Let matcher be ? GetOption(options, "formatMatcher", "string",
@@ -1870,7 +1860,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       if (dateTimeFormatHourCycle !=
           ToHourCycle(hc_extension_it->second.c_str())) {
         // Remove -hc- if it does not agree with what we used.
-        UErrorCode status = U_ZERO_ERROR;
+        status = U_ZERO_ERROR;
         resolved_locale.setUnicodeKeywordValue("hc", nullptr, status);
         DCHECK(U_SUCCESS(status));
       }

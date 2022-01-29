@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax --wasm-dynamic-tiering --liftoff
 // Flags: --no-wasm-tier-up --no-stress-opt
+// Make the test faster:
+// Flags: --wasm-tiering-budget=1000
 
 // This test busy-waits for tier-up to be complete, hence it does not work in
 // predictable more where we only have a single thread.
@@ -11,7 +13,6 @@
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
-const num_iterations = 4;
 const num_functions = 2;
 
 const builder = new WasmModuleBuilder();
@@ -23,20 +24,16 @@ for (let i = 0; i < num_functions; ++i) {
 
 let instance = builder.instantiate();
 
-for (let i = 0; i < num_iterations - 1; ++i) {
+// The first few calls happen with Liftoff code.
+for (let i = 0; i < 3; ++i) {
   instance.exports.f0();
   instance.exports.f1();
 }
-
 assertTrue(%IsLiftoffFunction(instance.exports.f0));
 assertTrue(%IsLiftoffFunction(instance.exports.f1));
 
-instance.exports.f1();
-
-// Busy waiting until the function is tiered up.
-while (true) {
-  if (!%IsLiftoffFunction(instance.exports.f1)) {
-    break;
-  }
+// Keep calling the function until it gets tiered up.
+while (%IsLiftoffFunction(instance.exports.f1)) {
+  instance.exports.f1();
 }
 assertTrue(%IsLiftoffFunction(instance.exports.f0));

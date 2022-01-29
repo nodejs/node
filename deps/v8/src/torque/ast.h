@@ -937,7 +937,7 @@ struct ClassFieldExpression {
   NameAndTypeExpression name_and_type;
   base::Optional<ClassFieldIndexInfo> index;
   std::vector<ConditionalAnnotation> conditions;
-  bool weak;
+  bool custom_weak_marking;
   bool const_qualified;
   FieldSynchronization read_synchronization;
   FieldSynchronization write_synchronization;

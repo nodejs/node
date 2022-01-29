@@ -247,7 +247,7 @@ void RelocInfo::WipeOut() {
 }
 
 // Operand constructors
-Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NONE) {}
+Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NO_INFO) {}
 
 // Fetch the 32bit value from the FIXED_SEQUENCE IIHF / IILF
 Address Assembler::target_address_at(Address pc, Address constant_pool) {

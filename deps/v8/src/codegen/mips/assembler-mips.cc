@@ -1133,7 +1133,7 @@ int Assembler::BranchOffset(Instr instr) {
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
 bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
-  return !RelocInfo::IsNone(rmode);
+  return !RelocInfo::IsNoInfo(rmode);
 }
 
 void Assembler::GenInstrRegister(Opcode opcode, Register rs, Register rt,
@@ -3591,7 +3591,7 @@ void Assembler::db(uint8_t data) {
 
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   CheckForEmitInForbiddenSlot();
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
@@ -3602,7 +3602,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 
 void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
   CheckForEmitInForbiddenSlot();
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
@@ -3677,7 +3677,7 @@ void Assembler::CheckTrampolinePool() {
             bc(&after_pool);
             nop();
           } else {
-            GenPCRelativeJump(t8, t9, 0, RelocInfo::NONE,
+            GenPCRelativeJump(t8, t9, 0, RelocInfo::NO_INFO,
                               BranchDelaySlot::PROTECT);
           }
         }
@@ -3799,7 +3799,7 @@ void Assembler::GenPCRelativeJump(Register tf, Register ts, int32_t imm32,
   // or when changing imm32 that lui/ori pair loads.
   or_(tf, ra, zero_reg);
   nal();  // Relative place of nal instruction determines kLongBranchPCOffset.
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     RecordRelocInfo(rmode);
   }
   lui(ts, (imm32 & kHiMask) >> kLuiShift);
@@ -3817,7 +3817,7 @@ void Assembler::GenPCRelativeJump(Register tf, Register ts, int32_t imm32,
 void Assembler::GenPCRelativeJumpAndLink(Register t, int32_t imm32,
                                          RelocInfo::Mode rmode,
                                          BranchDelaySlot bdslot) {
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     RecordRelocInfo(rmode);
   }
   // Order of these instructions is relied upon when patching them

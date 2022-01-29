@@ -124,8 +124,16 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
           : VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
   params.base_bias_size = RoundUp(reserved_area, allocate_page_size);
   params.page_size = MemoryChunk::kPageSize;
+  // V8_EXTERNAL_CODE_SPACE imposes additional alignment requirement for the
+  // base address, so make sure the hint calculation function takes that into
+  // account. Otherwise the allocated reservation might be outside of the
+  // preferred region (see Isolate::GetShortBuiltinsCallRegion()).
+  const size_t hint_alignment =
+      V8_EXTERNAL_CODE_SPACE_BOOL
+          ? RoundUp(params.base_alignment, allocate_page_size)
+          : allocate_page_size;
   params.requested_start_hint =
-      GetCodeRangeAddressHint()->GetAddressHint(requested, allocate_page_size);
+      GetCodeRangeAddressHint()->GetAddressHint(requested, hint_alignment);
 
   if (!VirtualMemoryCage::InitReservation(params)) return false;
 

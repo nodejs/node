@@ -44,7 +44,6 @@ ALL_VARIANT_FLAGS = {
   "turboprop_as_toptier": [["--turboprop-as-toptier", "--turboprop"]],
   "instruction_scheduling": [["--turbo-instruction-scheduling"]],
   "stress_instruction_scheduling": [["--turbo-stress-instruction-scheduling"]],
-  "top_level_await": [["--harmony-top-level-await"]],
   "wasm_write_protect_code": [["--wasm-write-protect-code-memory"]],
   # Google3 variants.
   "google3_icu": [[]],
@@ -73,7 +72,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "stress": ["--always-opt", "--no-always-opt",
              "--max-inlined-bytecode-size=*",
              "--max-inlined-bytecode-size-cumulative=*", "--stress-inline",
-             "--liftoff-only"],
+             "--liftoff-only", "--wasm-speculative-inlining"],
   "sparkplug": ["--jitless"],
   "always_sparkplug": ["--jitless"],
   "code_serializer": ["--cache=after-execute", "--cache=full-code-cache",
@@ -94,7 +93,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
   "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*",
                 "--stress-concurrent-inlining"]
                + INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
-  "predictable": ["--parallel-compile-tasks",
+  "predictable": ["--parallel-compile-tasks-for-eager-toplevel",
+                  "--parallel-compile-tasks-for-lazy",
                   "--concurrent-recompilation",
                   "--stress-concurrent-allocation",
                   "--stress-concurrent-inlining"],
@@ -111,6 +111,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
   "--concurrent-recompilation": ["--predictable", "--assert-types"],
+  "--parallel-compile-tasks-for-eager-toplevel": ["--predictable"],
+  "--parallel-compile-tasks-for-lazy": ["--predictable"],
   "--gc-interval=*": ["--gc-interval=*"],
   "--optimize-for-size": ["--max-semi-space-size=*"],
   "--stress_concurrent_allocation":

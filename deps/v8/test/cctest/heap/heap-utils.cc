@@ -198,7 +198,7 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
   // FLAG_stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!FLAG_stress_concurrent_allocation);
-  CodeSpaceMemoryModificationScope modification_scope(space->heap());
+  CodePageCollectionMemoryModificationScope modification_scope(space->heap());
   i::MarkCompactCollector* collector = space->heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();

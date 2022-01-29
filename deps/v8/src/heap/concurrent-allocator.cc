@@ -36,7 +36,7 @@ void StressConcurrentAllocatorTask::RunInternal() {
 
     AllocationResult result = local_heap.AllocateRaw(
         kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-        AllocationAlignment::kWordAligned);
+        AllocationAlignment::kTaggedAligned);
     if (!result.IsRetry()) {
       heap->CreateFillerObjectAtBackground(
           result.ToAddress(), kSmallObjectSize,
@@ -47,7 +47,7 @@ void StressConcurrentAllocatorTask::RunInternal() {
 
     result = local_heap.AllocateRaw(kMediumObjectSize, AllocationType::kOld,
                                     AllocationOrigin::kRuntime,
-                                    AllocationAlignment::kWordAligned);
+                                    AllocationAlignment::kTaggedAligned);
     if (!result.IsRetry()) {
       heap->CreateFillerObjectAtBackground(
           result.ToAddress(), kMediumObjectSize,
@@ -58,7 +58,7 @@ void StressConcurrentAllocatorTask::RunInternal() {
 
     result = local_heap.AllocateRaw(kLargeObjectSize, AllocationType::kOld,
                                     AllocationOrigin::kRuntime,
-                                    AllocationAlignment::kWordAligned);
+                                    AllocationAlignment::kTaggedAligned);
     if (!result.IsRetry()) {
       heap->CreateFillerObjectAtBackground(
           result.ToAddress(), kLargeObjectSize,
@@ -81,10 +81,22 @@ void StressConcurrentAllocatorTask::Schedule(Isolate* isolate) {
 }
 
 void ConcurrentAllocator::FreeLinearAllocationArea() {
+  // The code page of the linear allocation area needs to be unprotected
+  // because we are going to write a filler into that memory area below.
+  base::Optional<CodePageMemoryModificationScope> optional_scope;
+  if (lab_.IsValid() && space_->identity() == CODE_SPACE) {
+    optional_scope.emplace(MemoryChunk::FromAddress(lab_.top()));
+  }
   lab_.CloseAndMakeIterable();
 }
 
 void ConcurrentAllocator::MakeLinearAllocationAreaIterable() {
+  // The code page of the linear allocation area needs to be unprotected
+  // because we are going to write a filler into that memory area below.
+  base::Optional<CodePageMemoryModificationScope> optional_scope;
+  if (lab_.IsValid() && space_->identity() == CODE_SPACE) {
+    optional_scope.emplace(MemoryChunk::FromAddress(lab_.top()));
+  }
   lab_.MakeIterable();
 }
 
@@ -110,7 +122,7 @@ void ConcurrentAllocator::UnmarkLinearAllocationArea() {
 AllocationResult ConcurrentAllocator::AllocateInLabSlow(
     int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
   if (!EnsureLab(origin)) {
-    return AllocationResult::Retry(OLD_SPACE);
+    return AllocationResult::Retry(space_->identity());
   }
 
   AllocationResult allocation = lab_.AllocateRawAligned(object_size, alignment);
@@ -121,10 +133,10 @@ AllocationResult ConcurrentAllocator::AllocateInLabSlow(
 
 bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
   auto result = space_->RawRefillLabBackground(
-      local_heap_, kLabSize, kMaxLabSize, kWordAligned, origin);
+      local_heap_, kLabSize, kMaxLabSize, kTaggedAligned, origin);
   if (!result) return false;
 
-  if (local_heap_->heap()->incremental_marking()->black_allocation()) {
+  if (IsBlackAllocationEnabled()) {
     Address top = result->first;
     Address limit = top + result->second;
     Page::FromAllocationAreaAddress(top)->CreateBlackAreaBackground(top, limit);
@@ -145,17 +157,23 @@ AllocationResult ConcurrentAllocator::AllocateOutsideLab(
     int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
   auto result = space_->RawRefillLabBackground(local_heap_, object_size,
                                                object_size, alignment, origin);
-  if (!result) return AllocationResult::Retry(OLD_SPACE);
+  if (!result) return AllocationResult::Retry(space_->identity());
 
   HeapObject object = HeapObject::FromAddress(result->first);
 
-  if (local_heap_->heap()->incremental_marking()->black_allocation()) {
-    local_heap_->heap()->incremental_marking()->MarkBlackBackground(
-        object, object_size);
+  if (IsBlackAllocationEnabled()) {
+    owning_heap()->incremental_marking()->MarkBlackBackground(object,
+                                                              object_size);
   }
 
   return AllocationResult(object);
 }
+
+bool ConcurrentAllocator::IsBlackAllocationEnabled() const {
+  return owning_heap()->incremental_marking()->black_allocation();
+}
+
+Heap* ConcurrentAllocator::owning_heap() const { return space_->heap(); }
 
 }  // namespace internal
 }  // namespace v8

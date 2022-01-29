@@ -318,6 +318,7 @@ inline bool V8_EXPORT TryToCopyAndConvertArrayToCppBuffer(Local<Array> src,
 namespace internal {
 
 Handle<Context> HandleScopeImplementer::LastEnteredContext() {
+  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
   DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
 
   for (size_t i = 0; i < entered_contexts_.size(); ++i) {

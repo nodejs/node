@@ -226,7 +226,7 @@ struct Field {
   // because we don't support the struct field for on-heap layouts.
   base::Optional<size_t> offset;
 
-  bool is_weak;
+  bool custom_weak_marking;
   bool const_qualified;
   FieldSynchronization read_synchronization;
   FieldSynchronization write_synchronization;
@@ -618,9 +618,9 @@ class StructType final : public AggregateType {
 
   enum class ClassificationFlag {
     kEmpty = 0,
-    kTagged = 1 << 0,
-    kUntagged = 1 << 1,
-    kMixed = kTagged | kUntagged,
+    kStrongTagged = 1 << 0,
+    kWeakTagged = 1 << 1,
+    kUntagged = 1 << 2,
   };
   using Classification = base::Flags<ClassificationFlag>;
 
@@ -691,11 +691,15 @@ class ClassType final : public AggregateType {
   bool ShouldGenerateCppClassDefinitions() const {
     return (flags_ & ClassFlag::kGenerateCppClassDefinitions) || !IsExtern();
   }
-  bool ShouldGenerateFullClassDefinition() const {
-    return !IsExtern() && !(flags_ & ClassFlag::kCustomCppClass);
+  bool ShouldGenerateFullClassDefinition() const { return !IsExtern(); }
+  bool ShouldGenerateUniqueMap() const {
+    return (flags_ & ClassFlag::kGenerateUniqueMap) ||
+           (!IsExtern() && !IsAbstract());
   }
-  // Class with multiple or non-standard maps, do not auto-generate map.
-  bool HasCustomMap() const { return flags_ & ClassFlag::kCustomMap; }
+  bool ShouldGenerateFactoryFunction() const {
+    return (flags_ & ClassFlag::kGenerateFactoryFunction) ||
+           (ShouldExport() && !IsAbstract());
+  }
   bool ShouldExport() const { return flags_ & ClassFlag::kExport; }
   bool IsShape() const { return flags_ & ClassFlag::kIsShape; }
   bool HasStaticSize() const;

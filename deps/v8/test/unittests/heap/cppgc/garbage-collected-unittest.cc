@@ -248,5 +248,17 @@ TEST_F(GarbageCollectedTestWithHeap,
       GetAllocationHandle());
 }
 
+namespace {
+
+struct MixinA : GarbageCollectedMixin {};
+struct MixinB : GarbageCollectedMixin {};
+struct GCed1 : GarbageCollected<GCed>, MixinA, MixinB {};
+struct GCed2 : MixinA, MixinB {};
+
+static_assert(
+    sizeof(GCed1) == sizeof(GCed2),
+    "Check that empty base optimization always works for GarbageCollected");
+}  // namespace
+
 }  // namespace internal
 }  // namespace cppgc

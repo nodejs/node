@@ -109,6 +109,21 @@ v8::Maybe<v8::PropertyAttribute> DebugPropertyIterator::attributes() {
       PrototypeIterator::GetCurrent<JSReceiver>(prototype_iterator_);
   auto result = JSReceiver::GetPropertyAttributes(receiver, raw_name());
   if (result.IsNothing()) return Nothing<v8::PropertyAttribute>();
+  // This should almost never happen, however we have seen cases where we do
+  // trigger this check. In these rare events, it typically is a
+  // misconfiguration by an embedder (such as Blink) in how the embedder
+  // processes properities.
+  //
+  // In the case of crbug.com/1262066 we discovered that Blink was returning
+  // a list of properties to contain in an object, after which V8 queries each
+  // property individually. But, Blink incorrectly claimed that the property
+  // in question did *not* exist. As such, V8 is instructed to process a
+  // property, requests the embedder for more information and then suddenly the
+  // embedder claims it doesn't exist. In these cases, we hit this DCHECK.
+  //
+  // If you are running into this problem, check your embedder implementation
+  // and verify that the data from both sides matches. If there is a mismatch,
+  // V8 will crash.
   DCHECK(result.FromJust() != ABSENT);
   return Just(static_cast<v8::PropertyAttribute>(result.FromJust()));
 }

@@ -130,7 +130,7 @@ transitioning macro IteratorCloseOnException(implicit context: Context)(
     //   c. Set innerResult to Call(return, iterator).
     // If an exception occurs, the original exception remains bound
     Call(context, method, iterator.object);
-  } catch (_e) {
+  } catch (_e, _message) {
     // Swallow the exception.
   }
 

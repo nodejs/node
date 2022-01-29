@@ -22,18 +22,21 @@ function checkLocale(locale) {
   assertEquals("string", typeof(l.textInfo.direction));
 
   assertEquals("object", typeof(l.weekInfo));
-  assertEquals(4, Object.keys(l.weekInfo).length);
+  assertEquals(3, Object.keys(l.weekInfo).length);
   assertEquals("number", typeof(l.weekInfo.firstDay));
   assertTrue(l.weekInfo.firstDay >= 1);
   assertTrue(l.weekInfo.firstDay <= 7);
 
-  assertEquals("number", typeof(l.weekInfo.weekendStart));
-  assertTrue(l.weekInfo.weekendStart >= 1);
-  assertTrue(l.weekInfo.weekendStart <= 7);
-
-  assertEquals("number", typeof(l.weekInfo.weekendEnd));
-  assertTrue(l.weekInfo.weekendEnd >= 1);
-  assertTrue(l.weekInfo.weekendEnd <= 7);
+  assertEquals("object", typeof(l.weekInfo.weekend));
+  let last = 0;
+  l.weekInfo.weekend.forEach((we) => {
+    // In right range
+    assertTrue(we >= 1);
+    assertTrue(we <= 7);
+    // In order
+    assertTrue(we >= last);
+    last = we;
+  });
 
   assertEquals("number", typeof(l.weekInfo.minimalDays));
   assertTrue(l.weekInfo.minimalDays >= 1);

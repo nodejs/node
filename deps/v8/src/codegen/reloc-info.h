@@ -54,7 +54,7 @@ class RelocInfo {
     // Please note the order is important (see IsRealRelocMode, IsGCRelocMode,
     // and IsShareableRelocMode predicates below).
 
-    NONE,  // Never recorded value. Most common one, hence value 0.
+    NO_INFO,  // Never recorded value. Most common one, hence value 0.
 
     CODE_TARGET,
     RELATIVE_CODE_TARGET,  // LAST_CODE_TARGET_MODE
@@ -132,7 +132,7 @@ class RelocInfo {
     return mode <= LAST_GCED_ENUM;
   }
   static constexpr bool IsShareableRelocMode(Mode mode) {
-    return mode == RelocInfo::NONE ||
+    return mode == RelocInfo::NO_INFO ||
            mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE;
   }
   static constexpr bool IsCodeTarget(Mode mode) { return mode == CODE_TARGET; }
@@ -191,7 +191,7 @@ class RelocInfo {
   static constexpr bool IsOffHeapTarget(Mode mode) {
     return mode == OFF_HEAP_TARGET;
   }
-  static constexpr bool IsNone(Mode mode) { return mode == NONE; }
+  static constexpr bool IsNoInfo(Mode mode) { return mode == NO_INFO; }
 
   static bool IsOnlyForSerializer(Mode mode) {
 #ifdef V8_TARGET_ARCH_IA32

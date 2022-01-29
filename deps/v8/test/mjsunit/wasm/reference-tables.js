@@ -7,6 +7,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestTables() {
+  print(arguments.callee.name);
   var exporting_instance = (function() {
     var builder = new WasmModuleBuilder();
     var binary_type = builder.addType(kSig_i_ii);
@@ -103,6 +104,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function TestNonNullableTables() {
+  print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
 
   var binary_type = builder.addType(kSig_i_ii);

@@ -14,6 +14,7 @@
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/shared-function-info-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -123,7 +124,7 @@ bool JSFunction::IsInOptimizationQueue() {
 void JSFunction::CompleteInobjectSlackTrackingIfActive() {
   if (!has_prototype_slot()) return;
   if (has_initial_map() && initial_map().IsInobjectSlackTrackingInProgress()) {
-    initial_map().CompleteInobjectSlackTracking(GetIsolate());
+    MapUpdater::CompleteInobjectSlackTracking(GetIsolate(), initial_map());
   }
 }
 
@@ -154,6 +155,15 @@ DEF_ACQUIRE_GETTER(JSFunction, code, Code) {
 void JSFunction::set_code(Code code, ReleaseStoreTag, WriteBarrierMode mode) {
   set_raw_code(ToCodeT(code), kReleaseStore, mode);
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+void JSFunction::set_code(CodeT code, WriteBarrierMode mode) {
+  set_raw_code(code, mode);
+}
+void JSFunction::set_code(CodeT code, ReleaseStoreTag, WriteBarrierMode mode) {
+  set_raw_code(code, kReleaseStore, mode);
+}
+#endif
 
 Address JSFunction::code_entry_point() const {
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {

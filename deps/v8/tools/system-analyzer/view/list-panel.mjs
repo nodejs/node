@@ -112,6 +112,7 @@ DOM.defineCustomElement('view/list-panel',
 
   createSubgroups(group) {
     const map = new Map();
+    const tempGroups = [];
     for (let propertyName of this._propertyNames) {
       map.set(
           propertyName,
@@ -176,9 +177,6 @@ DOM.defineCustomElement('view/list-panel',
   _render(groups, table) {
     let last;
     new LazyTable(table, groups, group => {
-      if (last && last.count < group.length) {
-        console.log(last, group);
-      }
       last = group;
       const tr = DOM.tr();
       tr.group = group;

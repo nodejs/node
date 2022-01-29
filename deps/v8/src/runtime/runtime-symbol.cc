@@ -48,7 +48,7 @@ RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Symbol, symbol, 0);
   IncrementalStringBuilder builder(isolate);
-  builder.AppendCString("Symbol(");
+  builder.AppendCStringLiteral("Symbol(");
   if (symbol->description().IsString()) {
     builder.AppendString(handle(String::cast(symbol->description()), isolate));
   }

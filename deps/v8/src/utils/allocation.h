@@ -102,6 +102,10 @@ V8_EXPORT_PRIVATE void AlignedFree(void* ptr);
 // Returns platfrom page allocator instance. Guaranteed to be a valid pointer.
 V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformPageAllocator();
 
+// Returns platfrom virtual memory space instance. Guaranteed to be a valid
+// pointer.
+V8_EXPORT_PRIVATE v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace();
+
 #ifdef V8_VIRTUAL_MEMORY_CAGE
 // Returns the virtual memory cage page allocator instance for allocating pages
 // inside the virtual memory cage. Guaranteed to be a valid pointer.

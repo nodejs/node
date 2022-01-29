@@ -218,16 +218,17 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
             context->global_object().native_context().script_context_table();
         VariableLookupResult r;
         if (ScriptContextTable::Lookup(isolate, script_contexts, *name, &r)) {
-          Context context = script_contexts.get_context(r.context_index);
+          Context script_context = script_contexts.get_context(r.context_index);
           if (FLAG_trace_contexts) {
             PrintF("=> found property in script context %d: %p\n",
-                   r.context_index, reinterpret_cast<void*>(context.ptr()));
+                   r.context_index,
+                   reinterpret_cast<void*>(script_context.ptr()));
           }
           *index = r.slot_index;
           *variable_mode = r.mode;
           *init_flag = r.init_flag;
           *attributes = GetAttributesForMode(r.mode);
-          return handle(context, isolate);
+          return handle(script_context, isolate);
         }
       }
 
@@ -380,9 +381,9 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       // Check the original context, but do not follow its context chain.
       Object obj = context->get(WRAPPED_CONTEXT_INDEX);
       if (obj.IsContext()) {
-        Handle<Context> context(Context::cast(obj), isolate);
+        Handle<Context> wrapped_context(Context::cast(obj), isolate);
         Handle<Object> result =
-            Context::Lookup(context, name, DONT_FOLLOW_CHAINS, index,
+            Context::Lookup(wrapped_context, name, DONT_FOLLOW_CHAINS, index,
                             attributes, init_flag, variable_mode);
         if (!result.is_null()) return result;
       }

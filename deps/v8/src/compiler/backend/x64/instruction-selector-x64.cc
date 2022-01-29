@@ -298,12 +298,8 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
       opcode = kX64Movq;
       break;
     case MachineRepresentation::kCagedPointer:
-#ifdef V8_CAGED_POINTERS
       opcode = kX64MovqDecodeCagedPointer;
       break;
-#else
-      UNREACHABLE();
-#endif
     case MachineRepresentation::kSimd128:
       opcode = kX64Movdqu;
       break;
@@ -341,11 +337,7 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
     case MachineRepresentation::kWord64:
       return kX64Movq;
     case MachineRepresentation::kCagedPointer:
-#ifdef V8_CAGED_POINTERS
       return kX64MovqEncodeCagedPointer;
-#else
-      UNREACHABLE();
-#endif
     case MachineRepresentation::kSimd128:
       return kX64Movdqu;
     case MachineRepresentation::kNone:  // Fall through.
@@ -1960,7 +1952,7 @@ void InstructionSelector::EmitPrepareArguments(
       stack_decrement = 0;
       if (g.CanBeImmediate(input.node)) {
         Emit(kX64Push, g.NoOutput(), decrement, g.UseImmediate(input.node));
-      } else if (IsSupported(ATOM) ||
+      } else if (IsSupported(INTEL_ATOM) ||
                  sequence()->IsFP(GetVirtualRegister(input.node))) {
         // TODO(titzer): X64Push cannot handle stack->stack double moves
         // because there is no way to encode fixed double slots.
@@ -3726,16 +3718,17 @@ namespace {
 void VisitRelaxedLaneSelect(InstructionSelector* selector, Node* node) {
   X64OperandGenerator g(selector);
   // pblendvb copies src2 when mask is set, opposite from Wasm semantics.
+  // node's inputs are: mask, lhs, rhs (determined in wasm-compiler.cc).
   if (selector->IsSupported(AVX)) {
     selector->Emit(
-        kX64Pblendvb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(1)),
-        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(2)));
+        kX64Pblendvb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(2)),
+        g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
   } else {
     // SSE4.1 pblendvb requires xmm0 to hold the mask as an implicit operand.
     selector->Emit(kX64Pblendvb, g.DefineSameAsFirst(node),
+                   g.UseRegister(node->InputAt(2)),
                    g.UseRegister(node->InputAt(1)),
-                   g.UseRegister(node->InputAt(0)),
-                   g.UseFixed(node->InputAt(2), xmm0));
+                   g.UseFixed(node->InputAt(0), xmm0));
   }
 }
 }  // namespace

@@ -40,9 +40,9 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   }
   FunctionKind function_kind;
   if (info->remove_prototype()) {
-    function_kind = kConciseMethod;
+    function_kind = FunctionKind::kConciseMethod;
   } else {
-    function_kind = kNormalFunction;
+    function_kind = FunctionKind::kNormalFunction;
   }
   Handle<SharedFunctionInfo> result =
       isolate->factory()->NewSharedFunctionInfoForApiFunction(name_string, info,

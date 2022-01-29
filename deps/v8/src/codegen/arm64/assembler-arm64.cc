@@ -314,7 +314,7 @@ bool Operand::NeedsRelocation(const Assembler* assembler) const {
     return assembler->options().record_reloc_info_for_serialization;
   }
 
-  return !RelocInfo::IsNone(rmode);
+  return !RelocInfo::IsNoInfo(rmode);
 }
 
 // Assembler
@@ -4375,13 +4375,15 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
 
 void Assembler::near_jump(int offset, RelocInfo::Mode rmode) {
   BlockPoolsScope no_pool_before_b_instr(this);
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  if (!RelocInfo::IsNoInfo(rmode))
+    RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
   b(offset);
 }
 
 void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
   BlockPoolsScope no_pool_before_bl_instr(this);
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  if (!RelocInfo::IsNoInfo(rmode))
+    RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
   bl(offset);
 }
 

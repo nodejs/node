@@ -49,8 +49,6 @@ class Deserializer : public SerializerDeserializer {
   Deserializer(const Deserializer&) = delete;
   Deserializer& operator=(const Deserializer&) = delete;
 
-  uint32_t GetChecksum() const { return source_.GetChecksum(); }
-
  protected:
   // Create a deserializer from a snapshot byte source.
   Deserializer(IsolateT* isolate, base::Vector<const byte> payload,

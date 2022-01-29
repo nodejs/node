@@ -1474,102 +1474,14 @@ std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
   return mirrors;
 }
 
-String16 descriptionForNode(v8::Local<v8::Context> context,
-                            v8::Local<v8::Value> value) {
-  if (!value->IsObject()) return String16();
-  v8::Local<v8::Object> object = value.As<v8::Object>();
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::TryCatch tryCatch(isolate);
-  v8::Local<v8::Value> nodeName;
-  if (!object->Get(context, toV8String(isolate, "nodeName"))
-           .ToLocal(&nodeName)) {
-    return String16();
-  }
-  String16 description;
-  v8::Local<v8::Function> toLowerCase =
-      v8::debug::GetBuiltin(isolate, v8::debug::kStringToLowerCase);
-  if (nodeName->IsString()) {
-    if (!toLowerCase->Call(context, nodeName, 0, nullptr).ToLocal(&nodeName))
-      return String16();
-    if (nodeName->IsString()) {
-      description = toProtocolString(isolate, nodeName.As<v8::String>());
-    }
-  }
-  if (!description.length()) {
-    v8::Local<v8::Value> constructor;
-    if (!object->Get(context, toV8String(isolate, "constructor"))
-             .ToLocal(&constructor) ||
-        !constructor->IsObject()) {
-      return String16();
-    }
-    if (!value.As<v8::Object>()
-             ->Get(context, toV8String(isolate, "name"))
-             .ToLocal(&value) ||
-        !value->IsString()) {
-      return String16();
-    }
-    description = toProtocolString(isolate, value.As<v8::String>());
-  }
-  v8::Local<v8::Value> nodeType;
-  if (!object->Get(context, toV8String(isolate, "nodeType"))
-           .ToLocal(&nodeType) ||
-      !nodeType->IsInt32()) {
-    return description;
-  }
-  if (nodeType.As<v8::Int32>()->Value() == 1) {
-    v8::Local<v8::Value> idValue;
-    if (!object->Get(context, toV8String(isolate, "id")).ToLocal(&idValue)) {
-      return description;
-    }
-    if (idValue->IsString()) {
-      String16 id = toProtocolString(isolate, idValue.As<v8::String>());
-      if (id.length()) {
-        description = String16::concat(description, '#', id);
-      }
-    }
-    v8::Local<v8::Value> classNameValue;
-    if (!object->Get(context, toV8String(isolate, "className"))
-             .ToLocal(&classNameValue)) {
-      return description;
-    }
-    if (classNameValue->IsString() &&
-        classNameValue.As<v8::String>()->Length()) {
-      String16 classes =
-          toProtocolString(isolate, classNameValue.As<v8::String>());
-      String16Builder output;
-      bool previousIsDot = false;
-      for (size_t i = 0; i < classes.length(); ++i) {
-        if (classes[i] == ' ') {
-          if (!previousIsDot) {
-            output.append('.');
-            previousIsDot = true;
-          }
-        } else {
-          output.append(classes[i]);
-          previousIsDot = classes[i] == '.';
-        }
-      }
-      description = String16::concat(description, '.', output.toString());
-    }
-  } else if (nodeType.As<v8::Int32>()->Value() == 1) {
-    return String16::concat("<!DOCTYPE ", description, '>');
-  }
-  return description;
-}
-
 std::unique_ptr<ValueMirror> clientMirror(v8::Local<v8::Context> context,
                                           v8::Local<v8::Value> value,
                                           const String16& subtype) {
-  // TODO(alph): description and length retrieval should move to embedder.
   auto descriptionForValueSubtype =
       clientFor(context)->descriptionForValueSubtype(context, value);
   if (descriptionForValueSubtype) {
     return std::make_unique<ObjectMirror>(
         value, subtype, toString16(descriptionForValueSubtype->string()));
-  }
-  if (subtype == "node") {
-    return std::make_unique<ObjectMirror>(value, subtype,
-                                          descriptionForNode(context, value));
   }
   if (subtype == "error") {
     return std::make_unique<ObjectMirror>(

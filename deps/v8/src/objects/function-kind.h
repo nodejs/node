@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-enum FunctionKind : uint8_t {
+enum class FunctionKind : uint8_t {
   // BEGIN constructable functions
   kNormalFunction,
   kModule,
@@ -66,7 +66,8 @@ enum FunctionKind : uint8_t {
 };
 
 constexpr int kFunctionKindBitSize = 5;
-STATIC_ASSERT(kLastFunctionKind < (1 << kFunctionKindBitSize));
+STATIC_ASSERT(static_cast<int>(FunctionKind::kLastFunctionKind) <
+              (1 << kFunctionKindBitSize));
 
 inline bool IsArrowFunction(FunctionKind kind) {
   return base::IsInRange(kind, FunctionKind::kArrowFunction,

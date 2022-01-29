@@ -105,8 +105,10 @@ namespace {
 // Returns whether the given module appears to have symbols for V8 code.
 bool IsV8Module(IDebugHostModule* module) {
   WRL::ComPtr<IDebugHostSymbol> sp_isolate_sym;
-  // The below symbol is specific to the main V8 module.
-  if (FAILED(module->FindSymbolByName(L"v8::Script::Run", &sp_isolate_sym))) {
+  // The below symbol is specific to the main V8 module and is specified with
+  // V8_NOINLINE, so it should always be present.
+  if (FAILED(module->FindSymbolByName(
+          L"v8::internal::Isolate::PushStackTraceAndDie", &sp_isolate_sym))) {
     return false;
   }
   return true;

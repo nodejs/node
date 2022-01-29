@@ -34,7 +34,7 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(BytecodeArray)
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakFixedArray)
+OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakArrayList)
 OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObject)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
@@ -44,6 +44,7 @@ CAST_ACCESSOR(Code)
 CAST_ACCESSOR(CodeDataContainer)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DeoptimizationData)
+CAST_ACCESSOR(DeoptimizationLiteralArray)
 
 int AbstractCode::raw_instruction_size() {
   if (IsCode()) {
@@ -120,8 +121,14 @@ Address AbstractCode::InstructionEnd() {
   }
 }
 
-bool AbstractCode::contains(Address inner_pointer) {
-  return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
+bool AbstractCode::contains(Isolate* isolate, Address inner_pointer) {
+  PtrComprCageBase cage_base(isolate);
+  if (IsCode(cage_base)) {
+    return GetCode().contains(isolate, inner_pointer);
+  } else {
+    return (address() <= inner_pointer) &&
+           (inner_pointer <= address() + Size(cage_base));
+  }
 }
 
 CodeKind AbstractCode::kind() {
@@ -132,47 +139,6 @@ Code AbstractCode::GetCode() { return Code::cast(*this); }
 
 BytecodeArray AbstractCode::GetBytecodeArray() {
   return BytecodeArray::cast(*this);
-}
-
-DependentCode DependentCode::next_link() {
-  return DependentCode::cast(Get(kNextLinkIndex)->GetHeapObjectAssumeStrong());
-}
-
-void DependentCode::set_next_link(DependentCode next) {
-  Set(kNextLinkIndex, HeapObjectReference::Strong(next));
-}
-
-int DependentCode::flags() { return Smi::ToInt(Get(kFlagsIndex)->ToSmi()); }
-
-void DependentCode::set_flags(int flags) {
-  Set(kFlagsIndex, MaybeObject::FromObject(Smi::FromInt(flags)));
-}
-
-int DependentCode::count() { return CountField::decode(flags()); }
-
-void DependentCode::set_count(int value) {
-  set_flags(CountField::update(flags(), value));
-}
-
-DependentCode::DependencyGroup DependentCode::group() {
-  return static_cast<DependencyGroup>(GroupField::decode(flags()));
-}
-
-void DependentCode::set_object_at(int i, MaybeObject object) {
-  Set(kCodesStartIndex + i, object);
-}
-
-MaybeObject DependentCode::object_at(int i) {
-  return Get(kCodesStartIndex + i);
-}
-
-void DependentCode::clear_at(int i) {
-  Set(kCodesStartIndex + i,
-      HeapObjectReference::Strong(GetReadOnlyRoots().undefined_value()));
-}
-
-void DependentCode::copy(int from, int to) {
-  Set(kCodesStartIndex + to, Get(kCodesStartIndex + from));
 }
 
 OBJECT_CONSTRUCTORS_IMPL(Code, HeapObject)
@@ -292,7 +258,7 @@ CodeDataContainer Code::GCSafeCodeDataContainer(AcquireLoadTag) const {
 // Helper functions for converting Code objects to CodeDataContainer and back
 // when V8_EXTERNAL_CODE_SPACE is enabled.
 inline CodeT ToCodeT(Code code) {
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
   return code.code_data_container(kAcquireLoad);
 #else
   return code;
@@ -300,7 +266,7 @@ inline CodeT ToCodeT(Code code) {
 }
 
 inline Code FromCodeT(CodeT code) {
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
   return code.code();
 #else
   return code;
@@ -308,7 +274,7 @@ inline Code FromCodeT(CodeT code) {
 }
 
 inline Code FromCodeT(CodeT code, RelaxedLoadTag) {
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
   return code.code(kRelaxedLoad);
 #else
   return code;
@@ -316,7 +282,7 @@ inline Code FromCodeT(CodeT code, RelaxedLoadTag) {
 }
 
 inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code) {
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
   return code;
 #else
   return code.code_data_container(kAcquireLoad);
@@ -475,7 +441,8 @@ bool Code::contains(Isolate* isolate, Address inner_pointer) {
       return true;
     }
   }
-  return (address() <= inner_pointer) && (inner_pointer < address() + Size());
+  return (address() <= inner_pointer) &&
+         (inner_pointer < address() + CodeSize());
 }
 
 // static
@@ -487,6 +454,8 @@ void Code::CopyRelocInfoToByteArray(ByteArray dest, const CodeDesc& desc) {
 }
 
 int Code::CodeSize() const { return SizeFor(raw_body_size()); }
+
+DEF_GETTER(Code, Size, int) { return CodeSize(); }
 
 CodeKind Code::kind() const {
   STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);
@@ -855,6 +824,15 @@ bool Code::IsWeakObjectInOptimizedCode(HeapObject object) {
          InstanceTypeChecker::IsContext(instance_type);
 }
 
+bool Code::IsWeakObjectInDeoptimizationLiteralArray(Object object) {
+  // Maps must be strong because they can be used as part of the description for
+  // how to materialize an object upon deoptimization, in which case it is
+  // possible to reach the code that requires the Map without anything else
+  // holding a strong pointer to that Map.
+  return object.IsHeapObject() && !object.IsMap() &&
+         Code::IsWeakObjectInOptimizedCode(HeapObject::cast(object));
+}
+
 bool Code::IsExecutable() {
   return !Builtins::IsBuiltinId(builtin_id()) || !is_off_heap_trampoline() ||
          Builtins::CodeObjectIsExecutable(builtin_id());
@@ -994,6 +972,35 @@ void CodeDataContainer::clear_padding() {
          kSize - kUnalignedSize);
 }
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+//
+// A collection of getters and predicates that forward queries to associated
+// Code object.
+//
+
+#define DEF_PRIMITIVE_FORWARDING_CDC_GETTER(name, type) \
+  type CodeDataContainer::name() const { return FromCodeT(*this).name(); }
+
+#define DEF_FORWARDING_CDC_GETTER(name, type) \
+  DEF_GETTER(CodeDataContainer, name, type) { \
+    return FromCodeT(*this).name(cage_base);  \
+  }
+
+DEF_PRIMITIVE_FORWARDING_CDC_GETTER(kind, CodeKind)
+DEF_PRIMITIVE_FORWARDING_CDC_GETTER(builtin_id, Builtin)
+DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_builtin, bool)
+DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_interpreter_trampoline_builtin, bool)
+
+DEF_FORWARDING_CDC_GETTER(deoptimization_data, FixedArray)
+DEF_FORWARDING_CDC_GETTER(bytecode_or_interpreter_data, HeapObject)
+DEF_FORWARDING_CDC_GETTER(source_position_table, ByteArray)
+DEF_FORWARDING_CDC_GETTER(bytecode_offset_table, ByteArray)
+
+#undef DEF_PRIMITIVE_FORWARDING_CDC_GETTER
+#undef DEF_FORWARDING_CDC_GETTER
+
+#endif  // V8_EXTERNAL_CODE_SPACE
+
 byte BytecodeArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());
   return ReadField<byte>(kHeaderSize + index * kCharSize);
@@ -1127,7 +1134,7 @@ int BytecodeArray::SizeIncludingMetadata() {
 
 DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, TranslationArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, DeoptimizationLiteralArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
@@ -1153,6 +1160,41 @@ void DeoptimizationData::SetBytecodeOffset(int i, BytecodeOffset value) {
 
 int DeoptimizationData::DeoptCount() {
   return (length() - kFirstDeoptEntryIndex) / kDeoptEntrySize;
+}
+
+inline DeoptimizationLiteralArray::DeoptimizationLiteralArray(Address ptr)
+    : WeakFixedArray(ptr) {
+  // No type check is possible beyond that for WeakFixedArray.
+}
+
+inline Object DeoptimizationLiteralArray::get(int index) const {
+  return get(GetPtrComprCageBase(*this), index);
+}
+
+inline Object DeoptimizationLiteralArray::get(PtrComprCageBase cage_base,
+                                              int index) const {
+  MaybeObject maybe = Get(cage_base, index);
+
+  // Slots in the DeoptimizationLiteralArray should only be cleared when there
+  // is no possible code path that could need that slot. This works because the
+  // weakly-held deoptimization literals are basically local variables that
+  // TurboFan has decided not to keep on the stack. Thus, if the deoptimization
+  // literal goes away, then whatever code needed it should be unreachable. The
+  // exception is currently running Code: in that case, the deoptimization
+  // literals array might be the only thing keeping the target object alive.
+  // Thus, when a Code is running, we strongly mark all of its deoptimization
+  // literals.
+  CHECK(!maybe.IsCleared());
+
+  return maybe.GetHeapObjectOrSmi();
+}
+
+inline void DeoptimizationLiteralArray::set(int index, Object value) {
+  MaybeObject maybe = MaybeObject::FromObject(value);
+  if (Code::IsWeakObjectInDeoptimizationLiteralArray(value)) {
+    maybe = MaybeObject::MakeWeak(maybe);
+  }
+  Set(index, maybe);
 }
 
 }  // namespace internal

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-inlining --no-liftoff --experimental-wasm-return-call
+// Flags: --experimental-wasm-gc
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -275,4 +276,66 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let instance = builder.instantiate();
   assertEquals(25, instance.exports.main(10));
+})();
+
+(function InlineSubtypeSignatureTest() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  let callee = builder
+    .addFunction("callee", makeSig([wasmOptRefType(struct)], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 0]);
+
+  // When inlining "callee", TF should pass the real parameter type (ref 0) and
+  // thus eliminate the null check for struct.get.
+  builder.addFunction("main", makeSig([wasmRefType(struct)], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kExprCallFunction, callee.index])
+    .exportFunc();
+
+  builder.instantiate({});
+})();
+
+(function InliningAndEscapeAnalysisTest() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  let callee = builder
+    .addFunction("callee", makeSig([wasmOptRefType(struct)], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 0]);
+
+  // The allocation should be removed.
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add,
+      kGCPrefix, kExprRttCanon, struct,
+      kGCPrefix, kExprStructNewWithRtt, struct,
+      kExprCallFunction, callee.index])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertEquals(11, instance.exports.main(10));
+})();
+
+(function Int64Lowering() {
+  print(arguments.callee.name);
+
+  let kSig_l_li = makeSig([kWasmI64, kWasmI32], [kWasmI64]);
+
+  let builder = new WasmModuleBuilder();
+
+  let callee = builder.addFunction("callee", kSig_l_li)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1, kExprI64SConvertI32, kExprI64Add]);
+
+  builder.addFunction("main", kSig_l_li)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1, kExprCallFunction, callee.index])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertEquals(BigInt(21), instance.exports.main(BigInt(10), 11));
 })();

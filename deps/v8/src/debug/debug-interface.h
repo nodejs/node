@@ -15,6 +15,7 @@
 #include "include/v8-promise.h"
 #include "include/v8-script.h"
 #include "include/v8-util.h"
+#include "src/base/enum-set.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
@@ -47,13 +48,6 @@ int GetContextId(Local<Context> context);
 
 void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
-
-// Returns the debug name for the function, which is supposed to be used
-// by the debugger and the developer tools. This can thus be different from
-// the name returned by the StackFrame::GetFunctionName() method. For example,
-// in case of WebAssembly, the debug name is WAT-compatible and thus always
-// preceeded by a dollar ('$').
-Local<String> GetFunctionDebugName(Local<StackFrame> frame);
 
 // Returns a debug string representation of the function.
 Local<String> GetFunctionDescription(Local<Function> function);
@@ -119,9 +113,24 @@ enum StepAction {
                  // in the current function.
 };
 
+// Record the reason for why the debugger breaks.
+enum class BreakReason : uint8_t {
+  kAlreadyPaused,
+  kStep,
+  kAsyncStep,
+  kException,
+  kAssert,
+  kDebuggerStatement,
+  kOOM,
+  kScheduled,
+  kAgent
+};
+typedef base::EnumSet<BreakReason> BreakReasons;
+
 void PrepareStep(Isolate* isolate, StepAction action);
 void ClearStepping(Isolate* isolate);
-V8_EXPORT_PRIVATE void BreakRightNow(Isolate* isolate);
+V8_EXPORT_PRIVATE void BreakRightNow(
+    Isolate* isolate, base::EnumSet<BreakReason> break_reason = {});
 
 // Use `SetTerminateOnResume` to indicate that an TerminateExecution interrupt
 // should be set shortly before resuming, i.e. shortly before returning into
@@ -228,7 +237,8 @@ class DebugDelegate {
   // debug::Script::SetBreakpoint API.
   virtual void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
-      const std::vector<debug::BreakpointId>& inspector_break_points_hit) {}
+      const std::vector<debug::BreakpointId>& inspector_break_points_hit,
+      base::EnumSet<BreakReason> break_reasons = {}) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Value> exception,
                                v8::Local<v8::Value> promise, bool is_uncaught,
@@ -259,7 +269,8 @@ class AsyncEventDelegate {
                                   bool is_blackboxed) = 0;
 };
 
-void SetAsyncEventDelegate(Isolate* isolate, AsyncEventDelegate* delegate);
+V8_EXPORT_PRIVATE void SetAsyncEventDelegate(Isolate* isolate,
+                                             AsyncEventDelegate* delegate);
 
 void ResetBlackboxedStateCache(Isolate* isolate,
                                v8::Local<debug::Script> script);

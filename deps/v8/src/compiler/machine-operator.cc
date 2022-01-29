@@ -1046,7 +1046,7 @@ struct MachineOperatorGlobalCache {
         : Operator1<StoreRepresentation>(                                  \
               IrOpcode::kProtectedStore,                                   \
               Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
-              "Store", 3, 1, 1, 0, 1, 0,                                   \
+              "ProtectedStore", 3, 1, 1, 0, 1, 0,                          \
               StoreRepresentation(MachineRepresentation::Type,             \
                                   kNoWriteBarrier)) {}                     \
   };                                                                       \

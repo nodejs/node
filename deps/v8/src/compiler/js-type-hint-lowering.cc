@@ -325,9 +325,8 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceUnaryOperation(
       if (!node) {
         if (jsgraph()->machine()->Is64()) {
           if (GetBinaryOperationHint(slot) == BinaryOperationHint::kBigInt) {
-            const Operator* op =
-                jsgraph()->simplified()->SpeculativeBigIntNegate(
-                    BigIntOperationHint::kBigInt);
+            op = jsgraph()->simplified()->SpeculativeBigIntNegate(
+                BigIntOperationHint::kBigInt);
             node = jsgraph()->graph()->NewNode(op, operand, effect, control);
           }
         }
