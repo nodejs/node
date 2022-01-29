@@ -1407,18 +1407,13 @@ function suggestMachine(machine, input, partial) {
             for (const node of currentNodes) {
                 const nodeDef = machine.nodes[node];
                 const keys = Object.keys(nodeDef.statics);
-                // The fact that `key` is unused is likely a bug, but no one has investigated it yet.
-                // TODO: Investigate it.
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                for (const key of Object.keys(nodeDef.statics)) {
-                    const segment = keys[0];
-                    for (const { to, reducer } of nodeDef.statics[segment]) {
-                        if (reducer !== `pushPath`)
-                            continue;
-                        if (!skipFirst)
-                            suggestion.push(segment);
-                        nextNodes.push(to);
-                    }
+                const segment = keys[0];
+                for (const { to, reducer } of nodeDef.statics[segment]) {
+                    if (reducer !== `pushPath`)
+                        continue;
+                    if (!skipFirst)
+                        suggestion.push(segment);
+                    nextNodes.push(to);
                 }
             }
             skipFirst = false;
