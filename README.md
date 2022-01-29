@@ -649,7 +649,7 @@ maintaining the Node.js project.
 * [marsonya](https://github.com/marsonya) -
   **Akhil Marsonya** <<akhil.marsonya27@gmail.com>> (he/him)
 * [Mesteery](https://github.com/Mesteery) -
-  **Mestery** <<mestery@pm.me>>
+  **Mestery** <<mestery@protonmail.com>> (he/him)
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
   **Pooja Durgad** <<Pooja.D.P@ibm.com>>
 * [RaisinTen](https://github.com/RaisinTen) -
