@@ -9,6 +9,7 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "node_url.h"
 #include "threadpoolwork-inl.h"
 #include "tracing/traced_value.h"
 #include "util-inl.h"
@@ -589,13 +590,13 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
   if (module->ToObject(context).ToLocal(&modobj) &&
       modobj->Get(context, node_env->filename_string()).ToLocal(&filename_js) &&
       filename_js->IsString()) {
-    node::Utf8Value filename(node_env->isolate(), filename_js);  // Cast
+    node::Utf8Value filename(node_env->isolate(), filename_js);
 
     // Turn the absolute path into a URL. Currently the absolute path is always
     // a file system path.
     // TODO(gabrielschulhof): Pass the `filename` through unchanged if/when we
     // receive it as a URL already.
-    module_filename = std::string("file://") + (*filename);
+    module_filename = node::url::URL::FromFilePath(filename.ToString()).href();
   }
 
   // Create a new napi_env for this specific module.
