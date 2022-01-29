@@ -94,7 +94,7 @@ class URL {
                     const struct url_data* base,
                     bool has_base);
 
-  static std::string SerializeURL(const struct url_data* url, bool exclude);
+  static std::string SerializeURL(const url_data& url, bool exclude);
 
   URL(const char* input, const size_t len) {
     Parse(input, len, kUnknownState, &context_, false, nullptr, false);
@@ -174,7 +174,7 @@ class URL {
   }
 
   std::string href() const {
-    return SerializeURL(&context_, false);
+    return SerializeURL(context_, false);
   }
 
   // Get the path of the file: URL in a format consumable by native file system
@@ -193,7 +193,7 @@ class URL {
   URL() : URL("") {}
 
  private:
-  struct url_data context_;
+  url_data context_;
 };
 
 }  // namespace url
