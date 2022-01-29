@@ -582,9 +582,7 @@ std::string URLHost::ToString() const {
       dest.reserve(15);
       uint32_t value = value_.ipv4;
       for (int n = 0; n < 4; n++) {
-        char buf[4];
-        snprintf(buf, sizeof(buf), "%d", value % 256);
-        dest.insert(0, buf);
+        dest.insert(0, std::to_string(value % 256));
         if (n < 3)
           dest.insert(0, 1, '.');
         value /= 256;
