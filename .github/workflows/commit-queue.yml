@@ -11,7 +11,7 @@ on:
   # be read-only, and the Action won't have access to any other repository
   # secrets, which it needs to access Jenkins API.
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: '*/5 * * * *'
 
 env:
   NODE_VERSION: lts/*

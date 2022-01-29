@@ -6,7 +6,7 @@ on:
     # optimistic, it can take longer to run.
     # To understand why `schedule` is used instead of other events, refer to
     # ./doc/contributing/commit-queue.md
-    - cron: "*/5 * * * *"
+    - cron: '*/5 * * * *'
 
 env:
   NODE_VERSION: lts/*

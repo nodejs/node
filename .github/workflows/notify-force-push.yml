@@ -16,7 +16,7 @@ jobs:
         env:
           SLACK_COLOR: '#DE512A'
           SLACK_ICON: https://github.com/nodejs.png?size=48
-          SLACK_TITLE: '${{ github.actor }} force-pushed to ${{ github.ref }}'
+          SLACK_TITLE: ${{ github.actor }} force-pushed to ${{ github.ref }}
           SLACK_MESSAGE: |
             A commit was force-pushed to <https://github.com/${{ github.repository }}/tree/${{ github.repository.default_branch }}|${{ github.repository }}@${{ github.repository.default_branch }}> by <https://github.com/${{ github.actor }}|${{ github.actor }}>
 

@@ -1,7 +1,7 @@
 name: Close stalled issues and PRs
 on:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: 0 0 * * *
 
 env:
   CLOSE_MESSAGE: >

@@ -3,7 +3,7 @@ name: Find inactive TSC members
 on:
   schedule:
     # Run every Tuesday 12:05 AM UTC.
-    - cron: '5 0 * * 2'
+    - cron: 5 0 * * 2
 
   workflow_dispatch:
 
@@ -51,6 +51,6 @@ jobs:
             @nodejs/tsc ${{ env.INACTIVE_TSC_HANDLES }}
 
             ${{ env.DETAILS_FOR_COMMIT_BODY }}
-          commit-message: "meta: move one or more TSC members to emeritus"
+          commit-message: 'meta: move one or more TSC members to emeritus'
           labels: meta
-          title: "meta: move one or more TSC members to emeritus"
+          title: 'meta: move one or more TSC members to emeritus'

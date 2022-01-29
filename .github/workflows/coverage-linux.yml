@@ -5,18 +5,18 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - '**.md'
-      - 'benchmark/**'
-      - 'deps/**'
-      - 'doc/**'
+      - benchmark/**
+      - deps/*
+      - doc/**
       - .github/**
       - '!.github/workflows/coverage-linux.yml'
   push:
     branches: [master, main]
     paths-ignore:
       - '**.md'
-      - 'benchmark/**'
-      - 'deps/**'
-      - 'doc/**'
+      - benchmark/**
+      - deps/**
+      - doc/**
       - .github/**
       - '!.github/workflows/coverage-linux.yml'
 

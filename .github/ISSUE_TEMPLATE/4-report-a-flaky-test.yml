@@ -1,6 +1,6 @@
 name: Report a flaky test
 description: Report a flaky test in our CI
-labels: ["flaky-test"]
+labels: [flaky-test]
 body:
   - type: markdown
     attributes:

@@ -138,7 +138,7 @@ jobs:
           persist-credentials: false
       - uses: mszostok/codeowners-validator@v0.6.0
         with:
-          checks: "files,duppatterns"
+          checks: files,duppatterns
   lint-pr-url:
     if: ${{ github.event.pull_request }}
     runs-on: ubuntu-latest

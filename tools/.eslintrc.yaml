@@ -5,11 +5,11 @@ env:
 rules:
   camelcase:
     - error
-    - properties: 'never'
+    - properties: never
       ignoreDestructuring: true
-      allow: ['child_process']
+      allow: [child_process]
   no-unused-vars:
     - error
-    - args: 'after-used'
+    - args: after-used
   prefer-arrow-callback: error
   no-var: error
