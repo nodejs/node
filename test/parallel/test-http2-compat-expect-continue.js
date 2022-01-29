@@ -70,7 +70,7 @@ const http2 = require('http2');
   server.on('listening', common.mustCall(() => {
     const client = http2.connect(`http://localhost:${server.address().port}`);
     const req = client.request({
-      ":path": "/",
+      ':path': '/',
       'expect': '100-continue'
     });
 
