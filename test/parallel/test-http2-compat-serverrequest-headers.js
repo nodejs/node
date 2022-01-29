@@ -91,7 +91,7 @@ const h2 = require('http2');
 
 {
   // Http2ServerRequest should keep pseudo-headers order and after them,
-  // in the same order, the others headers 
+  // in the same order, the others headers
 
   const server = h2.createServer();
   server.listen(0, common.mustCall(function() {
