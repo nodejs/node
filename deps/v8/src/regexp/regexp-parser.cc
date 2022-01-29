@@ -4,7 +4,9 @@
 
 #include "src/regexp/regexp-parser.h"
 
+#include "src/base/small-vector.h"
 #include "src/execution/isolate.h"
+#include "src/objects/string-inl.h"
 #include "src/regexp/property-sequences.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -12,6 +14,7 @@
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
+#include "src/zone/zone-allocator.h"
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
@@ -36,9 +39,9 @@ class RegExpBuilder {
   RegExpBuilder(Zone* zone, RegExpFlags flags)
       : zone_(zone),
         flags_(flags),
-        terms_(2, zone),
-        text_(2, zone),
-        alternatives_(2, zone) {}
+        terms_(ZoneAllocator<RegExpTree*>{zone}),
+        text_(ZoneAllocator<RegExpTree*>{zone}),
+        alternatives_(ZoneAllocator<RegExpTree*>{zone}) {}
   void AddCharacter(base::uc16 character);
   void AddUnicodeCharacter(base::uc32 character);
   void AddEscapedUnicodeCharacter(base::uc32 character);
@@ -78,9 +81,12 @@ class RegExpBuilder {
   const RegExpFlags flags_;
   ZoneList<base::uc16>* characters_ = nullptr;
   base::uc16 pending_surrogate_ = kNoPendingSurrogate;
-  ZoneList<RegExpTree*> terms_;
-  ZoneList<RegExpTree*> text_;
-  ZoneList<RegExpTree*> alternatives_;
+
+  using SmallRegExpTreeVector =
+      base::SmallVector<RegExpTree*, 8, ZoneAllocator<RegExpTree*>>;
+  SmallRegExpTreeVector terms_;
+  SmallRegExpTreeVector text_;
+  SmallRegExpTreeVector alternatives_;
 #ifdef DEBUG
   enum {
     ADD_NONE,
@@ -233,17 +239,18 @@ class RegExpParserImpl final {
   RegExpTree* ReportError(RegExpError error);
   void Advance();
   void Advance(int dist);
+  void RewindByOneCodepoint();  // Rewinds to before the previous Advance().
   void Reset(int pos);
 
   // Reports whether the pattern might be used as a literal search string.
   // Only use if the result of the parse is a single atom node.
-  bool simple();
-  bool contains_anchor() { return contains_anchor_; }
+  bool simple() const { return simple_; }
+  bool contains_anchor() const { return contains_anchor_; }
   void set_contains_anchor() { contains_anchor_ = true; }
-  int captures_started() { return captures_started_; }
-  int position() { return next_pos_ - 1; }
-  bool failed() { return failed_; }
-  bool unicode() const { return IsUnicode(top_level_flags_); }
+  int captures_started() const { return captures_started_; }
+  int position() const { return next_pos_ - 1; }
+  bool failed() const { return failed_; }
+  bool unicode() const { return IsUnicode(top_level_flags_) || force_unicode_; }
 
   static bool IsSyntaxCharacterOrSlash(base::uc32 c);
 
@@ -279,9 +286,9 @@ class RegExpParserImpl final {
 
   Zone* zone() const { return zone_; }
 
-  base::uc32 current() { return current_; }
-  bool has_more() { return has_more_; }
-  bool has_next() { return next_pos_ < input_length(); }
+  base::uc32 current() const { return current_; }
+  bool has_more() const { return has_more_; }
+  bool has_next() const { return next_pos_ < input_length(); }
   base::uc32 Next();
   template <bool update_position>
   base::uc32 ReadNext();
@@ -300,6 +307,22 @@ class RegExpParserImpl final {
     }
   };
 
+  class ForceUnicodeScope final {
+   public:
+    explicit ForceUnicodeScope(RegExpParserImpl<CharT>* parser)
+        : parser_(parser) {
+      DCHECK(!parser_->force_unicode_);
+      parser_->force_unicode_ = true;
+    }
+    ~ForceUnicodeScope() {
+      DCHECK(parser_->force_unicode_);
+      parser_->force_unicode_ = false;
+    }
+
+   private:
+    RegExpParserImpl<CharT>* const parser_;
+  };
+
   const DisallowGarbageCollection no_gc_;
   Zone* const zone_;
   RegExpError error_ = RegExpError::kNone;
@@ -311,6 +334,7 @@ class RegExpParserImpl final {
   const int input_length_;
   base::uc32 current_;
   const RegExpFlags top_level_flags_;
+  bool force_unicode_ = false;  // Force parser to act as if unicode were set.
   int next_pos_;
   int captures_started_;
   int capture_count_;  // Only valid after we have scanned for captures.
@@ -422,6 +446,17 @@ void RegExpParserImpl<CharT>::Advance() {
 }
 
 template <class CharT>
+void RegExpParserImpl<CharT>::RewindByOneCodepoint() {
+  if (current() == kEndMarker) return;
+  // Rewinds by one code point, i.e.: two code units if `current` is outside
+  // the basic multilingual plane (= composed of a lead and trail surrogate),
+  // or one code unit otherwise.
+  const int rewind_by =
+      current() > unibrow::Utf16::kMaxNonSurrogateCharCode ? -2 : -1;
+  Advance(rewind_by);  // Undo the last Advance.
+}
+
+template <class CharT>
 void RegExpParserImpl<CharT>::Reset(int pos) {
   next_pos_ = pos;
   has_more_ = (pos < input_length());
@@ -432,11 +467,6 @@ template <class CharT>
 void RegExpParserImpl<CharT>::Advance(int dist) {
   next_pos_ += dist - 1;
   Advance();
-}
-
-template <class CharT>
-bool RegExpParserImpl<CharT>::simple() {
-  return simple_;
 }
 
 template <class CharT>
@@ -581,16 +611,16 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
       case '^': {
         Advance();
         builder->AddAssertion(zone()->template New<RegExpAssertion>(
-            builder->multiline() ? RegExpAssertion::START_OF_LINE
-                                 : RegExpAssertion::START_OF_INPUT));
+            builder->multiline() ? RegExpAssertion::Type::START_OF_LINE
+                                 : RegExpAssertion::Type::START_OF_INPUT));
         set_contains_anchor();
         continue;
       }
       case '$': {
         Advance();
-        RegExpAssertion::AssertionType assertion_type =
-            builder->multiline() ? RegExpAssertion::END_OF_LINE
-                                 : RegExpAssertion::END_OF_INPUT;
+        RegExpAssertion::Type assertion_type =
+            builder->multiline() ? RegExpAssertion::Type::END_OF_LINE
+                                 : RegExpAssertion::Type::END_OF_INPUT;
         builder->AddAssertion(
             zone()->template New<RegExpAssertion>(assertion_type));
         continue;
@@ -698,12 +728,12 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
           case 'b':
             Advance(2);
             builder->AddAssertion(zone()->template New<RegExpAssertion>(
-                RegExpAssertion::BOUNDARY));
+                RegExpAssertion::Type::BOUNDARY));
             continue;
           case 'B':
             Advance(2);
             builder->AddAssertion(zone()->template New<RegExpAssertion>(
-                RegExpAssertion::NON_BOUNDARY));
+                RegExpAssertion::Type::NON_BOUNDARY));
             continue;
           // AtomEscape ::
           //   CharacterClassEscape
@@ -1047,48 +1077,73 @@ void push_code_unit(ZoneVector<base::uc16>* v, uint32_t code_unit) {
 
 template <class CharT>
 const ZoneVector<base::uc16>* RegExpParserImpl<CharT>::ParseCaptureGroupName() {
+  // Due to special Advance requirements (see the next comment), rewind by one
+  // such that names starting with a surrogate pair are parsed correctly for
+  // patterns where the unicode flag is unset.
+  //
+  // Note that we use this odd pattern of rewinding the last advance in order
+  // to adhere to the common parser behavior of expecting `current` to point at
+  // the first candidate character for a function (e.g. when entering ParseFoo,
+  // `current` should point at the first character of Foo).
+  RewindByOneCodepoint();
+
   ZoneVector<base::uc16>* name =
       zone()->template New<ZoneVector<base::uc16>>(zone());
 
-  bool at_start = true;
-  while (true) {
-    base::uc32 c = current();
-    Advance();
+  {
+    // Advance behavior inside this function is tricky since
+    // RegExpIdentifierName explicitly enables unicode (in spec terms, sets +U)
+    // and thus allows surrogate pairs and \u{}-style escapes even in
+    // non-unicode patterns. Therefore Advance within the capture group name
+    // has to force-enable unicode, and outside the name revert to default
+    // behavior.
+    ForceUnicodeScope force_unicode(this);
 
-    // Convert unicode escapes.
-    if (c == '\\' && current() == 'u') {
+    bool at_start = true;
+    while (true) {
       Advance();
-      if (!ParseUnicodeEscape(&c)) {
-        ReportError(RegExpError::kInvalidUnicodeEscape);
-        return nullptr;
+      base::uc32 c = current();
+
+      // Convert unicode escapes.
+      if (c == '\\' && Next() == 'u') {
+        Advance(2);
+        if (!ParseUnicodeEscape(&c)) {
+          ReportError(RegExpError::kInvalidUnicodeEscape);
+          return nullptr;
+        }
+        RewindByOneCodepoint();
       }
-    }
 
-    // The backslash char is misclassified as both ID_Start and ID_Continue.
-    if (c == '\\') {
-      ReportError(RegExpError::kInvalidCaptureGroupName);
-      return nullptr;
-    }
-
-    if (at_start) {
-      if (!IsIdentifierStart(c)) {
+      // The backslash char is misclassified as both ID_Start and ID_Continue.
+      if (c == '\\') {
         ReportError(RegExpError::kInvalidCaptureGroupName);
         return nullptr;
       }
-      push_code_unit(name, c);
-      at_start = false;
-    } else {
-      if (c == '>') {
-        break;
-      } else if (IsIdentifierPart(c)) {
+
+      if (at_start) {
+        if (!IsIdentifierStart(c)) {
+          ReportError(RegExpError::kInvalidCaptureGroupName);
+          return nullptr;
+        }
         push_code_unit(name, c);
+        at_start = false;
       } else {
-        ReportError(RegExpError::kInvalidCaptureGroupName);
-        return nullptr;
+        if (c == '>') {
+          break;
+        } else if (IsIdentifierPart(c)) {
+          push_code_unit(name, c);
+        } else {
+          ReportError(RegExpError::kInvalidCaptureGroupName);
+          return nullptr;
+        }
       }
     }
   }
 
+  // This final advance goes back into the state of pointing at the next
+  // relevant char, which the rest of the parser expects. See also the previous
+  // comments in this function.
+  Advance();
   return name;
 }
 
@@ -2044,34 +2099,32 @@ void RegExpBuilder::FlushPendingSurrogate() {
   }
 }
 
-
 void RegExpBuilder::FlushCharacters() {
   FlushPendingSurrogate();
   pending_empty_ = false;
   if (characters_ != nullptr) {
     RegExpTree* atom = zone()->New<RegExpAtom>(characters_->ToConstVector());
     characters_ = nullptr;
-    text_.Add(atom, zone());
+    text_.emplace_back(atom);
     LAST(ADD_ATOM);
   }
 }
 
-
 void RegExpBuilder::FlushText() {
   FlushCharacters();
-  int num_text = text_.length();
+  size_t num_text = text_.size();
   if (num_text == 0) {
     return;
   } else if (num_text == 1) {
-    terms_.Add(text_.last(), zone());
+    terms_.emplace_back(text_.back());
   } else {
     RegExpText* text = zone()->New<RegExpText>(zone());
-    for (int i = 0; i < num_text; i++) {
+    for (size_t i = 0; i < num_text; i++) {
       text_[i]->AppendToText(text, zone());
     }
-    terms_.Add(text, zone());
+    terms_.emplace_back(text);
   }
-  text_.Rewind(0);
+  text_.clear();
 }
 
 void RegExpBuilder::AddCharacter(base::uc16 c) {
@@ -2112,7 +2165,6 @@ void RegExpBuilder::AddEscapedUnicodeCharacter(base::uc32 character) {
 
 void RegExpBuilder::AddEmpty() { pending_empty_ = true; }
 
-
 void RegExpBuilder::AddCharacterClass(RegExpCharacterClass* cc) {
   if (NeedsDesugaringForUnicode(cc)) {
     // With /u, character class needs to be desugared, so it
@@ -2135,49 +2187,45 @@ void RegExpBuilder::AddAtom(RegExpTree* term) {
   }
   if (term->IsTextElement()) {
     FlushCharacters();
-    text_.Add(term, zone());
+    text_.emplace_back(term);
   } else {
     FlushText();
-    terms_.Add(term, zone());
+    terms_.emplace_back(term);
   }
   LAST(ADD_ATOM);
 }
 
-
 void RegExpBuilder::AddTerm(RegExpTree* term) {
   FlushText();
-  terms_.Add(term, zone());
+  terms_.emplace_back(term);
   LAST(ADD_ATOM);
 }
 
-
 void RegExpBuilder::AddAssertion(RegExpTree* assert) {
   FlushText();
-  terms_.Add(assert, zone());
+  terms_.emplace_back(assert);
   LAST(ADD_ASSERT);
 }
 
-
 void RegExpBuilder::NewAlternative() { FlushTerms(); }
-
 
 void RegExpBuilder::FlushTerms() {
   FlushText();
-  int num_terms = terms_.length();
+  size_t num_terms = terms_.size();
   RegExpTree* alternative;
   if (num_terms == 0) {
     alternative = zone()->New<RegExpEmpty>();
   } else if (num_terms == 1) {
-    alternative = terms_.last();
+    alternative = terms_.back();
   } else {
-    alternative = zone()->New<RegExpAlternative>(
-        zone()->New<ZoneList<RegExpTree*>>(terms_, zone()));
+    alternative =
+        zone()->New<RegExpAlternative>(zone()->New<ZoneList<RegExpTree*>>(
+            base::VectorOf(terms_.begin(), terms_.size()), zone()));
   }
-  alternatives_.Add(alternative, zone());
-  terms_.Rewind(0);
+  alternatives_.emplace_back(alternative);
+  terms_.clear();
   LAST(ADD_NONE);
 }
-
 
 bool RegExpBuilder::NeedsDesugaringForUnicode(RegExpCharacterClass* cc) {
   if (!unicode()) return false;
@@ -2214,11 +2262,11 @@ bool RegExpBuilder::NeedsDesugaringForIgnoreCase(base::uc32 c) {
 
 RegExpTree* RegExpBuilder::ToRegExp() {
   FlushTerms();
-  int num_alternatives = alternatives_.length();
+  size_t num_alternatives = alternatives_.size();
   if (num_alternatives == 0) return zone()->New<RegExpEmpty>();
-  if (num_alternatives == 1) return alternatives_.last();
-  return zone()->New<RegExpDisjunction>(
-      zone()->New<ZoneList<RegExpTree*>>(alternatives_, zone()));
+  if (num_alternatives == 1) return alternatives_.back();
+  return zone()->New<RegExpDisjunction>(zone()->New<ZoneList<RegExpTree*>>(
+      base::VectorOf(alternatives_.begin(), alternatives_.size()), zone()));
 }
 
 bool RegExpBuilder::AddQuantifierToAtom(
@@ -2237,19 +2285,21 @@ bool RegExpBuilder::AddQuantifierToAtom(
     if (num_chars > 1) {
       base::Vector<const base::uc16> prefix =
           char_vector.SubVector(0, num_chars - 1);
-      text_.Add(zone()->New<RegExpAtom>(prefix), zone());
+      text_.emplace_back(zone()->New<RegExpAtom>(prefix));
       char_vector = char_vector.SubVector(num_chars - 1, num_chars);
     }
     characters_ = nullptr;
     atom = zone()->New<RegExpAtom>(char_vector);
     FlushText();
-  } else if (text_.length() > 0) {
+  } else if (text_.size() > 0) {
     DCHECK(last_added_ == ADD_ATOM);
-    atom = text_.RemoveLast();
+    atom = text_.back();
+    text_.pop_back();
     FlushText();
-  } else if (terms_.length() > 0) {
+  } else if (terms_.size() > 0) {
     DCHECK(last_added_ == ADD_ATOM);
-    atom = terms_.RemoveLast();
+    atom = terms_.back();
+    terms_.pop_back();
     if (atom->IsLookaround()) {
       // With /u, lookarounds are not quantifiable.
       if (unicode()) return false;
@@ -2264,15 +2314,15 @@ bool RegExpBuilder::AddQuantifierToAtom(
       if (min == 0) {
         return true;
       }
-      terms_.Add(atom, zone());
+      terms_.emplace_back(atom);
       return true;
     }
   } else {
     // Only call immediately after adding an atom or character!
     UNREACHABLE();
   }
-  terms_.Add(zone()->New<RegExpQuantifier>(min, max, quantifier_type, atom),
-             zone());
+  terms_.emplace_back(
+      zone()->New<RegExpQuantifier>(min, max, quantifier_type, atom));
   LAST(ADD_TERM);
   return true;
 }

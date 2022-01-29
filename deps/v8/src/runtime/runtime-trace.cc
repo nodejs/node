@@ -38,6 +38,22 @@ void AdvanceToOffsetForTracing(
               interpreter::OperandScale::kSingle));
 }
 
+void PrintRegisterRange(UnoptimizedFrame* frame, std::ostream& os,
+                        interpreter::BytecodeArrayIterator& bytecode_iterator,
+                        const int& reg_field_width, const char* arrow_direction,
+                        interpreter::Register first_reg, int range) {
+  for (int reg_index = first_reg.index(); reg_index < first_reg.index() + range;
+       reg_index++) {
+    Object reg_object = frame->ReadInterpreterRegister(reg_index);
+    os << "      [ " << std::setw(reg_field_width)
+       << interpreter::Register(reg_index).ToString(
+              bytecode_iterator.bytecode_array()->parameter_count())
+       << arrow_direction;
+    reg_object.ShortPrint(os);
+    os << " ]" << std::endl;
+  }
+}
+
 void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
                     interpreter::BytecodeArrayIterator& bytecode_iterator,
                     Handle<Object> accumulator) {
@@ -74,17 +90,14 @@ void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
       interpreter::Register first_reg =
           bytecode_iterator.GetRegisterOperand(operand_index);
       int range = bytecode_iterator.GetRegisterOperandRange(operand_index);
-      for (int reg_index = first_reg.index();
-           reg_index < first_reg.index() + range; reg_index++) {
-        Object reg_object = frame->ReadInterpreterRegister(reg_index);
-        os << "      [ " << std::setw(kRegFieldWidth)
-           << interpreter::Register(reg_index).ToString(
-                  bytecode_iterator.bytecode_array()->parameter_count())
-           << kArrowDirection;
-        reg_object.ShortPrint(os);
-        os << " ]" << std::endl;
-      }
+      PrintRegisterRange(frame, os, bytecode_iterator, kRegFieldWidth,
+                         kArrowDirection, first_reg, range);
     }
+  }
+  if (!is_input && interpreter::Bytecodes::IsShortStar(bytecode)) {
+    PrintRegisterRange(frame, os, bytecode_iterator, kRegFieldWidth,
+                       kArrowDirection,
+                       interpreter::Register::FromShortStar(bytecode), 1);
   }
   if (FLAG_log_colour) {
     os << kNormalColourCode;

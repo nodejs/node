@@ -139,7 +139,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
 
   if (SerializeReadOnlyObject(obj)) return;
 
-  CHECK(!obj->IsCode());
+  CHECK(!obj->IsCode(cage_base()));
 
   ReadOnlyRoots roots(isolate());
   if (ElideObject(*obj)) {
@@ -201,6 +201,25 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     return;
   }
 
+  if (obj->IsUncompiledDataWithoutPreparseDataWithJob()) {
+    Handle<UncompiledDataWithoutPreparseDataWithJob> data =
+        Handle<UncompiledDataWithoutPreparseDataWithJob>::cast(obj);
+    Address job = data->job();
+    data->set_job(kNullAddress);
+    SerializeGeneric(data);
+    data->set_job(job);
+    return;
+  }
+  if (obj->IsUncompiledDataWithPreparseDataAndJob()) {
+    Handle<UncompiledDataWithPreparseDataAndJob> data =
+        Handle<UncompiledDataWithPreparseDataAndJob>::cast(obj);
+    Address job = data->job();
+    data->set_job(kNullAddress);
+    SerializeGeneric(data);
+    data->set_job(job);
+    return;
+  }
+
   // NOTE(mmarchini): If we try to serialize an InterpreterData our process
   // will crash since it stores a code object. Instead, we serialize the
   // bytecode array stored within the InterpreterData, which is the important
@@ -218,7 +237,8 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // There should be no references to the global object embedded.
   CHECK(!obj->IsJSGlobalProxy() && !obj->IsJSGlobalObject());
   // Embedded FixedArrays that need rehashing must support rehashing.
-  CHECK_IMPLIES(obj->NeedsRehashing(), obj->CanBeRehashed());
+  CHECK_IMPLIES(obj->NeedsRehashing(cage_base()),
+                obj->CanBeRehashed(cage_base()));
   // We expect no instantiated function objects or contexts.
   CHECK(!obj->IsJSFunction() && !obj->IsContext());
 
@@ -259,7 +279,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
             INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
     interpreter_data->set_bytecode_array(info->GetBytecodeArray(isolate));
-    interpreter_data->set_interpreter_trampoline(*code);
+    interpreter_data->set_interpreter_trampoline(ToCodeT(*code));
 
     info->set_interpreter_data(*interpreter_data);
 
@@ -557,8 +577,9 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   // Copy serialized data.
   CopyBytes(data_ + kHeaderSize, payload->data(),
             static_cast<size_t>(payload->size()));
-
-  SetHeaderValue(kChecksumOffset, Checksum(ChecksummedContent()));
+  uint32_t checksum =
+      FLAG_verify_snapshot_checksum ? Checksum(ChecksummedContent()) : 0;
+  SetHeaderValue(kChecksumOffset, checksum);
 }
 
 SerializedCodeSanityCheckResult SerializedCodeData::SanityCheck(
@@ -587,21 +608,23 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource()
     return SerializedCodeSanityCheckResult::kMagicNumberMismatch;
   }
   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
-  uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
-  uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
-  uint32_t c = GetHeaderValue(kChecksumOffset);
   if (version_hash != Version::Hash()) {
     return SerializedCodeSanityCheckResult::kVersionMismatch;
   }
+  uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
   if (flags_hash != FlagList::Hash()) {
     return SerializedCodeSanityCheckResult::kFlagsMismatch;
   }
+  uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
   uint32_t max_payload_length = this->size_ - kHeaderSize;
   if (payload_length > max_payload_length) {
     return SerializedCodeSanityCheckResult::kLengthMismatch;
   }
-  if (Checksum(ChecksummedContent()) != c) {
-    return SerializedCodeSanityCheckResult::kChecksumMismatch;
+  if (FLAG_verify_snapshot_checksum) {
+    uint32_t checksum = GetHeaderValue(kChecksumOffset);
+    if (Checksum(ChecksummedContent()) != checksum) {
+      return SerializedCodeSanityCheckResult::kChecksumMismatch;
+    }
   }
   return SerializedCodeSanityCheckResult::kSuccess;
 }

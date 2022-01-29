@@ -476,6 +476,15 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void S128Load32Splat(XMMRegister dst, Operand src);
   void S128Store64Lane(Operand dst, XMMRegister src, uint8_t laneidx);
 
+  void F64x2Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F64x2Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F32x4Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F32x4Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+
  protected:
   template <typename Op>
   using AvxFn = void (Assembler::*)(XMMRegister, XMMRegister, Op, uint8_t);
@@ -900,7 +909,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
       vpshufb(dst, tmp1, dst);
       vpshufb(tmp2, tmp1, tmp2);
       vpaddb(dst, dst, tmp2);
-    } else if (CpuFeatures::IsSupported(ATOM)) {
+    } else if (CpuFeatures::IsSupported(INTEL_ATOM)) {
       // Pre-Goldmont low-power Intel microarchitectures have very slow
       // PSHUFB instruction, thus use PSHUFB-free divide-and-conquer
       // algorithm on these processors. ATOM CPU feature captures exactly

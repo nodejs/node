@@ -40,12 +40,13 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
         vector_ready_(vector_ready),
         vector_consumed_(vector_consumed) {}
 
-  using InlineCacheSet = std::unordered_set<InlineCacheState, std::hash<int>>;
+  using InlineCacheSet = std::unordered_set<InlineCacheState>;
   bool AllRequiredStatesSeen(const InlineCacheSet& found) {
     auto end = found.end();
-    return (found.find(UNINITIALIZED) != end &&
-            found.find(MONOMORPHIC) != end && found.find(POLYMORPHIC) != end &&
-            found.find(MEGAMORPHIC) != end);
+    return (found.find(InlineCacheState::UNINITIALIZED) != end &&
+            found.find(InlineCacheState::MONOMORPHIC) != end &&
+            found.find(InlineCacheState::POLYMORPHIC) != end &&
+            found.find(InlineCacheState::MEGAMORPHIC) != end);
   }
 
   void Run() override {
@@ -65,7 +66,8 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
     for (int i = 0; i < kCycles; i++) {
       FeedbackNexus nexus(feedback_vector_, slot, nexus_config);
       auto state = nexus.ic_state();
-      if (state == MONOMORPHIC || state == POLYMORPHIC) {
+      if (state == InlineCacheState::MONOMORPHIC ||
+          state == InlineCacheState::POLYMORPHIC) {
         MapHandles maps;
         nexus.ExtractMaps(&maps);
         for (unsigned int j = 0; j < maps.size(); j++) {
@@ -93,7 +95,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
       {
         FeedbackNexus nexus(feedback_vector_, slot, nexus_config);
         auto state = nexus.ic_state();
-        CHECK_EQ(state, UNINITIALIZED);
+        CHECK_EQ(state, InlineCacheState::UNINITIALIZED);
       }
       vector_consumed_->Signal();
       vector_ready_->Wait();
@@ -101,7 +103,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
       {
         FeedbackNexus nexus(feedback_vector_, slot, nexus_config);
         auto state = nexus.ic_state();
-        CHECK_EQ(state, MONOMORPHIC);
+        CHECK_EQ(state, InlineCacheState::MONOMORPHIC);
         MapHandles maps;
         nexus.ExtractMaps(&maps);
         CHECK(maps[0]->IsMap());
@@ -112,7 +114,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
       {
         FeedbackNexus nexus(feedback_vector_, slot, nexus_config);
         auto state = nexus.ic_state();
-        CHECK_EQ(state, POLYMORPHIC);
+        CHECK_EQ(state, InlineCacheState::POLYMORPHIC);
         MapHandles maps;
         nexus.ExtractMaps(&maps);
         for (unsigned int i = 0; i < maps.size(); i++) {
@@ -125,7 +127,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
       {
         FeedbackNexus nexus(feedback_vector_, slot, nexus_config);
         auto state = nexus.ic_state();
-        CHECK_EQ(state, MEGAMORPHIC);
+        CHECK_EQ(state, InlineCacheState::MEGAMORPHIC);
       }
     }
 
@@ -184,7 +186,7 @@ TEST(CheckLoadICStates) {
   FeedbackSlot slot(0);
   FeedbackNexus nexus(vector, slot);
   CHECK(IsLoadICKind(nexus.kind()));
-  CHECK_EQ(MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   nexus.ConfigureUninitialized();
 
   // Now the basic environment is set up. Start the worker thread.
@@ -208,7 +210,7 @@ TEST(CheckLoadICStates) {
   for (int i = 0; i < kCycles; i++) {
     if (all_states_seen.load(std::memory_order_acquire)) break;
 
-    CHECK_EQ(UNINITIALIZED, nexus.ic_state());
+    CHECK_EQ(InlineCacheState::UNINITIALIZED, nexus.ic_state());
     if (i == (kCycles - 1)) {
       // If we haven't seen all states by the last attempt, enter an explicit
       // handshaking mode.
@@ -218,7 +220,7 @@ TEST(CheckLoadICStates) {
     }
     nexus.ConfigureMonomorphic(Handle<Name>(), Handle<Map>(o1->map(), isolate),
                                dummy_handler);
-    CHECK_EQ(MONOMORPHIC, nexus.ic_state());
+    CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 
     if (i == (kCycles - 1)) {
       vector_ready.Signal();
@@ -237,7 +239,7 @@ TEST(CheckLoadICStates) {
     map_and_handlers.push_back(
         MapAndHandler(Handle<Map>(o4->map(), isolate), dummy_handler));
     nexus.ConfigurePolymorphic(Handle<Name>(), map_and_handlers);
-    CHECK_EQ(POLYMORPHIC, nexus.ic_state());
+    CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
 
     if (i == (kCycles - 1)) {
       vector_ready.Signal();
@@ -247,7 +249,7 @@ TEST(CheckLoadICStates) {
 
     // Go Megamorphic
     nexus.ConfigureMegamorphic();
-    CHECK_EQ(MEGAMORPHIC, nexus.ic_state());
+    CHECK_EQ(InlineCacheState::MEGAMORPHIC, nexus.ic_state());
 
     if (i == (kCycles - 1)) {
       vector_ready.Signal();

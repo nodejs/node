@@ -259,9 +259,9 @@ class SerializerDeserializer : public RootVisitor {
                            RootIndex>;
   using HotObject = BytecodeValueEncoder<kHotObject, 0, kHotObjectCount - 1>;
 
-  // This backing store reference value represents nullptr values during
+  // This backing store reference value represents empty backing stores during
   // serialization/deserialization.
-  static const uint32_t kNullRefSentinel = 0;
+  static const uint32_t kEmptyBackingStoreRefSentinel = 0;
 };
 
 }  // namespace internal

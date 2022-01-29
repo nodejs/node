@@ -2449,6 +2449,9 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   V8_EXPORT_PRIVATE void CallImpl(Address entry, CallArgument* args);
 
+  void CallAnyCTypeFunction(Address target_address,
+                            const EncodedCSignature& signature);
+
   // Read floating point return values.
   template <typename T>
   typename std::enable_if<std::is_floating_point<T>::value, T>::type

@@ -371,8 +371,8 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // turned on to provoke errors.
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Zap scratch registers");
-    Move(value, kZapValue, RelocInfo::NONE);
-    Move(slot_address, kZapValue, RelocInfo::NONE);
+    Move(value, kZapValue, RelocInfo::NO_INFO);
+    Move(slot_address, kZapValue, RelocInfo::NO_INFO);
   }
 }
 
@@ -669,8 +669,8 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   // turned on to provoke errors.
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Zap scratch registers");
-    Move(slot_address, kZapValue, RelocInfo::NONE);
-    Move(value, kZapValue, RelocInfo::NONE);
+    Move(slot_address, kZapValue, RelocInfo::NO_INFO);
+    Move(value, kZapValue, RelocInfo::NO_INFO);
   }
 }
 
@@ -819,7 +819,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                     Register exclusion2, Register exclusion3) {
   ASM_CODE_COMMENT(this);
-  // We don't allow a GC during a store buffer overflow so there is no need to
+  // We don't allow a GC in a write barrier slow path so there is no need to
   // store the registers in any particular way, but we do have to store and
   // restore them.
   int bytes = 0;
@@ -905,99 +905,6 @@ void TurboAssembler::Pextrq(Register dst, XMMRegister src, int8_t imm8) {
     pextrq(dst, src, imm8);
   }
 }
-
-// Helper macro to define qfma macro-assembler. This takes care of every
-// possible case of register aliasing to minimize the number of instructions.
-#define QFMA(ps_or_pd)                        \
-  if (CpuFeatures::IsSupported(FMA3)) {       \
-    CpuFeatureScope fma3_scope(this, FMA3);   \
-    if (dst == src1) {                        \
-      vfmadd231##ps_or_pd(dst, src2, src3);   \
-    } else if (dst == src2) {                 \
-      vfmadd132##ps_or_pd(dst, src1, src3);   \
-    } else if (dst == src3) {                 \
-      vfmadd213##ps_or_pd(dst, src2, src1);   \
-    } else {                                  \
-      vmovups(dst, src1);                     \
-      vfmadd231##ps_or_pd(dst, src2, src3);   \
-    }                                         \
-  } else if (CpuFeatures::IsSupported(AVX)) { \
-    CpuFeatureScope avx_scope(this, AVX);     \
-    vmul##ps_or_pd(tmp, src2, src3);          \
-    vadd##ps_or_pd(dst, src1, tmp);           \
-  } else {                                    \
-    if (dst == src1) {                        \
-      movaps(tmp, src2);                      \
-      mul##ps_or_pd(tmp, src3);               \
-      add##ps_or_pd(dst, tmp);                \
-    } else if (dst == src2) {                 \
-      DCHECK_NE(src2, src1);                  \
-      mul##ps_or_pd(src2, src3);              \
-      add##ps_or_pd(src2, src1);              \
-    } else if (dst == src3) {                 \
-      DCHECK_NE(src3, src1);                  \
-      mul##ps_or_pd(src3, src2);              \
-      add##ps_or_pd(src3, src1);              \
-    } else {                                  \
-      movaps(dst, src2);                      \
-      mul##ps_or_pd(dst, src3);               \
-      add##ps_or_pd(dst, src1);               \
-    }                                         \
-  }
-
-// Helper macro to define qfms macro-assembler. This takes care of every
-// possible case of register aliasing to minimize the number of instructions.
-#define QFMS(ps_or_pd)                        \
-  if (CpuFeatures::IsSupported(FMA3)) {       \
-    CpuFeatureScope fma3_scope(this, FMA3);   \
-    if (dst == src1) {                        \
-      vfnmadd231##ps_or_pd(dst, src2, src3);  \
-    } else if (dst == src2) {                 \
-      vfnmadd132##ps_or_pd(dst, src1, src3);  \
-    } else if (dst == src3) {                 \
-      vfnmadd213##ps_or_pd(dst, src2, src1);  \
-    } else {                                  \
-      vmovups(dst, src1);                     \
-      vfnmadd231##ps_or_pd(dst, src2, src3);  \
-    }                                         \
-  } else if (CpuFeatures::IsSupported(AVX)) { \
-    CpuFeatureScope avx_scope(this, AVX);     \
-    vmul##ps_or_pd(tmp, src2, src3);          \
-    vsub##ps_or_pd(dst, src1, tmp);           \
-  } else {                                    \
-    movaps(tmp, src2);                        \
-    mul##ps_or_pd(tmp, src3);                 \
-    if (dst != src1) {                        \
-      movaps(dst, src1);                      \
-    }                                         \
-    sub##ps_or_pd(dst, tmp);                  \
-  }
-
-void TurboAssembler::F32x4Qfma(XMMRegister dst, XMMRegister src1,
-                               XMMRegister src2, XMMRegister src3,
-                               XMMRegister tmp) {
-  QFMA(ps)
-}
-
-void TurboAssembler::F32x4Qfms(XMMRegister dst, XMMRegister src1,
-                               XMMRegister src2, XMMRegister src3,
-                               XMMRegister tmp) {
-  QFMS(ps)
-}
-
-void TurboAssembler::F64x2Qfma(XMMRegister dst, XMMRegister src1,
-                               XMMRegister src2, XMMRegister src3,
-                               XMMRegister tmp) {
-  QFMA(pd);
-}
-
-void TurboAssembler::F64x2Qfms(XMMRegister dst, XMMRegister src1,
-                               XMMRegister src2, XMMRegister src3,
-                               XMMRegister tmp) {
-  QFMS(pd);
-}
-
-#undef QFMOP
 
 void TurboAssembler::Cvtss2sd(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -1561,7 +1468,7 @@ void TurboAssembler::Move(Register dst, Smi source) {
   if (value == 0) {
     xorl(dst, dst);
   } else if (SmiValuesAre32Bits() || value < 0) {
-    Move(dst, source.ptr(), RelocInfo::NONE);
+    Move(dst, source.ptr(), RelocInfo::NO_INFO);
   } else {
     uint32_t uvalue = static_cast<uint32_t>(source.ptr());
     Move(dst, uvalue);
@@ -1596,7 +1503,7 @@ void TurboAssembler::Move(Register dst, Register src) {
 
 void TurboAssembler::Move(Register dst, Operand src) { movq(dst, src); }
 void TurboAssembler::Move(Register dst, Immediate src) {
-  if (src.rmode() == RelocInfo::Mode::NONE) {
+  if (src.rmode() == RelocInfo::Mode::NO_INFO) {
     Move(dst, src.value());
   } else {
     movl(dst, src);
@@ -1920,7 +1827,7 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
   j(cc, code_object, rmode);
 }
 
-void MacroAssembler::JumpToInstructionStream(Address entry) {
+void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
   Move(kOffHeapTrampolineRegister, entry, RelocInfo::OFF_HEAP_TARGET);
   jmp(kOffHeapTrampolineRegister);
 }
@@ -1931,7 +1838,7 @@ void TurboAssembler::Call(ExternalReference ext) {
 }
 
 void TurboAssembler::Call(Operand op) {
-  if (!CpuFeatures::IsSupported(ATOM)) {
+  if (!CpuFeatures::IsSupported(INTEL_ATOM)) {
     call(op);
   } else {
     movq(kScratchRegister, op);

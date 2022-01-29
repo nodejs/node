@@ -1712,7 +1712,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     PropertyDetails const property_details =
         boilerplate_map.GetPropertyDetails(i);
     if (property_details.location() != PropertyLocation::kField) continue;
-    DCHECK_EQ(kData, property_details.kind());
+    DCHECK_EQ(PropertyKind::kData, property_details.kind());
     if ((*max_properties)-- == 0) return {};
 
     NameRef property_name = boilerplate_map.GetPropertyKey(i);

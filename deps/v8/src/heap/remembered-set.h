@@ -11,12 +11,12 @@
 #include "src/base/memory.h"
 #include "src/codegen/reloc-info.h"
 #include "src/common/globals.h"
+#include "src/heap/base/worklist.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
-#include "src/heap/worklist.h"
 
 namespace v8 {
 namespace internal {
@@ -180,7 +180,7 @@ class RememberedSet : public AllStatic {
   template <typename Callback>
   static int IterateAndTrackEmptyBuckets(
       MemoryChunk* chunk, Callback callback,
-      Worklist<MemoryChunk*, 64>::View empty_chunks) {
+      ::heap::base::Worklist<MemoryChunk*, 64>::Local* empty_chunks) {
     SlotSet* slot_set = chunk->slot_set<type>();
     int slots = 0;
     if (slot_set != nullptr) {
@@ -189,7 +189,7 @@ class RememberedSet : public AllStatic {
       slots += slot_set->IterateAndTrackEmptyBuckets(chunk->address(), 0,
                                                      chunk->buckets(), callback,
                                                      possibly_empty_buckets);
-      if (!possibly_empty_buckets->IsEmpty()) empty_chunks.Push(chunk);
+      if (!possibly_empty_buckets->IsEmpty()) empty_chunks->Push(chunk);
     }
     return slots;
   }

@@ -63,16 +63,24 @@ size_t PersistentRegionBase::NodesInUse() const {
   return nodes_in_use_;
 }
 
-void PersistentRegionBase::EnsureNodeSlots() {
+void PersistentRegionBase::RefillFreeList() {
   auto node_slots = std::make_unique<PersistentNodeSlots>();
   if (!node_slots.get()) {
-    oom_handler_("Oilpan: PersistentRegionBase::EnsureNodeSlots()");
+    oom_handler_("Oilpan: PersistentRegionBase::RefillFreeList()");
   }
   nodes_.push_back(std::move(node_slots));
   for (auto& node : *nodes_.back()) {
     node.InitializeAsFreeNode(free_list_head_);
     free_list_head_ = &node;
   }
+}
+
+PersistentNode* PersistentRegionBase::RefillFreeListAndAllocateNode(
+    void* owner, TraceCallback trace) {
+  RefillFreeList();
+  auto* node = TryAllocateNodeFromFreeList(owner, trace);
+  CPPGC_DCHECK(node);
+  return node;
 }
 
 void PersistentRegionBase::Trace(Visitor* visitor) {

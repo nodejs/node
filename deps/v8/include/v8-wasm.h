@@ -103,6 +103,12 @@ class V8_EXPORT WasmModuleObject : public Object {
    */
   CompiledWasmModule GetCompiledModule();
 
+  /**
+   * Compile a Wasm module from the provided uncompiled bytes.
+   */
+  static MaybeLocal<WasmModuleObject> Compile(
+      Isolate* isolate, MemorySpan<const uint8_t> wire_bytes);
+
   V8_INLINE static WasmModuleObject* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(value);

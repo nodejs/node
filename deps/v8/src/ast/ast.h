@@ -2192,6 +2192,13 @@ class FunctionLiteral final : public Expression {
     return HasDuplicateParameters::decode(bit_field_);
   }
 
+  bool should_parallel_compile() const {
+    return ShouldParallelCompileField::decode(bit_field_);
+  }
+  void set_should_parallel_compile() {
+    bit_field_ = ShouldParallelCompileField::update(bit_field_, true);
+  }
+
   // This is used as a heuristic on when to eagerly compile a function
   // literal. We consider the following constructs as hints that the
   // function will be called immediately:
@@ -2204,16 +2211,6 @@ class FunctionLiteral final : public Expression {
     return FunctionSyntaxKindBits::decode(bit_field_);
   }
   FunctionKind kind() const;
-
-  bool dont_optimize() {
-    return dont_optimize_reason() != BailoutReason::kNoReason;
-  }
-  BailoutReason dont_optimize_reason() {
-    return DontOptimizeReasonField::decode(bit_field_);
-  }
-  void set_dont_optimize_reason(BailoutReason reason) {
-    bit_field_ = DontOptimizeReasonField::update(bit_field_, reason);
-  }
 
   bool IsAnonymousFunctionDefinition() const {
     return is_anonymous_expression();
@@ -2290,9 +2287,9 @@ class FunctionLiteral final : public Expression {
                   Pretenure::encode(false) |
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
-                  DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
                   RequiresInstanceMembersInitializer::encode(false) |
-                  HasBracesField::encode(has_braces);
+                  HasBracesField::encode(has_braces) |
+                  ShouldParallelCompileField::encode(false);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
   }
 
@@ -2300,15 +2297,14 @@ class FunctionLiteral final : public Expression {
       Expression::NextBitField<FunctionSyntaxKind, 3>;
   using Pretenure = FunctionSyntaxKindBits::Next<bool, 1>;
   using HasDuplicateParameters = Pretenure::Next<bool, 1>;
-  using DontOptimizeReasonField =
-      HasDuplicateParameters::Next<BailoutReason, 8>;
   using RequiresInstanceMembersInitializer =
-      DontOptimizeReasonField::Next<bool, 1>;
+      HasDuplicateParameters::Next<bool, 1>;
   using ClassScopeHasPrivateBrandField =
       RequiresInstanceMembersInitializer::Next<bool, 1>;
   using HasStaticPrivateMethodsOrAccessorsField =
       ClassScopeHasPrivateBrandField::Next<bool, 1>;
   using HasBracesField = HasStaticPrivateMethodsOrAccessorsField::Next<bool, 1>;
+  using ShouldParallelCompileField = HasBracesField::Next<bool, 1>;
 
   // expected_property_count_ is the sum of instance fields and properties.
   // It can vary depending on whether a function is lazily or eagerly parsed.

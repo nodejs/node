@@ -381,7 +381,6 @@ TF_BUILTIN(AsyncGeneratorAwaitCaught, AsyncGeneratorBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
-  using Descriptor = AsyncGeneratorResumeNextDescriptor;
   const auto generator =
       Parameter<JSAsyncGeneratorObject>(Descriptor::kGenerator);
   const auto context = Parameter<Context>(Descriptor::kContext);
@@ -542,7 +541,6 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
-  using Descriptor = AsyncGeneratorRejectDescriptor;
   const auto generator =
       Parameter<JSAsyncGeneratorObject>(Descriptor::kGenerator);
   const auto value = Parameter<Object>(Descriptor::kValue);

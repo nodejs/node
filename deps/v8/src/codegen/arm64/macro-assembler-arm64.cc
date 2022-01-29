@@ -1655,7 +1655,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
-void MacroAssembler::JumpToInstructionStream(Address entry) {
+void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
   Ldr(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   Br(kOffHeapTrampolineRegister);
 }

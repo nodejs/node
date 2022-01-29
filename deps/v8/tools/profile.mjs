@@ -70,7 +70,7 @@ export class SourcePosition {
 
 export class Script {
   url;
-  source;
+  source = "";
   name;
   sourcePosition = undefined;
   // Map<line, Map<column, SourcePosition>>
@@ -106,7 +106,7 @@ export class Script {
   }
 
   findFunctionSourcePosition(sourcePosition) {
-    // TODO(cbruni) implmenent
+    // TODO(cbruni): implement
     return undefined;
   }
 

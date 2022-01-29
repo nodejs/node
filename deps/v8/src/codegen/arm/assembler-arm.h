@@ -87,7 +87,7 @@ class V8_EXPORT_PRIVATE Operand {
  public:
   // immediate
   V8_INLINE explicit Operand(int32_t immediate,
-                             RelocInfo::Mode rmode = RelocInfo::NONE)
+                             RelocInfo::Mode rmode = RelocInfo::NO_INFO)
       : rmode_(rmode) {
     value_.immediate = immediate;
   }
@@ -405,9 +405,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Branch instructions
   void b(int branch_offset, Condition cond = al,
-         RelocInfo::Mode rmode = RelocInfo::NONE);
+         RelocInfo::Mode rmode = RelocInfo::NO_INFO);
   void bl(int branch_offset, Condition cond = al,
-          RelocInfo::Mode rmode = RelocInfo::NONE);
+          RelocInfo::Mode rmode = RelocInfo::NO_INFO);
   void blx(int branch_offset);                     // v5 and above
   void blx(Register target, Condition cond = al);  // v5 and above
   void bx(Register target, Condition cond = al);   // v5 and above, plus v4t
@@ -1095,9 +1095,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // called before any use of db/dd/dq/dp to ensure that constant pools
   // are not emitted as part of the tables generated.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     dd(data, rmode);
   }
 

@@ -46,6 +46,7 @@ class V8_EXPORT_PRIVATE BaseSpace {
   void AddPage(BasePage*);
   void RemovePage(BasePage*);
   Pages RemoveAllPages();
+  v8::base::Mutex& pages_mutex() const { return pages_mutex_; }
 
   bool is_compactable() const { return is_compactable_; }
 
@@ -57,7 +58,7 @@ class V8_EXPORT_PRIVATE BaseSpace {
  private:
   RawHeap* heap_;
   Pages pages_;
-  v8::base::Mutex pages_mutex_;
+  mutable v8::base::Mutex pages_mutex_;
   const size_t index_;
   const PageType type_;
   const bool is_compactable_;

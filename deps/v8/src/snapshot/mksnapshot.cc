@@ -308,6 +308,6 @@ int main(int argc, char** argv) {
   i::FreeCurrentEmbeddedBlob();
 
   v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
+  v8::V8::DisposePlatform();
   return 0;
 }

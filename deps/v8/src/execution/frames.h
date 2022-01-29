@@ -48,6 +48,8 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 class WasmCode;
+struct JumpBuffer;
+class StackMemory;
 }  // namespace wasm
 
 // Forward declarations.
@@ -100,6 +102,7 @@ class StackHandler {
   IF_WASM(V, WASM, WasmFrame)                                             \
   IF_WASM(V, WASM_TO_JS, WasmToJsFrame)                                   \
   IF_WASM(V, JS_TO_WASM, JsToWasmFrame)                                   \
+  IF_WASM(V, RETURN_PROMISE_ON_SUSPEND, ReturnPromiseOnSuspendFrame)      \
   IF_WASM(V, WASM_DEBUG_BREAK, WasmDebugBreakFrame)                       \
   IF_WASM(V, C_WASM_ENTRY, CWasmEntryFrame)                               \
   IF_WASM(V, WASM_EXIT, WasmExitFrame)                                    \
@@ -715,7 +718,8 @@ class ConstructEntryFrame : public EntryFrame {
   friend class StackFrameIteratorBase;
 };
 
-// Exit frames are used to exit JavaScript execution and go to C.
+// Exit frames are used to exit JavaScript execution and go to C, or to switch
+// out of the current stack for wasm stack-switching.
 class ExitFrame : public TypedFrame {
  public:
   Type type() const override { return EXIT; }
@@ -1045,6 +1049,19 @@ class JsToWasmFrame : public StubFrame {
   friend class StackFrameIteratorBase;
 };
 
+class ReturnPromiseOnSuspendFrame : public ExitFrame {
+ public:
+  Type type() const override { return RETURN_PROMISE_ON_SUSPEND; }
+  void Iterate(RootVisitor* v) const override;
+  static void GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf, State* state);
+
+ protected:
+  inline explicit ReturnPromiseOnSuspendFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
 class CWasmEntryFrame : public StubFrame {
  public:
   Type type() const override { return C_WASM_ENTRY; }
@@ -1221,6 +1238,11 @@ class StackFrameIterator : public StackFrameIteratorBase {
   V8_EXPORT_PRIVATE explicit StackFrameIterator(Isolate* isolate);
   // An iterator that iterates over a given thread's stack.
   V8_EXPORT_PRIVATE StackFrameIterator(Isolate* isolate, ThreadLocalTop* t);
+#if V8_ENABLE_WEBASSEMBLY
+  // An iterator that iterates over a given wasm stack segment.
+  V8_EXPORT_PRIVATE StackFrameIterator(Isolate* isolate,
+                                       wasm::StackMemory* stack);
+#endif
 
   StackFrameIterator(const StackFrameIterator&) = delete;
   StackFrameIterator& operator=(const StackFrameIterator&) = delete;
@@ -1235,6 +1257,9 @@ class StackFrameIterator : public StackFrameIteratorBase {
  private:
   // Go back to the first frame.
   void Reset(ThreadLocalTop* top);
+#if V8_ENABLE_WEBASSEMBLY
+  void Reset(ThreadLocalTop* top, wasm::StackMemory* stack);
+#endif
 };
 
 // Iterator that supports iterating through all JavaScript frames.

@@ -152,12 +152,14 @@ TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyEnumerable(
 
 TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyKindAccessor(
     TNode<Uint32T> kind) {
-  return Word32Equal(kind, Int32Constant(PropertyKind::kAccessor));
+  return Word32Equal(kind,
+                     Int32Constant(static_cast<int>(PropertyKind::kAccessor)));
 }
 
 TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyKindData(
     TNode<Uint32T> kind) {
-  return Word32Equal(kind, Int32Constant(PropertyKind::kData));
+  return Word32Equal(kind,
+                     Int32Constant(static_cast<int>(PropertyKind::kData)));
 }
 
 void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(

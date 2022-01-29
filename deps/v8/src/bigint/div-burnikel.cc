@@ -70,7 +70,7 @@ class BZ {
 void BZ::DivideBasecase(RWDigits Q, RWDigits R, Digits A, Digits B) {
   A.Normalize();
   B.Normalize();
-  DCHECK(B.len() > 0);  // NOLINT(readability/check)
+  DCHECK(B.len() > 0);
   int cmp = Compare(A, B);
   if (cmp <= 0) {
     Q.Clear();
@@ -94,11 +94,11 @@ void BZ::DivideBasecase(RWDigits Q, RWDigits R, Digits A, Digits B) {
 // Returns Q(uotient) and R(emainder) for A/B, with B having two thirds
 // the size of A = [A1, A2, A3].
 void BZ::D3n2n(RWDigits Q, RWDigits R, Digits A1A2, Digits A3, Digits B) {
-  DCHECK((B.len() & 1) == 0);  // NOLINT(readability/check)
+  DCHECK((B.len() & 1) == 0);
   int n = B.len() / 2;
   DCHECK(A1A2.len() == 2 * n);
   // Actual condition is stricter than length: A < B * 2^(kDigitBits * n)
-  DCHECK(Compare(A1A2, B) < 0);  // NOLINT(readability/check)
+  DCHECK(Compare(A1A2, B) < 0);
   DCHECK(A3.len() == n);
   DCHECK(Q.len() == n);
   DCHECK(R.len() == 2 * n);
@@ -126,7 +126,7 @@ void BZ::D3n2n(RWDigits Q, RWDigits R, Digits A1A2, Digits A3, Digits B) {
     RWDigits temp = R1;
     Subtract(temp, A1, B1);
     temp.Normalize();
-    DCHECK(temp.len() <= 1);  // NOLINT(readability/check)
+    DCHECK(temp.len() <= 1);
     if (temp.len() > 0) r1_high = temp[0];
     // Step 2: compute A2 + B1.
     Digits A2(A1A2, 0, n);
@@ -149,7 +149,7 @@ void BZ::D3n2n(RWDigits Q, RWDigits R, Digits A1A2, Digits A3, Digits B) {
   // 5. Compute Rhat = R1*2^(kDigitBits * n) + A3 - D = [R1, A3] - D.
   digit_t borrow = SubtractAndReturnBorrow(R, R, D);
   DCHECK(borrow == r1_high);
-  DCHECK(Compare(R, B) < 0);  // NOLINT(readability/check)
+  DCHECK(Compare(R, B) < 0);
   (void)borrow;
   // 7. Return R = Rhat, Q = Qhat.
 }
@@ -160,7 +160,7 @@ void BZ::D2n1n(RWDigits Q, RWDigits R, Digits A, Digits B) {
   int n = B.len();
   DCHECK(A.len() <= 2 * n);
   // A < B * 2^(kDigitsBits * n)
-  DCHECK(Compare(Digits(A, n, n), B) < 0);  // NOLINT(readability/check)
+  DCHECK(Compare(Digits(A, n, n), B) < 0);
   DCHECK(Q.len() == n);
   DCHECK(R.len() == n);
   // 1. If n is odd or smaller than some convenient constant, compute Q and R
@@ -264,7 +264,7 @@ void ProcessorImpl::DivideBurnikelZiegler(RWDigits Q, RWDigits R, Digits A,
   // 9. Return Q = [Q_(t-2), ..., Q_0] and R = R_0 * 2^(-sigma).
 #if DEBUG
   for (int i = 0; i < digit_shift; i++) {
-    DCHECK(Ri[i] == 0);  // NOLINT(readability/check)
+    DCHECK(Ri[i] == 0);
   }
 #endif
   if (R.len() != 0) {

@@ -597,9 +597,10 @@ Reduction JSNativeContextSpecialization::ReduceJSHasInPrototypeChain(
     InferHasInPrototypeChainResult result =
         InferHasInPrototypeChain(value, effect, m.Ref(broker()));
     if (result != kMayBeInPrototypeChain) {
-      Node* value = jsgraph()->BooleanConstant(result == kIsInPrototypeChain);
-      ReplaceWithValue(node, value);
-      return Replace(value);
+      Node* result_in_chain =
+          jsgraph()->BooleanConstant(result == kIsInPrototypeChain);
+      ReplaceWithValue(node, result_in_chain);
+      return Replace(result_in_chain);
     }
   }
 
@@ -789,7 +790,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
   PropertyDetails property_details = property_cell.property_details();
   PropertyCellType property_cell_type = property_details.cell_type();
-  DCHECK_EQ(kData, property_details.kind());
+  DCHECK_EQ(PropertyKind::kData, property_details.kind());
 
   Node* control = NodeProperties::GetControlInput(node);
   if (effect == nullptr) {
@@ -1130,19 +1131,19 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   }
 
   // Either infer maps from the graph or use the feedback.
-  ZoneVector<MapRef> lookup_start_object_maps(zone());
-  if (!InferMaps(lookup_start_object, effect, &lookup_start_object_maps)) {
+  ZoneVector<MapRef> inferred_maps(zone());
+  if (!InferMaps(lookup_start_object, effect, &inferred_maps)) {
     for (const MapRef& map : feedback.maps()) {
-      lookup_start_object_maps.push_back(map);
+      inferred_maps.push_back(map);
     }
   }
-  RemoveImpossibleMaps(lookup_start_object, &lookup_start_object_maps);
+  RemoveImpossibleMaps(lookup_start_object, &inferred_maps);
 
   // Check if we have an access o.x or o.x=v where o is the target native
   // contexts' global proxy, and turn that into a direct access to the
   // corresponding global object instead.
-  if (lookup_start_object_maps.size() == 1) {
-    MapRef lookup_start_object_map = lookup_start_object_maps[0];
+  if (inferred_maps.size() == 1) {
+    MapRef lookup_start_object_map = inferred_maps[0];
     if (lookup_start_object_map.equals(
             native_context().global_proxy_object().map())) {
       if (!native_context().GlobalIsDetached()) {
@@ -1161,7 +1162,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   ZoneVector<PropertyAccessInfo> access_infos(zone());
   {
     ZoneVector<PropertyAccessInfo> access_infos_for_feedback(zone());
-    for (const MapRef& map : lookup_start_object_maps) {
+    for (const MapRef& map : inferred_maps) {
       if (map.is_deprecated()) continue;
       PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
           map, feedback.name(), access_mode, dependencies());

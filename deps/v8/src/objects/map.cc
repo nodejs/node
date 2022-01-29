@@ -249,7 +249,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_DATE_TYPE:
     case JS_ERROR_TYPE:
-    case JS_FINALIZATION_REGISTRY_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
@@ -324,6 +323,9 @@ VisitorId Map::GetVisitorId(Map map) {
     case WEAK_CELL_TYPE:
       return kVisitWeakCell;
 
+    case JS_FINALIZATION_REGISTRY_TYPE:
+      return kVisitJSFinalizationRegistry;
+
     case FILLER_TYPE:
     case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
@@ -366,6 +368,8 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitWasmStruct;
     case WASM_TYPE_INFO_TYPE:
       return kVisitWasmTypeInfo;
+    case WASM_INTERNAL_FUNCTION_TYPE:
+      return kVisitWasmInternalFunction;
     case WASM_JS_FUNCTION_DATA_TYPE:
       return kVisitWasmJSFunctionData;
     case WASM_API_FUNCTION_REF_TYPE:
@@ -374,6 +378,8 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitWasmExportedFunctionData;
     case WASM_CAPI_FUNCTION_DATA_TYPE:
       return kVisitWasmCapiFunctionData;
+    case WASM_SUSPENDER_OBJECT_TYPE:
+      return kVisitWasmSuspenderObject;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #define MAKE_TQ_CASE(TYPE, Name) \
@@ -560,7 +566,7 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
     LOG(isolate, MapEvent("Deprecate", handle(*this, isolate), Handle<Map>()));
   }
   dependent_code().DeoptimizeDependentCodeGroup(
-      DependentCode::kTransitionGroup);
+      isolate, DependentCode::kTransitionGroup);
   NotifyLeafMapLayoutChange(isolate);
 }
 
@@ -596,13 +602,14 @@ void Map::ReplaceDescriptors(Isolate* isolate,
 Map Map::FindRootMap(Isolate* isolate) const {
   DisallowGarbageCollection no_gc;
   Map result = *this;
+  PtrComprCageBase cage_base(isolate);
   while (true) {
-    Object back = result.GetBackPointer(isolate);
+    Object back = result.GetBackPointer(cage_base);
     if (back.IsUndefined(isolate)) {
       // Initial map must not contain descriptors in the descriptors array
       // that do not belong to the map.
       DCHECK_LE(result.NumberOfOwnDescriptors(),
-                result.instance_descriptors(isolate, kRelaxedLoad)
+                result.instance_descriptors(cage_base, kRelaxedLoad)
                     .number_of_descriptors());
       return result;
     }
@@ -650,7 +657,7 @@ Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
   for (InternalIndex i : old_map.IterateOwnDescriptors()) {
     PropertyDetails old_details = old_descriptors.GetDetails(i);
     if (old_details.location() == PropertyLocation::kField &&
-        old_details.kind() == kData) {
+        old_details.kind() == PropertyKind::kData) {
       FieldType old_type = old_descriptors.GetFieldType(i);
       if (Map::FieldTypeIsCleared(old_details.representation(), old_type)) {
         return Map();
@@ -724,14 +731,14 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
       return Map();
     }
     if (new_details.location() == PropertyLocation::kField) {
-      if (new_details.kind() == kData) {
+      if (new_details.kind() == PropertyKind::kData) {
         FieldType new_type = new_descriptors.GetFieldType(i);
         // Cleared field types need special treatment. They represent lost
         // knowledge, so we must first generalize the new_type to "Any".
         if (FieldTypeIsCleared(new_details.representation(), new_type)) {
           return Map();
         }
-        DCHECK_EQ(kData, old_details.kind());
+        DCHECK_EQ(PropertyKind::kData, old_details.kind());
         DCHECK_EQ(PropertyLocation::kField, old_details.location());
         FieldType old_type = old_descriptors.GetFieldType(i);
         if (FieldTypeIsCleared(old_details.representation(), old_type) ||
@@ -739,7 +746,7 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
           return Map();
         }
       } else {
-        DCHECK_EQ(kAccessor, new_details.kind());
+        DCHECK_EQ(PropertyKind::kAccessor, new_details.kind());
 #ifdef DEBUG
         FieldType new_type = new_descriptors.GetFieldType(i);
         DCHECK(new_type.IsAny());
@@ -1728,19 +1735,19 @@ bool CanHoldValue(DescriptorArray descriptors, InternalIndex descriptor,
                   PropertyConstness constness, Object value) {
   PropertyDetails details = descriptors.GetDetails(descriptor);
   if (details.location() == PropertyLocation::kField) {
-    if (details.kind() == kData) {
+    if (details.kind() == PropertyKind::kData) {
       return IsGeneralizableTo(constness, details.constness()) &&
              value.FitsRepresentation(details.representation()) &&
              descriptors.GetFieldType(descriptor).NowContains(value);
     } else {
-      DCHECK_EQ(kAccessor, details.kind());
+      DCHECK_EQ(PropertyKind::kAccessor, details.kind());
       return false;
     }
 
   } else {
     DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
     DCHECK_EQ(PropertyConstness::kConst, details.constness());
-    DCHECK_EQ(kAccessor, details.kind());
+    DCHECK_EQ(PropertyKind::kAccessor, details.kind());
     return false;
   }
   UNREACHABLE();
@@ -1796,8 +1803,9 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
   // Migrate to the newest map before storing the property.
   map = Update(isolate, map);
 
-  Map maybe_transition = TransitionsAccessor(isolate, map)
-                             .SearchTransition(*name, kData, attributes);
+  Map maybe_transition =
+      TransitionsAccessor(isolate, map)
+          .SearchTransition(*name, PropertyKind::kData, attributes);
   if (!maybe_transition.is_null()) {
     Handle<Map> transition(maybe_transition, isolate);
     InternalIndex descriptor = transition->LastAdded();
@@ -1851,7 +1859,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
 
       // Deoptimize all code that embeds the previous initial map.
       initial_map->dependent_code().DeoptimizeDependentCodeGroup(
-          DependentCode::kInitialMapChangedGroup);
+          isolate, DependentCode::kInitialMapChangedGroup);
       if (!result->EquivalentToForNormalization(*map,
                                                 CLEAR_INOBJECT_PROPERTIES)) {
         result =
@@ -1891,18 +1899,21 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                                        ? KEEP_INOBJECT_PROPERTIES
                                        : CLEAR_INOBJECT_PROPERTIES;
 
-  Map maybe_transition = TransitionsAccessor(isolate, map)
-                             .SearchTransition(*name, kAccessor, attributes);
+  Map maybe_transition =
+      TransitionsAccessor(isolate, map)
+          .SearchTransition(*name, PropertyKind::kAccessor, attributes);
   if (!maybe_transition.is_null()) {
     Handle<Map> transition(maybe_transition, isolate);
     DescriptorArray descriptors = transition->instance_descriptors(isolate);
-    InternalIndex descriptor = transition->LastAdded();
-    DCHECK(descriptors.GetKey(descriptor).Equals(*name));
+    InternalIndex last_descriptor = transition->LastAdded();
+    DCHECK(descriptors.GetKey(last_descriptor).Equals(*name));
 
-    DCHECK_EQ(kAccessor, descriptors.GetDetails(descriptor).kind());
-    DCHECK_EQ(attributes, descriptors.GetDetails(descriptor).attributes());
+    DCHECK_EQ(PropertyKind::kAccessor,
+              descriptors.GetDetails(last_descriptor).kind());
+    DCHECK_EQ(attributes, descriptors.GetDetails(last_descriptor).attributes());
 
-    Handle<Object> maybe_pair(descriptors.GetStrongValue(descriptor), isolate);
+    Handle<Object> maybe_pair(descriptors.GetStrongValue(last_descriptor),
+                              isolate);
     if (!maybe_pair->IsAccessorPair()) {
       return Map::Normalize(isolate, map, mode,
                             "TransitionToAccessorFromNonPair");
@@ -1924,7 +1935,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
       return Map::Normalize(isolate, map, mode, "AccessorsOverwritingNonLast");
     }
     PropertyDetails old_details = old_descriptors.GetDetails(descriptor);
-    if (old_details.kind() != kAccessor) {
+    if (old_details.kind() != PropertyKind::kAccessor) {
       return Map::Normalize(isolate, map, mode,
                             "AccessorsOverwritingNonAccessors");
     }
@@ -2143,28 +2154,6 @@ int Map::ComputeMinObjectSlack(Isolate* isolate) {
   };
   transitions.TraverseTransitionTree(callback);
   return slack;
-}
-
-void Map::CompleteInobjectSlackTracking(Isolate* isolate) {
-  DisallowGarbageCollection no_gc;
-  // Has to be an initial map.
-  DCHECK(GetBackPointer().IsUndefined(isolate));
-
-  int slack = ComputeMinObjectSlack(isolate);
-  TransitionsAccessor transitions(isolate, *this, &no_gc);
-  TransitionsAccessor::TraverseCallback callback;
-  if (slack != 0) {
-    // Resize the initial map and all maps in its transition tree.
-    callback = [&](Map map) {
-      MapUpdater::ShrinkInstanceSize(isolate->map_updater_access(), map, slack);
-    };
-  } else {
-    callback = [](Map map) {
-      // Stop slack tracking for this map.
-      map.set_construction_counter(Map::kNoSlackTracking);
-    };
-  }
-  transitions.TraverseTransitionTree(callback);
 }
 
 void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,

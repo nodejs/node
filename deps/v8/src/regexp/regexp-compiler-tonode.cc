@@ -637,16 +637,16 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
     while (i < length) {
       alternative = alternatives->at(i);
       if (!alternative->IsAtom()) break;
-      RegExpAtom* const atom = alternative->AsAtom();
+      RegExpAtom* const alt_atom = alternative->AsAtom();
 #ifdef V8_INTL_SUPPORT
-      icu::UnicodeString new_prefix(atom->data().at(0));
+      icu::UnicodeString new_prefix(alt_atom->data().at(0));
       if (new_prefix != common_prefix) {
         if (!IsIgnoreCase(compiler->flags())) break;
         if (common_prefix.caseCompare(new_prefix, U_FOLD_CASE_DEFAULT) != 0)
           break;
       }
 #else
-      unibrow::uchar new_prefix = atom->data().at(0);
+      unibrow::uchar new_prefix = alt_atom->data().at(0);
       if (new_prefix != common_prefix) {
         if (!IsIgnoreCase(compiler->flags())) break;
         unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
@@ -656,7 +656,7 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
         if (new_prefix != common_prefix) break;
       }
 #endif  // V8_INTL_SUPPORT
-      prefix_length = std::min(prefix_length, atom->length());
+      prefix_length = std::min(prefix_length, alt_atom->length());
       i++;
     }
     if (i > first_with_prefix + 2) {
@@ -666,19 +666,20 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
       // common prefix if the terms were similar or presorted in the input.
       // Find out how long the common prefix is.
       int run_length = i - first_with_prefix;
-      RegExpAtom* const atom = alternatives->at(first_with_prefix)->AsAtom();
+      RegExpAtom* const alt_atom =
+          alternatives->at(first_with_prefix)->AsAtom();
       for (int j = 1; j < run_length && prefix_length > 1; j++) {
         RegExpAtom* old_atom =
             alternatives->at(j + first_with_prefix)->AsAtom();
         for (int k = 1; k < prefix_length; k++) {
-          if (atom->data().at(k) != old_atom->data().at(k)) {
+          if (alt_atom->data().at(k) != old_atom->data().at(k)) {
             prefix_length = k;
             break;
           }
         }
       }
       RegExpAtom* prefix =
-          zone->New<RegExpAtom>(atom->data().SubVector(0, prefix_length));
+          zone->New<RegExpAtom>(alt_atom->data().SubVector(0, prefix_length));
       ZoneList<RegExpTree*>* pair = zone->New<ZoneList<RegExpTree*>>(2, zone);
       pair->Add(prefix, zone);
       ZoneList<RegExpTree*>* suffixes =
@@ -741,12 +742,12 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
     while (i < length) {
       alternative = alternatives->at(i);
       if (!alternative->IsAtom()) break;
-      RegExpAtom* const atom = alternative->AsAtom();
-      if (atom->length() != 1) break;
+      RegExpAtom* const alt_atom = alternative->AsAtom();
+      if (alt_atom->length() != 1) break;
       DCHECK_IMPLIES(IsUnicode(flags),
-                     !unibrow::Utf16::IsLeadSurrogate(atom->data().at(0)));
+                     !unibrow::Utf16::IsLeadSurrogate(alt_atom->data().at(0)));
       contains_trail_surrogate |=
-          unibrow::Utf16::IsTrailSurrogate(atom->data().at(0));
+          unibrow::Utf16::IsTrailSurrogate(alt_atom->data().at(0));
       i++;
     }
     if (i > first_in_run + 1) {
@@ -810,7 +811,7 @@ namespace {
 //         \B to (?<=\w)(?=\w)|(?<=\W)(?=\W)
 RegExpNode* BoundaryAssertionAsLookaround(RegExpCompiler* compiler,
                                           RegExpNode* on_success,
-                                          RegExpAssertion::AssertionType type,
+                                          RegExpAssertion::Type type,
                                           RegExpFlags flags) {
   CHECK(NeedsUnicodeCaseEquivalents(flags));
   Zone* zone = compiler->zone();
@@ -826,7 +827,7 @@ RegExpNode* BoundaryAssertionAsLookaround(RegExpCompiler* compiler,
   for (int i = 0; i < 2; i++) {
     bool lookbehind_for_word = i == 0;
     bool lookahead_for_word =
-        (type == RegExpAssertion::BOUNDARY) ^ lookbehind_for_word;
+        (type == RegExpAssertion::Type::BOUNDARY) ^ lookbehind_for_word;
     // Look to the left.
     RegExpLookaround::Builder lookbehind(lookbehind_for_word, on_success,
                                          stack_register, position_register);
@@ -850,23 +851,24 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
   Zone* zone = compiler->zone();
 
   switch (assertion_type()) {
-    case START_OF_LINE:
+    case Type::START_OF_LINE:
       return AssertionNode::AfterNewline(on_success);
-    case START_OF_INPUT:
+    case Type::START_OF_INPUT:
       return AssertionNode::AtStart(on_success);
-    case BOUNDARY:
-      return NeedsUnicodeCaseEquivalents(compiler->flags())
-                 ? BoundaryAssertionAsLookaround(compiler, on_success, BOUNDARY,
-                                                 compiler->flags())
-                 : AssertionNode::AtBoundary(on_success);
-    case NON_BOUNDARY:
+    case Type::BOUNDARY:
       return NeedsUnicodeCaseEquivalents(compiler->flags())
                  ? BoundaryAssertionAsLookaround(
-                       compiler, on_success, NON_BOUNDARY, compiler->flags())
+                       compiler, on_success, Type::BOUNDARY, compiler->flags())
+                 : AssertionNode::AtBoundary(on_success);
+    case Type::NON_BOUNDARY:
+      return NeedsUnicodeCaseEquivalents(compiler->flags())
+                 ? BoundaryAssertionAsLookaround(compiler, on_success,
+                                                 Type::NON_BOUNDARY,
+                                                 compiler->flags())
                  : AssertionNode::AtNonBoundary(on_success);
-    case END_OF_INPUT:
+    case Type::END_OF_INPUT:
       return AssertionNode::AtEnd(on_success);
-    case END_OF_LINE: {
+    case Type::END_OF_LINE: {
       // Compile $ in multiline regexps as an alternation with a positive
       // lookahead in one side and an end-of-input on the other side.
       // We need two registers for the lookahead.
@@ -1037,11 +1039,12 @@ class AssertionSequenceRewriter final {
 
     // Bitfield of all seen assertions.
     uint32_t seen_assertions = 0;
-    STATIC_ASSERT(RegExpAssertion::LAST_TYPE < kUInt32Size * kBitsPerByte);
+    STATIC_ASSERT(static_cast<int>(RegExpAssertion::Type::LAST_ASSERTION_TYPE) <
+                  kUInt32Size * kBitsPerByte);
 
     for (int i = from; i < to; i++) {
       RegExpAssertion* t = terms_->at(i)->AsAssertion();
-      const uint32_t bit = 1 << t->assertion_type();
+      const uint32_t bit = 1 << static_cast<int>(t->assertion_type());
 
       if (seen_assertions & bit) {
         // Fold duplicates.
@@ -1053,7 +1056,8 @@ class AssertionSequenceRewriter final {
 
     // Collapse failures.
     const uint32_t always_fails_mask =
-        1 << RegExpAssertion::BOUNDARY | 1 << RegExpAssertion::NON_BOUNDARY;
+        1 << static_cast<int>(RegExpAssertion::Type::BOUNDARY) |
+        1 << static_cast<int>(RegExpAssertion::Type::NON_BOUNDARY);
     if ((seen_assertions & always_fails_mask) == always_fails_mask) {
       ReplaceSequenceWithFailure(from, to);
     }

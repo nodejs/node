@@ -189,7 +189,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
       is_asm_module = function_scope->is_asm_module();
 #endif  // V8_ENABLE_WEBASSEMBLY
     }
-    FunctionKind function_kind = kNormalFunction;
+    FunctionKind function_kind = FunctionKind::kNormalFunction;
     if (scope->is_declaration_scope()) {
       function_kind = scope->AsDeclarationScope()->function_kind();
       sloppy_eval_can_extend_vars =
@@ -298,8 +298,8 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
       for (int i = 0; i < parameter_count; i++) {
         Variable* parameter = scope->AsDeclarationScope()->parameter(i);
         if (parameter->location() != VariableLocation::CONTEXT) continue;
-        int index = parameter->index() - scope->ContextHeaderLength();
-        int info_index = context_local_info_base + index;
+        int param_index = parameter->index() - scope->ContextHeaderLength();
+        int info_index = context_local_info_base + param_index;
         int info = Smi::ToInt(scope_info.get(info_index));
         info = ParameterNumberBits::update(info, i);
         scope_info.set(info_index, Smi::FromInt(info));
@@ -401,7 +401,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       HasNewTargetBit::encode(false) |
       FunctionVariableBits::encode(VariableAllocationInfo::NONE) |
       IsAsmModuleBit::encode(false) | HasSimpleParametersBit::encode(true) |
-      FunctionKindBits::encode(kNormalFunction) |
+      FunctionKindBits::encode(FunctionKind::kNormalFunction) |
       HasOuterScopeInfoBit::encode(has_outer_scope_info) |
       IsDebugEvaluateScopeBit::encode(false) |
       ForceContextAllocationBit::encode(false) |

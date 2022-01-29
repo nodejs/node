@@ -52,7 +52,9 @@ void PreFinalizerHandler::RegisterPrefinalizer(PreFinalizer pre_finalizer) {
 }
 
 void PreFinalizerHandler::InvokePreFinalizers() {
-  StatsCollector::DisabledScope stats_scope(
+  StatsCollector::EnabledScope stats_scope(heap_.stats_collector(),
+                                           StatsCollector::kAtomicSweep);
+  StatsCollector::EnabledScope nested_stats_scope(
       heap_.stats_collector(), StatsCollector::kSweepInvokePreFinalizers);
 
   DCHECK(CurrentThreadIsCreationThread());

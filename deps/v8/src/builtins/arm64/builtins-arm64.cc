@@ -75,7 +75,7 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
-  __ JumpCodeObject(x2);
+  __ JumpCodeTObject(x2);
 }
 
 namespace {
@@ -253,8 +253,10 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
       x4, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
   __ Ldr(w4, FieldMemOperand(x4, SharedFunctionInfo::kFlagsOffset));
   __ DecodeField<SharedFunctionInfo::FunctionKindBits>(w4);
-  __ JumpIfIsInRange(w4, kDefaultDerivedConstructor, kDerivedConstructor,
-                     &not_create_implicit_receiver);
+  __ JumpIfIsInRange(
+      w4, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+      static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
+      &not_create_implicit_receiver);
 
   // If not derived class constructor: Allocate the new receiver object.
   __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1, x4,
@@ -1083,7 +1085,8 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
                                           Runtime::FunctionId function_id) {
   ASM_CODE_COMMENT(masm);
   Label no_match;
-  __ CompareAndBranch(actual_marker, Operand(expected_marker), ne, &no_match);
+  __ CompareAndBranch(actual_marker, Operand(static_cast<int>(expected_marker)),
+                      ne, &no_match);
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
 }
@@ -1891,10 +1894,12 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Ldr(kJavaScriptCallCodeStartRegister,
          MemOperand(kInterpreterDispatchTableRegister, x1));
 
-  UseScratchRegisterScope temps(masm);
-  temps.Exclude(x17);
-  __ Mov(x17, kJavaScriptCallCodeStartRegister);
-  __ Jump(x17);
+  {
+    UseScratchRegisterScope temps(masm);
+    temps.Exclude(x17);
+    __ Mov(x17, kJavaScriptCallCodeStartRegister);
+    __ Jump(x17);
+  }
 
   __ Bind(&return_from_bytecode_dispatch);
 
@@ -1932,8 +1937,12 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ Bind(&trampoline_loaded);
 
-  __ Add(x17, x1, Operand(interpreter_entry_return_pc_offset.value()));
-  __ Br(x17);
+  {
+    UseScratchRegisterScope temps(masm);
+    temps.Exclude(x17);
+    __ Add(x17, x1, Operand(interpreter_entry_return_pc_offset.value()));
+    __ Br(x17);
+  }
 }
 
 void Builtins::Generate_InterpreterEnterAtNextBytecode(MacroAssembler* masm) {

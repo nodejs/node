@@ -421,8 +421,13 @@ FieldAccess AccessBuilder::ForJSTypedArrayExternalPointer() {
       JSTypedArray::kExternalPointerOffset,
       MaybeHandle<Name>(),
       MaybeHandle<Map>(),
+#ifdef V8_CAGED_POINTERS
+      Type::CagedPointer(),
+      MachineType::CagedPointer(),
+#else
       Type::ExternalPointer(),
       MachineType::Pointer(),
+#endif
       kNoWriteBarrier,
       ConstFieldInfo::None(),
       false,
@@ -437,8 +442,13 @@ FieldAccess AccessBuilder::ForJSDataViewDataPointer() {
       JSDataView::kDataPointerOffset,
       MaybeHandle<Name>(),
       MaybeHandle<Map>(),
+#ifdef V8_CAGED_POINTERS
+      Type::CagedPointer(),
+      MachineType::CagedPointer(),
+#else
       Type::ExternalPointer(),
       MachineType::Pointer(),
+#endif
       kNoWriteBarrier,
       ConstFieldInfo::None(),
       false,

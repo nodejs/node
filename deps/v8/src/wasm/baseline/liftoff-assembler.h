@@ -694,7 +694,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline static bool NeedsAlignment(ValueKind kind);
 
   inline void LoadConstant(LiftoffRegister, WasmValue,
-                           RelocInfo::Mode rmode = RelocInfo::NONE);
+                           RelocInfo::Mode rmode = RelocInfo::NO_INFO);
   inline void LoadInstanceFromFrame(Register dst);
   inline void LoadFromInstance(Register dst, Register instance, int offset,
                                int size);

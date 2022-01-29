@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-reftypes
+// Flags: --experimental-wasm-typed-funcref --experimental-wasm-type-reflection
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -135,4 +135,70 @@ function getDummy(val) {
   assertEquals(table.get(1), testObject);
   table.set(1);
   assertEquals(table.get(1), undefined);
+})();
+
+(function TestFunctionExternRefTableRoundtrip() {
+  // Test that
+  // - initialization, setting, and growing an externref table, and
+  // - (imported) externref globals
+  // preserve function references.
+  print(arguments.callee.name);
+
+  const js_function = function (i) { return i + 1; };
+  const wasm_js_function = new WebAssembly.Function(
+    {parameters:['i32', 'i32'], results: ['i32']},
+    function(a, b) { return a * b; })
+
+  let extern_type = wasmRefType(kWasmExternRef);
+
+  let builder = new WasmModuleBuilder();
+  let imported_global = builder.addImportedGlobal('m', 'n', extern_type, false);
+  let global = builder.addGlobal(kWasmExternRef, true).exportAs('global');
+  let table = builder.addTable(extern_type, 2, 10,
+                               WasmInitExpr.GlobalGet(imported_global))
+  builder.addFunction(
+      'setup', makeSig([extern_type, extern_type], []))
+    .addBody([
+      kExprLocalGet, 0, kExprGlobalSet, global.index,
+      kExprI32Const, 1, kExprLocalGet, 0, kExprTableSet, table.index,
+      kExprLocalGet, 1, kExprI32Const, 1, kNumericPrefix,
+      kExprTableGrow, table.index, kExprDrop])
+    .exportFunc();
+  builder.addFunction('get', makeSig([kWasmI32], [kWasmExternRef]))
+    .addBody([kExprLocalGet, 0, kExprTableGet, table.index])
+    .exportFunc();
+  let instance = builder.instantiate({m : {n : js_function}});
+
+  instance.exports.setup(wasm_js_function, instance.exports.setup);
+
+  assertEquals(instance.exports.global.value, wasm_js_function);
+  assertEquals(instance.exports.get(0), js_function);
+  assertEquals(instance.exports.get(1), wasm_js_function);
+  assertEquals(instance.exports.get(2), instance.exports.setup);
+})();
+
+(function TestFunctionExternRefTableRoundtrip2() {
+  // Test that initialization, setting, and growing an externref table in the JS
+  // API preserves function references.
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  builder.addFunction('dummy', kSig_i_v)
+      .addBody([kExprI32Const, 0])
+      .exportAs('dummy');
+  let instance = builder.instantiate();
+  const js_function = function (i) { return i + 1; };
+  const wasm_js_function = new WebAssembly.Function(
+    {parameters:['i32', 'i32'], results: ['i32']},
+    function(a, b) { return a * b; })
+
+  const argument = { "element": "externref", "initial": 3 };
+  const table = new WebAssembly.Table(argument, js_function);
+  table.set(1, wasm_js_function);
+  table.set(2, instance.exports.dummy);
+  table.grow(1, wasm_js_function);
+  assertEquals(table.get(0), js_function);
+  assertEquals(table.get(1), wasm_js_function);
+  assertEquals(table.get(2), instance.exports.dummy);
+  assertEquals(table.get(3), wasm_js_function);
 })();

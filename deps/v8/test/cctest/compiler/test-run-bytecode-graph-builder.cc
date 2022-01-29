@@ -2921,7 +2921,8 @@ TEST(BytecodeGraphBuilderIllegalConstDeclaration) {
 class CountBreakDebugDelegate : public v8::debug::DebugDelegate {
  public:
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
-                             const std::vector<int>&) override {
+                             const std::vector<int>&,
+                             v8::debug::BreakReasons break_reasons) override {
     debug_break_count++;
   }
   int debug_break_count = 0;

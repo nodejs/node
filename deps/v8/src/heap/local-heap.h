@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
@@ -99,6 +100,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
   ConcurrentAllocator* code_space_allocator() {
     return code_space_allocator_.get();
   }
+  ConcurrentAllocator* shared_old_space_allocator() {
+    return shared_old_space_allocator_.get();
+  }
 
   void RegisterCodeObject(Handle<Code> code) {
     heap()->RegisterCodeObject(code);
@@ -110,6 +114,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   // Give up linear allocation areas. Used for mark-compact GC.
   void FreeLinearAllocationArea();
+
+  // Free all shared LABs. Used by the shared mark-compact GC.
+  void FreeSharedLinearAllocationArea();
 
   // Create filler object in linear allocation areas. Verifying requires
   // iterable heap.
@@ -130,14 +137,14 @@ class V8_EXPORT_PRIVATE LocalHeap {
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
-      AllocationAlignment alignment = kWordAligned);
+      AllocationAlignment alignment = kTaggedAligned);
 
   // Allocates an uninitialized object and crashes when object
   // cannot be allocated.
   V8_WARN_UNUSED_RESULT inline Address AllocateRawOrFail(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
-      AllocationAlignment alignment = kWordAligned);
+      AllocationAlignment alignment = kTaggedAligned);
 
   inline void CreateFillerObjectAt(Address addr, int size,
                                    ClearRecordedSlots clear_slots_mode);
@@ -278,6 +285,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void UnparkSlowPath();
   void EnsureParkedBeforeDestruction();
   void SafepointSlowPath();
+  void SleepInSafepoint();
+  void SleepInUnpark();
 
   void EnsurePersistentHandles();
 
@@ -305,13 +314,16 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   std::unique_ptr<ConcurrentAllocator> old_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> code_space_allocator_;
+  std::unique_ptr<ConcurrentAllocator> shared_old_space_allocator_;
 
   friend class CollectionBarrier;
   friend class ConcurrentAllocator;
+  friend class GlobalSafepoint;
   friend class IsolateSafepoint;
   friend class Heap;
   friend class Isolate;
   friend class ParkedScope;
+  friend class SafepointScope;
   friend class UnparkedScope;
 };
 

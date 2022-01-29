@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 /**
  * @fileoverview Check that the global escape and unescape functions work
  * right.
@@ -70,9 +72,16 @@ example = example + String.fromCharCode(267, 0x1234, 0x6667, 0xabcd);
 example = example + " The quick brown fox jumps over the lazy dog."
 example = example + String.fromCharCode(171, 172, 173, 174, 175, 176, 178, 179);
 
-for (var i = 0; i < 3000; i++) {
+
+function testRoundTrip() {
   assertEquals(example, unescape(escape(example)));
 }
+%PrepareFunctionForOptimization(testRoundTrip);
+for (var i = 0; i < 3; i++) {
+  testRoundTrip();
+};
+%OptimizeFunctionOnNextCall(testRoundTrip);
+testRoundTrip();
 
 // Check unescape can cope with upper and lower case
 assertEquals(unescape("%41%4A%4a"), "AJJ");
@@ -92,27 +101,32 @@ assertEquals("%uzzzz", unescape("%uzzzz"));
 assertEquals("%u4zzz", unescape("%u4zzz"));
 assertEquals("%u44zz", unescape("%u44zz"));
 assertEquals("%u444z", unescape("%u444z"));
-assertEquals("%4<", unescape("%4<"));
-assertEquals("%u<<<<", unescape("%u<<<<"));
-assertEquals("%u4<<<", unescape("%u4<<<"));
-assertEquals("%u44<<", unescape("%u44<<"));
-assertEquals("%u444<", unescape("%u444<"));
-assertEquals("foo%4<", unescape("foo%4<"));
-assertEquals("foo%u<<<<", unescape("foo%u<<<<"));
-assertEquals("foo%u4<<<", unescape("foo%u4<<<"));
-assertEquals("foo%u44<<", unescape("foo%u44<<"));
-assertEquals("foo%u444<", unescape("foo%u444<"));
-assertEquals("foo%4<bar", unescape("foo%4<bar"));
-assertEquals("foo%u<<<<bar", unescape("foo%u<<<<bar"));
-assertEquals("foo%u4<<<bar", unescape("foo%u4<<<bar"));
-assertEquals("foo%u44<<bar", unescape("foo%u44<<bar"));
-assertEquals("foo%u444<bar", unescape("foo%u444<bar"));
+assertEquals("%4+", unescape("%4+"));
+assertEquals("%u++++", unescape("%u++++"));
+assertEquals("%u4+++", unescape("%u4+++"));
+assertEquals("%u44++", unescape("%u44++"));
+assertEquals("%u444+", unescape("%u444+"));
+assertEquals("foo%4+", unescape("foo%4+"));
+assertEquals("foo%u++++", unescape("foo%u++++"));
+assertEquals("foo%u4+++", unescape("foo%u4+++"));
+assertEquals("foo%u44++", unescape("foo%u44++"));
+assertEquals("foo%u444+", unescape("foo%u444+"));
+assertEquals("foo%4+bar", unescape("foo%4+bar"));
+assertEquals("foo%u++++bar", unescape("foo%u++++bar"));
+assertEquals("foo%u4+++bar", unescape("foo%u4+++bar"));
+assertEquals("foo%u44++bar", unescape("foo%u44++bar"));
+assertEquals("foo%u444+bar", unescape("foo%u444+bar"));
 assertEquals("% ", unescape("%%20"));
 assertEquals("%% ", unescape("%%%20"));
 
 // Unescape stress
 var eexample = escape(example);
-
-for (var i = 1; i < 3000; i++) {
+function stressTestUnescape() {
   assertEquals(example, unescape(eexample));
 }
+%PrepareFunctionForOptimization(stressTestUnescape);
+for (var i = 0; i < 3; i++) {
+  stressTestUnescape();
+}
+%OptimizeFunctionOnNextCall(stressTestUnescape);
+stressTestUnescape();

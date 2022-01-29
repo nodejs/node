@@ -3,12 +3,10 @@
 // found in the LICENSE file.
 
 @abstract
-@export
-@customCppClass
 // We normally don't generate a BodyDescriptor for an abstact class, but here we
 // do since all context classes share the same BodyDescriptor.
 @generateBodyDescriptor
-class Context extends HeapObject {
+extern class Context extends HeapObject {
   macro GetScopeInfo(): ScopeInfo {
     return *ContextSlot(this, ContextSlot::SCOPE_INFO_INDEX);
   }

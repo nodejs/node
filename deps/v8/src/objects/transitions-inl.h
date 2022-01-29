@@ -328,7 +328,7 @@ Handle<String> TransitionsAccessor::ExpectedTransitionKey() {
       PropertyDetails details = GetSimpleTargetDetails(target);
       if (details.location() != PropertyLocation::kField)
         return Handle<String>::null();
-      DCHECK_EQ(kData, details.kind());
+      DCHECK_EQ(PropertyKind::kData, details.kind());
       if (details.attributes() != NONE) return Handle<String>::null();
       Name name = GetSimpleTransitionKey(target);
       if (!name.IsString()) return Handle<String>::null();

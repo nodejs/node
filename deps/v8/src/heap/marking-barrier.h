@@ -72,6 +72,7 @@ class MarkingBarrier {
   bool is_compacting_ = false;
   bool is_activated_ = false;
   bool is_main_thread_barrier_;
+  bool is_shared_heap_;
 };
 
 }  // namespace internal

@@ -177,15 +177,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
               uint32_t* load_pc_offset = nullptr);
 
-  void F64x2Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F64x2Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F32x4Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F32x4Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-
   void Lzcntq(Register dst, Register src);
   void Lzcntq(Register dst, Operand src);
   void Lzcntl(Register dst, Register src);
@@ -335,7 +326,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Move(Register dst, Address ptr, RelocInfo::Mode rmode) {
     // This method must not be used with heap object references. The stored
     // address is not GC safe. Use the handle version instead.
-    DCHECK(rmode == RelocInfo::NONE || rmode > RelocInfo::LAST_GCED_ENUM);
+    DCHECK(rmode == RelocInfo::NO_INFO || rmode > RelocInfo::LAST_GCED_ENUM);
     movq(dst, Immediate64(ptr, rmode));
   }
 
@@ -784,7 +775,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void PopQuad(Operand dst);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToInstructionStream(Address entry);
+  void JumpToOffHeapInstructionStream(Address entry);
 
   // Compare object type for heap object.
   // Always use unsigned comparisons: above and below, not less and greater.

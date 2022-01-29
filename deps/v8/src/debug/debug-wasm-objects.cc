@@ -317,8 +317,10 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
   static Handle<Object> Get(Isolate* isolate,
                             Handle<WasmInstanceObject> instance,
                             uint32_t index) {
-    return WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate,
-                                                               instance, index);
+    return handle(WasmInstanceObject::GetOrCreateWasmInternalFunction(
+                      isolate, instance, index)
+                      ->external(),
+                  isolate);
   }
 
   static Handle<String> GetName(Isolate* isolate,
@@ -1027,6 +1029,9 @@ Handle<WasmValueObject> WasmValueObject::New(
         v = ArrayProxy::Create(isolate, value, module_object);
       } else if (ref->IsJSFunction() || ref->IsSmi() || ref->IsNull()) {
         v = ref;
+      } else if (ref->IsWasmInternalFunction()) {
+        v = handle(Handle<WasmInternalFunction>::cast(ref)->external(),
+                   isolate);
       } else {
         // Fail gracefully.
         base::EmbeddedVector<char, 64> error;
@@ -1135,7 +1140,11 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
   int length = table->current_length();
   Handle<FixedArray> entries = isolate->factory()->NewFixedArray(length);
   for (int i = 0; i < length; ++i) {
-    auto entry = WasmTableObject::Get(isolate, table, i);
+    Handle<Object> entry = WasmTableObject::Get(isolate, table, i);
+    if (entry->IsWasmInternalFunction()) {
+      entry = handle(Handle<WasmInternalFunction>::cast(entry)->external(),
+                     isolate);
+    }
     entries->set(i, *entry);
   }
   Handle<JSArray> final_entries = isolate->factory()->NewJSArrayWithElements(

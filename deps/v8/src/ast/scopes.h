@@ -163,7 +163,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };
 
-  static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
+  template <typename IsolateT>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  static Scope* DeserializeScopeChain(IsolateT* isolate, Zone* zone,
                                       ScopeInfo scope_info,
                                       DeclarationScope* script_scope,
                                       AstValueFactory* ast_value_factory,
@@ -422,6 +424,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return num_heap_slots() > 0;
   }
 
+#ifdef DEBUG
+  bool IsReparsedMemberInitializerScope() const;
+#endif
   // Use Scope::ForEach for depth first traversal of scopes.
   // Before:
   // void Scope::VisitRecursively() {
@@ -850,7 +855,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
  public:
   DeclarationScope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
-                   FunctionKind function_kind = kNormalFunction);
+                   FunctionKind function_kind = FunctionKind::kNormalFunction);
   DeclarationScope(Zone* zone, ScopeType scope_type,
                    AstValueFactory* ast_value_factory,
                    Handle<ScopeInfo> scope_info);
@@ -987,7 +992,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   void set_is_async_module() {
     DCHECK(IsModule(function_kind_));
-    function_kind_ = kAsyncModule;
+    function_kind_ = FunctionKind::kAsyncModule;
   }
 
   void DeclareThis(AstValueFactory* ast_value_factory);
@@ -1363,8 +1368,7 @@ class ModuleScope final : public DeclarationScope {
   ModuleScope(DeclarationScope* script_scope, AstValueFactory* avfactory);
 
   // Deserialization. Does not restore the module descriptor.
-  ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
-              AstValueFactory* avfactory);
+  ModuleScope(Handle<ScopeInfo> scope_info, AstValueFactory* avfactory);
 
   // Returns nullptr in a deserialized scope.
   SourceTextModuleDescriptor* module() const { return module_descriptor_; }
@@ -1381,7 +1385,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
  public:
   ClassScope(Zone* zone, Scope* outer_scope, bool is_anonymous);
   // Deserialization.
-  ClassScope(Isolate* isolate, Zone* zone, AstValueFactory* ast_value_factory,
+  template <typename IsolateT>
+  ClassScope(IsolateT* isolate, Zone* zone, AstValueFactory* ast_value_factory,
              Handle<ScopeInfo> scope_info);
 
   struct HeritageParsingScope {
@@ -1472,6 +1477,13 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     should_save_class_variable_index_ = true;
   }
 
+  void ReplaceReparsedClassScope(Isolate* isolate,
+                                 AstValueFactory* ast_value_factory,
+                                 ClassScope* old_scope);
+#ifdef DEBUG
+  bool is_reparsed_class_scope() const { return is_reparsed_class_scope_; }
+#endif
+
  private:
   friend class Scope;
   friend class PrivateNameScopeIterator;
@@ -1517,6 +1529,9 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // This is only maintained during reparsing, restored from the
   // preparsed data.
   bool should_save_class_variable_index_ = false;
+#ifdef DEBUG
+  bool is_reparsed_class_scope_ = false;
+#endif
 };
 
 // Iterate over the private name scope chain. The iteration proceeds from the

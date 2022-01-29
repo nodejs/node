@@ -160,6 +160,10 @@ constexpr int kAnonymousFuncIndex = -1;
 // often enough.
 constexpr uint32_t kGenericWrapperBudget = 1000;
 
+// The minimum length of supertype arrays for wasm-gc types. Having a size > 0
+// gives up some module size for faster access to the supertypes.
+constexpr uint32_t kMinimumSupertypeArraySize = 3;
+
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 5 * kSystemPointerSize;
 #endif

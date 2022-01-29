@@ -45,14 +45,14 @@ void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
 }
 
 void Assembler::emit(Immediate x) {
-  if (!RelocInfo::IsNone(x.rmode_)) {
+  if (!RelocInfo::IsNoInfo(x.rmode_)) {
     RecordRelocInfo(x.rmode_);
   }
   emitl(x.value_);
 }
 
 void Assembler::emit(Immediate64 x) {
-  if (!RelocInfo::IsNone(x.rmode_)) {
+  if (!RelocInfo::IsNoInfo(x.rmode_)) {
     RecordRelocInfo(x.rmode_);
   }
   emitq(static_cast<uint64_t>(x.value_));

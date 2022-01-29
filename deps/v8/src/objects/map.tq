@@ -73,8 +73,8 @@ extern class Map extends HeapObject {
   instance_descriptors: DescriptorArray;
   dependent_code: DependentCode;
   prototype_validity_cell: Smi|Cell;
-  weak transitions_or_prototype_info: Map|Weak<Map>|TransitionArray|
-      PrototypeInfo|Smi;
+  transitions_or_prototype_info: Map|Weak<Map>|TransitionArray|PrototypeInfo|
+      Smi;
 }
 
 @export

@@ -69,9 +69,9 @@ ObjectFromEntries(
         CreateDataProperty(result, pair.key, pair.value);
       }
       return result;
-    } catch (e) deferred {
+    } catch (e, message) deferred {
       iterator::IteratorCloseOnException(i);
-      ReThrow(context, e);
+      ReThrowWithMessage(context, e, message);
     }
   } label Throw deferred {
     ThrowTypeError(MessageTemplate::kNotIterable);

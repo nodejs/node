@@ -179,7 +179,7 @@ void Assembler::emit(Handle<HeapObject> handle) {
 }
 
 void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     RecordRelocInfo(rmode);
   }
   emit(x);
@@ -195,7 +195,7 @@ void Assembler::emit(const Immediate& x) {
     emit_code_relative_offset(label);
     return;
   }
-  if (!RelocInfo::IsNone(x.rmode_)) RecordRelocInfo(x.rmode_);
+  if (!RelocInfo::IsNoInfo(x.rmode_)) RecordRelocInfo(x.rmode_);
   if (x.is_heap_object_request()) {
     RequestHeapObject(x.heap_object_request());
     emit(0);
@@ -221,7 +221,7 @@ void Assembler::emit_b(Immediate x) {
 }
 
 void Assembler::emit_w(const Immediate& x) {
-  DCHECK(RelocInfo::IsNone(x.rmode_));
+  DCHECK(RelocInfo::IsNoInfo(x.rmode_));
   uint16_t value = static_cast<uint16_t>(x.immediate());
   WriteUnalignedValue(reinterpret_cast<Address>(pc_), value);
   pc_ += sizeof(uint16_t);

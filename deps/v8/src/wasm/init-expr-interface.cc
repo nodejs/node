@@ -53,10 +53,10 @@ void InitExprInterface::RefNull(FullDecoder* decoder, ValueType type,
 void InitExprInterface::RefFunc(FullDecoder* decoder, uint32_t function_index,
                                 Value* result) {
   if (isolate_ != nullptr) {
-    auto function = WasmInstanceObject::GetOrCreateWasmExternalFunction(
+    auto internal = WasmInstanceObject::GetOrCreateWasmInternalFunction(
         isolate_, instance_, function_index);
     result->runtime_value = WasmValue(
-        function, ValueType::Ref(module_->functions[function_index].sig_index,
+        internal, ValueType::Ref(module_->functions[function_index].sig_index,
                                  kNonNullable));
   } else {
     outer_module_->functions[function_index].declared = true;

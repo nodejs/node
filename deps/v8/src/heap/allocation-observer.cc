@@ -60,8 +60,8 @@ void AllocationCounter::RemoveAllocationObserver(AllocationObserver* observer) {
   } else {
     size_t step_size = 0;
 
-    for (AllocationObserverCounter& observer : observers_) {
-      size_t left_in_step = observer.next_counter_ - current_counter_;
+    for (AllocationObserverCounter& observer_counter : observers_) {
+      size_t left_in_step = observer_counter.next_counter_ - current_counter_;
       DCHECK_GT(left_in_step, 0);
       step_size = step_size ? std::min(step_size, left_in_step) : left_in_step;
     }

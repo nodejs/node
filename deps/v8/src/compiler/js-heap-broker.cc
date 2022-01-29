@@ -30,10 +30,13 @@ namespace compiler {
 
 #define TRACE(broker, x) TRACE_BROKER(broker, x)
 
+#ifdef V8_STATIC_CONSTEXPR_VARIABLES_NEED_DEFINITIONS
 // These definitions are here in order to please the linker, which in debug mode
 // sometimes requires static constants to be defined in .cc files.
+// This is, however, deprecated (and unnecessary) in C++17.
 const uint32_t JSHeapBroker::kMinimalRefsBucketCount;
 const uint32_t JSHeapBroker::kInitialRefsBucketCount;
+#endif
 
 void JSHeapBroker::IncrementTracingIndentation() { ++trace_indentation_; }
 
@@ -43,6 +46,9 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
                            bool tracing_enabled, bool is_concurrent_inlining,
                            CodeKind code_kind)
     : isolate_(isolate),
+#if V8_COMPRESS_POINTERS
+      cage_base_(isolate),
+#endif  // V8_COMPRESS_POINTERS
       zone_(broker_zone),
       refs_(zone()->New<RefsMap>(kMinimalRefsBucketCount, AddressMatcher(),
                                  zone())),
@@ -582,21 +588,22 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 
   // If no maps were found for a non-megamorphic access, then our maps died
   // and we should soft-deopt.
-  if (maps.empty() && nexus.ic_state() != MEGAMORPHIC) {
+  if (maps.empty() && nexus.ic_state() != InlineCacheState::MEGAMORPHIC) {
     return NewInsufficientFeedback(kind);
   }
 
   if (name.has_value()) {
     // We rely on this invariant in JSGenericLowering.
-    DCHECK_IMPLIES(maps.empty(), nexus.ic_state() == MEGAMORPHIC);
+    DCHECK_IMPLIES(maps.empty(),
+                   nexus.ic_state() == InlineCacheState::MEGAMORPHIC);
     return *zone()->New<NamedAccessFeedback>(*name, maps, kind);
-  } else if (nexus.GetKeyType() == ELEMENT && !maps.empty()) {
+  } else if (nexus.GetKeyType() == IcCheckType::kElement && !maps.empty()) {
     return ProcessFeedbackMapsForElementAccess(
         maps, KeyedAccessMode::FromNexus(nexus), kind);
   } else {
     // No actionable feedback.
     DCHECK(maps.empty());
-    DCHECK_EQ(nexus.ic_state(), MEGAMORPHIC);
+    DCHECK_EQ(nexus.ic_state(), InlineCacheState::MEGAMORPHIC);
     // TODO(neis): Using ElementAccessFeedback here is kind of an abuse.
     return *zone()->New<ElementAccessFeedback>(
         zone(), KeyedAccessMode::FromNexus(nexus), kind);
@@ -611,7 +618,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
          nexus.kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
          nexus.kind() == FeedbackSlotKind::kStoreGlobalStrict);
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
-  if (nexus.ic_state() != MONOMORPHIC || nexus.GetFeedback()->IsCleared()) {
+  if (nexus.ic_state() != InlineCacheState::MONOMORPHIC ||
+      nexus.GetFeedback()->IsCleared()) {
     return *zone()->New<GlobalAccessFeedback>(nexus.kind());
   }
 

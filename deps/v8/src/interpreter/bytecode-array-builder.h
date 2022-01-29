@@ -501,6 +501,17 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
     SetStatementPosition(stmt->position());
   }
 
+  BytecodeSourceInfo PopSourcePosition() {
+    BytecodeSourceInfo source_info = latest_source_info_;
+    latest_source_info_.set_invalid();
+    return source_info;
+  }
+
+  void PushSourcePosition(BytecodeSourceInfo source_info) {
+    DCHECK(!latest_source_info_.is_valid());
+    latest_source_info_ = source_info;
+  }
+
   void SetStatementPosition(int position) {
     if (position == kNoSourcePosition) return;
     latest_source_info_.MakeStatementPosition(position);

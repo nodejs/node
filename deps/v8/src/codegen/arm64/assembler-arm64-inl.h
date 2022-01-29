@@ -192,7 +192,7 @@ inline VRegister CPURegister::Q() const {
 // Default initializer is for int types
 template <typename T>
 struct ImmediateInitializer {
-  static inline RelocInfo::Mode rmode_for(T) { return RelocInfo::NONE; }
+  static inline RelocInfo::Mode rmode_for(T) { return RelocInfo::NO_INFO; }
   static inline int64_t immediate_for(T t) {
     STATIC_ASSERT(sizeof(T) <= 8);
     STATIC_ASSERT(std::is_integral<T>::value || std::is_enum<T>::value);
@@ -202,7 +202,7 @@ struct ImmediateInitializer {
 
 template <>
 struct ImmediateInitializer<Smi> {
-  static inline RelocInfo::Mode rmode_for(Smi t) { return RelocInfo::NONE; }
+  static inline RelocInfo::Mode rmode_for(Smi t) { return RelocInfo::NO_INFO; }
   static inline int64_t immediate_for(Smi t) {
     return static_cast<int64_t>(t.ptr());
   }

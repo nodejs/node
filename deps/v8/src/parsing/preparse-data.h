@@ -281,6 +281,8 @@ class ConsumedPreparseData {
   // PreparseData |data|.
   V8_EXPORT_PRIVATE static std::unique_ptr<ConsumedPreparseData> For(
       Isolate* isolate, Handle<PreparseData> data);
+  V8_EXPORT_PRIVATE static std::unique_ptr<ConsumedPreparseData> For(
+      LocalIsolate* isolate, Handle<PreparseData> data);
 
   // Creates a ConsumedPreparseData representing the data of an off-heap
   // ZonePreparseData |data|.

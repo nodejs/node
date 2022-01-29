@@ -166,9 +166,7 @@ TEST(WeakMapPromotionMarkCompact) {
 
   CcTest::CollectAllGarbage();
 
-  CHECK(FLAG_always_promote_young_mc
-            ? !ObjectInYoungGeneration(weakmap->table())
-            : ObjectInYoungGeneration(weakmap->table()));
+  CHECK(!ObjectInYoungGeneration(weakmap->table()));
 
   Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   Handle<JSObject> object = factory->NewJSObjectFromMap(map);
@@ -180,8 +178,7 @@ TEST(WeakMapPromotionMarkCompact) {
       EphemeronHashTable::cast(weakmap->table()), *object));
   CcTest::CollectAllGarbage();
 
-  CHECK(FLAG_always_promote_young_mc ? !ObjectInYoungGeneration(*object)
-                                     : ObjectInYoungGeneration(*object));
+  CHECK(!ObjectInYoungGeneration(*object));
   CHECK(!ObjectInYoungGeneration(weakmap->table()));
   CHECK(EphemeronHashTableContainsKey(
       EphemeronHashTable::cast(weakmap->table()), *object));
@@ -229,9 +226,9 @@ TEST(WeakMapScavenge) {
 // Test that weak map values on an evacuation candidate which are not reachable
 // by other paths are correctly recorded in the slots buffer.
 TEST(Regress2060a) {
-  if (i::FLAG_never_compact) return;
+  if (!i::FLAG_compact) return;
   if (i::FLAG_enable_third_party_heap) return;
-  FLAG_always_compact = true;
+  FLAG_compact_on_every_full_gc = true;
   FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
@@ -262,7 +259,7 @@ TEST(Regress2060a) {
   }
 
   // Force compacting garbage collection.
-  CHECK(FLAG_always_compact);
+  CHECK(FLAG_compact_on_every_full_gc);
   CcTest::CollectAllGarbage();
 }
 
@@ -270,8 +267,8 @@ TEST(Regress2060a) {
 // Test that weak map keys on an evacuation candidate which are reachable by
 // other strong paths are correctly recorded in the slots buffer.
 TEST(Regress2060b) {
-  if (i::FLAG_never_compact) return;
-  FLAG_always_compact = true;
+  if (!i::FLAG_compact) return;
+  FLAG_compact_on_every_full_gc = true;
 #ifdef VERIFY_HEAP
   FLAG_verify_heap = true;
 #endif
@@ -306,7 +303,7 @@ TEST(Regress2060b) {
 
   // Force compacting garbage collection. The subsequent collections are used
   // to verify that key references were actually updated.
-  CHECK(FLAG_always_compact);
+  CHECK(FLAG_compact_on_every_full_gc);
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();

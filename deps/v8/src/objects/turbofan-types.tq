@@ -9,7 +9,10 @@
 class TurbofanType extends HeapObject {
 }
 
-bitfield struct TurbofanTypeBits extends uint32 {
+// TurbofanBitsetType is 64 bit.
+// We use two separate 32 bit bitsets in Torque, due to limitted support
+// of 64 bit bitsets.
+bitfield struct TurbofanTypeLowBits extends uint32 {
   _unused_padding_field_1: bool: 1 bit;
   other_unsigned31: bool: 1 bit;
   other_unsigned32: bool: 1 bit;
@@ -44,9 +47,14 @@ bitfield struct TurbofanTypeBits extends uint32 {
   caged_pointer: bool: 1 bit;
 }
 
+bitfield struct TurbofanTypeHighBits extends uint32 {
+  wasm_object: bool: 1 bit;
+}
+
 @export
 class TurbofanBitsetType extends TurbofanType {
-  bitset: TurbofanTypeBits;
+  bitset_low: TurbofanTypeLowBits;
+  bitset_high: TurbofanTypeHighBits;
 }
 
 @export
@@ -75,82 +83,91 @@ macro IsMinusZero(x: float64): bool {
   return x == 0 && 1 / x < 0;
 }
 
-macro TestTurbofanBitsetType(value: Object, bitset: TurbofanTypeBits): bool {
+macro TestTurbofanBitsetType(
+    value: Object, bitsetLow: TurbofanTypeLowBits,
+    bitsetHigh: TurbofanTypeHighBits): bool {
+  // Silence unused warnings on builds that don't need {bitsetHigh}.
+  const _unused = bitsetHigh;
   typeswitch (value) {
     case (value: Number): {
       const valueF = Convert<float64>(value);
       if (IsInteger(value)) {
         if (IsMinusZero(valueF)) {
-          return bitset.minus_zero;
+          return bitsetLow.minus_zero;
         } else if (valueF < Convert<float64>(-0x80000000)) {
-          return bitset.other_number;
+          return bitsetLow.other_number;
         } else if (valueF < -0x40000000) {
-          return bitset.other_signed32;
+          return bitsetLow.other_signed32;
         } else if (valueF < 0) {
-          return bitset.negative31;
+          return bitsetLow.negative31;
         } else if (valueF < Convert<float64>(0x40000000)) {
-          return bitset.unsigned30;
+          return bitsetLow.unsigned30;
         } else if (valueF < 0x80000000) {
-          return bitset.other_unsigned31;
+          return bitsetLow.other_unsigned31;
         } else if (valueF <= 0xffffffff) {
-          return bitset.other_unsigned32;
+          return bitsetLow.other_unsigned32;
         } else {
-          return bitset.other_number;
+          return bitsetLow.other_number;
         }
       } else if (Float64IsNaN(valueF)) {
-        return bitset.naN;
+        return bitsetLow.naN;
       } else {
-        return bitset.other_number;
+        return bitsetLow.other_number;
       }
     }
     case (Null): {
-      return bitset.null;
+      return bitsetLow.null;
     }
     case (Undefined): {
-      return bitset.undefined;
+      return bitsetLow.undefined;
     }
     case (Boolean): {
-      return bitset.boolean;
+      return bitsetLow.boolean;
     }
     case (Symbol): {
-      return bitset.symbol;
+      return bitsetLow.symbol;
     }
     case (s: String): {
       if (s.IsNotInternalized()) {
-        return bitset.other_string;
+        return bitsetLow.other_string;
       } else {
-        return bitset.internalized_string;
+        return bitsetLow.internalized_string;
       }
     }
     case (proxy: JSProxy): {
-      return Is<Callable>(proxy) ? bitset.callable_proxy : bitset.other_proxy;
+      return Is<Callable>(proxy) ? bitsetLow.callable_proxy :
+                                   bitsetLow.other_proxy;
     }
     case (JSFunction): {
-      return bitset.function;
+      return bitsetLow.function;
     }
     case (JSBoundFunction): {
-      return bitset.bound_function;
+      return bitsetLow.bound_function;
     }
     case (TheHole): {
-      return bitset.hole;
+      return bitsetLow.hole;
     }
     case (JSArray): {
-      return bitset.array;
+      return bitsetLow.array;
     }
     case (BigInt): {
       // TODO (tebbi): Distinguish different BigInt types.
-      return bitset.unsigned_big_int_63 | bitset.other_unsigned_big_int_64 |
-          bitset.negative_big_int_63 | bitset.other_big_int;
-    }
-    case (Callable): {
-      return bitset.other_callable;
+      return bitsetLow.unsigned_big_int_63 |
+          bitsetLow.other_unsigned_big_int_64 | bitsetLow.negative_big_int_63 |
+          bitsetLow.other_big_int;
     }
     case (object: JSObject): {
       if (object.map.IsUndetectable()) {
-        return bitset.other_undetectable;
+        return bitsetLow.other_undetectable;
+      } else if (Is<Callable>(object)) {
+        return bitsetLow.other_callable;
       } else {
-        return bitset.other_object;
+        return bitsetLow.other_object;
       }
+    }
+    @if(V8_ENABLE_WEBASSEMBLY)
+    case (WasmObject): {
+      return bitsetHigh.wasm_object;
     }
     case (Object): {
       return false;
@@ -162,7 +179,8 @@ builtin TestTurbofanType(implicit context: Context)(
     value: Object, expectedType: TurbofanType): Boolean {
   typeswitch (expectedType) {
     case (t: TurbofanBitsetType): {
-      return Convert<Boolean>(TestTurbofanBitsetType(value, t.bitset));
+      return Convert<Boolean>(
+          TestTurbofanBitsetType(value, t.bitset_low, t.bitset_high));
     }
     case (t: TurbofanUnionType): {
       return Convert<Boolean>(

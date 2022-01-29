@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-dynamic-import --harmony-top-level-await
+// Flags: --harmony-top-level-await
 
 let m1 = import('modules-skip-1.mjs');
 let m1_namespace = await m1;

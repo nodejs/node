@@ -25,7 +25,7 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK_IMPLIES(type == AllocationType::kCode || type == AllocationType::kMap,
-                 alignment == AllocationAlignment::kWordAligned);
+                 alignment == AllocationAlignment::kTaggedAligned);
   Heap::HeapState state = heap()->gc_state();
   DCHECK(state == Heap::TEAR_DOWN || state == Heap::NOT_IN_GC);
   DCHECK(IsRunning());
@@ -47,16 +47,24 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
     }
     HeapObject object;
     if (alloc.To(&object) && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+      heap()->UnprotectAndRegisterMemoryChunk(
+          object, UnprotectMemoryOrigin::kMaybeOffMainThread);
       heap()->ZapCodeObject(object.address(), size_in_bytes);
     }
     return alloc;
   }
 
-  CHECK_EQ(type, AllocationType::kOld);
-  if (large_object)
-    return heap()->lo_space()->AllocateRawBackground(this, size_in_bytes);
-  else
-    return old_space_allocator()->AllocateRaw(size_in_bytes, alignment, origin);
+  if (type == AllocationType::kOld) {
+    if (large_object)
+      return heap()->lo_space()->AllocateRawBackground(this, size_in_bytes);
+    else
+      return old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
+                                                origin);
+  }
+
+  DCHECK_EQ(type, AllocationType::kSharedOld);
+  return shared_old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
+                                                   origin);
 }
 
 Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,

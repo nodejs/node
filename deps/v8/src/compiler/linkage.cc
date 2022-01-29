@@ -208,6 +208,25 @@ int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
   UNREACHABLE();
 }
 
+EncodedCSignature CallDescriptor::ToEncodedCSignature() const {
+  int parameter_count = static_cast<int>(ParameterCount());
+  EncodedCSignature sig(parameter_count);
+  CHECK_LT(parameter_count, EncodedCSignature::kInvalidParamCount);
+
+  for (int i = 0; i < parameter_count; ++i) {
+    if (IsFloatingPoint(GetParameterType(i).representation())) {
+      sig.SetFloat(i);
+    }
+  }
+  if (ReturnCount() > 0) {
+    DCHECK_EQ(1, ReturnCount());
+    if (IsFloatingPoint(GetReturnType(0).representation())) {
+      sig.SetFloat(EncodedCSignature::kReturnIndex);
+    }
+  }
+  return sig;
+}
+
 void CallDescriptor::ComputeParamCounts() const {
   gp_param_count_ = 0;
   fp_param_count_ = 0;
@@ -257,6 +276,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kPushBlockContext:
     case Runtime::kPushCatchContext:
     case Runtime::kReThrow:
+    case Runtime::kReThrowWithMessage:
     case Runtime::kStringEqual:
     case Runtime::kStringLessThan:
     case Runtime::kStringLessThanOrEqual:
@@ -517,6 +537,9 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       CallDescriptor::kCanUseRoots | flags,  // flags
       descriptor.DebugName(),                // debug name
       descriptor.GetStackArgumentOrder(),    // stack order
+#if V8_ENABLE_WEBASSEMBLY
+      nullptr,  // wasm function signature
+#endif
       allocatable_registers);
 }
 

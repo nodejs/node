@@ -578,15 +578,6 @@ TNode<Map> GraphAssembler::LoadMap(Node* object) {
 #endif
 }
 
-void GraphAssembler::StoreMap(Node* object, TNode<Map> map) {
-#ifdef V8_MAP_PACKING
-  map = PackMapWord(map);
-#endif
-  StoreRepresentation rep(MachineType::TaggedRepresentation(),
-                          kMapWriteBarrier);
-  Store(rep, object, HeapObject::kMapOffset - kHeapObjectTag, map);
-}
-
 Node* JSGraphAssembler::StoreElement(ElementAccess const& access, Node* object,
                                      Node* index, Node* value) {
   return AddNode(graph()->NewNode(simplified()->StoreElement(access), object,

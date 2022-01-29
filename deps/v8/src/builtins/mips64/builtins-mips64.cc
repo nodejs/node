@@ -186,8 +186,10 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ Ld(t2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ lwu(t2, FieldMemOperand(t2, SharedFunctionInfo::kFlagsOffset));
   __ DecodeField<SharedFunctionInfo::FunctionKindBits>(t2);
-  __ JumpIfIsInRange(t2, kDefaultDerivedConstructor, kDerivedConstructor,
-                     &not_create_implicit_receiver);
+  __ JumpIfIsInRange(
+      t2, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+      static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
+      &not_create_implicit_receiver);
 
   // If not derived class constructor: Allocate the new receiver object.
   __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
@@ -876,7 +878,8 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
                                           OptimizationMarker expected_marker,
                                           Runtime::FunctionId function_id) {
   Label no_match;
-  __ Branch(&no_match, ne, actual_marker, Operand(expected_marker));
+  __ Branch(&no_match, ne, actual_marker,
+            Operand(static_cast<int>(expected_marker)));
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
 }
@@ -2294,7 +2297,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- a0 : the number of arguments
   //  -- a1 : the function to call (checked to be a JSFunction)
   // -----------------------------------
-  __ AssertFunction(a1);
+  __ AssertCallableFunction(a1);
 
   Label class_constructor;
   __ Ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));

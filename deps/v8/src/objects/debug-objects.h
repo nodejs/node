@@ -21,6 +21,7 @@ namespace internal {
 
 class BreakPoint;
 class BytecodeArray;
+class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/debug-objects-tq.inc"
 
@@ -132,6 +133,8 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
 
   static const int kEstimatedNofBreakPointsInFunction = 4;
 
+  using BodyDescriptor = StructBodyDescriptor;
+
  private:
   // Get the break point info object for a source position.
   Object GetBreakPointInfo(Isolate* isolate, int source_position);
@@ -163,6 +166,8 @@ class BreakPointInfo
 
   int GetStatementPosition(Handle<DebugInfo> debug_info);
 
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(BreakPointInfo)
 };
 
@@ -193,6 +198,8 @@ class CoverageInfo
 // Holds breakpoint related information. This object is used by inspector.
 class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
  public:
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(BreakPoint)
 };
 

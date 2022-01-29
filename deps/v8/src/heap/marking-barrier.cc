@@ -27,14 +27,18 @@ MarkingBarrier::MarkingBarrier(Heap* heap)
       collector_(heap_->mark_compact_collector()),
       incremental_marking_(heap_->incremental_marking()),
       worklist_(collector_->marking_worklists()->shared()),
-      is_main_thread_barrier_(true) {}
+      marking_state_(heap_->isolate()),
+      is_main_thread_barrier_(true),
+      is_shared_heap_(heap_->IsShared()) {}
 
 MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
     : heap_(local_heap->heap()),
       collector_(heap_->mark_compact_collector()),
       incremental_marking_(nullptr),
       worklist_(collector_->marking_worklists()->shared()),
-      is_main_thread_barrier_(false) {}
+      marking_state_(heap_->isolate()),
+      is_main_thread_barrier_(false),
+      is_shared_heap_(heap_->IsShared()) {}
 
 MarkingBarrier::~MarkingBarrier() { DCHECK(worklist_.IsLocalEmpty()); }
 
@@ -156,6 +160,12 @@ void MarkingBarrier::Publish() {
     worklist_.Publish();
     for (auto& it : typed_slots_map_) {
       MemoryChunk* memory_chunk = it.first;
+      // Access to TypeSlots need to be protected, since LocalHeaps might
+      // publish code in the background thread.
+      base::Optional<base::MutexGuard> opt_guard;
+      if (FLAG_concurrent_sparkplug) {
+        opt_guard.emplace(memory_chunk->mutex());
+      }
       std::unique_ptr<TypedSlots>& typed_slots = it.second;
       RememberedSet<OLD_TO_OLD>::MergeTyped(memory_chunk,
                                             std::move(typed_slots));

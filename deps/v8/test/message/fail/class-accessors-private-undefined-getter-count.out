@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 *%(basename)s:8: TypeError: '#foo' was defined without a getter
     this.#foo++;
-    ^
+         ^
 TypeError: '#foo' was defined without a getter
-    at new C (*%(basename)s:8:5)
+    at new C (*%(basename)s:8:10)
     at *%(basename)s:12:1

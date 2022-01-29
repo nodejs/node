@@ -29,7 +29,7 @@ HeapObject PagedSpaceObjectIterator::Next() {
 HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
   while (cur_addr_ != cur_end_) {
     HeapObject obj = HeapObject::FromAddress(cur_addr_);
-    const int obj_size = obj.Size();
+    const int obj_size = obj.Size(cage_base());
     cur_addr_ += obj_size;
     DCHECK_LE(cur_addr_, cur_end_);
     if (!obj.IsFreeSpaceOrFiller(cage_base())) {
@@ -79,38 +79,39 @@ size_t PagedSpace::RelinkFreeListCategories(Page* page) {
 }
 
 bool PagedSpace::TryFreeLast(Address object_address, int object_size) {
-  if (allocation_info_.top() != kNullAddress) {
-    return allocation_info_.DecrementTopIfAdjacent(object_address, object_size);
+  if (allocation_info_->top() != kNullAddress) {
+    return allocation_info_->DecrementTopIfAdjacent(object_address,
+                                                    object_size);
   }
   return false;
 }
 
 bool PagedSpace::EnsureLabMain(int size_in_bytes, AllocationOrigin origin) {
-  if (allocation_info_.top() + size_in_bytes <= allocation_info_.limit()) {
+  if (allocation_info_->top() + size_in_bytes <= allocation_info_->limit()) {
     return true;
   }
   return RefillLabMain(size_in_bytes, origin);
 }
 
 AllocationResult PagedSpace::AllocateFastUnaligned(int size_in_bytes) {
-  if (!allocation_info_.CanIncrementTop(size_in_bytes)) {
+  if (!allocation_info_->CanIncrementTop(size_in_bytes)) {
     return AllocationResult::Retry(identity());
   }
   return AllocationResult(
-      HeapObject::FromAddress(allocation_info_.IncrementTop(size_in_bytes)));
+      HeapObject::FromAddress(allocation_info_->IncrementTop(size_in_bytes)));
 }
 
 AllocationResult PagedSpace::AllocateFastAligned(
     int size_in_bytes, int* aligned_size_in_bytes,
     AllocationAlignment alignment) {
-  Address current_top = allocation_info_.top();
+  Address current_top = allocation_info_->top();
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
   int aligned_size = filler_size + size_in_bytes;
-  if (!allocation_info_.CanIncrementTop(aligned_size)) {
+  if (!allocation_info_->CanIncrementTop(aligned_size)) {
     return AllocationResult::Retry(identity());
   }
   HeapObject obj =
-      HeapObject::FromAddress(allocation_info_.IncrementTop(aligned_size));
+      HeapObject::FromAddress(allocation_info_->IncrementTop(aligned_size));
   if (aligned_size_in_bytes) *aligned_size_in_bytes = aligned_size;
   if (filler_size > 0) {
     obj = heap()->PrecedeWithFiller(obj, filler_size);
@@ -176,7 +177,7 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
   DCHECK(!FLAG_enable_third_party_heap);
   AllocationResult result;
 
-  if (alignment != kWordAligned) {
+  if (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned) {
     result = AllocateFastAligned(size_in_bytes, nullptr, alignment);
   } else {
     result = AllocateFastUnaligned(size_in_bytes);

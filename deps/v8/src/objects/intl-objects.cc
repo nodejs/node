@@ -16,6 +16,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
 #include "src/execution/isolate.h"
+#include "src/execution/local-isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/objects/js-collator-inl.h"
@@ -612,27 +613,6 @@ Maybe<std::string> Intl::ToLanguageTag(const icu::Locale& locale) {
   return Just(res);
 }
 
-namespace {
-std::string DefaultLocale(Isolate* isolate) {
-  if (isolate->default_locale().empty()) {
-    icu::Locale default_locale;
-    // Translate ICU's fallback locale to a well-known locale.
-    if (strcmp(default_locale.getName(), "en_US_POSIX") == 0 ||
-        strcmp(default_locale.getName(), "c") == 0) {
-      isolate->set_default_locale("en-US");
-    } else {
-      // Set the locale
-      isolate->set_default_locale(
-          default_locale.isBogus()
-              ? "und"
-              : Intl::ToLanguageTag(default_locale).FromJust());
-    }
-    DCHECK(!isolate->default_locale().empty());
-  }
-  return isolate->default_locale();
-}
-}  // namespace
-
 // See ecma402/#legacy-constructor.
 MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
                                                Handle<JSReceiver> receiver,
@@ -894,7 +874,7 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
     return MaybeHandle<String>();
   }
   std::string requested_locale = requested_locales.size() == 0
-                                     ? DefaultLocale(isolate)
+                                     ? isolate->DefaultLocale()
                                      : requested_locales[0];
   size_t dash = requested_locale.find('-');
   if (dash != std::string::npos) {
@@ -932,8 +912,9 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
 }
 
 // static
+template <class IsolateT>
 Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
-    Isolate* isolate, Handle<Object> locales, Handle<Object> options) {
+    IsolateT* isolate, Handle<Object> locales, Handle<Object> options) {
   if (!options->IsUndefined(isolate)) {
     return CompareStringsOptions::kNone;
   }
@@ -947,40 +928,39 @@ Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
   // The actual conditions are verified in debug builds in
   // CollatorAllowsFastComparison.
   static const char* const kFastLocales[] = {
-      "en-US", "en",    "fr", "es", "de", "pt", "it", "ca", "de-AT", "fi",
-      "id",    "id-ID", "ms", "nl", "pl", "ro", "sl", "sv", "sw",    "vi",
+      "en-US", "en", "fr", "es",    "de",    "pt",    "it", "ca",
+      "de-AT", "fi", "id", "id-ID", "ms",    "nl",    "pl", "ro",
+      "sl",    "sv", "sw", "vi",    "en-DE", "en-GB",
   };
 
   if (locales->IsUndefined(isolate)) {
-    static bool default_is_fast = false;
-
-    // The default locale is immutable after initialization.
-    static base::OnceType once = V8_ONCE_INIT;
-    base::CallOnce(&once, [&]() {
-      const std::string& default_locale = DefaultLocale(isolate);
-      for (const char* fast_locale : kFastLocales) {
-        if (strcmp(fast_locale, default_locale.c_str()) == 0) {
-          default_is_fast = true;
-          return;
-        }
+    const std::string& default_locale = isolate->DefaultLocale();
+    for (const char* fast_locale : kFastLocales) {
+      if (strcmp(fast_locale, default_locale.c_str()) == 0) {
+        return CompareStringsOptions::kTryFastPath;
       }
-    });
+    }
 
-    return default_is_fast ? CompareStringsOptions::kTryFastPath
-                           : CompareStringsOptions::kNone;
+    return CompareStringsOptions::kNone;
   }
 
   if (!locales->IsString()) return CompareStringsOptions::kNone;
 
   Handle<String> locales_string = Handle<String>::cast(locales);
   for (const char* fast_locale : kFastLocales) {
-    if (locales_string->IsOneByteEqualTo(base::CStrVector(fast_locale))) {
+    if (locales_string->IsEqualTo(base::CStrVector(fast_locale), isolate)) {
       return CompareStringsOptions::kTryFastPath;
     }
   }
 
   return CompareStringsOptions::kNone;
 }
+
+// Instantiations.
+template Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
+    Isolate*, Handle<Object>, Handle<Object>);
+template Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
+    LocalIsolate*, Handle<Object>, Handle<Object>);
 
 base::Optional<int> Intl::StringLocaleCompare(
     Isolate* isolate, Handle<String> string1, Handle<String> string2,
@@ -1049,7 +1029,7 @@ namespace {
 //       return [weight_map[x] for x in ws]
 //
 //   def print_weight_list(array_name, ws):
-//       print("constexpr uint8_t %s[] = {" % array_name, end = "")
+//       print("constexpr uint8_t %s[256] = {" % array_name, end = "")
 //       i = 0
 //       for w in ws:
 //           if (i % 16) == 0:
@@ -1069,7 +1049,7 @@ namespace {
 //       print_weight_list("kCollationWeightsL3", to_ordinal(l3s))
 
 // clang-format off
-constexpr uint8_t kCollationWeightsL1[] = {
+constexpr uint8_t kCollationWeightsL1[256] = {
     0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  2,  3,  4,  5,  0,  0,
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
     6, 12, 16, 28, 38, 29, 27, 15, 17, 18, 24, 32,  9,  8, 14, 25,
@@ -1079,7 +1059,7 @@ constexpr uint8_t kCollationWeightsL1[] = {
    30, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
    64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 21, 36, 22, 37,  0,
 };
-constexpr uint8_t kCollationWeightsL3[] = {
+constexpr uint8_t kCollationWeightsL3[256] = {
     0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  0,  0,
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
@@ -1089,9 +1069,7 @@ constexpr uint8_t kCollationWeightsL3[] = {
     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  0,
 };
-constexpr int kCollationWeightsLength =
-    arraysize(kCollationWeightsL1);
-STATIC_ASSERT(kCollationWeightsLength == 128);
+constexpr int kCollationWeightsLength = arraysize(kCollationWeightsL1);
 STATIC_ASSERT(kCollationWeightsLength == arraysize(kCollationWeightsL3));
 // clang-format on
 
@@ -1196,6 +1174,12 @@ bool CharIsAsciiOrOutOfBounds(const String::FlatContent& string,
                               int string_length, int index) {
   DCHECK_EQ(string.length(), string_length);
   return index >= string_length || isascii(string.Get(index));
+}
+
+bool CharCanFastCompareOrOutOfBounds(const String::FlatContent& string,
+                                     int string_length, int index) {
+  DCHECK_EQ(string.length(), string_length);
+  return index >= string_length || CanFastCompare(string.Get(index));
 }
 
 #ifdef DEBUG
@@ -1394,13 +1378,34 @@ base::Optional<UCollationResult> TryFastCompareStrings(
 
   // Strings are L1-equal up to their common length, length differences win.
   UCollationResult length_result = ToUCollationResult(length1 - length2);
-  if (length_result != UCollationResult::UCOL_EQUAL) return length_result;
+  if (length_result != UCollationResult::UCOL_EQUAL) {
+    // Strings of different lengths may still compare as equal if the longer
+    // string has a fully ignored suffix, e.g. "a" vs. "a\u{1}".
+    if (!CharCanFastCompareOrOutOfBounds(flat1, length1, common_length) ||
+        !CharCanFastCompareOrOutOfBounds(flat2, length2, common_length)) {
+      return d.FastCompareFailed(processed_until_out);
+    }
+    return length_result;
+  }
 
   // L1-equal and same length, the L3 result wins.
   return d.l3_result;
 }
 
 }  // namespace
+
+// static
+const uint8_t* Intl::AsciiCollationWeightsL1() {
+  return &kCollationWeightsL1[0];
+}
+
+// static
+const uint8_t* Intl::AsciiCollationWeightsL3() {
+  return &kCollationWeightsL3[0];
+}
+
+// static
+const int Intl::kAsciiCollationWeightsLength = kCollationWeightsLength;
 
 // ecma402/#sec-collator-comparestrings
 int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
@@ -1582,9 +1587,6 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
 
     // 15. Else If mnfd is not undefined or mxfd is not undefined, then
     if (!mnfd_obj->IsUndefined(isolate) || !mxfd_obj->IsUndefined(isolate)) {
-      Handle<String> mxfd_str = factory->maximumFractionDigits_string();
-      Handle<String> mnfd_str = factory->minimumFractionDigits_string();
-
       int specified_mnfd;
       int specified_mxfd;
 
@@ -1802,7 +1804,7 @@ icu::LocaleMatcher BuildLocaleMatcher(
     Isolate* isolate, const std::set<std::string>& available_locales,
     UErrorCode* status) {
   icu::Locale default_locale =
-      icu::Locale::forLanguageTag(DefaultLocale(isolate), *status);
+      icu::Locale::forLanguageTag(isolate->DefaultLocale(), *status);
   icu::LocaleMatcher::Builder builder;
   if (U_FAILURE(*status)) {
     return builder.build(*status);
@@ -2031,7 +2033,6 @@ class ResourceAvailableCurrencies {
     // Work around the issue that we do support the following currency codes
     // in DisplayNames but the ICU API is not reporting it.
     AddIfAvailable("SVC");
-    AddIfAvailable("VES");
     AddIfAvailable("XDR");
     AddIfAvailable("XSU");
     AddIfAvailable("ZWL");
@@ -2373,7 +2374,7 @@ std::string LookupMatcher(Isolate* isolate,
   // 3. Let defLocale be DefaultLocale();
   // 4. Set result.[[locale]] to defLocale.
   // 5. Return result.
-  return DefaultLocale(isolate);
+  return isolate->DefaultLocale();
 }
 
 }  // namespace

@@ -79,7 +79,7 @@ class TypeInfo;
 
 // Order of kinds is significant.
 // Must fit in the BitField PropertyDetails::KindField.
-enum PropertyKind { kData = 0, kAccessor = 1 };
+enum class PropertyKind { kData = 0, kAccessor = 1 };
 
 // Order of modes is significant.
 // Must fit in the BitField PropertyDetails::LocationField.
@@ -104,16 +104,22 @@ class Representation {
     kNumRepresentations
   };
 
-  Representation() : kind_(kNone) {}
+  constexpr Representation() : kind_(kNone) {}
 
-  static Representation None() { return Representation(kNone); }
-  static Representation Tagged() { return Representation(kTagged); }
-  static Representation Smi() { return Representation(kSmi); }
-  static Representation Double() { return Representation(kDouble); }
-  static Representation HeapObject() { return Representation(kHeapObject); }
-  static Representation WasmValue() { return Representation(kWasmValue); }
+  static constexpr Representation None() { return Representation(kNone); }
+  static constexpr Representation Tagged() { return Representation(kTagged); }
+  static constexpr Representation Smi() { return Representation(kSmi); }
+  static constexpr Representation Double() { return Representation(kDouble); }
+  static constexpr Representation HeapObject() {
+    return Representation(kHeapObject);
+  }
+  static constexpr Representation WasmValue() {
+    return Representation(kWasmValue);
+  }
 
-  static Representation FromKind(Kind kind) { return Representation(kind); }
+  static constexpr Representation FromKind(Kind kind) {
+    return Representation(kind);
+  }
 
   bool Equals(const Representation& other) const {
     return kind_ == other.kind_;
@@ -190,14 +196,14 @@ class Representation {
     return kTaggedSize;
   }
 
-  Kind kind() const { return static_cast<Kind>(kind_); }
-  bool IsNone() const { return kind_ == kNone; }
-  bool IsWasmValue() const { return kind_ == kWasmValue; }
-  bool IsTagged() const { return kind_ == kTagged; }
-  bool IsSmi() const { return kind_ == kSmi; }
-  bool IsSmiOrTagged() const { return IsSmi() || IsTagged(); }
-  bool IsDouble() const { return kind_ == kDouble; }
-  bool IsHeapObject() const { return kind_ == kHeapObject; }
+  constexpr Kind kind() const { return static_cast<Kind>(kind_); }
+  constexpr bool IsNone() const { return kind_ == kNone; }
+  constexpr bool IsWasmValue() const { return kind_ == kWasmValue; }
+  constexpr bool IsTagged() const { return kind_ == kTagged; }
+  constexpr bool IsSmi() const { return kind_ == kSmi; }
+  constexpr bool IsSmiOrTagged() const { return IsSmi() || IsTagged(); }
+  constexpr bool IsDouble() const { return kind_ == kDouble; }
+  constexpr bool IsHeapObject() const { return kind_ == kHeapObject; }
 
   const char* Mnemonic() const {
     switch (kind_) {
@@ -218,7 +224,7 @@ class Representation {
   }
 
  private:
-  explicit Representation(Kind k) : kind_(k) {}
+  explicit constexpr Representation(Kind k) : kind_(k) {}
 
   // Make sure kind fits in int8.
   STATIC_ASSERT(kNumRepresentations <= (1 << kBitsPerByte));
@@ -254,44 +260,45 @@ enum class PropertyCellType {
 class PropertyDetails {
  public:
   // Property details for global dictionary properties.
-  PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
-                  PropertyCellType cell_type, int dictionary_index = 0) {
-    value_ = KindField::encode(kind) |
-             LocationField::encode(PropertyLocation::kField) |
-             AttributesField::encode(attributes) |
-             // We track PropertyCell constness via PropertyCellTypeField,
-             // so we set ConstnessField to kMutable to simplify DCHECKs related
-             // to non-global property constness tracking.
-             ConstnessField::encode(PropertyConstness::kMutable) |
-             DictionaryStorageField::encode(dictionary_index) |
-             PropertyCellTypeField::encode(cell_type);
-  }
+  constexpr PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
+                            PropertyCellType cell_type,
+                            int dictionary_index = 0)
+      : value_(KindField::encode(kind) |
+               LocationField::encode(PropertyLocation::kField) |
+               AttributesField::encode(attributes) |
+               // We track PropertyCell constness via PropertyCellTypeField,
+               // so we set ConstnessField to kMutable to simplify DCHECKs
+               // related to non-global property constness tracking.
+               ConstnessField::encode(PropertyConstness::kMutable) |
+               DictionaryStorageField::encode(dictionary_index) |
+               PropertyCellTypeField::encode(cell_type)) {}
 
   // Property details for dictionary mode properties/elements.
-  PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
-                  PropertyConstness constness, int dictionary_index = 0) {
-    value_ = KindField::encode(kind) |
-             LocationField::encode(PropertyLocation::kField) |
-             AttributesField::encode(attributes) |
-             ConstnessField::encode(constness) |
-             DictionaryStorageField::encode(dictionary_index) |
-             PropertyCellTypeField::encode(PropertyCellType::kNoCell);
-  }
+  constexpr PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
+                            PropertyConstness constness,
+                            int dictionary_index = 0)
+      : value_(KindField::encode(kind) |
+               LocationField::encode(PropertyLocation::kField) |
+               AttributesField::encode(attributes) |
+               ConstnessField::encode(constness) |
+               DictionaryStorageField::encode(dictionary_index) |
+               PropertyCellTypeField::encode(PropertyCellType::kNoCell)) {}
 
   // Property details for fast mode properties.
-  PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
-                  PropertyLocation location, PropertyConstness constness,
-                  Representation representation, int field_index = 0) {
-    value_ = KindField::encode(kind) | AttributesField::encode(attributes) |
-             LocationField::encode(location) |
-             ConstnessField::encode(constness) |
-             RepresentationField::encode(EncodeRepresentation(representation)) |
-             FieldIndexField::encode(field_index);
-  }
+  constexpr PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
+                            PropertyLocation location,
+                            PropertyConstness constness,
+                            Representation representation, int field_index = 0)
+      : value_(
+            KindField::encode(kind) | AttributesField::encode(attributes) |
+            LocationField::encode(location) |
+            ConstnessField::encode(constness) |
+            RepresentationField::encode(EncodeRepresentation(representation)) |
+            FieldIndexField::encode(field_index)) {}
 
-  static PropertyDetails Empty(
+  static constexpr PropertyDetails Empty(
       PropertyCellType cell_type = PropertyCellType::kNoCell) {
-    return PropertyDetails(kData, NONE, cell_type);
+    return PropertyDetails(PropertyKind::kData, NONE, cell_type);
   }
 
   bool operator==(PropertyDetails const& other) {
@@ -336,7 +343,7 @@ class PropertyDetails {
   explicit inline PropertyDetails(Smi smi);
   inline Smi AsSmi() const;
 
-  static uint8_t EncodeRepresentation(Representation representation) {
+  static constexpr uint8_t EncodeRepresentation(Representation representation) {
     return representation.kind();
   }
 

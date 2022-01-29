@@ -47,6 +47,9 @@ class LinkageTailCall : public TestWithZone {
         0,                         // callee-saved fp
         CallDescriptor::kNoFlags,  // flags,
         "", StackArgumentOrder::kDefault,
+#if V8_ENABLE_WEBASSEMBLY
+        nullptr,  // wasm function sig
+#endif
         0,  // allocatable_registers
         stack_returns);
   }

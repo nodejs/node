@@ -299,7 +299,7 @@ bool AddDescriptorsByTemplate(
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
     PropertyDetails details = descriptors_template->GetDetails(i);
     if (details.location() == PropertyLocation::kDescriptor &&
-        details.kind() == kData) {
+        details.kind() == PropertyKind::kData) {
       count++;
     }
   }
@@ -321,14 +321,14 @@ bool AddDescriptorsByTemplate(
     DCHECK(name.IsUniqueName());
     PropertyDetails details = descriptors_template->GetDetails(i);
     if (details.location() == PropertyLocation::kDescriptor) {
-      if (details.kind() == kData) {
+      if (details.kind() == PropertyKind::kData) {
         if (value.IsSmi()) {
           value = GetMethodWithSharedName(isolate, args, value);
         }
         details = details.CopyWithRepresentation(
             value.OptimalRepresentation(isolate));
       } else {
-        DCHECK_EQ(kAccessor, details.kind());
+        DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         if (value.IsAccessorPair()) {
           AccessorPair pair = AccessorPair::cast(value);
           Object tmp = pair.getter();
@@ -346,7 +346,7 @@ bool AddDescriptorsByTemplate(
     }
     DCHECK(value.FitsRepresentation(details.representation()));
     if (details.location() == PropertyLocation::kDescriptor &&
-        details.kind() == kData) {
+        details.kind() == PropertyKind::kData) {
       details =
           PropertyDetails(details.kind(), details.attributes(),
                           PropertyLocation::kField, PropertyConstness::kConst,

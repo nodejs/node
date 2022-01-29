@@ -392,6 +392,13 @@ class Simulator : public SimulatorBase {
   inline uint64_t rvv_vlenb() const { return vlenb_; }
   inline uint32_t rvv_zimm() const { return instr_.Rvvzimm(); }
   inline uint32_t rvv_vlmul() const { return (rvv_vtype() & 0x7); }
+  inline float rvv_vflmul() const {
+    if ((rvv_vtype() & 0b100) == 0) {
+      return static_cast<float>(0x1 << (rvv_vtype() & 0x7));
+    } else {
+      return 1.0 / static_cast<float>(0x1 << (4 - rvv_vtype() & 0x3));
+    }
+  }
   inline uint32_t rvv_vsew() const { return ((rvv_vtype() >> 3) & 0x7); }
 
   inline const char* rvv_sew_s() const {
@@ -416,7 +423,7 @@ class Simulator : public SimulatorBase {
       RVV_LMUL(CAST_VLMUL)
       default:
         return "unknown";
-#undef CAST_VSEW
+#undef CAST_VLMUL
     }
   }
 
@@ -427,7 +434,7 @@ class Simulator : public SimulatorBase {
   }
   inline uint64_t rvv_vlmax() const {
     if ((rvv_vlmul() & 0b100) != 0) {
-      return (rvv_vlen() / rvv_sew()) >> (rvv_vlmul() & 0b11);
+      return (rvv_vlen() / rvv_sew()) >> (4 - (rvv_vlmul() & 0b11));
     } else {
       return ((rvv_vlen() << rvv_vlmul()) / rvv_sew());
     }
@@ -792,10 +799,21 @@ class Simulator : public SimulatorBase {
   auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true); \
   auto vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i - offset);
 
+/* Vector Integer Extension */
+#define VI_VIE_PARAMS(x, scale)                                  \
+  if ((x / scale) < 8) UNREACHABLE();                            \
+  auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true); \
+  auto vs2 = Rvvelt<type_sew_t<x / scale>::type>(rvv_vs2_reg(), i);
+
+#define VI_VIE_UPARAMS(x, scale)                                 \
+  if ((x / scale) < 8) UNREACHABLE();                            \
+  auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true); \
+  auto vs2 = Rvvelt<type_usew_t<x / scale>::type>(rvv_vs2_reg(), i);
+
   inline void rvv_trace_vd() {
     if (::v8::internal::FLAG_trace_sim) {
       __int128_t value = Vregister_[rvv_vd_reg()];
-      SNPrintF(trace_buf_, "0x%016" PRIx64 "%016" PRIx64 " (%" PRId64 ")",
+      SNPrintF(trace_buf_, "%016" PRIx64 "%016" PRIx64 " (%" PRId64 ")",
                *(reinterpret_cast<int64_t*>(&value) + 1),
                *reinterpret_cast<int64_t*>(&value), icount_);
     }

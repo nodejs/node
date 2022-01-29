@@ -454,24 +454,12 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   // 12. Let type be ? GetOption(options, "type", "string", « "language",
   // "region", "script", "currency" , "calendar", "dateTimeField", "unit"»,
   // undefined).
-  Maybe<Type> maybe_type =
-      FLAG_harmony_intl_displaynames_v2
-          ? GetStringOption<Type>(
-                isolate, options, "type", service,
-                {"language", "region", "script", "currency", "calendar",
-                 "dateTimeField"},
-                {Type::kLanguage, Type::kRegion, Type::kScript, Type::kCurrency,
-                 Type::kCalendar, Type::kDateTimeField},
-                Type::kUndefined)
-          : GetStringOption<Type>(isolate, options, "type", service,
-                                  {"language", "region", "script", "currency"},
-                                  {
-                                      Type::kLanguage,
-                                      Type::kRegion,
-                                      Type::kScript,
-                                      Type::kCurrency,
-                                  },
-                                  Type::kUndefined);
+  Maybe<Type> maybe_type = GetStringOption<Type>(
+      isolate, options, "type", service,
+      {"language", "region", "script", "currency", "calendar", "dateTimeField"},
+      {Type::kLanguage, Type::kRegion, Type::kScript, Type::kCurrency,
+       Type::kCalendar, Type::kDateTimeField},
+      Type::kUndefined);
   MAYBE_RETURN(maybe_type, MaybeHandle<JSDisplayNames>());
   Type type_enum = maybe_type.FromJust();
 
@@ -494,21 +482,18 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   // 16. Set displayNames.[[Fallback]] to fallback.
 
   LanguageDisplay language_display_enum = LanguageDisplay::kDialect;
-  if (FLAG_harmony_intl_displaynames_v2) {
-    // 24. Let languageDisplay be ? GetOption(options, "languageDisplay",
-    // "string", « "dialect", "standard" », "dialect").
-    Maybe<LanguageDisplay> maybe_language_display =
-        GetStringOption<LanguageDisplay>(
-            isolate, options, "languageDisplay", service,
-            {"dialect", "standard"},
-            {LanguageDisplay::kDialect, LanguageDisplay::kStandard},
-            LanguageDisplay::kDialect);
-    MAYBE_RETURN(maybe_language_display, MaybeHandle<JSDisplayNames>());
-    // 25. If type is "language", then
-    if (type_enum == Type::kLanguage) {
-      // a. Set displayNames.[[LanguageDisplay]] to languageDisplay.
-      language_display_enum = maybe_language_display.FromJust();
-    }
+  // 24. Let languageDisplay be ? GetOption(options, "languageDisplay",
+  // "string", « "dialect", "standard" », "dialect").
+  Maybe<LanguageDisplay> maybe_language_display =
+      GetStringOption<LanguageDisplay>(
+          isolate, options, "languageDisplay", service, {"dialect", "standard"},
+          {LanguageDisplay::kDialect, LanguageDisplay::kStandard},
+          LanguageDisplay::kDialect);
+  MAYBE_RETURN(maybe_language_display, MaybeHandle<JSDisplayNames>());
+  // 25. If type is "language", then
+  if (type_enum == Type::kLanguage) {
+    // a. Set displayNames.[[LanguageDisplay]] to languageDisplay.
+    language_display_enum = maybe_language_display.FromJust();
   }
 
   // Set displayNames.[[Fallback]] to fallback.
@@ -596,7 +581,6 @@ Handle<JSObject> JSDisplayNames::ResolvedOptions(
   DCHECK(maybe_create_fallback.FromJust());
   USE(maybe_create_fallback);
 
-  if (FLAG_harmony_intl_displaynames_v2) {
     if (std::strcmp("language", internal->type()) == 0) {
       Maybe<bool> maybe_create_language_display =
           JSReceiver::CreateDataProperty(isolate, options,
@@ -605,7 +589,6 @@ Handle<JSObject> JSDisplayNames::ResolvedOptions(
       DCHECK(maybe_create_language_display.FromJust());
       USE(maybe_create_language_display);
     }
-  }
 
   return options;
 }

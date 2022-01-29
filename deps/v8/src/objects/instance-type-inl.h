@@ -102,41 +102,21 @@ HEAP_OBJECT_TYPE_LIST(DECL_TYPE)
 
 }  // namespace InstanceTypeTraits
 
-#define TYPE_CHECKER(type, ...)                                               \
-  bool HeapObject::Is##type() const {                                         \
-    PtrComprCageBase cage_base = GetPtrComprCageBase(*this);                  \
-    return HeapObject::Is##type(cage_base);                                   \
-  }                                                                           \
-  /* The cage_base passed here is supposed to be the base of the pointer */   \
-  /* compression cage where the Map space is allocated. */                    \
-  /* However when external code space is enabled it's not always the case */  \
-  /* yet and the predicate has to work if the cage_base corresponds to the */ \
-  /* cage containing external code space.  */                                 \
-  /* TODO(v8:11880): Ensure that the cage_base value always corresponds to */ \
-  /* the main pointer compression cage. */                                    \
-  bool HeapObject::Is##type(PtrComprCageBase cage_base) const {               \
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {                                        \
-      if (IsCodeObject(*this)) {                                              \
-        /* Code space contains only Code objects and free space fillers. */   \
-        if (std::is_same<InstanceTypeTraits::type,                            \
-                         InstanceTypeTraits::Code>::value ||                  \
-            std::is_same<InstanceTypeTraits::type,                            \
-                         InstanceTypeTraits::FreeSpace>::value ||             \
-            std::is_same<InstanceTypeTraits::type,                            \
-                         InstanceTypeTraits::FreeSpaceOrFiller>::value) {     \
-          /* Code space objects are never read-only, so it's safe to query */ \
-          /* heap value in order to compute proper cage base. */              \
-          Heap* heap = GetHeapFromWritableObject(*this);                      \
-          Map map_object = map(Isolate::FromHeap(heap));                      \
-          return InstanceTypeChecker::Is##type(map_object.instance_type());   \
-        }                                                                     \
-        /* For all the other queries we can return false. */                  \
-        return false;                                                         \
-      }                                                                       \
-      /* Fallback to checking map instance type. */                           \
-    }                                                                         \
-    Map map_object = map(cage_base);                                          \
-    return InstanceTypeChecker::Is##type(map_object.instance_type());         \
+#define TYPE_CHECKER(type, ...)                                                \
+  bool HeapObject::Is##type() const {                                          \
+    /* In general, parameterless IsBlah() must not be used for objects */      \
+    /* that might be located in external code space. Note that this version */ \
+    /* is still called from Blah::cast() methods but it's fine because in */   \
+    /* production builds these checks are not enabled anyway and debug */      \
+    /* builds are allowed to be a bit slower. */                               \
+    PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);               \
+    return HeapObject::Is##type(cage_base);                                    \
+  }                                                                            \
+  /* The cage_base passed here is must to be the base of the pointer */        \
+  /* compression cage where the Map space is allocated. */                     \
+  bool HeapObject::Is##type(PtrComprCageBase cage_base) const {                \
+    Map map_object = map(cage_base);                                           \
+    return InstanceTypeChecker::Is##type(map_object.instance_type());          \
   }
 
 // TODO(v8:7786): For instance types that have a single map instance on the

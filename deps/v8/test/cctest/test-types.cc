@@ -26,7 +26,7 @@ static bool IsInteger(double x) {
   return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
 }
 
-using bitset = uint32_t;
+using bitset = Type::bitset;
 
 struct Tests {
   using TypeIterator = Types::TypeVector::iterator;
@@ -114,7 +114,7 @@ struct Tests {
     CHECK(this->IsBitset(T.Any));
 
     CHECK(bitset(0) == this->AsBitset(T.None));
-    CHECK(bitset(0xFFFFFFFEu) == this->AsBitset(T.Any));
+    CHECK(bitset(0xFFFFFFFFFFFFFFFEu) == this->AsBitset(T.Any));
 
     // Union(T1, T2) is bitset for bitsets T1,T2
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {

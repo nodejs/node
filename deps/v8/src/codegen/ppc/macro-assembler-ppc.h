@@ -612,8 +612,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                    Simd128Register scratch);
   void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch);
 
-  void ByteReverseU16(Register dst, Register val);
-  void ByteReverseU32(Register dst, Register val);
+  void ByteReverseU16(Register dst, Register val, Register scratch);
+  void ByteReverseU32(Register dst, Register val, Register scratch);
   void ByteReverseU64(Register dst, Register val);
 
   // Before calling a C-function from generated code, align arguments on stack.
@@ -1261,7 +1261,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                                bool builtin_exit_frame = false);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToInstructionStream(Address entry);
+  void JumpToOffHeapInstructionStream(Address entry);
 
   // ---------------------------------------------------------------------------
   // In-place weak references.

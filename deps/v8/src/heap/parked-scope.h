@@ -44,6 +44,8 @@ class V8_NODISCARD UnparkedScope {
   LocalHeap* const local_heap_;
 };
 
+// Scope that automatically parks the thread while blocking on the given
+// base::Mutex.
 class V8_NODISCARD ParkedMutexGuard {
  public:
   explicit ParkedMutexGuard(LocalIsolate* local_isolate, base::Mutex* mutex)

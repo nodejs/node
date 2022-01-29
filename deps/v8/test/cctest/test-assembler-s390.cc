@@ -88,7 +88,7 @@ TEST(1) {
 #endif
 
   __ lr(r3, r2);
-  __ lhi(r2, Operand(0, RelocInfo::NONE));
+  __ lhi(r2, Operand(0, RelocInfo::NO_INFO));
   __ b(&C);
 
   __ bind(&L);
@@ -96,7 +96,7 @@ TEST(1) {
   __ ahi(r3, Operand(-1 & 0xFFFF));
 
   __ bind(&C);
-  __ cfi(r3, Operand(0, RelocInfo::NONE));
+  __ cfi(r3, Operand(0, RelocInfo::NO_INFO));
   __ bne(&L);
   __ b(r14);
 
@@ -138,7 +138,7 @@ TEST(2) {
   __ ahi(r3, Operand(-1 & 0xFFFF));
 
   __ bind(&C);
-  __ cfi(r3, Operand(0, RelocInfo::NONE));
+  __ cfi(r3, Operand(0, RelocInfo::NO_INFO));
   __ bne(&L);
   __ b(r14);
 

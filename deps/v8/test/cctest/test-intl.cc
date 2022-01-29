@@ -283,7 +283,8 @@ TEST(StringLocaleCompareFastPath) {
     Handle<String> locale_string =
         isolate->factory()->NewStringFromAsciiChecked(locale.c_str());
 
-    if (Intl::CompareStringsOptionsFor(isolate, locale_string, options) !=
+    if (Intl::CompareStringsOptionsFor(isolate->AsLocalIsolate(), locale_string,
+                                       options) !=
         Intl::CompareStringsOptions::kTryFastPath) {
       continue;
     }

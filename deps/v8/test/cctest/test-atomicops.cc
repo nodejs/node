@@ -303,5 +303,27 @@ TEST(Relaxed_Memmove) {
   }
 }
 
+TEST(Relaxed_Memcmp) {
+  constexpr size_t kLen = 50;
+  Atomic8 arr1[kLen];
+  Atomic8 arr1_same[kLen];
+  Atomic8 arr2[kLen];
+  for (size_t i = 0; i < kLen; ++i) {
+    arr1[i] = arr1_same[i] = i;
+    arr2[i] = i + 1;
+  }
+
+  for (size_t offset = 0; offset < kLen; offset++) {
+    const Atomic8* arr1p = arr1 + offset;
+    const Atomic8* arr1_samep = arr1_same + offset;
+    const Atomic8* arr2p = arr2 + offset;
+    const size_t len = kLen - offset;
+    CHECK_EQ(0, Relaxed_Memcmp(arr1p, arr1p, len));
+    CHECK_EQ(0, Relaxed_Memcmp(arr1p, arr1_samep, len));
+    CHECK_LT(Relaxed_Memcmp(arr1p, arr2p, len), 0);
+    CHECK_GT(Relaxed_Memcmp(arr2p, arr1p, len), 0);
+  }
+}
+
 }  // namespace base
 }  // namespace v8

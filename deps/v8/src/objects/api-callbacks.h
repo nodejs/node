@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+class StructBodyDescriptor;
+
 #include "torque-generated/src/objects/api-callbacks-tq.inc"
 
 // An accessor must have a getter, but can have no setter.
@@ -66,6 +68,8 @@ class AccessorInfo : public TorqueGeneratedAccessorInfo<AccessorInfo, Struct> {
 
   DECL_PRINTER(AccessorInfo)
 
+  using BodyDescriptor = StructBodyDescriptor;
+
  private:
   inline bool HasExpectedReceiverType();
 
@@ -80,6 +84,8 @@ class AccessCheckInfo
  public:
   static AccessCheckInfo Get(Isolate* isolate, Handle<JSObject> receiver);
 
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(AccessCheckInfo)
 };
 
@@ -93,6 +99,8 @@ class InterceptorInfo
   DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
 
   DEFINE_TORQUE_GENERATED_INTERCEPTOR_INFO_FLAGS()
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(InterceptorInfo)
 };
@@ -112,6 +120,8 @@ class CallHandlerInfo
   DECL_VERIFIER(CallHandlerInfo)
 
   Address redirected_callback() const;
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(CallHandlerInfo)
 };

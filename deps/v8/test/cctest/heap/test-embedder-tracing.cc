@@ -288,21 +288,6 @@ TEST(FinalizeTracingWhenMarking) {
   CHECK(marking->IsStopped());
 }
 
-TEST(GarbageCollectionForTesting) {
-  ManualGCScope manual_gc;
-  i::FLAG_expose_gc = true;
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  Isolate* i_isolate = CcTest::i_isolate();
-  TestEmbedderHeapTracer tracer;
-  heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
-
-  int saved_gc_counter = i_isolate->heap()->gc_count();
-  tracer.GarbageCollectionForTesting(
-      EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers);
-  CHECK_GT(i_isolate->heap()->gc_count(), saved_gc_counter);
-}
-
 namespace {
 
 void ConstructJSObject(v8::Isolate* isolate, v8::Local<v8::Context> context,

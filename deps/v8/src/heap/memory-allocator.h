@@ -18,7 +18,6 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/heap/code-range.h"
-#include "src/heap/heap.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
 #include "src/tasks/cancelable-task.h"
@@ -226,11 +225,14 @@ class MemoryAllocator {
   void PartialFreeMemory(BasicMemoryChunk* chunk, Address start_free,
                          size_t bytes_to_free, Address new_area_end);
 
+#ifdef DEBUG
   // Checks if an allocated MemoryChunk was intended to be used for executable
   // memory.
   bool IsMemoryChunkExecutable(MemoryChunk* chunk) {
+    base::MutexGuard guard(&executable_memory_mutex_);
     return executable_memory_.find(chunk) != executable_memory_.end();
   }
+#endif  // DEBUG
 
   // Commit memory region owned by given reservation object.  Returns true if
   // it succeeded and false otherwise.
@@ -311,6 +313,7 @@ class MemoryAllocator {
     }
   }
 
+#ifdef DEBUG
   void RegisterExecutableMemoryChunk(MemoryChunk* chunk) {
     base::MutexGuard guard(&executable_memory_mutex_);
     DCHECK(chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
@@ -322,8 +325,8 @@ class MemoryAllocator {
     base::MutexGuard guard(&executable_memory_mutex_);
     DCHECK_NE(executable_memory_.find(chunk), executable_memory_.end());
     executable_memory_.erase(chunk);
-    chunk->heap()->UnregisterUnprotectedMemoryChunk(chunk);
   }
+#endif  // DEBUG
 
   Isolate* isolate_;
 
@@ -359,9 +362,12 @@ class MemoryAllocator {
   VirtualMemory last_chunk_;
   Unmapper unmapper_;
 
+#ifdef DEBUG
   // Data structure to remember allocated executable memory chunks.
+  // This data structure is used only in DCHECKs.
   std::unordered_set<MemoryChunk*> executable_memory_;
   base::Mutex executable_memory_mutex_;
+#endif  // DEBUG
 
   friend class heap::TestCodePageAllocatorScope;
   friend class heap::TestMemoryAllocatorScope;

@@ -8,6 +8,7 @@
 #include "include/v8-internal.h"
 #include "src/base/optional.h"
 #include "src/common/globals.h"
+#include "src/objects/heap-object.h"
 
 namespace v8 {
 namespace internal {
@@ -57,6 +58,7 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static int MarkingFromCode(Address raw_host, Address raw_slot);
   // Invoked from global handles where no host object is available.
   static inline void MarkingFromGlobalHandle(Object value);
+  static inline void MarkingFromInternalFields(JSObject host);
 
   static void SetForThread(MarkingBarrier*);
   static void ClearForThread(MarkingBarrier*);
@@ -74,6 +76,7 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static void MarkingSlow(Heap* heap, DescriptorArray,
                           int number_of_own_descriptors);
   static void MarkingSlowFromGlobalHandle(Heap* heap, HeapObject value);
+  static void MarkingSlowFromInternalFields(Heap* heap, JSObject host);
 };
 
 }  // namespace internal

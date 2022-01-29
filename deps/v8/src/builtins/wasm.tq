@@ -64,7 +64,7 @@ extern macro WasmBuiltinsAssembler::LoadContextFromInstance(WasmInstanceObject):
     NativeContext;
 extern macro WasmBuiltinsAssembler::LoadTablesFromInstance(WasmInstanceObject):
     FixedArray;
-extern macro WasmBuiltinsAssembler::LoadExternalFunctionsFromInstance(
+extern macro WasmBuiltinsAssembler::LoadInternalFunctionsFromInstance(
     WasmInstanceObject): FixedArray;
 extern macro WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(
     WasmInstanceObject): FixedArray;
@@ -227,7 +227,7 @@ builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
 builtin WasmRefFunc(index: uint32): Object {
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
   try {
-    const table: FixedArray = LoadExternalFunctionsFromInstance(instance);
+    const table: FixedArray = LoadInternalFunctionsFromInstance(instance);
     if (table == Undefined) goto CallRuntime;
     const functionIndex: intptr = Signed(ChangeUint32ToWord(index));
     const result: Object = LoadFixedArrayElement(table, functionIndex);
@@ -475,16 +475,11 @@ struct TargetAndInstance {
   instance: HeapObject;  // WasmInstanceObject or WasmApiFunctionRef
 }
 
-macro GetTargetAndInstance(funcref: JSFunction): TargetAndInstance {
-  const sfi = funcref.shared_function_info;
-  dcheck(Is<WasmFunctionData>(sfi.function_data));
-  const funcData = UnsafeCast<WasmFunctionData>(sfi.function_data);
-  const ref = funcData.ref;
-  let target = funcData.foreign_address_ptr;
+macro GetTargetAndInstance(funcref: WasmInternalFunction): TargetAndInstance {
+  const ref = funcref.ref;
+  let target = funcref.foreign_address_ptr;
   if (Signed(target) == IntPtrConstant(0)) {
-    const wrapper =
-        UnsafeCast<WasmJSFunctionData>(funcData).wasm_to_js_wrapper_code;
-    target = GetCodeEntry(wrapper);
+    target = GetCodeEntry(funcref.code);
   }
   return TargetAndInstance{target: target, instance: ref};
 }
@@ -493,19 +488,23 @@ macro GetTargetAndInstance(funcref: JSFunction): TargetAndInstance {
 // Two slots per call_ref instruction. These slots' values can be:
 // - uninitialized: (undefined, <unused>). Note: we use {undefined} as the
 //   sentinel as an optimization, as it's the default value for FixedArrays.
-// - monomorphic: (funcref, call_ref_data)
+// - monomorphic: (funcref, count (smi)). The second slot is a counter for how
+//   often the funcref in the first slot has been seen.
 // - polymorphic: (fixed_array, <unused>). In this case, the array
-//   contains 2..4 pairs (funcref, call_ref_data) (like monomorphic data).
+//   contains 2..4 pairs (funcref, count (smi)) (like monomorphic data).
 // - megamorphic: ("megamorphic" sentinel, <unused>)
-
+//
+// TODO(rstz): The counter might overflow if it exceeds the range of a Smi.
+// This can lead to incorrect inlining decisions.
 builtin CallRefIC(
-    vector: FixedArray, index: intptr, funcref: JSFunction): TargetAndInstance {
+    vector: FixedArray, index: intptr,
+    funcref: WasmInternalFunction): TargetAndInstance {
   const value = vector.objects[index];
   if (value == funcref) {
     // Monomorphic hit. Check for this case first to maximize its performance.
-    const data = UnsafeCast<CallRefData>(vector.objects[index + 1]);
-    data.count = data.count + 1;
-    return TargetAndInstance{target: data.target, instance: data.instance};
+    const count = UnsafeCast<Smi>(vector.objects[index + 1]) + SmiConstant(1);
+    vector.objects[index + 1] = count;
+    return GetTargetAndInstance(funcref);
   }
   // Check for polymorphic hit; its performance is second-most-important.
   if (Is<FixedArray>(value)) {
@@ -513,9 +512,9 @@ builtin CallRefIC(
     for (let i: intptr = 0; i < entries.length_intptr; i += 2) {
       if (entries.objects[i] == funcref) {
         // Polymorphic hit.
-        const data = UnsafeCast<CallRefData>(entries.objects[i + 1]);
-        data.count = data.count + 1;
-        return TargetAndInstance{target: data.target, instance: data.instance};
+        const count = UnsafeCast<Smi>(entries.objects[i + 1]) + SmiConstant(1);
+        entries.objects[i + 1] = count;
+        return GetTargetAndInstance(funcref);
       }
     }
   }
@@ -523,10 +522,8 @@ builtin CallRefIC(
   // instance. They all fall through to returning the computed data.
   const result = GetTargetAndInstance(funcref);
   if (TaggedEqual(value, Undefined)) {
-    const data = new
-    CallRefData{instance: result.instance, target: result.target, count: 1};
     vector.objects[index] = funcref;
-    vector.objects[index + 1] = data;
+    vector.objects[index + 1] = SmiConstant(1);
   } else if (Is<FixedArray>(value)) {
     // Polymorphic miss.
     const entries = UnsafeCast<FixedArray>(value);
@@ -534,8 +531,6 @@ builtin CallRefIC(
       vector.objects[index] = ic::kMegamorphicSymbol;
       vector.objects[index + 1] = ic::kMegamorphicSymbol;
     } else {
-      const data = new
-      CallRefData{instance: result.instance, target: result.target, count: 1};
       const newEntries = UnsafeCast<FixedArray>(AllocateFixedArray(
           ElementsKind::PACKED_ELEMENTS, entries.length_intptr + 2,
           AllocationFlag::kNone));
@@ -544,22 +539,20 @@ builtin CallRefIC(
       }
       const newIndex = entries.length_intptr;
       newEntries.objects[newIndex] = funcref;
-      newEntries.objects[newIndex + 1] = data;
+      newEntries.objects[newIndex + 1] = SmiConstant(1);
       vector.objects[index] = newEntries;
     }
-  } else if (Is<JSFunction>(value)) {
+  } else if (Is<WasmInternalFunction>(value)) {
     // Monomorphic miss.
-    const data = new
-    CallRefData{instance: result.instance, target: result.target, count: 1};
     const newEntries = UnsafeCast<FixedArray>(AllocateFixedArray(
         ElementsKind::PACKED_ELEMENTS, 4, AllocationFlag::kNone));
     newEntries.objects[0] = value;
     newEntries.objects[1] = vector.objects[index + 1];
     newEntries.objects[2] = funcref;
-    newEntries.objects[3] = data;
+    newEntries.objects[3] = SmiConstant(1);
     vector.objects[index] = newEntries;
-    // Clear the old pointer to the first entry's data object; the specific
-    // value we write doesn't matter.
+    // Clear the first entry's counter; the specific value we write doesn't
+    // matter.
     vector.objects[index + 1] = Undefined;
   }
   // The "ic::IsMegamorphic(value)" case doesn't need to do anything.

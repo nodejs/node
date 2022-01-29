@@ -30,10 +30,10 @@ TNode<FixedArray> WasmBuiltinsAssembler::LoadTablesFromInstance(
                                      WasmInstanceObject::kTablesOffset);
 }
 
-TNode<FixedArray> WasmBuiltinsAssembler::LoadExternalFunctionsFromInstance(
+TNode<FixedArray> WasmBuiltinsAssembler::LoadInternalFunctionsFromInstance(
     TNode<WasmInstanceObject> instance) {
   return LoadObjectField<FixedArray>(
-      instance, WasmInstanceObject::kWasmExternalFunctionsOffset);
+      instance, WasmInstanceObject::kWasmInternalFunctionsOffset);
 }
 
 TNode<FixedArray> WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(

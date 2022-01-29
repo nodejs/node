@@ -402,12 +402,6 @@
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
 
 ##############################################################################
-['arch == mips or arch == mips64', {
-  # TODO(mips-team): Implement I64Atomic operations on MIPS
-  'test-run-wasm-atomics64/*': [SKIP],
-}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
-
-##############################################################################
 ['mips_arch_variant == r6', {
   # For MIPS[64] architecture release 6, fusion multiply-accumulate instructions
   # will cause failures on several tests that expect exact floating-point
@@ -525,13 +519,6 @@
 ['arch == ppc64', {
   # https://crbug.com/v8/8766
   'test-bytecode-generator/WideRegisters': [SKIP],
-  # Liftoff is not currently supported on ppc
-  'test-liftoff-*': [SKIP],
-  'test-gc/RunWasmLiftoff*': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
-  'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
-  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
-  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
 }],
 
 ##############################################################################
@@ -588,6 +575,7 @@
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
   'test-api/WasmSetJitCodeEventHandler': [SKIP],
   'test-api-wasm/WasmStreaming*': [SKIP],
+  'test-api-wasm/WasmCompileToWasmModuleObject': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
   'test-c-wasm-entry/*': [SKIP],
   'test-compilation-cache/*': [SKIP],

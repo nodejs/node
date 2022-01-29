@@ -239,7 +239,7 @@ void AsmJsParser::DeclareGlobal(VarInfo* info, bool mutable_variable,
                                 WasmInitExpr init) {
   info->kind = VarKind::kGlobal;
   info->type = type;
-  info->index = module_builder_->AddGlobal(vtype, true, std::move(init));
+  info->index = module_builder_->AddGlobal(vtype, true, init);
   info->mutable_variable = mutable_variable;
 }
 

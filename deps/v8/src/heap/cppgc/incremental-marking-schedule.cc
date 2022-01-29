@@ -30,7 +30,6 @@ void IncrementalMarkingSchedule::UpdateMutatorThreadMarkedBytes(
 
 void IncrementalMarkingSchedule::AddConcurrentlyMarkedBytes(
     size_t marked_bytes) {
-  DCHECK(!incremental_marking_start_time_.IsNull());
   concurrently_marked_bytes_.fetch_add(marked_bytes, std::memory_order_relaxed);
 }
 

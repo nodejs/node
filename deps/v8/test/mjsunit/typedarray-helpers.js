@@ -22,8 +22,32 @@ const ctors = [
   MyBigInt64Array,
 ];
 
+// Each element of the following array is [getter, setter, size, isBigInt].
+const dataViewAccessorsAndSizes = [[DataView.prototype.getUint8,
+                                    DataView.prototype.setUint8, 1, false],
+                                   [DataView.prototype.getInt8,
+                                    DataView.prototype.setInt8, 1, false],
+                                   [DataView.prototype.getUint16,
+                                    DataView.prototype.setUint16, 2, false],
+                                   [DataView.prototype.getInt16,
+                                    DataView.prototype.setInt16, 2, false],
+                                   [DataView.prototype.getInt32,
+                                    DataView.prototype.setInt32, 4, false],
+                                   [DataView.prototype.getFloat32,
+                                    DataView.prototype.setFloat32, 4, false],
+                                   [DataView.prototype.getFloat64,
+                                    DataView.prototype.setFloat64, 8, false],
+                                   [DataView.prototype.getBigUint64,
+                                    DataView.prototype.setBigUint64, 8, true],
+                                   [DataView.prototype.getBigInt64,
+                                    DataView.prototype.setBigInt64, 8, true]];
+
 function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   return new ArrayBuffer(byteLength, {maxByteLength: maxByteLength});
+}
+
+function CreateGrowableSharedArrayBuffer(byteLength, maxByteLength) {
+  return new SharedArrayBuffer(byteLength, {maxByteLength: maxByteLength});
 }
 
 function ReadDataFromBuffer(ab, ctor) {
@@ -105,4 +129,36 @@ function IncludesHelper(array, n, fromIndex) {
     return array.includes(BigInt(n), fromIndex);
   }
   return array.includes(n, fromIndex);
+}
+
+function testDataViewMethodsUpToSize(view, bufferSize) {
+  for (const [getter, setter, size, isBigInt] of dataViewAccessorsAndSizes) {
+    for (let i = 0; i <= bufferSize - size; ++i) {
+      if (isBigInt) {
+        setter.call(view, i, 3n);
+      } else {
+        setter.call(view, i, 3);
+      }
+      assertEquals(3, Number(getter.call(view, i)));
+    }
+    if (isBigInt) {
+      assertThrows(() => setter.call(view, bufferSize - size + 1, 0n),
+                   RangeError);
+    } else {
+      assertThrows(() => setter.call(view, bufferSize - size + 1, 0),
+                   RangeError);
+    }
+    assertThrows(() => getter.call(view, bufferSize - size + 1), RangeError);
+  }
+}
+
+function assertAllDataViewMethodsThrow(view, index, errorType) {
+  for (const [getter, setter, size, isBigInt] of dataViewAccessorsAndSizes) {
+    if (isBigInt) {
+      assertThrows(() => { setter.call(view, index, 3n); }, errorType);
+    } else {
+      assertThrows(() => { setter.call(view, index, 3); }, errorType);
+    }
+    assertThrows(() => { getter.call(view, index); }, errorType);
+  }
 }

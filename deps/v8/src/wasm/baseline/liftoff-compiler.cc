@@ -316,13 +316,6 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
   return;
 #endif
 
-#if V8_TARGET_ARCH_ARM
-  // Allow bailout for missing ARMv7 support.
-  if (!CpuFeatures::IsSupported(ARMv7) && reason == kUnsupportedArchitecture) {
-    return;
-  }
-#endif
-
 #define LIST_FEATURE(name, ...) kFeature_##name,
   constexpr WasmFeatures kExperimentalFeatures{
       FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(LIST_FEATURE)};
@@ -728,14 +721,16 @@ class LiftoffCompiler {
   }
 
   void TierupCheck(FullDecoder* decoder, WasmCodePosition position,
-                   int budget_used) {
+                   int budget_used, Register scratch_reg) {
     if (for_debugging_ != kNoDebugging) return;
     CODE_COMMENT("tierup check");
     // We never want to blow the entire budget at once.
     const int kMax = FLAG_wasm_tiering_budget / 4;
     if (budget_used > kMax) budget_used = kMax;
 
-    LiftoffRegister budget_reg = __ GetUnusedRegister(kGpReg, {});
+    LiftoffRegister budget_reg = scratch_reg == no_reg
+                                     ? __ GetUnusedRegister(kGpReg, {})
+                                     : LiftoffRegister(scratch_reg);
     __ Fill(budget_reg, liftoff::kTierupBudgetOffset, ValueKind::kI32);
     LiftoffRegList regs_to_save = __ cache_state()->used_registers;
     // The cached instance will be reloaded separately.
@@ -778,11 +773,6 @@ class LiftoffCompiler {
     return false;
   }
 
-  void TierUpFunction(FullDecoder* decoder) {
-    __ CallRuntimeStub(WasmCode::kWasmTriggerTierUp);
-    DefineSafepoint();
-  }
-
   void TraceFunctionEntry(FullDecoder* decoder) {
     CODE_COMMENT("trace function entry");
     __ SpillAllRegisters();
@@ -790,6 +780,13 @@ class LiftoffCompiler {
         __ pc_offset(), SourcePosition(decoder->position()), false);
     __ CallRuntimeStub(WasmCode::kWasmTraceEnter);
     DefineSafepoint();
+  }
+
+  bool dynamic_tiering() {
+    return env_->dynamic_tiering == DynamicTiering::kEnabled &&
+           for_debugging_ == kNoDebugging &&
+           (FLAG_wasm_tier_up_filter == -1 ||
+            FLAG_wasm_tier_up_filter == func_index_);
   }
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
@@ -841,11 +838,11 @@ class LiftoffCompiler {
     } else {
       __ Spill(liftoff::kFeedbackVectorOffset, WasmValue::ForUintPtr(0));
     }
-    if (FLAG_new_wasm_dynamic_tiering) {
+    if (dynamic_tiering()) {
       LiftoffRegList pinned = parameter_registers;
       LiftoffRegister tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LOAD_INSTANCE_FIELD(tmp.gp(), NumLiftoffFunctionCallsArray,
-                          kSystemPointerSize, pinned);
+      LOAD_INSTANCE_FIELD(tmp.gp(), TieringBudgetArray, kSystemPointerSize,
+                          pinned);
       uint32_t offset =
           kInt32Size * declared_function_index(env_->module, func_index_);
       __ Load(tmp, tmp.gp(), no_reg, offset, LoadType::kI32Load, pinned);
@@ -910,49 +907,6 @@ class LiftoffCompiler {
     // The function-prologue stack check is associated with position 0, which
     // is never a position of any instruction in the function.
     StackCheck(decoder, 0);
-
-    if (env_->dynamic_tiering == DynamicTiering::kEnabled &&
-        for_debugging_ == kNoDebugging) {
-      // TODO(arobin): Avoid spilling registers unconditionally.
-      __ SpillAllRegisters();
-      CODE_COMMENT("dynamic tiering");
-      LiftoffRegList pinned;
-
-      // Get the number of calls array address.
-      LiftoffRegister array_address =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LOAD_INSTANCE_FIELD(array_address.gp(), NumLiftoffFunctionCallsArray,
-                          kSystemPointerSize, pinned);
-
-      // Compute the correct offset in the array.
-      uint32_t offset =
-          kInt32Size * declared_function_index(env_->module, func_index_);
-
-      // Get the number of calls and update it.
-      LiftoffRegister old_number_of_calls =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LiftoffRegister new_number_of_calls =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      __ Load(old_number_of_calls, array_address.gp(), no_reg, offset,
-              LoadType::kI32Load, pinned);
-      __ emit_i32_addi(new_number_of_calls.gp(), old_number_of_calls.gp(), 1);
-      __ Store(array_address.gp(), no_reg, offset, new_number_of_calls,
-               StoreType::kI32Store, pinned);
-
-      // Emit the runtime call if necessary.
-      Label no_tierup;
-      // Check if the number of calls is a power of 2.
-      __ emit_i32_and(old_number_of_calls.gp(), old_number_of_calls.gp(),
-                      new_number_of_calls.gp());
-      __ emit_cond_jump(kNotEqualZero, &no_tierup, kI32,
-                        old_number_of_calls.gp());
-      TierUpFunction(decoder);
-      // After the runtime call, the instance cache register is clobbered (we
-      // reset it already in {SpillAllRegisters} above, but then we still access
-      // the instance afterwards).
-      __ cache_state()->ClearCachedInstanceRegister();
-      __ bind(&no_tierup);
-    }
 
     if (FLAG_trace_wasm) TraceFunctionEntry(decoder);
   }
@@ -1222,7 +1176,7 @@ class LiftoffCompiler {
 
     PushControl(loop);
 
-    if (!FLAG_new_wasm_dynamic_tiering) {
+    if (!dynamic_tiering()) {
       // When the budget-based tiering mechanism is enabled, use that to
       // check for interrupt requests; otherwise execute a stack check in the
       // loop header.
@@ -1784,7 +1738,10 @@ class LiftoffCompiler {
               __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
                                       nullptr);
             });
-      case kExprRefIsNull: {
+      case kExprRefIsNull:
+      // We abuse ref.as_non_null, which isn't otherwise used in this switch, as
+      // a sentinel for the negation of ref.is_null.
+      case kExprRefAsNonNull: {
         LiftoffRegList pinned;
         LiftoffRegister ref = pinned.set(__ PopToRegister());
         LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
@@ -1792,7 +1749,8 @@ class LiftoffCompiler {
         // Prefer to overwrite one of the input registers with the result
         // of the comparison.
         LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {ref, null}, {});
-        __ emit_ptrsize_set_cond(kEqual, dst.gp(), ref, null);
+        __ emit_ptrsize_set_cond(opcode == kExprRefIsNull ? kEqual : kUnequal,
+                                 dst.gp(), ref, null);
         __ PushRegister(kI32, dst);
         return;
       }
@@ -2253,8 +2211,12 @@ class LiftoffCompiler {
       ValueKind return_kind = decoder->sig_->GetReturn(0).kind();
       LiftoffRegister return_reg =
           __ LoadToRegister(__ cache_state()->stack_state.back(), pinned);
-      __ Store(info.gp(), no_reg, 0, return_reg,
-               StoreType::ForValueKind(return_kind), pinned);
+      if (is_reference(return_kind)) {
+        __ StoreTaggedPointer(info.gp(), no_reg, 0, return_reg, pinned);
+      } else {
+        __ Store(info.gp(), no_reg, 0, return_reg,
+                 StoreType::ForValueKind(return_kind), pinned);
+      }
     }
     // Put the parameter in its place.
     WasmTraceExitDescriptor descriptor;
@@ -2274,13 +2236,13 @@ class LiftoffCompiler {
   }
 
   void TierupCheckOnExit(FullDecoder* decoder) {
-    if (!FLAG_new_wasm_dynamic_tiering) return;
-    TierupCheck(decoder, decoder->position(), __ pc_offset());
+    if (!dynamic_tiering()) return;
+    TierupCheck(decoder, decoder->position(), __ pc_offset(), no_reg);
     LiftoffRegList pinned;
     LiftoffRegister budget = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LiftoffRegister array = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LOAD_INSTANCE_FIELD(array.gp(), NumLiftoffFunctionCallsArray,
-                        kSystemPointerSize, pinned);
+    LOAD_INSTANCE_FIELD(array.gp(), TieringBudgetArray, kSystemPointerSize,
+                        pinned);
     uint32_t offset =
         kInt32Size * declared_function_index(env_->module, func_index_);
     __ Fill(budget, liftoff::kTierupBudgetOffset, ValueKind::kI32);
@@ -2620,23 +2582,23 @@ class LiftoffCompiler {
     __ PushRegister(kind, dst);
   }
 
-  void BrImpl(FullDecoder* decoder, Control* target) {
-    if (!target->br_merge()->reached) {
-      target->label_state.InitMerge(
-          *__ cache_state(), __ num_locals(), target->br_merge()->arity,
-          target->stack_depth + target->num_exceptions);
-    }
-    if (FLAG_new_wasm_dynamic_tiering) {
+  void BrImpl(FullDecoder* decoder, Control* target, Register scratch_reg) {
+    if (dynamic_tiering()) {
       if (target->is_loop()) {
         DCHECK(target->label.get()->is_bound());
         int jump_distance = __ pc_offset() - target->label.get()->pos();
-        TierupCheck(decoder, decoder->position(), jump_distance);
+        TierupCheck(decoder, decoder->position(), jump_distance, scratch_reg);
       } else {
         // To estimate time spent in this function more accurately, we could
         // increment the tiering budget on forward jumps. However, we don't
         // know the jump distance yet; using a blanket value has been tried
         // and found to not make a difference.
       }
+    }
+    if (!target->br_merge()->reached) {
+      target->label_state.InitMerge(
+          *__ cache_state(), __ num_locals(), target->br_merge()->arity,
+          target->stack_depth + target->num_exceptions);
     }
     __ MergeStackWith(target->label_state, target->br_merge()->arity,
                       target->is_loop() ? LiftoffAssembler::kBackwardJump
@@ -2646,10 +2608,14 @@ class LiftoffCompiler {
 
   void BrOrRet(FullDecoder* decoder, uint32_t depth,
                uint32_t /* drop_values */) {
+    BrOrRetImpl(decoder, depth, no_reg);
+  }
+
+  void BrOrRetImpl(FullDecoder* decoder, uint32_t depth, Register scratch_reg) {
     if (depth == decoder->control_depth() - 1) {
       DoReturn(decoder, 0);
     } else {
-      BrImpl(decoder, decoder->control_at(depth));
+      BrImpl(decoder, decoder->control_at(depth), scratch_reg);
     }
   }
 
@@ -2662,12 +2628,16 @@ class LiftoffCompiler {
           decoder->control_at(depth)->br_merge()->arity);
     }
 
+    Register scratch_reg = no_reg;
+    if (dynamic_tiering()) {
+      scratch_reg = __ GetUnusedRegister(kGpReg, {}).gp();
+    }
     Label cont_false;
 
     // Test the condition on the value stack, jump to {cont_false} if zero.
     JumpIfFalse(decoder, &cont_false);
 
-    BrOrRet(decoder, depth, 0);
+    BrOrRetImpl(decoder, depth, scratch_reg);
     __ bind(&cont_false);
   }
 
@@ -3391,7 +3361,9 @@ class LiftoffCompiler {
     CallRef(decoder, func_ref.type, sig, kTailCall);
   }
 
-  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
+  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
+                bool pass_null_along_branch,
+                Value* /* result_on_fallthrough */) {
     // Before branching, materialize all constants. This avoids repeatedly
     // materializing them for each conditional branch.
     if (depth != decoder->control_depth() - 1) {
@@ -3406,7 +3378,7 @@ class LiftoffCompiler {
     LoadNullValue(null, pinned);
     __ emit_cond_jump(kUnequal, &cont_false, ref_object.type.kind(), ref.gp(),
                       null);
-
+    if (pass_null_along_branch) LoadNullValue(null, pinned);
     BrOrRet(decoder, depth, 0);
     __ bind(&cont_false);
     __ PushRegister(kRef, ref);
@@ -5474,13 +5446,12 @@ class LiftoffCompiler {
                         obj.type.kind(), obj_reg.gp(), tmp1.gp());
     }
 
-    // Perform a regular type check. Check for exact match first.
     __ LoadMap(tmp1.gp(), obj_reg.gp());
     // {tmp1} now holds the object's map.
 
     if (decoder->module_->has_signature(rtt.type.ref_index())) {
-      // Function case: currently, the only way for a function to match an rtt
-      // is if its map is equal to that rtt.
+      // Function case: currently, the only way for the type check to succeed is
+      // that the function's map equals the rtt.
       __ emit_cond_jump(kUnequal, no_match, rtt.type.kind(), tmp1.gp(),
                         rtt_reg.gp());
       __ bind(&match);
@@ -5499,17 +5470,19 @@ class LiftoffCompiler {
     constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
         Map::kConstructorOrBackPointerOrNativeContextOffset);
     __ LoadTaggedPointer(tmp1.gp(), tmp1.gp(), no_reg, kTypeInfoOffset, pinned);
-    // Step 2: load the super types list into {tmp1}.
+    // Step 2: load the supertypes list into {tmp1}.
     constexpr int kSuperTypesOffset =
         wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset);
     __ LoadTaggedPointer(tmp1.gp(), tmp1.gp(), no_reg, kSuperTypesOffset,
                          pinned);
-    // Step 3: check the list's length.
-    LiftoffRegister list_length = tmp2;
-    __ LoadFixedArrayLengthAsInt32(list_length, tmp1.gp(), pinned);
     if (rtt.type.has_depth()) {
-      __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
-                             rtt.type.depth());
+      // Step 3: check the list's length if needed.
+      if (rtt.type.depth() >= kMinimumSupertypeArraySize) {
+        LiftoffRegister list_length = tmp2;
+        __ LoadFixedArrayLengthAsInt32(list_length, tmp1.gp(), pinned);
+        __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
+                               rtt.type.depth());
+      }
       // Step 4: load the candidate list slot into {tmp1}, and compare it.
       __ LoadTaggedPointer(
           tmp1.gp(), tmp1.gp(), no_reg,
@@ -5518,6 +5491,9 @@ class LiftoffCompiler {
       __ emit_cond_jump(kUnequal, no_match, rtt.type.kind(), tmp1.gp(),
                         rtt_reg.gp());
     } else {
+      // Step 3: if rtt's depth is unknown, we invoke a builtin to compute the
+      // result, as we might not have enough available registers.
+
       // Preserve {obj_reg} across the call.
       LiftoffRegList saved_regs = LiftoffRegList::ForRegs(obj_reg);
       __ PushRegisters(saved_regs);
@@ -5664,7 +5640,8 @@ class LiftoffCompiler {
     __ Load(tmp1, tmp1.gp(), no_reg,
             wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
             LoadType::kI32Load16U, pinned);
-    __ emit_i32_cond_jumpi(kUnequal, no_match, tmp1.gp(), JS_FUNCTION_TYPE);
+    __ emit_i32_cond_jumpi(kUnequal, no_match, tmp1.gp(),
+                           WASM_INTERNAL_FUNCTION_TYPE);
 
     return obj_reg;
   }
@@ -6072,7 +6049,8 @@ class LiftoffCompiler {
       __ LoadConstant(index, WasmValue::ForUintPtr(vector_slot));
       LiftoffAssembler::VarState index_var(kIntPtrKind, index, 0);
 
-      // CallRefIC(vector: FixedArray, index: intptr, funcref: JSFunction)
+      // CallRefIC(vector: FixedArray, index: intptr,
+      //           funcref: WasmInternalFunction)
       CallRuntimeStub(WasmCode::kCallRefIC,
                       MakeSig::Returns(kPointerKind, kPointerKind)
                           .Params(kPointerKind, kIntPtrKind, kPointerKind),
@@ -6102,32 +6080,22 @@ class LiftoffCompiler {
       LiftoffRegister target = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       LiftoffRegister temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
-      // Load the WasmFunctionData.
-      LiftoffRegister func_data = func_ref;
-      __ LoadTaggedPointer(
-          func_data.gp(), func_ref.gp(), no_reg,
-          wasm::ObjectAccess::ToTagged(JSFunction::kSharedFunctionInfoOffset),
-          pinned);
-      __ LoadTaggedPointer(
-          func_data.gp(), func_data.gp(), no_reg,
-          wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFunctionDataOffset),
-          pinned);
-
       // Load "ref" (instance or WasmApiFunctionRef) and target.
       __ LoadTaggedPointer(
-          instance.gp(), func_data.gp(), no_reg,
-          wasm::ObjectAccess::ToTagged(WasmFunctionData::kRefOffset), pinned);
+          instance.gp(), func_ref.gp(), no_reg,
+          wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset),
+          pinned);
 
 #ifdef V8_HEAP_SANDBOX
       LOAD_INSTANCE_FIELD(temp.gp(), IsolateRoot, kSystemPointerSize, pinned);
-      __ LoadExternalPointer(target.gp(), func_data.gp(),
-                             WasmFunctionData::kForeignAddressOffset,
+      __ LoadExternalPointer(target.gp(), func_ref.gp(),
+                             WasmInternalFunction::kForeignAddressOffset,
                              kForeignForeignAddressTag, temp.gp());
 #else
-      __ Load(
-          target, func_data.gp(), no_reg,
-          wasm::ObjectAccess::ToTagged(WasmFunctionData::kForeignAddressOffset),
-          kPointerLoadType, pinned);
+      __ Load(target, func_ref.gp(), no_reg,
+              wasm::ObjectAccess::ToTagged(
+                  WasmInternalFunction::kForeignAddressOffset),
+              kPointerLoadType, pinned);
 #endif
 
       Label perform_call;
@@ -6137,10 +6105,10 @@ class LiftoffCompiler {
       __ emit_cond_jump(kUnequal, &perform_call, kRef, target.gp(),
                         null_address.gp());
       // The cached target can only be null for WasmJSFunctions.
-      __ LoadTaggedPointer(target.gp(), func_data.gp(), no_reg,
-                           wasm::ObjectAccess::ToTagged(
-                               WasmJSFunctionData::kWasmToJsWrapperCodeOffset),
-                           pinned);
+      __ LoadTaggedPointer(
+          target.gp(), func_ref.gp(), no_reg,
+          wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset),
+          pinned);
 #ifdef V8_EXTERNAL_CODE_SPACE
       __ LoadCodeDataContainerEntry(target.gp(), target.gp());
 #else
