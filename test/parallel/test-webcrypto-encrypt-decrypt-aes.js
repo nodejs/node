@@ -6,7 +6,8 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { getRandomValues, subtle } = require('crypto').webcrypto;
+const { webcrypto } = require('crypto');
+const { subtle } = webcrypto;
 
 async function testEncrypt({ keyBuffer, algorithm, plaintext, result }) {
   // Using a copy of plaintext to prevent tampering of the original
@@ -213,8 +214,8 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
       ['encrypt', 'decrypt'],
     );
 
-    const iv = getRandomValues(new Uint8Array(12));
-    const aad = getRandomValues(new Uint8Array(32));
+    const iv = webcrypto.getRandomValues(new Uint8Array(12));
+    const aad = webcrypto.getRandomValues(new Uint8Array(32));
 
     const encrypted = await subtle.encrypt(
       {
@@ -224,7 +225,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
         tagLength: 128
       },
       secretKey,
-      getRandomValues(new Uint8Array(32))
+      webcrypto.getRandomValues(new Uint8Array(32))
     );
 
     await subtle.decrypt(
