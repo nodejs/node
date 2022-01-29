@@ -2449,9 +2449,6 @@ InternalFieldInfo* BindingData::Serialize(int index) {
   return info;
 }
 
-// TODO(addaleax): Remove once we're on C++17.
-constexpr FastStringKey BindingData::type_name;
-
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,

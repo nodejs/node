@@ -448,8 +448,6 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
 
 namespace process {
 
-constexpr FastStringKey BindingData::type_name;
-
 BindingData::BindingData(Environment* env, v8::Local<v8::Object> object)
     : SnapshotableObject(env, object, type_int) {
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), kBufferSize);

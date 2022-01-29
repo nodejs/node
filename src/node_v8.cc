@@ -142,9 +142,6 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
                       heap_code_statistics_buffer);
 }
 
-// TODO(addaleax): Remove once we're on C++17.
-constexpr FastStringKey BindingData::type_name;
-
 void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Integer> result =
