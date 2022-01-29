@@ -32,6 +32,8 @@ class V8_EXPORT EmbedderStateScope {
   EmbedderStateScope(Isolate* isolate, Local<v8::Context> context,
                      EmbedderStateTag tag);
 
+  ~EmbedderStateScope();
+
  private:
   // Declaring operator new and delete as deleted is not spec compliant.
   // Therefore declare them private instead to disable dynamic alloc
