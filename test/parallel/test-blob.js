@@ -237,7 +237,7 @@ assert.throws(() => new Blob({}), {
       code: 'ERR_BUFFER_TOO_LARGE',
     });
   } catch (e) {
-    if (e.message !== 'Array buffer allocation failed') throw (e);
+    if (e.message !== 'Array buffer allocation failed') throw e;
     common.skip(
       'Insufficient memory on this platform for oversized buffer test.'
     );
