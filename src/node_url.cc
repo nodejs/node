@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -1545,7 +1546,23 @@ void URL::Parse(const char* input,
 // https://url.spec.whatwg.org/#url-serializing
 std::string URL::SerializeURL(const struct url_data* url,
                               bool exclude = false) {
-  std::string output = url->scheme;
+  std::string output;
+  output.reserve(
+    10 +
+    url->scheme.size() +
+    url->username.size() +
+    url->password.size() +
+    url->host.size() +
+    url->query.size() +
+    url->fragment.size() +
+    url->href.size() +
+    std::accumulate(
+        url->path.begin(),
+        url->path.end(),
+        0,
+        [](size_t sum, const auto& str) { return sum + str.size(); }));
+
+  output += url->scheme;
   if (url->flags & URL_FLAGS_HAS_HOST) {
     output += "//";
     if (url->flags & URL_FLAGS_HAS_USERNAME ||
@@ -1581,6 +1598,7 @@ std::string URL::SerializeURL(const struct url_data* url,
   if (!exclude && url->flags & URL_FLAGS_HAS_FRAGMENT) {
     output += "#" + url->fragment;
   }
+  output.shrink_to_fit();
   return output;
 }
 
