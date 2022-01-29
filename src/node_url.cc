@@ -1576,10 +1576,10 @@ std::string URL::SerializeURL(const struct url_data* url,
     }
   }
   if (url->flags & URL_FLAGS_HAS_QUERY) {
-    output = "?" + url->query;
+    output += "?" + url->query;
   }
   if (!exclude && url->flags & URL_FLAGS_HAS_FRAGMENT) {
-    output = "#" + url->fragment;
+    output += "#" + url->fragment;
   }
   return output;
 }
