@@ -117,12 +117,27 @@ enum class CompilationEvent : uint8_t {
   kFinishedRecompilation
 };
 
+class V8_EXPORT_PRIVATE CompilationEventCallback {
+ public:
+  virtual ~CompilationEventCallback() = default;
+
+  virtual void call(CompilationEvent event) = 0;
+
+  enum class ReleaseAfterFinalEvent { kRelease, kKeep };
+
+  // Tells the module compiler whether to keep or to release a callback when the
+  // compilation state finishes all compilation units. Most callbacks should be
+  // released, that's why there is a default implementation, but the callback
+  // for code caching with dynamic tiering has to stay alive.
+  virtual ReleaseAfterFinalEvent release_after_final_event() {
+    return ReleaseAfterFinalEvent::kRelease;
+  }
+};
+
 // The implementation of {CompilationState} lives in module-compiler.cc.
 // This is the PIMPL interface to that private class.
 class V8_EXPORT_PRIVATE CompilationState {
  public:
-  using callback_t = std::function<void(CompilationEvent)>;
-
   ~CompilationState();
 
   void InitCompileJob();
@@ -137,7 +152,7 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   std::shared_ptr<WireBytesStorage> GetWireBytesStorage() const;
 
-  void AddCallback(callback_t);
+  void AddCallback(std::unique_ptr<CompilationEventCallback> callback);
 
   void InitializeAfterDeserialization(
       base::Vector<const int> missing_functions);

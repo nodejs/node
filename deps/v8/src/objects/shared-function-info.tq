@@ -44,15 +44,13 @@ bitfield struct SharedFunctionInfoFlags2 extends uint8 {
   has_static_private_methods_or_accessors: bool: 1 bit;
 }
 
-@export
-@customCppClass
-@customMap  // Just to place the map at the beginning of the roots array.
-class SharedFunctionInfo extends HeapObject {
+@generateBodyDescriptor
+extern class SharedFunctionInfo extends HeapObject {
   // function_data field is treated as a custom weak pointer. We visit this
   // field as a weak pointer if there is aged bytecode. If there is no bytecode
   // or if the bytecode is young then we treat it as a strong pointer. This is
   // done to support flushing of bytecode.
-  weak function_data: Object;
+  @customWeakMarking function_data: Object;
   name_or_scope_info: String|NoSharedNameSentinel|ScopeInfo;
   outer_scope_info_or_feedback_metadata: HeapObject;
   script_or_debug_info: Script|DebugInfo|Undefined;
@@ -118,23 +116,41 @@ macro IsSharedFunctionInfoDontAdaptArguments(sfi: SharedFunctionInfo): bool {
 }
 
 @abstract
-@export
-@customCppClass
-class UncompiledData extends HeapObject {
+extern class UncompiledData extends HeapObject {
   inferred_name: String;
   start_position: int32;
   end_position: int32;
 }
 
-@export
-@customCppClass
-class UncompiledDataWithoutPreparseData extends UncompiledData {
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithoutPreparseData extends UncompiledData {
 }
 
-@export
-@customCppClass
-class UncompiledDataWithPreparseData extends UncompiledData {
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithPreparseData extends UncompiledData {
   preparse_data: PreparseData;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithoutPreparseDataWithJob extends
+    UncompiledDataWithoutPreparseData {
+  // TODO(v8:10391): Define the field as ExternalPointer or move jobs into cage.
+  job: RawPtr;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithPreparseDataAndJob extends
+    UncompiledDataWithPreparseData {
+  // TODO(v8:10391): Define the field as ExternalPointer or move jobs into cage.
+  job: RawPtr;
 }
 
 @export

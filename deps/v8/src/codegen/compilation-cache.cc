@@ -136,12 +136,16 @@ bool HasOrigin(Isolate* isolate, Handle<SharedFunctionInfo> function_info,
     return false;
   }
 
-  Handle<FixedArray> host_defined_options;
-  if (!script_details.host_defined_options.ToHandle(&host_defined_options)) {
-    host_defined_options = isolate->factory()->empty_fixed_array();
+  // TODO(cbruni, chromium:1244145): Remove once migrated to the context
+  Handle<Object> maybe_host_defined_options;
+  if (!script_details.host_defined_options.ToHandle(
+          &maybe_host_defined_options)) {
+    maybe_host_defined_options = isolate->factory()->empty_fixed_array();
   }
-
-  Handle<FixedArray> script_options(script->host_defined_options(), isolate);
+  Handle<FixedArray> host_defined_options =
+      Handle<FixedArray>::cast(maybe_host_defined_options);
+  Handle<FixedArray> script_options(
+      FixedArray::cast(script->host_defined_options()), isolate);
   int length = host_defined_options->length();
   if (length != script_options->length()) return false;
 

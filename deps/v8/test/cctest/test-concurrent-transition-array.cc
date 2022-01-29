@@ -41,7 +41,7 @@ class ConcurrentSearchThread : public v8::base::Thread {
     background_thread_started_->Signal();
 
     CHECK_EQ(TransitionsAccessor(CcTest::i_isolate(), map_, true)
-                 .SearchTransition(*name_, kData, NONE),
+                 .SearchTransition(*name_, PropertyKind::kData, NONE),
              result_map_ ? **result_map_ : Map());
   }
 
@@ -78,7 +78,7 @@ class ConcurrentSearchOnOutdatedAccessorThread final
     background_thread_started_->Signal();
     main_thread_finished_->Wait();
 
-    CHECK_EQ(accessor.SearchTransition(*name_, kData, NONE),
+    CHECK_EQ(accessor.SearchTransition(*name_, PropertyKind::kData, NONE),
              result_map_ ? **result_map_ : Map());
   }
 
@@ -93,7 +93,7 @@ TEST(FullFieldTransitions_OnlySearch) {
 
   Handle<String> name = CcTest::MakeString("name");
   const PropertyAttributes attributes = NONE;
-  const PropertyKind kind = kData;
+  const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a full transition array with transition 'name' to map1.
   Handle<Map> map0 = Map::Create(isolate, 0);
@@ -140,7 +140,7 @@ TEST(FullFieldTransitions) {
   Handle<String> name1 = CcTest::MakeString("name1");
   Handle<String> name2 = CcTest::MakeString("name2");
   const PropertyAttributes attributes = NONE;
-  const PropertyKind kind = kData;
+  const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a full transition array with transition 'name1' to map1.
   Handle<Map> map0 = Map::Create(isolate, 0);
@@ -196,7 +196,7 @@ TEST(WeakRefToFullFieldTransitions) {
   Handle<String> name1 = CcTest::MakeString("name1");
   Handle<String> name2 = CcTest::MakeString("name2");
   const PropertyAttributes attributes = NONE;
-  const PropertyKind kind = kData;
+  const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a simple transition array with transition 'name1' to map1.
   Handle<Map> map0 = Map::Create(isolate, 0);
@@ -259,7 +259,7 @@ TEST(FullFieldTransitions_withSlack) {
   Handle<String> name2 = CcTest::MakeString("name2");
   Handle<String> name3 = CcTest::MakeString("name3");
   const PropertyAttributes attributes = NONE;
-  const PropertyKind kind = kData;
+  const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a full transition array with transition 'name1' to map1.
   Handle<Map> map0 = Map::Create(isolate, 0);
@@ -329,7 +329,7 @@ TEST(UninitializedToFullFieldTransitions) {
   Handle<String> name1 = CcTest::MakeString("name1");
   Handle<String> name2 = CcTest::MakeString("name2");
   const PropertyAttributes attributes = NONE;
-  const PropertyKind kind = kData;
+  const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a full transition array with transition 'name1' to map1.
   Handle<Map> map0 = Map::Create(isolate, 0);
@@ -381,7 +381,7 @@ TEST(FullFieldTransitions_BackgroundSearchOldPointer) {
   Handle<String> name1 = CcTest::MakeString("name1");
   Handle<String> name2 = CcTest::MakeString("name2");
   const PropertyAttributes attributes = NONE;
-  const PropertyKind kind = kData;
+  const PropertyKind kind = PropertyKind::kData;
 
   // Set map0 to be a full transition array with transition 'name1' to map1.
   Handle<Map> map0 = Map::Create(isolate, 0);

@@ -26,7 +26,7 @@ enum CpuFeature {
   BMI2,
   LZCNT,
   POPCNT,
-  ATOM,
+  INTEL_ATOM,
 
 #elif V8_TARGET_ARCH_ARM
   // - Standard configurations. The baseline is ARMv6+VFPv2.

@@ -209,14 +209,14 @@ class TrapHandlerTest : public TestWithIsolate,
   void GenerateSetThreadInWasmFlagCode(MacroAssembler* masm) {
     masm->Move(scratch,
                i_isolate()->thread_local_top()->thread_in_wasm_flag_address_,
-               RelocInfo::NONE);
+               RelocInfo::NO_INFO);
     masm->movl(MemOperand(scratch, 0), Immediate(1));
   }
 
   void GenerateResetThreadInWasmFlagCode(MacroAssembler* masm) {
     masm->Move(scratch,
                i_isolate()->thread_local_top()->thread_in_wasm_flag_address_,
-               RelocInfo::NONE);
+               RelocInfo::NO_INFO);
     masm->movl(MemOperand(scratch, 0), Immediate(0));
   }
 
@@ -276,7 +276,7 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
                       buffer_->CreateView());
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
-  __ Move(scratch, crash_address_, RelocInfo::NONE);
+  __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
   uint32_t crash_offset = __ pc_offset();
   __ testl(MemOperand(scratch, 0), Immediate(1));
   uint32_t recovery_offset = __ pc_offset();
@@ -301,7 +301,7 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
                       buffer_->CreateView());
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
-  __ Move(scratch, crash_address_, RelocInfo::NONE);
+  __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
   uint32_t crash_offset = __ pc_offset();
   __ testl(MemOperand(scratch, 0), Immediate(1));
   uint32_t recovery_offset = __ pc_offset();
@@ -332,7 +332,7 @@ TEST_P(TrapHandlerTest, TestNoThreadInWasmFlag) {
   MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer_->CreateView());
   __ Push(scratch);
-  __ Move(scratch, crash_address_, RelocInfo::NONE);
+  __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
   uint32_t crash_offset = __ pc_offset();
   __ testl(MemOperand(scratch, 0), Immediate(1));
   uint32_t recovery_offset = __ pc_offset();
@@ -357,7 +357,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
   uint32_t no_crash_offset = __ pc_offset();
-  __ Move(scratch, crash_address_, RelocInfo::NONE);
+  __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
   __ testl(MemOperand(scratch, 0), Immediate(1));
   // Offset where the crash is not happening.
   uint32_t recovery_offset = __ pc_offset();
@@ -443,7 +443,7 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer_->CreateView());
   __ Push(scratch);
-  __ Move(scratch, crash_address_, RelocInfo::NONE);
+  __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
   uint32_t crash_offset = __ pc_offset();
   __ testl(MemOperand(scratch, 0), Immediate(1));
   uint32_t recovery_offset = __ pc_offset();

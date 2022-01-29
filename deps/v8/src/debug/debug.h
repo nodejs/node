@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/base/enum-set.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
@@ -215,7 +216,8 @@ class V8_EXPORT_PRIVATE Debug {
   Debug& operator=(const Debug&) = delete;
 
   // Debug event triggers.
-  void OnDebugBreak(Handle<FixedArray> break_points_hit, StepAction stepAction);
+  void OnDebugBreak(Handle<FixedArray> break_points_hit, StepAction stepAction,
+                    debug::BreakReasons break_reasons = {});
 
   base::Optional<Object> OnThrow(Handle<Object> exception)
       V8_WARN_UNUSED_RESULT;
@@ -223,7 +225,8 @@ class V8_EXPORT_PRIVATE Debug {
   void OnCompileError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
 
-  void HandleDebugBreak(IgnoreBreakMode ignore_break_mode);
+  void HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
+                        debug::BreakReasons break_reasons);
 
   // The break target may not be the top-most frame, since we may be
   // breaking before entering a function that cannot contain break points.
@@ -448,6 +451,9 @@ class V8_EXPORT_PRIVATE Debug {
   MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
                                            BreakLocation* location,
                                            bool* has_break_points = nullptr);
+  MaybeHandle<FixedArray> GetHitBreakpointsAtCurrentStatement(
+      JavaScriptFrame* frame, bool* hasBreakpoints);
+
   bool IsMutedAtCurrentLocation(JavaScriptFrame* frame);
   // Check whether a BreakPoint object is hit. Evaluate condition depending
   // on whether this is a regular break location or a break at function entry.
@@ -555,7 +561,7 @@ class V8_EXPORT_PRIVATE Debug {
 
 #if V8_ENABLE_WEBASSEMBLY
   // This is a global handle, lazily initialized.
-  Handle<WeakArrayList> wasm_scripts_with_breakpoints_;
+  Handle<WeakArrayList> wasm_scripts_with_break_points_;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   Isolate* isolate_;

@@ -19,7 +19,7 @@ class Isolate;
 
 // Wraps an off-heap instruction stream.
 // TODO(jgruber,v8:6666): Remove this class.
-class InstructionStream final : public AllStatic {
+class OffHeapInstructionStream final : public AllStatic {
  public:
   // Returns true, iff the given pc points into an off-heap instruction stream.
   static bool PcIsOffHeap(Isolate* isolate, Address pc);
@@ -38,12 +38,15 @@ class InstructionStream final : public AllStatic {
   // containing all off-heap code. The area is guaranteed to be contiguous.
   // Note that this only applies when building the snapshot, e.g. for
   // mksnapshot. Otherwise, off-heap code is embedded directly into the binary.
-  static void CreateOffHeapInstructionStream(Isolate* isolate, uint8_t** code,
-                                             uint32_t* code_size,
-                                             uint8_t** data,
-                                             uint32_t* data_size);
-  static void FreeOffHeapInstructionStream(uint8_t* code, uint32_t code_size,
-                                           uint8_t* data, uint32_t data_size);
+  static void CreateOffHeapOffHeapInstructionStream(Isolate* isolate,
+                                                    uint8_t** code,
+                                                    uint32_t* code_size,
+                                                    uint8_t** data,
+                                                    uint32_t* data_size);
+  static void FreeOffHeapOffHeapInstructionStream(uint8_t* code,
+                                                  uint32_t code_size,
+                                                  uint8_t* data,
+                                                  uint32_t data_size);
 };
 
 class EmbeddedData final {
@@ -98,6 +101,22 @@ class EmbeddedData final {
       // the un-embedded one.
       if (global_d.IsInCodeRange(maybe_builtin_pc)) return global_d;
     }
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    if (V8_SHORT_BUILTIN_CALLS_BOOL && !d.IsInCodeRange(maybe_builtin_pc)) {
+      // When shared pointer compression cage is enabled and it has the embedded
+      // code blob copy then it could have been used regardless of whether the
+      // isolate uses it or knows about it or not (see
+      // Code::OffHeapInstructionStart()).
+      // So, this blob has to be checked too.
+      CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
+      if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
+        EmbeddedData remapped_d = EmbeddedData::FromBlob(code_range);
+        // If the pc does not belong to the embedded code blob we should be
+        // using the un-embedded one.
+        if (remapped_d.IsInCodeRange(maybe_builtin_pc)) return remapped_d;
+      }
+    }
+#endif
     return d;
   }
 

@@ -16,6 +16,7 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/register-configuration.h"
+#include "src/common/high-allocation-throughput-scope.h"
 #include "src/compiler/add-type-assertions-reducer.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/frame-elider.h"
@@ -1136,6 +1137,8 @@ class V8_NODISCARD PipelineJobScope {
   ~PipelineJobScope() { data_->set_runtime_call_stats(nullptr); }
 
  private:
+  HighAllocationThroughputScope high_throughput_scope_{
+      V8::GetCurrentPlatform()};
   PipelineData* data_;
 };
 }  // namespace

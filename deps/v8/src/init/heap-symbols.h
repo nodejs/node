@@ -116,8 +116,7 @@
   V(_, useGrouping_string, "useGrouping")                           \
   V(_, unitDisplay_string, "unitDisplay")                           \
   V(_, weekday_string, "weekday")                                   \
-  V(_, weekendEnd_string, "weekendEnd")                             \
-  V(_, weekendStart_string, "weekendStart")                         \
+  V(_, weekend_string, "weekend")                                   \
   V(_, weekInfo_string, "weekInfo")                                 \
   V(_, yearName_string, "yearName")
 #else  // V8_INTL_SUPPORT
@@ -197,7 +196,7 @@
   V(_, dot_home_object_string, ".home_object")                        \
   V(_, dot_result_string, ".result")                                  \
   V(_, dot_repl_result_string, ".repl_result")                        \
-  V(_, dot_static_home_object_string, "._static_home_object")         \
+  V(_, dot_static_home_object_string, ".static_home_object")          \
   V(_, dot_string, ".")                                               \
   V(_, dot_switch_tag_string, ".switch_tag")                          \
   V(_, dotAll_string, "dotAll")                                       \
@@ -527,11 +526,13 @@
   F(MC_EVACUATE_PROLOGUE)                            \
   F(MC_EVACUATE_REBALANCE)                           \
   F(MC_EVACUATE_UPDATE_POINTERS)                     \
+  F(MC_EVACUATE_UPDATE_POINTERS_CLIENT_HEAPS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_PARALLEL)            \
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN)          \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
   F(MC_FINISH_SWEEP_ARRAY_BUFFERS)                   \
+  F(MC_MARK_CLIENT_HEAPS)                            \
   F(MC_MARK_EMBEDDER_PROLOGUE)                       \
   F(MC_MARK_EMBEDDER_TRACING)                        \
   F(MC_MARK_EMBEDDER_TRACING_CLOSURE)                \
@@ -575,6 +576,7 @@
   F(MINOR_MC_MARKING_DEQUE)                          \
   F(MINOR_MC_RESET_LIVENESS)                         \
   F(MINOR_MC_SWEEPING)                               \
+  F(SAFEPOINT)                                       \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
   F(SCAVENGER_FAST_PROMOTE)                          \
@@ -589,8 +591,10 @@
   F(SCAVENGER_SCAVENGE_WEAK)                         \
   F(SCAVENGER_SCAVENGE_FINALIZE)                     \
   F(SCAVENGER_SWEEP_ARRAY_BUFFERS)                   \
+  F(TIME_TO_GLOBAL_SAFEPOINT)                        \
   F(TIME_TO_SAFEPOINT)                               \
-  F(UNMAPPER)
+  F(UNMAPPER)                                        \
+  F(UNPARK)
 
 #define TRACER_BACKGROUND_SCOPES(F)               \
   F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)          \

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-dynamic-import --ignore-unhandled-promises
+// Flags: --ignore-unhandled-promises
 
 __v_1 = {
 };

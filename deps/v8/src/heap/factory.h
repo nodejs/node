@@ -278,15 +278,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Compute the internalization strategy for the input string.
   //
-  // Old-generation flat strings can be internalized by mutating their map
-  // return kInPlace, along with the matching internalized string map for string
-  // is stored in internalized_map.
+  // Old-generation sequential strings can be internalized by mutating their map
+  // and return kInPlace, along with the matching internalized string map for
+  // string stored in internalized_map.
   //
-  // Internalized strings return kAlreadyInternalized.
+  // Internalized strings return kAlreadyTransitioned.
   //
   // All other strings are internalized by flattening and copying and return
   // kCopy.
-  V8_WARN_UNUSED_RESULT StringInternalizationStrategy
+  V8_WARN_UNUSED_RESULT StringTransitionStrategy
   ComputeInternalizationStrategyForString(Handle<String> string,
                                           MaybeHandle<Map>* internalized_map);
 
@@ -294,6 +294,20 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // of type StringClass.
   template <class StringClass>
   Handle<StringClass> InternalizeExternalString(Handle<String> string);
+
+  // Compute the sharing strategy for the input string.
+  //
+  // Old-generation sequential and thin strings can be shared by mutating their
+  // map and return kInPlace, along with the matching shared string map for the
+  // string stored in shared_map.
+  //
+  // Already-shared strings return kAlreadyTransitioned.
+  //
+  // All other strings are shared by flattening and copying into a sequential
+  // string then sharing that sequential string, and return kCopy.
+  V8_WARN_UNUSED_RESULT StringTransitionStrategy
+  ComputeSharingStrategyForString(Handle<String> string,
+                                  MaybeHandle<Map>* shared_map);
 
   // Creates a single character string where the character has given code.
   // A cache is used for Latin1 codes.
@@ -430,7 +444,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Allocate a block of memory of the given AllocationType (filled with a
   // filler). Used as a fall-back for generated code when the space is full.
   Handle<HeapObject> NewFillerObject(
-      int size, bool double_align, AllocationType allocation,
+      int size, AllocationAlignment alignment, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
@@ -570,21 +584,24 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                        Handle<Map> opt_parent,
                                        int instance_size_bytes,
                                        Handle<WasmInstanceObject> instance);
+  Handle<WasmInternalFunction> NewWasmInternalFunction(Address opt_call_target,
+                                                       Handle<HeapObject> ref,
+                                                       Handle<Map> rtt);
   Handle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, Handle<Foreign> embedder_data,
-      Handle<Code> wrapper_code,
+      Handle<Code> wrapper_code, Handle<Map> rtt,
       Handle<PodArray<wasm::ValueType>> serialized_sig);
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
       Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
       Address call_target, Handle<Object> ref, int func_index,
-      Address sig_address, int wrapper_budget);
+      Address sig_address, int wrapper_budget, Handle<Map> rtt);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(Handle<JSReceiver> callable);
   // {opt_call_target} is kNullAddress for JavaScript functions, and
   // non-null for exported Wasm functions.
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(
       Address opt_call_target, Handle<JSReceiver> callable, int return_count,
       int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-      Handle<Code> wrapper_code);
+      Handle<Code> wrapper_code, Handle<Map> rtt);
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                    wasm::WasmValue* args, Handle<Map> map);
   Handle<WasmArray> NewWasmArray(const wasm::ArrayType* type,
@@ -658,6 +675,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);
 
+  Handle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(int length);
+
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.
   Handle<Code> NewOffHeapTrampolineFor(Handle<Code> code,
@@ -723,7 +742,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForBuiltin(
       MaybeHandle<String> name, Builtin builtin,
-      FunctionKind kind = kNormalFunction);
+      FunctionKind kind = FunctionKind::kNormalFunction);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWebSnapshot();
 
@@ -973,7 +992,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // ------
   // Customization points for FactoryBase
   HeapObject AllocateRaw(int size, AllocationType allocation,
-                         AllocationAlignment alignment = kWordAligned);
+                         AllocationAlignment alignment = kTaggedAligned);
 
   Isolate* isolate() const {
     // Downcast to the privately inherited sub-class using c-style casts to
@@ -982,12 +1001,22 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     // NOLINTNEXTLINE (google-readability-casting)
     return (Isolate*)this;  // NOLINT(readability/casting)
   }
+
+  // This is the real Isolate that will be used for allocating and accessing
+  // external pointer entries when V8_HEAP_SANDBOX is enabled.
+  Isolate* isolate_for_heap_sandbox() const {
+#ifdef V8_HEAP_SANDBOX
+    return isolate();
+#else
+    return nullptr;
+#endif  // V8_HEAP_SANDBOX
+  }
+
   bool CanAllocateInReadOnlySpace();
   bool EmptyStringRootIsInitialized();
   AllocationType AllocationTypeForInPlaceInternalizableString();
 
   void AddToScriptList(Handle<Script> shared);
-  void SetExternalCodeSpaceInDataContainer(CodeDataContainer data_container);
   // ------
 
   HeapObject AllocateRawWithAllocationSite(

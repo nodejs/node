@@ -62,8 +62,8 @@ namespace internal {
 
 namespace {
 
-void CheckConfig(Heap::Config config, Heap::MarkingType marking_support,
-                 Heap::SweepingType sweeping_support) {
+void CheckConfig(Heap::Config config, HeapBase::MarkingType marking_support,
+                 HeapBase::SweepingType sweeping_support) {
   CHECK_WITH_MSG(
       (config.collection_type != Heap::Config::CollectionType::kMinor) ||
           (config.stack_state == Heap::Config::StackState::kNoHeapPointers),
@@ -78,23 +78,29 @@ void CheckConfig(Heap::Config config, Heap::MarkingType marking_support,
 
 Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
            cppgc::Heap::HeapOptions options)
-    : HeapBase(platform, options.custom_spaces, options.stack_support),
+    : HeapBase(platform, options.custom_spaces, options.stack_support,
+               options.marking_support, options.sweeping_support),
       gc_invoker_(this, platform_.get(), options.stack_support),
       growing_(&gc_invoker_, stats_collector_.get(),
                options.resource_constraints, options.marking_support,
-               options.sweeping_support),
-      marking_support_(options.marking_support),
-      sweeping_support_(options.sweeping_support) {
-  CHECK_IMPLIES(options.marking_support != MarkingType::kAtomic,
+               options.sweeping_support) {
+  CHECK_IMPLIES(options.marking_support != HeapBase::MarkingType::kAtomic,
                 platform_->GetForegroundTaskRunner());
-  CHECK_IMPLIES(options.sweeping_support != SweepingType::kAtomic,
+  CHECK_IMPLIES(options.sweeping_support != HeapBase::SweepingType::kAtomic,
                 platform_->GetForegroundTaskRunner());
 }
 
 Heap::~Heap() {
-  subtle::NoGarbageCollectionScope no_gc(*this);
-  // Finish already running GC if any, but don't finalize live objects.
-  sweeper_.FinishIfRunning();
+  // Gracefully finish already running GC if any, but don't finalize live
+  // objects.
+  FinalizeIncrementalGarbageCollectionIfRunning(
+      {Config::CollectionType::kMajor,
+       Config::StackState::kMayContainHeapPointers,
+       Config::MarkingType::kAtomic, Config::SweepingType::kAtomic});
+  {
+    subtle::NoGarbageCollectionScope no_gc(*this);
+    sweeper_.FinishIfRunning();
+  }
 }
 
 void Heap::CollectGarbage(Config config) {
@@ -114,7 +120,7 @@ void Heap::CollectGarbage(Config config) {
 
 void Heap::StartIncrementalGarbageCollection(Config config) {
   DCHECK_NE(Config::MarkingType::kAtomic, config.marking_type);
-  DCHECK_NE(marking_support_, MarkingType::kAtomic);
+  DCHECK_NE(marking_support_, Config::MarkingType::kAtomic);
   CheckConfig(config, marking_support_, sweeping_support_);
 
   if (IsMarking() || in_no_gc_scope()) return;
@@ -125,7 +131,6 @@ void Heap::StartIncrementalGarbageCollection(Config config) {
 }
 
 void Heap::FinalizeIncrementalGarbageCollectionIfRunning(Config config) {
-  DCHECK_NE(marking_support_, MarkingType::kAtomic);
   CheckConfig(config, marking_support_, sweeping_support_);
 
   if (!IsMarking()) return;

@@ -3247,7 +3247,13 @@ WASM_EXEC_TEST(F32NearestInt) {
   WasmRunner<float, float> r(execution_tier);
   BUILD(r, WASM_F32_NEARESTINT(WASM_LOCAL_GET(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(nearbyintf(i), r.Call(i)); }
+  FOR_FLOAT32_INPUTS(i) {
+    float value = nearbyintf(i);
+#if V8_OS_AIX
+    value = FpOpWorkaround<float>(i, value);
+#endif
+    CHECK_FLOAT_EQ(value, r.Call(i));
+  }
 }
 
 WASM_EXEC_TEST(F64Floor) {
@@ -3275,7 +3281,13 @@ WASM_EXEC_TEST(F64NearestInt) {
   WasmRunner<double, double> r(execution_tier);
   BUILD(r, WASM_F64_NEARESTINT(WASM_LOCAL_GET(0)));
 
-  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(nearbyint(i), r.Call(i)); }
+  FOR_FLOAT64_INPUTS(i) {
+    double value = nearbyint(i);
+#if V8_OS_AIX
+    value = FpOpWorkaround<double>(i, value);
+#endif
+    CHECK_DOUBLE_EQ(value, r.Call(i));
+  }
 }
 
 WASM_EXEC_TEST(F32Min) {

@@ -23,6 +23,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/templates.h"
+#include "src/objects/visitors.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/ostreams.h"
 
@@ -31,14 +32,15 @@ namespace internal {
 
 static base::LazyMutex object_stats_mutex = LAZY_MUTEX_INITIALIZER;
 
-class FieldStatsCollector : public ObjectVisitor {
+class FieldStatsCollector : public ObjectVisitorWithCageBases {
  public:
-  FieldStatsCollector(size_t* tagged_fields_count,
+  FieldStatsCollector(Heap* heap, size_t* tagged_fields_count,
                       size_t* embedder_fields_count,
                       size_t* inobject_smi_fields_count,
                       size_t* boxed_double_fields_count,
                       size_t* string_data_count, size_t* raw_fields_count)
-      : tagged_fields_count_(tagged_fields_count),
+      : ObjectVisitorWithCageBases(heap),
+        tagged_fields_count_(tagged_fields_count),
         embedder_fields_count_(embedder_fields_count),
         inobject_smi_fields_count_(inobject_smi_fields_count),
         boxed_double_fields_count_(boxed_double_fields_count),
@@ -47,16 +49,16 @@ class FieldStatsCollector : public ObjectVisitor {
 
   void RecordStats(HeapObject host) {
     size_t old_pointer_fields_count = *tagged_fields_count_;
-    host.Iterate(this);
+    host.Iterate(cage_base(), this);
     size_t tagged_fields_count_in_object =
         *tagged_fields_count_ - old_pointer_fields_count;
 
-    int object_size_in_words = host.Size() / kTaggedSize;
+    int object_size_in_words = host.Size(cage_base()) / kTaggedSize;
     DCHECK_LE(tagged_fields_count_in_object, object_size_in_words);
     size_t raw_fields_count_in_object =
         object_size_in_words - tagged_fields_count_in_object;
 
-    if (host.IsJSObject()) {
+    if (host.IsJSObject(cage_base())) {
       JSObjectFieldStats field_stats = GetInobjectFieldStats(host.map());
       // Embedder fields are already included into pointer words.
       DCHECK_LE(field_stats.embedded_fields_count_,
@@ -69,11 +71,11 @@ class FieldStatsCollector : public ObjectVisitor {
       tagged_fields_count_in_object -= field_stats.smi_fields_count_;
       *tagged_fields_count_ -= field_stats.smi_fields_count_;
       *inobject_smi_fields_count_ += field_stats.smi_fields_count_;
-    } else if (host.IsHeapNumber()) {
+    } else if (host.IsHeapNumber(cage_base())) {
       DCHECK_LE(kDoubleSize / kTaggedSize, raw_fields_count_in_object);
       raw_fields_count_in_object -= kDoubleSize / kTaggedSize;
       *boxed_double_fields_count_ += 1;
-    } else if (host.IsSeqString()) {
+    } else if (host.IsSeqString(cage_base())) {
       int string_data = SeqString::cast(host).length(kAcquireLoad) *
                         (String::cast(host).IsOneByteRepresentation() ? 1 : 2) /
                         kTaggedSize;
@@ -456,7 +458,7 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
       marking_state_(
           heap->mark_compact_collector()->non_atomic_marking_state()),
       field_stats_collector_(
-          &stats->tagged_fields_count_, &stats->embedder_fields_count_,
+          heap_, &stats->tagged_fields_count_, &stats->embedder_fields_count_,
           &stats->inobject_smi_fields_count_,
           &stats->boxed_double_fields_count_, &stats->string_data_count_,
           &stats->raw_fields_count_) {}
@@ -1053,8 +1055,11 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
 void ObjectStatsCollectorImpl::RecordVirtualContext(Context context) {
   if (context.IsNativeContext()) {
     RecordObjectStats(context, NATIVE_CONTEXT_TYPE, context.Size());
-    RecordSimpleVirtualObjectStats(context, context.retained_maps(),
-                                   ObjectStats::RETAINED_MAPS_TYPE);
+    if (context.retained_maps().IsWeakArrayList()) {
+      RecordSimpleVirtualObjectStats(
+          context, WeakArrayList::cast(context.retained_maps()),
+          ObjectStats::RETAINED_MAPS_TYPE);
+    }
 
   } else if (context.IsFunctionContext()) {
     RecordObjectStats(context, FUNCTION_CONTEXT_TYPE, context.Size());

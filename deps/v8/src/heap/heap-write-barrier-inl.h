@@ -207,7 +207,7 @@ inline bool IsReadOnlyHeapObject(HeapObject object) {
   return chunk->InReadOnlySpace();
 }
 
-inline bool IsCodeObject(HeapObject object) {
+inline bool IsCodeSpaceObject(HeapObject object) {
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   return chunk->InCodeSpace();
@@ -273,6 +273,14 @@ void WriteBarrier::MarkingFromGlobalHandle(Object value) {
   auto heap = GetHeapIfMarking(heap_value);
   if (!heap) return;
   MarkingSlowFromGlobalHandle(*heap, heap_value);
+}
+
+// static
+void WriteBarrier::MarkingFromInternalFields(JSObject host) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
+  auto heap = GetHeapIfMarking(host);
+  if (!heap) return;
+  MarkingSlowFromInternalFields(*heap, host);
 }
 
 }  // namespace internal

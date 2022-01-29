@@ -963,7 +963,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                                bool builtin_exit_frame = false);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToInstructionStream(Address entry);
+  void JumpToOffHeapInstructionStream(Address entry);
 
   // ---------------------------------------------------------------------------
   // In-place weak references.
@@ -1024,6 +1024,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
 
+  // Abort execution if argument is not a callable JSFunction, enabled via
+  // --debug-code.
+  void AssertCallableFunction(Register object);
+
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
@@ -1062,7 +1066,7 @@ void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
                                          Func GetLabelFunction) {
   UseScratchRegisterScope scope(this);
   Register scratch = scope.Acquire();
-  BlockTrampolinePoolFor((3 + case_count) * kInstrSize);
+  BlockTrampolinePoolFor(3 + case_count);
 
   pcaddi(scratch, 3);
   alsl_d(scratch, index, scratch, kInstrSizeLog2);

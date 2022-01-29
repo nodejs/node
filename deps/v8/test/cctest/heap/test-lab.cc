@@ -15,7 +15,7 @@ namespace internal {
 namespace heap {
 
 static Address AllocateLabBackingStore(Heap* heap, intptr_t size_in_bytes) {
-  AllocationResult result = heap->old_space()->AllocateRaw(
+  AllocationResult result = heap->old_space()->AllocateRawAligned(
       static_cast<int>(size_in_bytes), kDoubleAligned);
   Address adr = result.ToObjectChecked().address();
   return adr;
@@ -38,10 +38,9 @@ static void VerifyIterable(v8::internal::Address base,
   }
 }
 
-
 static bool AllocateFromLab(Heap* heap, LocalAllocationBuffer* lab,
                             intptr_t size_in_bytes,
-                            AllocationAlignment alignment = kWordAligned) {
+                            AllocationAlignment alignment = kTaggedAligned) {
   HeapObject obj;
   AllocationResult result =
       lab->AllocateRawAligned(static_cast<int>(size_in_bytes), alignment);
@@ -52,7 +51,6 @@ static bool AllocateFromLab(Heap* heap, LocalAllocationBuffer* lab,
   }
   return false;
 }
-
 
 TEST(InvalidLab) {
   LocalAllocationBuffer lab = LocalAllocationBuffer::InvalidBuffer();
@@ -246,16 +244,16 @@ TEST(MergeFailed) {
   }
 }
 
-
-#ifdef V8_HOST_ARCH_32_BIT
 TEST(AllocateAligned) {
+  // The test works only for configurations with 32-bit tagged values.
+  if (kTaggedSize != kUInt32Size) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   const int kLabSize = 2 * KB;
   Address base = AllocateLabBackingStore(heap, kLabSize);
   Address limit = base + kLabSize;
   std::pair<intptr_t, AllocationAlignment> sizes_raw[2] = {
-      std::make_pair(116, kWordAligned), std::make_pair(64, kDoubleAligned)};
+      std::make_pair(116, kTaggedAligned), std::make_pair(64, kDoubleAligned)};
   std::vector<std::pair<intptr_t, AllocationAlignment>> sizes(sizes_raw,
                                                               sizes_raw + 2);
   intptr_t expected_sizes_raw[4] = {116, 4, 64, 1864};
@@ -275,7 +273,6 @@ TEST(AllocateAligned) {
   }
   VerifyIterable(base, limit, expected_sizes);
 }
-#endif  // V8_HOST_ARCH_32_BIT
 
 }  // namespace heap
 }  // namespace internal

@@ -410,14 +410,32 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kF32Load:
       if (is_load_mem) {
-        LoadF32LE(dst.fp(), src_op, r0, ip);
+        // `ip` could be used as offset_reg.
+        Register scratch = ip;
+        if (offset_reg == ip) {
+          scratch = GetRegisterThatIsNotOneOf(src_addr);
+          push(scratch);
+        }
+        LoadF32LE(dst.fp(), src_op, r0, scratch);
+        if (offset_reg == ip) {
+          pop(scratch);
+        }
       } else {
         LoadF32(dst.fp(), src_op, r0);
       }
       break;
     case LoadType::kF64Load:
       if (is_load_mem) {
-        LoadF64LE(dst.fp(), src_op, r0, ip);
+        // `ip` could be used as offset_reg.
+        Register scratch = ip;
+        if (offset_reg == ip) {
+          scratch = GetRegisterThatIsNotOneOf(src_addr);
+          push(scratch);
+        }
+        LoadF64LE(dst.fp(), src_op, r0, scratch);
+        if (offset_reg == ip) {
+          pop(scratch);
+        }
       } else {
         LoadF64(dst.fp(), src_op, r0);
       }
@@ -511,76 +529,91 @@ constexpr bool is_be = true;
 constexpr bool is_be = false;
 #endif
 
-#define ATOMIC_OP(instr)                                                \
-  {                                                                     \
-    Register offset = r0;                                               \
-    if (offset_imm != 0) {                                              \
-      mov(ip, Operand(offset_imm));                                     \
-      if (offset_reg != no_reg) {                                       \
-        add(ip, ip, offset_reg);                                        \
-      }                                                                 \
-      offset = ip;                                                      \
-    } else {                                                            \
-      if (offset_reg != no_reg) {                                       \
-        offset = offset_reg;                                            \
-      }                                                                 \
-    }                                                                   \
-                                                                        \
-    MemOperand dst = MemOperand(offset, dst_addr);                      \
-                                                                        \
-    switch (type.value()) {                                             \
-      case StoreType::kI32Store8:                                       \
-      case StoreType::kI64Store8: {                                     \
-        auto op_func = [&](Register dst, Register lhs, Register rhs) {  \
-          instr(dst, lhs, rhs);                                         \
-        };                                                              \
-        AtomicOps<uint8_t>(dst, value.gp(), result.gp(), r0, op_func);  \
-        break;                                                          \
-      }                                                                 \
-      case StoreType::kI32Store16:                                      \
-      case StoreType::kI64Store16: {                                    \
-        auto op_func = [&](Register dst, Register lhs, Register rhs) {  \
-          if (is_be) {                                                  \
-            ByteReverseU16(dst, lhs);                                   \
-            instr(dst, dst, rhs);                                       \
-            ByteReverseU16(dst, dst);                                   \
-          } else {                                                      \
-            instr(dst, lhs, rhs);                                       \
-          }                                                             \
-        };                                                              \
-        AtomicOps<uint16_t>(dst, value.gp(), result.gp(), r0, op_func); \
-        break;                                                          \
-      }                                                                 \
-      case StoreType::kI32Store:                                        \
-      case StoreType::kI64Store32: {                                    \
-        auto op_func = [&](Register dst, Register lhs, Register rhs) {  \
-          if (is_be) {                                                  \
-            ByteReverseU32(dst, lhs);                                   \
-            instr(dst, dst, rhs);                                       \
-            ByteReverseU32(dst, dst);                                   \
-          } else {                                                      \
-            instr(dst, lhs, rhs);                                       \
-          }                                                             \
-        };                                                              \
-        AtomicOps<uint32_t>(dst, value.gp(), result.gp(), r0, op_func); \
-        break;                                                          \
-      }                                                                 \
-      case StoreType::kI64Store: {                                      \
-        auto op_func = [&](Register dst, Register lhs, Register rhs) {  \
-          if (is_be) {                                                  \
-            ByteReverseU64(dst, lhs);                                   \
-            instr(dst, dst, rhs);                                       \
-            ByteReverseU64(dst, dst);                                   \
-          } else {                                                      \
-            instr(dst, lhs, rhs);                                       \
-          }                                                             \
-        };                                                              \
-        AtomicOps<uint64_t>(dst, value.gp(), result.gp(), r0, op_func); \
-        break;                                                          \
-      }                                                                 \
-      default:                                                          \
-        UNREACHABLE();                                                  \
-    }                                                                   \
+#define ATOMIC_OP(instr)                                                 \
+  {                                                                      \
+    Register offset = r0;                                                \
+    if (offset_imm != 0) {                                               \
+      mov(ip, Operand(offset_imm));                                      \
+      if (offset_reg != no_reg) {                                        \
+        add(ip, ip, offset_reg);                                         \
+      }                                                                  \
+      offset = ip;                                                       \
+    } else {                                                             \
+      if (offset_reg != no_reg) {                                        \
+        offset = offset_reg;                                             \
+      }                                                                  \
+    }                                                                    \
+                                                                         \
+    MemOperand dst = MemOperand(offset, dst_addr);                       \
+                                                                         \
+    switch (type.value()) {                                              \
+      case StoreType::kI32Store8:                                        \
+      case StoreType::kI64Store8: {                                      \
+        auto op_func = [&](Register dst, Register lhs, Register rhs) {   \
+          instr(dst, lhs, rhs);                                          \
+        };                                                               \
+        AtomicOps<uint8_t>(dst, value.gp(), result.gp(), r0, op_func);   \
+        break;                                                           \
+      }                                                                  \
+      case StoreType::kI32Store16:                                       \
+      case StoreType::kI64Store16: {                                     \
+        auto op_func = [&](Register dst, Register lhs, Register rhs) {   \
+          if (is_be) {                                                   \
+            Register scratch = GetRegisterThatIsNotOneOf(lhs, rhs, dst); \
+            push(scratch);                                               \
+            ByteReverseU16(dst, lhs, scratch);                           \
+            instr(dst, dst, rhs);                                        \
+            ByteReverseU16(dst, dst, scratch);                           \
+            pop(scratch);                                                \
+          } else {                                                       \
+            instr(dst, lhs, rhs);                                        \
+          }                                                              \
+        };                                                               \
+        AtomicOps<uint16_t>(dst, value.gp(), result.gp(), r0, op_func);  \
+        if (is_be) {                                                     \
+          ByteReverseU16(result.gp(), result.gp(), ip);                  \
+        }                                                                \
+        break;                                                           \
+      }                                                                  \
+      case StoreType::kI32Store:                                         \
+      case StoreType::kI64Store32: {                                     \
+        auto op_func = [&](Register dst, Register lhs, Register rhs) {   \
+          if (is_be) {                                                   \
+            Register scratch = GetRegisterThatIsNotOneOf(lhs, rhs, dst); \
+            push(scratch);                                               \
+            ByteReverseU32(dst, lhs, scratch);                           \
+            instr(dst, dst, rhs);                                        \
+            ByteReverseU32(dst, dst, scratch);                           \
+            pop(scratch);                                                \
+          } else {                                                       \
+            instr(dst, lhs, rhs);                                        \
+          }                                                              \
+        };                                                               \
+        AtomicOps<uint32_t>(dst, value.gp(), result.gp(), r0, op_func);  \
+        if (is_be) {                                                     \
+          ByteReverseU32(result.gp(), result.gp(), ip);                  \
+        }                                                                \
+        break;                                                           \
+      }                                                                  \
+      case StoreType::kI64Store: {                                       \
+        auto op_func = [&](Register dst, Register lhs, Register rhs) {   \
+          if (is_be) {                                                   \
+            ByteReverseU64(dst, lhs);                                    \
+            instr(dst, dst, rhs);                                        \
+            ByteReverseU64(dst, dst);                                    \
+          } else {                                                       \
+            instr(dst, lhs, rhs);                                        \
+          }                                                              \
+        };                                                               \
+        AtomicOps<uint64_t>(dst, value.gp(), result.gp(), r0, op_func);  \
+        if (is_be) {                                                     \
+          ByteReverseU64(result.gp(), result.gp());                      \
+        }                                                                \
+        break;                                                           \
+      }                                                                  \
+      default:                                                           \
+        UNREACHABLE();                                                   \
+    }                                                                    \
   }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
@@ -617,9 +650,6 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uintptr_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type) {
-#if defined(V8_OS_AIX)
-  bailout(kUnsupportedArchitecture, "atomic");
-#else
   Register offset = r0;
   if (offset_imm != 0) {
     mov(ip, Operand(offset_imm));
@@ -642,9 +672,12 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
       if (is_be) {
-        ByteReverseU16(r0, value.gp());
+        Register scratch = GetRegisterThatIsNotOneOf(value.gp(), result.gp());
+        push(scratch);
+        ByteReverseU16(r0, value.gp(), scratch);
+        pop(scratch);
         TurboAssembler::AtomicExchange<uint16_t>(dst, r0, result.gp());
-        ByteReverseU16(result.gp(), result.gp());
+        ByteReverseU16(result.gp(), result.gp(), ip);
       } else {
         TurboAssembler::AtomicExchange<uint16_t>(dst, value.gp(), result.gp());
       }
@@ -653,9 +686,12 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
       if (is_be) {
-        ByteReverseU32(r0, value.gp());
+        Register scratch = GetRegisterThatIsNotOneOf(value.gp(), result.gp());
+        push(scratch);
+        ByteReverseU32(r0, value.gp(), scratch);
+        pop(scratch);
         TurboAssembler::AtomicExchange<uint32_t>(dst, r0, result.gp());
-        ByteReverseU32(result.gp(), result.gp());
+        ByteReverseU32(result.gp(), result.gp(), ip);
       } else {
         TurboAssembler::AtomicExchange<uint32_t>(dst, value.gp(), result.gp());
       }
@@ -674,16 +710,12 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
-#endif
 }
 
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
-#if defined(V8_OS_AIX)
-  bailout(kUnsupportedArchitecture, "atomic");
-#else
   Register offset = r0;
   if (offset_imm != 0) {
     mov(ip, Operand(offset_imm));
@@ -707,13 +739,17 @@ void LiftoffAssembler::AtomicCompareExchange(
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
       if (is_be) {
-        Push(r3, r4);
-        ByteReverseU16(r3, new_value.gp());
-        ByteReverseU16(r4, expected.gp());
-        TurboAssembler::AtomicCompareExchange<uint16_t>(dst, r4, r3,
-                                                        result.gp(), r0);
-        ByteReverseU16(result.gp(), result.gp());
-        Pop(r3, r4);
+        Push(new_value.gp(), expected.gp());
+        Register scratch = GetRegisterThatIsNotOneOf(
+            new_value.gp(), expected.gp(), result.gp());
+        push(scratch);
+        ByteReverseU16(new_value.gp(), new_value.gp(), scratch);
+        ByteReverseU16(expected.gp(), expected.gp(), scratch);
+        pop(scratch);
+        TurboAssembler::AtomicCompareExchange<uint16_t>(
+            dst, expected.gp(), new_value.gp(), result.gp(), r0);
+        ByteReverseU16(result.gp(), result.gp(), r0);
+        Pop(new_value.gp(), expected.gp());
       } else {
         TurboAssembler::AtomicCompareExchange<uint16_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
@@ -723,13 +759,17 @@ void LiftoffAssembler::AtomicCompareExchange(
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
       if (is_be) {
-        Push(r3, r4);
-        ByteReverseU32(r3, new_value.gp());
-        ByteReverseU32(r4, expected.gp());
-        TurboAssembler::AtomicCompareExchange<uint32_t>(dst, r4, r3,
-                                                        result.gp(), r0);
-        ByteReverseU32(result.gp(), result.gp());
-        Pop(r3, r4);
+        Push(new_value.gp(), expected.gp());
+        Register scratch = GetRegisterThatIsNotOneOf(
+            new_value.gp(), expected.gp(), result.gp());
+        push(scratch);
+        ByteReverseU32(new_value.gp(), new_value.gp(), scratch);
+        ByteReverseU32(expected.gp(), expected.gp(), scratch);
+        pop(scratch);
+        TurboAssembler::AtomicCompareExchange<uint32_t>(
+            dst, expected.gp(), new_value.gp(), result.gp(), r0);
+        ByteReverseU32(result.gp(), result.gp(), r0);
+        Pop(new_value.gp(), expected.gp());
       } else {
         TurboAssembler::AtomicCompareExchange<uint32_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
@@ -738,13 +778,13 @@ void LiftoffAssembler::AtomicCompareExchange(
     }
     case StoreType::kI64Store: {
       if (is_be) {
-        Push(r3, r4);
-        ByteReverseU64(r3, new_value.gp());
-        ByteReverseU64(r4, expected.gp());
-        TurboAssembler::AtomicCompareExchange<uint64_t>(dst, r4, r3,
-                                                        result.gp(), r0);
+        Push(new_value.gp(), expected.gp());
+        ByteReverseU64(new_value.gp(), new_value.gp());
+        ByteReverseU64(expected.gp(), expected.gp());
+        TurboAssembler::AtomicCompareExchange<uint64_t>(
+            dst, expected.gp(), new_value.gp(), result.gp(), r0);
         ByteReverseU64(result.gp(), result.gp());
-        Pop(r3, r4);
+        Pop(new_value.gp(), expected.gp());
       } else {
         TurboAssembler::AtomicCompareExchange<uint64_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
@@ -754,7 +794,6 @@ void LiftoffAssembler::AtomicCompareExchange(
     default:
       UNREACHABLE();
   }
-#endif
 }
 
 void LiftoffAssembler::AtomicFence() { sync(); }

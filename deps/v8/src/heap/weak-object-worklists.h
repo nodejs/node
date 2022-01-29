@@ -6,7 +6,7 @@
 #define V8_HEAP_WEAK_OBJECT_WORKLISTS_H_
 
 #include "src/common/globals.h"
-#include "src/heap/worklist.h"
+#include "src/heap/base/worklist.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-weak-refs.h"
 
@@ -61,16 +61,32 @@ class TransitionArray;
   F(JSFunction, baseline_flushing_candidates, BaselineFlushingCandidates)    \
   F(JSFunction, flushed_js_functions, FlushedJSFunctions)
 
-class WeakObjects {
+class WeakObjects final {
+ private:
+  class UnusedBase {};  // Base class to allow using macro in initializer list.
+
  public:
   template <typename Type>
-  using WeakObjectWorklist = Worklist<Type, 64>;
+  using WeakObjectWorklist = ::heap::base::Worklist<Type, 64>;
+
+  class Local final : public UnusedBase {
+   public:
+    explicit Local(WeakObjects* weak_objects);
+
+    V8_EXPORT_PRIVATE void Publish();
+
+#define DECLARE_WORKLIST(Type, name, _) \
+  WeakObjectWorklist<Type>::Local name##_local;
+    WEAK_OBJECT_WORKLISTS(DECLARE_WORKLIST)
+#undef DECLARE_WORKLIST
+  };
 
 #define DECLARE_WORKLIST(Type, name, _) WeakObjectWorklist<Type> name;
   WEAK_OBJECT_WORKLISTS(DECLARE_WORKLIST)
 #undef DECLARE_WORKLIST
 
   void UpdateAfterScavenge();
+  void Clear();
 
  private:
 #define DECLARE_UPDATE_METHODS(Type, _, Name) \

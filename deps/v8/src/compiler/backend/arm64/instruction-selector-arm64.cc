@@ -840,13 +840,9 @@ void InstructionSelector::VisitLoad(Node* node) {
       immediate_mode = kLoadStoreImm64;
       break;
     case MachineRepresentation::kCagedPointer:
-#ifdef V8_CAGED_POINTERS
       opcode = kArm64LdrDecodeCagedPointer;
       immediate_mode = kLoadStoreImm64;
       break;
-#else
-      UNREACHABLE();
-#endif
     case MachineRepresentation::kSimd128:
       opcode = kArm64LdrQ;
       immediate_mode = kNoImmediate;
@@ -948,13 +944,9 @@ void InstructionSelector::VisitStore(Node* node) {
             COMPRESS_POINTERS_BOOL ? kLoadStoreImm32 : kLoadStoreImm64;
         break;
       case MachineRepresentation::kCagedPointer:
-#ifdef V8_CAGED_POINTERS
         opcode = kArm64StrEncodeCagedPointer;
         immediate_mode = kLoadStoreImm64;
         break;
-#else
-        UNREACHABLE();
-#endif
       case MachineRepresentation::kWord64:
         opcode = kArm64Str;
         immediate_mode = kLoadStoreImm64;
@@ -3474,28 +3466,32 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   UNREACHABLE();
 }
 
-#define SIMD_UNOP_LIST(V)                                   \
-  V(F64x2ConvertLowI32x4S, kArm64F64x2ConvertLowI32x4S)     \
-  V(F64x2ConvertLowI32x4U, kArm64F64x2ConvertLowI32x4U)     \
-  V(F64x2PromoteLowF32x4, kArm64F64x2PromoteLowF32x4)       \
-  V(F32x4SConvertI32x4, kArm64F32x4SConvertI32x4)           \
-  V(F32x4UConvertI32x4, kArm64F32x4UConvertI32x4)           \
-  V(F32x4RecipApprox, kArm64F32x4RecipApprox)               \
-  V(F32x4RecipSqrtApprox, kArm64F32x4RecipSqrtApprox)       \
-  V(F32x4DemoteF64x2Zero, kArm64F32x4DemoteF64x2Zero)       \
-  V(I64x2BitMask, kArm64I64x2BitMask)                       \
-  V(I32x4SConvertF32x4, kArm64I32x4SConvertF32x4)           \
-  V(I32x4UConvertF32x4, kArm64I32x4UConvertF32x4)           \
-  V(I32x4BitMask, kArm64I32x4BitMask)                       \
-  V(I32x4TruncSatF64x2SZero, kArm64I32x4TruncSatF64x2SZero) \
-  V(I32x4TruncSatF64x2UZero, kArm64I32x4TruncSatF64x2UZero) \
-  V(I16x8BitMask, kArm64I16x8BitMask)                       \
-  V(I8x16BitMask, kArm64I8x16BitMask)                       \
-  V(S128Not, kArm64S128Not)                                 \
-  V(V128AnyTrue, kArm64V128AnyTrue)                         \
-  V(I64x2AllTrue, kArm64I64x2AllTrue)                       \
-  V(I32x4AllTrue, kArm64I32x4AllTrue)                       \
-  V(I16x8AllTrue, kArm64I16x8AllTrue)                       \
+#define SIMD_UNOP_LIST(V)                                       \
+  V(F64x2ConvertLowI32x4S, kArm64F64x2ConvertLowI32x4S)         \
+  V(F64x2ConvertLowI32x4U, kArm64F64x2ConvertLowI32x4U)         \
+  V(F64x2PromoteLowF32x4, kArm64F64x2PromoteLowF32x4)           \
+  V(F32x4SConvertI32x4, kArm64F32x4SConvertI32x4)               \
+  V(F32x4UConvertI32x4, kArm64F32x4UConvertI32x4)               \
+  V(F32x4RecipApprox, kArm64F32x4RecipApprox)                   \
+  V(F32x4RecipSqrtApprox, kArm64F32x4RecipSqrtApprox)           \
+  V(F32x4DemoteF64x2Zero, kArm64F32x4DemoteF64x2Zero)           \
+  V(I64x2BitMask, kArm64I64x2BitMask)                           \
+  V(I32x4SConvertF32x4, kArm64I32x4SConvertF32x4)               \
+  V(I32x4UConvertF32x4, kArm64I32x4UConvertF32x4)               \
+  V(I32x4RelaxedTruncF32x4S, kArm64I32x4SConvertF32x4)          \
+  V(I32x4RelaxedTruncF32x4U, kArm64I32x4UConvertF32x4)          \
+  V(I32x4BitMask, kArm64I32x4BitMask)                           \
+  V(I32x4TruncSatF64x2SZero, kArm64I32x4TruncSatF64x2SZero)     \
+  V(I32x4TruncSatF64x2UZero, kArm64I32x4TruncSatF64x2UZero)     \
+  V(I32x4RelaxedTruncF64x2SZero, kArm64I32x4TruncSatF64x2SZero) \
+  V(I32x4RelaxedTruncF64x2UZero, kArm64I32x4TruncSatF64x2UZero) \
+  V(I16x8BitMask, kArm64I16x8BitMask)                           \
+  V(I8x16BitMask, kArm64I8x16BitMask)                           \
+  V(S128Not, kArm64S128Not)                                     \
+  V(V128AnyTrue, kArm64V128AnyTrue)                             \
+  V(I64x2AllTrue, kArm64I64x2AllTrue)                           \
+  V(I32x4AllTrue, kArm64I32x4AllTrue)                           \
+  V(I16x8AllTrue, kArm64I16x8AllTrue)                           \
   V(I8x16AllTrue, kArm64I8x16AllTrue)
 
 #define SIMD_UNOP_LANE_SIZE_LIST(V) \
@@ -3554,11 +3550,15 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Add, kArm64FAdd, 64)                          \
   V(F64x2Sub, kArm64FSub, 64)                          \
   V(F64x2Div, kArm64FDiv, 64)                          \
+  V(F64x2RelaxedMin, kArm64FMin, 64)                   \
+  V(F64x2RelaxedMax, kArm64FMax, 64)                   \
   V(F32x4Min, kArm64FMin, 32)                          \
   V(F32x4Max, kArm64FMax, 32)                          \
   V(F32x4Add, kArm64FAdd, 32)                          \
   V(F32x4Sub, kArm64FSub, 32)                          \
   V(F32x4Div, kArm64FDiv, 32)                          \
+  V(F32x4RelaxedMin, kArm64FMin, 32)                   \
+  V(F32x4RelaxedMax, kArm64FMax, 32)                   \
   V(I64x2Sub, kArm64ISub, 64)                          \
   V(I32x4GtU, kArm64IGtU, 32)                          \
   V(I32x4GeU, kArm64IGeU, 32)                          \
@@ -4003,6 +4003,22 @@ void InstructionSelector::VisitS128Select(Node* node) {
   Emit(kArm64S128Select, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        g.UseRegister(node->InputAt(2)));
+}
+
+void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
+void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
+void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
+void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
 }
 
 #define VISIT_SIMD_QFMOP(op)                                               \

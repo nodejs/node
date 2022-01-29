@@ -13,78 +13,148 @@ namespace v8 {
 namespace internal {
 namespace baseline {
 
+namespace detail {
+
+static constexpr Register kScratchRegisters[] = {r8, r9, ip, r1};
+static constexpr int kNumScratchRegisters = arraysize(kScratchRegisters);
+
+#ifdef DEBUG
+inline bool Clobbers(Register target, MemOperand op) {
+  return op.rb() == target || op.rx() == target;
+}
+#endif
+}  // namespace detail
+
 class BaselineAssembler::ScratchRegisterScope {
  public:
   explicit ScratchRegisterScope(BaselineAssembler* assembler)
       : assembler_(assembler),
         prev_scope_(assembler->scratch_register_scope_),
-        wrapped_scope_(assembler->masm()) {
-    if (!assembler_->scratch_register_scope_) {
-      // If we haven't opened a scratch scope yet, for the first one add a
-      // couple of extra registers.
-      DCHECK(wrapped_scope_.CanAcquire());
-      wrapped_scope_.Include(r8, r9);
-      wrapped_scope_.Include(kInterpreterBytecodeOffsetRegister);
-    }
+        registers_used_(prev_scope_ == nullptr ? 0
+                                               : prev_scope_->registers_used_) {
     assembler_->scratch_register_scope_ = this;
   }
   ~ScratchRegisterScope() { assembler_->scratch_register_scope_ = prev_scope_; }
 
-  Register AcquireScratch() { return wrapped_scope_.Acquire(); }
+  Register AcquireScratch() {
+    DCHECK_LT(registers_used_, detail::kNumScratchRegisters);
+    return detail::kScratchRegisters[registers_used_++];
+  }
 
  private:
   BaselineAssembler* assembler_;
   ScratchRegisterScope* prev_scope_;
-  UseScratchRegisterScope wrapped_scope_;
+  int registers_used_;
 };
 
 // TODO(v8:11429,leszeks): Unify condition names in the MacroAssembler.
 enum class Condition : uint32_t {
-  kEqual = static_cast<uint32_t>(eq),
-  kNotEqual = static_cast<uint32_t>(ne),
+  kEqual,
+  kNotEqual,
 
-  kLessThan = static_cast<uint32_t>(lt),
-  kGreaterThan = static_cast<uint32_t>(gt),
-  kLessThanEqual = static_cast<uint32_t>(le),
-  kGreaterThanEqual = static_cast<uint32_t>(ge),
+  kLessThan,
+  kGreaterThan,
+  kLessThanEqual,
+  kGreaterThanEqual,
 
-  kUnsignedLessThan = static_cast<uint32_t>(lo),
-  kUnsignedGreaterThan = static_cast<uint32_t>(hi),
-  kUnsignedLessThanEqual = static_cast<uint32_t>(ls),
-  kUnsignedGreaterThanEqual = static_cast<uint32_t>(hs),
+  kUnsignedLessThan,
+  kUnsignedGreaterThan,
+  kUnsignedLessThanEqual,
+  kUnsignedGreaterThanEqual,
 
-  kOverflow = static_cast<uint32_t>(vs),
-  kNoOverflow = static_cast<uint32_t>(vc),
+  kOverflow,
+  kNoOverflow,
 
-  kZero = static_cast<uint32_t>(eq),
-  kNotZero = static_cast<uint32_t>(ne),
+  kZero,
+  kNotZero
 };
 
 inline internal::Condition AsMasmCondition(Condition cond) {
-  UNIMPLEMENTED();
-  return static_cast<internal::Condition>(cond);
+  STATIC_ASSERT(sizeof(internal::Condition) == sizeof(Condition));
+  switch (cond) {
+    case Condition::kEqual:
+      return eq;
+    case Condition::kNotEqual:
+      return ne;
+
+    case Condition::kLessThan:
+      return lt;
+    case Condition::kGreaterThan:
+      return gt;
+    case Condition::kLessThanEqual:
+      return le;
+    case Condition::kGreaterThanEqual:
+      return ge;
+
+    case Condition::kUnsignedLessThan:
+      return lt;
+    case Condition::kUnsignedGreaterThan:
+      return gt;
+    case Condition::kUnsignedLessThanEqual:
+      return le;
+    case Condition::kUnsignedGreaterThanEqual:
+      return ge;
+
+    case Condition::kOverflow:
+      return overflow;
+    case Condition::kNoOverflow:
+      return nooverflow;
+
+    case Condition::kZero:
+      return eq;
+    case Condition::kNotZero:
+      return ne;
+    default:
+      UNREACHABLE();
+  }
 }
 
-namespace detail {
+inline bool IsSignedCondition(Condition cond) {
+  switch (cond) {
+    case Condition::kEqual:
+    case Condition::kNotEqual:
+    case Condition::kLessThan:
+    case Condition::kGreaterThan:
+    case Condition::kLessThanEqual:
+    case Condition::kGreaterThanEqual:
+    case Condition::kOverflow:
+    case Condition::kNoOverflow:
+    case Condition::kZero:
+    case Condition::kNotZero:
+      return true;
 
-#ifdef DEBUG
-inline bool Clobbers(Register target, MemOperand op) {
-  UNIMPLEMENTED();
-  return false;
+    case Condition::kUnsignedLessThan:
+    case Condition::kUnsignedGreaterThan:
+    case Condition::kUnsignedLessThanEqual:
+    case Condition::kUnsignedGreaterThanEqual:
+      return false;
+
+    default:
+      UNREACHABLE();
+  }
 }
-#endif
 
-}  // namespace detail
+#define __ assm->masm()->
+// s390x helper
+void JumpIfHelper(BaselineAssembler* assm, Condition cc, Register lhs,
+                  Register rhs, Label* target) {
+  if (IsSignedCondition(cc)) {
+    __ CmpS64(lhs, rhs);
+  } else {
+    __ CmpU64(lhs, rhs);
+  }
+  __ b(AsMasmCondition(cc), target);
+}
+
+#undef __
 
 #define __ masm_->
 
 MemOperand BaselineAssembler::RegisterFrameOperand(
     interpreter::Register interpreter_register) {
-  UNIMPLEMENTED();
   return MemOperand(fp, interpreter_register.ToOperand() * kSystemPointerSize);
 }
 MemOperand BaselineAssembler::FeedbackVectorOperand() {
-  UNIMPLEMENTED();
   return MemOperand(fp, BaselineFrameConstants::kFeedbackVectorFromFp);
 }
 
@@ -93,83 +163,129 @@ void BaselineAssembler::BindWithoutJumpTarget(Label* label) { __ bind(label); }
 
 void BaselineAssembler::JumpTarget() {
   // NOP on arm.
-  UNIMPLEMENTED();
 }
 
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
-  UNIMPLEMENTED();
+  __ b(target);
 }
 void BaselineAssembler::JumpIfRoot(Register value, RootIndex index,
                                    Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  __ JumpIfRoot(value, index, target);
 }
 void BaselineAssembler::JumpIfNotRoot(Register value, RootIndex index,
                                       Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  __ JumpIfNotRoot(value, index, target);
 }
 void BaselineAssembler::JumpIfSmi(Register value, Label* target,
                                   Label::Distance) {
-  UNIMPLEMENTED();
+  __ JumpIfSmi(value, target);
 }
 void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
                                      Label::Distance) {
-  UNIMPLEMENTED();
+  __ JumpIfNotSmi(value, target);
 }
 
-void BaselineAssembler::CallBuiltin(Builtin builtin) { UNIMPLEMENTED(); }
+void BaselineAssembler::CallBuiltin(Builtin builtin) {
+  if (masm()->options().short_builtin_calls) {
+    // Generate pc-relative call.
+    __ CallBuiltin(builtin);
+  } else {
+    ScratchRegisterScope temps(this);
+    Register temp = temps.AcquireScratch();
+    __ LoadEntryFromBuiltin(builtin, temp);
+    __ Call(temp);
+  }
+}
 
 void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
   ASM_CODE_COMMENT_STRING(masm_,
                           __ CommentForOffHeapTrampoline("tail call", builtin));
-  UNIMPLEMENTED();
+  if (masm()->options().short_builtin_calls) {
+    // Generate pc-relative call.
+    __ TailCallBuiltin(builtin);
+  } else {
+    ScratchRegisterScope temps(this);
+    Register temp = temps.AcquireScratch();
+    __ LoadEntryFromBuiltin(builtin, temp);
+    __ Jump(temp);
+  }
 }
 
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  __ AndP(r0, value, Operand(mask));
+  __ b(AsMasmCondition(cc), target);
 }
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
                                Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  if (IsSignedCondition(cc)) {
+    __ CmpS64(lhs, rhs);
+  } else {
+    __ CmpU64(lhs, rhs);
+  }
+  __ b(AsMasmCondition(cc), target);
 }
+
 void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
                                          InstanceType instance_type,
                                          Register map, Label* target,
                                          Label::Distance) {
-  UNIMPLEMENTED();
+  ScratchRegisterScope temps(this);
+  Register type = temps.AcquireScratch();
+  __ LoadMap(map, object);
+  __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  JumpIf(cc, type, Operand(instance_type), target);
 }
 void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
                                            InstanceType instance_type,
                                            Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  ScratchRegisterScope temps(this);
+  Register type = temps.AcquireScratch();
+  if (FLAG_debug_code) {
+    __ AssertNotSmi(map);
+    __ CompareObjectType(map, type, type, MAP_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+  __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  JumpIf(cc, type, Operand(instance_type), target);
 }
 void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
                                       MemOperand operand, Label* target,
                                       Label::Distance) {
-  UNIMPLEMENTED();
+  ScratchRegisterScope temps(this);
+  Register tmp = temps.AcquireScratch();
+  __ LoadU64(tmp, operand);
+  JumpIfHelper(this, cc, value, tmp, target);
 }
+
 void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Smi smi,
                                   Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  __ AssertSmi(value);
+  __ LoadSmiLiteral(r0, smi);
+  JumpIfHelper(this, cc, value, r0, target);
 }
 void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
                                   Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  __ AssertSmi(lhs);
+  __ AssertSmi(rhs);
+  JumpIfHelper(this, cc, lhs, rhs, target);
 }
 void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
                                      Label::Distance) {
-  UNIMPLEMENTED();
+  __ LoadU64(r0, operand);
+  JumpIfHelper(this, cc, value, r0, target);
 }
 void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
                                      Register value, Label* target,
                                      Label::Distance) {
-  UNIMPLEMENTED();
+  __ LoadU64(r0, operand);
+  JumpIfHelper(this, cc, r0, value, target);
 }
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                    Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  JumpIf(cc, value, Operand(byte), target);
 }
 
 void BaselineAssembler::Move(interpreter::Register output, Register source) {

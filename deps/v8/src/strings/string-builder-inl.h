@@ -130,6 +130,24 @@ class IncrementalStringBuilder {
     }
   }
 
+  template <int N>
+  V8_INLINE void AppendCStringLiteral(const char (&literal)[N]) {
+    // Note that the literal contains the zero char.
+    const int length = N - 1;
+    STATIC_ASSERT(length > 0);
+    if (length == 1) return AppendCharacter(literal[0]);
+    if (encoding_ == String::ONE_BYTE_ENCODING && CurrentPartCanFit(N)) {
+      const uint8_t* chars = reinterpret_cast<const uint8_t*>(literal);
+      SeqOneByteString::cast(*current_part_)
+          .SeqOneByteStringSetChars(current_index_, chars, length);
+      current_index_ += length;
+      if (current_index_ == part_length_) Extend();
+      DCHECK(HasValidCurrentIndex());
+      return;
+    }
+    return AppendCString(literal);
+  }
+
   V8_INLINE void AppendCString(const char* s) {
     const uint8_t* u = reinterpret_cast<const uint8_t*>(s);
     if (encoding_ == String::ONE_BYTE_ENCODING) {
@@ -190,18 +208,37 @@ class IncrementalStringBuilder {
   template <typename DestChar>
   class NoExtend {
    public:
-    NoExtend(Handle<String> string, int offset,
+    NoExtend(String string, int offset,
              const DisallowGarbageCollection& no_gc) {
-      DCHECK(string->IsSeqOneByteString() || string->IsSeqTwoByteString());
+      DCHECK(string.IsSeqOneByteString() || string.IsSeqTwoByteString());
       if (sizeof(DestChar) == 1) {
         start_ = reinterpret_cast<DestChar*>(
-            Handle<SeqOneByteString>::cast(string)->GetChars(no_gc) + offset);
+            SeqOneByteString::cast(string).GetChars(no_gc) + offset);
       } else {
         start_ = reinterpret_cast<DestChar*>(
-            Handle<SeqTwoByteString>::cast(string)->GetChars(no_gc) + offset);
+            SeqTwoByteString::cast(string).GetChars(no_gc) + offset);
       }
       cursor_ = start_;
+#ifdef DEBUG
+      string_ = string;
+#endif
     }
+
+#ifdef DEBUG
+    ~NoExtend() {
+      DestChar* end;
+      if (sizeof(DestChar) == 1) {
+        auto one_byte_string = SeqOneByteString::cast(string_);
+        end = reinterpret_cast<DestChar*>(one_byte_string.GetChars(no_gc_) +
+                                          one_byte_string.length());
+      } else {
+        auto two_byte_string = SeqTwoByteString::cast(string_);
+        end = reinterpret_cast<DestChar*>(two_byte_string.GetChars(no_gc_) +
+                                          two_byte_string.length());
+      }
+      DCHECK_LE(cursor_, end + 1);
+    }
+#endif
 
     V8_INLINE void Append(DestChar c) { *(cursor_++) = c; }
     V8_INLINE void AppendCString(const char* s) {
@@ -214,6 +251,9 @@ class IncrementalStringBuilder {
    private:
     DestChar* start_;
     DestChar* cursor_;
+#ifdef DEBUG
+    String string_;
+#endif
     DISALLOW_GARBAGE_COLLECTION(no_gc_)
   };
 
@@ -242,14 +282,15 @@ class IncrementalStringBuilder {
    public:
     NoExtendBuilder(IncrementalStringBuilder* builder, int required_length,
                     const DisallowGarbageCollection& no_gc)
-        : NoExtend<DestChar>(builder->current_part(), builder->current_index_,
-                             no_gc),
+        : NoExtend<DestChar>(*(builder->current_part()),
+                             builder->current_index_, no_gc),
           builder_(builder) {
       DCHECK(builder->CurrentPartCanFit(required_length));
     }
 
     ~NoExtendBuilder() {
       builder_->current_index_ += NoExtend<DestChar>::written();
+      DCHECK(builder_->HasValidCurrentIndex());
     }
 
    private:
@@ -276,6 +317,8 @@ class IncrementalStringBuilder {
 
   // Finish the current part and allocate a new part.
   void Extend();
+
+  bool HasValidCurrentIndex() const;
 
   // Shrink current part to the right size.
   void ShrinkCurrentPart() {
@@ -314,6 +357,7 @@ void IncrementalStringBuilder::Append(SrcChar c) {
         .SeqTwoByteStringSet(current_index_++, c);
   }
   if (current_index_ == part_length_) Extend();
+  DCHECK(HasValidCurrentIndex());
 }
 }  // namespace internal
 }  // namespace v8

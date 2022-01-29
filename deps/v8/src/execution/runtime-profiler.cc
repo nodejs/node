@@ -175,12 +175,9 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, UnoptimizedFrame* frame) {
 
 namespace {
 
-bool ShouldOptimizeAsSmallFunction(int bytecode_size, int ticks,
-                                   bool any_ic_changed,
-                                   bool active_tier_is_turboprop) {
-  if (any_ic_changed || bytecode_size >= FLAG_max_bytecode_size_for_early_opt)
-    return false;
-  return true;
+bool ShouldOptimizeAsSmallFunction(int bytecode_size, bool any_ic_changed) {
+  return !any_ic_changed &&
+         bytecode_size < FLAG_max_bytecode_size_for_early_opt;
 }
 
 }  // namespace
@@ -193,16 +190,14 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
   if (V8_UNLIKELY(FLAG_turboprop) && function.ActiveTierIsToptierTurboprop()) {
     return OptimizationReason::kDoNotOptimize;
   }
-  int ticks = function.feedback_vector().profiler_ticks();
-  bool active_tier_is_turboprop = function.ActiveTierIsMidtierTurboprop();
-  int ticks_for_optimization =
+  const int ticks = function.feedback_vector().profiler_ticks();
+  const int ticks_for_optimization =
       FLAG_ticks_before_optimization +
       (bytecode.length() / FLAG_bytecode_size_allowance_per_tick);
   if (ticks >= ticks_for_optimization) {
     return OptimizationReason::kHotAndStable;
-  } else if (ShouldOptimizeAsSmallFunction(bytecode.length(), ticks,
-                                           any_ic_changed_,
-                                           active_tier_is_turboprop)) {
+  } else if (ShouldOptimizeAsSmallFunction(bytecode.length(),
+                                           any_ic_changed_)) {
     // If no IC was patched since the last tick and this function is very
     // small, optimistically optimize it now.
     return OptimizationReason::kSmallFunction;

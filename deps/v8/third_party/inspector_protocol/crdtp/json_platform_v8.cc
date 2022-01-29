@@ -16,7 +16,8 @@ namespace platform {
 // Parses |str| into |result|. Returns false iff there are
 // leftover characters or parsing errors.
 bool StrToD(const char* str, double* result) {
-  *result = v8::internal::StringToDouble(str, v8::internal::NO_FLAGS);
+  *result =
+      v8::internal::StringToDouble(str, v8::internal::NO_CONVERSION_FLAGS);
   return std::isfinite(*result);
 }
 

@@ -11,6 +11,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
@@ -295,7 +296,7 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   } else if (context->has_extension()) {
     object = handle(context->extension_object(), isolate);
     DCHECK(object->IsJSContextExtensionObject());
-  } else {
+  } else if (context->scope_info().HasContextExtensionSlot()) {
     // Sloppy varblock and function contexts might not have an extension object
     // yet. Sloppy eval will never have an extension object, as vars are hoisted
     // out, and lets are known statically.
@@ -306,6 +307,10 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
         isolate->factory()->NewJSObject(isolate->context_extension_function());
 
     context->set_extension(*object);
+  } else {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewEvalError(MessageTemplate::kVarNotAllowedInEvalScope, name));
   }
 
   RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(

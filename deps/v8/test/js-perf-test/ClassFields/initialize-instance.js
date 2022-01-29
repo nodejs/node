@@ -22,6 +22,12 @@ function CreateBenchmark(name, optimize) {
     case "InitializeMultiPrivateFieldClass":
       klass = EvaluateMultiPrivateFieldClass();
       break;
+    case "InitializeSinglePrivateMethodClass":
+      klass = EvaluateSinglePrivateMethodClass();
+      break;
+    case "InitializeMultiPrivateMethodClass":
+      klass = EvaluateMultiPrivateMethodClass();
+      break;
     case "InitializeSingleComputedFieldClass":
       klass = EvaluateSingleComputedFieldClass();
       break;
@@ -94,5 +100,7 @@ CreateBenchmark("InitializeSinglePublicFieldClass", optimize);
 CreateBenchmark("InitializeMultiPublicFieldClass", optimize);
 CreateBenchmark("InitializeSinglePrivateFieldClass", optimize);
 CreateBenchmark("InitializeMultiPrivateFieldClass", optimize);
+CreateBenchmark("InitializeSinglePrivateMethodClass", optimize);
+CreateBenchmark("InitializeMultiPrivateMethodClass", optimize);
 CreateBenchmark("InitializeSingleComputedFieldClass", optimize);
 CreateBenchmark("InitializeMultiComputedFieldClass", optimize);

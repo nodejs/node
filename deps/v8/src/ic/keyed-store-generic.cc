@@ -774,7 +774,7 @@ TNode<Map> KeyedStoreGenericAssembler::FindCandidateStoreICTransitionMapHandler(
       // transition array is expected to be the first among the transitions
       // with the same name.
       // See TransitionArray::CompareDetails() for details.
-      STATIC_ASSERT(kData == 0);
+      STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
       STATIC_ASSERT(NONE == 0);
       const int kKeyToTargetOffset = (TransitionArray::kEntryTargetIndex -
                                       TransitionArray::kEntryKeyIndex) *

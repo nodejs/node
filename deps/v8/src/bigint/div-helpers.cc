@@ -23,7 +23,7 @@ void Copy(RWDigits Z, Digits X) {
 // Z := X << shift
 // Z and X may alias for an in-place shift.
 void LeftShift(RWDigits Z, Digits X, int shift) {
-  DCHECK(shift >= 0);  // NOLINT(readability/check)
+  DCHECK(shift >= 0);
   DCHECK(shift < kDigitBits);
   DCHECK(Z.len() >= X.len());
   if (shift == 0) return Copy(Z, X);
@@ -37,7 +37,7 @@ void LeftShift(RWDigits Z, Digits X, int shift) {
   if (i < Z.len()) {
     Z[i++] = carry;
   } else {
-    DCHECK(carry == 0);  // NOLINT(readability/check)
+    DCHECK(carry == 0);
   }
   for (; i < Z.len(); i++) Z[i] = 0;
 }
@@ -45,7 +45,7 @@ void LeftShift(RWDigits Z, Digits X, int shift) {
 // Z := X >> shift
 // Z and X may alias for an in-place shift.
 void RightShift(RWDigits Z, Digits X, int shift) {
-  DCHECK(shift >= 0);  // NOLINT(readability/check)
+  DCHECK(shift >= 0);
   DCHECK(shift < kDigitBits);
   X.Normalize();
   DCHECK(Z.len() >= X.len());

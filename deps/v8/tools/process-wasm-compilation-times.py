@@ -123,8 +123,8 @@ with open(sys.argv[1], "r") as f:
 funcs_list.sort(key=lambda fun: fun.time_tf)
 for f in funcs_list:
   print(f)
-  total_tf_time += f.time_tf
-  total_tf_size += f.size_tf
+  if f.time_tf > 0: total_tf_time += f.time_tf
+  if f.size_tf > 0: total_tf_size += f.size_tf
 
 print("Total TF time: %d" % total_tf_time)
 print("Total TF size: %d" % total_tf_size)

@@ -93,7 +93,7 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   MachineOperatorBuilder* machine_;
   CommonOperatorBuilder* common_;
   SimplifiedOperatorBuilder* simplified_;
-  NodeMarker<State> state_;
+  std::vector<State> state_;
   ZoneDeque<NodeState> stack_;
   Replacement* replacements_;
   Signature<MachineRepresentation>* signature_;

@@ -287,14 +287,22 @@ const ClassType* TypeVisitor::ComputeType(
     Error("Class \"", decl->name->value,
           "\" requires a layout but doesn't have one");
   }
-  if (flags & ClassFlag::kCustomCppClass) {
-    if (!(flags & ClassFlag::kExport)) {
-      Error("Only exported classes can have a custom C++ class.");
+  if (flags & ClassFlag::kGenerateUniqueMap) {
+    if (!(flags & ClassFlag::kExtern)) {
+      Error("No need to specify ", ANNOTATION_GENERATE_UNIQUE_MAP,
+            ", non-extern classes always have a unique map.");
     }
-    if (flags & ClassFlag::kExtern) {
-      Error("No need to specify ", ANNOTATION_CUSTOM_CPP_CLASS,
-            ", extern classes always have a custom C++ class.");
+    if (flags & ClassFlag::kAbstract) {
+      Error(ANNOTATION_ABSTRACT, " and ", ANNOTATION_GENERATE_UNIQUE_MAP,
+            " shouldn't be used together, because abstract classes are never "
+            "instantiated.");
     }
+  }
+  if ((flags & ClassFlag::kGenerateFactoryFunction) &&
+      (flags & ClassFlag::kAbstract)) {
+    Error(ANNOTATION_ABSTRACT, " and ", ANNOTATION_GENERATE_FACTORY_FUNCTION,
+          " shouldn't be used together, because abstract classes are never "
+          "instantiated.");
   }
   if (flags & ClassFlag::kExtern) {
     if (decl->generates) {
@@ -427,8 +435,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
             "found type ",
             *field_type);
       }
-      if (field_expression.weak) {
-        ReportError("in-object properties cannot be weak");
+      if (field_expression.custom_weak_marking) {
+        ReportError("in-object properties cannot use @customWeakMarking");
       }
     }
     base::Optional<ClassFieldIndexInfo> array_length = field_expression.index;
@@ -438,7 +446,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          array_length,
          {field_expression.name_and_type.name->value, field_type},
          class_offset.SingleValue(),
-         field_expression.weak,
+         field_expression.custom_weak_marking,
          field_expression.const_qualified,
          field_expression.read_synchronization,
          field_expression.write_synchronization});

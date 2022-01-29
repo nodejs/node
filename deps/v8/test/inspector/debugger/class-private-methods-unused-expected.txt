@@ -40,10 +40,10 @@ Access A.#staticMethod() in testStatic()
 Access this.#staticMethod() in testStatic()
 {
     exceptionDetails : {
-        columnNumber : 0
+        columnNumber : 5
         exception : {
             className : Error
-            description : Error: Unused static private method '#staticMethod' cannot be accessed at debug time     at eval (eval at testStatic (:1:1), <anonymous>:1:1)     at Function.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
+            description : Error: Unused static private method '#staticMethod' cannot be accessed at debug time     at eval (eval at testStatic (:1:1), <anonymous>:1:6)     at Function.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
             objectId : <objectId>
             subtype : error
             type : object
@@ -55,7 +55,7 @@ Access this.#staticMethod() in testStatic()
     }
     result : {
         className : Error
-        description : Error: Unused static private method '#staticMethod' cannot be accessed at debug time     at eval (eval at testStatic (:1:1), <anonymous>:1:1)     at Function.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
+        description : Error: Unused static private method '#staticMethod' cannot be accessed at debug time     at eval (eval at testStatic (:1:1), <anonymous>:1:6)     at Function.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
         objectId : <objectId>
         subtype : error
         type : object

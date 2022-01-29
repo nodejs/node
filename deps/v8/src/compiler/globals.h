@@ -92,8 +92,8 @@ const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 // to add support for IA32, because it has a totally different approach
 // (using FP stack). As support is added to more platforms, please make sure
 // to list them here in order to enable tests of this functionality.
-#if defined(V8_TARGET_ARCH_X64) || \
-    (defined(V8_TARGET_ARCH_ARM64) && !defined(USE_SIMULATOR))
+// Make sure to sync the following with src/d8/d8-test.cc.
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
 #define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 #endif
 

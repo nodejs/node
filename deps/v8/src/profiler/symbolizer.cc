@@ -125,8 +125,8 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
             entry->GetInlineStack(pc_offset);
         if (inline_stack) {
           int most_inlined_frame_line_number = entry->GetSourceLine(pc_offset);
-          for (auto entry : *inline_stack) {
-            stack_trace.push_back(entry);
+          for (auto inline_stack_entry : *inline_stack) {
+            stack_trace.push_back(inline_stack_entry);
           }
 
           // This is a bit of a messy hack. The line number for the most-inlined

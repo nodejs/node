@@ -35,6 +35,8 @@
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'proposals/simd/simd_f32x4*': [PASS, HEAVY],
   'proposals/simd/simd_f64x2*': [PASS, HEAVY],
+  'simd_f32x4*': [PASS, HEAVY],
+  'simd_f64x2*': [PASS, HEAVY],
   'f32*': [PASS, HEAVY],
   'f64*': [PASS, HEAVY],
 }],  # ALWAYS
@@ -44,10 +46,15 @@
   'proposals/simd/simd_f32x4': [PASS, FAIL],
   'proposals/simd/simd_f32x4_arith': [PASS, FAIL],
   'proposals/simd/simd_f32x4_cmp': [PASS, FAIL],
+  'simd_f32x4': [PASS, FAIL],
+  'simd_f32x4_arith': [PASS, FAIL],
+  'simd_f32x4_cmp': [PASS, FAIL],
   # This test only has 1 problematic use of f32x4.min and f32x4.div, consider
   # removing it from upstream, then we can run this test.
   'proposals/simd/simd_splat' : [PASS, FAIL],
   'proposals/simd/simd_f32x4_pmin_pmax' : [PASS, FAIL],
+  'simd_splat' : [PASS, FAIL],
+  'simd_f32x4_pmin_pmax' : [PASS, FAIL],
 }],  # arch == arm and not simulator_run
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
@@ -101,6 +108,7 @@
 
    # SIMD is not fully implemented yet.
    'proposals/simd/*': [SKIP],
+   'simd*': [SKIP],
 }],  # 'arch == riscv64
 
 ['arch == ppc or arch == ppc64', {
@@ -151,6 +159,7 @@
 ##############################################################################
 ['no_simd_hardware == True', {
   'proposals/simd/*': [SKIP],
+  'simd*': [SKIP],
 }],  # no_simd_hardware == True
 
 ]

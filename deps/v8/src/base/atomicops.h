@@ -378,6 +378,64 @@ inline void Relaxed_Memmove(volatile Atomic8* dst, volatile const Atomic8* src,
   }
 }
 
+namespace helper {
+inline int MemcmpNotEqualFundamental(Atomic8 u1, Atomic8 u2) {
+  DCHECK_NE(u1, u2);
+  return u1 < u2 ? -1 : 1;
+}
+inline int MemcmpNotEqualFundamental(AtomicWord u1, AtomicWord u2) {
+  DCHECK_NE(u1, u2);
+#if defined(V8_TARGET_BIG_ENDIAN)
+  return u1 < u2 ? -1 : 1;
+#else
+  for (size_t i = 0; i < sizeof(AtomicWord); ++i) {
+    uint8_t byte1 = u1 & 0xFF;
+    uint8_t byte2 = u2 & 0xFF;
+    if (byte1 != byte2) return byte1 < byte2 ? -1 : 1;
+    u1 >>= 8;
+    u2 >>= 8;
+  }
+  UNREACHABLE();
+#endif
+}
+}  // namespace helper
+
+inline int Relaxed_Memcmp(volatile const Atomic8* s1,
+                          volatile const Atomic8* s2, size_t len) {
+  constexpr size_t kAtomicWordSize = sizeof(AtomicWord);
+  while (len > 0 &&
+         !(IsAligned(reinterpret_cast<uintptr_t>(s1), kAtomicWordSize) &&
+           IsAligned(reinterpret_cast<uintptr_t>(s2), kAtomicWordSize))) {
+    Atomic8 u1 = Relaxed_Load(s1++);
+    Atomic8 u2 = Relaxed_Load(s2++);
+    if (u1 != u2) return helper::MemcmpNotEqualFundamental(u1, u2);
+    --len;
+  }
+
+  if (IsAligned(reinterpret_cast<uintptr_t>(s1), kAtomicWordSize) &&
+      IsAligned(reinterpret_cast<uintptr_t>(s2), kAtomicWordSize)) {
+    while (len >= kAtomicWordSize) {
+      AtomicWord u1 =
+          Relaxed_Load(reinterpret_cast<const volatile AtomicWord*>(s1));
+      AtomicWord u2 =
+          Relaxed_Load(reinterpret_cast<const volatile AtomicWord*>(s2));
+      if (u1 != u2) return helper::MemcmpNotEqualFundamental(u1, u2);
+      s1 += kAtomicWordSize;
+      s2 += kAtomicWordSize;
+      len -= kAtomicWordSize;
+    }
+  }
+
+  while (len > 0) {
+    Atomic8 u1 = Relaxed_Load(s1++);
+    Atomic8 u2 = Relaxed_Load(s2++);
+    if (u1 != u2) return helper::MemcmpNotEqualFundamental(u1, u2);
+    --len;
+  }
+
+  return 0;
+}
+
 }  // namespace base
 }  // namespace v8
 

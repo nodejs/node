@@ -55,6 +55,11 @@ class BuildFlags : public ContextualClass<BuildFlags> {
 #else
     build_flags_["V8_SCRIPTORMODULE_LEGACY_LIFETIME"] = false;
 #endif
+#ifdef V8_ENABLE_WEBASSEMBLY
+    build_flags_["V8_ENABLE_WEBASSEMBLY"] = true;
+#else
+    build_flags_["V8_ENABLE_WEBASSEMBLY"] = false;
+#endif
   }
   static bool GetFlag(const std::string& name, const char* production) {
     auto it = Get().build_flags_.find(name);
@@ -899,6 +904,7 @@ base::Optional<ParseResult> MakeClassDeclaration(
        ANNOTATION_DO_NOT_GENERATE_CPP_CLASS, ANNOTATION_CUSTOM_CPP_CLASS,
        ANNOTATION_CUSTOM_MAP, ANNOTATION_GENERATE_BODY_DESCRIPTOR,
        ANNOTATION_EXPORT, ANNOTATION_DO_NOT_GENERATE_CAST,
+       ANNOTATION_GENERATE_UNIQUE_MAP, ANNOTATION_GENERATE_FACTORY_FUNCTION,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT},
       {ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE,
@@ -913,16 +919,28 @@ base::Optional<ParseResult> MakeClassDeclaration(
   bool do_not_generate_cpp_class =
       annotations.Contains(ANNOTATION_DO_NOT_GENERATE_CPP_CLASS);
   if (annotations.Contains(ANNOTATION_CUSTOM_CPP_CLASS)) {
-    flags |= ClassFlag::kCustomCppClass;
+    Error(
+        "@customCppClass is deprecated. Use 'extern' instead. "
+        "@generateBodyDescriptor, @generateUniqueMap, and "
+        "@generateFactoryFunction accomplish most of what '@export "
+        "@customCppClass' used to.");
   }
   if (annotations.Contains(ANNOTATION_CUSTOM_MAP)) {
-    flags |= ClassFlag::kCustomMap;
+    Error(
+        "@customMap is deprecated. Generating a unique map is opt-in now using "
+        "@generateUniqueMap.");
   }
   if (annotations.Contains(ANNOTATION_DO_NOT_GENERATE_CAST)) {
     flags |= ClassFlag::kDoNotGenerateCast;
   }
   if (annotations.Contains(ANNOTATION_GENERATE_BODY_DESCRIPTOR)) {
     flags |= ClassFlag::kGenerateBodyDescriptor;
+  }
+  if (annotations.Contains(ANNOTATION_GENERATE_UNIQUE_MAP)) {
+    flags |= ClassFlag::kGenerateUniqueMap;
+  }
+  if (annotations.Contains(ANNOTATION_GENERATE_FACTORY_FUNCTION)) {
+    flags |= ClassFlag::kGenerateFactoryFunction;
   }
   if (annotations.Contains(ANNOTATION_EXPORT)) {
     flags |= ClassFlag::kExport;
@@ -1722,16 +1740,32 @@ base::Optional<ParseResult> MakeLabelBlock(ParseResultIterator* child_results) {
 }
 
 base::Optional<ParseResult> MakeCatchBlock(ParseResultIterator* child_results) {
-  auto variable = child_results->NextAs<std::string>();
+  auto parameter_names = child_results->NextAs<std::vector<std::string>>();
   auto body = child_results->NextAs<Statement*>();
-  if (!IsLowerCamelCase(variable)) {
-    NamingConventionError("Exception", variable, "lowerCamelCase");
+  for (const std::string& variable : parameter_names) {
+    if (!IsLowerCamelCase(variable)) {
+      NamingConventionError("Exception", variable, "lowerCamelCase");
+    }
+  }
+  if (parameter_names.size() != 2) {
+    ReportError(
+        "A catch clause needs to have exactly two parameters: The exception "
+        "and the message. How about: \"catch (exception, message) { ...\".");
   }
   ParameterList parameters;
-  parameters.names.push_back(MakeNode<Identifier>(variable));
+
+  parameters.names.push_back(MakeNode<Identifier>(parameter_names[0]));
   parameters.types.push_back(MakeNode<BasicTypeExpression>(
       std::vector<std::string>{}, MakeNode<Identifier>("JSAny"),
       std::vector<TypeExpression*>{}));
+  parameters.names.push_back(MakeNode<Identifier>(parameter_names[1]));
+  parameters.types.push_back(MakeNode<UnionTypeExpression>(
+      MakeNode<BasicTypeExpression>(std::vector<std::string>{},
+                                    MakeNode<Identifier>("JSMessageObject"),
+                                    std::vector<TypeExpression*>{}),
+      MakeNode<BasicTypeExpression>(std::vector<std::string>{},
+                                    MakeNode<Identifier>("TheHole"),
+                                    std::vector<TypeExpression*>{})));
   parameters.has_varargs = false;
   TryHandler* result = MakeNode<TryHandler>(
       TryHandler::HandlerKind::kCatch, MakeNode<Identifier>(kCatchLabelName),
@@ -1974,7 +2008,8 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   AnnotationSet annotations(
       child_results,
       {ANNOTATION_CPP_RELAXED_STORE, ANNOTATION_CPP_RELAXED_LOAD,
-       ANNOTATION_CPP_RELEASE_STORE, ANNOTATION_CPP_ACQUIRE_LOAD},
+       ANNOTATION_CPP_RELEASE_STORE, ANNOTATION_CPP_ACQUIRE_LOAD,
+       ANNOTATION_CUSTOM_WEAK_MARKING},
       {ANNOTATION_IF, ANNOTATION_IFNOT});
   FieldSynchronization write_synchronization = FieldSynchronization::kNone;
   if (annotations.Contains(ANNOTATION_CPP_RELEASE_STORE)) {
@@ -2000,7 +2035,16 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
     conditions.push_back(
         {*ifnot_condition, ConditionalAnnotationType::kNegative});
   }
-  auto weak = child_results->NextAs<bool>();
+  bool custom_weak_marking =
+      annotations.Contains(ANNOTATION_CUSTOM_WEAK_MARKING);
+  auto deprecated_weak = child_results->NextAs<bool>();
+  if (deprecated_weak) {
+    Error(
+        "The keyword 'weak' is deprecated. For a field that can contain a "
+        "normal weak pointer, use type Weak<T>. For a field that should be "
+        "marked in some custom way, use @customWeakMarking.");
+    custom_weak_marking = true;
+  }
   auto const_qualified = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
   auto optional = child_results->NextAs<bool>();
@@ -2025,7 +2069,7 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   return ParseResult{ClassFieldExpression{{name, type},
                                           index_info,
                                           std::move(conditions),
-                                          weak,
+                                          custom_weak_marking,
                                           const_qualified,
                                           read_synchronization,
                                           write_synchronization}};
@@ -2154,6 +2198,49 @@ struct TorqueGrammar : Grammar {
       return true;
     }
     return true;
+  }
+
+  template <class T, bool first>
+  static base::Optional<ParseResult> MakeExtendedVectorIfAnnotation(
+      ParseResultIterator* child_results) {
+    std::vector<T> l = {};
+    if (!first) l = child_results->NextAs<std::vector<T>>();
+    AnnotationSet annotations(child_results, {},
+                              {ANNOTATION_IF, ANNOTATION_IFNOT});
+    bool skipped = false;
+    if (base::Optional<std::string> condition =
+            annotations.GetStringParam(ANNOTATION_IF)) {
+      if (!BuildFlags::GetFlag(*condition, ANNOTATION_IF)) skipped = true;
+    }
+    if (base::Optional<std::string> condition =
+            annotations.GetStringParam(ANNOTATION_IFNOT)) {
+      if (BuildFlags::GetFlag(*condition, ANNOTATION_IFNOT)) skipped = true;
+    }
+    T x = child_results->NextAs<T>();
+
+    if (skipped) return ParseResult{std::move(l)};
+    l.push_back(std::move(x));
+    return ParseResult{std::move(l)};
+  }
+
+  template <class T>
+  Symbol* NonemptyListAllowIfAnnotation(
+      Symbol* element, base::Optional<Symbol*> separator = {}) {
+    Symbol* list = NewSymbol();
+    *list = {
+        Rule({annotations, element}, MakeExtendedVectorIfAnnotation<T, true>),
+        separator ? Rule({list, annotations, *separator, element},
+                         MakeExtendedVectorIfAnnotation<T, false>)
+                  : Rule({list, annotations, element},
+                         MakeExtendedVectorIfAnnotation<T, false>)};
+    return list;
+  }
+
+  template <class T>
+  Symbol* ListAllowIfAnnotation(Symbol* element,
+                                base::Optional<Symbol*> separator = {}) {
+    return TryOrDefault<std::vector<T>>(
+        NonemptyListAllowIfAnnotation<T>(element, separator));
   }
 
   TorqueGrammar() : Grammar(&file) { SetWhitespace(MatchWhitespace); }
@@ -2492,16 +2579,18 @@ struct TorqueGrammar : Grammar {
            MakeAssignmentExpression)};
 
   // Result: Statement*
-  Symbol block = {Rule({CheckIf(Token("deferred")), Token("{"),
-                        List<Statement*>(&statement), Token("}")},
-                       MakeBlockStatement)};
+  Symbol block = {
+      Rule({CheckIf(Token("deferred")), Token("{"),
+            ListAllowIfAnnotation<Statement*>(&statement), Token("}")},
+           MakeBlockStatement)};
 
   // Result: TryHandler*
   Symbol tryHandler = {
       Rule({Token("label"), &name,
             TryOrDefault<ParameterList>(&parameterListNoVararg), &block},
            MakeLabelBlock),
-      Rule({Token("catch"), Token("("), &identifier, Token(")"), &block},
+      Rule({Token("catch"), Token("("),
+            List<std::string>(&identifier, Token(",")), Token(")"), &block},
            MakeCatchBlock)};
 
   // Result: ExpressionWithSource
@@ -2554,7 +2643,7 @@ struct TorqueGrammar : Grammar {
               expression,
               Token(")"),
               Token("{"),
-              NonemptyList<TypeswitchCase>(&typeswitchCase),
+              NonemptyListAllowIfAnnotation<TypeswitchCase>(&typeswitchCase),
               Token("}"),
           },
           MakeTypeswitchStatement),
@@ -2614,11 +2703,13 @@ struct TorqueGrammar : Grammar {
            MakeClassDeclaration),
       Rule({annotations, Token("struct"), &name,
             TryOrDefault<GenericParameters>(&genericParameters), Token("{"),
-            List<Declaration*>(&method),
-            List<StructFieldExpression>(&structField), Token("}")},
+            ListAllowIfAnnotation<Declaration*>(&method),
+            ListAllowIfAnnotation<StructFieldExpression>(&structField),
+            Token("}")},
            AsSingletonVector<Declaration*, MakeStructDeclaration>()),
       Rule({Token("bitfield"), Token("struct"), &name, Token("extends"), &type,
-            Token("{"), List<BitFieldDeclaration>(&bitFieldDeclaration),
+            Token("{"),
+            ListAllowIfAnnotation<BitFieldDeclaration>(&bitFieldDeclaration),
             Token("}")},
            AsSingletonVector<Declaration*, MakeBitFieldStructDeclaration>()),
       Rule({annotations, CheckIf(Token("transient")), Token("type"), &name,
@@ -2675,7 +2766,8 @@ struct TorqueGrammar : Grammar {
             Optional<TypeExpression*>(Sequence({Token("extends"), &type})),
             Optional<std::string>(
                 Sequence({Token("constexpr"), &externalString})),
-            Token("{"), NonemptyList<EnumEntry>(&enumEntry, Token(",")),
+            Token("{"),
+            NonemptyListAllowIfAnnotation<EnumEntry>(&enumEntry, Token(",")),
             CheckIf(Sequence({Token(","), Token("...")})), Token("}")},
            MakeEnumDeclaration),
       Rule({Token("namespace"), &identifier, Token("{"), &declarationList,

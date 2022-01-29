@@ -136,7 +136,7 @@ Address SkipFillers(PtrComprCageBase cage_base, HeapObject filler,
   while (addr < end) {
     filler = HeapObject::FromAddress(addr);
     CHECK(filler.IsFreeSpaceOrFiller(cage_base));
-    addr = filler.address() + filler.Size();
+    addr = filler.address() + filler.Size(cage_base);
   }
   return addr;
 }
@@ -184,7 +184,7 @@ size_t Page::ShrinkToHighWaterMark() {
         this, address() + size() - unused, unused, area_end() - unused);
     if (filler.address() != area_end()) {
       CHECK(filler.IsFreeSpaceOrFiller(cage_base));
-      CHECK_EQ(filler.address() + filler.Size(), area_end());
+      CHECK_EQ(filler.address() + filler.Size(cage_base), area_end());
     }
   }
   return unused;
@@ -270,7 +270,7 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
     return start + min_size;
   } else if (SupportsAllocationObserver() && allocation_counter_.IsActive()) {
     // Ensure there are no unaccounted allocations.
-    DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
+    DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
 
     // Generated code may allocate inline from the linear allocation area for.
     // To make sure we can observe these allocations, we use a lower ©limit.
@@ -325,14 +325,7 @@ void LocalAllocationBuffer::MakeIterable() {
 LocalAllocationBuffer::LocalAllocationBuffer(
     Heap* heap, LinearAllocationArea allocation_info) V8_NOEXCEPT
     : heap_(heap),
-      allocation_info_(allocation_info) {
-  if (IsValid()) {
-    heap_->CreateFillerObjectAtBackground(
-        allocation_info_.top(),
-        static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
-        ClearFreedMemoryMode::kDontClearFreedMemory);
-  }
-}
+      allocation_info_(allocation_info) {}
 
 LocalAllocationBuffer::LocalAllocationBuffer(LocalAllocationBuffer&& other)
     V8_NOEXCEPT {
@@ -381,16 +374,16 @@ void SpaceWithLinearArea::ResumeAllocationObservers() {
 }
 
 void SpaceWithLinearArea::AdvanceAllocationObservers() {
-  if (allocation_info_.top() &&
-      allocation_info_.start() != allocation_info_.top()) {
-    allocation_counter_.AdvanceAllocationObservers(allocation_info_.top() -
-                                                   allocation_info_.start());
+  if (allocation_info_->top() &&
+      allocation_info_->start() != allocation_info_->top()) {
+    allocation_counter_.AdvanceAllocationObservers(allocation_info_->top() -
+                                                   allocation_info_->start());
     MarkLabStartInitialized();
   }
 }
 
 void SpaceWithLinearArea::MarkLabStartInitialized() {
-  allocation_info_.ResetStart();
+  allocation_info_->ResetStart();
   if (identity() == NEW_SPACE) {
     heap()->new_space()->MoveOriginalTopForward();
 
@@ -420,12 +413,12 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
 
   if (allocation_size >= allocation_counter_.NextBytes()) {
     // Only the first object in a LAB should reach the next step.
-    DCHECK_EQ(soon_object,
-              allocation_info_.start() + aligned_size_in_bytes - size_in_bytes);
+    DCHECK_EQ(soon_object, allocation_info_->start() + aligned_size_in_bytes -
+                               size_in_bytes);
 
     // Right now the LAB only contains that one object.
-    DCHECK_EQ(allocation_info_.top() + allocation_size - aligned_size_in_bytes,
-              allocation_info_.limit());
+    DCHECK_EQ(allocation_info_->top() + allocation_size - aligned_size_in_bytes,
+              allocation_info_->limit());
 
     // Ensure that there is a valid object
     if (identity() == CODE_SPACE) {
@@ -439,7 +432,7 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
 #if DEBUG
     // Ensure that allocation_info_ isn't modified during one of the
     // AllocationObserver::Step methods.
-    LinearAllocationArea saved_allocation_info = allocation_info_;
+    LinearAllocationArea saved_allocation_info = *allocation_info_;
 #endif
 
     // Run AllocationObserver::Step through the AllocationCounter.
@@ -447,13 +440,13 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
                                                   allocation_size);
 
     // Ensure that start/top/limit didn't change.
-    DCHECK_EQ(saved_allocation_info.start(), allocation_info_.start());
-    DCHECK_EQ(saved_allocation_info.top(), allocation_info_.top());
-    DCHECK_EQ(saved_allocation_info.limit(), allocation_info_.limit());
+    DCHECK_EQ(saved_allocation_info.start(), allocation_info_->start());
+    DCHECK_EQ(saved_allocation_info.top(), allocation_info_->top());
+    DCHECK_EQ(saved_allocation_info.limit(), allocation_info_->limit());
   }
 
   DCHECK_IMPLIES(allocation_counter_.IsActive(),
-                 (allocation_info_.limit() - allocation_info_.start()) <
+                 (allocation_info_->limit() - allocation_info_->start()) <
                      allocation_counter_.NextBytes());
 }
 

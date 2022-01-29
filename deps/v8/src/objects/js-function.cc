@@ -408,7 +408,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
 
     // Deoptimize all code that embeds the previous initial map.
     initial_map->dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kInitialMapChangedGroup);
+        isolate, DependentCode::kInitialMapChangedGroup);
   } else {
     // Put the value in the initial map field until an initial map is
     // needed.  At that point, a new initial map is created and the
@@ -937,9 +937,9 @@ Handle<String> NativeCodeFunctionSourceString(
     Handle<SharedFunctionInfo> shared_info) {
   Isolate* const isolate = shared_info->GetIsolate();
   IncrementalStringBuilder builder(isolate);
-  builder.AppendCString("function ");
+  builder.AppendCStringLiteral("function ");
   builder.AppendString(handle(shared_info->Name(), isolate));
-  builder.AppendCString("() { [native code] }");
+  builder.AppendCStringLiteral("() { [native code] }");
   return builder.Finish().ToHandleChecked();
 }
 

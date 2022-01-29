@@ -57,7 +57,6 @@
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/name-inl.h"
-#include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
@@ -87,6 +86,7 @@
 #include "src/objects/templates-inl.h"
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/objects/turbofan-types-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"

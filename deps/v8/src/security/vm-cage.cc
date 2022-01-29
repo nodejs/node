@@ -8,9 +8,13 @@
 #include "src/base/bits.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/cpu.h"
+#include "src/base/emulated-virtual-address-subspace.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/base/virtual-address-space-page-allocator.h"
+#include "src/base/virtual-address-space.h"
 #include "src/flags/flags.h"
+#include "src/security/caged-pointer.h"
 #include "src/utils/allocation.h"
 
 #if defined(V8_OS_WIN)
@@ -23,159 +27,6 @@ namespace v8 {
 namespace internal {
 
 #ifdef V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
-
-// A PageAllocator that allocates pages inside a given virtual address range
-// like the BoundedPageAllocator, except that only a (small) part of the range
-// has actually been reserved. As such, this allocator relies on page
-// allocation hints for the OS to obtain pages inside the non-reserved part.
-// This allocator is used on OSes where reserving virtual address space (and
-// thus a virtual memory cage) is too expensive, notabley Windows pre 8.1.
-class FakeBoundedPageAllocator : public v8::PageAllocator {
- public:
-  FakeBoundedPageAllocator(v8::PageAllocator* page_allocator, Address start,
-                           size_t size, size_t reserved_size)
-      : page_allocator_(page_allocator),
-        start_(start),
-        size_(size),
-        reserved_size_(reserved_size),
-        end_of_reserved_region_(start + reserved_size) {
-    // The size is required to be a power of two so that obtaining a random
-    // address inside the managed region simply requires a fixed number of
-    // random bits as offset.
-    DCHECK(base::bits::IsPowerOfTwo(size));
-    DCHECK_LT(reserved_size, size);
-
-    if (FLAG_random_seed != 0) {
-      rng_.SetSeed(FLAG_random_seed);
-    }
-
-    reserved_region_page_allocator_ =
-        std::make_unique<base::BoundedPageAllocator>(
-            page_allocator_, start_, reserved_size_,
-            page_allocator_->AllocatePageSize(),
-            base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized);
-  }
-
-  ~FakeBoundedPageAllocator() override = default;
-
-  size_t AllocatePageSize() override {
-    return page_allocator_->AllocatePageSize();
-  }
-
-  size_t CommitPageSize() override { return page_allocator_->CommitPageSize(); }
-
-  void SetRandomMmapSeed(int64_t seed) override { rng_.SetSeed(seed); }
-
-  void* GetRandomMmapAddr() override {
-    // Generate a random number between 0 and size_, then add that to the start
-    // address to obtain a random mmap address. We deliberately don't use our
-    // provided page allocator's GetRandomMmapAddr here since that could be
-    // biased, while we want uniformly distributed random numbers here.
-    Address addr = rng_.NextInt64() % size_ + start_;
-    addr = RoundDown(addr, AllocatePageSize());
-    void* ptr = reinterpret_cast<void*>(addr);
-    DCHECK(Contains(ptr, 1));
-    return ptr;
-  }
-
-  void* AllocatePages(void* hint, size_t size, size_t alignment,
-                      Permission access) override {
-    DCHECK(IsAligned(size, AllocatePageSize()));
-    DCHECK(IsAligned(alignment, AllocatePageSize()));
-
-    // First, try allocating the memory inside the reserved region.
-    void* ptr = reserved_region_page_allocator_->AllocatePages(
-        hint, size, alignment, access);
-    if (ptr) return ptr;
-
-    // Then, fall back to allocating memory outside of the reserved region
-    // through page allocator hints.
-
-    // Somewhat arbitrary size limitation to ensure that the loop below for
-    // finding a fitting base address hint terminates quickly.
-    if (size >= size_ / 2) return nullptr;
-
-    if (!hint || !Contains(hint, size)) hint = GetRandomMmapAddr();
-
-    static constexpr int kMaxAttempts = 10;
-    for (int i = 0; i < kMaxAttempts; i++) {
-      // If the hint wouldn't result in the entire allocation being inside the
-      // managed region, simply retry. There is at least a 50% chance of
-      // getting a usable address due to the size restriction above.
-      while (!Contains(hint, size)) {
-        hint = GetRandomMmapAddr();
-      }
-
-      ptr = page_allocator_->AllocatePages(hint, size, alignment, access);
-      if (ptr && Contains(ptr, size)) {
-        return ptr;
-      } else if (ptr) {
-        page_allocator_->FreePages(ptr, size);
-      }
-
-      // Retry at a different address.
-      hint = GetRandomMmapAddr();
-    }
-
-    return nullptr;
-  }
-
-  bool FreePages(void* address, size_t size) override {
-    return AllocatorFor(address)->FreePages(address, size);
-  }
-
-  bool ReleasePages(void* address, size_t size, size_t new_length) override {
-    return AllocatorFor(address)->ReleasePages(address, size, new_length);
-  }
-
-  bool SetPermissions(void* address, size_t size,
-                      Permission permissions) override {
-    return AllocatorFor(address)->SetPermissions(address, size, permissions);
-  }
-
-  bool DiscardSystemPages(void* address, size_t size) override {
-    return AllocatorFor(address)->DiscardSystemPages(address, size);
-  }
-
-  bool DecommitPages(void* address, size_t size) override {
-    return AllocatorFor(address)->DecommitPages(address, size);
-  }
-
- private:
-  bool Contains(void* ptr, size_t length) {
-    Address addr = reinterpret_cast<Address>(ptr);
-    return (addr >= start_) && ((addr + length) < (start_ + size_));
-  }
-
-  v8::PageAllocator* AllocatorFor(void* ptr) {
-    Address addr = reinterpret_cast<Address>(ptr);
-    if (addr < end_of_reserved_region_) {
-      DCHECK_GE(addr, start_);
-      return reserved_region_page_allocator_.get();
-    } else {
-      return page_allocator_;
-    }
-  }
-
-  // The page allocator through which pages inside the region are allocated.
-  v8::PageAllocator* const page_allocator_;
-  // The bounded page allocator managing the sub-region that was actually
-  // reserved.
-  std::unique_ptr<base::BoundedPageAllocator> reserved_region_page_allocator_;
-
-  // Random number generator for generating random addresses.
-  base::RandomNumberGenerator rng_;
-
-  // The start of the virtual memory region in which to allocate pages. This is
-  // also the start of the sub-region that was reserved.
-  const Address start_;
-  // The total size of the address space in which to allocate pages.
-  const size_t size_;
-  // The size of the sub-region that has actually been reserved.
-  const size_t reserved_size_;
-  // The end of the sub-region that has actually been reserved.
-  const Address end_of_reserved_region_;
-};
 
 // Best-effort helper function to determine the size of the userspace virtual
 // address space. Used to determine appropriate cage size and placement.
@@ -230,7 +81,7 @@ static Address DetermineAddressSpaceLimit() {
   return address_space_limit;
 }
 
-bool V8VirtualMemoryCage::Initialize(PageAllocator* page_allocator) {
+bool V8VirtualMemoryCage::Initialize(v8::VirtualAddressSpace* vas) {
   // Take the number of virtual address bits into account when determining the
   // size of the cage. For example, if there are only 39 bits available, split
   // evenly between userspace and kernel, then userspace can only address 256GB
@@ -267,25 +118,39 @@ bool V8VirtualMemoryCage::Initialize(PageAllocator* page_allocator) {
   }
 #endif  // V8_OS_WIN
 
+  if (!vas->CanAllocateSubspaces()) {
+    // If we cannot create virtual memory subspaces, we also need to fall back
+    // to creating a fake cage. In practice, this should only happen on Windows
+    // version before Windows 10, maybe including early Windows 10 releases,
+    // where the necessary memory management APIs, in particular, VirtualAlloc2,
+    // are not available. This check should also in practice subsume the
+    // preceeding one for Windows 8 and earlier, but we'll keep both just to be
+    // sure since there the fake cage is technically required for a different
+    // reason (large virtual memory reservations being too expensive).
+    size_to_reserve = kFakeVirtualMemoryCageMinReservationSize;
+    create_fake_cage = true;
+  }
+
   // In any case, the (fake) cage must be at most as large as our address space.
   DCHECK_LE(cage_size, address_space_limit);
 
   if (create_fake_cage) {
-    return InitializeAsFakeCage(page_allocator, cage_size, size_to_reserve);
+    return InitializeAsFakeCage(vas, cage_size, size_to_reserve);
   } else {
     // TODO(saelo) if this fails, we could still fall back to creating a fake
     // cage. Decide if that would make sense.
     const bool use_guard_regions = true;
-    return Initialize(page_allocator, cage_size, use_guard_regions);
+    return Initialize(vas, cage_size, use_guard_regions);
   }
 }
 
-bool V8VirtualMemoryCage::Initialize(v8::PageAllocator* page_allocator,
-                                     size_t size, bool use_guard_regions) {
+bool V8VirtualMemoryCage::Initialize(v8::VirtualAddressSpace* vas, size_t size,
+                                     bool use_guard_regions) {
   CHECK(!initialized_);
   CHECK(!disabled_);
   CHECK(base::bits::IsPowerOfTwo(size));
   CHECK_GE(size, kVirtualMemoryCageMinimumSize);
+  CHECK(vas->CanAllocateSubspaces());
 
   // Currently, we allow the cage to be smaller than the requested size. This
   // way, we can gracefully handle cage reservation failures during the initial
@@ -297,52 +162,64 @@ bool V8VirtualMemoryCage::Initialize(v8::PageAllocator* page_allocator,
   // Which of these options is ultimately taken likey depends on how frequently
   // cage reservation failures occur in practice.
   size_t reservation_size;
-  while (!reservation_base_ && size >= kVirtualMemoryCageMinimumSize) {
+  while (!virtual_address_space_ && size >= kVirtualMemoryCageMinimumSize) {
     reservation_size = size;
     if (use_guard_regions) {
       reservation_size += 2 * kVirtualMemoryCageGuardRegionSize;
     }
 
-    // Technically, we should use kNoAccessWillJitLater here instead since the
-    // cage will contain JIT pages. However, currently this is not required as
-    // PA anyway uses MAP_JIT for V8 mappings. Further, we want to eventually
-    // move JIT pages out of the cage, at which point we'd like to forbid
-    // making pages inside the cage executable, and so don't want MAP_JIT.
-    Address hint = RoundDown(
-        reinterpret_cast<Address>(page_allocator->GetRandomMmapAddr()),
-        kVirtualMemoryCageAlignment);
-    reservation_base_ = reinterpret_cast<Address>(page_allocator->AllocatePages(
-        reinterpret_cast<void*>(hint), reservation_size,
-        kVirtualMemoryCageAlignment, PageAllocator::kNoAccess));
-    if (!reservation_base_) {
+    Address hint =
+        RoundDown(vas->RandomPageAddress(), kVirtualMemoryCageAlignment);
+
+    // Currently, executable memory is still allocated inside the cage. In the
+    // future, we should drop that and use kReadWrite as max_permissions.
+    virtual_address_space_ = vas->AllocateSubspace(
+        hint, reservation_size, kVirtualMemoryCageAlignment,
+        PagePermissions::kReadWriteExecute);
+    if (!virtual_address_space_) {
       size /= 2;
     }
   }
 
-  if (!reservation_base_) return false;
+  if (!virtual_address_space_) return false;
 
+  reservation_base_ = virtual_address_space_->base();
   base_ = reservation_base_;
   if (use_guard_regions) {
     base_ += kVirtualMemoryCageGuardRegionSize;
   }
 
-  page_allocator_ = page_allocator;
   size_ = size;
   end_ = base_ + size_;
   reservation_size_ = reservation_size;
 
-  cage_page_allocator_ = std::make_unique<base::BoundedPageAllocator>(
-      page_allocator_, base_, size_, page_allocator_->AllocatePageSize(),
-      base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized);
+  if (use_guard_regions) {
+    // These must succeed since nothing was allocated in the subspace yet.
+    CHECK_EQ(reservation_base_,
+             virtual_address_space_->AllocatePages(
+                 reservation_base_, kVirtualMemoryCageGuardRegionSize,
+                 vas->allocation_granularity(), PagePermissions::kNoAccess));
+    CHECK_EQ(end_,
+             virtual_address_space_->AllocatePages(
+                 end_, kVirtualMemoryCageGuardRegionSize,
+                 vas->allocation_granularity(), PagePermissions::kNoAccess));
+  }
+
+  cage_page_allocator_ =
+      std::make_unique<base::VirtualAddressSpacePageAllocator>(
+          virtual_address_space_.get());
 
   initialized_ = true;
   is_fake_cage_ = false;
 
+  InitializeConstants();
+
   return true;
 }
 
-bool V8VirtualMemoryCage::InitializeAsFakeCage(
-    v8::PageAllocator* page_allocator, size_t size, size_t size_to_reserve) {
+bool V8VirtualMemoryCage::InitializeAsFakeCage(v8::VirtualAddressSpace* vas,
+                                               size_t size,
+                                               size_t size_to_reserve) {
   CHECK(!initialized_);
   CHECK(!disabled_);
   CHECK(base::bits::IsPowerOfTwo(size));
@@ -353,7 +230,7 @@ bool V8VirtualMemoryCage::InitializeAsFakeCage(
   // Use a custom random number generator here to ensure that we get uniformly
   // distributed random numbers. We figure out the available address space
   // ourselves, and so are potentially better positioned to determine a good
-  // base address for the cage than the embedder-provided GetRandomMmapAddr().
+  // base address for the cage than the embedder.
   base::RandomNumberGenerator rng;
   if (FLAG_random_seed != 0) {
     rng.SetSeed(FLAG_random_seed);
@@ -372,9 +249,9 @@ bool V8VirtualMemoryCage::InitializeAsFakeCage(
     Address hint = rng.NextInt64() % highest_allowed_address;
     hint = RoundDown(hint, kVirtualMemoryCageAlignment);
 
-    reservation_base_ = reinterpret_cast<Address>(page_allocator->AllocatePages(
-        reinterpret_cast<void*>(hint), size_to_reserve,
-        kVirtualMemoryCageAlignment, PageAllocator::kNoAccess));
+    reservation_base_ =
+        vas->AllocatePages(hint, size_to_reserve, kVirtualMemoryCageAlignment,
+                           PagePermissions::kNoAccess);
 
     if (!reservation_base_) return false;
 
@@ -384,8 +261,7 @@ bool V8VirtualMemoryCage::InitializeAsFakeCage(
       break;
 
     // Can't use this base, so free the reservation and try again
-    page_allocator->FreePages(reinterpret_cast<void*>(reservation_base_),
-                              size_to_reserve);
+    CHECK(vas->FreePages(reservation_base_, size_to_reserve));
     reservation_base_ = kNullAddress;
   }
   DCHECK(reservation_base_);
@@ -396,18 +272,31 @@ bool V8VirtualMemoryCage::InitializeAsFakeCage(
   reservation_size_ = size_to_reserve;
   initialized_ = true;
   is_fake_cage_ = true;
-  page_allocator_ = page_allocator;
-  cage_page_allocator_ = std::make_unique<FakeBoundedPageAllocator>(
-      page_allocator_, base_, size_, reservation_size_);
+  virtual_address_space_ =
+      std::make_unique<base::EmulatedVirtualAddressSubspace>(
+          vas, reservation_base_, reservation_size_, size_);
+  cage_page_allocator_ =
+      std::make_unique<base::VirtualAddressSpacePageAllocator>(
+          virtual_address_space_.get());
+
+  InitializeConstants();
 
   return true;
 }
 
+void V8VirtualMemoryCage::InitializeConstants() {
+#ifdef V8_CAGED_POINTERS
+  // Place the empty backing store buffer at the end of the cage, so that any
+  // accidental access to it will most likely hit a guard page.
+  constants_.set_empty_backing_store_buffer(base_ + size_ - 1);
+#endif
+}
+
 void V8VirtualMemoryCage::TearDown() {
   if (initialized_) {
+    // This destroys the sub space and frees the underlying reservation.
+    virtual_address_space_.reset();
     cage_page_allocator_.reset();
-    CHECK(page_allocator_->FreePages(reinterpret_cast<void*>(reservation_base_),
-                                     reservation_size_));
     base_ = kNullAddress;
     end_ = kNullAddress;
     size_ = 0;
@@ -415,7 +304,9 @@ void V8VirtualMemoryCage::TearDown() {
     reservation_size_ = 0;
     initialized_ = false;
     is_fake_cage_ = false;
-    page_allocator_ = nullptr;
+#ifdef V8_CAGED_POINTERS
+    constants_.Reset();
+#endif
   }
   disabled_ = false;
 }

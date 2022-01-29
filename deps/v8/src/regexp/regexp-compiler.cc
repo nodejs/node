@@ -1695,7 +1695,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         uint32_t common_bits = ~SmearBitsRight(differing_bits);
         uint32_t bits = (first_from & common_bits);
         for (int i = first_range + 1; i < ranges->length(); i++) {
-          CharacterRange range = ranges->at(i);
+          range = ranges->at(i);
           const base::uc32 from = range.from();
           if (from > char_mask) continue;
           const base::uc32 to =
@@ -1710,8 +1710,8 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           new_common_bits = ~SmearBitsRight(new_common_bits);
           common_bits &= new_common_bits;
           bits &= new_common_bits;
-          uint32_t differing_bits = (from & common_bits) ^ bits;
-          common_bits ^= differing_bits;
+          uint32_t new_differing_bits = (from & common_bits) ^ bits;
+          common_bits ^= new_differing_bits;
           bits &= common_bits;
         }
         pos->mask = common_bits;
@@ -3848,8 +3848,8 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
           int length = GetCaseIndependentLetters(
               isolate, character, bm->max_char() == String::kMaxOneByteCharCode,
               chars, 4);
-          for (int j = 0; j < length; j++) {
-            bm->Set(offset, chars[j]);
+          for (int k = 0; k < length; k++) {
+            bm->Set(offset, chars[k]);
           }
         } else {
           if (character <= max_char) bm->Set(offset, character);

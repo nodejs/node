@@ -110,8 +110,9 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
 
   BIND(&tailcall_to_shared);
   // Tail call into code object on the SharedFunctionInfo.
-  TNode<Code> code = GetSharedFunctionInfoCode(shared);
-  TailCallJSCode(code, context, function, new_target, arg_count);
+  TNode<CodeT> code = GetSharedFunctionInfoCode(shared);
+  // TODO(v8:11880): call CodeT directly.
+  TailCallJSCode(FromCodeT(code), context, function, new_target, arg_count);
 }
 
 class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
@@ -247,7 +248,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
   void GenerationalWriteBarrier(SaveFPRegsMode fp_mode) {
     Label incremental_wb(this), test_old_to_young_flags(this),
-        store_buffer_exit(this), store_buffer_incremental_wb(this), next(this);
+        remembered_set_only(this), remembered_set_and_incremental_wb(this),
+        next(this);
 
     // When incremental marking is not on, we skip cross generation pointer
     // checking here, because there are checks for
@@ -257,7 +259,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     // stub, which serves as the cross generation checking.
     auto slot =
         UncheckedParameter<IntPtrT>(WriteBarrierDescriptor::kSlotAddress);
-    Branch(IsMarking(), &test_old_to_young_flags, &store_buffer_exit);
+    Branch(IsMarking(), &test_old_to_young_flags, &remembered_set_only);
 
     BIND(&test_old_to_young_flags);
     {
@@ -274,10 +276,11 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
           UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
       TNode<BoolT> object_is_young =
           IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
-      Branch(object_is_young, &incremental_wb, &store_buffer_incremental_wb);
+      Branch(object_is_young, &incremental_wb,
+             &remembered_set_and_incremental_wb);
     }
 
-    BIND(&store_buffer_exit);
+    BIND(&remembered_set_only);
     {
       TNode<IntPtrT> object = BitcastTaggedToWord(
           UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
@@ -285,7 +288,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
       Goto(&next);
     }
 
-    BIND(&store_buffer_incremental_wb);
+    BIND(&remembered_set_and_incremental_wb);
     {
       TNode<IntPtrT> object = BitcastTaggedToWord(
           UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
@@ -1325,7 +1328,7 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   // On failure, tail call back to regular JavaScript by re-calling the given
   // function which has been reset to the compile lazy builtin.
 
-  // TODO(v8:11880): call CodeT instead.
+  // TODO(v8:11880): call CodeT directly.
   TNode<Code> code = FromCodeT(LoadJSFunctionCode(function));
   TailCallJSCode(code, context, function, new_target, arg_count);
 }

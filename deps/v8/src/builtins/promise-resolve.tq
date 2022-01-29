@@ -165,7 +165,7 @@ ResolvePromise(implicit context: Context)(
     // 10. If then is an abrupt completion, then
     try {
       then = GetProperty(resolution, kThenString);
-    } catch (e) {
+    } catch (e, _message) {
       // a. Return RejectPromise(promise, then.[[Value]]).
       return RejectPromise(promise, e, False);
     }

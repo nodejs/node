@@ -537,9 +537,9 @@ transitioning macro CycleProtectedArrayJoin<T: type>(
           ArrayJoin<T>(useToLocaleString, o, sep, len, locales, options);
       JoinStackPopInline(o);
       return result;
-    } catch (e) deferred {
+    } catch (e, message) deferred {
       JoinStackPopInline(o);
-      ReThrow(context, e);
+      ReThrowWithMessage(context, e, message);
     }
   } else {
     return kEmptyString;

@@ -35,6 +35,7 @@ namespace interpreter {
 class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
  public:
   InterpreterCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
+                            Handle<Script> script,
                             AccountingAllocator* allocator,
                             std::vector<FunctionLiteral*>* eager_inner_literals,
                             LocalIsolate* local_isolate);
@@ -170,7 +171,7 @@ bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
 }  // namespace
 
 InterpreterCompilationJob::InterpreterCompilationJob(
-    ParseInfo* parse_info, FunctionLiteral* literal,
+    ParseInfo* parse_info, FunctionLiteral* literal, Handle<Script> script,
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals,
     LocalIsolate* local_isolate)
@@ -179,8 +180,9 @@ InterpreterCompilationJob::InterpreterCompilationJob(
       zone_(allocator, ZONE_NAME),
       compilation_info_(&zone_, parse_info, literal),
       local_isolate_(local_isolate),
-      generator_(&zone_, &compilation_info_, parse_info->ast_string_constants(),
-                 eager_inner_literals) {}
+      generator_(local_isolate, &zone_, &compilation_info_,
+                 parse_info->ast_string_constants(), eager_inner_literals,
+                 script) {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   RCS_SCOPE(parse_info()->runtime_call_stats(),
@@ -196,8 +198,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
     MaybePrintAst(parse_info(), compilation_info());
   }
 
-  base::Optional<ParkedScope> parked_scope;
-  if (local_isolate_) parked_scope.emplace(local_isolate_);
+  ParkedScope parked_scope(local_isolate_);
 
   generator()->GenerateBytecode(stack_limit());
 
@@ -303,12 +304,13 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
 }
 
 std::unique_ptr<UnoptimizedCompilationJob> Interpreter::NewCompilationJob(
-    ParseInfo* parse_info, FunctionLiteral* literal,
+    ParseInfo* parse_info, FunctionLiteral* literal, Handle<Script> script,
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals,
     LocalIsolate* local_isolate) {
   return std::make_unique<InterpreterCompilationJob>(
-      parse_info, literal, allocator, eager_inner_literals, local_isolate);
+      parse_info, literal, script, allocator, eager_inner_literals,
+      local_isolate);
 }
 
 std::unique_ptr<UnoptimizedCompilationJob>
@@ -317,7 +319,7 @@ Interpreter::NewSourcePositionCollectionJob(
     Handle<BytecodeArray> existing_bytecode, AccountingAllocator* allocator,
     LocalIsolate* local_isolate) {
   auto job = std::make_unique<InterpreterCompilationJob>(
-      parse_info, literal, allocator, nullptr, local_isolate);
+      parse_info, literal, Handle<Script>(), allocator, nullptr, local_isolate);
   job->compilation_info()->SetBytecodeArray(existing_bytecode);
   return job;
 }

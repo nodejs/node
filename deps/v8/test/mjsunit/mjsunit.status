@@ -212,8 +212,8 @@
   'regress/regress-crbug-1191886': [PASS, HEAVY],
   'wasm/externref-globals': [PASS, HEAVY],
 
-  # Enable when stack-switching supports GC.
-  'wasm/stack-switching': [SKIP],
+  # TODO(v8:10915): Fails with --future.
+  'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -421,8 +421,8 @@
 ['no_i18n', {
   # Case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [FAIL],
-  'regress/regress-5036': [FAIL],
   'es7/regexp-ui-word': [FAIL],
+  'regress/regress-5036': [FAIL],
 
   # Desugaring regexp property class relies on ICU. Anything goes as long as we
   # don't crash.
@@ -430,8 +430,9 @@
   'regress/regress-1262423': [PASS,FAIL],
   'regress/regress-793588': [PASS,FAIL],
 
-  # noi18n build cannot parse characters in supplementary plane.
+  # The noi18n build cannot parse characters in supplementary plane.
   'harmony/regexp-named-captures': [FAIL],
+  'regress/regress-v8-10384': [FAIL],
 
   # noi18n cannot turn on ICU backend for Date. Anything goes as long as we
   # don't crash.
@@ -1133,6 +1134,13 @@
 }],  # 'predictable == True'
 
 ##############################################################################
+['predictable == True and arch == ia32', {
+  # BUG(v8:12463)
+  'regress/wasm/regress-1179065': [SKIP],
+  'wasm/speculative-inlining': [SKIP],
+}],  # 'predictable == True and arch == ia32'
+
+##############################################################################
 ['simulator_run and (arch in [ppc64, s390x])', {
 
   # take too long with the simulator.
@@ -1283,7 +1291,7 @@
 
 ##############################################################################
 # Skip Liftoff tests on platforms that do not fully implement Liftoff.
-['arch not in (x64, ia32, arm64, arm, s390x)', {
+['arch not in (x64, ia32, arm64, arm, s390x, ppc64, mipsel, mips64el, loong64)', {
   'wasm/liftoff': [SKIP],
   'wasm/liftoff-debug': [SKIP],
   'wasm/tier-up-testing-flag': [SKIP],
@@ -1292,7 +1300,7 @@
   'wasm/test-partial-serialization': [SKIP],
   'regress/wasm/regress-1248024': [SKIP],
   'regress/wasm/regress-1251465': [SKIP],
-}], # arch not in (x64, ia32, arm64, arm, s390x)
+}], # arch not in (x64, ia32, arm64, arm, s390x, ppc64, mipsel, mips64el, loong64)
 
 ##############################################################################
 ['system != linux or virtual_memory_cage == True', {
@@ -1301,12 +1309,6 @@
   'regress/regress-crbug-1041232': [SKIP],
   'regress/regress-crbug-1104608': [SKIP],
 }],
-
-##############################################################################
-['variant == top_level_await', {
-  # specifically expects to fail on top level await.
-  'harmony/modules-import-15': [SKIP],
-}], # variant == top_level_await
 
 ##############################################################################
 ['variant == stress_js_bg_compile_wasm_code_gc', {

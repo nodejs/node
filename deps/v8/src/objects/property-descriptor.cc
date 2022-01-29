@@ -62,22 +62,22 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     PropertyDetails details = descs->GetDetails(i);
     Handle<Object> value;
     if (details.location() == PropertyLocation::kField) {
-      if (details.kind() == kData) {
+      if (details.kind() == PropertyKind::kData) {
         value = JSObject::FastPropertyAt(Handle<JSObject>::cast(obj),
                                          details.representation(),
                                          FieldIndex::ForDescriptor(*map, i));
       } else {
-        DCHECK_EQ(kAccessor, details.kind());
+        DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         // Bail out to slow path.
         return false;
       }
 
     } else {
       DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
-      if (details.kind() == kData) {
+      if (details.kind() == PropertyKind::kData) {
         value = handle(descs->GetStrongValue(i), isolate);
       } else {
-        DCHECK_EQ(kAccessor, details.kind());
+        DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         // Bail out to slow path.
         return false;
       }

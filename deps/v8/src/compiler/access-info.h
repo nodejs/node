@@ -289,8 +289,9 @@ class AccessInfoFactory final {
                                       base::Optional<JSObjectRef> holder,
                                       PropertyAttributes attrs) const;
   PropertyAccessInfo ComputeDataFieldAccessInfo(
-      MapRef receiver_map, MapRef map, base::Optional<JSObjectRef> holder,
-      InternalIndex descriptor, AccessMode access_mode) const;
+      MapRef receiver_map, MapRef map, NameRef name,
+      base::Optional<JSObjectRef> holder, InternalIndex descriptor,
+      AccessMode access_mode) const;
   PropertyAccessInfo ComputeAccessorDescriptorAccessInfo(
       MapRef receiver_map, NameRef name, MapRef map,
       base::Optional<JSObjectRef> holder, InternalIndex descriptor,

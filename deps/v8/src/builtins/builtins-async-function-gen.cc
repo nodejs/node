@@ -265,6 +265,7 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
 
   Label after_debug_hook(this), call_debug_hook(this, Label::kDeferred);
   GotoIf(HasAsyncEventDelegate(), &call_debug_hook);
+  GotoIf(IsDebugActive(), &call_debug_hook);
   Goto(&after_debug_hook);
   BIND(&after_debug_hook);
 

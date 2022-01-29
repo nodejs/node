@@ -196,6 +196,23 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
   return map;
 }
 
+Handle<Map> CreateFuncRefMap(Isolate* isolate, const WasmModule* module,
+                             Handle<Map> opt_rtt_parent,
+                             Handle<WasmInstanceObject> instance) {
+  const int inobject_properties = 0;
+  const int instance_size =
+      Map::cast(isolate->root(RootIndex::kWasmInternalFunctionMap))
+          .instance_size();
+  const InstanceType instance_type = WASM_INTERNAL_FUNCTION_TYPE;
+  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
+      kNullAddress, opt_rtt_parent, instance_size, instance);
+  Handle<Map> map = isolate->factory()->NewMap(
+      instance_type, instance_size, elements_kind, inobject_properties);
+  map->set_wasm_type_info(*type_info);
+  return map;
+}
+
 void CreateMapForType(Isolate* isolate, const WasmModule* module,
                       int type_index, Handle<WasmInstanceObject> instance,
                       Handle<FixedArray> maps) {
@@ -221,11 +238,9 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       map = CreateArrayMap(isolate, module, type_index, rtt_parent, instance);
       break;
     case kWasmFunctionTypeCode:
-      // TODO(7748): Think about canonicalizing rtts to make them work for
-      // identical function types.
-      map = Map::Copy(isolate, isolate->wasm_exported_function_map(),
-                      "fresh function map for function type canonical rtt "
-                      "initialization");
+      // TODO(7748): Create funcref RTTs lazily?
+      // TODO(7748): Canonicalize function maps (cross-module)?
+      map = CreateFuncRefMap(isolate, module, rtt_parent, instance);
       break;
   }
   maps->set(type_index, *map);
@@ -265,17 +280,14 @@ Handle<Map> AllocateSubRtt(Isolate* isolate,
                            Handle<WasmInstanceObject> instance, uint32_t type,
                            Handle<Map> parent, WasmRttSubMode mode) {
   DCHECK(parent->IsWasmStructMap() || parent->IsWasmArrayMap() ||
-         parent->IsJSFunctionMap());
+         parent->IsWasmInternalFunctionMap());
 
   const wasm::WasmModule* module = instance->module();
   if (module->has_signature(type)) {
-    // Currently, parent rtts for functions are meaningless,
-    // since (rtt.test func rtt) iff (func.map == rtt).
-    // Therefore, we simply create a fresh function map here.
-    // TODO(7748): Canonicalize rtts to make them work for identical function
-    // types.
-    return Map::Copy(isolate, isolate->wasm_exported_function_map(),
-                     "fresh function map for AllocateSubRtt");
+    // Function references are implicitly allocated with their canonical rtt,
+    // and type checks against sub-rtts will always fail. Therefore, we simply
+    // create a fresh function map here.
+    return CreateFuncRefMap(isolate, module, Handle<Map>(), instance);
   }
   // If canonicalization is requested, check for an existing RTT first.
   Handle<ArrayList> cache;
@@ -668,11 +680,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
   {
     Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
-    // Table 0 is handled specially. See {InitializeIndirectFunctionTable} for
-    // the initilization. All generated and runtime code will use this optimized
-    // shortcut in the instance. Hence it is safe to start with table 1 in the
-    // iteration below.
-    for (int i = 1; i < table_count; ++i) {
+    for (int i = 0; i < table_count; ++i) {
       const WasmTable& table = module_->tables[i];
       if (IsSubtypeOf(table.type, kWasmFuncRef, module_)) {
         Handle<WasmIndirectFunctionTable> table_obj =
@@ -682,6 +690,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     }
     instance->set_indirect_function_tables(*tables);
   }
+
+  instance->SetIndirectFunctionTableShortcuts(isolate_);
 
   //--------------------------------------------------------------------------
   // Process the imports for the module.
@@ -1061,9 +1071,11 @@ bool InstanceBuilder::ProcessImportedFunction(
   // is resolved to preserve its identity. This handles exported functions as
   // well as functions constructed via other means (e.g. WebAssembly.Function).
   if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
-    WasmInstanceObject::SetWasmExternalFunction(
+    WasmInstanceObject::SetWasmInternalFunction(
         isolate_, instance, func_index,
-        Handle<WasmExternalFunction>::cast(value));
+        WasmInternalFunction::FromExternal(
+            Handle<WasmExternalFunction>::cast(value), isolate_)
+            .ToHandleChecked());
   }
   auto js_receiver = Handle<JSReceiver>::cast(value);
   const FunctionSig* expected_sig = module_->functions[func_index].sig;
@@ -1187,9 +1199,10 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     // Look up the signature's canonical id. If there is no canonical
     // id, then the signature does not appear at all in this module,
     // so putting {-1} in the table will cause checks to always fail.
-    IndirectFunctionTableEntry(instance, table_index, i)
-        .Set(module_->signature_map.Find(*sig), target_instance,
-             function_index);
+    FunctionTargetAndRef entry(target_instance, function_index);
+    instance->GetIndirectFunctionTable(isolate_, table_index)
+        ->Set(i, module_->signature_map.Find(*sig), entry.call_target(),
+              *entry.ref());
   }
   return true;
 }
@@ -1461,6 +1474,10 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
       ReportLinkError(error_message, global_index, module_name, import_name);
       return false;
     }
+    if (IsSubtypeOf(global.type, kWasmFuncRef, module_) && !value->IsNull()) {
+      value =
+          WasmInternalFunction::FromExternal(value, isolate_).ToHandleChecked();
+    }
     WriteGlobalValue(global, WasmValue(value, global.type));
     return true;
   }
@@ -1706,9 +1723,11 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
     if (import.kind == kExternalFunction) {
       Handle<Object> value = sanitized_imports_[index].value;
       if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
-        WasmInstanceObject::SetWasmExternalFunction(
+        WasmInstanceObject::SetWasmInternalFunction(
             isolate_, instance, import.index,
-            Handle<WasmExternalFunction>::cast(value));
+            WasmInternalFunction::FromExternal(
+                Handle<WasmExternalFunction>::cast(value), isolate_)
+                .ToHandleChecked());
       }
     } else if (import.kind == kExternalGlobal) {
       Handle<Object> value = sanitized_imports_[index].value;
@@ -1746,9 +1765,11 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       case kExternalFunction: {
         // Wrap and export the code as a JSFunction.
         // TODO(wasm): reduce duplication with LoadElemSegment() further below
-        Handle<WasmExternalFunction> wasm_external_function =
-            WasmInstanceObject::GetOrCreateWasmExternalFunction(
+        Handle<WasmInternalFunction> internal =
+            WasmInstanceObject::GetOrCreateWasmInternalFunction(
                 isolate_, instance, exp.index);
+        Handle<WasmExternalFunction> wasm_external_function =
+            handle(WasmExternalFunction::cast(internal->external()), isolate_);
         desc.set_value(wasm_external_function);
 
         if (is_asm_js &&
@@ -1871,7 +1892,8 @@ void SetNullTableEntry(Isolate* isolate, Handle<WasmInstanceObject> instance,
                        uint32_t table_index, uint32_t entry_index) {
   const WasmModule* module = instance->module();
   if (IsSubtypeOf(table_object->type(), kWasmFuncRef, module)) {
-    IndirectFunctionTableEntry(instance, table_index, entry_index).clear();
+    instance->GetIndirectFunctionTable(isolate, table_index)
+        ->Clear(entry_index);
   }
   WasmTableObject::Set(isolate, table_object, entry_index,
                        isolate->factory()->null_value());
@@ -1888,31 +1910,32 @@ void SetFunctionTableEntry(Isolate* isolate,
   // For externref tables, we have to generate the WasmExternalFunction eagerly.
   // Later we cannot know if an entry is a placeholder or not.
   if (table_object->type().is_reference_to(HeapType::kExtern)) {
-    Handle<WasmExternalFunction> wasm_external_function =
-        WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
+    Handle<WasmInternalFunction> wasm_internal_function =
+        WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate, instance,
                                                             func_index);
     WasmTableObject::Set(isolate, table_object, entry_index,
-                         wasm_external_function);
+                         wasm_internal_function);
   } else {
     DCHECK(IsSubtypeOf(table_object->type(), kWasmFuncRef, module));
 
     // Update the local dispatch table first if necessary.
     uint32_t sig_id = module->canonicalized_type_ids[function->sig_index];
-    IndirectFunctionTableEntry(instance, table_index, entry_index)
-        .Set(sig_id, instance, func_index);
+    FunctionTargetAndRef entry(instance, func_index);
+    instance->GetIndirectFunctionTable(isolate, table_index)
+        ->Set(entry_index, sig_id, entry.call_target(), *entry.ref());
 
     // Update the table object's other dispatch tables.
-    MaybeHandle<WasmExternalFunction> wasm_external_function =
-        WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
+    MaybeHandle<WasmInternalFunction> wasm_internal_function =
+        WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
                                                     func_index);
-    if (wasm_external_function.is_null()) {
+    if (wasm_internal_function.is_null()) {
       // No JSFunction entry yet exists for this function. Create a
       // {Tuple2} holding the information to lazily allocate one.
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate, table_object, entry_index, instance, func_index);
     } else {
       table_object->entries().set(entry_index,
-                                  *wasm_external_function.ToHandleChecked());
+                                  *wasm_internal_function.ToHandleChecked());
     }
     // UpdateDispatchTables() updates all other dispatch tables, since
     // we have not yet added the dispatch table we are currently building.
@@ -1944,19 +1967,22 @@ void InstanceBuilder::InitializeIndirectFunctionTables(
           SetNullTableEntry(isolate_, instance, table_object, table_index,
                             entry_index);
         }
-      } else if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
+      } else if (value->IsWasmInternalFunction()) {
+        Handle<Object> external = handle(
+            Handle<WasmInternalFunction>::cast(value)->external(), isolate_);
+        // TODO(manoskouk): Support WasmJSFunction/WasmCapiFunction.
+        if (!WasmExportedFunction::IsWasmExportedFunction(*external)) {
+          thrower_->TypeError(
+              "Initializing a table with a Webassembly.Function object is not "
+              "supported yet");
+        }
         uint32_t function_index =
-            Handle<WasmExportedFunction>::cast(value)->function_index();
+            Handle<WasmExportedFunction>::cast(external)->function_index();
         for (uint32_t entry_index = 0; entry_index < table.initial_size;
              entry_index++) {
           SetFunctionTableEntry(isolate_, instance, table_object, table_index,
                                 entry_index, function_index);
         }
-      } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
-        // TODO(manoskouk): Support WasmJSFunction.
-        thrower_->TypeError(
-            "Initializing a table with a Webassembly.Function object is not "
-            "supported yet");
       } else {
         for (uint32_t entry_index = 0; entry_index < table.initial_size;
              entry_index++) {

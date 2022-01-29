@@ -57,6 +57,15 @@ struct InvokeParams {
     return function->shared().is_script();
   }
 
+  Handle<FixedArray> GetAndResetHostDefinedOptions() {
+    DCHECK(IsScript());
+    DCHECK_EQ(argc, 1);
+    auto options = Handle<FixedArray>::cast(argv[0]);
+    argv = nullptr;
+    argc = 0;
+    return options;
+  }
+
   Handle<Object> target;
   Handle<Object> receiver;
   int argc;
@@ -330,10 +339,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 #endif
     // Set up a ScriptContext when running scripts that need it.
     if (function->shared().needs_script_context()) {
-      DCHECK_EQ(params.argc, 1);
       Handle<Context> context;
       Handle<FixedArray> host_defined_options =
-          Handle<FixedArray>::cast(params.argv[0]);
+          const_cast<InvokeParams&>(params).GetAndResetHostDefinedOptions();
       if (!NewScriptContext(isolate, function, host_defined_options)
                .ToHandle(&context)) {
         if (params.message_handling == Execution::MessageHandling::kReport) {
@@ -511,14 +519,15 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
 }
 
 // static
-MaybeHandle<Object> Execution::CallScript(
-    Isolate* isolate, Handle<JSFunction> script_function,
-    Handle<Object> receiver, Handle<FixedArray> host_defined_options) {
+MaybeHandle<Object> Execution::CallScript(Isolate* isolate,
+                                          Handle<JSFunction> script_function,
+                                          Handle<Object> receiver,
+                                          Handle<Object> host_defined_options) {
   DCHECK(script_function->shared().is_script());
   DCHECK(receiver->IsJSGlobalProxy() || receiver->IsJSGlobalObject());
-  Handle<Object> argument = host_defined_options;
-  return Invoke(isolate, InvokeParams::SetUpForCall(isolate, script_function,
-                                                    receiver, 1, &argument));
+  return Invoke(
+      isolate, InvokeParams::SetUpForCall(isolate, script_function, receiver, 1,
+                                          &host_defined_options));
 }
 
 MaybeHandle<Object> Execution::CallBuiltin(Isolate* isolate,

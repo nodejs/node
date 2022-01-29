@@ -27,7 +27,8 @@ struct V8StackTraceId;
 
 class StackFrame {
  public:
-  explicit StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> frame);
+  StackFrame(String16&& functionName, int scriptId, String16&& sourceURL,
+             int lineNumber, int columnNumber, bool hasSourceURLComment);
   ~StackFrame() = default;
 
   const String16& functionName() const;
@@ -78,8 +79,6 @@ class V8StackTraceImpl : public V8StackTrace {
   int topColumnNumber() const override;  // 1-based.
   int topScriptId() const override;
   StringView topFunctionName() const override;
-  std::unique_ptr<protocol::Runtime::API::StackTrace> buildInspectorObject()
-      const override;
   std::unique_ptr<protocol::Runtime::API::StackTrace> buildInspectorObject(
       int maxAsyncDepth) const override;
   std::unique_ptr<StringBuffer> toString() const override;

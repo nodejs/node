@@ -16,6 +16,7 @@ namespace v8 {
 namespace internal {
 
 class ClassLiteral;
+class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/literal-objects-tq.inc"
 
@@ -71,6 +72,8 @@ class ArrayBoilerplateDescription
   DECL_PRINTER(ArrayBoilerplateDescription)
   void BriefPrintDetails(std::ostream& os);
 
+  using BodyDescriptor = StructBodyDescriptor;
+
  private:
   TQ_OBJECT_CONSTRUCTORS(ArrayBoilerplateDescription)
 };
@@ -81,6 +84,8 @@ class RegExpBoilerplateDescription
  public:
   // Dispatched behavior.
   void BriefPrintDetails(std::ostream& os);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
  private:
   TQ_OBJECT_CONSTRUCTORS(RegExpBoilerplateDescription)

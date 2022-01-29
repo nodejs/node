@@ -23,6 +23,7 @@ class TryCatch;
 
 namespace internal {
 
+class EmbedderState;
 class ExternalCallbackScope;
 class Isolate;
 class PromiseOnStack;
@@ -34,9 +35,9 @@ class ThreadLocalTop {
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  static constexpr uint32_t kSizeInBytes = 25 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 26 * kSystemPointerSize;
 #else
-  static constexpr uint32_t kSizeInBytes = 24 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 25 * kSystemPointerSize;
 #endif
 
   // Does early low-level initialization that does not depend on the
@@ -151,6 +152,7 @@ class ThreadLocalTop {
   // The external callback we're currently in.
   ExternalCallbackScope* external_callback_scope_;
   StateTag current_vm_state_;
+  EmbedderState* current_embedder_state_;
 
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;

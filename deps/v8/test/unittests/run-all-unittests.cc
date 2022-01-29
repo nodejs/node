@@ -25,13 +25,13 @@ class DefaultPlatformEnvironment final : public ::testing::Environment {
     ASSERT_TRUE(v8::V8::InitializeVirtualMemoryCage());
 #endif
     cppgc::InitializeProcess(platform_->GetPageAllocator());
-    ASSERT_TRUE(v8::V8::Initialize());
+    v8::V8::Initialize();
   }
 
   void TearDown() override {
     ASSERT_TRUE(platform_.get() != nullptr);
     v8::V8::Dispose();
-    v8::V8::ShutdownPlatform();
+    v8::V8::DisposePlatform();
   }
 
  private:

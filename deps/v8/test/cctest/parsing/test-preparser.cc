@@ -685,6 +685,7 @@ TEST(PreParserScopeAnalysis) {
       v8::base::SNPrintF(program, code, inner.params, inner.source);
 
       i::HandleScope scope(isolate);
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
 
       i::Handle<i::String> source =
           factory->InternalizeUtf8String(program.begin());
@@ -713,8 +714,9 @@ TEST(PreParserScopeAnalysis) {
       flags.set_is_lazy_compile(true);
 
       // Parse the lazy function using the scope data.
-      i::UnoptimizedCompileState using_scope_state(isolate);
-      i::ParseInfo using_scope_data(isolate, flags, &using_scope_state);
+      i::UnoptimizedCompileState using_scope_state;
+      i::ParseInfo using_scope_data(isolate, flags, &using_scope_state,
+                                    &reusable_state);
       using_scope_data.set_consumed_preparse_data(
           i::ConsumedPreparseData::For(isolate, produced_data_on_heap));
       CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate,
@@ -727,8 +729,9 @@ TEST(PreParserScopeAnalysis) {
           scope_with_skipped_functions));
 
       // Parse the lazy function again eagerly to produce baseline data.
-      i::UnoptimizedCompileState not_using_scope_state(isolate);
-      i::ParseInfo not_using_scope_data(isolate, flags, &not_using_scope_state);
+      i::UnoptimizedCompileState not_using_scope_state;
+      i::ParseInfo not_using_scope_data(isolate, flags, &not_using_scope_state,
+                                        &reusable_state);
       CHECK(i::parsing::ParseFunction(&not_using_scope_data, shared, isolate,
                                       i::parsing::ReportStatisticsMode::kYes));
 
@@ -760,10 +763,11 @@ TEST(Regress753896) {
   i::Handle<i::String> source = factory->InternalizeUtf8String(
       "function lazy() { let v = 0; if (true) { var v = 0; } }");
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::UnoptimizedCompileState state(isolate);
+  i::UnoptimizedCompileState state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
-  i::ParseInfo info(isolate, flags, &state);
+  i::ParseInfo info(isolate, flags, &state, &reusable_state);
 
   // We don't assert that parsing succeeded or that it failed; currently the
   // error is not detected inside lazy functions, but it might be in the future.

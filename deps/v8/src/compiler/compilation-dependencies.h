@@ -159,10 +159,25 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
       const CompilationDependency* dep, const Handle<Map>& receiver_map);
 #endif  // DEBUG
 
+  struct CompilationDependencyHash {
+    size_t operator()(const CompilationDependency* dep) const;
+  };
+  struct CompilationDependencyEqual {
+    bool operator()(const CompilationDependency* lhs,
+                    const CompilationDependency* rhs) const;
+  };
+
  private:
+  bool PrepareInstall();
+  bool PrepareInstallPredictable();
+
+  using CompilationDependencySet =
+      ZoneUnorderedSet<const CompilationDependency*, CompilationDependencyHash,
+                       CompilationDependencyEqual>;
+
   Zone* const zone_;
   JSHeapBroker* const broker_;
-  ZoneForwardList<CompilationDependency const*> dependencies_;
+  CompilationDependencySet dependencies_;
 };
 
 }  // namespace compiler

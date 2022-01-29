@@ -71,6 +71,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/lookup.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-inl.h"
@@ -167,7 +168,6 @@ static void IncrementingSignatureCallback(
 static void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(42);
 }
-
 
 // Tests that call v8::V8::Dispose() cannot be threaded.
 UNINITIALIZED_TEST(InitializeAndDisposeOnce) {
@@ -2982,9 +2982,9 @@ TEST(InternalFieldsSubclassing) {
         CHECK_LE(i_value->map().GetInObjectProperties(), kMaxNofProperties);
       }
 
-      // Make Sure we get the precise property count.
-      i_value->map().FindRootMap(i_isolate).CompleteInobjectSlackTracking(
-          i_isolate);
+      // Make sure we get the precise property count.
+      i::MapUpdater::CompleteInobjectSlackTracking(
+          i_isolate, i_value->map().FindRootMap(i_isolate));
       // TODO(cbruni): fix accounting to make this condition true.
       // CHECK_EQ(0, i_value->map()->UnusedPropertyFields());
       if (in_object_only) {
@@ -6169,9 +6169,7 @@ static void TryCatchNested2Helper(int depth) {
   }
 }
 
-
 TEST(TryCatchNested) {
-  v8::V8::Initialize();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
@@ -6195,7 +6193,6 @@ TEST(TryCatchNested) {
                        "E2"));
   }
 }
-
 
 void TryCatchMixedNestingCheck(v8::TryCatch* try_catch) {
   CHECK(try_catch->HasCaught());
@@ -6231,7 +6228,6 @@ void TryCatchMixedNestingHelper(
 TEST(TryCatchMixedNesting) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::V8::Initialize();
   v8::TryCatch try_catch(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "TryCatchMixedNestingHelper",
@@ -6253,7 +6249,6 @@ void TryCatchNativeHelper(const v8::FunctionCallbackInfo<v8::Value>& args) {
 TEST(TryCatchNative) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::V8::Initialize();
   v8::TryCatch try_catch(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "TryCatchNativeHelper",
@@ -6278,7 +6273,6 @@ void TryCatchNativeResetHelper(
 TEST(TryCatchNativeReset) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::V8::Initialize();
   v8::TryCatch try_catch(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "TryCatchNativeResetHelper",
@@ -10778,7 +10772,7 @@ THREADED_TEST(ShadowObjectAndDataProperty) {
   i::FeedbackNexus nexus(foo->feedback_vector(), slot);
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
   CompileRun("foo(1)");
-  CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(i::InlineCacheState::MONOMORPHIC, nexus.ic_state());
   // We go a bit further, checking that the form of monomorphism is
   // a PropertyCell in the vector. This is because we want to make sure
   // we didn't settle for a "poor man's monomorphism," such as a
@@ -10828,7 +10822,7 @@ THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
   i::FeedbackNexus nexus(foo->feedback_vector(), slot);
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
   CompileRun("%OptimizeFunctionOnNextCall(foo); foo(1)");
-  CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(i::InlineCacheState::MONOMORPHIC, nexus.ic_state());
   i::HeapObject heap_object;
   CHECK(nexus.GetFeedback().GetHeapObject(&heap_object));
   CHECK(heap_object.IsPropertyCell());
@@ -13491,9 +13485,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
 
 TEST(DontLeakGlobalObjects) {
   // Regression test for issues 1139850 and 1174891.
-
   i::FLAG_expose_gc = true;
-  v8::V8::Initialize();
 
   for (int i = 0; i < 5; i++) {
     { v8::HandleScope scope(CcTest::isolate());
@@ -13698,10 +13690,7 @@ THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
   EmptyMessageQueues(isolate);
 }
 
-
 THREADED_TEST(CheckForCrossContextObjectLiterals) {
-  v8::V8::Initialize();
-
   const int nof = 2;
   const char* sources[nof] = {
     "try { [ 2, 3, 4 ].forEach(5); } catch(e) { e.toString(); }",
@@ -13720,7 +13709,6 @@ THREADED_TEST(CheckForCrossContextObjectLiterals) {
     }
   }
 }
-
 
 static v8::Local<Value> NestedScope(v8::Local<Context> env) {
   v8::EscapableHandleScope inner(env->GetIsolate());
@@ -13888,7 +13876,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
 #if ENABLE_SPARKPLUG
   i::FLAG_baseline_batch_compilation = false;
 #endif
-  if (i::FLAG_never_compact) return;
+  if (!i::FLAG_compact) return;
   const char* script =
       "function bar() {"
       "  var sum = 0;"
@@ -17332,7 +17320,6 @@ THREADED_TEST(SpaghettiStackReThrow) {
 
 TEST(Regress528) {
   ManualGCScope manual_gc_scope;
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   i::FLAG_retain_maps_for_n_gc = 0;
   v8::HandleScope scope(isolate);
@@ -17449,7 +17436,10 @@ THREADED_TEST(ScriptOrigin) {
   CHECK(script_origin_f.Options().IsSharedCrossOrigin());
   CHECK(script_origin_f.Options().IsOpaque());
   printf("is name = %d\n", script_origin_f.SourceMapUrl()->IsUndefined());
-  CHECK(script_origin_f.HostDefinedOptions()->Get(isolate, 0)->IsSymbol());
+  CHECK(script_origin_f.GetHostDefinedOptions()
+            .As<v8::PrimitiveArray>()
+            ->Get(isolate, 0)
+            ->IsSymbol());
 
   CHECK_EQ(0, strcmp("http://sourceMapUrl",
                      *v8::String::Utf8Value(env->GetIsolate(),
@@ -17465,7 +17455,10 @@ THREADED_TEST(ScriptOrigin) {
   CHECK_EQ(0, strcmp("http://sourceMapUrl",
                      *v8::String::Utf8Value(env->GetIsolate(),
                                             script_origin_g.SourceMapUrl())));
-  CHECK(script_origin_g.HostDefinedOptions()->Get(isolate, 0)->IsSymbol());
+  CHECK(script_origin_g.GetHostDefinedOptions()
+            .As<v8::PrimitiveArray>()
+            ->Get(isolate, 0)
+            ->IsSymbol());
 }
 
 
@@ -18152,7 +18145,7 @@ void AssertOneByteConsContainsTwoByteExternal(i::Handle<i::String> maybe_cons,
   CHECK(maybe_cons->IsOneByteRepresentation());
   CHECK(maybe_cons->IsConsString());
   i::ConsString cons = i::ConsString::cast(*maybe_cons);
-  CHECK(cons.IsFlat());
+  CHECK(cons.IsFlat(GetPtrComprCageBase(cons)));
   CHECK(cons.first() == *external);
   CHECK(cons.first().IsTwoByteRepresentation());
   CHECK(cons.first().IsExternalString());
@@ -18272,9 +18265,7 @@ THREADED_TEST(TwoByteStringInOneByteCons) {
       ->SetResource(i_isolate, nullptr);
 }
 
-
 TEST(ContainsOnlyOneByte) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   // Make a buffer long enough that it won't automatically be converted.
@@ -18346,7 +18337,6 @@ TEST(ContainsOnlyOneByte) {
   }
 }
 
-
 // Failed access check callback that performs a GC on each invocation.
 void FailedAccessCheckCallbackGC(Local<v8::Object> target,
                                  v8::AccessType type,
@@ -18360,8 +18350,6 @@ void FailedAccessCheckCallbackGC(Local<v8::Object> target,
 TEST(GCInFailedAccessCheckCallback) {
   // Install a failed access check callback that performs a GC on each
   // invocation. Then force the callback to be called from va
-
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
 
   isolate->SetFailedAccessCheckCallbackFunction(&FailedAccessCheckCallbackGC);
@@ -20688,9 +20676,7 @@ TEST(StaticGetters) {
   CHECK(*v8::Utils::OpenHandle(*v8::False(isolate)) == *false_value);
 }
 
-
 UNINITIALIZED_TEST(IsolateEmbedderData) {
-  CcTest::DisableAutomaticDispose();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -20721,7 +20707,6 @@ UNINITIALIZED_TEST(IsolateEmbedderData) {
   isolate->Exit();
   isolate->Dispose();
 }
-
 
 TEST(StringEmpty) {
   LocalContext context;
@@ -21413,9 +21398,7 @@ void UnreachableCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   UNREACHABLE();
 }
 
-
 TEST(JSONStringifyAccessCheck) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
@@ -21453,7 +21436,6 @@ TEST(JSONStringifyAccessCheck) {
     CHECK(CompileRun("JSON.stringify([other, 'b', 'c'])").IsEmpty());
   }
 }
-
 
 bool access_check_fail_thrown = false;
 bool catch_callback_called = false;
@@ -21511,7 +21493,6 @@ void CheckCorrectThrow(const char* script) {
 
 TEST(AccessCheckThrows) {
   i::FLAG_allow_natives_syntax = true;
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   isolate->SetFailedAccessCheckCallbackFunction(&FailedAccessCheckThrows);
   v8::HandleScope scope(isolate);
@@ -21742,7 +21723,7 @@ class RegExpInterruptTest {
 
 TEST(RegExpInterruptAndCollectAllGarbage) {
   // Move all movable objects on GC.
-  i::FLAG_always_compact = true;
+  i::FLAG_compact_on_every_full_gc = true;
   // We want to be stuck regexp execution, so no fallback to linear-time
   // engine.
   // TODO(mbid,v8:10765): Find a way to test interrupt support of the
@@ -23859,21 +23840,16 @@ void RunStreamingTest(const char** chunks, v8::ScriptType type,
       CHECK_EQ(Module::kInstantiated, module->GetStatus());
       v8::Local<Value> result = module->Evaluate(env.local()).ToLocalChecked();
       CHECK_EQ(Module::kEvaluated, module->GetStatus());
-      if (i::FLAG_harmony_top_level_await) {
-        v8::Local<v8::Promise> promise = result.As<v8::Promise>();
-        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK(promise->Result()->IsUndefined());
-        // Fulfilled top-level await promises always resolve to undefined. Check
-        // the test result via a global variable.
-        CHECK_EQ(13, env->Global()
-                         ->Get(env.local(), v8_str("Result"))
-                         .ToLocalChecked()
-                         ->Int32Value(env.local())
-                         .FromJust());
-      } else {
-        CHECK(!result.IsEmpty());
-        CHECK_EQ(13, result->Int32Value(env.local()).FromJust());
-      }
+      v8::Local<v8::Promise> promise = result.As<v8::Promise>();
+      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+      CHECK(promise->Result()->IsUndefined());
+      // Fulfilled top-level await promises always resolve to undefined. Check
+      // the test result via a global variable.
+      CHECK_EQ(13, env->Global()
+                       ->Get(env.local(), v8_str("Result"))
+                       .ToLocalChecked()
+                       ->Int32Value(env.local())
+                       .FromJust());
     } else {
       CHECK(maybe_module.IsEmpty());
     }
@@ -24450,7 +24426,7 @@ TEST(ModuleCodeCache) {
   const char* origin = "code cache test";
   const char* source =
       "export default 5; export const a = 10; function f() { return 42; } "
-      "(function() { return f(); })();";
+      "(function() { globalThis.Result = f(); })();";
 
   v8::ScriptCompiler::CachedData* cache;
   {
@@ -24471,13 +24447,14 @@ TEST(ModuleCodeCache) {
       // Evaluate for possible lazy compilation.
       Local<Value> completion_value =
           module->Evaluate(context).ToLocalChecked();
-      if (i::FLAG_harmony_top_level_await) {
-        Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
-        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK(promise->Result()->IsUndefined());
-      } else {
-        CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
-      }
+      Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+      CHECK(promise->Result()->IsUndefined());
+      CHECK_EQ(42, context->Global()
+                       ->Get(context, v8_str("Result"))
+                       .ToLocalChecked()
+                       ->Int32Value(context)
+                       .FromJust());
 
       // Now create the cache. Note that it is freed, obscurely, when
       // ScriptCompiler::Source goes out of scope below.
@@ -24508,13 +24485,14 @@ TEST(ModuleCodeCache) {
 
       Local<Value> completion_value =
           module->Evaluate(context).ToLocalChecked();
-      if (i::FLAG_harmony_top_level_await) {
-        Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
-        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK(promise->Result()->IsUndefined());
-      } else {
-        CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
-      }
+      Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+      CHECK(promise->Result()->IsUndefined());
+      CHECK_EQ(42, context->Global()
+                       ->Get(context, v8_str("Result"))
+                       .ToLocalChecked()
+                       ->Int32Value(context)
+                       .FromJust());
     }
     isolate->Dispose();
   }
@@ -24766,8 +24744,8 @@ TEST(ImportFromSyntheticModule) {
 
   Local<String> url = v8_str("www.test.com");
   Local<String> source_text = v8_str(
-      "import {test_export} from './synthetic.module';"
-      "(function() { return test_export; })();");
+      "import {test_export} from './synthetic.module'; "
+      "(function() { globalThis.Result = test_export; })();");
   v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
                           false, false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
@@ -24777,13 +24755,14 @@ TEST(ImportFromSyntheticModule) {
       .ToChecked();
 
   Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
-  if (i::FLAG_harmony_top_level_await) {
-    Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
-    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-    CHECK(promise->Result()->IsUndefined());
-  } else {
-    CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
-  }
+  Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+  CHECK(promise->Result()->IsUndefined());
+  CHECK_EQ(42, context->Global()
+                   ->Get(context, v8_str("Result"))
+                   .ToLocalChecked()
+                   ->Int32Value(context)
+                   .FromJust());
 }
 
 TEST(ImportFromSyntheticModuleThrow) {
@@ -24811,14 +24790,10 @@ TEST(ImportFromSyntheticModuleThrow) {
   CHECK_EQ(module->GetStatus(), Module::kInstantiated);
   TryCatch try_catch(isolate);
   v8::MaybeLocal<Value> completion_value = module->Evaluate(context);
-  if (i::FLAG_harmony_top_level_await) {
-    Local<v8::Promise> promise(
-        Local<v8::Promise>::Cast(completion_value.ToLocalChecked()));
-    CHECK_EQ(promise->State(), v8::Promise::kRejected);
-    CHECK_EQ(promise->Result(), try_catch.Exception());
-  } else {
-    CHECK(completion_value.IsEmpty());
-  }
+  Local<v8::Promise> promise(
+      Local<v8::Promise>::Cast(completion_value.ToLocalChecked()));
+  CHECK_EQ(promise->State(), v8::Promise::kRejected);
+  CHECK_EQ(promise->Result(), try_catch.Exception());
 
   CHECK_EQ(module->GetStatus(), Module::kErrored);
   CHECK(try_catch.HasCaught());
@@ -24852,13 +24827,9 @@ TEST(CodeCacheModuleScriptMismatch) {
       // Evaluate for possible lazy compilation.
       Local<Value> completion_value =
           module->Evaluate(context).ToLocalChecked();
-      if (i::FLAG_harmony_top_level_await) {
-        Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
-        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK(promise->Result()->IsUndefined());
-      } else {
-        CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
-      }
+      Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+      CHECK(promise->Result()->IsUndefined());
 
       // Now create the cache. Note that it is freed, obscurely, when
       // ScriptCompiler::Source goes out of scope below.
@@ -24952,13 +24923,9 @@ TEST(CodeCacheScriptModuleMismatch) {
 
       Local<Value> completion_value =
           module->Evaluate(context).ToLocalChecked();
-      if (i::FLAG_harmony_top_level_await) {
-        Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
-        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK(promise->Result()->IsUndefined());
-      } else {
-        CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
-      }
+      Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+      CHECK(promise->Result()->IsUndefined());
     }
     isolate->Dispose();
   }
@@ -24966,7 +24933,6 @@ TEST(CodeCacheScriptModuleMismatch) {
 
 // Tests that compilation can handle a garbled cache.
 TEST(InvalidCodeCacheDataInCompileModule) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext local_context;
@@ -24993,13 +24959,9 @@ TEST(InvalidCodeCacheDataInCompileModule) {
 
   CHECK(cached_data->rejected);
   Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
-  if (i::FLAG_harmony_top_level_await) {
-    Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
-    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-    CHECK(promise->Result()->IsUndefined());
-  } else {
-    CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
-  }
+  Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+  CHECK(promise->Result()->IsUndefined());
 }
 
 void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {
@@ -25021,17 +24983,13 @@ void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {
       script->Run(context).ToLocalChecked()->Int32Value(context).FromJust());
 }
 
-
 TEST(InvalidCodeCacheData) {
-  v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
   TestInvalidCacheData(v8::ScriptCompiler::kConsumeCodeCache);
 }
 
-
 TEST(StringConcatOverflow) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   RandomLengthOneByteResource* r =
@@ -25050,7 +25008,6 @@ TEST(TurboAsmDisablesDetach) {
 #ifndef V8_LITE_MODE
   i::FLAG_opt = true;
   i::FLAG_allow_natives_syntax = true;
-  v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
   const char* load =
@@ -26380,13 +26337,13 @@ TEST(CorrectEnteredContext) {
 const int kCustomHostDefinedOptionsLengthForTesting = 7;
 
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
-    Local<Context> context, Local<v8::ScriptOrModule> referrer,
-    Local<String> specifier, Local<FixedArray> import_assertions) {
-  CHECK(!referrer.IsEmpty());
-  String::Utf8Value referrer_utf8(
-      context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
+    Local<v8::Context> context, Local<v8::Data> host_defined_options,
+    Local<v8::Value> resource_name, Local<v8::String> specifier,
+    Local<v8::FixedArray> import_assertions) {
+  String::Utf8Value referrer_utf8(context->GetIsolate(),
+                                  resource_name.As<String>());
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
-  CHECK_EQ(referrer->GetHostDefinedOptions()->Length(),
+  CHECK_EQ(host_defined_options.As<v8::FixedArray>()->Length(),
            kCustomHostDefinedOptionsLengthForTesting);
   CHECK(!specifier.IsEmpty());
   String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
@@ -26428,13 +26385,13 @@ TEST(DynamicImport) {
 
 v8::MaybeLocal<v8::Promise>
 HostImportModuleDynamicallyWithAssertionsCallbackResolve(
-    Local<Context> context, Local<v8::ScriptOrModule> referrer,
-    Local<String> specifier, Local<v8::FixedArray> import_assertions) {
-  CHECK(!referrer.IsEmpty());
-  String::Utf8Value referrer_utf8(
-      context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
+    Local<v8::Context> context, Local<v8::Data> host_defined_options,
+    Local<v8::Value> resource_name, Local<v8::String> specifier,
+    Local<v8::FixedArray> import_assertions) {
+  String::Utf8Value referrer_utf8(context->GetIsolate(),
+                                  resource_name.As<String>());
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
-  CHECK_EQ(referrer->GetHostDefinedOptions()->Length(),
+  CHECK_EQ(host_defined_options.As<v8::FixedArray>()->Length(),
            kCustomHostDefinedOptionsLengthForTesting);
 
   CHECK(!specifier.IsEmpty());
@@ -26530,7 +26487,7 @@ TEST(ImportMeta) {
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   Local<String> url = v8_str("www.google.com");
-  Local<String> source_text = v8_str("import.meta;");
+  Local<String> source_text = v8_str("globalThis.Result = import.meta;");
   v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
                           false, false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
@@ -26552,14 +26509,14 @@ TEST(ImportMeta) {
   module->InstantiateModule(context.local(), UnexpectedModuleResolveCallback)
       .ToChecked();
   Local<Value> result = module->Evaluate(context.local()).ToLocalChecked();
-  if (i::FLAG_harmony_top_level_await) {
-    Local<v8::Promise> promise(Local<v8::Promise>::Cast(result));
-    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-    CHECK(promise->Result()->IsUndefined());
-  } else {
-    CHECK(
-        result->StrictEquals(Local<v8::Value>::Cast(v8::Utils::ToLocal(meta))));
-  }
+  Local<v8::Promise> promise(Local<v8::Promise>::Cast(result));
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+  CHECK(promise->Result()->IsUndefined());
+  CHECK(context.local()
+            ->Global()
+            ->Get(context.local(), v8_str("Result"))
+            .ToLocalChecked()
+            ->StrictEquals(Local<v8::Value>::Cast(v8::Utils::ToLocal(meta))));
 }
 
 void HostInitializeImportMetaObjectCallbackThrow(Local<Context> context,
@@ -26588,10 +26545,8 @@ TEST(ImportMetaThrowUnhandled) {
       .ToChecked();
 
   Local<Value> result = module->Evaluate(context.local()).ToLocalChecked();
-  if (i::FLAG_harmony_top_level_await) {
-    auto promise = Local<v8::Promise>::Cast(result);
-    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-  }
+  auto promise = Local<v8::Promise>::Cast(result);
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
 
   Local<Object> ns = module->GetModuleNamespace().As<Object>();
   Local<Value> closure =
@@ -26633,10 +26588,8 @@ TEST(ImportMetaThrowHandled) {
       .ToChecked();
 
   Local<Value> result = module->Evaluate(context.local()).ToLocalChecked();
-  if (i::FLAG_harmony_top_level_await) {
-    auto promise = Local<v8::Promise>::Cast(result);
-    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-  }
+  auto promise = Local<v8::Promise>::Cast(result);
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
 
   Local<Object> ns = module->GetModuleNamespace().As<Object>();
   Local<Value> closure =
@@ -27867,6 +27820,81 @@ UNINITIALIZED_TEST(NestedIsolates) {
 #ifndef V8_LITE_MODE
 namespace {
 
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+template <typename Value>
+Value PrimitiveFromMixedType(v8::AnyCType argument);
+
+template <>
+bool PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.bool_value;
+}
+template <>
+int32_t PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.int32_value;
+}
+template <>
+uint32_t PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.uint32_value;
+}
+template <>
+int64_t PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.int64_value;
+}
+template <>
+uint64_t PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.uint64_value;
+}
+template <>
+float PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.float_value;
+}
+template <>
+double PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.double_value;
+}
+template <>
+v8::Local<v8::Value> PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.object_value;
+}
+
+template <typename T>
+v8::AnyCType PrimitiveToMixedType(T value) {
+  return v8::AnyCType();
+}
+
+template <>
+v8::AnyCType PrimitiveToMixedType(bool value) {
+  v8::AnyCType ret;
+  ret.bool_value = value;
+  return ret;
+}
+template <>
+v8::AnyCType PrimitiveToMixedType(int32_t value) {
+  v8::AnyCType ret;
+  ret.int32_value = value;
+  return ret;
+}
+template <>
+v8::AnyCType PrimitiveToMixedType(uint32_t value) {
+  v8::AnyCType ret;
+  ret.uint32_value = value;
+  return ret;
+}
+template <>
+v8::AnyCType PrimitiveToMixedType(float value) {
+  v8::AnyCType ret;
+  ret.float_value = value;
+  return ret;
+}
+template <>
+v8::AnyCType PrimitiveToMixedType(double value) {
+  v8::AnyCType ret;
+  ret.double_value = value;
+  return ret;
+}
+
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
 template <typename Value, typename Impl, typename Ret>
 struct BasicApiChecker {
   static Ret FastCallback(v8::Local<v8::Object> receiver, Value argument,
@@ -27882,6 +27910,7 @@ struct BasicApiChecker {
     v8::FastApiCallbackOptions options = {false, {0}};
     return Impl::FastCallback(receiver, argument, options);
   }
+
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     Impl::SlowCallback(info);
   }
@@ -27897,6 +27926,44 @@ struct BasicApiChecker {
  private:
   ApiCheckerResultFlags result_ = ApiCheckerResult::kNotCalled;
 };
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+template <typename Value, typename Impl, typename Ret,
+          typename = std::enable_if_t<!std::is_void<Ret>::value>>
+static v8::AnyCType FastCallbackPatch(v8::AnyCType receiver,
+                                      v8::AnyCType argument,
+                                      v8::AnyCType options) {
+  v8::AnyCType ret = PrimitiveToMixedType<Ret>(Impl::FastCallback(
+      receiver.object_value, PrimitiveFromMixedType<Value>(argument),
+      *(options.options_value)));
+  return ret;
+}
+template <typename Value, typename Impl, typename Ret,
+          typename = std::enable_if_t<!std::is_void<Ret>::value>>
+static v8::AnyCType FastCallbackNoFallbackWrapper(v8::AnyCType receiver,
+                                                  v8::AnyCType argument) {
+  v8::FastApiCallbackOptions options = {false, {0}};
+  v8::AnyCType ret = PrimitiveToMixedType<Ret>(Impl::FastCallback(
+      receiver.object_value, PrimitiveFromMixedType<Value>(argument), options));
+  return ret;
+}
+template <typename Value, typename Impl, typename Ret,
+          typename = std::enable_if_t<std::is_void<Ret>::value>>
+static void FastCallbackPatch(v8::AnyCType receiver, v8::AnyCType argument,
+                              v8::AnyCType options) {
+  return Impl::FastCallback(receiver.object_value,
+                            PrimitiveFromMixedType<Value>(argument),
+                            *(options.options_value));
+}
+template <typename Value, typename Impl, typename Ret,
+          typename = std::enable_if_t<std::is_void<Ret>::value>>
+static void FastCallbackNoFallbackWrapper(v8::AnyCType receiver,
+                                          v8::AnyCType argument) {
+  v8::FastApiCallbackOptions options = {false, {0}};
+  return Impl::FastCallback(receiver.object_value,
+                            PrimitiveFromMixedType<Value>(argument), options);
+}
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
 enum class Behavior {
   kNoException,
@@ -28042,18 +28109,30 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
 
   v8::CFunction c_func;
   if (supports_fallback) {
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+    c_func =
+        v8::CFunction::Make(BasicApiChecker<Value, Impl, Ret>::FastCallback,
+                            FastCallbackPatch<Value, Impl, Ret>);
+#else   // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
     c_func =
         v8::CFunction::Make(BasicApiChecker<Value, Impl, Ret>::FastCallback);
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   } else {
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+    c_func = v8::CFunction::Make(
+        BasicApiChecker<Value, Impl, Ret>::FastCallbackNoFallback,
+        FastCallbackNoFallbackWrapper<Value, Impl, Ret>);
+#else   // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
     c_func = v8::CFunction::Make(
         BasicApiChecker<Value, Impl, Ret>::FastCallbackNoFallback);
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   }
   CHECK_EQ(c_func.ArgumentInfo(0).GetType(), v8::CTypeInfo::Type::kV8Value);
 
   Local<v8::FunctionTemplate> checker_templ = v8::FunctionTemplate::New(
       isolate, BasicApiChecker<Value, Impl, Ret>::SlowCallback,
       v8::Number::New(isolate, 42), v8::Local<v8::Signature>(), 1,
-      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
+      v8::ConstructorBehavior::kThrow, v8::SideEffectType::kHasSideEffect,
       &c_func);
   if (!accept_any_receiver) {
     checker_templ->SetAcceptAnyReceiver(false);
@@ -28186,6 +28265,48 @@ void CheckApiObjectArg() {
   CHECK(checker.DidCallFast());
   CHECK_EQ(embedder_obj.data, data);
   CHECK(!checker.DidCallSlow());
+}
+
+static const char* fast_calls_error_message = nullptr;
+static const char* fast_calls_error_location = nullptr;
+void FastCallsErrorCallback(const char* location, const char* message) {
+  fast_calls_error_message = message;
+  fast_calls_error_location = location;
+}
+
+void CheckFastCallsWithConstructor() {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  CcTest::isolate()->SetFatalErrorHandler(FastCallsErrorCallback);
+
+  CHECK_NULL(fast_calls_error_message);
+
+  v8::CFunction c_func_ctor =
+      v8::CFunction::Make(ApiObjectChecker::FastCallback);
+  v8::FunctionTemplate::New(isolate, ApiObjectChecker::SlowCallback,
+                            Local<v8::Value>(), v8::Local<v8::Signature>(), 1,
+                            v8::ConstructorBehavior::kAllow,
+                            v8::SideEffectType::kHasSideEffect, &c_func_ctor);
+  CHECK_NOT_NULL(fast_calls_error_message);
+  CHECK_EQ(
+      0, strcmp(fast_calls_error_message,
+                "Fast API calls are not supported for constructor functions."));
+  CHECK_NOT_NULL(fast_calls_error_location);
+  CHECK_EQ(0, strcmp(fast_calls_error_location, "FunctionTemplate::New"));
+
+  fast_calls_error_message = nullptr;
+  const v8::CFunction c_func_ctor_overloads[] = {c_func_ctor};
+  v8::FunctionTemplate::NewWithCFunctionOverloads(
+      isolate, ApiObjectChecker::SlowCallback, Local<v8::Value>(),
+      v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kAllow,
+      v8::SideEffectType::kHasSideEffect, {c_func_ctor_overloads, 1});
+  CHECK_NOT_NULL(fast_calls_error_message);
+  CHECK_EQ(
+      0, strcmp(fast_calls_error_message,
+                "Fast API calls are not supported for constructor functions."));
+  CHECK_NOT_NULL(fast_calls_error_location);
+  CHECK_EQ(0, strcmp(fast_calls_error_location,
+                     "FunctionTemplate::NewWithCFunctionOverloads"));
 }
 
 template <typename T>
@@ -28447,6 +28568,7 @@ TEST(FastApiCalls) {
   v8::internal::FLAG_always_opt = false;
   v8::internal::FlagList::EnforceFlagImplications();
 
+  CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
@@ -28897,6 +29019,7 @@ TEST(FastApiCalls) {
   CallWithUnexpectedObjectType(CompileRun("new Proxy({}, {});"));
 
   CheckApiObjectArg();
+  CheckFastCallsWithConstructor();
 
   // TODO(mslekova): Restructure the tests so that the fast optimized calls
   // are compared against the slow optimized calls.
@@ -29011,7 +29134,7 @@ TEST(FastApiSequenceOverloads) {
   Local<v8::FunctionTemplate> sequence_callback_templ =
       v8::FunctionTemplate::NewWithCFunctionOverloads(
           isolate, SequenceSlowCallback, v8::Number::New(isolate, 42),
-          v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kAllow,
+          v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kThrow,
           v8::SideEffectType::kHasSideEffect, {sequece_overloads, 2});
 
   v8::Local<v8::ObjectTemplate> object_template =

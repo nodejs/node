@@ -33,8 +33,8 @@ void BitwiseAnd_NegNeg(RWDigits Z, Digits X, Digits Y) {
   // (At least) one of the next two loops will perform zero iterations:
   for (; i < X.len(); i++) Z[i] = digit_sub(X[i], x_borrow, &x_borrow);
   for (; i < Y.len(); i++) Z[i] = digit_sub(Y[i], y_borrow, &y_borrow);
-  DCHECK(x_borrow == 0);  // NOLINT(readability/check)
-  DCHECK(y_borrow == 0);  // NOLINT(readability/check)
+  DCHECK(x_borrow == 0);
+  DCHECK(y_borrow == 0);
   for (; i < Z.len(); i++) Z[i] = 0;
   Add(Z, 1);
 }
@@ -83,7 +83,7 @@ void BitwiseOr_PosNeg(RWDigits Z, Digits X, Digits Y) {
   int i = 0;
   for (; i < pairs; i++) Z[i] = digit_sub(Y[i], borrow, &borrow) & ~X[i];
   for (; i < Y.len(); i++) Z[i] = digit_sub(Y[i], borrow, &borrow);
-  DCHECK(borrow == 0);  // NOLINT(readability/check)
+  DCHECK(borrow == 0);
   for (; i < Z.len(); i++) Z[i] = 0;
   Add(Z, 1);
 }
@@ -114,8 +114,8 @@ void BitwiseXor_NegNeg(RWDigits Z, Digits X, Digits Y) {
   // (At least) one of the next two loops will perform zero iterations:
   for (; i < X.len(); i++) Z[i] = digit_sub(X[i], x_borrow, &x_borrow);
   for (; i < Y.len(); i++) Z[i] = digit_sub(Y[i], y_borrow, &y_borrow);
-  DCHECK(x_borrow == 0);  // NOLINT(readability/check)
-  DCHECK(y_borrow == 0);  // NOLINT(readability/check)
+  DCHECK(x_borrow == 0);
+  DCHECK(y_borrow == 0);
   for (; i < Z.len(); i++) Z[i] = 0;
 }
 
@@ -128,9 +128,94 @@ void BitwiseXor_PosNeg(RWDigits Z, Digits X, Digits Y) {
   // (At least) one of the next two loops will perform zero iterations:
   for (; i < X.len(); i++) Z[i] = X[i];
   for (; i < Y.len(); i++) Z[i] = digit_sub(Y[i], borrow, &borrow);
-  DCHECK(borrow == 0);  // NOLINT(readability/check)
+  DCHECK(borrow == 0);
   for (; i < Z.len(); i++) Z[i] = 0;
   Add(Z, 1);
+}
+
+void LeftShift(RWDigits Z, Digits X, digit_t shift) {
+  int digit_shift = static_cast<int>(shift / kDigitBits);
+  int bits_shift = static_cast<int>(shift % kDigitBits);
+
+  int i = 0;
+  for (; i < digit_shift; ++i) Z[i] = 0;
+  if (bits_shift == 0) {
+    for (; i < X.len() + digit_shift; ++i) Z[i] = X[i - digit_shift];
+    for (; i < Z.len(); ++i) Z[i] = 0;
+  } else {
+    digit_t carry = 0;
+    for (; i < X.len() + digit_shift; ++i) {
+      digit_t d = X[i - digit_shift];
+      Z[i] = (d << bits_shift) | carry;
+      carry = d >> (kDigitBits - bits_shift);
+    }
+    if (carry != 0) Z[i++] = carry;
+    for (; i < Z.len(); ++i) Z[i] = 0;
+  }
+}
+
+int RightShift_ResultLength(Digits X, bool x_sign, digit_t shift,
+                            RightShiftState* state) {
+  int digit_shift = static_cast<int>(shift / kDigitBits);
+  int bits_shift = static_cast<int>(shift % kDigitBits);
+  int result_length = X.len() - digit_shift;
+  if (result_length <= 0) return 0;
+
+  // For negative numbers, round down if any bit was shifted out (so that e.g.
+  // -5n >> 1n == -3n and not -2n). Check now whether this will happen and
+  // whether it can cause overflow into a new digit.
+  bool must_round_down = false;
+  if (x_sign) {
+    const digit_t mask = (static_cast<digit_t>(1) << bits_shift) - 1;
+    if ((X[digit_shift] & mask) != 0) {
+      must_round_down = true;
+    } else {
+      for (int i = 0; i < digit_shift; i++) {
+        if (X[i] != 0) {
+          must_round_down = true;
+          break;
+        }
+      }
+    }
+  }
+  // If bits_shift is non-zero, it frees up bits, preventing overflow.
+  if (must_round_down && bits_shift == 0) {
+    // Overflow cannot happen if the most significant digit has unset bits.
+    const bool rounding_can_overflow = digit_ismax(X.msd());
+    if (rounding_can_overflow) ++result_length;
+  }
+
+  if (state) {
+    DCHECK(!must_round_down || x_sign);
+    state->must_round_down = must_round_down;
+  }
+  return result_length;
+}
+
+void RightShift(RWDigits Z, Digits X, digit_t shift,
+                const RightShiftState& state) {
+  int digit_shift = static_cast<int>(shift / kDigitBits);
+  int bits_shift = static_cast<int>(shift % kDigitBits);
+
+  int i = 0;
+  if (bits_shift == 0) {
+    for (; i < X.len() - digit_shift; ++i) Z[i] = X[i + digit_shift];
+  } else {
+    digit_t carry = X[digit_shift] >> bits_shift;
+    for (; i < X.len() - digit_shift - 1; ++i) {
+      digit_t d = X[i + digit_shift + 1];
+      Z[i] = (d << (kDigitBits - bits_shift)) | carry;
+      carry = d >> bits_shift;
+    }
+    Z[i++] = carry;
+  }
+  for (; i < Z.len(); ++i) Z[i] = 0;
+
+  if (state.must_round_down) {
+    // Rounding down (a negative value) means adding one to
+    // its absolute value. This cannot overflow.
+    Add(Z, 1);
+  }
 }
 
 namespace {
@@ -175,7 +260,7 @@ void TruncateAndSubFromPowerOfTwo(RWDigits Z, Digits X, int n) {
     msd = (msd << drop) >> drop;
     digit_t minuend_msd = static_cast<digit_t>(1) << bits;
     digit_t result_msd = digit_sub2(minuend_msd, msd, borrow, &borrow);
-    DCHECK(borrow == 0);  // result < 2^n.  NOLINT(readability/check)
+    DCHECK(borrow == 0);  // result < 2^n.
     // If all subtracted bits were zero, we have to get rid of the
     // materialized minuend_msd again.
     Z[last] = result_msd & (minuend_msd - 1);
@@ -203,9 +288,8 @@ int AsIntNResultLength(Digits X, bool x_negative, int n) {
 }
 
 bool AsIntN(RWDigits Z, Digits X, bool x_negative, int n) {
-  DCHECK(X.len() > 0);  // NOLINT(readability/check)
-  DCHECK(n > 0);        // NOLINT(readability/check)
-                        // NOLINTNEXTLINE(readability/check)
+  DCHECK(X.len() > 0);
+  DCHECK(n > 0);
   DCHECK(AsIntNResultLength(X, x_negative, n) > 0);
   int needed_digits = DIV_CEIL(n, kDigitBits);
   digit_t top_digit = X[needed_digits - 1];
@@ -250,7 +334,7 @@ int AsUintN_Pos_ResultLength(Digits X, int n) {
 }
 
 void AsUintN_Pos(RWDigits Z, Digits X, int n) {
-  DCHECK(AsUintN_Pos_ResultLength(X, n) > 0);  // NOLINT(readability/check)
+  DCHECK(AsUintN_Pos_ResultLength(X, n) > 0);
   TruncateToNBits(Z, X, n);
 }
 

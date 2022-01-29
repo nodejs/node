@@ -182,13 +182,13 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
 class OnHeapConsumedPreparseData final
     : public BaseConsumedPreparseData<PreparseData> {
  public:
-  OnHeapConsumedPreparseData(Isolate* isolate, Handle<PreparseData> data);
+  OnHeapConsumedPreparseData(LocalIsolate* isolate, Handle<PreparseData> data);
 
   PreparseData GetScopeData() final;
   ProducedPreparseData* GetChildData(Zone* zone, int child_index) final;
 
  private:
-  Isolate* isolate_;
+  LocalIsolate* isolate_;
   Handle<PreparseData> data_;
 };
 

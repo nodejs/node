@@ -490,13 +490,14 @@ PersistentMap<Key, Value, Hasher>::FindLeftmost(
     std::array<const FocusedTree*, kHashBits>* path) {
   const FocusedTree* current = start;
   while (*level < current->length) {
-    if (const FocusedTree* child = GetChild(current, *level, kLeft)) {
+    if (const FocusedTree* left_child = GetChild(current, *level, kLeft)) {
       (*path)[*level] = GetChild(current, *level, kRight);
-      current = child;
+      current = left_child;
       ++*level;
-    } else if (const FocusedTree* child = GetChild(current, *level, kRight)) {
+    } else if (const FocusedTree* right_child =
+                   GetChild(current, *level, kRight)) {
       (*path)[*level] = GetChild(current, *level, kLeft);
-      current = child;
+      current = right_child;
       ++*level;
     } else {
       UNREACHABLE();

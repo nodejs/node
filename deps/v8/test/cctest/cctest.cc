@@ -60,7 +60,6 @@
 
 enum InitializationState { kUnset, kUninitialized, kInitialized };
 static InitializationState initialization_state_ = kUnset;
-static bool disable_automatic_dispose_ = false;
 
 CcTest* CcTest::last_ = nullptr;
 bool CcTest::initialize_called_ = false;
@@ -214,11 +213,6 @@ v8::Local<v8::Context> CcTest::NewContext(CcTestExtensionFlags extension_flags,
   v8::Local<v8::Context> context = v8::Context::New(isolate, &config);
   CHECK(!context.IsEmpty());
   return context;
-}
-
-void CcTest::DisableAutomaticDispose() {
-  CHECK_EQ(kUninitialized, initialization_state_);
-  disable_automatic_dispose_ = true;
 }
 
 LocalContext::~LocalContext() {
@@ -408,11 +402,12 @@ int main(int argc, char* argv[]) {
       v8::internal::DeleteArray<char>(arg_copy);
     }
   }
-  if (print_run_count && tests_run != 1)
+  if (print_run_count && tests_run != 1) {
     printf("Ran %i tests.\n", tests_run);
+  }
   CcTest::TearDown();
-  if (!disable_automatic_dispose_) v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
+  v8::V8::Dispose();
+  v8::V8::DisposePlatform();
   return 0;
 }
 

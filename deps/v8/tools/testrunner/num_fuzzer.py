@@ -76,13 +76,16 @@ class NumFuzzer(base_runner.BaseTestRunner):
                       help="probability [0-10] of adding --thread-pool-size "
                            "flag to the test")
 
-    # Stress deopt
+    # Stress compiler
     parser.add_option("--stress-deopt", default=0, type="int",
                       help="probability [0-10] of adding --deopt-every-n-times "
                            "flag to the test")
     parser.add_option("--stress-deopt-min", default=1, type="int",
                       help="extends --stress-deopt to have minimum interval "
                            "between deopt points")
+    parser.add_option("--stress-interrupt-budget", default=0, type="int",
+                      help="probability [0-10] of adding the --interrupt-budget "
+                           "flag to the test")
 
     # Combine multiple tests
     parser.add_option("--combine-tests", default=False, action="store_true",

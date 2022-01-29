@@ -137,7 +137,7 @@ class MemoryProtectionTest : public TestWithNativeContext {
     std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
         isolate(), WasmFeatures::All(), &thrower, std::move(result).value(),
         ModuleWireBytes{base::ArrayVector(module_bytes)}, &export_wrappers,
-        kNoCompilationId);
+        kNoCompilationId, v8::metrics::Recorder::ContextId::Empty());
     CHECK(!thrower.error());
     CHECK_NOT_NULL(native_module);
 

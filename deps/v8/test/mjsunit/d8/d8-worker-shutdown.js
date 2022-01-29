@@ -27,7 +27,11 @@ function RunWorkerBatch(count) {
     let array = new Int32Array([55, -77]);
     workers[i].postMessage({array : array});
     // terminate half of the workers early.
-    if ((i & 1) == 1) workers[i].terminate();
+    if ((i & 1) == 1) {
+      workers[i].terminate();
+      // A second terminate should have no effect.
+      workers[i].terminate();
+    }
   }
 
   // Wait for replies.

@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "include/v8-primitive.h"
-#include "src/parsing/parse-info.h"
 
 namespace v8 {
 
@@ -20,6 +19,9 @@ class Object;
 template <typename T>
 class Handle;
 class Isolate;
+class SharedFunctionInfo;
+class String;
+class Utf16CharacterStream;
 
 namespace test {
 
@@ -45,9 +47,8 @@ Handle<String> CreateSource(
 Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
     Isolate* isolate,
     v8::String::ExternalOneByteStringResource* maybe_resource);
-std::unique_ptr<ParseInfo> OuterParseInfoForShared(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared,
-    UnoptimizedCompileState* state);
+std::unique_ptr<Utf16CharacterStream> SourceCharacterStreamForShared(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared);
 
 }  // namespace test
 }  // namespace internal

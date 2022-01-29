@@ -42,6 +42,8 @@ class FieldIndex final {
 
   int offset() const { return OffsetBits::decode(bit_field_); }
 
+  uint64_t bit_field() const { return bit_field_; }
+
   // Zero-indexed from beginning of the object.
   int index() const {
     DCHECK(IsAligned(offset(), kTaggedSize));

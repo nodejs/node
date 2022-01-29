@@ -19,27 +19,33 @@
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
+#include "src/parsing/scanner-character-streams.h"
 #include "src/zone/zone-list-inl.h"
 #include "test/unittests/test-helpers.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#ifdef DEBUG
+#define DEBUG_ASSERT_EQ ASSERT_EQ
+#else
+#define DEBUG_ASSERT_EQ(...)
+#endif
+
 namespace v8 {
 namespace internal {
 
-class LazyCompilerDispatcherTestFlags {
+class LazyCompileDispatcherTestFlags {
  public:
-  LazyCompilerDispatcherTestFlags(const LazyCompilerDispatcherTestFlags&) =
+  LazyCompileDispatcherTestFlags(const LazyCompileDispatcherTestFlags&) =
       delete;
-  LazyCompilerDispatcherTestFlags& operator=(
-      const LazyCompilerDispatcherTestFlags&) = delete;
+  LazyCompileDispatcherTestFlags& operator=(
+      const LazyCompileDispatcherTestFlags&) = delete;
   static void SetFlagsForTest() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
     FLAG_single_threaded = true;
     FlagList::EnforceFlagImplications();
     FLAG_lazy_compile_dispatcher = true;
-    FLAG_finalize_streaming_on_background = false;
   }
 
   static void RestoreFlags() {
@@ -52,69 +58,32 @@ class LazyCompilerDispatcherTestFlags {
   static SaveFlags* save_flags_;
 };
 
-SaveFlags* LazyCompilerDispatcherTestFlags::save_flags_ = nullptr;
+SaveFlags* LazyCompileDispatcherTestFlags::save_flags_ = nullptr;
 
-class LazyCompilerDispatcherTest : public TestWithNativeContext {
+class LazyCompileDispatcherTest : public TestWithNativeContext {
  public:
-  LazyCompilerDispatcherTest() = default;
-  ~LazyCompilerDispatcherTest() override = default;
-  LazyCompilerDispatcherTest(const LazyCompilerDispatcherTest&) = delete;
-  LazyCompilerDispatcherTest& operator=(const LazyCompilerDispatcherTest&) =
+  LazyCompileDispatcherTest() = default;
+  ~LazyCompileDispatcherTest() override = default;
+  LazyCompileDispatcherTest(const LazyCompileDispatcherTest&) = delete;
+  LazyCompileDispatcherTest& operator=(const LazyCompileDispatcherTest&) =
       delete;
 
   static void SetUpTestCase() {
-    LazyCompilerDispatcherTestFlags::SetFlagsForTest();
+    LazyCompileDispatcherTestFlags::SetFlagsForTest();
     TestWithNativeContext::SetUpTestCase();
   }
 
   static void TearDownTestCase() {
     TestWithNativeContext::TearDownTestCase();
-    LazyCompilerDispatcherTestFlags::RestoreFlags();
+    LazyCompileDispatcherTestFlags::RestoreFlags();
   }
 
-  static base::Optional<LazyCompileDispatcher::JobId>
-  EnqueueUnoptimizedCompileJob(LazyCompileDispatcher* dispatcher,
-                               Isolate* isolate,
-                               Handle<SharedFunctionInfo> shared) {
-    UnoptimizedCompileState state(isolate);
-    std::unique_ptr<ParseInfo> outer_parse_info =
-        test::OuterParseInfoForShared(isolate, shared, &state);
-    AstValueFactory* ast_value_factory =
-        outer_parse_info->GetOrCreateAstValueFactory();
-    AstNodeFactory ast_node_factory(ast_value_factory,
-                                    outer_parse_info->zone());
-
-    const AstRawString* function_name =
-        ast_value_factory->GetOneByteString("f");
-    DeclarationScope* script_scope =
-        outer_parse_info->zone()->New<DeclarationScope>(
-            outer_parse_info->zone(), ast_value_factory);
-    DeclarationScope* function_scope =
-        outer_parse_info->zone()->New<DeclarationScope>(
-            outer_parse_info->zone(), script_scope, FUNCTION_SCOPE);
-    function_scope->set_start_position(shared->StartPosition());
-    function_scope->set_end_position(shared->EndPosition());
-    std::vector<void*> pointer_buffer;
-    ScopedPtrList<Statement> statements(&pointer_buffer);
-    const FunctionLiteral* function_literal =
-        ast_node_factory.NewFunctionLiteral(
-            function_name, function_scope, statements, -1, -1, -1,
-            FunctionLiteral::kNoDuplicateParameters,
-            FunctionSyntaxKind::kAnonymousExpression,
-            FunctionLiteral::kShouldEagerCompile, shared->StartPosition(), true,
-            shared->function_literal_id(), nullptr);
-
-    return dispatcher->Enqueue(outer_parse_info.get(), function_name,
-                               function_literal);
-  }
-
- protected:
-  void SetUp() override {
-    // TODO(leszeks): Support background finalization in compiler dispatcher.
-    if (FLAG_finalize_streaming_on_background) {
-      GTEST_SKIP_(
-          "Parallel compile tasks don't yet support background finalization");
-    }
+  static void EnqueueUnoptimizedCompileJob(LazyCompileDispatcher* dispatcher,
+                                           Isolate* isolate,
+                                           Handle<SharedFunctionInfo> shared) {
+    if (dispatcher->IsEnqueued(shared)) return;
+    dispatcher->Enqueue(isolate->main_thread_local_isolate(), shared,
+                        test::SourceCharacterStreamForShared(isolate, shared));
   }
 };
 
@@ -291,6 +260,8 @@ class MockPlatform : public v8::Platform {
     deferred_post_job_.DoRealPostJob(platform);
   }
 
+  void BlockUntilComplete() { deferred_post_job_.BlockUntilComplete(); }
+
   void ClearJobs() { deferred_post_job_.Clear(); }
 
   void ClearIdleTask() {
@@ -348,13 +319,13 @@ class MockPlatform : public v8::Platform {
 
 }  // namespace
 
-TEST_F(LazyCompilerDispatcherTest, Construct) {
+TEST_F(LazyCompileDispatcherTest, Construct) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
   dispatcher.AbortAll();
 }
 
-TEST_F(LazyCompilerDispatcherTest, IsEnqueued) {
+TEST_F(LazyCompileDispatcherTest, IsEnqueued) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -363,26 +334,18 @@ TEST_F(LazyCompilerDispatcherTest, IsEnqueued) {
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
 
-  ASSERT_TRUE(job_id);
-  ASSERT_TRUE(dispatcher.IsEnqueued(*job_id));
-  ASSERT_FALSE(dispatcher.IsEnqueued(shared));  // SFI not yet registered.
-
-  dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
-  ASSERT_TRUE(dispatcher.IsEnqueued(*job_id));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
   dispatcher.AbortAll();
-  ASSERT_FALSE(dispatcher.IsEnqueued(*job_id));
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
 
   ASSERT_FALSE(platform.IdleTaskPending());
   ASSERT_TRUE(platform.JobTaskPending());
 }
 
-TEST_F(LazyCompilerDispatcherTest, FinishNow) {
+TEST_F(LazyCompileDispatcherTest, FinishNow) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -390,13 +353,10 @@ TEST_F(LazyCompilerDispatcherTest, FinishNow) {
       test::CreateSharedFunctionInfo(i_isolate(), nullptr);
   ASSERT_FALSE(shared->is_compiled());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
-  dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
 
   ASSERT_TRUE(dispatcher.FinishNow(shared));
   // Finishing removes the SFI from the queue.
-  ASSERT_FALSE(dispatcher.IsEnqueued(*job_id));
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(shared->is_compiled());
 
@@ -404,7 +364,7 @@ TEST_F(LazyCompilerDispatcherTest, FinishNow) {
   dispatcher.AbortAll();
 }
 
-TEST_F(LazyCompilerDispatcherTest, CompileAndFinalize) {
+TEST_F(LazyCompileDispatcherTest, CompileAndFinalize) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -413,22 +373,15 @@ TEST_F(LazyCompilerDispatcherTest, CompileAndFinalize) {
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
   ASSERT_TRUE(platform.JobTaskPending());
 
   // Run compile steps.
   platform.RunJobTasksAndBlock(V8::GetCurrentPlatform());
 
-  // Since we haven't yet registered the SFI for the job, it should still be
-  // enqueued and waiting.
-  ASSERT_TRUE(dispatcher.IsEnqueued(*job_id));
+  // Since we haven't yet finalized the job, it should be enqueued for
+  // finalization and waiting for an idle task.
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_FALSE(platform.IdleTaskPending());
-
-  // Register SFI, which should schedule another idle task to finalize the
-  // compilation.
-  dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
   ASSERT_TRUE(platform.IdleTaskPending());
   platform.RunIdleTask(1000.0, 0.0);
 
@@ -439,7 +392,7 @@ TEST_F(LazyCompilerDispatcherTest, CompileAndFinalize) {
   dispatcher.AbortAll();
 }
 
-TEST_F(LazyCompilerDispatcherTest, IdleTaskNoIdleTime) {
+TEST_F(LazyCompileDispatcherTest, IdleTaskNoIdleTime) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -448,16 +401,22 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskNoIdleTime) {
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
-  dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
+
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 0u);
 
   // Run compile steps.
   platform.RunJobTasksAndBlock(V8::GetCurrentPlatform());
 
   // Job should be ready to finalize.
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 0u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 1u);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
   ASSERT_TRUE(platform.IdleTaskPending());
 
   // Grant no idle time and have time advance beyond it in one step.
@@ -468,8 +427,11 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskNoIdleTime) {
   ASSERT_TRUE(platform.IdleTaskPending());
 
   // Job should be ready to finalize.
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 0u);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
 
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);
@@ -481,7 +443,7 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskNoIdleTime) {
   dispatcher.AbortAll();
 }
 
-TEST_F(LazyCompilerDispatcherTest, IdleTaskSmallIdleTime) {
+TEST_F(LazyCompileDispatcherTest, IdleTaskSmallIdleTime) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -492,21 +454,28 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskSmallIdleTime) {
       test::CreateSharedFunctionInfo(i_isolate(), nullptr);
   ASSERT_FALSE(shared_2->is_compiled());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id_1 =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_1);
-  base::Optional<LazyCompileDispatcher::JobId> job_id_2 =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_2);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_1);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_2);
 
-  dispatcher.RegisterSharedFunctionInfo(*job_id_1, *shared_1);
-  dispatcher.RegisterSharedFunctionInfo(*job_id_2, *shared_2);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 2u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 2u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 0u);
 
   // Run compile steps.
   platform.RunJobTasksAndBlock(V8::GetCurrentPlatform());
 
   // Both jobs should be ready to finalize.
-  ASSERT_EQ(dispatcher.jobs_.size(), 2u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
-  ASSERT_TRUE((++dispatcher.jobs_.begin())->second->has_run);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 2u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 0u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 2u);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared_1, base::MutexGuard(&dispatcher.mutex_))
+          ->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared_2, base::MutexGuard(&dispatcher.mutex_))
+          ->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
   ASSERT_TRUE(platform.IdleTaskPending());
 
   // Grant a small anount of idle time and have time advance beyond it in one
@@ -514,8 +483,20 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskSmallIdleTime) {
   platform.RunIdleTask(2.0, 1.0);
 
   // Only one of the jobs should be finalized.
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 0u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 1u);
+  if (dispatcher.IsEnqueued(shared_1)) {
+    ASSERT_EQ(
+        dispatcher.GetJobFor(shared_1, base::MutexGuard(&dispatcher.mutex_))
+            ->state,
+        LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  } else {
+    ASSERT_EQ(
+        dispatcher.GetJobFor(shared_2, base::MutexGuard(&dispatcher.mutex_))
+            ->state,
+        LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  }
   ASSERT_NE(dispatcher.IsEnqueued(shared_1), dispatcher.IsEnqueued(shared_2));
   ASSERT_NE(shared_1->is_compiled(), shared_2->is_compiled());
   ASSERT_TRUE(platform.IdleTaskPending());
@@ -523,15 +504,16 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskSmallIdleTime) {
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);
 
-  ASSERT_FALSE(dispatcher.IsEnqueued(shared_1) ||
-               dispatcher.IsEnqueued(shared_2));
-  ASSERT_TRUE(shared_1->is_compiled() && shared_2->is_compiled());
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared_1));
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared_2));
+  ASSERT_TRUE(shared_1->is_compiled());
+  ASSERT_TRUE(shared_2->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
   ASSERT_FALSE(platform.JobTaskPending());
   dispatcher.AbortAll();
 }
 
-TEST_F(LazyCompilerDispatcherTest, IdleTaskException) {
+TEST_F(LazyCompileDispatcherTest, IdleTaskException) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, 50);
 
@@ -547,9 +529,7 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskException) {
       test::CreateSharedFunctionInfo(i_isolate(), script);
   ASSERT_FALSE(shared->is_compiled());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
-  dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
 
   // Run compile steps and finalize.
   platform.RunJobTasksAndBlock(V8::GetCurrentPlatform());
@@ -561,7 +541,7 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskException) {
   dispatcher.AbortAll();
 }
 
-TEST_F(LazyCompilerDispatcherTest, FinishNowWithWorkerTask) {
+TEST_F(LazyCompileDispatcherTest, FinishNowWithWorkerTask) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -569,17 +549,16 @@ TEST_F(LazyCompilerDispatcherTest, FinishNowWithWorkerTask) {
       test::CreateSharedFunctionInfo(i_isolate(), nullptr);
   ASSERT_FALSE(shared->is_compiled());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
-  dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
-
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 0u);
+  ASSERT_NE(
+      dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
   ASSERT_TRUE(platform.JobTaskPending());
 
   // This does not block, but races with the FinishNow() call below.
@@ -588,13 +567,14 @@ TEST_F(LazyCompilerDispatcherTest, FinishNowWithWorkerTask) {
   ASSERT_TRUE(dispatcher.FinishNow(shared));
   // Finishing removes the SFI from the queue.
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 0u);
   ASSERT_TRUE(shared->is_compiled());
   if (platform.IdleTaskPending()) platform.ClearIdleTask();
   ASSERT_FALSE(platform.JobTaskPending());
   dispatcher.AbortAll();
 }
 
-TEST_F(LazyCompilerDispatcherTest, IdleTaskMultipleJobs) {
+TEST_F(LazyCompileDispatcherTest, IdleTaskMultipleJobs) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -605,13 +585,8 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskMultipleJobs) {
       test::CreateSharedFunctionInfo(i_isolate(), nullptr);
   ASSERT_FALSE(shared_2->is_compiled());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id_1 =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_1);
-  base::Optional<LazyCompileDispatcher::JobId> job_id_2 =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_2);
-
-  dispatcher.RegisterSharedFunctionInfo(*job_id_1, *shared_1);
-  dispatcher.RegisterSharedFunctionInfo(*job_id_2, *shared_2);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_1);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_2);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared_1));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared_2));
@@ -629,7 +604,7 @@ TEST_F(LazyCompilerDispatcherTest, IdleTaskMultipleJobs) {
   dispatcher.AbortAll();
 }
 
-TEST_F(LazyCompilerDispatcherTest, FinishNowException) {
+TEST_F(LazyCompileDispatcherTest, FinishNowException) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, 50);
 
@@ -645,9 +620,7 @@ TEST_F(LazyCompilerDispatcherTest, FinishNowException) {
       test::CreateSharedFunctionInfo(i_isolate(), script);
   ASSERT_FALSE(shared->is_compiled());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
-  dispatcher.RegisterSharedFunctionInfo(*job_id, *shared);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
 
   ASSERT_FALSE(dispatcher.FinishNow(shared));
 
@@ -660,7 +633,7 @@ TEST_F(LazyCompilerDispatcherTest, FinishNowException) {
   dispatcher.AbortAll();
 }
 
-TEST_F(LazyCompilerDispatcherTest, AbortJobNotStarted) {
+TEST_F(LazyCompileDispatcherTest, AbortJobNotStarted) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -668,28 +641,26 @@ TEST_F(LazyCompilerDispatcherTest, AbortJobNotStarted) {
       test::CreateSharedFunctionInfo(i_isolate(), nullptr);
   ASSERT_FALSE(shared->is_compiled());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
 
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
-
-  ASSERT_TRUE(dispatcher.IsEnqueued(*job_id));
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 0u);
+  ASSERT_NE(
+      dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
   ASSERT_TRUE(platform.JobTaskPending());
 
-  dispatcher.AbortJob(*job_id);
+  dispatcher.AbortJob(shared);
 
   // Aborting removes the job from the queue.
-  ASSERT_FALSE(dispatcher.IsEnqueued(*job_id));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
   dispatcher.AbortAll();
 }
 
-TEST_F(LazyCompilerDispatcherTest, AbortJobAlreadyStarted) {
+TEST_F(LazyCompileDispatcherTest, AbortJobAlreadyStarted) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -697,16 +668,15 @@ TEST_F(LazyCompilerDispatcherTest, AbortJobAlreadyStarted) {
       test::CreateSharedFunctionInfo(i_isolate(), nullptr);
   ASSERT_FALSE(shared->is_compiled());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
 
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
-
-  ASSERT_TRUE(dispatcher.IsEnqueued(*job_id));
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 0u);
+  ASSERT_NE(
+      dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
   ASSERT_TRUE(platform.JobTaskPending());
 
   // Have dispatcher block on the background thread when running the job.
@@ -721,25 +691,23 @@ TEST_F(LazyCompilerDispatcherTest, AbortJobAlreadyStarted) {
   }
 
   // Now abort while dispatcher is in the middle of running the job.
-  dispatcher.AbortJob(*job_id);
+  dispatcher.AbortJob(shared);
 
   // Unblock background thread, and wait for job to complete.
   {
     base::LockGuard<base::Mutex> lock(&dispatcher.mutex_);
-    dispatcher.main_thread_blocking_on_job_ =
-        dispatcher.jobs_.begin()->second.get();
     dispatcher.semaphore_for_testing_.Signal();
-    while (dispatcher.main_thread_blocking_on_job_ != nullptr) {
-      dispatcher.main_thread_blocking_signal_.Wait(&dispatcher.mutex_);
-    }
   }
+  platform.BlockUntilComplete();
 
   // Job should have finished running and then been aborted.
-  ASSERT_TRUE(dispatcher.IsEnqueued(*job_id));
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->aborted);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 0u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 1u);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
+      LazyCompileDispatcher::Job::State::kAborted);
   ASSERT_FALSE(platform.JobTaskPending());
   ASSERT_TRUE(platform.IdleTaskPending());
 
@@ -747,14 +715,13 @@ TEST_F(LazyCompilerDispatcherTest, AbortJobAlreadyStarted) {
   platform.RunIdleTask(1000.0, 0.0);
 
   // Aborting removes the SFI from the queue.
-  ASSERT_FALSE(dispatcher.IsEnqueued(*job_id));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_FALSE(platform.IdleTaskPending());
   ASSERT_FALSE(platform.JobTaskPending());
   dispatcher.AbortAll();
 }
 
-TEST_F(LazyCompilerDispatcherTest, CompileLazyFinishesDispatcherJob) {
+TEST_F(LazyCompileDispatcherTest, CompileLazyFinishesDispatcherJob) {
   // Use the real dispatcher so that CompileLazy checks the same one for
   // enqueued functions.
   LazyCompileDispatcher* dispatcher = i_isolate()->lazy_compile_dispatcher();
@@ -766,9 +733,7 @@ TEST_F(LazyCompilerDispatcherTest, CompileLazyFinishesDispatcherJob) {
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
   ASSERT_FALSE(shared->is_compiled());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id =
-      EnqueueUnoptimizedCompileJob(dispatcher, i_isolate(), shared);
-  dispatcher->RegisterSharedFunctionInfo(*job_id, *shared);
+  EnqueueUnoptimizedCompileJob(dispatcher, i_isolate(), shared);
 
   // Now force the function to run and ensure CompileLazy finished and dequeues
   // it from the dispatcher.
@@ -777,7 +742,7 @@ TEST_F(LazyCompilerDispatcherTest, CompileLazyFinishesDispatcherJob) {
   ASSERT_FALSE(dispatcher->IsEnqueued(shared));
 }
 
-TEST_F(LazyCompilerDispatcherTest, CompileLazy2FinishesDispatcherJob) {
+TEST_F(LazyCompileDispatcherTest, CompileLazy2FinishesDispatcherJob) {
   // Use the real dispatcher so that CompileLazy checks the same one for
   // enqueued functions.
   LazyCompileDispatcher* dispatcher = i_isolate()->lazy_compile_dispatcher();
@@ -796,13 +761,8 @@ TEST_F(LazyCompilerDispatcherTest, CompileLazy2FinishesDispatcherJob) {
   Handle<SharedFunctionInfo> shared_1(lazy1->shared(), i_isolate());
   ASSERT_FALSE(shared_1->is_compiled());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id_1 =
-      EnqueueUnoptimizedCompileJob(dispatcher, i_isolate(), shared_1);
-  dispatcher->RegisterSharedFunctionInfo(*job_id_1, *shared_1);
-
-  base::Optional<LazyCompileDispatcher::JobId> job_id_2 =
-      EnqueueUnoptimizedCompileJob(dispatcher, i_isolate(), shared_2);
-  dispatcher->RegisterSharedFunctionInfo(*job_id_2, *shared_2);
+  EnqueueUnoptimizedCompileJob(dispatcher, i_isolate(), shared_1);
+  EnqueueUnoptimizedCompileJob(dispatcher, i_isolate(), shared_2);
 
   ASSERT_TRUE(dispatcher->IsEnqueued(shared_1));
   ASSERT_TRUE(dispatcher->IsEnqueued(shared_2));
@@ -814,7 +774,7 @@ TEST_F(LazyCompilerDispatcherTest, CompileLazy2FinishesDispatcherJob) {
   ASSERT_FALSE(dispatcher->IsEnqueued(shared_2));
 }
 
-TEST_F(LazyCompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
+TEST_F(LazyCompileDispatcherTest, CompileMultipleOnBackgroundThread) {
   MockPlatform platform;
   LazyCompileDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -826,17 +786,21 @@ TEST_F(LazyCompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
       test::CreateSharedFunctionInfo(i_isolate(), nullptr);
   ASSERT_FALSE(shared_2->is_compiled());
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id_1 =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_1);
-  dispatcher.RegisterSharedFunctionInfo(*job_id_1, *shared_1);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_1);
 
-  base::Optional<LazyCompileDispatcher::JobId> job_id_2 =
-      EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_2);
-  dispatcher.RegisterSharedFunctionInfo(*job_id_2, *shared_2);
+  EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_2);
 
-  ASSERT_EQ(dispatcher.jobs_.size(), 2u);
-  ASSERT_FALSE(dispatcher.jobs_.begin()->second->has_run);
-  ASSERT_FALSE((++dispatcher.jobs_.begin())->second->has_run);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 2u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 2u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 0u);
+  ASSERT_NE(
+      dispatcher.GetJobFor(shared_1, base::MutexGuard(&dispatcher.mutex_))
+          ->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_NE(
+      dispatcher.GetJobFor(shared_2, base::MutexGuard(&dispatcher.mutex_))
+          ->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared_1));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared_2));
@@ -849,9 +813,17 @@ TEST_F(LazyCompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
 
   ASSERT_TRUE(platform.IdleTaskPending());
   ASSERT_FALSE(platform.JobTaskPending());
-  ASSERT_EQ(dispatcher.jobs_.size(), 2u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->has_run);
-  ASSERT_TRUE((++dispatcher.jobs_.begin())->second->has_run);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 2u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 0u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 2u);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared_1, base::MutexGuard(&dispatcher.mutex_))
+          ->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared_2, base::MutexGuard(&dispatcher.mutex_))
+          ->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
 
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);

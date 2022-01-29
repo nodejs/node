@@ -1075,6 +1075,9 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
     uint32_t backtrack_limit) {
   DCHECK(subject_string.IsFlat());
 
+  // TODO(chromium:1262676): Remove this CHECK once fixed.
+  CHECK(code_array.IsByteArray());
+
   // Note: Heap allocation *is* allowed in two situations if calling from
   // Runtime:
   // 1. When creating & throwing a stack overflow exception. The interpreter

@@ -56,7 +56,7 @@ constexpr digit_t digit_pow_rec(digit_t base, digit_t exponent) {
 template <int radix>
 char* BasecaseFixedLast(digit_t chunk, char* out) {
   while (chunk != 0) {
-    DCHECK(*(out - 1) == kStringZapValue);  // NOLINT(readability/check)
+    DCHECK(*(out - 1) == kStringZapValue);
     if (radix <= 10) {
       *(--out) = '0' + (chunk % radix);
     } else {
@@ -94,7 +94,7 @@ char* DivideByMagic(RWDigits rest, Digits input, char* output) {
   }
   // {remainder} is now the current chunk to be written out.
   for (int i = 0; i < chunk_chars; i++) {
-    DCHECK(*(output - 1) == kStringZapValue);  // NOLINT(readability/check)
+    DCHECK(*(output - 1) == kStringZapValue);
     if (radix <= 10) {
       *(--output) = '0' + (remainder % radix);
     } else {
@@ -102,7 +102,7 @@ char* DivideByMagic(RWDigits rest, Digits input, char* output) {
     }
     remainder /= radix;
   }
-  DCHECK(remainder == 0);  // NOLINT(readability/check)
+  DCHECK(remainder == 0);
   return output;
 }
 
@@ -182,7 +182,7 @@ class ToStringFormatter {
   char* BasecaseLast(digit_t digit, char* out) {
     if (radix_ == 10) return BasecaseFixedLast<10>(digit, out);
     do {
-      DCHECK(*(out - 1) == kStringZapValue);  // NOLINT(readability/check)
+      DCHECK(*(out - 1) == kStringZapValue);
       *(--out) = kConversionChars[digit % radix_];
       digit /= radix_;
     } while (digit > 0);
@@ -193,11 +193,11 @@ class ToStringFormatter {
   // same number of characters (as many '0' as necessary).
   char* BasecaseMiddle(digit_t digit, char* out) {
     for (int i = 0; i < chunk_chars_; i++) {
-      DCHECK(*(out - 1) == kStringZapValue);  // NOLINT(readability/check)
+      DCHECK(*(out - 1) == kStringZapValue);
       *(--out) = kConversionChars[digit % radix_];
       digit /= radix_;
     }
-    DCHECK(digit == 0);  // NOLINT(readability/check)
+    DCHECK(digit == 0);
     return out;
   }
 
@@ -221,7 +221,7 @@ void ToStringFormatter::Start() {
   chunk_chars_ = kDigitBits * kBitsPerCharTableMultiplier / max_bits_per_char_;
   chunk_divisor_ = digit_pow(radix_, chunk_chars_);
   // By construction of chunk_chars_, there can't have been overflow.
-  DCHECK(chunk_divisor_ != 0);  // NOLINT(readability/check)
+  DCHECK(chunk_divisor_ != 0);
 }
 
 int ToStringFormatter::Finish() {
@@ -411,7 +411,7 @@ void RecursionLevel::ComputeInverse(ProcessorImpl* processor,
 }
 
 Digits RecursionLevel::GetInverse(int dividend_length) {
-  DCHECK(inverse_.len() != 0);  // NOLINT(readability/check)
+  DCHECK(inverse_.len() != 0);
   int inverse_len = dividend_length - divisor_.len();
   DCHECK(inverse_len <= inverse_.len());
   return inverse_ + (inverse_.len() - inverse_len);
@@ -484,7 +484,7 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
       chunk = original_chunk;
       out = ProcessLevel(level->next_, chunk, out, is_last_on_level);
     } else {
-      DCHECK(comparison == 0);  // NOLINT(readability/check)
+      DCHECK(comparison == 0);
       // If the chunk is equal to the divisor, we know that the right half
       // is all '0', and the left half is '...0001'.
       // Handling this case specially is an optimization; we could also

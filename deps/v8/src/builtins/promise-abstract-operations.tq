@@ -113,7 +113,7 @@ transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
 
   // Morph {current} from a PromiseReaction into a PromiseReactionJobTask
   // and schedule that on the microtask queue. We try to minimize the number
-  // of stores here to avoid screwing up the store buffer.
+  // of stores here to avoid write barrier overhead.
   static_assert(
       kPromiseReactionSize ==
       kPromiseReactionJobTaskSizeOfAllPromiseReactionJobTasks);

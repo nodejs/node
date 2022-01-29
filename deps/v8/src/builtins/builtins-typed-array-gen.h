@@ -21,8 +21,7 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                     TNode<Map> map, TNode<Smi> length,
                     TNode<UintPtrT> byte_offset);
 
-  TNode<JSArrayBuffer> AllocateEmptyOnHeapBuffer(TNode<Context> context,
-                                                 TNode<UintPtrT> byte_length);
+  TNode<JSArrayBuffer> AllocateEmptyOnHeapBuffer(TNode<Context> context);
 
   TNode<Map> LoadMapForType(TNode<JSTypedArray> array);
   TNode<BoolT> IsMockArrayBufferAllocatorFlag();

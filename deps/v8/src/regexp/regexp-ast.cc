@@ -65,12 +65,12 @@ Interval RegExpQuantifier::CaptureRegisters() {
 
 
 bool RegExpAssertion::IsAnchoredAtStart() {
-  return assertion_type() == RegExpAssertion::START_OF_INPUT;
+  return assertion_type() == RegExpAssertion::Type::START_OF_INPUT;
 }
 
 
 bool RegExpAssertion::IsAnchoredAtEnd() {
-  return assertion_type() == RegExpAssertion::END_OF_INPUT;
+  return assertion_type() == RegExpAssertion::Type::END_OF_INPUT;
 }
 
 
@@ -198,22 +198,22 @@ void* RegExpUnparser::VisitCharacterClass(RegExpCharacterClass* that,
 
 void* RegExpUnparser::VisitAssertion(RegExpAssertion* that, void* data) {
   switch (that->assertion_type()) {
-    case RegExpAssertion::START_OF_INPUT:
+    case RegExpAssertion::Type::START_OF_INPUT:
       os_ << "@^i";
       break;
-    case RegExpAssertion::END_OF_INPUT:
+    case RegExpAssertion::Type::END_OF_INPUT:
       os_ << "@$i";
       break;
-    case RegExpAssertion::START_OF_LINE:
+    case RegExpAssertion::Type::START_OF_LINE:
       os_ << "@^l";
       break;
-    case RegExpAssertion::END_OF_LINE:
+    case RegExpAssertion::Type::END_OF_LINE:
       os_ << "@$l";
       break;
-    case RegExpAssertion::BOUNDARY:
+    case RegExpAssertion::Type::BOUNDARY:
       os_ << "@b";
       break;
-    case RegExpAssertion::NON_BOUNDARY:
+    case RegExpAssertion::Type::NON_BOUNDARY:
       os_ << "@B";
       break;
   }

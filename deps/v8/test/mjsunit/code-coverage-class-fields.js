@@ -25,7 +25,7 @@ class X {                                  // 000
 };                                         // 100
 `,
 [{"start":0,"end":149,"count":1},
- {"start":52,"end":70,"count":0}]
+ {"start":0,"end":101,"count":0}]
 );
 
 TestCoverage(
@@ -37,7 +37,7 @@ class X {                                  // 000
 let x = new X();                           // 150
 `,
 [{"start":0,"end":199,"count":1},
- {"start":52,"end":70,"count":1},
+ {"start":0,"end":101,"count":1},
  {"start":56,"end":70,"count":0}]
 );
 
@@ -51,7 +51,7 @@ let x = new X();                           // 150
 x.x();                                     // 200
 `,
 [{"start":0,"end":249,"count":1},
- {"start":52,"end":70,"count":1},
+ {"start":0,"end":101,"count":1},
  {"start":56,"end":70,"count":1}]
 );
 
@@ -68,7 +68,7 @@ x.x();                                     // 300
 x.y();                                     // 350
 `,
 [{"start":0,"end":399,"count":1},
- {"start":52,"end":169,"count":1},
+ {"start":0,"end":201,"count":1},
  {"start":56,"end":70,"count":1},
  {"start":102,"end":111,"count":0},
  {"start":156,"end":169,"count":1}]
@@ -88,7 +88,7 @@ x.y();                                     // 350
 x.foo();                                   // 400
 `,
 [{"start":0,"end":449,"count":1},
- {"start":52,"end":169,"count":1},
+ {"start":0,"end":201,"count":1},
  {"start":56,"end":70,"count":1},
  {"start":102,"end":111,"count":1},
  {"start":156,"end":169,"count":1}]
@@ -103,7 +103,7 @@ class X {                                  // 000
 let x = new X();                           // 150
 `,
 [{"start":0,"end":199,"count":1},
- {"start":52,"end":74,"count":1},
+ {"start":0,"end":101,"count":1},
  {"start":57,"end":71,"count":1}]
 );
 
@@ -118,7 +118,7 @@ let x = new X();                           // 200
 `,
 [{"start":0,"end":249,"count":1},
  {"start":0,"end":15,"count":1},
- {"start":102,"end":128,"count":1},
+ {"start":50,"end":151,"count":1},
  {"start":111,"end":125,"count":1}]
 );
 

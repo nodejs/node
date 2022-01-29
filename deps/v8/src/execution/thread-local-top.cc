@@ -31,6 +31,7 @@ void ThreadLocalTop::Clear() {
   js_entry_sp_ = kNullAddress;
   external_callback_scope_ = nullptr;
   current_vm_state_ = EXTERNAL;
+  current_embedder_state_ = nullptr;
   failed_access_check_callback_ = nullptr;
   thread_in_wasm_flag_address_ = kNullAddress;
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING

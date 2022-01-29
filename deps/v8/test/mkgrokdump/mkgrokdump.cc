@@ -12,6 +12,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/read-only-heap.h"
+#include "src/heap/safepoint.h"
 #include "src/heap/spaces.h"
 #include "src/objects/objects-inl.h"
 
@@ -128,6 +129,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
   {
     Isolate::Scope scope(isolate);
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+    i::SafepointScope safepoint_scope(heap);
     i::ReadOnlyHeap* read_only_heap =
         reinterpret_cast<i::Isolate*>(isolate)->read_only_heap();
     i::PrintF(out, "%s", kHeader);
@@ -222,7 +224,8 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
 
   // Teardown.
   isolate->Dispose();
-  v8::V8::ShutdownPlatform();
+  v8::V8::Dispose();
+  v8::V8::DisposePlatform();
   return 0;
 }
 

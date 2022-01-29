@@ -460,20 +460,23 @@ void ImplementationVisitor::GenerateInstanceTypes(
       std::string instance_type_name =
           CapifyStringWithUnderscores(type->name()) + "_TYPE";
 
-      if (type->IsExtern()) continue;
-      torque_defined_class_list << "  V(" << upper_case_name << ") \\\n";
+      if (!type->IsExtern()) {
+        torque_defined_class_list << "  V(" << upper_case_name << ") \\\n";
+      }
 
-      if (type->IsAbstract() || type->HasCustomMap()) continue;
-      torque_defined_map_csa_list << "  V(_, " << upper_case_name << "Map, "
-                                  << lower_case_name << "_map, "
-                                  << upper_case_name << ") \\\n";
-      torque_defined_map_root_list << "  V(Map, " << lower_case_name << "_map, "
-                                   << upper_case_name << "Map) \\\n";
-      std::stringstream& list = type->HasStaticSize()
-                                    ? torque_defined_fixed_instance_type_list
-                                    : torque_defined_varsize_instance_type_list;
-      list << "  V(" << instance_type_name << ", " << upper_case_name << ", "
-           << lower_case_name << ") \\\n";
+      if (type->ShouldGenerateUniqueMap()) {
+        torque_defined_map_csa_list << "  V(_, " << upper_case_name << "Map, "
+                                    << lower_case_name << "_map, "
+                                    << upper_case_name << ") \\\n";
+        torque_defined_map_root_list << "  V(Map, " << lower_case_name
+                                     << "_map, " << upper_case_name
+                                     << "Map) \\\n";
+        std::stringstream& list =
+            type->HasStaticSize() ? torque_defined_fixed_instance_type_list
+                                  : torque_defined_varsize_instance_type_list;
+        list << "  V(" << instance_type_name << ", " << upper_case_name << ", "
+             << lower_case_name << ") \\\n";
+      }
     }
 
     header << "// Fully Torque-defined classes (both internal and exported).\n";

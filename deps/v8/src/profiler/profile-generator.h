@@ -17,6 +17,7 @@
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins.h"
+#include "src/execution/vm-state.h"
 #include "src/logging/code-events.h"
 #include "src/profiler/strings-storage.h"
 #include "src/utils/allocation.h"
@@ -405,6 +406,8 @@ class CpuProfile {
     ProfileNode* node;
     base::TimeTicks timestamp;
     int line;
+    StateTag state_tag;
+    EmbedderStateTag embedder_state_tag;
   };
 
   V8_EXPORT_PRIVATE CpuProfile(
@@ -419,7 +422,8 @@ class CpuProfile {
   // Add pc -> ... -> main() call path to the profile.
   void AddPath(base::TimeTicks timestamp, const ProfileStackTrace& path,
                int src_line, bool update_stats,
-               base::TimeDelta sampling_interval);
+               base::TimeDelta sampling_interval, StateTag state,
+               EmbedderStateTag embedder_state);
   void FinishProfile();
 
   const char* title() const { return title_; }
@@ -554,11 +558,12 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   base::TimeDelta GetCommonSamplingInterval() const;
 
   // Called from profile generator thread.
-  void AddPathToCurrentProfiles(base::TimeTicks timestamp,
-                                const ProfileStackTrace& path, int src_line,
-                                bool update_stats,
-                                base::TimeDelta sampling_interval,
-                                Address native_context_address = kNullAddress);
+  void AddPathToCurrentProfiles(
+      base::TimeTicks timestamp, const ProfileStackTrace& path, int src_line,
+      bool update_stats, base::TimeDelta sampling_interval, StateTag state,
+      EmbedderStateTag embedder_state_tag,
+      Address native_context_address = kNullAddress,
+      Address native_embedder_context_address = kNullAddress);
 
   // Called from profile generator thread.
   void UpdateNativeContextAddressForCurrentProfiles(Address from, Address to);

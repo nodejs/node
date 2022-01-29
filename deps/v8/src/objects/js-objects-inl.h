@@ -341,9 +341,8 @@ Object JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
   }
 }
 
-base::Optional<Object> JSObject::RawInobjectPropertyAt(Map original_map,
-                                                       FieldIndex index) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+base::Optional<Object> JSObject::RawInobjectPropertyAt(
+    PtrComprCageBase cage_base, Map original_map, FieldIndex index) const {
   CHECK(index.is_inobject());
 
   // This method implements a "snapshot" protocol to protect against reading out
@@ -373,7 +372,7 @@ base::Optional<Object> JSObject::RawInobjectPropertyAt(Map original_map,
   // given by the map and it will be a valid Smi or object pointer.
   Object maybe_tagged_object =
       TaggedField<Object>::Acquire_Load(cage_base, *this, index.offset());
-  if (original_map != map(kAcquireLoad)) return {};
+  if (original_map != map(cage_base, kAcquireLoad)) return {};
   return maybe_tagged_object;
 }
 
@@ -398,7 +397,7 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Object value,
 void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
                             Object value) {
   DCHECK_EQ(PropertyLocation::kField, details.location());
-  DCHECK_EQ(kData, details.kind());
+  DCHECK_EQ(PropertyKind::kData, details.kind());
   DisallowGarbageCollection no_gc;
   FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
   if (details.representation().IsDouble()) {
@@ -470,7 +469,8 @@ void JSObject::InitializeBody(Map map, int start_offset,
 }
 
 DEF_GETTER(JSGlobalObject, native_context_unchecked, Object) {
-  return TaggedField<Object, kNativeContextOffset>::load(cage_base, *this);
+  return TaggedField<Object, kNativeContextOffset>::Relaxed_Load(cage_base,
+                                                                 *this);
 }
 
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {

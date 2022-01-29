@@ -1411,6 +1411,10 @@ UNINITIALIZED_TEST(DisasmX64YMMRegister) {
             vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000)));
     COMPARE("c4e27d18bc8b10270000 vbroadcastss ymm7,[rbx+rcx*4+0x2710]",
             vbroadcastss(ymm7, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c5ff12da             vmovddup ymm3,ymm2", vmovddup(ymm3, ymm2));
+    COMPARE("c5ff12a48b10270000   vmovddup ymm4,[rbx+rcx*4+0x2710]",
+            vmovddup(ymm4, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c5fe16ca             vmovshdup ymm1,ymm2", vmovshdup(ymm1, ymm2));
   }
 
   if (!CpuFeatures::IsSupported(AVX2)) return;
@@ -1428,6 +1432,11 @@ UNINITIALIZED_TEST(DisasmX64YMMRegister) {
             vpbroadcastd(ymm7, xmm8));
     COMPARE("c4627d588c8b10270000 vpbroadcastd ymm9,[rbx+rcx*4+0x2710]",
             vpbroadcastd(ymm9, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c4e27d1cca           vpabsb ymm1,ymm2", vpabsb(ymm1, ymm2));
+    COMPARE("c4e27d1c9c8b10270000 vpabsb ymm3,[rbx+rcx*4+0x2710]",
+            vpabsb(ymm3, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c4e27d1df5           vpabsw ymm6,ymm5", vpabsw(ymm6, ymm5));
+    COMPARE("c4c27d1efa           vpabsd ymm7,ymm10", vpabsd(ymm7, ymm10));
   }
 }
 

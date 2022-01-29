@@ -62,13 +62,19 @@ class StackHandlerIterator {
  public:
   StackHandlerIterator(const StackFrame* frame, StackHandler* handler)
       : limit_(frame->fp()), handler_(handler) {
-    // Make sure the handler has already been unwound to this frame.
-    DCHECK(frame->sp() <= AddressOf(handler));
 #if V8_ENABLE_WEBASSEMBLY
+    // Make sure the handler has already been unwound to this frame. With stack
+    // switching this is not equivalent to the inequality below, because the
+    // frame and the handler could be in different stacks.
+    DCHECK_IMPLIES(!FLAG_experimental_wasm_stack_switching,
+                   frame->sp() <= AddressOf(handler));
     // For CWasmEntry frames, the handler was registered by the last C++
     // frame (Execution::CallWasm), so even though its address is already
     // beyond the limit, we know we always want to unwind one handler.
     if (frame->is_c_wasm_entry()) handler_ = handler_->next();
+#else
+    // Make sure the handler has already been unwound to this frame.
+    DCHECK_LE(frame->sp(), AddressOf(handler));
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
 
@@ -103,6 +109,13 @@ StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t)
     : StackFrameIteratorBase(isolate, true) {
   Reset(t);
 }
+#if V8_ENABLE_WEBASSEMBLY
+StackFrameIterator::StackFrameIterator(Isolate* isolate,
+                                       wasm::StackMemory* stack)
+    : StackFrameIterator(isolate) {
+  Reset(isolate->thread_local_top(), stack);
+}
+#endif
 
 void StackFrameIterator::Advance() {
   DCHECK(!done());
@@ -122,8 +135,14 @@ void StackFrameIterator::Advance() {
   frame_ = SingletonFor(type, &state);
 
   // When we're done iterating over the stack frames, the handler
-  // chain must have been completely unwound.
-  DCHECK(!done() || handler_ == nullptr);
+  // chain must have been completely unwound. Except for wasm stack-switching:
+  // we stop at the end of the current segment.
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK_IMPLIES(done() && !FLAG_experimental_wasm_stack_switching,
+                 handler_ == nullptr);
+#else
+  DCHECK_IMPLIES(done(), handler_ == nullptr);
+#endif
 }
 
 StackFrame* StackFrameIterator::Reframe() {
@@ -139,6 +158,19 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
   handler_ = StackHandler::FromAddress(Isolate::handler(top));
   frame_ = SingletonFor(type, &state);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+void StackFrameIterator::Reset(ThreadLocalTop* top, wasm::StackMemory* stack) {
+  if (stack->jmpbuf()->sp == stack->base()) {
+    // Empty stack.
+    return;
+  }
+  StackFrame::State state;
+  ReturnPromiseOnSuspendFrame::GetStateForJumpBuffer(stack->jmpbuf(), &state);
+  handler_ = StackHandler::FromAddress(Isolate::handler(top));
+  frame_ = SingletonFor(StackFrame::RETURN_PROMISE_ON_SUSPEND, &state);
+}
+#endif
 
 StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type,
                                                  StackFrame::State* state) {
@@ -249,7 +281,7 @@ namespace {
 
 bool IsInterpreterFramePc(Isolate* isolate, Address pc,
                           StackFrame::State* state) {
-  Builtin builtin = InstructionStream::TryLookupCode(isolate, pc);
+  Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate, pc);
   if (builtin != Builtin::kNoBuiltinId &&
       (builtin == Builtin::kInterpreterEntryTrampoline ||
        builtin == Builtin::kInterpreterEnterAtBytecode ||
@@ -543,7 +575,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
          holder.GetHeap()->GcSafeCodeContains(holder, old_pc));
   unsigned pc_offset = holder.GetOffsetFromInstructionStart(isolate_, old_pc);
   Object code = holder;
-  v->VisitRootPointer(Root::kStackRoots, nullptr, FullObjectSlot(&code));
+  v->VisitRunningCode(FullObjectSlot(&code));
   if (code == holder) return;
   holder = Code::unchecked_cast(code);
   Address pc = holder.InstructionStart(isolate_, old_pc) + pc_offset;
@@ -562,7 +594,12 @@ void StackFrame::SetReturnAddressLocationResolver(
 
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
                                          State* state) {
-  DCHECK_NE(state->fp, kNullAddress);
+#if V8_ENABLE_WEBASSEMBLY
+  if (state->fp == kNullAddress) {
+    DCHECK(FLAG_experimental_wasm_stack_switching);
+    return NO_FRAME_TYPE;
+  }
+#endif
 
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
@@ -680,6 +717,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case WASM_EXIT:
     case WASM_DEBUG_BREAK:
     case JS_TO_WASM:
+    case RETURN_PROMISE_ON_SUSPEND:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return candidate;
     case OPTIMIZED:
@@ -791,11 +829,11 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
   StackFrame::Type frame_type = static_cast<StackFrame::Type>(marker_int >> 1);
   switch (frame_type) {
     case BUILTIN_EXIT:
-      return BUILTIN_EXIT;
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_EXIT:
-      return WASM_EXIT;
+    case RETURN_PROMISE_ON_SUSPEND:
 #endif  // V8_ENABLE_WEBASSEMBLY
+      return frame_type;
     default:
       return EXIT;
   }
@@ -938,8 +976,16 @@ int CommonFrame::ComputeExpressionsCount() const {
 }
 
 void CommonFrame::ComputeCallerState(State* state) const {
-  state->sp = caller_sp();
   state->fp = caller_fp();
+#if V8_ENABLE_WEBASSEMBLY
+  if (state->fp == kNullAddress) {
+    // An empty FP signals the first frame of a stack segment. The caller is
+    // on a different stack, or is unbound (suspended stack).
+    DCHECK(FLAG_experimental_wasm_stack_switching);
+    return;
+  }
+#endif
+  state->sp = caller_sp();
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(ComputePCAddress(fp())));
   state->callee_fp = fp();
@@ -994,8 +1040,8 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
           entry->code.GetSafepointEntry(isolate(), inner_pointer);
       DCHECK(entry->safepoint_entry.is_valid());
     } else {
-      DCHECK(entry->safepoint_entry.Equals(
-          entry->code.GetSafepointEntry(isolate(), inner_pointer)));
+      DCHECK_EQ(entry->safepoint_entry,
+                entry->code.GetSafepointEntry(isolate(), inner_pointer));
     }
 
     code = entry->code;
@@ -1036,6 +1082,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
       case CONSTRUCT:
 #if V8_ENABLE_WEBASSEMBLY
       case JS_TO_WASM:
+      case RETURN_PROMISE_ON_SUSPEND:
       case C_WASM_ENTRY:
       case WASM_DEBUG_BREAK:
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1088,10 +1135,10 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
 
   // Visit pointer spill slots and locals.
   DCHECK_GE((stack_slots + kBitsPerByte) / kBitsPerByte,
-            safepoint_entry.entry_size());
+            safepoint_entry.tagged_slots().size());
   int slot_offset = 0;
   PtrComprCageBase cage_base(isolate());
-  for (uint8_t bits : safepoint_entry.iterate_bits()) {
+  for (uint8_t bits : safepoint_entry.tagged_slots()) {
     while (bits) {
       int bit = base::bits::CountTrailingZeros(bits);
       bits &= ~(1 << bit);
@@ -1124,10 +1171,15 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
           // We don't need to update smi values or full pointers.
           *spill_slot.location() =
               DecompressTaggedPointer(cage_base, static_cast<Tagged_t>(value));
-          // Ensure that the spill slot contains correct heap object.
-          DCHECK(HeapObject::cast(Object(*spill_slot.location()))
-                     .map(cage_base)
-                     .IsMap());
+          if (DEBUG_BOOL) {
+            // Ensure that the spill slot contains correct heap object.
+            HeapObject raw = HeapObject::cast(Object(*spill_slot.location()));
+            MapWord map_word = raw.map_word(cage_base, kRelaxedLoad);
+            HeapObject forwarded = map_word.IsForwardingAddress()
+                                       ? map_word.ToForwardingAddress()
+                                       : raw;
+            CHECK(forwarded.map(cage_base).IsMap());
+          }
         }
       } else {
         Tagged_t compressed_value =
@@ -1635,9 +1687,9 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
     return JavaScriptFrame::Summarize(frames);
   }
 
-  int deopt_index = Safepoint::kNoDeoptimizationIndex;
+  int deopt_index = SafepointEntry::kNoDeoptIndex;
   DeoptimizationData const data = GetDeoptimizationData(&deopt_index);
-  if (deopt_index == Safepoint::kNoDeoptimizationIndex) {
+  if (deopt_index == SafepointEntry::kNoDeoptIndex) {
     CHECK(data.is_null());
     FATAL("Missing deoptimization information for OptimizedFrame::Summarize.");
   }
@@ -1747,7 +1799,7 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
     *deopt_index = safepoint_entry.deoptimization_index();
     return DeoptimizationData::cast(code.deoptimization_data());
   }
-  *deopt_index = Safepoint::kNoDeoptimizationIndex;
+  *deopt_index = SafepointEntry::kNoDeoptIndex;
   return DeoptimizationData();
 }
 
@@ -1764,11 +1816,11 @@ void OptimizedFrame::GetFunctions(
   }
 
   DisallowGarbageCollection no_gc;
-  int deopt_index = Safepoint::kNoDeoptimizationIndex;
+  int deopt_index = SafepointEntry::kNoDeoptIndex;
   DeoptimizationData const data = GetDeoptimizationData(&deopt_index);
   DCHECK(!data.is_null());
-  DCHECK_NE(Safepoint::kNoDeoptimizationIndex, deopt_index);
-  FixedArray const literal_array = data.LiteralArray();
+  DCHECK_NE(SafepointEntry::kNoDeoptIndex, deopt_index);
+  DeoptimizationLiteralArray const literal_array = data.LiteralArray();
 
   TranslationArrayIterator it(data.TranslationByteArray(),
                               data.TranslationIndex(deopt_index).value());
@@ -2035,12 +2087,11 @@ void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
   DCHECK(code);
   SafepointTable table(code);
   SafepointEntry safepoint_entry = table.FindEntry(caller_pc());
-  if (!safepoint_entry.has_register_bits()) return;
-  uint32_t register_bits = safepoint_entry.register_bits();
+  uint32_t tagged_register_indexes = safepoint_entry.tagged_register_indexes();
 
-  while (register_bits != 0) {
-    int reg_code = base::bits::CountTrailingZeros(register_bits);
-    register_bits &= ~(1 << reg_code);
+  while (tagged_register_indexes != 0) {
+    int reg_code = base::bits::CountTrailingZeros(tagged_register_indexes);
+    tagged_register_indexes &= ~(1 << reg_code);
     FullObjectSlot spill_slot(&Memory<Address>(
         fp() +
         WasmDebugBreakFrameConstants::GetPushedGpRegisterOffset(reg_code)));
@@ -2079,16 +2130,41 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
     IterateCompiledFrame(v);
     return;
   }
-  // The [fp - 2*kSystemPointerSize] on the stack is a value indicating how
-  // many values should be scanned from the top.
-  intptr_t scan_count =
-      *reinterpret_cast<intptr_t*>(fp() - 2 * kSystemPointerSize);
+  // The [fp + BuiltinFrameConstants::kGCScanSlotCount] on the stack is a value
+  // indicating how many values should be scanned from the top.
+  intptr_t scan_count = *reinterpret_cast<intptr_t*>(
+      fp() + BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
 
   FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
   FullObjectSlot spill_slot_limit(
       &Memory<Address>(sp() + scan_count * kSystemPointerSize));
   v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
                        spill_slot_limit);
+}
+
+void ReturnPromiseOnSuspendFrame::Iterate(RootVisitor* v) const {
+  //  See JsToWasmFrame layout.
+  //  We cannot DCHECK that the pc matches the expected builtin code here,
+  //  because the return address is on a different stack.
+  // The [fp + BuiltinFrameConstants::kGCScanSlotCountOffset] on the stack is a
+  // value indicating how many values should be scanned from the top.
+  intptr_t scan_count = *reinterpret_cast<intptr_t*>(
+      fp() + BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+
+  FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
+  FullObjectSlot spill_slot_limit(
+      &Memory<Address>(sp() + scan_count * kSystemPointerSize));
+  v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
+                       spill_slot_limit);
+}
+
+// static
+void ReturnPromiseOnSuspendFrame::GetStateForJumpBuffer(
+    wasm::JumpBuffer* jmpbuf, State* state) {
+  DCHECK_NE(jmpbuf->fp, kNullAddress);
+  DCHECK_EQ(ComputeFrameType(jmpbuf->fp), RETURN_PROMISE_ON_SUSPEND);
+  FillState(jmpbuf->fp, jmpbuf->sp, state);
+  DCHECK_NE(*state->pc_address, kNullAddress);
 }
 
 WasmInstanceObject WasmCompileLazyFrame::wasm_instance() const {
@@ -2285,8 +2361,8 @@ namespace {
 // from the embedded builtins start or from respective MemoryChunk.
 uint32_t PcAddressForHashing(Isolate* isolate, Address address) {
   uint32_t hashable_address;
-  if (InstructionStream::TryGetAddressForHashing(isolate, address,
-                                                 &hashable_address)) {
+  if (OffHeapInstructionStream::TryGetAddressForHashing(isolate, address,
+                                                        &hashable_address)) {
     return hashable_address;
   }
   return ObjectAddressForHashing(address);

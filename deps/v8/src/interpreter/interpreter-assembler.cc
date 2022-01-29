@@ -1108,16 +1108,65 @@ void InterpreterAssembler::JumpConditional(TNode<BoolT> condition,
   Dispatch();
 }
 
+void InterpreterAssembler::JumpConditionalByImmediateOperand(
+    TNode<BoolT> condition, int operand_index) {
+  Label match(this), no_match(this);
+
+  Branch(condition, &match, &no_match);
+  BIND(&match);
+  TNode<IntPtrT> jump_offset = Signed(BytecodeOperandUImmWord(operand_index));
+  Jump(jump_offset);
+  BIND(&no_match);
+  Dispatch();
+}
+
+void InterpreterAssembler::JumpConditionalByConstantOperand(
+    TNode<BoolT> condition, int operand_index) {
+  Label match(this), no_match(this);
+
+  Branch(condition, &match, &no_match);
+  BIND(&match);
+  TNode<IntPtrT> jump_offset =
+      LoadAndUntagConstantPoolEntryAtOperandIndex(operand_index);
+  Jump(jump_offset);
+  BIND(&no_match);
+  Dispatch();
+}
+
 void InterpreterAssembler::JumpIfTaggedEqual(TNode<Object> lhs,
                                              TNode<Object> rhs,
                                              TNode<IntPtrT> jump_offset) {
   JumpConditional(TaggedEqual(lhs, rhs), jump_offset);
 }
 
+void InterpreterAssembler::JumpIfTaggedEqual(TNode<Object> lhs,
+                                             TNode<Object> rhs,
+                                             int operand_index) {
+  JumpConditionalByImmediateOperand(TaggedEqual(lhs, rhs), operand_index);
+}
+
+void InterpreterAssembler::JumpIfTaggedEqualConstant(TNode<Object> lhs,
+                                                     TNode<Object> rhs,
+                                                     int operand_index) {
+  JumpConditionalByConstantOperand(TaggedEqual(lhs, rhs), operand_index);
+}
+
 void InterpreterAssembler::JumpIfTaggedNotEqual(TNode<Object> lhs,
                                                 TNode<Object> rhs,
                                                 TNode<IntPtrT> jump_offset) {
   JumpConditional(TaggedNotEqual(lhs, rhs), jump_offset);
+}
+
+void InterpreterAssembler::JumpIfTaggedNotEqual(TNode<Object> lhs,
+                                                TNode<Object> rhs,
+                                                int operand_index) {
+  JumpConditionalByImmediateOperand(TaggedNotEqual(lhs, rhs), operand_index);
+}
+
+void InterpreterAssembler::JumpIfTaggedNotEqualConstant(TNode<Object> lhs,
+                                                        TNode<Object> rhs,
+                                                        int operand_index) {
+  JumpConditionalByConstantOperand(TaggedNotEqual(lhs, rhs), operand_index);
 }
 
 TNode<WordT> InterpreterAssembler::LoadBytecode(

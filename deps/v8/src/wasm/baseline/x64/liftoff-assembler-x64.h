@@ -305,14 +305,14 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type().kind()) {
     case kI32:
-      if (value.to_i32() == 0 && RelocInfo::IsNone(rmode)) {
+      if (value.to_i32() == 0 && RelocInfo::IsNoInfo(rmode)) {
         xorl(reg.gp(), reg.gp());
       } else {
         movl(reg.gp(), Immediate(value.to_i32(), rmode));
       }
       break;
     case kI64:
-      if (RelocInfo::IsNone(rmode)) {
+      if (RelocInfo::IsNoInfo(rmode)) {
         TurboAssembler::Move(reg.gp(), value.to_i64());
       } else {
         movq(reg.gp(), Immediate64(value.to_i64(), rmode));

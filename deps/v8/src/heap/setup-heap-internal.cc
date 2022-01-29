@@ -189,7 +189,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
 
 void Heap::FinalizePartialMap(Map map) {
   ReadOnlyRoots roots(this);
-  map.set_dependent_code(DependentCode::cast(roots.empty_weak_fixed_array()));
+  map.set_dependent_code(DependentCode::empty_dependent_code(roots));
   map.set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
   map.SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
   map.set_prototype(roots.null_value());
@@ -407,6 +407,9 @@ bool Heap::CreateInitialMaps() {
       if (StringShape(entry.type).IsCons()) map.mark_unstable();
       roots_table()[entry.index] = map.ptr();
     }
+    ALLOCATE_VARSIZE_MAP(SHARED_STRING_TYPE, seq_string_migration_sentinel);
+    ALLOCATE_VARSIZE_MAP(SHARED_ONE_BYTE_STRING_TYPE,
+                         one_byte_seq_string_migration_sentinel);
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
     roots.fixed_double_array_map().set_elements_kind(HOLEY_DOUBLE_ELEMENTS);
@@ -503,12 +506,14 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
                  code_data_container)
 
+    IF_WASM(ALLOCATE_MAP, WASM_API_FUNCTION_REF_TYPE, WasmApiFunctionRef::kSize,
+            wasm_api_function_ref)
     IF_WASM(ALLOCATE_MAP, WASM_CAPI_FUNCTION_DATA_TYPE,
             WasmCapiFunctionData::kSize, wasm_capi_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_EXPORTED_FUNCTION_DATA_TYPE,
             WasmExportedFunctionData::kSize, wasm_exported_function_data)
-    IF_WASM(ALLOCATE_MAP, WASM_API_FUNCTION_REF_TYPE, WasmApiFunctionRef::kSize,
-            wasm_api_function_ref)
+    IF_WASM(ALLOCATE_MAP, WASM_INTERNAL_FUNCTION_TYPE,
+            WasmInternalFunction::kSize, wasm_internal_function)
     IF_WASM(ALLOCATE_MAP, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData::kSize,
             wasm_js_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize,
@@ -804,6 +809,9 @@ void Heap::CreateInitialObjects() {
   set_feedback_vectors_for_profiling_tools(roots.undefined_value());
   set_pending_optimize_for_test_bytecode(roots.undefined_value());
   set_shared_wasm_memories(roots.empty_weak_array_list());
+#ifdef V8_ENABLE_WEBASSEMBLY
+  set_active_continuation(roots.undefined_value());
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   set_script_list(roots.empty_weak_array_list());
 

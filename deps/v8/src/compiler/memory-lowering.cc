@@ -280,7 +280,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
 
       // Setup a mutable reservation size node; will be patched as we fold
       // additional allocations into this new group.
-      Node* size = __ UniqueIntPtrConstant(object_size);
+      Node* reservation_size = __ UniqueIntPtrConstant(object_size);
 
       // Load allocation top and limit.
       Node* top =
@@ -290,7 +290,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
 
       // Check if we need to collect garbage before we can start bump pointer
       // allocation (always done for folded allocations).
-      Node* check = __ UintLessThan(__ IntAdd(top, size), limit);
+      Node* check = __ UintLessThan(__ IntAdd(top, reservation_size), limit);
 
       __ GotoIfNot(check, &call_runtime);
       __ Goto(&done, top);
@@ -298,8 +298,8 @@ Reduction MemoryLowering::ReduceAllocateRaw(
       __ Bind(&call_runtime);
       {
         EnsureAllocateOperator();
-        Node* vfalse = __ BitcastTaggedToWord(
-            __ Call(allocate_operator_.get(), allocate_builtin, size));
+        Node* vfalse = __ BitcastTaggedToWord(__ Call(
+            allocate_operator_.get(), allocate_builtin, reservation_size));
         vfalse = __ IntSub(vfalse, __ IntPtrConstant(kHeapObjectTag));
         __ Goto(&done, vfalse);
       }
@@ -319,8 +319,8 @@ Reduction MemoryLowering::ReduceAllocateRaw(
       control = gasm()->control();
 
       // Start a new allocation group.
-      AllocationGroup* group =
-          zone()->New<AllocationGroup>(value, allocation_type, size, zone());
+      AllocationGroup* group = zone()->New<AllocationGroup>(
+          value, allocation_type, reservation_size, zone());
       *state_ptr =
           AllocationState::Open(group, object_size, top, effect, zone());
     }

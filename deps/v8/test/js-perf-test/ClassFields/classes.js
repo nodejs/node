@@ -58,6 +58,33 @@ function EvaluateMultiPrivateFieldClass() {
   };
 }
 
+function EvaluateSinglePrivateMethodClass() {
+  return class PrivateSingleMethodClass {
+    #x() { return 0; }
+
+    check() {
+      return this.#x() === 0;
+    }
+  };
+}
+
+function EvaluateMultiPrivateMethodClass() {
+  return class PrivateMultiMethodClass {
+    #x() { return 0; }
+    #y() { return 1; }
+    #z() { return 2; }
+    #q() { return 3; }
+    #r() { return 4; }
+    #a() { return 5; }
+
+    check() {
+      return this.#x() + 1 === this.#y() && this.#y() + 1 === this.#z() &&
+            this.#z() + 1 === this.#q() && this.#q() + 1 === this.#r() &&
+            this.#r() + 1 === this.#a();
+    }
+  };
+}
+
 function key(i) {
   return 'abcdefghijklmnopqrstuvwxyz'[i];
 }

@@ -16,6 +16,7 @@ namespace internal {
 
 class MessageLocation;
 class WasmInstanceObject;
+class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/stack-frame-info-tq.inc"
 
@@ -49,8 +50,8 @@ class StackFrameInfo
   // Used to signal that the requested field is unknown.
   static constexpr int kUnknown = kNoSourcePosition;
 
-  static int GetLineNumber(Handle<StackFrameInfo> info);
-  static int GetColumnNumber(Handle<StackFrameInfo> info);
+  V8_EXPORT_PRIVATE static int GetLineNumber(Handle<StackFrameInfo> info);
+  V8_EXPORT_PRIVATE static int GetColumnNumber(Handle<StackFrameInfo> info);
 
   static int GetEnclosingLineNumber(Handle<StackFrameInfo> info);
   static int GetEnclosingColumnNumber(Handle<StackFrameInfo> info);
@@ -64,7 +65,8 @@ class StackFrameInfo
   Object GetScriptSourceMappingURL() const;
 
   static Handle<PrimitiveHeapObject> GetEvalOrigin(Handle<StackFrameInfo> info);
-  static Handle<Object> GetFunctionName(Handle<StackFrameInfo> info);
+  V8_EXPORT_PRIVATE static Handle<Object> GetFunctionName(
+      Handle<StackFrameInfo> info);
   static Handle<Object> GetMethodName(Handle<StackFrameInfo> info);
   static Handle<Object> GetTypeName(Handle<StackFrameInfo> info);
 
@@ -85,6 +87,8 @@ class StackFrameInfo
   // triggering source position table building for JavaScript frames.
   static bool ComputeLocation(Handle<StackFrameInfo> info,
                               MessageLocation* location);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
  private:
   // Bit position in the flag, from least significant bit position.

@@ -224,7 +224,7 @@ TEST(AssemblerIa325) {
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
 
-  __ mov(eax, Operand(reinterpret_cast<intptr_t>(&baz), RelocInfo::NONE));
+  __ mov(eax, Operand(reinterpret_cast<intptr_t>(&baz), RelocInfo::NO_INFO));
   __ ret(0);
 
   CodeDesc desc;

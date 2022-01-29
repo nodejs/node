@@ -2065,7 +2065,11 @@ void WasmGenerator::Generate(ValueType type, DataRange* data) {
 
 void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
                                 Nullability nullability) {
-  GeneratorRecursionScope rec_scope(this);
+  base::Optional<GeneratorRecursionScope> rec_scope;
+  if (nullability) {
+    rec_scope.emplace(this);
+  }
+
   if (recursion_limit_reached() || data->size() == 0) {
     if (nullability == kNullable) {
       ref_null(type, data);
@@ -2267,14 +2271,59 @@ void WasmGenerator::Generate(base::Vector<const ValueType> types,
 }
 
 // Emit code to match an arbitrary signature.
-// TODO(manoskouk): Do something which uses inputs instead of dropping them.
-// Possibly generate function a function with the correct sig on the fly? Or
-// generalize the {Convert} function.
+// TODO(11954): Add the missing reference type conversion/upcasting.
 void WasmGenerator::ConsumeAndGenerate(
     base::Vector<const ValueType> param_types,
     base::Vector<const ValueType> return_types, DataRange* data) {
-  for (unsigned i = 0; i < param_types.size(); i++) builder_->Emit(kExprDrop);
-  Generate(return_types, data);
+  // This numeric conversion logic consists of picking exactly one
+  // index in the return values and dropping all the values that come
+  // before that index. Then we convert the value from that index to the
+  // wanted type. If we don't find any value we generate it.
+  auto primitive = [](ValueType t) -> bool {
+    switch (t.kind()) {
+      case kI32:
+      case kI64:
+      case kF32:
+      case kF64:
+        return true;
+      default:
+        return false;
+    }
+  };
+
+  if (return_types.size() == 0 || param_types.size() == 0 ||
+      !primitive(return_types[0])) {
+    for (unsigned i = 0; i < param_types.size(); i++) {
+      builder_->Emit(kExprDrop);
+    }
+    Generate(return_types, data);
+    return;
+  }
+
+  int bottom_primitives = 0;
+
+  while (static_cast<int>(param_types.size()) > bottom_primitives &&
+         primitive(param_types[bottom_primitives])) {
+    bottom_primitives++;
+  }
+  int return_index =
+      bottom_primitives > 0 ? (data->get<uint8_t>() % bottom_primitives) : -1;
+  for (int i = static_cast<int>(param_types.size() - 1); i > return_index;
+       --i) {
+    builder_->Emit(kExprDrop);
+  }
+  for (int i = return_index; i > 0; --i) {
+    Convert(param_types[i], param_types[i - 1]);
+    builder_->EmitI32Const(0);
+    builder_->Emit(kExprSelect);
+  }
+  DCHECK(!return_types.empty());
+  if (return_index >= 0) {
+    Convert(param_types[0], return_types[0]);
+    Generate(return_types + 1, data);
+  } else {
+    Generate(return_types, data);
+  }
 }
 
 enum SigKind { kFunctionSig, kExceptionSig };
@@ -2297,7 +2346,8 @@ FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind,
   return builder.Build();
 }
 
-WasmInitExpr GenerateInitExpr(WasmModuleBuilder* builder, ValueType type,
+WasmInitExpr GenerateInitExpr(Zone* zone, WasmModuleBuilder* builder,
+                              ValueType type,
                               uint32_t num_struct_and_array_types) {
   switch (type.kind()) {
     case kOptRef:
@@ -2329,26 +2379,29 @@ WasmInitExpr GenerateInitExpr(WasmModuleBuilder* builder, ValueType type,
         // We materialize all these types with a struct because they are all its
         // supertypes.
         DCHECK(builder->IsStructType(index));
-        std::vector<WasmInitExpr> elements;
+        ZoneVector<WasmInitExpr>* elements =
+            zone->New<ZoneVector<WasmInitExpr>>(zone);
         int field_count = builder->GetStructType(index)->field_count();
         for (int field_index = 0; field_index < field_count; field_index++) {
-          elements.push_back(GenerateInitExpr(
-              builder, builder->GetStructType(index)->field(field_index),
+          elements->push_back(GenerateInitExpr(
+              zone, builder, builder->GetStructType(index)->field(field_index),
               num_struct_and_array_types));
         }
-        return WasmInitExpr::StructNew(index, std::move(elements));
+        elements->push_back(WasmInitExpr::RttCanon(index));
+        return WasmInitExpr::StructNewWithRtt(index, elements);
       }
       DCHECK(type.has_index());
       if (representation == HeapType::kFunc) {
         return WasmInitExpr::RefFuncConst(index);
       }
       if (builder->IsArrayType(index)) {
-        std::vector<WasmInitExpr> elements;
-        elements.push_back(GenerateInitExpr(
-            builder, builder->GetArrayType(index)->element_type(),
+        ZoneVector<WasmInitExpr>* elements =
+            zone->New<ZoneVector<WasmInitExpr>>(zone);
+        elements->push_back(GenerateInitExpr(
+            zone, builder, builder->GetArrayType(index)->element_type(),
             num_struct_and_array_types));
-        elements.push_back(WasmInitExpr::RttCanon(index));
-        return WasmInitExpr::ArrayInit(index, std::move(elements));
+        elements->push_back(WasmInitExpr::RttCanon(index));
+        return WasmInitExpr::ArrayInit(index, elements);
       }
       if (builder->IsSignature(index)) {
         // Transform from signature index to function specific index.
@@ -2460,7 +2513,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
       builder.AddGlobal(
           type, mutability,
-          GenerateInitExpr(&builder, type,
+          GenerateInitExpr(zone, &builder, type,
                            static_cast<uint32_t>(num_structs + num_arrays)));
       globals.push_back(type);
       if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));

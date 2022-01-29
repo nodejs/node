@@ -695,7 +695,7 @@ class WasmGraphBuildingInterface {
 
     TFNode* success_control;
     TFNode* failure_control;
-    builder_->CompareToExternalFunctionAtIndex(
+    builder_->CompareToInternalFunctionAtIndex(
         func_ref.node, expected_function_index, &success_control,
         &failure_control);
     TFNode* initial_effect = effect();
@@ -766,7 +766,7 @@ class WasmGraphBuildingInterface {
 
     TFNode* success_control;
     TFNode* failure_control;
-    builder_->CompareToExternalFunctionAtIndex(
+    builder_->CompareToInternalFunctionAtIndex(
         func_ref.node, expected_function_index, &success_control,
         &failure_control);
     TFNode* initial_effect = effect();
@@ -784,7 +784,8 @@ class WasmGraphBuildingInterface {
                  args);
   }
 
-  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
+  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
+                bool pass_null_along_branch, Value* result_on_fallthrough) {
     SsaEnv* false_env = ssa_env_;
     SsaEnv* true_env = Split(decoder->zone(), false_env);
     false_env->SetNotMerged();
@@ -792,8 +793,9 @@ class WasmGraphBuildingInterface {
                        &false_env->control);
     builder_->SetControl(false_env->control);
     SetEnv(true_env);
-    BrOrRet(decoder, depth, 1);
+    BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
     SetEnv(false_env);
+    result_on_fallthrough->node = ref_object.node;
   }
 
   void BrOnNonNull(FullDecoder* decoder, const Value& ref_object,
@@ -1634,6 +1636,18 @@ class WasmGraphBuildingInterface {
               const Value args[], Value returns[]) {
     size_t param_count = sig->parameter_count();
     size_t return_count = sig->return_count();
+
+    // Construct a function signature based on the real function parameters.
+    FunctionSig::Builder real_sig_builder(builder_->graph_zone(), return_count,
+                                          param_count);
+    for (size_t i = 0; i < param_count; i++) {
+      real_sig_builder.AddParam(args[i].type);
+    }
+    for (size_t i = 0; i < return_count; i++) {
+      real_sig_builder.AddReturn(sig->GetReturn(i));
+    }
+    FunctionSig* real_sig = real_sig_builder.Build();
+
     NodeVector arg_nodes(param_count + 1);
     base::SmallVector<TFNode*, 1> return_nodes(return_count);
     arg_nodes[0] = (call_info.call_mode() == CallInfo::kCallDirect)
@@ -1648,19 +1662,20 @@ class WasmGraphBuildingInterface {
         CheckForException(
             decoder, builder_->CallIndirect(
                          call_info.table_index(), call_info.sig_index(),
-                         base::VectorOf(arg_nodes),
+                         real_sig, base::VectorOf(arg_nodes),
                          base::VectorOf(return_nodes), decoder->position()));
         break;
       case CallInfo::kCallDirect:
         CheckForException(
-            decoder, builder_->CallDirect(
-                         call_info.callee_index(), base::VectorOf(arg_nodes),
-                         base::VectorOf(return_nodes), decoder->position()));
+            decoder, builder_->CallDirect(call_info.callee_index(), real_sig,
+                                          base::VectorOf(arg_nodes),
+                                          base::VectorOf(return_nodes),
+                                          decoder->position()));
         break;
       case CallInfo::kCallRef:
         CheckForException(
             decoder,
-            builder_->CallRef(sig, base::VectorOf(arg_nodes),
+            builder_->CallRef(real_sig, base::VectorOf(arg_nodes),
                               base::VectorOf(return_nodes),
                               call_info.null_check(), decoder->position()));
         break;
@@ -1676,6 +1691,17 @@ class WasmGraphBuildingInterface {
   void DoReturnCall(FullDecoder* decoder, CallInfo call_info,
                     const FunctionSig* sig, const Value args[]) {
     size_t arg_count = sig->parameter_count();
+
+    // Construct a function signature based on the real function parameters.
+    FunctionSig::Builder real_sig_builder(builder_->graph_zone(),
+                                          sig->return_count(), arg_count);
+    for (size_t i = 0; i < arg_count; i++) {
+      real_sig_builder.AddParam(args[i].type);
+    }
+    for (size_t i = 0; i < sig->return_count(); i++) {
+      real_sig_builder.AddReturn(sig->GetReturn(i));
+    }
+    FunctionSig* real_sig = real_sig_builder.Build();
 
     ValueVector arg_values(arg_count + 1);
     if (call_info.call_mode() == CallInfo::kCallDirect) {
@@ -1699,22 +1725,23 @@ class WasmGraphBuildingInterface {
 
     switch (call_info.call_mode()) {
       case CallInfo::kCallIndirect:
-        CheckForException(decoder,
-                          builder_->ReturnCallIndirect(
-                              call_info.table_index(), call_info.sig_index(),
-                              base::VectorOf(arg_nodes), decoder->position()));
+        CheckForException(
+            decoder,
+            builder_->ReturnCallIndirect(
+                call_info.table_index(), call_info.sig_index(), real_sig,
+                base::VectorOf(arg_nodes), decoder->position()));
         break;
       case CallInfo::kCallDirect:
-        CheckForException(decoder,
-                          builder_->ReturnCall(call_info.callee_index(),
-                                               base::VectorOf(arg_nodes),
-                                               decoder->position()));
+        CheckForException(
+            decoder, builder_->ReturnCall(call_info.callee_index(), real_sig,
+                                          base::VectorOf(arg_nodes),
+                                          decoder->position()));
         break;
       case CallInfo::kCallRef:
-        CheckForException(
-            decoder, builder_->ReturnCallRef(sig, base::VectorOf(arg_nodes),
-                                             call_info.null_check(),
-                                             decoder->position()));
+        CheckForException(decoder,
+                          builder_->ReturnCallRef(
+                              real_sig, base::VectorOf(arg_nodes),
+                              call_info.null_check(), decoder->position()));
         break;
     }
   }

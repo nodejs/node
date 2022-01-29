@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+class StructBodyDescriptor;
+
 #include "torque-generated/src/objects/arguments-tq.inc"
 
 // Superclass for all objects with instance type {JS_ARGUMENTS_OBJECT_TYPE}
@@ -66,6 +68,8 @@ class AliasedArgumentsEntry
     : public TorqueGeneratedAliasedArgumentsEntry<AliasedArgumentsEntry,
                                                   Struct> {
  public:
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(AliasedArgumentsEntry)
 };
 

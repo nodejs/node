@@ -4047,7 +4047,7 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     int32_t imm32;
     imm32 = branch_long_offset(L);
-    GenPCRelativeJump(t8, t9, imm32, RelocInfo::NONE, bdslot);
+    GenPCRelativeJump(t8, t9, imm32, RelocInfo::NO_INFO, bdslot);
   }
 }
 
@@ -4057,7 +4057,7 @@ void TurboAssembler::BranchLong(int32_t offset, BranchDelaySlot bdslot) {
   } else {
     // Generate position independent long branch.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    GenPCRelativeJump(t8, t9, offset, RelocInfo::NONE, bdslot);
+    GenPCRelativeJump(t8, t9, offset, RelocInfo::NO_INFO, bdslot);
   }
 }
 
@@ -4070,7 +4070,7 @@ void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     int32_t imm32;
     imm32 = branch_long_offset(L);
-    GenPCRelativeJumpAndLink(t8, imm32, RelocInfo::NONE, bdslot);
+    GenPCRelativeJumpAndLink(t8, imm32, RelocInfo::NO_INFO, bdslot);
   }
 }
 
@@ -4704,7 +4704,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(code, RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg), bd);
 }
 
-void MacroAssembler::JumpToInstructionStream(Address entry) {
+void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
   li(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   Jump(kOffHeapTrampolineRegister);
 }
@@ -5080,6 +5080,23 @@ void MacroAssembler::AssertFunction(Register object) {
     GetInstanceTypeRange(object, object, FIRST_JS_FUNCTION_TYPE, t8);
     Check(ls, AbortReason::kOperandIsNotAFunction, t8,
           Operand(LAST_JS_FUNCTION_TYPE - FIRST_JS_FUNCTION_TYPE));
+    pop(object);
+  }
+}
+
+void MacroAssembler::AssertCallableFunction(Register object) {
+  if (FLAG_debug_code) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    STATIC_ASSERT(kSmiTag == 0);
+    SmiTst(object, t8);
+    Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, t8,
+          Operand(zero_reg));
+    push(object);
+    LoadMap(object, object);
+    GetInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE, t8);
+    Check(ls, AbortReason::kOperandIsNotACallableFunction, t8,
+          Operand(LAST_CALLABLE_JS_FUNCTION_TYPE -
+                  FIRST_CALLABLE_JS_FUNCTION_TYPE));
     pop(object);
   }
 }

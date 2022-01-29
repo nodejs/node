@@ -63,7 +63,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::ProcessWeakHeapObject(
     // If we do not know about liveness of the value, we have to process
     // the reference when we know the liveness of the whole transitive
     // closure.
-    weak_objects_->weak_references.Push(task_id_, std::make_pair(host, slot));
+    local_weak_objects_->weak_references_local.Push(std::make_pair(host, slot));
   }
 }
 
@@ -114,8 +114,8 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
       rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
   if (!concrete_visitor()->marking_state()->IsBlackOrGrey(object)) {
     if (host.IsWeakObject(object)) {
-      weak_objects_->weak_objects_in_code.Push(task_id_,
-                                               std::make_pair(object, host));
+      local_weak_objects_->weak_objects_in_code_local.Push(
+          std::make_pair(object, host));
     } else {
       MarkObject(host, object);
     }
@@ -155,7 +155,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSFunction(
   int size = concrete_visitor()->VisitJSObjectSubclass(map, js_function);
   if (js_function.ShouldFlushBaselineCode(code_flush_mode_)) {
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
-    weak_objects_->baseline_flushing_candidates.Push(task_id_, js_function);
+    local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
   } else {
     VisitPointer(js_function, js_function.RawField(JSFunction::kCodeOffset));
     // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
@@ -163,7 +163,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSFunction(
     // baseline code and remove this check here.
     if (IsByteCodeFlushingEnabled(code_flush_mode_) &&
         js_function.NeedsResetDueToFlushedBytecode()) {
-      weak_objects_->flushed_js_functions.Push(task_id_, js_function);
+      local_weak_objects_->flushed_js_functions_local.Push(js_function);
     }
   }
   return size;
@@ -194,11 +194,11 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     VisitPointer(baseline_code,
                  baseline_code.RawField(
                      Code::kDeoptimizationDataOrInterpreterDataOffset));
-    weak_objects_->code_flushing_candidates.Push(task_id_, shared_info);
+    local_weak_objects_->code_flushing_candidates_local.Push(shared_info);
   } else {
     // In other cases, record as a flushing candidate since we have old
     // bytecode.
-    weak_objects_->code_flushing_candidates.Push(task_id_, shared_info);
+    local_weak_objects_->code_flushing_candidates_local.Push(shared_info);
   }
   return size;
 }
@@ -306,7 +306,7 @@ template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
     Map map, EphemeronHashTable table) {
   if (!concrete_visitor()->ShouldVisit(table)) return 0;
-  weak_objects_->ephemeron_hash_tables.Push(task_id_, table);
+  local_weak_objects_->ephemeron_hash_tables_local.Push(table);
 
   for (InternalIndex i : table.IterateEntries()) {
     ObjectSlot key_slot =
@@ -332,8 +332,8 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
         // Revisit ephemerons with both key and value unreachable at end
         // of concurrent marking cycle.
         if (concrete_visitor()->marking_state()->IsWhite(value)) {
-          weak_objects_->discovered_ephemerons.Push(task_id_,
-                                                    Ephemeron{key, value});
+          local_weak_objects_->discovered_ephemerons_local.Push(
+              Ephemeron{key, value});
         }
       }
     }
@@ -357,7 +357,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSWeakRef(
     } else {
       // JSWeakRef points to a potentially dead object. We have to process
       // them when we know the liveness of the whole transitive closure.
-      weak_objects_->js_weak_refs.Push(task_id_, weak_ref);
+      local_weak_objects_->js_weak_refs_local.Push(weak_ref);
     }
   }
   return size;
@@ -387,7 +387,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
     // WeakCell points to a potentially dead object or a dead unregister
     // token. We have to process them when we know the liveness of the whole
     // transitive closure.
-    weak_objects_->weak_cells.Push(task_id_, weak_cell);
+    local_weak_objects_->weak_cells_local.Push(weak_cell);
   }
   return size;
 }
@@ -505,7 +505,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitTransitionArray(
   this->VisitMapPointer(array);
   int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
   TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);
-  weak_objects_->transition_arrays.Push(task_id_, array);
+  local_weak_objects_->transition_arrays_local.Push(array);
   return size;
 }
 

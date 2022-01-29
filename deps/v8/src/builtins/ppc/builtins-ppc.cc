@@ -79,11 +79,16 @@ void Generate_PushArguments(MacroAssembler* masm, Register array, Register argc,
                             ArgumentsElementType element_type) {
   DCHECK(!AreAliased(array, argc, scratch));
   Label loop, done;
-  __ cmpi(argc, Operand::Zero());
+  if (kJSArgcIncludesReceiver) {
+    __ subi(scratch, argc, Operand(kJSArgcReceiverSlots));
+  } else {
+    __ mr(scratch, argc);
+  }
+  __ cmpi(scratch, Operand::Zero());
   __ beq(&done);
-  __ ShiftLeftU64(scratch, argc, Operand(kSystemPointerSizeLog2));
+  __ mtctr(scratch);
+  __ ShiftLeftU64(scratch, scratch, Operand(kSystemPointerSizeLog2));
   __ add(scratch, array, scratch);
-  __ mtctr(argc);
 
   __ bind(&loop);
   __ LoadU64WithUpdate(ip, MemOperand(scratch, -kSystemPointerSize));
@@ -155,7 +160,9 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
   // Remove caller arguments from the stack and return.
   __ DropArguments(scratch, TurboAssembler::kCountIsSmi,
-                   TurboAssembler::kCountExcludesReceiver);
+                   kJSArgcIncludesReceiver
+                       ? TurboAssembler::kCountIncludesReceiver
+                       : TurboAssembler::kCountExcludesReceiver);
   __ blr();
 
   __ bind(&stack_overflow);
@@ -202,8 +209,10 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
       r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset), r0);
   __ lwz(r7, FieldMemOperand(r7, SharedFunctionInfo::kFlagsOffset));
   __ DecodeField<SharedFunctionInfo::FunctionKindBits>(r7);
-  __ JumpIfIsInRange(r7, kDefaultDerivedConstructor, kDerivedConstructor,
-                     &not_create_implicit_receiver);
+  __ JumpIfIsInRange(
+      r7, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+      static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
+      &not_create_implicit_receiver);
 
   // If not derived class constructor: Allocate the new receiver object.
   __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1, r7,
@@ -315,7 +324,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   // Remove caller arguments from the stack and return.
   __ DropArguments(r4, TurboAssembler::kCountIsSmi,
-                   TurboAssembler::kCountExcludesReceiver);
+                   kJSArgcIncludesReceiver
+                       ? TurboAssembler::kCountIncludesReceiver
+                       : TurboAssembler::kCountExcludesReceiver);
   __ blr();
 
   __ bind(&check_receiver);
@@ -423,6 +434,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
       r6, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset), r0);
   __ LoadU16(
       r6, FieldMemOperand(r6, SharedFunctionInfo::kFormalParameterCountOffset));
+  if (kJSArgcIncludesReceiver) {
+    __ subi(r6, r6, Operand(kJSArgcReceiverSlots));
+  }
   __ LoadTaggedPointerField(
       r5, FieldMemOperand(r4, JSGeneratorObject::kParametersAndRegistersOffset),
       r0);
@@ -732,7 +746,11 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Check if we have enough stack space to push all arguments.
     Label enough_stack_space, stack_overflow;
-    __ addi(r3, r7, Operand(1));
+    if (kJSArgcIncludesReceiver) {
+      __ mr(r3, r7);
+    } else {
+      __ addi(r3, r7, Operand(1));
+    }
     __ StackOverflowCheck(r3, r9, &stack_overflow);
     __ b(&enough_stack_space);
     __ bind(&stack_overflow);
@@ -834,7 +852,10 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
              MemOperand(fp, StandardFrameConstants::kArgCOffset));
   __ ShiftLeftU64(actual_params_size, actual_params_size,
                   Operand(kSystemPointerSizeLog2));
-  __ addi(actual_params_size, actual_params_size, Operand(kSystemPointerSize));
+  if (!kJSArgcIncludesReceiver) {
+    __ addi(actual_params_size, actual_params_size,
+            Operand(kSystemPointerSize));
+  }
 
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
@@ -856,7 +877,7 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
                                           OptimizationMarker expected_marker,
                                           Runtime::FunctionId function_id) {
   Label no_match;
-  __ cmpi(actual_marker, Operand(expected_marker));
+  __ cmpi(actual_marker, Operand(static_cast<int>(expected_marker)));
   __ bne(&no_match);
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
@@ -1051,7 +1072,7 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
 // stack left to right.
 //
 // The live registers are:
-//   o r3: actual argument count (not including the receiver)
+//   o r3: actual argument count
 //   o r4: the JS function object being called.
 //   o r6: the incoming new target or generator object
 //   o cp: our context
@@ -1302,7 +1323,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     InterpreterPushArgsMode mode) {
   DCHECK(mode != InterpreterPushArgsMode::kArrayFunction);
   // ----------- S t a t e -------------
-  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r3 : the number of arguments
   //  -- r5 : the address of the first argument to be pushed. Subsequent
   //          arguments should be consecutive above this, in the same order as
   //          they are to be pushed onto the stack.
@@ -1315,14 +1336,17 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     __ subi(r3, r3, Operand(1));
   }
 
-  // Calculate number of arguments (add one for receiver).
-  __ addi(r6, r3, Operand(1));
-  __ StackOverflowCheck(r6, ip, &stack_overflow);
-
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    // Don't copy receiver. Argument count is correct.
+  const bool skip_receiver =
+      receiver_mode == ConvertReceiverMode::kNullOrUndefined;
+  if (kJSArgcIncludesReceiver && skip_receiver) {
+    __ subi(r6, r3, Operand(kJSArgcReceiverSlots));
+  } else if (!kJSArgcIncludesReceiver && !skip_receiver) {
+    __ addi(r6, r3, Operand(1));
+  } else {
     __ mr(r6, r3);
   }
+
+  __ StackOverflowCheck(r6, ip, &stack_overflow);
 
   // Push the arguments.
   GenerateInterpreterPushArgs(masm, r6, r5, r7);
@@ -1359,23 +1383,28 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     MacroAssembler* masm, InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
-  // -- r3 : argument count (not including receiver)
+  // -- r3 : argument count
   // -- r6 : new target
   // -- r4 : constructor to call
   // -- r5 : allocation site feedback if available, undefined otherwise.
   // -- r7 : address of the first argument
   // -----------------------------------
   Label stack_overflow;
-  __ addi(r8, r3, Operand(1));
-  __ StackOverflowCheck(r8, ip, &stack_overflow);
+  __ StackOverflowCheck(r3, ip, &stack_overflow);
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // The spread argument should not be pushed.
     __ subi(r3, r3, Operand(1));
   }
 
+  Register argc_without_receiver = r3;
+  if (kJSArgcIncludesReceiver) {
+    argc_without_receiver = ip;
+    __ subi(argc_without_receiver, r3, Operand(kJSArgcReceiverSlots));
+  }
+
   // Push the arguments.
-  GenerateInterpreterPushArgs(masm, r3, r7, r8);
+  GenerateInterpreterPushArgs(masm, argc_without_receiver, r7, r8);
 
   // Push a slot for the receiver to be constructed.
   __ li(r0, Operand::Zero());
@@ -1582,13 +1611,14 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point. r0 contains the arguments count, the return value
     // from LAZY is always the last argument.
-    __ addi(r3, r3,
-            Operand(BuiltinContinuationFrameConstants::kFixedSlotCount));
+    constexpr int return_value_offset =
+        BuiltinContinuationFrameConstants::kFixedSlotCount -
+        kJSArgcReceiverSlots;
+    __ addi(r3, r3, Operand(return_value_offset));
     __ ShiftLeftU64(r0, r3, Operand(kSystemPointerSizeLog2));
     __ StoreU64(scratch, MemOperand(sp, r0));
     // Recover arguments count.
-    __ subi(r3, r3,
-            Operand(BuiltinContinuationFrameConstants::kFixedSlotCount));
+    __ subi(r3, r3, Operand(return_value_offset));
   }
   __ LoadU64(
       fp,
@@ -1703,16 +1733,18 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
     Label done;
     __ LoadU64(r4, MemOperand(sp));  // receiver
-    __ cmpi(r3, Operand(1));
+    __ CmpS64(r3, Operand(JSParameterCount(1)), r0);
     __ blt(&done);
     __ LoadU64(r8, MemOperand(sp, kSystemPointerSize));  // thisArg
-    __ cmpi(r3, Operand(2));
+    __ CmpS64(r3, Operand(JSParameterCount(2)), r0);
     __ blt(&done);
     __ LoadU64(r5, MemOperand(sp, 2 * kSystemPointerSize));  // argArray
 
     __ bind(&done);
-    __ DropArgumentsAndPushNewReceiver(r3, r8, TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountExcludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(
+        r3, r8, TurboAssembler::kCountIsInteger,
+        kJSArgcIncludesReceiver ? TurboAssembler::kCountIncludesReceiver
+                                : TurboAssembler::kCountExcludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1738,7 +1770,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // arguments to the receiver.
   __ bind(&no_arguments);
   {
-    __ li(r3, Operand::Zero());
+    __ mov(r3, Operand(JSParameterCount(0)));
     __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
   }
 }
@@ -1752,7 +1784,7 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   // r3: actual number of arguments
   {
     Label done;
-    __ cmpi(r3, Operand::Zero());
+    __ CmpS64(r3, Operand(JSParameterCount(0)), r0);
     __ bne(&done);
     __ PushRoot(RootIndex::kUndefinedValue);
     __ addi(r3, r3, Operand(1));
@@ -1784,19 +1816,21 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ mr(r5, r4);
 
     Label done;
-    __ cmpi(r3, Operand(1));
+    __ CmpS64(r3, Operand(JSParameterCount(1)), r0);
     __ blt(&done);
     __ LoadU64(r4, MemOperand(sp, kSystemPointerSize));  // thisArg
-    __ cmpi(r3, Operand(2));
+    __ CmpS64(r3, Operand(JSParameterCount(2)), r0);
     __ blt(&done);
     __ LoadU64(r8, MemOperand(sp, 2 * kSystemPointerSize));  // argArray
-    __ cmpi(r3, Operand(3));
+    __ CmpS64(r3, Operand(JSParameterCount(3)), r0);
     __ blt(&done);
     __ LoadU64(r5, MemOperand(sp, 3 * kSystemPointerSize));  // argArray
 
     __ bind(&done);
-    __ DropArgumentsAndPushNewReceiver(r3, r8, TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountExcludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(
+        r3, r8, TurboAssembler::kCountIsInteger,
+        kJSArgcIncludesReceiver ? TurboAssembler::kCountIncludesReceiver
+                                : TurboAssembler::kCountExcludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1833,19 +1867,21 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 
     Label done;
     __ mr(r7, r4);
-    __ cmpi(r3, Operand(1));
+    __ CmpS64(r3, Operand(JSParameterCount(1)), r0);
     __ blt(&done);
     __ LoadU64(r4, MemOperand(sp, kSystemPointerSize));  // thisArg
     __ mr(r6, r4);
-    __ cmpi(r3, Operand(2));
+    __ CmpS64(r3, Operand(JSParameterCount(2)), r0);
     __ blt(&done);
     __ LoadU64(r5, MemOperand(sp, 2 * kSystemPointerSize));  // argArray
-    __ cmpi(r3, Operand(3));
+    __ CmpS64(r3, Operand(JSParameterCount(3)), r0);
     __ blt(&done);
     __ LoadU64(r6, MemOperand(sp, 3 * kSystemPointerSize));  // argArray
     __ bind(&done);
-    __ DropArgumentsAndPushNewReceiver(r3, r7, TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountExcludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(
+        r3, r7, TurboAssembler::kCountIsInteger,
+        kJSArgcIncludesReceiver ? TurboAssembler::kCountIncludesReceiver
+                                : TurboAssembler::kCountExcludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1887,14 +1923,21 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 
   Register dest = pointer_to_new_space_out;
   __ addi(dest, sp, Operand(-kSystemPointerSize));
-  __ addi(r0, argc_in_out, Operand(1));
+  Label loop, skip;
+  if (!kJSArgcIncludesReceiver) {
+    __ addi(r0, argc_in_out, Operand(1));
+  } else {
+    __ mr(r0, argc_in_out);
+    __ cmpi(r0, Operand::Zero());
+    __ ble(&skip);
+  }
   __ mtctr(r0);
-  Label loop;
   __ bind(&loop);
   __ LoadU64WithUpdate(r0, MemOperand(old_sp, kSystemPointerSize));
   __ StoreU64WithUpdate(r0, MemOperand(dest, kSystemPointerSize));
   __ bdnz(&loop);
 
+  __ bind(&skip);
   // Update total number of arguments, restore dest.
   __ add(argc_in_out, argc_in_out, count);
   __ addi(dest, dest, Operand(kSystemPointerSize));
@@ -1908,7 +1951,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<Code> code) {
   // ----------- S t a t e -------------
   //  -- r4 : target
-  //  -- r3 : number of parameters on the stack (not including the receiver)
+  //  -- r3 : number of parameters on the stack
   //  -- r5 : arguments list (a FixedArray)
   //  -- r7 : len (number of elements to push from args)
   //  -- r6 : new.target (for [[Construct]])
@@ -1980,7 +2023,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                       CallOrConstructMode mode,
                                                       Handle<Code> code) {
   // ----------- S t a t e -------------
-  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r3 : the number of arguments
   //  -- r6 : the new.target (for [[Construct]] calls)
   //  -- r4 : the target to call (can be any Object)
   //  -- r5 : start index (to support rest parameters)
@@ -2008,12 +2051,14 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
   Label stack_done, stack_overflow;
   __ LoadU64(r8, MemOperand(fp, StandardFrameConstants::kArgCOffset));
+  if (kJSArgcIncludesReceiver) {
+    __ subi(r8, r8, Operand(kJSArgcReceiverSlots));
+  }
   __ sub(r8, r8, r5, LeaveOE, SetRC);
   __ ble(&stack_done, cr0);
   {
     // ----------- S t a t e -------------
-    //  -- r3 : the number of arguments already in the stack (not including the
-    //  receiver)
+    //  -- r3 : the number of arguments already in the stack
     //  -- r4 : the target to call (can be any Object)
     //  -- r5 : start index (to support rest parameters)
     //  -- r6 : the new.target (for [[Construct]] calls)
@@ -2069,7 +2114,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 void Builtins::Generate_CallFunction(MacroAssembler* masm,
                                      ConvertReceiverMode mode) {
   // ----------- S t a t e -------------
-  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r3 : the number of arguments
   //  -- r4 : the function to call (checked to be a JSFunction)
   // -----------------------------------
   __ AssertFunction(r4);
@@ -2095,7 +2140,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ bne(&done_convert, cr0);
   {
     // ----------- S t a t e -------------
-    //  -- r3 : the number of arguments (not including the receiver)
+    //  -- r3 : the number of arguments
     //  -- r4 : the function to call (checked to be a JSFunction)
     //  -- r5 : the shared function info.
     //  -- cp : the function context.
@@ -2148,7 +2193,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ bind(&done_convert);
 
   // ----------- S t a t e -------------
-  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r3 : the number of arguments
   //  -- r4 : the function to call (checked to be a JSFunction)
   //  -- r5 : the shared function info.
   //  -- cp : the function context.
@@ -2171,7 +2216,7 @@ namespace {
 
 void Generate_PushBoundArguments(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r3 : the number of arguments
   //  -- r4 : target (checked to be a JSBoundFunction)
   //  -- r6 : new.target (only in case of [[Construct]])
   // -----------------------------------
@@ -2184,7 +2229,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   __ beq(&no_bound_arguments, cr0);
   {
     // ----------- S t a t e -------------
-    //  -- r3 : the number of arguments (not including the receiver)
+    //  -- r3 : the number of arguments
     //  -- r4 : target (checked to be a JSBoundFunction)
     //  -- r5 : the [[BoundArguments]] (implemented as FixedArray)
     //  -- r6 : new.target (only in case of [[Construct]])
@@ -2244,7 +2289,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
 // static
 void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r3 : the number of arguments
   //  -- r4 : the function to call (checked to be a JSBoundFunction)
   // -----------------------------------
   __ AssertBoundFunction(r4);
@@ -2267,7 +2312,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
 // static
 void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // ----------- S t a t e -------------
-  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r3 : the number of arguments
   //  -- r4 : the target to call (can be any Object).
   // -----------------------------------
   Register argc = r3;
@@ -2337,7 +2382,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
 // static
 void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r3 : the number of arguments
   //  -- r4 : the constructor to call (checked to be a JSFunction)
   //  -- r6 : the new target (checked to be a constructor)
   // -----------------------------------
@@ -2369,7 +2414,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 // static
 void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r3 : the number of arguments
   //  -- r4 : the function to call (checked to be a JSBoundFunction)
   //  -- r6 : the new target (checked to be a constructor)
   // -----------------------------------
@@ -2396,7 +2441,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 // static
 void Builtins::Generate_Construct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r3 : the number of arguments
   //  -- r4 : the constructor to call (can be any Object)
   //  -- r6 : the new target (either the same as the constructor or
   //          the JSFunction on which new was invoked initially)

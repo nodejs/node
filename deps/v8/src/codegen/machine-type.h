@@ -40,7 +40,9 @@ enum class MachineRepresentation : uint8_t {
   kTagged,             // (uncompressed) Object (Smi or HeapObject)
   kCompressedPointer,  // (compressed) HeapObject
   kCompressed,         // (compressed) Object (Smi or HeapObject)
-  kCagedPointer,       // Guaranteed to point into the virtual memory cage.
+  // A 64-bit pointer encoded in a way (e.g. as offset) that guarantees it will
+  // point into the virtual memory cage.
+  kCagedPointer,
   // FP and SIMD representations must be last, and in order of increasing size.
   kFloat32,
   kFloat64,

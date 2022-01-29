@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fstream>
+#include <memory>
+
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/numbers/double.h"
@@ -9,6 +12,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
+#include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -26,6 +30,7 @@
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/smi.h"
+#include "src/profiler/heap-snapshot-generator.h"
 #include "src/regexp/regexp.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/snapshot/snapshot.h"
@@ -250,7 +255,7 @@ bool CanOptimizeFunction(Handle<JSFunction> function, Isolate* isolate,
   if (!FLAG_opt) return false;
 
   if (function->shared().optimization_disabled() &&
-      function->shared().disable_optimization_reason() ==
+      function->shared().disabled_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
@@ -430,7 +435,7 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   // If optimization is disabled for the function, return without making it
   // pending optimize for test.
   if (function->shared().optimization_disabled() &&
-      function->shared().disable_optimization_reason() ==
+      function->shared().disabled_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
     return CrashUnlessFuzzing(isolate);
   }
@@ -474,7 +479,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionForTopTier) {
 }
 
 RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
-  HandleScope scope(isolate);
+  HandleScope handle_scope(isolate);
   DCHECK(args.length() == 0 || args.length() == 1);
 
   Handle<JSFunction> function;
@@ -499,7 +504,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   }
 
   if (function->shared().optimization_disabled() &&
-      function->shared().disable_optimization_reason() ==
+      function->shared().disabled_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
     return CrashUnlessFuzzing(isolate);
   }
@@ -571,12 +576,20 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
   if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-  SharedFunctionInfo sfi = function->shared();
-  if (sfi.abstract_code(isolate).kind() != CodeKind::INTERPRETED_FUNCTION &&
-      sfi.abstract_code(isolate).kind() != CodeKind::BUILTIN) {
+  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
+  if (sfi->abstract_code(isolate).kind() != CodeKind::INTERPRETED_FUNCTION &&
+      sfi->abstract_code(isolate).kind() != CodeKind::BUILTIN) {
     return CrashUnlessFuzzing(isolate);
   }
-  sfi.DisableOptimization(BailoutReason::kNeverOptimize);
+  // Make sure to finish compilation if there is a parallel lazy compilation in
+  // progress, to make sure that the compilation finalization doesn't clobber
+  // the SharedFunctionInfo's disable_optimization field.
+  if (isolate->lazy_compile_dispatcher() &&
+      isolate->lazy_compile_dispatcher()->IsEnqueued(sfi)) {
+    isolate->lazy_compile_dispatcher()->FinishNow(sfi);
+  }
+
+  sfi->DisableOptimization(BailoutReason::kNeverOptimize);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -825,6 +838,50 @@ RUNTIME_FUNCTION(Runtime_ScheduleGCInStackCheck) {
             v8::Isolate::kFullGarbageCollection);
       },
       nullptr);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+class FileOutputStream : public v8::OutputStream {
+ public:
+  explicit FileOutputStream(const char* filename) : os_(filename) {}
+  ~FileOutputStream() override { os_.close(); }
+
+  WriteResult WriteAsciiChunk(char* data, int size) override {
+    os_.write(data, size);
+    return kContinue;
+  }
+
+  void EndOfStream() override { os_.close(); }
+
+ private:
+  std::ofstream os_;
+};
+
+RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
+  if (FLAG_fuzzing) {
+    // We don't want to create snapshots in fuzzers.
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  std::string filename = "heap.heapsnapshot";
+
+  if (args.length() >= 1) {
+    HandleScope hs(isolate);
+    CONVERT_ARG_HANDLE_CHECKED(String, filename_as_js_string, 0);
+    std::unique_ptr<char[]> buffer = filename_as_js_string->ToCString();
+    filename = std::string(buffer.get());
+  }
+
+  HeapProfiler* heap_profiler = isolate->heap_profiler();
+  // Since this API is intended for V8 devs, we do not treat globals as roots
+  // here on purpose.
+  HeapSnapshot* snapshot = heap_profiler->TakeSnapshot(
+      /* control = */ nullptr, /* resolver = */ nullptr,
+      /* treat_global_objects_as_roots = */ false,
+      /* capture_numeric_value = */ true);
+  FileOutputStream stream(filename.c_str());
+  HeapSnapshotJSONSerializer serializer(snapshot);
+  serializer.Serialize(&stream);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1333,7 +1390,7 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
   DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  object->map().CompleteInobjectSlackTracking(isolate);
+  MapUpdater::CompleteInobjectSlackTracking(isolate, object->map());
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1422,29 +1479,11 @@ RUNTIME_FUNCTION(Runtime_Is64Bit) {
   return isolate->heap()->ToBoolean(kSystemPointerSize == 8);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-// TODO(thibaudm): Handle this in Suspender.returnPromiseOnSuspend() when
-// the Suspender object is added.
-RUNTIME_FUNCTION(Runtime_WasmReturnPromiseOnSuspend) {
-  CHECK(FLAG_experimental_wasm_stack_switching);
-  DCHECK_EQ(1, args.length());
+RUNTIME_FUNCTION(Runtime_BigIntMaxLengthBits) {
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  SharedFunctionInfo sfi = function->shared();
-  // TODO(thibaudm): Throw an error if this is not a wasm function.
-  CHECK(sfi.HasWasmExportedFunctionData());
-  WasmExportedFunctionData data = sfi.wasm_exported_function_data();
-  int index = data.function_index();
-  Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(data.ref()),
-                                      isolate);
-  auto wrapper =
-      isolate->builtins()->code_handle(Builtin::kWasmReturnPromiseOnSuspend);
-  auto result = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(
-      isolate, instance, index, static_cast<int>(data.sig()->parameter_count()),
-      wrapper));
-  return *result;
+  DCHECK_EQ(0, args.length());
+  return *isolate->factory()->NewNumber(BigInt::kMaxLengthBits);
 }
-#endif
 
 }  // namespace internal
 }  // namespace v8

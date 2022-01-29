@@ -225,7 +225,7 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
   int embedder_fields_count = js_obj->GetEmbedderFieldCount();
   if (embedder_fields_count == 0) return false;
   CHECK_GT(embedder_fields_count, 0);
-  DCHECK(!js_obj->NeedsRehashing());
+  DCHECK(!js_obj->NeedsRehashing(cage_base()));
 
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate());
@@ -310,8 +310,8 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
 
 void ContextSerializer::CheckRehashability(HeapObject obj) {
   if (!can_be_rehashed_) return;
-  if (!obj.NeedsRehashing()) return;
-  if (obj.CanBeRehashed()) return;
+  if (!obj.NeedsRehashing(cage_base())) return;
+  if (obj.CanBeRehashed(cage_base())) return;
   can_be_rehashed_ = false;
 }
 

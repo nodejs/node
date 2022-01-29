@@ -14,6 +14,7 @@ namespace v8 {
 namespace internal {
 
 class JSPromise;
+class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/promise-tq.inc"
 
@@ -31,6 +32,9 @@ class PromiseReactionJobTask
                                                    Microtask> {
  public:
   static const int kSizeOfAllPromiseReactionJobTasks = kHeaderSize;
+
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(PromiseReactionJobTask)
 };
 
@@ -40,6 +44,8 @@ class PromiseFulfillReactionJobTask
           PromiseFulfillReactionJobTask, PromiseReactionJobTask> {
  public:
   STATIC_ASSERT(kSize == kSizeOfAllPromiseReactionJobTasks);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(PromiseFulfillReactionJobTask)
 };
@@ -51,6 +57,8 @@ class PromiseRejectReactionJobTask
  public:
   STATIC_ASSERT(kSize == kSizeOfAllPromiseReactionJobTasks);
 
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(PromiseRejectReactionJobTask)
 };
 
@@ -59,6 +67,8 @@ class PromiseResolveThenableJobTask
     : public TorqueGeneratedPromiseResolveThenableJobTask<
           PromiseResolveThenableJobTask, Microtask> {
  public:
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(PromiseResolveThenableJobTask)
 };
 
@@ -66,6 +76,8 @@ class PromiseResolveThenableJobTask
 class PromiseCapability
     : public TorqueGeneratedPromiseCapability<PromiseCapability, Struct> {
  public:
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(PromiseCapability)
 };
 
@@ -90,6 +102,8 @@ class PromiseReaction
     : public TorqueGeneratedPromiseReaction<PromiseReaction, Struct> {
  public:
   enum Type { kFulfill, kReject };
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(PromiseReaction)
 };

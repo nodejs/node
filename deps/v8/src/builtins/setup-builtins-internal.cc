@@ -199,6 +199,9 @@ void SetupIsolateDelegate::AddBuiltin(Builtins* builtins, Builtin builtin,
                                       Code code) {
   DCHECK_EQ(builtin, code.builtin_id());
   builtins->set_code(builtin, code);
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    builtins->set_codet(builtin, ToCodeT(code));
+  }
 }
 
 // static
@@ -220,7 +223,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   // Replace references from all builtin code objects to placeholders.
   Builtins* builtins = isolate->builtins();
   DisallowGarbageCollection no_gc;
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+  CodePageCollectionMemoryModificationScope modification_scope(isolate->heap());
   static const int kRelocMask =
       RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
       RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
@@ -230,6 +233,8 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Code code = builtins->code(builtin);
+    isolate->heap()->UnprotectAndRegisterMemoryChunk(
+        code, UnprotectMemoryOrigin::kMainThread);
     bool flush_icache = false;
     for (RelocIterator it(code, kRelocMask); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();

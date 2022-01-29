@@ -79,8 +79,7 @@ class BuiltinArguments : public JavaScriptArguments {
 // through the BuiltinArguments object args.
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
-#ifdef V8_RUNTIME_CALL_STATS
-#define BUILTIN(name)                                                       \
+#define BUILTIN_RCS(name)                                                   \
   V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
       BuiltinArguments args, Isolate* isolate);                             \
                                                                             \
@@ -106,8 +105,7 @@ class BuiltinArguments : public JavaScriptArguments {
   V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
       BuiltinArguments args, Isolate* isolate)
 
-#else  // V8_RUNTIME_CALL_STATS
-#define BUILTIN(name)                                                       \
+#define BUILTIN_NO_RCS(name)                                                \
   V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
       BuiltinArguments args, Isolate* isolate);                             \
                                                                             \
@@ -120,6 +118,11 @@ class BuiltinArguments : public JavaScriptArguments {
                                                                             \
   V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
       BuiltinArguments args, Isolate* isolate)
+
+#ifdef V8_RUNTIME_CALL_STATS
+#define BUILTIN(name) BUILTIN_RCS(name)
+#else  // V8_RUNTIME_CALL_STATS
+#define BUILTIN(name) BUILTIN_NO_RCS(name)
 #endif  // V8_RUNTIME_CALL_STATS
 // ----------------------------------------------------------------------------
 

@@ -22,6 +22,7 @@ namespace v8 {
 namespace internal {
 
 class FunctionLiteral;
+class StructBodyDescriptor;
 
 namespace wasm {
 class NativeModule;
@@ -229,6 +230,8 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // Dispatched behavior.
   DECL_PRINTER(Script)
   DECL_VERIFIER(Script)
+
+  using BodyDescriptor = StructBodyDescriptor;
 
  private:
   // Bit positions in the flags field.

@@ -181,6 +181,8 @@ class AllocationMemento
 
   DECL_PRINTER(AllocationMemento)
 
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(AllocationMemento)
 };
 

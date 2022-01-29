@@ -261,10 +261,10 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
       DCHECK(isolate->has_pending_exception());
       isolate->clear_pending_exception();
       isolate->set_external_caught_exception(false);
-      builder->AppendCString("<error>");
+      builder->AppendCStringLiteral("<error>");
     } else {
       // Formatted thrown exception successfully, append it.
-      builder->AppendCString("<error: ");
+      builder->AppendCStringLiteral("<error: ");
       builder->AppendString(err_str.ToHandleChecked());
       builder->AppendCharacter('>');
     }
@@ -369,7 +369,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
                       Object);
 
   for (int i = 0; i < elems->length(); ++i) {
-    builder.AppendCString("\n    at ");
+    builder.AppendCStringLiteral("\n    at ");
 
     Handle<StackFrameInfo> frame(StackFrameInfo::cast(elems->get(i)), isolate);
     SerializeStackFrameInfo(isolate, frame, &builder);
@@ -389,12 +389,12 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
       if (exception_string.is_null()) {
         // Formatting the thrown exception threw again, give up.
 
-        builder.AppendCString("<error>");
+        builder.AppendCStringLiteral("<error>");
       } else {
         // Formatted thrown exception successfully, append it.
-        builder.AppendCString("<error: ");
+        builder.AppendCStringLiteral("<error: ");
         builder.AppendString(exception_string.ToHandleChecked());
-        builder.AppendCString("<error>");
+        builder.AppendCStringLiteral("<error>");
       }
     }
   }
@@ -658,7 +658,7 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
   // the code unit 0x0020 (SPACE), and msg.
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(name);
-  builder.AppendCString(": ");
+  builder.AppendCStringLiteral(": ");
   builder.AppendString(msg);
 
   Handle<String> result;
@@ -745,7 +745,7 @@ Handle<String> BuildDefaultCallSite(Isolate* isolate, Handle<Object> object) {
 
   builder.AppendString(Object::TypeOf(isolate, object));
   if (object->IsString()) {
-    builder.AppendCString(" \"");
+    builder.AppendCStringLiteral(" \"");
     Handle<String> string = Handle<String>::cast(object);
     // This threshold must be sufficiently far below String::kMaxLength that
     // the {builder}'s result can never exceed that limit.
@@ -756,20 +756,17 @@ Handle<String> BuildDefaultCallSite(Isolate* isolate, Handle<Object> object) {
       string = isolate->factory()->NewProperSubString(string, 0,
                                                       kMaxPrintedStringLength);
       builder.AppendString(string);
-      builder.AppendCString("<...>");
+      builder.AppendCStringLiteral("<...>");
     }
-    builder.AppendCString("\"");
+    builder.AppendCStringLiteral("\"");
   } else if (object->IsNull(isolate)) {
-    builder.AppendCString(" ");
-    builder.AppendString(isolate->factory()->null_string());
+    builder.AppendCStringLiteral(" null");
   } else if (object->IsTrue(isolate)) {
-    builder.AppendCString(" ");
-    builder.AppendString(isolate->factory()->true_string());
+    builder.AppendCStringLiteral(" true");
   } else if (object->IsFalse(isolate)) {
-    builder.AppendCString(" ");
-    builder.AppendString(isolate->factory()->false_string());
+    builder.AppendCStringLiteral(" false");
   } else if (object->IsNumber()) {
-    builder.AppendCString(" ");
+    builder.AppendCharacter(' ');
     builder.AppendString(isolate->factory()->NumberToString(object));
   }
 
@@ -782,8 +779,9 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
   if (ComputeLocation(isolate, location)) {
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForFunctionCompile(
         isolate, *location->shared());
-    UnoptimizedCompileState compile_state(isolate);
-    ParseInfo info(isolate, flags, &compile_state);
+    UnoptimizedCompileState compile_state;
+    ReusableUnoptimizedCompileState reusable_state(isolate);
+    ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     if (parsing::ParseAny(&info, location->shared(), isolate,
                           parsing::ReportStatisticsMode::kNo)) {
       info.ast_value_factory()->Internalize(isolate);
@@ -841,8 +839,9 @@ Object ErrorUtils::ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
   if (ComputeLocation(isolate, &location)) {
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForFunctionCompile(
         isolate, *location.shared());
-    UnoptimizedCompileState compile_state(isolate);
-    ParseInfo info(isolate, flags, &compile_state);
+    UnoptimizedCompileState compile_state;
+    ReusableUnoptimizedCompileState reusable_state(isolate);
+    ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     if (parsing::ParseAny(&info, location.shared(), isolate,
                           parsing::ReportStatisticsMode::kNo)) {
       info.ast_value_factory()->Internalize(isolate);
@@ -917,8 +916,9 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
 
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForFunctionCompile(
         isolate, *location.shared());
-    UnoptimizedCompileState compile_state(isolate);
-    ParseInfo info(isolate, flags, &compile_state);
+    UnoptimizedCompileState compile_state;
+    ReusableUnoptimizedCompileState reusable_state(isolate);
+    ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     if (parsing::ParseAny(&info, location.shared(), isolate,
                           parsing::ReportStatisticsMode::kNo)) {
       info.ast_value_factory()->Internalize(isolate);

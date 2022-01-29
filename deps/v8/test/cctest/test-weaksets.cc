@@ -163,9 +163,9 @@ TEST(WeakSet_Shrinking) {
 // Test that weak set values on an evacuation candidate which are not reachable
 // by other paths are correctly recorded in the slots buffer.
 TEST(WeakSet_Regress2060a) {
-  if (i::FLAG_never_compact) return;
+  if (!i::FLAG_compact) return;
   if (i::FLAG_enable_third_party_heap) return;
-  FLAG_always_compact = true;
+  FLAG_compact_on_every_full_gc = true;
   FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
@@ -196,7 +196,7 @@ TEST(WeakSet_Regress2060a) {
   }
 
   // Force compacting garbage collection.
-  CHECK(FLAG_always_compact);
+  CHECK(FLAG_compact_on_every_full_gc);
   CcTest::CollectAllGarbage();
 }
 
@@ -204,9 +204,9 @@ TEST(WeakSet_Regress2060a) {
 // Test that weak set keys on an evacuation candidate which are reachable by
 // other strong paths are correctly recorded in the slots buffer.
 TEST(WeakSet_Regress2060b) {
-  if (i::FLAG_never_compact) return;
+  if (!i::FLAG_compact) return;
   if (i::FLAG_enable_third_party_heap) return;
-  FLAG_always_compact = true;
+  FLAG_compact_on_every_full_gc = true;
 #ifdef VERIFY_HEAP
   FLAG_verify_heap = true;
 #endif
@@ -241,7 +241,7 @@ TEST(WeakSet_Regress2060b) {
 
   // Force compacting garbage collection. The subsequent collections are used
   // to verify that key references were actually updated.
-  CHECK(FLAG_always_compact);
+  CHECK(FLAG_compact_on_every_full_gc);
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();

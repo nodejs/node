@@ -340,11 +340,8 @@ class AstValueFactory {
   const AstRawString* GetTwoByteString(base::Vector<const uint16_t> literal) {
     return GetTwoByteStringInternal(literal);
   }
-  const AstRawString* GetString(Handle<String> literal);
-
-  // Clones an AstRawString from another ast value factory, adding it to this
-  // factory and returning the clone.
-  const AstRawString* CloneFromOtherFactory(const AstRawString* raw_string);
+  const AstRawString* GetString(String literal,
+                                const SharedStringAccessGuardIfNeeded&);
 
   V8_EXPORT_PRIVATE AstConsString* NewConsString();
   V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str);

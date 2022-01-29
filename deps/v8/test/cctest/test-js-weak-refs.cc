@@ -910,6 +910,7 @@ TEST(JSWeakRefScavengedInWorklist) {
     CHECK(
         heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
     heap::SimulateIncrementalMarking(heap, true);
+    heap->mark_compact_collector()->local_weak_objects()->Publish();
     CHECK(!heap->mark_compact_collector()
                ->weak_objects()
                ->js_weak_refs.IsEmpty());
@@ -957,6 +958,7 @@ TEST(JSWeakRefTenuredInWorklist) {
   // since its target isn't marked.
   CHECK(heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
   heap::SimulateIncrementalMarking(heap, true);
+  heap->mark_compact_collector()->local_weak_objects()->Publish();
   CHECK(
       !heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
 

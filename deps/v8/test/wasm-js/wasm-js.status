@@ -14,6 +14,13 @@
   'wpt/function/table.tentative': [FAIL],
   'wpt/function/type.tentative': [FAIL],
 
+  # Failing tests after update
+  'proposals/js-types/global/type': [FAIL],
+  'proposals/js-types/module/exports': [FAIL],
+  'proposals/js-types/module/imports': [FAIL],
+  'proposals/js-types/table/constructor': [FAIL],
+  'proposals/js-types/table/type': [FAIL],
+
   # Outdated proposal tests.
   'proposals/js-types/table/get-set': [FAIL],
   'proposals/memory64/table/get-set': [FAIL],

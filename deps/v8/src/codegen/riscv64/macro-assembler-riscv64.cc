@@ -2159,11 +2159,25 @@ void TurboAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
   // they also satisfy (scratch2 - kFloatExponentBias >= kFloatMantissaBits),
   // and JS round semantics specify that rounding of NaN (Infinity) returns NaN
   // (Infinity), so NaN and Infinity are considered rounded value too.
-  li(scratch, 64 - kFloat32MantissaBits - kFloat32ExponentBits);
+  const int kFloatMantissaBits =
+      sizeof(F) == 4 ? kFloat32MantissaBits : kFloat64MantissaBits;
+  const int kFloatExponentBits =
+      sizeof(F) == 4 ? kFloat32ExponentBits : kFloat64ExponentBits;
+  const int kFloatExponentBias =
+      sizeof(F) == 4 ? kFloat32ExponentBias : kFloat64ExponentBias;
+
+  // slli(rt, rs, 64 - (pos + size));
+  // if (sign_extend) {
+  //   srai(rt, rt, 64 - size);
+  // } else {
+  //   srli(rt, rt, 64 - size);
+  // }
+
+  li(scratch, 64 - kFloatMantissaBits - kFloatExponentBits);
   vsll_vx(v_scratch, src, scratch);
-  li(scratch, 64 - kFloat32ExponentBits);
+  li(scratch, 64 - kFloatExponentBits);
   vsrl_vx(v_scratch, v_scratch, scratch);
-  li(scratch, kFloat32ExponentBias + kFloat32MantissaBits);
+  li(scratch, kFloatExponentBias + kFloatMantissaBits);
   vmslt_vx(v0, v_scratch, scratch);
 
   VU.set(frm);
@@ -2203,6 +2217,26 @@ void TurboAssembler::Floor_f(VRegister vdst, VRegister vsrc, Register scratch,
 void TurboAssembler::Floor_d(VRegister vdst, VRegister vsrc, Register scratch,
                              VRegister v_scratch) {
   RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RDN);
+}
+
+void TurboAssembler::Trunc_d(VRegister vdst, VRegister vsrc, Register scratch,
+                             VRegister v_scratch) {
+  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RTZ);
+}
+
+void TurboAssembler::Trunc_f(VRegister vdst, VRegister vsrc, Register scratch,
+                             VRegister v_scratch) {
+  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RTZ);
+}
+
+void TurboAssembler::Round_f(VRegister vdst, VRegister vsrc, Register scratch,
+                             VRegister v_scratch) {
+  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RNE);
+}
+
+void TurboAssembler::Round_d(VRegister vdst, VRegister vsrc, Register scratch,
+                             VRegister v_scratch) {
+  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RNE);
 }
 
 void TurboAssembler::Floor_d_d(FPURegister dst, FPURegister src,
@@ -3543,6 +3577,7 @@ void TurboAssembler::LoadAddress(Register dst, Label* target,
     CHECK(is_int32(offset + 0x800));
     int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
     int32_t Lo12 = (int32_t)offset << 20 >> 20;
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     auipc(dst, Hi20);
     addi(dst, dst, Lo12);
   } else {
@@ -3993,6 +4028,64 @@ void TurboAssembler::WasmRvvS128const(VRegister dst, const uint8_t imms[16]) {
   vsll_vi(v0, v0, 1);
   vmerge_vx(dst, kScratchReg, dst);
 }
+
+void TurboAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
+                              MemOperand src) {
+  if (ts == 8) {
+    Lbu(kScratchReg2, src);
+    VU.set(kScratchReg, E64, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    VU.set(kScratchReg, E8, m1);
+    vmerge_vx(dst, kScratchReg2, dst);
+  } else if (ts == 16) {
+    Lhu(kScratchReg2, src);
+    VU.set(kScratchReg, E16, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    vmerge_vx(dst, kScratchReg2, dst);
+  } else if (ts == 32) {
+    Lwu(kScratchReg2, src);
+    VU.set(kScratchReg, E32, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    vmerge_vx(dst, kScratchReg2, dst);
+  } else if (ts == 64) {
+    Ld(kScratchReg2, src);
+    VU.set(kScratchReg, E64, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    vmerge_vx(dst, kScratchReg2, dst);
+  } else {
+    UNREACHABLE();
+  }
+}
+
+void TurboAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
+                               MemOperand dst) {
+  if (sz == 8) {
+    VU.set(kScratchReg, E8, m1);
+    vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+    vmv_xs(kScratchReg, kSimd128ScratchReg);
+    Sb(kScratchReg, dst);
+  } else if (sz == 16) {
+    VU.set(kScratchReg, E16, m1);
+    vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+    vmv_xs(kScratchReg, kSimd128ScratchReg);
+    Sh(kScratchReg, dst);
+  } else if (sz == 32) {
+    VU.set(kScratchReg, E32, m1);
+    vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+    vmv_xs(kScratchReg, kSimd128ScratchReg);
+    Sw(kScratchReg, dst);
+  } else {
+    DCHECK_EQ(sz, 64);
+    VU.set(kScratchReg, E64, m1);
+    vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+    vmv_xs(kScratchReg, kSimd128ScratchReg);
+    Sd(kScratchReg, dst);
+  }
+}
 // -----------------------------------------------------------------------------
 // Runtime calls.
 
@@ -4120,7 +4213,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(code, RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg));
 }
 
-void MacroAssembler::JumpToInstructionStream(Address entry) {
+void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
   // Ld a Address from a constant pool.
   // Record a value into constant pool.
   if (!FLAG_riscv_constant_pool) {

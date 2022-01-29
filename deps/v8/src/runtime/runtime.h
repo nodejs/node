@@ -75,6 +75,7 @@ namespace internal {
   F(BigIntEqualToBigInt, 2, 1)          \
   F(BigIntEqualToNumber, 2, 1)          \
   F(BigIntEqualToString, 2, 1)          \
+  F(BigIntMaxLengthBits, 0, 1)          \
   F(BigIntToBoolean, 1, 1)              \
   F(BigIntToNumber, 1, 1)               \
   F(BigIntUnaryOp, 2, 1)                \
@@ -233,6 +234,7 @@ namespace internal {
   F(PromoteScheduledException, 0, 1)                         \
   F(ReportMessageFromMicrotask, 1, 1)                        \
   F(ReThrow, 1, 1)                                           \
+  F(ReThrowWithMessage, 2, 1)                                \
   F(RunMicrotaskCallback, 2, 1)                              \
   F(PerformMicrotaskCheckpoint, 0, 1)                        \
   F(StackGuard, 0, 1)                                        \
@@ -552,6 +554,7 @@ namespace internal {
   F(SimulateNewspaceFull, 0, 1)               \
   F(StringIteratorProtector, 0, 1)            \
   F(SystemBreak, 0, 1)                        \
+  F(TakeHeapSnapshot, -1, 1)                  \
   F(TierupFunctionOnNextCall, -1, 1)          \
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \
@@ -593,9 +596,8 @@ namespace internal {
   F(WasmDebugBreak, 0, 1)             \
   F(WasmAllocateRtt, 3, 1)            \
   F(WasmArrayCopy, 5, 1)              \
-  F(WasmAllocateContinuation, 1, 1)   \
-  F(WasmReturnPromiseOnSuspend, 1, 1) \
-  F(WasmSyncStackLimit, 1, 1)
+  F(WasmAllocateContinuation, 0, 1)   \
+  F(WasmSyncStackLimit, 0, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I) \
   F(DeserializeWasmModule, 2, 1)           \

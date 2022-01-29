@@ -10,16 +10,12 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_CAGED_POINTERS
-
-V8_INLINE CagedPointer_t ReadCagedPointerField(Address field_address,
-                                               PtrComprCageBase cage_base);
+V8_INLINE Address ReadCagedPointerField(Address field_address,
+                                        PtrComprCageBase cage_base);
 
 V8_INLINE void WriteCagedPointerField(Address field_address,
                                       PtrComprCageBase cage_base,
-                                      CagedPointer_t value);
-
-#endif  // V8_CAGED_POINTERS
+                                      Address value);
 
 }  // namespace internal
 }  // namespace v8

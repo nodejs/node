@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 
 #define TO_BE_IMPLEMENTED(id)   \
-  BUILTIN(id) {                 \
+  BUILTIN_NO_RCS(id) {          \
     HandleScope scope(isolate); \
     UNIMPLEMENTED();            \
   }

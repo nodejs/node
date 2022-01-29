@@ -33,10 +33,8 @@
 #ifndef NOMCX
 #define NOMCX
 #endif
-// Require Windows Vista or higher (this is required for the
-// QueryThreadCycleTime function to be present).
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0600
+#error This should be set in build config files. See build\config\win\BUILD.gn
 #endif
 
 #include <signal.h>  // For raise().

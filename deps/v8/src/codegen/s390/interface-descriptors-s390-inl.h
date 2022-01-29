@@ -121,7 +121,7 @@ constexpr auto CallTrampolineDescriptor::registers() {
 
 // static
 constexpr auto CallVarargsDescriptor::registers() {
-  // r2 : number of arguments (on the stack, not including receiver)
+  // r2 : number of arguments (on the stack)
   // r3 : the target to call
   // r6 : arguments list length (untagged)
   // r4 : arguments list (FixedArray)
@@ -139,13 +139,13 @@ constexpr auto CallForwardVarargsDescriptor::registers() {
 // static
 constexpr auto CallFunctionTemplateDescriptor::registers() {
   // r3 : function template info
-  // r4 : number of arguments (on the stack, not including receiver)
+  // r4 : number of arguments (on the stack)
   return RegisterArray(r3, r4);
 }
 
 // static
 constexpr auto CallWithSpreadDescriptor::registers() {
-  // r2: number of arguments (on the stack, not including receiver)
+  // r2: number of arguments (on the stack)
   // r3 : the target to call
   // r4 : the object to spread
   return RegisterArray(r3, r2, r4);
@@ -160,7 +160,7 @@ constexpr auto CallWithArrayLikeDescriptor::registers() {
 
 // static
 constexpr auto ConstructVarargsDescriptor::registers() {
-  // r2 : number of arguments (on the stack, not including receiver)
+  // r2 : number of arguments (on the stack)
   // r3 : the target to call
   // r5 : the new target
   // r6 : arguments list length (untagged)
@@ -179,7 +179,7 @@ constexpr auto ConstructForwardVarargsDescriptor::registers() {
 
 // static
 constexpr auto ConstructWithSpreadDescriptor::registers() {
-  // r2 : number of arguments (on the stack, not including receiver)
+  // r2 : number of arguments (on the stack)
   // r3 : the target to call
   // r5 : the new target
   // r4 : the object to spread
@@ -211,8 +211,7 @@ constexpr auto CompareDescriptor::registers() { return RegisterArray(r3, r2); }
 
 // static
 constexpr auto Compare_BaselineDescriptor::registers() {
-  // TODO(v8:11421): Implement on this platform.
-  return DefaultRegisterArray();
+  return RegisterArray(r3, r2, r4);
 }
 
 // static
@@ -220,8 +219,7 @@ constexpr auto BinaryOpDescriptor::registers() { return RegisterArray(r3, r2); }
 
 // static
 constexpr auto BinaryOp_BaselineDescriptor::registers() {
-  // TODO(v8:11421): Implement on this platform.
-  return DefaultRegisterArray();
+  return RegisterArray(r3, r2, r4);
 }
 
 // static
@@ -241,7 +239,7 @@ constexpr auto InterpreterDispatchDescriptor::registers() {
 
 // static
 constexpr auto InterpreterPushArgsThenCallDescriptor::registers() {
-  return RegisterArray(r2,   // argument count (not including receiver)
+  return RegisterArray(r2,   // argument count
                        r4,   // address of first argument
                        r3);  // the target callable to be call
 }
@@ -249,7 +247,7 @@ constexpr auto InterpreterPushArgsThenCallDescriptor::registers() {
 // static
 constexpr auto InterpreterPushArgsThenConstructDescriptor::registers() {
   return RegisterArray(
-      r2,   // argument count (not including receiver)
+      r2,   // argument count
       r6,   // address of the first argument
       r3,   // constructor to call
       r5,   // new target

@@ -192,7 +192,7 @@ Handle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
 
     m.BIND(&if_found);
     {
-      STATIC_ASSERT(kData == 0);
+      STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
       STATIC_ASSERT(NONE == 0);
       const int kKeyToTargetOffset = (TransitionArray::kEntryTargetIndex -
                                       TransitionArray::kEntryKeyIndex) *

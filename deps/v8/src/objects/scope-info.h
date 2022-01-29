@@ -274,7 +274,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   };
 
   STATIC_ASSERT(LanguageModeSize == 1 << LanguageModeBit::kSize);
-  STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
+  STATIC_ASSERT(FunctionKind::kLastFunctionKind <= FunctionKindBits::kMax);
 
   bool IsEmpty() const;
 

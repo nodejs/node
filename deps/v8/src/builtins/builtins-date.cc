@@ -445,12 +445,12 @@ BUILTIN(DatePrototypeSetMinutes) {
 // ES6 section 20.3.4.25 Date.prototype.setMonth ( month, date )
 BUILTIN(DatePrototypeSetMonth) {
   HandleScope scope(isolate);
-  CHECK_RECEIVER(JSDate, date, "Date.prototype.setMonth");
+  CHECK_RECEIVER(JSDate, this_date, "Date.prototype.setMonth");
   int const argc = args.length() - 1;
   Handle<Object> month = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                      Object::ToNumber(isolate, month));
-  double time_val = date->value().Number();
+  double time_val = this_date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
@@ -468,7 +468,7 @@ BUILTIN(DatePrototypeSetMonth) {
     }
     time_val = MakeDate(MakeDay(year, m, dt), time_within_day);
   }
-  return SetLocalDateValue(isolate, date, time_val);
+  return SetLocalDateValue(isolate, this_date, time_val);
 }
 
 // ES6 section 20.3.4.26 Date.prototype.setSeconds ( sec, ms )
@@ -662,12 +662,12 @@ BUILTIN(DatePrototypeSetUTCMinutes) {
 // ES6 section 20.3.4.31 Date.prototype.setUTCMonth ( month, date )
 BUILTIN(DatePrototypeSetUTCMonth) {
   HandleScope scope(isolate);
-  CHECK_RECEIVER(JSDate, date, "Date.prototype.setUTCMonth");
+  CHECK_RECEIVER(JSDate, this_date, "Date.prototype.setUTCMonth");
   int const argc = args.length() - 1;
   Handle<Object> month = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                      Object::ToNumber(isolate, month));
-  double time_val = date->value().Number();
+  double time_val = this_date->value().Number();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
     int days = isolate->date_cache()->DaysFromTime(time_ms);
@@ -684,7 +684,7 @@ BUILTIN(DatePrototypeSetUTCMonth) {
     }
     time_val = MakeDate(MakeDay(year, m, dt), time_within_day);
   }
-  return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
+  return *JSDate::SetValue(this_date, DateCache::TimeClip(time_val));
 }
 
 // ES6 section 20.3.4.34 Date.prototype.setUTCSeconds ( sec, ms )

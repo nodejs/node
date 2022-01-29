@@ -50,7 +50,7 @@ class WasmGCTester {
   }
 
   byte AddGlobal(ValueType type, bool mutability, WasmInitExpr init) {
-    return builder_.AddGlobal(type, mutability, std::move(init));
+    return builder_.AddGlobal(type, mutability, init);
   }
 
   byte DefineFunction(FunctionSig* sig, std::initializer_list<ValueType> locals,
@@ -1425,7 +1425,8 @@ WASM_COMPILED_EXEC_TEST(RttFreshSub) {
 
   const byte kRtt = tester.AddGlobal(
       ValueType::Rtt(kType, 1), false,
-      WasmInitExpr::RttFreshSub(type_repr, WasmInitExpr::RttCanon(type_repr)));
+      WasmInitExpr::RttFreshSub(tester.zone(), type_repr,
+                                WasmInitExpr::RttCanon(type_repr)));
 
   // A struct allocated with a fresh RTT does not match other fresh RTTs
   // created for the same type.
@@ -1445,6 +1446,7 @@ WASM_COMPILED_EXEC_TEST(RttFreshSub) {
 }
 
 WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
+  // TODO(7748): Add tests for branch_on_*.
   WasmGCTester tester(execution_tier);
   byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
   byte subtype_index =
@@ -1457,6 +1459,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
       tester.sigs.i_v(), {},
       {WASM_REF_TEST(WASM_REF_NULL(type_index), WASM_RTT_CANON(subtype_index)),
        kExprEnd});
+  // Upcasts should not be optimized away for structural types.
   const byte kRefTestUpcast = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_TEST(
@@ -1464,6 +1467,12 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
                subtype_index,
                WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
            WASM_RTT_CANON(type_index)),
+       kExprEnd});
+  const byte kRefTestUpcastFail = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
+                         subtype_index, WASM_RTT_CANON(subtype_index)),
+                     WASM_RTT_CANON(type_index)),
        kExprEnd});
   const byte kRefTestUpcastNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
@@ -1531,6 +1540,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
 
   tester.CheckResult(kRefTestNull, 0);
   tester.CheckResult(kRefTestUpcast, 1);
+  tester.CheckResult(kRefTestUpcastFail, 0);
   tester.CheckResult(kRefTestUpcastNull, 0);
   tester.CheckResult(kRefTestUnrelated, 0);
   tester.CheckResult(kRefTestUnrelatedNull, 0);
@@ -1545,6 +1555,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
 }
 
 WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
+  // TODO(7748): Add tests for branch_on_*.
   WasmGCTester tester(execution_tier);
   byte type_index =
       tester.DefineStruct({F(wasm::kWasmI32, true)}, kGenericSuperType);
@@ -1558,6 +1569,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
       tester.sigs.i_v(), {},
       {WASM_REF_TEST_STATIC(WASM_REF_NULL(type_index), subtype_index),
        kExprEnd});
+  // Upcasts should be optimized away for nominal types.
   const byte kRefTestUpcast = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_TEST_STATIC(WASM_STRUCT_NEW_DEFAULT(subtype_index), type_index),
@@ -1796,17 +1808,20 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
       tester.GetResultObject(rtt_canon).ToHandleChecked();
   CHECK(result_canon->IsMap());
   Handle<Map> map_canon = Handle<Map>::cast(result_canon);
-  CHECK(map_canon->IsJSFunctionMap());
+  CHECK(map_canon->IsWasmInternalFunctionMap());
 
   Handle<Object> result_cast = tester.GetResultObject(cast).ToHandleChecked();
-  CHECK(result_cast->IsJSFunction());
-  Handle<JSFunction> cast_function = Handle<JSFunction>::cast(result_cast);
+  CHECK(result_cast->IsWasmInternalFunction());
+  Handle<JSFunction> cast_function = Handle<JSFunction>::cast(
+      handle(Handle<WasmInternalFunction>::cast(result_cast)->external(),
+             tester.isolate()));
 
   Handle<Object> result_cast_reference =
       tester.GetResultObject(cast_reference).ToHandleChecked();
-  CHECK(result_cast_reference->IsJSFunction());
-  Handle<JSFunction> cast_function_reference =
-      Handle<JSFunction>::cast(result_cast_reference);
+  CHECK(result_cast_reference->IsWasmInternalFunction());
+  Handle<JSFunction> cast_function_reference = Handle<JSFunction>::cast(handle(
+      Handle<WasmInternalFunction>::cast(result_cast_reference)->external(),
+      tester.isolate()));
 
   CHECK_EQ(cast_function->code().raw_instruction_start(),
            cast_function_reference->code().raw_instruction_start());
@@ -2082,7 +2097,8 @@ WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
       WasmInitExpr::RttCanon(static_cast<HeapType::Representation>(SuperType)));
   const byte RttSub = tester.AddGlobal(
       ValueType::Rtt(SubType, 1), false,
-      WasmInitExpr::RttSub(static_cast<HeapType::Representation>(SubType),
+      WasmInitExpr::RttSub(tester.zone(),
+                           static_cast<HeapType::Representation>(SubType),
                            WasmInitExpr::GlobalGet(RttSuper)));
   const byte RttList = tester.AddGlobal(
       ValueType::Rtt(ListType, 0), false,

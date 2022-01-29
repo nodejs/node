@@ -854,6 +854,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                VRegister v_scratch);
   void Floor_d(VRegister dst, VRegister src, Register scratch,
                VRegister v_scratch);
+  void Trunc_f(VRegister dst, VRegister src, Register scratch,
+               VRegister v_scratch);
+  void Trunc_d(VRegister dst, VRegister src, Register scratch,
+               VRegister v_scratch);
+  void Round_f(VRegister dst, VRegister src, Register scratch,
+               VRegister v_scratch);
+  void Round_d(VRegister dst, VRegister src, Register scratch,
+               VRegister v_scratch);
   // Jump the register contains a smi.
   void JumpIfSmi(Register value, Label* smi_label);
 
@@ -952,6 +960,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void WasmRvvGtU(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
                   Vlmul lmul);
   void WasmRvvS128const(VRegister dst, const uint8_t imms[16]);
+
+  void LoadLane(int sz, VRegister dst, uint8_t laneidx, MemOperand src);
+  void StoreLane(int sz, VRegister src, uint8_t laneidx, MemOperand dst);
 
  protected:
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
@@ -1187,7 +1198,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                                bool builtin_exit_frame = false);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToInstructionStream(Address entry);
+  void JumpToOffHeapInstructionStream(Address entry);
 
   // ---------------------------------------------------------------------------
   // In-place weak references.

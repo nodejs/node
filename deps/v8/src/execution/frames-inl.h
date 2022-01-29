@@ -239,6 +239,10 @@ inline WasmToJsFrame::WasmToJsFrame(StackFrameIteratorBase* iterator)
 inline JsToWasmFrame::JsToWasmFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 
+inline ReturnPromiseOnSuspendFrame::ReturnPromiseOnSuspendFrame(
+    StackFrameIteratorBase* iterator)
+    : ExitFrame(iterator) {}
+
 inline CWasmEntryFrame::CWasmEntryFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 

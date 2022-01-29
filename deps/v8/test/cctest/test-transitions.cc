@@ -51,7 +51,8 @@ TEST(TransitionArray_SimpleFieldTransitions) {
   {
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK(transitions.IsWeakRefEncoding());
-    CHECK_EQ(*map1, transitions.SearchTransition(*name1, kData, attributes));
+    CHECK_EQ(*map1, transitions.SearchTransition(*name1, PropertyKind::kData,
+                                                 attributes));
     CHECK_EQ(1, transitions.NumberOfTransitions());
     CHECK_EQ(*name1, transitions.GetKey(0));
     CHECK_EQ(*map1, transitions.GetTarget(0));
@@ -62,8 +63,10 @@ TEST(TransitionArray_SimpleFieldTransitions) {
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK(transitions.IsFullTransitionArrayEncoding());
 
-    CHECK_EQ(*map1, transitions.SearchTransition(*name1, kData, attributes));
-    CHECK_EQ(*map2, transitions.SearchTransition(*name2, kData, attributes));
+    CHECK_EQ(*map1, transitions.SearchTransition(*name1, PropertyKind::kData,
+                                                 attributes));
+    CHECK_EQ(*map2, transitions.SearchTransition(*name2, PropertyKind::kData,
+                                                 attributes));
     CHECK_EQ(2, transitions.NumberOfTransitions());
     for (int i = 0; i < 2; i++) {
       Name key = transitions.GetKey(i);
@@ -108,7 +111,8 @@ TEST(TransitionArray_FullFieldTransitions) {
   {
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK(transitions.IsFullTransitionArrayEncoding());
-    CHECK_EQ(*map1, transitions.SearchTransition(*name1, kData, attributes));
+    CHECK_EQ(*map1, transitions.SearchTransition(*name1, PropertyKind::kData,
+                                                 attributes));
     CHECK_EQ(1, transitions.NumberOfTransitions());
     CHECK_EQ(*name1, transitions.GetKey(0));
     CHECK_EQ(*map1, transitions.GetTarget(0));
@@ -119,8 +123,10 @@ TEST(TransitionArray_FullFieldTransitions) {
     TestTransitionsAccessor transitions(isolate, map0);
     CHECK(transitions.IsFullTransitionArrayEncoding());
 
-    CHECK_EQ(*map1, transitions.SearchTransition(*name1, kData, attributes));
-    CHECK_EQ(*map2, transitions.SearchTransition(*name2, kData, attributes));
+    CHECK_EQ(*map1, transitions.SearchTransition(*name1, PropertyKind::kData,
+                                                 attributes));
+    CHECK_EQ(*map2, transitions.SearchTransition(*name2, PropertyKind::kData,
+                                                 attributes));
     CHECK_EQ(2, transitions.NumberOfTransitions());
     for (int i = 0; i < 2; i++) {
       Name key = transitions.GetKey(i);
@@ -165,8 +171,8 @@ TEST(TransitionArray_DifferentFieldNames) {
 
   TransitionsAccessor transitions(isolate, map0);
   for (int i = 0; i < PROPS_COUNT; i++) {
-    CHECK_EQ(*maps[i],
-             transitions.SearchTransition(*names[i], kData, attributes));
+    CHECK_EQ(*maps[i], transitions.SearchTransition(
+                           *names[i], PropertyKind::kData, attributes));
   }
   for (int i = 0; i < PROPS_COUNT; i++) {
     Name key = transitions.GetKey(i);
@@ -215,8 +221,8 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
   TransitionsAccessor transitions(isolate, map0);
   for (int i = 0; i < ATTRS_COUNT; i++) {
     PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
-    CHECK_EQ(*attr_maps[i],
-             transitions.SearchTransition(*name, kData, attributes));
+    CHECK_EQ(*attr_maps[i], transitions.SearchTransition(
+                                *name, PropertyKind::kData, attributes));
     // All transitions use the same key, so this check doesn't need to
     // care about ordering.
     CHECK_EQ(*name, transitions.GetKey(i));
@@ -278,7 +284,8 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   TransitionsAccessor transitions(isolate, map0);
   for (int i = 0; i < ATTRS_COUNT; i++) {
     PropertyAttributes attr = static_cast<PropertyAttributes>(i);
-    CHECK_EQ(*attr_maps[i], transitions.SearchTransition(*name, kData, attr));
+    CHECK_EQ(*attr_maps[i],
+             transitions.SearchTransition(*name, PropertyKind::kData, attr));
   }
 
   // Ensure that info about the other fields still valid.

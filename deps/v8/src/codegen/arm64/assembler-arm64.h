@@ -2065,27 +2065,27 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Required by V8.
   void db(uint8_t data) { dc8(data); }
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNone(rmode)) {
+    if (!RelocInfo::IsNoInfo(rmode)) {
       DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
              RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc32(data);
   }
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNone(rmode)) {
+    if (!RelocInfo::IsNoInfo(rmode)) {
       DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
              RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc64(data);
   }
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNone(rmode)) {
+    if (!RelocInfo::IsNoInfo(rmode)) {
       DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
              RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);

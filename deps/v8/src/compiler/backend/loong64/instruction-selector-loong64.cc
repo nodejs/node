@@ -1086,15 +1086,14 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
   Loong64OperandGenerator g(this);
   Int64BinopMatcher m(node);
   if (m.right().HasResolvedValue() && m.right().ResolvedValue() > 0) {
-    uint32_t value = static_cast<uint32_t>(m.right().ResolvedValue());
+    uint64_t value = static_cast<uint64_t>(m.right().ResolvedValue());
     if (base::bits::IsPowerOfTwo(value)) {
       Emit(kLoong64Sll_d | AddressingModeField::encode(kMode_None),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.TempImmediate(base::bits::WhichPowerOfTwo(value)));
       return;
     }
-    if (base::bits::IsPowerOfTwo(value - 1) && value - 1 > 0 &&
-        value - 1 <= 31) {
+    if (base::bits::IsPowerOfTwo(value - 1) && value - 1 > 0) {
       // Alsl_d macro will handle the shifting value out of bound cases.
       Emit(kLoong64Alsl_d, g.DefineAsRegister(node),
            g.UseRegister(m.left().node()), g.UseRegister(m.left().node()),

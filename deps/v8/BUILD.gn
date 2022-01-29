@@ -146,11 +146,8 @@ declare_args() {
   # into relaxed atomic operations.
   v8_enable_atomic_object_field_writes = ""
 
-  # Sets -dV8_ATOMIC_MARKING_STATE
-  v8_enable_atomic_marking_state = ""
-
-  # Controls the default values of v8_enable_atomic_object_field_writes and
-  # v8_enable_concurrent_marking_state. See the default setting code below.
+  # Controls the default value of v8_enable_concurrent_marking_state. See the
+  # default setting code below.
   v8_enable_concurrent_marking = true
 
   # Sets -dV8_IGNITION_DISPATCH_COUNTING.
@@ -275,8 +272,10 @@ declare_args() {
   # Generate comments describing the Torque intermediate representation.
   v8_annotate_torque_ir = false
 
-  # Disable all snapshot compression.
-  v8_enable_snapshot_compression = true
+  # Enable snapshot compression (enabled by default for desktop) devices.
+  v8_enable_snapshot_compression =
+      target_os == "android" || target_os == "chromeos" ||
+      target_os == "fuchsia"
 
   # Enable control-flow integrity features, such as pointer authentication for
   # ARM64.
@@ -353,11 +352,7 @@ declare_args() {
   # parameter count of function with JS linkage.
   # TODO(v8:11112): Remove once all architectures support the flag and it is
   # enabled unconditionally.
-  v8_include_receiver_in_argc =
-      v8_current_cpu == "x86" || v8_current_cpu == "x64" ||
-      v8_current_cpu == "arm" || v8_current_cpu == "arm64" ||
-      v8_current_cpu == "mips64el" || v8_current_cpu == "mipsel" ||
-      v8_current_cpu == "loong64" || v8_current_cpu == "riscv64"
+  v8_include_receiver_in_argc = true
 }
 
 # Derived defaults.
@@ -427,9 +422,6 @@ if (v8_enable_single_generation == "") {
 if (v8_enable_atomic_object_field_writes == "") {
   v8_enable_atomic_object_field_writes = v8_enable_concurrent_marking
 }
-if (v8_enable_atomic_marking_state == "") {
-  v8_enable_atomic_marking_state = v8_enable_concurrent_marking
-}
 if (v8_enable_third_party_heap) {
   v8_disable_write_barriers = true
   v8_enable_single_generation = true
@@ -443,8 +435,6 @@ if (v8_enable_single_generation) {
 }
 assert(!v8_enable_concurrent_marking || v8_enable_atomic_object_field_writes,
        "Concurrent marking requires atomic object field writes.")
-assert(!v8_enable_concurrent_marking || v8_enable_atomic_marking_state,
-       "Concurrent marking requires atomic marking state.")
 if (v8_enable_trace_unoptimized == "") {
   v8_enable_trace_unoptimized =
       v8_enable_trace_ignition || v8_enable_trace_baseline_exec
@@ -900,9 +890,6 @@ config("features") {
   }
   if (v8_enable_atomic_object_field_writes) {
     defines += [ "V8_ATOMIC_OBJECT_FIELD_WRITES" ]
-  }
-  if (v8_enable_atomic_marking_state) {
-    defines += [ "V8_ATOMIC_MARKING_STATE" ]
   }
   if (v8_enable_ignition_dispatch_counting) {
     defines += [ "V8_IGNITION_DISPATCH_COUNTING" ]
@@ -2198,7 +2185,6 @@ action("v8_dump_build_config") {
     "is_ubsan_vptr=$is_ubsan_vptr",
     "target_cpu=\"$target_cpu\"",
     "v8_current_cpu=\"$v8_current_cpu\"",
-    "v8_enable_atomic_marking_state=$v8_enable_atomic_marking_state",
     "v8_enable_atomic_object_field_writes=" +
         "$v8_enable_atomic_object_field_writes",
     "v8_enable_concurrent_marking=$v8_enable_concurrent_marking",
@@ -2496,6 +2482,7 @@ v8_header_set("v8_headers") {
     "include/v8-date.h",
     "include/v8-debug.h",
     "include/v8-embedder-heap.h",
+    "include/v8-embedder-state-scope.h",
     "include/v8-exception.h",
     "include/v8-extension.h",
     "include/v8-external.h",
@@ -2708,6 +2695,7 @@ v8_header_set("v8_internal_headers") {
     "src/codegen/unoptimized-compilation-info.h",
     "src/common/assert-scope.h",
     "src/common/checks.h",
+    "src/common/high-allocation-throughput-scope.h",
     "src/common/message-template.h",
     "src/common/ptr-compr-inl.h",
     "src/common/ptr-compr.h",
@@ -2872,6 +2860,8 @@ v8_header_set("v8_internal_headers") {
     "src/diagnostics/unwinder.h",
     "src/execution/arguments-inl.h",
     "src/execution/arguments.h",
+    "src/execution/embedder-state.h",
+    "src/execution/encoded-c-signature.h",
     "src/execution/execution.h",
     "src/execution/frame-constants.h",
     "src/execution/frames-inl.h",
@@ -2946,6 +2936,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/gc-tracer.h",
     "src/heap/heap-controller.h",
     "src/heap/heap-inl.h",
+    "src/heap/heap-layout-tracer.h",
     "src/heap/heap-write-barrier-inl.h",
     "src/heap/heap-write-barrier.h",
     "src/heap/heap.h",
@@ -3006,7 +2997,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/stress-scavenge-observer.h",
     "src/heap/sweeper.h",
     "src/heap/weak-object-worklists.h",
-    "src/heap/worklist.h",
     "src/ic/call-optimization.h",
     "src/ic/handler-configuration-inl.h",
     "src/ic/handler-configuration.h",
@@ -3369,6 +3359,7 @@ v8_header_set("v8_internal_headers") {
     "src/tasks/cancelable-task.h",
     "src/tasks/operations-barrier.h",
     "src/tasks/task-utils.h",
+    "src/temporal/temporal-parser.h",
     "src/third_party/siphash/halfsiphash.h",
     "src/third_party/utf8-decoder/utf8-decoder.h",
     "src/torque/runtime-macro-shims.h",
@@ -4086,6 +4077,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/diagnostics/perf-jit.cc",
     "src/diagnostics/unwinder.cc",
     "src/execution/arguments.cc",
+    "src/execution/embedder-state.cc",
+    "src/execution/encoded-c-signature.cc",
     "src/execution/execution.cc",
     "src/execution/frames.cc",
     "src/execution/futex-emulation.cc",
@@ -4135,6 +4128,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/gc-idle-time-handler.cc",
     "src/heap/gc-tracer.cc",
     "src/heap/heap-controller.cc",
+    "src/heap/heap-layout-tracer.cc",
     "src/heap/heap-write-barrier.cc",
     "src/heap/heap.cc",
     "src/heap/incremental-marking-job.cc",
@@ -4378,6 +4372,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/tasks/cancelable-task.cc",
     "src/tasks/operations-barrier.cc",
     "src/tasks/task-utils.cc",
+    "src/temporal/temporal-parser.cc",
     "src/third_party/siphash/halfsiphash.cc",
     "src/tracing/trace-event.cc",
     "src/tracing/traced-value.cc",
@@ -4978,6 +4973,8 @@ v8_component("v8_libbase") {
     "src/base/debug/stack_trace.h",
     "src/base/division-by-constant.cc",
     "src/base/division-by-constant.h",
+    "src/base/emulated-virtual-address-subspace.cc",
+    "src/base/emulated-virtual-address-subspace.h",
     "src/base/enum-set.h",
     "src/base/export-template.h",
     "src/base/file-utils.cc",
@@ -5031,6 +5028,7 @@ v8_component("v8_libbase") {
     "src/base/platform/time.cc",
     "src/base/platform/time.h",
     "src/base/platform/wrappers.h",
+    "src/base/platform/yield-processor.h",
     "src/base/region-allocator.cc",
     "src/base/region-allocator.h",
     "src/base/ring-buffer.h",
@@ -5040,6 +5038,8 @@ v8_component("v8_libbase") {
     "src/base/sanitizer/asan.h",
     "src/base/sanitizer/lsan-page-allocator.cc",
     "src/base/sanitizer/lsan-page-allocator.h",
+    "src/base/sanitizer/lsan-virtual-address-space.cc",
+    "src/base/sanitizer/lsan-virtual-address-space.h",
     "src/base/sanitizer/lsan.h",
     "src/base/sanitizer/msan.h",
     "src/base/sanitizer/tsan.h",
@@ -5056,6 +5056,10 @@ v8_component("v8_libbase") {
     "src/base/utils/random-number-generator.h",
     "src/base/v8-fallthrough.h",
     "src/base/vector.h",
+    "src/base/virtual-address-space-page-allocator.cc",
+    "src/base/virtual-address-space-page-allocator.h",
+    "src/base/virtual-address-space.cc",
+    "src/base/virtual-address-space.h",
     "src/base/vlq-base64.cc",
     "src/base/vlq-base64.h",
     "src/base/vlq.h",

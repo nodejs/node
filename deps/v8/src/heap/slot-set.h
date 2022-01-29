@@ -12,11 +12,11 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/bit-field.h"
 #include "src/base/bits.h"
-#include "src/heap/worklist.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/slots.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace internal {

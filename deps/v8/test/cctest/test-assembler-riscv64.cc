@@ -1993,7 +1993,6 @@ TEST(li_estimate) {
     CHECK(!memcmp(src, dst, sizeof(src)));                           \
   }
 
-#ifdef CAN_USE_RVV_INSTRUCTIONS
 UTEST_LOAD_STORE_RVV(vl, vs, E8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
                      15, 16)
 // UTEST_LOAD_STORE_RVV(vl, vs, E8, 127, 127, 127, 127, 127, 127, 127)
@@ -2004,7 +2003,7 @@ TEST(RVV_VSETIVLI) {
   HandleScope scope(isolate);
   auto fn = [](MacroAssembler& assm) {
     __ VU.set(t0, VSew::E8, Vlmul::m1);
-    __ vsetivli(t0, 16, VSew::E128, Vlmul::m1);
+    __ vsetivli(t0, 16, VSew::E64, Vlmul::m1);
   };
   GenAndRunTest(fn);
 }
@@ -2382,8 +2381,8 @@ static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift) {
           sign##int16_t dst[8] = {0};                                        \
           sign##int16_t ref[8] = {0};                                        \
         } t;                                                                 \
-        for (auto src : t.src) src = static_cast<sign##int32_t>(x);          \
-        for (auto ref : t.ref)                                               \
+        for (auto& src : t.src) src = static_cast<sign##int32_t>(x);         \
+        for (auto& ref : t.ref)                                              \
           ref = base::saturated_cast<sign##int16_t>(                         \
               (static_cast<sign##int32_t>(x) >> shift) +                     \
               get_round(vxrm, x, shift));                                    \
@@ -2398,7 +2397,105 @@ UTEST_RVV_VNCLIP_E32M2_E16M1(vnclip_vi, )
 
 #undef UTEST_RVV_VNCLIP_E32M2_E16M1
 
-#endif
+// Tests for vector integer extension instructions
+#define UTEST_RVV_VI_VIE_FORM_WITH_RES(instr_name, type, width, frac_width, \
+                                       array, expect_res)                   \
+  TEST(RISCV_UTEST_##instr_name##_##width##_##frac_width) {                 \
+    constexpr uint32_t vlen = 128;                                          \
+    constexpr uint32_t n = vlen / width;                                    \
+    CcTest::InitializeVM();                                                 \
+    for (int##frac_width##_t x : array) {                                   \
+      int##frac_width##_t src[n] = {0};                                     \
+      type dst[n] = {0};                                                    \
+      for (uint32_t i = 0; i < n; i++) src[i] = x;                          \
+      auto fn = [](MacroAssembler& assm) {                                  \
+        __ VU.set(t0, VSew::E##frac_width, Vlmul::m1);                      \
+        __ vl(v1, a0, 0, VSew::E##frac_width);                              \
+        __ VU.set(t0, VSew::E##width, Vlmul::m1);                           \
+        __ instr_name(v2, v1);                                              \
+        __ vs(v2, a1, 0, VSew::E##width);                                   \
+      };                                                                    \
+      GenAndRunTest<int64_t, int64_t>((int64_t)src, (int64_t)dst, fn);      \
+      for (uint32_t i = 0; i < n; i++) {                                    \
+        CHECK_EQ(expect_res, dst[i]);                                       \
+      }                                                                     \
+    }                                                                       \
+  }
+
+#define ARRAY(type) compiler::ValueHelper::GetVector<type>()
+
+UTEST_RVV_VI_VIE_FORM_WITH_RES(vzext_vf2, uint64_t, 64, 32, ARRAY(int32_t),
+                               static_cast<uint64_t>(dst[i]))
+UTEST_RVV_VI_VIE_FORM_WITH_RES(vzext_vf4, uint64_t, 64, 16, ARRAY(int16_t),
+                               static_cast<uint64_t>(dst[i]))
+UTEST_RVV_VI_VIE_FORM_WITH_RES(vzext_vf8, uint64_t, 64, 8, ARRAY(int8_t),
+                               static_cast<uint64_t>(dst[i]))
+UTEST_RVV_VI_VIE_FORM_WITH_RES(vzext_vf2, uint32_t, 32, 16, ARRAY(int16_t),
+                               static_cast<uint32_t>(dst[i]))
+UTEST_RVV_VI_VIE_FORM_WITH_RES(vzext_vf4, uint32_t, 32, 8, ARRAY(int8_t),
+                               static_cast<uint32_t>(dst[i]))
+UTEST_RVV_VI_VIE_FORM_WITH_RES(vzext_vf2, uint16_t, 16, 8, ARRAY(int8_t),
+                               static_cast<uint16_t>(dst[i]))
+
+UTEST_RVV_VI_VIE_FORM_WITH_RES(vsext_vf2, int64_t, 64, 32, ARRAY(int32_t),
+                               static_cast<int64_t>(dst[i]))
+UTEST_RVV_VI_VIE_FORM_WITH_RES(vsext_vf4, int64_t, 64, 16, ARRAY(int16_t),
+                               static_cast<int64_t>(dst[i]))
+UTEST_RVV_VI_VIE_FORM_WITH_RES(vsext_vf8, int64_t, 64, 8, ARRAY(int8_t),
+                               static_cast<int64_t>(dst[i]))
+UTEST_RVV_VI_VIE_FORM_WITH_RES(vsext_vf2, int32_t, 32, 16, ARRAY(int16_t),
+                               static_cast<int32_t>(dst[i]))
+UTEST_RVV_VI_VIE_FORM_WITH_RES(vsext_vf4, int32_t, 32, 8, ARRAY(int8_t),
+                               static_cast<int32_t>(dst[i]))
+UTEST_RVV_VI_VIE_FORM_WITH_RES(vsext_vf2, int16_t, 16, 8, ARRAY(int8_t),
+                               static_cast<int16_t>(dst[i]))
+
+#undef UTEST_RVV_VI_VIE_FORM_WITH_RES
+
+// Tests for vector permutation instructions vector slide instructions
+#define UTEST_RVV_VP_VS_VI_FORM_WITH_RES(instr_name, type, width, array, \
+                                         expect_res)                     \
+  TEST(RISCV_UTEST_##instr_name##_##type) {                              \
+    constexpr uint32_t vlen = 128;                                       \
+    constexpr uint32_t n = vlen / width;                                 \
+    CcTest::InitializeVM();                                              \
+    for (type x : array) {                                               \
+      for (uint32_t offset = 0; offset < n; offset++) {                  \
+        type src[n] = {0};                                               \
+        type dst[n] = {0};                                               \
+        for (uint32_t i = 0; i < n; i++) src[i] = x + i;                 \
+        auto fn = [offset](MacroAssembler& assm) {                       \
+          __ VU.set(t0, VSew::E##width, Vlmul::m1);                      \
+          __ vl(v1, a0, 0, VSew::E##width);                              \
+          __ instr_name(v2, v1, offset);                                 \
+          __ vs(v2, a1, 0, VSew::E##width);                              \
+        };                                                               \
+        GenAndRunTest<int64_t, int64_t>((int64_t)src, (int64_t)dst, fn); \
+        for (uint32_t i = 0; i < n; i++) {                               \
+          CHECK_EQ(expect_res, dst[i]);                                  \
+        }                                                                \
+      }                                                                  \
+    }                                                                    \
+  }
+
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, int64_t, 64, ARRAY(int64_t),
+                                 (i + offset) < n ? src[i + offset] : 0)
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, int32_t, 32, ARRAY(int32_t),
+                                 (i + offset) < n ? src[i + offset] : 0)
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, int16_t, 16, ARRAY(int16_t),
+                                 (i + offset) < n ? src[i + offset] : 0)
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, int8_t, 8, ARRAY(int8_t),
+                                 (i + offset) < n ? src[i + offset] : 0)
+
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, uint32_t, 32, ARRAY(uint32_t),
+                                 (i + offset) < n ? src[i + offset] : 0)
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, uint16_t, 16, ARRAY(uint16_t),
+                                 (i + offset) < n ? src[i + offset] : 0)
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, uint8_t, 8, ARRAY(uint8_t),
+                                 (i + offset) < n ? src[i + offset] : 0)
+
+#undef UTEST_RVV_VP_VS_VI_FORM_WITH_RES
+#undef ARRAY
 
 #undef __
 

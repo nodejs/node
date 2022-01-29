@@ -268,8 +268,11 @@ TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
 
       // 2. Return ? IteratorClose(iteratorRecord, error).
       BIND(&if_exception);
+      TNode<HeapObject> message = GetPendingMessage();
+      SetPendingMessage(TheHoleConstant());
       IteratorCloseOnException(context, iterator_record);
-      CallRuntime(Runtime::kReThrow, context, var_exception.value());
+      CallRuntime(Runtime::kReThrowWithMessage, context, var_exception.value(),
+                  message);
       Unreachable();
     }
   }

@@ -632,11 +632,10 @@ class FileWriterDelegateTest : public ::testing::Test {
  protected:
   void SetUp() override {
     ASSERT_TRUE(base::CreateTemporaryFile(&temp_file_path_));
-    file_.Initialize(temp_file_path_, (base::File::FLAG_CREATE_ALWAYS |
-                                       base::File::FLAG_READ |
-                                       base::File::FLAG_WRITE |
-                                       base::File::FLAG_TEMPORARY |
-                                       base::File::FLAG_DELETE_ON_CLOSE));
+    file_.Initialize(temp_file_path_,
+                     (base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_READ |
+                      base::File::FLAG_WRITE | base::File::FLAG_WIN_TEMPORARY |
+                      base::File::FLAG_DELETE_ON_CLOSE));
     ASSERT_TRUE(file_.IsValid());
   }
 

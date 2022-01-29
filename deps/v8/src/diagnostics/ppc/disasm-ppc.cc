@@ -1150,6 +1150,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "ldbrx   'rt, 'ra, 'rb");
       return;
     }
+    case LHBRX: {
+      Format(instr, "lhbrx   'rt, 'ra, 'rb");
+      return;
+    }
     case LWBRX: {
       Format(instr, "lwbrx   'rt, 'ra, 'rb");
       return;

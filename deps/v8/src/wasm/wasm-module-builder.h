@@ -273,7 +273,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
                     WasmInitExpr offset)
         : type(type),
           table_index(table_index),
-          offset(std::move(offset)),
+          offset(offset),
           entries(zone),
           status(kStatusActive) {
       DCHECK(IsValidOffsetKind(offset.kind()));

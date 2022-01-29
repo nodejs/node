@@ -444,8 +444,7 @@
       "main": "run.js",
       "resources": ["basic-export.js", "basic-import.js", "basic-namespace.js", "value.js"],
       "flags": [
-        "--allow-natives-syntax",
-        "--harmony-dynamic-import"
+        "--allow-natives-syntax"
       ],
       "results_regexp": "^%s\\-Modules\\(Score\\): (.+)$",
       "tests": [

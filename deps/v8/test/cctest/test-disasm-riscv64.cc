@@ -614,6 +614,14 @@ TEST(RVV) {
   COMPARE(vnclipu_vx(v17, v14, a5), "bae7c8d7       vnclipu.wx v17, v14, a5");
   COMPARE(vnclipu_vv(v17, v14, v28), "baee08d7       vnclipu.wv v17, v14, v28");
 
+  // Vector Integer Extension
+  COMPARE(vzext_vf8(v17, v14), "4ae128d7       vzext.vf8 v17, v14");
+  COMPARE(vsext_vf8(v17, v14), "4ae1a8d7       vsext.vf8 v17, v14");
+  COMPARE(vzext_vf4(v17, v14), "4ae228d7       vzext.vf4 v17, v14");
+  COMPARE(vsext_vf4(v17, v14), "4ae2a8d7       vsext.vf4 v17, v14");
+  COMPARE(vzext_vf2(v17, v14), "4ae328d7       vzext.vf2 v17, v14");
+  COMPARE(vsext_vf2(v17, v14), "4ae3a8d7       vsext.vf2 v17, v14");
+
   VERIFY_RUN();
 }
 #endif

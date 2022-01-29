@@ -114,7 +114,7 @@ bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
   }
   // Defer objects with special alignment requirements until the filler roots
   // are serialized.
-  return HeapObject::RequiredAlignment(object.map()) != kWordAligned;
+  return HeapObject::RequiredAlignment(object.map()) != kTaggedAligned;
 }
 
 bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(

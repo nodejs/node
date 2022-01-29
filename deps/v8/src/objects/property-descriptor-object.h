@@ -35,6 +35,8 @@ class PropertyDescriptorObject
                               HasWritableBit::kMask | HasValueBit::kMask |
                               HasGetBit::kMask | HasSetBit::kMask;
 
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(PropertyDescriptorObject)
 };
 

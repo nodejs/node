@@ -411,9 +411,9 @@ struct SharedSwissTableTests {
       for (int index : boundary_indices) {
         std::string key = "k" + std::to_string(index);
         std::string value = "v" + std::to_string(index);
-        PropertyDetails details = distinct_property_details.at(count++);
+        PropertyDetails detail = distinct_property_details.at(count++);
         s.CheckDataAtKey(Key{key, FakeH1{index + kBigModulus}},
-                         InternalIndex(index), value, details);
+                         InternalIndex(index), value, detail);
       }
     });
   }

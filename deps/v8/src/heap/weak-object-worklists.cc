@@ -6,7 +6,6 @@
 
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/worklist.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-function.h"
@@ -19,10 +18,30 @@ namespace v8 {
 
 namespace internal {
 
+WeakObjects::Local::Local(WeakObjects* weak_objects)
+    : WeakObjects::UnusedBase()
+#define INIT_LOCAL_WORKLIST(_, name, __) , name##_local(&weak_objects->name)
+          WEAK_OBJECT_WORKLISTS(INIT_LOCAL_WORKLIST)
+#undef INIT_LOCAL_WORKLIST
+{
+}
+
+void WeakObjects::Local::Publish() {
+#define INVOKE_PUBLISH(_, name, __) name##_local.Publish();
+  WEAK_OBJECT_WORKLISTS(INVOKE_PUBLISH)
+#undef INVOKE_PUBLISH
+}
+
 void WeakObjects::UpdateAfterScavenge() {
 #define INVOKE_UPDATE(_, name, Name) Update##Name(name);
   WEAK_OBJECT_WORKLISTS(INVOKE_UPDATE)
 #undef INVOKE_UPDATE
+}
+
+void WeakObjects::Clear() {
+#define INVOKE_CLEAR(_, name, __) name.Clear();
+  WEAK_OBJECT_WORKLISTS(INVOKE_CLEAR)
+#undef INVOKE_CLEAR
 }
 
 // static

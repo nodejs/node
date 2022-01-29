@@ -704,17 +704,29 @@ namespace internal {
                                                                                \
   /* Binary ops with feedback collection */                                    \
   TFC(Add_Baseline, BinaryOp_Baseline)                                         \
+  TFC(AddSmi_Baseline, BinaryOp_Baseline)                                      \
   TFC(Subtract_Baseline, BinaryOp_Baseline)                                    \
+  TFC(SubtractSmi_Baseline, BinaryOp_Baseline)                                 \
   TFC(Multiply_Baseline, BinaryOp_Baseline)                                    \
+  TFC(MultiplySmi_Baseline, BinaryOp_Baseline)                                 \
   TFC(Divide_Baseline, BinaryOp_Baseline)                                      \
+  TFC(DivideSmi_Baseline, BinaryOp_Baseline)                                   \
   TFC(Modulus_Baseline, BinaryOp_Baseline)                                     \
+  TFC(ModulusSmi_Baseline, BinaryOp_Baseline)                                  \
   TFC(Exponentiate_Baseline, BinaryOp_Baseline)                                \
+  TFC(ExponentiateSmi_Baseline, BinaryOp_Baseline)                             \
   TFC(BitwiseAnd_Baseline, BinaryOp_Baseline)                                  \
+  TFC(BitwiseAndSmi_Baseline, BinaryOp_Baseline)                               \
   TFC(BitwiseOr_Baseline, BinaryOp_Baseline)                                   \
+  TFC(BitwiseOrSmi_Baseline, BinaryOp_Baseline)                                \
   TFC(BitwiseXor_Baseline, BinaryOp_Baseline)                                  \
+  TFC(BitwiseXorSmi_Baseline, BinaryOp_Baseline)                               \
   TFC(ShiftLeft_Baseline, BinaryOp_Baseline)                                   \
+  TFC(ShiftLeftSmi_Baseline, BinaryOp_Baseline)                                \
   TFC(ShiftRight_Baseline, BinaryOp_Baseline)                                  \
+  TFC(ShiftRightSmi_Baseline, BinaryOp_Baseline)                               \
   TFC(ShiftRightLogical_Baseline, BinaryOp_Baseline)                           \
+  TFC(ShiftRightLogicalSmi_Baseline, BinaryOp_Baseline)                        \
                                                                                \
   TFC(Add_WithFeedback, BinaryOp_WithFeedback)                                 \
   TFC(Subtract_WithFeedback, BinaryOp_WithFeedback)                            \

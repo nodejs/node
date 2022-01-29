@@ -170,22 +170,23 @@ void TaggedIndex::TaggedIndexVerify(Isolate* isolate) {
 
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
   CHECK(IsHeapObject());
-  VerifyPointer(isolate, map(isolate));
-  CHECK(map(isolate).IsMap());
+  PtrComprCageBase cage_base(isolate);
+  VerifyPointer(isolate, map(cage_base));
+  CHECK(map(cage_base).IsMap(cage_base));
 
-  switch (map().instance_type()) {
+  switch (map(cage_base).instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
     STRING_TYPE_LIST(STRING_TYPE_CASE)
 #undef STRING_TYPE_CASE
-    if (IsConsString()) {
+    if (IsConsString(cage_base)) {
       ConsString::cast(*this).ConsStringVerify(isolate);
-    } else if (IsSlicedString()) {
+    } else if (IsSlicedString(cage_base)) {
       SlicedString::cast(*this).SlicedStringVerify(isolate);
-    } else if (IsThinString()) {
+    } else if (IsThinString(cage_base)) {
       ThinString::cast(*this).ThinStringVerify(isolate);
-    } else if (IsSeqString()) {
+    } else if (IsSeqString(cage_base)) {
       SeqString::cast(*this).SeqStringVerify(isolate);
-    } else if (IsExternalString()) {
+    } else if (IsExternalString(cage_base)) {
       ExternalString::cast(*this).ExternalStringVerify(isolate);
     } else {
       String::cast(*this).StringVerify(isolate);
@@ -425,7 +426,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
     for (InternalIndex i : map().IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(i);
       if (details.location() == PropertyLocation::kField) {
-        DCHECK_EQ(kData, details.kind());
+        DCHECK_EQ(PropertyKind::kData, details.kind());
         Representation r = details.representation();
         FieldIndex index = FieldIndex::ForDescriptor(map(), i);
         if (COMPRESS_POINTERS_BOOL && index.is_inobject()) {
@@ -616,6 +617,7 @@ void Context::ContextVerify(Isolate* isolate) {
 
 void NativeContext::NativeContextVerify(Isolate* isolate) {
   ContextVerify(isolate);
+  CHECK(retained_maps() == Smi::zero() || retained_maps().IsWeakArrayList());
   CHECK_EQ(length(), NativeContext::NATIVE_CONTEXT_SLOTS);
   CHECK_EQ(kVariableSizeSentinel, map().instance_size());
 }
@@ -802,27 +804,27 @@ void String::StringVerify(Isolate* isolate) {
 
 void ConsString::ConsStringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ConsStringVerify(*this, isolate);
-  CHECK_GE(this->length(), ConsString::kMinLength);
-  CHECK(this->length() == this->first().length() + this->second().length());
-  if (this->IsFlat()) {
+  CHECK_GE(length(), ConsString::kMinLength);
+  CHECK(length() == first().length() + second().length());
+  if (IsFlat(isolate)) {
     // A flat cons can only be created by String::SlowFlatten.
     // Afterwards, the first part may be externalized or internalized.
-    CHECK(this->first().IsSeqString() || this->first().IsExternalString() ||
-          this->first().IsThinString());
+    CHECK(first().IsSeqString() || first().IsExternalString() ||
+          first().IsThinString());
   }
 }
 
 void ThinString::ThinStringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ThinStringVerify(*this, isolate);
-  CHECK(this->actual().IsInternalizedString());
-  CHECK(this->actual().IsSeqString() || this->actual().IsExternalString());
+  CHECK(actual().IsInternalizedString());
+  CHECK(actual().IsSeqString() || actual().IsExternalString());
 }
 
 void SlicedString::SlicedStringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::SlicedStringVerify(*this, isolate);
-  CHECK(!this->parent().IsConsString());
-  CHECK(!this->parent().IsSlicedString());
-  CHECK_GE(this->length(), SlicedString::kMinLength);
+  CHECK(!parent().IsConsString());
+  CHECK(!parent().IsSlicedString());
+  CHECK_GE(length(), SlicedString::kMinLength);
 }
 
 USE_TORQUE_VERIFIER(ExternalString)
@@ -1971,7 +1973,7 @@ bool DescriptorArray::IsSortedNoDuplicates() {
 
 bool TransitionArray::IsSortedNoDuplicates() {
   Name prev_key;
-  PropertyKind prev_kind = kData;
+  PropertyKind prev_kind = PropertyKind::kData;
   PropertyAttributes prev_attributes = NONE;
   uint32_t prev_hash = 0;
 
@@ -1979,7 +1981,7 @@ bool TransitionArray::IsSortedNoDuplicates() {
     Name key = GetSortedKey(i);
     CHECK(key.HasHashCode());
     uint32_t hash = key.hash();
-    PropertyKind kind = kData;
+    PropertyKind kind = PropertyKind::kData;
     PropertyAttributes attributes = NONE;
     if (!TransitionsAccessor::IsSpecialTransition(key.GetReadOnlyRoots(),
                                                   key)) {

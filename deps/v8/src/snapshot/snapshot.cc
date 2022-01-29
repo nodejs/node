@@ -120,8 +120,11 @@ class SnapshotImpl : public AllStatic {
 
 }  // namespace
 
-SnapshotData MaybeDecompress(const base::Vector<const byte>& snapshot_data) {
+SnapshotData MaybeDecompress(Isolate* isolate,
+                             const base::Vector<const byte>& snapshot_data) {
 #ifdef V8_SNAPSHOT_COMPRESSION
+  TRACE_EVENT0("v8", "V8.SnapshotDecompress");
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kSnapshotDecompress);
   return SnapshotCompression::Decompress(snapshot_data);
 #else
   return SnapshotData(snapshot_data);
@@ -158,15 +161,14 @@ bool Snapshot::VersionIsValid(const v8::StartupData* data) {
 
 bool Snapshot::Initialize(Isolate* isolate) {
   if (!isolate->snapshot_available()) return false;
+  TRACE_EVENT0("v8", "V8.DeserializeIsolate");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeIsolate);
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   SnapshotImpl::CheckVersion(blob);
-  if (!FLAG_skip_snapshot_checksum) {
-    CHECK(VerifyChecksum(blob));
-  }
+  if (FLAG_verify_snapshot_checksum) CHECK(VerifyChecksum(blob));
   base::Vector<const byte> startup_data =
       SnapshotImpl::ExtractStartupData(blob);
   base::Vector<const byte> read_only_data =
@@ -180,9 +182,11 @@ bool Snapshot::Initialize(Isolate* isolate) {
     decompress_histogram.emplace(isolate->counters()->snapshot_decompress());
   }
 #endif
-  SnapshotData startup_snapshot_data(MaybeDecompress(startup_data));
-  SnapshotData read_only_snapshot_data(MaybeDecompress(read_only_data));
-  SnapshotData shared_heap_snapshot_data(MaybeDecompress(shared_heap_data));
+  SnapshotData startup_snapshot_data(MaybeDecompress(isolate, startup_data));
+  SnapshotData read_only_snapshot_data(
+      MaybeDecompress(isolate, read_only_data));
+  SnapshotData shared_heap_snapshot_data(
+      MaybeDecompress(isolate, shared_heap_data));
 #ifdef V8_SNAPSHOT_COMPRESSION
   decompress_histogram.reset();
 #endif
@@ -202,6 +206,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
+  TRACE_EVENT0("v8", "V8.DeserializeContext");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeContext);
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
@@ -219,7 +224,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
           isolate->counters()->context_snapshot_decompress());
     }
 #endif
-    snapshot_data.emplace(MaybeDecompress(context_data));
+    snapshot_data.emplace(MaybeDecompress(isolate, context_data));
   }
 
   MaybeHandle<Context> maybe_result = ContextDeserializer::DeserializeContext(
@@ -248,8 +253,6 @@ void Snapshot::ClearReconstructableDataForSerialization(
     HandleScope scope(isolate);
     std::vector<i::Handle<i::SharedFunctionInfo>> sfis_to_clear;
     {
-      // Heap allocation is disallowed within this scope.
-      DisallowGarbageCollection disallow_gc;
       i::HeapObjectIterator it(isolate->heap());
       for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
         if (o.IsSharedFunctionInfo(cage_base)) {
@@ -329,6 +332,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 
   // Test serialization.
   {
+    GlobalSafepointScope global_safepoint(isolate);
     DisallowGarbageCollection no_gc;
 
     Snapshot::SerializerFlags flags(
@@ -337,7 +341,8 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
         (ReadOnlyHeap::IsReadOnlySpaceShared()
              ? Snapshot::kReconstructReadOnlyObjectCacheForTesting
              : 0));
-    serialized_data = Snapshot::Create(isolate, *default_context, no_gc, flags);
+    serialized_data = Snapshot::Create(isolate, *default_context,
+                                       global_safepoint, no_gc, flags);
     auto_delete_serialized_data.reset(serialized_data.data);
   }
 
@@ -375,17 +380,16 @@ v8::StartupData Snapshot::Create(
     Isolate* isolate, std::vector<Context>* contexts,
     const std::vector<SerializeInternalFieldsCallback>&
         embedder_fields_serializers,
+    const GlobalSafepointScope& global_safepoint,
     const DisallowGarbageCollection& no_gc, SerializerFlags flags) {
+  TRACE_EVENT0("v8", "V8.SnapshotCreate");
   DCHECK_EQ(contexts->size(), embedder_fields_serializers.size());
   DCHECK_GT(contexts->size(), 0);
   HandleScope scope(isolate);
 
-  // Enter a safepoint so that the heap is safe to iterate.
-  // TODO(leszeks): This safepoint's scope could be tightened to just string
-  // table iteration, as that iteration relies on there not being any concurrent
-  // threads mutating the string table. But, there's currently no harm in
-  // holding it for the entire snapshot serialization.
-  SafepointScope safepoint(isolate->heap());
+  // The GlobalSafepointScope ensures we are in a safepoint scope so that the
+  // string table is safe to iterate. Unlike mksnapshot, embedders may have
+  // background threads running.
 
   ReadOnlySerializer read_only_serializer(isolate, flags);
   read_only_serializer.SerializeReadOnlyRoots();
@@ -460,11 +464,13 @@ v8::StartupData Snapshot::Create(
 
 // static
 v8::StartupData Snapshot::Create(Isolate* isolate, Context default_context,
+                                 const GlobalSafepointScope& global_safepoint,
                                  const DisallowGarbageCollection& no_gc,
                                  SerializerFlags flags) {
   std::vector<Context> contexts{default_context};
   std::vector<SerializeInternalFieldsCallback> callbacks{{}};
-  return Snapshot::Create(isolate, &contexts, callbacks, no_gc, flags);
+  return Snapshot::Create(isolate, &contexts, callbacks, global_safepoint,
+                          no_gc, flags);
 }
 
 v8::StartupData SnapshotImpl::CreateSnapshotBlob(
@@ -473,6 +479,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
     const SnapshotData* shared_heap_snapshot_in,
     const std::vector<SnapshotData*>& context_snapshots_in,
     bool can_be_rehashed) {
+  TRACE_EVENT0("v8", "V8.SnapshotCompress");
   // Have these separate from snapshot_in for compression, since we need to
   // access the compressed data as well as the uncompressed reservations.
   const SnapshotData* startup_snapshot;

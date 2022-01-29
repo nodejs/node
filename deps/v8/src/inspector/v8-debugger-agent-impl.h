@@ -10,9 +10,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "src/base/enum-set.h"
 #include "src/base/macros.h"
 #include "src/debug/debug-interface.h"
-#include "src/debug/interface-types.h"
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
 
@@ -152,7 +152,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void didPause(int contextId, v8::Local<v8::Value> exception,
                 const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
                 v8::debug::ExceptionType exceptionType, bool isUncaught,
-                bool isOOMBreak, bool isAssert);
+                v8::debug::BreakReasons breakReasons);
   void didContinue();
   void didParseSource(std::unique_ptr<V8DebuggerScript>, bool success);
 

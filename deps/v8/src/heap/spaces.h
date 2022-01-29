@@ -61,8 +61,7 @@ class SemiSpace;
 // collection. The large object space is paged. Pages in large object space
 // may be larger than the page size.
 //
-// A store-buffer based write barrier is used to keep track of intergenerational
-// references.  See heap/store-buffer.h.
+// A remembered set is used to keep track of intergenerational references.
 //
 // During scavenges and mark-sweep collections we sometimes (after a store
 // buffer overflow) iterate intergenerational pointers without decoding heap
@@ -434,23 +433,24 @@ class LocalAllocationBuffer {
 
 class SpaceWithLinearArea : public Space {
  public:
-  SpaceWithLinearArea(Heap* heap, AllocationSpace id, FreeList* free_list)
-      : Space(heap, id, free_list) {
-    allocation_info_.Reset(kNullAddress, kNullAddress);
-  }
+  SpaceWithLinearArea(Heap* heap, AllocationSpace id, FreeList* free_list,
+                      LinearAllocationArea* allocation_info)
+      : Space(heap, id, free_list), allocation_info_(allocation_info) {}
 
   virtual bool SupportsAllocationObserver() = 0;
 
   // Returns the allocation pointer in this space.
-  Address top() { return allocation_info_.top(); }
-  Address limit() { return allocation_info_.limit(); }
+  Address top() const { return allocation_info_->top(); }
+  Address limit() const { return allocation_info_->limit(); }
 
   // The allocation top address.
-  Address* allocation_top_address() { return allocation_info_.top_address(); }
+  Address* allocation_top_address() const {
+    return allocation_info_->top_address();
+  }
 
   // The allocation limit address.
-  Address* allocation_limit_address() {
-    return allocation_info_.limit_address();
+  Address* allocation_limit_address() const {
+    return allocation_info_->limit_address();
   }
 
   // Methods needed for allocation observers.
@@ -484,7 +484,7 @@ class SpaceWithLinearArea : public Space {
 
  protected:
   // TODO(ofrobots): make these private after refactoring is complete.
-  LinearAllocationArea allocation_info_;
+  LinearAllocationArea* const allocation_info_;
 
   size_t allocations_origins_[static_cast<int>(
       AllocationOrigin::kNumberOfAllocationOrigins)] = {0};

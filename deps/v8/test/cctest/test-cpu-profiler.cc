@@ -41,6 +41,7 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/source-position-table.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/embedder-state.h"
 #include "src/heap/spaces.h"
 #include "src/init/v8.h"
 #include "src/libplatform/default-platform.h"
@@ -750,6 +751,10 @@ static const char* cpu_profiler_test_source =
 //     2     2    (program) [-1]
 //     6     6    (garbage collector) [-1]
 TEST(CollectCpuProfile) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (i::FLAG_concurrent_sparkplug) return;
+
   i::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -779,6 +784,10 @@ TEST(CollectCpuProfile) {
 }
 
 TEST(CollectCpuProfileCallerLineNumbers) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (i::FLAG_concurrent_sparkplug) return;
+
   i::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1373,6 +1382,10 @@ static const char* call_function_test_source =
 //     1     1      bar [-1] #7
 //    19    19    (program) [-1] #2
 TEST(FunctionCallSample) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (i::FLAG_concurrent_sparkplug) return;
+
   i::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1430,6 +1443,10 @@ static const char* function_apply_test_source =
 //     2     2        bar [-1] #16 6
 //    10    10    (program) [-1] #0 2
 TEST(FunctionApplySample) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (i::FLAG_concurrent_sparkplug) return;
+
   i::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1909,6 +1926,10 @@ static const char* inlining_test_source2 = R"(
 //                        bailed out due to 'Optimization is always disabled'
 //     2    (program):0 0 #2
 TEST(Inlining2) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (FLAG_concurrent_sparkplug) return;
+
   FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
@@ -1997,6 +2018,10 @@ static const char* cross_script_source_b = R"(
   )";
 
 TEST(CrossScriptInliningCallerLineNumbers) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (i::FLAG_concurrent_sparkplug) return;
+
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
@@ -2088,6 +2113,10 @@ static const char* cross_script_source_f = R"(
   )";
 
 TEST(CrossScriptInliningCallerLineNumbers2) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (i::FLAG_concurrent_sparkplug) return;
+
   i::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(CcTest::isolate());
@@ -3894,6 +3923,217 @@ TEST(ContextIsolation) {
   }
 }
 
+void ValidateEmbedderState(v8::CpuProfile* profile,
+                           EmbedderStateTag expected_tag) {
+  for (int i = 0; i < profile->GetSamplesCount(); i++) {
+    if (profile->GetSampleState(i) == StateTag::GC) {
+      // Samples captured during a GC do not have an EmbedderState
+      CHECK_EQ(profile->GetSampleEmbedderState(i), EmbedderStateTag::EMPTY);
+    } else {
+      CHECK_EQ(profile->GetSampleEmbedderState(i), expected_tag);
+    }
+  }
+}
+
+// Tests that embedder states from other contexts aren't recorded
+TEST(EmbedderContextIsolation) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext execution_env;
+  i::HandleScope scope(CcTest::i_isolate());
+
+  v8::Isolate* isolate = execution_env.local()->GetIsolate();
+
+  // Install CollectSample callback for more deterministic sampling.
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(isolate, CallCollectSample);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(execution_env.local()).ToLocalChecked();
+  func->SetName(v8_str("CallCollectSample"));
+  execution_env->Global()
+      ->Set(execution_env.local(), v8_str("CallCollectSample"), func)
+      .FromJust();
+
+  v8::Local<v8::Context> diff_context = v8::Context::New(isolate);
+  {
+    CHECK_NULL(CcTest::i_isolate()->current_embedder_state());
+    // prepare other embedder state
+    EmbedderStateScope scope(isolate, diff_context, EmbedderStateTag::OTHER);
+    CHECK_EQ(CcTest::i_isolate()->current_embedder_state()->GetState(),
+             EmbedderStateTag::OTHER);
+
+    ProfilerHelper helper(execution_env.local());
+    CompileRun(R"(
+      function optimized() {
+        CallCollectSample();
+      }
+
+      function unoptimized() {
+        CallCollectSample();
+      }
+
+      function start() {
+        // Test optimized functions
+        %PrepareFunctionForOptimization(optimized);
+        optimized();
+        optimized();
+        %OptimizeFunctionOnNextCall(optimized);
+        optimized();
+
+        // Test unoptimized functions
+        %NeverOptimizeFunction(unoptimized);
+        unoptimized();
+
+        // Test callback
+        CallCollectSample();
+      }
+    )");
+    v8::Local<v8::Function> function =
+        GetFunction(execution_env.local(), "start");
+
+    v8::CpuProfile* profile = helper.Run(
+        function, nullptr, 0, 0, 0, v8::CpuProfilingMode::kLeafNodeLineNumbers,
+        v8::CpuProfilingOptions::kNoSampleLimit, execution_env.local());
+    ValidateEmbedderState(profile, EmbedderStateTag::EMPTY);
+  }
+  CHECK_NULL(CcTest::i_isolate()->current_embedder_state());
+}
+
+// Tests that embedder states from same context are recorded
+TEST(EmbedderStatePropagate) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext execution_env;
+  i::HandleScope scope(CcTest::i_isolate());
+
+  v8::Isolate* isolate = execution_env.local()->GetIsolate();
+
+  // Install CollectSample callback for more deterministic sampling.
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(isolate, CallCollectSample);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(execution_env.local()).ToLocalChecked();
+  func->SetName(v8_str("CallCollectSample"));
+  execution_env->Global()
+      ->Set(execution_env.local(), v8_str("CallCollectSample"), func)
+      .FromJust();
+
+  {
+    // prepare embedder state
+    EmbedderState embedderState(isolate, execution_env.local(),
+                                EmbedderStateTag::OTHER);
+    CHECK_EQ(CcTest::i_isolate()->current_embedder_state(), &embedderState);
+
+    ProfilerHelper helper(execution_env.local());
+    CompileRun(R"(
+      function optimized() {
+        CallCollectSample();
+      }
+
+      function unoptimized() {
+        CallCollectSample();
+      }
+
+      function start() {
+        // Test optimized functions
+        %PrepareFunctionForOptimization(optimized);
+        optimized();
+        optimized();
+        %OptimizeFunctionOnNextCall(optimized);
+        optimized();
+
+        // Test unoptimized functions
+        %NeverOptimizeFunction(unoptimized);
+        unoptimized();
+
+        // Test callback
+        CallCollectSample();
+      }
+    )");
+    v8::Local<v8::Function> function =
+        GetFunction(execution_env.local(), "start");
+
+    v8::CpuProfile* profile = helper.Run(
+        function, nullptr, 0, 0, 0, v8::CpuProfilingMode::kLeafNodeLineNumbers,
+        v8::CpuProfilingOptions::kNoSampleLimit, execution_env.local());
+    ValidateEmbedderState(profile, EmbedderStateTag::OTHER);
+  }
+  CHECK_NULL(CcTest::i_isolate()->current_embedder_state());
+}
+
+// Tests that embedder states from same context are recorded
+// even after native context move
+TEST(EmbedderStatePropagateNativeContextMove) {
+  // Reusing context addresses will cause this test to fail.
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
+      i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
+    return;
+  }
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_manual_evacuation_candidates_selection = true;
+  LocalContext execution_env;
+  i::HandleScope scope(CcTest::i_isolate());
+
+  v8::Isolate* isolate = execution_env.local()->GetIsolate();
+
+  // Install CollectSample callback for more deterministic sampling.
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(isolate, CallCollectSample);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(execution_env.local()).ToLocalChecked();
+  func->SetName(v8_str("CallCollectSample"));
+  execution_env->Global()
+      ->Set(execution_env.local(), v8_str("CallCollectSample"), func)
+      .FromJust();
+
+  {
+    // prepare embedder state
+    EmbedderState embedderState(isolate, execution_env.local(),
+                                EmbedderStateTag::OTHER);
+    CHECK_EQ(CcTest::i_isolate()->current_embedder_state(), &embedderState);
+
+    i::Address initial_address =
+        CcTest::i_isolate()->current_embedder_state()->native_context_address();
+
+    // Install a function that triggers the native context to be moved.
+    v8::Local<v8::FunctionTemplate> move_func_template =
+        v8::FunctionTemplate::New(
+            execution_env.local()->GetIsolate(),
+            [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+              i::Isolate* isolate =
+                  reinterpret_cast<i::Isolate*>(info.GetIsolate());
+              i::heap::ForceEvacuationCandidate(
+                  i::Page::FromHeapObject(isolate->raw_native_context()));
+              CcTest::CollectAllGarbage();
+            });
+    v8::Local<v8::Function> move_func =
+        move_func_template->GetFunction(execution_env.local()).ToLocalChecked();
+    move_func->SetName(v8_str("ForceNativeContextMove"));
+    execution_env->Global()
+        ->Set(execution_env.local(), v8_str("ForceNativeContextMove"),
+              move_func)
+        .FromJust();
+
+    ProfilerHelper helper(execution_env.local());
+    CompileRun(R"(
+      function start() {
+        ForceNativeContextMove();
+        CallCollectSample();
+      }
+    )");
+    v8::Local<v8::Function> function =
+        GetFunction(execution_env.local(), "start");
+
+    v8::CpuProfile* profile = helper.Run(
+        function, nullptr, 0, 0, 0, v8::CpuProfilingMode::kLeafNodeLineNumbers,
+        v8::CpuProfilingOptions::kNoSampleLimit, execution_env.local());
+    ValidateEmbedderState(profile, EmbedderStateTag::OTHER);
+
+    i::Address new_address =
+        CcTest::i_isolate()->current_embedder_state()->native_context_address();
+    CHECK_NE(initial_address, new_address);
+  }
+  CHECK_NULL(CcTest::i_isolate()->current_embedder_state());
+}
+
 // Tests that when a native context that's being filtered is moved, we continue
 // to track its execution.
 TEST(ContextFilterMovedNativeContext) {
@@ -4171,7 +4411,7 @@ TEST(FastApiCPUProfiler) {
 
   Local<v8::FunctionTemplate> receiver_templ = v8::FunctionTemplate::New(
       isolate, FastApiReceiver::SlowCallback, v8::Local<v8::Value>(),
-      v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kAllow,
+      v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kThrow,
       v8::SideEffectType::kHasSideEffect, &c_func);
 
   v8::Local<v8::ObjectTemplate> object_template =
@@ -4331,7 +4571,7 @@ TEST(ClearUnusedWithEagerLogging) {
 
   CodeMap* code_map = profiler.code_map_for_test();
   size_t initial_size = code_map->size();
-  size_t profiler_size = code_observer->GetEstimatedMemoryUsage();
+  size_t profiler_size = profiler.GetEstimatedMemoryUsage();
 
   {
     // Create and run a new script and function, generating 2 code objects.
@@ -4343,7 +4583,8 @@ TEST(ClearUnusedWithEagerLogging) {
         "function some_func() {}"
         "some_func();");
     CHECK_GT(code_map->size(), initial_size);
-    CHECK_GT(code_observer->GetEstimatedMemoryUsage(), profiler_size);
+    CHECK_GT(profiler.GetEstimatedMemoryUsage(), profiler_size);
+    CHECK_GT(profiler.GetAllProfilersMemorySize(isolate), profiler_size);
   }
 
   // Clear the compilation cache so that there are no more references to the
@@ -4354,7 +4595,8 @@ TEST(ClearUnusedWithEagerLogging) {
 
   // Verify that the CodeMap's size is unchanged post-GC.
   CHECK_EQ(code_map->size(), initial_size);
-  CHECK_EQ(code_observer->GetEstimatedMemoryUsage(), profiler_size);
+  CHECK_EQ(profiler.GetEstimatedMemoryUsage(), profiler_size);
+  CHECK_EQ(profiler.GetAllProfilersMemorySize(isolate), profiler_size);
 }
 
 // Ensure that ProfilerCodeObserver doesn't compute estimated size when race
@@ -4367,20 +4609,20 @@ TEST(SkipEstimatedSizeWhenActiveProfiling) {
 
   CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfilerCodeObserver* code_observer =
-      new ProfilerCodeObserver(isolate, storage);
-
   CpuProfiler profiler(isolate, kDebugNaming, kEagerLogging, profiles, nullptr,
-                       nullptr, code_observer);
+                       nullptr, new ProfilerCodeObserver(isolate, storage));
 
-  CHECK_GT(code_observer->GetEstimatedMemoryUsage(), 0);
+  CHECK_GT(profiler.GetAllProfilersMemorySize(isolate), 0);
+  CHECK_GT(profiler.GetEstimatedMemoryUsage(), 0);
 
   profiler.StartProfiling("");
-  CHECK_EQ(code_observer->GetEstimatedMemoryUsage(), 0);
+  CHECK_EQ(profiler.GetAllProfilersMemorySize(isolate), 0);
+  CHECK_EQ(profiler.GetEstimatedMemoryUsage(), 0);
 
   profiler.StopProfiling("");
 
-  CHECK_GT(code_observer->GetEstimatedMemoryUsage(), 0);
+  CHECK_GT(profiler.GetAllProfilersMemorySize(isolate), 0);
+  CHECK_GT(profiler.GetEstimatedMemoryUsage(), 0);
 }
 
 }  // namespace test_cpu_profiler

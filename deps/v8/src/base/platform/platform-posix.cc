@@ -153,11 +153,15 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access,
     flags |= MAP_LAZY;
 #endif  // V8_OS_QNX
   }
-#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
+#if V8_OS_MACOSX
+  // MAP_JIT is required to obtain writable and executable pages when the
+  // hardened runtime/memory protection is enabled, which is optional (via code
+  // signing) on Intel-based Macs but mandatory on Apple silicon ones. See also
+  // https://developer.apple.com/documentation/apple-silicon/porting-just-in-time-compilers-to-apple-silicon.
   if (access == OS::MemoryPermission::kNoAccessWillJitLater) {
     flags |= MAP_JIT;
   }
-#endif
+#endif  // V8_OS_MACOSX
   return flags;
 }
 
@@ -467,6 +471,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   return ret == 0;
 }
 
+// static
 bool OS::DiscardSystemPages(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
@@ -495,6 +500,7 @@ bool OS::DiscardSystemPages(void* address, size_t size) {
   return ret == 0;
 }
 
+// static
 bool OS::DecommitPages(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
@@ -507,6 +513,36 @@ bool OS::DecommitPages(void* address, size_t size) {
   void* ptr = mmap(address, size, PROT_NONE,
                    MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
   return ptr == address;
+}
+
+// static
+bool OS::CanReserveAddressSpace() { return true; }
+
+// static
+Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
+    void* hint, size_t size, size_t alignment,
+    MemoryPermission max_permission) {
+  // On POSIX, address space reservations are backed by private memory mappings.
+  MemoryPermission permission = MemoryPermission::kNoAccess;
+  if (max_permission == MemoryPermission::kReadWriteExecute) {
+    permission = MemoryPermission::kNoAccessWillJitLater;
+  }
+
+  void* reservation = Allocate(hint, size, alignment, permission);
+  if (!reservation && permission == MemoryPermission::kNoAccessWillJitLater) {
+    // Retry without MAP_JIT, for example in case we are running on an old OS X.
+    permission = MemoryPermission::kNoAccess;
+    reservation = Allocate(hint, size, alignment, permission);
+  }
+
+  if (!reservation) return {};
+
+  return AddressSpaceReservation(reservation, size);
+}
+
+// static
+bool OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
+  return Free(reservation.base(), reservation.size());
 }
 
 // static
@@ -823,6 +859,57 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
   strncpy(dest, src, n);
 }
 
+// ----------------------------------------------------------------------------
+// POSIX Address space reservation support.
+//
+
+#if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
+
+Optional<AddressSpaceReservation> AddressSpaceReservation::CreateSubReservation(
+    void* address, size_t size, OS::MemoryPermission max_permission) {
+  DCHECK(Contains(address, size));
+  DCHECK_EQ(0, size % OS::AllocatePageSize());
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % OS::AllocatePageSize());
+
+  return AddressSpaceReservation(address, size);
+}
+
+bool AddressSpaceReservation::FreeSubReservation(
+    AddressSpaceReservation reservation) {
+  // Nothing to do.
+  // Pages allocated inside the reservation must've already been freed.
+  return true;
+}
+
+bool AddressSpaceReservation::Allocate(void* address, size_t size,
+                                       OS::MemoryPermission access) {
+  // The region is already mmap'ed, so it just has to be made accessible now.
+  DCHECK(Contains(address, size));
+  return OS::SetPermissions(address, size, access);
+}
+
+bool AddressSpaceReservation::Free(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  return OS::DecommitPages(address, size);
+}
+
+bool AddressSpaceReservation::SetPermissions(void* address, size_t size,
+                                             OS::MemoryPermission access) {
+  DCHECK(Contains(address, size));
+  return OS::SetPermissions(address, size, access);
+}
+
+bool AddressSpaceReservation::DiscardSystemPages(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  return OS::DiscardSystemPages(address, size);
+}
+
+bool AddressSpaceReservation::DecommitPages(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  return OS::DecommitPages(address, size);
+}
+
+#endif  // !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 
 // ----------------------------------------------------------------------------
 // POSIX thread support.
@@ -840,9 +927,8 @@ Thread::Thread(const Options& options)
     : data_(new PlatformData),
       stack_size_(options.stack_size()),
       start_semaphore_(nullptr) {
-  if (stack_size_ > 0 && static_cast<size_t>(stack_size_) < PTHREAD_STACK_MIN) {
-    stack_size_ = PTHREAD_STACK_MIN;
-  }
+  const int min_stack_size = static_cast<int>(PTHREAD_STACK_MIN);
+  if (stack_size_ > 0) stack_size_ = std::max(stack_size_, min_stack_size);
   set_name(options.name());
 }
 

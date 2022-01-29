@@ -41,15 +41,15 @@ bytecodes: [
   /*   83 E> */ B(CallRuntime), U16(Runtime::kLoadPrivateSetter), R(2), U8(1),
                 B(Star4),
                 B(CallProperty1), R(4), R(this), R(3), U8(7),
-  /*   91 S> */ B(LdaSmi), I8(1),
-                B(Star1),
-                B(LdaImmutableCurrentContextSlot), U8(2),
+  /*   91 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(Star2),
+                B(LdaSmi), I8(1),
                 B(Star3),
                 B(LdaImmutableCurrentContextSlot), U8(3),
   /*   96 E> */ B(LdaKeyedProperty), R(this), U8(9),
-                B(CallRuntime), U16(Runtime::kLoadPrivateSetter), R(3), U8(1),
+                B(CallRuntime), U16(Runtime::kLoadPrivateSetter), R(2), U8(1),
                 B(Star4),
-                B(CallProperty1), R(4), R(this), R(1), U8(11),
+                B(CallProperty1), R(4), R(this), R(3), U8(11),
   /*  108 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star2),
                 B(LdaImmutableCurrentContextSlot), U8(3),
@@ -73,19 +73,21 @@ snippet: "
   var test = B;
   new test;
 "
-frame size: 3
+frame size: 4
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 28
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star0),
                 B(Ldar), R(context),
   /*   48 E> */ B(StaKeyedPropertyAsDefine), R(this), R(0), U8(0),
-  /*   53 S> */ B(Wide), B(LdaSmi), I16(285),
-                B(Star1),
-                B(LdaConstant), U8(0),
+  /*   53 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   58 E> */ B(LdaKeyedProperty), R(this), U8(2),
+                B(Wide), B(LdaSmi), I16(286),
                 B(Star2),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(1), U8(2),
+                B(LdaConstant), U8(0),
+                B(Star3),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
 ]
 constant pool: [
@@ -103,19 +105,21 @@ snippet: "
   var test = C;
   new test;
 "
-frame size: 3
+frame size: 4
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 28
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star0),
                 B(Ldar), R(context),
   /*   41 E> */ B(StaKeyedPropertyAsDefine), R(this), R(0), U8(0),
-  /*   46 S> */ B(Wide), B(LdaSmi), I16(284),
-                B(Star1),
-                B(LdaConstant), U8(0),
+  /*   46 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   51 E> */ B(LdaKeyedProperty), R(this), U8(2),
+                B(Wide), B(LdaSmi), I16(285),
                 B(Star2),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(1), U8(2),
+                B(LdaConstant), U8(0),
+                B(Star3),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
 ]
 constant pool: [
@@ -133,19 +137,21 @@ snippet: "
   var test = D;
   new test;
 "
-frame size: 3
+frame size: 4
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 28
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star0),
                 B(Ldar), R(context),
   /*   48 E> */ B(StaKeyedPropertyAsDefine), R(this), R(0), U8(0),
-  /*   53 S> */ B(Wide), B(LdaSmi), I16(285),
-                B(Star1),
-                B(LdaConstant), U8(0),
+  /*   53 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   58 E> */ B(LdaKeyedProperty), R(this), U8(2),
+                B(Wide), B(LdaSmi), I16(286),
                 B(Star2),
-  /*   61 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(1), U8(2),
+                B(LdaConstant), U8(0),
+                B(Star3),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
 ]
 constant pool: [
@@ -165,13 +171,15 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 28
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star0),
                 B(Ldar), R(context),
   /*   41 E> */ B(StaKeyedPropertyAsDefine), R(this), R(0), U8(0),
-  /*   46 S> */ B(Wide), B(LdaSmi), I16(284),
+  /*   46 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   51 E> */ B(LdaKeyedProperty), R(this), U8(2),
+                B(Wide), B(LdaSmi), I16(285),
                 B(Star2),
                 B(LdaConstant), U8(0),
                 B(Star3),

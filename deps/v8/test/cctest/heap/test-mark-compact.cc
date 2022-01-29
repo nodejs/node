@@ -73,33 +73,6 @@ TEST(Promotion) {
   }
 }
 
-HEAP_TEST(NoPromotion) {
-  if (FLAG_always_promote_young_mc) return;
-  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  // Page promotion allows pages to be moved to old space even in the case of
-  // OOM scenarios.
-  FLAG_page_promotion = false;
-
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  {
-    v8::HandleScope sc(CcTest::isolate());
-    Heap* heap = isolate->heap();
-
-    heap::SealCurrentObjects(heap);
-
-    int array_length = heap::FixedArrayLenFromSize(kMaxRegularHeapObjectSize);
-    Handle<FixedArray> array = isolate->factory()->NewFixedArray(array_length);
-
-    heap->set_force_oom(true);
-    // Array should be in the new space.
-    CHECK(heap->InSpace(*array, NEW_SPACE));
-    CcTest::CollectAllGarbage();
-    CcTest::CollectAllGarbage();
-    CHECK(heap->InSpace(*array, NEW_SPACE));
-  }
-}
-
 // This is the same as Factory::NewMap, except it doesn't retry on
 // allocation failure.
 AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
@@ -210,9 +183,9 @@ HEAP_TEST(MarkCompactCollector) {
 }
 
 HEAP_TEST(DoNotEvacuatePinnedPages) {
-  if (FLAG_never_compact || !FLAG_single_generation) return;
+  if (!FLAG_compact || !FLAG_single_generation) return;
 
-  FLAG_always_compact = true;
+  FLAG_compact_on_every_full_gc = true;
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -244,8 +217,8 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
   CcTest::CollectAllGarbage();
   heap->mark_compact_collector()->EnsureSweepingCompleted();
 
-  // always_compact ensures that this page is an evacuation candidate, so with
-  // the pin flag cleared compaction should now move it.
+  // `compact_on_every_full_gc` ensures that this page is an evacuation
+  // candidate, so with the pin flag cleared compaction should now move it.
   for (Handle<FixedArray> object : handles) {
     CHECK_NE(page, Page::FromHeapObject(*object));
   }

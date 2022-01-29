@@ -18,7 +18,10 @@ namespace internal {
 UnoptimizedCompilationInfo::UnoptimizedCompilationInfo(Zone* zone,
                                                        ParseInfo* parse_info,
                                                        FunctionLiteral* literal)
-    : flags_(parse_info->flags()), feedback_vector_spec_(zone) {
+    : flags_(parse_info->flags()),
+      dispatcher_(parse_info->dispatcher()),
+      character_stream_(parse_info->character_stream()),
+      feedback_vector_spec_(zone) {
   // NOTE: The parse_info passed here represents the global information gathered
   // during parsing, but does not represent specific details of the actual
   // function literal being compiled for this OptimizedCompilationInfo. As such,

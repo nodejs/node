@@ -8,6 +8,7 @@
 
 #include "include/cppgc/internal/api-constants.h"
 #include "src/base/logging.h"
+#include "src/base/platform/mutex.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-space.h"
@@ -239,8 +240,14 @@ void LargePage::Destroy(LargePage* page) {
   DCHECK(page);
 #if DEBUG
   const BaseSpace& space = page->space();
-  DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
-#endif
+  {
+    // Destroy() happens on the mutator but another concurrent sweeper task may
+    // add add a live object using `BaseSpace::AddPage()` while iterating the
+    // pages.
+    v8::base::LockGuard<v8::base::Mutex> guard(&space.pages_mutex());
+    DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
+  }
+#endif  // DEBUG
   page->~LargePage();
   PageBackend* backend = page->heap().page_backend();
   page->heap().stats_collector()->NotifyFreedMemory(

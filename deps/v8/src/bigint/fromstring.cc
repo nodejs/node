@@ -13,7 +13,7 @@ namespace bigint {
 void ProcessorImpl::FromStringClassic(RWDigits Z,
                                       FromStringAccumulator* accumulator) {
   // We always have at least one part to process.
-  DCHECK(accumulator->stack_parts_used_ > 0);  // NOLINT(readability/check)
+  DCHECK(accumulator->stack_parts_used_ > 0);
   Z[0] = accumulator->stack_parts_[0];
   RWDigits already_set(Z, 0, 1);
   for (int i = 1; i < Z.len(); i++) Z[i] = 0;
@@ -89,7 +89,7 @@ void ProcessorImpl::FromStringClassic(RWDigits Z,
 void ProcessorImpl::FromStringLarge(RWDigits Z,
                                     FromStringAccumulator* accumulator) {
   int num_parts = static_cast<int>(accumulator->heap_parts_.size());
-  DCHECK(num_parts >= 2);  // NOLINT(readability/check)
+  DCHECK(num_parts >= 2);
   DCHECK(Z.len() >= num_parts);
   RWDigits parts(accumulator->heap_parts_.data(), num_parts);
   Storage multipliers_storage(num_parts);
@@ -160,7 +160,7 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
       Multiply(p_out, p_in, m_in2);
       if (should_terminate()) return;
       digit_t overflow = AddAndReturnOverflow(p_out, p_in2);
-      DCHECK(overflow == 0);  // NOLINT(readability/check)
+      DCHECK(overflow == 0);
       USE(overflow);
       // m[j] = m[i] * m[i+1]
       if (i > 0) {
@@ -240,7 +240,7 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
 void ProcessorImpl::FromStringBasePowerOfTwo(
     RWDigits Z, FromStringAccumulator* accumulator) {
   const int num_parts = accumulator->ResultLength();
-  DCHECK(num_parts >= 1);  // NOLINT(readability/check)
+  DCHECK(num_parts >= 1);
   DCHECK(Z.len() >= num_parts);
   Digits parts(accumulator->heap_parts_.size() > 0
                    ? accumulator->heap_parts_.data()
@@ -259,7 +259,7 @@ void ProcessorImpl::FromStringBasePowerOfTwo(
   // If the last part is fully populated, then all parts must be, and we can
   // simply copy them (in reversed order).
   if (unused_last_part_bits == 0) {
-    DCHECK(kDigitBits % char_bits == 0);  // NOLINT(readability/check)
+    DCHECK(kDigitBits % char_bits == 0);
     while (part_index >= 0) {
       Z[z_index++] = parts[part_index--];
     }

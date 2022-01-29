@@ -35,7 +35,7 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js,
   is_user_js_ = is_user_js;
   error_in_spread_args_ = error_in_spread_args;
   spread_arg_ = nullptr;
-  function_kind_ = kNormalFunction;
+  function_kind_ = FunctionKind::kNormalFunction;
   InitializeAstVisitor(isolate);
 }
 
@@ -823,7 +823,7 @@ const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
   Init();
   { IndentedScope indent(this, "FUNC", program->position());
     PrintIndented("KIND");
-    Print(" %d\n", program->kind());
+    Print(" %d\n", static_cast<uint32_t>(program->kind()));
     PrintIndented("LITERAL ID");
     Print(" %d\n", program->function_literal_id());
     PrintIndented("SUSPEND COUNT");

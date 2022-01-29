@@ -373,6 +373,14 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
+  'v8_linux64_disable_runtime_call_stats_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing'},
+    ],
+  },
   'v8_linux64_external_code_space_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -1240,6 +1248,14 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
+  'V8 Linux64 - disable runtime call stats': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing'},
+    ],
+  },
   'V8 Linux64 - debug - fyi': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
@@ -2020,6 +2036,11 @@
         'suffix': 'deopt',
         'test_args': ['--total-timeout-sec=2100', '--stress-deopt=1']
       },
+      {
+        'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=2100', '--stress-interrupt-budget=1']
+      },
     ],
   },
   'V8 NumFuzz - TSAN': {
@@ -2045,6 +2066,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=2100', '--stress-interrupt-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'threads',
         'test_args': ['--total-timeout-sec=2100', '--stress-thread-pool-size=1']
       },
@@ -2066,6 +2092,7 @@
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
           '--stress-stack-size=1',
+          '--stress-interrupt-budget=1',
         ],
         'shards': 4
       },
@@ -2100,6 +2127,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=2100', '--stress-interrupt-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'threads',
         'test_args': ['--total-timeout-sec=2100', '--stress-thread-pool-size=1']
       },
@@ -2121,6 +2153,7 @@
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
           '--stress-stack-size=1',
+          '--stress-interrupt-budget=1',
         ],
         'shards': 3
       },
@@ -2147,6 +2180,11 @@
         'suffix': 'deopt',
         'test_args': ['--total-timeout-sec=900', '--stress-deopt=1']
       },
+      {
+        'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=900', '--stress-interrupt-budget=1']
+      },
     ],
   },
   'v8_numfuzz_tsan_ng_triggered': {
@@ -2163,6 +2201,11 @@
         'name': 'numfuzz',
         'suffix': 'delay',
         'test_args': ['--total-timeout-sec=900', '--stress-delay-tasks=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=900', '--stress-interrupt-budget=1']
       },
       {
         'name': 'numfuzz',
@@ -2187,6 +2230,7 @@
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
           '--stress-stack-size=1',
+          '--stress-interrupt-budget=1',
         ],
       },
       {
@@ -2213,6 +2257,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=900', '--stress-interrupt-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'threads',
         'test_args': ['--total-timeout-sec=900', '--stress-thread-pool-size=1']
       },
@@ -2234,6 +2283,7 @@
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
           '--stress-stack-size=1',
+          '--stress-interrupt-budget=1',
         ],
       },
       {

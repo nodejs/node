@@ -17,9 +17,14 @@ namespace internal {
 
 #include "torque-generated/src/objects/turbofan-types-tq.inc"
 
-class TurbofanTypeBits {
+class TurbofanTypeLowBits {
  public:
-  DEFINE_TORQUE_GENERATED_TURBOFAN_TYPE_BITS()
+  DEFINE_TORQUE_GENERATED_TURBOFAN_TYPE_LOW_BITS()
+};
+
+class TurbofanTypeHighBits {
+ public:
+  DEFINE_TORQUE_GENERATED_TURBOFAN_TYPE_HIGH_BITS()
 };
 
 }  // namespace internal

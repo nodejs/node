@@ -114,13 +114,9 @@ class V8_EXPORT V8StackTrace {
   virtual int topLineNumber() const = 0;
   virtual int topColumnNumber() const = 0;
   virtual int topScriptId() const = 0;
-  V8_DEPRECATED("Use V8::StackTrace::topScriptId() instead.")
-  int topScriptIdAsInteger() const { return topScriptId(); }
   virtual StringView topFunctionName() const = 0;
 
   virtual ~V8StackTrace() = default;
-  virtual std::unique_ptr<protocol::Runtime::API::StackTrace>
-  buildInspectorObject() const = 0;
   virtual std::unique_ptr<protocol::Runtime::API::StackTrace>
   buildInspectorObject(int maxAsyncDepth) const = 0;
   virtual std::unique_ptr<StringBuffer> toString() const = 0;

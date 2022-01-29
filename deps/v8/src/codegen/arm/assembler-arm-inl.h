@@ -195,7 +195,7 @@ Operand::Operand(const ExternalReference& f)
   value_.immediate = static_cast<int32_t>(f.address());
 }
 
-Operand::Operand(Smi value) : rmode_(RelocInfo::NONE) {
+Operand::Operand(Smi value) : rmode_(RelocInfo::NO_INFO) {
   value_.immediate = static_cast<intptr_t>(value.ptr());
 }
 

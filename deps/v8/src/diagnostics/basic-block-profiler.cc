@@ -174,8 +174,8 @@ std::vector<bool> BasicBlockProfiler::GetCoverageBitmap(Isolate* isolate) {
   for (int i = 0; i < list_length; ++i) {
     BasicBlockProfilerData data(
         OnHeapBasicBlockProfilerData::cast(list.Get(i)));
-    for (size_t i = 0; i < data.n_blocks(); ++i) {
-      out.push_back(data.counts_[i] > 0);
+    for (size_t j = 0; j < data.n_blocks(); ++j) {
+      out.push_back(data.counts_[j] > 0);
     }
   }
   return out;

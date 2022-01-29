@@ -683,8 +683,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // in which this method is meant to be used, and what guarantees it
   // provides against invalid reads from another thread during object
   // mutation.
-  inline base::Optional<Object> RawInobjectPropertyAt(Map original_map,
-                                                      FieldIndex index) const;
+  inline base::Optional<Object> RawInobjectPropertyAt(
+      PtrComprCageBase cage_base, Map original_map, FieldIndex index) const;
 
   inline void FastPropertyAtPut(FieldIndex index, Object value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

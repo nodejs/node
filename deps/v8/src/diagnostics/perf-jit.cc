@@ -393,8 +393,6 @@ void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
     entry.line_number_ = info.line + 1;
     entry.column_ = info.column + 1;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
-    // The extracted name may point into heap-objects, thus disallow GC.
-    DisallowGarbageCollection no_gc;
     std::unique_ptr<char[]> name_storage;
     base::Vector<const char> name_string =
         GetScriptName(info, &name_storage, no_gc);

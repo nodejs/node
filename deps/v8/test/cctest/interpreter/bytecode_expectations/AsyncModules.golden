@@ -6,7 +6,6 @@
 wrap: no
 module: yes
 top level: yes
-top level await: yes
 
 ---
 snippet: "

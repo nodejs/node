@@ -133,8 +133,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   void WaitForConcurrentMarkingForTesting();
 
-  void NotifyCompactionCancelled();
-
   bool IsMarking() const { return is_marking_; }
 
  protected:
@@ -173,6 +171,8 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   void AdvanceMarkingOnAllocation();
 
+  bool CancelConcurrentMarkingIfNeeded();
+
   HeapBase& heap_;
   MarkingConfig config_ = MarkingConfig::Default();
 
@@ -189,6 +189,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   IncrementalMarkingSchedule schedule_;
 
   std::unique_ptr<ConcurrentMarkerBase> concurrent_marker_{nullptr};
+  bool concurrent_marking_active_ = false;
 
   bool main_marking_disabled_for_testing_{false};
   bool visited_cross_thread_persistents_in_atomic_pause_{false};

@@ -137,7 +137,9 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
   if (isolate->debug()->break_points_active()) {
-    isolate->debug()->HandleDebugBreak(kIgnoreIfTopFrameBlackboxed);
+    isolate->debug()->HandleDebugBreak(
+        kIgnoreIfTopFrameBlackboxed,
+        v8::debug::BreakReasons({v8::debug::BreakReason::kDebuggerStatement}));
   }
   return isolate->stack_guard()->HandleInterrupts();
 }
@@ -146,7 +148,11 @@ RUNTIME_FUNCTION(Runtime_ScheduleBreak) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
   isolate->RequestInterrupt(
-      [](v8::Isolate* isolate, void*) { v8::debug::BreakRightNow(isolate); },
+      [](v8::Isolate* isolate, void*) {
+        v8::debug::BreakRightNow(
+            isolate,
+            v8::debug::BreakReasons({v8::debug::BreakReason::kScheduled}));
+      },
       nullptr);
   return ReadOnlyRoots(isolate).undefined_value();
 }

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/memory.h"
+#include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
@@ -100,17 +101,23 @@ RUNTIME_FUNCTION(Runtime_WasmIsValidRefValue) {
                  !trap_handler::IsThreadInWasm());
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0)
+  // 'raw_instance' can be either a WasmInstanceObject or undefined.
+  CONVERT_ARG_HANDLE_CHECKED(Object, raw_instance, 0)
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   // Make sure ValueType fits properly in a Smi.
   STATIC_ASSERT(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
   CONVERT_SMI_ARG_CHECKED(raw_type, 2);
 
+  const wasm::WasmModule* module =
+      raw_instance->IsWasmInstanceObject()
+          ? Handle<WasmInstanceObject>::cast(raw_instance)->module()
+          : nullptr;
+
   wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type);
   const char* error_message;
 
-  bool result = internal::wasm::TypecheckJSObject(isolate, instance->module(),
-                                                  value, type, &error_message);
+  bool result = internal::wasm::TypecheckJSObject(isolate, module, value, type,
+                                                  &error_message);
   return Smi::FromInt(result);
 }
 
@@ -225,10 +232,12 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 namespace {
 void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
                     int function_index, Handle<Code> wrapper_code) {
-  Handle<WasmExternalFunction> exported_function =
-      WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
+  Handle<WasmInternalFunction> internal =
+      WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
                                                   function_index)
           .ToHandleChecked();
+  Handle<WasmExternalFunction> exported_function =
+      handle(WasmExternalFunction::cast(internal->external()), isolate);
   exported_function->set_code(*wrapper_code, kReleaseStore);
   WasmExportedFunctionData function_data =
       exported_function->shared().wasm_exported_function_data();
@@ -253,11 +262,9 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
   // an exported function (although it is called as one).
   // If there is no entry for the start function,
   // the tier-up is abandoned.
-  MaybeHandle<WasmExternalFunction> maybe_exported_function =
-      WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
-                                                  function_index);
-  Handle<WasmExternalFunction> exported_function;
-  if (!maybe_exported_function.ToHandle(&exported_function)) {
+  if (WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
+                                                  function_index)
+          .is_null()) {
     DCHECK_EQ(function_index, module->start_function_index);
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -288,18 +295,17 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
 
-  if (FLAG_new_wasm_dynamic_tiering) {
-    // We're reusing this interrupt mechanism to interrupt long-running loops.
-    StackLimitCheck check(isolate);
-    DCHECK(!check.JsHasOverflowed());
-    if (check.InterruptRequested()) {
-      Object result = isolate->stack_guard()->HandleInterrupts();
-      if (result.IsException()) return result;
-    }
+  // We're reusing this interrupt mechanism to interrupt long-running loops.
+  StackLimitCheck check(isolate);
+  DCHECK(!check.JsHasOverflowed());
+  if (check.InterruptRequested()) {
+    Object result = isolate->stack_guard()->HandleInterrupts();
+    if (result.IsException()) return result;
   }
 
   FrameFinder<WasmFrame> frame_finder(isolate);
@@ -393,11 +399,8 @@ RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_UINT32_ARG_CHECKED(function_index, 1);
 
-  Handle<WasmExternalFunction> function =
-      WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
-                                                          function_index);
-
-  return *function;
+  return *WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate, instance,
+                                                              function_index);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
@@ -699,11 +702,12 @@ namespace {
 // contains a sentinel value, and it is also thread-safe. So if an interrupt is
 // requested before, during or after this call, it will be preserved and handled
 // at the next stack check.
-void SyncStackLimit(Isolate* isolate, Handle<WasmInstanceObject> instance) {
-  auto jmpbuf = Managed<wasm::JumpBuffer>::cast(
-                    instance->active_continuation().managed_jmpbuf())
-                    .get();
-  uintptr_t limit = reinterpret_cast<uintptr_t>(jmpbuf->stack_limit);
+void SyncStackLimit(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+  auto continuation = WasmContinuationObject::cast(
+      *isolate->roots_table().slot(RootIndex::kActiveContinuation));
+  auto stack = Managed<wasm::StackMemory>::cast(continuation.stack()).get();
+  uintptr_t limit = reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit);
   isolate->stack_guard()->SetStackLimit(limit);
 }
 }  // namespace
@@ -712,22 +716,24 @@ void SyncStackLimit(Isolate* isolate, Handle<WasmInstanceObject> instance) {
 // active continuation and setting the stack limit.
 RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   CHECK(FLAG_experimental_wasm_stack_switching);
-  DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  auto parent = instance->active_continuation();
-  auto target = WasmContinuationObject::New(isolate, parent);
-  instance->set_active_continuation(*target);
-  SyncStackLimit(isolate, instance);
+  auto parent =
+      handle(WasmContinuationObject::cast(
+                 *isolate->roots_table().slot(RootIndex::kActiveContinuation)),
+             isolate);
+  auto target = WasmContinuationObject::New(isolate, *parent);
+  auto target_stack =
+      Managed<wasm::StackMemory>::cast(target->stack()).get().get();
+  isolate->wasm_stacks()->Add(target_stack);
+  isolate->roots_table().slot(RootIndex::kActiveContinuation).store(*target);
+  SyncStackLimit(isolate);
   return *target;
 }
 
 // Update the stack limit after a stack switch, and preserve pending interrupts.
 RUNTIME_FUNCTION(Runtime_WasmSyncStackLimit) {
   CHECK(FLAG_experimental_wasm_stack_switching);
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  SyncStackLimit(isolate, instance);
+  SyncStackLimit(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

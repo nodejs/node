@@ -1,0 +1,23 @@
+Test that all 'other' reasons are explicitly encoded on a pause event if they overlap with another reason
+
+Running test: testBreakpointPauseReason
+Paused with reason: ambiguous and data: {"reasons":[{"reason":"instrumentation","auxData":{"url":"foo.js","scriptId":"3"}},{"reason":"other"}]}.
+
+Running test: testTriggeredPausePauseReason
+Paused with reason: ambiguous and data: {"reasons":[{"reason":"instrumentation","auxData":{"url":"foo.js","scriptId":"4"}},{"reason":"other"}]}.
+
+Running test: testSteppingPauseReason
+Paused with reason: ambiguous and data: {"reasons":[{"reason":"instrumentation","auxData":{"url":"foo.js","scriptId":"5"}},{"reason":"other"}]}.
+Paused with reason: other and data: {}.
+Paused with reason: ambiguous and data: {"reasons":[{"reason":"instrumentation","auxData":{"url":"bar.js","scriptId":"6"}},{"reason":"other"}]}.
+
+Running test: testOnlyReportOtherWithEmptyDataOnce
+Paused with reason: other and data: {}.
+
+Running test: testDebuggerStatementReason
+Paused with reason: ambiguous and data: {"reasons":[{"reason":"instrumentation","auxData":{"url":"foo.js","scriptId":"8"}},{"reason":"other"}]}.
+
+Running test: testAsyncSteppingPauseReason
+Paused with reason: ambiguous and data: {"reasons":[{"reason":"instrumentation","auxData":{"url":"foo.js","scriptId":"9"}},{"reason":"other"}]}.
+Paused with reason: other and data: {}.
+Paused with reason: ambiguous and data: {"reasons":[{"reason":"instrumentation","auxData":{"url":"bar.js","scriptId":"10"}},{"reason":"other"}]}.

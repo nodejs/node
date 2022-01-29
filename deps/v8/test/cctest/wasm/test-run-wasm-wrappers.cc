@@ -318,15 +318,17 @@ TEST(WrapperReplacement_IndirectExport) {
         CompileModule(&zone, isolate, builder);
 
     // Get the exported table.
-    Handle<WasmTableObject> table = handle(
+    Handle<WasmTableObject> table(
         WasmTableObject::cast(instance->tables().get(table_index)), isolate);
     // Get the Wasm function through the exported table.
     Handle<Object> function =
         WasmTableObject::Get(isolate, table, function_index);
-    Handle<WasmExportedFunction> indirect_function =
-        handle(WasmExportedFunction::cast(*function), isolate);
+    Handle<WasmExportedFunction> indirect_function(
+        WasmExportedFunction::cast(
+            WasmInternalFunction::cast(*function).external()),
+        isolate);
     // Get the function data.
-    Handle<WasmExportedFunctionData> indirect_function_data = handle(
+    Handle<WasmExportedFunctionData> indirect_function_data(
         indirect_function->shared().wasm_exported_function_data(), isolate);
 
     // Verify that the generic-wrapper budget has initially a value of

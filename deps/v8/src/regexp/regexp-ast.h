@@ -227,16 +227,16 @@ class RegExpAlternative final : public RegExpTree {
 
 class RegExpAssertion final : public RegExpTree {
  public:
-  enum AssertionType {
+  enum class Type {
     START_OF_LINE = 0,
     START_OF_INPUT = 1,
     END_OF_LINE = 2,
     END_OF_INPUT = 3,
     BOUNDARY = 4,
     NON_BOUNDARY = 5,
-    LAST_TYPE = NON_BOUNDARY,
+    LAST_ASSERTION_TYPE = NON_BOUNDARY,
   };
-  explicit RegExpAssertion(AssertionType type) : assertion_type_(type) {}
+  explicit RegExpAssertion(Type type) : assertion_type_(type) {}
 
   DECL_BOILERPLATE(Assertion);
 
@@ -244,10 +244,10 @@ class RegExpAssertion final : public RegExpTree {
   bool IsAnchoredAtEnd() override;
   int min_match() override { return 0; }
   int max_match() override { return 0; }
-  AssertionType assertion_type() const { return assertion_type_; }
+  Type assertion_type() const { return assertion_type_; }
 
  private:
-  const AssertionType assertion_type_;
+  const Type assertion_type_;
 };
 
 class CharacterSet final {

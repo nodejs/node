@@ -148,11 +148,13 @@ using JitCodeEventHandler = void (*)(const JitCodeEvent* event);
  */
 enum GCType {
   kGCTypeScavenge = 1 << 0,
-  kGCTypeMarkSweepCompact = 1 << 1,
-  kGCTypeIncrementalMarking = 1 << 2,
-  kGCTypeProcessWeakCallbacks = 1 << 3,
-  kGCTypeAll = kGCTypeScavenge | kGCTypeMarkSweepCompact |
-               kGCTypeIncrementalMarking | kGCTypeProcessWeakCallbacks
+  kGCTypeMinorMarkCompact = 1 << 1,
+  kGCTypeMarkSweepCompact = 1 << 2,
+  kGCTypeIncrementalMarking = 1 << 3,
+  kGCTypeProcessWeakCallbacks = 1 << 4,
+  kGCTypeAll = kGCTypeScavenge | kGCTypeMinorMarkCompact |
+               kGCTypeMarkSweepCompact | kGCTypeIncrementalMarking |
+               kGCTypeProcessWeakCallbacks
 };
 
 /**
@@ -316,7 +318,7 @@ using SharedArrayBufferConstructorEnabledCallback =
     bool (*)(Local<Context> context);
 
 /**
- * HostImportModuleDynamicallyWithImportAssertionsCallback is called when we
+ * HostImportModuleDynamicallyCallback is called when we
  * require the embedder to load a module. This is used as part of the dynamic
  * import syntax.
  *
@@ -346,6 +348,10 @@ using HostImportModuleDynamicallyWithImportAssertionsCallback =
                             Local<ScriptOrModule> referrer,
                             Local<String> specifier,
                             Local<FixedArray> import_assertions);
+using HostImportModuleDynamicallyCallback = MaybeLocal<Promise> (*)(
+    Local<Context> context, Local<Data> host_defined_options,
+    Local<Value> resource_name, Local<String> specifier,
+    Local<FixedArray> import_assertions);
 
 /**
  * HostInitializeImportMetaObjectCallback is called the first time import.meta

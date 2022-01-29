@@ -19,6 +19,10 @@
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/globals.h"
 
+#if defined(CPPGC_CAGED_HEAP)
+#include "src/heap/cppgc/caged-heap.h"
+#endif  // defined(CPPGC_CAGED_HEAP)
+
 namespace cppgc {
 
 class Visitor;
@@ -102,6 +106,11 @@ class HeapObjectHeader {
   inline bool IsFinalizable() const;
   void Finalize();
 
+#if defined(CPPGC_CAGED_HEAP)
+  inline void SetNextUnfinalized(HeapObjectHeader* next);
+  inline HeapObjectHeader* GetNextUnfinalized(uintptr_t cage_base) const;
+#endif  // defined(CPPGC_CAGED_HEAP)
+
   V8_EXPORT_PRIVATE HeapObjectName GetName() const;
 
   template <AccessMode = AccessMode::kNonAtomic>
@@ -140,7 +149,13 @@ class HeapObjectHeader {
   inline void StoreEncoded(uint16_t bits, uint16_t mask);
 
 #if defined(V8_TARGET_ARCH_64_BIT)
+  // If cage is enabled, to save on space required by sweeper metadata, we store
+  // the list of to-be-finalized objects inlined in HeapObjectHeader.
+#if defined(CPPGC_CAGED_HEAP)
+  uint32_t next_unfinalized_ = 0;
+#else   // !defined(CPPGC_CAGED_HEAP)
   uint32_t padding_ = 0;
+#endif  // !defined(CPPGC_CAGED_HEAP)
 #endif  // defined(V8_TARGET_ARCH_64_BIT)
   uint16_t encoded_high_;
   uint16_t encoded_low_;
@@ -163,9 +178,9 @@ const HeapObjectHeader& HeapObjectHeader::FromObject(const void* object) {
 }
 
 HeapObjectHeader::HeapObjectHeader(size_t size, GCInfoIndex gc_info_index) {
-#if defined(V8_TARGET_ARCH_64_BIT)
+#if defined(V8_TARGET_ARCH_64_BIT) && !defined(CPPGC_CAGED_HEAP)
   USE(padding_);
-#endif  // defined(V8_TARGET_ARCH_64_BIT)
+#endif  // defined(V8_TARGET_ARCH_64_BIT) && !defined(CPPGC_CAGED_HEAP)
   DCHECK_LT(gc_info_index, GCInfoTable::kMaxIndex);
   DCHECK_EQ(0u, size & (sizeof(HeapObjectHeader) - 1));
   DCHECK_GE(kMaxSize, size);
@@ -287,6 +302,22 @@ bool HeapObjectHeader::IsFinalizable() const {
   const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
   return gc_info.finalize;
 }
+
+#if defined(CPPGC_CAGED_HEAP)
+void HeapObjectHeader::SetNextUnfinalized(HeapObjectHeader* next) {
+  next_unfinalized_ = CagedHeap::OffsetFromAddress<uint32_t>(next);
+}
+
+HeapObjectHeader* HeapObjectHeader::GetNextUnfinalized(
+    uintptr_t cage_base) const {
+  DCHECK(cage_base);
+  DCHECK_EQ(0u,
+            CagedHeap::OffsetFromAddress(reinterpret_cast<void*>(cage_base)));
+  return next_unfinalized_ ? reinterpret_cast<HeapObjectHeader*>(
+                                 cage_base + next_unfinalized_)
+                           : nullptr;
+}
+#endif  // defined(CPPGC_CAGED_HEAP)
 
 template <AccessMode mode>
 void HeapObjectHeader::Trace(Visitor* visitor) const {

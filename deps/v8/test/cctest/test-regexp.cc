@@ -666,7 +666,6 @@ static ArchRegExpMacroAssembler::Result Execute(JSRegExp regexp, String input,
 }
 
 TEST(MacroAssemblerNativeSuccess) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -698,7 +697,6 @@ TEST(MacroAssemblerNativeSuccess) {
 }
 
 TEST(MacroAssemblerNativeSimple) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -756,7 +754,6 @@ TEST(MacroAssemblerNativeSimple) {
 }
 
 TEST(MacroAssemblerNativeSimpleUC16) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -824,7 +821,6 @@ TEST(MacroAssemblerNativeSimpleUC16) {
 }
 
 TEST(MacroAssemblerNativeBacktrack) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -860,7 +856,6 @@ TEST(MacroAssemblerNativeBacktrack) {
 }
 
 TEST(MacroAssemblerNativeBackReferenceLATIN1) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -905,7 +900,6 @@ TEST(MacroAssemblerNativeBackReferenceLATIN1) {
 }
 
 TEST(MacroAssemblerNativeBackReferenceUC16) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -954,7 +948,6 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
 }
 
 TEST(MacroAssemblernativeAtStart) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1005,7 +998,6 @@ TEST(MacroAssemblernativeAtStart) {
 }
 
 TEST(MacroAssemblerNativeBackRefNoCase) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1058,7 +1050,6 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
 }
 
 TEST(MacroAssemblerNativeRegisters) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1155,7 +1146,6 @@ TEST(MacroAssemblerNativeRegisters) {
 }
 
 TEST(MacroAssemblerStackOverflow) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1189,7 +1179,6 @@ TEST(MacroAssemblerStackOverflow) {
 }
 
 TEST(MacroAssemblerNativeLotsOfRegisters) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();

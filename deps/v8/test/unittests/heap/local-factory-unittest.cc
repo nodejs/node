@@ -55,13 +55,13 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
  public:
   LocalFactoryTest()
       : TestWithIsolateAndZone(),
-        state_(isolate()),
+        reusable_state_(isolate()),
         parse_info_(
             isolate(),
             UnoptimizedCompileFlags::ForToplevelCompile(
                 isolate(), true, construct_language_mode(FLAG_use_strict),
                 REPLMode::kNo, ScriptType::kClassic, FLAG_lazy),
-            &state_),
+            &state_, &reusable_state_),
         local_isolate_(isolate()->main_thread_local_isolate()) {}
 
   FunctionLiteral* ParseProgram(const char* source) {
@@ -73,24 +73,19 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
                          ->NewStringFromUtf8(base::CStrVector(source))
                          .ToHandleChecked();
 
-    parse_info_.set_character_stream(
-        ScannerStream::ForTesting(utf16_source.data(), utf16_source.size()));
-
-    {
-      DisallowGarbageCollection no_gc;
-      DisallowHeapAccess no_heap_access;
-
-      Parser parser(parse_info());
-      parser.InitializeEmptyScopeChain(parse_info());
-      parser.ParseOnBackground(parse_info(), 0, 0, kFunctionLiteralIdTopLevel);
-    }
-
-    parse_info()->ast_value_factory()->Internalize(local_isolate());
-    DeclarationScope::AllocateScopeInfos(parse_info(), local_isolate());
-
     script_ = parse_info_.CreateScript(local_isolate(),
                                        local_factory()->empty_string(),
                                        kNullMaybeHandle, ScriptOriginOptions());
+
+    parse_info_.set_character_stream(
+        ScannerStream::ForTesting(utf16_source.data(), utf16_source.size()));
+
+    Parser parser(local_isolate(), parse_info(), script_);
+    parser.InitializeEmptyScopeChain(parse_info());
+    parser.ParseOnBackground(local_isolate(), parse_info(), 0, 0,
+                             kFunctionLiteralIdTopLevel);
+
+    DeclarationScope::AllocateScopeInfos(parse_info(), local_isolate());
 
     // Create the SFI list on the script so that SFI SetScript works.
     Handle<WeakFixedArray> infos = local_factory()->NewWeakFixedArray(
@@ -110,6 +105,7 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
  private:
   SaveFlags save_flags_;
   UnoptimizedCompileState state_;
+  ReusableUnoptimizedCompileState reusable_state_;
   ParseInfo parse_info_;
   LocalIsolate* local_isolate_;
   Handle<String> source_string_;

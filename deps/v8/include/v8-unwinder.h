@@ -7,7 +7,8 @@
 
 #include <memory>
 
-#include "v8config.h"  // NOLINT(build/include_directory)
+#include "v8-embedder-state-scope.h"  // NOLINT(build/include_directory)
+#include "v8config.h"                 // NOLINT(build/include_directory)
 
 namespace v8 {
 // Holds the callee saved registers needed for the stack unwinder. It is the
@@ -32,7 +33,7 @@ struct V8_EXPORT RegisterState {
 };
 
 // A StateTag represents a possible state of the VM.
-enum StateTag {
+enum StateTag : int {
   JS,
   GC,
   PARSER,
@@ -46,11 +47,13 @@ enum StateTag {
 
 // The output structure filled up by GetStackSample API function.
 struct SampleInfo {
-  size_t frames_count;            // Number of frames collected.
-  StateTag vm_state;              // Current VM state.
-  void* external_callback_entry;  // External callback address if VM is
-                                  // executing an external callback.
-  void* context;                  // Incumbent native context address.
+  size_t frames_count;              // Number of frames collected.
+  void* external_callback_entry;    // External callback address if VM is
+                                    // executing an external callback.
+  void* context;                    // Incumbent native context address.
+  void* embedder_context;           // Native context address for embedder state
+  StateTag vm_state;                // Current VM state.
+  EmbedderStateTag embedder_state;  // Current Embedder state
 };
 
 struct MemoryRange {

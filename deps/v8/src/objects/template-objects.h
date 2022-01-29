@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+class StructBodyDescriptor;
+
 #include "torque-generated/src/objects/template-objects-tq.inc"
 
 // CachedTemplateObject is a tuple used to cache a TemplateObject that has been
@@ -26,6 +28,8 @@ class CachedTemplateObject final
   static Handle<CachedTemplateObject> New(Isolate* isolate, int slot_id,
                                           Handle<JSArray> template_object,
                                           Handle<HeapObject> next);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(CachedTemplateObject)
 };
@@ -41,6 +45,8 @@ class TemplateObjectDescription final
       Isolate* isolate, Handle<NativeContext> native_context,
       Handle<TemplateObjectDescription> description,
       Handle<SharedFunctionInfo> shared_info, int slot_id);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(TemplateObjectDescription)
 };

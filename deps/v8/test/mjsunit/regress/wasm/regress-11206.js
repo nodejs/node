@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-mv --expose-gc --stress-compaction
-// Flags: --stress-scavenge=16
+// Flags: --expose-gc --stress-compaction --stress-scavenge=16
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

@@ -46,6 +46,7 @@ enum InstanceType : uint16_t;
   V(JSApiObject)                        \
   V(JSArrayBuffer)                      \
   V(JSDataView)                         \
+  V(JSFinalizationRegistry)             \
   V(JSFunction)                         \
   V(JSObject)                           \
   V(JSObjectFast)                       \
@@ -68,15 +69,17 @@ enum InstanceType : uint16_t;
   V(Symbol)                             \
   V(SyntheticModule)                    \
   V(TransitionArray)                    \
+  IF_WASM(V, WasmApiFunctionRef)        \
   IF_WASM(V, WasmArray)                 \
   IF_WASM(V, WasmCapiFunctionData)      \
   IF_WASM(V, WasmExportedFunctionData)  \
   IF_WASM(V, WasmFunctionData)          \
   IF_WASM(V, WasmIndirectFunctionTable) \
   IF_WASM(V, WasmInstanceObject)        \
+  IF_WASM(V, WasmInternalFunction)      \
   IF_WASM(V, WasmJSFunctionData)        \
-  IF_WASM(V, WasmApiFunctionRef)        \
   IF_WASM(V, WasmStruct)                \
+  IF_WASM(V, WasmSuspenderObject)       \
   IF_WASM(V, WasmTypeInfo)              \
   V(WeakCell)
 
@@ -352,10 +355,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // map.
   int ComputeMinObjectSlack(Isolate* isolate);
   inline int InstanceSizeFromSlack(int slack) const;
-
-  // Completes inobject slack tracking for the transition tree starting at this
-  // initial map.
-  V8_EXPORT_PRIVATE void CompleteInobjectSlackTracking(Isolate* isolate);
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype

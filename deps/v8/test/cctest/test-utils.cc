@@ -174,9 +174,7 @@ void TestMemMove(byte* area1,
   }
 }
 
-
 TEST(MemMove) {
-  v8::V8::Initialize();
   byte* area1 = new byte[kAreaSize];
   byte* area2 = new byte[kAreaSize];
 
@@ -195,7 +193,6 @@ TEST(MemMove) {
   delete[] area1;
   delete[] area2;
 }
-
 
 TEST(Collector) {
   Collector<int> collector(8);

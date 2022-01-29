@@ -183,7 +183,7 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
   // The modulo-reduction amounts to a subtraction, which we combine
   // with the shift as follows:
   //   input  =  [ iK ][iK-1] ....  .... [ i1 ][ i0 ]
-  //   result =        [iX-1] .... [ i0 ] <<<<<<<<<<< shift by {power_of_two}
+  //   result =        [iX-1] .... [ i0 ] <---------- shift by {power_of_two}
   //            -                  [ iK ] .... [ iX ]
   // where "X" is the index "K - digit_shift".
   int digit_shift = power_of_two / kDigitBits;
@@ -207,7 +207,7 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
     }
     // Any remaining work can hard-code the knowledge that input[i] == 0.
     for (; i < K - digit_shift; i++) {
-      DCHECK(input[i] == 0);  // NOLINT(readability/check)
+      DCHECK(input[i] == 0);
       result[i + digit_shift] = 0;
     }
     // Second phase: subtract input digits [iX] to [iK] from (virtually) zero-
@@ -219,7 +219,7 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
     }
     // Any remaining work can hard-code the knowledge that input[i] == 0.
     for (; i < K; i++) {
-      DCHECK(input[i] == 0);  // NOLINT(readability/check)
+      DCHECK(input[i] == 0);
       result[i - K + digit_shift] = digit_sub(0, borrow, &borrow);
     }
     // Last step: subtract [iK] from [i0] and store at result index digit_shift.
@@ -238,7 +238,7 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
     }
     // Any remaining work can hard-code the knowledge that input[i] == 0.
     for (; i < K - digit_shift; i++) {
-      DCHECK(input[i] == 0);  // NOLINT(readability/check)
+      DCHECK(input[i] == 0);
       result[i + digit_shift] = carry;
       carry = 0;
     }
@@ -252,13 +252,13 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
     }
     // Any remaining work can hard-code the knowledge that input[i] == 0.
     if (i < K) {
-      DCHECK(input[i] == 0);  // NOLINT(readability/check)
+      DCHECK(input[i] == 0);
       result[i - K + digit_shift] = digit_sub2(0, carry, borrow, &borrow);
       carry = 0;
       i++;
     }
     for (; i < K; i++) {
-      DCHECK(input[i] == 0);  // NOLINT(readability/check)
+      DCHECK(input[i] == 0);
       result[i - K + digit_shift] = digit_sub(0, borrow, &borrow);
     }
     // Last step: compute result[digit_shift].
@@ -266,7 +266,7 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
     result[digit_shift] = digit_sub2(
         result[digit_shift], (d << bits_shift) | carry, borrow, &borrow);
     // No carry left.
-    DCHECK((d >> (kDigitBits - bits_shift)) == 0);  // NOLINT(readability/check)
+    DCHECK((d >> (kDigitBits - bits_shift)) == 0);
   }
   result[K] = 0;
   for (int i = digit_shift + 1; i <= K && borrow > 0; i++) {
@@ -324,8 +324,8 @@ void ComputeParameters(int N, int m, Parameters* params) {
     K_tz = CountTrailingZeros(K);
   }
 
-  DCHECK(K % kDigitBits == 0);  // NOLINT(readability/check)
-  DCHECK(s % kDigitBits == 0);  // NOLINT(readability/check)
+  DCHECK(K % kDigitBits == 0);
+  DCHECK(s % kDigitBits == 0);
   params->K = K / kDigitBits;
   params->s = s / kDigitBits;
   params->n = n;
@@ -347,8 +347,8 @@ void ComputeParameters_Inner(int N, Parameters* params) {
   K = RoundUp(K, n);      // ...and a multiple of n and kDigitBits.
   K = RoundUp(K, kDigitBits);
   params->r = K >> m;           // Which multiple?
-  DCHECK(K % kDigitBits == 0);  // NOLINT(readability/check)
-  DCHECK(s % kDigitBits == 0);  // NOLINT(readability/check)
+  DCHECK(K % kDigitBits == 0);
+  DCHECK(s % kDigitBits == 0);
   params->K = K / kDigitBits;
   params->s = s / kDigitBits;
   params->n = n;
@@ -502,7 +502,7 @@ void FFTContainer::Start_Default(Digits X, int chunk_size, int theta,
     // corner case where X[n_ * chunk_size] == 1. Detect that case, and handle
     // the extra bit as part of the last chunk; we always have the space.
     if (i == n_ - 1 && len == chunk_size + 1) {
-      DCHECK(X[n_ * chunk_size] <= 1);  // NOLINT(readability/check)
+      DCHECK(X[n_ * chunk_size] <= 1);
       DCHECK(length_ >= chunk_size + 1);
       chunk_size++;
     }
@@ -517,7 +517,7 @@ void FFTContainer::Start_Default(Digits X, int chunk_size, int theta,
     pointer += chunk_size;
     len -= chunk_size;
   }
-  DCHECK(len == 0);  // NOLINT(readability/check)
+  DCHECK(len == 0);
   for (; i < n_; i++) {
     memset(part_[i], 0, part_length_in_bytes);
   }
@@ -531,7 +531,7 @@ void FFTContainer::Start(Digits X, int chunk_size, int theta, int omega) {
   if (len > n_ * chunk_size / 2) {
     return Start_Default(X, chunk_size, theta, omega);
   }
-  DCHECK(theta == 0);  // NOLINT(readability/check)
+  DCHECK(theta == 0);
   const digit_t* pointer = X.digits();
   const size_t part_length_in_bytes = length_ * sizeof(digit_t);
   int nhalf = n_ / 2;
@@ -562,7 +562,7 @@ void FFTContainer::Start(Digits X, int chunk_size, int theta, int omega) {
 // need as input for the "DIT" aka "decimation in time" backwards transform.
 void FFTContainer::FFT_ReturnShuffledThreadsafe(int start, int len, int omega,
                                                 digit_t* temp) {
-  DCHECK((len & 1) == 0);  // {len} must be even. NOLINT(readability/check)
+  DCHECK((len & 1) == 0);  // {len} must be even.
   int half = len / 2;
   SumDiff(part_[start], part_[start + half], part_[start], part_[start + half],
           length_);
@@ -592,7 +592,7 @@ void FFTContainer::BackwardFFT(int start, int len, int omega) {
 
 void FFTContainer::BackwardFFT_Threadsafe(int start, int len, int omega,
                                           digit_t* temp) {
-  DCHECK((len & 1) == 0);  // {len} must be even. NOLINT(readability/check)
+  DCHECK((len & 1) == 0);  // {len} must be even.
   int half = len / 2;
   // Don't recurse for half == 2, as PointwiseMultiply already performed
   // the first level of the backwards FFT.
@@ -626,7 +626,7 @@ void FFTContainer::NormalizeAndRecombine(int omega, int m, RWDigits Z,
       Z[zi] = digit_add3(Z[zi], temp_[j], carry, &carry);
     }
     for (; j < length_; j++) {
-      DCHECK(temp_[j] == 0);  // NOLINT(readability/check)
+      DCHECK(temp_[j] == 0);
     }
     if (carry != 0) {
       DCHECK(zi < Z.len());
@@ -654,7 +654,7 @@ void FFTContainer::CounterWeightAndRecombine(int theta, int m, RWDigits Z,
   for (int k = 0; k < n_; k++, z_index += s) {
     int shift = -theta * k - m;
     if (shift < 0) shift += 2 * n_ * theta;
-    DCHECK(shift >= 0);  // NOLINT(readability/check)
+    DCHECK(shift >= 0);
     digit_t* input = part_[k];
     ShiftModFn(temp_, input, shift, K_);
     int remaining_z = Z.len() - z_index;
@@ -679,7 +679,7 @@ void FFTContainer::CounterWeightAndRecombine(int theta, int m, RWDigits Z,
         digit_t d = digit_sub2(1, temp_[i], borrow_Fn, &borrow_Fn);
         Z[z_index + i] = digit_sub2(Z[z_index + i], d, borrow_z, &borrow_z);
       }
-      DCHECK(borrow_Fn == 0);  // NOLINT(readability/check)
+      DCHECK(borrow_Fn == 0);
       for (; borrow_z > 0 && i < remaining_z; i++) {
         Z[z_index + i] = digit_sub(Z[z_index + i], borrow_z, &borrow_z);
       }
@@ -690,7 +690,7 @@ void FFTContainer::CounterWeightAndRecombine(int theta, int m, RWDigits Z,
         Z[z_index + i] = digit_add3(Z[z_index + i], temp_[i], carry, &carry);
       }
       for (; i < length_; i++) {
-        DCHECK(temp_[i] == 0);  // NOLINT(readability/check)
+        DCHECK(temp_[i] == 0);
       }
       for (; carry > 0 && i < remaining_z; i++) {
         Z[z_index + i] = digit_add2(Z[z_index + i], carry, &carry);

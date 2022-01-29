@@ -1477,7 +1477,7 @@ bool IsSpecialIndex(String string) {
   }
   // Slow path: test DoubleToString(StringToDouble(string)) == string.
   base::Vector<const uint16_t> vector(buffer, length);
-  double d = StringToDouble(vector, NO_FLAGS);
+  double d = StringToDouble(vector, NO_CONVERSION_FLAGS);
   if (std::isnan(d)) return false;
   // Compute reverse string.
   char reverse_buffer[kBufferSize + 1];  // Result will be /0 terminated.

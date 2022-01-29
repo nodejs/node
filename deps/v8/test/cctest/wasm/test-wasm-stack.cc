@@ -158,11 +158,11 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   CHECK(returnObjMaybe.is_null());
 
   ExceptionInfo expected_exceptions[] = {
-      {"a", 3, 8},           // -
-      {"js", 4, 2},          // -
-      {"main", 1, 8},        // -
-      {"call_main", 1, 21},  // -
-      {"callFn", 1, 24}      // -
+      {"a", 3, 8},            // -
+      {"js", 4, 2},           // -
+      {"$main", 1, 8},        // -
+      {"$call_main", 1, 21},  // -
+      {"callFn", 1, 24}       // -
   };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);
@@ -275,9 +275,9 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
         unreachable_pos + main_offset + kMainLocalsLength + 1;
     const int expected_call_main_pos = call_main_offset + kMainLocalsLength + 1;
     ExceptionInfo expected_exceptions[] = {
-        {"main", 1, expected_main_pos},            // -
-        {"call_main", 1, expected_call_main_pos},  // -
-        {"callFn", 1, 24}                          //-
+        {"$main", 1, expected_main_pos},            // -
+        {"$call_main", 1, expected_call_main_pos},  // -
+        {"callFn", 1, 24}                           //-
     };
     CheckExceptionInfos(isolate, exception, expected_exceptions);
   }

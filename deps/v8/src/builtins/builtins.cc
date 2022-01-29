@@ -107,7 +107,7 @@ void Builtins::TearDown() { initialized_ = false; }
 
 const char* Builtins::Lookup(Address pc) {
   // Off-heap pc's can be looked up through binary search.
-  Builtin builtin = InstructionStream::TryLookupCode(isolate_, pc);
+  Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate_, pc);
   if (Builtins::IsBuiltinId(builtin)) return name(builtin);
 
   // May be called during initialization (disassembler).
@@ -192,6 +192,39 @@ Code Builtins::code(Builtin builtin) {
 Handle<Code> Builtins::code_handle(Builtin builtin) {
   Address* location = &isolate_->builtin_table()[Builtins::ToInt(builtin)];
   return Handle<Code>(location);
+}
+
+FullObjectSlot Builtins::builtin_code_data_container_slot(Builtin builtin) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  Address* location =
+      &isolate_->builtin_code_data_container_table()[Builtins::ToInt(builtin)];
+  return FullObjectSlot(location);
+}
+
+void Builtins::set_codet(Builtin builtin, CodeT code) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  // TODO(v8:11880): add DCHECK_EQ(builtin, code.builtin_id()); once CodeT
+  // has respective field.
+  DCHECK(Internals::HasHeapObjectTag(code.ptr()));
+  // The given builtin may be uninitialized thus we cannot check its type here.
+  isolate_->builtin_code_data_container_table()[Builtins::ToInt(builtin)] =
+      code.ptr();
+}
+
+CodeT Builtins::codet(Builtin builtin) {
+  Address* table = V8_EXTERNAL_CODE_SPACE_BOOL
+                       ? isolate_->builtin_code_data_container_table()
+                       : isolate_->builtin_table();
+  Address ptr = table[Builtins::ToInt(builtin)];
+  return CodeT::cast(Object(ptr));
+}
+
+Handle<CodeT> Builtins::codet_handle(Builtin builtin) {
+  Address* table = V8_EXTERNAL_CODE_SPACE_BOOL
+                       ? isolate_->builtin_code_data_container_table()
+                       : isolate_->builtin_table();
+  Address* location = &table[Builtins::ToInt(builtin)];
+  return Handle<CodeT>(location);
 }
 
 // static
@@ -296,6 +329,17 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
   return true;
 }
 
+bool Builtins::IsBuiltinCodeDataContainerHandle(Handle<HeapObject> maybe_code,
+                                                Builtin* builtin) const {
+  Address* handle_location = maybe_code.location();
+  Address* builtins_table = isolate_->builtin_code_data_container_table();
+  if (handle_location < builtins_table) return false;
+  Address* builtins_table_end = &builtins_table[Builtins::kBuiltinCount];
+  if (handle_location >= builtins_table_end) return false;
+  *builtin = FromInt(static_cast<int>(handle_location - builtins_table));
+  return true;
+}
+
 // static
 bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
   const Builtin builtin = code.builtin_id();
@@ -373,7 +417,7 @@ class OffHeapTrampolineGenerator {
       FrameScope scope(&masm_, StackFrame::NO_FRAME_TYPE);
       if (type == TrampolineType::kJump) {
         masm_.CodeEntry();
-        masm_.JumpToInstructionStream(off_heap_entry);
+        masm_.JumpToOffHeapInstructionStream(off_heap_entry);
       } else {
         DCHECK_EQ(type, TrampolineType::kAbort);
         masm_.Trap();

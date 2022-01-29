@@ -1205,6 +1205,101 @@ void SharedTurboAssembler::S128Store64Lane(Operand dst, XMMRegister src,
   }
 }
 
+// Helper macro to define qfma macro-assembler. This takes care of every
+// possible case of register aliasing to minimize the number of instructions.
+#define QFMA(ps_or_pd)                        \
+  if (CpuFeatures::IsSupported(FMA3)) {       \
+    CpuFeatureScope fma3_scope(this, FMA3);   \
+    if (dst == src1) {                        \
+      vfmadd231##ps_or_pd(dst, src2, src3);   \
+    } else if (dst == src2) {                 \
+      vfmadd132##ps_or_pd(dst, src1, src3);   \
+    } else if (dst == src3) {                 \
+      vfmadd213##ps_or_pd(dst, src2, src1);   \
+    } else {                                  \
+      CpuFeatureScope avx_scope(this, AVX);   \
+      vmovups(dst, src1);                     \
+      vfmadd231##ps_or_pd(dst, src2, src3);   \
+    }                                         \
+  } else if (CpuFeatures::IsSupported(AVX)) { \
+    CpuFeatureScope avx_scope(this, AVX);     \
+    vmul##ps_or_pd(tmp, src2, src3);          \
+    vadd##ps_or_pd(dst, src1, tmp);           \
+  } else {                                    \
+    if (dst == src1) {                        \
+      movaps(tmp, src2);                      \
+      mul##ps_or_pd(tmp, src3);               \
+      add##ps_or_pd(dst, tmp);                \
+    } else if (dst == src2) {                 \
+      DCHECK_NE(src2, src1);                  \
+      mul##ps_or_pd(src2, src3);              \
+      add##ps_or_pd(src2, src1);              \
+    } else if (dst == src3) {                 \
+      DCHECK_NE(src3, src1);                  \
+      mul##ps_or_pd(src3, src2);              \
+      add##ps_or_pd(src3, src1);              \
+    } else {                                  \
+      movaps(dst, src2);                      \
+      mul##ps_or_pd(dst, src3);               \
+      add##ps_or_pd(dst, src1);               \
+    }                                         \
+  }
+
+// Helper macro to define qfms macro-assembler. This takes care of every
+// possible case of register aliasing to minimize the number of instructions.
+#define QFMS(ps_or_pd)                        \
+  if (CpuFeatures::IsSupported(FMA3)) {       \
+    CpuFeatureScope fma3_scope(this, FMA3);   \
+    if (dst == src1) {                        \
+      vfnmadd231##ps_or_pd(dst, src2, src3);  \
+    } else if (dst == src2) {                 \
+      vfnmadd132##ps_or_pd(dst, src1, src3);  \
+    } else if (dst == src3) {                 \
+      vfnmadd213##ps_or_pd(dst, src2, src1);  \
+    } else {                                  \
+      CpuFeatureScope avx_scope(this, AVX);   \
+      vmovups(dst, src1);                     \
+      vfnmadd231##ps_or_pd(dst, src2, src3);  \
+    }                                         \
+  } else if (CpuFeatures::IsSupported(AVX)) { \
+    CpuFeatureScope avx_scope(this, AVX);     \
+    vmul##ps_or_pd(tmp, src2, src3);          \
+    vsub##ps_or_pd(dst, src1, tmp);           \
+  } else {                                    \
+    movaps(tmp, src2);                        \
+    mul##ps_or_pd(tmp, src3);                 \
+    if (dst != src1) {                        \
+      movaps(dst, src1);                      \
+    }                                         \
+    sub##ps_or_pd(dst, tmp);                  \
+  }
+
+void SharedTurboAssembler::F32x4Qfma(XMMRegister dst, XMMRegister src1,
+                                     XMMRegister src2, XMMRegister src3,
+                                     XMMRegister tmp) {
+  QFMA(ps)
+}
+
+void SharedTurboAssembler::F32x4Qfms(XMMRegister dst, XMMRegister src1,
+                                     XMMRegister src2, XMMRegister src3,
+                                     XMMRegister tmp) {
+  QFMS(ps)
+}
+
+void SharedTurboAssembler::F64x2Qfma(XMMRegister dst, XMMRegister src1,
+                                     XMMRegister src2, XMMRegister src3,
+                                     XMMRegister tmp) {
+  QFMA(pd);
+}
+
+void SharedTurboAssembler::F64x2Qfms(XMMRegister dst, XMMRegister src1,
+                                     XMMRegister src2, XMMRegister src3,
+                                     XMMRegister tmp) {
+  QFMS(pd);
+}
+
+#undef QFMOP
+
 }  // namespace internal
 }  // namespace v8
 

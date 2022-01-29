@@ -4985,6 +4985,10 @@ MachineType MachineTypeFor(CTypeInfo::Type type) {
       return MachineType::Uint32();
     case CTypeInfo::Type::kInt64:
       return MachineType::Int64();
+    case CTypeInfo::Type::kAny:
+      static_assert(sizeof(AnyCType) == 8,
+                    "CTypeInfo::Type::kAny is assumed to be of size 64 bits.");
+      return MachineType::Int64();
     case CTypeInfo::Type::kUint64:
       return MachineType::Uint64();
     case CTypeInfo::Type::kFloat32:
@@ -5329,7 +5333,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
         StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
         stack_slot,
         static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
-        __ ZeroConstant());
+        __ Int32Constant(0));
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
              stack_slot,
@@ -5466,6 +5470,11 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
     case CTypeInfo::Type::kV8Value:
     case CTypeInfo::Type::kApiObject:
       UNREACHABLE();
+    case CTypeInfo::Type::kAny:
+      fast_call_result =
+          ChangeFloat64ToTagged(__ ChangeInt64ToFloat64(c_call_result),
+                                CheckForMinusZeroMode::kCheckForMinusZero);
+      break;
   }
 
   auto merge = __ MakeLabel(MachineRepresentation::kTagged);

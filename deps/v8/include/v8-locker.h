@@ -128,7 +128,7 @@ class V8_EXPORT Locker {
    * results if anybody uses v8::Locker in the current process.
    */
   static bool WasEverUsed();
-  V8_DEPRECATE_SOON("Use WasEverUsed instead")
+  V8_DEPRECATED("Use WasEverUsed instead")
   static bool IsActive();
 
   // Disallow copying and assigning.

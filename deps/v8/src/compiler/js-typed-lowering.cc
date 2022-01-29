@@ -1197,7 +1197,7 @@ Reduction JSTypedLowering::ReduceJSHasInPrototypeChain(Node* node) {
   // If {value} cannot be a receiver, then it cannot have {prototype} in
   // it's prototype chain (all Primitive values have a null prototype).
   if (value_type.Is(Type::Primitive())) {
-    Node* value = jsgraph()->FalseConstant();
+    value = jsgraph()->FalseConstant();
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
@@ -1789,7 +1789,6 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       // Patch {node} to a direct code object call.
       Callable callable =
           Builtins::CallableFor(isolate(), shared->builtin_id());
-      CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
       const CallInterfaceDescriptor& descriptor = callable.descriptor();
       auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -2232,11 +2231,11 @@ Reduction JSTypedLowering::ReduceObjectIsArray(Node* node) {
 
   // Constant-fold based on {value} type.
   if (value_type.Is(Type::Array())) {
-    Node* value = jsgraph()->TrueConstant();
+    value = jsgraph()->TrueConstant();
     ReplaceWithValue(node, value);
     return Replace(value);
   } else if (!value_type.Maybe(Type::ArrayOrProxy())) {
-    Node* value = jsgraph()->FalseConstant();
+    value = jsgraph()->FalseConstant();
     ReplaceWithValue(node, value);
     return Replace(value);
   }

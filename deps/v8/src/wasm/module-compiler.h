@@ -13,6 +13,7 @@
 #include <functional>
 #include <memory>
 
+#include "include/v8-metrics.h"
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/logging/metrics.h"
@@ -52,7 +53,8 @@ V8_EXPORT_PRIVATE
 std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
-    Handle<FixedArray>* export_wrappers_out, int compilation_id);
+    Handle<FixedArray>* export_wrappers_out, int compilation_id,
+    v8::metrics::Recorder::ContextId context_id);
 
 void RecompileNativeModule(NativeModule* native_module,
                            TieringState new_tiering_state);
@@ -75,8 +77,8 @@ WasmCode* CompileImportWrapper(
 // also lazy.
 bool CompileLazy(Isolate*, Handle<WasmInstanceObject>, int func_index);
 
-void TriggerTierUp(Isolate*, NativeModule*, int func_index,
-                   Handle<WasmInstanceObject> instance);
+V8_EXPORT_PRIVATE void TriggerTierUp(Isolate*, NativeModule*, int func_index,
+                                     Handle<WasmInstanceObject> instance);
 
 template <typename Key, typename Hash>
 class WrapperQueue {

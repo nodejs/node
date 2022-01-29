@@ -32,7 +32,7 @@ namespace {
 
 void TraceConservatively(ConservativeTracingVisitor* conservative_visitor,
                          const HeapObjectHeader& header) {
-  const auto object_view = ObjectView(header);
+  const auto object_view = ObjectView<>(header);
   Address* object = reinterpret_cast<Address*>(object_view.Start());
   for (size_t i = 0; i < (object_view.Size() / sizeof(Address)); ++i) {
     Address maybe_ptr = object[i];

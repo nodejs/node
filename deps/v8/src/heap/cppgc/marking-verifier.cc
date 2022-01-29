@@ -45,6 +45,13 @@ void MarkingVerifierBase::Run(
     Heap::Config::StackState stack_state, uintptr_t stack_end,
     v8::base::Optional<size_t> expected_marked_bytes) {
   Traverse(heap_.raw_heap());
+// Avoid verifying the stack when running with TSAN as the TSAN runtime changes
+// stack contents when e.g. working with locks. Specifically, the marker uses
+// locks in slow path operations which results in stack changes throughout
+// marking. This means that the conservative iteration below may find more
+// objects then the regular marker. The difference is benign as the delta of
+// objects is not reachable from user code but it prevents verification.
+#if !defined(THREAD_SANITIZER)
   if (stack_state == Heap::Config::StackState::kMayContainHeapPointers) {
     in_construction_objects_ = &in_construction_objects_stack_;
     heap_.stack()->IteratePointersUnsafe(this, stack_end);
@@ -58,6 +65,7 @@ void MarkingVerifierBase::Run(
                in_construction_objects_heap_.find(header));
     }
   }
+#endif  // !defined(THREAD_SANITIZER)
   if (expected_marked_bytes && verifier_found_marked_bytes_are_exact_) {
     CHECK_EQ(expected_marked_bytes.value(), verifier_found_marked_bytes_);
   }
@@ -124,7 +132,7 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
   }
 
   verifier_found_marked_bytes_ +=
-      ObjectView(header).Size() + sizeof(HeapObjectHeader);
+      ObjectView<>(header).Size() + sizeof(HeapObjectHeader);
 
   verification_state_.SetCurrentParent(nullptr);
 

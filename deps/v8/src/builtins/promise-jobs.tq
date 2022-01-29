@@ -66,7 +66,7 @@ PromiseResolveThenableJob(implicit context: Context)(
     try {
       return Call(
           context, UnsafeCast<Callable>(then), thenable, resolve, reject);
-    } catch (e) {
+    } catch (e, _message) {
       return Call(context, UnsafeCast<Callable>(reject), Undefined, e);
     }
   }

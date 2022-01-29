@@ -16,9 +16,9 @@ namespace v8 {
 namespace internal {
 
 // We use the full 16 bits of the instance_type field to encode heap object
-// instance types. All the high-order bits (bits 6-15) are cleared if the object
+// instance types. All the high-order bits (bits 7-15) are cleared if the object
 // is a string, and contain set bits if it is not a string.
-const uint32_t kIsNotStringMask = ~((1 << 6) - 1);
+const uint32_t kIsNotStringMask = ~((1 << 7) - 1);
 const uint32_t kStringTag = 0x0;
 
 // For strings, bits 0-2 indicate the representation of the string. In
@@ -46,6 +46,16 @@ const uint32_t kStringEncodingMask = 1 << 3;
 const uint32_t kTwoByteStringTag = 0;
 const uint32_t kOneByteStringTag = 1 << 3;
 
+// Combined tags for convenience (add more if needed).
+constexpr uint32_t kStringRepresentationAndEncodingMask =
+    kStringRepresentationMask | kStringEncodingMask;
+constexpr uint32_t kSeqOneByteStringTag = kSeqStringTag | kOneByteStringTag;
+constexpr uint32_t kSeqTwoByteStringTag = kSeqStringTag | kTwoByteStringTag;
+constexpr uint32_t kExternalOneByteStringTag =
+    kExternalStringTag | kOneByteStringTag;
+constexpr uint32_t kExternalTwoByteStringTag =
+    kExternalStringTag | kTwoByteStringTag;
+
 // For strings, bit 4 indicates whether the data pointer of an external string
 // is cached. Note that the string representation is expected to be
 // kExternalStringTag.
@@ -57,6 +67,26 @@ const uint32_t kUncachedExternalStringTag = 1 << 4;
 const uint32_t kIsNotInternalizedMask = 1 << 5;
 const uint32_t kNotInternalizedTag = 1 << 5;
 const uint32_t kInternalizedTag = 0;
+
+// For strings, bit 6 indicates that the string is accessible by more than one
+// thread. Note that a string that is allocated in the shared heap is not
+// accessible by more than one thread until it is explicitly shared (e.g. by
+// postMessage).
+//
+// Runtime code that shares strings with other threads directly need to manually
+// set this bit.
+//
+// TODO(v8:12007): External strings cannot be shared yet.
+//
+// TODO(v8:12007): This bit is currently ignored on internalized strings, which
+// are either always shared or always not shared depending on
+// FLAG_shared_string_table. This will be hardcoded once
+// FLAG_shared_string_table is removed.
+const uint32_t kSharedStringMask = 1 << 6;
+const uint32_t kSharedStringTag = 1 << 6;
+
+constexpr uint32_t kStringRepresentationEncodingAndSharedMask =
+    kStringRepresentationAndEncodingMask | kSharedStringMask;
 
 // A ConsString with an empty string as the right side is a candidate
 // for being shortcut by the garbage collector. We don't allocate any
@@ -109,6 +139,11 @@ enum InstanceType : uint16_t {
   THIN_STRING_TYPE = kTwoByteStringTag | kThinStringTag | kNotInternalizedTag,
   THIN_ONE_BYTE_STRING_TYPE =
       kOneByteStringTag | kThinStringTag | kNotInternalizedTag,
+  SHARED_STRING_TYPE = STRING_TYPE | kSharedStringTag,
+  SHARED_ONE_BYTE_STRING_TYPE = ONE_BYTE_STRING_TYPE | kSharedStringTag,
+  SHARED_THIN_STRING_TYPE = THIN_STRING_TYPE | kSharedStringTag,
+  SHARED_THIN_ONE_BYTE_STRING_TYPE =
+      THIN_ONE_BYTE_STRING_TYPE | kSharedStringTag,
 
 // Most instance types are defined in Torque, with the exception of the string
 // types above. They are ordered by inheritance hierarchy so that we can easily

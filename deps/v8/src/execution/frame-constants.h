@@ -204,6 +204,22 @@ class BuiltinFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(2);
 };
 
+class BuiltinWasmWrapperConstants : public TypedFrameConstants {
+ public:
+  // This slot contains the number of slots at the top of the frame that need to
+  // be scanned by the GC.
+  static constexpr int kGCScanSlotCountOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+};
+
+class ReturnPromiseOnSuspendFrameConstants
+    : public BuiltinWasmWrapperConstants {
+ public:
+  static constexpr int kParamCountOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  static constexpr int kSpillAreaSize =
+      -(kParamCountOffset - TypedFrameConstants::kFixedFrameSizeFromFp);
+};
+
 class ConstructFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.

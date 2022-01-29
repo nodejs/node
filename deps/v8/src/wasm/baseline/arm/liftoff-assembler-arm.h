@@ -442,7 +442,7 @@ inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
 
 int LiftoffAssembler::PrepareStackFrame() {
   if (!CpuFeatures::IsSupported(ARMv7)) {
-    bailout(kUnsupportedArchitecture, "Liftoff needs ARMv7");
+    bailout(kUnsupportedArchitecture, "Armv6 not supported");
     return 0;
   }
   uint32_t offset = static_cast<uint32_t>(pc_offset());
@@ -584,7 +584,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       TurboAssembler::Move(reg.gp(), Operand(value.to_i32(), rmode));
       break;
     case kI64: {
-      DCHECK(RelocInfo::IsNone(rmode));
+      DCHECK(RelocInfo::IsNoInfo(rmode));
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
       TurboAssembler::Move(reg.low_gp(), Operand(low_word));

@@ -24,6 +24,7 @@ template <typename T>
 class Handle;
 
 class Isolate;
+class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/descriptor-array-tq.inc"
 
@@ -31,6 +32,8 @@ class Isolate;
 class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
  public:
   DECL_VERIFIER(EnumCache)
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(EnumCache)
 };

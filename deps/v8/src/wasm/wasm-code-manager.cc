@@ -436,27 +436,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
 
   if (safepoint_table_offset_ > 0) {
     SafepointTable table(this);
-    os << "Safepoints (size = " << table.size() << ")\n";
-    for (uint32_t i = 0; i < table.length(); i++) {
-      uintptr_t pc_offset = table.GetPcOffset(i);
-      os << reinterpret_cast<const void*>(instruction_start() + pc_offset);
-      os << std::setw(6) << std::hex << pc_offset << "  " << std::dec;
-      table.PrintEntry(i, os);
-      os << " (sp -> fp)";
-      SafepointEntry entry = table.GetEntry(i);
-      if (entry.trampoline_pc() != SafepointEntry::kNoTrampolinePC) {
-        os << " trampoline: " << std::hex << entry.trampoline_pc() << std::dec;
-      }
-      if (entry.has_register_bits()) {
-        os << " registers: ";
-        uint32_t register_bits = entry.register_bits();
-        int bits = 32 - base::bits::CountLeadingZeros32(register_bits);
-        for (int j = bits - 1; j >= 0; --j) {
-          os << ((register_bits >> j) & 1);
-        }
-      }
-      os << "\n";
-    }
+    table.Print(os);
     os << "\n";
   }
 
@@ -533,7 +513,7 @@ WasmCodeAllocator::WasmCodeAllocator(std::shared_ptr<Counters> async_counters)
     : protect_code_memory_(
           !V8_HAS_PTHREAD_JIT_WRITE_PROTECT &&
           FLAG_wasm_write_protect_code_memory &&
-          !GetWasmCodeManager()->HasMemoryProtectionKeySupport()),
+          !GetWasmCodeManager()->MemoryProtectionKeysEnabled()),
       async_counters_(std::move(async_counters)) {
   owned_code_space_.reserve(4);
 }
@@ -997,18 +977,11 @@ NativeModule::NativeModule(const WasmFeatures& enabled,
   if (module_->num_declared_functions > 0) {
     code_table_ =
         std::make_unique<WasmCode*[]>(module_->num_declared_functions);
-    num_liftoff_function_calls_ =
+    tiering_budgets_ =
         std::make_unique<uint32_t[]>(module_->num_declared_functions);
 
-    if (FLAG_new_wasm_dynamic_tiering) {
-      std::fill_n(num_liftoff_function_calls_.get(),
-                  module_->num_declared_functions, FLAG_wasm_tiering_budget);
-    } else {
-      // Start counter at 4 to avoid runtime calls for smaller numbers.
-      constexpr int kCounterStart = 4;
-      std::fill_n(num_liftoff_function_calls_.get(),
-                  module_->num_declared_functions, kCounterStart);
-    }
+    std::fill_n(tiering_budgets_.get(), module_->num_declared_functions,
+                FLAG_wasm_tiering_budget);
   }
   // Even though there cannot be another thread using this object (since we are
   // just constructing it), we need to hold the mutex to fulfill the
@@ -1879,17 +1852,13 @@ NativeModule::~NativeModule() {
 WasmCodeManager::WasmCodeManager()
     : max_committed_code_space_(FLAG_wasm_max_code_space * MB),
       critical_committed_code_space_(max_committed_code_space_ / 2),
-      memory_protection_key_(FLAG_wasm_memory_protection_keys
-                                 ? AllocateMemoryProtectionKey()
-                                 : kNoMemoryProtectionKey) {}
+      memory_protection_key_(AllocateMemoryProtectionKey()) {}
 
 WasmCodeManager::~WasmCodeManager() {
   // No more committed code space.
   DCHECK_EQ(0, total_committed_code_space_.load());
 
-  if (FLAG_wasm_memory_protection_keys) {
-    FreeMemoryProtectionKey(memory_protection_key_);
-  }
+  FreeMemoryProtectionKey(memory_protection_key_);
 }
 
 #if defined(V8_OS_WIN64)
@@ -1937,7 +1906,7 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
   PageAllocator::Permission permission = PageAllocator::kReadWriteExecute;
 
   bool success;
-  if (FLAG_wasm_memory_protection_keys) {
+  if (MemoryProtectionKeysEnabled()) {
     TRACE_HEAP(
         "Setting rwx permissions and memory protection key %d for 0x%" PRIxPTR
         ":0x%" PRIxPTR "\n",
@@ -1970,7 +1939,7 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   USE(old_committed);
   TRACE_HEAP("Discarding system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
-  if (FLAG_wasm_memory_protection_keys) {
+  if (MemoryProtectionKeysEnabled()) {
     CHECK(SetPermissionsAndMemoryProtectionKey(
         allocator, region, PageAllocator::kNoAccess, kNoMemoryProtectionKey));
   } else {
@@ -2126,7 +2095,7 @@ size_t WasmCodeManager::EstimateNativeModuleMetaDataSize(
 }
 
 void WasmCodeManager::SetThreadWritable(bool writable) {
-  DCHECK(HasMemoryProtectionKeySupport());
+  DCHECK(MemoryProtectionKeysEnabled());
 
   MemoryProtectionKeyPermission permissions =
       writable ? kNoRestrictions : kDisableWrite;
@@ -2145,13 +2114,30 @@ bool WasmCodeManager::HasMemoryProtectionKeySupport() const {
   return memory_protection_key_ != kNoMemoryProtectionKey;
 }
 
+bool WasmCodeManager::MemoryProtectionKeysEnabled() const {
+  return HasMemoryProtectionKeySupport() && FLAG_wasm_memory_protection_keys;
+}
+
 bool WasmCodeManager::MemoryProtectionKeyWritable() const {
-  return wasm::MemoryProtectionKeyWritable(memory_protection_key_);
+  return GetMemoryProtectionKeyPermission(memory_protection_key_) ==
+         MemoryProtectionKeyPermission::kNoRestrictions;
 }
 
 void WasmCodeManager::InitializeMemoryProtectionKeyForTesting() {
   if (memory_protection_key_ == kNoMemoryProtectionKey) {
     memory_protection_key_ = AllocateMemoryProtectionKey();
+  }
+}
+
+void WasmCodeManager::InitializeMemoryProtectionKeyPermissionsIfSupported()
+    const {
+  if (!HasMemoryProtectionKeySupport()) return;
+  // The default permission is {kDisableAccess}. Switch from that to
+  // {kDisableWrite}. Leave other permissions untouched, as the thread did
+  // already use the memory protection key in that case.
+  if (GetMemoryProtectionKeyPermission(memory_protection_key_) ==
+      kDisableAccess) {
+    SetPermissionsForMemoryProtectionKey(memory_protection_key_, kDisableWrite);
   }
 }
 

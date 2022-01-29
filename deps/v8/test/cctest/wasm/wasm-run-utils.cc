@@ -187,8 +187,11 @@ void TestingModuleBuilder::FreezeSignatureMapAndInitializeWrapperCache() {
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   CHECK(!interpreter_);
   FreezeSignatureMapAndInitializeWrapperCache();
-  return WasmInstanceObject::GetOrCreateWasmExternalFunction(
-      isolate_, instance_object(), index);
+  return handle(
+      JSFunction::cast(WasmInstanceObject::GetOrCreateWasmInternalFunction(
+                           isolate_, instance_object(), index)
+                           ->external()),
+      isolate_);
 }
 
 void TestingModuleBuilder::AddIndirectFunctionTable(
@@ -231,8 +234,9 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
     for (uint32_t i = 0; i < table_size; ++i) {
       WasmFunction& function = test_module_->functions[function_indexes[i]];
       int sig_id = test_module_->signature_map.Find(*function.sig);
-      IndirectFunctionTableEntry(instance, table_index, i)
-          .Set(sig_id, instance, function.func_index);
+      FunctionTargetAndRef entry(instance, function.func_index);
+      instance->GetIndirectFunctionTable(isolate_, table_index)
+          ->Set(i, sig_id, entry.call_target(), *entry.ref());
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate_, table_obj, i, instance_object_, function_indexes[i]);
     }

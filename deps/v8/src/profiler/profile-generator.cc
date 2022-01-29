@@ -195,7 +195,6 @@ const std::vector<CodeEntryAndLineNumber>* CodeEntry::GetInlineStack(
 void CodeEntry::set_deopt_info(
     const char* deopt_reason, int deopt_id,
     std::vector<CpuProfileDeoptFrame> inlined_frames) {
-  DCHECK(!has_deopt_info());
   RareData* rare_data = EnsureRareData();
   rare_data->deopt_reason_ = deopt_reason;
   rare_data->deopt_id_ = deopt_id;
@@ -208,7 +207,7 @@ void CodeEntry::FillFunctionInfo(SharedFunctionInfo shared) {
   set_script_id(script.id());
   set_position(shared.StartPosition());
   if (shared.optimization_disabled()) {
-    set_bailout_reason(GetBailoutReason(shared.disable_optimization_reason()));
+    set_bailout_reason(GetBailoutReason(shared.disabled_optimization_reason()));
   }
 }
 
@@ -621,7 +620,9 @@ bool CpuProfile::CheckSubsample(base::TimeDelta source_sampling_interval) {
 
 void CpuProfile::AddPath(base::TimeTicks timestamp,
                          const ProfileStackTrace& path, int src_line,
-                         bool update_stats, base::TimeDelta sampling_interval) {
+                         bool update_stats, base::TimeDelta sampling_interval,
+                         StateTag state_tag,
+                         EmbedderStateTag embedder_state_tag) {
   if (!CheckSubsample(sampling_interval)) return;
 
   ProfileNode* top_frame_node =
@@ -633,7 +634,8 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
        samples_.size() < options_.max_samples());
 
   if (should_record_sample) {
-    samples_.push_back({top_frame_node, timestamp, src_line});
+    samples_.push_back(
+        {top_frame_node, timestamp, src_line, state_tag, embedder_state_tag});
   }
 
   if (!should_record_sample && delegate_ != nullptr) {
@@ -989,19 +991,24 @@ base::TimeDelta CpuProfilesCollection::GetCommonSamplingInterval() const {
 
 void CpuProfilesCollection::AddPathToCurrentProfiles(
     base::TimeTicks timestamp, const ProfileStackTrace& path, int src_line,
-    bool update_stats, base::TimeDelta sampling_interval,
-    Address native_context_address) {
+    bool update_stats, base::TimeDelta sampling_interval, StateTag state,
+    EmbedderStateTag embedder_state_tag, Address native_context_address,
+    Address embedder_native_context_address) {
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
   current_profiles_semaphore_.Wait();
   const ProfileStackTrace empty_path;
   for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
+    ContextFilter& context_filter = profile->context_filter();
     // If the context filter check failed, omit the contents of the stack.
-    bool accepts_context =
-        profile->context_filter().Accept(native_context_address);
+    bool accepts_context = context_filter.Accept(native_context_address);
+    bool accepts_embedder_context =
+        context_filter.Accept(embedder_native_context_address);
     profile->AddPath(timestamp, accepts_context ? path : empty_path, src_line,
-                     update_stats, sampling_interval);
+                     update_stats, sampling_interval, state,
+                     accepts_embedder_context ? embedder_state_tag
+                                              : EmbedderStateTag::EMPTY);
   }
   current_profiles_semaphore_.Signal();
 }

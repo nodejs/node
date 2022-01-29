@@ -33,7 +33,7 @@ class Execution final : public AllStatic {
   // caller has to provide it at all times.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CallScript(
       Isolate* isolate, Handle<JSFunction> callable, Handle<Object> receiver,
-      Handle<FixedArray> host_defined_options);
+      Handle<Object> host_defined_options);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CallBuiltin(
       Isolate* isolate, Handle<JSFunction> builtin, Handle<Object> receiver,

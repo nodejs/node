@@ -45,7 +45,7 @@ class IC {
   void MarkRecomputeHandler(Handle<Object> name) {
     DCHECK(RecomputeHandlerForName(name));
     old_state_ = state_;
-    state_ = RECOMPUTE_HANDLER;
+    state_ = InlineCacheState::RECOMPUTE_HANDLER;
   }
 
   bool IsAnyHas() const { return IsKeyedHasIC(); }

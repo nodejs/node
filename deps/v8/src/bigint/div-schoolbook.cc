@@ -28,8 +28,8 @@ namespace bigint {
 // Q may be the same as A for an in-place division.
 void ProcessorImpl::DivideSingle(RWDigits Q, digit_t* remainder, Digits A,
                                  digit_t b) {
-  DCHECK(b != 0);       // NOLINT(readability/check)
-  DCHECK(A.len() > 0);  // NOLINT(readability/check)
+  DCHECK(b != 0);
+  DCHECK(A.len() > 0);
   *remainder = 0;
   int length = A.len();
   if (Q.len() != 0) {
@@ -93,7 +93,6 @@ bool QLengthOK(Digits Q, Digits A, Digits B) {
 // See Knuth, Volume 2, section 4.3.1, Algorithm D.
 void ProcessorImpl::DivideSchoolbook(RWDigits Q, RWDigits R, Digits A,
                                      Digits B) {
-  // NOLINTNEXTLINE(readability/check)
   DCHECK(B.len() >= 2);        // Use DivideSingle otherwise.
   DCHECK(A.len() >= B.len());  // No-op otherwise.
   DCHECK(Q.len() == 0 || QLengthOK(Q, A, B));
@@ -173,7 +172,7 @@ void ProcessorImpl::DivideSchoolbook(RWDigits Q, RWDigits R, Digits A,
 
     if (Q.len() != 0) {
       if (j >= Q.len()) {
-        DCHECK(qhat == 0);  // NOLINT(readability/check)
+        DCHECK(qhat == 0);
       } else {
         Q[j] = qhat;
       }

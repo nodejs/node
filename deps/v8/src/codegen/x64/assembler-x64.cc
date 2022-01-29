@@ -103,9 +103,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_lzcnt() && FLAG_enable_lzcnt) SetSupported(LZCNT);
   if (cpu.has_popcnt() && FLAG_enable_popcnt) SetSupported(POPCNT);
   if (strcmp(FLAG_mcpu, "auto") == 0) {
-    if (cpu.is_atom()) SetSupported(ATOM);
+    if (cpu.is_atom()) SetSupported(INTEL_ATOM);
   } else if (strcmp(FLAG_mcpu, "atom") == 0) {
-    SetSupported(ATOM);
+    SetSupported(INTEL_ATOM);
   }
 
   // Ensure that supported cpu features make sense. E.g. it is wrong to support
@@ -141,7 +141,7 @@ void CpuFeatures::PrintFeatures() {
       CpuFeatures::IsSupported(AVX2), CpuFeatures::IsSupported(FMA3),
       CpuFeatures::IsSupported(BMI1), CpuFeatures::IsSupported(BMI2),
       CpuFeatures::IsSupported(LZCNT), CpuFeatures::IsSupported(POPCNT),
-      CpuFeatures::IsSupported(ATOM));
+      CpuFeatures::IsSupported(INTEL_ATOM));
 }
 
 // -----------------------------------------------------------------------------
@@ -276,7 +276,7 @@ bool ConstPool::TryRecordEntry(intptr_t data, RelocInfo::Mode mode) {
 
   // Currently, partial constant pool only handles the following kinds of
   // RelocInfo.
-  if (mode != RelocInfo::NONE && mode != RelocInfo::EXTERNAL_REFERENCE &&
+  if (mode != RelocInfo::NO_INFO && mode != RelocInfo::EXTERNAL_REFERENCE &&
       mode != RelocInfo::OFF_HEAP_TARGET)
     return false;
 
@@ -330,7 +330,8 @@ void Assembler::PatchConstPool() {
 
 bool Assembler::UseConstPoolFor(RelocInfo::Mode rmode) {
   if (!FLAG_partial_constant_pool) return false;
-  return (rmode == RelocInfo::NONE || rmode == RelocInfo::EXTERNAL_REFERENCE ||
+  return (rmode == RelocInfo::NO_INFO ||
+          rmode == RelocInfo::EXTERNAL_REFERENCE ||
           rmode == RelocInfo::OFF_HEAP_TARGET);
 }
 
@@ -703,7 +704,7 @@ void Assembler::immediate_arithmetic_op(byte subcode, Register dst,
                                         Immediate src, int size) {
   EnsureSpace ensure_space(this);
   emit_rex(dst, size);
-  if (is_int8(src.value_) && RelocInfo::IsNone(src.rmode_)) {
+  if (is_int8(src.value_) && RelocInfo::IsNoInfo(src.rmode_)) {
     emit(0x83);
     emit_modrm(subcode, dst);
     emit(src.value_);
@@ -721,7 +722,7 @@ void Assembler::immediate_arithmetic_op(byte subcode, Operand dst,
                                         Immediate src, int size) {
   EnsureSpace ensure_space(this);
   emit_rex(dst, size);
-  if (is_int8(src.value_) && RelocInfo::IsNone(src.rmode_)) {
+  if (is_int8(src.value_) && RelocInfo::IsNoInfo(src.rmode_)) {
     emit(0x83);
     emit_operand(subcode, dst);
     emit(src.value_);
@@ -1020,7 +1021,7 @@ void Assembler::near_jmp(intptr_t disp, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   emit(0xE9);
   DCHECK(is_int32(disp));
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode);
+  if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode);
   emitl(static_cast<int32_t>(disp));
 }
 
@@ -3416,30 +3417,33 @@ void Assembler::pmovmskb(Register dst, XMMRegister src) {
 }
 
 // AVX instructions
-
-void Assembler::vmovddup(XMMRegister dst, XMMRegister src) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kL128, kF2, k0F, kWIG);
-  emit(0x12);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::vmovddup(XMMRegister dst, Operand src) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kL128, kF2, k0F, kWIG);
-  emit(0x12);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::vmovshdup(XMMRegister dst, XMMRegister src) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kL128, kF3, k0F, kWIG);
-  emit(0x16);
-  emit_sse_operand(dst, src);
-}
+#define VMOV_DUP(SIMDRegister, length)                            \
+  void Assembler::vmovddup(SIMDRegister dst, SIMDRegister src) {  \
+    DCHECK(IsEnabled(AVX));                                       \
+    EnsureSpace ensure_space(this);                               \
+    emit_vex_prefix(dst, xmm0, src, k##length, kF2, k0F, kWIG);   \
+    emit(0x12);                                                   \
+    emit_sse_operand(dst, src);                                   \
+  }                                                               \
+                                                                  \
+  void Assembler::vmovddup(SIMDRegister dst, Operand src) {       \
+    DCHECK(IsEnabled(AVX));                                       \
+    EnsureSpace ensure_space(this);                               \
+    emit_vex_prefix(dst, xmm0, src, k##length, kF2, k0F, kWIG);   \
+    emit(0x12);                                                   \
+    emit_sse_operand(dst, src);                                   \
+  }                                                               \
+                                                                  \
+  void Assembler::vmovshdup(SIMDRegister dst, SIMDRegister src) { \
+    DCHECK(IsEnabled(AVX));                                       \
+    EnsureSpace ensure_space(this);                               \
+    emit_vex_prefix(dst, xmm0, src, k##length, kF3, k0F, kWIG);   \
+    emit(0x16);                                                   \
+    emit_sse_operand(dst, src);                                   \
+  }
+VMOV_DUP(XMMRegister, L128)
+VMOV_DUP(YMMRegister, L256)
+#undef VMOV_DUP
 
 #define BROADCASTSS(SIMDRegister, length)                           \
   void Assembler::vbroadcastss(SIMDRegister dst, Operand src) {     \
@@ -3737,22 +3741,27 @@ void Assembler::vps(byte op, XMMRegister dst, XMMRegister src1,
   emit(imm8);
 }
 
-void Assembler::vpd(byte op, XMMRegister dst, XMMRegister src1,
-                    XMMRegister src2) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, kL128, k66, k0F, kWIG);
-  emit(op);
-  emit_sse_operand(dst, src2);
-}
-
-void Assembler::vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, kL128, k66, k0F, kWIG);
-  emit(op);
-  emit_sse_operand(dst, src2);
-}
+#define VPD(SIMDRegister, length)                                   \
+  void Assembler::vpd(byte op, SIMDRegister dst, SIMDRegister src1, \
+                      SIMDRegister src2) {                          \
+    DCHECK(IsEnabled(AVX));                                         \
+    EnsureSpace ensure_space(this);                                 \
+    emit_vex_prefix(dst, src1, src2, k##length, k66, k0F, kWIG);    \
+    emit(op);                                                       \
+    emit_sse_operand(dst, src2);                                    \
+  }                                                                 \
+                                                                    \
+  void Assembler::vpd(byte op, SIMDRegister dst, SIMDRegister src1, \
+                      Operand src2) {                               \
+    DCHECK(IsEnabled(AVX));                                         \
+    EnsureSpace ensure_space(this);                                 \
+    emit_vex_prefix(dst, src1, src2, k##length, k66, k0F, kWIG);    \
+    emit(op);                                                       \
+    emit_sse_operand(dst, src2);                                    \
+  }
+VPD(XMMRegister, L128)
+VPD(YMMRegister, L256)
+#undef VPD
 
 void Assembler::vucomiss(XMMRegister dst, XMMRegister src) {
   DCHECK(IsEnabled(AVX));
@@ -4362,7 +4371,7 @@ void Assembler::db(uint8_t data) {
 
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
@@ -4372,7 +4381,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 
 void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);

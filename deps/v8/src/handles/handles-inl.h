@@ -95,7 +95,7 @@ HandleScope::HandleScope(HandleScope&& other) V8_NOEXCEPT
 }
 
 HandleScope::~HandleScope() {
-  if (isolate_ == nullptr) return;
+  if (V8_UNLIKELY(isolate_ == nullptr)) return;
   CloseScope(isolate_, prev_next_, prev_limit_);
 }
 
@@ -123,7 +123,7 @@ void HandleScope::CloseScope(Isolate* isolate, Address* prev_next,
   std::swap(current->next, prev_next);
   current->level--;
   Address* limit = prev_next;
-  if (current->limit != prev_limit) {
+  if (V8_UNLIKELY(current->limit != prev_limit)) {
     current->limit = prev_limit;
     limit = prev_limit;
     DeleteExtensions(isolate);

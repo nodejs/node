@@ -244,7 +244,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
       PropertyAttributes attributes = details.attributes();
       PropertyKind kind = details.kind();
 
-      if (kind == kData) {
+      if (kind == PropertyKind::kData) {
         auto prop_data = handle(properties->get(i++), isolate);
         RETURN_ON_EXCEPTION(
             isolate,
@@ -263,7 +263,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
       // context.
       PropertyDetails details(Smi::cast(properties->get(i++)));
       PropertyAttributes attributes = details.attributes();
-      DCHECK_EQ(kData, details.kind());
+      DCHECK_EQ(PropertyKind::kData, details.kind());
 
       v8::Intrinsic intrinsic =
           static_cast<v8::Intrinsic>(Smi::ToInt(properties->get(i++)));
@@ -625,7 +625,8 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
 void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
                                  Handle<Name> name, Handle<Object> value,
                                  PropertyAttributes attributes) {
-  PropertyDetails details(kData, attributes, PropertyConstness::kMutable);
+  PropertyDetails details(PropertyKind::kData, attributes,
+                          PropertyConstness::kMutable);
   auto details_handle = handle(details.AsSmi(), isolate);
   Handle<Object> data[] = {name, details_handle, value};
   AddPropertyToPropertyList(isolate, info, arraysize(data), data);
@@ -636,7 +637,8 @@ void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
                                  PropertyAttributes attributes) {
   auto value = handle(Smi::FromInt(intrinsic), isolate);
   auto intrinsic_marker = isolate->factory()->true_value();
-  PropertyDetails details(kData, attributes, PropertyConstness::kMutable);
+  PropertyDetails details(PropertyKind::kData, attributes,
+                          PropertyConstness::kMutable);
   auto details_handle = handle(details.AsSmi(), isolate);
   Handle<Object> data[] = {name, intrinsic_marker, details_handle, value};
   AddPropertyToPropertyList(isolate, info, arraysize(data), data);
@@ -650,7 +652,8 @@ void ApiNatives::AddAccessorProperty(Isolate* isolate,
                                      PropertyAttributes attributes) {
   if (!getter.is_null()) getter->set_published(true);
   if (!setter.is_null()) setter->set_published(true);
-  PropertyDetails details(kAccessor, attributes, PropertyConstness::kMutable);
+  PropertyDetails details(PropertyKind::kAccessor, attributes,
+                          PropertyConstness::kMutable);
   auto details_handle = handle(details.AsSmi(), isolate);
   Handle<Object> data[] = {name, details_handle, getter, setter};
   AddPropertyToPropertyList(isolate, info, arraysize(data), data);

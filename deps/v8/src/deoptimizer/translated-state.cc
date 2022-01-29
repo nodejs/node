@@ -28,10 +28,9 @@ using base::ReadUnalignedValue;
 
 namespace internal {
 
-void TranslationArrayPrintSingleFrame(std::ostream& os,
-                                      TranslationArray translation_array,
-                                      int translation_index,
-                                      FixedArray literal_array) {
+void TranslationArrayPrintSingleFrame(
+    std::ostream& os, TranslationArray translation_array, int translation_index,
+    DeoptimizationLiteralArray literal_array) {
   DisallowGarbageCollection gc_oh_noes;
   TranslationArrayIterator iterator(translation_array, translation_index);
   disasm::NameConverter converter;
@@ -725,8 +724,8 @@ void TranslatedFrame::Handlify() {
 }
 
 TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
-    TranslationArrayIterator* iterator, FixedArray literal_array, Address fp,
-    FILE* trace_file) {
+    TranslationArrayIterator* iterator,
+    DeoptimizationLiteralArray literal_array, Address fp, FILE* trace_file) {
   TranslationOpcode opcode = TranslationOpcodeFromInt(iterator->Next());
   switch (opcode) {
     case TranslationOpcode::INTERPRETED_FRAME: {
@@ -959,8 +958,8 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 // TranslationArrayIterator.
 int TranslatedState::CreateNextTranslatedValue(
     int frame_index, TranslationArrayIterator* iterator,
-    FixedArray literal_array, Address fp, RegisterValues* registers,
-    FILE* trace_file) {
+    DeoptimizationLiteralArray literal_array, Address fp,
+    RegisterValues* registers, FILE* trace_file) {
   disasm::NameConverter converter;
 
   TranslatedFrame& frame = frames_[frame_index];
@@ -1280,11 +1279,11 @@ Address TranslatedState::DecompressIfNeeded(intptr_t value) {
 
 TranslatedState::TranslatedState(const JavaScriptFrame* frame)
     : purpose_(kFrameInspection) {
-  int deopt_index = Safepoint::kNoDeoptimizationIndex;
+  int deopt_index = SafepointEntry::kNoDeoptIndex;
   DeoptimizationData data =
       static_cast<const OptimizedFrame*>(frame)->GetDeoptimizationData(
           &deopt_index);
-  DCHECK(!data.is_null() && deopt_index != Safepoint::kNoDeoptimizationIndex);
+  DCHECK(!data.is_null() && deopt_index != SafepointEntry::kNoDeoptIndex);
   TranslationArrayIterator it(data.TranslationByteArray(),
                               data.TranslationIndex(deopt_index).value());
   int actual_argc = frame->GetActualArgumentCount();
@@ -1299,8 +1298,9 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame)
 void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
                            Address stack_frame_pointer,
                            TranslationArrayIterator* iterator,
-                           FixedArray literal_array, RegisterValues* registers,
-                           FILE* trace_file, int formal_parameter_count,
+                           DeoptimizationLiteralArray literal_array,
+                           RegisterValues* registers, FILE* trace_file,
+                           int formal_parameter_count,
                            int actual_argument_count) {
   DCHECK(frames_.empty());
 
@@ -1843,9 +1843,10 @@ void TranslatedState::InitializeJSObjectAt(
     Handle<Map> map, const DisallowGarbageCollection& no_gc) {
   Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
   DCHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+  int children_count = slot->GetChildrenCount();
 
   // The object should have at least a map and some payload.
-  CHECK_GE(slot->GetChildrenCount(), 2);
+  CHECK_GE(children_count, 2);
 
   // Notify the concurrent marker about the layout change.
   isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc);
@@ -1862,8 +1863,8 @@ void TranslatedState::InitializeJSObjectAt(
   // For all the other fields we first look at the fixed array and check the
   // marker to see if we store an unboxed double.
   DCHECK_EQ(kTaggedSize, JSObject::kPropertiesOrHashOffset);
-  for (int i = 2; i < slot->GetChildrenCount(); i++) {
-    TranslatedValue* slot = GetResolvedSlotAndAdvance(frame, value_index);
+  for (int i = 2; i < children_count; i++) {
+    slot = GetResolvedSlotAndAdvance(frame, value_index);
     // Read out the marker and ensure the field is consistent with
     // what the markers in the storage say (note that all heap numbers
     // should be fully initialized by now).
@@ -1889,10 +1890,11 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
     Handle<Map> map, const DisallowGarbageCollection& no_gc) {
   Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
+  int children_count = slot->GetChildrenCount();
 
   // Skip the writes if we already have the canonical empty fixed array.
   if (*object_storage == ReadOnlyRoots(isolate()).empty_fixed_array()) {
-    CHECK_EQ(2, slot->GetChildrenCount());
+    CHECK_EQ(2, children_count);
     Handle<Object> length_value = GetValueAndAdvance(frame, value_index);
     CHECK_EQ(*length_value, Smi::FromInt(0));
     return;
@@ -1902,8 +1904,8 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
   isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc);
 
   // Write the fields to the object.
-  for (int i = 1; i < slot->GetChildrenCount(); i++) {
-    TranslatedValue* slot = GetResolvedSlotAndAdvance(frame, value_index);
+  for (int i = 1; i < children_count; i++) {
+    slot = GetResolvedSlotAndAdvance(frame, value_index);
     int offset = i * kTaggedSize;
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
     Handle<Object> field_value;
@@ -2118,9 +2120,9 @@ bool TranslatedState::DoUpdateFeedback() {
   return false;
 }
 
-void TranslatedState::ReadUpdateFeedback(TranslationArrayIterator* iterator,
-                                         FixedArray literal_array,
-                                         FILE* trace_file) {
+void TranslatedState::ReadUpdateFeedback(
+    TranslationArrayIterator* iterator,
+    DeoptimizationLiteralArray literal_array, FILE* trace_file) {
   CHECK_EQ(TranslationOpcode::UPDATE_FEEDBACK,
            TranslationOpcodeFromInt(iterator->Next()));
   feedback_vector_ = FeedbackVector::cast(literal_array.get(iterator->Next()));

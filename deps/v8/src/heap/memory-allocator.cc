@@ -409,7 +409,9 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   MemoryChunk* chunk =
       MemoryChunk::Initialize(basic_chunk, isolate_->heap(), executable);
 
+#ifdef DEBUG
   if (chunk->executable()) RegisterExecutableMemoryChunk(chunk);
+#endif  // DEBUG
   return chunk;
 }
 
@@ -458,7 +460,11 @@ void MemoryAllocator::UnregisterMemory(BasicMemoryChunk* chunk,
   if (executable == EXECUTABLE) {
     DCHECK_GE(size_executable_, size);
     size_executable_ -= size;
+#ifdef DEBUG
     UnregisterExecutableMemoryChunk(static_cast<MemoryChunk*>(chunk));
+#endif  // DEBUG
+    chunk->heap()->UnregisterUnprotectedMemoryChunk(
+        static_cast<MemoryChunk*>(chunk));
   }
   chunk->SetFlag(MemoryChunk::UNREGISTERED);
 }
@@ -578,10 +584,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 
 ReadOnlyPage* MemoryAllocator::AllocateReadOnlyPage(size_t size,
                                                     ReadOnlySpace* owner) {
-  BasicMemoryChunk* chunk = nullptr;
-  if (chunk == nullptr) {
-    chunk = AllocateBasicChunk(size, size, NOT_EXECUTABLE, owner);
-  }
+  BasicMemoryChunk* chunk =
+      AllocateBasicChunk(size, size, NOT_EXECUTABLE, owner);
   if (chunk == nullptr) return nullptr;
   return owner->InitializePage(chunk);
 }
@@ -679,7 +683,7 @@ bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,
                            PageAllocator::kNoAccess)) {
       // Commit the executable code body.
       if (vm->SetPermissions(code_area, commit_size - pre_guard_offset,
-                             PageAllocator::kReadWrite)) {
+                             MemoryChunk::GetCodeModificationPermission())) {
         // Create the post-code guard page.
         if (vm->SetPermissions(post_guard_page, page_size,
                                PageAllocator::kNoAccess)) {

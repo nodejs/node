@@ -315,15 +315,21 @@ void AsyncStreamingDecoder::Abort() {
 
 namespace {
 
-class CompilationChunkFinishedCallback {
+class CompilationChunkFinishedCallback : public CompilationEventCallback {
  public:
   CompilationChunkFinishedCallback(
       std::weak_ptr<NativeModule> native_module,
       AsyncStreamingDecoder::ModuleCompiledCallback callback)
       : native_module_(std::move(native_module)),
-        callback_(std::move(callback)) {}
+        callback_(std::move(callback)) {
+    // As a baseline we also count the modules that could be cached but
+    // never reach the threshold.
+    if (std::shared_ptr<NativeModule> module = native_module_.lock()) {
+      module->counters()->wasm_cache_count()->AddSample(0);
+    }
+  }
 
-  void operator()(CompilationEvent event) const {
+  void call(CompilationEvent event) override {
     if (event != CompilationEvent::kFinishedCompilationChunk &&
         event != CompilationEvent::kFinishedTopTierCompilation) {
       return;
@@ -331,13 +337,19 @@ class CompilationChunkFinishedCallback {
     // If the native module is still alive, get back a shared ptr and call the
     // callback.
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
+      native_module->counters()->wasm_cache_count()->AddSample(++cache_count_);
       callback_(native_module);
     }
+  }
+
+  ReleaseAfterFinalEvent release_after_final_event() override {
+    return CompilationEventCallback::ReleaseAfterFinalEvent::kKeep;
   }
 
  private:
   const std::weak_ptr<NativeModule> native_module_;
   const AsyncStreamingDecoder::ModuleCompiledCallback callback_;
+  int cache_count_ = 0;
 };
 
 }  // namespace
@@ -346,8 +358,9 @@ void AsyncStreamingDecoder::NotifyNativeModuleCreated(
     const std::shared_ptr<NativeModule>& native_module) {
   if (!module_compiled_callback_) return;
   auto* comp_state = native_module->compilation_state();
-  comp_state->AddCallback(CompilationChunkFinishedCallback{
-      std::move(native_module), std::move(module_compiled_callback_)});
+
+  comp_state->AddCallback(std::make_unique<CompilationChunkFinishedCallback>(
+      std::move(native_module), std::move(module_compiled_callback_)));
   module_compiled_callback_ = {};
 }
 

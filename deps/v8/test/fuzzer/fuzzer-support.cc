@@ -62,7 +62,7 @@ FuzzerSupport::~FuzzerSupport() {
   allocator_ = nullptr;
 
   v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
+  v8::V8::DisposePlatform();
 }
 
 std::unique_ptr<FuzzerSupport> FuzzerSupport::fuzzer_support_;

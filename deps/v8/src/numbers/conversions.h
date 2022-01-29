@@ -79,7 +79,7 @@ inline uint64_t DoubleToUint64(double x);
 // Enumeration for allowing octals and ignoring junk when converting
 // strings to numbers.
 enum ConversionFlags {
-  NO_FLAGS = 0,
+  NO_CONVERSION_FLAGS = 0,
   ALLOW_HEX = 1,
   ALLOW_OCTAL = 2,
   ALLOW_IMPLICIT_OCTAL = 4,

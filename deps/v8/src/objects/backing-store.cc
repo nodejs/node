@@ -194,6 +194,8 @@ BackingStore::BackingStore(void* buffer_start, size_t byte_length,
   DCHECK_IMPLIES(is_resizable_, free_on_destruct_);
   DCHECK_IMPLIES(!is_wasm_memory && !is_resizable_,
                  byte_length_ == max_byte_length_);
+  DCHECK_GE(max_byte_length_, byte_length_);
+  DCHECK_GE(byte_capacity_, max_byte_length_);
 }
 
 BackingStore::~BackingStore() {
@@ -323,10 +325,9 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
       counters->array_buffer_new_size_failures()->AddSample(mb_length);
       return {};
     }
-
-    DCHECK(IsValidBackingStorePointer(buffer_start));
   }
 
+  DCHECK(IsValidBackingStorePointer(buffer_start));
   auto result = new BackingStore(buffer_start,                  // start
                                  byte_length,                   // length
                                  byte_length,                   // max length

@@ -417,7 +417,13 @@ float ExecuteF32Floor(float a, TrapReason* trap) { return floorf(a); }
 
 float ExecuteF32Trunc(float a, TrapReason* trap) { return truncf(a); }
 
-float ExecuteF32NearestInt(float a, TrapReason* trap) { return nearbyintf(a); }
+float ExecuteF32NearestInt(float a, TrapReason* trap) {
+  float value = nearbyintf(a);
+#if V8_OS_AIX
+  value = FpOpWorkaround<float>(a, value);
+#endif
+  return value;
+}
 
 float ExecuteF32Sqrt(float a, TrapReason* trap) {
   float result = sqrtf(a);
@@ -438,7 +444,13 @@ double ExecuteF64Floor(double a, TrapReason* trap) { return floor(a); }
 
 double ExecuteF64Trunc(double a, TrapReason* trap) { return trunc(a); }
 
-double ExecuteF64NearestInt(double a, TrapReason* trap) { return nearbyint(a); }
+double ExecuteF64NearestInt(double a, TrapReason* trap) {
+  double value = nearbyint(a);
+#if V8_OS_AIX
+  value = FpOpWorkaround<double>(a, value);
+#endif
+  return value;
+}
 
 double ExecuteF64Sqrt(double a, TrapReason* trap) { return sqrt(a); }
 
@@ -3508,8 +3520,8 @@ class WasmInterpreterInternals {
                                                      "function index");
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
 
-          Handle<WasmExternalFunction> function =
-              WasmInstanceObject::GetOrCreateWasmExternalFunction(
+          Handle<WasmInternalFunction> function =
+              WasmInstanceObject::GetOrCreateWasmInternalFunction(
                   isolate_, instance_object_, imm.index);
           Push(WasmValue(function, kWasmFuncRef));
           len = 1 + imm.length;
@@ -4094,21 +4106,20 @@ class WasmInterpreterInternals {
     uint32_t expected_sig_id = module()->canonicalized_type_ids[sig_index];
     DCHECK_EQ(expected_sig_id,
               module()->signature_map.Find(*module()->signature(sig_index)));
-    // Bounds check against table size.
-    if (entry_index >=
-        static_cast<uint32_t>(WasmInstanceObject::IndirectFunctionTableSize(
-            isolate_, instance_object_, table_index))) {
-      return {CallResult::INVALID_FUNC};
-    }
 
-    IndirectFunctionTableEntry entry(instance_object_, table_index,
-                                     entry_index);
+    Handle<WasmIndirectFunctionTable> table =
+        instance_object_->GetIndirectFunctionTable(isolate_, table_index);
+
+    // Bounds check against table size.
+    if (entry_index >= table->size()) return {CallResult::INVALID_FUNC};
+
     // Signature check.
-    if (entry.sig_id() != static_cast<int32_t>(expected_sig_id)) {
+    if (table->sig_ids()[entry_index] != expected_sig_id) {
       return {CallResult::SIGNATURE_MISMATCH};
     }
 
-    Handle<Object> object_ref = handle(entry.object_ref(), isolate_);
+    Handle<Object> object_ref =
+        handle(table->refs().get(entry_index), isolate_);
     // Check that this is an internal call (within the same instance).
     CHECK(object_ref->IsWasmInstanceObject() &&
           instance_object_.is_identical_to(object_ref));
@@ -4118,13 +4129,14 @@ class WasmInterpreterInternals {
 #ifdef DEBUG
     {
       WasmCodeRefScope code_ref_scope;
-      WasmCode* wasm_code = native_module->Lookup(entry.target());
+      WasmCode* wasm_code =
+          native_module->Lookup(table->targets()[entry_index]);
       DCHECK_EQ(native_module, wasm_code->native_module());
       DCHECK_EQ(WasmCode::kJumpTable, wasm_code->kind());
     }
 #endif
-    uint32_t func_index =
-        native_module->GetFunctionIndexFromJumpTableSlot(entry.target());
+    uint32_t func_index = native_module->GetFunctionIndexFromJumpTableSlot(
+        table->targets()[entry_index]);
 
     return {CallResult::INTERNAL, codemap_.GetCode(func_index)};
   }

@@ -263,7 +263,6 @@ namespace compiler {
   V(RiscvI32x4GeU)                          \
   V(RiscvI32x4Abs)                          \
   V(RiscvI32x4BitMask)                      \
-  V(RiscvI32x4DotI16x8S)                    \
   V(RiscvI32x4TruncSatF64x2SZero)           \
   V(RiscvI32x4TruncSatF64x2UZero)           \
   V(RiscvI16x8Splat)                        \
@@ -329,6 +328,8 @@ namespace compiler {
   V(RiscvS128Not)                           \
   V(RiscvS128Select)                        \
   V(RiscvS128AndNot)                        \
+  V(RiscvS128Load64Zero)                    \
+  V(RiscvS128Load32Zero)                    \
   V(RiscvI32x4AllTrue)                      \
   V(RiscvI16x8AllTrue)                      \
   V(RiscvV128AnyTrue)                       \
@@ -356,21 +357,13 @@ namespace compiler {
   V(RiscvS8x16InterleaveEven)               \
   V(RiscvS8x16InterleaveOdd)                \
   V(RiscvI8x16Shuffle)                      \
-  V(RiscvI8x16Swizzle)                      \
   V(RiscvS8x16Concat)                       \
   V(RiscvS8x8Reverse)                       \
   V(RiscvS8x4Reverse)                       \
   V(RiscvS8x2Reverse)                       \
-  V(RiscvS128Load8Splat)                    \
-  V(RiscvS128Load16Splat)                   \
-  V(RiscvS128Load32Splat)                   \
-  V(RiscvS128Load64Splat)                   \
-  V(RiscvS128Load8x8S)                      \
-  V(RiscvS128Load8x8U)                      \
-  V(RiscvS128Load16x4S)                     \
-  V(RiscvS128Load16x4U)                     \
-  V(RiscvS128Load32x2S)                     \
-  V(RiscvS128Load32x2U)                     \
+  V(RiscvS128LoadSplat)                     \
+  V(RiscvS128Load64ExtendS)                 \
+  V(RiscvS128Load64ExtendU)                 \
   V(RiscvS128LoadLane)                      \
   V(RiscvS128StoreLane)                     \
   V(RiscvRvvLd)                             \
@@ -387,6 +380,15 @@ namespace compiler {
   V(RiscvI16x8UConvertI8x16High)            \
   V(RiscvI8x16SConvertI16x8)                \
   V(RiscvI8x16UConvertI16x8)                \
+  V(RiscvVwmul)                             \
+  V(RiscvVwmulu)                            \
+  V(RiscvVmvSx)                             \
+  V(RiscvVcompress)                         \
+  V(RiscvVaddVv)                            \
+  V(RiscvVwadd)                             \
+  V(RiscvVwaddu)                            \
+  V(RiscvVrgather)                          \
+  V(RiscvVslidedown)                        \
   V(RiscvWord64AtomicLoadUint64)            \
   V(RiscvWord64AtomicStoreWord64)           \
   V(RiscvWord64AtomicAddUint64)             \

@@ -53,9 +53,6 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
   GCInvoker gc_invoker_;
   HeapGrowing growing_;
 
-  const MarkingType marking_support_;
-  const SweepingType sweeping_support_;
-
   size_t epoch_ = 0;
 };
 

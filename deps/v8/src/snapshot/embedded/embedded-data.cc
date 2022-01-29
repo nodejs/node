@@ -49,7 +49,7 @@ Builtin TryLookupCode(const EmbeddedData& d, Address address) {
 }  // namespace
 
 // static
-bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
+bool OffHeapInstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
   // Mksnapshot calls this while the embedded blob is not available yet.
   if (isolate->embedded_blob_code() == nullptr) return false;
   DCHECK_NOT_NULL(Isolate::CurrentEmbeddedBlobCode());
@@ -60,9 +60,8 @@ bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
 }
 
 // static
-bool InstructionStream::TryGetAddressForHashing(Isolate* isolate,
-                                                Address address,
-                                                uint32_t* hashable_address) {
+bool OffHeapInstructionStream::TryGetAddressForHashing(
+    Isolate* isolate, Address address, uint32_t* hashable_address) {
   // Mksnapshot calls this while the embedded blob is not available yet.
   if (isolate->embedded_blob_code() == nullptr) return false;
   DCHECK_NOT_NULL(Isolate::CurrentEmbeddedBlobCode());
@@ -84,7 +83,8 @@ bool InstructionStream::TryGetAddressForHashing(Isolate* isolate,
 }
 
 // static
-Builtin InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
+Builtin OffHeapInstructionStream::TryLookupCode(Isolate* isolate,
+                                                Address address) {
   // Mksnapshot calls this while the embedded blob is not available yet.
   if (isolate->embedded_blob_code() == nullptr) return Builtin::kNoBuiltinId;
   DCHECK_NOT_NULL(Isolate::CurrentEmbeddedBlobCode());
@@ -95,15 +95,27 @@ Builtin InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
       !Builtins::IsBuiltinId(builtin)) {
     builtin = i::TryLookupCode(EmbeddedData::FromBlob(), address);
   }
+
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  if (V8_SHORT_BUILTIN_CALLS_BOOL && !Builtins::IsBuiltinId(builtin)) {
+    // When shared pointer compression cage is enabled and it has the embedded
+    // code blob copy then it could have been used regardless of whether the
+    // isolate uses it or knows about it or not (see
+    // Code::OffHeapInstructionStart()).
+    // So, this blob has to be checked too.
+    CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
+    if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
+      builtin = i::TryLookupCode(EmbeddedData::FromBlob(code_range), address);
+    }
+  }
+#endif
   return builtin;
 }
 
 // static
-void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
-                                                       uint8_t** code,
-                                                       uint32_t* code_size,
-                                                       uint8_t** data,
-                                                       uint32_t* data_size) {
+void OffHeapInstructionStream::CreateOffHeapOffHeapInstructionStream(
+    Isolate* isolate, uint8_t** code, uint32_t* code_size, uint8_t** data,
+    uint32_t* data_size) {
   // Create the embedded blob from scratch using the current Isolate's heap.
   EmbeddedData d = EmbeddedData::FromIsolate(isolate);
 
@@ -158,10 +170,8 @@ void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
 }
 
 // static
-void InstructionStream::FreeOffHeapInstructionStream(uint8_t* code,
-                                                     uint32_t code_size,
-                                                     uint8_t* data,
-                                                     uint32_t data_size) {
+void OffHeapInstructionStream::FreeOffHeapOffHeapInstructionStream(
+    uint8_t* code, uint32_t code_size, uint8_t* data, uint32_t data_size) {
   v8::PageAllocator* page_allocator = v8::internal::GetPlatformPageAllocator();
   const uint32_t page_size =
       static_cast<uint32_t>(page_allocator->AllocatePageSize());

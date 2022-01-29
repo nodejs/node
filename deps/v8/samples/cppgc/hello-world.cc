@@ -24,13 +24,13 @@
 class Rope final : public cppgc::GarbageCollected<Rope> {
  public:
   explicit Rope(std::string part, Rope* next = nullptr)
-      : part_(part), next_(next) {}
+      : part_(std::move(part)), next_(next) {}
 
   void Trace(cppgc::Visitor* visitor) const { visitor->Trace(next_); }
 
  private:
-  std::string part_;
-  cppgc::Member<Rope> next_;
+  const std::string part_;
+  const cppgc::Member<Rope> next_;
 
   friend std::ostream& operator<<(std::ostream& os, const Rope& rope) {
     os << rope.part_;
@@ -48,16 +48,19 @@ int main(int argc, char* argv[]) {
   // Initialize the process. This must happen before any cppgc::Heap::Create()
   // calls.
   cppgc::DefaultPlatform::InitializeProcess(cppgc_platform.get());
-  // Create a managed heap.
-  std::unique_ptr<cppgc::Heap> heap = cppgc::Heap::Create(cppgc_platform);
-  // Allocate a string rope on the managed heap.
-  auto* greeting = cppgc::MakeGarbageCollected<Rope>(
-      heap->GetAllocationHandle(), "Hello ",
-      cppgc::MakeGarbageCollected<Rope>(heap->GetAllocationHandle(), "World!"));
-  // Manually trigger garbage collection. The object greeting is held alive
-  // through conservative stack scanning.
-  heap->ForceGarbageCollectionSlow("CppGC example", "Testing");
-  std::cout << *greeting << std::endl;
+  {
+    // Create a managed heap.
+    std::unique_ptr<cppgc::Heap> heap = cppgc::Heap::Create(cppgc_platform);
+    // Allocate a string rope on the managed heap.
+    Rope* greeting = cppgc::MakeGarbageCollected<Rope>(
+        heap->GetAllocationHandle(), "Hello ",
+        cppgc::MakeGarbageCollected<Rope>(heap->GetAllocationHandle(),
+                                          "World!"));
+    // Manually trigger garbage collection. The object greeting is held alive
+    // through conservative stack scanning.
+    heap->ForceGarbageCollectionSlow("CppGC example", "Testing");
+    std::cout << *greeting << std::endl;
+  }
   // Gracefully shutdown the process.
   cppgc::ShutdownProcess();
   return 0;

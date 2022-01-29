@@ -10,6 +10,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/strings.h"
+#include "src/codegen/ia32/fma-instr.h"
 #include "src/codegen/ia32/sse-instr.h"
 #include "src/diagnostics/disasm.h"
 
@@ -702,66 +703,6 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
-      case 0x99:
-        AppendToBuffer("vfmadd132s%c %s,%s,", float_size_code(),
-                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0xA9:
-        AppendToBuffer("vfmadd213s%c %s,%s,", float_size_code(),
-                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0xB9:
-        AppendToBuffer("vfmadd231s%c %s,%s,", float_size_code(),
-                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0x9B:
-        AppendToBuffer("vfmsub132s%c %s,%s,", float_size_code(),
-                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0xAB:
-        AppendToBuffer("vfmsub213s%c %s,%s,", float_size_code(),
-                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0xBB:
-        AppendToBuffer("vfmsub231s%c %s,%s,", float_size_code(),
-                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0x9D:
-        AppendToBuffer("vfnmadd132s%c %s,%s,", float_size_code(),
-                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0xAD:
-        AppendToBuffer("vfnmadd213s%c %s,%s,", float_size_code(),
-                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0xBD:
-        AppendToBuffer("vfnmadd231s%c %s,%s,", float_size_code(),
-                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0x9F:
-        AppendToBuffer("vfnmsub132s%c %s,%s,", float_size_code(),
-                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0xAF:
-        AppendToBuffer("vfnmsub213s%c %s,%s,", float_size_code(),
-                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0xBF:
-        AppendToBuffer("vfnmsub231s%c %s,%s,", float_size_code(),
-                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
       case 0xF7:
         AppendToBuffer("shlx %s,", NameOfCPURegister(regop));
         current += PrintRightOperand(current);
@@ -799,8 +740,35 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AVX2_BROADCAST_LIST(DISASSEMBLE_AVX2_BROADCAST)
 #undef DISASSEMBLE_AVX2_BROADCAST
 
-      default:
-        UnimplementedInstruction();
+      default: {
+#define DECLARE_FMA_DISASM(instruction, _1, _2, _3, _4, _5, code)    \
+  case 0x##code: {                                                   \
+    AppendToBuffer(#instruction " %s,%s,", NameOfXMMRegister(regop), \
+                   NameOfXMMRegister(vvvv));                         \
+    current += PrintRightXMMOperand(current);                        \
+    break;                                                           \
+  }
+        // Handle all the fma instructions here in the default branch since they
+        // have the same opcodes but differ by rex_w.
+        if (vex_w()) {
+          switch (opcode) {
+            FMA_SS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_PS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            default: {
+              UnimplementedInstruction();
+            }
+          }
+        } else {
+          switch (opcode) {
+            FMA_SD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_PD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            default: {
+              UnimplementedInstruction();
+            }
+          }
+        }
+#undef DECLARE_FMA_DISASM
+      }
     }
   } else if (vex_66() && vex_0f3a()) {
     int mod, regop, rm, vvvv = vex_vreg();

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-typed-funcref --experimental-wasm-eh
-// Flags: --wasm-loop-unrolling --experimental-wasm-return-call
+// Flags: --experimental-wasm-return-call --no-liftoff
 // Needed for exceptions-utils.js.
 // Flags: --allow-natives-syntax
 
@@ -193,4 +193,56 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
   let instance = builder.instantiate();
   assertEquals(11, instance.exports.throw_catch(0));
+})();
+
+// Test that loops are unrolled in the presence of builtins.
+(function UnrollWithBuiltinsTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  builder.addTable(kWasmFuncRef, 10, 10);
+
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add])
+    .exportFunc();
+
+  builder.addFunction("main", makeSig([kWasmI32], []))
+    .addBody([
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 0, kExprI32Const, 0, kExprI32LtS, kExprBrIf, 1,
+        kExprLocalGet, 0,
+        kExprRefFunc, callee.index,
+        kExprTableSet, 0,
+        kExprBr, 0,
+      kExprEnd])
+    .exportFunc();
+
+  builder.instantiate();
+})();
+
+// Test that loops are *not* unrolled in the presence of direct/indirect calls.
+(function LoopWithCallsTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add])
+    .exportFunc();
+
+  builder.addFunction("main", makeSig([kWasmI32], []))
+    .addBody([
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 0,
+        kExprRefFunc, callee.index,
+        kExprCallRef,
+        kExprBrIf, 0,
+      kExprEnd,
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 0,
+        kExprCallFunction, callee.index,
+        kExprBrIf, 0,
+      kExprEnd])
+    .exportFunc();
+
+  builder.instantiate();
 })();

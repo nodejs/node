@@ -62,10 +62,6 @@ class V8_EXPORT HeapHandle {
 
 namespace internal {
 
-namespace testing {
-class TestWithHeap;
-}  // namespace testing
-
 class FatalOutOfMemoryHandler;
 class PageBackend;
 class PreFinalizerHandler;
@@ -75,6 +71,8 @@ class StatsCollector;
 class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
  public:
   using StackSupport = cppgc::Heap::StackSupport;
+  using MarkingType = cppgc::Heap::MarkingType;
+  using SweepingType = cppgc::Heap::SweepingType;
 
   static HeapBase& From(cppgc::HeapHandle& heap_handle) {
     return static_cast<HeapBase&>(heap_handle);
@@ -85,7 +83,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   HeapBase(std::shared_ptr<cppgc::Platform> platform,
            const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
-           StackSupport stack_support);
+           StackSupport stack_support, MarkingType marking_support,
+           SweepingType sweeping_support);
   virtual ~HeapBase();
 
   HeapBase(const HeapBase&) = delete;
@@ -125,6 +124,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   }
 
   MarkerBase* marker() const { return marker_.get(); }
+  std::unique_ptr<MarkerBase>& GetMarkerRefForTesting() { return marker_; }
 
   Compactor& compactor() { return compactor_; }
 
@@ -206,6 +206,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   int GetCreationThreadId() const { return creation_thread_id_; }
 
+  MarkingType marking_support() const { return marking_support_; }
+
  protected:
   // Used by the incremental scheduler to finalize a GC if supported.
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
@@ -276,8 +278,10 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   int creation_thread_id_ = v8::base::OS::GetCurrentThreadId();
 
+  const MarkingType marking_support_;
+  const SweepingType sweeping_support_;
+
   friend class MarkerBase::IncrementalMarkingTask;
-  friend class testing::TestWithHeap;
   friend class cppgc::subtle::DisallowGarbageCollectionScope;
   friend class cppgc::subtle::NoGarbageCollectionScope;
   friend class cppgc::testing::Heap;
