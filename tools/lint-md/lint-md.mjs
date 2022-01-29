@@ -7913,9 +7913,33 @@ function configure(base, extension) {
   return base
 }
 
-function containerFlow(parent, context) {
+function track(options_) {
+  const options = options_ || {};
+  const now = options.now || {};
+  let lineShift = options.lineShift || 0;
+  let line = now.line || 1;
+  let column = now.column || 1;
+  return {move, current, shift}
+  function current() {
+    return {now: {line, column}, lineShift}
+  }
+  function shift(value) {
+    lineShift += value;
+  }
+  function move(value = '') {
+    const chunks = value.split(/\r?\n|\r/g);
+    const tail = chunks[chunks.length - 1];
+    line += chunks.length - 1;
+    column =
+      chunks.length === 1 ? column + tail.length : 1 + tail.length + lineShift;
+    return value
+  }
+}
+
+function containerFlow(parent, context, safeOptions) {
   const indexStack = context.indexStack;
   const children = parent.children || [];
+  const tracker = track(safeOptions);
   const results = [];
   let index = -1;
   indexStack.push(-1);
@@ -7923,13 +7947,19 @@ function containerFlow(parent, context) {
     const child = children[index];
     indexStack[indexStack.length - 1] = index;
     results.push(
-      context.handle(child, parent, context, {before: '\n', after: '\n'})
+      tracker.move(
+        context.handle(child, parent, context, {
+          before: '\n',
+          after: '\n',
+          ...tracker.current()
+        })
+      )
     );
     if (child.type !== 'list') {
       context.bulletLastUsed = undefined;
     }
     if (index < children.length - 1) {
-      results.push(between(child, children[index + 1]));
+      results.push(tracker.move(between(child, children[index + 1])));
     }
   }
   indexStack.pop();
@@ -7971,9 +8001,15 @@ function indentLines(value, map) {
   }
 }
 
-function blockquote(node, _, context) {
+function blockquote(node, _, context, safeOptions) {
   const exit = context.enter('blockquote');
-  const value = indentLines(containerFlow(node, context), map$2);
+  const tracker = track(safeOptions);
+  tracker.move('> ');
+  tracker.shift(2);
+  const value = indentLines(
+    containerFlow(node, context, tracker.current()),
+    map$2
+  );
   exit();
   return value
 }
@@ -8173,46 +8209,50 @@ function escapeBackslashes(value, after) {
   return results.join('')
 }
 
-function code$1(node, _, context) {
+function code$1(node, _, context, safeOptions) {
   const marker = checkFence(context);
   const raw = node.value || '';
   const suffix = marker === '`' ? 'GraveAccent' : 'Tilde';
-  let value;
-  let exit;
   if (formatCodeAsIndented(node, context)) {
-    exit = context.enter('codeIndented');
-    value = indentLines(raw, map$1);
-  } else {
-    const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
-    let subexit;
-    exit = context.enter('codeFenced');
-    value = sequence;
-    if (node.lang) {
-      subexit = context.enter('codeFencedLang' + suffix);
-      value += safe(context, node.lang, {
-        before: '`',
-        after: ' ',
-        encode: ['`']
-      });
-      subexit();
-    }
-    if (node.lang && node.meta) {
-      subexit = context.enter('codeFencedMeta' + suffix);
-      value +=
-        ' ' +
-        safe(context, node.meta, {
-          before: ' ',
-          after: '\n',
-          encode: ['`']
-        });
-      subexit();
-    }
-    value += '\n';
-    if (raw) {
-      value += raw + '\n';
-    }
-    value += sequence;
+    const exit = context.enter('codeIndented');
+    const value = indentLines(raw, map$1);
+    exit();
+    return value
   }
+  const tracker = track(safeOptions);
+  const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
+  const exit = context.enter('codeFenced');
+  let value = tracker.move(sequence);
+  if (node.lang) {
+    const subexit = context.enter('codeFencedLang' + suffix);
+    value += tracker.move(
+      safe(context, node.lang, {
+        before: value,
+        after: ' ',
+        encode: ['`'],
+        ...tracker.current()
+      })
+    );
+    subexit();
+  }
+  if (node.lang && node.meta) {
+    const subexit = context.enter('codeFencedMeta' + suffix);
+    value += tracker.move(' ');
+    value += tracker.move(
+      safe(context, node.meta, {
+        before: value,
+        after: '\n',
+        encode: ['`'],
+        ...tracker.current()
+      })
+    );
+    subexit();
+  }
+  value += tracker.move('\n');
+  if (raw) {
+    value += tracker.move(raw + '\n');
+  }
+  value += tracker.move(sequence);
   exit();
   return value
 }
@@ -8239,32 +8279,54 @@ function checkQuote(context) {
   return marker
 }
 
-function definition(node, _, context) {
-  const marker = checkQuote(context);
-  const suffix = marker === '"' ? 'Quote' : 'Apostrophe';
+function definition(node, _, context, safeOptions) {
+  const quote = checkQuote(context);
+  const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
   const exit = context.enter('definition');
   let subexit = context.enter('label');
-  let value =
-    '[' + safe(context, association(node), {before: '[', after: ']'}) + ']: ';
+  const tracker = track(safeOptions);
+  let value = tracker.move('[');
+  value += tracker.move(
+    safe(context, association(node), {
+      before: value,
+      after: ']',
+      ...tracker.current()
+    })
+  );
+  value += tracker.move(']: ');
   subexit();
   if (
     !node.url ||
     /[\0- \u007F]/.test(node.url)
   ) {
     subexit = context.enter('destinationLiteral');
-    value += '<' + safe(context, node.url, {before: '<', after: '>'}) + '>';
+    value += tracker.move('<');
+    value += tracker.move(
+      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+    );
+    value += tracker.move('>');
   } else {
     subexit = context.enter('destinationRaw');
-    value += safe(context, node.url, {before: ' ', after: ' '});
+    value += tracker.move(
+      safe(context, node.url, {
+        before: value,
+        after: node.title ? ' ' : '\n',
+        ...tracker.current()
+      })
+    );
   }
   subexit();
   if (node.title) {
     subexit = context.enter('title' + suffix);
-    value +=
-      ' ' +
-      marker +
-      safe(context, node.title, {before: marker, after: marker}) +
-      marker;
+    value += tracker.move(' ' + quote);
+    value += tracker.move(
+      safe(context, node.title, {
+        before: value,
+        after: quote,
+        ...tracker.current()
+      })
+    );
+    value += tracker.move(quote);
     subexit();
   }
   exit();
@@ -8290,6 +8352,7 @@ function containerPhrasing(parent, context, safeOptions) {
   let index = -1;
   let before = safeOptions.before;
   indexStack.push(-1);
+  let tracker = track(safeOptions);
   while (++index < children.length) {
     const child = children[index];
     let after;
@@ -8300,7 +8363,8 @@ function containerPhrasing(parent, context, safeOptions) {
       after = handle
         ? handle(children[index + 1], parent, context, {
             before: '',
-            after: ''
+            after: '',
+            ...tracker.current()
           }).charAt(0)
         : '';
     } else {
@@ -8316,8 +8380,18 @@ function containerPhrasing(parent, context, safeOptions) {
         ' '
       );
       before = ' ';
+      tracker = track(safeOptions);
+      tracker.move(results.join(''));
     }
-    results.push(context.handle(child, parent, context, {before, after}));
+    results.push(
+      tracker.move(
+        context.handle(child, parent, context, {
+          ...tracker.current(),
+          before,
+          after
+        })
+      )
+    );
     before = results[results.length - 1].slice(-1);
   }
   indexStack.pop();
@@ -8325,15 +8399,21 @@ function containerPhrasing(parent, context, safeOptions) {
 }
 
 emphasis.peek = emphasisPeek;
-function emphasis(node, _, context) {
+function emphasis(node, _, context, safeOptions) {
   const marker = checkEmphasis(context);
   const exit = context.enter('emphasis');
-  const value = containerPhrasing(node, context, {
-    before: marker,
-    after: marker
-  });
+  const tracker = track(safeOptions);
+  let value = tracker.move(marker);
+  value += tracker.move(
+    containerPhrasing(node, context, {
+      before: value,
+      after: marker,
+      ...tracker.current()
+    })
+  );
+  value += tracker.move(marker);
   exit();
-  return marker + value + marker
+  return value
 }
 function emphasisPeek(_, _1, context) {
   return context.options.emphasis || '*'
@@ -8510,12 +8590,17 @@ function formatHeadingAsSetext(node, context) {
   )
 }
 
-function heading(node, _, context) {
+function heading(node, _, context, safeOptions) {
   const rank = Math.max(Math.min(6, node.depth || 1), 1);
+  const tracker = track(safeOptions);
   if (formatHeadingAsSetext(node, context)) {
     const exit = context.enter('headingSetext');
     const subexit = context.enter('phrasing');
-    const value = containerPhrasing(node, context, {before: '\n', after: '\n'});
+    const value = containerPhrasing(node, context, {
+      ...tracker.current(),
+      before: '\n',
+      after: '\n'
+    });
     subexit();
     exit();
     return (
@@ -8530,7 +8615,12 @@ function heading(node, _, context) {
   const sequence = '#'.repeat(rank);
   const exit = context.enter('headingAtx');
   const subexit = context.enter('phrasing');
-  let value = containerPhrasing(node, context, {before: '# ', after: '\n'});
+  tracker.move(sequence + ' ');
+  let value = containerPhrasing(node, context, {
+    before: '# ',
+    after: '\n',
+    ...tracker.current()
+  });
   if (/^[\t ]/.test(value)) {
     value =
       '&#x' +
@@ -8556,37 +8646,53 @@ function htmlPeek() {
 }
 
 image.peek = imagePeek;
-function image(node, _, context) {
+function image(node, _, context, safeOptions) {
   const quote = checkQuote(context);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
   const exit = context.enter('image');
   let subexit = context.enter('label');
-  let value = '![' + safe(context, node.alt, {before: '[', after: ']'}) + '](';
+  const tracker = track(safeOptions);
+  let value = tracker.move('![');
+  value += tracker.move(
+    safe(context, node.alt, {before: value, after: ']', ...tracker.current()})
+  );
+  value += tracker.move('](');
   subexit();
   if (
     (!node.url && node.title) ||
     /[\0- \u007F]/.test(node.url)
   ) {
     subexit = context.enter('destinationLiteral');
-    value += '<' + safe(context, node.url, {before: '<', after: '>'}) + '>';
+    value += tracker.move('<');
+    value += tracker.move(
+      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+    );
+    value += tracker.move('>');
   } else {
     subexit = context.enter('destinationRaw');
-    value += safe(context, node.url, {
-      before: '(',
-      after: node.title ? ' ' : ')'
-    });
+    value += tracker.move(
+      safe(context, node.url, {
+        before: value,
+        after: node.title ? ' ' : ')',
+        ...tracker.current()
+      })
+    );
   }
   subexit();
   if (node.title) {
     subexit = context.enter('title' + suffix);
-    value +=
-      ' ' +
-      quote +
-      safe(context, node.title, {before: quote, after: quote}) +
-      quote;
+    value += tracker.move(' ' + quote);
+    value += tracker.move(
+      safe(context, node.title, {
+        before: value,
+        after: quote,
+        ...tracker.current()
+      })
+    );
+    value += tracker.move(quote);
     subexit();
   }
-  value += ')';
+  value += tracker.move(')');
   exit();
   return value
 }
@@ -8595,24 +8701,36 @@ function imagePeek() {
 }
 
 imageReference.peek = imageReferencePeek;
-function imageReference(node, _, context) {
+function imageReference(node, _, context, safeOptions) {
   const type = node.referenceType;
   const exit = context.enter('imageReference');
   let subexit = context.enter('label');
-  const alt = safe(context, node.alt, {before: '[', after: ']'});
-  let value = '![' + alt + ']';
+  const tracker = track(safeOptions);
+  let value = tracker.move('![');
+  const alt = safe(context, node.alt, {
+    before: value,
+    after: ']',
+    ...tracker.current()
+  });
+  value += tracker.move(alt + '][');
   subexit();
   const stack = context.stack;
   context.stack = [];
   subexit = context.enter('reference');
-  const reference = safe(context, association(node), {before: '[', after: ']'});
+  const reference = safe(context, association(node), {
+    before: value,
+    after: ']',
+    ...tracker.current()
+  });
   subexit();
   context.stack = stack;
   exit();
   if (type === 'full' || !alt || alt !== reference) {
-    value += '[' + reference + ']';
-  } else if (type !== 'shortcut') {
-    value += '[]';
+    value += tracker.move(reference + ']');
+  } else if (type === 'shortcut') {
+    value = value.slice(0, -1);
+  } else {
+    value += tracker.move(']');
   }
   return value
 }
@@ -8672,51 +8790,76 @@ function formatLinkAsAutolink(node, context) {
 }
 
 link.peek = linkPeek;
-function link(node, _, context) {
+function link(node, _, context, safeOptions) {
   const quote = checkQuote(context);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
+  const tracker = track(safeOptions);
   let exit;
   let subexit;
-  let value;
   if (formatLinkAsAutolink(node, context)) {
     const stack = context.stack;
     context.stack = [];
     exit = context.enter('autolink');
-    value =
-      '<' + containerPhrasing(node, context, {before: '<', after: '>'}) + '>';
+    let value = tracker.move('<');
+    value += tracker.move(
+      containerPhrasing(node, context, {
+        before: value,
+        after: '>',
+        ...tracker.current()
+      })
+    );
+    value += tracker.move('>');
     exit();
     context.stack = stack;
     return value
   }
   exit = context.enter('link');
   subexit = context.enter('label');
-  value =
-    '[' + containerPhrasing(node, context, {before: '[', after: ']'}) + '](';
+  let value = tracker.move('[');
+  value += tracker.move(
+    containerPhrasing(node, context, {
+      before: value,
+      after: '](',
+      ...tracker.current()
+    })
+  );
+  value += tracker.move('](');
   subexit();
   if (
     (!node.url && node.title) ||
     /[\0- \u007F]/.test(node.url)
   ) {
     subexit = context.enter('destinationLiteral');
-    value += '<' + safe(context, node.url, {before: '<', after: '>'}) + '>';
+    value += tracker.move('<');
+    value += tracker.move(
+      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+    );
+    value += tracker.move('>');
   } else {
     subexit = context.enter('destinationRaw');
-    value += safe(context, node.url, {
-      before: '(',
-      after: node.title ? ' ' : ')'
-    });
+    value += tracker.move(
+      safe(context, node.url, {
+        before: value,
+        after: node.title ? ' ' : ')',
+        ...tracker.current()
+      })
+    );
   }
   subexit();
   if (node.title) {
     subexit = context.enter('title' + suffix);
-    value +=
-      ' ' +
-      quote +
-      safe(context, node.title, {before: quote, after: quote}) +
-      quote;
+    value += tracker.move(' ' + quote);
+    value += tracker.move(
+      safe(context, node.title, {
+        before: value,
+        after: quote,
+        ...tracker.current()
+      })
+    );
+    value += tracker.move(quote);
     subexit();
   }
-  value += ')';
+  value += tracker.move(')');
   exit();
   return value
 }
@@ -8725,24 +8868,36 @@ function linkPeek(node, _, context) {
 }
 
 linkReference.peek = linkReferencePeek;
-function linkReference(node, _, context) {
+function linkReference(node, _, context, safeOptions) {
   const type = node.referenceType;
   const exit = context.enter('linkReference');
   let subexit = context.enter('label');
-  const text = containerPhrasing(node, context, {before: '[', after: ']'});
-  let value = '[' + text + ']';
+  const tracker = track(safeOptions);
+  let value = tracker.move('[');
+  const text = containerPhrasing(node, context, {
+    before: value,
+    after: ']',
+    ...tracker.current()
+  });
+  value += tracker.move(text + '][');
   subexit();
   const stack = context.stack;
   context.stack = [];
   subexit = context.enter('reference');
-  const reference = safe(context, association(node), {before: '[', after: ']'});
+  const reference = safe(context, association(node), {
+    before: value,
+    after: ']',
+    ...tracker.current()
+  });
   subexit();
   context.stack = stack;
   exit();
   if (type === 'full' || !text || text !== reference) {
-    value += '[' + reference + ']';
-  } else if (type !== 'shortcut') {
-    value += '[]';
+    value += tracker.move(reference + ']');
+  } else if (type === 'shortcut') {
+    value = value.slice(0, -1);
+  } else {
+    value += tracker.move(']');
   }
   return value
 }
@@ -8836,7 +8991,7 @@ function checkRule(context) {
   return marker
 }
 
-function list(node, parent, context) {
+function list(node, parent, context, safeOptions) {
   const exit = context.enter('list');
   const bulletCurrent = context.bulletCurrent;
   let bullet = node.ordered ? checkBulletOrdered(context) : checkBullet(context);
@@ -8892,7 +9047,7 @@ function list(node, parent, context) {
     bullet = bulletOther;
   }
   context.bulletCurrent = bullet;
-  const value = containerFlow(node, context);
+  const value = containerFlow(node, context, safeOptions);
   context.bulletLastUsed = bullet;
   context.bulletCurrent = bulletCurrent;
   exit();
@@ -8914,7 +9069,7 @@ function checkListItemIndent(context) {
   return style
 }
 
-function listItem(node, parent, context) {
+function listItem(node, parent, context, safeOptions) {
   const listItemIndent = checkListItemIndent(context);
   let bullet = context.bulletCurrent || checkBullet(context);
   if (parent && parent.type === 'list' && parent.ordered) {
@@ -8935,8 +9090,14 @@ function listItem(node, parent, context) {
   ) {
     size = Math.ceil(size / 4) * 4;
   }
+  const tracker = track(safeOptions);
+  tracker.move(bullet + ' '.repeat(size - bullet.length));
+  tracker.shift(size);
   const exit = context.enter('listItem');
-  const value = indentLines(containerFlow(node, context), map);
+  const value = indentLines(
+    containerFlow(node, context, tracker.current()),
+    map
+  );
   exit();
   return value
   function map(line, index, blank) {
@@ -8947,17 +9108,17 @@ function listItem(node, parent, context) {
   }
 }
 
-function paragraph(node, _, context) {
+function paragraph(node, _, context, safeOptions) {
   const exit = context.enter('paragraph');
   const subexit = context.enter('phrasing');
-  const value = containerPhrasing(node, context, {before: '\n', after: '\n'});
+  const value = containerPhrasing(node, context, safeOptions);
   subexit();
   exit();
   return value
 }
 
-function root(node, _, context) {
-  return containerFlow(node, context)
+function root(node, _, context, safeOptions) {
+  return containerFlow(node, context, safeOptions)
 }
 
 function checkStrong(context) {
@@ -8973,15 +9134,21 @@ function checkStrong(context) {
 }
 
 strong.peek = strongPeek;
-function strong(node, _, context) {
+function strong(node, _, context, safeOptions) {
   const marker = checkStrong(context);
   const exit = context.enter('strong');
-  const value = containerPhrasing(node, context, {
-    before: marker,
-    after: marker
-  });
+  const tracker = track(safeOptions);
+  let value = tracker.move(marker + marker);
+  value += tracker.move(
+    containerPhrasing(node, context, {
+      before: value,
+      after: marker,
+      ...tracker.current()
+    })
+  );
+  value += tracker.move(marker + marker);
   exit();
-  return marker + marker + value + marker + marker
+  return value
 }
 function strongPeek(_, _1, context) {
   return context.options.strong || '*'
@@ -9181,7 +9348,12 @@ function toMarkdown(tree, options = {}) {
     unknown,
     handlers: context.handlers
   });
-  let result = context.handle(tree, null, context, {before: '\n', after: '\n'});
+  let result = context.handle(tree, null, context, {
+    before: '\n',
+    after: '\n',
+    now: {line: 1, column: 1},
+    lineShift: 0
+  });
   if (
     result &&
     result.charCodeAt(result.length - 1) !== 10 &&
@@ -10980,8 +11152,6 @@ function previous(match, email) {
   )
 }
 
-let warningColonInFootnote = false;
-let warningListInFootnote = false;
 function gfmFootnoteFromMarkdown() {
   return {
     enter: {
@@ -11045,51 +11215,53 @@ function gfmFootnoteToMarkdown() {
     unsafe: [{character: '[', inConstruct: ['phrasing', 'label', 'reference']}],
     handlers: {footnoteDefinition, footnoteReference}
   }
-  function footnoteReference(node, _, context) {
+  function footnoteReference(node, _, context, safeOptions) {
+    const tracker = track(safeOptions);
+    let value = tracker.move('[^');
     const exit = context.enter('footnoteReference');
     const subexit = context.enter('reference');
-    const reference = safe(context, association(node), {
-      before: '^',
-      after: ']'
-    });
+    value += tracker.move(
+      safe(context, association(node), {
+        ...tracker.current(),
+        before: value,
+        after: ']'
+      })
+    );
     subexit();
     exit();
-    return '[^' + reference + ']'
+    value += tracker.move(']');
+    return value
   }
   function footnoteReferencePeek() {
     return '['
   }
-  function footnoteDefinition(node, _, context) {
+  function footnoteDefinition(node, _, context, safeOptions) {
+    const tracker = track(safeOptions);
+    let value = tracker.move('[^');
     const exit = context.enter('footnoteDefinition');
     const subexit = context.enter('label');
-    const id = safe(context, association(node), {before: '^', after: ']'});
-    const label = '[^' + id + ']:';
+    value += tracker.move(
+      safe(context, association(node), {
+        ...tracker.current(),
+        before: value,
+        after: ']'
+      })
+    );
     subexit();
-    const value = indentLines(containerFlow(node, context), map);
+    value += tracker.move(
+      ']:' + (node.children && node.children.length > 0 ? ' ' : '')
+    );
+    tracker.shift(4);
+    value += tracker.move(
+      indentLines(containerFlow(node, context, tracker.current()), map)
+    );
     exit();
-    if (!warningColonInFootnote && id.includes(':')) {
-      console.warn(
-        '[mdast-util-gfm-footnote] Warning: Found a colon in footnote identifier `' +
-          id +
-          '`. GitHub currently crahes on colons in footnotes (see <https://github.com/github/cmark-gfm/issues/241> for more info)'
-      );
-      warningColonInFootnote = true;
-    }
-    if (!warningListInFootnote) {
-      visit$1(node, 'list', () => {
-        console.warn(
-          '[mdast-util-gfm-footnote] Warning: Found a list in a footnote definition. GitHub currently crahes on lists in footnotes (see <https://github.com/github/cmark-gfm/issues/241> for more info)'
-        );
-        warningListInFootnote = true;
-        return EXIT$1
-      });
-    }
     return value
     function map(line, index, blank) {
       if (index) {
         return (blank ? '' : '    ') + line
       }
-      return (blank ? label : label + ' ') + line
+      return line
     }
   }
 }
@@ -11110,11 +11282,18 @@ function enterStrikethrough(token) {
 function exitStrikethrough(token) {
   this.exit(token);
 }
-function handleDelete(node, _, context) {
+function handleDelete(node, _, context, safeOptions) {
+  const tracker = track(safeOptions);
   const exit = context.enter('emphasis');
-  const value = containerPhrasing(node, context, {before: '~', after: '~'});
+  let value = tracker.move('~~');
+  value += containerPhrasing(node, context, {
+    ...tracker.current(),
+    before: value,
+    after: '~'
+  });
+  value += tracker.move('~~');
   exit();
-  return '~~' + value + '~~'
+  return value
 }
 function peekDelete() {
   return '~'
@@ -11353,18 +11532,22 @@ function gfmTableToMarkdown(options) {
       inlineCode: inlineCodeWithTable
     }
   }
-  function handleTable(node, _, context) {
-    return serializeData(handleTableAsData(node, context), node.align)
+  function handleTable(node, _, context, safeOptions) {
+    return serializeData(
+      handleTableAsData(node, context, safeOptions),
+      node.align
+    )
   }
-  function handleTableRow(node, _, context) {
-    const row = handleTableRowAsData(node, context);
+  function handleTableRow(node, _, context, safeOptions) {
+    const row = handleTableRowAsData(node, context, safeOptions);
     const value = serializeData([row]);
     return value.slice(0, value.indexOf('\n'))
   }
-  function handleTableCell(node, _, context) {
+  function handleTableCell(node, _, context, safeOptions) {
     const exit = context.enter('tableCell');
     const subexit = context.enter('phrasing');
     const value = containerPhrasing(node, context, {
+      ...safeOptions,
       before: around,
       after: around
     });
@@ -11380,24 +11563,33 @@ function gfmTableToMarkdown(options) {
       stringLength
     })
   }
-  function handleTableAsData(node, context) {
+  function handleTableAsData(node, context, safeOptions) {
     const children = node.children;
     let index = -1;
     const result = [];
     const subexit = context.enter('table');
     while (++index < children.length) {
-      result[index] = handleTableRowAsData(children[index], context);
+      result[index] = handleTableRowAsData(
+        children[index],
+        context,
+        safeOptions
+      );
     }
     subexit();
     return result
   }
-  function handleTableRowAsData(node, context) {
+  function handleTableRowAsData(node, context, safeOptions) {
     const children = node.children;
     let index = -1;
     const result = [];
     const subexit = context.enter('tableRow');
     while (++index < children.length) {
-      result[index] = handleTableCell(children[index], node, context);
+      result[index] = handleTableCell(
+        children[index],
+        node,
+        context,
+        safeOptions
+      );
     }
     subexit();
     return result
@@ -11423,12 +11615,12 @@ const gfmTaskListItemToMarkdown = {
   handlers: {listItem: listItemWithTaskListItem}
 };
 function exitCheck(token) {
-  this.stack[this.stack.length - 2].checked =
-    token.type === 'taskListCheckValueChecked';
+  const node =  (this.stack[this.stack.length - 2]);
+  node.checked = token.type === 'taskListCheckValueChecked';
 }
 function exitParagraphWithTaskListItem(token) {
-  const parent = this.stack[this.stack.length - 2];
-  const node = this.stack[this.stack.length - 1];
+  const parent =  (this.stack[this.stack.length - 2]);
+  const node =  (this.stack[this.stack.length - 1]);
   const siblings = parent.children;
   const head = node.children[0];
   let index = -1;
@@ -11451,7 +11643,11 @@ function exitParagraphWithTaskListItem(token) {
       head.value = head.value.slice(1);
       if (head.value.length === 0) {
         node.children.shift();
-      } else {
+      } else if (
+        node.position &&
+        head.position &&
+        typeof head.position.start.offset === 'number'
+      ) {
         head.position.start.column++;
         head.position.start.offset++;
         node.position.start = Object.assign({}, head.position.start);
@@ -11460,15 +11656,25 @@ function exitParagraphWithTaskListItem(token) {
   }
   this.exit(token);
 }
-function listItemWithTaskListItem(node, parent, context) {
+function listItemWithTaskListItem(node, parent, context, safeOptions) {
   const head = node.children[0];
-  let value = listItem(node, parent, context);
-  if (typeof node.checked === 'boolean' && head && head.type === 'paragraph') {
+  const checkable =
+    typeof node.checked === 'boolean' && head && head.type === 'paragraph';
+  const checkbox = '[' + (node.checked ? 'x' : ' ') + '] ';
+  const tracker = track(safeOptions);
+  if (checkable) {
+    tracker.move(checkbox);
+  }
+  let value = listItem(node, parent, context, {
+    ...safeOptions,
+    ...tracker.current()
+  });
+  if (checkable) {
     value = value.replace(/^(?:[*+-]|\d+\.)([\r\n]| {1,3})/, check);
   }
   return value
   function check($0) {
-    return $0 + '[' + (node.checked ? 'x' : ' ') + '] '
+    return $0 + checkbox
   }
 }
 
