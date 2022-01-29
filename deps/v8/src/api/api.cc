@@ -10361,6 +10361,11 @@ EmbedderStateScope::EmbedderStateScope(Isolate* isolate,
                                        EmbedderStateTag tag)
     : embedder_state_(new internal::EmbedderState(isolate, context, tag)) {}
 
+// std::unique_ptr's destructor is not compatible with Forward declared
+// EmbedderState class.
+// Default destructor must be defined in implementation file.
+EmbedderStateScope::~EmbedderStateScope() = default;
+
 void TracedReferenceBase::CheckValue() const {
 #ifdef V8_HOST_ARCH_64_BIT
   if (!val_) return;
