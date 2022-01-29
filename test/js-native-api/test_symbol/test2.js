@@ -6,10 +6,12 @@ const assert = require('assert');
 const test_symbol = require(`./build/${common.buildType}/test_symbol`);
 
 const fooSym = test_symbol.New('foo');
+assert.strictEqual(fooSym.toString(), 'Symbol(foo)');
+
 const myObj = {};
 myObj.foo = 'bar';
 myObj[fooSym] = 'baz';
-Object.keys(myObj); // -> [ 'foo' ]
-Object.getOwnPropertyNames(myObj); // -> [ 'foo' ]
-Object.getOwnPropertySymbols(myObj); // -> [ Symbol(foo) ]
-assert.strictEqual(Object.getOwnPropertySymbols(myObj)[0], fooSym);
+
+assert.deepStrictEqual(Object.keys(myObj), ['foo']);
+assert.deepStrictEqual(Object.getOwnPropertyNames(myObj), ['foo']);
+assert.deepStrictEqual(Object.getOwnPropertySymbols(myObj), [fooSym]);
