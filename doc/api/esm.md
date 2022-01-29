@@ -530,34 +530,18 @@ separate cache.
 
 > Stability: 1 - Experimental
 
-Currently importing JSON modules are only supported in the `commonjs` mode
-and are loaded using the CJS loader. [WHATWG JSON modules specification][] are
-still being standardized, and are experimentally supported by including the
-additional flag `--experimental-json-modules` when running Node.js.
-
-When the `--experimental-json-modules` flag is included, both the
-`commonjs` and `module` mode use the new experimental JSON
-loader. The imported JSON only exposes a `default`. There is no
-support for named exports. A cache entry is created in the CommonJS
-cache to avoid duplication. The same object is returned in
-CommonJS if the JSON module has already been imported from the
-same path.
-
-Assuming an `index.mjs` with
+JSON files can be referenced by `import`:
 
 ```js
 import packageConfig from './package.json' assert { type: 'json' };
 ```
 
-The `--experimental-json-modules` flag is needed for the module
-to work.
-
-```bash
-node index.mjs # fails
-node --experimental-json-modules index.mjs # works
-```
-
 The `assert { type: 'json' }` syntax is mandatory; see [Import Assertions][].
+
+The imported JSON only exposes a `default`. There is no support for named
+exports. A cache entry is created in the CommonJS cache to avoid duplication.
+The same object is returned in CommonJS if the JSON module has already been
+imported from the same path.
 
 <i id="esm_experimental_wasm_modules"></i>
 
@@ -1452,7 +1436,6 @@ success!
 [Node.js Module Resolution Algorithm]: #resolver-algorithm-specification
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
-[WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
 [`"exports"`]: packages.md#exports
 [`"type"`]: packages.md#type
 [`--input-type`]: cli.md#--input-typetype
