@@ -2,7 +2,7 @@ name: Authors update
 on:
   schedule:
     # Run once a week at 00:05 AM UTC on Sunday.
-    - cron: '5 0 * * 0'
+    - cron: 5 0 * * 0
 
   workflow_dispatch:
 
@@ -15,7 +15,7 @@ jobs:
         with:
           fetch-depth: '0'  # This is required to actually get all the authors
           persist-credentials: false
-      - run: "tools/update-authors.js"  # Run the AUTHORS tool
+      - run: tools/update-authors.js  # Run the AUTHORS tool
       - uses: gr2m/create-or-update-pull-request-action@v1  # Create a PR or update the Action's existing PR
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
@@ -25,7 +25,7 @@ jobs:
             Here are some new additions to the AUTHORS file.
             This is an automatically generated PR by the
             `authors.yml` GitHub Action, which runs `tools/update-authors.js`.
-          branch: "actions/authors-update"  # Custom branch *just* for this Action.
-          commit-message: "meta: update AUTHORS"
+          branch: actions/authors-update  # Custom branch *just* for this Action.
+          commit-message: 'meta: update AUTHORS'
           labels: meta
-          title: "meta: update AUTHORS"
+          title: 'meta: update AUTHORS'
