@@ -5893,15 +5893,9 @@ module.exports = class Minipass extends Stream {
         return
     }
 
-    // TODO: replace with a spread operator when Node v4 support drops
-    const args = new Array(arguments.length)
-    args[0] = ev
-    args[1] = data
-    if (arguments.length > 2) {
-      for (let i = 2; i < arguments.length; i++) {
-        args[i] = arguments[i]
-      }
-    }
+    const args = new Array(...arguments);
+    args[0] = ev;
+    args[1] = data;
 
     try {
       return super.emit.apply(this, args)
