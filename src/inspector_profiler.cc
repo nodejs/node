@@ -170,18 +170,12 @@ static bool EnsureDirectory(const std::string& directory, const char* type) {
 }
 
 std::string V8CoverageConnection::GetFilename() const {
-  std::string thread_id = std::to_string(env()->thread_id());
-  std::string pid = std::to_string(uv_os_getpid());
-  std::string timestamp = std::to_string(
-      static_cast<uint64_t>(GetCurrentTimeInMicroseconds() / 1000));
-  char filename[1024];
-  snprintf(filename,
-           sizeof(filename),
-           "coverage-%s-%s-%s.json",
-           pid.c_str(),
-           timestamp.c_str(),
-           thread_id.c_str());
-  return filename;
+  uint64_t timestamp =
+      static_cast<uint64_t>(GetCurrentTimeInMicroseconds() / 1000);
+  return SPrintF("coverage-%s-%s-%s.json",
+      uv_os_getpid(),
+      timestamp,
+      env()->thread_id());
 }
 
 void V8ProfilerConnection::WriteProfile(Local<Object> result) {
