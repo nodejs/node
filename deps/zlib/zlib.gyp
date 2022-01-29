@@ -18,6 +18,8 @@
             'adler32.c',
             'compress.c',
             'contrib/optimizations/insert_string.h',
+            'cpu_features.c',
+            'cpu_features.h',
             'crc32.c',
             'crc32.h',
             'deflate.c',
@@ -37,7 +39,6 @@
             'trees.c',
             'trees.h',
             'uncompr.c',
-            'x86.h',
             'zconf.h',
             'zlib.h',
             'zutil.c',
@@ -89,15 +90,12 @@
                 'crc32_simd.h',
                 'crc_folding.c',
                 'fill_window_sse.c',
-                'x86.c',
               ],
               'conditions': [
                 ['target_arch=="x64"', {
                   'defines': [ 'INFLATE_CHUNK_READ_64LE' ],
                 }],
               ],
-            }, {
-              'sources': [ 'simd_stub.c', ],
             }],
             ['arm_fpu=="neon"', {
               'defines': [
@@ -111,8 +109,6 @@
                 ['OS!="ios"', {
                   'defines': [ 'CRC32_ARMV8_CRC32' ],
                   'sources': [
-                    'arm_features.c',
-                    'arm_features.h',
                     'crc32_simd.c',
                     'crc32_simd.h',
                   ],

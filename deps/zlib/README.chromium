@@ -2,6 +2,7 @@ Name: zlib
 Short Name: zlib
 URL: http://zlib.net/
 Version: 1.2.11
+CPEPrefix: cpe:/a:zlib:zlib:1.2.11
 Security Critical: yes
 License: Custom license
 License File: LICENSE

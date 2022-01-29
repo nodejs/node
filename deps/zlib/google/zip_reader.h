@@ -14,7 +14,6 @@
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 
@@ -42,6 +41,11 @@ class WriterDelegate {
 
   // Sets the last-modified time of the data.
   virtual void SetTimeModified(const base::Time& time) = 0;
+
+  // Called with the POSIX file permissions of the data; POSIX implementations
+  // may apply some of the permissions (for example, the executable bit) to the
+  // output file.
+  virtual void SetPosixFilePermissions(int mode) = 0;
 };
 
 // This class is used for reading zip files. A typical use case of this
@@ -79,6 +83,9 @@ class ZipReader {
     EntryInfo(const std::string& filename_in_zip,
               const unz_file_info& raw_file_info);
 
+    EntryInfo(const EntryInfo&) = delete;
+    EntryInfo& operator=(const EntryInfo&) = delete;
+
     // Returns the file path. The path is usually relative like
     // "foo/bar.txt", but if it's absolute, is_unsafe() returns true.
     const base::FilePath& file_path() const { return file_path_; }
@@ -110,6 +117,9 @@ class ZipReader {
     // Returns true if the entry is encrypted.
     bool is_encrypted() const { return is_encrypted_; }
 
+    // Returns the posix file permissions of the entry.
+    int posix_mode() const { return posix_mode_; }
+
    private:
     const base::FilePath file_path_;
     int64_t original_size_;
@@ -117,10 +127,14 @@ class ZipReader {
     bool is_directory_;
     bool is_unsafe_;
     bool is_encrypted_;
-    DISALLOW_COPY_AND_ASSIGN(EntryInfo);
+    int posix_mode_;
   };
 
   ZipReader();
+
+  ZipReader(const ZipReader&) = delete;
+  ZipReader& operator=(const ZipReader&) = delete;
+
   ~ZipReader();
 
   // Opens the zip file specified by |zip_file_path|. Returns true on
@@ -225,8 +239,6 @@ class ZipReader {
   std::unique_ptr<EntryInfo> current_entry_info_;
 
   base::WeakPtrFactory<ZipReader> weak_ptr_factory_{this};
-
-  DISALLOW_COPY_AND_ASSIGN(ZipReader);
 };
 
 // A writer delegate that writes to a given File.
@@ -239,6 +251,9 @@ class FileWriterDelegate : public WriterDelegate {
 
   // Constructs a FileWriterDelegate that takes ownership of |file|.
   explicit FileWriterDelegate(std::unique_ptr<base::File> file);
+
+  FileWriterDelegate(const FileWriterDelegate&) = delete;
+  FileWriterDelegate& operator=(const FileWriterDelegate&) = delete;
 
   // Truncates the file to the number of bytes written.
   ~FileWriterDelegate() override;
@@ -255,6 +270,10 @@ class FileWriterDelegate : public WriterDelegate {
   // Sets the last-modified time of the data.
   void SetTimeModified(const base::Time& time) override;
 
+  // On POSIX systems, sets the file to be executable if the source file was
+  // executable.
+  void SetPosixFilePermissions(int mode) override;
+
   // Return the actual size of the file.
   int64_t file_length() { return file_length_; }
 
@@ -267,14 +286,16 @@ class FileWriterDelegate : public WriterDelegate {
   std::unique_ptr<base::File> owned_file_;
 
   int64_t file_length_ = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(FileWriterDelegate);
 };
 
 // A writer delegate that writes a file at a given path.
 class FilePathWriterDelegate : public WriterDelegate {
  public:
   explicit FilePathWriterDelegate(const base::FilePath& output_file_path);
+
+  FilePathWriterDelegate(const FilePathWriterDelegate&) = delete;
+  FilePathWriterDelegate& operator=(const FilePathWriterDelegate&) = delete;
+
   ~FilePathWriterDelegate() override;
 
   // WriterDelegate methods:
@@ -289,11 +310,13 @@ class FilePathWriterDelegate : public WriterDelegate {
   // Sets the last-modified time of the data.
   void SetTimeModified(const base::Time& time) override;
 
+  // On POSIX systems, sets the file to be executable if the source file was
+  // executable.
+  void SetPosixFilePermissions(int mode) override;
+
  private:
   base::FilePath output_file_path_;
   base::File file_;
-
-  DISALLOW_COPY_AND_ASSIGN(FilePathWriterDelegate);
 };
 
 }  // namespace zip
