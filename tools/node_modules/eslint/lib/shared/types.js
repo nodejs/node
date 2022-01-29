@@ -106,6 +106,21 @@ module.exports = {};
  */
 
 /**
+ * @typedef {Object} SuppressedLintMessage
+ * @property {number|undefined} column The 1-based column number.
+ * @property {number} [endColumn] The 1-based column number of the end location.
+ * @property {number} [endLine] The 1-based line number of the end location.
+ * @property {boolean} fatal If `true` then this is a fatal error.
+ * @property {{range:[number,number], text:string}} [fix] Information for autofix.
+ * @property {number|undefined} line The 1-based line number.
+ * @property {string} message The error message.
+ * @property {string|null} ruleId The ID of the rule which makes this message.
+ * @property {0|1|2} severity The severity of this message.
+ * @property {Array<{kind: string, justification: string}>} suppressions The suppression info.
+ * @property {Array<{desc?: string, messageId?: string, fix: {range: [number, number], text: string}}>} [suggestions] Information for suggestions.
+ */
+
+/**
  * @typedef {Object} SuggestionResult
  * @property {string} desc A short description.
  * @property {string} [messageId] Id referencing a message for the description.
