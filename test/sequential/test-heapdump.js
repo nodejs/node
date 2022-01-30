@@ -25,13 +25,13 @@ process.chdir(tmpdir.path);
 }
 
 {
-  const readonlyFile = 'ro';
-  fs.writeFileSync(readonlyFile, Buffer.alloc(0), { mode: 0o444 });
+  const directory = 'directory';
+  fs.mkdirSync(directory);
   assert.throws(() => {
-    writeHeapSnapshot(readonlyFile);
+    writeHeapSnapshot(directory);
   }, (e) => {
     assert.ok(e, 'writeHeapSnapshot should error');
-    assert.strictEqual(e.code, 'EACCES');
+    assert.strictEqual(e.code, 'EISDIR');
     assert.strictEqual(e.syscall, 'open');
     return true;
   });
