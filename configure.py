@@ -1143,7 +1143,7 @@ def configure_arm(o):
   if options.dest_os == 'android':
     arm_fpu = 'vfpv3'
     o['variables']['arm_version'] = '7'
-  
+
   if flavor == 'win':
     arm_fpu = 'neon'
 
