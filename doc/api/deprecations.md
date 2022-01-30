@@ -3056,6 +3056,21 @@ This method was deprecated because it is not compatible with
 
 Use [`buffer.subarray`][] which does the same thing instead.
 
+### DEP0159: `require('node:crypto').getRandomValues()`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41596
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+This method was deprecated because it is is relying on a non-standard behavior.
+
+Use [`crypto.webcrypto.getRandomValues()`][] instead.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3094,6 +3109,7 @@ Use [`buffer.subarray`][] which does the same thing instead.
 [`crypto.pbkdf2()`]: crypto.md#cryptopbkdf2password-salt-iterations-keylen-digest-callback
 [`crypto.randomBytes()`]: crypto.md#cryptorandombytessize-callback
 [`crypto.scrypt()`]: crypto.md#cryptoscryptpassword-salt-keylen-options-callback
+[`crypto.webcrypto.getRandomValues()`]: webcrypto.md#cryptogetrandomvaluestypedarray
 [`decipher.final()`]: crypto.md#decipherfinaloutputencoding
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback

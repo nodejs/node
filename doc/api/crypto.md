@@ -4107,12 +4107,13 @@ console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 
 <!-- YAML
 added: v17.4.0
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated. Use [`crypto.webcrypto.getRandomValues()`][] instead.
 
 * `typedArray` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Buffer|TypedArray|DataView|ArrayBuffer} Returns `typedArray`.
-
-A convenient alias for [`crypto.webcrypto.getRandomValues()`][].
 
 ### `crypto.hkdf(digest, ikm, salt, info, keylen, callback)`
 
