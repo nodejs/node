@@ -128,14 +128,14 @@ async function generateRsaKey(modulusLength = 2048, hash = 'SHA-256') {
 ### Encryption and decryption
 
 ```js
-const { subtle, getRandomValues } = require('crypto').webcrypto;
+const crypto = require('crypto').webcrypto;
 
 async function aesEncrypt(plaintext) {
   const ec = new TextEncoder();
   const key = await generateAesKey();
-  const iv = getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(16));
 
-  const ciphertext = await subtle.encrypt({
+  const ciphertext = await crypto.subtle.encrypt({
     name: 'AES-CBC',
     iv,
   }, key, ec.encode(plaintext));
@@ -149,7 +149,7 @@ async function aesEncrypt(plaintext) {
 
 async function aesDecrypt(ciphertext, key, iv) {
   const dec = new TextDecoder();
-  const plaintext = await subtle.decrypt({
+  const plaintext = await crypto.subtle.decrypt({
     name: 'AES-CBC',
     iv,
   }, key, ciphertext);
