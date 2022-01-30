@@ -4110,7 +4110,8 @@ added: v17.4.0
 deprecated: REPLACEME
 -->
 
-> Stability: 0 - Deprecated. Use [`crypto.webcrypto.getRandomValues()`][] instead.
+> Stability: 0 - Deprecated. Use [`crypto.webcrypto.getRandomValues()`][]
+> instead.
 
 * `typedArray` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Buffer|TypedArray|DataView|ArrayBuffer} Returns `typedArray`.
