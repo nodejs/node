@@ -275,6 +275,7 @@ module.exports = {
     'rest-spread-spacing': 'error',
     'semi': 'error',
     'semi-spacing': 'error',
+    'sort-keys':  ['error', 'asc'],
     'space-before-blocks': ['error', 'always'],
     'space-before-function-paren': ['error', {
       anonymous: 'never',
