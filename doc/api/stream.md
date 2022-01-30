@@ -2142,7 +2142,7 @@ const pairs = await Readable.from(['a', 'b', 'c']).asIndexedPairs().toArray();
 console.log(pairs); // [[0, 'a'], [1, 'b'], [2, 'c']]
 ```
 
-### `readable.reduce(fn[, initial[, options])`
+### `readable.reduce(fn[, initial[, options]])`
 
 <!-- YAML
 added: REPLACEME
