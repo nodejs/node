@@ -4,6 +4,7 @@ const common = require('../../common');
 const tmpdir = require('../../common/tmpdir');
 const fs = require('fs');
 const path = require('path');
+const url = require('url');
 const filename = require.resolve(`./build/${common.buildType}/test_general`);
 const test_general = require(filename);
 const assert = require('assert');
@@ -13,9 +14,7 @@ tmpdir.refresh();
 {
   // TODO(gabrielschulhof): This test may need updating if/when the filename
   // becomes a full-fledged URL.
-  assert.strictEqual(
-    decodeURIComponent(test_general.filename),
-    `file://${filename}`);
+  assert.strictEqual(test_general.filename, url.pathToFileURL(filename).href);
 }
 
 {
@@ -25,9 +24,7 @@ tmpdir.refresh();
   fs.copyFileSync(filename, urlTestFile);
   const reportedFilename = require(urlTestFile).filename;
   assert.doesNotMatch(reportedFilename, /foo%\?#bar/);
-  assert.strictEqual(
-    decodeURIComponent(reportedFilename),
-    `file://${urlTestFile}`);
+  assert.strictEqual(reportedFilename, url.pathToFileURL(urlTestFile).href);
 }
 
 {
