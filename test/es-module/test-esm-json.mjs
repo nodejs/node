@@ -9,7 +9,6 @@ strictEqual(secret.ofLife, 42);
 
 // Test warning message
 const child = spawn(process.execPath, [
-  '--experimental-json-modules',
   path('/es-modules/json-modules.mjs'),
 ]);
 
