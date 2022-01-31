@@ -12,6 +12,7 @@ NodePlugin.RULES_DIR = path.resolve(__dirname, 'tools', 'eslint-rules');
 // if invoked by a globally-installed ESLint or ESLint installed elsewhere
 // rather than the one we ship. This makes it possible for IDEs to lint files
 // with our rules while people edit them.
+
 const ModuleFindPath = Module._findPath;
 const hacks = [
   'eslint-plugin-node-core',
@@ -121,9 +122,11 @@ module.exports = {
     'brace-style': ['error', '1tbs', { allowSingleLine: true }],
     'capitalized-comments': ['error', 'always', {
       line: {
+        
         // Ignore all lines that have less characters than 20 and all lines that
         // start with something that looks like a variable name or code.
         // eslint-disable-next-line max-len
+        
         ignorePattern: '.{0,20}$|[a-z]+ ?[0-9A-Z_.(/=:[#-]|std|http|ssh|ftp|(let|var|const) [a-z_A-Z0-9]+ =|[b-z] |[a-z]*[0-9].* ',
         ignoreInlineComments: true,
         ignoreConsecutiveComments: true,
