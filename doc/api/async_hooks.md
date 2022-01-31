@@ -339,7 +339,8 @@ TTYWRAP, UDPSENDWRAP, UDPWRAP, WRITEWRAP, ZLIB, SSLCONNECTION, PBKDF2REQUEST,
 RANDOMBYTESREQUEST, TLSWRAP, Microtask, Timeout, Immediate, TickObject
 ```
 
-**Note**: you should not rely too much on these _identifiers_ as they could arbitrarily change.
+**Note**: you should not rely too much on these _identifiers_
+as they could arbitrarily change.
 
 There is also the `PROMISE` resource type, which is used to track `Promise`
 instances and asynchronous work scheduled by them.
