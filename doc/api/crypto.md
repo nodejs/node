@@ -4112,7 +4112,8 @@ added: v17.4.0
 * `typedArray` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Buffer|TypedArray|DataView|ArrayBuffer} Returns `typedArray`.
 
-A convenient alias for [`crypto.webcrypto.getRandomValues()`][].
+A convenient alias for [`crypto.randomFillSync()`][] that has the same signature as
+[`crypto.webcrypto.getRandomValues()`][].
 
 ### `crypto.hkdf(digest, ikm, salt, info, keylen, callback)`
 
@@ -6005,6 +6006,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.publicEncrypt()`]: #cryptopublicencryptkey-buffer
 [`crypto.randomBytes()`]: #cryptorandombytessize-callback
 [`crypto.randomFill()`]: #cryptorandomfillbuffer-offset-size-callback
+[`crypto.randomFillSync()`]: #cryptorandomfillsyncbuffer-offset-size
 [`crypto.scrypt()`]: #cryptoscryptpassword-salt-keylen-options-callback
 [`crypto.webcrypto.getRandomValues()`]: webcrypto.md#cryptogetrandomvaluestypedarray
 [`crypto.webcrypto.subtle`]: webcrypto.md#class-subtlecrypto
