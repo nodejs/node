@@ -1,4 +1,3 @@
-// Flags: --experimental-json-modules
 import '../common/index.mjs';
 import { rejects } from 'assert';
 
