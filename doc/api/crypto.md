@@ -5464,21 +5464,6 @@ and returned `'latin1'` encoded strings by default rather than `Buffer`s. This
 default was changed after Node.js v0.8 to use [`Buffer`][] objects by default
 instead.
 
-### Recent ECDH changes
-
-Usage of `ECDH` with non-dynamically generated key pairs has been simplified.
-Now, [`ecdh.setPrivateKey()`][] can be called with a preselected private key
-and the associated public point (key) will be computed and stored in the object.
-This allows code to only store and provide the private part of the EC key pair.
-[`ecdh.setPrivateKey()`][] now also validates that the private key is valid for
-the selected curve.
-
-The [`ecdh.setPublicKey()`][] method is now deprecated as its inclusion in the
-API is not useful. Either a previously stored private key should be set, which
-automatically generates the associated public key, or [`ecdh.generateKeys()`][]
-should be called. The main drawback of using [`ecdh.setPublicKey()`][] is that
-it can be used to put the ECDH key pair into an inconsistent state.
-
 ### Support for weak or compromised algorithms
 
 The `crypto` module still supports some algorithms which are already
@@ -6028,7 +6013,6 @@ See the [list of SSL OP Flags][] for details.
 [`diffieHellman.setPublicKey()`]: #diffiehellmansetpublickeypublickey-encoding
 [`ecdh.generateKeys()`]: #ecdhgeneratekeysencoding-format
 [`ecdh.setPrivateKey()`]: #ecdhsetprivatekeyprivatekey-encoding
-[`ecdh.setPublicKey()`]: #ecdhsetpublickeypublickey-encoding
 [`hash.digest()`]: #hashdigestencoding
 [`hash.update()`]: #hashupdatedata-inputencoding
 [`hmac.digest()`]: #hmacdigestencoding
