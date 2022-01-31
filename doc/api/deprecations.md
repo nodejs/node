@@ -3061,13 +3061,14 @@ Use [`buffer.subarray`][] which does the same thing instead.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/41596
+    pr-url: https://github.com/nodejs/node/pull/41779
     description: Documentation-only deprecation.
 -->
 
 Type: Documentation-only
 
-This method was deprecated because it is is relying on a non-standard behavior.
+This method is deprecated because of compatibility issues with the rest of the
+JavaScript ecosystem.
 
 Use [`crypto.webcrypto.getRandomValues()`][] instead.
 
