@@ -404,7 +404,7 @@ inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
 void ThrowErrStringTooLong(v8::Isolate* isolate);
 
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                    const std::string_view& str,
+                                    std::string_view str,
                                     v8::Isolate* isolate) {
   if (isolate == nullptr) isolate = context->GetIsolate();
   if (UNLIKELY(str.size() >= static_cast<size_t>(v8::String::kMaxLength))) {
