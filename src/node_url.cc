@@ -1550,7 +1550,7 @@ std::string URL::SerializeURL(const url_data& url,
                               bool exclude = false) {
   std::string output;
   output.reserve(
-    10 +
+    10 + // We generally insert < 10 separator characters between URL parts
     url.scheme.size() +
     url.username.size() +
     url.password.size() +
