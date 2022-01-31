@@ -4112,8 +4112,8 @@ added: v17.4.0
 * `typedArray` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Buffer|TypedArray|DataView|ArrayBuffer} Returns `typedArray`.
 
-A convenient alias for [`crypto.randomFillSync()`][] that has the same signature as
-[`crypto.webcrypto.getRandomValues()`][].
+A convenient alias for [`crypto.randomFillSync()`][] that has the same signature
+as [`crypto.webcrypto.getRandomValues()`][].
 
 ### `crypto.hkdf(digest, ikm, salt, info, keylen, callback)`
 
