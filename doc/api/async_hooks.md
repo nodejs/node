@@ -329,6 +329,8 @@ The `type` is a string identifying the type of resource that caused
 `init` to be called. Generally, it will correspond to the name of the
 resource's constructor.
 
+Here is a list of potential _identifiers_:
+
 ```text
 FSEVENTWRAP, FSREQCALLBACK, GETADDRINFOREQWRAP, GETNAMEINFOREQWRAP, HTTPINCOMINGMESSAGE,
 HTTPCLIENTREQUEST, JSSTREAM, PIPECONNECTWRAP, PIPEWRAP, PROCESSWRAP, QUERYWRAP,
@@ -336,6 +338,8 @@ SHUTDOWNWRAP, SIGNALWRAP, STATWATCHER, TCPCONNECTWRAP, TCPSERVERWRAP, TCPWRAP,
 TTYWRAP, UDPSENDWRAP, UDPWRAP, WRITEWRAP, ZLIB, SSLCONNECTION, PBKDF2REQUEST,
 RANDOMBYTESREQUEST, TLSWRAP, Microtask, Timeout, Immediate, TickObject
 ```
+
+**Note**: you should not rely too much on these _identifiers_ as they could arbitrarily change.
 
 There is also the `PROMISE` resource type, which is used to track `Promise`
 instances and asynchronous work scheduled by them.
