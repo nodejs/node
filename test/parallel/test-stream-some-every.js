@@ -87,6 +87,17 @@ function oneTo5Async() {
   assert.rejects(async () => {
     await Readable.from([1]).every(1);
   }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+
+  assert.rejects(async () => {
+    await Readable.from([1]).every((x) => x, 1);
+  }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+
+  assert.rejects(async () => {
+    await Readable.from([1]).every((x) => x, {
+      signal: true
+    });
+  }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+
   assert.rejects(async () => {
     await Readable.from([1]).every((x) => x, {
       concurrency: 'Foo'

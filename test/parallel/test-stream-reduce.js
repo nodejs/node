@@ -121,6 +121,8 @@ function sum(p, c) {
   // Error cases
   assert.rejects(() => Readable.from([]).reduce(1), /TypeError/);
   assert.rejects(() => Readable.from([]).reduce('5'), /TypeError/);
+  assert.rejects(() => Readable.from([]).reduce((x, y) => x + y, 0, 1), /ERR_INVALID_ARG_TYPE/);
+  assert.rejects(() => Readable.from([]).reduce((x, y) => x + y, 0, { signal: true }), /ERR_INVALID_ARG_TYPE/);
 }
 
 {
