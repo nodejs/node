@@ -31,7 +31,9 @@ process.chdir(tmpdir.path);
     writeHeapSnapshot(directory);
   }, (e) => {
     assert.ok(e, 'writeHeapSnapshot should error');
-    assert.strictEqual(e.code, 'EISDIR');
+    // TODO(RaisinTen): This should throw EISDIR on Windows too.
+    assert.strictEqual(e.code,
+                       process.platform === 'win32' ? 'EACCES' : 'EISDIR');
     assert.strictEqual(e.syscall, 'open');
     return true;
   });
