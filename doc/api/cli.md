@@ -290,14 +290,6 @@ added:
 
 Enable experimental `import.meta.resolve()` support.
 
-### `--experimental-json-modules`
-
-<!-- YAML
-added: v12.9.0
--->
-
-This option is a no-op. It is kept for compatibility.
-
 ### `--experimental-loader=module`
 
 <!-- YAML
