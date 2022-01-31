@@ -55,7 +55,7 @@ const bench = common.createBenchmark(main, {
 
 function main({ n, input }) {
   let inputs = [input];
-  if (groupedInputs.hasOwnProperty(input)) {
+  if (Object.hasOwn(groupedInputs, input)) {
     inputs = groupedInputs[input];
   }
 
