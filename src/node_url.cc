@@ -1597,7 +1597,7 @@ std::string URL::SerializeURL(const url_data& url,
   if (url.flags & URL_FLAGS_HAS_QUERY) {
     output += "?" + url.query;
   }
-  if (!exclude && url.flags & URL_FLAGS_HAS_FRAGMENT) {
+  if (!exclude && (url.flags & URL_FLAGS_HAS_FRAGMENT)) {
     output += "#" + url.fragment;
   }
   output.shrink_to_fit();
