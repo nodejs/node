@@ -1,4 +1,4 @@
-// Flags: --experimental-json-modules --experimental-loader ./test/fixtures/es-module-loaders/assertionless-json-import.mjs
+// Flags: --experimental-loader ./test/fixtures/es-module-loaders/assertionless-json-import.mjs
 'use strict';
 const common = require('../common');
 const { strictEqual } = require('assert');
