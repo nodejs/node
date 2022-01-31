@@ -122,8 +122,7 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
 bool Hash::HashUpdate(const char* data, size_t len) {
   if (!mdctx_)
     return false;
-  EVP_DigestUpdate(mdctx_.get(), data, len);
-  return true;
+  return EVP_DigestUpdate(mdctx_.get(), data, len) == 1;
 }
 
 void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
