@@ -1740,7 +1740,9 @@ showBoth();
 ### `readable.map(fn[, options])`
 
 <!-- YAML
-added: v17.4.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -1785,7 +1787,9 @@ for await (const result of dnsResults) {
 ### `readable.filter(fn[, options])`
 
 <!-- YAML
-added: v17.4.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -2754,7 +2758,9 @@ Returns whether the stream has been read from or cancelled.
 ### `stream.isErrored(stream)`
 
 <!-- YAML
-added: v17.3.0
+added:
+  - v17.3.0
+  - v16.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -2767,7 +2773,9 @@ Returns whether the stream has encountered an error.
 ### `stream.isReadable(stream)`
 
 <!-- YAML
-added: v17.4.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 > Stability: 1 - Experimental

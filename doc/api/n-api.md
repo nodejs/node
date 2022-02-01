@@ -1182,7 +1182,9 @@ This API throws a JavaScript `RangeError` with the text provided.
 #### `node_api_throw_syntax_error`
 
 <!-- YAML
-added: v17.2.0
+added:
+  - v17.2.0
+  - v16.14.0
 -->
 
 ````c
@@ -1298,7 +1300,9 @@ This API returns a JavaScript `RangeError` with the text provided.
 #### `node_api_create_syntax_error`
 
 <!-- YAML
-added: v17.2.0
+added:
+  - v17.2.0
+  - v16.14.0
 -->
 
 ```c
