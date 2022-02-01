@@ -11,9 +11,12 @@ if (isMainThread) {
 
   const counter = new Int32Array(new SharedArrayBuffer(4));
   const worker = new Worker(__filename, { workerData: { counter } });
-  worker.on('exit', common.mustCall(() => {
-    assert.strictEqual(counter[0], 1);
-  }));
+  worker.on(
+    'exit',
+    common.mustCall(() => {
+      assert.strictEqual(counter[0], 1);
+    })
+  );
   worker.on('error', common.mustNotCall());
 } else {
   const { Test } = require(`./build/${common.buildType}/test_worker_terminate`);
@@ -22,7 +25,10 @@ if (isMainThread) {
   // Test() tries to call a function twice and asserts that the second call does
   // not work because of a pending exception.
   Test(() => {
-    Atomics.add(counter, 0, 1);
+    const oldSnap = Atomics.compareExchange(lock, 0, lockSnap, lockSnap + 1);
+    if (oldSnap === lockSnap) {
+      parentPort.postMessage({ i, id });
+    }
     process.exit();
   });
 }
