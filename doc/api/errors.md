@@ -1699,7 +1699,9 @@ An attempt was made to construct an object using a non-public constructor.
 ### `ERR_IMPORT_ASSERTION_TYPE_FAILED`
 
 <!-- YAML
-added: v17.1.0
+added:
+  - v17.1.0
+  - v16.14.0
 -->
 
 An import assertion has failed, preventing the specified module to be imported.
@@ -1709,7 +1711,9 @@ An import assertion has failed, preventing the specified module to be imported.
 ### `ERR_IMPORT_ASSERTION_TYPE_MISSING`
 
 <!-- YAML
-added: v17.1.0
+added:
+  - v17.1.0
+  - v16.14.0
 -->
 
 An import assertion is missing, preventing the specified module to be imported.
@@ -1719,7 +1723,9 @@ An import assertion is missing, preventing the specified module to be imported.
 ### `ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED`
 
 <!-- YAML
-added: v17.1.0
+added:
+  - v17.1.0
+  - v16.14.0
 -->
 
 An import assertion is not supported by this version of Node.js.

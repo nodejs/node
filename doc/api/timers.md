@@ -493,7 +493,9 @@ const interval = 100;
 ### `timersPromises.scheduler.wait(delay[, options])`
 
 <!-- YAML
-added: v17.3.0
+added:
+  - v17.3.0
+  - v16.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -521,7 +523,9 @@ await scheduler.wait(1000); // Wait one second before continuing
 ### `timersPromises.scheduler.yield()`
 
 <!-- YAML
-added: v17.3.0
+added:
+  - v17.3.0
+  - v16.14.0
 -->
 
 > Stability: 1 - Experimental

@@ -880,7 +880,9 @@ added: v11.10.0
 ### `histogram.count`
 
 <!-- YAML
-added: v17.4.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * {number}
@@ -890,7 +892,9 @@ The number of samples recorded by the histogram.
 ### `histogram.countBigInt`
 
 <!-- YAML
-added: v17.4.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * {bigint}
@@ -911,7 +915,9 @@ loop delay threshold.
 ### `histogram.exceedsBigInt`
 
 <!-- YAML
-added: v17.4.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * {bigint}
@@ -932,7 +938,9 @@ The maximum recorded event loop delay.
 ### `histogram.maxBigInt`
 
 <!-- YAML
-added: v17.4.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * {bigint}
@@ -962,7 +970,9 @@ The minimum recorded event loop delay.
 ### `histogram.minBigInt`
 
 <!-- YAML
-added: v17.4.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * {bigint}
@@ -983,7 +993,9 @@ Returns the value at the given percentile.
 ### `histogram.percentileBigInt(percentile)`
 
 <!-- YAML
-added: v17.4.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * `percentile` {number} A percentile value in the range (0, 100).
@@ -1004,7 +1016,9 @@ Returns a `Map` object detailing the accumulated percentile distribution.
 ### `histogram.percentilesBigInt`
 
 <!-- YAML
-added: v17.4.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * {Map}
@@ -1072,7 +1086,9 @@ added:
 ### `histogram.add(other)`
 
 <!-- YAML
-added: v17.4.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * `other` {RecordableHistogram}
