@@ -797,6 +797,26 @@ for (let i = 0; i < 12; i++) {
     fi.emit('data', 'asdf\n');
   }
 
+  // Ensure that options.signal.removeEventListener was called
+  {
+    const ac = new AbortController();
+    const signal = ac.signal;
+    const [rli] = getInterface({ terminal });
+    const expectedCallTimes = 1;
+    signal.removeEventListener = common.mustCall(
+      (event, onAbortFn) => {
+        assert.strictEqual(event, 'abort');
+        assert.strictEqual(onAbortFn.name, 'onAbort');
+      },
+      expectedCallTimes);
+
+    rli.question('hello?', { signal }).then(common.mustCall());
+
+    rli.write('bar\n');
+    ac.abort();
+    rli.close();
+  }
+
   // Sending a blank line
   {
     const [rli, fi] = getInterface({ terminal });
