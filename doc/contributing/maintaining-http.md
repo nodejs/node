@@ -33,9 +33,10 @@ Bug fixes however are still important for all of these APIs.
 
 With respect to the HTTP protocols themselves, our current assessment in
 terms of priority within existing or new APIs is:
-* HTTP 2 is in “maintenance mode” for both protocol and APIs
-* HTTP 1 is a stable protocol, but innovation is still possible with the APIs
-* HTTP 3 is the future need to plan in support
+
+* HTTP 2 is in “maintenance mode” for both protocol and APIs.
+* HTTP 1 is a stable protocol, but innovation is still possible with the APIs.
+* HTTP 3 is the future need to plan in support.
 
 The current strategy is to build out 2 new client APIs and 2 new Server APIs
 in line with the key elements above.
