@@ -334,5 +334,9 @@ module.exports = {
     btoa: 'readable',
     atob: 'readable',
     performance: 'readable',
+    fetch: 'readable',
+    Headers: 'readable',
+    Request: 'readable',
+    Response: 'readable',
   },
 };
