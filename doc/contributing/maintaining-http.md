@@ -13,13 +13,14 @@ on modern HTTP which was held on Jan 27 2022.
 
 The key elements of our strategy for future HTTP APIs are:
 
-* APIs should be HTTP protocol independent (support HTTP1, HTTP2, etc.)
-* APIs should be transport protocol independent (TCP, QUIC, etc.)
-* APIs should provide good defaults that perform well
-* Client/server APIs should be consistent and allow easy integration
-* Common requirements like piping out from client API to server APIs should be easy
-* For both the Client and Server there is a need for multiple APIs, with each targeting
-  a different level of abstraction.
+* APIs should be HTTP protocol independent (support HTTP1, HTTP2, etc.).
+* APIs should be transport protocol independent (TCP, QUIC, etc.).
+* APIs should provide good defaults that perform well.
+* Client/server APIs should be consistent and allow easy integration.
+* Common requirements like piping out from client API to server APIs should be
+  easy.
+* For both the Client and Server there is a need for multiple APIs, with each
+  targeting a different level of abstraction.
 
 Unfortunately our existing HTTP APIs:
 
