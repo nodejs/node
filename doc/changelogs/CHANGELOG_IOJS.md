@@ -63,6 +63,7 @@
 
 * Other Versions
   * [17.x](CHANGELOG_V17.md)
+  * [16.x](CHANGELOG_V16.md)
   * [15.x](CHANGELOG_V15.md)
   * [14.x](CHANGELOG_V14.md)
   * [13.x](CHANGELOG_V13.md)
