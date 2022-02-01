@@ -76,7 +76,7 @@ The low-level implementation of the
 and [HTTPS](https://nodejs.org/docs/latest/api/https.html) APIs
 are maintained in the [llttp](https://github.com/nodejs/llhttp)
 repository. Updates are pulled into Node.js under
-[deps/llhttp](https://github.com/nodejs/node/tree/master/deps/llhttp)
+[deps/llhttp](https://github.com/nodejs/node/tree/HEAD/deps/llhttp)
 
 The low-level implementation is made available in the Node.js API through
 JavaScript code in the [lib](https://github.com/nodejs/node/tree/HEAD/lib)
