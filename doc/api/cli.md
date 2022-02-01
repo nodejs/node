@@ -280,14 +280,6 @@ effort to report stack traces relative to the original source file.
 Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
 modifying the stack trace.
 
-### `--experimental-fetch`
-
-<!-- YAML
-added: v17.5.0
--->
-
-Enable experimental support for the [Fetch API][].
-
 ### `--experimental-global-webcrypto`
 
 <!-- YAML
@@ -332,6 +324,14 @@ added: v11.8.0
 -->
 
 Use the specified file as a security policy.
+
+### `--no-experimental-fetch`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Disable experimental support for the [Fetch API][].
 
 ### `--no-experimental-repl-await`
 
@@ -1587,7 +1587,6 @@ Node.js options that are allowed are:
 * `--enable-fips`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
-* `--experimental-fetch`
 * `--experimental-global-webcrypto`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
@@ -1617,6 +1616,7 @@ Node.js options that are allowed are:
 * `--napi-modules`
 * `--no-addons`
 * `--no-deprecation`
+* `--no-experimental-fetch`
 * `--no-experimental-repl-await`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
