@@ -92,7 +92,7 @@ under [deps/nghttp2](https://github.com/nodejs/node/tree/HEAD/deps/nghttp2)
 as needed.
 
 The low-level implementation is made available in the Node.js API through
-JavaScript code in the [lib](https://github.com/nodejs/node/tree/master/lib)
+JavaScript code in the [lib](https://github.com/nodejs/node/tree/HEAD/lib)
 directory and C++ code in the
 [src](https://github.com/nodejs/node/tree/HEAD/src) directory.
 
