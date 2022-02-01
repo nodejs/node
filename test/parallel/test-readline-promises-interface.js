@@ -802,13 +802,11 @@ for (let i = 0; i < 12; i++) {
     const ac = new AbortController();
     const signal = ac.signal;
     const [rli] = getInterface({ terminal });
-    const expectedCallTimes = 1;
     signal.removeEventListener = common.mustCall(
       (event, onAbortFn) => {
         assert.strictEqual(event, 'abort');
         assert.strictEqual(onAbortFn.name, 'onAbort');
-      },
-      expectedCallTimes);
+      });
 
     rli.question('hello?', { signal }).then(common.mustCall());
 
