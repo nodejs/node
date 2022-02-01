@@ -1141,10 +1141,10 @@ Response V8DebuggerAgentImpl::pause() {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
   if (isPaused()) return Response::Success();
 
-  pushBreakDetails(protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
   if (m_debugger->canBreakProgram()) {
     m_debugger->interruptAndBreak(m_session->contextGroupId());
   } else {
+    pushBreakDetails(protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
     m_debugger->setPauseOnNextCall(true, m_session->contextGroupId());
   }
 
