@@ -4,6 +4,12 @@
 
 <!-- type=misc -->
 
+<!-- YAML
+added:
+  - v14.19.0
+  - v16.9.0
+-->
+
 > Stability: 1 - Experimental
 
 _[Corepack][]_ is an experimental tool to help with
