@@ -11,7 +11,7 @@ const worker = new Worker(__filename);
 const snapShotResult = { ondone: () => {} };
 worker[kHandle].takeHeapSnapshot = common.mustCall(() => snapShotResult);
 
-worker.on('online', () => {
+worker.on('online', common.mustCall(() => {
   const snapShotResponse = worker.getHeapSnapshot();
   snapShotResult.ondone({});
 
@@ -19,4 +19,4 @@ worker.on('online', () => {
     assert.ok(heapSnapshotStream instanceof HeapSnapshotStream);
     worker.terminate();
   }));
-});
+}));
