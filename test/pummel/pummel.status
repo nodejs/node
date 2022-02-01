@@ -25,3 +25,5 @@ test-crypto-timing-safe-equal-benchmarks: PASS,FLAKY
 [$system==aix]
 
 [$system==ibmi]
+# https://github.com/nodejs/node/issues/39683
+test-regress-GH-892: PASS, FLAKY
