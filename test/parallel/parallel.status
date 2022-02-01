@@ -63,3 +63,11 @@ test-tls-env-extra-ca: SKIP
 test-dgram-error-message-address: SKIP
 # https://github.com/nodejs/node/issues/36929
 test-crypto-secure-heap: SKIP
+# https://github.com/nodejs/node/issues/39683
+test-dgram-connect: PASS, FLAKY
+test-http-client-parse-error: PASS, FLAKY
+test-http-multi-line-headers: PASS, FLAKY
+test-http-server-unconsume: PASS, FLAKY
+test-http-upgrade-advertise: PASS, FLAKY
+test-http-client-mindhsize: PASS, FLAKY
+test-http-tls-write-error: PASS, FLAKY
