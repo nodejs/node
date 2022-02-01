@@ -270,6 +270,10 @@ const customTypesMap = {
     'webstreams.md#class-textencoderstream',
   'TextDecoderStream':
     'webstreams.md#class-textdecoderstream',
+
+  'Headers': 'https://developer.mozilla.org/en-US/docs/Web/API/Headers',
+  'Response': 'https://developer.mozilla.org/en-US/docs/Web/API/Response',
+  'Request': 'https://developer.mozilla.org/en-US/docs/Web/API/Request',
 };
 
 const arrayPart = /(?:\[])+$/;

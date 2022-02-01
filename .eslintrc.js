@@ -336,5 +336,9 @@ module.exports = {
     atob: 'readable',
     performance: 'readable',
     structuredClone: 'readable',
+    fetch: 'readable',
+    Headers: 'readable',
+    Request: 'readable',
+    Response: 'readable',
   },
 };
