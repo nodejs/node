@@ -315,6 +315,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvironment);
   AddOption("--experimental-abortcontroller", "",
             NoOp{}, kAllowedInEnvironment);
+  AddOption("--experimental-fetch",
+            "experimental Fetch API",
+            &EnvironmentOptions::experimental_fetch,
+            kAllowedInEnvironment);
   AddOption("--experimental-json-modules", "", NoOp{}, kAllowedInEnvironment);
   AddOption("--experimental-loader",
             "use the specified module as a custom loader",

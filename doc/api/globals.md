@@ -333,6 +333,17 @@ A browser-compatible implementation of the `EventTarget` class. See
 
 This variable may appear to be global but is not. See [`exports`][].
 
+## `fetch`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of the [`fetch()`][] function.
+
 ## `global`
 
 <!-- YAML
@@ -347,6 +358,17 @@ In browsers, the top-level scope is the global scope. This means that
 within the browser `var something` will define a new global variable. In
 Node.js this is different. The top-level scope is not the global scope;
 `var something` inside a Node.js module will be local to that module.
+
+## Class `Headers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of {Headers}.
 
 ## `MessageChannel`
 
@@ -441,6 +463,28 @@ DataHandler.prototype.load = async function load(key) {
 ## `require()`
 
 This variable may appear to be global but is not. See [`require()`][].
+
+## `Response`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of {Response}.
+
+## `Request`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of {Request}.
 
 ## `setImmediate(callback[, ...args])`
 
@@ -546,6 +590,7 @@ The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
+[`--experimental-fetch`]: cli.md#--experimental-fetch
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
@@ -565,6 +610,7 @@ The object that acts as the namespace for all W3C
 [`clearTimeout`]: timers.md#cleartimeouttimeout
 [`console`]: console.md
 [`exports`]: modules.md#exports
+[`fetch()`]: https://developer.mozilla.org/en-US/docs/Web/API/fetch
 [`module`]: modules.md#module
 [`perf_hooks.performance`]: perf_hooks.md#perf_hooksperformance
 [`process.nextTick()`]: process.md#processnexttickcallback-args

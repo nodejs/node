@@ -68,12 +68,12 @@ if (process.argv.length === 2 &&
     !process.env.NODE_SKIP_FLAG_CHECK &&
     isMainThread &&
     hasCrypto &&
-    require.main &&
-    require('cluster').isPrimary) {
+    require('cluster').isPrimary &&
+    fs.existsSync(process.argv[1])) {
   // The copyright notice is relatively big and the flags could come afterwards.
   const bytesToRead = 1500;
   const buffer = Buffer.allocUnsafe(bytesToRead);
-  const fd = fs.openSync(require.main.filename, 'r');
+  const fd = fs.openSync(process.argv[1], 'r');
   const bytesRead = fs.readSync(fd, buffer, 0, bytesToRead);
   fs.closeSync(fd);
   const source = buffer.toString('utf8', 0, bytesRead);
@@ -298,6 +298,15 @@ if (global.PerformanceMeasure) {
 // can add this to the list above instead.
 if (global.structuredClone) {
   knownGlobals.push(global.structuredClone);
+}
+
+if (global.fetch) {
+  knownGlobals.push(
+    global.fetch,
+    global.Request,
+    global.Response,
+    global.Headers,
+  );
 }
 
 function allowGlobals(...allowlist) {
