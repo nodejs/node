@@ -2,7 +2,7 @@
 
 Support for HTTP is a key priority in terms of ensuring the continued success of
 Node.js as captured in the project's
-[technical priorities](https://github.com/nodejs/node/blob/master/doc/contributing/technical-priorities.md).
+[technical priorities](https://github.com/nodejs/node/blob/HEAD/doc/contributing/technical-priorities.md).
 
 The current high level strategy is based on the discussion in the
 [Next-10](https://github.com/nodejs/next-10)
