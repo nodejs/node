@@ -22,12 +22,10 @@ The key elements of our strategy for future HTTP APIs are:
 * For both the Client and Server there is a need for multiple APIs, with each
   targeting a different level of abstraction.
 
-Unfortunately our existing HTTP APIs:
-
-* [HTTP](https://nodejs.org/docs/latest/api/http.html)
-* [HTTPS](https://nodejs.org/docs/latest/api/https.html)
-* [HTTP2](https://nodejs.org/docs/latest/api/http2.html)
-
+Unfortunately our existing HTTP APIs (
+[HTTP](https://nodejs.org/docs/latest/api/http.html),
+[HTTPS](https://nodejs.org/docs/latest/api/https.html), and
+[HTTP2](https://nodejs.org/docs/latest/api/http2.html))
 do not align with our high level strategy. While these APIs
 are widely used and we do not plan to deprecate or remove them,
 they are not the focus of active development or performance improvements.
