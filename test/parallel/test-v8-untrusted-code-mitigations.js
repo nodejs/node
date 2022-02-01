@@ -15,4 +15,5 @@ assert.notStrictEqual(untrustedFlag, -1);
 const nextFlag = v8Options.indexOf('--', untrustedFlag + 2);
 const slice = v8Options.substring(untrustedFlag, nextFlag);
 
+// eslint-disable-next-line no-regex-spaces
 assert(slice.match(/type: bool  default: false/));
