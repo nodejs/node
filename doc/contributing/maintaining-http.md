@@ -79,7 +79,7 @@ repository. Updates are pulled into Node.js under
 [deps/llhttp](https://github.com/nodejs/node/tree/master/deps/llhttp)
 
 The low-level implementation is made available in the Node.js API through
-JavaScript code in the [lib](https://github.com/nodejs/node/tree/master/lib)
+JavaScript code in the [lib](https://github.com/nodejs/node/tree/HEAD/lib)
 directory and C++ code in the
 [src](https://github.com/nodejs/node/tree/master/src) directory.
 
