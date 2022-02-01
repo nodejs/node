@@ -272,6 +272,14 @@ effort to report stack traces relative to the original source file.
 Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
 modifying the stack trace.
 
+### `--experimental-fetch`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental support for the [Fetch API][].
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -1540,6 +1548,7 @@ Node.js options that are allowed are:
 * `--enable-fips`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
+* `--experimental-fetch`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -1932,6 +1941,7 @@ $ node --max-old-space-size=1536 index.js
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [CommonJS]: modules.md
 [ECMAScript module loader]: esm.md#loaders
+[Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
 [Modules loaders]: packages.md#modules-loaders
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
